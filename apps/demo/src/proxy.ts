@@ -12,7 +12,7 @@
  */
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { matchesPrefix, routeAccess } from '@/lib/auth/roles';
+import { accessPathname, matchesPrefix, routeAccess } from '@/lib/auth/roles';
 import { REVALIDATE_HEADER, REVALIDATE_ROUTE } from '@/lib/cache/signature';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
@@ -69,7 +69,9 @@ export async function proxy(request: NextRequest) {
     url.search = search;
     return NextResponse.redirect(url, 308);
   }
-  if (isPublicPath(pathname)) return render(request);
+  // Público só se o caminho continuar público depois de normalizado (`/login/..%2Fajustes` não é login).
+  const access = accessPathname(pathname);
+  if (isPublicPath(pathname) && access !== null && isPublicPath(access)) return render(request);
 
   if (pathname === SMOKE_ROUTE && request.headers.has(SMOKE_HEADER)) return NextResponse.next();
   // revalidação do cache pelo seguidor do change feed (o próprio servidor): a rota confere a assinatura
