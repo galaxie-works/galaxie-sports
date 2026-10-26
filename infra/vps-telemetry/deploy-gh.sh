@@ -31,8 +31,19 @@ set -euo pipefail
 VPS="${VPS:-root@145.223.94.149}"
 DIR="${VPS_DIR:-/docker/galaxie-sports}"
 REG="${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}"
+# Este script e os seus vêm do checkout atual (ROOT, a main); o que descreve a versão publicada (compose.yml,
+# env.example, smoke.mjs) vem do checkout do SHA (TARGET_DIR; padrão: o mesmo). Assim, voltar para um SHA anterior a
+# este roteiro também funciona. O post-deploy.sh vem do SHA quando ele já o tem.
 ROOT="$(git rev-parse --show-toplevel)"
 HERE="$ROOT/infra/vps-telemetry"
+TARGET="${TARGET_DIR:-$ROOT}"
+STACK="$TARGET/infra/vps-telemetry"
+POST="$STACK/post-deploy.sh"
+[ -f "$POST" ] || POST="$HERE/post-deploy.sh"
+if [ "$(git -C "$TARGET" rev-parse HEAD)" != "$(git -C "$ROOT" rev-parse "$SHA^{commit}")" ]; then
+  echo "FAIL  o checkout em $TARGET não está no SHA ${SHA:0:7}"
+  exit 1
+fi
 LOCK="$DIR/.deploy.lock"
 # a mesma idade do deploy.sh (teto padrão 80 min + 10): trava mais velha é de deploy morto
 LOCK_STALE_MIN="${LOCK_STALE_MIN:-90}"
@@ -48,8 +59,8 @@ echo "deploy ${SHA:0:7} (GitHub Actions)"
 
 # ── serviços com imagem nossa ───────────────────────────────────────────────────────────────────────────────
 # os que usam IMAGE_TAG no compose do SHA (no env.example a tag é só zeros); fora de perfil, como o lineup-render, não
-ZERO="$(sed -n 's/^IMAGE_TAG=//p' "$HERE/env.example")"
-config_json="$(docker compose -f "$HERE/compose.yml" --env-file "$HERE/env.example" config --format json)"
+ZERO="$(sed -n 's/^IMAGE_TAG=//p' "$STACK/env.example")"
+config_json="$(docker compose -f "$STACK/compose.yml" --env-file "$STACK/env.example" config --format json)"
 mapfile -t SERVICES < <(jq -r --arg z ":$ZERO" '.services | to_entries[] | select(.value.image | endswith($z)) | .key' <<< "$config_json" | sort)
 mapfile -t NAMES < <(jq -r --arg z ":$ZERO" '.services[].image | select(endswith($z)) | rtrimstr($z) | sub(".*-"; "")' <<< "$config_json" | sort -u)
 [ "${#SERVICES[@]}" -gt 0 ] || {
@@ -145,7 +156,7 @@ fi
 PULL="DOCKER_CONFIG=$CFG docker compose"
 
 # ── compose.yml e .env novos, imagens novas ─────────────────────────────────────────────────────────────────
-ssh "$VPS" "cat > $DIR/compose.yml.new" < "$HERE/compose.yml"
+ssh "$VPS" "cat > $DIR/compose.yml.new" < "$STACK/compose.yml"
 # escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
 SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
   SCALE=""
@@ -192,7 +203,7 @@ restore_previous() {
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
-    ssh "$VPS" "cd $DIR && bash -s -- cache" < "$HERE/post-deploy.sh" || echo "WARN  cache não foi limpo depois de voltar"
+    ssh "$VPS" "cd $DIR && bash -s -- cache" < "$POST" || echo "WARN  cache não foi limpo depois de voltar"
     echo "FAIL  deploy desfeito: compose.yml e .env de ${o} de volta e a stack subiu de novo nela; investigue antes de repetir"
     ssh "$VPS" "cd $DIR && docker compose ps -a --format '{{.Service}}: {{.Status}}'" || true
   else
@@ -229,12 +240,12 @@ fi
 [ "$migrate" = "exited 0" ] || restore_previous "migrate não terminou com sucesso ($migrate)"
 MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
-if ! ssh "$VPS" "cd $DIR && bash -s -- all" < "$HERE/post-deploy.sh"; then
+if ! ssh "$VPS" "cd $DIR && bash -s -- all" < "$POST"; then
   restore_previous "pós-deploy falhou (seed ou limpeza do cache)"
 fi
 
 echo "smoke test"
-if ! ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$HERE/smoke.mjs"; then
+if ! ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$STACK/smoke.mjs"; then
   restore_previous "smoke test com falha"
 fi
 STAGE=finished
@@ -245,7 +256,8 @@ STAGE=finished
 lr_pull() {
   local tree version image have
   tree="$(git -C "$ROOT" rev-parse -q --verify "$SHA:infra/lineup-render")" || return 0
-  version="$(sed -n 's/^ *"playwright": *"\([0-9][0-9.]*\)".*/\1/p' "$ROOT/infra/lineup-render/package.json")"
+  version="$(git -C "$ROOT" show "$SHA:infra/lineup-render/package.json" |
+    sed -n 's/^ *"playwright": *"\([0-9][0-9.]*\)".*/\1/p')"
   [ -n "$version" ] || {
     echo "WARN  lineup-render: versão do playwright não encontrada; imagem não conferida"
     return 0

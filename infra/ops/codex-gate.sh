@@ -4,11 +4,19 @@
 #
 #   infra/ops/codex-gate.sh <pr>        # gh autenticado; GH_REPO=dono/repo (padrão: o do checkout)
 #
-# Espera o review terminar: o Codex reage com 👀 enquanto revisa e mantém um comentário-resumo com o estado em JSON
-# (codex-review-state:v1). Com o review em andamento, ou nada dele num PR aberto há menos de CODEX_WAIT_MIN minutos
-# (padrão 10; o review costuma chegar uns minutos depois de abrir), espera até lá. PR mais velho que isso e sem nada
-# do Codex (Dependabot, PR anterior à integração) passa com aviso: o portão barra P1 aberto, não a falta de review.
-# Saída: 0 = sem P1 aberto; 1 = P1 aberto, review ainda rodando no fim da espera, ou o GitHub não respondeu.
+# Espera o review do commit atual. O Codex reage com 👀 enquanto revisa e mantém um comentário-resumo com o estado
+# em JSON (codex-review-state:v1: status e o commit revisado). Vale como pronto só o review terminado do commit atual
+# do PR (head). Review de um commit anterior, ou só o 👍 (que não diz o commit), não basta enquanto durar a espera:
+#   - CODEX_WAIT_MIN (padrão 10) depois de o PR abrir: o review de abertura costuma chegar em poucos minutos;
+#   - CODEX_PUSH_WAIT_MIN (padrão 3) depois do commit atual: se o Codex estiver revisando pushes, o 👀 aparece aí, e
+#     o portão espera o review terminar.
+# Fim da espera sem review do commit atual: o Codex só revisa ao abrir o PR, ao sair de rascunho ou com
+# "@codex review", então nenhum review vai chegar. O portão confere as threads que existem e avisa que o commit atual
+# não foi revisado. CODEX_REQUIRE_CURRENT=1 faz isso falhar (aí é preciso pedir "@codex review" no PR). PR sem nada do
+# Codex (Dependabot, PR anterior à integração) passa com aviso: o portão barra P1 aberto, não a falta de review.
+# Review rodando no fim da espera: espera mais CODEX_WAIT_MIN e, se não terminar, falha.
+# Saída: 0 = sem P1 aberto; 1 = P1 aberto, review ainda rodando, review atual exigido e ausente, ou o GitHub não
+# respondeu.
 set -euo pipefail
 
 PR="${1:?uso: codex-gate.sh <número do PR>}"
@@ -16,46 +24,66 @@ REPO="${GH_REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 OWNER="${REPO%%/*}"
 NAME="${REPO#*/}"
 WAIT_MIN="${CODEX_WAIT_MIN:-10}"
+PUSH_WAIT_MIN="${CODEX_PUSH_WAIT_MIN:-3}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
-# estado do review: running | finished | none
+read -r created head < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.created_at) \(.head.sha)"')
+pushed="$(gh api "repos/$REPO/commits/$head" --jq .commit.committer.date)"
+
+# "<estado> <commit do último review>": running | current (terminado no commit atual) | stale (terminado num commit
+# anterior, ou só o 👍) | none
 review_state() {
-  local reactions status
+  local reactions status sha state
   # 👀 = review rodando; 👍 = terminou sem achado
   reactions="$(gh api "repos/$REPO/issues/$PR/reactions" --paginate \
     --jq '.[] | select(.user.login | test("codex")) | .content' | sort -u | tr '\n' ' ')"
-  # estado do último review no comentário-resumo do bot
-  status="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+  # estado e commit do último review no comentário-resumo do bot
+  read -r status sha < <(gh api "repos/$REPO/issues/$PR/comments" --paginate \
     --jq '.[] | select(.user.login | test("codex")) | .body
-      | capture("codex-review-state:v1 (?<j>[{].*?[}]) -->").j | fromjson | .code_review.status // ""' | tail -n 1)"
-  case " $reactions" in *" eyes "*)
-    echo running
-    return
-    ;;
+      | capture("codex-review-state:v1 (?<j>[{].*?[}]) -->").j | fromjson
+      | "\(.code_review.status // "-") \(.code_review.commit_sha // "-")"' | tail -n 1) || true
+  case " $reactions ${status:--}" in
+    *" eyes "*) state=running ;;
+    *" completed") if [ "${sha:--}" = "$head" ]; then state=current; else state=stale; fi ;;
+    *" -") case " $reactions" in *" +1 "*) state=stale ;; *) state=none ;; esac ;;
+    *) state=running ;;
   esac
-  case "$status" in
-    completed) echo finished ;;
-    '') case " $reactions" in *" +1 "*) echo finished ;; *) echo none ;; esac ;;
-    *) echo running ;;
-  esac
+  echo "$state ${sha:--}"
 }
 
-created="$(gh api "repos/$REPO/pulls/$PR" --jq .created_at)"
 deadline=$(($(date -d "$created" +%s) + WAIT_MIN * 60))
+push_deadline=$(($(date -d "$pushed" +%s) + PUSH_WAIT_MIN * 60))
+[ "$push_deadline" -le "$deadline" ] || deadline=$push_deadline
 while :; do
-  state="$(review_state)"
+  read -r state reviewed < <(review_state)
   now=$(date +%s)
-  [ "$state" = finished ] && break
+  [ "$state" = current ] && break
   if [ "$now" -ge "$deadline" ]; then
     if [ "$state" = running ]; then
-      echo "::error::Codex ainda revisando o PR #$PR depois de $WAIT_MIN min de PR aberto; rode o check de novo quando ele terminar"
+      if [ "$now" -lt $((deadline + WAIT_MIN * 60)) ]; then
+        echo "review do Codex rodando; esperando terminar"
+        sleep 30
+        continue
+      fi
+      echo "::error::Codex ainda revisando o PR #$PR; rode o check de novo quando ele terminar"
       echo "Codex ainda revisando o PR #$PR: rode de novo quando terminar." >> "$SUMMARY"
       exit 1
     fi
-    echo "::warning::Nenhum review do Codex no PR #$PR; sem P1 para conferir além das threads que já existem"
+    if [ "$state" = stale ]; then
+      msg="o último review do Codex é do commit ${reviewed:0:7}, não do atual ${head:0:7} (o Codex revisa ao abrir o PR, ao sair de rascunho ou com \"@codex review\")"
+    else
+      msg="nenhum review do Codex no PR"
+    fi
+    if [ -n "${CODEX_REQUIRE_CURRENT:-}" ]; then
+      echo "::error::PR #$PR: $msg; peça \"@codex review\" e rode o check de novo"
+      echo "❌ PR #$PR: $msg." >> "$SUMMARY"
+      exit 1
+    fi
+    echo "::warning::PR #$PR: $msg; conferindo as threads que existem"
+    echo "⚠️ PR #$PR: $msg." >> "$SUMMARY"
     break
   fi
-  echo "review do Codex: $state; esperando (até $(date -u -d "@$deadline" +%H:%MZ))"
+  echo "review do Codex: $state; esperando o do commit ${head:0:7} (até $(date -u -d "@$deadline" +%H:%MZ))"
   sleep 30
 done
 

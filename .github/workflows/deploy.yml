@@ -124,11 +124,15 @@ jobs:
       SHA: ${{ needs.gate.outputs.sha }}
       VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
     steps:
+      # O roteiro vem da main de agora (o checkout padrão); a versão publicada, de um checkout separado no SHA. Voltar
+      # para um SHA anterior ao deploy-gh.sh também funciona: só o compose.yml, o env.example e o smoke são dele.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.gate.outputs.sha }}
           # histórico e tags para as notas de versão (PRs desde a tag deploy-* anterior)
           fetch-depth: 0
+
+      - name: Checkout do SHA a publicar
+        run: git worktree add --detach "$RUNNER_TEMP/alvo" "$SHA"
 
       - name: Chave SSH da VPS
         env:
@@ -158,6 +162,7 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE: ${{ inputs.force }}
+          TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail
           bash infra/vps-telemetry/deploy-gh.sh 2>&1 | tee "$RUNNER_TEMP/deploy.log"

@@ -332,7 +332,7 @@ jobs:
       # O deploy-gh.sh baixa as imagens dos serviços com IMAGE_TAG no compose; todas precisam sair do job build acima
       - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
         run: |
-          out=$(SHA=0 bash infra/vps-telemetry/deploy-gh.sh --services)
+          out=$(SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --services)
           echo "$out"
           got=$(printf '%s\n' "$out" | sed -n 's/.*imagens: //p' | tr ' ' '\n' | sort | tr '\n' ' ')
           want="api backup demo grafana ingestor prometheus "
