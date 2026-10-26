@@ -45,6 +45,21 @@ export class BudgetExceededError extends LlmError {
   }
 }
 
+/**
+ * IA desligada (AI_STATUS=off, ou AI_AGENT_STATUS=<agente>=off): nenhuma chamada ao LLM. É um
+ * BudgetExceededError para os agentes tratarem como o orçamento esgotado (seguem com o determinístico).
+ */
+export class AiDisabledError extends BudgetExceededError {
+  constructor(agent: string) {
+    super(agent, 0, 0, 0, 'usd');
+    this.message =
+      agent === 'global'
+        ? 'IA desligada (AI_STATUS=off): nenhuma chamada ao LLM; todos os agentes seguem só com o determinístico.'
+        : `IA desligada para o agente ${agent} (AI_AGENT_STATUS=${agent}=off): nenhuma chamada ao LLM; o agente segue só com o determinístico.`;
+    this.name = 'AiDisabledError';
+  }
+}
+
 /** Status HTTP de erros dos SDKs (OpenAI e Anthropic expõem `status`). */
 export function httpStatusOf(err: unknown): number | undefined {
   const s = (err as { status?: unknown } | null)?.status;
