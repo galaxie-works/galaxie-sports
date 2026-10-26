@@ -14,7 +14,9 @@
 # "@codex review", então nenhum review vai chegar. O portão confere as threads que existem e avisa que o commit atual
 # não foi revisado. CODEX_REQUIRE_CURRENT=1 faz isso falhar (aí é preciso pedir "@codex review" no PR). PR sem nada do
 # Codex (Dependabot, PR anterior à integração) passa com aviso: o portão barra P1 aberto, não a falta de review.
-# Review rodando no fim da espera: espera mais CODEX_WAIT_MIN e, se não terminar, falha.
+# Review rodando no fim da espera: espera mais CODEX_WAIT_MIN e, se não terminar, falha. Review que terminou sem
+# revisar (status failed no resumo, por exemplo pelo limite de uso do Codex) não é espera: avisa e confere as threads
+# (falha com CODEX_REQUIRE_CURRENT=1).
 # Saída: 0 = sem P1 aberto; 1 = P1 aberto, review ainda rodando, review atual exigido e ausente, ou o GitHub não
 # respondeu.
 set -euo pipefail
@@ -45,6 +47,10 @@ review_state() {
   case " $reactions ${status:--}" in
     *" eyes "*) state=running ;;
     *" completed") if [ "${sha:--}" = "$head" ]; then state=current; else state=stale; fi ;;
+    # terminou sem revisar (limite de uso do Codex, erro dele): nenhum review vai chegar sem pedir de novo
+    *" failed" | *" error" | *" errored" | *" cancelled" | *" canceled" | *" skipped" | *" timed_out")
+      if [ "${sha:--}" = "$head" ]; then state="failed:$status"; else state=stale; fi
+      ;;
     *" -") case " $reactions" in *" +1 "*) state=stale ;; *) state=none ;; esac ;;
     *) state=running ;;
   esac
@@ -58,6 +64,18 @@ while :; do
   read -r state reviewed < <(review_state)
   now=$(date +%s)
   [ "$state" = current ] && break
+  case "$state" in failed:*)
+    msg="o review do Codex do commit ${reviewed:0:7} terminou sem revisar (status ${state#failed:}; limite de uso do Codex?)"
+    if [ -n "${CODEX_REQUIRE_CURRENT:-}" ]; then
+      echo "::error::PR #$PR: $msg; peça \"@codex review\" de novo e rode o check"
+      echo "❌ PR #$PR: $msg." >> "$SUMMARY"
+      exit 1
+    fi
+    echo "::warning::PR #$PR: $msg; conferindo as threads que existem"
+    echo "⚠️ PR #$PR: $msg." >> "$SUMMARY"
+    break
+    ;;
+  esac
   if [ "$now" -ge "$deadline" ]; then
     if [ "$state" = running ]; then
       if [ "$now" -lt $((deadline + WAIT_MIN * 60)) ]; then
