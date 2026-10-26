@@ -224,7 +224,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
-| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos; com regulamento de tabelas (Apertura/Clausura, anual, promedios), cada grupo traz `display_name`, `table`, `table_key`, `current` e `source` ([docs/rules §1.4](rules/README.md#14-tabelas-da-temporada-tables)) |
+| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos; com regulamento de tabelas (Apertura/Clausura, anual, promedios), cada grupo traz `display_name`, `table`, `table_key`, `current` e `source` ([docs/rules §1.4](rules/README.md#14-tabelas-da-temporada-tables)). Sem regulamento, os grupos reservados do recálculo por fases também trazem `display_name`: `first_phase` (1ª fase), `annual` (tabela anual) e `unnamed:<n>` (grupo deduzido dos jogos) |
 | `GET /v1/competitions/{id}/context` | O que está em jogo: líder, G4/G6, Z4, mata-mata, chaveamento, próximos confrontos decisivos |
 | `GET /v1/venues/{id}` | Estádio/circuito/arena: nome atual (curadoria vence o fornecedor), `provider_name` (nome cru do fornecedor) e `former_names` (`{ name, from, until, origin, confidence }`: curadoria `high` primeiro, depois pistas do fornecedor `low`) |
 

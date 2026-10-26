@@ -38,6 +38,8 @@ export {
   type PhaseResultInput,
 } from './stakes/league-table.js';
 export {
+  autoGroupLabel,
+  autoGroupRank,
   currentPhaseKey,
   knockoutSeed,
   standingsGroupLabel,

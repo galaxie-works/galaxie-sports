@@ -34,6 +34,33 @@ export function standingsGroupLabel(table: StandingsTableRule, group: string, lo
   return `${base} · ${pick(table.subgroupLabel ?? SUBGROUP, lang)} ${sub.toUpperCase()}`;
 }
 
+/**
+ * Grupos de nome reservado que o recálculo grava quando a competição não tem `tables:` no regulamento
+ * (services/ingestor/src/standings/phases-auto.ts): `first_phase`, `annual` e `unnamed:<n>`.
+ */
+const AUTO_GROUP_NAMES: Record<'annual' | 'first_phase' | 'unnamed', TableName> = {
+  annual: { 'pt-BR': 'Tabela anual', es: 'Tabla anual', en: 'Annual table' },
+  first_phase: { 'pt-BR': '1ª fase', es: 'Primera fase', en: 'First phase' },
+  unnamed: { 'pt-BR': 'Grupo sem nome', es: 'Grupo sin nombre', en: 'Unnamed group' },
+};
+const UNNAMED = /^unnamed:(\d+)$/;
+
+/** Nome exibido de um grupo reservado do recálculo sem regulamento; null para os nomes do fornecedor. */
+export function autoGroupLabel(group: string, locale: string): string | null {
+  const lang = langOf(locale);
+  if (group === 'annual' || group === 'first_phase') return pick(AUTO_GROUP_NAMES[group], lang);
+  const n = UNNAMED.exec(group)?.[1];
+  return n ? `${pick(AUTO_GROUP_NAMES.unnamed, lang)} ${n}` : null;
+}
+
+/** Ordem dos grupos sem regulamento: 1ª fase, os do fornecedor, os deduzidos e a tabela anual no fim. */
+export function autoGroupRank(group: string): number {
+  if (group === 'first_phase') return 0;
+  if (group === 'annual') return 1e6;
+  const n = UNNAMED.exec(group)?.[1];
+  return n ? 1000 + Number(n) : 1;
+}
+
 export interface GroupActivity {
   group: string;
   /** Maior número de jogos de um time no grupo. */
