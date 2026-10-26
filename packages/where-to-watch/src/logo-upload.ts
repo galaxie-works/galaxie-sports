@@ -159,12 +159,15 @@ function decodeEntities(v: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/** CSS sem `@import`, sem `url(...)` que não seja âncora local, sem `expression(` e sem `javascript:`. */
+/**
+ * CSS sem `@import`, sem `url(...)` que não seja âncora local, sem `expression(` e sem `javascript:`.
+ * Escape CSS (`\70`, `\:`) é recusado: o navegador o decodifica (`@im\70 ort` = `@import`) e um logo não
+ * precisa dele.
+ */
 function unsafeCss(css: string): boolean {
-  const c = decodeEntities(css)
-    .replace(/\\/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .toLowerCase();
+  const decoded = decodeEntities(css);
+  if (decoded.includes('\\')) return true;
+  const c = decoded.replace(/\/\*[\s\S]*?\*\//g, '').toLowerCase();
   return (
     c.includes('@import') ||
     c.includes('expression(') ||
@@ -189,6 +192,8 @@ function keepAttribute(name: string, rawValue: string): boolean {
   // outros prefixos (editores: `sodipodi:`, `inkscape:`) saem junto com a declaração deles
   if (n.includes(':') && !n.startsWith('xlink:') && !n.startsWith('xml:')) return false;
   if (n === 'style') return !unsafeCss(value);
+  // valor de atributo de apresentação também é CSS: escape (`u\72l(`) esconderia um url() externo
+  if (value.includes('\\')) return false;
   if (/^(javascript|vbscript|data):/.test(compact)) return false;
   // url(...) externo em atributo de apresentação (fill="url(https://…)")
   if (/url\(/i.test(value) && !/^url\(\s*['"]?#[\w.:-]+['"]?\s*\)$/i.test(value.trim())) return false;

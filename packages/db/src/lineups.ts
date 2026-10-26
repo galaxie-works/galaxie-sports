@@ -1699,14 +1699,18 @@ export async function createManualLineupItem(
       case 'plan_service': {
         if (!isUuid(input.planId)) throw new LineupError('target_not_found', 'Plano inexistente.');
         const [plan] = await tx
-          .select({ id: platformPlan.id })
+          .select({ id: platformPlan.id, country: platformPlan.country })
           .from(platformPlan)
           .where(eq(platformPlan.id, input.planId));
-        const refId = input.refId?.trim();
-        const [ref] = refId
-          ? await tx.select({ id: broadcaster.id }).from(broadcaster).where(eq(broadcaster.id, refId))
-          : [];
+        const ref = await libraryRef(tx, input.refId);
         if (!plan || !ref) throw new LineupError('target_not_found', 'Plano ou canal inexistente.');
+        // canal de TV vira plan_channel, streaming vira plan_service; só da biblioteca do país do plano
+        const kinds = input.type === 'plan_channel' ? CHANNEL_KINDS : SERVICE_KINDS;
+        if (!kinds.includes(ref.kind) || !ref.countries.includes(plan.country))
+          throw new LineupError(
+            'invalid_input',
+            `${ref.id} não entra como ${input.type} num plano de ${plan.country}.`,
+          );
         const access = input.access ?? 'included';
         if (!LINEUP_ACCESS.includes(access))
           throw new LineupError('invalid_input', `access inválido: ${access}`);
@@ -1725,14 +1729,13 @@ export async function createManualLineupItem(
       case 'addon': {
         if (!isUuid(input.platformId)) throw new LineupError('target_not_found', 'Plataforma inexistente.');
         const [p] = await tx
-          .select({ id: platform.id })
+          .select({ id: platform.id, country: platform.country })
           .from(platform)
           .where(eq(platform.id, input.platformId));
-        const refId = input.refId?.trim();
-        const [ref] = refId
-          ? await tx.select({ id: broadcaster.id }).from(broadcaster).where(eq(broadcaster.id, refId))
-          : [];
+        const ref = await libraryRef(tx, input.refId);
         if (!p || !ref) throw new LineupError('target_not_found', 'Plataforma ou serviço inexistente.');
+        if (![...CHANNEL_KINDS, ...SERVICE_KINDS].includes(ref.kind) || !ref.countries.includes(p.country))
+          throw new LineupError('invalid_input', `${ref.id} não é canal nem streaming de ${p.country}.`);
         if (!ADDON_KINDS.includes(input.kind))
           throw new LineupError('invalid_input', `kind inválido: ${String(input.kind)}`);
         const name = cleanText(input.name, 160);
@@ -1770,6 +1773,24 @@ export async function createManualLineupItem(
       }
     }
   });
+}
+
+/** Tipos da biblioteca que entram num plano como canal (TV aberta ou paga) e como streaming. Rádio não. */
+const CHANNEL_KINDS: readonly string[] = ['free_tv', 'pay_tv'];
+const SERVICE_KINDS: readonly string[] = ['streaming'];
+
+/** Entrada da biblioteca de emissoras com o tipo e os países, ou null. */
+async function libraryRef(
+  tx: Tx,
+  refId: string | undefined,
+): Promise<{ id: string; kind: string; countries: string[] } | null> {
+  const id = refId?.trim();
+  if (!id) return null;
+  const [row] = await tx
+    .select({ id: broadcaster.id, kind: broadcaster.kind, countries: broadcaster.countries })
+    .from(broadcaster)
+    .where(eq(broadcaster.id, id));
+  return row ?? null;
 }
 
 /** Linha do item (todas as colunas), ou null. */

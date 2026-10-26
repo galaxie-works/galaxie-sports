@@ -89,6 +89,10 @@ beforeAll(async () => {
       markets: {},
     })),
   );
+  await db.insert(broadcaster).values([
+    { id: 'streaming-exemplo', name: 'Streaming Exemplo', kind: 'streaming', countries: ['BR'], markets: {} },
+    { id: 'canal-de-fora', name: 'Canal de Fora', kind: 'pay_tv', countries: ['AR'], markets: {} },
+  ]);
   const r = await upsertLineupDraft(db, research());
   platformId = r.platformId;
   planId = r.planIds['plano-exemplo']!;
@@ -241,6 +245,31 @@ describe('edição manual da grade', () => {
 
     await upsertLineupDraft(db, research());
     expect((await link('canal-exemplo-3'))!.proposedChange).toBeNull();
+
+    // tipo e país da biblioteca conferidos no banco (não só na tela)
+    await expect(
+      createManualLineupItem(db, { type: 'plan_channel', planId, refId: 'streaming-exemplo' }, { by: ADMIN }),
+    ).rejects.toBeInstanceOf(LineupError);
+    await expect(
+      createManualLineupItem(db, { type: 'plan_service', planId, refId: 'canal-exemplo' }, { by: ADMIN }),
+    ).rejects.toBeInstanceOf(LineupError);
+    await expect(
+      createManualLineupItem(db, { type: 'plan_channel', planId, refId: 'canal-de-fora' }, { by: ADMIN }),
+    ).rejects.toBeInstanceOf(LineupError);
+    await expect(
+      createManualLineupItem(
+        db,
+        { type: 'addon', platformId, kind: 'channel', refId: 'canal-de-fora', name: 'Fora' },
+        { by: ADMIN },
+      ),
+    ).rejects.toBeInstanceOf(LineupError);
+    expect(
+      await createManualLineupItem(
+        db,
+        { type: 'plan_service', planId, refId: 'streaming-exemplo' },
+        { by: ADMIN },
+      ),
+    ).toEqual({ type: 'plan_service', planId, serviceId: 'streaming-exemplo' });
 
     const plan2 = await createManualLineupItem(
       db,

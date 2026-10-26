@@ -128,6 +128,23 @@ describe('sanitizeSvg', () => {
     ).toBe('invalid_svg');
   });
 
+  it('escape CSS não esconde @import nem url() externo (em <style>, style e atributo)', () => {
+    expect(
+      code(() =>
+        sanitizeSvg(
+          `<svg xmlns="http://www.w3.org/2000/svg"><style>@im\\70 ort "https://mal.exemplo/x.css";</style><path d="M0"/></svg>`,
+        ),
+      ),
+    ).toBe('invalid_svg');
+    const out = clean(
+      `<svg xmlns="http://www.w3.org/2000/svg">` +
+        `<rect style="fill:u\\72l(https://mal.exemplo/a)" width="1" height="1"/>` +
+        `<rect fill="u\\72l(https://mal.exemplo/b)" width="1" height="1"/></svg>`,
+    );
+    expect(out).not.toContain('mal.exemplo');
+    expect(out).not.toContain('\\');
+  });
+
   it('DOCTYPE/ENTITY, raiz que não é svg, marcação malformada e nada desenhável: recusado', () => {
     expect(code(() => sanitizeSvg(`<!DOCTYPE svg [<!ENTITY x "y">]><svg><path d="M0"/></svg>`))).toBe(
       'invalid_svg',
