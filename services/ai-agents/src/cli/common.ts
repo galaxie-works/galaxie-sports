@@ -1,7 +1,12 @@
 /** Utilitários das CLIs dos agentes: banco, cliente LLM opcional, flags e relatório. */
 import { createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
 import { DEFAULT_P0_MIN_AUDIENCE, ledgerSettingsFromEnv } from '@galaxie/ai-ledger';
-import { EXIT_BUDGET_SKIPPED, applyOverrides } from '@galaxie/runtime-config';
+import {
+  DEFAULT_BUDGET_DAY,
+  EXIT_BUDGET_SKIPPED,
+  applyOverrides,
+  type BudgetDay,
+} from '@galaxie/runtime-config';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
 import { agentStatusFromEnv, aiStatusFromEnv } from '../llm/config.js';
@@ -115,6 +120,15 @@ export async function priorityFor(db: Database): Promise<PriorityResolver> {
     // configuração da IA inválida: o LLM já fica de fora (llmOrNull); a fila usa o corte padrão
   }
   return priorityResolver({ minAudience, env });
+}
+
+/** Virada do dia de orçamento do painel (AI_BUDGET_DAY_START/AI_BUDGET_TIMEZONE); inválida = o padrão. */
+export async function budgetDayFor(db: Database): Promise<BudgetDay> {
+  try {
+    return ledgerSettingsFromEnv(await runtimeEnv(db)).budgetDay;
+  } catch {
+    return DEFAULT_BUDGET_DAY;
+  }
 }
 
 export function intFlag(value: unknown, flag: string): number | undefined {

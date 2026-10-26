@@ -97,6 +97,8 @@ export interface LlmSpend {
   bands: { band: 'p0' | 'p1' | 'clients' | 'rest' | 'manual'; usedUsd: number; limitUsd: number | null }[];
   /** AI_P0_MIN_AUDIENCE: corte P0/P1 (audiência mínima). */
   p0MinAudience: number;
+  /** Alguma das chaves do cartão Política de IA tem sobrescrita no painel (o "voltar ao padrão" a apaga). */
+  policyOverridden: boolean;
   /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS); null = sem teto próprio. */
   agentUsdBudgets: Record<string, number | null>;
   /** De onde vem o teto de cada agente: painel (`db`), env do contêiner ou padrão do código. */

@@ -6,7 +6,15 @@
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { runRecapAgent } from '../recap/run.js';
-import { dbFromEnv, intFlag, llmOrNull, localesFlag, printAgentReport, priorityFor } from './common.js';
+import {
+  dbFromEnv,
+  intFlag,
+  llmOrNull,
+  localesFlag,
+  printAgentReport,
+  priorityFor,
+  budgetDayFor,
+} from './common.js';
 
 const { values } = parseArgs({
   options: {
@@ -32,6 +40,7 @@ try {
   const report = await runRecapAgent(db, {
     llm,
     priorityOf: await priorityFor(db),
+    budgetDay: await budgetDayFor(db),
     plan: values.plan,
     force: values.forcar,
     ...(values.evento ? { eventId: values.evento } : {}),

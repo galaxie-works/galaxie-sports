@@ -12,7 +12,9 @@ import {
   MemoryTokenBudgetStore,
   TokenBudget,
   ledgerSettingsFromEnv,
+  EMPTY_AI_POLICY,
   loadAiPolicy,
+  loadAiPolicyOrEmpty,
   parseAiPolicy,
 } from '@galaxie/ai-ledger';
 import { MarketAudience } from '@galaxie/geo';
@@ -30,6 +32,7 @@ import { parse } from 'yaml';
 import { byPriority, usesLlm } from '../context/run.js';
 import { DEFAULT_AGENT_USD_BUDGETS, parseAgentUsdBudgets } from './config.js';
 import { BudgetedLlmClient } from './budget.js';
+import { bandsFromEnv } from './factory.js';
 import { FakeLlmClient } from './fake.js';
 import { competitionPriority, priorityResolver } from './priority.js';
 import type { LlmJsonRequest } from './types.js';
@@ -53,6 +56,8 @@ describe('config/ai-policy.yaml', () => {
     for (const agent of Object.keys(parseAgentUsdBudgets(DEFAULT_AGENT_USD_BUDGETS)!))
       expect(policy.agents[agent], agent).toBeDefined();
     expect(policy.agents.context).toBe('priority');
+    // a priorização do ao vivo não leva competição: faixa fixa, não `rest`
+    expect(policy.agents.live).toBe('p0');
     expect(policy.agents.lineups).toBe('clients');
     const catalog = parse(readFileSync(repo('config/competitions/football.yaml'), 'utf8')) as {
       competitions: { slug: string }[];
@@ -60,6 +65,14 @@ describe('config/ai-policy.yaml', () => {
     const slugs = new Set(catalog.competitions.map((c) => c.slug));
     for (const slug of [...policy.competitions.p0, ...policy.competitions.p1])
       expect(slugs.has(slug), slug).toBe(true);
+  });
+
+  it('sem o arquivo ou com ele inválido: log e política vazia (os jobs seguem com o determinístico)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(loadAiPolicyOrEmpty('/nao/existe/ai-policy.yaml')).toEqual(EMPTY_AI_POLICY);
+    expect(warn.mock.calls.some(([m]) => String(m).includes('política vazia'))).toBe(true);
+    const bands = bandsFromEnv({ AI_POLICY_FILE: '/nao/existe/ai-policy.yaml' }, { p0MinAudience: 25 });
+    expect(bands.policy).toEqual(EMPTY_AI_POLICY);
   });
 
   it('recusa faixa desconhecida e competição nas duas listas', () => {

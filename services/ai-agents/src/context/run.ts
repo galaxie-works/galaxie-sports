@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { competition, event, type Database } from '@galaxie/db';
 import { AGENT_LOCALES, type AgentLocale } from '../guardrails/index.js';
+import type { BudgetDay } from '@galaxie/runtime-config';
 import { LLM_PRIORITIES, PRIORITY_RANK, type AiPriority, type PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 import { loadEventCore, type EventCore } from './event-core.js';
@@ -15,7 +16,15 @@ import {
 } from './scenario.js';
 import { loadLastFinalBetween } from './history.js';
 import { computeEventStakes } from './stakes.js';
-import { factsHash, latestFactsHashes, newRunInfo, saveEventContexts, type ContextSource } from './store.js';
+import {
+  factsHash,
+  latestContents,
+  latestFactsHashes,
+  newRunInfo,
+  saveEventContexts,
+  withoutBudgetDowngrade,
+  type ContextSource,
+} from './store.js';
 import { writeLocalizedTexts, type LocaleText } from './writer.js';
 
 /**
@@ -71,6 +80,8 @@ export interface ScenarioRunOptions {
    * e só P0 e P1 chamam o LLM. Ausente: todos contam como P1 (ordem por horário, LLM para todos).
    */
   priorityOf?: PriorityResolver;
+  /** Virada do dia de orçamento: o determinístico por orçamento só volta a tentar o LLM depois dela. */
+  budgetDay?: BudgetDay;
 }
 
 export function emptyReport(agent: AgentRunReport['agent']): AgentRunReport {
@@ -236,7 +247,10 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
       const facts = buildScenarioFacts(core, stakes, locales, { lastFinal });
       const hash = factsHash(facts, SCENARIO_PROMPT_VERSION);
       if (!opts.force) {
-        const previous = await latestFactsHashes(db, id, 'scenario');
+        const previous = await latestFactsHashes(db, id, 'scenario', {
+          now,
+          ...(opts.budgetDay ? { budgetDay: opts.budgetDay } : {}),
+        });
         if (locales.every((l) => previous.get(l) === hash)) {
           item.reason = 'fatos inalterados desde a última geração';
           continue;
@@ -272,10 +286,20 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         // títulos anteriores: edições do Wikidata (P1346) gravadas em core.competition_title
         ...(facts.history?.titles ? [{ kind: 'core' as const, ref: 'core.competition_title' }] : []),
       ];
+      // a recusa do orçamento nunca troca o texto do LLM com os mesmos fatos pelo determinístico
+      const texts = written.budgetSkipped
+        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'scenario'), hash)
+        : written.texts;
+      if (!texts.length) {
+        item.reason = 'orçamento de IA recusou; fica o texto do LLM com os mesmos fatos';
+        item.budgetSkipped = true;
+        report.budgetSkipped++;
+        continue;
+      }
       await saveEventContexts(db, {
         eventId: id,
         kind: 'scenario',
-        texts: written.texts,
+        texts,
         factsHash: hash,
         sources,
         run: newRunInfo({

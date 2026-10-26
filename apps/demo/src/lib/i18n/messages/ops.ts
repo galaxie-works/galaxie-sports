@@ -560,6 +560,8 @@ export default defineMessages(
       save: 'Salvar política',
       saved: 'Política de IA salva',
       reset: 'Desfazer',
+      resetDefault: 'Voltar ao padrão',
+      resetDone: 'Política de IA de volta ao padrão',
       dailyUsd: {
         label: 'Teto global (US$/dia)',
         description: 'O máximo que a IA gasta por dia somando todas as faixas.',
@@ -1421,6 +1423,8 @@ export default defineMessages(
         save: 'Save policy',
         saved: 'AI policy saved',
         reset: 'Undo',
+        resetDefault: 'Back to default',
+        resetDone: 'AI policy back to default',
         dailyUsd: {
           label: 'Global cap (US$/day)',
           description: 'The most AI spends per day across all bands.',
@@ -2295,6 +2299,8 @@ export default defineMessages(
         save: 'Guardar política',
         saved: 'Política de IA guardada',
         reset: 'Deshacer',
+        resetDefault: 'Volver al valor por defecto',
+        resetDone: 'Política de IA de vuelta al valor por defecto',
         dailyUsd: {
           label: 'Tope global (US$/día)',
           description: 'Lo máximo que la IA gasta por día sumando todas las franjas.',

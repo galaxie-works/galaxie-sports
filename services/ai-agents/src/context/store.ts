@@ -6,6 +6,7 @@ import {
   type Database,
   type EventContextRow,
 } from '@galaxie/db';
+import { UTC_BUDGET_DAY, budgetDayOf, type BudgetDay } from '@galaxie/runtime-config';
 import { surfaceFit, type Surface } from '../guardrails/index.js';
 import type { LlmUsage } from '../llm/types.js';
 import { confidenceOf, type LocaleText } from './writer.js';
@@ -173,17 +174,63 @@ export function fellBackOnLlmError(content: StoredContextContent): boolean {
   return content.run.llmCalls > 0 && content.run.errors.length > 0;
 }
 
+/** Quando o determinístico por orçamento volta a tentar o LLM: o dia de orçamento de agora e a virada. */
+export interface BudgetRetry {
+  now: Date;
+  budgetDay?: BudgetDay;
+}
+
+/**
+ * O texto determinístico saiu porque o orçamento recusou, e o dia de orçamento em que foi gravado já
+ * virou: vale tentar o LLM de novo. No mesmo dia, a linha fica (não regrava nem republica a cada rodada).
+ */
+export function budgetFallbackExpired(content: StoredContextContent, retry: BudgetRetry): boolean {
+  if (content.origin !== 'fallback' || content.fallbackReason !== 'budget') return false;
+  const day = retry.budgetDay ?? UTC_BUDGET_DAY;
+  return budgetDayOf(new Date(content.generatedAt), day) !== budgetDayOf(retry.now, day);
+}
+
 /**
  * Hash dos fatos da geração mais recente por locale (para não regenerar o que não mudou). Fica de
- * fora o locale cujo texto caiu no determinístico por falha do LLM, para ser regerado.
+ * fora o locale cujo texto caiu no determinístico por falha do LLM, para ser regerado, e o que caiu
+ * por orçamento num dia de orçamento que já virou.
  */
 export async function latestFactsHashes(
   db: Database,
   eventId: string,
   kind: ContextKind,
+  retry: BudgetRetry = { now: new Date() },
 ): Promise<Map<string, string>> {
   const rows = await readEventContext(db, eventId, { kinds: [kind] });
   return new Map(
-    rows.filter((r) => !fellBackOnLlmError(r.content)).map((r) => [r.locale, r.content.factsHash]),
+    rows
+      .filter((r) => !fellBackOnLlmError(r.content) && !budgetFallbackExpired(r.content, retry))
+      .map((r) => [r.locale, r.content.factsHash]),
   );
+}
+
+/**
+ * Tira da gravação o determinístico por orçamento de um locale que já tem texto do LLM com os mesmos
+ * fatos: a recusa nunca troca um texto bom pelo modelo (acontece com `--forcar` ou locale faltando).
+ */
+export function withoutBudgetDowngrade<T extends Pick<LocaleText, 'locale' | 'origin' | 'fallbackReason'>>(
+  texts: readonly T[],
+  previous: ReadonlyMap<string, Pick<StoredContextContent, 'origin' | 'factsHash'>>,
+  factsHash: string,
+): T[] {
+  return texts.filter((t) => {
+    if (t.origin !== 'fallback' || t.fallbackReason !== 'budget') return true;
+    const prev = previous.get(t.locale);
+    return !(prev && prev.origin === 'llm' && prev.factsHash === factsHash);
+  });
+}
+
+/** Conteúdo mais recente por locale (origem e hash), para `withoutBudgetDowngrade`. */
+export async function latestContents(
+  db: Database,
+  eventId: string,
+  kind: ContextKind,
+): Promise<Map<string, StoredContextContent>> {
+  const rows = await readEventContext(db, eventId, { kinds: [kind] });
+  return new Map(rows.map((r) => [r.locale, r.content]));
 }

@@ -18,6 +18,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import { ACCESS_MODELS, BROADCAST_MEDIA } from '@galaxie/contracts';
 import { broadcastCorrection, event, wtwRun, type Database } from '@galaxie/db';
+import { DEFAULT_BUDGET_DAY, budgetDayOf } from '@galaxie/runtime-config';
 import {
   addOption,
   AUDIT_VERDICTS,
@@ -352,7 +353,12 @@ export async function internalWhereToWatchRoutes(app: FastifyInstance, ctx: AppC
       const countries = q.countries
         ? q.countries.toUpperCase().split(',')
         : (ctx.wtwConfig?.().countries ?? []);
-      const m = await computeWtwMetrics(db, { countries, ...(q.days ? { days: q.days } : {}) });
+      const m = await computeWtwMetrics(db, {
+        countries,
+        ...(q.days ? { days: q.days } : {}),
+        // o gasto de IA "de hoje" no mesmo dia de orçamento dos tetos (06:00 em Brasília)
+        budgetDay: budgetDayOf(new Date(), DEFAULT_BUDGET_DAY),
+      });
       noStore(reply);
       if (q.format === 'prometheus')
         return reply

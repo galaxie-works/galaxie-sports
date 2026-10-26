@@ -82,6 +82,10 @@ export interface RunResult {
   durationMs: number;
 }
 
+/** Código de saída do `scheduler --run`: budget_skipped (gravou o determinístico) não é falha. */
+export const runExitCode = (status: RunResult['status']): number =>
+  status === 'ok' || status === 'budget_skipped' ? 0 : 1;
+
 /**
  * Executa o CLI do job num processo filho (isolamento: um job que trava ou vaza memória não derruba o scheduler),
  * com timeout, e registra início/fim em ops.job_run. O stdout/stderr do filho (logs JSON) segue para o do container.

@@ -54,7 +54,11 @@ export interface LocaleText {
   attempts: number;
   rejected: RejectedAttempt[];
   /** Por que caiu no texto determinístico. */
-  fallbackReason?: 'no_llm' | 'llm_error' | 'rejected' | 'missing';
+  /**
+   * `budget`: o orçamento recusou (faixa, agente ou global esgotado). Diferente de `llm_error`, não é
+   * regerado a cada rodada com os mesmos fatos: só depois da virada do dia de orçamento.
+   */
+  fallbackReason?: 'no_llm' | 'llm_error' | 'budget' | 'rejected' | 'missing';
   /** O texto determinístico também passa pelos guardrails; violações aqui indicam bug do template. */
   fallbackViolations?: Violation[];
 }
@@ -242,12 +246,14 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
     const history = rejected.get(locale) ?? [];
     const reason: LocaleText['fallbackReason'] = !req.llm
       ? 'no_llm'
-      : // a última chamada falhou e nenhuma tentativa reprovou o texto (só faltou o locale): é erro do LLM
-        llmFailed && history.every((h) => h.violations.every((v) => v.kind === 'empty'))
-        ? 'llm_error'
-        : history.some((h) => h.violations.some((v) => v.kind !== 'empty'))
-          ? 'rejected'
-          : 'missing';
+      : result.budgetSkipped
+        ? 'budget'
+        : // a última chamada falhou e nenhuma tentativa reprovou o texto (só faltou o locale): é erro do LLM
+          llmFailed && history.every((h) => h.violations.every((v) => v.kind === 'empty'))
+          ? 'llm_error'
+          : history.some((h) => h.violations.some((v) => v.kind !== 'empty'))
+            ? 'rejected'
+            : 'missing';
     const fallbackViolations = check(locale, sentences).filter(
       // o texto determinístico pode passar do limite de frases/tamanho; o resto é bug do template
       (v) => !['too_long', 'sentence_too_long', 'too_many_sentences'].includes(v.kind),

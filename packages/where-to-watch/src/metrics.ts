@@ -42,7 +42,16 @@ const numOrNull = (v: unknown): number | null => (v === null || v === undefined 
 /** Calcula as métricas sobre a janela `days` (padrão 30) até `now`, para os países informados. */
 export async function computeWtwMetrics(
   db: Database,
-  params: { countries: string[]; now?: Date; days?: number },
+  params: {
+    countries: string[];
+    now?: Date;
+    days?: number;
+    /**
+     * Dia de orçamento do gasto de IA (YYYY-MM-DD), o mesmo dos tetos (`budgetDayOf` com
+     * AI_BUDGET_DAY_START/AI_BUDGET_TIMEZONE); ausente, o dia UTC de `now`.
+     */
+    budgetDay?: string;
+  },
 ): Promise<WtwMetrics> {
   const now = params.now ?? new Date();
   const days = params.days ?? 30;
@@ -123,7 +132,9 @@ export async function computeWtwMetrics(
   );
   const llm = await db.execute<{ agent: string; tokens: string; cost: string | null; calls: string }>(sql`
     select agent, sum(input_tokens + output_tokens) as tokens, sum(cost_usd) as cost, count(*) as calls
-      from ops.llm_usage where day_utc = ${now.toISOString().slice(0, 10)} group by agent order by agent`);
+      from ops.llm_usage
+     where coalesce(budget_day, day_utc) = ${params.budgetDay ?? now.toISOString().slice(0, 10)}
+     group by agent order by agent`);
 
   return {
     windowDays: days,

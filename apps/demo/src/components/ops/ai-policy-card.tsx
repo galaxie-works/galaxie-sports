@@ -8,10 +8,10 @@ import {
   validateSetting,
   type AiBand,
 } from '@galaxie/runtime-config';
-import { RotateCcw, Save } from 'lucide-react';
+import { RotateCcw, Save, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 
-import { saveAiPolicy } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resetAiPolicy, saveAiPolicy } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
@@ -190,6 +190,15 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
           >
             <RotateCcw />
             {T.reset}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending || !llm.policyOverridden}
+            onClick={() => run(() => resetAiPolicy(), T.resetDone)}
+          >
+            <Undo2 />
+            {T.resetDefault}
           </Button>
           <Button
             size="sm"

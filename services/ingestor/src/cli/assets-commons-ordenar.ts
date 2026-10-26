@@ -31,7 +31,7 @@ import {
   isManualRun,
   ledgerPolicy,
   ledgerSettingsFromEnv,
-  loadAiPolicy,
+  loadAiPolicyOrEmpty,
 } from '@galaxie/ai-ledger';
 import { closeDb, createDb } from '@galaxie/db';
 import { WikimediaClient } from '../assets/commons/client.js';
@@ -114,7 +114,7 @@ if (plan) {
     const budget = new TokenBudget(
       new PgTokenBudgetStore(db),
       ledgerPolicy(ledgerSettingsFromEnv(env), {
-        policy: loadAiPolicy(defaultAiPolicyFile(env)),
+        policy: loadAiPolicyOrEmpty(defaultAiPolicyFile(env)),
         manual: isManualRun(env),
       }),
     );

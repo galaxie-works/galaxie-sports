@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { FactSheetBuilder, surfaceFit } from '../guardrails/index.js';
 import { BudgetExceededError } from '../llm/errors.js';
 import { FakeLlmClient } from '../testing/fake-llm.js';
-import { fellBackOnLlmError, type StoredContextContent } from './store.js';
+import {
+  budgetFallbackExpired,
+  fellBackOnLlmError,
+  withoutBudgetDowngrade,
+  type StoredContextContent,
+} from './store.js';
 import { writeLocalizedTexts } from './writer.js';
 
 const content = (over: Partial<StoredContextContent>): StoredContextContent => ({
@@ -78,6 +83,42 @@ describe('motivo do texto determinístico (writeLocalizedTexts)', () => {
     expect(llm.calls).toBe(1);
     expect(llm.requests[0]!.competition).toEqual({ slug: 'premier-league' });
     expect(res.budgetSkipped).toBe(true);
-    expect(res.texts[0]).toMatchObject({ origin: 'fallback', text: 'Fim de jogo.' });
+    expect(res.texts[0]).toMatchObject({
+      origin: 'fallback',
+      text: 'Fim de jogo.',
+      fallbackReason: 'budget',
+    });
+  });
+});
+
+describe('determinístico por orçamento (fallbackReason budget)', () => {
+  const budget = content({ fallbackReason: 'budget', generatedAt: '2026-10-26T15:00:00.000Z' });
+  const day = { timeZone: 'America/Sao_Paulo', start: '06:00' };
+
+  it('não é falha do LLM: não regera a cada rodada com os mesmos fatos', () => {
+    expect(fellBackOnLlmError(budget)).toBe(false);
+  });
+
+  it('volta a tentar o LLM só depois da virada do dia de orçamento', () => {
+    expect(budgetFallbackExpired(budget, { now: new Date('2026-10-27T08:59:00Z'), budgetDay: day })).toBe(
+      false,
+    );
+    expect(budgetFallbackExpired(budget, { now: new Date('2026-10-27T09:00:00Z'), budgetDay: day })).toBe(
+      true,
+    );
+    expect(budgetFallbackExpired(content({}), { now: new Date('2026-11-30T00:00:00Z') })).toBe(false);
+  });
+
+  it('nunca troca o texto do LLM com os mesmos fatos pelo determinístico do orçamento', () => {
+    const texts = [
+      { locale: 'pt-BR' as const, origin: 'fallback' as const, fallbackReason: 'budget' as const },
+      { locale: 'es-AR' as const, origin: 'fallback' as const, fallbackReason: 'budget' as const },
+    ];
+    const previous = new Map([
+      ['pt-BR', { origin: 'llm' as const, factsHash: 'h' }],
+      ['es-AR', { origin: 'llm' as const, factsHash: 'outro' }],
+    ]);
+    // pt-BR fica com o texto do LLM; es-AR tem fatos novos e grava o determinístico
+    expect(withoutBudgetDowngrade(texts, previous, 'h').map((t) => t.locale)).toEqual(['es-AR']);
   });
 });

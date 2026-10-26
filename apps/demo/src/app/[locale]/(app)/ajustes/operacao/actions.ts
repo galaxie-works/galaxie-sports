@@ -36,34 +36,43 @@ async function texts() {
   return getDictionary(await getRequestLocale()).ops;
 }
 
-/** Grava (`value`) ou apaga (`null`) a sobrescrita e registra no histórico. */
-async function write(key: string, value: string | null, valueType: string, by: string) {
+interface SettingWrite {
+  key: string;
+  /** `null` apaga a sobrescrita (volta ao env ou ao padrão). */
+  value: string | null;
+  valueType: string;
+}
+
+/**
+ * Grava (`value`) ou apaga (`null`) as sobrescritas e registra cada mudança no histórico, todas numa
+ * transação só: ou todas valem, ou nenhuma (a Política de IA grava três chaves juntas).
+ */
+async function writeAll(entries: readonly SettingWrite[], by: string) {
   const client = await pool.connect();
   try {
     await client.query('begin');
-    const prev = await client.query<{ value: string }>(
-      'select value from ops.runtime_setting where key = $1 for update',
-      [key],
-    );
-    const old = prev.rows[0]?.value ?? null;
-    if (value === old || (value === null && old === null)) {
-      await client.query('rollback');
-      return;
-    }
-    if (value === null) await client.query('delete from ops.runtime_setting where key = $1', [key]);
-    else
-      await client.query(
-        `insert into ops.runtime_setting (key, value, value_type, updated_by, updated_at)
-         values ($1, $2, $3, $4, now())
-         on conflict (key) do update set value = excluded.value, value_type = excluded.value_type,
-           updated_by = excluded.updated_by, updated_at = now()`,
-        [key, value, valueType, by],
+    for (const { key, value, valueType } of entries) {
+      const prev = await client.query<{ value: string }>(
+        'select value from ops.runtime_setting where key = $1 for update',
+        [key],
       );
-    await client.query(
-      `insert into ops.runtime_setting_log (key, action, old_value, new_value, changed_by)
-       values ($1, $2, $3, $4, $5)`,
-      [key, value === null ? 'reset' : 'set', old, value, by],
-    );
+      const old = prev.rows[0]?.value ?? null;
+      if (value === old) continue;
+      if (value === null) await client.query('delete from ops.runtime_setting where key = $1', [key]);
+      else
+        await client.query(
+          `insert into ops.runtime_setting (key, value, value_type, updated_by, updated_at)
+           values ($1, $2, $3, $4, now())
+           on conflict (key) do update set value = excluded.value, value_type = excluded.value_type,
+             updated_by = excluded.updated_by, updated_at = now()`,
+          [key, value, valueType, by],
+        );
+      await client.query(
+        `insert into ops.runtime_setting_log (key, action, old_value, new_value, changed_by)
+         values ($1, $2, $3, $4, $5)`,
+        [key, value === null ? 'reset' : 'set', old, value, by],
+      );
+    }
     await client.query('commit');
   } catch (err) {
     await client.query('rollback').catch(() => {});
@@ -72,6 +81,10 @@ async function write(key: string, value: string | null, valueType: string, by: s
     client.release();
   }
 }
+
+/** Grava (`value`) ou apaga (`null`) a sobrescrita e registra no histórico. */
+const write = (key: string, value: string | null, valueType: string, by: string) =>
+  writeAll([{ key, value, valueType }], by);
 
 async function serviceAlive(service: string): Promise<boolean> {
   const { rows } = await pool.query<{ at: Date | null }>(
@@ -137,13 +150,32 @@ export async function saveAiPolicy(
   }
   if (!checked.length) return { ok: true };
   try {
-    for (const c of checked) await write(c.key, c.value, c.type, me.email);
+    await writeAll(
+      checked.map((c) => ({ key: c.key, value: c.value, valueType: c.type })),
+      me.email,
+    );
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
   revalidatePath(PATH);
   const alive = await serviceAlive('agents').catch(() => false);
   return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };
+}
+
+/** Volta a Política de IA ao padrão: apaga as sobrescritas das três chaves, numa transação só. */
+export async function resetAiPolicy(): Promise<OpsActionResult> {
+  const me = await requireAdmin();
+  const t = await texts();
+  try {
+    await writeAll(
+      AI_POLICY_KEYS.map((key) => ({ key, value: null, valueType: settingDef(key)!.type })),
+      me.email,
+    );
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
+  }
+  revalidatePath(PATH);
+  return { ok: true };
 }
 
 export async function resetSetting(key: string): Promise<OpsActionResult> {

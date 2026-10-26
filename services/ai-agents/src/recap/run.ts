@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { competition, event, type Database } from '@galaxie/db';
 import { AGENT_LOCALES, type AgentLocale } from '../guardrails/index.js';
+import type { BudgetDay } from '@galaxie/runtime-config';
 import type { AiPriority, PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 import { loadEventCore } from '../context/event-core.js';
@@ -13,7 +14,14 @@ import {
   type AgentRunItem,
   type AgentRunReport,
 } from '../context/run.js';
-import { factsHash, latestFactsHashes, newRunInfo, saveEventContexts } from '../context/store.js';
+import {
+  factsHash,
+  latestContents,
+  latestFactsHashes,
+  newRunInfo,
+  saveEventContexts,
+  withoutBudgetDowngrade,
+} from '../context/store.js';
 import { writeLocalizedTexts } from '../context/writer.js';
 import {
   buildRecapFacts,
@@ -49,6 +57,8 @@ export interface RecapRunOptions {
   limit?: number;
   /** Prioridade por competição (#357): fila P0 → P1 → resto; só P0 e P1 chamam o LLM. */
   priorityOf?: PriorityResolver;
+  /** Virada do dia de orçamento: o determinístico por orçamento só volta a tentar o LLM depois dela. */
+  budgetDay?: BudgetDay;
 }
 
 /** Eventos encerrados na janela, por prioridade (P0 → P1 → resto) e, dentro dela, do mais recente. */
@@ -130,7 +140,10 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       item.summary = `${facts.final_score.home}-${facts.final_score.away}`;
       const hash = factsHash(facts, RECAP_PROMPT_VERSION);
       if (!opts.force) {
-        const previous = await latestFactsHashes(db, id, 'recap');
+        const previous = await latestFactsHashes(db, id, 'recap', {
+          now,
+          ...(opts.budgetDay ? { budgetDay: opts.budgetDay } : {}),
+        });
         if (locales.every((l) => previous.get(l) === hash)) {
           item.reason = 'fatos inalterados desde a última geração';
           continue;
@@ -155,10 +168,20 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         tier: 'standard',
         competition: competitionRef,
       });
+      // a recusa do orçamento nunca troca o texto do LLM com os mesmos fatos pelo determinístico
+      const texts = written.budgetSkipped
+        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'recap'), hash)
+        : written.texts;
+      if (!texts.length) {
+        item.reason = 'orçamento de IA recusou; fica o texto do LLM com os mesmos fatos';
+        item.budgetSkipped = true;
+        report.budgetSkipped++;
+        continue;
+      }
       await saveEventContexts(db, {
         eventId: id,
         kind: 'recap',
-        texts: written.texts,
+        texts,
         factsHash: hash,
         sources: [
           { kind: 'core', ref: `core.event:${id}` },

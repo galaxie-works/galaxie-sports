@@ -149,7 +149,7 @@ async function readJobs(): Promise<JobStatus[]> {
       [names],
     ),
     query<{ job: string; last_ok: Date | null; errors_24h: number }>(
-      `select job, max(started_at) filter (where status = 'ok') as last_ok,
+      `select job, max(started_at) filter (where status in ('ok', 'budget_skipped')) as last_ok,
               (count(*) filter (where status = 'error' and started_at > now() - interval '24 hours'))::int as errors_24h
          from ops.job_run where job = any($1) and started_at > now() - interval '14 days' group by job`,
       [names],
@@ -372,6 +372,10 @@ async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
     bandShares: shares,
     bands,
     p0MinAudience: limitSetting(settings, 'AI_P0_MIN_AUDIENCE') ?? 25,
+    policyOverridden: settings.some(
+      (s) =>
+        ['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE'].includes(s.key) && s.source === 'db',
+    ),
     agentUsdBudgets,
     agentUsdOrigins,
     agentDefaultUsdBudget: limitSetting(settings, 'AI_AGENT_DEFAULT_USD_BUDGET'),

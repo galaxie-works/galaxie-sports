@@ -73,11 +73,42 @@ export function parseAiPolicy(raw: unknown): AiPolicy {
   return { agents, defaultBand: defaultBand as AiCallBand, competitions: { p0, p1 } };
 }
 
-/** Lê e valida a política; sem o arquivo, falha a configuração (os agentes seguem sem IA). */
+/**
+ * Política vazia: todo agente cai em `default_band` (`rest`) e nenhuma competição é exceção. É o que vale
+ * quando config/ai-policy.yaml falta ou é inválido (`loadAiPolicyOrEmpty`): os jobs seguem e gravam o
+ * determinístico, em vez de sair com erro.
+ */
+export const EMPTY_AI_POLICY: AiPolicy = {
+  agents: {},
+  defaultBand: 'rest',
+  competitions: { p0: [], p1: [] },
+};
+
+/** Lê e valida a política; sem o arquivo, ou com ele inválido, lança LlmError `config`. */
 export function loadAiPolicy(file = defaultAiPolicyFile()): AiPolicy {
   if (!existsSync(file))
     throw new LlmError(`Política de IA não encontrada: ${file} (AI_POLICY_FILE).`, 'config', false);
   return parseAiPolicy(parse(readFileSync(file, 'utf8')));
+}
+
+const warnedPolicy = new Set<string>();
+
+/**
+ * Como `loadAiPolicy`, mas sem derrubar quem chama: arquivo ausente ou inválido sai no log (uma vez por
+ * processo e arquivo) e vale a política vazia (`EMPTY_AI_POLICY`).
+ */
+export function loadAiPolicyOrEmpty(file = defaultAiPolicyFile()): AiPolicy {
+  try {
+    return loadAiPolicy(file);
+  } catch (err) {
+    if (!warnedPolicy.has(file)) {
+      warnedPolicy.add(file);
+      console.warn(
+        `[política de IA] ${err instanceof Error ? err.message : String(err)} Seguindo com a política vazia: todo agente na faixa rest, sem exceções por competição.`,
+      );
+    }
+    return EMPTY_AI_POLICY;
+  }
 }
 
 /**

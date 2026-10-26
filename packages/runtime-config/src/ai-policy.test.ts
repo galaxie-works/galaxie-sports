@@ -95,6 +95,18 @@ describe('dia de orçamento (vira às 06:00 em Brasília)', () => {
     expect(budgetDayOf(new Date('2026-10-29T02:30:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-10-28');
   });
 
+  it('fuso com horário de verão: a virada segue o relógio local nos dias de troca', () => {
+    const ny = { timeZone: 'America/New_York', start: '06:00' };
+    // 08/03/2026: o relógio adianta às 02:00 (EST para EDT); 06:30 local = 10:30Z
+    expect(budgetDayOf(new Date('2026-03-08T10:30:00Z'), ny)).toBe('2026-03-08');
+    expect(budgetDayOf(new Date('2026-03-08T09:59:00Z'), ny)).toBe('2026-03-07'); // 05:59 EDT
+    // 01/11/2026: o relógio atrasa às 02:00 (EDT para EST); 05:30 local = 10:30Z
+    expect(budgetDayOf(new Date('2026-11-01T10:30:00Z'), ny)).toBe('2026-10-31');
+    expect(budgetDayOf(new Date('2026-11-01T11:00:00Z'), ny)).toBe('2026-11-01'); // 06:00 EST
+    // virada de mês e de ano
+    expect(budgetDayOf(new Date('2027-01-01T08:00:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-12-31');
+  });
+
   it('configurável; sem configuração, o dia UTC de antes', () => {
     expect(budgetDayOf(new Date('2026-10-26T00:30:00Z'))).toBe('2026-10-26');
     expect(budgetDayOf(new Date('2026-10-26T06:30:00Z'), { timeZone: 'UTC', start: '07:00' })).toBe(

@@ -113,18 +113,20 @@ beforeAll(async () => {
     startedAt: ago(startedMs),
     finishedAt: status === 'running' ? null : ago(startedMs - 2 * MIN),
   });
-  await db
-    .insert(jobRun)
-    .values([
-      run('daily-sync', 'ok', 4 * HOUR),
-      run('daily-sync', 'error', 3 * HOUR),
-      run('daily-sync', 'error', 2 * HOUR),
-      run('daily-sync', 'error', 1 * HOUR),
-      run('quota-status', 'error', 3 * HOUR),
-      run('quota-status', 'ok', 2 * HOUR),
-      run('never-ok', 'error', 30 * HOUR),
-      run('never-ok', 'error', 20 * MIN),
-    ]);
+  await db.insert(jobRun).values([
+    run('daily-sync', 'ok', 4 * HOUR),
+    run('daily-sync', 'error', 3 * HOUR),
+    run('daily-sync', 'error', 2 * HOUR),
+    run('daily-sync', 'error', 1 * HOUR),
+    run('quota-status', 'error', 3 * HOUR),
+    run('quota-status', 'ok', 2 * HOUR),
+    run('never-ok', 'error', 30 * HOUR),
+    run('never-ok', 'error', 20 * MIN),
+    // orçamento de IA recusou: gravou o determinístico, conta como sucesso (não como falha seguida)
+    run('recap-run', 'error', 3 * HOUR),
+    run('recap-run', 'budget_skipped', 2 * HOUR),
+    run('recap-run', 'error', 1 * HOUR),
+  ]);
 
   // ── raw ──
   const raw = (s: string, fetchedAt: Date) => ({
@@ -243,6 +245,12 @@ describe('métricas de jobs (ops.job_run)', () => {
     expect(m.get('galaxie_job_consecutive_failures', { job_name: 'daily-sync' })).toBe(3);
     expect(m.get('galaxie_job_consecutive_failures', { job_name: 'quota-status' })).toBe(0);
     expect(m.get('galaxie_job_consecutive_failures', { job_name: 'never-ok' })).toBe(2);
+    // budget_skipped zera a contagem e é o último sucesso
+    expect(m.get('galaxie_job_consecutive_failures', { job_name: 'recap-run' })).toBe(1);
+    expect(m.get('galaxie_job_last_success_timestamp_seconds', { job_name: 'recap-run' })).toBeCloseTo(
+      ago(2 * HOUR).getTime() / 1000,
+      0,
+    );
   });
 
   it('execuções nas últimas 24 h e horários da última execução', async () => {

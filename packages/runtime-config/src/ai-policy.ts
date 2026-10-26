@@ -128,24 +128,39 @@ const minutesOf = (hhmm: string) => {
   return (h ?? 0) * 60 + (m ?? 0);
 };
 
-/** Data local (YYYY-MM-DD) do instante no fuso. */
-function localDate(at: Date, timeZone: string): string {
+/** Data e minutos do dia locais do instante no fuso (o relógio local, com horário de verão). */
+function localClock(
+  at: Date,
+  timeZone: string,
+): { year: number; month: number; day: number; minutes: number } {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(at);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    minutes: (get('hour') % 24) * 60 + get('minute'),
+  };
 }
 
 /**
- * Dia de orçamento do instante (YYYY-MM-DD): a data local de `at` menos o horário de início. Com o
- * padrão, 26/10 às 05:59 em Brasília ainda é o dia 25; às 06:00 começa o 26.
+ * Dia de orçamento do instante (YYYY-MM-DD): a data local de `at`, ou a da véspera se o relógio local
+ * ainda não chegou ao horário de início. Lê a hora local do fuso (não subtrai horas do instante), então
+ * acerta a virada nos dias de troca do horário de verão. Com o padrão, 26/10 às 05:59 em Brasília ainda é
+ * o dia 25; às 06:00 começa o 26.
  */
 export function budgetDayOf(at: Date, day: Readonly<BudgetDay> = UTC_BUDGET_DAY): string {
-  return localDate(new Date(at.getTime() - minutesOf(day.start) * 60_000), day.timeZone);
+  const c = localClock(at, day.timeZone);
+  const before = c.minutes < minutesOf(day.start) ? 1 : 0;
+  return new Date(Date.UTC(c.year, c.month - 1, c.day - before)).toISOString().slice(0, 10);
 }
 
 /**

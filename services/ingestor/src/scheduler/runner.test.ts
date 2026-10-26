@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger } from '@galaxie/observability';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runJob, type RunRecorder } from './runner.js';
+import { runExitCode, runJob, type RunRecorder } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
 
 let dir: string;
@@ -79,6 +79,13 @@ describe('runJob', () => {
     const result = await runJob(job('budget.mjs'), { cwd: dir, recorder, logger, trigger: 'schedule' });
     expect(result).toMatchObject({ status: 'budget_skipped', exitCode: 75 });
     expect(recorder.rows.get('run-1')).toMatchObject({ status: 'budget_skipped', error: null });
+  });
+
+  it('scheduler --run sai 0 com budget_skipped (gravou o determinístico) e 1 com erro', () => {
+    expect(runExitCode('ok')).toBe(0);
+    expect(runExitCode('budget_skipped')).toBe(0);
+    expect(runExitCode('error')).toBe(1);
+    expect(runExitCode('skipped')).toBe(1);
   });
 
   it('encerra o job que passa do tempo limite', async () => {

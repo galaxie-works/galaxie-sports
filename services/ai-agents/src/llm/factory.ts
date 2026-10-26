@@ -1,4 +1,4 @@
-import { defaultAiPolicyFile, isManualRun, loadAiPolicy, type BandPolicy } from '@galaxie/ai-ledger';
+import { defaultAiPolicyFile, isManualRun, loadAiPolicyOrEmpty, type BandPolicy } from '@galaxie/ai-ledger';
 import type { Database } from '@galaxie/db';
 import type { BudgetDay } from '@galaxie/runtime-config';
 import {
@@ -38,7 +38,8 @@ export function bandsFromEnv(
   env: Record<string, string | undefined>,
   settings: Pick<LlmSettings, 'p0MinAudience'>,
 ): Omit<BandPolicy, 'shares'> {
-  const policy = loadAiPolicy(defaultAiPolicyFile(env));
+  // política ausente ou inválida: sai no log e vale a vazia (os jobs gravam o determinístico, não saem com erro)
+  const policy = loadAiPolicyOrEmpty(defaultAiPolicyFile(env));
   return {
     policy,
     manual: isManualRun(env),

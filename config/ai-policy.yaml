@@ -20,7 +20,7 @@ agents:
   context: priority # resumo (recap) e cenário pré-jogo
   wtw: priority # canal do jogo, direitos por temporada, alocação
   related: priority # classificação dos vídeos relacionados
-  live: priority # prioridades do ao vivo
+  live: p0 # prioridades do ao vivo (sem competição na chamada: a ordem dos jogos ao vivo é do futebol LATAM)
   lineups: clients # grade das operadoras
   channels: clients # lista de canais do cliente
   review: rest # revisão das sugestões da base semântica

@@ -4,7 +4,7 @@
  * provedor e caem, de forma determinística, no texto/algoritmo de reserva. O onde assistir (execução
  * `skipped`) é coberto em `wtw-runner.integration.test.ts`.
  */
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { llmUsage, participant, type Database } from '@galaxie/db';
 import { loadKnowledge } from '@galaxie/knowledge';
@@ -133,13 +133,32 @@ describe('orçamento diário esgotado → todos os agentes caem no determinísti
     expect(fake.calls).toBe(0);
     const rows = await readEventContext(db, secondLeg, { kinds: ['scenario'] });
     expect(rows).toHaveLength(8);
-    expect(
-      rows.every((r) => r.content.origin === 'fallback' && r.content.fallbackReason === 'llm_error'),
-    ).toBe(true);
+    expect(rows.every((r) => r.content.origin === 'fallback' && r.content.fallbackReason === 'budget')).toBe(
+      true,
+    );
     expect(rows.every((r) => r.model === 'template:scenario-rules-labels@v1')).toBe(true);
     expect(rows.find((r) => r.locale === 'pt-BR')!.content.run.errors.join(' ')).toContain(
       'Orçamento diário de tokens esgotado',
     );
+  });
+
+  it('cenário: recusado pelo orçamento, não regrava nem republica na rodada seguinte do mesmo dia', async () => {
+    const count = async () =>
+      (
+        await db.execute<{ n: number }>(
+          sql`select count(*)::int as n from enrich.event_context where event_id = ${secondLeg} and kind = 'scenario'`,
+        )
+      )[0]!.n;
+    const feed = async () =>
+      (await db.execute<{ n: number }>(sql`select count(*)::int as n from ops.change_feed`))[0]!.n;
+    const before = { rows: await count(), feed: await feed() };
+    // `now` no mesmo dia de orçamento em que a linha foi gravada (generatedAt é a hora real da gravação)
+    const again = await runScenarioAgent(db, { now: new Date(), llm, eventId: secondLeg });
+    expect(again.items[0]).toMatchObject({
+      action: 'skipped',
+      reason: 'fatos inalterados desde a última geração',
+    });
+    expect({ rows: await count(), feed: await feed() }).toEqual(before);
   });
 
   it('resumo: texto montado da timeline, sem chamar o provedor', async () => {

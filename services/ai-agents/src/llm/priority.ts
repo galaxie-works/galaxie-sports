@@ -8,7 +8,7 @@
  * A prioridade escolhe a faixa de orçamento da chamada e, no resumo e no cenário, a ordem da fila e se o
  * evento usa LLM (só P0 e P1; o resto sai com o texto determinístico).
  */
-import { loadAiPolicy, defaultAiPolicyFile, type AiPolicy, type AiPriority } from '@galaxie/ai-ledger';
+import { defaultAiPolicyFile, loadAiPolicyOrEmpty, type AiPolicy, type AiPriority } from '@galaxie/ai-ledger';
 import { loadGeoConfig, type MarketAudience } from '@galaxie/geo';
 
 export type { AiPriority } from '@galaxie/ai-ledger';
@@ -67,7 +67,7 @@ export function priorityResolver(opts: {
   audience?: MarketAudience | null;
   env?: Record<string, string | undefined>;
 }): PriorityResolver {
-  const policy = opts.policy ?? loadAiPolicy(defaultAiPolicyFile(opts.env));
+  const policy = opts.policy ?? loadAiPolicyOrEmpty(defaultAiPolicyFile(opts.env));
   const audience = opts.audience !== undefined ? opts.audience : defaultAudience();
   return (competition) =>
     competitionPriority(competition, { audience, policy, minAudience: opts.minAudience });
