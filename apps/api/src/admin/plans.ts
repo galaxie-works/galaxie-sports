@@ -13,6 +13,8 @@ export const PlanTemplate = z.object({
   rateLimitPerMinute: z.number().int().positive(),
   dailyRequestQuota: z.number().int().positive().nullable().default(null),
   defaultKeyEnv: z.enum(['live', 'test']).default('live'),
+  /** Plano com prazo (trial): dias a partir do onboarding; null = sem prazo. */
+  trialDays: z.number().int().positive().nullable().default(null),
 });
 export type PlanTemplate = z.output<typeof PlanTemplate>;
 

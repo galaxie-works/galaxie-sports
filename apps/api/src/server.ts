@@ -1,4 +1,4 @@
-import Fastify, { type FastifyContextConfig, type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyContextConfig, type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { Redis } from 'ioredis';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
@@ -48,7 +48,14 @@ import { accountRoutes } from './routes/v1/account.js';
 import { v1Routes } from './routes/v1/index.js';
 import { registerCors, type CorsOptions } from './security/cors.js';
 import { registerSecurityHeaders, type SecurityHeadersOptions } from './security/headers.js';
-import { MemoryUsageBackend, RedisUsageBackend, UsageCounter, type UsageBackend } from './usage/counter.js';
+import {
+  MemoryUsageBackend,
+  RedisUsageBackend,
+  UsageCounter,
+  utcDay,
+  type UsageBackend,
+} from './usage/counter.js';
+import { QuotaGuard } from './usage/quota.js';
 import { UsagePersister } from './usage/store.js';
 
 export interface ServerOptions {
@@ -220,6 +227,30 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       })
     : undefined;
 
+  const quota = usageBackend
+    ? new QuotaGuard(usageBackend, options.now ? { now: options.now } : {})
+    : undefined;
+  // um evento (log) por tenant, dia e nível: o aviso de 80% e o corte de 110% (alerta e e-mail ficam com quem
+  // consome os logs; a API não envia e-mail)
+  const quotaEvents = new Set<string>();
+  const quotaEvent = (
+    request: FastifyRequest,
+    tenant: TenantContext,
+    level: 'warn' | 'blocked',
+    limit: number,
+  ) => {
+    const k = `${utcDay()}|${tenant.tenantId}|${level}`;
+    if (quotaEvents.has(k)) return;
+    if (quotaEvents.size > 10_000) quotaEvents.clear();
+    quotaEvents.add(k);
+    request.log.warn(
+      { tenant: tenant.slug, quota: limit, event: level === 'warn' ? 'quota.warning' : 'quota.exceeded' },
+      level === 'warn'
+        ? 'cota diária: tenant passou de 80%'
+        : 'cota diária: tenant passou de 110% (bloqueado)',
+    );
+  };
+
   registerErrorHandling(app);
   registerSecurityHeaders(app, options.security);
   if (options.cors?.origins.length || publishable)
@@ -255,6 +286,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
+    // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%
+    if (quota && tenant.env === 'live' && tenant.dailyRequestQuota) {
+      try {
+        const q = await quota.check(tenant.tenantId, tenant.dailyRequestQuota);
+        reply
+          .header('x-galaxie-quota-limit', String(q.limit))
+          .header('x-galaxie-quota-remaining', String(Math.max(0, q.limit - q.used)));
+        if (q.level !== 'ok') {
+          reply.header('x-galaxie-quota-warning', `${Math.floor((q.used / q.limit) * 100)}%`);
+          quotaEvent(request, tenant, q.level, q.limit);
+        }
+        if (q.level === 'blocked') throw problems.quotaExceeded(q.limit, q.resetSec);
+      } catch (err) {
+        if (err instanceof ProblemError) throw err;
+        // contadores indisponíveis não derrubam a API (fail-open), como o rate limit
+        request.log.warn({ err }, 'cota diária indisponível');
+      }
+    }
     // chave de teste: uso contado à parte (`test:<rota>`), fora da cota e de qualquer cobrança
     usage?.record(tenant.tenantId, usageRoute(tenant.env, route));
     // publicável: limite próprio por chave × IP (o tráfego vem de muitos torcedores, não do backend);

@@ -6,6 +6,7 @@ import {
   webhookCursor,
   webhookDelivery,
   webhookEndpoint,
+  PLANS_WITHOUT_REALTIME,
   type Database,
 } from '@galaxie/db';
 import type { ChangeTopic } from '@galaxie/contracts';
@@ -211,7 +212,14 @@ export class WebhookWorker {
             .select({ endpoint: webhookEndpoint, tenant })
             .from(webhookEndpoint)
             .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
-            .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
+            .where(
+              and(
+                eq(webhookEndpoint.active, true),
+                eq(tenant.status, 'active'),
+                // trial: sem webhooks (docs/politica-de-chaves.md §3)
+                notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
+              ),
+            )
         ).map(({ endpoint, tenant: t }) => {
           const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
           const filter: ChangeFilter = {

@@ -23,6 +23,8 @@ export interface TenantInput {
   sports?: string[];
   rateLimitPerMinute?: number;
   dailyRequestQuota?: number | null;
+  /** Fim do trial (plano `trial`); null = sem prazo. */
+  trialEndsAt?: Date | null;
 }
 
 export function isModule(value: string): value is ApiModule {
@@ -43,6 +45,7 @@ export async function upsertTenant(
     sports: input.sports ?? [],
     rateLimitPerMinute: input.rateLimitPerMinute ?? 120,
     ...(input.dailyRequestQuota !== undefined ? { dailyRequestQuota: input.dailyRequestQuota } : {}),
+    ...(input.trialEndsAt !== undefined ? { trialEndsAt: input.trialEndsAt } : {}),
   };
   const [row] = await db
     .insert(tenant)

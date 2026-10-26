@@ -650,3 +650,65 @@ describe('migração das chaves legadas (keys:migrate, docs/runbooks/migracao-de
     expect(mine(await applyKeyMigration(db))).toEqual([]);
   });
 });
+
+describe('trial e auditoria (docs/politica-de-chaves.md §3 e §5)', () => {
+  it('plano trial: 30 dias, cota baixa; no fim do prazo nenhuma chave vale; sair do trial tira o prazo', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'avaliacao',
+      name: 'Avaliação',
+      plan: 'trial',
+    });
+    expect(res.statusCode).toBe(201);
+    const t = res.json().tenant;
+    expect(t).toMatchObject({ plan: 'trial', modules: ['core_data'], dailyRequestQuota: 5000 });
+    const days = (Date.parse(t.trialEndsAt) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThanOrEqual(30);
+    const key = res.json().key.key as string;
+    const ok = await tenantReq(key, 'GET', '/v1/sports');
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['x-galaxie-quota-limit']).toBe('5000');
+
+    await db
+      .update(tenant)
+      .set({ trialEndsAt: new Date(Date.now() - 1000) })
+      .where(eq(tenant.id, t.id));
+    expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(401);
+
+    const upgraded = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'core_data' });
+    expect(upgraded.json().tenant.trialEndsAt).toBeNull();
+    expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(200);
+  });
+
+  it('emissão, rotação e revogação ficam na auditoria (sem segredo)', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'auditado',
+      name: 'Auditado',
+      plan: 'core_data',
+    });
+    const tenantId = res.json().tenant.id as string;
+    const first = res.json().key;
+    const issued = (
+      await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { label: 'extra' })
+    ).json().key;
+    const rotated = await tenantReq(first.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 60 });
+    expect(rotated.statusCode).toBe(201);
+    await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys/${issued.id}/revoke`);
+
+    const events = await adminReq('GET', `/internal/admin/tenants/auditado/key-events`);
+    expect(events.statusCode).toBe(200);
+    const rows = (
+      events.json().data as { action: string; actor: string; prefix: string; keyKind: string }[]
+    ).reverse();
+    expect(rows.map((e) => [e.action, e.actor, e.prefix])).toEqual([
+      ['issued', 'admin', first.prefix],
+      ['issued', 'admin', issued.prefix],
+      ['rotated', 'tenant', first.prefix],
+      ['revoked', 'admin', issued.prefix],
+    ]);
+    expect(rows.every((e) => e.keyKind === 'secret')).toBe(true);
+    // nunca o segredo
+    expect(events.body).not.toContain(first.key);
+    expect(events.body).not.toContain(rotated.json().key.key);
+  });
+});

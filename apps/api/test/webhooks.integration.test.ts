@@ -276,6 +276,13 @@ describe('webhooks assinados', () => {
     });
   });
 
+  it('plano trial não tem webhooks: cadastro recusado', async () => {
+    await upsertTenant(db, { slug: 'em-trial', name: 'Trial', plan: 'trial' });
+    await expect(create({ tenantSlug: 'em-trial', url: `${base}/trial` })).rejects.toThrow(
+      /não inclui webhooks/,
+    );
+  });
+
   it('webhook desativado não recebe; URL insegura é recusada no cadastro', async () => {
     const id = await newEvent();
     const ep = await create({

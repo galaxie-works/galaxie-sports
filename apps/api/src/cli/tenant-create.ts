@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { API_PLANS, closeDb, createDb, type ApiModule, type ApiPlan } from '@galaxie/db';
 import { loadPlans } from '../admin/plans.js';
-import { issueKey, KeyPolicyError, resolveTenantValues } from '../admin/tenants.js';
+import { issueKey, KeyPolicyError, resolveTenantValues, trialEndsFor } from '../admin/tenants.js';
 import { isModule, upsertTenant } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 
@@ -95,7 +95,8 @@ const rateLimit = positiveIntOrExit(values['rate-limit'], '--rate-limit');
 const dailyQuota =
   values['daily-quota'] === 'none' ? null : positiveIntOrExit(values['daily-quota'], '--daily-quota');
 // modelo do plano (config/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
-const resolved = resolveTenantValues(loadPlans(), {
+const plans = loadPlans();
+const resolved = resolveTenantValues(plans, {
   plan: values.plan as ApiPlan,
   ...(modules ? { modules } : {}),
   ...(markets ? { markets } : {}),
@@ -109,13 +110,21 @@ try {
     slug: values.slug,
     name: values.name ?? values.slug,
     ...resolved,
+    // plano trial: prazo a partir de agora (rodar de novo reinicia o prazo, como reaplica o modelo)
+    trialEndsAt: trialEndsFor(plans, resolved.plan),
   });
   // mesmo teto da emissão administrativa (5 chaves válidas por ambiente)
-  const key = await issueKey(db, t.id, {
-    env: values.env as KeyEnv,
-    ...(values.label ? { label: values.label } : {}),
-    ...(scopes ? { scopes } : {}),
-  }).catch((err: unknown) => {
+  const key = await issueKey(
+    db,
+    t.id,
+    {
+      env: values.env as KeyEnv,
+      ...(values.label ? { label: values.label } : {}),
+      ...(scopes ? { scopes } : {}),
+    },
+    new Date(),
+    'cli:tenant-create',
+  ).catch((err: unknown) => {
     if (!(err instanceof KeyPolicyError)) throw err;
     console.error(err.message);
     process.exit(1);

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import { apiKey, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
+import { apiKey, recordKeyEvent, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
 import { createApiKey, type CreatedKey } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 import type { PlanCatalog } from './plans.js';
@@ -27,6 +27,15 @@ export interface NewKeyOptions {
   scopes?: ApiModule[] | undefined;
   env?: KeyEnv | undefined;
   expiresAt?: Date | undefined;
+}
+
+/** Quem fez a mudança, para a auditoria (`api.api_key_event`): `admin`, `tenant`, `cli:<comando>`. */
+export type KeyActor = string;
+
+/** Fim do trial para um plano com `trialDays` (null = plano sem prazo). */
+export function trialEndsFor(plans: PlanCatalog, plan: ApiPlan, now = new Date()): Date | null {
+  const days = plans[plan].trialDays;
+  return days ? new Date(now.getTime() + days * 86_400_000) : null;
 }
 
 export interface OnboardingInput {
@@ -109,18 +118,33 @@ export async function createTenantFromPlan(
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(tenant)
-      .values({ slug: input.slug, name: input.name, ...values })
+      .values({
+        slug: input.slug,
+        name: input.name,
+        ...values,
+        trialEndsAt: trialEndsFor(plans, input.plan),
+      })
       .onConflictDoNothing({ target: tenant.slug })
       .returning();
     if (!row) throw new TenantConflictError(input.slug);
     let key: CreatedKey | null = null;
     if (input.key !== false) {
       const k = input.key ?? {};
+      const env = k.env ?? plans[input.plan].defaultKeyEnv;
       key = await createApiKey(tx, row.id, {
-        env: k.env ?? plans[input.plan].defaultKeyEnv,
+        env,
         label: k.label ?? 'principal',
         ...(k.scopes ? { scopes: k.scopes } : {}),
         ...(k.expiresAt ? { expiresAt: k.expiresAt } : {}),
+      });
+      await recordKeyEvent(tx, {
+        tenantId: row.id,
+        keyKind: 'secret',
+        keyId: key.id,
+        prefix: key.prefix,
+        action: 'issued',
+        actor: 'admin',
+        detail: { env, onboarding: true },
       });
     }
     return { tenant: row, key };
@@ -176,8 +200,12 @@ export async function updateTenant(
   if (!current) return undefined;
   const plan = patch.plan ?? current.plan;
   const base = patch.applyTemplate ? resolveTenantValues(plans, { plan }) : {};
+  // troca de plano reinicia (ou encerra) o prazo: virar trial dá 30 dias; sair do trial tira o prazo
+  const trial =
+    patch.plan !== undefined && patch.plan !== current.plan ? { trialEndsAt: trialEndsFor(plans, plan) } : {};
   const set = {
     ...base,
+    ...trial,
     plan,
     ...(patch.name !== undefined ? { name: patch.name } : {}),
     ...(patch.modules !== undefined ? { modules: [...new Set(patch.modules)] } : {}),
@@ -235,13 +263,24 @@ export async function issueKey(
   tenantId: string,
   options: NewKeyOptions = {},
   now = new Date(),
+  actor: KeyActor = 'admin',
 ): Promise<CreatedKey> {
   const env = options.env ?? 'live';
   return db.transaction(async (tx) => {
     // trava o tenant: emissões simultâneas não furam o teto
     await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, tenantId)).for('update');
     if ((await activeKeyCount(tx, tenantId, env, now)) >= MAX_SECRET_KEYS_PER_ENV) throw tooManyKeys(env);
-    return createApiKey(tx, tenantId, { ...options, env });
+    const key = await createApiKey(tx, tenantId, { ...options, env });
+    await recordKeyEvent(tx, {
+      tenantId,
+      keyKind: 'secret',
+      keyId: key.id,
+      prefix: key.prefix,
+      action: 'issued',
+      actor,
+      detail: { env, ...(options.label ? { label: options.label } : {}) },
+    });
+    return key;
   });
 }
 
@@ -251,13 +290,25 @@ export async function revokeTenantKey(
   tenantId: string,
   keyId: string,
   at = new Date(),
+  actor: KeyActor = 'admin',
 ): Promise<boolean> {
-  const rows = await db
-    .update(apiKey)
-    .set({ revokedAt: at })
-    .where(and(eq(apiKey.id, keyId), eq(apiKey.tenantId, tenantId), isNull(apiKey.revokedAt)))
-    .returning({ id: apiKey.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(apiKey)
+      .set({ revokedAt: at })
+      .where(and(eq(apiKey.id, keyId), eq(apiKey.tenantId, tenantId), isNull(apiKey.revokedAt)))
+      .returning({ id: apiKey.id, prefix: apiKey.prefix });
+    if (!row) return false;
+    await recordKeyEvent(tx, {
+      tenantId,
+      keyKind: 'secret',
+      keyId: row.id,
+      prefix: row.prefix,
+      action: 'revoked',
+      actor,
+    });
+    return true;
+  });
 }
 
 /** Período máximo em que a chave antiga continua válida após a rotação. */
@@ -287,7 +338,7 @@ export async function rotateKey(
   db: Database,
   tenantId: string,
   keyId: string,
-  options: { graceSeconds: number; now?: Date },
+  options: { graceSeconds: number; now?: Date; actor?: KeyActor },
 ): Promise<{ key: CreatedKey; previous: KeyView } | undefined> {
   const now = options.now ?? new Date();
   return db.transaction(async (tx) => {
@@ -330,6 +381,15 @@ export async function rotateKey(
       )
       .where(eq(apiKey.id, old.id))
       .returning();
+    await recordKeyEvent(tx, {
+      tenantId,
+      keyKind: 'secret',
+      keyId: old.id,
+      prefix: old.prefix,
+      action: 'rotated',
+      actor: options.actor ?? 'admin',
+      detail: { newKeyId: key.id, newPrefix: key.prefix, graceSeconds: options.graceSeconds },
+    });
     return { key, previous: toKeyView(prev!, now) };
   });
 }

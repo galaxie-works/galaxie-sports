@@ -66,9 +66,11 @@ export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOpt
   app.post('/v1/account/keys/rotate', { config }, async (request, reply) => {
     const ctx = tenantOf(request);
     const { graceSeconds } = parseInput(RotateKeyBody.strict(), request.body ?? {});
-    const rotated = await rotateKey(db(), ctx.tenantId, ctx.keyId, { graceSeconds }).catch((err) => {
-      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
-    });
+    const rotated = await rotateKey(db(), ctx.tenantId, ctx.keyId, { graceSeconds, actor: 'tenant' }).catch(
+      (err) => {
+        throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
+      },
+    );
     if (!rotated) throw problems.invalidKey('Chave já revogada ou expirada.');
     request.log.info({ tenant: ctx.slug, key: rotated.previous.prefix }, 'chave rotacionada pelo tenant');
     return reply.code(201).send({

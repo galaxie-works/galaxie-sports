@@ -3,10 +3,8 @@
 **Decidida em 2026-10-26**, com base na prática de mercado (Stripe, Twilio, GitHub). Antes ela era uma proposta
 (#356). Cada seção diz a regra, por que ela é assim e onde está no código.
 
-Status:
-
-- **No ar:** ambiente que vale, checksum, limite de teste, publicável de teste, tetos e migração das chaves legadas.
-- **Próxima etapa:** trial, cota diária aplicada e auditoria de emissão, rotação e revogação.
+Status: as 6 decisões estão no ar. Ficam de fora o programa de parceiros do secret scanning e o alerta de uso
+anômalo (§5).
 
 ## As 6 decisões
 
@@ -68,8 +66,13 @@ Status:
   - a publicável não expira.
 - **Revogação:** pela operação (`.../keys/{keyId}/revoke`) ou pelo painel (publicável). Vale em até 60 s, inclusive em
   stream SSE aberto.
-- **Trial (próxima etapa):** plano `trial` em `config/plans.yaml`, com 30 dias para todas as chaves do tenant, cota
-  diária baixa e sem SSE nem webhooks.
+- **Trial:** plano `trial` em `config/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
+  - O onboarding grava `api.tenant.trial_ends_at`. Depois do prazo, nenhuma chave do tenant autentica (401, secreta ou
+    publicável).
+  - Trocar o plano (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo; voltar para `trial` dá 30 dias de
+    novo.
+  - Sem tempo real (`PLANS_WITHOUT_REALTIME`): `/v1/stream` responde 403 `MODULE_NOT_IN_PLAN`, o cadastro de webhook é
+    recusado e o worker não enfileira entregas do tenant.
 
 ## 4. Limites e cota
 
@@ -79,17 +82,26 @@ Status:
   - publicável: 60 por chave × IP;
   - ao estourar: 429 `RATE_LIMITED` com `retry-after` e `x-ratelimit-*`.
 - **Tentativas de autenticação fora do cache:** 60 por minuto por IP e por prefixo (`AUTH_ATTEMPTS_PER_MINUTE`).
-- **Cota diária (próxima etapa):**
-  - aviso no header a partir de 80%;
-  - 429 `QUOTA_EXCEEDED` a partir de 110%, até a virada do dia UTC;
-  - só o uso de produção conta;
-  - `enterprise` sem cota.
+- **Cota diária** (`api.tenant.daily_request_quota`; `QuotaGuard` em `apps/api/src/usage/quota.ts`):
+  - toda resposta de chave de produção com cota traz `x-galaxie-quota-limit` e `x-galaxie-quota-remaining`;
+  - a partir de 80%, `x-galaxie-quota-warning: <uso>%` e um evento no log (`quota.warning`, uma vez por tenant e dia);
+  - acima de 110%: 429 `QUOTA_EXCEEDED` com `retry-after` até a virada do dia UTC, e evento `quota.exceeded`; a
+    requisição recusada não conta;
+  - só o uso de produção conta: a chave de teste fica fora, e a publicável conta como produção;
+  - `enterprise` não tem cota (`dailyRequestQuota: null`);
+  - o total vem dos contadores de uso no Valkey, relidos a cada 5 s por instância. O corte é aproximado, e a folga de
+    10% cobre isso. Com o Valkey fora, a cota não bloqueia (fail-open, como o rate limit);
+  - a API não envia e-mail: o aviso por e-mail fica com quem consome os logs.
 
 ## 5. Logs e vazamento
 
 - **Nunca se loga a chave.** O serializer de requisição não inclui headers, `?key=` é mascarado e o suporte usa o
   prefixo.
-- **Auditoria (próxima etapa):** emissão, rotação e revogação, com quem fez e quando. Nunca o segredo.
+- **Auditoria** (`api.api_key_event`): emissão, rotação, revogação e migração, de chave secreta ou publicável.
+  - Cada evento grava quem fez (`admin`, `tenant`, `cli:<comando>`, `panel:<id do usuário>`, `widget`), quando e o
+    prefixo, nunca o segredo.
+  - O evento é gravado na mesma transação da mudança.
+  - Consulta: `GET /internal/admin/tenants/{id}/key-events?limit=`.
 - **No repositório:** o gitleaks do CI tem uma regra própria para o formato com checksum (`.gitleaks.toml`, regra
   `galaxie-api-key`).
 - **Secret scanning do GitHub** é configuração da organização, não código. Cadastre o padrão customizado assim:
