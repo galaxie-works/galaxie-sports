@@ -65,8 +65,13 @@ export interface Showcase {
     played: number;
     since: number;
     draws: number;
-    /** Histórico geral curado (base semântica, `all_time`), quando há número confiável. */
+    /**
+     * Histórico geral curado (base semântica, `all_time`), só quando o par (`pair`, slug em
+     * data/knowledge/…/head-to-head) está aprovado na revisão editorial: a API retém o rascunho, e a
+     * vitrine não pode mostrar o que a API não serve. O teste confere o status no YAML.
+     */
     allTime?: {
+      pair: string;
       matches: number;
       draws: number;
       home: { wins: number; goals: number };
@@ -167,14 +172,7 @@ const BRAZIL: Showcase = {
     played: 34,
     since: 2010,
     draws: 5,
-    allTime: {
-      matches: 126,
-      draws: 20,
-      home: { wins: 66, goals: 210 },
-      away: { wins: 40, goals: 168 },
-      asOf: '2026-10-14',
-      sources: ['palmeiras.com.br', 'pt.wikipedia.org'],
-    },
+    // sem `allTime`: o histórico geral de palmeiras-fluminense ainda é rascunho na base semântica
     home: { ...TEAMS.palmeiras, wins: 14, goals: 42 },
     away: { ...TEAMS.fluminense, wins: 15, goals: 35 },
     meetings: [

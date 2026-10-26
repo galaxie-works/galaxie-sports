@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ENTITY_TYPES,
   REGISTRY_COMPONENTS,
+  REQUIRED_ENTITY,
   WIDGET_KINDS,
   installCommand,
   parseOrigins,
@@ -71,6 +72,17 @@ describe('widget salvo', () => {
     expect(parseWidgetInput(standings, opts).ok).toBe(true);
   });
 
+  it('placar, tabela e onde assistir exigem a entidade padrão; a lista ao vivo, não', () => {
+    const none = { ...base.config, defaults: {} };
+    for (const kind of ['match_card', 'standings', 'where_to_watch'])
+      expect(parseWidgetInput({ ...base, kind, config: none }, opts)).toEqual({
+        ok: false,
+        error: 'entityRequired',
+      });
+    const live = parseWidgetInput({ ...base, kind: 'live_list', config: none }, opts);
+    expect(live.ok && live.value.config.defaults).toEqual({});
+  });
+
   it('recusa tipo, nome e idioma desconhecidos', () => {
     expect(parseWidgetInput({ ...base, kind: 'banner' }, opts)).toEqual({ ok: false, error: 'kind' });
     expect(parseWidgetInput({ ...base, name: ' ' }, opts)).toEqual({ ok: false, error: 'name' });
@@ -99,6 +111,18 @@ describe('catálogo de @galaxie/widgets', () => {
         ...WIDGET_CATALOG[kind].optionalProps,
       ];
       for (const type of ENTITY_TYPES[kind]) expect(props).toContain(PROP[type]);
+    }
+  });
+
+  it('a entidade obrigatória de cada tipo é a prop obrigatória do componente', () => {
+    const PROP = { event: 'eventId', competition: 'competitionId', team: 'teamId' } as const;
+    for (const kind of WIDGET_KINDS) {
+      const required = REQUIRED_ENTITY[kind];
+      const entityProps = WIDGET_CATALOG[kind].requiredProps.filter((p) =>
+        (Object.values(PROP) as string[]).includes(p),
+      );
+      expect(entityProps).toEqual(required ? [PROP[required]] : []);
+      if (required) expect(ENTITY_TYPES[kind]).toContain(required);
     }
   });
 
