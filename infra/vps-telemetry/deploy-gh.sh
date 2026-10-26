@@ -7,7 +7,8 @@
 #
 # Ambiente: SHA (obrigatório); VPS (padrão root@145.223.94.149) e VPS_DIR; IMAGE_PREFIX (padrão
 # ghcr.io/galaxie-works/galaxie-sports); GHCR_USER e GHCR_TOKEN (token que lê os pacotes; vazio = pacotes públicos);
-# FORCE=1 publica de novo um SHA que já está no ar. A chave SSH e o known_hosts vêm do workflow.
+# FORCE=1 publica de novo um SHA que já está no ar; ON_SKIP=fail faz o SHA já no ar sem FORCE sair com 1 em vez de 0
+# (disparo manual: nunca verde sem publicar). A chave SSH e o known_hosts vêm do workflow.
 #
 # Passos:
 #   1. as imagens do SHA existem no GHCR (antes de tocar a VPS)
@@ -18,7 +19,7 @@
 #   5. compose.yml do SHA e IMAGE_TAG no .env, validados; docker compose pull só dos serviços com imagem nossa (os de
 #      terceiros, como o postgres, ficam na imagem que já está na VPS); backup dos dois arquivos e troca
 #   6. docker compose up -d (escala atual do ingestor; PULL_POLICY=missing) e migrate com saída 0
-#   7. pós-deploy (post-deploy.sh: seed, nomes, importância, cache, conta da IA) e smoke test (smoke.mjs)
+#   7. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA) e smoke test (smoke.mjs)
 #   8. up, migrate, pós-deploy ou smoke com falha → volta para o SHA anterior quando é garantidamente o estado de antes
 #      (nenhuma migration nova aplicada, backups e imagens antigas na VPS); senão imprime o rollback manual
 #   9. lineup-render (perfil render): baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha)
@@ -28,6 +29,7 @@
 set -euo pipefail
 
 : "${SHA:?defina SHA}"
+case "${FORCE:-}" in 1 | true | sim | yes) FORCE=1 ;; *) FORCE="" ;; esac
 VPS="${VPS:-root@145.223.94.149}"
 DIR="${VPS_DIR:-/docker/galaxie-sports}"
 REG="${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}"
@@ -136,12 +138,16 @@ case "$lock" in
 esac
 
 OLD="$(ssh "$VPS" "grep -E '^IMAGE_TAG=' $DIR/.env | cut -d= -f2")"
-if [ "$OLD" = "$SHA" ] && [ -z "${FORCE:-}" ]; then
+if [ "$OLD" = "$SHA" ] && [ -z "$FORCE" ]; then
+  if [ "${ON_SKIP:-pass}" = fail ]; then
+    echo "FAIL  ${SHA:0:7} já está no ar e nada foi publicado; para publicar de novo, dispare com force=1"
+    exit 1
+  fi
   echo "SKIP  ${SHA:0:7} já está no ar; nada a fazer (FORCE=1 publica de novo)"
   echo "result=skip" >> "${GITHUB_OUTPUT:-/dev/null}"
   exit 0
 fi
-echo "na VPS: ${OLD:0:7} → ${SHA:0:7}"
+echo "na VPS: ${OLD:0:7} → ${SHA:0:7}${FORCE:+ (force: publica de novo)}"
 
 # ── credencial temporária do GHCR na VPS ────────────────────────────────────────────────────────────────────
 if [ -n "${GHCR_TOKEN:-}" ]; then
@@ -203,7 +209,10 @@ restore_previous() {
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
-    ssh "$VPS" "cd $DIR && bash -s -- cache" < "$POST" || echo "WARN  cache não foi limpo depois de voltar"
+    # a base semântica volta para a da versão anterior (a imagem dela traz o data/knowledge dela)
+    ssh "$VPS" "cd $DIR && GIT_SHA=$OLD bash -s -- seed" < "$HERE/post-deploy.sh" ||
+      echo "WARN  seed semântico da ${o} não rodou depois de voltar"
+    ssh "$VPS" "cd $DIR && bash -s -- cache" < "$HERE/post-deploy.sh" || echo "WARN  cache não foi limpo depois de voltar"
     echo "FAIL  deploy desfeito: compose.yml e .env de ${o} de volta e a stack subiu de novo nela; investigue antes de repetir"
     ssh "$VPS" "cd $DIR && docker compose ps -a --format '{{.Service}}: {{.Status}}'" || true
   else
@@ -240,8 +249,8 @@ fi
 [ "$migrate" = "exited 0" ] || restore_previous "migrate não terminou com sucesso ($migrate)"
 MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
-if ! ssh "$VPS" "cd $DIR && bash -s -- all" < "$POST"; then
-  restore_previous "pós-deploy falhou (seed ou limpeza do cache)"
+if ! ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- all" < "$POST"; then
+  restore_previous "pós-deploy falhou (nomes, importância ou limpeza do cache)"
 fi
 
 echo "smoke test"

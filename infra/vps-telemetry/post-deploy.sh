@@ -2,24 +2,43 @@
 # Passos pós-deploy, rodados NA VPS dentro de /docker/galaxie-sports, com a stack nova já no ar. Os dois roteiros de
 # deploy mandam este arquivo pelo ssh (o do GitHub Actions, deploy-gh.sh, e o da máquina de dev, deploy.sh):
 #
-#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- all' < infra/vps-telemetry/post-deploy.sh
+#   ssh <vps> 'cd /docker/galaxie-sports && GIT_SHA=<sha> bash -s -- all' < infra/vps-telemetry/post-deploy.sh
 #
-#   all    seed da base semântica, nomes curados de estádios e importância (idempotentes, sem chamada ao fornecedor),
-#          limpeza do cache de respostas da API e checagem da conta da IA
+#   all    seed da base semântica, nomes curados de estádios e importância (idempotentes, sem chamada ao fornecedor
+#          nem LLM), limpeza do cache de respostas da API e conta da IA. O seed roda em todo deploy, não só quando
+#          data/knowledge muda: é ele que liga os perfis aos participantes que a ingestão trouxe desde o último
+#          deploy
+#   seed   só o seed da base semântica (depois de voltar para a versão anterior)
 #   cache  só a limpeza do cache (depois de voltar para a versão anterior)
 #
-# Falha no seed ou na limpeza do cache sai com ≠ 0 (o deploy para); a checagem da IA só avisa.
+# GIT_SHA vai para o semantic.load_run (a imagem não tem .git). Falha nos nomes, na importância ou na limpeza do cache
+# sai com ≠ 0 (o deploy para); o seed semântico e a checagem da IA só avisam (WARN).
 # O script chega pelo stdin (bash -s): todo comando que não precisa de entrada lê de /dev/null, senão o docker compose
 # consumiria o resto do script.
 set -euo pipefail
 export PULL_POLICY=missing # nada vem do registry aqui
 
 step="${1:-all}"
+SEED_JS=/srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js
 
-seed() {
+# base semântica (data/knowledge → semantic.*, #362) com o data/knowledge da própria imagem. O caminho é o symlink que
+# o pnpm deploy cria para o pacote (o CI confere que ele existe na imagem do ingestor); --dir é obrigatório, porque o
+# padrão do pacote aponta para dentro do node_modules/.pnpm. Falha vira WARN: a versão nova segue no ar com a base
+# anterior, e o seed pode ser repetido à mão com o mesmo comando.
+semantic() {
+  local out
+  echo "seed semântico (${GIT_SHA:-sem SHA})"
+  if out="$(docker compose run --rm --no-deps -e GIT_SHA="${GIT_SHA:-}" ingestor \
+    node "$SEED_JS" --dir /srv/data/knowledge </dev/null 2>&1)"; then
+    printf '%s\n' "$out" | grep -E '^(Ligados|Estádios|Revisão|Edições)' || true
+  else
+    printf '%s\n' "$out" | tail -n 5
+    echo "WARN  seed semântico falhou; a base semântica ficou a anterior (repita com: docker compose run --rm --no-deps ingestor node $SEED_JS --dir /srv/data/knowledge)"
+  fi
+}
+
+derived() {
   echo "pós-deploy (idempotente, sem chamadas ao fornecedor)"
-  docker compose run --rm --no-deps -w /srv/services/ingestor ingestor \
-    node node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js --dir /srv/data/knowledge </dev/null >/dev/null
   docker compose run --rm --no-deps ingestor node dist/cli/derive-names.js </dev/null >/dev/null
   docker compose run --rm --no-deps ingestor node dist/cli/events-importance.js --esporte football --proximos-dias 7 </dev/null >/dev/null
   echo ok
@@ -73,13 +92,15 @@ JS
 
 case "$step" in
   all)
-    seed
+    semantic
+    derived
     cache
     ai
     ;;
+  seed) semantic ;;
   cache) cache ;;
   *)
-    echo "uso: post-deploy.sh all|cache" >&2
+    echo "uso: post-deploy.sh all|seed|cache" >&2
     exit 2
     ;;
 esac
