@@ -52,6 +52,7 @@ import {
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 import { enrichRaceStandings } from '../../events/race-standings.js';
 import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
+import { currentPhaseKey, standingsGroupLabel, standingsTableOf } from '@galaxie/rules';
 import { effectiveMinReview, meetsReview } from './semantic.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 import {
@@ -328,11 +329,37 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           rows.map((r) => r.p.id),
           teamNameOptions(ctx, locale),
         );
+        // tabelas da temporada pelo regulamento (Apertura/Clausura, anual, promedios): nome, papel e fase atual
+        // os regulamentos (config/rules) são do futebol
+        const rules = row.c.sport === 'football' ? await ctx.rules.get(row.c.slug, s.year) : null;
+        const tables = rules?.tables.length ? rules : null;
+        const activity = new Map<string, number>();
+        for (const r of rows) activity.set(r.st.group, Math.max(activity.get(r.st.group) ?? 0, r.st.played));
+        const currentPhase = tables
+          ? currentPhaseKey(
+              tables,
+              [...activity].map(([group, played]) => ({ group, played })),
+            )
+          : null;
         const groups = new Map<string, Standings['groups'][number]>();
+        const sources = new Map<string, Set<string>>();
         let updatedAt: Date | null = null;
         for (const r of rows) {
-          const g = groups.get(r.st.group) ?? { name: r.st.group || null, rows: [] };
-          groups.set(r.st.group, g);
+          sources.set(r.st.group, (sources.get(r.st.group) ?? new Set()).add(r.st.source));
+          let g = groups.get(r.st.group);
+          if (!g) {
+            const t = tables ? standingsTableOf(tables, r.st.group) : null;
+            g = {
+              name: r.st.group || null,
+              display_name: t ? standingsGroupLabel(t, r.st.group, locale) : null,
+              table: t?.kind ?? null,
+              table_key: t?.key ?? null,
+              current: tables ? t?.kind === 'phase' && t.key === currentPhase : null,
+              source: null,
+              rows: [],
+            };
+            groups.set(r.st.group, g);
+          }
           g.rows.push({
             rank: r.st.rank,
             participant: {
@@ -363,11 +390,23 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
             liveries: await liveries().catch(() => []),
             year: s.year,
           });
+        for (const [group, set] of sources) {
+          const only = set.size === 1 ? [...set][0] : null;
+          groups.get(group)!.source = only === 'provider' || only === 'computed' ? only : null;
+        }
+        // ordem do regulamento (fases na ordem cronológica, depois as auxiliares); grupo desconhecido no fim
+        const order = (g: Standings['groups'][number]) =>
+          tables && g.table_key
+            ? tables.tables.findIndex((t) => t.key === g.table_key)
+            : Number.MAX_SAFE_INTEGER;
+        const ordered = [...groups.values()].sort(
+          (a, b) => order(a) - order(b) || (a.name ?? '').localeCompare(b.name ?? ''),
+        );
         const source = rows[0]?.st.source;
         const body: Standings = {
           competition_id: row.c.id,
           season: { year: s.year, label: s.label },
-          groups: [...groups.values()],
+          groups: ordered,
           source: source === 'provider' || source === 'computed' ? source : null,
           updated_at: updatedAt ? formatInstant(updatedAt, tz) : null,
         };

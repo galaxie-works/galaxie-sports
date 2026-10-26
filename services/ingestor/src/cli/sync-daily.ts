@@ -19,7 +19,7 @@ import { checkProviderStatus, dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } f
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
-import { recomputeStandings } from '../standings/recompute.js';
+import { needsAttention, recomputeStandings } from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
@@ -95,18 +95,23 @@ await runCli(async () => {
           (written.length ? ` (${written.map((t) => `${t.competition} ${t.year}`).join(', ')})` : '') +
           '.',
       );
-      // tabela do fornecedor mais nova, mata-mata ou sem resultado é o normal; grupo ambíguo (time em mais de um
-      // grupo do fornecedor) ou regulamento/entrada inválidos deixam a tabela parada e precisam de atenção
-      const attention = new Set(['no_groups', 'rules_error', 'invalid_input']);
-      for (const t of tables.filter((x) => x.outcome !== 'written')) {
+      // tabela parada, tabela do regulamento sem recálculo ou grupo desconhecido vão em warn (needsAttention)
+      for (const t of tables) {
         const fields = {
           season_id: t.seasonId,
           competition: t.competition,
           outcome: t.outcome,
           detail: t.detail,
+          skipped: t.skipped,
+          unclassified: t.unclassified,
+          unmatched_rounds: t.unmatchedRounds,
         };
-        if (attention.has(t.outcome)) logger.warn(fields, 'tabela não recalculada');
-        else logger.info(fields, 'tabela não recalculada');
+        if (needsAttention(t))
+          logger.warn(
+            fields,
+            t.outcome === 'written' ? 'tabela recalculada com pendências' : 'tabela não recalculada',
+          );
+        else if (t.outcome !== 'written') logger.info(fields, 'tabela não recalculada');
       }
     }
   } finally {

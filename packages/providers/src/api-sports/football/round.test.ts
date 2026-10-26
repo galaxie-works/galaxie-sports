@@ -29,6 +29,14 @@ describe('parseRound', () => {
     ['Finals', 'final', 'Final', 13000],
     ['Club Friendlies', 'friendly', 'Amistosos', 0],
     ['Torneio Esquisito', 'other', 'Torneio Esquisito', 2000],
+    // mata-mata de torneio curto (Liguilla, playoffs do Apertura): a fase vem depois do nome do torneio
+    ['Apertura - Quarter-finals', 'quarter_final', 'Apertura · Quartas de final', 10000],
+    ['Clausura - Semi-finals', 'semi_final', 'Clausura · Semifinal', 11000],
+    ['Apertura - Final', 'final', 'Apertura · Final', 13000],
+    ['Apertura - Round of 16', 'round_of_16', 'Apertura · Oitavas de final', 9000],
+    // o que não é mata-mata continua como antes
+    ['Relegation Round - 3', 'relegation', 'Fase de rebaixamento · Rodada 3', 3003],
+    ['Liga MX - Group Stage', 'group', 'Fase de grupos', 2000],
   ];
 
   it.each(cases)('%s', (label, kind, pt, order) => {

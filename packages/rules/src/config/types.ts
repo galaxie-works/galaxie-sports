@@ -91,15 +91,75 @@ export interface KnockoutStageRules {
   neutralVenue: boolean;
   /** O vencedor do confronto é o campeão (final). */
   decidesTitle: boolean;
+  /**
+   * Empate no confronto (no agregado, ou no jogo único) sem prorrogação nem pênaltis: `better_seed` classifica
+   * o de melhor campanha na fase de classificação (Liguilla da Liga MX). A tabela de referência vem de
+   * `knockout.seeding`.
+   */
+  levelAdvantage: 'better_seed' | null;
+}
+
+/** Tabela (de `tables:`) que define a melhor campanha nas rodadas de mata-mata que casam com `rounds`. */
+export interface KnockoutSeeding {
+  rounds: RegExp;
+  table: string;
 }
 
 export interface KnockoutRules {
   default: KnockoutStageRules;
   /** Exceções por fase: chave = `core.stage.kind` (final, semi_final, first_round...). */
   stages: Record<string, KnockoutStageRules>;
+  /** De onde sai a melhor campanha para `level_advantage: better_seed` (vazio sem essa regra). */
+  seeding: KnockoutSeeding[];
 }
 
 export type CompetitionFormat = 'league' | 'cup' | 'league_phase' | 'groups_and_knockout';
+
+/**
+ * Papel de uma tabela da temporada:
+ * - `phase`: tabela principal de uma fase (Apertura, Clausura, fase de grupos, pontos corridos);
+ * - `annual`: tabela anual/acumulada (soma das fases da temporada);
+ * - `relegation_average`: *promedios* (média de pontos de várias temporadas, decide o rebaixamento);
+ * - `other`: tabela auxiliar sem cálculo próprio (guardada e exposta como vem do fornecedor).
+ */
+export const STANDINGS_TABLE_KINDS = ['phase', 'annual', 'relegation_average', 'other'] as const;
+export type StandingsTableKind = (typeof STANDINGS_TABLE_KINDS)[number];
+
+/** Nome localizado de uma tabela ou fase (`pt-BR` obrigatório; os demais caem nele). */
+export interface TableName {
+  'pt-BR': string;
+  es?: string;
+  en?: string;
+}
+
+/**
+ * Uma tabela da temporada no regulamento (`tables:` do YAML): quais grupos de `core.standing` são dela, quais
+ * rodadas contam no recálculo e o nome exibido. A ordem das fases no YAML é a ordem cronológica.
+ */
+export interface StandingsTableRule {
+  key: string;
+  kind: StandingsTableKind;
+  name: TableName;
+  /** Grupos de `core.standing` (nome do fornecedor, ex.: "Apertura - Group A") que pertencem à tabela. */
+  groups: RegExp;
+  /** Grupos que casam com `groups` mas não são desta tabela. */
+  exclude: RegExp | null;
+  /** Rodadas (`core.stage.provider_label`, ex.: "Apertura - 7") que contam no recálculo; null: não recalcula. */
+  rounds: RegExp | null;
+  /** Como chamar o subgrupo no nome exibido ("Apertura · Zona A"); padrão: Grupo / Grupo / Group. */
+  subgroupLabel: TableName | null;
+  /** Grupo gravado pelo recálculo quando o fornecedor ainda não mandou a tabela (tabela única da fase). */
+  groupName: string | null;
+  /**
+   * Jogo entre times de grupos diferentes da fase conta na tabela de cada um (fecha interzonal da Argentina);
+   * falso: só jogos dentro do grupo entram.
+   */
+  crossGroupMatches: boolean;
+  /** O recálculo grava esta tabela (falso: só a do fornecedor é guardada e exposta, ex.: promedios). */
+  computed: boolean;
+  /** Matemática própria da tabela (times, jogos, zonas); ausente: a de `league`. */
+  league: LeagueRules | null;
+}
 
 export interface CompetitionRules {
   slug: string;
@@ -110,5 +170,7 @@ export interface CompetitionRules {
   standings: StandingsRules;
   league: LeagueRules | null;
   knockout: KnockoutRules | null;
+  /** Tabelas da temporada por fase e auxiliares (vazio: um conjunto de grupos sem papel definido). */
+  tables: StandingsTableRule[];
   sources: string[];
 }

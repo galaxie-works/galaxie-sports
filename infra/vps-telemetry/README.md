@@ -70,7 +70,7 @@ condições do `up` e do `migrate`. Configuração, transição e plano B:
 [docs/runbooks/deploy-pelo-github.md](../../docs/runbooks/deploy-pelo-github.md).
 
 ```bash
-gh workflow run deploy.yml                          # o commit mais novo da main
+gh workflow run deploy.yml                          # o commit mais novo da main (espera o CI dele, até 30 min)
 gh workflow run deploy.yml -f sha=<sha> -f force=1  # um SHA específico, mesmo já no ar
 ```
 
@@ -80,8 +80,9 @@ gh workflow run deploy.yml -f sha=<sha> -f force=1  # um SHA específico, mesmo 
 infra/vps-telemetry/deploy.sh
 ```
 
-Os passos pós-deploy (seed, nomes, importância, cache de respostas e conta da IA) estão em
-[`post-deploy.sh`](post-deploy.sh), que os dois roteiros rodam na VPS.
+Os passos pós-deploy estão em [`post-deploy.sh`](post-deploy.sh), que os dois roteiros rodam na VPS: seed da base
+semântica com `--dir /srv/data/knowledge` e o SHA (falha só avisa), nomes, importância, cache de respostas e conta da
+IA.
 
 O script confere o CI do commit (padrão `origin/main`) no GitHub (`gh`, execuções do GitHub Actions do SHA: vermelho
 ou cancelado para tudo; ainda rodando espera até `CI_WAIT_MIN` minutos, padrão 20). Um SHA antigo ou intermediário
