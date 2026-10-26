@@ -71,7 +71,7 @@ describe('seedSemantic', () => {
     const result = await seedSemantic(db, kb, { gitSha: 'abc123' });
     expect(result.teams).toMatchObject({ total: 218, inserted: 218, updated: 0, removed: 0 });
     expect(result.derbies).toMatchObject({ total: 93, inserted: 93 });
-    expect(result.competitions).toMatchObject({ total: 43, inserted: 43 });
+    expect(result.competitions).toMatchObject({ total: 58, inserted: 58 });
     expect(result.copyTemplates.inserted).toBeGreaterThanOrEqual(8 * 24);
 
     const [palmeiras] = await db.select().from(teamProfile).where(eq(teamProfile.slug, 'palmeiras'));
@@ -113,7 +113,7 @@ describe('seedSemantic', () => {
     expect(pair.map((p) => p.teamSlug).sort()).toEqual(['palmeiras', 'sao-paulo']);
 
     const [run] = await db.select().from(loadRun);
-    expect(run).toMatchObject({ gitSha: 'abc123', teams: 218, derbies: 93, competitions: 43 });
+    expect(run).toMatchObject({ gitSha: 'abc123', teams: 218, derbies: 93, competitions: 58 });
     const copies = await db.select().from(copyTemplate).where(eq(copyTemplate.key, 'pt-BR.rivalry-3'));
     expect(copies[0]).toMatchObject({
       locale: 'pt-BR',

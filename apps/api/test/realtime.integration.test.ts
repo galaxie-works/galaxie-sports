@@ -104,14 +104,14 @@ beforeAll(async () => {
   ev.competition = comp!.id;
 
   const t = await upsertTenant(db, { slug: 'tv', name: 'TV', plan: 'enterprise', rateLimitPerMinute: 1000 });
-  key = (await createApiKey(db, t.id, { env: 'test' })).key;
+  key = (await createApiKey(db, t.id, { env: 'live' })).key;
   const c = await upsertTenant(db, {
     slug: 'radio',
     name: 'Rádio',
     plan: 'core_data',
     rateLimitPerMinute: 1000,
   });
-  coreKey = (await createApiKey(db, c.id, { env: 'test' })).key;
+  coreKey = (await createApiKey(db, c.id, { env: 'live' })).key;
 
   const realtime = { pollIntervalMs: 200, heartbeatMs: 300, maxConnectionsPerTenant: MAX_CONNECTIONS };
   apiA = buildServer({

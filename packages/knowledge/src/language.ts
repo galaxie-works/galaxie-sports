@@ -80,3 +80,12 @@ export function guessLanguage(text: string): TextLanguage | null {
 
 /** Idioma de um locale de texto (pt-BR → pt; es, es-AR → es). */
 export const languageOf = (locale: string): TextLanguage => (locale.startsWith('pt') ? 'pt' : 'es');
+
+/**
+ * Cadeia de fallback dos campos localizados (`labels`, `nicknames`): es-AR → es → en; pt-BR → pt → en.
+ * É a mesma da API (`pickText`/`pickList` em apps/api/src/i18n.ts), para o validador ver o que ela serve.
+ */
+export function fallbackChain(locale: string): string[] {
+  const lang = locale.split('-')[0]!;
+  return [...new Set([locale, lang, 'en'])];
+}
