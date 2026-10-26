@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Trem de merge: para cada PR, atualiza com a main, espera o CI completo (>= 12 checks, nada pendente),
 # confere o review do bot do Codex (thread P1 sem resolver = fica de fora; CODEX_GATE=off desliga) e faz squash;
-# PR com falha, conflito ou P1 aberto fica de fora e é relatado. No fim, um deploy só.
+# PR com falha, conflito ou P1 aberto fica de fora e é relatado. PR empilhado sobre um que entra é reapontado
+# para a main antes do merge (o --delete-branch fecharia o PR). O deploy sai pelo Actions (DEPLOY_AUTO).
 # Uso: infra/ops/merge-train.sh <pr> [<pr>...]   (do checkout principal; gh autenticado)
 cd "${GALAXIE_ROOT:-/g/galaxie-sports}" || exit 1
 wait_ci() { prev=""; for i in $(seq 1 100); do s=$(gh pr checks $1 2>/dev/null | awk -F'	' '{print $1"="$2}' | sort); if [ -n "$s" ] && ! echo "$s" | grep -qE "=(pending|queued)" && [ "$s" = "$prev" ]; then echo "$s" | cut -d= -f2 | sort | uniq -c | tr '
@@ -27,6 +28,11 @@ for p in "$@"; do
     sleep 120  # o review do Codex costuma chegar alguns minutos depois do push
     n=$(codex_p1 $p); [ "${n:-0}" -gt 0 ] && { echo "$p FICOU DE FORA (Codex: $n P1 sem resolver)"; continue; }
   fi
+  # PR empilhado neste (base = branch dele) vai para a main antes do merge: apagar o branch fecharia o PR
+  head=$(gh pr view $p --json headRefName --jq .headRefName)
+  for c in $(gh pr list --base "$head" --state open --json number --jq '.[].number'); do
+    gh pr edit $c --base main >/dev/null && echo "$c reapontado para a main (estava sobre o #$p)"
+  done
   out=$(gh pr merge $p --squash --delete-branch 2>&1 | tail -1)
   [ "$(gh pr view $p --json state --jq .state)" = MERGED ] && merged+=($p) || echo "$p FICOU DE FORA: $out"
 done
