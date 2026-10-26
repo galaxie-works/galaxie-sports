@@ -149,7 +149,7 @@ Na importação, a primeira foto do primeiro candidato que não foi rejeitada **
   - Sempre com a legenda de crédito.
 - **Banco:**
   - `core.asset` (`origin = commons`, `acervo = commons-f1`, `source_url = commons://<arquivo>`);
-  - `core.asset_credit`: autor, licença, página, data e dimensões originais;
+  - `core.asset_credit`: autor, licença, página, atribuição pedida pelo autor (`attribution`), data e dimensões originais;
   - `core.participant_photo`: participante, papel, temporada e ordem.
   - Storage: `commons/f1/{drivers|cars}/<id do participante>.<sha256[0:12]>.{jpg|png}`.
 
@@ -211,3 +211,15 @@ Regra das biografias: toda frase precisa de uma fonte vinda da busca do Gemini (
 ## Créditos
 
 Cada foto tem o próprio autor e a própria licença, no manifesto, no `core.asset_credit` e em toda resposta da API. A fonte é sempre a Wikimedia Commons, com o link da página do arquivo.
+
+Dois campos da Commons parecem iguais e não são:
+
+- `Credit` (`asset_credit.credit`): na prática, a fonte do arquivo ("Own work", link do Flickr, legenda). Não é a linha de crédito.
+- `Attribution` (`asset_credit.attribution`): a atribuição pedida pelo autor, quando o arquivo pede. É a linha que a licença manda exibir; no `logo_credit` da API, ela vira o `text` ("Logo: <atribuição> · <licença>").
+
+A importação (fotos, logos de competição e de plataforma) grava os dois, sem HTML. Os créditos gravados antes da migration `0052_atribuicao_da_commons` ficaram sem `attribution`; o backfill relê só esses na Commons (uma requisição a cada 50 arquivos) e pode rodar de novo sem efeito colateral. Todo crédito consultado fica marcado (`attribution_checked_at`), com ou sem atribuição: rodadas com `--limite` andam pela fila, e `--reconferir` confere de novo os marcados que continuam sem atribuição. As competições e plataformas cujo logo ganhou atribuição vão para o change feed, e a API purga as respostas com o `logo_credit`:
+
+```bash
+pnpm --filter @galaxie/ingestor assets:commons:atribuicao --plan   # o que seria gravado
+pnpm --filter @galaxie/ingestor assets:commons:atribuicao [--limite 500] [--reconferir]
+```
