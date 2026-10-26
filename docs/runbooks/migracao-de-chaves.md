@@ -20,7 +20,7 @@ Assim que a versão com a política entra no ar:
 
 ## Ordem segura
 
-1. **Deploy** da versão com a política. A migration 0053 só adiciona colunas, com padrão.
+1. **Deploy** da versão com a política. A migration 0054 só adiciona colunas, com padrão.
 2. **Plano** (não muda nada):
 
    ```bash
