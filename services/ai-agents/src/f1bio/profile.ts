@@ -264,20 +264,119 @@ const finding = (
 });
 
 /**
- * Vocabulário de pilotagem que a lista de termos proibidos (feita para torcida e violência) pegaria: "pilotagem
- * agressiva" descreve estilo, não agressão.
+ * "Agressivo" em contexto de pilotagem, que a lista de termos proibidos (feita para torcida e violência) pegaria:
+ * "pilotagem agressiva", "ultrapassagens agressivas", "agressivo nas freadas" descrevem estilo, não agressão. Fora
+ * desses contextos (ex.: "agressivo com o rival"), o termo segue virando alerta. Sobre o texto normalizado.
  */
-const RACING_PHRASES = [
-  'agressividade',
-  'agressivamente',
-  'agressivo',
-  'agressiva',
-  'agressivos',
-  'agressivas',
-] as const;
+const RACING_AGGRESSION = new RegExp(
+  [
+    '\\b(?:pilotagem|estilo|conducao|manobras?|ultrapassagens?|freadas?|frenagens?|largadas?|ritmo|defesas?|ataques?|tocadas?|voltas?)\\s+(?:(?:mais|muito|tao|bem|bastante|sempre)\\s+)?agressiv[a-z]*',
+    '\\bagressiv[a-z]*\\s+(?:na|nas|no|nos|em|ao|aos)\\s+(?:pista|entradas?|curvas?|ultrapassagens?|freadas?|frenagens?|largadas?|volante|defesas?|disputas?)\\b',
+    '\\b(?:pilotar|pilotava|pilotou|pilota|guiava|conduzia|freava|atacava|largava|defendia)\\s+(?:(?:de forma|de maneira|com)\\s+(?:[a-z]+\\s+)?)?agressiv[a-z]*',
+    '\\bagressividade\\s+(?:controlada|calculada|medida)\\b',
+  ].join('|'),
+  'g',
+);
+
+/** O texto normalizado sem o "agressivo" de pilotagem (para a lista de termos proibidos; também na revisão). */
+export const withoutRacingAggression = (text: string) => normalizeText(text).replace(RACING_AGGRESSION, ' ');
 
 /** Nome de modelo com número (Brabham BT52, McLaren MP4/4, Ferrari F2004): o número é do nome, não estatística. */
 const MODEL_CODE = /\b\p{L}+\d+(?:[/-]\d+)*\p{L}*\b/gu;
+
+/**
+ * Tira os nomes de modelo antes de conferir os números. "P2" e "Q3" (posição, sessão de classificação) não são
+ * chassi: ficam, e o número passa pelo F1DB, salvo logo depois do nome de uma equipe do piloto (Tyrrell P34).
+ */
+function stripModelCodes(text: string, teams: readonly string[]): string {
+  const teamWords = new Set(teams.flatMap((t) => normalizeText(t).split(/\s+/)));
+  return text.replace(MODEL_CODE, (token: string, offset: number) => {
+    if (!/^[PQ]\d{1,2}$/i.test(token)) return ' ';
+    const prev = /([\p{L}\d-]+)\s*$/u.exec(normalizeText(text.slice(0, offset)))?.[1];
+    return prev && teamWords.has(prev) ? ' ' : token;
+  });
+}
+
+/**
+ * Como o nome do GP do F1DB (inglês, sem "Grand Prix") aparece em pt-BR e em es: o rótulo do momento precisa citar o
+ * GP da corrida da chave. Fora da tabela, vale o próprio nome (Miami, Las Vegas, Eifel...).
+ */
+const GP_LABEL_WORDS: Record<string, readonly string[]> = {
+  '70th anniversary': ['aniversario'],
+  'abu dhabi': ['abu dabi'],
+  argentine: ['argentina'],
+  australia: ['australia'],
+  australian: ['australia'],
+  austria: ['austria'],
+  austrian: ['austria'],
+  azerbaijan: ['azerbaijao', 'azerbaiyan', 'baku'],
+  bahrain: ['bahrein', 'barein'],
+  'barcelona catalunya': ['espanha', 'espana', 'barcelona', 'catalunha', 'cataluna'],
+  belgian: ['belgica'],
+  belgium: ['belgica'],
+  brazil: ['brasil'],
+  brazilian: ['brasil'],
+  british: ['gra bretanha', 'gran bretana', 'inglaterra', 'britanico'],
+  canada: ['canada'],
+  canadian: ['canada'],
+  china: ['china'],
+  chinese: ['china'],
+  dutch: ['holanda', 'paises baixos', 'paises bajos'],
+  'emilia romagna': ['emilia romanha', 'emilia romana', 'imola'],
+  european: ['europa'],
+  france: ['franca', 'francia'],
+  french: ['franca', 'francia'],
+  german: ['alemanha', 'alemania'],
+  'great britain': ['gra bretanha', 'gran bretana', 'inglaterra'],
+  hungarian: ['hungria'],
+  hungary: ['hungria'],
+  indian: ['india'],
+  italian: ['italia'],
+  italy: ['italia'],
+  japan: ['japao', 'japon'],
+  japanese: ['japao', 'japon'],
+  korean: ['coreia', 'corea'],
+  luxembourg: ['luxemburgo'],
+  malaysian: ['malasia'],
+  mexican: ['mexico'],
+  mexico: ['mexico'],
+  'mexico city': ['mexico'],
+  monaco: ['monaco'],
+  moroccan: ['marrocos', 'marruecos'],
+  netherlands: ['holanda', 'paises baixos', 'paises bajos'],
+  pacific: ['pacifico'],
+  portuguese: ['portugal'],
+  qatar: ['catar'],
+  russian: ['russia', 'rusia'],
+  'sao paulo': ['brasil', 'interlagos'],
+  'saudi arabia': ['arabia saudita', 'arabia saudi'],
+  'saudi arabian': ['arabia saudita', 'arabia saudi'],
+  singapore: ['singapura', 'singapur'],
+  'south african': ['africa do sul', 'sudafrica'],
+  spanish: ['espanha', 'espana'],
+  styrian: ['estiria'],
+  swedish: ['suecia'],
+  swiss: ['suica', 'suiza'],
+  turkish: ['turquia'],
+  tuscan: ['toscana'],
+  usa: ['estados unidos', 'eua', 'eeuu', 'ee uu'],
+  'united states': ['estados unidos', 'eua', 'eeuu', 'ee uu'],
+};
+
+const labelText = (s: string) =>
+  ` ${normalizeText(s)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()} `;
+
+/** O rótulo da corrida cita o GP do F1DB (`race.gp`)? GP sem nome reconhecível não é conferido. */
+export function raceLabelMatches(label: string, gp: string): boolean {
+  const key = labelText(gp)
+    .replace(/\bgrand prix\b.*$/, '')
+    .trim();
+  if (!key) return true;
+  const text = labelText(label);
+  return [key, ...(GP_LABEL_WORDS[key] ?? [])].some((w) => text.includes(` ${w} `));
+}
 
 /** Frases do texto com a posição de cada uma (o parágrafo não junta frases). */
 export function sentenceSpans(text: string): { start: number; end: number; text: string }[] {
@@ -321,7 +420,7 @@ function textFindings(
   for (const s of sentenceSpans(text)) {
     const numbers = [
       ...new Set(
-        checkFacts(s.text.replace(MODEL_CODE, ' '), ctx.sheet, locale)
+        checkFacts(stripModelCodes(s.text, ctx.facts.teams), ctx.sheet, locale)
           .filter((v) => v.kind === 'unknown_number')
           .map((v) => v.value),
       ),
@@ -330,8 +429,8 @@ function textFindings(
       out.push(
         finding(field, s.start, s.end, 'unknown_number', `número fora do F1DB (${numbers.join(', ')})`),
       );
-    const hits = findForbiddenTerms(s.text, locale, {
-      allowPhrases: [...ctx.sheet.names, ...RACING_PHRASES],
+    const hits = findForbiddenTerms(withoutRacingAggression(s.text), locale, {
+      allowPhrases: ctx.sheet.names,
     });
     if (hits.length)
       out.push(
@@ -368,14 +467,8 @@ export function resolveRival(name: string, f: ProfileFacts): { f1dbId: string; n
   return bySurname.length === 1 ? bySurname[0]! : null;
 }
 
-/** `1993-03` → ano e rodada, quando têm cara de corrida (ano da F1 e rodada até 30). */
-function parseRaceKey(key: string): { year: number; round: number } | null {
-  const m = /^(\d{4})-(\d{1,2})$/.exec(key.trim());
-  if (!m) return null;
-  const year = Number(m[1]);
-  const round = Number(m[2]);
-  return year >= 1950 && year <= 2100 && round >= 1 && round <= 30 ? { year, round } : null;
-}
+const raceLabelFinding = (field: string, label: string, key: string, gp: string) =>
+  finding(field, 0, 0, 'race_label', `o nome da corrida (${label}) não é o do GP da chave ${key} (${gp})`);
 
 /**
  * Fontes da resposta sem as vazias: o schema do perfil não aceita string vazia, e uma só derrubaria o perfil do
@@ -465,8 +558,10 @@ export function buildProfile(
         continue;
       }
       const race = races.get(m.race_key.trim());
-      const parsed = race ?? parseRaceKey(m.race_key);
+      const label = m.race.trim();
       findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
+      if (race && label && !raceLabelMatches(label, race.gp))
+        findings.push(raceLabelFinding(field, label, m.race_key, race.gp));
       if (!race)
         findings.push(
           finding(
@@ -481,9 +576,10 @@ export function buildProfile(
       if (src) findings.push(src);
       if (race && moments.some((x) => x.year === race.year && x.round === race.round))
         findings.push(finding(field, 0, text.length, 'duplicate', `momento repetido (${m.race_key})`));
+      // ano e rodada só da corrida da lista: com a chave de outra corrida, o momento ligaria um GP que não é o dele
       moments.push({
-        ...(parsed ? { year: parsed.year, round: parsed.round } : {}),
-        race: m.race.trim() || race?.gp || m.race_key,
+        ...(race ? { year: race.year, round: race.round } : {}),
+        race: label || race?.gp || m.race_key,
         ...(m.wet ? { wet: true } : {}),
         text,
         ...(m.source ? { source: m.source } : {}),
@@ -669,11 +765,18 @@ export function buildTranslation(
     entry.moments,
     (reply.moments ?? []).map((m) => m.text),
   );
-  if (moments)
+  if (moments) {
     es.moments = moments.map((m, i) => ({
       ...m,
       race: (reply.moments?.length === entry.moments!.length ? reply.moments[i]!.race.trim() : '') || m.race,
     }));
+    // o nome traduzido também precisa ser o do GP da corrida ligada
+    es.moments.forEach((m, i) => {
+      const race = ctx.facts.racesList.find((r) => r.year === m.year && r.round === m.round);
+      if (race && !raceLabelMatches(m.race, race.gp))
+        findings.push(raceLabelFinding(`moments[${i}]`, m.race, race.key, race.gp));
+    });
+  }
   const rivalries = pair('rivalries', entry.rivalries, reply.rivalries ?? []);
   if (rivalries) es.rivalries = rivalries;
   // fonte e item: os achados do original, com o trecho no texto traduzido

@@ -1,6 +1,6 @@
 {
-  "id": "522439de-4e11-43b4-9f15-ca4b425312f9",
-  "prevId": "255b0dbd-8eaf-4433-8699-f7bf2444dadc",
+  "id": "ce66047f-b2a1-4e72-a7f8-16c9f2f998b3",
+  "prevId": "947312d7-6720-437b-beca-ac61805f5686",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15184,6 +15184,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "uploaded_by": {
           "name": "uploaded_by",

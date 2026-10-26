@@ -51,9 +51,9 @@ export interface AiMetricsReport {
     costPerEventUsd: number | null;
   };
   coverage: {
-    /** Jogos tier 1 com cenário publicado antes do início. */
+    /** Jogos de futebol tier 1 com cenário publicado antes do início. */
     scenarioTier1: Ratio;
-    /** Jogos tier 1 encerrados com resumo publicado em até 10 min do FT. */
+    /** Jogos de futebol tier 1 encerrados com resumo publicado em até 10 min do FT. */
     recapTier1Within10Min: Ratio & { medianMinutes: number | null };
     /** Jogos tier 1 com ≥ 1 opção `confirmed` de onde assistir até T-3h. */
     whereToWatchTier1ByT3h: Ratio;
@@ -155,7 +155,7 @@ export async function computeAiMetrics(
 
   // ─── cobertura (jogos tier 1 da janela) ──────────────────────────────────────────────────────
   const tier1 = await db
-    .select({ id: event.id, startsAt: event.startsAt, status: event.status })
+    .select({ id: event.id, sport: event.sport, startsAt: event.startsAt, status: event.status })
     .from(event)
     .innerJoin(competition, eq(competition.id, event.competitionId))
     .where(and(eq(competition.tier, 1), gte(event.startsAt, opts.from), lt(event.startsAt, opts.to)));
@@ -197,11 +197,13 @@ export async function computeAiMetrics(
     for (const w of wtw) wtwFirst.set(w.eventId, w.first);
   }
   const startedBefore = played.filter((e) => e.startsAt <= opts.to);
-  const scenarioOk = startedBefore.filter((e) => {
+  // cenário e resumo só rodam em futebol (recap/run.ts, context/run.ts); onde assistir, em todos os esportes
+  const footballStarted = startedBefore.filter((e) => e.sport === 'football');
+  const scenarioOk = footballStarted.filter((e) => {
     const at = scenarioFirst.get(e.id);
     return at !== undefined && at <= e.startsAt;
   }).length;
-  const finished = played.filter((e) => e.status === 'finished' && ftAt.has(e.id));
+  const finished = played.filter((e) => e.sport === 'football' && e.status === 'finished' && ftAt.has(e.id));
   const latencies: number[] = [];
   let recapOk = 0;
   for (const e of finished) {
@@ -225,7 +227,7 @@ export async function computeAiMetrics(
       costPerEventUsd: enriched.size ? cost.costUsd / enriched.size : null,
     },
     coverage: {
-      scenarioTier1: ratio(scenarioOk, startedBefore.length),
+      scenarioTier1: ratio(scenarioOk, footballStarted.length),
       recapTier1Within10Min: { ...ratio(recapOk, finished.length), medianMinutes: median(latencies) },
       whereToWatchTier1ByT3h: ratio(wtwOk, startedBefore.length),
     },
