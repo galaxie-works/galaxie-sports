@@ -103,6 +103,12 @@ export const apiKey = api.table(
      * já rotacionada não pode ser rotacionada de novo: quem tem só a chave antiga não gera outra.
      */
     rotatedAt: timestamp('rotated_at', { withTimezone: true }),
+    /**
+     * Formato da chave: 1 = legado (`gs_<env>_<prefixo>_<segredo>`, ambiente das chaves anteriores à 0007
+     * desconhecido); 2 = com checksum (`..._<crc32>`, docs/politica-de-chaves.md). As de formato 1 são
+     * revogadas e reemitidas por `pnpm --filter @galaxie/api keys:migrate` (docs/runbooks/migracao-de-chaves.md).
+     */
+    keyFormat: integer('key_format').notNull().default(1),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     createdAt: createdAt(),
   },

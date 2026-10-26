@@ -25,17 +25,36 @@ export type ReviewState = (typeof REVIEW_STATES)[number];
 export const REVIEW_ACTIONS = ['approve', 'draft', 'suggest'] as const;
 export type ReviewAction = (typeof REVIEW_ACTIONS)[number];
 
+/** Escolhas de cada filtro; lista vazia = sem filtro (tudo). Mais de um valor = "é um destes". */
 export interface ReviewFilters {
-  kind: ReviewKind | null;
-  sport: string | null;
-  market: string | null;
-  locale: string | null;
-  state: ReviewState | null;
+  kind: ReviewKind[];
+  sport: string[];
+  market: string[];
+  locale: string[];
+  state: ReviewState[];
   q: string | null;
   page: number;
+  /** Itens por página (`?per=`), sempre um de `PAGE_SIZES`. */
+  per: number;
 }
 
-export const PAGE_SIZE = 50;
+/** Quantos itens a lista mostra por página (`?per=`); fora desta lista vale o padrão. */
+export const PAGE_SIZES = [25, 50, 100, 250, 500] as const;
+export const DEFAULT_PAGE_SIZE = 50;
+/** Teto de `?per=` (e da ação em lote, que age sobre a seleção de uma página). */
+export const MAX_PAGE_SIZE = PAGE_SIZES[PAGE_SIZES.length - 1];
+
+/** Tamanho da página a partir da query string: só um dos `PAGE_SIZES`; o resto cai no padrão. */
+export function parsePageSize(raw: string | null | undefined): number {
+  const n = raw && /^\d{1,3}$/.test(raw) ? Number(raw) : Number.NaN;
+  return (PAGE_SIZES as readonly number[]).includes(n) ? n : DEFAULT_PAGE_SIZE;
+}
+
+/** Limite e deslocamento da consulta para a página pedida. */
+export const pageWindow = (filters: Pick<ReviewFilters, 'page' | 'per'>) => ({
+  limit: filters.per,
+  offset: (filters.page - 1) * filters.per,
+});
 
 export interface ReviewListItem {
   id: string;
@@ -138,45 +157,91 @@ export interface ReviewListResult {
   options: { sports: string[]; markets: string[]; locales: string[] };
 }
 
-const pick = <T extends string>(list: readonly T[], value: string | null | undefined): T | null =>
-  value && (list as readonly string[]).includes(value) ? (value as T) : null;
+/** Até quantos valores cada filtro aceita (a URL é de quem chama: sem lista sem fim no SQL). */
+const MAX_VALUES = 20;
 
-/** Texto livre de filtro: aparado, sem caracteres de controle, até 80 caracteres. */
+/** Lista separada por vírgula, sem repetição e sem vazios. */
+const splitList = (raw: string | null) => [
+  ...new Set(
+    (raw ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  ),
+];
+
+/** Texto livre de filtro: aparado, sem caracteres de controle, até `max` caracteres. */
 const text = (value: string | null | undefined, max = 80) => {
   // eslint-disable-next-line no-control-regex
   const v = value?.replace(/[\u0000-\u001f]/g, '').trim();
   return v ? v.slice(0, max) : null;
 };
 
+/** Valores de uma lista livre (esporte, mercado, idioma), cada um limpo e curto. */
+const texts = (raw: string | null, max: number) =>
+  [...new Set(splitList(raw).map((v) => text(v, max)))].filter((v): v is string => !!v).slice(0, MAX_VALUES);
+
+/** Só os valores conhecidos de uma lista fechada (tipo, status). */
+const known = <T extends string>(list: readonly T[], raw: string | null): T[] =>
+  splitList(raw).filter((v): v is T => (list as readonly string[]).includes(v));
+
+/** Nome de cada filtro na URL (`?tipo=team,copy&esporte=football`). */
+export const REVIEW_FILTER_PARAMS = {
+  kind: 'tipo',
+  sport: 'esporte',
+  market: 'mercado',
+  locale: 'locale',
+  state: 'status',
+  q: 'q',
+  page: 'pagina',
+  per: 'per',
+} as const satisfies Record<keyof ReviewFilters, string>;
+
+export const NO_REVIEW_FILTERS: ReviewFilters = {
+  kind: [],
+  sport: [],
+  market: [],
+  locale: [],
+  state: [],
+  q: null,
+  page: 1,
+  per: DEFAULT_PAGE_SIZE,
+};
+
 /** Filtros a partir da query string (valores desconhecidos são ignorados). */
-export function parseFilters(params: URLSearchParams | Record<string, string | string[] | undefined>) {
+export function parseFilters(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+): ReviewFilters {
   const get = (k: string) => {
     if (params instanceof URLSearchParams) return params.get(k);
     const v = params[k];
     return Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
   };
-  const page = Number.parseInt(get('pagina') ?? '', 10);
+  const P = REVIEW_FILTER_PARAMS;
+  const page = Number.parseInt(get(P.page) ?? '', 10);
   return {
-    kind: pick(REVIEW_KINDS, get('tipo')),
-    sport: text(get('esporte'), 40),
-    market: text(get('mercado'), 8)?.toUpperCase() ?? null,
-    locale: text(get('locale'), 8),
-    state: pick(REVIEW_STATES, get('status')),
-    q: text(get('q')),
+    kind: known(REVIEW_KINDS, get(P.kind)),
+    sport: texts(get(P.sport), 40),
+    market: [...new Set(texts(get(P.market), 8).map((m) => m.toUpperCase()))],
+    locale: texts(get(P.locale), 8),
+    state: known(REVIEW_STATES, get(P.state)),
+    q: text(get(P.q)),
     page: Number.isFinite(page) && page > 0 ? Math.min(page, 1000) : 1,
-  } satisfies ReviewFilters;
+    per: parsePageSize(get(P.per)),
+  };
 }
 
 /** Query string dos filtros (só o que está definido), para links e paginação. */
 export function filtersQuery(filters: Partial<ReviewFilters>): string {
+  const P = REVIEW_FILTER_PARAMS;
   const q = new URLSearchParams();
-  if (filters.kind) q.set('tipo', filters.kind);
-  if (filters.sport) q.set('esporte', filters.sport);
-  if (filters.market) q.set('mercado', filters.market);
-  if (filters.locale) q.set('locale', filters.locale);
-  if (filters.state) q.set('status', filters.state);
-  if (filters.q) q.set('q', filters.q);
-  if (filters.page && filters.page > 1) q.set('pagina', String(filters.page));
+  for (const field of ['kind', 'sport', 'market', 'locale', 'state'] as const) {
+    const values = filters[field];
+    if (values?.length) q.set(P[field], values.join(','));
+  }
+  if (filters.q) q.set(P.q, filters.q);
+  if (filters.page && filters.page > 1) q.set(P.page, String(filters.page));
+  if (filters.per && filters.per !== DEFAULT_PAGE_SIZE) q.set(P.per, String(filters.per));
   const s = q.toString();
   return s ? `?${s}` : '';
 }

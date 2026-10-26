@@ -97,7 +97,7 @@ export default defineMessages(
         format: {
           name: 'Formato',
           value:
-            '<c>gs_live_…</c> (produção) ou <c>gs_test_…</c> (testes), com um prefixo público de 12 caracteres',
+            '<c>gs_live_…</c> (produção) ou <c>gs_test_…</c> (testes: mesmo dado, 60 req/min por rota e uso à parte), com um prefixo público de 12 caracteres e um checksum no fim',
         },
         display: {
           name: 'Exibição',
@@ -518,7 +518,7 @@ export default defineMessages(
           format: {
             name: 'Format',
             value:
-              '<c>gs_live_…</c> (production) or <c>gs_test_…</c> (testing), with a 12-character public prefix',
+              '<c>gs_live_…</c> (production) or <c>gs_test_…</c> (testing: same data, 60 req/min per route and separate usage), with a 12-character public prefix and a checksum at the end',
           },
           display: {
             name: 'Visibility',
@@ -935,7 +935,7 @@ export default defineMessages(
           format: {
             name: 'Formato',
             value:
-              '<c>gs_live_…</c> (producción) o <c>gs_test_…</c> (pruebas), con un prefijo público de 12 caracteres',
+              '<c>gs_live_…</c> (producción) o <c>gs_test_…</c> (pruebas: mismos datos, 60 req/min por ruta y uso aparte), con un prefijo público de 12 caracteres y un checksum al final',
           },
           display: {
             name: 'Visualización',

@@ -1,6 +1,8 @@
 /**
  * Lista da revisão semântica em JSON (admin): itens filtrados, contagens por status, as opções dos
- * filtros e o piso editorial que a API relatou (`serving`). Mesmos parâmetros da página (`tipo`, `esporte`, `mercado`, `locale`, `status`, `q`, `pagina`).
+ * filtros e o piso editorial que a API relatou (`serving`). Mesmos parâmetros da página: `tipo`, `esporte`,
+ * `mercado`, `locale` e `status` (listas separadas por vírgula, "é um destes"), `q`, `pagina` e `per` (itens
+ * por página: 25, 50, 100, 250 ou 500; outro valor vale 50).
  */
 import { DEFAULT_LOCALE } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';

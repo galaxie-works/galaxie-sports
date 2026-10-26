@@ -8,10 +8,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # fila de merge do GitHub: roda de novo sobre a main + os PRs à frente na fila (os checks obrigatórios vêm daqui)
+  merge_group:
 
 concurrency:
-  # Na main cada commit tem o próprio grupo e nada é cancelado: o deploy.sh só publica um SHA com o CI verde, e um
-  # merge logo depois do outro não pode deixar o primeiro sem teste. Nos PRs, o push novo cancela o anterior.
+  # Na main cada commit tem o próprio grupo e nada é cancelado: o deploy só publica um SHA com o CI verde, e um
+  # merge logo depois do outro não pode deixar o primeiro sem teste. Nos PRs, o push novo cancela o anterior; na fila,
+  # cada grupo tem a própria ref (gh-readonly-queue/main/pr-…).
   group: ci-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
@@ -85,8 +88,8 @@ jobs:
 
       # O migrator só aplica a migration com `when` maior que o da última aplicada: renumerada no merge e com
       # `when` menor, ela seria pulada em silêncio na produção (aqui o banco é vazio e tudo passa). A base é o
-      # 1º pai do commit testado: no PR, a main em que ele entra; no push, o commit anterior da main.
-      # Sem a base, o PR falha (é ali que a renumeração se confere); no push, só avisa.
+      # 1º pai do commit testado: no PR e na fila, a main em que ele entra; no push, o commit anterior da main.
+      # Sem a base, o PR e a fila falham (é ali que a renumeração se confere); no push, só avisa.
       - name: Migrations em ordem (when crescente e base preservada)
         env:
           EVENT: ${{ github.event_name }}
@@ -95,7 +98,7 @@ jobs:
           if [ -n "$base" ] && git fetch -q --no-tags --depth=1 origin "$base"; then
             git show "$base:packages/db/drizzle/meta/_journal.json" > "$RUNNER_TEMP/journal-base.json"
             node packages/db/dist/journal-check-cli.js --base "$RUNNER_TEMP/journal-base.json"
-          elif [ "$EVENT" = pull_request ]; then
+          elif [ "$EVENT" = pull_request ] || [ "$EVENT" = merge_group ]; then
             echo "::error::Commit base ($base) indisponível: sem ele não dá para conferir o journal contra a main."
             exit 1
           else
@@ -147,13 +150,13 @@ jobs:
           tar -xzf "$tarball" gitleaks
           rm -f "$tarball" "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
 
-      # Varre só o histórico que este evento traz: no PR, os commits dele (base..head); no push, o
+      # Varre só o histórico que este evento traz: no PR e na fila, os commits dele (base..head); no push, o
       # histórico do commit enviado. Sem isso, o `git .` com fetch-depth 0 alcança todas as branches
       # remotas e um achado numa branch de trabalho derruba o CI de todos os PRs.
       - name: Varredura de segredos (commits do PR ou histórico do commit enviado)
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: |
           if [ -n "$HEAD_SHA" ]; then range="$BASE_SHA..$HEAD_SHA"; else range="$GITHUB_SHA"; fi
           echo "intervalo: $range"
