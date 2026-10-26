@@ -230,7 +230,8 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
     const history = rejected.get(locale) ?? [];
     const reason: LocaleText['fallbackReason'] = !req.llm
       ? 'no_llm'
-      : llmFailed && history.every((h) => h.violations.length === 0)
+      : // a última chamada falhou e nenhuma tentativa reprovou o texto (só faltou o locale): é erro do LLM
+        llmFailed && history.every((h) => h.violations.every((v) => v.kind === 'empty'))
         ? 'llm_error'
         : history.some((h) => h.violations.some((v) => v.kind !== 'empty'))
           ? 'rejected'

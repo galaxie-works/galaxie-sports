@@ -10,7 +10,7 @@ import {
   type TitleRecord,
 } from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
-import { knockoutStageRules, standingsTableOf } from '../config/parse.js';
+import { knockoutStageRules, rulesStageKey, standingsTableOf } from '../config/parse.js';
 import type { CompetitionRules, StandingsTableRule } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
@@ -58,7 +58,11 @@ export interface StakesEventRef {
   /** `id` é necessário para os títulos anteriores (`options.titles`). */
   competition: { slug: string; id?: string } | null;
   season: { id: string; year: number } | null;
-  stage: { id: string; kind: string } | null;
+  /**
+   * `providerLabel` (rótulo do fornecedor, ex.: "1st Round") liga as fases numeradas de copa à chave do
+   * regulamento (`rulesStageKey`); sem ele, vale o `kind`.
+   */
+  stage: { id: string; kind: string; providerLabel?: string | null } | null;
   home: { id: string };
   away: { id: string };
   /**
@@ -197,7 +201,10 @@ async function knockoutContext(
   core: StakesEventRef,
   rules: CompetitionRules,
 ): Promise<EventStakes> {
-  const stageRules = knockoutStageRules(rules, core.stage?.kind);
+  const stageRules = knockoutStageRules(
+    rules,
+    core.stage ? rulesStageKey(core.stage.kind, core.stage.providerLabel ?? null) : null,
+  );
   const base = {
     legs: stageRules.legs,
     extraTime: stageRules.extraTime,
@@ -338,11 +345,13 @@ async function phaseOf(db: Database, core: StakesEventRef, rules: CompetitionRul
   const phases = rules.tables.filter((t) => t.kind === 'phase' && t.rounds);
   if (!phases.length) return null;
   if (!core.stage) return undefined;
-  const [row] = await db
-    .select({ label: stage.providerLabel })
-    .from(stage)
-    .where(eq(stage.id, core.stage.id));
-  return phases.find((t) => t.rounds!.test(row?.label ?? ''));
+  // o rótulo vem no evento quando quem chama o tem (providerLabel); senão, da fase no core
+  const label =
+    core.stage.providerLabel !== undefined
+      ? core.stage.providerLabel
+      : (await db.select({ label: stage.providerLabel }).from(stage).where(eq(stage.id, core.stage.id)))[0]
+          ?.label;
+  return phases.find((t) => t.rounds!.test(label ?? ''));
 }
 
 async function leagueContext(
