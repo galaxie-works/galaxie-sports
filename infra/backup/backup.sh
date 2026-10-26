@@ -1,10 +1,10 @@
 #!/bin/sh
 # Dump completo do Postgres (formato custom, comprimido), validado, com retenção local e cópia opcional para S3.
 #   backup.sh                  # um backup agora
-# Variáveis: BACKUP_DIR (/backups), BACKUP_RETENTION_DAYS (30), BACKUP_COMPRESS (zstd:5),
+# Variáveis: BACKUP_DIR (/backups), BACKUP_KEEP_DAILY (7 dumps), BACKUP_COMPRESS (zstd:5),
 #            BACKUP_S3_BUCKET / BACKUP_S3_PREFIX / BACKUP_S3_ENDPOINT + AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
 set -eu
-. /usr/local/lib/galaxie-backup/lib.sh
+. "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
 
 mkdir -p "$BACKUP_DIR"
 started=$(date -u +%s)
@@ -40,8 +40,9 @@ if s3_enabled; then
   fi
 fi
 
-# Retenção local: apaga dumps com mais de BACKUP_RETENTION_DAYS dias (a remota usa regra de ciclo de vida do bucket).
-deleted=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "${PGDATABASE}_*.dump*" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete | wc -l | tr -d ' ')
+# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota usa regra de ciclo de vida do bucket; o NAS, a
+# rotação dele).
+deleted=$(prune_dumps)
 
 duration=$(($(date -u +%s) - started))
 printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$file" >"$BACKUP_DIR/.last_success"

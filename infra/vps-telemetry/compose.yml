@@ -357,8 +357,6 @@ services:
     stop_grace_period: 40s
     logging: *logging
 
-  # ── backups ───────────────────────────────────────────────────────────────────────────────────
-  # pg_dump diário (BACKUP_TIME, UTC) com retenção no volume `backups` e cópia opcional para S3 externo.
   # Navegador headless para a leitura da página oficial do plano que só mostra a grade com JavaScript
   # (lineups:pages). Fora do padrão: sobe só com `--profile render`, durante a leitura, e cai depois.
   # Imagem própria (infra/lineup-render): a oficial do Playwright com o pacote npm já instalado, sem npx na partida.
@@ -381,6 +379,9 @@ services:
     networks: [render]
     logging: *logging
 
+  # ── backups ───────────────────────────────────────────────────────────────────────────────────
+  # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
+  # 6 h, ensaio de restauração no dia 1 de cada mês e cópia opcional para S3 externo (docs/runbooks/exercicio-dr.md).
   backup:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -393,7 +394,10 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
+      BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-false}
+      RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
