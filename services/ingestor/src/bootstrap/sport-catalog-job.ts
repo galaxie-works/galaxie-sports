@@ -10,6 +10,7 @@ import {
   type ApiSportsClient,
   type Envelope,
   type PlanLimits,
+  type RawScope,
 } from '@galaxie/apisports-client';
 import { jobRun, type Database } from '@galaxie/db';
 import { eq } from 'drizzle-orm';
@@ -46,6 +47,23 @@ export interface SeasonGamesConfig {
 
 function seasonWindow(plan: PlanLimits): { min: number; max: number } | undefined {
   return plan.seasons;
+}
+
+/**
+ * Validade do raw numa chamada `final`: para sempre, salvo se a resposta guardada foi buscada antes de
+ * `finalAfter` (o resultado ainda podia mudar, ex.: placar por quarto corrigido depois do jogo). Aí 0: busca
+ * uma última vez, e a nova resposta passa a valer para sempre.
+ */
+async function finalMaxAge(
+  store: PgRawStore,
+  hash: string,
+  scope: RawScope,
+  call: SeasonCall,
+  now: Date,
+): Promise<number> {
+  if (call.finalAfter === undefined) return FOREVER;
+  const cached = await store.findFresh(hash, FOREVER, now, scope);
+  return cached && cached.fetchedAt.getTime() < call.finalAfter ? 0 : FOREVER;
 }
 
 // ─── plano (sem gastar cota) ─────────────────────────────────────────────────────────────────────
@@ -102,12 +120,8 @@ export async function planSportCatalog(
       const hash = requestHash('api-sports', sport, p.endpoint, params);
       const final = p.final ?? (i < planned.length && planned[i]!.season < closedBefore);
       const scope = { provider: 'api-sports', sport, endpoint: p.endpoint };
-      const fresh = await store.findFresh(
-        hash,
-        final ? FOREVER : ttlFor(p.endpoint, params, now),
-        now,
-        scope,
-      );
+      const maxAge = final ? await finalMaxAge(store, hash, scope, p, now) : ttlFor(p.endpoint, params, now);
+      const fresh = maxAge > 0 ? await store.findFresh(hash, maxAge, now, scope) : undefined;
       calls.push({ endpoint: p.endpoint, params, source: fresh ? 'cache' : 'network' });
       // os detalhes (F1: uma chamada por sessão) só aparecem quando a temporada já está no raw
       const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now, scope));
@@ -196,6 +210,7 @@ export async function runSportCatalogJob(
       const closedBefore = now.getUTCFullYear() - 1;
       // os detalhes (F1: uma chamada por sessão) entram no fim da fila: depois de todas as temporadas e tabelas
       const queue: SeasonCall[] = planned.map((p) => ({ ...p, final: p.final ?? p.season < closedBefore }));
+      const store = new PgRawStore(db);
       for (let i = 0; i < queue.length; i++) {
         const p = queue[i]!;
         const params = normalizeParams(p.params);
@@ -210,7 +225,17 @@ export async function runSportCatalogJob(
             params,
             priority: 'BOOTSTRAP',
             jobId,
-            ...(p.final ? { maxAgeMs: FOREVER } : {}),
+            ...(p.final
+              ? {
+                  maxAgeMs: await finalMaxAge(
+                    store,
+                    requestHash('api-sports', sport, p.endpoint, params),
+                    { provider: 'api-sports', sport, endpoint: p.endpoint },
+                    p,
+                    now,
+                  ),
+                }
+              : {}),
           });
           calls.push({ endpoint: p.endpoint, params, source: res.source });
           if (i < planned.length && planned[i]!.kind === 'season' && profile.detailCalls)

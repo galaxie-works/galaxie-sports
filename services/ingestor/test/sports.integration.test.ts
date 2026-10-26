@@ -4,10 +4,12 @@ import {
   ApiSportsClient,
   defaultPolicy,
   FREE_PLAN,
+  normalizeParams,
   PgQuotaGovernor,
   PgRawStore,
   PlanRules,
   RateLimiter,
+  requestHash,
 } from '@galaxie/apisports-client';
 import {
   apiResponse,
@@ -267,6 +269,67 @@ describe('runSportCatalogJob', () => {
       true,
     );
     expect(result.stats.competitions.inserted).toBe(2);
+  });
+
+  it('AFL: quartos guardados antes de o jogo virar definitivo são buscados uma última vez', async () => {
+    const games = [
+      { game: { id: 3058 }, date: '2024-09-28T04:30:00+00:00', status: { short: 'FT' } },
+      { game: { id: 2952 }, date: '2024-03-07T08:30:00+00:00', status: { short: 'FT' } },
+    ];
+    const leagues = [
+      {
+        id: 1,
+        name: 'AFL Premiership',
+        type: 'League',
+        logo: 'https://media.api-sports.io/afl/leagues/1.png',
+        seasons: [{ season: 2024, current: false, start: '2024-03-07', end: '2024-09-28' }],
+      },
+    ];
+    const api = fakeApi({ '/leagues': leagues, '/games': games });
+    const client = await clientFor('afl', api.fetch);
+    const seed = async (
+      endpoint: string,
+      raw: Record<string, string>,
+      response: unknown[],
+      fetchedAt: string,
+    ) => {
+      const params = normalizeParams(raw);
+      const body = { get: endpoint.slice(1), parameters: params, errors: [], results: 0, response };
+      await db.insert(apiResponse).values({
+        provider: 'api-sports',
+        sport: 'afl',
+        apiVersion: 'v1',
+        endpoint,
+        params,
+        requestHash: requestHash('api-sports', 'afl', endpoint, params),
+        statusCode: 200,
+        results: response.length,
+        errors: [],
+        body,
+        bodyHash: `${endpoint}-${JSON.stringify(params)}-${fetchedAt}`,
+        fetchedAt: new Date(fetchedAt),
+        jobId: 'teste',
+      });
+    };
+    // ligas e temporada encerrada já no raw (o plano só mostra os quartos dos jogos que conhece)
+    await seed('/leagues', {}, leagues, new Date().toISOString());
+    await seed('/games', { league: '1', season: '2024' }, games, '2024-10-01T00:00:00Z');
+    // 3058: buscado horas depois do jogo (ainda podia ser corrigido); 2952: semanas depois (definitivo)
+    await seed('/games/quarters', { id: '3058' }, [], '2024-09-28T10:00:00Z');
+    await seed('/games/quarters', { id: '2952' }, [], '2024-03-20T00:00:00Z');
+
+    const opts = { games: { maxTier: 3, latestSeasons: 3 } };
+    const plan = await planSportCatalog(db, 'afl', [], { plan: FREE_PLAN, ...opts });
+    const planned = (id: string) => plan.calls.find((c) => c.params?.id === id)?.source;
+    expect([planned('3058'), planned('2952')]).toEqual(['network', 'cache']);
+
+    await runSportCatalogJob(db, client, 'afl', [], opts);
+    const fetched = api.calls.filter((c) => c.startsWith('afl/games/quarters'));
+    expect(fetched).toEqual(['afl/games/quarters?id=3058']);
+
+    // a resposta nova (buscada agora) vale para sempre: a próxima execução não busca de novo
+    await runSportCatalogJob(db, client, 'afl', [], opts);
+    expect(api.calls.filter((c) => c.startsWith('afl/games/quarters'))).toHaveLength(1);
   });
 
   it('falha (e registra) quando falta uma resposta obrigatória', async () => {
