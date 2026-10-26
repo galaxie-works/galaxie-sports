@@ -52,7 +52,7 @@ import {
   type YieldFactor,
 } from './budget.js';
 import { broadcastersWithChannels, ChannelBook, matchUploads } from './channel-map.js';
-import { rightsHoldersFor, type ChannelAllowlist } from './channels.js';
+import { rightsHoldersFor, type ChannelAllowlist, type ChannelScope } from './channels.js';
 import {
   aspectRatioOf,
   classifyVideos,
@@ -60,7 +60,7 @@ import {
   RULES_CLASSIFIER,
   type ClassifyFacts,
 } from './classify.js';
-import { checkRelevance, decidePublication, rankScore } from './policy.js';
+import { checkRelevance, decidePublication, rankScore, teamVariants } from './policy.js';
 import {
   capPublished,
   fullSearchDue,
@@ -573,7 +573,10 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       report.idle++;
       continue;
     }
-    if (state.api.used >= state.api.limit) {
+    // balde geral: o jogo só entra com folga para o custo mínimo dele (videos.list + channels.list e uma
+    // página de uploads por canal conhecido); o teto do cliente (abaixo) segura o resto
+    const minUnits = mode === 'revalidate' ? 2 : mode ? 2 + cand.channelLinks : 1;
+    if (state.api.limit - state.api.used < minUnits) {
       report.idle++;
       continue;
     }
@@ -652,10 +655,18 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               Math.max(0, policy.maxSearchesPerEvent - cand.searchesSoFar),
             )
           : [];
-      const markets = [
-        ...new Set([...(await teamCountries(db, core)).filter((c): c is string => !!c), 'BR']),
-      ];
+      const countries = await teamCountries(db, core);
+      const markets = [...new Set([...countries.filter((c): c is string => !!c), 'BR'])];
       const holders = rightsHoldersFor(opts.wtw, core.competition?.slug, markets, core.startsAt);
+      const channelScope: ChannelScope = {
+        participantIds: [core.home.id, core.away.id],
+        teams: [
+          { names: teamVariants(core.home), country: countries[0] ?? null },
+          { names: teamVariants(core.away), country: countries[1] ?? null },
+        ],
+        competitionId: core.competition?.id ?? null,
+        competitionSlug: core.competition?.slug ?? null,
+      };
       const channelQuery = {
         participantIds: [core.home.id, core.away.id],
         competitionId: core.competition?.id ?? null,
@@ -687,6 +698,8 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       const client = yt!;
       const searchStart = client.searchCalls;
       const unitsStart = client.units;
+      // nenhuma requisição do balde geral passa do que sobra no dia (a checagem acima é só por jogo)
+      client.unitCeiling = unitsStart + Math.max(0, state.api.limit - state.api.used);
       const [run] = await db
         .insert(relatedRun)
         .values({ eventId: id, mode, quotaDay, requestedBy: opts.requestedBy ?? 'cli', startedAt: now })
@@ -723,7 +736,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             handle: null,
             subscribers: null,
           };
-          return opts.allowlist.classify(ch, holders);
+          return opts.allowlist.classify(ch, holders, channelScope);
         };
         const usable = (v: VideoDetail, chans: Map<string, ChannelDetail>) => {
           const verdict = tierOf(v, chans);
@@ -736,6 +749,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             privacyStatus: v.privacyStatus,
             embeddable: v.embeddable,
             tier: verdict.tier,
+            clubChannel: verdict.tier === 'official' && verdict.entry?.kind === 'club',
           });
           return rel.ok ? verdict.tier : null;
         };
@@ -847,8 +861,11 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             continue;
           }
           const verdict = tierOf(v, channels);
+          // blocklist editorial (arquivo): o que já estava publicado sai na hora. As recusas do player e o
+          // bloqueio do painel já ficam fora na leitura e voltam sozinhos quando liberados: não são retirados
           if (verdict.blocked) {
             discard('blocked_channel');
+            if (prevById.has(v.id)) gone.push(v.id);
             continue;
           }
           const rel = checkRelevance(core, {
@@ -859,9 +876,15 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             privacyStatus: v.privacyStatus,
             embeddable: v.embeddable,
             tier: verdict.tier,
+            clubChannel: verdict.tier === 'official' && verdict.entry?.kind === 'club',
           });
           if (!rel.ok) {
             discard(rel.reason);
+            // um time só: por tier, para acompanhar o que a regra (só no canal do clube) passou a cortar
+            if (rel.reason === 'one_team_only') {
+              const byTier = (stats.oneTeamOnly ??= {}) as Record<string, number>;
+              byTier[verdict.tier] = (byTier[verdict.tier] ?? 0) + 1;
+            }
             if (prevById.has(v.id)) gone.push(v.id);
             continue;
           }

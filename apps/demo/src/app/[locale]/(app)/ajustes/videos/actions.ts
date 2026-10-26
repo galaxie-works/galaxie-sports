@@ -6,10 +6,11 @@
  * fez; o change feed avisa os jogos do canal (purga do cache da API).
  */
 import { clearRelatedChannelRefusals, setRelatedChannelRule } from '@galaxie/db/related';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { builderDb } from '@/lib/builder/store';
+import { RELATED_CACHE_TAG } from '@/lib/galaxie/related-cache';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
@@ -44,6 +45,8 @@ export async function setChannelMode(
       by: me.email,
     });
     revalidatePath('/ajustes/esportes');
+    // a vitrine da demo relê a API (que já foi purgada pelo change feed)
+    updateTag(RELATED_CACHE_TAG);
     return { ok: true, message: fill(t.saved, { events }) };
   } catch {
     return { ok: false, error: t.errors.generic };
@@ -57,6 +60,8 @@ export async function clearChannelRefusals(channelId: string): Promise<ChannelAc
   try {
     const count = await clearRelatedChannelRefusals(builderDb(), { channelId });
     revalidatePath('/ajustes/esportes');
+    // a vitrine da demo relê a API (que já foi purgada pelo change feed)
+    updateTag(RELATED_CACHE_TAG);
     return { ok: true, message: fill(t.cleared, { count }) };
   } catch {
     return { ok: false, error: t.errors.generic };

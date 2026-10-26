@@ -104,4 +104,21 @@ describe('agenda dos próximos dias', () => {
     expect(pool.map((e) => e.id)).toContain('br');
     expect(highlightCandidates([...many, local], null).map((e) => e.id)).not.toContain('br');
   });
+
+  it('candidatos do mercado GB: liga inglesa e clubes escoceses (GB-ENG, GB-SCT) entram', () => {
+    const many = Array.from({ length: 40 }, (_, i) =>
+      ev(`x${i}`, { importance: 90 - i, competition: { sport: 'football', slug: 'es', countryCode: 'ES' } }),
+    );
+    const england = ev('eng', {
+      importance: 10,
+      competition: { sport: 'football', slug: 'premier-league', countryCode: 'GB-ENG' },
+    });
+    const scotland = ev('sco', {
+      importance: 9,
+      competition: { sport: 'football', slug: 'europa', countryCode: 'WORLD' },
+      participantCountries: ['GB-SCT', 'ES'],
+    });
+    const ids = highlightCandidates([...many, england, scotland], 'GB').map((e) => e.id);
+    expect(ids).toEqual(expect.arrayContaining(['eng', 'sco']));
+  });
 });

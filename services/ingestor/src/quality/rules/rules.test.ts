@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { RaceCareer, Team } from '@galaxie/contracts';
-import type { F1dbDriverTruth } from '../sources/f1db.js';
+import { priorityTags, type F1dbDriverTruth } from '../sources/f1db.js';
 import {
   checkCareerTotals,
   checkDriverCountry,
+  checkDriverLinks,
   checkSeasonNumbers,
   checkSeasonTeams,
   eraNameOk,
   type ServedDriver,
 } from './f1.js';
 import { wrongNames } from './geo.js';
-import { compareTables } from './standings.js';
+import { compareSeasons, compareTables } from './standings.js';
 import { hasOfficialSource, priceHasCurrency, servedStatuses, siteOf } from './watch.js';
 import { categoryFromName, categoryFromWikidata, competitionCategory } from './wikidata.js';
 
@@ -151,6 +152,43 @@ describe('F1: nome de época da equipe', () => {
   });
 });
 
+describe('F1: prioridade e vínculo dos pilotos', () => {
+  it('top 20 em vitórias e em GPs (desempate pela ordem da tabela), campeões e grid atual', () => {
+    const list = [
+      ...Array.from({ length: 21 }, (_, i) => ({
+        id: `v${i}`,
+        wins: 10,
+        starts: 100 + i,
+        champion: false,
+        grid: false,
+      })),
+      { id: 'campeao', wins: 0, starts: 1, champion: true, grid: false },
+      { id: 'novato', wins: 0, starts: 1, champion: false, grid: true },
+      { id: 'nada', wins: 0, starts: 1, champion: false, grid: false },
+    ];
+    const tags = priorityTags(list, 2026);
+    // vitórias empatadas: os 20 primeiros da tabela; GPs: os 20 com mais (v0 fica fora)
+    expect(tags.get('v0')).toEqual(['top 20 vitórias']);
+    expect(tags.get('v20')).toEqual(['top 20 GPs']);
+    expect(tags.get('v5')).toEqual(['top 20 vitórias', 'top 20 GPs']);
+    expect(tags.get('campeao')).toEqual(['campeão']);
+    expect(tags.get('novato')).toEqual(['grid 2026']);
+    expect(tags.has('nada')).toBe(false);
+  });
+
+  it('prioritário sem participante no core é falha', () => {
+    const targets = [
+      { id: 'juan-manuel-fangio', name: 'Juan Manuel Fangio', tags: ['campeão'] },
+      { id: 'alberto-ascari', name: 'Alberto Ascari', tags: ['campeão', 'top 20 vitórias'] },
+    ];
+    const r = checkDriverLinks(targets, new Map([['juan-manuel-fangio', 'p1']]));
+    expect(r.checked).toBe(2);
+    expect(r.failures.map((f) => [f.key, f.label, f.expected])).toEqual([
+      ['alberto-ascari', 'Alberto Ascari · campeão, top 20 vitórias', 'vínculo f1db driver-alberto-ascari'],
+    ]);
+  });
+});
+
 describe('países ambíguos', () => {
   it('GB precisa ser o Reino Unido em todos os idiomas', () => {
     expect(wrongNames('GB', { en: 'United Kingdom', 'pt-BR': 'Reino Unido', es: 'Reino Unido' })).toEqual([]);
@@ -267,5 +305,49 @@ describe('classificação', () => {
     );
     expect(compared).toBe(2);
     expect(diffs.map((d) => d.line.participantId)).toEqual(['ecu']);
+  });
+
+  const ref = (slug: string) => ({
+    id: `s-${slug}`,
+    slug,
+    name: slug,
+    year: 2026,
+    competition_id: `c-${slug}`,
+  });
+  const table = {
+    provider: [
+      { participantId: 'a', name: 'A', group: '', played: 3, points: 9, goalsFor: 5, goalsAgainst: 1 },
+    ],
+    computed: [{ participantId: 'a', group: '', played: 3, points: 9, goalsFor: 5, goalsAgainst: 1 }],
+  };
+  const boom = async () => Promise.reject(new Error('regulamento inválido'));
+
+  it('temporada com erro vira falha com a mensagem; as outras são conferidas', async () => {
+    const r = await compareSeasons(
+      [ref('serie-a'), ref('liga-x')],
+      async (s) => (s.slug === 'liga-x' ? boom() : table),
+      () => {},
+    );
+    expect(r.checked).toBe(1);
+    expect(r.failures.map((f) => [f.key, f.current])).toEqual([
+      ['s-liga-x:erro', 'erro ao recalcular: regulamento inválido'],
+    ]);
+  });
+
+  it('erro em todas as temporadas: a regra lança (sai como error, não como pass com 0)', async () => {
+    await expect(compareSeasons([ref('serie-a'), ref('liga-x')], boom, () => {})).rejects.toThrow(
+      'nenhuma temporada recalculada (2 com erro; serie-a 2026: regulamento inválido)',
+    );
+    // sem erro e sem tabela, continua pass com 0
+    expect(
+      await compareSeasons(
+        [ref('serie-a')],
+        async () => null,
+        () => {},
+      ),
+    ).toEqual({
+      checked: 0,
+      failures: [],
+    });
   });
 });
