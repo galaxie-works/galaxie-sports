@@ -56,7 +56,9 @@ describe('Gemini: nota para o fundo', () => {
     ];
     const fetch = (async () =>
       new Response(
-        JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }),
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] }, finishReason: 'STOP' }],
+        }),
       )) as unknown as typeof globalThis.fetch;
     const img = { body: new Uint8Array([1]), mime: 'image/jpeg', title: 'x' };
     const budget = new TokenBudget(new MemoryTokenBudgetStore(), { dailyLimit: null });

@@ -43,12 +43,21 @@ export const DEFAULT_DAILY_USD_BUDGET = 10;
  * - channels=1: casamento da lista de canais do cliente, só as sobras do casamento por código, quando chega lista;
  * - live=0.5: prioridades do ao vivo, uma chamada curta por rodada;
  * - assets=1: ordem das fotos da F1 (ingestor), lote manual que continua de onde parou; em 25/10 o lote gastou
- *   ~US$ 4 num dia (fora do ledger), e US$ 1/dia o termina em ~4 dias sem tirar dos outros agentes.
+ *   ~US$ 4 num dia (fora do ledger). O limite prático é o pool de tokens próprio (SEPARATE_TOKEN_POOLS,
+ *   ~40 alvos/dia com 3M); US$ 1 é o teto de custo, para modelo mais caro em GEMINI_MODEL_VISION.
  * A lista configurada (AI_AGENT_USD_BUDGETS, painel ou env) mescla agente a agente sobre esta (ver
  * `mergeAgentUsdBudgets`). Agente fora das duas fica no teto padrão (AI_AGENT_DEFAULT_USD_BUDGET), nunca sem teto.
  */
 export const DEFAULT_AGENT_USD_BUDGETS =
   'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=1';
+
+/**
+ * Agentes com pool de tokens próprio, fora da soma do AI_DAILY_TOKEN_BUDGET global (fração dele):
+ * - assets=0.2: a ordem das fotos manda ~15 mil tokens por alvo (12 miniaturas); na conta global, ~200
+ *   alvos esgotariam 3M de tokens por ~US$ 1,30 e deixariam todos os agentes sem IA até a virada. Com 20%
+ *   à parte (600 mil com 3M, ~40 alvos/dia), o lote nunca tira tokens dos outros agentes.
+ */
+export const SEPARATE_TOKEN_POOLS: Readonly<Record<string, number>> = { assets: 0.2 };
 
 /**
  * Teto diário em US$ de um agente fora de AI_AGENT_USD_BUDGETS (agente novo, `purpose` sem prefixo):

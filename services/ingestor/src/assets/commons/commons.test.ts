@@ -494,6 +494,47 @@ describe('passo do Gemini (ranqueador falso)', () => {
     expect(stats[0]!.ranking).toBe('gemini falhou');
   });
 
+  it('Gemini falhando em sequência: o lote para depois de 3 falhas seguidas, sem buscar os alvos seguintes', async () => {
+    const targets = ['a', 'b', 'c', 'd'].map((id): DriverTarget => ({
+      ...senna,
+      f1dbId: `piloto-${id}`,
+      name: `Piloto ${id}`,
+      highlight: null,
+    }));
+    let calls = 0;
+    const failing: Ranker = {
+      model: 'gemini-fake',
+      rank: async () => {
+        calls++;
+        throw new Error('RESOURCE_EXHAUSTED');
+      },
+    };
+    const counted = vi.fn(discover);
+    const { manifest, stats } = await mapCommons(client, targets, null, {
+      revision: '2026-10-26',
+      ranker: failing,
+      discover: counted,
+    });
+    expect(calls).toBe(3);
+    expect(counted).toHaveBeenCalledTimes(3);
+    expect(manifest.entries).toEqual([]);
+    expect(stats.at(-1)).toMatchObject({
+      ranking: 'gemini falhou',
+      note: 'pendente: Gemini falhou 3 vezes seguidas',
+    });
+  });
+
+  it('nenhum julgamento para as fotos enviadas: o alvo não vira ordenado sem fotos', async () => {
+    const none: Ranker = { model: 'gemini-fake', rank: async () => [] };
+    const { manifest, stats } = await mapCommons(client, [senna], null, {
+      revision: '2026-10-26',
+      ranker: none,
+      discover,
+    });
+    expect(manifest.entries).toEqual([]);
+    expect(stats[0]!.ranking).toBe('gemini falhou');
+  });
+
   it('sem orçamento de IA (ou IA desligada): para de ordenar e os alvos seguintes nem buscam candidatas', async () => {
     const prost: DriverTarget = { ...senna, f1dbId: 'alain-prost', name: 'Alain Prost', highlight: null };
     const noBudget: Ranker = {

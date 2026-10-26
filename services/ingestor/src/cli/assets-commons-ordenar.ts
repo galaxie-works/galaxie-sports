@@ -33,9 +33,9 @@ import {
   ledgerSettingsFromEnv,
   loadAiPolicy,
 } from '@galaxie/ai-ledger';
-import { closeDb, createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
-import { applyOverrides } from '@galaxie/runtime-config';
+import { closeDb, createDb } from '@galaxie/db';
 import { WikimediaClient } from '../assets/commons/client.js';
+import { panelEnv } from '../assets/commons/panel-env.js';
 import {
   ASSETS_AGENT,
   GEMINI_VISION_DEFAULT_MODEL,
@@ -69,15 +69,6 @@ const redo = args.has('refazer');
 const plan = args.has('plan');
 const model = process.env.GEMINI_MODEL_VISION?.trim() || GEMINI_VISION_DEFAULT_MODEL;
 const log = (m: string) => console.log(m);
-
-/** Env com as sobrescritas do painel (AI_STATUS, tetos), como os agentes; sem a tabela, o do processo. */
-async function panelEnv(db: Database): Promise<NodeJS.ProcessEnv> {
-  try {
-    return applyOverrides(process.env, await readRuntimeOverrides(db)).env;
-  } catch {
-    return process.env;
-  }
-}
 
 const base = readManifest(input);
 if (!base) throw new Error(`Manifesto não encontrado: ${input} (rode assets:commons --mapear).`);

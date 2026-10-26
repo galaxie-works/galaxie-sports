@@ -1,3 +1,4 @@
+import { settingDef } from '@galaxie/runtime-config';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BudgetExceededError, LlmError } from './errors.js';
 import { MemoryTokenBudgetStore, TokenBudget, ledgerPolicy, type BudgetPolicy } from './ledger.js';
@@ -138,5 +139,56 @@ describe('configuração do ledger', () => {
   it('ledgerPolicy leva o teto padrão para a política', () => {
     const policy = ledgerPolicy(ledgerSettingsFromEnv({ AI_STATUS: 'off' }));
     expect(policy).toMatchObject({ status: 'off', agentDefaultUsdLimit: 0.5, dailyUsdLimit: 10 });
+  });
+});
+
+describe('pool de tokens próprio da ordem das fotos (assets)', () => {
+  const tokens = (store: MemoryTokenBudgetStore, agent: string, n: number) =>
+    store.record({
+      agent,
+      purpose: `${agent}:x`,
+      provider: 'gemini',
+      model: 'gemini-3.5-flash-lite',
+      tier: 'light',
+      inputTokens: n,
+      outputTokens: 0,
+      webSearches: 0,
+      costUsd: 0,
+      outcome: 'ok',
+      at: DAY,
+    });
+
+  it('os tokens do assets não esgotam o teto global dos outros agentes', async () => {
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(
+      store,
+      ledgerPolicy(ledgerSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '3000000' })),
+      () => DAY,
+    );
+    expect(budget.policy.tokenPools).toEqual({ assets: 600_000 });
+    // ~200 alvos de ~15 mil tokens: na conta global, deixariam todos sem IA
+    await tokens(store, 'assets', 590_000);
+    await tokens(store, 'wtw', 2_500_000);
+    await expect(budget.reserve('wtw', 400_000)).resolves.toBeDefined();
+    expect((await budget.status()).used).toBe(2_500_000);
+    // o assets só confere o próprio pool (20% do global), e para nele
+    await expect(budget.reserve('assets', 15_000)).rejects.toMatchObject({
+      agent: 'assets',
+      unit: 'tokens',
+      limit: 600_000,
+    });
+    await expect(budget.reserve('assets', 5_000)).resolves.toBeDefined();
+  });
+
+  it('sem teto global de tokens, o pool também fica sem teto', () => {
+    const p = ledgerPolicy(ledgerSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: 'unlimited' }));
+    expect(p.tokenPools).toEqual({ assets: null });
+  });
+});
+
+describe('registro do painel × padrões do ledger', () => {
+  it('AI_AGENT_DEFAULT_USD_BUDGET e AI_AGENT_USD_BUDGETS: o padrão do registro é o do código', () => {
+    expect(settingDef('AI_AGENT_DEFAULT_USD_BUDGET')?.default).toBe(String(DEFAULT_AGENT_DEFAULT_USD_BUDGET));
+    expect(settingDef('AI_AGENT_USD_BUDGETS')?.default).toBe(DEFAULT_AGENT_USD_BUDGETS);
   });
 });
