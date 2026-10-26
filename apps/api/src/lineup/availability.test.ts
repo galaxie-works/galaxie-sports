@@ -278,6 +278,11 @@ describe('montagem das plataformas', () => {
       'Logo: Fulano / Liga Exemplo · CC BY 4.0',
     );
     expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano, cc by 4.0')).toBe('Logo: Fulano, cc by 4.0');
+    // a mesma licença com hífen (o código da Commons) não se repete
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano (CC-BY-4.0)')).toBe('Logo: Fulano (CC-BY-4.0)');
+    expect(logoCreditText('Fulano', 'CC BY-SA 4.0', 'Fulano (CC-BY-4.0)')).toBe(
+      'Logo: Fulano (CC-BY-4.0) · CC BY-SA 4.0',
+    );
     expect(logoCreditText('Fulano', 'CC BY 4.0', null)).toBe('Logo: Fulano / Wikimedia Commons · CC BY 4.0');
   });
 
