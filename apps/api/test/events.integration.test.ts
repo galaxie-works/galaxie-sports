@@ -241,6 +241,7 @@ async function seed() {
     labels: { 'pt-BR': 'Libertadores' },
     nicknames: { 'pt-BR': ['Glória Eterna'], es: ['La Gloria Eterna'] },
     sourceFile: 'competitions/football.yaml',
+    reviewStatus: 'approved',
   });
   const seasons = await db
     .insert(season)
@@ -469,7 +470,7 @@ beforeAll(async () => {
     plan: 'enterprise',
     rateLimitPerMinute: 5000,
   });
-  key = (await createApiKey(db, t.id, { env: 'test', label: 'integração' })).key;
+  key = (await createApiKey(db, t.id, { env: 'live', label: 'integração' })).key;
   app = buildServer({
     db,
     redis,

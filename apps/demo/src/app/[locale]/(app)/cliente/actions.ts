@@ -15,8 +15,11 @@ import {
   createPublishableKey,
   getWidget,
   normalizeAllowedOrigin,
+  originsOutsideEnv,
+  PublishableKeyLimitError,
   revokePublishableKey,
   saveWidget,
+  type PublishableKeyEnv,
 } from '@/lib/builder/store';
 import type { Widget, WidgetKind } from '@/lib/builder/types';
 import { readClientContext, TENANT_COOKIE } from '@/lib/client/session';
@@ -73,6 +76,8 @@ export async function createKey(input: {
   name: string;
   origins: string;
   widgetId: string | null;
+  /** `live` (padrão, domínios públicos) ou `test` (gs_pk_test_, só localhost). */
+  env?: PublishableKeyEnv;
 }): Promise<CreateKeyResult> {
   const t = await texts();
   const r = await tenantOrError();
@@ -84,6 +89,15 @@ export async function createKey(input: {
   if (!origins.length) return { ok: false, error: t.errors.noOrigins };
   if (origins.length > MAX_ORIGINS)
     return { ok: false, error: fill(t.errors.tooManyOrigins, { max: MAX_ORIGINS }) };
+  const env: PublishableKeyEnv = input.env === 'test' ? 'test' : 'live';
+  const outside = originsOutsideEnv(env, origins);
+  if (outside.length)
+    return {
+      ok: false,
+      error: fill(env === 'test' ? t.errors.originsTestOnly : t.errors.originsNoLocalhost, {
+        list: outside.join(', '),
+      }),
+    };
   let widgetId: string | null = null;
   if (input.widgetId) {
     const w = isUuid(input.widgetId) ? await getWidget(builderDb(), input.widgetId) : null;
@@ -97,10 +111,12 @@ export async function createKey(input: {
       name,
       allowedOrigins: origins,
       widgetId,
+      env,
     });
     revalidateClient();
     return { ok: true, key: created.key };
   } catch (err) {
+    if (err instanceof PublishableKeyLimitError) return { ok: false, error: t.errors.keyLimit };
     console.error('[cliente] falha ao criar chave publicável', err);
     return { ok: false, error: t.errors.generic };
   }

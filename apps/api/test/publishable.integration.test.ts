@@ -286,6 +286,25 @@ describe('chave publicável', () => {
     expect((await hit('10.9.0.2')).statusCode).toBe(200);
   });
 
+  it('publicável de teste (gs_pk_test_) só a partir de localhost', async () => {
+    const dev = await createPublishableKey(db, {
+      tenantId,
+      name: 'dev',
+      env: 'test',
+      allowedOrigins: ['http://localhost:3000'],
+    });
+    const hit = (origin: string) =>
+      app.inject({
+        method: 'GET',
+        url: '/v1/sports',
+        headers: { 'x-galaxie-publishable-key': dev.key, origin },
+      });
+    const ok = await hit('http://localhost:3000');
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    expect((await hit(ORIGIN)).statusCode).toBe(403);
+  });
+
   it('chave revogada ou inexistente → 401', async () => {
     const tmp = await createPublishableKey(db, { tenantId, name: 'temporária', allowedOrigins: [ORIGIN] });
     expect((await pkGet('/v1/sports', {}, tmp.key)).statusCode).toBe(200);

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# PLANO B: o caminho normal é o deploy pelo GitHub Actions (.github/workflows/deploy.yml + deploy-gh.sh), que sobe as
+# imagens do GHCR. Este script constrói na máquina de dev (Docker Desktop) e envia por docker save | ssh — para quando
+# o Actions ou o GHCR estiverem fora (docs/runbooks/deploy-pelo-github.md). Os dois usam a mesma trava na VPS.
+#
 # Publica a main na VPS com o mesmo roteiro de sempre — e termina com o smoke test, para nada que
 # funciona local ficar quebrado em silêncio na produção.
 #
@@ -24,8 +28,10 @@
 #      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
-#   7. pós-deploy idempotente: seed da base semântica, nomes curados de estádios e importância
-#   8. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h)
+#   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica, nomes
+#      curados de estádios e importância
+#   8. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h) e confere a conta da IA
+#      (só avisa)
 #   9. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
 #  10. notas de versão: tag deploy-AAAA-MM-DD.N e release no GitHub com os PRs desde o deploy anterior
 #  11. lineup-render (perfil render): construída na própria VPS quando a pasta muda, com a tag da versão do
@@ -123,13 +129,15 @@ trap 'exit 130' INT
 trap 'exit 129' HUP
 
 # ── CI do SHA ───────────────────────────────────────────────────────────────────────────────────────────────
-# Execuções do GitHub Actions no commit (enxergam também o que está na fila, antes de existir check-run)
+# Execuções do GitHub Actions no commit (enxergam também o que está na fila, antes de existir check-run), menos as do
+# próprio deploy e do trem de merge, que não testam o commit
 # → "pass", "pending <n>", "fail <nomes>", "cancelled <nomes>" ou "erro" (gh sem acesso depois de 3 tentativas)
 ci_state() {
   local runs try
   for try in 1 2 3; do
     if runs="$(cd "$ROOT" && gh api --paginate "repos/{owner}/{repo}/actions/runs?head_sha=$SHA&per_page=100" \
-      --jq '.workflow_runs[] | [.status, (.conclusion // ""), .name] | @tsv' 2>/dev/null)"; then
+      --jq '.workflow_runs[] | select(.name != "Deploy" and .name != "Trem de merge")
+        | [.status, (.conclusion // ""), .name] | @tsv' 2>/dev/null)"; then
       break
     fi
     [ "$try" = 3 ] || sleep 5
@@ -350,43 +358,9 @@ fi
 # a partir daqui uma falha deixa a versão nova no ar: a dica de rollback depende de ter entrado migration nova
 MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
-echo "pós-deploy (idempotente, sem chamadas ao fornecedor)"
-ssh "$VPS" "$CD && \
-  docker compose run --rm --no-deps -w /srv/services/ingestor ingestor \
-    node node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js --dir /srv/data/knowledge >/dev/null && \
-  docker compose run --rm --no-deps ingestor node dist/cli/derive-names.js >/dev/null && \
-  docker compose run --rm --no-deps ingestor node dist/cli/events-importance.js --esporte football --proximos-dias 7 >/dev/null && \
-  echo ok"
-
-# cache de respostas da API (até 24 h, last-known-good): o que a versão anterior calculou não pode
-# continuar sendo servido — só as chaves de resposta e de tag; rate limit e o resto ficam. Falha do scan ou do del
-# derruba o deploy (sh -e no contêiner), senão o cache antigo seguiria no ar sem aviso.
-echo "limpando o cache de respostas da API"
-ssh "$VPS" "cd $DIR && docker compose exec -T valkey sh -ec '
-  for p in \"gs:cache:*\" \"gs:tag:*\"; do
-    keys=\$(valkey-cli --scan --pattern \"\$p\")
-    [ -z \"\$keys\" ] || printf \"%s\\n\" \"\$keys\" | xargs -n 200 valkey-cli del >/dev/null
-  done'"
-
-# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy
-echo "conta da IA"
-ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
-  const p = (process.env.AI_PROVIDER || \"openai\").toLowerCase();
-  const gem = p === \"gemini\";
-  const key = gem ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;
-  if (!key || (p !== \"openai\" && !gem)) { console.log(\"WARN  IA: provedor \" + p + \" sem chave configurada\"); process.exit(0); }
-  const model = process.env.AI_MODEL_LIGHT || (gem ? \"gemini-3.5-flash-lite\" : \"gpt-6-luna\");
-  const req = gem
-    ? [\"https://generativelanguage.googleapis.com/v1beta/models/\" + model + \":generateContent\", { method: \"POST\",
-        headers: { \"x-goog-api-key\": key, \"content-type\": \"application/json\" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: \"ok\" }] }], generationConfig: { maxOutputTokens: 1 } }) }]
-    : [\"https://api.openai.com/v1/responses\", { method: \"POST\",
-        headers: { authorization: \"Bearer \" + key, \"content-type\": \"application/json\" },
-        body: JSON.stringify({ model, input: \"ok\", max_output_tokens: 16 }) }];
-  fetch(req[0], req[1])
-    .then(async (r) => { const j = await r.json().catch(() => ({}));
-      console.log(r.ok ? \"PASS  IA: conta com crédito (\" + p + \")\" : \"WARN  IA: \" + r.status + \" \" + (j.error?.status || j.error?.code || j.error?.type || \"\") + \" — agentes no texto determinístico\"); })
-    .catch((e) => console.log(\"WARN  IA: sem conexão com o provedor (\" + e.message + \")\"));'"
+# pós-deploy (seed, nomes, importância, cache de respostas, conta da IA): o mesmo script do deploy pelo GitHub
+# Actions, rodado na VPS; falha no seed ou no cache derruba o deploy, a checagem da IA só avisa
+ssh "$VPS" "cd $DIR && bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
 
 echo "smoke test"
 ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"

@@ -132,12 +132,10 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
     // público: o país pedido ou o mercado único do plano; vídeos no idioma dele, os do próprio país primeiro
     const country = resolveMarket(request, query.country);
     const language = country ? relatedLanguageOf(country) : null;
-    // os vídeos que o player do tenant recusou saem só da vitrine dele: a resposta varia por tenant
-    const tenantId = request.tenant?.tenantId;
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.related,
-      vary: [locale, tz, country ?? '*', tenantId ?? '*'],
+      vary: [locale, tz, country ?? '*'],
       check: (meta) => {
         if (request.tenant && meta.sport) assertSport(request.tenant, meta.sport);
       },
@@ -150,7 +148,6 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
           ...(query.aspect_ratio?.length ? { aspectRatios: query.aspect_ratio } : {}),
           ...(language ? { language, region: country! } : {}),
           ...(country ? { country } : {}),
-          ...(tenantId ? { tenantId } : {}),
           limit: query.limit,
         });
         const body: RelatedContent = {
@@ -168,39 +165,32 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
     });
   });
 
-  // O player oficial recusou o vídeo (onError 100/101/150): sai na hora da vitrine do tenant em todos os
-  // jogos, e da de todos quando outro tenant também relatar (recordPlaybackBlock).
+  // O player oficial recusou o vídeo (onError 100/101/150): sai da vitrine de todos, em todos os jogos, e o
+  // agente deixa de gastar cota com ele (a recusa de embed é do vídeo e do canal, não do cliente).
   app.post('/v1/related/playback-errors', { config: MODULE }, async (request, reply) => {
     const t = request.tenant;
     if (!t) throw problems.invalidKey();
     if (t.keyKind !== 'secret') throw problems.publishableKeyNotAllowed();
     const body = parseInput(RelatedPlaybackErrorBody, request.body ?? {});
     const db = requireDb(ctx);
-    // o change feed purga o cache dos jogos; o bloqueio de todos também avisa SSE/webhook
+    // o change feed purga o cache dos jogos e avisa SSE/webhook
     const result = await db.transaction((tx) =>
       recordPlaybackBlock(tx, {
         itemId: body.item_id,
         code: body.code as RelatedPlaybackBlockCode,
         tenantId: t.tenantId,
-        ...(body.quorum === false ? { quorum: false } : {}),
       }),
     );
     if (!result) throw problems.notFound('Item do conteúdo relacionado');
-    // o vídeo relatado sai destes jogos para o tenant (já fora para todos quando global)
-    const removedFrom = new Set(
-      [...result.tenantRemovals, ...result.globalRemovals]
-        .filter((r) => r.removed.includes(result.externalId))
-        .map((r) => r.eventId),
-    );
+    // jogos em que o vídeo relatado saiu agora (os outros, no limiar, são do resto do canal)
+    const removedFrom = result.removals.filter((r) => r.removed.includes(result.externalId)).length;
     request.log.info(
       {
         tenant: t.slug,
         video: result.externalId,
         code: body.code,
-        quorum: body.quorum ?? true,
         first: result.first,
-        global: result.global,
-        events: removedFrom.size,
+        events: removedFrom,
       },
       'vídeo relacionado recusado pelo player',
     );
@@ -208,7 +198,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
     const out: RelatedPlaybackErrorResult = {
       item_id: body.item_id,
       external_id: result.externalId,
-      removed_from_events: removedFrom.size,
+      removed_from_events: removedFrom,
     };
     return out;
   });

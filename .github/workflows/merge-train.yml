@@ -1,0 +1,75 @@
+name: Trem de merge
+
+# O infra/ops/merge-train.sh rodando no GitHub em vez da máquina de dev: para cada PR, atualiza com a main, espera o CI
+# completo, confere o portão do Codex e faz squash; o que fica de fora vai para o resumo. O deploy vem sozinho depois
+# (deploy.yml, com o CI verde da main). Enquanto a fila de merge nativa não puder ser ligada (só existe em repositório
+# de organização), é este o caminho — ver docs/runbooks/deploy-pelo-github.md.
+#
+#   gh workflow run merge-train.yml -f prs="301 302 303"
+#
+# Precisa do secret MERGE_TRAIN_TOKEN (token fino só deste repositório: Contents e Pull requests em escrita, Checks e
+# Actions em leitura). Com o GITHUB_TOKEN o update-branch e o merge não disparariam o CI nem o deploy (o GitHub não
+# dispara workflow por evento desse token).
+on:
+  workflow_dispatch:
+    inputs:
+      prs:
+        description: Números dos PRs, na ordem, separados por espaço
+        required: true
+      codex_gate:
+        description: Portão do Codex (off só em emergência)
+        type: choice
+        options: [on, off]
+        default: 'on'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-train
+  cancel-in-progress: false
+
+jobs:
+  train:
+    name: merge ${{ inputs.prs }}
+    runs-on: ubuntu-latest
+    # 7 PRs levam ~1 h (CI de cada um de novo depois do update-branch)
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Token do trem
+        env:
+          TOKEN: ${{ secrets.MERGE_TRAIN_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::secret MERGE_TRAIN_TOKEN não configurado (docs/runbooks/deploy-pelo-github.md, passo a passo)"
+            exit 1
+          fi
+
+      - name: merge-train.sh
+        env:
+          GH_TOKEN: ${{ secrets.MERGE_TRAIN_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          GALAXIE_ROOT: ${{ github.workspace }}
+          CODEX_GATE: ${{ inputs.codex_gate }}
+          PRS: ${{ inputs.prs }}
+        run: |
+          read -ra prs <<< "$PRS"
+          for p in "${prs[@]}"; do
+            case "$p" in *[!0-9]*)
+              echo "::error::PR inválido: $p"
+              exit 1
+              ;;
+            esac
+          done
+          bash infra/ops/merge-train.sh "${prs[@]}" | tee "$RUNNER_TEMP/train.log"
+          {
+            echo '## Trem de merge'
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/train.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

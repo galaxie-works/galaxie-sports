@@ -1,0 +1,186 @@
+name: Deploy
+
+# Publica a main na produção (VPS) quando o CI e as imagens do commit terminam verdes (com a variável do repositório
+# DEPLOY_AUTO=on), ou à mão. A VPS baixa as imagens do SHA no GHCR (docker.yml); o roteiro é o
+# infra/vps-telemetry/deploy-gh.sh (trava na VPS, pull, up, migrate, pós-deploy, smoke test e volta para o SHA anterior
+# se algo falhar sem migration nova). Depois publica as notas de versão (tag deploy-AAAA-MM-DD.N). Plano B, da máquina
+# de dev: infra/ops/deploy-safe.sh. Configuração e transição: docs/runbooks/deploy-pelo-github.md.
+#
+#   gh workflow run deploy.yml                           # o commit mais novo da main
+#   gh workflow run deploy.yml -f sha=<sha> -f force=1   # um commit específico, mesmo já no ar (voltar versão)
+on:
+  workflow_run:
+    workflows: [CI, Imagens e stack de staging]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit da main a publicar (vazio = o mais novo)
+        required: false
+      force:
+        description: Publicar mesmo se o SHA já estiver no ar (1 = sim)
+        required: false
+        default: ''
+      skip_ci_check:
+        description: Publicar sem conferir o CI do SHA (emergência; 1 = sim)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Decide o que publicar, sem segredo nenhum: os dois workflows do commit verdes e o commit ainda é a ponta da main
+  # (com outro commit já na main, o deploy dele vem a seguir e cobre este).
+  gate:
+    name: CI verde do commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # workflow_run: só push na main do próprio repositório (nunca o de um PR de fork) e só com a variável DEPLOY_AUTO=on
+    # (a chave da transição: desligada, o deploy automático não roda e o plano B segue valendo; o disparo manual sempre)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (vars.DEPLOY_AUTO == 'on' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+      go: ${{ steps.pick.outputs.go }}
+    steps:
+      - name: Commit e CI
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+          SKIP_CI: ${{ inputs.skip_ci_check }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          sha="${RUN_SHA:-${INPUT_SHA:-$head}}"
+          sha=$(gh api "repos/$GH_REPO/commits/$sha" --jq .sha) # SHA curto do disparo manual → completo
+          # o commit precisa estar na main (disparo manual com um SHA de branch não passa)
+          status=$(gh api "repos/$GH_REPO/compare/$sha...main" --jq .status)
+          case "$status" in identical | ahead) ;; *)
+            echo "::error::$sha não está na main ($status)"
+            exit 1
+            ;;
+          esac
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = workflow_run ] && [ "$sha" != "$head" ]; then
+            echo "::notice::a main já está em ${head:0:7}; o deploy dele cobre ${sha:0:7}"
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$SKIP_CI" = 1 ]; then
+            echo "::warning::CI de ${sha:0:7} não conferido (skip_ci_check)"
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # a execução mais nova de cada workflow obrigatório no commit (push na main)
+          ok=true
+          for wf in ci.yml docker.yml; do
+            run=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$sha&event=push&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "-")"')
+            echo "$wf: ${run:-sem execução}"
+            case "$run" in
+              "completed success") ;;
+              "completed "*)
+                echo "::error::$wf terminou ${run#completed } em ${sha:0:7}: sem deploy"
+                exit 1
+                ;;
+              *) ok=false ;;
+            esac
+          done
+          if [ "$ok" != true ]; then
+            echo "::notice::ainda falta workflow terminar em ${sha:0:7}; o deploy sai quando o último terminar"
+          fi
+          echo "go=$ok" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: produção
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    # o roteiro leva ~10 min; o teto deixa folga para o pull da imagem do lineup-render (~2 GB, quando a pasta muda)
+    timeout-minutes: 45
+    # Um deploy por vez e nunca cancelado no meio. Com outro rodando, o GitHub guarda só o pendente mais novo:
+    # merges em sequência viram um deploy só, do último commit.
+    concurrency:
+      group: deploy-producao
+      cancel-in-progress: false
+    # segredos da VPS só neste ambiente (restrito à branch main nas configurações do repositório)
+    environment:
+      name: producao
+      url: https://sports.galaxie.works
+    permissions:
+      contents: write # tag e release das notas de versão
+      packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)
+    env:
+      SHA: ${{ needs.gate.outputs.sha }}
+      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+    steps:
+      # O roteiro vem da main de agora (o checkout padrão); a versão publicada, de um checkout separado no SHA. Voltar
+      # para um SHA anterior ao deploy-gh.sh também funciona: só o compose.yml, o env.example e o smoke são dele.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # histórico e tags para as notas de versão (PRs desde a tag deploy-* anterior)
+          fetch-depth: 0
+
+      - name: Checkout do SHA a publicar
+        run: git worktree add --detach "$RUNNER_TEMP/alvo" "$SHA"
+
+      - name: Chave SSH da VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::secrets VPS_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados (docs/runbooks/deploy-pelo-github.md)"
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          # host desconhecido = falha (nada de aceitar chave nova no meio do deploy)
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Login no GHCR (conferir as imagens do SHA)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy na VPS
+        id: deploy
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force }}
+          TARGET_DIR: ${{ runner.temp }}/alvo
+        run: |
+          set -o pipefail
+          bash infra/vps-telemetry/deploy-gh.sh 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+
+      - name: Notas de versão
+        if: steps.deploy.outputs.result == 'deployed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" || echo "::warning::release não publicada"
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "## Deploy ${SHA:0:7}"
+            echo
+            echo '```'
+            grep -E '^(PASS|FAIL|WARN|SKIP)|ok ·|aviso|na VPS:|release ' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 40 || echo "(sem log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f ~/.ssh/id_deploy

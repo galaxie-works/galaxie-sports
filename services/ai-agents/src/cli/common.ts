@@ -1,8 +1,11 @@
 /** Utilitários das CLIs dos agentes: banco, cliente LLM opcional, flags e relatório. */
-import { createDb, type Database } from '@galaxie/db';
+import { createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
+import { applyOverrides } from '@galaxie/runtime-config';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
-import { createLlmClientFromEnv } from '../llm/factory.js';
+import { agentStatusFromEnv, aiStatusFromEnv } from '../llm/config.js';
+import { LlmError } from '../llm/errors.js';
+import { createLlmClient, createLlmClientFromEnv, type LlmRuntime } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
 
 export function dbFromEnv(): Database {
@@ -11,29 +14,88 @@ export function dbFromEnv(): Database {
   return createDb(url, { max: 4 });
 }
 
+type Env = Record<string, string | undefined>;
+
+/**
+ * Env do processo com as sobrescritas do painel por cima (ops.runtime_setting), o mesmo que o scheduler
+ * entrega aos jobs: uma CLI rodada à mão respeita, por exemplo, o AI_STATUS=off gravado no painel.
+ * Sobrescrita antiga convertida (ex.: AI_DAILY_USD_BUDGET=0 → AI_STATUS=off) sai no log. Sem a tabela
+ * (banco antigo, testes), segue com o env.
+ */
+export async function runtimeEnv(
+  db: Database,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<NodeJS.ProcessEnv> {
+  try {
+    const applied = applyOverrides(env, await readRuntimeOverrides(db));
+    for (const c of applied.converted)
+      console.warn(
+        `Configuração antiga do painel convertida: ${c.key}=${c.from} → ${Object.entries(c.to)
+          .map(([k, v]) => `${k}=${v ?? '(padrão)'}`)
+          .join(', ')}.`,
+      );
+    return applied.env;
+  } catch {
+    return env;
+  }
+}
+
+/** Motivo de a IA não rodar para o agente (global ou do agente desligado); null = ligada. */
+export function aiOffReason(env: Env, agent?: string): string | null {
+  if (aiStatusFromEnv(env) === 'off') return 'IA desligada (AI_STATUS=off)';
+  if (agent && agentStatusFromEnv(env)[agent] === 'off')
+    return `IA desligada para ${agent} (AI_AGENT_STATUS)`;
+  return null;
+}
+
+/**
+ * Cliente de um agente com o env do painel aplicado. Com a IA desligada (global ou do agente) lança
+ * LlmError com o motivo, antes de montar o provedor: a CLI cai no mesmo caminho do "sem LLM", sem
+ * chamar nada nem marcar falha.
+ */
+export async function createAgentLlm(
+  db: Database,
+  agent: string,
+  envFor: (env: Env) => Env = (env) => env,
+): Promise<LlmRuntime> {
+  const env = envFor(await runtimeEnv(db));
+  const off = aiOffReason(env, agent);
+  if (off) throw new LlmError(off, 'config', false);
+  return createLlmClient({ db, env });
+}
+
 /**
  * Cliente LLM do ambiente (AI_PROVIDER + chave) **com o orçamento diário de tokens** no ledger
  * compartilhado `ops.llm_usage` (`createLlmClientFromEnv(env, { db })`): todos os agentes e processos
- * descontam do mesmo AI_DAILY_TOKEN_BUDGET. Sem chave ou com configuração inválida devolve null — o
- * agente segue só com o texto/algoritmo determinístico.
+ * descontam do mesmo AI_DAILY_TOKEN_BUDGET. Sem chave, com configuração inválida ou com a IA desligada
+ * devolve null — o agente segue só com o texto/algoritmo determinístico.
  */
 export function loadLlmClient(
   db: Database,
-  env: Record<string, string | undefined> = process.env,
+  env: Env = process.env,
+  agent?: string,
 ): { client: LlmClient | null; reason?: string } {
   try {
+    // desligada, o motivo é esse (e não, por exemplo, a falta da chave do provedor)
+    const off = aiOffReason(env, agent);
+    if (off) return { client: null, reason: off };
     return { client: createLlmClientFromEnv(env, { db }) };
   } catch (err) {
     return { client: null, reason: err instanceof Error ? err.message : String(err) };
   }
 }
 
-export function llmOrNull(disabled: boolean | undefined, db: Database): LlmClient | null {
+/** Cliente das CLIs de agente (env com o painel); null com --sem-llm, IA desligada ou sem configuração. */
+export async function llmOrNull(
+  disabled: boolean | undefined,
+  db: Database,
+  agent?: string,
+): Promise<LlmClient | null> {
   if (disabled) {
     console.log('LLM desligado (--sem-llm): usando apenas texto determinístico.');
     return null;
   }
-  const { client, reason } = loadLlmClient(db);
+  const { client, reason } = loadLlmClient(db, await runtimeEnv(db), agent);
   if (!client) console.log(`LLM indisponível (${reason}): usando apenas texto determinístico.`);
   return client;
 }

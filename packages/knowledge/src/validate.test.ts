@@ -34,7 +34,7 @@ describe('validateKnowledge — base real', () => {
     // futebol 187 times/seleções e 82 clássicos + basquete, vôlei e F1 (issue #44)
     expect(report.counts.teams).toBe(218);
     expect(report.counts.derbies).toBe(93);
-    expect(report.counts.competitions).toBe(43);
+    expect(report.counts.competitions).toBe(58);
     expect(report.counts.copyTemplates).toBeGreaterThanOrEqual(8 * 24);
     expect(report.counts.glossaryTerms).toBeGreaterThanOrEqual(8 * 3);
   });
@@ -174,6 +174,33 @@ describe('validateKnowledge — regras', () => {
       'football/teams/br.yaml': `schema_version: 1\ncountry: BR\nteams:${team('alfa').replace('team_id: null', 'team_id: 10')}${team('beta').replace('team_id: null', 'team_id: 10')}`,
     });
     expect(codes(report.errors)).toContain('duplicate-provider-id');
+  });
+
+  it('competição: apelido igual ao rótulo servido no mesmo pedido é erro', async () => {
+    const competition = (labels: string, nicknames: string) => ({
+      'competitions/football.yaml': `schema_version: 1
+competitions:
+  - slug: copa-x
+    api_sports_league_id: null
+    labels: ${labels}
+    nicknames: ${nicknames}
+    sources: ["https://example.org/copa-x"]
+    review_status: draft`,
+    });
+    const both = '{ pt-BR: "Copa X", es: "Copa X" }';
+    const bad = await validateFiles(competition(both, '{ pt-BR: ["copa x", "Xzão"] }'));
+    expect(codes(bad.errors)).toContain('nickname-is-label');
+    // apelido es-AR igual ao rótulo es: o pedido es-AR cai no rótulo es (mesma cadeia da API)
+    const regional = await validateFiles(competition('{ es: "Copa X" }', '{ es-AR: ["Copa X"] }'));
+    expect(codes(regional.errors)).toContain('nickname-is-label');
+    // e o contrário: rótulo es-AR e apelido es, servidos juntos a quem pede es-AR
+    const reverse = await validateFiles(competition('{ es-AR: "Copa X" }', '{ es: ["Copa X"] }'));
+    expect(codes(reverse.errors)).toContain('nickname-is-label');
+    // outro idioma não conta: pt-BR nunca cai para es
+    const ok = await validateFiles(
+      competition('{ es: "Copa X" }', '{ pt-BR: ["Copa X"], es-AR: ["Equis"] }'),
+    );
+    expect(codes(ok.errors)).not.toContain('nickname-is-label');
   });
 
   it('estádio: nomes anteriores e api_sports_venue_id', async () => {

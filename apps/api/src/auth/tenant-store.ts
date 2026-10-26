@@ -15,6 +15,10 @@ export interface TenantRecord {
 export interface KeyRecord {
   keyId: string;
   secretHash: string;
+  /** Ambiente gravado: o prefixo da chave enviada precisa bater com ele. */
+  env: 'live' | 'test';
+  /** 1 = legado (sem checksum), 2 = com checksum (ver keys.ts). */
+  keyFormat: number;
   scopes: ApiModule[] | null;
   expiresAt: Date | null;
   revokedAt: Date | null;
@@ -42,6 +46,8 @@ export class PgTenantStore implements TenantStore {
     return {
       keyId: row.key.id,
       secretHash: row.key.secretHash,
+      env: row.key.env,
+      keyFormat: row.key.keyFormat,
       scopes: row.key.scopes,
       expiresAt: row.key.expiresAt,
       revokedAt: row.key.revokedAt,

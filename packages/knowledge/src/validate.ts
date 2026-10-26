@@ -10,7 +10,7 @@ import {
   type LocatedDerby,
   type LocatedTeam,
 } from './load.js';
-import { guessLanguage, languageOf } from './language.js';
+import { fallbackChain, guessLanguage, languageOf } from './language.js';
 import { driverSlug } from './editorial.js';
 import { checkChant, checkParagraphs, checkProse, type LyricVerdict } from './lyrics.js';
 import {
@@ -401,6 +401,35 @@ export async function validateKnowledge(kb: KnowledgeBase): Promise<ValidationRe
         `api_sports_league_id ${id} repetido (${prev} e ${c.entry.slug})`,
       );
     else leagueIds.set(id, c.entry.slug);
+  }
+  // apelido igual ao rótulo servido no mesmo pedido: o evento mostra o primeiro apelido ao lado do nome
+  // (`competition.nickname`) e repetiria o nome; a busca já casa pelo rótulo. Rótulo e apelidos seguem
+  // a cadeia de fallback da API (es-AR → es → en), então um apelido `es-AR` igual ao rótulo `es` também
+  // conta. Basta testar os locales que aparecem no perfil: outro locale cai na cadeia de um deles.
+  for (const c of kb.competitions) {
+    const labels = (c.entry.labels ?? {}) as Record<string, unknown>;
+    const nicknames = (c.entry.nicknames ?? {}) as Record<string, unknown>;
+    const norm = (s: string) => s.trim().toLocaleLowerCase();
+    const flagged = new Set<string>();
+    for (const requested of new Set([...Object.keys(labels), ...Object.keys(nicknames)])) {
+      const chain = fallbackChain(requested);
+      const labelLocale = chain.find((l) => typeof labels[l] === 'string' && labels[l]);
+      const listLocale = chain.find((l) => Array.isArray(nicknames[l]));
+      if (!labelLocale || !listLocale) continue;
+      const label = norm(labels[labelLocale] as string);
+      (nicknames[listLocale] as unknown[]).forEach((n, i) => {
+        const key = `${listLocale}|${i}`;
+        if (typeof n !== 'string' || norm(n) !== label || flagged.has(key)) return;
+        flagged.add(key);
+        add(
+          'error',
+          'nickname-is-label',
+          c.file,
+          at(c.file, ['competitions', c.index, 'nicknames', listLocale, i]),
+          `${c.entry.slug}: apelido "${n}" (${listLocale}) repete o rótulo servido em ${requested} (${labelLocale})`,
+        );
+      });
+    }
   }
 
   // 4b. estádios: nomes anteriores coerentes e api_sports_venue_id sem conflito

@@ -254,6 +254,7 @@ pnpm --filter @galaxie/ai-agents lineups:pages [--pais BR] [--plataforma <slug>]
 pnpm --filter @galaxie/ai-agents lineups:curate --arquivo <json> [--aplicar]      # curadoria interna (prévia sem --aplicar)
 pnpm --filter @galaxie/ingestor assets:platform-logos --plan [--pais BR]        # logos: o que seria ligado
 pnpm --filter @galaxie/ingestor assets:platform-logos [--pais BR] [--plataforma <slug>] [--refazer]
+pnpm --filter @galaxie/ingestor assets:commons:atribuicao [--plan]           # atribuição pedida pelo autor nos créditos antigos
 ```
 
 Os logos rodam depois da pesquisa (plataforma nova entra sem logo); na VPS: `docker compose exec -T ingestor node dist/cli/platform-logos.js --plan` e, conferida a prévia, sem `--plan`.
@@ -384,6 +385,15 @@ pnpm --filter @galaxie/ai-agents recap:run [--plan] [--evento <id>] [--horas 36]
 
 Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seguem só com o texto determinístico. Com cliente, todas (cenário, resumo, curador, onde assistir) o montam por `createLlmClientFromEnv(env, { db })`, com o orçamento diário no ledger compartilhado `ops.llm_usage`.
 
+**Estado e tetos (literais, sem número mágico):**
+
+- `AI_STATUS=on|off` (padrão `on`) é a chave geral: `off` desliga a IA de todos os agentes, inclusive os listados com `agente=on`. `AI_AGENT_STATUS=wtw=off` só serve para desligar agentes com a IA ligada; `agente=on` e o agente fora da lista seguem o global (o painel avisa quando há `agente=on` com o global desligado, e o `ai:status` mostra o agente como desligado pela chave geral). Desligada, nenhuma chamada sai para o provedor: o orçamento recusa antes (`AiDisabledError`, tratado como orçamento esgotado) e o log diz o motivo uma vez por dia.
+- Tetos: `AI_DAILY_USD_BUDGET` e `AI_DAILY_TOKEN_BUDGET` são um número (limitado a ele) ou `unlimited` (sem limite); `AI_AGENT_USD_BUDGETS` aceita `agente=US$` ou `agente=unlimited`. **0 é inválido** em todos: o serviço e o painel recusam com "use AI_STATUS=off para desligar".
+- O serviço valida essas cinco chaves pelas regras do registro do painel (`@galaxie/runtime-config`): aceita exatamente o que o painel aceita, com a mesma faixa (US$ de 0,5 a 10.000; tokens de 10.000 a 100.000.000, inteiro). Valor fora delas falha a configuração e os agentes seguem sem IA; o painel mostra "configuração inválida · sem IA".
+- As CLIs dos agentes aplicam as sobrescritas do painel antes de montar o cliente (o mesmo env que o scheduler entrega aos jobs): uma CLI rodada à mão respeita o `AI_STATUS=off` do painel e para antes de chamar o provedor, sem marcar falha. A checagem de crédito do scheduler e a do `deploy.sh` também não chamam o provedor com a IA desligada (`warn`, código `ai_off`; o `deploy.sh` só vê o env do contêiner).
+- Sobrescrita antiga com 0 é convertida na leitura, com aviso no log: `AI_DAILY_USD_BUDGET=0` vale como `AI_STATUS=off`, `agente=0` em `AI_AGENT_USD_BUDGETS` vale como `agente=off` em `AI_AGENT_STATUS` (os outros tetos da linha ficam) e `AI_DAILY_TOKEN_BUDGET=0` como `unlimited`. O banco não é alterado.
+- O estado aparece em texto literal no painel (Gasto de IA hoje), nos avisos de recusa e na CLI `pnpm --filter @galaxie/ai-agents ai:status` (com `DATABASE_URL`, já com o painel aplicado): `ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia`, `ligado · sem limite` ou `desligado`.
+
 ### 2.4 Agente Curador Semântico
 
 - Roda semanalmente e sob demanda (time novo promovido, mudança de nome de estádio).
@@ -414,7 +424,7 @@ Vídeos diretos por evento (YouTube Data API v3), classificados por tipo e forma
 | Fonte não confiável | Lista de domínios priorizados por país; confiança mínima 0,8 |
 | Conteúdo ofensivo | Prompt com regras de linguagem segura + filtro de termos proibidos por locale |
 | Direitos autorais | Evidência limitada a trechos curtos (≤ 200 caracteres); nunca reproduzir matérias |
-| Custo descontrolado | Orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto) com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
+| Custo descontrolado | IA ligada/desligada por `AI_STATUS` e `AI_AGENT_STATUS`; orçamento diário de tokens (`AI_DAILY_TOKEN_BUDGET`) e em US$ (`AI_DAILY_USD_BUDGET`, tokens + buscas na web; `AI_AGENT_USD_BUDGETS` por agente, que fica sem IA até a virada do dia UTC ao bater o teto), cada um número ou `unlimited` (0 inválido), com ledger em `ops.llm_usage`; teto de buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`: OpenAI e Anthropic aplicam na API, o Gemini recebe no prompt e o painel conta as chamadas acima do teto); cache por `(evento, país, janela)` (`enrich.wtw_run`); revalidação T-3h/T-30min sem tokens; modelos menores onde possível |
 | Prompt injection via páginas web | Conteúdo web tratado como dado (regras no prompt de sistema, `wrapUntrusted` para texto externo); saída presa a JSON Schema; toda URL citada é rebuscada e conferida pelo validador; o LLM não publica nada sozinho |
 
 ### 3.1 Camada de LLM (`services/ai-agents/src/llm`)
