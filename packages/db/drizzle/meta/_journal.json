@@ -372,6 +372,13 @@
       "when": 1792979926990,
       "tag": "0052_atribuicao_da_commons",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1793027881484,
+      "tag": "0056_politica_de_ia",
+      "breakpoints": true
     }
   ]
 }
