@@ -341,8 +341,15 @@
     {
       "idx": 48,
       "version": "7",
-      "when": 1792975883580,
-      "tag": "0048_falhas_da_normalizacao",
+      "when": 1792976083442,
+      "tag": "0048_lista_canais_revisao",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792978100624,
+      "tag": "0049_falhas_da_normalizacao",
       "breakpoints": true
     }
   ]
