@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# PLANO B: o deploy normal roda no GitHub Actions (.github/workflows/deploy.yml; docs/runbooks/deploy-pelo-github.md).
+# Antes de usar este, desligue o automático (gh variable delete DEPLOY_AUTO); a trava na VPS é a mesma dos dois.
 # Deploy da main com trava e tempo máximo, da máquina de dev (Windows, Git Bash):
 #   - trava por mkdir (atômico): um deploy por vez; quem chega espera;
 #   - sobe o Docker Desktop, roda infra/vps-telemetry/deploy.sh com teto de 80 min (DEPLOY_TIMEOUT; o deploy espera o CI por até 20 min) (travou = falha, não espera
