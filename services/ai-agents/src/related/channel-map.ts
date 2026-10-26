@@ -317,8 +317,15 @@ export class ChannelBook {
    * Canais do jogo com playlist de uploads. Canal do Wikidata abaixo do piso de inscritos fica de fora (o dado
    * é aberto; o piso é o mesmo da allowlist por handle).
    */
-  async knownChannels(input: Parameters<ChannelBook['linksFor']>[0]): Promise<KnownChannel[]> {
-    const links = await this.linksFor(input);
+  /**
+   * Canais do jogo com a playlist de uploads. `skip` = canais que nem entram (bloqueados): ficam de fora antes
+   * do `channels.list`, então canal bloqueado sem cache fresco não gasta cota nem volta ao cache.
+   */
+  async knownChannels(
+    input: Parameters<ChannelBook['linksFor']>[0],
+    skip: ReadonlySet<string> = new Set(),
+  ): Promise<KnownChannel[]> {
+    const links = (await this.linksFor(input)).filter((l) => !skip.has(l.channelId));
     const det = await this.details(links.map((l) => l.channelId));
     return links.flatMap((l) => {
       const d = det.get(l.channelId);

@@ -62,6 +62,7 @@
     "assets:competition-logos": "node --env-file-if-exists=../../.env dist/cli/competition-logos.js",
     "assets:commons:prancha": "node dist/cli/assets-commons-prancha.js",
     "assets:commons:curadoria": "node dist/cli/assets-commons-curadoria.js",
+    "assets:commons:atribuicao": "node --env-file-if-exists=../../.env dist/cli/assets-commons-atribuicao.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js",
     "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js",
     "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"

@@ -1,0 +1,8 @@
+{
+  "name": "galaxie-sports-lineup-render",
+  "private": true,
+  "description": "Servidor do Playwright (run-server) da imagem lineup-render; fora do workspace pnpm",
+  "dependencies": {
+    "playwright": "1.64.0"
+  }
+}

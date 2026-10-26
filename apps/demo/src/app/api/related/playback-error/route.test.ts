@@ -85,14 +85,13 @@ describe('POST /api/related/playback-error', () => {
     expect(revalidateTag).toHaveBeenCalledTimes(1);
   });
 
-  it('repassa item, código e quorum false, registra quem avisou, ignora o repetido e limita o convidado', async () => {
+  it('repassa só item e código, registra quem avisou, ignora o repetido e limita o convidado', async () => {
     getSession.mockResolvedValue({ user: { id: 'guest-1', role: 'user' } });
     expect((await report({ item_id: item(1), code: 150 })).status).toBe(204);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('http://api.test/v1/related/playback-errors');
-    // a demo nunca conta para o bloqueio de todos os tenants
-    expect(JSON.parse(init.body)).toEqual({ item_id: item(1), code: 150, quorum: false });
+    expect(JSON.parse(init.body)).toEqual({ item_id: item(1), code: 150 });
     expect(revalidateTag).toHaveBeenCalledWith('galaxie:related', { expire: 0 });
     expect(console.info).toHaveBeenCalledWith(
       expect.any(String),

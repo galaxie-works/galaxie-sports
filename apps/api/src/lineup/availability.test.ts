@@ -34,6 +34,7 @@ const credit = {
   license: 'Public domain',
   license_url: null,
   attribution_required: false,
+  attribution: null,
   text: 'Logo: Wikimedia Commons · Public domain',
 };
 
@@ -294,6 +295,19 @@ describe('montagem das plataformas', () => {
   it('crédito do logo: autor quando há, sempre a fonte e a licença', () => {
     expect(logoCreditText(null, 'Public domain')).toBe('Logo: Wikimedia Commons · Public domain');
     expect(logoCreditText('Fulano', 'CC BY-SA 4.0')).toBe('Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0');
+  });
+
+  it('crédito do logo: a atribuição pedida pelo autor, com a licença quando ela não cita', () => {
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano / Liga Exemplo')).toBe(
+      'Logo: Fulano / Liga Exemplo · CC BY 4.0',
+    );
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano, cc by 4.0')).toBe('Logo: Fulano, cc by 4.0');
+    // a mesma licença com hífen (o código da Commons) não se repete
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano (CC-BY-4.0)')).toBe('Logo: Fulano (CC-BY-4.0)');
+    expect(logoCreditText('Fulano', 'CC BY-SA 4.0', 'Fulano (CC-BY-4.0)')).toBe(
+      'Logo: Fulano (CC-BY-4.0) · CC BY-SA 4.0',
+    );
+    expect(logoCreditText('Fulano', 'CC BY 4.0', null)).toBe('Logo: Fulano / Wikimedia Commons · CC BY 4.0');
   });
 
   it('grade da plataforma no contrato', () => {

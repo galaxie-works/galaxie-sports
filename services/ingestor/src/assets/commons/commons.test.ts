@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { CommonsFile, WikimediaClient } from './client.js';
 import type { Discovery } from './discover.js';
-import { classifyLicense, firstHref, plainText, readLicense, yearOf, type ExtMetadata } from './license.js';
+import {
+  classifyLicense,
+  firstHref,
+  plainText,
+  readAttribution,
+  readLicense,
+  yearOf,
+  type ExtMetadata,
+} from './license.js';
 import { mergeEntry, type ManifestEntry } from './manifest.js';
 import { mapCommons, type Ranker } from './map.js';
 import { targetsFor, type DriverTarget } from './scope.js';
@@ -80,6 +88,36 @@ describe('licença da Commons', () => {
     expect(readLicense({ License: { value: 'pd' }, LicenseShortName: { value: 'Public domain' } }).ok).toBe(
       true,
     );
+  });
+
+  it('atribuição pedida pelo autor (`Attribution`) em texto, separada do `Credit` (a fonte)', () => {
+    const v = readLicense(
+      meta('cc-by-4.0', 'CC BY 4.0', {
+        Credit: 'Own work',
+        Attribution: '<a href="https://example.org/fulano">Fulano</a> &amp; <b>Exemplo FC</b>',
+      }),
+    );
+    expect(v).toMatchObject({ ok: true, value: { credit: 'Own work', attribution: 'Fulano & Exemplo FC' } });
+    // sem o campo, ou só com espaço: nulo
+    expect(readLicense(meta('cc-by-4.0', 'CC BY 4.0'))).toMatchObject({ value: { attribution: null } });
+    expect(readAttribution({ Attribution: { value: '  ' } })).toBeNull();
+    expect(readAttribution({ Attribution: { value: '<span>Foto: <i>Beltrano</i></span>' } })).toBe(
+      'Foto: Beltrano',
+    );
+  });
+
+  it('texto do HTML: entidades numéricas decodificadas e nada de HTML depois de decodificar', () => {
+    // o MediaWiki entrega o © e o espaço fixo como entidades numéricas (decimais e hexadecimais)
+    expect(plainText('&#169; Fulano&#160;2020 &#x2014; Liga')).toBe('© Fulano 2020 — Liga');
+    // tag escapada vira texto e é tirada de novo: não sai `<script>` no `text` da API
+    expect(plainText('Fulano &lt;script&gt;alert(1)&lt;/script&gt;')).toBe('Fulano alert(1)');
+    // escape duplo decodifica uma vez só (`&amp;` junto das outras): fica o texto, sem `<b>`
+    expect(plainText('&amp;lt;b&amp;gt;Fulano')).toBe('&lt;b&gt;Fulano');
+    // vale para autor e `Credit`, que usam a mesma função
+    const v = readLicense(
+      meta('cc-by-4.0', 'CC BY 4.0', { Artist: '&#169; Fulano &lt;b&gt;', Credit: 'Own work &#38; mais' }),
+    );
+    expect(v).toMatchObject({ value: { author: '© Fulano', credit: 'Own work & mais' } });
   });
 
   it('texto e links do HTML da Commons; ano da data', () => {
