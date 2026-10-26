@@ -4,8 +4,8 @@
 #   nas-pull.sh
 # A cada execução:
 #   1. lista os dumps do volume `backups` da VPS (chave só de leitura: rrsync -ro);
-#   2. para cada dia UTC dos últimos NAS_KEEP_DAILY que ainda não tem cópia, baixa o dump mais recente daquele dia
-#      com o .sha256 e confere o hash antes de guardar em daily/;
+#   2. para cada dia UTC dos últimos NAS_KEEP_DAILY, baixa o dump mais recente daquele dia se o NAS não o tem (troca o
+#      do mesmo dia mais antigo), com o .sha256, e confere o hash antes de guardar em daily/;
 #   3. rotação avô-pai-filho por hardlink: weekly/ fica com o último dump de cada semana ISO (8) e monthly/ com o
 #      último de cada mês (12); daily/ com os 14 dias mais recentes. Por contagem: com a cópia parada, nada some;
 #   4. com o dump mais recente da VPS guardado e conferido, toca o recibo .nas_last_pull na VPS (segunda chave, cujo
@@ -55,7 +55,6 @@ remote=$(rsync --list-only -e "$pull_ssh" "$VPS_USER@$VPS_HOST:" 2>&1) || fail "
 remote=$(printf '%s\n' "$remote" | awk '{print $NF}' | grep -E "^${DUMP_PREFIX}[0-9]{8}T[0-9]{6}Z\.dump$" | sort || true)
 [ -n "$remote" ] || fail "nenhum dump na VPS"
 newest=$(printf '%s\n' "$remote" | tail -n 1)
-newest_day=$(day_of "$newest")
 
 # 2. O mais recente de cada dia, nos últimos NAS_KEEP_DAILY dias com dump na VPS.
 wanted=$(printf '%s\n' "$remote" | awk -v p="$DUMP_PREFIX" '{d=substr($0,length(p)+1,8); last[d]=$0} END {for (d in last) print last[d]}' |
@@ -64,10 +63,13 @@ wanted=$(printf '%s\n' "$remote" | awk -v p="$DUMP_PREFIX" '{d=substr($0,length(
 copied=0
 for f in $wanted; do
   day=$(day_of "$f")
-  if ls "$NAS_DIR/daily/${DUMP_PREFIX}${day}"T*Z.dump >/dev/null 2>&1; then
+  # Um dump por dia: o do dia já guardado só é trocado por um mais recente do mesmo dia (o backup roda também na
+  # partida do serviço, então a VPS pode ter vários no dia).
+  stored=$(ls -1 "$NAS_DIR/daily/${DUMP_PREFIX}${day}"T*Z.dump 2>/dev/null | sort | tail -n 1 || true)
+  if [ -n "$stored" ] && [ "$(printf '%s\n%s\n' "$(basename "$stored")" "$f" | sort | tail -n 1)" = "$(basename "$stored")" ]; then
     continue
   fi
-  log info "copiando $f"
+  log info "copiando $f${stored:+ (substitui $(basename "$stored"))}"
   # shellcheck disable=SC2086 # NAS_BWLIMIT vazio some de propósito
   rsync -t --partial --inplace ${NAS_BWLIMIT:+--bwlimit=$NAS_BWLIMIT} -e "$pull_ssh" \
     "$VPS_USER@$VPS_HOST:$f" "$VPS_USER@$VPS_HOST:$f.sha256" "$NAS_DIR/incoming/" ||
@@ -80,6 +82,8 @@ for f in $wanted; do
   fi
   mv "$NAS_DIR/incoming/$f.sha256" "$NAS_DIR/daily/"
   mv "$NAS_DIR/incoming/$f" "$NAS_DIR/daily/"
+  # weekly/ e monthly/ trocam o hardlink do mesmo período na rotação, abaixo
+  [ -z "$stored" ] || rm -f "$stored" "$stored.sha256"
   copied=$((copied + 1))
 done
 
@@ -112,8 +116,8 @@ keep_last "$NAS_DIR/daily" "$NAS_KEEP_DAILY"
 keep_last "$NAS_DIR/weekly" "$NAS_KEEP_WEEKLY"
 keep_last "$NAS_DIR/monthly" "$NAS_KEEP_MONTHLY"
 
-# 4. Recibo: só com o dia do dump mais recente da VPS guardado e conferido.
-ls "$NAS_DIR/daily/${DUMP_PREFIX}${newest_day}"T*Z.dump >/dev/null 2>&1 || fail "o dia $newest_day não foi guardado"
+# 4. Recibo: só com o dump mais recente da VPS guardado e conferido.
+[ -f "$NAS_DIR/daily/$newest" ] || fail "o dump mais recente ($newest) não foi guardado"
 out=$($receipt_ssh "$VPS_USER@$VPS_HOST" 2>&1) || fail "tocar o recibo na VPS: $out"
 
 summary="$copied dump(s) novo(s); daily=$(ls "$NAS_DIR"/daily/*.dump 2>/dev/null | wc -l) weekly=$(ls "$NAS_DIR"/weekly/*.dump 2>/dev/null | wc -l) monthly=$(ls "$NAS_DIR"/monthly/*.dump 2>/dev/null | wc -l); mais recente na VPS: $newest"

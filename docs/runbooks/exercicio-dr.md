@@ -34,15 +34,16 @@ compose [infra/nas-backup/compose.yml](../../infra/nas-backup/compose.yml) e o s
 [infra/nas-backup/nas-pull.sh](../../infra/nas-backup/nas-pull.sh). Um container `alpine` com `crond` roda o script às
 05:15 e às 17:15 UTC (`NAS_PULL_CRON`; a das 17:15 é a reserva) e na partida. Cada execução:
 
-1. **Lista** os dumps do volume `backups` da VPS e, para cada dia UTC dos últimos 14 que ainda não tem cópia, **baixa**
-   o dump mais recente daquele dia com o `.sha256` (`rsync --partial`: uma cópia interrompida continua de onde parou).
-   Um dia já guardado não é baixado de novo. Na rodada das 05:15 do dia, o dump novo é o das 03:30.
+1. **Lista** os dumps do volume `backups` da VPS e, para cada dia UTC dos últimos 14, **baixa** o dump mais recente
+   daquele dia com o `.sha256`, se o NAS ainda não o tem (`rsync --partial`: uma cópia interrompida continua de onde
+   parou). O NAS guarda um dump por dia. Se a VPS tiver um mais novo do mesmo dia (o backup roda também na partida do
+   serviço, a cada deploy), o novo substitui o anterior depois de conferido.
 2. **Confere** o sha256 de cada dump baixado antes de movê-lo para `daily/`. Se não conferir, apaga a cópia e falha.
 3. **Faz a rotação** avô-pai-filho por hardlink, sem duplicar espaço: `daily/` fica com os 14 dias mais recentes,
    `weekly/` com o último dump de cada semana ISO (8 semanas; normalmente o de domingo) e `monthly/` com o último de
    cada mês (12 meses). A rotação conta dumps, não idade: com a cópia parada, nada some.
-4. **Deixa o recibo** `.nas_last_pull` no volume da VPS, mas só quando o dia do dump mais recente da VPS está guardado
-   e conferido. Com `BACKUP_NAS_RECEIPT=true`, que é o padrão do compose da VPS desde este PR, o verificador acusa
+4. **Deixa o recibo** `.nas_last_pull` no volume da VPS, mas só quando o próprio dump mais recente da VPS está
+   guardado e conferido. Com `BACKUP_NAS_RECEIPT=true`, que é o padrão do compose da VPS desde este PR, o verificador acusa
    cópia do NAS com mais de 26 h (alerta `BackupCheckFailed`).
 
 **Onde fica, no NAS** (`NAS_BACKUP_PATH`, hoje `/volume1/Docker/galaxie-sports-backups`): `daily/`, `weekly/`,
