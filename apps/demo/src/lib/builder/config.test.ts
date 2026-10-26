@@ -46,6 +46,12 @@ describe('widget salvo', () => {
     });
   });
 
+  it('recusa o nome que normaliza para o núcleo comum do registry', () => {
+    for (const name of ['Galaxie Core', 'galaxie-core', '  GALÁXIE · core! '])
+      expect(parseWidgetInput({ ...base, name }, opts)).toEqual({ ok: false, error: 'name' });
+    expect(parseWidgetInput({ ...base, name: 'Galaxie Core 2' }, opts).ok).toBe(true);
+  });
+
   it('mercado precisa estar no plano (plano sem mercados aceita qualquer país)', () => {
     const mx = { ...base, config: { ...base.config, market: 'MX' } };
     expect(parseWidgetInput(mx, opts)).toEqual({ ok: false, error: 'market' });
