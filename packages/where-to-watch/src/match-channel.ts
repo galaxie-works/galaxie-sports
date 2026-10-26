@@ -11,7 +11,8 @@
  *    país — agregador e domínio desconhecido não contam;
  * 4. o trecho cita os dois times e a emissora/canal; a página, quando foi possível buscá-la, cita a
  *    emissora (senão a evidência cai) e, com os dois times e a emissora juntos (a até 40 palavras),
- *    soma confiança;
+ *    soma confiança. O canal (subcanal) só é gravado quando a fonte o cita pelo nome dele — a fonte
+ *    que só cita a emissora ou um canal irmão sustenta a emissora, sem o canal;
  * 5. fonte com data mais de 30 dias antes do jogo só vale se o trecho citar a data do jogo (tabela
  *    da temporada); senão é descartada (escala de outra rodada ou temporada).
  *
@@ -129,8 +130,54 @@ export function mentionsTeam(text: string, team: TeamNames): boolean {
 
 /** Nomes pelos quais a emissora (ou o canal) pode aparecer num texto. */
 export function broadcasterNames(entry: BroadcasterEntry, channel?: string | null): string[] {
-  const names = [entry.name, ...entry.aliases, ...entry.channels, ...(channel ? [channel] : [])];
+  const names = [
+    entry.name,
+    ...entry.aliases,
+    // cada canal com as grafias dele ("SporTV2" também cita a emissora)
+    ...entry.channels.flatMap((c) => channelNames(entry, c)),
+    ...(channel ? [channel] : []),
+  ];
   return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
+}
+
+/**
+ * Nomes pelos quais UM canal da emissora aparece num texto: o canal, os apelidos com validade que
+ * apontam para ele e as grafias da emissora com o mesmo sufixo ("SportTV 2" para "SporTV 2"). Não
+ * inclui a emissora genérica nem os canais irmãos: a fonte de "SporTV 3" não sustenta "SporTV 2".
+ */
+export function channelNames(entry: BroadcasterEntry, channel: string): string[] {
+  const ch = words(channel);
+  const base = words(entry.name);
+  const suffix = base.length && base.every((w, i) => ch[i] === w) ? ch.slice(base.length) : [];
+  const names = [
+    channel,
+    ...entry.datedAliases
+      .filter((a) => a.channel && normalizeName(a.channel) === normalizeName(channel))
+      .map((a) => a.name),
+    // grafias da emissora com o sufixo, separado e junto ("SporTV 2", "SportTV 2", "SporTV2"); o apelido
+    // que já traz o sufixo ("SportTV 2") entra como está
+    ...(suffix.length
+      ? [entry.name, ...entry.aliases].flatMap((n) => {
+          const w = words(n);
+          if (w.length > suffix.length && suffix.every((x, i) => w[w.length - suffix.length + i] === x))
+            return [n];
+          // um apelido de OUTRO canal ("SportTV 3") não vira grafia deste
+          if (entry.channels.some((c) => normalizeName(c) !== normalizeName(channel) && sameStem(n, c, base)))
+            return [];
+          return [`${n} ${suffix.join(' ')}`, `${n}${suffix.join('')}`];
+        })
+      : []),
+  ];
+  return [...new Set(names.filter((n) => normalizeName(n).length >= 2))];
+}
+
+/** O nome é o de outro canal numerado da emissora com outra grafia ("SportTV 3" para "SporTV 3")? */
+function sameStem(name: string, otherChannel: string, base: string[]): boolean {
+  const w = words(name);
+  const other = words(otherChannel).slice(base.length);
+  return (
+    other.length > 0 && w.length > other.length && other.every((x, i) => w[w.length - other.length + i] === x)
+  );
 }
 
 /**
@@ -157,23 +204,41 @@ export function mentionsBroadcaster(text: string, names: string[]): boolean {
 /** Distância máxima (em palavras) entre os dois times e a emissora na mesma página. */
 export const PAGE_PROXIMITY_WORDS = 40;
 
+/** Separadores de confronto numa agenda ("Flamengo x Palmeiras", "A vs B"). */
+const MATCH_SEPARATORS = new Set(['x', 'vs', 'versus']);
+
 /**
  * A página cita os dois times e a emissora JUNTOS (a até `maxWords` palavras uns dos outros)? Numa
  * escala da rodada, todos os jogos e canais aparecem; só a proximidade liga este jogo a este canal.
+ * Com `sameMatch`, o trecho entre eles não pode passar por outro confronto ("x" de outro jogo): numa
+ * agenda compacta o canal do jogo vizinho fica a poucas palavras.
  */
 export function mentionsTogether(
   text: string,
   teams: readonly [TeamNames, TeamNames],
   names: string[],
   maxWords = PAGE_PROXIMITY_WORDS,
+  opts: { sameMatch?: boolean } = {},
 ): boolean {
-  const all = words(text);
+  const all = words(opts.sameMatch ? text.replace(/×/g, ' x ') : text);
   const a = teamHits(all, teams[0]);
   const b = teamHits(all, teams[1]);
   const c = broadcasterHits(all, names);
   if (!a.length || !b.length || !c.length) return false;
-  const near = (xs: number[], p: number) => xs.some((x) => Math.abs(x - p) <= maxWords);
-  return c.some((p) => a.some((x) => Math.abs(x - p) <= maxWords && near(b, p) && near(b, x)));
+  const seps = opts.sameMatch ? all.flatMap((w, i) => (MATCH_SEPARATORS.has(w) ? [i] : [])) : [];
+  const oneMatch = (x: number, y: number, p: number) => {
+    if (!opts.sameMatch) return true;
+    const lo = Math.min(x, y, p);
+    const hi = Math.max(x, y, p);
+    return seps.filter((i) => i > lo && i < hi).length <= 1;
+  };
+  return c.some((p) =>
+    a.some(
+      (x) =>
+        Math.abs(x - p) <= maxWords &&
+        b.some((y) => Math.abs(y - p) <= maxWords && Math.abs(y - x) <= maxWords && oneMatch(x, y, p)),
+    ),
+  );
 }
 
 // ─── validador ───────────────────────────────────────────────────────────────────────────────────
@@ -223,6 +288,11 @@ export interface ValidatedChannel {
   broadcasterId: string;
   providerName: string;
   channel: string | null;
+  /**
+   * Canais da emissora que a pesquisa propôs (citados ou não pela fonte). Com `channel` null, o canal
+   * já gravado só fica se nenhum canal diferente foi proposto: senão o jogo pode ter mudado de canal.
+   */
+  proposedChannels?: string[];
   confidence: number;
   sourceKind: MatchChannelSourceKind;
   evidence: MatchChannelEvidence[];
@@ -296,13 +366,19 @@ export function validateMatchChannels(
       rejected.push({ broadcasterId: id, reason: 'not_a_rights_holder' });
       continue;
     }
-    const channels = group
-      .map((p) => p.channel?.trim() || null)
-      .filter((c): c is string => !!c && entry.channels.some((x) => normalizeName(x) === normalizeName(c)));
-    const channel = channels[0] ?? null;
-    const names = broadcasterNames(entry, channel);
+    const channels = [
+      ...new Set(
+        group
+          .map((p) => p.channel?.trim() || null)
+          .filter(
+            (c): c is string => !!c && entry.channels.some((x) => normalizeName(x) === normalizeName(c)),
+          ),
+      ),
+    ];
+    const names = broadcasterNames(entry);
+    const byChannel = new Map(channels.map((c) => [c, channelNames(entry, c)]));
     const reasons: EvidenceRejection[] = [];
-    const kept = new Map<string, MatchChannelEvidence & { score: number }>();
+    const kept = new Map<string, MatchChannelEvidence & { score: number; channels: string[] }>();
 
     for (const p of group)
       for (const ev of p.evidence) {
@@ -358,9 +434,18 @@ export function validateMatchChannels(
         const score =
           (OFFICIAL.includes(kind) ? CHANNEL_SCORING.official : CHANNEL_SCORING.press) +
           (pageVerified ? CHANNEL_SCORING.pageVerified : 0);
+        // canal proposto que o trecho (e a página, quando buscada) cita pelo nome dele
+        const cited = channels.filter(
+          (c) =>
+            mentionsBroadcaster(excerpt, byChannel.get(c)!) &&
+            (!page?.ok || mentionsBroadcaster(page.text, byChannel.get(c)!)),
+        );
         const key = comparableUrl(url);
         const prev = kept.get(key);
-        if (prev && prev.score >= score) continue;
+        if (prev && prev.score >= score) {
+          prev.channels = [...new Set([...prev.channels, ...cited])];
+          continue;
+        }
         kept.set(key, {
           url,
           publisher: hostOf(url)!,
@@ -370,10 +455,13 @@ export function validateMatchChannels(
           pageVerified,
           fetchedAt: ctx.now.toISOString(),
           score,
+          channels: [...new Set([...(prev?.channels ?? []), ...cited])],
         });
       }
 
     const support = [...kept.values()].sort((a, b) => b.score - a.score);
+    // sem fonte que cite o canal escolhido, grava só a emissora (sem o canal)
+    const channel = channels.find((c) => support.some((e) => e.channels.includes(c))) ?? null;
     if (!support.length) {
       rejected.push({ broadcasterId: id, reason: 'no_valid_source', evidence: [...new Set(reasons)] });
       continue;
@@ -390,9 +478,10 @@ export function validateMatchChannels(
       broadcasterId: id,
       providerName: entry.name,
       channel: channel && normalizeName(channel) !== normalizeName(entry.name) ? channel : null,
+      proposedChannels: channels,
       confidence,
       sourceKind: support.some((e) => OFFICIAL.includes(e.sourceKind)) ? 'official' : 'press',
-      evidence: support.slice(0, CHANNEL_SCORING.maxEvidence).map(({ score: _s, ...e }) => e),
+      evidence: support.slice(0, CHANNEL_SCORING.maxEvidence).map(({ score: _s, channels: _c, ...e }) => e),
     });
   }
   accepted.sort((a, b) => a.broadcasterId.localeCompare(b.broadcasterId));
@@ -431,6 +520,16 @@ function mergeEvidence(a: MatchChannelEvidence[], b: MatchChannelEvidence[]): Ma
         Number(y.pageVerified === true) - Number(x.pageVerified === true),
     )
     .slice(0, CHANNEL_SCORING.maxEvidence);
+}
+
+/**
+ * Canal gravado que continua quando a validação nova confirma só a emissora: fica se a pesquisa não
+ * propôs canal ou só propôs o mesmo; outro canal proposto (sem fonte que o cite) limpa — o jogo pode
+ * ter mudado de canal e o antigo não deve seguir publicado.
+ */
+function keptChannel(prev: string | null, proposed: string[]): string | null {
+  if (!prev) return null;
+  return proposed.every((c) => normalizeName(c) === normalizeName(prev)) ? prev : null;
 }
 
 export interface ApplyMatchChannelsInput {
@@ -477,7 +576,7 @@ export async function applyMatchChannels(
       const sourceKind: MatchChannelSourceKind =
         a.sourceKind === 'official' || prev?.sourceKind === 'official' ? 'official' : 'press';
       const values = {
-        channelName: a.channel ?? prev?.channelName ?? null,
+        channelName: a.channel ?? keptChannel(prev?.channelName ?? null, a.proposedChannels ?? []),
         status: 'confirmed' as const,
         confidence: Math.max(
           a.confidence,

@@ -67,6 +67,11 @@ export type Evidence = {
   publishedAt?: string | null;
   /** sha256 do texto normalizado da página na última verificação (revalidação por diff). */
   contentHash?: string | null;
+  /**
+   * O trecho (ou os dois times perto da emissora) já foi achado na página numa verificação: na
+   * revalidação, só a fonte que tinha o jogo e o perdeu é rebaixada. Ausente = nunca conferido.
+   */
+  excerptVerified?: boolean;
   /** A fonte confirma ou nega a transmissão. */
   stance?: 'confirms' | 'denies';
 };
@@ -742,16 +747,23 @@ export const wtwResearch = enrich.table(
     markets: text('markets').array().notNull(),
     /** running | done | failed | skipped */
     status: text('status').notNull().default('running'),
+    /**
+     * Falhas no dia (UTC) da última tentativa: a chave espera entre as tentativas e desiste no limite
+     * do dia (WTW_RESEARCH_MAX_FAILURES). Orçamento esgotado (`skipped`) não conta: não chamou o provedor.
+     */
+    failures: integer('failures').notNull().default(0),
     requestedBy: text('requested_by').notNull().default('scheduler'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     provider: text('provider'),
     model: text('model'),
+    /** Tokens e custo somados das tentativas do dia (UTC); tentativa de outro dia ganha linha nova. */
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     costUsd: numeric('cost_usd', { precision: 12, scale: 6 }),
     stats: jsonb('stats'),
     error: text('error'),
+    /** Início da última tentativa do dia (o gasto conta nesse dia, no teto por mercado). */
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

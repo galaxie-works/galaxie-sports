@@ -30,6 +30,7 @@ import {
   WtwConfig,
 } from '@galaxie/where-to-watch';
 import { BudgetedLlmClient, PgTokenBudgetStore, TokenBudget } from '../src/llm/budget.js';
+import { LlmError } from '../src/llm/errors.js';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { FakePageFetcher } from '../src/wtw/fetcher.js';
@@ -38,6 +39,13 @@ import type { WtwPolicy } from '../src/wtw/relevance.js';
 import { planRightsResearch, RightsResearcher } from '../src/wtw/rights-runner.js';
 import { WtwRunner } from '../src/wtw/runner.js';
 import { enqueueRuns, planDueRuns } from '../src/wtw/scheduler.js';
+import {
+  finishResearch,
+  marketSpendToday,
+  researchBackoffMs,
+  startResearch,
+  WTW_RESEARCH_MAX_FAILURES,
+} from '../src/wtw/spend.js';
 import type { WtwAllocationOutput, WtwAssignment, WtwRightsOutput } from '../src/wtw/schema.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -239,6 +247,7 @@ async function seedRound(opts: {
 const GRADE_BR = 'https://emissora-a.example/grade-da-rodada';
 const GRADE_MX = 'https://emissora-m.example/programacion';
 const PAGES: Record<string, string> = {
+  // trechos do modelo nem sempre literais ("J2 na Streaming B" × "J2 no Streaming B"): ainda publicam
   [GRADE_BR]: '<p>Grade da rodada: J1 na Emissora A; J2 no Streaming B.</p>',
   [GRADE_MX]: '<p>Programación: J1 por Emissora M.</p>',
 };
@@ -446,6 +455,36 @@ describe('onde assistir por rodada', () => {
     expect(out.find((o) => o.country === 'BR')!.stats.allocation).toMatch(/teto diário/);
   });
 
+  it('teto diário por mercado vale a cada pedaço da rodada, não só no começo do grupo', async () => {
+    // rodada de 13 jogos = 2 chamadas; a primeira já leva o BR para perto do teto (US$ 1)
+    const startsAt = new Date(KICKOFF.getTime() + 3 * 24 * H);
+    const now = new Date(startsAt.getTime() - 40 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 13, round: 'Rodada 70', startsAt });
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const fake = new FakeLlmClient(() => ({
+      data: { assignments: [assignment('J1', 'BR', 'Emissora A', GRADE_BR)], notes: null },
+      usage: { inputTokens: 40_000, outputTokens: 3_000, webSearchCalls: 6, costUsd: 0.9 },
+    }));
+    const runner = new WtwRunner({
+      db,
+      llm: fake,
+      config,
+      fetcher: new FakePageFetcher({ ...PAGES }),
+      policy,
+      now: () => now,
+    });
+    const out = await runner.runQueued({ limit: 50, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(1);
+    expect(out).toHaveLength(13);
+    const last = out.find((o) => o.eventId === ids[12])!;
+    expect(last.stats.allocation).toMatch(/teto diário/);
+    expect(out.find((o) => o.eventId === ids[0])!.stats.allocation).toMatch(/alocação por rodada/);
+  });
+
   it('T-3h: revalida sem LLM; fonte que deixou de citar a emissora derruba a opção e volta o "a confirmar"', async () => {
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 40' });
     const t48 = new Date(KICKOFF.getTime() - 40 * H);
@@ -479,6 +518,117 @@ describe('onde assistir por rodada', () => {
     const [r2] = await changed.runner.runQueued({ limit: 10, eventId: ids[0]! });
     expect(r2).toMatchObject({ window: 'T-30min', mode: 'revalidate', status: 'done' });
     expect(changed.fake.calls).toHaveLength(0);
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.options).toEqual([]);
+    expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
+  });
+
+  it('T-3h: o jogo trocou de canal na agenda compacta: a fonte que tinha o jogo cai para 0,4', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 2, round: 'Rodada 42' });
+    const names = async (id: string) =>
+      (
+        await db
+          .select({ name: participant.name, side: eventParticipant.side })
+          .from(eventParticipant)
+          .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
+          .where(eq(eventParticipant.eventId, id))
+      )
+        .sort((a, b) => (a.side === 'home' ? -1 : b.side === 'home' ? 1 : 0))
+        .map((r) => r.name);
+    const [h1, a1] = await names(ids[0]!);
+    const [h2, a2] = await names(ids[1]!);
+    const AGENDA = 'https://emissora-a.example/agenda-compacta';
+    const t48 = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t48, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t48,
+    );
+    const fake = new FakeLlmClient(() => ({
+      data: {
+        // paráfrase do modelo: vale pela proximidade dos times com a emissora na página
+        assignments: [
+          {
+            ...assignment('J1', 'BR', 'Emissora A', AGENDA),
+            evidence: [
+              {
+                url: AGENDA,
+                excerpt: `A Emissora A mostra ${h1} contra ${a1} no sábado`,
+                published_at: null,
+                stance: 'confirms' as const,
+              },
+            ],
+          },
+        ],
+        notes: null,
+      },
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.01 },
+    }));
+    const runner = (now: Date, page: string) =>
+      new WtwRunner({
+        db,
+        llm: fake,
+        config,
+        fetcher: new FakePageFetcher({ [AGENDA]: page }),
+        policy,
+        now: () => now,
+      });
+    await runner(t48, `<p>${h1} x ${a1}, 16h, Emissora A. ${h2} x ${a2}, 18h30, Streaming B.</p>`).runQueued({
+      limit: 10,
+      maxCalls: 3,
+      eventId: ids[0]!,
+    });
+    const before = (await currentOptions(db, ids[0]!, 'BR')).find((o) => o.broadcasterId === 'emissora_a')!;
+    expect(before.status).toBe('confirmed');
+    expect(before.evidence.find((e) => e.url === AGENDA)?.excerptVerified).toBe(true);
+
+    // T-3h: o jogo 1 passou para o Streaming B; a Emissora A segue na página, no jogo vizinho
+    const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t3, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t3,
+    );
+    await runner(t3, `<p>${h1} x ${a1}, 16h, Streaming B. ${h2} x ${a2}, 18h30, Emissora A.</p>`).runQueued({
+      limit: 10,
+      eventId: ids[0]!,
+    });
+    const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
+    expect(pub!.options.map((o) => o.row.broadcasterId)).not.toContain('emissora_a');
+    const after = (await currentOptions(db, ids[0]!, 'BR')).find((o) => o.broadcasterId === 'emissora_a')!;
+    // a fonte cai para 0,4 e a opção volta ao piso "a confirmar" dos direitos; a marca continua
+    expect(after).toMatchObject({ status: 'probable', flags: ['to_confirm'] });
+    expect(after.evidence.find((e) => e.url === AGENDA)).toMatchObject({ excerptVerified: true });
+  });
+
+  it('T-3h: página da emissora que ainda a cita, mas sem o trecho do jogo, não sustenta mais a opção', async () => {
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 41' });
+    const t48 = new Date(KICKOFF.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(t48, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t48,
+    );
+    await setup(t48).runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(
+      (await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' }))!.options.map(
+        (o) => o.row.broadcasterId,
+      ),
+    ).toEqual(['emissora_a']);
+
+    // a grade mudou: o J1 passou para o Streaming B, mas a página segue citando a Emissora A
+    const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
+    const moved = setup(t3, {
+      pages: { [GRADE_BR]: '<p>Grade da rodada: J1 no Streaming B; J2 na Emissora A.</p>' },
+    });
+    await enqueueRuns(
+      db,
+      (await plan(t3, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      t3,
+    );
+    const [r] = await moved.runner.runQueued({ limit: 10, eventId: ids[0]! });
+    expect(r).toMatchObject({ window: 'T-3h', mode: 'revalidate', status: 'done' });
+    expect(moved.fake.calls).toHaveLength(0);
     const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
     expect(pub!.options).toEqual([]);
     expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
@@ -533,6 +683,143 @@ describe('onde assistir por rodada', () => {
   });
 });
 
+describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
+  const MIN = 60_000;
+  const start = (key: string, now: Date) =>
+    startResearch(db, { kind: 'allocation', researchKey: key, competition: 'x', markets: ['XX'], now });
+
+  it('retentativa no mesmo dia soma o custo; em outro dia, cada gasto fica no dia em que aconteceu', async () => {
+    const t0 = new Date('2026-12-01T10:00:00Z');
+    const first = await start('teste:retentativa', t0);
+    expect(first).toMatchObject({ failures: 0 });
+    await finishResearch(db, first.id!, {
+      status: 'failed',
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.05 },
+      error: 'provedor fora',
+      now: t0,
+    });
+    // ainda na espera depois da 1ª falha (30 min)
+    expect(await start('teste:retentativa', new Date(t0.getTime() + 10 * MIN))).toMatchObject({
+      id: null,
+      reason: 'backoff',
+      retryAt: new Date(t0.getTime() + 30 * MIN),
+    });
+    // mesmo dia: a mesma linha, com o custo somado
+    const t0b = new Date(t0.getTime() + 31 * MIN);
+    expect(await start('teste:retentativa', t0b)).toEqual({ id: first.id, failures: 1 });
+    await finishResearch(db, first.id!, {
+      status: 'failed',
+      usage: { inputTokens: 1_000, outputTokens: 100, costUsd: 0.05 },
+      error: 'provedor fora',
+      now: t0b,
+    });
+    const [sameDay] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
+    expect(sameDay).toMatchObject({ costUsd: '0.100000', inputTokens: 2_000, failures: 2 });
+
+    // dia seguinte (UTC): linha nova; a de ontem sai da chave e guarda o gasto de ontem
+    const t1 = new Date('2026-12-02T09:00:00Z');
+    const again = await start('teste:retentativa', t1);
+    expect(again).toMatchObject({ failures: 0 });
+    expect(again.id).not.toBe(first.id);
+    await finishResearch(db, again.id!, {
+      status: 'done',
+      usage: { inputTokens: 2_000, outputTokens: 200, costUsd: 0.1 },
+      now: t1,
+    });
+    const [old] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, first.id!));
+    expect(old).toMatchObject({
+      researchKey: `teste:retentativa#${first.id}`,
+      status: 'failed',
+      costUsd: '0.100000',
+      createdAt: t0b,
+    });
+    expect((await marketSpendToday(db, t0)).get('XX')).toBeCloseTo(0.1);
+    expect((await marketSpendToday(db, t1)).get('XX')).toBeCloseTo(0.1);
+    expect(await start('teste:retentativa', t1)).toEqual({ id: null, reason: 'done' });
+  });
+
+  it('desiste depois de 3 falhas no dia; volta a tentar no dia seguinte', async () => {
+    let now = new Date('2026-12-03T08:00:00Z');
+    for (let i = 0; i < WTW_RESEARCH_MAX_FAILURES; i++) {
+      const s = await start('teste:desiste', now);
+      expect(s, `tentativa ${i + 1}`).toMatchObject({ failures: i });
+      await finishResearch(db, s.id!, { status: 'failed', error: 'timeout', now });
+      now = new Date(now.getTime() + researchBackoffMs(i + 1));
+    }
+    expect(await start('teste:desiste', now)).toEqual({ id: null, reason: 'exhausted' });
+    expect(await start('teste:desiste', new Date('2026-12-04T08:00:00Z'))).toMatchObject({ failures: 0 });
+  });
+
+  it('as falhas contam na família da pesquisa: trocar os mercados da chave não reinicia o limite', async () => {
+    let now = new Date('2026-12-05T08:00:00Z');
+    const fam = (key: string) =>
+      startResearch(db, {
+        kind: 'allocation',
+        researchKey: `teste:fam:${key}`,
+        family: 'teste:fam:',
+        competition: 'x',
+        markets: ['XX'],
+        now,
+      });
+    for (const [i, key] of ['BR,MX', 'BR', 'MX'].entries()) {
+      const s = await fam(key);
+      expect(s, key).toMatchObject({ failures: i });
+      await finishResearch(db, s.id!, { status: 'failed', error: 'provedor fora', now });
+      // ainda na espera, nem outra chave da família chama
+      expect(await fam('outra')).toMatchObject({ id: null, reason: i < 2 ? 'backoff' : 'exhausted' });
+      now = new Date(now.getTime() + researchBackoffMs(i + 1));
+    }
+    expect(await fam('outra')).toEqual({ id: null, reason: 'exhausted' });
+  });
+
+  it('alocação com o provedor fora: espera entre as rodadas do agendador e desiste no limite do dia', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 6 * 24 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 80', startsAt });
+    let now = new Date(startsAt.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const fake = new FakeLlmClient(() => new LlmError('provedor fora do ar', 'provider', true));
+    const runner = () =>
+      new WtwRunner({
+        db,
+        llm: fake,
+        config,
+        fetcher: new FakePageFetcher({ ...PAGES }),
+        policy,
+        now: () => now,
+      });
+    const runRow = async () => (await db.select().from(wtwRun).where(eq(wtwRun.eventId, ids[0]!)))[0]!;
+
+    const [o1] = await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(o1!.stats.allocation).toMatch(/alocação falhou: provedor fora/);
+    expect(fake.calls).toHaveLength(1);
+    expect(await runRow()).toMatchObject({
+      status: 'queued',
+      scheduledFor: new Date(now.getTime() + 30 * 60_000),
+    });
+
+    // antes da espera, nada é reservado (nenhuma chamada)
+    now = new Date(now.getTime() + 10 * 60_000);
+    expect(await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! })).toEqual([]);
+    expect(fake.calls).toHaveLength(1);
+
+    // 2ª e 3ª tentativas, cada uma depois da sua espera; na 3ª falha desiste no dia (fecha com os direitos)
+    now = new Date(now.getTime() + 21 * 60_000);
+    await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(2);
+    now = (await runRow()).scheduledFor;
+    await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(3);
+    expect(await runRow()).toMatchObject({ status: 'done' });
+    now = new Date(now.getTime() + 6 * H);
+    expect(await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! })).toEqual([]);
+    expect(fake.calls).toHaveLength(3);
+  });
+});
+
 describe('direitos por temporada (nível 1)', () => {
   it('liga curada no próprio país ainda é pesquisada nos vizinhos; liga sem audiência fica de fora', async () => {
     // slugs reais: a audiência vem de config/geo/market-audience.yaml (liga-mx = 35 no México)
@@ -578,6 +865,9 @@ describe('direitos por temporada (nível 1)', () => {
     });
     // Eredivisie: sem audiência em nenhum mercado, fica abaixo do limiar (30) e não gasta pesquisa
     expect(needs.find((n) => n.competition.slug === 'eredivisie')).toBeUndefined();
+    // --pais BR: a audiência no México não conta (a liga não importa no mercado pedido)
+    const onlyBr = await planRightsResearch(db, { now, config: cfg, markets: ['BR'], minRelevance: 60 });
+    expect(onlyBr.find((n) => n.competition.slug === 'liga-mx')).toBeUndefined();
   });
 
   it('uma chamada cobre os mercados sem direitos; validador confere cada detentor; o resultado alimenta a agenda', async () => {

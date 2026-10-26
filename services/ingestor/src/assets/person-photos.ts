@@ -37,7 +37,8 @@ export function coachPhotoUrl(providerId: string): string {
 
 /**
  * Prioridade de cada pessoa do futebol (api-sports), para registrar e espelhar as fotos na ordem em que
- * aparecem na demo: 0 = escalada desde `since`; 1 = no elenco de uma temporada atual; 2 = o resto.
+ * aparecem na demo: 0 = escalada desde `since`; 1 = no elenco de uma temporada atual ou no elenco atual
+ * do time (sem temporada); 2 = o resto.
  * `last_at` é o último jogo em que entrou em campo (o técnico, o último em que foi o técnico da escalação).
  * Técnicos têm o id `coach:<id>` em core.provider_map (`coachPersonId`); os demais ids numéricos são jogadores.
  */
@@ -74,8 +75,9 @@ function personPriority(since: Date): SQL {
     current_roster as materialized (
       select distinct r.person_id
       from core.roster r
-      join core.season s on s.id = r.season_id
-      where s.current
+      left join core.season s on s.id = r.season_id
+      -- season_id nulo = elenco atual do time (players/squads e coachs), sem temporada
+      where s.current or (r.season_id is null and r.role in ('player', 'coach'))
     ),
     priority as (
       select m.entity_id as person_id, m.provider_id, coalesce(lu.last_at, lc.last_at) as last_at,
@@ -101,6 +103,21 @@ export interface PhotoRegistrationReport {
   skippedMissing: number;
 }
 
+/** Pessoas sem foto e a URL que o id delas dá na CDN de mídia (jogador ou técnico), com a prioridade. */
+function photoCandidates(since: Date): SQL {
+  return sql`
+      ${personPriority(since)}
+      select pr.person_id, pr.tier,
+        case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
+        case when pr.provider_id like 'coach:%'
+          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
+          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
+        end as url
+      from priority pr
+      join core.person p on p.id = pr.person_id
+      where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'`;
+}
+
 /**
  * Registra a foto das pessoas do futebol que ainda não têm uma, a partir do id da api-sports, e liga a pessoa
  * ao asset: `football/players/{id}.png` para jogadores (inclusive quem só aparece em transferências) e
@@ -115,16 +132,7 @@ export async function registerPlayerPhotos(
     await tx.execute(SERIAL);
     await tx.execute(sql`
       create temp table photo_candidate on commit drop as
-      ${personPriority(options.since)}
-      select pr.person_id, pr.tier,
-        case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
-        case when pr.provider_id like 'coach:%'
-          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
-          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
-        end as url
-      from priority pr
-      join core.person p on p.id = pr.person_id
-      where p.photo_asset_id is null and pr.provider_id ~ '^(coach:)?[0-9]+$'
+      ${photoCandidates(options.since)}
     `);
     const registered = await tx.execute<{ id: string }>(sql`
       insert into core.asset (kind, source_url)
@@ -154,13 +162,70 @@ export async function registerPlayerPhotos(
   });
 }
 
+export interface PhotoRegistrationPreview extends PhotoRegistrationReport {
+  /** Assets novos por tipo (para a prévia somar só os que caem no `--caminho`). */
+  registeredByKind: { player: number; coach: number };
+}
+
+/**
+ * Prévia de `registerPlayerPhotos` (o `--fotos --plan`): as mesmas contagens, numa transação só de leitura
+ * (nada é gravado nem travado; roda também numa réplica). Pessoa com dois ids (jogador e técnico) conta na
+ * prioridade menor.
+ */
+export async function previewPlayerPhotos(
+  db: Database,
+  options: { since: Date },
+): Promise<PhotoRegistrationPreview> {
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql`set transaction read only`);
+    await tx.execute(SERIAL);
+    return tx.execute<{ what: string; key: string; n: number }>(sql`
+      with candidate as materialized (${photoCandidates(options.since)}),
+      matched as (
+        select c.*, a.id as asset_id, (a.storage_key is null and a.fetched_at is not null) as missing
+        from candidate c
+        left join core.asset a on a.source_url = c.url
+      )
+      select 'linked' as what, tier::text as key, count(*)::int as n
+      from (select distinct on (person_id) person_id, tier from matched where missing is not true
+            order by person_id, tier) l
+      group by tier
+      union all
+      select 'registered', kind::text, count(distinct url)::int from matched where asset_id is null group by kind
+      union all
+      select 'skipped', '', count(*)::int from matched where missing
+    `);
+  });
+  const report: PhotoRegistrationPreview = {
+    linked: [0, 0, 0],
+    registered: 0,
+    skippedMissing: 0,
+    registeredByKind: { player: 0, coach: 0 },
+  };
+  for (const r of rows) {
+    if (r.what === 'linked') report.linked[Number(r.key) as 0 | 1 | 2] = r.n;
+    else if (r.what === 'skipped') report.skippedMissing = r.n;
+    else {
+      report.registeredByKind[r.key as 'player' | 'coach'] = r.n;
+      report.registered += r.n;
+    }
+  }
+  return report;
+}
+
 /**
  * Ids das fotos de pessoas pendentes de espelho, na ordem de prioridade das pessoas ligadas a elas
  * (escalados recentes primeiro, do jogo mais recente para o mais antigo; depois elencos atuais; depois o resto).
  */
 export async function pendingPersonPhotoIds(
   db: Database,
-  options: { since: Date; includeMissing?: boolean | undefined; limit?: number | undefined },
+  options: {
+    since: Date;
+    includeMissing?: boolean | undefined;
+    limit?: number | undefined;
+    /** Só as URLs que casam com esta regex (ex.: as da pasta de um esporte, `--caminho`), antes do `limit`. */
+    urlPattern?: string | undefined;
+  },
 ): Promise<string[]> {
   const rows = await db.transaction(async (tx) => {
     await tx.execute(SERIAL);
@@ -172,6 +237,7 @@ export async function pendingPersonPhotoIds(
     left join priority pr on pr.person_id = p.id
     where a.kind in ('player', 'coach') and a.storage_key is null
       ${options.includeMissing ? sql`` : sql`and a.fetched_at is null`}
+      ${options.urlPattern ? sql`and a.source_url ~* ${options.urlPattern}` : sql``}
     group by a.id, a.created_at
     order by min(coalesce(pr.tier, 3)), max(pr.last_at) desc nulls last, a.created_at, a.id
     ${options.limit ? sql`limit ${options.limit}` : sql``}

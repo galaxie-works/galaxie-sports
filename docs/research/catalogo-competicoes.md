@@ -1,4 +1,4 @@
-> **Validado com a API real em 21/10/2026:** os 76 IDs existem no `/leagues`; nome, país e tipo conferem após dois ajustes (id 268 do Uruguai agora se chama "Primera División"; id 15, Mundial de Clubes, é tipado como `Cup`). A conferência roda a cada execução de `bootstrap:catalog`.
+> **Validado com a API real em 21/10/2026:** os 76 IDs existem no `/leagues`; nome, país e tipo conferem após dois ajustes (id 268 do Uruguai agora se chama "Primera División"; id 15, Mundial de Clubes, é tipado como `Cup`). As 69 competições do tier 2 acrescentadas em 22/10/2026 (#166) foram conferidas no `/leagues` do raw local. A conferência roda a cada execução de `bootstrap:catalog`.
 
 # Catálogo de competições de futebol (API-FOOTBALL v3)
 
@@ -9,10 +9,10 @@ Data da pesquisa: 2026-10-21
 
 É a lista das competições de futebol que o mirror do api-sports.io precisa espelhar. Cada uma traz o `league id` da API-FOOTBALL v3, o nome/país/tipo como a API devolve, a prioridade (tier), a região, como a API rotula as temporadas, a prioridade de ao vivo e os rótulos em pt-BR/es/en.
 
-- **76 competições** no total: 46 no tier 1 e 30 no tier 2.
+- **145 competições** no total: 46 no tier 1 e 99 no tier 2 (as 30 da pesquisa original e as 69 acrescentadas em 22/10/2026).
 - **Tier 1**: cobertura ao vivo com IA e histórico completo.
 - **Tier 2**: espelhadas com tratamento ao vivo mais leve. O histórico pode ser limitado às últimas N temporadas.
-- **Todos os 76 ids foram verificados** (`verify: false`). Nenhum ficou com `api_sports_id: null`.
+- **Todos os 145 ids foram verificados** (`verify: false`): os 76 da pesquisa original pelo método abaixo e os 69 de 22/10 pelo `GET /leagues` do raw local. Nenhum ficou com `api_sports_id: null`.
 
 ## Como a lista foi montada
 
@@ -23,7 +23,7 @@ Data da pesquisa: 2026-10-21
    - `davidhuertabeltran/football-scores`: `league-list-clean.js`.
    - `jonas556440/scout-dados-cartola`: fixtures de fevereiro de 2026. Confirmam os ids atuais dos estaduais e do Brasileirão.
 3. **Validação cruzada.** Um id só foi aceito quando pelo menos duas fontes independentes concordavam no id, no nome e no país. Os campos `name`, `country` e `type` do YAML foram comparados automaticamente com o dump de `/leagues` e não há divergências.
-4. **Checagem visual.** Os 76 logos `https://media.api-sports.io/football/leagues/<id>.png` foram baixados e conferidos. Só o **475 (Paulista - A1)** diverge: o logo é o escudo do Paulista FC de Jundiaí, não a marca do campeonato. O id está confirmado pelas fontes em texto e pelos jogos de 2026, mas não use esse logo no produto.
+4. **Checagem visual.** Os 76 logos da pesquisa original `https://media.api-sports.io/football/leagues/<id>.png` foram baixados e conferidos. Só o **475 (Paulista - A1)** diverge: o logo é o escudo do Paulista FC de Jundiaí, não a marca do campeonato. O id está confirmado pelas fontes em texto e pelos jogos de 2026, mas não use esse logo no produto.
 
 ## Como verificar os ids no bootstrap
 
@@ -97,4 +97,4 @@ O texto completo está na seção `notes:` do YAML.
 | Futebol Olímpico Masculino | 480 | Olympics Men | World | cup | calendar-year | high |
 | Futebol Olímpico Feminino | 524 | Olympics Women | World | cup | calendar-year | high |
 
-As 30 competições do tier 2 (Séries B/C/D, Copa do Nordeste, Supercopa, Brasileirão Feminino, Bolívia, Venezuela, Liga MX Femenil, Primera Nacional, Portugal, Eredivisie, Championship, copas nacionais europeias, MLS, Saudi Pro League, CONCACAF Champions Cup, Leagues Cup, Copa do Mundo Feminina, Copa América Feminina, Pan-Americano, amistosos, Mundiais Sub-20/Sub-17 e Sul-Americano Sub-20) estão no YAML.
+As 30 competições do tier 2 (Séries B/C/D, Copa do Nordeste, Supercopa, Brasileirão Feminino, Bolívia, Venezuela, Liga MX Femenil, Primera Nacional, Portugal, Eredivisie, Championship, copas nacionais europeias, MLS, Saudi Pro League, CONCACAF Champions Cup, Leagues Cup, Copa do Mundo Feminina, Copa América Feminina, Pan-Americano, amistosos, Mundiais Sub-20/Sub-17 e Sul-Americano Sub-20) e as 69 acrescentadas em 22/10/2026 (segundas divisões, copas nacionais e da liga, supercopas e femininos principais da CONMEBOL, do México, de Inglaterra, Espanha, Itália, Alemanha, França e Portugal, os 16 estaduais que faltavam, o Paulista A2 e as copas Verde, Norte, Sul-Sudeste e Centro-Oeste) estão no YAML. As 69 ficam com `live_priority: low`: entram pelo sync diário, não pelo ao vivo.
