@@ -5,6 +5,7 @@ import {
   DEFAULT_AGENT_DEFAULT_USD_BUDGET,
   DEFAULT_AGENT_USD_BUDGETS,
   ledgerSettingsFromEnv,
+  mergeAgentUsdBudgets,
   parseAgentUsdBudgets,
 } from './state.js';
 
@@ -47,7 +48,7 @@ describe('teto padrão do agente fora da lista (AI_AGENT_DEFAULT_USD_BUDGET)', (
       unit: 'usd',
       limit: 0.5,
     });
-    expect(budget.agentUsdLimitOf('novo')).toEqual({ limit: 0.5, isDefault: true });
+    expect(budget.agentUsdLimitOf('novo')).toEqual({ limit: 0.5, isDefault: true, origin: 'default' });
     expect(budget.describe('novo')).toBe('ligado · limitado · US$ 0,5/dia');
     expect((await budget.usdStatus('novo')).limitUsd).toBe(0.5);
   });
@@ -63,7 +64,7 @@ describe('teto padrão do agente fora da lista (AI_AGENT_DEFAULT_USD_BUDGET)', (
     await budget.reserve('wtw', 100, 0.5);
     await budget.reserve('livre', 100, 0.5);
     expect(warn.mock.calls.some(([m]) => String(m).includes('teto padrão'))).toBe(false);
-    expect(budget.agentUsdLimitOf('livre')).toEqual({ limit: null, isDefault: false });
+    expect(budget.agentUsdLimitOf('livre')).toEqual({ limit: null, isDefault: false, origin: 'config' });
   });
 
   it('o aviso volta no dia seguinte', async () => {
@@ -105,7 +106,7 @@ describe('configuração do ledger', () => {
       review: 0.5,
       channels: 1,
       live: 0.5,
-      assets: 0.5,
+      assets: 1,
     });
     // nenhum agente da lista padrão fica sem teto
     expect(Object.values(parseAgentUsdBudgets(DEFAULT_AGENT_USD_BUDGETS)!).includes(null)).toBe(false);
@@ -119,6 +120,19 @@ describe('configuração do ledger', () => {
     expect(() => ledgerSettingsFromEnv({ AI_AGENT_DEFAULT_USD_BUDGET: '0' })).toThrow(LlmError);
     expect(() => ledgerSettingsFromEnv({ AI_AGENT_DEFAULT_USD_BUDGET: '0' })).toThrow(/AI_STATUS=off/);
     expect(() => ledgerSettingsFromEnv({ AI_AGENT_DEFAULT_USD_BUDGET: '5000' })).toThrow(/entre 0.05 e 1000/);
+  });
+
+  it('a lista configurada mescla agente a agente sobre os padrões do código (a do painel não apaga os outros)', () => {
+    const merged = mergeAgentUsdBudgets({ lineups: 2, wtw: 3, f1bio: null });
+    expect(merged.budgets).toMatchObject({ lineups: 2, wtw: 3, f1bio: null, curator: 1, assets: 1 });
+    expect(merged.origins).toMatchObject({ lineups: 'config', f1bio: 'config', curator: 'code' });
+    const s = ledgerSettingsFromEnv({
+      AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2',
+    });
+    const budget = new TokenBudget(new MemoryTokenBudgetStore(), ledgerPolicy(s), () => DAY);
+    expect(budget.agentUsdLimitOf('lineups')).toEqual({ limit: 2, isDefault: false, origin: 'config' });
+    expect(budget.agentUsdLimitOf('review')).toEqual({ limit: 0.5, isDefault: false, origin: 'code' });
+    expect(budget.agentUsdLimitOf('novo')).toEqual({ limit: 0.5, isDefault: true, origin: 'default' });
   });
 
   it('ledgerPolicy leva o teto padrão para a política', () => {

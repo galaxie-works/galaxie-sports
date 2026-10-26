@@ -399,7 +399,9 @@ Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seg
   | `review` | 0,5 | revisão das sugestões: poucas por dia, no modelo standard |
   | `channels` | 1 | casamento da lista de canais do cliente: só as sobras do casamento por código, quando chega lista |
   | `live` | 0,5 | prioridades do ao vivo: uma chamada curta por rodada |
-  | `assets` | 0,5 | ordem das fotos da F1 (ingestor, `assets-commons-ordenar`): lote manual, ~US$ 0,01 por alvo no modelo leve |
+  | `assets` | 1 | ordem das fotos da F1 (ingestor, `assets-commons-ordenar`): lote manual que continua de onde parou; em 25/10 gastou ~US$ 4 num dia (fora do ledger), e US$ 1/dia o termina em ~4 dias |
+
+  A lista configurada (painel ou env) **mescla agente a agente** sobre esses padrões: o agente listado vence e o que não está na lista fica com o padrão do código. A produção (`lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2` no painel) fica com esses cinco e com os padrões dos outros, sem regravar o painel. Para tirar o teto de um agente, use `agente=unlimited`. O painel (Gasto de IA hoje) e o `ai:status` mostram de onde vem cada teto: painel, env, código ou teto padrão.
 
   Agente fora da lista (um agente novo) não fica sem IA nem sem teto: vale `AI_AGENT_DEFAULT_USD_BUDGET` (padrão US$ 0,50/dia, número ou `unlimited`), e o log avisa uma vez por dia que o agente está no padrão. O painel mostra o teto com "teto padrão" e o `ai:status` traz a linha "outros agentes".
 - O ledger (preços, estado, tetos e reserva) fica em `packages/ai-ledger`, que os agentes e o ingestor usam sem ciclo. A ordem das fotos da F1 (`rankWithGemini`) reserva a estimativa antes de chamar o Gemini (texto, 1.120 tokens por miniatura e a saída máxima de 8.192) e grava o uso devolvido em `ops.llm_usage` como agente `assets` (`purpose` `assets:commons:<tipo>:<alvo>`); sem saldo ou com a IA desligada, a chamada não sai e os alvos restantes ficam como estavam até a próxima execução.

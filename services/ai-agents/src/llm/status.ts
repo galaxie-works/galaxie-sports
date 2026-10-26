@@ -30,9 +30,17 @@ export async function aiStatusLines(budget: TokenBudget, withSpend = true): Prom
     const state = globalOff
       ? `desligado pela chave geral (AI_STATUS=off)${budget.policy.agentStatus?.[agent] === 'on' ? '; agente=on sem efeito' : ''}`
       : budget.describe(agent);
-    const isDefault =
-      !globalOff && budget.agentUsdLimitOf(agent).isDefault && budget.statusOf(agent) === 'on';
-    lines.push(`  ${agent}: ${state}${isDefault ? ' (teto padrão)' : ''}${await spend(agent)}`);
+    // de onde vem o teto: a lista configurada (painel ou env), o padrão do código ou o teto do agente novo
+    const origin = budget.agentUsdLimitOf(agent).origin;
+    const from =
+      globalOff || budget.statusOf(agent) === 'off'
+        ? ''
+        : origin === 'config'
+          ? ' (teto do painel/env)'
+          : origin === 'code'
+            ? ' (teto do código)'
+            : ' (teto padrão)';
+    lines.push(`  ${agent}: ${state}${from}${await spend(agent)}`);
   }
   // agente fora da lista (agente novo): o teto padrão, nunca sem teto
   const fallback = budget.policy.agentDefaultUsdLimit ?? null;

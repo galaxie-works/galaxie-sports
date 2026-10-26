@@ -210,6 +210,7 @@ export default defineMessages(
       },
       llmAgentCapped: 'no teto',
       llmAgentDefaultCap: 'teto padrão',
+      llmCapOrigin: { db: 'painel', env: 'env', code: 'código' },
       aiState: 'IA: {state}',
       aiOn: 'ligado',
       aiOff: 'desligado',
@@ -586,7 +587,7 @@ export default defineMessages(
       AI_AGENT_USD_BUDGETS: {
         label: 'Teto diário por agente',
         description:
-          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica no teto padrão do agente novo. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
+          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica com o teto do código ou, sem ele, com o teto padrão do agente novo. A lista mescla agente a agente sobre os padrões do código: só os agentes listados mudam. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
       },
       AI_AGENT_DEFAULT_USD_BUDGET: {
         label: 'Teto diário do agente novo',
@@ -1007,6 +1008,7 @@ export default defineMessages(
         },
         llmAgentCapped: 'capped',
         llmAgentDefaultCap: 'default cap',
+        llmCapOrigin: { db: 'panel', env: 'env', code: 'code' },
         aiState: 'AI: {state}',
         aiOn: 'on',
         aiOff: 'off',
@@ -1367,7 +1369,7 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Daily cap per agent',
           description:
-            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed get the new-agent cap. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
+            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed keep the code cap or, without one, the new-agent cap. The list merges agent by agent over the code defaults: only the agents listed change. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
         },
         AI_AGENT_DEFAULT_USD_BUDGET: {
           label: 'Daily cap for a new agent',
@@ -1792,6 +1794,7 @@ export default defineMessages(
         },
         llmAgentCapped: 'en el tope',
         llmAgentDefaultCap: 'tope por defecto',
+        llmCapOrigin: { db: 'panel', env: 'env', code: 'código' },
         aiState: 'IA: {state}',
         aiOn: 'encendido',
         aiOff: 'apagado',
@@ -2160,7 +2163,7 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Tope diario por agente',
           description:
-            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista queda en el tope del agente nuevo. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista queda con el tope del código o, sin él, con el tope del agente nuevo. La lista se combina agente por agente sobre los valores del código: solo cambian los agentes listados. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
         },
         AI_AGENT_DEFAULT_USD_BUDGET: {
           label: 'Tope diario del agente nuevo',

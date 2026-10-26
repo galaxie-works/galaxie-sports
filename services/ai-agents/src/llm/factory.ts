@@ -31,7 +31,7 @@ export function budgetPolicyFromSettings(
     LlmSettings,
     'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets' | 'maxSearchesPerCall'
   > &
-    Partial<Pick<LlmSettings, 'status' | 'agentStatus' | 'agentDefaultUsdBudget'>>,
+    Partial<Pick<LlmSettings, 'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins'>>,
   agentLimits?: BudgetPolicy['agentLimits'],
 ): BudgetPolicy {
   return {
@@ -125,6 +125,7 @@ export function withTokenBudget(client: LlmClient, options: WithTokenBudgetOptio
         dailyTokenBudget: options.dailyLimit !== undefined ? options.dailyLimit : fromEnv.dailyTokenBudget,
         dailyUsdBudget: options.dailyUsdLimit !== undefined ? options.dailyUsdLimit : fromEnv.dailyUsdBudget,
         agentUsdBudgets: options.agentUsdLimits ?? fromEnv.agentUsdBudgets,
+        ...(options.agentUsdLimits ? {} : { agentUsdOrigins: fromEnv.agentUsdOrigins }),
         agentDefaultUsdBudget:
           options.agentDefaultUsdLimit !== undefined
             ? options.agentDefaultUsdLimit

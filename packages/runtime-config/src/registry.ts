@@ -344,7 +344,7 @@ export const SETTINGS: readonly SettingDef[] = [
     zeroInvalid: true,
     allowEmpty: true,
     default:
-      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=0.5',
+      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=1',
     critical: true,
   }),
   // teto em US$ do agente fora de AI_AGENT_USD_BUDGETS (agente novo): conservador, com aviso diário no log
