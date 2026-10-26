@@ -38,9 +38,9 @@ const groupsOf = (entries: Record<string, string[]>) => {
 
 const tablesOf = (plan: ReturnType<typeof planPhases>) => {
   if (plan.kind !== 'multi') throw new Error(plan.kind);
-  return plan.sets.flatMap((set) =>
-    [...new Set(set.map((m) => m.group))].map((group) => {
-      const games = set.filter((m) => m.group === group);
+  return plan.sets.flatMap(({ matches: set }) =>
+    [...new Set(set.filter((m) => !m.crossGroup).map((m) => m.group))].map((group) => {
+      const games = set.filter((m) => m.group === group && !m.crossGroup);
       return {
         group,
         teams: [...new Set(games.flatMap((m) => [m.homeId, m.awayId]))].sort(),
@@ -79,6 +79,31 @@ describe('planPhases', () => {
       { group: 'Clausura', teams, games: 6 },
       { group: ANNUAL_GROUP, teams, games: 12 },
     ]);
+  });
+
+  it('interzonal conta na tabela da zona de cada time', () => {
+    const results = [
+      game('A', 'B', 'Apertura - 1'),
+      game('C', 'D', 'Apertura - 1'),
+      game('A', 'C', 'Apertura - 2'), // interzonal
+      ...roundRobin(teams, 'Clausura'),
+    ];
+    const plan = planPhases(
+      results,
+      groupsOf({ 'Apertura - Group A': ['A', 'B'], 'Apertura - Group B': ['C', 'D'] }),
+    );
+    if (plan.kind !== 'multi') throw new Error(plan.kind);
+    const apertura = plan.sets[0]!;
+    expect(apertura.matches).toHaveLength(3);
+    expect(apertura.matches.filter((m) => m.crossGroup).map((m) => [m.homeId, m.awayId])).toEqual([
+      ['A', 'C'],
+    ]);
+    expect(apertura.teams).toEqual(
+      expect.arrayContaining([
+        { teamId: 'A', group: 'Apertura - Group A' },
+        { teamId: 'C', group: 'Apertura - Group B' },
+      ]),
+    );
   });
 
   it('grupos do fornecedor por torneio: cada um com os jogos do seu torneio', () => {

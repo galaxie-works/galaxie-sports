@@ -68,6 +68,13 @@ export function recordFromBaseline(row: BaselineRow, points: PointsRule): TeamRe
   return r;
 }
 
+/** Time de jogo entre grupos: o grupo dele já tem de estar em `teams` (ou na tabela de partida). */
+function known(records: Map<TeamId, TeamRecord>, teamId: TeamId): TeamRecord {
+  const r = records.get(teamId);
+  if (!r) throw new StandingsInputError(`Jogo entre grupos com time ${teamId} sem grupo informado.`);
+  return r;
+}
+
 function ensure(records: Map<TeamId, TeamRecord>, teamId: TeamId, group: string): TeamRecord {
   let r = records.get(teamId);
   if (!r) {
@@ -93,8 +100,8 @@ export function validateMatch(m: MatchResult): void {
 export function applyMatch(records: Map<TeamId, TeamRecord>, m: MatchResult): void {
   validateMatch(m);
   const group = m.group ?? '';
-  const home = ensure(records, m.homeId, group);
-  const away = ensure(records, m.awayId, group);
+  const home = m.crossGroup ? known(records, m.homeId) : ensure(records, m.homeId, group);
+  const away = m.crossGroup ? known(records, m.awayId) : ensure(records, m.awayId, group);
   home.played++;
   away.played++;
   home.goalsFor += m.homeGoals;

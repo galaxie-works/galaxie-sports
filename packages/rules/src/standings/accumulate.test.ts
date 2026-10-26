@@ -58,6 +58,20 @@ describe('applyMatch', () => {
     applyMatch(recs, match('A', 'B', 1, 0, { group: 'A' }));
     expect(() => applyMatch(recs, match('A', 'C', 1, 0, { group: 'B' }))).toThrow(/um só grupo/);
   });
+
+  it('jogo entre grupos conta no grupo de cada time', () => {
+    const recs = accumulate({
+      points: P,
+      teams: [
+        { teamId: 'A', group: 'Zona A' },
+        { teamId: 'B', group: 'Zona B' },
+      ],
+      matches: [match('A', 'B', 2, 0, { crossGroup: true })],
+    });
+    expect(recs.get('A')).toMatchObject({ group: 'Zona A', played: 1, won: 1 });
+    expect(recs.get('B')).toMatchObject({ group: 'Zona B', played: 1, lost: 1 });
+    expect(() => applyMatch(new Map(), match('A', 'B', 1, 0, { crossGroup: true }))).toThrow(/sem grupo/);
+  });
 });
 
 describe('recordFromBaseline', () => {

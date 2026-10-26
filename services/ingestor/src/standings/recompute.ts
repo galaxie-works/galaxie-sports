@@ -13,7 +13,7 @@ import { competition, event, publishChange, season, stage, standing, type Databa
 import { computeStandings, type MatchResult, type StandingsTable } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
-import { components, planPhases, UNNAMED_GROUP_PREFIX } from './phases.js';
+import { components, groupedSet, planPhases, UNNAMED_GROUP_PREFIX } from './phases.js';
 import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
@@ -172,10 +172,10 @@ export async function recomputeSeasonStandings(
   if (plan.kind === 'error') return report('no_groups', { detail: plan.detail });
   if (plan.kind === 'multi') {
     if (!plan.sets.length) return report('no_results');
-    const results = new Set(plan.sets.flat().map((m) => m.id)).size;
+    const results = new Set(plan.sets.flatMap((s) => s.matches.map((m) => m.id))).size;
     let tables;
     try {
-      tables = plan.sets.flatMap((matches) => computeStandings({ rules, matches }));
+      tables = plan.sets.flatMap((set) => computeStandings({ rules, ...set }));
     } catch (err) {
       return report('invalid_input', { results, detail: err instanceof Error ? err.message : String(err) });
     }
@@ -211,21 +211,17 @@ export async function recomputeSeasonStandings(
   // fase de grupos sem a divisão do provedor: não dá para saber quem é de qual grupo
   if (groups.size === 0 && rules.format === 'groups_and_knockout') return report('no_groups');
 
-  const matches: MatchResult[] = [];
-  for (const m of all) {
-    if (singleGroup !== null) {
-      matches.push({ ...m, group: singleGroup });
-      continue;
-    }
-    const g = groupOfTeam.get(m.homeId);
-    if (g === undefined || g !== groupOfTeam.get(m.awayId)) continue; // jogo entre grupos não entra
-    matches.push({ ...m, group: g });
-  }
+  // vários grupos: o jogo entre grupos (entre conferências da MLS) conta na tabela de cada time
+  const set =
+    singleGroup !== null
+      ? { matches: all.map((m): MatchResult => ({ ...m, group: singleGroup })) }
+      : groupedSet(all, groupOfTeam);
+  const { matches } = set;
   if (!matches.length) return report('no_results');
 
   let tables;
   try {
-    tables = computeStandings({ rules, matches });
+    tables = computeStandings({ rules, ...set });
   } catch (err) {
     return report('invalid_input', {
       results: matches.length,

@@ -13,6 +13,8 @@
  * - Times de uma fase que ficaram sem grupo do fornecedor quando os outros têm (o fornecedor mandou só parte
  *   dos grupos): os grupos são deduzidos dos jogos entre eles e viram `unnamed:1`, `unnamed:2`...
  *
+ * - Jogo entre grupos da mesma fase (interzonal da Argentina) conta na tabela do grupo de cada time.
+ *
  * Cada conjunto devolvido vai numa chamada própria do motor: o mesmo time aparece em várias tabelas e o
  * desempate por confronto direto só pode ver os jogos daquela tabela.
  */
@@ -36,10 +38,14 @@ export function phaseOfRound(label: string | null | undefined): string | null {
   return m ? m[1]! : null;
 }
 
+/** Uma chamada do motor: os jogos e, quando há jogo entre grupos, o grupo de cada time. */
+export interface TableSet {
+  matches: MatchResult[];
+  teams?: { teamId: string; group: string }[];
+}
+
 export type PhasePlan =
-  | { kind: 'single' }
-  | { kind: 'error'; detail: string }
-  | { kind: 'multi'; sets: MatchResult[][]; groups: string[] };
+  { kind: 'single' } | { kind: 'error'; detail: string } | { kind: 'multi'; sets: TableSet[] };
 
 /** Para comparar nome de grupo e de fase: sem caixa nem pontuação ("Apertura - Quadrangular" = "Apertura Quadrangular"). */
 const norm = (s: string) =>
@@ -110,14 +116,14 @@ export function planPhases(
     else stranded.push(...teams);
   }
 
-  const sets: MatchResult[][] = [];
+  const sets: TableSet[] = [];
   let unnamed = 0;
   for (const [i, phase] of phases.entries()) {
     const matches = byPhase.get(phase)!;
     const groups = groupsOfPhase.get(phase)!;
     if (!groups.length) {
       const label = i === 0 && GENERIC_FIRST_PHASE.test(phase) ? FIRST_PHASE_GROUP : phase;
-      sets.push(matches.map((m) => ({ ...m, group: label })));
+      sets.push({ matches: matches.map((m) => ({ ...m, group: label })) });
       continue;
     }
     const groupOf = new Map<string, string>();
@@ -140,25 +146,30 @@ export function planPhases(
       const name = `${UNNAMED_GROUP_PREFIX}${++unnamed}`;
       for (const t of component) groupOf.set(t, name);
     }
-    const set: MatchResult[] = [];
-    for (const m of matches) {
-      const g = groupOf.get(m.homeId);
-      if (g !== undefined && g === groupOf.get(m.awayId)) set.push({ ...m, group: g });
-    }
-    sets.push(set);
+    sets.push(groupedSet(matches, groupOf));
   }
 
   const full = phases.filter((p) => teamsOf.get(p)!.size >= FULL_PHASE_SHARE * allTeams.size);
   if (full.length >= 2) {
     const name = annualName ?? ANNUAL_GROUP;
-    sets.push(full.flatMap((p) => byPhase.get(p)!.map((m) => ({ ...m, group: name }))));
+    sets.push({ matches: full.flatMap((p) => byPhase.get(p)!.map((m) => ({ ...m, group: name }))) });
   }
-  const nonEmpty = sets.filter((s) => s.length > 0);
-  return {
-    kind: 'multi',
-    sets: nonEmpty,
-    groups: [...new Set(nonEmpty.flatMap((s) => s.map((m) => m.group!)))],
-  };
+  return { kind: 'multi', sets: sets.filter((s) => s.matches.length > 0) };
+}
+
+/**
+ * Jogos de uma fase dividida em grupos: o jogo dentro do grupo vai para ele; o jogo entre dois grupos
+ * (interzonal) conta na tabela de cada time (`crossGroup`). Jogo com time sem grupo fica de fora.
+ */
+export function groupedSet(matches: readonly MatchResult[], groupOf: ReadonlyMap<string, string>): TableSet {
+  const out: MatchResult[] = [];
+  for (const m of matches) {
+    const home = groupOf.get(m.homeId);
+    const away = groupOf.get(m.awayId);
+    if (home === undefined || away === undefined) continue;
+    out.push(home === away ? { ...m, group: home } : { ...m, group: home, crossGroup: true });
+  }
+  return { matches: out, teams: [...groupOf].map(([teamId, group]) => ({ teamId, group })) };
 }
 
 function teamsIn(matches: readonly MatchResult[]): Set<string> {

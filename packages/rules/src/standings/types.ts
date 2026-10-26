@@ -15,6 +15,11 @@ export interface MatchResult {
   awayGoals: number;
   /** Grupo da tabela ('' para tabela única). */
   group?: string;
+  /**
+   * Jogo entre grupos (interzonal da Argentina, entre conferências da MLS): conta na tabela do grupo de cada
+   * time, que vem de `teams` na entrada; o `group` do jogo é ignorado.
+   */
+  crossGroup?: boolean;
   /** ISO 8601; ordena a sequência de forma (últimos 5). Sem data, vale a ordem de entrada. */
   playedAt?: string;
   round?: number;
