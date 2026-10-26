@@ -49,7 +49,7 @@ export interface SeasonStandingsReport {
   skipped?: SkippedTable[] | undefined;
   /** Grupos de `core.standing` que nenhuma tabela do regulamento reconhece (guardados como vieram). */
   unclassified?: string[] | undefined;
-  /** Rodadas de fase de grupos que o regulamento não reconhece (contadas pelo grupo dos dois times). */
+  /** Rodadas de fase de grupos que o regulamento não reconhece (contadas só na fase inequívoca dos dois times). */
   unmatchedRounds?: string[] | undefined;
   /** Tabelas do regulamento em que a do fornecedor, mais nova que os resultados, prevaleceu. */
   fresh?: string[] | undefined;
@@ -281,7 +281,9 @@ async function recomputeByTables(
     ...out.skipped.map((t) => `${t.table}: ${t.reason}`),
     ...(out.unclassified.length ? [`grupos sem tabela no regulamento: ${out.unclassified.join(', ')}`] : []),
     ...(out.unmatchedRounds.length
-      ? [`rodadas de grupo fora do regulamento (contadas pelo grupo): ${out.unmatchedRounds.join(', ')}`]
+      ? [
+          `rodadas de grupo fora do regulamento (contadas só com fase inequívoca): ${out.unmatchedRounds.join(', ')}`,
+        ]
       : []),
     ...(out.fresh.length ? [`tabela do fornecedor mais nova: ${out.fresh.join(', ')}`] : []),
     ...(out.superseded.length

@@ -8,10 +8,13 @@ import {
   closeDb,
   competition,
   createDb,
+  event,
+  eventParticipant,
   participant,
   runMigrations,
   season,
   sport,
+  stage,
   standing,
   type Database,
 } from '@galaxie/db';
@@ -103,6 +106,84 @@ async function seed() {
     // grupo que o regulamento não reconhece: exposto como veio, sem papel
     row('', 'Boca Juniors', 1, 30),
   ]);
+  await seedLiguilla();
+}
+
+/**
+ * Liguilla da Liga MX (2025): quartas de ida e volta, empate no agregado classifica o mais bem colocado na
+ * tabela do torneio. Volta do Apertura com a tabela gravada (Toluca 1º, Atlas 4º); volta do Clausura sem
+ * a tabela do Clausura.
+ */
+async function seedLiguilla() {
+  const [mx] = await db
+    .insert(competition)
+    .values({ sport: 'football', slug: 'liga-mx', name: 'Liga MX', type: 'league' })
+    .returning();
+  const [s] = await db
+    .insert(season)
+    .values({ competitionId: mx!.id, label: '2025', year: 2025, current: true })
+    .returning();
+  const teams = await db
+    .insert(participant)
+    .values(
+      ['Toluca', 'Tigres', 'Monterrey', 'Atlas'].map((name) => ({
+        sport: 'football',
+        kind: 'club' as const,
+        name,
+      })),
+    )
+    .returning();
+  for (const t of teams) ids[t.name] = t.id;
+  await db.insert(standing).values(
+    ['Toluca', 'Tigres', 'Monterrey', 'Atlas'].map((team, i) => ({
+      seasonId: s!.id,
+      group: 'Apertura',
+      participantId: ids[team]!,
+      rank: i + 1,
+      points: 40 - i,
+      played: 17,
+      source: 'provider',
+    })),
+  );
+  const day = 86_400_000;
+  const tie = async (label: string, home: string, away: string, key: string) => {
+    const [st] = await db
+      .insert(stage)
+      .values({ seasonId: s!.id, kind: 'quarter_final', name: { 'pt-BR': label }, providerLabel: label })
+      .returning();
+    const legs = [
+      {
+        home: away,
+        away: home,
+        at: Date.now() - 3 * day,
+        status: 'finished' as const,
+        score: { home: 1, away: 1 },
+      },
+      { home, away, at: Date.now() + 2 * day, status: 'scheduled' as const, score: null },
+    ];
+    for (const [i, l] of legs.entries()) {
+      const [e] = await db
+        .insert(event)
+        .values({
+          sport: 'football',
+          competitionId: mx!.id,
+          seasonId: s!.id,
+          stageId: st!.id,
+          startsAt: new Date(l.at),
+          endsAtExpected: new Date(l.at + 7_200_000),
+          status: l.status,
+          score: l.score,
+        })
+        .returning();
+      await db.insert(eventParticipant).values([
+        { eventId: e!.id, participantId: ids[l.home]!, side: 'home' },
+        { eventId: e!.id, participantId: ids[l.away]!, side: 'away' },
+      ]);
+      if (i === 1) ids[key] = e!.id;
+    }
+  };
+  await tie('Apertura - Quarter-finals', 'Toluca', 'Atlas', 'aperturaLeg2');
+  await tie('Clausura - Quarter-finals', 'Tigres', 'Monterrey', 'clausuraLeg2');
 }
 
 beforeAll(async () => {
@@ -170,5 +251,23 @@ describe('GET /v1/competitions/{id}/seasons/{season}/standings com tabelas do re
       rank: 2,
       played: 9,
     });
+  });
+});
+
+describe('GET /v1/events/{id}: Liguilla decidida pela campanha', () => {
+  const codes = (e: { stakes: { team: string; code: string }[] }) =>
+    e.stakes.map((x) => `${x.team}:${x.code}`);
+
+  it('volta com agregado empatado: o mais bem colocado no Apertura passa com o empate, sem pênaltis', async () => {
+    const e = await get<{ stakes: { team: string; code: string }[] }>(`/v1/events/${ids.aperturaLeg2}`);
+    // antes: a API chamava o motor sem a posição e anunciava pênaltis, que a fase não tem
+    expect(codes(e)).toContain('home:advances_with_draw');
+    expect(codes(e)).toContain('away:needs_win');
+    expect(codes(e).some((c) => c.includes('penalties') || c.includes('extra_time'))).toBe(false);
+  });
+
+  it('sem a tabela de referência (Clausura): sem stakes, nunca pênaltis', async () => {
+    const e = await get<{ stakes: { team: string; code: string }[] }>(`/v1/events/${ids.clausuraLeg2}`);
+    expect(e.stakes).toEqual([]);
   });
 });

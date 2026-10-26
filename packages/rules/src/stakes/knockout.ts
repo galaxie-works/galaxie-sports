@@ -15,7 +15,9 @@ export interface KnockoutMatchInput {
   firstLeg?: { homeGoals: number; awayGoals: number };
   /**
    * Posição de cada lado (deste jogo) na tabela de classificação de referência, para `levelAdvantage:
-   * better_seed` (menor = melhor campanha). Sem ela, o empate fica como prorrogação/pênaltis do regulamento.
+   * better_seed` (menor = melhor campanha). Obrigatória nesse caso: sem ela (ou com a mesma posição), o
+   * empate não tem como ser decidido e a entrada é recusada (`KnockoutInputError`), em vez de cair em
+   * prorrogação ou pênaltis, que o regulamento da fase não tem.
    */
   seed?: { home: number; away: number };
 }
@@ -40,9 +42,14 @@ function checkGoals(value: number, field: string): void {
 
 function levelOutcome(input: KnockoutMatchInput): TieOutcome {
   const { rules, seed } = input;
-  // empate no confronto: classifica o de melhor campanha (Liguilla), quando a posição dos dois é conhecida
-  if (rules.levelAdvantage === 'better_seed' && seed && seed.home !== seed.away)
+  // empate no confronto: classifica o de melhor campanha (Liguilla)
+  if (rules.levelAdvantage === 'better_seed') {
+    if (!seed || seed.home === seed.away)
+      throw new KnockoutInputError(
+        'Mata-mata decidido pela campanha exige a posição dos dois na tabela de referência (seed).',
+      );
     return seed.home < seed.away ? 'home' : 'away';
+  }
   return rules.extraTime ? 'extra_time' : 'penalties';
 }
 

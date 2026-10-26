@@ -479,8 +479,16 @@ describe('Liguilla (Liga MX): empate no agregado classifica o de melhor campanha
     expect(codes(knockoutStakes(input))).toContain('away:advances_with_draw');
   });
 
-  it('sem a posição dos dois, o empate não é atribuído a ninguém pela campanha', () => {
+  it('sem a posição dos dois, recusa: o empate não vira pênaltis (a fase não tem pênaltis)', () => {
     const rules = knockoutStageRules(MX, 'quarter_final');
-    expect(tieOutcome(secondLeg(rules, 1, 1), 0, 0)).toBe('penalties');
+    expect(() => tieOutcome(secondLeg(rules, 1, 1), 0, 0)).toThrow(KnockoutInputError);
+    expect(() => knockoutStakes(secondLeg(rules, 1, 1))).toThrow(KnockoutInputError);
+    expect(() => knockoutStakes({ ...secondLeg(rules, 1, 1), seed: { home: 3, away: 3 } })).toThrow(
+      /posição dos dois/,
+    );
+    // vencedor no agregado não precisa da posição
+    expect(tieOutcome(secondLeg(rules, 1, 1), 2, 0)).toBe('home');
+    // a ida não decide nada: sem posição, segue com os códigos da ida
+    expect(knockoutStakes({ rules, leg: 1 }).map((s) => s.code)).toContain('first_leg');
   });
 });

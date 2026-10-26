@@ -11,6 +11,7 @@ import {
   computeStandings,
   rankRecords,
   standingsTableOf,
+  unknownRoundPhase,
   type CompetitionRules,
   type MatchResult,
   type StandingsTable,
@@ -35,8 +36,9 @@ export interface TablesByRule {
   /** Grupos gravados que nenhuma tabela do regulamento reconhece. */
   unclassified: string[];
   /**
-   * Rodadas de fase de grupos que nenhuma fase do regulamento reconhece: contam na fase em que os dois times
-   * estão no mesmo grupo (como sem regulamento), mas o YAML precisa do rótulo.
+   * Rodadas de fase de grupos que nenhuma fase do regulamento reconhece. Contam só na fase inequívoca
+   * (`unknownRoundPhase`: uma única tabela de fase ou auxiliar com os dois no mesmo grupo, e grupo que separa
+   * times); fora isso ficam de fora. Nos dois casos o YAML precisa do rótulo.
    */
   unmatchedRounds: string[];
   /**
@@ -160,10 +162,14 @@ export async function computeTablesByRule(
 
   const phaseRounds = rules.tables.filter((t) => t.kind === 'phase' && t.rounds).map((t) => t.rounds!);
   const matchesPhase = (m: MatchResult) => phaseRounds.some((re) => re.test(labelOf.get(m.id!) ?? ''));
-  // jogo de fase de grupos com rótulo que o regulamento não conhece: vai para a fase em que os dois times estão
-  // no mesmo grupo (rodada "regular" desconhecida pode ser mata-mata rotulado como rodada, e fica fora)
+  // jogo de fase de grupos com rótulo que o regulamento não conhece: vai para a fase só quando ela é inequívoca
+  // em todas as tabelas (um quadrangular da Colômbia, "Group A - 1", também "cabe" na tabela única do torneio,
+  // e fica fora); rodada "regular" desconhecida pode ser mata-mata rotulado como rodada, e fica fora
   const orphans = results.filter(
     (m) => ['group', 'league_phase'].includes(kindOf.get(m.id!) ?? '') && !matchesPhase(m),
+  );
+  const orphanPhase = new Map(
+    orphans.map((m) => [m.id!, unknownRoundPhase(rules, tableRows, m.homeId, m.awayId)?.key ?? null]),
   );
   const adopted = new Set<string>();
   const tables: StandingsTable[] = [];
@@ -180,7 +186,7 @@ export async function computeTablesByRule(
     const ownOrphans =
       t.kind === 'phase'
         ? orphans.filter((m) => {
-            if (adopted.has(m.id!)) return false;
+            if (adopted.has(m.id!) || orphanPhase.get(m.id!) !== t.key) return false;
             const g = groupOf.get(m.homeId);
             if (!g || g !== groupOf.get(m.awayId)) return false;
             adopted.add(m.id!);

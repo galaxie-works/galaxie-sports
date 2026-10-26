@@ -30,9 +30,12 @@ export {
 } from './standings/accumulate.js';
 export {
   currentPhaseKey,
+  knockoutSeed,
   standingsGroupLabel,
   standingsGroupPriority,
+  unknownRoundPhase,
   type GroupActivity,
+  type SeedRow,
 } from './standings/tables.js';
 export {
   computeStandings,

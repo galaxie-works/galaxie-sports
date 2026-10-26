@@ -344,6 +344,48 @@ describe('grupo renomeado pelo fornecedor', () => {
   });
 });
 
+describe('Colômbia: quadrangular com rótulo de grupo não entra no Apertura', () => {
+  it('"Group A - 1" (fase de grupos) fica fora do Apertura e da reclassificação, e sem stakes de liga', async () => {
+    const teams = ['C1', 'C2', 'C3', 'C4'];
+    const w = await world('colombia-primera-a', 2026, teams);
+    await w.play('Apertura - 1', 'C1', 'C2', [1, 0]);
+    await w.play('Apertura - 1', 'C3', 'C4', [0, 0]);
+    expect((await recomputeSeasonStandings(db, w.seasonId, { publish: false })).outcome).toBe('written');
+    // quadrangulares do fornecedor (tabela auxiliar, não recalculada) e o 1º jogo deles
+    await w.provider('Apertura - Group A', ['C1', 'C2']);
+    await w.provider('Apertura - Group B', ['C3', 'C4']);
+    await w.play('Group A - 1', 'C2', 'C1', [3, 0], 'group');
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    // antes: o 3 × 0 do quadrangular entrava no Apertura e na reclassificação (o C2 com 3 pontos)
+    expect(report).toMatchObject({ outcome: 'written', unmatchedRounds: ['Group A - 1'] });
+    const t = await w.table();
+    for (const group of ['Apertura', 'Reclasificación'])
+      expect(t.filter((r) => r.group === group).map((r) => [r.team, r.played, r.points])).toEqual([
+        ['C1', 1, 3],
+        ['C3', 1, 1],
+        ['C4', 1, 1],
+        ['C2', 1, 0],
+      ]);
+    expect(t.filter((r) => r.group.includes('Group')).every((r) => r.source === 'provider')).toBe(true);
+    // stakes do jogo seguinte do quadrangular: nada de tabela do Apertura com a matemática do torneio
+    const next = await w.play('Group A - 2', 'C1', 'C2', null, 'group');
+    const stakes = await computeEventStakes(db, {
+      id: next.eventId,
+      sport: 'football',
+      startsAt: next.startsAt,
+      competition: { slug: 'colombia-primera-a' },
+      season: { id: w.seasonId, year: 2026 },
+      stage: { id: next.stageId, kind: 'group' },
+      home: { id: w.team('C1') },
+      away: { id: w.team('C2') },
+    });
+    expect(stakes).toMatchObject({
+      stakes: [],
+      reason: 'rodada fora das fases do regulamento, sem fase inequívoca para os dois times',
+    });
+  });
+});
+
 describe('Liga MX: Apertura e Clausura de tabela única, Liguilla fora', () => {
   it('sem tabela do fornecedor, grava "Apertura" e "Clausura" só com as rodadas numeradas', async () => {
     const w = await world('liga-mx', 2025, ['América', 'Chivas', 'Cruz Azul', 'Pumas']);

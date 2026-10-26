@@ -24,6 +24,7 @@ import {
 } from '../stakes/result.js';
 import { salienceStanding, type SalienceStanding } from '../stakes/salience.js';
 import type { MatchResult } from '../standings/types.js';
+import { knockoutSeed, unknownRoundPhase } from '../standings/tables.js';
 import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
@@ -222,15 +223,9 @@ async function seedOf(
   rules: CompetitionRules,
 ): Promise<{ home: number; away: number } | undefined> {
   const label = await stageLabelOf(db, core);
-  const entry = rules.knockout?.seeding.find((sd) => sd.rounds.test(label ?? ''));
-  if (!entry || !core.season) return undefined;
-  const rows = (await db.select().from(standing).where(eq(standing.seasonId, core.season.id))).filter(
-    (r) => standingsTableOf(rules, r.group)?.key === entry.table,
-  );
-  const home = rows.find((r) => r.participantId === core.home.id);
-  const away = rows.find((r) => r.participantId === core.away.id);
-  if (!home || !away || home.group !== away.group) return undefined;
-  return { home: home.rank, away: away.rank };
+  if (!core.season || !rules.knockout?.seeding.some((sd) => sd.rounds.test(label ?? ''))) return undefined;
+  const rows = await db.select().from(standing).where(eq(standing.seasonId, core.season.id));
+  return knockoutSeed(rules, label, rows, core.home.id, core.away.id);
 }
 
 async function knockoutContext(
@@ -423,18 +418,26 @@ async function leagueContext(
   const season = core.season;
   if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
   const found: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
-  // rodada que o regulamento não reconhece: em fase de grupos ou fase de liga (tipo de estágio inequívoco)
-  // vale a tabela do grupo dos dois times, como sem regulamento de fases (o recálculo adota essas rodadas do
-  // mesmo jeito); em rodada "regular" pode ser mata-mata rotulado como rodada (Liguilla), então não há stakes
+  // rodada que o regulamento não reconhece: em rodada "regular" pode ser mata-mata rotulado como rodada
+  // (Liguilla), então não há stakes
   if (found === undefined && !TABLE_STAGE_KINDS.has(core.stage?.kind ?? ''))
     return { stakes: [], rules: competitionRules, reason: 'rodada fora das fases do regulamento' };
-  const phase = found ?? null;
-  // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
-  const rules = phase?.league ? { ...competitionRules, league: phase.league } : competitionRules;
-  const league = rules.league!;
   const all = await memo(options.cache?.standings, season.id, () =>
     db.select().from(standing).where(eq(standing.seasonId, season.id)),
   );
+  // em fase de grupos ou de liga, vale a fase só quando é inequívoca pelos grupos dos dois times (a mesma
+  // regra do recálculo): um quadrangular "Group A - 1" também cabe na tabela única do torneio
+  const phase =
+    found === undefined ? unknownRoundPhase(competitionRules, all, core.home.id, core.away.id) : found;
+  if (found === undefined && !phase)
+    return {
+      stakes: [],
+      rules: competitionRules,
+      reason: 'rodada fora das fases do regulamento, sem fase inequívoca para os dois times',
+    };
+  // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
+  const rules = phase?.league ? { ...competitionRules, league: phase.league } : competitionRules;
+  const league = rules.league!;
   const rows = phase ? all.filter((r) => standingsTableOf(rules, r.group)?.key === phase.key) : all;
   if (
     !rows.some((r) => r.participantId === core.home.id) ||

@@ -2,7 +2,13 @@ import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defaultRulesDir, loadCompetitionRules } from '../config/loader.js';
 import { parseCompetitionRules, RulesConfigError, standingsTableOf } from '../config/parse.js';
-import { currentPhaseKey, standingsGroupLabel, standingsGroupPriority } from './tables.js';
+import {
+  currentPhaseKey,
+  knockoutSeed,
+  standingsGroupLabel,
+  standingsGroupPriority,
+  unknownRoundPhase,
+} from './tables.js';
 
 const base = { slug: 'teste', format: 'league', league: { teams: 10, zones: [] } };
 
@@ -181,5 +187,68 @@ describe('knockout.seeding e level_advantage no regulamento', () => {
     expect(() => ko({ default: {}, seeding: [{ rounds: 'x', table: 'clausura' }] })).toThrow(
       /não está em tables/,
     );
+  });
+});
+
+describe('fase de rodada desconhecida (unknownRoundPhase)', () => {
+  const rows = (group: string, teams: string[]) => teams.map((participantId) => ({ group, participantId }));
+
+  it('Colômbia: quadrangular "Group A - 1" cabe no Apertura (tabela única) e no quadrangular: nenhuma', async () => {
+    const co = await loadCompetitionRules('colombia-primera-a', { season: 2026 });
+    const all = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const table = [...rows('Apertura', all), ...rows('Reclasificación', all)];
+    // só a tabela única do torneio: qualquer dupla "está no mesmo grupo", o que não diz a fase
+    expect(unknownRoundPhase(co, table, 'A', 'B')).toBeNull();
+    // com os quadrangulares do fornecedor: duas candidatas (o torneio e o quadrangular)
+    const withQuad = [
+      ...table,
+      ...rows('Apertura - Group A', ['A', 'B', 'C']),
+      ...rows('Apertura - Group B', ['D', 'E', 'F']),
+    ];
+    expect(unknownRoundPhase(co, withQuad, 'A', 'B')).toBeNull();
+  });
+
+  it('Libertadores: o grupo dos dois separa times e é a única fase: a fase de grupos', async () => {
+    const lib = await loadCompetitionRules('conmebol-libertadores', { season: 2026 });
+    const table = [...rows('Group A', ['A', 'B']), ...rows('Group B', ['C', 'D'])];
+    expect(unknownRoundPhase(lib, table, 'C', 'D')?.key).toBe('group_stage');
+    // times de grupos diferentes, ou fora da tabela: nenhuma
+    expect(unknownRoundPhase(lib, table, 'A', 'C')).toBeNull();
+    expect(unknownRoundPhase(lib, table, 'A', 'Z')).toBeNull();
+  });
+
+  it('Argentina: as mesmas zonas no Apertura e no Clausura: ambíguo', async () => {
+    const ar = await loadCompetitionRules('argentina-liga-profesional', { season: 2026 });
+    const table = [
+      ...rows('Apertura - Group A', ['A', 'B']),
+      ...rows('Apertura - Group B', ['C', 'D']),
+      ...rows('Clausura - Group A', ['A', 'B']),
+      ...rows('Clausura - Group B', ['C', 'D']),
+      ...rows('Tabla Anual', ['A', 'B', 'C', 'D']),
+    ];
+    expect(unknownRoundPhase(ar, table, 'A', 'B')).toBeNull();
+    // só o Apertura gravado: ele
+    expect(
+      unknownRoundPhase(
+        ar,
+        table.filter((r) => !r.group.startsWith('Clausura')),
+        'A',
+        'B',
+      )?.key,
+    ).toBe('apertura');
+  });
+});
+
+describe('posição na tabela de referência do mata-mata (knockoutSeed)', () => {
+  it('Liga MX: rodada do Apertura usa a tabela do Apertura; sem os dois nela, nada', async () => {
+    const mx = await loadCompetitionRules('liga-mx', { season: 2025 });
+    const table = [
+      { group: 'Apertura', participantId: 'T', rank: 1 },
+      { group: 'Apertura', participantId: 'A', rank: 4 },
+      { group: 'Clausura', participantId: 'T', rank: 9 },
+    ];
+    expect(knockoutSeed(mx, 'Apertura - Quarter-finals', table, 'A', 'T')).toEqual({ home: 4, away: 1 });
+    expect(knockoutSeed(mx, 'Clausura - Quarter-finals', table, 'A', 'T')).toBeUndefined();
+    expect(knockoutSeed(mx, 'Quarter-finals', table, 'A', 'T')).toBeUndefined();
   });
 });

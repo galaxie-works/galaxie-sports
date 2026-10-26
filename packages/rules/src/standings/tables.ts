@@ -73,3 +73,69 @@ export function standingsGroupPriority(
   if (t.kind === 'other') return 4;
   return 5;
 }
+
+export interface SeedRow {
+  group: string;
+  participantId: string;
+  rank: number;
+}
+
+/**
+ * Posição dos dois times na tabela de referência do mata-mata decidido pela campanha (`knockout.seeding`):
+ * a rodada do mata-mata (rótulo do fornecedor, ex.: "Apertura - Quarter-finals") aponta a tabela (Apertura),
+ * e vale o grupo dela que tem os dois. Sem entrada para a rodada ou sem os dois no mesmo grupo, undefined.
+ */
+export function knockoutSeed(
+  rules: Pick<CompetitionRules, 'tables' | 'knockout'>,
+  stageLabel: string | null,
+  rows: readonly SeedRow[],
+  homeId: string,
+  awayId: string,
+): { home: number; away: number } | undefined {
+  const entry = rules.knockout?.seeding.find((sd) => sd.rounds.test(stageLabel ?? ''));
+  if (!entry) return undefined;
+  const byGroup = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    if (standingsTableOf(rules, r.group)?.key !== entry.table) continue;
+    byGroup.set(r.group, (byGroup.get(r.group) ?? new Map<string, number>()).set(r.participantId, r.rank));
+  }
+  for (const ranks of byGroup.values()) {
+    const home = ranks.get(homeId);
+    const away = ranks.get(awayId);
+    if (home !== undefined && away !== undefined) return { home, away };
+  }
+  return undefined;
+}
+
+/**
+ * Fase de um jogo de rodada que o regulamento não reconhece (estágio `group`/`league_phase` com rótulo novo),
+ * pelos grupos de `core.standing`: só quando é inequívoca. Entre as tabelas de fase e as auxiliares (`other`,
+ * ex.: quadrangulares da Colômbia), tem de haver exatamente uma com um grupo que contém os dois times; ela tem
+ * de ser uma fase; e esse grupo tem de separar times (não conter a tabela inteira), porque numa tabela única
+ * quaisquer dois times "estão no mesmo grupo" e isso não diz nada sobre a fase. Sem isso, null: o jogo fica
+ * fora (vai para o relatório) em vez de pôr, por exemplo, um quadrangular na tabela do torneio.
+ */
+export function unknownRoundPhase(
+  rules: Pick<CompetitionRules, 'tables'>,
+  rows: readonly Pick<SeedRow, 'group' | 'participantId'>[],
+  homeId: string,
+  awayId: string,
+): StandingsTableRule | null {
+  const byTable = new Map<string, Map<string, Set<string>>>();
+  for (const r of rows) {
+    if (r.group === '') continue;
+    const t = standingsTableOf(rules, r.group);
+    if (!t || (t.kind !== 'phase' && t.kind !== 'other')) continue;
+    const groups = byTable.get(t.key) ?? new Map<string, Set<string>>();
+    groups.set(r.group, (groups.get(r.group) ?? new Set<string>()).add(r.participantId));
+    byTable.set(t.key, groups);
+  }
+  const shared = (key: string) =>
+    [...(byTable.get(key)?.values() ?? [])].filter((teams) => teams.has(homeId) && teams.has(awayId));
+  const candidates = rules.tables.filter((t) => shared(t.key).length > 0);
+  if (candidates.length !== 1) return null;
+  const table = candidates[0]!;
+  if (table.kind !== 'phase') return null;
+  const everyone = new Set([...byTable.get(table.key)!.values()].flatMap((teams) => [...teams]));
+  return shared(table.key).some((teams) => teams.size < everyone.size) ? table : null;
+}

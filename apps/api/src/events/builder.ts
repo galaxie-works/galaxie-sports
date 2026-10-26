@@ -27,6 +27,7 @@ import {
   fanTags,
   fanTagStanding,
   finishedLeagueMatchStakes,
+  knockoutSeed,
   knockoutStageRules,
   knockoutStakes,
   leagueInputOf,
@@ -503,8 +504,17 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
   const finishedLeagueSeasons = new Set<string>();
   for (const r of rows) {
     if (!r.st?.id) continue;
-    if (KNOCKOUT_KINDS.has(r.st.kind)) stageIds.add(r.st.id);
-    else if (LEAGUE_KINDS.has(r.st.kind) && (open(r.e.status) || r.e.status === 'finished')) {
+    if (KNOCKOUT_KINDS.has(r.st.kind)) {
+      stageIds.add(r.st.id);
+      // mata-mata decidido pela campanha (Liguilla): a posição dos dois vem da tabela da temporada
+      const rl = rulesOf(r);
+      if (
+        r.e.seasonId &&
+        rl?.knockout &&
+        knockoutStageRules(rl, rulesStageKey(r.st.kind, r.st.providerLabel)).levelAdvantage === 'better_seed'
+      )
+        leagueSeasons.add(r.e.seasonId);
+    } else if (LEAGUE_KINDS.has(r.st.kind) && (open(r.e.status) || r.e.status === 'finished')) {
       stageIds.add(r.st.id);
       if (r.e.seasonId) leagueSeasons.add(r.e.seasonId);
       if (r.e.seasonId && r.e.status === 'finished') finishedLeagueSeasons.add(r.e.seasonId);
@@ -628,8 +638,16 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
       }
       // stakes do mata-mata: só antes/durante o jogo e com regulamento próprio
       if (stageRules && rules?.knockout && open(e.status) && homeId && awayId) {
+        // empate decidido pela campanha: a posição dos dois na tabela de referência; sem ela o motor recusa
+        // (sem stakes), em vez de anunciar pênaltis que a fase não tem
+        const seedRows = e.seasonId ? [...(tablesBySeason.get(e.seasonId)?.values() ?? [])].flat() : [];
+        const seed =
+          stageRules.levelAdvantage === 'better_seed'
+            ? knockoutSeed(rules, r.st.providerLabel ?? null, seedRows, homeId, awayId)
+            : undefined;
+        const seeded = seed ? { seed } : {};
         try {
-          if (legs === 1) stakes.push(...knockoutStakes({ rules: stageRules }));
+          if (legs === 1) stakes.push(...knockoutStakes({ rules: stageRules, ...seeded }));
           else if (leg === 1) stakes.push(...knockoutStakes({ rules: stageRules, leg: 1 }));
           else if (leg === 2 && firstLeg?.status === 'finished') {
             const g = goalsOf(firstLeg);
@@ -640,6 +658,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
                   leg: 2,
                   // placar da ida com os mandos da ida: o mandante da volta foi o visitante da ida
                   firstLeg: { homeGoals: g.get(awayId) ?? 0, awayGoals: g.get(homeId) ?? 0 },
+                  ...seeded,
                 }),
               );
           }
