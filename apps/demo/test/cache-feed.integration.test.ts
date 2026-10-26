@@ -116,4 +116,24 @@ describe('seguidor do change feed (Postgres)', () => {
     }
     await until(() => calls.flat().includes('team_profile:lento'));
   });
+
+  it('primeira subida com transação em voo: o ID menor que commita depois não se perde', async () => {
+    for (const f of followers) await f.stop();
+    calls.length = 0;
+    const slow = new Client({ connectionString: testUrl });
+    await slow.connect();
+    try {
+      await slow.query('begin');
+      // reserva um ID e só commita depois que o seguidor novo (sem cursor salvo) já subiu
+      await slow.query(`select ops.publish_change('semantic.review', 'f1_editorial', 'em-voo', null)`);
+      await publishChange(db, { topic: 'semantic.review', entityType: 'team_profile', entityId: 'depois' });
+      await follow({ name: 'demo-cache-primeira-subida' });
+      await slow.query('commit');
+    } finally {
+      await slow.end();
+    }
+    await until(() => calls.flat().includes('f1_editorial:em-voo'));
+    // o que já estava visível na subida não é reprocessado
+    expect(calls.flat()).not.toContain('team_profile:depois');
+  });
 });

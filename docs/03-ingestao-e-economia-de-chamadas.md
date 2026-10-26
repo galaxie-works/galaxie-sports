@@ -9,7 +9,7 @@
 | Item | Valor | Impacto no desenho |
 |---|---|---|
 | Cota | **100 requisições/dia por API** (cada esporte tem a sua) | 12 APIs × 100 = 1.200/dia no total, sem transferência entre esportes |
-| Limite por minuto | **10/min** | Token bucket de 1 chamada a cada 6 s por API |
+| Limite por minuto | **10/min** | 1 chamada a cada 6 s por API, somando todos os processos (token bucket local + vaga no ledger sob o lock do Governor) |
 | Reset | **00:00 UTC** | Jobs pesados rodam logo após a meia-noite UTC (21h em Brasília) |
 | `/status` | **Não conta** na cota | Reconciliação de contagem e painel de cota gratuitos |
 | Paginação | **Cada página = 1 requisição**; no free, `page ≤ 3` | Evitar endpoints paginados; preferir chamadas "largas" |
@@ -289,24 +289,24 @@ O caminho de produção é o worker `services/ingestor` (issue #18), que grava n
 
 ```bash
 pnpm --filter @galaxie/ingestor assets:mirror --plan            # quantos faltam (nenhum download)
-pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra toda URL de mídia do raw e espelha
+pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra as URLs de mídia do raw novo e espelha
 pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pausa-ms 250
 pnpm --filter @galaxie/ingestor assets:mirror --fotos           # só fotos de pessoas, escalados recentes primeiro
 ```
 
 | Aspecto | Comportamento |
 |---|---|
-| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem) |
-| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução |
-| 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo |
+| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem). A descoberta é incremental: fica em `ops.job_run` (`assets:discover-raw`, com a marca d'água em `stats.watermark`: o maior `raw.api_response.id` visível no início e o intervalo de transações ainda em andamento naquele instante) e a seguinte só varre as respostas acima do id ou gravadas por uma daquelas transações, o que inclui as do `raw:import`/`snapshot:import` gravadas com `fetched_at` antigo e as de transações que commitaram depois; a primeira, ou `--raw-completo`, varre a tabela inteira (dentro do mesmo timeout do job agendado) |
+| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução. Erro inesperado num asset (storage, banco) conta como falha e o asset segue pendente; 5 seguidos também interrompem |
+| 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo. Logo de time ou competição que volta religa na hora as entidades sem logo que o fornecedor diz usarem aquele arquivo: o par id ↔ logo sai da resposta já gravada no raw (`/teams` e `/leagues`, senão `/fixtures` e `/games`), lida pelos mesmos parsers do catálogo e da normalização, sem chamada à API e sem deduzir a URL pelo caminho (`services/ingestor/src/assets/relink-logos.ts`). Sem resposta no raw, o CLI lista o logo e o vínculo volta na próxima normalização |
 | Gravação | Chave `api-sports/<caminho original>` (ex.: `api-sports/football/teams/121.png`), `sha256`, `bytes`, `width`/`height` (PNG, SVG, GIF, JPEG e WebP lidos pelo cabeçalho), `fetched_at` |
 | Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
-| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
+| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado (o asset fica ausente e times e competições perdem o logo na hora, como no 404), e se já tiver sido é desvinculado (`storage_key` nulo); a prévia (`--plan`) já conta esses desligamentos |
 | Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
-| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas: primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais e por fim o resto |
+| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas (sem os logos de emissoras): primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais (de temporada atual ou o elenco do time sem temporada) e por fim o resto; `--caminho` também vale para essa fila. Com `--plan`, o registro pelo id é contado numa transação só de leitura e entra na prévia |
 | Foto genérica | A CDN responde 200 com uma silhueta quando a pessoa não tem foto. Os hashes ficam em `PLACEHOLDER_PHOTO_SHA256` (`services/ingestor/src/assets/person-photos.ts`). Uma foto genérica ou um 404 de foto de pessoa deixa o asset "ausente", fora do bucket, e desliga `core.person.photo_asset_id`: a API devolve `photo: null`. O normalizador não religa esses assets. Ao fim, `--fotos` avisa de hashes repetidos em 20 fotos ou mais, que podem ser imagens genéricas novas |
 | Logo genérico | No lugar de muitos escudos de time e de liga, a CDN responde 200 com uma imagem genérica ("image not available", "official logo soon", escudo-contorno cinza). Os hashes ficam em `PLACEHOLDER_LOGO_SHA256` (`services/ingestor/src/assets/palette.ts`). Um logo genérico ou um 404 de `team_logo`/`league_logo` deixa o asset "ausente", fora do bucket, e desliga `core.participant.logo_asset_id` e `core.competition.logo_asset_id`: a API devolve `logo: null` e a demo mostra as iniciais. A normalização e o `bootstrap:catalog` não religam esses assets. Toda execução começa por uma limpeza idempotente (`cleanupLogos`): genéricos gravados antes viram ausentes, e times e competições ligados a qualquer logo ausente perdem o vínculo. `--plan` mostra a prévia |
-| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2 |
+| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2. Gravar ou zerar a paleta (e desligar um logo) publica `catalog`/`participant` no `ops.change_feed` para os times que usam o asset, o que purga `participant:<id>` no cache da API; paleta igual à gravada não publica, e o backfill publica por lote de 500 numa transação. Logo de competição desligado ainda não publica `competition:<id>` |
 
 ### 7.2 Cores dos times (paleta do escudo)
 
@@ -315,7 +315,7 @@ A API expõe em cada `Team` um `colors` (cor predominante, secundária e o **gra
 - **Decodificador PNG próprio** (`node:zlib`, sem dependências): tipos de cor 0, 2, 3 (paleta + `tRNS`), 4 e 6, 1–16 bits, não entrelaçado, os 5 filtros. SVG, entrelaçado ou arquivo corrompido → sem paleta.
 - **Algoritmo**: só pixels com alfa ≥ 200; quase-branco, quase-preto e cinzas (croma < 40) ficam fora da escolha; o resto vai para faixas de matiz de 15° (suavizadas com as vizinhas) e, na família vencedora, a cor é a média da faixa de luminosidade mais frequente (`dominant`). `secondary` é a próxima família com matiz a ≥ 40° e ao menos 6% dos pixels coloridos (ou `null`). Com menos de 8% de pixels coloridos o escudo é `monochrome` (Botafogo, Vasco, Santos) e `dominant` vira o cinza-escuro neutro `#3a3a3a`, para o gradiente continuar legível.
 - **Placeholders do fornecedor** ("image not available", "official logo soon", escudo-contorno cinza — cada um repetido em dezenas de times) são reconhecidos pelo `sha256` (`PLACEHOLDER_LOGO_SHA256`) e ficam sem paleta: não são cor de time. No banco local eram 309 de 2.101 escudos PNG.
-- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução).
+- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução). Com `--limite`, o limite conta só as paletas gravadas: a fila segue depois desses, que não ocupam o lote.
 - **Novos escudos** recebem a paleta no próprio Asset Mirror; os já espelhados, pelo backfill:
 
 ```bash
@@ -328,7 +328,7 @@ O backfill registra a execução em `ops.job_run` (`assets:palette`) e roda agen
 
 ### 7.3 Acervo customizado de logos (opcional)
 
-Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
+Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Times ligados, desligados ou com o asset regravado são publicados no change feed (`participant:<id>`). Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
 **Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
 
 - `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.
@@ -411,7 +411,7 @@ Cada API da api-sports tem **assinatura e cota próprias** — dá para ter o fu
 - `APISPORTS_PLAN` é o plano padrão de todas as APIs (`free` se ausente);
 - `APISPORTS_PLAN_<ESPORTE>` sobrescreve uma API: nome da API em maiúsculas, com `-` → `_` (`APISPORTS_PLAN_FOOTBALL=pro`, `APISPORTS_PLAN_FORMULA_1=free`, `APISPORTS_PLAN_AMERICAN_FOOTBALL=...`). Vazio = padrão; nome desconhecido = free (o mais restritivo).
 
-O plano de cada API define, só para ela: a **pré-validação** (temporadas, janela de `date`, `ids`/`last`/`next`, `page`), o **limite por minuto** (um token bucket por API: 6 s no free, 200 ms no Pro), o **limite diário** da política do Governor (ingestor, `quota` e métricas) e o fallback de `limit_day` na reconciliação via `/status`. A janela de temporadas aprendida com o erro do fornecedor também fica por API. Configurar o plano errado custa caro nos dois sentidos: um Pro onde a assinatura é free gera chamadas que o fornecedor recusa (gastando cota); um free onde a assinatura é Pro deixa o Pro ocioso. `bootstrap:sports --plan` e `quota` mostram o plano configurado de cada API.
+O plano de cada API define, só para ela: a **pré-validação** (temporadas, janela de `date`, `ids`/`last`/`next`, `page`), o **limite por minuto** (6 s no free, 200 ms no Pro; vale para a API inteira, somando os processos filhos do scheduler, porque o Governor espaça as reservas pelo `sent_at` do ledger), o **limite diário** da política do Governor (ingestor, `quota` e métricas) e o fallback de `limit_day` na reconciliação via `/status`. A janela de temporadas aprendida com o erro do fornecedor também fica por API. Configurar o plano errado custa caro nos dois sentidos: um Pro onde a assinatura é free gera chamadas que o fornecedor recusa (gastando cota); um free onde a assinatura é Pro deixa o Pro ocioso. `bootstrap:sports --plan` e `quota` mostram o plano configurado de cada API.
 
 ## 10. Pendências de validação (issue de spike)
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   agentOf,
   BudgetedLlmClient,
@@ -12,7 +12,7 @@ import { FakeLlmClient } from './fake.js';
 import { createLlmClientFromEnv, withTokenBudget } from './factory.js';
 import { sanitizeText, UNTRUSTED_CONTENT_RULES, wrapUntrusted } from './hygiene.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from './json-schema.js';
-import { estimateCostUsd, priceFor } from './pricing.js';
+import { budgetPriceFor, estimateCostUsd, priceFor } from './pricing.js';
 import { withRetry } from './retry.js';
 import type { LlmJsonRequest } from './types.js';
 
@@ -69,8 +69,24 @@ describe('preços', () => {
         { inputTokens: 10_000, outputTokens: 1_000, cachedInputTokens: 5_000 },
         2,
       ),
-    ).toBeCloseTo((5_000 * 2 + 5_000 * 0.1 + 1_000 * 10) / 1e6 + 0.02, 6);
-    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 })).toBeUndefined();
+    ).toBeCloseTo((5_000 * 2 + 5_000 * 0.2 + 1_000 * 10) / 1e6 + 0.02, 6);
+    // sem provedor conhecido (cliente falso): os tokens não entram, as buscas sim
+    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 })).toBe(0);
+    expect(estimateCostUsd('modelo-desconhecido', { inputTokens: 1, outputTokens: 1 }, 3)).toBe(0.03);
+  });
+
+  it('modelo fora da tabela usa o preço mais caro do provedor (pelo parâmetro ou pelo prefixo)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const usage = { inputTokens: 1_000_000, outputTokens: 100_000 };
+    // OpenAI: gpt-6-astra (10/50); Anthropic: claude-fable-5-1 (10/50); Gemini: 2/12 (4 Argon e 3.1 Pro)
+    expect(estimateCostUsd('gpt-7-nova', usage)).toBe(15);
+    expect(estimateCostUsd('ft-sob-medida', usage, 0, 0.01, 'openai')).toBe(15);
+    expect(estimateCostUsd('claude-nova-6', usage, 1)).toBe(15.01);
+    expect(priceFor('claude-fable-5-1')).toMatchObject({ input: 10, output: 50 });
+    expect(estimateCostUsd('gemini-9-ultra', usage, 10, 0.014)).toBe(3.34);
+    expect(budgetPriceFor('gpt-6-luna-2026-05-18')).toEqual(priceFor('gpt-6-luna'));
+    expect(budgetPriceFor('fake-light', 'fake')).toBeUndefined();
+    vi.restoreAllMocks();
   });
 
   it('reconhece snapshots datados', () => {
@@ -103,6 +119,29 @@ describe('retry com backoff', () => {
       ),
     ).rejects.toThrow('400');
     expect(m).toBe(1);
+  });
+
+  it('beforeRetry roda antes de cada nova tentativa e, se lançar, interrompe', async () => {
+    let n = 0;
+    const seen: number[] = [];
+    await expect(
+      withRetry(
+        async () => {
+          n++;
+          throw new LlmError('fora do schema', 'schema', true);
+        },
+        {
+          retries: 3,
+          sleep: async () => {},
+          beforeRetry: (attempt) => {
+            seen.push(attempt);
+            if (attempt === 2) throw new BudgetExceededError('global', 9, 10, 2, 'usd');
+          },
+        },
+      ),
+    ).rejects.toBeInstanceOf(BudgetExceededError);
+    expect(n).toBe(2);
+    expect(seen).toEqual([1, 2]);
   });
 
   it('classifica erros de SDK por status', () => {
@@ -201,6 +240,7 @@ describe('orçamento diário de tokens', () => {
     expect(estimateRequestTokens(req({ maxOutputTokens: 100 }))).toBeLessThan(500);
     expect(estimateRequestTokens(req({ maxOutputTokens: 100, webSearch: true }))).toBeGreaterThan(20_000);
     expect(agentOf('wtw:event:1:BR')).toBe('wtw');
+    expect(agentOf('channels@v1:tenant:BR')).toBe('channels');
     expect(agentOf('')).toBe('unknown');
   });
 });

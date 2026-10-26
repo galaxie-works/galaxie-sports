@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
+import { suspiciousDrop } from '../multisport/wikidata/drop-guard.js';
 import type { SparqlBinding, SparqlClient } from '../multisport/wikidata/sparql-client.js';
 
 /**
@@ -26,6 +27,12 @@ export interface TitleCompetition {
   label: string;
   /** Anos sem edição (competição não disputada): não contam como lacuna na cobertura. */
   noEditionYears?: readonly number[];
+  /**
+   * Só as edições cujo rótulo (en) casa: a liga com Apertura e Clausura no mesmo QID vira dois feeds, cada um com o
+   * campeão do seu torneio. Edição sem o torneio no rótulo fica de fora dos dois (melhor faltar do que contar o
+   * campeão do Apertura como o do Clausura).
+   */
+  edition?: RegExp;
 }
 
 /** Competições cobertas: continentais e mundiais de clubes, Brasil e ligas tier 1 da LatAm. */
@@ -50,8 +57,15 @@ export const TITLE_COMPETITIONS: readonly TitleCompetition[] = [
   { qid: 'Q2289847', slugs: ['ecuador-ligapro-serie-a'], label: 'Serie A (Equador)' },
   {
     qid: 'Q954911',
-    slugs: ['paraguay-primera-apertura', 'paraguay-primera-clausura'],
-    label: 'Primera División (Paraguai)',
+    slugs: ['paraguay-primera-apertura'],
+    label: 'Primera División (Paraguai) · Apertura',
+    edition: /\bapertura\b/i,
+  },
+  {
+    qid: 'Q954911',
+    slugs: ['paraguay-primera-clausura'],
+    label: 'Primera División (Paraguai) · Clausura',
+    edition: /\bclausura\b/i,
   },
   { qid: 'Q764690', slugs: ['liga-mx'], label: 'Liga MX' },
   { qid: 'Q1622667', slugs: ['bolivia-primera-division'], label: 'Primera División (Bolívia)' },
@@ -644,9 +658,45 @@ export function coverageOf(
   };
 }
 
+export interface SkippedCompetition {
+  competitionId: string;
+  reason: string;
+}
+
+/**
+ * Competições que a gravação vai pular (`suspiciousDrop`: consulta sem edições aceitas, ou com menos da metade
+ * dos títulos gravados), com o motivo. O `--plan` mostra a mesma lista sem gravar.
+ */
+export async function titleDropGuard(
+  db: Pick<Database, 'execute'>,
+  rows: readonly TitleRow[],
+  coverage: readonly Coverage[],
+): Promise<SkippedCompetition[]> {
+  const ids = coverage.map((c) => c.competitionId);
+  if (!ids.length) return [];
+  const stored = new Map<string, number>();
+  for (const r of await db.execute<{ competition_id: string; n: number }>(sql`
+    select competition_id, count(*)::int as n from core.competition_title
+    where source in ('wikidata', 'curated') and competition_id in (${sql.join(
+      ids.map((id) => sql`${id}`),
+      sql`, `,
+    )})
+    group by competition_id
+  `))
+    stored.set(r.competition_id, Number(r.n));
+  const incoming = new Map<string, number>();
+  for (const r of rows) incoming.set(r.competitionId, (incoming.get(r.competitionId) ?? 0) + 1);
+  return ids.flatMap((id) => {
+    const reason = suspiciousDrop(stored.get(id) ?? 0, incoming.get(id) ?? 0);
+    return reason ? [{ competitionId: id, reason }] : [];
+  });
+}
+
 /**
  * Grava (idempotente): as ligações novas QID → time em `core.provider_map` e, por competição, substitui as
- * linhas `source = 'wikidata'` pelas desta importação.
+ * linhas `source = 'wikidata'`/`curated` pelas desta importação. Competição cuja consulta veio sem edições
+ * aceitas, ou com bem menos que o gravado (`suspiciousDrop`), fica como estava (títulos e cobertura) e volta em
+ * `skipped` com o motivo; `allowDrop` (`--aceitar-queda`) aceita a troca assim mesmo.
  */
 export async function saveTitles(
   db: Database,
@@ -655,9 +705,13 @@ export async function saveTitles(
   coverage: readonly Coverage[],
   /** QID → time certo, para ligações do `provider_map` que apontavam para outro time (`--corrigir-ligacoes`). */
   relinks: ReadonlyMap<string, string> = new Map(),
-): Promise<{ titles: number; links: number; relinked: number }> {
-  const competitionIds = coverage.map((c) => c.competitionId);
+  options: { allowDrop?: boolean } = {},
+): Promise<{ titles: number; links: number; relinked: number; skipped: SkippedCompetition[] }> {
   return db.transaction(async (tx) => {
+    const skipped = options.allowDrop ? [] : await titleDropGuard(tx, rows, coverage);
+    const skippedIds = new Set(skipped.map((s) => s.competitionId));
+    const competitionIds = coverage.map((c) => c.competitionId).filter((id) => !skippedIds.has(id));
+    const kept = new Set(competitionIds);
     let links = 0;
     let relinked = 0;
     for (const [qid, participantId] of relinks) {
@@ -684,6 +738,7 @@ export async function saveTitles(
         )})
       `);
     for (const r of rows) {
+      if (!kept.has(r.competitionId)) continue;
       await tx.execute(sql`
         insert into core.competition_title
           (competition_id, participant_id, season_year, season_label, decided_on, edition_qid, winner_qid, competition_qid, source, source_ref)
@@ -693,6 +748,7 @@ export async function saveTitles(
       `);
     }
     for (const c of coverage) {
+      if (!kept.has(c.competitionId)) continue;
       await tx.execute(sql`
         insert into core.competition_title_coverage
           (competition_id, competition_qid, first_year, latest_year, complete_through, issues, checked_at)
@@ -704,7 +760,7 @@ export async function saveTitles(
           issues = excluded.issues, checked_at = now()
       `);
     }
-    return { titles: rows.length, links, relinked };
+    return { titles: rows.filter((r) => kept.has(r.competitionId)).length, links, relinked, skipped };
   });
 }
 
@@ -721,20 +777,39 @@ export interface CompetitionReport {
   latestYear: number | null;
 }
 
-/** Busca as edições de todas as competições no Wikidata (uma consulta por competição). */
+/**
+ * Busca as edições de todas as competições no Wikidata (uma consulta por QID), por competição da lista: a que
+ * filtra o torneio (`edition`) fica só com as edições cujo rótulo casa.
+ */
 export async function fetchEditions(
   sparql: SparqlClient,
   competitions: readonly TitleCompetition[],
   log: (m: string) => void = () => {},
-): Promise<Map<string, Edition[]>> {
-  const out = new Map<string, Edition[]>();
+): Promise<Map<TitleCompetition, Edition[]>> {
+  const out = new Map<TitleCompetition, Edition[]>();
+  const byQid = new Map<string, Edition[]>();
   for (const c of competitions) {
-    const { data } = await sparql.query(`titles-editions-${c.qid}`, editionsQuery(c.qid), {
-      competition: c.qid,
-    });
-    const editions = parseEditions(c.qid, data.results.bindings);
-    out.set(c.qid, editions);
+    let all = byQid.get(c.qid);
+    if (!all) {
+      const { data } = await sparql.query(`titles-editions-${c.qid}`, editionsQuery(c.qid), {
+        competition: c.qid,
+      });
+      all = parseEditions(c.qid, data.results.bindings);
+      byQid.set(c.qid, all);
+    }
+    // cada competição com as suas cópias: a recusa por divergência com o core é marcada na edição
+    const editions = all.filter((e) => !c.edition || c.edition.test(e.label ?? '')).map((e) => ({ ...e }));
+    out.set(c, editions);
     log(`${c.label}: ${editions.length} edições com vencedor`);
+    // o filtro do torneio (Paraguai): as edições do QID que ficaram de fora, para conferir o rótulo da fonte
+    if (c.edition) {
+      const left = all.filter((e) => !c.edition!.test(e.label ?? ''));
+      if (left.length)
+        log(
+          `  fora do filtro ${c.edition}: ${left.length} — ` +
+            left.map((e) => `${e.label ?? '(sem rótulo)'} (${e.qid})`).join('; '),
+        );
+    }
   }
   return out;
 }

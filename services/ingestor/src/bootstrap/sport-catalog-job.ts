@@ -71,9 +71,10 @@ export async function planSportCatalog(
   const latest: ReferenceResponses = new Map();
   for (const endpoint of profile.reference) {
     const hash = requestHash('api-sports', sport, endpoint, normalizeParams({}));
-    const fresh = await store.findFresh(hash, ttlFor(endpoint, {}, now), now);
+    const scope = { provider: 'api-sports', sport, endpoint };
+    const fresh = await store.findFresh(hash, ttlFor(endpoint, {}, now), now, scope);
     calls.push({ endpoint, source: fresh ? 'cache' : 'network' });
-    const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now));
+    const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now, scope));
     if (any) latest.set(endpoint, (any.body as Envelope).response);
   }
 
@@ -100,10 +101,16 @@ export async function planSportCatalog(
       const params = normalizeParams(p.params);
       const hash = requestHash('api-sports', sport, p.endpoint, params);
       const final = p.final ?? (i < planned.length && planned[i]!.season < closedBefore);
-      const fresh = await store.findFresh(hash, final ? FOREVER : ttlFor(p.endpoint, params, now), now);
+      const scope = { provider: 'api-sports', sport, endpoint: p.endpoint };
+      const fresh = await store.findFresh(
+        hash,
+        final ? FOREVER : ttlFor(p.endpoint, params, now),
+        now,
+        scope,
+      );
       calls.push({ endpoint: p.endpoint, params, source: fresh ? 'cache' : 'network' });
       // os detalhes (F1: uma chamada por sessão) só aparecem quando a temporada já está no raw
-      const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now));
+      const any = fresh ?? (await store.findFresh(hash, Number.POSITIVE_INFINITY, now, scope));
       if (any && i < planned.length && planned[i]!.kind === 'season' && profile.detailCalls)
         queue.push(...profile.detailCalls((any.body as Envelope).response, now));
     }

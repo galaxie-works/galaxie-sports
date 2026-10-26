@@ -170,6 +170,14 @@ export const RelatedPlaybackErrorBody = z
           'do conteúdo não permite a reprodução fora do YouTube). Outros códigos (2, 5) são do player e não tiram o vídeo.',
         example: 150,
       }),
+    quorum: z
+      .boolean()
+      .optional()
+      .meta({
+        description:
+          '`false` quando o aviso vem de usuário não verificado (ex.: visitante anônimo): o vídeo sai só da sua ' +
+          'vitrine e o aviso não conta para tirá-lo da vitrine dos outros clientes. Padrão `true`.',
+      }),
   })
   .meta({ id: 'RelatedPlaybackErrorBody' });
 export type RelatedPlaybackErrorBody = z.infer<typeof RelatedPlaybackErrorBody>;
@@ -178,7 +186,9 @@ export const RelatedPlaybackErrorResult = z
   .object({
     item_id: z.uuid(),
     external_id: z.string(),
-    removed_from_events: z.number().int().meta({ description: 'Jogos em que o vídeo saiu da vitrine.' }),
+    removed_from_events: z.number().int().meta({
+      description: 'Jogos em que o vídeo saiu da sua vitrine com este aviso (0 se já tinha saído).',
+    }),
   })
   .meta({ id: 'RelatedPlaybackErrorResult' });
 export type RelatedPlaybackErrorResult = z.infer<typeof RelatedPlaybackErrorResult>;
@@ -196,8 +206,10 @@ export const relatedPaths: ZodOpenApiPathsObject = {
       description:
         'Quando o player do YouTube dispara `onError` com `100`, `101` ou `150`, o vídeo não toca fora do YouTube ' +
         '(removido, privado ou com o embed bloqueado pelo dono do conteúdo, por exemplo por reivindicação de ' +
-        'direitos). A Data API não informa esse bloqueio antes do play. Com o aviso, o vídeo sai de ' +
-        '`/v1/events/{id}/related` em todos os jogos, e o tópico `event.related_content_changed` avisa a mudança. ' +
+        'direitos). A Data API não informa esse bloqueio antes do play. Com o aviso, o vídeo sai na hora de ' +
+        '`/v1/events/{id}/related` em todos os jogos para o seu tenant (o 101/150 pode depender do domínio do ' +
+        'embed); com 3 vídeos recusados, o canal inteiro também sai. Quando outros tenants relatam o mesmo vídeo, ' +
+        'ele sai para todos e o tópico `event.related_content_changed` avisa a mudança. ' +
         'O seu player deve pular para o próximo vídeo sem esperar a resposta. Exige o módulo `related_content` e a ' +
         'chave secreta (o backend do cliente repassa o aviso).',
       tags: ['Conteúdo relacionado'],
