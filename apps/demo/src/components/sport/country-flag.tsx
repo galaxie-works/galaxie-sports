@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
+import { useInExample } from '@/components/example/example-provider';
 import { FLAGS_QUERY_KEY, fetchFlags } from '@/lib/country-flags';
 import { cn } from '@/lib/utils';
 
@@ -12,15 +13,22 @@ const noopSubscribe = () => () => {};
  * Bandeiras de todos os países do catálogo, vindas de /v1/countries (pelo proxy autenticado da demo):
  * não só os da navegação, porque competição, time e piloto podem ser de qualquer país (Nova Zelândia).
  * Buscadas no navegador e guardadas por 1 hora: o build não depende da API e todas as listas
- * compartilham a mesma resposta.
+ * compartilham a mesma resposta. No exemplo público as bandeiras já vêm no cache (`ExampleProvider`)
+ * e a busca fica desligada: o `staleTime` daqui sobrepõe o do provider e, depois de 1 hora, refaria
+ * a chamada (um 401 do proxy, sem sessão).
  */
-function useFlags() {
-  return useQuery({
+export function flagsQuery(inExample: boolean) {
+  return {
     queryKey: FLAGS_QUERY_KEY,
     queryFn: () => fetchFlags(fetch),
     staleTime: 60 * 60 * 1000,
     retry: 1,
-  });
+    enabled: !inExample,
+  };
+}
+
+function useFlags() {
+  return useQuery(flagsQuery(useInExample()));
 }
 
 const SIZES = { sm: 'h-3.5 w-5', md: 'h-4 w-6', lg: 'h-6 w-9' } as const;

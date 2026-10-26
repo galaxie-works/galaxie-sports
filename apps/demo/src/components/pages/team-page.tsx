@@ -278,7 +278,9 @@ function SemanticIdentity({
           </div>
         ) : null}
         {s.colors.length ? (
-          <div>
+          // com o degradê ao lado, Cores abre a linha: com número ímpar de campos antes, o degradê cairia
+          // na linha seguinte
+          <div className={colors ? 'col-start-1' : undefined}>
             <dt className="text-muted-foreground text-xs">{tx.colors}</dt>
             <dd className="flex flex-wrap items-center gap-2">
               {s.colors.map((c) => {
@@ -670,7 +672,8 @@ export async function TeamContent({
             <IdentityCard
               s={semantic}
               colors={team.colors}
-              api={teamSemanticRequest(id, locale, content)}
+              // sem semântico o card mostra só as cores do overview: o código aponta para essa fonte
+              api={semantic ? teamSemanticRequest(id, locale, content) : overviewApi}
               t={t}
               locale={locale}
               // piloto: o texto de identidade já está na biografia

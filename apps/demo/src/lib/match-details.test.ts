@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeTab, DETAIL_TABS, LINEUP_TABS } from './match-details';
+import { activeTab, DETAIL_TABS, LINEUP_TABS, panelSemantics } from './match-details';
 
 describe('abas dos detalhes da partida', () => {
   const all = new Set(DETAIL_TABS);
@@ -23,5 +23,18 @@ describe('abas dos detalhes da partida', () => {
 
   it('nada disponível: null', () => {
     expect(activeTab('minuto', DETAIL_TABS, new Set())).toBeNull();
+  });
+});
+
+describe('semântica do painel', () => {
+  it('uma aba só (sem barra de abas): região com o nome da aba', () => {
+    expect(panelSemantics(new Set(['minuto']), 'Minuto a minuto')).toEqual({
+      role: 'region',
+      'aria-label': 'Minuto a minuto',
+    });
+  });
+
+  it('mais de uma aba: o painel fica nomeado pela própria aba', () => {
+    expect(panelSemantics(new Set(['minuto', 'estatisticas']), 'Minuto a minuto')).toEqual({});
   });
 });

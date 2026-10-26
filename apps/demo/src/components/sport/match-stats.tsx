@@ -64,16 +64,21 @@ export function MatchStats({
   const away = stats.teams.find((x) => x.team.side === 'away') ?? stats.teams[1]!;
   const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const [homeColor, awayColor] = colors;
-  // Em tela larga, duas colunas ocupam a área toda sem afastar demais o número do rótulo; a segunda
-  // coluna repete o cabeçalho dos escudos só quando fica ao lado da primeira.
+  // Em painel largo, duas colunas ocupam a área toda sem afastar demais o número do rótulo; a segunda
+  // coluna repete o cabeçalho dos escudos só quando fica ao lado da primeira. Pela largura do painel
+  // (`@container` no painel da aba, em MatchDetails), não da tela: em 1024px com a barra lateral aberta
+  // o painel tem ~480px.
   const half = Math.ceil(rows.length / 2);
   const columns = rows.length > 4 ? [rows.slice(0, half), rows.slice(half)] : [rows];
   return (
-    <div className={cn('grid w-full gap-x-12 gap-y-1', columns.length > 1 && 'lg:grid-cols-2')}>
+    <div className={cn('grid w-full gap-x-12 gap-y-1', columns.length > 1 && '@2xl:grid-cols-2')}>
       {columns.map((column, i) => (
         <div key={i} className="flex flex-col gap-1">
           <div
-            className={cn('grid grid-cols-[4.5rem_1fr_4.5rem] items-center pb-2', i > 0 && 'hidden lg:grid')}
+            className={cn(
+              'grid grid-cols-[4.5rem_1fr_4.5rem] items-center pb-2',
+              i > 0 && 'hidden @2xl:grid',
+            )}
           >
             <span className="flex justify-center" title={home.team.name ?? ''}>
               <Crest src={home.team.logo} name={home.team.name ?? ''} size="sm" />
