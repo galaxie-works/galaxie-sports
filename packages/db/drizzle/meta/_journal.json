@@ -302,6 +302,34 @@
       "when": 1792942832689,
       "tag": "0042_grade_paginas_de_planos",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792948460030,
+      "tag": "0043_chave_rotacionada",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1792949878583,
+      "tag": "0044_poda_do_change_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792954870136,
+      "tag": "0045_epoca_do_uso",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792963744501,
+      "tag": "0046_related_relato_por_tenant",
+      "breakpoints": true
     }
   ]
 }

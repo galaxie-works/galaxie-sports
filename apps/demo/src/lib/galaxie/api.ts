@@ -3,7 +3,7 @@
  * Cada função é cacheada (`use cache`): os metadados mudam pouco e a demo precisa navegar sem espera.
  */
 import { createGalaxieClient, GalaxieApiError } from '@galaxie/contracts';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
 
 import type { SupportedLocale } from '@galaxie/contracts';
@@ -12,6 +12,8 @@ import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale 
 import { getDictionary } from '../i18n/dictionary';
 import { fill } from '../i18n/text';
 
+import { taggedFetch } from './cache-tags';
+import { RELATED_CACHE_TAG } from './related-cache';
 import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
@@ -30,7 +32,17 @@ export const localeQuery = (locale: ContentLocale) => ({
  */
 const text = (locale: Locale) => getDictionary(locale).requests;
 
-const api = createGalaxieClient({ baseUrl: API_URL, apiKey: process.env.GALAXIE_DEMO_KEY ?? '' });
+/**
+ * Cliente da API. Cada fetcher é `'use cache'` e leva as tags da resposta (`surrogate-key`, via
+ * `taggedFetch`) mais as tags explícitas de `cacheTag`, no vocabulário da API e do `ops.change_feed`
+ * (docs/05 §7): o seguidor do change feed revalida na hora o que a API purgou (lib/cache/follower.ts), e o
+ * `cacheLife` fica como rede de segurança.
+ */
+const api = createGalaxieClient({
+  baseUrl: API_URL,
+  apiKey: process.env.GALAXIE_DEMO_KEY ?? '',
+  fetch: taggedFetch,
+});
 
 /** 404 da API vira a página "não encontrado"; os demais erros sobem. */
 async function orNotFound<T>(p: Promise<T>): Promise<T> {
@@ -66,6 +78,7 @@ export const exploreSummaryRequest = (locale: Locale): ApiRequest => ({
 export async function getExploreSummary(locale: Locale) {
   'use cache';
   cacheLife('minutes');
+  cacheTag('sport', 'competition', 'country');
   return api.exploreSummary(localeQuery(locale));
 }
 
@@ -95,6 +108,7 @@ export const exploreAgendaRequest = (locale: Locale, q: AgendaQuery = {}): ApiRe
 export async function getExploreAgenda(locale: Locale, q: AgendaQuery = {}) {
   'use cache';
   cacheLife('minutes');
+  cacheTag('sport', 'competition', 'country');
   return api.exploreAgenda(agendaQuery(locale, q));
 }
 
@@ -115,6 +129,7 @@ export const countryCompetitionsRequest = (
 export async function getCountryCompetitions(code: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('country', 'competition', 'competition_profile');
   return orNotFound(api.countryCompetitions(code, localeQuery(locale)));
 }
 
@@ -136,6 +151,7 @@ export const sportCompetitionsRequest = (
 export async function getSportCompetitions(sport: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('competition', 'competition_profile');
   const all = [];
   for (const tier of [1, 2]) {
     let cursor: string | undefined;
@@ -165,6 +181,7 @@ export const competitionRequest = (
 export async function getCompetition(idOrSlug: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`competition:${idOrSlug}`, 'competition_profile', 'season');
   return orNotFound(api.competition(idOrSlug, localeQuery(locale)));
 }
 
@@ -184,6 +201,7 @@ export const standingsRequest = (
 export async function getStandings(competitionId: string, season: number, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`competition:${competitionId}`, 'standing');
   return orNull(api.standings(competitionId, season, localeQuery(locale)));
 }
 
@@ -201,6 +219,7 @@ export async function getSeasonsWithData(
 ) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`competition:${competitionId}`, 'standing', 'event');
   const checks = await Promise.all(
     seasons.map(async (s) => {
       const [standings, events] = await Promise.all([
@@ -243,6 +262,7 @@ export async function getCompetitionEvents(
 ) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`competition:${competitionId}`, 'event');
   const all = [];
   let cursor: string | undefined;
   do {
@@ -269,6 +289,7 @@ export async function getCompetitionEvents(
 export async function getTeamCountry(id: string): Promise<string | null> {
   'use cache';
   cacheLife('days');
+  cacheTag(`participant:${id}`, 'team_profile');
   try {
     return (await api.team(id, { locale: 'pt-BR' })).country_ref?.code ?? null;
   } catch (err) {
@@ -299,6 +320,7 @@ export const teamOverviewRequest = (
 export async function getTeamOverview(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`participant:${id}`, 'event', 'standing');
   return orNotFound(api.teamOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
@@ -314,6 +336,7 @@ export const teamSemanticRequest = (id: string, locale: Locale, content?: Suppor
 export async function getTeamSemantic(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`participant:${id}`, 'team_profile');
   return orNull(api.teamSemantic(id, localeQuery(locale)));
 }
 
@@ -342,6 +365,7 @@ export const teamCareerRequest = (id: string, locale: Locale, content?: Supporte
 export async function getTeamCareer(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`team:${id}`);
   return orNull(api.teamCareer(id, localeQuery(locale)));
 }
 
@@ -357,6 +381,7 @@ export const teamTraitsRequest = (id: string, locale: Locale, content?: Supporte
 export async function getTeamTraits(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`team:${id}`);
   return orNull(api.teamTraits(id, localeQuery(locale)));
 }
 
@@ -373,6 +398,7 @@ export const teamEditorialRequest = (id: string, locale: Locale, content?: Suppo
 export async function getTeamEditorial(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`team:${id}`, 'f1_editorial');
   return orNull(api.teamEditorial(id, { ...localeQuery(locale), min_review_status: 'approved' }));
 }
 
@@ -387,6 +413,7 @@ export const raceLegendsRequest = (locale: Locale): ApiRequest => ({
 export async function getRaceLegends(locale: Locale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('standing', 'asset');
   return (await api.raceLegends(localeQuery(locale))).data;
 }
 
@@ -401,6 +428,7 @@ export const teamPhotosRequest = (id: string, locale: Locale): ApiRequest => ({
 export async function getTeamPhotos(id: string, role?: 'portrait' | 'action' | 'car', season?: number) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`team:${id}`);
   return orNull(
     api.teamPhotos(id, { ...(role ? { role } : {}), ...(season !== undefined ? { season } : {}) }),
   );
@@ -409,6 +437,7 @@ export async function getTeamPhotos(id: string, role?: 'portrait' | 'action' | '
 export async function getSquad(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`participant:${id}`, 'roster');
   return orNull(api.squad(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
@@ -431,6 +460,7 @@ export const eventRequest = (
 export async function getEvent(id: string, locale: ContentLocale, market?: string) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`event:${id}`);
   return orNotFound(api.event(id, { ...localeQuery(locale), ...(market ? { market } : {}) }));
 }
 
@@ -453,6 +483,7 @@ export const timelineRequest = (id: string, locale: Locale, content?: SupportedL
 export async function getTimeline(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('seconds');
+  cacheTag(`event:${id}`);
   return orNull(api.eventTimeline(id, localeQuery(locale)));
 }
 
@@ -467,6 +498,7 @@ export const h2hRequest = (id: string, locale: Locale, content?: SupportedLocale
 export async function getH2h(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`event:${id}`, 'head_to_head', 'derby');
   return orNull(api.eventH2h(id, { limit: 10, ...localeQuery(locale) }));
 }
 
@@ -482,6 +514,7 @@ export const eventCardRequest = (id: string, locale: Locale, content?: Supported
 export async function getEventCard(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`event:${id}`);
   return orNull(api.eventCard(id, localeQuery(locale)));
 }
 
@@ -497,6 +530,7 @@ export const eventContextRequest = (id: string, locale: Locale, content?: Suppor
 export async function getEventContext(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`event_context:${id}`, `event:${id}`);
   return orNull(api.eventContext(id, localeQuery(locale)));
 }
 
@@ -517,6 +551,7 @@ export const whereToWatchRequest = (
 export async function getWhereToWatch(id: string, country: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`where_to_watch:${id}`, `event:${id}`);
   return orNull(api.whereToWatch(id, country, localeQuery(locale)));
 }
 
@@ -541,6 +576,7 @@ export const relatedRequest = (
 export async function getRelated(id: string, locale: ContentLocale, country?: string) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`related_content:${id}`, `event:${id}`, RELATED_CACHE_TAG);
   try {
     return await orNull(
       api.eventRelated(id, { limit: 50, ...(country ? { country } : {}), ...localeQuery(locale) }),
@@ -562,6 +598,7 @@ export const lineupsRequest = (id: string, locale: Locale, content?: SupportedLo
 export async function getLineups(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`event:${id}`);
   return orNull(api.eventLineups(id, localeQuery(locale)));
 }
 
@@ -577,6 +614,7 @@ export const statsRequest = (id: string, locale: Locale, content?: SupportedLoca
 export async function getStats(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('minutes');
+  cacheTag(`event:${id}`);
   return orNull(api.eventStats(id, localeQuery(locale)));
 }
 
@@ -593,6 +631,7 @@ export const personRequest = (id: string, locale: Locale, content?: SupportedLoc
 export async function getPerson(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`person:${id}`, 'roster');
   return orNotFound(api.person(id, localeQuery(locale)));
 }
 
@@ -616,6 +655,7 @@ export const personOverviewRequest = (
 export async function getPersonOverview(id: string, locale: ContentLocale, season?: number) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`person:${id}`, 'roster');
   return orNotFound(api.personOverview(id, { ...seasonQuery(season), ...localeQuery(locale) }));
 }
 
@@ -630,6 +670,7 @@ export const venueRequest = (id: string, locale: Locale, content?: SupportedLoca
 export async function getVenue(id: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag(`venue:${id}`);
   return orNotFound(api.venue(id, localeQuery(locale)));
 }
 
@@ -645,5 +686,6 @@ export const derbyRequest = (slug: string, locale: Locale, content?: SupportedLo
 export async function getDerby(slug: string, locale: ContentLocale) {
   'use cache';
   cacheLife('hours');
+  cacheTag('derby', 'team_profile');
   return orNotFound(api.derby(slug, localeQuery(locale)));
 }

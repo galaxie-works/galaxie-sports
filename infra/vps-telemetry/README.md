@@ -44,9 +44,22 @@ mesmos nomes/tags, enviar com `docker save … | gzip | ssh root@<vps> 'gunzip |
 infra/vps-telemetry/deploy.sh          # da máquina de desenvolvimento: constrói, envia, sobe, pós-deploy e smoke test
 ```
 
-O script constrói `api`, `ingestor` e `demo` no commit (padrão `origin/main`), envia por `docker save | ssh docker load`,
-atualiza `compose.yml` e `IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor e roda os
-passos pós-deploy idempotentes (seed da base semântica, nomes curados de estádios, importância). Depois executa o
+O script confere o CI do commit (padrão `origin/main`) no GitHub (`gh`, execuções do GitHub Actions do SHA: vermelho
+ou cancelado para tudo; ainda rodando espera até `CI_WAIT_MIN` minutos, padrão 20). Um SHA antigo ou intermediário
+(execução cancelada porque outro commit entrou na fila) pede `SKIP_CI_CHECK=1`, que também é a saída de emergência.
+Constrói `api`, `ingestor` e `demo` e, quando a pasta delas mudou, `backup`, `prometheus` e `grafana` (o hash git da
+pasta vai no rótulo da imagem; igual ao de uma imagem da VPS, ela só ganha a tag nova). Se já se passaram
+`PRELOCK_MAX_MIN` minutos antes de tocar a VPS, para ali: o resto precisa caber no teto do `deploy-safe.sh`
+(`DEPLOY_TIMEOUT`, padrão 80 min; o limite padrão é o teto menos 30 min, 50 min com o teto padrão). Com a **trava na VPS** (`.deploy.lock`: um deploy por vez, de qualquer máquina; quem chega com outro
+em andamento sai com `FAIL` e o comando para liberar; trava com mais de `LOCK_STALE_MIN` minutos, padrão teto + 10 (90 com o teto padrão), é de
+deploy morto e é tomada com `WARN`), envia por `docker save | ssh docker load`, valida e troca `compose.yml` e
+`IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor (`PULL_POLICY=missing`) e confere o
+`migrate` (saída 0). Se o `up` ou o `migrate` falha, volta `compose.yml` e `.env` anteriores e sobe a stack de novo na
+versão anterior só quando é garantidamente o estado de antes: nenhuma migration nova aplicada (contagem de
+`drizzle.__drizzle_migrations` igual antes e depois), imagens antigas ainda na VPS e não é redeploy do mesmo SHA. Senão,
+ou se a conexão caiu no meio, imprime o rollback manual. Sai com 1 nos dois casos. Depois roda os
+passos pós-deploy idempotentes (seed da base semântica, nomes curados de estádios, importância) e limpa o cache de
+respostas (falha também derruba o deploy; a partir daqui a versão nova fica no ar e o script imprime como voltar). Depois executa o
 **smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
 e campanha do time, o time numa temporada passada (`?season=2025`), stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global, o resumo da home Explorar, a
 rota do painel de Operação (protegida e sem valor de credencial) e a proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)

@@ -190,6 +190,11 @@ export class YoutubeClient {
   units = 0;
   /** Consultas `search.list` (balde próprio) feitas por este cliente. */
   searchCalls = 0;
+  /**
+   * Teto de `units` (balde geral): a requisição que passaria dele nem sai e lança `YoutubeError` com
+   * `runQuotaExhausted`. O agente ajusta a cada jogo para o que sobra da cota do dia.
+   */
+  unitCeiling = Number.POSITIVE_INFINITY;
 
   constructor(private readonly options: YoutubeClientOptions) {
     if (!options.apiKey) throw new Error('YOUTUBE_API_KEY não definida (veja .env.example).');
@@ -206,6 +211,12 @@ export class YoutubeClient {
     const qs = new URLSearchParams({ ...params, key: this.options.apiKey });
     // a cota é cobrada mesmo quando a chamada falha
     const bucket = YOUTUBE_BUCKET[method];
+    if (bucket !== 'search' && this.units + YOUTUBE_UNITS[method] > this.unitCeiling)
+      throw new YoutubeError(
+        `YouTube ${method}: cota do balde geral do dia esgotada nesta execução`,
+        0,
+        'runQuotaExhausted',
+      );
     if (bucket === 'search') this.searchCalls += YOUTUBE_UNITS[method];
     else this.units += YOUTUBE_UNITS[method];
     this.options.onUnits?.(YOUTUBE_UNITS[method], method, bucket);

@@ -91,7 +91,9 @@ describe('autenticação e planos', () => {
       url: '/v1/sports',
       headers: { 'x-galaxie-key': revoked.key },
     });
-    expect(res2.json()).toMatchObject({ code: 'INVALID_KEY', detail: 'Chave revogada.' });
+    // sem o segredo já verificado, o 401 não revela o motivo (o prefixo é público)
+    expect(res2.json()).toMatchObject({ code: 'INVALID_KEY' });
+    expect(res2.json().detail).not.toMatch(/revogada/);
   });
 
   it('esporte fora do contrato no espelho → 403', async () => {

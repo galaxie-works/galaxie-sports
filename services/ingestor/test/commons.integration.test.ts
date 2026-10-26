@@ -178,6 +178,11 @@ describe('importação do acervo de fotos', () => {
       .select({ origin: asset.origin, kind: asset.kind, width: asset.width })
       .from(asset);
     expect(assets.every((a) => a.origin === 'commons' && a.kind === 'driver' && a.width === 2)).toBe(true);
+    // a API purga (e a demo revalida) as fotos e a carreira do piloto: `team:<id>`
+    const changes = await db.execute<{ topic: string; payload: { tags: string[] } }>(
+      sql`select topic, payload from ops.change_feed where entity_type = 'team' and entity_id = ${sennaId}`,
+    );
+    expect(changes.map((c) => [c.topic, c.payload.tags])).toEqual([['catalog', ['asset']]]);
   });
 
   it('o mesmo manifesto de novo não baixa nem regrava', async () => {
@@ -240,8 +245,86 @@ describe('importação do acervo de fotos', () => {
   });
 });
 
+describe('galeria protegida da descoberta vazia', () => {
+  const licenses = { 'File:Senna retrato.jpg': 'cc-by-2.0' };
+  const store = new InMemoryObjectStore();
+  const links = () =>
+    db
+      .select({ role: participantPhoto.role })
+      .from(participantPhoto)
+      .where(eq(participantPhoto.participantId, sennaId));
+  /** Commons que não devolve nenhum arquivo (fora do ar ou resposta vazia). */
+  const emptyCommons = new WikimediaClient({
+    fetch: (async () => Response.json({ query: { pages: [] } })) as typeof fetch,
+    minIntervalMs: 0,
+    sleep: async () => {},
+  });
+
+  it('entrada com `photos: []` (a descoberta não achou nada) não apaga a galeria; só a rejeição explícita', async () => {
+    await importCommons(db, store, client(licenses), manifest([photo('File:Senna retrato.jpg', 'portrait')]));
+    expect(await links()).toEqual([{ role: 'portrait' }]);
+
+    const empty = manifest([]);
+    empty.entries[0]!.category = null;
+    const r = await importCommons(db, store, client(licenses), empty);
+    expect(r.unlinked).toBe(0);
+    expect(r.skipped).toEqual([
+      {
+        key: 'driver/ayrton-senna',
+        reason: 'entrada sem fotos no manifesto: as 1 foto(s) já vinculada(s) ficam',
+      },
+    ]);
+    expect(await links()).toEqual([{ role: 'portrait' }]);
+
+    // a Commons não devolveu nenhum dos arquivos: também fica
+    const down = await importCommons(
+      db,
+      store,
+      emptyCommons,
+      manifest([photo('File:Senna retrato.jpg', 'portrait')]),
+    );
+    expect(down.unlinked).toBe(0);
+    expect(down.skipped.at(-1)?.reason).toMatch(/não devolveu nenhum dos arquivos/);
+    expect(await links()).toEqual([{ role: 'portrait' }]);
+
+    // a curadoria rejeitou a foto: aí sai
+    const rejected = await importCommons(
+      db,
+      store,
+      client(licenses),
+      manifest([photo('File:Senna retrato.jpg', 'portrait', { match: 'rejected' })]),
+    );
+    expect(rejected.unlinked).toBe(1);
+    expect(await links()).toEqual([]);
+  });
+
+  it('arquivo apagado na Commons (página `missing`) sai do piloto: a proteção é só para resposta sem página', async () => {
+    await importCommons(db, store, client(licenses), manifest([photo('File:Senna retrato.jpg', 'portrait')]));
+    expect(await links()).toEqual([{ role: 'portrait' }]);
+    const deleted = new WikimediaClient({
+      fetch: (async () =>
+        Response.json({
+          query: { pages: [{ title: 'File:Senna retrato.jpg', missing: true }] },
+        })) as typeof fetch,
+      minIntervalMs: 0,
+      sleep: async () => {},
+    });
+    const r = await importCommons(
+      db,
+      store,
+      deleted,
+      manifest([photo('File:Senna retrato.jpg', 'portrait')]),
+    );
+    expect(r.skipped).toEqual([
+      { key: 'driver/ayrton-senna', file: 'File:Senna retrato.jpg', reason: 'arquivo apagado na Commons' },
+    ]);
+    expect(r.unlinked).toBe(1);
+    expect(await links()).toEqual([]);
+  });
+});
+
 describe('carro de destaque do piloto', () => {
-  const licenses = { 'File:Senna retrato.jpg': 'cc-by-2.0', 'File:MP4-4 Suzuka 1988.jpg': 'cc-by-sa-2.0' };
+  const licenses = { 'File:Senna retrato.jpg': 'cc-by-2.0', 'File:MP4-4 Suzuka 1988.jpg': 'cc-by-2.0' };
   const store = new InMemoryObjectStore();
   const car = (photos: ManifestPhoto[]) => ({
     target: 'car/mclaren/1988',
@@ -318,6 +401,28 @@ describe('carro de destaque do piloto', () => {
     expect(await highlightOf()).toEqual([]);
     // com a nota de novo, volta
     await importCommons(db, store, client(licenses), withHighlight(scored(), true));
+    expect(await highlightOf()).toHaveLength(1);
+  });
+
+  it('licença que virou CC BY-SA na Commons: a foto não vai ao fundo, mesmo com o manifesto dizendo que não', async () => {
+    await importCommons(db, store, client(licenses), withHighlight(scored(), true));
+    expect(await highlightOf()).toHaveLength(1);
+    const bySa = { ...licenses, 'File:MP4-4 Suzuka 1988.jpg': 'cc-by-sa-2.0' };
+    const plan = await importCommons(db, store, client(bySa), withHighlight(scored(), true), { plan: true });
+    expect(plan.highlights).toBe(0);
+    const r = await importCommons(db, store, client(bySa), withHighlight(scored(), true));
+    expect(r.highlights).toBe(0);
+    expect(r.withoutHighlight).toEqual(['driver/ayrton-senna']);
+    expect(await highlightOf()).toEqual([]);
+    // só o piloto (--so driver/...): o carro não é conferido de novo e vale o crédito gravado (CC BY-SA), não
+    // o manifesto
+    const onlyDriver = await importCommons(db, store, client(licenses), withHighlight(scored(), true), {
+      only: new Set(['driver/ayrton-senna']),
+    });
+    expect(onlyDriver.highlights).toBe(0);
+    // a licença voltou a ser CC BY na Commons: o carro conferido de novo volta ao fundo
+    const back = await importCommons(db, store, client(licenses), withHighlight(scored(), true));
+    expect(back.highlights).toBe(1);
     expect(await highlightOf()).toHaveLength(1);
   });
 

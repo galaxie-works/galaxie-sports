@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 export interface CorsOptions {
   /**
@@ -23,6 +23,13 @@ declare module 'fastify' {
   interface FastifyRequest {
     /** Origem já conferida contra a chave publicável desta requisição. */
     publishableOrigin?: string;
+  }
+  interface FastifyInstance {
+    /**
+     * Headers CORS de uma resposta (sem preflight). Exposto para rotas que assumem o socket
+     * (`reply.hijack()`, como o SSE), que não passam pelos hooks `onSend`. Ausente = CORS desligado.
+     */
+    corsHeaders?: (request: FastifyRequest) => Record<string, string>;
   }
 }
 
@@ -91,17 +98,23 @@ export function registerCors(
     return n && allowed.has(n) ? origin : null;
   };
 
-  app.addHook('onSend', async (request, reply, payload) => {
-    reply.header('vary', mergeVary(reply.getHeader('vary'), 'Origin'));
-    if (reply.hasHeader('access-control-allow-origin')) return payload; // preflight publicável
+  const corsHeaders = (request: FastifyRequest): Record<string, string> => {
     const origin =
       request.publishableOrigin && request.publishableOrigin === request.headers.origin
         ? request.publishableOrigin
         : allowOrigin(request.headers.origin, request.url);
-    if (!origin) return payload;
-    reply
-      .header('access-control-allow-origin', origin)
-      .header('access-control-expose-headers', EXPOSED_HEADERS.join(', '));
+    return origin
+      ? { 'access-control-allow-origin': origin, 'access-control-expose-headers': EXPOSED_HEADERS.join(', ') }
+      : {};
+  };
+  app.decorate('corsHeaders', corsHeaders);
+
+  app.addHook('onSend', async (request, reply, payload) => {
+    reply.header('vary', mergeVary(reply.getHeader('vary'), 'Origin'));
+    if (reply.hasHeader('access-control-allow-origin')) return payload; // preflight publicável
+    const headers = corsHeaders(request);
+    if (!headers['access-control-allow-origin']) return payload;
+    reply.headers(headers);
     if (request.method === 'OPTIONS') {
       const method = String(request.headers['access-control-request-method'] ?? '').toUpperCase();
       if (ALLOWED_METHODS.includes(method)) {

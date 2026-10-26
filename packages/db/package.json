@@ -15,6 +15,10 @@
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
     },
+    "./change-feed": {
+      "types": "./dist/change-feed.d.ts",
+      "default": "./dist/change-feed.js"
+    },
     "./widgets": {
       "types": "./dist/widgets.d.ts",
       "default": "./dist/widgets.js"

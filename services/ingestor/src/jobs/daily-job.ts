@@ -1,4 +1,5 @@
-import type { ApiSport, PlanRules } from '@galaxie/apisports-client';
+import type { ApiSport, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
+import { isInPlay, mapFootballStatus } from '@galaxie/providers';
 import type { CatalogSource } from './catalog-source.js';
 import { buildDetailRequests, selectDetailFixtures, splitDone } from './details-job.js';
 import { collectFixtures, dateList } from './fixtures.js';
@@ -14,6 +15,8 @@ import type { RawSource } from './runtime/raw-source.js';
 import { plannedRequest, type JobSpec, type PlannedRequest } from './runtime/runner.js';
 
 const DAY_MS = 86_400_000;
+/** Jogo que começou há mais que isto já acabou (futebol: ~2 h, com prorrogação e pênaltis ~2h40). */
+const SURELY_OVER_MS = 6 * 3_600_000;
 
 /** Agenda diária das outras 11 APIs (cada uma com cota própria): 1 chamada = todas as ligas do dia. */
 export const OTHER_SPORTS_SCHEDULE: Record<Exclude<ApiSport, 'football'>, string> = {
@@ -99,6 +102,40 @@ export function buildScheduleRequests(now: Date, opts: DailyOptions = {}): Plann
 }
 
 /**
+ * Agenda de anteontem gravada com jogo ainda em andamento: o sync das 00:05 grava `fixtures?date=D-1` com os
+ * jogos que começaram depois das ~22h UTC no meio, e essa lista não era mais buscada (D-2 tem TTL eterno no
+ * raw) — o jogo ficava em andamento no raw e nunca recebia detalhe. Rebusca a lista de D-2 (1 chamada,
+ * uma vez por dia) só quando ela tem jogo em andamento (`isInPlay`: inclui intervalo e suspenso/interrompido,
+ * que pode ter sido retomado); o detalhe dos encerrados vem na fase seguinte, que também aceita o jogo que a
+ * lista deixou em andamento mas já deveria ter acabado (`isStaleOpen`, sem os suspensos).
+ */
+export async function reopenUnfinishedDay(
+  raw: RawSource,
+  now: Date,
+  plan: PlanRules,
+): Promise<PlannedRequest[]> {
+  // plano com date= só em hoje ± 1 (free): a lista de D-2 é bloqueada; o detalhe por id cobre (fase seguinte)
+  const window = plan.current.dateWindowDays;
+  if (window !== undefined && window < 2) return [];
+  const date = utcDate(now, -2);
+  const open = (await collectFixtures(raw, [dateList(date)])).filter((f) => {
+    const status = mapFootballStatus(f.status);
+    return status != null && isInPlay(status);
+  });
+  if (!open.length) return [];
+  return [
+    plannedRequest(
+      'fixtures-data',
+      'football',
+      '/fixtures',
+      { date },
+      // a lista de D-2 nunca expira no raw: sem maxAgeMs = 0 o cliente serviria a gravada
+      { staleBefore: startOfUtcDay(now), maxAgeMs: 0 },
+    ),
+  ];
+}
+
+/**
  * Rodízio de entidades dos times tier 1: escolhe os itens cujo cursor está mais velho que o período
  * (nunca buscados primeiro), até o limite do dia. Usa os mesmos cursores do bootstrap:people.
  * O limite vale por dia UTC: o que já foi renovado hoje desconta (reexecutar não gasta de novo).
@@ -131,6 +168,29 @@ export async function buildRotationRequests(
     .map((a) => a.item);
 }
 
+export type StatusCheck =
+  { sport: ApiSport; ok: true; status: ProviderStatus } | { sport: ApiSport; ok: false; error: unknown };
+
+/**
+ * /status de cada API antes do sync (não consome cota; reconcilia o Governor com o contador do fornecedor).
+ * Uma API que falha (timeout, fora do ar) só fica registrada: o sync segue com o contador local, e o
+ * futebol não deixa de rodar por causa de uma API auxiliar.
+ */
+export async function checkProviderStatus(
+  sports: readonly ApiSport[],
+  status: (sport: ApiSport) => Promise<ProviderStatus>,
+): Promise<StatusCheck[]> {
+  const out: StatusCheck[] = [];
+  for (const sport of sports) {
+    try {
+      out.push({ sport, ok: true, status: await status(sport) });
+    } catch (error) {
+      out.push({ sport, ok: false, error });
+    }
+  }
+  return out;
+}
+
 /** Job #19: sync diário incremental (prioridade DAILY). */
 export function dailyJob(
   catalog: CatalogSource,
@@ -145,7 +205,13 @@ export function dailyJob(
     job: 'sync:daily',
     priority: 'DAILY',
     phases: [
-      { name: 'agenda e referência', build: async () => buildScheduleRequests(now(), opts) },
+      {
+        name: 'agenda e referência',
+        build: async () => [
+          ...buildScheduleRequests(now(), opts),
+          ...(await reopenUnfinishedDay(raw, now(), plan)),
+        ],
+      },
       {
         name: 'detalhe dos encerrados',
         build: async () => {
@@ -156,6 +222,8 @@ export function dailyJob(
           const lists = Array.from({ length: days }, (_, i) => dateList(utcDate(now(), -(i + 1))));
           const ranked = selectDetailFixtures(await collectFixtures(raw, lists), comps, await derbyKeys(), {
             keyOnly: false,
+            // lista gravada no meio do jogo (sync das 00:05 com jogo das 22h UTC): o detalhe traz o resultado
+            openStartedBefore: new Date(now().getTime() - SURELY_OVER_MS),
           });
           const { pending } = await splitDone(
             ranked.map((f) => f.id),

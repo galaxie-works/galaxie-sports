@@ -14,7 +14,7 @@ import {
   relatedRun,
   type Database,
 } from '@galaxie/db';
-import { loadWtwConfig } from '@galaxie/where-to-watch';
+import { Blocklist, loadWtwConfig } from '@galaxie/where-to-watch';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import { broadcasterChannelsFrom, ChannelAllowlist, loadChannelEntries } from '../src/related/channels.js';
 import { runRelatedAgent, type RelatedRunOptions } from '../src/related/run.js';
@@ -342,6 +342,41 @@ describe('Conteúdo relacionado (integração)', () => {
     expect(
       await db.select().from(changeFeed).where(eq(changeFeed.topic, RELATED_CONTENT_TOPIC)),
     ).toHaveLength(2);
+  });
+
+  it('canal que entra na blocklist editorial: o vídeo já publicado é retirado na revalidação', async () => {
+    const yt = new YoutubeClient({ apiKey: 'test', fetch: fakeYoutube(state) });
+    const report = await runRelatedAgent(db, {
+      ...base,
+      now: new Date(NOW.getTime() + 2 * 3_600_000),
+      allowlist: new ChannelAllowlist({
+        entries: [...loadChannelEntries(), ...broadcasterChannelsFrom(base.wtw)],
+        blocklist: new Blocklist([{ name: 'reactfc', aliases: [], domains: [] }]),
+      }),
+      llm: null,
+      youtube: yt,
+    });
+    expect(report.items[0]).toMatchObject({ action: 'revalidated', published: 2 });
+    const versions = await db
+      .select()
+      .from(relatedContent)
+      .where(and(eq(relatedContent.eventId, eventId), eq(relatedContent.externalId, 'v-react')));
+    expect(versions.map((v) => v.status).sort()).toEqual(['published', 'retracted']);
+    expect((await readRelatedContent(db, eventId)).rows.map((r) => r.externalId)).not.toContain('v-react');
+
+    // balde geral: com 1 unidade sobrando, a revalidação (videos.list + channels.list) nem entra
+    const used = report.quota.api.usedBefore + report.quota.api.spent;
+    const tight = await runRelatedAgent(db, {
+      ...base,
+      now: new Date(NOW.getTime() + 4 * 3_600_000),
+      dailyQuota: used + 1,
+      reservePercent: 0,
+      llm: null,
+      youtube: yt,
+    });
+    expect(tight.items).toHaveLength(0);
+    expect(tight.idle).toBe(1);
+    expect(tight.quota.api.spent).toBe(0);
   });
 
   it('cota do dia: corta consultas que não cabem e pula quando não sobra nada', async () => {

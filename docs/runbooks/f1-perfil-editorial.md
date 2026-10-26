@@ -19,7 +19,7 @@ Título só conta em temporada encerrada (a liderança do ano corrente não é t
 
 ## Traços calculados (`/v1/teams/{id}/traits`)
 
-Corrida = sessão `Race` (sprint fora); pole = 1º na classificação do GP, como na carreira; chegada conta só com bandeirada (posição numérica).
+Corrida = sessão `Race` (sprint fora) que o piloto largou, como na carreira (não largou, não participou e excluído não contam; abandono conta); pole = 1º na classificação do GP, como na carreira; chegada conta só com bandeirada (posição numérica).
 
 - **Pistas preferidas**: por circuito, largadas, vitórias, pódios, poles, melhor chegada e chegada média. As 3 melhores, na ordem vitórias → pódios → poles → chegada média, com pelo menos 2 largadas no circuito (`circuits.criterion` na resposta).
 - **Sábado × domingo**: poles por largada, largada média, chegada média e posições ganhas (largada − chegada, só corridas com as duas). O rótulo compara o piloto ao companheiro de equipe, que tem o mesmo carro: com 20 duelos ou mais de cada, quem vence o duelo de grid 10 pontos percentuais acima do de corrida é **piloto de classificação**; o contrário, **piloto de corrida**; no meio, **equilibrado**. Senna: 89% no grid e 78% na chegada, piloto de classificação.

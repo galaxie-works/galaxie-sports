@@ -141,6 +141,59 @@ describe('LiveRunner', () => {
     expect([...summary.plans.values()].some((p) => p.featured)).toBe(true);
   });
 
+  it('erro ao planejar (banco fora) ou no gancho do tick não derruba o ao vivo', async () => {
+    const error = vi.fn();
+    const warn = vi.fn();
+    const onTick = vi.fn().mockRejectedValueOnce(new Error('gancho quebrado'));
+    const { world, runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T17:20:00Z') },
+      { log: { info() {}, debug() {}, error, warn }, hooks: { onTick } },
+    );
+    vi.spyOn(world.store, 'candidates')
+      .mockRejectedValueOnce(new Error('banco fora'))
+      .mockRejectedValueOnce(new Error('banco fora'));
+    const summary = await runner.run();
+    expect(summary.stoppedBy).toBe('until');
+    expect(summary.errors).toBeGreaterThanOrEqual(2);
+    expect(error).toHaveBeenCalledWith(expect.anything(), 'falha ao planejar o ao vivo; tentando de novo');
+    // seguiu acompanhando depois das falhas
+    expect(summary.ticks).toBeGreaterThan(1);
+    expect(onTick.mock.calls.length).toBe(summary.ticks);
+    expect(warn).toHaveBeenCalledWith(expect.anything(), 'falha no gancho do tick ao vivo; seguindo');
+  });
+
+  it('erro que não passa (ex.: bug, banco fora de vez): desiste depois de N seguidos e o job sai com erro', async () => {
+    const { world, runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T20:00:00Z'), maxConsecutiveErrors: 3 },
+      { log: { info() {}, debug() {}, error() {}, warn() {} } },
+    );
+    const candidates = vi
+      .spyOn(world.store, 'candidates')
+      .mockRejectedValue(new Error('relation does not exist'));
+    await expect(runner.run()).rejects.toThrow(
+      /desistiu depois de 3 erros seguidos ao planejar: relation does not exist/,
+    );
+    expect(candidates).toHaveBeenCalledTimes(3);
+  });
+
+  it('tick que sempre falha (o wait entre os ticks não zera a contagem): desiste depois de N seguidos', async () => {
+    const { runner } = runnerFor(
+      wednesdayNight(),
+      '2026-10-21T16:50:00Z',
+      { idleExitMs: null, until: new Date('2026-10-21T23:00:00Z'), maxConsecutiveErrors: 3 },
+      { log: { info() {}, debug() {}, error() {}, warn() {} } },
+    );
+    const poller = (runner as unknown as { poller: { tick: (...args: unknown[]) => Promise<unknown> } })
+      .poller;
+    const tick = vi.spyOn(poller, 'tick').mockRejectedValue(new Error('insert falhou'));
+    await expect(runner.run()).rejects.toThrow(/desistiu depois de 3 erros seguidos no tick: insert falhou/);
+    expect(tick).toHaveBeenCalledTimes(3);
+  });
+
   it('falha ao reler a configuração mantém a atual', async () => {
     const { runner } = runnerFor(
       wednesdayNight(),

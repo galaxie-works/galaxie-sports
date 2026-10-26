@@ -1,8 +1,16 @@
 export * from './schema/index.js';
 export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
-export { publishChange, CHANGE_FEED_CHANNEL, type ChangeInput } from './change-feed.js';
+export {
+  publishChange,
+  tagsForChange,
+  CHANGE_FEED_CHANNEL,
+  type ChangeInput,
+  type ChangeTagSource,
+} from './change-feed.js';
+export { GapCursor } from './gap-cursor.js';
 export {
   readEventContext,
   EVENT_CONTEXT_KINDS,
@@ -22,11 +30,14 @@ export {
   readRelatedContent,
   recordPlaybackBlock,
   RELATED_CHANNEL_BLOCK_THRESHOLD,
+  RELATED_GLOBAL_BLOCK_TENANTS,
   relatedContentTag,
+  RELATED_CONTENT_PURGE_TOPIC,
   RELATED_CONTENT_TOPIC,
   type PlaybackBlockIndex,
   type PlaybackBlockInput,
   type PlaybackBlockResult,
+  type PlaybackRemoval,
   type ReadRelatedOptions,
   type RelatedContentPage,
   type RelatedContentRow,

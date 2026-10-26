@@ -67,6 +67,12 @@ export type TeamResolution = { qid: string } | { ambiguous: string[] } | { none:
 export interface TeamPlayer {
   qid: string;
   birthDate: string;
+  /**
+   * Precisão do nascimento no Wikidata (`timePrecision`: 11 = dia, 10 = mês, 9 = ano). Só com o dia o nascimento é
+   * gravado; com menos, o jogador continua no casamento (um homônimo não vira par único), com a idade aproximada.
+   * Duas datas diferentes com a mesma precisão ficam como 10 (não grava).
+   */
+  birthPrecision: number;
   labels: string[];
   countries: string[];
   image: string | null;
@@ -155,6 +161,14 @@ function narrow(ids: string[], test: (id: string) => boolean): string[] {
   return hit.length ? hit : ids;
 }
 
+/**
+ * País do time no core e P17 do item batem, com os dois lados presentes. O `countriesMatch` das fotos deixa passar
+ * o lado ausente de propósito; para resolver o time, sem país não há como separar homônimos de outros países.
+ */
+function sameCountry(country: string | null, countries: string[]): boolean {
+  return !!country && countries.length > 0 && countriesMatch(country, countries);
+}
+
 /** Liga do Wikidata compatível com a nossa: nome igual, ou um contém o outro ("Scottish Premiership" ⊃ "Premiership"). */
 function leagueMatches(ours: string, theirs: string): boolean {
   if (ours === theirs) return true;
@@ -164,13 +178,14 @@ function leagueMatches(ours: string, theirs: string): boolean {
 
 /**
  * Time do core → QID: entre os itens achados pela busca, os que são clube de futebol (ou poliesportivo), do mesmo
- * país e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). Um item principal com o
+ * país (os dois lados com país: sem ele, não resolve) e da mesma categoria (o principal nunca liga com o feminino, a base ou a reserva). Um item principal com o
  * nome inteiro igual ao nosso também vale ("Willem II" é o principal, não a reserva do "Willem"); o feminino de
  * mesmo nome não (o "Club Tijuana" feminino). Entre os que sobram:
  * - o time de futebol passa à frente do clube poliesportivo de mesmo nome (Kongsvinger IL Toppfotball × Kongsvinger
  *   IL);
  * - o clube passa à frente do item do primeiro time dele ("first men's team of 1. FC Heidenheim", P361 = o clube):
- *   é no clube que o P54 dos jogadores aponta;
+ *   é no clube que o P54 dos jogadores aponta. Sem o clube entre os candidatos (nem pelo P361, nem um com o mesmo
+ *   nome), o item do primeiro time fica: rebaixá-lo deixaria outro clube como resolução única;
  * - homônimos desempatam pelo nome exato (rótulo ou apelido) e depois pela liga (P118 com o nome de uma liga em
  *   que o time jogou).
  * Um só: resolvido. Mais de um: ambíguo. Nenhum: sem QID.
@@ -187,16 +202,23 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
       (itCategory === 'senior' && it.names.some((n) => normalizeTeamName(n) === fullName));
     return (
       it.types.some((t) => FOOTBALL_TYPES.has(t) || t === SPORTS_CLUB_TYPE) &&
-      countriesMatch(team.country, it.countries) &&
+      sameCountry(team.country, it.countries) &&
       sameCategory
     );
   });
   if (ok.length > 1) ok = narrow(ok, (id) => items.get(id)!.types.some((t) => FOOTBALL_TYPES.has(t)));
   if (ok.length > 1) {
     const set = new Set(ok);
+    const names = (id: string) => new Set(items.get(id)!.names.map(normalizeTeamName));
+    // o clube do item do primeiro time está entre os candidatos: pelo P361 ou por um item com o mesmo nome
+    const clubPresent = (id: string) => {
+      const own = names(id);
+      return ok.some((o) => o !== id && [...names(o)].some((n) => own.has(n)));
+    };
     ok = narrow(ok, (id) => {
       const it = items.get(id)!;
-      return !it.partOf.some((p) => set.has(p)) && !FIRST_TEAM.test(it.description ?? '');
+      if (it.partOf.some((p) => set.has(p))) return false;
+      return !(FIRST_TEAM.test(it.description ?? '') && clubPresent(id));
     });
   }
   const name = normalizeTeamName(teamSearchName(team.name));
@@ -210,16 +232,21 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
   return ok.length ? { ambiguous: ok } : { none: true };
 }
 
-/** Jogadores com passagem pelos times em 2026 (P54 com início até 2026 e fim a partir de 2026, quando houver). */
+/**
+ * Jogadores com passagem pelos times em 2026 (P54 com início até 2026 e fim a partir de 2026, quando houver). O
+ * nascimento vem da afirmação de melhor rank (`wikibase:BestRank`, como o `wdt:`) com a precisão
+ * (`timePrecision`): data só com o ano ou o mês não pode ser gravada como 1º de janeiro exato.
+ */
 export function teamPlayersQuery(teamQids: string[], season = 2026): string {
-  return `SELECT ?player ?team ?birth ?image ?label ?country WHERE {
+  return `SELECT ?player ?team ?birth ?prec ?image ?label ?country WHERE {
   VALUES ?team { ${teamQids.map((q) => `wd:${q}`).join(' ')} }
   ?player p:P54 ?st. ?st ps:P54 ?team.
   OPTIONAL { ?st pq:P580 ?start }
   OPTIONAL { ?st pq:P582 ?end }
   FILTER(!BOUND(?start) || YEAR(?start) <= ${season})
   FILTER(!BOUND(?end) || YEAR(?end) >= ${season})
-  ?player wdt:P569 ?birth.
+  ?player p:P569 ?bst. ?bst a wikibase:BestRank; psv:P569 ?bv.
+  ?bv wikibase:timeValue ?birth; wikibase:timePrecision ?prec.
   FILTER(YEAR(?birth) >= ${season - 50})
   OPTIONAL { ?player wdt:P18 ?image }
   ?player rdfs:label ?label FILTER(LANG(?label) IN ("en", "es", "pt", "fr", "it", "de"))
@@ -233,14 +260,21 @@ export function teamPlayers(rows: SparqlBinding[]): TeamPlayer[] {
     const qid = r.player?.value.split('/').pop();
     const team = r.team?.value.split('/').pop();
     if (!qid || !team || !r.birth) continue;
+    const birth = r.birth.value.slice(0, 10);
+    const precision = Number(r.prec?.value ?? 0) || 0;
     const p = out.get(qid) ?? {
       qid,
-      birthDate: r.birth.value.slice(0, 10),
+      birthDate: birth,
+      birthPrecision: precision,
       labels: [],
       countries: [],
       image: null,
       teams: [],
     };
+    // mais de uma data de melhor rank: vale a mais precisa; duas diferentes no mesmo nível não gravam
+    if (precision > p.birthPrecision) Object.assign(p, { birthDate: birth, birthPrecision: precision });
+    else if (precision === p.birthPrecision && birth !== p.birthDate && precision >= 11)
+      p.birthPrecision = 10;
     if (r.label && !p.labels.includes(r.label.value)) p.labels.push(r.label.value);
     if (r.country && !p.countries.includes(r.country.value)) p.countries.push(r.country.value);
     if (!p.teams.includes(team)) p.teams.push(team);
@@ -259,8 +293,17 @@ export function ageOn(birth: string, at: string): number {
 }
 
 /**
- * Casa cada candidato com os jogadores dos times dele no Wikidata: nome compatível, idade com ±1 ano e
- * nacionalidade que não diverge. Liga só com um candidato único; o mesmo QID para duas pessoas do core não liga
+ * Idade compatível: ±1 ano com o nascimento exato; ±2 só com o ano ou o mês (o dia desconhecido); sem nem o ano,
+ * não dá para conferir e o jogador conta como possível (homônimo não vira par único).
+ */
+function ageMatches(p: TeamPlayer, c: TeamCandidate): boolean {
+  if (p.birthPrecision < 9) return true;
+  return Math.abs(ageOn(p.birthDate, c.ageAt) - c.age) <= (p.birthPrecision >= 11 ? 1 : 2);
+}
+
+/**
+ * Casa cada candidato com os jogadores dos times dele no Wikidata: nome compatível, idade compatível
+ * (`ageMatches`) e nacionalidade que não diverge. Liga só com um candidato único; o mesmo QID para duas pessoas do core não liga
  * nenhuma (conta como ambíguo).
  */
 export function matchByTeam(
@@ -285,7 +328,7 @@ export function matchByTeam(
     const hits = pool.filter(
       (p) =>
         p.labels.some((l) => namesMatch(c, l)) &&
-        Math.abs(ageOn(p.birthDate, c.ageAt) - c.age) <= 1 &&
+        ageMatches(p, c) &&
         countriesMatch(c.nationality, p.countries),
     );
     if (hits.length === 1) found.push({ candidate: c, player: hits[0]! });
@@ -509,33 +552,48 @@ export interface BioReport {
   linked: number;
   birthDates: number;
   nationalities: number;
+  /** Casamentos recusados: o QID já é de outra pessoa, ou a pessoa já tem outro QID. */
+  conflicts: number;
 }
 
 /**
  * Grava o que veio do Wikidata: nascimento e nacionalidade só onde o core não tem (o null nunca apaga) e o QID em
  * `core.provider_map` (`wikidata`/`football`/`person`). Grava também o QID dos times resolvidos (`participant`).
+ * QID já ligado a outra pessoa (ou pessoa já ligada a outro QID) não grava nada: os dados seriam de outra pessoa.
  */
 export async function saveTeamMatches(
   db: Database,
   matches: TeamMatch[],
   teams: Map<string, TeamResolution>,
 ): Promise<BioReport> {
-  const report: BioReport = { linked: 0, birthDates: 0, nationalities: 0 };
+  const report: BioReport = { linked: 0, birthDates: 0, nationalities: 0, conflicts: 0 };
   for (const m of matches) {
     await db.transaction(async (tx) => {
       const [before] = await tx.execute<{ birth: string | null; nat: string | null }>(sql`
         select birth_date::text as birth, nationality as nat from core.person where id = ${m.candidate.personId} for update
       `);
       if (!before) return;
+      const [taken] = await tx.execute<{ n: number }>(sql`
+        select count(*)::int as n from core.provider_map
+        where provider = 'wikidata' and entity_type = 'person'
+          and ((provider_id = ${m.player.qid} and entity_id <> ${m.candidate.personId})
+            or (entity_id = ${m.candidate.personId} and provider_id <> ${m.player.qid}))
+      `);
+      if (taken?.n) {
+        report.conflicts += 1;
+        return;
+      }
       const nat = nationalityOf(m.player);
+      // nascimento só com o dia (precisão 11); com o ano ou o mês, liga o QID e a nacionalidade, sem a data
+      const birth = m.player.birthPrecision >= 11 ? m.player.birthDate : null;
       await tx.execute(sql`
         update core.person
-        set birth_date = coalesce(birth_date, ${m.player.birthDate}::date),
+        set birth_date = coalesce(birth_date, ${birth}::date),
             nationality = coalesce(nationality, ${nat}),
             updated_at = now()
         where id = ${m.candidate.personId}
       `);
-      if (!before.birth) report.birthDates += 1;
+      if (!before.birth && birth) report.birthDates += 1;
       if (!before.nat && nat) report.nationalities += 1;
       await tx.execute(sql`
         insert into core.provider_map (entity_type, entity_id, provider, sport, provider_id)

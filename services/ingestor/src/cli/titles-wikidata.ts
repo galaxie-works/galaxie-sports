@@ -5,7 +5,9 @@
  *   pnpm --filter @galaxie/ingestor titulos:wikidata          # grava títulos e as ligações novas de times
  * Opções: --competicao conmebol-libertadores (só uma) · --refresh (ignora o cache das consultas) ·
  *   --corrigir-ligacoes (move o QID do provider_map para o time que o nome indica, quando a ligação atual
- *   aponta para um time de base/feminino ou para outro clube; sem a opção, o conflito só é relatado)
+ *   aponta para um time de base/feminino ou para outro clube; sem a opção, o conflito só é relatado) ·
+ *   --aceitar-queda (grava mesmo quando a consulta veio sem edições ou com bem menos títulos que os gravados;
+ *   sem a opção, essa competição fica como estava e o motivo é relatado)
  */
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
@@ -20,9 +22,11 @@ import {
   loadMappedTeams,
   resolveWinners,
   saveTitles,
+  titleDropGuard,
   coverageOf,
   TITLE_COMPETITIONS,
   type Coverage,
+  type TitleCompetition,
   type TitleRow,
 } from '../titles/wikidata-titles.js';
 
@@ -32,6 +36,7 @@ const { values } = parseArgs({
     refresh: { type: 'boolean', default: false },
     competicao: { type: 'string' },
     'corrigir-ligacoes': { type: 'boolean', default: false },
+    'aceitar-queda': { type: 'boolean', default: false },
   },
 });
 
@@ -94,10 +99,11 @@ try {
   const champions = await loadCoreChampions(db, [...ids.values()]);
   const rows: TitleRow[] = [];
   const coverage: Coverage[] = [];
-  const counts = new Map<string, Map<string, number>>();
+  // por competição da lista (o Paraguai tem dois feeds com o mesmo QID)
+  const counts = new Map<TitleCompetition, Map<string, number>>();
   for (const c of competitions) {
     const compIds = c.slugs.map((s) => ids.get(s)).filter((x): x is string => !!x);
-    const editions = editionsBy.get(c.qid) ?? [];
+    const editions = editionsBy.get(c) ?? [];
     for (const e of editions) {
       if (e.rejected) continue;
       const winner = e.winners[0]!;
@@ -130,9 +136,9 @@ try {
         });
       }
       if (participantId) {
-        const m = counts.get(c.qid) ?? new Map<string, number>();
+        const m = counts.get(c) ?? new Map<string, number>();
         m.set(participantId, (m.get(participantId) ?? 0) + 1);
-        counts.set(c.qid, m);
+        counts.set(c, m);
       }
     }
     for (const compId of compIds) coverage.push(coverageOf(c, compId, editions));
@@ -141,7 +147,7 @@ try {
   console.log('');
   const who = (qids: readonly string[]) => qids.map((w) => winnerName.get(w) ?? w).join(' / ');
   for (const c of competitions) {
-    const editions = editionsBy.get(c.qid) ?? [];
+    const editions = editionsBy.get(c) ?? [];
     const ok = editions.filter((e) => !e.rejected);
     const found = c.slugs.filter((s) => ids.has(s));
     const linked = ok.filter((e) => participantOf(e.winners[0]!)).length;
@@ -164,7 +170,7 @@ try {
           `${REASONS[e.rejected.reason]}${e.rejected.detail ? ` (${e.rejected.detail})` : ''}`,
       );
     }
-    const top = [...(counts.get(c.qid) ?? new Map<string, number>()).entries()]
+    const top = [...(counts.get(c) ?? new Map<string, number>()).entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([id, n]) => `${teamName.get(id) ?? id} ${n}`);
@@ -188,16 +194,28 @@ try {
   for (const [qid, id] of newLinks)
     console.log(`  nova ligação: ${winnerName.get(qid)} (${qid}) → ${teamName.get(id)}`);
 
+  const slugOf = new Map([...ids].map(([slug, id]) => [id, slug]));
   if (values.plan) {
     console.log(
       `Prévia: nada foi gravado (${rows.length} títulos e ${coverage.length} coberturas seriam gravados).`,
     );
+    const skips = values['aceitar-queda'] ? [] : await titleDropGuard(db, rows, coverage);
+    for (const s of skips)
+      console.log(
+        `  seria mantida como estava: ${slugOf.get(s.competitionId) ?? s.competitionId} (${s.reason}; --aceitar-queda grava assim mesmo)`,
+      );
   } else {
-    const saved = await saveTitles(db, rows, newLinks, coverage, relinks);
+    const saved = await saveTitles(db, rows, newLinks, coverage, relinks, {
+      allowDrop: values['aceitar-queda'],
+    });
     console.log(
-      `Gravados: ${saved.titles} títulos · ${coverage.length} coberturas · ${saved.links} ligações novas de times · ` +
-        `${saved.relinked} ligações corrigidas`,
+      `Gravados: ${saved.titles} títulos · ${coverage.length - saved.skipped.length} coberturas · ` +
+        `${saved.links} ligações novas de times · ${saved.relinked} ligações corrigidas`,
     );
+    for (const s of saved.skipped)
+      console.log(
+        `  mantida como estava: ${slugOf.get(s.competitionId) ?? s.competitionId} (${s.reason}; --aceitar-queda grava assim mesmo)`,
+      );
   }
   console.log(`Consultas ao Wikidata: ${sparql.networkCalls} (cache: ${sparql.cacheHits})`);
 } finally {
