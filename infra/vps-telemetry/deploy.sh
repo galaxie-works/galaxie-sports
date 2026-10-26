@@ -28,8 +28,8 @@
 #      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
-#   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica, nomes
-#      curados de estádios e importância
+#   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica (falha
+#      só avisa), nomes curados de estádios e importância
 #   8. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h) e confere a conta da IA
 #      (só avisa)
 #   9. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
@@ -359,8 +359,9 @@ fi
 MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
 # pós-deploy (seed, nomes, importância, cache de respostas, conta da IA): o mesmo script do deploy pelo GitHub
-# Actions, rodado na VPS; falha no seed ou no cache derruba o deploy, a checagem da IA só avisa
-ssh "$VPS" "cd $DIR && bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
+# Actions, rodado na VPS; falha nos nomes, na importância ou no cache derruba o deploy; o seed semântico e a checagem
+# da IA só avisam
+ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
 
 echo "smoke test"
 ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
