@@ -83,7 +83,7 @@ import {
   CHANNEL_QUERY_PREFIX,
   competitionYields,
   currentRelatedRows,
-  expireStaleRelated,
+  purgeYoutubeData,
   quotaUsage,
   saveRelatedBudget,
   saveRelatedContent,
@@ -488,7 +488,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
   };
   if (!opts.plan) {
     if (!opts.youtube) throw new Error('Cliente do YouTube ausente (YOUTUBE_API_KEY).');
-    report.expired = (await expireStaleRelated(db, { now })).rows;
+    report.expired = (await purgeYoutubeData(db, { now })).rows;
   }
   const maxTier = opts.maxTier ?? 2;
   const ctx = await priorityContext(db, {
@@ -675,7 +675,11 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       };
 
       if (opts.plan) {
-        const known = hasChannels && mode !== 'revalidate' ? await book.linksFor(channelQuery) : [];
+        // canal bloqueado (recusas do player ou painel) não é lido: não entra na estimativa
+        const blockedChannels = (await readPlaybackBlocks(db)).channels;
+        const known = (hasChannels && mode !== 'revalidate' ? await book.linksFor(channelQuery) : []).filter(
+          (c) => !blockedChannels.has(c.channelId),
+        );
         const planned = queries.slice(0, allowance);
         item.action = 'planned';
         item.queries = planned.map((q) => `${q.language}:${q.label}`);
@@ -754,10 +758,23 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           return rel.ok ? verdict.tier : null;
         };
 
+        // vídeos que o player oficial recusou e canais fora (no limiar de recusas ou bloqueados no painel): a
+        // coleta os pula ANTES de gastar cota (playlistItems, videos.list, channels.list)
+        const blocks = await readPlaybackBlocks(db);
+        const skipped = { channels: 0, videos: 0 };
+        const blockedHit = (videoId: string, channelId: string | null) => {
+          const out = blocks.videos.has(videoId) || (!!channelId && blocks.channels.has(channelId));
+          if (out) skipped.videos++;
+          return out;
+        };
+
         // 1. canais conhecidos (clubes, competição, emissoras): 1 unidade por página de uploads
         let channelUsable = 0;
         if (mode !== 'revalidate' && hasChannels) {
-          const known = await book.knownChannels(channelQuery);
+          // canal bloqueado sai antes do channels.list (detalhe do canal) e do playlistItems
+          const links = await book.linksFor(channelQuery);
+          skipped.channels = links.filter((l) => blocks.channels.has(l.channelId)).length;
+          const known = await book.knownChannels(channelQuery, blocks.channels);
           item.channels = known.length;
           let matches = 0;
           for (const ch of known) {
@@ -777,6 +794,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               kind: ch.kind,
               side,
             })) {
+              if (blockedHit(m.videoId, ch.channelId)) continue;
               add(m.videoId, `${CHANNEL_QUERY_PREFIX}${ch.kind}`, null, null);
               matches++;
             }
@@ -815,13 +833,17 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               throw err;
             }
             searches++;
-            const fresh = hits.map((h) => h.videoId).filter((v) => !found.has(v));
+            // a busca não exclui canal: o que vier de vídeo ou canal bloqueado nem vai para o videos.list
+            const allowedHits = hits.filter(
+              (h) => found.has(h.videoId) || !blockedHit(h.videoId, h.channelId),
+            );
+            const fresh = allowedHits.map((h) => h.videoId).filter((v) => !found.has(v));
             (stats.queries as Record<string, unknown>)[`${q.language}:${q.label}`] = {
               q: q.params.q,
               hits: hits.length,
               new: fresh.length,
             };
-            for (const h of hits)
+            for (const h of allowedHits)
               add(h.videoId, `${q.language}:${q.label}`, q.language, q.params.regionCode ?? null);
             await fetchDetails(fresh);
             const newVideos = fresh.flatMap((v) => (details.has(v) ? [details.get(v)!] : []));
@@ -835,11 +857,18 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             }
           }
         }
-        // 3. detalhe dos guardados (o que sumiu vira retracted)
+        // 3. detalhe dos guardados (o que sumiu vira retracted). O guardado bloqueado não é relido (não gasta cota)
+        //    nem retirado: a leitura já o tira da vitrine, e ele volta sozinho se o bloqueio for desfeito
         const prevById = new Map<string, RelatedContentRow>(alive.map((r) => [r.externalId, r]));
-        await fetchDetails([...prevById.keys()]);
+        const prevBlocked = new Set(
+          [...prevById.values()]
+            .filter((r) => blocks.videos.has(r.externalId) || blocks.channels.has(r.channelId))
+            .map((r) => r.externalId),
+        );
+        await fetchDetails([...prevById.keys()].filter((x) => !prevBlocked.has(x)));
         const videos = [...details.values()].filter((v) => found.has(v.id) || prevById.has(v.id));
-        const gone = [...prevById.keys()].filter((x) => !details.has(x));
+        const gone = [...prevById.keys()].filter((x) => !details.has(x) && !prevBlocked.has(x));
+        stats.blockedSkipped = { ...skipped, stored: prevBlocked.size };
         const channels = await channelsOf(videos);
 
         // 4. canal + relevância (código)
@@ -849,8 +878,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           prev?: RelatedContentRow;
         };
         const cands: Cand[] = [];
-        // vídeos que o player oficial recusou (lista de bloqueios) e o histórico por canal e formato
-        const blocks = await readPlaybackBlocks(db);
+        // o que passou pelo filtro de antes (ex.: bloqueado no meio da execução) e o histórico por canal e formato
         for (const v of videos) {
           if (blocks.videos.has(v.id)) {
             discard('playback_blocked');
