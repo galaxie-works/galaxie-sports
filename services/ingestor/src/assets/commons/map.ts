@@ -33,7 +33,7 @@ export interface MapStats {
   candidates: number;
   eligible: number;
   chosen: number;
-  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'sem orçamento de IA' | 'já ordenado';
+  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'miniatura falhou' | 'sem orçamento de IA' | 'já ordenado';
   rejected: Rejection[];
   note: string | null;
 }
@@ -137,13 +137,25 @@ export async function mapCommons(
     const pool = [...ok].sort((a, b) => b.ruleScore - a.ruleScore).slice(0, AI_POOL);
     let judgements: AiJudgement[] | null = null;
     if (opts.ranker && pool.length) {
+      // miniaturas da Wikimedia: falha aqui pula o alvo, mas não é falha do Gemini (não conta nas seguidas)
+      const images: RankImage[] = [];
       try {
-        const images: RankImage[] = [];
         for (const e of pool) {
           const f = e.candidate.file;
           const { body, contentType } = await client.download(f.thumbUrl);
           images.push({ body, mime: contentType?.split(';')[0] ?? f.mime, title: f.title });
         }
+      } catch (err) {
+        const message = (err as Error).message;
+        opts.log?.(`${key}: miniatura da Wikimedia não baixou (${message}); o alvo fica como estava`);
+        stats.push({
+          ...empty(key, 'miniatura falhou', `pendente: miniatura não baixou (${message})`),
+          candidates: d.candidates.length,
+          eligible: ok.length,
+        });
+        continue;
+      }
+      try {
         judgements = await opts.ranker.rank(images, subjectOf(target), target.kind);
         // nenhum julgamento para fotos enviadas não é "nenhuma foto boa": o alvo não vira ordenado sem fotos
         if (!judgements.length) throw new Error(`nenhuma das ${images.length} fotos voltou julgada`);

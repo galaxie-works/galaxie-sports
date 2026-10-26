@@ -44,13 +44,9 @@ export const DEFAULT_DAILY_USD_BUDGET = 10;
 export const DEFAULT_AGENT_USD_BUDGETS =
   'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=1';
 
-/**
- * Agentes com pool de tokens próprio, fora da soma do AI_DAILY_TOKEN_BUDGET global (fração dele):
- * - assets=0.2: a ordem das fotos manda ~15 mil tokens por alvo (12 miniaturas); na conta global, ~200
- *   alvos esgotariam 3M de tokens por ~US$ 1,30 e deixariam todos os agentes sem IA até a virada. Com 20%
- *   à parte (600 mil com 3M, ~40 alvos/dia), o lote nunca tira tokens dos outros agentes.
- */
-export const SEPARATE_TOKEN_POOLS: Readonly<Record<string, number>> = { assets: 0.2 };
+// Agentes com pool de tokens próprio (assets=0.2): mora no registro (@galaxie/runtime-config), que o painel
+// também lê para mostrar o pool à parte da soma global.
+export { SEPARATE_TOKEN_POOLS } from '@galaxie/runtime-config';
 
 /**
  * Teto diário em US$ de um agente fora de AI_AGENT_USD_BUDGETS (agente novo, `purpose` sem prefixo):

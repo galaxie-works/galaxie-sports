@@ -5,6 +5,15 @@
  * nunca têm valor lido, gravado nem exibido.
  */
 
+/**
+ * Agentes com pool de tokens próprio, fora da soma do AI_DAILY_TOKEN_BUDGET global (fração dele; o
+ * ledger, @galaxie/ai-ledger, e o painel leem daqui):
+ * - assets=0.2: a ordem das fotos manda ~15 mil tokens por alvo (12 miniaturas); na conta global, ~200
+ *   alvos esgotariam 3M de tokens por ~US$ 1,30 e deixariam todos os agentes sem IA até a virada. Com 20%
+ *   à parte (600 mil com 3M, ~40 alvos/dia), o lote nunca tira tokens dos outros agentes.
+ */
+export const SEPARATE_TOKEN_POOLS: Readonly<Record<string, number>> = { assets: 0.2 };
+
 /** Contêiner (ou processo) que lê a variável. */
 export type RuntimeService = 'ingestor' | 'agents' | 'api' | 'demo';
 

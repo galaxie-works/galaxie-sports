@@ -28,7 +28,7 @@ import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
-import { aiStateText, displayValue, formatDuration, settingText } from './format';
+import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
@@ -438,7 +438,9 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
     agentStatus,
     invalid,
   } = snapshot.llm;
-  const tokens = totals.inputTokens + totals.outputTokens;
+  // como o serviço: o pool próprio do assets fica fora da soma contra o teto global de tokens
+  const tokenCount = tokenUsage(byAgent, budget);
+  const tokens = tokenCount.counted;
   const usd = (v: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v);
   return (
@@ -496,6 +498,19 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
             ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })
             : fill(T.status.llmTokensUnlimited, { used: f.number(tokens) })}
         </span>
+        {tokenCount.pools
+          .filter((p) => p.used > 0)
+          .map((p) => (
+            <span key={p.agent} className="text-muted-foreground text-xs tabular-nums">
+              {p.limit !== null
+                ? fill(T.status.llmTokenPool, {
+                    agent: p.agent,
+                    used: f.number(p.used),
+                    budget: f.number(p.limit),
+                  })
+                : fill(T.status.llmTokenPoolUnlimited, { agent: p.agent, used: f.number(p.used) })}
+            </span>
+          ))}
         {totals.errors ? (
           <span className="text-destructive text-xs">
             {plural(locale, totals.errors, T.status.llmErrors)}
