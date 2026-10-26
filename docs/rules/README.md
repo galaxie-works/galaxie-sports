@@ -42,6 +42,9 @@ knockout:                            # mata-mata (null em ligas)
   default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
   stages:                            # chave = core.stage.kind
     final: { legs: 1, extra_time: true, penalties: true, neutral_venue: true, decides_title: true }
+  # level_advantage: better_seed      # empate no confronto classifica o de melhor campanha (Liguilla)
+  # seeding:                          # de onde sai a campanha: tabela de `tables:` por rodada do mata-mata
+  #   - { rounds: '^apertura - ', table: apertura }
 
 overrides:                           # exceções históricas, aplicadas em ordem (merge profundo; listas substituem)
   - seasons: { to: 2021 }            # from/to inclusivos, ano de início da temporada (rótulo da api-sports)
@@ -90,7 +93,7 @@ O `id` da zona vira parte do código (`qualifies_for_sudamericana`) e tem rótul
 | `bundesliga` | saldo, gols pró, confronto direto (pontos, gols fora), gols fora | 16º = playoff de rebaixamento |
 | `ligue-1` | saldo, confronto direto (pontos, saldo, gols), gols pró, gols fora, fair play | 18 clubes |
 | `argentina-liga-profesional` | saldo, gols pró, confronto direto, gols fora | Até 2024 tabela anual única; desde 2025 `tables`: zonas do Apertura e do Clausura (fecha interzonal conta), anual recalculada, *promedios* só do fornecedor |
-| `liga-mx` | saldo, gols pró, confronto direto, gols fora, fair play | `tables`: Apertura e Clausura de tabela única; Liguilla fora da tabela (empate no agregado pela posição não modelado) |
+| `liga-mx` | saldo, gols pró, confronto direto, gols fora, fair play | `tables`: Apertura e Clausura de tabela única; Liguilla fora da tabela, com o empate no agregado decidido pela campanha (`level_advantage`) |
 | `uruguay-primera` · `uruguay-primera-clausura` | saldo, gols pró, confronto direto | `tables`: Apertura, Intermedio (séries) e Clausura; anual recalculada só a partir de 2026 (id 268 com a temporada inteira); promedios do fornecedor |
 | `colombia-primera-a` | saldo, gols pró, gols fora | `tables`: Apertura e Finalización (todos contra todos), quadrangulares do fornecedor, reclasificación recalculada, promedios do fornecedor |
 | `peru-liga-1` | saldo, gols pró, confronto direto | `tables`: Apertura, Clausura e acumulada recalculadas |
@@ -131,6 +134,10 @@ tables:
 - **Visível**: tabela sem recálculo (`skipped`), grupo que o regulamento não reconhece (`unclassified`) e rodada desconhecida (`unmatchedRounds`) saem em `warn` no `sync:daily` e no ao vivo (`needsAttention`), e no `standings:recompute`.
 - **Sem `tables`**: comportamento anterior (tabela única ou grupos do fornecedor; time em dois grupos → `no_groups`, em `warn`).
 - **API**: `/v1/competitions/{id}/seasons/{season}/standings` devolve, por grupo, `display_name`, `table`, `table_key`, `current` (fase em andamento) e `source`, na ordem do regulamento; o overview do time mostra a posição na fase em andamento.
+
+**Mata-mata decidido pela campanha** (`level_advantage: better_seed` na fase de mata-mata, com `knockout.seeding`): empate no agregado (ou no jogo único) classifica o time de melhor posição na tabela de referência, sem prorrogação nem pênaltis. Os stakes da volta dizem quem passa com o empate (`advances_with_draw`); sem a posição dos dois na tabela, o jogo fica sem stakes, com o motivo. Usado na Liguilla da Liga MX (quartas e semifinal; a final vai à prorrogação e aos pênaltis). O `parseRound` reconhece o mata-mata depois do nome do torneio ("Apertura - Quarter-finals" → `quarter_final`).
+
+Conferência dos nomes reais no raw de produção: [runbooks/standings-latam-conferencia.md](../runbooks/standings-latam-conferencia.md).
 
 Grupos e rodadas vistos em dados reais do repositório: Argentina 2026 `Apertura - Group A` / `Clausura - Group A` e rodadas `Clausura - 13`; Libertadores `Group A`…`Group H` e `Group Stage - N` (o regulamento também aceita `Group A - N`, o outro rótulo de rodada de grupo da api-sports); Brasileirão `Serie A` e `Regular Season - N`. Os demais (Liga MX, Uruguai, Colômbia, Peru, Paraguai; anual e promedios da Argentina) seguem o padrão da api-sports e estão marcados nos YAML para confirmar no `/standings` de produção.
 
@@ -348,6 +355,6 @@ Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY,
 ## 4. Fora do escopo (por ora)
 
 - Redistribuição de vagas continentais (campeão da Copa do Brasil/Libertadores já classificado etc.).
-- Cálculo próprio dos *promedios* (três temporadas): vêm só do fornecedor. Mata-mata dos torneios curtos (Liguilla, quadrangulares) como tabela.
+- Cálculo próprio dos *promedios* (três temporadas): vêm só do fornecedor. Quadrangulares (Colômbia) como tabela calculada e play-in da Liga MX como mata-mata.
 - Coeficiente UEFA como último critério; partidas extras de desempate (marcadas como empate não resolvido).
 - Gol qualificado na prorrogação com gol fora (UEFA até 2020/21): o motor indica a prorrogação, sem detalhar o que acontece nela.

@@ -1,7 +1,9 @@
 # Liga 1 (Peru). 18 clubes; Torneo Apertura e Torneo Clausura na mesma temporada da api-sports (id 281),
 # cada um em turno único. A tabela acumulada soma os dois (vagas continentais e rebaixamento).
-# Rodadas e grupos: sem amostra no repositório; padrão da api-sports ("Apertura - 7"). Revise a cada
-# temporada.
+# Rodadas e grupos: padrão da api-sports ("Apertura - 7").
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+# Revise a cada temporada.
 slug: peru-liga-1
 name: Liga 1
 format: league

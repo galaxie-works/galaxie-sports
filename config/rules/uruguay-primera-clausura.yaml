@@ -1,6 +1,8 @@
 # Primera División de Uruguay — Torneo Clausura no id próprio da api-sports (270), até 2025: turno
 # único de 16 clubes (15 rodadas). A tabela anual (Apertura + Intermedio + Clausura) cruza dois ids e
 # não é recalculada aqui: só a do fornecedor, se vier. Ver uruguay-primera.yaml.
+# Grupos e rodadas: A CONFERIR (sem amostra pública da api-sports; nome da competição na lista de
+# cobertura da api-football); consulta em docs/runbooks/standings-latam-conferencia.md.
 slug: uruguay-primera-clausura
 name: Primera División de Uruguay - Clausura
 format: league

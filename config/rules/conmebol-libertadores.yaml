@@ -35,7 +35,8 @@ knockout:
 
 # Fase de grupos: grupos "Group A"…"Group H" e rodadas "Group Stage - 1"…"6" (vistos na captura da API
 # em apps/demo/src/lib/example/snapshot.json); a api-sports também rotula a rodada pelo grupo ("Group B - 3",
-# formato tratado em packages/providers/.../round.ts), e as duas contam. Sem os grupos do fornecedor não dá
+# formato tratado em packages/providers/.../round.ts), e as duas contam. "Group Stage - N" também é o
+# exemplo do guia oficial da api-football (Copa do Mundo 2026, /fixtures/rounds). Sem os grupos do fornecedor não dá
 # para montar a tabela.
 tables:
   - key: group_stage

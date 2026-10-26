@@ -1,7 +1,9 @@
 # División Profesional de Paraguay — Torneo Apertura no id próprio da api-sports (250). 12 clubes em
 # turno e returno (22 rodadas). O rebaixamento é pelos promedios (três temporadas), que só vêm do
-# fornecedor. Grupos: sem amostra no repositório; qualquer grupo que não seja promedio é a tabela do
+# fornecedor. Grupos: qualquer grupo que não seja promedio é a tabela do
 # torneio.
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
 slug: paraguay-primera-apertura
 name: División Profesional - Apertura
 format: league

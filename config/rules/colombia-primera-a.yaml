@@ -3,8 +3,10 @@
 # quadrangulares, dois grupos de 4) e final. A reclasificación (anual) soma as fases de todos contra
 # todos dos dois torneios (vagas continentais); o rebaixamento é pelos promedios (só do fornecedor).
 # Os quadrangulares são guardados e expostos como vêm do fornecedor (rodadas sem padrão confirmado).
-# Rodadas e grupos: sem amostra no repositório; o catálogo registra que Apertura e Finalización se
-# separam pelo nome da rodada. Revise a cada temporada.
+# Rodadas e grupos: o catálogo registra que Apertura e Finalización se separam pelo nome da rodada.
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+# Revise a cada temporada.
 slug: colombia-primera-a
 name: Liga BetPlay Dimayor
 format: league

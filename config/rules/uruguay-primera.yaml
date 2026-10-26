@@ -5,8 +5,11 @@
 # api-sports: id 268. Até 2025 era "Primera División - Apertura" e o Clausura vinha à parte (id 270,
 # uruguay-primera-clausura); em out/2026 o /leagues chama o 268 de "Primera División" (temporada
 # inteira). Por isso a tabela anual só é recalculada a partir de 2026: antes, o 268 não tinha o Clausura.
-# Rodadas e grupos: sem amostra no repositório; padrão da api-sports ("Apertura - 7", "Intermedio -
-# Group A"). Revise a cada temporada.
+# Rodadas e grupos: padrão da api-sports ("Apertura - 7", "Intermedio - Group A").
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+# Os nomes das competições (Primera División - Apertura/Clausura) estão na lista de cobertura da
+# api-football. Revise a cada temporada.
 slug: uruguay-primera
 name: Primera División de Uruguay
 format: league

@@ -34,7 +34,8 @@ overrides:
   # (três temporadas) decidem o outro rebaixamento e só vêm do fornecedor.
   # Grupos do fornecedor vistos na captura da API (apps/demo/src/lib/example/snapshot.json, 2026):
   # "Apertura - Group A", "Clausura - Group A"; rodadas
-  # "Clausura - 13". Anual e promedios: nome a confirmar no /standings de produção (regex tolerante).
+  # "Clausura - 13" (confirmados). Anual e promedios: nome A CONFERIR no /standings de produção (regex
+  # tolerante; sem amostra pública), consulta em docs/runbooks/standings-latam-conferencia.md.
   - seasons: { from: 2025 }
     league:
       teams: 30
