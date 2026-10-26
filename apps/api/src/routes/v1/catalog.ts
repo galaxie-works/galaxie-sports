@@ -55,6 +55,11 @@ import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import { currentPhaseKey, standingsGroupLabel, standingsTableOf } from '@galaxie/rules';
 import { effectiveMinReview, meetsReview } from './semantic.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
+import {
+  competitionProfileServed,
+  competitionProfileServedSql,
+  semanticFloor,
+} from '../../competitions/profile.js';
 
 const MODULE = { module: 'core_data' } as const;
 const MIRRORED = new Set<string>(MIRROR_SPORTS);
@@ -182,6 +187,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
               sql`${competition.labels}::text ilike ${p}`,
               sql`exists (select 1 from ${competitionProfile} cp
                           where cp.competition_id = ${competition.id}
+                            and ${competitionProfileServedSql('cp', semanticFloor(ctx))}
                             and (cp.nicknames::text ilike ${p} or cp.labels::text ilike ${p}))`,
             )!,
           );
@@ -225,7 +231,9 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const [profile] = await db
           .select({ trophy: competitionProfile.trophyNickname })
           .from(competitionProfile)
-          .where(eq(competitionProfile.competitionId, row.c.id))
+          .where(
+            and(eq(competitionProfile.competitionId, row.c.id), competitionProfileServed(semanticFloor(ctx))),
+          )
           .limit(1);
         const seasons = await db
           .select()
@@ -253,7 +261,8 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
                 license: credit.license,
                 license_url: credit.licenseUrl,
                 attribution_required: credit.attributionRequired,
-                text: logoCreditText(credit.author, credit.license),
+                attribution: credit.attribution,
+                text: logoCreditText(credit.author, credit.license, credit.attribution),
               }
             : null,
           trophy_nickname: profile?.trophy ?? null,
@@ -491,7 +500,9 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         nicknames: competitionProfile.nicknames,
       })
       .from(competitionProfile)
-      .where(inArray(competitionProfile.competitionId, ids));
+      .where(
+        and(inArray(competitionProfile.competitionId, ids), competitionProfileServed(semanticFloor(ctx))),
+      );
     const profileBy = new Map(profiles.map((p) => [p.competitionId, p]));
     const current = await db
       .selectDistinctOn([season.competitionId], {

@@ -19,6 +19,9 @@ updates:
       # Os tipos acompanham o Node do runtime (.nvmrc, engines e imagens): o major sobe junto com o Node.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # O cliente do services/ai-agents fala o protocolo do servidor do lineup-render: a versão sobe à mão, nos cinco
+      # lugares que infra/lineup-render/versions.mjs confere (Dockerfile, package.json e lock da pasta, ai-agents, compose).
+      - dependency-name: 'playwright-core'
     groups:
       dev-dependencies:
         dependency-type: development

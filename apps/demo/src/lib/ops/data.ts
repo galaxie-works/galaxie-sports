@@ -15,9 +15,11 @@ import {
   envReport,
   isSecret,
   nextCronRuns,
+  parseAgentStatus,
   parseAgentUsdBudgets,
   planKey,
   resolveAll,
+  validateSettingKey,
   type RuntimeService,
 } from '@galaxie/runtime-config';
 
@@ -237,20 +239,37 @@ async function readQuota(dayUtc: string, settings: OpsSetting[]): Promise<QuotaR
 }
 
 /**
- * Valor numérico de uma flag; vazio, "unlimited", 0 ou inválido = null (sem limite). Nas flags em que 0
- * desliga (`zeroIsOff`, ex.: AI_DAILY_USD_BUDGET), 0 continua 0.
+ * Valor numérico de uma flag; vazio, "unlimited", 0 ou inválido = null (sem limite). O 0 recusado
+ * (`zeroInvalid`, ex.: AI_DAILY_USD_BUDGET) aparece em `invalid` do Gasto de IA.
  */
 function limitSetting(settings: OpsSetting[], key: string): number | null {
   const raw = settings.find((s) => s.key === key)?.value;
-  const zeroIsOff = SETTINGS.find((d) => d.key === key)?.zeroIsOff === true;
-  const n = !raw || raw === 'unlimited' || (raw === '0' && !zeroIsOff) ? null : Number(raw);
+  const n = !raw || raw === 'unlimited' || raw === '0' ? null : Number(raw);
   return n !== null && Number.isFinite(n) ? n : null;
+}
+
+/** Flags de estado e teto da IA com valor efetivo inválido (ex.: 0 vindo do env): o serviço recusa. */
+const AI_STATE_KEYS = [
+  'AI_STATUS',
+  'AI_AGENT_STATUS',
+  'AI_DAILY_TOKEN_BUDGET',
+  'AI_DAILY_USD_BUDGET',
+  'AI_AGENT_USD_BUDGETS',
+] as const;
+
+function invalidAiSettings(settings: OpsSetting[]): string[] {
+  return AI_STATE_KEYS.flatMap((key) => {
+    const value = settings.find((s) => s.key === key)?.value;
+    return value && !validateSettingKey(key, value).ok ? [`${key}=${value}`] : [];
+  });
 }
 
 async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend> {
   const maxSearchesPerCall = limitSetting(settings, 'AI_MAX_SEARCHES_PER_CALL');
   const rawAgentBudgets = settings.find((s) => s.key === 'AI_AGENT_USD_BUDGETS');
   const agentUsdBudgets = parseAgentUsdBudgets(rawAgentBudgets?.value || rawAgentBudgets?.defaultValue) ?? {};
+  const status = settings.find((s) => s.key === 'AI_STATUS')?.value?.toLowerCase() === 'off' ? 'off' : 'on';
+  const agentStatus = parseAgentStatus(settings.find((s) => s.key === 'AI_AGENT_STATUS')?.value) ?? {};
   const rows = await query<{
     agent: string;
     calls: number;
@@ -293,6 +312,9 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
   return {
     totals,
     byAgent,
+    status,
+    agentStatus,
+    invalid: invalidAiSettings(settings),
     budget: limitSetting(settings, 'AI_DAILY_TOKEN_BUDGET'),
     usdBudget: limitSetting(settings, 'AI_DAILY_USD_BUDGET'),
     agentUsdBudgets,

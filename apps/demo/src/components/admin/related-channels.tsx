@@ -43,6 +43,8 @@ function StatusBadge({ c }: { c: ChannelRowData }) {
   const { t } = useI18n();
   const T = t.relatedAdmin.status;
   if (c.rule === 'allow') return <Badge variant="success-light">{T.allowed}</Badge>;
+  // a regra que o automático gravou no limiar de recusas continua sendo o bloqueio automático
+  if (c.ruleAutomatic) return <Badge variant="warning-light">{T.autoBlocked}</Badge>;
   if (c.rule === 'block') return <Badge variant="destructive-light">{T.manualBlocked}</Badge>;
   if (c.blocked) return <Badge variant="warning-light">{T.autoBlocked}</Badge>;
   return <Badge variant="outline">{T.active}</Badge>;
@@ -53,7 +55,7 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
   const { t } = useI18n();
   const T = t.relatedAdmin;
   const f = useFormatters(timeZone);
-  const current: Mode = c.rule ?? 'auto';
+  const current: Mode = c.rule && !c.ruleAutomatic ? c.rule : 'auto';
   const [mode, setMode] = useState<Mode>(current);
   const [pending, startTransition] = useTransition();
   const items = (['auto', 'block', 'allow'] as const).map((m) => ({ value: m, label: T.modes[m] }));
@@ -84,13 +86,9 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
           </span>
         ) : null}
       </TableCell>
-      {/* relatados por um cliente (na demo, por qualquer usuário): fora só da vitrine dele até confirmar */}
-      <TableCell>
-        <span className={cn('tabular-nums', c.reported > 0 && 'font-medium')}>{c.reported}</span>
-      </TableCell>
       <TableCell>
         <StatusBadge c={c} />
-        {c.rule && c.ruleBy && c.ruleAt ? (
+        {c.rule && !c.ruleAutomatic && c.ruleBy && c.ruleAt ? (
           <span className="text-muted-foreground block pt-1 text-xs">
             {fill(T.ruleBy, { who: c.ruleBy, date: f.dateTime(c.ruleAt) })}
           </span>
@@ -119,7 +117,8 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
             {pending ? <Spinner /> : <Save />}
             {t.lineup.admin.tenants.save}
           </Button>
-          {c.refusedVideos > 0 ? (
+          {/* também sem recusas: as de mais de 30 dias foram apagadas e só a regra do automático segura o canal */}
+          {c.refused > 0 || c.ruleAutomatic ? (
             <AlertDialog>
               <AlertDialogTrigger render={<Button size="sm" variant="ghost" disabled={pending} />}>
                 <Eraser /> {T.clear}
@@ -128,7 +127,7 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>{T.clear}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {fill(T.clearConfirm, { count: c.refusedVideos })}
+                    {fill(T.clearConfirm, { count: c.refused })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -211,7 +210,6 @@ export function RelatedChannels({
                 <TableHead>{T.columns.channel}</TableHead>
                 <TableHead>{T.columns.published}</TableHead>
                 <TableHead>{T.columns.refused}</TableHead>
-                <TableHead>{T.columns.reported}</TableHead>
                 <TableHead>{T.columns.status}</TableHead>
                 <TableHead>{T.columns.control}</TableHead>
               </TableRow>

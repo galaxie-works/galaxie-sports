@@ -34,6 +34,7 @@ import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { buildCtx, localeOf, sportCheck } from './events.js';
 import { loadTeamNames, teamNameOptions, type TeamNamer } from '../../teams/display-name.js';
+import { competitionProfileJoin } from '../../competitions/profile.js';
 
 const MODULE = { module: 'core_data' } as const;
 type Group = CompetitionContext['groups'][number];
@@ -95,7 +96,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
           })
           .from(competition)
           .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
-          .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+          .leftJoin(competitionProfile, competitionProfileJoin(bctx.minReview ?? 'approved'))
           .where(UUID_RE.test(params.id) ? eq(competition.id, params.id) : eq(competition.slug, params.id))
           .orderBy(sql`(${competition.sport} = 'football') desc`)
           .limit(1);
