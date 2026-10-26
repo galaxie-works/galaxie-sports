@@ -118,7 +118,10 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `TRUST_PROXY` | não | `uniquelocal` | Proxies confiáveis para o IP real do cliente (o Caddy, na rede interna). Nunca vazio atrás do Caddy (todos os clientes teriam o IP dele e dividiriam o mesmo limite por IP) nem `true` (confia no 1º endereço do `X-Forwarded-For`, forjável) |
 | `WEBHOOK_SIGNING_SECRET` | não | vazio | KEK que cifra os segredos dos webhooks no banco (worker e CLI `webhook`; SECURITY.md › Webhooks) |
 | `BACKUP_TIME` | não | `03:30` | Horário do dump diário (UTC) |
-| `BACKUP_RETENTION_DAYS` | não | `30` | Retenção local |
+| `BACKUP_KEEP_DAILY` | não | `7` | Dumps mantidos no volume (por contagem; a retenção longa fica no NAS) |
+| `BACKUP_CHECK_INTERVAL_H` / `BACKUP_NAS_RECEIPT` | não | `6` / `false` | Verificador do backup; com `true`, também o recibo da cópia do NAS |
+| `RESTORE_DRILL_DAY` | não | `1` | Dia do mês do ensaio de restauração automático (`off` desliga) |
+| `ALERT_EMAIL_TO`, `ALERT_EMAIL_FROM`, `ALERT_SMTP_HOST`, `ALERT_SMTP_USER`, `ALERT_SMTP_PASSWORD` | não | — | E-mail dos alertas pelo Grafana (vazio = alertas só no Grafana) |
 | `BACKUP_ON_START` | não | `true` | Faz um dump ao (re)iniciar o serviço |
 | `BACKUP_S3_BUCKET` / `_PREFIX` / `_ENDPOINT` / `_REGION` | não | vazio / `postgres` / vazio / `us-east-1` | Cópia remota (S3-compatível) |
 | `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | com S3 | — | Credenciais do bucket remoto (só para backups) |
@@ -206,15 +209,20 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `galaxie_live_poll_interval_seconds` | — | `LIVE_POLL_INTERVAL_SECONDS` (base do alerta `LiveEventStale`) |
 | `galaxie_live_scheduler_interval_seconds`, `_ticks_left`, `_window_minutes`, `_active_events`, `_updated_timestamp_seconds` | `sport` | Estado publicado pelo `live-run` em `ops.sync_cursor` (`live:scheduler`) |
 | `galaxie_http_request_duration_seconds` | `method`, `route`, `status_code` | Fastify (histograma) |
+| `galaxie_change_feed_pending`, `galaxie_change_feed_pending_age_seconds` | `consumer` (`demo-cache:<nome>`, `webhooks:<nome>`) | cursores `demo_auth.cache_feed_cursor` e `api.webhook_cursor` sobre `ops.change_feed` |
 | `galaxie_metrics_collector_up`, `_duration_seconds` | `collector` | saúde das consultas |
 | `process_*`, `nodejs_*` | — | prom-client |
 
 **Alertas** ([`alerts.yml`](../observability/prometheus/alerts.yml), testados com `promtool` no CI):
 `QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento em
 andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
-`MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms). Eles aparecem como _firing_ no Prometheus e no Grafana
-(_Alerting → Alert rules_, fonte Prometheus). **Notificação** (e-mail, chat) exige um Alertmanager ou contact point do
-Grafana com o canal que você escolher — ver "O que fica de fora".
+`MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
+(política de backup: [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)), `DiskAlmostFull` (disco dos
+volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown` e `ChangeFeedStalled` (consumidor do change feed com
+mudança pendente há mais de 10 min). Eles aparecem como _firing_ no Prometheus e no Grafana (_Alerting → Alert rules_).
+**Notificação** por e-mail: o Grafana repassa os alertas disparando (regra "Alerta do Prometheus") quando
+`ALERT_EMAIL_TO` e `ALERT_SMTP_HOST` estão definidos — ver
+[infra/vps-telemetry/README.md §Alertas por e-mail](../vps-telemetry/README.md#alertas-por-e-mail).
 
 Teste simulado dos alertas, localmente:
 
@@ -227,7 +235,9 @@ docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint p
 
 - O serviço `backup` faz `pg_dump --format=custom --compress=zstd:5` do banco inteiro (o schema `raw` é o ativo mais caro
   de reconstruir) todo dia às `BACKUP_TIME` UTC e na partida, valida o arquivo com `pg_restore --list`, grava
-  `.sha256` e apaga dumps com mais de `BACKUP_RETENTION_DAYS` dias do volume `backups`.
+  `.sha256` e mantém os `BACKUP_KEEP_DAILY` (7) dumps mais recentes no volume `backups` (por contagem: com o backup
+  parado, nada some). A retenção longa fica no NAS; o verificador e o ensaio de restauração mensal estão em
+  [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md).
 - Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`); configure no bucket
   uma **regra de ciclo de vida** de 30 dias para a retenção remota. Use um bucket fora desta VPS — o RustFS da stack não
   serve como cópia externa.
@@ -317,8 +327,8 @@ docker compose -p galaxie-staging-local -f infra/portainer/stack.yml --env-file 
 
 ## O que fica de fora (próximos passos)
 
-- **Notificações de alerta**: falta escolher o canal (e-mail, chat, pager) e configurar Alertmanager ou contact point
-  do Grafana.
+- **Notificações de alerta**: o canal é o e-mail, pelo Grafana; falta o dono definir o SMTP (`ALERT_*`). Outros canais
+  (chat, pager) entram como mais um contact point em `infra/observability/grafana/alerting-email/`.
 - **Alerta com o intervalo dinâmico**: o Live Scheduler já publica `galaxie_live_scheduler_interval_seconds`, mas o
   `LiveEventStale` segue sobre `LIVE_POLL_INTERVAL_SECONDS`: com 15 s (Pro) ele dispararia em todo intervalo de jogo
   (o poller pula o HT e os eventos em `break` ficam sem atualização). Falta excluir `break` da idade máxima e trocar a base.
