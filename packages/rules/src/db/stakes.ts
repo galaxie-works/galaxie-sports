@@ -10,7 +10,7 @@ import {
   type TitleRecord,
 } from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
-import { knockoutStageRules } from '../config/parse.js';
+import { knockoutStageRules, rulesStageKey } from '../config/parse.js';
 import type { CompetitionRules } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
@@ -58,7 +58,11 @@ export interface StakesEventRef {
   /** `id` é necessário para os títulos anteriores (`options.titles`). */
   competition: { slug: string; id?: string } | null;
   season: { id: string; year: number } | null;
-  stage: { id: string; kind: string } | null;
+  /**
+   * `providerLabel` (rótulo do fornecedor, ex.: "1st Round") liga as fases numeradas de copa à chave do
+   * regulamento (`rulesStageKey`); sem ele, vale o `kind`.
+   */
+  stage: { id: string; kind: string; providerLabel?: string | null } | null;
   home: { id: string };
   away: { id: string };
   /**
@@ -197,7 +201,10 @@ async function knockoutContext(
   core: StakesEventRef,
   rules: CompetitionRules,
 ): Promise<EventStakes> {
-  const stageRules = knockoutStageRules(rules, core.stage?.kind);
+  const stageRules = knockoutStageRules(
+    rules,
+    core.stage ? rulesStageKey(core.stage.kind, core.stage.providerLabel ?? null) : null,
+  );
   const base = {
     legs: stageRules.legs,
     extraTime: stageRules.extraTime,

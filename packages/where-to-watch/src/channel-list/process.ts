@@ -125,7 +125,7 @@ export function rightsMarkets(config: WtwConfig, tenantMarkets: readonly string[
 /**
  * Casamento por código da lista de um tenant contra todas as emissoras dos mercados dele (sem IA):
  * o que a API e o portal gravam no envio, na correção e no reprocessamento. `aiPending` = há sobras
- * com candidato para o job `channel-lists` conferir.
+ * com candidato para o job `channel-lists` conferir; `aiRights`, quais direitos (`rightKey`).
  */
 export async function proposeChannelMatches(
   config: WtwConfig,
@@ -135,7 +135,7 @@ export async function proposeChannelMatches(
     defaultCountry: WtwCountry | null;
     overrides: ChannelOverride[];
   },
-): Promise<{ matches: RightMatch[]; aiPending: boolean; markets: WtwCountry[] }> {
+): Promise<{ matches: RightMatch[]; aiPending: boolean; aiRights: string[]; markets: WtwCountry[] }> {
   const markets = rightsMarkets(config, input.tenantMarkets);
   const res = await processChannelList({
     channels: input.channels,
@@ -144,5 +144,6 @@ export async function proposeChannelMatches(
     defaultCountry: input.defaultCountry,
     overrides: input.overrides,
   });
-  return { matches: res.matches, aiPending: res.batches.length > 0, markets };
+  const aiRights = res.batches.flatMap((b) => b.rights.map(rightKey));
+  return { matches: res.matches, aiPending: aiRights.length > 0, aiRights, markets };
 }

@@ -541,7 +541,8 @@ describe('normalizeF1db', () => {
       ['drivers', 'driver-alain-prost', 2, 88, 0],
       ['constructors', 'mclaren', 1, 199, 15],
     ]);
-    expect(batch.competitions[0]!.seasons.map((s) => s.year)).toEqual([1988]);
+    // 2024 só tem GP coberto pela outra fonte: entra pela data do calendário (ver o teste do fim da temporada)
+    expect(batch.competitions[0]!.seasons.map((s) => s.year)).toEqual([1988, 2024]);
   });
 
   it('carro compartilhado: uma linha por piloto, a melhor, com a pole de qualquer uma delas', () => {
@@ -651,6 +652,27 @@ describe('normalizeF1db', () => {
     const season = run().competitions[0]!.seasons.find((s) => s.year === 1988)!;
     expect(season.endDate).toBe('1988-11-13');
     expect(run().events.some((e) => e.id.startsWith('race-471'))).toBe(false);
+  });
+
+  it('temporada com todos os GPs cobertos pela outra fonte: o fim também é o último GP do calendário', () => {
+    const tables = f1dbTables();
+    // GP de 2024 ainda por disputar no release: o de São Paulo (coberto) não é o último
+    tables.race!.push({ id: 1101, year: 2024, round: 22, date: '2024-12-08', circuit_id: 'interlagos' });
+    const links = matchF1db(tables, coreSnapshot());
+    expect(links.coveredRaces).toEqual(new Set(['1100']));
+    const batch = normalizeF1db(tables, {
+      observedAt,
+      release: 'v2026.17.0',
+      coveredRaces: links.coveredRaces,
+      stageLabels: links.stageLabels,
+    });
+    expect(batch.events.some((e) => e.id.startsWith('race-1100') || e.id.startsWith('race-1101'))).toBe(
+      false,
+    );
+    expect(batch.competitions[0]!.seasons.find((s) => s.year === 2024)).toMatchObject({
+      startDate: '2024-11-03',
+      endDate: '2024-12-08',
+    });
   });
 });
 
