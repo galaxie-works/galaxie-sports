@@ -106,6 +106,20 @@ describe('licença da Commons', () => {
     );
   });
 
+  it('texto do HTML: entidades numéricas decodificadas e nada de HTML depois de decodificar', () => {
+    // o MediaWiki entrega o © e o espaço fixo como entidades numéricas (decimais e hexadecimais)
+    expect(plainText('&#169; Fulano&#160;2020 &#x2014; Liga')).toBe('© Fulano 2020 — Liga');
+    // tag escapada vira texto e é tirada de novo: não sai `<script>` no `text` da API
+    expect(plainText('Fulano &lt;script&gt;alert(1)&lt;/script&gt;')).toBe('Fulano alert(1)');
+    // escape duplo decodifica uma vez só (`&amp;` junto das outras): fica o texto, sem `<b>`
+    expect(plainText('&amp;lt;b&amp;gt;Fulano')).toBe('&lt;b&gt;Fulano');
+    // vale para autor e `Credit`, que usam a mesma função
+    const v = readLicense(
+      meta('cc-by-4.0', 'CC BY 4.0', { Artist: '&#169; Fulano &lt;b&gt;', Credit: 'Own work &#38; mais' }),
+    );
+    expect(v).toMatchObject({ value: { author: '© Fulano', credit: 'Own work & mais' } });
+  });
+
   it('texto e links do HTML da Commons; ano da data', () => {
     expect(plainText('<span>Instituto <b>Ayrton</b>&nbsp;Senna</span>')).toBe('Instituto Ayrton Senna');
     expect(firstHref('<a href="/wiki/User:X">X</a>')).toBe('https://commons.wikimedia.org/wiki/User:X');

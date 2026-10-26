@@ -30,18 +30,36 @@ const value = (meta: ExtMetadata, key: string): string | null => {
   return null;
 };
 
-/** HTML da Commons → texto ("<a href=…>Fulano</a>" → "Fulano"), sem entidades. */
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
+/**
+ * Entidades HTML num passo só: nomeadas (`&amp;`, `&nbsp;`...) e numéricas (`&#169;` = ©, `&#x2014;`). Um passo só
+ * para `&amp;lt;` virar o texto `&lt;`, não `<`. Desconhecida ou fora do Unicode fica como está.
+ */
+function decodeEntities(text: string): string {
+  return text.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (whole, ref: string) => {
+    if (ref[0] !== '#') return NAMED_ENTITIES[ref.toLowerCase()] ?? whole;
+    const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+    return Number.isInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+  });
+}
+
+/**
+ * HTML da Commons → texto ("<a href=…>Fulano</a>" → "Fulano"), sem entidades. Depois de decodificar, tira de novo
+ * tag e `<`/`>` soltos: `&lt;script&gt;` não vira HTML no `text` da API pública.
+ */
 export function plainText(html: string | null): string | null {
   if (!html) return null;
-  const text = html
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+  const stripTags = (t: string) => t.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '');
+  const text = stripTags(decodeEntities(stripTags(html)))
+    .replace(/[<>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
   return text || null;
