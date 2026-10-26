@@ -34,6 +34,7 @@ const credit = {
   license: 'Public domain',
   license_url: null,
   attribution_required: false,
+  attribution: null,
   text: 'Logo: Wikimedia Commons · Public domain',
 };
 
@@ -161,6 +162,30 @@ describe('montagem das plataformas', () => {
     ]);
   });
 
+  it('ofertas em moedas diferentes: o "a partir de" só compara as da mesma moeda', () => {
+    const [a, b] = AVAILABILITY[2]!.addons;
+    const out = platformAvailability(
+      [
+        {
+          platform: RIVAL,
+          plans: [],
+          addons: [
+            { ...a!, priceAmount: 59.9, priceCurrency: 'BRL' },
+            { ...b!, priceAmount: 9.9, priceCurrency: 'USD' },
+          ],
+        },
+      ],
+      null,
+      LogoBook.empty(),
+    );
+    const addon = out[0]!.addons![0]!;
+    expect([addon.price_from, addon.currency, addon.offers.map((o) => o.currency)]).toEqual([
+      59.9,
+      'BRL',
+      ['BRL', 'USD'],
+    ]);
+  });
+
   it('filtra as concorrentes mesmo se a consulta devolver todas (show_other_operators = false)', () => {
     expect(platformAvailability(AVAILABILITY, own, logos).map((p) => p.platform.id)).toEqual([
       OPERATOR_ID,
@@ -270,6 +295,19 @@ describe('montagem das plataformas', () => {
   it('crédito do logo: autor quando há, sempre a fonte e a licença', () => {
     expect(logoCreditText(null, 'Public domain')).toBe('Logo: Wikimedia Commons · Public domain');
     expect(logoCreditText('Fulano', 'CC BY-SA 4.0')).toBe('Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0');
+  });
+
+  it('crédito do logo: a atribuição pedida pelo autor, com a licença quando ela não cita', () => {
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano / Liga Exemplo')).toBe(
+      'Logo: Fulano / Liga Exemplo · CC BY 4.0',
+    );
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano, cc by 4.0')).toBe('Logo: Fulano, cc by 4.0');
+    // a mesma licença com hífen (o código da Commons) não se repete
+    expect(logoCreditText('Fulano', 'CC BY 4.0', 'Fulano (CC-BY-4.0)')).toBe('Logo: Fulano (CC-BY-4.0)');
+    expect(logoCreditText('Fulano', 'CC BY-SA 4.0', 'Fulano (CC-BY-4.0)')).toBe(
+      'Logo: Fulano (CC-BY-4.0) · CC BY-SA 4.0',
+    );
+    expect(logoCreditText('Fulano', 'CC BY 4.0', null)).toBe('Logo: Fulano / Wikimedia Commons · CC BY 4.0');
   });
 
   it('grade da plataforma no contrato', () => {

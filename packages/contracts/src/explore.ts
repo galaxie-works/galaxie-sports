@@ -3,7 +3,7 @@ import * as z from 'zod';
 import { COMPETITION_TYPES } from './catalog.js';
 import { TeamColors } from './colors.js';
 import { AssetUrl, LocaleQuery, ProviderName, TeamDisplayName } from './common.js';
-import { Event, MarketParam } from './events.js';
+import { Event, isCalendarDate, MarketParam } from './events.js';
 import { ConfederationRef } from './navigation.js';
 
 // ─── resumo da home "Explorar" (docs/05 §3.1.2) ──────────────────────────────────────────────────
@@ -144,6 +144,7 @@ export const ExploreAgendaQuery = LocaleQuery.extend({
   day: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'use AAAA-MM-DD')
+    .refine(isCalendarDate, 'data inexistente')
     .optional()
     .meta({
       description:

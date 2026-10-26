@@ -1,12 +1,44 @@
 # =============================================================================
 # Tabela de direitos — Chile (CL). Formato e regras: config/broadcast-rights/br.yaml.
-# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21).
+# Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21) e curadoria de
+# 2026-10-25 (Liga de Primera e Copa de la Liga).
+# Copa Chile: sem slug no catálogo — sem linha. Seleção: Eliminatórias 2030 só começam em 2027 —
+# sem linha. HBO Max (streaming do TNT Sports) não está na biblioteca de emissoras do CL.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
 schema_version: 1
 country: CL
-updated_at: 2026-10-21
+updated_at: 2026-10-25
 rights:
+  - competition: chile-primera-division
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: true
+    # TNT Sports com o torneio completo; Canal 13 com um jogo por rodada em TV aberta
+    distribution: split
+    all_matches: [tnt_sports]
+    holders: [tnt_sports, canal_13]
+    notes: >-
+      Liga de Primera Mercado Libre 2026: TNT Sports com a cobertura completa; Canal 13 (aberta, também em
+      13.cl, Deportes 13 e T13 en Vivo 2) com um jogo por rodada (30 na temporada), por sublicença do TNT.
+    sources:
+      - https://www.eldinamo.cl/deportes/2026/01/22/el-futbol-chileno-ira-por-tv-abierta-los-detalles-del-acuerdo-entre-canal-13-y-tnt-sports-por-la-temporada-2026/
+      - https://www.df.cl/empresas/actualidad/canal-13-transmitira-el-campeonato-de-futbol-chileno-en-2026-tras-acuerdo
+      - https://redgol.cl/campeonato-nacional/el-partido-que-puedes-ver-gratis-por-tv-abierta-en-la-fecha-14-de-la-liga-de-primera-2026
+  - competition: chile-copa-de-la-liga
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    distribution: selected
+    holders: [tnt_sports]
+    notes: >-
+      TNT Sports Premium + HBO Max (fora da biblioteca do CL). Há relato de semifinais só no HBO Max, sem
+      canal de TV (fonte única, por isso "selected"). Encerrada em julho de 2026.
+    sources:
+      - https://www.24horas.cl/deportes/futbol-nacional/copa-de-la-liga-2026-canal-confirmado-para-ver-el-torneo
+      - https://www.pauta.cl/deportes/2026/06/07/universidad-de-chile-vs-audax-italiano-donde-ver-en-vivo-y-online-la-fecha-6-de-la-copa-de-la-liga-2026.html
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01

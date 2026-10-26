@@ -23,16 +23,50 @@ export function logoSource(origin: string | null | undefined): 'provider' | 'ace
   return origin === 'acervo' || origin === 'commons' ? origin : 'provider';
 }
 
-/** "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). */
-export function logoCreditText(author: string | null, license: string): string {
+/** Licença para comparar: minúsculas, hífen e espaço iguais ("CC-BY-4.0" = "cc by 4.0"). */
+const licenseKey = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[\s_-]+/g, ' ')
+    .trim();
+
+/**
+ * "Logo: Fulano / Wikimedia Commons · CC BY-SA 4.0" (sem autor: só a fonte e a licença). Com a atribuição pedida
+ * pelo autor (`Attribution` da Commons), ela no lugar do autor e da fonte: "Logo: <atribuição> · CC BY 4.0".
+ */
+export function logoCreditText(author: string | null, license: string, attribution?: string | null): string {
+  // a atribuição pedida pelo autor é o texto que a licença manda exibir; a licença vai junto, se ela não citar
+  if (attribution)
+    return licenseKey(attribution).includes(licenseKey(license))
+      ? `Logo: ${attribution}`
+      : `Logo: ${attribution} · ${license}`;
   return `Logo: ${author ? `${author} / ` : ''}Wikimedia Commons · ${license}`;
 }
+
+/** Saída validada de cada objeto de entrada (ex.: `request.query`), para a chave do cache. */
+const validated = new WeakMap<object, unknown>();
+
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Valida query/params com um schema Zod; erro → 400 INVALID_PARAMS. */
 export function parseInput<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
   const r = schema.safeParse(input);
   if (!r.success) throw fromZodError(r.error);
+  if (typeof input === 'object' && input !== null) {
+    // mais de um schema sobre a mesma entrada: a chave do cache vê a união dos campos validados
+    const prev = validated.get(input);
+    validated.set(input, isPlainObject(prev) && isPlainObject(r.data) ? { ...prev, ...r.data } : r.data);
+  }
   return r.data;
+}
+
+/**
+ * O que `parseInput` aceitou desta entrada (só os campos do schema, já normalizados), ou `undefined` se ela
+ * nunca foi validada. A chave do cache usa isto no lugar da query bruta: parâmetro desconhecido não fura o cache.
+ */
+export function validatedInput(input: unknown): unknown {
+  return typeof input === 'object' && input !== null ? validated.get(input) : undefined;
 }
 
 /** Cursor opaco (base64url de JSON). */

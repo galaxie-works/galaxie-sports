@@ -4,7 +4,8 @@ import { ChevronRight } from 'lucide-react';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { MatchTimeline } from '@/components/live/match-timeline';
 import { Frame, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
-import { hasPitch, LineupBench, LineupPitch, LineupStarters } from '@/components/sport/lineups';
+import { hasPitch, lineupDictionary } from '@/components/sport/lineups';
+import { LiveLineup } from '@/components/sport/live-lineup';
 import { MatchStats } from '@/components/sport/match-stats';
 import { UrlTabs } from '@/components/sport/url-tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -13,13 +14,13 @@ import { lineupsRequest, statsRequest, timelineRequest } from '@/lib/galaxie/api
 import type { ApiRequest } from '@/lib/galaxie/request';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
-import type { MarksLookup } from '@/lib/lineup-marks';
 import {
   activeTab,
   DETAIL_PARAM,
   DETAIL_TABS,
   LINEUP_PARAM,
   LINEUP_TABS,
+  panelSemantics,
   type DetailTab,
   type LineupTab,
 } from '@/lib/match-details';
@@ -46,7 +47,6 @@ export function MatchDetails({
   timeline,
   stats,
   lineups,
-  marks,
   colors,
   query,
   timeZone,
@@ -55,11 +55,13 @@ export function MatchDetails({
   t,
 }: {
   eventId: string;
-  /** Minuto a minuto, só quando já faz sentido mostrar (jogo começou ou há lance). */
+  /**
+   * Minuto a minuto, só quando já faz sentido mostrar (jogo começou ou há lance). Também dá as marcas da
+   * escalação (gols, cartões, trocas), que seguem o minuto a minuto ao vivo (`LiveLineup`).
+   */
   timeline: EventTimeline | null;
   stats: EventStats | null;
   lineups: EventLineups | null;
-  marks: MarksLookup;
   /** Cor de cada time [mandante, visitante] (`versusColors`). */
   colors: [string, string];
   /** `searchParams` da página (aba e sub-aba ativas). */
@@ -100,6 +102,8 @@ export function MatchDetails({
     reservas: tx.lineupTabs.bench,
     campo: tx.lineupTabs.pitch,
   };
+  // a escalação é do navegador (segue o minuto a minuto ao vivo): só os textos que ela usa
+  const lineupTexts = lineupDictionary(t);
 
   return (
     <Frame className="w-full" stacked>
@@ -119,7 +123,8 @@ export function MatchDetails({
         <CollapsibleContent keepMounted>
           <FramePanel>
             <UrlTabs param={DETAIL_PARAM} value={tab} className="gap-4">
-              {/* uma aba só (ex.: jogo ao vivo sem escalação nem estatísticas): sem barra de abas */}
+              {/* uma aba só (ex.: jogo ao vivo sem escalação nem estatísticas): sem barra de abas, e o
+                  painel vira uma região com o nome da aba (`panelSemantics`) */}
               {tabs.size > 1 ? (
                 // rola só na horizontal e sem barra visível: no Windows o overflow-x sozinho mostrava
                 // as setinhas de rolagem vertical ao lado das abas
@@ -133,7 +138,12 @@ export function MatchDetails({
               ) : null}
 
               {timeline ? (
-                <TabsContent value="minuto" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="minuto"
+                  keepMounted
+                  className="flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.minuto)}
+                >
                   <PanelIntro
                     text={t.live.timeline.description}
                     api={timelineRequest(eventId, locale, content)}
@@ -143,14 +153,25 @@ export function MatchDetails({
               ) : null}
 
               {stats && hasStats ? (
-                <TabsContent value="estatisticas" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="estatisticas"
+                  keepMounted
+                  // container: as duas colunas de MatchStats seguem a largura do painel, não a da tela
+                  className="@container flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.estatisticas)}
+                >
                   <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale, content)} />
                   <MatchStats stats={stats} colors={colors} locale={locale} t={t} />
                 </TabsContent>
               ) : null}
 
               {hasLineups ? (
-                <TabsContent value="escalacao" keepMounted className="flex flex-col gap-3">
+                <TabsContent
+                  value="escalacao"
+                  keepMounted
+                  className="flex flex-col gap-3"
+                  {...panelSemantics(tabs, labels.escalacao)}
+                >
                   <PanelIntro text={tx.lineupsDescription} api={lineupsRequest(eventId, locale, content)} />
                   <UrlTabs param={LINEUP_PARAM} value={lineupTab} className="gap-3">
                     <TabsList variant="line">
@@ -160,19 +181,19 @@ export function MatchDetails({
                         </TabsTrigger>
                       ))}
                     </TabsList>
-                    <TabsContent value="titulares" keepMounted>
-                      <LineupStarters lineups={lineups!} colors={colors} marks={marks} t={t} />
-                    </TabsContent>
-                    {lineupTabs.has('reservas') ? (
-                      <TabsContent value="reservas" keepMounted>
-                        <LineupBench lineups={lineups!} colors={colors} marks={marks} t={t} />
+                    {LINEUP_TABS.filter((x) => lineupTabs.has(x)).map((x) => (
+                      <TabsContent key={x} value={x} keepMounted>
+                        <LiveLineup
+                          view={x}
+                          eventId={eventId}
+                          timeline={timeline}
+                          lineups={lineups!}
+                          colors={colors}
+                          content={content}
+                          t={lineupTexts}
+                        />
                       </TabsContent>
-                    ) : null}
-                    {lineupTabs.has('campo') ? (
-                      <TabsContent value="campo" keepMounted>
-                        <LineupPitch lineups={lineups!} colors={colors} marks={marks} t={t} />
-                      </TabsContent>
-                    ) : null}
+                    ))}
                   </UrlTabs>
                 </TabsContent>
               ) : null}

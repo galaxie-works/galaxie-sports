@@ -41,7 +41,8 @@
     "lineups:curate": "node --env-file-if-exists=../../.env dist/cli/lineups-curate.js",
     "wtw:rights:compare": "node --env-file-if-exists=../../.env dist/cli/wtw-rights-compare.js",
     "review:suggestions": "node --env-file-if-exists=../../.env dist/cli/review-suggestions.js",
-    "channels:match": "node --env-file-if-exists=../../.env dist/cli/channel-lists.js"
+    "channels:match": "node --env-file-if-exists=../../.env dist/cli/channel-lists.js",
+    "ai:status": "node --env-file-if-exists=../../.env dist/cli/ai-status.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.136.0",
@@ -51,8 +52,10 @@
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "ajv": "^8.20.0",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
     "openai": "^7.39.0",
     "playwright-core": "1.64.0",
@@ -61,7 +64,6 @@
   "devDependencies": {
     "@galaxie/ingestor": "workspace:*",
     "@galaxie/providers": "workspace:*",
-    "@galaxie/runtime-config": "workspace:*",
     "postgres": "^3.4.9"
   }
 }

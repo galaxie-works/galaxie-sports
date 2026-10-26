@@ -18,19 +18,31 @@
  *      node ../ai-agents/dist/cli/f1-bio.js --perfil --escopo lendas --plan --saida /data/commons/f1perfil
  *      node ../ai-agents/dist/cli/f1-bio.js --perfil --escopo lendas --saida /data/commons/f1perfil   # profiles.json
  *      pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar profiles.json [--plan]              # no dev
+ *    A aprovação do painel mora no banco de produção: o passo 1 grava também panel-decisions.json em --saida
+ *    (só as decisões editorial:*; `--perfil --exportar-decisoes --saida <pasta>` exporta sem pesquisar), e o passo 2
+ *    lê o arquivo (--decisoes <arquivo>; padrão: ao lado do profiles.json) e não sobrescreve o perfil aprovado lá
+ *    (--sobrescrever-aprovados troca mesmo assim). Sem o arquivo, o --aplicar para, salvo --sem-decisoes-do-painel.
  *    Escopos: `lendas` (campeões e top 20 em vitórias ou em GPs) e `regulares` (vencedor de GP ou 3 temporadas);
  *    --pilotos escolhe à mão (piloto `basic` não tem perfil editorial, só os traços da API).
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parse } from 'yaml';
-import { closeDb } from '@galaxie/db';
+import { closeDb, type Database } from '@galaxie/db';
 import { DEFAULT_KNOWLEDGE_DIR, loadKnowledge } from '@galaxie/knowledge';
 import { applyBios, DRIVERS_FILE } from '../f1bio/apply.js';
 import { applyProfiles } from '../f1bio/apply-profile.js';
 import { driverFacts } from '../f1bio/facts.js';
+import {
+  dbHost,
+  describePanelDecisions,
+  loadPanelDecisions,
+  PANEL_DECISIONS_FILE,
+  parsePanelDecisions,
+  type PanelDecisions,
+} from '../f1bio/panel-decisions.js';
 import { findingCounts, mergeProfiles, proposeProfile, type ProfileProposal } from '../f1bio/profile.js';
 import { driverRoster, profileFacts } from '../f1bio/profile-facts.js';
 import { mergeProposals, proposeBio, type BioProposal } from '../f1bio/propose.js';
@@ -45,6 +57,10 @@ const { values } = parseArgs({
     aplicar: { type: 'string' },
     plan: { type: 'boolean', default: false },
     refazer: { type: 'boolean', default: false },
+    'sobrescrever-aprovados': { type: 'boolean', default: false },
+    decisoes: { type: 'string' },
+    'sem-decisoes-do-painel': { type: 'boolean', default: false },
+    'exportar-decisoes': { type: 'boolean', default: false },
     perfil: { type: 'boolean', default: false },
     escopo: { type: 'string' },
   },
@@ -110,7 +126,7 @@ if (values.perfil) {
   } else {
     const db = dbFromEnv();
     try {
-      const llm = llmOrNull(false, db);
+      const llm = await llmOrNull(false, db);
       if (!llm)
         throw new Error(
           'Sem LLM configurado (AI_PROVIDER e a chave): a biografia exige pesquisa com fontes.',
@@ -142,6 +158,40 @@ if (values.perfil) {
   }
 }
 
+/**
+ * As decisões do painel para o passo de aplicar, do arquivo exportado na VPS. Sem ele, para (a proteção do perfil
+ * aprovado não pode sumir em silêncio), salvo --sem-decisoes-do-painel; na prévia (--plan), só avisa.
+ */
+function panelDecisionsFor(profilesFile: string): Pick<PanelDecisions, 'decisions' | 'overrides'> {
+  const path = resolve(values.decisoes ?? join(dirname(profilesFile), PANEL_DECISIONS_FILE));
+  if (existsSync(path)) {
+    const p = parsePanelDecisions(readFileSync(path, 'utf8'), path);
+    console.log(describePanelDecisions(p));
+    return p;
+  }
+  const none = { decisions: [], overrides: [] };
+  if (values['sem-decisoes-do-painel']) {
+    console.warn('AVISO: sem as decisões do painel: só o status do YAML protege o perfil aprovado.');
+    return none;
+  }
+  if (values.plan) {
+    console.warn(`AVISO: prévia sem as decisões do painel (${path} não existe).`);
+    return none;
+  }
+  throw new Error(
+    `Sem as decisões do painel (${path} não existe). Copie da VPS o ${PANEL_DECISIONS_FILE} do passo 1 e passe ` +
+      '--decisoes <arquivo>, ou use --sem-decisoes-do-painel para aplicar só com o status do YAML.',
+  );
+}
+
+/** Exporta as decisões do painel (banco desta máquina: na VPS, o de produção) para a pasta de saída. */
+async function exportPanelDecisions(db: Database, out: string): Promise<void> {
+  const p = await loadPanelDecisions(db, dbHost(process.env.DATABASE_URL));
+  await mkdir(out, { recursive: true });
+  await writeFile(join(out, PANEL_DECISIONS_FILE), JSON.stringify(p, null, 2));
+  console.log(`${describePanelDecisions(p)}\nGravadas em ${join(out, PANEL_DECISIONS_FILE)}.`);
+}
+
 /** Perfil editorial (--perfil): os mesmos dois passos, com profiles.json. */
 async function profileMode(): Promise<void> {
   const read = (path: string): ProfileProposal[] =>
@@ -149,7 +199,10 @@ async function profileMode(): Promise<void> {
   if (values.aplicar) {
     const proposals = read(resolve(values.aplicar));
     if (!proposals.length) throw new Error(`Nenhuma proposta em ${values.aplicar}.`);
-    const changes = await applyProfiles(await loadKnowledge(DEFAULT_KNOWLEDGE_DIR), proposals);
+    const changes = await applyProfiles(await loadKnowledge(DEFAULT_KNOWLEDGE_DIR), proposals, {
+      ...panelDecisionsFor(resolve(values.aplicar)),
+      overwriteApproved: values['sobrescrever-aprovados'],
+    });
     console.log(profileReport(proposals, changes));
     for (const f of changes.files) console.log(`\n${f.diff}`);
     if (values.plan || !changes.files.length) {
@@ -166,6 +219,15 @@ async function profileMode(): Promise<void> {
     return;
   }
   if (!values.saida) throw new Error('Defina --saida <pasta> (profiles.json e profiles-report.md ficam lá).');
+  if (values['exportar-decisoes']) {
+    const db = dbFromEnv();
+    try {
+      await exportPanelDecisions(db, resolve(values.saida));
+    } finally {
+      await closeDb(db);
+    }
+    return;
+  }
   const scope = values.escopo;
   if (!values.pilotos && scope !== 'lendas' && scope !== 'regulares')
     throw new Error('Defina --escopo lendas|regulares ou --pilotos <ids do F1DB>.');
@@ -204,7 +266,7 @@ async function profileMode(): Promise<void> {
       );
       return;
     }
-    const llm = llmOrNull(false, db);
+    const llm = await llmOrNull(false, db);
     if (!llm)
       throw new Error('Sem LLM configurado (AI_PROVIDER e a chave): o perfil exige pesquisa com fontes.');
     const fresh: ProfileProposal[] = [];
@@ -228,9 +290,11 @@ async function profileMode(): Promise<void> {
     await mkdir(out, { recursive: true });
     await writeFile(file, JSON.stringify(proposals, null, 2));
     await writeFile(join(out, 'profiles-report.md'), profileReport(proposals, null));
+    // as aprovações do painel vão junto: o --aplicar no dev não tem o banco de produção
+    await exportPanelDecisions(db, out);
     console.log(
-      `${fresh.length} proposta(s) nova(s); ${proposals.length} no total em ${file}. ` +
-        'Leve o arquivo para o dev e rode f1:bio --perfil --aplicar.',
+      `${fresh.length} proposta(s) nova(s); ${proposals.length} no total em ${file}. Leve o arquivo e o ` +
+        `${PANEL_DECISIONS_FILE} para o dev e rode f1:bio --perfil --aplicar.`,
     );
   } finally {
     await closeDb(db);

@@ -9,6 +9,7 @@ import { listTenantOptions, type TenantOption } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 
 import { pool } from './db';
+import { otpFailureSummary } from './otp-guard';
 import { roleOf, type Role } from './roles';
 import { auth, isAccessExpired, type AuthUser } from './server';
 
@@ -153,9 +154,9 @@ export async function listDemoUsers(): Promise<{ users: DemoUser[]; tenants: Ten
   };
 }
 
+/** Sessão aberta, como o painel a vê: sem o token (encerrar vai pelo id, ver `revokeSession`). */
 export interface DemoSession {
   id: string;
-  token: string;
   createdAt: string;
   updatedAt: string;
   expiresAt: string;
@@ -181,7 +182,7 @@ export async function getDemoUser(id: string) {
   const h = await headers();
   const user = (await auth.api.getUser({ headers: h, query: { id } }).catch(() => null)) as RawUser | null;
   if (!user) return null;
-  const [acts, invites, tenants, sessionsRes, activity] = await Promise.all([
+  const [acts, invites, tenants, sessionsRes, activity, otp] = await Promise.all([
     activitySummary([id]),
     lastInvites([id]),
     listTenantOptions(),
@@ -201,12 +202,12 @@ export async function getDemoUser(id: string) {
          from activity where user_id = $1 order by created_at desc limit 100`,
       [id],
     ),
+    otpFailureSummary(user.email.toLowerCase()),
   ]);
   const sessions: DemoSession[] = sessionsRes.sessions
     .filter((s) => new Date(s.expiresAt).getTime() > Date.now())
     .map((s) => ({
       id: s.id,
-      token: s.token,
       createdAt: iso(s.createdAt)!,
       updatedAt: iso(s.updatedAt)!,
       expiresAt: iso(s.expiresAt)!,
@@ -218,6 +219,8 @@ export async function getDemoUser(id: string) {
     user: toDemoUser(user, acts.get(id), invites.get(id), tenants),
     tenants,
     sessions,
+    /** Tentativas erradas de código na última hora e se o login por código está bloqueado. */
+    otp,
     activity: activity.rows.map<DemoActivity>((r) => ({
       id: r.id,
       kind: r.kind,

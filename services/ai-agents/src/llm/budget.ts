@@ -7,7 +7,8 @@
  * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa (de uma tentativa) não
  * couber; antes de cada retentativa ou continuação, o provedor confere de novo com o gasto parcial da
  * chamada (`LlmJsonRequest.budgetCheck`). Agente que bate o próprio teto em US$ fica sem IA até a
- * virada do dia UTC (segue com o determinístico); AI_DAILY_USD_BUDGET=0 desliga a IA de todos.
+ * virada do dia UTC (segue com o determinístico). Ligar e desligar é outra chave, literal: AI_STATUS
+ * (global) e AI_AGENT_STATUS (por agente), `on`/`off`; desligado, nenhuma chamada sai.
  *
  * Uso por outros agentes: envolva o cliente com `new BudgetedLlmClient(client, budget)` e use
  * `purpose` no formato `<agente>:<detalhe>` (ex.: `live:priorities:2026-10-21`) — o prefixo, sem a
@@ -18,8 +19,8 @@
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
-import { agentKey } from './config.js';
-import { BudgetExceededError, LlmError } from './errors.js';
+import { agentKey, describeAiState, type AiStatus } from './config.js';
+import { AiDisabledError, BudgetExceededError, LlmError } from './errors.js';
 import { budgetPriceFor, searchUsdFor } from './pricing.js';
 import type { LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
 
@@ -120,14 +121,18 @@ export class MemoryTokenBudgetStore implements TokenBudgetStore {
 }
 
 export interface BudgetPolicy {
+  /** AI_STATUS: `off` recusa toda chamada antes do provedor; ausente = `on`. */
+  status?: AiStatus;
+  /** AI_AGENT_STATUS: `off` recusa as chamadas do agente; `on` ou ausente segue o global (status off vence). */
+  agentStatus?: Record<string, AiStatus>;
   /** Limite global do dia (todos os agentes); null = sem limite. */
   dailyLimit: number | null;
   /** Limites opcionais por agente (ex.: { wtw: 1_200_000 }). */
   agentLimits?: Record<string, number>;
   /** Teto global em US$ do dia (tokens + buscas); null/ausente = sem teto. */
   dailyUsdLimit?: number | null;
-  /** Tetos em US$ por agente (ex.: { lineups: 2 }); 0 = agente sem IA. */
-  agentUsdLimits?: Record<string, number>;
+  /** Tetos em US$ por agente (ex.: { lineups: 2 }); null = sem teto próprio (só o global). */
+  agentUsdLimits?: Record<string, number | null>;
   /** Buscas na web por chamada; null/ausente = sem teto. */
   maxSearchesPerCall?: number | null;
 }
@@ -175,6 +180,32 @@ export class TokenBudget {
     return { dayUtc, used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
   }
 
+  /** Estado do global (sem agente) ou do agente: o do agente vale se definido, senão o global. */
+  statusOf(agent?: string): AiStatus {
+    if (this.policy.status === 'off') return 'off';
+    return (agent && this.policy.agentStatus?.[agent]) || 'on';
+  }
+
+  /**
+   * Estado literal (logs, CLI, painel): "desligado", "ligado · sem limite" ou
+   * "ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia". Do agente: o teto próprio em US$, se houver.
+   */
+  describe(agent?: string): string {
+    return describeAiState(
+      agent
+        ? {
+            status: this.statusOf(agent),
+            usdPerDay: this.policy.agentUsdLimits?.[agent] ?? null,
+            tokensPerDay: this.policy.agentLimits?.[agent] ?? null,
+          }
+        : {
+            status: this.statusOf(),
+            usdPerDay: this.policy.dailyUsdLimit ?? null,
+            tokensPerDay: this.policy.dailyLimit,
+          },
+    );
+  }
+
   /** Gasto em US$ do dia: global (sem agente) ou do agente, contra o teto que vale para ele. */
   async usdStatus(agent?: string): Promise<UsdBudgetStatus> {
     const dayUtc = dayUtcOf(this.now());
@@ -198,6 +229,9 @@ export class TokenBudget {
    */
   async reserve(agent: string, estimate: number, estimateUsd = 0): Promise<ReservedLimit[]> {
     const dayUtc = dayUtcOf(this.now());
+    // desligado (AI_STATUS / AI_AGENT_STATUS): recusa antes de ler o ledger e de chamar o provedor
+    if (this.policy.status === 'off') throw this.disabled(dayUtc, 'global');
+    if (this.policy.agentStatus?.[agent] === 'off') throw this.disabled(dayUtc, agent);
     const limits: ReservedLimit[] = [];
     if (this.policy.dailyLimit !== null) {
       const used = await this.store.usedTokens(dayUtc);
@@ -214,7 +248,7 @@ export class TokenBudget {
       limits.push({ who: 'global', unit: 'usd', used, limit: usdLimit });
     }
     const agentUsd = this.policy.agentUsdLimits?.[agent];
-    if (agentUsd !== undefined) {
+    if (agentUsd != null) {
       const used = await this.store.usedUsd(dayUtc, agent);
       limits.push({ who: agent, unit: 'usd', used, limit: agentUsd });
     }
@@ -274,8 +308,19 @@ export class TokenBudget {
     if (!this.warned.has(key)) {
       this.warned.add(key);
       console.warn(
-        `[orçamento de IA] ${err.message} ${who === 'global' ? 'Todos os agentes seguem' : `O agente ${who} segue`} só com o determinístico até a virada do dia UTC.`,
+        `[orçamento de IA] ${err.message} (${this.describe(who === 'global' ? undefined : who)}) ${who === 'global' ? 'Todos os agentes seguem' : `O agente ${who} segue`} só com o determinístico até a virada do dia UTC.`,
       );
+    }
+    return err;
+  }
+
+  /** Recusa por IA desligada; o aviso sai uma vez por dia e escopo. */
+  private disabled(dayUtc: string, who: string): AiDisabledError {
+    const err = new AiDisabledError(who);
+    const key = `${dayUtc}:off:${who}`;
+    if (!this.warned.has(key)) {
+      this.warned.add(key);
+      console.warn(`[orçamento de IA] ${err.message}`);
     }
     return err;
   }

@@ -42,4 +42,12 @@ describe('contrastText', () => {
     expect(contrastText('#efac07')).toBe('#09090b');
     expect(contrastText('var(--primary)')).toBe('var(--primary-foreground)');
   });
+
+  it('cores médias (luminância entre ~0,18 e 0,4) ganham preto, que dá mais contraste que branco', () => {
+    // #e13a30: branco ficaria em ~4,3:1, abaixo de 4,5:1; preto passa de 4,5:1
+    expect(contrastText('#e13a30')).toBe('#09090b');
+    expect(contrastText('#1e88e5')).toBe('#09090b');
+    // abaixo do cruzamento o branco continua melhor
+    expect(contrastText('#c62828')).toBe('#ffffff');
+  });
 });

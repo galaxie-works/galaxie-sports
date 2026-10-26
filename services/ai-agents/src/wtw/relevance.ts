@@ -78,7 +78,7 @@ export interface WtwPolicy {
   dailyUsdPerMarket: number | null;
   /**
    * Alocação por rodada em T-48h (`wtw-run`, desenho anterior). Desligada por padrão: o canal de cada
-   * jogo sai do job `wtw-channel` (T-5d, T-48h, T-6h e depois do jogo). Ausente = ligada (legado).
+   * jogo sai do job `wtw-channel` (consulta semanal, retentativas e depois do jogo). Ausente = ligada (legado).
    */
   roundAllocation?: boolean;
 }

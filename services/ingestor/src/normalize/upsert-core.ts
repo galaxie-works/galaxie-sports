@@ -50,6 +50,7 @@ import {
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
 import { slugify } from '../catalog/football-catalog.js';
+import { logger } from '../logger.js';
 import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from '../provisional/match.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
@@ -108,6 +109,11 @@ export interface UpsertStats {
     /** Jogos provisórios (curadoria) assumidos pelo jogo oficial deste lote. */
     provisionalMerged: number;
     skippedByPrecedence: number;
+    /**
+     * Espelho (`sport_event_detail`) não gravado: a identidade do fornecedor (provider, provider_event_id) já é
+     * de outro evento (espelho órfão, duplicata antiga). Vai para o log; o espelho do evento fica como estava.
+     */
+    mirrorIdentityTaken: number;
     ignored: Record<string, number>;
     transitions: number;
   };
@@ -139,6 +145,7 @@ export function emptyStats(): UpsertStats {
       matchedAcrossProviders: 0,
       provisionalMerged: 0,
       skippedByPrecedence: 0,
+      mirrorIdentityTaken: 0,
       ignored: {},
       transitions: 0,
     },
@@ -172,6 +179,7 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
       matchedAcrossProviders: a.events.matchedAcrossProviders + b.events.matchedAcrossProviders,
       provisionalMerged: a.events.provisionalMerged + b.events.provisionalMerged,
       skippedByPrecedence: a.events.skippedByPrecedence + b.events.skippedByPrecedence,
+      mirrorIdentityTaken: a.events.mirrorIdentityTaken + b.events.mirrorIdentityTaken,
       ignored,
       transitions: a.events.transitions + b.events.transitions,
     },
@@ -771,7 +779,7 @@ export async function upsertBatchInTx(
   }
 
   // ─ espelho dos demais esportes (jogo, corrida, luta) ─
-  await upsertSportMirrors(tx, batch, allowedEvents);
+  await upsertSportMirrors(tx, batch, allowedEvents, stats);
 
   // ─ complementos de eventos já conhecidos (F1 resultados/grid, MMA desfecho) ─
   await upsertSupplements(tx, batch, scope, stats, participantId);
@@ -1474,17 +1482,63 @@ async function upsertEvents(
 /**
  * `core.sport_event_detail`: o resumo (item do fornecedor) acompanha o estado aplicado — uma lista mais
  * antiga não reescreve o resumo; o detalhe vindo dos complementos é preservado (mesmo padrão do futebol).
+ * A identidade (provider, provider_event_id, kind) anda junto com o resumo: quando outro fornecedor passa a
+ * ser o dono do evento (ex.: F1DB → api-sports), o espelho não fica com o resumo de um e o id do outro.
+ * Identidade que já é de outro evento (espelho órfão): violaria `sport_event_detail_provider_uq` e derrubaria
+ * o lote inteiro, então o espelho desse evento não é gravado (fica como estava) e vai para o log.
  */
-async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: AllowedEvent[]): Promise<void> {
+async function upsertSportMirrors(
+  tx: Tx,
+  batch: NormalizedBatch,
+  allowed: AllowedEvent[],
+  stats: UpsertStats,
+): Promise<void> {
   const sd = sportEventDetail;
   for (const applied of [true, false]) {
-    const mirrors = allowed.filter((e) => e.source.sportEvent && e.stateApplied === applied);
-    const summary = applied ? sql`excluded.summary` : sql`${sd.summary}`;
-    for (const chunk of chunks(mirrors, 200)) {
+    const pick = (column: SQL, value: SQL) => (applied ? value : column);
+    const next = {
+      provider: pick(sql`${sd.provider}`, sql`excluded.provider`),
+      providerEventId: pick(sql`${sd.providerEventId}`, sql`excluded.provider_event_id`),
+      kind: pick(sql`${sd.kind}`, sql`excluded.kind`),
+      summary: pick(sql`${sd.summary}`, sql`excluded.summary`),
+    };
+    const candidates = allowed.filter((e) => e.source.sportEvent && e.stateApplied === applied);
+    for (const chunk of chunks(candidates, 200)) {
+      const taken = await tx
+        .select({ eventId: sd.eventId, providerEventId: sd.providerEventId })
+        .from(sd)
+        .where(
+          and(
+            eq(sd.provider, batch.provider),
+            eq(sd.sport, batch.sport),
+            inArray(
+              sd.providerEventId,
+              chunk.map((e) => e.source.sportEvent!.providerEventId),
+            ),
+          ),
+        );
+      const ownerOf = new Map(taken.map((t) => [t.providerEventId, t.eventId]));
+      const mirrors = chunk.filter(({ id, source }) => {
+        const owner = ownerOf.get(source.sportEvent!.providerEventId);
+        if (owner === undefined || owner === id) return true;
+        stats.events.mirrorIdentityTaken += 1;
+        logger.warn(
+          {
+            event_id: id,
+            orphan_event_id: owner,
+            provider: batch.provider,
+            sport: batch.sport,
+            provider_event_id: source.sportEvent!.providerEventId,
+          },
+          'espelho do evento não gravado: a identidade do fornecedor já é de outro evento (sport_event_detail)',
+        );
+        return false;
+      });
+      if (!mirrors.length) continue;
       await tx
         .insert(sd)
         .values(
-          chunk.map(({ id, source }) => {
+          mirrors.map(({ id, source }) => {
             const m = source.sportEvent!;
             return {
               eventId: id,
@@ -1500,8 +1554,8 @@ async function upsertSportMirrors(tx: Tx, batch: NormalizedBatch, allowed: Allow
         )
         .onConflictDoUpdate({
           target: sd.eventId,
-          set: { summary, updatedAt: sql`now()` },
-          setWhere: sql`${sd.summary} is distinct from ${summary}`,
+          set: { ...next, updatedAt: sql`now()` },
+          setWhere: sql`(${sd.provider}, ${sd.providerEventId}, ${sd.kind}, ${sd.summary}) is distinct from (${next.provider}, ${next.providerEventId}, ${next.kind}, ${next.summary})`,
         });
     }
   }

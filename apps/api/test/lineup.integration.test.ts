@@ -14,6 +14,7 @@ import {
   assetCredit,
   broadcaster,
   broadcastOption,
+  changeFeed,
   closeDb,
   competition,
   createDb,
@@ -24,9 +25,13 @@ import {
   platform,
   platformAddon,
   platformPlan,
+  proposeLineupChange,
+  recordPlanPagesExtraction,
   runMigrations,
+  setLineupReviewStatus,
   setTenantOperator,
   sport,
+  touchPlatformLineup,
   type Database,
   type LineupReviewStatus,
   type PlatformKind,
@@ -180,6 +185,26 @@ beforeAll(async () => {
   });
   await db.update(platform).set({ logoAssetId: logo!.id }).where(eq(platform.id, ids.operator));
   ids.rival = await addPlatform('br-operadora-exemplo-dois', 'Operadora Exemplo Dois', 'pay_tv_operator');
+  // logo CC BY com a atribuição pedida pelo autor (`Attribution` da Commons): ela vira o texto do crédito
+  const [rivalLogo] = await db
+    .insert(asset)
+    .values({
+      kind: 'broadcaster_logo',
+      sourceUrl: 'https://cdn.exemplo.test/operadora-exemplo-dois.png',
+      origin: 'commons',
+    })
+    .returning();
+  await db.insert(assetCredit).values({
+    assetId: rivalLogo!.id,
+    source: 'wikimedia-commons',
+    title: 'File:Operadora Exemplo Dois logo.svg',
+    pageUrl: 'https://commons.wikimedia.org/wiki/File:Operadora_Exemplo_Dois_logo.svg',
+    author: 'Fulano',
+    license: 'CC BY 4.0',
+    credit: 'Own work',
+    attribution: 'Fulano / Operadora Exemplo Dois',
+  });
+  await db.update(platform).set({ logoAssetId: rivalLogo!.id }).where(eq(platform.id, ids.rival));
   ids.streaming = await addPlatform(
     'br-streaming-exemplo',
     'Streaming Exemplo',
@@ -246,7 +271,7 @@ beforeAll(async () => {
   });
   await setTenantOperator(db, others.id, { platformId: ids.operator, showOtherOperators: true });
 
-  app = buildServer({ db, redis, keyPrefix, usage: false });
+  app = buildServer({ db, redis, keyPrefix, usage: false, changeFeed: { pollIntervalMs: 100 } });
   await app.ready();
 }, 120_000);
 
@@ -294,8 +319,16 @@ describe('GET /v1/events/{id}/where-to-watch → availability', () => {
         title: 'File:Operadora Exemplo logo.svg',
         license: 'Public domain',
         attribution_required: false,
+        attribution: null,
         text: 'Logo: Wikimedia Commons · Public domain',
       },
+    });
+    expect(body.availability.platforms[1].platform.logo_credit).toMatchObject({
+      author: 'Fulano',
+      license: 'CC BY 4.0',
+      attribution_required: true,
+      attribution: 'Fulano / Operadora Exemplo Dois',
+      text: 'Logo: Fulano / Operadora Exemplo Dois · CC BY 4.0',
     });
     expect(body.availability.channel_status).toBe('confirmed');
     const plans = Object.fromEntries(
@@ -554,5 +587,56 @@ describe('GET /v1/platforms/{id}/lineup', () => {
     expect((await get(`/v1/platforms/${ids.draft}/lineup`, keys.plain)).statusCode).toBe(404);
     expect((await get('/v1/platforms/nao-existe/lineup', keys.plain)).statusCode).toBe(404);
     expect((await get(`/v1/platforms/${ids.operator}/lineup`, keys.arOnly)).statusCode).toBe(403);
+  });
+});
+
+describe('purge da grade pelo change feed', () => {
+  const listIds = async () =>
+    ((await get('/v1/platforms?country=BR', keys.plain)).json().data as { id: string }[]).map((p) => p.id);
+
+  it('revisita sem mudança servida (seen_at, páginas de planos, mudança proposta) não publica nem purga', async () => {
+    const lineupChanges = async () =>
+      (await db.select({ id: changeFeed.id }).from(changeFeed).where(eq(changeFeed.topic, 'lineup'))).length;
+    const before = await lineupChanges();
+    expect(await listIds()).toContain(ids.operator);
+    const now = new Date();
+    expect(await touchPlatformLineup(db, ids.operator, now)).toBeGreaterThan(0);
+    await recordPlanPagesExtraction(db, ids.operator, 'a'.repeat(64), now);
+    expect(await proposeLineupChange(db, { type: 'platform', id: ids.operator }, { name: 'Nome Novo' })).toBe(
+      true,
+    );
+    expect(await lineupChanges()).toBe(before);
+    expect((await get('/v1/platforms?country=BR', keys.plain)).headers['x-galaxie-cache']).toBe('HIT');
+  });
+
+  it('aprovar uma plataforma derruba o cache de /v1/platforms (trigger da grade)', async () => {
+    expect(await listIds()).not.toContain(ids.draft);
+    expect((await get('/v1/platforms?country=BR', keys.plain)).headers['x-galaxie-cache']).toBe('HIT');
+    await setLineupReviewStatus(db, { type: 'platform', id: ids.draft }, 'approved', 'editorial:teste');
+    await expect.poll(listIds, { timeout: 5_000, interval: 50 }).toContain(ids.draft);
+    // apagar a plataforma (cascata em planos e vínculos) também purga
+    await db.delete(platform).where(eq(platform.id, ids.draft));
+    await expect.poll(listIds, { timeout: 5_000, interval: 50 }).not.toContain(ids.draft);
+  });
+
+  it('canal novo num plano derruba o cache da grade da plataforma', async () => {
+    const url = `/v1/platforms/${ids.streaming}/lineup`;
+    const channels = async () =>
+      ((await get(url, keys.plain)).json().plans as { channels: { id: string }[] }[]).flatMap((p) =>
+        p.channels.map((c) => c.id),
+      );
+    expect(await channels()).toEqual([]);
+    expect((await get(url, keys.plain)).headers['x-galaxie-cache']).toBe('HIT');
+    const [plan] = await db
+      .select({ id: platformPlan.id })
+      .from(platformPlan)
+      .where(eq(platformPlan.platformId, ids.streaming));
+    await db.insert(planChannel).values({
+      planId: plan!.id,
+      channelId: 'canal_aberto_exemplo',
+      access: 'included',
+      reviewStatus: 'approved',
+    });
+    await expect.poll(channels, { timeout: 5_000, interval: 50 }).toEqual(['canal_aberto_exemplo']);
   });
 });

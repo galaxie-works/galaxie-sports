@@ -31,17 +31,20 @@ type SportText = Dictionary['sport'];
 /**
  * Encerrado sem placar: o relógio fechou o jogo pelo horário, mas o resultado ainda não chegou do fornecedor
  * (esportes sem ao vivo recebem o placar no sync do dia seguinte). Mostra "aguardando resultado", nunca "? – ?".
- * Sessão de corrida (F1) não tem placar: o resultado é a classificação dos pilotos.
+ * Sessão de corrida (F1) não tem placar: o resultado é a classificação dos pilotos. Luta (MMA) também não:
+ * o placar vem sempre vazio, e o resultado é o desfecho da luta (`fight.result`).
  */
 export function awaitingResult(
   event: Pick<Event, 'status'> & {
     score?: Pick<Event['score'], 'home' | 'away'>;
     session?: Event['session'];
     participants?: Pick<Event['participants'][number], 'position'>[];
+    fight?: { result: unknown } | null;
   },
 ) {
   if (event.session)
     return event.status === 'finished' && !(event.participants ?? []).some((p) => p.position != null);
+  if (event.fight) return event.status === 'finished' && event.fight.result == null;
   return (
     event.status === 'finished' && event.score != null && event.score.home == null && event.score.away == null
   );

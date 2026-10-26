@@ -50,7 +50,6 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { lineupMarks } from '@/lib/lineup-marks';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
 import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
@@ -618,7 +617,6 @@ export async function EventContent({ params, searchParams, source }: PageContent
                 timeline={showTimeline ? timeline : null}
                 stats={stats}
                 lineups={lineups}
-                marks={lineupMarks(timeline)}
                 colors={colors}
                 query={query}
                 timeZone={f.timeZone}

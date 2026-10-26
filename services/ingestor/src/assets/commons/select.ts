@@ -170,10 +170,18 @@ export function choose(
     // a melhor para o fundo do heading (nota `hero`) entra mesmo fora das de mais qualidade: a foto de corrida
     // de 1950 perde em nitidez para a do museu, mas é a que vai ao fundo. Só entre as que podem ir ao fundo (sem
     // CC BY-SA): a Ferrari 2026 tinha as 3 de mais qualidade em BY-SA e a CC BY da China ficava de fora
-    const hero = cars
-      .filter(({ e }) => !e.license.shareAlike)
-      .sort((a, b) => (b.j?.hero ?? 0) - (a.j?.hero ?? 0))[0];
+    const heroOf = (list: typeof cars) =>
+      list.filter(({ e }) => !e.license.shareAlike).sort((a, b) => (b.j?.hero ?? 0) - (a.j?.hero ?? 0))[0];
+    const hero = heroOf(cars);
     if (hero?.j?.hero != null && !top.includes(hero)) top.push(hero);
+    // carro de destaque de mais de um piloto: a melhor para o fundo de cada um (a que o cita) também entra, senão
+    // o companheiro ficaria com a foto do outro ou sem fundo
+    const drivers = d.target.drivers ?? [];
+    if (drivers.length > 1)
+      for (const driver of drivers) {
+        const own = heroOf(cars.filter(({ e }) => e.candidate.drivers?.includes(driver.f1dbId)));
+        if (own?.j?.hero != null && !top.includes(own)) top.push(own);
+      }
     return top.map(({ e, j }, rank) => ({
       eligible: e,
       role: 'car',

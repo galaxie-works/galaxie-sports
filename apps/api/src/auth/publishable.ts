@@ -1,4 +1,4 @@
-import type { FastifyRequest } from 'fastify';
+import type { FastifyContextConfig, FastifyRequest } from 'fastify';
 import {
   hashPublishableKey,
   isOriginAllowed,
@@ -154,12 +154,22 @@ export function requestOrigin(request: FastifyRequest): string | undefined {
 
 /**
  * A chave publicável só alcança leitura da API canônica: GET/HEAD em rota `/v1/*` que exige módulo.
- * Fora disso (escrita, `/v1/account`, SSE, espelho, rotas internas e administrativas) → 403.
+ * Fora disso (escrita, `/v1/account`, SSE, espelho, rotas internas e administrativas) não vale.
+ * O OpenAPI declara `galaxiePublishableKey` nas mesmas operações (security.test.ts confere).
  */
+export function isPublishableRoute(
+  method: string,
+  url: string,
+  config: FastifyContextConfig | undefined,
+): boolean {
+  const readOnly = method === 'GET' || method === 'HEAD';
+  return Boolean(
+    readOnly && config?.module && url.startsWith('/v1/') && !config.allowQueryKey && !config.admin,
+  );
+}
+
+/** Rota fora do alcance da chave publicável → 403 `PUBLISHABLE_KEY_NOT_ALLOWED`. */
 export function assertPublishableRoute(request: FastifyRequest): void {
-  const config = request.routeOptions.config;
-  const url = request.routeOptions.url ?? '';
-  const readOnly = request.method === 'GET' || request.method === 'HEAD';
-  if (!readOnly || !config?.module || !url.startsWith('/v1/') || config.allowQueryKey || config.admin)
+  if (!isPublishableRoute(request.method, request.routeOptions.url ?? '', request.routeOptions.config))
     throw problems.publishableKeyNotAllowed();
 }

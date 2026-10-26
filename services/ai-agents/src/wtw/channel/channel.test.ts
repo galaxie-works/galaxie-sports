@@ -6,46 +6,8 @@ import type { EventInfo } from '../event-info.js';
 import { MatchChannelAgent } from './agent.js';
 import { buildChannelUserPrompt, roundLabel } from './prompt.js';
 import { buildChannelSchema } from './schema.js';
-import { dayBucket, dueChannelWindow } from './windows.js';
 
-const H = 3_600_000;
 const config = loadWtwConfig({ env: {} });
-
-describe('janelas do canal do jogo', () => {
-  const roundStart = new Date('2026-10-24T19:30:00Z');
-  const start = new Date('2026-10-26T22:00:00Z');
-  const anchors = { roundStart, dayStart: start, dayLastStart: new Date('2026-10-26T23:00:00Z') };
-  const at = (ms: number) => new Date(ms);
-  const due = (now: Date, status = 'scheduled') =>
-    dueChannelWindow({ startsAt: start, status }, anchors, now);
-
-  it('T-5d e T-48h pelo primeiro jogo da rodada; T-6h pelo primeiro jogo do dia', () => {
-    expect(due(at(roundStart.getTime() - 6 * 24 * H))).toBeNull();
-    expect(due(at(roundStart.getTime() - 4 * 24 * H))).toMatchObject({
-      window: 'T-5d',
-      bucket: 'round',
-      phase: 'pre',
-    });
-    expect(due(at(roundStart.getTime() - 24 * H))).toMatchObject({ window: 'T-48h', bucket: 'round' });
-    // entre o início da rodada e o T-6h do jogo, a vigente segue a T-48h (já pesquisada)
-    expect(due(at(roundStart.getTime() + H))).toMatchObject({ window: 'T-48h' });
-    expect(due(at(start.getTime() - 5 * H))).toMatchObject({ window: 'T-6h', bucket: dayBucket(start) });
-    expect(due(at(start.getTime() + H), 'live')).toBeNull();
-  });
-
-  it('depois do jogo: 3 h depois do último jogo do dia, até 72 h', () => {
-    expect(due(at(start.getTime() + 3 * H), 'finished')).toBeNull();
-    expect(due(at(anchors.dayLastStart.getTime() + 3 * H), 'finished')).toMatchObject({
-      window: 'post',
-      phase: 'post',
-    });
-    expect(due(at(start.getTime() + 73 * H), 'finished')).toBeNull();
-  });
-
-  it('o dia do jogo das 21h30 de Brasília (00h30 UTC) é o dia em que é jogado', () => {
-    expect(dayBucket(new Date('2026-10-25T00:30:00Z'))).toBe('2026-10-24');
-  });
-});
 
 const info = (id: string, home: string, away: string, startsAt: string): EventInfo => ({
   id,
@@ -141,7 +103,7 @@ describe('agente do canal do jogo', () => {
       season: 2026,
       round: 'Regular Season - 32',
       phase: 'pre',
-      window: 'T-48h',
+      window: 'retry-1d',
       events,
       markets: [{ ...markets[0]!, holders: ['premiere', 'sportv'], matches: ['J1'] }],
     });
@@ -157,7 +119,7 @@ describe('agente do canal do jogo', () => {
       },
     ]);
     expect(res.groundedUrls).toEqual(['https://ge.globo.com/x']);
-    expect(llm.calls[0]!.purpose).toBe('wtw:channel:brasileirao-serie-a:Regular_Season_-_32:T-48h:BR');
+    expect(llm.calls[0]!.purpose).toBe('wtw:channel:brasileirao-serie-a:Regular_Season_-_32:retry-1d:BR');
     expect(llm.calls[0]!.webSearch).toBe(true);
   });
 

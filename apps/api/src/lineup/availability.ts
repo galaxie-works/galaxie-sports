@@ -240,7 +240,8 @@ export async function loadLogoBook(
                 license: a.c.license,
                 license_url: a.c.licenseUrl,
                 attribution_required: a.c.attributionRequired,
-                text: logoCreditText(a.c.author, a.c.license),
+                attribution: a.c.attribution,
+                text: logoCreditText(a.c.author, a.c.license, a.c.attribution),
               }
             : null,
         },
@@ -276,13 +277,18 @@ export function addonsDto(logos: LogoBook, addons: readonly LineupAddon[]): Plat
   }
   return [...byRef.values()].map((list) => {
     const first = list[0]!;
-    const prices = list.map((a) => a.priceAmount).filter((p): p is number => p !== null);
+    // o preço vem na moeda que a fonte mostra: o "a partir de" só compara ofertas na mesma moeda
+    const currency = list.find((a) => a.priceAmount !== null && a.priceCurrency)?.priceCurrency ?? null;
+    const prices = list
+      .filter((a) => a.priceCurrency === currency)
+      .map((a) => a.priceAmount)
+      .filter((p): p is number => p !== null);
     return {
       ...logos.item(first.refId),
       kind: first.kind,
       channel: first.channel,
       price_from: prices.length ? Math.min(...prices) : null,
-      currency: list.find((a) => a.priceCurrency)?.priceCurrency ?? null,
+      currency,
       offers: list.map((a) => ({
         name: a.name,
         price: a.priceAmount,

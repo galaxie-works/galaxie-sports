@@ -18,14 +18,18 @@
 #      menos 30), para o resto caber no teto; trava mais velha que LOCK_STALE_MIN (padrão: teto + 10 min, no
 #      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
-#   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois)
-#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry)
+#   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
+#      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
+#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
+#      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
 #   7. pós-deploy idempotente: seed da base semântica, nomes curados de estádios e importância
 #   8. limpa o cache de respostas da API (senão a versão anterior segue servida por até 24 h)
 #   9. smoke test (infra/vps-telemetry/smoke.mjs); falha → código de saída 1
 #  10. notas de versão: tag deploy-AAAA-MM-DD.N e release no GitHub com os PRs desde o deploy anterior
+#  11. lineup-render (perfil render): construída na própria VPS quando a pasta muda, com a tag da versão do
+#      Playwright, em até LR_BUILD_MIN minutos (padrão 15) e só se couber no teto; nunca falha o deploy
 # Falha depois do passo 6 deixa a versão nova no ar e imprime o comando para voltar à anterior.
 set -euo pipefail
 
@@ -271,6 +275,13 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# página de manutenção (serviço maintenance: imagem upstream fixa, sem IMAGE_TAG): baixa a imagem só se ainda não
+# estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
+# outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
+if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
+  echo "FAIL  não deu para baixar a imagem da página de manutenção (Docker Hub fora? docker compose < 2.23?); nada foi trocado na VPS"
+  exit 1
+fi
 ssh "$VPS" "$CD && (umask 077 && sed 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env > .env.check) \
   && { docker compose -f compose.yml.new --env-file .env.check config -q; ok=\$?; rm -f .env.check; [ \$ok = 0 ]; } \
   && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
@@ -357,9 +368,11 @@ ssh "$VPS" "cd $DIR && docker compose exec -T valkey sh -ec '
     [ -z \"\$keys\" ] || printf \"%s\\n\" \"\$keys\" | xargs -n 200 valkey-cli del >/dev/null
   done'"
 
-# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy
+# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy.
+# Com AI_STATUS=off no env do contêiner, não chama o provedor (o scheduler também respeita o painel).
 echo "conta da IA"
 ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
+  if ((process.env.AI_STATUS || \"\").trim().toLowerCase() === \"off\") { console.log(\"WARN  IA: desligada (AI_STATUS=off), sem checar o crédito\"); process.exit(0); }
   const p = (process.env.AI_PROVIDER || \"openai\").toLowerCase();
   const gem = p === \"gemini\";
   const key = gem ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;
@@ -385,3 +398,42 @@ STAGE=finished
 # anterior (infra/vps-telemetry/release-notes.mjs) — só depois do smoke ok; falha aqui não desfaz o deploy
 echo "notas de versão"
 (cd "$ROOT" && node "$WT/infra/vps-telemetry/release-notes.mjs" --to "$SHA") || echo "WARN  release: não publicada"
+
+# lineup-render (perfil render, não sobe no deploy): a base do Playwright tem ~2 GB, então em vez de enviar a imagem
+# a VPS a constrói da pasta (poucos KB) quando não tem a tag da versão com o hash desta pasta no rótulo. A tag é a
+# versão do Playwright (a do compose.yml) e não segue o SHA. Por último, depois do smoke: o serviço opcional não
+# consome o teto do deploy (o build tem LR_BUILD_MIN minutos, padrão 15, e só começa se couber no teto). Nada aqui
+# falha o deploy; o WARN diz se o perfil render ainda sobe.
+LR_BUILD_MIN="${LR_BUILD_MIN:-15}"
+lr_not_built() {
+  local image="$1" why="$2"
+  if ssh "$VPS" "docker image inspect $image >/dev/null 2>&1"; then
+    echo "WARN  lineup-render: $why; o perfil render segue com a $image que já está na VPS (outra versão da pasta)"
+  else
+    echo "WARN  lineup-render: $why e não há $image na VPS: o perfil render NÃO sobe (sem imagem anterior e sem" \
+      "credencial do GHCR na VPS). Fallback: imagem oficial com npx (infra/vps-telemetry/README.md, lineup-render)"
+  fi
+  echo "WARN  para construir à mão: tar -C infra/lineup-render -c . | ssh $VPS 'docker build --label $TREE_LABEL=$3 -t $image -'"
+}
+lr_build() {
+  local tree version image
+  # SHA anterior à pasta (deploy de um commit antigo): nada a fazer
+  tree="$(git -C "$WT" rev-parse -q --verify "HEAD:infra/lineup-render")" || return 0
+  version="$(sed -n 's/^ *"playwright": *"\([0-9][0-9.]*\)".*/\1/p' "$WT/infra/lineup-render/package.json")"
+  if [ -z "$version" ]; then
+    echo "WARN  lineup-render: versão do playwright não encontrada em infra/lineup-render/package.json; imagem não conferida"
+    return 0
+  fi
+  image="$REG-lineup-render:$version"
+  [ -z "$(ssh "$VPS" "docker images -q --filter label=$TREE_LABEL=$tree $image")" ] || return 0
+  if [ $((CEILING_MIN * 60 - SECONDS)) -lt $(((LR_BUILD_MIN + 2) * 60)) ]; then
+    lr_not_built "$image" "sem tempo no teto do deploy para construir na VPS" "$tree"
+    return 0
+  fi
+  echo "build lineup-render na VPS (não tem a imagem desta versão da pasta; até $LR_BUILD_MIN min)"
+  if ! tar -C "$WT/infra/lineup-render" -c . |
+    ssh "$VPS" "timeout ${LR_BUILD_MIN}m docker build -q --label $TREE_LABEL=$tree -t $image - >/dev/null"; then
+    lr_not_built "$image" "build na VPS falhou" "$tree"
+  fi
+}
+lr_build

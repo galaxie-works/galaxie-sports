@@ -1,6 +1,6 @@
 /**
  * Agente do canal do jogo (docs/07 §2.2.4): uma chamada `research` (Gemini com grounding) por rodada ×
- * janela, para todos os jogos e mercados do grupo. Só PROPÕE ids e fontes — quem decide é o validador
+ * momento, para todos os jogos e mercados do grupo. Só PROPÕE ids e fontes — quem decide é o validador
  * determinístico (`validateMatchChannels`, @galaxie/where-to-watch).
  */
 import type { ChannelProposal } from '@galaxie/where-to-watch';
@@ -28,7 +28,7 @@ export interface ChannelResearchInput {
   season: number | null;
   round: string;
   phase: ChannelPhase;
-  /** Rótulo da janela (T-5d, T-48h, T-6h, post) — entra no `purpose`. */
+  /** Momento (weekly, retry-3d, retry-1d, post) — entra no `purpose`. */
   window: string;
   events: EventInfo[];
   markets: ChannelMarket[];
