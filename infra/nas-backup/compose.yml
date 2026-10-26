@@ -1,0 +1,37 @@
+# Stack `galaxie-sports-backup-nas` do NAS (Portainer do NAS, ambiente local): puxa os dumps do Postgres de produção
+# da VPS uma vez por dia, confere o sha256, faz a rotação 14/8/12 e deixa o recibo na VPS.
+# Instalação e chaves: docs/runbooks/exercicio-dr.md §Cópia no NAS. Nada de segredo aqui: as chaves SSH ficam só na
+# pasta do NAS (NAS_BACKUP_PATH/ssh), geradas lá mesmo.
+services:
+  backup-nas:
+    image: alpine:3.22
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      TZ: UTC
+      VPS_HOST: ${VPS_HOST:?defina VPS_HOST}
+      VPS_USER: ${VPS_USER:-root}
+      NAS_KEEP_DAILY: ${NAS_KEEP_DAILY:-14}
+      NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-8}
+      NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-12}
+      NAS_BWLIMIT: ${NAS_BWLIMIT:-}
+      # Duas tentativas por dia (UTC): depois do dump das 03:30 e uma de reserva. Uma cópia em dia não baixa de novo.
+      NAS_PULL_CRON: ${NAS_PULL_CRON:-15 5,17 * * *}
+      NAS_PULL_ON_START: ${NAS_PULL_ON_START:-true}
+    volumes:
+      - ${NAS_BACKUP_PATH:?defina NAS_BACKUP_PATH}:/data
+    # O script vem da própria pasta (cópia de infra/nas-backup/nas-pull.sh); a saída do crond vai para o log do container.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        apk add --no-cache -q rsync openssh-client coreutils
+        # o crond não repassa o ambiente do container para os jobs
+        export -p > /etc/nas-pull.env
+        echo "$$NAS_PULL_CRON . /etc/nas-pull.env; /bin/sh /data/nas-pull.sh >/proc/1/fd/1 2>&1" | crontab -
+        if [ "$$NAS_PULL_ON_START" = true ]; then /bin/sh /data/nas-pull.sh || true; fi
+        exec crond -f -l 8
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
