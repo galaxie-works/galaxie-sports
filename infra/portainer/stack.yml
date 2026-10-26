@@ -232,6 +232,21 @@ services:
       - api
     logging: *logging
 
+  # Uso do disco para o alerta DiskAlmostFull. Sem bind mount do host nem privilégio: o volume promdata (montado só
+  # para leitura) fica no disco onde o Docker guarda os volumes (Postgres, backups, Prometheus), e o statfs dele é o
+  # desse disco. Só o coletor de sistemas de arquivos; sem porta publicada (o Prometheus raspa pela rede da stack).
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    mem_limit: 64m
+    command:
+      - --collector.disable-defaults
+      - --collector.filesystem
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|etc)($$|/)
+    volumes:
+      - promdata:/data/promdata:ro
+    logging: *logging
+
   grafana:
     image: ${IMAGE_PREFIX:-galaxie-sports}-grafana:${IMAGE_TAG:-staging}
     build:
@@ -242,6 +257,12 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN:-grafana.localhost}
+      # e-mail dos alertas (infra/observability/grafana/entrypoint.sh); vazio = alertas só no Grafana
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-}
+      ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
+      ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-}
     volumes:
       - grafanadata:/var/lib/grafana
     depends_on:

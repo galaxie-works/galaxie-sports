@@ -3,6 +3,7 @@ import { API_SPORTS, utcDayString, type QuotaPolicy } from '@galaxie/apisports-c
 import type { Database } from '@galaxie/db';
 import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
 import {
+  changeFeedConsumers,
   jobStats,
   ledgerCounts,
   liveEvents,
@@ -10,6 +11,7 @@ import {
   plannedBudgets,
   providerSnapshots,
   rawFreshness,
+  type ChangeFeedConsumerRow,
   type JobStatsRow,
   type LedgerCountRow,
   type LiveRow,
@@ -117,7 +119,7 @@ interface QuotaData {
   states: QuotaState[];
 }
 
-/** Registro Prometheus do Galaxie Sports: cota, jobs, frescor do raw, ao vivo e latência HTTP. */
+/** Registro Prometheus do Galaxie Sports: cota, jobs, frescor do raw, ao vivo, change feed e latência HTTP. */
 export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   const registry = new Registry();
   if (options.defaultMetrics ?? true) collectDefaultMetrics({ register: registry });
@@ -183,7 +185,13 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
-  const groups = [quota, jobs, freshness, live] as CollectorGroup<unknown>[];
+  const changeFeed = new CollectorGroup<ChangeFeedConsumerRow[]>(
+    'change_feed',
+    () => changeFeedConsumers(db),
+    ttl,
+    onError,
+  );
+  const groups = [quota, jobs, freshness, live, changeFeed] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
   dbGauge(
@@ -366,6 +374,28 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ['sport'],
     (g, d) => {
       for (const r of d.scheduler) g.set({ sport: r.sport }, seconds(r.updatedAt));
+    },
+  );
+
+  // ── change feed (fonte: cursores salvos dos consumidores) ────────────────────────────────────────
+  dbGauge(
+    registry,
+    changeFeed,
+    'galaxie_change_feed_pending',
+    'Mudanças do ops.change_feed depois do cursor do consumidor (até 10 000)',
+    ['consumer'],
+    (g, rows) => {
+      for (const r of rows) g.set({ consumer: r.consumer }, r.pending);
+    },
+  );
+  dbGauge(
+    registry,
+    changeFeed,
+    'galaxie_change_feed_pending_age_seconds',
+    'Idade da mudança pendente mais antiga do consumidor (s; 0 = em dia)',
+    ['consumer'],
+    (g, rows) => {
+      for (const r of rows) g.set({ consumer: r.consumer }, r.oldestPendingAgeSeconds);
     },
   );
 

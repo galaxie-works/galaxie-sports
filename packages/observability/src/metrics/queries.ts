@@ -245,3 +245,39 @@ export async function liveSchedulerStates(db: Database): Promise<LiveSchedulerRo
     };
   });
 }
+
+export interface ChangeFeedConsumerRow {
+  /** `demo-cache:<nome>` (demo_auth.cache_feed_cursor) ou `webhooks:<nome>` (api.webhook_cursor). */
+  consumer: string;
+  /** Mudanças depois do cursor (contadas até 10 000). */
+  pending: number;
+  /** Idade (s) da mudança pendente mais antiga; 0 sem pendência. */
+  oldestPendingAgeSeconds: number;
+}
+
+/**
+ * Consumidores do `ops.change_feed` com cursor salvo no banco: quanto falta e há quanto tempo a mais antiga
+ * espera. O cursor da demo é criado pela própria demo na primeira leitura (a tabela pode não existir).
+ */
+export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsumerRow[]> {
+  const [reg] = await db.execute<{ demo: boolean }>(
+    sql`select to_regclass('demo_auth.cache_feed_cursor') is not null as demo`,
+  );
+  const sources = [sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`];
+  if (reg?.demo)
+    sources.push(sql`select 'demo-cache:' || name, last_change_id from demo_auth.cache_feed_cursor`);
+  const rows = await db.execute<{ consumer: string; pending: number; age: number | string | null }>(sql`
+    with c as (${sql.join(sources, sql` union all `)})
+    select c.consumer,
+           (select count(*) from (select 1 from ops.change_feed f where f.id > c.last_change_id limit 10000) p)::int
+             as pending,
+           extract(epoch from now() - (select f.created_at from ops.change_feed f
+                                        where f.id > c.last_change_id order by f.id limit 1))::float8 as age
+    from c
+  `);
+  return rows.map((r) => ({
+    consumer: r.consumer,
+    pending: Number(r.pending),
+    oldestPendingAgeSeconds: Math.max(0, Number(r.age ?? 0)),
+  }));
+}

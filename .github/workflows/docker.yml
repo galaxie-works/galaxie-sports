@@ -292,7 +292,7 @@ jobs:
         run: jq empty infra/observability/grafana/dashboards/*.json
 
       - name: shellcheck
-        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/vps-telemetry/deploy.sh
+        run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh infra/vps-telemetry/deploy.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
