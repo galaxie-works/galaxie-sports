@@ -33,7 +33,7 @@ export function isModule(value: string): value is ApiModule {
 
 /** Cria o tenant ou atualiza o existente com o mesmo slug (idempotente). */
 export async function upsertTenant(
-  db: Database,
+  db: DbOrTx,
   input: TenantInput,
 ): Promise<{ id: string; created: boolean }> {
   const values = {

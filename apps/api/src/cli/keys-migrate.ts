@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
-import { applyKeyMigration, planKeyMigration } from '../admin/key-migration.js';
+import { applyKeyMigration, KeyMigrationError, planKeyMigration } from '../admin/key-migration.js';
 
 const USAGE = `Uso: pnpm --filter @galaxie/api keys:migrate [--plan | --apply] [--test-prefixes <p1,p2>]
 
@@ -63,14 +63,29 @@ try {
       );
     console.log('\nNada foi alterado (--plan). Rode com --apply para migrar.');
   } else {
-    const done = await applyKeyMigration(db, { testPrefixes });
-    console.log(`${done.length} chave(s) migrada(s). Guarde as novas agora — não serão exibidas de novo:\n`);
-    for (const k of done)
-      console.log(
-        `  ${k.tenant}  ${k.prefix} → ${k.newPrefix}  (${k.newEnv}, rótulo=${k.label ?? '-'})\n    ${k.newKey}`,
+    console.log(`Migrando ${plan.length} chave(s). Guarde cada nova agora — não será exibida de novo:\n`);
+    // cada substituta sai logo depois do commit dela: se uma chave adiante falhar, as já trocadas
+    // (com a antiga revogada) não se perdem
+    const done = await applyKeyMigration(db, {
+      testPrefixes,
+      onMigrated: (k) =>
+        console.log(
+          `  ${k.tenant}  ${k.prefix} → ${k.newPrefix}  (${k.newEnv}, rótulo=${k.label ?? '-'})\n    ${k.newKey}`,
+        ),
+    }).catch((err: unknown) => {
+      if (!(err instanceof KeyMigrationError)) throw err;
+      console.error(
+        `\nParou: ${err.message}\n` +
+          `${err.migrated.length} chave(s) já migrada(s) (substitutas acima; as antigas estão revogadas): ` +
+          `${err.migrated.map((k) => `${k.tenant}/${k.prefix}`).join(', ') || 'nenhuma'}.\n` +
+          `A chave ${err.failed.prefix} e as seguintes continuam como estavam. ` +
+          'Corrija a causa e rode --plan e --apply de novo: continua de onde parou.',
       );
+      process.exit(1);
+    });
     console.log(
-      '\nAs antigas valem até 60 s (cache do autenticador). Troque GALAXIE_DEMO_KEY se a demo estiver na lista.',
+      `\n${done.length} chave(s) migrada(s). As antigas valem até 60 s (cache do autenticador). ` +
+        'Troque GALAXIE_DEMO_KEY se a demo estiver na lista.',
     );
   }
 } finally {

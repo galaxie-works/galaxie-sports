@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { apiKey, recordKeyEvent, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
-import { createApiKey, type CreatedKey } from '../auth/admin.js';
+import { createApiKey, upsertTenant, type CreatedKey, type TenantInput } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 import type { PlanCatalog } from './plans.js';
 
@@ -257,6 +257,30 @@ const tooManyKeys = (env: KeyEnv) =>
       'revogue as que não usa.',
   );
 
+/** Emissão com teto dentro de uma transação já aberta: trava o tenant, para que emissões simultâneas não furem o teto. */
+async function issueKeyIn(
+  tx: Tx,
+  tenantId: string,
+  options: NewKeyOptions,
+  now: Date,
+  actor: KeyActor,
+): Promise<CreatedKey> {
+  const env = options.env ?? 'live';
+  await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, tenantId)).for('update');
+  if ((await activeKeyCount(tx, tenantId, env, now)) >= MAX_SECRET_KEYS_PER_ENV) throw tooManyKeys(env);
+  const key = await createApiKey(tx, tenantId, { ...options, env });
+  await recordKeyEvent(tx, {
+    tenantId,
+    keyKind: 'secret',
+    keyId: key.id,
+    prefix: key.prefix,
+    action: 'issued',
+    actor,
+    detail: { env, ...(options.label ? { label: options.label } : {}) },
+  });
+  return key;
+}
+
 /** Emite uma chave secreta, respeitando o teto por ambiente (KeyPolicyError → 409). */
 export async function issueKey(
   db: Database,
@@ -265,22 +289,23 @@ export async function issueKey(
   now = new Date(),
   actor: KeyActor = 'admin',
 ): Promise<CreatedKey> {
-  const env = options.env ?? 'live';
+  return db.transaction((tx) => issueKeyIn(tx, tenantId, options, now, actor));
+}
+
+/**
+ * Cria ou atualiza o tenant e emite uma chave numa transação só (`tenant:create`): no teto de chaves do
+ * ambiente (KeyPolicyError), o tenant fica como estava, sem nada do upsert gravado.
+ */
+export async function upsertTenantWithKey(
+  db: Database,
+  input: TenantInput,
+  options: NewKeyOptions = {},
+  now = new Date(),
+  actor: KeyActor = 'admin',
+): Promise<{ tenant: { id: string; created: boolean }; key: CreatedKey }> {
   return db.transaction(async (tx) => {
-    // trava o tenant: emissões simultâneas não furam o teto
-    await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, tenantId)).for('update');
-    if ((await activeKeyCount(tx, tenantId, env, now)) >= MAX_SECRET_KEYS_PER_ENV) throw tooManyKeys(env);
-    const key = await createApiKey(tx, tenantId, { ...options, env });
-    await recordKeyEvent(tx, {
-      tenantId,
-      keyKind: 'secret',
-      keyId: key.id,
-      prefix: key.prefix,
-      action: 'issued',
-      actor,
-      detail: { env, ...(options.label ? { label: options.label } : {}) },
-    });
-    return key;
+    const t = await upsertTenant(tx, input);
+    return { tenant: t, key: await issueKeyIn(tx, t.id, options, now, actor) };
   });
 }
 
