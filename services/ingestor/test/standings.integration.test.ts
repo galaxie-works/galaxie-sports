@@ -360,6 +360,19 @@ describe('recálculo da tabela com fases', () => {
       'unnamed:2',
       'unnamed:2',
     ]);
+
+    // R e S eram o mesmo grupo e ainda não tinham se enfrentado: o grupo deduzido é refeito, não herdado
+    await finished('football', s.seasonId, s.team('R1'), s.team('S1'), [2, 2]);
+    await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+    const after = await tableOf(s.seasonId);
+    expect(after.map((r) => r.group).sort()).toEqual([
+      'Group 1',
+      'Group 1',
+      'unnamed:1',
+      'unnamed:1',
+      'unnamed:1',
+      'unnamed:1',
+    ]);
   });
 });
 

@@ -2,7 +2,9 @@
  * Tabelas de temporada com mais de uma fase para competição SEM `tables:` no regulamento (com regulamento,
  * quem decide é o phases.ts): 1ª fase + 2ª fase, zonas Norte/Sul, ligas A/B/C/D da Nations League,
  * Apertura/Clausura ainda sem regulamento curado. A fase vem do rótulo da rodada no fornecedor ("Apertura - 7" → "Apertura");
- * rodada sem número ("Apertura - Final", "Round of 16") é mata-mata e não entra em tabela.
+ * rodada sem número ("Apertura - Final", "Round of 16") de estágio `regular` é mata-mata e não entra em tabela;
+ * a de estágio `group`/`league_phase` ("Group Stage") e a que tem o nome de uma fase numerada ("Regular Season",
+ * ao lado de "Regular Season - 3") entram na fase dela.
  *
  * - Cada fase tem a própria tabela, só com os jogos dela. Grupo do fornecedor ("Apertura - Group A") é
  *   ligado à fase pelo nome; sem o nome da fase, à fase em que os times do grupo jogam (quase) só entre si.
@@ -61,18 +63,28 @@ const norm = (s: string) =>
  * grupos com nome de cada time já gravados em core.standing.
  */
 export function planPhases(
-  results: readonly (MatchResult & { roundLabel: string | null })[],
+  results: readonly (MatchResult & { roundLabel: string | null; stageKind?: string | null })[],
   groupsOfTeam: ReadonlyMap<string, ReadonlySet<string>>,
 ): PhasePlan {
   const byPhase = new Map<string, MatchResult[]>();
+  const add = (phase: string, r: MatchResult) => byPhase.set(phase, [...(byPhase.get(phase) ?? []), r]);
+  const unnumbered: (MatchResult & { roundLabel: string | null; stageKind?: string | null })[] = [];
   for (const r of results) {
     const phase = phaseOfRound(r.roundLabel);
-    if (phase === null) continue;
-    const list = byPhase.get(phase) ?? [];
-    list.push(r);
-    byPhase.set(phase, list);
+    if (phase === null) unnumbered.push(r);
+    else add(phase, r);
   }
   if (byPhase.size < 2) return { kind: 'single' };
+  // rodada sem número: com o nome de uma fase numerada, é dela; de estágio de grupos, é a própria fase;
+  // de estágio `regular` sem fase com esse nome, é mata-mata rotulado como rodada e fica de fora
+  const numbered = new Map([...byPhase.keys()].map((p) => [norm(p), p]));
+  for (const r of unnumbered) {
+    const label = r.roundLabel?.trim();
+    if (!label) continue;
+    const same = numbered.get(norm(label));
+    if (same) add(same, r);
+    else if (r.stageKind === 'group' || r.stageKind === 'league_phase') add(label, r);
+  }
 
   const firstAt = (ms: MatchResult[]) =>
     ms.reduce((min, m) => (m.playedAt && m.playedAt < min ? m.playedAt : min), '~');

@@ -195,6 +195,21 @@ describe('planPhases', () => {
     ]);
   });
 
+  it('rodada sem número: com o nome da fase entra nela; de estágio de grupos é fase própria; regular sem fase, fora', () => {
+    const results = [
+      ...roundRobin(teams, 'Regular Season'),
+      { ...game('A', 'B', 'Regular Season'), stageKind: 'regular' },
+      ...roundRobin(['A', 'B'], 'Second Stage'),
+      { ...game('C', 'D', 'Group Stage'), stageKind: 'group' },
+      { ...game('A', 'C', 'Final'), stageKind: 'regular' },
+    ];
+    expect(tablesOf(planPhases(results, new Map())).map((t) => [t.group, t.games])).toEqual([
+      [FIRST_PHASE_GROUP, 7],
+      ['Second Stage', 1],
+      ['Group Stage', 1],
+    ]);
+  });
+
   it('time em dois grupos da mesma fase: erro, nada é gravado', () => {
     const results = [...roundRobin(teams, 'Apertura'), ...roundRobin(teams, 'Clausura')];
     const plan = planPhases(

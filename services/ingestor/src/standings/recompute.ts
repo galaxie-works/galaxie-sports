@@ -193,10 +193,12 @@ export async function recomputeSeasonStandings(
   const stageIds = stages.length || (anyStage[0]?.n ?? 0) > 0 ? stages.map((s) => s.id) : undefined;
   if (stageIds && !stageIds.length) return report('knockout');
 
+  // grupo deduzido num recálculo anterior (`unnamed:N`) não é do fornecedor: volta a ser deduzido a cada
+  // recálculo (dois pedaços do mesmo grupo no começo da temporada se juntam quando se enfrentam)
   const groupsOfTeam = new Map<string, Set<string>>();
   for (const r of tableRows) {
     const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
-    set.add(r.group);
+    set.add(r.group.startsWith(UNNAMED_GROUP_PREFIX) ? '' : r.group);
     groupsOfTeam.set(r.participantId, set);
   }
   const all = await loadSeasonResults(db, seasonId, {
@@ -208,7 +210,11 @@ export async function recomputeSeasonStandings(
   // anual, deduzidas (phases-auto.ts); o grupo vazio, que misturava as fases, sai
   const labels = await roundLabels(db, seasonId);
   const plan = planPhases(
-    all.map((m) => ({ ...m, roundLabel: labels.get(m.id!) ?? null })),
+    all.map((m) => ({
+      ...m,
+      roundLabel: labels.get(m.id!)?.label ?? null,
+      stageKind: labels.get(m.id!)?.kind ?? null,
+    })),
     groupsOfTeam,
   );
   if (plan.kind === 'error') return report('no_groups', { detail: plan.detail });
@@ -244,9 +250,10 @@ export async function recomputeSeasonStandings(
   // deduzidos dos jogos entre eles
   const loose = [...groupOfTeam].filter(([, g]) => g === '').map(([t]) => t);
   if (loose.length && loose.length < groupOfTeam.size) {
-    const parts = components(loose, all);
-    if (parts.length > 1)
-      parts.forEach((part, i) => part.forEach((t) => groupOfTeam.set(t, `${UNNAMED_GROUP_PREFIX}${i + 1}`)));
+    // ao lado de grupos com nome, mesmo um grupo deduzido só ganha nome (sem nome, viraria uma 2ª tabela)
+    components(loose, all).forEach((part, i) =>
+      part.forEach((t) => groupOfTeam.set(t, `${UNNAMED_GROUP_PREFIX}${i + 1}`)),
+    );
   }
   const groups = new Set(groupOfTeam.values());
   const singleGroup = groups.size === 1 ? [...groups][0]! : groups.size === 0 ? '' : null;
@@ -315,17 +322,21 @@ async function writeTables(
   return report('written', { results: extra.results, rows });
 }
 
-/** Rótulo de cada rodada da temporada no fornecedor ("Apertura - 7"), por evento. */
-async function roundLabels(db: Database, seasonId: string): Promise<Map<string, string>> {
+/** Rótulo de cada rodada da temporada no fornecedor ("Apertura - 7") e o tipo do estágio, por evento. */
+async function roundLabels(
+  db: Database,
+  seasonId: string,
+): Promise<Map<string, { label: string; kind: string }>> {
   const rows = await db
     .select({
       id: event.id,
+      kind: stage.kind,
       label: sql<string | null>`coalesce(${stage.providerLabel}, ${stage.name}->>'en')`,
     })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
     .where(eq(event.seasonId, seasonId));
-  return new Map(rows.filter((r) => r.label).map((r) => [r.id, r.label!]));
+  return new Map(rows.filter((r) => r.label).map((r) => [r.id, { label: r.label!, kind: r.kind }]));
 }
 
 /**
@@ -459,13 +470,14 @@ async function dropStaleComputedRows(
   if (!keep.length) return;
   const written = [...new Set(tables.map((t) => t.group))];
   const scope = written.includes('') ? written : [...written, ''];
+  // os grupos deduzidos (`unnamed:N`) são refeitos a cada recálculo: os de antes que não voltaram também saem
   await db
     .delete(standing)
     .where(
       and(
         eq(standing.seasonId, seasonId),
         eq(standing.source, 'computed'),
-        inArray(standing.group, scope),
+        sql`(${inArray(standing.group, scope)} or ${standing.group} like ${`${UNNAMED_GROUP_PREFIX}%`})`,
         sql`(${standing.group}, ${standing.participantId}) not in (${sql.join(keep, sql`, `)})`,
       ),
     );
