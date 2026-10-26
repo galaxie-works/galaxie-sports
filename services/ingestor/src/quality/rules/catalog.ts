@@ -36,7 +36,7 @@ export const CATALOG_RULES: QualityRule[] = [
            where s.current
            order by p.id, c.name
         )
-        select id::text, sport, name, kind, competition, missing from teams`);
+        select id::text, sport, name, kind, competition, missing from teams order by sport, name, id`);
       const checked: Record<string, number> = {};
       for (const r of rows) checked[r.sport] = (checked[r.sport] ?? 0) + 1;
       return {
