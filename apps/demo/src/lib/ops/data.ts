@@ -255,6 +255,7 @@ const AI_STATE_KEYS = [
   'AI_DAILY_TOKEN_BUDGET',
   'AI_DAILY_USD_BUDGET',
   'AI_AGENT_USD_BUDGETS',
+  'AI_AGENT_DEFAULT_USD_BUDGET',
 ] as const;
 
 function invalidAiSettings(settings: OpsSetting[]): string[] {
@@ -318,6 +319,7 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
     budget: limitSetting(settings, 'AI_DAILY_TOKEN_BUDGET'),
     usdBudget: limitSetting(settings, 'AI_DAILY_USD_BUDGET'),
     agentUsdBudgets,
+    agentDefaultUsdBudget: limitSetting(settings, 'AI_AGENT_DEFAULT_USD_BUDGET'),
     maxSearchesPerCall,
   };
 }

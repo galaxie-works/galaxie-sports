@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { AiDisabledError } from '@galaxie/ai-ledger';
+import { describe, expect, it, vi } from 'vitest';
 import type { CommonsFile, WikimediaClient } from './client.js';
 import type { Discovery } from './discover.js';
 import { classifyLicense, firstHref, plainText, readLicense, yearOf, type ExtMetadata } from './license.js';
@@ -453,6 +454,26 @@ describe('passo do Gemini (ranqueador falso)', () => {
     });
     expect(manifest.entries).toEqual([before]);
     expect(stats[0]!.ranking).toBe('gemini falhou');
+  });
+
+  it('sem orçamento de IA (ou IA desligada): para de ordenar e os alvos seguintes nem buscam candidatas', async () => {
+    const prost: DriverTarget = { ...senna, f1dbId: 'alain-prost', name: 'Alain Prost', highlight: null };
+    const noBudget: Ranker = {
+      model: 'gemini-fake',
+      rank: async () => {
+        throw new AiDisabledError('global');
+      },
+    };
+    const counted = vi.fn(discover);
+    const { manifest, stats } = await mapCommons(client, [senna, prost], null, {
+      revision: '2026-10-26',
+      ranker: noBudget,
+      discover: counted,
+    });
+    expect(counted).toHaveBeenCalledTimes(1);
+    expect(manifest.entries).toEqual([]);
+    expect(stats.map((s) => s.ranking)).toEqual(['sem orçamento de IA', 'sem orçamento de IA']);
+    expect(stats[1]!.note).toMatch(/^pendente: IA desligada/);
   });
 
   it('descoberta vazia (identidade não conferida) não apaga a galeria já mapeada: fica como estava', async () => {

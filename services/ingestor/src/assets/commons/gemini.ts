@@ -5,17 +5,31 @@
  *
  * API `models/{modelo}:generateContent` com as imagens em `inline_data` e saída JSON (`responseSchema`).
  * A chave vem de GEMINI_API_KEY; o modelo, de GEMINI_MODEL_VISION (padrão: o leve da camada de IA).
+ *
+ * Cada chamada passa pelo ledger diário de IA (`ops.llm_usage`, @galaxie/ai-ledger), como as dos agentes:
+ * reserva a estimativa antes (AI_STATUS, teto global e o do agente `assets`, AI_AGENT_USD_BUDGETS) e grava o
+ * uso devolvido pelo Gemini depois. Sem orçamento, a chamada não sai (BudgetExceededError).
  */
+import { estimateCostUsd, type TokenBudget } from '@galaxie/ai-ledger';
 import type { Ranker } from './map.js';
 import type { AiJudgement } from './select.js';
 
 export const GEMINI_VISION_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+/** Agente no ledger (prefixo do `purpose`): teto próprio em AI_AGENT_USD_BUDGETS (`assets=0.5`). */
+export const ASSETS_AGENT = 'assets';
+/** Tokens de entrada presumidos por imagem (resolução padrão das imagens no Gemini 3). */
+export const GEMINI_IMAGE_TOKENS = 1_120;
+/** Teto de saída da ordem (JSON curto por foto e o raciocínio do modelo): limita o custo e a estimativa. */
+export const RANK_MAX_OUTPUT_TOKENS = 8_192;
+
 export interface GeminiRankerOptions {
   apiKey: string;
   model?: string;
   fetch?: typeof globalThis.fetch;
+  /** Ledger do dia: reserva antes da chamada e grava o uso (agente `assets`). */
+  budget: TokenBudget;
 }
 
 export interface RankImage {
@@ -60,7 +74,31 @@ export function rankPrompt(subject: string, kind: 'driver' | 'car', count: numbe
   ].join('\n');
 }
 
-/** Julgamentos do Gemini para as imagens (na ordem enviada). Lança em erro de rede/API. */
+/**
+ * Estimativa conservadora de uma chamada (para a reserva no ledger): o texto a ~4 caracteres por token, as
+ * imagens a GEMINI_IMAGE_TOKENS cada e a saída máxima, ao preço do modelo (fora da tabela, o mais caro do Gemini).
+ */
+export function rankEstimate(
+  texts: string[],
+  imageCount: number,
+  model: string,
+): { tokens: number; usd: number; inputTokens: number } {
+  const chars = texts.reduce((n, t) => n + t.length, 0) + JSON.stringify(SCHEMA).length;
+  const inputTokens = Math.ceil(chars / 4) + imageCount * GEMINI_IMAGE_TOKENS;
+  const usd = estimateCostUsd(model, { inputTokens, outputTokens: RANK_MAX_OUTPUT_TOKENS }, 0, 0, 'gemini');
+  return { tokens: inputTokens + RANK_MAX_OUTPUT_TOKENS, usd, inputTokens };
+}
+
+interface GeminiBody {
+  error?: { status?: string; message?: string };
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+}
+
+/**
+ * Julgamentos do Gemini para as imagens (na ordem enviada). Reserva no ledger antes (lança
+ * BudgetExceededError / AiDisabledError sem chamar nada) e grava o uso depois; lança em erro de rede/API.
+ */
 export async function rankWithGemini(
   images: RankImage[],
   subject: string,
@@ -68,30 +106,87 @@ export async function rankWithGemini(
   options: GeminiRankerOptions,
 ): Promise<AiJudgement[]> {
   if (!images.length) return [];
-  const parts: unknown[] = [{ text: rankPrompt(subject, kind, images.length) }];
+  const model = options.model ?? GEMINI_VISION_DEFAULT_MODEL;
+  const prompt = rankPrompt(subject, kind, images.length);
+  const parts: unknown[] = [{ text: prompt }];
+  const titles = images.map((img, i) => `Foto ${i}: ${img.title}`);
   images.forEach((img, i) => {
-    parts.push({ text: `Foto ${i}: ${img.title}` });
+    parts.push({ text: titles[i] });
     parts.push({ inline_data: { mime_type: img.mime, data: Buffer.from(img.body).toString('base64') } });
   });
-  const res = await (options.fetch ?? fetch)(
-    `${API}/${options.model ?? GEMINI_VISION_DEFAULT_MODEL}:generateContent`,
-    {
+  const estimate = rankEstimate([prompt, ...titles], images.length, model);
+  // sem saldo (ou IA desligada) a chamada não sai: o alvo fica como estava e volta na próxima execução
+  await options.budget.reserve(ASSETS_AGENT, estimate.tokens, estimate.usd);
+  const purpose = `${ASSETS_AGENT}:commons:${kind}:${subject}`;
+  const record = (
+    outcome: 'ok' | 'error',
+    usage: { inputTokens: number; outputTokens: number },
+    error?: string,
+  ) =>
+    options.budget
+      .record({
+        agent: ASSETS_AGENT,
+        purpose,
+        provider: 'gemini',
+        model,
+        tier: 'light',
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        webSearches: 0,
+        costUsd: estimateCostUsd(model, usage, 0, 0, 'gemini'),
+        outcome,
+        error,
+      })
+      .catch((err: unknown) =>
+        // a chamada já foi paga: falha ao gravar o ledger não descarta a resposta
+        console.error(
+          `[orçamento de IA] ${purpose}: falha ao gravar o uso no ledger: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+  let res: Response;
+  let body: GeminiBody;
+  try {
+    res = await (options.fetch ?? fetch)(`${API}/${model}:generateContent`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': options.apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA },
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: RANK_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+          responseSchema: SCHEMA,
+        },
       }),
-    },
-  );
-  const body = (await res.json()) as {
-    error?: { status?: string; message?: string };
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  if (!res.ok || body.error)
-    throw new Error(
-      `Gemini: ${body.error?.status ?? res.status} ${body.error?.message?.slice(0, 160) ?? ''}`.trim(),
+    });
+    body = (await res.json()) as GeminiBody;
+  } catch (err) {
+    // sem resposta não se sabe o que foi cobrado: grava a estimativa (custo conservador)
+    await record(
+      'error',
+      { inputTokens: estimate.inputTokens, outputTokens: RANK_MAX_OUTPUT_TOKENS },
+      err instanceof Error ? err.message : String(err),
     );
+    throw err;
+  }
+  const meta = body.usageMetadata;
+  const usage = meta
+    ? {
+        inputTokens: meta.promptTokenCount ?? 0,
+        // o raciocínio é cobrado como saída
+        outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
+      }
+    : res.ok && !body.error
+      ? // resposta sem o uso: conta a estimativa (o teto não trata a chamada paga como de graça)
+        { inputTokens: estimate.inputTokens, outputTokens: RANK_MAX_OUTPUT_TOKENS }
+      : { inputTokens: 0, outputTokens: 0 };
+  if (!res.ok || body.error) {
+    const message =
+      `Gemini: ${body.error?.status ?? res.status} ${body.error?.message?.slice(0, 160) ?? ''}`.trim();
+    await record('error', usage, message);
+    throw new Error(message);
+  }
+  await record('ok', usage);
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '[]';
   const parsed = JSON.parse(text) as AiJudgement[];
   return parsed
@@ -108,7 +203,7 @@ export async function rankWithGemini(
     }));
 }
 
-/** Ranqueador do mapeamento (`mapCommons`) com o Gemini. */
+/** Ranqueador do mapeamento (`mapCommons`) com o Gemini, cobrado no ledger diário de IA. */
 export function geminiRanker(options: GeminiRankerOptions): Ranker {
   return {
     model: options.model ?? GEMINI_VISION_DEFAULT_MODEL,

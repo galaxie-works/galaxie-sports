@@ -83,12 +83,15 @@ describe('configuração do orçamento em US$', () => {
       context: 1.5,
       related: 0.5,
       f1profile: 2,
-      f1bio: null,
-      curator: null,
-      review: null,
-      channels: null,
-      live: null,
+      f1bio: 1,
+      curator: 1,
+      review: 0.5,
+      channels: 1,
+      live: 0.5,
+      assets: 0.5,
     });
+    // agente fora da lista: o teto padrão, nunca sem teto
+    expect(s.agentDefaultUsdBudget).toBe(0.5);
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 

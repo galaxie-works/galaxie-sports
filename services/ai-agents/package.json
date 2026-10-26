@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.136.0",
+    "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/geo": "workspace:*",

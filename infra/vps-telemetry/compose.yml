@@ -295,7 +295,8 @@ services:
   # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. A IA liga e desliga
   # por AI_STATUS (on|off) e AI_AGENT_STATUS (agente=on|off); ligada, o gasto com o LLM tem teto diário
   # em tokens (AI_DAILY_TOKEN_BUDGET) e em US$ (AI_DAILY_USD_BUDGET, tokens + buscas na web;
-  # AI_AGENT_USD_BUDGETS por agente), somando todos os agentes (ledger ops.llm_usage). Tetos: número
+  # AI_AGENT_USD_BUDGETS por agente, AI_AGENT_DEFAULT_USD_BUDGET para o agente fora da lista), somando
+  # todos os agentes e a ordem das fotos da F1 (ledger ops.llm_usage). Tetos: número
   # ou "unlimited"; 0 é inválido.
   agents:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
@@ -326,6 +327,7 @@ services:
       AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-1000000}
       AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
       AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}
+      AI_AGENT_DEFAULT_USD_BUDGET: ${AI_AGENT_DEFAULT_USD_BUDGET:-}
       AI_MAX_SEARCHES_PER_CALL: ${AI_MAX_SEARCHES_PER_CALL:-5}
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}

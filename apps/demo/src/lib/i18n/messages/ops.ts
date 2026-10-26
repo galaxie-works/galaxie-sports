@@ -209,6 +209,7 @@ export default defineMessages(
         other: '{count} chamadas passaram de {max} buscas',
       },
       llmAgentCapped: 'no teto',
+      llmAgentDefaultCap: 'teto padrão',
       aiState: 'IA: {state}',
       aiOn: 'ligado',
       aiOff: 'desligado',
@@ -585,7 +586,13 @@ export default defineMessages(
       AI_AGENT_USD_BUDGETS: {
         label: 'Teto diário por agente',
         description:
-          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica só no teto global. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
+          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica no teto padrão do agente novo. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
+      },
+      AI_AGENT_DEFAULT_USD_BUDGET: {
+        label: 'Teto diário do agente novo',
+        description:
+          'US$ por dia de cada agente que não está no teto por agente (um agente novo, por exemplo): ele tem IA, mas só até este valor, e o log avisa uma vez por dia que ele está no padrão. Um número, ou "Sem limite" (fica só no teto global); 0 não é aceito.',
+        unit: 'US$',
       },
       AI_MAX_SEARCHES_PER_CALL: {
         label: 'Buscas na web por chamada',
@@ -999,6 +1006,7 @@ export default defineMessages(
           other: '{count} calls went over {max} searches',
         },
         llmAgentCapped: 'capped',
+        llmAgentDefaultCap: 'default cap',
         aiState: 'AI: {state}',
         aiOn: 'on',
         aiOff: 'off',
@@ -1359,8 +1367,15 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Daily cap per agent',
           description:
-            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed only count against the global cap. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
+            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed get the new-agent cap. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
         },
+        AI_AGENT_DEFAULT_USD_BUDGET: {
+          label: 'Daily cap for a new agent',
+          description:
+            'US$ per day for each agent missing from the per-agent caps (a new agent, for example): it gets AI, but only up to this amount, and the log warns once a day that it is on the default. A number, or "No limit" (only the global cap applies); 0 is not accepted.',
+          unit: 'US$',
+        },
+
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Web searches per call',
           description:
@@ -1776,6 +1791,7 @@ export default defineMessages(
           other: '{count} llamadas superaron {max} búsquedas',
         },
         llmAgentCapped: 'en el tope',
+        llmAgentDefaultCap: 'tope por defecto',
         aiState: 'IA: {state}',
         aiOn: 'encendido',
         aiOff: 'apagado',
@@ -2144,7 +2160,13 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Tope diario por agente',
           description:
-            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista solo cuenta para el tope global. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista queda en el tope del agente nuevo. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
+        },
+        AI_AGENT_DEFAULT_USD_BUDGET: {
+          label: 'Tope diario del agente nuevo',
+          description:
+            'US$ por día de cada agente que no está en el tope por agente (un agente nuevo, por ejemplo): tiene IA, pero solo hasta este valor, y el log avisa una vez por día que está en el valor por defecto. Un número, o "Sin límite" (solo cuenta el tope global); 0 no se acepta.',
+          unit: 'US$',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Búsquedas web por llamada',

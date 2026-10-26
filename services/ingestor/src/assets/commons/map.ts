@@ -9,6 +9,7 @@
  *   sem `redo`: rodar de novo não muda nada (idempotente) e o mapeamento por regras não desfaz a ordem do Gemini.
  */
 import { writeFileSync } from 'node:fs';
+import { BudgetExceededError } from '@galaxie/ai-ledger';
 import type { WikimediaClient } from './client.js';
 import { discover as discoverTarget, type Discovery } from './discover.js';
 import type { RankImage } from './gemini.js';
@@ -32,7 +33,7 @@ export interface MapStats {
   candidates: number;
   eligible: number;
   chosen: number;
-  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'já ordenado';
+  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'sem orçamento de IA' | 'já ordenado';
   rejected: Rejection[];
   note: string | null;
 }
@@ -91,12 +92,18 @@ export async function mapCommons(
     rejected: [],
     note,
   });
+  // orçamento de IA do dia esgotado (ou IA desligada): os alvos seguintes nem buscam as candidatas
+  let noBudget: string | null = null;
   for (const target of targets) {
     const key = targetKey(target);
     const prev = before.get(key);
     if (isRanked(prev) && !opts.redo) {
       // a ordem do Gemini fica; o alvo continua no manifesto como estava (laço final)
       stats.push(empty(key, 'já ordenado', null));
+      continue;
+    }
+    if (opts.ranker && noBudget) {
+      stats.push(empty(key, 'sem orçamento de IA', `pendente: ${noBudget}`));
       continue;
     }
     let d: Discovery;
@@ -130,9 +137,15 @@ export async function mapCommons(
         judgements = await opts.ranker.rank(images, subjectOf(target), target.kind);
       } catch (err) {
         // sem a resposta do Gemini o alvo não muda: a próxima execução tenta de novo
-        opts.log?.(`${key}: Gemini falhou (${(err as Error).message}); o alvo fica como estava`);
+        const budget = err instanceof BudgetExceededError;
+        if (budget) noBudget = err.message;
+        opts.log?.(
+          budget
+            ? `${key}: ${err.message} O alvo e os seguintes ficam como estavam (voltam na próxima execução).`
+            : `${key}: Gemini falhou (${(err as Error).message}); o alvo fica como estava`,
+        );
         stats.push({
-          ...empty(key, 'gemini falhou', null),
+          ...empty(key, budget ? 'sem orçamento de IA' : 'gemini falhou', null),
           candidates: d.candidates.length,
           eligible: ok.length,
         });

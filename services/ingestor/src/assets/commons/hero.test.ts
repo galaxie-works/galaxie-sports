@@ -1,3 +1,4 @@
+import { MemoryTokenBudgetStore, TokenBudget } from '@galaxie/ai-ledger';
 import { describe, expect, it } from 'vitest';
 import type { CommonsFile } from './client.js';
 import type { Discovery } from './discover.js';
@@ -58,9 +59,10 @@ describe('Gemini: nota para o fundo', () => {
         JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }),
       )) as unknown as typeof globalThis.fetch;
     const img = { body: new Uint8Array([1]), mime: 'image/jpeg', title: 'x' };
-    const car = await rankWithGemini([img, img], 'Alfa Romeo 158', 'car', { apiKey: 'k', fetch });
+    const budget = new TokenBudget(new MemoryTokenBudgetStore(), { dailyLimit: null });
+    const car = await rankWithGemini([img, img], 'Alfa Romeo 158', 'car', { apiKey: 'k', fetch, budget });
     expect(car.map((j) => j.hero)).toEqual([1, 0.12]);
-    const driver = await rankWithGemini([img, img], 'Nino Farina', 'driver', { apiKey: 'k', fetch });
+    const driver = await rankWithGemini([img, img], 'Nino Farina', 'driver', { apiKey: 'k', fetch, budget });
     expect(driver.every((j) => j.hero === undefined)).toBe(true);
   });
 });

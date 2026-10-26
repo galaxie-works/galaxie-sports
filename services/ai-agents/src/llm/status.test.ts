@@ -206,6 +206,7 @@ describe('estado literal (logs, CLI, painel)', () => {
       '  lineups: ligado · limitado · US$ 2/dia (hoje: US$ 0,00)',
       '  related: ligado · sem limite (hoje: US$ 0,00)',
       '  wtw: desligado (hoje: US$ 0,00)',
+      '  outros agentes: teto padrão de US$ 0,50/dia (AI_AGENT_DEFAULT_USD_BUDGET)',
     ]);
     const off = new TokenBudget(
       new MemoryTokenBudgetStore(),

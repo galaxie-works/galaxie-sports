@@ -431,6 +431,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
     budget,
     usdBudget,
     agentUsdBudgets,
+    agentDefaultUsdBudget,
     maxSearchesPerCall,
     status,
     agentStatus,
@@ -517,7 +518,9 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
           </TableHeader>
           <TableBody>
             {byAgent.map((a) => {
-              const cap = agentUsdBudgets[a.agent] ?? null;
+              // agente fora da lista: o teto padrão (AI_AGENT_DEFAULT_USD_BUDGET), nunca sem teto
+              const listed = Object.hasOwn(agentUsdBudgets, a.agent);
+              const cap = listed ? (agentUsdBudgets[a.agent] ?? null) : agentDefaultUsdBudget;
               const off = status === 'off' || agentStatus[a.agent] === 'off';
               return (
                 <TableRow key={a.agent}>
@@ -542,7 +545,13 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {usd(a.costUsd)}
-                    {cap !== null ? <span className="text-muted-foreground"> / {usd(cap)}</span> : null}
+                    {cap !== null ? (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        / {usd(cap)}
+                        {listed ? null : ` (${T.status.llmAgentDefaultCap})`}
+                      </span>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );

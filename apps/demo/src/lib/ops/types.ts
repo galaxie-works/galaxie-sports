@@ -90,6 +90,8 @@ export interface LlmSpend {
   usdBudget: number | null;
   /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS); null = sem teto próprio. */
   agentUsdBudgets: Record<string, number | null>;
+  /** Teto em US$/dia do agente fora de `agentUsdBudgets` (AI_AGENT_DEFAULT_USD_BUDGET); null = só o global. */
+  agentDefaultUsdBudget: number | null;
   /** Buscas na web por chamada; null = sem teto. */
   maxSearchesPerCall: number | null;
 }
