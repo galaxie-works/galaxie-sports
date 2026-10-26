@@ -18,13 +18,13 @@ import {
   event,
   eventParticipant,
   listRelatedChannels,
+  promoteRefusedChannels,
   participant,
   publishChange,
-  RELATED_CONTENT_PURGE_TOPIC,
   RELATED_CONTENT_TOPIC,
-  relatedChannelRule,
   relatedContent,
   relatedContentTag,
+  relatedPlaybackReport,
   runMigrations,
   setRelatedChannelRule,
   sport,
@@ -318,7 +318,7 @@ describe('GET /v1/events/{id}/related', () => {
     expect(await ids('MX')).toEqual(['bts-onlymx', 'bts-noar', 'bts-all']);
   });
 
-  it('erro do player: sai na hora só da vitrine de quem relatou; com dois tenants, de todos; o canal no limiar', async () => {
+  it('erro do player tira o vídeo de todos; 3 recusas tiram o canal de todos os jogos; registro e regra automática', async () => {
     const czRow = (id: string, rankScore: string, over: Partial<Row> = {}) =>
       row(id, { contentType: 'full_match', channelId: 'UCcz', channelTitle: 'Canal X', rankScore, ...over });
     await db
@@ -340,10 +340,8 @@ describe('GET /v1/events/{id}/related', () => {
     const url = `/v1/events/${eventId}/related?type=full_match`;
     const ids = async (k = key) =>
       (await get(url, k)).json().data.map((d: { external_id: string }) => d.external_id);
-    const all = ['cz1', 'cz2', 'cz3', 'cz4'];
-    expect(await ids()).toEqual(all);
-    expect(await ids(key2)).toEqual(all);
-    expect(await ids(key3)).toEqual(all);
+    expect(await ids()).toEqual(['cz1', 'cz2', 'cz3', 'cz4']);
+    expect(await ids(key2)).toEqual(['cz1', 'cz2', 'cz3', 'cz4']);
     const items = (await get(url)).json().data as { id: string; external_id: string }[];
     const idOf = (ext: string) => items.find((i) => i.external_id === ext)!.id;
     const publicChanges = (entityId: string) =>
@@ -352,51 +350,33 @@ describe('GET /v1/events/{id}/related', () => {
         .from(changeFeed)
         .where(and(eq(changeFeed.topic, RELATED_CONTENT_TOPIC), eq(changeFeed.entityId, entityId)))
         .orderBy(desc(changeFeed.id));
-    const publicBefore = (await publicChanges(eventId)).length;
 
-    // tenant 1: some na hora da vitrine dele (cache purgado pelo tópico interno), e só dela
+    // um relato basta: a recusa de embed é do vídeo, sai da vitrine de todos os clientes
     const first = await reportError({ item_id: idOf('cz1'), code: 150 });
     expect(first.statusCode).toBe(200);
     expect(first.json()).toMatchObject({ external_id: 'cz1', removed_from_events: 1 });
-    await expect.poll(() => ids(), { timeout: 10_000, interval: 50 }).toEqual(['cz2', 'cz3', 'cz4']);
-    expect(await ids(key2)).toEqual(all);
-    const purge = await db
-      .select()
-      .from(changeFeed)
-      .where(and(eq(changeFeed.topic, RELATED_CONTENT_PURGE_TOPIC), eq(changeFeed.entityId, eventId)));
-    expect(purge.length).toBeGreaterThan(0);
-    // só a vitrine de vídeos: a tag do jogo inteiro (placar, onde assistir...) não é purgada para todos
-    expect((purge[0]!.payload as { tags: string[] }).tags).toEqual([relatedContentTag(eventId)]);
-    // nada no tópico público: SSE e webhooks dos outros tenants não veem o relato isolado
-    expect(await publicChanges(eventId)).toHaveLength(publicBefore);
-    // relato repetido só soma
-    expect((await reportError({ item_id: idOf('cz1'), code: 150 })).json().removed_from_events).toBe(0);
-
-    // terceira recusa do tenant 1 no canal: o cz4, que nunca falhou, sai da vitrine dele; os outros veem tudo
-    await reportError({ item_id: idOf('cz2'), code: 101 });
-    await reportError({ item_id: idOf('cz3'), code: 150 });
-    await expect.poll(() => ids(), { timeout: 10_000, interval: 50 }).toEqual([]);
-    expect(await ids(key2)).toEqual(all);
-    expect(await ids(key3)).toEqual(all);
-    expect(await publicChanges(ev2!.id)).toHaveLength(0);
-
-    // tenant 2 relata o mesmo vídeo: confirmado, sai de todos, com esporte e competição no aviso público
-    expect((await reportError({ item_id: idOf('cz1'), code: 150 }, key2)).json().removed_from_events).toBe(1);
-    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).toEqual(['cz2', 'cz3', 'cz4']);
-    const [confirmed] = await publicChanges(eventId);
-    expect(confirmed!.payload).toMatchObject({
+    await expect.poll(() => ids(key2), { timeout: 10_000, interval: 50 }).toEqual(['cz2', 'cz3', 'cz4']);
+    expect(await ids()).toEqual(['cz2', 'cz3', 'cz4']);
+    // aviso público com esporte e competição (filtros de SSE e webhook)
+    expect((await publicChanges(eventId))[0]!.payload).toMatchObject({
       event_id: eventId,
       sport: 'football',
       competition_id: competitionId,
       data: { added: [], removed: ['cz1'], changed: [] },
     });
+    // relato repetido (de outro tenant) só soma, e fica no registro de quem relatou
+    expect((await reportError({ item_id: idOf('cz1'), code: 150 }, key2)).json().removed_from_events).toBe(0);
+    const reporters = await db
+      .select()
+      .from(relatedPlaybackReport)
+      .where(eq(relatedPlaybackReport.externalId, 'cz1'));
+    expect(reporters).toHaveLength(2);
 
-    // o terceiro bloqueio confirmado do canal tira o canal de todos e avisa todos os jogos com vídeo dele
-    await reportError({ item_id: idOf('cz2'), code: 150 }, key2);
-    await reportError({ item_id: idOf('cz3'), code: 150 }, key2);
+    // terceira recusa do canal: o cz4 e o cz5 (outro jogo), que nunca falharam, também saem
+    await reportError({ item_id: idOf('cz2'), code: 101 });
+    await reportError({ item_id: idOf('cz3'), code: 150 });
     await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).toEqual([]);
-    const [other] = await publicChanges(ev2!.id);
-    expect(other!.payload).toMatchObject({
+    expect((await publicChanges(ev2!.id))[0]!.payload).toMatchObject({
       sport: 'football',
       competition_id: competitionId,
       data: { removed: ['cz5'] },
@@ -405,79 +385,22 @@ describe('GET /v1/events/{id}/related', () => {
       data: { removed: expect.arrayContaining(['cz3', 'cz4']) },
     });
 
-    // liberado no painel: volta o que não foi recusado
-    await db.insert(relatedChannelRule).values({ provider: 'youtube', channelId: 'UCcz', mode: 'allow' });
-    await db.transaction((tx) =>
-      publishChange(tx, {
-        topic: RELATED_CONTENT_TOPIC,
-        entityType: 'related_content',
-        entityId: eventId,
-        payload: { event_id: eventId, tags: [relatedContentTag(eventId)] },
-      }),
-    );
-    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).toEqual(['cz4']);
-    expect(await ids()).toEqual(['cz4']);
-  });
-
-  it('o relato de um tenant não derruba o canal de ninguém além dele, nem com vídeos de outro tenant', async () => {
-    await db.insert(relatedContent).values(
-      ['cy1', 'cy2', 'cy3'].map((id, i) =>
-        row(id, {
-          contentType: 'penalties',
-          channelId: 'UCcy',
-          channelTitle: 'Canal Y',
-          rankScore: `${3 - i}.000`,
-        }),
-      ),
-    );
-    const url = `/v1/events/${eventId}/related?type=penalties`;
-    const ids = async (k = key) =>
-      (await get(url, k)).json().data.map((d: { external_id: string }) => d.external_id);
-    const items = (await get(url)).json().data as { id: string; external_id: string }[];
-    const idOf = (ext: string) => items.find((i) => i.external_id === ext)!.id;
-    // vídeos diferentes, tenants diferentes: nenhum confirmado, nenhum tenant no limiar do canal
-    await reportError({ item_id: idOf('cy1'), code: 150 }, key);
-    await reportError({ item_id: idOf('cy2'), code: 150 }, key2);
-    await reportError({ item_id: idOf('cy3'), code: 150 }, key3);
-    await expect.poll(() => ids(key), { timeout: 10_000, interval: 50 }).toEqual(['cy2', 'cy3']);
-    await expect.poll(() => ids(key2), { timeout: 10_000, interval: 50 }).toEqual(['cy1', 'cy3']);
-    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).toEqual(['cy1', 'cy2']);
-    expect((await listRelatedChannels(db, { q: 'Canal Y' }))[0]).toMatchObject({
-      refused: 0,
-      reported: 3,
-      refusedVideos: 3,
-      blocked: false,
+    // o automático grava a regra do canal (configuração nossa, que sobrevive à retenção dos ids); idempotente
+    expect(await promoteRefusedChannels(db)).toEqual(['UCcz']);
+    expect(await promoteRefusedChannels(db)).toEqual([]);
+    expect((await listRelatedChannels(db, { q: 'Canal X' }))[0]).toMatchObject({
+      rule: 'block',
+      ruleAutomatic: true,
+      blocked: true,
     });
-  });
 
-  it('relato com quorum false (usuário não verificado, ex.: a demo) não conta para o bloqueio de todos', async () => {
-    await db.insert(relatedContent).values(
-      row('qz1', {
-        contentType: 'interview',
-        channelId: 'UCqz',
-        channelTitle: 'Canal Q',
-        rankScore: '1.000',
-      }),
-    );
-    const url = `/v1/events/${eventId}/related?type=interview`;
-    const ids = async (k = key) =>
-      (await get(url, k)).json().data.map((d: { external_id: string }) => d.external_id);
-    const item = ((await get(url)).json().data as { id: string; external_id: string }[]).find(
-      (i) => i.external_id === 'qz1',
-    )!.id;
-    // a "demo" (tenant 1) relata sem quorum: sai só da vitrine dela
-    expect((await reportError({ item_id: item, code: 150, quorum: false })).json().removed_from_events).toBe(
-      1,
-    );
-    await expect.poll(() => ids(), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
-    // um tenant de verdade relata: ainda é um só que conta, nada sai para os outros
-    await reportError({ item_id: item, code: 150 }, key2);
-    await expect.poll(() => ids(key2), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
-    expect(await ids(key3)).toContain('qz1');
-    // o tenant 1 passa a relatar valendo (ex.: usuário verificado): agora são dois, sai para todos
-    expect((await reportError({ item_id: item, code: 150 })).json().removed_from_events).toBe(1);
-    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).not.toContain('qz1');
-    expect((await reportError({ item_id: item, code: 150, quorum: 'x' })).statusCode).toBe(400);
+    // liberado no painel: a regra `allow` vence; volta o que não foi recusado
+    await setRelatedChannelRule(db, { channelId: 'UCcz', mode: 'allow', by: 'admin@galaxie.test' });
+    await expect.poll(() => ids(key3), { timeout: 10_000, interval: 50 }).toEqual(['cz4']);
+    expect((await listRelatedChannels(db, { q: 'Canal X' }))[0]).toMatchObject({
+      rule: 'allow',
+      ruleAutomatic: false,
+    });
   });
 
   it('relato de erro: código, item, chave e módulo', async () => {
@@ -518,8 +441,6 @@ describe('GET /v1/events/{id}/related', () => {
     expect(refused.map((c) => c.channelId)).toContain('UCcz');
     expect(refused.find((c) => c.channelId === 'UCcz')).toMatchObject({
       refused: 3,
-      reported: 3,
-      refusedVideos: 3,
       rule: 'allow',
       blocked: false,
     });
@@ -536,6 +457,9 @@ describe('GET /v1/events/{id}/related', () => {
     // limpar as recusas do canal X traz de volta os vídeos recusados
     await setRelatedChannelRule(db, { channelId: 'UCcz', mode: null, by: 'admin@galaxie.test' });
     expect(await clearRelatedChannelRefusals(db, { channelId: 'UCcz' })).toBe(3);
+    expect(
+      await db.select().from(relatedPlaybackReport).where(eq(relatedPlaybackReport.channelId, 'UCcz')),
+    ).toEqual([]);
     await expect
       .poll(
         async () =>

@@ -22,7 +22,24 @@ Nós sabemos. O `core` tem o evento (times, competição, fase, placar, autores 
 | Exibimos a miniatura pela URL da própria plataforma (`i.ytimg.com`), sempre linkando para o vídeo | Servir a miniatura do nosso CDN |
 | Priorizamos canais **oficiais** (clubes, competição, detentores de direitos do país) | Publicar imagens de jogo (gols, melhores momentos, jogo completo) de canal fora da allowlist — o risco de reupload sem licença é alto |
 | Só publicamos vídeo **público e incorporável** (`status.embeddable = true`) | Contornar bloqueio regional ou de idade |
-| Revalidamos os metadados e **expiramos** o que não for atualizado em 30 dias (política de desenvolvedor da YouTube API) | Guardar estatísticas e títulos indefinidamente sem atualizar |
+| **Apagamos** o que veio da API do YouTube 30 dias depois de obtido, sem renovação (§2.1) | Guardar título, canal, estatísticas ou ids indefinidamente |
+
+### 2.1 Política do YouTube: o que guardamos e por quanto tempo
+
+A [política de desenvolvedor dos YouTube API Services](https://developers.google.com/youtube/terms/developer-policies) (III.E.4, *Refreshing, Storing, and Displaying API Data*) limita o tempo que dado obtido da API pode ficar guardado sem ser atualizado: 30 dias. A decisão do produto é a leitura mais estrita: **apagar 30 dias depois de obtido, sem renovação**. A revalidação a cada 2 h atualiza estatísticas e retira o que saiu do ar, mas não estende o prazo. Não conseguimos conferir o texto atual da política na rede deste ambiente (o domínio da documentação do Google é bloqueado), e as fontes secundárias falam só do prazo de 30 dias, sem exceção para ids. Por isso tratamos também os ids de vídeo e de canal como dado da API.
+
+| O que | Onde | Sai quando | Como |
+|---|---|---|---|
+| Vídeo: id, título, trecho, miniatura, duração, estatísticas, canal (id, título, `channel_handle`), idioma, região, proporção, classificação | `enrich.related_content` (todas as versões) | 30 dias depois do `first_seen_at` | linha apagada; a vitrine do jogo é avisada (`event.related_content_changed`) |
+| Canal: título, handle, inscritos, playlist de uploads | `enrich.youtube_channel` | 30 dias depois do `fetched_at` | linha apagada; a próxima leitura busca de novo (1 unidade) |
+| Vídeo recusado pelo player (ids do vídeo e do canal) e quem relatou | `enrich.related_playback_block`, `enrich.related_playback_report` | 30 dias depois do primeiro relato | linha apagada |
+| Título do canal na regra do painel | `enrich.related_channel_rule.channel_title` | 30 dias depois da última mudança da regra | título apagado (o painel mostra o id) |
+
+O job é `purgeYoutubeData` (`services/ai-agents/src/related/store.ts`). Ele roda no começo de cada execução do agente (`related-run`, a cada 3 min), é idempotente e não chama o YouTube. Fica de fora o que é configuração nossa: o mapa de canais (`enrich.related_channel`, ids do Wikidata e do `channels.yaml`), as regras de canal do painel (`block`/`allow` com o id do canal) e a allowlist.
+
+**Bloqueio de embed e economia de cota.** Vídeo que o player oficial recusa (`onError` 101/150: o dono do conteúdo não deixa tocar fora do YouTube; 100: removido ou privado) é bloqueado **para todos os clientes**. A recusa de embed é do vídeo e do canal, não de quem tentou tocar. Com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`), o canal inteiro sai (ex.: a CazéTV, que bloqueia o embed de tudo). O objetivo principal é **não gastar cota do YouTube** com vídeo que não vai tocar: a coleta pula o canal bloqueado (não lê os uploads, `playlistItems`) e não manda vídeo bloqueado, nem vídeo de canal bloqueado vindo da busca, para o `videos.list`. Como os ids das recusas saem em 30 dias, antes disso o job grava o canal no limiar como regra `block` do automático (`updated_by = automatico:recusas-do-player`). Só o id do canal fica, como configuração nossa, e o canal continua fora da coleta depois que os ids saem.
+
+**Como reverter** (Ajustes → Vídeos relacionados): **Liberar** grava a regra `allow`, que vence as recusas, e o canal volta à vitrine e à coleta. **Limpar recusas** apaga as recusas do canal, o registro de quem relatou e a regra do automático; o automático recomeça a contar e a regra manual fica. **Automático** apaga a regra; se o canal ainda tiver 3 recusas, o job grava a regra do automático de novo. O risco aceito é que um cliente, sozinho, derrube um canal para todos. Ele é mitigado pelo registro de quem relatou (`related_playback_report`), pelo log da API e da demo e pelo painel.
 
 Vídeo de criador fora da allowlist só entra se for **conteúdo próprio** (reação, análise) e o canal tiver audiência mínima (`RELATED_CREATOR_MIN_SUBSCRIBERS`, padrão 100 mil inscritos). O que não passa fica `pending` (guardado, não aparece) ou `rejected`.
 
@@ -65,7 +82,7 @@ Ler os uploads recentes de um canal conhecido custa **1 unidade** do balde geral
 | Emissora com direitos no país | `config` | `broadcasters` do `channels.yaml` e os `youtube.com/@handle` do dicionário de emissoras; só entram no jogo as detentoras da competição nos mercados (`config/broadcast-rights`) |
 
 - **Carga**: `pnpm --filter @galaxie/ingestor canais:wikidata [--resolver]` grava os canais do Wikidata (sem cota de nenhuma API); `pnpm --filter @galaxie/ai-agents related:canais` soma os da configuração (resolve cada handle uma vez com `channels.list?forHandle=`, 1 unidade) e confere todos no YouTube. Entrada de federação (`conmebol`, `uefa`) vira uma linha por competição dela. P2397 trocado desativa o canal antigo (`active = false`), e a linha cuja entrada saiu do `channels.yaml` ou do dicionário de emissoras também (a entrada que continua no arquivo mas ficou sem par nesta execução só vai para o log); nada é apagado.
-- **Cache do `channels.list`** (`enrich.youtube_channel`): playlist de uploads (`contentDetails.relatedPlaylists.uploads`), handle, título e inscritos, renovado a cada 30 dias (a política da API não deixa dado sem atualizar por mais que isso). Canal que a API não devolve fica `missing`.
+- **Cache do `channels.list`** (`enrich.youtube_channel`): playlist de uploads (`contentDetails.relatedPlaylists.uploads`), handle, título e inscritos, apagado 30 dias depois de obtido (§2.1); a próxima leitura busca de novo. Canal que a API não devolve fica `missing`.
 - **Piso**: canal do Wikidata abaixo de 10 mil inscritos não é lido nem dá selo (o dado é aberto).
 - **Casamento do upload com o jogo** (`matchUploads`, antes do `videos.list`): publicado entre o apito e 7 dias depois e citando os dois times; no canal de um dos clubes basta o adversário, ou o próprio time até 6 h depois do apito (coletiva, bastidores). Canal da liga ou da emissora cobre vários jogos: só com os dois times. Depois vale a mesma relevância e política de sempre (§5.4–5.6); vídeo achado num canal guarda `channel:<tipo>` em `queries`.
 - **Uma leitura por execução**: o canal da liga ou da emissora é lido uma vez e serve a todos os jogos da rodada (até 3 páginas, até passar do apito do jogo mais antigo).
@@ -148,7 +165,7 @@ flowchart LR
 7. **Ranking**: `source_tier` (oficial 3, detentor 3, imprensa 2, criador 1) + log₁₀(visualizações) / 2 + bônus de tipo (melhores momentos e gols primeiro) − meia-vida de 3 dias desde o apito. Desempate por data e id.
 8. **Gravação e histórico** (`saveRelatedContent`): uma versão por mudança material (tipo, formato, status, título, flags); sem mudança, só renova `last_checked_at` e as estatísticas. Vídeo que sumiu do `videos.list` → versão `retracted`. Mudança visível → `event.related_content_changed` no change feed (tag `related_content:<evento>`), que purga o cache e vira SSE/webhook.
 9. **Revalidação**: entre as buscas completas (`RELATED_RESEARCH_HOURS`, padrão 12 h) o jogo não busca de novo: relê os canais oficiais a cada `RELATED_CHANNEL_REFRESH_MINUTES` e, no máximo a cada `RELATED_REVALIDATE_MINUTES`, faz um `videos.list` com os ids guardados (1 unidade) para atualizar estatísticas e retirar o que saiu do ar.
-10. **Expiração (30 dias)**: linhas com `last_checked_at` > 30 dias viram `expired`, com título, miniatura e estatísticas apagados — o id do vídeo e a classificação ficam (histórico).
+10. **Retenção (30 dias, §2.1)**: o vídeo é apagado (todas as versões) 30 dias depois do `first_seen_at`, sem renovação pela revalidação; o mesmo vale para o cache de canais e as recusas do player.
 
 ## 6. Modelo de dados (`enrich`)
 
@@ -289,16 +306,15 @@ Módulo vendável próprio (add-on): incluído no `enterprise` e contratável po
 
 - Só `status = published`, versão vigente, ordenada por `rank_score`.
 - `counts` traz o total por tipo **antes** do filtro (para a vitrine montar as abas).
-- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`). A resposta varia por tenant (os vídeos que o player dele recusou).
+- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`).
 - Tempo real: tópico `event.related_content_changed` (curto: `related`) no SSE e nos webhooks, para quem tem o módulo.
 
-**Vídeo recusado pelo player** (`POST /v1/related/playback-errors`, chave secreta): o player oficial que dispara `onError` 100, 101 ou 150 avisa a API, e o vídeo sai **na hora da vitrine do tenant que avisou**, em todos os jogos (`enrich.related_playback_report`, uma linha por vídeo e tenant). Só sai da vitrine de todos quando **2 tenants distintos** avisam valendo (`RELATED_GLOBAL_BLOCK_TENANTS`; aí entra em `enrich.related_playback_block`, que também guia a pesquisa do agente). O canal segue a mesma regra com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`): os avisos do tenant e os bloqueios confirmados tiram o canal da vitrine dele, e só 3 bloqueios confirmados tiram o canal de todos. Ao cruzar o limiar, todos os jogos com vídeo do canal são purgados, não só o do vídeo avisado.
+**Vídeo recusado pelo player** (`POST /v1/related/playback-errors`, chave secreta): o player oficial que dispara `onError` 100, 101 ou 150 avisa a API, e o vídeo sai da vitrine **de todos os clientes**, em todos os jogos (`enrich.related_playback_block`). Com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`), o canal inteiro sai, e todos os jogos com vídeo dele são avisados, não só o do vídeo relatado. O bloqueio é global porque a recusa de embed é do vídeo e do canal, e serve para o agente não gastar cota com eles (§2.1).
 
-- Por quê: o 101/150 pode depender do domínio do embed, e um aviso é só a palavra de um cliente. Com o bloqueio global no primeiro aviso, um tenant (ou um convidado da demo, que usa a chave da demo) tirava qualquer vídeo da vitrine de todos, e 3 avisos derrubavam o canal oficial de um clube.
-- `quorum: false` no corpo: o aviso vem de usuário não verificado (visitante anônimo) e tira o vídeo só da vitrine do tenant, sem contar para os 2 tenants. Um aviso do mesmo tenant que conta, depois, passa a contar.
-- Tempo real: o aviso isolado só purga a vitrine de vídeos do jogo (tag `related_content:<evento>`, pelo tópico interno `related_content.purge`; não chega ao SSE nem aos webhooks de ninguém e não purga o resto do jogo); o bloqueio confirmado sai em `event.related_content_changed` com `removed`, `sport` e `competition_id`.
-- Os bloqueios gravados antes da migração 0046 (um aviso só) continuam valendo para todos; o painel (Ajustes → Vídeos relacionados) libera o canal ou limpa as recusas, confirmadas e avisadas.
-- Demo: todos os usuários da demo (convidados inclusive) são um tenant só e não são clientes verificados, então a rota `/api/related/playback-error` manda sempre `quorum: false`: a demo nunca tira vídeo da vitrine dos outros tenants. A rota registra no log quem avisou, limita cada usuário a 10 avisos por hora e um por vídeo (aviso que não chegou à API, por erro de rede ou 5xx, não conta) e invalida o cache da vitrine da demo (`use cache` com a tag `galaxie:related`). O painel (Ajustes → Vídeos relacionados) mostra as recusas confirmadas e as relatadas por cliente, e "Limpar recusas" apaga as duas.
+- Registro: cada tenant que relata fica em `enrich.related_playback_report` (quantas vezes, quando), além do log da API.
+- Tempo real: `event.related_content_changed` com `removed`, `sport` e `competition_id` (os filtros de esporte e competição do SSE e dos webhooks).
+- Reverter: no painel (§2.1), "Liberar" (a regra `allow` vence) ou "Limpar recusas". Um lock por canal serializa relatos simultâneos, para o limiar do canal não passar sem aviso.
+- Demo: qualquer sessão (convidados inclusive) pode avisar. A rota `/api/related/playback-error` registra no log quem avisou, limita cada usuário a 10 avisos por hora e um por vídeo (aviso que não chegou à API, por erro de rede ou 5xx, não conta) e invalida o cache da vitrine da demo (`use cache` com a tag `galaxie:related`).
 
 ## 8. Cota e custo
 
@@ -352,7 +368,7 @@ A simulação (`services/ai-agents/test/related-day.integration.test.ts`) roda o
 
 1. Projeto do Google Cloud (id e número) e o e-mail do responsável pela conta;
 2. caso de uso: metadados e embed oficial de vídeos de futebol (melhores momentos, coletivas) por evento, para hubs esportivos de clientes; sem upload (`videos.insert` não é usado);
-3. conformidade com os Termos e a política de desenvolvedor (§2): só metadados e o player oficial (`youtube-nocookie`), nada de baixar ou rehospedar, miniatura pela URL da plataforma, dados atualizados ou expirados em 30 dias, canais oficiais priorizados;
+3. conformidade com os Termos e a política de desenvolvedor (§2): só metadados e o player oficial (`youtube-nocookie`), nada de baixar ou rehospedar, miniatura pela URL da plataforma, dados apagados 30 dias depois de obtidos (§2.1), canais oficiais priorizados;
 4. uso de cota hoje e o pedido: 100 consultas/dia esgotadas diariamente; leitura dos canais oficiais por `playlistItems.list` como caminho principal; busca só como complemento, com parada cedo e teto por jogo; pedido de 300 consultas/dia em `search.list` (a conta acima);
 5. telas: a seção Conteúdo relacionado da página do evento na demo e o painel lateral do player; as páginas `/privacidade` e `/termos` da demo, que já citam os serviços de API do YouTube, os Termos de Serviço do YouTube e a Política de Privacidade do Google (#273).
 
@@ -416,6 +432,6 @@ O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/
 | Cota de busca (100/dia) | Canais oficiais primeiro (balde geral), parada cedo, teto por jogo, reserva por agenda, rendimento por competição; pedido de aumento (§8.4) |
 | Canal errado no Wikidata | Só QID com casamento estrito, afirmação vigente do P2397, piso de 10 mil inscritos e a mesma relevância/política dos vídeos da busca |
 | Cota do YouTube | Ledger por dia do Pacífico, prioridade por tier, revalidação de 1 unidade |
-| Política de dados da plataforma | Só metadados + embed; expiração em 30 dias sem atualização |
+| Política de dados da plataforma | Só metadados + embed; tudo o que vem da API é apagado em 30 dias (§2.1) |
 
 **Trabalho futuro:** Instagram e TikTok por parceria (§3), auditoria amostral com fila editorial (como em [07 §4](07-ia-tempo-real-e-enriquecimento.md)), outros esportes (as consultas só dependem dos nomes e da competição) e conteúdo pré-jogo (coletiva de véspera, bastidores do treino).
