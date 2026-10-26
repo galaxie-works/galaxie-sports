@@ -6,6 +6,7 @@
 #   - o ensaio de restauração (restore-drill.sh) no dia RESTORE_DRILL_DAY de cada mês (padrão 1), logo depois do
 #     dump do dia; RESTORE_DRILL_DAY=off desliga.
 set -eu
+# shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
 : "${BACKUP_TIME:=03:30}"
 : "${BACKUP_ON_START:=true}"

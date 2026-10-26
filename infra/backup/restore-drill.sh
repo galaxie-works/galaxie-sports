@@ -12,6 +12,7 @@
 #   - a última atualização de partida (core.event.updated_at) está a no máximo RESTORE_DRILL_EVENT_MAX_AGE_H horas
 #     (padrão 72; 0 desliga) antes do dump.
 set -eu
+# shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
 : "${RESTORE_DRILL_MAX_DUMP_AGE_H:=$BACKUP_MAX_AGE_H}"
 : "${RESTORE_DRILL_SPACE_FACTOR:=2}"

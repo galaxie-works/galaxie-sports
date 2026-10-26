@@ -60,7 +60,7 @@ done
 BACKUP_KEEP_DAILY=3 "$here/backup.sh" >/dev/null
 expect "$(ls "$dir"/*.dump | wc -l | tr -d ' ')" 3 "ficam 3 dumps"
 expect "$(ls "$dir"/*.dump.sha256 | wc -l | tr -d ' ')" 3 "cada dump com o seu .sha256"
-expect "$(ls "$dir" | grep -c '_202001\(01\|02\|03\)T')" 0 "os mais antigos saem primeiro"
+expect "$(find "$dir" -maxdepth 1 -name '*_2020010[123]T*' | wc -l | tr -d ' ')" 0 "os mais antigos saem primeiro"
 expect "$(last pg-backup)" "ok " "pg-backup registrado"
 # os dois vazios que sobraram não são restauráveis: o ensaio usa o mais recente (o de agora)
 rm -f "$dir/${db}_202001"*
