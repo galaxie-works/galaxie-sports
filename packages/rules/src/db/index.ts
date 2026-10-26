@@ -186,6 +186,7 @@ export {
   type EventStakes,
   type KnockoutContext,
   type LeagueContext,
+  type LeagueResult,
   type LeagueResultContext,
   type StakesEventRef,
   type StakesOptions,

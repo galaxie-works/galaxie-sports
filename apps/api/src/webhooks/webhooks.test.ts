@@ -91,7 +91,12 @@ describe('cifra do segredo com a KEK (auditoria API-9)', () => {
     expect(() => none.open(sealed, EP)).toThrow(/WEBHOOK_SIGNING_SECRET não está definida/);
     expect(() => new WebhookSecretBox(['curta'])).toThrow(/ao menos 32/);
     expect(() => new WebhookSecretBox([kek('c')]).open(sealed, EP)).toThrow(WebhookSecretError);
-    const tampered = sealed.slice(0, -2) + (sealed.endsWith('A') ? 'BB' : 'AA');
+    // troca o 1º caractere do tag: no fim do base64url os bits de sobra somem na decodificação e a troca podia não mudar
+    // nenhum byte
+    const parts = sealed.split(':');
+    const tag = parts[parts.length - 1]!;
+    parts[parts.length - 1] = (tag.startsWith('A') ? 'B' : 'A') + tag.slice(1);
+    const tampered = parts.join(':');
     expect(() => new WebhookSecretBox([kek('a')]).open(tampered, EP)).toThrow(/não confere/);
     expect(
       WebhookSecretBox.fromEnv({ WEBHOOK_SIGNING_SECRET: ` ${kek('a')} , ${kek('b')} ` }).open(sealed, EP),

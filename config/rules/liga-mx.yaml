@@ -1,0 +1,61 @@
+# Liga MX (México) — Apertura e Clausura na mesma temporada da api-sports (2025 = Apertura 2025 +
+# Clausura 2026), cada um com tabela única de 18 clubes em turno único (17 rodadas).
+# 1º–6º vão direto às quartas da Liguilla; 7º–10º disputam o play-in. Sem rebaixamento (suspenso).
+# Desempate (Reglamento de Competencia): saldo, gols pró, confronto direto, gols como visitante,
+# fair play e sorteio. A Liguilla é mata-mata e não entra na tabela: só contam as rodadas numeradas.
+# O play-in (7º–10º) não é modelado como mata-mata.
+# Rodadas e grupos do fornecedor: padrão da api-sports para torneios curtos ("Apertura - 7"; grupo com
+# "Apertura"/"Clausura" no nome; Liguilla "Apertura - Quarter-finals").
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+# Revise a cada temporada.
+slug: liga-mx
+name: Liga MX
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - away_goals_for
+    - fair_play
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 17
+  meetings_per_pair: 1
+  title: false
+  zones:
+    - { id: liguilla, kind: playoff, from: 1, to: 6 }
+    - { id: play_in, kind: playoff, from: 7, to: 10 }
+
+# Liguilla: quartas e semifinal em ida e volta; empate no agregado classifica o de melhor campanha na tabela
+# do torneio (sem prorrogação nem pênaltis). A final, em ida e volta, vai à prorrogação e aos pênaltis.
+# Rodadas da Liguilla no padrão "Apertura - Quarter-finals" (a conferir no /fixtures/rounds de produção).
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: false, level_advantage: better_seed }
+  stages:
+    final: { legs: 2, extra_time: true, penalties: true, level_advantage: null, decides_title: true }
+  seeding:
+    - { rounds: '^apertura - ', table: apertura }
+    - { rounds: '^clausura - ', table: clausura }
+
+tables:
+  - key: apertura
+    kind: phase
+    name: { pt-BR: Apertura, es: Apertura, en: Apertura }
+    groups: 'apertura'
+    rounds: '^apertura - \d+$'
+    group_name: Apertura
+  - key: clausura
+    kind: phase
+    name: { pt-BR: Clausura, es: Clausura, en: Clausura }
+    groups: 'clausura'
+    rounds: '^clausura - \d+$'
+    group_name: Clausura
+
+sources:
+  - https://ligamx.net/

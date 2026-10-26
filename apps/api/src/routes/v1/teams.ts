@@ -45,6 +45,12 @@ import {
 } from '@galaxie/db';
 import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import { coachPersonId } from '@galaxie/providers';
+import {
+  currentPhaseKey,
+  standingsGroupLabel,
+  standingsGroupPriority,
+  standingsTableOf,
+} from '@galaxie/rules';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
@@ -388,11 +394,39 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             and(eq(standing.participantId, team.id), year === undefined ? undefined : eq(season.year, year)),
           )
           .orderBy(asc(competition.tier), desc(season.current), desc(season.year));
-        const seen = new Set<string>();
+        // uma linha por competição, na temporada que vem primeiro na ordem acima. Com várias tabelas na
+        // temporada (Apertura/Clausura, anual, promedios), a da fase em andamento pelo regulamento
+        const pickedSeason = new Map<string, string>();
+        for (const r of st) if (!pickedSeason.has(r.c.id)) pickedSeason.set(r.c.id, r.season.id);
+        const chosen = new Map<string, { row: (typeof st)[number]; label: string | null }>();
+        for (const [competitionId, seasonId] of pickedSeason) {
+          const candidates = st.filter((r) => r.c.id === competitionId && r.season.id === seasonId);
+          const first = candidates[0]!;
+          const rules =
+            team.sport === 'football' ? await ctx.rules.get(first.c.slug, first.season.year) : null;
+          if (!rules?.tables.length) {
+            chosen.set(competitionId, { row: first, label: null });
+            continue;
+          }
+          const phase = currentPhaseKey(
+            rules,
+            candidates.map((r) => ({ group: r.s.group, played: r.s.played })),
+          );
+          const best = [...candidates].sort(
+            (a, b) =>
+              standingsGroupPriority(rules, a.s.group, phase) -
+                standingsGroupPriority(rules, b.s.group, phase) ||
+              b.s.played - a.s.played ||
+              a.s.group.localeCompare(b.s.group),
+          )[0]!;
+          const table = standingsTableOf(rules, best.s.group);
+          chosen.set(competitionId, {
+            row: best,
+            label: table ? standingsGroupLabel(table, best.s.group, locale) : null,
+          });
+        }
         const standings: TeamOverview['standings'] = [];
-        for (const r of st) {
-          if (seen.has(r.c.id)) continue;
-          seen.add(r.c.id);
+        for (const { row: r, label } of chosen.values()) {
           const labels = { ...(r.c.labels ?? {}), ...(r.profileLabels ?? {}) } as Record<string, string>;
           standings.push({
             competition: {
@@ -403,6 +437,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             },
             season: { year: r.season.year, label: r.season.label },
             group: r.s.group || null,
+            group_display_name: label,
             rank: r.s.rank,
             points: r.s.points,
             played: r.s.played,
