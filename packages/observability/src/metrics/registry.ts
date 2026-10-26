@@ -286,6 +286,16 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   dbGauge(
     registry,
     jobs,
+    'galaxie_job_first_run_timestamp_seconds',
+    'Primeira execução registrada do job (epoch s): dá idade a um job que nunca teve sucesso',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows) g.set({ job_name: r.job }, seconds(r.firstStartedAt));
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
     'galaxie_job_last_duration_seconds',
     'Duração da execução mais recente já concluída (s)',
     ['job_name'],

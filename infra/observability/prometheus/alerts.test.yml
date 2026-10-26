@@ -177,8 +177,43 @@ tests:
               severity: warning
               job_name: pg-restore-drill
             exp_annotations:
-              summary: 'Último ensaio de restauração com sucesso há 36d 0h 0m 0s'
-              description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês. Confira RESTORE_DRILL_DAY e os logs do container backup.'
+              summary: 'Nenhum ensaio de restauração com sucesso há 36d 0h 0m 0s'
+              description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
+
+  # ensaio que nunca teve sucesso: sem a série do último sucesso, conta da 1ª execução do verificador
+  - name: ensaio que nunca teve sucesso vira stale 35 dias depois do início do verificador
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_first_run_timestamp_seconds{job_name="backup-check"}'
+        values: '0x52000'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: RestoreDrillStale
+        exp_alerts: []
+      - eval_time: 34d
+        alertname: RestoreDrillStale
+        exp_alerts: []
+      - eval_time: 36d
+        alertname: RestoreDrillStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job_name: pg-restore-drill
+            exp_annotations:
+              summary: 'Nenhum ensaio de restauração com sucesso há 36d 0h 0m 0s'
+              description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
+
+  - name: verificador antigo e ensaio com sucesso recente não alertam
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_first_run_timestamp_seconds{job_name="backup-check"}'
+        values: '0x52000'
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}'
+        values: '0+60x52000'
+    alert_rule_test:
+      - eval_time: 36d
+        alertname: RestoreDrillStale
+        exp_alerts: []
 
   - name: disco acima de 85% por 15 minutos
     interval: 1m

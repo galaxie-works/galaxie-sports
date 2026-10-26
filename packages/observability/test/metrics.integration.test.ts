@@ -262,6 +262,15 @@ describe('métricas de jobs (ops.job_run)', () => {
       0,
     );
     expect(m.get('galaxie_job_last_success_timestamp_seconds', { job_name: 'never-ok' })).toBeUndefined();
+    // job que nunca teve sucesso continua com idade: a da primeira execução
+    expect(m.get('galaxie_job_first_run_timestamp_seconds', { job_name: 'never-ok' })).toBeCloseTo(
+      ago(30 * HOUR).getTime() / 1000,
+      0,
+    );
+    expect(m.get('galaxie_job_first_run_timestamp_seconds', { job_name: 'daily-sync' })).toBeCloseTo(
+      ago(4 * HOUR).getTime() / 1000,
+      0,
+    );
     expect(m.get('galaxie_job_last_duration_seconds', { job_name: 'daily-sync' })).toBeCloseTo(120, 0);
   });
 });

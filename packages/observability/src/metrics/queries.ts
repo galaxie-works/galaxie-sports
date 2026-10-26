@@ -94,6 +94,8 @@ export interface JobStatsRow {
   lastStartedAt: Date;
   lastFinishedAt: Date | null;
   lastSuccessAt: Date | null;
+  /** Primeira execução registrada: idade de um job que nunca teve sucesso (ex.: ensaio de restauração parado). */
+  firstStartedAt: Date;
   /** Falhas seguidas desde o último sucesso (ou desde sempre, se nunca houve sucesso). */
   consecutiveFailures: number;
 }
@@ -105,6 +107,7 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
     last_started_at: string | Date;
     last_finished_at: string | Date | null;
     last_success_at: string | Date | null;
+    first_started_at: string | Date;
     consecutive_failures: number;
     runs_24h: Record<string, number> | null;
   }>(sql`
@@ -115,6 +118,9 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
     ),
     last_ok as (
       select job, max(started_at) as at from ops.job_run where status = 'ok' group by job
+    ),
+    first_run as (
+      select job, min(started_at) as at from ops.job_run group by job
     ),
     recent as (
       select job, jsonb_object_agg(status, n) as runs
@@ -131,12 +137,14 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
            lr.started_at as last_started_at,
            lr.finished_at as last_finished_at,
            lo.at as last_success_at,
+           fr.at as first_started_at,
            (select count(*) from ops.job_run f
              where f.job = lr.job and f.status = 'error'
                and f.started_at > coalesce(lo.at, '-infinity'::timestamptz))::int as consecutive_failures,
            r.runs as runs_24h
     from last_run lr
     left join last_ok lo on lo.job = lr.job
+    join first_run fr on fr.job = lr.job
     left join recent r on r.job = lr.job
   `);
   return rows.map((r) => ({
@@ -146,6 +154,7 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
     lastStartedAt: new Date(r.last_started_at),
     lastFinishedAt: r.last_finished_at ? new Date(r.last_finished_at) : null,
     lastSuccessAt: r.last_success_at ? new Date(r.last_success_at) : null,
+    firstStartedAt: new Date(r.first_started_at),
     consecutiveFailures: Number(r.consecutive_failures),
   }));
 }

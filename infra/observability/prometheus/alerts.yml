@@ -52,15 +52,27 @@ groups:
           summary: 'Ensaio de restauração do backup falhou'
           description: 'O dump mais recente não restaurou ou não passou na conferência. Veja ops.job_run (job pg-restore-drill, coluna error) e o runbook docs/runbooks/exercicio-dr.md.'
 
-      # mensal (dia 1): sem sucesso há mais de 35 dias = ensaio parado ou desligado
+      # Mensal (dia 1): sem sucesso há mais de 35 dias = ensaio parado ou desligado. Ensaio que NUNCA teve sucesso
+      # não tem a série do último sucesso; aí a idade conta da 1ª execução do backup-check (job da mesma versão do
+      # serviço backup, a cada 6 h), que fica no banco: um deploy novo não alerta antes de 35 dias e um restart do
+      # Prometheus não zera a contagem (o `for` é só de 1 h).
       - alert: RestoreDrillStale
-        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"} > 35 * 86400
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"} > 35 * 86400)
+          or
+          (
+            label_replace(
+              time() - galaxie_job_first_run_timestamp_seconds{job_name="backup-check"} > 35 * 86400,
+              "job_name", "pg-restore-drill", "job_name", ".*"
+            )
+            unless on() galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}
+          )
         for: 1h
         labels:
           severity: warning
         annotations:
-          summary: 'Último ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
-          description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês. Confira RESTORE_DRILL_DAY e os logs do container backup.'
+          summary: 'Nenhum ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
+          description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
 
   - name: galaxie-freshness
     rules:
