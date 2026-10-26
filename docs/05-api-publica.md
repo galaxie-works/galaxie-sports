@@ -903,6 +903,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant, ou muitas tentativas de autenticação com chaves não verificadas por IP/prefixo (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60; SECURITY.md) |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
+| 503 `MAINTENANCE` | Stack em atualização (deploy ou reinício, segundos): quem responde é o serviço de manutenção na frente da API, com `Retry-After: 30`; tente de novo depois dele (infra/vps-telemetry/README.md › Página de manutenção) |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
 
 `type` segue `https://docs.galaxie.sports/errors/<código-em-kebab-case>` (ex.: `.../errors/module-not-in-plan`); `instance` é o caminho da requisição; `INVALID_PARAMS` traz `errors: [{ path, message }]`. Rotas inexistentes também respondem 404 `NOT_FOUND` em `application/problem+json`. Erros nunca são cacheados (`Cache-Control: no-store`).

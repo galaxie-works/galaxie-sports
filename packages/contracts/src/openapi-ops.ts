@@ -15,7 +15,7 @@ export const errorResponses = (
     403: 'Recurso fora do plano (MODULE_NOT_IN_PLAN / MARKET_NOT_IN_PLAN)',
     404: 'Entidade inexistente (NOT_FOUND)',
     429: 'Limite do tenant atingido (RATE_LIMITED)',
-    503: 'Serviço degradado (DEGRADED)',
+    503: 'Serviço degradado (DEGRADED) ou em atualização (MAINTENANCE)',
   } as const;
   return Object.fromEntries(
     statuses.map((s) => [String(s), { description: descriptions[s], content: problemContent }]),

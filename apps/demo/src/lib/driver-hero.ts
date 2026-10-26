@@ -11,12 +11,11 @@ export function coverable(photo: Photo | null | undefined): photo is Photo {
 }
 
 /**
- * Temporada do carro no heading do piloto: a mais marcante que tenha foto do carro que possa ir ao fundo
- * (`coverable`: sem CC BY-SA).
+ * Temporada em destaque no heading da lenda: a mais marcante. A foto do carro da temporada não pesa na
+ * escolha (o fundo só usa o carro de destaque do acervo, ver `heroPhotos`), então a equipe, a cor e o número
+ * do heading são sempre os da temporada mais forte.
  *
  * Ordem: curadoria (`curated`, quando houver) → título com mais vitórias → mais vitórias → a mais recente.
- * Sem foto em nenhuma, fica a mais marcante, e o heading usa a cor da equipe dela. Quando o acervo ganha a
- * foto dessa temporada, o heading troca sozinho.
  */
 export function heroSeason(career: RaceCareer, curated?: number | null): CareerSeason | null {
   const raced = career.seasons.filter((s) => s.races > 0 || s.position != null);
@@ -25,7 +24,7 @@ export function heroSeason(career: RaceCareer, curated?: number | null): CareerS
   const ranked = [...raced].sort(
     (a, b) => Number(isTitle(b)) - Number(isTitle(a)) || b.wins - a.wins || b.year - a.year,
   );
-  return ranked.find((s) => coverable(s.car)) ?? ranked[0] ?? null;
+  return ranked[0] ?? null;
 }
 
 /** Temporada corrente de quem está no grid (o heading fica na equipe e no número de hoje); null para as lendas. */

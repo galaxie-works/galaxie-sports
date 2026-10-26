@@ -227,6 +227,8 @@ export default defineMessages(
         notFound: 'Entidade ou rota inexistente.',
         rateLimited: 'Limite da janela atingido; veja retry-after.',
         degraded: 'Raro: fonte indisponível e nenhum dado anterior válido.',
+        maintenance:
+          'Atualização da plataforma em andamento (segundos); tente de novo depois de retry-after.',
         internal: 'Erro inesperado (registrado do nosso lado).',
         code: {
           notFound: 'a entidade não existe (ou saiu do catálogo)',
@@ -643,6 +645,7 @@ export default defineMessages(
           notFound: 'Entity or route does not exist.',
           rateLimited: 'Window limit reached; see retry-after.',
           degraded: 'Rare: source unavailable and no valid previous data.',
+          maintenance: 'Platform update in progress (seconds); try again after retry-after.',
           internal: 'Unexpected error (logged on our side).',
           code: {
             notFound: 'the entity does not exist (or was removed from the catalog)',
@@ -1063,6 +1066,8 @@ export default defineMessages(
           notFound: 'Entidad o ruta inexistente.',
           rateLimited: 'Se alcanzó el límite de la ventana; mirá retry-after.',
           degraded: 'Poco común: fuente no disponible y ningún dato anterior válido.',
+          maintenance:
+            'Actualización de la plataforma en curso (segundos); probá de nuevo después de retry-after.',
           internal: 'Error inesperado (registrado de nuestro lado).',
           code: {
             notFound: 'la entidad no existe (o salió del catálogo)',
