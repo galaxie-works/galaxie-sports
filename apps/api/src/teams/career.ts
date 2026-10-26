@@ -69,7 +69,7 @@ const POLE_SESSIONS = new Set(['qualifying', '3rd qualifying']);
 const SPRINT_POLE_SESSIONS = new Set(['sprint qualifying', '3rd sprint shootout']);
 const SESSION_TYPES = ['race', 'sprint', ...POLE_SESSIONS, ...SPRINT_POLE_SESSIONS];
 /** Na corrida, mas sem largar: não largou, não participou e excluído (o F1DB não conta como GP disputado). */
-const NOT_STARTED = new Set(['DNS', 'DNP', 'EX']);
+export const NOT_STARTED = new Set(['DNS', 'DNP', 'EX']);
 /** A sessão que a linha representa no GP: a classificação inteira do F1DB e o Q3 da api-sports são a mesma pole. */
 const sessionGroup = (type: string) =>
   POLE_SESSIONS.has(type) ? 'pole' : SPRINT_POLE_SESSIONS.has(type) ? 'sprint_pole' : type;
@@ -105,7 +105,10 @@ const retired = (r: SessionRow) =>
     ? r.result.position_text === 'DNF'
     : r.result?.time === 'DNF' && !coveredDistance(r);
 /** Largou: no F1DB, o texto da posição; na api-sports, quem não largou vem sem posição, sem tempo e com 0 volta. */
-const started = (r: SessionRow) => {
+export const started = (r: {
+  position: number | null;
+  result: { position_text?: unknown; time?: unknown; laps?: unknown } | null;
+}) => {
   const text = r.result?.position_text;
   if (text != null) return !NOT_STARTED.has(String(text));
   return !(r.position == null && r.result?.time == null && num(r.result?.laps) === 0);
@@ -361,6 +364,8 @@ function emptySeason(year: number): CareerSeason {
 export interface RaceCareerOptions {
   /** Pinturas curadas por época (`loadLiveries`), já no piso editorial. */
   liveries?: readonly LiveryEntry[];
+  /** Logos próprios ligados (`ASSETS_CUSTOM_LOGOS`): logo e cores das equipes como em `/v1/teams/{id}`. */
+  customLogos?: boolean;
 }
 
 export async function loadRaceCareer(
@@ -409,6 +414,7 @@ export async function loadRaceCareer(
     'formula-1',
     rows.map((r) => r.result),
     assetsBaseUrl,
+    options.customLogos,
   );
   const drivers = constructor
     ? await db.execute<{ id: string; name: string }>(sql`

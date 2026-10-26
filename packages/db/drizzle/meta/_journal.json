@@ -323,6 +323,48 @@
       "when": 1792954870136,
       "tag": "0045_epoca_do_uso",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1792963744501,
+      "tag": "0046_related_relato_por_tenant",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792971767174,
+      "tag": "0047_wtw_research_falhas",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792976083442,
+      "tag": "0048_lista_canais_revisao",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792978031970,
+      "tag": "0049_contexto_rejeitado_purga_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792978034749,
+      "tag": "0050_grade_publica_change_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1792979629348,
+      "tag": "0051_falhas_da_normalizacao",
+      "breakpoints": true
     }
   ]
 }

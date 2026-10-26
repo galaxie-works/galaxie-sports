@@ -56,6 +56,9 @@ export function UserMenu() {
   const isClient = user.role === 'client';
 
   async function signOut() {
+    // A trilha da aba (nomes e endereços que a pessoa abriu, inclusive em Ajustes) não passa para quem
+    // entrar em seguida nesta aba.
+    clearTrail();
     await authClient.signOut();
     router.replace('/login');
     router.refresh();

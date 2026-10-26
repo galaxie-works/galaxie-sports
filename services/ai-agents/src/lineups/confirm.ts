@@ -33,7 +33,7 @@ import {
 import { hostOf, type WtwConfig } from '@galaxie/where-to-watch';
 import { extractAddons, extractPlanGrade, unknownPlanLabels, type PageGrade } from './extract.js';
 import type { OfficialPageReader, PageRead } from './pages.js';
-import { choosePrice, COUNTRY_CURRENCY, formatPrice, isOfficialUrl } from './validate.js';
+import { choosePrice, COUNTRY_CURRENCY, formatPrice, isOfficialUrl, priceCurrency } from './validate.js';
 
 export interface ConfirmDeps {
   db: Database;
@@ -260,10 +260,13 @@ async function confirmPlatform(
     const pageUrl = read.finalUrl ?? read.url;
     // preço: as observações anteriores (menos as de página antigas) + a da página de hoje
     const observations: LineupPriceObservation[] = (prev?.prices ?? []).filter((o) => o.origin !== 'page');
-    if (grade.price !== null && currency)
+    // a moeda que o cartão mostra junto do preço (US$ no Uruguai fica em USD); ambígua, o preço não entra
+    const shown =
+      grade.price !== null ? priceCurrency(null, grade.card ?? '', grade.price, currency).currency : null;
+    if (grade.price !== null && shown)
       observations.push({
         amount: grade.price,
-        currency,
+        currency: shown,
         origin: 'page',
         source_url: pageUrl,
         tier: 'official',
@@ -283,11 +286,11 @@ async function confirmPlatform(
     const complete = grade.gradeFrom !== null && grade.card !== null;
     plans.push({
       name,
-      ...(chosen
+      ...(chosen?.currency
         ? {
             priceAmount: chosen.amount,
-            priceCurrency: currency,
-            priceText: formatPrice(chosen.amount, currency!, row.country),
+            priceCurrency: chosen.currency,
+            priceText: formatPrice(chosen.amount, chosen.currency, row.country),
           }
         : {}),
       url: existing?.url ?? (grade.gradeFrom === 'plan_page' ? pageUrl : null),
@@ -329,21 +332,25 @@ async function confirmPlatform(
     });
   }
 
-  const addonDrafts: LineupAddonDraft[] = (addons?.offers ?? []).map((o) => ({
-    kind: o.kind,
-    refId: o.refId,
-    channel: o.channel,
-    name: o.name,
-    priceAmount: o.price,
-    priceCurrency: currency,
-    priceText: currency
-      ? `${formatPrice(o.price, currency, row.country)}${o.commitmentMonths ? ` · fidelidade de ${o.commitmentMonths} meses` : ''}`
-      : null,
-    commitmentMonths: o.commitmentMonths,
-    url: addons!.read.finalUrl ?? addons!.read.url,
-    sources: [addons!.read.finalUrl ?? addons!.read.url],
-    verification: pageVerification(addons!.read, o.excerpt, now),
-  }));
+  const addonDrafts: LineupAddonDraft[] = (addons?.offers ?? []).map((o) => {
+    // a moeda da linha do complemento; ambígua, o complemento entra sem preço
+    const shown = priceCurrency(null, o.excerpt, o.price, currency).currency;
+    return {
+      kind: o.kind,
+      refId: o.refId,
+      channel: o.channel,
+      name: o.name,
+      priceAmount: shown ? o.price : null,
+      priceCurrency: shown,
+      priceText: shown
+        ? `${formatPrice(o.price, shown, row.country)}${o.commitmentMonths ? ` · fidelidade de ${o.commitmentMonths} meses` : ''}`
+        : null,
+      commitmentMonths: o.commitmentMonths,
+      url: addons!.read.finalUrl ?? addons!.read.url,
+      sources: [addons!.read.finalUrl ?? addons!.read.url],
+      verification: pageVerification(addons!.read, o.excerpt, now),
+    };
+  });
   outcome.addons = addonDrafts.length;
 
   if (plans.length || addonDrafts.length) {

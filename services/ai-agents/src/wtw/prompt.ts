@@ -145,6 +145,8 @@ export interface AllocationMarket {
   holders: string[];
   /** Detentores já garantidos pela tabela (não precisa repetir). */
   known: string[];
+  /** Detentores incertos da linha de direitos (aceitos na resposta, sem bônus nem penalidade). */
+  uncertain?: string[];
   /** Códigos dos jogos que este país precisa alocar. */
   matches: string[];
 }
@@ -187,6 +189,8 @@ export function buildAllocationUserPrompt(input: AllocationPromptInput): string 
         : `  sem tabela de direitos: procure entre ${dir.broadcasters.map((b) => b.name).join(', ')}`,
     );
     if (mk.known.length) lines.push(`  já garantidos (não repita): ${mk.known.map(name).join('; ')}`);
+    if (mk.uncertain?.length)
+      lines.push(`  incertos (confirme com fonte do jogo): ${mk.uncertain.map(name).join('; ')}`);
   }
   lines.push(
     '',

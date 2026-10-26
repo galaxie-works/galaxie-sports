@@ -5,12 +5,14 @@
  *   pnpm --filter @galaxie/ingestor normalize:sports nba formula-1 --tudo     # posicionais também valem; --tudo reprocessa
  *   pnpm --filter @galaxie/ingestor normalize:sports --relogio                # depois, avança o relógio dos eventos
  *   pnpm --filter @galaxie/ingestor normalize:sports --detalhe                # uma linha por resposta do raw
+ *   pnpm --filter @galaxie/ingestor normalize:sports --reprocessar-falhas     # tenta de novo as falhas pendentes
+ * Resposta que falha várias vezes seguidas vira poison (ops.normalize_failure) e o cursor segue sem ela.
  */
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
 import { API_SPORTS_OTHER_SPORTS, isApiSportsOtherSport, type ApiSportsOtherSport } from '@galaxie/providers';
 import { advanceEventClock } from '../normalize/event-state.js';
-import { runNormalizeSportsJob } from '../normalize/raw-runner.js';
+import { pendingNormalizeFailures, runNormalizeSportsJob } from '../normalize/raw-runner.js';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -19,6 +21,7 @@ const { values, positionals } = parseArgs({
     tudo: { type: 'boolean', default: false },
     relogio: { type: 'boolean', default: false },
     detalhe: { type: 'boolean', default: false },
+    'reprocessar-falhas': { type: 'boolean', default: false },
   },
 });
 
@@ -40,6 +43,7 @@ const started = Date.now();
 const results = await runNormalizeSportsJob(db, {
   sports,
   full: values.tudo,
+  retryFailures: values['reprocessar-falhas'],
   ...(values.detalhe
     ? {
         onRow: (r) =>
@@ -76,6 +80,11 @@ for (const { sport, result } of results) {
     console.log(`✗ ${sport} raw ${r.id} ${r.endpoint}: ${r.error}`);
   if (Object.keys(result.stats.events.ignored).length)
     console.log(`${sport}: observações descartadas`, result.stats.events.ignored);
+  const poison = (await pendingNormalizeFailures(db, 'api-sports', sport)).filter((f) => f.poisonedAt);
+  if (poison.length)
+    console.log(
+      `${sport}: ${poison.length} resposta(s) em poison fora do cursor (raw ${poison.map((f) => f.rawId).join(', ')}); --reprocessar-falhas tenta de novo`,
+    );
 }
 
 if (values.relogio) {

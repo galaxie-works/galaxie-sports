@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TeamRef } from '../context/event-core.js';
-import { matchUploads } from './channel-map.js';
-import { ChannelAllowlist } from './channels.js';
+import { configChannelRows, matchUploads, staleConfigChannels } from './channel-map.js';
+import { ChannelAllowlist, type ChannelEntry } from './channels.js';
 
 const team = (id: string, side: 'home' | 'away', name: string): TeamRef => ({
   id,
@@ -76,5 +76,76 @@ describe('allowlist com o mapa do Wikidata', () => {
     expect(allow.classify(ch('UCvasco', 500), new Set()).tier).toBe('unknown');
     // entrada conferida à mão (channels.yaml) por id não tem piso
     expect(allow.classify(ch('UCcfg', 500), new Set()).tier).toBe('official');
+  });
+});
+
+describe('mapa de canais da configuração', () => {
+  const entry = (over: Partial<ChannelEntry>): ChannelEntry => ({
+    handle: null,
+    id: null,
+    kind: 'competition',
+    broadcaster: null,
+    country: null,
+    label: null,
+    ...over,
+  });
+  const comps = [
+    { id: 'lib', slug: 'conmebol-libertadores' },
+    { id: 'sul', slug: 'conmebol-sudamericana' },
+    { id: 'ucl', slug: 'uefa-champions-league' },
+    { id: 'bra', slug: 'brasileirao-serie-a' },
+  ];
+  const teams = [{ id: 'pal', name: 'Palmeiras', shortName: null, country: 'BR' }];
+  const idOf = new Map([
+    ['@conmebol', 'UCcmb'],
+    ['@libertadoresbr', 'UClib'],
+    ['@uefa', 'UCuefa'],
+    ['@palmeiras', 'UCpal'],
+  ]);
+
+  it('federação vira uma linha por competição dela; slug só casa com ele mesmo', () => {
+    const { rows, unmatched } = configChannelRows(
+      [
+        entry({ handle: '@conmebol', label: 'conmebol' }),
+        entry({ handle: '@libertadoresbr', label: 'conmebol-libertadores' }),
+        entry({ handle: '@uefa', label: 'uefa' }),
+        entry({ handle: '@palmeiras', kind: 'club', label: 'Palmeiras', country: 'BR' }),
+        entry({ handle: '@sumiu', label: 'liga-x' }),
+      ],
+      { idOf, teams, comps },
+    );
+    expect(rows.map((r) => `${r.channelId}:${r.competitionId ?? r.participantId}`)).toEqual([
+      'UCcmb:lib',
+      'UCcmb:sul',
+      'UClib:lib',
+      'UCuefa:ucl',
+      'UCpal:pal',
+    ]);
+    expect(unmatched).toEqual([]); // @sumiu não foi resolvido: nem entra
+    expect(
+      configChannelRows([entry({ id: 'UCx', label: 'liga-x' })], { idOf, teams, comps }).unmatched,
+    ).toEqual(['liga-x (sem competição)']);
+  });
+
+  it('só a linha cuja entrada saiu do arquivo é desativada; a que ficou sem par só vai para o log', () => {
+    const row = (channelId: string, sourceRef: string, competitionId: string | null = 'lib') => ({
+      id: channelId,
+      channelId,
+      kind: 'competition' as const,
+      participantId: null,
+      competitionId,
+      broadcasterId: null,
+      sourceRef,
+    });
+    const active = [row('UCcmb', '@conmebol'), row('UCold', '@antigo'), row('UCprev', '@prev')];
+    const rows = [{ channelId: 'UCcmb', kind: 'competition' as const, competitionId: 'lib' }];
+    // @prev continua no arquivo (handle não conferido, time ambíguo...): fica ativo
+    const res = staleConfigChannels(active, rows, new Set(['@conmebol', '@prev']));
+    expect(res.gone.map((r) => r.channelId)).toEqual(['UCold']);
+    expect(res.unmatched.map((r) => r.channelId)).toEqual(['UCprev']);
+    // a mesma entrada, ainda no arquivo, que hoje casa com outra competição: só log
+    expect(
+      staleConfigChannels([row('UCcmb', '@conmebol', 'ucl')], rows, new Set(['@conmebol'])).gone,
+    ).toHaveLength(0);
   });
 });

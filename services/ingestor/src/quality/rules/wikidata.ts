@@ -74,7 +74,8 @@ export const WIKIDATA_RULES: QualityRule[] = [
       }>(sql`
         select m.provider_id as qid, p.id::text, p.name, p.sport, p.kind::text
           from core.provider_map m join core.participant p on p.id = m.entity_id
-         where m.provider = 'wikidata' and m.entity_type = 'participant' and p.kind in ('club', 'national_team')`);
+         where m.provider = 'wikidata' and m.entity_type = 'participant' and p.kind in ('club', 'national_team')
+         order by p.sport, p.name, p.id, m.provider_id`);
       const entities = new Map<string, Entity>();
       const qids = [...new Set(links.map((l) => l.qid))];
       for (let i = 0; i < qids.length; i += 50) {
@@ -141,7 +142,8 @@ export const WIKIDATA_RULES: QualityRule[] = [
           from core.competition_title t
           join core.participant p on p.id = t.participant_id
           join core.competition c on c.id = t.competition_id
-         where t.source <> 'curated'`);
+         where t.source <> 'curated'
+         order by c.name, t.season_label, p.name, t.id`);
       return {
         checked: rows.length,
         failures: rows
@@ -179,7 +181,8 @@ export const WIKIDATA_RULES: QualityRule[] = [
         select t.id::text, p.id::text as team_id, p.name as team, c.name as competition, t.season_label as season
           from core.competition_title t
           join core.participant p on p.id = t.participant_id
-          join core.competition c on c.id = t.competition_id`);
+          join core.competition c on c.id = t.competition_id
+         order by c.name, t.season_label, p.name, t.id`);
       return {
         checked: rows.length,
         failures: rows
