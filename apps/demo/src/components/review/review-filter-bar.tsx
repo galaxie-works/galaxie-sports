@@ -65,15 +65,31 @@ export function ReviewFiltersBar({ filters, counts, options }: Props) {
   const go = (next: ReviewFilters) =>
     startTransition(() => router.replace(`${pathname}${filtersQuery(next)}`, { scroll: false }));
 
-  // a URL é a fonte da verdade; a query local guarda também os chips ainda sem valor
+  // A URL é a fonte da verdade; a query local guarda também os chips ainda sem valor. Diferente do Ao
+  // vivo, a URL só muda quando a navegação do servidor termina: `seen` é a última URL vista e `target`,
+  // a que a barra pediu. Enquanto a navegação corre, a barra mostra a escolha nova (sem voltar para a
+  // URL antiga) e compara a próxima mudança com `target`, para desfazer rápido também navegar.
   const key = reviewFiltersKey(filters);
-  const [state, setState] = useState(() => ({ key, query: toFilterQuery(filters) }));
-  let query = state.query;
-  if (state.key !== key) {
-    // a URL mudou por fora (contagem por status, voltar do navegador): a barra acompanha
-    query = toFilterQuery(filters);
-    setState({ key, query });
+  const [state, setState] = useState(() => ({ seen: key, target: key, query: toFilterQuery(filters) }));
+  let { query, target } = state;
+  if (state.seen !== key) {
+    if (key === target) setState({ ...state, seen: key });
+    else {
+      // a URL mudou por fora (voltar do navegador, link): a barra acompanha
+      query = toFilterQuery(filters);
+      target = key;
+      setState({ seen: key, target, query });
+    }
   }
+  /** A escolha que a barra mostra agora (a pedida, mesmo que a URL ainda não tenha chegado nela). */
+  const current = withChoice(filters, fromFilterQuery(query));
+
+  /** Leva a barra e a URL para a escolha nova (página 1, mesmo tamanho de página). */
+  const apply = (next: ReviewFilters, nextQuery = toFilterQuery(next)) => {
+    const nextKey = reviewFiltersKey(next);
+    setState((s) => ({ ...s, target: nextKey, query: nextQuery }));
+    if (nextKey !== target) go(next);
+  };
 
   const inUse = new Set(query.rules.flatMap((r) => (r.type === 'rule' ? r.path : [])));
   const pickOperators: FilterOperator[] = [
@@ -163,21 +179,18 @@ export function ReviewFiltersBar({ filters, counts, options }: Props) {
         r.type === 'rule' && !r.operator ? { ...r, operator: operatorFor(r.path[0] ?? '') } : r,
       ),
     };
-    const choice = fromFilterQuery(next);
-    const nextKey = reviewFiltersKey(choice);
-    setState({ key: nextKey, query: next });
-    if (nextKey !== key) go(withChoice(filters, choice));
+    apply(withChoice(filters, fromFilterQuery(next)), next);
   };
 
   const total = REVIEW_STATES.reduce((n, s) => n + counts[s], 0);
   const chip = (s: ReviewState | null, label: string, count: number) => {
-    const active = s === null ? !filters.state.length : filters.state.includes(s);
+    const active = s === null ? !current.state.length : current.state.includes(s);
     return (
       <button
         key={s ?? 'all'}
         type="button"
         aria-pressed={active}
-        onClick={() => go(toggleState(filters, s))}
+        onClick={() => apply(toggleState(current, s))}
         className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm transition-colors ${
           active
             ? 'border-primary bg-primary/5 text-foreground'
