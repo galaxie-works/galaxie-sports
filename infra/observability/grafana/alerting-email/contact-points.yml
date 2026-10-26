@@ -1,0 +1,12 @@
+# Só entra no provisionamento com ALERT_EMAIL_TO e ALERT_SMTP_HOST definidos (entrypoint.sh): e-mail vazio
+# derrubaria o provisionamento do Grafana. $ALERT_EMAIL_TO vem do ambiente (vários: separados por ;).
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: email-operacao
+    receivers:
+      - uid: galaxie-email
+        type: email
+        settings:
+          addresses: $ALERT_EMAIL_TO
+          singleEmail: true

@@ -365,6 +365,7 @@ describe('propriedade: todo código emitido é verdadeiro por força bruta', () 
       drawAdvantage: null,
       neutralVenue: false,
       decidesTitle: rand() < 0.5,
+      levelAdvantage: null,
     };
     const input: KnockoutMatchInput =
       rules.legs === 1 ? { rules } : secondLeg(rules, randInt(rand, 4), randInt(rand, 4));
@@ -432,5 +433,62 @@ describe('propriedade: todo código emitido é verdadeiro por força bruta', () 
       if (s.family === 'specific_draw_goes_to_extra_time')
         expect(out(s.params!.n!, s.params!.n!)).toBe('extra_time');
     }
+  });
+});
+
+describe('Liguilla (Liga MX): empate no agregado classifica o de melhor campanha', () => {
+  let MX: CompetitionRules;
+  beforeAll(async () => {
+    MX = await loadCompetitionRules('liga-mx', { season: 2025 });
+  });
+
+  it('quartas e semifinal decididas pela campanha; final com prorrogação e pênaltis', () => {
+    const quarter = knockoutStageRules(MX, 'quarter_final');
+    expect(quarter).toMatchObject({
+      legs: 2,
+      extraTime: false,
+      penalties: false,
+      levelAdvantage: 'better_seed',
+    });
+    expect(knockoutStageRules(MX, 'final')).toMatchObject({
+      extraTime: true,
+      penalties: true,
+      levelAdvantage: null,
+      decidesTitle: true,
+    });
+    expect(MX.knockout!.seeding.map((s) => s.table)).toEqual(['apertura', 'clausura']);
+  });
+
+  it('volta com agregado empatado: passa o mais bem colocado (mandante 2º contra visitante 7º)', () => {
+    const rules = knockoutStageRules(MX, 'quarter_final');
+    // ida 1 × 1 (o visitante da volta jogou em casa); a volta empatada mantém o agregado igual
+    const input: KnockoutMatchInput = { ...secondLeg(rules, 1, 1), seed: { home: 2, away: 7 } };
+    expect(tieOutcome(input, 0, 0)).toBe('home');
+    expect(tieOutcome(input, 2, 2)).toBe('home');
+    expect(tieOutcome(input, 0, 1)).toBe('away');
+    const stakes = codes(knockoutStakes(input));
+    expect(stakes).toContain('home:advances_with_draw');
+    expect(stakes).toContain('away:needs_win');
+    expect(stakes.some((c) => c.includes('penalties') || c.includes('extra_time'))).toBe(false);
+  });
+
+  it('o mais bem colocado como visitante também passa com o empate', () => {
+    const rules = knockoutStageRules(MX, 'semi_final');
+    const input: KnockoutMatchInput = { ...secondLeg(rules, 0, 0), seed: { home: 6, away: 1 } };
+    expect(tieOutcome(input, 1, 1)).toBe('away');
+    expect(codes(knockoutStakes(input))).toContain('away:advances_with_draw');
+  });
+
+  it('sem a posição dos dois, recusa: o empate não vira pênaltis (a fase não tem pênaltis)', () => {
+    const rules = knockoutStageRules(MX, 'quarter_final');
+    expect(() => tieOutcome(secondLeg(rules, 1, 1), 0, 0)).toThrow(KnockoutInputError);
+    expect(() => knockoutStakes(secondLeg(rules, 1, 1))).toThrow(KnockoutInputError);
+    expect(() => knockoutStakes({ ...secondLeg(rules, 1, 1), seed: { home: 3, away: 3 } })).toThrow(
+      /posição dos dois/,
+    );
+    // vencedor no agregado não precisa da posição
+    expect(tieOutcome(secondLeg(rules, 1, 1), 2, 0)).toBe('home');
+    // a ida não decide nada: sem posição, segue com os códigos da ida
+    expect(knockoutStakes({ rules, leg: 1 }).map((s) => s.code)).toContain('first_leg');
   });
 });
