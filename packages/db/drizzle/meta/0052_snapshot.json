@@ -1,5 +1,5 @@
 {
-  "id": "eadc7663-7b01-46cc-b1e6-fabe71881f17",
+  "id": "a6a2b1da-9bc4-4506-9856-32697dd3ad62",
   "prevId": "635ea49a-c1d8-40cd-8cac-6648b6427e0b",
   "version": "7",
   "dialect": "postgresql",
@@ -338,6 +338,18 @@
         "credit": {
           "name": "credit",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attribution": {
+          "name": "attribution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attribution_checked_at": {
+          "name": "attribution_checked_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -14015,13 +14027,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "key_format": {
-          "name": "key_format",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
         "last_used_at": {
           "name": "last_used_at",
           "type": "timestamp with time zone",
@@ -14809,13 +14814,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "env": {
-          "name": "env",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'live'"
         },
         "allowed_origins": {
           "name": "allowed_origins",
