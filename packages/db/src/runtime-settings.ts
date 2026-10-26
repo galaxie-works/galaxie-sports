@@ -5,7 +5,14 @@
  */
 import { and, eq, inArray, lt, notInArray, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
-import { jobRequest, runtimeCheck, runtimeEnv, runtimeSetting, runtimeSettingLog } from './schema/index.js';
+import {
+  jobRequest,
+  jobRun,
+  runtimeCheck,
+  runtimeEnv,
+  runtimeSetting,
+  runtimeSettingLog,
+} from './schema/index.js';
 
 /** Sobrescritas gravadas no painel, por chave (sem validar: quem aplica valida pelo registro). */
 export async function readRuntimeOverrides(db: Pick<Database, 'select'>): Promise<Map<string, string>> {
@@ -198,4 +205,20 @@ export async function saveRuntimeCheck(
       target: [runtimeCheck.service, runtimeCheck.name],
       set: { status: input.status, detail: input.detail, checkedAt },
     });
+}
+
+/**
+ * Soma estatísticas do próprio job à linha dele em ops.job_run (o scheduler passa o id em
+ * GALAXIE_SCHEDULER_RUN_ID). As chaves novas entram por cima das antigas; o scheduler soma as dele no fim.
+ */
+export async function mergeJobRunStats(
+  db: Pick<Database, 'update'>,
+  runId: string,
+  stats: Record<string, unknown>,
+): Promise<void> {
+  if (!/^[0-9a-f-]{36}$/i.test(runId)) return;
+  await db
+    .update(jobRun)
+    .set({ stats: sql`coalesce(${jobRun.stats}, '{}'::jsonb) || ${JSON.stringify(stats)}::jsonb` })
+    .where(eq(jobRun.id, runId));
 }

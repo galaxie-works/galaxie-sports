@@ -1,6 +1,8 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FLAGS_QUERY_KEY } from '@/lib/country-flags';
+
 import { flagsQuery } from './country-flag';
 
 const flags = { BR: '/flags/br.svg' };
@@ -8,13 +10,13 @@ const flags = { BR: '/flags/br.svg' };
 /** Monta a query como o ExampleProvider deixa o cache e devolve quantas vezes ela foi ao fetch. */
 async function mountAfter(ms: number, inExample: boolean) {
   const client = new QueryClient();
-  client.setQueryDefaults(['navigation-flags'], { initialData: flags, staleTime: Infinity });
+  client.setQueryDefaults(FLAGS_QUERY_KEY, { initialData: flags, staleTime: Infinity });
   // primeira montagem, para a query existir no cache com o initialData
-  const first = new QueryObserver(client, flagsQuery('pt-BR', inExample));
+  const first = new QueryObserver(client, flagsQuery(inExample));
   first.subscribe(() => {})();
   vi.advanceTimersByTime(ms);
   // CountryFlag remontado depois de `ms`
-  const again = new QueryObserver(client, flagsQuery('pt-BR', inExample));
+  const again = new QueryObserver(client, flagsQuery(inExample));
   const unsubscribe = again.subscribe(() => {});
   await vi.runOnlyPendingTimersAsync();
   unsubscribe();
@@ -22,7 +24,7 @@ async function mountAfter(ms: number, inExample: boolean) {
 }
 
 describe('flagsQuery', () => {
-  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ countries: [] })));
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
 
   beforeEach(() => {
     vi.useFakeTimers();

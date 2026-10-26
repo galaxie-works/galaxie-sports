@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
 
+import { securityHeaders } from './src/lib/security-headers';
+
 // O monorepo guarda as variáveis no .env da raiz (GALAXIE_DEMO_KEY, GALAXIE_API_URL…).
 try {
   process.loadEnvFile('../../.env');
@@ -48,6 +50,12 @@ const nextConfig: NextConfig = {
         outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
       }
     : {}),
+  // Cabeçalhos de segurança em todas as respostas (o que já vale e o que está em observação: o módulo).
+  async headers() {
+    return [
+      { source: '/:path*', headers: securityHeaders({ production: process.env.NODE_ENV === 'production' }) },
+    ];
+  },
   cacheComponents: true,
   // a lista de canais do portal (/cliente/canais) chega por server action: até 2 MB de nomes
   experimental: { serverActions: { bodySizeLimit: '3mb' } },

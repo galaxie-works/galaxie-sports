@@ -7,7 +7,7 @@
  * módulo vai para o navegador e para rotas do servidor.
  */
 import type { WidgetLocale as PackageLocale } from '@galaxie/widgets';
-import { toRegistryName } from '@galaxie/widgets/registry';
+import { REGISTRY_CORE_NAME, toRegistryName } from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
 import { SITE_URL } from '@/lib/site';
@@ -44,6 +44,18 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   live_list: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
+};
+
+/**
+ * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` no placar e no
+ * onde assistir, `competitionId` na tabela). O widget salvo grava a entidade no arquivo instalado e o
+ * snippet de uso vai sem props: sem ela, o componente instalado só mostraria erro.
+ */
+export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
+  match_card: 'event',
+  live_list: null,
+  standings: 'competition',
+  where_to_watch: 'event',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -137,7 +149,7 @@ export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string 
 /** Ids da API: UUID; competições também aceitam slug. */
 const ENTITY_ID = /^[0-9a-z][0-9a-z-]{0,119}$/i;
 
-export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity';
+export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity' | 'entityRequired';
 
 export interface WidgetInput {
   kind: WidgetKind;
@@ -157,6 +169,8 @@ export function parseWidgetInput(
   if (!isWidgetKind(r.kind)) return { ok: false, error: 'kind' };
   const name = typeof r.name === 'string' ? r.name.trim().replace(/\s+/g, ' ') : '';
   if (!name || name.length > NAME_MAX) return { ok: false, error: 'name' };
+  // "Galaxie Core" viraria o arquivo do núcleo comum e todo /r/<id>.json daria erro
+  if (toRegistryName(name) === REGISTRY_CORE_NAME) return { ok: false, error: 'name' };
   const c = (r.config ?? {}) as Record<string, unknown>;
   const theme = parseTheme(c.theme);
   if (!theme) return { ok: false, error: 'theme' };
@@ -175,7 +189,7 @@ export function parseWidgetInput(
     if (!opts.entityTypes(r.kind).includes(type) || typeof id !== 'string' || !ENTITY_ID.test(id))
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
-  }
+  } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
   return {
     ok: true,
     value: { kind: r.kind, name, config: { theme, locale: c.locale, market, defaults } },

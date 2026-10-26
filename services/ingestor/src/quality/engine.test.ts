@@ -89,6 +89,23 @@ describe('runRules', () => {
     expect(row).toMatchObject({ status: 'skipped', detail: 'F1DB indisponível: sem rede' });
   });
 
+  it('fonte própria que falta (unavailable): skipped com o motivo; erro ao conferir a fonte: error', async () => {
+    const ctx = createQualityContext(db, { env: {} });
+    const check = vi.fn();
+    const rows = await runRules(
+      [
+        rule({ id: 'a.raw', unavailable: async () => 'F1DB não importado no core', check }),
+        rule({ id: 'b.raw', unavailable: async () => Promise.reject(new Error('banco caiu')), check }),
+      ],
+      ctx,
+    );
+    expect(rows.map((r) => [r.ruleId, r.status, r.detail])).toEqual([
+      ['a.raw', 'skipped', 'F1DB não importado no core'],
+      ['b.raw', 'error', 'banco caiu'],
+    ]);
+    expect(check).not.toHaveBeenCalled();
+  });
+
   it('memo: a carga compartilhada roda uma vez por execução', async () => {
     const ctx = createQualityContext(db, { env: {} });
     const load = vi.fn(async () => 42);

@@ -6,8 +6,8 @@ Nenhum guarda segredo: as senhas e chaves são lidas do `.env` do checkout princ
 
 | Script | Para quê |
 | --- | --- |
-| `merge-train.sh <pr>…` | Atualiza cada PR com a main, espera o CI estabilizar e faz squash merge; relata o que ficou de fora. |
-| `deploy-safe.sh <rótulo>` | Um deploy por vez (trava em `$GALAXIE_OPS_STATE`, padrão `~/.galaxie-ops`), com teto de 80 min (`DEPLOY_TIMEOUT`): travou = falha avisada, não espera infinita. Sobe e fecha o Docker Desktop e religa o espelho de assets. O `deploy.sh` publica a release com as notas no fim. |
+| `merge-train.sh <pr>…` | Atualiza cada PR com a main, espera o CI estabilizar, recusa PR com thread P1 do Codex sem resolver (`CODEX_GATE=off` desliga) e faz squash merge; relata o que ficou de fora e por quê. |
+| `deploy-safe.sh <rótulo>` | Um deploy por vez (trava em `$GALAXIE_OPS_STATE`, padrão `~/.galaxie-ops`), com teto de 80 min (`DEPLOY_TIMEOUT`): travou = falha avisada, não espera infinita. Sobe e fecha o Docker Desktop e religa o espelho de assets. O `deploy.sh` confere o CI do commit, trava também na VPS (contra deploy de outra máquina) e publica a release com as notas no fim. |
 | `sync/sync-preview.sh` | Prévia NAS → produção: exporta do NAS, monta `sync_*` na produção, reaponta ids e mostra as contagens por tabela. Não aplica nada. |
 | `sync/sync-round.sh` | Aplica a rodada NAS → produção, com dump `pre-sync-*` antes. Só depois da prévia revisada. |
 

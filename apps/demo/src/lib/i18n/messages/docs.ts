@@ -126,7 +126,7 @@ export default defineMessages(
       },
       rotation: {
         title: 'Rotação sem downtime',
-        body: '<c>POST /v1/account/keys/rotate</c> cria uma chave nova (mesmo rótulo, escopos e ambiente) e mantém a atual válida por <c>graceSeconds</c> (padrão 86400 = 24 h; 0 revoga já; máximo 7 dias). Publique a nova chave nos seus servidores dentro desse prazo.',
+        body: '<c>POST /v1/account/keys/rotate</c> cria uma chave nova (mesmo rótulo, escopos, ambiente e validade) e mantém a atual válida por <c>graceSeconds</c> (padrão 86400 = 24 h; 0 revoga já; máximo 7 dias). Publique a nova chave nos seus servidores dentro desse prazo. Cada chave só é rotacionada uma vez: rotacionar de novo a antiga, já no período de graça, responde 409 <c>CONFLICT</c> — rotacione a nova.',
         code: {
           grace: 'a chave atual vale mais 24 h',
           failed: 'rotação falhou',
@@ -545,7 +545,7 @@ export default defineMessages(
         },
         rotation: {
           title: 'Zero-downtime rotation',
-          body: '<c>POST /v1/account/keys/rotate</c> creates a new key (same label, scopes and environment) and keeps the current one valid for <c>graceSeconds</c> (default 86400 = 24 h; 0 revokes it immediately; 7 days max). Roll the new key out to your servers within that window.',
+          body: '<c>POST /v1/account/keys/rotate</c> creates a new key (same label, scopes, environment and expiry) and keeps the current one valid for <c>graceSeconds</c> (default 86400 = 24 h; 0 revokes it immediately; 7 days max). Roll the new key out to your servers within that window. Each key can be rotated only once: rotating the old one again, while in its grace period, returns 409 <c>CONFLICT</c> — rotate the new one.',
           code: {
             grace: 'the current key stays valid for another 24 h',
             failed: 'rotation failed',
@@ -961,7 +961,7 @@ export default defineMessages(
         },
         rotation: {
           title: 'Rotación sin downtime',
-          body: '<c>POST /v1/account/keys/rotate</c> crea una clave nueva (mismo rótulo, alcances y entorno) y mantiene la actual válida durante <c>graceSeconds</c> (por defecto 86400 = 24 h; 0 la revoca ya; máximo 7 días). Publicá la nueva clave en tus servidores dentro de ese plazo.',
+          body: '<c>POST /v1/account/keys/rotate</c> crea una clave nueva (mismo rótulo, alcances, entorno y vencimiento) y mantiene la actual válida durante <c>graceSeconds</c> (por defecto 86400 = 24 h; 0 la revoca ya; máximo 7 días). Publicá la nueva clave en tus servidores dentro de ese plazo. Cada clave se rota una sola vez: rotar de nuevo la anterior, ya en su período de gracia, responde 409 <c>CONFLICT</c>; rotá la nueva.',
           code: {
             grace: 'la clave actual sigue valiendo 24 h más',
             failed: 'la rotación falló',

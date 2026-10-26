@@ -48,6 +48,8 @@ export interface SettingDef {
   max?: number;
   /** int/number: aceita "unlimited" (e 0, quando o serviço trata 0 como "sem limite"). */
   unlimited?: boolean;
+  /** Com `unlimited`: 0 é um valor (IA desligada), não "sem limite"; aceito fora da faixa `min`. */
+  zeroIsOff?: boolean;
   /** Aceita vazio (ex.: herdar o plano padrão, usar os mercados dos tenants, modelo padrão). */
   allowEmpty?: boolean;
   /** text: formato aceito. */
@@ -164,7 +166,8 @@ export function parseAgentUsdBudgets(raw: string | null | undefined): Record<str
   for (const part of (raw ?? '').split(/[,;\s]+/).filter(Boolean)) {
     const m = /^([a-z0-9][a-z0-9@._-]*)=(\d+(?:\.\d+)?)$/i.exec(part);
     if (!m) return null;
-    out[m[1]!.toLowerCase()] = Number(m[2]);
+    // sem a versão do prompt (`channels@v1` → `channels`), como o ledger grava o agente
+    out[m[1]!.split('@')[0]!.toLowerCase()] = Number(m[2]);
   }
   return out;
 }
@@ -281,6 +284,8 @@ export const SETTINGS: readonly SettingDef[] = [
     min: 0.5,
     max: 10_000,
     unlimited: true,
+    // 0 desliga a IA de todos os agentes (como `agente=0` no teto por agente); sem teto = "unlimited"
+    zeroIsOff: true,
     default: '10',
     critical: true,
   }),
@@ -375,6 +380,25 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'restart',
     default: 'approved',
   },
+  // texto das páginas de planos que a pesquisa e a revisita da grade (lineups) mandam ao modelo na
+  // extração: por plataforma (dividido entre as páginas) e por página; o que passa é cortado do fim
+  // (services/ai-agents/src/lineups/prompt.ts, LINEUP_PROMPT_LIMITS)
+  agents('wtw', {
+    key: 'LINEUP_PROMPT_MAX_CHARS',
+    type: 'int',
+    min: 10_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
+  agents('wtw', {
+    key: 'LINEUP_PAGE_MAX_CHARS',
+    type: 'int',
+    min: 5_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
 
   // ── Conteúdo relacionado ────────────────────────────────────────────────────────────────────
   // dois baldes da YouTube Data API: busca (consultas/dia) e geral (unidades/dia) — related/budget.ts

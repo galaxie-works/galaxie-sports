@@ -57,7 +57,7 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
 | Cenário | Resposta |
 |---|---|
 | Banco corrompido / `DROP` acidental | Pare API e ingestor → `restore.sh --yes latest` → confira → suba os serviços. Perda: desde o último dump |
-| VPS perdida | Nova VPS → stack do Portainer → copie o dump da cópia S3 (`restore.sh --yes s3://...`) → DNS. Segredos vêm do secret store, não do disco perdido |
+| VPS perdida | Nova VPS → stack do Portainer → copie o dump da cópia S3 (`restore.sh --yes s3://...`; baixa e confere o `.sha256` junto e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido |
 | Valkey perdido | Sem restauração: cache e rate limit se reconstroem; contadores de uso do dia corrente voltam a partir do último consolidado em `api.usage_daily` (o flush usa `greatest`, nada regride) |
 | Bucket de assets perdido | `assets:mirror` rebaixa da CDN de mídia (fora da cota); `core.asset` guarda as URLs de origem |
 | Vazamento de segredo | [SECURITY.md §Rotação de segredos](../../SECURITY.md#rotação-de-segredos) |

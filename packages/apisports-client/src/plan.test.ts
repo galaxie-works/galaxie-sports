@@ -110,4 +110,11 @@ describe('plano por API a partir do ambiente', () => {
     expect(planForSport({ APISPORTS_PLAN: 'pro', APISPORTS_PER_MINUTE: 'x' }, 'mma')).toBe(PRO_PLAN);
     expect(planForSport({ APISPORTS_PLAN: 'pro', APISPORTS_PER_MINUTE: '120' }, 'mma').perMinute).toBe(120);
   });
+
+  it('APISPORTS_PER_MINUTE fracionário abaixo de 1 é ignorado (0 travaria o limitador)', () => {
+    expect(planForSport({ APISPORTS_PER_MINUTE: '0.5' }, 'football')).toBe(FREE_PLAN);
+    expect(planForSport({ APISPORTS_PER_MINUTE: '0' }, 'football')).toBe(FREE_PLAN);
+    expect(planForSport({ APISPORTS_PER_MINUTE: '-3' }, 'football')).toBe(FREE_PLAN);
+    expect(planForSport({ APISPORTS_PER_MINUTE: '2.9' }, 'football').perMinute).toBe(2);
+  });
 });

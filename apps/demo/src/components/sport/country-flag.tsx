@@ -1,35 +1,26 @@
 'use client';
 
-import type { Navigation } from '@galaxie/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 
 import { useInExample } from '@/components/example/example-provider';
-import { useI18n } from '@/lib/i18n/client';
-import { apiLocale, type Locale } from '@/lib/i18n/config';
+import { FLAGS_QUERY_KEY, fetchFlags } from '@/lib/country-flags';
 import { cn } from '@/lib/utils';
 
 const noopSubscribe = () => () => {};
 
 /**
- * Bandeiras dos países da navegação, vindas de /v1/navigation (pelo proxy autenticado da demo).
+ * Bandeiras de todos os países do catálogo, vindas de /v1/countries (pelo proxy autenticado da demo):
+ * não só os da navegação, porque competição, time e piloto podem ser de qualquer país (Nova Zelândia).
  * Buscadas no navegador e guardadas por 1 hora: o build não depende da API e todas as listas
  * compartilham a mesma resposta. No exemplo público as bandeiras já vêm no cache (`ExampleProvider`)
  * e a busca fica desligada: o `staleTime` daqui sobrepõe o do provider e, depois de 1 hora, refaria
  * a chamada (um 401 do proxy, sem sessão).
  */
-export function flagsQuery(locale: Locale, inExample: boolean) {
+export function flagsQuery(inExample: boolean) {
   return {
-    queryKey: ['navigation-flags'],
-    queryFn: async () => {
-      const res = await fetch(`/api/galaxie/v1/navigation?locale=${apiLocale(locale)}`);
-      if (!res.ok) throw new Error(`navigation ${res.status}`);
-      const nav = (await res.json()) as Navigation;
-      return Object.fromEntries(nav.countries.map((c) => [c.code.toUpperCase(), c.flag])) as Record<
-        string,
-        string | null
-      >;
-    },
+    queryKey: FLAGS_QUERY_KEY,
+    queryFn: () => fetchFlags(fetch),
     staleTime: 60 * 60 * 1000,
     retry: 1,
     enabled: !inExample,
@@ -37,8 +28,7 @@ export function flagsQuery(locale: Locale, inExample: boolean) {
 }
 
 function useFlags() {
-  const { locale } = useI18n();
-  return useQuery(flagsQuery(locale, useInExample()));
+  return useQuery(flagsQuery(useInExample()));
 }
 
 const SIZES = { sm: 'h-3.5 w-5', md: 'h-4 w-6', lg: 'h-6 w-9' } as const;

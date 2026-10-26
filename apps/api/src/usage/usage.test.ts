@@ -3,7 +3,7 @@ import { buildServer } from '../server.js';
 import { memoryTenant } from '../test-helpers.js';
 import { MemoryUsageBackend, UsageCounter, utcDay, type UsageBackend } from './counter.js';
 import { UsageQuery } from './query.js';
-import { liveDays, usageByDay } from './store.js';
+import { combineUsage, liveDays, usageByDay } from './store.js';
 
 describe('UsageCounter', () => {
   it('agrega em memória e envia um único lote por flush', async () => {
@@ -17,6 +17,7 @@ describe('UsageCounter', () => {
       },
       tenants: backend.tenants.bind(backend),
       get: backend.get.bind(backend),
+      snapshot: backend.snapshot.bind(backend),
       lock: backend.lock.bind(backend),
     };
     const now = new Date('2026-10-21T23:59:59Z');
@@ -42,6 +43,7 @@ describe('UsageCounter', () => {
       },
       tenants: backend.tenants.bind(backend),
       get: backend.get.bind(backend),
+      snapshot: backend.snapshot.bind(backend),
       lock: backend.lock.bind(backend),
     };
     const counter = new UsageCounter(flaky);
@@ -67,6 +69,30 @@ describe('UsageCounter', () => {
       'GET /v1/sports': 1,
       'GET /v1/competitions/:id': 2,
     });
+  });
+});
+
+describe('épocas do contador (Codex C17)', () => {
+  it('mesma época: maior entre consolidado e base + contador; época nova soma; velha é ignorada', () => {
+    const row = { requests: 100, epoch: '000001700000000-b', epochBase: 60 };
+    expect(combineUsage(row, { epoch: row.epoch, n: 50 })).toBe(110); // 60 de épocas anteriores + 50
+    expect(combineUsage(row, { epoch: row.epoch, n: 30 })).toBe(100); // AOF truncado: não regride
+    expect(combineUsage(row, { epoch: '000001700000099-a', n: 3 })).toBe(103); // Valkey zerado: soma
+    expect(combineUsage(row, { epoch: '000001600000000-z', n: 3 })).toBe(100); // snapshot atrasado
+    expect(combineUsage({ ...row, epoch: null }, { epoch: 'x', n: 3 })).toBe(100);
+    expect(combineUsage(undefined, { epoch: 'x', n: 7 })).toBe(7);
+  });
+
+  it('a memória abre uma época nova depois de um reset', async () => {
+    const backend = new MemoryUsageBackend();
+    await backend.incr([{ day: '2026-10-21', tenantId: 't', route: 'r', n: 2 }]);
+    const a = await backend.snapshot('2026-10-21', 't');
+    backend.reset();
+    await backend.incr([{ day: '2026-10-21', tenantId: 't', route: 'r', n: 1 }]);
+    const b = await backend.snapshot('2026-10-21', 't');
+    expect(a.epoch).toBeTruthy();
+    expect(b.epoch).not.toBe(a.epoch);
+    expect(b.counts).toEqual({ r: 1 });
   });
 });
 
@@ -102,6 +128,12 @@ describe('consulta de uso', () => {
       },
       { day: '2026-10-21', total: 2, routes: [{ route: 'a', requests: 2 }] },
     ]);
-    expect(liveDays(new Date('2026-10-21T00:30:00Z'))).toEqual(['2026-10-20', '2026-10-21']);
+    // os 4 dias retidos no Valkey (TTL), não só ontem e hoje (Codex C16)
+    expect(liveDays(new Date('2026-10-21T00:30:00Z'))).toEqual([
+      '2026-10-18',
+      '2026-10-19',
+      '2026-10-20',
+      '2026-10-21',
+    ]);
   });
 });

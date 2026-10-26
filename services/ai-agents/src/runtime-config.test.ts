@@ -30,6 +30,7 @@ import {
   DEFAULT_YOUTUBE_DAILY_QUOTA,
   DEFAULT_YOUTUBE_SEARCH_DAILY_QUOTA,
 } from './related/run.js';
+import { LINEUP_PROMPT_LIMITS } from './lineups/prompt.js';
 import { DEFAULT_DAILY_USD_PER_MARKET, DEFAULT_MIN_RELEVANCE } from './wtw/relevance.js';
 
 const dflt = (key: string) => settingDef(key)?.default;
@@ -83,5 +84,23 @@ describe('tetos por agente: o painel e os agentes leem o mesmo formato', () => {
       expect(parseAgentUsdBudgetsPanel(raw)).toEqual(parseAgentUsdBudgets(raw));
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', DEFAULT_AGENT_USD_BUDGETS)).toMatchObject({ ok: true });
     expect(validateSettingKey('AI_AGENT_USD_BUDGETS', 'lineups:2')).toMatchObject({ ok: false });
+  });
+});
+
+describe('tetos do texto das páginas da grade (LINEUP_PROMPT_MAX_CHARS, LINEUP_PAGE_MAX_CHARS)', () => {
+  it('o registro do painel tem o padrão e a faixa do código', () => {
+    for (const lim of [LINEUP_PROMPT_LIMITS.total, LINEUP_PROMPT_LIMITS.page]) {
+      expect(settingDef(lim.key)).toMatchObject({
+        section: 'wtw',
+        type: 'int',
+        services: ['agents'],
+        default: String(lim.default),
+        min: lim.min,
+        max: lim.max,
+      });
+      expect(validateSettingKey(lim.key, String(lim.min))).toMatchObject({ ok: true });
+      expect(validateSettingKey(lim.key, String(lim.max + 1))).toMatchObject({ ok: false });
+      expect(validateSettingKey(lim.key, 'muito')).toMatchObject({ ok: false });
+    }
   });
 });

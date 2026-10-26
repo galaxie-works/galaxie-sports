@@ -221,6 +221,7 @@ services:
       LIVE_MIN_PRIORITY: ${LIVE_MIN_PRIORITY:-medium}
       SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-*/10 * * * *}
       SCHEDULE_NORMALIZE_FOOTBALL: ${SCHEDULE_NORMALIZE_FOOTBALL:-35 0 * * *}
+      SCHEDULE_NORMALIZE_SPORTS: ${SCHEDULE_NORMALIZE_SPORTS:-15 * * * *}
       SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
       SCHEDULE_ASSETS_MIRROR: ${SCHEDULE_ASSETS_MIRROR:-30 1 * * *}
       SCHEDULE_CHANGE_FEED_PRUNE: ${SCHEDULE_CHANGE_FEED_PRUNE:-45 2 * * *}
@@ -274,6 +275,9 @@ services:
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
       WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-1}
+      # texto das páginas de planos no prompt da extração da grade (o painel sobrescreve; vazio = padrão)
+      LINEUP_PROMPT_MAX_CHARS: ${LINEUP_PROMPT_MAX_CHARS:-}
+      LINEUP_PAGE_MAX_CHARS: ${LINEUP_PAGE_MAX_CHARS:-}
       SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-*/5 * * * *}
       SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-10 * * * *}
       SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-*/5 * * * *}
@@ -289,6 +293,8 @@ services:
       # navegador headless para página que só mostra a grade com JavaScript (vazio = só HTML estático);
       # ex.: ws://lineup-render:3000/ com o serviço do perfil "render" no ar
       LINEUP_RENDER_WS: ${LINEUP_RENDER_WS:-}
+    # `render`: só para alcançar o lineup-render, que não entra na rede da stack
+    networks: [default, render]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -300,14 +306,19 @@ services:
   # Navegador headless para a leitura da página oficial do plano que só mostra a grade com JavaScript
   # (lineups:pages). Fora do padrão: sobe só com `--profile render`, durante a leitura, e cai depois.
   # A versão tem de ser a mesma do playwright-core do services/ai-agents.
+  # Abre páginas de terceiros: roda como o usuário sem privilégio da imagem (pwuser), com /dev/shm próprio
+  # em vez do IPC do host e só na rede `render`, que ele divide com os agents (sem Postgres, Valkey nem S3).
   lineup-render:
     profiles: [render]
     image: mcr.microsoft.com/playwright:v1.64.0-noble
     command: ['npx', '-y', 'playwright@1.64.0', 'run-server', '--port', '3000', '--host', '0.0.0.0']
+    user: pwuser
+    working_dir: /home/pwuser
     init: true
-    ipc: host
+    shm_size: 512m
     mem_limit: 1g
     restart: 'no'
+    networks: [render]
     logging: *logging
 
   backup:
@@ -378,6 +389,9 @@ networks:
       config:
         # Sub-rede fixa: o Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY.
         - subnet: 172.30.50.0/24
+  # Navegador headless (lineup-render) e agents; com saída para a internet, sem os serviços da stack.
+  # O host continua alcançável pelo gateway desta rede (Traefik em network_mode: host e outras portas do host).
+  render: {}
 
 volumes:
   pgdata:

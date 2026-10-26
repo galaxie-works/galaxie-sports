@@ -500,11 +500,14 @@ export function normalizeF1db(tables: F1dbTables, ctx: F1dbNormalizeContext): No
   }
 
   // ─ calendário: a temporada vai até o último GP previsto, não só até o último disputado (com o release no meio do
-  //   ano, a liderança não é título) ─
+  //   ano, a liderança não é título). Vale também para a temporada cujos GPs vêm todos da outra fonte: sem ela
+  //   aqui, o fim ficaria na última sessão já gravada e o líder viraria campeão ─
   for (const race of rowsOf(tables, 'race')) {
     const year = int(race.year);
     const day = str(race.date);
-    if (year != null && day && seasons.has(year)) seasonDay(year, day);
+    if (year == null || !day) continue;
+    seasonRef(year);
+    seasonDay(year, day);
   }
 
   // ─ campeonatos (classificação final de cada temporada) ─

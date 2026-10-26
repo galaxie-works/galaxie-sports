@@ -66,11 +66,17 @@ export interface RelevanceInput {
   privacyStatus: string | null;
   embeddable: boolean;
   tier: RelatedSourceTier;
+  /** Canal oficial de um dos dois clubes do jogo (`ChannelAllowlist.classify` com o escopo do jogo). */
+  clubChannel?: boolean;
 }
 
 export type RelevanceVerdict = { ok: true } | { ok: false; reason: string };
 
-/** O vídeo é deste jogo? Cita os dois times (ou um, em canal oficial), público, incorporável, depois do apito. */
+/**
+ * O vídeo é deste jogo? Cita os dois times (ou um só, no canal oficial de um dos clubes do jogo), público,
+ * incorporável, depois do apito. Canal de liga e de emissora detentora cobre vários jogos de cada time:
+ * citar um time só não basta (seria o vídeo de outro jogo dele).
+ */
 export function checkRelevance(
   core: Pick<EventCore, 'home' | 'away' | 'startsAt'>,
   v: RelevanceInput,
@@ -87,7 +93,7 @@ export function checkRelevance(
   const home = mentions(text, teamVariants(core.home));
   const away = mentions(text, teamVariants(core.away));
   if (home && away) return { ok: true };
-  if ((home || away) && (v.tier === 'official' || v.tier === 'rights_holder')) return { ok: true };
+  if ((home || away) && v.tier === 'official' && v.clubChannel) return { ok: true };
   return { ok: false, reason: home || away ? 'one_team_only' : 'teams_not_mentioned' };
 }
 

@@ -2,8 +2,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_THEMES, PUBLISHABLE_KEY_HEADER, type WidgetLocale } from './core/model.js';
-import { GalaxieWidgetProvider } from './core/react.js';
+import { DEFAULT_THEMES, PUBLISHABLE_KEY_HEADER, eventRefreshMs, type WidgetLocale } from './core/model.js';
+import { GalaxieWidgetProvider, needsPublishableKey } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures } from './fixtures.js';
 import { LiveList } from './widgets/live-list.js';
 import { MatchCard } from './widgets/match-card.js';
@@ -83,6 +83,64 @@ describe('MatchCard', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it('jogo agendado longe: acorda na janela de 30 min do início em vez de parar', async () => {
+    const now = Date.parse('2026-10-25T12:00:00Z');
+    const at = (min: number) => ({
+      status: 'scheduled' as const,
+      starts_at: new Date(now + min * 60_000).toISOString(),
+    });
+    expect(eventRefreshMs(at(10), now)).toBe(60_000);
+    expect(eventRefreshMs(at(150), now)).toBe(120 * 60_000);
+    expect(eventRefreshMs(at(30), now)).toBe(60_000);
+    expect(eventRefreshMs(at(3 * 24 * 60), now)).toBe(6 * 60 * 60_000); // teto de 6 h
+    expect(eventRefreshMs({ status: 'scheduled', starts_at: 'sem data' }, now)).toBeNull();
+    expect(eventRefreshMs({ status: 'postponed', starts_at: at(150).starts_at }, now)).toBeNull();
+    // com id: até 2 min antes, sempre o mesmo para o mesmo jogo, diferente entre jogos da rodada
+    const wakes = ['e1', 'e2', 'e3', 'e4'].map((id) => eventRefreshMs({ ...at(150), id }, now)!);
+    for (const w of wakes) expect(w).toBeGreaterThan(118 * 60_000);
+    for (const w of wakes) expect(w).toBeLessThanOrEqual(120 * 60_000);
+    expect(new Set(wakes).size).toBeGreaterThan(1);
+    expect(eventRefreshMs({ ...at(150), id: 'e1' }, now)).toBe(wakes[0]);
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchImpl } = setup(<MatchCard eventId={PREVIEW_IDS.scheduledEvent} />); // começa em 150 min
+    await screen.findByText('Serra');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(117 * 60_000);
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4 * 60_000);
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('entidade some das props: limpa o placar antigo', async () => {
+    const fetchImpl = vi.fn(createPreviewFetch());
+    const props = {
+      baseUrl: 'https://api.exemplo.test',
+      publishableKey: 'pk_test_exemplo',
+      theme: DEFAULT_THEMES.dark,
+      locale: 'pt-BR' as const,
+      fetch: fetchImpl,
+    };
+    const { rerender } = render(
+      <GalaxieWidgetProvider {...props}>
+        <MatchCard eventId={PREVIEW_IDS.liveEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    expect(await screen.findByText('2 – 1')).toBeTruthy();
+    rerender(
+      <GalaxieWidgetProvider {...props}>
+        <MatchCard eventId="" />
+      </GalaxieWidgetProvider>,
+    );
+    expect(screen.queryByText('2 – 1')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('mostra o erro e tenta de novo', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
@@ -109,6 +167,42 @@ describe('MatchCard', () => {
     );
     expect((await screen.findByRole('alert')).textContent).toMatch(/publishable key/);
     expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+});
+
+describe('proxy no backend da operadora (sem chave)', () => {
+  it('base na mesma origem ou relativa dispensa a chave; outra origem exige', () => {
+    const https = { href: 'https://app.exemplo.com/jogos', origin: 'https://app.exemplo.com' };
+    const http = { href: 'http://app.exemplo.com/jogos', origin: 'http://app.exemplo.com' };
+    expect(needsPublishableKey('/api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('https://app.exemplo.com/api/galaxie', https)).toBe(false);
+    expect(needsPublishableKey('https://api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('//api.galaxie.sports', https)).toBe(true);
+    // formatos que o fetch resolve para outra origem
+    expect(needsPublishableKey(' https://api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('\\\\api.galaxie.sports', https)).toBe(true);
+    expect(needsPublishableKey('https:api.galaxie.sports', http)).toBe(true);
+    // ...e para a mesma origem
+    expect(needsPublishableKey('\\api', https)).toBe(false);
+    expect(needsPublishableKey('https:api', https)).toBe(false);
+    // proxy num subdomínio é outra origem: continua exigindo a chave
+    expect(needsPublishableKey('https://api.exemplo.com/galaxie', https)).toBe(true);
+    expect(needsPublishableKey('/api/galaxie', null)).toBe(true); // fora do navegador
+  });
+
+  it('chama o proxy sem o header da chave publicável', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(createPreviewFetch());
+    render(
+      <GalaxieWidgetProvider baseUrl="/api/galaxie" theme={DEFAULT_THEMES.light} locale="pt-BR">
+        <MatchCard eventId={PREVIEW_IDS.liveEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    expect(await screen.findByText('2 – 1')).toBeTruthy();
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(String(url)).toMatch(new RegExp(`^/api/galaxie/v1/events/${PREVIEW_IDS.liveEvent}\\?`));
+    expect(init?.headers).toEqual({ accept: 'application/json' });
     fetchSpy.mockRestore();
   });
 });

@@ -36,6 +36,7 @@ const EDITED = 'copy:pt-BR.cheer-4';
 const TERM = 'glossary:pt-BR.torcedor';
 const BROKEN = 'copy:pt-BR.cheer-3';
 const REJECTED = 'copy:pt-BR.rivalry-1';
+const COUPLED = 'copy:pt-BR.anticipate-3-d1';
 const ADMIN = 'teste.admin@galaxie.test';
 
 const REPLIES: Record<string, ReviewModelOutput> = {
@@ -55,6 +56,8 @@ const REPLIES: Record<string, ReviewModelOutput> = {
     reason: 'Ajustei o texto.',
     adjustments: [],
   },
+  // a edição proposta (só o momento) vale como veio
+  [COUPLED]: { decision: 'accept', fields: [], reason: 'Momento coerente.', adjustments: [] },
   [REJECTED]: {
     decision: 'reject',
     fields: [],
@@ -224,5 +227,29 @@ describe('review-suggestions', () => {
     // de volta ao YAML de antes, a edição e a aprovação voltam a valer
     await seedSemantic(db, kb);
     expect((await copyRow('pt-BR.cheer-4')).reviewStatus).toBe('approved');
+  });
+
+  it('recusa a sugestão que, junto da edição anterior do item, cairia em conflito com o YAML', async () => {
+    // edição anterior do texto feita sobre um YAML que depois mudou (o base não é mais o do YAML)
+    const yaml = (await catalog(COUPLED)).content;
+    const previous = {
+      itemId: COUPLED,
+      fields: { template: 'Hoje tem {nickname}! Contagem regressiva ligada' },
+      base: { template: 'Amanhã tem {nickname}!' },
+      reviewHash: 'hash-anterior',
+      source: 'fake',
+    };
+    await db.insert(reviewOverride).values(previous);
+    // a sugestão nova só troca o momento: entraria sem o texto que combina com ele
+    await suggest(COUPLED, 'É no dia do jogo.', { momentum: 'today' });
+    const reviewer = new SuggestionReviewer({ db, llm, knowledge: kb });
+    const [outcome] = await reviewer.run({ itemIds: [COUPLED] });
+    expect(outcome).toMatchObject({ itemId: COUPLED, outcome: 'rejected' });
+    expect(outcome!.validation.join()).toMatch(/não se encaixa no YAML atual/);
+    // nada muda no ar: a edição anterior fica como estava e o catálogo segue o YAML
+    const [o] = await db.select().from(reviewOverride).where(eq(reviewOverride.itemId, COUPLED));
+    expect(o).toMatchObject({ fields: previous.fields, base: previous.base });
+    expect((await catalog(COUPLED)).content).toEqual(yaml);
+    expect((await decision(COUPLED)).status).toBe('draft');
   });
 });

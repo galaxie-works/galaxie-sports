@@ -15,7 +15,7 @@
  * Sem filtro de domínios na busca do Google: a allowlist vai no prompt e o validador de direitos só
  * aceita fonte de domínio permitido que cita a emissora (docs/07 §2.2), como nos outros provedores.
  */
-import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS, estimateRequestTokens, estimateRequestUsd } from '../budget.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
@@ -34,7 +34,9 @@ export const GEMINI_THINKING_LEVEL = 'low';
 /**
  * O Gemini bloqueia a resposta que reproduz texto de página protegido ("Request blocked due to
  * copyright/recitation content"). Os trechos de evidência não precisam ser literais: o verificador
- * confere a página (acessível, de domínio permitido, citando a emissora), não o trecho.
+ * confere a página (acessível, de domínio permitido, citando a emissora e, no onde assistir, o trecho
+ * ou os dois times perto dela); o trecho parafraseado que não está na página só custa uma penalidade
+ * leve — rebaixa apenas a fonte que tinha o jogo numa verificação e o perdeu.
  */
 export const NO_RECITATION_NOTE =
   'Não copie texto literal das páginas da web (direitos autorais): nos campos de trecho/citação, escreva uma paráfrase curta com suas palavras, citando a URL da fonte.';
@@ -188,85 +190,105 @@ export class GeminiLlmClient implements LlmClient {
     const research = new UsageMeter();
     const structure = new UsageMeter();
     const cost = () => {
-      const c1 = research.inputTokens
-        ? estimateCostUsd(
-            model,
-            meterTokens(research),
-            research.webSearchCalls,
-            GEMINI_GROUNDING_USD_PER_QUERY,
-          )
-        : 0;
-      const c2 = estimateCostUsd(structureModel, meterTokens(structure));
-      return c1 === undefined || c2 === undefined ? undefined : Math.round((c1 + c2) * 1e6) / 1e6;
+      // as consultas do grounding entram sempre, mesmo sem tokens medidos
+      const c1 = estimateCostUsd(
+        model,
+        meterTokens(research),
+        research.webSearchCalls,
+        GEMINI_GROUNDING_USD_PER_QUERY,
+        'gemini',
+      );
+      const c2 = estimateCostUsd(structureModel, meterTokens(structure), 0, 0, 'gemini');
+      return Math.round((c1 + c2) * 1e6) / 1e6;
     };
-    const usage = () => {
-      const total = new UsageMeter();
+    const total = () => {
+      const t = new UsageMeter();
       for (const m of [research, structure])
-        total.add({
+        t.add({
           input: m.inputTokens,
           output: m.outputTokens,
           cached: m.cachedInputTokens,
           searches: m.webSearchCalls,
         });
-      return total.toUsage(cost());
+      return t;
+    };
+    const retry: RetryOptions = {
+      retries: this.options.maxRetries ?? 3,
+      ...this.options.retry,
+      // cada retentativa é paga de novo: o orçamento confere o gasto parcial antes
+      beforeRetry: () => req.budgetCheck?.(total().spent(cost())),
     };
     try {
-      return await withRetry(
-        async () => {
-          let sources: GroundedSource[] | null = null;
-          let input: string | undefined;
-          if (req.webSearch) {
-            const found = await this.interact(
-              this.buildBody(req, model, {
-                schema: false,
-                search: true,
-                extraSystem: [
-                  RESEARCH_STEP_NOTE,
-                  searchCapNote(req.maxSearches),
-                  allowlistNote(req.allowedDomains),
-                ]
-                  .filter(Boolean)
-                  .join('\n\n'),
-              }),
-              research,
-            );
-            sources = await this.groundedSources(found.text, found.annotations);
-            const { dialog } = splitMessages(req);
-            input = [
-              dialog.map((m) => m.content).join('\n\n'),
-              `## Resultado da pesquisa\n${found.text}`,
-              `## Fontes permitidas\n${sources.length ? sourcesBlock(sources) : '(nenhuma: a busca não trouxe fontes)'}`,
-            ].join('\n\n');
-          }
-          const out = await this.interact(
-            this.buildBody(req, structureModel, {
-              ...(input !== undefined ? { input, extraSystem: STRUCTURE_STEP_NOTE } : {}),
-              schema: true,
-              search: false,
+      // passo 1 (pesquisa paga, por consulta) fora da retentativa do passo 2: erro de schema na
+      // estruturação refaz só a estruturação, não a busca
+      let grounded: { sources: GroundedSource[]; input: string } | null = null;
+      if (req.webSearch)
+        grounded = await withRetry(async () => {
+          const found = await this.interact(
+            this.buildBody(req, model, {
+              schema: false,
+              search: true,
+              extraSystem: [
+                RESEARCH_STEP_NOTE,
+                searchCapNote(req.maxSearches),
+                allowlistNote(req.allowedDomains),
+              ]
+                .filter(Boolean)
+                .join('\n\n'),
             }),
-            structure,
+            research,
           );
-          const data = assertMatchesSchema<T>(
-            req.schema,
-            parseJsonOutput(out.text, req.schemaName),
-            req.schemaName,
-          );
-          const citations: LlmCitation[] = sources
-            ? sources.map((s) => ({ url: s.url, ...(s.title ? { title: s.title } : {}) }))
-            : await this.resolveRedirects(out.annotations.filter((a) => a.url).map((a) => ({ url: a.url! })));
-          return {
-            data,
-            citations: dedupeCitations(citations),
-            usage: usage(),
-            provider: 'gemini' as const,
-            model,
-            ...(sources ? { groundedUrls: sources.map((s) => s.url) } : {}),
-          };
-        },
-        { retries: this.options.maxRetries ?? 3, ...this.options.retry },
-      );
+          const sources = await this.groundedSources(found.text, found.annotations);
+          const { dialog } = splitMessages(req);
+          const input = [
+            dialog.map((m) => m.content).join('\n\n'),
+            `## Resultado da pesquisa\n${found.text}`,
+            `## Fontes permitidas\n${sources.length ? sourcesBlock(sources) : '(nenhuma: a busca não trouxe fontes)'}`,
+          ].join('\n\n');
+          return { sources, input };
+        }, retry);
+      // retentativa do passo 2 com busca: a próxima rodada é só a estruturação (modelo leve, sem busca)
+      const structureInput = grounded?.input;
+      const structureRetry: RetryOptions =
+        structureInput === undefined
+          ? retry
+          : {
+              ...retry,
+              beforeRetry: () =>
+                req.budgetCheck?.(
+                  total().spent(cost()),
+                  structureEstimate(req, structureInput, structureModel),
+                ),
+            };
+      return await withRetry(async () => {
+        const out = await this.interact(
+          this.buildBody(req, structureModel, {
+            ...(grounded ? { input: grounded.input, extraSystem: STRUCTURE_STEP_NOTE } : {}),
+            schema: true,
+            search: false,
+          }),
+          structure,
+        );
+        const data = assertMatchesSchema<T>(
+          req.schema,
+          parseJsonOutput(out.text, req.schemaName),
+          req.schemaName,
+        );
+        const sources = grounded?.sources;
+        const citations: LlmCitation[] = sources
+          ? sources.map((s) => ({ url: s.url, ...(s.title ? { title: s.title } : {}) }))
+          : await this.resolveRedirects(out.annotations.filter((a) => a.url).map((a) => ({ url: a.url! })));
+        return {
+          data,
+          citations: dedupeCitations(citations),
+          usage: total().toUsage(cost()),
+          provider: 'gemini' as const,
+          model,
+          ...(sources ? { groundedUrls: sources.map((s) => s.url) } : {}),
+        };
+      }, structureRetry);
     } catch (err) {
-      throw withUsage(err, usage());
+      throw withUsage(err, total().toUsage(cost()));
     }
   }
 
@@ -403,4 +425,22 @@ export function allowlistNote(domains: readonly string[] | undefined): string {
 
 function meterTokens(m: UsageMeter) {
   return { inputTokens: m.inputTokens, outputTokens: m.outputTokens, cachedInputTokens: m.cachedInputTokens };
+}
+
+/** Estimativa de uma rodada do passo 2: o texto da pesquisa no modelo leve, sem busca. */
+export function structureEstimate(
+  req: LlmJsonRequest,
+  input: string,
+  structureModel: string,
+): { tokens: number; usd: number } {
+  const { webSearch: _search, maxSearches: _cap, ...rest } = req;
+  const step: LlmJsonRequest = {
+    ...rest,
+    system: [req.system, STRUCTURE_STEP_NOTE, NO_RECITATION_NOTE].join('\n\n'),
+    messages: [{ role: 'user', content: input }],
+  };
+  return {
+    tokens: estimateRequestTokens(step),
+    usd: estimateRequestUsd(step, structureModel, 'gemini'),
+  };
 }

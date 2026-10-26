@@ -152,7 +152,8 @@ export function extractedPlanNames(out: LineupPageExtractOutput): string[] {
 /**
  * Resposta da extração → entrada do validador. Nenhum dado do modelo é corrigido: a URL de cada
  * evidência é a página onde o trecho está (o modelo não escreve URL); trecho que não está em nenhuma
- * página fica com a primeira página e o validador marca `page = fail`.
+ * página fica com a primeira página e o validador marca `page = fail`. `truncated`: algum limite
+ * (planos, canais ou streamings por plano) cortou a resposta, que então não é a grade completa.
  */
 export function modelsFromExtraction(
   out: LineupPageExtractOutput,
@@ -163,7 +164,7 @@ export function modelsFromExtraction(
     /** Nomes de plano recusados antes (política editorial, injeção). */
     skip?: (name: string) => boolean;
   },
-): { plans: ModelPlan[]; addons: ModelAddon[] } {
+): { plans: ModelPlan[]; addons: ModelAddon[]; truncated: boolean } {
   const fallback = ctx.pages[0]?.url ?? null;
   const evidence = (excerpt: string | null) => ({
     url: ctx.locator.locate(excerpt) ?? fallback,
@@ -171,12 +172,18 @@ export function modelsFromExtraction(
   });
   const plans: ModelPlan[] = [];
   const seen = new Set<string>();
+  let truncated = false;
   for (const p of out.planos) {
     const name = clean(p.plano_nome);
     const key = normalizeName(name);
     if (!name || seen.has(key) || ctx.skip?.(name)) continue;
     seen.add(key);
-    if (plans.length >= LINEUP_MAX_PLANS) break;
+    if (plans.length >= LINEUP_MAX_PLANS) {
+      truncated = true;
+      break;
+    }
+    if (p.canais.length > LINEUP_MAX_CHANNELS || p.streamings_inclusos.length > LINEUP_MAX_SERVICES)
+      truncated = true;
     plans.push({
       name,
       priceAmount: null,
@@ -209,7 +216,7 @@ export function modelsFromExtraction(
     commitmentMonths: a.fidelidade_meses,
     evidence: evidence(a.trecho),
   }));
-  return { plans, addons };
+  return { plans, addons, truncated };
 }
 
 /**

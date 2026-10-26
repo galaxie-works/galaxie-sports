@@ -6,8 +6,10 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
+import { and, desc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  changeFeed,
   closeDb,
   competition,
   createDb,
@@ -234,7 +236,10 @@ describe('GET /v1/events/{id}/context', () => {
       })
       .toEqual(['Fim de jogo: Palmeiras 2 x 0 Corinthians.']);
     expect(Date.now() - t0).toBeLessThan(10_000);
-    expect(cdn.purged.flat()).toContain(`event_context:${eventId}`);
+    // O purge do CDN pode chegar depois da invalidação do Valkey: espera também.
+    await expect
+      .poll(() => cdn.purged.flat(), { timeout: 10_000, interval: 50 })
+      .toContain(`event_context:${eventId}`);
   });
 });
 
@@ -250,5 +255,28 @@ describe('GET /v1/events/{id} — resumo do contexto', () => {
     const plain = await get(`/v1/events/${eventId}`, coreKey);
     expect(plain.statusCode).toBe(200);
     expect(plain.json()).not.toHaveProperty('context');
+  });
+});
+
+describe('rejeição de um texto no ar', () => {
+  it('rejeitar o contexto publicado purga o cache (tópico interno, sem SSE/webhook)', async () => {
+    const url = `/v1/events/${eventId}/context?kind=recap`;
+    expect((await get(url)).json().data).toHaveLength(1);
+    expect((await get(url)).headers['x-galaxie-cache']).toBe('HIT');
+    await db
+      .update(eventContext)
+      .set({ reviewStatus: 'rejected' })
+      .where(and(eq(eventContext.eventId, eventId), eq(eventContext.kind, 'recap')));
+    await expect
+      .poll(async () => (await get(url)).json().data, { timeout: 10_000, interval: 50 })
+      .toEqual([]);
+    const [change] = await db
+      .select({ topic: changeFeed.topic, entityId: changeFeed.entityId })
+      .from(changeFeed)
+      .orderBy(desc(changeFeed.id))
+      .limit(1);
+    expect(change).toEqual({ topic: 'event_context.rejected', entityId: eventId });
+    // o resumo no detalhe do evento também sai sem o texto rejeitado
+    expect((await get(`/v1/events/${eventId}`)).json().context.recap).toBeNull();
   });
 });

@@ -7,6 +7,8 @@
  *   do cliente (`/cliente`): plano, chaves publicáveis e o Builder de widgets, sempre do próprio tenant.
  */
 
+import { LOCALES } from '@/lib/i18n/config';
+
 export const ROLES = ['admin', 'user', 'client'] as const;
 export type Role = (typeof ROLES)[number];
 
@@ -34,12 +36,55 @@ export const canAccessClientPanel = (role: unknown) => role === 'admin' || role 
 /** Cliente precisa de tenant; os outros papéis não ficam ligados a nenhum. */
 export const needsTenant = (role: Role) => role === 'client';
 
+const LOCALE_SEGMENTS = new Set(LOCALES.map((l) => l.toLowerCase()));
+
+/** Decodifica até estabilizar (codificado duas vezes também conta); `null` se a codificação é inválida. */
+function decodeFully(value: string): string | null {
+  let current = value;
+  for (let i = 0; i < 3; i++) {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(current);
+    } catch {
+      return null;
+    }
+    if (decoded === current) break;
+    current = decoded;
+  }
+  return current;
+}
+
+/**
+ * Caminho como as rotas o enxergam, para decidir o acesso: decodificado segmento a segmento
+ * (`/%61justes` → `/ajustes`), com `\`, `.`, `..` e barras repetidas resolvidos e sem o prefixo de idioma
+ * (`/pt-BR/ajustes` → `/ajustes`, o segmento que o proxy acrescenta ao reescrever). Na dúvida, fica mais
+ * restrito: decodifica até estabilizar e devolve `null` (nega) quando algum segmento não decodifica, para
+ * um `%E0` no fim não esconder o `/%61justes` do começo.
+ */
+export function accessPathname(pathname: string): string | null {
+  const segments: string[] = [];
+  for (const raw of pathname.split(/[/\\]/)) {
+    const decoded = decodeFully(raw);
+    if (decoded === null) return null;
+    for (const segment of decoded.split(/[/\\]/)) {
+      if (segment === '' || segment === '.') continue;
+      if (segment === '..') segments.pop();
+      else segments.push(segment);
+    }
+  }
+  while (segments.length && LOCALE_SEGMENTS.has(segments[0]!.toLowerCase())) segments.shift();
+  return `/${segments.join('/')}`;
+}
+
 /**
  * O que o proxy faz com um caminho que exige sessão: segue, ou nega (403 na API, volta para a home nas
- * páginas). Prazo de acesso e sessão ficam com o proxy; aqui só o papel.
+ * páginas). Prazo de acesso e sessão ficam com o proxy; aqui só o papel. Decide pelo caminho normalizado
+ * (`accessPathname`), não pelo texto cru da URL; caminho que não decodifica é negado.
  */
 export function routeAccess(pathname: string, role: unknown): 'allow' | 'deny' {
-  if (matchesPrefix(pathname, ADMIN_PREFIXES)) return canAccessAdmin(role) ? 'allow' : 'deny';
-  if (matchesPrefix(pathname, CLIENT_PREFIXES)) return canAccessClientPanel(role) ? 'allow' : 'deny';
+  const path = accessPathname(pathname);
+  if (path === null) return 'deny';
+  if (matchesPrefix(path, ADMIN_PREFIXES)) return canAccessAdmin(role) ? 'allow' : 'deny';
+  if (matchesPrefix(path, CLIENT_PREFIXES)) return canAccessClientPanel(role) ? 'allow' : 'deny';
   return 'allow';
 }
