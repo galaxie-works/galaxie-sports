@@ -20,14 +20,25 @@ export type AiBand = (typeof AI_BANDS)[number];
 export const AI_CALL_BANDS = ['p0', 'p1', 'clients', 'rest', 'manual'] as const;
 export type AiCallBand = (typeof AI_CALL_BANDS)[number];
 
-/** Padrão das faixas (inventário de IA): 55% P0 + 10% de reserva só da P0, 15% P1, 12% clientes, 5% resto, 3% manual. */
+/**
+ * Padrão das faixas, calibrado no gasto de 21 a 25/10 (#357), com o teto global de US$ 10:
+ * - p0=45 (+ reserve=10 = US$ 5,50): cobre wtw 3 + context 1,5 + related 0,5 = US$ 5, o máximo que os tetos
+ *   por agente deixam o futebol gastar num dia (wtw chegou a 6,29 e context a 4,02 antes desses tetos);
+ * - p1=15 (US$ 1,50): o futebol fora do corte (as europeias) no canal do jogo, no resumo e no cenário;
+ * - clients=15 (US$ 1,50): lineups (teto 2; o dia de 15,54 em 24/10 foi antes do #293) e channels;
+ * - rest=5 (US$ 0,50): review (teto 0,5);
+ * - manual=10 (US$ 1): os lotes rodados à mão (fotos ~US$ 4 em 25/10, f1profile 1,32) andam ~US$ 1 por
+ *   dia e continuam no dia seguinte; com 3% (US$ 0,30) levariam mais de 13 dias.
+ * O inventário propunha 55/10/15/12/5/3; a P0 cedeu 10 pontos (5 para a manual, 3 para clientes) sem
+ * travar o futebol, porque os tetos por agente já seguram esses agentes abaixo dos 55%.
+ */
 export const DEFAULT_BAND_SHARES: Readonly<Record<AiBand, number>> = {
-  p0: 55,
+  p0: 45,
   reserve: 10,
   p1: 15,
-  clients: 12,
+  clients: 15,
   rest: 5,
-  manual: 3,
+  manual: 10,
 };
 
 /** `p0=55,reserve=10,…` na ordem de AI_BANDS (o mesmo conjunto grava sempre o mesmo texto). */

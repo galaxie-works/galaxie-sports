@@ -416,17 +416,21 @@ O teto global do dia (`AI_DAILY_USD_BUDGET`) é dividido em faixas. Cada chamada
 
 | Faixa | Padrão | Quem cai nela |
 |---|---|---|
-| `p0` futebol LATAM | 55% | competição com audiência ≥ `AI_P0_MIN_AUDIENCE` (padrão 25) em algum mercado de `config/geo/market-audience.yaml`, ou listada em `competitions.p0` de `config/ai-policy.yaml` (Copa do Mundo, Eliminatórias da CONMEBOL, Copa América) |
-| `reserve` | 10% | só a P0, depois de gastar os próprios 55% (o teto da P0 é 65%) |
+| `p0` futebol LATAM | 45% | competição com audiência ≥ `AI_P0_MIN_AUDIENCE` (padrão 25) em algum mercado de `config/geo/market-audience.yaml`, ou listada em `competitions.p0` de `config/ai-policy.yaml` (Copa do Mundo, Eliminatórias da CONMEBOL, Copa América) |
+| `reserve` | 10% | só a P0, depois de gastar os próprios 45% (o teto da P0 é 55%) |
 | `p1` | 15% | o resto do futebol que o produto cobre: audiência acima de 0 (as europeias, a Concachampions no México) ou `competitions.p1` |
-| `clients` | 12% | agentes de cliente e grade: `lineups`, `channels` |
+| `clients` | 15% | agentes de cliente e grade: `lineups`, `channels` |
 | `rest` | 5% | `review`, `curator`, `f1bio`, `f1profile`, `assets`, agente fora da política e chamada `priority` sem competição ou sem audiência |
-| `manual` | 3% | qualquer execução fora do scheduler (CLI rodada à mão), seja qual for o agente |
+| `manual` | 10% | qualquer execução fora do scheduler (CLI rodada à mão), seja qual for o agente |
 
+- **Calibração** (gasto de 21 a 25/10): o inventário propunha 55/10/15/12/5/3, e a P0 cedeu 10 pontos para a manual e os clientes.
+  - P0 com a reserva fica em US$ 5,50. Isso cobre a soma dos tetos dos agentes do futebol (wtw 3 + context 1,5 + related 0,5 = US$ 5), então a faixa não trava antes deles.
+  - A manual fica em US$ 1. Com 3% (US$ 0,30), os lotes rodados à mão levariam semanas: as fotos gastaram ~US$ 4 em 25/10 e o f1profile, 1,32.
+  - Clientes ficam em US$ 1,50, para lineups e channels.
 - A faixa de cada agente fica em `config/ai-policy.yaml` (versionado; na imagem, `AI_POLICY_FILE=/srv/config/ai-policy.yaml`). Ela é fixa, ou `priority`, que quer dizer a prioridade da competição da chamada. `context`, `wtw`, `related` e `live` são `priority`, e quem chama passa a competição (`LlmJsonRequest.competition`). O scheduler marca os jobs com `GALAXIE_INVOKER=scheduler`; sem essa marca, a chamada vai para `manual`.
 - O resumo e o cenário ordenam a fila por prioridade (P0 → P1 → resto) e só depois pelo horário. O corte de `--limite` vem depois da ordem. Só P0 e P1 chamam o LLM; o resto sai com o texto determinístico, que já existia.
 - **Dia de orçamento:** todos os tetos (global, por agente, por faixa, tokens) contam o dia que vira às `AI_BUDGET_DAY_START` (padrão `06:00`) no fuso `AI_BUDGET_TIMEZONE` (padrão `America/Sao_Paulo`), não à meia-noite UTC. Com isso, a rodada da noite na América Latina (19h–23h30 em Brasília, que já é o dia seguinte em UTC) fica num dia só. O ledger grava o dia em `ops.llm_usage.budget_day` e a faixa em `band` (migration 0053). A linha sem `budget_day`, de antes da troca, conta pelo dia UTC.
-- **Painel:** em Ajustes → Operação → IA, o cartão "Política de IA" tem um slider por faixa (precisam somar 100%, com a reserva da P0 dentro), o teto global em US$ (ou "Sem limite") e o corte P0/P1. Ao lado de cada faixa aparece o gasto do dia. Grava `AI_BAND_SHARES` (`p0=55,reserve=10,p1=15,clients=12,rest=5,manual=3`), `AI_DAILY_USD_BUDGET` e `AI_P0_MIN_AUDIENCE` como runtime settings. O painel e o serviço validam pelas mesmas regras do registro: faixas que não somam 100 são recusadas nos dois lados, e no serviço isso falha a configuração (sem IA). A virada do dia (`AI_BUDGET_DAY_START`, `AI_BUDGET_TIMEZONE`) fica na lista de flags da IA.
+- **Painel:** em Ajustes → Operação → IA, o cartão "Política de IA" tem um slider por faixa (precisam somar 100%, com a reserva da P0 dentro), o teto global em US$ (ou "Sem limite") e o corte P0/P1. Ao lado de cada faixa aparece o gasto do dia. Grava `AI_BAND_SHARES` (`p0=45,reserve=10,p1=15,clients=15,rest=5,manual=10`), `AI_DAILY_USD_BUDGET` e `AI_P0_MIN_AUDIENCE` como runtime settings. O painel e o serviço validam pelas mesmas regras do registro: faixas que não somam 100 são recusadas nos dois lados, e no serviço isso falha a configuração (sem IA). A virada do dia (`AI_BUDGET_DAY_START`, `AI_BUDGET_TIMEZONE`) fica na lista de flags da IA.
 - `ai:status` mostra o teto e o gasto do dia de cada faixa, e o "Gasto de IA hoje" usa o mesmo dia de orçamento.
 
 ### 2.4 Agente Curador Semântico

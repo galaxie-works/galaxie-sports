@@ -14,8 +14,8 @@ import { settingDef } from './registry.js';
 import { validateSettingKey } from './resolve.js';
 
 describe('faixas do orçamento de IA (AI_BAND_SHARES)', () => {
-  it('padrão do inventário: 55% P0 + 10% de reserva só da P0, 15% P1, 12% clientes, 5% resto, 3% manual', () => {
-    expect(DEFAULT_BAND_SHARES_TEXT).toBe('p0=55,reserve=10,p1=15,clients=12,rest=5,manual=3');
+  it('padrão calibrado no gasto de 21 a 25/10: 45% P0 + 10% de reserva só da P0, 15% P1, 15% clientes, 5% resto, 10% manual', () => {
+    expect(DEFAULT_BAND_SHARES_TEXT).toBe('p0=45,reserve=10,p1=15,clients=15,rest=5,manual=10');
     expect(settingDef('AI_BAND_SHARES')?.default).toBe(DEFAULT_BAND_SHARES_TEXT);
     expect(Object.values(DEFAULT_BAND_SHARES).reduce((a, b) => a + b, 0)).toBe(100);
   });
@@ -49,7 +49,7 @@ describe('faixas do orçamento de IA (AI_BAND_SHARES)', () => {
       ok: false,
     });
     expect(checkBandShares('p0=100,reserve=0,p1=0,clients=0,rest=0,manual=0')).toMatchObject({ ok: true });
-    expect(formatBandShares(parseBandShares('manual=3 rest=5 clients=12 p1=15 reserve=10 p0=55')!)).toBe(
+    expect(formatBandShares(parseBandShares('manual=10 rest=5 clients=15 p1=15 reserve=10 p0=45')!)).toBe(
       DEFAULT_BAND_SHARES_TEXT,
     );
     expect(parseBandShares('')).toEqual(DEFAULT_BAND_SHARES);
@@ -58,11 +58,11 @@ describe('faixas do orçamento de IA (AI_BAND_SHARES)', () => {
 
   it('teto de cada faixa: a % do teto global; a P0 soma a reserva; sem teto global, sem teto', () => {
     expect(bandLimitsUsd(10, DEFAULT_BAND_SHARES)).toEqual({
-      p0: 6.5,
+      p0: 5.5,
       p1: 1.5,
-      clients: 1.2,
+      clients: 1.5,
       rest: 0.5,
-      manual: 0.3,
+      manual: 1,
     });
     expect(bandLimitsUsd(null, DEFAULT_BAND_SHARES).p0).toBeNull();
   });

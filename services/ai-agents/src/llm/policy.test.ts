@@ -174,19 +174,19 @@ describe('faixas por prioridade no teto global', () => {
     expect(fake.calls).toHaveLength(3);
   });
 
-  it('a reserva só serve a P0: a P0 passa dos 55% até 65%; a P1 nunca chega nela', async () => {
+  it('a reserva só serve a P0: a P0 passa dos 45% até 55%; a P1 nunca chega nela', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { llm, fake, store } = client();
-    for (let i = 0; i < 7; i++) await llm.generateJson(req(`context:recap:${i}`, 'brasileirao-serie-a'));
-    // 5,50 da faixa + 1,00 da reserva = 6,50: a 7ª chamada (gasto 6 < 6,5) ainda coube
-    expect(fake.calls).toHaveLength(7);
+    for (let i = 0; i < 6; i++) await llm.generateJson(req(`context:recap:${i}`, 'brasileirao-serie-a'));
+    // 4,50 da faixa + 1,00 da reserva = 5,50: a 6ª chamada (gasto 5 < 5,5) ainda coube na reserva
+    expect(fake.calls).toHaveLength(6);
     await expect(llm.generateJson(req('context:recap:8', 'brasileirao-serie-a'))).rejects.toMatchObject({
       agent: 'faixa:p0',
     });
     expect(store.entries.every((e) => e.band === 'p0')).toBe(true);
   });
 
-  it('manual (3%) recusa a partir de US$ 0,30 sem tocar no futebol', async () => {
+  it('manual (10%) recusa a partir de US$ 1 sem tocar no futebol', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { llm, fake } = client({ manual: true });
     await llm.generateJson(req('f1bio:senna'));
