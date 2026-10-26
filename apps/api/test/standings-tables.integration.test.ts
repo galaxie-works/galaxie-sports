@@ -112,6 +112,102 @@ async function seed() {
   await seedLiguilla();
   await seedArgentinaPhases(arg!.id);
   await seedLigaMxClausura();
+  await seedLibertadoresAdopted();
+}
+
+/**
+ * Libertadores 2026, grupos A e B do fornecedor: um jogo do grupo A com rodada que o regulamento não reconhece
+ * ("Group Stage - 2 (remarcado)"), adotado pelo recálculo, e a tabela calculada com ele.
+ */
+async function seedLibertadoresAdopted() {
+  const [lib] = await db
+    .insert(competition)
+    .values({ sport: 'football', slug: 'conmebol-libertadores', name: 'Libertadores', type: 'cup' })
+    .returning();
+  const [s] = await db
+    .insert(season)
+    .values({ competitionId: lib!.id, label: '2026', year: 2026, current: true })
+    .returning();
+  const groupOf: Record<string, string> = {};
+  for (const n of ['L-P1', 'L-P2', 'L-P3', 'L-P4']) groupOf[n] = 'Group A';
+  for (const n of ['L-Q1', 'L-Q2', 'L-Q3', 'L-Q4']) groupOf[n] = 'Group B';
+  const teams = await db
+    .insert(participant)
+    .values(Object.keys(groupOf).map((name) => ({ sport: 'football', kind: 'club' as const, name })))
+    .returning();
+  for (const t of teams) ids[t.name] = t.id;
+  const games: [string, string, string, number, number][] = [
+    ['Group Stage - 1', 'L-P1', 'L-P2', 1, 0],
+    // sem empate em todos os critérios (a ordem de quem empata em tudo é sorteio)
+    ['Group Stage - 1', 'L-P3', 'L-P4', 2, 0],
+    ['Group Stage - 1', 'L-Q1', 'L-Q2', 2, 1],
+    ['Group Stage - 1', 'L-Q3', 'L-Q4', 1, 1],
+    ['Group Stage - 2 (remarcado)', 'L-P1', 'L-P3', 2, 1],
+    ['Group Stage - 2', 'L-P2', 'L-P4', 1, 1],
+  ];
+  const base = Date.UTC(2026, 3, 1, 22);
+  const stages = new Map<string, string>();
+  const results: MatchResult[] = [];
+  for (const [i, [label, home, away, hg, ag]] of games.entries()) {
+    let stageId = stages.get(label);
+    if (!stageId) {
+      const [st] = await db
+        .insert(stage)
+        .values({ seasonId: s!.id, kind: 'group', name: { 'pt-BR': label }, providerLabel: label })
+        .returning();
+      stageId = st!.id;
+      stages.set(label, stageId);
+    }
+    const at = new Date(base + i * 86_400_000);
+    const [e] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: lib!.id,
+        seasonId: s!.id,
+        stageId,
+        startsAt: at,
+        endsAtExpected: new Date(at.getTime() + 7_200_000),
+        status: 'finished',
+        score: { home: hg, away: ag },
+      })
+      .returning();
+    await db.insert(eventParticipant).values([
+      { eventId: e!.id, participantId: ids[home]!, side: 'home' },
+      { eventId: e!.id, participantId: ids[away]!, side: 'away' },
+    ]);
+    ids[`lib-${i}`] = e!.id;
+    results.push({
+      id: e!.id,
+      homeId: ids[home]!,
+      awayId: ids[away]!,
+      homeGoals: hg,
+      awayGoals: ag,
+      group: groupOf[home]!,
+      playedAt: at.toISOString(),
+    });
+  }
+  // a tabela que o recálculo grava: o jogo adotado conta no grupo A
+  const rules = await loadCompetitionRules('conmebol-libertadores', { season: 2026 });
+  const tables = computeStandings({ rules, matches: results });
+  await db.insert(standing).values(
+    tables.flatMap((t) =>
+      t.rows.map((r) => ({
+        seasonId: s!.id,
+        group: t.group,
+        participantId: r.teamId,
+        rank: r.rank,
+        points: r.points,
+        played: r.played,
+        won: r.won,
+        drawn: r.drawn,
+        lost: r.lost,
+        goalsFor: r.goalsFor,
+        goalsAgainst: r.goalsAgainst,
+        source: 'computed',
+      })),
+    ),
+  );
 }
 
 /**
@@ -477,5 +573,23 @@ describe('GET /v1/events/{id}: jogo encerrado na tabela da fase', () => {
       'away:moved_up_to_5',
       'away:clinched_play_in',
     ]);
+  });
+});
+
+describe('GET /v1/events/{id}: jogo encerrado de grupo com rodada desconhecida adotada', () => {
+  it('a tabela de antes fecha com os jogos que o recálculo soma no grupo', async () => {
+    const codes = async (k: number) =>
+      (
+        await get<{ stakes: { team: string; code: string }[] }>(`/v1/events/${ids[`lib-${k}`]}?stakes=all`)
+      ).stakes.map((x) => `${x.team}:${x.code}`);
+    // antes: sem o jogo adotado nos resultados da fase, a conta não fechava e o grupo ficava sem stakes
+    expect(await codes(5)).toEqual([
+      'home:stayed_at_3',
+      'home:points_behind_round_of_16_2',
+      'away:stayed_at_4',
+      'away:points_behind_sudamericana_knockout_playoff_0',
+    ]);
+    // o próprio jogo adotado
+    expect(await codes(4)).toEqual(['home:moved_up_to_1', 'away:moved_down_to_2']);
   });
 });

@@ -73,6 +73,36 @@ export function pickLeagueTable<R extends LeagueTableRow>(
   return { phase: phase ?? null, rules, table: [...picked].sort((x, y) => x.rank - y.rank) };
 }
 
+/** Resultado com o rótulo da rodada e o tipo do estágio (`loadLeagueResults`). */
+export interface PhaseResultInput {
+  homeId: string;
+  awayId: string;
+  roundLabel: string | null;
+  stageKind: string;
+}
+
+/**
+ * Os resultados que o recálculo soma na tabela da fase: os das rodadas dela (`rounds`) e os de rodada que
+ * nenhuma fase reconhece, em estágio de grupo ou fase de liga, adotados nela por serem inequívocos
+ * (`unknownRoundPhase`, a mesma regra do recálculo). Sem fase, ou fase sem `rounds`, todos. A tabela de antes
+ * de um jogo encerrado só fecha com exatamente esses jogos.
+ */
+export function phaseResults<M extends PhaseResultInput>(
+  rules: Pick<CompetitionRules, 'tables'>,
+  phase: StandingsTableRule | null,
+  results: readonly M[],
+  rows: readonly Pick<LeagueTableRow, 'group' | 'participantId'>[],
+): M[] {
+  if (!phase?.rounds) return [...results];
+  const rounds = rules.tables.filter((t) => t.kind === 'phase' && t.rounds).map((t) => t.rounds!);
+  return results.filter((m) => {
+    const label = m.roundLabel ?? '';
+    if (phase.rounds!.test(label)) return true;
+    if (rounds.some((re) => re.test(label)) || !TABLE_STAGE_KINDS.has(m.stageKind)) return false;
+    return unknownRoundPhase(rules, rows, m.homeId, m.awayId)?.key === phase.key;
+  });
+}
+
 /**
  * Jogos da rodada para o "nesta rodada", só entre times da tabela. Numa tabela que soma jogos contra
  * times de fora (`cross_group_matches`), um jogo da rodada com um só lado nela deixaria esse time como

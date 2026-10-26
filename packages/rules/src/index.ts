@@ -29,11 +29,13 @@ export {
   totalPoints,
 } from './standings/accumulate.js';
 export {
+  phaseResults,
   pickLeagueTable,
   roundWithin,
   TABLE_STAGE_KINDS,
   type LeagueTableChoice,
   type LeagueTableRow,
+  type PhaseResultInput,
 } from './stakes/league-table.js';
 export {
   currentPhaseKey,

@@ -538,6 +538,48 @@ describe('Libertadores: fase de grupos', () => {
     expect(lpStakes.reason).toBe('tabela incompleta (2 de 4 times)');
   });
 
+  it('jogo encerrado do grupo com rodada desconhecida adotada: a tabela de antes fecha (stakes do motor)', async () => {
+    const A = ['P1', 'P2', 'P3', 'P4'];
+    const B = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const w = await world('conmebol-libertadores', 2030, [...A, ...B]);
+    await w.provider('Group A', A);
+    await w.provider('Group B', B);
+    await w.play('Group Stage - 1', 'P1', 'P2', [1, 0], 'group');
+    await w.play('Group Stage - 1', 'P3', 'P4', [0, 0], 'group');
+    await w.play('Group Stage - 1', 'Q1', 'Q2', [2, 1], 'group');
+    await w.play('Group Stage - 1', 'Q3', 'Q4', [1, 1], 'group');
+    // rótulo que o regex não reconhece: o recálculo adota no grupo A (fase inequívoca)
+    const adopted = await w.play('Group Stage - 2 (remarcado)', 'P1', 'P3', [2, 1], 'group');
+    const later = await w.play('Group Stage - 2', 'P2', 'P4', [1, 1], 'group');
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    expect(report).toMatchObject({ outcome: 'written', unmatchedRounds: ['Group Stage - 2 (remarcado)'] });
+    const t = await w.table();
+    expect(t.find((r) => r.group === 'Group A' && r.team === 'P1')).toMatchObject({ played: 2, points: 6 });
+    const stakesOf = (g: { eventId: string; stageId: string; startsAt: Date }, home: string, away: string) =>
+      computeEventStakes(db, {
+        id: g.eventId,
+        sport: 'football',
+        startsAt: g.startsAt,
+        status: 'finished',
+        score: { home: 0, away: 0 },
+        competition: { slug: 'conmebol-libertadores' },
+        season: { id: w.seasonId, year: 2030 },
+        stage: { id: g.stageId, kind: 'group' },
+        home: { id: w.team(home) },
+        away: { id: w.team(away) },
+      });
+    // antes: "A tabela atual (… participações) não bate com os resultados encerrados (…)" no jogo da rodada
+    // conhecida, e "O jogo não está entre os resultados encerrados da tabela" no adotado
+    for (const [g, home, away] of [
+      [later, 'P2', 'P4'],
+      [adopted, 'P1', 'P3'],
+    ] as const) {
+      const stakes = await stakesOf(g, home, away);
+      expect(stakes.reason).toBeUndefined();
+      expect(stakes.league?.group).toBe('Group A');
+    }
+  });
+
   it('sem os grupos do fornecedor: não inventa a divisão e registra o motivo', async () => {
     const w = await world('conmebol-libertadores', 2027, ['P1', 'P2']);
     await w.play('Group Stage - 1', 'P1', 'P2', [1, 0]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCompetitionRules } from '../config/loader.js';
-import { pickLeagueTable, roundWithin } from './league-table.js';
+import { phaseResults, pickLeagueTable, roundWithin } from './league-table.js';
 
 /** Linhas de `core.standing`: cada time com os jogos dados, em ordem. */
 const rows = (group: string, teams: readonly string[], played: number) =>
@@ -92,5 +92,47 @@ describe('roundWithin', () => {
     const ids = new Set(['A', 'B', 'C']);
     expect(roundWithin(round, ids, false)).toEqual([{ homeId: 'A', awayId: 'B' }]);
     expect(roundWithin(round, ids, true)).toBeUndefined();
+  });
+});
+
+describe('phaseResults: os jogos que o recálculo soma na fase', () => {
+  it('Libertadores: rodadas da fase e a rodada desconhecida adotada no grupo; mata-mata e outro tipo, fora', async () => {
+    const lib = await loadCompetitionRules('conmebol-libertadores', { season: 2026 });
+    const phase = lib.tables.find((t) => t.key === 'group_stage')!;
+    const table = [...rows('Group A', ['A', 'B', 'C', 'D'], 2), ...rows('Group B', ['E', 'F', 'G', 'H'], 2)];
+    const r = (id: string, homeId: string, awayId: string, roundLabel: string, stageKind = 'group') => ({
+      id,
+      homeId,
+      awayId,
+      roundLabel,
+      stageKind,
+    });
+    const results = [
+      r('known', 'A', 'B', 'Group Stage - 1'),
+      r('adopted', 'A', 'C', 'Group Stage - 2 (remarcado)'),
+      r('cross', 'A', 'E', 'Group Stage - 2 (remarcado)'),
+      r('regular-kind', 'B', 'C', 'Rodada extra', 'regular'),
+      r('knockout', 'A', 'B', 'Round of 16', 'round_of_16'),
+    ];
+    expect(phaseResults(lib, phase, results, table).map((m) => m.id)).toEqual(['known', 'adopted']);
+    // sem fase: todos
+    expect(phaseResults(lib, null, results, table)).toHaveLength(5);
+  });
+
+  it('Argentina: o Clausura não leva o Apertura, nem rodada desconhecida ambígua entre as fases', async () => {
+    const ar = await loadCompetitionRules('argentina-liga-profesional', { season: 2026 });
+    const clausura = ar.tables.find((t) => t.key === 'clausura')!;
+    const table = [
+      ...rows('Apertura - Group A', ['A', 'B'], 16),
+      ...rows('Apertura - Group B', ['C', 'D'], 16),
+      ...rows('Clausura - Group A', ['A', 'B'], 9),
+      ...rows('Clausura - Group B', ['C', 'D'], 9),
+    ];
+    const results = [
+      { id: 'ap', homeId: 'A', awayId: 'B', roundLabel: 'Apertura - 3', stageKind: 'regular' },
+      { id: 'cl', homeId: 'A', awayId: 'B', roundLabel: 'Clausura - 3', stageKind: 'regular' },
+      { id: 'unk', homeId: 'A', awayId: 'B', roundLabel: 'Fecha 3', stageKind: 'group' },
+    ];
+    expect(phaseResults(ar, clausura, results, table).map((m) => m.id)).toEqual(['cl']);
   });
 });

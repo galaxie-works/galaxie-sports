@@ -34,6 +34,7 @@ import {
   leagueMatchStakes,
   localizeStake,
   pickGroupTable,
+  phaseResults,
   pickLeagueTable,
   prepareFinishedLeagueMatch,
   roundWithin,
@@ -757,9 +758,13 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
           inTable,
           crossGroup,
         );
-        // só os resultados das rodadas da fase (a zona do Clausura não soma o Apertura)
-        const results = (leagueResults.get(e.seasonId) ?? []).filter(
-          (m) => !phase?.rounds || phase.rounds.test(m.roundLabel ?? ''),
+        // os resultados que o recálculo soma na fase (a zona do Clausura não soma o Apertura; a rodada
+        // desconhecida adotada na fase entra)
+        const results = phaseResults(
+          leagueRules,
+          phase,
+          leagueResults.get(e.seasonId) ?? [],
+          groups ? [...groups.values()].flat() : [],
         );
         try {
           const finished = finishedLeagueMatchStakes(

@@ -11,6 +11,7 @@ import {
   computeStandings,
   rankRecords,
   standingsTableOf,
+  TABLE_STAGE_KINDS,
   unknownRoundPhase,
   type CompetitionRules,
   type MatchResult,
@@ -165,9 +166,7 @@ export async function computeTablesByRule(
   // jogo de fase de grupos com rótulo que o regulamento não conhece: vai para a fase só quando ela é inequívoca
   // em todas as tabelas (um quadrangular da Colômbia, "Group A - 1", também "cabe" na tabela única do torneio,
   // e fica fora); rodada "regular" desconhecida pode ser mata-mata rotulado como rodada, e fica fora
-  const orphans = results.filter(
-    (m) => ['group', 'league_phase'].includes(kindOf.get(m.id!) ?? '') && !matchesPhase(m),
-  );
+  const orphans = results.filter((m) => TABLE_STAGE_KINDS.has(kindOf.get(m.id!) ?? '') && !matchesPhase(m));
   const orphanPhase = new Map(
     orphans.map((m) => [m.id!, unknownRoundPhase(rules, tableRows, m.homeId, m.awayId)?.key ?? null]),
   );

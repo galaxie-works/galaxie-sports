@@ -20,7 +20,7 @@ import { finishedLeagueMatchStakes, leagueInputOf, prepareFinishedLeagueMatch } 
 import { salienceStanding, type SalienceStanding } from '../stakes/salience.js';
 import type { MatchResult } from '../standings/types.js';
 import { knockoutSeed } from '../standings/tables.js';
-import { pickLeagueTable, roundWithin } from '../stakes/league-table.js';
+import { phaseResults, pickLeagueTable, roundWithin } from '../stakes/league-table.js';
 import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
@@ -141,7 +141,7 @@ export class StakesCache {
   readonly rules = new Map<string, Promise<CompetitionRules>>();
   readonly standings = new Map<string, Promise<StandingRow[]>>();
   readonly openRound = new Map<string, Promise<Fixture[]>>();
-  readonly seasonResults = new Map<string, Promise<MatchResult[]>>();
+  readonly seasonResults = new Map<string, Promise<LeagueResult[]>>();
 }
 
 export interface StakesOptions {
@@ -299,8 +299,11 @@ function loadOpenRound(db: Database, stageId: string): Promise<Fixture[]> {
     );
 }
 
-/** Resultado de pontos corridos com o rótulo da rodada (`core.stage.provider_label`), para filtrar a fase. */
-export type LeagueResult = MatchResult & { roundLabel: string | null };
+/**
+ * Resultado de pontos corridos com o rótulo da rodada (`core.stage.provider_label`) e o tipo do estágio, para
+ * separar os jogos da fase (`phaseResults`).
+ */
+export type LeagueResult = MatchResult & { roundLabel: string | null; stageKind: string };
 
 /**
  * Jogos encerrados das temporadas nas fases de pontos corridos, por temporada e em ordem cronológica
@@ -325,6 +328,7 @@ export async function loadLeagueResults(
       homeId: home.participantId,
       awayId: away.participantId,
       label: stage.providerLabel,
+      kind: stage.kind,
     })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
@@ -350,6 +354,7 @@ export async function loadLeagueResults(
       awayGoals: r.score.away,
       playedAt: r.startsAt.toISOString(),
       roundLabel: r.label,
+      stageKind: r.kind,
     });
     out.set(r.seasonId, list);
   }
@@ -411,7 +416,7 @@ async function leagueContext(
   const awayRow = table.find((r) => r.participantId === core.away.id)!;
   if (league.teams !== null && table.length !== league.teams)
     return { stakes: [], rules, reason: `tabela incompleta (${table.length} de ${league.teams} times)` };
-  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options, phase);
+  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options, phase, all);
   const input: LeagueTeamInput[] = table.map((r) => ({
     teamId: r.participantId,
     points: r.points,
@@ -477,15 +482,17 @@ async function finishedLeagueContext(
   rules: CompetitionRules,
   table: StandingRow[],
   options: StakesOptions,
-  phase: StandingsTableRule | null = null,
+  phase: StandingsTableRule | null,
+  seasonRows: readonly StandingRow[],
 ): Promise<EventStakes> {
   const league = rules.league!;
   const season = core.season!;
-  const key = phase ? `${season.id}|${phase.key}` : season.id;
-  const results = await memo(options.cache?.seasonResults, key, async () => {
-    const bySeason = await loadLeagueResults(db, [season.id], phase?.rounds ?? undefined);
+  const all = await memo(options.cache?.seasonResults, season.id, async () => {
+    const bySeason = await loadLeagueResults(db, [season.id]);
     return bySeason.get(season.id) ?? [];
   });
+  // os jogos que o recálculo soma na fase: os das rodadas dela e os de rodada desconhecida adotados nela
+  const results = phaseResults(rules, phase, all, seasonRows);
   const ids = new Set(table.map((r) => r.participantId));
   const crossGroup = phase?.crossGroupMatches === true;
   const nextRound = core.stage
