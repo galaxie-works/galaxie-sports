@@ -353,9 +353,13 @@ async function leagueContext(
 ): Promise<EventStakes> {
   const season = core.season;
   if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
-  const phase: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
-  if (phase === undefined)
+  const found: StandingsTableRule | null | undefined = await phaseOf(db, core, competitionRules);
+  // rodada que o regulamento não reconhece: em fase de grupos (rótulo de grupo inequívoco) vale a tabela do
+  // grupo dos dois times, como sem regulamento de fases; em rodada "regular" pode ser mata-mata rotulado como
+  // rodada (Liguilla), então não há stakes
+  if (found === undefined && core.stage?.kind !== 'group')
     return { stakes: [], rules: competitionRules, reason: 'rodada fora das fases do regulamento' };
+  const phase = found ?? null;
   // com fases, a matemática (times, jogos, zonas) e a tabela são as da fase
   const rules = phase?.league ? { ...competitionRules, league: phase.league } : competitionRules;
   const league = rules.league!;

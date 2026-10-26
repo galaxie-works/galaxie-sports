@@ -49,6 +49,8 @@ export interface SeasonStandingsReport {
   skipped?: SkippedTable[] | undefined;
   /** Grupos de `core.standing` que nenhuma tabela do regulamento reconhece (guardados como vieram). */
   unclassified?: string[] | undefined;
+  /** Rodadas de fase de grupos que o regulamento não reconhece (contadas pelo grupo dos dois times). */
+  unmatchedRounds?: string[] | undefined;
 }
 
 /**
@@ -60,7 +62,8 @@ export function needsAttention(r: SeasonStandingsReport): boolean {
   return (
     ['no_groups', 'rules_error', 'invalid_input'].includes(r.outcome) ||
     !!r.skipped?.length ||
-    !!r.unclassified?.length
+    !!r.unclassified?.length ||
+    !!r.unmatchedRounds?.length
   );
 }
 
@@ -263,10 +266,14 @@ async function recomputeByTables(
   const extra = {
     ...(out.skipped.length ? { skipped: out.skipped } : {}),
     ...(out.unclassified.length ? { unclassified: out.unclassified } : {}),
+    ...(out.unmatchedRounds.length ? { unmatchedRounds: out.unmatchedRounds } : {}),
   };
   const detail = [
     ...out.skipped.map((t) => `${t.table}: ${t.reason}`),
     ...(out.unclassified.length ? [`grupos sem tabela no regulamento: ${out.unclassified.join(', ')}`] : []),
+    ...(out.unmatchedRounds.length
+      ? [`rodadas de grupo fora do regulamento (contadas pelo grupo): ${out.unmatchedRounds.join(', ')}`]
+      : []),
   ].join('; ');
   if (!out.tables.length)
     return report(out.skipped.length ? 'no_groups' : 'no_results', {

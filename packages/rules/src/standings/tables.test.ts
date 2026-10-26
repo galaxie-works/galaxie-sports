@@ -96,6 +96,16 @@ describe('regulamentos da América Latina', () => {
     expect(apertura!.rounds!.test('Apertura - Quarter-finals')).toBe(false);
   });
 
+  it('Libertadores e Sul-Americana: rodada da fase de grupos nos dois rótulos da api-sports; mata-mata fora', async () => {
+    for (const slug of ['conmebol-libertadores', 'conmebol-sudamericana']) {
+      const [groups] = (await loadCompetitionRules(slug, { season: 2026 })).tables;
+      for (const label of ['Group Stage - 1', 'Group A - 6', 'Group H - 3'])
+        expect(groups!.rounds!.test(label), `${slug} ${label}`).toBe(true);
+      for (const label of ['Round of 16', 'Quarter-finals', 'Final', '1st Round'])
+        expect(groups!.rounds!.test(label), `${slug} ${label}`).toBe(false);
+    }
+  });
+
   it('Uruguai: anual só recalculada quando o id 268 tem a temporada inteira (2026+)', async () => {
     const before = await loadCompetitionRules('uruguay-primera', { season: 2025 });
     const after = await loadCompetitionRules('uruguay-primera', { season: 2026 });

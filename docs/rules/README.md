@@ -127,11 +127,12 @@ tables:
 ```
 
 - **Recálculo** (`standings/phases.ts`): cada tabela `computed` usa só as suas rodadas (o mata-mata do torneio, sem número, fica fora) e os seus grupos. Time em dois grupos da mesma tabela (o fornecedor renomeou o grupo) fica no de linha mais recente; o grupo vazio de quem também tem grupo com nome é resíduo e sai. Fase com mais de um grupo e sem os grupos do fornecedor não é inventada: vai para `skipped` do relatório, com o motivo.
-- **Visível**: tabela sem recálculo (`skipped`) e grupo que o regulamento não reconhece (`unclassified`) saem em `warn` no `sync:daily` e no ao vivo (`needsAttention`), e no `standings:recompute`.
+- **Rodada desconhecida**: jogo de fase de grupos (`core.stage.kind = group`/`league_phase`) com rótulo que nenhuma fase reconhece conta na fase em que os dois times estão no mesmo grupo, e os stakes usam a tabela desse grupo (como sem regulamento de fases); a rodada vai para `unmatchedRounds`. Rodada `regular` desconhecida fica fora (pode ser mata-mata rotulado como rodada, ex.: Liguilla).
+- **Visível**: tabela sem recálculo (`skipped`), grupo que o regulamento não reconhece (`unclassified`) e rodada desconhecida (`unmatchedRounds`) saem em `warn` no `sync:daily` e no ao vivo (`needsAttention`), e no `standings:recompute`.
 - **Sem `tables`**: comportamento anterior (tabela única ou grupos do fornecedor; time em dois grupos → `no_groups`, em `warn`).
 - **API**: `/v1/competitions/{id}/seasons/{season}/standings` devolve, por grupo, `display_name`, `table`, `table_key`, `current` (fase em andamento) e `source`, na ordem do regulamento; o overview do time mostra a posição na fase em andamento.
 
-Grupos e rodadas vistos em dados reais do repositório: Argentina 2026 `Apertura - Group A` / `Clausura - Group A` e rodadas `Clausura - 13`; Libertadores `Group A`…`Group H` e `Group Stage - N`; Brasileirão `Serie A` e `Regular Season - N`. Os demais (Liga MX, Uruguai, Colômbia, Peru, Paraguai; anual e promedios da Argentina) seguem o padrão da api-sports e estão marcados nos YAML para confirmar no `/standings` de produção.
+Grupos e rodadas vistos em dados reais do repositório: Argentina 2026 `Apertura - Group A` / `Clausura - Group A` e rodadas `Clausura - 13`; Libertadores `Group A`…`Group H` e `Group Stage - N` (o regulamento também aceita `Group A - N`, o outro rótulo de rodada de grupo da api-sports); Brasileirão `Serie A` e `Regular Season - N`. Os demais (Liga MX, Uruguai, Colômbia, Peru, Paraguai; anual e promedios da Argentina) seguem o padrão da api-sports e estão marcados nos YAML para confirmar no `/standings` de produção.
 
 > Regulamentos mudam a cada temporada. Antes de usar um arquivo para uma temporada nova, confira o regulamento oficial (fontes em `sources`) e acrescente um `overrides` quando algo mudar.
 

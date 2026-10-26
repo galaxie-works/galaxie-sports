@@ -42,6 +42,7 @@ interface World {
     home: string,
     away: string,
     score: [number, number] | null,
+    kind?: string,
   ) => Promise<{ eventId: string; stageId: string; startsAt: Date }>;
   provider: (group: string, teams: readonly string[], source?: string) => Promise<void>;
   table: () => Promise<
@@ -72,12 +73,12 @@ async function world(slug: string, year: number, teams: readonly string[]): Prom
   return {
     seasonId: s!.id,
     team: (n) => ids.get(n)!,
-    async play(round, home, away, score) {
+    async play(round, home, away, score, kind = 'regular') {
       let stageId = stages.get(round);
       if (!stageId) {
         const [st] = await db
           .insert(stage)
-          .values({ seasonId: s!.id, kind: 'regular', name: { 'pt-BR': round }, providerLabel: round })
+          .values({ seasonId: s!.id, kind, name: { 'pt-BR': round }, providerLabel: round })
           .returning();
         stageId = st!.id;
         stages.set(round, stageId);
@@ -293,6 +294,37 @@ describe('Libertadores: fase de grupos', () => {
       ['Group B', 'Q2', 1],
       ['Group B', 'Q1', 1],
     ]);
+  });
+
+  it('rodada de grupo com rótulo pelo grupo ("Group A - 6") conta; rótulo desconhecido conta pelo grupo, com aviso', async () => {
+    const w = await world('conmebol-libertadores', 2028, ['P1', 'P2', 'Q1', 'Q2']);
+    await w.provider('Group A', ['P1', 'P2']);
+    await w.provider('Group B', ['Q1', 'Q2']);
+    await w.play('Group A - 6', 'P1', 'P2', [1, 0], 'group');
+    // rótulo que o regulamento não conhece, numa fase de grupos (kind group): conta, mas vai para o relatório
+    await w.play('Fase de Grupos - 1', 'Q1', 'Q2', [2, 0], 'group');
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    expect(report).toMatchObject({ outcome: 'written', results: 2, unmatchedRounds: ['Fase de Grupos - 1'] });
+    const t = await w.table();
+    expect(t.map((r) => [r.group, r.team, r.points])).toEqual([
+      ['Group A', 'P1', 3],
+      ['Group A', 'P2', 0],
+      ['Group B', 'Q1', 3],
+      ['Group B', 'Q2', 0],
+    ]);
+    // stakes do jogo seguinte nesse rótulo: a tabela do grupo dos dois (aqui 2 de 4 times), não "fora das fases"
+    const next = await w.play('Fase de Grupos - 2', 'Q2', 'Q1', null, 'group');
+    const stakes = await computeEventStakes(db, {
+      id: next.eventId,
+      sport: 'football',
+      startsAt: next.startsAt,
+      competition: { slug: 'conmebol-libertadores' },
+      season: { id: w.seasonId, year: 2028 },
+      stage: { id: next.stageId, kind: 'group' },
+      home: { id: w.team('Q2') },
+      away: { id: w.team('Q1') },
+    });
+    expect(stakes.reason).toBe('tabela incompleta (2 de 4 times)');
   });
 
   it('sem os grupos do fornecedor: não inventa a divisão e registra o motivo', async () => {

@@ -34,6 +34,11 @@ export interface TablesByRule {
   skipped: SkippedTable[];
   /** Grupos gravados que nenhuma tabela do regulamento reconhece. */
   unclassified: string[];
+  /**
+   * Rodadas de fase de grupos que nenhuma fase do regulamento reconhece: contam na fase em que os dois times
+   * estão no mesmo grupo (como sem regulamento), mas o YAML precisa do rótulo.
+   */
+  unmatchedRounds: string[];
 }
 
 /**
@@ -100,11 +105,12 @@ export async function computeTablesByRule(
 ): Promise<TablesByRule> {
   const results = await loadSeasonResults(db, seasonId, { includeCards: true });
   const labels = await db
-    .select({ id: event.id, label: stage.providerLabel })
+    .select({ id: event.id, label: stage.providerLabel, kind: stage.kind })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
   const labelOf = new Map(labels.map((l) => [l.id, l.label ?? '']));
+  const kindOf = new Map(labels.map((l) => [l.id, l.kind]));
   const inRounds = (re: RegExp) => results.filter((m) => re.test(labelOf.get(m.id!) ?? ''));
 
   const rowsOf = new Map<string, TableRow[]>();
@@ -120,16 +126,33 @@ export async function computeTablesByRule(
   }
 
   const phaseRounds = rules.tables.filter((t) => t.kind === 'phase' && t.rounds).map((t) => t.rounds!);
+  const matchesPhase = (m: MatchResult) => phaseRounds.some((re) => re.test(labelOf.get(m.id!) ?? ''));
+  // jogo de fase de grupos com rótulo que o regulamento não conhece: vai para a fase em que os dois times estão
+  // no mesmo grupo (rodada "regular" desconhecida pode ser mata-mata rotulado como rodada, e fica fora)
+  const orphans = results.filter(
+    (m) => ['group', 'league_phase'].includes(kindOf.get(m.id!) ?? '') && !matchesPhase(m),
+  );
+  const adopted = new Set<string>();
   const tables: StandingsTable[] = [];
   const skipped: SkippedTable[] = [];
   let used = 0;
   for (const t of rules.tables) {
     if (!t.computed) continue;
-    const matches = t.rounds
-      ? inRounds(t.rounds)
-      : results.filter((m) => phaseRounds.some((re) => re.test(labelOf.get(m.id!) ?? '')));
-    if (!matches.length) continue; // fase que ainda não começou (ou já sem jogo no core): nada a gravar
     const groupOf = membership(rowsOf.get(t.key) ?? []);
+    const ownOrphans =
+      t.kind === 'phase'
+        ? orphans.filter((m) => {
+            if (adopted.has(m.id!)) return false;
+            const g = groupOf.get(m.homeId);
+            if (!g || g !== groupOf.get(m.awayId)) return false;
+            adopted.add(m.id!);
+            return true;
+          })
+        : [];
+    const matches = t.rounds
+      ? [...inRounds(t.rounds), ...ownOrphans]
+      : results.filter((m) => matchesPhase(m) || adopted.has(m.id!));
+    if (!matches.length) continue; // fase que ainda não começou (ou já sem jogo no core): nada a gravar
     // a anual inclui todo time que já está numa tabela da temporada (sem jogo ainda: zerado)
     const known =
       t.kind === 'annual'
@@ -185,5 +208,11 @@ export async function computeTablesByRule(
     used += matches.length;
     tables.push(...computed.filter((c) => c.rows.length));
   }
-  return { tables, results: used, skipped, unclassified: [...unclassified].sort() };
+  return {
+    tables,
+    results: used,
+    skipped,
+    unclassified: [...unclassified].sort(),
+    unmatchedRounds: [...new Set(orphans.map((m) => labelOf.get(m.id!) ?? ''))].sort(),
+  };
 }

@@ -206,7 +206,12 @@ await runCli(async () => {
             outcome: t.outcome,
             rows: t.rows,
             ...(needsAttention(t)
-              ? { detail: t.detail, skipped: t.skipped, unclassified: t.unclassified }
+              ? {
+                  detail: t.detail,
+                  skipped: t.skipped,
+                  unclassified: t.unclassified,
+                  unmatched_rounds: t.unmatchedRounds,
+                }
               : {}),
           };
           if (needsAttention(t)) log.warn(fields, 'tabela após jogo encerrado pede atenção');

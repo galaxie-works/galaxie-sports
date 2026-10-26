@@ -104,6 +104,7 @@ await runCli(async () => {
           detail: t.detail,
           skipped: t.skipped,
           unclassified: t.unclassified,
+          unmatched_rounds: t.unmatchedRounds,
         };
         if (needsAttention(t))
           logger.warn(
