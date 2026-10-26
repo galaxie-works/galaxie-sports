@@ -1,17 +1,33 @@
 'use client';
 
-import { Check, CheckCheck, EyeOff, Undo2, X } from 'lucide-react';
+import { type ColumnDef, useTable } from '@tanstack/react-table';
+import { Check, CheckCheck, EyeOff, MoreHorizontal, Undo2, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useMemo, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { decideLineupItem, dismissLineupItemChange } from '@/app/[locale]/(app)/ajustes/grades/actions';
 import { Badge } from '@/components/reui/badge';
+import {
+  DataGrid,
+  DataGridContainer,
+  dataGridFeatures,
+  type DataGridFeatures,
+} from '@/components/reui/data-grid/data-grid';
+import { DataGridPagination } from '@/components/reui/data-grid/data-grid-pagination';
+import { DataGridScrollArea } from '@/components/reui/data-grid/data-grid-scroll-area';
+import { DataGridTable } from '@/components/reui/data-grid/data-grid-table';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import {
@@ -212,28 +228,156 @@ function Actions({ row }: { row: ReviewRow }) {
       {icon}
     </Button>
   );
+  const item = (status: LineupStatus, label: string, icon: React.ReactNode) => (
+    <DropdownMenuItem
+      variant={status === 'rejected' ? 'destructive' : 'default'}
+      disabled={row.status === status}
+      onClick={() => decide(status)}
+    >
+      {icon}
+      {label}
+    </DropdownMenuItem>
+  );
+  // aprovar à vista; o resto da decisão num menu, para a coluna caber na largura da tela
   return (
     <div className="flex items-center gap-1">
       {button('approved', A.actions.approve, <Check />, 'default')}
-      {button('reviewed', A.actions.reviewed, <CheckCheck />, 'outline')}
-      {button('draft', A.actions.draft, <Undo2 />, 'outline')}
-      {button('rejected', A.actions.reject, <X />, 'outline')}
-      {changed ? (
-        <Button
-          size="icon-sm"
-          variant="outline"
-          aria-label={`${A.actions.dismiss}: ${row.name}`}
-          title={A.actions.dismiss}
-          disabled={pending}
-          onClick={() =>
-            run(() => dismissLineupItemChange({ type: row.type, id: row.id }), A.decided.dismissed)
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              disabled={pending}
+              aria-label={`${A.actions.more}: ${row.name}`}
+              title={A.actions.more}
+            />
           }
         >
-          <EyeOff />
-        </Button>
-      ) : null}
-      {pending ? <Spinner className="text-muted-foreground size-4" /> : null}
+          {pending ? <Spinner /> : <MoreHorizontal />}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-52">
+          {item('reviewed', A.actions.reviewed, <CheckCheck />)}
+          {item('draft', A.actions.draft, <Undo2 />)}
+          {changed ? (
+            <DropdownMenuItem
+              onClick={() =>
+                run(() => dismissLineupItemChange({ type: row.type, id: row.id }), A.decided.dismissed)
+              }
+            >
+              <EyeOff />
+              {A.actions.dismiss}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuSeparator />
+          {item('rejected', A.actions.reject, <X />)}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
+  );
+}
+
+/** Colunas da revisão: largura fixa por coluna; o que não cabe rola na horizontal dentro do grid. */
+function useColumns(timeZone: string): ColumnDef<DataGridFeatures, ReviewRow>[] {
+  const { t } = useI18n();
+  const A = t.lineup.admin;
+  const f = useFormatters(timeZone);
+  return useMemo<ColumnDef<DataGridFeatures, ReviewRow>[]>(
+    () => [
+      {
+        id: 'item',
+        header: A.table.item,
+        cell: ({ row: { original: row } }) => (
+          <div className="flex min-w-0 flex-col">
+            <div className="flex min-w-0 items-center gap-2">
+              <ItemLogo name={row.name} url={row.logoUrl} className="size-7" />
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate font-medium" title={row.name}>
+                  {row.name}
+                </span>
+                {row.planName ? (
+                  <span className="text-muted-foreground truncate text-xs">
+                    {fill(A.table.inPlan, { plan: row.planName })}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <PendingChange row={row} />
+          </div>
+        ),
+        size: 230,
+      },
+      {
+        id: 'type',
+        header: A.table.type,
+        cell: ({ row }) => t.lineup.types[row.original.type],
+        size: 100,
+      },
+      {
+        id: 'platform',
+        header: A.table.platform,
+        cell: ({ row }) => (
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate" title={row.original.platform.name}>
+              {row.original.platform.name}
+            </span>
+            <span className="text-muted-foreground text-xs">{row.original.platform.country}</span>
+          </div>
+        ),
+        size: 130,
+      },
+      {
+        id: 'source',
+        header: A.table.source,
+        cell: ({ row }) => <SourceLine sources={row.original.sources} timeZone={timeZone} />,
+        size: 140,
+      },
+      {
+        id: 'verification',
+        header: A.table.verification,
+        cell: ({ row: { original: row } }) =>
+          row.type === 'platform' ? (
+            <span className="text-muted-foreground text-xs">—</span>
+          ) : (
+            <VerificationCell
+              verification={row.verification}
+              price={row.price}
+              access={row.fields.access ?? null}
+              isPlan={row.type === 'plan' || row.type === 'addon'}
+              commitmentMonths={row.commitmentMonths ?? null}
+              timeZone={timeZone}
+            />
+          ),
+        meta: { cellClassName: 'whitespace-normal break-words' },
+        size: 250,
+      },
+      {
+        id: 'status',
+        header: A.table.status,
+        // situação e, embaixo, a última decisão (quem e quando)
+        cell: ({ row: { original: row } }) => (
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap gap-1">
+              <StatusBadge status={row.status} />
+              {row.pendingChange ? <Badge variant="warning-light">{A.change.title}</Badge> : null}
+            </div>
+            {row.reviewedBy && row.reviewedAt ? (
+              <span className="text-muted-foreground text-xs break-words" title={A.table.decision}>
+                {fill(A.decidedBy, { who: row.reviewedBy, when: f.relative(row.reviewedAt) })}
+              </span>
+            ) : null}
+          </div>
+        ),
+        size: 160,
+      },
+      {
+        id: 'actions',
+        header: A.table.actions,
+        cell: ({ row }) => <Actions row={row.original} />,
+        size: 120,
+      },
+    ],
+    [A, t, f, timeZone],
   );
 }
 
@@ -255,88 +399,46 @@ export function LineupReview({
 }) {
   const { t, locale } = useI18n();
   const A = t.lineup.admin;
-  const f = useFormatters(timeZone);
+  const grid = t.admin.table.grid;
+  const columns = useColumns(timeZone);
+  const table = useTable({
+    features: dataGridFeatures,
+    data: rows,
+    columns,
+    getRowId: (row) => `${row.type}:${row.id}`,
+    initialState: { pagination: { pageIndex: 0, pageSize: 25 } },
+  });
+  const empty = catalogEmpty ? A.emptyCatalog : A.empty;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <Filters filters={filters} countries={countries} platforms={platforms} />
-      {rows.length ? (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{A.table.item}</TableHead>
-                <TableHead>{A.table.type}</TableHead>
-                <TableHead>{A.table.platform}</TableHead>
-                <TableHead>{A.table.source}</TableHead>
-                <TableHead>{A.table.verification}</TableHead>
-                <TableHead>{A.table.status}</TableHead>
-                <TableHead>{A.table.decision}</TableHead>
-                <TableHead>{A.table.actions}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={`${row.type}:${row.id}`} className="align-top">
-                  <TableCell className="max-w-80 whitespace-normal">
-                    <div className="flex items-center gap-2">
-                      <ItemLogo name={row.name} url={row.logoUrl} className="size-7" />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-medium">{row.name}</span>
-                        {row.planName ? (
-                          <span className="text-muted-foreground truncate text-xs">
-                            {fill(A.table.inPlan, { plan: row.planName })}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <PendingChange row={row} />
-                  </TableCell>
-                  <TableCell>{t.lineup.types[row.type]}</TableCell>
-                  <TableCell className="text-sm">
-                    {row.platform.name}
-                    <span className="text-muted-foreground block text-xs">{row.platform.country}</span>
-                  </TableCell>
-                  <TableCell>
-                    <SourceLine sources={row.sources} timeZone={timeZone} />
-                  </TableCell>
-                  <TableCell className="whitespace-normal">
-                    {row.type === 'platform' ? (
-                      <span className="text-muted-foreground text-xs">—</span>
-                    ) : (
-                      <VerificationCell
-                        verification={row.verification}
-                        price={row.price}
-                        access={row.fields.access ?? null}
-                        isPlan={row.type === 'plan' || row.type === 'addon'}
-                        commitmentMonths={row.commitmentMonths ?? null}
-                        timeZone={timeZone}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      <StatusBadge status={row.status} />
-                      {row.pendingChange ? <Badge variant="warning-light">{A.change.title}</Badge> : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                    {row.reviewedBy && row.reviewedAt
-                      ? fill(A.decidedBy, { who: row.reviewedBy, when: f.relative(row.reviewedAt) })
-                      : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Actions row={row} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <p className="text-muted-foreground rounded-lg border p-6 text-center text-sm">
-          {catalogEmpty ? A.emptyCatalog : A.empty}
-        </p>
-      )}
+      <DataGrid
+        table={table}
+        recordCount={rows.length}
+        emptyMessage={empty}
+        tableLayout={{ headerBackground: true, width: 'fixed' }}
+        tableClassNames={{ bodyRow: 'align-top [&>td]:align-top' }}
+        i18n={{
+          labels: {
+            rowsPerPage: grid.rowsPerPage,
+            paginationInfo: ({ from, to, count }) => fill(grid.paginationInfo, { from, to, count }),
+            sortAscending: grid.sortAscending,
+            sortDescending: grid.sortDescending,
+            previousPage: grid.previousPage,
+            nextPage: grid.nextPage,
+            goToPage: (page) => fill(grid.goToPage, { page }),
+            loading: grid.loading,
+            empty,
+          },
+        }}
+      >
+        <DataGridContainer className="rounded-lg border">
+          <DataGridScrollArea orientation="horizontal">
+            <DataGridTable />
+          </DataGridScrollArea>
+        </DataGridContainer>
+        {rows.length > 25 ? <DataGridPagination sizes={[25, 50, 100]} /> : null}
+      </DataGrid>
       <span className="text-muted-foreground text-sm">{plural(locale, rows.length, A.table.total)}</span>
     </div>
   );
