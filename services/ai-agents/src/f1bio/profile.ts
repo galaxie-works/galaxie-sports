@@ -378,8 +378,21 @@ function parseRaceKey(key: string): { year: number; round: number } | null {
 }
 
 /**
+ * Fontes da resposta sem as vazias: o schema do perfil não aceita string vazia, e uma só derrubaria o perfil do
+ * piloto no `applyProfiles`. A vazia vira o achado `missing_source` do campo (a lista toda vazia já tem o seu).
+ */
+function sourcesOf(urls: string[] | undefined, field: string, findings: EditorialFinding[]): string[] {
+  const all = urls ?? [];
+  const kept = all.filter((u) => u.trim());
+  if (kept.length && kept.length < all.length)
+    findings.push(finding(field, 0, 0, 'missing_source', `${all.length - kept.length} fonte(s) vazia(s)`));
+  return kept;
+}
+
+/**
  * Monta o perfil a partir da resposta do modelo **sem mexer nela**: os textos entram como vieram (só sem os espaços
- * das pontas) e cada problema vira um achado com o trecho e a gravidade. Só não há proposta sem bio.
+ * das pontas) e cada problema vira um achado com o trecho e a gravidade. Só não há proposta sem bio. O que veio
+ * vazio (fonte, estilo ou item sem texto) não tem o que revisar e o schema não aceita: fica de fora, com um achado.
  */
 export function buildProfile(
   data: LegendReply,
@@ -390,7 +403,7 @@ export function buildProfile(
   const bioText = (data.bio?.text ?? '').trim();
   if (!bioText) return { entry: null, reasons: ['o modelo não devolveu a bio'] };
   const findings: EditorialFinding[] = [];
-  const bioSources = data.bio?.sources ?? [];
+  const bioSources = sourcesOf(data.bio?.sources, 'bio.sources', findings);
   findings.push(
     ...textFindings(bioText, 'bio', 'pt-BR', ctx, tier === 'legend' ? LIMITS.legendBio : LIMITS.regularBio),
   );
@@ -409,11 +422,13 @@ export function buildProfile(
   };
 
   if (tier === 'legend') {
-    if (data.style) {
-      const text = data.style.text.trim();
-      const sources = data.style.sources ?? [];
-      entry.style = { kind: data.style.kind, text, sources };
-      findings.push(...textFindings(text, 'style', 'pt-BR', ctx, LIMITS.style));
+    const styleText = data.style?.text.trim();
+    if (data.style && !styleText)
+      findings.push(finding('style', 0, 0, 'empty_text', 'estilo sem texto: fica de fora'));
+    if (data.style && styleText) {
+      const sources = sourcesOf(data.style.sources, 'style.sources', findings);
+      entry.style = { kind: data.style.kind, text: styleText, sources };
+      findings.push(...textFindings(styleText, 'style', 'pt-BR', ctx, LIMITS.style));
       if (!sources.length)
         findings.push(finding('style.sources', 0, 0, 'missing_source', 'estilo sem fonte'));
       sources.forEach((u, i) => {
@@ -425,6 +440,12 @@ export function buildProfile(
     for (const s of data.strengths ?? []) {
       const field = `strengths[${strengths.length}]`;
       const text = s.text.trim();
+      if (!text) {
+        findings.push(
+          finding('strengths', 0, 0, 'empty_text', `ponto forte sem texto (${s.key}): fica de fora`),
+        );
+        continue;
+      }
       findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
       const src = sourceFinding(s.source, `${field}.source`, ctx);
       if (src) findings.push(src);
@@ -437,6 +458,12 @@ export function buildProfile(
     for (const m of data.moments ?? []) {
       const field = `moments[${moments.length}]`;
       const text = m.text.trim();
+      if (!text) {
+        findings.push(
+          finding('moments', 0, 0, 'empty_text', `momento sem texto (${m.race_key}): fica de fora`),
+        );
+        continue;
+      }
       const race = races.get(m.race_key.trim());
       const parsed = race ?? parseRaceKey(m.race_key);
       findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
@@ -466,6 +493,12 @@ export function buildProfile(
     for (const r of data.rivalries ?? []) {
       const field = `rivalries[${rivalries.length}]`;
       const text = r.text.trim();
+      if (!text) {
+        findings.push(
+          finding('rivalries', 0, 0, 'empty_text', `rivalidade sem texto (${r.driver}): fica de fora`),
+        );
+        continue;
+      }
       const rival = resolveRival(r.driver, facts);
       findings.push(...textFindings(text, field, 'pt-BR', ctx, LIMITS.item));
       if (!rival)
@@ -565,7 +598,7 @@ export type TranslationReply = {
 };
 
 /** Achados que são do item e não do texto (valem igual na tradução, com o trecho = o item todo). */
-const ITEM_RULES = new Set(['race_not_driven', 'rival_not_in_race', 'duplicate', 'no_moments']);
+const ITEM_RULES = new Set(['race_not_driven', 'rival_not_in_race', 'duplicate', 'no_moments', 'empty_text']);
 const isSourceField = (field: string) => /\.sources?(\[\d+\])?$/.test(field);
 
 /**

@@ -6,7 +6,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { apiResponse, type Database } from '@galaxie/db';
 import { F1DB_PROVIDER, rowsOf, type F1dbRow, type F1dbTableName, type F1dbTables } from '@galaxie/providers';
-import { COMMONS_SCOPES, targetKey, targetsFor, type CommonsTarget } from './scope.js';
+import { COMMONS_SCOPES, mergeCarTarget, targetKey, targetsFor, type CommonsTarget } from './scope.js';
 
 const TABLES: readonly F1dbTableName[] = [
   'driver',
@@ -52,12 +52,20 @@ export async function loadF1dbForCommons(
   return { tables, release: latest.release };
 }
 
-/** Alvos pelas chaves (`driver/<id>`, `car/<construtor>/<ano>`), procurados em todos os escopos. */
+/**
+ * Alvos pelas chaves (`driver/<id>`, `car/<construtor>/<ano>`), procurados em todos os escopos. O carro que é
+ * destaque de pilotos em escopos diferentes leva os pilotos de todos (`mergeCarTarget`).
+ */
 export function targetsByKey(tables: F1dbTables, keys: readonly string[]): CommonsTarget[] {
   const wanted = new Set(keys);
   const found = new Map<string, CommonsTarget>();
   for (const scope of COMMONS_SCOPES)
-    for (const t of targetsFor(tables, scope, 10_000))
-      if (wanted.has(targetKey(t)) && !found.has(targetKey(t))) found.set(targetKey(t), t);
+    for (const t of targetsFor(tables, scope, 10_000)) {
+      const key = targetKey(t);
+      if (!wanted.has(key)) continue;
+      const prev = found.get(key);
+      if (prev) mergeCarTarget(prev, t);
+      else found.set(key, t);
+    }
   return keys.flatMap((k) => found.get(k) ?? []);
 }
