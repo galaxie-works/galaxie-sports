@@ -2,81 +2,117 @@
 # Arquivo compartilhado: outros mercados (Europa, etc.) devem apenas acrescentar
 # itens à lista `competitions`. Agrupe por bloco com um comentário de seção.
 # api_sports_league_id só quando verificado (fontes: arquivos públicos que referenciam
-# media.api-sports.io/football/leagues/<id>.png); caso contrário null.
+# media.api-sports.io/football/leagues/<id>.png); caso contrário null. Os IDs daqui são os
+# mesmos do catálogo (config/competitions/football.yaml), conferido no /leagues em out/2026.
+# Revisão (out/2026, docs/06 §2): nome, rótulos, apelidos e troféu conferidos nas fontes de
+# cada item; apelido sem fonte foi retirado. A API só serve o perfil no piso editorial.
 schema_version: 1
 competitions:
   # ------------------------------------------------------------- CONMEBOL
   - slug: libertadores
     api_sports_league_id: 13
     labels: { pt-BR: "Libertadores", es: "Libertadores", en: "Copa Libertadores" }
-    nicknames: { pt-BR: ["Glória Eterna", "Liberta"], es: ["La Gloria Eterna", "La Copa"] }
+    nicknames: { pt-BR: ["Glória Eterna", "Liberta"], es: ["La Gloria Eterna"] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+      - "https://cdn.conmebol.com/wp-content/uploads/2025/12/CL-2026-Manual-de-Clubes-ESP-Jun.pdf"
+      - "https://www.band.com.br/esportes/futebol/noticias/botafogo-vence-13-titulos-de-libertadores-para-conquistar-sua-primeira-gloria-eterna-202411302051"
+      - "https://www.lance.com.br/futebol-internacional/jogador-torcida-boca-planeja-acao-antes-final-liberta.html"
+      - "https://misionesonline.net/2026/04/30/la-gloria-eterna-copa-libertadores/"
+    review_status: approved
 
   - slug: sudamericana
     api_sports_league_id: 11
     labels: { pt-BR: "Copa Sul-Americana", es: "Copa Sudamericana", en: "Copa Sudamericana" }
-    nicknames: { pt-BR: ["Sul-Americana", "Sula"], es: ["La Sudamericana", "La Suda"] }
+    nicknames: { pt-BR: ["Sul-Americana", "Sula"], es: ["La Sudamericana"] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+      - "https://cdn.conmebol.com/wp-content/uploads/2018/12/reglamento-conmebol-sudamericana-2019-por.pdf"
+      - "https://www.band.com.br/esportes/sul-americana-mais-dificil-que-a-libertadores-em-2026-veja-os-numeros-202607310043"
+      - "https://es.soccerway.com/noticias/futbol-copa-sudamericana-lanus-y-racing-club-aspiran-a-derribar-el-poder-brasileno-en-la-sudamericana/h4YEsjSk"
+    review_status: approved
 
   - slug: recopa-sudamericana
     api_sports_league_id: 541
     labels: { pt-BR: "Recopa Sul-Americana", es: "Recopa Sudamericana", en: "Recopa Sudamericana" }
     nicknames: { pt-BR: ["Recopa"], es: ["Recopa"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.band.com.br/esportes/melhores-momentos-flamengo-2-x-3-lanus-pela-final-da-recopa-sul-americana-202602271012"
+      - "https://www.expreso.ec/deportes/lanus-campeon-de-la-recopa-sudamericana-tras-vencer-flamengo-de-gonzalo-plata-275986.html"
+    review_status: approved
 
   # ------------------------------------------------------- BRASIL — NACIONAIS
   - slug: brasileirao-serie-a
     api_sports_league_id: 71
     labels: { pt-BR: "Brasileirão Série A", es: "Brasileirão", en: "Brazilian Série A" }
-    nicknames: { pt-BR: ["Brasileirão", "Campeonato Brasileiro", "Série A"], es: ["Brasileirão"] }
+    nicknames: { pt-BR: ["Brasileirão", "Campeonato Brasileiro", "Série A"] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/rohunx/goal-edge-copy/blob/main/src/lib/leagues.ts"
+      - "https://br.soccerway.com/noticias/futebol-brasileirao-betano-cbf-divulga-tabela-completa-e-novas-regras-do-brasileirao-2026/vVwLmdho"
+      - "https://www.elgrafico.com.ar/articulo/la-jornada-esta-aqui/95602/como-quedo-el-historial-de-campeones-del-brasileirao"
+      - "https://en.wikipedia.org/wiki/2026_in_Brazilian_football"
+    review_status: approved
 
   - slug: brasileirao-serie-b
     api_sports_league_id: 72
     labels: { pt-BR: "Brasileirão Série B", es: "Serie B de Brasil", en: "Brazilian Série B" }
     nicknames: { pt-BR: ["Série B", "Segundona"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.lance.com.br/futebol-nacional/serie-outro-patamar-pela-primeira-vez-segunda-divisao-tera-cinco-campeoes-brasileiros.html"
+      - "https://www.maisgoias.com.br/esportes/com-final-da-serie-b-confira-quem-conseguiu-o-acesso-e-quem-foi-rebaixado-na-segundona/"
+    review_status: approved
 
   - slug: brasileirao-serie-c
     api_sports_league_id: 75
     labels: { pt-BR: "Brasileirão Série C", es: "Serie C de Brasil", en: "Brazilian Série C" }
     nicknames: { pt-BR: ["Série C"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://en.wikipedia.org/wiki/2026_in_Brazilian_football"
+    review_status: approved
 
   - slug: brasileirao-serie-d
     api_sports_league_id: 76
     labels: { pt-BR: "Brasileirão Série D", es: "Serie D de Brasil", en: "Brazilian Série D" }
     nicknames: { pt-BR: ["Série D"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.band.com.br/esportes/cbf-define-tabela-da-3-fase-da-serie-d-2026-veja-datas-e-horarios-202606301849"
+    review_status: approved
 
   - slug: copa-do-brasil
     api_sports_league_id: 73
     labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
-    nicknames: { pt-BR: ["Copa do Brasil"] }
+    nicknames: { pt-BR: [] }
     trophy_nickname: null
     sources:
       - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
       - "https://github.com/victoroliveirab/go-htmx-soccer-guesser/blob/main/scripts/create_leagues.sql"
+      - "https://istoe.com.br/final-copa-do-brasil-2026-jogo-unico-mane-garrincha"
+      - "https://es.soccerway.com/noticias/futbol-copa-brasil-corinthians-campeon-gol-memphis-depay/MeMJEr4E"
+    review_status: approved
 
   - slug: supercopa-do-brasil
     api_sports_league_id: 632
     labels: { pt-BR: "Supercopa do Brasil", es: "Supercopa de Brasil", en: "Brazilian Super Cup" }
     nicknames: { pt-BR: ["Supercopa"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://exame.com/esporte/corinthians-x-flamengo-quando-sera-o-jogo-da-supercopa-do-brasil-2026/"
+    review_status: approved
 
   # ------------------------------------------------------- BRASIL — REGIONAIS
   - slug: copa-do-nordeste
@@ -84,14 +120,22 @@ competitions:
     labels: { pt-BR: "Copa do Nordeste", es: "Copa do Nordeste", en: "Copa do Nordeste" }
     nicknames: { pt-BR: ["Nordestão", "Lampions League"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.dci.com.br/esporte/futebol/lampions-league-conheca-a-origem-do-apelido-da-copa-do-nordeste/"
+      - "https://trivela.com.br/brasil/copa-do-nordeste/mapa-interativo-com-todos-os-participantes-do-nordestao-de-1994-a-2019/"
+      - "https://en.wikipedia.org/wiki/Copa_do_Nordeste"
+    review_status: approved
 
   - slug: copa-verde
     api_sports_league_id: 843
     labels: { pt-BR: "Copa Verde", es: "Copa Verde", en: "Copa Verde" }
     nicknames: { pt-BR: [] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://en.wikipedia.org/wiki/2026_Copa_Verde"
+    review_status: approved
 
   # ------------------------------------------------------- BRASIL — ESTADUAIS
   - slug: campeonato-paulista
@@ -99,74 +143,114 @@ competitions:
     labels: { pt-BR: "Campeonato Paulista", es: "Campeonato Paulista", en: "São Paulo State Championship" }
     nicknames: { pt-BR: ["Paulistão", "Paulista"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.lance.com.br/futebol-nacional/com-novo-formato-fpf-divulga-tabela-do-paulistao-2026.html"
+    review_status: approved
 
   - slug: campeonato-carioca
     api_sports_league_id: 624
     labels: { pt-BR: "Campeonato Carioca", es: "Campeonato Carioca", en: "Rio de Janeiro State Championship" }
     nicknames: { pt-BR: ["Cariocão", "Carioca"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.band.com.br/esportes/futebol/ferj-formula-carioca-2026"
+      - "https://www.bahianoticias.com.br/esportes/noticia/74491-ferj-reduz-datas-do-cariocao-e-e-primeira-federacao-a-adotar-novo-enxugamento-do-calendario-nacional"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Carioca"
+    review_status: approved
 
   - slug: campeonato-mineiro
     api_sports_league_id: 629
     labels: { pt-BR: "Campeonato Mineiro", es: "Campeonato Mineiro", en: "Minas Gerais State Championship" }
     nicknames: { pt-BR: ["Mineiro"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.itatiaia.com.br/esportes/futebol/futebol-nacional/campeonato-mineiro/campeonato-mineiro-o-mapa-da-elite-do-futebol-estadual-para-2026/"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Mineiro"
+    review_status: approved
 
   - slug: campeonato-gaucho
     api_sports_league_id: 477
     labels: { pt-BR: "Campeonato Gaúcho", es: "Campeonato Gaúcho", en: "Rio Grande do Sul State Championship" }
     nicknames: { pt-BR: ["Gauchão", "Gaúcho"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.lance.com.br/futebol-nacional/congresso-define-nova-formula-do-gauchao-para-2026.html"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Ga%C3%BAcho"
+    review_status: approved
 
   - slug: campeonato-paranaense
     api_sports_league_id: 606
     labels: { pt-BR: "Campeonato Paranaense", es: "Campeonato Paranaense", en: "Paraná State Championship" }
     nicknames: { pt-BR: ["Paranaense"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Paranaense"
+    review_status: approved
 
   - slug: campeonato-catarinense
     api_sports_league_id: 604
     labels: { pt-BR: "Campeonato Catarinense", es: "Campeonato Catarinense", en: "Santa Catarina State Championship" }
     nicknames: { pt-BR: ["Catarinense"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Catarinense"
+    review_status: approved
 
   - slug: campeonato-baiano
     api_sports_league_id: 602
     labels: { pt-BR: "Campeonato Baiano", es: "Campeonato Baiano", en: "Bahia State Championship" }
     nicknames: { pt-BR: ["Baianão", "Baiano"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.bnews.com.br/noticias/esporte/novo-formato-saiba-o-que-muda-no-regulamento-do-baianao-2026.html"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Baiano"
+    review_status: approved
 
   - slug: campeonato-pernambucano
     api_sports_league_id: 622
     labels: { pt-BR: "Campeonato Pernambucano", es: "Campeonato Pernambucano", en: "Pernambuco State Championship" }
     nicknames: { pt-BR: ["Pernambucano"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.diariodepernambuco.com.br/esportes-dp/nacional/2026/02/11707771-estaduais-chegam-as-semifinais-e-ganham-emocao-pelo-brasil-confira-os-duelos.html"
+    review_status: approved
 
   - slug: campeonato-cearense
     api_sports_league_id: 609
     labels: { pt-BR: "Campeonato Cearense", es: "Campeonato Cearense", en: "Ceará State Championship" }
     nicknames: { pt-BR: ["Cearense"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Cearense"
+    review_status: approved
 
   - slug: campeonato-paraense
     api_sports_league_id: 627
     labels: { pt-BR: "Campeonato Paraense", es: "Campeonato Paraense", en: "Pará State Championship" }
     nicknames: { pt-BR: ["Parazão", "Paraense"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://www.oliberal.com/esportes/futebol/fpf-divulga-tabela-detalhada-da-1-rodada-do-parazao-2026-veja-quando-remo-e-paysandu-jogam-1.1066174"
+      - "https://en.wikipedia.org/wiki/Campeonato_Paraense"
+    review_status: approved
 
   - slug: campeonato-goiano
     api_sports_league_id: 628
     labels: { pt-BR: "Campeonato Goiano", es: "Campeonato Goiano", en: "Goiás State Championship" }
     nicknames: { pt-BR: ["Goianão", "Goiano"] }
     trophy_nickname: null
-    sources: ["https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"]
+    sources:
+      - "https://github.com/mtoprak53/Capstone_Project_2/blob/main/db/scripts/footy.sql"
+      - "https://goias.gov.br/abc/tv-brasil-central-vai-transmitir-os-jogos-do-goianao-2026/"
+      - "https://en.wikipedia.org/wiki/2026_Campeonato_Goiano"
+    review_status: approved

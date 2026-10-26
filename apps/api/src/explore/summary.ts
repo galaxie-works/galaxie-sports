@@ -40,6 +40,7 @@ import { competitionLogoId, logoIdSql } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
 import { loadTeamNames } from '../teams/display-name.js';
+import { competitionProfileJoin } from '../competitions/profile.js';
 
 type I18n = Record<string, string>;
 
@@ -366,7 +367,7 @@ export async function loadExploreSummary(
         logoUrl: asset.sourceUrl,
       })
       .from(competition)
-      .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+      .leftJoin(competitionProfile, competitionProfileJoin(bctx.minReview ?? 'approved'))
       .leftJoin(asset, eq(asset.id, competitionLogoId(bctx.customLogos)))
       .where(lte(competition.tier, 2)),
     db
