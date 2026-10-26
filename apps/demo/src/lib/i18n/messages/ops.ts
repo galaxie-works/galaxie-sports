@@ -317,7 +317,7 @@ export default defineMessages(
         'wtw-channel': {
           label: 'Onde Assistir: canal do jogo',
           description:
-            'Descobre o canal de cada jogo pela escala da rodada (5 dias, 48 h e 6 h antes) e confirma depois do jogo.',
+            'Descobre o canal de cada jogo pela escala da rodada: consulta semanal, nova tentativa 3 e 1 dia antes só para quem segue sem canal e, depois do jogo, só os encerrados sem canal.',
         },
         'related-run': {
           label: 'Vídeos relacionados',
@@ -336,7 +336,7 @@ export default defineMessages(
         'lineups-revisit': {
           label: 'Grade de canais: revisita',
           description:
-            'Relê a página oficial de planos das operadoras vistas há mais de 30 dias; a IA (sem busca na web) só extrai de novo se a página mudou (até 4 chamadas por execução).',
+            'Uma vez por semana, relê a página oficial de planos das operadoras vistas há mais de 30 dias; a IA (sem busca na web) só extrai de novo se a página mudou (até 4 chamadas por execução).',
         },
         'lineups-pages': {
           label: 'Grade de canais: página oficial',
@@ -614,6 +614,21 @@ export default defineMessages(
         description: 'Gasto máximo de IA por país, por dia.',
         unit: 'US$',
       },
+      WTW_CHANNEL_WEEKLY_CRON: {
+        label: 'Canal do jogo: consulta semanal',
+        description:
+          'Quando pesquisar o canal dos jogos das rodadas que começam de 3 a 10 dias à frente (a escala sai pelo menos uma semana antes). Uma pesquisa cobre a rodada inteira; jogo com canal confirmado não volta à pesquisa. Padrão: segunda às 06:00 UTC.',
+      },
+      WTW_CHANNEL_RETRY_OFFSETS: {
+        label: 'Canal do jogo: novas tentativas',
+        description:
+          'Quanto antes do primeiro jogo da rodada tentar de novo, só para os jogos que seguem sem canal confirmado no mercado (ex.: 3d,1d ou 36h; off desliga). A maior também define onde a consulta semanal começa.',
+      },
+      WTW_CHANNEL_POST: {
+        label: 'Canal do jogo: depois do jogo',
+        description:
+          'Confirma quem transmitiu os jogos encerrados que ficaram sem canal (até 72 horas depois). Também alimenta o onde assistir dos jogos encerrados.',
+      },
       AI_RIGHTS_PROVIDER: {
         label: 'Fonte do Onde Assistir (IA)',
         description:
@@ -628,6 +643,18 @@ export default defineMessages(
         label: 'Revisão mínima da grade de canais',
         description:
           'Operadoras, planos e streamings do Onde Assistir só aparecem na API a partir deste status editorial (draft, reviewed ou approved).',
+      },
+      LINEUP_PROMPT_MAX_CHARS: {
+        label: 'Texto das páginas por plataforma (grade de canais)',
+        description:
+          'Para que serve: limita quanto texto das páginas de planos de uma plataforma vai para a IA em cada extração da grade de canais (pesquisa e revisita diária), dividido igualmente entre as páginas; controla o custo por chamada. Custo aproximado: cada 10 mil caracteres são ~2,5 mil tokens de entrada, ~US$ 0,00075 no Gemini Flash-Lite (~US$ 0,011 no padrão de 150 mil). Efeito colateral: o que passa do teto é cortado do fim da página e a IA não vê esses planos, preços e canais; a revisita não marca nada como removido e o corte aparece no log e no resumo da execução.',
+        unit: 'caracteres',
+      },
+      LINEUP_PAGE_MAX_CHARS: {
+        label: 'Texto de uma página (grade de canais)',
+        description:
+          'Teto de uma página sozinha na extração da grade de canais (pesquisa e revisita), dentro do teto por plataforma. O padrão é igual ao da plataforma: só limita quando é menor. O que passa é cortado do fim da página e a IA não vê esses planos e preços; o corte aparece no log e no resumo da execução.',
+        unit: 'caracteres',
       },
       YOUTUBE_SEARCH_DAILY_QUOTA: {
         label: 'Buscas por dia no YouTube',
@@ -1044,7 +1071,7 @@ export default defineMessages(
           'wtw-channel': {
             label: 'Where to Watch: match channel',
             description:
-              'Finds each match channel from the round schedule (5 days, 48 h and 6 h before) and confirms it after the match.',
+              'Finds each match channel from the round schedule: a weekly lookup, a new attempt 3 and 1 day before only for matches still without a channel and, after the match, only finished matches without one.',
           },
           'related-run': {
             label: 'Related videos',
@@ -1063,7 +1090,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Channel lineups: revisit',
             description:
-              'Re-reads the official plans page of operators seen more than 30 days ago; the AI (no web search) only extracts again when the page changed (up to 4 calls per run).',
+              'Once a week, re-reads the official plans page of operators seen more than 30 days ago; the AI (no web search) only extracts again when the page changed (up to 4 calls per run).',
           },
           'lineups-pages': {
             label: 'Channel lineup: official page',
@@ -1338,6 +1365,21 @@ export default defineMessages(
           description: 'Maximum AI spend per country, per day.',
           unit: 'US$',
         },
+        WTW_CHANNEL_WEEKLY_CRON: {
+          label: 'Match channel: weekly lookup',
+          description:
+            'When to research the channel of matches in rounds starting 3 to 10 days ahead (schedules come out at least a week before). One lookup covers the whole round; a match with a confirmed channel is never researched again. Default: Monday at 06:00 UTC.',
+        },
+        WTW_CHANNEL_RETRY_OFFSETS: {
+          label: 'Match channel: new attempts',
+          description:
+            'How long before the first match of the round to try again, only for matches still without a confirmed channel in the market (e.g. 3d,1d or 36h; off disables). The largest one also sets where the weekly lookup starts.',
+        },
+        WTW_CHANNEL_POST: {
+          label: 'Match channel: after the match',
+          description:
+            'Confirms who aired the finished matches left without a channel (up to 72 hours later). It also feeds Where to Watch for finished matches.',
+        },
         AI_RIGHTS_PROVIDER: {
           label: 'Where to Watch source (AI)',
           description:
@@ -1352,6 +1394,18 @@ export default defineMessages(
           label: 'Minimum review of the channel lineup',
           description:
             'Operators, plans and streaming services in Where to Watch only reach the API from this editorial status on (draft, reviewed or approved).',
+        },
+        LINEUP_PROMPT_MAX_CHARS: {
+          label: 'Page text per platform (channel lineup)',
+          description:
+            "What it does: caps how much text from a platform's plan pages goes to the AI in each channel lineup extraction (research and the daily revisit), split evenly across the pages; it controls the cost per call. Approximate cost: every 10,000 characters are ~2,500 input tokens, ~US$ 0.00075 on Gemini Flash-Lite (~US$ 0.011 at the 150,000 default). Side effect: whatever goes past the cap is cut from the end of the page and the AI does not see those plans, prices and channels; the revisit marks nothing as removed and the cut shows in the log and in the run summary.",
+          unit: 'characters',
+        },
+        LINEUP_PAGE_MAX_CHARS: {
+          label: 'Text of one page (channel lineup)',
+          description:
+            'Cap for a single page in the channel lineup extraction (research and revisit), within the per-platform cap. The default equals the platform cap: it only limits when lower. Whatever goes past it is cut from the end of the page and the AI does not see those plans and prices; the cut shows in the log and in the run summary.',
+          unit: 'characters',
         },
         YOUTUBE_SEARCH_DAILY_QUOTA: {
           label: 'YouTube searches per day',
@@ -1776,7 +1830,7 @@ export default defineMessages(
           'wtw-channel': {
             label: 'Dónde ver: canal del partido',
             description:
-              'Descubre el canal de cada partido por la programación de la fecha (5 días, 48 h y 6 h antes) y lo confirma después.',
+              'Descubre el canal de cada partido por la programación de la fecha: consulta semanal, nuevo intento 3 y 1 día antes solo para los que siguen sin canal y, después del partido, solo los terminados sin canal.',
           },
           'related-run': {
             label: 'Videos relacionados',
@@ -1795,7 +1849,7 @@ export default defineMessages(
           'lineups-revisit': {
             label: 'Grilla de canales: revisión',
             description:
-              'Vuelve a leer la página oficial de planes de los operadores vistos hace más de 30 días; la IA (sin búsqueda web) solo extrae de nuevo si la página cambió (hasta 4 llamadas por ejecución).',
+              'Una vez por semana, vuelve a leer la página oficial de planes de los operadores vistos hace más de 30 días; la IA (sin búsqueda web) solo extrae de nuevo si la página cambió (hasta 4 llamadas por ejecución).',
           },
           'lineups-pages': {
             label: 'Grilla de canales: página oficial',
@@ -2075,6 +2129,21 @@ export default defineMessages(
           description: 'Gasto máximo de IA por país, por día.',
           unit: 'US$',
         },
+        WTW_CHANNEL_WEEKLY_CRON: {
+          label: 'Canal del partido: consulta semanal',
+          description:
+            'Cuándo investigar el canal de los partidos de las fechas que empiezan de 3 a 10 días adelante (la programación sale al menos una semana antes). Una consulta cubre la fecha entera; un partido con canal confirmado no vuelve a investigarse. Predeterminado: lunes a las 06:00 UTC.',
+        },
+        WTW_CHANNEL_RETRY_OFFSETS: {
+          label: 'Canal del partido: nuevos intentos',
+          description:
+            'Cuánto antes del primer partido de la fecha intentar de nuevo, solo para los partidos que siguen sin canal confirmado en el mercado (ej.: 3d,1d o 36h; off desactiva). El mayor también define dónde empieza la consulta semanal.',
+        },
+        WTW_CHANNEL_POST: {
+          label: 'Canal del partido: después del partido',
+          description:
+            'Confirma quién transmitió los partidos terminados que quedaron sin canal (hasta 72 horas después). También alimenta Dónde ver de los partidos terminados.',
+        },
         AI_RIGHTS_PROVIDER: {
           label: 'Fuente de Dónde ver (IA)',
           description:
@@ -2089,6 +2158,18 @@ export default defineMessages(
           label: 'Revisión mínima de la grilla de canales',
           description:
             'Operadoras, planes y streamings de Dónde ver solo llegan a la API desde este estado editorial (draft, reviewed o approved).',
+        },
+        LINEUP_PROMPT_MAX_CHARS: {
+          label: 'Texto de las páginas por plataforma (grilla de canales)',
+          description:
+            'Para qué sirve: limita cuánto texto de las páginas de planes de una plataforma va a la IA en cada extracción de la grilla de canales (investigación y revisita diaria), dividido en partes iguales entre las páginas; controla el costo por llamada. Costo aproximado: cada 10 mil caracteres son ~2,5 mil tokens de entrada, ~US$ 0,00075 en Gemini Flash-Lite (~US$ 0,011 con el valor por defecto de 150 mil). Efecto secundario: lo que pasa del tope se corta del final de la página y la IA no ve esos planes, precios y canales; la revisita no marca nada como eliminado y el corte aparece en el log y en el resumen de la ejecución.',
+          unit: 'caracteres',
+        },
+        LINEUP_PAGE_MAX_CHARS: {
+          label: 'Texto de una página (grilla de canales)',
+          description:
+            'Tope de una sola página en la extracción de la grilla de canales (investigación y revisita), dentro del tope por plataforma. El valor por defecto es igual al de la plataforma: solo limita cuando es menor. Lo que pasa se corta del final de la página y la IA no ve esos planes y precios; el corte aparece en el log y en el resumen de la ejecución.',
+          unit: 'caracteres',
         },
         YOUTUBE_SEARCH_DAILY_QUOTA: {
           label: 'Búsquedas por día en YouTube',

@@ -5,6 +5,8 @@
  *   pnpm --filter @galaxie/ingestor multisport:wikidata --type PAN --from 1995 --to 2023
  *   pnpm --filter @galaxie/ingestor multisport:wikidata --refresh            # ignora o cache do raw
  *   pnpm --filter @galaxie/ingestor multisport:wikidata --max-age-days 30   # cache vale 30 dias
+ *   pnpm --filter @galaxie/ingestor multisport:wikidata --aceitar-queda     # remove mesmo com a fonte vazia/menor
+ * Fonte vazia ou com menos da metade do gravado numa edição: nada é removido e o motivo é relatado.
  * Requisições sequenciais, com intervalo mínimo e novas tentativas; respostas brutas ficam em raw.api_response
  * (provider = wikidata), então rodar de novo não volta ao endpoint.
  */
@@ -50,7 +52,10 @@ try {
     cacheMaxAgeMs: typeof maxAgeDays === 'string' ? Number(maxAgeDays) * 86_400_000 : null,
     log: (m) => console.log(m),
   });
-  const loader = new WikidataMedalLoader(db, client, { log: (m) => console.log(m) });
+  const loader = new WikidataMedalLoader(db, client, {
+    log: (m) => console.log(m),
+    allowDrop: args.has('aceitar-queda'),
+  });
 
   await seedWikipediaReferences(db);
   const summary = [];
@@ -71,6 +76,7 @@ try {
       'ref. delegações': r.delegationReferences,
       cobertura: pct(r.coverage),
       qualidade: r.quality,
+      remoção: r.removalSkipped.length ? 'não feita' : 'ok',
       's ': Math.round((Date.now() - t0) / 1000),
     });
     console.log(

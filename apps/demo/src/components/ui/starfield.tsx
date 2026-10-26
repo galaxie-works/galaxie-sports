@@ -49,7 +49,7 @@ export function StarfieldBackground({
     canvas.width = width
     canvas.height = height
 
-    let animationId: number
+    let animationId = 0
     let tick = 0
 
     const _centerX = width / 2
@@ -76,11 +76,28 @@ export function StarfieldBackground({
       canvas.height = height
     }
 
-    const ro = new ResizeObserver(handleResize)
+    // Movimento reduzido no sistema: um quadro parado, sem loop (alterna se a preferência mudar).
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)")
+
+    const ro = new ResizeObserver(() => {
+      handleResize()
+      if (reduce.matches) drawStill()
+    })
     ro.observe(container)
 
     // Animation
     const animate = () => {
+      draw(true)
+      animationId = requestAnimationFrame(animate)
+    }
+
+    const drawStill = () => {
+      ctx.fillStyle = "#0a0a0f"
+      ctx.fillRect(0, 0, width, height)
+      draw(false)
+    }
+
+    const draw = (move: boolean) => {
       tick++
 
       // Fade effect for trails
@@ -92,7 +109,7 @@ export function StarfieldBackground({
 
       for (const star of stars) {
         // Move star toward camera
-        star.z -= speed * 2
+        if (move) star.z -= speed * 2
 
         // Reset if passed camera
         if (star.z <= 0) {
@@ -128,7 +145,7 @@ export function StarfieldBackground({
         ctx.fill()
 
         // Draw subtle streak for fast/close stars
-        if (star.z < maxDepth * 0.3 && speed > 0.3) {
+        if (move && star.z < maxDepth * 0.3 && speed > 0.3) {
           const streakLength = (1 - star.z / maxDepth) * speed * 8
           const angle = Math.atan2(star.y, star.x)
           ctx.beginPath()
@@ -142,17 +159,24 @@ export function StarfieldBackground({
       }
 
       ctx.globalAlpha = 1
-      animationId = requestAnimationFrame(animate)
+    }
+
+    const sync = () => {
+      cancelAnimationFrame(animationId)
+      if (reduce.matches) drawStill()
+      else animationId = requestAnimationFrame(animate)
     }
 
     // Initial clear
     ctx.fillStyle = "#0a0a0f"
     ctx.fillRect(0, 0, width, height)
 
-    animationId = requestAnimationFrame(animate)
+    sync()
+    reduce.addEventListener("change", sync)
 
     return () => {
       cancelAnimationFrame(animationId)
+      reduce.removeEventListener("change", sync)
       ro.disconnect()
     }
   }, [count, speed, starColor, twinkle])

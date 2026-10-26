@@ -42,6 +42,7 @@ const cand = (over: Partial<TeamCandidate>): TeamCandidate => ({
 const player = (over: Partial<TeamPlayer>): TeamPlayer => ({
   qid: 'Q1',
   birthDate: '2004-03-10',
+  birthPrecision: 11,
   labels: ['Juan Durán'],
   countries: ['Colombia'],
   image: 'Juan Duran.jpg',
@@ -358,6 +359,7 @@ describe('casamento estrito pelo time no Wikidata', () => {
       player: { type: 'uri' as const, value: 'http://www.wikidata.org/entity/Q1' },
       team: { type: 'uri' as const, value: `http://www.wikidata.org/entity/${team}` },
       birth: { type: 'literal' as const, value: '2004-03-10T00:00:00Z' },
+      prec: { type: 'literal' as const, value: '11' },
       label: { type: 'literal' as const, value: label },
       ...(country ? { country: { type: 'literal' as const, value: country } } : {}),
       ...(image
@@ -376,6 +378,7 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(p).toEqual({
       qid: 'Q1',
       birthDate: '2004-03-10',
+      birthPrecision: 11,
       labels: ['Juan Durán', 'Juan Duran'],
       countries: ['Colombia', 'Spain'],
       image: 'Juan Durán.jpg',
@@ -385,5 +388,69 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(nationalityOf({ ...p!, countries: ['Colombia'] })).toBe('Colombia');
     expect(asPhotoMatch({ candidate: cand({}), player: { ...p!, image: null } })).toBeNull();
     expect(teamPlayersQuery(['Q100'])).toContain('YEAR(?end) >= 2026');
+  });
+
+  it('nascimento com a precisão e do melhor rank; data só com o ano fica no casamento, sem ser exata', () => {
+    const q = teamPlayersQuery(['Q100']);
+    expect(q).toContain('wikibase:timePrecision ?prec');
+    expect(q).toContain('?bst a wikibase:BestRank');
+    expect(q).not.toContain('wdt:P569');
+    const row = (prec: string, birth = '2004-01-01', qid = 'Q1') => ({
+      player: { type: 'uri' as const, value: `http://www.wikidata.org/entity/${qid}` },
+      team: { type: 'uri' as const, value: 'http://www.wikidata.org/entity/Q100' },
+      birth: { type: 'literal' as const, value: `${birth}T00:00:00Z` },
+      label: { type: 'literal' as const, value: 'Juan Durán' },
+      prec: { type: 'literal' as const, value: prec },
+    });
+    // 9 = ano: o jogador fica, com a precisão
+    expect(teamPlayers([row('9')]).map((p) => [p.birthDate, p.birthPrecision])).toEqual([['2004-01-01', 9]]);
+    // duas datas de melhor rank: a mais precisa; duas diferentes com o dia, nenhuma é exata
+    expect(teamPlayers([row('9'), row('11', '2004-03-10')])[0]).toMatchObject({
+      birthDate: '2004-03-10',
+      birthPrecision: 11,
+    });
+    expect(teamPlayers([row('11', '2004-03-10'), row('11', '2004-05-02')])[0]!.birthPrecision).toBe(10);
+  });
+
+  it('homônimo com nascimento só no ano no mesmo time: ambíguo, não liga o outro', () => {
+    const exact = player({ qid: 'Q1' });
+    const yearOnly = player({ qid: 'Q2', birthDate: '2004-01-01', birthPrecision: 9 });
+    expect(matchByTeam([cand({})], [exact, yearOnly], teams)).toMatchObject({ matches: [], ambiguous: 1 });
+    // sozinho, o de data só no ano liga (o QID e a nacionalidade; o nascimento não é gravado)
+    expect(matchByTeam([cand({})], [yearOnly], teams).matches.map((m) => m.player.qid)).toEqual(['Q2']);
+    // idade muito longe nem com o ano
+    expect(
+      matchByTeam([cand({})], [player({ birthDate: '1990-01-01', birthPrecision: 9 })], teams).matches,
+    ).toEqual([]);
+  });
+
+  it('país dos dois lados para resolver o time: sem país no core ou sem P17 no item, não resolve', () => {
+    const t = (country: string | null) => ({ providerId: '1', name: 'Nacional', country, leagues: [] });
+    const uy = new Map([['Q1', item({ label: 'Nacional', countries: ['Uruguay'] })]]);
+    expect(resolveTeam(t('Uruguay'), ['Q1'], uy)).toEqual({ qid: 'Q1' });
+    // homônimo de outro país passaria com o país ausente de um dos lados
+    expect(resolveTeam(t(null), ['Q1'], uy)).toEqual({ none: true });
+    const semPais = new Map([['Q2', item({ label: 'Nacional', countries: [] })]]);
+    expect(resolveTeam(t('Colombia'), ['Q2'], semPais)).toEqual({ none: true });
+  });
+
+  it('o item "first team" só perde para o clube quando o clube está entre os candidatos', () => {
+    const t = { providerId: '1', name: 'Heidenheim', country: 'Germany', leagues: [] };
+    const items = new Map([
+      [
+        'Q97927357',
+        item({
+          label: 'Heidenheim',
+          types: ['Q103229495'],
+          description: "first men's team of 1. FC Heidenheim",
+          countries: ['Germany'],
+          partOf: ['Q162251'],
+        }),
+      ],
+      // outro clube do país, sem o nome exato; o clube pai (Q162251) não veio na busca
+      ['Q555', item({ label: 'SC Heidenheim 1911', countries: ['Germany'] })],
+    ]);
+    // antes, o "first team" saía e o outro clube ficava como resolução única
+    expect(resolveTeam(t, ['Q97927357', 'Q555'], items)).toEqual({ qid: 'Q97927357' });
   });
 });

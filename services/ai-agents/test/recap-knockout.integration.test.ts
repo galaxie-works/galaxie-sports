@@ -11,10 +11,14 @@ import { disposableDb, idOf, ingest, seedCatalog, syntheticFixture } from './hel
 const env = disposableDb();
 let db: Database;
 let secondLeg: string;
+let cupFirstRound: string;
 
 const LIB = { id: 13, name: 'CONMEBOL Libertadores', country: 'World', season: 2026 };
 const PAL = { id: 121, name: 'Palmeiras' };
 const FLU = { id: 124, name: 'Fluminense' };
+const CDB = { id: 73, name: 'Copa Do Brasil', country: 'Brazil', season: 2026 };
+const MANDANTE = { id: 7301, name: 'Mandante FC' };
+const VISITANTE = { id: 7302, name: 'Visitante EC' };
 
 /** Volta: Palmeiras 0 × 1 Fluminense, 5 × 3 nos pênaltis, no estádio que o fornecedor ainda chama de Allianz Parque. */
 function secondLegFixture() {
@@ -55,6 +59,7 @@ beforeAll(async () => {
       type: 'cup',
       country: 'WORLD',
     },
+    { slug: 'copa-do-brasil', name: 'Copa do Brasil', leagueId: 73, tier: 1, type: 'cup', country: 'BR' },
   ]);
   await ingest(
     db,
@@ -69,10 +74,21 @@ beforeAll(async () => {
         goals: { home: 1, away: 2 },
       }),
       secondLegFixture(),
+      // Copa do Brasil, 1ª fase: jogo único, o visitante avança com o empate (draw_advantage: away)
+      syntheticFixture({
+        id: 7311,
+        league: { ...CDB, round: '1st Round' },
+        date: '2026-10-20T22:00:00Z',
+        home: MANDANTE,
+        away: VISITANTE,
+        status: 'FT',
+        goals: { home: 1, away: 1 },
+      }),
     ],
     new Date('2026-10-21T03:00:00Z'),
   );
   secondLeg = await idOf(db, 'event', 9302);
+  cupFirstRound = await idOf(db, 'event', 7311);
   // reconciliação da base semântica (pnpm db:seed:semantic) já ligou o estádio ao nome curado
   const [ev] = await db.select({ venueId: event.venueId }).from(event).where(eq(event.id, secondLeg));
   await db
@@ -134,5 +150,32 @@ describe('Resumo de mata-mata (integração)', () => {
         'Fim de jogo: Palmeiras 0 x 1 Fluminense; nos pênaltis, Palmeiras venceu por 5 x 3.',
     );
     expect(by.get('es-AR')).toMatch(/^Palmeiras se clasificó a la final; la serie quedó 2-2 en el global/);
+  });
+
+  it('fase numerada de copa ("1st Round"): o regulamento da fase vale e o empate classifica o visitante', async () => {
+    const down = new FakeLlmClient(() => new Error('fora do ar'));
+    await onEventFinished(db, cupFirstRound, down, { force: true, locales: ['pt-BR', 'es-AR'] });
+    const facts = JSON.parse(
+      down.requests[0]!.messages[0]!.content.split('\n').slice(2).join('\n'),
+    ) as Record<string, unknown>;
+    expect(facts['tie']).toEqual({
+      legs: 1,
+      leg: null,
+      first_leg: null,
+      aggregate: null,
+      winner: 'away',
+      decided_by: 'draw_advantage',
+      outcome: 'advances',
+      next_stage: 'next_round',
+    });
+    const rows = await readEventContext(db, cupFirstRound, { kinds: ['recap'], locales: ['pt-BR', 'es-AR'] });
+    const by = new Map(rows.map((r) => [r.locale, r.content]));
+    expect(by.get('pt-BR')!.text).toMatch(
+      /^Visitante EC se classificou para a próxima fase; o empate bastava pelo regulamento\. Fim de jogo: Mandante FC 1 x 1 Visitante EC/,
+    );
+    expect(by.get('es-AR')!.text).toMatch(
+      /^Visitante EC se clasificó a la siguiente fase; el empate le alcanzaba/,
+    );
+    expect(by.get('pt-BR')!.fallbackViolations).toBeUndefined();
   });
 });

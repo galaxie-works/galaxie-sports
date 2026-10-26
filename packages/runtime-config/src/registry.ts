@@ -93,7 +93,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
-  { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * *', runNow: false },
+  { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * 1', runNow: false },
   { name: 'lineups-pages', service: 'agents', cron: '20 5 * * *', runNow: false },
   { name: 'channel-lists', service: 'agents', cron: '*/10 * * * *', runNow: true },
 ];
@@ -152,6 +152,11 @@ export const AI_DEFAULT_MODELS = {
 } as const;
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
+
+/** Uma retentativa do canal do jogo: 1–14 dias ou 1–336 horas. */
+const RETRY_OFFSET = '(?:(?:[1-9]|1[0-4])d|(?:[1-9]\\d?|[12]\\d\\d|3[0-2]\\d|33[0-6])h)';
+/** WTW_CHANNEL_RETRY_OFFSETS: `3d,1d`, `36h`, `3d, 12h` ou `off`. */
+export const RETRY_OFFSETS_PATTERN = new RegExp(`^(off|${RETRY_OFFSET}(\\s*,\\s*${RETRY_OFFSET})*)$`);
 
 /**
  * AI_AGENT_USD_BUDGETS: `agente=US$` separados por vírgula (agente = prefixo do `purpose` em
@@ -359,6 +364,19 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
   }),
   agents('wtw', { key: 'AI_RIGHTS_MODEL', type: 'text', pattern: MODEL_ID, allowEmpty: true, default: null }),
+  // momentos do canal do jogo (wtw-channel roda a cada 10 min; estes decidem quando há pesquisa):
+  // consulta semanal das rodadas de 3 a 10 dias à frente, retentativas só para quem segue sem canal
+  // confirmado e pós-jogo dos encerrados sem canal (services/ai-agents/src/wtw/channel/windows.ts)
+  agents('wtw', { key: 'WTW_CHANNEL_WEEKLY_CRON', type: 'cron', default: '0 6 * * 1', critical: true }),
+  agents('wtw', {
+    key: 'WTW_CHANNEL_RETRY_OFFSETS',
+    type: 'text',
+    // `3d,1d` ou horas (`36h`), de 1 h a 14 d; `off` = sem retentativas (espelho de parseRetryOffsets)
+    pattern: RETRY_OFFSETS_PATTERN,
+    default: '3d,1d',
+    critical: true,
+  }),
+  agents('wtw', { key: 'WTW_CHANNEL_POST', type: 'enum', options: ['off', 'on'], default: 'on' }),
   agents('wtw', {
     key: 'WTW_DAILY_USD_PER_MARKET',
     type: 'number',
@@ -380,6 +398,25 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'restart',
     default: 'approved',
   },
+  // texto das páginas de planos que a pesquisa e a revisita da grade (lineups) mandam ao modelo na
+  // extração: por plataforma (dividido entre as páginas) e por página; o que passa é cortado do fim
+  // (services/ai-agents/src/lineups/prompt.ts, LINEUP_PROMPT_LIMITS)
+  agents('wtw', {
+    key: 'LINEUP_PROMPT_MAX_CHARS',
+    type: 'int',
+    min: 10_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
+  agents('wtw', {
+    key: 'LINEUP_PAGE_MAX_CHARS',
+    type: 'int',
+    min: 5_000,
+    max: 600_000,
+    default: '150000',
+    critical: true,
+  }),
 
   // ── Conteúdo relacionado ────────────────────────────────────────────────────────────────────
   // dois baldes da YouTube Data API: busca (consultas/dia) e geral (unidades/dia) — related/budget.ts

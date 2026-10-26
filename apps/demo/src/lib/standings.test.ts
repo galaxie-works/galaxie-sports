@@ -38,6 +38,9 @@ describe('zoneClass', () => {
     expect(zoneClass('Promotion - Copa Sudamericana (Group Stage: )')).toBe('bg-orange-500');
     expect(zoneClass('Promotion - Champions League (Qualification: )')).toBe('bg-sky-400');
     expect(zoneClass('Relegation')).toBe('bg-destructive');
+    // uma palavra só, sem ser código da regra: ainda é o texto do fornecedor
+    expect(zoneClass('Rebaixamento')).toBe('bg-destructive');
+    expect(zoneClass('Descenso')).toBe('bg-destructive');
   });
 
   it('sem descrição não pinta; zona desconhecida fica neutra', () => {

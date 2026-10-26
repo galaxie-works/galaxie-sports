@@ -10,13 +10,17 @@ import { parseArgs } from 'node:util';
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { closeDb, competition, participant, relatedChannel, youtubeChannel } from '@galaxie/db';
 import { loadWtwConfig } from '@galaxie/where-to-watch';
-import { CHANNEL_CACHE_DAYS, ChannelBook } from '../related/channel-map.js';
+import {
+  CHANNEL_CACHE_DAYS,
+  ChannelBook,
+  configChannelRows,
+  staleConfigChannels,
+} from '../related/channel-map.js';
 import {
   ALLOWLIST_MIN_SUBSCRIBERS,
   broadcasterChannelsFrom,
   loadChannelEntries,
 } from '../related/channels.js';
-import { normalizeText } from '../guardrails/index.js';
 import { YoutubeClient } from '../related/youtube.js';
 import { dbFromEnv } from './common.js';
 
@@ -65,12 +69,8 @@ try {
       (yt && missingHandles.length ? ` · não existem: ${missingHandles.join(', ')}` : ''),
   );
 
-  // 2. entrada → entidade (clube por nome e país, único; competição pelo slug; emissora pelo id do dicionário)
-  const norm = (s: string) =>
-    normalizeText(s)
-      .replace(/[^\p{L}\p{N} ]+/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+  // 2. entrada → entidade (clube por nome e país, único; competição pelo slug ou pela federação; emissora pelo
+  //    id do dicionário)
   const teams = await db
     .select({
       id: participant.id,
@@ -81,28 +81,7 @@ try {
     .from(participant)
     .where(eq(participant.kind, 'club'));
   const comps = await db.select({ id: competition.id, slug: competition.slug }).from(competition);
-  const rows: (typeof relatedChannel.$inferInsert)[] = [];
-  const unmatched: string[] = [];
-  for (const e of entries) {
-    const channelId = e.id ?? (e.handle ? idOf.get(e.handle) : undefined);
-    if (!channelId) continue;
-    const base = { channelId, source: 'config' as const, sourceRef: e.handle ?? e.id, country: e.country };
-    if (e.kind === 'club') {
-      const hits = teams.filter(
-        (t) =>
-          (!e.country || t.country === e.country) &&
-          [t.name, t.shortName].some((n) => n && e.label && norm(n) === norm(e.label)),
-      );
-      if (hits.length === 1) rows.push({ ...base, kind: 'club', participantId: hits[0]!.id });
-      else unmatched.push(`${e.label ?? e.handle} (${hits.length ? 'ambíguo' : 'sem time'})`);
-    } else if (e.kind === 'competition') {
-      const c = comps.find((x) => x.slug === e.label);
-      if (c) rows.push({ ...base, kind: 'competition', competitionId: c.id });
-      else unmatched.push(`${e.label} (sem competição)`);
-    } else if (e.kind === 'broadcaster' && e.broadcaster) {
-      rows.push({ ...base, kind: 'broadcaster', broadcasterId: e.broadcaster });
-    }
-  }
+  const { rows, unmatched } = configChannelRows(entries, { idOf, teams, comps });
   console.log(
     `Mapa da configuração: ${rows.length} canal(is)` +
       (unmatched.length ? ` · sem par: ${unmatched.join('; ')}` : ''),
@@ -121,6 +100,42 @@ try {
         ],
         set: { active: true, updatedAt: now },
       });
+  // o que saiu da configuração deixa de valer (nada é apagado); entrada que continua no arquivo e ficou sem
+  // par só vai para o log
+  const activeConfig = await db
+    .select({
+      id: relatedChannel.id,
+      channelId: relatedChannel.channelId,
+      kind: relatedChannel.kind,
+      participantId: relatedChannel.participantId,
+      competitionId: relatedChannel.competitionId,
+      broadcasterId: relatedChannel.broadcasterId,
+      sourceRef: relatedChannel.sourceRef,
+    })
+    .from(relatedChannel)
+    .where(and(eq(relatedChannel.source, 'config'), eq(relatedChannel.active, true)));
+  const configRefs = new Set(entries.flatMap((e) => [e.handle, e.id].filter((x): x is string => !!x)));
+  const { gone: removed, unmatched: kept } = staleConfigChannels(activeConfig, rows, configRefs);
+  if (!values.plan && removed.length)
+    await db
+      .update(relatedChannel)
+      .set({ active: false, updatedAt: now })
+      .where(
+        inArray(
+          relatedChannel.id,
+          removed.map((r) => r.id),
+        ),
+      );
+  if (removed.length)
+    console.log(
+      `${values.plan ? 'Desativaria' : 'Desativados'} (fora da configuração): ` +
+        removed.map((r) => r.sourceRef ?? r.channelId).join(', '),
+    );
+  if (kept.length)
+    console.log(
+      `Continuam ativos (na configuração, sem par nesta execução; confira): ` +
+        kept.map((r) => r.sourceRef).join(', '),
+    );
 
   // 3. confere no YouTube os canais do mapa (playlist de uploads e inscritos; 1 unidade por 50)
   const mapped = await db

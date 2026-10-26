@@ -189,6 +189,7 @@ flowchart LR
 - `pnpm dev --filter demo` aponta para a API local (Docker Compose) carregada com um **snapshot** do raw → a demo roda **sem gastar nenhuma chamada** do fornecedor.
 - Variáveis: `NEXT_PUBLIC_GALAXIE_API_URL`, `GALAXIE_DEMO_KEY` e, opcionais, `NEXT_PUBLIC_GALAXIE_DOCS_API_URL` (URL da API nos exemplos da documentação e no componente instalado pelo registry) e `NEXT_PUBLIC_GALAXIE_REGISTRY_URL` (domínio do comando `npx shadcn add`; padrão `https://sports.galaxie.works`).
 - Deploy da demo: mesma VPS da API (stack Portainer) ou Vercel apontando para a API pública.
+- Login: só código por e-mail, com bloqueio temporário contra força bruta e o desbloqueio pelo painel ou pelo banco: [runbooks/demo-login.md](runbooks/demo-login.md).
 
 ### 2.4 Página pública e exemplo navegável
 

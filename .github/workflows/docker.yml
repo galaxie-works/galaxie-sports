@@ -301,6 +301,18 @@ jobs:
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
 
+      - name: Página de manutenção (rótulo de revisão bate com o conteúdo das configs)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \
+            | node infra/vps-telemetry/maintenance-rev.mjs
+
+      - name: Página de manutenção (Caddyfile)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \
+            | jq -r '.configs["maintenance-caddyfile"].content' > "$RUNNER_TEMP/Caddyfile.maintenance"
+          docker run --rm -v "$RUNNER_TEMP/Caddyfile.maintenance:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
   backup-restore:
     name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})
     runs-on: ubuntu-latest

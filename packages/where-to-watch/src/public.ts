@@ -13,7 +13,7 @@ import {
   type MatchChannelState,
   type MatchPhase,
 } from './match-channel.js';
-import { isHttpUrl } from './normalize.js';
+import { isHttpUrl, normalizeName } from './normalize.js';
 import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
 import { effectiveRights } from './rights.js';
@@ -198,7 +198,12 @@ export async function getPublicWhereToWatch(
     (m) => m.status === 'confirmed',
   );
   const promoted = await promoteMatchChannels(db, rows, matchChannels, config?.has(country) ? config : null);
-  const confirmed = [...rows.filter((r) => r.status === 'confirmed' && inRegion(r)), ...promoted].sort(order);
+  const confirmed = [
+    ...rows
+      .filter((r) => r.status === 'confirmed' && inRegion(r))
+      .map((r) => withMatchChannel(r, matchChannels)),
+    ...promoted,
+  ].sort(order);
   // "a confirmar" só aparece enquanto nenhuma opção estiver confirmada
   const probable = confirmed.length
     ? []
@@ -333,6 +338,21 @@ async function promoteMatchChannels(
   });
 }
 
+/**
+ * Opção publicada cuja emissora tem canal do jogo confirmado (enrich.match_channel) com outro canal:
+ * vale o canal do jogo, que é o que a fonte exibida (`match_channel.channels[].source`) sustenta —
+ * senão nome e fonte se contradizem ("SporTV 2" com a fonte que diz "SporTV 3"). Só nas opções
+ * nacionais (as regionais trazem a afiliada no nome do canal).
+ */
+function withMatchChannel(row: BroadcastOptionRow, channels: MatchChannelRow[]): BroadcastOptionRow {
+  if (row.region !== null || !row.broadcasterId || isEditorial(row)) return row;
+  const m = channels.find((c) => c.broadcasterId === row.broadcasterId);
+  if (!m?.channelName || sameChannel(m.channelName, row.channelName)) return row;
+  return { ...row, channelName: m.channelName };
+}
+
+const sameChannel = (a: string | null, b: string | null) => normalizeName(a ?? '') === normalizeName(b ?? '');
+
 /** Meio a partir do tipo da biblioteca (só quando o dicionário do país não diz). */
 const MEDIUM_OF_KIND: Record<string, BroadcastMedium> = {
   free_tv: 'free_tv',
@@ -361,7 +381,9 @@ function confirmedChannels(options: PublicOption[], channels: MatchChannelRow[])
     if (seen.has(key)) continue;
     seen.add(key);
     const m = option.row.broadcasterId ? byBroadcaster.get(option.row.broadcasterId) : undefined;
-    const source: ConfirmedChannelSource | null = m
+    // a fonte do canal do jogo só quando ela sustenta o canal exibido (a editoria pode ter outro)
+    const fromMatch = !!m && (!m.channelName || sameChannel(m.channelName, option.row.channelName));
+    const source: ConfirmedChannelSource | null = fromMatch
       ? {
           url: m.sourceUrl,
           publisher: m.sourcePublisher,

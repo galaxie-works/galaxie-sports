@@ -16,6 +16,8 @@ export default defineMessages(
       emptyDescription:
         'Assim que um evento começar, ele aparece aqui sozinho, com placar e relógio atualizados.',
       upcoming: 'A seguir',
+      upcomingErrorTitle: 'Não foi possível carregar o que vem a seguir',
+      upcomingErrorDescription: 'A API não respondeu à busca dos próximos eventos.',
       noCompetition: 'Sem competição',
     },
     filters: {
@@ -269,6 +271,8 @@ export default defineMessages(
         emptyDescription:
           'As soon as an event starts, it shows up here on its own, with live score and clock.',
         upcoming: 'Up next',
+        upcomingErrorTitle: "Couldn't load what's up next",
+        upcomingErrorDescription: "The API didn't respond to the upcoming events request.",
         noCompetition: 'No competition',
       },
       filters: {
@@ -518,6 +522,8 @@ export default defineMessages(
         emptyDescription:
           'Apenas empiece un evento, aparece acá solo, con el resultado y el reloj actualizados.',
         upcoming: 'A continuación',
+        upcomingErrorTitle: 'No pudimos cargar lo que viene a continuación',
+        upcomingErrorDescription: 'La API no respondió a la búsqueda de los próximos eventos.',
         noCompetition: 'Sin competencia',
       },
       filters: {
