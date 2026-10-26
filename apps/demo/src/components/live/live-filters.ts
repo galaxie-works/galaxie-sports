@@ -220,6 +220,31 @@ export function upcomingScopes(
   return { base, targeted: [] };
 }
 
+/** O que `combineUpcoming` lê de cada busca de próximos (resultado do `useQueries`). */
+export interface UpcomingResult {
+  data?: Event[];
+  isPending: boolean;
+  isError: boolean;
+  refetch: () => unknown;
+}
+
+/**
+ * Junta o resultado de várias buscas de próximos. As que falharam não entram em `data`, mas marcam
+ * `error`: sem nada para mostrar, a seção avisa do erro em vez de dizer que nenhum jogo bate com os
+ * filtros. `retry` refaz só as que falharam.
+ */
+export function combineUpcoming(results: UpcomingResult[]) {
+  const failed = results.filter((r) => r.isError);
+  return {
+    data: results.flatMap((r) => r.data ?? []),
+    pending: results.some((r) => r.isPending),
+    error: failed.length > 0,
+    retry: () => {
+      for (const r of failed) void r.refetch();
+    },
+  };
+}
+
 export interface UpcomingGroup {
   sport: string;
   /** Jogos do esporte que passaram nos filtros (o total, antes do corte de exibição). */

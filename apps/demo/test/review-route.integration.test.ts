@@ -311,6 +311,30 @@ describe('outros tipos', () => {
     expect(change.rowCount).toBeGreaterThan(0);
   });
 
+  it('decisão desatualizada (conteúdo mudou) com o YAML no mesmo status: aprovar grava o hash novo', async () => {
+    const id = 'team:flamengo';
+    expect((await post(id, { action: 'draft' })).status).toBe(200);
+    expect((await post(id, { action: 'approve' })).status).toBe(200);
+    // o conteúdo do item mudou depois da decisão (outro review_hash no catálogo)
+    await sql.query(`update semantic.review_decision set review_hash = 'hash-antigo' where item_id = $1`, [
+      id,
+    ]);
+    const { yaml_status: yaml, review_hash: hash } = (
+      await sql.query(`select yaml_status::text, review_hash from semantic.review_item where id = $1`, [id])
+    ).rows[0] as { yaml_status: string; review_hash: string };
+    expect(yaml).toBe('approved');
+    expect((await (await getItem(id)).json()).data).toMatchObject({ state: 'approved', stale: true });
+
+    expect(await (await post(id, { action: 'approve' })).json()).toEqual({
+      data: { state: 'approved', unchanged: false },
+    });
+    const decision = (
+      await sql.query(`select review_hash from semantic.review_decision where item_id = $1`, [id])
+    ).rows[0];
+    expect(decision.review_hash).toBe(hash);
+    expect((await (await getItem(id)).json()).data.stale).toBe(false);
+  });
+
   it('perfil editorial da F1: aprovar avisa o change feed e expira o cache da página do piloto', async () => {
     const { rows } = await sql.query(
       `select id, key from semantic.review_item where kind = 'editorial' order by id limit 1`,
@@ -331,5 +355,31 @@ describe('outros tipos', () => {
   it('item inexistente → 404', async () => {
     expect((await getItem('team:nao-existe')).status).toBe(404);
     expect((await post('team:nao-existe', { action: 'approve' })).status).toBe(404);
+  });
+});
+
+describe('conexão do pool da demo', () => {
+  it('Postgres encerrando conexões ociosas (restart, DROP ... WITH FORCE) não vira erro não tratado', async () => {
+    const { pool } = await import('../src/lib/auth/db');
+    // duas consultas simultâneas deixam duas conexões ociosas no pool
+    await Promise.all([pool.query('select pg_sleep(0.05)'), pool.query('select pg_sleep(0.05)')]);
+    expect(pool.idleCount).toBeGreaterThanOrEqual(2);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // o que o DROP DATABASE ... WITH FORCE do teardown ou um restart fazem: 57P01 em cada conexão
+      await sql.query(
+        `select pg_terminate_backend(pid) from pg_stat_activity
+          where datname = current_database() and pid <> pg_backend_pid() and backend_type = 'client backend'`,
+      );
+      await expect.poll(() => pool.totalCount, { timeout: 5_000 }).toBe(0);
+      expect(warn).toHaveBeenCalledWith(
+        '[demo-db] conexão ociosa do pool encerrada pelo Postgres',
+        expect.objectContaining({ code: '57P01' }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+    // o pool descartou as conexões mortas e reconecta na próxima consulta
+    expect((await pool.query<{ ok: number }>('select 1 as ok')).rows).toEqual([{ ok: 1 }]);
   });
 });

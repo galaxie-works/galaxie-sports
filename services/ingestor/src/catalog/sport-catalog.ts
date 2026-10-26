@@ -50,6 +50,11 @@ export interface SeasonCall {
   params: Params;
   /** Resposta que não muda mais (sessão encerrada há dias): o que já está no raw vale para sempre. */
   final?: boolean;
+  /**
+   * Com `final`: instante (ms) a partir do qual o resultado é definitivo. A resposta guardada antes dele (ainda
+   * podia ser corrigida) é buscada uma última vez em vez de valer para sempre.
+   */
+  finalAfter?: number;
 }
 
 export interface SportProfile {
@@ -430,6 +435,7 @@ export function f1ResultCalls(races: unknown, now: Date): SeasonCall[] {
     endpoint: '/rankings/races',
     params: { race: s.id },
     final: now.getTime() - s.date > F1_FINAL_AFTER_MS,
+    finalAfter: s.date + F1_FINAL_AFTER_MS,
   }));
 }
 
@@ -491,6 +497,7 @@ export function aflQuarterCalls(games: unknown, now: Date): SeasonCall[] {
     endpoint: '/games/quarters',
     params: { id: g.id },
     final: now.getTime() - g.date > AFL_FINAL_AFTER_MS,
+    finalAfter: g.date + AFL_FINAL_AFTER_MS,
   }));
 }
 

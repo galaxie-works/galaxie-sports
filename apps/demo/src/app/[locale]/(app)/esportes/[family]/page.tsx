@@ -27,6 +27,7 @@ import {
   familyHref,
   familySections,
   mergeFamilyCompetitions,
+  sortFamilyCompetitions,
   type SportFamily,
 } from '@/lib/sport-families';
 
@@ -44,8 +45,8 @@ const INTERNATIONAL = 'international';
 
 /**
  * Internacionais primeiro (Libertadores, Champions, Copa do Mundo), depois os países da navegação (na
- * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, os destaques (`featured`) na frente e
- * as nacionais antes das estaduais e regionais (`level`).
+ * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, as nacionais antes das estaduais e
+ * regionais (`level`) e, em cada nível, os destaques (`featured`) na frente (`sortFamilyCompetitions`).
  * Países do menu usam o nome do dicionário (o mesmo da sidebar); os demais, o que a API devolve.
  */
 function groupByCountry(
@@ -81,20 +82,8 @@ function groupByCountry(
   const rank = (g: { code: string | null }) =>
     g.code === null ? -1 : navOrder.has(g.code) ? navOrder.get(g.code)! : 200;
   return [...groups.values()]
-    .map((g) => ({ ...g, items: sortCompetitions(g.items, featured, locale) }))
+    .map((g) => ({ ...g, items: sortFamilyCompetitions(g.items, featured, locale) }))
     .sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label, locale));
-}
-
-function sortCompetitions(items: CompetitionSummary[], featured: Map<string, number>, locale: Locale) {
-  return [...items].sort(
-    (a, b) =>
-      (featured.get(a.slug) ?? Infinity) - (featured.get(b.slug) ?? Infinity) ||
-      // nacionais (Série A a D, Copa do Brasil) antes dos estaduais e regionais, na ordem editorial da API
-      Number(a.level === 'regional') - Number(b.level === 'regional') ||
-      (a.order ?? Infinity) - (b.order ?? Infinity) ||
-      a.tier - b.tier ||
-      a.name.localeCompare(b.name, locale),
-  );
 }
 
 /** Competições de todos os esportes da família, sem as repetidas entre as APIs. */
@@ -177,7 +166,7 @@ async function Content({
   const sections = sectionSports
     .map((sport) => ({
       sport,
-      items: sortCompetitions(lists.find((l) => l.sport === sport)?.items ?? [], featured, locale),
+      items: sortFamilyCompetitions(lists.find((l) => l.sport === sport)?.items ?? [], featured, locale),
     }))
     .filter((s) => s.items.length);
   const groups = groupByCountry(

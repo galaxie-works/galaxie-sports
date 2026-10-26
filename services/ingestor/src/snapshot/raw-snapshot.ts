@@ -1,12 +1,14 @@
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip, createGzip } from 'node:zlib';
-import { sql } from 'drizzle-orm';
+import { inArray, not, sql } from 'drizzle-orm';
 import { apiResponse, asset, type Database } from '@galaxie/db';
+import { MISSING_ASSET } from '../assets/placeholder-logos.js';
+import type { Tx } from '../normalize/sql-helpers.js';
 
 /**
  * Snapshot do raw (#20): NDJSON comprimido com gzip, uma linha por registro.
@@ -113,7 +115,10 @@ interface AssetRow {
   fetched_at: string | null;
 }
 
-/** Exporta raw.api_response (+ manifesto de core.asset) em streaming — não carrega o raw inteiro na memória. */
+/**
+ * Exporta raw.api_response (+ manifesto de core.asset) em streaming — não carrega o raw inteiro na memória.
+ * Grava em `<arquivo>.part` e renomeia no fim: export interrompido não vira o snapshot mais recente da pasta.
+ */
 export async function exportRawSnapshot(
   db: Database,
   file: string,
@@ -211,7 +216,14 @@ export async function exportRawSnapshot(
     yield `${JSON.stringify(end)}\n`;
   }
 
-  await pipeline(Readable.from(lines()), createGzip(), createWriteStream(file));
+  const part = `${file}.part`;
+  try {
+    await pipeline(Readable.from(lines()), createGzip(), createWriteStream(part));
+    await rename(part, file);
+  } catch (err) {
+    await rm(part, { force: true });
+    throw err;
+  }
   return { file, ...counts };
 }
 
@@ -232,9 +244,16 @@ export async function* readSnapshot(file: string): AsyncGenerator<SnapshotLine> 
 
 /**
  * Restaura um snapshot num banco (local): idempotente — um mesmo corpo para a mesma requisição
- * (request_hash + body_hash) não é inserido duas vezes. Assets: completa storage_key/sha256 sem apagar o que já existe.
+ * (request_hash + body_hash) não é inserido duas vezes. Assets: completa storage_key/sha256 sem apagar o que já
+ * existe, e o asset que o Asset Mirror deste banco já marcou como ausente (404, genérico) continua ausente.
+ * Tudo numa transação: snapshot truncado ou corrompido (sem a linha `end` ou com contagem diferente) não deixa
+ * nada gravado.
  */
 export async function importRawSnapshot(db: Database, file: string): Promise<ImportSnapshotResult> {
+  return db.transaction((tx) => importSnapshotLines(tx, file));
+}
+
+async function importSnapshotLines(db: Tx, file: string): Promise<ImportSnapshotResult> {
   const result: ImportSnapshotResult = { raw: 0, imported: 0, duplicates: 0, assets: 0 };
   let header: SnapshotHeader | undefined;
   let end: SnapshotEnd | undefined;
@@ -246,11 +265,11 @@ export async function importRawSnapshot(db: Database, file: string): Promise<Imp
     const batch = rawBatch;
     rawBatch = [];
     const hashes = [...new Set(batch.map((r) => r.requestHash))];
-    const existing = (await db.$client.unsafe(
-      `select request_hash, body_hash from raw.api_response where request_hash = any($1::text[])`,
-      [hashes] as never[],
-    )) as unknown as { request_hash: string; body_hash: string }[];
-    const seen = new Set(existing.map((e) => `${e.request_hash}|${e.body_hash}`));
+    const existing = await db
+      .select({ requestHash: apiResponse.requestHash, bodyHash: apiResponse.bodyHash })
+      .from(apiResponse)
+      .where(inArray(apiResponse.requestHash, hashes));
+    const seen = new Set(existing.map((e) => `${e.requestHash}|${e.bodyHash}`));
     const fresh: (typeof apiResponse.$inferInsert)[] = [];
     for (const r of batch) {
       const key = `${r.requestHash}|${r.bodyHash}`;
@@ -309,6 +328,8 @@ export async function importRawSnapshot(db: Database, file: string): Promise<Imp
           bytes: sql`coalesce(${asset.bytes}, excluded.bytes)`,
           fetchedAt: sql`coalesce(${asset.fetchedAt}, excluded.fetched_at)`,
         },
+        // ausente aqui (tentado e sem arquivo): o storage_key do snapshot religaria um logo que foi desligado
+        setWhere: not(MISSING_ASSET),
       });
     result.assets += batch.length;
   };

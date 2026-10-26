@@ -97,10 +97,10 @@ describe('scheduleFromEnv', () => {
     expect(() => jobsForProfile('api')).toThrow(/SCHEDULER_PROFILE inválido/);
   });
 
-  it('revisita a grade de canais e ofertas uma vez por dia, com teto de pesquisas por execução', () => {
+  it('revisita a grade de canais e ofertas uma vez por semana, com teto de pesquisas por execução', () => {
     const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-revisit')!;
     expect(job).toMatchObject({
-      cron: '50 4 * * *',
+      cron: '50 4 * * 1',
       script: 'dist/cli/lineups-research.js',
       cwd: '../ai-agents',
       args: ['--revisitar', '--dias', '30', '--max', '4', '--max-paginas', '10'],

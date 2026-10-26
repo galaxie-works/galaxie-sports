@@ -8,7 +8,7 @@ export interface TextCoverage {
   total: number;
   /** Desses, quantos têm tradução no locale ou no idioma (es-AR conta a do es). */
   translated: number;
-  /** Traduções próprias do locale (variante regional, para es-XX). */
+  /** Traduções próprias do locale (variante regional, para es-XX); com `file`, só as dos itens dele. */
   own: number;
   missing: { kind: 'team' | 'derby'; slug: string; file: string }[];
 }
@@ -21,7 +21,16 @@ export function textCoverage(kb: KnowledgeBase, locale: TextLocale, file?: strin
   const lang = languageOf(locale);
   const chain = new Set<string>([locale, locale.split('-')[0]!]);
   const has = new Set(kb.texts.filter((x) => chain.has(x.locale)).map((x) => `${x.listKey}|${x.entry.slug}`));
-  const own = kb.texts.filter((x) => x.locale === locale).length;
+  // com `file`, só as traduções dos times e clássicos desse arquivo
+  const inFile = file
+    ? new Set([
+        ...kb.teams.filter((t) => t.file === file).map((t) => `teams|${t.entry.slug}`),
+        ...kb.derbies.filter((d) => d.file === file).map((d) => `derbies|${d.entry.slug}`),
+      ])
+    : null;
+  const own = kb.texts.filter(
+    (x) => x.locale === locale && (!inFile || inFile.has(`${x.listKey}|${x.entry.slug}`)),
+  ).length;
   const candidates = [
     ...kb.teams
       .filter((t) => (t.entry.identity ?? []).length || t.entry.mascot)

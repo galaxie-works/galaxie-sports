@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { loadWtwConfig } from './config/loader.js';
+import { Blocklist, CountryDirectory } from './config/directory.js';
+import { loadWtwConfig, parseCountryConfig } from './config/loader.js';
 import {
   validateCandidates,
   type Candidate,
@@ -133,9 +134,136 @@ describe('validador determinístico — confiança', () => {
     expect(r.options[0]).toMatchObject({ confidence: 0.5, status: 'pending' });
     expect(r.options[0]!.flags).toContain('excerpt_not_found');
   });
+
+  it('trecho do jogo: paráfrase custa 0,1; a fonte que tinha o jogo e o perdeu cai para 0,4', () => {
+    const run = (over: Partial<CandidateEvidence>) =>
+      validateCandidates([cand('Globo', [ev('https://ge.globo.com/x', over)])], ctx()).options[0]!;
+    // nunca achado (paráfrase do modelo, linha antiga sem a marca): continua publicada
+    const paraphrase = run({ excerptFound: false });
+    expect(paraphrase).toMatchObject({ confidence: 0.9, status: 'confirmed' });
+    expect(paraphrase.flags).toContain('excerpt_not_found');
+    expect(paraphrase.evidence[0]!.excerptVerified).toBeUndefined();
+    // achado agora: a evidência guarda a marca para a revalidação
+    expect(run({ excerptFound: true }).evidence[0]!.excerptVerified).toBe(true);
+    // tinha sido achado e sumiu (escala mudou): não publica; a marca continua
+    const lost = run({ excerptFound: false, excerptVerified: true });
+    expect(lost).toMatchObject({ confidence: 0.5, status: 'pending' });
+    expect(lost.evidence[0]!.excerptVerified).toBe(true);
+  });
+
+  it('alocado + salvo com a mesma URL: a marca do salvo vale para a evidência nova', () => {
+    const url = 'https://www.lance.com.br/agenda';
+    const base = { excerptFound: false } as const;
+    const saved = cand('SporTV', [ev(url, { ...base, excerptVerified: true })]);
+    const allocated = cand('SporTV', [ev(url, { ...base, excerpt: 'Outro trecho do modelo' })]);
+    for (const list of [[saved], [allocated, saved], [saved, allocated]]) {
+      const o = validateCandidates(list, ctx({ competitionSlug: 'brasileirao-serie-a' })).options[0]!;
+      expect(o).toMatchObject({ status: 'pending', confidence: 0.5 });
+      expect(o.evidence[0]!.excerptVerified).toBe(true);
+    }
+  });
 });
 
 describe('validador determinístico — evidência, conflito e política', () => {
+  it('link para assistir só no domínio oficial da emissora (ou do grupo); senão fica sem link', () => {
+    const link = (broadcaster: string, watchUrl: string) =>
+      validateCandidates([cand(broadcaster, [ev('https://ge.globo.com/agenda/jogo')], { watchUrl })], ctx())
+        .options[0]!.url;
+    expect(link('TV Globo', 'https://globoplay.globo.com/ao-vivo')).toBe(
+      'https://globoplay.globo.com/ao-vivo',
+    );
+    // prompt injection: URL de terceiro publicada como "assista aqui"
+    expect(link('TV Globo', 'https://phishing.example/stream')).toBeNull();
+    expect(link('TV Globo', 'https://globo.com.phishing.example/stream')).toBeNull();
+    // domínio de OUTRA emissora do país também não serve
+    expect(link('TV Globo', 'https://www.espn.com.br/ao-vivo')).toBeNull();
+    // emissora fora do dicionário: sem domínio oficial conhecido, sem link
+    expect(link('Canal Desconhecido', 'https://canal-desconhecido.example/live')).toBeNull();
+  });
+
+  it('RecordPlus (watch_domains da Record no dicionário) é aceito como link', () => {
+    const r = validateCandidates(
+      [
+        cand('Record', [ev('https://record.r7.com/esportes/jogo')], {
+          watchUrl: 'https://www.recordplus.com/ao-vivo',
+        }),
+      ],
+      ctx({ competitionSlug: 'brasileirao-serie-a' }),
+    );
+    expect(r.options[0]!.url).toBe('https://www.recordplus.com/ao-vivo');
+  });
+
+  it('plataforma própria de assistir (`watch_domains`) vale só para o link', () => {
+    const cfg = parseCountryConfig(
+      'BR',
+      {
+        country: 'BR',
+        broadcasters: [
+          {
+            id: 'emissora_a',
+            name: 'Emissora A',
+            medium: 'free_tv',
+            access_model: 'free',
+            domains: ['emissora-a.example'],
+            watch_domains: ['play-da-emissora.example'],
+          },
+        ],
+      },
+      { country: 'BR', rights: [] },
+      { organizers: [], press: [], aggregators: [] },
+    );
+    const dir = new CountryDirectory(cfg, new Blocklist([]));
+    const r = validateCandidates(
+      [
+        cand('Emissora A', [ev('https://emissora-a.example/jogo')], {
+          watchUrl: 'https://play-da-emissora.example/ao-vivo',
+        }),
+      ],
+      ctx({ directory: dir, competitionSlug: null }),
+    );
+    expect(r.options[0]!.url).toBe('https://play-da-emissora.example/ao-vivo');
+    // não é fonte da emissora
+    expect(dir.classifySource('https://play-da-emissora.example/x', dir.byIdOrNull('emissora_a'))).toBe(
+      'unknown',
+    );
+  });
+
+  it('CazéTV (canal no YouTube): só a transmissão com o id do vídeo; o link genérico do canal não sai', () => {
+    const link = (watchUrl: string) =>
+      validateCandidates(
+        [cand('CazéTV', [ev('https://www.youtube.com/@CazeTV/videos')], { watchUrl })],
+        ctx({ competitionSlug: 'brasileirao-serie-a' }),
+      ).options[0]!.url;
+    expect(link('https://cazetv.com.br/ao-vivo')).toBe('https://cazetv.com.br/ao-vivo');
+    for (const u of [
+      'https://www.youtube.com/watch?v=abcDEF12345',
+      'https://m.youtube.com/live/abcDEF12345',
+      'https://youtu.be/abcDEF12345',
+    ])
+      expect(link(u), u).toBe('https://www.youtube.com/watch?v=abcDEF12345');
+    // link genérico do canal, página de canal, busca e id inválido: sem link
+    for (const u of [
+      'https://www.youtube.com/@CazeTV/live',
+      'https://www.youtube.com/@CazeTV',
+      'https://www.youtube.com/@OutroCanal/live',
+      'https://www.youtube.com/results?search_query=x',
+      'https://www.youtube.com/watch?v=curto',
+      'https://www.youtube.com/shorts/abcDEF12345',
+    ])
+      expect(link(u), u).toBeNull();
+    // emissora sem canal no YouTube não ganha link de vídeo
+    expect(
+      validateCandidates(
+        [
+          cand('TV Globo', [ev('https://ge.globo.com/agenda/jogo')], {
+            watchUrl: 'https://youtu.be/abcDEF12345',
+          }),
+        ],
+        ctx(),
+      ).options[0]!.url,
+    ).toBeNull();
+  });
+
   it('descarta opção sem URL de evidência acessível', () => {
     const r = validateCandidates(
       [

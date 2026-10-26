@@ -4,14 +4,24 @@ import { parse } from 'yaml';
 import {
   buildKnowledgeBase,
   DEFAULT_KNOWLEDGE_DIR,
+  editorialKey,
   loadKnowledge,
   parseKnowledgeFile,
+  reviewContent,
+  reviewHash,
+  reviewItemId,
   type KnowledgeBase,
 } from '@galaxie/knowledge';
 import { FakeLlmClient } from '../llm/fake.js';
 import { applyProfiles, editorialFile } from './apply-profile.js';
 import type { ProfileFacts } from './profile-facts.js';
-import { mergeProfiles, profileFactSheet, proposeProfile, resolveRival } from './profile.js';
+import {
+  mergeProfiles,
+  profileFactSheet,
+  proposeProfile,
+  raceLabelMatches,
+  resolveRival,
+} from './profile.js';
 import { checkFacts } from '../guardrails/index.js';
 
 const race = (
@@ -184,14 +194,15 @@ describe('proposeProfile (lenda): o validador gera achados, nunca descarta', () 
       'qualifying',
       'race_intelligence',
     ]);
-    // na ordem da resposta; a corrida fora da lista fica sem ano e rodada da lista (os da chave, sem o evento)
+    // na ordem da resposta; a corrida fora da lista fica sem ano e rodada (não liga o evento de outra corrida)
     expect(pt.moments?.map((m) => [m.year, m.round, m.wet ?? false])).toEqual([
       [1993, 3, true],
       [1991, 2, false],
       [1984, 6, true],
-      [1990, 15, false],
+      [undefined, undefined, false],
       [1988, 4, false],
     ]);
+    expect(pt.moments?.[3]!.race).toBe('GP do Japão');
     expect(pt.rivalries?.map((r) => r.driver)).toEqual([
       { f1db_id: 'alain-prost', name: 'Alain Prost' },
       { f1db_id: null, name: 'Fulano de Tal' },
@@ -276,6 +287,50 @@ describe('proposeProfile (lenda): o validador gera achados, nunca descarta', () 
       ['[S2, S3]', 'citation_marker', 'alert'],
       ['Voltou ao cockpit 39 dias depois de um susto.', 'unknown_number', 'severe'],
     ]);
+  });
+
+  it('nome de GP que não é o da corrida da chave vira alerta (pt e es)', async () => {
+    const swapped = {
+      ...research,
+      data: {
+        ...research.data,
+        moments: research.data.moments.map((m) =>
+          m.race_key === '1991-02' ? { ...m, race: 'GP da Itália' } : m,
+        ),
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([swapped, translation]), senna);
+    const label = (loc: 'pt-BR' | 'es') =>
+      (p.entries[loc]!.findings ?? [])
+        .filter((f) => f.rule === 'race_label')
+        .map((f) => [f.field, f.severity]);
+    // o texto e o vínculo ficam como vieram; o revisor decide
+    expect(p.entries['pt-BR']!.moments![1]).toMatchObject({ year: 1991, round: 2, race: 'GP da Itália' });
+    expect(label('pt-BR')).toEqual([['moments[1]', 'alert']]);
+    expect(raceLabelMatches('GP do Brasil', 'Brazilian Grand Prix')).toBe(true);
+    expect(raceLabelMatches('Gran Premio de Gran Bretaña', 'British Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP de Mônaco', 'Monaco Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP de Las Vegas', 'Las Vegas Grand Prix')).toBe(true);
+    expect(raceLabelMatches('GP da Itália', 'Brazilian Grand Prix')).toBe(false);
+    expect(raceLabelMatches('GP da Europa', 'European Grand Prix')).toBe(true);
+  });
+
+  it('"P2" e "Q3" não são nome de chassi: o número passa pelo F1DB; "agressivo" fora da pista vira alerta', async () => {
+    const bio = [
+      'Ayrton Senna disputou 161 GPs entre 1984 e 1994, com 41 vitórias e 65 poles.',
+      'Largou em P17 e passou ao Q3 na estreia.',
+      'Tinha uma pilotagem agressiva e era agressivo nas freadas.',
+      'Era agressivo com os jornalistas.',
+    ].join('\n\n');
+    const reply = { ...research, data: { ...research.data, bio: { ...research.data.bio, text: bio } } };
+    const p = await proposeProfile(new FakeLlmClient([reply, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    const bioFindings = pt.findings!.filter((f) => f.field === 'bio');
+    expect(bioFindings.map((f) => [pt.bio.text.slice(f.start, f.end), f.rule])).toEqual([
+      ['Largou em P17 e passou ao Q3 na estreia.', 'unknown_number'],
+      ['Era agressivo com os jornalistas.', 'forbidden_term'],
+    ]);
+    expect(bioFindings[0]!.reason).toBe('número fora do F1DB (17)');
   });
 
   it('lenda sem nenhum momento: rascunho com alerta; sem bio, não há proposta', async () => {
@@ -365,6 +420,74 @@ describe('applyProfiles', () => {
     expect(second.skipped.map((s) => s.reason)).toEqual(['já está igual no YAML', 'já está igual no YAML']);
   });
 
+  it('fonte ou item vazio da resposta fica de fora com um achado, e o perfil do piloto entra', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const d = research.data;
+    const empty = {
+      ...research,
+      data: {
+        ...d,
+        bio: { ...d.bio, sources: [WIKI, '', F1] },
+        style: { ...d.style, text: '  ' },
+        strengths: [{ key: 'starts', text: '', source: '' }, ...d.strengths],
+        moments: [{ race_key: '1993-03', race: '', wet: false, text: ' ', source: '' }, ...d.moments],
+        rivalries: [...d.rivalries, { driver: 'Nigel Mansell', text: '', source: WIKI }],
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([empty, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    expect(pt.bio.sources).toEqual([WIKI, F1]);
+    expect(pt.style).toBeUndefined();
+    expect(pt.strengths).toHaveLength(d.strengths.length);
+    expect(pt.moments).toHaveLength(d.moments.length);
+    expect(pt.rivalries).toHaveLength(d.rivalries.length);
+    expect(pt.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'bio.sources', rule: 'missing_source', severity: 'severe' }),
+        expect.objectContaining({ field: 'style', rule: 'empty_text', severity: 'alert' }),
+        expect.objectContaining({ field: 'strengths', rule: 'empty_text' }),
+        expect.objectContaining({ field: 'moments', rule: 'empty_text' }),
+        expect.objectContaining({ field: 'rivalries', rule: 'empty_text' }),
+      ]),
+    );
+    // antes, a string vazia reprovava no schema e o applyProfiles desfazia o piloto
+    const changes = await applyProfiles(kb, [p]);
+    expect(changes.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
+    expect(changes.skipped).toEqual([]);
+  });
+
+  it('todas as fontes vazias: listas vazias, só o achado de sem fonte, e o perfil entra', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const d = research.data;
+    const empty = {
+      ...research,
+      data: {
+        ...d,
+        bio: { ...d.bio, sources: ['', ' '] },
+        style: { ...d.style, sources: [''] },
+        strengths: d.strengths.map((s) => ({ ...s, source: '' })),
+        moments: d.moments.map((m) => ({ ...m, source: '' })),
+        rivalries: d.rivalries.map((r) => ({ ...r, source: '' })),
+      },
+    };
+    const p = await proposeProfile(new FakeLlmClient([empty, translation]), senna);
+    const pt = p.entries['pt-BR']!;
+    expect(pt.bio.sources).toEqual([]);
+    expect(pt.style?.sources).toEqual([]);
+    expect(
+      [...(pt.strengths ?? []), ...(pt.moments ?? []), ...(pt.rivalries ?? [])].some((x) => 'source' in x),
+    ).toBe(false);
+    const missing = (pt.findings ?? []).filter((f) => f.rule === 'missing_source');
+    expect(missing.map((f) => f.field)).toEqual(
+      expect.arrayContaining(['bio.sources', 'style.sources', 'strengths[0].source', 'moments[0].source']),
+    );
+    // a lista toda vazia tem um achado só ("sem fonte"), não um por string vazia
+    expect(missing.filter((f) => f.field === 'bio.sources')).toHaveLength(1);
+    expect(missing.every((f) => f.severity === 'severe')).toBe(true);
+    const changes = await applyProfiles(kb, [p]);
+    expect(changes.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
+  });
+
   it('nunca sobrescreve um perfil aprovado', async () => {
     const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
     const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
@@ -376,6 +499,67 @@ describe('applyProfiles', () => {
       locale: 'pt-BR',
       reason: 'perfil já aprovado: não é sobrescrito',
     });
+  });
+
+  it('perfil aprovado no painel (decisão no banco, YAML em draft) não é trocado, salvo pedido explícito', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
+    let current = kb;
+    for (const f of (await applyProfiles(kb, [p])).files) current = withFile(current, f.rel, f.text);
+    const pt = current.editorial.find((e) => e.locale === 'pt-BR' && e.entry.slug === 'f1-ayrton-senna')!;
+    expect(pt.entry.review_status).toBe('draft');
+    const decision = {
+      itemId: reviewItemId('editorial', editorialKey(pt)),
+      status: 'approved' as const,
+      reviewHash: reviewHash(reviewContent(pt.entry)),
+    };
+    // --refazer: nova proposta com outra bio
+    const redo = structuredClone(p);
+    redo.entries['pt-BR']!.bio.text = 'Ayrton Senna venceu 41 GPs e fez 65 poles.';
+    const kept = await applyProfiles(current, [redo], { decisions: [decision] });
+    expect(kept.applied).toEqual([]);
+    expect(kept.files).toEqual([]);
+    expect(kept.skipped).toContainEqual({
+      f1dbId: 'ayrton-senna',
+      locale: 'pt-BR',
+      reason: 'perfil aprovado no painel: não é sobrescrito (--sobrescrever-aprovados para trocar)',
+    });
+    const forced = await applyProfiles(current, [redo], { decisions: [decision], overwriteApproved: true });
+    expect(forced.applied).toContain('pt-BR:ayrton-senna');
+    // decisão sobre outro conteúdo (o YAML mudou depois dela) não vale mais: o perfil já não estava aprovado
+    const stale = await applyProfiles(current, [redo], { decisions: [{ ...decision, reviewHash: 'outro' }] });
+    expect(stale.applied).toContain('pt-BR:ayrton-senna');
+  });
+
+  it('pt-BR aprovado mantido: a tradução da proposta nova (es em rascunho) não é gravada, fica pendente', async () => {
+    const kb = await loadKnowledge(DEFAULT_KNOWLEDGE_DIR);
+    const p = await proposeProfile(new FakeLlmClient([research, translation]), senna);
+    let current = kb;
+    for (const f of (await applyProfiles(kb, [p])).files) current = withFile(current, f.rel, f.text);
+    const pt = current.editorial.find((e) => e.locale === 'pt-BR' && e.entry.slug === 'f1-ayrton-senna')!;
+    const es = current.editorial.find((e) => e.locale === 'es' && e.entry.slug === 'f1-ayrton-senna')!;
+    const decision = {
+      itemId: reviewItemId('editorial', editorialKey(pt)),
+      status: 'approved' as const,
+      reviewHash: reviewHash(reviewContent(pt.entry)),
+    };
+    // --refazer: original e tradução novos; o pt-BR aprovado fica, então a tradução nova não tem original gravado
+    const redo = structuredClone(p);
+    redo.entries['pt-BR']!.bio.text = 'Ayrton Senna venceu 41 GPs e fez 65 poles.';
+    redo.entries.es!.bio.text = 'Ayrton Senna ganó 41 GP y logró 65 poles.';
+    const changes = await applyProfiles(current, [redo], { decisions: [decision] });
+    expect(changes.applied).toEqual([]);
+    expect(changes.files).toEqual([]);
+    const skippedEs = changes.skipped.find((s) => s.locale === 'es')!;
+    expect(skippedEs.reason).toMatch(
+      /^tradução de um original \(pt-BR\) que não foi gravado \(perfil aprovado no painel/,
+    );
+    expect(skippedEs.reason).toMatch(/pendente de revisão/);
+    // o es do YAML segue o de antes, em rascunho (pendente no painel)
+    expect(es.entry.review_status).toBe('draft');
+    // com o original sobrescrito de propósito, a tradução dele entra junto
+    const forced = await applyProfiles(current, [redo], { decisions: [decision], overwriteApproved: true });
+    expect(forced.applied).toEqual(['pt-BR:ayrton-senna', 'es:ayrton-senna']);
   });
 });
 

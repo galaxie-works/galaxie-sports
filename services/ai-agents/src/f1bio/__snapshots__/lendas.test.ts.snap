@@ -3,7 +3,7 @@
 exports[`as 10 lendas da primeira rodada (casos fixos) > placar: graves e alertas por lenda (o selo do painel) 1`] = `
 {
   "alain-prost": {
-    "alert": 2,
+    "alert": 5,
     "severe": 5,
   },
   "ayrton-senna": {

@@ -71,6 +71,32 @@ describe('createGalaxieClient', () => {
     ]);
   });
 
+  it('mantém o tipo de entrada dos filtros (erro de compilação, não 400 em runtime)', async () => {
+    const { fn, calls } = fakeFetch(() => Response.json({}));
+    const client = createGalaxieClient({ baseUrl: 'http://api.test', apiKey: 'k', fetch: fn });
+    await client.copy({ intent: 'cheer', tone: 3, affinity_type: 'rival' });
+    await client.schedule('og-summer-2024', { medal_only: true, noc: 'BRA', limit: 20 });
+    await client.search({ q: 'verdao', types: ['team', 'event'], limit: '3' });
+    expect(calls.map((c) => c.url.search)).toEqual([
+      '?intent=cheer&tone=3&affinity_type=rival',
+      '?medal_only=true&noc=BRA&limit=20',
+      '?q=verdao&types=team%2Cevent&limit=3',
+    ]);
+    const typeErrors = () => {
+      // @ts-expect-error intent fora do enum
+      void client.copy({ intent: 'gritar' });
+      // @ts-expect-error status editorial desconhecido
+      void client.glossary({ min_review_status: 'qualquer' });
+      // @ts-expect-error filtro que a rota não tem
+      void client.derbies({ cidade: 'SP' });
+      // @ts-expect-error só as listas por vírgula aceitam array
+      void client.schedule('og-summer-2024', { noc: ['BRA', 'ARG'] });
+      // @ts-expect-error número coagido aceita número ou texto, não objeto
+      void client.teamPhotos('t1', { season: { year: 2024 } });
+    };
+    expect(typeErrors).toBeTypeOf('function');
+  });
+
   it('expõe a origem do espelho e lança GalaxieApiError com o problem', async () => {
     const { fn } = fakeFetch((url) =>
       url.pathname.startsWith('/mirror')

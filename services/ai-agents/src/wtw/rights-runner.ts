@@ -27,7 +27,14 @@ import { CachingPageFetcher, type PageFetcher } from './fetcher.js';
 import { packMarkets } from './groups.js';
 import { marketRelevance, wtwPolicyFromEnv, type WtwPolicy } from './relevance.js';
 import { loadUpcomingEvents } from './scheduler.js';
-import { estimateCallUsd, finishResearch, marketSpendToday, startResearch, withinCap } from './spend.js';
+import {
+  estimateCallUsd,
+  failureUsage,
+  finishResearch,
+  marketSpendToday,
+  startResearch,
+  withinCap,
+} from './spend.js';
 
 const DAY = 86_400_000;
 /** Pesquisa sem resultado (ou com fonte que mudou) volta à fila depois de 30 dias. */
@@ -38,7 +45,7 @@ export interface RightsNeed {
   season: number;
   /** Mercados sem direitos, empacotados por chamada (allowlist ≤ 100 domínios). */
   chunks: string[][];
-  /** Maior relevância de um jogo da competição nos mercados configurados (com ou sem direitos). */
+  /** Maior relevância de um jogo da competição nos mercados considerados (com ou sem direitos). */
   maxRelevance: number;
   firstStart: Date;
   events: number;
@@ -54,9 +61,10 @@ export interface PlanRightsOptions {
   /** Inclui mercados com linha curada (comparar a pesquisa com a curadoria). */
   includeCurated?: boolean;
   /**
-   * Só pesquisa competições com algum jogo de relevância ≥ este valor em algum mercado configurado —
-   * inclusive os que já têm direitos: a chamada cobre todos os mercados sem direitos pelo mesmo custo,
-   * então a liga que importa no próprio país (curado lá) também ganha direitos nos vizinhos.
+   * Só pesquisa competições com algum jogo de relevância ≥ este valor em algum mercado considerado
+   * (`markets`) — inclusive os que já têm direitos: a chamada cobre todos os mercados sem direitos pelo
+   * mesmo custo, então a liga que importa no próprio país (curado lá) também ganha direitos nos
+   * vizinhos. Com `markets` restrito (--pais), a relevância de fora não conta.
    */
   minRelevance?: number;
 }
@@ -98,7 +106,8 @@ export async function planRightsResearch(db: Database, opts: PlanRightsOptions):
     const dirs = lacking.map((m) => opts.config.directory(m));
     const maxRelevance = Math.max(
       ...evs.flatMap((e) =>
-        opts.config.countries.map((m) =>
+        // só os mercados pedidos (--pais): fora deles a relevância não justifica a chamada
+        markets.map((m) =>
           marketRelevance(
             {
               importance: e.importance,
@@ -217,18 +226,19 @@ export class RightsResearcher {
           continue;
         }
         const month = this.now().toISOString().slice(0, 7);
-        const researchId = await startResearch(this.deps.db, {
+        const { id: researchId } = await startResearch(this.deps.db, {
           kind: 'rights',
           researchKey: `rights:${need.competition.slug}:${need.season}:${allowed.join(',')}:${month}`,
           competition: need.competition.slug,
           season: need.season,
           markets: allowed,
+          family: `rights:${need.competition.slug}:${need.season}:`,
           requestedBy: opts.requestedBy ?? 'scheduler',
           now: this.now(),
         });
         if (!researchId) continue;
         calls++;
-        out.push(await this.researchOne(agent, need, allowed, researchId, spend));
+        out.push(await this.researchOne(agent, need, allowed, researchId, spend, estimate));
       }
     }
     return out;
@@ -240,6 +250,7 @@ export class RightsResearcher {
     markets: string[],
     researchId: string,
     spend: Map<string, number>,
+    estimate: number,
   ): Promise<RightsCallOutcome> {
     const { db, config } = this.deps;
     const dirs: CountryDirectory[] = markets.map((m) => config.directory(m));
@@ -300,16 +311,19 @@ export class RightsResearcher {
       );
       return { ...base, status: 'done', costUsd: cost, byCountry };
     } catch (err) {
-      const partial = (err as { usage?: UsageWithSearches }).usage;
       const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
       const status = err instanceof BudgetExceededError ? 'skipped' : 'failed';
+      const failed = failureUsage(err, estimate);
       await finishResearch(db, researchId, {
         status,
-        usage: partial,
+        usage: failed.usage,
+        ...(failed.stats ? { stats: failed.stats } : {}),
         error: message.slice(0, 500),
         now: this.now(),
       });
-      return { ...base, status, costUsd: partial?.costUsd ?? null, byCountry: {}, error: message };
+      const cost = failed.usage?.costUsd ?? null;
+      if (cost) for (const m of markets) spend.set(m, (spend.get(m) ?? 0) + cost / markets.length);
+      return { ...base, status, costUsd: cost, byCountry: {}, error: message };
     }
   }
 }

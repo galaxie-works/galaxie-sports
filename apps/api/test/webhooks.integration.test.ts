@@ -6,6 +6,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   broadcastOption,
+  changeFeed,
   closeDb,
   competition,
   createDb,
@@ -426,5 +427,87 @@ describe('webhooks assinados', () => {
       })
       .toMatchObject({ status: 'dead', lastError: 'tenant suspenso' });
     expect(hits('/susp')).toHaveLength(0);
+  });
+
+  it('endpoint cadastrado durante um enfileiramento recebe a mudança commitada depois dele', async () => {
+    // Reproduz de forma determinística a corrida que, sob carga, deixava os testes acima com 0 entregas:
+    // o cadastro do endpoint e a mudança commitam enquanto um enfileiramento está em andamento, logo antes
+    // de ele ler o change feed. O worker de fundo fica parado para não enfileirar no lugar deste.
+    await worker.stop();
+    try {
+      const id = await newEvent();
+      let ep: Awaited<ReturnType<typeof createWebhookEndpoint>> | undefined;
+      let fired = false;
+      const concurrentWriter = async () => {
+        if (fired) return;
+        fired = true;
+        ep = await create({
+          tenantSlug: 'portal',
+          url: `${base}/race`,
+          topics: ['score'],
+          filters: { events: [id] },
+        });
+        await db
+          .update(event)
+          .set({ score: { home: 3, away: 0 } })
+          .where(eq(event.id, id));
+      };
+      // a consulta ao change feed só executa depois do escritor concorrente (os builders do Drizzle
+      // devolvem `this` a cada encadeamento e executam no `then`)
+      const deferred = <T extends object>(builder: T): T =>
+        new Proxy(builder, {
+          get(target, prop) {
+            const value = Reflect.get(target, prop, target) as unknown;
+            if (prop === 'then')
+              return (ok: (v: unknown) => unknown, fail: (e: unknown) => unknown) =>
+                concurrentWriter().then(() => (value as PromiseLike<unknown>['then']).call(target, ok, fail));
+            if (typeof value !== 'function') return value;
+            return (...args: unknown[]) => {
+              const out = (value as (...a: unknown[]) => unknown).apply(target, args);
+              return out === target ? deferred(target) : out;
+            };
+          },
+        });
+      const racyDb = new Proxy(db, {
+        get(target, prop) {
+          if (prop !== 'transaction') return Reflect.get(target, prop, target);
+          return (run: (tx: unknown) => Promise<unknown>) =>
+            target.transaction((tx) =>
+              run(
+                new Proxy(tx, {
+                  get(t, p) {
+                    if (p !== 'select') return Reflect.get(t, p, t);
+                    return (...args: Parameters<typeof t.select>) => {
+                      const select = t.select(...args);
+                      return new Proxy(select, {
+                        get(s, q) {
+                          if (q !== 'from') return Reflect.get(s, q, s);
+                          return (table: Parameters<typeof s.from>[0]) => {
+                            const query = s.from(table);
+                            return table === changeFeed && !fired ? deferred(query) : query;
+                          };
+                        },
+                      });
+                    };
+                  },
+                }),
+              ),
+            );
+        },
+      }) as Database;
+      const racer = new WebhookWorker(racyDb, { cursorName: 'race', listen: false, secrets });
+      fired = true; // 1ª rodada só cria o cursor no fim do feed
+      await racer.enqueue();
+      fired = false;
+
+      expect(await racer.enqueue()).toBe(1);
+      expect(fired).toBe(true);
+      expect(
+        await db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, ep!.id)),
+      ).toMatchObject([{ status: 'pending', topic: 'event.score_changed' }]);
+    } finally {
+      await worker.start();
+    }
+    await expect.poll(() => hits('/race').length, { timeout: 5_000 }).toBe(1);
   });
 });

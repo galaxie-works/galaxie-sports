@@ -153,7 +153,7 @@ export async function overrideChannels(
           ...others,
           { country: input.country as WtwCountry, broadcasterId: input.broadcasterId, channelKeys: keys },
         ];
-  const { matches } = await proposeChannelMatches(wtwConfig(), {
+  const { matches, aiRights } = await proposeChannelMatches(wtwConfig(), {
     channels: current.channels,
     tenantMarkets: tenant.markets,
     defaultCountry: isWtwCountry(current.defaultCountry) ? current.defaultCountry : null,
@@ -166,5 +166,11 @@ export async function overrideChannels(
   const proposed = matches.map((m) =>
     m.origin === 'cliente' ? m : (fromAi.get(`${m.country}:${m.broadcasterId}`) ?? m),
   );
-  return setChannelListOverrides(db, tenant.id, { overrides, proposed });
+  // sobra que a IA ainda não conferiu (ex.: desfez a correção de uma emissora): volta para o job
+  const aiPending = aiRights.some((k) => !fromAi.has(k));
+  return setChannelListOverrides(db, tenant.id, {
+    overrides,
+    proposed,
+    ...(aiPending ? { aiStatus: 'pending' as const } : {}),
+  });
 }

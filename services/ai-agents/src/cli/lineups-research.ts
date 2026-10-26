@@ -17,6 +17,9 @@
  * busca; padrão 6), --plataforma <slug>, --redescobrir (refaz a descoberta e as URLs de planos),
  * --forcar (relê as páginas e extrai mesmo sem mudança), --max-paginas N (padrão 20),
  * --com-busca (a pesquisa antiga, com grounding em cada etapa, para comparar).
+ * O texto das páginas que vai para o modelo na extração tem teto (LINEUP_PROMPT_MAX_CHARS por plataforma,
+ * LINEUP_PAGE_MAX_CHARS por página, no painel de Operação): o que passa é cortado do fim, e cada corte
+ * sai no log, no resumo e em ops.job_run (stats.lineups.prompt_cuts).
  * Idempotente: sem --redescobrir/--revisitar, só pesquisa país sem plataformas e plataforma sem planos.
  * Requer DATABASE_URL e o provedor da pesquisa de direitos, AI_RIGHTS_PROVIDER (e AI_RIGHTS_MODEL), ou o
  * AI_PROVIDER sem ele (Gemini na VPS, GEMINI_API_KEY). O custo e as buscas vão para ops.llm_usage
@@ -25,9 +28,10 @@
  * --max-paginas 10).
  */
 import { parseArgs } from 'node:util';
-import { closeDb } from '@galaxie/db';
+import { closeDb, mergeJobRunStats } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
 import { dbPageStore, OfficialPageReader, type PageRenderer } from '../lineups/pages.js';
+import { lineupPromptLimitsFromEnv } from '../lineups/prompt.js';
 import { lineupReport } from '../lineups/report.js';
 import { llmSettingsFromEnv, rightsLlmEnv } from '../llm/config.js';
 import type { LlmRuntime } from '../llm/factory.js';
@@ -94,6 +98,11 @@ function describe(o: LineupCallOutcome): string {
         (o.skippedPlans.length ? `\n    sem orçamento para o detalhe: ${o.skippedPlans.join(', ')}` : '')
       : '') +
     pages +
+    (o.promptCuts.length
+      ? `\n    CORTADA NO PROMPT (o modelo não viu o fim): ${o.promptCuts
+          .map((c) => `${c.url} (${c.chars} caracteres, teto ${c.limit})`)
+          .join(' | ')}`
+      : '') +
     (o.rebrandTo
       ? `\n    REBRAND: o site oficial redireciona para ${o.rebrandTo} (mudança para revisar)`
       : '') +
@@ -270,16 +279,19 @@ async function main(): Promise<void> {
       maxPages: intFlag(values['max-paginas'], 'max-paginas') ?? 20,
       log: (m) => console.log(`  ${m}`),
     });
+    // tetos do texto das páginas no prompt da extração (painel de Operação ou env; inválido = padrão)
+    const promptLimits = lineupPromptLimitsFromEnv(process.env, (m) => console.warn(`Aviso: ${m}`));
     const researcher = new LineupResearcher({
       db,
       llm: rt.client,
       config,
       pages: reader,
+      promptLimits,
       log: (m) => console.log(`  ${m}`),
     });
     const outcomes = await researcher.run({ ...opts, maxCalls, mode, force: values.forcar });
     let cost = 0;
-    const total = { searchCalls: 0, searches: 0, extractCalls: 0, unchanged: 0 };
+    const total = { searchCalls: 0, searches: 0, extractCalls: 0, unchanged: 0, promptCuts: 0 };
     for (const o of outcomes) {
       console.log(describe(o));
       cost += o.costUsd ?? 0;
@@ -287,15 +299,38 @@ async function main(): Promise<void> {
       total.searches += o.searches;
       total.extractCalls += o.extractCalls;
       if (o.pagesUnchanged) total.unchanged++;
+      total.promptCuts += o.promptCuts.length;
       for (const c of o.changes)
         console.log(`    mudou: ${c.target.type} ${JSON.stringify(c.target)} → ${c.fields.join(', ')}`);
     }
     console.log(
       `${outcomes.length} tarefa(s) · ${total.searchCalls} chamada(s) com busca (${total.searches} busca(s)) · ` +
         `${total.extractCalls} extração(ões) sem busca · ${total.unchanged} página(s) sem mudança (sem chamada) · ` +
-        `${reader.pagesFetched} página(s) buscada(s) · ${usd(cost)} (registrado em ops.llm_usage). ` +
-        'Tudo entrou como rascunho: aprove no painel.',
+        `${reader.pagesFetched} página(s) buscada(s) · ${total.promptCuts} página(s) cortada(s) no prompt ` +
+        `(teto ${promptLimits.pageChars} por página, ${promptLimits.totalChars} por plataforma) · ` +
+        `${usd(cost)} (registrado em ops.llm_usage). Tudo entrou como rascunho: aprove no painel.`,
     );
+    // o resumo também vai para a linha da execução em ops.job_run (quando roda pelo scheduler)
+    const runId = process.env.GALAXIE_SCHEDULER_RUN_ID?.trim();
+    if (runId)
+      await mergeJobRunStats(db, runId, {
+        lineups: {
+          tasks: outcomes.length,
+          search_calls: total.searchCalls,
+          searches: total.searches,
+          extract_calls: total.extractCalls,
+          pages_unchanged: total.unchanged,
+          pages_fetched: reader.pagesFetched,
+          prompt_cuts: total.promptCuts,
+          prompt_page_max_chars: promptLimits.pageChars,
+          prompt_max_chars: promptLimits.totalChars,
+          cost_usd: Number(cost.toFixed(4)),
+        },
+      }).catch((err) =>
+        console.warn(
+          `Aviso: resumo não gravado em ops.job_run (${err instanceof Error ? err.message : err})`,
+        ),
+      );
     if (outcomes.some((o) => o.status === 'failed')) process.exitCode = 1;
   } finally {
     await renderer?.close().catch(() => undefined);

@@ -169,6 +169,18 @@ export interface LibraryEntry {
   logoUrl: string | null;
 }
 
+/** Tipos de emissora que entram num plano: canal de TV (aberta ou paga) ou streaming. Rádio não. */
+export const PLAN_LIBRARY_KINDS = ['free_tv', 'pay_tv', 'streaming'] as const;
+
+/**
+ * Como uma entrada da biblioteca entra num plano: canal de TV vira `plan_channel`, streaming vira
+ * `plan_service`; rádio (ou tipo desconhecido) não entra → null.
+ */
+export function libraryTargetType(kind: string): 'plan_channel' | 'plan_service' | null {
+  if (kind === 'streaming') return 'plan_service';
+  return kind === 'free_tv' || kind === 'pay_tv' ? 'plan_channel' : null;
+}
+
 // ─── conversão do que vem do banco ───────────────────────────────────────────────────────────────
 
 interface SourceLike {

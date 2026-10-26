@@ -203,6 +203,57 @@ services:
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
     logging: *logging
 
+  # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
+  # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.
+  # Os routers têm prioridade 1 (a padrão do Traefik é o tamanho da regra): só ganham quando o router da demo ou da
+  # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem IMAGE_TAG: deploy normal não recria.
+  # Mudou o conteúdo das configs → atualize works.galaxie.maintenance-rev (o CI confere com maintenance-rev.mjs e diz
+  # o valor); é ele que faz o próximo deploy recriar o serviço. MAINTENANCE_PRIORITY=10000 no .env +
+  # `docker compose up -d maintenance` força a manutenção (README › Página de manutenção).
+  # Mesmos hosts e mesma regra da API (sem /metrics e /internal) dos routers originais.
+  maintenance:
+    image: caddy:2.11.7-alpine
+    pull_policy: missing
+    restart: unless-stopped
+    mem_limit: 64m
+    # sem read_only: as configs inline são copiadas para dentro do contêiner na criação
+    security_opt:
+      - no-new-privileges:true
+    configs:
+      - source: maintenance-caddyfile
+        target: /etc/caddy/Caddyfile
+      - source: maintenance-page
+        target: /srv/site/index.html
+      - source: maintenance-problem
+        target: /srv/api/problem.json
+    expose:
+      - '8080'
+      - '8081'
+    # "Saudável" = respondendo o 503 da página (o Traefik só usa contêiner healthy)
+    healthcheck:
+      test: ['CMD-SHELL', "wget -q -S -O /dev/null http://127.0.0.1:8080/ 2>&1 | grep -q 'HTTP/1.1 503'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
+    labels:
+      - works.galaxie.maintenance-rev=ea68f94e0334
+      - traefik.enable=true
+      - traefik.http.routers.gsports-demo-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
+      - traefik.http.routers.gsports-demo-maintenance.entrypoints=websecure
+      - traefik.http.routers.gsports-demo-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
+      - traefik.http.routers.gsports-demo-maintenance.service=gsports-maintenance-site
+      - traefik.http.services.gsports-maintenance-site.loadbalancer.server.port=8080
+      - traefik.http.routers.gsports-api-maintenance.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
+      - traefik.http.routers.gsports-api-maintenance.entrypoints=websecure
+      - traefik.http.routers.gsports-api-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
+      - traefik.http.routers.gsports-api-maintenance.service=gsports-maintenance-api
+      - traefik.http.services.gsports-maintenance-api.loadbalancer.server.port=8081
+    logging: *logging
+
   # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
   ingestor:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
@@ -279,6 +330,14 @@ services:
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
       WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-1}
+      # canal do jogo: consulta semanal (cron UTC), retentativas só sem canal confirmado e pós-jogo
+      # (vazio = padrão do código: "0 6 * * 1", "3d,1d" e "on"; também em Ajustes → Onde assistir)
+      WTW_CHANNEL_WEEKLY_CRON: ${WTW_CHANNEL_WEEKLY_CRON:-}
+      WTW_CHANNEL_RETRY_OFFSETS: ${WTW_CHANNEL_RETRY_OFFSETS:-}
+      WTW_CHANNEL_POST: ${WTW_CHANNEL_POST:-}
+      # texto das páginas de planos no prompt da extração da grade (o painel sobrescreve; vazio = padrão)
+      LINEUP_PROMPT_MAX_CHARS: ${LINEUP_PROMPT_MAX_CHARS:-}
+      LINEUP_PAGE_MAX_CHARS: ${LINEUP_PAGE_MAX_CHARS:-}
       SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-*/5 * * * *}
       SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-10 * * * *}
       SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-*/5 * * * *}
@@ -286,9 +345,9 @@ services:
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
       SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-*/3 * * * *}
       SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-40 5,17 * * *}
-      # revisita da grade de canais e ofertas pela página oficial (até 4 chamadas ao modelo por execução,
+      # revisita semanal da grade de canais e ofertas pela página oficial (até 4 chamadas ao modelo por execução,
       # extração sem busca só se a página mudou; AI_RIGHTS_PROVIDER vale aqui)
-      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * *}
+      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-50 4 * * 1}
       # página oficial do plano lida do nosso lado (sem LLM; cache de 25 dias por URL)
       SCHEDULE_LINEUPS_PAGES: ${SCHEDULE_LINEUPS_PAGES:-20 5 * * *}
       # navegador headless para página que só mostra a grade com JavaScript (vazio = só HTML estático);
@@ -401,3 +460,119 @@ volumes:
   backups:
   promdata:
   grafanadata:
+
+# Página de manutenção (serviço `maintenance`). Conteúdo inline para ir junto com este arquivo no deploy (a VPS só
+# recebe o compose.yml). Aqui `$` precisaria ser `$$` (interpolação do compose): a página e o Caddyfile não usam.
+# Editou? Atualize works.galaxie.maintenance-rev no serviço (o compose não recria por mudança só de conteúdo).
+configs:
+  maintenance-caddyfile:
+    content: |
+      {
+      	admin off
+      	persist_config off
+      	auto_https off
+      }
+
+      (maintenance) {
+      	# sem 304 nem 206: a resposta é sempre o 503 inteiro
+      	request_header -If-None-Match
+      	request_header -If-Modified-Since
+      	request_header -Range
+      	# POST, PUT etc. também recebem o 503 (o file_server só serve GET/HEAD)
+      	@write not method GET HEAD
+      	method @write GET
+      	header {
+      		Retry-After 30
+      		Cache-Control no-store
+      		X-Robots-Tag noindex
+      		-Server
+      		-Etag
+      		-Last-Modified
+      		-Accept-Ranges
+      	}
+      }
+
+      # host da demo: página HTML
+      :8080 {
+      	import maintenance
+      	root * /srv/site
+      	rewrite * /index.html
+      	file_server {
+      		status 503
+      	}
+      }
+
+      # host da API: problem+json no formato dos erros da API (apps/api/src/errors.ts)
+      :8081 {
+      	import maintenance
+      	header Content-Type "application/problem+json; charset=utf-8"
+      	root * /srv/api
+      	rewrite * /problem.json
+      	file_server {
+      		status 503
+      	}
+      }
+  maintenance-problem:
+    content: |
+      {"type":"https://docs.galaxie.sports/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE","detail":"Estamos atualizando o Galaxie Sports. Tente de novo em 30 segundos.","retry_after":30}
+  maintenance-page:
+    content: |
+      <!doctype html>
+      <html lang="pt-BR">
+      <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta name="robots" content="noindex">
+      <meta name="color-scheme" content="dark">
+      <meta name="theme-color" content="#0b0f14">
+      <title>Em manutenção · Galaxie Sports</title>
+      <noscript><meta http-equiv="refresh" content="20"></noscript>
+      <style>
+      :root{--bg:#0b0f14;--fg:#f1f4f8;--muted:#9aa4b2;--accent:#6c69f2;--ring:#a5a3ff;--border:rgba(255,255,255,.1)}
+      *{box-sizing:border-box}
+      html,body{height:100%}
+      body{margin:0;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(900px 480px at 50% -10%,rgba(108,105,242,.2),transparent 65%),var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+      main{width:100%;max-width:520px;text-align:center}
+      .brand{display:inline-flex;align-items:center;gap:12px;margin-bottom:40px;text-align:left}
+      .brand b{display:block;font-size:18px;letter-spacing:-.01em}
+      .brand small{display:block;font-size:12px;color:var(--muted)}
+      h1{margin:0 0 12px;font-size:clamp(24px,6vw,32px);line-height:1.2;letter-spacing:-.02em}
+      p{margin:0;color:var(--muted)}
+      .state{display:inline-flex;align-items:center;gap:10px;margin-top:28px;padding:8px 16px;border:1px solid var(--border);border-radius:999px;font-size:14px}
+      .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.6s ease-out infinite}
+      @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(108,105,242,.7)}100%{box-shadow:0 0 0 10px rgba(108,105,242,0)}}
+      @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+      .status{margin-top:16px;font-size:14px}
+      a{color:var(--ring)}
+      .langs{display:grid;gap:4px;margin-top:40px;padding-top:24px;border-top:1px solid var(--border);font-size:14px}
+      </style>
+      </head>
+      <body>
+      <main>
+      <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="10" fill="#6c69f2"/><ellipse cx="20" cy="20" rx="18" ry="6" fill="none" stroke="#a5a3ff" stroke-width="1.8" transform="rotate(-20 20 20)"/></svg>
+      <span><b>Galaxie Sports</b><small>Galactical Sports XP</small></span>
+      </div>
+      <h1>Estamos atualizando o Galaxie Sports.</h1>
+      <p>Volte em instantes: esta página recarrega sozinha quando terminarmos.</p>
+      <p class="state" role="status"><span class="dot"></span>Tentando de novo automaticamente…</p>
+      <!-- TODO(status): URL da página de status ainda não decidida; preencher o href e tirar o hidden -->
+      <p class="status" hidden><a href="">Acompanhe pela página de status</a></p>
+      <div class="langs">
+      <p lang="en">We're updating Galaxie Sports. Back in a moment.</p>
+      <p lang="es">Estamos actualizando Galaxie Sports. Volvemos en unos instantes.</p>
+      </div>
+      </main>
+      <script>
+      // a cada 10 s pergunta pela mesma URL; quando não é mais o 503 desta página, o site voltou
+      (function () {
+        function check() {
+          fetch(location.href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin' })
+            .then(function (r) { if (r.status !== 503) location.replace(location.href); else setTimeout(check, 10000); })
+            .catch(function () { setTimeout(check, 10000); });
+        }
+        setTimeout(check, 10000);
+      })();
+      </script>
+      </body>
+      </html>
