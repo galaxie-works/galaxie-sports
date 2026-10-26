@@ -13,7 +13,16 @@ import {
   type ReadablePage,
 } from './page-research.js';
 import { contentHashOf, memoryPageStore, OfficialPageReader } from './pages.js';
-import { pageExtractPrompt, pageExtractSystemPrompt, planPagesPrompt } from './prompt.js';
+import {
+  DEFAULT_LINEUP_PROMPT_LIMITS,
+  lineupPromptLimitsFromEnv,
+  pageCharLimit,
+  pageExtractCuts,
+  pageExtractPrompt,
+  pageExtractSystemPrompt,
+  pageExtractTruncated,
+  planPagesPrompt,
+} from './prompt.js';
 import { enoughForExtraction, extractPurpose, planPagesPurpose } from './research.js';
 import {
   LINEUP_PAGE_EXTRACT_SCHEMA,
@@ -159,6 +168,63 @@ describe('extração pela página oficial: schemas e prompts', () => {
       services: [],
     });
     expect(prompt.length).toBeLessThan(160_000);
+    // a página cortada no prompt não é a grade inteira (a revisita não marca o que sumiu)
+    expect(pageExtractTruncated([big, big])).toBe(true);
+    expect(pageExtractTruncated([{ ...big, text: 'x'.repeat(70_000) }])).toBe(false);
+    expect(
+      pageExtractTruncated([
+        { ...big, text: 'x'.repeat(70_000) },
+        { ...big, text: 'x' },
+      ]),
+    ).toBe(false);
+    expect(
+      pageExtractTruncated([
+        { ...big, text: 'x'.repeat(80_000) },
+        { ...big, text: 'x' },
+      ]),
+    ).toBe(true);
+    expect(pageExtractTruncated([{ url: read.url, ...read.content }])).toBe(false);
+  });
+
+  it('os tetos vêm do env (o painel sobrescreve); inválido ou fora da faixa cai no padrão, com aviso', () => {
+    expect(lineupPromptLimitsFromEnv({})).toEqual(DEFAULT_LINEUP_PROMPT_LIMITS);
+    expect(DEFAULT_LINEUP_PROMPT_LIMITS).toEqual({ pageChars: 150_000, totalChars: 150_000 });
+    expect(
+      lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: ' 90000 ', LINEUP_PAGE_MAX_CHARS: '40000' }),
+    ).toEqual({ pageChars: 40_000, totalChars: 90_000 });
+    const warnings: string[] = [];
+    expect(
+      lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: 'muito', LINEUP_PAGE_MAX_CHARS: '1000' }, (m) =>
+        warnings.push(m),
+      ),
+    ).toEqual(DEFAULT_LINEUP_PROMPT_LIMITS);
+    expect(warnings).toHaveLength(2);
+    expect(warnings.join('\n')).toMatch(/LINEUP_PAGE_MAX_CHARS inválido \(1000\).*5000 a 600000/);
+    expect(lineupPromptLimitsFromEnv({ LINEUP_PROMPT_MAX_CHARS: '12345.5' }).totalChars).toBe(150_000);
+  });
+
+  it('o teto de cada página: a fatia do total (ao menos 5 mil), até o teto da página', () => {
+    expect(pageCharLimit(1)).toBe(150_000);
+    expect(pageCharLimit(3)).toBe(50_000);
+    expect(pageCharLimit(100)).toBe(5_000);
+    expect(pageCharLimit(1, { pageChars: 40_000, totalChars: 150_000 })).toBe(40_000);
+    expect(pageCharLimit(2, { pageChars: 150_000, totalChars: 20_000 })).toBe(10_000);
+    const page = { url: 'https://p.exemplo/planos', text: 'x'.repeat(45_000), sections: [] };
+    expect(pageExtractCuts([page])).toEqual([]);
+    expect(pageExtractCuts([page], { pageChars: 40_000, totalChars: 150_000 })).toEqual([
+      { url: page.url, chars: 45_000, limit: 40_000 },
+    ]);
+    // o prompt corta no mesmo teto
+    const prompt = pageExtractPrompt({
+      country: 'BR',
+      platform: { name: PLATFORM.name, kind: 'streaming', website: PLATFORM.website },
+      pages: [page],
+      knownPlans: [],
+      channels: [],
+      services: [],
+      limits: { pageChars: 40_000, totalChars: 150_000 },
+    });
+    expect(prompt.match(/x+/g)!.reduce((m, r) => Math.max(m, r.length), 0)).toBe(40_000);
   });
 
   it('a descoberta das URLs pede no máximo 3 buscas, só no site oficial', () => {
@@ -188,10 +254,34 @@ describe('extração pela página oficial: resposta do modelo → validador', ()
   it('planos sem repetir, a URL de cada evidência é a da página (o modelo não escreve URL)', async () => {
     const { models } = await validate();
     expect(models.plans.map((p) => p.name)).toEqual(['Plano Futebol', 'Plano TV']);
+    expect(models.truncated).toBe(false);
     for (const p of models.plans) {
       expect(p.evidence.url).toBe(read.url);
       for (const c of p.channels) expect(c.evidence.url).toBe(read.url);
     }
+  });
+
+  it('resposta cortada pelos limites (planos, canais, streamings) não é a grade inteira', () => {
+    const locator = pageLocator([read], [], PLATFORM.name);
+    const ctx = { pages: [read], locator, platformName: PLATFORM.name };
+    const plan = (i: number, canais = 1, streamings = 0) => ({
+      plano_nome: `Plano ${i}`,
+      trecho_do_plano: `Plano ${i}`,
+      precos: [],
+      canais: Array.from({ length: canais }, (_, j) => ({ canal_nome: `Canal ${j}`, trecho: `Canal ${j}` })),
+      streamings_inclusos: Array.from({ length: streamings }, (_, j) => ({
+        streaming_nome: `Streaming ${j}`,
+        trecho: `Streaming ${j}`,
+      })),
+    });
+    const of = (planos: ReturnType<typeof plan>[]) =>
+      modelsFromExtraction({ planos, complementos: [], notas: null }, ctx);
+    expect(of(Array.from({ length: 12 }, (_, i) => plan(i))).truncated).toBe(false);
+    const thirteen = of(Array.from({ length: 13 }, (_, i) => plan(i)));
+    expect([thirteen.plans.length, thirteen.truncated]).toEqual([12, true]);
+    expect(of([plan(1, 61)]).truncated).toBe(true);
+    expect(of([plan(1, 60, 11)]).truncated).toBe(true);
+    expect(of([plan(1, 60, 10)]).truncated).toBe(false);
   });
 
   it('preço cheio provado pela página; o promocional fica de fora', async () => {

@@ -275,6 +275,9 @@ services:
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
       WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-1}
+      # texto das páginas de planos no prompt da extração da grade (o painel sobrescreve; vazio = padrão)
+      LINEUP_PROMPT_MAX_CHARS: ${LINEUP_PROMPT_MAX_CHARS:-}
+      LINEUP_PAGE_MAX_CHARS: ${LINEUP_PAGE_MAX_CHARS:-}
       SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-*/5 * * * *}
       SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-10 * * * *}
       SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-*/5 * * * *}

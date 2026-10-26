@@ -215,6 +215,8 @@ export interface PageRead {
   fromCache: boolean;
   /** O hash mudou desde a leitura anterior. */
   hashChanged: boolean;
+  /** Não lida por causa do limite de páginas desta execução (a URL continua valendo). */
+  limited?: boolean;
   error?: string;
 }
 
@@ -334,6 +336,11 @@ export class OfficialPageReader {
     return this.fetched;
   }
 
+  /** O limite de páginas desta execução já foi atingido (só o cache ainda responde). */
+  get exhausted(): boolean {
+    return this.fetched >= this.maxPages;
+  }
+
   private async rulesFor(origin: string): Promise<RobotsRules> {
     let p = this.robots.get(origin);
     if (!p) {
@@ -427,6 +434,7 @@ export class OfficialPageReader {
         fetchedAt: this.now(),
         fromCache: false,
         hashChanged: false,
+        limited: true,
         error: `limite de ${this.maxPages} página(s) por execução`,
       };
     this.fetched++;
