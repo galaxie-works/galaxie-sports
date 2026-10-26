@@ -6,7 +6,7 @@
  * (config/broadcasters/_logos.yaml), espelhado no nosso storage pelo Asset Mirror do ingestor
  * (core.asset, kind `broadcaster_logo`).
  */
-import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
   asset,
@@ -195,6 +195,9 @@ export type BroadcasterRow = typeof broadcaster.$inferSelect & {
 
 const darkAsset = alias(asset, 'logo_dark_asset');
 
+/** Observação de uso do logo enviado no painel (no lugar da licença da origem). */
+export const PANEL_LOGO_LICENSE = 'Enviado no painel — uso nominativo para identificar a emissora';
+
 /** Biblioteca (com o asset do logo), opcionalmente filtrada por país ou ids. */
 export async function listBroadcasters(
   db: Database,
@@ -206,11 +209,25 @@ export async function listBroadcasters(
     if (!filter.ids.length) return [];
     conds.push(inArray(broadcaster.id, filter.ids));
   }
+  // logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, e a versão escura da origem sai
   const rows = await db
-    .select({ b: broadcaster, logoStorageKey: asset.storageKey, logoDarkStorageKey: darkAsset.storageKey })
+    .select({
+      b: broadcaster,
+      logoStorageKey: asset.storageKey,
+      logoDarkStorageKey: darkAsset.storageKey,
+      customSourceUrl: sql<
+        string | null
+      >`case when ${broadcaster.customLogoAssetId} is not null then ${asset.sourceUrl} end`,
+    })
     .from(broadcaster)
-    .leftJoin(asset, eq(asset.id, broadcaster.logoAssetId))
-    .leftJoin(darkAsset, eq(darkAsset.id, broadcaster.logoDarkAssetId))
+    .leftJoin(
+      asset,
+      eq(asset.id, sql`coalesce(${broadcaster.customLogoAssetId}, ${broadcaster.logoAssetId})`),
+    )
+    .leftJoin(
+      darkAsset,
+      and(isNull(broadcaster.customLogoAssetId), eq(darkAsset.id, broadcaster.logoDarkAssetId)),
+    )
     .where(conds.length ? sql.join(conds, sql` and `) : undefined)
     .orderBy(asc(broadcaster.name));
   const channelAssetIds = [
@@ -229,6 +246,9 @@ export async function listBroadcasters(
   const keyOf = (id: string | null) => (id ? (keys.get(id) ?? null) : null);
   return rows.map((r) => ({
     ...r.b,
+    ...(r.customSourceUrl
+      ? { logoSourceUrl: r.customSourceUrl, logoSourcePage: null, logoLicense: PANEL_LOGO_LICENSE }
+      : {}),
     logoStorageKey: r.logoStorageKey,
     logoDarkStorageKey: r.logoDarkStorageKey,
     channelLogoKeys: Object.fromEntries(

@@ -6,6 +6,9 @@
  */
 export {
   createLineupReviewRequest,
+  createManualLineupItem,
+  proposeManualLineupEdit,
+  revertCustomLogo,
   dismissLineupChange,
   getPlatformLineup,
   getTenantOperator,
@@ -20,5 +23,8 @@ export {
   type PlatformLineup,
   type TenantOperator,
 } from '@galaxie/db/lineups';
+
+export { uploadLogo, LogoUploadError } from '@galaxie/where-to-watch/logo-upload';
+export { logoObjectStore, logoStorageConfigured } from './object-store';
 
 export { builderDb as lineupDb } from '@/lib/builder/store';

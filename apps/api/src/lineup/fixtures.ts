@@ -31,6 +31,7 @@ const review = {
   reviewedBy: 'editor.teste',
   reviewedAt: T0,
   seenAt: T0,
+  manualFields: {},
   createdAt: T0,
   updatedAt: T0,
 };
@@ -44,6 +45,7 @@ const platform = (id: string, slug: string, name: string, kind: PlatformKind): L
   website: null,
   officialDomains: [],
   logoAssetId: null,
+  customLogoAssetId: null,
   broadcasterId: null,
   planPages: [],
   planPagesHash: null,
