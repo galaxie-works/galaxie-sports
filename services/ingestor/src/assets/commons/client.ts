@@ -298,6 +298,32 @@ export class WikimediaClient {
     return pages.length > 0 && !pages[0]!.missing;
   }
 
+  /**
+   * Só o `extmetadata` dos arquivos (os campos de `fields`), em lotes de 50, pelo título pedido: a Commons pode
+   * devolver o título normalizado (`normalized`), que volta mapeado para o original. Arquivo que sumiu fica fora.
+   */
+  async extMetadata(titles: string[], fields: string[]): Promise<Map<string, ExtMetadata>> {
+    const out = new Map<string, ExtMetadata>();
+    for (let i = 0; i < titles.length; i += 50) {
+      const body = await this.get(COMMONS_API, {
+        action: 'query',
+        titles: titles.slice(i, i + 50).join('|'),
+        prop: 'imageinfo',
+        iiprop: 'extmetadata',
+        iiextmetadatafilter: fields.join('|'),
+        iiextmetadatalanguage: 'en',
+      });
+      const query = body.query as
+        { pages?: CommonsPage[]; normalized?: { from: string; to: string }[] } | undefined;
+      const original = new Map((query?.normalized ?? []).map((n) => [n.to, n.from]));
+      for (const p of query?.pages ?? []) {
+        const meta = p.imageinfo?.[0]?.extmetadata;
+        if (meta) out.set(original.get(p.title) ?? p.title, meta);
+      }
+    }
+    return out;
+  }
+
   /** Dimensões, tipo, URL da miniatura e `extmetadata` (licença, autor, data) dos arquivos. */
   async imageInfo(titles: string[], thumbWidth: number): Promise<CommonsFile[]> {
     return (await this.imageInfoReport(titles, thumbWidth)).files;

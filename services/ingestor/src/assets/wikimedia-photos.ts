@@ -352,6 +352,8 @@ export async function importPeoplePhotos(
         license: credit.license,
         licenseUrl: credit.licenseUrl,
         credit: credit.credit,
+        attribution: credit.attribution,
+        attributionCheckedAt: new Date(),
         attributionRequired: credit.attributionRequired,
         shareAlike: credit.shareAlike,
         dateTaken: credit.dateTaken,
