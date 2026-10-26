@@ -161,10 +161,11 @@ tests:
         exp_alerts: []
 
   - name: ensaio de restauração sem sucesso há mais de 35 dias
-    interval: 1h
+    # Amostra por minuto: com 1 h entre amostras, a série some fora do lookback de 5 min e o `for: 1h` nunca se cumpre.
+    interval: 1m
     input_series:
       - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}'
-        values: '0x900'
+        values: '0x52000'
     alert_rule_test:
       - eval_time: 34d
         alertname: RestoreDrillStale
