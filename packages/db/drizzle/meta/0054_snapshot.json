@@ -1,6 +1,6 @@
 {
-  "id": "8c630722-67e2-45ee-ba4d-3741848eb3be",
-  "prevId": "f83c5c3f-d38b-4c56-973d-f8ba6517f50c",
+  "id": "f83c5c3f-d38b-4c56-973d-f8ba6517f50c",
+  "prevId": "a6a2b1da-9bc4-4506-9856-32697dd3ad62",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5503,12 +5503,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "custom_logo_asset_id": {
-          "name": "custom_logo_asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "logo_source_url": {
           "name": "logo_source_url",
           "type": "text",
@@ -5564,20 +5558,6 @@
           "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broadcaster_custom_logo_asset_id_asset_id_fk": {
-          "name": "broadcaster_custom_logo_asset_id_asset_id_fk",
-          "tableFrom": "broadcaster",
-          "tableTo": "asset",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
           ],
           "columnsTo": [
             "id"
@@ -7536,132 +7516,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "enrich.logo_upload": {
-      "name": "logo_upload",
-      "schema": "enrich",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "target_type": {
-          "name": "target_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "target_id": {
-          "name": "target_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "asset_id": {
-          "name": "asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "previous_asset_id": {
-          "name": "previous_asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reverted_at": {
-          "name": "reverted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reverted_by": {
-          "name": "reverted_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "logo_upload_target_idx": {
-          "name": "logo_upload_target_idx",
-          "columns": [
-            {
-              "expression": "target_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "target_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "logo_upload_asset_id_asset_id_fk": {
-          "name": "logo_upload_asset_id_asset_id_fk",
-          "tableFrom": "logo_upload",
-          "tableTo": "asset",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "logo_upload_previous_asset_id_asset_id_fk": {
-          "name": "logo_upload_previous_asset_id_asset_id_fk",
-          "tableFrom": "logo_upload",
-          "tableTo": "asset",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "previous_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "enrich.plan_channel": {
       "name": "plan_channel",
       "schema": "enrich",
@@ -7728,13 +7582,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "manual_fields": {
-          "name": "manual_fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -7879,13 +7726,6 @@
           "notNull": true,
           "default": "now()"
         },
-        "manual_fields": {
-          "name": "manual_fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -8016,12 +7856,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "custom_logo_asset_id": {
-          "name": "custom_logo_asset_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "broadcaster_id": {
           "name": "broadcaster_id",
           "type": "text",
@@ -8085,13 +7919,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "manual_fields": {
-          "name": "manual_fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -8169,20 +7996,6 @@
           "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "platform_custom_logo_asset_id_asset_id_fk": {
-          "name": "platform_custom_logo_asset_id_asset_id_fk",
-          "tableFrom": "platform",
-          "tableTo": "asset",
-          "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
           ],
           "columnsTo": [
             "id"
@@ -8332,13 +8145,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "manual_fields": {
-          "name": "manual_fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -8532,13 +8338,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "manual_fields": {
-          "name": "manual_fields",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
         },
         "valid_from": {
           "name": "valid_from",
