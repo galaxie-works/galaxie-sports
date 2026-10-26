@@ -35,8 +35,8 @@ O agente (`services/ai-agents/src/f1bio/profile.ts`) pesquisa com busca (Gemini 
 
 | Gravidade | Regras |
 | --- | --- |
-| **grave** (fato a conferir) | número fora dos fatos do F1DB (FactSheet: totais, temporadas, corridas da lista, pistas, datas e idade; o número de nome de chassi, como BT52, não conta); corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`); rival que não largou nas mesmas corridas; prompt injection; fonte ausente, que não veio da busca ou de domínio não permitido |
-| **alerta** (texto) | termo da lista de proibidos (o vocabulário de pilotagem, como "agressividade", não conta); cara de letra de música; outro idioma; tamanho acima do pedido; marcador de citação (`[S1]`) no texto; item repetido; lenda sem momento; tradução com outro número de itens; estilo ou item sem texto (fica de fora: o schema não aceita texto vazio, e a fonte vazia sai como fonte ausente) |
+| **grave** (fato a conferir) | número fora dos fatos do F1DB (FactSheet: totais, temporadas, corridas da lista, pistas, datas e idade; o número de nome de chassi, como BT52, não conta, mas posição e sessão como P2 e Q3 contam); corrida que o piloto não disputou (fora da lista `<ano>-<rodada>`; o momento fica sem ano e rodada, sem ligar o evento de outra corrida); rival que não largou nas mesmas corridas; prompt injection; fonte ausente, que não veio da busca ou de domínio não permitido |
+| **alerta** (texto) | termo da lista de proibidos ("agressivo" ou "agressividade" em contexto de pilotagem, como "pilotagem agressiva" ou "agressivo nas freadas", não conta; fora da pista, conta); nome do GP do momento que não é o da corrida da chave; cara de letra de música; outro idioma; tamanho acima do pedido; marcador de citação (`[S1]`) no texto; item repetido; lenda sem momento; tradução com outro número de itens; estilo ou item sem texto (fica de fora: o schema não aceita texto vazio, e a fonte vazia sai como fonte ausente) |
 
 Só não há proposta sem bio. O painel (tipo "Perfil de piloto (F1)") mostra o selo "N alertas / N graves" na lista e, no item, cada campo com o trecho destacado (vermelho = grave, âmbar = alerta) e o motivo; o revisor aprova, sugere a edição ou deixa em rascunho. O tom de referência no prompt é o do texto de transmissão esportiva (momentos concretos, traços que dão para ver na pista); o prompt cita o Senna como nível de detalhe esperado, não como texto a copiar.
 
@@ -87,15 +87,19 @@ O Gemini só roda na VPS, no container `agents` (a imagem precisa desta versão:
      /data/commons/f1perfil/profiles.json > /tmp/f1perfil-profiles.json
    docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents \
      /data/commons/f1perfil/profiles-report.md > /tmp/f1perfil-report.md
+   docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents \
+     /data/commons/f1perfil/panel-decisions.json > /tmp/f1perfil-panel-decisions.json
    ```
+
+   O segundo comando grava também `panel-decisions.json`: as decisões do painel sobre os perfis (`editorial:*` de `semantic.review_decision` e as edições de `semantic.review_override`), lidas do banco de produção. O comando imprime o host consultado e quantas decisões leu (aviso quando são 0). Para só exportar as decisões, sem pesquisar: `node ../ai-agents/dist/cli/f1-bio.js --perfil --exportar-decisoes --saida /data/commons/f1perfil` (no mesmo `docker compose run` dos comandos acima).
 
    Para os regulares, o mesmo com `--escopo regulares` (341 pilotos; `--limite N` faz em lotes). Para um piloto só: `--pilotos ayrton-senna`. O relatório mostra cada item aceito com a fonte e cada descartado com o motivo.
 
-2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base.
+2. **No dev, aplicar e abrir o PR.** Os perfis entram como `draft` em `data/knowledge/formula-1/editorial/pt-BR.yaml` e `es.yaml`; perfil aprovado nunca é sobrescrito, aplicar de novo não muda nada e cada item passa pelo validador da base. A aprovação do painel fica no banco de produção (`semantic.review_decision`), não no YAML: o `--aplicar` lê as decisões do `panel-decisions.json` exportado no passo 1 (`--decisoes <arquivo>`; sem a opção, procura ao lado do profiles.json) e pula o perfil aprovado lá — trocar o texto desfaria a aprovação e o perfil sumiria da API até ser aprovado de novo. `--sobrescrever-aprovados` troca mesmo assim. Só se grava tradução com o próprio original: se o pt-BR da proposta não entrou (aprovado e mantido, ou recusado pelo validador), o `es` da proposta também não entra e o relatório o mostra como pendente de revisão da tradução do texto que vale. Sem o arquivo, o `--aplicar` para (na prévia `--plan`, só avisa); `--sem-decisoes-do-painel` aplica só com o status do YAML. O passo não usa banco.
 
    ```bash
-   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --plan
-   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json
+   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --decisoes f1perfil-panel-decisions.json --plan
+   pnpm --filter @galaxie/ai-agents f1:bio --perfil --aplicar f1perfil-profiles.json --decisoes f1perfil-panel-decisions.json
    pnpm knowledge:validate
    ```
 

@@ -163,10 +163,14 @@ export async function readEventContext(
 
 /**
  * O texto determinístico saiu porque o LLM falhou (erro de API, orçamento, timeout), não porque
- * reprovou nos guardrails: vale tentar de novo na próxima rodada, mesmo com os fatos iguais.
+ * reprovou nos guardrails: vale tentar de novo na próxima rodada, mesmo com os fatos iguais. Vale o
+ * motivo gravado no próprio locale; os erros da execução inteira só decidem nas linhas antigas, sem ele
+ * (um locale reprovado numa execução com erro em outra tentativa não é regerado a cada rodada).
  */
 export function fellBackOnLlmError(content: StoredContextContent): boolean {
-  return content.origin === 'fallback' && content.run.llmCalls > 0 && content.run.errors.length > 0;
+  if (content.origin !== 'fallback') return false;
+  if (content.fallbackReason) return content.fallbackReason === 'llm_error';
+  return content.run.llmCalls > 0 && content.run.errors.length > 0;
 }
 
 /**
