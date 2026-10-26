@@ -228,7 +228,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     : undefined;
 
   const quota = usageBackend
-    ? new QuotaGuard(usageBackend, options.now ? { now: options.now } : {})
+    ? new QuotaGuard(usageBackend, {
+        ...(options.now ? { now: options.now } : {}),
+        // o total do dia soma o consolidado no Postgres: uma perda do Valkey não zera a cota
+        ...(options.db ? { db: options.db } : {}),
+      })
     : undefined;
   // um evento (log) por tenant, dia e nível: o aviso de 80% e o corte de 110% (alerta e e-mail ficam com quem
   // consome os logs; a API não envia e-mail)

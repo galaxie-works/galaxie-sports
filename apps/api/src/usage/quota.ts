@@ -1,4 +1,6 @@
-import { utcDay, type UsageBackend } from './counter.js';
+import type { Database } from '@galaxie/db';
+import { utcDay, type RouteCounts, type UsageBackend } from './counter.js';
+import { queryUsage } from './store.js';
 
 /** A partir de quanto da cota diária a resposta avisa (`x-galaxie-quota-warning`). */
 export const QUOTA_WARN_RATIO = 0.8;
@@ -16,9 +18,15 @@ export interface QuotaStatus {
 }
 
 export interface QuotaGuardOptions {
-  /** Por quanto tempo o total lido do Valkey vale antes de reler (ms). Padrão 5 s. */
+  /** Por quanto tempo o total lido vale antes de reler (ms). Padrão 5 s. */
   refreshMs?: number;
   now?: () => Date;
+  /**
+   * Com o banco, o total do dia é o consolidado em `api.usage_daily` combinado com o contador do Valkey, a
+   * mesma leitura do `/v1/account/usage` (`queryUsage`): se o Valkey perder o hash do dia, o uso já
+   * consolidado continua contando. Sem ele (testes em memória), só o Valkey.
+   */
+  db?: Database;
 }
 
 interface QuotaEntry {
@@ -29,10 +37,12 @@ interface QuotaEntry {
 }
 
 /**
- * Cota diária aplicada (docs/politica-de-chaves.md §4). O total do dia vem dos contadores de uso do Valkey
- * (`usage:<dia>:<tenant>`, sem as rotas `test:`), relido a cada `refreshMs`; entre leituras, a instância
- * soma as requisições que viu. O contador tem atraso de ~1 s e cada instância só soma as próprias, então o
- * corte é aproximado (a folga de 10% cobre isso).
+ * Cota diária aplicada (docs/politica-de-chaves.md §4). O total do dia (sem as rotas `test:`) é o uso
+ * consolidado no Postgres combinado com o contador do Valkey (`usage:<dia>:<tenant>`), relido a cada
+ * `refreshMs`; entre leituras, a instância soma as requisições que viu. O contador tem atraso de ~1 s e cada
+ * processo só soma as próprias, então o corte é aproximado (a folga de 10% cobre isso).
+ * Se o Valkey perder o hash, perde-se só o que ele contou e ninguém consolidou (até 1 min, o intervalo da
+ * consolidação), não a franquia do dia.
  *
  * A releitura é uma por tenant e dia: as requisições que chegam com ela em voo esperam a mesma e contam na
  * mesma entrada. Sem isso, uma rajada com o cache frio ou vencido leria o total N vezes, cada uma com a
@@ -43,6 +53,7 @@ export class QuotaGuard {
   private readonly refreshing = new Map<string, Promise<QuotaEntry>>();
   private readonly refreshMs: number;
   private readonly now: () => Date;
+  private readonly db: Database | undefined;
 
   constructor(
     private readonly backend: UsageBackend,
@@ -50,9 +61,10 @@ export class QuotaGuard {
   ) {
     this.refreshMs = options.refreshMs ?? 5_000;
     this.now = options.now ?? (() => new Date());
+    this.db = options.db;
   }
 
-  /** Conta esta requisição e diz em que nível o tenant está. Erro do Valkey propaga (o chamador decide). */
+  /** Conta esta requisição e diz em que nível o tenant está. Erro de leitura propaga (o chamador decide). */
   async check(tenantId: string, limit: number): Promise<QuotaStatus> {
     const now = this.now();
     const day = utcDay(now);
@@ -76,8 +88,7 @@ export class QuotaGuard {
     const key = `${tenantId}|${day}`;
     const inFlight = this.refreshing.get(key);
     if (inFlight) return inFlight;
-    const p = this.backend
-      .get(day, tenantId)
+    const p = this.dayCounts(day, tenantId, now)
       .then((counts) => {
         const base = Object.entries(counts)
           .filter(([route]) => !route.startsWith('test:'))
@@ -90,5 +101,12 @@ export class QuotaGuard {
       .finally(() => this.refreshing.delete(key));
     this.refreshing.set(key, p);
     return p;
+  }
+
+  /** Uso do dia por rota: consolidado + Valkey, ou só o Valkey sem banco. */
+  private async dayCounts(day: string, tenantId: string, now: Date): Promise<RouteCounts> {
+    if (!this.db) return this.backend.get(day, tenantId);
+    const rows = await queryUsage(this.db, this.backend, { from: day, to: day, tenantId, now });
+    return Object.fromEntries(rows.map((r) => [r.route, r.requests]));
   }
 }

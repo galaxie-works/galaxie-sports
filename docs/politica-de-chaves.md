@@ -89,8 +89,14 @@ anômalo (§5).
     requisição recusada não conta;
   - só o uso de produção conta: a chave de teste fica fora, e a publicável conta como produção;
   - `enterprise` não tem cota (`dailyRequestQuota: null`);
-  - o total vem dos contadores de uso no Valkey, relidos a cada 5 s por instância. O corte é aproximado, e a folga de
-    10% cobre isso. Com o Valkey fora, a cota não bloqueia (fail-open, como o rate limit);
+  - o total do dia é o uso consolidado em `api.usage_daily` somado ao contador do Valkey, a mesma leitura do
+    `/v1/account/usage`, relida a cada 5 s, uma por tenant de cada vez. Se o Valkey perder o hash do dia, o uso já
+    consolidado continua contando: perde-se só o último minuto ainda não consolidado, não a franquia do dia. O corte
+    é aproximado, e a folga de 10% cobre isso. Com o Valkey ou o Postgres fora, a cota não bloqueia (fail-open, como
+    o rate limit);
+  - a aplicação é por processo: cada um soma só as próprias requisições entre duas releituras. Hoje a API roda num
+    processo só. Com N réplicas, o furo pode chegar a N vezes o tráfego de uma janela (5 s de releitura mais 1 s de
+    flush), e o caminho seria reservar cada requisição com um `INCR` atômico no Valkey;
   - a API não envia e-mail: o aviso por e-mail fica com quem consome os logs.
 
 ## 5. Logs e vazamento
