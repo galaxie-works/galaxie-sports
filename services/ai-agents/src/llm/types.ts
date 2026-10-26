@@ -79,6 +79,18 @@ export interface LlmResult<T> {
   groundedUrls?: string[];
 }
 
+/** O que a última recusa do orçamento pedia: uma chamada assim cabe agora? */
+export interface BudgetNeed {
+  unit: 'tokens' | 'usd';
+  /** Estimativa da chamada recusada (tokens ou US$, conforme `unit`). */
+  requested: number;
+}
+
 export interface LlmClient {
   generateJson<T>(req: LlmJsonRequest): Promise<LlmResult<T>>;
+  /**
+   * Opcional (o cliente com orçamento): uma chamada do agente, para esta competição e com esta
+   * estimativa, caberia agora nos tetos (faixa, agente, global)? Não chama o provedor nem grava nada.
+   */
+  hasRoom?(agent: string, competition: LlmJsonRequest['competition'], need?: BudgetNeed): Promise<boolean>;
 }

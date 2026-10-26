@@ -140,9 +140,12 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       item.summary = `${facts.final_score.home}-${facts.final_score.away}`;
       const hash = factsHash(facts, RECAP_PROMPT_VERSION);
       if (!opts.force) {
+        const llm = usesLlm(priority) ? opts.llm : null;
         const previous = await latestFactsHashes(db, id, 'recap', {
           now,
           ...(opts.budgetDay ? { budgetDay: opts.budgetDay } : {}),
+          // determinístico por orçamento: tenta de novo no mesmo dia se a faixa tiver saldo agora
+          ...(llm?.hasRoom ? { hasRoom: (need) => llm.hasRoom!('context', competitionRef, need) } : {}),
         });
         if (locales.every((l) => previous.get(l) === hash)) {
           item.reason = 'fatos inalterados desde a última geração';
@@ -182,6 +185,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         eventId: id,
         kind: 'recap',
         texts,
+        ...(written.budgetRefusal ? { budgetRefusal: written.budgetRefusal } : {}),
         factsHash: hash,
         sources: [
           { kind: 'core', ref: `core.event:${id}` },

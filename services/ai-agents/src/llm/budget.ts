@@ -18,9 +18,9 @@
  * ultrapassar por no máximo uma chamada cada) — suficiente para conter custo descontrolado.
  */
 import { agentOf, type TokenBudget } from '@galaxie/ai-ledger';
-import { LlmError } from './errors.js';
+import { BudgetExceededError, LlmError } from './errors.js';
 import { budgetPriceFor, searchUsdFor } from './pricing.js';
-import type { LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
+import type { BudgetNeed, LlmClient, LlmJsonRequest, LlmResult, LlmTier, LlmUsage } from './types.js';
 
 // O ledger (stores, tetos e reserva) vive em @galaxie/ai-ledger, compartilhado com o ingestor.
 export {
@@ -88,6 +88,29 @@ export class BudgetedLlmClient implements LlmClient {
     private readonly modelOf: (tier: LlmTier) => string = (t) => t,
     private readonly providerName = 'unknown',
   ) {}
+
+  /**
+   * Uma chamada do agente com esta estimativa caberia agora (faixa da competição, teto do agente e global)?
+   * Confere pela própria reserva, sem chamar o provedor nem gravar no ledger.
+   */
+  async hasRoom(
+    agent: string,
+    competition: LlmJsonRequest['competition'],
+    need?: BudgetNeed,
+  ): Promise<boolean> {
+    try {
+      await this.budget.reserve(
+        agent,
+        need?.unit === 'tokens' ? need.requested : 0,
+        need?.unit === 'usd' ? need.requested : 0,
+        this.budget.bandOfCall(agent, competition),
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof BudgetExceededError) return false;
+      throw err;
+    }
+  }
 
   async generateJson<T>(original: LlmJsonRequest): Promise<LlmResult<T>> {
     const agent = agentOf(original.purpose);

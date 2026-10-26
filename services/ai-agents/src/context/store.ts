@@ -8,7 +8,7 @@ import {
 } from '@galaxie/db';
 import { UTC_BUDGET_DAY, budgetDayOf, type BudgetDay } from '@galaxie/runtime-config';
 import { surfaceFit, type Surface } from '../guardrails/index.js';
-import type { LlmUsage } from '../llm/types.js';
+import type { BudgetNeed, LlmUsage } from '../llm/types.js';
 import { confidenceOf, type LocaleText } from './writer.js';
 
 /**
@@ -45,6 +45,8 @@ export interface StoredContextContent {
   /** Tentativas reprovadas: tipo e valor das violações (auditoria e métricas). */
   rejected: { attempt: number; violations: { kind: string; value: string }[] }[];
   fallbackReason?: string;
+  /** `fallbackReason: 'budget'`: o que a chamada recusada pedia (unidade e estimativa). */
+  budgetRefusal?: BudgetNeed;
   /** Violações do próprio texto determinístico (deveria ser vazio; senão é bug do template). */
   fallbackViolations?: { kind: string; value: string }[];
   factsHash: string;
@@ -93,6 +95,8 @@ export interface SaveContextInput {
   data: Record<string, unknown>;
   /** Tags extras de cache para o purge. */
   tags?: readonly string[];
+  /** O que a chamada recusada pelo orçamento pedia (vai nas linhas `fallbackReason: 'budget'`). */
+  budgetRefusal?: BudgetNeed;
 }
 
 /** Grava as linhas (uma por locale) e publica `event.context_published`. Retorna o id do change feed. */
@@ -115,6 +119,7 @@ export async function saveEventContexts(db: Database, input: SaveContextInput): 
       data: input.data,
     };
     if (t.fallbackReason) content.fallbackReason = t.fallbackReason;
+    if (t.fallbackReason === 'budget' && input.budgetRefusal) content.budgetRefusal = input.budgetRefusal;
     if (t.fallbackViolations?.length)
       content.fallbackViolations = t.fallbackViolations.map((v) => ({ kind: v.kind, value: v.value }));
     return {
@@ -178,6 +183,11 @@ export function fellBackOnLlmError(content: StoredContextContent): boolean {
 export interface BudgetRetry {
   now: Date;
   budgetDay?: BudgetDay;
+  /**
+   * A faixa (e os outros tetos) tem saldo agora para a chamada recusada? Com saldo (o operador subiu o
+   * teto ou a faixa, ou sobrou da faixa), tenta de novo no mesmo dia; sem saldo, a linha fica.
+   */
+  hasRoom?: (need: BudgetNeed | undefined) => Promise<boolean>;
 }
 
 /**
@@ -202,11 +212,18 @@ export async function latestFactsHashes(
   retry: BudgetRetry = { now: new Date() },
 ): Promise<Map<string, string>> {
   const rows = await readEventContext(db, eventId, { kinds: [kind] });
-  return new Map(
-    rows
-      .filter((r) => !fellBackOnLlmError(r.content) && !budgetFallbackExpired(r.content, retry))
-      .map((r) => [r.locale, r.content.factsHash]),
-  );
+  // a consulta ao saldo é uma só por evento (todas as linhas `budget` vêm da mesma recusa)
+  let room: Promise<boolean> | undefined;
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    if (fellBackOnLlmError(r.content) || budgetFallbackExpired(r.content, retry)) continue;
+    if (r.content.origin === 'fallback' && r.content.fallbackReason === 'budget' && retry.hasRoom) {
+      room ??= retry.hasRoom(r.content.budgetRefusal);
+      if (await room) continue;
+    }
+    out.set(r.locale, r.content.factsHash);
+  }
+  return out;
 }
 
 /**

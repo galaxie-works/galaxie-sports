@@ -164,6 +164,20 @@ export function budgetDayOf(at: Date, day: Readonly<BudgetDay> = UTC_BUDGET_DAY)
 }
 
 /**
+ * Virada do dia de orçamento lida do env (AI_BUDGET_TIMEZONE e AI_BUDGET_DAY_START, já com as sobrescritas
+ * do painel aplicadas por quem chama). Valor inválido ou vazio cai no padrão (leitura para métricas e
+ * painel; o ledger dos agentes recusa o inválido pela regra do registro).
+ */
+export function budgetDayFromEnv(env: Record<string, string | undefined>): BudgetDay {
+  const tz = env.AI_BUDGET_TIMEZONE?.trim();
+  const start = env.AI_BUDGET_DAY_START?.trim();
+  return {
+    timeZone: tz && isTimeZone(tz) ? tz : DEFAULT_BUDGET_DAY.timeZone,
+    start: start && BUDGET_DAY_START_PATTERN.test(start) ? start : DEFAULT_BUDGET_DAY.start,
+  };
+}
+
+/**
  * Código de saída do job que gravou a saída determinística porque o orçamento recusou (faixa esgotada):
  * o scheduler registra a execução como `budget_skipped`, não como erro.
  */

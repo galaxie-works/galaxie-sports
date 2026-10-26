@@ -247,9 +247,12 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
       const facts = buildScenarioFacts(core, stakes, locales, { lastFinal });
       const hash = factsHash(facts, SCENARIO_PROMPT_VERSION);
       if (!opts.force) {
+        const llm = usesLlm(priority) ? opts.llm : null;
         const previous = await latestFactsHashes(db, id, 'scenario', {
           now,
           ...(opts.budgetDay ? { budgetDay: opts.budgetDay } : {}),
+          // determinístico por orçamento: tenta de novo no mesmo dia se a faixa tiver saldo agora
+          ...(llm?.hasRoom ? { hasRoom: (need) => llm.hasRoom!('context', competitionRef, need) } : {}),
         });
         if (locales.every((l) => previous.get(l) === hash)) {
           item.reason = 'fatos inalterados desde a última geração';
@@ -300,6 +303,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         eventId: id,
         kind: 'scenario',
         texts,
+        ...(written.budgetRefusal ? { budgetRefusal: written.budgetRefusal } : {}),
         factsHash: hash,
         sources,
         run: newRunInfo({

@@ -18,6 +18,7 @@ import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { AI_POLICY_KEYS } from '@/components/ops/ai-policy';
 import { validationMessage } from '@/lib/ops/validation-message';
 
 export interface OpsActionResult {
@@ -128,7 +129,6 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
 }
 
 /** Chaves da Política de IA (#357): o cartão grava as três juntas, conferidas pelas regras do registro. */
-const AI_POLICY_KEYS = ['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE'] as const;
 
 /**
  * Grava a Política de IA (faixas, teto global, corte P0/P1). Confere todas antes de gravar qualquer uma:

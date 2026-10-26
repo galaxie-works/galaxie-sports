@@ -564,6 +564,9 @@ export default defineMessages(
       reset: 'Desfazer',
       resetDefault: 'Voltar ao padrão',
       resetDone: 'Política de IA de volta ao padrão',
+      resetConfirmBody:
+        'As sobrescritas do painel das faixas, do teto global em US$ e do corte P0/P1 são apagadas e volta a valer o env ou o padrão do código. Muda o custo da IA a partir da próxima chamada.',
+      confirmCost: 'Estas flags afetam o custo da IA.',
       dailyUsd: {
         label: 'Teto global (US$/dia)',
         description: 'O máximo que a IA gasta por dia somando todas as faixas.',
@@ -1429,6 +1432,9 @@ export default defineMessages(
         reset: 'Undo',
         resetDefault: 'Back to default',
         resetDone: 'AI policy back to default',
+        resetConfirmBody:
+          'The panel overrides for the bands, the global US$ cap and the P0/P1 cut are removed, and the env or the code default applies again. AI cost changes from the next call on.',
+        confirmCost: 'These flags affect AI cost.',
         dailyUsd: {
           label: 'Global cap (US$/day)',
           description: 'The most AI spends per day across all bands.',
@@ -2307,6 +2313,9 @@ export default defineMessages(
         reset: 'Deshacer',
         resetDefault: 'Volver al valor por defecto',
         resetDone: 'Política de IA de vuelta al valor por defecto',
+        resetConfirmBody:
+          'Se borran del panel las franjas, el tope global en US$ y el corte P0/P1, y vuelve a regir el env o el valor por defecto del código. El costo de la IA cambia desde la próxima llamada.',
+        confirmCost: 'Estas flags afectan el costo de la IA.',
         dailyUsd: {
           label: 'Tope global (US$/día)',
           description: 'Lo máximo que la IA gasta por día sumando todas las franjas.',

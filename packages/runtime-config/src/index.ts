@@ -43,6 +43,7 @@ export {
   EXIT_BUDGET_SKIPPED,
   UTC_BUDGET_DAY,
   bandLimitsUsd,
+  budgetDayFromEnv,
   budgetDayOf,
   checkBandShares,
   describeBudgetDay,

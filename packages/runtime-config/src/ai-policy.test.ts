@@ -4,6 +4,7 @@ import {
   DEFAULT_BAND_SHARES_TEXT,
   DEFAULT_BUDGET_DAY,
   bandLimitsUsd,
+  budgetDayFromEnv,
   budgetDayOf,
   checkBandShares,
   formatBandShares,
@@ -115,5 +116,18 @@ describe('dia de orçamento (vira às 06:00 em Brasília)', () => {
     expect(budgetDayOf(new Date('2026-10-26T07:00:00Z'), { timeZone: 'UTC', start: '07:00' })).toBe(
       '2026-10-26',
     );
+  });
+});
+
+describe('virada do dia de orçamento lida do env', () => {
+  it('lê fuso e horário (com as sobrescritas já aplicadas); inválido ou vazio cai no padrão', () => {
+    expect(budgetDayFromEnv({ AI_BUDGET_TIMEZONE: 'UTC', AI_BUDGET_DAY_START: '00:00' })).toEqual({
+      timeZone: 'UTC',
+      start: '00:00',
+    });
+    expect(budgetDayFromEnv({ AI_BUDGET_TIMEZONE: 'Lugar/Nenhum', AI_BUDGET_DAY_START: '6h' })).toEqual(
+      DEFAULT_BUDGET_DAY,
+    );
+    expect(budgetDayFromEnv({})).toEqual(DEFAULT_BUDGET_DAY);
   });
 });

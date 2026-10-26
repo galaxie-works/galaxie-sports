@@ -159,6 +159,18 @@ describe('orçamento diário esgotado → todos os agentes caem no determinísti
       reason: 'fatos inalterados desde a última geração',
     });
     expect({ rows: await count(), feed: await feed() }).toEqual(before);
+
+    // o operador abriu espaço no meio do dia (outro teto, sem o de tokens esgotado): tenta de novo agora
+    const roomy = new FakeLlmClient(() => ({ texts: [] }));
+    const withRoom = withTokenBudget(roomy, { dailyLimit: null }); // ledger em memória: não suja o teste do ledger abaixo
+    expect(await withRoom.hasRoom('context', { slug: 'conmebol-libertadores' })).toBe(true);
+    expect(
+      await llm.hasRoom('context', { slug: 'conmebol-libertadores' }, { unit: 'tokens', requested: 1 }),
+    ).toBe(false);
+    const retried = await runScenarioAgent(db, { now: new Date(), llm: withRoom, eventId: secondLeg });
+    expect(retried.items[0]!.action).toBe('generated');
+    expect(roomy.calls).toBeGreaterThan(0);
+    expect(await count()).toBeGreaterThan(before.rows);
   });
 
   it('resumo: texto montado da timeline, sem chamar o provedor', async () => {

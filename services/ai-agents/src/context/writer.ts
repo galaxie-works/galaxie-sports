@@ -8,7 +8,7 @@ import {
   type Violation,
 } from '../guardrails/index.js';
 import { BudgetExceededError } from '../llm/errors.js';
-import type { LlmClient, LlmJsonRequest, LlmMessage, LlmTier, LlmUsage } from '../llm/types.js';
+import type { BudgetNeed, LlmClient, LlmJsonRequest, LlmMessage, LlmTier, LlmUsage } from '../llm/types.js';
 
 /**
  * Redação localizada com validação (docs/07 §2.3), comum ao Cenário e ao Resumo:
@@ -72,6 +72,8 @@ export interface LocalizedWriteResult {
   errors: string[];
   /** O orçamento recusou (faixa, agente ou global esgotado, ou IA desligada): saiu o texto determinístico. */
   budgetSkipped: boolean;
+  /** O que a chamada recusada pedia (para conferir, nas rodadas seguintes, se agora cabe). */
+  budgetRefusal?: BudgetNeed;
 }
 
 /** Confiança gravada em enrich.event_context: aprovado de primeira 0,9; na 2ª 0,8; determinístico 1,0. */
@@ -200,6 +202,7 @@ export async function writeLocalizedTexts(req: LocalizedWriteRequest): Promise<L
       // sem orçamento não adianta tentar de novo: a recusa vem antes do provedor, e o texto é o determinístico
       if (err instanceof BudgetExceededError && !err.midCall) {
         result.budgetSkipped = true;
+        result.budgetRefusal = { unit: err.unit, requested: err.requested };
         break;
       }
       continue;

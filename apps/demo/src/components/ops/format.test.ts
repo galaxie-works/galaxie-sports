@@ -4,6 +4,7 @@ import { validateSettingKey } from '@galaxie/runtime-config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { validationMessage } from '@/lib/ops/validation-message';
 
+import { AI_POLICY_KEYS, needsConfirmation } from './ai-policy';
 import { aiStateText, tokenUsage } from './format';
 
 const pt = getDictionary('pt-BR').ops;
@@ -40,5 +41,13 @@ describe('tokens do dia no painel', () => {
       pools: [{ agent: 'assets', used: 600_000, limit: 600_000 }],
     });
     expect(tokenUsage(byAgent, null).pools[0]!.limit).toBeNull();
+  });
+});
+
+describe('cartão Política de IA', () => {
+  it('gravar e voltar ao padrão pedem confirmação: as três chaves são críticas (custo)', () => {
+    expect(needsConfirmation(AI_POLICY_KEYS)).toBe(true);
+    expect(needsConfirmation(['AI_DAILY_USD_BUDGET'])).toBe(true);
+    expect(needsConfirmation(['AI_MAX_RETRIES'])).toBe(false);
   });
 });

@@ -13,6 +13,16 @@ import { useState } from 'react';
 
 import { resetAiPolicy, saveAiPolicy } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -23,6 +33,7 @@ import { fill } from '@/lib/i18n/text';
 import type { LlmSpend } from '@/lib/ops/types';
 import { validationMessage } from '@/lib/ops/validation-message';
 
+import { AI_POLICY_KEYS, needsConfirmation, type AiPolicyKey } from './ai-policy';
 import { useOpsAction } from './setting-row';
 
 /** Faixa do slider do teto global (o registro aceita até US$ 10.000; o slider cobre o uso normal). */
@@ -43,10 +54,12 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
   const [usd, setUsd] = useState<number | null>(llm.usdBudget);
   const [cut, setCut] = useState(llm.p0MinAudience);
   const { pending, run } = useOpsAction();
+  // chaves críticas (custo): gravar e voltar ao padrão pedem confirmação, como as flags do painel
+  const [confirm, setConfirm] = useState<'save' | 'reset' | null>(null);
 
   const sum = AI_BANDS.reduce((s, b) => s + shares[b], 0);
   const sharesText = formatBandShares(shares);
-  const changes: Partial<Record<'AI_BAND_SHARES' | 'AI_DAILY_USD_BUDGET' | 'AI_P0_MIN_AUDIENCE', string>> = {
+  const changes: Partial<Record<AiPolicyKey, string>> = {
     ...(sharesText !== formatBandShares(llm.bandShares) ? { AI_BAND_SHARES: sharesText } : {}),
     ...(usd !== llm.usdBudget ? { AI_DAILY_USD_BUDGET: usd === null ? 'unlimited' : String(usd) } : {}),
     ...(cut !== llm.p0MinAudience ? { AI_P0_MIN_AUDIENCE: String(cut) } : {}),
@@ -65,6 +78,13 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
   const preview = bandLimitsUsd(usd, shares);
   const spent = new Map(llm.bands.map((b) => [b.band, b.usedUsd]));
   const usdMax = Math.max(USD_MAX, Math.ceil(llm.usdBudget ?? 0));
+  const doSave = () => run(() => saveAiPolicy(changes), T.saved);
+  const doReset = () => run(() => resetAiPolicy(), T.resetDone);
+  const current: Record<AiPolicyKey, string> = {
+    AI_BAND_SHARES: formatBandShares(llm.bandShares),
+    AI_DAILY_USD_BUDGET: llm.usdBudget === null ? 'unlimited' : String(llm.usdBudget),
+    AI_P0_MIN_AUDIENCE: String(llm.p0MinAudience),
+  };
 
   return (
     <Frame>
@@ -195,7 +215,7 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
             variant="outline"
             size="sm"
             disabled={pending || !llm.policyOverridden}
-            onClick={() => run(() => resetAiPolicy(), T.resetDone)}
+            onClick={() => (needsConfirmation(AI_POLICY_KEYS) ? setConfirm('reset') : doReset())}
           >
             <Undo2 />
             {T.resetDefault}
@@ -203,12 +223,43 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
           <Button
             size="sm"
             disabled={pending || !dirty || !!invalid}
-            onClick={() => run(() => saveAiPolicy(changes), T.saved)}
+            onClick={() => (needsConfirmation(Object.keys(changes)) ? setConfirm('save') : doSave())}
           >
             {pending ? <Spinner /> : <Save />}
             {T.save}
           </Button>
         </div>
+        <AlertDialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {fill(confirm === 'reset' ? t.ops.actions.resetTitle : t.ops.actions.confirmTitle, {
+                  name: T.title,
+                })}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirm === 'reset'
+                  ? T.resetConfirmBody
+                  : `${(Object.keys(changes) as AiPolicyKey[])
+                      .map((key) => `${key}: ${current[key]} → ${changes[key]}`)
+                      .join('; ')}. ${T.confirmCost}`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t.ops.actions.cancel}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const action = confirm;
+                  setConfirm(null);
+                  if (action === 'reset') doReset();
+                  else doSave();
+                }}
+              >
+                {t.ops.actions.confirm}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </FramePanel>
     </Frame>
   );
