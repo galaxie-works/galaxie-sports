@@ -1,7 +1,11 @@
 /**
  * Proxy de leitura para a API Galaxie Sports: injeta a chave de demonstração no servidor e
- * repassa o corpo em streaming (inclui o SSE de `/v1/stream`). Só `GET /v1/*` passa.
+ * repassa o corpo em streaming (inclui o SSE de `/v1/stream`). Só `GET` dos recursos de leitura que o
+ * app usa (`lib/galaxie/proxy-policy.ts`) passa, com teto de pedidos por sessão.
  */
+import { getSessionCookie } from 'better-auth/cookies';
+
+import { createRateLimiter, isProxyPathAllowed, PROXY_REQUESTS_PER_MINUTE } from '@/lib/galaxie/proxy-policy';
 import { API_URL, apiHeaders } from '@/lib/galaxie/server';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -16,11 +20,22 @@ const FORWARD_RESPONSE_HEADERS = [
   'x-request-id',
 ];
 
+/** Teto por sessão (o proxy.ts já exigiu uma sessão válida para chegar aqui). */
+const takeRequest = createRateLimiter(PROXY_REQUESTS_PER_MINUTE);
+
 export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...path]'>) {
   const { path } = await ctx.params;
-  if (path[0] !== 'v1' || path.some((p) => p === '..' || p === '')) {
+  if (!isProxyPathAllowed(path)) {
     const t = getDictionary(await getRequestLocale()).common;
     return Response.json({ title: t.routeNotAllowed }, { status: 404 });
+  }
+  const retryAfter = takeRequest(getSessionCookie(request) ?? 'sem-sessao');
+  if (retryAfter) {
+    const t = getDictionary(await getRequestLocale()).common;
+    return Response.json(
+      { title: t.tooManyRequests },
+      { status: 429, headers: { 'retry-after': String(retryAfter) } },
+    );
   }
 
   const incoming = new URL(request.url);

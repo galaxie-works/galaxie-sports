@@ -42,6 +42,8 @@ export default defineMessages(
       tooManyAttempts: 'Muitas tentativas com este código. Peça um novo.',
       rateLimited: 'Muitas tentativas em pouco tempo. Aguarde um minuto e tente de novo.',
       resendTooSoon: 'Aguarde um pouco para pedir outro código.',
+      otpLocked:
+        'Muitas tentativas erradas para este e-mail. Por segurança, o login por código está bloqueado por enquanto: tente mais tarde ou fale com quem te convidou.',
       banned: 'Seu acesso à demo foi desativado. Fale com quem te convidou.',
       sendFailed: 'Não foi possível enviar o código agora. Tente de novo.',
       signInFailed: 'Não foi possível entrar agora. Tente de novo.',
@@ -87,6 +89,8 @@ export default defineMessages(
         tooManyAttempts: 'Too many attempts with this code. Request a new one.',
         rateLimited: 'Too many attempts in a short time. Wait a minute and try again.',
         resendTooSoon: 'Wait a moment before requesting another code.',
+        otpLocked:
+          'Too many wrong attempts for this email. For security, code sign-in is blocked for now: try again later or talk to the person who invited you.',
         banned: 'Your access to the demo has been disabled. Talk to the person who invited you.',
         sendFailed: "We couldn't send the code right now. Try again.",
         signInFailed: "We couldn't sign you in right now. Try again.",
@@ -131,6 +135,8 @@ export default defineMessages(
         tooManyAttempts: 'Demasiados intentos con este código. Pedí uno nuevo.',
         rateLimited: 'Demasiados intentos en poco tiempo. Esperá un minuto y probá de nuevo.',
         resendTooSoon: 'Esperá un poco para pedir otro código.',
+        otpLocked:
+          'Demasiados intentos fallidos para este e-mail. Por seguridad, el ingreso con código está bloqueado por ahora: probá más tarde o hablá con quien te invitó.',
         banned: 'Tu acceso a la demo fue desactivado. Hablá con quien te invitó.',
         sendFailed: 'No pudimos enviar el código ahora. Probá de nuevo.',
         signInFailed: 'No pudimos hacerte ingresar ahora. Probá de nuevo.',
