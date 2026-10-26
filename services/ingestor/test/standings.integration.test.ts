@@ -247,6 +247,122 @@ describe('recálculo da tabela com grupos do fornecedor', () => {
   });
 });
 
+describe('recálculo da tabela com fases', () => {
+  async function round(seasonId: string, label: string) {
+    const [s] = await db
+      .insert(stage)
+      .values({ seasonId, kind: 'regular', name: { en: label }, providerLabel: label })
+      .returning();
+    return s!.id;
+  }
+
+  it('Apertura e Clausura: tabela de cada torneio e a anual; o grupo vazio que misturava sai', async () => {
+    const s = await seedSeason('football', 'liga-apertura-clausura', ['P1', 'P2', 'P3']);
+    // resíduo do recálculo antigo: a soma dos torneios no grupo vazio, sem rótulo
+    await db.insert(standing).values(
+      ['P1', 'P2', 'P3'].map((team, i) => ({
+        seasonId: s.seasonId,
+        group: '',
+        participantId: s.team(team),
+        rank: i + 1,
+        points: 0,
+        source: 'computed',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    await finished(
+      'football',
+      s.seasonId,
+      s.team('P1'),
+      s.team('P2'),
+      [1, 0],
+      await round(s.seasonId, 'Apertura - 1'),
+    );
+    await finished(
+      'football',
+      s.seasonId,
+      s.team('P2'),
+      s.team('P3'),
+      [1, 0],
+      await round(s.seasonId, 'Apertura - 2'),
+    );
+    await finished(
+      'football',
+      s.seasonId,
+      s.team('P3'),
+      s.team('P1'),
+      [2, 2],
+      await round(s.seasonId, 'Clausura - 1'),
+    );
+    await finished(
+      'football',
+      s.seasonId,
+      s.team('P2'),
+      s.team('P1'),
+      [0, 1],
+      await round(s.seasonId, 'Clausura - 2'),
+    );
+    // mata-mata do torneio (rodada sem número) não entra em tabela
+    await finished(
+      'football',
+      s.seasonId,
+      s.team('P1'),
+      s.team('P3'),
+      [5, 0],
+      await round(s.seasonId, 'Clausura - Final'),
+    );
+
+    const report = await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+    expect(report).toMatchObject({ outcome: 'written', results: 4, rows: 9 });
+    const table = await tableOf(s.seasonId);
+    const played = (group: string, team: string) =>
+      table.find((r) => r.group === group && r.participantId === s.team(team))?.played;
+    expect(new Set(table.map((r) => r.group))).toEqual(new Set(['Apertura', 'Clausura', 'annual']));
+    expect(played('Apertura', 'P2')).toBe(2);
+    expect(played('Clausura', 'P1')).toBe(2);
+    expect(played('annual', 'P1')).toBe(3);
+  });
+
+  it('fornecedor com só parte dos grupos: os outros são deduzidos dos jogos', async () => {
+    const s = await seedSeason('football', 'liga-grupos-parciais', ['Q1', 'Q2', 'R1', 'R2', 'S1', 'S2']);
+    await db.insert(standing).values(
+      [
+        ['Group 1', 'Q1'],
+        ['Group 1', 'Q2'],
+        ['', 'R1'],
+        ['', 'R2'],
+        ['', 'S1'],
+        ['', 'S2'],
+      ].map(([group, team], i) => ({
+        seasonId: s.seasonId,
+        group: group!,
+        participantId: s.team(team!),
+        rank: i + 1,
+        points: 0,
+        source: 'computed',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    await finished('football', s.seasonId, s.team('Q1'), s.team('Q2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('R1'), s.team('R2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('S1'), s.team('S2'), [1, 0]);
+
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+      rows: 6,
+    });
+    const table = await tableOf(s.seasonId);
+    expect(table.map((r) => r.group).sort()).toEqual([
+      'Group 1',
+      'Group 1',
+      'unnamed:1',
+      'unnamed:1',
+      'unnamed:2',
+      'unnamed:2',
+    ]);
+  });
+});
+
 describe('recálculo da NBA', () => {
   it('conferência com nome legado (east) e canônico do mesmo time vira uma só, a canônica', async () => {
     const s = await seedSeason('nba', 'nba-standard', ['BOS', 'NYK', 'LAL', 'GSW']);

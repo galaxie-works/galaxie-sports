@@ -157,6 +157,8 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 2. **Pré-validar** temporada/data/parâmetros contra as restrições do plano vigente.
 3. **Ler `coverage`** antes de pedir eventos, escalações, estatísticas, jogadores, injuries ou odds.
 4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Tabela do provedor mais nova que o último resultado (bootstrap Pro) prevalece; mais velha, é substituída com os mesmos grupos. Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
+   - **Temporada com mais de uma fase** (rodadas do fornecedor "Apertura - 7", "Second Stage - 3"): uma tabela por fase, só com os jogos dela; grupo do fornecedor é ligado à fase pelo nome. Fase sem grupo vira tabela com o nome da fase (a 1ª fase de nome genérico vira `first_phase`, "1ª fase"). Duas ou mais fases com quase todos os times somam na tabela anual (`annual`, "Tabela anual"; ou a do fornecedor, se ele já manda uma). Rodada sem número (final, quadrangular de mata-mata) não entra. O grupo vazio, que misturava as fases, sai.
+   - **Fornecedor com só parte dos grupos** (Série D 2026: 8 de 16): os times sem grupo ganham grupos deduzidos dos jogos entre eles (`unnamed:1`, `unnamed:2`… — "Grupo sem nome 1").
 5. **Fila de detalhe com prioridade**: em fins de semana com 150–250 jogos, tier 2 pode atrasar 1–3 dias — o card mostra o placar (que veio no `fixtures?date=`) e o detalhe chega depois.
 
 | Endpoint | TTL no cache (sem mudança esperada) |

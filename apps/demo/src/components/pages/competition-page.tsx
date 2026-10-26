@@ -23,6 +23,7 @@ import { apiLocale, contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
 import { countryHref, sportParent } from '@/lib/navigation';
+import { orderTableGroups, tableGroupTitle } from '@/lib/standings-groups';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
 export async function competitionMetadata(id: string, source: DataSource): Promise<Metadata> {
@@ -126,7 +127,7 @@ export async function CompetitionContent({
   );
   const sessions = events.some((e) => !!e.session);
   const groups = (
-    championship ? championshipOrder(standings?.groups ?? []) : (standings?.groups ?? [])
+    championship ? championshipOrder(standings?.groups ?? []) : orderTableGroups(standings?.groups ?? [])
   ).filter((g) => g.rows.length > 0);
   const base = mount?.basePath ?? `/competicoes/${competition.slug}`;
   const seasonQuery = selected ? `temporada=${selected.year}` : '';
@@ -286,9 +287,8 @@ export async function CompetitionContent({
                       title={
                         championship && g.name
                           ? (t.race.championship[g.name] ?? g.name)
-                          : groups.length > 1 && g.name
-                            ? g.name
-                            : tc.standings
+                          : (tableGroupTitle(g.name, tc.tableGroups) ??
+                            (groups.length > 1 && g.name ? g.name : tc.standings))
                       }
                       api={
                         selected

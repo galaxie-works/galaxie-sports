@@ -6,12 +6,14 @@
  *
  * Quando já existe tabela do provedor (ex.: bootstrap Pro) e ela é mais nova que o último resultado,
  * a do provedor prevalece. Mais velha: a calculada a substitui, com os mesmos nomes de grupo.
+ * Temporada com mais de uma fase (Apertura/Clausura, 1ª e 2ª fase): uma tabela por fase e a anual (phases.ts).
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
-import { computeStandings, type MatchResult } from '@galaxie/rules';
+import { computeStandings, type MatchResult, type StandingsTable } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
+import { components, planPhases, UNNAMED_GROUP_PREFIX } from './phases.js';
 import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
@@ -149,16 +151,44 @@ export async function recomputeSeasonStandings(
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
 
-  // grupos: os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum, tabela única.
-  // O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que perdia os grupos.
-  // Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores terceiros): não dá para
-  // saber em qual tabela cada jogo entra, então a do fornecedor fica como está
   const groupsOfTeam = new Map<string, Set<string>>();
   for (const r of tableRows) {
     const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
     set.add(r.group);
     groupsOfTeam.set(r.participantId, set);
   }
+  const all = await loadSeasonResults(db, seasonId, {
+    includeCards: true,
+    ...(stageIds ? { stageIds } : {}),
+  });
+
+  // mais de uma fase: uma tabela por fase (com os grupos do fornecedor ligados a ela) e a anual; o grupo
+  // vazio, que misturava as fases, sai
+  const labels = await roundLabels(db, seasonId);
+  const plan = planPhases(
+    all.map((m) => ({ ...m, roundLabel: labels.get(m.id!) ?? null })),
+    groupsOfTeam,
+  );
+  if (plan.kind === 'error') return report('no_groups', { detail: plan.detail });
+  if (plan.kind === 'multi') {
+    if (!plan.sets.length) return report('no_results');
+    const results = new Set(plan.sets.flat().map((m) => m.id)).size;
+    let tables;
+    try {
+      tables = plan.sets.flatMap((matches) => computeStandings({ rules, matches }));
+    } catch (err) {
+      return report('invalid_input', { results, detail: err instanceof Error ? err.message : String(err) });
+    }
+    return writeTables(db, seasonId, info.competitionId, tables, options, report, {
+      results,
+      dropEmpty: true,
+    });
+  }
+
+  // uma fase: grupos são os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum,
+  // tabela única. O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que
+  // perdia os grupos. Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores
+  // terceiros): não dá para saber em qual tabela cada jogo entra, então a do fornecedor fica como está
   const groupOfTeam = new Map<string, string>();
   for (const [team, set] of groupsOfTeam) {
     const named = [...set].filter((g) => g !== '');
@@ -168,15 +198,19 @@ export async function recomputeSeasonStandings(
       });
     groupOfTeam.set(team, named[0] ?? '');
   }
+  // o fornecedor mandou só parte dos grupos (Série D: 8 de 16): os times sem grupo ganham os grupos
+  // deduzidos dos jogos entre eles
+  const loose = [...groupOfTeam].filter(([, g]) => g === '').map(([t]) => t);
+  if (loose.length && loose.length < groupOfTeam.size) {
+    const parts = components(loose, all);
+    if (parts.length > 1)
+      parts.forEach((part, i) => part.forEach((t) => groupOfTeam.set(t, `${UNNAMED_GROUP_PREFIX}${i + 1}`)));
+  }
   const groups = new Set(groupOfTeam.values());
   const singleGroup = groups.size === 1 ? [...groups][0]! : groups.size === 0 ? '' : null;
   // fase de grupos sem a divisão do provedor: não dá para saber quem é de qual grupo
   if (groups.size === 0 && rules.format === 'groups_and_knockout') return report('no_groups');
 
-  const all = await loadSeasonResults(db, seasonId, {
-    includeCards: true,
-    ...(stageIds ? { stageIds } : {}),
-  });
   const matches: MatchResult[] = [];
   for (const m of all) {
     if (singleGroup !== null) {
@@ -198,8 +232,24 @@ export async function recomputeSeasonStandings(
       detail: err instanceof Error ? err.message : String(err),
     });
   }
+  return writeTables(db, seasonId, info.competitionId, tables, options, report, {
+    results: matches.length,
+    dropEmpty: false,
+  });
+}
+
+/** Grava as tabelas calculadas, limpa as linhas velhas e avisa o change feed. */
+async function writeTables(
+  db: Database,
+  seasonId: string,
+  competitionId: string,
+  tables: readonly StandingsTable[],
+  options: RecomputeOptions,
+  report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
+  extra: { results: number; dropEmpty: boolean },
+): Promise<SeasonStandingsReport> {
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
-  await dropStaleComputedRows(db, seasonId, tables);
+  await dropStaleComputedRows(db, seasonId, tables, extra.dropEmpty);
   if (options.publish !== false && rows > 0) {
     await publishChange(db, {
       topic: 'standings',
@@ -209,24 +259,41 @@ export async function recomputeSeasonStandings(
         source: 'computed',
         rows,
         groups: tables.map((t) => t.group),
-        tags: [`competition:${info.competitionId}`, 'standing'],
+        tags: [`competition:${competitionId}`, 'standing'],
       },
     });
   }
-  return report('written', { results: matches.length, rows });
+  return report('written', { results: extra.results, rows });
+}
+
+/** Rótulo de cada rodada da temporada no fornecedor ("Apertura - 7"), por evento. */
+async function roundLabels(db: Database, seasonId: string): Promise<Map<string, string>> {
+  const rows = await db
+    .select({
+      id: event.id,
+      label: sql<string | null>`coalesce(${stage.providerLabel}, ${stage.name}->>'en')`,
+    })
+    .from(event)
+    .innerJoin(stage, eq(stage.id, event.stageId))
+    .where(eq(event.seasonId, seasonId));
+  return new Map(rows.filter((r) => r.label).map((r) => [r.id, r.label!]));
 }
 
 /**
  * Linhas calculadas velhas: nos grupos que este recálculo gravou, o time que não foi regravado (a tabela do
  * grupo é refeita inteira); fora deles, só o grupo vazio (resíduo do recálculo que perdia os grupos; quando
  * a tabela gravada é a única, sem nome, ele é o próprio grupo gravado). Grupo nomeado que não foi recalculado
- * e linhas do provedor ficam.
+ * e linhas do provedor ficam. Com `dropEmpty` (temporada com fases), o grupo vazio sai inteiro, também a
+ * linha do provedor: ele misturava as fases e a tabela anual o substitui.
  */
 async function dropStaleComputedRows(
   db: Database,
   seasonId: string,
   tables: readonly { group: string; rows: readonly { teamId: string }[] }[],
+  dropEmpty = false,
 ): Promise<void> {
+  if (dropEmpty)
+    await db.delete(standing).where(and(eq(standing.seasonId, seasonId), eq(standing.group, '')));
   const keep = tables.flatMap((t) => t.rows.map((r) => sql`(${t.group}, ${r.teamId}::uuid)`));
   if (!keep.length) return;
   const written = [...new Set(tables.map((t) => t.group))];

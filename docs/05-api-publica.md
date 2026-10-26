@@ -223,7 +223,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
-| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
+| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos. Nomes reservados de grupo: `first_phase` (1ª fase completa), `annual` (tabela anual, soma dos torneios do ano) e `unnamed:<n>` (grupo deduzido dos jogos); os demais vêm do fornecedor |
 | `GET /v1/competitions/{id}/context` | O que está em jogo: líder, G4/G6, Z4, mata-mata, chaveamento, próximos confrontos decisivos |
 | `GET /v1/venues/{id}` | Estádio/circuito/arena: nome atual (curadoria vence o fornecedor), `provider_name` (nome cru do fornecedor) e `former_names` (`{ name, from, until, origin, confidence }`: curadoria `high` primeiro, depois pistas do fornecedor `low`) |
 
