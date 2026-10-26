@@ -223,6 +223,7 @@ const ERROR_ROWS = [
   ['404 NOT_FOUND', 'notFound'],
   ['429 RATE_LIMITED', 'rateLimited'],
   ['503 DEGRADED', 'degraded'],
+  ['503 MAINTENANCE', 'maintenance'],
   ['500 INTERNAL_ERROR', 'internal'],
 ] as const;
 
