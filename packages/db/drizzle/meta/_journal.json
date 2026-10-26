@@ -344,6 +344,20 @@
       "when": 1792976083442,
       "tag": "0048_lista_canais_revisao",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792978031970,
+      "tag": "0049_contexto_rejeitado_purga_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792978034749,
+      "tag": "0050_grade_publica_change_feed",
+      "breakpoints": true
     }
   ]
 }
