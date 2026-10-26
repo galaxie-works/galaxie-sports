@@ -1,5 +1,5 @@
 {
-  "id": "57d4a548-372c-464e-88c3-2f7b377163de",
+  "id": "947312d7-6720-437b-beca-ac61805f5686",
   "prevId": "fa0c35be-bbeb-4138-a195-790e99541ab1",
   "version": "7",
   "dialect": "postgresql",
@@ -338,18 +338,6 @@
         "credit": {
           "name": "credit",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attribution": {
-          "name": "attribution",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attribution_checked_at": {
-          "name": "attribution_checked_at",
-          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -15196,6 +15184,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "uploaded_by": {
           "name": "uploaded_by",

@@ -341,8 +341,15 @@
     {
       "idx": 48,
       "version": "7",
-      "when": 1792976208619,
-      "tag": "0048_atribuicao_da_commons",
+      "when": 1792976083442,
+      "tag": "0048_lista_canais_revisao",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792978323904,
+      "tag": "0049_atribuicao_da_commons",
       "breakpoints": true
     }
   ]

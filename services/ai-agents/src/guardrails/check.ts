@@ -100,7 +100,9 @@ export function describeViolations(violations: readonly Violation[]): string[] {
     wrong_result: 'resultado diferente do placar final',
     unknown_name: 'nome que não está nos fatos (use só os nomes fornecidos, sem apelidos)',
     unknown_minute: 'minuto que não está na timeline',
-    wrong_scorer: 'pessoa citada como autora/participante de gol sem ter participado de gol',
+    wrong_scorer:
+      'pessoa citada como autora de gol sem ter marcado (assistência e pênalti perdido não são gol)',
+    wrong_outcome: 'time trocado no desfecho do confronto (quem passou/foi campeão × quem caiu)',
     forbidden_insult: 'termo ofensivo',
     forbidden_violence: 'termo de violência',
     forbidden_discrimination: 'termo discriminatório',

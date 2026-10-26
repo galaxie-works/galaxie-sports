@@ -66,7 +66,7 @@ Os pontos são sempre o primeiro critério. Os demais, na ordem do YAML (maior �
 | `opponents_points` · `opponents_goal_difference` · `opponents_goals_for` | Soma dos pontos / saldo / gols dos adversários enfrentados (fase de liga da Champions) |
 | `drawing_of_lots` | Sorteio, partida extra ou coeficiente externo: o motor usa a ordem do ID (determinística) e marca `unresolvedTieWith` |
 
-**Reaplicação** (`h2h_reapply`, padrão `true`): se um critério separa parte dos empatados e já houve critério de confronto direto, o subconjunto que continua empatado recomeça do primeiro critério com a mini-tabela restrita a ele (regra UEFA). Com `false`, segue para o próximo critério na mini-tabela original.
+**Reaplicação** (`h2h_reapply`, padrão `true`): se um critério separa parte dos empatados e já houve critério de confronto direto na lista até ali (aplicado ou pulado por `max_teams`/`require_complete`), o subconjunto que continua empatado recomeça do primeiro critério com a mini-tabela restrita a ele (regra UEFA; na LaLiga, o confronto direto incompleto entre os três volta a valer entre os dois que seguem empatados se o deles estiver completo). Com `false`, segue para o próximo critério na mini-tabela original: é o caso do Brasileirão (REC art. 15, critérios em sequência), em que o confronto direto pulado num empate triplo não volta entre os dois restantes.
 
 ### 1.2 Zonas
 
@@ -83,7 +83,7 @@ O `id` da zona vira parte do código (`qualifies_for_sudamericana`) e tem rótul
 
 | Arquivo | Desempate (após pontos) | Observações |
 |---|---|---|
-| `brasileirao-serie-a` | vitórias, saldo, gols pró, confronto direto (2 clubes), vermelhos, amarelos, sorteio | G4 / pré-Libertadores 5º–6º / Sul-Americana 7º–12º / Z4 (nominais; redistribuição de vagas fora do escopo) |
+| `brasileirao-serie-a` | vitórias, saldo, gols pró, confronto direto (2 clubes), vermelhos, amarelos, sorteio (em sequência, sem reaplicação) | G4 / pré-Libertadores 5º–6º / Sul-Americana 7º–12º / Z4 (nominais; redistribuição de vagas fora do escopo) |
 | `premier-league` | saldo, gols pró, confronto direto (pontos, gols fora) | Play-off em empate decisivo → empate não resolvido |
 | `laliga` | **confronto direto primeiro** (pontos, saldo; só com todos os jogos disputados), saldo, gols pró, fair play | |
 | `serie-a-italia` | confronto direto (pontos, saldo), saldo, gols pró | *Spareggio* por título/rebaixamento → empate não resolvido |
@@ -281,8 +281,8 @@ pnpm --filter @galaxie/ingestor titulos:wikidata --corrigir-ligacoes    # grava 
 
 Num jogo encerrado de pontos corridos, a API e os agentes mostram **o que estava em jogo** (os mesmos códigos do pré-jogo, calculados com a tabela de antes do jogo) **e o que o resultado mudou** (as famílias de resultado acima). Funções puras em `stakes/result.ts`:
 
-- `prepareFinishedLeagueMatch({ rules, current, results, matchId, nextRound })`: a tabela atual (`core.standing`, o grupo dos dois times) e os jogos encerrados da temporada nas fases de pontos corridos. Recusa (`LeagueInputError`) quando a tabela não bate com os resultados (jogos somados na tabela ≠ jogos encerrados entre os times dela): desfazer jogos de uma tabela desatualizada daria uma tabela de antes errada.
-- `tablesAroundMatch`: **antes** = tabela atual menos este jogo e os encerrados que começaram no mesmo instante ou depois (simultâneos e rodadas seguintes); punições já aplicadas são preservadas. **Depois** = antes + este jogo, e só ele: os simultâneos ficam de fora, para o código dizer o que ESTE resultado mudou. As duas tabelas são reordenadas com os critérios do regulamento (confronto direto com os jogos anteriores).
+- `prepareFinishedLeagueMatch({ rules, current, results, matchId, nextRound })`: a tabela atual (`core.standing`, o grupo dos dois times) e os jogos encerrados da temporada nas fases de pontos corridos. Recusa (`LeagueInputError`) quando a tabela não bate com os resultados (por time, jogos, V/E/D ou gols da tabela ≠ os dos jogos encerrados entre os times dela; os pontos ficam de fora porque a diferença é ajuste): desfazer jogos de uma tabela desatualizada ou com placar corrigido de um lado só daria uma tabela de antes errada. A `core.standing` não guarda gols e vitórias como visitante: eles saem dos resultados, para os desempates que os usam (Champions, Libertadores, Sul-Americana, Argentina).
+- `tablesAroundMatch`: **antes** = tabela atual menos este jogo e os encerrados que começaram no mesmo instante ou depois (simultâneos e rodadas seguintes); punições já aplicadas são preservadas. **Depois** = antes + este jogo, e só ele: os simultâneos ficam de fora, para o código dizer o que ESTE resultado mudou. As duas tabelas são reordenadas com os critérios do regulamento (confronto direto com os jogos anteriores). Gols/vitórias fora e cartões da tabela atual também são desfeitos; tabela sem gols/vitórias fora com regulamento que os usa é recusada, e sem cartões eles ficam zerados (o critério não separa ninguém e o empate vai ao seguinte).
 - `finishedLeagueMatchStakes`: `pre` = `leagueMatchStakes` com a tabela de antes (e a rodada como estava no início do jogo); `result` = `leagueResultStakes(antes, depois)`:
   1. posição (`moved_up_to_n`, `moved_down_to_n`, `stayed_at_n`);
   2. zona pela posição: liderança, zona boa (subindo, só a nova; descendo, só a perdida), rebaixamento e eliminação;

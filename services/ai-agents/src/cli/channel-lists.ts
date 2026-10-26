@@ -99,6 +99,7 @@ async function main(): Promise<void> {
     const cost = outcomes.reduce((n, o) => n + (o.costUsd ?? 0), 0);
     console.log(
       `Concluído: ${outcomes.filter((o) => o.outcome === 'done').length} gravada(s), ` +
+        `${outcomes.filter((o) => o.outcome === 'partial').length} em parte (pedidos acima do teto ficam para a próxima rodada), ` +
         `${outcomes.filter((o) => o.outcome === 'failed').length} com falha · custo estimado US$ ${cost.toFixed(4)}`,
     );
   } finally {

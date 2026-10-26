@@ -1,5 +1,5 @@
 # Campeonato Brasileiro Série A (CBF).
-# Desempate (Regulamento Específico da Competição, art. de critérios de desempate):
+# Desempate (Regulamento Específico da Competição — REC —, art. 15):
 #   1) vitórias, 2) saldo de gols, 3) gols pró, 4) confronto direto (só entre dois clubes),
 #   5) menos cartões vermelhos, 6) menos cartões amarelos, 7) sorteio.
 # Zonas nominais: G4 = fase de grupos da Libertadores, 5º–6º = fase preliminar da Libertadores,
@@ -11,6 +11,10 @@ format: league
 
 standings:
   points: { win: 3, draw: 1, loss: 0 }
+  # Sem reaplicação: os critérios valem em sequência (REC da Série A 2026, art. 15). Com três ou mais
+  # clubes empatados o confronto direto (§ 2º: só entre dois clubes) é pulado e não volta depois,
+  # mesmo que um critério seguinte (ex.: cartões) separe um deles e restem dois empatados.
+  h2h_reapply: false
   tie_breakers:
     - wins
     - goal_difference
