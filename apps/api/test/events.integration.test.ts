@@ -241,6 +241,7 @@ async function seed() {
     labels: { 'pt-BR': 'Libertadores' },
     nicknames: { 'pt-BR': ['Glória Eterna'], es: ['La Gloria Eterna'] },
     sourceFile: 'competitions/football.yaml',
+    reviewStatus: 'approved',
   });
   const seasons = await db
     .insert(season)

@@ -1,10 +1,9 @@
 /**
  * Repassa à API o vídeo relacionado que o player oficial recusou (onError 100/101/150), com a chave de
- * demonstração do servidor. Na API o aviso tira o vídeo na hora só da vitrine da demo (todos os usuários
- * dela são um tenant) e vai com `quorum: false`: quem usa a demo (convidados inclusive) não é cliente
- * verificado, então a demo nunca conta para tirar o vídeo da vitrine dos outros tenants. Aqui cada aviso
- * fica no log com quem o fez, e cada usuário tem um teto de avisos (`limiter.ts`), para uma sessão só
- * não esvaziar a vitrine da demo. Só o item, o código e o `quorum` vão para a API.
+ * demonstração do servidor: o vídeo sai da vitrine em todos os jogos, para todos (a recusa de embed é do
+ * vídeo), e o agente deixa de gastar cota com ele. Como qualquer sessão da demo (convidados inclusive) pode
+ * avisar, cada aviso fica no log com quem o fez e cada usuário tem um teto de avisos (`limiter.ts`); o
+ * painel (Ajustes → Vídeos relacionados) desfaz um bloqueio indevido. Só o item e o código vão para a API.
  */
 import { revalidateTag } from 'next/cache';
 
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
     const upstream = await fetch(`${API_URL}/v1/related/playback-errors`, {
       method: 'POST',
       headers: apiHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ item_id: itemId, code, quorum: false }),
+      body: JSON.stringify({ item_id: itemId, code }),
       cache: 'no-store',
     });
     // 5xx: a API não registrou; o próximo aviso do mesmo item tenta de novo

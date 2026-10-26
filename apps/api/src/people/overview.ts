@@ -16,6 +16,8 @@ import { teamColors } from '../teams/colors.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { loadTeamNames, type TeamNameOptions } from '../teams/display-name.js';
+import { competitionProfileJoin } from '../competitions/profile.js';
+import type { ReviewStatus } from '../context.js';
 import { loadPerson } from './person.js';
 import {
   coachCareerTeams,
@@ -93,6 +95,7 @@ async function competitionRefs(
   customLogos: boolean,
   locale: string,
   ids: string[],
+  minReview: ReviewStatus,
 ) {
   if (!ids.length) return new Map<string, { ref: PersonSeasonStats['competition']; tier: number }>();
   const rows = await db
@@ -107,7 +110,7 @@ async function competitionRefs(
       logoUrl: asset.sourceUrl,
     })
     .from(competition)
-    .leftJoin(competitionProfile, eq(competitionProfile.competitionId, competition.id))
+    .leftJoin(competitionProfile, competitionProfileJoin(minReview))
     .leftJoin(asset, eq(asset.id, competitionLogoId(customLogos)))
     .where(inArray(competition.id, [...new Set(ids)]));
   const out = new Map<string, { ref: PersonSeasonStats['competition']; tier: number }>();
@@ -295,6 +298,7 @@ export async function loadPersonOverview(
     customLogos,
     locale,
     shownGroups.map((m) => m.g.competitionId),
+    nameOptions.minReview,
   );
 
   // números da temporada por competição (e time, se ele trocou de clube no ano)
