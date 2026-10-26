@@ -20,29 +20,61 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 | Camada | Onde | O que | Retenção | Quem mantém |
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
-| 2 | NAS do dono (fora da VPS) | Cópia dos dumps e `.sha256` | 14 diários + 8 semanais + 12 mensais | o NAS (o dono configura, abaixo) |
+| 2 | NAS do dono (fora da VPS) | Cópia dos dumps e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
 | 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada (retenção pela regra de ciclo de
 vida do bucket). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
 disco, sem conferência de que o banco nele está íntegro.
 
-### O que o NAS deve fazer (configurado pelo dono, fora deste repositório)
+### Cópia no NAS
 
-1. **Puxar** os dumps uma vez por dia, depois do backup (a partir das 05:00 UTC, com folga para o dump das 03:30): por
-   SSH com uma chave só de leitura restrita à pasta do volume (`/var/lib/docker/volumes/galaxie-sports_backups/_data`
-   na VPS; confira o nome com `docker volume inspect galaxie-sports_backups`), por exemplo `rsync -a` com
-   `command="rrsync -ro <pasta>",restrict` no `authorized_keys`. Copie o `.dump` e o `.sha256`.
-2. **Conferir** cada dump novo com `sha256sum -c <arquivo>.sha256` antes de considerá-lo guardado.
-3. **Rodar a rotação** avô-pai-filho: 14 diários, 8 semanais (o dump de domingo) e 12 mensais (o do dia 1). Ferramentas
-   de NAS fazem isso direto (rotação por versões); num script, mantenha três pastas e apague por idade em cada uma.
-4. **Deixar o recibo** depois de copiar e conferir, com uma segunda chave SSH cujo único comando é tocar o arquivo:
-   `command="touch /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pull",restrict ssh-ed25519 ...`.
-   Com o recibo funcionando, ligue `BACKUP_NAS_RECEIPT=true` no `.env` da VPS: o verificador passa a acusar cópia do NAS
-   com mais de 26 h (alerta `BackupCheckFailed`).
+Roda no NAS desde 26/10/2026, na stack `galaxie-sports-backup-nas` do Portainer do NAS (ambiente `local`), com o
+compose [infra/nas-backup/compose.yml](../../infra/nas-backup/compose.yml) e o script
+[infra/nas-backup/nas-pull.sh](../../infra/nas-backup/nas-pull.sh). Um container `alpine` com `crond` roda o script às
+05:15 e às 17:15 UTC (`NAS_PULL_CRON`; a das 17:15 é a reserva) e na partida. Cada execução:
 
-Frequência e retenção que o NAS usa hoje: a confirmar pelo dono. Enquanto `BACKUP_NAS_RECEIPT=false`, nada no
-repositório sabe se a cópia do NAS está em dia.
+1. **Lista** os dumps do volume `backups` da VPS e, para cada dia UTC dos últimos 14 que ainda não tem cópia, **baixa**
+   o dump mais recente daquele dia com o `.sha256` (`rsync --partial`: uma cópia interrompida continua de onde parou).
+   Um dia já guardado não é baixado de novo. Na rodada das 05:15 do dia, o dump novo é o das 03:30.
+2. **Confere** o sha256 de cada dump baixado antes de movê-lo para `daily/`. Se não conferir, apaga a cópia e falha.
+3. **Faz a rotação** avô-pai-filho por hardlink, sem duplicar espaço: `daily/` fica com os 14 dias mais recentes,
+   `weekly/` com o último dump de cada semana ISO (8 semanas; normalmente o de domingo) e `monthly/` com o último de
+   cada mês (12 meses). A rotação conta dumps, não idade: com a cópia parada, nada some.
+4. **Deixa o recibo** `.nas_last_pull` no volume da VPS, mas só quando o dia do dump mais recente da VPS está guardado
+   e conferido. Com `BACKUP_NAS_RECEIPT=true`, que é o padrão do compose da VPS desde este PR, o verificador acusa
+   cópia do NAS com mais de 26 h (alerta `BackupCheckFailed`).
+
+**Onde fica, no NAS** (`NAS_BACKUP_PATH`, hoje `/volume1/Docker/galaxie-sports-backups`): `daily/`, `weekly/`,
+`monthly/` (dumps e `.sha256`), `incoming/` (cópia em andamento), `ssh/` (chaves e `known_hosts`), `nas-pull.sh`
+(cópia do script do repositório) e `last_run.txt`, com o resultado da última execução.
+
+**Acesso à VPS**: duas chaves ed25519 geradas no próprio NAS (`ssh/pull_ed25519` e `ssh/receipt_ed25519`), que nunca
+saem de lá. No `authorized_keys` do root da VPS, cada uma tem `restrict` e um comando fixo:
+
+```text
+command="/usr/bin/rrsync -ro /var/lib/docker/volumes/galaxie-sports_backups/_data",restrict ssh-ed25519 ... galaxie-nas-pull
+command="touch /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pull",restrict ssh-ed25519 ... galaxie-nas-receipt
+```
+
+A primeira só lista e lê a pasta dos backups: escrever, sair da pasta, rodar comando e abrir shell são recusados
+(conferido na instalação). A segunda só toca o recibo, qualquer que seja o comando pedido. O host da VPS é conferido
+pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atualize esse arquivo com a chave nova
+(`ssh-keyscan -t ed25519 <vps>`, conferida pelo console do provedor).
+
+**Operação**:
+
+- Estado: `last_run.txt` na pasta, ou o log do container `galaxie-sports-backup-nas-backup-nas-1` no Portainer do NAS.
+  Na VPS: `ls -la --time-style=full-iso /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pull`.
+- Rodar já: reinicie o container (`NAS_PULL_ON_START=true`) ou, no console dele, `. /etc/nas-pull.env; sh /data/nas-pull.sh`.
+- Atualizar o script: copie `infra/nas-backup/nas-pull.sh` para a pasta do NAS. O compose roda o arquivo da pasta, então
+  não precisa refazer a stack.
+- Restaurar a partir do NAS: copie o dump e o `.sha256` para o volume `backups` da VPS (ou de uma VPS nova) e siga
+  [Cenários de desastre](#cenários-de-desastre-e-resposta).
+- Trocar as chaves: gere outras em `ssh/` no NAS, substitua as linhas `galaxie-nas-*` no `authorized_keys` da VPS e
+  reinicie o container.
+- Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
+  26 h.
 
 ## O que roda sozinho
 

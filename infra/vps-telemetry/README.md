@@ -264,11 +264,11 @@ URL num middleware antes do log.
 ## Backups, ensaio e alertas
 
 Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 14 diários + 8 semanais + 12 mensais no NAS, snapshot diário do
-provedor), o que o NAS deve fazer e o ensaio mensal de restauração:
+provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensaio mensal de restauração:
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md). Na VPS:
 
 - `docker compose exec backup backup-check.sh`: verificação avulsa (último dump e, com `BACKUP_NAS_RECEIPT=true`, o
-  recibo do NAS).
+  padrão, o recibo `.nas_last_pull` que o NAS deixa depois de copiar e conferir).
 - `docker compose exec backup restore-drill.sh`: ensaio avulso. Restaura num banco `galaxie_sports_drill_<data>`, nunca
   no de produção, e precisa de 2x o tamanho do banco livre no disco.
 - Resultado dos dois em `ops.job_run` (jobs `backup-check` e `pg-restore-drill`) e nas métricas `galaxie_job_*`.
@@ -294,6 +294,5 @@ Alerting → Alert rules (regra "Alerta do Prometheus") e no `/alerts` do Promet
 
 ## Pendências
 
-- O dono configura o SMTP dos alertas (acima) e, no NAS, a rotação e o recibo da cópia
-  ([docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)); depois, `BACKUP_NAS_RECEIPT=true`.
+- O dono configura o SMTP dos alertas (acima).
 - Cabeçalhos de cache/CDN para os assets.
