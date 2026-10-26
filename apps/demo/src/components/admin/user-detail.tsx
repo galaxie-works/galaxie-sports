@@ -23,6 +23,7 @@ import {
   resendInvite,
   revokeAllSessions,
   revokeSession,
+  unlockOtpSignIn,
   setDisabled,
   updateAccess,
   updateProfile,
@@ -70,6 +71,7 @@ import type { DemoActivity, DemoSession, DemoUser } from '@/lib/auth/admin';
 import type { Role } from '@/lib/auth/roles';
 import type { TenantOption } from '@/lib/client/tenants';
 import { initials } from '@/lib/format';
+import { internalPath } from '@/lib/internal-path';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, plural, rich } from '@/lib/i18n/text';
@@ -341,13 +343,18 @@ function AccessTab({
   );
 }
 
+/** Tentativas erradas de código na última hora (lib/auth/otp-guard.ts). */
+type OtpStatus = { failures: number; locked: boolean };
+
 function SessionsTab({
   user,
   sessions,
+  otp,
   timeZone,
 }: {
   user: DemoUser;
   sessions: DemoSession[];
+  otp: OtpStatus;
   timeZone: string;
 }) {
   const { locale, t } = useI18n();
@@ -381,7 +388,7 @@ function SessionsTab({
               size="sm"
               variant="outline"
               disabled={pending}
-              onClick={() => run(() => revokeSession(user.id, s.token), t.admin.sessions.ended)}
+              onClick={() => run(() => revokeSession(user.id, s.id), t.admin.sessions.ended)}
             >
               {t.admin.sessions.end}
             </Button>
@@ -399,8 +406,38 @@ function SessionsTab({
             </Button>
           </FrameFooter>
         ) : null}
+        {otp.failures ? (
+          <FrameFooter className="flex-row items-center justify-between gap-3">
+            <span className="text-muted-foreground text-xs">
+              {plural(locale, otp.failures, t.admin.sessions.otpFailures)}
+              {otp.locked ? ` · ${t.admin.sessions.otpLocked}` : ''}
+            </span>
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => run(() => unlockOtpSignIn(user.id), t.admin.sessions.otpUnlocked)}
+            >
+              <KeyRound />
+              {t.admin.sessions.otpUnlock}
+            </Button>
+          </FrameFooter>
+        ) : null}
       </FramePanel>
     </Frame>
+  );
+}
+
+/**
+ * Caminho registrado pelo navegador: vira link só se for da própria demo. Registros antigos (de antes
+ * de a rota de atividade validar a origem) podem ter `//evil.com/x`; esses ficam como texto.
+ */
+function ActivityPath({ path }: { path: string | null }) {
+  const href = internalPath(path);
+  if (!href) return <span>{path}</span>;
+  return (
+    <Link href={href} className="hover:underline">
+      {path}
+    </Link>
   );
 }
 
@@ -444,9 +481,7 @@ function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZon
                     `${describeAgent(a.userAgent)}${formatIp(a.ipAddress) ? ` · ${formatIp(a.ipAddress)}` : ''}`
                   ) : (
                     <>
-                      <Link href={a.path ?? '/'} className="hover:underline">
-                        {a.path}
-                      </Link>
+                      <ActivityPath path={a.path} />
                       {/* Trilha de navegação (registros antigos não têm). */}
                       {a.fromPath ? (
                         <>
@@ -454,11 +489,7 @@ function ActivityTab({ activity, timeZone }: { activity: DemoActivity[]; timeZon
                           {rich(
                             t.admin.activity.cameFrom,
                             {
-                              link: (path) => (
-                                <Link href={a.fromPath!} className="hover:underline">
-                                  {path}
-                                </Link>
-                              ),
+                              link: () => <ActivityPath path={a.fromPath} />,
                             },
                             { path: a.fromPath },
                           )}
@@ -546,6 +577,7 @@ export function UserDetail({
   user,
   tenants,
   sessions,
+  otp,
   activity,
   currentUserId,
   timeZone,
@@ -553,6 +585,7 @@ export function UserDetail({
   user: DemoUser;
   tenants: TenantOption[];
   sessions: DemoSession[];
+  otp: OtpStatus;
   activity: DemoActivity[];
   currentUserId?: string;
   /** Fuso de quem vê (lido no servidor), para as datas baterem entre servidor e hidratação. */
@@ -631,7 +664,7 @@ export function UserDetail({
             <AccessTab user={user} tenants={tenants} isSelf={isSelf} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="sessoes">
-            <SessionsTab user={user} sessions={sessions} timeZone={timeZone} />
+            <SessionsTab otp={otp} user={user} sessions={sessions} timeZone={timeZone} />
           </TabsContent>
           <TabsContent value="atividade">
             <ActivityTab activity={activity} timeZone={timeZone} />

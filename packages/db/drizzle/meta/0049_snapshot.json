@@ -1,5 +1,5 @@
 {
-  "id": "614b9b1b-7c0e-4c35-a786-6abcd8bb9821",
+  "id": "ce66047f-b2a1-4e72-a7f8-16c9f2f998b3",
   "prevId": "947312d7-6720-437b-beca-ac61805f5686",
   "version": "7",
   "dialect": "postgresql",
@@ -144,9 +144,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "api_response_fetched_at_idx": {
           "name": "api_response_fetched_at_idx",
@@ -159,9 +159,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -271,9 +271,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -386,16 +386,16 @@
         "asset_credit_asset_id_asset_id_fk": {
           "name": "asset_credit_asset_id_asset_id_fk",
           "tableFrom": "asset_credit",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -518,9 +518,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "competition_tier_idx": {
           "name": "competition_tier_idx",
@@ -533,67 +533,67 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "competition_sport_sport_slug_fk": {
           "name": "competition_sport_sport_slug_fk",
           "tableFrom": "competition",
-          "tableTo": "sport",
-          "schemaTo": "core",
           "columnsFrom": [
             "sport"
           ],
+          "tableTo": "sport",
+          "schemaTo": "core",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "competition_country_code_country_code_fk": {
           "name": "competition_country_code_country_code_fk",
           "tableFrom": "competition",
-          "tableTo": "country",
-          "schemaTo": "core",
           "columnsFrom": [
             "country_code"
           ],
+          "tableTo": "country",
+          "schemaTo": "core",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "competition_logo_asset_id_asset_id_fk": {
           "name": "competition_logo_asset_id_asset_id_fk",
           "tableFrom": "competition",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "competition_custom_logo_asset_id_asset_id_fk": {
           "name": "competition_custom_logo_asset_id_asset_id_fk",
           "tableFrom": "competition",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "custom_logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -706,9 +706,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "competition_title_team_idx": {
           "name": "competition_title_team_idx",
@@ -733,39 +733,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "competition_title_competition_id_competition_id_fk": {
           "name": "competition_title_competition_id_competition_id_fk",
           "tableFrom": "competition_title",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "competition_title_participant_id_participant_id_fk": {
           "name": "competition_title_participant_id_participant_id_fk",
           "tableFrom": "competition_title",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -828,16 +828,16 @@
         "competition_title_coverage_competition_id_competition_id_fk": {
           "name": "competition_title_coverage_competition_id_competition_id_fk",
           "tableFrom": "competition_title_coverage",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -893,16 +893,16 @@
         "country_flag_asset_id_asset_id_fk": {
           "name": "country_flag_asset_id_asset_id_fk",
           "tableFrom": "country",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "flag_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1075,9 +1075,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_status_idx": {
           "name": "event_status_idx",
@@ -1090,9 +1090,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_competition_starts_idx": {
           "name": "event_competition_starts_idx",
@@ -1111,9 +1111,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_sport_starts_idx": {
           "name": "event_sport_starts_idx",
@@ -1132,24 +1132,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_provisional_key_uq": {
           "name": "event_provisional_key_uq",
           "columns": [
             {
               "expression": "(\"provisional\"->>'key')",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_provisional_idx": {
           "name": "event_provisional_idx",
@@ -1168,96 +1168,96 @@
             }
           ],
           "isUnique": false,
-          "where": "\"core\".\"event\".\"is_provisional\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"core\".\"event\".\"is_provisional\"",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "event_sport_sport_slug_fk": {
           "name": "event_sport_sport_slug_fk",
           "tableFrom": "event",
-          "tableTo": "sport",
-          "schemaTo": "core",
           "columnsFrom": [
             "sport"
           ],
+          "tableTo": "sport",
+          "schemaTo": "core",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_competition_id_competition_id_fk": {
           "name": "event_competition_id_competition_id_fk",
           "tableFrom": "event",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_season_id_season_id_fk": {
           "name": "event_season_id_season_id_fk",
           "tableFrom": "event",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_stage_id_stage_id_fk": {
           "name": "event_stage_id_stage_id_fk",
           "tableFrom": "event",
-          "tableTo": "stage",
-          "schemaTo": "core",
           "columnsFrom": [
             "stage_id"
           ],
+          "tableTo": "stage",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_venue_id_venue_id_fk": {
           "name": "event_venue_id_venue_id_fk",
           "tableFrom": "event",
-          "tableTo": "venue",
-          "schemaTo": "core",
           "columnsFrom": [
             "venue_id"
           ],
+          "tableTo": "venue",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_derby_id_derby_id_fk": {
           "name": "event_derby_id_derby_id_fk",
           "tableFrom": "event",
-          "tableTo": "derby",
-          "schemaTo": "semantic",
           "columnsFrom": [
             "derby_id"
           ],
+          "tableTo": "derby",
+          "schemaTo": "semantic",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -1356,9 +1356,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "event_incident_person_idx": {
           "name": "event_incident_person_idx",
@@ -1371,67 +1371,67 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "event_incident_event_id_event_id_fk": {
           "name": "event_incident_event_id_event_id_fk",
           "tableFrom": "event_incident",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "event_incident_participant_id_participant_id_fk": {
           "name": "event_incident_participant_id_participant_id_fk",
           "tableFrom": "event_incident",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_incident_person_id_person_id_fk": {
           "name": "event_incident_person_id_person_id_fk",
           "tableFrom": "event_incident",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_incident_assist_person_id_person_id_fk": {
           "name": "event_incident_assist_person_id_person_id_fk",
           "tableFrom": "event_incident",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "assist_person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1487,39 +1487,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "event_participant_event_id_event_id_fk": {
           "name": "event_participant_event_id_event_id_fk",
           "tableFrom": "event_participant",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "event_participant_participant_id_participant_id_fk": {
           "name": "event_participant_participant_id_participant_id_fk",
           "tableFrom": "event_participant",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -1605,25 +1605,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "event_state_log_event_id_event_id_fk": {
           "name": "event_state_log_event_id_event_id_fk",
           "tableFrom": "event_state_log",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1698,25 +1698,25 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "football_fixture_event_id_event_id_fk": {
           "name": "football_fixture_event_id_event_id_fk",
           "tableFrom": "football_fixture",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1878,9 +1878,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "participant_name_idx": {
           "name": "participant_name_idx",
@@ -1893,95 +1893,95 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "participant_sport_sport_slug_fk": {
           "name": "participant_sport_sport_slug_fk",
           "tableFrom": "participant",
-          "tableTo": "sport",
-          "schemaTo": "core",
           "columnsFrom": [
             "sport"
           ],
+          "tableTo": "sport",
+          "schemaTo": "core",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_country_code_country_code_fk": {
           "name": "participant_country_code_country_code_fk",
           "tableFrom": "participant",
-          "tableTo": "country",
-          "schemaTo": "core",
           "columnsFrom": [
             "country_code"
           ],
+          "tableTo": "country",
+          "schemaTo": "core",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_home_venue_id_venue_id_fk": {
           "name": "participant_home_venue_id_venue_id_fk",
           "tableFrom": "participant",
-          "tableTo": "venue",
-          "schemaTo": "core",
           "columnsFrom": [
             "home_venue_id"
           ],
+          "tableTo": "venue",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_logo_asset_id_asset_id_fk": {
           "name": "participant_logo_asset_id_asset_id_fk",
           "tableFrom": "participant",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_custom_logo_asset_id_asset_id_fk": {
           "name": "participant_custom_logo_asset_id_asset_id_fk",
           "tableFrom": "participant",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "custom_logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_birth_country_code_country_code_fk": {
           "name": "participant_birth_country_code_country_code_fk",
           "tableFrom": "participant",
-          "tableTo": "country",
-          "schemaTo": "core",
           "columnsFrom": [
             "birth_country_code"
           ],
+          "tableTo": "country",
+          "schemaTo": "core",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2063,39 +2063,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "participant_photo_participant_id_participant_id_fk": {
           "name": "participant_photo_participant_id_participant_id_fk",
           "tableFrom": "participant_photo",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "participant_photo_asset_id_asset_id_fk": {
           "name": "participant_photo_asset_id_asset_id_fk",
           "tableFrom": "participant_photo",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -2204,16 +2204,16 @@
         "person_photo_asset_id_asset_id_fk": {
           "name": "person_photo_asset_id_asset_id_fk",
           "tableFrom": "person",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "photo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2348,53 +2348,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "person_season_stat_person_id_person_id_fk": {
           "name": "person_season_stat_person_id_person_id_fk",
           "tableFrom": "person_season_stat",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "person_season_stat_participant_id_participant_id_fk": {
           "name": "person_season_stat_participant_id_participant_id_fk",
           "tableFrom": "person_season_stat",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "person_season_stat_season_id_season_id_fk": {
           "name": "person_season_stat_season_id_season_id_fk",
           "tableFrom": "person_season_stat",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -2453,28 +2453,28 @@
         "person_sidelined_person_id_person_id_fk": {
           "name": "person_sidelined_person_id_person_id_fk",
           "tableFrom": "person_sidelined",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "person_sidelined_uq": {
           "name": "person_sidelined_uq",
-          "nullsNotDistinct": true,
           "columns": [
             "person_id",
             "type",
             "start_date"
-          ]
+          ],
+          "nullsNotDistinct": true
         }
       },
       "policies": {},
@@ -2540,58 +2540,58 @@
         "person_transfer_person_id_person_id_fk": {
           "name": "person_transfer_person_id_person_id_fk",
           "tableFrom": "person_transfer",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "person_transfer_from_participant_id_participant_id_fk": {
           "name": "person_transfer_from_participant_id_participant_id_fk",
           "tableFrom": "person_transfer",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "from_participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "person_transfer_to_participant_id_participant_id_fk": {
           "name": "person_transfer_to_participant_id_participant_id_fk",
           "tableFrom": "person_transfer",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "to_participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "person_transfer_uq": {
           "name": "person_transfer_uq",
-          "nullsNotDistinct": true,
           "columns": [
             "person_id",
             "date",
             "from_participant_id",
             "to_participant_id",
             "type"
-          ]
+          ],
+          "nullsNotDistinct": true
         }
       },
       "policies": {},
@@ -2645,30 +2645,30 @@
         "person_trophy_person_id_person_id_fk": {
           "name": "person_trophy_person_id_person_id_fk",
           "tableFrom": "person_trophy",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "person_trophy_uq": {
           "name": "person_trophy_uq",
-          "nullsNotDistinct": true,
           "columns": [
             "person_id",
             "league",
             "country",
             "season",
             "place"
-          ]
+          ],
+          "nullsNotDistinct": true
         }
       },
       "policies": {},
@@ -2735,9 +2735,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2822,66 +2822,66 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "roster_participant_id_participant_id_fk": {
           "name": "roster_participant_id_participant_id_fk",
           "tableFrom": "roster",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_person_id_person_id_fk": {
           "name": "roster_person_id_person_id_fk",
           "tableFrom": "roster",
-          "tableTo": "person",
-          "schemaTo": "core",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "roster_season_id_season_id_fk": {
           "name": "roster_season_id_season_id_fk",
           "tableFrom": "roster",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "roster_uq": {
           "name": "roster_uq",
-          "nullsNotDistinct": true,
           "columns": [
             "participant_id",
             "person_id",
             "role",
             "season_id"
-          ]
+          ],
+          "nullsNotDistinct": true
         }
       },
       "policies": {},
@@ -2975,25 +2975,25 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "season_competition_id_competition_id_fk": {
           "name": "season_competition_id_competition_id_fk",
           "tableFrom": "season",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3118,39 +3118,39 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "sport_event_detail_event_id_event_id_fk": {
           "name": "sport_event_detail_event_id_event_id_fk",
           "tableFrom": "sport_event_detail",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "sport_event_detail_sport_sport_slug_fk": {
           "name": "sport_event_detail_sport_sport_slug_fk",
           "tableFrom": "sport_event_detail",
-          "tableTo": "sport",
-          "schemaTo": "core",
           "columnsFrom": [
             "sport"
           ],
+          "tableTo": "sport",
+          "schemaTo": "core",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3227,25 +3227,25 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "stage_season_id_season_id_fk": {
           "name": "stage_season_id_season_id_fk",
           "tableFrom": "stage",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3381,30 +3381,30 @@
         "standing_season_id_season_id_fk": {
           "name": "standing_season_id_season_id_fk",
           "tableFrom": "standing",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "standing_participant_id_participant_id_fk": {
           "name": "standing_participant_id_participant_id_fk",
           "tableFrom": "standing",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -3507,30 +3507,30 @@
         "venue_country_code_country_code_fk": {
           "name": "venue_country_code_country_code_fk",
           "tableFrom": "venue",
-          "tableTo": "country",
-          "schemaTo": "core",
           "columnsFrom": [
             "country_code"
           ],
+          "tableTo": "country",
+          "schemaTo": "core",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "venue_image_asset_id_asset_id_fk": {
           "name": "venue_image_asset_id_asset_id_fk",
           "tableFrom": "venue",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "image_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3619,16 +3619,16 @@
         "competition_profile_competition_id_competition_id_fk": {
           "name": "competition_profile_competition_id_competition_id_fk",
           "tableFrom": "competition_profile",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3761,9 +3761,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "copy_template_lookup_idx": {
           "name": "copy_template_lookup_idx",
@@ -3788,9 +3788,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3928,10 +3928,10 @@
       "uniqueConstraints": {
         "derby_slug_unique": {
           "name": "derby_slug_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -3967,39 +3967,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "derby_team_derby_id_derby_id_fk": {
           "name": "derby_team_derby_id_derby_id_fk",
           "tableFrom": "derby_team",
-          "tableTo": "derby",
-          "schemaTo": "semantic",
           "columnsFrom": [
             "derby_id"
           ],
+          "tableTo": "derby",
+          "schemaTo": "semantic",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "derby_team_team_slug_team_profile_slug_fk": {
           "name": "derby_team_team_slug_team_profile_slug_fk",
           "tableFrom": "derby_team",
-          "tableTo": "team_profile",
-          "schemaTo": "semantic",
           "columnsFrom": [
             "team_slug"
           ],
+          "tableTo": "team_profile",
+          "schemaTo": "semantic",
           "columnsTo": [
             "slug"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -4084,9 +4084,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4344,9 +4344,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4448,9 +4448,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4726,9 +4726,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "team_profile_api_sports_idx": {
           "name": "team_profile_api_sports_idx",
@@ -4741,25 +4741,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "team_profile_participant_id_participant_id_fk": {
           "name": "team_profile_participant_id_participant_id_fk",
           "tableFrom": "team_profile",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -4859,9 +4859,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "broadcast_audit_pending_idx": {
           "name": "broadcast_audit_pending_idx",
@@ -4880,39 +4880,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "broadcast_audit_option_id_broadcast_option_id_fk": {
           "name": "broadcast_audit_option_id_broadcast_option_id_fk",
           "tableFrom": "broadcast_audit",
-          "tableTo": "broadcast_option",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "option_id"
           ],
+          "tableTo": "broadcast_option",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "broadcast_audit_event_id_event_id_fk": {
           "name": "broadcast_audit_event_id_event_id_fk",
           "tableFrom": "broadcast_audit",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -5030,25 +5030,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "broadcast_correction_event_id_event_id_fk": {
           "name": "broadcast_correction_event_id_event_id_fk",
           "tableFrom": "broadcast_correction",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -5239,9 +5239,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "broadcast_option_current_idx": {
           "name": "broadcast_option_current_idx",
@@ -5260,26 +5260,26 @@
             }
           ],
           "isUnique": false,
-          "where": "\"enrich\".\"broadcast_option\".\"superseded_by\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"enrich\".\"broadcast_option\".\"superseded_by\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "broadcast_option_event_id_event_id_fk": {
           "name": "broadcast_option_event_id_event_id_fk",
           "tableFrom": "broadcast_option",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -5417,10 +5417,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"enrich\".\"broadcast_rights\".\"superseded_by\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"enrich\".\"broadcast_rights\".\"superseded_by\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -5542,30 +5542,30 @@
         "broadcaster_logo_asset_id_asset_id_fk": {
           "name": "broadcaster_logo_asset_id_asset_id_fk",
           "tableFrom": "broadcaster",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "broadcaster_logo_dark_asset_id_asset_id_fk": {
           "name": "broadcaster_logo_dark_asset_id_asset_id_fk",
           "tableFrom": "broadcaster",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "logo_dark_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5640,16 +5640,16 @@
         "event_context_event_id_event_id_fk": {
           "name": "event_context_event_id_event_id_fk",
           "tableFrom": "event_context",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -5841,9 +5841,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "match_channel_event_country_idx": {
           "name": "match_channel_event_country_idx",
@@ -5868,25 +5868,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "match_channel_event_id_event_id_fk": {
           "name": "match_channel_event_id_event_id_fk",
           "tableFrom": "match_channel",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -6061,9 +6061,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "related_channel_competition_idx": {
           "name": "related_channel_competition_idx",
@@ -6076,53 +6076,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "related_channel_participant_id_participant_id_fk": {
           "name": "related_channel_participant_id_participant_id_fk",
           "tableFrom": "related_channel",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "related_channel_competition_id_competition_id_fk": {
           "name": "related_channel_competition_id_competition_id_fk",
           "tableFrom": "related_channel",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "related_channel_uq": {
           "name": "related_channel_uq",
-          "nullsNotDistinct": true,
           "columns": [
             "channel_id",
             "kind",
             "participant_id",
             "competition_id",
             "broadcaster_id"
-          ]
+          ],
+          "nullsNotDistinct": true
         }
       },
       "policies": {},
@@ -6435,10 +6435,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"enrich\".\"related_content\".\"superseded_by\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"enrich\".\"related_content\".\"superseded_by\" is null",
+          "concurrently": false
         },
         "related_content_event_idx": {
           "name": "related_content_event_idx",
@@ -6457,9 +6457,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "related_content_checked_idx": {
           "name": "related_content_checked_idx",
@@ -6472,26 +6472,26 @@
             }
           ],
           "isUnique": false,
-          "where": "\"enrich\".\"related_content\".\"superseded_by\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"enrich\".\"related_content\".\"superseded_by\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "related_content_event_id_event_id_fk": {
           "name": "related_content_event_id_event_id_fk",
           "tableFrom": "related_content",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -6587,9 +6587,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -6700,9 +6700,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -6875,9 +6875,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "related_run_quota_idx": {
           "name": "related_run_quota_idx",
@@ -6890,25 +6890,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "related_run_event_id_event_id_fk": {
           "name": "related_run_event_id_event_id_fk",
           "tableFrom": "related_run",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -7061,9 +7061,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "wtw_research_created_idx": {
           "name": "wtw_research_created_idx",
@@ -7076,9 +7076,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -7226,9 +7226,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "wtw_run_status_idx": {
           "name": "wtw_run_status_idx",
@@ -7247,9 +7247,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "wtw_run_event_idx": {
           "name": "wtw_run_event_idx",
@@ -7268,25 +7268,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "wtw_run_event_id_event_id_fk": {
           "name": "wtw_run_event_id_event_id_fk",
           "tableFrom": "wtw_run",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -7362,9 +7362,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -7477,25 +7477,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "lineup_page_platform_id_platform_id_fk": {
           "name": "lineup_page_platform_id_platform_id_fk",
           "tableFrom": "lineup_page",
-          "tableTo": "platform",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "platform_id"
           ],
+          "tableTo": "platform",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -7598,39 +7598,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "plan_channel_plan_id_platform_plan_id_fk": {
           "name": "plan_channel_plan_id_platform_plan_id_fk",
           "tableFrom": "plan_channel",
-          "tableTo": "platform_plan",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "plan_id"
           ],
+          "tableTo": "platform_plan",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "plan_channel_channel_id_broadcaster_id_fk": {
           "name": "plan_channel_channel_id_broadcaster_id_fk",
           "tableFrom": "plan_channel",
-          "tableTo": "broadcaster",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "channel_id"
           ],
+          "tableTo": "broadcaster",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -7741,39 +7741,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "plan_service_plan_id_platform_plan_id_fk": {
           "name": "plan_service_plan_id_platform_plan_id_fk",
           "tableFrom": "plan_service",
-          "tableTo": "platform_plan",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "plan_id"
           ],
+          "tableTo": "platform_plan",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "plan_service_service_id_broadcaster_id_fk": {
           "name": "plan_service_service_id_broadcaster_id_fk",
           "tableFrom": "plan_service",
-          "tableTo": "broadcaster",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "service_id"
           ],
+          "tableTo": "broadcaster",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -7935,9 +7935,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "platform_country_idx": {
           "name": "platform_country_idx",
@@ -7956,9 +7956,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "platform_broadcaster_idx": {
           "name": "platform_broadcaster_idx",
@@ -7971,39 +7971,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "platform_logo_asset_id_asset_id_fk": {
           "name": "platform_logo_asset_id_asset_id_fk",
           "tableFrom": "platform",
-          "tableTo": "asset",
-          "schemaTo": "core",
           "columnsFrom": [
             "logo_asset_id"
           ],
+          "tableTo": "asset",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "platform_broadcaster_id_broadcaster_id_fk": {
           "name": "platform_broadcaster_id_broadcaster_id_fk",
           "tableFrom": "platform",
-          "tableTo": "broadcaster",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "broadcaster_id"
           ],
+          "tableTo": "broadcaster",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -8167,9 +8167,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "platform_addon_ref_idx": {
           "name": "platform_addon_ref_idx",
@@ -8182,39 +8182,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "platform_addon_platform_id_platform_id_fk": {
           "name": "platform_addon_platform_id_platform_id_fk",
           "tableFrom": "platform_addon",
-          "tableTo": "platform",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "platform_id"
           ],
+          "tableTo": "platform",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "platform_addon_ref_id_broadcaster_id_fk": {
           "name": "platform_addon_ref_id_broadcaster_id_fk",
           "tableFrom": "platform_addon",
-          "tableTo": "broadcaster",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "ref_id"
           ],
+          "tableTo": "broadcaster",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -8372,9 +8372,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "platform_plan_country_idx": {
           "name": "platform_plan_country_idx",
@@ -8387,9 +8387,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "platform_plan_seen_idx": {
           "name": "platform_plan_seen_idx",
@@ -8402,25 +8402,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "platform_plan_platform_id_platform_id_fk": {
           "name": "platform_plan_platform_id_platform_id_fk",
           "tableFrom": "platform_plan",
-          "tableTo": "platform",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "platform_id"
           ],
+          "tableTo": "platform",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -8483,9 +8483,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -8607,9 +8607,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -8693,9 +8693,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -8816,98 +8816,13 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "ops.normalize_failure": {
-      "name": "normalize_failure",
-      "schema": "ops",
-      "columns": {
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sport": {
-          "name": "sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw_id": {
-          "name": "raw_id",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "endpoint": {
-          "name": "endpoint",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "first_failed_at": {
-          "name": "first_failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "last_failed_at": {
-          "name": "last_failed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "poisoned_at": {
-          "name": "poisoned_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_at": {
-          "name": "resolved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "normalize_failure_provider_sport_raw_id_pk": {
-          "name": "normalize_failure_provider_sport_raw_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "raw_id"
-          ]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -9003,25 +8918,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "quality_failure_run_id_quality_run_id_fk": {
           "name": "quality_failure_run_id_quality_run_id_fk",
           "tableFrom": "quality_failure",
-          "tableTo": "quality_run",
-          "schemaTo": "ops",
           "columnsFrom": [
             "run_id"
           ],
+          "tableTo": "quality_run",
+          "schemaTo": "ops",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -9110,25 +9025,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "quality_result_run_id_quality_run_id_fk": {
           "name": "quality_result_run_id_quality_run_id_fk",
           "tableFrom": "quality_result",
-          "tableTo": "quality_run",
-          "schemaTo": "ops",
           "columnsFrom": [
             "run_id"
           ],
+          "tableTo": "quality_run",
+          "schemaTo": "ops",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -9272,9 +9187,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -9437,9 +9352,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -9723,9 +9638,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "runtime_setting_log_key_idx": {
           "name": "runtime_setting_log_key_idx",
@@ -9744,9 +9659,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -9872,25 +9787,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "discipline_sport_code_sport_code_fk": {
           "name": "discipline_sport_code_sport_code_fk",
           "tableFrom": "discipline",
-          "tableTo": "sport",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "sport_code"
           ],
+          "tableTo": "sport",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10036,9 +9951,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "games_type_season_year_uq": {
           "name": "games_type_season_year_uq",
@@ -10063,9 +9978,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "games_wikidata_uq": {
           "name": "games_wikidata_uq",
@@ -10078,25 +9993,25 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "games_host_noc_noc_code_fk": {
           "name": "games_host_noc_noc_code_fk",
           "tableFrom": "games",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "host_noc"
           ],
+          "tableTo": "noc",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10177,53 +10092,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "games_competition_games_id_games_id_fk": {
           "name": "games_competition_games_id_games_id_fk",
           "tableFrom": "games_competition",
-          "tableTo": "games",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "games_id"
           ],
+          "tableTo": "games",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "games_competition_competition_id_competition_id_fk": {
           "name": "games_competition_competition_id_competition_id_fk",
           "tableFrom": "games_competition",
-          "tableTo": "competition",
-          "schemaTo": "core",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "games_competition_season_id_season_id_fk": {
           "name": "games_competition_season_id_season_id_fk",
           "tableFrom": "games_competition",
-          "tableTo": "season",
-          "schemaTo": "core",
           "columnsFrom": [
             "season_id"
           ],
+          "tableTo": "season",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -10419,9 +10334,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "medal_event_idx": {
           "name": "medal_event_idx",
@@ -10434,9 +10349,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "medal_noc_idx": {
           "name": "medal_noc_idx",
@@ -10449,53 +10364,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "medal_event_id_event_id_fk": {
           "name": "medal_event_id_event_id_fk",
           "tableFrom": "medal",
-          "tableTo": "event",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "medal_participant_id_participant_id_fk": {
           "name": "medal_participant_id_participant_id_fk",
           "tableFrom": "medal",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "medal_noc_code_noc_code_fk": {
           "name": "medal_noc_code_noc_code_fk",
           "tableFrom": "medal",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "noc_code"
           ],
+          "tableTo": "noc",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10563,30 +10478,30 @@
         "medal_reference_games_id_games_id_fk": {
           "name": "medal_reference_games_id_games_id_fk",
           "tableFrom": "medal_reference",
-          "tableTo": "games",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "games_id"
           ],
+          "tableTo": "games",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "medal_reference_noc_code_noc_code_fk": {
           "name": "medal_reference_noc_code_noc_code_fk",
           "tableFrom": "medal_reference",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "noc_code"
           ],
+          "tableTo": "noc",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -10669,30 +10584,30 @@
         "medal_table_snapshot_games_id_games_id_fk": {
           "name": "medal_table_snapshot_games_id_games_id_fk",
           "tableFrom": "medal_table_snapshot",
-          "tableTo": "games",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "games_id"
           ],
+          "tableTo": "games",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "medal_table_snapshot_noc_code_noc_code_fk": {
           "name": "medal_table_snapshot_noc_code_noc_code_fk",
           "tableFrom": "medal_table_snapshot",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "noc_code"
           ],
+          "tableTo": "noc",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -10810,9 +10725,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ms_event_odf_uq": {
           "name": "ms_event_odf_uq",
@@ -10831,9 +10746,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ms_event_games_idx": {
           "name": "ms_event_games_idx",
@@ -10852,39 +10767,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "event_games_id_games_id_fk": {
           "name": "event_games_id_games_id_fk",
           "tableFrom": "event",
-          "tableTo": "games",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "games_id"
           ],
+          "tableTo": "games",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "event_discipline_code_discipline_code_fk": {
           "name": "event_discipline_code_discipline_code_fk",
           "tableFrom": "event",
-          "tableTo": "discipline",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "discipline_code"
           ],
+          "tableTo": "discipline",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -10968,9 +10883,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ms_participant_noc_idx": {
           "name": "ms_participant_noc_idx",
@@ -10983,9 +10898,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ms_participant_person_idx": {
           "name": "ms_participant_person_idx",
@@ -10998,39 +10913,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "participant_noc_code_noc_code_fk": {
           "name": "participant_noc_code_noc_code_fk",
           "tableFrom": "participant",
-          "tableTo": "noc",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "noc_code"
           ],
+          "tableTo": "noc",
+          "schemaTo": "multisport",
           "columnsTo": [
             "code"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "participant_person_id_person_id_fk": {
           "name": "participant_person_id_person_id_fk",
           "tableFrom": "participant",
-          "tableTo": "person",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11131,9 +11046,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ms_person_name_idx": {
           "name": "ms_person_name_idx",
@@ -11146,9 +11061,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -11284,9 +11199,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "noc_iso3_idx": {
           "name": "noc_iso3_idx",
@@ -11299,9 +11214,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -11373,25 +11288,25 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "phase_event_id_event_id_fk": {
           "name": "phase_event_id_event_id_fk",
           "tableFrom": "phase",
-          "tableTo": "event",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -11472,30 +11387,30 @@
         "result_unit_id_unit_id_fk": {
           "name": "result_unit_id_unit_id_fk",
           "tableFrom": "result",
-          "tableTo": "unit",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "unit_id"
           ],
+          "tableTo": "unit",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "result_participant_id_participant_id_fk": {
           "name": "result_participant_id_participant_id_fk",
           "tableFrom": "result",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11578,9 +11493,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -11622,30 +11537,30 @@
         "team_member_team_participant_id_participant_id_fk": {
           "name": "team_member_team_participant_id_participant_id_fk",
           "tableFrom": "team_member",
-          "tableTo": "participant",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "team_participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "team_member_person_id_person_id_fk": {
           "name": "team_member_person_id_person_id_fk",
           "tableFrom": "team_member",
-          "tableTo": "person",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "person_id"
           ],
+          "tableTo": "person",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -11757,9 +11672,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "unit_start_idx": {
           "name": "unit_start_idx",
@@ -11772,39 +11687,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "unit_phase_id_phase_id_fk": {
           "name": "unit_phase_id_phase_id_fk",
           "tableFrom": "unit",
-          "tableTo": "phase",
-          "schemaTo": "multisport",
           "columnsFrom": [
             "phase_id"
           ],
+          "tableTo": "phase",
+          "schemaTo": "multisport",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "unit_core_event_id_event_id_fk": {
           "name": "unit_core_event_id_event_id_fk",
           "tableFrom": "unit",
-          "tableTo": "event",
-          "schemaTo": "core",
           "columnsFrom": [
             "core_event_id"
           ],
+          "tableTo": "event",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11966,9 +11881,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "athlete_competing_for_idx": {
           "name": "athlete_competing_for_idx",
@@ -11981,9 +11896,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "athlete_display_name_idx": {
           "name": "athlete_display_name_idx",
@@ -11996,39 +11911,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "athlete_participant_id_participant_id_fk": {
           "name": "athlete_participant_id_participant_id_fk",
           "tableFrom": "athlete",
-          "tableTo": "participant",
-          "schemaTo": "core",
           "columnsFrom": [
             "participant_id"
           ],
+          "tableTo": "participant",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "athlete_import_run_id_import_run_id_fk": {
           "name": "athlete_import_run_id_import_run_id_fk",
           "tableFrom": "athlete",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12264,9 +12179,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "competition_date_idx": {
           "name": "competition_date_idx",
@@ -12279,9 +12194,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "competition_country_idx": {
           "name": "competition_country_idx",
@@ -12300,25 +12215,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "competition_import_run_id_import_run_id_fk": {
           "name": "competition_import_run_id_import_run_id_fk",
           "tableFrom": "competition",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12510,9 +12425,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "horse_name_idx": {
           "name": "horse_name_idx",
@@ -12525,25 +12440,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "horse_import_run_id_import_run_id_fk": {
           "name": "horse_import_run_id_import_run_id_fk",
           "tableFrom": "horse",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12642,9 +12557,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "horse_owner_horse_idx": {
           "name": "horse_owner_horse_idx",
@@ -12657,39 +12572,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "horse_owner_horse_id_horse_id_fk": {
           "name": "horse_owner_horse_id_horse_id_fk",
           "tableFrom": "horse_owner",
-          "tableTo": "horse",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "horse_id"
           ],
+          "tableTo": "horse",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "horse_owner_import_run_id_import_run_id_fk": {
           "name": "horse_owner_import_run_id_import_run_id_fk",
           "tableFrom": "horse_owner",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12783,9 +12698,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -12915,9 +12830,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "ranking_observation_name_idx": {
           "name": "ranking_observation_name_idx",
@@ -12936,53 +12851,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "ranking_observation_athlete_id_athlete_id_fk": {
           "name": "ranking_observation_athlete_id_athlete_id_fk",
           "tableFrom": "ranking_observation",
-          "tableTo": "athlete",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "athlete_id"
           ],
+          "tableTo": "athlete",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "ranking_observation_horse_id_horse_id_fk": {
           "name": "ranking_observation_horse_id_horse_id_fk",
           "tableFrom": "ranking_observation",
-          "tableTo": "horse",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "horse_id"
           ],
+          "tableTo": "horse",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "ranking_observation_import_run_id_import_run_id_fk": {
           "name": "ranking_observation_import_run_id_import_run_id_fk",
           "tableFrom": "ranking_observation",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -13216,9 +13131,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "result_athlete_date_idx": {
           "name": "result_athlete_date_idx",
@@ -13237,9 +13152,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "result_horse_date_idx": {
           "name": "result_horse_date_idx",
@@ -13258,9 +13173,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "result_competition_idx": {
           "name": "result_competition_idx",
@@ -13279,9 +13194,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "result_country_date_idx": {
           "name": "result_country_date_idx",
@@ -13300,67 +13215,67 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "result_competition_id_competition_id_fk": {
           "name": "result_competition_id_competition_id_fk",
           "tableFrom": "result",
-          "tableTo": "competition",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "competition_id"
           ],
+          "tableTo": "competition",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "result_athlete_id_athlete_id_fk": {
           "name": "result_athlete_id_athlete_id_fk",
           "tableFrom": "result",
-          "tableTo": "athlete",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "athlete_id"
           ],
+          "tableTo": "athlete",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "result_horse_id_horse_id_fk": {
           "name": "result_horse_id_horse_id_fk",
           "tableFrom": "result",
-          "tableTo": "horse",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "horse_id"
           ],
+          "tableTo": "horse",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "result_import_run_id_import_run_id_fk": {
           "name": "result_import_run_id_import_run_id_fk",
           "tableFrom": "result",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -13568,9 +13483,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "round_event_stage_idx": {
           "name": "round_event_stage_idx",
@@ -13589,9 +13504,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "round_athlete_idx": {
           "name": "round_athlete_idx",
@@ -13604,53 +13519,53 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "round_athlete_id_athlete_id_fk": {
           "name": "round_athlete_id_athlete_id_fk",
           "tableFrom": "round",
-          "tableTo": "athlete",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "athlete_id"
           ],
+          "tableTo": "athlete",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "round_horse_id_horse_id_fk": {
           "name": "round_horse_id_horse_id_fk",
           "tableFrom": "round",
-          "tableTo": "horse",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "horse_id"
           ],
+          "tableTo": "horse",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "round_import_run_id_import_run_id_fk": {
           "name": "round_import_run_id_import_run_id_fk",
           "tableFrom": "round",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -13737,9 +13652,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "source_disagreement_athlete_idx": {
           "name": "source_disagreement_athlete_idx",
@@ -13752,39 +13667,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "source_disagreement_athlete_id_athlete_id_fk": {
           "name": "source_disagreement_athlete_id_athlete_id_fk",
           "tableFrom": "source_disagreement",
-          "tableTo": "athlete",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "athlete_id"
           ],
+          "tableTo": "athlete",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "source_disagreement_import_run_id_import_run_id_fk": {
           "name": "source_disagreement_import_run_id_import_run_id_fk",
           "tableFrom": "source_disagreement",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -13907,9 +13822,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "team_result_event_idx": {
           "name": "team_result_event_idx",
@@ -13922,25 +13837,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "team_result_import_run_id_import_run_id_fk": {
           "name": "team_result_import_run_id_import_run_id_fk",
           "tableFrom": "team_result",
-          "tableTo": "import_run",
-          "schemaTo": "equestrian",
           "columnsFrom": [
             "import_run_id"
           ],
+          "tableTo": "import_run",
+          "schemaTo": "equestrian",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -14041,9 +13956,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "api_key_tenant_idx": {
           "name": "api_key_tenant_idx",
@@ -14056,25 +13971,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "api_key_tenant_id_tenant_id_fk": {
           "name": "api_key_tenant_id_tenant_id_fk",
           "tableFrom": "api_key",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -14184,9 +14099,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "backfill_request_status_idx": {
           "name": "backfill_request_status_idx",
@@ -14205,25 +14120,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "backfill_request_tenant_id_tenant_id_fk": {
           "name": "backfill_request_tenant_id_tenant_id_fk",
           "tableFrom": "backfill_request",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -14342,26 +14257,26 @@
         "tenant_operator_platform_id_platform_id_fk": {
           "name": "tenant_operator_platform_id_platform_id_fk",
           "tableFrom": "tenant",
-          "tableTo": "platform",
-          "schemaTo": "enrich",
           "columnsFrom": [
             "operator_platform_id"
           ],
+          "tableTo": "platform",
+          "schemaTo": "enrich",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "tenant_slug_unique": {
           "name": "tenant_slug_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "slug"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -14430,25 +14345,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "usage_daily_tenant_id_tenant_id_fk": {
           "name": "usage_daily_tenant_id_tenant_id_fk",
           "tableFrom": "usage_daily",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -14604,9 +14519,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "webhook_delivery_due_idx": {
           "name": "webhook_delivery_due_idx",
@@ -14625,25 +14540,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "webhook_delivery_endpoint_id_webhook_endpoint_id_fk": {
           "name": "webhook_delivery_endpoint_id_webhook_endpoint_id_fk",
           "tableFrom": "webhook_delivery",
-          "tableTo": "webhook_endpoint",
-          "schemaTo": "api",
           "columnsFrom": [
             "endpoint_id"
           ],
+          "tableTo": "webhook_endpoint",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -14741,25 +14656,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "webhook_endpoint_tenant_id_tenant_id_fk": {
           "name": "webhook_endpoint_tenant_id_tenant_id_fk",
           "tableFrom": "webhook_endpoint",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -14847,9 +14762,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "publishable_key_tenant_idx": {
           "name": "publishable_key_tenant_idx",
@@ -14862,39 +14777,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "publishable_key_tenant_id_tenant_id_fk": {
           "name": "publishable_key_tenant_id_tenant_id_fk",
           "tableFrom": "publishable_key",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "publishable_key_widget_id_widget_id_fk": {
           "name": "publishable_key_widget_id_widget_id_fk",
           "tableFrom": "publishable_key",
-          "tableTo": "widget",
-          "schemaTo": "ops",
           "columnsFrom": [
             "widget_id"
           ],
+          "tableTo": "widget",
+          "schemaTo": "ops",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -14990,25 +14905,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "widget_tenant_id_tenant_id_fk": {
           "name": "widget_tenant_id_tenant_id_fk",
           "tableFrom": "widget",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -15121,9 +15036,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "lineup_review_request_status_idx": {
           "name": "lineup_review_request_status_idx",
@@ -15142,9 +15057,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "lineup_review_request_target_idx": {
           "name": "lineup_review_request_target_idx",
@@ -15163,25 +15078,25 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "lineup_review_request_tenant_id_tenant_id_fk": {
           "name": "lineup_review_request_tenant_id_tenant_id_fk",
           "tableFrom": "lineup_review_request",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -15315,16 +15230,16 @@
         "tenant_channel_list_tenant_id_tenant_id_fk": {
           "name": "tenant_channel_list_tenant_id_tenant_id_fk",
           "tableFrom": "tenant_channel_list",
-          "tableTo": "tenant",
-          "schemaTo": "api",
           "columnsFrom": [
             "tenant_id"
           ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -15575,11 +15490,10 @@
     "equestrian": "equestrian",
     "api": "api"
   },
-  "sequences": {},
-  "roles": {},
-  "policies": {},
   "views": {
     "multisport.medal_table": {
+      "name": "medal_table",
+      "schema": "multisport",
       "columns": {
         "games_id": {
           "name": "games_id",
@@ -15631,12 +15545,13 @@
         }
       },
       "definition": "with counts as (\n      select e.games_id, m.noc_code,\n        count(*) filter (where m.medal = 'G')::int as gold,\n        count(*) filter (where m.medal = 'S')::int as silver,\n        count(*) filter (where m.medal = 'B')::int as bronze,\n        count(*)::int as total\n      from multisport.medal m\n      join multisport.event e on e.id = m.event_id\n      where m.revoked_at is null\n      group by e.games_id, m.noc_code\n    )\n    select games_id, noc_code, gold, silver, bronze, total,\n      (rank() over (partition by games_id order by gold desc, silver desc, bronze desc))::int as rank_by_gold,\n      (rank() over (partition by games_id order by total desc, gold desc, silver desc, bronze desc))::int as rank_by_total\n    from counts",
-      "name": "medal_table",
-      "schema": "multisport",
-      "isExisting": false,
-      "materialized": false
+      "materialized": false,
+      "isExisting": false
     }
   },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
   "_meta": {
     "columns": {},
     "schemas": {},

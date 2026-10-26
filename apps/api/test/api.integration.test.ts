@@ -27,6 +27,7 @@ import {
 } from '@galaxie/db';
 import { createApiKey, revokeApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
+import { RedisResponseCache } from '../src/cache/store.js';
 import { buildServer } from '../src/server.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -518,6 +519,60 @@ describe('cache, ETag e change feed', () => {
     expect(cdn.purged.flat()).toContain(`competition:${ids.libertadores}`);
     const after = await get(url);
     expect(after.headers.etag).not.toBe(first.headers.etag);
+  });
+
+  it('transação com id menor que comita depois de um id maior já lido ainda purga (GapCursor)', async () => {
+    const url = '/v1/competitions/nbb?locale=pt-BR';
+    expect((await get(url)).json().official_name).toBe('NBB');
+    expect((await get(url)).headers['x-galaxie-cache']).toBe('HIT');
+    const slow = postgres(testUrl, { max: 1, onnotice: () => {} });
+    try {
+      await slow.begin(async (tx) => {
+        // a transação lenta pega o id primeiro, mas só comita depois que o listener já leu um id maior
+        await tx`update core.competition set name = 'Novo Basquete Brasil' where id = ${ids.nbb!}`;
+        await tx`select ops.publish_change('catalog', 'competition', ${ids.nbb!}, null)`;
+        await publishChange(db, { topic: 'catalog', entityType: 'venue', entityId: ids.venue! });
+        await expect
+          .poll(() => cdn.purged.flat().includes(`venue:${ids.venue}`), { timeout: 5_000, interval: 50 })
+          .toBe(true);
+      });
+    } finally {
+      await slow.end();
+    }
+    await expect
+      .poll(async () => (await get(url)).json().official_name, { timeout: 5_000, interval: 50 })
+      .toBe('Novo Basquete Brasil');
+  });
+
+  it('Valkey: gravação recusa resposta montada antes de um purge das tags dela', async () => {
+    const cache = new RedisResponseCache(redis, `${keyPrefix}race:`);
+    const entry = (tags: string[]) => ({ status: 200, body: '{}', etag: '"x"', tags, storedAt: Date.now() });
+    const before = await cache.purgeMark();
+    // a mudança comita e o purge roda enquanto o load ainda lê o dado velho
+    await cache.purgeTags(['event:1']);
+    expect(await cache.purgeMark()).toBeGreaterThan(before);
+    expect(await cache.set('k1', entry(['event', 'event:1']), 60, before)).toBe(false);
+    expect(await cache.get('k1')).toBeUndefined();
+    // tag não purgada, load começado depois do purge e gravação sem marca seguem gravando
+    expect(await cache.set('k2', entry(['event:2']), 60, before)).toBe(true);
+    expect(await cache.set('k3', entry(['event:1']), 60, await cache.purgeMark())).toBe(true);
+    expect(await cache.set('k4', entry(['event:1']), 60)).toBe(true);
+    expect(await cache.get('k3')).toMatchObject({ tags: ['event:1'] });
+    // a entrada gravada continua indexada pela tag
+    expect(await cache.purgeTags(['event:1'])).toBe(2);
+    expect(await cache.get('k3')).toBeUndefined();
+  });
+
+  it('parâmetro de query desconhecido não fura o cache (chave pela query validada)', async () => {
+    const url = '/v1/competitions?country=AR&locale=es-AR';
+    expect((await get(url)).headers['x-galaxie-cache']).toBe('MISS');
+    for (let i = 0; i < 3; i++) {
+      const res = await get(`${url}&x=${randomBytes(4).toString('hex')}`);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['x-galaxie-cache']).toBe('HIT');
+    }
+    // parâmetro conhecido continua separando as respostas
+    expect((await get('/v1/competitions?country=BR&locale=es-AR')).headers['x-galaxie-cache']).toBe('MISS');
   });
 });
 

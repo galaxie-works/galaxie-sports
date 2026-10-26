@@ -9,6 +9,7 @@ import { headers } from 'next/headers';
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
+import { clearOtpFailures } from '@/lib/auth/otp-guard';
 import { sendInvite } from '@/lib/auth/invite';
 import { isRole, needsTenant, type Role } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
@@ -225,15 +226,36 @@ export async function setDisabled(userId: string, disabled: boolean): Promise<Ac
   }
 }
 
-export async function revokeSession(userId: string, sessionToken: string): Promise<ActionResult> {
+/**
+ * Encerra uma sessão do usuário pelo id. O token (que vale como a própria sessão) fica no servidor: o
+ * painel só conhece o id, e aqui ele vira token entre as sessões daquele usuário.
+ */
+export async function revokeSession(userId: string, sessionId: string): Promise<ActionResult> {
   await requireAdmin();
   try {
-    await auth.api.revokeUserSession({ headers: await headers(), body: { sessionToken } });
+    const h = await headers();
+    const { sessions } = await auth.api.listUserSessions({ headers: h, body: { userId } });
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!target) return fail('sessionNotFound');
+    await auth.api.revokeUserSession({ headers: h, body: { sessionToken: target.token } });
     revalidatePath(`/ajustes/usuarios/${userId}`);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: await message(err) };
   }
+}
+
+/**
+ * Destrava o login por código do usuário (apaga as tentativas erradas do e-mail, de todos os IPs). Para
+ * quando o bloqueio pegou o dono do e-mail; o próprio admin travado usa o runbook (docs/runbooks/demo-login.md).
+ */
+export async function unlockOtpSignIn(userId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const { rows } = await pool.query<{ email: string }>('select email from "user" where id = $1', [userId]);
+  if (!rows[0]) return fail('notFound');
+  await clearOtpFailures(rows[0].email.toLowerCase());
+  revalidatePath(`/ajustes/usuarios/${userId}`);
+  return { ok: true };
 }
 
 export async function revokeAllSessions(userId: string): Promise<ActionResult> {
