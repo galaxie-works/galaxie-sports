@@ -1,8 +1,9 @@
 /**
- * Quem o job do canal do jogo pesquisa agora (docs/07 §2.2.4): jogos tier ≤ 2 dos próximos 5 dias e os
- * encerrados há até 72 h, por mercado com direitos conhecidos que DIVIDEM os jogos (direito exclusivo já
- * diz o canal), com relevância ≥ WTW_MIN_RELEVANCE no mercado — ou da liga principal do país (futebol,
- * tier 1, liga nacional), que entra sempre e vai na frente da fila.
+ * Quem o job do canal do jogo pesquisa agora (docs/07 §2.2.4): jogos tier ≤ 2 no momento vigente
+ * (consulta semanal, retentativas, depois do jogo — windows.ts) e os encerrados há até 72 h, por mercado
+ * com direitos conhecidos que DIVIDEM os jogos (exclusivo e todos os jogos já dizem o canal pela tabela),
+ * com relevância ≥ WTW_MIN_RELEVANCE no mercado — ou da liga principal do país (futebol, tier 1, liga
+ * nacional), que entra sempre e vai na frente da fila. Jogo × mercado com canal confirmado nunca entra.
  */
 import { and, asc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
 import { competition, event, matchChannel, season, stage, type Database } from '@galaxie/db';
@@ -16,10 +17,14 @@ import { groupKeyOf, roundKeyOf } from '../groups.js';
 import { marketRelevance, priorityOf, type WtwPolicy } from '../relevance.js';
 import { rightsForEvent } from '../scheduler.js';
 import {
-  CHANNEL_HORIZON_MS,
   CHANNEL_POST_CLOSES_MS,
+  channelHorizonMs,
+  channelMoments,
   dayBucket,
   dueChannelWindow,
+  POST_STATUSES,
+  type ChannelMoments,
+  type ChannelSchedule,
   type ChannelWindow,
 } from './windows.js';
 
@@ -52,7 +57,7 @@ const roundMatches = (label: string | null, wanted: string) =>
 /** Jogos candidatos: futuros no horizonte e encerrados há até 72 h (ou os da rodada pedida). */
 export async function loadChannelEvents(
   db: Database,
-  opts: { now: Date; filter?: ChannelEventFilter },
+  opts: { now: Date; horizonMs: number; filter?: ChannelEventFilter },
 ): Promise<ChannelEvent[]> {
   const f = opts.filter;
   const conds = [lte(competition.tier, 2)];
@@ -64,7 +69,7 @@ export async function loadChannelEvents(
         and(
           inArray(event.status, ['scheduled', 'starting']),
           gte(event.startsAt, opts.now),
-          lte(event.startsAt, new Date(opts.now.getTime() + CHANNEL_HORIZON_MS)),
+          lte(event.startsAt, new Date(opts.now.getTime() + opts.horizonMs)),
         )!,
         and(
           inArray(event.status, ['finished', 'abandoned']),
@@ -136,7 +141,7 @@ export interface ChannelTarget {
 }
 
 export interface ChannelGroup {
-  /** competição|rodada|janela|dia */
+  /** competição|rodada|momento|bucket */
   key: string;
   competition: { slug: string; name: string };
   round: string;
@@ -154,27 +159,15 @@ export interface ChannelPlan {
   events: ChannelEvent[];
 }
 
-/** Canais do jogo já confirmados: evento × país → (oficial?, confirmado depois do jogo?). */
-async function confirmedIndex(
-  db: Database,
-  eventIds: string[],
-): Promise<Map<string, { official: boolean; post: boolean }>> {
-  const out = new Map<string, { official: boolean; post: boolean }>();
+/** Jogos × países (`evento:país`) com canal do jogo confirmado. */
+async function confirmedTargets(db: Database, eventIds: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
   if (!eventIds.length) return out;
   const rows = await db
-    .select({
-      eventId: matchChannel.eventId,
-      country: matchChannel.countryCode,
-      kind: matchChannel.sourceKind,
-      post: matchChannel.postConfirmedAt,
-    })
+    .select({ eventId: matchChannel.eventId, country: matchChannel.countryCode })
     .from(matchChannel)
     .where(and(inArray(matchChannel.eventId, eventIds), eq(matchChannel.status, 'confirmed')));
-  for (const r of rows) {
-    const k = `${r.eventId}:${r.country}`;
-    const cur = out.get(k) ?? { official: false, post: false };
-    out.set(k, { official: cur.official || r.kind === 'official', post: cur.post || r.post !== null });
-  }
+  for (const r of rows) out.add(`${r.eventId}:${r.country}`);
   return out;
 }
 
@@ -184,17 +177,41 @@ export interface PlanChannelOptions {
   config: WtwConfig;
   researched: ResearchedRightsIndex;
   policy: WtwPolicy;
+  /** Momentos (WTW_CHANNEL_*): consulta semanal, retentativas e pós-jogo. */
+  schedule: ChannelSchedule;
   filter?: ChannelEventFilter;
-  /** Com o filtro de rodada, devolve os alvos mesmo fora da janela (prévia/reexecução). */
+  /** Com o filtro de rodada, devolve os alvos mesmo fora dos momentos (prévia/reexecução). */
   ignoreWindows?: boolean;
 }
 
 /** Monta os grupos devidos agora (ordem: liga principal primeiro, depois prioridade). */
 export async function planChannelResearch(db: Database, opts: PlanChannelOptions): Promise<ChannelPlan> {
+  const moments = channelMoments(opts.schedule, opts.now);
   const events = await loadChannelEvents(db, {
     now: opts.now,
+    horizonMs: channelHorizonMs(moments, opts.now),
     ...(opts.filter ? { filter: opts.filter } : {}),
   });
+  const confirmed = await confirmedTargets(
+    db,
+    events.map((e) => e.id),
+  );
+  return buildChannelPlan(events, { ...opts, moments, confirmed });
+}
+
+export interface BuildChannelPlanOptions extends Omit<PlanChannelOptions, 'schedule' | 'filter'> {
+  moments: ChannelMoments;
+  /** `evento:país` com canal confirmado. */
+  confirmed: ReadonlySet<string>;
+}
+
+/**
+ * Parte pura do plano: momento vigente de cada jogo e quem entra por mercado. Exclusivo e "todos os
+ * jogos" saem pela tabela de direitos (`deterministic`) e nunca são pesquisados; com canal confirmado
+ * no mercado, o jogo não volta à pesquisa — nem antes (retentativas) nem depois (pós-jogo).
+ */
+export function buildChannelPlan(events: ChannelEvent[], opts: BuildChannelPlanOptions): ChannelPlan {
+  const { now, moments } = opts;
   const skipped: Record<TargetSkip, number> = {
     no_rights: 0,
     deterministic: 0,
@@ -202,42 +219,38 @@ export async function planChannelResearch(db: Database, opts: PlanChannelOptions
     already_confirmed: 0,
     no_window: 0,
   };
-  // âncoras: primeiro jogo da rodada; primeiro e último de cada dia da rodada
+  // âncoras: primeiro jogo ainda por começar da rodada; último jogo de cada dia da rodada (pós-jogo)
   const roundStart = new Map<string, number>();
-  const dayRange = new Map<string, [number, number]>();
+  const dayLast = new Map<string, number>();
   for (const e of events) {
     const g = groupKeyOf(e.slug, roundKeyOf(e.round, e.startsAt));
     const t = e.startsAt.getTime();
-    roundStart.set(g, Math.min(roundStart.get(g) ?? t, t));
+    if (!POST_STATUSES.has(e.status) && t > now.getTime())
+      roundStart.set(g, Math.min(roundStart.get(g) ?? t, t));
     const d = `${g}|${dayBucket(e.startsAt)}`;
-    const [a, b] = dayRange.get(d) ?? [t, t];
-    dayRange.set(d, [Math.min(a, t), Math.max(b, t)]);
+    dayLast.set(d, Math.max(dayLast.get(d) ?? t, t));
   }
-  const done = await confirmedIndex(
-    db,
-    events.map((e) => e.id),
-  );
   const groups = new Map<string, ChannelGroup>();
   for (const e of events) {
     const round = roundKeyOf(e.round, e.startsAt);
     const g = groupKeyOf(e.slug, round);
-    const [dayStart, dayLast] = dayRange.get(`${g}|${dayBucket(e.startsAt)}`)!;
+    const finished = POST_STATUSES.has(e.status);
     const due =
       dueChannelWindow(
         e,
         {
-          roundStart: new Date(roundStart.get(g)!),
-          dayStart: new Date(dayStart),
-          dayLastStart: new Date(dayLast),
+          roundStart: new Date(roundStart.get(g) ?? e.startsAt.getTime()),
+          dayLastStart: new Date(dayLast.get(`${g}|${dayBucket(e.startsAt)}`)!),
         },
-        opts.now,
+        moments,
+        now,
       ) ??
       (opts.ignoreWindows
         ? ({
-            window: ['finished', 'abandoned'].includes(e.status) ? 'post' : 'T-48h',
-            phase: ['finished', 'abandoned'].includes(e.status) ? 'post' : 'pre',
+            window: 'manual',
+            phase: finished ? 'post' : 'pre',
             bucket: 'manual',
-            opensAt: opts.now,
+            opensAt: now,
           } satisfies ChannelWindow)
         : null);
     for (const country of opts.markets) {
@@ -246,6 +259,7 @@ export async function planChannelResearch(db: Database, opts: PlanChannelOptions
         skipped.no_rights++;
         continue;
       }
+      // exclusive / all_matches (e linhas cujos detentores têm todos os jogos): a tabela já responde
       const answer = rightsAnswer(rights, { home: null, away: null, participants: [], round: e.round });
       if (!answer.needsAllocation) {
         skipped.deterministic++;
@@ -265,13 +279,12 @@ export async function planChannelResearch(db: Database, opts: PlanChannelOptions
         skipped.low_relevance++;
         continue;
       }
-      if (!due) {
-        skipped.no_window++;
+      if (opts.confirmed.has(`${e.id}:${country}`)) {
+        skipped.already_confirmed++;
         continue;
       }
-      const state = done.get(`${e.id}:${country}`);
-      if (state && (due.phase === 'pre' ? state.official : state.post)) {
-        skipped.already_confirmed++;
+      if (!due) {
+        skipped.no_window++;
         continue;
       }
       const key = `${g}|${due.window}|${due.bucket}`;
@@ -289,7 +302,7 @@ export async function planChannelResearch(db: Database, opts: PlanChannelOptions
         } satisfies ChannelGroup);
       grp.targets.push({ event: e, country, rights, holders: answer.toAllocate, relevance, mainLeague });
       grp.mainLeague ||= mainLeague;
-      grp.priority = Math.max(grp.priority, priorityOf(relevance, e.startsAt, opts.now));
+      grp.priority = Math.max(grp.priority, priorityOf(relevance, e.startsAt, now));
       groups.set(key, grp);
     }
   }

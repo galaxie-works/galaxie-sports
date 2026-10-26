@@ -3,7 +3,15 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defaultPolicy } from '@galaxie/apisports-client';
-import { closeDb, createDb, jobRun, runMigrations, tryJobLock, type Database } from '@galaxie/db';
+import {
+  closeDb,
+  createDb,
+  jobRun,
+  mergeJobRunStats,
+  runMigrations,
+  tryJobLock,
+  type Database,
+} from '@galaxie/db';
 import { createLogger, createMetrics } from '@galaxie/observability';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
@@ -83,6 +91,17 @@ describe('scheduler → ops.job_run → métrica de falhas seguidas', () => {
 
     await runJob(job('ok.mjs'), options);
     expect(await consecutiveFailures()).toBe(0);
+  });
+});
+
+describe('estatísticas do próprio job em ops.job_run', () => {
+  it('o job soma as dele (GALAXIE_SCHEDULER_RUN_ID) e o fim do scheduler não as apaga', async () => {
+    const recorder = new PgRunRecorder(db);
+    const id = await recorder.start('lineups-revisit');
+    await mergeJobRunStats(db, id, { lineups: { prompt_cuts: 2 } });
+    await recorder.finish(id, 'ok', null, { exit_code: 0, duration_ms: 10 });
+    const [row] = await db.select().from(jobRun).where(eq(jobRun.id, id));
+    expect(row!.stats).toEqual({ lineups: { prompt_cuts: 2 }, exit_code: 0, duration_ms: 10 });
   });
 });
 

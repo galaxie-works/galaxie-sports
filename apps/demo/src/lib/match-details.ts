@@ -29,3 +29,14 @@ export function activeTab<T extends string>(
     ? (requested as T)
     : (list[0] ?? null);
 }
+
+/**
+ * Atributos extras do painel de uma aba. Com uma aba só a barra de abas não aparece e o painel ficaria
+ * como `tabpanel` sem aba que o nomeie: vira uma região com o nome da aba. Com mais de uma, nada muda.
+ */
+export function panelSemantics(
+  available: ReadonlySet<string>,
+  label: string,
+): { role?: 'region'; 'aria-label'?: string } {
+  return available.size === 1 ? { role: 'region', 'aria-label': label } : {};
+}

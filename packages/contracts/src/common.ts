@@ -34,6 +34,8 @@ export const ERROR_CODES = [
   'CONFLICT',
   'RATE_LIMITED',
   'DEGRADED',
+  /** Stack em atualização (deploy ou reinício): resposta do serviço de manutenção, não da API. */
+  'MAINTENANCE',
   'INTERNAL_ERROR',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

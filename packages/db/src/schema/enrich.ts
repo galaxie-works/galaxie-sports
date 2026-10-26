@@ -823,7 +823,7 @@ export const matchChannel = enrich.table(
     evidence: jsonb('evidence').$type<MatchChannelEvidence[]>().notNull(),
     /** Fase da última confirmação. */
     phase: text('phase').$type<MatchChannelPhase>().notNull(),
-    /** Janela que confirmou por último (T-5d, T-48h, T-6h, post, import). */
+    /** Momento que confirmou por último (weekly, retry-3d, retry-1d, post, import; antigas: T-5d…). */
     window: text('window').notNull(),
     /** Pesquisa (enrich.wtw_research) da última confirmação; null = importado das opções salvas. */
     researchId: uuid('research_id'),

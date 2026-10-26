@@ -34,10 +34,16 @@ import {
 // ─── provider ────────────────────────────────────────────────────────────────────────────────────
 
 export interface GalaxieWidgetProviderProps {
-  /** Base da API pública, ex.: https://api.galaxie.sports */
+  /**
+   * Base da API pública, ex.: https://api.galaxie.sports, ou um proxy no backend da operadora
+   * (`/api/galaxie`, docs/05 §1.3), que injeta a chave secreta.
+   */
   baseUrl: string;
-  /** Chave publicável da operadora (vai no header `x-galaxie-publishable-key`). */
-  publishableKey: string;
+  /**
+   * Chave publicável da operadora (vai no header `x-galaxie-publishable-key`). Obrigatória quando
+   * `baseUrl` é de outra origem; com o proxy na mesma origem, fica vazia e nenhum header vai.
+   */
+  publishableKey?: string | undefined;
   theme: WidgetTheme;
   locale: WidgetLocale;
   /** País ISO2: onde assistir e variante do espanhol. */
@@ -72,7 +78,7 @@ export function useGalaxieWidget(): GalaxieWidgetContextValue {
 /** Contexto dos widgets (API, chave, idioma) e a raiz `.gs-root` com as CSS variables do tema. */
 export function GalaxieWidgetProvider({
   baseUrl,
-  publishableKey,
+  publishableKey = '',
   theme,
   locale,
   market,
@@ -133,8 +139,27 @@ type QueryParams = Record<string, string | number | undefined>;
 const ERROR_RETRY_MS = 60_000;
 
 /**
- * GET na API pública com a chave publicável. `refreshMs(data)` decide o próximo polling (null = parar);
- * com a aba escondida o polling espera ela voltar.
+ * Sem chave publicável, o widget só chama uma base da mesma origem da página (caminho relativo ou a
+ * própria origem): é o proxy no backend da operadora, que repassa com a chave secreta (docs/05 §1.3).
+ * A base é resolvida contra a página como o `fetch` faria (espaços, barras invertidas, `https:host`).
+ * Base de outra origem (a API da Galaxie, ou um proxy num subdomínio) sem chave → `missing_key`.
+ */
+export function needsPublishableKey(
+  baseUrl: string,
+  /** Página atual; `null` = fora do navegador (sem `location`). */
+  page: Pick<Location, 'href' | 'origin'> | null = globalThis.location ?? null,
+): boolean {
+  if (!page) return true;
+  try {
+    return new URL(baseUrl, page.href).origin !== page.origin;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * GET na API pública com a chave publicável (ou no proxy da operadora, sem chave). `refreshMs(data)`
+ * decide o próximo polling (null = parar); com a aba escondida o polling espera ela voltar.
  */
 export function useGalaxieQuery<T>(
   path: string | null,
@@ -159,7 +184,15 @@ export function useGalaxieQuery<T>(
   const hasData = useRef(false);
 
   useEffect(() => {
-    if (!url) return;
+    if (!url) {
+      // a entidade saiu das props: nada de dados velhos (nem de "carregando") na tela
+      lastUrl.current = null;
+      hasData.current = false;
+      setState((s) =>
+        s.data === null && s.error === null && !s.loading ? s : { data: null, error: null, loading: false },
+      );
+      return;
+    }
     if (lastUrl.current !== url) {
       lastUrl.current = url;
       hasData.current = false;
@@ -167,7 +200,7 @@ export function useGalaxieQuery<T>(
     } else {
       setState((s) => ({ ...s, error: null, loading: true }));
     }
-    if (!publishableKey && !fetchImpl) {
+    if (!publishableKey && !fetchImpl && needsPublishableKey(baseUrl)) {
       setState({ data: null, error: new GalaxieWidgetError(401, 'missing_key'), loading: false });
       return;
     }
@@ -191,7 +224,9 @@ export function useGalaxieQuery<T>(
       controller = new AbortController();
       try {
         const res = await (fetchImpl ?? globalThis.fetch)(url, {
-          headers: { accept: 'application/json', [PUBLISHABLE_KEY_HEADER]: publishableKey },
+          headers: publishableKey
+            ? { accept: 'application/json', [PUBLISHABLE_KEY_HEADER]: publishableKey }
+            : { accept: 'application/json' },
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -230,7 +265,7 @@ export function useGalaxieQuery<T>(
       controller?.abort();
       doc?.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [url, publishableKey, fetchImpl, attempt]);
+  }, [url, baseUrl, publishableKey, fetchImpl, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
   return { ...state, retry };

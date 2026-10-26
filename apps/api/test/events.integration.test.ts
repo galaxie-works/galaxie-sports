@@ -624,6 +624,21 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect((await get('/v1/events?from=2026-10-22&to=2026-10-01')).statusCode).toBe(400);
   });
 
+  it('data inexistente (31/02, 31/04) → 400 em vez de virar outro dia', async () => {
+    const bad = await get('/v1/events?date=2026-02-31');
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json()).toMatchObject({
+      code: 'INVALID_PARAMS',
+      errors: [{ path: 'date', message: 'data inexistente' }],
+    });
+    expect((await get('/v1/events?from=2026-02-30')).statusCode).toBe(400);
+    expect((await get('/v1/events?from=2026-04-01&to=2026-04-31T10:00:00Z')).statusCode).toBe(400);
+    expect((await get(`/v1/teams/${ids.palmeiras}/events?from=2026-02-29`)).statusCode).toBe(400);
+    expect((await get('/v1/explore/agenda?day=2026-11-31')).statusCode).toBe(400);
+    // 29/02 de ano bissexto existe
+    expect((await get('/v1/events?date=2028-02-29')).statusCode).toBe(200);
+  });
+
   it('paginação por importância não repete nem pula', async () => {
     const all = (await get('/v1/events?from=2020-01-01&order=importance&limit=200')).json()
       .data as EventBody[];

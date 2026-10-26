@@ -133,6 +133,136 @@ jobs:
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
             console.log("ok:", need.length, "caminhos");'
 
+  # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta muda.
+  # No PR, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
+  # works.galaxie.context-tree da tag publicada no GHCR: uma execução trocada na fila pela do commit seguinte não deixa
+  # a mudança sem imagem. O disparo manual sempre constrói. Na main (push ou disparo manual) publica com a tag da
+  # versão do Playwright (a que o compose usa) e a do SHA.
+  lineup-render:
+    name: build lineup-render
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/galaxie-works/galaxie-sports-lineup-render
+      PUBLISH: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Mesma versão do Playwright na imagem, no compose e no services/ai-agents
+        run: |
+          node --test infra/lineup-render/versions.test.mjs
+          node infra/lineup-render/versions.mjs
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login no GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Só avisa: a Microsoft pode republicar a mesma tag, e isso não pode derrubar o CI de todo PR. O build usa sempre
+      # o digest fixado; tag e digest do FROM sobem juntos.
+      - name: Digest do FROM ainda é o da tag declarada
+        run: |
+          from=$(sed -n 's/^FROM \(mcr\.microsoft\.com\/playwright:[^@ ]*\)@\(sha256:[0-9a-f]*\).*/\1 \2/p' infra/lineup-render/Dockerfile)
+          ref=${from% *}
+          want=${from#* }
+          # a saída padrão traz "Digest: sha256:…" do que a tag aponta (o índice multi-arquitetura); o --format
+          # .Manifest é o documento cru, que não tem campo digest
+          got=$(docker buildx imagetools inspect "$ref" | awk '$1 == "Digest:" { print $2; exit }') || got=
+          if [ "$got" = "$want" ]; then
+            echo "$ref = $want"
+          else
+            echo "::warning::$ref aponta hoje para ${got:-?}; o Dockerfile fixa $want. Suba tag e digest juntos."
+          fi
+
+      - name: A pasta mudou?
+        id: changed
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          tree=$(git rev-parse HEAD:infra/lineup-render)
+          version=$(node -p "require('./infra/lineup-render/package.json').dependencies.playwright")
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = workflow_dispatch ]; then
+            same=""
+          elif [ "$PUBLISH" = true ]; then
+            # rótulo da tag publicada (sem tag, sem rótulo ou sem acesso: vazio → constrói)
+            same=$(docker buildx imagetools inspect "$IMAGE:$version" --format '{{json .Image}}' 2>/dev/null |
+              jq -r '[.. | objects | .Labels? // empty | .["works.galaxie.context-tree"]? // empty] | first // empty') || same=
+            echo "rótulo publicado em $IMAGE:$version: ${same:-nenhum}"
+          else
+            base=$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')
+            same=""
+            if [ -n "$base" ] && git fetch -q --no-tags --depth=1 origin "$base"; then
+              same=$(git rev-parse -q --verify "$base:infra/lineup-render") || same=
+            fi
+            echo "infra/lineup-render no commit base ${base:-?}: ${same:-sem a pasta ou indisponível}"
+          fi
+          if [ "$same" = "$tree" ]; then
+            echo "infra/lineup-render ($tree) já tem imagem: sem build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (e push na main)
+        if: steps.changed.outputs.build == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: infra/lineup-render
+          file: infra/lineup-render/Dockerfile
+          push: ${{ env.PUBLISH == 'true' }}
+          load: ${{ env.PUBLISH != 'true' }}
+          # mesmo rótulo que o deploy.sh usa para saber se a VPS já tem a imagem desta versão da pasta
+          labels: works.galaxie.context-tree=${{ steps.changed.outputs.tree }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.changed.outputs.version }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+          # sem cache do GHA: a base de ~2 GB disputaria o limite de cache do repositório com as outras imagens, e
+          # este build é raro e curto (npm ci de dois pacotes)
+
+      # Sem rede: prova que a partida não baixa nada do npm. O servidor tem de ficar no ar, anunciar o endpoint e,
+      # conectado de dentro do contêiner pelo protocolo do Playwright, abrir uma página no Chromium.
+      - name: run-server sobe como pwuser e sem rede, e o navegador abre uma página
+        if: steps.changed.outputs.build == 'true' && env.PUBLISH != 'true'
+        run: |
+          img="$IMAGE:${{ github.sha }}"
+          user=$(docker image inspect -f '{{.Config.User}}' "$img")
+          [ "$user" = pwuser ] || { echo "::error::usuário da imagem é '$user', esperado pwuser"; exit 1; }
+          docker run -d --name lineup-render --network none --init --shm-size 512m "$img"
+          for _ in $(seq 60); do
+            docker logs lineup-render 2>&1 | grep -q 'Listening on ws://' && break
+            sleep 1
+          done
+          docker logs lineup-render
+          sleep 3
+          [ "$(docker inspect -f '{{.State.Running}}' lineup-render)" = true ] || { echo "::error::o servidor caiu"; exit 1; }
+          docker logs lineup-render 2>&1 | grep -q 'Listening on ws://0.0.0.0:3000/'
+          docker exec lineup-render node -e '
+            const { chromium } = require("/opt/playwright-server/node_modules/playwright");
+            (async () => {
+              const browser = await chromium.connect("ws://127.0.0.1:3000/");
+              const page = await browser.newPage();
+              await page.setContent("<p id=ok>ok</p>");
+              const text = await page.textContent("#ok");
+              console.log("Chromium", browser.version(), "abriu a página:", text);
+              await browser.close();
+              if (text !== "ok") process.exit(1);
+            })().catch((e) => { console.error(e); process.exit(1); });'
+          docker rm -f lineup-render
+
   stack:
     name: valida stack, alertas e scripts
     runs-on: ubuntu-latest
@@ -164,12 +294,24 @@ jobs:
       - name: shellcheck
         run: shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/vps-telemetry/deploy.sh
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
 
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
+
+      - name: Página de manutenção (rótulo de revisão bate com o conteúdo das configs)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \
+            | node infra/vps-telemetry/maintenance-rev.mjs
+
+      - name: Página de manutenção (Caddyfile)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \
+            | jq -r '.configs["maintenance-caddyfile"].content' > "$RUNNER_TEMP/Caddyfile.maintenance"
+          docker run --rm -v "$RUNNER_TEMP/Caddyfile.maintenance:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
   backup-restore:
     name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})

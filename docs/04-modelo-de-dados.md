@@ -297,7 +297,8 @@ create table enrich.broadcast_option (
 -- Migration 0040 (canal do jogo):
 --   enrich.match_channel        canal confirmado de cada jogo × país × emissora (detentor da biblioteca),
 --                               com a melhor fonte (url, publisher, trecho, official|press, data), as
---                               evidências, a fase (pre|post), a janela (T-5d, T-48h, T-6h, post, import),
+--                               evidências, a fase (pre|post), o momento (weekly, retry-3d, retry-1d,
+--                               post, import; T-5d, T-48h e T-6h nas linhas antigas),
 --                               a pesquisa (wtw_research kind channel), first_confirmed_at, confirmed_at,
 --                               post_confirmed_at e a retirada (retracted_at/reason). Único por
 --                               (event_id, country_code, broadcaster_id). Gravado só pelo validador.

@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
 import { rightsLlmEnv } from '../llm/config.js';
-import { createLlmClient } from '../llm/factory.js';
+import { createAgentLlm } from './common.js';
 import type { LlmClient } from '../llm/types.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
 import { wtwPolicyFromEnv } from '../wtw/relevance.js';
@@ -74,7 +74,7 @@ async function main(): Promise<void> {
     );
     let llm: LlmClient | undefined;
     try {
-      const rt = createLlmClient({ db, env: rightsLlmEnv(process.env) });
+      const rt = await createAgentLlm(db, 'wtw', rightsLlmEnv);
       llm = rt.client;
       console.log(`Pesquisa de direitos: ${rt.settings.provider} · ${rt.settings.models.research}`);
     } catch (err) {

@@ -16,9 +16,10 @@ import {
   DEFAULT_DAILY_USD_BUDGET,
   DEFAULT_MAX_SEARCHES_PER_CALL,
   llmSettingsFromEnv,
+  parseAgentStatus,
   parseAgentUsdBudgets,
 } from './config.js';
-import { BudgetExceededError, LlmError } from './errors.js';
+import { AiDisabledError, BudgetExceededError, LlmError } from './errors.js';
 import { createLlmClient, withTokenBudget } from './factory.js';
 import { FakeLlmClient } from './fake.js';
 import {
@@ -76,17 +77,19 @@ describe('configuração do orçamento em US$', () => {
     expect(s.dailyTokenBudget).toBe(2_000_000);
     expect(s.dailyUsdBudget).toBe(DEFAULT_DAILY_USD_BUDGET);
     expect(DEFAULT_DAILY_USD_BUDGET).toBe(10);
-    expect(s.agentUsdBudgets).toEqual({ lineups: 2, wtw: 3, context: 1.5, related: 0.5, f1profile: 1 });
+    expect(s.agentUsdBudgets).toEqual({
+      lineups: 2,
+      wtw: 3,
+      context: 1.5,
+      related: 0.5,
+      f1profile: 2,
+      f1bio: null,
+      curator: null,
+      review: null,
+      channels: null,
+      live: null,
+    });
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
-  });
-
-  it('AI_DAILY_USD_BUDGET=0 desliga a IA (como agente=0); sem teto só com "unlimited"', async () => {
-    expect(llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '0' }).dailyUsdBudget).toBe(0);
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
-    const off = withTokenBudget(fake, { env: { AI_DAILY_USD_BUDGET: '0' } });
-    await expect(off.generateJson(req())).rejects.toMatchObject({ agent: 'global', unit: 'usd' });
-    expect(fake.calls).toHaveLength(0);
   });
 
   it('sobrescritas, "unlimited"/0 e vazio = padrão', () => {
@@ -231,10 +234,10 @@ describe('teto em US$ por agente', () => {
     expect(fake.calls).toHaveLength(4);
   });
 
-  it('teto 0 desliga a IA do agente', async () => {
+  it('agente desligado (AI_AGENT_STATUS) fica sem IA', async () => {
     const budget = new TokenBudget(
       new MemoryTokenBudgetStore(),
-      { dailyLimit: null, agentUsdLimits: { related: 0 } },
+      { dailyLimit: null, agentStatus: { related: 'off' } },
       () => NOW,
     );
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -543,15 +546,14 @@ describe('o teto em US$ segura', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const budget = new TokenBudget(
       new MemoryTokenBudgetStore(),
-      { dailyLimit: null, agentUsdLimits: parseAgentUsdBudgets('channels@v1=0')! },
+      { dailyLimit: null, agentStatus: parseAgentStatus('channels@v1=off')! },
       () => NOW,
     );
     const fake = new FakeLlmClient([{ data: { answer: 'a' } }]);
     const client = new BudgetedLlmClient(fake, budget);
-    await expect(client.generateJson(req({ purpose: 'channels@v2:tenant:BR' }))).rejects.toMatchObject({
-      agent: 'channels',
-      unit: 'usd',
-    });
+    await expect(client.generateJson(req({ purpose: 'channels@v2:tenant:BR' }))).rejects.toBeInstanceOf(
+      AiDisabledError,
+    );
     expect(fake.calls).toHaveLength(0);
   });
 });

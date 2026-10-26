@@ -16,7 +16,7 @@ import {
   queueRerun,
   ResearchedRightsIndex,
 } from '@galaxie/where-to-watch';
-import { createLlmClient } from '../llm/factory.js';
+import { createAgentLlm } from './common.js';
 import type { LlmClient } from '../llm/types.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
 import { activeMarkets } from '../wtw/markets.js';
@@ -203,7 +203,7 @@ async function main(): Promise<void> {
     const queued = await enqueueRuns(db, due, now);
     let llm: LlmClient | undefined;
     try {
-      llm = createLlmClient({ db }).client;
+      llm = (await createAgentLlm(db, 'wtw')).client;
     } catch (err) {
       console.log(
         `Sem LLM (${err instanceof Error ? err.message : String(err)}): só a resposta dos direitos; alocações ficam para depois.`,

@@ -5,7 +5,7 @@ A API tem **duas faces**:
 1. **Espelho compatível** (`/mirror/{sport}/{endpoint}`) — mesma URL relativa, mesmos parâmetros e **o mesmo envelope** da api-sports. Quem já integrou a api-sports só troca a URL base e a chave.
 2. **API canônica** (`/v1/...`) — orientada a evento, multiesporte, localizada e enriquecida (onde assistir, semântica, contexto, momentum).
 
-Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages/contracts` (biblioteca `zod-openapi`), servida em **`/openapi.json`**, com referência interativa (Scalar) em **`/docs`** — ambas públicas. O mesmo pacote exporta o cliente tipado `createGalaxieClient({ baseUrl, apiKey, locale })` usado pelo demo. O CI valida o documento contra o schema oficial do OpenAPI 3.1.
+Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages/contracts` (biblioteca `zod-openapi`), servida em **`/openapi.json`**, com referência interativa (Scalar) em **`/docs`** — ambas públicas. O mesmo pacote exporta o cliente tipado `createGalaxieClient({ baseUrl, apiKey, locale })` usado pelo demo; os filtros de query têm o tipo de entrada do schema (enum, número ou texto; array só nas listas separadas por vírgula), então um valor que a API recusaria com 400 já falha na compilação. O CI valida o documento contra o schema oficial do OpenAPI 3.1.
 
 ## 1. Autenticação, tenants e limites
 
@@ -49,7 +49,7 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 
 **Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (informativa; `null` = sem cota) e o ambiente da chave inicial. O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
 
-**API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` ([Caddyfile](../infra/caddy/Caddyfile)); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
+**API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` (na VPS, o router do Traefik em [`infra/vps-telemetry/compose.yml`](../infra/vps-telemetry/compose.yml) não inclui `/internal` nem `/metrics`; na stack do Portainer, o [Caddyfile](../infra/caddy/Caddyfile)); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
 
 | Rota | Uso |
 |---|---|
@@ -94,9 +94,9 @@ O Galaxie Sports Builder gera widgets que a operadora instala no app dela como c
 |---|---|
 | Formato | `gs_pk_live_<32 bytes em base64url>`; o banco guarda só o **sha256** (`ops.publishable_key.key_hash`) e um prefixo visível (`gs_pk_live_AbCd1234`) para a lista. A chave completa é exibida uma única vez, na criação |
 | Header | `x-galaxie-publishable-key` (nunca por query string). Se a requisição trouxer também `x-galaxie-key`, vale a secreta |
-| Alcance | Só `GET`/`HEAD` em rotas `/v1/*` que exigem módulo, com os módulos, mercados e esportes do tenant. Escrita, `/v1/account/*`, `/v1/stream` (SSE), `/mirror` e `/internal/*` → 403 `PUBLISHABLE_KEY_NOT_ALLOWED` |
+| Alcance | Só `GET`/`HEAD` em rotas `/v1/*` que exigem módulo, com os módulos, mercados e esportes do tenant. Escrita, `/v1/account/*`, `/v1/stream` (SSE), `/mirror` e `/internal/*` → 403 `PUBLISHABLE_KEY_NOT_ALLOWED`. No OpenAPI, essas mesmas operações de leitura declaram `security` com `galaxieKey` **ou** `galaxiePublishableKey` (as demais só a secreta), então geradores de cliente oferecem o header publicável só onde ele vale |
 | Origens | `allowed_origins` da chave: origem exata (`https://app.exemplo.com`, `http://localhost:3000`) ou curinga de subdomínio (`https://*.exemplo.com`, que aceita `app.exemplo.com` e `a.b.exemplo.com`, mas não `exemplo.com`). Esquema e porta precisam bater. A API confere o `Origin` (ou, sem ele, a origem do `Referer`); fora da lista ou sem nenhum dos dois → 403 `ORIGIN_NOT_ALLOWED` |
-| Widget | `widget_id` opcional prende a chave a um widget: a chave só alcança os módulos daquele tipo (`WIDGET_KIND_MODULES`: `match_card` e `where_to_watch` → `core_data` + `where_to_watch`; `live_list` e `standings` → `core_data`) e deixa de valer quando o widget é arquivado |
+| Widget | `widget_id` opcional prende a chave a um widget: a chave só alcança os módulos daquele tipo (`WIDGET_KIND_MODULES`: `match_card` e `where_to_watch` → `core_data` + `where_to_watch`; `live_list` e `standings` → `core_data`) e deixa de valer quando o widget é arquivado (arquivar revoga, na mesma transação, as chaves presas a ele: o painel passa a mostrá-las como revogadas) |
 | Rate limit | Próprio, por **chave × IP** (todas as rotas somadas), janela de 60 s, padrão 60 req (`PUBLISHABLE_RATE_LIMIT_PER_MINUTE`), nunca acima de `rate_limit_per_minute` do tenant. Não consome o limite tenant × rota da chave secreta. Mesmos headers `x-ratelimit-*` e 429 `RATE_LIMITED` |
 | CORS | A resposta só leva `Access-Control-Allow-Origin` (a própria origem, sem credenciais) quando a origem bateu com a chave usada. O preflight (`OPTIONS`, que chega sem chave) é respondido com `GET, HEAD` para as origens de alguma chave ativa; vale também sem `CORS_ORIGINS` |
 | Revogação | `revoked_at`; vale em até 60 s (cache da verificação por instância, positivo e negativo). Chave revogada, inexistente ou de tenant suspenso → 401 `INVALID_KEY` |
@@ -121,7 +121,7 @@ x-galaxie-publishable-key: gs_pk_live_...
 
 **O que a chave publicável não protege.** O `Origin` é confiável dentro de um navegador, mas qualquer script fora dele pode forjá-lo. A lista de origens impede que outro site use a chave da operadora nas páginas dele; não impede alguém de copiar a chave e chamar a API de um servidor. O que limita esse abuso é o alcance (só leitura, só o contrato do tenant) e o rate limit por IP. Se isso não basta para a operadora, a alternativa é o proxy abaixo.
 
-**Alternativa: proxy pelo backend da operadora.** Em vez de chamar a Galaxie direto, o widget aponta a URL base para uma rota do próprio app da operadora, que repassa a requisição com a chave **secreta** guardada no servidor (o widget então não envia chave nenhuma):
+**Alternativa: proxy pelo backend da operadora.** Em vez de chamar a Galaxie direto, o widget aponta a URL base para uma rota do próprio app da operadora, que repassa a requisição com a chave **secreta** guardada no servidor (o widget então não envia chave nenhuma: com `baseUrl` na mesma origem da página, como `/api/galaxie`, o `publishableKey` fica vazio e o header `x-galaxie-publishable-key` não vai):
 
 ```ts
 // app/api/galaxie/[...path]/route.ts (Next.js) no app da Operadora Exemplo
@@ -350,6 +350,8 @@ Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache 
 | `GET /v1/events/{id}.ics` | Arquivo de calendário |
 | `GET /v1/events/{id}/h2h` | Histórico do confronto (do espelho, sem nova chamada) |
 | `GET /v1/events/{id}/card` | Card de MMA da luta: card principal, preliminares e preliminares iniciais |
+
+**Datas da agenda.** `date`, `from` e `to` (também em `/v1/teams/{id}/events`) e `day` de `/v1/explore/agenda` aceitam só dias que existem no calendário: `2026-02-31`, `2026-04-31` ou `2026-02-29` (ano não bissexto) respondem 400 `INVALID_PARAMS` (`message: "data inexistente"` em `date`/`day`). Antes, a API normalizava a data e devolvia os jogos de outro dia (31/02 virava 03/03); o cliente que montava a data por conta própria precisa validá-la ou tratar o 400.
 
 Exemplo de evento canônico:
 
@@ -901,6 +903,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant, ou muitas tentativas de autenticação com chaves não verificadas por IP/prefixo (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60; SECURITY.md) |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
+| 503 `MAINTENANCE` | Stack em atualização (deploy ou reinício, segundos): quem responde é o serviço de manutenção na frente da API, com `Retry-After: 30`; tente de novo depois dele (infra/vps-telemetry/README.md › Página de manutenção) |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
 
 `type` segue `https://docs.galaxie.sports/errors/<código-em-kebab-case>` (ex.: `.../errors/module-not-in-plan`); `instance` é o caminho da requisição; `INVALID_PARAMS` traz `errors: [{ path, message }]`. Rotas inexistentes também respondem 404 `NOT_FOUND` em `application/problem+json`. Erros nunca são cacheados (`Cache-Control: no-store`).
