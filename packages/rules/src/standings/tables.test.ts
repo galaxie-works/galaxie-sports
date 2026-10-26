@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { defaultRulesDir, loadCompetitionRules } from '../config/loader.js';
 import { parseCompetitionRules, RulesConfigError, standingsTableOf } from '../config/parse.js';
 import {
+  autoGroupLabel,
+  autoGroupRank,
   currentPhaseKey,
   knockoutSeed,
   standingsGroupLabel,
@@ -257,5 +259,25 @@ describe('posição na tabela de referência do mata-mata (knockoutSeed)', () =>
     expect(knockoutSeed(mx, 'Apertura - Quarter-finals', table, 'A', 'T')).toEqual({ home: 4, away: 1 });
     expect(knockoutSeed(mx, 'Clausura - Quarter-finals', table, 'A', 'T')).toBeUndefined();
     expect(knockoutSeed(mx, 'Quarter-finals', table, 'A', 'T')).toBeUndefined();
+  });
+});
+
+describe('grupos reservados do recálculo sem regulamento', () => {
+  it('nome exibido em cada idioma; grupo do fornecedor fica sem', () => {
+    expect(autoGroupLabel('annual', 'pt-BR')).toBe('Tabela anual');
+    expect(autoGroupLabel('first_phase', 'es')).toBe('Primera fase');
+    expect(autoGroupLabel('unnamed:3', 'en')).toBe('Unnamed group 3');
+    expect(autoGroupLabel('Group 1', 'pt-BR')).toBeNull();
+  });
+
+  it('ordem: 1ª fase, fornecedor, deduzidos e a anual no fim', () => {
+    const names = ['annual', 'unnamed:10', 'Clausura', 'first_phase', 'unnamed:2'];
+    expect([...names].sort((a, b) => autoGroupRank(a) - autoGroupRank(b))).toEqual([
+      'first_phase',
+      'Clausura',
+      'unnamed:2',
+      'unnamed:10',
+      'annual',
+    ]);
   });
 });

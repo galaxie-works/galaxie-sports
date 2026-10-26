@@ -106,7 +106,7 @@ function rulesFor(rules: CompetitionRules, t: StandingsTableRule): CompetitionRu
  * Grupos com jogo entre eles contando para os dois lados (fecha interzonal): cada grupo acumula os jogos em
  * que algum time dele entrou e ordena só os seus times (o confronto direto fica entre os do grupo).
  */
-function crossGroupTables(
+export function crossGroupTables(
   rules: CompetitionRules,
   matches: readonly MatchResult[],
   groupOf: ReadonlyMap<string, string>,
