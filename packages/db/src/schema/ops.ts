@@ -84,6 +84,32 @@ export const syncCursor = ops.table(
   (t) => [primaryKey({ columns: [t.provider, t.sport, t.endpoint, t.key] })],
 );
 
+/**
+ * Resposta do raw que a normalização (`normalize:<esporte>`) não conseguiu levar ao core. Cada execução que
+ * falha nela soma uma tentativa e segura o cursor incremental; depois de algumas tentativas ela vira poison
+ * (`poisoned_at`) e o cursor segue sem ela. O incremental tenta a poison de novo uma vez por dia e
+ * `--reprocessar-falhas` tenta as pendentes na hora; quando passa (ou a requisição já tem resposta mais nova no
+ * raw), `resolved_at`, e uma falha nova depois disso recomeça a contagem. Sem FK: a retenção do raw pode apagar
+ * a linha.
+ */
+export const normalizeFailure = ops.table(
+  'normalize_failure',
+  {
+    provider: text('provider').notNull(),
+    sport: text('sport').notNull(),
+    rawId: bigint('raw_id', { mode: 'number' }).notNull(),
+    endpoint: text('endpoint').notNull(),
+    attempts: integer('attempts').notNull().default(1),
+    /** Erro da última tentativa. */
+    error: text('error'),
+    firstFailedAt: timestamp('first_failed_at', { withTimezone: true }).notNull().defaultNow(),
+    lastFailedAt: timestamp('last_failed_at', { withTimezone: true }).notNull().defaultNow(),
+    poisonedAt: timestamp('poisoned_at', { withTimezone: true }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.sport, t.rawId] })],
+);
+
 export const jobRun = ops.table(
   'job_run',
   {
