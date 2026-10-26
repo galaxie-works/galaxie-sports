@@ -1,11 +1,6 @@
 # =============================================================================
 # Tabela de direitos — Peru (PE). Formato e regras: config/broadcast-rights/br.yaml.
 # Fonte: docs/research/onde-assistir.md §2.2–2.3 (pesquisa de 2026-10-21); revisão de 2026-10-25.
-# Liga 1 2026 (Apertura e Clausura): todos os jogos só no L1 MAX (canal da 1190 Sports), que não está
-# na biblioteca de emissoras do PE — sem linha até a emissora entrar no dicionário. GolPerú deixou de
-# ter jogos da Liga 1 em 2026 (Universitario passou ao L1 MAX). Fontes:
-#   https://libero.pe/futbol-peruano/liga-1/2026/01/29/movistar-tv-se-confirmo-nuevo-canal-transmitira-en-vivo-todos-partidos-de-liga-1-2026-vuelve-casa-1650970
-#   https://www.futbolperuano.com/liga-1/noticias/liga-1-por-movistar-l1-max-ocupara-el-lugar-de-golperu-en-la-temporada-2026-561362
 # Seleção: Eliminatórias 2030 só começam em 2027 — sem linha.
 # Operadoras de TV paga omitidas por política editorial não aparecem aqui.
 # =============================================================================
@@ -13,6 +8,20 @@ schema_version: 1
 country: PE
 updated_at: 2026-10-25
 rights:
+  - competition: peru-liga-1
+    season: 2026
+    valid_from: 2026-01-01
+    valid_to: 2026-12-31
+    per_round_selection: false
+    distribution: exclusive
+    holders: [l1_max]
+    notes: >-
+      Liga 1 2026 (Apertura e Clausura): todos os jogos só no L1 MAX (canal oficial da Liga 1, da 1190
+      Sports), na TV paga e no streaming próprio. GolPerú deixou de ter jogos em 2026 (Universitario
+      passou ao L1 MAX).
+    sources:
+      - https://depor.com/futbol-peruano/descentralizado/1190-sports-asegura-transmision-de-todos-los-partidos-llego-a-acuerdo-de-pagos-pendientes-con-los-clubes-de-la-liga-1-2026-con-alianza-lima-universitario-y-melgar-noticia/
+      - https://libero.pe/futbol-peruano/liga-1/2026/01/10/l1-max-cinco-operadores-transmitiran-todos-partidos-de-liga-1-2026-630360
   - competition: conmebol-libertadores
     season: 2026
     valid_from: 2026-01-01
