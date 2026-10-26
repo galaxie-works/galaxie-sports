@@ -40,6 +40,43 @@ export interface F1dbTruth {
 type Row = Record<string, unknown>;
 const str = (v: unknown) => (v == null ? null : String(v));
 
+/** O que define a prioridade de um piloto (na ordem da tabela `driver`: o desempate do top 20). */
+export interface PriorityInput {
+  id: string;
+  wins: number;
+  starts: number;
+  champion: boolean;
+  /** Largou na temporada atual. */
+  grid: boolean;
+}
+
+/**
+ * Prioridade (a mesma da auditoria dos perfis): grid da temporada atual, campeões e os 20 primeiros em vitórias e em
+ * GPs. Devolve só os pilotos com alguma etiqueta.
+ */
+export function priorityTags(list: readonly PriorityInput[], currentYear: number): Map<string, string[]> {
+  const top = (pick: (t: PriorityInput) => number) =>
+    new Set(
+      [...list]
+        .sort((a, b) => pick(b) - pick(a))
+        .slice(0, 20)
+        .map((t) => t.id),
+    );
+  const topWins = top((t) => t.wins);
+  const topStarts = top((t) => t.starts);
+  const out = new Map<string, string[]>();
+  for (const t of list) {
+    const tags = [
+      t.grid ? `grid ${currentYear}` : null,
+      t.champion ? 'campeão' : null,
+      topWins.has(t.id) ? 'top 20 vitórias' : null,
+      topStarts.has(t.id) ? 'top 20 GPs' : null,
+    ].filter((x): x is string => !!x);
+    if (tags.length) out.set(t.id, tags);
+  }
+  return out;
+}
+
 /** Mais frequentes de uma contagem (todos os empatados). */
 export function mostUsed<K>(counts: Map<K, number>): K[] {
   const max = Math.max(0, ...counts.values());
@@ -130,24 +167,17 @@ export async function loadF1dbTruth(path: string, today: string): Promise<F1dbTr
       });
     }
 
-    // prioridade (a mesma da auditoria): grid da temporada atual, campeões e os 20 primeiros em vitórias e em GPs
-    const list = [...drivers.values()];
-    const top = (pick: (t: F1dbDriverTruth) => number) =>
-      new Set(
-        [...list]
-          .sort((a, b) => pick(b) - pick(a))
-          .slice(0, 20)
-          .map((t) => t.id),
-      );
-    const topWins = top((t) => t.wins);
-    const topStarts = top((t) => t.starts);
-    for (const t of list)
-      t.tags = [
-        t.seasons.has(Number(currentYear)) ? `grid ${currentYear}` : null,
-        t.titles.length ? 'campeão' : null,
-        topWins.has(t.id) ? 'top 20 vitórias' : null,
-        topStarts.has(t.id) ? 'top 20 GPs' : null,
-      ].filter((x): x is string => !!x);
+    const tags = priorityTags(
+      [...drivers.values()].map((t) => ({
+        id: t.id,
+        wins: t.wins,
+        starts: t.starts,
+        champion: t.titles.length > 0,
+        grid: t.seasons.has(Number(currentYear)),
+      })),
+      Number(currentYear),
+    );
+    for (const t of drivers.values()) t.tags = tags.get(t.id) ?? [];
     return {
       release: F1DB_RELEASE.version,
       currentYear: Number(currentYear),

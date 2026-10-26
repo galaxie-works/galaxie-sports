@@ -112,20 +112,37 @@ export class SparqlClient {
     params: Record<string, string | number> = {},
     page = 1,
   ): Promise<QueryResult> {
-    const hash = queryHash(query);
-    if (this.cache && !this.refresh) {
-      const cached = await this.cache.get(hash, this.cacheMaxAgeMs);
-      if (cached) {
-        this.cacheHits += 1;
-        return { data: cached, fromCache: true };
-      }
+    const cached = await this.cached(query);
+    if (cached) {
+      this.cacheHits += 1;
+      return { data: cached, fromCache: true };
     }
-    const data = await this.fetchWithRetry(name, query);
-    if (this.cache) await this.cache.put({ hash, name, params, page, body: data, statusCode: 200 });
-    return { data, fromCache: false };
+    return { data: await this.fetchAndStore(name, query, params, page), fromCache: false };
   }
 
-  /** Pagina com LIMIT/OFFSET até vir uma página incompleta. A consulta deve ter ORDER BY estável. */
+  /** Resposta do cache (respeitando `refresh` e a idade máxima), sem ir à rede. */
+  private async cached(query: string): Promise<SparqlResponse | null> {
+    if (!this.cache || this.refresh) return null;
+    return this.cache.get(queryHash(query), this.cacheMaxAgeMs);
+  }
+
+  private async fetchAndStore(
+    name: string,
+    query: string,
+    params: Record<string, string | number>,
+    page: number,
+  ): Promise<SparqlResponse> {
+    const data = await this.fetchWithRetry(name, query);
+    if (this.cache)
+      await this.cache.put({ hash: queryHash(query), name, params, page, body: data, statusCode: 200 });
+    return data;
+  }
+
+  /**
+   * Pagina com LIMIT/OFFSET até vir uma página incompleta. A consulta deve ter ORDER BY estável. As páginas vêm
+   * todas do cache ou todas da rede: misturar a página 1 de uma semana atrás com a 2 de agora desloca o OFFSET
+   * (linhas novas ou removidas no meio) e perde ou repete linhas. Faltou uma página no cache: busca todas de novo.
+   */
   async paginate(
     name: string,
     build: (limit: number, offset: number) => string,
@@ -133,10 +150,20 @@ export class SparqlClient {
     pageSize: number,
     maxPages = 200,
   ): Promise<SparqlBinding[]> {
+    const fromCache: SparqlBinding[] = [];
+    for (let page = 1; page <= maxPages; page++) {
+      const data = await this.cached(build(pageSize, (page - 1) * pageSize));
+      if (!data) break;
+      fromCache.push(...data.results.bindings);
+      if (data.results.bindings.length < pageSize) {
+        this.cacheHits += page;
+        return fromCache;
+      }
+    }
     const all: SparqlBinding[] = [];
     for (let page = 1; page <= maxPages; page++) {
       const offset = (page - 1) * pageSize;
-      const { data } = await this.query(name, build(pageSize, offset), { ...params, offset }, page);
+      const data = await this.fetchAndStore(name, build(pageSize, offset), { ...params, offset }, page);
       const rows = data.results.bindings;
       all.push(...rows);
       if (rows.length < pageSize) return all;

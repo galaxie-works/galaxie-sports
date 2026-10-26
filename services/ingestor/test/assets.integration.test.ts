@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
+  changeFeed,
   competition,
   event,
   eventIncident,
@@ -12,28 +13,32 @@ import {
   participant,
   person,
   providerMap,
+  roster,
   sport,
   type Database,
 } from '@galaxie/db';
 import {
   emptyBatch,
+  normalizeFootballEnvelope,
   normalizePlayers,
   type ApiPlayerItem,
   type NormalizedParticipant,
 } from '@galaxie/providers';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
-import { PgAssetStore } from '../src/assets/asset-store.js';
+import { PgAssetStore, runRawDiscovery, type RawDiscoveryReport } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import {
   coachPhotoUrl,
   pendingPersonPhotoIds,
   playerPhotoUrl,
+  previewPlayerPhotos,
   registerPlayerPhotos,
 } from '../src/assets/person-photos.js';
 import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
+import { relinkRecoveredLogos } from '../src/assets/relink-logos.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
 import { encodePng } from './png.js';
@@ -439,6 +444,326 @@ describe('logos genéricos ("image not available")', () => {
 });
 
 /** Só roda com o RustFS/S3 local configurado (S3_ENDPOINT...); usa um prefixo descartável e apaga ao final. */
+describe('auditoria do espelho (change feed, prévias, filtros)', () => {
+  const DAY = 86_400_000;
+  const PALETTE = { version: 1, dominant: '#006937', secondary: null, monochrome: false } as const;
+  const handball = (path: string) => `https://media.api-sports.io/handball/${path}.png`;
+  const stored = (url: string) => ({
+    storageKey: `api-sports${new URL(url).pathname}`,
+    sha256: createHash('sha256').update(url).digest('hex'),
+    bytes: 1,
+    width: 2,
+    height: 2,
+    fetchedAt: new Date(),
+  });
+  const newAsset = async (url: string, kind: 'team_logo' | 'player' = 'team_logo') =>
+    (await db.insert(asset).values({ kind, sourceUrl: url }).returning())[0]!.id;
+  const team = async (name: string, logo: { logoAssetId?: string; customLogoAssetId?: string }) =>
+    (
+      await db
+        .insert(participant)
+        .values({ sport: 'football', kind: 'club', name, ...logo })
+        .returning()
+    )[0]!.id;
+  const feedFor = async (ids: string[]) =>
+    db
+      .select({ topic: changeFeed.topic, entityType: changeFeed.entityType, entityId: changeFeed.entityId })
+      .from(changeFeed)
+      .where(inArray(changeFeed.entityId, ids))
+      .orderBy(asc(changeFeed.id));
+  const byEntity = (a: { entityId: string }, b: { entityId: string }) => a.entityId.localeCompare(b.entityId);
+
+  beforeAll(async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+  });
+
+  it('gravar ou limpar a paleta publica participant:<id> para os times que usam o escudo', async () => {
+    const store = new PgAssetStore(db);
+    const crest = await newAsset(handball('teams/1'));
+    const other = await newAsset(handball('teams/2'));
+    const lonely = await newAsset(handball('teams/3'));
+    const provider = await team('Handebol A', { logoAssetId: crest });
+    const custom = await team('Handebol B', { customLogoAssetId: crest });
+    const third = await team('Handebol C', { logoAssetId: other });
+    const ids = [provider, custom, third];
+    const change = (entityId: string) => ({ topic: 'catalog', entityType: 'participant', entityId });
+    const both = [change(provider), change(custom)].sort(byEntity);
+
+    await store.markStored(crest, stored(handball('teams/1')));
+    await store.markStored(lonely, { ...stored(handball('teams/3')), palette: PALETTE });
+    expect(await feedFor(ids)).toEqual([]); // sem paleta, ou escudo sem time: nada a purgar
+
+    await store.savePalette(crest, PALETTE);
+    expect((await feedFor(ids)).sort(byEntity)).toEqual(both);
+
+    // o espelho grava a paleta no mesmo update do download
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    expect((await feedFor(ids)).slice(2)).toEqual([change(third)]);
+    // asset desvinculado (denylist) ou ausente perde a paleta: os times também
+    await store.unlink([handball('teams/1')], new Date());
+    expect((await feedFor(ids)).slice(3).sort(byEntity)).toEqual(both);
+    await store.markMissing(other, new Date());
+    expect((await feedFor(ids)).slice(5)).toEqual([change(third)]);
+
+    // a mesma paleta gravada de novo não purga nada; o lote do backfill publica numa transação só
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    const count = (await feedFor(ids)).length;
+    await store.markStored(other, { ...stored(handball('teams/2')), palette: PALETTE });
+    await store.savePalettes([{ id: other, palette: PALETTE }]);
+    expect(await feedFor(ids)).toHaveLength(count);
+    await store.savePalettes([
+      { id: crest, palette: PALETTE },
+      { id: other, palette: { ...PALETTE, dominant: '#123456' } },
+    ]);
+    const batch = await db
+      .select({ createdAt: changeFeed.createdAt })
+      .from(changeFeed)
+      .where(inArray(changeFeed.entityId, ids))
+      .orderBy(asc(changeFeed.id));
+    expect(batch.slice(count)).toHaveLength(3);
+    expect(new Set(batch.slice(count).map((r) => r.createdAt.getTime())).size).toBe(1);
+  });
+
+  it('--plan conta no Postgres os times de logos espelhados que entraram na lista de bloqueio', async () => {
+    const store = new PgAssetStore(db);
+    const url = handball('teams/10');
+    const crest = await newAsset(url);
+    await store.markStored(crest, stored(url));
+    await team('Handebol Bloqueado', { logoAssetId: crest });
+    const at = new Date();
+    const before = await store.cleanupLogos(at, { dryRun: true });
+    const preview = await store.cleanupLogos(at, { dryRun: true, denylisted: [url] });
+    expect(preview).toEqual({ ...before, participants: before.participants + 1 });
+
+    expect(await store.unlink([url], at)).toBe(1);
+    expect(await store.cleanupLogos(at)).toEqual(preview);
+  });
+
+  it('--fotos --caminho filtra a fila de fotos pelo caminho antes do limite', async () => {
+    const store = new PgAssetStore(db);
+    const volley = await newAsset('https://media.api-sports.io/volley/players/5.png', 'player');
+    await newAsset(playerPhotoUrl('777'), 'player');
+    const since = new Date(Date.now() - 365 * DAY);
+    const all = await store.pending({ personPhotos: { since } });
+    expect(all.some((a) => a.sourceUrl.includes('/football/'))).toBe(true);
+    expect(
+      (await store.pending({ personPhotos: { since }, pathPrefix: 'volley', limit: 1 })).map((a) => a.id),
+    ).toEqual([volley]);
+    const filtered = await store.pending({ personPhotos: { since }, pathPrefix: 'volley' });
+    expect(filtered.every((a) => a.sourceUrl.includes('/volley/'))).toBe(true);
+  });
+
+  it('elenco atual sem temporada é prioridade 1; --plan conta o registro pelo id sem gravar', async () => {
+    const club = await team('Clube do Elenco', {});
+    const [p] = await db.insert(person).values({ name: 'Jogador do Elenco' }).returning();
+    await db.insert(providerMap).values({
+      entityType: 'person',
+      entityId: p!.id,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId: '4242',
+    });
+    await db.insert(roster).values({ participantId: club, personId: p!.id, seasonId: null, role: 'player' });
+    const since = new Date(Date.now() - 365 * DAY);
+    const photo = async () =>
+      (await db.select({ id: person.photoAssetId }).from(person).where(eq(person.id, p!.id)))[0]!.id;
+
+    const preview = await previewPlayerPhotos(db, { since });
+    expect(preview).toMatchObject({
+      linked: [0, 1, 0],
+      registered: 1,
+      registeredByKind: { player: 1, coach: 0 },
+    });
+    expect(
+      await db
+        .select()
+        .from(asset)
+        .where(eq(asset.sourceUrl, playerPhotoUrl('4242'))),
+    ).toEqual([]);
+    expect(await photo()).toBeNull();
+
+    const { registeredByKind: _byKind, ...counts } = preview;
+    expect(await registerPlayerPhotos(db, { since })).toEqual(counts);
+    expect(await photo()).not.toBeNull();
+  });
+
+  it('o backfill com limite pagina depois dos escudos que não decodificam', async () => {
+    const store = new PgAssetStore(db);
+    const objects = new InMemoryObjectStore();
+    const crest = encodePng({ width: 1, height: 1, colorType: 6, rows: [[0, 105, 55, 255]] });
+    const urls = [20, 21, 22].map((i) => handball(`teams/${i}`));
+    for (const [i, url] of urls.entries()) {
+      const id = await newAsset(url);
+      await store.markStored(id, stored(url));
+      // os dois primeiros não são PNG de verdade: falham sempre
+      await objects.put(stored(url).storageKey, i < 2 ? fakePng(2, 2, 8) : crest, 'image/png', 'x');
+    }
+    const all = await store.paletteCandidates();
+    expect(all.map((c) => c.storageKey).slice(-3)).toEqual(urls.map((u) => stored(u).storageKey));
+    expect(await store.paletteCandidates(1, all[0]!.id)).toEqual([all[1]]);
+
+    // os de testes anteriores sem objeto no storage também falham: o lote de 1 passa por todos eles
+    const report = await runPaletteBackfill({ assets: store, objects, limit: 1 });
+    expect(report).toMatchObject({ saved: 1, skipped: all.length - 1 });
+    const [last] = await db.select().from(asset).where(eq(asset.sourceUrl, urls[2]!));
+    expect(last!.palette).not.toBeNull();
+  });
+
+  it('--descobrir-raw é incremental e não perde raw retroativo nem de transação que commitou depois', async () => {
+    const store = new PgAssetStore(db);
+    const denylist = new MediaDenylist();
+    const first = await runRawDiscovery(db, store, { denylist });
+    expect(first.after).toBeNull();
+    expect(first.urls).toBe((await store.discoverFromRaw()).length);
+    const team = (id: number) => `https://media.api-sports.io/handball/teams/${id}.png`;
+    const raw = (id: number) => ({
+      provider: 'api-sports',
+      sport: 'handball',
+      apiVersion: 'v1',
+      endpoint: '/teams',
+      params: {},
+      requestHash: randomBytes(8).toString('hex'),
+      statusCode: 200,
+      body: { response: [{ team: { id, logo: team(id) } }] },
+      bodyHash: randomBytes(8).toString('hex'),
+      // raw:import e snapshot:import gravam com o fetched_at original
+      fetchedAt: new Date('2024-01-01T00:00:00Z'),
+    });
+    const registered = async (id: number) =>
+      (
+        await db
+          .select()
+          .from(asset)
+          .where(eq(asset.sourceUrl, team(id)))
+      ).length;
+
+    // 97 reserva o id antes de 98 e 99, mas só commita depois da segunda descoberta
+    let second: RawDiscoveryReport | undefined;
+    await db.transaction(async (tx) => {
+      await tx.insert(apiResponse).values(raw(97));
+      await db.insert(apiResponse).values([raw(98), raw(99)]);
+      second = await runRawDiscovery(db, store, { denylist });
+    });
+    expect(second).toMatchObject({ after: first.watermark, added: 2 });
+    expect(await registered(98)).toBe(1);
+    expect(await registered(97)).toBe(0);
+
+    // o id de 97 está abaixo da marca da segunda, mas a transação dele estava em andamento: entra agora
+    const third = await runRawDiscovery(db, store, { denylist });
+    expect(third).toMatchObject({ after: second!.watermark, added: 1 });
+    expect(await registered(97)).toBe(1);
+
+    const full = await runRawDiscovery(db, store, { denylist, full: true });
+    expect(full).toMatchObject({ after: null, urls: first.urls + 3, added: 0 });
+  });
+});
+
+describe('logo 404 que volta no --retentar-ausentes', () => {
+  // pasta só deste teste na CDN, para a fila (--caminho) não pegar os assets dos outros
+  const media = (path: string) => `https://media.api-sports.io/cricket/${path}.png`;
+  const TEAM = media('teams/5001');
+  const LEAGUE = media('leagues/6001');
+  const ORPHAN = media('teams/5999');
+
+  it('religa time e competição pelo par id ↔ logo que o fornecedor já devolveu, sem chamar a API', async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+    // o catálogo do fornecedor no raw: o time 5001 e a liga 6001 com os logos
+    const teams = { response: [{ team: { id: 5001, name: 'Time que Volta', logo: TEAM }, venue: null }] };
+    await saveRaw('football', '/teams', teams);
+    await saveRaw('football', '/leagues', {
+      response: [
+        {
+          league: { id: 6001, name: 'Liga que Volta', type: 'League', logo: LEAGUE },
+          country: { name: 'Brazil', code: 'BR', flag: null },
+          seasons: [],
+        },
+      ],
+    });
+    await upsertBatch(db, normalizeFootballEnvelope('/teams', teams, new Date())!.batch);
+    const [leagueAsset] = await db
+      .insert(asset)
+      .values({ kind: 'league_logo', sourceUrl: LEAGUE })
+      .returning();
+    const [league] = await db
+      .insert(competition)
+      .values({
+        sport: 'football',
+        slug: 'liga-que-volta',
+        name: 'Liga que Volta',
+        type: 'league',
+        logoAssetId: leagueAsset!.id,
+      })
+      .returning();
+    await db.insert(providerMap).values({
+      entityType: 'competition',
+      entityId: league!.id,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId: '6001',
+    });
+    await db.insert(asset).values({ kind: 'team_logo', sourceUrl: ORPHAN });
+    const [club] = await db.select().from(participant).where(eq(participant.name, 'Time que Volta'));
+    expect(club!.logoAssetId).not.toBeNull();
+    const logos = async () => ({
+      team: (await db.select().from(participant).where(eq(participant.id, club!.id)))[0]!.logoAssetId,
+      league: (await db.select().from(competition).where(eq(competition.id, league!.id)))[0]!.logoAssetId,
+    });
+
+    // 1ª execução: 404 desliga time e competição
+    const store = new PgAssetStore(db);
+    const objects = new InMemoryObjectStore();
+    const clock = new FakeClock();
+    const down = fakeMediaFetch({});
+    const fetcher = (fetch: typeof globalThis.fetch) => new MediaFetcher({ fetch, clock });
+    const first = await runAssetMirror({
+      assets: store,
+      objects,
+      fetcher: fetcher(down.fetch),
+      clock,
+      pathPrefix: 'cricket',
+    });
+    expect(first).toMatchObject({ notFound: 3, recoveredLogos: [] });
+    expect(await logos()).toEqual({ team: null, league: null });
+
+    // --retentar-ausentes: os três voltam; o time e a liga religam, o órfão não tem de quem ser
+    const up = fakeMediaFetch(
+      Object.fromEntries([TEAM, LEAGUE, ORPHAN].map((u) => [u, [{ status: 200, body: fakePng(4, 4) }]])),
+    );
+    const retry = await runAssetMirror({
+      assets: store,
+      objects,
+      fetcher: fetcher(up.fetch),
+      clock,
+      pathPrefix: 'cricket',
+      includeMissing: true,
+    });
+    expect(retry).toMatchObject({ stored: 3 });
+    expect(retry.recoveredLogos).toHaveLength(3);
+    const published = await db.select().from(changeFeed).where(eq(changeFeed.entityId, club!.id));
+    const report = await relinkRecoveredLogos(db, retry.recoveredLogos);
+    expect(report).toEqual({ participants: 1, competitions: 1, unresolved: [ORPHAN] });
+    const teamAsset = (await db.select().from(asset).where(eq(asset.sourceUrl, TEAM)))[0]!;
+    expect(await logos()).toEqual({ team: teamAsset.id, league: leagueAsset!.id });
+    // o time religado sai do cache da API
+    expect(await db.select().from(changeFeed).where(eq(changeFeed.entityId, club!.id))).toHaveLength(
+      published.length + 1,
+    );
+    // só a CDN de mídia foi chamada; idempotente: rodar de novo não troca nada
+    expect(up.calls.every((c) => c.url.startsWith('https://media.api-sports.io/'))).toBe(true);
+    expect(await relinkRecoveredLogos(db, retry.recoveredLogos)).toEqual({
+      participants: 0,
+      competitions: 0,
+      unresolved: [ORPHAN],
+    });
+  });
+});
+
 describe.skipIf(!process.env.S3_ENDPOINT)('S3ObjectStore (RustFS local)', () => {
   it('grava, lê, consulta e apaga um objeto; a URL pública serve o arquivo', async () => {
     const objects = objectStoreFromEnv();

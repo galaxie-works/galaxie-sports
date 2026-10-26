@@ -92,6 +92,8 @@ describe('runAssetMirror', () => {
     expect(media.calls).toHaveLength(0);
     expect(assets.byUrl(PAULISTAO)).toMatchObject({ storageKey: null });
     expect(assets.byUrl(BR)).toMatchObject({ storageKey: null, sha256: null });
+    // o logo bloqueado sai das competições na hora, como no 404
+    expect([...assets.detachedLogos]).toEqual([assets.byUrl(PAULISTAO)!.id]);
   });
 
   it('falhas transitórias continuam pendentes; muitos 429 seguidos interrompem a execução', async () => {
@@ -112,6 +114,37 @@ describe('runAssetMirror', () => {
     expect(report.aborted).toMatch(/429/);
     expect(media.calls).toHaveLength(4); // 2 assets × (1 + 1 nova tentativa)
     expect((await assets.pending()).length).toBe(5);
+  });
+
+  it('erro de um asset (storage) vira falha e os outros workers terminam antes de a execução voltar', async () => {
+    const urls = [1, 2, 3, 4].map((i) => `https://media.api-sports.io/football/teams/${i}.png`);
+    const { clock, assets, objects, fetcher } = setup(
+      Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])),
+      urls,
+    );
+    const put = objects.put.bind(objects);
+    objects.put = async (key, ...rest) => {
+      if (key.endsWith('/1.png')) throw new Error('storage fora do ar');
+      return put(key, ...rest);
+    };
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, concurrency: 2, delayMs: 10 });
+    expect(report).toMatchObject({ pending: 4, stored: 3, failed: 1, errors: 1, aborted: null });
+    expect(report.failures).toEqual([{ url: urls[0], reason: 'storage fora do ar' }]);
+    // o que falhou continua pendente; os outros foram gravados (no storage e no banco)
+    expect((await assets.pending()).map((a) => a.sourceUrl)).toEqual([urls[0]]);
+    expect(objects.objects.size).toBe(3);
+
+    // erros seguidos interrompem
+    const down = setup(
+      Object.fromEntries(urls.map((u) => [u, [{ status: 200, body: fakePng(5, 5) }]])),
+      urls,
+    );
+    down.objects.put = async () => {
+      throw new Error('storage fora do ar');
+    };
+    const aborted = await runAssetMirror({ ...down, concurrency: 1, abortAfterRateLimited: 2 });
+    expect(aborted.failed).toBe(2);
+    expect(aborted.aborted).toMatch(/storage fora do ar/);
   });
 
   it('modo plano não baixa e --retentar-ausentes volta a tentar 404', async () => {
@@ -247,6 +280,35 @@ describe('cores dos times', () => {
     ]);
     // segunda execução: só os que não decodificaram voltam
     expect((await runPaletteBackfill({ assets, objects, dryRun: true })).candidates).toBe(2);
+  });
+
+  it('com --limite, os que nunca decodificam não ocupam o lote: a fila segue depois deles', async () => {
+    const urls = [1, 2, 3, 4, 5].map((i) => `https://media.api-sports.io/football/teams/${i}.png`);
+    const assets = new InMemoryAssetStore(urls);
+    const objects = new InMemoryObjectStore();
+    for (const [i, url] of urls.entries()) {
+      const storageKey = `api-sports/football/teams/${i + 1}.png`;
+      await assets.markStored(assets.byUrl(url)!.id, {
+        storageKey,
+        sha256: `x${i}`,
+        bytes: 1,
+        width: 2,
+        height: 2,
+        fetchedAt: new Date(),
+      });
+      // os dois primeiros são JPEG com extensão .png: falham sempre
+      await objects.put(storageKey, i < 2 ? fakePng(2, 2, 8) : CREST, 'image/png', 'x');
+    }
+    expect(await runPaletteBackfill({ assets, objects, limit: 2 })).toEqual({
+      candidates: 4,
+      saved: 2,
+      monochrome: 0,
+      skipped: 2,
+    });
+    expect(urls.map((u) => assets.byUrl(u)!.palette !== null)).toEqual([false, false, true, true, false]);
+    const next = await runPaletteBackfill({ assets, objects, limit: 2 });
+    expect(next).toMatchObject({ saved: 1, skipped: 2 });
+    expect(assets.byUrl(urls[4]!)!.palette).toEqual(PALMEIRAS_PALETTE);
   });
 });
 
@@ -416,6 +478,28 @@ describe('logos genéricos', () => {
     expect(assets.byUrl(TEAM)!.storageKey).toBe('api-sports/football/teams/121.png');
     expect(assets.byUrl(PLAYER)!.storageKey).toBe('api-sports/football/players/154.png');
     expect((await runAssetMirror({ assets, objects, fetcher, clock })).logoCleanup.placeholders).toBe(0);
+  });
+
+  it('--plan conta os logos espelhados que entraram na lista de bloqueio (o unlink da execução real)', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [TEAM, PRAIA]);
+    const stored = { sha256: 'escudo', bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(TEAM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/teams/121.png',
+    });
+    await assets.markStored(assets.byUrl(PRAIA)!.id, {
+      ...stored,
+      storageKey: 'api-sports/volley/teams/1999.png',
+    });
+    const denylist = new MediaDenylist([{ url: TEAM, reason: 'escudo errado' }]);
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, denylist, dryRun: true });
+    expect(plan.logoCleanup).toEqual({ placeholders: 0, participants: 1, competitions: 0 });
+    expect(assets.byUrl(TEAM)!.storageKey).not.toBeNull();
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, denylist });
+    expect(report).toMatchObject({ unlinked: 1, logoCleanup: plan.logoCleanup });
+    expect([...assets.detachedLogos]).toEqual([assets.byUrl(TEAM)!.id]);
   });
 
   it('os hashes catalogados valem só para logos de time e de competição', () => {

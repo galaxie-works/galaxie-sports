@@ -169,7 +169,7 @@ describe('escopo lendas', () => {
 
   it('o carro sabe de quem é o destaque', () => {
     const car = targets.find((t) => targetKey(t) === 'car/mclaren/1988') as CarTarget;
-    expect(car.driver).toEqual({ f1dbId: 'ayrton-senna', name: 'Ayrton Senna', lastName: 'Senna' });
+    expect(car.drivers).toEqual([{ f1dbId: 'ayrton-senna', name: 'Ayrton Senna', lastName: 'Senna' }]);
     expect(car.chassis).toEqual(['McLaren MP4/4']);
   });
 

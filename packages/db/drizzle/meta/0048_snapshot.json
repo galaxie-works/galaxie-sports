@@ -1,6 +1,6 @@
 {
-  "id": "fdcf02a0-3487-4e79-83a1-80de0cca614f",
-  "prevId": "c62e8a9d-8226-48c3-b9d2-139a989c3741",
+  "id": "255b0dbd-8eaf-4433-8699-f7bf2444dadc",
+  "prevId": "fa0c35be-bbeb-4138-a195-790e99541ab1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6970,6 +6970,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
+        },
+        "failures": {
+          "name": "failures",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "requested_by": {
           "name": "requested_by",

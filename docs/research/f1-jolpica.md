@@ -131,7 +131,7 @@ Hoje a F1 vem da api-formula-1 (api-sports, plano free) e entrou no PR [galaxie-
 | Temporada atual | Só a janela D−1..D+1 por data | **Calendário e resultados completos** | **Ganho** |
 | Ao vivo | `status: Live` e `laps.current` | Não tem | **api-sports continua** |
 | Treinos livres | Resultado de TL1–3 | Só na alpha (instável) | api-sports melhor |
-| Classificação | Q1/Q2/Q3 como sessões separadas | Q1/Q2/Q3 numa linha por piloto | Equivalente |
+| Classificação | Q1/Q2/Q3 como sessões separadas | Q1/Q2/Q3 numa linha por piloto | Equivalente, desde que a linha seja dividida em Q1/Q2/Q3 (§4.2) |
 | Sprint e classificação da sprint | Sim | Sprint sim (2021+); classificação da sprint só na alpha | Equivalente/pior |
 | Grid de largada | `startinggrid` | `grid` no resultado | Igual |
 | Volta mais rápida | `fastestlaps` | `FastestLap` no resultado (rank, volta, tempo) | Igual |
@@ -159,7 +159,7 @@ Hoje a F1 vem da api-formula-1 (api-sports, plano free) e entrou no PR [galaxie-
 | Entidade | Chave jolpica | Como casar com a api-sports |
 |---|---|---|
 | Corrida (evento `race`) | `(season, round)` | Mesma temporada, **mesma data da corrida** e mesmo circuito. Sprint e classificação casam pelo GP (`stage`) e pelo tipo de sessão |
-| Piloto | `driverId` (slug, ex. `max_verstappen`) | 1) **Determinístico**: nas corridas de 2022–2024 que as duas fontes têm, o piloto na mesma posição final é o mesmo. 2) Plano B: código de 3 letras + nome normalizado + nascimento. Os ~800 pilotos anteriores a 2022 só existem no jolpica e viram participantes novos |
+| Piloto | `driverId` (slug, ex. `max_verstappen`) | 1) **Identidade estável**: código de 3 letras + nome normalizado + data de nascimento, contra o perfil do participante já no core (do F1DB, que tem os três para todos, sem chamada). 2) **Consenso, só como confirmação**: nas corridas de 2022–2024 que as duas fontes têm, a mesma posição final em várias corridas reforça o par. Uma corrida divergente (punição depois da bandeirada, correção de resultado) não casa nem desfaz o par. Identidade que não confere, ou posições que divergem, vão para revisão no painel. Os ~800 pilotos anteriores a 2022 só existem no jolpica e viram participantes novos |
 | Construtor | `constructorId` (ex. `red_bull`, `rb`, `sauber`) | Pelo par corrida+piloto já casado (a equipe do piloto naquela corrida). Mudança de nome entra em `name-history` |
 | Circuito | `circuitId` (ex. `interlagos`) | Tabela de-para manual de ~36 linhas (os circuitos de 2012 em diante), em `config/`. Os outros 42 viram `venue` novos |
 | Temporada e competição | ano | Mesma competição sintética `world-championship` |
@@ -182,13 +182,15 @@ Na prática, o `upsert-core` ganha um mapa `campo → ordem de provedores` só p
 
 | Core (Drizzle) | Linhas estimadas | API |
 |---|---|---|
-| Eventos `race`/`qualifying`/`sprint` de 1950–2026 nos modelos que já existem (`event`, `event_participant.result`, `stage`, `standing`) | ~2.500 eventos (1.172 corridas + classificações + sprints), ~45 mil participações | Endpoints atuais (`/v1/events`, competições e temporadas) sem mudar o contrato |
+| Eventos `race`/`qualifying`/`sprint` de 1950–2026 nos modelos que já existem (`event`, `event_participant.result`, `stage`, `standing`) | ~2.700 eventos (1.172 corridas, ~1.470 sessões de classificação e ~30 sprints), ~55 mil participações | Endpoints atuais (`/v1/events`, competições e temporadas) sem mudar o contrato |
 | `core.standing` **por rodada** (coluna `stage_id` ou tabela `standing_round`) | ~1.150 rodadas × ~25 ≈ 30 mil | `GET /v1/competitions/{id}/seasons/{ano}/standings?round=` |
 | `core.race_lap (event_id, participant_id, lap, position, time_ms)` | ~650 mil (1996–2026) | `GET /v1/events/{id}/laps` (`?participant=`, série por piloto pronta para gráfico) |
 | `core.race_pit_stop (event_id, participant_id, stop, lap, local_time, duration_ms)` | ~15 mil (2011–2026) | `GET /v1/events/{id}/pit-stops` |
 | View materializada `driver_career`: GPs, vitórias, poles, pódios, voltas mais rápidas, pontos, títulos, estreia, última corrida e equipes por ano | 881 | `GET /v1/participants/{id}/career` |
 | View `venue_history`: vencedores por ano, maior vencedor, % pole→vitória, abandonos, recorde de volta em corrida (1996+) | 78 | `GET /v1/venues/{id}/history` |
 | Recordes (mais vitórias, mais jovem vencedor, maior escalada do grid à vitória…) | consultas | `GET /v1/competitions/{id}/records` e contexto para a IA |
+
+**Classificação em Q1/Q2/Q3.** No core, a classificação da api-sports são três sessões separadas (`1st`, `2nd` e `3rd Qualifying`, chaves `qualifying-1` a `qualifying-3` em `raceSessionKey`). O `/qualifying` do jolpica traz uma linha por piloto com `Q1`, `Q2` e `Q3`. Cada linha vira até três participações, uma em cada evento: Q1 com todos, Q2 com quem passou e Q3 com os 10 finais, cada uma com o tempo daquela sessão. Na sessão em que o piloto parou, a posição é a da linha; nas anteriores, a de quem passou de fase sai da ordem dos tempos daquela sessão. Assim os eventos do jolpica casam com os da api-sports em 2022–2024, pelo GP e pela chave da sessão. Antes de 2006 há uma sessão só (`qualifying`), e antes de 1994 o jolpica não tem classificação, só o grid. A conta de eventos acima já é essa: ~202 sessões únicas (1994–2005) e ~423 GPs × 3 (2006–2026). O F1DB, que já está no core, grava a classificação inteira num evento só (`Qualifying`, com `q1`/`q2`/`q3` no resultado), e por isso ele não tem par com a api-sports. O jolpica segue o modelo da api-sports, não o do F1DB.
 
 Também alimenta o **enriquecimento de IA**: o resumo de uma corrida pode citar "venceu largando de 17º, maior escalada em Interlagos desde…", com o fato calculado pela nossa base e não inventado pelo modelo.
 
