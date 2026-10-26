@@ -383,9 +383,12 @@ Sem cliente LLM configurado (`src/llm`, por `AI_PROVIDER`), as CLIs avisam e seg
 
 **Estado e tetos (literais, sem número mágico):**
 
-- `AI_STATUS=on|off` (padrão `on`) liga ou desliga a IA de todos os agentes; `AI_AGENT_STATUS=lineups=on,wtw=off` faz o mesmo por agente (fora da lista, segue o global). Desligada, nenhuma chamada sai para o provedor: o orçamento recusa antes (`AiDisabledError`, tratado como orçamento esgotado) e o log diz o motivo uma vez por dia.
+- `AI_STATUS=on|off` (padrão `on`) é a chave geral: `off` desliga a IA de todos os agentes, inclusive os listados com `agente=on`. `AI_AGENT_STATUS=wtw=off` só serve para desligar agentes com a IA ligada; `agente=on` e o agente fora da lista seguem o global (o painel avisa quando há `agente=on` com o global desligado, e o `ai:status` mostra o agente como desligado pela chave geral). Desligada, nenhuma chamada sai para o provedor: o orçamento recusa antes (`AiDisabledError`, tratado como orçamento esgotado) e o log diz o motivo uma vez por dia.
 - Tetos: `AI_DAILY_USD_BUDGET` e `AI_DAILY_TOKEN_BUDGET` são um número (limitado a ele) ou `unlimited` (sem limite); `AI_AGENT_USD_BUDGETS` aceita `agente=US$` ou `agente=unlimited`. **0 é inválido** em todos: o serviço e o painel recusam com "use AI_STATUS=off para desligar".
-- O estado aparece em texto literal no painel (Gasto de IA hoje), nos avisos de recusa e na CLI `pnpm --filter @galaxie/ai-agents ai:status`: `ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia`, `ligado · sem limite` ou `desligado`.
+- O serviço valida essas cinco chaves pelas regras do registro do painel (`@galaxie/runtime-config`): aceita exatamente o que o painel aceita, com a mesma faixa (US$ de 0,5 a 10.000; tokens de 10.000 a 100.000.000, inteiro). Valor fora delas falha a configuração e os agentes seguem sem IA; o painel mostra "configuração inválida · sem IA".
+- As CLIs dos agentes aplicam as sobrescritas do painel antes de montar o cliente (o mesmo env que o scheduler entrega aos jobs): uma CLI rodada à mão respeita o `AI_STATUS=off` do painel e para antes de chamar o provedor, sem marcar falha. A checagem de crédito do scheduler e a do `deploy.sh` também não chamam o provedor com a IA desligada (`warn`, código `ai_off`; o `deploy.sh` só vê o env do contêiner).
+- Sobrescrita antiga com 0 é convertida na leitura, com aviso no log: `AI_DAILY_USD_BUDGET=0` vale como `AI_STATUS=off`, `agente=0` em `AI_AGENT_USD_BUDGETS` vale como `agente=off` em `AI_AGENT_STATUS` (os outros tetos da linha ficam) e `AI_DAILY_TOKEN_BUDGET=0` como `unlimited`. O banco não é alterado.
+- O estado aparece em texto literal no painel (Gasto de IA hoje), nos avisos de recusa e na CLI `pnpm --filter @galaxie/ai-agents ai:status` (com `DATABASE_URL`, já com o painel aplicado): `ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia`, `ligado · sem limite` ou `desligado`.
 
 ### 2.4 Agente Curador Semântico
 

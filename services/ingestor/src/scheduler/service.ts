@@ -136,7 +136,7 @@ export class SchedulerService {
   }
 
   private applyConfig(overrides: Map<string, string>): void {
-    const { env, applied, rejected } = applyOverrides(this.options.env, overrides);
+    const { env, applied, rejected, converted } = applyOverrides(this.options.env, overrides);
     const key = JSON.stringify([...overrides.entries()].sort());
     const changed = key !== this.overridesKey;
     this.overridesKey = key;
@@ -147,6 +147,9 @@ export class SchedulerService {
           'configuração do painel aplicada',
         );
       if (rejected.length) this.log.warn({ rejected }, 'sobrescritas do painel ignoradas (inválidas)');
+      // ex.: AI_DAILY_USD_BUDGET=0 (antes "IA desligada") vale como AI_STATUS=off
+      if (converted.length)
+        this.log.warn({ converted }, 'sobrescritas antigas do painel convertidas para o estado literal');
     }
     this.env = env;
     try {

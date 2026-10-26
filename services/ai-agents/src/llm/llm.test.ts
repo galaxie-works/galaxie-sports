@@ -56,7 +56,7 @@ describe('configuração por ambiente', () => {
 
   it('rejeita provedor desconhecido e orçamento inválido', () => {
     expect(() => llmSettingsFromEnv({ AI_PROVIDER: 'outro' })).toThrow(LlmError);
-    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '-5' })).toThrow(/inteiro/);
+    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '-5' })).toThrow(/entre 10000 e 100000000/);
   });
 });
 

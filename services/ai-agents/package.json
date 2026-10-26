@@ -52,6 +52,7 @@
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "ajv": "^8.20.0",
     "drizzle-orm": "^0.45.4",
@@ -62,7 +63,6 @@
   "devDependencies": {
     "@galaxie/ingestor": "workspace:*",
     "@galaxie/providers": "workspace:*",
-    "@galaxie/runtime-config": "workspace:*",
     "postgres": "^3.4.9"
   }
 }

@@ -123,7 +123,7 @@ export class MemoryTokenBudgetStore implements TokenBudgetStore {
 export interface BudgetPolicy {
   /** AI_STATUS: `off` recusa toda chamada antes do provedor; ausente = `on`. */
   status?: AiStatus;
-  /** AI_AGENT_STATUS: `off` recusa as chamadas do agente; agente ausente segue o global. */
+  /** AI_AGENT_STATUS: `off` recusa as chamadas do agente; `on` ou ausente segue o global (status off vence). */
   agentStatus?: Record<string, AiStatus>;
   /** Limite global do dia (todos os agentes); null = sem limite. */
   dailyLimit: number | null;

@@ -20,9 +20,8 @@ import {
 import { pendingChannelLists, processInputOf, runChannelLists } from '../channels/run.js';
 import { channelsLlmEnv } from '../llm/config.js';
 import { FakeLlmClient } from '../llm/fake.js';
-import { createLlmClient } from '../llm/factory.js';
 import type { LlmClient } from '../llm/types.js';
-import { dbFromEnv, intFlag } from './common.js';
+import { createAgentLlm, dbFromEnv, intFlag } from './common.js';
 
 /** Provedor falso do dev: nenhum canal para as sobras (o que o validador sempre aceita). */
 function fakeMatcher(): LlmClient {
@@ -84,7 +83,7 @@ async function main(): Promise<void> {
       console.log('Modelo: provedor falso (dev).');
     } else {
       try {
-        const rt = createLlmClient({ db, env: channelsLlmEnv(process.env) });
+        const rt = await createAgentLlm(db, 'channels', channelsLlmEnv);
         llm = rt.client;
         console.log(`Modelo: ${rt.settings.provider} · ${rt.settings.models.standard}`);
       } catch (err) {

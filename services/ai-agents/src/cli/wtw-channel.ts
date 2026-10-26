@@ -20,7 +20,7 @@ import {
   ResearchedRightsIndex,
 } from '@galaxie/where-to-watch';
 import { matchChannelLlmEnv } from '../llm/config.js';
-import { createLlmClient } from '../llm/factory.js';
+import { createAgentLlm } from './common.js';
 import type { LlmClient } from '../llm/types.js';
 import { channelBaseline, type BaselineRow } from '../wtw/channel/baseline.js';
 import { planChannelResearch, type ChannelEventFilter } from '../wtw/channel/plan.js';
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
     let llm: LlmClient | undefined;
     if (!values.plan) {
       try {
-        llm = createLlmClient({ db, env: matchChannelLlmEnv(process.env) }).client;
+        llm = (await createAgentLlm(db, 'wtw', matchChannelLlmEnv)).client;
       } catch (err) {
         console.log(
           `Sem LLM (${err instanceof Error ? err.message : String(err)}): só a importação das opções salvas.`,

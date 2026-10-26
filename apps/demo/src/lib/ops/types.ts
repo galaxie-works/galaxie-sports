@@ -80,7 +80,7 @@ export interface LlmSpend {
   byAgent: LlmAgentSpend[];
   /** AI_STATUS efetivo: off = nenhuma chamada ao LLM. */
   status: 'on' | 'off';
-  /** AI_AGENT_STATUS: estado de cada agente listado (os outros seguem o global). */
+  /** AI_AGENT_STATUS: estado de cada agente listado (`on` e os outros seguem o global; o global off vence). */
   agentStatus: Record<string, 'on' | 'off'>;
   /** Flags de estado/teto com valor efetivo inválido (`CHAVE=valor`), ex.: 0 vindo do env. */
   invalid: string[];
@@ -96,7 +96,7 @@ export interface LlmSpend {
 
 export interface CreditStatus {
   status: 'pass' | 'warn' | 'fail';
-  /** ok | no_key | http | network */
+  /** ok | no_key | ai_off | http | network */
   code: string;
   provider: string | null;
   model: string | null;

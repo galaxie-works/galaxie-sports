@@ -159,8 +159,76 @@ export function resolveSetting(
   return { ...base, value: defaultValue, source: 'default' };
 }
 
+/** Sobrescrita antiga convertida na leitura (o banco não é alterado). */
+export interface LegacyConversion {
+  key: string;
+  from: string;
+  /** Chaves e valores que passaram a valer no lugar (`null` = a sobrescrita saiu). */
+  to: Record<string, string | null>;
+}
+
+const isZero = (v: string) => /^0+([.,]0+)?$/.test(v.trim());
+const entryList = (raw: string | null | undefined) => (raw ?? '').split(/[,;\s]+/).filter(Boolean);
+
+/**
+ * Sobrescritas gravadas antes do estado literal, em que 0 tinha sentido: `AI_DAILY_USD_BUDGET=0` era
+ * "IA desligada" (#332) e vira `AI_STATUS=off`; `AI_AGENT_USD_BUDGETS` com `agente=0` era "agente sem
+ * IA" e vira `agente=off` em AI_AGENT_STATUS, mantendo os outros tetos da linha; `AI_DAILY_TOKEN_BUDGET=0`
+ * era "sem limite" e vira `unlimited`. Uma sobrescrita explícita das chaves novas prevalece. `env`
+ * completa AI_AGENT_STATUS quando ele não está sobrescrito.
+ */
+export function upgradeLegacyOverrides(
+  overrides: ResolveInput['overrides'],
+  env: (key: string) => string | undefined | null,
+): { overrides: Map<string, string>; converted: LegacyConversion[] } {
+  const out = new Map(overrides instanceof Map ? overrides : Object.entries(overrides));
+  const converted: LegacyConversion[] = [];
+  const tokens = out.get('AI_DAILY_TOKEN_BUDGET');
+  if (tokens !== undefined && isZero(tokens)) {
+    out.set('AI_DAILY_TOKEN_BUDGET', 'unlimited');
+    converted.push({
+      key: 'AI_DAILY_TOKEN_BUDGET',
+      from: tokens,
+      to: { AI_DAILY_TOKEN_BUDGET: 'unlimited' },
+    });
+  }
+  const usd = out.get('AI_DAILY_USD_BUDGET');
+  if (usd !== undefined && isZero(usd)) {
+    out.delete('AI_DAILY_USD_BUDGET');
+    const to: Record<string, string | null> = { AI_DAILY_USD_BUDGET: null };
+    if (!out.has('AI_STATUS')) {
+      out.set('AI_STATUS', 'off');
+      to.AI_STATUS = 'off';
+    }
+    converted.push({ key: 'AI_DAILY_USD_BUDGET', from: usd, to });
+  }
+  const budgets = out.get('AI_AGENT_USD_BUDGETS');
+  if (budgets !== undefined) {
+    const parts = entryList(budgets);
+    const off = parts.filter((p) => isZero(p.split('=')[1] ?? '')).map((p) => p.split('=')[0]!);
+    if (off.length) {
+      const kept = parts.filter((p) => !isZero(p.split('=')[1] ?? '')).join(',');
+      const status = entryList(out.get('AI_AGENT_STATUS') ?? env('AI_AGENT_STATUS'));
+      const named = new Set(status.map((p) => p.split('=')[0]!.split('@')[0]!.toLowerCase()));
+      const merged = [
+        ...status,
+        ...off.filter((a) => !named.has(a.split('@')[0]!.toLowerCase())).map((a) => `${a}=off`),
+      ].join(',');
+      out.set('AI_AGENT_USD_BUDGETS', kept);
+      out.set('AI_AGENT_STATUS', merged);
+      converted.push({
+        key: 'AI_AGENT_USD_BUDGETS',
+        from: budgets,
+        to: { AI_AGENT_USD_BUDGETS: kept, AI_AGENT_STATUS: merged },
+      });
+    }
+  }
+  return { overrides: out, converted };
+}
+
 /** Resolve todas as flags (na ordem do registro), com os padrões que dependem de outra flag. */
 export function resolveAll(input: ResolveInput, defs: readonly SettingDef[] = SETTINGS): ResolvedSetting[] {
+  input = { ...input, overrides: upgradeLegacyOverrides(input.overrides, input.env).overrides };
   const done = new Map<string, ResolvedSetting>();
   const resolveOne = (def: SettingDef): ResolvedSetting => {
     const cached = done.get(def.key);
@@ -192,6 +260,8 @@ export interface AppliedOverrides {
   applied: string[];
   /** Sobrescritas ignoradas: chave fora do registro, segredo ou valor inválido. */
   rejected: { key: string; error: ValidationError }[];
+  /** Sobrescritas antigas convertidas para o estado literal (ex.: AI_DAILY_USD_BUDGET=0 → AI_STATUS=off). */
+  converted: LegacyConversion[];
 }
 
 /**
@@ -206,7 +276,8 @@ export function applyOverrides(
   const base: Record<string, string | null> = { ...parseBase(env[RUNTIME_BASE_ENV]) };
   const applied: string[] = [];
   const rejected: AppliedOverrides['rejected'] = [];
-  const entries = overrides instanceof Map ? [...overrides.entries()] : Object.entries(overrides);
+  const upgraded = upgradeLegacyOverrides(overrides, (key) => env[key]);
+  const entries = [...upgraded.overrides.entries()];
   for (const [key, raw] of entries) {
     const def = settingDef(key);
     const checked = def ? validateSetting(def, raw) : fail({ code: 'unknown' });
@@ -219,7 +290,7 @@ export function applyOverrides(
     applied.push(key);
   }
   if (applied.length) out[RUNTIME_BASE_ENV] = JSON.stringify(base);
-  return { env: out, applied, rejected };
+  return { env: out, applied, rejected, converted: upgraded.converted };
 }
 
 function parseBase(raw: string | undefined): Record<string, string | null> {

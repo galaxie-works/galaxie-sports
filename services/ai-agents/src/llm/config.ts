@@ -1,3 +1,4 @@
+import { validateSettingKey, type ValidationError } from '@galaxie/runtime-config';
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
 
@@ -130,7 +131,10 @@ export interface LlmSettings {
   models: Record<LlmTier, string>;
   /** AI_STATUS: `off` = nenhuma chamada ao LLM (todos os agentes seguem com o determinístico). */
   status: AiStatus;
-  /** AI_AGENT_STATUS: estado por agente; agente fora da lista segue o global. */
+  /**
+   * AI_AGENT_STATUS: só desliga agentes com a IA ligada; `on` e agente fora da lista seguem o global
+   * (AI_STATUS=off é a chave geral e desliga todos, inclusive os `on`).
+   */
   agentStatus: Record<string, AiStatus>;
   /** Tokens (entrada + saída) por dia UTC para todos os agentes; null = sem limite ("unlimited"). */
   dailyTokenBudget: number | null;
@@ -164,61 +168,67 @@ const isUnlimited = (raw: string | undefined) => {
   return v === 'unlimited' || v === '0';
 };
 
+/** Dica de cada recusa do registro, na mensagem de configuração inválida. */
+function validationHint(name: string, error: ValidationError): string {
+  switch (error.code) {
+    case 'zero':
+      return ZERO_BUDGET_HINT;
+    case 'range':
+      return `use um valor entre ${error.min} e ${error.max}, ou "unlimited"`;
+    case 'integer':
+      return 'use um número inteiro, ou "unlimited"';
+    case 'number':
+      return 'use um número, ou "unlimited"';
+    case 'enum':
+      return `use ${(error.values ?? []).join(' ou ')}`;
+    default:
+      return name === 'AI_AGENT_STATUS'
+        ? 'use agente=on ou agente=off, ex.: lineups=on,wtw=off'
+        : 'use agente=US$ ou agente=unlimited, ex.: lineups=2,wtw=3';
+  }
+}
+
 /**
- * Teto diário: "unlimited" = sem teto; número > 0 = limitado a ele. 0 é inválido (não desliga nem tira
- * o teto): para desligar, AI_STATUS=off.
+ * Valor de uma flag de estado/teto da IA pelas regras do registro do painel (@galaxie/runtime-config):
+ * o serviço aceita exatamente o que o painel aceita (mesmo formato e faixa). Vazio → undefined;
+ * inválido falha a configuração com a dica (0 nos tetos: "use AI_STATUS=off para desligar").
  */
-function limitEnv(env: Env, name: string, fallback: number, integer: boolean): number | null {
+function registryEnv(env: Env, name: string): string | undefined {
   const raw = env[name]?.trim();
-  if (!raw) return fallback;
-  if (raw.toLowerCase() === 'unlimited') return null;
-  const n = Number(raw.replace(',', '.'));
-  if (n === 0) throw new LlmError(`${name}=0 não é válido: ${ZERO_BUDGET_HINT}.`, 'config', false);
-  if (!Number.isFinite(n) || n < 0 || (integer && !Number.isInteger(n)))
+  if (!raw) return undefined;
+  const checked = validateSettingKey(name, raw);
+  if (!checked.ok)
     throw new LlmError(
-      `${name} precisa ser ${integer ? 'um inteiro' : 'um número'} > 0 ou "unlimited".`,
+      `${name}=${raw} não é válido: ${validationHint(name, checked.error)}.`,
       'config',
       false,
     );
-  return n;
+  return checked.value || undefined;
+}
+
+/** Teto diário: "unlimited" = sem teto; número = limitado a ele (faixa do registro). 0 é inválido. */
+function limitEnv(env: Env, name: string, fallback: number): number | null {
+  const value = registryEnv(env, name);
+  if (value === undefined) return fallback;
+  return value === 'unlimited' ? null : Number(value);
 }
 
 /** AI_STATUS do ambiente: on (padrão) ou off. */
 export function aiStatusFromEnv(env: Env = process.env): AiStatus {
-  const raw = env.AI_STATUS?.trim().toLowerCase();
-  if (!raw) return 'on';
-  if (raw === 'on' || raw === 'off') return raw;
-  throw new LlmError(`AI_STATUS inválido: ${env.AI_STATUS} (use on ou off).`, 'config', false);
+  return (registryEnv(env, 'AI_STATUS') as AiStatus | undefined) ?? 'on';
 }
 
-/** AI_AGENT_STATUS do ambiente (vazio = todos seguem o AI_STATUS); formato inválido falha a configuração. */
+/**
+ * AI_AGENT_STATUS do ambiente (vazio = todos seguem o AI_STATUS; `agente=on` também segue: não religa
+ * um agente com AI_STATUS=off); formato inválido falha a configuração.
+ */
 export function agentStatusFromEnv(env: Env = process.env): Record<string, AiStatus> {
-  const raw = env.AI_AGENT_STATUS?.trim();
-  const parsed = parseAgentStatus(raw);
-  if (!parsed)
-    throw new LlmError(
-      `AI_AGENT_STATUS inválido: ${raw} (use agente=on ou agente=off, ex.: lineups=on,wtw=off).`,
-      'config',
-      false,
-    );
-  return parsed;
+  return parseAgentStatus(registryEnv(env, 'AI_AGENT_STATUS')) ?? {};
 }
 
 /** AI_AGENT_USD_BUDGETS do ambiente (vazio = o padrão); formato inválido ou US$ 0 falha a configuração. */
 export function agentUsdBudgetsFromEnv(env: Env = process.env): Record<string, number | null> {
-  const raw = env.AI_AGENT_USD_BUDGETS?.trim();
-  const parsed = parseAgentUsdBudgets(raw || DEFAULT_AGENT_USD_BUDGETS);
-  if (!parsed) {
-    const zero = entries(raw).some((p) => /=0+(?:\.0+)?$/.test(p));
-    throw new LlmError(
-      zero
-        ? `AI_AGENT_USD_BUDGETS inválido: ${raw} (agente=0 não é válido: ${ZERO_BUDGET_HINT}).`
-        : `AI_AGENT_USD_BUDGETS inválido: ${raw} (use agente=US$ ou agente=unlimited, ex.: lineups=2,wtw=3).`,
-      'config',
-      false,
-    );
-  }
-  return parsed;
+  return parseAgentUsdBudgets(registryEnv(env, 'AI_AGENT_USD_BUDGETS') ?? DEFAULT_AGENT_USD_BUDGETS) ?? {};
 }
 
 /** Lê AI_PROVIDER, chaves, modelos por nível e orçamento do ambiente. */
@@ -241,8 +251,8 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
     },
     status: aiStatusFromEnv(env),
     agentStatus: agentStatusFromEnv(env),
-    dailyTokenBudget: limitEnv(env, 'AI_DAILY_TOKEN_BUDGET', DEFAULT_DAILY_TOKEN_BUDGET, true),
-    dailyUsdBudget: limitEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET, false),
+    dailyTokenBudget: limitEnv(env, 'AI_DAILY_TOKEN_BUDGET', DEFAULT_DAILY_TOKEN_BUDGET),
+    dailyUsdBudget: limitEnv(env, 'AI_DAILY_USD_BUDGET', DEFAULT_DAILY_USD_BUDGET),
     agentUsdBudgets: agentUsdBudgetsFromEnv(env),
     maxSearchesPerCall: isUnlimited(env.AI_MAX_SEARCHES_PER_CALL)
       ? null

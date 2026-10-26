@@ -300,7 +300,7 @@ export const SETTINGS: readonly SettingDef[] = [
   ),
   // ligado/desligado é literal: off = nenhuma chamada ao LLM (os tetos abaixo só limitam)
   agents('ai', { key: 'AI_STATUS', type: 'enum', options: AI_STATUSES, default: 'on', critical: true }),
-  // estado por agente (vazio = todos seguem o AI_STATUS)
+  // desliga agentes com a IA ligada (agente=on e vazio seguem o AI_STATUS, que é a chave geral)
   agents('ai', {
     key: 'AI_AGENT_STATUS',
     type: 'text',

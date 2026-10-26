@@ -217,6 +217,8 @@ export default defineMessages(
       aiUsdPerDay: 'US$ {value}/dia',
       aiTokensPerDay: '{value} tokens/dia',
       aiInvalid: 'Configuração inválida: {keys}. Os agentes ficam sem IA até corrigir.',
+      aiInvalidState: 'configuração inválida · sem IA (os agentes seguem só com texto determinístico)',
+      aiAgentOnIgnored: '{agents}: on sem efeito, a IA está desligada (AI_STATUS=off é a chave geral).',
       searchesColumn: 'Buscas',
       agent: 'Agente',
       tokensColumn: 'Tokens',
@@ -230,6 +232,7 @@ export default defineMessages(
       creditCodes: {
         ok: 'A chamada de teste passou.',
         no_key: 'Sem chave do provedor configurada: os agentes seguem só com texto determinístico.',
+        ai_off: 'IA desligada (AI_STATUS=off): o crédito não é verificado e nenhuma chamada sai.',
         http: 'O provedor respondeu {http} {error}: agentes no texto determinístico.',
         network: 'Sem conexão com o provedor ({error}).',
       },
@@ -560,12 +563,12 @@ export default defineMessages(
       AI_STATUS: {
         label: 'IA',
         description:
-          'Ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor e os agentes seguem só com texto determinístico.',
+          'Chave geral: ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor (nem a dos agentes com agente=on) e os agentes seguem só com texto determinístico.',
       },
       AI_AGENT_STATUS: {
         label: 'IA por agente',
         description:
-          'Liga ou desliga a IA de agentes específicos, no formato agente=on|off separado por vírgula (ex.: lineups=on,wtw=off). Agente fora da lista segue o estado global. Vazio: todos seguem o global.',
+          'Desliga a IA de agentes específicos com a IA ligada, no formato agente=on|off separado por vírgula (ex.: wtw=off). agente=on e agente fora da lista seguem o estado global: com a IA desligada, todos ficam desligados. Vazio: todos seguem o global.',
       },
       AI_DAILY_TOKEN_BUDGET: {
         label: 'Orçamento diário de tokens',
@@ -977,6 +980,8 @@ export default defineMessages(
         aiUsdPerDay: 'US$ {value}/day',
         aiTokensPerDay: '{value} tokens/day',
         aiInvalid: 'Invalid configuration: {keys}. Agents run without AI until it is fixed.',
+        aiInvalidState: 'invalid configuration · no AI (agents fall back to deterministic text)',
+        aiAgentOnIgnored: '{agents}: on has no effect, AI is off (AI_STATUS=off is the master switch).',
         searchesColumn: 'Searches',
         agent: 'Agent',
         tokensColumn: 'Tokens',
@@ -990,6 +995,7 @@ export default defineMessages(
         creditCodes: {
           ok: 'The test call passed.',
           no_key: 'No provider key set: agents fall back to deterministic text.',
+          ai_off: 'AI is off (AI_STATUS=off): credit is not checked and no call goes out.',
           http: 'The provider answered {http} {error}: agents on deterministic text.',
           network: 'Could not reach the provider ({error}).',
         },
@@ -1304,12 +1310,12 @@ export default defineMessages(
         AI_STATUS: {
           label: 'AI',
           description:
-            'On or off for every agent. Off, no call goes to the provider and agents fall back to deterministic text.',
+            'Master switch: on or off for every agent. Off, no call goes to the provider (not even for agents set to agent=on) and agents fall back to deterministic text.',
         },
         AI_AGENT_STATUS: {
           label: 'AI per agent',
           description:
-            'Turns AI on or off for specific agents, as agent=on|off separated by commas (e.g. lineups=on,wtw=off). Agents not listed follow the global state. Empty: all follow the global state.',
+            'Turns AI off for specific agents while AI is on, as agent=on|off separated by commas (e.g. wtw=off). agent=on and agents not listed follow the global state: with AI off, all are off. Empty: all follow the global state.',
         },
         AI_DAILY_TOKEN_BUDGET: {
           label: 'Daily token budget',
@@ -1676,7 +1682,7 @@ export default defineMessages(
         cron: 'Agenda inválida: usá 5 campos (minuto hora día mes día-de-la-semana) u "off".',
         markets: 'Mercados no soportados: {values}.',
         format: 'Formato inválido.',
-        zero: '0 no es un valor válido: para apagar la IA usá AI_STATUS=off (o AI_AGENT_STATUS para un agente); para quitar el tope, "Sin límite" (unlimited).',
+        zero: '0 no es un valor válido: para apagar la IA usa AI_STATUS=off (o AI_AGENT_STATUS para un agente); para quitar el tope, "Sin límite" (unlimited).',
         providerKeyMissing: 'La clave de ese proveedor no está configurada en el contenedor de los agentes.',
         alreadyQueued: 'Ya hay un pedido para este job en la cola.',
         notRunnable: 'Este job no se puede disparar desde el panel.',
@@ -1717,13 +1723,16 @@ export default defineMessages(
         },
         llmAgentCapped: 'en el tope',
         aiState: 'IA: {state}',
-        aiOn: 'encendida',
-        aiOff: 'apagada',
-        aiLimited: 'limitada',
+        aiOn: 'encendido',
+        aiOff: 'apagado',
+        aiLimited: 'limitado',
         aiUnlimited: 'sin límite',
         aiUsdPerDay: 'US$ {value}/día',
         aiTokensPerDay: '{value} tokens/día',
         aiInvalid: 'Configuración inválida: {keys}. Los agentes quedan sin IA hasta corregirla.',
+        aiInvalidState: 'configuración inválida · sin IA (los agentes siguen solo con texto determinístico)',
+        aiAgentOnIgnored:
+          '{agents}: on sin efecto, la IA está apagada (AI_STATUS=off es el interruptor general).',
         searchesColumn: 'Búsquedas',
         agent: 'Agente',
         tokensColumn: 'Tokens',
@@ -1737,6 +1746,7 @@ export default defineMessages(
         creditCodes: {
           ok: 'La llamada de prueba pasó.',
           no_key: 'Sin clave del proveedor configurada: los agentes siguen solo con texto determinístico.',
+          ai_off: 'IA apagada (AI_STATUS=off): no se verifica el crédito y no sale ninguna llamada.',
           http: 'El proveedor respondió {http} {error}: agentes con texto determinístico.',
           network: 'Sin conexión con el proveedor ({error}).',
         },
@@ -2058,29 +2068,29 @@ export default defineMessages(
         AI_STATUS: {
           label: 'IA',
           description:
-            'Encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor y los agentes siguen solo con texto determinístico.',
+            'Interruptor general: encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor (ni la de los agentes con agente=on) y los agentes siguen solo con texto determinístico.',
         },
         AI_AGENT_STATUS: {
           label: 'IA por agente',
           description:
-            'Enciende o apaga la IA de agentes específicos, en el formato agente=on|off separado por comas (ej.: lineups=on,wtw=off). Un agente fuera de la lista sigue el estado global. Vacío: todos siguen el global.',
+            'Apaga la IA de agentes específicos con la IA encendida, en el formato agente=on|off separado por comas (ej.: wtw=off). agente=on y un agente fuera de la lista siguen el estado global: con la IA apagada, todos quedan apagados. Vacío: todos siguen el global.',
         },
         AI_DAILY_TOKEN_BUDGET: {
           label: 'Presupuesto diario de tokens',
           description:
-            'Tope de tokens por día (UTC), sumando todos los agentes: un número, o "Sin límite". Al llegar, los agentes siguen solo con texto determinístico. 0 no se acepta: para apagar la IA, usá el estado de la IA.',
+            'Tope de tokens por día (UTC), sumando todos los agentes: un número, o "Sin límite". Al llegar, los agentes siguen solo con texto determinístico. 0 no se acepta: para apagar la IA, usa el estado de la IA.',
           unit: 'tokens',
         },
         AI_DAILY_USD_BUDGET: {
           label: 'Presupuesto diario en US$',
           description:
-            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. Un número, o "Sin límite"; 0 no se acepta (para apagar la IA, usá el estado de la IA).',
+            'Tope de gasto de IA por día (UTC), sumando todos los agentes: tokens y búsquedas web (la búsqueda de Google en Gemini se cobra por consulta). Al llegar, los agentes siguen solo con texto determinístico. Un número, o "Sin límite"; 0 no se acepta (para apagar la IA, usa el estado de la IA).',
           unit: 'US$',
         },
         AI_AGENT_USD_BUDGETS: {
           label: 'Tope diario por agente',
           description:
-            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista solo cuenta para el tope global. 0 no se acepta: para apagar un agente, usá la IA por agente. Vacío usa el valor por defecto.',
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista solo cuenta para el tope global. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Búsquedas web por llamada',

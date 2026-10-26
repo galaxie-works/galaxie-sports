@@ -357,9 +357,11 @@ ssh "$VPS" "cd $DIR && docker compose exec -T valkey sh -ec '
     [ -z \"\$keys\" ] || printf \"%s\\n\" \"\$keys\" | xargs -n 200 valkey-cli del >/dev/null
   done'"
 
-# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy
+# conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy.
+# Com AI_STATUS=off no env do contêiner, não chama o provedor (o scheduler também respeita o painel).
 echo "conta da IA"
 ssh "$VPS" "cd $DIR && docker compose exec -T agents node -e '
+  if ((process.env.AI_STATUS || \"\").trim().toLowerCase() === \"off\") { console.log(\"WARN  IA: desligada (AI_STATUS=off), sem checar o crédito\"); process.exit(0); }
   const p = (process.env.AI_PROVIDER || \"openai\").toLowerCase();
   const gem = p === \"gemini\";
   const key = gem ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;

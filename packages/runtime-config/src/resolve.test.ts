@@ -10,6 +10,7 @@ import {
 } from './registry.js';
 import {
   applyOverrides,
+  upgradeLegacyOverrides,
   envReport,
   resolveAll,
   resolveSetting,
@@ -335,5 +336,52 @@ describe('agenda', () => {
     ]);
     expect(nextCronRuns('off', 2, from)).toEqual([]);
     expect(nextCronRuns('99 * * * *', 2, from)).toEqual([]);
+  });
+});
+
+describe('sobrescritas antigas com 0 viram o estado literal', () => {
+  it('AI_DAILY_USD_BUDGET=0 (antes "desligado") vira AI_STATUS=off; o teto volta ao env', () => {
+    const { env, converted, rejected } = applyOverrides(
+      { AI_DAILY_USD_BUDGET: '10' },
+      { AI_DAILY_USD_BUDGET: '0', AI_DAILY_TOKEN_BUDGET: '3000000' },
+    );
+    expect(env).toMatchObject({
+      AI_STATUS: 'off',
+      AI_DAILY_USD_BUDGET: '10',
+      AI_DAILY_TOKEN_BUDGET: '3000000',
+    });
+    expect(rejected).toEqual([]);
+    expect(converted).toEqual([
+      { key: 'AI_DAILY_USD_BUDGET', from: '0', to: { AI_DAILY_USD_BUDGET: null, AI_STATUS: 'off' } },
+    ]);
+    // AI_STATUS gravado explicitamente prevalece
+    expect(applyOverrides({}, { AI_DAILY_USD_BUDGET: '0', AI_STATUS: 'on' }).env.AI_STATUS).toBe('on');
+  });
+
+  it('agente=0 (antes "agente sem IA") vira agente=off e os outros tetos da linha ficam', () => {
+    const { env, converted } = applyOverrides(
+      { AI_AGENT_STATUS: 'live=off' },
+      { AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=0,context=1.5' },
+    );
+    expect(env.AI_AGENT_USD_BUDGETS).toBe('lineups=2,context=1.5');
+    expect(env.AI_AGENT_STATUS).toBe('live=off,wtw=off');
+    expect(converted[0]).toMatchObject({ key: 'AI_AGENT_USD_BUDGETS', from: 'lineups=2,wtw=0,context=1.5' });
+    // entrada explícita do agente em AI_AGENT_STATUS prevalece
+    expect(
+      upgradeLegacyOverrides(
+        { AI_AGENT_USD_BUDGETS: 'wtw=0', AI_AGENT_STATUS: 'wtw=on' },
+        () => null,
+      ).overrides.get('AI_AGENT_STATUS'),
+    ).toBe('wtw=on');
+  });
+
+  it('AI_DAILY_TOKEN_BUDGET=0 (antes "sem limite") vira unlimited; o painel resolve igual ao serviço', () => {
+    expect(applyOverrides({}, { AI_DAILY_TOKEN_BUDGET: '0' }).env.AI_DAILY_TOKEN_BUDGET).toBe('unlimited');
+    const resolved = resolveAll({ overrides: { AI_DAILY_USD_BUDGET: '0' }, env: () => null });
+    expect(resolved.find((r) => r.key === 'AI_STATUS')).toMatchObject({ value: 'off', source: 'db' });
+    // sem conversão, sobrescritas atuais passam iguais
+    const plain = upgradeLegacyOverrides({ AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=3' }, () => null);
+    expect([...plain.overrides]).toEqual([['AI_AGENT_USD_BUDGETS', 'lineups=2,wtw=3']]);
+    expect(plain.converted).toEqual([]);
   });
 });

@@ -4,7 +4,8 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Database } from '@galaxie/db';
-import { loadLlmClient } from '../cli/common.js';
+import { validateSettingKey } from '@galaxie/runtime-config';
+import { aiOffReason, createAgentLlm, loadLlmClient, runtimeEnv } from '../cli/common.js';
 import { MemoryTokenBudgetStore, TokenBudget } from './budget.js';
 import { describeAiState, llmSettingsFromEnv, parseAgentStatus, parseAgentUsdBudgets } from './config.js';
 import { AiDisabledError, BudgetExceededError, LlmError } from './errors.js';
@@ -37,8 +38,10 @@ describe('AI_STATUS e AI_AGENT_STATUS', () => {
       lineups: 'on',
       wtw: 'off',
     });
-    expect(() => llmSettingsFromEnv({ AI_STATUS: '0' })).toThrow(/AI_STATUS inválido: 0 \(use on ou off\)/);
-    expect(() => llmSettingsFromEnv({ AI_AGENT_STATUS: 'wtw=0' })).toThrow(/AI_AGENT_STATUS inválido/);
+    expect(() => llmSettingsFromEnv({ AI_STATUS: '0' })).toThrow(/AI_STATUS=0 não é válido: use on ou off/);
+    expect(() => llmSettingsFromEnv({ AI_AGENT_STATUS: 'wtw=0' })).toThrow(
+      /AI_AGENT_STATUS=wtw=0 não é válido: use agente=on ou agente=off/,
+    );
     expect(parseAgentStatus('channels@v1=off')).toEqual({ channels: 'off' });
   });
 
@@ -53,6 +56,25 @@ describe('AI_STATUS e AI_AGENT_STATUS', () => {
     await expect(client.generateJson(req())).rejects.toBeInstanceOf(AiDisabledError);
     expect(fake.calls).toHaveLength(0);
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('AI_STATUS=off é a chave geral: agente=on não religa o agente', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const env = { AI_STATUS: 'off', AI_AGENT_STATUS: 'lineups=on,wtw=off' };
+    const fake = new FakeLlmClient(() => ({ data: { answer: 'a' } }));
+    const client = withTokenBudget(fake, { env });
+    const err = await client.generateJson(req('lineups:plans:op:BR')).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AiDisabledError);
+    expect(err).toMatchObject({ agent: 'global' });
+    expect(fake.calls).toHaveLength(0);
+    const budget = new TokenBudget(
+      new MemoryTokenBudgetStore(),
+      budgetPolicyFromSettings(llmSettingsFromEnv(env)),
+    );
+    expect(budget.statusOf('lineups')).toBe('off');
+    const lines = await aiStatusLines(budget, false);
+    expect(lines).toContain('  lineups: desligado pela chave geral (AI_STATUS=off); agente=on sem efeito');
+    expect(lines).toContain('  wtw: desligado pela chave geral (AI_STATUS=off)');
   });
 
   it('agente desligado: só ele fica sem IA; os outros seguem', async () => {
@@ -71,6 +93,28 @@ describe('AI_STATUS e AI_AGENT_STATUS', () => {
       client: null,
       reason: 'IA desligada (AI_STATUS=off)',
     });
+    expect(aiOffReason({ AI_AGENT_STATUS: 'channels=off' }, 'channels')).toBe(
+      'IA desligada para channels (AI_AGENT_STATUS)',
+    );
+    expect(aiOffReason({ AI_AGENT_STATUS: 'channels=off' }, 'wtw')).toBeNull();
+  });
+
+  it('CLI de agente: aplica o painel e, desligada, para antes de montar o provedor', async () => {
+    // banco falso: a tabela do painel "existe" com AI_STATUS=off (o env diz on e nem tem chave)
+    const rows = [{ key: 'AI_STATUS', value: 'off' }];
+    const db = { select: () => ({ from: async () => rows }) } as unknown as Database;
+    const saved = { ...process.env };
+    process.env.AI_STATUS = 'on';
+    delete process.env.OPENAI_API_KEY;
+    try {
+      expect((await runtimeEnv(db)).AI_STATUS).toBe('off');
+      await expect(createAgentLlm(db, 'channels')).rejects.toThrow('IA desligada (AI_STATUS=off)');
+      // sem a tabela (erro na leitura), segue com o env
+      const broken = { select: () => ({ from: async () => Promise.reject(new Error('sem tabela')) }) };
+      expect((await runtimeEnv(broken as unknown as Database)).AI_STATUS).toBe('on');
+    } finally {
+      process.env = saved;
+    }
   });
 });
 
@@ -81,12 +125,31 @@ describe('tetos: número ou "unlimited"; 0 é inválido', () => {
       { AI_DAILY_TOKEN_BUDGET: '0' },
       { AI_DAILY_USD_BUDGET: '0,0' },
     ])
-      expect(() => llmSettingsFromEnv(env)).toThrow(/=0 não é válido: use AI_STATUS=off/);
+      expect(() => llmSettingsFromEnv(env)).toThrow(/não é válido: use AI_STATUS=off/);
     expect(() => llmSettingsFromEnv({ AI_AGENT_USD_BUDGETS: 'lineups=0,wtw=3' })).toThrow(
-      /agente=0 não é válido: use AI_STATUS=off/,
+      /AI_AGENT_USD_BUDGETS=lineups=0,wtw=3 não é válido: use AI_STATUS=off/,
     );
-    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '1.5' })).toThrow(LlmError);
-    expect(() => llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '-1' })).toThrow(/> 0 ou "unlimited"/);
+    expect(() => llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '1.5' })).toThrow(/use um número inteiro/);
+    expect(() => llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '-1' })).toThrow(/entre 0.5 e 10000/);
+  });
+
+  it('o serviço aceita exatamente o que o painel aceita (mesma faixa e formato)', () => {
+    // fora da faixa ou do formato do registro: recusado nos dois (antes o serviço aceitava)
+    for (const [key, value] of [
+      ['AI_DAILY_USD_BUDGET', '0.2'],
+      ['AI_DAILY_TOKEN_BUDGET', '5000'],
+      ['AI_DAILY_TOKEN_BUDGET', '1e6'],
+    ] as const) {
+      expect(validateSettingKey(key, value).ok).toBe(false);
+      expect(() => llmSettingsFromEnv({ [key]: value })).toThrow(LlmError);
+    }
+    // dentro: aceito nos dois, com a mesma normalização
+    expect(llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '3000000' }).dailyTokenBudget).toBe(3_000_000);
+    expect(llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '7,5' }).dailyUsdBudget).toBe(7.5);
+    expect(
+      llmSettingsFromEnv({ AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2' })
+        .agentUsdBudgets,
+    ).toEqual({ lineups: 2, wtw: 3, context: 1.5, related: 0.5, f1profile: 2 });
   });
 
   it('"unlimited" tira o teto, global e por agente', async () => {

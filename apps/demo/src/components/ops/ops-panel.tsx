@@ -446,11 +446,30 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
       description={fill(T.status.quotaDay, { day: snapshot.dayUtc })}
     >
       <div className="flex flex-col gap-1.5">
-        <span className={status === 'off' ? 'text-destructive text-sm font-medium' : 'text-sm font-medium'}>
+        <span
+          className={
+            status === 'off' || invalid.length
+              ? 'text-destructive text-sm font-medium'
+              : 'text-sm font-medium'
+          }
+        >
           {fill(T.status.aiState, {
-            state: aiStateText(T, locale, { status, usdPerDay: usdBudget, tokensPerDay: budget }),
+            // flag de IA inválida: o serviço recusa a configuração e nenhum agente usa IA
+            state: invalid.length
+              ? T.status.aiInvalidState
+              : aiStateText(T, locale, { status, usdPerDay: usdBudget, tokensPerDay: budget }),
           })}
         </span>
+        {status === 'off' && Object.values(agentStatus).includes('on') ? (
+          // AI_STATUS=off é a chave geral: agente=on não religa o agente
+          <span className="text-warning text-xs">
+            {fill(T.status.aiAgentOnIgnored, {
+              agents: Object.keys(agentStatus)
+                .filter((a) => agentStatus[a] === 'on')
+                .join(', '),
+            })}
+          </span>
+        ) : null}
         {invalid.length ? (
           <span className="text-destructive text-xs">
             {fill(T.status.aiInvalid, { keys: invalid.join(', ') })}
