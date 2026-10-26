@@ -84,6 +84,10 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
           </span>
         ) : null}
       </TableCell>
+      {/* relatados por um cliente (na demo, por qualquer usuário): fora só da vitrine dele até confirmar */}
+      <TableCell>
+        <span className={cn('tabular-nums', c.reported > 0 && 'font-medium')}>{c.reported}</span>
+      </TableCell>
       <TableCell>
         <StatusBadge c={c} />
         {c.rule && c.ruleBy && c.ruleAt ? (
@@ -115,7 +119,7 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
             {pending ? <Spinner /> : <Save />}
             {t.lineup.admin.tenants.save}
           </Button>
-          {c.refused > 0 ? (
+          {c.refusedVideos > 0 ? (
             <AlertDialog>
               <AlertDialogTrigger render={<Button size="sm" variant="ghost" disabled={pending} />}>
                 <Eraser /> {T.clear}
@@ -124,7 +128,7 @@ function ChannelRow({ c, timeZone }: { c: ChannelRowData; timeZone: string }) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>{T.clear}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {fill(T.clearConfirm, { count: c.refused })}
+                    {fill(T.clearConfirm, { count: c.refusedVideos })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -207,6 +211,7 @@ export function RelatedChannels({
                 <TableHead>{T.columns.channel}</TableHead>
                 <TableHead>{T.columns.published}</TableHead>
                 <TableHead>{T.columns.refused}</TableHead>
+                <TableHead>{T.columns.reported}</TableHead>
                 <TableHead>{T.columns.status}</TableHead>
                 <TableHead>{T.columns.control}</TableHead>
               </TableRow>

@@ -59,5 +59,7 @@ export interface QualityRule {
   /** De onde veio (ex.: um erro achado pelo dono do produto). */
   origin?: string;
   needs?: readonly QualityNeed[];
+  /** Fonte própria que falta (ex.: dado ainda não importado no core): o motivo do `skipped`, ou null. */
+  unavailable?: (ctx: QualityContext) => Promise<string | null>;
   check: (ctx: QualityContext) => Promise<RuleOutcome>;
 }

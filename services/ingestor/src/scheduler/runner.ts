@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { eq } from 'drizzle-orm';
-import { jobRun, type Database } from '@galaxie/db';
+import { jobRun, type Database, type JobLock } from '@galaxie/db';
 import type { Logger } from '@galaxie/observability';
 import type { ScheduledJob } from './schedule.js';
 
@@ -54,12 +54,18 @@ export interface RunOptions {
   killGraceMs?: number;
   /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */
   signal?: AbortSignal | undefined;
+  /**
+   * Trava entre processos (no serviço real, advisory lock de sessão do Postgres, `tryJobLock`): `null` =
+   * outro processo já roda este job, e esta execução é pulada sem registro em ops.job_run.
+   */
+  lock?: ((job: string) => Promise<JobLock | null>) | undefined;
 }
 
 export interface RunResult {
   job: string;
   runId: string | undefined;
-  status: 'ok' | 'error';
+  /** `skipped`: outro processo já rodava o job (trava ocupada); nada foi executado. */
+  status: 'ok' | 'error' | 'skipped';
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   timedOut: boolean;
@@ -72,6 +78,42 @@ export interface RunResult {
  */
 export async function runJob(job: ScheduledJob, options: RunOptions): Promise<RunResult> {
   const startedAt = Date.now();
+  let lock: JobLock | null | undefined;
+  if (options.lock) {
+    try {
+      lock = await options.lock(job.name);
+    } catch (err) {
+      // banco fora: segue sem a trava (o job também depende do banco e falha por conta própria)
+      options.logger.warn({ err, job: job.name }, 'não foi possível obter a trava do job; seguindo sem ela');
+    }
+    if (lock === null) {
+      options.logger.warn(
+        { job: job.name, trigger: options.trigger },
+        'job já em execução em outro processo; pulando',
+      );
+      return {
+        job: job.name,
+        runId: undefined,
+        status: 'skipped',
+        exitCode: null,
+        signal: null,
+        timedOut: false,
+        durationMs: Date.now() - startedAt,
+      };
+    }
+  }
+  try {
+    return await spawnJob(job, options, startedAt);
+  } finally {
+    await lock
+      ?.release()
+      .catch((err: unknown) =>
+        options.logger.warn({ err, job: job.name }, 'não foi possível soltar a trava do job'),
+      );
+  }
+}
+
+async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: number): Promise<RunResult> {
   let runId: string | undefined;
   try {
     runId = await options.recorder?.start(job.name);

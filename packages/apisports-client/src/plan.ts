@@ -77,9 +77,9 @@ export function planForSport(env: PlanEnv, sport: string): PlanLimits {
   const cap = Number(
     env[`APISPORTS_PER_MINUTE_${suffix}`]?.trim() || env.APISPORTS_PER_MINUTE?.trim() || NaN,
   );
-  return Number.isFinite(cap) && cap > 0 && cap < plan.perMinute
-    ? { ...plan, perMinute: Math.floor(cap) }
-    : plan;
+  // fracionário abaixo de 1 viraria 0 e o limitador dormiria para sempre: vale o plano
+  const floored = Number.isFinite(cap) ? Math.floor(cap) : NaN;
+  return floored >= 1 && floored < plan.perMinute ? { ...plan, perMinute: floored } : plan;
 }
 
 /** Resolve o plano por API a partir do ambiente (ex.: futebol no pro, demais no free). */

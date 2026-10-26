@@ -1,8 +1,11 @@
 /**
  * Lendas da F1 (`/v1/sports/formula-1/legends`): quem entra e em que ordem, os números iguais aos da carreira, e a
- * temporada marcante com a equipe, a pintura da época, o número e o carro ao fundo (nunca CC BY-SA).
+ * temporada marcante com a equipe, a pintura da época, o número e o carro ao fundo (nunca CC BY-SA). No fim, as
+ * rotas HTTP sobre o mesmo grid: o plano do tenant nas lendas e as temporadas do construtor no overview.
  */
 import { randomBytes } from 'node:crypto';
+import type { FastifyInstance } from 'fastify';
+import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -25,6 +28,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import type { LiveryEntry } from '@galaxie/knowledge';
+import { createApiKey, upsertTenant } from '../src/auth/admin.js';
+import { buildServer } from '../src/server.js';
 import { loadRaceLegends } from '../src/teams/legends.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -272,5 +277,70 @@ describe('lendas da F1', () => {
     expect(listed.map((l) => l.name)).toEqual(['Alain Prost', 'Ayrton Senna']);
     const onlySenna = await loadRaceLegends(db, 'pt-BR', undefined, { list: ['ayrton-senna', 'jim-clark'] });
     expect(onlySenna.map((l) => l.name)).toEqual(['Ayrton Senna']);
+  });
+});
+
+describe('rotas da F1 (HTTP)', () => {
+  const keyPrefix = `gs-test-${randomBytes(4).toString('hex')}:`;
+  let redis: Redis;
+  let app: FastifyInstance;
+  let key: string;
+  let footballKey: string;
+  const get = (url: string, k = key) => app.inject({ method: 'GET', url, headers: { 'x-galaxie-key': k } });
+
+  beforeAll(async () => {
+    redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', { maxRetriesPerRequest: 1 });
+    const t = await upsertTenant(db, { slug: 'f1', name: 'F1', plan: 'core_data', rateLimitPerMinute: 1000 });
+    key = (await createApiKey(db, t.id, { env: 'test' })).key;
+    const fb = await upsertTenant(db, {
+      slug: 'so-futebol',
+      name: 'Futebol',
+      plan: 'core_data',
+      sports: ['football'],
+    });
+    footballKey = (await createApiKey(db, fb.id, { env: 'test' })).key;
+    app = buildServer({ db, redis, keyPrefix });
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    if (redis) {
+      let cursor = '0';
+      do {
+        const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}*`, 'COUNT', 500);
+        if (keys.length) await redis.del(...keys);
+        cursor = next;
+      } while (cursor !== '0');
+      redis.disconnect();
+    }
+  });
+
+  it('lendas: tenant sem Fórmula 1 no plano recebe 403, também com o cache quente', async () => {
+    expect((await get('/v1/sports/formula-1/legends')).statusCode).toBe(200);
+    const res = await get('/v1/sports/formula-1/legends', footballKey);
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({
+      code: 'MODULE_NOT_IN_PLAN',
+      title: 'Plano não inclui o esporte formula-1',
+    });
+  });
+
+  it('overview do construtor: temporadas pelos resultados dos pilotos (result.team), com o seletor', async () => {
+    const body = (await get(`/v1/teams/${ids.mclaren}/overview`)).json();
+    expect(
+      body.seasons.map((s: { year: number; events: number; current: boolean }) => [
+        s.year,
+        s.events,
+        s.current,
+      ]),
+    ).toEqual([
+      [1989, 1, true],
+      [1988, 2, false],
+    ]);
+    const y1988 = (await get(`/v1/teams/${ids.mclaren}/overview?season=1988`)).json();
+    expect(y1988.season).toBe(1988);
+    expect(y1988.seasons).toEqual(body.seasons);
+    expect(y1988.last_events).toHaveLength(2);
   });
 });

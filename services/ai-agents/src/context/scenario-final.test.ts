@@ -86,7 +86,7 @@ const ES = [
 
 describe('cenário da final: estrutura do jogo e histórico nos fatos', () => {
   it('versão do prompt sobe para regenerar o cache', () => {
-    expect(SCENARIO_PROMPT_VERSION).toBe('scenario@v3');
+    expect(SCENARIO_PROMPT_VERSION).toBe('scenario@v4');
   });
 
   it('fatos trazem decides_title, prorrogação e os títulos anteriores de cada time', async () => {

@@ -36,7 +36,7 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 ## Regras
 
 1. **Toda chamada à api-sports passa pelo `ApiSportsClient`** — nunca `fetch` direto. Testes usam `fetch` falso; não gaste cota real em testes.
-2. **Banco**: mudou `packages/db/src/schema`? Rode `pnpm db:generate` e commite `drizzle/` (o CI falha se houver drift). Migrations podem ser renumeradas pelo coordenador na hora do merge.
+2. **Banco**: mudou `packages/db/src/schema`? Rode `pnpm db:generate` e commite `drizzle/` (o CI falha se houver drift). Migrations podem ser renumeradas pelo coordenador na hora do merge; a renumerada precisa de `when` (em `drizzle/meta/_journal.json`) maior que o da última migration do `main`, senão o migrator a pula em silêncio num banco que já tem as outras — acerte o `when` ou regere a migration (o CI confere).
 3. **Testes**: unitários ao lado do código (`*.test.ts`); integração em `test/` criando um banco descartável a partir de `DATABASE_URL` (ver `packages/db/test`). Sem `.env` (ex.: worktrees), exporte `DATABASE_URL=postgres://galaxie:galaxie@localhost:5433/galaxie_sports`.
 4. **Idioma**: código e identificadores em inglês; comentários, docs, mensagens de CLI e de erro voltadas a pessoas em **português**.
 5. **Neutralidade**: nenhuma marca de cliente, operadora ou fornecedor interno em código, dados, docs, issues ou commits.

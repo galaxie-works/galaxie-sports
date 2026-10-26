@@ -7,7 +7,7 @@ export default defineMessages(
     page: {
       title: 'Vídeos relacionados',
       description:
-        'Canais dos vídeos relacionados. Quando o player do YouTube recusa um vídeo (embed bloqueado pelo dono do conteúdo, removido ou privado), ele sai da vitrine; com {threshold} recusas, o canal inteiro sai. Aqui você bloqueia um canal na mão ou libera um que o automático tirou. O Onde Assistir não muda.',
+        'Canais dos vídeos relacionados. Quando o player do YouTube recusa um vídeo (embed bloqueado pelo dono do conteúdo, removido ou privado), ele sai na hora da vitrine do cliente que relatou (na demo, para todos os usuários da demo) e da de todos quando outro cliente confirma; com {threshold} vídeos recusados, o canal inteiro sai do mesmo jeito. Aqui você bloqueia um canal na mão, libera um que o automático tirou ou limpa as recusas (confirmadas e relatadas). O Onde Assistir não muda.',
     },
     filters: {
       search: 'Buscar canal',
@@ -18,7 +18,8 @@ export default defineMessages(
     columns: {
       channel: 'Canal',
       published: 'Na vitrine',
-      refused: 'Recusas do player',
+      refused: 'Recusas confirmadas',
+      reported: 'Relatadas por cliente',
       status: 'Estado',
       control: 'Controle',
     },
@@ -37,9 +38,9 @@ export default defineMessages(
     ruleBy: 'por {who} em {date}',
     clear: 'Limpar recusas',
     clearConfirm:
-      'Apagar as {count} recusas do canal? Os vídeos voltam à vitrine e o automático recomeça a contar.',
+      'Apagar as recusas de {count} vídeos do canal (confirmadas e relatadas por cliente)? Os vídeos voltam à vitrine de todos e o automático recomeça a contar.',
     saved: 'Canal atualizado. {events} jogos avisados.',
-    cleared: '{count} recusas apagadas.',
+    cleared: 'Recusas de {count} vídeos apagadas.',
     empty: 'Nenhum canal com vídeos relacionados.',
     errors: {
       invalid: 'Canal inválido.',
@@ -52,7 +53,7 @@ export default defineMessages(
       page: {
         title: 'Related videos',
         description:
-          'Channels of the related videos. When the YouTube player refuses a video (embed blocked by the content owner, removed or private), it leaves the showcase; after {threshold} refusals, the whole channel leaves. Here you block a channel by hand or release one the automatic rule removed. Where to watch does not change.',
+          'Channels of the related videos. When the YouTube player refuses a video (embed blocked by the content owner, removed or private), it leaves the showcase of the client that reported it right away (in the demo, for every demo user) and everyone else’s once another client confirms; after {threshold} refused videos, the whole channel leaves the same way. Here you block a channel by hand, release one the automatic rule removed or clear the refusals (confirmed and reported). Where to watch does not change.',
       },
       filters: {
         search: 'Search channel',
@@ -63,7 +64,8 @@ export default defineMessages(
       columns: {
         channel: 'Channel',
         published: 'In the showcase',
-        refused: 'Player refusals',
+        refused: 'Confirmed refusals',
+        reported: 'Reported by a client',
         status: 'Status',
         control: 'Control',
       },
@@ -82,9 +84,9 @@ export default defineMessages(
       ruleBy: 'by {who} on {date}',
       clear: 'Clear refusals',
       clearConfirm:
-        'Delete the {count} refusals of this channel? The videos return to the showcase and the automatic rule starts counting again.',
+        'Delete the refusals of {count} videos of this channel (confirmed and reported by clients)? The videos return to everyone’s showcase and the automatic rule starts counting again.',
       saved: 'Channel updated. {events} games notified.',
-      cleared: '{count} refusals deleted.',
+      cleared: 'Refusals of {count} videos deleted.',
       empty: 'No channel with related videos.',
       errors: {
         invalid: 'Invalid channel.',
@@ -96,7 +98,7 @@ export default defineMessages(
       page: {
         title: 'Videos relacionados',
         description:
-          'Canales de los videos relacionados. Cuando el reproductor de YouTube rechaza un video (embed bloqueado por el dueño del contenido, eliminado o privado), sale de la vitrina; con {threshold} rechazos, sale el canal entero. Acá bloqueás un canal a mano o liberás uno que sacó la regla automática. Dónde ver no cambia.',
+          'Canales de los videos relacionados. Cuando el reproductor de YouTube rechaza un video (embed bloqueado por el dueño del contenido, eliminado o privado), sale en el acto de la vitrina del cliente que lo reportó (en la demo, para todos sus usuarios) y de la de todos cuando otro cliente lo confirma; con {threshold} videos rechazados, sale el canal entero de la misma forma. Acá bloqueás un canal a mano, liberás uno que sacó la regla automática o borrás los rechazos (confirmados y reportados). Dónde ver no cambia.',
       },
       filters: {
         search: 'Buscar canal',
@@ -107,7 +109,8 @@ export default defineMessages(
       columns: {
         channel: 'Canal',
         published: 'En la vitrina',
-        refused: 'Rechazos del reproductor',
+        refused: 'Rechazos confirmados',
+        reported: 'Reportados por un cliente',
         status: 'Estado',
         control: 'Control',
       },
@@ -126,9 +129,9 @@ export default defineMessages(
       ruleBy: 'por {who} el {date}',
       clear: 'Borrar rechazos',
       clearConfirm:
-        '¿Borrar los {count} rechazos del canal? Los videos vuelven a la vitrina y la regla automática vuelve a contar.',
+        '¿Borrar los rechazos de {count} videos del canal (confirmados y reportados por clientes)? Los videos vuelven a la vitrina de todos y la regla automática vuelve a contar.',
       saved: 'Canal actualizado. {events} partidos avisados.',
-      cleared: '{count} rechazos borrados.',
+      cleared: 'Rechazos de {count} videos borrados.',
       empty: 'Ningún canal con videos relacionados.',
       errors: {
         invalid: 'Canal inválido.',

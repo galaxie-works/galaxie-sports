@@ -6,7 +6,7 @@ import {
   type FactSheet,
 } from '../guardrails/index.js';
 import { championPhrase, zoneLabel } from '@galaxie/rules';
-import { eventNames, teamName, type EventCore } from '../context/event-core.js';
+import { eventNames, teamName, type EventCore, type TeamRef } from '../context/event-core.js';
 import type {
   RecapFacts,
   RecapGoal,
@@ -23,7 +23,8 @@ import type {
 
 // v2: desfecho do mata-mata (agregado, quem passou e para onde) e nome curado do estádio
 // v4: pontos corridos (o que estava em jogo e o que o resultado mudou) e virada/gol decisivo
-export const RECAP_PROMPT_VERSION = 'recap@v4';
+// v5: vantagem do empate em jogo único (tie.decided_by = draw_advantage) e fases numeradas de copa
+export const RECAP_PROMPT_VERSION = 'recap@v5';
 
 /** Fatos citáveis no texto do locale (validador). */
 export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: AgentLocale): FactSheet {
@@ -43,8 +44,8 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   const perScorer = new Map<string, number>();
   for (const g of facts.goals) {
     b.minute(g.minute, g.extra);
-    b.person(g.scorer, { goal: true });
-    b.person(g.assist, { goal: true });
+    b.person(g.scorer, { goal: 'scorer' });
+    b.person(g.assist, { goal: 'assist' });
     if (g.score_after) b.score(g.score_after.home, g.score_after.away);
     goalsBy[g.team]++;
     if (g.scorer) perScorer.set(g.scorer, (perScorer.get(g.scorer) ?? 0) + 1);
@@ -53,7 +54,7 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
   b.number(goalsBy.home, goalsBy.away, ...perScorer.values(), facts.goals.length);
   for (const p of facts.missed_penalties) {
     b.minute(p.minute, p.extra);
-    b.person(p.player, { goal: true });
+    b.person(p.player, { goal: 'missed_penalty' });
   }
   for (const r of facts.red_cards) {
     b.minute(r.minute, r.extra);
@@ -79,8 +80,25 @@ export function recapFactSheet(core: EventCore, facts: RecapFacts, locale: Agent
       b.number(st.params?.n);
     }
   }
+  // confronto decidido: quem caiu não pode aparecer como classificado/campeão (nem o contrário)
+  const winner = facts.tie?.winner;
+  if (winner) {
+    const loser: Side = winner === 'home' ? 'away' : 'home';
+    b.outcome(
+      [...teamNames(core[winner]), facts.teams[winner].names[locale]],
+      [...teamNames(core[loser]), facts.teams[loser].names[locale]],
+    );
+  }
   return b.build();
 }
+
+/** Todos os nomes de um time (provedor, curto, apelidos curados e rótulos por locale). */
+const teamNames = (t: TeamRef): string[] => [
+  t.name,
+  ...(t.shortName ? [t.shortName] : []),
+  ...t.aliases,
+  ...Object.values(t.labels).filter((v): v is string => !!v),
+];
 
 const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
 
@@ -261,6 +279,8 @@ export function tieSentence(core: EventCore, facts: RecapFacts, locale: AgentLoc
         : pt
           ? `${winner} se classificou para ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`
           : `${winner} se clasificó a ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`;
+  if (tie.decided_by === 'draw_advantage')
+    head += pt ? '; o empate bastava pelo regulamento' : '; el empate le alcanzaba por reglamento';
   if (tie.legs === 2 && agg) {
     const w = tie.winner === 'home' ? agg.home : agg.away;
     const l = tie.winner === 'home' ? agg.away : agg.home;
@@ -334,6 +354,7 @@ export function recapSystemPrompt(): string {
     '  quem se classificou e para qual fase (tie.outcome = "advances", fase em tie.next_stage) ou quem foi campeão',
     '  (tie.outcome = "title"); em ida e volta, cite o agregado (tie.aggregate) e como a vaga saiu',
     '  (tie.decided_by: aggregate, away_goals, penalties). Ex.: "X se classificou para a final: 2 x 2 no agregado e 5 x 3 nos pênaltis."',
+    '  tie.decided_by = draw_advantage: jogo único empatado em que o regulamento dá a vaga a tie.winner com o empate.',
     '- tie.aggregate e tie.first_leg estão na ótica DESTE jogo (home = mandante deste jogo).',
     '- Se tie.leg = 1 (jogo de ida) ou tie.winner = null, NÃO diga que alguém se classificou, foi eliminado ou campeão.',
     '- champion_titles (quando houver): o título conquistado é o de número title_number do campeão naquela competição',
