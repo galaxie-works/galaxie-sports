@@ -5,7 +5,7 @@
  */
 import { inArray, sql } from 'drizzle-orm';
 import { event, eventIncident, publishChange, type Database } from '@galaxie/db';
-import type { EventStatus, FailureReason, NormalizedBatch } from '@galaxie/providers';
+import type { EventStatus, FailureReason, NormalizedBatch, StatusSource } from '@galaxie/providers';
 import { applyProviderFailure } from '../normalize/event-state.js';
 import { resolveIds } from '../normalize/sql-helpers.js';
 import { upsertBatch, type UpsertOptions } from '../normalize/upsert-core.js';
@@ -74,6 +74,7 @@ type CandidateRow = {
   season_id: string | null;
   starts_at: Date | string;
   status: EventStatus;
+  status_source: StatusSource;
   status_detail: string | null;
   clock: LiveCandidate['clock'];
   score: LiveCandidate['score'];
@@ -107,7 +108,7 @@ export class PgLiveStore implements LiveStore {
   async candidates(sport: string, provider: string, from: Date, to: Date): Promise<LiveCandidate[]> {
     const rows = await this.db.execute<CandidateRow>(sql`
       select distinct on (e.starts_at, e.id)
-             e.id, e.sport, e.competition_id, e.season_id, e.starts_at, e.status, e.status_detail,
+             e.id, e.sport, e.competition_id, e.season_id, e.starts_at, e.status, e.status_source, e.status_detail,
              e.clock, e.score, e.last_valid_at, e.importance, (e.derby_id is not null) as derby,
              c.tier, c.live_priority, s.kind as stage_kind,
              pe.provider_id as provider_event_id, pc.provider_id as provider_competition_id,
@@ -136,6 +137,7 @@ export class PgLiveStore implements LiveStore {
       seasonId: r.season_id,
       startsAt: asDate(r.starts_at),
       status: r.status,
+      statusSource: r.status_source,
       statusDetail: r.status_detail,
       clock: r.clock ?? null,
       score: r.score ?? null,

@@ -45,7 +45,10 @@ export interface AssetMirrorOptions {
   placeholderLogos?: ReadonlySet<string>;
   /** Só a mídia sob este caminho da CDN (ex.: `/volley/`). */
   pathPrefix?: string | undefined;
-  /** Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429. Padrão 5. */
+  /**
+   * Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429 (ou que falharam
+   * com erro inesperado, como storage ou banco fora do ar). Padrão 5.
+   */
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
   dryRun?: boolean;
@@ -74,6 +77,13 @@ export interface MirrorReport {
   /** Fotos genéricas que já estavam no storage (hash catalogado depois) e viraram "sem foto". */
   photoCleanup: number;
   failed: number;
+  /** Das falhas, as por erro inesperado (storage, banco): a execução termina, mas o job fica com erro. */
+  errors: number;
+  /**
+   * Logos de time e competição que estavam ausentes (404, bloqueados) e foram espelhados agora
+   * (`includeMissing`): as entidades que os perderam são religadas por `relinkRecoveredLogos`.
+   */
+  recoveredLogos: string[];
   /** Já espelhados que entraram na lista de bloqueio e foram desvinculados. */
   unlinked: number;
   bytes: number;
@@ -109,6 +119,8 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     logoCleanup: { placeholders: 0, participants: 0, competitions: 0 },
     photoCleanup: 0,
     failed: 0,
+    errors: 0,
+    recoveredLogos: [],
     unlinked: 0,
     bytes: 0,
     aborted: null,
@@ -120,6 +132,8 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
     placeholders: options.placeholderLogos,
     dryRun: options.dryRun,
+    // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
+    denylisted: denylist.urls,
   });
   report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
     placeholders: options.placeholderPhotos,
@@ -148,7 +162,11 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       return;
     }
     if (denylist.has(url)) {
-      await options.assets.markMissing(item.id, new Date(clock.now()));
+      // como no 404: a entidade fica sem imagem na hora, sem esperar a limpeza da próxima execução
+      await options.assets.markMissing(item.id, new Date(clock.now()), {
+        detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
+        detachLogos: LOGO_KINDS.has(item.kind),
+      });
       report.denied += 1;
       emit({ type: 'denied', asset: item, reason: denylist.reason(url) ?? '' });
       return;
@@ -186,6 +204,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       });
       report.stored += 1;
       report.bytes += res.body.length;
+      if (item.missing && LOGO_KINDS.has(item.kind)) report.recoveredLogos.push(item.id);
       emit({ type: 'stored', asset: item, storageKey: key, bytes: res.body.length });
     } else if (res.status === 'not_found') {
       consecutiveRateLimited = 0;
@@ -208,11 +227,28 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     }
   };
 
+  // Erro inesperado num asset (storage, banco) conta como falha e o worker segue: rejeitar o Promise.all
+  // deixaria os outros workers gravando com o CLI já fechando o banco. Erros seguidos interrompem a execução.
+  let consecutiveErrors = 0;
   const worker = async (): Promise<void> => {
     while (!report.aborted) {
       const item = queue[next++];
       if (!item) return;
-      await handle(item);
+      try {
+        await handle(item);
+        consecutiveErrors = 0;
+      } catch (err) {
+        consecutiveErrors += 1;
+        const reason = err instanceof Error ? err.message : String(err);
+        report.failed += 1;
+        report.errors += 1;
+        report.failures.push({ url: item.sourceUrl, reason });
+        emit({ type: 'failed', asset: item, reason });
+        if (consecutiveErrors >= abortAfter && !report.aborted) {
+          report.aborted = `${consecutiveErrors} assets seguidos falharam com erro (último: ${reason}); execução interrompida.`;
+          emit({ type: 'aborted', reason: report.aborted });
+        }
+      }
       if (delayMs > 0) await clock.sleep(delayMs);
     }
   };

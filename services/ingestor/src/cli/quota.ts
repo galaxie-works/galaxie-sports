@@ -44,6 +44,8 @@ for (const sport of sports) {
     live: `${usage.used.LIVE}/${usage.budget.LIVE}`,
     bootstrap: usage.used.BOOTSTRAP,
     reserva: usage.reserve,
+    // o fornecedor respondeu "cota esgotada" há pouco: o Governor nega a API por até 15 min
+    esgotada: usage.providerExhausted ? 'sim' : '',
   });
 }
 report('Cota do dia por API', rows);

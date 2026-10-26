@@ -9,7 +9,7 @@
 | Item | Valor | Impacto no desenho |
 |---|---|---|
 | Cota | **100 requisições/dia por API** (cada esporte tem a sua) | 12 APIs × 100 = 1.200/dia no total, sem transferência entre esportes |
-| Limite por minuto | **10/min** | Token bucket de 1 chamada a cada 6 s por API |
+| Limite por minuto | **10/min** | 1 chamada a cada 6 s por API, somando todos os processos (token bucket local + vaga no ledger sob o lock do Governor) |
 | Reset | **00:00 UTC** | Jobs pesados rodam logo após a meia-noite UTC (21h em Brasília) |
 | `/status` | **Não conta** na cota | Reconciliação de contagem e painel de cota gratuitos |
 | Paginação | **Cada página = 1 requisição**; no free, `page ≤ 3` | Evitar endpoints paginados; preferir chamadas "largas" |
@@ -93,7 +93,7 @@ flowchart LR
 
 ## 3. Fase A — Bootstrap do futebol (plano Pro)
 
-Ordem de execução e custo estimado para as **76 competições** do catálogo (46 tier 1 + 30 tier 2):
+Ordem de execução e custo estimado para as **145 competições** do catálogo (46 tier 1 + 99 tier 2):
 
 | # | Passo | Chamadas | Observação |
 |---|---|---|---|
@@ -101,24 +101,26 @@ Ordem de execução e custo estimado para as **76 competições** do catálogo (
 | 2 | Por competição × temporada: `fixtures?league&season`, `teams?league&season` (traz o estádio), `standings`, `fixtures/rounds?dates=true`, `injuries?league&season`, 4 rankings (`players/top*`) | 9 por temporada | Ler `coverage` antes: não chamar o que é `false` |
 | 3 | Detalhe de partidas: `fixtures?ids=` com 20 jogos | jogos ÷ 20 | Eventos, escalações, estatísticas e jogadores embutidos |
 | 4 | Estatísticas de jogadores: `players?league&season` (20/pág.) | ~30 por temporada | Só tier 1; tier 2 usa o que vem no detalhe da partida |
-| 5 | Por time: `players/squads`, `coachs?team`, `transfers?team` | 3 por time | ~1.100 times únicos |
+| 5 | Por time: `players/squads`, `coachs?team`, `transfers?team` | 3 por time | ~1.900 times únicos |
 | 6 | Por pessoa em lotes de 20: `trophies?players`, `sidelined?players` | 2 por 20 pessoas | Somente elencos atuais tier 1 |
 | 7 | H2H de todos os clássicos da base semântica: `fixtures/headtohead?h2h=` | 1 por clássico | ~100 clássicos |
 | 8 | `venues?country` para os países do catálogo | 1 por país | ~30 |
 
-> ✅ **Passo 1 executado em 21/10/2026** (`pnpm --filter @galaxie/ingestor bootstrap:catalog`): 170 países, **1.249 competições**, **8.781 temporadas** com cobertura e 1.418 logos/bandeiras registrados para o Asset Mirror — custo de **6 chamadas** (`/countries` e `/leagues` vieram do raw). As 76 competições de `config/competitions/football.yaml` conferem com o `/leagues` real. Como a política padrão protege 80 chamadas para DAILY/LIVE e cede só 5 ao BOOTSTRAP, o job aceita `--sem-live` para planejar o dia sem ao vivo enquanto não houver jogos sendo acompanhados.
+> ✅ **Passo 1 executado em 21/10/2026** (`pnpm --filter @galaxie/ingestor bootstrap:catalog`): 170 países, **1.249 competições**, **8.781 temporadas** com cobertura e 1.418 logos/bandeiras registrados para o Asset Mirror — custo de **6 chamadas** (`/countries` e `/leagues` vieram do raw). As 76 competições de `config/competitions/football.yaml` daquele dia conferem com o `/leagues` real; as 69 do tier 2 acrescentadas em 22/10 (#166) foram conferidas no `/leagues` do raw. Como a política padrão protege 80 chamadas para DAILY/LIVE e cede só 5 ao BOOTSTRAP, o job aceita `--sem-live` para planejar o dia sem ao vivo enquanto não houver jogos sendo acompanhados.
 
 **Estimativa** (temporada atual + 5 temporadas históricas para tier 1; atual + 2 para tier 2):
 
 | Bloco | Cálculo | Chamadas |
 |---|---|---|
-| Listas por temporada | (46 × 6 + 30 × 3) × 9 | ≈ 3.300 |
-| Detalhe de partidas | ≈ 110.000 jogos ÷ 20 | ≈ 5.500 |
+| Listas por temporada | (46 × 6 + 99 × 3) × 9 | ≈ 5.200 |
+| Detalhe de partidas | (≈ 110.000 + ≈ 22.000) jogos ÷ 20 | ≈ 6.600 |
 | Jogadores tier 1 | 46 × 6 × 30 | ≈ 8.300 |
-| Times (squads/coachs/transfers) | 1.100 × 3 | ≈ 3.300 |
+| Times (squads/coachs/transfers) | 1.900 × 3 | ≈ 5.700 |
 | Pessoas (trophies/sidelined) | ≈ 15.000 ÷ 20 × 2 | ≈ 1.500 |
 | H2H + venues + referência | | ≈ 150 |
-| **Total** | | **≈ 22.000 → ~3 dias de Pro** |
+| **Total** | | **≈ 27.000 → ~4 dias de Pro** |
+
+As 69 competições do tier 2 acrescentadas em 22/10 (#166) somam ≈ 22.000 jogos em 3 temporadas: cerca de 7.300 por temporada, sobretudo nas 14 segundas divisões (~300 jogos cada), nos 8 femininos (~150) e nos estaduais (~60); as supercopas têm 1 a 3 jogos. Também trazem ≈ 800 times novos, entre estaduais, segundas divisões, femininos e clubes das divisões de baixo que entram nas copas. Os dois números são estimativas: o `--plan` de cada job dá o custo real a partir do raw.
 
 Com 30 dias de Pro, sobra cota para estender o histórico (todas as temporadas disponíveis das competições tier 1) e para fazer o mesmo nas outras APIs que precisarem.
 
@@ -289,24 +291,24 @@ O caminho de produção é o worker `services/ingestor` (issue #18), que grava n
 
 ```bash
 pnpm --filter @galaxie/ingestor assets:mirror --plan            # quantos faltam (nenhum download)
-pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra toda URL de mídia do raw e espelha
+pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw   # registra as URLs de mídia do raw novo e espelha
 pnpm --filter @galaxie/ingestor assets:mirror --limite 500 --concorrencia 3 --pausa-ms 250
 pnpm --filter @galaxie/ingestor assets:mirror --fotos           # só fotos de pessoas, escalados recentes primeiro
 ```
 
 | Aspecto | Comportamento |
 |---|---|
-| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem) |
-| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução |
-| 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo |
+| Fonte | Linhas de `core.asset` ainda não espelhadas (o bootstrap dos catálogos registra bandeiras, logos, imagens de circuitos) e, com `--descobrir-raw`, toda URL `media(-N).api-sports.io` encontrada nos corpos de `raw.api_response` (12 esportes, qualquer tipo de imagem). A descoberta é incremental: fica em `ops.job_run` (`assets:discover-raw`, com a marca d'água em `stats.watermark`: o maior `raw.api_response.id` visível no início e o intervalo de transações ainda em andamento naquele instante) e a seguinte só varre as respostas acima do id ou gravadas por uma daquelas transações, o que inclui as do `raw:import`/`snapshot:import` gravadas com `fetched_at` antigo e as de transações que commitaram depois; a primeira, ou `--raw-completo`, varre a tabela inteira (dentro do mesmo timeout do job agendado) |
+| Educação com a CDN | 3 downloads simultâneos, 250 ms de pausa por worker, User-Agent genérico (`galaxie-sports-asset-mirror/0.1`), *backoff* exponencial em 429/5xx respeitando `Retry-After`; um 429 pausa todos os workers e 5 assets seguidos com 429 interrompem a execução. Erro inesperado num asset (storage, banco) conta como falha e o asset segue pendente; 5 seguidos também interrompem |
+| 404 | Registrado sem repetir: `fetched_at` preenchido e `storage_key` nulo (estado "ausente"); `--retentar-ausentes` tenta de novo. Logo de time ou competição que volta religa na hora as entidades sem logo que o fornecedor diz usarem aquele arquivo: o par id ↔ logo sai da resposta já gravada no raw (`/teams` e `/leagues`, senão `/fixtures` e `/games`), lida pelos mesmos parsers do catálogo e da normalização, sem chamada à API e sem deduzir a URL pelo caminho (`services/ingestor/src/assets/relink-logos.ts`). Sem resposta no raw, o CLI lista o logo e o vínculo volta na próxima normalização |
 | Gravação | Chave `api-sports/<caminho original>` (ex.: `api-sports/football/teams/121.png`), `sha256`, `bytes`, `width`/`height` (PNG, SVG, GIF, JPEG e WebP lidos pelo cabeçalho), `fetched_at` |
 | Idempotência | A segunda execução não baixa nada: só entram assets com `storage_key` e `fetched_at` nulos. Falhas transitórias continuam pendentes |
-| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado, e se já tiver sido é desvinculado (`storage_key` nulo) |
+| Lista de bloqueio | `config/assets/denylist.yaml` (também lida pelo script PowerShell): o logo da liga 475 (Paulistão) não é baixado (o asset fica ausente e times e competições perdem o logo na hora, como no 404), e se já tiver sido é desvinculado (`storage_key` nulo); a prévia (`--plan`) já conta esses desligamentos |
 | Execução | Registrada em `ops.job_run` (`assets:mirror`) com contagens, 404 e falhas |
-| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas: primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais e por fim o resto |
+| Fotos de pessoas (`--fotos`) | Antes de baixar, liga cada jogador sem foto à URL `football/players/{id}.png`, que sai do id da api-sports (sem cota). Só entra quem jogou (escalação, lance ou elenco) e nunca foi técnico, porque técnicos e jogadores dividem o espaço de ids. O espelho baixa só fotos de pessoas (sem os logos de emissoras): primeiro os escalados nos últimos 365 dias (`--desde-dias`), do jogo mais recente para o mais antigo, depois os elencos atuais (de temporada atual ou o elenco do time sem temporada) e por fim o resto; `--caminho` também vale para essa fila. Com `--plan`, o registro pelo id é contado numa transação só de leitura e entra na prévia |
 | Foto genérica | A CDN responde 200 com uma silhueta quando a pessoa não tem foto. Os hashes ficam em `PLACEHOLDER_PHOTO_SHA256` (`services/ingestor/src/assets/person-photos.ts`). Uma foto genérica ou um 404 de foto de pessoa deixa o asset "ausente", fora do bucket, e desliga `core.person.photo_asset_id`: a API devolve `photo: null`. O normalizador não religa esses assets. Ao fim, `--fotos` avisa de hashes repetidos em 20 fotos ou mais, que podem ser imagens genéricas novas |
 | Logo genérico | No lugar de muitos escudos de time e de liga, a CDN responde 200 com uma imagem genérica ("image not available", "official logo soon", escudo-contorno cinza). Os hashes ficam em `PLACEHOLDER_LOGO_SHA256` (`services/ingestor/src/assets/palette.ts`). Um logo genérico ou um 404 de `team_logo`/`league_logo` deixa o asset "ausente", fora do bucket, e desliga `core.participant.logo_asset_id` e `core.competition.logo_asset_id`: a API devolve `logo: null` e a demo mostra as iniciais. A normalização e o `bootstrap:catalog` não religam esses assets. Toda execução começa por uma limpeza idempotente (`cleanupLogos`): genéricos gravados antes viram ausentes, e times e competições ligados a qualquer logo ausente perdem o vínculo. `--plan` mostra a prévia |
-| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2 |
+| Cores dos times | Ao gravar um `team_logo` em PNG, o mesmo update preenche `core.asset.palette` (`{ version, dominant, secondary, monochrome }`) — ver §7.2. Gravar ou zerar a paleta (e desligar um logo) publica `catalog`/`participant` no `ops.change_feed` para os times que usam o asset, o que purga `participant:<id>` no cache da API; paleta igual à gravada não publica, e o backfill publica por lote de 500 numa transação. Logo de competição desligado ainda não publica `competition:<id>` |
 
 ### 7.2 Cores dos times (paleta do escudo)
 
@@ -315,7 +317,7 @@ A API expõe em cada `Team` um `colors` (cor predominante, secundária e o **gra
 - **Decodificador PNG próprio** (`node:zlib`, sem dependências): tipos de cor 0, 2, 3 (paleta + `tRNS`), 4 e 6, 1–16 bits, não entrelaçado, os 5 filtros. SVG, entrelaçado ou arquivo corrompido → sem paleta.
 - **Algoritmo**: só pixels com alfa ≥ 200; quase-branco, quase-preto e cinzas (croma < 40) ficam fora da escolha; o resto vai para faixas de matiz de 15° (suavizadas com as vizinhas) e, na família vencedora, a cor é a média da faixa de luminosidade mais frequente (`dominant`). `secondary` é a próxima família com matiz a ≥ 40° e ao menos 6% dos pixels coloridos (ou `null`). Com menos de 8% de pixels coloridos o escudo é `monochrome` (Botafogo, Vasco, Santos) e `dominant` vira o cinza-escuro neutro `#3a3a3a`, para o gradiente continuar legível.
 - **Placeholders do fornecedor** ("image not available", "official logo soon", escudo-contorno cinza — cada um repetido em dezenas de times) são reconhecidos pelo `sha256` (`PLACEHOLDER_LOGO_SHA256`) e ficam sem paleta: não são cor de time. No banco local eram 309 de 2.101 escudos PNG.
-- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução).
+- Alguns "PNG" da CDN são JPEG com extensão `.png` (54 no banco local): o decodificador os recusa, ficam sem paleta e voltam como candidatos (custo: uma leitura do bucket por execução). Com `--limite`, o limite conta só as paletas gravadas: a fila segue depois desses, que não ocupam o lote.
 - **Novos escudos** recebem a paleta no próprio Asset Mirror; os já espelhados, pelo backfill:
 
 ```bash
@@ -328,7 +330,7 @@ O backfill registra a execução em `ops.job_run` (`assets:palette`) e roda agen
 
 ### 7.3 Acervo customizado de logos (opcional)
 
-Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
+Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Times ligados, desligados ou com o asset regravado são publicados no change feed (`participant:<id>`). Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
 **Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
 
 - `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.
@@ -411,7 +413,7 @@ Cada API da api-sports tem **assinatura e cota próprias** — dá para ter o fu
 - `APISPORTS_PLAN` é o plano padrão de todas as APIs (`free` se ausente);
 - `APISPORTS_PLAN_<ESPORTE>` sobrescreve uma API: nome da API em maiúsculas, com `-` → `_` (`APISPORTS_PLAN_FOOTBALL=pro`, `APISPORTS_PLAN_FORMULA_1=free`, `APISPORTS_PLAN_AMERICAN_FOOTBALL=...`). Vazio = padrão; nome desconhecido = free (o mais restritivo).
 
-O plano de cada API define, só para ela: a **pré-validação** (temporadas, janela de `date`, `ids`/`last`/`next`, `page`), o **limite por minuto** (um token bucket por API: 6 s no free, 200 ms no Pro), o **limite diário** da política do Governor (ingestor, `quota` e métricas) e o fallback de `limit_day` na reconciliação via `/status`. A janela de temporadas aprendida com o erro do fornecedor também fica por API. Configurar o plano errado custa caro nos dois sentidos: um Pro onde a assinatura é free gera chamadas que o fornecedor recusa (gastando cota); um free onde a assinatura é Pro deixa o Pro ocioso. `bootstrap:sports --plan` e `quota` mostram o plano configurado de cada API.
+O plano de cada API define, só para ela: a **pré-validação** (temporadas, janela de `date`, `ids`/`last`/`next`, `page`), o **limite por minuto** (6 s no free, 200 ms no Pro; vale para a API inteira, somando os processos filhos do scheduler, porque o Governor espaça as reservas pelo `sent_at` do ledger), o **limite diário** da política do Governor (ingestor, `quota` e métricas) e o fallback de `limit_day` na reconciliação via `/status`. A janela de temporadas aprendida com o erro do fornecedor também fica por API. Configurar o plano errado custa caro nos dois sentidos: um Pro onde a assinatura é free gera chamadas que o fornecedor recusa (gastando cota); um free onde a assinatura é Pro deixa o Pro ocioso. `bootstrap:sports --plan` e `quota` mostram o plano configurado de cada API.
 
 ## 10. Pendências de validação (issue de spike)
 
@@ -450,19 +452,19 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 
 ¹ só quando o `coverage` da temporada não é `false`.
 
-### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 30 tier 2)
+### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 99 tier 2)
 
-Números de `--plan` sobre o catálogo carregado em 21/10/2026 (raw só com a referência global) e, onde o plano depende de listas ainda não baixadas, pelas fórmulas de §3.
+Números de `--plan` sobre o catálogo carregado em 21/10/2026 (76 competições, raw só com a referência global) somados, para as 69 do tier 2 acrescentadas em 22/10, à estimativa pelas fórmulas de §3 (3 temporadas cada, ≈ 8 chamadas por temporada, como no `--plan`). Onde o plano depende de listas ainda não baixadas, valem as fórmulas de §3.
 
 | Job | Free | Pro |
 |---|---|---|
-| `bootstrap:seasons` | **1.573** chamadas (197 temporadas 2022–2024; 219 puladas pelo `coverage`) → ~40 dias a 40/dia | **4.071** (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) → < 1 dia |
+| `bootstrap:seasons` | **1.573** chamadas medidas para as 76 (197 temporadas 2022–2024; 219 puladas pelo `coverage`) + ≈ 1.650 das 69 (207 temporadas) ≈ **3.200** → ~80 dias a 40/dia | **4.071** medidas para as 76 (514 temporadas: todas as iniciadas no tier 1, as 3 mais recentes no tier 2; 574 puladas) + ≈ 1.650 das 69 ≈ **5.700** → ~1 dia |
 | `--h2h-temporada-atual` | ≈ 150 por liga (27 ligas tier 1 → ≈ 4.000; use `--ligas` para priorizar) | 0 (a temporada atual vem por `season`) |
-| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 5.500 para ~110 mil jogos) |
-| `bootstrap:people` | ≈ 3.300 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~135 dias | ≈ 5.400 → < 1 dia |
+| `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 6.600 para ~132 mil jogos) |
+| `bootstrap:people` | ≈ 5.700 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~195 dias | ≈ 7.800 → ~1 dia |
 | `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + 200 do rodízio |
 
-A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 15–17 mil chamadas para listas + detalhe + pessoas — dentro dos ~22 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
+A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 19–21 mil chamadas para listas + detalhe + pessoas — dentro dos ~27 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
 
 ### 11.2 Ambiente local sem chave
 

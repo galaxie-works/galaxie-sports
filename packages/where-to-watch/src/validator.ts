@@ -3,10 +3,13 @@
  *
  * 1. Descarta opções sem URL de evidência acessível (e tudo o que a blocklist editorial pega).
  * 2. Normaliza emissora/canal contra o dicionário do país; nome desconhecido → revisão (`pending`).
- * 3. Deduplica por (região, emissora, meio), juntando as evidências.
+ * 3. Deduplica por (região, emissora, meio), juntando as evidências. O link para assistir só fica
+ *    quando está num domínio oficial da emissora (ou do grupo dela) no dicionário.
  * 4. Confiança: primária (emissora/organizador) 0,9 · imprensa 0,7 · agregador/desconhecida 0,4 ·
  *    +0,1 consistente com a tabela de direitos · −0,2 fora da tabela · +0,1 duas fontes independentes ·
- *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1].
+ *    −0,3 fonte com mais de 72 h em competição com escolha por rodada. Limite [0, 1]. Por fonte: página
+ *    sem a emissora, ou que tinha o trecho do jogo e o perdeu (revalidação), cai para 0,4; trecho
+ *    nunca achado na página (paráfrase) custa 0,1.
  * 5. Publica (`confirmed`) se ≥ 0,7; `pending` entre 0,5 e 0,7; descarta abaixo de 0,5.
  *    Conflito entre fontes primárias → `omitted`.
  * 6. Candidatas da tabela de direitos (origem `rights`): só valem para detentores da linha efetiva,
@@ -18,7 +21,14 @@ import type { AccessModel, BroadcastMedium, BroadcastStatus, Evidence, SourceKin
 import type { CountryDirectory } from './config/directory.js';
 import type { BroadcasterEntry, RightsEntry } from './config/types.js';
 import { NO_MATCH_FACTS, rightsAnswer, type MatchFacts } from './rights.js';
-import { clipExcerpt, hostOf, isHttpUrl, normalizeName, registrableDomain } from './normalize.js';
+import {
+  clipExcerpt,
+  hostOf,
+  isHttpUrl,
+  matchesDomain,
+  normalizeName,
+  registrableDomain,
+} from './normalize.js';
 
 export const SOURCE_SCORES: Record<SourceKind, number> = {
   broadcaster: 0.9,
@@ -36,6 +46,8 @@ export const SCORING = {
   rightsMismatch: -0.2,
   independentSources: 0.1,
   staleSource: -0.3,
+  /** Trecho do jogo não achado na página (paráfrase do modelo): penalidade leve, não rebaixa. */
+  excerptMissing: -0.1,
   staleHours: 72,
   publishThreshold: 0.7,
   pendingThreshold: 0.5,
@@ -57,6 +69,13 @@ export interface CandidateEvidence {
   accessible?: boolean | null;
   /** A página menciona a emissora (nome, alias ou canal)? null = não verificado. */
   mentionsBroadcaster?: boolean | null;
+  /**
+   * O trecho citado (ou os dois times perto da emissora) está na página agora? null/undefined = não
+   * verificado.
+   */
+  excerptFound?: boolean | null;
+  /** Já tinha sido achado numa verificação anterior (evidência salva). */
+  excerptVerified?: boolean;
   contentHash?: string | null;
   fetchedAt?: string;
 }
@@ -182,6 +201,49 @@ interface Group {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** A entrada tem canal oficial no YouTube (`youtube.com/@canal` em `domains`)? */
+function hasYoutubeChannel(entry: BroadcasterEntry): boolean {
+  return entry.domains.some((d) =>
+    /^(?:https?:\/\/)?(?:www\.|m\.)?youtube\.com\/@[\w.-]+\/?$/i.test(d.trim()),
+  );
+}
+
+const YOUTUBE_HOSTS = new Set(['youtube.com', 'm.youtube.com', 'youtu.be']);
+const YOUTUBE_ID = /^[\w-]{11}$/;
+
+/** Id do vídeo de um link do YouTube (`watch?v=<id>`, `/live/<id>`, `youtu.be/<id>`), ou null. */
+function youtubeVideoId(url: string): string | null {
+  const u = new URL(url);
+  const host = hostOf(url);
+  const id =
+    host === 'youtu.be'
+      ? u.pathname.split('/')[1]
+      : u.pathname === '/watch'
+        ? u.searchParams.get('v')
+        : /^\/live\/([^/]+)\/?$/.exec(u.pathname)?.[1];
+  return id && YOUTUBE_ID.test(id) ? id : null;
+}
+
+/**
+ * Link de "assista aqui" aceito para a emissora resolvida: num domínio oficial dela (ou do grupo) ou
+ * numa plataforma própria (`watch_domains`). No YouTube, só a transmissão com o id do vídeo, para a
+ * emissora com canal oficial lá (normalizado para `watch?v=<id>`); página de canal, `@canal/live` e
+ * busca não são publicadas (não levam à transmissão do jogo). Senão, null.
+ */
+export function officialWatchUrl(
+  dir: CountryDirectory,
+  entry: BroadcasterEntry | null,
+  url: string | null | undefined,
+): string | null {
+  if (!entry || !isHttpUrl(url) || dir.isAggregator(url) || dir.blocklist.isBlockedUrl(url)) return null;
+  if (YOUTUBE_HOSTS.has(hostOf(url)!)) {
+    const id = hasYoutubeChannel(entry) ? youtubeVideoId(url) : null;
+    return id ? `https://www.youtube.com/watch?v=${id}` : null;
+  }
+  const official = [...dir.primaryDomains(entry), ...(entry.watchDomains ?? [])];
+  return official.some((d) => matchesDomain(url, d)) ? url : null;
+}
+
 /** Aplica as regras e devolve as opções com status e confiança (função pura). */
 export function validateCandidates(candidates: Candidate[], ctx: ValidationContext): ValidationReport {
   const { directory: dir } = ctx;
@@ -193,6 +255,21 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
     ctx.rights !== undefined ? ctx.rights : dir.rightsFor(ctx.competitionSlug, ctx.eventStartsAt);
   const answer = rightsAnswer(rights, ctx.match ?? NO_MATCH_FACTS);
   const rightsUrls = new Set(rights?.sources ?? []);
+
+  // URLs cujo jogo já foi achado numa verificação, por emissora: vale para todas as candidatas da
+  // emissora com a mesma URL (a alocação nova não apaga a marca da evidência salva)
+  const verifiedKey = (c: Candidate, url: string) => {
+    const name = c.broadcaster.trim();
+    const r = dir.resolve(name) ?? (c.channel ? dir.resolve(c.channel) : null);
+    return `${r?.entry.id ?? normalizeName(name)}|${url}`;
+  };
+  const verifiedUrls = new Set(
+    candidates.flatMap((c) =>
+      c.origin === 'rights'
+        ? []
+        : c.evidence.filter((e) => e.excerptVerified).map((e) => verifiedKey(c, e.url)),
+    ),
+  );
 
   for (const c of candidates) {
     const name = c.broadcaster.trim();
@@ -250,7 +327,9 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       groups.set(key, g);
     }
     if (!entry) g.flags.add('unknown_broadcaster');
-    if (!g.watchUrl && isHttpUrl(c.watchUrl) && !dir.isAggregator(c.watchUrl)) g.watchUrl = c.watchUrl;
+    // link para assistir só no domínio oficial da emissora (ou do grupo dela) no dicionário: a URL vem
+    // do modelo e uma página injetada não pode publicar um link qualquer como "assista aqui"
+    g.watchUrl ??= officialWatchUrl(dir, entry, c.watchUrl);
     const channel = resolved?.channel ?? (c.channel?.trim() || null);
 
     if (fromRights) {
@@ -284,9 +363,17 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
       if (ev.accessible !== true) continue;
       const kind = dir.classifySource(ev.url, entry);
       let score = SOURCE_SCORES[kind];
-      if (ev.mentionsBroadcaster === false) {
-        // Página não menciona a emissora: rebaixa ao nível de agregador (anti-alucinação).
+      // a página da própria emissora sempre a menciona: o que liga a fonte ao jogo é o trecho
+      const verified = ev.excerptVerified === true || verifiedUrls.has(verifiedKey(c, ev.url));
+      const lost = verified && ev.excerptFound === false;
+      if (ev.mentionsBroadcaster === false || lost) {
+        // Página não menciona a emissora, ou tinha o jogo e não tem mais: rebaixa ao nível de
+        // agregador (anti-alucinação; escala que mudou perto do jogo).
         score = Math.min(score, SOURCE_SCORES.aggregator);
+        g.flags.add('excerpt_not_found');
+      } else if (ev.excerptFound === false) {
+        // trecho nunca achado (o modelo parafraseia): só uma penalidade leve
+        score = Math.max(0, score + SCORING.excerptMissing);
         g.flags.add('excerpt_not_found');
       }
       const evidence: Evidence & { score: number } = {
@@ -297,6 +384,7 @@ export function validateCandidates(candidates: Candidate[], ctx: ValidationConte
         sourceKind: kind,
         publishedAt: ev.publishedAt ?? null,
         contentHash: ev.contentHash ?? null,
+        ...(verified || ev.excerptFound === true ? { excerptVerified: true } : {}),
         stance: ev.stance ?? 'confirms',
         score,
       };

@@ -183,6 +183,36 @@ describe('traços do piloto', () => {
     // a base de teste só tem dois pilotos: o vice está entre os 20 com mais GPs
     expect((await loadDriverTraits(db, prost, 'pt-BR', undefined)).tier).toBe('legend');
   });
+
+  it('não largou (DNS) não conta como GP: nem nos traços, nem no nível pela posição em GPs', async () => {
+    const [reserve] = await db
+      .insert(participant)
+      .values({ sport: 'formula-1', kind: 'driver', name: 'Piloto Reserva' })
+      .returning({ id: participant.id });
+    const lotus = { id: 'lotus', name: 'Lotus' };
+    await db.insert(eventParticipant).values([
+      // F1DB: o texto da posição; api-sports: sem posição, sem tempo e com 0 volta
+      {
+        eventId: raceIds[0]!,
+        participantId: reserve!.id,
+        side: 'grid',
+        position: null,
+        result: { position_text: 'DNS', grid: 20, team: lotus },
+      },
+      {
+        eventId: raceIds[1]!,
+        participantId: reserve!.id,
+        side: 'grid',
+        position: null,
+        result: { laps: 0, team: lotus },
+      },
+    ]);
+    const t = await loadDriverTraits(db, reserve!.id, 'pt-BR', undefined);
+    expect(t.consistency.races).toBe(0);
+    expect(t.qualifying_vs_race.races).toBe(0);
+    // com as linhas contadas como largada, estaria entre os 20 com mais GPs (lenda)
+    expect(t.tier).toBe('basic');
+  });
 });
 
 describe('perfil editorial', () => {

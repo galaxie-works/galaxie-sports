@@ -1,4 +1,5 @@
 import type { PlanLimits, PlanRules } from '@galaxie/apisports-client';
+import { mapFootballStatus } from '@galaxie/providers';
 import { coversFixtureDetail, type CatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   collectFixtures,
@@ -77,17 +78,33 @@ export function compareRanked(a: RankedFixture, b: RankedFixture): number {
   );
 }
 
+/**
+ * Jogo que a lista deixou em andamento (1H, HT, 2H, ET, P...) mas começou antes de `before`: a lista foi
+ * gravada no meio do jogo e não foi rebuscada; o detalhe traz o resultado. Suspenso/interrompido fica de
+ * fora (pode ser retomado depois, e o detalhe só é buscado uma vez).
+ */
+export function isStaleOpen(f: FixtureRef, before: Date): boolean {
+  const status = mapFootballStatus(f.status);
+  return (status === 'live' || status === 'break') && Date.parse(f.date) < before.getTime();
+}
+
 /** Encerradas, priorizadas, opcionalmente só clássicos e decisivos. */
 export function selectDetailFixtures(
   fixtures: FixtureRef[],
   comps: Map<number, CompetitionInfo>,
   derbies: Set<string>,
-  opts: { keyOnly: boolean; leagues?: number[] | undefined },
+  opts: {
+    keyOnly: boolean;
+    leagues?: number[] | undefined;
+    /** Também as que a lista deixou em andamento e começaram antes disto (`isStaleOpen`). */
+    openStartedBefore?: Date | undefined;
+  },
 ): RankedFixture[] {
   const only = opts.leagues?.length ? new Set(opts.leagues) : undefined;
   const out: RankedFixture[] = [];
   for (const f of fixtures) {
-    if (!FINISHED_STATUSES.has(f.status)) continue;
+    const stale = opts.openStartedBefore ? isStaleOpen(f, opts.openStartedBefore) : false;
+    if (!FINISHED_STATUSES.has(f.status) && !stale) continue;
     if (only && !only.has(f.leagueId)) continue;
     const r = rankFixture(f, comps, derbies);
     if (!r) continue;

@@ -30,7 +30,8 @@ import type { EventStakes } from './stakes.js';
 
 /** Versão do prompt/fatos: mudar invalida o cache (força regenerar). */
 // v3: só os stakes salientes (até 3 por time, docs/rules §3.5) e a distância em pontos de cada briga
-export const SCENARIO_PROMPT_VERSION = 'scenario@v3';
+// v4: última final de temporada anterior; em ida e volta, pelo agregado (`legs = 2`)
+export const SCENARIO_PROMPT_VERSION = 'scenario@v4';
 
 /** Títulos anteriores de um time na competição (antes da partida). */
 export interface ScenarioTeamTitles {
@@ -57,6 +58,8 @@ export interface ScenarioHistory {
     away_goals: number;
     /** Lado DESTE jogo que venceu aquela final (null = sem dado). */
     winner: 'home' | 'away' | null;
+    /** 2 = final em ida e volta: o placar é o agregado. */
+    legs?: 2;
   };
 }
 
@@ -404,7 +407,8 @@ export function scenarioSystemPrompt(): string {
     '- `history` (quando houver): `titles.<lado>.won` = títulos daquela competição antes deste jogo;',
     '  `seeking` = o título que o time busca (bi = 2, tri = 3, tetra = 4, penta = 5, hexa = 6, hepta = 7,',
     '  octa = 8, enea = 9, deca = 10; acima de 10, "o 11º título"; 1 = o primeiro título); `seasons` = as',
-    '  edições vencidas; `last_final_between` = a última final entre os dois nesta competição.',
+    '  edições vencidas; `last_final_between` = a última final entre os dois nesta competição (legs = 2: ida e',
+    '  volta, e o placar é o agregado dos dois jogos).',
     '  Use esses fatos para enriquecer o texto ("busca o tetra"), sempre ligados à competição dos fatos.',
     '',
     'Regras:',

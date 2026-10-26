@@ -100,6 +100,25 @@ describe('computeTraits', () => {
   });
 });
 
+describe('computeTraits: não largou', () => {
+  it('DNS (F1DB) e a linha sem posição, sem tempo e com 0 volta (api-sports) ficam fora; abandono conta', () => {
+    const dns = {
+      ...race(1990, 1, 1),
+      position: null,
+      result: { position_text: 'DNS', team: { id: 'mclaren' } },
+    };
+    const apiSports = { ...race(1990, 1, 1), position: null, result: { laps: 0, team: { id: 'mclaren' } } };
+    const dnf = race(1990, null, 4);
+    const won = race(1990, 1, 1);
+    const t = computeTraits([dns, apiSports, dnf, won], [mate(dns, 2, 2)], teams, 'pt-BR');
+    expect(t.qualifying_vs_race).toMatchObject({ races: 2, avg_grid: 2.5 });
+    expect(t.consistency).toMatchObject({ races: 2, dnfs: 1, dnf_rate: 0.5 });
+    expect(t.circuits.all.map((c) => c.races)).toEqual([2]);
+    // o companheiro na corrida que o piloto não largou não vira duelo
+    expect(t.teammates.career).toEqual({ grid: { won: 0, lost: 0 }, race: { won: 0, lost: 0 } });
+  });
+});
+
 describe('qualiRaceLabel', () => {
   const d = (won: number, lost: number) => ({ won, lost });
   it('compara o duelo de grid com o de corrida, com 20 duelos de cada no mínimo', () => {

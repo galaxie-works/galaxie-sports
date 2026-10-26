@@ -72,7 +72,8 @@ export interface ProviderStatus {
  * Cliente único das 12 APIs da api-sports. Toda chamada:
  * 1. reaproveita o raw se houver resposta fresca (TTL por endpoint) — sem gastar cota;
  * 2. é pré-validada contra as restrições do plano;
- * 3. reserva cota no Quota Governor e respeita o limite por minuto;
+ * 3. respeita o limite por minuto (no processo e, com o PgQuotaGovernor, somando os processos da chave)
+ *    e reserva cota no Quota Governor;
  *    pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada;
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
@@ -127,7 +128,7 @@ export class ApiSportsClient {
     const now = new Date(startedAt);
 
     if (this.options.offline) {
-      const hit = await this.fromCache<T>(hash, FOREVER, now);
+      const hit = await this.fromCache<T>(req, hash, FOREVER, now);
       if (hit) {
         this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
         return hit;
@@ -137,7 +138,7 @@ export class ApiSportsClient {
 
     const maxAge = req.maxAgeMs ?? ttlFor(req.endpoint, params, now);
     if (maxAge > 0) {
-      const hit = await this.fromCache<T>(hash, maxAge, now);
+      const hit = await this.fromCache<T>(req, hash, maxAge, now);
       if (hit) {
         this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
         return hit;
@@ -154,8 +155,17 @@ export class ApiSportsClient {
     return call;
   }
 
-  private async fromCache<T>(hash: string, maxAge: number, now: Date): Promise<CallResult<T> | undefined> {
-    const hit = await this.options.store.findFresh(hash, maxAge, now);
+  private async fromCache<T>(
+    req: CallRequest,
+    hash: string,
+    maxAge: number,
+    now: Date,
+  ): Promise<CallResult<T> | undefined> {
+    const hit = await this.options.store.findFresh(hash, maxAge, now, {
+      provider: PROVIDER,
+      sport: req.sport,
+      endpoint: req.endpoint,
+    });
     if (!hit) return undefined;
     return {
       envelope: hit.body as Envelope<T>,
@@ -173,6 +183,9 @@ export class ApiSportsClient {
     maxAge: number,
   ): Promise<CallResult<T>> {
     const startedAt = this.clock.now();
+    // O limitador local vem antes da reserva: o Governor marca o envio (sent_at) na reserva e, com o
+    // limite por minuto na política, espera a vaga somando os outros processos que usam a chave.
+    await this.limiterFor(req.sport).take(req.sport);
     let ticket: QuotaTicket;
     for (;;) {
       try {
@@ -191,7 +204,7 @@ export class ApiSportsClient {
         await this.clock.sleep(IN_FLIGHT_POLL_MS);
         const now = this.clock.now();
         const window = maxAge > 0 ? maxAge : now - startedAt + IN_FLIGHT_POLL_MS;
-        const hit = await this.fromCache<T>(hash, window, new Date(now));
+        const hit = await this.fromCache<T>(req, hash, window, new Date(now));
         if (hit) {
           this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
           return hit;
@@ -200,20 +213,16 @@ export class ApiSportsClient {
       }
     }
 
-    try {
-      await this.limiterFor(req.sport).take(req.sport);
-    } catch (err) {
-      await this.options.governor.release(ticket);
-      throw err;
-    }
-
     const url = this.buildUrl(req.sport, req.endpoint, params);
     let response: Response;
+    let text: string;
     try {
       response = await this.fetchFn(url, {
         headers: { 'x-apisports-key': this.options.apiKey },
         signal: AbortSignal.timeout(this.timeoutMs),
       });
+      // o timeout vale também para a leitura do corpo, que pode falhar depois do status
+      text = await response.text();
     } catch (err) {
       const outcome: Outcome = err instanceof Error && err.name === 'TimeoutError' ? 'timeout' : 'http_error';
       await this.options.governor.settle(ticket, outcome);
@@ -221,7 +230,6 @@ export class ApiSportsClient {
       throw new ApiSportsError(outcome, String(err), hash);
     }
 
-    const text = await response.text();
     const quotaRemaining = toInt(response.headers.get('x-ratelimit-requests-remaining'));
     let envelope: Envelope<T> | undefined;
     try {
@@ -236,24 +244,29 @@ export class ApiSportsClient {
     else outcome = classifyErrors(envelope.errors);
 
     const fetchedAt = new Date(this.clock.now());
-    await this.options.store.save({
-      provider: PROVIDER,
-      sport: req.sport,
-      apiVersion: API_HOSTS[req.sport].version,
-      endpoint: req.endpoint,
-      params,
-      requestHash: hash,
-      page: Number(params.page ?? 1),
-      statusCode: response.status,
-      results: envelope?.results ?? null,
-      errors: envelope?.errors ?? { http: `HTTP ${response.status}` },
-      body: envelope ?? { raw: text.slice(0, 10_000) },
-      bodyHash: createHash('sha256').update(text).digest('hex'),
-      quotaRemaining: quotaRemaining ?? null,
-      jobId: req.jobId ?? null,
-      fetchedAt,
-    });
-    await this.options.governor.settle(ticket, outcome, quotaRemaining);
+    try {
+      await this.options.store.save({
+        provider: PROVIDER,
+        sport: req.sport,
+        apiVersion: API_HOSTS[req.sport].version,
+        endpoint: req.endpoint,
+        params,
+        requestHash: hash,
+        page: Number(params.page ?? 1),
+        statusCode: response.status,
+        results: envelope?.results ?? null,
+        errors: envelope?.errors ?? { http: `HTTP ${response.status}` },
+        body: envelope ?? { raw: text.slice(0, 10_000) },
+        bodyHash: createHash('sha256').update(text).digest('hex'),
+        quotaRemaining: quotaRemaining ?? null,
+        jobId: req.jobId ?? null,
+        fetchedAt,
+      });
+    } finally {
+      // A chamada foi feita: o ticket nunca fica pending, mesmo se a gravação do raw falhar.
+      // O settle vem depois do save para quem espera a mesma requisição já encontrar o raw.
+      await this.options.governor.settle(ticket, outcome, quotaRemaining);
+    }
     this.emit(req, hash, {
       source: 'network',
       outcome,

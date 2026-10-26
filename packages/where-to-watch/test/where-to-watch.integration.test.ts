@@ -13,6 +13,11 @@ import {
 import {
   addOption,
   applyAgentResult,
+  applyMatchChannels,
+  currentMatchChannels,
+  teamNames,
+  validateMatchChannels,
+  type TeamNames,
   computeWtwMetrics,
   correctOption,
   currentOptions,
@@ -558,5 +563,148 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
       darkStorageKey: null,
       sourceUrl: expect.stringMatching(/^https:\/\//),
     });
+  });
+});
+
+describe('canal do jogo × opção publicada da mesma emissora', () => {
+  it('o canal do jogo corrigido vale na opção publicada; a correção editorial continua valendo', async () => {
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF });
+    const options = validate([
+      { broadcaster: 'ESPN', channel: 'ESPN 2', evidence: [verified('https://www.espn.com.br/agenda')] },
+    ]);
+    expect(options.map((o) => [o.broadcasterId, o.channel, o.status])).toEqual([
+      ['espn', 'ESPN 2', 'confirmed'],
+    ]);
+    await applyAgentResult(db, { eventId, country: 'BR', options, retractMissing: true, now: NOW });
+    const source = 'https://www.espn.com.br/escala-da-rodada';
+    await applyMatchChannels(db, {
+      eventId,
+      country: 'BR',
+      accepted: [
+        {
+          broadcasterId: 'espn',
+          providerName: 'ESPN',
+          channel: 'ESPN 3',
+          confidence: 0.9,
+          sourceKind: 'official',
+          evidence: [
+            {
+              url: source,
+              publisher: 'espn.com.br',
+              excerpt: 'Palmeiras x Fluminense na ESPN 3',
+              sourceKind: 'broadcaster',
+              publishedAt: null,
+              pageVerified: true,
+              fetchedAt: NOW.toISOString(),
+            },
+          ],
+        },
+      ],
+      phase: 'pre',
+      window: 'T-6h',
+      researchId: null,
+      now: NOW,
+    });
+    const pub = (await getPublicWhereToWatch(db, { eventId, country: 'BR' }, config))!;
+    // uma opção só (a emissora já publicada), com o canal que a fonte do canal do jogo sustenta
+    expect(pub.options.map((o) => [o.row.broadcasterId, o.row.channelName])).toEqual([['espn', 'ESPN 3']]);
+    expect(pub.matchChannel.channels.map((c) => [c.option.row.channelName, c.source?.url])).toEqual([
+      ['ESPN 3', source],
+    ]);
+
+    // a editoria fixou o ESPN 2: vale o dela, com a fonte dela (não a do canal do jogo)
+    const { eventId: edited } = await seedEvent(db, { startsAt: KICKOFF });
+    await addOption(db, {
+      eventId: edited,
+      country: 'BR',
+      providerName: 'ESPN',
+      broadcasterId: 'espn',
+      channel: 'ESPN 2',
+      medium: 'pay_tv',
+      accessModel: 'subscription',
+      evidence: [{ url: 'https://www.espn.com.br/jogo', excerpt: 'Ao vivo na ESPN 2' }],
+      actor: 'editor.ana',
+      reason: 'grade oficial',
+      blocklist: config.blocklist,
+    });
+    await applyMatchChannels(db, {
+      eventId: edited,
+      country: 'BR',
+      accepted: [
+        {
+          broadcasterId: 'espn',
+          providerName: 'ESPN',
+          channel: 'ESPN 3',
+          confidence: 0.9,
+          sourceKind: 'official',
+          evidence: [
+            {
+              url: source,
+              publisher: 'espn.com.br',
+              excerpt: 'Palmeiras x Fluminense na ESPN 3',
+              sourceKind: 'broadcaster',
+              publishedAt: null,
+              pageVerified: true,
+              fetchedAt: NOW.toISOString(),
+            },
+          ],
+        },
+      ],
+      phase: 'pre',
+      window: 'T-6h',
+      researchId: null,
+      now: NOW,
+    });
+    const ed = (await getPublicWhereToWatch(db, { eventId: edited, country: 'BR' }, config))!;
+    expect(ed.matchChannel.channels.map((c) => [c.option.row.channelName, c.source?.url])).toEqual([
+      ['ESPN 2', 'https://www.espn.com.br/jogo'],
+    ]);
+  });
+});
+
+describe('canal do jogo: subcanal que a fonte nova não sustenta', () => {
+  it('outro canal proposto sem fonte limpa o subcanal gravado; sem canal proposto, o gravado fica', async () => {
+    const rights = br.rightsFor('conmebol-libertadores', KICKOFF)!;
+    const teams = [teamNames('Palmeiras'), teamNames('Fluminense')] as [TeamNames, TeamNames];
+    const validate = (channel: string | null, excerpt: string) =>
+      validateMatchChannels(
+        [
+          {
+            broadcasterId: 'espn',
+            channel,
+            evidence: [{ url: 'https://www.espn.com.br/agenda', excerpt, publishedAt: null }],
+          },
+        ],
+        { directory: br, rights, teams, eventStartsAt: KICKOFF, now: NOW },
+      ).accepted;
+    const apply = (eventId: string, accepted: ReturnType<typeof validate>) =>
+      applyMatchChannels(db, {
+        eventId,
+        country: 'BR',
+        accepted,
+        phase: 'pre',
+        window: 'T-48h',
+        researchId: null,
+        now: NOW,
+      });
+    const channelOf = async (eventId: string) =>
+      (await currentMatchChannels(db, eventId, 'BR')).find((m) => m.broadcasterId === 'espn')!.channelName;
+
+    for (const [next, expected] of [
+      // a pesquisa nova diz ESPN 3, mas a fonte só cita a ESPN: o ESPN 2 antigo não pode seguir publicado
+      [validate('ESPN 3', 'Palmeiras x Fluminense ao vivo na ESPN'), null],
+      // a pesquisa nova não propôs canal: o ESPN 2 já confirmado fica
+      [validate(null, 'Palmeiras x Fluminense ao vivo na ESPN'), 'ESPN 2'],
+      // propôs o mesmo canal, sem a fonte citá-lo: fica
+      [validate('ESPN 2', 'Palmeiras x Fluminense ao vivo na ESPN'), 'ESPN 2'],
+    ] as const) {
+      const { eventId } = await seedEvent(db, { startsAt: KICKOFF });
+      const first = validate('ESPN 2', 'Palmeiras x Fluminense ao vivo na ESPN 2');
+      expect(first.map((a) => a.channel)).toEqual(['ESPN 2']);
+      await apply(eventId, first);
+      expect(next.map((a) => a.channel)).toEqual([null]);
+      await apply(eventId, next);
+      expect(await channelOf(eventId)).toBe(expected);
+    }
   });
 });

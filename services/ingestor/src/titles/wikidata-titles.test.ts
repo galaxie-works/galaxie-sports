@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { SparqlBinding } from '../multisport/wikidata/sparql-client.js';
+import type { SparqlBinding, SparqlClient } from '../multisport/wikidata/sparql-client.js';
 import {
   coverageOf,
+  fetchEditions,
   isSeniorMenName,
   labelRange,
   normalizeTeamName,
   parseEditions,
   resolveWinners,
+  TITLE_COMPETITIONS,
   type CoreTeam,
   type MappedTeam,
   type WinnerInfo,
@@ -222,5 +224,52 @@ describe('coverageOf — lista completa até a primeira lacuna', () => {
       ed('b', 2005),
     ]);
     expect(c.completeThrough).toBe(2005);
+  });
+});
+
+describe('Paraguai: Apertura e Clausura no mesmo QID', () => {
+  const paraguay = TITLE_COMPETITIONS.filter((c) => c.qid === 'Q954911');
+
+  it('dois feeds, cada um com o seu slug e o seu torneio', () => {
+    expect(paraguay.map((c) => c.slugs)).toEqual([
+      ['paraguay-primera-apertura'],
+      ['paraguay-primera-clausura'],
+    ]);
+    // nenhuma outra competição manda o mesmo campeão para dois slugs
+    expect(TITLE_COMPETITIONS.every((c) => c.slugs.length === 1)).toBe(true);
+  });
+
+  it('cada torneio só com as edições dele; a edição sem o torneio no rótulo fica de fora dos dois; uma consulta', async () => {
+    const queries: string[] = [];
+    const sparql = {
+      query: async (name: string) => {
+        queries.push(name);
+        return {
+          data: {
+            head: { vars: [] },
+            results: {
+              bindings: [
+                row('Q1', 'Q501', { label: '2023 Torneo Apertura (Paraguay)', end: '2023-06-01' }),
+                row('Q2', 'Q502', { label: '2023 Torneo Clausura (Paraguay)', end: '2023-12-01' }),
+                row('Q3', 'Q503', {
+                  label: '2022 Paraguayan Primera División season',
+                  end: '2022-12-01',
+                }),
+              ],
+            },
+          },
+          fromCache: false,
+        };
+      },
+    } as unknown as SparqlClient;
+    const logs: string[] = [];
+    const by = await fetchEditions(sparql, paraguay, (m) => logs.push(m));
+    // a edição da temporada inteira (sem o torneio no rótulo) aparece no log dos dois feeds, para conferir
+    expect(logs.filter((l) => l.includes('2022 Paraguayan Primera División season (Q3)'))).toHaveLength(2);
+    expect(paraguay.map((c) => by.get(c)!.map((e) => e.winners[0]))).toEqual([['Q501'], ['Q502']]);
+    expect(queries).toEqual(['titles-editions-Q954911']);
+    // cópias: a recusa marcada num feed não passa para o outro
+    by.get(paraguay[0]!)![0]!.rejected = { reason: 'core_disagrees' };
+    expect(by.get(paraguay[1]!)![0]!.rejected).toBeUndefined();
   });
 });

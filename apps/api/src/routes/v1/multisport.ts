@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import {
@@ -70,6 +70,9 @@ function medalsTtl(g: GamesRow): number {
 }
 
 /** Colunas da view do quadro (views não entram aninhadas no select). */
+/** Edições retidas listadas no histórico de medalhas (as mais recentes; o total vai em `withheld_total`). */
+const WITHHELD_MAX = 10;
+
 const MT_COLS = {
   nocCode: medalTable.nocCode,
   gold: medalTable.gold,
@@ -80,7 +83,8 @@ const MT_COLS = {
   rankByTotal: medalTable.rankByTotal,
 };
 
-const ScheduleCursor = z.object({ s: z.string().nullable(), i: z.string().regex(UUID_RE) });
+// `s` vai para o SQL como timestamptz: só ISO 8601 válido (cursor forjado → 400, não 500)
+const ScheduleCursor = z.object({ s: z.iso.datetime().nullable(), i: z.string().regex(UUID_RE) });
 
 // ─── qualidade de dados ──────────────────────────────────────────────────────────────────────────
 
@@ -657,26 +661,45 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
         const db = requireDb(ctx);
         const nocs = await db.select().from(noc).where(inArray(noc.code, query.noc)).orderBy(asc(noc.code));
         if (!nocs.length) throw problems.notFound('Comitê olímpico (CON)');
-        const conds: SQL[] = [
-          inArray(
-            medalTable.nocCode,
-            nocs.map((n) => n.code),
-          ),
-          inArray(games.type, query.type),
-        ];
+        // as edições vêm de games: a retida entra em `withheld` mesmo sem linha do CON no quadro (senão o
+        // cliente não distingue "retida" de "sem participação"); as futuras ainda não são histórico
+        const conds: SQL[] = [inArray(games.type, query.type), ne(games.status, 'upcoming')];
         if (query.season) conds.push(eq(games.season, query.season));
-        const rows = await db
-          .select({ m: MT_COLS, g: games })
-          .from(medalTable)
-          .innerJoin(games, eq(games.id, medalTable.gamesId))
+        const editions = await db
+          .select()
+          .from(games)
           .where(and(...conds))
-          .orderBy(asc(games.year), asc(games.type), asc(games.season), asc(medalTable.nocCode));
+          .orderBy(asc(games.year), asc(games.type), asc(games.season));
+        const published = editions.filter((g) => medalQuality(g, locale).publishable);
+        const tableRows = published.length
+          ? await db
+              .select({ gamesId: medalTable.gamesId, m: MT_COLS })
+              .from(medalTable)
+              .where(
+                and(
+                  inArray(
+                    medalTable.gamesId,
+                    published.map((g) => g.id),
+                  ),
+                  inArray(
+                    medalTable.nocCode,
+                    nocs.map((n) => n.code),
+                  ),
+                ),
+              )
+              .orderBy(asc(medalTable.nocCode))
+          : [];
+        const rows = editions.flatMap((g): { g: GamesRow; m: (typeof tableRows)[number]['m'] | null }[] => {
+          const lines = tableRows.filter((r) => r.gamesId === g.id);
+          return lines.length ? lines.map((r) => ({ g, m: r.m })) : [{ g, m: null }];
+        });
 
         const body: MedalHistory = {
           nocs: nocs.map((n) => nocRef(n, locale)),
           data: [],
           totals: [],
           withheld: [],
+          withheld_total: 0,
           sources: [],
         };
         const totals = new Map<string, { gold: number; silver: number; bronze: number; total: number }>();
@@ -689,6 +712,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
             withheld.set(r.g.slug, { slug: r.g.slug, name, data_quality: quality });
             continue;
           }
+          if (!r.m) continue; // edição publicada sem medalha do CON
           sourceGames.set(r.g.id, r.g);
           body.data.push({
             games: { slug: r.g.slug, type: r.g.type, season: r.g.season, year: r.g.year, name },
@@ -712,7 +736,10 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           noc: n.code,
           ...(totals.get(n.code) ?? { gold: 0, silver: 0, bronze: 0, total: 0 }),
         }));
-        body.withheld = [...withheld.values()];
+        // sem avaliação de qualidade, quase toda edição antiga é retida: só as mais recentes, e o total
+        const retained = [...withheld.values()];
+        body.withheld = retained.slice(-WITHHELD_MAX);
+        body.withheld_total = retained.length;
         // fontes: licença de cada fonte usada nas edições publicadas
         if (sourceGames.size) {
           const src = await db

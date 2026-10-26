@@ -246,6 +246,8 @@ function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
 function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
   const tl = useI18n().t.live.timeline;
   const decisive = i.flags.includes('decisive');
+  // gol: o time que somou (no gol contra, o beneficiado, a quem valem placar e bandeiras); demais lances: o do lance
+  const crest = i.scoring_team ?? i.team;
   const title =
     i.kind === 'var'
       ? `VAR · ${tl.var[(i.detail ?? '').toLowerCase()] ?? i.detail ?? tl.varReview}`
@@ -288,11 +290,11 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
             </Badge>
           ))}
           {reason ? <span className="text-muted-foreground text-xs">{reason}</span> : null}
-          {i.team ? (
+          {crest ? (
             <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-1.5 text-xs">
-              <Crest src={i.team.logo} name={i.team.name ?? ''} size="xs" />
+              <Crest src={crest.logo} name={crest.name ?? ''} size="xs" />
               {/* coluna estreita (lateral da página): só o escudo */}
-              <span className="hidden truncate @md:inline">{i.team.name}</span>
+              <span className="hidden truncate @md:inline">{crest.name}</span>
             </span>
           ) : null}
         </div>
