@@ -12,7 +12,7 @@ Status:
 
 | # | Decisão | Por quê |
 |---|---|---|
-| 1 | Chave de teste: mesmo dado da produção, limite fixo de 60 req/min por rota e uso contado à parte | Não existe sandbox de dados esportivos; o que o cliente precisa é separar o tráfego de desenvolvimento, como o modo teste da Stripe |
+| 1 | Chave de teste: mesmo dado da produção, limite de 60 req/min por rota (nunca acima do limite do tenant) e uso contado à parte | Não existe sandbox de dados esportivos; o que o cliente precisa é separar o tráfego de desenvolvimento, como o modo teste da Stripe |
 | 2 | Publicável de teste `gs_pk_test_`, aceita só em `localhost`/`127.0.0.1`/`[::1]` | A chave de produção nunca precisa listar `localhost`, que qualquer um roda na própria máquina |
 | 3 | Teto por tenant: 5 secretas por ambiente e 20 publicáveis, contando as em período de graça | Basta para rotação e um serviço por chave; um teto baixo limita o estrago de uma conta comprometida |
 | 4 | Plano `trial` de 30 dias, cota baixa, sem SSE nem webhooks | Avaliação com prazo e custo previsíveis; o fim do trial vale para todas as chaves do tenant |
@@ -24,7 +24,7 @@ Status:
 | Tipo | Formato | Onde | Escopo |
 |---|---|---|---|
 | Secreta de produção | `gs_live_<prefixo 12 hex>_<segredo 43>_<crc32 8 hex>` | Só no backend do cliente | Módulos do plano ∩ escopos da chave |
-| Secreta de teste | `gs_test_..._<crc32>` | Desenvolvimento e homologação | Igual, com 60 req/min por rota e uso à parte |
+| Secreta de teste | `gs_test_..._<crc32>` | Desenvolvimento e homologação | Igual, com 60 req/min por rota (ou o limite do tenant, se menor) e uso à parte |
 | Publicável de produção | `gs_pk_live_<segredo 43>` | Navegador, nas origens cadastradas (sem `localhost`) | Leitura `/v1`, módulos do widget |
 | Publicável de teste | `gs_pk_test_<segredo 43>` | Navegador em `localhost`, `127.0.0.1` ou `[::1]` | Igual |
 
