@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { buildServer } from '../server.js';
 import { memoryTenant } from '../test-helpers.js';
 import { MemoryUsageBackend } from './counter.js';
+
+/** Backend com leitura lenta e contada: várias requisições chegam enquanto a 1ª leitura está em voo. */
+class SlowUsageBackend extends MemoryUsageBackend {
+  reads = 0;
+  constructor(private readonly delayMs = 20) {
+    super();
+  }
+  override async get(day: string, tenantId: string): Promise<Record<string, number>> {
+    this.reads += 1;
+    await new Promise((r) => setTimeout(r, this.delayMs));
+    return super.get(day, tenantId);
+  }
+}
 import { QuotaGuard } from './quota.js';
 
 describe('QuotaGuard (cota diária, docs/politica-de-chaves.md §4)', () => {
@@ -33,9 +46,63 @@ describe('QuotaGuard (cota diária, docs/politica-de-chaves.md §4)', () => {
     now = new Date('2026-10-27T00:00:01Z');
     expect((await guard.check('t', 100)).used).toBe(1);
   });
+
+  it('requisições simultâneas com o cache frio ou vencido compartilham uma leitura e contam todas', async () => {
+    const backend = new SlowUsageBackend();
+    let now = new Date('2026-10-26T12:00:00Z');
+    const guard = new QuotaGuard(backend, { now: () => now, refreshMs: 1_000 });
+    const burst = async (n: number) => {
+      const out = await Promise.all(Array.from({ length: n }, () => guard.check('t', 10)));
+      return out.map((q) => q.level);
+    };
+    // 20 de uma vez, cota 10: passam 11 (até 110%) e 9 são recusadas, com uma leitura só
+    const cold = await burst(20);
+    expect(cold.filter((l) => l === 'blocked')).toHaveLength(9);
+    expect(backend.reads).toBe(1);
+    // entrada vencida: de novo uma leitura só, e as que chegam juntas continuam contadas
+    await backend.incr([{ day: '2026-10-26', tenantId: 't', route: 'GET /v1/sports', n: 5 }]);
+    now = new Date('2026-10-26T12:00:02Z');
+    const stale = await burst(10);
+    expect(backend.reads).toBe(2);
+    expect(stale.filter((l) => l === 'blocked')).toHaveLength(4); // 5 + 6 = 11 passam
+  });
+
+  it('erro na leitura chega a todas as requisições em espera, e a próxima tenta de novo', async () => {
+    const backend = new SlowUsageBackend();
+    let fail = true;
+    const get = backend.get.bind(backend);
+    backend.get = async (day, tenantId) => {
+      const counts = await get(day, tenantId);
+      if (fail) throw new Error('valkey fora');
+      return counts;
+    };
+    const guard = new QuotaGuard(backend);
+    const out = await Promise.allSettled([guard.check('t', 10), guard.check('t', 10)]);
+    expect(out.map((r) => r.status)).toEqual(['rejected', 'rejected']);
+    expect(backend.reads).toBe(1);
+    fail = false;
+    expect((await guard.check('t', 10)).used).toBe(1);
+    expect(backend.reads).toBe(2);
+  });
 });
 
 describe('cota no servidor', () => {
+  it('rajada simultânea no cache frio: passam só até 110% da cota', async () => {
+    const live = await memoryTenant({ id: 'tenant-rajada', dailyRequestQuota: 3, rateLimitPerMinute: 1000 });
+    // leitura mais lenta que a autenticação das 20 (scrypt), para que todas cheguem à cota com ela em voo
+    const backend = new SlowUsageBackend(1_000);
+    const app = buildServer({ tenantStore: live.store, usage: backend });
+    const res = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        app.inject({ method: 'GET', url: '/v1/sports', headers: { 'x-galaxie-key': live.key } }),
+      ),
+    );
+    // cota 3: passam 3 (3,3 arredonda para baixo) e as outras 17 levam 429
+    expect(res.filter((r) => r.statusCode === 429)).toHaveLength(17);
+    expect(backend.reads).toBe(1);
+    await app.close();
+  });
+
   it('headers de cota, aviso e 429 QUOTA_EXCEEDED; chave de teste fica fora; sem cota, sem headers', async () => {
     const live = await memoryTenant({ id: 'tenant-q', dailyRequestQuota: 3, rateLimitPerMinute: 1000 });
     const test = await memoryTenant({ id: 'tenant-q', dailyRequestQuota: 3, env: 'test' }, live.store);

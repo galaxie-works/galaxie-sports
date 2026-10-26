@@ -725,6 +725,10 @@ describe('tenant:create no teto de chaves (upsertTenantWithKey)', () => {
     expect(after[0]).toMatchObject({ name: 'Original', plan: 'core_data' });
     const keys = await db.select({ id: apiKey.id }).from(apiKey).where(eq(apiKey.tenantId, first.tenant.id));
     expect(keys).toHaveLength(5);
+    // nem a auditoria registra a emissão recusada
+    const events = (await adminReq('GET', '/internal/admin/tenants/cli-teto/key-events')).json()
+      .data as unknown[];
+    expect(events).toHaveLength(5);
 
     // o teto é por ambiente: em test, atualiza o tenant e emite
     const test = await upsertTenantWithKey(db, input('Trocado', 'enterprise'), { env: 'test' });

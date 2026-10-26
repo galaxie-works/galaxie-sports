@@ -436,6 +436,40 @@ describe('webhooks assinados', () => {
     expect(hits('/susp')).toHaveLength(0);
   });
 
+  it('tenant que passou a trial: entregas pendentes ou em retentativa são descartadas, sem envio', async () => {
+    const id = await newEvent();
+    const { id: tenantId } = await upsertTenant(db, {
+      slug: 'portal-rebaixado',
+      name: 'Rebaixado',
+      plan: 'enterprise',
+    });
+    const ep = await create({
+      tenantSlug: 'portal-rebaixado',
+      url: `${base}/rebaixado`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    await db.update(tenant).set({ plan: 'trial' }).where(eq(tenant.id, tenantId));
+    // entregas que já estavam na fila quando o plano mudou: uma nova e uma em retentativa
+    const rows = await db
+      .insert(webhookDelivery)
+      .values([
+        { endpointId: ep.id, changeId: 1, topic: 'event.score_changed', payload: { id: '1' } },
+        { endpointId: ep.id, changeId: 2, topic: 'event.score_changed', payload: { id: '2' }, attempts: 2 },
+      ])
+      .returning();
+    for (const row of rows)
+      await expect
+        .poll(
+          async () => (await db.select().from(webhookDelivery).where(eq(webhookDelivery.id, row.id)))[0],
+          {
+            timeout: 5_000,
+          },
+        )
+        .toMatchObject({ status: 'dead', lastError: 'plano sem webhooks' });
+    expect(hits('/rebaixado')).toHaveLength(0);
+  });
+
   it('endpoint cadastrado durante um enfileiramento recebe a mudança commitada depois dele', async () => {
     // Reproduz de forma determinística a corrida que, sob carga, deixava os testes acima com 0 entregas:
     // o cadastro do endpoint e a mudança commitam enquanto um enfileiramento está em andamento, logo antes
