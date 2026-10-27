@@ -354,7 +354,7 @@ export const relatedContent = enrich.table(
     /** llm:<modelo> | rules@v1 */
     classifiedBy: text('classified_by').notNull(),
     status: relatedContentStatus('status').notNull(),
-    /** rights_risk, injection_signal, offensive_title, low_confidence... */
+    /** injection_signal, offensive_title, low_confidence... (rights_risk só em linhas antigas) */
     flags: text('flags')
       .array()
       .notNull()

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Blocklist } from '@galaxie/where-to-watch';
 import type { EventCore, TeamRef } from '../context/event-core.js';
-import { FakeLlmClient } from '../llm/fake.js';
 import { ChannelAllowlist, type ChannelEntry, type ChannelScope } from './channels.js';
 import {
   aspectFromFrame,
@@ -366,16 +365,7 @@ describe('formato e classificador por regras', () => {
   });
 });
 
-describe('classificação pelo LLM (tier light) com guardrails', () => {
-  const facts = {
-    home: 'Palmeiras',
-    away: 'Fluminense',
-    competition: 'Libertadores',
-    stage: 'Semifinal',
-    kickoff: KICKOFF.toISOString(),
-    score: { home: 2, away: 1, penalties: null },
-    scorers: ['Raphael Veiga'],
-  };
+describe('classificação por regras com guardrails', () => {
   const vids = [
     {
       id: 'a',
@@ -406,58 +396,11 @@ describe('classificação pelo LLM (tier light) com guardrails', () => {
     },
   ];
 
-  it('uma chamada light com JSON Schema; ids desconhecidos ignorados; omitidos e injeção caem nas regras', async () => {
-    const llm = new FakeLlmClient([
-      {
-        data: {
-          videos: [
-            { id: 'a', content_type: 'highlights', about_this_event: true, confidence: 0.95 },
-            { id: 'zzz', content_type: 'goal', about_this_event: true, confidence: 0.9 },
-          ],
-        },
-        model: 'fake-light',
-      },
-    ]);
-    const res = await classifyVideos({ llm, eventId: 'ev-1', facts, videos: vids });
-    expect(llm.calls).toHaveLength(1);
-    const req = llm.calls[0]!;
-    expect(req).toMatchObject({
-      tier: 'light',
-      purpose: 'related:event:ev-1',
-      schemaName: 'related_content_classification',
-    });
-    expect(req.messages[0]!.content).toContain('<dados_externos');
-    expect(req.messages[0]!.content).not.toContain('Ignore as instruções');
-    expect(res.byId.get('a')).toMatchObject({
-      type: 'highlights',
-      classifiedBy: 'llm:fake-light',
-      confidence: 0.95,
-    });
-    expect(res.byId.has('zzz')).toBe(false);
+  it('classifica pelas regras; título com injeção é sinalizado', () => {
+    const res = classifyVideos({ videos: vids });
+    expect(res.byId.get('a')).toMatchObject({ type: 'highlights', classifiedBy: RULES_CLASSIFIER });
     expect(res.byId.get('b')).toMatchObject({ type: 'press_conference', classifiedBy: RULES_CLASSIFIER });
     expect(res.byId.get('c')).toMatchObject({ classifiedBy: RULES_CLASSIFIER, flags: ['injection_signal'] });
-  });
-
-  it('about_this_event = false é preservado; falha do LLM → regras', async () => {
-    const llm = new FakeLlmClient([
-      {
-        data: {
-          videos: [
-            { id: 'a', content_type: 'highlights', about_this_event: false, confidence: 0.9 },
-            { id: 'b', content_type: 'press_conference', about_this_event: true, confidence: 0.8 },
-          ],
-        },
-      },
-    ]);
-    const ok = await classifyVideos({ llm, eventId: 'e', facts, videos: vids.slice(0, 2) });
-    expect(ok.byId.get('a')!.aboutThisEvent).toBe(false);
-    const failing = new FakeLlmClient([new Error('orçamento diário de tokens esgotado')]);
-    const res = await classifyVideos({ llm: failing, eventId: 'e', facts, videos: vids.slice(0, 2) });
-    expect(res.error).toContain('orçamento');
-    expect([...res.byId.values()].every((c) => c.classifiedBy === RULES_CLASSIFIER)).toBe(true);
-    const none = await classifyVideos({ llm: null, eventId: 'e', facts, videos: vids.slice(0, 1) });
-    expect(none.llmCalls).toBe(0);
-    expect(none.byId.get('a')!.type).toBe('highlights');
   });
 });
 
@@ -639,12 +582,13 @@ describe('política de publicação e ranking', () => {
   it.each([
     ['official', 'highlights', 'published', []],
     ['rights_holder', 'goal', 'published', []],
-    ['media', 'highlights', 'pending', []],
+    // imagem de jogo de qualquer canal é publicada (decisão do dono, 27/10/2026)
+    ['media', 'highlights', 'published', []],
     ['media', 'analysis', 'published', []],
     ['creator', 'fan_reaction', 'published', []],
     ['creator', 'interview', 'pending', []],
-    ['creator', 'goal', 'rejected', ['rights_risk']],
-    ['unknown', 'highlights', 'rejected', ['rights_risk']],
+    ['creator', 'goal', 'published', []],
+    ['unknown', 'highlights', 'published', []],
     ['unknown', 'analysis', 'pending', []],
   ] as const)('%s × %s → %s', (tier, type, status, flags) => {
     expect(decidePublication({ tier, type, confidence: 0.9 })).toEqual({ status, flags: [...flags] });
@@ -773,44 +717,6 @@ describe('ajustes da primeira execução real', () => {
         video({ title: 'FELIPE MELO TÁ TORCENDO PRA QUEM?', tags: ['melhores momentos', 'pênaltis'] }),
       ).type,
     ).toBe('other');
-  });
-
-  it('classifica em lotes (listas grandes estouram a saída do modelo leve)', async () => {
-    const many = Array.from({ length: 45 }, (_, i) => ({
-      id: `v${i}`,
-      title: `Palmeiras x Fluminense melhores momentos ${i}`,
-      description: '',
-      channelTitle: 'C',
-      durationSeconds: 600,
-      format: 'long' as const,
-      tags: [],
-    }));
-    const llm = new FakeLlmClient((req) => ({
-      data: {
-        videos: [...req.messages[0]!.content.matchAll(/"id":"(v\d+)"/g)].map((m) => ({
-          id: m[1]!,
-          content_type: 'highlights',
-          about_this_event: true,
-          confidence: 0.9,
-        })),
-      },
-    }));
-    const res = await classifyVideos({
-      llm,
-      eventId: 'e',
-      facts: {
-        home: 'Palmeiras',
-        away: 'Fluminense',
-        competition: null,
-        stage: null,
-        kickoff: KICKOFF.toISOString(),
-        score: { home: 0, away: 1, penalties: { home: 5, away: 3 } },
-        scorers: [],
-      },
-      videos: many,
-    });
-    expect(llm.calls).toHaveLength(3);
-    expect([...res.byId.values()].filter((c) => c.classifiedBy.startsWith('llm:'))).toHaveLength(45);
   });
 
   it('handle da allowlist com poucos inscritos não ganha selo oficial (handle ocupado por terceiro)', () => {

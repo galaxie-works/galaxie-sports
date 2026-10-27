@@ -1,12 +1,13 @@
 /**
- * Política do Conteúdo relacionado (docs/12 §2 e §5): relevância, direitos e ranking. Código, nunca
- * LLM — o modelo só classifica; quem decide o que aparece é esta tabela.
+ * Política do Conteúdo relacionado (docs/12 §2 e §5): relevância, publicação e ranking. Código, nunca LLM.
+ * Imagem de jogo de qualquer canal é publicada (decisão do dono, 27/10/2026); o ranking põe oficiais e
+ * detentores de direitos na frente.
  */
 import type { RelatedContentType, RelatedFormat, RelatedSourceTier, RelatedStatus } from '@galaxie/db';
 import type { EventCore, TeamRef } from '../context/event-core.js';
 import { normalizeText } from '../guardrails/index.js';
 
-/** Tipos com imagem de jogo: só de canal oficial ou detentor de direitos (risco de reupload). */
+/** Tipos com imagem de jogo (gols, melhores momentos, pênaltis, jogo completo). */
 export const FOOTAGE_TYPES: ReadonlySet<RelatedContentType> = new Set([
   'highlights',
   'goal',
@@ -119,21 +120,18 @@ export function decidePublication(input: {
       status = 'published';
       break;
     case 'media':
-      status = footage ? 'pending' : 'published';
+      status = 'published';
       break;
     case 'creator':
-      // short de criador costuma ser corte de programa de TV (não é conteúdo próprio): fica para revisão
-      status = footage
-        ? 'rejected'
-        : CREATOR_TYPES.has(input.type) && input.format !== 'short'
-          ? 'published'
-          : 'pending';
+      // short de criador costuma ser corte de programa de TV (não é conteúdo próprio): fica para revisão,
+      // a não ser que seja imagem de jogo
+      status =
+        footage || (CREATOR_TYPES.has(input.type) && input.format !== 'short') ? 'published' : 'pending';
       if (status === 'pending' && input.format === 'short') flags.push('creator_short');
       break;
     default:
-      status = footage ? 'rejected' : 'pending';
+      status = footage ? 'published' : 'pending';
   }
-  if (footage && (input.tier === 'creator' || input.tier === 'unknown')) flags.push('rights_risk');
   if (status === 'published' && input.confidence < MIN_PUBLISH_CONFIDENCE) {
     status = 'pending';
     flags.push('low_confidence');

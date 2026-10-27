@@ -12,7 +12,7 @@ Nós sabemos. O `core` tem o evento (times, competição, fase, placar, autores 
 
 É um metadado vendável: o cliente monta a vitrine "Reveja o jogo" no hub esportivo, no card do evento ou no pós-jogo da TV conectada, sem curadoria manual.
 
-> **Fatos vêm do core; a IA só classifica.** O LLM não escolhe quais vídeos existem nem inventa links: os candidatos vêm da busca da YouTube Data API, e a política de publicação é código.
+> **Sem LLM.** Os candidatos vêm da busca da YouTube Data API; a classificação (regras de título, tags e duração) e a política de publicação são código. O Gemini saiu deste fluxo em 27/10/2026, por decisão do dono: a falta de crédito travava os vídeos e a busca não precisa de IA.
 
 ## 2. Regras de direitos
 
@@ -20,7 +20,7 @@ Nós sabemos. O `core` tem o evento (times, competição, fase, placar, autores 
 |---|---|
 | Guardamos **metadados** (id do vídeo, título, canal, duração, data, estatísticas) e o **link/embed oficial** da plataforma | Baixar, transcodificar, recortar ou **rehospedar** vídeo, áudio ou miniatura |
 | Exibimos a miniatura pela URL da própria plataforma (`i.ytimg.com`), sempre linkando para o vídeo | Servir a miniatura do nosso CDN |
-| Priorizamos canais **oficiais** (clubes, competição, detentores de direitos do país) | Publicar imagens de jogo (gols, melhores momentos, jogo completo) de canal fora da allowlist — o risco de reupload sem licença é alto |
+| Priorizamos canais **oficiais** (clubes, competição, detentores de direitos do país) no ranking | — |
 | Só publicamos vídeo **público e incorporável** (`status.embeddable = true`) | Contornar bloqueio regional ou de idade |
 | **Apagamos** o que veio da API do YouTube 30 dias depois de obtido, sem renovação (§2.1) | Guardar título, canal, estatísticas ou ids indefinidamente |
 
@@ -41,7 +41,7 @@ O job é `purgeYoutubeData` (`services/ai-agents/src/related/store.ts`). Ele rod
 
 **Como reverter** (Ajustes → Vídeos relacionados): **Liberar** grava a regra `allow`, que vence as recusas, e o canal volta à vitrine e à coleta. **Limpar recusas** apaga as recusas do canal, o registro de quem relatou e a regra do automático; o automático recomeça a contar e a regra manual fica. **Automático** apaga a regra; se o canal ainda tiver 3 recusas, o job grava a regra do automático de novo. O risco aceito é que um cliente, sozinho, derrube um canal para todos. Ele é mitigado pelo registro de quem relatou (`related_playback_report`), pelo log da API e da demo e pelo painel.
 
-Vídeo de criador fora da allowlist só entra se for **conteúdo próprio** (reação, análise) e o canal tiver audiência mínima (`RELATED_CREATOR_MIN_SUBSCRIBERS`, padrão 100 mil inscritos). O que não passa fica `pending` (guardado, não aparece) ou `rejected`.
+**Imagem de jogo** (gols, melhores momentos, pênaltis, jogo completo) é publicada venha de qualquer canal: decisão do dono em 27/10/2026, que tirou a regra `rights_risk` (imagem de jogo só de canal oficial ou detentor), criada sem a aprovação dele. O embed é o do YouTube, e vídeo derrubado por direitos sai na revalidação ou pelo bloqueio no player. Fora da imagem de jogo, vídeo de criador fora da allowlist só entra se for **conteúdo próprio** (reação, análise) e o canal tiver audiência mínima (`RELATED_CREATOR_MIN_SUBSCRIBERS`, padrão 100 mil inscritos); o resto fica `pending` (guardado, não aparece).
 
 ## 3. Fontes
 
@@ -124,7 +124,7 @@ flowchart LR
   Q --> S[search.list<br/>publishedAfter = apito<br/>para cedo sem vídeo novo<br/>relevanceLanguage por locale]
   S --> V[videos.list + channels.list<br/>duração, status, estatísticas,<br/>handle e inscritos]
   V --> R[Relevância determinística<br/>cita os times? público e incorporável?]
-  R --> L[Classificação<br/>LLM light + JSON Schema<br/>fallback por regras]
+  R --> L[Classificação<br/>regras de título e duração]
   L --> P[Política de publicação<br/>allowlist + tipo + direitos]
   P --> DB[(enrich.related_content)]
   DB --> CF[change feed<br/>event.related_content_changed]
@@ -146,20 +146,15 @@ flowchart LR
    Todas com `type=video`, `publishedAfter` = início do jogo, `publishedBefore` = início + 7 dias, `videoEmbeddable=true`, `relevanceLanguage` e `regionCode` do locale, `maxResults=25`.
 3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics,contentDetails`), com o canal no cache de 30 dias (§3.2).
 4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for o oficial de um dos dois clubes. Canal da competição e emissora detentora cobrem outros jogos de cada time: precisam dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
-5. **Classificação**: o LLM tier `light` recebe os fatos do jogo e os vídeos — em lotes de 20, porque uma lista de ~70 vídeos estourou o limite de saída do modelo leve na primeira execução real — (título, trecho da descrição, canal, duração) **como dado** (`<dados_externos>`), e devolve `{ id, content_type, about_this_event, confidence }` por vídeo, em JSON Schema estrito. Guardrails:
-   - id que não estava na entrada é ignorado; vídeo que o LLM omitiu cai no classificador por regras;
-   - `about_this_event = false` reprova o vídeo (ex.: jogo de outra temporada com os mesmos times);
-   - título com sinal de *prompt injection* (`detectPromptInjection`) não vai ao LLM: é classificado por regras e marcado `injection_signal`;
-   - título com termo ofensivo da lista de rivalidade (`findForbiddenTerms`) fica `pending` (`offensive_title`);
-   - o orçamento diário de tokens é o compartilhado (`ops.llm_usage`, agente `related`); estourou ou falhou → regras.
+5. **Classificação** por regras (`classifyByRules`): tipo pelo título (palavras-chave por idioma: "melhores momentos", "golaço", "coletiva", "react"...), com a duração para separar gol de compacto e jogo completo; sem palavra-chave, o tipo é `other` com confiança baixa e o vídeo fica `pending`. Título com sinal de *prompt injection* é marcado `injection_signal` e não é publicado. A relevância (os dois times citados, depois do apito, janela de 7 dias) é a do passo anterior, também em código.
 6. **Política de publicação (código)**:
 
    | Canal | Tipos de imagem de jogo (`highlights`, `goal`, `penalties`, `full_match`) | Demais tipos |
    |---|---|---|
    | `official`, `rights_holder` | `published` | `published` |
    | `media` | `pending` (pode ter imagem licenciada ou não) | `published` |
-   | `creator` (≥ 100 mil inscritos) | `rejected` (`rights_risk`) | `published` só `fan_reaction` e `analysis` em vídeo **longo**; short de criador fica `pending` (`creator_short`: na prática são cortes de programas de TV); o resto `pending` |
-   | fora da allowlist, abaixo do mínimo | `rejected` (`rights_risk`) | `pending` |
+   | `creator` (≥ 100 mil inscritos) | `published` | `published` só `fan_reaction` e `analysis` em vídeo **longo**; short de criador fica `pending` (`creator_short`: na prática são cortes de programas de TV); o resto `pending` |
+   | fora da allowlist, abaixo do mínimo | `published` | `pending` |
 
    Confiança < 0,5 na classificação → `pending`.
 7. **Ranking**: `source_tier` (oficial 3, detentor 3, imprensa 2, criador 1) + log₁₀(visualizações) / 2 + bônus de tipo (melhores momentos e gols primeiro) − meia-vida de 3 dias desde o apito. Desempate por data e id.
@@ -199,9 +194,9 @@ create table enrich.related_content (
   statistics       jsonb,                    -- { views, likes, comments, fetched_at }
   rank_score       numeric(6,3) not null,
   confidence       numeric(3,2) not null,
-  classified_by    text not null,            -- llm:<modelo> | rules@v1
+  classified_by    text not null,            -- rules@v1 (llm:<modelo> nas linhas antigas)
   status           enrich.related_content_status not null,
-  flags            text[] not null default '{}',  -- rights_risk, injection_signal, offensive_title...
+  flags            text[] not null default '{}',  -- injection_signal, offensive_title, low_confidence... (rights_risk nas linhas antigas)
   queries          text[] not null default '{}',  -- consultas que acharam o vídeo
   run_id           uuid,
   first_seen_at    timestamptz not null default now(),
@@ -374,7 +369,7 @@ A simulação (`services/ai-agents/test/related-day.integration.test.ts`) roda o
 
 Se o aumento vier, basta mudar `YOUTUBE_SEARCH_DAILY_QUOTA` no painel de Operação; o pipeline não muda.
 
-LLM: uma chamada `light` por evento (todos os vídeos de uma vez), ~3–5 mil tokens de entrada → frações de centavo por evento.
+LLM: nenhum (desde 27/10/2026). Antes, uma chamada `light` por evento.
 
 ## 9. Primeira execução real (2026-10-22)
 
@@ -399,7 +394,7 @@ pnpm --filter @galaxie/ingestor canais:wikidata [--plan] [--resolver] # mapa de 
 pnpm --filter @galaxie/ai-agents related:canais [--plan]             # canais do channels.yaml + conferência no YouTube
 ```
 
-Flags: `--plan`, `--evento`, `--horas` (padrão 24), `--tier` (padrão 2), `--limite` (padrão 60), `--forcar`, `--sem-llm` (só regras). Variáveis (editáveis no painel de Operação): `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_SEARCH_DAILY_QUOTA` (100), `YOUTUBE_DAILY_QUOTA` (10.000), `YOUTUBE_QUOTA_RESERVE_PERCENT` (10), `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`, `RELATED_MARKETS`, `RELATED_MARKET_WEIGHTS`, `RELATED_MIN_RELEVANCE`, `RELATED_MAX_VIDEOS`, `RELATED_MAX_SEARCHES_PER_EVENT` (4), `RELATED_MAX_SEARCHES_PER_RUN` (2), `RELATED_CHANNEL_ENOUGH` (4), `RELATED_CHANNEL_REFRESH_MINUTES` (60), `RELATED_REVALIDATE_MINUTES` (120), `RELATED_RESERVE_MAX_PERCENT` (60), `RELATED_SEARCH_AFTER_KICKOFF_MINUTES` (140), `RELATED_LOOKBACK_HOURS`, `RELATED_SECOND_SEARCH_MINUTES`. Saíram `RELATED_HIGH_RELEVANCE` e `RELATED_HIGH_RESERVE_PERCENT` (a reserva fixa para relevância ≥ 85 virou a reserva por agenda, §8.2). Cron padrão: a cada 3 min o dia todo; a execução sem trabalho não chama o YouTube, e os canais oficiais põem vídeo no ar em minutos depois do apito.
+Flags: `--plan`, `--evento`, `--horas` (padrão 24), `--tier` (padrão 2), `--limite` (padrão 60), `--forcar` (`--sem-llm` é aceito e ignorado). Variáveis (editáveis no painel de Operação): `YOUTUBE_API_KEY` (só no `.env`), `YOUTUBE_SEARCH_DAILY_QUOTA` (100), `YOUTUBE_DAILY_QUOTA` (10.000), `YOUTUBE_QUOTA_RESERVE_PERCENT` (10), `RELATED_RESEARCH_HOURS`, `RELATED_CREATOR_MIN_SUBSCRIBERS`, `RELATED_MARKETS`, `RELATED_MARKET_WEIGHTS`, `RELATED_MIN_RELEVANCE`, `RELATED_MAX_VIDEOS`, `RELATED_MAX_SEARCHES_PER_EVENT` (4), `RELATED_MAX_SEARCHES_PER_RUN` (2), `RELATED_CHANNEL_ENOUGH` (4), `RELATED_CHANNEL_REFRESH_MINUTES` (60), `RELATED_REVALIDATE_MINUTES` (120), `RELATED_RESERVE_MAX_PERCENT` (60), `RELATED_SEARCH_AFTER_KICKOFF_MINUTES` (140), `RELATED_LOOKBACK_HOURS`, `RELATED_SECOND_SEARCH_MINUTES`. Saíram `RELATED_HIGH_RELEVANCE` e `RELATED_HIGH_RESERVE_PERCENT` (a reserva fixa para relevância ≥ 85 virou a reserva por agenda, §8.2). Cron padrão: a cada 3 min o dia todo; a execução sem trabalho não chama o YouTube, e os canais oficiais põem vídeo no ar em minutos depois do apito.
 
 ## 11. Demo
 
@@ -427,7 +422,7 @@ O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/
 | Risco | Mitigação |
 |---|---|
 | Reupload sem licença | Imagem de jogo só de canal oficial/detentor; blocklist editorial |
-| Vídeo de jogo antigo com os mesmos times | `publishedAfter` = apito, `about_this_event` do LLM, janela de 7 dias |
+| Vídeo de jogo antigo com os mesmos times | `publishedAfter` = apito e janela de 7 dias; título sem tipo claro fica `pending` |
 | Título com *prompt injection* | Conteúdo como dado, detecção de padrões, saída em JSON Schema e política em código |
 | Cota de busca (100/dia) | Canais oficiais primeiro (balde geral), parada cedo, teto por jogo, reserva por agenda, rendimento por competição; pedido de aumento (§8.4) |
 | Canal errado no Wikidata | Só QID com casamento estrito, afirmação vigente do P2397, piso de 10 mil inscritos e a mesma relevância/política dos vídeos da busca |
