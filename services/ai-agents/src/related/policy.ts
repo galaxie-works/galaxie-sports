@@ -1,21 +1,19 @@
 /**
- * Política do Conteúdo relacionado (docs/12 §2 e §5): relevância, direitos e ranking. Código, nunca
- * LLM — o modelo só classifica; quem decide o que aparece é esta tabela.
+ * Política do Conteúdo relacionado (docs/12 §2 e §5): relevância, publicação e ranking. Código, nunca LLM.
+ * Imagem de jogo de qualquer canal é publicada (decisão do dono, 27/10/2026); o ranking põe oficiais e
+ * detentores de direitos na frente.
  */
 import type { RelatedContentType, RelatedFormat, RelatedSourceTier, RelatedStatus } from '@galaxie/db';
 import type { EventCore, TeamRef } from '../context/event-core.js';
 import { normalizeText } from '../guardrails/index.js';
 
-/** Tipos com imagem de jogo: só de canal oficial ou detentor de direitos (risco de reupload). */
+/** Tipos com imagem de jogo (gols, melhores momentos, pênaltis, jogo completo). */
 export const FOOTAGE_TYPES: ReadonlySet<RelatedContentType> = new Set([
   'highlights',
   'goal',
   'penalties',
   'full_match',
 ]);
-
-/** Tipos de conteúdo próprio que um criador fora da allowlist pode publicar. */
-export const CREATOR_TYPES: ReadonlySet<RelatedContentType> = new Set(['fan_reaction', 'analysis']);
 
 export const MIN_PUBLISH_CONFIDENCE = 0.5;
 
@@ -58,6 +56,24 @@ export function mentions(text: string, variants: readonly string[]): boolean {
   );
 }
 
+/**
+ * O título é de outra temporada? Cita um ano ("Brasileirão 2025") e nenhum dos anos citados cobre o do jogo;
+ * temporada cruzada ("2025/26", "2025-2026") cobre os dois anos. Sem ano no título, não dá para dizer.
+ */
+export function otherSeason(title: string, eventYear: number): boolean {
+  const years = [...title.matchAll(/(?<!\d)((?:19|20)\d{2})(?:\s*[/-]\s*(\d{4}|\d{2}))?(?!\d)/g)];
+  if (!years.length) return false;
+  return !years.some((m) => {
+    const start = Number(m[1]);
+    const end = m[2]
+      ? m[2].length === 2
+        ? Math.floor(start / 100) * 100 + Number(m[2])
+        : Number(m[2])
+      : start;
+    return eventYear >= start && eventYear <= end;
+  });
+}
+
 export interface RelevanceInput {
   title: string;
   description: string;
@@ -87,6 +103,7 @@ export function checkRelevance(
   const t = v.publishedAt.getTime();
   if (!Number.isFinite(t) || t < core.startsAt.getTime()) return { ok: false, reason: 'before_kickoff' };
   if (t > core.startsAt.getTime() + windowDays * 86_400_000) return { ok: false, reason: 'outside_window' };
+  if (otherSeason(v.title, core.startsAt.getUTCFullYear())) return { ok: false, reason: 'other_season' };
   const text = normalizeText(`${v.title} ${v.tags.join(' ')} ${v.description.slice(0, 500)}`)
     .replace(/[^\p{L}\p{N} ]+/gu, ' ')
     .replace(/\s+/g, ' ');
@@ -112,29 +129,24 @@ export function decidePublication(input: {
 }): PublishDecision {
   const flags = [...(input.flags ?? [])];
   const footage = FOOTAGE_TYPES.has(input.type);
+  // decisões do dono (27/10/2026): oficial, detentor e imprensa publicam tudo; criador publica tudo menos o
+  // que as regras não souberam classificar; canal desconhecido só imagem de jogo
+  const trusted = input.tier === 'official' || input.tier === 'rights_holder';
   let status: RelatedStatus;
   switch (input.tier) {
     case 'official':
     case 'rights_holder':
+    case 'media':
       status = 'published';
       break;
-    case 'media':
-      status = footage ? 'pending' : 'published';
-      break;
     case 'creator':
-      // short de criador costuma ser corte de programa de TV (não é conteúdo próprio): fica para revisão
-      status = footage
-        ? 'rejected'
-        : CREATOR_TYPES.has(input.type) && input.format !== 'short'
-          ? 'published'
-          : 'pending';
-      if (status === 'pending' && input.format === 'short') flags.push('creator_short');
+      status = input.type === 'other' ? 'pending' : 'published';
       break;
     default:
-      status = footage ? 'rejected' : 'pending';
+      status = footage ? 'published' : 'pending';
   }
-  if (footage && (input.tier === 'creator' || input.tier === 'unknown')) flags.push('rights_risk');
-  if (status === 'published' && input.confidence < MIN_PUBLISH_CONFIDENCE) {
+  // tipo não reconhecido (confiança baixa): só o canal oficial ou detentor publica mesmo assim
+  if (status === 'published' && !trusted && input.confidence < MIN_PUBLISH_CONFIDENCE) {
     status = 'pending';
     flags.push('low_confidence');
   }
