@@ -18,17 +18,10 @@ import {
   type RelatedUpcomingGame,
 } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
-import {
-  competitionName,
-  loadEventCore,
-  stageName,
-  teamName,
-  type EventCore,
-} from '../context/event-core.js';
+import { loadEventCore, type EventCore } from '../context/event-core.js';
 import { eventMatchLabel } from '../context/run.js';
 import { findForbiddenTerms, sanitizeExcerpt } from '../guardrails/index.js';
 import { sanitizeText } from '../llm/hygiene.js';
-import type { LlmClient } from '../llm/types.js';
 import { buildGoals, loadIncidents } from '../recap/facts.js';
 import { marketRelevance } from '../wtw/relevance.js';
 import {
@@ -53,13 +46,7 @@ import {
 } from './budget.js';
 import { broadcastersWithChannels, ChannelBook, matchUploads } from './channel-map.js';
 import { rightsHoldersFor, type ChannelAllowlist, type ChannelScope } from './channels.js';
-import {
-  aspectRatioOf,
-  classifyVideos,
-  detectFormat,
-  RULES_CLASSIFIER,
-  type ClassifyFacts,
-} from './classify.js';
+import { aspectRatioOf, classifyVideos, detectFormat, RULES_CLASSIFIER } from './classify.js';
 import { checkRelevance, decidePublication, rankScore, teamVariants } from './policy.js';
 import {
   capPublished,
@@ -118,7 +105,6 @@ export interface RelatedRunOptions {
   plan?: boolean;
   /** Busca completa mesmo dentro da janela de revalidação. */
   force?: boolean;
-  llm: LlmClient | null;
   /** Obrigatório fora do --plan. */
   youtube: YoutubeClient | null;
   allowlist: ChannelAllowlist;
@@ -166,7 +152,6 @@ export interface RelatedRunItem {
   rejected?: number;
   /** tipo → quantidade publicada nesta execução. */
   types?: Record<string, number>;
-  llm?: boolean;
   /** Pulado (ou sem busca) por cota: entra na lista do painel. */
   quotaSkip?: boolean;
 }
@@ -180,8 +165,6 @@ export interface RelatedRunReport {
   };
   /** Candidatos sem nada a fazer nesta execução (em dia). */
   idle: number;
-  llmCalls: number;
-  usage: { inputTokens: number; outputTokens: number; costUsd: number };
   expired: number;
 }
 
@@ -420,26 +403,6 @@ async function lastFullRun(db: Database, eventId: string): Promise<Date | null> 
   return row?.startedAt ?? null;
 }
 
-function classifyFacts(core: EventCore, scorers: string[]): ClassifyFacts {
-  const s = core.score;
-  return {
-    home: teamName(core.home, 'pt-BR'),
-    away: teamName(core.away, 'pt-BR'),
-    competition: competitionName(core, 'pt-BR'),
-    stage: stageName(core, 'pt-BR'),
-    kickoff: core.startsAt.toISOString(),
-    score: {
-      home: typeof s?.home === 'number' ? s.home : null,
-      away: typeof s?.away === 'number' ? s.away : null,
-      penalties:
-        s?.penalty && typeof s.penalty.home === 'number' && typeof s.penalty.away === 'number'
-          ? { home: s.penalty.home, away: s.penalty.away }
-          : null,
-    },
-    scorers,
-  };
-}
-
 const videoUrl = (id: string, format: 'short' | 'long') =>
   format === 'short' ? `https://www.youtube.com/shorts/${id}` : `https://www.youtube.com/watch?v=${id}`;
 
@@ -482,8 +445,6 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       api: { limit: limits.api, usedBefore: used.api, spent: 0 },
     },
     idle: 0,
-    llmCalls: 0,
-    usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 },
     expired: 0,
   };
   if (!opts.plan) {
@@ -919,34 +880,15 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           cands.push({ v, tier: verdict, ...(prevById.has(v.id) ? { prev: prevById.get(v.id)! } : {}) });
         }
 
-        // 5. classificação: novos, os que mudaram de título e (com LLM) os que só tinham a das regras;
-        //    o resto reaproveita a anterior
+        // 5. classificação por regras: novos, os que mudaram de título e os classificados pelo LLM antigo (que
+        //    podia marcar "não é deste jogo"); o resto reaproveita a anterior
         const toClassify = cands.filter(
           (c) =>
             !c.prev ||
             c.prev.title !== sanitizeText(c.v.title, 300) ||
-            (!!opts.llm && c.prev.classifiedBy === RULES_CLASSIFIER),
+            c.prev.classifiedBy !== RULES_CLASSIFIER,
         );
-        const cls = await classifyVideos({
-          llm: opts.llm,
-          eventId: id,
-          facts: classifyFacts(core, scorers),
-          videos: toClassify.map((c) => ({
-            id: c.v.id,
-            title: c.v.title,
-            description: c.v.description,
-            channelTitle: c.v.channelTitle,
-            durationSeconds: c.v.durationSeconds,
-            format: detectFormat(c.v),
-            tags: c.v.tags,
-          })),
-        });
-        report.llmCalls += cls.llmCalls;
-        report.usage.inputTokens += cls.usage.inputTokens;
-        report.usage.outputTokens += cls.usage.outputTokens;
-        report.usage.costUsd += cls.usage.costUsd ?? 0;
-        item.llm = !!cls.model && !cls.error;
-        if (cls.error) stats.llmError = cls.error.slice(0, 300);
+        const cls = classifyVideos({ videos: toClassify.map((c) => c.v) });
 
         // 6. política + ranking
         const items: RelatedItemInput[] = [];
@@ -955,11 +897,10 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           const ch = channels.get(v.channelId);
           const fresh = cls.byId.get(v.id);
           const prevFlags = (c.prev?.flags ?? []).filter((f) => f === 'injection_signal');
-          // reaproveita a classificação anterior (inclusive o "não é deste jogo" do LLM)
+          // reaproveita a classificação anterior
           const base = fresh ?? {
             type: c.prev!.contentType,
             confidence: Number(c.prev!.confidence),
-            aboutThisEvent: !c.prev!.flags.includes('not_this_event'),
             classifiedBy: c.prev!.classifiedBy,
             flags: prevFlags,
           };
@@ -974,15 +915,13 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           if (findForbiddenTerms(v.title, locale, { allowPhrases: [core.home.name, core.away.name] }).length)
             flags.push('offensive_title');
           const format = detectFormat(v);
-          const decision = base.aboutThisEvent
-            ? decidePublication({
-                tier: c.tier.tier,
-                type: base.type,
-                confidence: base.confidence,
-                format,
-                flags,
-              })
-            : { status: 'rejected' as const, flags: [...flags, 'not_this_event'] };
+          const decision = decidePublication({
+            tier: c.tier.tier,
+            type: base.type,
+            confidence: base.confidence,
+            format,
+            flags,
+          });
           const publishedAt = new Date(v.publishedAt);
           items.push({
             externalId: v.id,
@@ -1076,11 +1015,6 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
             searches: cost.search,
             candidates: videos.length,
             published: published.length,
-            provider: cls.provider,
-            model: cls.model,
-            inputTokens: cls.usage.inputTokens,
-            outputTokens: cls.usage.outputTokens,
-            costUsd: cls.usage.costUsd !== undefined ? cls.usage.costUsd.toFixed(6) : null,
             stats,
           })
           .where(eq(relatedRun.id, runId));

@@ -22,7 +22,6 @@ import {
   type Database,
 } from '@galaxie/db';
 import { Blocklist, loadWtwConfig } from '@galaxie/where-to-watch';
-import { FakeLlmClient } from '../src/llm/fake.js';
 import { ChannelBook } from '../src/related/channel-map.js';
 import { broadcasterChannelsFrom, ChannelAllowlist, loadChannelEntries } from '../src/related/channels.js';
 import { runRelatedAgent, type RelatedRunOptions } from '../src/related/run.js';
@@ -172,30 +171,8 @@ function fakeYoutube(state: { removed: Set<string>; searches: string[]; videoIds
   };
 }
 
-/** LLM falso: classifica pelos títulos e marca o vídeo da temporada passada como outro jogo. */
-const llmResponder = (req: { messages: { content: string }[] }) => {
-  const content = req.messages[0]!.content;
-  const ids = [...content.matchAll(/"id":"([^"]+)"/g)].map((m) => m[1]!);
-  const type: Record<string, string> = {
-    'v-official': 'highlights',
-    'v-short': 'goal',
-    'v-coletiva': 'press_conference',
-    'v-react': 'fan_reaction',
-    'v-reupload': 'highlights',
-    'v-antigo': 'highlights',
-  };
-  return {
-    data: {
-      videos: ids
-        .filter((id) => type[id])
-        .map((id) => ({ id, content_type: type[id], about_this_event: id !== 'v-antigo', confidence: 0.9 })),
-    },
-    model: 'fake-light',
-  };
-};
-
 let state: { removed: Set<string>; searches: string[] };
-let base: Omit<RelatedRunOptions, 'llm' | 'youtube'>;
+let base: Omit<RelatedRunOptions, 'youtube'>;
 
 beforeAll(async () => {
   db = await env.setup();
@@ -232,7 +209,7 @@ afterAll(async () => {
 
 describe('Conteúdo relacionado (integração)', () => {
   it('--plan: candidato, consultas e unidades estimadas, sem chamar nem gravar', async () => {
-    const report = await runRelatedAgent(db, { ...base, plan: true, llm: null, youtube: null });
+    const report = await runRelatedAgent(db, { ...base, plan: true, youtube: null });
     expect(report.items).toEqual([
       expect.objectContaining({
         eventId,
@@ -249,18 +226,15 @@ describe('Conteúdo relacionado (integração)', () => {
 
   it('busca completa: links diretos, política de direitos, classificação e change feed', async () => {
     const yt = new YoutubeClient({ apiKey: 'test', fetch: fakeYoutube(state) });
-    const llm = new FakeLlmClient(llmResponder);
-    const report = await runRelatedAgent(db, { ...base, llm, youtube: yt });
+    const report = await runRelatedAgent(db, { ...base, youtube: yt });
     const item = report.items[0]!;
-    expect(item).toMatchObject({ action: 'searched', mode: 'full', published: 4, llm: true });
+    expect(item).toMatchObject({ action: 'searched', mode: 'full', published: 5 });
     // parada cedo: a segunda busca (#shorts) não trouxe vídeo novo aproveitável → as outras duas não saem
     expect(state.searches).toHaveLength(2);
     expect(state.searches[1]).toBe('Palmeiras Corinthians #shorts|short|pt');
     // balde de busca: 2 consultas; balde geral: 1 videos.list + 1 channels.list
     expect(report.quota.search.spent).toBe(2);
     expect(report.quota.api.spent).toBe(2);
-    expect(llm.calls).toHaveLength(1);
-    expect(llm.calls[0]!.tier).toBe('light');
 
     const all = await db.select().from(relatedContent).where(isNull(relatedContent.supersededBy));
     const by = new Map(all.map((r) => [r.externalId, r]));
@@ -274,7 +248,7 @@ describe('Conteúdo relacionado (integração)', () => {
       url: 'https://www.youtube.com/watch?v=v-official',
       embedUrl: 'https://www.youtube.com/embed/v-official',
       thumbnailUrl: 'https://i.ytimg.com/vi/v-official/hqdefault.jpg',
-      classifiedBy: 'llm:fake-light',
+      classifiedBy: 'rules@v1',
       durationSeconds: 580,
     });
     expect(by.get('v-short')).toMatchObject({
@@ -290,16 +264,26 @@ describe('Conteúdo relacionado (integração)', () => {
       sourceTier: 'creator',
       contentType: 'fan_reaction',
     });
+    // imagem de jogo de canal sem direito também é publicada (decisão do dono, 27/10/2026); o ranking a põe
+    // depois dos oficiais e detentores
     expect(by.get('v-reupload')).toMatchObject({
-      status: 'rejected',
+      status: 'published',
       sourceTier: 'unknown',
-      flags: ['rights_risk'],
+      contentType: 'highlights',
+      flags: [],
     });
-    expect(by.get('v-antigo')).toMatchObject({ status: 'rejected', flags: ['not_this_event'] });
+    // "Brasileirão 2025" num jogo de 2026: outra temporada, descartado na relevância
+    expect(by.has('v-antigo')).toBe(false);
 
     const page = await readRelatedContent(db, eventId);
-    expect(page.rows.map((r) => r.externalId)).toEqual(['v-short', 'v-official', 'v-coletiva', 'v-react']);
-    expect(page.counts).toEqual({ highlights: 1, goal: 1, press_conference: 1, fan_reaction: 1 });
+    expect(page.rows.map((r) => r.externalId)).toEqual([
+      'v-short',
+      'v-official',
+      'v-coletiva',
+      'v-react',
+      'v-reupload',
+    ]);
+    expect(page.counts).toEqual({ highlights: 2, goal: 1, press_conference: 1, fan_reaction: 1 });
     const shorts = await readRelatedContent(db, eventId, { format: 'short' });
     expect(shorts.rows.map((r) => r.externalId)).toEqual(['v-short']);
 
@@ -315,7 +299,7 @@ describe('Conteúdo relacionado (integração)', () => {
       quotaUnits: 4,
       apiUnits: 2,
       searches: 2,
-      published: 4,
+      published: 5,
       quotaDay: '2026-10-11',
     });
   });
@@ -324,22 +308,19 @@ describe('Conteúdo relacionado (integração)', () => {
     state.removed.add('v-coletiva');
     const searchesBefore = state.searches.length;
     const yt = new YoutubeClient({ apiKey: 'test', fetch: fakeYoutube(state) });
-    const llm = new FakeLlmClient(llmResponder);
     const report = await runRelatedAgent(db, {
       ...base,
       now: new Date(NOW.getTime() + 3_600_000),
-      llm,
       youtube: yt,
     });
     expect(report.items[0], report.items[0]!.reason).toMatchObject({
       action: 'revalidated',
       mode: 'revalidate',
-      published: 3,
+      published: 4,
     });
     expect(state.searches.length).toBe(searchesBefore);
     // 1 videos.list; o canal já está no cache permanente (enrich.youtube_channel)
     expect(report.quota).toMatchObject({ search: { spent: 0 }, api: { spent: 1 } });
-    expect(llm.calls).toHaveLength(0); // nada novo para classificar
 
     const page = await readRelatedContent(db, eventId);
     expect(page.rows.map((r) => r.externalId)).not.toContain('v-coletiva');
@@ -362,10 +343,9 @@ describe('Conteúdo relacionado (integração)', () => {
         entries: [...loadChannelEntries(), ...broadcasterChannelsFrom(base.wtw)],
         blocklist: new Blocklist([{ name: 'reactfc', aliases: [], domains: [] }]),
       }),
-      llm: null,
       youtube: yt,
     });
-    expect(report.items[0]).toMatchObject({ action: 'revalidated', published: 2 });
+    expect(report.items[0]).toMatchObject({ action: 'revalidated', published: 3 });
     const versions = await db
       .select()
       .from(relatedContent)
@@ -380,7 +360,6 @@ describe('Conteúdo relacionado (integração)', () => {
       now: new Date(NOW.getTime() + 4 * 3_600_000),
       dailyQuota: used + 1,
       reservePercent: 0,
-      llm: null,
       youtube: yt,
     });
     expect(tight.items).toHaveLength(0);
@@ -397,7 +376,6 @@ describe('Conteúdo relacionado (integração)', () => {
       force: true,
       searchDailyQuota: 4,
       reservePercent: 0,
-      llm: null,
       youtube: null,
     });
     expect(plan.items[0]).toMatchObject({ action: 'planned', queries: ['pt:highlights', 'pt:shorts'] });
@@ -406,7 +384,6 @@ describe('Conteúdo relacionado (integração)', () => {
       force: true,
       searchDailyQuota: 2,
       reservePercent: 0,
-      llm: null,
       youtube: yt,
     });
     expect(skipped.items[0]).toMatchObject({ action: 'skipped', quotaSkip: true });
@@ -441,7 +418,6 @@ describe('Conteúdo relacionado (integração)', () => {
       ...base,
       now: new Date(NOW.getTime() + 5 * 3_600_000),
       force: true,
-      llm: null,
       youtube: yt,
     });
     expect(report.items[0], report.items[0]!.reason).toMatchObject({ action: 'searched' });
