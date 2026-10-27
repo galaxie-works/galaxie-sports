@@ -272,8 +272,8 @@ describe('Conteúdo relacionado (integração)', () => {
       contentType: 'highlights',
       flags: [],
     });
-    // sem palavra-chave no título, a regra não sabe o tipo: fica pendente (confiança baixa)
-    expect(by.get('v-antigo')).toMatchObject({ status: 'pending', contentType: 'other' });
+    // "Brasileirão 2025" num jogo de 2026: outra temporada, descartado na relevância
+    expect(by.has('v-antigo')).toBe(false);
 
     const page = await readRelatedContent(db, eventId);
     expect(page.rows.map((r) => r.externalId)).toEqual([

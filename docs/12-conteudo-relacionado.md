@@ -145,18 +145,18 @@ flowchart LR
    - `goals` (se houve gols): `Palmeiras Fluminense gol <autor 1>|<autor 2>` (até 3 autores de gol do core).
    Todas com `type=video`, `publishedAfter` = início do jogo, `publishedBefore` = início + 7 dias, `videoEmbeddable=true`, `relevanceLanguage` e `regionCode` do locale, `maxResults=25`.
 3. **Detalhe**: um `videos.list` por lote de 50 ids (`snippet,contentDetails,statistics,status`) e um `channels.list` por lote de 50 canais (`snippet,statistics,contentDetails`), com o canal no cache de 30 dias (§3.2).
-4. **Relevância (código)**: o título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for o oficial de um dos dois clubes. Canal da competição e emissora detentora cobrem outros jogos de cada time: precisam dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
-5. **Classificação** por regras (`classifyByRules`): tipo pelo título (palavras-chave por idioma: "melhores momentos", "golaço", "coletiva", "react"...), com a duração para separar gol de compacto e jogo completo; sem palavra-chave, o tipo é `other` com confiança baixa e o vídeo fica `pending`. Título com sinal de *prompt injection* é marcado `injection_signal` e não é publicado. A relevância (os dois times citados, depois do apito, janela de 7 dias) é a do passo anterior, também em código.
+4. **Relevância (código)**: título com ano de outra temporada ("Brasileirão 2025" num jogo de 2026; "2025/26" cobre os dois anos) → descartado. O título ou a descrição precisa citar **os dois times** (nome, nome curto, apelidos e rótulos da base semântica, sem acento e sem caixa) — ou um deles, se o canal for o oficial de um dos dois clubes. Canal da competição e emissora detentora cobrem outros jogos de cada time: precisam dos dois. Vídeo privado, não incorporável, publicado antes do apito ou fora do ar → descartado.
+5. **Classificação** por regras (`classifyByRules`): tipo pelo título (palavras-chave por idioma: "melhores momentos", "golaço", "coletiva", "react"...), com a duração para separar gol de compacto e jogo completo; sem palavra-chave, o tipo é `other` com confiança baixa. Linhas classificadas pelo LLM antigo são reclassificadas pelas regras na revalidação seguinte. Título com sinal de *prompt injection* é marcado `injection_signal` e não é publicado. A relevância (os dois times citados, depois do apito, janela de 7 dias) é a do passo anterior, também em código.
 6. **Política de publicação (código)**:
 
    | Canal | Tipos de imagem de jogo (`highlights`, `goal`, `penalties`, `full_match`) | Demais tipos |
    |---|---|---|
    | `official`, `rights_holder` | `published` | `published` |
-   | `media` | `pending` (pode ter imagem licenciada ou não) | `published` |
-   | `creator` (≥ 100 mil inscritos) | `published` | `published` só `fan_reaction` e `analysis` em vídeo **longo**; short de criador fica `pending` (`creator_short`: na prática são cortes de programas de TV); o resto `pending` |
-   | fora da allowlist, abaixo do mínimo | `published` | `pending` |
+   | `media` | `published` | `published` |
+   | `creator` (≥ 100 mil inscritos) | `published` | `published` (inclusive short e reenvio de entrevista, coletiva e bastidores), menos o tipo `other` |
+   | fora da allowlist, abaixo do mínimo | `published` | `pending` (onde caem as "lives" falsas e iscas de clique) |
 
-   Confiança < 0,5 na classificação → `pending`.
+   Decisões do dono em 27/10/2026. Confiança < 0,5 (tipo não reconhecido pelo título) → `pending`, menos no canal oficial ou detentor, que publica como `other`. Título ofensivo ou com sinal de injeção → `pending`.
 7. **Ranking**: `source_tier` (oficial 3, detentor 3, imprensa 2, criador 1) + log₁₀(visualizações) / 2 + bônus de tipo (melhores momentos e gols primeiro) − meia-vida de 3 dias desde o apito. Desempate por data e id.
 8. **Gravação e histórico** (`saveRelatedContent`): uma versão por mudança material (tipo, formato, status, título, flags); sem mudança, só renova `last_checked_at` e as estatísticas. Vídeo que sumiu do `videos.list` → versão `retracted`. Mudança visível → `event.related_content_changed` no change feed (tag `related_content:<evento>`), que purga o cache e vira SSE/webhook.
 9. **Revalidação**: entre as buscas completas (`RELATED_RESEARCH_HOURS`, padrão 12 h) o jogo não busca de novo: relê os canais oficiais a cada `RELATED_CHANNEL_REFRESH_MINUTES` e, no máximo a cada `RELATED_REVALIDATE_MINUTES`, faz um `videos.list` com os ids guardados (1 unidade) para atualizar estatísticas e retirar o que saiu do ar.
@@ -421,7 +421,7 @@ O clique abre um **painel lateral 9:16** ([related-player.tsx](../apps/demo/src/
 
 | Risco | Mitigação |
 |---|---|
-| Reupload sem licença | Imagem de jogo só de canal oficial/detentor; blocklist editorial |
+| Reupload sem licença | Publicado (decisão do dono, 27/10/2026); o ranking põe oficial e detentor na frente; vídeo derrubado sai na revalidação ou pelo bloqueio no player; blocklist editorial |
 | Vídeo de jogo antigo com os mesmos times | `publishedAfter` = apito e janela de 7 dias; título sem tipo claro fica `pending` |
 | Título com *prompt injection* | Conteúdo como dado, detecção de padrões, saída em JSON Schema e política em código |
 | Cota de busca (100/dia) | Canais oficiais primeiro (balde geral), parada cedo, teto por jogo, reserva por agenda, rendimento por competição; pedido de aumento (§8.4) |

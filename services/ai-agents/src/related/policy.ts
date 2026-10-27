@@ -15,9 +15,6 @@ export const FOOTAGE_TYPES: ReadonlySet<RelatedContentType> = new Set([
   'full_match',
 ]);
 
-/** Tipos de conteúdo próprio que um criador fora da allowlist pode publicar. */
-export const CREATOR_TYPES: ReadonlySet<RelatedContentType> = new Set(['fan_reaction', 'analysis']);
-
 export const MIN_PUBLISH_CONFIDENCE = 0.5;
 
 const SUFFIXES = /\b(fc|sc|ec|cf|ac|cr|club|clube|futebol|football|de regatas|esporte|sport|athletic)\b/g;
@@ -59,6 +56,24 @@ export function mentions(text: string, variants: readonly string[]): boolean {
   );
 }
 
+/**
+ * O título é de outra temporada? Cita um ano ("Brasileirão 2025") e nenhum dos anos citados cobre o do jogo;
+ * temporada cruzada ("2025/26", "2025-2026") cobre os dois anos. Sem ano no título, não dá para dizer.
+ */
+export function otherSeason(title: string, eventYear: number): boolean {
+  const years = [...title.matchAll(/(?<!\d)((?:19|20)\d{2})(?:\s*[/-]\s*(\d{4}|\d{2}))?(?!\d)/g)];
+  if (!years.length) return false;
+  return !years.some((m) => {
+    const start = Number(m[1]);
+    const end = m[2]
+      ? m[2].length === 2
+        ? Math.floor(start / 100) * 100 + Number(m[2])
+        : Number(m[2])
+      : start;
+    return eventYear >= start && eventYear <= end;
+  });
+}
+
 export interface RelevanceInput {
   title: string;
   description: string;
@@ -88,6 +103,7 @@ export function checkRelevance(
   const t = v.publishedAt.getTime();
   if (!Number.isFinite(t) || t < core.startsAt.getTime()) return { ok: false, reason: 'before_kickoff' };
   if (t > core.startsAt.getTime() + windowDays * 86_400_000) return { ok: false, reason: 'outside_window' };
+  if (otherSeason(v.title, core.startsAt.getUTCFullYear())) return { ok: false, reason: 'other_season' };
   const text = normalizeText(`${v.title} ${v.tags.join(' ')} ${v.description.slice(0, 500)}`)
     .replace(/[^\p{L}\p{N} ]+/gu, ' ')
     .replace(/\s+/g, ' ');
@@ -113,26 +129,24 @@ export function decidePublication(input: {
 }): PublishDecision {
   const flags = [...(input.flags ?? [])];
   const footage = FOOTAGE_TYPES.has(input.type);
+  // decisões do dono (27/10/2026): oficial, detentor e imprensa publicam tudo; criador publica tudo menos o
+  // que as regras não souberam classificar; canal desconhecido só imagem de jogo
+  const trusted = input.tier === 'official' || input.tier === 'rights_holder';
   let status: RelatedStatus;
   switch (input.tier) {
     case 'official':
     case 'rights_holder':
-      status = 'published';
-      break;
     case 'media':
       status = 'published';
       break;
     case 'creator':
-      // short de criador costuma ser corte de programa de TV (não é conteúdo próprio): fica para revisão,
-      // a não ser que seja imagem de jogo
-      status =
-        footage || (CREATOR_TYPES.has(input.type) && input.format !== 'short') ? 'published' : 'pending';
-      if (status === 'pending' && input.format === 'short') flags.push('creator_short');
+      status = input.type === 'other' ? 'pending' : 'published';
       break;
     default:
       status = footage ? 'published' : 'pending';
   }
-  if (status === 'published' && input.confidence < MIN_PUBLISH_CONFIDENCE) {
+  // tipo não reconhecido (confiança baixa): só o canal oficial ou detentor publica mesmo assim
+  if (status === 'published' && !trusted && input.confidence < MIN_PUBLISH_CONFIDENCE) {
     status = 'pending';
     flags.push('low_confidence');
   }

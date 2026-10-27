@@ -46,7 +46,7 @@ import {
 } from './budget.js';
 import { broadcastersWithChannels, ChannelBook, matchUploads } from './channel-map.js';
 import { rightsHoldersFor, type ChannelAllowlist, type ChannelScope } from './channels.js';
-import { aspectRatioOf, classifyVideos, detectFormat } from './classify.js';
+import { aspectRatioOf, classifyVideos, detectFormat, RULES_CLASSIFIER } from './classify.js';
 import { checkRelevance, decidePublication, rankScore, teamVariants } from './policy.js';
 import {
   capPublished,
@@ -880,8 +880,14 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
           cands.push({ v, tier: verdict, ...(prevById.has(v.id) ? { prev: prevById.get(v.id)! } : {}) });
         }
 
-        // 5. classificação por regras: novos e os que mudaram de título; o resto reaproveita a anterior
-        const toClassify = cands.filter((c) => !c.prev || c.prev.title !== sanitizeText(c.v.title, 300));
+        // 5. classificação por regras: novos, os que mudaram de título e os classificados pelo LLM antigo (que
+        //    podia marcar "não é deste jogo"); o resto reaproveita a anterior
+        const toClassify = cands.filter(
+          (c) =>
+            !c.prev ||
+            c.prev.title !== sanitizeText(c.v.title, 300) ||
+            c.prev.classifiedBy !== RULES_CLASSIFIER,
+        );
         const cls = classifyVideos({ videos: toClassify.map((c) => c.v) });
 
         // 6. política + ranking

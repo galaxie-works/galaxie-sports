@@ -13,6 +13,7 @@ import {
 import {
   checkRelevance,
   decidePublication,
+  otherSeason,
   playbackBlockPenalty,
   rankScore,
   teamVariants,
@@ -586,7 +587,8 @@ describe('política de publicação e ranking', () => {
     ['media', 'highlights', 'published', []],
     ['media', 'analysis', 'published', []],
     ['creator', 'fan_reaction', 'published', []],
-    ['creator', 'interview', 'pending', []],
+    ['creator', 'interview', 'published', []],
+    ['creator', 'other', 'pending', []],
     ['creator', 'goal', 'published', []],
     ['unknown', 'highlights', 'published', []],
     ['unknown', 'analysis', 'pending', []],
@@ -594,20 +596,18 @@ describe('política de publicação e ranking', () => {
     expect(decidePublication({ tier, type, confidence: 0.9 })).toEqual({ status, flags: [...flags] });
   });
 
-  it('short de criador fica pendente (costuma ser corte de programa de TV)', () => {
+  it('short de criador é publicado como o vídeo longo (decisão do dono, 27/10/2026)', () => {
     expect(
       decidePublication({ tier: 'creator', type: 'analysis', confidence: 0.9, format: 'short' }),
-    ).toEqual({
-      status: 'pending',
-      flags: ['creator_short'],
-    });
-    expect(
-      decidePublication({ tier: 'creator', type: 'analysis', confidence: 0.9, format: 'long' }).status,
-    ).toBe('published');
+    ).toEqual({ status: 'published', flags: [] });
   });
 
-  it('confiança baixa e título ofensivo seguram a publicação', () => {
-    expect(decidePublication({ tier: 'official', type: 'goal', confidence: 0.3 })).toEqual({
+  it('tipo não reconhecido publica só de oficial/detentor; título ofensivo segura a publicação', () => {
+    expect(decidePublication({ tier: 'official', type: 'other', confidence: 0.3 })).toEqual({
+      status: 'published',
+      flags: [],
+    });
+    expect(decidePublication({ tier: 'media', type: 'other', confidence: 0.3 })).toEqual({
       status: 'pending',
       flags: ['low_confidence'],
     });
@@ -615,6 +615,15 @@ describe('política de publicação e ranking', () => {
       decidePublication({ tier: 'official', type: 'goal', confidence: 0.9, flags: ['offensive_title'] })
         .status,
     ).toBe('pending');
+  });
+
+  it('outra temporada pelo ano do título (substitui o "não é deste jogo" do LLM)', () => {
+    expect(otherSeason('Palmeiras 2 x 0 Corinthians | Brasileirão 2025', 2026)).toBe(true);
+    expect(otherSeason('Palmeiras 2 x 0 Corinthians | Brasileirão 2026', 2026)).toBe(false);
+    expect(otherSeason('Arsenal x Chelsea | Premier League 2025/26', 2026)).toBe(false);
+    expect(otherSeason('Arsenal x Chelsea | Premier League 2025-2026', 2025)).toBe(false);
+    expect(otherSeason('Arsenal x Chelsea | Premier League 2023/24', 2026)).toBe(true);
+    expect(otherSeason('Palmeiras x Corinthians melhores momentos', 2026)).toBe(false);
   });
 
   it('relevância: os dois times, ou um no canal oficial de um dos clubes; depois do apito; público e incorporável', () => {
