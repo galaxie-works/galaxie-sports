@@ -112,8 +112,15 @@ afterAll(async () => {
 
 describe('orçamento diário esgotado → todos os agentes caem no determinístico', () => {
   it('a fábrica dos agentes usa o ledger compartilhado ops.llm_usage', async () => {
+    // dia UTC como o da linha semeada: com o padrão (06:00 em Brasília), entre 00:00 e 09:00 UTC o dia de
+    // orçamento ainda é o anterior e a linha não contaria
     const runtime = createLlmClient({
-      env: { OPENAI_API_KEY: 'sk-teste', AI_DAILY_TOKEN_BUDGET: String(LIMIT) },
+      env: {
+        OPENAI_API_KEY: 'sk-teste',
+        AI_DAILY_TOKEN_BUDGET: String(LIMIT),
+        AI_BUDGET_TIMEZONE: 'UTC',
+        AI_BUDGET_DAY_START: '00:00',
+      },
       db,
     });
     expect(runtime.budget.store).toBeInstanceOf(PgTokenBudgetStore);
