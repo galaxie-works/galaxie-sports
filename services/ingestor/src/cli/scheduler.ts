@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { logger, report } from '../logger.js';
 import { checkAiCredit } from '../scheduler/ai-credit.js';
-import { PgRunRecorder, runJob } from '../scheduler/runner.js';
+import { PgRunRecorder, runJob, runExitCode } from '../scheduler/runner.js';
 import { jobsForProfile } from '../scheduler/schedule.js';
 import { describeSchedule, SchedulerService, type SchedulerProfile } from '../scheduler/service.js';
 
@@ -91,7 +91,7 @@ if (manual !== undefined) {
   if (result.status === 'skipped')
     console.error(`"${manual}" já está rodando em outro processo; nada feito.`);
   if (db) await closeDb(db);
-  process.exit(result.status === 'ok' ? 0 : 1);
+  process.exit(runExitCode(result.status));
 }
 
 // ── modo serviço ──────────────────────────────────────────────────────────────────────────────────

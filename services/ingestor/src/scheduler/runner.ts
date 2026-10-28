@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { jobRun, type Database, type JobLock } from '@galaxie/db';
+import { EXIT_BUDGET_SKIPPED } from '@galaxie/runtime-config';
 import type { Logger } from '@galaxie/observability';
 import type { ScheduledJob } from './schedule.js';
 
@@ -10,7 +11,7 @@ export interface RunRecorder {
   start(job: string): Promise<string>;
   finish(
     id: string,
-    status: 'ok' | 'error',
+    status: 'ok' | 'error' | 'budget_skipped',
     error: string | null,
     stats: Record<string, unknown>,
   ): Promise<void>;
@@ -29,7 +30,7 @@ export class PgRunRecorder implements RunRecorder {
 
   async finish(
     id: string,
-    status: 'ok' | 'error',
+    status: 'ok' | 'error' | 'budget_skipped',
     error: string | null,
     stats: Record<string, unknown>,
   ): Promise<void> {
@@ -70,13 +71,20 @@ export interface RunOptions {
 export interface RunResult {
   job: string;
   runId: string | undefined;
-  /** `skipped`: outro processo já rodava o job (trava ocupada); nada foi executado. */
-  status: 'ok' | 'error' | 'skipped';
+  /**
+   * `skipped`: outro processo já rodava o job (trava ocupada); nada foi executado. `budget_skipped`: o
+   * job gravou a saída determinística porque o orçamento de IA recusou (saída EXIT_BUDGET_SKIPPED).
+   */
+  status: 'ok' | 'error' | 'skipped' | 'budget_skipped';
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   timedOut: boolean;
   durationMs: number;
 }
+
+/** Código de saída do `scheduler --run`: budget_skipped (gravou o determinístico) não é falha. */
+export const runExitCode = (status: RunResult['status']): number =>
+  status === 'ok' || status === 'budget_skipped' ? 0 : 1;
 
 /**
  * Executa o CLI do job num processo filho (isolamento: um job que trava ou vaza memória não derruba o scheduler),
@@ -135,7 +143,12 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
     const cwd = resolve(options.cwd, job.cwd ?? '.');
     const child = spawn(process.execPath, [resolve(cwd, job.script), ...job.args], {
       cwd,
-      env: { ...(options.env ?? process.env), ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}) },
+      env: {
+        ...(options.env ?? process.env),
+        // o job sabe que veio do scheduler: a IA desconta das faixas por prioridade, não da `manual`
+        GALAXIE_INVOKER: 'scheduler',
+        ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}),
+      },
       stdio: ['ignore', 'inherit', 'inherit'],
     });
     let timedOut = false;
@@ -167,9 +180,15 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
   });
 
   const durationMs = Date.now() - startedAt;
-  const status = outcome.exitCode === 0 && !outcome.timedOut ? 'ok' : 'error';
+  const status: 'ok' | 'error' | 'budget_skipped' = outcome.timedOut
+    ? 'error'
+    : outcome.exitCode === 0
+      ? 'ok'
+      : outcome.exitCode === EXIT_BUDGET_SKIPPED
+        ? 'budget_skipped'
+        : 'error';
   const error =
-    status === 'ok'
+    status !== 'error'
       ? null
       : outcome.spawnError
         ? `falha ao iniciar: ${outcome.spawnError.message}`
@@ -192,6 +211,8 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
 
   const fields = { status, exit_code: outcome.exitCode, duration_ms: durationMs };
   if (status === 'ok') log.info(fields, 'job concluído');
+  else if (status === 'budget_skipped')
+    log.warn(fields, 'job concluído com a saída determinística: orçamento de IA recusou');
   else log.error({ ...fields, error }, 'job falhou');
 
   return { job: job.name, runId, status, durationMs, ...outcome };

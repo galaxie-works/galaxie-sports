@@ -19,7 +19,8 @@ export type ValidationErrorCode =
   | 'cron'
   | 'markets'
   | 'format'
-  | 'zero';
+  | 'zero'
+  | 'shares';
 
 export interface ValidationError {
   code: ValidationErrorCode;
@@ -96,7 +97,11 @@ export function validateSetting(def: SettingDef, raw: string): Validation {
     case 'text':
       if (def.zeroInvalid && /(^|[,;\s])[^=,;\s]+=0+(\.0+)?(?=$|[,;\s])/.test(value))
         return fail({ code: 'zero' });
-      return def.pattern && !def.pattern.test(value) ? fail({ code: 'format' }) : ok(value);
+      if (def.pattern && !def.pattern.test(value)) return fail({ code: 'format' });
+      {
+        const err = def.check?.(value);
+        return err ? fail(err) : ok(value);
+      }
     default:
       return fail({ code: 'readonly' });
   }

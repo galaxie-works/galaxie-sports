@@ -88,6 +88,17 @@ export interface LlmSpend {
   budget: number | null;
   /** Orçamento efetivo em US$/dia (tokens + buscas); null = sem limite. */
   usdBudget: number | null;
+  /** Dia de orçamento lido (YYYY-MM-DD): vira em `day.start` no fuso `day.timeZone`. */
+  budgetDay: string;
+  day: { timeZone: string; start: string };
+  /** AI_BAND_SHARES efetivo: % do teto global por faixa (soma 100; a reserva só serve a P0). */
+  bandShares: Record<'p0' | 'reserve' | 'p1' | 'clients' | 'rest' | 'manual', number>;
+  /** Gasto do dia por faixa, contra o teto dela (a P0 inclui a reserva); null = sem teto. */
+  bands: { band: 'p0' | 'p1' | 'clients' | 'rest' | 'manual'; usedUsd: number; limitUsd: number | null }[];
+  /** AI_P0_MIN_AUDIENCE: corte P0/P1 (audiência mínima). */
+  p0MinAudience: number;
+  /** Alguma das chaves do cartão Política de IA tem sobrescrita no painel (o "voltar ao padrão" a apaga). */
+  policyOverridden: boolean;
   /** Teto em US$/dia de cada agente (AI_AGENT_USD_BUDGETS); null = sem teto próprio. */
   agentUsdBudgets: Record<string, number | null>;
   /** De onde vem o teto de cada agente: painel (`db`), env do contêiner ou padrão do código. */

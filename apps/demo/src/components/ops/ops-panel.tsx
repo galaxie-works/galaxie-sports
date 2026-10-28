@@ -28,6 +28,7 @@ import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
+import { AiPolicyCard } from './ai-policy-card';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
@@ -40,6 +41,9 @@ export const PANEL_TABS = {
 } as const;
 export type PanelScope = keyof typeof PANEL_TABS;
 type Tab = (typeof PANEL_TABS)[PanelScope][number];
+
+/** Editadas pelo cartão Política de IA (sliders), fora da lista de flags da seção. */
+const AI_POLICY_KEYS = new Set(['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE']);
 
 /** Plano por esporte (APISPORTS_PLAN_<API>) vai para Esportes e features; o padrão fica no Sistema. */
 const isSportPlan = (key: string) => key.startsWith('APISPORTS_PLAN_');
@@ -112,11 +116,23 @@ export function OpsPanel({
             })()}
           />
         </TabsContent>
-        {(['live', 'ai', 'wtw', 'assets'] as const).map((s) => (
+        {(['live', 'wtw', 'assets'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
             <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
           </TabsContent>
         ))}
+        <TabsContent value="ai" className="mt-4 flex flex-col gap-4">
+          <AiPolicyCard
+            key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
+            llm={snapshot.llm}
+          />
+          <SectionCard
+            section="ai"
+            filter={(key) => !AI_POLICY_KEYS.has(key)}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
+        </TabsContent>
         <TabsContent value="related" className="mt-4 flex flex-col gap-4">
           {snapshot.youtube ? (
             <>
@@ -447,7 +463,11 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
     <CardShell
       icon={Bot}
       title={T.status.llm}
-      description={fill(T.status.quotaDay, { day: snapshot.dayUtc })}
+      description={fill(T.status.llmDay, {
+        day: snapshot.llm.budgetDay,
+        start: snapshot.llm.day.start,
+        timeZone: snapshot.llm.day.timeZone,
+      })}
     >
       <div className="flex flex-col gap-1.5">
         <span
@@ -585,6 +605,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
 
 const RUN_VARIANT = {
   ok: 'success-light',
+  budget_skipped: 'warning-light',
   error: 'destructive-light',
   running: 'info-light',
 } as const;

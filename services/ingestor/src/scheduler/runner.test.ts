@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createLogger } from '@galaxie/observability';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runJob, type RunRecorder } from './runner.js';
+import { runExitCode, runJob, type RunRecorder } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
 
 let dir: string;
@@ -19,7 +19,12 @@ class MemoryRecorder implements RunRecorder {
     this.rows.set(id, { job, status: 'running', error: null });
     return id;
   }
-  async finish(id: string, status: 'ok' | 'error', error: string | null, stats: Record<string, unknown>) {
+  async finish(
+    id: string,
+    status: 'ok' | 'error' | 'budget_skipped',
+    error: string | null,
+    stats: Record<string, unknown>,
+  ) {
     this.rows.set(id, { ...this.rows.get(id)!, status, error, stats });
   }
 }
@@ -38,6 +43,11 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'galaxie-runner-'));
   await writeFile(join(dir, 'ok.mjs'), 'if (!process.env.GALAXIE_SCHEDULER_RUN_ID) process.exit(3);');
   await writeFile(join(dir, 'fail.mjs'), 'process.exit(2);');
+  // job que gravou o determinístico por falta de orçamento de IA (só sabe que veio do scheduler pelo env)
+  await writeFile(
+    join(dir, 'budget.mjs'),
+    "if (process.env.GALAXIE_INVOKER !== 'scheduler') process.exit(3); process.exit(75);",
+  );
   await writeFile(join(dir, 'hang.mjs'), 'setInterval(() => {}, 1000);');
 });
 
@@ -62,6 +72,20 @@ describe('runJob', () => {
       status: 'error',
       error: 'processo terminou com código 2',
     });
+  });
+
+  it('saída 75 (orçamento de IA recusou) vira budget_skipped, não erro; o job sabe que veio do scheduler', async () => {
+    const recorder = new MemoryRecorder();
+    const result = await runJob(job('budget.mjs'), { cwd: dir, recorder, logger, trigger: 'schedule' });
+    expect(result).toMatchObject({ status: 'budget_skipped', exitCode: 75 });
+    expect(recorder.rows.get('run-1')).toMatchObject({ status: 'budget_skipped', error: null });
+  });
+
+  it('scheduler --run sai 0 com budget_skipped (gravou o determinístico) e 1 com erro', () => {
+    expect(runExitCode('ok')).toBe(0);
+    expect(runExitCode('budget_skipped')).toBe(0);
+    expect(runExitCode('error')).toBe(1);
+    expect(runExitCode('skipped')).toBe(1);
   });
 
   it('encerra o job que passa do tempo limite', async () => {

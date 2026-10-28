@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
+import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -14,6 +15,7 @@ import {
   sport,
   type Database,
 } from '@galaxie/db';
+import { DEFAULT_BUDGET_DAY, budgetDayOf } from '@galaxie/runtime-config';
 import {
   applyAgentResult,
   loadWtwConfig,
@@ -406,5 +408,31 @@ describe('rotas internas (correção editorial)', () => {
     expect(prom.headers['content-type']).toContain('text/plain');
     expect(prom.body).toMatch(/# TYPE galaxie_wtw_options gauge/);
     expect(prom.body).toMatch(/galaxie_wtw_correction_seconds\{stat="max"\} \d+/);
+  });
+
+  it('métricas: o gasto de IA de hoje segue a virada do dia gravada no painel', async () => {
+    const tz = 'Pacific/Kiritimati'; // UTC+14: o dia local quase sempre difere do de Brasília
+    await db.execute(sql`insert into ops.runtime_setting (key, value, value_type, updated_by)
+      values ('AI_BUDGET_TIMEZONE', ${tz}, 'text', 'teste'), ('AI_BUDGET_DAY_START', '00:00', 'text', 'teste')
+      on conflict (key) do update set value = excluded.value`);
+    const now = new Date();
+    const panelDay = budgetDayOf(now, { timeZone: tz, start: '00:00' });
+    const defaultDay = budgetDayOf(now, DEFAULT_BUDGET_DAY);
+    await db.execute(sql`insert into ops.llm_usage (day_utc, budget_day, agent, purpose, provider, model, tier, cost_usd, outcome)
+      values (${panelDay}, ${panelDay}, 'teste-painel', 'teste-painel:x', 'gemini', 'm', 'light', 0.5, 'ok')`);
+    if (defaultDay !== panelDay)
+      await db.execute(sql`insert into ops.llm_usage (day_utc, budget_day, agent, purpose, provider, model, tier, cost_usd, outcome)
+        values (${defaultDay}, ${defaultDay}, 'teste-padrao', 'teste-padrao:x', 'gemini', 'm', 'light', 0.5, 'ok')`);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/internal/where-to-watch/metrics?countries=BR',
+      headers: adminHeaders,
+    });
+    const agents = (res.json() as { llmToday: { agent: string }[] }).llmToday.map((r) => r.agent);
+    expect(agents).toContain('teste-painel');
+    expect(agents).not.toContain('teste-padrao');
+    await db.execute(
+      sql`delete from ops.runtime_setting where key in ('AI_BUDGET_TIMEZONE', 'AI_BUDGET_DAY_START')`,
+    );
   });
 });
