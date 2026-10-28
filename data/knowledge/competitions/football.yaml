@@ -353,28 +353,28 @@ competitions:
       - "https://placar.com.br/esporte/resultados-e-classificacao-do-campeonato-equatoriano-3"
     review_status: approved
 
-  # draft: o catálogo chama a 1ª divisão de "División Profesional", mas as fontes de 2026 falam em
-  # "Primera División" (ABC Color) e "División de Honor" (APF); falta decidir o rótulo
+  # rótulo decidido pelo dono (28/10/2026): "Primera División", o nome da imprensa (ABC Color);
+  # "División de Honor", o termo da APF, fica como apelido para a busca
   - slug: paraguay-primera-apertura
     api_sports_league_id: 250
-    labels: { es: "División Profesional de Paraguay - Apertura" }
-    nicknames: { es: [] }
+    labels: { es: "Primera División de Paraguay - Apertura" }
+    nicknames: { es: ["División de Honor"] }
     trophy_nickname: null
     sources:
       - "https://www.abc.com.py/deportes/futbol/2025/12/03/definido-el-calendario-2026-de-la-primera-division-del-futbol-paraguayo/"
       - "https://en.wikipedia.org/wiki/APF_Divisi%C3%B3n_de_Honor"
-    review_status: draft
+    review_status: approved
 
-  # draft: mesmo motivo do Apertura (nome oficial da 1ª divisão paraguaia)
+  # mesmo rótulo e apelido do Apertura (decisão do dono, 28/10/2026)
   - slug: paraguay-primera-clausura
     api_sports_league_id: 252
-    labels: { es: "División Profesional de Paraguay - Clausura" }
-    nicknames: { es: [] }
+    labels: { es: "Primera División de Paraguay - Clausura" }
+    nicknames: { es: ["División de Honor"] }
     trophy_nickname: null
     sources:
       - "https://www.abc.com.py/deportes/futbol/2026/07/30/la-historica-marca-de-olimpia-y-cerro-porteno-con-dos-derrotas/"
       - "https://en.wikipedia.org/wiki/APF_Divisi%C3%B3n_de_Honor"
-    review_status: draft
+    review_status: approved
 
   - slug: liga-mx
     api_sports_league_id: 262
@@ -386,17 +386,17 @@ competitions:
       - "https://www.goal.com/br/not%C3%ADcias/campeonato-mexicano-entra-na-programacao-do-dazn-com/1p61k29t4v2ya1i9cot9doy8hi"
     review_status: approved
 
-  # draft: a imprensa mexicana diz que a liga passou a se chamar "Liga Femenil" no Apertura 2026; falta
-  # confirmar o nome oficial antes de aprovar o rótulo
+  # rótulo mantido até a liga confirmar a troca (decisão do dono, 28/10/2026); "Liga Femenil", o nome que a
+  # imprensa mexicana usa desde o Apertura 2026, fica como apelido para a busca
   - slug: liga-mx-femenil
     api_sports_league_id: 673
     labels: { es: "Liga MX Femenil" }
-    nicknames: { es: [] }
+    nicknames: { es: ["Liga Femenil"] }
     trophy_nickname: null
     sources:
       - "https://en.wikipedia.org/wiki/Liga_MX_Femenil"
       - "https://www.chilango.com/noticias/liga-femenil-calendario-apertura-2026/"
-    review_status: draft
+    review_status: approved
 
   - slug: bolivia-primera-division
     api_sports_league_id: 344
