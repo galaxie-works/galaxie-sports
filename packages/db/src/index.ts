@@ -59,6 +59,13 @@ export {
   type RuntimeSettingWrite,
 } from './runtime-settings.js';
 export {
+  listKeyEvents,
+  recordKeyEvent,
+  type KeyEvent,
+  type KeyEventAction,
+  type KeyEventInput,
+} from './key-events.js';
+export {
   listWidgets,
   getWidget,
   saveWidget,

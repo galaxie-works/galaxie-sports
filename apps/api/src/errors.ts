@@ -36,6 +36,13 @@ export const problems = {
     new ProblemError(400, 'INVALID_PARAMS', 'Parâmetro inválido', detail, { errors }),
   invalidKey: (detail = 'Envie uma chave válida no header x-galaxie-key.') =>
     new ProblemError(401, 'INVALID_KEY', 'Chave de API ausente ou inválida', detail),
+  realtimeNotInPlan: (plan: string) =>
+    new ProblemError(
+      403,
+      'MODULE_NOT_IN_PLAN',
+      'Plano não inclui tempo real',
+      `O plano ${plan} não inclui SSE (/v1/stream) nem webhooks.`,
+    ),
   moduleNotInPlan: (module: string) =>
     new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plano não inclui o módulo ${module}`),
   sportNotInPlan: (sport: string) =>
@@ -60,6 +67,14 @@ export const problems = {
     ),
   notFound: (what = 'Recurso') => new ProblemError(404, 'NOT_FOUND', `${what} não encontrado`),
   conflict: (detail: string) => new ProblemError(409, 'CONFLICT', 'Conflito com o estado atual', detail),
+  quotaExceeded: (limit: number, retryAfterSec: number) =>
+    new ProblemError(
+      429,
+      'QUOTA_EXCEEDED',
+      'Cota diária do plano esgotada',
+      `O tenant passou de 110% da cota diária de ${limit} requisições. A cota volta na virada do dia (UTC).`,
+      { headers: { 'retry-after': String(retryAfterSec) } },
+    ),
   rateLimited: (retryAfterSec: number) =>
     new ProblemError(429, 'RATE_LIMITED', 'Limite de requisições do tenant atingido', undefined, {
       headers: { 'retry-after': String(retryAfterSec) },

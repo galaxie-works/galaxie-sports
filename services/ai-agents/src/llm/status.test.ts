@@ -146,10 +146,30 @@ describe('tetos: número ou "unlimited"; 0 é inválido', () => {
     // dentro: aceito nos dois, com a mesma normalização
     expect(llmSettingsFromEnv({ AI_DAILY_TOKEN_BUDGET: '3000000' }).dailyTokenBudget).toBe(3_000_000);
     expect(llmSettingsFromEnv({ AI_DAILY_USD_BUDGET: '7,5' }).dailyUsdBudget).toBe(7.5);
-    expect(
-      llmSettingsFromEnv({ AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2' })
-        .agentUsdBudgets,
-    ).toEqual({ lineups: 2, wtw: 3, context: 1.5, related: 0.5, f1profile: 2 });
+    // a sobrescrita da produção (painel, 26/10) mescla sobre os padrões do código: os agentes que ela não
+    // cita ficam com o teto do código, não com o teto padrão do agente novo
+    const prod = llmSettingsFromEnv({
+      AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2',
+    });
+    expect(prod.agentUsdBudgets).toEqual({
+      lineups: 2,
+      wtw: 3,
+      context: 1.5,
+      related: 0.5,
+      f1profile: 2,
+      f1bio: 1,
+      curator: 1,
+      review: 0.5,
+      channels: 1,
+      live: 0.5,
+      assets: 1,
+    });
+    expect(prod.agentUsdOrigins).toMatchObject({
+      lineups: 'config',
+      f1profile: 'config',
+      f1bio: 'code',
+      assets: 'code',
+    });
   });
 
   it('"unlimited" tira o teto, global e por agente', async () => {
@@ -159,7 +179,7 @@ describe('tetos: número ou "unlimited"; 0 é inválido', () => {
       AI_AGENT_USD_BUDGETS: 'lineups=2,wtw=unlimited',
     });
     expect(s).toMatchObject({ dailyUsdBudget: null, dailyTokenBudget: null });
-    expect(s.agentUsdBudgets).toEqual({ lineups: 2, wtw: null });
+    expect(s.agentUsdBudgets).toMatchObject({ lineups: 2, wtw: null, f1bio: 1 });
     expect(parseAgentUsdBudgets('wtw=0')).toBeNull();
     // wtw sem teto próprio: passa mesmo com o gasto do dia acima do que seria o teto
     const store = new MemoryTokenBudgetStore();
@@ -201,12 +221,14 @@ describe('estado literal (logs, CLI, painel)', () => {
       AI_AGENT_USD_BUDGETS: 'lineups=2,related=unlimited',
     });
     const budget = new TokenBudget(new MemoryTokenBudgetStore(), budgetPolicyFromSettings(settings));
-    expect(await aiStatusLines(budget)).toEqual([
-      'IA: ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia (hoje: US$ 0,00)',
-      '  lineups: ligado · limitado · US$ 2/dia (hoje: US$ 0,00)',
-      '  related: ligado · sem limite (hoje: US$ 0,00)',
-      '  wtw: desligado (hoje: US$ 0,00)',
-    ]);
+    const lines = await aiStatusLines(budget);
+    expect(lines[0]).toBe('IA: ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia (hoje: US$ 0,00)');
+    // de onde vem cada teto: a lista configurada (painel/env) ou o padrão do código
+    expect(lines).toContain('  lineups: ligado · limitado · US$ 2/dia (teto do painel/env) (hoje: US$ 0,00)');
+    expect(lines).toContain('  related: ligado · sem limite (teto do painel/env) (hoje: US$ 0,00)');
+    expect(lines).toContain('  f1bio: ligado · limitado · US$ 1/dia (teto do código) (hoje: US$ 0,00)');
+    expect(lines).toContain('  wtw: desligado (hoje: US$ 0,00)');
+    expect(lines.at(-1)).toBe('  outros agentes: teto padrão de US$ 0,50/dia (AI_AGENT_DEFAULT_USD_BUDGET)');
     const off = new TokenBudget(
       new MemoryTokenBudgetStore(),
       budgetPolicyFromSettings(llmSettingsFromEnv({ AI_STATUS: 'off' })),

@@ -13,6 +13,7 @@ import { formatApiKey, parseApiKey } from '../src/auth/keys.js';
 import { buildServer } from '../src/server.js';
 import { withRandomSecret } from '../src/test-helpers.js';
 import { RedisUsageBackend, utcDay } from '../src/usage/counter.js';
+import { QuotaGuard } from '../src/usage/quota.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -725,6 +726,10 @@ describe('tenant:create no teto de chaves (upsertTenantWithKey)', () => {
     expect(after[0]).toMatchObject({ name: 'Original', plan: 'core_data' });
     const keys = await db.select({ id: apiKey.id }).from(apiKey).where(eq(apiKey.tenantId, first.tenant.id));
     expect(keys).toHaveLength(5);
+    // nem a auditoria registra a emissão recusada
+    const events = (await adminReq('GET', '/internal/admin/tenants/cli-teto/key-events')).json()
+      .data as unknown[];
+    expect(events).toHaveLength(5);
 
     // o teto é por ambiente: em test, atualiza o tenant e emite
     const test = await upsertTenantWithKey(db, input('Trocado', 'enterprise'), { env: 'test' });
@@ -732,5 +737,118 @@ describe('tenant:create no teto de chaves (upsertTenantWithKey)', () => {
     expect(test.key.key).toMatch(/^gs_test_/);
     const [updated] = await db.select().from(tenant).where(eq(tenant.slug, 'cli-teto'));
     expect(updated).toMatchObject({ name: 'Trocado', plan: 'enterprise' });
+  });
+});
+
+describe('trial e auditoria (docs/politica-de-chaves.md §3 e §5)', () => {
+  it('plano trial: 30 dias, cota baixa; no fim do prazo nenhuma chave vale; sair do trial tira o prazo', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'avaliacao',
+      name: 'Avaliação',
+      plan: 'trial',
+    });
+    expect(res.statusCode).toBe(201);
+    const t = res.json().tenant;
+    expect(t).toMatchObject({ plan: 'trial', modules: ['core_data'], dailyRequestQuota: 5000 });
+    const days = (Date.parse(t.trialEndsAt) - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThanOrEqual(30);
+    const key = res.json().key.key as string;
+    const ok = await tenantReq(key, 'GET', '/v1/sports');
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['x-galaxie-quota-limit']).toBe('5000');
+
+    await db
+      .update(tenant)
+      .set({ trialEndsAt: new Date(Date.now() - 1000) })
+      .where(eq(tenant.id, t.id));
+    expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(401);
+
+    const upgraded = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'core_data' });
+    expect(upgraded.json().tenant.trialEndsAt).toBeNull();
+    expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(200);
+  });
+
+  it('cota depois de o Valkey perder o hash do dia: o uso já consolidado continua contando', async () => {
+    await awayFromUtcMidnight();
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'cota-pos-perda',
+      name: 'Cota pós-perda',
+      plan: 'core_data',
+      dailyRequestQuota: 3,
+      key: { env: 'live' },
+    });
+    const tenantId = res.json().tenant.id as string;
+    const key = res.json().key.key as string;
+    // uso de hoje consolidado de uma época anterior; o hash do Valkey sumiu (reinício sem dados)
+    const day = utcDay();
+    await db.insert(usageDaily).values([
+      { tenantId, day, route: 'GET /v1/sports', requests: 4, epoch: '000000000000001-antiga', epochBase: 0 },
+      {
+        tenantId,
+        day,
+        route: 'test:GET /v1/sports',
+        requests: 50,
+        epoch: '000000000000001-antiga',
+        epochBase: 0,
+      },
+    ]);
+    expect(await usage.get(day, tenantId)).toEqual({});
+    const blocked = await tenantReq(key, 'GET', '/v1/sports');
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json()).toMatchObject({ code: 'QUOTA_EXCEEDED' });
+
+    // consolidado de uma época anterior + contagem da época nova do Valkey: soma (a regra do /v1/account/usage)
+    const guard = new QuotaGuard(usage, { db });
+    const other = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'cota-pos-perda-2',
+      name: 'Cota pós-perda 2',
+      plan: 'core_data',
+      key: false,
+    });
+    const otherId = other.json().tenant.id as string;
+    await db.insert(usageDaily).values({
+      tenantId: otherId,
+      day,
+      route: 'GET /v1/sports',
+      requests: 6,
+      epoch: '000000000000001-antiga',
+      epochBase: 0,
+    });
+    await usage.incr([{ day, tenantId: otherId, route: 'GET /v1/sports', n: 4 }]);
+    expect(await guard.check(otherId, 10)).toMatchObject({ used: 11, level: 'warn' });
+    expect(await guard.check(otherId, 10)).toMatchObject({ used: 12, level: 'blocked' });
+  });
+
+  it('emissão, rotação e revogação ficam na auditoria (sem segredo)', async () => {
+    const res = await adminReq('POST', '/internal/admin/tenants', {
+      slug: 'auditado',
+      name: 'Auditado',
+      plan: 'core_data',
+    });
+    const tenantId = res.json().tenant.id as string;
+    const first = res.json().key;
+    const issued = (
+      await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys`, { label: 'extra' })
+    ).json().key;
+    const rotated = await tenantReq(first.key, 'POST', '/v1/account/keys/rotate', { graceSeconds: 60 });
+    expect(rotated.statusCode).toBe(201);
+    await adminReq('POST', `/internal/admin/tenants/${tenantId}/keys/${issued.id}/revoke`);
+
+    const events = await adminReq('GET', `/internal/admin/tenants/auditado/key-events`);
+    expect(events.statusCode).toBe(200);
+    const rows = (
+      events.json().data as { action: string; actor: string; prefix: string; keyKind: string }[]
+    ).reverse();
+    expect(rows.map((e) => [e.action, e.actor, e.prefix])).toEqual([
+      ['issued', 'admin', first.prefix],
+      ['issued', 'admin', issued.prefix],
+      ['rotated', 'tenant', first.prefix],
+      ['revoked', 'admin', issued.prefix],
+    ]);
+    expect(rows.every((e) => e.keyKind === 'secret')).toBe(true);
+    // nunca o segredo
+    expect(events.body).not.toContain(first.key);
+    expect(events.body).not.toContain(rotated.json().key.key);
   });
 });

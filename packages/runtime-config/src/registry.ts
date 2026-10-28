@@ -5,6 +5,15 @@
  * nunca têm valor lido, gravado nem exibido.
  */
 
+/**
+ * Agentes com pool de tokens próprio, fora da soma do AI_DAILY_TOKEN_BUDGET global (fração dele; o
+ * ledger, @galaxie/ai-ledger, e o painel leem daqui):
+ * - assets=0.2: a ordem das fotos manda ~15 mil tokens por alvo (12 miniaturas); na conta global, ~200
+ *   alvos esgotariam 3M de tokens por ~US$ 1,30 e deixariam todos os agentes sem IA até a virada. Com 20%
+ *   à parte (600 mil com 3M, ~40 alvos/dia), o lote nunca tira tokens dos outros agentes.
+ */
+export const SEPARATE_TOKEN_POOLS: Readonly<Record<string, number>> = { assets: 0.2 };
+
 /** Contêiner (ou processo) que lê a variável. */
 export type RuntimeService = 'ingestor' | 'agents' | 'api' | 'demo';
 
@@ -165,11 +174,11 @@ export const RETRY_OFFSETS_PATTERN = new RegExp(`^(off|${RETRY_OFFSET}(\\s*,\\s*
 
 /**
  * AI_AGENT_USD_BUDGETS: `agente=US$` ou `agente=unlimited` separados por vírgula (agente = prefixo do
- * `purpose` em ops.llm_usage). Espelho de parseAgentUsdBudgets em services/ai-agents/src/llm/config.ts.
+ * `purpose` em ops.llm_usage). Espelho de parseAgentUsdBudgets em packages/ai-ledger/src/state.ts.
  */
 const AGENT_USD_ENTRY = '[a-z0-9][a-z0-9@._-]*=(\\d+(\\.\\d+)?|unlimited)';
 export const AGENT_USD_BUDGETS_PATTERN = new RegExp(`^${AGENT_USD_ENTRY}([,;\\s]+${AGENT_USD_ENTRY})*$`, 'i');
-/** AI_AGENT_STATUS: `agente=on` ou `agente=off`. Espelho de parseAgentStatus em services/ai-agents. */
+/** AI_AGENT_STATUS: `agente=on` ou `agente=off`. Espelho de parseAgentStatus em packages/ai-ledger. */
 const AGENT_STATUS_ENTRY = '[a-z0-9][a-z0-9@._-]*=(on|off)';
 export const AGENT_STATUS_PATTERN = new RegExp(
   `^${AGENT_STATUS_ENTRY}([,;\\s]+${AGENT_STATUS_ENTRY})*$`,
@@ -336,7 +345,7 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '10',
     critical: true,
   }),
-  // teto em US$ por agente (vazio = o padrão; agente fora da lista fica só no teto global)
+  // teto em US$ por agente (vazio = o padrão; agente fora da lista fica no AI_AGENT_DEFAULT_USD_BUDGET)
   agents('ai', {
     key: 'AI_AGENT_USD_BUDGETS',
     type: 'text',
@@ -344,7 +353,18 @@ export const SETTINGS: readonly SettingDef[] = [
     zeroInvalid: true,
     allowEmpty: true,
     default:
-      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=unlimited,curator=unlimited,review=unlimited,channels=unlimited,live=unlimited',
+      'lineups=2,wtw=3,context=1.5,related=0.5,f1profile=2,f1bio=1,curator=1,review=0.5,channels=1,live=0.5,assets=1',
+    critical: true,
+  }),
+  // teto em US$ do agente fora de AI_AGENT_USD_BUDGETS (agente novo): conservador, com aviso diário no log
+  agents('ai', {
+    key: 'AI_AGENT_DEFAULT_USD_BUDGET',
+    type: 'number',
+    min: 0.05,
+    max: 1_000,
+    unlimited: true,
+    zeroInvalid: true,
+    default: '0.5',
     critical: true,
   }),
   // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o

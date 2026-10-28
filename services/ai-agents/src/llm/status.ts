@@ -18,7 +18,7 @@ export function configuredAgents(budget: TokenBudget): string[] {
 
 /**
  * Linhas do relatório: "IA: ligado · limitado · US$ 10/dia · 2.000.000 tokens/dia (hoje: US$ 1,23)" e
- * uma por agente ("  wtw: desligado"). Com AI_STATUS=off (chave geral), todo agente aparece desligado
+ * uma por agente ("  wtw: desligado"), mais o teto padrão dos agentes fora da lista. Com AI_STATUS=off (chave geral), todo agente aparece desligado
  * por ela, inclusive o listado com `agente=on`. Sem ledger (`withSpend` falso), sem o gasto do dia.
  */
 export async function aiStatusLines(budget: TokenBudget, withSpend = true): Promise<string[]> {
@@ -30,7 +30,23 @@ export async function aiStatusLines(budget: TokenBudget, withSpend = true): Prom
     const state = globalOff
       ? `desligado pela chave geral (AI_STATUS=off)${budget.policy.agentStatus?.[agent] === 'on' ? '; agente=on sem efeito' : ''}`
       : budget.describe(agent);
-    lines.push(`  ${agent}: ${state}${await spend(agent)}`);
+    // de onde vem o teto: a lista configurada (painel ou env), o padrão do código ou o teto do agente novo
+    const origin = budget.agentUsdLimitOf(agent).origin;
+    const from =
+      globalOff || budget.statusOf(agent) === 'off'
+        ? ''
+        : origin === 'config'
+          ? ' (teto do painel/env)'
+          : origin === 'code'
+            ? ' (teto do código)'
+            : ' (teto padrão)';
+    lines.push(`  ${agent}: ${state}${from}${await spend(agent)}`);
   }
+  // agente fora da lista (agente novo): o teto padrão, nunca sem teto
+  const fallback = budget.policy.agentDefaultUsdLimit ?? null;
+  if (!globalOff)
+    lines.push(
+      `  outros agentes: ${fallback === null ? 'só o teto global' : `teto padrão de US$ ${usd(fallback)}/dia`} (AI_AGENT_DEFAULT_USD_BUDGET)`,
+    );
   return lines;
 }

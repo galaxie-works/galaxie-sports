@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { AiDisabledError } from '@galaxie/ai-ledger';
+import { describe, expect, it, vi } from 'vitest';
 import type { CommonsFile, WikimediaClient } from './client.js';
 import type { Discovery } from './discover.js';
 import {
@@ -491,6 +492,88 @@ describe('passo do Gemini (ranqueador falso)', () => {
     });
     expect(manifest.entries).toEqual([before]);
     expect(stats[0]!.ranking).toBe('gemini falhou');
+  });
+
+  it('Gemini falhando em sequência: o lote para depois de 3 falhas seguidas, sem buscar os alvos seguintes', async () => {
+    const targets = ['a', 'b', 'c', 'd'].map((id): DriverTarget => ({
+      ...senna,
+      f1dbId: `piloto-${id}`,
+      name: `Piloto ${id}`,
+      highlight: null,
+    }));
+    let calls = 0;
+    const failing: Ranker = {
+      model: 'gemini-fake',
+      rank: async () => {
+        calls++;
+        throw new Error('RESOURCE_EXHAUSTED');
+      },
+    };
+    const counted = vi.fn(discover);
+    const { manifest, stats } = await mapCommons(client, targets, null, {
+      revision: '2026-10-26',
+      ranker: failing,
+      discover: counted,
+    });
+    expect(calls).toBe(3);
+    expect(counted).toHaveBeenCalledTimes(3);
+    expect(manifest.entries).toEqual([]);
+    expect(stats.at(-1)).toMatchObject({
+      ranking: 'gemini falhou',
+      note: 'pendente: Gemini falhou 3 vezes seguidas',
+    });
+  });
+
+  it('miniatura da Wikimedia que não baixa pula o alvo sem contar como falha do Gemini', async () => {
+    const targets = ['a', 'b', 'c', 'd'].map((id): DriverTarget => ({
+      ...senna,
+      f1dbId: `piloto-${id}`,
+      name: `Piloto ${id}`,
+      highlight: null,
+    }));
+    const offline = {
+      download: async () => {
+        throw new Error('HTTP 503');
+      },
+    } as unknown as WikimediaClient;
+    const { ranker, calls } = fake();
+    const { stats } = await mapCommons(offline, targets, null, { revision: '2026-10-26', ranker, discover });
+    // os quatro alvos foram tentados (o lote não parou "por falha do Gemini") e o Gemini nem foi chamado
+    expect(stats).toHaveLength(4);
+    expect(stats.every((s) => s.ranking === 'miniatura falhou')).toBe(true);
+    expect(stats[3]!.note).toBe('pendente: miniatura não baixou (HTTP 503)');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('nenhum julgamento para as fotos enviadas: o alvo não vira ordenado sem fotos', async () => {
+    const none: Ranker = { model: 'gemini-fake', rank: async () => [] };
+    const { manifest, stats } = await mapCommons(client, [senna], null, {
+      revision: '2026-10-26',
+      ranker: none,
+      discover,
+    });
+    expect(manifest.entries).toEqual([]);
+    expect(stats[0]!.ranking).toBe('gemini falhou');
+  });
+
+  it('sem orçamento de IA (ou IA desligada): para de ordenar e os alvos seguintes nem buscam candidatas', async () => {
+    const prost: DriverTarget = { ...senna, f1dbId: 'alain-prost', name: 'Alain Prost', highlight: null };
+    const noBudget: Ranker = {
+      model: 'gemini-fake',
+      rank: async () => {
+        throw new AiDisabledError('global');
+      },
+    };
+    const counted = vi.fn(discover);
+    const { manifest, stats } = await mapCommons(client, [senna, prost], null, {
+      revision: '2026-10-26',
+      ranker: noBudget,
+      discover: counted,
+    });
+    expect(counted).toHaveBeenCalledTimes(1);
+    expect(manifest.entries).toEqual([]);
+    expect(stats.map((s) => s.ranking)).toEqual(['sem orçamento de IA', 'sem orçamento de IA']);
+    expect(stats[1]!.note).toMatch(/^pendente: IA desligada/);
   });
 
   it('descoberta vazia (identidade não conferida) não apaga a galeria já mapeada: fica como estava', async () => {

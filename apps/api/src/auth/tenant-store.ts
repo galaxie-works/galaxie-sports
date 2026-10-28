@@ -10,6 +10,10 @@ export interface TenantRecord {
   sports: string[];
   rateLimitPerMinute: number;
   status: 'active' | 'suspended';
+  /** Cota diária de produção; null/ausente = sem cota. */
+  dailyRequestQuota?: number | null;
+  /** Fim do trial; depois dele nenhuma chave do tenant autentica. */
+  trialEndsAt?: Date | null;
 }
 
 export interface KeyRecord {
@@ -60,6 +64,8 @@ export class PgTenantStore implements TenantStore {
         sports: row.tenant.sports,
         rateLimitPerMinute: row.tenant.rateLimitPerMinute,
         status: row.tenant.status,
+        dailyRequestQuota: row.tenant.dailyRequestQuota,
+        trialEndsAt: row.tenant.trialEndsAt,
       },
     };
   }

@@ -1,16 +1,102 @@
-# Exercício de recuperação de desastre (DR)
+# Backup e recuperação de desastre (DR): política, ensaio e exercício
 
-Roteiro para provar, periodicamente, que um backup do Postgres vira um banco funcional — e registro dos exercícios
-feitos. O procedimento operacional completo (agenda de dumps, cópia remota, restore real e rollback em staging) está em
-[infra/portainer/README.md §Backups e §Restore](../../infra/portainer/README.md#backups); este documento é o **exercício**.
+Política de backup do Postgres, o que roda sozinho (verificador, ensaio mensal e alertas), o que o NAS do dono faz, e
+o roteiro do exercício completo, com o registro dos exercícios feitos. O procedimento operacional (restore real e
+rollback) está em [infra/portainer/README.md §Backups e §Restore](../../infra/portainer/README.md#backups).
 
 ## Objetivos
 
 | Métrica | Alvo | Observação |
 |---|---|---|
-| RPO (perda máxima de dados) | 24 h | Dump diário (`BACKUP_TIME`). O `raw` perdido pode ser rebuscado no fornecedor, mas custa cota |
-| RTO (tempo até a API voltar) | 1 h | Do incidente declarado à API respondendo `/health/db` com o banco restaurado |
-| Frequência do exercício | Mensal (ensaio `--verify`) e trimestral (exercício completo, abaixo) | O CI já roda o ciclo completo em banco descartável (`infra/backup/e2e-test.sh`) |
+| RPO (perda máxima de dados) | 24 h | Dump diário (`BACKUP_TIME`, 03:30 UTC). O `raw` perdido pode ser rebuscado no fornecedor, mas custa cota |
+| RTO (tempo até a API voltar) | 2 h | Do incidente declarado à API respondendo `/health/db` com o banco restaurado (inclui baixar o dump do NAS ou subir uma VPS nova) |
+| Ensaio de restauração | Mensal, automático | `restore-drill.sh` no dia 1 (abaixo); o CI roda o ciclo completo em banco descartável (`infra/backup/e2e-test.sh`) |
+| Exercício completo | Trimestral, manual | Roteiro abaixo, com a API subindo sobre o banco restaurado |
+
+## Política de retenção (3-2-1, avô-pai-filho)
+
+Três cópias, em dois lugares diferentes, uma fora da VPS:
+
+| Camada | Onde | O que | Retenção | Quem mantém |
+|---|---|---|---|---|
+| 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
+| 2 | NAS do dono (fora da VPS) | Cópia dos dumps e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
+| 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
+
+A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada (retenção pela regra de ciclo de
+vida do bucket). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
+disco, sem conferência de que o banco nele está íntegro.
+
+### Cópia no NAS
+
+Roda no NAS desde 26/10/2026, na stack `galaxie-sports-backup-nas` do Portainer do NAS (ambiente `local`), com o
+compose [infra/nas-backup/compose.yml](../../infra/nas-backup/compose.yml) e o script
+[infra/nas-backup/nas-pull.sh](../../infra/nas-backup/nas-pull.sh). Um container `alpine` com `crond` roda o script às
+05:15 e às 17:15 UTC (`NAS_PULL_CRON`; a das 17:15 é a reserva) e na partida. Cada execução:
+
+1. **Lista** os dumps do volume `backups` da VPS e, para cada dia UTC dos últimos 14, **baixa** o dump mais recente
+   daquele dia com o `.sha256`, se o NAS ainda não o tem (`rsync --partial`: uma cópia interrompida continua de onde
+   parou). O NAS guarda um dump por dia. Se a VPS tiver um mais novo do mesmo dia (o backup roda também na partida do
+   serviço, a cada deploy), o novo substitui o anterior depois de conferido.
+2. **Confere** o sha256 de cada dump baixado antes de movê-lo para `daily/`. Se não conferir, apaga a cópia e falha.
+3. **Faz a rotação** avô-pai-filho por hardlink, sem duplicar espaço: `daily/` fica com os 14 dias mais recentes,
+   `weekly/` com o último dump de cada semana ISO (8 semanas; normalmente o de domingo) e `monthly/` com o último de
+   cada mês (12 meses). A rotação conta dumps, não idade: com a cópia parada, nada some.
+4. **Deixa o recibo** `.nas_last_pull` no volume da VPS, mas só quando o próprio dump mais recente da VPS está
+   guardado e conferido. Com `BACKUP_NAS_RECEIPT=true`, que é o padrão do compose da VPS desde este PR, o verificador acusa
+   cópia do NAS com mais de 26 h (alerta `BackupCheckFailed`).
+
+**Onde fica, no NAS** (`NAS_BACKUP_PATH`, hoje `/volume1/Docker/galaxie-sports-backups`): `daily/`, `weekly/`,
+`monthly/` (dumps e `.sha256`), `incoming/` (cópia em andamento), `ssh/` (chaves e `known_hosts`), `nas-pull.sh`
+(cópia do script do repositório) e `last_run.txt`, com o resultado da última execução.
+
+**Acesso à VPS**: duas chaves ed25519 geradas no próprio NAS (`ssh/pull_ed25519` e `ssh/receipt_ed25519`), que nunca
+saem de lá. No `authorized_keys` do root da VPS, cada uma tem `restrict` e um comando fixo:
+
+```text
+command="/usr/bin/rrsync -ro /var/lib/docker/volumes/galaxie-sports_backups/_data",restrict ssh-ed25519 ... galaxie-nas-pull
+command="touch /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pull",restrict ssh-ed25519 ... galaxie-nas-receipt
+```
+
+A primeira só lista e lê a pasta dos backups: escrever, sair da pasta, rodar comando e abrir shell são recusados
+(conferido na instalação). A segunda só toca o recibo, qualquer que seja o comando pedido. O host da VPS é conferido
+pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atualize esse arquivo com a chave nova
+(`ssh-keyscan -t ed25519 <vps>`, conferida pelo console do provedor).
+
+**Operação**:
+
+- Estado: `last_run.txt` na pasta, ou o log do container `galaxie-sports-backup-nas-backup-nas-1` no Portainer do NAS.
+  Na VPS: `ls -la --time-style=full-iso /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pull`.
+- Rodar já: reinicie o container (`NAS_PULL_ON_START=true`) ou, no console dele, `. /etc/nas-pull.env; sh /data/nas-pull.sh`.
+- Atualizar o script: copie `infra/nas-backup/nas-pull.sh` para a pasta do NAS. O compose roda o arquivo da pasta, então
+  não precisa refazer a stack.
+- Restaurar a partir do NAS: copie o dump e o `.sha256` para o volume `backups` da VPS (ou de uma VPS nova) e siga
+  [Cenários de desastre](#cenários-de-desastre-e-resposta).
+- Trocar as chaves: gere outras em `ssh/` no NAS, substitua as linhas `galaxie-nas-*` no `authorized_keys` da VPS e
+  reinicie o container.
+- Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
+  26 h.
+
+## O que roda sozinho
+
+O serviço `backup` (`infra/backup/entrypoint.sh`) agenda, em UTC:
+
+| Quando | Script | O que faz | Registro (`ops.job_run`) e alerta |
+|---|---|---|---|
+| Diário, `BACKUP_TIME` (03:30) e na partida | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h) |
+| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h; com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
+| Dia `RESTORE_DRILL_DAY` (1) de cada mês, depois do dump | `restore-drill.sh` | Restaura o dump mais recente em `<banco>_drill_<data>` (nunca o de produção), confere e apaga | `pg-restore-drill` → `RestoreDrillFailed` (1ª falha), `RestoreDrillStale` (sem sucesso há 35 dias) |
+
+O ensaio confere: dump com no máximo 26 h e `.sha256` certo; espaço livre de pelo menos 2x o tamanho do banco no disco
+dos volumes; `pg_restore` sem erro; migrations aplicadas no restaurado (> 0 e não mais que na produção); linhas em
+`core.competition`, `core.event`, `raw.api_response` e `ops.job_run` (`RESTORE_DRILL_TABLES`); e última atualização de
+partida até 72 h antes do dump (`RESTORE_DRILL_EVENT_MAX_AGE_H`). O resultado, com tempos e contagens, fica em
+`ops.job_run.stats`. Avulso: `docker compose exec backup restore-drill.sh`. Banco temporário de um ensaio interrompido é
+apagado no ensaio seguinte.
+
+Os alertas (e os demais: disco acima de 85%, API fora, fila do change feed parada) saem do Prometheus e vão por e-mail
+pelo Grafana quando o SMTP está configurado; sem SMTP, ficam visíveis no Grafana. Como ligar:
+[infra/vps-telemetry/README.md §Alertas por e-mail](../../infra/vps-telemetry/README.md#alertas-por-e-mail).
 
 ## Roteiro do exercício completo
 
@@ -57,7 +143,7 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
 | Cenário | Resposta |
 |---|---|
 | Banco corrompido / `DROP` acidental | Pare API e ingestor → `restore.sh --yes latest` → confira → suba os serviços. Perda: desde o último dump |
-| VPS perdida | Nova VPS → stack do Portainer → copie o dump da cópia S3 (`restore.sh --yes s3://...`; baixa e confere o `.sha256` junto e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido |
+| VPS perdida | Primeiro, o snapshot diário do provedor da VPS (volta a VPS inteira do dia anterior). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido |
 | Valkey perdido | Sem restauração: cache e rate limit se reconstroem; contadores de uso do dia corrente voltam a partir do último consolidado em `api.usage_daily` (o flush usa `greatest`, nada regride) |
 | Bucket de assets perdido | `assets:mirror` rebaixa da CDN de mídia (fora da cota); `core.asset` guarda as URLs de origem |
 | Vazamento de segredo | [SECURITY.md §Rotação de segredos](../../SECURITY.md#rotação-de-segredos) |

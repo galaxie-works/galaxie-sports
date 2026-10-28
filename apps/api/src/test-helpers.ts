@@ -26,6 +26,8 @@ export async function memoryTenant(
       sports: overrides.sports ?? [],
       rateLimitPerMinute: overrides.rateLimitPerMinute ?? 100,
       status: overrides.status ?? 'active',
+      dailyRequestQuota: overrides.dailyRequestQuota ?? null,
+      trialEndsAt: overrides.trialEndsAt ?? null,
     },
   });
   return { store, key: generated.key, prefix: generated.prefix };

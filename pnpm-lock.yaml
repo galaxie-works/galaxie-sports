@@ -227,6 +227,18 @@ importers:
         specifier: ^4
         version: 4.3.3
 
+  packages/ai-ledger:
+    dependencies:
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../runtime-config
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
+
   packages/apisports-client:
     dependencies:
       '@galaxie/db':
@@ -395,6 +407,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.136.0
         version: 0.136.0(zod@4.6.7)
+      '@galaxie/ai-ledger':
+        specifier: workspace:*
+        version: link:../../packages/ai-ledger
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -450,6 +465,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1153.0
         version: 3.1153.0
+      '@galaxie/ai-ledger':
+        specifier: workspace:*
+        version: link:../../packages/ai-ledger
       '@galaxie/apisports-client':
         specifier: workspace:*
         version: link:../../packages/apisports-client

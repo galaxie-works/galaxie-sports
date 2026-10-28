@@ -47,7 +47,7 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 
 ### 1.2 Onboarding, autoatendimento e uso
 
-**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (informativa; `null` = sem cota) e o ambiente da chave inicial. O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
+**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Trial, Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (aplicada ao uso de produção: aviso a partir de 80%, 429 `QUOTA_EXCEEDED` acima de 110%; `null` = sem cota), o ambiente da chave inicial e `trialDays` (o Trial vale 30 dias, sem SSE nem webhooks; [política](politica-de-chaves.md)). O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
 
 **API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` (na VPS, o router do Traefik em [`infra/vps-telemetry/compose.yml`](../infra/vps-telemetry/compose.yml) não inclui `/internal` nem `/metrics`; na stack do Portainer, o [Caddyfile](../infra/caddy/Caddyfile)); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
 
@@ -62,6 +62,7 @@ pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --l
 | `POST /internal/admin/tenants/{id}/keys/{keyId}/rotate` | Nova chave (mesmo rótulo/escopos/ambiente/validade); a antiga expira em `graceSeconds` (padrão 86400; 0 = revoga já; máx. 7 dias). Chave já rotacionada ou ambiente com 5 chaves válidas (com graça 0 a antiga não conta) → 409 `CONFLICT` |
 | `POST /internal/admin/tenants/{id}/keys/{keyId}/revoke` | Revoga |
 | `GET /internal/admin/tenants/{id}/usage?from=&to=` | Uso por dia e rota (dias UTC; padrão últimos 7; máx. 92) |
+| `GET /internal/admin/tenants/{id}/key-events?limit=` | Auditoria das chaves: emissão, rotação, revogação e migração, com quem fez (sem segredos) |
 | `GET /internal/admin/usage?from=&to=` | Total por tenant no período |
 | `POST /internal/admin/usage/flush` | Força a consolidação Valkey → Postgres |
 
@@ -224,7 +225,7 @@ Como funciona hoje (`apps/api/src/routes/mirror.ts`):
 | `GET /v1/explore/agenda?sport=&country=&competition=&day=&market=` | Os jogos dos próximos 7 dias que o resumo conta (mesma consulta): total, por dia, contagens para os filtros, destaques no mercado e os jogos de um dia (§3.1.3) |
 | `GET /v1/competitions?sport=&country=&tier=` | Competições com apelidos (semântica) |
 | `GET /v1/competitions/{id}` | Detalhe + temporadas |
-| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos |
+| `GET /v1/competitions/{id}/seasons/{season}/standings` | Tabela/grupos; com regulamento de tabelas (Apertura/Clausura, anual, promedios), cada grupo traz `display_name`, `table`, `table_key`, `current` e `source` ([docs/rules §1.4](rules/README.md#14-tabelas-da-temporada-tables)). Sem regulamento, os grupos reservados do recálculo por fases também trazem `display_name`: `first_phase` (1ª fase), `annual` (tabela anual) e `unnamed:<n>` (grupo deduzido dos jogos) |
 | `GET /v1/competitions/{id}/context` | O que está em jogo: líder, G4/G6, Z4, mata-mata, chaveamento, próximos confrontos decisivos |
 | `GET /v1/venues/{id}` | Estádio/circuito/arena: nome atual (curadoria vence o fornecedor), `provider_name` (nome cru do fornecedor) e `former_names` (`{ name, from, until, origin, confidence }`: curadoria `high` primeiro, depois pistas do fornecedor `low`) |
 
@@ -904,6 +905,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
 | 429 `RATE_LIMITED` | Limite do tenant, ou muitas tentativas de autenticação com chaves não verificadas por IP/prefixo (`AUTH_ATTEMPTS_PER_MINUTE`, padrão 60; SECURITY.md) |
+| 429 `QUOTA_EXCEEDED` | Uso de produção do dia passou de 110% da cota diária do plano; `retry-after` até a virada do dia UTC. A partir de 80%, as respostas trazem `x-galaxie-quota-warning`; toda resposta com cota traz `x-galaxie-quota-limit` e `x-galaxie-quota-remaining` ([política](politica-de-chaves.md#4-limites-e-cota)) |
 | 503 `DEGRADED` | Raro: só quando nem last-known-good existe |
 | 503 `MAINTENANCE` | Stack em atualização (deploy ou reinício, segundos): quem responde é o serviço de manutenção na frente da API, com `Retry-After: 30`; tente de novo depois dele (infra/vps-telemetry/README.md › Página de manutenção) |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |

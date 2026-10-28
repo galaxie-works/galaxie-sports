@@ -33,6 +33,8 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'CONFLICT',
   'RATE_LIMITED',
+  /** Cota diária do plano passou de 110% (volta na virada do dia UTC). */
+  'QUOTA_EXCEEDED',
   'DEGRADED',
   /** Stack em atualização (deploy ou reinício): resposta do serviço de manutenção, não da API. */
   'MAINTENANCE',

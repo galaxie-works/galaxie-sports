@@ -222,6 +222,11 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
     groups: [
       {
         name: null,
+        display_name: null,
+        table: null,
+        table_key: null,
+        current: null,
+        source: 'computed',
         rows: [
           standingRow(1, 'aurora', [8, 2, 1, 21, 9]),
           standingRow(2, 'planalto', [7, 3, 1, 18, 8]),

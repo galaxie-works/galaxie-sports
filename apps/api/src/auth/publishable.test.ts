@@ -34,6 +34,7 @@ const record = (over: Partial<VerifiedPublishableKey> = {}): VerifiedPublishable
     markets: ['BR'],
     sports: ['football'],
     rateLimitPerMinute: 120,
+    dailyRequestQuota: null,
   },
   allowedOrigins: ['https://app.exemplo.test', 'https://*.exemplo.test'],
   widgetId: null,

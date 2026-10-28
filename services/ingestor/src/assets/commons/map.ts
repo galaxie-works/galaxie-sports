@@ -9,6 +9,7 @@
  *   sem `redo`: rodar de novo não muda nada (idempotente) e o mapeamento por regras não desfaz a ordem do Gemini.
  */
 import { writeFileSync } from 'node:fs';
+import { BudgetExceededError } from '@galaxie/ai-ledger';
 import type { WikimediaClient } from './client.js';
 import { discover as discoverTarget, type Discovery } from './discover.js';
 import type { RankImage } from './gemini.js';
@@ -32,7 +33,7 @@ export interface MapStats {
   candidates: number;
   eligible: number;
   chosen: number;
-  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'já ordenado';
+  ranking: 'gemini' | 'rules' | 'gemini falhou' | 'miniatura falhou' | 'sem orçamento de IA' | 'já ordenado';
   rejected: Rejection[];
   note: string | null;
 }
@@ -43,6 +44,8 @@ export interface MapOptions {
   ranker?: Ranker | null;
   /** Refaz também os alvos já ordenados pelo Gemini. */
   redo?: boolean;
+  /** Falhas seguidas do Gemini (fora o orçamento) que interrompem o lote (padrão 3). */
+  maxConsecutiveFailures?: number;
   log?: (m: string) => void;
   /** Busca das candidatas (a da Commons; injetável nos testes). */
   discover?: (client: WikimediaClient, target: CommonsTarget, thumbWidth: number) => Promise<Discovery>;
@@ -91,12 +94,26 @@ export async function mapCommons(
     rejected: [],
     note,
   });
+  // orçamento de IA do dia esgotado (ou IA desligada): os alvos seguintes nem buscam as candidatas
+  let noBudget: string | null = null;
+  // Gemini falhando em sequência (chave, cota, resposta cortada): para o lote em vez de insistir
+  let failures = 0;
+  let failedOut: string | null = null;
+  const maxFailures = opts.maxConsecutiveFailures ?? 3;
   for (const target of targets) {
     const key = targetKey(target);
     const prev = before.get(key);
     if (isRanked(prev) && !opts.redo) {
       // a ordem do Gemini fica; o alvo continua no manifesto como estava (laço final)
       stats.push(empty(key, 'já ordenado', null));
+      continue;
+    }
+    if (opts.ranker && noBudget) {
+      stats.push(empty(key, 'sem orçamento de IA', `pendente: ${noBudget}`));
+      continue;
+    }
+    if (opts.ranker && failedOut) {
+      stats.push(empty(key, 'gemini falhou', `pendente: ${failedOut}`));
       continue;
     }
     let d: Discovery;
@@ -120,19 +137,41 @@ export async function mapCommons(
     const pool = [...ok].sort((a, b) => b.ruleScore - a.ruleScore).slice(0, AI_POOL);
     let judgements: AiJudgement[] | null = null;
     if (opts.ranker && pool.length) {
+      // miniaturas da Wikimedia: falha aqui pula o alvo, mas não é falha do Gemini (não conta nas seguidas)
+      const images: RankImage[] = [];
       try {
-        const images: RankImage[] = [];
         for (const e of pool) {
           const f = e.candidate.file;
           const { body, contentType } = await client.download(f.thumbUrl);
           images.push({ body, mime: contentType?.split(';')[0] ?? f.mime, title: f.title });
         }
+      } catch (err) {
+        const message = (err as Error).message;
+        opts.log?.(`${key}: miniatura da Wikimedia não baixou (${message}); o alvo fica como estava`);
+        stats.push({
+          ...empty(key, 'miniatura falhou', `pendente: miniatura não baixou (${message})`),
+          candidates: d.candidates.length,
+          eligible: ok.length,
+        });
+        continue;
+      }
+      try {
         judgements = await opts.ranker.rank(images, subjectOf(target), target.kind);
+        // nenhum julgamento para fotos enviadas não é "nenhuma foto boa": o alvo não vira ordenado sem fotos
+        if (!judgements.length) throw new Error(`nenhuma das ${images.length} fotos voltou julgada`);
+        failures = 0;
       } catch (err) {
         // sem a resposta do Gemini o alvo não muda: a próxima execução tenta de novo
-        opts.log?.(`${key}: Gemini falhou (${(err as Error).message}); o alvo fica como estava`);
+        const budget = err instanceof BudgetExceededError;
+        if (budget) noBudget = err.message;
+        else if (++failures >= maxFailures) failedOut = `Gemini falhou ${failures} vezes seguidas`;
+        opts.log?.(
+          budget
+            ? `${key}: ${err.message} O alvo e os seguintes ficam como estavam (voltam na próxima execução).`
+            : `${key}: Gemini falhou (${(err as Error).message}); o alvo fica como estava`,
+        );
         stats.push({
-          ...empty(key, 'gemini falhou', null),
+          ...empty(key, budget ? 'sem orçamento de IA' : 'gemini falhou', null),
           candidates: d.candidates.length,
           eligible: ok.length,
         });

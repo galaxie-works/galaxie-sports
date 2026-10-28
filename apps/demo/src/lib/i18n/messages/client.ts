@@ -51,6 +51,7 @@ export default defineMessages(
       nextKeys: 'Crie uma chave publicável com os domínios do seu app.',
       nextBuilder: 'Monte um widget com a identidade da sua marca e instale com o shadcn.',
       plans: {
+        trial: 'Trial',
         core_data: 'Core Data',
         fan_experience: 'Fan Experience',
         live_intelligence: 'Live Intelligence',
@@ -267,6 +268,7 @@ export default defineMessages(
         nextKeys: "Create a publishable key with your app's domains.",
         nextBuilder: "Build a widget with your brand's look and install it with shadcn.",
         plans: {
+          trial: 'Trial',
           core_data: 'Core Data',
           fan_experience: 'Fan Experience',
           live_intelligence: 'Live Intelligence',
@@ -484,6 +486,7 @@ export default defineMessages(
         nextKeys: 'Creá una clave publicable con los dominios de tu app.',
         nextBuilder: 'Armá un widget con la identidad de tu marca e instalalo con shadcn.',
         plans: {
+          trial: 'Trial',
           core_data: 'Core Data',
           fan_experience: 'Fan Experience',
           live_intelligence: 'Live Intelligence',

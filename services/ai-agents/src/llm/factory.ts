@@ -4,6 +4,7 @@ import {
   MemoryTokenBudgetStore,
   PgTokenBudgetStore,
   TokenBudget,
+  ledgerPolicy,
   type BudgetPolicy,
 } from './budget.js';
 import { llmSettingsFromEnv, type AiStatus, type LlmSettings } from './config.js';
@@ -22,24 +23,20 @@ export interface CreateLlmClientOptions {
 }
 
 /**
- * Política do orçamento lida do ambiente: estado (global e por agente), tokens, US$ (global e por
- * agente) e buscas por chamada.
+ * Política do orçamento lida do ambiente: estado (global e por agente), tokens, US$ (global, por
+ * agente e o padrão do agente fora da lista) e buscas por chamada.
  */
 export function budgetPolicyFromSettings(
   settings: Pick<
     LlmSettings,
     'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets' | 'maxSearchesPerCall'
   > &
-    Partial<Pick<LlmSettings, 'status' | 'agentStatus'>>,
+    Partial<Pick<LlmSettings, 'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins'>>,
   agentLimits?: BudgetPolicy['agentLimits'],
 ): BudgetPolicy {
   return {
-    status: settings.status ?? 'on',
-    agentStatus: settings.agentStatus ?? {},
-    dailyLimit: settings.dailyTokenBudget,
+    ...ledgerPolicy(settings),
     ...(agentLimits ? { agentLimits } : {}),
-    dailyUsdLimit: settings.dailyUsdBudget,
-    agentUsdLimits: settings.agentUsdBudgets,
     maxSearchesPerCall: settings.maxSearchesPerCall,
   };
 }
@@ -99,6 +96,8 @@ export interface WithTokenBudgetOptions {
   dailyUsdLimit?: number | null;
   /** Tetos em US$ por agente (padrão: AI_AGENT_USD_BUDGETS do ambiente); null = sem teto próprio. */
   agentUsdLimits?: Record<string, number | null>;
+  /** Teto em US$ do agente fora da lista (padrão: AI_AGENT_DEFAULT_USD_BUDGET do ambiente; null = sem teto). */
+  agentDefaultUsdLimit?: number | null;
   /** Estado global (padrão: AI_STATUS do ambiente). */
   status?: AiStatus;
   /** Estado por agente (padrão: AI_AGENT_STATUS do ambiente). */
@@ -126,6 +125,11 @@ export function withTokenBudget(client: LlmClient, options: WithTokenBudgetOptio
         dailyTokenBudget: options.dailyLimit !== undefined ? options.dailyLimit : fromEnv.dailyTokenBudget,
         dailyUsdBudget: options.dailyUsdLimit !== undefined ? options.dailyUsdLimit : fromEnv.dailyUsdBudget,
         agentUsdBudgets: options.agentUsdLimits ?? fromEnv.agentUsdBudgets,
+        ...(options.agentUsdLimits ? {} : { agentUsdOrigins: fromEnv.agentUsdOrigins }),
+        agentDefaultUsdBudget:
+          options.agentDefaultUsdLimit !== undefined
+            ? options.agentDefaultUsdLimit
+            : fromEnv.agentDefaultUsdBudget,
         maxSearchesPerCall:
           options.maxSearchesPerCall !== undefined ? options.maxSearchesPerCall : fromEnv.maxSearchesPerCall,
       },

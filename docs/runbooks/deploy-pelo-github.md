@@ -25,25 +25,41 @@ notas de versão (tag deploy-AAAA-MM-DD.N)
 | --- | --- | --- |
 | Imagens | `.github/workflows/docker.yml` | Em PR, na fila (`merge_group`) e no push na main. Publica `api`, `ingestor`, `demo`, `backup`, `prometheus` e `grafana` na fila (tag `<sha>`) e no push (`<sha>`, `main`, `staging`). Cada imagem tem o hash da sua entrada (tag `in-<hash>`): entrada igual à de uma imagem já publicada → só ganha as tags novas, sem build. Cache de camadas do GHA (a fila lê o da main e não grava). |
 | CI | `.github/workflows/ci.yml` | O de sempre, agora também em `merge_group`. |
-| Portão do Codex | `.github/workflows/codex-gate.yml` + `infra/ops/codex-gate.sh` | Check `Codex sem P1 aberto`: falha com thread do Codex com "P1 Badge" sem resolver (a regra do `codex_p1()` do trem). Pronto na hora quando o review terminado é do commit atual do PR. Senão espera até 10 min de PR aberto e 3 min depois do último commit, e espera também o review que estiver rodando (👀). Sem review do commit atual no fim da espera, o Codex não vai revisar sozinho (só revisa ao abrir, ao sair de rascunho ou com `@codex review`): confere as threads que existem e avisa; com `CODEX_REQUIRE_CURRENT=1`, falha. |
+| Portão do Codex | `.github/workflows/codex-gate.yml` + `infra/ops/codex-gate.sh` | Check `Codex sem P1 aberto`: falha com thread do Codex com "P1 Badge" sem resolver (a regra do `codex_p1()` do trem). Pronto na hora quando o review terminado é do commit atual do PR. Senão espera até 10 min de PR aberto e 3 min depois do último commit, e espera também o review que estiver rodando (👀). Sem review do commit atual no fim da espera, o Codex não vai revisar sozinho (só revisa ao abrir, ao sair de rascunho ou com `@codex review`): confere as threads que existem e avisa; com `CODEX_REQUIRE_CURRENT=1`, falha. Review que terminou sem revisar (resumo com `status: failed`, como no limite de uso do Codex) não espera: avisa e confere as threads. |
 | Deploy | `.github/workflows/deploy.yml` + `infra/vps-telemetry/deploy-gh.sh` | Dispara quando CI e Imagens terminam verdes na ponta da main (com `DEPLOY_AUTO=on`) ou à mão. Um por vez (`concurrency`); com vários merges seguidos, sai um deploy só, do último commit. |
-| Pós-deploy | `infra/vps-telemetry/post-deploy.sh` | Seed, nomes, importância, cache e conta da IA; o mesmo nos dois roteiros. |
+| Pós-deploy | `infra/vps-telemetry/post-deploy.sh` | Seed semântico (`--dir /srv/data/knowledge`, com o `GIT_SHA` do deploy; falha só avisa), nomes, importância, cache e conta da IA; o mesmo nos dois roteiros. |
 | Trem de merge | `.github/workflows/merge-train.yml` | O `merge-train.sh` rodando no Actions, enquanto não houver fila nativa. |
 
 ### O deploy pelo Actions
 
+0. **Gate**: o commit precisa estar na `main`, com o CI e as imagens dele verdes.
+   - No **automático** (`workflow_run`), workflow ainda rodando só adia: quando ele terminar, dispara o deploy de novo.
+     Um commit que já não é a ponta da `main` é pulado, porque o deploy do commit mais novo cobre os dois.
+   - No **disparo manual**, o gate espera os workflows terminarem, até `ci_wait_min` minutos (padrão 30, no máximo
+     60). Se não terminarem, ou terminarem sem sucesso, o job **falha** com o motivo (`skip_ci_check=1` pula essa
+     conferência, só em emergência). O disparo manual nunca termina verde sem publicar.
 1. Confere no GHCR as imagens do SHA (antes de tocar a VPS).
 2. Pega a trava da VPS (`/docker/galaxie-sports/.deploy.lock`). É a mesma do `deploy.sh`, então Actions e plano B
    nunca rodam juntos.
-3. Se o SHA já está no ar, termina sem fazer nada (`force=1` publica de novo).
+3. SHA já no ar:
+   - com `force=1`, publica de novo (pull, up, pós-deploy, smoke e notas de versão);
+   - sem `force`, o automático só pula (o CI e as imagens disparam o deploy duas vezes no mesmo commit), e o disparo
+     manual **falha** dizendo para usar `force=1`.
 4. Faz login no GHCR na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário. O token vai pelo stdin e o
    diretório sai no fim; o token expira com o job. A VPS não guarda credencial do GitHub.
 5. Valida o `compose.yml` do SHA e o `.env` com `IMAGE_TAG`/`IMAGE_PREFIX` novos. O `docker compose pull` baixa só os
    serviços com imagem nossa; postgres, valkey e rustfs ficam na imagem que já está na VPS. Depois faz backup dos dois
    arquivos e troca.
 6. `up -d` com a escala atual do ingestor, `migrate` com saída 0, pós-deploy e smoke test (o "N ok · avisos · falhas").
+   - O pós-deploy começa pelo **seed da base semântica** (`data/knowledge` → `semantic.*`, exigido pelo #362).
+   - Roda com o `data/knowledge` da imagem nova, `--dir /srv/data/knowledge` e o SHA no `semantic.load_run`.
+   - Roda em todo deploy, não só quando `data/knowledge` muda: é ele que liga os perfis aos participantes que a
+     ingestão trouxe desde o último.
+   - É idempotente, sem cota nem LLM, e a falha vira `WARN` sem derrubar o deploy. Para repetir à mão:
+     `docker compose run --rm --no-deps ingestor node /srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js --dir /srv/data/knowledge`.
 7. Se o up, o migrate, o pós-deploy ou o smoke falham, volta para o SHA anterior quando é garantidamente o estado de
-   antes: nenhuma migration nova, backups e imagens antigas na VPS. Depois limpa o cache de novo. Com migration nova,
+   antes: nenhuma migration nova, backups e imagens antigas na VPS. Depois roda o seed semântico com a base da versão
+   anterior e limpa o cache de novo. Com migration nova,
    imprime o rollback manual, porque o código antigo pode não aguentar o schema novo. O job fica vermelho nos dois
    casos.
 8. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
@@ -53,8 +69,10 @@ notas de versão (tag deploy-AAAA-MM-DD.N)
 Comandos:
 
 ```bash
-gh workflow run deploy.yml                              # o commit mais novo da main
+gh workflow run deploy.yml                              # o commit mais novo da main (espera o CI dele terminar)
+gh workflow run deploy.yml -f force=1                   # publica de novo o SHA que já está no ar
 gh workflow run deploy.yml -f sha=<sha> -f force=1      # um SHA específico (também serve para voltar versão)
+gh workflow run deploy.yml -f ci_wait_min=45            # espera mais pelo CI do SHA
 gh run watch $(gh run list --workflow deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
 ```
 
