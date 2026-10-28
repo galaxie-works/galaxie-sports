@@ -248,14 +248,22 @@ export class PgQuotaGovernor implements QuotaGovernor {
     remainingAfter?: number,
     providerLimit?: number,
   ): Promise<void> {
+    const nowMs = this.now().getTime();
     await this.db
       .update(quotaLedger)
       // sent_at fica o do envio: reescrever com a hora do desfecho contaria de novo, no piso do
-      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela
-      .set({ outcome, remainingAfter: remainingAfter ?? null })
+      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela. A exceção é o
+      // rate_limited: a pausa conta da chegada da resposta (um 429 que demorou 20 s ainda pausa 30 s), e uma
+      // chamada recusada a mais no piso é o preço. Só no mesmo dia UTC: day_utc é sempre o dia do sent_at.
+      .set({
+        outcome,
+        remainingAfter: remainingAfter ?? null,
+        ...(outcome === 'rate_limited' && utcDayString(new Date(nowMs)) === ticket.dayUtc
+          ? { sentAt: new Date(nowMs) }
+          : {}),
+      })
       .where(eq(quotaLedger.id, ticket.id));
 
-    const nowMs = this.now().getTime();
     // checagem barata antes do lock (o limite de verdade só se sabe com o snapshot)
     if (headerFloor(ticket, outcome, nowMs, remainingAfter, Number.MAX_SAFE_INTEGER) === undefined) return;
     if (nowMs - (this.lastHeaderFloor.get(ticket.api) ?? -Infinity) < HEADER_FLOOR_INTERVAL_MS) return;

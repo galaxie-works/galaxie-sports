@@ -227,8 +227,14 @@ export class InMemoryQuotaGovernor implements QuotaGovernor {
     providerLimit?: number,
   ): Promise<void> {
     const row = this.ledger.get(ticket.id);
-    if (row) Object.assign(row, { outcome, remainingAfter });
     const day = utcDayString(this.now());
+    // como no Pg: a pausa de um rate_limited conta da chegada da resposta (no mesmo dia UTC)
+    if (row)
+      Object.assign(row, {
+        outcome,
+        remainingAfter,
+        ...(outcome === 'rate_limited' && day === ticket.dayUtc ? { at: this.now().getTime() } : {}),
+      });
     const limit =
       providerLimit ??
       this.snapshots.get(`${ticket.api}|${day}`)?.providerLimit ??

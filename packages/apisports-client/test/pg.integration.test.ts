@@ -549,10 +549,11 @@ describe('conta compartilhada entre dev e produção', () => {
       endpoint: '/players',
       requestHash: 'a',
     });
-    advance(500);
+    // o 429 demorou 20 s para voltar: a pausa conta da chegada da resposta, não do envio
+    advance(20_000);
     await jobA.settle(ticket, 'rate_limited');
-    advance(4_500);
-    expect((await liveB.usage('nba', '2026-11-03')).pausedUntil).toBe('2026-11-03T12:00:30.000Z');
+    advance(5_000);
+    expect((await liveB.usage('nba', '2026-11-03')).pausedUntil).toBe('2026-11-03T12:00:50.000Z');
     await liveB.acquire({ api: 'nba', priority: 'LIVE', endpoint: '/games', requestHash: 'b' });
     expect(waits).toEqual([25_000]);
     // outra API não espera
