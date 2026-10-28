@@ -107,7 +107,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
-    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: $PRE_DUMP"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }

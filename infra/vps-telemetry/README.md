@@ -281,11 +281,13 @@ provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensai
 - O serviço `node-exporter` mede o disco onde o Docker guarda os volumes (alerta acima de 85%). Ele monta o volume
   `promdata` só para leitura, sem bind mount do host nem porta publicada.
 - **Dump antes do migrate:** quando o journal do SHA novo tem mais migrations que o banco, o deploy (`deploy-gh.sh` e
-  `deploy.sh`) roda `pre-migrate-dump.sh` antes de trocar o compose: `backups/pre-migrate-<data>-<antigo>-<novo>.dump`
-  na pasta da stack (fora do volume), conferido com `pg_restore --list`, guardando os 3 mais novos
+  `deploy.sh`) roda `pre-migrate-dump.sh` antes de trocar o compose. O dump sai de um contêiner avulso do serviço
+  `backup` para o volume dele, em `/backups/pre-migrate/<db>_pre-migrate_<data>_<antigo>-<novo>.dump` (fora da
+  rotação dos diários), com o `.sha256` ao lado, conferido com `pg_restore --list`, guardando os 3 mais novos
   (`PRE_MIGRATE_KEEP`). Sem espaço (menos da metade do tamanho do banco livre) ou com o `pg_dump` falhando, o deploy
   para sem ter tocado em nada; `SKIP_PRE_MIGRATE_DUMP=1` publica sem ele. Migration nova não tem rollback automático:
-  voltar é restaurar esse dump (`infra/backup/restore.sh`) e subir a versão anterior.
+  voltar é parar API e ingestor, `docker compose exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
+  falhou imprime o comando) e subir a versão anterior.
 - O dump de partida do serviço `backup` (`BACKUP_ON_START`) espera o `migrate` terminar: o `pg_dump` segura as
   tabelas e o `migrate`, com `lock_timeout` curto, desistiria.
 
@@ -345,8 +347,8 @@ heap (geração nova e o próprio Node):
 
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
-| `ingestor` (1g) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB |
-| `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB |
+| `ingestor` (1152m) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB (128 de folga) |
+| `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
 | `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do

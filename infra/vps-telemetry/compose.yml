@@ -296,8 +296,9 @@ services:
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     # scheduler + faixa do ao vivo (live-run, live-reconcile, events-clock) + SCHEDULER_MAX_JOBS jobs, cada um com
-    # heap fixo: a soma no pior caso é 1 GB (README › Memória dos jobs)
-    mem_limit: 1g
+    # heap fixo: a soma no pior caso é 1024 MB; os 128 MB a mais são folga para pilhas, alocador e buffers de I/O,
+    # que o cgroup também conta (README › Memória dos jobs)
+    mem_limit: 1152m
     environment:
       <<: *node-env
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}

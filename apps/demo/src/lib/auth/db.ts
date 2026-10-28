@@ -3,7 +3,7 @@
  * convites e atividade). O resto do banco (dados esportivos) é lido só pela API Galaxie Sports.
  */
 import { Pool } from 'pg';
-import { DB_TIMEOUTS } from '@galaxie/db';
+import { DB_TIMEOUTS } from '@galaxie/db/client';
 
 export const AUTH_SCHEMA = 'demo_auth';
 
