@@ -1,0 +1,47 @@
+# Primera División de Uruguay — Torneo Clausura no id próprio da api-sports (270), até 2025: turno
+# único de 16 clubes (15 rodadas). A tabela anual (Apertura + Intermedio + Clausura) cruza dois ids e
+# não é recalculada aqui: só a do fornecedor, se vier. Ver uruguay-primera.yaml.
+# Grupos e rodadas: A CONFERIR (sem amostra pública da api-sports; nome da competição na lista de
+# cobertura da api-football); consulta em docs/runbooks/standings-latam-conferencia.md.
+slug: uruguay-primera-clausura
+name: Primera División de Uruguay - Clausura
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - drawing_of_lots
+
+league:
+  teams: 16
+  matches_per_team: 15
+  meetings_per_pair: 1
+  title: false
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: true, penalties: true }
+
+tables:
+  - key: clausura
+    kind: phase
+    name: { pt-BR: Torneio Clausura, es: Torneo Clausura, en: Clausura }
+    groups: '.'
+    exclude: 'anual|annual|promedio|intermedio'
+    rounds: '^(clausura - )?\d+$|^regular season - \d+$'
+    group_name: Clausura
+  - key: annual
+    kind: annual
+    name: { pt-BR: Tabela anual, es: Tabla anual, en: Annual table }
+    groups: 'anual|annual'
+    computed: false
+  - key: promedios
+    kind: relegation_average
+    name: { pt-BR: Promedios, es: Promedios, en: Relegation averages }
+    groups: 'promedio'
+
+sources:
+  - https://www.auf.org.uy/

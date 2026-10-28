@@ -286,9 +286,8 @@ export async function CompetitionContent({
                       title={
                         championship && g.name
                           ? (t.race.championship[g.name] ?? g.name)
-                          : groups.length > 1 && g.name
-                            ? g.name
-                            : tc.standings
+                          : // nome da API: o do regulamento ("Apertura · Zona A") ou o reservado ("Tabela anual")
+                            (g.display_name ?? (groups.length > 1 && g.name ? g.name : tc.standings))
                       }
                       api={
                         selected

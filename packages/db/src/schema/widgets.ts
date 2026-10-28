@@ -80,6 +80,10 @@ export const publishableKey = ops.table(
     prefix: text('prefix').notNull(),
     /** sha256 da chave completa, em hex. */
     keyHash: text('key_hash').notNull(),
+    /**
+     * `live` (`gs_pk_live_`, só origens públicas) ou `test` (`gs_pk_test_`, só localhost/127.0.0.1/[::1]).
+     */
+    env: text('env').$type<'live' | 'test'>().notNull().default('live'),
     /** Origens aceitas (`https://app.exemplo.com`, `https://*.exemplo.com`). */
     allowedOrigins: text('allowed_origins').array().notNull(),
     /** Restringe a chave a um widget; null = qualquer widget do tenant. Apagar o widget apaga a chave. */

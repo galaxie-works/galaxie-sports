@@ -13,6 +13,13 @@ export interface KnockoutMatchInput {
    * Obrigatório para o jogo de volta.
    */
   firstLeg?: { homeGoals: number; awayGoals: number };
+  /**
+   * Posição de cada lado (deste jogo) na tabela de classificação de referência, para `levelAdvantage:
+   * better_seed` (menor = melhor campanha). Obrigatória nesse caso: sem ela (ou com a mesma posição), o
+   * empate não tem como ser decidido e a entrada é recusada (`KnockoutInputError`), em vez de cair em
+   * prorrogação ou pênaltis, que o regulamento da fase não tem.
+   */
+  seed?: { home: number; away: number };
 }
 
 export class KnockoutInputError extends Error {
@@ -33,7 +40,16 @@ function checkGoals(value: number, field: string): void {
   }
 }
 
-function levelOutcome(rules: KnockoutStageRules): TieOutcome {
+function levelOutcome(input: KnockoutMatchInput): TieOutcome {
+  const { rules, seed } = input;
+  // empate no confronto: classifica o de melhor campanha (Liguilla)
+  if (rules.levelAdvantage === 'better_seed') {
+    if (!seed || seed.home === seed.away)
+      throw new KnockoutInputError(
+        'Mata-mata decidido pela campanha exige a posição dos dois na tabela de referência (seed).',
+      );
+    return seed.home < seed.away ? 'home' : 'away';
+  }
   return rules.extraTime ? 'extra_time' : 'penalties';
 }
 
@@ -47,7 +63,7 @@ export function tieOutcome(input: KnockoutMatchInput, homeGoals: number, awayGoa
   const { rules } = input;
   if (rules.legs === 1) {
     if (homeGoals !== awayGoals) return homeGoals > awayGoals ? 'home' : 'away';
-    return rules.drawAdvantage ?? levelOutcome(rules);
+    return rules.drawAdvantage ?? levelOutcome(input);
   }
   if (input.leg !== 2) {
     throw new KnockoutInputError('O jogo de ida não decide o confronto; tieOutcome só vale para a volta.');
@@ -65,7 +81,7 @@ export function tieOutcome(input: KnockoutMatchInput, homeGoals: number, awayGoa
     const awayAwayGoals = awayGoals;
     if (homeAwayGoals !== awayAwayGoals) return homeAwayGoals > awayAwayGoals ? 'home' : 'away';
   }
-  return levelOutcome(rules);
+  return levelOutcome(input);
 }
 
 type Category = 'advance' | 'eliminated' | 'extra_time' | 'penalties' | 'mixed';
@@ -160,7 +176,15 @@ function infoStakes(input: KnockoutMatchInput): Stake[] {
   if (rules.legs === 2 && rules.awayGoals && !rules.neutralVenue)
     out.push(makeStake('both', 'away_goals_rule'));
   const decisive = rules.legs === 1 || input.leg === 2;
-  if (decisive && rules.extraTime && rules.penalties && !(rules.legs === 1 && rules.drawAdvantage)) {
+  const seeded =
+    rules.levelAdvantage === 'better_seed' && !!input.seed && input.seed.home !== input.seed.away;
+  if (
+    decisive &&
+    rules.extraTime &&
+    rules.penalties &&
+    !(rules.legs === 1 && rules.drawAdvantage) &&
+    !seeded
+  ) {
     out.push(makeStake('both', 'extra_time_then_penalties'));
   }
   if (decisive && rules.decidesTitle) out.push(makeStake('both', 'decides_title'));

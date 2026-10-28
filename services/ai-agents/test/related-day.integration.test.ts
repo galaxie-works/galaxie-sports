@@ -442,7 +442,6 @@ async function simulate(
     const yt = new YoutubeClient({ apiKey: 'sim', fetch: world.fetch });
     const report = await runRelatedAgent(db, {
       now,
-      llm: null,
       youtube: yt,
       allowlist,
       wtw,

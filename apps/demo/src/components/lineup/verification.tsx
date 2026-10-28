@@ -5,7 +5,13 @@ import { Check, ExternalLink, Minus, X } from 'lucide-react';
 import { Badge } from '@/components/reui/badge';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { CHECK_KEYS, type CheckResult, type SourceTier, type VerificationView } from '@/lib/lineup/types';
+import {
+  CHECK_KEYS,
+  type CheckKey,
+  type CheckResult,
+  type SourceTier,
+  type VerificationView,
+} from '@/lib/lineup/types';
 import { cn } from '@/lib/utils';
 
 const TIER_BADGE = {
@@ -62,7 +68,7 @@ export function VerificationCell({
   const v = verification;
   const claimed = v?.claimed?.amount != null ? money(v.claimed.amount, v.claimed.currency ?? 'USD') : null;
   return (
-    <div className="flex max-w-72 min-w-48 flex-col gap-1 text-xs">
+    <div className="flex min-w-0 flex-col gap-1 text-xs break-words">
       {isPlan ? (
         <span className={cn('font-medium', !price && 'text-muted-foreground')}>
           {price ? money(price.amount, price.currency) : V.noPrice}
@@ -132,31 +138,50 @@ export function VerificationCell({
               </a>
             ) : null}
           </div>
-          <ul className="flex flex-col gap-0.5" aria-label={t.lineup.admin.table.verification}>
-            {CHECK_KEYS.filter((k) => v.checks[k]).map((k) => {
-              const r = v.checks[k]!;
-              const Icon = RESULT_ICON[r];
-              return (
-                <li
-                  key={k}
-                  className={cn(
-                    'flex items-center gap-1',
-                    r === 'fail'
-                      ? 'text-destructive'
-                      : r === 'pass'
-                        ? 'text-foreground'
-                        : 'text-muted-foreground',
-                  )}
-                >
-                  <Icon className="size-3 shrink-0" aria-hidden />
-                  <span>
-                    {V.checks[k]}
-                    <span className="sr-only">: {V.results[r]}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          {/* falhas à vista; a lista inteira fica recolhida (dez checagens em coluna esticavam a linha) */}
+          {(() => {
+            const keys = CHECK_KEYS.filter((k) => v.checks[k]);
+            const failed = keys.filter((k) => v.checks[k] === 'fail');
+            const passed = keys.filter((k) => v.checks[k] === 'pass').length;
+            const list = (only: readonly CheckKey[]) => (
+              <ul className="flex flex-col gap-0.5" aria-label={t.lineup.admin.table.verification}>
+                {only.map((k) => {
+                  const r = v.checks[k]!;
+                  const Icon = RESULT_ICON[r];
+                  return (
+                    <li
+                      key={k}
+                      className={cn(
+                        'flex items-center gap-1',
+                        r === 'fail'
+                          ? 'text-destructive'
+                          : r === 'pass'
+                            ? 'text-foreground'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      <Icon className="size-3 shrink-0" aria-hidden />
+                      <span>
+                        {V.checks[k]}
+                        <span className="sr-only">: {V.results[r]}</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+            return keys.length ? (
+              <>
+                {failed.length ? list(failed) : null}
+                <details className="text-muted-foreground">
+                  <summary className="hover:text-foreground cursor-pointer">
+                    {fill(V.checksSummary, { passed: String(passed), total: String(keys.length) })}
+                  </summary>
+                  <div className="mt-0.5">{list(keys)}</div>
+                </details>
+              </>
+            ) : null;
+          })()}
           {v.excerpt ? (
             <details className="text-muted-foreground">
               <summary className="hover:text-foreground cursor-pointer">{V.excerpt}</summary>

@@ -368,6 +368,8 @@ async function seed() {
   await db.insert(standing).values(
     table.map((participantId, i) => ({
       seasonId: ids.serieA2026!,
+      // grupo do fornecedor (o regulamento do Brasileirão só reconhece grupo com nome)
+      group: 'Serie A',
       participantId,
       rank: i + 1,
       points: points[i]!,
@@ -470,7 +472,7 @@ beforeAll(async () => {
     plan: 'enterprise',
     rateLimitPerMinute: 5000,
   });
-  key = (await createApiKey(db, t.id, { env: 'test', label: 'integração' })).key;
+  key = (await createApiKey(db, t.id, { env: 'live', label: 'integração' })).key;
   app = buildServer({
     db,
     redis,

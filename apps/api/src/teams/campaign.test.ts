@@ -81,10 +81,13 @@ const rules = (ko: Partial<NonNullable<CompetitionRules['knockout']>['default']>
       drawAdvantage: null,
       neutralVenue: false,
       decidesTitle: false,
+      levelAdvantage: null,
       ...ko,
     },
     stages: {},
+    seeding: [],
   },
+  tables: [],
   sources: [],
 });
 

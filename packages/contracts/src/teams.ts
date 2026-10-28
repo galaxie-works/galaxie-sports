@@ -52,6 +52,10 @@ export const TeamStanding = z
     competition: CompetitionSummary.pick({ id: true, slug: true, name: true, logo: true }),
     season: SeasonRef,
     group: z.string().nullable(),
+    group_display_name: z.string().nullable().optional().meta({
+      description:
+        'Nome da tabela no idioma pedido, pelo regulamento (ex.: "Clausura · Zona A"). Com várias tabelas na temporada (fase, anual, promedios), a posição é a da fase em andamento.',
+    }),
     rank: z.number().int(),
     points: z.number().int(),
     played: z.number().int(),

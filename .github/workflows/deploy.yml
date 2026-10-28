@@ -8,6 +8,10 @@ name: Deploy
 #
 #   gh workflow run deploy.yml                           # o commit mais novo da main
 #   gh workflow run deploy.yml -f sha=<sha> -f force=1   # um commit específico, mesmo já no ar (voltar versão)
+#
+# No disparo manual, o gate espera o CI e as imagens do SHA terminarem (até ci_wait_min, padrão 30 min) e falha se não
+# terminarem ou não ficarem verdes; SHA já no ar sem force=1 também falha. Disparo manual nunca termina verde sem
+# publicar.
 on:
   workflow_run:
     workflows: [CI, Imagens e stack de staging]
@@ -26,6 +30,10 @@ on:
         description: Publicar sem conferir o CI do SHA (emergência; 1 = sim)
         required: false
         default: ''
+      ci_wait_min:
+        description: Minutos de espera pelo CI e pelas imagens do SHA ainda rodando
+        required: false
+        default: '30'
 
 permissions:
   contents: read
@@ -36,7 +44,8 @@ jobs:
   gate:
     name: CI verde do commit
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # o disparo manual espera o CI do SHA até ci_wait_min (padrão 30 min)
+    timeout-minutes: 75
     # workflow_run: só push na main do próprio repositório (nunca o de um PR de fork) e só com a variável DEPLOY_AUTO=on
     # (a chave da transição: desligada, o deploy automático não roda e o plano B segue valendo; o disparo manual sempre)
     if: >-
@@ -58,8 +67,10 @@ jobs:
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           INPUT_SHA: ${{ inputs.sha }}
           SKIP_CI: ${{ inputs.skip_ci_check }}
+          WAIT_MIN: ${{ inputs.ci_wait_min }}
           EVENT: ${{ github.event_name }}
         run: |
+          yes() { case "$1" in 1 | true | sim | yes) return 0 ;; esac; return 1; }
           head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
           sha="${RUN_SHA:-${INPUT_SHA:-$head}}"
           sha=$(gh api "repos/$GH_REPO/commits/$sha" --jq .sha) # SHA curto do disparo manual → completo
@@ -76,30 +87,45 @@ jobs:
             echo "go=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "$SKIP_CI" = 1 ]; then
+          if yes "$SKIP_CI"; then
             echo "::warning::CI de ${sha:0:7} não conferido (skip_ci_check)"
             echo "go=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # a execução mais nova de cada workflow obrigatório no commit (push na main)
-          ok=true
-          for wf in ci.yml docker.yml; do
-            run=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$sha&event=push&per_page=1" \
-              --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "-")"')
-            echo "$wf: ${run:-sem execução}"
-            case "$run" in
-              "completed success") ;;
-              "completed "*)
-                echo "::error::$wf terminou ${run#completed } em ${sha:0:7}: sem deploy"
-                exit 1
-                ;;
-              *) ok=false ;;
-            esac
+          # espera de 0 a 60 min (o job tem teto de 75)
+          case "${WAIT_MIN:-30}" in '' | *[!0-9]*) WAIT_MIN=30 ;; esac
+          [ "${WAIT_MIN:-30}" -le 60 ] || WAIT_MIN=60
+          deadline=$((SECONDS + ${WAIT_MIN:-30} * 60))
+          # a execução mais nova de cada workflow obrigatório no commit (push na main). No workflow_run, o que ainda
+          # roda dispara o próprio deploy ao terminar; no disparo manual, espera aqui
+          while :; do
+            ok=true
+            for wf in ci.yml docker.yml; do
+              run=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$sha&event=push&per_page=1" \
+                --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "-")"') || run=""
+              echo "$wf: ${run:-sem execução}"
+              case "$run" in
+                "completed success") ;;
+                "completed "*)
+                  echo "::error::$wf terminou ${run#completed } em ${sha:0:7}: sem deploy (skip_ci_check=1 publica assim mesmo)"
+                  exit 1
+                  ;;
+                *) ok=false ;;
+              esac
+            done
+            [ "$ok" != true ] || break
+            if [ "$EVENT" = workflow_run ]; then
+              echo "::notice::ainda falta workflow terminar em ${sha:0:7}; o deploy sai quando o último terminar"
+              echo "go=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::CI ou imagens de ${sha:0:7} ainda rodando depois de $WAIT_MIN min: nada publicado; dispare de novo quando terminarem"
+              exit 1
+            fi
+            sleep 30
           done
-          if [ "$ok" != true ]; then
-            echo "::notice::ainda falta workflow terminar em ${sha:0:7}; o deploy sai quando o último terminar"
-          fi
-          echo "go=$ok" >> "$GITHUB_OUTPUT"
+          echo "go=true" >> "$GITHUB_OUTPUT"
 
   deploy:
     name: produção
@@ -162,6 +188,8 @@ jobs:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE: ${{ inputs.force }}
+          # disparo manual com o SHA já no ar e sem force: falha (nunca verde sem publicar); no automático, só pula
+          ON_SKIP: ${{ github.event_name == 'workflow_dispatch' && 'fail' || 'pass' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail

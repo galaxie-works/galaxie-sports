@@ -37,5 +37,15 @@ league:
 
 knockout: null
 
+# Tabela única de pontos corridos. Grupo do fornecedor visto no /standings: "Serie A" (fixture
+# standings-71-2024); rodadas "Regular Season - 30".
+tables:
+  - key: regular
+    kind: phase
+    name: { pt-BR: Brasileirão Série A, es: Brasileirão Serie A, en: Brasileirão Série A }
+    groups: '.'
+    rounds: '^regular season - \d+$'
+    group_name: Serie A
+
 sources:
   - https://www.cbf.com.br/futebol-brasileiro/competicoes/campeonato-brasileiro-serie-a

@@ -25,6 +25,7 @@ function store(records: Record<string, VerifiedPublishableKey>) {
 const record = (over: Partial<VerifiedPublishableKey> = {}): VerifiedPublishableKey => ({
   keyId: 'pk-1',
   tenantId: 't-1',
+  env: 'live',
   tenant: {
     id: 't-1',
     slug: 'operadora-exemplo',
