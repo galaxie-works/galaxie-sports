@@ -152,14 +152,26 @@ for topic, change in listen():
       language: 'typescript',
       code: `// ${c.browserKey1}
 // ${c.browserKey2}
-const { data } = await (await fetch('/stream-token', { method: 'POST' })).json();
-const es = new EventSource(\`${STREAM_URL}&token=\${data.token}\`);
+let lastId = '';
 
-es.addEventListener('event.score_changed', (e) => {
-  const change = JSON.parse(e.data);
-  ${c.updateScore}(change.event_id, change.data.score);
-});
-// ${c.reconnect}`,
+async function connect() {
+  const { data } = await (await fetch('/stream-token', { method: 'POST' })).json();
+  const resume = lastId ? \`&last_event_id=\${lastId}\` : '';
+  const es = new EventSource(\`${STREAM_URL}&token=\${data.token}\${resume}\`);
+
+  es.addEventListener('event.score_changed', (e) => {
+    lastId = e.lastEventId;
+    const change = JSON.parse(e.data);
+    ${c.updateScore}(change.event_id, change.data.score);
+  });
+  // ${c.reconnect}
+  es.onerror = () => {
+    es.close();
+    setTimeout(connect, 3000);
+  };
+}
+
+connect();`,
     },
   ];
 }
