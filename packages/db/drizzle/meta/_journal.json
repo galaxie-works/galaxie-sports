@@ -393,6 +393,13 @@
       "when": 1793195334824,
       "tag": "0056_politica_de_ia",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1793197471273,
+      "tag": "0057_grade_edicao_manual_e_logos",
+      "breakpoints": true
     }
   ]
 }
