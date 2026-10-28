@@ -173,7 +173,7 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 
 ## 5. Ao vivo
 
-Orçamento LIVE do free: 100 − 15 (reserva) − 40 (saldo protegido do DAILY) = **45 chamadas por dia UTC**, das quais até
+Orçamento LIVE do free (política padrão da biblioteca, reserva de 15%): 100 − 15 (reserva) − 40 (saldo protegido do DAILY) = **45 chamadas por dia UTC** — e mais as 15 da reserva, que o LIVE também pode usar —, das quais até
 1/4 confirma o placar final de cada jogo (1 `fixtures?id=` quando ele sai do `live`). Números da simulação com relógio e
 fornecedor falsos e a cota contada pelo Quota Governor
 ([`simulation.test.ts`](../services/ingestor/src/live/simulation.test.ts),
@@ -406,7 +406,13 @@ flowchart TB
 | DAILY | 40% | — |
 | BOOTSTRAP | 0% (dias sem live: até 85%) | — |
 | ADHOC (*miss* do espelho) | 0–5% | — |
-| Reserva | 10–15% | só LIVE em decisões |
+| Reserva | produção 25%, dev ≥ 70% | produção: só LIVE; dev: ninguém |
+
+**Conta compartilhada (lote 3 do raio-X, 28/10/2026).** O dev (NAS) e a produção usam a mesma conta da api-sports, cada um com o seu banco. Por isso:
+
+- **Piso pelo header.** A cada resposta, `limite − x-ratelimit-requests-remaining` (o header conta a conta inteira) vira piso do contador do fornecedor em `ops.quota_snapshot`, como uma leitura do `/status` — que continua de hora em hora, com a mesma regra de nunca baixar o piso. Cada processo grava no máximo a cada 5 s por API. Não vale para `quota_exhausted` (que tem a espera de 15 min) nem nos 5 primeiros minutos do dia UTC.
+- **Pausa por limite por minuto.** Um 429 ou um aviso `errors.rateLimit` (HTTP 200) pausa a API por 30 s para todos os jobs daquele banco, inclusive o ao vivo: a reserva espera a pausa acabar (o job que levou o 429 para, como antes).
+- **Reserva por ambiente.** `APP_ENV` `production` ou `staging` (as stacks da VPS e do Portainer) é produção: abaixo de `QUOTA_LIVE_RESERVE_PERCENT` (padrão 25%) só o LIVE chama, e só a parte do plano do LIVE que a reserva não cobre fica protegida dos outros. Sem `APP_ENV` é dev: a reserva é de pelo menos 70% e vale para todos, inclusive o LIVE — o dev para quando a conta inteira chega a 30% do dia.
 
 Implementação: [`packages/apisports-client`](../packages/apisports-client/README.md) (`PgQuotaGovernor`, `ApiSportsClient`). Relatório de cota do dia: `pnpm --filter @galaxie/ingestor quota`.
 

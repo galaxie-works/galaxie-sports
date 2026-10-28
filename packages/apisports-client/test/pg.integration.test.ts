@@ -1,7 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { apiResponse, closeDb, createDb, quotaLedger, runMigrations, type Database } from '@galaxie/db';
+import {
+  apiResponse,
+  closeDb,
+  createDb,
+  quotaLedger,
+  quotaSnapshot,
+  runMigrations,
+  type Database,
+} from '@galaxie/db';
+import { and, eq } from 'drizzle-orm';
 import { ApiSportsClient } from '../src/client.js';
 import { QuotaExceededError, RequestInFlightError } from '../src/errors.js';
 import { PgQuotaGovernor } from '../src/quota/pg-governor.js';
@@ -38,9 +47,9 @@ afterAll(async () => {
 
 describe('PgQuotaGovernor', () => {
   it('sob concorrência, nunca concede além do orçamento', async () => {
-    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100), now);
+    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100, 15), now);
     const attempts = await Promise.allSettled(
-      Array.from({ length: 60 }, (_, i) =>
+      Array.from({ length: 80 }, (_, i) =>
         gov.acquire({ api: 'basketball', priority: 'DAILY', endpoint: '/games', requestHash: `h${i}` }),
       ),
     );
@@ -48,10 +57,10 @@ describe('PgQuotaGovernor', () => {
     const denied = attempts.filter(
       (a) => a.status === 'rejected' && a.reason instanceof QuotaExceededError,
     ).length;
-    // fatia de 40 + 5 de folga (a fatia do ADHOC não é protegida); DAILY e LIVE somam 80 protegidos
-    expect(granted).toBe(45);
-    expect(denied).toBe(15);
-    expect((await gov.usage('basketball')).used.DAILY).toBe(45);
+    // fatia de 40 + 20 de folga: abaixo de 85 só ficam protegidos os 25 do ao vivo que a reserva de 15 não cobre
+    expect(granted).toBe(60);
+    expect(denied).toBe(20);
+    expect((await gov.usage('basketball')).used.DAILY).toBe(60);
   });
 
   it('release devolve a reserva; settle registra o desfecho', async () => {
@@ -64,7 +73,7 @@ describe('PgQuotaGovernor', () => {
   });
 
   it('plano do dia libera folga para o bootstrap; reconcile usa o contador do fornecedor como piso', async () => {
-    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100), now);
+    const gov = new PgQuotaGovernor(db, () => defaultPolicy(100, 15), now);
     await gov.plan('rugby', '2026-10-21', { LIVE: 0, DAILY: 10 });
     let n = 0;
     for (;;) {
@@ -253,7 +262,7 @@ describe('revisão: concorrência entre processos e leituras atrasadas', () => {
 });
 
 describe('cota esgotada informada pelo fornecedor', () => {
-  /** Governor com relógio movível e um atalho para reservar como LIVE crítico. */
+  /** Governor com relógio movível e um atalho para reservar como LIVE. */
   function governorAt(start: string) {
     let t = Date.parse(start);
     const gov = new PgQuotaGovernor(
@@ -267,11 +276,11 @@ describe('cota esgotada informada pelo fornecedor', () => {
         t = Date.parse(iso);
       },
       live: (api: string, hash: string) =>
-        gov.acquire({ api, priority: 'LIVE', endpoint: '/games', requestHash: hash, critical: true }),
+        gov.acquire({ api, priority: 'LIVE', endpoint: '/games', requestHash: hash }),
     };
   }
 
-  it('nega a API por 15 min, inclusive LIVE crítico, e depois libera uma nova tentativa', async () => {
+  it('nega a API por 15 min, inclusive o ao vivo, e depois libera uma nova tentativa', async () => {
     const { gov, at, live } = governorAt('2026-10-25T10:00:00Z');
     await gov.settle(await live('nba', 'e1'), 'quota_exhausted', 0);
     at('2026-10-25T10:05:00Z');
@@ -462,5 +471,92 @@ describe('limite por minuto entre processos', () => {
     });
     await expect(second.acquire(req)).rejects.toBeInstanceOf(RequestInFlightError);
     expect(waits).toEqual([]);
+  });
+});
+
+describe('conta compartilhada entre dev e produção', () => {
+  function governorAt(start: string, policy = () => defaultPolicy(75_000, 25)) {
+    let t = Date.parse(start);
+    const waits: number[] = [];
+    const make = () =>
+      new PgQuotaGovernor(
+        db,
+        policy,
+        () => new Date(t),
+        async (ms) => {
+          waits.push(ms);
+          t += ms;
+        },
+      );
+    return {
+      make,
+      waits,
+      advance: (ms: number) => {
+        t += ms;
+      },
+    };
+  }
+  const snapshotOf = async (api: string, day: string) =>
+    (
+      await db
+        .select()
+        .from(quotaSnapshot)
+        .where(and(eq(quotaSnapshot.api, api), eq(quotaSnapshot.dayUtc, day)))
+    )[0];
+
+  it('o header de cota de cada resposta vira piso em ops.quota_snapshot, sem apagar o plano do /status', async () => {
+    const { make, advance } = governorAt('2026-11-02T12:00:00Z');
+    const gov = make();
+    await gov.reconcile('football', 30_000, 75_000, 'Ultra');
+    advance(1000);
+    const t1 = await gov.acquire({
+      api: 'football',
+      priority: 'DAILY',
+      endpoint: '/fixtures',
+      requestHash: 'h1',
+    });
+    advance(1000);
+    // headers reais: a outra ponta gastou 27.000 desde o /status
+    await gov.settle(t1, 'ok', 18_000, 75_000);
+    expect(await snapshotOf('football', '2026-11-02')).toMatchObject({ providerUsed: 57_000, plan: 'Ultra' });
+    await expect(
+      gov.acquire({ api: 'football', priority: 'DAILY', endpoint: '/fixtures', requestHash: 'h2' }),
+    ).rejects.toThrow(/reserva do ao vivo/);
+    const live = await gov.acquire({
+      api: 'football',
+      priority: 'LIVE',
+      endpoint: '/fixtures',
+      requestHash: 'h3',
+    });
+
+    // a gravação é espaçada por processo: um header de 1 s depois não disputa o lock de novo
+    advance(1000);
+    await gov.settle(live, 'ok', 10_000, 75_000);
+    expect((await snapshotOf('football', '2026-11-02'))!.providerUsed).toBe(57_000);
+
+    // a conciliação horária segue valendo: a leitura atrasada do /status não baixa o piso
+    advance(60_000);
+    await gov.reconcile('football', 50_000, 75_000, 'Ultra');
+    expect((await gov.usage('football', '2026-11-02')).providerUsed).toBe(57_001);
+  });
+
+  it('um 429 pausa a API para os outros processos do mesmo banco, com volta automática', async () => {
+    const { make, waits, advance } = governorAt('2026-11-03T12:00:00Z', () => defaultPolicy(100));
+    const [jobA, liveB] = [make(), make()];
+    const ticket = await jobA.acquire({
+      api: 'nba',
+      priority: 'BOOTSTRAP',
+      endpoint: '/players',
+      requestHash: 'a',
+    });
+    advance(500);
+    await jobA.settle(ticket, 'rate_limited');
+    advance(4_500);
+    expect((await liveB.usage('nba', '2026-11-03')).pausedUntil).toBe('2026-11-03T12:00:30.000Z');
+    await liveB.acquire({ api: 'nba', priority: 'LIVE', endpoint: '/games', requestHash: 'b' });
+    expect(waits).toEqual([25_000]);
+    // outra API não espera
+    await liveB.acquire({ api: 'rugby', priority: 'LIVE', endpoint: '/games', requestHash: 'c' });
+    expect(waits).toEqual([25_000]);
   });
 });

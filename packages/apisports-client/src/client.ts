@@ -73,7 +73,7 @@ export interface ProviderStatus {
  * 1. reaproveita o raw se houver resposta fresca (TTL por endpoint) — sem gastar cota;
  * 2. é pré-validada contra as restrições do plano;
  * 3. respeita o limite por minuto (no processo e, com o PgQuotaGovernor, somando os processos da chave)
- *    e reserva cota no Quota Governor;
+ *    e reserva cota no Quota Governor (que pausa a API depois de um 429 e usa o header de cota como piso);
  *    pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada;
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
@@ -195,7 +195,6 @@ export class ApiSportsClient {
           endpoint: req.endpoint,
           requestHash: hash,
           jobId: req.jobId,
-          critical: req.critical,
         });
         break;
       } catch (err) {
@@ -230,7 +229,9 @@ export class ApiSportsClient {
       throw new ApiSportsError(outcome, String(err), hash);
     }
 
+    // cota do dia da conta inteira (as duas pontas que usam a chave); o Governor usa como piso
     const quotaRemaining = toInt(response.headers.get('x-ratelimit-requests-remaining'));
+    const quotaLimit = toInt(response.headers.get('x-ratelimit-requests-limit'));
     let envelope: Envelope<T> | undefined;
     try {
       envelope = JSON.parse(text) as Envelope<T>;
@@ -265,7 +266,7 @@ export class ApiSportsClient {
     } finally {
       // A chamada foi feita: o ticket nunca fica pending, mesmo se a gravação do raw falhar.
       // O settle vem depois do save para quem espera a mesma requisição já encontrar o raw.
-      await this.options.governor.settle(ticket, outcome, quotaRemaining);
+      await this.options.governor.settle(ticket, outcome, quotaRemaining, quotaLimit);
     }
     this.emit(req, hash, {
       source: 'network',
