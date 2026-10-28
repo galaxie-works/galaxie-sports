@@ -31,4 +31,16 @@ describe('StreamQuery', () => {
     expect(doc.paths?.['/v1/stream']?.get?.responses?.['200']).toBeDefined();
     expect(Object.keys(doc.components?.schemas ?? {})).toContain('RealtimeChange');
   });
+
+  it('token curto no OpenAPI; ?key= marcado como obsoleto', () => {
+    const doc = buildOpenApiDocument();
+    expect(doc.paths?.['/v1/stream/token']?.post?.responses?.['201']).toBeDefined();
+    expect(Object.keys(doc.components?.schemas ?? {})).toContain('StreamToken');
+    const params = (doc.paths?.['/v1/stream']?.get?.parameters ?? []) as {
+      name: string;
+      deprecated?: boolean;
+    }[];
+    expect(params.find((p) => p.name === 'token')).toBeDefined();
+    expect(params.find((p) => p.name === 'key')?.deprecated).toBe(true);
+  });
 });

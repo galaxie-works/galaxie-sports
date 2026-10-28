@@ -139,6 +139,9 @@ services:
       <<: *node-env
       API_PORT: '8080'
       METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
+      # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
+      STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}

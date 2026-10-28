@@ -11,6 +11,7 @@ import { registerSecurityHeaders } from '../security/headers.js';
 import type { ChangeStream } from './change-stream.js';
 import type { ConnectionLimiter } from './connection-limiter.js';
 import { streamRoutes } from './sse.js';
+import { StreamTokenSigner } from './stream-token.js';
 
 const ctx: TenantContext = {
   tenantId: 't-1',
@@ -78,6 +79,7 @@ async function harness(options: {
       stream,
       limiter: options.limiter,
       options: { heartbeatMs: 30 },
+      tokens: new StreamTokenSigner(),
     });
   });
   await app.listen({ host: '127.0.0.1', port: 0 });
