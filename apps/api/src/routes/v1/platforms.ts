@@ -37,7 +37,8 @@ export async function platformRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const logos = await loadLogoBook(db, ctx.assetsBaseUrl, [], rows);
         return {
           body: { data: rows.map((p) => logos.platform(p)) },
-          tags: [...lineupTags(rows.map((p) => p.id)), 'asset'],
+          // a plataforma sem logo próprio mostra o da entrada dela na biblioteca
+          tags: [...lineupTags(rows.map((p) => p.id)), 'broadcaster', 'asset'],
         };
       },
     });

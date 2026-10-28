@@ -9,6 +9,12 @@ const setLineupReviewStatus = vi.fn();
 const dismissLineupChange = vi.fn();
 const resolveLineupReviewRequest = vi.fn();
 const setTenantOperator = vi.fn();
+const proposeManualLineupEdit = vi.fn();
+const createManualLineupItem = vi.fn();
+const uploadLogo = vi.fn();
+const revertCustomLogo = vi.fn();
+const objects = { put: vi.fn() };
+let storage: typeof objects | null = objects;
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/auth/admin', () => ({ requireAdmin: () => requireAdmin() }));
 vi.mock('@/lib/client/tenants', () => ({ tenantExists: async (id: string) => id === TENANT }));
@@ -20,10 +26,25 @@ vi.mock('@/lib/lineup/store', async () => ({
   dismissLineupChange: (...a: unknown[]) => dismissLineupChange(...a),
   resolveLineupReviewRequest: (...a: unknown[]) => resolveLineupReviewRequest(...a),
   setTenantOperator: (...a: unknown[]) => setTenantOperator(...a),
+  proposeManualLineupEdit: (...a: unknown[]) => proposeManualLineupEdit(...a),
+  createManualLineupItem: (...a: unknown[]) => createManualLineupItem(...a),
+  uploadLogo: (...a: unknown[]) => uploadLogo(...a),
+  revertCustomLogo: (...a: unknown[]) => revertCustomLogo(...a),
+  LogoUploadError: (await import('@galaxie/where-to-watch/logo-upload')).LogoUploadError,
+  logoObjectStore: () => storage,
 }));
 
-const { decideLineupItem, dismissLineupItemChange, resolveLineupRequest, saveTenantOperator } =
-  await import('./actions');
+const {
+  createLineupItem,
+  decideLineupItem,
+  dismissLineupItemChange,
+  editLineupItem,
+  resolveLineupRequest,
+  revertLineupLogo,
+  saveTenantOperator,
+  uploadLineupLogo,
+} = await import('./actions');
+const { LogoUploadError } = await import('@galaxie/where-to-watch/logo-upload');
 
 const TENANT = '01a16029-0000-7000-8000-000000000001';
 const PLATFORM = '01a20000-0000-7000-8000-000000000001';
@@ -40,6 +61,10 @@ const mocks = [
   dismissLineupChange,
   resolveLineupReviewRequest,
   setTenantOperator,
+  proposeManualLineupEdit,
+  createManualLineupItem,
+  uploadLogo,
+  revertCustomLogo,
 ];
 
 beforeEach(() => {
@@ -49,6 +74,11 @@ beforeEach(() => {
   dismissLineupChange.mockResolvedValue(true);
   resolveLineupReviewRequest.mockResolvedValue({ id: REQUEST });
   setTenantOperator.mockResolvedValue({ tenantId: TENANT });
+  proposeManualLineupEdit.mockResolvedValue(true);
+  createManualLineupItem.mockResolvedValue({ type: 'plan', id: PLAN });
+  uploadLogo.mockResolvedValue({ assetId: 'a', storageKey: 'broadcasters/abc.svg' });
+  revertCustomLogo.mockResolvedValue(true);
+  storage = objects;
 });
 
 describe('só admin', () => {
@@ -169,5 +199,104 @@ describe('operadora do tenant', () => {
     expect(
       await saveTenantOperator(TENANT, { platformId: PLATFORM, domains: '', showOtherOperators: false }),
     ).toMatchObject({ ok: false, error: 'Operadora não encontrada.' });
+  });
+});
+
+describe('edição manual', () => {
+  it('só admin edita, cria e envia logo', async () => {
+    requireAdmin.mockImplementation(redirected);
+    await expect(editLineupItem({ type: 'plan', id: PLAN }, { fields: { name: 'X' } })).rejects.toThrow(
+      'NEXT_REDIRECT',
+    );
+    await expect(createLineupItem({ type: 'plan', platformId: PLATFORM, name: 'X' })).rejects.toThrow(
+      'NEXT_REDIRECT',
+    );
+    await expect(uploadLineupLogo(new FormData())).rejects.toThrow('NEXT_REDIRECT');
+    await expect(revertLineupLogo({ type: 'platform', id: PLATFORM })).rejects.toThrow('NEXT_REDIRECT');
+    expect(proposeManualLineupEdit).not.toHaveBeenCalled();
+    expect(uploadLogo).not.toHaveBeenCalled();
+  });
+
+  it('grava a edição com o e-mail do admin; só os campos do tipo, preço com vírgula vira número', async () => {
+    const res = await editLineupItem(
+      { type: 'plan', id: PLAN },
+      {
+        fields: { priceAmount: '119,90', priceCurrency: 'BRL', url: '', access: 'included', website: 'x' },
+        sourceUrl: ' https://operadora.exemplo/precos ',
+        approve: true,
+      },
+    );
+    expect(res).toEqual({ ok: true });
+    expect(proposeManualLineupEdit).toHaveBeenCalledWith(
+      expect.anything(),
+      { type: 'plan', id: PLAN },
+      {
+        fields: { priceAmount: 119.9, priceCurrency: 'BRL', url: null },
+        removed: false,
+        sourceUrl: 'https://operadora.exemplo/precos',
+        by: ADMIN.email,
+      },
+    );
+    // "Salvar e aprovar": aprova pelo mesmo fluxo da revisão
+    expect(setLineupReviewStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      { type: 'plan', id: PLAN },
+      'approved',
+      ADMIN.email,
+    );
+  });
+
+  it('sem mudança não aprova; valor inválido vira mensagem', async () => {
+    proposeManualLineupEdit.mockResolvedValueOnce(false);
+    expect((await editLineupItem({ type: 'plan', id: PLAN }, { fields: {}, approve: true })).ok).toBe(false);
+    expect(setLineupReviewStatus).not.toHaveBeenCalled();
+    proposeManualLineupEdit.mockRejectedValueOnce(new LineupError('invalid_input', 'Preço inválido'));
+    expect(await editLineupItem({ type: 'plan', id: PLAN }, { fields: { priceAmount: 'abc' } })).toEqual({
+      ok: false,
+      error: expect.stringContaining('inválido'),
+    });
+  });
+
+  it('cria o item com quem fez e aprova junto se pedido', async () => {
+    await createLineupItem(
+      { type: 'plan_channel', planId: PLAN, refId: 'canal-exemplo', access: 'addon' },
+      { approve: true },
+    );
+    expect(createManualLineupItem).toHaveBeenCalledWith(
+      expect.anything(),
+      { type: 'plan_channel', planId: PLAN, refId: 'canal-exemplo', access: 'addon' },
+      { by: ADMIN.email, sourceUrl: null },
+    );
+    expect(setLineupReviewStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      { type: 'plan', id: PLAN },
+      'approved',
+      ADMIN.email,
+    );
+  });
+
+  it('upload: alvo, arquivo e storage conferidos; erro de validação traduzido', async () => {
+    const form = (type: string, id: string, body = '<svg/>') => {
+      const f = new FormData();
+      f.set('targetType', type);
+      f.set('targetId', id);
+      f.set('file', new Blob([body], { type: 'image/png' }), 'logo.png');
+      return f;
+    };
+    expect((await uploadLineupLogo(form('tenant', PLATFORM))).ok).toBe(false);
+    expect((await uploadLineupLogo(form('broadcaster', '../x'))).ok).toBe(false);
+    expect(await uploadLineupLogo(form('broadcaster', 'canal-exemplo'))).toEqual({ ok: true });
+    expect(uploadLogo).toHaveBeenCalledWith(expect.anything(), objects, {
+      target: { type: 'broadcaster', id: 'canal-exemplo' },
+      body: expect.any(Uint8Array),
+      by: ADMIN.email,
+    });
+    uploadLogo.mockRejectedValueOnce(new LogoUploadError('unsupported_type', 'não é PNG'));
+    expect(await uploadLineupLogo(form('platform', PLATFORM))).toEqual({
+      ok: false,
+      error: expect.stringContaining('PNG nem SVG'),
+    });
+    storage = null;
+    expect((await uploadLineupLogo(form('platform', PLATFORM))).error).toMatch(/storage/);
   });
 });

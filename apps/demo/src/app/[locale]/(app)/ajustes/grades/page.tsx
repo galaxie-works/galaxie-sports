@@ -9,7 +9,8 @@ import { LineupTenants } from '@/components/lineup/admin-tenants';
 import { Skeleton } from '@/components/ui/skeleton';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
-import { readAllLineups, readRequestQueue, readTenantOperators } from '@/lib/lineup/server';
+import { readAllLineups, readPlanLibrary, readRequestQueue, readTenantOperators } from '@/lib/lineup/server';
+import { logoStorageConfigured } from '@/lib/lineup/store';
 import {
   flattenLineup,
   matchesFilters,
@@ -36,7 +37,7 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
   let body: React.ReactNode;
   if (tab === 'revisao') {
     const filters = parseLineupFilters(params);
-    const lineups = await readAllLineups();
+    const [lineups, library] = await Promise.all([readAllLineups(), readPlanLibrary()]);
     const rows: ReviewRow[] = lineups.flatMap((l) => {
       const platform = {
         id: l.platform.id,
@@ -57,6 +58,18 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
           .map((l) => ({ id: l.platform.id, name: l.platform.name }))}
         catalogEmpty={!lineups.length}
         timeZone={timeZone}
+        create={{
+          platforms: lineups.map((l) => ({
+            id: l.platform.id,
+            name: l.platform.name,
+            country: l.platform.country,
+          })),
+          plans: lineups.flatMap((l) =>
+            l.plans.map((p) => ({ id: p.id, name: p.name, platformId: l.platform.id })),
+          ),
+          library: library.map((e) => ({ id: e.id, name: e.name, kind: e.kind, countries: e.countries })),
+        }}
+        storageEnabled={logoStorageConfigured()}
       />
     );
   } else if (tab === 'pedidos') {

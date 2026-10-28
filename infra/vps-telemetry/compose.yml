@@ -177,6 +177,11 @@ services:
       # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
       # demo só tinha a origem gravada (`acervo-oficial://…`), que o navegador não carrega
       ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
+      # Upload de logos no painel (Ajustes → Grades e ofertas): grava no mesmo bucket que a API serve
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
       # Login e usuários da demo (Better Auth): schema demo_auth no mesmo Postgres
       DEMO_DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}

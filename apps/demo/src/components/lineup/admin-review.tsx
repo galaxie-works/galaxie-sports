@@ -43,6 +43,7 @@ import {
 } from '@/lib/lineup/types';
 import { cn } from '@/lib/utils';
 
+import { CreateItemDialog, ManualEditDialog, type CreateOptions } from './manual-edit';
 import { ItemLogo, SourceLine, StatusBadge, useFieldText } from './parts';
 import { VerificationCell } from './verification';
 
@@ -177,12 +178,22 @@ function PendingChange({ row }: { row: ReviewRow }) {
   const { t } = useI18n();
   const C = t.lineup.admin.change;
   const text = useFieldText();
+  const M = t.lineup.admin.manual;
   const change = row.pendingChange;
   if (!change) return null;
-  const entries = Object.entries(change).filter(([k]) => k !== 'seen_at' && k !== 'removed');
+  const manual = row.manual?.pending ?? null;
+  // `note` e `manual` são da edição do painel (quem e por quê), não campos da grade
+  const entries = Object.entries(change).filter(
+    ([k]) => k !== 'seen_at' && k !== 'removed' && !(manual && (k === 'note' || k === 'manual')),
+  );
+  const title = manual
+    ? `${fill(M.pendingTitle, { who: manual.by })}${change.removed ? ` · ${M.removeFromPlan}` : ''}`
+    : change.removed
+      ? C.removed
+      : C.title;
   return (
     <div className="border-warning/40 bg-warning/5 mt-1.5 flex flex-col gap-0.5 rounded-md border px-2 py-1 text-xs">
-      <span className="font-medium">{change.removed ? C.removed : C.title}</span>
+      <span className="font-medium">{title}</span>
       {entries.map(([k, v]) => (
         <span key={k} className="text-muted-foreground">
           {text.label(k)}:{' '}
@@ -190,12 +201,20 @@ function PendingChange({ row }: { row: ReviewRow }) {
           <span className="text-foreground">{text.value(k, v)}</span>
         </span>
       ))}
-      <span className="text-muted-foreground italic">{C.hint}</span>
+      <span className="text-muted-foreground italic">{manual ? M.pendingHint : C.hint}</span>
     </div>
   );
 }
 
-function Actions({ row }: { row: ReviewRow }) {
+function Actions({
+  row,
+  storageEnabled,
+  timeZone,
+}: {
+  row: ReviewRow;
+  storageEnabled: boolean;
+  timeZone: string;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const A = t.lineup.admin;
@@ -238,10 +257,11 @@ function Actions({ row }: { row: ReviewRow }) {
       {label}
     </DropdownMenuItem>
   );
-  // aprovar à vista; o resto da decisão num menu, para a coluna caber na largura da tela
+  // aprovar e editar à vista; o resto da decisão num menu, para a coluna caber na largura da tela
   return (
     <div className="flex items-center gap-1">
       {button('approved', A.actions.approve, <Check />, 'default')}
+      <ManualEditDialog row={row} storageEnabled={storageEnabled} timeZone={timeZone} />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -277,8 +297,32 @@ function Actions({ row }: { row: ReviewRow }) {
   );
 }
 
+/** Selo "Editado à mão" com os campos, quem e quando no título. */
+function ManualBadge({ row, timeZone }: { row: ReviewRow; timeZone: string }) {
+  const { t } = useI18n();
+  const M = t.lineup.admin.manual;
+  const f = useFormatters(timeZone);
+  const text = useFieldText();
+  const marks = Object.entries(row.manual?.fields ?? {});
+  if (!marks.length) return null;
+  const last = marks.reduce((a, b) => (b[1].at > a[1].at ? b : a));
+  const title = fill(M.editedBy, {
+    fields: marks
+      .filter(([k]) => k !== 'created')
+      .map(([k]) => (k === 'kind' ? M.kind : text.label(k)))
+      .join(', '),
+    who: last[1].by,
+    when: f.relative(last[1].at),
+  });
+  return (
+    <Badge variant="info-light" title={title}>
+      {M.badge}
+    </Badge>
+  );
+}
+
 /** Colunas da revisão: largura fixa por coluna; o que não cabe rola na horizontal dentro do grid. */
-function useColumns(timeZone: string): ColumnDef<DataGridFeatures, ReviewRow>[] {
+function useColumns(timeZone: string, storageEnabled: boolean): ColumnDef<DataGridFeatures, ReviewRow>[] {
   const { t } = useI18n();
   const A = t.lineup.admin;
   const f = useFormatters(timeZone);
@@ -359,7 +403,12 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, ReviewRow>[] 
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex flex-wrap gap-1">
               <StatusBadge status={row.status} />
-              {row.pendingChange ? <Badge variant="warning-light">{A.change.title}</Badge> : null}
+              {row.pendingChange ? (
+                <Badge variant="warning-light">
+                  {row.manual?.pending ? t.lineup.admin.manual.badge : A.change.title}
+                </Badge>
+              ) : null}
+              <ManualBadge row={row} timeZone={timeZone} />
             </div>
             {row.reviewedBy && row.reviewedAt ? (
               <span className="text-muted-foreground text-xs break-words" title={A.table.decision}>
@@ -373,11 +422,11 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, ReviewRow>[] 
       {
         id: 'actions',
         header: A.table.actions,
-        cell: ({ row }) => <Actions row={row.original} />,
+        cell: ({ row }) => <Actions row={row.original} storageEnabled={storageEnabled} timeZone={timeZone} />,
         size: 120,
       },
     ],
-    [A, t, f, timeZone],
+    [A, t, f, timeZone, storageEnabled],
   );
 }
 
@@ -389,6 +438,8 @@ export function LineupReview({
   platforms,
   catalogEmpty,
   timeZone,
+  create,
+  storageEnabled,
 }: {
   rows: ReviewRow[];
   filters: LineupFilters;
@@ -396,11 +447,15 @@ export function LineupReview({
   platforms: { id: string; name: string }[];
   catalogEmpty: boolean;
   timeZone: string;
+  /** Opções do "Novo item": plataformas, planos e biblioteca (todas, não só as filtradas). */
+  create: CreateOptions;
+  /** Storage de assets configurado (upload de logo ligado). */
+  storageEnabled: boolean;
 }) {
   const { t, locale } = useI18n();
   const A = t.lineup.admin;
   const grid = t.admin.table.grid;
-  const columns = useColumns(timeZone);
+  const columns = useColumns(timeZone, storageEnabled);
   const table = useTable({
     features: dataGridFeatures,
     data: rows,
@@ -411,7 +466,10 @@ export function LineupReview({
   const empty = catalogEmpty ? A.emptyCatalog : A.empty;
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <Filters filters={filters} countries={countries} platforms={platforms} />
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <Filters filters={filters} countries={countries} platforms={platforms} />
+        <CreateItemDialog options={create} />
+      </div>
       <DataGrid
         table={table}
         recordCount={rows.length}

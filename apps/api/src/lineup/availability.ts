@@ -145,6 +145,10 @@ export interface PlatformLogo {
 
 export { logoCreditText };
 
+/** Logo da plataforma: o enviado no painel (`custom_logo_asset_id`) vale no lugar do da busca de logos. */
+export const platformLogoAssetId = (row: Pick<LineupPlatform, 'logoAssetId' | 'customLogoAssetId'>) =>
+  row.customLogoAssetId ?? row.logoAssetId;
+
 /** Logos da biblioteca de emissoras e dos assets das plataformas, já como URL pública. */
 export class LogoBook {
   constructor(
@@ -165,7 +169,8 @@ export class LogoBook {
   /** Plataforma: logo do asset dela (com o crédito); senão, o da entrada dela na biblioteca. */
   platform(row: LineupPlatform): Platform {
     const lib = row.broadcasterId ? this.library.get(row.broadcasterId) : undefined;
-    const own = row.logoAssetId ? this.assets.get(row.logoAssetId) : undefined;
+    const id = platformLogoAssetId(row);
+    const own = id ? this.assets.get(id) : undefined;
     if (own?.url) return { ...base(row), logo: own.url, logo_dark: own.darkUrl, logo_credit: own.credit };
     return { ...base(row), logo: lib?.logo ?? null, logo_dark: lib?.logo_dark ?? null, logo_credit: null };
   }
@@ -192,7 +197,7 @@ export async function loadLogoBook(
   const ids = [
     ...new Set([...libraryIds, ...platforms.flatMap((p) => (p.broadcasterId ? [p.broadcasterId] : []))]),
   ];
-  const assetIds = [...new Set(platforms.flatMap((p) => (p.logoAssetId ? [p.logoAssetId] : [])))];
+  const assetIds = [...new Set(platforms.flatMap((p) => platformLogoAssetId(p) ?? []))];
   const dark = alias(asset, 'dark_logo');
   const [rows, assets, darks] = await Promise.all([
     ids.length ? listBroadcasters(db, { ids }) : Promise.resolve([]),
