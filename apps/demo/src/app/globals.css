@@ -203,6 +203,47 @@
 }
 
 /*
+ * Faixa de recursos da apresentação (marquee horizontal): a lista vai duplicada e anda metade da largura,
+ * então emenda sem salto. Para no hover e no foco; com "reduzir movimento", vira lista com quebra de linha.
+ */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.landing-marquee {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.landing-marquee-track {
+  animation: marquee var(--marquee-duration, 60s) linear infinite;
+}
+
+.landing-marquee-track[data-reverse] {
+  animation-direction: reverse;
+}
+
+.landing-marquee:hover .landing-marquee-track,
+.landing-marquee:focus-within .landing-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-marquee {
+    mask-image: none;
+  }
+  .landing-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+  }
+  .landing-marquee-track [data-copy] {
+    display: none;
+  }
+}
+
+/*
  * Home "Explorar": cards com o matiz do esporte (--hue, perto do índigo da marca) em degradê, brilho e
  * leve elevação no hover/foco. O conteúdo fica acima do brilho (z-index 1). Em `components`, para os
  * utilitários (absolute, z-*) dos filhos valerem.

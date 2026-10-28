@@ -37,7 +37,7 @@ export default defineMessages(
         },
         galaxie: {
           title: 'Camada Galaxie',
-          body: 'Tudo o que transforma cada partida em engajamento:',
+          body: 'Onde assistir, semântica na voz do torcedor, contexto com IA e vídeos: tudo o que transforma cada partida em engajamento.',
         },
         product: {
           title: 'Seu produto',
@@ -357,7 +357,7 @@ export default defineMessages(
           },
           galaxie: {
             title: 'Galaxie layer',
-            body: 'Everything that turns every match into engagement:',
+            body: 'Where to watch, semantics in the fan’s voice, AI context and videos: everything that turns every match into engagement.',
           },
           product: {
             title: 'Your product',
@@ -676,7 +676,7 @@ export default defineMessages(
           },
           galaxie: {
             title: 'Capa Galaxie',
-            body: 'Todo lo que convierte cada partido en engagement:',
+            body: 'Dónde ver, semántica en la voz del hincha, contexto con IA y videos: todo lo que convierte cada partido en engagement.',
           },
           product: {
             title: 'Tu producto',

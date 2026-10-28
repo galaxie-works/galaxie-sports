@@ -31,13 +31,52 @@ const PILLARS = [
 ] as const satisfies readonly { key: keyof Text['pillars']; icon: LucideIcon; hue: number }[];
 
 /**
- * A camada Galaxie: o dado, tudo o que a Galaxie põe por cima (a lista de recursos no cartão do meio) e onde
- * o cliente usa, seguido dos quatro pilares e de uma chamada em destaque.
+ * Recursos da camada em duas faixas que correm em sentidos opostos. Cada faixa leva a lista duas vezes (a
+ * segunda escondida dos leitores de tela) para o loop emendar.
+ */
+function FeatureMarquee({ features }: { features: string[] }) {
+  const half = Math.ceil(features.length / 2);
+  const rows = [features.slice(0, half), features.slice(half)];
+  return (
+    <div className="flex flex-col gap-2.5">
+      {rows.map((row, r) => (
+        <div key={r} className="landing-marquee overflow-hidden">
+          <div
+            className="landing-marquee-track flex w-max gap-2.5"
+            data-reverse={r === 1 ? '' : undefined}
+            style={{ '--marquee-duration': `${row.length * 4}s` } as React.CSSProperties}
+          >
+            {[0, 1].map((copy) => (
+              <ul
+                key={copy}
+                aria-hidden={copy === 1 || undefined}
+                data-copy={copy === 1 ? '' : undefined}
+                className="flex shrink-0 gap-2.5"
+              >
+                {row.map((feature) => (
+                  <li key={feature}>
+                    <Chip tone="brand" className="px-4 py-1.5 text-sm">
+                      {feature}
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A camada Galaxie: o dado, a camada e onde o cliente usa; embaixo, todos os recursos numa faixa em
+ * movimento, os quatro pilares e uma chamada em destaque.
  */
 export function Layer({ t }: { t: Text }) {
   return (
     <div className="flex flex-col gap-10">
-      <ol className="grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1.8fr_auto_1fr]">
+      <ol className="grid items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr]">
         {FLOW.map(({ key, icon: Icon }, i) => {
           const step = t.flow[key];
           const core = key === 'galaxie';
@@ -65,20 +104,13 @@ export function Layer({ t }: { t: Text }) {
                 </span>
                 <span className="text-lg font-semibold tracking-tight">{step.title}</span>
                 <span className="text-muted-foreground text-sm leading-relaxed text-pretty">{step.body}</span>
-                {core ? (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {Object.values(t.features).map((feature) => (
-                      <li key={feature}>
-                        <Chip tone="brand">{feature}</Chip>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
               </div>
             </li>
           );
         })}
       </ol>
+
+      <FeatureMarquee features={Object.values(t.features)} />
 
       <ul className="grid gap-4 sm:grid-cols-2">
         {PILLARS.map(({ key, icon: Icon, hue }) => {
