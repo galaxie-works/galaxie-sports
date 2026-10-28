@@ -56,8 +56,13 @@ async function clientFor(
   freeDay = true,
 ): Promise<ApiSportsClient> {
   const governor = new PgQuotaGovernor(db, () => defaultPolicy(100));
-  // dia sem ao vivo: libera a folga para o BOOTSTRAP (sem isso a política padrão só cede 5 chamadas)
-  if (freeDay) await governor.plan(sport, new Date().toISOString().slice(0, 10), { LIVE: 0, DAILY: 0 });
+  // dia sem ao vivo: libera a folga para o BOOTSTRAP. Dia cheio: abaixo de 85, DAILY (40) e o que a reserva de
+  // 15 não cobre do ao vivo (55 − 15) ficam protegidos, e o BOOTSTRAP só tem 5 chamadas
+  await governor.plan(
+    sport,
+    new Date().toISOString().slice(0, 10),
+    freeDay ? { LIVE: 0, DAILY: 0 } : { LIVE: 55, DAILY: 40 },
+  );
   return new ApiSportsClient({
     apiKey: 'k',
     store: new PgRawStore(db),
@@ -258,7 +263,7 @@ describe('runSportCatalogJob', () => {
 
   it('adia o que não cabe na cota do dia em vez de falhar', async () => {
     const api = fakeApi({ ...VOLLEY_RESPONSES, '/leagues': VOLLEY_RESPONSES['/leagues'] });
-    // sem planejar o dia: a política padrão cede só 5 chamadas ao BOOTSTRAP
+    // dia cheio de ao vivo: só 5 chamadas para o BOOTSTRAP
     const client = await clientFor('handball', api.fetch, false);
     const result = await runSportCatalogJob(db, client, 'handball', [], {
       games: { maxTier: 3, latestSeasons: 3 },

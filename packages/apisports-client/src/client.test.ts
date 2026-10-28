@@ -7,7 +7,7 @@ import { defaultPolicy } from './quota/policy.js';
 import { RateLimiter, type Clock } from './rate-limiter.js';
 import { InMemoryRawStore } from './raw-store.js';
 
-type Route = (url: URL) => { status?: number; body: unknown; remaining?: number };
+type Route = (url: URL) => { status?: number; body: unknown; remaining?: number; limit?: number };
 
 /** Servidor falso da api-sports: registra cada requisição recebida. */
 function fakeApi(route: Route) {
@@ -22,7 +22,10 @@ function fakeApi(route: Route) {
     const r = route(url);
     return new Response(JSON.stringify(r.body), {
       status: r.status ?? 200,
-      headers: { 'x-ratelimit-requests-remaining': String(r.remaining ?? 90) },
+      headers: {
+        ...(r.remaining !== undefined ? { 'x-ratelimit-requests-remaining': String(r.remaining) } : {}),
+        ...(r.limit !== undefined ? { 'x-ratelimit-requests-limit': String(r.limit) } : {}),
+      },
     });
   }) as typeof globalThis.fetch;
   return { calls, fetchFn };
@@ -49,8 +52,9 @@ function setup(route: Route, dailyLimit = 100) {
   const api = fakeApi(route);
   const store = new InMemoryRawStore();
   const governor = new InMemoryQuotaGovernor(
-    () => defaultPolicy(dailyLimit),
+    () => defaultPolicy(dailyLimit, 15),
     () => new Date(clock.t),
+    clock.sleep,
   );
   const client = new ApiSportsClient({
     apiKey: 'test-key',
@@ -181,9 +185,9 @@ describe('ApiSportsClient', () => {
         remaining,
       });
     const live = (id: number) =>
-      ({ sport: 'football', endpoint: '/teams', params: { id }, priority: 'LIVE', critical: true }) as const;
+      ({ sport: 'football', endpoint: '/teams', params: { id }, priority: 'LIVE' }) as const;
 
-    it('nega a API por 15 min (até LIVE crítico) sem gastar outra tentativa, depois tenta de novo', async () => {
+    it('nega a API por 15 min (até o ao vivo) sem gastar outra tentativa, depois tenta de novo', async () => {
       const { client, api, clock } = setup(exhausted());
       await expect(
         client.get({ sport: 'football', endpoint: '/countries', priority: 'DAILY' }),
@@ -228,16 +232,83 @@ describe('ApiSportsClient', () => {
     });
   });
 
+  describe('formato real do fornecedor: limite por minuto e cota da conta compartilhada', () => {
+    // corpos copiados do raw.api_response (24/10/2026): o 429 vem sem header de cota; o aviso vem com HTTP 200
+    const http429 = {
+      get: '',
+      parameters: [],
+      errors: {
+        rateLimit:
+          'Too many requests. You have reached your per-minute request limit. Please wait a few seconds before retrying or upgrade your plan for higher limits.',
+      },
+      results: 0,
+      paging: { total: 1, current: 1 },
+      response: [],
+    };
+    const minuteWarning = {
+      get: 'games/quarters',
+      parameters: { id: '2849' },
+      errors: { rateLimit: 'Too many requests. Your rate limit is 10 requests per minute.' },
+      results: 0,
+      paging: { total: 1, current: 1 },
+      response: [],
+    };
+    const team = (id: number, priority: 'BOOTSTRAP' | 'DAILY' | 'LIVE') =>
+      ({ sport: 'football', endpoint: '/teams', params: { id }, priority }) as const;
+
+    it('429 pausa a API por 30 s para todos os jobs, inclusive o ao vivo', async () => {
+      let n = 0;
+      const { client, api, clock } = setup(() =>
+        n++ === 0 ? { status: 429, body: http429 } : { body: envelope([]), remaining: 90 },
+      );
+      const t0 = clock.t;
+      await expect(client.get(team(1, 'BOOTSTRAP'))).rejects.toMatchObject({ outcome: 'rate_limited' });
+      await client.get(team(2, 'LIVE'));
+      expect(api.calls).toHaveLength(2);
+      expect(clock.t - t0).toBeGreaterThanOrEqual(30_000);
+    });
+
+    it('o aviso de limite por minuto (HTTP 200 com errors.rateLimit) também pausa, só aquela API', async () => {
+      const { client, api, clock } = setup((url) =>
+        url.hostname.startsWith('v1.afl') && url.searchParams.get('id') === '2849'
+          ? { body: minuteWarning, remaining: 99 }
+          : { body: envelope([]), remaining: 98 },
+      );
+      const t0 = clock.t;
+      await expect(
+        client.get({ sport: 'afl', endpoint: '/games/quarters', params: { id: 2849 }, priority: 'LIVE' }),
+      ).rejects.toMatchObject({ outcome: 'rate_limited' });
+      await client.get({ sport: 'hockey', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' });
+      expect(clock.t - t0).toBeLessThan(30_000);
+      await client.get({ sport: 'afl', endpoint: '/teams', params: { id: 1 }, priority: 'DAILY' });
+      expect(clock.t - t0).toBeGreaterThanOrEqual(30_000);
+      expect(api.calls).toHaveLength(3);
+    });
+
+    it('o header de cota do dia conta as duas pontas: a produção para os jobs comuns e o ao vivo segue', async () => {
+      // Ultra: 75.000/dia; a conta (dev + produção) já gastou 65.000, acima do teto de 63.750 dos jobs comuns
+      const { client, api } = setup(() => ({ body: envelope([]), remaining: 10_000, limit: 75_000 }), 75_000);
+      await client.get(team(1, 'DAILY'));
+      await expect(client.get(team(2, 'DAILY'))).rejects.toThrow(/reserva do ao vivo/);
+      await client.get(team(3, 'LIVE'));
+      expect(api.calls).toHaveLength(2);
+    });
+  });
+
   it('o Governor nega quando o orçamento da prioridade acaba', async () => {
     const { client, api } = setup(() => ({ body: envelope([]) }), 10);
-    // limite 10, reserva 2 → DAILY tem fatia de 4; BOOTSTRAP só vive de folga
+    // limite 10, reserva 2 (do ao vivo) → DAILY tem fatia de 4; BOOTSTRAP só vive de folga: abaixo de 8,
+    // tirando o que a reserva não cobre da fatia do ao vivo (4 − 2), sobram 2
     for (let i = 0; i < 4; i++) {
       await client.get({ sport: 'football', endpoint: '/teams', params: { id: i }, priority: 'DAILY' });
+    }
+    for (const id of [97, 98]) {
+      await client.get({ sport: 'football', endpoint: '/teams', params: { id }, priority: 'BOOTSTRAP' });
     }
     await expect(
       client.get({ sport: 'football', endpoint: '/teams', params: { id: 99 }, priority: 'BOOTSTRAP' }),
     ).rejects.toBeInstanceOf(QuotaExceededError);
-    expect(api.calls).toHaveLength(4);
+    expect(api.calls).toHaveLength(6);
   });
 
   it('percorre a paginação (cada página é uma requisição)', async () => {

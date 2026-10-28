@@ -20,6 +20,7 @@ const report = (body: unknown) =>
   POST(
     new Request('http://localhost/api/related/playback-error', {
       method: 'POST',
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify(body),
     }),
   );
@@ -59,6 +60,27 @@ describe('POST /api/related/playback-error', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('CSRF: POST de outro site ou sem JSON é recusado antes de qualquer coisa', async () => {
+    getSession.mockResolvedValue({ user: { id: 'u1', role: 'admin' } });
+    const cross = await POST(
+      new Request('http://localhost/api/related/playback-error', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+        body: JSON.stringify({ item_id: item(1), code: 150 }),
+      }),
+    );
+    expect(cross.status).toBe(403);
+    const form = await POST(
+      new Request('http://localhost/api/related/playback-error', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain', 'sec-fetch-site': 'same-origin' },
+        body: JSON.stringify({ item_id: item(1), code: 150 }),
+      }),
+    );
+    expect(form.status).toBe(415);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sem sessão: 401, nada vai para a API', async () => {

@@ -791,17 +791,58 @@ Last-Event-ID: 1041
 | `competitions`, `sports` | Filtros adicionais (até 50 competições, 20 esportes); esporte fora do contrato → 403 |
 | `topics` | Nomes curtos ou completos; padrão: todos os do plano. Tópico de módulo não contratado → 403 `MODULE_NOT_IN_PLAN` |
 | `Last-Event-ID` / `?last_event_id=` | Retoma: reenvia do `ops.change_feed`, em ordem, as mudanças após esse ID (até 5000; acima disso chega `event: replay_truncated` com `reason: "max_replay"` e o cliente deve recarregar o estado pela REST). O change feed guarda `CHANGE_FEED_RETENTION_DAYS` dias (padrão 7; job `change-feed-prune` do ingestor, que mantém a última mudança de cada entidade e o que os webhooks ainda não leram). ID anterior ao que a retenção já apagou (`ops.change_feed_prune`): o que restou é reenviado e chega `replay_truncated` com `reason: "retention"` |
-| `?key=` | Chave para `EventSource` do navegador, que não envia headers (ver *trade-off* abaixo) |
+| `?token=` | Token curto (5 min) para o `EventSource` do navegador, que não envia headers: `POST /v1/stream/token` (abaixo) |
+| `?key=` | **Obsoleto** desde 28/10/2026, aceito até 27/12/2026: a chave secreta na URL (ver abaixo) |
 
 Mensagens: `id:` (ID da mudança), `event:` (tópico), `data:` (JSON). O stream começa com `retry: 3000` e, depois da retomada, `event: ready` com `{ "last_event_id": "...", "topics": [...] }`. Heartbeat a cada 15 s (comentário `: hb <ts>`), que mantém proxies e balanceadores com a conexão aberta. A cada heartbeat a chave é revalidada (cache de 60 s do autenticador): chave revogada ou expirada, tenant suspenso ou módulo/esporte retirado do plano encerram o stream com `event: access_revoked` (`{ code, message, detail }`) — a reconexão do `EventSource` recebe então o 401/403. A resposta leva os mesmos headers de segurança e de CORS (`CORS_ORIGINS`) das demais rotas, então `EventSource` de outra origem autorizada funciona.
 
-```js
-const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&key=${KEY_DE_LEITURA}`);
-es.addEventListener('event.score_changed', (e) => atualizarPlacar(JSON.parse(e.data)));
-// reconexão automática: o navegador reenvia Last-Event-ID e a API completa o que faltou
+**No navegador: token curto (`POST /v1/stream/token`).** O `EventSource` nativo não envia headers. A chave secreta
+nunca vai ao navegador: o **seu backend** troca a chave (no header) por um token de 5 minutos, e o navegador abre o
+stream com `?token=`.
+
+```http
+POST /v1/stream/token
+x-galaxie-key: gs_live_xxx
+
+201 Created
+cache-control: no-store
+{ "data": { "token": "gst_…", "expires_at": "2026-10-28T12:05:00.000Z", "expires_in": 300 } }
 ```
 
-**Chave na URL (`?key=`) — *trade-off*.** O `EventSource` nativo não envia headers, então a chave vai na query. Ela pode ficar em histórico do navegador, logs de proxies/CDN e no `Referer`. A API remove `key=` dos próprios logs, mas recomendamos: (1) no servidor ou em apps, usar o header `x-galaxie-key` (ex.: `fetch` com leitura do stream, ou um polyfill de EventSource com headers); (2) no navegador, usar uma **chave dedicada**, restrita por escopo (`--scopes core_data`) e rotacionável, nunca a chave principal do tenant. `?key=` só vale para `/v1/stream`.
+- O token só abre o `/v1/stream` do tenant e da chave que o pediram. Não serve para outra rota, não emite outro token
+  e não leva o segredo da chave. É assinado pela API: o `STREAM_TOKEN_SECRET` é o mesmo em todas as instâncias; sem
+  ele, cada processo sorteia o seu, e o token deixa de valer depois de um deploy.
+- Os 5 minutos são para **abrir** o stream. O stream aberto continua e é revalidado pela chave a cada heartbeat, como
+  com o header: chave revogada encerra em até 60 s.
+- **Reconexão.** Depois de um erro, o `EventSource` tenta de novo com a mesma URL, e um token vencido recebe 401 (o
+  `EventSource` desiste). Feche, peça outro token e reabra com `?last_event_id=` (um `EventSource` novo não reenvia o
+  `Last-Event-ID`):
+
+```js
+let ultimo;
+async function conectar() {
+  // /stream-token: rota do SEU backend, que chama POST /v1/stream/token com a chave no header
+  const { token } = await (await fetch('/stream-token', { method: 'POST' })).json();
+  const retomar = ultimo ? `&last_event_id=${ultimo}` : '';
+  const es = new EventSource(`${API}/v1/stream?events=${id}&topics=score,status&token=${token}${retomar}`);
+  es.addEventListener('event.score_changed', (e) => {
+    ultimo = e.lastEventId;
+    atualizarPlacar(JSON.parse(e.data));
+  });
+  es.onerror = () => {
+    es.close();
+    setTimeout(conectar, 3000);
+  };
+}
+conectar();
+```
+
+**`?key=` (obsoleto).** A chave secreta na query fica em histórico do navegador, logs de proxies/CDN e no `Referer`.
+Continua aceita até **27/12/2026**, e a resposta leva `Deprecation: @1793145600`,
+`Sunset: Sun, 27 Dec 2026 00:00:00 GMT` e `Link: </docs>; rel="deprecation"`. A API registra um aviso por tenant por
+dia (`sse.query_key_deprecated`), para o time da Galaxie avisar quem ainda usa. A API remove `key=` e `token=` dos
+próprios logs. `?key=` e `?token=` só valem para `/v1/stream`. No servidor ou em apps, use o header `x-galaxie-key`
+(ex.: `fetch` lendo o stream).
 
 **Limites e robustez.**
 

@@ -258,7 +258,7 @@ describe('simulação: orçamento diário, parada e retomada', () => {
       spec(() => teams(30)),
       h.deps,
     );
-    // 100 − 15 de reserva − 40 DAILY − 40 LIVE protegidos = 5
-    expect(r).toMatchObject({ status: 'partial', stoppedBy: 'quota', callsSpent: 5 });
+    // 100 − 15 de reserva − 40 DAILY − 25 LIVE protegidos (os outros 15 do ao vivo a reserva já cobre) = 20
+    expect(r).toMatchObject({ status: 'partial', stoppedBy: 'quota', callsSpent: 20 });
   });
 });

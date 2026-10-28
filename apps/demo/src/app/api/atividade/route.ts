@@ -2,6 +2,7 @@
 import { pool } from '@/lib/auth/db';
 import { auth } from '@/lib/auth/server';
 import { internalPath } from '@/lib/internal-path';
+import { rejectCrossSite } from '@/lib/security/same-origin';
 
 /**
  * Registros por usuário por minuto. O app manda um por página aberta (1,5 s depois de abrir), então
@@ -18,6 +19,9 @@ const MAX_PATH = 300;
 const pathOf = (value: unknown) => internalPath(value)?.slice(0, MAX_PATH) ?? null;
 
 export async function POST(request: Request) {
+  // CSRF: só a própria demo, com corpo JSON (lib/security/same-origin.ts)
+  const crossSite = rejectCrossSite(request);
+  if (crossSite) return crossSite;
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return new Response(null, { status: 401 });
   const body = (await request.json().catch(() => null)) as {

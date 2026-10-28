@@ -221,5 +221,5 @@ DATABASE_URL=postgres://...
 REDIS_URL=redis://...
 S3_ENDPOINT=... S3_BUCKET=galaxie-sports-assets
 ANTHROPIC_API_KEY=...             # agentes de IA
-QUOTA_RESERVE_PERCENT=15          # reserva de segurança por API/dia
+QUOTA_LIVE_RESERVE_PERCENT=25     # produção: abaixo disso só o ao vivo chama; dev: mínimo de 70%, vale para tudo
 ```

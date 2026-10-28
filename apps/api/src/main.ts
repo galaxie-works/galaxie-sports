@@ -70,6 +70,8 @@ const app = buildServer({
   changeFeed: true,
   realtime: {
     maxConnectionsPerTenant: Number(process.env.SSE_MAX_CONNECTIONS_PER_TENANT ?? 100),
+    // segredo do token curto do SSE: o mesmo em todas as instâncias (sem ele, um aleatório por processo)
+    streamTokenSecret: process.env.STREAM_TOKEN_SECRET,
   },
   ...(process.env.ASSETS_PUBLIC_BASE_URL ? { assetsBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL } : {}),
   customLogos: true,

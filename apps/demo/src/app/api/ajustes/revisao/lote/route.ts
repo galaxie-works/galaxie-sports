@@ -8,6 +8,7 @@ import { revalidateApiTags } from '@/lib/cache/revalidate';
 import { requireAdminApi } from '@/lib/review/guard';
 import { ReviewInputError, ReviewUnavailableError, decideReview } from '@/lib/review/store';
 import { MAX_PAGE_SIZE, REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
+import { rejectCrossSite } from '@/lib/security/same-origin';
 
 const NO_STORE = { 'cache-control': 'no-store' };
 /** Cabe uma página de 500 ids (chaves longas, como as de tradução) e o comentário. */
@@ -16,6 +17,9 @@ const BODY_MAX = 128_000;
 const MAX_IDS = MAX_PAGE_SIZE;
 
 export async function POST(request: Request) {
+  // CSRF: só a própria demo, com corpo JSON (lib/security/same-origin.ts)
+  const crossSite = rejectCrossSite(request);
+  if (crossSite) return crossSite;
   const actor = await requireAdminApi(request);
   if (actor instanceof Response) return actor;
   const raw = await request.text();

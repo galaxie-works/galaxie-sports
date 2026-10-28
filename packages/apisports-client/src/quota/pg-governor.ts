@@ -4,6 +4,7 @@ import { QuotaExceededError, RequestInFlightError } from '../errors.js';
 import type { Outcome, Priority } from '../types.js';
 import {
   buildReport,
+  headerFloor,
   IN_FLIGHT_STALE_MS,
   utcDayString,
   type AcquireRequest,
@@ -11,17 +12,34 @@ import {
   type QuotaTicket,
   type UsageReport,
 } from './governor.js';
-import { decide, emptyUsage, exhaustedSince, type QuotaPolicy, type UsageSnapshot } from './policy.js';
+import {
+  decide,
+  emptyUsage,
+  exhaustedSince,
+  RATE_LIMIT_PAUSE_MS,
+  type QuotaPolicy,
+  type UsageSnapshot,
+} from './policy.js';
 
 const PROVIDER = 'api-sports';
+/**
+ * Intervalo mínimo, por API e processo, entre duas gravações do header de cota como piso: cada gravação disputa o
+ * lock do dia com as reservas, e um header de alguns segundos atrás já basta para enxergar a outra ponta.
+ */
+export const HEADER_FLOOR_INTERVAL_MS = 5_000;
 
 /**
  * Quota Governor sobre Postgres. A reserva é uma linha `pending` em ops.quota_ledger inserida
  * sob advisory lock por (api, dia) — vários workers concorrentes nunca ultrapassam o orçamento.
  * Com `perMinute` na política, a reserva também espera a vaga do limite por minuto da API, somando
- * todos os processos que usam a chave.
+ * todos os processos que usam a chave. Depois de um `rate_limited`, as reservas daquela API neste banco
+ * esperam a pausa (RATE_LIMIT_PAUSE_MS). O header de cota de cada resposta vira piso do contador do
+ * fornecedor em ops.quota_snapshot, junto com a leitura de hora em hora do /status.
  */
 export class PgQuotaGovernor implements QuotaGovernor {
+  /** Última gravação do header de cota como piso, por API (ver HEADER_FLOOR_INTERVAL_MS). */
+  private readonly lastHeaderFloor = new Map<string, number>();
+
   constructor(
     private readonly db: Database,
     private readonly policyFor: (api: string) => QuotaPolicy,
@@ -58,20 +76,28 @@ export class PgQuotaGovernor implements QuotaGovernor {
     nowMs: number,
   ): Promise<UsageSnapshot> {
     const used = emptyUsage();
-    // na mesma passada: um quota_exhausted recente do dia (sem `remaining` positivo) nega a API por um tempo
+    // na mesma passada: um quota_exhausted recente do dia (sem `remaining` positivo) nega a API por um tempo,
+    // e um rate_limited recente pausa a API
     const since = new Date(exhaustedSince(day, nowMs)).toISOString();
+    const pauseSince = new Date(nowMs - RATE_LIMIT_PAUSE_MS).toISOString();
     const counts = await tx
       .select({
         priority: quotaLedger.priority,
         n: sql<number>`count(*)::int`,
         exhausted: sql<number>`(count(*) filter (where ${quotaLedger.outcome} = 'quota_exhausted'
           and coalesce(${quotaLedger.remainingAfter}, 0) = 0 and ${quotaLedger.sentAt} >= ${since}::timestamptz))::int`,
+        rateLimitedAt:
+          sql<Date | null>`max(${quotaLedger.sentAt}) filter (where ${quotaLedger.outcome} = 'rate_limited'
+          and ${quotaLedger.sentAt} >= ${pauseSince}::timestamptz)`.mapWith(quotaLedger.sentAt),
       })
       .from(quotaLedger)
       .where(and(eq(quotaLedger.provider, PROVIDER), eq(quotaLedger.api, api), eq(quotaLedger.dayUtc, day)))
       .groupBy(quotaLedger.priority);
     for (const c of counts) used[c.priority as Priority] = c.n;
     const providerExhausted = counts.some((c) => c.exhausted > 0);
+    // um sent_at no futuro (relógio adiantado de outro processo) não estica a pausa além de RATE_LIMIT_PAUSE_MS
+    const rateLimitedAt = Math.max(-Infinity, ...counts.map((c) => c.rateLimitedAt?.getTime() ?? -Infinity));
+    const pausedUntil = Math.min(rateLimitedAt, nowMs) + RATE_LIMIT_PAUSE_MS;
 
     const planRows = await tx
       .select({ priority: quotaBudget.priority, planned: quotaBudget.planned })
@@ -104,6 +130,7 @@ export class PgQuotaGovernor implements QuotaGovernor {
           }
         : {}),
       ...(providerExhausted ? { providerExhausted } : {}),
+      ...(pausedUntil > nowMs ? { pausedUntil } : {}),
     };
   }
 
@@ -155,9 +182,9 @@ export class PgQuotaGovernor implements QuotaGovernor {
         const waitMs = await this.minuteWait(tx, req.api, perMinute, nowMs);
         if (waitMs > 0) return { waitMs };
       }
-      const decision = decide(policy, await this.snapshot(tx, req.api, day, nowMs), req.priority, {
-        critical: req.critical ?? false,
-      });
+      const usage = await this.snapshot(tx, req.api, day, nowMs);
+      if (usage.pausedUntil !== undefined) return { waitMs: usage.pausedUntil - nowMs };
+      const decision = decide(policy, usage, req.priority);
       if (!decision.allow) throw new QuotaExceededError(req.api, req.priority, decision.reason);
       const [row] = await tx
         .insert(quotaLedger)
@@ -215,13 +242,62 @@ export class PgQuotaGovernor implements QuotaGovernor {
     return Math.min(spacingMs, Math.ceil(row.last.getTime() + spacingMs - nowMs));
   }
 
-  async settle(ticket: QuotaTicket, outcome: Outcome, remainingAfter?: number): Promise<void> {
+  async settle(
+    ticket: QuotaTicket,
+    outcome: Outcome,
+    remainingAfter?: number,
+    providerLimit?: number,
+  ): Promise<void> {
+    const nowMs = this.now().getTime();
     await this.db
       .update(quotaLedger)
       // sent_at fica o do envio: reescrever com a hora do desfecho contaria de novo, no piso do
-      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela
-      .set({ outcome, remainingAfter: remainingAfter ?? null })
+      // fornecedor, uma chamada que já estava no contador lido por um /status no meio dela. A exceção é o
+      // rate_limited: a pausa conta da chegada da resposta (um 429 que demorou 20 s ainda pausa 30 s), e uma
+      // chamada recusada a mais no piso é o preço. Só no mesmo dia UTC: day_utc é sempre o dia do sent_at.
+      .set({
+        outcome,
+        remainingAfter: remainingAfter ?? null,
+        ...(outcome === 'rate_limited' && utcDayString(new Date(nowMs)) === ticket.dayUtc
+          ? { sentAt: new Date(nowMs) }
+          : {}),
+      })
       .where(eq(quotaLedger.id, ticket.id));
+
+    // checagem barata antes do lock (o limite de verdade só se sabe com o snapshot)
+    if (headerFloor(ticket, outcome, nowMs, remainingAfter, Number.MAX_SAFE_INTEGER) === undefined) return;
+    if (nowMs - (this.lastHeaderFloor.get(ticket.api) ?? -Infinity) < HEADER_FLOOR_INTERVAL_MS) return;
+    this.lastHeaderFloor.set(ticket.api, nowMs);
+    // o piso é uma leitura a mais: se a gravação falhar, a chamada (que deu certo) não falha junto, e o
+    // próximo header ou o /status de hora em hora cobrem
+    await this.raiseFloorFromHeader(ticket, outcome, nowMs, remainingAfter, providerLimit).catch(() => {});
+  }
+
+  private async raiseFloorFromHeader(
+    ticket: QuotaTicket,
+    outcome: Outcome,
+    nowMs: number,
+    remainingAfter: number | undefined,
+    providerLimit: number | undefined,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const prev = await this.lockedSnapshot(tx, ticket.api, ticket.dayUtc);
+      const limit = providerLimit ?? prev?.providerLimit ?? this.policyFor(ticket.api).dailyLimit;
+      const floor = headerFloor(ticket, outcome, nowMs, remainingAfter, limit);
+      if (floor === undefined) return;
+      // a resposta é posterior a todo envio com sent_at < agora: o header já conta essas chamadas (ou o
+      // fornecedor ainda não as viu); as enviadas depois de agora entram por cima, como numa leitura do /status
+      const baseline = prev
+        ? prev.providerUsed + (await this.countSince(tx, ticket.api, ticket.dayUtc, prev.capturedAt))
+        : 0;
+      // o piso atual já cobre: não reescreve
+      if (prev && floor <= baseline && limit === prev.providerLimit) return;
+      await this.writeSnapshot(tx, ticket.api, ticket.dayUtc, {
+        providerUsed: Math.max(baseline, floor),
+        providerLimit: limit,
+        capturedAt: new Date(nowMs),
+      });
+    });
   }
 
   async release(ticket: QuotaTicket): Promise<void> {
@@ -233,36 +309,59 @@ export class PgQuotaGovernor implements QuotaGovernor {
   async reconcile(api: string, providerUsed: number, providerLimit: number, plan?: string): Promise<void> {
     const dayUtc = utcDayString(this.now());
     await this.db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${api}|${dayUtc}`}))`);
-      const [prev] = await tx
-        .select({ providerUsed: quotaSnapshot.providerUsed, capturedAt: quotaSnapshot.capturedAt })
-        .from(quotaSnapshot)
-        .where(
-          and(
-            eq(quotaSnapshot.provider, PROVIDER),
-            eq(quotaSnapshot.api, api),
-            eq(quotaSnapshot.dayUtc, dayUtc),
-          ),
-        );
+      const prev = await this.lockedSnapshot(tx, api, dayUtc);
       // O contador do fornecedor é eventualmente consistente: uma leitura atrasada não pode "esquecer"
       // as chamadas feitas desde a leitura anterior. Incorporamos essas chamadas ao piso antes de avançar.
       const baseline = prev
         ? prev.providerUsed + (await this.countSince(tx, api, dayUtc, prev.capturedAt))
         : 0;
-      const values = {
+      await this.writeSnapshot(tx, api, dayUtc, {
         providerUsed: Math.max(baseline, providerUsed),
         providerLimit,
         plan: plan ?? null,
         capturedAt: this.now(),
-      };
-      await tx
-        .insert(quotaSnapshot)
-        .values({ provider: PROVIDER, api, dayUtc, ...values })
-        .onConflictDoUpdate({
-          target: [quotaSnapshot.provider, quotaSnapshot.api, quotaSnapshot.dayUtc],
-          set: values,
-        });
+      });
     });
+  }
+
+  /** Lê o piso do fornecedor do dia sob o lock do dia (o mesmo das reservas). */
+  private async lockedSnapshot(
+    tx: Pick<Database, 'select' | 'execute'>,
+    api: string,
+    dayUtc: string,
+  ): Promise<{ providerUsed: number; providerLimit: number; capturedAt: Date } | undefined> {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${PROVIDER}|${api}|${dayUtc}`}))`);
+    const [prev] = await tx
+      .select({
+        providerUsed: quotaSnapshot.providerUsed,
+        providerLimit: quotaSnapshot.providerLimit,
+        capturedAt: quotaSnapshot.capturedAt,
+      })
+      .from(quotaSnapshot)
+      .where(
+        and(
+          eq(quotaSnapshot.provider, PROVIDER),
+          eq(quotaSnapshot.api, api),
+          eq(quotaSnapshot.dayUtc, dayUtc),
+        ),
+      );
+    return prev;
+  }
+
+  /** Grava o piso do dia. Sem `plan` (header de uma resposta), mantém o plano lido do /status. */
+  private async writeSnapshot(
+    tx: Pick<Database, 'insert'>,
+    api: string,
+    dayUtc: string,
+    values: { providerUsed: number; providerLimit: number; capturedAt: Date; plan?: string | null },
+  ): Promise<void> {
+    await tx
+      .insert(quotaSnapshot)
+      .values({ provider: PROVIDER, api, dayUtc, ...values })
+      .onConflictDoUpdate({
+        target: [quotaSnapshot.provider, quotaSnapshot.api, quotaSnapshot.dayUtc],
+        set: values,
+      });
   }
 
   async plan(api: string, dayUtc: string, planned: Partial<Record<Priority, number>>): Promise<void> {

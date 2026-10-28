@@ -215,7 +215,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
       }
     });
   perApi('galaxie_quota_daily_limit', 'Limite diário efetivo de chamadas por API', (s) => s.dailyLimit);
-  perApi('galaxie_quota_reserve', 'Reserva de segurança (só LIVE crítico usa)', (s) => s.reserve);
+  perApi('galaxie_quota_reserve', 'Reserva (na produção, só o LIVE usa; no dev, ninguém)', (s) => s.reserve);
   perApi(
     'galaxie_quota_used',
     'Uso efetivo do dia: máximo entre o ledger e o contador do fornecedor',
