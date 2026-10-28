@@ -191,5 +191,8 @@ describe('redactKey', () => {
     );
     expect(redactKey('/v1/stream?key=x')).toBe('/v1/stream?key=[redacted]');
     expect(redactKey('/v1/sports?monkey=1')).toBe('/v1/sports?monkey=1');
+    // token curto do SSE também não vai para o log
+    expect(redactKey('/v1/stream?token=gst_abc.def&events=x')).toBe('/v1/stream?token=[redacted]&events=x');
+    expect(redactKey('/v1/stream?TOKEN=1&key=2')).toBe('/v1/stream?TOKEN=[redacted]&key=[redacted]');
   });
 });

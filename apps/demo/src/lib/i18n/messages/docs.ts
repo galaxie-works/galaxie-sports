@@ -327,7 +327,9 @@ export default defineMessages(
         filters: 'Filtros adicionais (até 50 competições, 20 esportes).',
         topics: 'Nomes curtos ou completos; padrão: todos os do plano.',
         resume: 'Retoma: reenvia em ordem as mudanças depois desse id.',
-        key: 'Só para EventSource no navegador (que não envia headers); prefira o header.',
+        token:
+          'Token curto (5 min) para o EventSource do navegador, que não envia headers: peça em POST /v1/stream/token, no seu backend.',
+        key: 'Obsoleto: aceito até 27/12/2026, com os headers Deprecation e Sunset. Use ?token= no navegador ou o header.',
         body: 'Cada mensagem tem <c>id:</c>, <c>event:</c> (o tópico) e <c>data:</c> (JSON). O stream começa com <c>retry: 3000</c>, envia <c>event: ready</c> depois da retomada e um comentário de heartbeat a cada 15 s.',
         atLeastOnce:
           'Entrega pelo menos uma vez, em ordem de id: trate as mudanças como idempotentes pelo <c>id</c>.',
@@ -348,12 +350,11 @@ export default defineMessages(
           heartbeatShort: 'heartbeat',
           endOfMessage: 'fim da mensagem',
           browserKey1:
-            'EventSource não envia headers: a chave vai em ?key=. Use uma chave DEDICADA, com escopo',
-          browserKey2: 'restrito (core_data) e rotacionável — nunca a chave principal do contrato.',
-          readKey: 'CHAVE_DE_LEITURA',
+            'EventSource não envia headers: a rota /stream-token do SEU backend chama POST /v1/stream/token com',
+          browserKey2: 'a chave no header e devolve um token de 5 min. A chave nunca vai ao navegador.',
           updateScore: 'atualizarPlacar',
           reconnect:
-            'Reconexão automática: o navegador reenvia o Last-Event-ID e a API completa o que faltou.',
+            'Queda ou token vencido: feche, peça outro token e reabra com &last_event_id= (o último e.lastEventId).',
         },
       },
       webhooks: {
@@ -747,7 +748,9 @@ export default defineMessages(
           filters: 'Additional filters (up to 50 competitions, 20 sports).',
           topics: 'Short or full names; default: every topic in your plan.',
           resume: 'Resume: replays, in order, the changes after that id.',
-          key: 'Only for EventSource in the browser (which can’t send headers); prefer the header.',
+          token:
+            'Short-lived token (5 min) for the browser’s EventSource, which can’t send headers: request it with POST /v1/stream/token from your backend.',
+          key: 'Deprecated: accepted until 2026-12-27, with the Deprecation and Sunset headers. Use ?token= in the browser or the header.',
           body: 'Each message has <c>id:</c>, <c>event:</c> (the topic) and <c>data:</c> (JSON). The stream starts with <c>retry: 3000</c>, sends <c>event: ready</c> after replaying and a heartbeat comment every 15 s.',
           atLeastOnce: 'At-least-once delivery, in id order: treat changes as idempotent by their <c>id</c>.',
           replay:
@@ -766,12 +769,12 @@ export default defineMessages(
             readTimeout: 'read > 15 s heartbeat',
             heartbeatShort: 'heartbeat',
             endOfMessage: 'end of message',
-            browserKey1: 'EventSource can’t send headers: the key goes in ?key=. Use a DEDICATED key, with a',
-            browserKey2: 'restricted scope (core_data) that you can rotate — never the contract’s main key.',
-            readKey: 'READ_ONLY_KEY',
+            browserKey1: 'EventSource can’t send headers: the /stream-token route of YOUR backend calls',
+            browserKey2:
+              'POST /v1/stream/token with the key in the header and returns a 5-min token. The key never reaches the browser.',
             updateScore: 'updateScore',
             reconnect:
-              'Automatic reconnection: the browser resends Last-Event-ID and the API fills in what was missed.',
+              'Dropped or expired token: close, request a new token and reopen with &last_event_id= (the last e.lastEventId).',
           },
         },
         webhooks: {
@@ -1172,7 +1175,9 @@ export default defineMessages(
           filters: 'Filtros adicionales (hasta 50 competencias, 20 deportes).',
           topics: 'Nombres cortos o completos; por defecto: todos los del plan.',
           resume: 'Retoma: reenvía en orden los cambios posteriores a ese id.',
-          key: 'Solo para EventSource en el navegador (que no manda headers); preferí el header.',
+          token:
+            'Token corto (5 min) para el EventSource del navegador, que no manda headers: pedilo con POST /v1/stream/token desde tu backend.',
+          key: 'Obsoleto: se acepta hasta el 27/12/2026, con los headers Deprecation y Sunset. Usá ?token= en el navegador o el header.',
           body: 'Cada mensaje tiene <c>id:</c>, <c>event:</c> (el tópico) y <c>data:</c> (JSON). El stream arranca con <c>retry: 3000</c>, manda <c>event: ready</c> después de la retoma y un comentario de heartbeat cada 15 s.',
           atLeastOnce:
             'Entrega al menos una vez, en orden de id: tratá los cambios como idempotentes por su <c>id</c>.',
@@ -1193,12 +1198,12 @@ export default defineMessages(
             heartbeatShort: 'heartbeat',
             endOfMessage: 'fin del mensaje',
             browserKey1:
-              'EventSource no manda headers: la clave va en ?key=. Usá una clave DEDICADA, con alcance',
-            browserKey2: 'restringido (core_data) y rotable — nunca la clave principal del contrato.',
-            readKey: 'CLAVE_DE_LECTURA',
+              'EventSource no manda headers: la ruta /stream-token de TU backend llama a POST /v1/stream/token con',
+            browserKey2:
+              'la clave en el header y devuelve un token de 5 min. La clave nunca llega al navegador.',
             updateScore: 'actualizarResultado',
             reconnect:
-              'Reconexión automática: el navegador reenvía el Last-Event-ID y la API completa lo que faltó.',
+              'Caída o token vencido: cerrá, pedí otro token y reabrí con &last_event_id= (el último e.lastEventId).',
           },
         },
         webhooks: {

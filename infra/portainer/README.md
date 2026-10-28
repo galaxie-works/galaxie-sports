@@ -96,7 +96,7 @@ Referência completa e valores padrão em [`stack.env.example`](stack.env.exampl
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | **sim** | — | Credenciais do RustFS interno |
 | `S3_BUCKET` / `ASSETS_PUBLIC_BASE_URL` | não | `galaxie-sports-assets` / vazio | Assets |
 | `APISPORTS_KEY` | **sim** | — | Chave do dashboard da api-sports (só o ingestor recebe) |
-| `APISPORTS_PLAN` / `QUOTA_RESERVE_PERCENT` | não | `free` / `15` | Plano padrão de todas as APIs e reserva — regras do plano, limite por minuto e política do Quota Governor (ingestor e métricas) |
+| `APISPORTS_PLAN` / `QUOTA_LIVE_RESERVE_PERCENT` | não | `free` / `25` | Plano padrão de todas as APIs e reserva do ao vivo (abaixo dela só o ao vivo chama) — regras do plano, limite por minuto e política do Quota Governor (ingestor e métricas) |
 | `APISPORTS_PLAN_<ESPORTE>` | não | vazio (= `APISPORTS_PLAN`) | Plano de uma API específica (cada API tem assinatura própria): nome da API em maiúsculas com `-` → `_`, ex.: `APISPORTS_PLAN_FOOTBALL=pro`, `APISPORTS_PLAN_FORMULA_1=free` |
 | `SCHEDULE_SYNC_DAILY` | não | `5 0 * * *` | Sync diário do futebol logo após a virada do dia de cota |
 | `SCHEDULE_LIVE_RUN` | não | `*/5 * * * *` | Ao vivo: inicia o Live Scheduler/Poller (sai sozinho sem janela próxima; não sobrepõe) |

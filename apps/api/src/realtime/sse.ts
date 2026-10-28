@@ -16,11 +16,14 @@ import {
   type ChangeFilter,
 } from './changes.js';
 import type { ConnectionLimiter } from './connection-limiter.js';
+import type { StreamTokenSigner } from './stream-token.js';
 
 declare module 'fastify' {
   interface FastifyContextConfig {
-    /** Aceita a chave também em `?key=` (clientes EventSource não enviam headers). */
+    /** Aceita a chave também em `?key=` (obsoleto desde 28/10/2026: EventSource usa o token curto). */
     allowQueryKey?: boolean;
+    /** Aceita o token curto do SSE em `?token=` (POST /v1/stream/token). */
+    allowStreamToken?: boolean;
   }
 }
 
@@ -35,6 +38,8 @@ export interface SseOptions {
   maxReplay?: number;
   /** Sugestão de espera para reconexão (campo `retry:`). Padrão 3 s. */
   retryMs?: number;
+  /** Segredo do HMAC do token curto (STREAM_TOKEN_SECRET); ausente = aleatório por processo. */
+  streamTokenSecret?: string | undefined;
 }
 
 interface StreamDeps {
@@ -42,6 +47,7 @@ interface StreamDeps {
   stream: ChangeStream;
   limiter: ConnectionLimiter;
   options: SseOptions;
+  tokens: StreamTokenSigner;
 }
 
 /** Prazo para uma revogação (chave, tenant, plano) encerrar um stream aberto. */
@@ -123,9 +129,9 @@ export class SseConnection {
   }
 }
 
-/** Remove `key=` de URLs antes de irem para logs (chave enviada por EventSource). */
+/** Remove `key=` e `token=` de URLs antes de irem para logs (chave ou token enviados por EventSource). */
 export function redactKey(url: string): string {
-  return url.replace(/([?&]key=)[^&#]*/gi, '$1[redacted]');
+  return url.replace(/([?&](?:key|token)=)[^&#]*/gi, '$1[redacted]');
 }
 
 /**
@@ -140,9 +146,30 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
   const maxReplay = deps.options.maxReplay ?? 5_000;
   const retryMs = deps.options.retryMs ?? 3_000;
 
+  // Token curto para o EventSource do navegador: o backend do cliente troca a chave secreta (header) por um
+  // token de 5 min, que só abre o /v1/stream deste tenant (stream-token.ts; docs/05 §5.1)
+  app.post('/v1/stream/token', { config: { module: 'core_data' } }, async (request, reply) => {
+    const tenant = request.tenant!;
+    if (tenant.keyKind !== 'secret' || !tenant.keyPrefix)
+      throw problems.invalidKey(
+        'O token do stream é emitido só para a chave secreta (header x-galaxie-key).',
+      );
+    // trial: sem tempo real (docs/politica-de-chaves.md §3)
+    if (PLANS_WITHOUT_REALTIME.includes(tenant.plan)) throw problems.realtimeNotInPlan(tenant.plan);
+    const { token, expiresAt } = deps.tokens.issue({
+      tenantId: tenant.tenantId,
+      keyPrefix: tenant.keyPrefix,
+      keyId: tenant.keyId,
+    });
+    reply.header('cache-control', 'no-store');
+    return reply.code(201).send({
+      data: { token, expires_at: expiresAt.toISOString(), expires_in: deps.tokens.ttlSeconds },
+    });
+  });
+
   app.get(
     '/v1/stream',
-    { config: { module: 'core_data', allowQueryKey: true } },
+    { config: { module: 'core_data', allowQueryKey: true, allowStreamToken: true } },
     async (request, reply): Promise<void> => {
       const q = parseInput(StreamQuery, request.query);
       let tenant = request.tenant!;

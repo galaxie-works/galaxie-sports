@@ -6,7 +6,8 @@ describe('quotaPolicyFromEnv', () => {
     const policyFor = quotaPolicyFromEnv({
       APISPORTS_PLAN: 'free',
       APISPORTS_PLAN_FOOTBALL: 'pro',
-      QUOTA_RESERVE_PERCENT: '10',
+      APP_ENV: 'staging',
+      QUOTA_LIVE_RESERVE_PERCENT: '10',
     });
     expect(policyFor('football')).toMatchObject({ dailyLimit: 7500, reservePercent: 10 });
     expect(policyFor('basketball')).toMatchObject({ dailyLimit: 100, reservePercent: 10 });
@@ -22,7 +23,26 @@ describe('quotaPolicyFromEnv', () => {
     expect(policyFor('hockey').perMinute).toBe(10);
   });
 
-  it('sem variáveis, todas as APIs no free com reserva de 15%', () => {
-    expect(quotaPolicyFromEnv({})('football')).toMatchObject({ dailyLimit: 100, reservePercent: 15 });
+  it('na produção (APP_ENV da VPS), reserva de 25% que só o ao vivo usa', () => {
+    for (const APP_ENV of ['staging', 'production']) {
+      expect(quotaPolicyFromEnv({ APP_ENV })('football')).toMatchObject({
+        dailyLimit: 100,
+        reservePercent: 25,
+        liveUsesReserve: true,
+      });
+    }
+    // a variável antiga (5% na VPS desde 23/10, quando a reserva barrava o ao vivo) não vale mais
+    expect(
+      quotaPolicyFromEnv({ APP_ENV: 'staging', QUOTA_RESERVE_PERCENT: '5' })('football').reservePercent,
+    ).toBe(25);
+  });
+
+  it('no dev (sem APP_ENV), reserva de pelo menos 70% que vale até para o ao vivo', () => {
+    expect(quotaPolicyFromEnv({})('football')).toMatchObject({ reservePercent: 70, liveUsesReserve: false });
+    expect(quotaPolicyFromEnv({ QUOTA_LIVE_RESERVE_PERCENT: '40' })('football').reservePercent).toBe(70);
+    expect(
+      quotaPolicyFromEnv({ APP_ENV: 'development', QUOTA_LIVE_RESERVE_PERCENT: '80' })('football')
+        .reservePercent,
+    ).toBe(80);
   });
 });
