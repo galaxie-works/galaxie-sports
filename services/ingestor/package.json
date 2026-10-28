@@ -68,7 +68,7 @@
     "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1153.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
