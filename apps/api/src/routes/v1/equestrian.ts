@@ -48,7 +48,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { pickText, resolveLocale } from '../../i18n.js';
-import { assetUrl, decodeCursor, encodeCursor, parseInput } from '../../util.js';
+import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput } from '../../util.js';
 
 const MODULE = { module: 'core_data' } as const;
 type Locale = SupportedLocale;
@@ -646,8 +646,9 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         if (query.q)
           conds.push(
             or(
-              ilike(eqAthlete.displayName, `%${query.q}%`),
-              ilike(eqAthlete.nameAsPublished, `%${query.q}%`),
+              // `%` e `_` do texto da busca são literais (sem curinga que varre a tabela)
+              ilike(eqAthlete.displayName, `%${likeEscape(query.q)}%`),
+              ilike(eqAthlete.nameAsPublished, `%${likeEscape(query.q)}%`),
               eq(eqAthlete.feiId, query.q),
             )!,
           );
@@ -811,7 +812,9 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         const c = await context(locale);
         const conds: SQL[] = [];
         if (query.q)
-          conds.push(or(ilike(eqHorse.name, `%${query.q}%`), eq(eqHorse.feiId, query.q.toUpperCase()))!);
+          conds.push(
+            or(ilike(eqHorse.name, `%${likeEscape(query.q)}%`), eq(eqHorse.feiId, query.q.toUpperCase()))!,
+          );
         if (query.detailed === 'true') conds.push(eq(eqHorse.profileStatus, 'detailed'));
         const stats = c.db
           .select({
@@ -998,7 +1001,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         if (query.from) conds.push(sql`${eqCompetition.date} >= ${query.from}`);
         if (query.to) conds.push(sql`${eqCompetition.date} <= ${query.to}`);
         if (query.country) conds.push(inArray(eqCompetition.countryCode, query.country));
-        if (query.level) conds.push(ilike(eqCompetition.level, `${query.level}%`));
+        if (query.level) conds.push(ilike(eqCompetition.level, `${likeEscape(query.level)}%`));
         if (query.full === 'true') conds.push(eq(eqCompetition.allEntriesObserved, true));
         if (query.latam === 'true')
           conds.push(

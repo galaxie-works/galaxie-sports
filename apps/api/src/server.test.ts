@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCALAR_INTEGRITY, SCALAR_URL } from './routes/docs.js';
 import { buildServer } from './server.js';
 import { memoryTenant } from './test-helpers.js';
 
@@ -26,6 +27,12 @@ describe('documentação', () => {
     expect(docs.statusCode).toBe(200);
     expect(docs.headers['content-type']).toContain('text/html');
     expect(docs.body).toContain('/openapi.json');
+    // Scalar com SRI: versão fixa, arquivo do pacote e hash sha384
+    expect(docs.body).toContain(
+      `<script src="${SCALAR_URL}" integrity="${SCALAR_INTEGRITY}" crossorigin="anonymous"></script>`,
+    );
+    expect(SCALAR_URL).toMatch(/@\d+\.\d+\.\d+\/dist\/browser\/standalone\.js$/);
+    expect(SCALAR_INTEGRITY).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
   });
 });
 

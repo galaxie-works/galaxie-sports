@@ -64,7 +64,14 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id: encodeURIComponent(
 const getList = (query: string) => list.GET(new Request(`http://demo.test/api/ajustes/revisao${query}`));
 const getItem = (id: string) => item.GET(new Request('http://demo.test/x'), ctx(id));
 const post = (id: string, body: unknown) =>
-  item.POST(new Request('http://demo.test/x', { method: 'POST', body: JSON.stringify(body) }), ctx(id));
+  item.POST(
+    new Request('http://demo.test/x', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
+      body: JSON.stringify(body),
+    }),
+    ctx(id),
+  );
 
 const teamStatus = async (slug: string) =>
   (await sql.query('select review_status, texts from semantic.team_profile where slug = $1', [slug])).rows[0];
