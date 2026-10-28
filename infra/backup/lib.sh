@@ -1,6 +1,21 @@
 #!/bin/sh
 # Funções comuns dos scripts de backup/restore. Conexão via variáveis padrão do libpq:
 # PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE.
+#
+# Na stack, usuário e senha vêm da URL do papel do backup (DB_URL_BACKUP=postgres://galaxie_backup:<senha>@host:porta/
+# banco; packages/db/src/roles.ts): pg_read_all_data, CREATEDB para o ensaio e escrita só em ops.job_run. Sem a URL,
+# valem PGUSER/PGPASSWORD (CI, máquina de dev). Senha só com letras e números (openssl rand -hex 32): a URL não é
+# decodificada aqui. A restauração real (restore.sh) precisa do dono do banco: passe a URL dele em DB_URL_BACKUP.
+if [ -n "${DB_URL_BACKUP:-}" ]; then
+  _auth=$(printf '%s' "$DB_URL_BACKUP" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://##; s#@[^@]*$##')
+  case "$_auth" in
+  *%*) echo "DB_URL_BACKUP com caractere codificado (%): use senha só com letras e números" >&2 ;;
+  esac
+  PGUSER="${_auth%%:*}"
+  PGPASSWORD="${_auth#*:}"
+  export PGUSER PGPASSWORD
+  unset _auth
+fi
 
 : "${PGDATABASE:?Defina PGDATABASE}"
 : "${BACKUP_DIR:=/backups}"

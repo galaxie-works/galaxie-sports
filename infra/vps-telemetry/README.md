@@ -267,6 +267,66 @@ Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, qu
 Para manter o caminho no log, as alternativas são exigir a chave só no header `x-galaxie-key` no SSE ou reescrever a
 URL num middleware antes do log.
 
+## Papéis do banco
+
+O `POSTGRES_USER` é o dono do banco. É o superusuário que a imagem do Postgres cria, e só o `migrate` deveria usá-lo.
+Cada serviço entra com um papel próprio, sem superusuário e sem DDL, com GRANT por schema. A matriz e o levantamento do
+que cada serviço lê e escreve estão em `packages/db/src/roles.ts`.
+
+| papel | lê | escreve |
+| --- | --- | --- |
+| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` (o `/metrics`) | `api`, `enrich`, `ops` |
+| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api` e `core.asset`; é dono do `demo_auth` |
+| `galaxie_ingestor` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` |
+| `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset` e `api.tenant_channel_list` |
+| `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o banco do ensaio |
+
+- **Como o `migrate` aplica:** com `DB_ROLES=on`, a cada deploy ele cria os papéis que faltam, revoga e concede a matriz
+  inteira numa transação e grava os default privileges. Assim, tabela nova já sai com o GRANT. Também dá LOGIN a
+  cada papel com a senha da URL do serviço.
+- **Quem continua com o dono:** a sincronização NAS → produção (`infra/ops/sync`, usa `session_replication_role`) e a
+  restauração real.
+
+### Troca sem downtime (precisa do OK do Wagner)
+
+Um serviço por vez. Cada passo é um `up -d` de um serviço só, e o resto continua no ar.
+
+1. **Backup e senhas.** Antes de tudo, `cp .env .env.bak-pre-papeis`. Depois gere uma senha por papel:
+   `for s in API DEMO INGESTOR AGENTS BACKUP; do echo "$s $(openssl rand -hex 32)"; done`.
+2. **Papéis sem trocar ninguém.** No `.env`, ponha `DB_ROLES=on` e rode:
+   `docker compose run --rm --no-deps migrate </dev/null`.
+   - O log tem de dizer `Papéis do banco aplicados: galaxie_api, …`.
+   - Nenhum serviço muda: as URLs ainda não existem.
+   - Na mesma execução, o `demo_auth` e as tabelas dele passam a ser do `galaxie_demo`. A demo, ainda com o dono,
+     continua funcionando (o superusuário pode tudo).
+3. **Agents primeiro, o serviço de menor impacto.** Acrescente
+   `DB_URL_AGENTS=postgres://galaxie_agents:<senha>@postgres:5432/galaxie_sports` ao `.env`, depois rode
+   `docker compose run --rm --no-deps migrate </dev/null` (dá o LOGIN) e `docker compose up -d --no-deps agents`.
+   Acompanhe `docker compose logs -f agents` por um ciclo de jobs (10 min).
+   - Erro `permission denied for …` (código 42501): volte (passo 7) e anote a tabela, que falta na matriz.
+4. **Ingestor, depois a API e por último a demo.** Para cada um, repita o passo 3 com `DB_URL_INGESTOR`, `DB_URL_API` e
+   `DB_URL_DEMO` e o `up -d --no-deps` do serviço.
+   - Ingestor: espere um `live-run` e o `normalize`.
+   - API: rode `curl -s https://api.sports.galaxie.works/health/db` e confira o `/metrics` pelo Prometheus.
+   - Demo: entre no painel, aprove um item na revisão e confira Ajustes → Sistema. Na subida, a demo roda as migrações
+     do Better Auth no `demo_auth`, como dona.
+5. **Backup.** Acrescente `DB_URL_BACKUP=…`, rode o `migrate` e depois `docker compose up -d --no-deps backup`. Para
+   conferir, rode `docker compose exec backup sh -c '. /usr/local/lib/galaxie-backup/lib.sh; psql -Atc "select current_user"'`
+   (tem de dar `galaxie_backup`), depois `docker compose exec backup backup.sh` e
+   `docker compose exec backup restore-drill.sh`.
+6. **Smoke.** `docker compose exec -T demo node - < smoke.mjs` (ou o próximo deploy).
+7. **Reverso, a qualquer momento.** Tire a `DB_URL_<SERVIÇO>` do `.env` e rode `docker compose up -d --no-deps <serviço>`:
+   ele volta para o dono. `DB_ROLES=off` só para de reaplicar; os papéis continuam no banco, inofensivos sem as URLs.
+
+### Depois de restaurar um dump
+
+O dump vai sem GRANTs (`--no-privileges`). Depois de `restore.sh --yes`, rode `docker compose run --rm migrate` para
+os papéis voltarem a valer.
+
+A restauração real precisa do dono:
+`docker compose exec -e DB_URL_BACKUP="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" backup restore.sh --yes <dump>`.
+Com as variáveis do `.env` carregadas no shell: `set -a; . ./.env; set +a`.
+
 ## Backups, ensaio e alertas
 
 Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 14 diários + 8 semanais + 12 mensais no NAS, snapshot diário do
