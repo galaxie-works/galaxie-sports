@@ -98,6 +98,18 @@ age_identity_file() {
   echo "$f"
 }
 
+# Sobras em claro de uma execução interrompida (contêiner morto, máquina reiniciada) no volume: o dump em claro do
+# backup cifrado (.dump.partial) e as cópias decifradas do ensaio e do restore. Sem argumento, apaga todas (partida do
+# agendador, antes de qualquer backup); com minutos, só as mais velhas que isso (outra execução pode estar no meio).
+clean_plaintext() {
+  older_than="${1:-}"
+  # shellcheck disable=SC2086 # sem minutos, o filtro some de propósito
+  find "$BACKUP_DIR" -maxdepth 1 -type f \( -name '*.dump.partial' -o -name '.drill-*.dump' -o -name '.restore-*.dump' \) \
+    ${older_than:+-mmin +$older_than} -print 2>/dev/null | while read -r f; do
+    rm -f "$f" && log warn "sobra em claro de uma execução interrompida apagada: $(basename "$f")"
+  done
+}
+
 # Dump pronto para o pg_restore: em claro, o próprio arquivo; cifrado (.age), decifra em "$2" (o chamador apaga).
 # Imprime o caminho do arquivo em claro; falha sem a chave do ensaio ou se o arquivo não decifra (age confere a
 # autenticidade de cada bloco: arquivo trocado ou corrompido não passa).

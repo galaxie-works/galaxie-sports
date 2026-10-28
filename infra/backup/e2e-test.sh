@@ -91,7 +91,10 @@ recovery_keys=$(run age-keygen 2>/dev/null)
 recovery_id=$(printf '%s\n' "$recovery_keys" | grep '^AGE-SECRET-KEY-1')
 recovery_pub=$(printf '%s\n' "$recovery_keys" | sed -n 's/^# public key: //p')
 cipher() { run env BACKUP_AGE_RECIPIENTS="$drill_pub, $recovery_pub" BACKUP_AGE_IDENTITY="$drill_id" "$@"; }
+# sobra em claro de um backup morto no meio (mais velha que 12 h) sai no backup seguinte
+run touch -t 202001010000 "/backups/${E2E_DB}_20200101T000000Z.dump.partial"
 cipher backup.sh
+[ -z "$(run sh -c "ls /backups/${E2E_DB}_20200101T000000Z.dump.partial 2>/dev/null")" ] || { echo "sobra em claro não foi apagada" >&2; exit 1; }
 enc=$(run sh -c "ls -1 /backups/${E2E_DB}_*.dump.age | tail -n 1")
 [ -n "$enc" ] || { echo "backup cifrado não gerou .dump.age" >&2; exit 1; }
 # nada em claro sobrou do backup cifrado (o dump em claro existe só durante a execução)

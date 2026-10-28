@@ -20,6 +20,12 @@ if age_enabled; then
   tmp="$file.partial"
 fi
 run_id=$(job_start pg-backup)
+# o dump em claro não fica no volume nem se a execução for interrompida (TERM/INT do docker stop); o que sobrou de
+# uma execução morta sem aviso sai aqui (mais velho que 12 h) e na partida do agendador
+clean_plaintext 720
+trap 'rm -f "${plain:-}" "$tmp" "$recipients"' EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 
 fail() {
   rm -f "$tmp" "${plain:-}" "$recipients"
