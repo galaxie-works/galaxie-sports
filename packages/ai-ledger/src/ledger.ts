@@ -4,18 +4,34 @@
  * - US$ (AI_DAILY_USD_BUDGET global, AI_AGENT_USD_BUDGETS por agente e AI_AGENT_DEFAULT_USD_BUDGET para o
  *   agente fora da lista), somando o custo dos tokens e o das buscas na web (`cost_usd` de cada linha).
  * Cada chamada ao LLM vira uma linha em `ops.llm_usage` (fonte da verdade); antes de chamar,
- * `TokenBudget.reserve` soma o consumo do dia UTC e recusa se a estimativa (de uma tentativa) não
+ * `TokenBudget.reserve` soma o consumo do dia de orçamento e recusa se a estimativa (de uma tentativa) não
  * couber; antes de cada retentativa ou continuação, quem chama confere de novo com o gasto parcial
- * (`checkPartial`). Agente que bate o próprio teto em US$ fica sem IA até a virada do dia UTC (segue com
- * o determinístico). Ligar e desligar é outra chave, literal: AI_STATUS (global) e AI_AGENT_STATUS (por
+ * (`checkPartial`). Agente que bate o próprio teto em US$ fica sem IA até a virada do dia (segue com o
+ * determinístico). Ligar e desligar é outra chave, literal: AI_STATUS (global) e AI_AGENT_STATUS (por
  * agente), `on`/`off`; desligado, nenhuma chamada sai.
+ *
+ * Política de execução (#357): o teto global em US$ é dividido em faixas por prioridade (AI_BAND_SHARES;
+ * `bands` na política) e cada chamada desconta da sua faixa (`bandOf`). A faixa esgotada não pega saldo de
+ * outra; a reserva só serve a P0. O dia de orçamento vira em AI_BUDGET_DAY_START no fuso AI_BUDGET_TIMEZONE
+ * (padrão 06:00 em Brasília; `day` na política, coluna `budget_day`); sem `day`, o dia é o UTC.
  *
  * O limite é "macio" entre processos (a checagem lê o ledger; duas execuções simultâneas podem
  * ultrapassar por no máximo uma chamada cada) — suficiente para conter custo descontrolado.
  */
 import { and, eq, notInArray, sql } from 'drizzle-orm';
 import { llmUsage, type Database } from '@galaxie/db';
+import {
+  AI_CALL_BANDS,
+  UTC_BUDGET_DAY,
+  bandLimitsUsd,
+  budgetDayOf,
+  describeBudgetDay,
+  type AiBand,
+  type AiCallBand,
+  type BudgetDay,
+} from '@galaxie/runtime-config';
 import { AiDisabledError, BudgetExceededError } from './errors.js';
+import { bandFor, type AiPolicy, type AiPriority } from './policy.js';
 import {
   SEPARATE_TOKEN_POOLS,
   agentKey,
@@ -40,20 +56,27 @@ export interface UsageRecord {
   outcome: 'ok' | 'error';
   error?: string | undefined;
   at: Date;
+  /** Dia de orçamento (o TokenBudget preenche; sem ele, o dia UTC de `at`). */
+  budgetDay?: string | undefined;
+  /** Faixa de orçamento da chamada (AI_BAND_SHARES); null/ausente sem a política de faixas. */
+  band?: AiCallBand | null | undefined;
 }
 
 export interface TokenBudgetStore {
   /**
-   * Tokens (entrada + saída) usados no dia UTC — de um agente ou de todos; `exclude`: agentes fora da
-   * soma (os de pool de tokens próprio, que não entram no teto global).
+   * Tokens (entrada + saída) usados no dia de orçamento — de um agente ou de todos; `exclude`: agentes
+   * fora da soma (os de pool de tokens próprio, que não entram no teto global).
    */
-  usedTokens(dayUtc: string, agent?: string, exclude?: readonly string[]): Promise<number>;
-  /** US$ gastos no dia UTC (tokens + buscas, `cost_usd`) — de um agente ou de todos. */
-  usedUsd(dayUtc: string, agent?: string): Promise<number>;
+  usedTokens(day: string, agent?: string, exclude?: readonly string[]): Promise<number>;
+  /** US$ gastos no dia de orçamento (tokens + buscas, `cost_usd`) — de um agente ou de todos. */
+  usedUsd(day: string, agent?: string): Promise<number>;
+  /** US$ gastos no dia de orçamento por faixa (só as linhas com faixa). */
+  usedUsdByBand(day: string): Promise<Partial<Record<AiCallBand, number>>>;
   record(entry: UsageRecord): Promise<void>;
 }
 
 export const dayUtcOf = (d: Date) => d.toISOString().slice(0, 10);
+const dayOfEntry = (e: UsageRecord) => e.budgetDay ?? dayUtcOf(e.at);
 
 /** Agente = prefixo de `purpose` (antes do primeiro ":"), sem a versão do prompt. */
 export function agentOf(purpose: string): string {
@@ -63,33 +86,50 @@ export function agentOf(purpose: string): string {
 export class PgTokenBudgetStore implements TokenBudgetStore {
   constructor(private readonly db: Database) {}
 
-  async usedTokens(dayUtc: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
+  /**
+   * Linhas do dia de orçamento. Linha sem `budget_day` (gravada por uma versão anterior durante a troca)
+   * conta pelo dia UTC: o gasto dela não some do teto. `exclude`: agentes fora da soma.
+   */
+  private where(day: string, agent?: string, exclude: readonly string[] = []) {
+    return and(
+      sql`coalesce(${llmUsage.budgetDay}, ${llmUsage.dayUtc}) = ${day}`,
+      agent ? eq(llmUsage.agent, agent) : undefined,
+      exclude.length ? notInArray(llmUsage.agent, [...exclude]) : undefined,
+    );
+  }
+
+  async usedTokens(day: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
     const [row] = await this.db
       .select({ total: sql<string | null>`sum(${llmUsage.inputTokens} + ${llmUsage.outputTokens})` })
       .from(llmUsage)
-      .where(
-        and(
-          eq(llmUsage.dayUtc, dayUtc),
-          agent ? eq(llmUsage.agent, agent) : undefined,
-          exclude.length ? notInArray(llmUsage.agent, [...exclude]) : undefined,
-        ),
-      );
+      .where(this.where(day, agent, exclude));
     return Number(row?.total ?? 0);
   }
 
-  async usedUsd(dayUtc: string, agent?: string): Promise<number> {
+  async usedUsd(day: string, agent?: string): Promise<number> {
     const [row] = await this.db
       .select({ total: sql<string | null>`sum(${llmUsage.costUsd})` })
       .from(llmUsage)
-      .where(
-        agent ? and(eq(llmUsage.dayUtc, dayUtc), eq(llmUsage.agent, agent)) : eq(llmUsage.dayUtc, dayUtc),
-      );
+      .where(this.where(day, agent));
     return Number(row?.total ?? 0);
+  }
+
+  async usedUsdByBand(day: string): Promise<Partial<Record<AiCallBand, number>>> {
+    const rows = await this.db
+      .select({ band: llmUsage.band, total: sql<string | null>`sum(${llmUsage.costUsd})` })
+      .from(llmUsage)
+      .where(this.where(day))
+      .groupBy(llmUsage.band);
+    const out: Partial<Record<AiCallBand, number>> = {};
+    for (const r of rows) if (r.band) out[r.band as AiCallBand] = Number(r.total ?? 0);
+    return out;
   }
 
   async record(e: UsageRecord): Promise<void> {
     await this.db.insert(llmUsage).values({
       dayUtc: dayUtcOf(e.at),
+      budgetDay: dayOfEntry(e),
+      band: e.band ?? null,
       agent: e.agent,
       purpose: e.purpose.slice(0, 200),
       provider: e.provider,
@@ -110,16 +150,23 @@ export class PgTokenBudgetStore implements TokenBudgetStore {
 export class MemoryTokenBudgetStore implements TokenBudgetStore {
   readonly entries: UsageRecord[] = [];
 
-  async usedTokens(dayUtc: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
+  async usedTokens(day: string, agent?: string, exclude: readonly string[] = []): Promise<number> {
     return this.entries
-      .filter((e) => dayUtcOf(e.at) === dayUtc && (!agent || e.agent === agent) && !exclude.includes(e.agent))
+      .filter((e) => dayOfEntry(e) === day && (!agent || e.agent === agent) && !exclude.includes(e.agent))
       .reduce((s, e) => s + e.inputTokens + e.outputTokens, 0);
   }
 
-  async usedUsd(dayUtc: string, agent?: string): Promise<number> {
+  async usedUsd(day: string, agent?: string): Promise<number> {
     return this.entries
-      .filter((e) => dayUtcOf(e.at) === dayUtc && (!agent || e.agent === agent))
+      .filter((e) => dayOfEntry(e) === day && (!agent || e.agent === agent))
       .reduce((s, e) => s + (e.costUsd ?? 0), 0);
+  }
+
+  async usedUsdByBand(day: string): Promise<Partial<Record<AiCallBand, number>>> {
+    const out: Partial<Record<AiCallBand, number>> = {};
+    for (const e of this.entries)
+      if (e.band && dayOfEntry(e) === day) out[e.band] = (out[e.band] ?? 0) + (e.costUsd ?? 0);
+    return out;
   }
 
   async record(entry: UsageRecord): Promise<void> {
@@ -154,9 +201,31 @@ export interface BudgetPolicy {
   agentUsdOrigins?: Record<string, AgentCapOrigin>;
   /** Buscas na web por chamada; null/ausente = sem teto. */
   maxSearchesPerCall?: number | null;
+  /** Virada do dia de orçamento (padrão: 00:00 UTC). */
+  day?: BudgetDay;
+  /** Faixas por prioridade (#357); ausente = sem faixas (só os tetos global e por agente). */
+  bands?: BandPolicy;
+}
+
+/** Faixas de orçamento: as % do teto global, a política versionada e quem está chamando. */
+export interface BandPolicy {
+  shares: Readonly<Record<AiBand, number>>;
+  policy: AiPolicy;
+  /** Execução fora do scheduler: toda chamada cai na faixa `manual`. */
+  manual: boolean;
+  /** Prioridade da competição da chamada (agentes `priority`); ausente = `rest`. */
+  priorityOf?: (competition: { sport?: string | null; slug: string } | null | undefined) => AiPriority;
+}
+
+/** Gasto do dia numa faixa, contra o teto dela (a P0 inclui a reserva). */
+export interface BandStatus {
+  band: AiCallBand;
+  usedUsd: number;
+  limitUsd: number | null;
 }
 
 export interface BudgetStatus {
+  /** Dia de orçamento (YYYY-MM-DD). */
   dayUtc: string;
   used: number;
   limit: number | null;
@@ -172,11 +241,12 @@ export interface ReservedLimit {
 }
 
 export interface UsdBudgetStatus {
+  /** Dia de orçamento (YYYY-MM-DD). */
   dayUtc: string;
   usedUsd: number;
   limitUsd: number | null;
   remainingUsd: number | null;
-  /** Gasto bateu o teto: o agente (ou todos) fica sem IA até a virada do dia UTC. */
+  /** Gasto bateu o teto: o agente (ou todos) fica sem IA até a virada do dia de orçamento. */
   exhausted: boolean;
 }
 
@@ -188,7 +258,7 @@ export class TokenBudget {
   ) {}
 
   async status(agent?: string): Promise<BudgetStatus> {
-    const dayUtc = dayUtcOf(this.now());
+    const dayUtc = this.today();
     const limit = agent
       ? (this.policy.agentLimits?.[agent] ?? this.policy.dailyLimit)
       : this.policy.dailyLimit;
@@ -198,6 +268,41 @@ export class TokenBudget {
       this.pooledAgents(),
     );
     return { dayUtc, used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
+  }
+
+  /** Dia de orçamento de agora (vira em `policy.day`; padrão 00:00 UTC). */
+  today(): string {
+    return budgetDayOf(this.now(), this.policy.day ?? UTC_BUDGET_DAY);
+  }
+
+  /** Faixa da chamada do agente (null sem a política de faixas); `priority`: a da competição da chamada. */
+  bandOf(agent: string, priority?: AiPriority): AiCallBand | null {
+    const b = this.policy.bands;
+    return b ? bandFor(b.policy, agent, priority, b.manual) : null;
+  }
+
+  /** Faixa de uma chamada com a competição dela (a prioridade sai de `bands.priorityOf`). */
+  bandOfCall(agent: string, competition?: { sport?: string | null; slug: string } | null): AiCallBand | null {
+    const b = this.policy.bands;
+    if (!b) return null;
+    return this.bandOf(agent, competition && b.priorityOf ? b.priorityOf(competition) : undefined);
+  }
+
+  /** Teto em US$ da faixa no dia (a % do teto global; a P0 soma a reserva); null = sem teto. */
+  bandLimitOf(band: AiCallBand): number | null {
+    const b = this.policy.bands;
+    return b ? bandLimitsUsd(this.policy.dailyUsdLimit ?? null, b.shares)[band] : null;
+  }
+
+  /** Gasto do dia por faixa (painel, `ai:status`); vazio sem a política de faixas. */
+  async bandStatus(): Promise<BandStatus[]> {
+    if (!this.policy.bands) return [];
+    const used = await this.store.usedUsdByBand(this.today());
+    return AI_CALL_BANDS.map((band) => ({
+      band,
+      usedUsd: used[band] ?? 0,
+      limitUsd: this.bandLimitOf(band),
+    }));
   }
 
   /** Agentes com pool de tokens próprio (fora da soma do teto global de tokens). */
@@ -249,7 +354,7 @@ export class TokenBudget {
 
   /** Gasto em US$ do dia: global (sem agente) ou do agente, contra o teto que vale para ele. */
   async usdStatus(agent?: string): Promise<UsdBudgetStatus> {
-    const dayUtc = dayUtcOf(this.now());
+    const dayUtc = this.today();
     const limitUsd = agent ? this.agentUsdLimitOf(agent).limit : (this.policy.dailyUsdLimit ?? null);
     const usedUsd = await this.store.usedUsd(dayUtc, agent);
     return {
@@ -266,8 +371,13 @@ export class TokenBudget {
    * `estimateUsd` não couber no teto em US$ global ou do agente. Devolve os tetos conferidos (para
    * `checkPartial` conferir de novo a cada retentativa sem reler o ledger).
    */
-  async reserve(agent: string, estimate: number, estimateUsd = 0): Promise<ReservedLimit[]> {
-    const dayUtc = dayUtcOf(this.now());
+  async reserve(
+    agent: string,
+    estimate: number,
+    estimateUsd = 0,
+    band: AiCallBand | null = null,
+  ): Promise<ReservedLimit[]> {
+    const dayUtc = this.today();
     // desligado (AI_STATUS / AI_AGENT_STATUS): recusa antes de ler o ledger e de chamar o provedor
     if (this.policy.status === 'off') throw this.disabled(dayUtc, 'global');
     if (this.policy.agentStatus?.[agent] === 'off') throw this.disabled(dayUtc, agent);
@@ -299,6 +409,12 @@ export class TokenBudget {
       if (agentUsd.isDefault) this.warnDefault(dayUtc, agent, agentUsd.limit);
       const used = await this.store.usedUsd(dayUtc, agent);
       limits.push({ who: agent, unit: 'usd', used, limit: agentUsd.limit });
+    }
+    // faixa da prioridade: só o saldo dela (a P0 com a reserva); faixa esgotada não pega de outra
+    const bandLimit = band ? this.bandLimitOf(band) : null;
+    if (band && bandLimit !== null) {
+      const used = (await this.store.usedUsdByBand(dayUtc))[band] ?? 0;
+      limits.push({ who: `faixa:${band}`, unit: 'usd', used, limit: bandLimit });
     }
     this.check(limits, { tokens: 0, usd: 0 }, estimate, estimateUsd, false);
     return limits;
@@ -337,7 +453,7 @@ export class TokenBudget {
       }
       throw tokens
         ? new BudgetExceededError(l.who, used, l.limit, estimate)
-        : this.usdExceeded(dayUtcOf(this.now()), l.who, used, l.limit, estimateUsd);
+        : this.usdExceeded(this.today(), l.who, used, l.limit, estimateUsd);
     }
   }
 
@@ -355,8 +471,17 @@ export class TokenBudget {
     const key = `${dayUtc}:${who}`;
     if (!this.warned.has(key)) {
       this.warned.add(key);
+      const band = who.startsWith('faixa:') ? who.slice('faixa:'.length) : null;
+      const scope = band
+        ? `faixa ${band}${band === 'p0' ? ' (com a reserva)' : ''}: US$ ${formatUsdPt(limit)}/dia`
+        : this.describe(who === 'global' ? undefined : who);
+      const who_ = band
+        ? `As chamadas da faixa ${band} seguem`
+        : who === 'global'
+          ? 'Todos os agentes seguem'
+          : `O agente ${who} segue`;
       console.warn(
-        `[orçamento de IA] ${err.message} (${this.describe(who === 'global' ? undefined : who)}) ${who === 'global' ? 'Todos os agentes seguem' : `O agente ${who} segue`} só com o determinístico até a virada do dia UTC.`,
+        `[orçamento de IA] ${err.message} (${scope}) ${who_} só com o determinístico até a virada do dia de orçamento (${describeBudgetDay(this.policy.day ?? UTC_BUDGET_DAY)}).`,
       );
     }
     return err;
@@ -384,14 +509,28 @@ export class TokenBudget {
   }
 
   async record(entry: Omit<UsageRecord, 'at'> & { at?: Date }): Promise<void> {
-    await this.store.record({ ...entry, at: entry.at ?? this.now() });
+    const at = entry.at ?? this.now();
+    await this.store.record({
+      ...entry,
+      at,
+      budgetDay: entry.budgetDay ?? budgetDayOf(at, this.policy.day ?? UTC_BUDGET_DAY),
+    });
   }
 }
 
-/** Política do ledger a partir das configurações (estado e tetos do dia). */
+/**
+ * Política do ledger a partir das configurações (estado, tetos e virada do dia). Com `policy` (a política
+ * versionada), liga as faixas por prioridade; `manual` = execução fora do scheduler (faixa `manual`).
+ */
 export function ledgerPolicy(
   settings: Pick<LedgerSettings, 'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets'> &
-    Partial<Pick<LedgerSettings, 'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins'>>,
+    Partial<
+      Pick<
+        LedgerSettings,
+        'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins' | 'bandShares' | 'budgetDay'
+      >
+    >,
+  bands?: Omit<BandPolicy, 'shares'>,
 ): BudgetPolicy {
   return {
     status: settings.status ?? 'on',
@@ -407,5 +546,11 @@ export function ledgerPolicy(
     agentUsdLimits: settings.agentUsdBudgets,
     agentDefaultUsdLimit: settings.agentDefaultUsdBudget ?? null,
     ...(settings.agentUsdOrigins ? { agentUsdOrigins: settings.agentUsdOrigins } : {}),
+    ...(settings.budgetDay ? { day: settings.budgetDay } : {}),
+    ...(bands && settings.bandShares ? { bands: { ...bands, shares: settings.bandShares } } : {}),
   };
 }
+
+/** Execução fora do scheduler (o scheduler marca os jobs com GALAXIE_INVOKER=scheduler). */
+export const isManualRun = (env: Record<string, string | undefined> = process.env) =>
+  env.GALAXIE_INVOKER?.trim() !== 'scheduler';

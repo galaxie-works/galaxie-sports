@@ -124,6 +124,7 @@ export class WhereToWatchAgent {
       // inclui o raciocínio do modelo: várias linhas por jogo × país
       maxOutputTokens: this.options.maxOutputTokens ?? 12_000,
       purpose: allocationPurpose(input.competition.slug, input.round, countries),
+      competition: { slug: input.competition.slug },
     });
     const { data, ...meta } = result;
     // como nos direitos: com grounding, só URLs da busca do provedor (nada escrito pelo modelo é buscado)
@@ -176,6 +177,7 @@ export class WhereToWatchAgent {
       // 8+ países com detentores e evidências, mais o raciocínio do modelo
       maxOutputTokens: this.options.maxOutputTokens ?? 16_000,
       purpose: rightsPurpose(input.competition.slug, input.season, countries),
+      competition: { slug: input.competition.slug },
     });
     const { data, ...meta } = result;
     const grounded = groundedFilter(result.groundedUrls);

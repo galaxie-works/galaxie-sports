@@ -7,6 +7,7 @@ import {
   broadcastCorrection,
   broadcastOption,
   changeFeed,
+  llmUsage,
   wtwRun,
   type Database,
 } from '@galaxie/db';
@@ -706,5 +707,36 @@ describe('canal do jogo: subcanal que a fonte nova não sustenta', () => {
       await apply(eventId, next);
       expect(await channelOf(eventId)).toBe(expected);
     }
+  });
+});
+
+describe('gasto de IA do dia nas métricas', () => {
+  it('soma pelo dia de orçamento (coalesce(budget_day, day_utc)), como os tetos', async () => {
+    const row = (agent: string, dayUtc: string, budgetDay: string | null, costUsd: string) => ({
+      dayUtc,
+      budgetDay,
+      agent,
+      purpose: `${agent}:x`,
+      provider: 'gemini',
+      model: 'm',
+      tier: 'light',
+      inputTokens: 10,
+      outputTokens: 0,
+      webSearches: 0,
+      costUsd,
+      outcome: 'ok',
+    });
+    await db.insert(llmUsage).values([
+      // 23:00 em Brasília do dia 05: já é dia 06 em UTC, mas é o dia de orçamento 05
+      row('context', '2027-01-06', '2027-01-05', '0.5'),
+      // linha antiga, sem o dia de orçamento: conta pelo dia UTC
+      row('wtw', '2027-01-05', null, '0.25'),
+      row('related', '2027-01-06', '2027-01-06', '1'),
+    ]);
+    const m = await computeWtwMetrics(db, { countries: ['BR'], budgetDay: '2027-01-05' });
+    expect(m.llmToday.map((r) => [r.agent, r.costUsd])).toEqual([
+      ['context', 0.5],
+      ['wtw', 0.25],
+    ]);
   });
 });

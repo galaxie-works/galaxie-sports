@@ -331,6 +331,12 @@ services:
       AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
       AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}
       AI_AGENT_DEFAULT_USD_BUDGET: ${AI_AGENT_DEFAULT_USD_BUDGET:-}
+      # política de execução (#357; vazio = padrão do código; também em Ajustes → Operação → IA): faixas por
+      # prioridade em % do teto global, corte P0/P1 e virada do dia de orçamento (06:00 em Brasília)
+      AI_BAND_SHARES: ${AI_BAND_SHARES:-}
+      AI_P0_MIN_AUDIENCE: ${AI_P0_MIN_AUDIENCE:-}
+      AI_BUDGET_DAY_START: ${AI_BUDGET_DAY_START:-}
+      AI_BUDGET_TIMEZONE: ${AI_BUDGET_TIMEZONE:-}
       AI_MAX_SEARCHES_PER_CALL: ${AI_MAX_SEARCHES_PER_CALL:-5}
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
