@@ -605,14 +605,15 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   })),
   {
-    key: 'QUOTA_RESERVE_PERCENT',
+    // produção: abaixo disso só o ao vivo chama; no dev o Governor impõe pelo menos 70% (vale para tudo)
+    key: 'QUOTA_LIVE_RESERVE_PERCENT',
     section: 'provider',
     type: 'int',
     services: ['ingestor', 'api'],
     apply: 'next-run',
     min: 0,
     max: 50,
-    default: '15',
+    default: '25',
   },
 
   // ── Logos ───────────────────────────────────────────────────────────────────────────────────

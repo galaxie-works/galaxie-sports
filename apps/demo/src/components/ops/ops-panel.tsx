@@ -425,7 +425,11 @@ function QuotaCard({ snapshot, timeZone }: Ctx) {
                 ))}
                 {q.providerUsed !== null && q.providerLimit !== null ? (
                   <span>
-                    {fill(T.status.quotaProvider, { used: n(q.providerUsed), limit: n(q.providerLimit) })}
+                    {fill(T.status.quotaProvider, {
+                      used: n(q.providerUsed),
+                      limit: n(q.providerLimit),
+                      when: q.capturedAt ? f.time(q.capturedAt) : '—',
+                    })}
                   </span>
                 ) : null}
               </div>

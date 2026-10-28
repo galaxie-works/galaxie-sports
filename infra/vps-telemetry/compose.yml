@@ -35,7 +35,8 @@ x-node-env: &node-env
   APISPORTS_PLAN_AMERICAN_FOOTBALL: ${APISPORTS_PLAN_AMERICAN_FOOTBALL:-}
   APISPORTS_PLAN_RUGBY: ${APISPORTS_PLAN_RUGBY:-}
   APISPORTS_PLAN_VOLLEYBALL: ${APISPORTS_PLAN_VOLLEYBALL:-}
-  QUOTA_RESERVE_PERCENT: ${QUOTA_RESERVE_PERCENT:-15}
+  # Abaixo desta parte da cota do dia só o ao vivo chama (APP_ENV acima diz ao Governor que é produção).
+  QUOTA_LIVE_RESERVE_PERCENT: ${QUOTA_LIVE_RESERVE_PERCENT:-25}
   # URL pública dos assets (logos, bandeiras, fotos) servidos pelo Traefik direto do bucket
   ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
 
