@@ -70,6 +70,7 @@ const MODULES = [
 
 /** Planos: nome, identificador e módulos (`null` = todos, descrito no dicionário). */
 const PLANS: [string, string, string[] | null][] = [
+  ['Trial', 'trial', ['core_data']],
   ['Core Data', 'core_data', ['core_data']],
   ['Fan Experience', 'fan_experience', ['core_data', 'where_to_watch', 'semantic']],
   [

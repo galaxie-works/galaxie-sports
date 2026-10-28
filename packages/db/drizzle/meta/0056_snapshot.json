@@ -1,6 +1,6 @@
 {
-  "id": "6080447d-6620-48fa-8e60-0874ecafc2d7",
-  "prevId": "f83c5c3f-d38b-4c56-973d-f8ba6517f50c",
+  "id": "0ffa0d66-a766-4f05-926a-9f7d01f76c52",
+  "prevId": "f69e92f4-3f24-4450-b6a2-272f075f5b46",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14135,6 +14135,111 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "api.api_key_event": {
+      "name": "api_key_event",
+      "schema": "api",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_kind": {
+          "name": "key_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_id": {
+          "name": "key_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prefix": {
+          "name": "prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "api_key_event_tenant_idx": {
+          "name": "api_key_event_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "api_key_event_tenant_id_tenant_id_fk": {
+          "name": "api_key_event_tenant_id_tenant_id_fk",
+          "tableFrom": "api_key_event",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "api.backfill_request": {
       "name": "backfill_request",
       "schema": "api",
@@ -14343,6 +14448,12 @@
         "daily_request_quota": {
           "name": "daily_request_quota",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trial_ends_at": {
+          "name": "trial_ends_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },

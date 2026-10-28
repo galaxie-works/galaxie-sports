@@ -112,6 +112,7 @@ export async function createKey(input: {
       allowedOrigins: origins,
       widgetId,
       env,
+      actor: `panel:${r.ctx.userId}`,
     });
     revalidateClient();
     return { ok: true, key: created.key };
@@ -126,7 +127,7 @@ export async function revokeKey(id: string): Promise<ClientActionResult> {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id) || !(await revokePublishableKey(builderDb(), r.tenant.id, id)))
+  if (!isUuid(id) || !(await revokePublishableKey(builderDb(), r.tenant.id, id, `panel:${r.ctx.userId}`)))
     return { ok: false, error: t.errors.keyNotFound };
   revalidateClient();
   return { ok: true };

@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
-import { apiKey, tenant, type Database } from '@galaxie/db';
+import { apiKey, recordKeyEvent, tenant, type Database } from '@galaxie/db';
 import { createApiKey } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 
@@ -112,6 +112,15 @@ export async function applyKeyMigration(
           ...(old.label ? { label: old.label } : {}),
           ...(old.scopes ? { scopes: old.scopes } : {}),
           ...(old.expiresAt ? { expiresAt: old.expiresAt } : {}),
+        });
+        await recordKeyEvent(tx, {
+          tenantId: old.tenantId,
+          keyKind: 'secret',
+          keyId: old.id,
+          prefix: old.prefix,
+          action: 'migrated',
+          actor: 'cli:keys-migrate',
+          detail: { newKeyId: created.id, newPrefix: created.prefix, env: plan.newEnv },
         });
         return { ...plan, newKey: created.key, newPrefix: created.prefix };
       })

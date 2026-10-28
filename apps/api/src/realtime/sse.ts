@@ -3,7 +3,7 @@ import type { ServerResponse } from 'node:http';
 import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { resolveTopic, StreamQuery, type ChangeTopic, type RealtimeChange } from '@galaxie/contracts';
-import { changeFeed, changeFeedPrune, type Database } from '@galaxie/db';
+import { changeFeed, changeFeedPrune, PLANS_WITHOUT_REALTIME, type Database } from '@galaxie/db';
 import { assertModule, assertSport, type TenantContext } from '../auth/authenticator.js';
 import { ProblemError, problems } from '../errors.js';
 import { parseInput } from '../util.js';
@@ -151,6 +151,8 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         ? [...new Set(q.topics.map((t) => resolveTopic(t)!))]
         : topicsForTenant(tenant);
       const assertAccess = (ctx: TenantContext) => {
+        // trial: sem tempo real (docs/politica-de-chaves.md §3)
+        if (PLANS_WITHOUT_REALTIME.includes(ctx.plan)) throw problems.realtimeNotInPlan(ctx.plan);
         assertModule(ctx, 'core_data');
         for (const t of topics) assertModule(ctx, TOPIC_MODULE[t]);
         for (const s of q.sports) assertSport(ctx, s);
