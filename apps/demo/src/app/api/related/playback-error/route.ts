@@ -12,6 +12,7 @@ import { RELATED_CACHE_TAG } from '@/lib/galaxie/related-cache';
 import { API_URL, apiHeaders } from '@/lib/galaxie/server';
 
 import { PlaybackReportLimiter } from './limiter';
+import { rejectCrossSite } from '@/lib/security/same-origin';
 
 const CODES = new Set([100, 101, 150]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,6 +20,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const limiter = new PlaybackReportLimiter();
 
 export async function POST(request: Request) {
+  // CSRF: só a própria demo, com corpo JSON (lib/security/same-origin.ts)
+  const crossSite = rejectCrossSite(request);
+  if (crossSite) return crossSite;
   // o proxy já exige sessão; aqui ela identifica quem avisou
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) return new Response(null, { status: 401 });

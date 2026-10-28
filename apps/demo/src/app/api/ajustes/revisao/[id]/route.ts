@@ -16,6 +16,7 @@ import {
   readServingFloor,
 } from '@/lib/review/store';
 import { REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
+import { rejectCrossSite } from '@/lib/security/same-origin';
 
 const NO_STORE = { 'cache-control': 'no-store' };
 const BODY_MAX = 64_000;
@@ -47,6 +48,9 @@ export async function GET(request: Request, { params }: Ctx) {
 }
 
 export async function POST(request: Request, { params }: Ctx) {
+  // CSRF: só a própria demo, com corpo JSON (lib/security/same-origin.ts)
+  const crossSite = rejectCrossSite(request);
+  if (crossSite) return crossSite;
   const actor = await requireAdminApi(request);
   if (actor instanceof Response) return actor;
   const { id } = await params;
