@@ -47,12 +47,15 @@ mkdir -p "$NAS_DIR/daily" "$NAS_DIR/weekly" "$NAS_DIR/monthly" "$NAS_DIR/incomin
 exec 9>"$NAS_DIR/.lock"
 flock -n 9 || { log warn "outra cópia em andamento; saindo"; exit 0; }
 
-# Data (AAAAMMDD) do nome galaxie_sports_AAAAMMDDThhmmssZ.dump.
-day_of() { basename "$1" | sed -n "s/^${DUMP_PREFIX}\([0-9]\{8\}\)T[0-9]\{6\}Z\.dump$/\1/p"; }
+# Data (AAAAMMDD) do nome galaxie_sports_AAAAMMDDThhmmssZ.dump (ou .dump.age, cifrado com age na VPS: o NAS guarda o
+# arquivo como veio e nunca tem a chave para decifrar).
+day_of() { basename "$1" | sed -n "s/^${DUMP_PREFIX}\([0-9]\{8\}\)T[0-9]\{6\}Z\.dump\(\.age\)\{0,1\}$/\1/p"; }
+# Dumps de uma pasta (em claro e cifrados), em ordem de tempo.
+dumps_in() { ls -1 "$1"/"${DUMP_PREFIX}"*.dump "$1"/"${DUMP_PREFIX}"*.dump.age 2>/dev/null | sort; }
 
 # 1. Dumps da VPS (só os nomes, em ordem de tempo: o nome leva o horário UTC).
 remote=$(rsync --list-only -e "$pull_ssh" "$VPS_USER@$VPS_HOST:" 2>&1) || fail "listar os dumps da VPS: $remote"
-remote=$(printf '%s\n' "$remote" | awk '{print $NF}' | grep -E "^${DUMP_PREFIX}[0-9]{8}T[0-9]{6}Z\.dump$" | sort || true)
+remote=$(printf '%s\n' "$remote" | awk '{print $NF}' | grep -E "^${DUMP_PREFIX}[0-9]{8}T[0-9]{6}Z\.dump(\.age)?$" | sort || true)
 [ -n "$remote" ] || fail "nenhum dump na VPS"
 newest=$(printf '%s\n' "$remote" | tail -n 1)
 
@@ -65,7 +68,7 @@ for f in $wanted; do
   day=$(day_of "$f")
   # Um dump por dia: o do dia já guardado só é trocado por um mais recente do mesmo dia (o backup roda também na
   # partida do serviço, então a VPS pode ter vários no dia).
-  stored=$(ls -1 "$NAS_DIR/daily/${DUMP_PREFIX}${day}"T*Z.dump 2>/dev/null | sort | tail -n 1 || true)
+  stored=$(dumps_in "$NAS_DIR/daily" | grep "/${DUMP_PREFIX}${day}T" | tail -n 1 || true)
   if [ -n "$stored" ] && [ "$(printf '%s\n%s\n' "$(basename "$stored")" "$f" | sort | tail -n 1)" = "$(basename "$stored")" ]; then
     continue
   fi
@@ -90,7 +93,7 @@ done
 # 3. Rotação. Hardlink entre as pastas: um dump que é diário, semanal e mensal ocupa o disco uma vez só.
 # keep_last <pasta> <n>: mantém os dumps dos n períodos mais recentes (um dump por período nessas pastas).
 keep_last() {
-  ls -1 "$1"/"${DUMP_PREFIX}"*.dump 2>/dev/null | sort | head -n "-$2" | while read -r old; do
+  dumps_in "$1" | head -n "-$2" | while read -r old; do
     rm -f "$old" "$old.sha256"
   done
 }
@@ -98,10 +101,10 @@ keep_last() {
 promote() {
   dir="$1"
   fmt="$2"
-  for d in $(ls -1 "$NAS_DIR"/daily/"${DUMP_PREFIX}"*.dump 2>/dev/null | sort); do
+  for d in $(dumps_in "$NAS_DIR/daily"); do
     printf '%s %s\n' "$(date -u -d "$(day_of "$d")" "+$fmt")" "$d"
   done | awk '{last[$1]=$2} END {for (p in last) print p, last[p]}' | while read -r period best; do
-    for cur in "$dir"/"${DUMP_PREFIX}"*.dump; do
+    for cur in "$dir"/"${DUMP_PREFIX}"*.dump "$dir"/"${DUMP_PREFIX}"*.dump.age; do
       [ -e "$cur" ] || continue
       [ "$(date -u -d "$(day_of "$cur")" "+$fmt")" = "$period" ] || continue
       [ "$(basename "$cur")" = "$(basename "$best")" ] && continue
@@ -120,6 +123,6 @@ keep_last "$NAS_DIR/monthly" "$NAS_KEEP_MONTHLY"
 [ -f "$NAS_DIR/daily/$newest" ] || fail "o dump mais recente ($newest) não foi guardado"
 out=$($receipt_ssh "$VPS_USER@$VPS_HOST" 2>&1) || fail "tocar o recibo na VPS: $out"
 
-summary="$copied dump(s) novo(s); daily=$(ls "$NAS_DIR"/daily/*.dump 2>/dev/null | wc -l) weekly=$(ls "$NAS_DIR"/weekly/*.dump 2>/dev/null | wc -l) monthly=$(ls "$NAS_DIR"/monthly/*.dump 2>/dev/null | wc -l); mais recente na VPS: $newest"
+summary="$copied dump(s) novo(s); daily=$(dumps_in "$NAS_DIR/daily" | wc -l) weekly=$(dumps_in "$NAS_DIR/weekly" | wc -l) monthly=$(dumps_in "$NAS_DIR/monthly" | wc -l); mais recente na VPS: $newest"
 printf '%s ok: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$summary" >"$NAS_DIR/last_run.txt"
 log info "cópia do NAS OK: $summary"

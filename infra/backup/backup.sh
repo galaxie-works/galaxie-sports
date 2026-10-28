@@ -12,20 +12,44 @@ started=$(date -u +%s)
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 file="$BACKUP_DIR/${PGDATABASE}_${stamp}.dump"
 tmp="$file.partial"
+# cifrado: o dump em claro existe só durante esta execução (conferência do pg_restore) e sai como .dump.age
+recipients=""
+if age_enabled; then
+  plain="$tmp"
+  file="$file.age"
+  tmp="$file.partial"
+fi
 run_id=$(job_start pg-backup)
 
 fail() {
-  rm -f "$tmp"
+  rm -f "$tmp" "${plain:-}" "$recipients"
   log error "backup falhou: $1"
   job_finish "$run_id" error "$1" '{}'
   exit 1
 }
 
+# destinatário inválido não vira dump em claro: o backup falha (e o alerta do job dispara)
+if age_enabled; then
+  recipients=$(age_recipients_file) || fail "BACKUP_AGE_RECIPIENTS inválido: use chaves públicas do age (age1…)"
+fi
+
 log info "iniciando pg_dump para $file"
-pg_dump --format=custom --compress="${BACKUP_COMPRESS:-zstd:5}" --no-owner --no-privileges --file="$tmp" ||
+pg_dump --format=custom --compress="${BACKUP_COMPRESS:-zstd:5}" --no-owner --no-privileges --file="${plain:-$tmp}" ||
   fail "pg_dump retornou erro"
 # Um dump que o pg_restore não consegue listar não é backup.
-pg_restore --list "$tmp" >/dev/null || fail "arquivo gerado não é legível pelo pg_restore"
+pg_restore --list "${plain:-$tmp}" >/dev/null || fail "arquivo gerado não é legível pelo pg_restore"
+if [ -n "$recipients" ]; then
+  age -R "$recipients" -o "$tmp" "$plain" || fail "age não cifrou o dump"
+  rm -f "$plain" "$recipients"
+  # com a chave do ensaio, confere já que o arquivo cifrado decifra num dump legível
+  if id=$(age_identity_file); then
+    age -d -i "$id" "$tmp" | pg_restore --list >/dev/null || {
+      rm -f "$id"
+      fail "o dump cifrado não decifra com a chave do ensaio (BACKUP_AGE_IDENTITY fora de BACKUP_AGE_RECIPIENTS?)"
+    }
+    rm -f "$id"
+  fi
+fi
 mv "$tmp" "$file"
 (cd "$BACKUP_DIR" && sha256sum "$(basename "$file")" >"$(basename "$file").sha256")
 size=$(wc -c <"$file" | tr -d ' ')

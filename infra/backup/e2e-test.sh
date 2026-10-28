@@ -82,4 +82,42 @@ run env BACKUP_KEEP_DAILY=2 backup.sh
 [ "$(run sh -c 'ls /backups/*.dump | wc -l')" = 2 ]
 [ -z "$(run sh -c 'ls /backups/*_202001*.dump 2>/dev/null')" ]
 
-echo "OK: backup, restauração, verificador, ensaio e retenção verificados"
+echo "10) dumps cifrados (age): sai só o .age, o ensaio e o --verify decifram com a chave do ensaio"
+# duas chaves, como na produção: a do ensaio (privada na VPS) e a de recuperação (privada só com o Wagner)
+drill_keys=$(run age-keygen 2>/dev/null)
+drill_id=$(printf '%s\n' "$drill_keys" | grep '^AGE-SECRET-KEY-1')
+drill_pub=$(printf '%s\n' "$drill_keys" | sed -n 's/^# public key: //p')
+recovery_keys=$(run age-keygen 2>/dev/null)
+recovery_id=$(printf '%s\n' "$recovery_keys" | grep '^AGE-SECRET-KEY-1')
+recovery_pub=$(printf '%s\n' "$recovery_keys" | sed -n 's/^# public key: //p')
+cipher() { run env BACKUP_AGE_RECIPIENTS="$drill_pub, $recovery_pub" BACKUP_AGE_IDENTITY="$drill_id" "$@"; }
+cipher backup.sh
+enc=$(run sh -c "ls -1 /backups/${E2E_DB}_*.dump.age | tail -n 1")
+[ -n "$enc" ] || { echo "backup cifrado não gerou .dump.age" >&2; exit 1; }
+# nada em claro sobrou do backup cifrado (o dump em claro existe só durante a execução)
+[ -z "$(run sh -c 'ls /backups/*.partial 2>/dev/null')" ]
+[ "$(run sh -c "ls -1 /backups/${E2E_DB}_*.dump | tail -n 1")" \< "$enc" ]
+# cifrado de verdade: o pg_restore não lê o arquivo, e o .sha256 é o do arquivo cifrado
+if run pg_restore --list "$enc" >/dev/null 2>&1; then echo "o .age não deveria ser legível sem decifrar" >&2; exit 1; fi
+run sh -c "cd /backups && sha256sum -c -s $(basename "$enc").sha256"
+# a chave de recuperação, sozinha, também decifra num dump legível
+# shellcheck disable=SC2016 # expandido dentro do contêiner
+run env ID="$recovery_id" F="$enc" sh -c 'printf "%s\n" "$ID" > /tmp/r && age -d -i /tmp/r "$F" | pg_restore --list >/dev/null'
+cipher restore.sh --verify latest
+cipher env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh
+[ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = ok ]
+[ -z "$(run sh -c 'ls /backups/.drill-* /backups/.restore-* 2>/dev/null')" ]
+# sem a chave do ensaio, o ensaio de um dump cifrado falha e registra o erro (não passa em silêncio)
+if run env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh >/dev/null 2>&1; then
+  echo "ensaio de dump cifrado sem a chave deveria falhar" >&2
+  exit 1
+fi
+[ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = error ]
+# destinatário inválido: o backup falha em vez de gravar sem cifrar
+if run env BACKUP_AGE_RECIPIENTS=nao-e-chave backup.sh >/dev/null 2>&1; then
+  echo "BACKUP_AGE_RECIPIENTS inválido deveria falhar" >&2
+  exit 1
+fi
+cipher backup-check.sh
+
+echo "OK: backup, restauração, verificador, ensaio, retenção e cifragem verificados"
