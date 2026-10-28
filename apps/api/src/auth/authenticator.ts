@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { ApiModule, ApiPlan } from '@galaxie/db';
 import { problems } from '../errors.js';
 import { parseApiKey, verifySecret } from './keys.js';
-import type { TenantStore } from './tenant-store.js';
+import type { KeyRecord, TenantStore } from './tenant-store.js';
 import { ipBucket, type AuthThrottle } from './throttle.js';
 import type { VerifiedKeyStore } from './verified-keys.js';
 
@@ -12,6 +12,8 @@ export interface TenantContext {
   slug: string;
   plan: ApiPlan;
   keyId: string;
+  /** Prefixo público da chave secreta (o token curto do SSE leva o prefixo para reler a chave). */
+  keyPrefix?: string;
   /** `secret` = `x-galaxie-key` (backend); `publishable` = `x-galaxie-publishable-key` (navegador). */
   keyKind: 'secret' | 'publishable';
   /** Ambiente da chave: `test` tem limite próprio e uso contado à parte (docs/politica-de-chaves.md §1). */
@@ -141,16 +143,7 @@ export class Authenticator {
     // estado da chave antes do scrypt: chave revogada/expirada não custa CPU a cada tentativa
     if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.');
     if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.');
-    if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
-    // fim do trial vale para todas as chaves do tenant
-    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now)
-      throw problems.invalidKey(
-        reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
-      );
-    // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
-    // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
-    if (parsed.env !== record.env)
-      throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
+    this.assertKeyState(record, now, parsed.env, reveal);
     if (record.keyFormat >= 2 && parsed.format < 2) throw problems.invalidKey();
 
     if (isKnown && known.secretHash === record.secretHash) {
@@ -167,25 +160,57 @@ export class Authenticator {
     // renovado a cada releitura do registro (uma por chave e instância a cada `cacheTtlMs`)
     this.verifiedKeys?.add(cacheKey, this.rememberTtlMs).catch(() => {});
 
-    const modules = record.scopes
-      ? record.tenant.modules.filter((m) => record.scopes!.includes(m))
-      : record.tenant.modules;
-    const ctx: TenantContext = {
-      tenantId: record.tenant.id,
-      slug: record.tenant.slug,
-      plan: record.tenant.plan,
-      keyId: record.keyId,
-      keyKind: 'secret',
-      env: record.env,
-      modules,
-      markets: record.tenant.markets,
-      sports: record.tenant.sports,
-      rateLimitPerMinute: record.tenant.rateLimitPerMinute,
-      dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
-    };
+    const ctx = contextOf(record, parsed.prefix);
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);
     return ctx;
+  }
+
+  /**
+   * Contexto de uma chave secreta que o cliente JÁ provou ter (o token curto do SSE, assinado pela API ao
+   * receber a chave no header): relê o registro pelo prefixo e aplica as mesmas checagens de estado
+   * (revogada, expirada, tenant suspenso, fim do trial), sem o segredo nem o scrypt. Prefixo de outra
+   * chave (`keyId` diferente) não autentica. Mesmo cache de `cacheTtlMs` e `maxAgeMs` da chave.
+   */
+  async authenticateProvenKey(
+    prefix: string,
+    keyId: string,
+    attempt: Pick<AuthAttempt, 'maxAgeMs'> = {},
+  ): Promise<TenantContext> {
+    const now = this.now();
+    const t = now.getTime();
+    const cacheKey = `proven:${prefix}:${keyId}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiresAt > t && (attempt.maxAgeMs == null || t - cached.at <= attempt.maxAgeMs))
+      return cached.ctx;
+    const record = await this.store.findKeyByPrefix(prefix);
+    if (!record || record.keyId !== keyId) throw problems.invalidKey();
+    if (record.revokedAt && record.revokedAt <= now) throw problems.invalidKey('Chave revogada.');
+    if (record.expiresAt && record.expiresAt <= now) throw problems.invalidKey('Chave expirada.');
+    this.assertKeyState(record, now, record.env, (d) => d);
+    const ctx = contextOf(record, prefix);
+    put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
+    this.touch(record.keyId, now);
+    return ctx;
+  }
+
+  /** Tenant ativo, dentro do trial e ambiente da chave igual ao do prefixo. */
+  private assertKeyState(
+    record: KeyRecord,
+    now: Date,
+    env: 'live' | 'test',
+    reveal: (detail: string) => string | undefined,
+  ): void {
+    if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
+    // fim do trial vale para todas as chaves do tenant
+    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now)
+      throw problems.invalidKey(
+        reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
+      );
+    // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
+    // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
+    if (env !== record.env)
+      throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
   }
 
   private touch(keyId: string, now: Date): void {
@@ -194,6 +219,27 @@ export class Authenticator {
     this.lastTouch.set(keyId, now.getTime());
     this.store.touchKey(keyId, now).catch(() => {});
   }
+}
+
+/** Contexto da requisição a partir do registro da chave secreta. */
+function contextOf(record: KeyRecord, prefix: string): TenantContext {
+  const modules = record.scopes
+    ? record.tenant.modules.filter((m) => record.scopes!.includes(m))
+    : record.tenant.modules;
+  return {
+    tenantId: record.tenant.id,
+    slug: record.tenant.slug,
+    plan: record.tenant.plan,
+    keyId: record.keyId,
+    keyPrefix: prefix,
+    keyKind: 'secret',
+    env: record.env,
+    modules,
+    markets: record.tenant.markets,
+    sports: record.tenant.sports,
+    rateLimitPerMinute: record.tenant.rateLimitPerMinute,
+    dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
+  };
 }
 
 export function assertModule(ctx: TenantContext, module: ApiModule): void {

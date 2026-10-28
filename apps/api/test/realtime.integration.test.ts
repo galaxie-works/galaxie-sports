@@ -113,7 +113,13 @@ beforeAll(async () => {
   });
   coreKey = (await createApiKey(db, c.id, { env: 'live' })).key;
 
-  const realtime = { pollIntervalMs: 200, heartbeatMs: 300, maxConnectionsPerTenant: MAX_CONNECTIONS };
+  // mesmo segredo do token curto nas duas instâncias: o token emitido por uma abre o stream na outra
+  const realtime = {
+    pollIntervalMs: 200,
+    heartbeatMs: 300,
+    maxConnectionsPerTenant: MAX_CONNECTIONS,
+    streamTokenSecret: randomBytes(32).toString('hex'),
+  };
   apiA = buildServer({
     db,
     redis,
@@ -308,6 +314,55 @@ describe('GET /v1/stream (SSE)', () => {
     expect(bad.status).toBe(400);
     const badId = await open(baseA, `/v1/stream`, { 'x-galaxie-key': key, 'last-event-id': 'abc' });
     expect(badId.status).toBe(400);
+  });
+
+  it('?key= continua aceito, com Deprecation e Sunset (60 dias)', async () => {
+    const id = await newEvent();
+    const viaQuery = await open(baseA, `/v1/stream?events=${id}&key=${encodeURIComponent(key)}`, {});
+    expect(viaQuery.status).toBe(200);
+    expect(viaQuery.headers.deprecation).toBe('@1793145600'); // 28/10/2026 00:00 UTC
+    expect(viaQuery.headers.sunset).toBe('Sun, 27 Dec 2026 00:00:00 GMT');
+    expect(viaQuery.headers.link).toContain('rel="deprecation"');
+    viaQuery.close();
+    // com a chave no header, nada de aviso
+    const viaHeader = await open(baseA, `/v1/stream?events=${id}`);
+    expect(viaHeader.headers.deprecation).toBeUndefined();
+    viaHeader.close();
+  });
+
+  it('token curto: POST /v1/stream/token com a chave no header abre o stream em qualquer instância', async () => {
+    const id = await newEvent();
+    const res = await fetch(`${baseA}/v1/stream/token`, {
+      method: 'POST',
+      headers: { 'x-galaxie-key': key },
+    });
+    expect(res.status).toBe(201);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const { data } = (await res.json()) as {
+      data: { token: string; expires_at: string; expires_in: number };
+    };
+    expect(data.token).toMatch(/^gst_/);
+    expect(data.expires_in).toBe(300);
+    expect(new Date(data.expires_at).getTime()).toBeGreaterThan(Date.now() + 290_000);
+
+    const c = await open(baseB, `/v1/stream?events=${id}&token=${encodeURIComponent(data.token)}`, {});
+    expect(c.status).toBe(200);
+    expect(c.headers.deprecation).toBeUndefined();
+    await c.waitFor((m) => m.event === 'ready');
+    await setScore(id, 1);
+    const msg = await c.waitFor((m) => m.event === 'event.score_changed');
+    expect(parse(msg.data).event_id).toBe(id);
+    c.close();
+
+    // só o /v1/stream aceita o token; adulterado ou sem chave, 401
+    expect((await open(baseA, `/v1/sports?token=${encodeURIComponent(data.token)}`, {})).status).toBe(401);
+    expect((await open(baseA, `/v1/stream?token=${encodeURIComponent(data.token)}x`, {})).status).toBe(401);
+    expect((await fetch(`${baseA}/v1/stream/token`, { method: 'POST' })).status).toBe(401);
+    // o token não emite outro token
+    expect(
+      (await fetch(`${baseA}/v1/stream/token?token=${encodeURIComponent(data.token)}`, { method: 'POST' }))
+        .status,
+    ).toBe(401);
   });
 
   it('limita conexões simultâneas por tenant em todas as instâncias', async () => {

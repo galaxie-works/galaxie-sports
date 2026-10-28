@@ -245,14 +245,19 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/    
 - Apagar os dados (Postgres, S3, backups) só com pedido explícito: `docker compose down -v`.
 - Remover os registros DNS. Nada disto toca nas outras stacks.
 
-## Logs e a chave do SSE (`?key=`)
+## Logs, o token do SSE (`?token=`) e a chave obsoleta (`?key=`)
 
-O `EventSource` não manda header, então o `/v1/stream` aceita a chave em `?key=`. Na VPS a borda é o Traefik (v3,
+O `EventSource` não manda header. Desde 28/10/2026 o navegador abre o `/v1/stream` com um token de 5 minutos
+(`?token=`), que o backend do cliente pede em `POST /v1/stream/token` (docs/05 §5.1). A chave em `?key=` ainda é
+aceita até 27/12/2026, com os headers `Deprecation` e `Sunset` e um aviso por tenant por dia no log da API
+(`sse.query_key_deprecated`: `docker compose logs api | grep query_key_deprecated` mostra quem falta trocar). Defina
+`STREAM_TOKEN_SECRET` (`openssl rand -hex 32`) no `.env` para o token valer entre instâncias e sobreviver a um deploy;
+sem ele, cada processo da API sorteia o seu. Na VPS a borda é o Traefik (v3,
 configurado por argumentos fora deste repositório; não há Caddy aqui), com **access log desligado** (sem
-`--accesslog`), e a API redige `?key=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
+`--accesslog`), e a API redige `?key=` e `?token=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
 2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API.
 
-Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query:
+Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query (chave ou token):
 
 ```text
 --accesslog=true --accesslog.format=json --accesslog.fields.defaultmode=keep

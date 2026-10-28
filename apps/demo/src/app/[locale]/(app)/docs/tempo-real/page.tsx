@@ -152,7 +152,8 @@ for topic, change in listen():
       language: 'typescript',
       code: `// ${c.browserKey1}
 // ${c.browserKey2}
-const es = new EventSource('${STREAM_URL}&key=${c.readKey}');
+const { data } = await (await fetch('/stream-token', { method: 'POST' })).json();
+const es = new EventSource(\`${STREAM_URL}&token=\${data.token}\`);
 
 es.addEventListener('event.score_changed', (e) => {
   const change = JSON.parse(e.data);
@@ -259,6 +260,7 @@ export default async function RealtimePage() {
             ['competitions, sports', text.sse.filters],
             ['topics', text.sse.topics],
             ['Last-Event-ID / ?last_event_id=', text.sse.resume],
+            ['?token=', text.sse.token],
             ['?key=', text.sse.key],
           ]}
         />
