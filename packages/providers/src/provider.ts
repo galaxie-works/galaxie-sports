@@ -15,8 +15,6 @@ export type CallPriority = 'BOOTSTRAP' | 'DAILY' | 'LIVE' | 'ADHOC';
 export interface CallOptions {
   priority?: CallPriority;
   jobId?: string;
-  /** Pode usar a reserva de segurança (decisões, finais). */
-  critical?: boolean;
 }
 
 export type ProviderErrorKind = FailureReason;

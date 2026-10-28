@@ -193,7 +193,7 @@ export default defineMessages(
       quotaDay: 'Dia de cota {day} (UTC)',
       llmDay: 'Dia de orçamento {day} (vira às {start}, {timeZone})',
       quotaUsed: '{used} de {limit} chamadas',
-      quotaProvider: 'Contador do fornecedor: {used}/{limit}',
+      quotaProvider: 'Conta inteira (dev + produção), lida às {when}: {used}/{limit}',
       quotaNoLimit: '{used} chamadas',
       priorities: { BOOTSTRAP: 'Bootstrap', DAILY: 'Diário', LIVE: 'Ao vivo', ADHOC: 'Avulsas' },
       planned: 'planejado {n}',
@@ -874,9 +874,10 @@ export default defineMessages(
         label: 'Plano padrão da api-sports',
         description: 'Vale para toda API sem plano próprio. Define a cota diária e as temporadas acessíveis.',
       },
-      QUOTA_RESERVE_PERCENT: {
-        label: 'Reserva da cota diária',
-        description: 'Parte da cota que nenhum job usa, para emergências.',
+      QUOTA_LIVE_RESERVE_PERCENT: {
+        label: 'Reserva do ao vivo',
+        description:
+          'Abaixo desta parte da cota do dia, só o ao vivo chama a api-sports. A conta é a mesma do dev, que para antes: lá a reserva é de pelo menos 70% e vale até para o ao vivo.',
         unit: '%',
       },
       ASSETS_CUSTOM_LOGOS: {
@@ -1074,7 +1075,7 @@ export default defineMessages(
         quotaDay: 'Quota day {day} (UTC)',
         llmDay: 'Budget day {day} (rolls over at {start}, {timeZone})',
         quotaUsed: '{used} of {limit} calls',
-        quotaProvider: 'Provider counter: {used}/{limit}',
+        quotaProvider: 'Whole account (dev + production), read at {when}: {used}/{limit}',
         quotaNoLimit: '{used} calls',
         priorities: { BOOTSTRAP: 'Bootstrap', DAILY: 'Daily', LIVE: 'Live', ADHOC: 'Ad hoc' },
         planned: 'planned {n}',
@@ -1745,9 +1746,10 @@ export default defineMessages(
           description:
             'Applies to every API without its own plan. Sets the daily quota and accessible seasons.',
         },
-        QUOTA_RESERVE_PERCENT: {
-          label: 'Daily quota reserve',
-          description: 'Share of the quota no job uses, kept for emergencies.',
+        QUOTA_LIVE_RESERVE_PERCENT: {
+          label: 'Live reserve',
+          description:
+            'Below this share of the daily quota, only live polling calls api-sports. The account is shared with dev, which stops earlier: there the reserve is at least 70% and applies to live too.',
           unit: '%',
         },
         ASSETS_CUSTOM_LOGOS: {
@@ -1949,7 +1951,7 @@ export default defineMessages(
         quotaDay: 'Día de cuota {day} (UTC)',
         llmDay: 'Día de presupuesto {day} (cambia a las {start}, {timeZone})',
         quotaUsed: '{used} de {limit} llamadas',
-        quotaProvider: 'Contador del proveedor: {used}/{limit}',
+        quotaProvider: 'Cuenta completa (dev + producción), leída a las {when}: {used}/{limit}',
         quotaNoLimit: '{used} llamadas',
         priorities: { BOOTSTRAP: 'Bootstrap', DAILY: 'Diario', LIVE: 'En vivo', ADHOC: 'Sueltas' },
         planned: 'planificado {n}',
@@ -2630,9 +2632,10 @@ export default defineMessages(
           description:
             'Rige para toda API sin plan propio. Define la cuota diaria y las temporadas accesibles.',
         },
-        QUOTA_RESERVE_PERCENT: {
-          label: 'Reserva de la cuota diaria',
-          description: 'Parte de la cuota que ningún job usa, para emergencias.',
+        QUOTA_LIVE_RESERVE_PERCENT: {
+          label: 'Reserva del en vivo',
+          description:
+            'Por debajo de esta parte de la cuota del día, solo el en vivo llama a api-sports. La cuenta es la misma de dev, que se detiene antes: allí la reserva es de al menos 70% y vale incluso para el en vivo.',
           unit: '%',
         },
         ASSETS_CUSTOM_LOGOS: {

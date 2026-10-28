@@ -51,7 +51,8 @@ describe('LiveRunner', () => {
     const { world, runner } = runnerFor(irrelevant, '2026-10-21T00:10:00Z');
     const { plan } = await runner.plan();
     expect(plan.quotaPlan).toEqual({ LIVE: 0, DAILY: 40 });
-    // 100 − 15 de reserva − 40 do DAILY protegido = 45 para o bootstrap (sem o plano: só 5)
+    // 100 − 15 de reserva − 40 do DAILY protegido = 45 para o bootstrap (sem o plano: só 20, porque abaixo
+    // de 85 ficam protegidos também os 40 − 15 do ao vivo que a reserva não cobre)
     expect(await drainBootstrap(world)).toBe(45);
 
     const baseline = liveWorld({
@@ -59,13 +60,17 @@ describe('LiveRunner', () => {
       plan: 'free',
       start: new Date('2026-10-21T00:10:00Z'),
     });
-    expect(await drainBootstrap(baseline)).toBe(5);
+    expect(await drainBootstrap(baseline)).toBe(20);
   });
 
   it('dia com jogos: LIVE protegido (o BOOTSTRAP não come o orçamento do ao vivo)', async () => {
     const { world, runner } = runnerFor(wednesdayNight(), '2026-10-21T00:10:00Z');
-    await runner.plan();
-    expect(await drainBootstrap(world)).toBe(0);
+    const { plan } = await runner.plan();
+    // abaixo de 85 ficam protegidos o DAILY e o que a reserva de 15 (só do ao vivo) não cobre do plano do LIVE
+    const bootstrap = await drainBootstrap(world);
+    expect(bootstrap).toBe(Math.max(0, 85 - plan.quotaPlan.DAILY - (plan.quotaPlan.LIVE - 15)));
+    // o ao vivo ainda tem o plano inteiro: a parte protegida mais a reserva
+    expect(100 - bootstrap - plan.quotaPlan.DAILY).toBeGreaterThanOrEqual(plan.quotaPlan.LIVE);
   });
 
   it('sai ocioso quando a próxima janela está longe, sem gastar chamadas', async () => {

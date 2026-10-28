@@ -208,6 +208,8 @@ export interface LiveWorldOptions {
 }
 
 /** Mundo completo: relógio, servidor falso, cliente real com Governor em memória e armazenamento. */
+const sameUtcDay = (a: Date, b: Date) => a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+
 export function liveWorld(opts: LiveWorldOptions) {
   const clock = new SimClock(opts.start.getTime());
   const limits: PlanLimits = opts.plan === 'pro' ? PRO_PLAN : FREE_PLAN;
@@ -248,7 +250,15 @@ export function liveWorld(opts: LiveWorldOptions) {
         paging: { current: 1, total: 1 },
         response,
       }),
-      { headers: { 'x-ratelimit-requests-remaining': '100' } },
+      // headers como os do fornecedor: a conta só tem as chamadas deste mundo, e o dia vira às 00:00 UTC
+      {
+        headers: {
+          'x-ratelimit-requests-limit': String(limits.dailyLimit),
+          'x-ratelimit-requests-remaining': String(
+            Math.max(0, limits.dailyLimit - requests.filter((r) => sameUtcDay(r.at, at)).length),
+          ),
+        },
+      },
     );
   }) as typeof globalThis.fetch;
 

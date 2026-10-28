@@ -86,7 +86,6 @@ export class ApiSportsProvider implements SportsDataProvider {
       params,
       priority: opts.priority ?? 'ADHOC',
       ...(opts.jobId ? { jobId: opts.jobId } : {}),
-      ...(opts.critical ? { critical: true } : {}),
     };
     try {
       const res = await this.client.get(req);
