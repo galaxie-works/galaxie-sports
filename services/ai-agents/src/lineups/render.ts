@@ -8,7 +8,14 @@
  * Educado como o leitor estático: User-Agent do projeto, uma página por vez, sem imagens, fontes nem
  * mídia, sem login nem formulário (página com senha ou captcha volta como bloqueada) e no máximo
  * `MAX_EXPANDS` cliques em "lista de canais" por página.
+ *
+ * SSRF: toda requisição da página (documento, script, XHR, WebSocket, redirecionamento) passa por
+ * `hostIsPublic` antes de sair; host interno, IP privado, loopback e metadados da nuvem são abortados e
+ * marcam a leitura como bloqueada. Service worker desligado (ele escaparia do `route`). O DNS do
+ * navegador é outro e pode responder diferente depois da conferência; o contêiner do navegador fica
+ * numa rede sem os serviços da stack, o que cobre essa janela.
  */
+import { hostIsPublic, type HostResolver } from '@galaxie/net-guard';
 import type { Browser } from 'playwright-core';
 import { looksBlocked, type PageRenderer, type RenderResult } from './pages.js';
 
@@ -49,6 +56,36 @@ export interface PlaywrightRendererOptions {
   wsEndpoint?: string | null;
   /** Chromium local (desenvolvimento), quando não é o padrão do Playwright. */
   executablePath?: string | null;
+  /** Resolução de nomes da conferência de host (testes). */
+  resolve?: HostResolver;
+  /** Endereços aceitos (padrão: só públicos; testes liberam o servidor local). */
+  allowAddress?: (ip: string) => boolean;
+}
+
+/**
+ * Conferência de host com memória por leitura: cada host é resolvido uma vez. URL que não é http(s)/ws(s)
+ * (data:, blob:, about:) não sai para a rede e passa.
+ */
+export function requestGuard(
+  opts: Pick<PlaywrightRendererOptions, 'resolve' | 'allowAddress'> = {},
+): (url: string) => Promise<boolean> {
+  const seen = new Map<string, Promise<boolean>>();
+  return (url) => {
+    let u: URL;
+    try {
+      u = new URL(url);
+    } catch {
+      return Promise.resolve(false);
+    }
+    if (!['http:', 'https:', 'ws:', 'wss:'].includes(u.protocol)) return Promise.resolve(true);
+    if (u.username || u.password) return Promise.resolve(false);
+    let p = seen.get(u.hostname);
+    if (!p) {
+      p = hostIsPublic(u.hostname, opts.resolve, opts.allowAddress);
+      seen.set(u.hostname, p);
+    }
+    return p;
+  };
 }
 
 export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): Promise<PageRenderer> {
@@ -61,12 +98,35 @@ export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): 
       });
   return {
     async render(url, { expand, userAgent, timeoutMs }): Promise<RenderResult> {
-      const context = await browser.newContext({ userAgent, locale: 'pt-BR' });
-      await context.route('**/*', (route) =>
-        ['image', 'media', 'font'].includes(route.request().resourceType())
-          ? route.abort()
-          : route.continue(),
-      );
+      const context = await browser.newContext({ userAgent, locale: 'pt-BR', serviceWorkers: 'block' });
+      const allowed = requestGuard(opts);
+      // navegação (documento) para host não público: a leitura inteira é descartada
+      let internalNav = false;
+      await context.route('**/*', async (route) => {
+        const req = route.request();
+        if (['image', 'media', 'font'].includes(req.resourceType())) return route.abort();
+        if (!(await allowed(req.url()))) {
+          if (req.resourceType() === 'document') internalNav = true;
+          return route.abort('addressunreachable');
+        }
+        return route.continue();
+      });
+      await context.routeWebSocket(/.*/, async (ws) => {
+        if (await allowed(ws.url())) ws.connectToServer();
+        else await ws.close();
+      });
+      // redirecionamento seguido pelo próprio navegador: o `route` pode não ver cada salto; a conferência
+      // aqui descarta a leitura se algum salto do documento foi para host não público
+      context.on('request', (req) => {
+        if (req.resourceType() !== 'document') return;
+        void allowed(req.url()).then((ok) => {
+          if (!ok) internalNav = true;
+        });
+      });
+      if (!(await allowed(url))) {
+        await context.close();
+        return { finalUrl: url, status: 0, text: '', sections: [], blocked: true };
+      }
       const page = await context.newPage();
       try {
         // rastreadores de anúncio nunca deixam a rede quieta: espera o load e, no máximo 8 s, o silêncio
@@ -90,6 +150,9 @@ export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): 
             await page.waitForTimeout(800);
           }
         }
+        // navegação para endereço não público: nada do que veio é usado
+        if (internalNav || !(await allowed(page.url())))
+          return { finalUrl: page.url(), status: res?.status() ?? 0, text: '', sections: [], blocked: true };
         return { finalUrl: page.url(), status: res?.status() ?? 0, text, sections, blocked };
       } finally {
         await context.close();

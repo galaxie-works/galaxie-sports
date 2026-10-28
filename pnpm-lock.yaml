@@ -309,6 +309,8 @@ importers:
         specifier: ^3.4.9
         version: 3.4.9
 
+  packages/net-guard: {}
+
   packages/observability:
     dependencies:
       '@galaxie/apisports-client':
@@ -425,6 +427,9 @@ importers:
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@galaxie/net-guard':
+        specifier: workspace:*
+        version: link:../../packages/net-guard
       '@galaxie/providers':
         specifier: workspace:*
         version: link:../../packages/providers
@@ -486,6 +491,9 @@ importers:
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@galaxie/net-guard':
+        specifier: workspace:*
+        version: link:../../packages/net-guard
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability
