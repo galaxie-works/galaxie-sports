@@ -95,8 +95,9 @@ Com `BACKUP_AGE_RECIPIENTS` no `.env` da VPS, o dump sai do contêiner só cifra
 | ensaio | em `BACKUP_AGE_RECIPIENTS` | `BACKUP_AGE_IDENTITY` no `.env` da VPS | ensaio mensal, `restore.sh` e a conferência de cada dump |
 
 A chave do ensaio na VPS não abre nada que a VPS já não tenha: quem controla a VPS tem o banco vivo. Ela existe para o
-ensaio mensal provar que o arquivo guardado decifra e restaura. Sem ela, o ensaio de um dump cifrado falha e registra
-o erro (alerta), em vez de passar em silêncio.
+ensaio mensal provar que o arquivo guardado decifra e restaura, e cada backup confere na hora que o `.age` decifra. Por
+isso ela é obrigatória com a cifragem ligada: `BACKUP_AGE_RECIPIENTS` sem `BACKUP_AGE_IDENTITY` faz o backup falhar
+(alerta), em vez de gravar um dump que ninguém confere.
 
 **Ligar (uma vez, com o OK do Wagner):**
 1. **Chave de recuperação, na máquina do Wagner** (nunca na VPS): rodar `age-keygen -o galaxie-backup-recuperacao.key`.

@@ -121,6 +121,11 @@ if run env BACKUP_AGE_RECIPIENTS=nao-e-chave backup.sh >/dev/null 2>&1; then
   echo "BACKUP_AGE_RECIPIENTS inválido deveria falhar" >&2
   exit 1
 fi
+# cifragem ligada sem a chave do ensaio: o backup falha na hora, não no ensaio do mês seguinte
+if run env BACKUP_AGE_RECIPIENTS="$drill_pub" backup.sh >/dev/null 2>&1; then
+  echo "BACKUP_AGE_RECIPIENTS sem BACKUP_AGE_IDENTITY deveria falhar" >&2
+  exit 1
+fi
 cipher backup-check.sh
 
 echo "OK: backup, restauração, verificador, ensaio, retenção e cifragem verificados"
