@@ -28,6 +28,7 @@ describe('proxyRequest (requisições do navegador headless)', () => {
           return res.end();
         }
         res.setHeader('content-type', 'text/html; charset=utf-8');
+        res.setHeader('set-cookie', ['a=1; Expires=Wed, 21 Oct 2026 07:28:00 GMT', 'b=2; Path=/']);
         res.end('<p>grade</p>');
       });
     });
@@ -64,6 +65,8 @@ describe('proxyRequest (requisições do navegador headless)', () => {
     expect(out.status).toBe(200);
     expect(out.body.toString()).toBe('<p>grade</p>');
     expect(out.headers['content-type']).toContain('text/html');
+    // cada Set-Cookie inteiro, separados por quebra de linha (o formato do route.fulfill)
+    expect(out.headers['set-cookie']).toBe('a=1; Expires=Wed, 21 Oct 2026 07:28:00 GMT\nb=2; Path=/');
     expect(seen.at(-1)).toMatchObject({ method: 'POST', ua: 'galaxie-teste', body: 'a=1' });
     // o host é o da URL, não o que o navegador mandou
     expect(seen.at(-1)?.host).toBe(new URL(base).host);

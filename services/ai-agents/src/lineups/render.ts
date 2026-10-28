@@ -117,6 +117,9 @@ export async function proxyRequest(
   res.headers.forEach((value, key) => {
     out[key] = value;
   });
+  // vários Set-Cookie não se juntam com vírgula (a data do Expires tem vírgula): o Playwright separa por \n
+  const cookies = res.headers.getSetCookie();
+  if (cookies.length) out['set-cookie'] = cookies.join('\n');
   return { status: res.status, headers: out, body: Buffer.concat(chunks) };
 }
 
