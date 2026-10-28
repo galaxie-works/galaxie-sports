@@ -9,17 +9,21 @@
  * mídia, sem login nem formulário (página com senha ou captcha volta como bloqueada) e no máximo
  * `MAX_EXPANDS` cliques em "lista de canais" por página.
  *
- * SSRF: toda requisição da página (documento, script, XHR, WebSocket, redirecionamento) passa por
- * `hostIsPublic` antes de sair; host interno, IP privado, loopback e metadados da nuvem são abortados e
- * marcam a leitura como bloqueada. Service worker desligado (ele escaparia do `route`). O DNS do
- * navegador é outro e pode responder diferente depois da conferência; o contêiner do navegador fica
- * numa rede sem os serviços da stack, o que cobre essa janela.
+ * SSRF: o navegador (contêiner à parte) não sai sozinho para a rede. Toda requisição da página (documento,
+ * script, XHR, redirecionamento) é interceptada no `context.route` e feita AQUI, pelo `guardedFetch`, que
+ * resolve o DNS na própria conexão e recusa IP privado, loopback, link-local (metadados da nuvem) e afins; a
+ * resposta volta ao navegador por `route.fulfill`. Assim o endereço conferido é o usado (sem rebinding entre
+ * a conferência e a conexão do navegador). Redirecionamento volta ao navegador como 3xx e o salto seguinte
+ * passa de novo pelo `route`. WebSocket e service worker ficam desligados (escapariam do `route`).
+ * Documento recusado descarta a leitura inteira (volta como bloqueada).
  */
-import { hostIsPublic, type HostResolver } from '@galaxie/net-guard';
+import { guardedFetch, isNotPublicError, isPublicHttpUrl, type GuardedFetch } from '@galaxie/net-guard';
 import type { Browser } from 'playwright-core';
 import { looksBlocked, type PageRenderer, type RenderResult } from './pages.js';
 
 const MAX_EXPANDS = 12;
+/** Teto de bytes por resposta repassada ao navegador. */
+const MAX_RESPONSE_BYTES = 8_000_000;
 
 /** Rótulo do cartão do botão: a linha mais próxima que começa com "Plano"/"Plan"/"Pacote". */
 function cardLabel(el: HTMLElement): string | null {
@@ -56,36 +60,64 @@ export interface PlaywrightRendererOptions {
   wsEndpoint?: string | null;
   /** Chromium local (desenvolvimento), quando não é o padrão do Playwright. */
   executablePath?: string | null;
-  /** Resolução de nomes da conferência de host (testes). */
-  resolve?: HostResolver;
-  /** Endereços aceitos (padrão: só públicos; testes liberam o servidor local). */
-  allowAddress?: (ip: string) => boolean;
+  /** `fetch` das requisições do navegador (padrão: `guardedFetch`; testes liberam o servidor local). */
+  fetch?: GuardedFetch;
 }
 
+/** Requisição do navegador, no formato que `proxyRequest` precisa (o `Request` do Playwright serve). */
+export interface BrowserRequest {
+  url(): string;
+  method(): string;
+  headers(): Record<string, string>;
+  postDataBuffer(): Buffer | null;
+}
+
+/** Cabeçalhos que não passam adiante (a conexão é outra; o `guardedFetch` negocia a compressão). */
+const HOP_HEADERS = new Set([
+  'host',
+  'connection',
+  'content-length',
+  'accept-encoding',
+  'keep-alive',
+  'upgrade',
+]);
+
 /**
- * Conferência de host com memória por leitura: cada host é resolvido uma vez. URL que não é http(s)/ws(s)
- * (data:, blob:, about:) não sai para a rede e passa.
+ * Faz a requisição do navegador pelo `fetch` protegido, sem seguir redirecionamento, e devolve o que vai no
+ * `route.fulfill`. URL não pública: erro com `code: 'EADDRNOTPUBLIC'` (`isNotPublicError`).
  */
-export function requestGuard(
-  opts: Pick<PlaywrightRendererOptions, 'resolve' | 'allowAddress'> = {},
-): (url: string) => Promise<boolean> {
-  const seen = new Map<string, Promise<boolean>>();
-  return (url) => {
-    let u: URL;
-    try {
-      u = new URL(url);
-    } catch {
-      return Promise.resolve(false);
-    }
-    if (!['http:', 'https:', 'ws:', 'wss:'].includes(u.protocol)) return Promise.resolve(true);
-    if (u.username || u.password) return Promise.resolve(false);
-    let p = seen.get(u.hostname);
-    if (!p) {
-      p = hostIsPublic(u.hostname, opts.resolve, opts.allowAddress);
-      seen.set(u.hostname, p);
-    }
-    return p;
-  };
+export async function proxyRequest(
+  fetchImpl: GuardedFetch,
+  req: BrowserRequest,
+  timeoutMs = 20_000,
+): Promise<{ status: number; headers: Record<string, string>; body: Buffer }> {
+  const headers = Object.fromEntries(
+    Object.entries(req.headers()).filter(([k]) => !HOP_HEADERS.has(k.toLowerCase())),
+  );
+  const method = req.method();
+  const post = req.postDataBuffer();
+  const res = await fetchImpl(req.url(), {
+    method,
+    headers,
+    ...(post && method !== 'GET' && method !== 'HEAD' ? { body: new Uint8Array(post) } : {}),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const reader = res.body?.getReader();
+  while (reader && total < MAX_RESPONSE_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  await reader?.cancel().catch(() => {});
+  const out: Record<string, string> = {};
+  res.headers.forEach((value, key) => {
+    out[key] = value;
+  });
+  return { status: res.status, headers: out, body: Buffer.concat(chunks) };
 }
 
 export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): Promise<PageRenderer> {
@@ -96,37 +128,26 @@ export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): 
         headless: true,
         ...(opts.executablePath ? { executablePath: opts.executablePath } : {}),
       });
+  const fetchImpl = opts.fetch ?? guardedFetch();
   return {
     async render(url, { expand, userAgent, timeoutMs }): Promise<RenderResult> {
+      if (!isPublicHttpUrl(url)) return { finalUrl: url, status: 0, text: '', sections: [], blocked: true };
       const context = await browser.newContext({ userAgent, locale: 'pt-BR', serviceWorkers: 'block' });
-      const allowed = requestGuard(opts);
-      // navegação (documento) para host não público: a leitura inteira é descartada
+      // navegação (documento) para endereço não público: a leitura inteira é descartada
       let internalNav = false;
       await context.route('**/*', async (route) => {
         const req = route.request();
         if (['image', 'media', 'font'].includes(req.resourceType())) return route.abort();
-        if (!(await allowed(req.url()))) {
+        try {
+          return await route.fulfill(await proxyRequest(fetchImpl, req));
+        } catch (err) {
+          if (!isNotPublicError(err)) return route.abort('failed');
           if (req.resourceType() === 'document') internalNav = true;
           return route.abort('addressunreachable');
         }
-        return route.continue();
       });
-      await context.routeWebSocket(/.*/, async (ws) => {
-        if (await allowed(ws.url())) ws.connectToServer();
-        else await ws.close();
-      });
-      // redirecionamento seguido pelo próprio navegador: o `route` pode não ver cada salto; a conferência
-      // aqui descarta a leitura se algum salto do documento foi para host não público
-      context.on('request', (req) => {
-        if (req.resourceType() !== 'document') return;
-        void allowed(req.url()).then((ok) => {
-          if (!ok) internalNav = true;
-        });
-      });
-      if (!(await allowed(url))) {
-        await context.close();
-        return { finalUrl: url, status: 0, text: '', sections: [], blocked: true };
-      }
+      // WebSocket sairia direto do navegador, com o DNS dele: a grade não precisa
+      await context.routeWebSocket(/.*/, (ws) => ws.close());
       const page = await context.newPage();
       try {
         // rastreadores de anúncio nunca deixam a rede quieta: espera o load e, no máximo 8 s, o silêncio
@@ -151,7 +172,7 @@ export async function playwrightRenderer(opts: PlaywrightRendererOptions = {}): 
           }
         }
         // navegação para endereço não público: nada do que veio é usado
-        if (internalNav || !(await allowed(page.url())))
+        if (internalNav || !isPublicHttpUrl(page.url()))
           return { finalUrl: page.url(), status: res?.status() ?? 0, text: '', sections: [], blocked: true };
         return { finalUrl: page.url(), status: res?.status() ?? 0, text, sections, blocked };
       } finally {

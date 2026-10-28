@@ -1,35 +1,86 @@
-import { describe, expect, it } from 'vitest';
-import type { HostResolver } from '@galaxie/net-guard';
-import { requestGuard } from './render.js';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { guardedFetch, isNotPublicError, isPublicAddress, type HostResolver } from '@galaxie/net-guard';
+import { proxyRequest, type BrowserRequest } from './render.js';
 
-describe('requestGuard (navegador headless)', () => {
-  let lookups = 0;
-  const resolve: HostResolver = async (h) => {
-    lookups++;
-    if (h === 'plano.example') return [{ address: '93.184.216.34', family: 4 }];
-    if (h === 'rebind.example') return [{ address: '172.30.50.1', family: 4 }];
-    throw Object.assign(new Error('nx'), { code: 'ENOTFOUND' });
-  };
+/*
+ * As requisições do navegador headless saem pelo `guardedFetch` dos agentes (render.ts): o DNS é resolvido
+ * e conferido na conexão daqui, não no contêiner do navegador.
+ */
+describe('proxyRequest (requisições do navegador headless)', () => {
+  let server: http.Server;
+  let base = '';
+  const seen: {
+    method?: string | undefined;
+    ua?: string | undefined;
+    host?: string | undefined;
+    body: string;
+  }[] = [];
+  beforeAll(async () => {
+    server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c: Buffer) => (body += c.toString()));
+      req.on('end', () => {
+        seen.push({ method: req.method, ua: req.headers['user-agent'], host: req.headers.host, body });
+        if (req.url === '/redir') {
+          res.writeHead(302, { location: 'http://169.254.169.254/latest/meta-data/' });
+          return res.end();
+        }
+        res.setHeader('content-type', 'text/html; charset=utf-8');
+        res.end('<p>grade</p>');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
-  it('recusa host interno, IP privado e metadados; aceita público e URLs locais do navegador', async () => {
-    const allowed = requestGuard({ resolve });
-    expect(await allowed('https://plano.example/grade')).toBe(true);
-    expect(await allowed('wss://plano.example/socket')).toBe(true);
-    expect(await allowed('http://rebind.example/')).toBe(false);
-    expect(await allowed('http://169.254.169.254/latest/meta-data/')).toBe(false);
-    expect(await allowed('http://postgres:5432/')).toBe(false);
-    expect(await allowed('http://localhost:3000/')).toBe(false);
-    expect(await allowed('http://[::1]/')).toBe(false);
-    expect(await allowed('https://u:p@plano.example/')).toBe(false);
-    expect(await allowed('data:text/plain,oi')).toBe(true);
-    expect(await allowed('nao é url')).toBe(false);
+  const req = (
+    url: string,
+    init: { method?: string; headers?: Record<string, string>; body?: string } = {},
+  ) =>
+    ({
+      url: () => url,
+      method: () => init.method ?? 'GET',
+      headers: () => init.headers ?? {},
+      postDataBuffer: () => (init.body ? Buffer.from(init.body) : null),
+    }) satisfies BrowserRequest;
+
+  // o servidor do teste é local: só 127.0.0.1 liberado; "rebind.example" resolve para a rede da stack
+  const resolve: HostResolver = async (h) =>
+    h === 'rebind.example' ? [{ address: '172.30.50.10', family: 4 }] : [{ address: '127.0.0.1', family: 4 }];
+  const local = guardedFetch({ allowAddress: (ip) => ip === '127.0.0.1' || isPublicAddress(ip), resolve });
+
+  it('repassa método, cabeçalhos e corpo; devolve o que vai no route.fulfill', async () => {
+    const out = await proxyRequest(
+      local,
+      req(`${base}/plano`, {
+        method: 'POST',
+        headers: { 'user-agent': 'galaxie-teste', host: 'outro.example', 'content-length': '3' },
+        body: 'a=1',
+      }),
+    );
+    expect(out.status).toBe(200);
+    expect(out.body.toString()).toBe('<p>grade</p>');
+    expect(out.headers['content-type']).toContain('text/html');
+    expect(seen.at(-1)).toMatchObject({ method: 'POST', ua: 'galaxie-teste', body: 'a=1' });
+    // o host é o da URL, não o que o navegador mandou
+    expect(seen.at(-1)?.host).toBe(new URL(base).host);
   });
 
-  it('resolve cada host uma vez por leitura', async () => {
-    lookups = 0;
-    const allowed = requestGuard({ resolve });
-    await allowed('https://plano.example/a');
-    await allowed('https://plano.example/b');
-    expect(lookups).toBe(1);
+  it('redirecionamento volta ao navegador como 3xx (o salto seguinte passa de novo pela conferência)', async () => {
+    const out = await proxyRequest(local, req(`${base}/redir`));
+    expect(out.status).toBe(302);
+    expect(out.headers.location).toBe('http://169.254.169.254/latest/meta-data/');
+    const meta = await proxyRequest(local, req(out.headers.location!)).catch((e: unknown) => e);
+    expect(isNotPublicError(meta)).toBe(true);
+  });
+
+  it('recusa nome que resolve para a rede interna e, no padrão, o loopback', async () => {
+    const rebind = await proxyRequest(local, req('http://rebind.example/')).catch((e: unknown) => e);
+    expect(isNotPublicError(rebind)).toBe(true);
+    const loop = await proxyRequest(guardedFetch(), req(`${base}/plano`)).catch((e: unknown) => e);
+    expect(isNotPublicError(loop)).toBe(true);
   });
 });
