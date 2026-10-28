@@ -2,8 +2,10 @@ import { KeyRound, Mail, UserPlus } from 'lucide-react';
 import type { Metadata, Viewport } from 'next';
 
 import { AppPages } from '@/components/site/landing/app-pages';
+import { Audience } from '@/components/site/landing/audience';
 import { Bento } from '@/components/site/landing/bento';
 import { Hero, Numbers } from '@/components/site/landing/hero';
+import { Layer } from '@/components/site/landing/layer';
 import { MarketsGrid } from '@/components/site/landing/markets';
 import { SectionHeading } from '@/components/site/landing/parts';
 import { SportsGrid } from '@/components/site/landing/sports';
@@ -31,7 +33,9 @@ export const viewport: Viewport = { themeColor: '#0a0a0f', colorScheme: 'dark' }
 const STEP_ICONS = { invite: UserPlus, login: Mail, api: KeyRound } as const;
 
 /**
- * Apresentação pública da Galaxie Sports (também é o que a raiz mostra para quem não tem sessão).
+ * Apresentação pública da Galaxie Sports (também é o que a raiz mostra para quem não tem sessão). Abre pela
+ * camada que a Galaxie põe sobre o dado (onde assistir, clássicos e torcidas, contexto com IA) e por quem
+ * compra (mídia, entretenimento e portais), antes dos exemplos; não fala de preço.
  * Estática por idioma: texto real e indexável para buscadores e filtros web, exemplos reais da base em
  * `lib/showcase.ts` e JSON-LD da empresa e do site.
  */
@@ -72,6 +76,25 @@ export default async function AboutPage() {
 
       <Hero t={l} locale={locale} />
       <Numbers t={l.stats} locale={locale} />
+
+      <section aria-labelledby="camada" className="pt-24">
+        <SectionHeading id="camada" eyebrow={l.layer.eyebrow} title={l.layer.title} lead={l.layer.lead} />
+        <div className="mt-10">
+          <Layer t={l.layer} />
+        </div>
+      </section>
+
+      <section aria-labelledby="para-quem" className="pt-24">
+        <SectionHeading
+          id="para-quem"
+          eyebrow={l.audience.eyebrow}
+          title={l.audience.title}
+          lead={l.audience.lead}
+        />
+        <div className="mt-10">
+          <Audience t={l.audience} />
+        </div>
+      </section>
 
       <section aria-labelledby="recursos" className="pt-24">
         <SectionHeading id="recursos" eyebrow={l.bento.eyebrow} title={l.bento.title} lead={l.bento.lead} />
@@ -114,9 +137,9 @@ export default async function AboutPage() {
       <section aria-labelledby="acesso" className="grid gap-10 pt-24 lg:grid-cols-[1fr_1.2fr]">
         <SectionHeading
           id="acesso"
-          eyebrow={l.audience.eyebrow}
-          title={l.audience.title}
-          lead={l.audience.body}
+          eyebrow={l.access.eyebrow}
+          title={l.access.heading}
+          lead={l.access.lead}
         />
         <div>
           <h3 className="text-lg font-semibold">{l.access.title}</h3>
@@ -150,14 +173,17 @@ export default async function AboutPage() {
           </h2>
           <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-lg text-pretty">{l.cta.body}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5 text-base')}>
-              {l.cta.signIn}
-            </a>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5 text-base')}
+              className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5 text-base')}
             >
               {l.cta.contact}
+            </a>
+            <a
+              href="/login"
+              className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5 text-base')}
+            >
+              {l.cta.signIn}
             </a>
           </div>
         </div>
