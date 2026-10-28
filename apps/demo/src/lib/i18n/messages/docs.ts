@@ -226,6 +226,8 @@ export default defineMessages(
         marketNotInPlan: 'O país pedido não está nos seus mercados.',
         notFound: 'Entidade ou rota inexistente.',
         rateLimited: 'Limite da janela atingido; veja retry-after.',
+        quotaExceeded:
+          'Cota diária do plano passou de 110%; volta na virada do dia (UTC). A partir de 80%, as respostas trazem x-galaxie-quota-warning.',
         degraded: 'Raro: fonte indisponível e nenhum dado anterior válido.',
         maintenance:
           'Atualização da plataforma em andamento (segundos); tente de novo depois de retry-after.',
@@ -644,6 +646,8 @@ export default defineMessages(
           marketNotInPlan: 'The requested country is not among your markets.',
           notFound: 'Entity or route does not exist.',
           rateLimited: 'Window limit reached; see retry-after.',
+          quotaExceeded:
+            'The plan daily quota went over 110%; it resets at the turn of the day (UTC). From 80%, responses carry x-galaxie-quota-warning.',
           degraded: 'Rare: source unavailable and no valid previous data.',
           maintenance: 'Platform update in progress (seconds); try again after retry-after.',
           internal: 'Unexpected error (logged on our side).',
@@ -1065,6 +1069,8 @@ export default defineMessages(
           marketNotInPlan: 'El país pedido no está en tus mercados.',
           notFound: 'Entidad o ruta inexistente.',
           rateLimited: 'Se alcanzó el límite de la ventana; mirá retry-after.',
+          quotaExceeded:
+            'La cuota diaria del plan pasó del 110%; vuelve con el cambio de día (UTC). Desde el 80%, las respuestas traen x-galaxie-quota-warning.',
           degraded: 'Poco común: fuente no disponible y ningún dato anterior válido.',
           maintenance:
             'Actualización de la plataforma en curso (segundos); probá de nuevo después de retry-after.',

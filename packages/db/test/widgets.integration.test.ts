@@ -11,6 +11,7 @@ import {
   hashPublishableKey,
   listActivePublishableOrigins,
   listPublishableKeys,
+  listKeyEvents,
   listWidgets,
   MAX_PUBLISHABLE_KEYS_PER_TENANT,
   PUBLISHABLE_TEST_KEY_PREFIX,
@@ -289,6 +290,46 @@ describe('chaves publicáveis', () => {
     await expect(
       createPublishableKey(db, { tenantId: t!.id, name: 'extra', allowedOrigins: ['https://t.test'] }),
     ).resolves.toBeDefined();
+  });
+
+  it('criação e revogação da publicável ficam na auditoria, com quem fez', async () => {
+    const created = await createPublishableKey(db, {
+      tenantId: tenantB,
+      name: 'auditada',
+      allowedOrigins: ['https://b.test'],
+      actor: 'panel:user-1',
+    });
+    expect(await revokePublishableKey(db, tenantB, created.id, 'panel:user-2')).toBe(true);
+    const events = (await listKeyEvents(db, tenantB)).filter((e) => e.keyId === created.id);
+    expect(events.map((e) => [e.action, e.actor, e.keyKind]).reverse()).toEqual([
+      ['issued', 'panel:user-1', 'publishable'],
+      ['revoked', 'panel:user-2', 'publishable'],
+    ]);
+    expect(JSON.stringify(events)).not.toContain(created.key);
+  });
+
+  it('trial encerrado invalida a chave publicável', async () => {
+    const [t] = await db
+      .insert(tenant)
+      .values({
+        slug: 'trial-pk',
+        name: 'T',
+        plan: 'trial',
+        modules: ['core_data'],
+        trialEndsAt: new Date(Date.now() + 60_000),
+      })
+      .returning();
+    const created = await createPublishableKey(db, {
+      tenantId: t!.id,
+      name: 'x',
+      allowedOrigins: ['https://t.test'],
+    });
+    expect(await verifyPublishableKey(db, created.key)).not.toBeNull();
+    await db
+      .update(tenant)
+      .set({ trialEndsAt: new Date(Date.now() - 1) })
+      .where(eq(tenant.id, t!.id));
+    expect(await verifyPublishableKey(db, created.key)).toBeNull();
   });
 
   it('tenant suspenso invalida a chave', async () => {

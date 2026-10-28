@@ -80,7 +80,7 @@ const errorResponses = (...statuses: (400 | 401 | 403 | 404 | 429 | 503)[]): Zod
     401: 'Chave ausente ou inválida (INVALID_KEY)',
     403: 'Recurso fora do plano (MODULE_NOT_IN_PLAN / MARKET_NOT_IN_PLAN)',
     404: 'Entidade inexistente (NOT_FOUND)',
-    429: 'Limite do tenant atingido (RATE_LIMITED)',
+    429: 'Limite do tenant atingido (RATE_LIMITED) ou cota diária esgotada (QUOTA_EXCEEDED)',
     503: 'Serviço degradado (DEGRADED) ou em atualização (MAINTENANCE)',
   } as const;
   return Object.fromEntries(
@@ -94,6 +94,18 @@ const okHeaders = z.object({
   'x-ratelimit-limit': z.string().meta({ description: 'Requisições por janela (por rota).' }),
   'x-ratelimit-remaining': z.string(),
   'x-ratelimit-reset': z.string().meta({ description: 'Segundos até a janela reiniciar.' }),
+  'x-galaxie-quota-limit': z
+    .string()
+    .optional()
+    .meta({ description: 'Cota diária de produção do plano (ausente = sem cota ou chave de teste).' }),
+  'x-galaxie-quota-remaining': z
+    .string()
+    .optional()
+    .meta({ description: 'Requisições restantes no dia UTC.' }),
+  'x-galaxie-quota-warning': z
+    .string()
+    .optional()
+    .meta({ description: 'Presente a partir de 80% da cota: quanto já foi usado (ex.: `85%`).' }),
 });
 
 const acceptLanguage = z.object({

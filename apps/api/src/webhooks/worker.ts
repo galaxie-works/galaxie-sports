@@ -6,6 +6,8 @@ import {
   webhookCursor,
   webhookDelivery,
   webhookEndpoint,
+  PLANS_WITHOUT_REALTIME,
+  type ApiPlan,
   type Database,
 } from '@galaxie/db';
 import type { ChangeTopic } from '@galaxie/contracts';
@@ -77,6 +79,7 @@ type ClaimedDelivery = {
   secret: string;
   active: boolean;
   tenant_status: string;
+  tenant_plan: ApiPlan;
 };
 
 /** Atraso exponencial com jitter de ±20%. */
@@ -211,7 +214,14 @@ export class WebhookWorker {
             .select({ endpoint: webhookEndpoint, tenant })
             .from(webhookEndpoint)
             .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
-            .where(and(eq(webhookEndpoint.active, true), eq(tenant.status, 'active')))
+            .where(
+              and(
+                eq(webhookEndpoint.active, true),
+                eq(tenant.status, 'active'),
+                // trial: sem webhooks (docs/politica-de-chaves.md §3)
+                notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
+              ),
+            )
         ).map(({ endpoint, tenant: t }) => {
           const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
           const filter: ChangeFilter = {
@@ -282,7 +292,7 @@ export class WebhookWorker {
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
-                e.url, e.secret, e.active, t.status::text as tenant_status`);
+                e.url, e.secret, e.active, t.status::text as tenant_status, t.plan::text as tenant_plan`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0 };
     const queue = [...claimed];
     const work = async () => {
@@ -298,8 +308,15 @@ export class WebhookWorker {
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
     const id = Number(d.id);
     const attempts = d.attempts + 1;
-    // endpoint desativado ou tenant suspenso depois do enfileiramento: nada é enviado (replay pela DLQ)
-    const off = !d.active ? 'endpoint desativado' : d.tenant_status !== 'active' ? 'tenant suspenso' : null;
+    // endpoint desativado, tenant suspenso ou plano sem webhooks (ex.: passou a trial) depois do
+    // enfileiramento: nada é enviado, e a entrega fica na DLQ com o motivo
+    const off = !d.active
+      ? 'endpoint desativado'
+      : d.tenant_status !== 'active'
+        ? 'tenant suspenso'
+        : PLANS_WITHOUT_REALTIME.includes(d.tenant_plan)
+          ? 'plano sem webhooks'
+          : null;
     if (off) {
       await this.db
         .update(webhookDelivery)

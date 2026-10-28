@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
+  PLANS_WITHOUT_REALTIME,
   REALTIME_TOPICS,
   tenant,
   webhookDelivery,
@@ -73,8 +74,13 @@ export async function createWebhookEndpoint(
     );
   const url = validateWebhookUrl(input.url, input.allowInsecure);
   const topics = parseTopics(input.topics);
-  const [t] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, input.tenantSlug));
+  const [t] = await db
+    .select({ id: tenant.id, plan: tenant.plan })
+    .from(tenant)
+    .where(eq(tenant.slug, input.tenantSlug));
   if (!t) throw new WebhookInputError(`Tenant não encontrado: ${input.tenantSlug}`);
+  if (PLANS_WITHOUT_REALTIME.includes(t.plan))
+    throw new WebhookInputError(`O plano ${t.plan} não inclui webhooks.`);
   const secret = generateWebhookSecret();
   // id gerado antes do insert: ele entra como dado autenticado (AAD) na cifra do segredo
   const [gen] = await db.execute<{ id: string }>(sql`select public.uuid_generate_v7()::text as id`);
