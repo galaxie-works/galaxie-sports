@@ -14,7 +14,7 @@ export default defineMessages(
     hero: {
       eyebrow: 'Camada de experiência do torcedor · América Latina',
       title: 'Placar todo mundo tem. A Galaxie entrega o resto.',
-      lead: 'Onde assistir em 8 países, clássicos e torcidas no vocabulário de cada país e contexto ao vivo com IA, numa camada white-label para empresas de mídia, entretenimento e portais esportivos. Funciona com o nosso feed de dados ou com o que sua empresa já licencia.',
+      lead: 'Onde assistir em 8 países, clássicos e torcidas no vocabulário de cada país e contexto ao vivo com IA, numa camada white-label para empresas de mídia, entretenimento e portais esportivos. Roda com o nosso feed de dados e pode ser ligada ao feed que sua empresa já licencia, num projeto de integração.',
       cta: 'Falar com a gente',
       secondary: 'Conhecer a camada',
       invite: 'A demo completa é por convite.',
@@ -33,7 +33,7 @@ export default defineMessages(
       flow: {
         source: {
           title: 'Dados esportivos',
-          body: 'Agenda, placares, lances e tabelas: do feed que a Galaxie contrata ou do que sua empresa já licencia.',
+          body: 'Agenda, placares, lances e tabelas do feed que a Galaxie contrata. O feed que sua empresa já licencia pode ser ligado num projeto de integração.',
         },
         galaxie: {
           title: 'Camada Galaxie',
@@ -309,7 +309,7 @@ export default defineMessages(
       hero: {
         eyebrow: 'Fan experience layer · Latin America',
         title: 'Everyone has the score. Galaxie delivers the rest.',
-        lead: 'Where to watch in 8 countries, derbies and fan culture in each country’s own words, and live AI context, in a white-label layer for media, entertainment and sports news companies. It runs on our data feed or on the one your company already licenses.',
+        lead: 'Where to watch in 8 countries, derbies and fan culture in each country’s own words, and live AI context, in a white-label layer for media, entertainment and sports news companies. It runs on our data feed and can be connected to the feed your company already licenses as an integration project.',
         cta: 'Talk to us',
         secondary: 'Meet the layer',
         invite: 'The full demo is invitation-only.',
@@ -328,7 +328,7 @@ export default defineMessages(
         flow: {
           source: {
             title: 'Sports data',
-            body: 'Schedules, scores, plays and standings: from the feed Galaxie licenses or the one your company already has.',
+            body: 'Schedules, scores, plays and standings from the feed Galaxie licenses. The feed your company already has can be connected as an integration project.',
           },
           galaxie: {
             title: 'Galaxie layer',
@@ -603,7 +603,7 @@ export default defineMessages(
       hero: {
         eyebrow: 'Capa de experiencia del hincha · América Latina',
         title: 'El resultado lo tiene cualquiera. Galaxie entrega el resto.',
-        lead: 'Dónde ver en 8 países, clásicos e hinchadas con el vocabulario de cada país y contexto en vivo con IA, en una capa white-label para empresas de medios, entretenimiento y portales deportivos. Funciona con nuestro feed de datos o con el que tu empresa ya licencia.',
+        lead: 'Dónde ver en 8 países, clásicos e hinchadas con el vocabulario de cada país y contexto en vivo con IA, en una capa white-label para empresas de medios, entretenimiento y portales deportivos. Funciona con nuestro feed de datos y se puede conectar al feed que tu empresa ya licencia, en un proyecto de integración.',
         cta: 'Hablemos',
         secondary: 'Conocer la capa',
         invite: 'La demo completa es por invitación.',
@@ -622,7 +622,7 @@ export default defineMessages(
         flow: {
           source: {
             title: 'Datos deportivos',
-            body: 'Agenda, resultados, jugadas y tablas: del feed que contrata Galaxie o del que tu empresa ya licencia.',
+            body: 'Agenda, resultados, jugadas y tablas del feed que contrata Galaxie. El feed que tu empresa ya licencia se puede conectar en un proyecto de integración.',
           },
           galaxie: {
             title: 'Capa Galaxie',

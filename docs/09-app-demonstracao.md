@@ -193,7 +193,7 @@ flowchart LR
 
 ### 2.4 Página pública e exemplo navegável
 
-A apresentação (`/sobre`, e a raiz para quem não tem sessão) é pública e estática. Ela vende a **camada Galaxie** para empresas de mídia, entretenimento e portais esportivos, e não o dado bruto: abre pelo que vai por cima do dado (onde assistir, clássicos e torcidas, contexto com IA e conteúdo relacionado, sobre o nosso feed ou o do cliente) e por quem compra, antes dos exemplos. Não publica preços. A chamada principal é a conversa comercial (e-mail); entrar na demo fica no cabeçalho e no fim da página. Os exemplos dela vêm de uma amostra fixa (`apps/demo/src/lib/showcase.ts`): Palmeiras em pt-BR e em inglês, Flamengo x Estudiantes em espanhol.
+A apresentação (`/sobre`, e a raiz para quem não tem sessão) é pública e estática. Ela vende a **camada Galaxie** para empresas de mídia, entretenimento e portais esportivos, e não o dado bruto: abre pelo que vai por cima do dado (onde assistir, clássicos e torcidas, contexto com IA e conteúdo relacionado, sobre o nosso feed; o feed do cliente entra como projeto de integração, porque ainda não há adaptador para ele) e por quem compra, antes dos exemplos. Não publica preços. A chamada principal é a conversa comercial (e-mail); entrar na demo fica no cabeçalho e no fim da página. Os exemplos dela vêm de uma amostra fixa (`apps/demo/src/lib/showcase.ts`): Palmeiras em pt-BR e em inglês, Flamengo x Estudiantes em espanhol.
 
 O **exemplo navegável** (`/exemplo/jogo`, `/time`, `/campeonato` e `/jogador`) é a página do app de verdade, aberta sem login. Os dados vêm de uma **cópia gravada** (`src/lib/example/snapshot.json`), sem nenhuma chamada à API:
 
