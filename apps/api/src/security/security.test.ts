@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildOpenApiDocument } from '@galaxie/contracts';
-import type { Database } from '@galaxie/db';
+import { API_PLANS, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../admin/guard.js';
 import { parsePlans } from '../admin/plans.js';
 import { generateApiKey } from '../auth/keys.js';
@@ -12,10 +12,7 @@ import { normalizeOrigin } from './cors.js';
 
 const PLANS = parsePlans({
   plans: Object.fromEntries(
-    ['core_data', 'fan_experience', 'live_intelligence', 'enterprise'].map((p) => [
-      p,
-      { name: p, modules: ['core_data'], rateLimitPerMinute: 60 },
-    ]),
+    [...API_PLANS].map((p) => [p, { name: p, modules: ['core_data'], rateLimitPerMinute: 60 }]),
   ),
 });
 

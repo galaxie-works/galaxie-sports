@@ -1,8 +1,9 @@
 import { parseArgs } from 'node:util';
 import { API_PLANS, closeDb, createDb, type ApiModule, type ApiPlan } from '@galaxie/db';
 import { loadPlans } from '../admin/plans.js';
-import { resolveTenantValues } from '../admin/tenants.js';
-import { createApiKey, isModule, upsertTenant } from '../auth/admin.js';
+import { KeyPolicyError, resolveTenantValues, trialEndsFor, upsertTenantWithKey } from '../admin/tenants.js';
+import { isModule } from '../auth/admin.js';
+import type { KeyEnv } from '../auth/keys.js';
 
 const USAGE = `Uso: pnpm --filter @galaxie/api tenant:create --slug <slug> [opções]
 
@@ -94,7 +95,8 @@ const rateLimit = positiveIntOrExit(values['rate-limit'], '--rate-limit');
 const dailyQuota =
   values['daily-quota'] === 'none' ? null : positiveIntOrExit(values['daily-quota'], '--daily-quota');
 // modelo do plano (config/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
-const resolved = resolveTenantValues(loadPlans(), {
+const plans = loadPlans();
+const resolved = resolveTenantValues(plans, {
   plan: values.plan as ApiPlan,
   ...(modules ? { modules } : {}),
   ...(markets ? { markets } : {}),
@@ -104,15 +106,28 @@ const resolved = resolveTenantValues(loadPlans(), {
 });
 const db = createDb(url, { max: 1 });
 try {
-  const t = await upsertTenant(db, {
-    slug: values.slug,
-    name: values.name ?? values.slug,
-    ...resolved,
-  });
-  const key = await createApiKey(db, t.id, {
-    env: values.env,
-    ...(values.label ? { label: values.label } : {}),
-    ...(scopes ? { scopes } : {}),
+  // tenant e chave numa transação só, com o teto da emissão administrativa (5 válidas por ambiente):
+  // no teto, o comando falha sem reescrever o tenant
+  const { tenant: t, key } = await upsertTenantWithKey(
+    db,
+    {
+      slug: values.slug,
+      name: values.name ?? values.slug,
+      ...resolved,
+      // plano trial: prazo a partir de agora (rodar de novo reinicia o prazo, como reaplica o modelo)
+      trialEndsAt: trialEndsFor(plans, resolved.plan),
+    },
+    {
+      env: values.env as KeyEnv,
+      ...(values.label ? { label: values.label } : {}),
+      ...(scopes ? { scopes } : {}),
+    },
+    new Date(),
+    'cli:tenant-create',
+  ).catch((err: unknown) => {
+    if (!(err instanceof KeyPolicyError)) throw err;
+    console.error(`${err.message} Nada foi alterado no tenant.`);
+    process.exit(1);
   });
   console.log(
     `Tenant ${values.slug} ${t.created ? 'criado' : 'atualizado'} (${t.id}) — plano ${resolved.plan}: ` +

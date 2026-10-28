@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { RealtimeChange } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
 import type { TenantContext } from '../auth/authenticator.js';
-import { problems } from '../errors.js';
+import { problems, registerErrorHandling } from '../errors.js';
 import { registerCors } from '../security/cors.js';
 import { registerSecurityHeaders } from '../security/headers.js';
 import type { ChangeStream } from './change-stream.js';
@@ -18,6 +18,7 @@ const ctx: TenantContext = {
   plan: 'enterprise',
   keyId: 'k-1',
   keyKind: 'secret',
+  env: 'live',
   modules: ['core_data'],
   markets: [],
   sports: [],
@@ -51,15 +52,17 @@ async function harness(options: {
   limiter: ConnectionLimiter;
   reauthenticate?: (maxAgeMs?: number) => Promise<TenantContext>;
   cors?: boolean;
+  tenant?: TenantContext;
 }): Promise<string> {
   app = Fastify();
+  registerErrorHandling(app);
   registerSecurityHeaders(app);
   if (options.cors) registerCors(app, { origins: ['https://app.exemplo.test'] });
   app.decorateRequest('tenant', null);
   app.decorateRequest('reauthenticate', null);
   // faz o papel do hook de autenticação do server.ts
   app.addHook('onRequest', async (request) => {
-    request.tenant = ctx;
+    request.tenant = options.tenant ?? ctx;
     request.reauthenticate = options.reauthenticate ?? null;
   });
   const stream = {
@@ -101,6 +104,18 @@ afterEach(async () => {
   await app?.close().catch(() => {});
   app = undefined;
   subscribers.clear();
+});
+
+describe('GET /v1/stream — plano trial', () => {
+  it('trial não tem tempo real: 403 antes de abrir o stream', async () => {
+    const { limiter, calls } = spyLimiter();
+    const url = await harness({ limiter, tenant: { ...ctx, plan: 'trial' } });
+    const c = connect(url);
+    await expect.poll(() => c.ended()).toBe(true);
+    expect(c.res()!.statusCode).toBe(403);
+    expect(c.body()).toContain('MODULE_NOT_IN_PLAN');
+    expect(calls.acquire).toBe(0);
+  });
 });
 
 describe('GET /v1/stream — ciclo de vida da conexão', () => {

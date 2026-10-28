@@ -155,6 +155,7 @@ const DEFAULT_TIE_RULES: KnockoutStageRules = {
   drawAdvantage: null,
   neutralVenue: false,
   decidesTitle: false,
+  levelAdvantage: null,
 };
 
 /** Regras da fase no regulamento (sem regulamento: jogo único). */

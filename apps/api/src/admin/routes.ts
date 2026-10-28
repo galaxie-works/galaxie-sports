@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
-import { API_MODULES, API_PLANS, tenant, type Database } from '@galaxie/db';
+import { API_MODULES, API_PLANS, listKeyEvents, tenant, type Database } from '@galaxie/db';
 import { inArray } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import type { UsageBackend } from '../usage/counter.js';
@@ -14,7 +14,7 @@ import {
   getTenant,
   invalidScopes,
   issueKey,
-  KeyRotationError,
+  KeyPolicyError,
   listKeys,
   listTenants,
   MAX_ROTATION_GRACE_SEC,
@@ -91,6 +91,7 @@ const ListTenantsQuery = z.object({
 });
 
 const TenantParams = z.object({ id: z.string().min(1).max(80) });
+const KeyEventsQuery = z.object({ limit: z.coerce.number().int().min(1).max(500).default(100) });
 const KeyParams = z.object({ id: z.string().min(1).max(80), keyId: z.string().regex(UUID_RE, 'UUID') });
 const RotateBody = z
   .object({ graceSeconds: z.number().int().min(0).max(MAX_ROTATION_GRACE_SEC).default(86_400) })
@@ -183,7 +184,9 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
       throw problems.invalidParams([
         { path: 'scopes', message: `fora dos módulos do tenant: ${bad.join(', ')}` },
       ]);
-    const key = await issueKey(db, t.id, body);
+    const key = await issueKey(db, t.id, body).catch((err) => {
+      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
+    });
     request.log.info({ tenant: t.slug, key: key.prefix, admin: 'key.issue' }, 'chave emitida');
     return reply.code(201).send({ key: { ...key, notice: SECRET_NOTICE } });
   });
@@ -193,7 +196,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const { graceSeconds } = parseInput(RotateBody, request.body ?? {});
     const t = await tenantOr404(id);
     const rotated = await rotateKey(db, t.id, keyId, { graceSeconds }).catch((err) => {
-      throw err instanceof KeyRotationError ? problems.conflict(err.message) : err;
+      throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
     });
     if (!rotated) throw problems.notFound('Chave ativa');
     request.log.info(
@@ -211,6 +214,14 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     if (!(await revokeTenantKey(db, t.id, keyId))) throw problems.notFound('Chave ativa');
     request.log.info({ tenant: t.slug, keyId, admin: 'key.revoke' }, 'chave revogada');
     return { revoked: true, keyId };
+  });
+
+  // auditoria das chaves (secretas e publicáveis): emissão, rotação, revogação e migração
+  app.get('/internal/admin/tenants/:id/key-events', { config }, async (request) => {
+    const { id } = parseInput(TenantParams, request.params);
+    const { limit } = parseInput(KeyEventsQuery, request.query);
+    const t = await tenantOr404(id);
+    return { tenantId: t.id, slug: t.slug, data: await listKeyEvents(db, t.id, limit) };
   });
 
   app.get('/internal/admin/tenants/:id/usage', { config }, async (request) => {

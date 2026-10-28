@@ -7,12 +7,13 @@
 import { revalidateApiTags } from '@/lib/cache/revalidate';
 import { requireAdminApi } from '@/lib/review/guard';
 import { ReviewInputError, ReviewUnavailableError, decideReview } from '@/lib/review/store';
-import { PAGE_SIZE, REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
+import { MAX_PAGE_SIZE, REVIEW_ACTIONS, type ReviewAction } from '@/lib/review/types';
 
 const NO_STORE = { 'cache-control': 'no-store' };
-const BODY_MAX = 64_000;
-/** Uma página inteira da lista. */
-const MAX_IDS = PAGE_SIZE;
+/** Cabe uma página de 500 ids (chaves longas, como as de tradução) e o comentário. */
+const BODY_MAX = 128_000;
+/** Uma página inteira da lista, no maior tamanho que ela aceita (`?per=`). */
+const MAX_IDS = MAX_PAGE_SIZE;
 
 export async function POST(request: Request) {
   const actor = await requireAdminApi(request);

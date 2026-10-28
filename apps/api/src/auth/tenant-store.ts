@@ -10,11 +10,19 @@ export interface TenantRecord {
   sports: string[];
   rateLimitPerMinute: number;
   status: 'active' | 'suspended';
+  /** Cota diária de produção; null/ausente = sem cota. */
+  dailyRequestQuota?: number | null;
+  /** Fim do trial; depois dele nenhuma chave do tenant autentica. */
+  trialEndsAt?: Date | null;
 }
 
 export interface KeyRecord {
   keyId: string;
   secretHash: string;
+  /** Ambiente gravado: o prefixo da chave enviada precisa bater com ele. */
+  env: 'live' | 'test';
+  /** 1 = legado (sem checksum), 2 = com checksum (ver keys.ts). */
+  keyFormat: number;
   scopes: ApiModule[] | null;
   expiresAt: Date | null;
   revokedAt: Date | null;
@@ -42,6 +50,8 @@ export class PgTenantStore implements TenantStore {
     return {
       keyId: row.key.id,
       secretHash: row.key.secretHash,
+      env: row.key.env,
+      keyFormat: row.key.keyFormat,
       scopes: row.key.scopes,
       expiresAt: row.key.expiresAt,
       revokedAt: row.key.revokedAt,
@@ -54,6 +64,8 @@ export class PgTenantStore implements TenantStore {
         sports: row.tenant.sports,
         rateLimitPerMinute: row.tenant.rateLimitPerMinute,
         status: row.tenant.status,
+        dailyRequestQuota: row.tenant.dailyRequestQuota,
+        trialEndsAt: row.tenant.trialEndsAt,
       },
     };
   }

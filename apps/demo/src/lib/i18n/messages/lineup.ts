@@ -135,6 +135,7 @@ export default defineMessages(
         draft: 'Voltar para rascunho',
         reject: 'Rejeitar',
         dismiss: 'Descartar a mudança',
+        more: 'Mais ações',
       },
       decided: {
         approved: 'Item aprovado',
@@ -163,6 +164,7 @@ export default defineMessages(
         noPrice: 'Sem preço provado',
         claimed: 'A IA disse {price}',
         excerpt: 'Trecho da fonte',
+        checksSummary: '{passed} de {total} checagens passaram',
         checks: {
           page: 'Confirmado na página oficial',
           details: 'Plano com detalhe (2ª etapa)',
@@ -383,6 +385,7 @@ export default defineMessages(
           draft: 'Back to draft',
           reject: 'Reject',
           dismiss: 'Dismiss the change',
+          more: 'More actions',
         },
         decided: {
           approved: 'Item approved',
@@ -411,6 +414,7 @@ export default defineMessages(
           noPrice: 'No proven price',
           claimed: 'The AI said {price}',
           excerpt: 'Source excerpt',
+          checksSummary: '{passed} of {total} checks passed',
           checks: {
             page: 'Confirmed on the official page',
             details: 'Plan with details (step 2)',
@@ -636,6 +640,7 @@ export default defineMessages(
           draft: 'Volver a borrador',
           reject: 'Rechazar',
           dismiss: 'Descartar el cambio',
+          more: 'Más acciones',
         },
         decided: {
           approved: 'Ítem aprobado',
@@ -664,6 +669,7 @@ export default defineMessages(
           noPrice: 'Sin precio probado',
           claimed: 'La IA dijo {price}',
           excerpt: 'Fragmento de la fuente',
+          checksSummary: '{passed} de {total} chequeos pasaron',
           checks: {
             page: 'Confirmado en la página oficial',
             details: 'Plan con detalle (2.ª etapa)',

@@ -1,4 +1,5 @@
 import {
+  STANDINGS_TABLE_KINDS,
   TIE_BREAKER_IDS,
   ZONE_KINDS,
   type CompetitionFormat,
@@ -7,6 +8,9 @@ import {
   type KnockoutStageRules,
   type LeagueRules,
   type StandingsRules,
+  type StandingsTableKind,
+  type StandingsTableRule,
+  type TableName,
   type TieBreaker,
   type TieBreakerId,
   type Zone,
@@ -31,6 +35,7 @@ const DEFAULT_STAGE: KnockoutStageRules = {
   drawAdvantage: null,
   neutralVenue: false,
   decidesTitle: false,
+  levelAdvantage: null,
 };
 
 const DEFAULT_TIE_BREAKERS: TieBreaker[] = [
@@ -166,9 +171,13 @@ function parseStage(slug: string, field: string, raw: unknown, base: KnockoutSta
     drawAdvantage,
     neutralVenue: bool(slug, `${field}.neutral_venue`, s.neutral_venue, base.neutralVenue),
     decidesTitle: bool(slug, `${field}.decides_title`, s.decides_title, base.decidesTitle),
+    levelAdvantage:
+      s.level_advantage === undefined ? base.levelAdvantage : (s.level_advantage as 'better_seed' | null),
   };
+  if (stage.levelAdvantage !== null && stage.levelAdvantage !== 'better_seed')
+    fail(slug, `${field}.level_advantage deve ser better_seed ou null`);
   if (stage.drawAdvantage && stage.legs !== 1) fail(slug, `${field}: draw_advantage só vale para jogo único`);
-  if (!stage.penalties && !stage.drawAdvantage && !stage.extraTime) {
+  if (!stage.penalties && !stage.drawAdvantage && !stage.extraTime && !stage.levelAdvantage) {
     fail(slug, `${field}: sem prorrogação, pênaltis ou vantagem do empate não há como decidir empates`);
   }
   return stage;
@@ -184,13 +193,93 @@ function parseKnockout(slug: string, raw: unknown): KnockoutRules | null {
       stages[kind] = parseStage(slug, `knockout.stages.${kind}`, stage, def);
     }
   }
-  return { default: def, stages };
+  const seeding = Array.isArray(raw.seeding)
+    ? raw.seeding.map((x, i) => {
+        if (!isObject(x) || typeof x.table !== 'string')
+          fail(slug, `knockout.seeding[${i}] precisa de rounds e table`);
+        return { rounds: regex(slug, `knockout.seeding[${i}].rounds`, x.rounds), table: x.table };
+      })
+    : [];
+  return { default: def, stages, seeding };
+}
+
+function regex(slug: string, field: string, value: unknown): RegExp {
+  if (typeof value !== 'string' || !value) fail(slug, `${field} deve ser uma expressão regular (texto)`);
+  try {
+    return new RegExp(value, 'i');
+  } catch {
+    fail(slug, `${field}: expressão regular inválida (${value})`);
+  }
+}
+
+function tableName(slug: string, field: string, value: unknown): TableName {
+  if (typeof value === 'string' && value) return { 'pt-BR': value };
+  if (!isObject(value) || typeof value['pt-BR'] !== 'string' || !value['pt-BR'])
+    fail(slug, `${field} precisa de pt-BR`);
+  const name: TableName = { 'pt-BR': value['pt-BR'] };
+  if (typeof value.es === 'string' && value.es) name.es = value.es;
+  if (typeof value.en === 'string' && value.en) name.en = value.en;
+  return name;
+}
+
+/**
+ * `tables:` — tabelas da temporada por fase e auxiliares. A matemática (`league`) de cada uma é a da
+ * competição com o `league` da tabela por cima (merge profundo; zonas substituem).
+ */
+function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsTableRule[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) fail(slug, 'tables deve ser uma lista');
+  const keys = new Set<string>();
+  return raw.map((t, i): StandingsTableRule => {
+    if (!isObject(t)) fail(slug, `tables[${i}] deve ser um objeto`);
+    const key = t.key;
+    if (typeof key !== 'string' || !/^[a-z0-9_]+$/.test(key))
+      fail(slug, `tables[${i}].key inválida: ${String(key)}`);
+    if (keys.has(key)) fail(slug, `tabela duplicada: ${key}`);
+    keys.add(key);
+    const kind = t.kind ?? 'phase';
+    if (typeof kind !== 'string' || !(STANDINGS_TABLE_KINDS as readonly string[]).includes(kind))
+      fail(slug, `tabela ${key}: kind inválido (${String(kind)})`);
+    const rounds =
+      t.rounds === undefined || t.rounds === null ? null : regex(slug, `tabela ${key}.rounds`, t.rounds);
+    const computable = kind === 'annual' || (kind === 'phase' && rounds !== null);
+    const computed = bool(slug, `tabela ${key}.computed`, t.computed, computable);
+    if (computed && !computable)
+      fail(
+        slug,
+        `tabela ${key}: só fase com rounds ou tabela anual podem ser recalculadas (computed: false)`,
+      );
+    const groupName = t.group_name === undefined || t.group_name === null ? null : t.group_name;
+    if (groupName !== null && (typeof groupName !== 'string' || !groupName))
+      fail(slug, `tabela ${key}.group_name deve ser texto`);
+    return {
+      key,
+      kind: kind as StandingsTableKind,
+      name: tableName(slug, `tabela ${key}.name`, t.name),
+      subgroupLabel:
+        t.subgroup_label === undefined || t.subgroup_label === null
+          ? null
+          : tableName(slug, `tabela ${key}.subgroup_label`, t.subgroup_label),
+      groups: regex(slug, `tabela ${key}.groups`, t.groups),
+      exclude:
+        t.exclude === undefined || t.exclude === null
+          ? null
+          : regex(slug, `tabela ${key}.exclude`, t.exclude),
+      rounds,
+      groupName,
+      crossGroupMatches: bool(slug, `tabela ${key}.cross_group_matches`, t.cross_group_matches, false),
+      computed,
+      league: t.league === undefined ? null : parseLeague(slug, deepMerge(leagueRaw ?? {}, t.league)),
+    };
+  });
 }
 
 /** Uma exceção por intervalo de temporadas (`seasons: { from, to }`, ambos inclusivos e opcionais). */
 function overrideApplies(slug: string, raw: unknown, season: number): boolean {
-  if (!isObject(raw) || !isObject(raw.seasons)) fail(slug, 'cada override precisa de seasons: { from?, to? }');
-  const from = raw.seasons.from === undefined ? -Infinity : int(slug, 'overrides.seasons.from', raw.seasons.from);
+  if (!isObject(raw) || !isObject(raw.seasons))
+    fail(slug, 'cada override precisa de seasons: { from?, to? }');
+  const from =
+    raw.seasons.from === undefined ? -Infinity : int(slug, 'overrides.seasons.from', raw.seasons.from);
   const to = raw.seasons.to === undefined ? Infinity : int(slug, 'overrides.seasons.to', raw.seasons.to);
   return season >= from && season <= to;
 }
@@ -218,8 +307,10 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
   if (typeof format !== 'string' || !(FORMATS as readonly string[]).includes(format)) {
     fail(slug, `format inválido: ${String(format)}`);
   }
-  const sources = Array.isArray(raw.sources) ? raw.sources.filter((s): s is string => typeof s === 'string') : [];
-  return {
+  const sources = Array.isArray(raw.sources)
+    ? raw.sources.filter((s): s is string => typeof s === 'string')
+    : [];
+  const rules: CompetitionRules = {
     slug,
     name: typeof raw.name === 'string' ? raw.name : slug,
     format: format as CompetitionFormat,
@@ -227,13 +318,34 @@ export function parseCompetitionRules(input: unknown, options: { season?: number
     standings: parseStandings(slug, raw.standings),
     league: parseLeague(slug, raw.league),
     knockout: parseKnockout(slug, raw.knockout),
+    tables: parseTables(slug, raw.tables, raw.league),
     sources,
   };
+  for (const sd of rules.knockout?.seeding ?? [])
+    if (!rules.tables.some((t) => t.key === sd.table))
+      fail(slug, `knockout.seeding: tabela "${sd.table}" não está em tables`);
+  return rules;
+}
+
+/**
+ * A tabela do regulamento a que um grupo de `core.standing` pertence (a primeira que casa, na ordem do YAML);
+ * null quando nenhuma casa ou a competição não define `tables`.
+ */
+export function standingsTableOf(
+  rules: Pick<CompetitionRules, 'tables'>,
+  group: string,
+): StandingsTableRule | null {
+  const hit = rules.tables.find((t) => t.groups.test(group) && !t.exclude?.test(group));
+  if (hit || group !== '') return hit ?? null;
+  // tabela gravada sem nome (recálculo anterior ao regulamento, ex.: Brasileirão em `''`): com uma única fase
+  // no regulamento, é dela; com várias (Apertura/Clausura), não dá para saber e fica sem tabela
+  const phases = rules.tables.filter((t) => t.kind === 'phase');
+  return phases.length === 1 ? phases[0]! : null;
 }
 
 /** Regras de uma fase de mata-mata: a exceção da fase, se houver, senão o padrão da competição. */
 export function knockoutStageRules(rules: CompetitionRules, stageKind?: string | null): KnockoutStageRules {
-  const ko = rules.knockout ?? { default: DEFAULT_STAGE, stages: {} };
+  const ko: KnockoutRules = rules.knockout ?? { default: DEFAULT_STAGE, stages: {}, seeding: [] };
   return (stageKind ? ko.stages[stageKind] : undefined) ?? ko.default;
 }
 

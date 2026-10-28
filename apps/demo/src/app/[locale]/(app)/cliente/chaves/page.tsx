@@ -30,6 +30,7 @@ async function Keys() {
             keys={keys.map((k) => ({
               id: k.id,
               name: k.name,
+              env: k.env,
               prefix: k.prefix,
               allowedOrigins: k.allowedOrigins,
               widgetId: k.widgetId,

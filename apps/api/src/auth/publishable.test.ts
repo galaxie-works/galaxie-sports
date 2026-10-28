@@ -25,6 +25,7 @@ function store(records: Record<string, VerifiedPublishableKey>) {
 const record = (over: Partial<VerifiedPublishableKey> = {}): VerifiedPublishableKey => ({
   keyId: 'pk-1',
   tenantId: 't-1',
+  env: 'live',
   tenant: {
     id: 't-1',
     slug: 'operadora-exemplo',
@@ -33,6 +34,7 @@ const record = (over: Partial<VerifiedPublishableKey> = {}): VerifiedPublishable
     markets: ['BR'],
     sports: ['football'],
     rateLimitPerMinute: 120,
+    dailyRequestQuota: null,
   },
   allowedOrigins: ['https://app.exemplo.test', 'https://*.exemplo.test'],
   widgetId: null,

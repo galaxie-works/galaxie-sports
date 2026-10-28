@@ -12,8 +12,24 @@
 #   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)
 #   dailyRequestQuota     cota diária de requisições (todas as rotas); null = sem cota
 #   defaultKeyEnv         ambiente da chave inicial: live | test
+#   trialDays             plano com prazo: dias a partir do onboarding (depois nenhuma chave do tenant vale)
+#
+# A cota diária vale para o uso de produção (a chave de teste fica fora): aviso a partir de 80% e
+# 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC (docs/politica-de-chaves.md §4).
 
 plans:
+  # Avaliação: 30 dias, só dados esportivos, cota baixa e sem tempo real (SSE e webhooks).
+  trial:
+    name: Trial
+    modules: [core_data]
+    markets: []
+    sports: []
+    rateLimitPerMinute: 60
+    dailyRequestQuota: 5000
+    # live: a cota vale para o uso de produção (a chave de teste não conta)
+    defaultKeyEnv: live
+    trialDays: 30
+
   core_data:
     name: Core Data
     modules: [core_data]

@@ -166,7 +166,9 @@ jobs:
               ingestor: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters",
                          env.WTW_CONFIG_DIR + "/related-content", "/srv/config/competitions", "/srv/data/knowledge",
                          env.GEO_CONFIG_DIR + "/market-audience.yaml",
-                         "/srv/services/ai-agents/dist/cli/recap-run.js"],
+                         "/srv/services/ai-agents/dist/cli/recap-run.js",
+                         // seed semântico do pós-deploy (infra/vps-telemetry/post-deploy.sh)
+                         "/srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js"],
             }["${{ matrix.image }}"];
             const missing = need.filter((p) => !p || p.includes("undefined") || !fs.existsSync(p));
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
@@ -355,8 +357,9 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/vps-telemetry/deploy.sh \
-            infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh
+          shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
+            infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
+            infra/nas-backup/nas-pull.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

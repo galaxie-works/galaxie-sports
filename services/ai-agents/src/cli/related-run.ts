@@ -7,8 +7,9 @@
  * (enrich.related_channel: 1 unidade por página) e só busca como complemento, dentro do balde de consultas do
  * dia (YOUTUBE_SEARCH_DAILY_QUOTA, 100) e da reserva para os jogos que ainda vão acontecer no dia
  * (`related/budget.ts`).
- * Flags: --limite <n> (padrão 60) · --forcar (busca completa mesmo dentro da janela de revalidação) ·
- * --sem-llm (só o classificador por regras). Cota: os dois baldes menos YOUTUBE_QUOTA_RESERVE_PERCENT.
+ * Flags: --limite <n> (padrão 60) · --forcar (busca completa mesmo dentro da janela de revalidação). A
+ * classificação é só por regras (sem LLM); --sem-llm é aceito e ignorado, por compatibilidade com agendas
+ * antigas. Cota: os dois baldes menos YOUTUBE_QUOTA_RESERVE_PERCENT.
  */
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
@@ -29,7 +30,7 @@ import {
   type RelatedRunReport,
 } from '../related/run.js';
 import { YoutubeClient } from '../related/youtube.js';
-import { dbFromEnv, intFlag, llmOrNull } from './common.js';
+import { dbFromEnv, intFlag } from './common.js';
 
 const { values } = parseArgs({
   options: {
@@ -84,10 +85,8 @@ function printReport(report: RelatedRunReport, plan: boolean): void {
     );
     return;
   }
-  const u = report.usage;
   console.log(
     `related: ${q.search.spent} consulta(s) e ${q.api.spent} unidade(s) do YouTube · ${quota} · ${report.idle} em dia · ` +
-      `${report.llmCalls} chamada(s) ao LLM · ${u.inputTokens}+${u.outputTokens} tokens · US$ ${u.costUsd.toFixed(4)} · ` +
       `${report.expired} linha(s) apagada(s) pela retenção de 30 dias`,
   );
   if (report.items.some((i) => i.action === 'error')) process.exitCode = 1;
@@ -103,12 +102,10 @@ try {
     blocklist: wtw.blocklist,
     creatorMinSubscribers: envInt('RELATED_CREATOR_MIN_SUBSCRIBERS', DEFAULT_CREATOR_MIN_SUBSCRIBERS),
   });
-  const llm = values.plan ? null : await llmOrNull(values['sem-llm'], db, 'related');
   const lookback = intFlag(values.horas, 'horas');
   const tier = intFlag(values.tier, 'tier');
   const limit = intFlag(values.limite, 'limite');
   const report = await runRelatedAgent(db, {
-    llm,
     youtube: apiKey ? new YoutubeClient({ apiKey }) : null,
     allowlist,
     wtw,

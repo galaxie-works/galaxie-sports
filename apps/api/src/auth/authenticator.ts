@@ -14,6 +14,8 @@ export interface TenantContext {
   keyId: string;
   /** `secret` = `x-galaxie-key` (backend); `publishable` = `x-galaxie-publishable-key` (navegador). */
   keyKind: 'secret' | 'publishable';
+  /** Ambiente da chave: `test` tem limite próprio e uso contado à parte (docs/politica-de-chaves.md §1). */
+  env: 'live' | 'test';
   /** Chave publicável presa a um widget (null/ausente = qualquer). */
   widgetId?: string | null;
   /** Módulos efetivos: os do tenant, restritos pelos escopos da chave. */
@@ -23,6 +25,8 @@ export interface TenantContext {
   /** Esportes contratados; vazio = todos. */
   sports: string[];
   rateLimitPerMinute: number;
+  /** Cota diária de produção do tenant; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
+  dailyRequestQuota?: number | null;
 }
 
 export interface AuthenticatorOptions {
@@ -138,6 +142,16 @@ export class Authenticator {
     if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.');
     if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.');
     if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
+    // fim do trial vale para todas as chaves do tenant
+    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now)
+      throw problems.invalidKey(
+        reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
+      );
+    // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
+    // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
+    if (parsed.env !== record.env)
+      throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
+    if (record.keyFormat >= 2 && parsed.format < 2) throw problems.invalidKey();
 
     if (isKnown && known.secretHash === record.secretHash) {
       // TTL deslizante: chave em uso nunca cai de volta nos limites de tentativa
@@ -162,10 +176,12 @@ export class Authenticator {
       plan: record.tenant.plan,
       keyId: record.keyId,
       keyKind: 'secret',
+      env: record.env,
       modules,
       markets: record.tenant.markets,
       sports: record.tenant.sports,
       rateLimitPerMinute: record.tenant.rateLimitPerMinute,
+      dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
     };
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);

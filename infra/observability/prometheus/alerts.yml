@@ -14,8 +14,9 @@ groups:
 
   - name: galaxie-jobs
     rules:
+      # o verificador e o ensaio de restauração têm alerta próprio já na 1ª falha
       - alert: JobFailingRepeatedly
-        expr: galaxie_job_consecutive_failures >= 3
+        expr: galaxie_job_consecutive_failures{job_name!~"backup-check|pg-restore-drill"} >= 3
         labels:
           severity: critical
         annotations:
@@ -30,6 +31,48 @@ groups:
         annotations:
           summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
           description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+
+  # Política de backup e DR: docs/runbooks/exercicio-dr.md.
+  - name: galaxie-backup
+    rules:
+      # backup-check.sh (a cada 6 h): último dump com mais de 26 h ou, com o recibo do NAS ligado, cópia do NAS atrasada.
+      - alert: BackupCheckFailed
+        expr: galaxie_job_consecutive_failures{job_name="backup-check"} >= 1
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Verificação do backup falhou'
+          description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+
+      - alert: RestoreDrillFailed
+        expr: galaxie_job_consecutive_failures{job_name="pg-restore-drill"} >= 1
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Ensaio de restauração do backup falhou'
+          description: 'O dump mais recente não restaurou ou não passou na conferência. Veja ops.job_run (job pg-restore-drill, coluna error) e o runbook docs/runbooks/exercicio-dr.md.'
+
+      # Mensal (dia 1): sem sucesso há mais de 35 dias = ensaio parado ou desligado. Ensaio que NUNCA teve sucesso
+      # não tem a série do último sucesso; aí a idade conta da 1ª execução do backup-check (job da mesma versão do
+      # serviço backup, a cada 6 h), que fica no banco: um deploy novo não alerta antes de 35 dias e um restart do
+      # Prometheus não zera a contagem (o `for` é só de 1 h).
+      - alert: RestoreDrillStale
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"} > 35 * 86400)
+          or
+          (
+            label_replace(
+              time() - galaxie_job_first_run_timestamp_seconds{job_name="backup-check"} > 35 * 86400,
+              "job_name", "pg-restore-drill", "job_name", ".*"
+            )
+            unless on() galaxie_job_last_success_timestamp_seconds{job_name="pg-restore-drill"}
+          )
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Nenhum ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
+          description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
 
   - name: galaxie-freshness
     rules:
@@ -68,6 +111,37 @@ groups:
         annotations:
           summary: 'API fora do ar para o Prometheus'
           description: 'O alvo {{ $labels.instance }} não responde ao /metrics há 2 minutos.'
+
+      # Disco onde o Docker guarda os volumes (Postgres, backups, Prometheus), medido pelo node-exporter.
+      - alert: DiskAlmostFull
+        expr: >-
+          1 - node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{job="node",fstype!~"tmpfs|overlay"} > 0.85
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Disco {{ $labels.device }} com {{ $value | humanizePercentage }} ocupado'
+          description: 'Acima de 85%. O ensaio de restauração precisa de 2x o tamanho do banco livre; veja docker system df (sem prune) e os dumps em /backups.'
+
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'node-exporter fora do ar: sem medida de disco'
+          description: 'O alvo {{ $labels.instance }} não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
+
+      # Consumidor do ops.change_feed (cache da demo, webhooks) com mudança pendente há mais de 10 min.
+      - alert: ChangeFeedStalled
+        expr: galaxie_change_feed_pending_age_seconds > 600
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Fila do change feed parada para {{ $labels.consumer }}'
+          description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks) e o cursor dele.'
 
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0

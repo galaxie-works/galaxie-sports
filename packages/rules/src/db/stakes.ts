@@ -11,19 +11,16 @@ import {
 } from '@galaxie/db';
 import { loadCompetitionRules } from '../config/loader.js';
 import { knockoutStageRules, rulesStageKey } from '../config/parse.js';
-import type { CompetitionRules } from '../config/types.js';
+import type { CompetitionRules, StandingsTableRule } from '../config/types.js';
 import type { Stake } from '../stakes/codes.js';
 import { fanTagStanding, type FanTagStanding } from '../stakes/fan-tags.js';
 import { knockoutStakes } from '../stakes/knockout.js';
 import { leagueMatchStakes, type Fixture, type LeagueTeamInput } from '../stakes/league.js';
-import {
-  finishedLeagueMatchStakes,
-  leagueInputOf,
-  pickGroupTable,
-  prepareFinishedLeagueMatch,
-} from '../stakes/result.js';
+import { finishedLeagueMatchStakes, leagueInputOf, prepareFinishedLeagueMatch } from '../stakes/result.js';
 import { salienceStanding, type SalienceStanding } from '../stakes/salience.js';
 import type { MatchResult } from '../standings/types.js';
+import { knockoutSeed } from '../standings/tables.js';
+import { phaseResults, pickLeagueTable, roundWithin } from '../stakes/league-table.js';
 import { titleChaseSides, titleChaseStakes } from '../stakes/titles.js';
 
 /**
@@ -79,6 +76,11 @@ export interface KnockoutContext {
   leg: 1 | 2 | null;
   /** Placar da ida (mandante/visitante da ida). */
   firstLeg?: { homeTeamId: string; awayTeamId: string; homeGoals: number; awayGoals: number };
+  /**
+   * Posição de cada lado na tabela de referência do mata-mata (`level_advantage: better_seed`, Liguilla):
+   * empate no confronto classifica o de melhor campanha.
+   */
+  seed?: { home: number; away: number };
   /** Agregado antes da volta, pela ótica do mandante da volta. */
   aggregateBefore?: { home: number; away: number };
   extraTime: boolean;
@@ -139,7 +141,7 @@ export class StakesCache {
   readonly rules = new Map<string, Promise<CompetitionRules>>();
   readonly standings = new Map<string, Promise<StandingRow[]>>();
   readonly openRound = new Map<string, Promise<Fixture[]>>();
-  readonly seasonResults = new Map<string, Promise<MatchResult[]>>();
+  readonly seasonResults = new Map<string, Promise<LeagueResult[]>>();
 }
 
 export interface StakesOptions {
@@ -196,6 +198,32 @@ async function findOtherLeg(db: Database, core: StakesEventRef) {
   return rows[0] ?? null;
 }
 
+/** Rótulo da rodada do evento: o que veio no evento (`providerLabel`) ou o da fase no core. */
+async function stageLabelOf(db: Database, core: StakesEventRef): Promise<string | null> {
+  if (!core.stage) return null;
+  if (core.stage.providerLabel !== undefined) return core.stage.providerLabel;
+  const [row] = await db
+    .select({ label: stage.providerLabel })
+    .from(stage)
+    .where(eq(stage.id, core.stage.id));
+  return row?.label ?? null;
+}
+
+/**
+ * Posição dos dois times na tabela de referência do mata-mata (`knockout.seeding`): a fase de classificação
+ * do torneio (ex.: "Apertura - Quarter-finals" → tabela do Apertura). Só com os dois no mesmo grupo.
+ */
+async function seedOf(
+  db: Database,
+  core: StakesEventRef,
+  rules: CompetitionRules,
+): Promise<{ home: number; away: number } | undefined> {
+  const label = await stageLabelOf(db, core);
+  if (!core.season || !rules.knockout?.seeding.some((sd) => sd.rounds.test(label ?? ''))) return undefined;
+  const rows = await db.select().from(standing).where(eq(standing.seasonId, core.season.id));
+  return knockoutSeed(rules, label, rows, core.home.id, core.away.id);
+}
+
 async function knockoutContext(
   db: Database,
   core: StakesEventRef,
@@ -205,15 +233,24 @@ async function knockoutContext(
     rules,
     core.stage ? rulesStageKey(core.stage.kind, core.stage.providerLabel ?? null) : null,
   );
+  const seed = stageRules.levelAdvantage === 'better_seed' ? await seedOf(db, core, rules) : undefined;
+  // empate decidido pela campanha sem a posição dos dois: não dá para dizer quem passa com o empate
+  if (stageRules.levelAdvantage === 'better_seed' && !seed)
+    return {
+      stakes: [],
+      rules,
+      reason: 'mata-mata decidido pela campanha, sem a posição dos dois na tabela',
+    };
   const base = {
     legs: stageRules.legs,
     extraTime: stageRules.extraTime,
     penalties: stageRules.penalties,
     decidesTitle: stageRules.decidesTitle,
+    ...(seed ? { seed } : {}),
   };
   if (stageRules.legs === 1) {
     return {
-      stakes: knockoutStakes({ rules: stageRules }),
+      stakes: knockoutStakes({ rules: stageRules, ...(seed ? { seed } : {}) }),
       rules,
       knockout: { ...base, legs: 1, leg: null },
     };
@@ -234,7 +271,12 @@ async function knockoutContext(
   // Na ida, o mandante era o visitante deste jogo.
   const firstLeg = { homeTeamId: core.away.id, awayTeamId: core.home.id, homeGoals: h, awayGoals: a };
   return {
-    stakes: knockoutStakes({ rules: stageRules, leg: 2, firstLeg: { homeGoals: h, awayGoals: a } }),
+    stakes: knockoutStakes({
+      rules: stageRules,
+      leg: 2,
+      firstLeg: { homeGoals: h, awayGoals: a },
+      ...(seed ? { seed } : {}),
+    }),
     rules,
     knockout: { ...base, legs: 2, leg: 2, firstLeg, aggregateBefore: { home: a, away: h } },
   };
@@ -258,14 +300,22 @@ function loadOpenRound(db: Database, stageId: string): Promise<Fixture[]> {
 }
 
 /**
+ * Resultado de pontos corridos com o rótulo da rodada (`core.stage.provider_label`) e o tipo do estágio, para
+ * separar os jogos da fase (`phaseResults`).
+ */
+export type LeagueResult = MatchResult & { roundLabel: string | null; stageKind: string };
+
+/**
  * Jogos encerrados das temporadas nas fases de pontos corridos, por temporada e em ordem cronológica
  * (entrada de `prepareFinishedLeagueMatch`). Jogos sem placar ficam de fora.
  */
 export async function loadLeagueResults(
   db: Database,
   seasonIds: readonly string[],
-): Promise<Map<string, MatchResult[]>> {
-  const out = new Map<string, MatchResult[]>();
+  /** Só as rodadas que casam (`core.stage.provider_label`): a fase do regulamento (Apertura, Clausura). */
+  rounds?: RegExp,
+): Promise<Map<string, LeagueResult[]>> {
+  const out = new Map<string, LeagueResult[]>();
   if (!seasonIds.length) return out;
   const home = alias(eventParticipant, 'home_side');
   const away = alias(eventParticipant, 'away_side');
@@ -277,6 +327,8 @@ export async function loadLeagueResults(
       score: event.score,
       homeId: home.participantId,
       awayId: away.participantId,
+      label: stage.providerLabel,
+      kind: stage.kind,
     })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
@@ -292,6 +344,7 @@ export async function loadLeagueResults(
     .orderBy(event.startsAt, event.id);
   for (const r of rows) {
     if (!r.seasonId || typeof r.score?.home !== 'number' || typeof r.score.away !== 'number') continue;
+    if (rounds && !rounds.test(r.label ?? '')) continue;
     const list = out.get(r.seasonId) ?? [];
     list.push({
       id: r.id,
@@ -300,6 +353,8 @@ export async function loadLeagueResults(
       homeGoals: r.score.home,
       awayGoals: r.score.away,
       playedAt: r.startsAt.toISOString(),
+      roundLabel: r.label,
+      stageKind: r.kind,
     });
     out.set(r.seasonId, list);
   }
@@ -335,32 +390,33 @@ function isFinishedWithScore(core: StakesEventRef): boolean {
 async function leagueContext(
   db: Database,
   core: StakesEventRef,
-  rules: CompetitionRules,
+  competitionRules: CompetitionRules,
   options: StakesOptions,
 ): Promise<EventStakes> {
-  const league = rules.league!;
   const season = core.season;
-  if (!season) return { stakes: [], rules, reason: 'evento sem temporada' };
-  const rows = await memo(options.cache?.standings, season.id, () =>
+  if (!season) return { stakes: [], rules: competitionRules, reason: 'evento sem temporada' };
+  const all = await memo(options.cache?.standings, season.id, () =>
     db.select().from(standing).where(eq(standing.seasonId, season.id)),
   );
-  if (
-    !rows.some((r) => r.participantId === core.home.id) ||
-    !rows.some((r) => r.participantId === core.away.id)
-  )
-    return { stakes: [], rules, reason: 'times fora da tabela da temporada' };
-  const groups = new Map<string, StandingRow[]>();
-  for (const r of rows) groups.set(r.group, [...(groups.get(r.group) ?? []), r]);
-  // a mesma liga pode ter dois rótulos de grupo (um desatualizado): fica a tabela mais completa
-  const picked = pickGroupTable(groups.values(), core.home.id, core.away.id);
-  if (!picked) return { stakes: [], rules, reason: 'times em grupos diferentes' };
-  const table = [...picked].sort((x, y) => x.rank - y.rank);
+  // a tabela e a matemática da fase do jogo (a mesma escolha do montador de eventos da API)
+  const hasPhases = competitionRules.tables.some((t) => t.kind === 'phase' && t.rounds);
+  const label = hasPhases ? await stageLabelOf(db, core) : null;
+  const choice = pickLeagueTable(
+    competitionRules,
+    core.stage ? { kind: core.stage.kind, label } : null,
+    all,
+    core.home.id,
+    core.away.id,
+  );
+  if (choice.reason !== undefined) return { stakes: [], rules: choice.rules, reason: choice.reason };
+  const { phase, rules, table } = choice;
+  const league = rules.league!;
   const group = table[0]!.group;
   const homeRow = table.find((r) => r.participantId === core.home.id)!;
   const awayRow = table.find((r) => r.participantId === core.away.id)!;
   if (league.teams !== null && table.length !== league.teams)
     return { stakes: [], rules, reason: `tabela incompleta (${table.length} de ${league.teams} times)` };
-  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options);
+  if (isFinishedWithScore(core)) return finishedLeagueContext(db, core, rules, table, options, phase, all);
   const input: LeagueTeamInput[] = table.map((r) => ({
     teamId: r.participantId,
     points: r.points,
@@ -373,7 +429,7 @@ async function leagueContext(
   if (stage) {
     const ids = new Set(input.map((t) => t.teamId));
     const round = await memo(options.cache?.openRound, stage.id, () => loadOpenRound(db, stage.id));
-    nextRound = round.filter((f) => ids.has(f.homeId) && ids.has(f.awayId));
+    nextRound = roundWithin(round, ids, phase?.crossGroupMatches === true);
   }
   const remaining = (played: number) =>
     league.matchesPerTeam === null ? null : league.matchesPerTeam - played;
@@ -426,18 +482,21 @@ async function finishedLeagueContext(
   rules: CompetitionRules,
   table: StandingRow[],
   options: StakesOptions,
+  phase: StandingsTableRule | null,
+  seasonRows: readonly StandingRow[],
 ): Promise<EventStakes> {
   const league = rules.league!;
   const season = core.season!;
-  const results = await memo(options.cache?.seasonResults, season.id, async () => {
+  const all = await memo(options.cache?.seasonResults, season.id, async () => {
     const bySeason = await loadLeagueResults(db, [season.id]);
     return bySeason.get(season.id) ?? [];
   });
+  // os jogos que o recálculo soma na fase: os das rodadas dela e os de rodada desconhecida adotados nela
+  const results = phaseResults(rules, phase, all, seasonRows);
   const ids = new Set(table.map((r) => r.participantId));
+  const crossGroup = phase?.crossGroupMatches === true;
   const nextRound = core.stage
-    ? (await loadRoundAtKickoff(db, core, core.stage.id)).filter(
-        (f) => ids.has(f.homeId) && ids.has(f.awayId),
-      )
+    ? roundWithin(await loadRoundAtKickoff(db, core, core.stage.id), ids, crossGroup)
     : undefined;
   const finished = finishedLeagueMatchStakes(
     prepareFinishedLeagueMatch({
@@ -455,6 +514,7 @@ async function finishedLeagueContext(
       results,
       matchId: core.id,
       ...(nextRound ? { nextRound } : {}),
+      ...(crossGroup ? { crossGroup } : {}),
     }),
   );
   const before = leagueInputOf(finished.before);

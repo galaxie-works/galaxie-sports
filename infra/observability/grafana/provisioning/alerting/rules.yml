@@ -1,0 +1,47 @@
+# Ponte dos alertas do Prometheus para o Grafana (que manda o e-mail). As regras de verdade ficam em
+# infra/observability/prometheus/alerts.yml (testadas com promtool); esta regra só lê os que estão disparando
+# (série ALERTS) e vira uma instância por alerta, com os rótulos dele. O nome original vai em `prometheus_alert`
+# (o rótulo `alertname` é o título desta regra no Grafana).
+# Sem ALERT_EMAIL_TO e ALERT_SMTP_HOST (entrypoint.sh), os alertas aparecem em Alerting → Alert rules e não saem.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: prometheus
+    folder: Galaxie Sports
+    interval: 1m
+    rules:
+      - uid: galaxie-prometheus-alerts
+        title: Alerta do Prometheus
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: label_replace(ALERTS{alertstate="firing"}, "prometheus_alert", "$1", "alertname", "(.*)")
+              instant: true
+              range: false
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        # nada disparando no Prometheus = sem dados = tudo certo; Prometheus fora do ar = erro, que também notifica
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          origem: prometheus
+        annotations:
+          summary: '{{ $labels.prometheus_alert }} ({{ $labels.severity }})'
+          description: >-
+            Alerta {{ $labels.prometheus_alert }} disparando no Prometheus. Rótulos: {{ $labels }}. Detalhes e
+            anotações: Alerting no Grafana (fonte Prometheus) ou /alerts no Prometheus (túnel SSH).

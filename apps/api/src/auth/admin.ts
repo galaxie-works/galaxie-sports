@@ -23,6 +23,8 @@ export interface TenantInput {
   sports?: string[];
   rateLimitPerMinute?: number;
   dailyRequestQuota?: number | null;
+  /** Fim do trial (plano `trial`); null = sem prazo. */
+  trialEndsAt?: Date | null;
 }
 
 export function isModule(value: string): value is ApiModule {
@@ -31,7 +33,7 @@ export function isModule(value: string): value is ApiModule {
 
 /** Cria o tenant ou atualiza o existente com o mesmo slug (idempotente). */
 export async function upsertTenant(
-  db: Database,
+  db: DbOrTx,
   input: TenantInput,
 ): Promise<{ id: string; created: boolean }> {
   const values = {
@@ -43,6 +45,7 @@ export async function upsertTenant(
     sports: input.sports ?? [],
     rateLimitPerMinute: input.rateLimitPerMinute ?? 120,
     ...(input.dailyRequestQuota !== undefined ? { dailyRequestQuota: input.dailyRequestQuota } : {}),
+    ...(input.trialEndsAt !== undefined ? { trialEndsAt: input.trialEndsAt } : {}),
   };
   const [row] = await db
     .insert(tenant)
@@ -76,6 +79,7 @@ export async function createApiKey(
       tenantId,
       prefix: generated.prefix,
       env: generated.env,
+      keyFormat: generated.format,
       secretHash: await hashSecret(generated.secret),
       label: options.label ?? null,
       scopes: options.scopes ?? null,

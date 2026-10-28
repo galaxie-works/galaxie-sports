@@ -59,6 +59,13 @@ export {
   type RuntimeSettingWrite,
 } from './runtime-settings.js';
 export {
+  listKeyEvents,
+  recordKeyEvent,
+  type KeyEvent,
+  type KeyEventAction,
+  type KeyEventInput,
+} from './key-events.js';
+export {
   listWidgets,
   getWidget,
   saveWidget,
@@ -73,10 +80,17 @@ export {
   hashPublishableKey,
   isPublishableKey,
   isOriginAllowed,
+  isLoopbackOrigin,
   normalizeAllowedOrigin,
+  originsOutsideEnv,
+  publishableKeyEnv,
   isWidgetKind,
+  MAX_PUBLISHABLE_KEYS_PER_TENANT,
   PUBLISHABLE_KEY_PREFIX,
+  PUBLISHABLE_TEST_KEY_PREFIX,
+  PublishableKeyLimitError,
   WIDGET_KIND_MODULES,
+  type PublishableKeyEnv,
   type Widget,
   type SaveWidgetInput,
   type CreatePublishableKeyInput,

@@ -1,18 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryTenantStore } from './tenant-store.js';
 import { Authenticator } from './authenticator.js';
-import { generateApiKey, hashSecret, parseApiKey, verifySecret } from './keys.js';
+import {
+  API_KEY_SCAN_PATTERN,
+  formatApiKey,
+  generateApiKey,
+  hashSecret,
+  parseApiKey,
+  verifySecret,
+} from './keys.js';
 import { AuthThrottle, ipBucket } from './throttle.js';
 import { MemoryVerifiedKeyStore } from './verified-keys.js';
 import { MemoryRateLimiter } from '../rate-limit.js';
-import { memoryTenant } from '../test-helpers.js';
+import { memoryTenant, withRandomSecret } from '../test-helpers.js';
 
 describe('chaves de API', () => {
-  it('gera chaves no formato gs_<env>_<prefixo>_<segredo> e as interpreta de volta', () => {
+  it('gera chaves no formato gs_<env>_<prefixo>_<segredo>_<crc32> e as interpreta de volta', () => {
     const k = generateApiKey('live');
-    expect(k.key).toMatch(/^gs_live_[0-9a-f]{12}_[A-Za-z0-9_-]{43}$/);
-    expect(parseApiKey(k.key)).toEqual({ env: 'live', prefix: k.prefix, secret: k.secret });
+    expect(k.key).toMatch(/^gs_live_[0-9a-f]{12}_[A-Za-z0-9_-]{43}_[0-9a-f]{8}$/);
+    expect(parseApiKey(k.key)).toEqual({ env: 'live', prefix: k.prefix, secret: k.secret, format: 2 });
     expect(parseApiKey('gs_live_curta')).toBeNull();
+    // o padrão de varredura (gitleaks, secret scanning) acha a chave no meio de um texto
+    expect(new RegExp(API_KEY_SCAN_PATTERN).exec(`KEY="${k.key}"`)?.[0]).toBe(k.key);
+  });
+
+  it('checksum: erro de digitação ou chave inventada é recusado sem consultar o banco', () => {
+    const k = generateApiKey('test');
+    const typo = `${k.key.slice(0, 20)}${k.key[20] === 'a' ? 'b' : 'a'}${k.key.slice(21)}`;
+    expect(parseApiKey(typo)).toBeNull();
+    // trocar o ambiente no texto também invalida o checksum
+    expect(parseApiKey(k.key.replace('gs_test_', 'gs_live_'))).toBeNull();
+    // formato legado (sem checksum) ainda é lido, marcado como formato 1
+    const legacy = `gs_live_${k.prefix}_${k.secret}`;
+    expect(parseApiKey(legacy)).toMatchObject({ env: 'live', format: 1 });
   });
 
   it('guarda só o hash scrypt com sal e verifica em tempo constante', async () => {
@@ -59,7 +79,7 @@ describe('Authenticator', () => {
       touchKey: store.touchKey.bind(store),
     };
     const auth = new Authenticator(counting);
-    const wrong = `${key.slice(0, -4)}AAAA`;
+    const wrong = withRandomSecret(key);
     await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
     await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
     expect(lookups).toBe(1);
@@ -96,7 +116,7 @@ describe('Authenticator sob chaves aleatórias (auditoria API-2)', () => {
       },
     };
   };
-  const randomSecret = (key: string) => `${key.slice(0, -43)}${generateApiKey().secret}`;
+  const randomSecret = withRandomSecret;
   const throttle = (attemptsPerMinute: number) =>
     new AuthThrottle(new MemoryRateLimiter(), { attemptsPerMinute });
 
@@ -230,5 +250,45 @@ describe('AuthThrottle', () => {
     await t.check('ip:203.0.113.1');
     await expect(t.check('ip:203.0.113.1')).rejects.toMatchObject({ code: 'RATE_LIMITED' });
     expect(errors).toHaveLength(3);
+  });
+});
+
+describe('ambiente e formato da chave (docs/politica-de-chaves.md §1)', () => {
+  it('prefixo que diverge do ambiente gravado → 401, sem bloquear a chave certa do mesmo prefixo', async () => {
+    const { store, key, prefix } = await memoryTenant({ env: 'test' });
+    const p = parseApiKey(key)!;
+    const auth = new Authenticator(store);
+    const asLive = formatApiKey('live', prefix, p.secret);
+    await expect(auth.authenticate(asLive)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    await expect(auth.authenticate(key)).resolves.toMatchObject({ env: 'test' });
+    // e a chave com o prefixo trocado continua recusada depois (não entrou em cache como válida)
+    await expect(auth.authenticate(asLive)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+  });
+
+  it('chave de formato 2 enviada sem o checksum → 401; legado (formato 1) segue até a migração', async () => {
+    const { store, key, prefix } = await memoryTenant();
+    const p = parseApiKey(key)!;
+    const auth = new Authenticator(store);
+    await expect(auth.authenticate(`gs_live_${prefix}_${p.secret}`)).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+    });
+    store.keys.get(prefix)!.keyFormat = 1;
+    await expect(auth.authenticate(`gs_live_${prefix}_${p.secret}`)).resolves.toMatchObject({ env: 'live' });
+  });
+});
+
+describe('trial (docs/politica-de-chaves.md §3)', () => {
+  it('depois do fim do trial nenhuma chave do tenant autentica', async () => {
+    const { store, key, prefix } = await memoryTenant({
+      plan: 'trial',
+      trialEndsAt: new Date(Date.now() + 60_000),
+    });
+    const auth = new Authenticator(store, { cacheTtlMs: 0 });
+    await expect(auth.authenticate(key)).resolves.toMatchObject({ plan: 'trial' });
+    store.keys.get(prefix)!.tenant.trialEndsAt = new Date(Date.now() - 1);
+    await expect(auth.authenticate(key)).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+      detail: expect.stringMatching(/trial terminou/),
+    });
   });
 });
