@@ -280,6 +280,87 @@ provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensai
 - Resultado dos dois em `ops.job_run` (jobs `backup-check` e `pg-restore-drill`) e nas métricas `galaxie_job_*`.
 - O serviço `node-exporter` mede o disco onde o Docker guarda os volumes (alerta acima de 85%). Ele monta o volume
   `promdata` só para leitura, sem bind mount do host nem porta publicada.
+- **Dump antes do migrate:** quando o journal do SHA novo tem mais migrations que o banco, o deploy (`deploy-gh.sh` e
+  `deploy.sh`) roda `pre-migrate-dump.sh` antes de trocar o compose: `backups/pre-migrate-<data>-<antigo>-<novo>.dump`
+  na pasta da stack (fora do volume), conferido com `pg_restore --list`, guardando os 3 mais novos
+  (`PRE_MIGRATE_KEEP`). Sem espaço (menos da metade do tamanho do banco livre) ou com o `pg_dump` falhando, o deploy
+  para sem ter tocado em nada; `SKIP_PRE_MIGRATE_DUMP=1` publica sem ele. Migration nova não tem rollback automático:
+  voltar é restaurar esse dump (`infra/backup/restore.sh`) e subir a versão anterior.
+- O dump de partida do serviço `backup` (`BACKUP_ON_START`) espera o `migrate` terminar: o `pg_dump` segura as
+  tabelas e o `migrate`, com `lock_timeout` curto, desistiria.
+
+## Freios: banco, Valkey e processos Node
+
+Uma consulta presa, o Valkey cheio ou um job vazando memória não podem derrubar a API e o ao vivo.
+
+### Tempos limite
+
+| Onde | Tempo | Por quê |
+| --- | --- | --- |
+| Pool da API (`profile: 'api'`) | `statement_timeout` 10 s, `lock_timeout` 3 s, `idle_in_transaction_session_timeout` 15 s | Abaixo do timeout de 30 s da requisição: a consulta presa solta a conexão e o pool de 10 não fica todo esperando trava. |
+| Pools da demo | Builder e change feed como a API; login/painel com `statement_timeout` 30 s | O painel de Operação agrega `ops.job_run` e `ops.llm_usage` (página de admin, fora do caminho da API). |
+| Jobs e CLIs (`profile: 'job'`, o padrão) | 10 min, 60 s, 10 min | Normalização e sync têm consultas de minutos; o teto pega só o que travou, bem abaixo do tempo limite dos jobs (15 a 120 min). |
+| Migrate (`profile: 'migrate'`) | sem `statement_timeout`; `lock_timeout` 5 s, até 5 tentativas com 10 s entre elas | Índice novo em tabela grande demora. Na fila de um `ACCESS EXCLUSIVE`, a migration faria a API inteira esperar atrás dela; o drizzle aplica tudo numa transação, então desistir não deixa nada pela metade. |
+| Postgres (servidor) | `idle_in_transaction_session_timeout` 30 min; log de consulta acima de 5 s e de espera por trava | Rede de segurança para o `psql` à mão; os da aplicação vêm por pool. |
+| Valkey (ioredis da API) | `commandTimeout` 1 s (`REDIS_COMMAND_TIMEOUT_MS`) | Cache, rate limit e cota já falham abertos; sem o teto, um Valkey lento segurava a requisição. A conexão do `SUBSCRIBE` do SSE fica sem teto (espera o Valkey voltar). |
+| api-sports | prioridade LIVE 30 s (`APISPORTS_LIVE_TIMEOUT_MS`); as outras 180 s | O ao vivo repete a cada poucos segundos: esperar 3 min por uma chamada segurava o tick inteiro. |
+| YouTube Data API | 20 s | O `related-run` (a cada 3 min) não fica pendurado. |
+| Download do F1DB | 5 min | O zip tem dezenas de MB. |
+| S3 (ingestor e upload da demo) | conexão 5 s, 30 s sem dado no socket | Sem isso o SDK esperava para sempre; o espelho de assets ficava preso até o teto de 90 min do job. |
+
+Escape para uma CLI pesada rodada à mão: `-e DB_STATEMENT_TIMEOUT_MS=0` (também `DB_LOCK_TIMEOUT_MS` e
+`DB_IDLE_IN_TRANSACTION_TIMEOUT_MS`; 0 = sem teto).
+
+### Conexões
+
+Cada sessão aparece em `pg_stat_activity` com o nome do pool (`galaxie-api`, `galaxie-scheduler`,
+`galaxie-job:<job>`, `galaxie-demo-*`, `galaxie-migrate`):
+
+```sql
+select application_name, state, count(*) from pg_stat_activity where datname is not null group by 1, 2 order by 3 desc;
+```
+
+Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
+
+| Pool | Antes | Depois |
+| --- | --- | --- |
+| API | 10 | 10 |
+| Demo (login 5, Builder 3, change feed 2) | 10 | 10 |
+| Ingestor: scheduler | 2 | 2 |
+| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | ao vivo 3 × (4 + 1) + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 25 |
+| Agents: scheduler | 2 | 2 |
+| Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
+| Backup, migrate, dump antes do migrate | 2 | 3 |
+| **Total** | **~106: passava do limite** | **67, com ~30 de folga para CLI à mão e `psql`** |
+
+O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
+
+### Memória dos jobs
+
+Cada job do scheduler é um processo Node filho com heap fixo (`--max-old-space-size` do job ou
+`SCHEDULER_JOB_HEAP_MB`, e geração nova de 3 × 8 MB). Sem os flags, o V8 dimensiona pela máquina, e a geração nova
+sozinha pode chegar a ~190 MB por processo. Um job que vaza memória morre sozinho com `heap out of memory` (código
+134 em `ops.job_run`), em vez de o kernel matar o maior processo do contêiner. A conta, com ~64 MB por processo além do
+heap (geração nova e o próprio Node):
+
+| Contêiner | Processos no pior caso | Soma |
+| --- | --- | --- |
+| `ingestor` (1g) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB |
+| `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB |
+| `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
+
+Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
+mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça
+a conta. A CLI rodada à mão (`docker compose run ... node dist/cli/x.js`) fica no padrão do V8.
+
+### Valkey
+
+`maxmemory` 160 MB num contêiner de 256 MB: a folga cobre o fork da reescrita do AOF e a fragmentação. Cheio, despeja
+pela LRU só chave com TTL (`volatile-lru`). Todas têm TTL: cache de respostas e índices de tag, marcas de purge, rate
+limit, chaves verificadas, contadores de uso (4 dias; o hash leva a época e o persister consolida em
+`api.usage_daily`, então um despejo não soma errado), leases e cursor do SSE e travas. A exceção é `gs:purge-seq`, um
+contador de poucos bytes que não pode sumir (o cache depende de ele só crescer): sem TTL, nunca é despejado. Valkey
+cheio só de chaves sem TTL recusaria gravações, e cache e rate limit seguem pelo caminho de falha aberta.
 
 ### Alertas por e-mail
 

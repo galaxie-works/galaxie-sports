@@ -486,3 +486,43 @@ describe('ApiSportsClient: falhas depois do fetch', () => {
     expect(calls()).toBe(2);
   });
 });
+
+describe('ApiSportsClient: tempo limite por prioridade', () => {
+  /** fetch que só termina quando o sinal aborta; registra quanto tempo cada chamada esperou. */
+  function hanging() {
+    const waited: { endpoint: string; ms: number }[] = [];
+    const fetchFn = ((url: string, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => {
+        const t0 = Date.now();
+        init?.signal?.addEventListener('abort', () => {
+          waited.push({ endpoint: new URL(url).pathname, ms: Date.now() - t0 });
+          reject(init.signal!.reason);
+        });
+      })) as typeof globalThis.fetch;
+    const client = new ApiSportsClient({
+      apiKey: 'test-key',
+      store: new InMemoryRawStore(),
+      governor: new InMemoryQuotaGovernor(() => defaultPolicy(100)),
+      fetch: fetchFn,
+      timeoutMs: 400,
+      liveTimeoutMs: 40,
+      rateLimiter: new RateLimiter(6000),
+    });
+    return { client, waited };
+  }
+
+  it('o ao vivo desiste no tempo curto; as outras chamadas, no longo', async () => {
+    const { client, waited } = hanging();
+    const live = {
+      sport: 'football',
+      endpoint: '/fixtures',
+      params: { live: 'all' },
+      priority: 'LIVE',
+    } as const;
+    await expect(client.get(live)).rejects.toMatchObject({ name: 'ApiSportsError', outcome: 'timeout' });
+    const daily = { sport: 'football', endpoint: '/teams', params: { id: 7 }, priority: 'DAILY' } as const;
+    await expect(client.get(daily)).rejects.toMatchObject({ outcome: 'timeout' });
+    expect(waited[0]!.ms).toBeLessThan(300);
+    expect(waited[1]!.ms).toBeGreaterThanOrEqual(350);
+  });
+});

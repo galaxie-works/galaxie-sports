@@ -33,6 +33,11 @@ export interface ApiSportsClientOptions {
   clock?: Clock;
   /** Respostas grandes (fixtures?date=) podem passar de 60 s. */
   timeoutMs?: number;
+  /**
+   * Tempo limite das chamadas de prioridade LIVE (padrão 30 s). O ao vivo repete a cada poucos segundos: uma
+   * chamada pendurada por 3 min segura o tick inteiro, e a próxima traz o placar de qualquer jeito.
+   */
+  liveTimeoutMs?: number;
   /** Chamado quando o fornecedor desloca a janela de temporadas do plano de uma API. */
   onPlanChange?: (plan: PlanRules, sport: ApiSport) => void;
   /**
@@ -83,12 +88,14 @@ export class ApiSportsClient {
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly clock: Clock;
   private readonly timeoutMs: number;
+  private readonly liveTimeoutMs: number;
   private readonly inFlight = new Map<string, Promise<CallResult<unknown>>>();
 
   constructor(private readonly options: ApiSportsClientOptions) {
     this.clock = options.clock ?? systemClock;
     this.fetchFn = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? 180_000;
+    this.liveTimeoutMs = options.liveTimeoutMs ?? 30_000;
   }
 
   /** Regras do plano do futebol (API principal). Para as demais APIs, use `planRulesFor(sport)`. */
@@ -183,6 +190,7 @@ export class ApiSportsClient {
     maxAge: number,
   ): Promise<CallResult<T>> {
     const startedAt = this.clock.now();
+    const timeoutMs = req.priority === 'LIVE' ? this.liveTimeoutMs : this.timeoutMs;
     // O limitador local vem antes da reserva: o Governor marca o envio (sent_at) na reserva e, com o
     // limite por minuto na política, espera a vaga somando os outros processos que usam a chave.
     await this.limiterFor(req.sport).take(req.sport);
@@ -208,7 +216,7 @@ export class ApiSportsClient {
           this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
           return hit;
         }
-        if (now - startedAt > this.timeoutMs) throw err;
+        if (now - startedAt > timeoutMs) throw err;
       }
     }
 
@@ -218,7 +226,7 @@ export class ApiSportsClient {
     try {
       response = await this.fetchFn(url, {
         headers: { 'x-apisports-key': this.options.apiKey },
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       // o timeout vale também para a leitura do corpo, que pode falhar depois do status
       text = await response.text();

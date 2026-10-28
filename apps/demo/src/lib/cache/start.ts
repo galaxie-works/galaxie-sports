@@ -31,7 +31,7 @@ export function startCacheFeed(): ChangeFeedFollower | undefined {
     return undefined;
   }
   const follower = new ChangeFeedFollower(
-    pgFeedStore(createDb(url, { max: 2 })),
+    pgFeedStore(createDb(url, { max: 2, profile: 'api', applicationName: 'galaxie-demo-cache' })),
     revalidateOverHttp({ baseUrl: internalBaseUrl(), secret: revalidateSecret }),
     { logger },
   );

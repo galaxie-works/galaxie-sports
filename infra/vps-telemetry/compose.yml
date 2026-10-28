@@ -51,6 +51,27 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     shm_size: 256mb
+    # Ajustado ao contêiner de 1 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
+    # max_connections fica nos 100 do padrão: a soma dos pools no pico é 67 (conta no README › Conexões). Teto
+    # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=640MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - idle_in_transaction_session_timeout=30min
+      - -c
+      - log_min_duration_statement=5s
+      - -c
+      - log_lock_waits=on
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -64,7 +85,10 @@ services:
     image: valkey/valkey:8-alpine
     restart: unless-stopped
     mem_limit: 256m
-    command: ['valkey-server', '--appendonly', 'yes']
+    # maxmemory abaixo do mem_limit (folga para o fork do AOF e a fragmentação): cheio, despeja pela LRU só chave
+    # com TTL — todas têm (cache, rate limit, uso, leases do SSE), menos o contador gs:purge-seq, que não pode sumir.
+    command:
+      ['valkey-server', '--appendonly', 'yes', '--maxmemory', '160mb', '--maxmemory-policy', 'volatile-lru']
     volumes:
       - valkeydata:/data
     healthcheck:
@@ -271,7 +295,9 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    # scheduler + faixa do ao vivo (live-run, live-reconcile, events-clock) + SCHEDULER_MAX_JOBS jobs, cada um com
+    # heap fixo: a soma no pior caso é 1 GB (README › Memória dos jobs)
+    mem_limit: 1g
     environment:
       <<: *node-env
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
@@ -293,6 +319,8 @@ services:
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
       SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
       SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+      SCHEDULER_MAX_JOBS: ${SCHEDULER_MAX_JOBS:-2}
+      SCHEDULER_JOB_HEAP_MB: ${SCHEDULER_JOB_HEAP_MB:-160}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
@@ -314,10 +342,13 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    # scheduler + SCHEDULER_MAX_JOBS jobs de 128 MB de heap: ~690 MB no pior caso (README › Memória dos jobs)
+    mem_limit: 768m
     environment:
       <<: *node-env
       SCHEDULER_PROFILE: agents
+      SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
+      SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -435,9 +466,12 @@ services:
       AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
     volumes:
       - backups:/backups
+    # o dump de partida (BACKUP_ON_START) segura as tabelas e faria o migrate esperar trava: só depois dele
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     logging: *logging
 
   # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────

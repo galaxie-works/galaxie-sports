@@ -6,6 +6,8 @@
  */
 
 export const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
+/** Uma chamada da Data API que não respondeu em 20 s não vai responder: o job segue (ou falha) em vez de pendurar. */
+export const YOUTUBE_TIMEOUT_MS = 20_000;
 
 export type YoutubeMethod = 'search' | 'videos' | 'channels' | 'playlistItems';
 
@@ -39,7 +41,10 @@ export interface QuotaUsage {
   api: number;
 }
 
-export type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<Response>;
+export type FetchLike = (
+  url: string,
+  init?: { headers?: Record<string, string>; signal?: AbortSignal },
+) => Promise<Response>;
 
 export class YoutubeError extends Error {
   constructor(
@@ -222,6 +227,8 @@ export class YoutubeClient {
     this.options.onUnits?.(YOUTUBE_UNITS[method], method, bucket);
     const res = await this.fetchFn(`${this.baseUrl}/${method}?${qs.toString()}`, {
       headers: { accept: 'application/json', 'user-agent': 'galaxie-sports/0.1' },
+      // vale também para a leitura do corpo
+      signal: AbortSignal.timeout(YOUTUBE_TIMEOUT_MS),
     });
     const body = obj(await res.json().catch(() => ({})));
     if (!res.ok) {

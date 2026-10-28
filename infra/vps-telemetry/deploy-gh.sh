@@ -17,7 +17,8 @@
 #   4. login no GHCR num DOCKER_CONFIG temporário da VPS (o token chega pelo stdin, nunca na linha de comando, e o
 #      arquivo sai no fim): a VPS não guarda credencial do GitHub
 #   5. compose.yml do SHA e IMAGE_TAG no .env, validados; docker compose pull só dos serviços com imagem nossa (os de
-#      terceiros, como o postgres, ficam na imagem que já está na VPS); backup dos dois arquivos e troca
+#      terceiros, como o postgres, ficam na imagem que já está na VPS); com migration nova no journal do SHA, dump do
+#      banco (pre-migrate-dump.sh; falhou = para sem trocar nada); backup dos dois arquivos e troca
 #   6. docker compose up -d (escala atual do ingestor; PULL_POLICY=missing) e migrate com saída 0
 #   7. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA) e smoke test (smoke.mjs)
 #   8. up, migrate, pós-deploy ou smoke com falha → volta para o SHA anterior quando é garantidamente o estado de antes
@@ -87,6 +88,7 @@ OLD=""
 SCALE=""
 MIG_BEFORE=""
 MIG_AFTER=""
+PRE_DUMP="" # dump de antes do migrate (só com migration nova)
 LOCK_ID="gha-$RUN_ID-$(date +%s)"
 
 rollback_help() {
@@ -101,6 +103,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: $PRE_DUMP"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
@@ -183,6 +186,22 @@ if ! ssh "$VPS" "$CD && (umask 077 && sed -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -
   echo "FAIL  compose.yml/.env novos inválidos ou pull do GHCR falhou; nada foi trocado na VPS"
   exit 1
 fi
+
+# ── dump antes do migrate ───────────────────────────────────────────────────────────────────────────────────
+# Migration nova não tem volta automática (restore_previous recusa): o dump é a volta. Só quando o journal do SHA tem
+# mais migrations que o banco; sem espaço ou com o pg_dump falhando, para aqui, sem ter trocado nada.
+journal="$(grep -c '"idx"' "$TARGET/packages/db/drizzle/meta/_journal.json")" || journal=""
+if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
+  echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
+elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$HERE/pre-migrate-dump.sh")"; then
+  printf '%s\n' "$out" | grep -v '^PRE_DUMP=' || true
+  PRE_DUMP="$(sed -n 's/^PRE_DUMP=//p' <<< "$out")"
+else
+  printf '%s\n' "$out"
+  echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
+  exit 1
+fi
+
 ssh "$VPS" "$CD && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
   && mv compose.yml.new compose.yml && sed -i -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|' .env"
 MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""

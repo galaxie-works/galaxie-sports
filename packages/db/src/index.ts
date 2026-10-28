@@ -1,5 +1,17 @@
 export * from './schema/index.js';
-export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
+export {
+  createDb,
+  closeDb,
+  pingDb,
+  resolveDbTimeouts,
+  sessionParams,
+  DB_POOL_MAX,
+  DB_TIMEOUTS,
+  type Database,
+  type CreateDbOptions,
+  type DbProfile,
+  type DbTimeouts,
+} from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
 export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';

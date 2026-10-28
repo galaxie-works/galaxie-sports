@@ -28,6 +28,10 @@ const url = process.env.DEMO_DATABASE_URL ?? process.env.DATABASE_URL;
 /** Conexão que as funções acima recebem como primeiro argumento (uma por processo; o dev server recarrega módulos). */
 export function builderDb(): Database {
   if (!url) throw new Error('DEMO_DATABASE_URL/DATABASE_URL não definido: o Builder precisa do banco.');
-  globalThis.__galaxieBuilderDb ??= createDb(url, { max: 3 });
+  globalThis.__galaxieBuilderDb ??= createDb(url, {
+    max: 3,
+    profile: 'api',
+    applicationName: 'galaxie-demo-builder',
+  });
   return globalThis.__galaxieBuilderDb;
 }

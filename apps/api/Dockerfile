@@ -40,4 +40,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.API_PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/main.js"]
+# Heap fixo para caber no mem_limit de 512m (velho 320 + novo 3 × 16 + ~50 do processo): sem o flag, o V8 dimensiona
+# pela máquina e um vazamento vira OOM do contêiner em vez de "heap out of memory" no log. O migrate (mesma imagem)
+# troca o comando e fica no padrão.
+CMD ["node", "--max-old-space-size=320", "--max-semi-space-size=16", "dist/main.js"]

@@ -17,6 +17,13 @@ export interface ScheduledJob {
   timeoutMs: number;
   /** O tempo limite é do job e não segue SCHEDULER_TIMEOUT_MINUTES (o ao vivo fica no ar por horas). */
   ownTimeout?: boolean;
+  /**
+   * Faixa do ao vivo: nunca espera na fila do teto de jobs simultâneos (SCHEDULER_MAX_JOBS). São poucos, cada um
+   * roda uma vez só por vez (trava), e o heap deles entra na conta da memória do contêiner (README › Memória).
+   */
+  live?: boolean;
+  /** Teto do heap do processo do job (--max-old-space-size, MB); padrão SCHEDULER_JOB_HEAP_MB. */
+  heapMb?: number;
 }
 
 const MINUTE = 60_000;
@@ -44,6 +51,8 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     args: [],
     timeoutMs: 20 * 60 * MINUTE,
     ownTimeout: true,
+    live: true,
+    heapMb: 128,
   },
   {
     name: 'live-reconcile',
@@ -55,6 +64,8 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     // botão de pânico do painel: confere todo jogo em andamento, não só os parados
     onDemandArgs: ['--forcar'],
     timeoutMs: 15 * MINUTE,
+    live: true,
+    heapMb: 64,
   },
   {
     name: 'normalize-football',
@@ -80,6 +91,8 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     script: 'dist/cli/events-clock.js',
     args: [],
     timeoutMs: 5 * MINUTE,
+    live: true,
+    heapMb: 64,
   },
   {
     name: 'events-importance',

@@ -34,7 +34,7 @@ if (!secrets.configured)
     'webhooks: WEBHOOK_SIGNING_SECRET não definida — só endpoints com segredo legado em texto puro serão entregues',
   );
 
-const db = createDb(url, { max: 5 });
+const db = createDb(url, { max: 5, applicationName: 'galaxie-webhooks' });
 const maxAttempts = num('WEBHOOK_MAX_ATTEMPTS');
 const baseDelayMs = num('WEBHOOK_RETRY_BASE_MS');
 const timeoutMs = num('WEBHOOK_TIMEOUT_MS');

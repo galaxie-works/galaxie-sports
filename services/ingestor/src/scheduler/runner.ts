@@ -59,6 +59,8 @@ export interface RunOptions {
   trigger: RunTrigger;
   /** Tempo para o processo encerrar depois do SIGTERM antes do SIGKILL. */
   killGraceMs?: number;
+  /** Heap do processo do job quando a definição não traz o seu (--max-old-space-size, MB). */
+  heapMb?: number;
   /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */
   signal?: AbortSignal | undefined;
   /**
@@ -85,6 +87,27 @@ export interface RunResult {
 /** Código de saída do `scheduler --run`: budget_skipped (gravou o determinístico) não é falha. */
 export const runExitCode = (status: RunResult['status']): number =>
   status === 'ok' || status === 'budget_skipped' ? 0 : 1;
+
+/**
+ * Heap padrão de um job (MB). O teto faz o job que vaza memória morrer sozinho com "heap out of memory" (código
+ * 134 em ops.job_run), em vez de o kernel matar o maior processo do contêiner (o ao vivo, ou o scheduler).
+ */
+export const DEFAULT_JOB_HEAP_MB = 160;
+
+/**
+ * Geração nova de cada job: 3 × 8 MB. Sem o flag, o V8 dimensiona pelo tamanho da máquina e pode reservar até
+ * ~190 MB por processo, o que tiraria a soma dos jobs do mem_limit.
+ */
+export const JOB_SEMI_SPACE_MB = 8;
+
+/** Flags de memória do filho (vêm antes do script e valem por cima de um NODE_OPTIONS herdado). */
+export function heapFlags(job: Pick<ScheduledJob, 'heapMb'>, fallbackMb = DEFAULT_JOB_HEAP_MB): string[] {
+  const mb = job.heapMb ?? fallbackMb;
+  return [
+    `--max-old-space-size=${Math.max(32, Math.round(mb))}`,
+    `--max-semi-space-size=${JOB_SEMI_SPACE_MB}`,
+  ];
+}
 
 /**
  * Executa o CLI do job num processo filho (isolamento: um job que trava ou vaza memória não derruba o scheduler),
@@ -141,16 +164,22 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
     Pick<RunResult, 'exitCode' | 'signal' | 'timedOut'> & { spawnError?: Error }
   >((done) => {
     const cwd = resolve(options.cwd, job.cwd ?? '.');
-    const child = spawn(process.execPath, [resolve(cwd, job.script), ...job.args], {
-      cwd,
-      env: {
-        ...(options.env ?? process.env),
-        // o job sabe que veio do scheduler: a IA desconta das faixas por prioridade, não da `manual`
-        GALAXIE_INVOKER: 'scheduler',
-        ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}),
+    const child = spawn(
+      process.execPath,
+      [...heapFlags(job, options.heapMb), resolve(cwd, job.script), ...job.args],
+      {
+        cwd,
+        env: {
+          // nome da sessão no Postgres (pg_stat_activity): quem segura conexão ou consulta
+          PGAPPNAME: `galaxie-job:${job.name}`,
+          ...(options.env ?? process.env),
+          // o job sabe que veio do scheduler: a IA desconta das faixas por prioridade, não da `manual`
+          GALAXIE_INVOKER: 'scheduler',
+          ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}),
+        },
+        stdio: ['ignore', 'inherit', 'inherit'],
       },
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
+    );
     let timedOut = false;
     let killTimer: NodeJS.Timeout | undefined;
     const onAbort = () => {

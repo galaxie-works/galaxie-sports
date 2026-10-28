@@ -38,4 +38,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "apps/demo/server.js"]
+# Heap fixo para caber no mem_limit de 512m (velho 320 + novo 3 × 16 + ~50 do processo), como a API
+CMD ["node", "--max-old-space-size=320", "--max-semi-space-size=16", "apps/demo/server.js"]
