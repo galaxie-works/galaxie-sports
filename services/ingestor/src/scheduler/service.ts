@@ -39,6 +39,7 @@ export interface SchedulerServiceOptions {
   refreshMs?: number;
   /** Só no perfil agents: checagem do crédito da conta de IA. */
   creditCheck?: ((env: NodeJS.ProcessEnv) => Promise<CreditCheckResult>) | undefined;
+  /** Intervalo da checagem de crédito (padrão: 1 h, para o alerta AiCreditExhausted sair no mesmo dia). */
   creditEveryMs?: number;
   /**
    * Teto de jobs simultâneos fora da faixa do ao vivo (`live`); o excedente espera vaga na ordem de chegada.
@@ -106,7 +107,7 @@ export class SchedulerService {
       this.track(this.checkCredit());
       this.creditTimer = setInterval(
         () => this.track(this.checkCredit()),
-        this.options.creditEveryMs ?? 6 * 3_600_000,
+        this.options.creditEveryMs ?? 3_600_000,
       );
       this.creditTimer.unref?.();
     }

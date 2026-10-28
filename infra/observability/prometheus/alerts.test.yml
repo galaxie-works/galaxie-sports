@@ -42,7 +42,7 @@ tests:
         alertname: JobFailingRepeatedly
         exp_alerts:
           - exp_labels:
-              severity: critical
+              severity: warning
               job_name: quota-status
             exp_annotations:
               summary: 'Job quota-status falhou 3 vezes seguidas'
@@ -66,6 +66,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: ao-vivo
               sport: football
             exp_annotations:
               summary: 'Evento ao vivo de football sem atualização há 12m 0s'
@@ -85,6 +86,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: backup-disco
               job_name: pg-backup
             exp_annotations:
               summary: 'Último backup do Postgres com sucesso há 1d 3h 0m 0s'
@@ -143,6 +145,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: backup-disco
               job_name: backup-check
             exp_annotations:
               summary: 'Verificação do backup falhou'
@@ -152,6 +155,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: backup-disco
               job_name: pg-restore-drill
             exp_annotations:
               summary: 'Ensaio de restauração do backup falhou'
@@ -231,6 +235,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: backup-disco
               job: node
               instance: node-exporter:9100
               device: /dev/sda1
@@ -272,7 +277,7 @@ tests:
         alertname: ChangeFeedStalled
         exp_alerts:
           - exp_labels:
-              severity: critical
+              severity: warning
               consumer: demo-cache:demo
             exp_annotations:
               summary: 'Fila do change feed parada para demo-cache:demo'
@@ -292,8 +297,136 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: critical
+              sinal: api
               job: galaxie-api
               instance: api:8080
             exp_annotations:
               summary: 'API fora do ar para o Prometheus'
               description: 'O alvo api:8080 não responde ao /metrics há 2 minutos.'
+
+  - name: job sem sucesso há mais de 2 intervalos da agenda (piso de 30 min)
+    interval: 1m
+    input_series:
+      # live-run a cada 5 min: o piso de 30 min vale; sem sucesso desde o instante 0
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="live-run"}'
+        values: '0x60'
+      - series: 'galaxie_job_expected_interval_seconds{job_name="live-run",component="ingestor"}'
+        values: '300x60'
+      # nunca teve sucesso: conta da primeira execução; de hora em hora, só depois de 2 h
+      - series: 'galaxie_job_first_run_timestamp_seconds{job_name="context-run"}'
+        values: '0x60'
+      - series: 'galaxie_job_expected_interval_seconds{job_name="context-run",component="agents"}'
+        values: '3600x60'
+      # fora da agenda (backup tem alerta próprio): sem intervalo esperado, sem alerta
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: JobOverdue
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: JobOverdue
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job_name: live-run
+              component: ingestor
+            exp_annotations:
+              summary: 'Job live-run sem sucesso há 45m 0s'
+              description: 'Mais de 2 intervalos da agenda sem execução com sucesso. Veja o scheduler ingestor (Ajustes → Sistema), ops.job_run e os logs com job=live-run.'
+
+  - name: scheduler sem relato em ops.runtime_env por mais de 10 minutos
+    interval: 1m
+    input_series:
+      - series: 'galaxie_service_last_report_timestamp_seconds{component="ingestor"}'
+        values: '0x30'
+      - series: 'galaxie_service_last_report_timestamp_seconds{component="agents"}'
+        values: '0+60x30'
+      # a API só relata na partida: fora do alerta
+      - series: 'galaxie_service_last_report_timestamp_seconds{component="api"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: SchedulerHeartbeatStale
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: SchedulerHeartbeatStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: ingestor
+            exp_annotations:
+              summary: 'Scheduler ingestor sem sinal de vida há 20m 0s'
+              description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps ingestor e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
+
+  - name: crédito da IA em falha vai para o push
+    interval: 1m
+    input_series:
+      - series: 'galaxie_ai_credit_check{status="pass",provider="gemini"}'
+        values: '1 1 _ _ _ _'
+      - series: 'galaxie_ai_credit_check{status="fail",provider="gemini"}'
+        values: '_ _ 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: AiCreditExhausted
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: AiCreditExhausted
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ia
+              status: fail
+              provider: gemini
+            exp_annotations:
+              summary: 'IA parada: conta gemini sem crédito ou chave recusada'
+              description: 'A checagem horária do crédito falhou (402, cota/billing ou 401/403). Recarregue o saldo ou troque a chave e peça "verificar agora" em Ajustes → Sistema → IA.'
+
+  - name: crédito da IA sem checagem há mais de 3 horas
+    interval: 1m
+    input_series:
+      - series: 'galaxie_ai_credit_checked_timestamp_seconds'
+        values: '0x240'
+    alert_rule_test:
+      - eval_time: 3h
+        alertname: AiCreditCheckStale
+        exp_alerts: []
+      - eval_time: 3h45m
+        alertname: AiCreditCheckStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'Crédito da IA sem checagem há 3h 45m 0s'
+              description: 'O scheduler dos agentes confere o crédito de hora em hora. Veja se o contêiner agents está no ar.'
+
+  - name: gasto de IA em 80% do teto diário vai para o push; sem teto (unlimited), nada
+    interval: 1m
+    input_series:
+      - series: 'galaxie_ai_spend_usd{budget_day="2026-10-28"}'
+        values: '5 7 8 8 8 8 8 8 8 8'
+      - series: 'galaxie_ai_daily_budget_usd'
+        values: '10x9'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: AiSpendNearDailyBudget
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: AiSpendNearDailyBudget
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ia
+            exp_annotations:
+              summary: 'Gasto de IA do dia em 80% do teto'
+              description: 'Ao bater 100% os agentes ficam sem IA até a virada do dia de orçamento. Veja o gasto por agente em Ajustes → Sistema → IA antes de mexer no teto.'
+
+  - name: sem teto de IA não há alerta de gasto
+    interval: 1m
+    input_series:
+      - series: 'galaxie_ai_spend_usd{budget_day="2026-10-28"}'
+        values: '50x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: AiSpendNearDailyBudget
+        exp_alerts: []

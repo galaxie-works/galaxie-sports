@@ -34,9 +34,12 @@ COPY --from=build /out-agents/node_modules /srv/services/ai-agents/node_modules
 COPY --from=build /out-agents/dist /srv/services/ai-agents/dist
 COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
+COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
 USER node
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD ["node", "-e", "const s=require('fs').statSync(process.env.SCHEDULER_HEARTBEAT_FILE);process.exit(Date.now()-s.mtimeMs<120000?0:1)"]
+# Scheduler parado (batimento com mais de 2 min): depois de 6 falhas (~3 min) o processo é encerrado e o Docker
+# sobe outro (infra/healthcheck/selfheal.mjs, no máximo 3 reinícios em 30 min).
+HEALTHCHECK --interval=30s --timeout=6s --start-period=30s --retries=3 \
+  CMD node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$SCHEDULER_HEARTBEAT_FILE" 120000
 ENTRYPOINT ["/sbin/tini", "--"]
 # O scheduler só agenda (heap pequeno); cada job é um processo filho com heap próprio (SCHEDULER_JOB_HEAP_MB e o
 # heapMb do job) e o teto SCHEDULER_MAX_JOBS. A conta da memória está em infra/vps-telemetry/README.md › Memória.

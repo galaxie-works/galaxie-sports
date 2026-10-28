@@ -1,5 +1,12 @@
 # Regras de alerta do Galaxie Sports (issue #6). Testadas com `promtool test rules alerts.test.yml`.
-# As métricas vêm do /metrics da API, que lê ops.quota_ledger, ops.job_run, raw.api_response e core.event.
+# As métricas vêm do /metrics da API, que lê ops.quota_ledger, ops.job_run, raw.api_response, core.event e ops.runtime_*.
+#
+# Canais (infra/observability/grafana/entrypoint.sh, runbook docs/runbooks/alertas-e-monitoramento.md):
+#   severity: critical  push no celular na hora. Só os 5 sinais graves, cada um com o rótulo `sinal`:
+#                       api (API fora), ao-vivo (jogo em andamento sem atualização), ia (crédito ou gasto),
+#                       backup-disco, deploy (o deploy travado avisa direto do .github/workflows/deploy.yml).
+#   severity: warning   resumo diário por e-mail (08:00 de Brasília).
+# Alerta novo que não é um desses 5 sinais entra como warning.
 groups:
   - name: galaxie-quota
     rules:
@@ -18,16 +25,45 @@ groups:
       - alert: JobFailingRepeatedly
         expr: galaxie_job_consecutive_failures{job_name!~"backup-check|pg-restore-drill"} >= 3
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Job {{ $labels.job_name }} falhou {{ $value }} vezes seguidas'
           description: 'Veja ops.job_run (coluna error) e os logs com job={{ $labels.job_name }}.'
+
+      # Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min (job
+      # que leva mais que o intervalo pula horários). Job que nunca teve sucesso conta da primeira execução. Job
+      # desligado na agenda não tem intervalo e fica de fora; job que nunca rodou: SchedulerHeartbeatStale.
+      - alert: JobOverdue
+        expr: >-
+          (
+            time() - (galaxie_job_last_success_timestamp_seconds or galaxie_job_first_run_timestamp_seconds)
+          )
+          > on(job_name) group_left(component)
+          clamp_min(2 * galaxie_job_expected_interval_seconds, 1800)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Job {{ $labels.job_name }} sem sucesso há {{ $value | humanizeDuration }}'
+          description: 'Mais de 2 intervalos da agenda sem execução com sucesso. Veja o scheduler {{ $labels.component }} (Ajustes → Sistema), ops.job_run e os logs com job={{ $labels.job_name }}.'
+
+      # Os schedulers (ingestor e agents) relatam o env em ops.runtime_env a cada 30 s: 10 min sem relato = scheduler
+      # parado ou sem banco. Com jogo ao vivo, o LiveEventStale (push) dispara antes.
+      - alert: SchedulerHeartbeatStale
+        expr: time() - galaxie_service_last_report_timestamp_seconds{component=~"ingestor|agents"} > 600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Scheduler {{ $labels.component }} sem sinal de vida há {{ $value | humanizeDuration }}'
+          description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps {{ $labels.component }} e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
 
       - alert: BackupStale
         expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600
         for: 10m
         labels:
           severity: critical
+          sinal: backup-disco
         annotations:
           summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
           description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
@@ -40,6 +76,7 @@ groups:
         expr: galaxie_job_consecutive_failures{job_name="backup-check"} >= 1
         labels:
           severity: critical
+          sinal: backup-disco
         annotations:
           summary: 'Verificação do backup falhou'
           description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
@@ -48,6 +85,7 @@ groups:
         expr: galaxie_job_consecutive_failures{job_name="pg-restore-drill"} >= 1
         labels:
           severity: critical
+          sinal: backup-disco
         annotations:
           summary: 'Ensaio de restauração do backup falhou'
           description: 'O dump mais recente não restaurou ou não passou na conferência. Veja ops.job_run (job pg-restore-drill, coluna error) e o runbook docs/runbooks/exercicio-dr.md.'
@@ -74,6 +112,40 @@ groups:
           summary: 'Nenhum ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
           description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
 
+  # Conta da IA (services/ingestor/src/scheduler/ai-credit.ts, de hora em hora) e gasto do dia contra o teto global.
+  - name: galaxie-ai
+    rules:
+      - alert: AiCreditExhausted
+        expr: galaxie_ai_credit_check{status="fail"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          sinal: ia
+        annotations:
+          summary: 'IA parada: conta {{ $labels.provider }} sem crédito ou chave recusada'
+          description: 'A checagem horária do crédito falhou (402, cota/billing ou 401/403). Recarregue o saldo ou troque a chave e peça "verificar agora" em Ajustes → Sistema → IA.'
+
+      - alert: AiCreditCheckStale
+        expr: time() - galaxie_ai_credit_checked_timestamp_seconds > 3 * 3600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Crédito da IA sem checagem há {{ $value | humanizeDuration }}'
+          description: 'O scheduler dos agentes confere o crédito de hora em hora. Veja se o contêiner agents está no ar.'
+
+      # Teto global (AI_DAILY_USD_BUDGET efetivo; unlimited = sem a série, sem alerta). O dia vira às 06:00 de
+      # Brasília (AI_BUDGET_DAY_START): o alerta resolve sozinho na virada.
+      - alert: AiSpendNearDailyBudget
+        expr: max(galaxie_ai_spend_usd) / max(galaxie_ai_daily_budget_usd) >= 0.8
+        for: 5m
+        labels:
+          severity: critical
+          sinal: ia
+        annotations:
+          summary: 'Gasto de IA do dia em {{ $value | humanizePercentage }} do teto'
+          description: 'Ao bater 100% os agentes ficam sem IA até a virada do dia de orçamento. Veja o gasto por agente em Ajustes → Sistema → IA antes de mexer no teto.'
+
   - name: galaxie-freshness
     rules:
       # O sync diário (00:05 UTC) grava ao menos a agenda do dia no raw; 26 h sem nada novo = sync parado.
@@ -97,6 +169,7 @@ groups:
         for: 1m
         labels:
           severity: critical
+          sinal: ao-vivo
         annotations:
           summary: 'Evento ao vivo de {{ $labels.sport }} sem atualização há {{ $value | humanizeDuration }}'
           description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
@@ -108,6 +181,7 @@ groups:
         for: 2m
         labels:
           severity: critical
+          sinal: api
         annotations:
           summary: 'API fora do ar para o Prometheus'
           description: 'O alvo {{ $labels.instance }} não responde ao /metrics há 2 minutos.'
@@ -120,6 +194,7 @@ groups:
         for: 15m
         labels:
           severity: critical
+          sinal: backup-disco
         annotations:
           summary: 'Disco {{ $labels.device }} com {{ $value | humanizePercentage }} ocupado'
           description: 'Acima de 85%. O ensaio de restauração precisa de 2x o tamanho do banco livre; veja docker system df (sem prune) e os dumps em /backups.'
@@ -138,7 +213,7 @@ groups:
         expr: galaxie_change_feed_pending_age_seconds > 600
         for: 5m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
           description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks) e o cursor dele.'

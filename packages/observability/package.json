@@ -24,6 +24,7 @@
   "dependencies": {
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "pino": "^10.4.0",
     "prom-client": "^15.1.3"

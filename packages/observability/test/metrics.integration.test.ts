@@ -364,9 +364,57 @@ describe('frescor e ao vivo', () => {
 
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed']) {
+    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'ops']) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
+  });
+});
+
+describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', () => {
+  // dia de orçamento padrão: vira às 06:00 de Brasília (09:00 UTC)
+  const budgetDay = new Date(realNow.getTime() - 9 * HOUR).toISOString().slice(0, 10);
+
+  beforeAll(async () => {
+    await db.execute(sql`
+      insert into ops.runtime_env (service, key, value, configured, reported_at) values
+        ('ingestor', 'SCHEDULE_LIVE_RUN', '*/2 * * * *', true, now() - interval '20 seconds'),
+        ('agents', 'AI_DAILY_USD_BUDGET', '12', true, now() - interval '30 minutes')`);
+    await db.execute(sql`
+      insert into ops.runtime_setting (key, value, value_type, updated_by) values
+        ('SCHEDULE_WTW_RUN', 'off', 'cron', 'teste'),
+        ('AI_DAILY_USD_BUDGET', '20', 'number', 'teste')`);
+    await db.execute(sql`
+      insert into ops.runtime_check (service, name, status, detail, checked_at) values
+        ('agents', 'ai-credit-check', 'fail', '{"code":"http","provider":"gemini","http":429}', now() - interval '10 minutes')`);
+    await db.execute(sql`
+      insert into ops.llm_usage (day_utc, budget_day, agent, purpose, provider, model, tier, cost_usd, outcome) values
+        (${budgetDay}::date, ${budgetDay}::date, 'wtw', 'wtw', 'gemini', 'm', 'light', 3.5, 'ok'),
+        (${budgetDay}::date, null, 'context', 'context', 'gemini', 'm', 'light', 1.25, 'ok'),
+        (${budgetDay}::date - 1, ${budgetDay}::date - 1, 'wtw', 'wtw', 'gemini', 'm', 'light', 9, 'ok')`);
+  });
+
+  it('último relato de cada serviço', async () => {
+    const m = await scrape();
+    const ingestor = m.get('galaxie_service_last_report_timestamp_seconds', { component: 'ingestor' })!;
+    expect(Date.now() / 1000 - ingestor).toBeLessThan(120);
+    const agents = m.get('galaxie_service_last_report_timestamp_seconds', { component: 'agents' })!;
+    expect(Date.now() / 1000 - agents).toBeGreaterThan(25 * 60);
+  });
+
+  it('intervalo esperado pela agenda efetiva (banco > env relatado > padrão)', async () => {
+    const m = await scrape();
+    expect(
+      m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'ingestor' }),
+    ).toBe(120);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'quota-status' })).toBe(3600);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'wtw-run' })).toBeUndefined();
+  });
+
+  it('crédito da IA e gasto do dia de orçamento contra o teto', async () => {
+    const m = await scrape();
+    expect(m.get('galaxie_ai_credit_check', { status: 'fail', provider: 'gemini' })).toBe(1);
+    expect(m.get('galaxie_ai_spend_usd', { budget_day: budgetDay })).toBeCloseTo(4.75);
+    expect(m.get('galaxie_ai_daily_budget_usd')).toBe(20);
   });
 });
 
