@@ -132,8 +132,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
-    # o roteiro leva ~10 min; o teto deixa folga para o pull da imagem do lineup-render (~2 GB, quando a pasta muda)
-    timeout-minutes: 45
+    # o roteiro leva ~10 min; o teto de 45 min fica no passo do deploy (folga para o pull da imagem do lineup-render,
+    # ~2 GB, quando a pasta muda). O do job é maior: estourar o do job cancela tudo, e o aviso por push não sairia
+    timeout-minutes: 55
     # Um deploy por vez e nunca cancelado no meio. Com outro rodando, o GitHub guarda só o pendente mais novo:
     # merges em sequência viram um deploy só, do último commit.
     concurrency:
@@ -184,6 +185,7 @@ jobs:
 
       - name: Deploy na VPS
         id: deploy
+        timeout-minutes: 45
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
