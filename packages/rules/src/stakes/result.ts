@@ -64,6 +64,11 @@ export interface TablesAroundInput {
   later: readonly MatchResult[];
   /** Jogos encerrados antes deste (só para critérios de confronto direto). */
   earlier?: readonly MatchResult[];
+  /**
+   * A tabela soma também os jogos contra times de fora dela (zonas da Argentina, com a rodada
+   * interzonal): um jogo posterior com um só lado na tabela é desfeito só desse lado.
+   */
+  crossGroup?: boolean;
 }
 
 export interface TablesAround {
@@ -126,7 +131,8 @@ export function tablesAroundMatch(input: TablesAroundInput): TablesAround {
       },
     ];
     for (const { id, gf, ga, away, yellow, red } of sides) {
-      const r = rows.get(id)!;
+      const r = rows.get(id);
+      if (!r) continue; // lado de fora da tabela (jogo entre grupos, só com `crossGroup`)
       r.played -= 1;
       r.goalsFor -= gf;
       r.goalsAgainst -= ga;
@@ -156,7 +162,9 @@ export function tablesAroundMatch(input: TablesAroundInput): TablesAround {
     }
   };
   undo(input.match);
-  for (const m of input.later) if (rows.has(m.homeId) && rows.has(m.awayId)) undo(m);
+  const touches = (m: MatchResult) =>
+    input.crossGroup ? rows.has(m.homeId) || rows.has(m.awayId) : rows.has(m.homeId) && rows.has(m.awayId);
+  for (const m of input.later) if (touches(m)) undo(m);
   const baseline = [...rows.values()];
   const earlier = (input.earlier ?? []).filter((m) => rows.has(m.homeId) && rows.has(m.awayId));
   const base = { rules: input.rules, baseline, priorMatches: earlier };
@@ -401,6 +409,11 @@ export interface PrepareFinishedInput {
   matchId: string;
   /** Jogos da rodada ainda em aberto no início do jogo (ver `FinishedLeagueMatchInput.nextRound`). */
   nextRound?: readonly Fixture[];
+  /**
+   * A tabela soma os jogos contra times de fora dela (`cross_group_matches`): entram os resultados com
+   * ao menos um lado na tabela, e só os lados dela contam na conferência.
+   */
+  crossGroup?: boolean;
 }
 
 /**
@@ -414,13 +427,17 @@ export interface PrepareFinishedInput {
  */
 export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): FinishedLeagueMatchInput {
   const ids = new Set(input.current.map((r) => r.teamId));
-  const results = input.results.filter((m) => ids.has(m.homeId) && ids.has(m.awayId));
+  const cross = input.crossGroup === true;
+  const sidesIn = (m: MatchResult) => Number(ids.has(m.homeId)) + Number(ids.has(m.awayId));
+  const results = input.results.filter((m) => sidesIn(m) === 2 || (cross && sidesIn(m) === 1));
   const match = results.find((m) => m.id === input.matchId);
-  if (!match) throw new LeagueInputError('O jogo não está entre os resultados encerrados da tabela.');
+  if (!match || sidesIn(match) !== 2)
+    throw new LeagueInputError('O jogo não está entre os resultados encerrados da tabela.');
   const played = input.current.reduce((sum, r) => sum + r.played, 0);
-  if (played !== 2 * results.length)
+  const expected = results.reduce((sum, m) => sum + sidesIn(m), 0);
+  if (played !== expected)
     throw new LeagueInputError(
-      `A tabela atual (${played / 2} jogos) não bate com os resultados encerrados (${results.length}).`,
+      `A tabela atual (${played} participações) não bate com os resultados encerrados (${expected}).`,
     );
   const fromResults = accumulate({
     points: input.rules.standings.points,
@@ -454,6 +471,7 @@ export function prepareFinishedLeagueMatch(input: PrepareFinishedInput): Finishe
     later: others.filter((m) => !(at(m) < kickoff)),
     earlier: others.filter((m) => at(m) < kickoff),
   };
+  if (cross) out.crossGroup = true;
   if (input.nextRound) out.nextRound = input.nextRound;
   return out;
 }

@@ -38,7 +38,8 @@ export default async function AppLayout({ children }: LayoutProps<'/[locale]'>) 
           <AppSidebar />
           {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
           <RelatedPlayerProvider>
-            <SidebarInset>{children}</SidebarInset>
+            {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
+            <SidebarInset className="min-w-0">{children}</SidebarInset>
           </RelatedPlayerProvider>
         </SearchProvider>
         {/* Caminho atual = dado de URL: fora do shell estático. */}

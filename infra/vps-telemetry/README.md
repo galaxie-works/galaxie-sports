@@ -70,7 +70,7 @@ condições do `up` e do `migrate`. Configuração, transição e plano B:
 [docs/runbooks/deploy-pelo-github.md](../../docs/runbooks/deploy-pelo-github.md).
 
 ```bash
-gh workflow run deploy.yml                          # o commit mais novo da main
+gh workflow run deploy.yml                          # o commit mais novo da main (espera o CI dele, até 30 min)
 gh workflow run deploy.yml -f sha=<sha> -f force=1  # um SHA específico, mesmo já no ar
 ```
 
@@ -80,8 +80,9 @@ gh workflow run deploy.yml -f sha=<sha> -f force=1  # um SHA específico, mesmo 
 infra/vps-telemetry/deploy.sh
 ```
 
-Os passos pós-deploy (seed, nomes, importância, cache de respostas e conta da IA) estão em
-[`post-deploy.sh`](post-deploy.sh), que os dois roteiros rodam na VPS.
+Os passos pós-deploy estão em [`post-deploy.sh`](post-deploy.sh), que os dois roteiros rodam na VPS: seed da base
+semântica com `--dir /srv/data/knowledge` e o SHA (falha só avisa), nomes, importância, cache de respostas e conta da
+IA.
 
 O script confere o CI do commit (padrão `origin/main`) no GitHub (`gh`, execuções do GitHub Actions do SHA: vermelho
 ou cancelado para tudo; ainda rodando espera até `CI_WAIT_MIN` minutos, padrão 20). Um SHA antigo ou intermediário
@@ -261,9 +262,38 @@ Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, qu
 Para manter o caminho no log, as alternativas são exigir a chave só no header `x-galaxie-key` no SSE ou reescrever a
 URL num middleware antes do log.
 
+## Backups, ensaio e alertas
+
+Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 14 diários + 8 semanais + 12 mensais no NAS, snapshot diário do
+provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensaio mensal de restauração:
+[docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md). Na VPS:
+
+- `docker compose exec backup backup-check.sh`: verificação avulsa (último dump e, com `BACKUP_NAS_RECEIPT=true`, o
+  padrão, o recibo `.nas_last_pull` que o NAS deixa depois de copiar e conferir).
+- `docker compose exec backup restore-drill.sh`: ensaio avulso. Restaura num banco `galaxie_sports_drill_<data>`, nunca
+  no de produção, e precisa de 2x o tamanho do banco livre no disco.
+- Resultado dos dois em `ops.job_run` (jobs `backup-check` e `pg-restore-drill`) e nas métricas `galaxie_job_*`.
+- O serviço `node-exporter` mede o disco onde o Docker guarda os volumes (alerta acima de 85%). Ele monta o volume
+  `promdata` só para leitura, sem bind mount do host nem porta publicada.
+
+### Alertas por e-mail
+
+As regras ficam no Prometheus (`infra/observability/prometheus/alerts.yml`). O Grafana lê os alertas disparando e manda
+o e-mail. Para ligar, o dono põe no `.env` da VPS (a senha nunca vai para o repositório):
+
+```dotenv
+ALERT_EMAIL_TO=voce@exemplo.com          # vários: separados por ;
+ALERT_EMAIL_FROM=alertas@exemplo.com     # remetente aceito pelo SMTP
+ALERT_SMTP_HOST=smtp.exemplo.com:587     # host:porta; STARTTLS quando o servidor oferece
+ALERT_SMTP_USER=alertas@exemplo.com
+ALERT_SMTP_PASSWORD=<senha de app do SMTP>
+```
+
+Depois, `docker compose up -d grafana`. O log do Grafana diz `alertas por e-mail ligados`. Para testar, use Alerting →
+Contact points → `email-operacao` → Test. Sem `ALERT_EMAIL_TO` ou `ALERT_SMTP_HOST`, os alertas continuam visíveis em
+Alerting → Alert rules (regra "Alerta do Prometheus") e no `/alerts` do Prometheus (túnel SSH), sem notificação.
+
 ## Pendências
 
-- Cópia dos backups fora da VPS: existe (dumps no NAS do dono e snapshot diário da VPS no provedor, ver
-  [SECURITY.md](../../SECURITY.md)); falta o dono confirmar a frequência e a retenção da cópia no NAS. A cópia para
-  um S3 externo (`BACKUP_S3_*`) segue opcional.
+- O dono configura o SMTP dos alertas (acima).
 - Cabeçalhos de cache/CDN para os assets.

@@ -46,11 +46,14 @@
   "devDependencies": {
     "@galaxie/knowledge": "workspace:*",
     "@tailwindcss/turbopack": "^4",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24",
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "happy-dom": "^20.14.6",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4"
   },

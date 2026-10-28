@@ -15,9 +15,7 @@ export const DEFAULT_RULES_SLUG = 'default';
 /** `config/rules` na raiz do monorepo (mesma profundidade em src/ e dist/). */
 export function defaultRulesDir(): string {
   // RULES_CONFIG_DIR: imagens Docker, onde o pacote não fica na árvore do monorepo
-  return (
-    process.env.RULES_CONFIG_DIR ?? fileURLToPath(new URL('../../../../config/rules/', import.meta.url))
-  );
+  return process.env.RULES_CONFIG_DIR ?? fileURLToPath(new URL('../../../../config/rules/', import.meta.url));
 }
 
 export interface LoadRulesOptions {
@@ -34,7 +32,10 @@ async function readRaw(path: string): Promise<unknown> {
 }
 
 /** Carrega e valida o regulamento de uma competição (`config/rules/<slug>.yaml`). */
-export async function loadCompetitionRules(slug: string, options: LoadRulesOptions = {}): Promise<CompetitionRules> {
+export async function loadCompetitionRules(
+  slug: string,
+  options: LoadRulesOptions = {},
+): Promise<CompetitionRules> {
   const dir = options.dir ?? defaultRulesDir();
   const path = join(dir, `${slug}.yaml`);
   const parseOpts = options.season === undefined ? {} : { season: options.season };
@@ -59,7 +60,9 @@ export async function loadAllCompetitionRules(
       options.season === undefined ? {} : { season: options.season },
     );
     if (`${rules.slug}.yaml` !== file) {
-      throw new RulesConfigError(`Regulamento ${file}: o slug interno (${rules.slug}) difere do nome do arquivo.`);
+      throw new RulesConfigError(
+        `Regulamento ${file}: o slug interno (${rules.slug}) difere do nome do arquivo.`,
+      );
     }
     out.set(rules.slug, rules);
   }

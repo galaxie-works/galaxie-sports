@@ -16,7 +16,6 @@ import { pool } from '@/lib/auth/db';
 import { findingCounts } from './findings';
 import { reviewSummary, type SummaryWords } from './summary';
 import {
-  PAGE_SIZE,
   REVIEW_STATES,
   STATUS_OF_ACTION,
   type ReviewAction,
@@ -32,6 +31,7 @@ import {
   type ReviewState,
   type ReviewSuggestion,
   type ServingFloor,
+  pageWindow,
 } from './types';
 
 /** Tabelas da revisão ainda não criadas (migration 0025 pendente). */
@@ -132,11 +132,12 @@ function where(filters: ReviewFilters, withState: boolean) {
     params.push(value);
     conds.push(sql.replace('?', `$${params.length}`));
   };
-  if (filters.kind) add('kind = ?', filters.kind);
-  if (filters.sport) add('sport = ?', filters.sport);
-  if (filters.market) add('market = ?', filters.market);
-  if (filters.locale) add('locale = ?', filters.locale);
-  if (withState && filters.state) add('state = ?', filters.state);
+  // cada filtro é "é um destes" (lista vazia = sem filtro)
+  if (filters.kind.length) add('kind = any(?)', filters.kind);
+  if (filters.sport.length) add('sport = any(?)', filters.sport);
+  if (filters.market.length) add('market = any(?)', filters.market);
+  if (filters.locale.length) add('locale = any(?)', filters.locale);
+  if (withState && filters.state.length) add('state = any(?)', filters.state);
   if (filters.q) {
     params.push(`%${filters.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     conds.push(`(title ilike $${params.length} or key ilike $${params.length})`);
@@ -150,14 +151,16 @@ export async function listReviewItems(
 ): Promise<ReviewListResult> {
   const list = where(filters, true);
   const counted = where(filters, false);
-  const offset = (filters.page - 1) * PAGE_SIZE;
+  // o tamanho já vem validado de `parseFilters` (um de PAGE_SIZES); vai como parâmetro, não no texto
+  const { limit, offset } = pageWindow(filters);
+  const n = list.params.length;
   const [rows, total, counts, sports, markets, locales] = await Promise.all([
     query<ItemRow>(
       `with x as (${ITEMS}) select * from x ${list.sql}
         order by case state when 'needs_review' then 0 when 'draft' then 1 when 'reviewed' then 2 else 3 end,
                  kind, sport, market nulls first, title, id
-        limit ${PAGE_SIZE} offset ${offset}`,
-      list.params,
+        limit $${n + 1} offset $${n + 2}`,
+      [...list.params, limit, offset],
     ),
     query<{ n: number }>(`with x as (${ITEMS}) select count(*)::int as n from x ${list.sql}`, list.params),
     query<{ state: ReviewState; n: number }>(

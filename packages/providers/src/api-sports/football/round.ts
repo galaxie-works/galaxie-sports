@@ -120,7 +120,34 @@ function names(
  * Traduz o texto de rodada da api-sports ("Regular Season - 12", "Group B - 3", "Round of 16",
  * "2nd Preliminary Round"...) em fase canônica (`core.stage.kind`), nome localizado e ordem.
  */
+/** Fases de mata-mata que podem vir depois do nome do torneio ("Apertura - Quarter-finals"). */
+const TOURNAMENT_KNOCKOUT: ReadonlySet<StageKind> = new Set([
+  'playoff',
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'third_place',
+  'final',
+]);
+
 export function parseRound(label: string): ParsedRound {
+  // torneio curto com mata-mata próprio (Liguilla da Liga MX, playoffs do Apertura argentino): o mata-mata
+  // vem depois do nome do torneio; sem isso, "Apertura - Quarter-finals" viraria rodada de pontos corridos
+  const knockout = /^(.+?)\s+-\s+([^\d].*)$/.exec(label.trim());
+  if (knockout) {
+    const kind = classify(knockout[2]!, false);
+    if (TOURNAMENT_KNOCKOUT.has(kind)) {
+      const n = names(kind, knockout[2]!.trim(), null, null);
+      const tournament = knockout[1]!.trim();
+      return {
+        kind,
+        name: { 'pt-BR': `${tournament} · ${n.pt}`, es: `${tournament} · ${n.es}`, en: label },
+        order: PHASE_RANK[kind] * 1000,
+        number: null,
+      };
+    }
+  }
   const m = /^(.*?)\s+-\s+(\d+)$/.exec(label.trim());
   const prefix = (m?.[1] ?? label).trim();
   const number = m ? Number(m[2]) : null;

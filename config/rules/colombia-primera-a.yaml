@@ -1,0 +1,67 @@
+# Liga BetPlay Dimayor (Primera A, Colômbia). 20 clubes; Apertura e Finalización (Clausura) na mesma
+# temporada da api-sports (id 239), cada um com fase de todos contra todos (os 8 primeiros vão aos
+# quadrangulares, dois grupos de 4) e final. A reclasificación (anual) soma as fases de todos contra
+# todos dos dois torneios (vagas continentais); o rebaixamento é pelos promedios (só do fornecedor).
+# Os quadrangulares são guardados e expostos como vêm do fornecedor (rodadas sem padrão confirmado).
+# Rodadas e grupos: o catálogo registra que Apertura e Finalización se separam pelo nome da rodada.
+# A CONFERIR: sem amostra pública da api-sports (busca de out/2026 em documentação, GitHub e fóruns);
+# consulta no raw de produção em docs/runbooks/standings-latam-conferencia.md.
+# Revise a cada temporada.
+slug: colombia-primera-a
+name: Liga BetPlay Dimayor
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - away_goals_for
+    - drawing_of_lots
+
+league:
+  teams: 20
+  matches_per_team: 19
+  meetings_per_pair: 1
+  title: false
+  zones:
+    - { id: quadrangulars, kind: playoff, from: 1, to: 8 }
+
+knockout:
+  default: { legs: 2, away_goals: false, extra_time: false, penalties: true }
+
+tables:
+  - key: apertura
+    kind: phase
+    name: { pt-BR: Apertura, es: Apertura, en: Apertura }
+    groups: 'apertura'
+    exclude: 'group|grupo|quadrangular|cuadrangular|anual|annual|reclasific|promedio'
+    rounds: '^apertura - \d+$'
+    group_name: Apertura
+  - key: apertura_quadrangulars
+    kind: other
+    name: { pt-BR: Apertura · Quadrangulares, es: Apertura · Cuadrangulares, en: Apertura · Quadrangulars }
+    groups: 'apertura.*(group|grupo|quadrangular|cuadrangular)'
+  - key: clausura
+    kind: phase
+    name: { pt-BR: Finalización, es: Finalización, en: Finalización }
+    groups: 'clausura|finalizaci'
+    exclude: 'group|grupo|quadrangular|cuadrangular|anual|annual|reclasific|promedio'
+    rounds: '^(clausura|finalizaci[oó]n) - \d+$'
+    group_name: Finalización
+  - key: clausura_quadrangulars
+    kind: other
+    name: { pt-BR: Finalización · Quadrangulares, es: Finalización · Cuadrangulares, en: Finalización · Quadrangulars }
+    groups: '(clausura|finalizaci).*(group|grupo|quadrangular|cuadrangular)'
+  - key: annual
+    kind: annual
+    name: { pt-BR: Reclassificação, es: Reclasificación, en: Reclassification }
+    groups: 'reclasific|anual|annual'
+    group_name: Reclasificación
+  - key: promedios
+    kind: relegation_average
+    name: { pt-BR: Promedios, es: Promedios, en: Relegation averages }
+    groups: 'promedio'
+
+sources:
+  - https://dimayor.com.co/

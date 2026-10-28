@@ -85,7 +85,8 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
   return (
     <>
       <PageHeader title={t.lineup.admin.title} kind="ajustes" />
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
+      {/* Container padrão do app-shell (alinhado à esquerda, largura toda): a tabela da revisão é larga. */}
+      <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
         <SettingsNav active="lineup" />
         <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
         <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>

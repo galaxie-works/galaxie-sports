@@ -39,6 +39,7 @@
     "live:reconcile": "node --env-file-if-exists=../../.env dist/cli/live-reconcile.js",
     "live:simulate": "node --env-file-if-exists=../../.env dist/cli/live-simulate.js",
     "standings:recompute": "node --env-file-if-exists=../../.env dist/cli/standings-recompute.js",
+    "standings:limpar-grupo-vazio": "node --env-file-if-exists=../../.env dist/cli/standings-cleanup.js",
     "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
