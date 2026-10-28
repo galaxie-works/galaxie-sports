@@ -255,6 +255,7 @@ const AI_STATE_KEYS = [
   'AI_DAILY_TOKEN_BUDGET',
   'AI_DAILY_USD_BUDGET',
   'AI_AGENT_USD_BUDGETS',
+  'AI_AGENT_DEFAULT_USD_BUDGET',
 ] as const;
 
 function invalidAiSettings(settings: OpsSetting[]): string[] {
@@ -266,8 +267,18 @@ function invalidAiSettings(settings: OpsSetting[]): string[] {
 
 async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend> {
   const maxSearchesPerCall = limitSetting(settings, 'AI_MAX_SEARCHES_PER_CALL');
+  // como o serviço: a lista configurada (painel ou env) mescla por agente sobre os padrões do código
   const rawAgentBudgets = settings.find((s) => s.key === 'AI_AGENT_USD_BUDGETS');
-  const agentUsdBudgets = parseAgentUsdBudgets(rawAgentBudgets?.value || rawAgentBudgets?.defaultValue) ?? {};
+  const codeBudgets = parseAgentUsdBudgets(rawAgentBudgets?.defaultValue) ?? {};
+  const configured =
+    rawAgentBudgets && rawAgentBudgets.source !== 'default'
+      ? (parseAgentUsdBudgets(rawAgentBudgets.value) ?? {})
+      : {};
+  const agentUsdBudgets = { ...codeBudgets, ...configured };
+  const agentUsdOrigins: Record<string, 'db' | 'env' | 'code'> = {};
+  for (const agent of Object.keys(codeBudgets)) agentUsdOrigins[agent] = 'code';
+  for (const agent of Object.keys(configured))
+    agentUsdOrigins[agent] = rawAgentBudgets?.source === 'db' ? 'db' : 'env';
   const status = settings.find((s) => s.key === 'AI_STATUS')?.value?.toLowerCase() === 'off' ? 'off' : 'on';
   const agentStatus = parseAgentStatus(settings.find((s) => s.key === 'AI_AGENT_STATUS')?.value) ?? {};
   const rows = await query<{
@@ -318,6 +329,8 @@ async function readLlm(dayUtc: string, settings: OpsSetting[]): Promise<LlmSpend
     budget: limitSetting(settings, 'AI_DAILY_TOKEN_BUDGET'),
     usdBudget: limitSetting(settings, 'AI_DAILY_USD_BUDGET'),
     agentUsdBudgets,
+    agentUsdOrigins,
+    agentDefaultUsdBudget: limitSetting(settings, 'AI_AGENT_DEFAULT_USD_BUDGET'),
     maxSearchesPerCall,
   };
 }

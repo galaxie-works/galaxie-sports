@@ -83,12 +83,15 @@ describe('configuração do orçamento em US$', () => {
       context: 1.5,
       related: 0.5,
       f1profile: 2,
-      f1bio: null,
-      curator: null,
-      review: null,
-      channels: null,
-      live: null,
+      f1bio: 1,
+      curator: 1,
+      review: 0.5,
+      channels: 1,
+      live: 0.5,
+      assets: 1,
     });
+    // agente fora da lista: o teto padrão, nunca sem teto
+    expect(s.agentDefaultUsdBudget).toBe(0.5);
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 
@@ -99,7 +102,12 @@ describe('configuração do orçamento em US$', () => {
       AI_MAX_SEARCHES_PER_CALL: '3',
     });
     expect(s.dailyUsdBudget).toBe(7.5);
-    expect(s.agentUsdBudgets).toEqual({ lineups: 1, wtw: 0.25 });
+    // a lista mescla agente a agente sobre os padrões do código: só lineups e wtw mudam
+    expect(s.agentUsdBudgets).toEqual({
+      ...parseAgentUsdBudgets(DEFAULT_AGENT_USD_BUDGETS),
+      lineups: 1,
+      wtw: 0.25,
+    });
     expect(s.maxSearchesPerCall).toBe(3);
     const open = llmSettingsFromEnv({
       AI_DAILY_USD_BUDGET: 'unlimited',
