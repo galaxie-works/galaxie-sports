@@ -8,6 +8,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
+import { recordKeyEvent } from './key-events.js';
 import {
   publishableKey,
   tenant,
@@ -119,7 +120,7 @@ export async function archiveWidget(db: Database, tenantId: string, id: string):
       .where(and(eq(widget.id, id), eq(widget.tenantId, tenantId), isNull(widget.archivedAt)))
       .returning({ id: widget.id });
     if (rows.length === 0) return false;
-    await tx
+    const revoked = await tx
       .update(publishableKey)
       .set({ revokedAt: now })
       .where(
@@ -128,7 +129,18 @@ export async function archiveWidget(db: Database, tenantId: string, id: string):
           eq(publishableKey.tenantId, tenantId),
           isNull(publishableKey.revokedAt),
         ),
-      );
+      )
+      .returning({ id: publishableKey.id, prefix: publishableKey.prefix });
+    for (const k of revoked)
+      await recordKeyEvent(tx, {
+        tenantId,
+        keyKind: 'publishable',
+        keyId: k.id,
+        prefix: k.prefix,
+        action: 'revoked',
+        actor: 'widget',
+        detail: { widgetId: id, reason: 'widget arquivado' },
+      });
     return true;
   });
 }
@@ -264,6 +276,8 @@ export interface CreatePublishableKeyInput {
   widgetId?: string | null;
   /** `live` (padrão): origens públicas; `test`: só localhost/127.0.0.1/[::1]. */
   env?: PublishableKeyEnv;
+  /** Quem criou, para a auditoria (`panel:<id do usuário>`, `cli:...`). Padrão `panel`. */
+  actor?: string;
 }
 
 /** Origens que não servem ao ambiente: produção sem localhost, teste só com localhost. */
@@ -324,6 +338,15 @@ export async function createPublishableKey(
         widgetId: input.widgetId ?? null,
       })
       .returning({ id: publishableKey.id });
+    await recordKeyEvent(tx, {
+      tenantId: input.tenantId,
+      keyKind: 'publishable',
+      keyId: row!.id,
+      prefix: generated.prefix,
+      action: 'issued',
+      actor: input.actor ?? 'panel',
+      detail: { env, name, ...(input.widgetId ? { widgetId: input.widgetId } : {}) },
+    });
     return { id: row!.id, key: generated.key };
   });
 }
@@ -363,16 +386,36 @@ export async function listPublishableKeys(db: Database, tenantId: string): Promi
 }
 
 /** Revoga a chave (vale na API em até 60 s, o cache da verificação). false se não havia o que revogar. */
-export async function revokePublishableKey(db: Database, tenantId: string, id: string): Promise<boolean> {
+export async function revokePublishableKey(
+  db: Database,
+  tenantId: string,
+  id: string,
+  actor = 'panel',
+): Promise<boolean> {
   if (!UUID_RE.test(id)) return false;
-  const rows = await db
-    .update(publishableKey)
-    .set({ revokedAt: new Date() })
-    .where(
-      and(eq(publishableKey.id, id), eq(publishableKey.tenantId, tenantId), isNull(publishableKey.revokedAt)),
-    )
-    .returning({ id: publishableKey.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(publishableKey)
+      .set({ revokedAt: new Date() })
+      .where(
+        and(
+          eq(publishableKey.id, id),
+          eq(publishableKey.tenantId, tenantId),
+          isNull(publishableKey.revokedAt),
+        ),
+      )
+      .returning({ id: publishableKey.id, prefix: publishableKey.prefix });
+    if (!row) return false;
+    await recordKeyEvent(tx, {
+      tenantId,
+      keyKind: 'publishable',
+      keyId: row.id,
+      prefix: row.prefix,
+      action: 'revoked',
+      actor,
+    });
+    return true;
+  });
 }
 
 /** Resultado de uma verificação bem-sucedida: o bastante para a API montar o contexto do tenant. */
@@ -388,6 +431,8 @@ export interface VerifiedPublishableKey {
     markets: string[];
     sports: string[];
     rateLimitPerMinute: number;
+    /** Cota diária de produção; null = sem cota. */
+    dailyRequestQuota: number | null;
   };
   allowedOrigins: string[];
   /** Widget a que a chave está presa (null = qualquer). */
@@ -423,6 +468,8 @@ export async function verifyPublishableKey(
     .where(eq(publishableKey.keyHash, hashPublishableKey(key)))
     .limit(1);
   if (!row || row.revokedAt || row.tenant.status !== 'active') return null;
+  // trial encerrado: nenhuma chave do tenant vale
+  if (row.tenant.trialEndsAt && row.tenant.trialEndsAt <= new Date()) return null;
   // o prefixo vale: o ambiente gravado precisa ser o do prefixo
   if (row.env !== publishableKeyEnv(key)) return null;
   if (row.widgetId && (row.widgetArchivedAt || row.widgetTenantId !== row.tenant.id)) return null;
@@ -438,6 +485,7 @@ export async function verifyPublishableKey(
       markets: row.tenant.markets,
       sports: row.tenant.sports,
       rateLimitPerMinute: row.tenant.rateLimitPerMinute,
+      dailyRequestQuota: row.tenant.dailyRequestQuota,
     },
     allowedOrigins: row.allowedOrigins,
     widgetId: row.widgetId,

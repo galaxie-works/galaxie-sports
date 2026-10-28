@@ -16,12 +16,33 @@
  * --so driver/ayrton-senna,car/mclaren/1988, --tipo car|driver, --limite <n> (alvos por execução), --refazer
  * (com --tipo car, refaz os carros com a nota do fundo do heading, `hero`).
  * Ambiente: GEMINI_API_KEY e GEMINI_MODEL_VISION (padrão: o leve da camada de IA).
+ *
+ * Orçamento: cada chamada entra no ledger diário de IA (`ops.llm_usage`) como agente `assets`, com o estado
+ * e os tetos dos agentes (AI_STATUS, AI_DAILY_USD_BUDGET, AI_AGENT_USD_BUDGETS `assets=1`), já com as
+ * sobrescritas do painel, e na faixa `manual` da política de execução (config/ai-policy.yaml). Sem saldo,
+ * os alvos restantes ficam como estavam e voltam na próxima execução.
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  PgTokenBudgetStore,
+  TokenBudget,
+  defaultAiPolicyFile,
+  isManualRun,
+  ledgerPolicy,
+  ledgerSettingsFromEnv,
+  loadAiPolicyOrEmpty,
+} from '@galaxie/ai-ledger';
 import { closeDb, createDb } from '@galaxie/db';
 import { WikimediaClient } from '../assets/commons/client.js';
-import { GEMINI_VISION_DEFAULT_MODEL, geminiRanker } from '../assets/commons/gemini.js';
+import { panelEnv } from '../assets/commons/panel-env.js';
+import {
+  ASSETS_AGENT,
+  GEMINI_VISION_DEFAULT_MODEL,
+  geminiRanker,
+  rankEstimate,
+  rankPrompt,
+} from '../assets/commons/gemini.js';
 import { loadF1dbForCommons, targetsByKey } from '../assets/commons/load.js';
 import { readManifest, writeManifest } from '../assets/commons/manifest.js';
 import {
@@ -71,9 +92,11 @@ if (plan) {
         agora: pending.includes(e) ? 'ordenar' : '—',
       })),
   );
+  const perTarget = rankEstimate([rankPrompt('—', 'car', AI_POOL)], AI_POOL, model).usd;
   console.log(
     `PRÉVIA (nada chamado, nada gravado): ${pending.length} alvo(s) a ordenar com ${model}, ` +
-      `1 chamada ao Gemini por alvo com até ${AI_POOL} miniaturas; base ${input}${previous ? ` + alvos já ordenados de ${output}` : ''}`,
+      `1 chamada ao Gemini por alvo com até ${AI_POOL} miniaturas (reserva de até US$ ${perTarget.toFixed(4)} por alvo ` +
+      `no teto do agente ${ASSETS_AGENT}); base ${input}${previous ? ` + alvos já ordenados de ${output}` : ''}`,
   );
 } else {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -86,10 +109,22 @@ if (plan) {
       tables,
       pending.map((e) => e.target),
     );
-    console.log(`${targets.length} alvo(s) a ordenar; F1DB ${release ?? '?'}; Gemini ${model}`);
+    const env = await panelEnv(db);
+    // faixas da política de execução (#357): rodado à mão, desconta da faixa `manual`
+    const budget = new TokenBudget(
+      new PgTokenBudgetStore(db),
+      ledgerPolicy(ledgerSettingsFromEnv(env), {
+        policy: loadAiPolicyOrEmpty(defaultAiPolicyFile(env)),
+        manual: isManualRun(env),
+      }),
+    );
+    console.log(
+      `${targets.length} alvo(s) a ordenar; F1DB ${release ?? '?'}; Gemini ${model}; ` +
+        `IA ${budget.describe()} · agente ${ASSETS_AGENT}: ${budget.describe(ASSETS_AGENT)}`,
+    );
     const { manifest, stats } = await mapCommons(client, targets, base, {
       revision: new Date().toISOString().slice(0, 10),
-      ranker: geminiRanker({ apiKey, model }),
+      ranker: geminiRanker({ apiKey, model, budget }),
       redo,
       log,
     });

@@ -1,0 +1,29 @@
+{
+  "name": "@galaxie/ai-ledger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ledger diário de IA (ops.llm_usage): tabela de preços, estado literal, tetos em tokens e US$ e reserva antes de cada chamada, compartilhado pelos agentes e pelo ingestor",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "yaml": "^2.9.1"
+  }
+}

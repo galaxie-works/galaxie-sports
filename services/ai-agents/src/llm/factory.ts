@@ -1,12 +1,16 @@
+import { defaultAiPolicyFile, isManualRun, loadAiPolicyOrEmpty, type BandPolicy } from '@galaxie/ai-ledger';
 import type { Database } from '@galaxie/db';
+import type { BudgetDay } from '@galaxie/runtime-config';
 import {
   BudgetedLlmClient,
   MemoryTokenBudgetStore,
   PgTokenBudgetStore,
   TokenBudget,
+  ledgerPolicy,
   type BudgetPolicy,
 } from './budget.js';
 import { llmSettingsFromEnv, type AiStatus, type LlmSettings } from './config.js';
+import { priorityResolver } from './priority.js';
 import { AnthropicLlmClient } from './providers/anthropic.js';
 import { GeminiLlmClient } from './providers/gemini.js';
 import { OpenAiLlmClient } from './providers/openai.js';
@@ -19,27 +23,51 @@ export interface CreateLlmClientOptions {
   /** Limites por agente em tokens (somados ao global AI_DAILY_TOKEN_BUDGET). */
   agentLimits?: BudgetPolicy['agentLimits'];
   now?: () => Date;
+  /**
+   * Faixas por prioridade (#357): padrão ligadas, com config/ai-policy.yaml (AI_POLICY_FILE), a audiência
+   * de config/geo e a faixa `manual` fora do scheduler. `false` desliga (só os tetos global e por agente).
+   */
+  bands?: boolean | Omit<BandPolicy, 'shares'>;
 }
 
 /**
- * Política do orçamento lida do ambiente: estado (global e por agente), tokens, US$ (global e por
- * agente) e buscas por chamada.
+ * Faixas da política de execução lidas do ambiente: a política versionada, quem chama (scheduler ou
+ * manual: GALAXIE_INVOKER) e a prioridade por competição com o corte AI_P0_MIN_AUDIENCE.
+ */
+export function bandsFromEnv(
+  env: Record<string, string | undefined>,
+  settings: Pick<LlmSettings, 'p0MinAudience'>,
+): Omit<BandPolicy, 'shares'> {
+  // política ausente ou inválida: sai no log e vale a vazia (os jobs gravam o determinístico, não saem com erro)
+  const policy = loadAiPolicyOrEmpty(defaultAiPolicyFile(env));
+  return {
+    policy,
+    manual: isManualRun(env),
+    priorityOf: priorityResolver({ minAudience: settings.p0MinAudience, policy, env }),
+  };
+}
+
+/**
+ * Política do orçamento lida do ambiente: estado (global e por agente), tokens, US$ (global, por
+ * agente e o padrão do agente fora da lista) e buscas por chamada.
  */
 export function budgetPolicyFromSettings(
   settings: Pick<
     LlmSettings,
     'dailyTokenBudget' | 'dailyUsdBudget' | 'agentUsdBudgets' | 'maxSearchesPerCall'
   > &
-    Partial<Pick<LlmSettings, 'status' | 'agentStatus'>>,
+    Partial<
+      Pick<
+        LlmSettings,
+        'status' | 'agentStatus' | 'agentDefaultUsdBudget' | 'agentUsdOrigins' | 'bandShares' | 'budgetDay'
+      >
+    >,
   agentLimits?: BudgetPolicy['agentLimits'],
+  bands?: Omit<BandPolicy, 'shares'>,
 ): BudgetPolicy {
   return {
-    status: settings.status ?? 'on',
-    agentStatus: settings.agentStatus ?? {},
-    dailyLimit: settings.dailyTokenBudget,
+    ...ledgerPolicy(settings, bands),
     ...(agentLimits ? { agentLimits } : {}),
-    dailyUsdLimit: settings.dailyUsdBudget,
-    agentUsdLimits: settings.agentUsdBudgets,
     maxSearchesPerCall: settings.maxSearchesPerCall,
   };
 }
@@ -52,7 +80,14 @@ export interface LlmRuntime {
 
 /** Cria o cliente do provedor escolhido por AI_PROVIDER (openai, anthropic ou gemini), já com orçamento diário e registro de uso. */
 export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntime {
-  const settings = llmSettingsFromEnv(options.env ?? process.env);
+  const env = options.env ?? process.env;
+  const settings = llmSettingsFromEnv(env);
+  const bands =
+    options.bands === false
+      ? undefined
+      : options.bands === undefined || options.bands === true
+        ? bandsFromEnv(env, settings)
+        : options.bands;
   const common = {
     models: settings.models,
     maxRetries: settings.maxRetries,
@@ -67,7 +102,7 @@ export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntim
         : new OpenAiLlmClient(common);
   const budget = new TokenBudget(
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
-    budgetPolicyFromSettings(settings, options.agentLimits),
+    budgetPolicyFromSettings(settings, options.agentLimits, bands),
     options.now,
   );
   return {
@@ -99,6 +134,8 @@ export interface WithTokenBudgetOptions {
   dailyUsdLimit?: number | null;
   /** Tetos em US$ por agente (padrão: AI_AGENT_USD_BUDGETS do ambiente); null = sem teto próprio. */
   agentUsdLimits?: Record<string, number | null>;
+  /** Teto em US$ do agente fora da lista (padrão: AI_AGENT_DEFAULT_USD_BUDGET do ambiente; null = sem teto). */
+  agentDefaultUsdLimit?: number | null;
   /** Estado global (padrão: AI_STATUS do ambiente). */
   status?: AiStatus;
   /** Estado por agente (padrão: AI_AGENT_STATUS do ambiente). */
@@ -109,6 +146,10 @@ export interface WithTokenBudgetOptions {
   now?: () => Date;
   /** Usado no registro de falhas (o sucesso registra o provedor/modelo da resposta). */
   provider?: string;
+  /** Faixas por prioridade (#357; as % de AI_BAND_SHARES do ambiente); ausente = sem faixas. */
+  bands?: Omit<BandPolicy, 'shares'>;
+  /** Virada do dia de orçamento; ausente = 00:00 UTC. */
+  budgetDay?: BudgetDay;
 }
 
 /**
@@ -126,10 +167,18 @@ export function withTokenBudget(client: LlmClient, options: WithTokenBudgetOptio
         dailyTokenBudget: options.dailyLimit !== undefined ? options.dailyLimit : fromEnv.dailyTokenBudget,
         dailyUsdBudget: options.dailyUsdLimit !== undefined ? options.dailyUsdLimit : fromEnv.dailyUsdBudget,
         agentUsdBudgets: options.agentUsdLimits ?? fromEnv.agentUsdBudgets,
+        ...(options.agentUsdLimits ? {} : { agentUsdOrigins: fromEnv.agentUsdOrigins }),
+        agentDefaultUsdBudget:
+          options.agentDefaultUsdLimit !== undefined
+            ? options.agentDefaultUsdLimit
+            : fromEnv.agentDefaultUsdBudget,
         maxSearchesPerCall:
           options.maxSearchesPerCall !== undefined ? options.maxSearchesPerCall : fromEnv.maxSearchesPerCall,
+        bandShares: fromEnv.bandShares,
+        ...(options.budgetDay ? { budgetDay: options.budgetDay } : {}),
       },
       options.agentLimits,
+      options.bands,
     ),
     options.now,
   );

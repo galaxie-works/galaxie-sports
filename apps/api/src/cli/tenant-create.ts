@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { API_PLANS, closeDb, createDb, type ApiModule, type ApiPlan } from '@galaxie/db';
 import { loadPlans } from '../admin/plans.js';
-import { KeyPolicyError, resolveTenantValues, upsertTenantWithKey } from '../admin/tenants.js';
+import { KeyPolicyError, resolveTenantValues, trialEndsFor, upsertTenantWithKey } from '../admin/tenants.js';
 import { isModule } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 
@@ -95,7 +95,8 @@ const rateLimit = positiveIntOrExit(values['rate-limit'], '--rate-limit');
 const dailyQuota =
   values['daily-quota'] === 'none' ? null : positiveIntOrExit(values['daily-quota'], '--daily-quota');
 // modelo do plano (config/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
-const resolved = resolveTenantValues(loadPlans(), {
+const plans = loadPlans();
+const resolved = resolveTenantValues(plans, {
   plan: values.plan as ApiPlan,
   ...(modules ? { modules } : {}),
   ...(markets ? { markets } : {}),
@@ -109,12 +110,20 @@ try {
   // no teto, o comando falha sem reescrever o tenant
   const { tenant: t, key } = await upsertTenantWithKey(
     db,
-    { slug: values.slug, name: values.name ?? values.slug, ...resolved },
+    {
+      slug: values.slug,
+      name: values.name ?? values.slug,
+      ...resolved,
+      // plano trial: prazo a partir de agora (rodar de novo reinicia o prazo, como reaplica o modelo)
+      trialEndsAt: trialEndsFor(plans, resolved.plan),
+    },
     {
       env: values.env as KeyEnv,
       ...(values.label ? { label: values.label } : {}),
       ...(scopes ? { scopes } : {}),
     },
+    new Date(),
+    'cli:tenant-create',
   ).catch((err: unknown) => {
     if (!(err instanceof KeyPolicyError)) throw err;
     console.error(`${err.message} Nada foi alterado no tenant.`);

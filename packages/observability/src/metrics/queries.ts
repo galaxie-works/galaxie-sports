@@ -117,7 +117,9 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
       order by job, started_at desc
     ),
     last_ok as (
-      select job, max(started_at) as at from ops.job_run where status = 'ok' group by job
+      -- budget_skipped: o job gravou o determinístico porque o orçamento de IA recusou; conta como sucesso
+      select job, max(started_at) as at from ops.job_run
+       where status in ('ok', 'budget_skipped') group by job
     ),
     first_run as (
       select job, min(started_at) as at from ops.job_run group by job

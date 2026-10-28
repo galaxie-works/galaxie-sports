@@ -28,7 +28,8 @@ import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
-import { aiStateText, displayValue, formatDuration, settingText } from './format';
+import { AiPolicyCard } from './ai-policy-card';
+import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
@@ -40,6 +41,9 @@ export const PANEL_TABS = {
 } as const;
 export type PanelScope = keyof typeof PANEL_TABS;
 type Tab = (typeof PANEL_TABS)[PanelScope][number];
+
+/** Editadas pelo cartão Política de IA (sliders), fora da lista de flags da seção. */
+const AI_POLICY_KEYS = new Set(['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE']);
 
 /** Plano por esporte (APISPORTS_PLAN_<API>) vai para Esportes e features; o padrão fica no Sistema. */
 const isSportPlan = (key: string) => key.startsWith('APISPORTS_PLAN_');
@@ -112,11 +116,23 @@ export function OpsPanel({
             })()}
           />
         </TabsContent>
-        {(['live', 'ai', 'wtw', 'assets'] as const).map((s) => (
+        {(['live', 'wtw', 'assets'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
             <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
           </TabsContent>
         ))}
+        <TabsContent value="ai" className="mt-4 flex flex-col gap-4">
+          <AiPolicyCard
+            key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
+            llm={snapshot.llm}
+          />
+          <SectionCard
+            section="ai"
+            filter={(key) => !AI_POLICY_KEYS.has(key)}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
+        </TabsContent>
         <TabsContent value="related" className="mt-4 flex flex-col gap-4">
           {snapshot.youtube ? (
             <>
@@ -431,19 +447,27 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
     budget,
     usdBudget,
     agentUsdBudgets,
+    agentUsdOrigins,
+    agentDefaultUsdBudget,
     maxSearchesPerCall,
     status,
     agentStatus,
     invalid,
   } = snapshot.llm;
-  const tokens = totals.inputTokens + totals.outputTokens;
+  // como o serviço: o pool próprio do assets fica fora da soma contra o teto global de tokens
+  const tokenCount = tokenUsage(byAgent, budget);
+  const tokens = tokenCount.counted;
   const usd = (v: number) =>
     new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v);
   return (
     <CardShell
       icon={Bot}
       title={T.status.llm}
-      description={fill(T.status.quotaDay, { day: snapshot.dayUtc })}
+      description={fill(T.status.llmDay, {
+        day: snapshot.llm.budgetDay,
+        start: snapshot.llm.day.start,
+        timeZone: snapshot.llm.day.timeZone,
+      })}
     >
       <div className="flex flex-col gap-1.5">
         <span
@@ -494,6 +518,19 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
             ? fill(T.status.llmTokens, { used: f.number(tokens), budget: f.number(budget) })
             : fill(T.status.llmTokensUnlimited, { used: f.number(tokens) })}
         </span>
+        {tokenCount.pools
+          .filter((p) => p.used > 0)
+          .map((p) => (
+            <span key={p.agent} className="text-muted-foreground text-xs tabular-nums">
+              {p.limit !== null
+                ? fill(T.status.llmTokenPool, {
+                    agent: p.agent,
+                    used: f.number(p.used),
+                    budget: f.number(p.limit),
+                  })
+                : fill(T.status.llmTokenPoolUnlimited, { agent: p.agent, used: f.number(p.used) })}
+            </span>
+          ))}
         {totals.errors ? (
           <span className="text-destructive text-xs">
             {plural(locale, totals.errors, T.status.llmErrors)}
@@ -517,7 +554,9 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
           </TableHeader>
           <TableBody>
             {byAgent.map((a) => {
-              const cap = agentUsdBudgets[a.agent] ?? null;
+              // agente fora da lista: o teto padrão (AI_AGENT_DEFAULT_USD_BUDGET), nunca sem teto
+              const listed = Object.hasOwn(agentUsdBudgets, a.agent);
+              const cap = listed ? (agentUsdBudgets[a.agent] ?? null) : agentDefaultUsdBudget;
               const off = status === 'off' || agentStatus[a.agent] === 'off';
               return (
                 <TableRow key={a.agent}>
@@ -542,7 +581,13 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {usd(a.costUsd)}
-                    {cap !== null ? <span className="text-muted-foreground"> / {usd(cap)}</span> : null}
+                    {cap !== null ? (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        / {usd(cap)}
+                        {` (${listed ? T.status.llmCapOrigin[agentUsdOrigins[a.agent] ?? 'code'] : T.status.llmAgentDefaultCap})`}
+                      </span>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               );
@@ -560,6 +605,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
 
 const RUN_VARIANT = {
   ok: 'success-light',
+  budget_skipped: 'warning-light',
   error: 'destructive-light',
   running: 'info-light',
 } as const;

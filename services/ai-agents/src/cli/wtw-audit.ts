@@ -6,7 +6,9 @@
  *   pnpm --filter @galaxie/ai-agents wtw:audit --metricas [--dias 30] [--prometheus]
  */
 import { parseArgs } from 'node:util';
+import { ledgerSettingsFromEnv } from '@galaxie/ai-ledger';
 import { closeDb, createDb } from '@galaxie/db';
+import { budgetDayOf } from '@galaxie/runtime-config';
 import {
   computeWtwMetrics,
   listPendingAudits,
@@ -17,6 +19,7 @@ import {
   type AuditVerdict,
 } from '@galaxie/where-to-watch';
 import { activeMarkets } from '../wtw/markets.js';
+import { runtimeEnv } from './common.js';
 
 const VERDICTS: Record<string, AuditVerdict> = {
   correto: 'correct',
@@ -94,6 +97,8 @@ async function main(): Promise<void> {
       const m = await computeWtwMetrics(db, {
         countries: await activeMarkets(db),
         ...(values.dias ? { days: Number(values.dias) } : {}),
+        // gasto de IA no dia de orçamento dos tetos (virada do painel, padrão 06:00 em Brasília)
+        budgetDay: budgetDayOf(new Date(), ledgerSettingsFromEnv(await runtimeEnv(db)).budgetDay),
       });
       if (values.prometheus) {
         process.stdout.write(renderPrometheus(m));

@@ -222,6 +222,7 @@ const ERROR_ROWS = [
   ['403 MARKET_NOT_IN_PLAN', 'marketNotInPlan'],
   ['404 NOT_FOUND', 'notFound'],
   ['429 RATE_LIMITED', 'rateLimited'],
+  ['429 QUOTA_EXCEEDED', 'quotaExceeded'],
   ['503 DEGRADED', 'degraded'],
   ['503 MAINTENANCE', 'maintenance'],
   ['500 INTERNAL_ERROR', 'internal'],

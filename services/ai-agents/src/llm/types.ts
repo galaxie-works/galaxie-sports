@@ -40,6 +40,11 @@ export interface LlmJsonRequest {
   /** Identifica a tarefa no orçamento de tokens e nos logs (ex.: "wtw:event:<id>:BR"). */
   purpose: string;
   /**
+   * Competição da chamada: a prioridade dela (P0 futebol LATAM, P1, resto) escolhe a faixa de orçamento
+   * dos agentes `priority` de config/ai-policy.yaml. Ausente: a faixa `rest`.
+   */
+  competition?: { sport?: string | null; slug: string } | null;
+  /**
    * Preenchido pelo orçamento (BudgetedLlmClient), que reserva uma tentativa só. O provedor chama antes
    * de cada nova tentativa e de cada continuação, com o gasto parcial da chamada (tokens e US$ já
    * cobrados); lança BudgetExceededError se mais uma rodada estimada não couber no teto do dia. `next`:
@@ -74,6 +79,18 @@ export interface LlmResult<T> {
   groundedUrls?: string[];
 }
 
+/** O que a última recusa do orçamento pedia: uma chamada assim cabe agora? */
+export interface BudgetNeed {
+  unit: 'tokens' | 'usd';
+  /** Estimativa da chamada recusada (tokens ou US$, conforme `unit`). */
+  requested: number;
+}
+
 export interface LlmClient {
   generateJson<T>(req: LlmJsonRequest): Promise<LlmResult<T>>;
+  /**
+   * Opcional (o cliente com orçamento): uma chamada do agente, para esta competição e com esta
+   * estimativa, caberia agora nos tetos (faixa, agente, global)? Não chama o provedor nem grava nada.
+   */
+  hasRoom?(agent: string, competition: LlmJsonRequest['competition'], need?: BudgetNeed): Promise<boolean>;
 }

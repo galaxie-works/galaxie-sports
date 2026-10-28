@@ -276,3 +276,19 @@ describe('ambiente e formato da chave (docs/politica-de-chaves.md §1)', () => {
     await expect(auth.authenticate(`gs_live_${prefix}_${p.secret}`)).resolves.toMatchObject({ env: 'live' });
   });
 });
+
+describe('trial (docs/politica-de-chaves.md §3)', () => {
+  it('depois do fim do trial nenhuma chave do tenant autentica', async () => {
+    const { store, key, prefix } = await memoryTenant({
+      plan: 'trial',
+      trialEndsAt: new Date(Date.now() + 60_000),
+    });
+    const auth = new Authenticator(store, { cacheTtlMs: 0 });
+    await expect(auth.authenticate(key)).resolves.toMatchObject({ plan: 'trial' });
+    store.keys.get(prefix)!.tenant.trialEndsAt = new Date(Date.now() - 1);
+    await expect(auth.authenticate(key)).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+      detail: expect.stringMatching(/trial terminou/),
+    });
+  });
+});

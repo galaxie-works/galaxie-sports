@@ -25,6 +25,8 @@ export interface TenantContext {
   /** Esportes contratados; vazio = todos. */
   sports: string[];
   rateLimitPerMinute: number;
+  /** Cota diária de produção do tenant; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
+  dailyRequestQuota?: number | null;
 }
 
 export interface AuthenticatorOptions {
@@ -140,6 +142,11 @@ export class Authenticator {
     if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.');
     if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.');
     if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
+    // fim do trial vale para todas as chaves do tenant
+    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now)
+      throw problems.invalidKey(
+        reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
+      );
     // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
     // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
     if (parsed.env !== record.env)
@@ -174,6 +181,7 @@ export class Authenticator {
       markets: record.tenant.markets,
       sports: record.tenant.sports,
       rateLimitPerMinute: record.tenant.rateLimitPerMinute,
+      dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
     };
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);

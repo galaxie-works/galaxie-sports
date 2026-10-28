@@ -33,11 +33,15 @@ export const API_MODULES = [
 ] as const;
 export type ApiModule = (typeof API_MODULES)[number];
 
-export const API_PLANS = ['core_data', 'fan_experience', 'live_intelligence', 'enterprise'] as const;
+export const API_PLANS = ['trial', 'core_data', 'fan_experience', 'live_intelligence', 'enterprise'] as const;
 export type ApiPlan = (typeof API_PLANS)[number];
+
+/** Planos sem tempo real: nem SSE (`/v1/stream`) nem webhooks (docs/politica-de-chaves.md §3). */
+export const PLANS_WITHOUT_REALTIME: readonly ApiPlan[] = ['trial'];
 
 /** Módulos incluídos por padrão em cada plano (o tenant pode ter uma lista personalizada). */
 export const PLAN_MODULES: Record<ApiPlan, readonly ApiModule[]> = {
+  trial: ['core_data'],
   core_data: ['core_data'],
   fan_experience: ['core_data', 'where_to_watch', 'semantic'],
   live_intelligence: ['core_data', 'where_to_watch', 'semantic', 'live_intelligence', 'multisport'],
@@ -59,8 +63,13 @@ export const tenant = api.table('tenant', {
   sports: text('sports').array().notNull().default([]),
   /** Requisições por minuto, por rota. */
   rateLimitPerMinute: integer('rate_limit_per_minute').notNull().default(120),
-  /** Cota diária de requisições (todas as rotas); null = sem cota. Informativa (exibida no uso). */
+  /**
+   * Cota diária de requisições de produção (todas as rotas; a chave de teste fica fora); null = sem cota.
+   * Aviso a partir de 80% e 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC.
+   */
   dailyRequestQuota: integer('daily_request_quota'),
+  /** Fim do trial (plano `trial`): depois dele nenhuma chave do tenant autentica. null = sem prazo. */
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
   status: tenantStatus('status').notNull().default('active'),
   /** Plataforma (enrich.platform) quando o cliente é uma operadora/streaming da grade. */
   operatorPlatformId: uuid('operator_platform_id').references((): AnyPgColumn => platform.id, {
@@ -113,6 +122,32 @@ export const apiKey = api.table(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('api_key_prefix_uq').on(t.prefix), index('api_key_tenant_idx').on(t.tenantId)],
+);
+
+/**
+ * Auditoria das chaves (secretas e publicáveis): emissão, rotação, revogação e migração, com quem fez e
+ * quando. Nunca guarda o segredo, só o prefixo (docs/politica-de-chaves.md §5).
+ */
+export const apiKeyEvent = api.table(
+  'api_key_event',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** `secret` (api.api_key) ou `publishable` (ops.publishable_key). */
+    keyKind: text('key_kind').$type<'secret' | 'publishable'>().notNull(),
+    keyId: uuid('key_id').notNull(),
+    prefix: text('prefix').notNull(),
+    /** issued | rotated | revoked | migrated */
+    action: text('action').$type<'issued' | 'rotated' | 'revoked' | 'migrated'>().notNull(),
+    /** Quem fez: `admin`, `tenant` (autoatendimento), `cli:<comando>`, `panel:<id do usuário>`, `widget`. */
+    actor: text('actor').notNull(),
+    /** Contexto (ex.: chave nova da rotação, período de graça). Nunca segredos. */
+    detail: jsonb('detail').$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('api_key_event_tenant_idx').on(t.tenantId, t.createdAt)],
 );
 
 /**

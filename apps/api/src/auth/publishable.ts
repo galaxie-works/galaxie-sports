@@ -113,6 +113,7 @@ export class PublishableAuthenticator {
       markets: key.tenant.markets,
       sports: key.tenant.sports,
       rateLimitPerMinute: key.tenant.rateLimitPerMinute,
+      dailyRequestQuota: key.tenant.dailyRequestQuota,
     };
   }
 

@@ -13,6 +13,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { pkUuidV7 } from './_shared.js';
 
 export const ops = pgSchema('ops');
@@ -134,8 +135,15 @@ export const llmUsage = ops.table(
   'llm_usage',
   {
     id: bigserial('id', { mode: 'number' }).primaryKey(),
-    /** Dia do orçamento (UTC). */
+    /** Dia UTC da chamada (métricas). */
     dayUtc: date('day_utc').notNull(),
+    /**
+     * Dia de orçamento (vira em AI_BUDGET_DAY_START no fuso AI_BUDGET_TIMEZONE; padrão 06:00 em Brasília):
+     * a chave de todos os tetos do dia. Linhas anteriores à política (#357) ficam com o dia UTC.
+     */
+    budgetDay: date('budget_day'),
+    /** Faixa de orçamento da chamada (p0, p1, clients, rest, manual; AI_BAND_SHARES). Nula nas linhas antigas. */
+    band: text('band'),
     /** Agente (prefixo de `purpose`, ex.: wtw, live, context). */
     agent: text('agent').notNull(),
     purpose: text('purpose').notNull(),
@@ -151,7 +159,11 @@ export const llmUsage = ops.table(
     error: text('error'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('llm_usage_day_agent_idx').on(t.dayUtc, t.agent)],
+  (t) => [
+    index('llm_usage_day_agent_idx').on(t.dayUtc, t.agent),
+    // os tetos leem `coalesce(budget_day, day_utc)`: a linha sem o dia de orçamento conta pelo dia UTC
+    index('llm_usage_budget_day_band_idx').on(sql`coalesce(${t.budgetDay}, ${t.dayUtc})`, t.band),
+  ],
 );
 
 /** Mudanças publicadas — alimenta SSE, webhooks e purge de CDN. */

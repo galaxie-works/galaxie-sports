@@ -83,12 +83,15 @@ describe('configuração do orçamento em US$', () => {
       context: 1.5,
       related: 0.5,
       f1profile: 2,
-      f1bio: null,
-      curator: null,
-      review: null,
-      channels: null,
-      live: null,
+      f1bio: 1,
+      curator: 1,
+      review: 0.5,
+      channels: 1,
+      live: 0.5,
+      assets: 1,
     });
+    // agente fora da lista: o teto padrão, nunca sem teto
+    expect(s.agentDefaultUsdBudget).toBe(0.5);
     expect(s.maxSearchesPerCall).toBe(DEFAULT_MAX_SEARCHES_PER_CALL);
   });
 
@@ -99,7 +102,12 @@ describe('configuração do orçamento em US$', () => {
       AI_MAX_SEARCHES_PER_CALL: '3',
     });
     expect(s.dailyUsdBudget).toBe(7.5);
-    expect(s.agentUsdBudgets).toEqual({ lineups: 1, wtw: 0.25 });
+    // a lista mescla agente a agente sobre os padrões do código: só lineups e wtw mudam
+    expect(s.agentUsdBudgets).toEqual({
+      ...parseAgentUsdBudgets(DEFAULT_AGENT_USD_BUDGETS),
+      lineups: 1,
+      wtw: 0.25,
+    });
     expect(s.maxSearchesPerCall).toBe(3);
     const open = llmSettingsFromEnv({
       AI_DAILY_USD_BUDGET: 'unlimited',
@@ -195,7 +203,7 @@ describe('teto global em US$', () => {
 });
 
 describe('teto em US$ por agente', () => {
-  it('agente no teto fica sem IA até a virada do dia UTC; os outros seguem', async () => {
+  it('agente no teto fica sem IA até a virada do dia de orçamento; os outros seguem', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const store = new MemoryTokenBudgetStore();
     let now = NOW;
@@ -226,7 +234,7 @@ describe('teto em US$ por agente', () => {
     ).rejects.toBeInstanceOf(BudgetExceededError);
     const capWarnings = warn.mock.calls.filter((c) => String(c[0]).includes('(lineups)'));
     expect(capWarnings).toHaveLength(1);
-    expect(String(capWarnings[0]![0])).toMatch(/virada do dia UTC/);
+    expect(String(capWarnings[0]![0])).toMatch(/virada do dia de orçamento \(00:00 \(UTC\)\)/);
 
     // dia seguinte (UTC): volta a ter IA
     now = new Date('2026-10-25T00:05:00Z');
@@ -453,7 +461,9 @@ describe('o teto em US$ segura', () => {
     // a próxima chamada é recusada na reserva, e aí sim vem o aviso de teto esgotado do dia
     expect(await call()).toMatchObject({ midCall: false, unit: 'usd' });
     expect(api.calls).toHaveLength(2);
-    expect(warn.mock.calls.filter((c) => String(c[0]).includes('virada do dia UTC'))).toHaveLength(1);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('virada do dia de orçamento'))).toHaveLength(
+      1,
+    );
   });
 
   describe('Gemini via orçamento', () => {

@@ -4,7 +4,8 @@ import { validateSettingKey } from '@galaxie/runtime-config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { validationMessage } from '@/lib/ops/validation-message';
 
-import { aiStateText } from './format';
+import { AI_POLICY_KEYS, needsConfirmation } from './ai-policy';
+import { aiStateText, tokenUsage } from './format';
 
 const pt = getDictionary('pt-BR').ops;
 
@@ -26,5 +27,27 @@ describe('estado literal da IA no painel', () => {
     const checked = validateSettingKey('AI_DAILY_USD_BUDGET', '0');
     expect(checked.ok).toBe(false);
     if (!checked.ok) expect(validationMessage(pt, checked.error)).toMatch(/use AI_STATUS=off/);
+  });
+});
+
+describe('tokens do dia no painel', () => {
+  it('o pool próprio do assets fica fora da soma contra o teto global e aparece à parte', () => {
+    const byAgent = [
+      { agent: 'wtw', inputTokens: 900_000, outputTokens: 100_000 },
+      { agent: 'assets', inputTokens: 550_000, outputTokens: 50_000 },
+    ];
+    expect(tokenUsage(byAgent, 3_000_000)).toEqual({
+      counted: 1_000_000,
+      pools: [{ agent: 'assets', used: 600_000, limit: 600_000 }],
+    });
+    expect(tokenUsage(byAgent, null).pools[0]!.limit).toBeNull();
+  });
+});
+
+describe('cartão Política de IA', () => {
+  it('gravar e voltar ao padrão pedem confirmação: as três chaves são críticas (custo)', () => {
+    expect(needsConfirmation(AI_POLICY_KEYS)).toBe(true);
+    expect(needsConfirmation(['AI_DAILY_USD_BUDGET'])).toBe(true);
+    expect(needsConfirmation(['AI_MAX_RETRIES'])).toBe(false);
   });
 });

@@ -170,6 +170,7 @@ export default defineMessages(
       markets: 'Mercados não suportados: {values}.',
       format: 'Formato inválido.',
       zero: '0 não é um valor válido: para desligar a IA use AI_STATUS=off (ou AI_AGENT_STATUS para um agente); para tirar o teto, "Sem limite" (unlimited).',
+      shares: 'As faixas somam {sum}%: precisam somar 100%.',
       providerKeyMissing: 'A chave desse provedor não está configurada no contêiner dos agentes.',
       alreadyQueued: 'Já existe um pedido para este job na fila.',
       notRunnable: 'Este job não pode ser disparado pelo painel.',
@@ -190,6 +191,7 @@ export default defineMessages(
       startedAt: 'Partida {when}',
       quota: 'Cota da api-sports hoje',
       quotaDay: 'Dia de cota {day} (UTC)',
+      llmDay: 'Dia de orçamento {day} (vira às {start}, {timeZone})',
       quotaUsed: '{used} de {limit} chamadas',
       quotaProvider: 'Contador do fornecedor: {used}/{limit}',
       quotaNoLimit: '{used} chamadas',
@@ -199,6 +201,8 @@ export default defineMessages(
       llm: 'Gasto de IA hoje',
       llmTokens: '{used} de {budget} tokens',
       llmTokensUnlimited: '{used} tokens (sem limite)',
+      llmTokenPool: '{agent}: {used} de {budget} tokens (pool próprio, fora do teto global)',
+      llmTokenPoolUnlimited: '{agent}: {used} tokens (pool próprio, sem limite)',
       llmErrors: { one: '{count} erro', other: '{count} erros' },
       llmNone: 'Nenhuma chamada de IA hoje.',
       llmUsd: 'US$ {used} de US$ {budget}',
@@ -209,6 +213,8 @@ export default defineMessages(
         other: '{count} chamadas passaram de {max} buscas',
       },
       llmAgentCapped: 'no teto',
+      llmAgentDefaultCap: 'teto padrão',
+      llmCapOrigin: { db: 'painel', env: 'env', code: 'código' },
       aiState: 'IA: {state}',
       aiOn: 'ligado',
       aiOff: 'desligado',
@@ -250,6 +256,7 @@ export default defineMessages(
         error: 'Erro',
         running: 'Rodando',
         never: 'Nunca rodou',
+        budget_skipped: 'Sem orçamento de IA',
       },
       duration: 'durou {duration}',
       lastOk: 'último sucesso {when}',
@@ -386,6 +393,7 @@ export default defineMessages(
       requestDetail: {
         not_allowed: 'job não liberado para o painel',
         already_running: 'já estava rodando',
+        budget_skipped: 'texto determinístico: orçamento de IA recusou',
       },
     },
     quality: {
@@ -511,6 +519,63 @@ export default defineMessages(
       description: 'Plano contratado desta API. Vazio herda o plano padrão.',
     },
     schedulePrefix: 'Agenda: {job}',
+    aiPolicy: {
+      title: 'Política de IA',
+      description:
+        'Como o teto diário em US$ se divide por prioridade. Cada chamada desconta só da sua faixa; a faixa que acaba não pega saldo de outra e o job segue com o texto determinístico.',
+      bands: {
+        p0: {
+          label: 'P0 · futebol LATAM',
+          description:
+            'Competições com audiência acima do corte num mercado da região (Brasileirão, Libertadores, Liga MX…).',
+        },
+        reserve: {
+          label: 'Reserva da P0',
+          description: 'Colchão que só a P0 usa depois de gastar a própria faixa, para o dia de pico.',
+        },
+        p1: {
+          label: 'P1 · resto do futebol',
+          description:
+            'Futebol que o produto cobre com audiência abaixo do corte (as europeias, por exemplo).',
+        },
+        clients: {
+          label: 'Clientes e grade',
+          description: 'Listas de canais dos clientes e a grade das operadoras.',
+        },
+        rest: {
+          label: 'Resto',
+          description: 'Agentes editoriais e de revisão e competições sem audiência na região.',
+        },
+        manual: {
+          label: 'Execução manual',
+          description: 'Qualquer comando rodado fora do scheduler, seja qual for o agente.',
+        },
+      },
+      total: 'Total: {sum}%',
+      totalInvalid: 'As faixas precisam somar 100% (agora: {sum}%).',
+      unlimited: 'Sem limite',
+      unlimitedHint: 'Sem teto global, as faixas também ficam sem teto.',
+      spent: 'hoje US$ {used} de US$ {limit}',
+      spentNoLimit: 'hoje US$ {used} (sem teto)',
+      reserveIn: 'dentro do teto da P0',
+      day: 'Dia de orçamento {day}: vira às {start} ({timeZone}).',
+      save: 'Salvar política',
+      saved: 'Política de IA salva',
+      reset: 'Desfazer',
+      resetDefault: 'Voltar ao padrão',
+      resetDone: 'Política de IA de volta ao padrão',
+      resetConfirmBody:
+        'As sobrescritas do painel das faixas, do teto global em US$ e do corte P0/P1 são apagadas e volta a valer o env ou o padrão do código. Muda o custo da IA a partir da próxima chamada.',
+      confirmCost: 'Estas flags afetam o custo da IA.',
+      dailyUsd: {
+        label: 'Teto global (US$/dia)',
+        description: 'O máximo que a IA gasta por dia somando todas as faixas.',
+      },
+      minAudience: {
+        label: 'Corte P0/P1 (audiência mínima)',
+        description: 'Pontos de audiência a partir dos quais a competição é P0; abaixo, com audiência, é P1.',
+      },
+    },
     settings: {
       LIVE_FEATURED: {
         label: 'Detalhe do jogo principal',
@@ -585,7 +650,33 @@ export default defineMessages(
       AI_AGENT_USD_BUDGETS: {
         label: 'Teto diário por agente',
         description:
-          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica só no teto global. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
+          'US$ por dia de cada agente, no formato agente=valor separado por vírgula (ex.: lineups=2,wtw=unlimited). O agente que bate o teto fica sem IA até a virada do dia UTC; unlimited tira o teto próprio; agente fora da lista fica com o teto do código ou, sem ele, com o teto padrão do agente novo. A lista mescla agente a agente sobre os padrões do código: só os agentes listados mudam. 0 não é aceito: para desligar um agente, use a IA por agente. Vazio usa o padrão.',
+      },
+      AI_AGENT_DEFAULT_USD_BUDGET: {
+        label: 'Teto diário do agente novo',
+        description:
+          'US$ por dia de cada agente que não está no teto por agente (um agente novo, por exemplo): ele tem IA, mas só até este valor, e o log avisa uma vez por dia que ele está no padrão. Um número, ou "Sem limite" (fica só no teto global); 0 não é aceito.',
+        unit: 'US$',
+      },
+      AI_BAND_SHARES: {
+        label: 'Faixas do orçamento de IA',
+        description:
+          'Porcentagem do teto diário em US$ de cada faixa, no formato faixa=%: p0 (futebol LATAM), reserve (reserva só da P0), p1 (o resto do futebol), clients (clientes e grade), rest (o resto) e manual (execução fora do scheduler). Somam 100. Faixa esgotada não pega saldo de outra. Edite pelo cartão Política de IA.',
+      },
+      AI_P0_MIN_AUDIENCE: {
+        label: 'Corte P0/P1',
+        description:
+          'Audiência mínima (pontos de config/geo/market-audience.yaml, de 1 a 40) para uma competição ser P0, o futebol LATAM. Abaixo disso, com audiência, é P1.',
+        unit: 'pontos',
+      },
+      AI_BUDGET_DAY_START: {
+        label: 'Virada do dia de orçamento',
+        description:
+          'Horário local (HH:MM) em que todos os tetos de IA recomeçam. O padrão 06:00 deixa a rodada da noite inteira num dia só.',
+      },
+      AI_BUDGET_TIMEZONE: {
+        label: 'Fuso do dia de orçamento',
+        description: 'Fuso IANA da virada do dia de orçamento (ex.: America/Sao_Paulo).',
       },
       AI_MAX_SEARCHES_PER_CALL: {
         label: 'Buscas na web por chamada',
@@ -960,6 +1051,7 @@ export default defineMessages(
         markets: 'Unsupported markets: {values}.',
         format: 'Invalid format.',
         zero: '0 is not a valid value: to turn AI off use AI_STATUS=off (or AI_AGENT_STATUS for one agent); to remove the cap, "No limit" (unlimited).',
+        shares: 'The bands add up to {sum}%: they must add up to 100%.',
         providerKeyMissing: "This provider's key is not set in the agents container.",
         alreadyQueued: 'There is already a queued request for this job.',
         notRunnable: 'This job cannot be triggered from the panel.',
@@ -980,6 +1072,7 @@ export default defineMessages(
         startedAt: 'Started {when}',
         quota: 'api-sports quota today',
         quotaDay: 'Quota day {day} (UTC)',
+        llmDay: 'Budget day {day} (rolls over at {start}, {timeZone})',
         quotaUsed: '{used} of {limit} calls',
         quotaProvider: 'Provider counter: {used}/{limit}',
         quotaNoLimit: '{used} calls',
@@ -989,6 +1082,8 @@ export default defineMessages(
         llm: 'AI spend today',
         llmTokens: '{used} of {budget} tokens',
         llmTokensUnlimited: '{used} tokens (no limit)',
+        llmTokenPool: '{agent}: {used} of {budget} tokens (own pool, outside the global cap)',
+        llmTokenPoolUnlimited: '{agent}: {used} tokens (own pool, no limit)',
         llmErrors: { one: '{count} error', other: '{count} errors' },
         llmNone: 'No AI calls today.',
         llmUsd: 'US$ {used} of US$ {budget}',
@@ -999,6 +1094,8 @@ export default defineMessages(
           other: '{count} calls went over {max} searches',
         },
         llmAgentCapped: 'capped',
+        llmAgentDefaultCap: 'default cap',
+        llmCapOrigin: { db: 'panel', env: 'env', code: 'code' },
         aiState: 'AI: {state}',
         aiOn: 'on',
         aiOff: 'off',
@@ -1030,7 +1127,13 @@ export default defineMessages(
       jobs: {
         title: 'Jobs',
         columns: { job: 'Job', schedule: 'Schedule (UTC)', last: 'Last run', actions: 'Actions' },
-        status: { ok: 'OK', error: 'Error', running: 'Running', never: 'Never ran' },
+        status: {
+          ok: 'OK',
+          error: 'Error',
+          running: 'Running',
+          never: 'Never ran',
+          budget_skipped: 'Out of AI budget',
+        },
         duration: 'took {duration}',
         lastOk: 'last success {when}',
         errors24h: { one: '{count} error in 24 h', other: '{count} errors in 24 h' },
@@ -1162,6 +1265,7 @@ export default defineMessages(
         requestDetail: {
           not_allowed: 'job not allowed from the panel',
           already_running: 'was already running',
+          budget_skipped: 'deterministic text: AI budget refused',
         },
       },
       quality: {
@@ -1283,6 +1387,64 @@ export default defineMessages(
         description: 'Subscribed plan for this API. Empty inherits the default plan.',
       },
       schedulePrefix: 'Schedule: {job}',
+      aiPolicy: {
+        title: 'AI policy',
+        description:
+          'How the daily US$ cap is split by priority. Each call only draws from its own band; a band that runs out never takes from another, and the job falls back to deterministic text.',
+        bands: {
+          p0: {
+            label: 'P0 · LATAM football',
+            description:
+              'Competitions above the audience cut in a market of the region (Brazil Serie A, Libertadores, Liga MX…).',
+          },
+          reserve: {
+            label: 'P0 reserve',
+            description: 'Cushion only P0 can use once its own band is spent, for peak days.',
+          },
+          p1: {
+            label: 'P1 · other football',
+            description:
+              'Football the product covers with audience below the cut (the European leagues, for example).',
+          },
+          clients: {
+            label: 'Clients and line-ups',
+            description: 'Client channel lists and operator channel line-ups.',
+          },
+          rest: {
+            label: 'Rest',
+            description: 'Editorial and review agents, and competitions with no audience in the region.',
+          },
+          manual: {
+            label: 'Manual runs',
+            description: 'Any command run outside the scheduler, whatever the agent.',
+          },
+        },
+        total: 'Total: {sum}%',
+        totalInvalid: 'The bands must add up to 100% (now: {sum}%).',
+        unlimited: 'No limit',
+        unlimitedHint: 'Without a global cap, the bands have no cap either.',
+        spent: 'today US$ {used} of US$ {limit}',
+        spentNoLimit: 'today US$ {used} (no cap)',
+        reserveIn: 'inside the P0 cap',
+        day: 'Budget day {day}: rolls over at {start} ({timeZone}).',
+        save: 'Save policy',
+        saved: 'AI policy saved',
+        reset: 'Undo',
+        resetDefault: 'Back to default',
+        resetDone: 'AI policy back to default',
+        resetConfirmBody:
+          'The panel overrides for the bands, the global US$ cap and the P0/P1 cut are removed, and the env or the code default applies again. AI cost changes from the next call on.',
+        confirmCost: 'These flags affect AI cost.',
+        dailyUsd: {
+          label: 'Global cap (US$/day)',
+          description: 'The most AI spends per day across all bands.',
+        },
+        minAudience: {
+          label: 'P0/P1 cut (minimum audience)',
+          description:
+            'Audience points from which a competition is P0; below that, with any audience, it is P1.',
+        },
+      },
       settings: {
         LIVE_FEATURED: {
           label: 'Main match detail',
@@ -1359,7 +1521,34 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Daily cap per agent',
           description:
-            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed only count against the global cap. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
+            'US$ per day for each agent, as agent=value separated by commas (e.g. lineups=2,wtw=unlimited). An agent that hits its cap gets no AI until the UTC day rolls over; unlimited removes its own cap; agents not listed keep the code cap or, without one, the new-agent cap. The list merges agent by agent over the code defaults: only the agents listed change. 0 is not accepted: to turn an agent off, use AI per agent. Empty uses the default.',
+        },
+        AI_AGENT_DEFAULT_USD_BUDGET: {
+          label: 'Daily cap for a new agent',
+          description:
+            'US$ per day for each agent missing from the per-agent caps (a new agent, for example): it gets AI, but only up to this amount, and the log warns once a day that it is on the default. A number, or "No limit" (only the global cap applies); 0 is not accepted.',
+          unit: 'US$',
+        },
+
+        AI_BAND_SHARES: {
+          label: 'AI budget bands',
+          description:
+            'Share of the daily US$ cap for each band, as band=%: p0 (LATAM football), reserve (P0-only reserve), p1 (other football), clients (clients and channel line-ups), rest (everything else) and manual (runs outside the scheduler). They add up to 100. A band that runs out never takes from another. Edit it in the AI policy card.',
+        },
+        AI_P0_MIN_AUDIENCE: {
+          label: 'P0/P1 cut',
+          description:
+            'Minimum audience (points in config/geo/market-audience.yaml, 1 to 40) for a competition to be P0, LATAM football. Below that, with any audience, it is P1.',
+          unit: 'points',
+        },
+        AI_BUDGET_DAY_START: {
+          label: 'Budget day rollover',
+          description:
+            'Local time (HH:MM) when every AI cap starts over. The 06:00 default keeps the whole evening round in a single day.',
+        },
+        AI_BUDGET_TIMEZONE: {
+          label: 'Budget day time zone',
+          description: 'IANA time zone of the budget day rollover (e.g. America/Sao_Paulo).',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Web searches per call',
@@ -1737,6 +1926,7 @@ export default defineMessages(
         markets: 'Mercados no soportados: {values}.',
         format: 'Formato inválido.',
         zero: '0 no es un valor válido: para apagar la IA usa AI_STATUS=off (o AI_AGENT_STATUS para un agente); para quitar el tope, "Sin límite" (unlimited).',
+        shares: 'Las franjas suman {sum}%: tienen que sumar 100%.',
         providerKeyMissing: 'La clave de ese proveedor no está configurada en el contenedor de los agentes.',
         alreadyQueued: 'Ya hay un pedido para este job en la cola.',
         notRunnable: 'Este job no se puede disparar desde el panel.',
@@ -1757,6 +1947,7 @@ export default defineMessages(
         startedAt: 'Arranque {when}',
         quota: 'Cuota de api-sports hoy',
         quotaDay: 'Día de cuota {day} (UTC)',
+        llmDay: 'Día de presupuesto {day} (cambia a las {start}, {timeZone})',
         quotaUsed: '{used} de {limit} llamadas',
         quotaProvider: 'Contador del proveedor: {used}/{limit}',
         quotaNoLimit: '{used} llamadas',
@@ -1766,6 +1957,8 @@ export default defineMessages(
         llm: 'Gasto de IA hoy',
         llmTokens: '{used} de {budget} tokens',
         llmTokensUnlimited: '{used} tokens (sin límite)',
+        llmTokenPool: '{agent}: {used} de {budget} tokens (pool propio, fuera del tope global)',
+        llmTokenPoolUnlimited: '{agent}: {used} tokens (pool propio, sin límite)',
         llmErrors: { one: '{count} error', other: '{count} errores' },
         llmNone: 'Ninguna llamada de IA hoy.',
         llmUsd: 'US$ {used} de US$ {budget}',
@@ -1776,6 +1969,8 @@ export default defineMessages(
           other: '{count} llamadas superaron {max} búsquedas',
         },
         llmAgentCapped: 'en el tope',
+        llmAgentDefaultCap: 'tope por defecto',
+        llmCapOrigin: { db: 'panel', env: 'env', code: 'código' },
         aiState: 'IA: {state}',
         aiOn: 'encendido',
         aiOff: 'apagado',
@@ -1808,7 +2003,13 @@ export default defineMessages(
       jobs: {
         title: 'Jobs',
         columns: { job: 'Job', schedule: 'Agenda (UTC)', last: 'Última ejecución', actions: 'Acciones' },
-        status: { ok: 'OK', error: 'Error', running: 'Corriendo', never: 'Nunca corrió' },
+        status: {
+          ok: 'OK',
+          error: 'Error',
+          running: 'Corriendo',
+          never: 'Nunca corrió',
+          budget_skipped: 'Sin presupuesto de IA',
+        },
         duration: 'duró {duration}',
         lastOk: 'último éxito {when}',
         errors24h: { one: '{count} error en 24 h', other: '{count} errores en 24 h' },
@@ -1944,6 +2145,7 @@ export default defineMessages(
         requestDetail: {
           not_allowed: 'job no habilitado para el panel',
           already_running: 'ya estaba corriendo',
+          budget_skipped: 'texto determinístico: el presupuesto de IA rechazó',
         },
       },
       quality: {
@@ -2066,6 +2268,64 @@ export default defineMessages(
         description: 'Plan contratado de esta API. Vacío hereda el plan por defecto.',
       },
       schedulePrefix: 'Agenda: {job}',
+      aiPolicy: {
+        title: 'Política de IA',
+        description:
+          'Cómo se divide el tope diario en US$ por prioridad. Cada llamada descuenta solo de su franja; la franja que se agota no toma saldo de otra y el job sigue con el texto determinístico.',
+        bands: {
+          p0: {
+            label: 'P0 · fútbol LATAM',
+            description:
+              'Competiciones con audiencia por encima del corte en un mercado de la región (Serie A de Brasil, Libertadores, Liga MX…).',
+          },
+          reserve: {
+            label: 'Reserva de la P0',
+            description: 'Colchón que solo la P0 usa después de gastar su propia franja, para el día pico.',
+          },
+          p1: {
+            label: 'P1 · resto del fútbol',
+            description:
+              'Fútbol que el producto cubre con audiencia por debajo del corte (las europeas, por ejemplo).',
+          },
+          clients: {
+            label: 'Clientes y grilla',
+            description: 'Listas de canales de los clientes y la grilla de los operadores.',
+          },
+          rest: {
+            label: 'Resto',
+            description: 'Agentes editoriales y de revisión y competiciones sin audiencia en la región.',
+          },
+          manual: {
+            label: 'Ejecución manual',
+            description: 'Cualquier comando que corre fuera del scheduler, sea cual sea el agente.',
+          },
+        },
+        total: 'Total: {sum}%',
+        totalInvalid: 'Las franjas tienen que sumar 100% (ahora: {sum}%).',
+        unlimited: 'Sin límite',
+        unlimitedHint: 'Sin tope global, las franjas tampoco tienen tope.',
+        spent: 'hoy US$ {used} de US$ {limit}',
+        spentNoLimit: 'hoy US$ {used} (sin tope)',
+        reserveIn: 'dentro del tope de la P0',
+        day: 'Día de presupuesto {day}: cambia a las {start} ({timeZone}).',
+        save: 'Guardar política',
+        saved: 'Política de IA guardada',
+        reset: 'Deshacer',
+        resetDefault: 'Volver al valor por defecto',
+        resetDone: 'Política de IA de vuelta al valor por defecto',
+        resetConfirmBody:
+          'Se borran del panel las franjas, el tope global en US$ y el corte P0/P1, y vuelve a regir el env o el valor por defecto del código. El costo de la IA cambia desde la próxima llamada.',
+        confirmCost: 'Estas flags afectan el costo de la IA.',
+        dailyUsd: {
+          label: 'Tope global (US$/día)',
+          description: 'Lo máximo que la IA gasta por día sumando todas las franjas.',
+        },
+        minAudience: {
+          label: 'Corte P0/P1 (audiencia mínima)',
+          description:
+            'Puntos de audiencia a partir de los cuales la competición es P0; por debajo, con audiencia, es P1.',
+        },
+      },
       settings: {
         LIVE_FEATURED: {
           label: 'Detalle del partido principal',
@@ -2144,7 +2404,33 @@ export default defineMessages(
         AI_AGENT_USD_BUDGETS: {
           label: 'Tope diario por agente',
           description:
-            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista solo cuenta para el tope global. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
+            'US$ por día de cada agente, en el formato agente=valor separado por comas (ej.: lineups=2,wtw=unlimited). El agente que llega al tope queda sin IA hasta el cambio de día UTC; unlimited quita su tope propio; un agente fuera de la lista queda con el tope del código o, sin él, con el tope del agente nuevo. La lista se combina agente por agente sobre los valores del código: solo cambian los agentes listados. 0 no se acepta: para apagar un agente, usa la IA por agente. Vacío usa el valor por defecto.',
+        },
+        AI_AGENT_DEFAULT_USD_BUDGET: {
+          label: 'Tope diario del agente nuevo',
+          description:
+            'US$ por día de cada agente que no está en el tope por agente (un agente nuevo, por ejemplo): tiene IA, pero solo hasta este valor, y el log avisa una vez por día que está en el valor por defecto. Un número, o "Sin límite" (solo cuenta el tope global); 0 no se acepta.',
+          unit: 'US$',
+        },
+        AI_BAND_SHARES: {
+          label: 'Franjas del presupuesto de IA',
+          description:
+            'Porcentaje del tope diario en US$ de cada franja, en el formato franja=%: p0 (fútbol LATAM), reserve (reserva solo de la P0), p1 (el resto del fútbol), clients (clientes y grilla), rest (el resto) y manual (ejecución fuera del scheduler). Suman 100. Una franja agotada no toma saldo de otra. Edítalo en la tarjeta Política de IA.',
+        },
+        AI_P0_MIN_AUDIENCE: {
+          label: 'Corte P0/P1',
+          description:
+            'Audiencia mínima (puntos de config/geo/market-audience.yaml, de 1 a 40) para que una competición sea P0, el fútbol LATAM. Por debajo, con audiencia, es P1.',
+          unit: 'puntos',
+        },
+        AI_BUDGET_DAY_START: {
+          label: 'Cambio del día de presupuesto',
+          description:
+            'Hora local (HH:MM) en que todos los topes de IA vuelven a empezar. El valor por defecto 06:00 deja toda la fecha de la noche en un solo día.',
+        },
+        AI_BUDGET_TIMEZONE: {
+          label: 'Huso del día de presupuesto',
+          description: 'Huso IANA del cambio del día de presupuesto (ej.: America/Sao_Paulo).',
         },
         AI_MAX_SEARCHES_PER_CALL: {
           label: 'Búsquedas web por llamada',
