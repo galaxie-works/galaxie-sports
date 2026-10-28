@@ -6,8 +6,8 @@
 #
 # O rollback automático do deploy recusa voltar a imagem quando há migration nova aplicada (o código antigo pode não
 # funcionar com o schema novo). Sem este dump, a única volta era o backup diário, de até 24 h antes. O dump fica no
-# volume `backups`, em /backups/pre-migrate/ (fora da rotação dos diários), com o .sha256 ao lado, e é o que o
-# restore.sh do serviço backup lê:
+# volume `backups`, em /backups/pre-migrate/ (fora da rotação dos diários; .dump.age quando os diários são cifrados),
+# com o .sha256 ao lado, e é o que o restore.sh do serviço backup lê:
 #
 #   docker compose exec backup restore.sh --yes pre-migrate/<arquivo>
 #
@@ -42,11 +42,15 @@ fi
 echo "pré-migrate: ${applied:-?} aplicadas, $want no journal; dump antes do migrate"
 
 # Dentro de um contêiner avulso do serviço backup (o do compose em uso, antes da troca): ele já tem o pg_dump, as
-# variáveis PG* e o volume. O mesmo formato do backup.sh, o .sha256 com o nome relativo à pasta (o restore.sh
-# confere de dentro dela) e só os KEEP mais novos.
+# variáveis PG*, o volume e o lib.sh. O mesmo formato do backup.sh, inclusive a cifragem: com BACKUP_AGE_RECIPIENTS,
+# no volume só fica o .dump.age, conferido com a chave do ensaio (que o restore.sh usa para decifrar). O .sha256 leva
+# o nome relativo à pasta (o restore.sh confere de dentro dela); só os KEEP mais novos ficam.
 inner='set -eu
+. /usr/local/lib/galaxie-backup/lib.sh
 dir="$BACKUP_DIR/pre-migrate"
 mkdir -p "$dir"
+# sobra em claro de um deploy interrompido (o clean_plaintext do lib.sh só olha a raiz do volume)
+rm -f "$dir"/*.partial
 db_bytes=$(psql -X -q -t -A -d "$PGDATABASE" -c "select pg_database_size(current_database())")
 free_bytes=$(($(df -Pk "$dir" | awk "NR == 2 { print \$4 }") * 1024))
 if [ "$free_bytes" -lt "$((db_bytes / 2))" ]; then
@@ -54,24 +58,41 @@ if [ "$free_bytes" -lt "$((db_bytes / 2))" ]; then
   exit 1
 fi
 name="${PGDATABASE}_pre-migrate_$(date -u +%Y%m%dT%H%M%SZ)_$1.dump"
+plain="$dir/$name.partial"
+recipients=""
+id=""
+trap "rm -f \"\$plain\" \"\${tmp:-}\" \"\$recipients\" \"\$id\"" EXIT
+trap "exit 143" TERM
+trap "exit 130" INT
+fail() {
+  echo "FAIL  $1"
+  exit 1
+}
+# imagem de antes da cifragem (sem age_enabled no lib.sh): dump em claro, como os diários dela
+if type age_enabled >/dev/null 2>&1 && age_enabled; then
+  recipients=$(age_recipients_file) || fail "BACKUP_AGE_RECIPIENTS inválido: use chaves públicas do age (age1…)"
+  [ -n "${BACKUP_AGE_IDENTITY:-}" ] || fail "BACKUP_AGE_RECIPIENTS sem BACKUP_AGE_IDENTITY para conferir o dump cifrado"
+  name="$name.age"
+fi
 tmp="$dir/$name.partial"
 started=$(date +%s)
-if ! pg_dump --format=custom --compress=zstd:5 --no-owner --no-privileges --file="$tmp"; then
-  rm -f "$tmp"
-  echo "FAIL  pg_dump antes do migrate falhou"
-  exit 1
-fi
-if ! pg_restore --list "$tmp" >/dev/null; then
-  rm -f "$tmp"
-  echo "FAIL  o dump gerado não é legível pelo pg_restore"
-  exit 1
+pg_dump --format=custom --compress=zstd:5 --no-owner --no-privileges --file="$plain" ||
+  fail "pg_dump antes do migrate falhou"
+pg_restore --list "$plain" >/dev/null || fail "o dump gerado não é legível pelo pg_restore"
+if [ -n "$recipients" ]; then
+  age -R "$recipients" -o "$tmp" "$plain" || fail "age não cifrou o dump"
+  rm -f "$plain"
+  id=$(age_identity_file) || fail "não deu para gravar a chave do ensaio"
+  age -d -i "$id" "$tmp" | pg_restore --list >/dev/null ||
+    fail "o dump cifrado não decifra com a chave do ensaio (BACKUP_AGE_IDENTITY fora de BACKUP_AGE_RECIPIENTS?)"
 fi
 mv "$tmp" "$dir/$name"
 (cd "$dir" && sha256sum "$name" >"$name.sha256")
 echo "pré-migrate: $name ($(($(wc -c <"$dir/$name") / 1048576)) MB, $(($(date +%s) - started)) s)"
-count=$(ls -1 "$dir"/*.dump | wc -l)
+dumps() { ls -1 "$dir"/*.dump "$dir"/*.dump.age 2>/dev/null | sort; }
+count=$(dumps | wc -l)
 if [ "$count" -gt "$2" ]; then
-  ls -1 "$dir"/*.dump | sort | head -n "$((count - $2))" | while read -r old; do
+  dumps | head -n "$((count - $2))" | while read -r old; do
     rm -f "$old" "$old.sha256"
     echo "pré-migrate: removido $(basename "$old")"
   done

@@ -284,7 +284,8 @@ provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensai
   `deploy.sh`) roda `pre-migrate-dump.sh` antes de trocar o compose. O dump sai de um contêiner avulso do serviço
   `backup` para o volume dele, em `/backups/pre-migrate/<db>_pre-migrate_<data>_<antigo>-<novo>.dump` (fora da
   rotação dos diários), com o `.sha256` ao lado, conferido com `pg_restore --list`, guardando os 3 mais novos
-  (`PRE_MIGRATE_KEEP`). Sem espaço (menos da metade do tamanho do banco livre) ou com o `pg_dump` falhando, o deploy
+  (`PRE_MIGRATE_KEEP`). Com `BACKUP_AGE_RECIPIENTS`, sai cifrado como os diários (`.dump.age`, conferido com a chave
+  do ensaio) e nada em claro fica no volume. Sem espaço (menos da metade do tamanho do banco livre) ou com o `pg_dump` falhando, o deploy
   para sem ter tocado em nada; `SKIP_PRE_MIGRATE_DUMP=1` publica sem ele. Migration nova não tem rollback automático:
   voltar é parar API e ingestor, `docker compose exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
   falhou imprime o comando) e subir a versão anterior.
