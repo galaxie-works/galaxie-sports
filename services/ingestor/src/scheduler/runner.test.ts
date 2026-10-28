@@ -49,6 +49,18 @@ beforeAll(async () => {
     "if (process.env.GALAXIE_INVOKER !== 'scheduler') process.exit(3); process.exit(75);",
   );
   await writeFile(join(dir, 'hang.mjs'), 'setInterval(() => {}, 1000);');
+  // sai 0 só se o heap do processo for o pedido (velho + 24 MB da geração nova, ±10%) e o nome da sessão do
+  // Postgres for o do job
+  await writeFile(
+    join(dir, 'heap.mjs'),
+    [
+      "import { getHeapStatistics } from 'node:v8';",
+      'const mb = getHeapStatistics().heap_size_limit / 2 ** 20;',
+      'const want = Number(process.argv[2]) + 24;',
+      "if (process.env.PGAPPNAME !== 'galaxie-job:teste') process.exit(4);",
+      'process.exit(Math.abs(mb - want) / want < 0.1 ? 0 : 5);',
+    ].join('\n'),
+  );
 });
 
 afterAll(async () => {
@@ -62,6 +74,22 @@ describe('runJob', () => {
     expect(result).toMatchObject({ status: 'ok', exitCode: 0, runId: 'run-1' });
     expect(recorder.rows.get('run-1')).toMatchObject({ job: 'teste', status: 'ok', error: null });
     expect(recorder.rows.get('run-1')!.stats).toMatchObject({ exit_code: 0, trigger: 'manual' });
+  });
+
+  it('o filho roda com o heap do job (ou o padrão) e com o nome do job no Postgres', async () => {
+    const own = await runJob(job('heap.mjs', { heapMb: 96, args: ['96'] }), {
+      cwd: dir,
+      logger,
+      trigger: 'manual',
+    });
+    expect(own).toMatchObject({ status: 'ok', exitCode: 0 });
+    const fallback = await runJob(job('heap.mjs', { args: ['160'] }), {
+      cwd: dir,
+      logger,
+      trigger: 'manual',
+      heapMb: 160,
+    });
+    expect(fallback).toMatchObject({ status: 'ok', exitCode: 0 });
   });
 
   it('registra falha com o código de saída', async () => {

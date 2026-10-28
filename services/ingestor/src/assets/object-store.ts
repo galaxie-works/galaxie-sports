@@ -64,6 +64,9 @@ export class S3ObjectStore implements ObjectStore {
       region: options.region ?? 'us-east-1',
       forcePathStyle: true,
       credentials: { accessKeyId: options.accessKeyId, secretAccessKey: options.secretAccessKey },
+      // sem isto o SDK espera o socket para sempre: um S3 travado segurava o espelho de assets até o tempo limite
+      // do job (90 min). Conexão em 5 s; 30 s sem dado no socket derruba a tentativa (o SDK tenta de novo)
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
     });
   }
 

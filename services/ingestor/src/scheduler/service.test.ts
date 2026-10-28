@@ -50,3 +50,64 @@ describe('SchedulerService.execute', () => {
     expect(runs[0]!.args).toEqual(DEFAULT_JOBS.find((j) => j.name === 'events-importance')!.args);
   });
 });
+
+describe('SchedulerService: teto de jobs simultâneos', () => {
+  const ok = (job: string): RunResult => ({
+    job,
+    runId: undefined,
+    status: 'ok',
+    exitCode: 0,
+    signal: null,
+    timedOut: false,
+    durationMs: 0,
+  });
+
+  function blocking(maxJobs: number) {
+    const started: string[] = [];
+    const finish = new Map<string, () => void>();
+    const s = new SchedulerService({
+      profile: 'ingestor',
+      jobs: DEFAULT_JOBS,
+      env: {},
+      log: logger,
+      maxJobs,
+      run: (job) =>
+        new Promise<RunResult>((resolve) => {
+          started.push(job.name);
+          finish.set(job.name, () => resolve(ok(job.name)));
+        }),
+    });
+    return { s, started, finish };
+  }
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it('o excedente espera vaga; a faixa do ao vivo nunca espera', async () => {
+    const { s, started, finish } = blocking(1);
+    const sync = s.execute('sync-daily', 'schedule');
+    const norm = s.execute('normalize-football', 'schedule');
+    const live = s.execute('live-run', 'schedule');
+    const clock = s.execute('events-clock', 'schedule');
+    await tick();
+    expect([...started].sort()).toEqual(['events-clock', 'live-run', 'sync-daily']);
+    // na fila conta como em andamento: o cron seguinte do mesmo job pula
+    expect(s.isRunning('normalize-football')).toBe(true);
+    finish.get('sync-daily')!();
+    await sync;
+    await tick();
+    expect(started).toContain('normalize-football');
+    for (const name of ['normalize-football', 'live-run', 'events-clock']) finish.get(name)!();
+    await Promise.all([norm, live, clock]);
+  });
+
+  it('no encerramento, quem esperava vaga não roda', async () => {
+    const { s, started, finish } = blocking(1);
+    const sync = s.execute('sync-daily', 'schedule');
+    const norm = s.execute('normalize-football', 'schedule');
+    await tick();
+    s.stop();
+    await expect(norm).resolves.toMatchObject({ status: 'skipped' });
+    finish.get('sync-daily')!();
+    await sync;
+    expect(started).toEqual(['sync-daily']);
+  });
+});

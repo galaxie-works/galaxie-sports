@@ -43,7 +43,12 @@ export async function ensureRelease(
   if (!existsSync(zipPath)) {
     const url = `https://github.com/f1db/f1db/releases/download/${release.version}/${release.asset}`;
     log(`baixando ${url}`);
-    const res = await fetch(url, { headers: { 'user-agent': USER_AGENT }, redirect: 'follow' });
+    // o zip tem dezenas de MB; 5 min cobre rede lenta, e o import não fica pendurado num download parado
+    const res = await fetch(url, {
+      headers: { 'user-agent': USER_AGENT },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(5 * 60_000),
+    });
     if (!res.ok) throw new Error(`F1DB: download falhou (${res.status}) em ${url}`);
     const body = Buffer.from(await res.arrayBuffer());
     if (sha256(body) !== release.sha256)

@@ -38,4 +38,7 @@ USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node", "-e", "const s=require('fs').statSync(process.env.SCHEDULER_HEARTBEAT_FILE);process.exit(Date.now()-s.mtimeMs<120000?0:1)"]
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/cli/scheduler.js"]
+# O scheduler só agenda (heap pequeno); cada job é um processo filho com heap próprio (SCHEDULER_JOB_HEAP_MB e o
+# heapMb do job) e o teto SCHEDULER_MAX_JOBS. A conta da memória está em infra/vps-telemetry/README.md › Memória.
+# CLI rodada à mão (docker compose run ... node dist/cli/x.js) fica no padrão do V8.
+CMD ["node", "--max-old-space-size=64", "--max-semi-space-size=8", "dist/cli/scheduler.js"]

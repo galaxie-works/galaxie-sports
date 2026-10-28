@@ -10,6 +10,8 @@
  *            SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
  *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
  *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
+ *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents)
+ *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
@@ -36,8 +38,19 @@ const arg = (flag: string) => {
   return i >= 0 ? (process.argv[i + 1] ?? '') : undefined;
 };
 
+/** Inteiro positivo do env, ou o padrão (valor inválido não pode virar "sem teto"). */
+const positiveInt = (raw: string | undefined, fallback: number): number => {
+  const n = Number(raw?.trim());
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+};
+// a soma tem de caber no mem_limit do contêiner (infra/vps-telemetry/README.md › Memória dos jobs)
+const maxJobs = positiveInt(process.env.SCHEDULER_MAX_JOBS, profile === 'agents' ? 3 : 2);
+const jobHeapMb = positiveInt(process.env.SCHEDULER_JOB_HEAP_MB, profile === 'agents' ? 128 : 160);
+
 const databaseUrl = process.env.DATABASE_URL;
-const db: Database | undefined = databaseUrl ? createDb(databaseUrl, { max: 2 }) : undefined;
+const db: Database | undefined = databaseUrl
+  ? createDb(databaseUrl, { max: 2, applicationName: 'galaxie-scheduler' })
+  : undefined;
 if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
 const recorder = db ? new PgRunRecorder(db) : undefined;
 /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
@@ -51,10 +64,12 @@ const service = new SchedulerService({
   log,
   refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
   creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
+  maxJobs,
   run: (job, { trigger, env }) =>
     runJob(job, {
       cwd: packageRoot,
       env,
+      heapMb: jobHeapMb,
       recorder,
       logger: log,
       trigger,

@@ -110,8 +110,13 @@ export class ChangeStream {
     this.stopped = false;
     const { redis } = this.options;
     if (redis) {
-      // conexão dedicada ao SUBSCRIBE (no modo assinante ela não aceita outros comandos)
-      this.subscriber = redis.duplicate({ enableOfflineQueue: true, maxRetriesPerRequest: null });
+      // conexão dedicada ao SUBSCRIBE (no modo assinante ela não aceita outros comandos); sem o commandTimeout
+      // da conexão principal: o SUBSCRIBE fica na fila enquanto o Valkey está fora e sai quando ele volta
+      this.subscriber = redis.duplicate({
+        enableOfflineQueue: true,
+        maxRetriesPerRequest: null,
+        commandTimeout: undefined,
+      });
       this.subscriber.on('error', (err) =>
         this.options.logger?.warn({ err }, 'stream: falha no Valkey (sub)'),
       );

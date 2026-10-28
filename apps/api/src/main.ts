@@ -20,7 +20,10 @@ function loadDenylist(): MediaDenylist | undefined {
 }
 const mediaDenylist = loadDenylist();
 
-const db = process.env.DATABASE_URL ? createDb(process.env.DATABASE_URL) : undefined;
+// perfil `api`: statement/lock/idle-in-transaction curtos (consulta presa solta a conexão antes do timeout da requisição)
+const db = process.env.DATABASE_URL
+  ? createDb(process.env.DATABASE_URL, { profile: 'api', applicationName: 'galaxie-api' })
+  : undefined;
 
 const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'reviewed', 'approved'];
 const minReviewStatus = process.env.SEMANTIC_MIN_REVIEW_STATUS as ReviewStatus | undefined;
@@ -55,8 +58,15 @@ if (db) {
 // piso editorial da grade de canais e ofertas: lido depois das sobrescritas do painel (banco > env > padrão)
 const lineupMinReview = lineupMinReviewStatus(process.env);
 
+// commandTimeout: Valkey lento (cheio, swap, AOF reescrevendo) vira erro em 1 s, e o cache e o rate limit seguem
+// o caminho de falha deles, em vez de a requisição esperar o comando para sempre
+const redisCommandTimeoutMs = Number(process.env.REDIS_COMMAND_TIMEOUT_MS) || 1_000;
 const redis = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
+  ? new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      commandTimeout: redisCommandTimeoutMs,
+    })
   : undefined;
 redis?.on('error', () => {}); // reconexão automática; falhas de cache/rate limit são registradas por requisição
 

@@ -22,6 +22,8 @@ export function logoObjectStore(env: NodeJS.ProcessEnv = process.env): LogoObjec
       region: env.S3_REGION ?? 'us-east-1',
       forcePathStyle: true,
       credentials: { accessKeyId: env.S3_ACCESS_KEY!, secretAccessKey: env.S3_SECRET_KEY! },
+      // upload do painel: S3 travado vira erro na tela em vez de requisição pendurada
+      requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
     }),
     bucket: env.S3_BUCKET!,
   };
