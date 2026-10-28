@@ -423,6 +423,10 @@ services:
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
       RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      # dumps cifrados com age (docs/runbooks/exercicio-dr.md › Dumps cifrados): chaves públicas da recuperação (privada só
+      # com o Wagner) e do ensaio; a privada do ensaio decifra no ensaio mensal e no restore. Vazio = dump em claro
+      BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:-}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}

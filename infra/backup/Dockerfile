@@ -4,7 +4,8 @@
 #   docker build -t galaxie-sports-backup infra/backup
 ARG POSTGRES_IMAGE=postgres:17-alpine
 FROM ${POSTGRES_IMAGE}
-RUN apk add --no-cache aws-cli tini
+# age: cifragem dos dumps com chave pública (BACKUP_AGE_RECIPIENTS)
+RUN apk add --no-cache aws-cli tini age
 COPY lib.sh /usr/local/lib/galaxie-backup/lib.sh
 COPY --chmod=0755 backup.sh /usr/local/bin/backup.sh
 COPY --chmod=0755 restore.sh /usr/local/bin/restore.sh

@@ -35,7 +35,7 @@ for a in "$@"; do
 done
 
 if [ "$mode" = list ]; then
-  ls -1t "$BACKUP_DIR"/"${PGDATABASE}"_*.dump 2>/dev/null || true
+  list_dumps | sort -r
   if s3_enabled; then aws_s3 ls "$(s3_uri)/" || true; fi
   exit 0
 fi
@@ -44,7 +44,7 @@ fi
 # ── resolve o arquivo ───────────────────────────────────────────────────────────────────────────
 case "$source_arg" in
   latest)
-    file=$(ls -1t "$BACKUP_DIR"/"${PGDATABASE}"_*.dump 2>/dev/null | head -n 1 || true)
+    file=$(latest_dump)
     [ -n "$file" ] || { log error "nenhum dump em $BACKUP_DIR"; exit 1; }
     ;;
   s3://*)
@@ -81,7 +81,11 @@ fi
 log info "restaurando $(basename "$file") em $work"
 admin -c "drop database if exists \"$work\" with (force)"
 admin -c "create database \"$work\""
-if ! pg_restore --no-owner --no-privileges --exit-on-error --jobs="${RESTORE_JOBS:-2}" -d "$work" "$file"; then
+# cifrado (.dump.age): decifra com a chave do ensaio (BACKUP_AGE_IDENTITY) numa cópia apagada ao sair
+plain_tmp="$BACKUP_DIR/.restore-$$.dump"
+trap 'rm -f "$plain_tmp"' EXIT
+source_dump=$(plain_dump "$file" "$plain_tmp") || { admin -c "drop database if exists \"$work\" with (force)"; exit 1; }
+if ! pg_restore --no-owner --no-privileges --exit-on-error --jobs="${RESTORE_JOBS:-2}" -d "$work" "$source_dump"; then
   log error "pg_restore falhou; banco $target intacto"
   admin -c "drop database if exists \"$work\" with (force)"
   exit 1

@@ -36,6 +36,9 @@ drill_info="ensaio de restauração no dia $RESTORE_DRILL_DAY de cada mês"
 [ "$RESTORE_DRILL_DAY" = off ] && drill_info="ensaio de restauração desligado"
 log info "agendador iniciado: backup diário às $BACKUP_TIME UTC, $BACKUP_KEEP_DAILY dumps na VPS, verificação a cada ${BACKUP_CHECK_INTERVAL_H} h, $drill_info"
 
+# antes de qualquer backup: o dump em claro de uma execução morta (contêiner derrubado no meio) não fica no volume
+clean_plaintext
+
 daily() {
   backup.sh || log error "backup falhou"
   backup-check.sh || true

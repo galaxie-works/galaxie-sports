@@ -19,8 +19,8 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 
 | Camada | Onde | O que | Retenção | Quem mantém |
 |---|---|---|---|---|
-| 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
-| 2 | NAS do dono (fora da VPS) | Cópia dos dumps e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
+| 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
+| 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
 | 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada (retenção pela regra de ciclo de
@@ -76,6 +76,61 @@ pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atu
   reinicie o container.
 - Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
   26 h.
+
+### Dumps cifrados (age)
+
+Com `BACKUP_AGE_RECIPIENTS` no `.env` da VPS, o dump sai do contêiner só cifrado com [age](https://age-encryption.org)
+(`galaxie_sports_<data>.dump.age`), para o volume, o NAS e o S3.
+
+- **Durante o backup.** O dump em claro existe só enquanto a execução roda: o `pg_restore --list` confere o arquivo, o
+  `age` cifra e o claro é apagado. O `.sha256` é o do arquivo cifrado.
+- **No NAS.** O NAS guarda o `.age` como veio. Ele nunca tem uma chave privada, então a cópia de 12 meses de lá não se
+  lê sem a chave de recuperação.
+
+**As duas chaves:**
+
+| chave | pública | privada | para quê |
+| --- | --- | --- | --- |
+| recuperação | em `BACKUP_AGE_RECIPIENTS` | **só com o Wagner**, fora da VPS e do NAS | restaurar quando a VPS se perdeu |
+| ensaio | em `BACKUP_AGE_RECIPIENTS` | `BACKUP_AGE_IDENTITY` no `.env` da VPS | ensaio mensal, `restore.sh` e a conferência de cada dump |
+
+A chave do ensaio na VPS não abre nada que a VPS já não tenha: quem controla a VPS tem o banco vivo. Ela existe para o
+ensaio mensal provar que o arquivo guardado decifra e restaura, e cada backup confere na hora que o `.age` decifra. Por
+isso ela é obrigatória com a cifragem ligada: `BACKUP_AGE_RECIPIENTS` sem `BACKUP_AGE_IDENTITY` faz o backup falhar
+(alerta), em vez de gravar um dump que ninguém confere.
+
+**Ligar (uma vez, com o OK do Wagner):**
+1. **Chave de recuperação, na máquina do Wagner** (nunca na VPS): rodar `age-keygen -o galaxie-backup-recuperacao.key`.
+   O comando mostra a chave pública (`age1…`). Para instalar o `age`: `winget install FiloSottile.age` no Windows ou
+   `brew install age` no macOS.
+2. **Guardar a chave privada de recuperação** em dois lugares:
+   - no gerenciador de senhas do Wagner, como nota segura `Galaxie Sports, chave de recuperação dos backups`, com o
+     conteúdo do arquivo;
+   - numa cópia offline (pendrive ou papel com o `AGE-SECRET-KEY-1…`), guardada junto dos outros documentos da
+     empresa.
+
+   Depois, apague o arquivo da máquina. Sem essa chave, os dumps do NAS não se leem. A chave nunca vai para a VPS, o
+   NAS, o repositório ou o chat.
+3. **Chave do ensaio, na VPS:** rode `docker compose run --rm --no-deps --entrypoint age-keygen backup </dev/null`.
+   - A linha `AGE-SECRET-KEY-1…` vai em `BACKUP_AGE_IDENTITY=` no `.env`.
+   - A linha `# public key: age1…` vai em `BACKUP_AGE_RECIPIENTS`.
+4. **Destinatários e recriação.** Ponha `BACKUP_AGE_RECIPIENTS=<pública da recuperação>,<pública do ensaio>` no `.env`
+   e rode `docker compose up -d --no-deps backup`. A partida já faz um backup (`BACKUP_ON_START=true`).
+5. **Conferência:**
+   - `docker compose exec backup sh -c 'ls -l /backups | tail -3'` tem de mostrar o `.dump.age` mais recente;
+   - `docker compose exec backup restore-drill.sh` tem de terminar OK;
+   - no dia seguinte, o `last_run.txt` do NAS tem de citar o `.dump.age`.
+
+**Restaurar com a chave de recuperação (VPS perdida):** copie o `.dump.age` e o `.sha256` do NAS. Depois:
+1. `sha256sum -c galaxie_sports_<data>.dump.age.sha256`
+2. `age -d -i galaxie-backup-recuperacao.key -o galaxie_sports_<data>.dump galaxie_sports_<data>.dump.age`
+3. Ponha o `.dump` no volume `backups` e siga os [Cenários de desastre](#cenários-de-desastre-e-resposta).
+
+Outra opção: rode o `restore.sh` com `BACKUP_AGE_IDENTITY` igual à chave de recuperação, só durante a restauração.
+
+**Transição:** os dumps em claro de antes continuam no NAS até a rotação apagá-los, em 14 dias (diários), 8 semanas
+e 12 meses (mensais). Para acabar com eles antes, apague `daily/`, `weekly/` e `monthly/*.dump` no NAS (os `.dump.age`
+ficam).
 
 ## O que roda sozinho
 
