@@ -372,7 +372,7 @@ function WhereToWatchCard({
                   className="flex items-center gap-3 rounded-md border border-dashed p-2"
                 >
                   {c.logo ? (
-                    <img src={c.logo_dark ?? c.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
+                    <img src={c.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
                   ) : (
                     <Tv className="text-muted-foreground size-5 w-12 shrink-0" aria-hidden />
                   )}
