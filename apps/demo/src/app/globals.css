@@ -246,6 +246,38 @@
     z-index: 1;
   }
 
+  /*
+   * Card sóbrio do app (Explorar, índices de esportes e países): o card do shadcn, sem brilho nem matiz.
+   * O desenho do campo (`SportTexture`) fica em cinza e só ganha um pouco de presença no hover; a cor fica
+   * para o que tem significado (ao vivo, logos e escudos). O `explore-card` colorido segue na landing.
+   */
+  .tile-card {
+    position: relative;
+    isolation: isolate;
+    background: var(--card);
+    color: var(--card-foreground);
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .tile-card > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .tile-card:hover,
+  .tile-card:focus-within {
+    border-color: color-mix(in oklch, var(--foreground) 22%, transparent);
+    background: color-mix(in oklch, var(--accent) 45%, var(--card));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile-card {
+      transition: none;
+    }
+  }
+
   .explore-card:hover,
   .explore-card:focus-within {
     transform: translateY(-3px);
