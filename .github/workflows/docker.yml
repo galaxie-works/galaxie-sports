@@ -371,7 +371,13 @@ jobs:
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
-            infra/nas-backup/nas-pull.sh
+            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh
+
+      - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
+        run: bash infra/ops/merge-train.test.sh
+
+      - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
+        run: bash infra/ops/codex-gate.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
