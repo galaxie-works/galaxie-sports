@@ -205,7 +205,7 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `galaxie_quota_budget` | `api`, `priority` | `ops.quota_budget` ou fatia padrão |
 | `galaxie_job_runs` (24 h), `galaxie_job_consecutive_failures`, `galaxie_job_last_run_timestamp_seconds`, `galaxie_job_last_success_timestamp_seconds`, `galaxie_job_last_duration_seconds` | `job_name` (+ `status`) | `ops.job_run` |
 | `galaxie_raw_last_fetched_timestamp_seconds` | `sport` | `raw.api_response` (janela de 7 dias) |
-| `galaxie_live_events`, `galaxie_live_event_max_staleness_seconds` | `sport` | `core.event` em andamento |
+| `galaxie_live_events`, `galaxie_live_event_max_staleness_seconds` | `sport`, `coverage` (`poller` = no plano do `live-run`; `clock` = só o relógio dos eventos) | `core.event` em andamento (atraso contado no máximo desde o apito) + `includedEventIds` do estado `live:scheduler` |
 | `galaxie_live_poll_interval_seconds` | — | `LIVE_POLL_INTERVAL_SECONDS` (base do alerta `LiveEventStale`) |
 | `galaxie_live_scheduler_interval_seconds`, `_ticks_left`, `_window_minutes`, `_active_events`, `_updated_timestamp_seconds` | `sport` | Estado publicado pelo `live-run` em `ops.sync_cursor` (`live:scheduler`) |
 | `galaxie_http_request_duration_seconds` | `method`, `route`, `status_code` | Fastify (histograma) |
@@ -214,8 +214,8 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `process_*`, `nodejs_*` | — | prom-client |
 
 **Alertas** ([`alerts.yml`](../observability/prometheus/alerts.yml), testados com `promtool` no CI):
-`QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento em
-andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
+`QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento do plano do
+ao vivo em andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
 `MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
 (política de backup: [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)), `DiskAlmostFull` (disco dos
 volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown` e `ChangeFeedStalled` (consumidor do change feed com

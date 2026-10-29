@@ -347,17 +347,25 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   );
 
   // ── ao vivo (fonte: core.event) ──────────────────────────────────────────────────────────────────
-  dbGauge(registry, live, 'galaxie_live_events', 'Eventos em andamento por esporte', ['sport'], (g, d) => {
-    for (const r of d.events) g.set({ sport: r.sport }, r.events);
-  });
+  // coverage: poller (no plano do ao vivo) ou clock (só o relógio dos eventos; o alerta não olha estes)
+  dbGauge(
+    registry,
+    live,
+    'galaxie_live_events',
+    'Eventos em andamento por esporte e cobertura (poller = no plano do ao vivo; clock = só pelo relógio)',
+    ['sport', 'coverage'],
+    (g, d) => {
+      for (const r of d.events) g.set({ sport: r.sport, coverage: r.coverage }, r.events);
+    },
+  );
   dbGauge(
     registry,
     live,
     'galaxie_live_event_max_staleness_seconds',
-    'Maior tempo sem atualização válida entre os eventos em andamento (s)',
-    ['sport'],
+    'Maior tempo sem atualização válida, desde o apito, entre os eventos em andamento (s)',
+    ['sport', 'coverage'],
     (g, d) => {
-      for (const r of d.events) g.set({ sport: r.sport }, r.maxStalenessSeconds);
+      for (const r of d.events) g.set({ sport: r.sport, coverage: r.coverage }, r.maxStalenessSeconds);
     },
   );
 

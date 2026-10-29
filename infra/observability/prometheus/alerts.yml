@@ -161,9 +161,11 @@ groups:
   - name: galaxie-live
     rules:
       # O intervalo esperado é um placeholder (LIVE_POLL_INTERVAL_SECONDS) até o Live Scheduler publicar o intervalo dinâmico.
+      # Só os jogos do plano do ao vivo (coverage="poller"): os que o relógio põe em andamento pelo horário
+      # (fora do catálogo, esporte sem ao vivo) não têm quem os atualize até a reconciliação ou a agenda D-1.
       - alert: LiveEventStale
         expr: >-
-          max by (sport) (galaxie_live_event_max_staleness_seconds)
+          max by (sport) (galaxie_live_event_max_staleness_seconds{coverage="poller"})
           > on() group_left()
           2 * max(galaxie_live_poll_interval_seconds)
         for: 1m

@@ -53,15 +53,46 @@ tests:
     input_series:
       - series: 'galaxie_live_poll_interval_seconds{instance="api:8080",job="galaxie-api"}'
         values: '300x20'
-      - series: 'galaxie_live_event_max_staleness_seconds{sport="football",instance="api:8080",job="galaxie-api"}'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="football",coverage="poller",instance="api:8080",job="galaxie-api"}'
         values: '0+60x20'
-      - series: 'galaxie_live_event_max_staleness_seconds{sport="basketball",instance="api:8080",job="galaxie-api"}'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="basketball",coverage="poller",instance="api:8080",job="galaxie-api"}'
         values: '30x20'
     alert_rule_test:
       - eval_time: 10m
         alertname: LiveEventStale
         exp_alerts: []
       - eval_time: 12m
+        alertname: LiveEventStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Evento ao vivo de football sem atualização há 12m 0s'
+              description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
+
+  # jogo fora do plano do ao vivo (tier 3 do espelho, esporte sem ao vivo): o relógio o põe em andamento pelo
+  # horário e ninguém o atualiza até a reconciliação ou a agenda D-1; não é incidente do ao vivo
+  - name: jogo em andamento só pelo relógio não alerta, e não esconde o parado do plano
+    interval: 1m
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{instance="api:8080",job="galaxie-api"}'
+        values: '300x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="volleyball",coverage="clock",instance="api:8080",job="galaxie-api"}'
+        values: '54000+60x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="football",coverage="clock",instance="api:8080",job="galaxie-api"}'
+        values: '54000+60x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{sport="football",coverage="poller",instance="api:8080",job="galaxie-api"}'
+        values: '30x5 300+60x15'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiveEventStale
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: LiveEventStale
+        exp_alerts: []
+      - eval_time: 13m
         alertname: LiveEventStale
         exp_alerts:
           - exp_labels:
