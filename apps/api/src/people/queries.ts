@@ -42,6 +42,17 @@ const teamsEvents = (teamIds: string[]) => sql`
       from core.event_participant ep
      where ${inList(sql`ep.participant_id`, teamIds)})`;
 
+/**
+ * Filtro das partidas em que a pessoa aparece, pelas colunas que o trigger mantém (`player_pids`/`coach_pids`,
+ * migration 0061) e antes de abrir o `detail`: abrir o JSON de todas as partidas dos times candidatos custava
+ * segundos (1.505 detalhes num jogador do Palmeiras). Linha ainda não preenchida (nula) passa e é conferida no
+ * JSON, como antes; ID fora do formato inteiro também (sem filtro).
+ */
+const appearsIn = (col: SQL, personPid: string) =>
+  /^[0-9]{1,9}$/.test(personPid)
+    ? sql`(${col} is null or ${col} @> array[${Number(personPid)}::int])`
+    : sql`true`;
+
 /** IDs do fornecedor → IDs do core (`provider_map`) de um tipo de entidade. */
 export async function coreIds(
   db: Database,
@@ -196,7 +207,7 @@ export async function playerLines(db: Database, personPid: string, teamIds: stri
                                                    then ff.detail->'players' else '[]'::jsonb end) t
       cross join lateral jsonb_array_elements(case when jsonb_typeof(t->'players') = 'array'
                                                    then t->'players' else '[]'::jsonb end) p
-     where p->'player'->>'id' = ${personPid}
+     where ${appearsIn(sql`ff.player_pids`, personPid)} and p->'player'->>'id' = ${personPid}
      order by e.starts_at desc`);
   return [...rows].map((r) => ({ ...r, starts_at: new Date(r.starts_at).toISOString() }));
 }
@@ -214,7 +225,7 @@ export async function coachLines(db: Database, personPid: string, teamIds: strin
       left join core.season s on s.id = e.season_id
       cross join lateral jsonb_array_elements(case when jsonb_typeof(ff.detail->'lineups') = 'array'
                                                    then ff.detail->'lineups' else '[]'::jsonb end) l
-     where l->'coach'->>'id' = ${personPid}
+     where ${appearsIn(sql`ff.coach_pids`, personPid)} and l->'coach'->>'id' = ${personPid}
      order by e.starts_at desc`);
   return [...rows].map((r) => ({ ...r, starts_at: new Date(r.starts_at).toISOString() }));
 }

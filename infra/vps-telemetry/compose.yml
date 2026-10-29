@@ -524,7 +524,10 @@ services:
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
       RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
+      # na partida, só quando o último dump bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H h (always = sempre):
+      # todo deploy recria este serviço, e o dump completo disputava o disco com o pós-deploy e o smoke
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_ON_START_MIN_AGE_H: ${BACKUP_ON_START_MIN_AGE_H:-20}
       # dumps cifrados com age (docs/runbooks/exercicio-dr.md › Dumps cifrados): chaves públicas da recuperação (privada só
       # com o Wagner) e do ensaio; a privada do ensaio decifra no ensaio mensal e no restore. Vazio = dump em claro
       BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}

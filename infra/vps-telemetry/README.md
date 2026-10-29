@@ -392,7 +392,11 @@ provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensai
   voltar é parar API e ingestor, `docker compose exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
   falhou imprime o comando) e subir a versão anterior.
 - O dump de partida do serviço `backup` (`BACKUP_ON_START`) espera o `migrate` terminar: o `pg_dump` segura as
-  tabelas e o `migrate`, com `lock_timeout` curto, desistiria.
+  tabelas e o `migrate`, com `lock_timeout` curto, desistiria. E só roda quando o último dump bem-sucedido tem mais de
+  `BACKUP_ON_START_MIN_AGE_H` horas (padrão 20; `BACKUP_ON_START=always` faz sempre). Todo deploy recria o `backup`
+  (a imagem leva a tag do deploy), e o dump completo, com o COPY de `raw.api_response` (25 a 35 s), rodava junto com
+  o pós-deploy e o smoke: em 29/10 o perfil de jogador do smoke passou dos 10 s do `statement_timeout` e o deploy do
+  #415 voltou. Vários deploys no mesmo dia também giravam os 7 diários.
 
 ## Freios: banco, Valkey e processos Node
 

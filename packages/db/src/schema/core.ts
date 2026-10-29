@@ -909,6 +909,13 @@ export const footballFixture = core.table(
     /** Eventos, escalações, estatísticas e jogadores (de fixtures?id ou ids). */
     detail: jsonb('detail'),
     detailFetchedAt: timestamp('detail_fetched_at', { withTimezone: true }),
+    /**
+     * IDs do fornecedor de quem está em `detail.players` e dos técnicos de `detail.lineups`, mantidos por trigger
+     * (migration 0061): o perfil da pessoa filtra as partidas por eles antes de abrir o `detail`. Nulo = linha
+     * ainda não preenchida (o job fixture-people preenche as antigas); a consulta trata como "pode ter".
+     */
+    playerPids: integer('player_pids').array(),
+    coachPids: integer('coach_pids').array(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex('football_fixture_provider_uq').on(t.providerFixtureId)],
