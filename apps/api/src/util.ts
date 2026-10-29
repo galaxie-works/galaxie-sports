@@ -36,6 +36,36 @@ export function logoFormats(
   return { svg: url('svg'), png: url('png'), webp: url('webp') };
 }
 
+type SizedVariant = Partial<Record<'png' | 'webp', { storage_key: string }>>;
+
+/**
+ * `logo_sizes`: o escudo do acervo em PNG e WebP nos tamanhos fixos (64/128/256 de `variants.sizes`; o
+ * 512 é o `png`/`webp` de `variants`). null fora do acervo ou sem nenhum tamanho publicado.
+ */
+export function logoSizes(
+  baseUrl: string | undefined,
+  variants:
+    | (Partial<Record<'png' | 'webp', { storage_key: string }>> & {
+        sizes?: Partial<Record<'64' | '128' | '256', SizedVariant>>;
+      })
+    | null
+    | undefined,
+): Record<'64' | '128' | '256' | '512', { png: string | null; webp: string | null } | null> | null {
+  if (!variants || !baseUrl) return null;
+  const pair = (v: SizedVariant | undefined) => {
+    const png = assetUrl(baseUrl, v?.png?.storage_key, null);
+    const webp = assetUrl(baseUrl, v?.webp?.storage_key, null);
+    return png || webp ? { png, webp } : null;
+  };
+  const out = {
+    '64': pair(variants.sizes?.['64']),
+    '128': pair(variants.sizes?.['128']),
+    '256': pair(variants.sizes?.['256']),
+    '512': pair(variants),
+  };
+  return Object.values(out).some(Boolean) ? out : null;
+}
+
 /** Licença para comparar: minúsculas, hífen e espaço iguais ("CC-BY-4.0" = "cc by 4.0"). */
 const licenseKey = (s: string) =>
   s
