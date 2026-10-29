@@ -21,7 +21,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | Sinal | Alerta | Dispara quando |
 |---|---|---|
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
-| `api` (de fora) | Monitores da Better Stack | Site, API, demo ou assets sem resposta para a internet |
+| `api` (de fora) | Monitores da Better Stack | Site ou API sem resposta para a internet (demo e assets: monitores ainda a criar) |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
@@ -220,9 +220,11 @@ monitor (se o plano gratuito oferecer; senão fica o e-mail).
   |---|---|---|
   | `sports.galaxie.works` | Website | Galaxie Sports website and customer dashboard. |
   | `/health` | API | Availability of the Galaxie Sports REST API. |
-  | `/health/ready` | API Services | Services that keep API responses fast, including caching and request handling. |
+  | `/health/ready` | API Services | Readiness of the API to serve data requests. |
   | `/health/db` | Data Storage | Storage for fixtures, results, standings and statistics. |
 
+- O `/health/ready` responde 200 `degraded` com o Valkey fora, então "API Services" segue verde nesse caso (o
+  monitor só vê disponibilidade). Por isso o texto público não promete cache.
 - Incidente ou manutenção planejada: abra pela aba **Status updates** ou **Maintenance** da página, para o cliente ler
   o aviso lá em vez de só ver vermelho.
 
