@@ -170,12 +170,12 @@ services:
     restart: 'no'
     logging: *logging
 
-  api:
+  api: &api
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
-    environment:
+    environment: &api-env
       <<: *node-env
       DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       API_PORT: '8080'
@@ -220,12 +220,12 @@ services:
     logging: *logging
 
   # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
-  demo:
+  demo: &demo
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
-    environment:
+    environment: &demo-env
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
       # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
@@ -270,6 +270,31 @@ services:
       - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
     logging: *logging
+
+  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe, com DEPLOY_CANDIDATE=on): a API e a demo da
+  # versão nova ao lado das que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
+  # da troca. Mesmo env e mesmos limites dos originais (as âncoras); a API com prefixo próprio no Valkey (cache, rate
+  # limit, uso e relay do SSE não se misturam com os da versão no ar) e a demo falando com ela. Sobem com --no-deps e
+  # saem logo depois do smoke. README › Atualizar › Candidato e troca sem manutenção.
+  api-candidate:
+    <<: *api
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *api-env
+      REDIS_KEY_PREFIX: 'gs-candidate:'
+    depends_on: {}
+    labels: [traefik.enable=false]
+
+  demo-candidate:
+    <<: *demo
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *demo-env
+      GALAXIE_API_URL: http://api-candidate:8080
+    depends_on: {}
+    labels: [traefik.enable=false]
 
   # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
   # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.

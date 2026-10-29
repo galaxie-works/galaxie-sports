@@ -331,6 +331,17 @@ jobs:
       - name: docker compose config (VPS com Traefik)
         run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 
+      - name: docker compose config (candidatos do deploy)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
+            jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
+              and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
+              and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
+              and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
+              and .services["api-candidate"].image == .services.api.image
+              and .services["demo-candidate"].image == .services.demo.image' >/dev/null ||
+            { echo "::error::api-candidate/demo-candidate fora do esperado (sem router, prefixo próprio, mesma imagem)"; exit 1; }
+
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
 
@@ -371,13 +382,20 @@ jobs:
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
-            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh
+            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
+            infra/vps-telemetry/live-hold.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
 
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh
+
+      # A troca da API e da demo no deploy (DEPLOY_CANDIDATE=on): Traefik de verdade, tráfego durante a troca e uma
+      # versão que nunca fica healthy
+      - name: Troca sem página de manutenção (rolling-swap.sh com o Traefik)
+        run: bash infra/vps-telemetry/rolling-swap.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

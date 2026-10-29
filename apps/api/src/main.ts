@@ -76,6 +76,9 @@ const app = buildServer({
   ...hardening,
   ...(db ? { db } : {}),
   ...(redis ? { redis } : {}),
+  // prefixo próprio no Valkey (cache, rate limit, uso, liderança e canal do relay do SSE): o candidato do deploy
+  // (api-candidate, infra/vps-telemetry/deploy-gh.sh) roda ao lado da versão no ar sem misturar as chaves dela
+  ...(process.env.REDIS_KEY_PREFIX?.trim() ? { keyPrefix: process.env.REDIS_KEY_PREFIX.trim() } : {}),
   logger: true,
   changeFeed: true,
   realtime: {
