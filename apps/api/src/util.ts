@@ -23,6 +23,19 @@ export function logoSource(origin: string | null | undefined): 'provider' | 'ace
   return origin === 'acervo' || origin === 'commons' ? origin : 'provider';
 }
 
+/**
+ * `logo_formats`: as URLs do mesmo escudo em SVG, PNG e WebP (`core.asset.variants`, gravado por
+ * `assets:acervo`). null quando o asset não tem formatos (fornecedor, Commons) ou sem storage publicado.
+ */
+export function logoFormats(
+  baseUrl: string | undefined,
+  variants: Partial<Record<'svg' | 'png' | 'webp', { storage_key: string }>> | null | undefined,
+): { svg: string | null; png: string | null; webp: string | null } | null {
+  if (!variants || !baseUrl || !Object.keys(variants).length) return null;
+  const url = (f: 'svg' | 'png' | 'webp') => assetUrl(baseUrl, variants[f]?.storage_key, null);
+  return { svg: url('svg'), png: url('png'), webp: url('webp') };
+}
+
 /** Licença para comparar: minúsculas, hífen e espaço iguais ("CC-BY-4.0" = "cc by 4.0"). */
 const licenseKey = (s: string) =>
   s

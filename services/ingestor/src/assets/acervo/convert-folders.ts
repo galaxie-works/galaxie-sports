@@ -4,7 +4,7 @@
  *
  *   <origem>/<País> - <Competição>/svg/Escudo - <Time>.svg
  *   <origem>/<País> - <Competição>/png/x512 - Escudo - <Time>.png   (vários tamanhos: x128, x256...)
- *   <origem>/<País> - <Competição>/webp/...                          (ignorado)
+ *   <origem>/<País> - <Competição>/webp/x512 - Escudo - <Time>.webp  (idem; vale o maior)
  *
  * Seleções vêm como "Escudo - Seleção - <País>"; "Bandeira - <País>" não é escudo e fica de fora.
  * Saída (fora do git):
@@ -12,8 +12,10 @@
  *   <saída>/acervo.yaml                          acervo, grupos (pasta → país e ligas da api-sports) e nomes
  *   <saída>/teams/<pasta>/<slug>.svg             o SVG (ou o maior PNG, quando não há SVG)
  *   <saída>/teams/<pasta>/<slug>.png             o maior PNG, fonte da paleta
+ *   <saída>/teams/<pasta>/<slug>.webp            o maior WebP
  *
- * A origem é entrada não confiável: só lê SVG e PNG, confere a assinatura do PNG e o tamanho, recusa SVG
+ * Os três formatos são publicados pela API (`logo_formats`). A origem é entrada não confiável: só lê SVG,
+ * PNG e WebP, confere a assinatura do PNG e do WebP e o tamanho, recusa SVG
  * com conteúdo ativo (cai no PNG) e grava só com nomes saneados ([a-z0-9-]) — nunca com o nome do arquivo
  * original. O mesmo escudo (mesmo arquivo) em mais de uma pasta entra uma vez só, de preferência na pasta
  * da liga nacional.
@@ -38,9 +40,10 @@ import { unsafeSvgReason } from './svg-safety.js';
 
 /** Teto por arquivo: escudo não passa disso; acima é lixo ou ataque. */
 const MAX_BYTES = 5 * 1024 * 1024;
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+export const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const SVG_RE = /^(Escudo|Bandeira) - (.+)\.svg$/i;
 const PNG_RE = /^x(\d+) - (Escudo|Bandeira) - (.+)\.png$/i;
+const WEBP_RE = /^(?:x(\d+) - )?(Escudo|Bandeira) - (.+)\.webp$/i;
 const NATIONAL_RE = /^Sele[çc][ãa]o\s*-\s*/i;
 const INTERNATIONAL = new Set(['europa', 'mundial', 'mundo', 'world']);
 
@@ -95,6 +98,8 @@ export interface ConvertReport {
   /** Escudos gravados (um por time e pasta, sem as cópias idênticas). */
   logos: number;
   svg: number;
+  /** Escudos com WebP. */
+  webp: number;
   /** Escudos só com PNG (sem SVG, ou com o SVG recusado). */
   pngOnly: number;
   national: number;
@@ -113,17 +118,22 @@ interface Candidate {
   national: boolean;
   svg?: { path: string; body: Buffer };
   png?: { path: string; size: number; body: Buffer };
+  webp?: { path: string; size: number; body: Buffer };
 }
 
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+/** "RIFF" + tamanho + "WEBP". */
+export const isWebp = (b: Buffer) =>
+  b.length >= 16 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP';
 
-function readLimited(path: string): Buffer | null {
+export const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+
+export function readLimited(path: string): Buffer | null {
   const st = statSync(path);
   if (!st.isFile() || st.size > MAX_BYTES) return null;
   return readFileSync(path);
 }
 
-function listDir(path: string): string[] {
+export function listDir(path: string): string[] {
   return existsSync(path) && statSync(path).isDirectory() ? readdirSync(path).sort() : [];
 }
 
@@ -137,6 +147,7 @@ export function convertFolders(options: ConvertOptions): ConvertReport {
     folders: 0,
     logos: 0,
     svg: 0,
+    webp: 0,
     pngOnly: 0,
     national: 0,
     flags: [],
@@ -221,9 +232,27 @@ export function convertFolders(options: ConvertOptions): ConvertReport {
       }
       c.png = { path, size, body };
     }
+    for (const file of listDir(join(source, f, 'webp'))) {
+      const m = WEBP_RE.exec(file);
+      if (!m) {
+        report.ignored.push(`${f}/webp/${file}`);
+        continue;
+      }
+      if (m[2]!.toLowerCase() === 'bandeira') continue;
+      const size = Number(m[1] ?? 0);
+      const c = candidate(m[3]!);
+      if (c.webp && c.webp.size >= size) continue;
+      const path = join(source, f, 'webp', file);
+      const body = readLimited(path);
+      if (!body || !isWebp(body)) {
+        report.ignored.push(`${f}/webp/${file}`);
+        continue;
+      }
+      c.webp = { path, size, body };
+    }
 
     for (const c of byName.values()) {
-      const served = c.svg?.body ?? c.png?.body;
+      const served = c.svg?.body ?? c.png?.body ?? c.webp?.body;
       if (!served) continue; // só bandeira ou só arquivo recusado
       const hash = sha(served);
       const keptIn = seen.get(hash);
@@ -238,8 +267,12 @@ export function convertFolders(options: ConvertOptions): ConvertReport {
       if (c.svg) {
         writeFileSync(join(dir, `${slug}.svg`), c.svg.body);
         report.svg += 1;
-      } else report.pngOnly += 1;
+      } else if (c.png) report.pngOnly += 1;
       if (c.png) copyFileSync(c.png.path, join(dir, `${slug}.png`));
+      if (c.webp) {
+        copyFileSync(c.webp.path, join(dir, `${slug}.webp`));
+        report.webp += 1;
+      }
       logos[`teams/${group}/${slug}`] = { name: c.name, ...(c.national ? { national: true } : {}) };
       report.logos += 1;
       if (c.national) report.national += 1;

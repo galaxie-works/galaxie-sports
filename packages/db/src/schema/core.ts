@@ -98,6 +98,19 @@ export type AssetPalette = {
   monochrome: boolean;
 };
 
+/** Formatos publicados de um logo do acervo: cada um é um objeto no storage com a nossa nomenclatura. */
+export const ASSET_FORMATS = ['svg', 'png', 'webp'] as const;
+export type AssetFormat = (typeof ASSET_FORMATS)[number];
+export type AssetVariant = {
+  storage_key: string;
+  sha256: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+};
+/** Todos os formatos do mesmo logo (o servido em `storage_key` entra também); vazio fora do acervo. */
+export type AssetVariants = Partial<Record<AssetFormat, AssetVariant>>;
+
 export const asset = core.table(
   'asset',
   {
@@ -115,6 +128,8 @@ export const asset = core.table(
     origin: assetOrigin('origin').notNull().default('provider'),
     /** Id do acervo (manifesto em config/assets/acervo/<id>.yaml) quando origin = acervo. */
     acervo: text('acervo'),
+    /** Logo do acervo: SVG, PNG e WebP do mesmo escudo, quando o pacote traz (`assets:acervo`). */
+    variants: jsonb('variants').$type<AssetVariants>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],
