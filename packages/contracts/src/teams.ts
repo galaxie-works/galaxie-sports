@@ -1,7 +1,15 @@
 import 'zod-openapi';
 import * as z from 'zod';
 import { CompetitionSummary, FormerName, ParticipantRef, SeasonRef } from './catalog.js';
-import { AssetUrl, CountryRef, LocaleQuery, LogoFormats, LogoSizes, LogoSource, PaginationQuery } from './common.js';
+import {
+  AssetUrl,
+  CountryRef,
+  LocaleQuery,
+  LogoFormats,
+  LogoSizes,
+  LogoSource,
+  PaginationQuery,
+} from './common.js';
 import { TeamColors } from './colors.js';
 import { Event, EventsQuery, TeamSummary } from './events.js';
 
