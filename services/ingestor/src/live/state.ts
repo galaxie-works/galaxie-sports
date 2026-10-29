@@ -31,6 +31,11 @@ export interface LiveSchedulerState {
   segments: { start: string; end: string; leagues: string[] }[];
   /** Jogos em janela agora. */
   activeEvents: number;
+  /**
+   * Jogos do plano (`core.event.id`): o que o poller deveria atualizar. A métrica de atraso do ao vivo separa
+   * estes dos que só o relógio dos eventos move (fora do catálogo ou de esporte sem ao vivo).
+   */
+  includedEventIds: string[];
 }
 
 const secs = (ms: number) => (Number.isFinite(ms) ? Math.round(ms / 100) / 10 : null);
@@ -56,6 +61,7 @@ export function liveStateFromPlan(plan: LiveDayPlan, now: Date): LiveSchedulerSt
       leagues: s.leagues,
     })),
     activeEvents: plan.included.filter((i) => i.window.start <= now && now < windowEnd(i.window)).length,
+    includedEventIds: plan.included.map((i) => i.candidate.eventId),
   };
 }
 
