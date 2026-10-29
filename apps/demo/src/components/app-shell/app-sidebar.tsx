@@ -1,10 +1,11 @@
 'use client';
 
-import { BookOpen, Compass } from 'lucide-react';
+import { BookOpen, CalendarDays, ChevronRight, Compass, Globe2, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useSyncExternalStore } from 'react';
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Sidebar,
   SidebarContent,
@@ -14,8 +15,12 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
@@ -30,6 +35,7 @@ import { canAccessClientPanel } from '@/lib/auth/roles';
 import { DOCS_NAV } from '@/lib/docs';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { useI18n } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/text';
 import { COUNTRIES, EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV, type NavItem } from '@/lib/navigation';
 import { topLevelClick } from '@/lib/trail';
 
@@ -74,7 +80,66 @@ function NavLink({
   );
 }
 
-const EXPLORE_NAV: NavItem = { href: '/', icon: Compass };
+const EXPLORE_HREF = '/';
+
+/** Atalhos para as seções da página Explorar (Ao vivo entra à parte, com o contador). */
+const EXPLORE_SECTIONS = [
+  { id: 'sports', href: '/esportes', icon: Trophy },
+  { id: 'countries', href: '/paises', icon: Globe2 },
+  { id: 'agenda', href: '/agenda', icon: CalendarDays },
+] as const;
+
+/**
+ * Explorar: o item leva à página (catálogo inteiro) e a seta abre os subitens com as seções dela.
+ * Começa aberto; com a sidebar recolhida em ícones, os subitens somem e fica só o atalho da página.
+ */
+function ExploreNavItem({ pathname, section }: { pathname: string | null; section: string | null }) {
+  const { t } = useI18n();
+  const label = t.nav.explore.title;
+  const sectionLabels = {
+    sports: t.nav.explore.sports,
+    countries: t.nav.explore.countries,
+    agenda: t.nav.explore.index.agendaTitle,
+  };
+  const liveActive = isActive(pathname, LIVE_HREF);
+  const activeSection = EXPLORE_SECTIONS.find((s) => isActive(pathname, s.href, section));
+  return (
+    <Collapsible defaultOpen render={<SidebarMenuItem />}>
+      <SidebarMenuButton
+        // com um subitem aceso, só ele acende (o pai fica para a página Explorar e as filhas dela)
+        isActive={!activeSection && !liveActive && isActive(pathname, EXPLORE_HREF, section)}
+        tooltip={label}
+        render={<Link href={EXPLORE_HREF} onClick={topLevelClick(EXPLORE_HREF)} />}
+      >
+        <Compass />
+        <span>{label}</span>
+      </SidebarMenuButton>
+      <SidebarMenuAction
+        aria-label={fill(t.shell.sidebar.toggle, { label })}
+        render={<CollapsibleTrigger />}
+        className="aria-expanded:[&>svg]:rotate-90"
+      >
+        <ChevronRight className="transition-transform motion-reduce:transition-none" />
+      </SidebarMenuAction>
+      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out data-ending-style:h-0 data-starting-style:h-0 motion-reduce:transition-none">
+        <SidebarMenuSub>
+          {EXPLORE_SECTIONS.map(({ id, href, icon: Icon }) => (
+            <SidebarMenuSubItem key={id}>
+              <SidebarMenuSubButton
+                isActive={activeSection?.id === id}
+                render={<Link href={href} onClick={topLevelClick(href)} />}
+              >
+                <Icon />
+                <span>{sectionLabels[id]}</span>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+          ))}
+          <LiveNavItem active={liveActive} />
+        </SidebarMenuSub>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 /**
  * O caminho atual é dado de URL (runtime): fica atrás de Suspense para não bloquear o prerender. E só é
@@ -136,8 +201,7 @@ function SidebarNav({ pathname, section = null }: { pathname: string | null; sec
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            <NavLink item={EXPLORE_NAV} label={t.nav.explore.title} pathname={pathname} section={section} />
-            <LiveNavItem active={isActive(pathname, LIVE_HREF)} />
+            <ExploreNavItem pathname={pathname} section={section} />
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
