@@ -14,6 +14,20 @@ describe('createMetrics sem banco', () => {
     expect(text).not.toContain('galaxie_quota_remaining');
   });
 
+  it('métricas do pico do ao vivo nascem em 0 (o increase() dos alertas vê o primeiro incremento)', async () => {
+    const { registry, sseConnections, gapsAbandoned } = createMetrics({ defaultMetrics: false });
+    sseConnections.set(3);
+    gapsAbandoned.inc({ consumer: 'sse', reason: 'timeout' });
+    const text = await registry.metrics();
+    expect(text).toContain('galaxie_sse_connections_open 3');
+    expect(text).toContain('galaxie_sse_connections_rejected_total{reason="process_limit"} 0');
+    expect(text).toContain('galaxie_change_feed_gaps_abandoned_total{consumer="sse",reason="timeout"} 1');
+    expect(text).toContain(
+      'galaxie_change_feed_gaps_abandoned_total{consumer="cache-purge",reason="max_seen"} 0',
+    );
+    expect(text).toContain('galaxie_cache_requests_total{result="stale"} 0');
+  });
+
   it('exige a política de cota quando há banco', () => {
     expect(() => createMetrics({ db: {} as never, defaultMetrics: false })).toThrow(/policyFor/);
   });

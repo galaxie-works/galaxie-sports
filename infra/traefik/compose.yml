@@ -1,0 +1,47 @@
+# Traefik da VPS de produção (borda de todas as stacks em /docker: galaxie-sports e as outras). Fica em
+# /docker/traefik/docker-compose.yml na VPS, projeto `traefik`, volume `traefik_traefik-letsencrypt` (certificados).
+# Lido da VPS em 29/10/2026 (Traefik v3.7.16); o que mudou em relação ao que está no ar está marcado com "novo".
+# Aplicar, verificar e voltar: infra/traefik/README.md. Recriar a VPS do zero: docs/runbooks/bootstrap-vps.md.
+#
+# Validar: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
+
+services:
+  traefik:
+    image: traefik:v3.7.16
+    restart: unless-stopped
+    # rede do host: as stacks não publicam porta; o Traefik chega a cada uma pelo gateway da rede dela
+    network_mode: host
+    command:
+      - --api.dashboard=false
+      - --api.insecure=false
+      - --log.level=WARN
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?defina ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # novo: access log em JSON na saída do contêiner (docker compose logs traefik), girado pelo logging abaixo.
+      # Sem o RequestPath: ele leva a query, e a query leva a chave obsoleta do SSE (?key=, aceita até 27/12/2026) e o
+      # token curto (?token=). Sem headers (Authorization, x-galaxie-key, cookies). README da stack › Logs.
+      - --accesslog=true
+      - --accesslog.format=json
+      - --accesslog.fields.defaultmode=keep
+      - --accesslog.fields.names.RequestPath=drop
+      - --accesslog.fields.headers.defaultmode=drop
+    volumes:
+      - traefik-letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # novo: com o access log, a saída cresce a cada requisição; 5 × 20 MB (~uns dias de tráfego), igual às outras stacks
+    logging:
+      driver: json-file
+      options:
+        max-size: '20m'
+        max-file: '5'
+
+volumes:
+  traefik-letsencrypt:

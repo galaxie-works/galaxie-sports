@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { API_SPORTS, utcDayString, type QuotaPolicy } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
-import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from 'prom-client';
 import { aiBudget, effectiveOpsSettings, jobExpectations, type JobExpectation } from './ops.js';
 import {
   aiSpendUsd,
@@ -48,6 +48,14 @@ export interface GalaxieMetrics {
   registry: Registry;
   /** Latência das requisições HTTP da API (labels: method, route, status_code). */
   httpDuration: Histogram<'method' | 'route' | 'status_code'>;
+  /** Streams SSE abertos neste processo. */
+  sseConnections: Gauge;
+  /** Aberturas de SSE recusadas: `process_limit` (503, teto do processo) ou `tenant_limit` (429). */
+  sseRejected: Counter<'reason'>;
+  /** Lacunas do change feed abandonadas por consumidor (`sse`, `cache-purge`): mudanças que podem ter se perdido. */
+  gapsAbandoned: Counter<'consumer' | 'reason'>;
+  /** Respostas das rotas cacheadas: `hit`, `miss`, `stale` (valor anterior durante o recálculo), `coalesced`. */
+  cacheResults: Counter<'result'>;
 }
 
 /** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
@@ -142,6 +150,36 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     registers: [registry],
   });
 
+  const sseConnections = new Gauge({
+    name: 'galaxie_sse_connections_open',
+    help: 'Streams SSE (GET /v1/stream) abertos neste processo da API',
+    registers: [registry],
+  });
+  const sseRejected = new Counter<'reason'>({
+    name: 'galaxie_sse_connections_rejected_total',
+    help: 'Aberturas de SSE recusadas: process_limit (503, SSE_MAX_CONNECTIONS) ou tenant_limit (429)',
+    labelNames: ['reason'],
+    registers: [registry],
+  });
+  const gapsAbandoned = new Counter<'consumer' | 'reason'>({
+    name: 'galaxie_change_feed_gaps_abandoned_total',
+    help: 'Lacunas do ops.change_feed abandonadas pelo GapCursor (timeout depois da releitura ou max_seen)',
+    labelNames: ['consumer', 'reason'],
+    registers: [registry],
+  });
+  const cacheResults = new Counter<'result'>({
+    name: 'galaxie_cache_requests_total',
+    help: 'Respostas das rotas cacheadas por resultado: hit, miss, stale (servida durante o recálculo) e coalesced',
+    labelNames: ['result'],
+    registers: [registry],
+  });
+  // séries criadas em 0: sem isso, o increase() dos alertas não vê o primeiro incremento de uma série nova
+  for (const reason of ['process_limit', 'tenant_limit']) sseRejected.inc({ reason }, 0);
+  for (const consumer of ['sse', 'cache-purge'])
+    for (const reason of ['timeout', 'max_seen']) gapsAbandoned.inc({ consumer, reason }, 0);
+  for (const result of ['hit', 'miss', 'stale', 'coalesced']) cacheResults.inc({ result }, 0);
+  const runtime = { sseConnections, sseRejected, gapsAbandoned, cacheResults };
+
   const livePoll = new Gauge({
     name: 'galaxie_live_poll_interval_seconds',
     help: 'Intervalo esperado entre atualizações ao vivo (placeholder até o Live Scheduler; LIVE_POLL_INTERVAL_SECONDS)',
@@ -150,7 +188,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   livePoll.set(options.livePollIntervalSeconds ?? 300);
 
   const db = options.db;
-  if (!db) return { registry, httpDuration };
+  if (!db) return { registry, httpDuration, ...runtime };
 
   const policyFor = options.policyFor;
   if (!policyFor) throw new Error('createMetrics: informe policyFor quando houver banco.');
@@ -528,5 +566,5 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     },
   });
 
-  return { registry, httpDuration };
+  return { registry, httpDuration, ...runtime };
 }

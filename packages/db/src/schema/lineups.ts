@@ -92,9 +92,22 @@ export interface LineupVerification {
   prices?: LineupPriceObservation[];
   /** Mais de um valor entre os preços vistos. */
   price_conflict?: boolean;
+  /** Valores da fonte que o gravador recusou (o item entrou sem eles), para a revisão decidir. */
+  flags?: LineupFieldFlag[];
   /** Página oficial lida do nosso lado (proveniência da grade). */
   page?: LineupPageRef;
   checked_at: string;
+}
+
+/** Campo do rascunho que pode chegar inválido da fonte (preço 0, moeda fora da ISO 4217, data torta). */
+export const LINEUP_FLAG_FIELDS = ['price_amount', 'price_currency', 'valid_from', 'valid_to'] as const;
+export type LineupFlagField = (typeof LINEUP_FLAG_FIELDS)[number];
+
+/** Valor lido na fonte e recusado pelo gravador: o campo, o valor como veio e o motivo. */
+export interface LineupFieldFlag {
+  field: LineupFlagField;
+  value: string;
+  reason: string;
 }
 
 /** Um preço visto para o plano (pesquisa ou página oficial). */

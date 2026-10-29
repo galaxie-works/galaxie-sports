@@ -156,7 +156,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     for (const method of [r.method].flat()) routeTable.push({ method, url: r.url, config: r.config ?? {} });
   });
   app.decorate('routeTable', routeTable);
-  registerObservability(app, { db: options.db });
+  const metrics = registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const baseCache =
@@ -445,6 +445,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (options.changeFeed && options.db) {
     const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+      onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
@@ -458,8 +459,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       db: options.db,
       ...(options.redis ? { redis: options.redis } : {}),
       keyPrefix: prefix,
-      options: realtimeOptions,
+      options: {
+        onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'sse', reason: gap.reason }),
+        ...realtimeOptions,
+      },
       tokens: streamTokens!,
+      metrics: {
+        connections: (open) => metrics.sseConnections.set(open),
+        rejected: (reason) => metrics.sseRejected.inc({ reason }),
+      },
     });
   }
 

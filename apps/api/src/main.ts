@@ -80,6 +80,8 @@ const app = buildServer({
   changeFeed: true,
   realtime: {
     maxConnectionsPerTenant: Number(process.env.SSE_MAX_CONNECTIONS_PER_TENANT ?? 100),
+    // teto do processo (todos os tenants): acima dele, 503 com Retry-After em vez de estourar o mem_limit
+    maxConnections: Number(process.env.SSE_MAX_CONNECTIONS ?? 1000),
     // segredo do token curto do SSE: o mesmo em todas as instâncias (sem ele, um aleatório por processo)
     streamTokenSecret: process.env.STREAM_TOKEN_SECRET,
   },
