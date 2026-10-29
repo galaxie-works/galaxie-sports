@@ -286,11 +286,23 @@ export function useFormatters() {
       minute: '2-digit',
       timeZone: tz,
     });
+    const date = new Intl.DateTimeFormat(intl, {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      timeZone: tz,
+    });
+    const dayMonth = new Intl.DateTimeFormat(intl, {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: tz,
+    });
     const safe = (f: Intl.DateTimeFormat) => (iso: string) => {
       const d = new Date(iso);
       return Number.isNaN(d.getTime()) ? '' : f.format(d);
     };
-    return { time: safe(time), dateTime: safe(dateTime) };
+    return { time: safe(time), dateTime: safe(dateTime), date: safe(date), dayMonth: safe(dayMonth) };
   }, [locale, market, timeZone]);
 }
 

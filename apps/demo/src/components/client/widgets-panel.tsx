@@ -1,6 +1,18 @@
 'use client';
 
-import { CalendarDays, Plus, Radio, Table2, Tv, type LucideIcon } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarRange,
+  Clapperboard,
+  Flag,
+  Plus,
+  Radio,
+  Sparkles,
+  Swords,
+  Table2,
+  Tv,
+  type LucideIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
@@ -35,6 +47,11 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   live_list: Radio,
   standings: Table2,
   where_to_watch: Tv,
+  ai_context: Sparkles,
+  match_stakes: Flag,
+  related_videos: Clapperboard,
+  head_to_head: Swords,
+  team_schedule: CalendarRange,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */
@@ -107,7 +124,7 @@ export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; time
             <FrameTitle>{b.catalog}</FrameTitle>
             <FrameDescription>{b.description}</FrameDescription>
           </FrameHeader>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {WIDGET_KINDS.map((kind) => {
               const Icon = KIND_ICONS[kind];
               const texts = kindTexts(kind);

@@ -2,8 +2,13 @@ import { cn } from '@/lib/utils';
 
 /**
  * Textura de fundo dos cards de esporte: o desenho do campo, da quadra ou da pista em traço fino,
- * esmaecido para o canto. Puramente decorativa (aria-hidden), na cor do matiz do card.
+ * esmaecido para o canto. Puramente decorativa (aria-hidden), na cor do `className` (a landing usa o matiz
+ * do card; o app, o cinza de `TEXTURE_TONE`).
  */
+
+/** Tom sóbrio dos cards do app: traço cinza, discreto, que aparece um pouco mais no hover do card. */
+export const TEXTURE_TONE =
+  'text-muted-foreground opacity-[0.16] transition-opacity group-hover/tile:opacity-[0.28]';
 
 /** Vértices de um octógono regular (o cage do MMA). */
 function octagon(cx: number, cy: number, r: number) {

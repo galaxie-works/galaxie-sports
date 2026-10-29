@@ -1,13 +1,18 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_THEMES, PUBLISHABLE_KEY_HEADER, eventRefreshMs, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider, needsPublishableKey } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures } from './fixtures.js';
+import { AiContext } from './widgets/ai-context.js';
+import { HeadToHead } from './widgets/head-to-head.js';
 import { LiveList } from './widgets/live-list.js';
 import { MatchCard } from './widgets/match-card.js';
+import { MatchStakes } from './widgets/match-stakes.js';
+import { RelatedVideos } from './widgets/related-videos.js';
 import { StandingsTable } from './widgets/standings-table.js';
+import { TeamSchedule } from './widgets/team-schedule.js';
 import { WhereToWatch } from './widgets/where-to-watch.js';
 
 afterEach(() => {
@@ -457,5 +462,231 @@ describe('WhereToWatch', () => {
       fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(unknown)),
     });
     expect(await screen.findByText('Transmissão ainda não confirmada.')).toBeTruthy();
+  });
+});
+
+/** fetch dos dados de exemplo com uma rota trocada (`path` termina a URL). */
+const overriding =
+  (suffix: string, body: unknown, status = 200): typeof fetch =>
+  async (input, init) => {
+    const url = new URL(String(input));
+    return url.pathname.endsWith(suffix) ? jsonResponse(body, status) : createPreviewFetch()(input, init);
+  };
+
+describe('AiContext', () => {
+  it('antes do jogo: o cenário, com os times e o aviso de texto feito com IA', async () => {
+    const { fetchImpl } = setup(<AiContext eventId={PREVIEW_IDS.scheduledEvent} />);
+    expect(await screen.findByText(/assume a liderança se vencer o clássico/)).toBeTruthy();
+    expect(screen.getByText('Antes do jogo')).toBeTruthy();
+    expect(await screen.findByText(/Serra x Litoral/)).toBeTruthy();
+    expect(screen.getByText(/gerado com IA/)).toBeTruthy();
+    const urls = vi.mocked(fetchImpl).mock.calls.map(([u]) => new URL(String(u)).pathname);
+    expect(urls).toContain(`/v1/events/${PREVIEW_IDS.scheduledEvent}/context`);
+  });
+
+  it('jogo encerrado: abre no resumo e o torcedor alterna para o cenário', async () => {
+    setup(<AiContext eventId={PREVIEW_IDS.finishedEvent} />);
+    expect(await screen.findByText(/está na final/)).toBeTruthy();
+    const scenario = screen.getByRole('button', { name: 'Antes do jogo' });
+    expect(screen.getByRole('button', { name: 'Depois do jogo' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(scenario);
+    expect(screen.getByText(/decidem a vaga na final/)).toBeTruthy();
+    expect(scenario.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('sem texto gerado ainda: o vazio; sem o módulo: o aviso de 403', async () => {
+    setup(<AiContext eventId="0199a5c0-0000-7000-8000-00000000ffff" />);
+    expect(await screen.findByText(/sai mais perto da partida/)).toBeTruthy();
+    cleanup();
+    const forbidden = { title: 'Módulo fora do plano', status: 403, code: 'MODULE_NOT_IN_PLAN' };
+    setup(<AiContext eventId={PREVIEW_IDS.liveEvent} />, {
+      fetchImpl: vi.fn(overriding('/context', forbidden, 403)),
+    });
+    expect((await screen.findByRole('alert')).textContent).toMatch(/não libera este conteúdo/);
+  });
+});
+
+describe('MatchStakes', () => {
+  it('por time: as tags do torcedor, o que está em jogo e o grito da torcida, com o clássico no topo', async () => {
+    const { container } = setup(<MatchStakes eventId={PREVIEW_IDS.scheduledEvent} />);
+    expect(await screen.findByText('Na briga pelo título')).toBeTruthy();
+    expect(screen.getByText(/Clássico · Clássico da Serra/)).toBeTruthy();
+    const home = container.querySelector('[data-gs-side=home]')!;
+    const away = container.querySelector('[data-gs-side=away]')!;
+    expect(home.textContent).toContain('Com vitória, assume a liderança');
+    expect(home.textContent).toContain('Vamos, Serra!');
+    expect(away.textContent).toContain('Precisa pontuar para sair do Z-4');
+    expect(away.textContent).toContain('Contra o rebaixamento');
+    // stake dos dois lados aparece nos dois
+    expect(home.textContent).toContain('melhor campanha no clássico');
+    expect(away.textContent).toContain('melhor campanha no clássico');
+  });
+
+  it('sem stakes, tags nem grito: o vazio', async () => {
+    setup(<MatchStakes eventId={PREVIEW_IDS.liveEvent} />);
+    expect(await screen.findByText('Nada decisivo em jogo nesta partida.')).toBeTruthy();
+  });
+});
+
+describe('RelatedVideos', () => {
+  it('miniaturas com o tipo, a duração e o canal, pedindo o país do mercado', async () => {
+    const { fetchImpl, container } = setup(<RelatedVideos eventId={PREVIEW_IDS.finishedEvent} limit={4} />);
+    expect(await screen.findByText(/melhores momentos$/)).toBeTruthy();
+    expect(container.querySelectorAll('.gs-video')).toHaveLength(4);
+    expect(screen.getByText('8:32')).toBeTruthy();
+    expect(screen.getByText('Pênaltis')).toBeTruthy();
+    const url = new URL(String(vi.mocked(fetchImpl).mock.calls[0]![0]));
+    expect(url.pathname).toBe(`/v1/events/${PREVIEW_IDS.finishedEvent}/related`);
+    expect(url.searchParams.get('country')).toBe('BR');
+    expect(url.searchParams.get('limit')).toBe('4');
+  });
+
+  it('toca no player oficial (só YouTube https) e fecha; outro endereço vira link externo', async () => {
+    const base = createPreviewFixtures().related;
+    const [a, b] = base.data;
+    const body = {
+      ...base,
+      data: [
+        { ...a!, embed_url: 'https://www.youtube.com/embed/abc' },
+        { ...b!, embed_url: 'https://evil.example/embed/x', url: 'https://www.youtube.com/watch?v=x' },
+      ],
+    };
+    const { container } = setup(<RelatedVideos eventId={PREVIEW_IDS.finishedEvent} />, {
+      fetchImpl: vi.fn(overriding('/related', body)),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: `Assistir: ${a!.title}` }));
+    const iframe = container.querySelector('iframe')!;
+    expect(iframe.getAttribute('src')).toBe('https://www.youtube.com/embed/abc?autoplay=1&rel=0');
+    const link = screen.getByRole('link', { name: `Assistir: ${b!.title}` });
+    expect(link.getAttribute('href')).toBe('https://www.youtube.com/watch?v=x');
+    expect(link.getAttribute('rel')).toContain('noopener');
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar vídeo' }));
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  it('o player some quando o vídeo sai da lista ou o evento muda', async () => {
+    const base = createPreviewFixtures().related;
+    const [a, b] = base.data;
+    const body = { ...base, data: [{ ...a!, embed_url: 'https://www.youtube.com/embed/abc' }, b!] };
+    const fetchImpl = vi.fn(overriding('/related', body));
+    const props = {
+      baseUrl: 'https://api.exemplo.test',
+      publishableKey: 'pk_test_exemplo',
+      theme: DEFAULT_THEMES.dark,
+      locale: 'pt-BR' as const,
+      fetch: fetchImpl,
+    };
+    const { container, rerender } = render(
+      <GalaxieWidgetProvider {...props}>
+        <RelatedVideos eventId={PREVIEW_IDS.finishedEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: `Assistir: ${a!.title}` }));
+    expect(container.querySelector('iframe')).toBeTruthy();
+    rerender(
+      <GalaxieWidgetProvider {...props}>
+        <RelatedVideos eventId={PREVIEW_IDS.liveEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    await screen.findByRole('button', { name: `Assistir: ${a!.title}` });
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  it('sem vídeos: o vazio', async () => {
+    setup(<RelatedVideos eventId={PREVIEW_IDS.liveEvent} />, {
+      fetchImpl: vi.fn(overriding('/related', { event_id: 'x', data: [], counts: {}, updated_at: null })),
+    });
+    expect(await screen.findByText(/aparecem aqui assim que saírem/)).toBeTruthy();
+  });
+});
+
+describe('HeadToHead', () => {
+  it('histórico geral do clássico quando há, e os últimos confrontos', async () => {
+    const { container } = setup(<HeadToHead eventId={PREVIEW_IDS.scheduledEvent} limit={3} />);
+    expect(await screen.findByText('Histórico geral: 214 jogos')).toBeTruthy();
+    const stats = [...container.querySelectorAll('.gs-stat strong')].map((n) => n.textContent);
+    expect(stats).toEqual(['88', '61', '65']);
+    expect(screen.getByText('Clássico da Serra')).toBeTruthy();
+    expect(container.querySelectorAll('.gs-fixture')).toHaveLength(3);
+    expect(container.querySelector('.gs-fixture')!.textContent).toContain('1 – 2');
+  });
+
+  it('confronto sem placar (MMA): sem 0 – 0, o vencedor no nome', async () => {
+    const base = createPreviewFixtures().h2h;
+    const [first] = base.events;
+    const bout = {
+      ...first!,
+      score: { ...first!.score, home: null, away: null },
+      participants: first!.participants.map((p, i) => ({ ...p, winner: i === 0 })),
+    };
+    const { container } = setup(<HeadToHead eventId={PREVIEW_IDS.scheduledEvent} />, {
+      fetchImpl: vi.fn(overriding('/h2h', { ...base, events: [bout] })),
+    });
+    await screen.findByText('Últimos confrontos');
+    const row = container.querySelector('.gs-fixture')!;
+    expect(row.textContent).not.toContain('0 – 0');
+    expect(row.querySelectorAll('[data-lost]')).toHaveLength(1);
+  });
+
+  it('sem histórico curado: o recorte da base, desde o ano do primeiro jogo', async () => {
+    const base = createPreviewFixtures().h2h;
+    setup(<HeadToHead eventId={PREVIEW_IDS.scheduledEvent} />, {
+      fetchImpl: vi.fn(overriding('/h2h', { ...base, all_time: null })),
+    });
+    expect(await screen.findByText(`5 jogos desde ${base.summary.since}`)).toBeTruthy();
+  });
+
+  it('times que nunca se enfrentaram: o vazio', async () => {
+    const base = createPreviewFixtures().h2h;
+    setup(<HeadToHead eventId={PREVIEW_IDS.scheduledEvent} />, {
+      fetchImpl: vi.fn(
+        overriding('/h2h', {
+          ...base,
+          all_time: null,
+          summary: { ...base.summary, since: null, played: 0, draws: 0, teams: [] },
+          events: [],
+        }),
+      ),
+    });
+    expect(await screen.findByText('Os times ainda não se enfrentaram.')).toBeTruthy();
+  });
+});
+
+describe('TeamSchedule', () => {
+  it('próximos jogos (o ao vivo primeiro) e os últimos resultados com V/E/D, do mais recente', async () => {
+    const { fetchImpl, container } = setup(<TeamSchedule teamId={PREVIEW_IDS.team} />);
+    expect(await screen.findByText('Próximos jogos')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Clube Aurora' })).toBeTruthy();
+    const [next, recent] = container.querySelectorAll('.gs-group');
+    const nextRows = next!.querySelectorAll('.gs-fixture');
+    expect(nextRows).toHaveLength(3);
+    expect(nextRows[0]!.textContent).toContain('Estrela');
+    expect(nextRows[0]!.textContent).toContain('2 – 1');
+    expect(nextRows[1]!.textContent).toContain('Planalto');
+    const results = [...recent!.querySelectorAll('.gs-result')].map((n) => n.textContent);
+    expect(results).toEqual(['V', 'E', 'D']);
+    const url = new URL(String(vi.mocked(fetchImpl).mock.calls[0]![0]));
+    expect(url.pathname).toBe(`/v1/teams/${PREVIEW_IDS.team}/events`);
+    expect(url.searchParams.get('from')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(url.searchParams.get('to')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('com jogo ao vivo atualiza a cada 30 s', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchImpl } = setup(<TeamSchedule teamId={PREVIEW_IDS.team} />);
+    await screen.findByText('Próximos jogos');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+  });
+
+  it.each([
+    ['en', 'Upcoming matches', ['W', 'D', 'L']],
+    ['es', 'Próximos partidos', ['G', 'E', 'P']],
+  ] as const)('%s', async (locale, title, letters) => {
+    const { container } = setup(<TeamSchedule teamId={PREVIEW_IDS.team} />, { locale });
+    expect(await screen.findByText(title)).toBeTruthy();
+    expect([...container.querySelectorAll('.gs-result')].map((n) => n.textContent)).toEqual(letters);
   });
 });

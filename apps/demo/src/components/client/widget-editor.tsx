@@ -1,10 +1,15 @@
 'use client';
 
 import {
+  AiContext,
   GalaxieWidgetProvider,
+  HeadToHead,
   LiveList,
   MatchCard,
+  MatchStakes,
+  RelatedVideos,
   StandingsTable,
+  TeamSchedule,
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
@@ -107,6 +112,16 @@ function PreviewWidget({
         return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} />;
       case 'live_list':
         return <LiveList />;
+      case 'ai_context':
+        return <AiContext {...WIDGET_CATALOG.ai_context.exampleProps} />;
+      case 'match_stakes':
+        return <MatchStakes {...WIDGET_CATALOG.match_stakes.exampleProps} />;
+      case 'related_videos':
+        return <RelatedVideos {...WIDGET_CATALOG.related_videos.exampleProps} />;
+      case 'head_to_head':
+        return <HeadToHead {...WIDGET_CATALOG.head_to_head.exampleProps} />;
+      case 'team_schedule':
+        return <TeamSchedule {...WIDGET_CATALOG.team_schedule.exampleProps} />;
     }
   }
   switch (kind) {
@@ -118,6 +133,16 @@ function PreviewWidget({
       return <StandingsTable competitionId={entity.id} season="current" />;
     case 'live_list':
       return <LiveList competitionId={entity.id} />;
+    case 'ai_context':
+      return <AiContext eventId={entity.id} />;
+    case 'match_stakes':
+      return <MatchStakes eventId={entity.id} />;
+    case 'related_videos':
+      return <RelatedVideos eventId={entity.id} />;
+    case 'head_to_head':
+      return <HeadToHead eventId={entity.id} />;
+    case 'team_schedule':
+      return <TeamSchedule teamId={entity.id} />;
   }
 }
 

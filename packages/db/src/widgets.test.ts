@@ -12,7 +12,9 @@ import {
   PUBLISHABLE_KEY_PREFIX,
   PUBLISHABLE_TEST_KEY_PREFIX,
   publishableKeyEnv,
+  WIDGET_KIND_MODULES,
 } from './widgets.js';
+import { WIDGET_KINDS } from './schema/index.js';
 
 describe('chave publicável', () => {
   it('gera gs_pk_live_ com 256 bits, prefixo visível e sha256 em hex', () => {
@@ -125,10 +127,27 @@ describe('origens permitidas', () => {
 });
 
 describe('tipos de widget', () => {
-  it('valida os quatro tipos', () => {
-    for (const k of ['match_card', 'live_list', 'standings', 'where_to_watch'])
+  it('valida os nove tipos', () => {
+    for (const k of [
+      'match_card',
+      'live_list',
+      'standings',
+      'where_to_watch',
+      'ai_context',
+      'match_stakes',
+      'related_videos',
+      'head_to_head',
+      'team_schedule',
+    ])
       expect(isWidgetKind(k)).toBe(true);
     expect(isWidgetKind('bracket')).toBe(false);
     expect(isWidgetKind(undefined)).toBe(false);
+  });
+
+  it('todo tipo consome o core_data e os módulos pagos ficam só nos tipos que os usam', () => {
+    for (const k of WIDGET_KINDS) expect(WIDGET_KIND_MODULES[k]).toContain('core_data');
+    expect(WIDGET_KIND_MODULES.ai_context).toContain('live_intelligence');
+    expect(WIDGET_KIND_MODULES.related_videos).toContain('related_content');
+    expect(WIDGET_KIND_MODULES.match_stakes).toEqual(['core_data']);
   });
 });
