@@ -122,6 +122,8 @@ export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
 }
 
 function Meeting({ event, date }: { event: GsEvent; date: string }) {
+  const { texts } = useGalaxieWidget();
+  const versus = texts.versus;
   const { home, away } = sidesOf(event);
   if (!home || !away) return null;
   return (
@@ -134,9 +136,14 @@ function Meeting({ event, date }: { event: GsEvent; date: string }) {
         <span className="gs-truncate" data-lost={home.winner === false || undefined}>
           {home.short_name ?? home.name}
         </span>
-        <strong>
-          {event.score.home ?? 0} – {event.score.away ?? 0}
-        </strong>
+        {/* sem placar (MMA, por exemplo): o vencedor fica no nome; nada de um 0 – 0 inventado */}
+        {event.score.home !== null || event.score.away !== null ? (
+          <strong>
+            {event.score.home ?? 0} – {event.score.away ?? 0}
+          </strong>
+        ) : (
+          <span className="gs-muted">{versus}</span>
+        )}
         <span className="gs-truncate" data-lost={away.winner === false || undefined}>
           {away.short_name ?? away.name}
         </span>

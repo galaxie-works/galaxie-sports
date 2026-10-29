@@ -564,6 +564,34 @@ describe('RelatedVideos', () => {
     expect(container.querySelector('iframe')).toBeNull();
   });
 
+  it('o player some quando o vídeo sai da lista ou o evento muda', async () => {
+    const base = createPreviewFixtures().related;
+    const [a, b] = base.data;
+    const body = { ...base, data: [{ ...a!, embed_url: 'https://www.youtube.com/embed/abc' }, b!] };
+    const fetchImpl = vi.fn(overriding('/related', body));
+    const props = {
+      baseUrl: 'https://api.exemplo.test',
+      publishableKey: 'pk_test_exemplo',
+      theme: DEFAULT_THEMES.dark,
+      locale: 'pt-BR' as const,
+      fetch: fetchImpl,
+    };
+    const { container, rerender } = render(
+      <GalaxieWidgetProvider {...props}>
+        <RelatedVideos eventId={PREVIEW_IDS.finishedEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: `Assistir: ${a!.title}` }));
+    expect(container.querySelector('iframe')).toBeTruthy();
+    rerender(
+      <GalaxieWidgetProvider {...props}>
+        <RelatedVideos eventId={PREVIEW_IDS.liveEvent} />
+      </GalaxieWidgetProvider>,
+    );
+    await screen.findByRole('button', { name: `Assistir: ${a!.title}` });
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
   it('sem vídeos: o vazio', async () => {
     setup(<RelatedVideos eventId={PREVIEW_IDS.liveEvent} />, {
       fetchImpl: vi.fn(overriding('/related', { event_id: 'x', data: [], counts: {}, updated_at: null })),
@@ -581,6 +609,23 @@ describe('HeadToHead', () => {
     expect(screen.getByText('Clássico da Serra')).toBeTruthy();
     expect(container.querySelectorAll('.gs-fixture')).toHaveLength(3);
     expect(container.querySelector('.gs-fixture')!.textContent).toContain('1 – 2');
+  });
+
+  it('confronto sem placar (MMA): sem 0 – 0, o vencedor no nome', async () => {
+    const base = createPreviewFixtures().h2h;
+    const [first] = base.events;
+    const bout = {
+      ...first!,
+      score: { ...first!.score, home: null, away: null },
+      participants: first!.participants.map((p, i) => ({ ...p, winner: i === 0 })),
+    };
+    const { container } = setup(<HeadToHead eventId={PREVIEW_IDS.scheduledEvent} />, {
+      fetchImpl: vi.fn(overriding('/h2h', { ...base, events: [bout] })),
+    });
+    await screen.findByText('Últimos confrontos');
+    const row = container.querySelector('.gs-fixture')!;
+    expect(row.textContent).not.toContain('0 – 0');
+    expect(row.querySelectorAll('[data-lost]')).toHaveLength(1);
   });
 
   it('sem histórico curado: o recorte da base, desde o ano do primeiro jogo', async () => {

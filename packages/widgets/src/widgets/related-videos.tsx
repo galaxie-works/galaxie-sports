@@ -47,7 +47,8 @@ export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVide
     { limit: max, format, type: types, country: market },
     () => VIDEOS_REFRESH_MS,
   );
-  const [playing, setPlaying] = useState<GsRelatedItem | null>(null);
+  // o vídeo escolhido vale só para este jogo e enquanto continuar na lista (troca de evento ou polling)
+  const [picked, setPlaying] = useState<{ eventId: string; id: string } | null>(null);
 
   if (!query.data) {
     return (
@@ -63,6 +64,7 @@ export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVide
   }
 
   const items = query.data.data.slice(0, max);
+  const playing = picked?.eventId === eventId ? (items.find((item) => item.id === picked.id) ?? null) : null;
   const player = playing ? safeEmbedUrl(playing.embed_url) : null;
 
   return (
@@ -96,7 +98,7 @@ export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVide
               key={item.id}
               item={item}
               label={fillText(t.play, { title: item.title })}
-              onPlay={() => setPlaying(item)}
+              onPlay={() => setPlaying({ eventId, id: item.id })}
             />
           ))}
         </ul>
