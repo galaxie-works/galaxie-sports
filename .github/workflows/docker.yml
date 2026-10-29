@@ -355,7 +355,7 @@ jobs:
       - name: Alertas — teste simulado (promtool)
         run: |
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
-            prom/prometheus:v3.15.1 test rules alerts.test.yml
+            prom/prometheus:v3.15.1 test rules alerts.test.yml slo.test.yml
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
             prom/prometheus:v3.15.1 check config prometheus.yml --syntax-only
 

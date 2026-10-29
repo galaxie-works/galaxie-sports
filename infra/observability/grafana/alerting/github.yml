@@ -1,0 +1,21 @@
+# Só entra no provisionamento com ALERT_GITHUB_TOKEN definido (entrypoint.sh). Cada alerta (um por envio: a rota
+# agrupa por todos os rótulos) dispara o workflow .github/workflows/alerta-grafana.yml, que abre a issue com o rótulo
+# `alerta` e a fecha quando o alerta resolve. O token é um fine-grained PAT só deste repositório com Actions: read and
+# write (docs/runbooks/alertas-e-monitoramento.md); a URL vem montada do entrypoint com ALERT_GITHUB_REPO.
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: issue-github
+    receivers:
+      - uid: galaxie-issue-github
+        type: webhook
+        settings:
+          url: $GALAXIE_GITHUB_DISPATCH_URL
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: $ALERT_GITHUB_TOKEN
+          headers:
+            Accept: application/vnd.github+json
+            X-GitHub-Api-Version: '2022-11-28'
+          payload:
+            template: '{{ template "galaxie.github.payload" . }}'

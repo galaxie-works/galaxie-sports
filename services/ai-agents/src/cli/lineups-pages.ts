@@ -97,6 +97,9 @@ async function main(): Promise<void> {
         );
       if (o.unknownAddons.length)
         console.log(`    complementos fora da biblioteca: ${o.unknownAddons.join(', ')}`);
+      for (const { item, flag } of o.flagged)
+        console.log(`    sinalizado (entrou sem o valor): ${item} · ${flag.reason}`);
+      if (o.error) console.log(`    ERRO: ${o.error}`);
     }
     console.log(
       `${reader.pagesFetched} página(s) buscada(s). Tudo entrou como rascunho (com a fonte oficial e o hash): aprove no painel.`,
