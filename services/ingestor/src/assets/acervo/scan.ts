@@ -8,8 +8,8 @@
  * `<país>` é o código (br, gb-eng), o nome (brazil, england, Brasil) ou um grupo declarado em `groups`
  * no acervo.yaml — a pasta de uma competição, com o país e as ligas da api-sports dela (o mapeamento
  * casa entre os times que jogam nelas). Variantes do mesmo logo (palmeiras.svg, palmeiras.png,
- * palmeiras@512.png) viram um item só: serve o SVG, ou o maior PNG; a paleta sai do maior PNG quando
- * houver. SVG com conteúdo ativo é recusado (svg-safety.ts) e o logo cai no PNG. O nome vem de `logos`
+ * palmeiras@512.png, palmeiras.webp) viram um item só: serve o SVG, ou o maior PNG, ou o maior WebP; a
+ * paleta sai do maior PNG quando houver. Os três formatos vão para `formats` (API: `logo_formats`). SVG com conteúdo ativo é recusado (svg-safety.ts) e o logo cai no PNG. O nome vem de `logos`
  * (ou `names`) no acervo.yaml, ou do slug do arquivo.
  */
 import { createHash } from 'node:crypto';
@@ -17,7 +17,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative, sep } from 'node:path';
 import { parse } from 'yaml';
 import { imageInfo } from '../image-info.js';
-import { validateAcervoInfo, type AcervoInfo, type AcervoKind } from './manifest.js';
+import { validateAcervoInfo, type AcervoInfo, type AcervoKind, type LogoFormat } from './manifest.js';
 import { unsafeSvgReason } from './svg-safety.js';
 
 export interface ScannedLogo {
@@ -28,6 +28,8 @@ export interface ScannedLogo {
   name: string;
   file: string;
   paletteFile?: string | undefined;
+  /** Arquivo de cada formato (SVG, maior PNG, maior WebP). */
+  formats?: Partial<Record<LogoFormat, string>> | undefined;
   sha256: string;
   /** Escudo de seleção (o nome é o do país). */
   national?: boolean | undefined;
@@ -47,7 +49,7 @@ export interface ScanResult {
   info: AcervoInfo;
   logos: ScannedLogo[];
   groups: Record<string, AcervoGroup>;
-  /** Arquivos fora do layout ou que não são SVG/PNG. */
+  /** Arquivos fora do layout ou que não são SVG/PNG/WebP. */
   ignored: string[];
   /** SVG recusados por conteúdo ativo (arquivo → motivo). */
   rejected: Record<string, string>;
@@ -63,7 +65,7 @@ interface PackageYaml {
 }
 
 const KIND_DIRS: Record<string, AcervoKind> = { teams: 'team', competitions: 'competition' };
-const VARIANT_RE = /^(.+?)(?:@(\d+)x?)?\.(svg|png)$/i;
+const VARIANT_RE = /^(.+?)(?:@(\d+)x?)?\.(svg|png|webp)$/i;
 
 /** "sao-paulo" → "Sao Paulo" (o nome bom vem do acervo.yaml; isto é só o recurso). */
 export function nameFromSlug(slug: string): string {
@@ -93,7 +95,13 @@ export function scanAcervo(dir: string): ScanResult {
 
   const groups = new Map<
     string,
-    { kind: AcervoKind; country: string; svg?: string; pngs: { file: string; width: number }[] }
+    {
+      kind: AcervoKind;
+      country: string;
+      svg?: string;
+      pngs: { file: string; width: number }[];
+      webps: { file: string; width: number }[];
+    }
   >();
   const ignored: string[] = [];
   const rejected: Record<string, string> = {};
@@ -108,14 +116,21 @@ export function scanAcervo(dir: string): ScanResult {
       continue;
     }
     const key = `${parts[0]}/${parts[1]!.toLowerCase()}/${variant[1]!.toLowerCase()}`;
-    const group = groups.get(key) ?? { kind, country: parts[1]!.toLowerCase(), pngs: [] };
-    if (variant[3]!.toLowerCase() === 'svg') {
+    const group = groups.get(key) ?? { kind, country: parts[1]!.toLowerCase(), pngs: [], webps: [] };
+    const ext = variant[3]!.toLowerCase();
+    if (ext === 'svg') {
       const reason = unsafeSvgReason(readFileSync(full));
       if (reason) rejected[rel] = reason;
       else group.svg = rel;
     } else {
-      const head = readFileSync(full).subarray(0, 32);
-      group.pngs.push({ file: rel, width: imageInfo(head).width ?? 0 });
+      const info = imageInfo(readFileSync(full).subarray(0, 64));
+      if (info.contentType !== `image/${ext}`) {
+        ignored.push(rel);
+        continue;
+      }
+      // sem largura no cabeçalho (WebP simples): o sufixo @N do nome desempata
+      const width = info.width ?? Number(variant[2] ?? 0);
+      (ext === 'png' ? group.pngs : group.webps).push({ file: rel, width });
     }
     groups.set(key, group);
   }
@@ -123,8 +138,9 @@ export function scanAcervo(dir: string): ScanResult {
   const logos: ScannedLogo[] = [];
   for (const [key, g] of groups) {
     const largestPng = g.pngs.sort((a, b) => b.width - a.width)[0]?.file;
-    const file = g.svg ?? largestPng;
-    if (!file) continue; // só um SVG recusado, sem PNG
+    const largestWebp = g.webps.sort((a, b) => b.width - a.width)[0]?.file;
+    const file = g.svg ?? largestPng ?? largestWebp;
+    if (!file) continue; // só um SVG recusado, sem PNG nem WebP
     const hint = pkg.logos?.[key];
     logos.push({
       key,
@@ -133,6 +149,11 @@ export function scanAcervo(dir: string): ScanResult {
       name: hint?.name ?? pkg.names?.[key] ?? nameFromSlug(key.split('/').pop()!),
       file,
       ...(largestPng && largestPng !== file ? { paletteFile: largestPng } : {}),
+      formats: {
+        ...(g.svg ? { svg: g.svg } : {}),
+        ...(largestPng ? { png: largestPng } : {}),
+        ...(largestWebp ? { webp: largestWebp } : {}),
+      },
       sha256: sha256(readFileSync(join(dir, file))),
       ...(hint?.national ? { national: true } : {}),
     });

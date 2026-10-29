@@ -91,6 +91,7 @@ export function planManifest(
       ...(s.national ? { national: true } : {}),
       file: s.file,
       ...(s.paletteFile ? { palette_file: s.paletteFile } : {}),
+      ...(s.formats && Object.keys(s.formats).length ? { formats: s.formats } : {}),
       sha256: s.sha256,
     };
     const old = prev.get(s.key);

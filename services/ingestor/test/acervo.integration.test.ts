@@ -117,14 +117,15 @@ describe('assets:acervo (importação idempotente)', () => {
 
   it('espelha, grava a origem e a paleta e liga sem tocar no logo do fornecedor', async () => {
     const report = await importAcervo({ db, objects, manifest, dir: EXEMPLO, batchSize: 3 });
-    expect(report).toMatchObject({ linked: 7, uploaded: 7, changed: 7, detached: 0, skipped: 0 });
+    // 7 logos, e o Palmeiras também em PNG e WebP
+    expect(report).toMatchObject({ linked: 7, uploaded: 9, changed: 7, detached: 0, skipped: 0 });
     const palSha = manifest.logos.find((l) => l.key === 'teams/br/palmeiras')!.sha256;
     const palKey = `acervo/football/teams/${ids.get('Palmeiras')}.${palSha.slice(0, 12)}.svg`;
     expect(acervoStorageKey('team', ids.get('Palmeiras')!, palSha, 'image/svg+xml')).toBe(palKey);
     expect(objects.objects.get(palKey)?.contentType).toBe('image/svg+xml');
     // o nome publicado é só nosso: nem o id do acervo nem o nome do arquivo do pacote
     for (const key of objects.objects.keys()) {
-      expect(key).toMatch(/^acervo\/football\/(teams|leagues)\/[0-9a-f-]{36}\.[0-9a-f]{12}\.svg$/);
+      expect(key).toMatch(/^acervo\/football\/(teams|leagues)\/[0-9a-f-]{36}\.[0-9a-f]{12}\.(svg|png|webp)$/);
       expect(key).not.toMatch(/exemplo|palmeiras|serie-a/);
     }
 
@@ -141,6 +142,23 @@ describe('assets:acervo (importação idempotente)', () => {
       height: 512,
     });
     expect(row!.palette).toMatchObject({ dominant: '#0b6e3a', monochrome: false });
+    // os três formatos do mesmo escudo, cada um com a nossa nomenclatura
+    expect(Object.keys(row!.variants ?? {}).sort()).toEqual(['png', 'svg', 'webp']);
+    expect(row!.variants!.svg).toMatchObject({ storage_key: palKey, width: 512 });
+    for (const format of ['png', 'webp'] as const) {
+      const v = row!.variants![format]!;
+      expect(v).toMatchObject({ width: 128, height: 128 });
+      expect(v.storage_key).toBe(
+        `acervo/football/teams/${ids.get('Palmeiras')}.${v.sha256.slice(0, 12)}.${format}`,
+      );
+      expect(objects.objects.get(v.storage_key)?.contentType).toBe(`image/${format}`);
+    }
+    const flamengo = await customLogo('Flamengo');
+    const [fla] = await db
+      .select({ variants: asset.variants })
+      .from(asset)
+      .where(eq(asset.id, flamengo.custom!));
+    expect(Object.keys(fla!.variants ?? {})).toEqual(['svg']);
     const [provider] = await db
       .select({ origin: asset.origin })
       .from(asset)

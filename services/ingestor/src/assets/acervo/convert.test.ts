@@ -27,6 +27,19 @@ const png = (w: number, seed = 0) => {
   b[39] = seed;
   return b;
 };
+/** Cabeçalho de um WebP sem perdas (VP8L) de w × w. */
+const webp = (w: number) => {
+  const b = Buffer.alloc(40);
+  b.write('RIFF', 0, 'latin1');
+  b.writeUInt32LE(32, 4);
+  b.write('WEBPVP8L', 8, 'latin1');
+  b[20] = 0x2f;
+  b[21] = (w - 1) & 0xff;
+  b[22] = (((w - 1) >> 8) & 0x3f) | (((w - 1) & 0x3) << 6);
+  b[23] = ((w - 1) >> 2) & 0xff;
+  b[24] = ((w - 1) >> 10) & 0x0f;
+  return b;
+};
 
 const club = (
   id: string,
@@ -69,7 +82,10 @@ describe('conversor de pastas por competição', () => {
   put('Brasil - Campeonato Brasileiro Série A/svg/Escudo - Palmeiras.svg', svg('#0b6e3a'));
   put('Brasil - Campeonato Brasileiro Série A/png/x128 - Escudo - Palmeiras.png', png(128));
   put('Brasil - Campeonato Brasileiro Série A/png/x512 - Escudo - Palmeiras.png', png(512));
-  put('Brasil - Campeonato Brasileiro Série A/webp/x512 - Escudo - Palmeiras.webp', 'RIFF');
+  put('Brasil - Campeonato Brasileiro Série A/webp/x256 - Escudo - Palmeiras.webp', webp(256));
+  put('Brasil - Campeonato Brasileiro Série A/webp/x512 - Escudo - Palmeiras.webp', webp(512));
+  put('Brasil - Campeonato Brasileiro Série A/webp/x512 - Escudo - Falso.webp', 'RIFF');
+  put('Brasil - Campeonato Brasileiro Série A/webp/x512 - Escudo - Só WebP.webp', webp(512));
   put('Brasil - Campeonato Brasileiro Série A/svg/Escudo - Mal.svg', '<svg><script>x</script></svg>');
   put('Brasil - Campeonato Brasileiro Série A/png/x256 - Escudo - Mal.png', png(256, 7));
   put('Brasil - Campeonato Brasileiro Série A/png/x256 - Escudo - Só PNG.png', png(256, 9));
@@ -83,11 +99,17 @@ describe('conversor de pastas por competição', () => {
   const report = convertFolders({ source: src, out, info: INFO });
 
   it('gera o layout do pacote com nomes saneados, SVG preferido e o maior PNG para a paleta', () => {
-    expect(report).toMatchObject({ folders: 2, logos: 4, svg: 2, pngOnly: 2, national: 1 });
+    expect(report).toMatchObject({ folders: 2, logos: 5, svg: 2, webp: 2, pngOnly: 2, national: 1 });
     const dir = join(out, 'teams', 'brasil-campeonato-brasileiro-serie-a');
     expect(readFileSync(join(dir, 'palmeiras.svg'), 'utf8')).toContain('#0b6e3a');
     expect(readFileSync(join(dir, 'palmeiras.png')).readUInt32BE(16)).toBe(512);
     expect(existsSync(join(dir, 'so-png.png'))).toBe(true);
+    // o maior WebP vai junto; WebP sem assinatura válida fica de fora
+    expect(readFileSync(join(dir, 'palmeiras.webp'))[21]).toBe(511 & 0xff);
+    expect(existsSync(join(dir, 'so-webp.webp'))).toBe(true);
+    expect(report.ignored).toContain(
+      'Brasil - Campeonato Brasileiro Série A/webp/x512 - Escudo - Falso.webp',
+    );
     // SVG com script fica de fora e o escudo cai no PNG
     expect(existsSync(join(dir, 'mal.svg'))).toBe(false);
     expect(existsSync(join(dir, 'mal.png'))).toBe(true);
@@ -97,7 +119,7 @@ describe('conversor de pastas por competição', () => {
     expect(existsSync(join(out, 'teams', 'mundial-copa-do-mundo', 'selecao-pais-de-gales.svg'))).toBe(true);
   });
 
-  it('ignora webp, bandeiras, pastas fora do formato e cópias idênticas', () => {
+  it('ignora bandeiras, pastas fora do formato e cópias idênticas', () => {
     expect(report.flags).toEqual(['Mundial - Copa do Mundo/Suíça']);
     expect(report.ignored).toContain('Sem traço');
     expect(report.duplicates).toEqual([
@@ -123,6 +145,15 @@ describe('conversor de pastas por competição', () => {
       name: 'Palmeiras',
       file: 'teams/brasil-campeonato-brasileiro-serie-a/palmeiras.svg',
       paletteFile: 'teams/brasil-campeonato-brasileiro-serie-a/palmeiras.png',
+      formats: {
+        svg: 'teams/brasil-campeonato-brasileiro-serie-a/palmeiras.svg',
+        png: 'teams/brasil-campeonato-brasileiro-serie-a/palmeiras.png',
+        webp: 'teams/brasil-campeonato-brasileiro-serie-a/palmeiras.webp',
+      },
+    });
+    expect(scan.logos.find((l) => l.key.endsWith('/so-webp'))).toMatchObject({
+      file: 'teams/brasil-campeonato-brasileiro-serie-a/so-webp.webp',
+      formats: { webp: 'teams/brasil-campeonato-brasileiro-serie-a/so-webp.webp' },
     });
     expect(scan.logos.find((l) => l.national)).toMatchObject({ name: 'País de Gales' });
   });

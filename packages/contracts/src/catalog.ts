@@ -5,6 +5,7 @@ import {
   CountryRef,
   LocaleQuery,
   LogoCredit,
+  LogoFormats,
   LogoSource,
   PaginationQuery,
   ProviderName,
@@ -102,6 +103,7 @@ export type CompetitionSummary = z.infer<typeof CompetitionSummary>;
 
 export const Competition = CompetitionSummary.extend({
   logo_source: LogoSource,
+  logo_formats: LogoFormats,
   logo_credit: LogoCredit.nullable().meta({
     description:
       'Crédito do logo quando ele vem da Wikimedia Commons (`logo_source` = `commons`); null nos demais.',

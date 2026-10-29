@@ -400,6 +400,13 @@
       "when": 1793197471273,
       "tag": "0057_grade_edicao_manual_e_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1793291804178,
+      "tag": "0058_acervo_formatos",
+      "breakpoints": true
     }
   ]
 }

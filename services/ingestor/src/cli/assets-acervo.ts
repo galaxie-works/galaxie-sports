@@ -8,7 +8,7 @@
  *   pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>            # importa (idempotente)
  *   pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
  *
- * Base organizada por competição ("<País> - <Competição>/svg|png/Escudo - <Time>"): converta antes para o
+ * Base organizada por competição ("<País> - <Competição>/svg|png|webp/Escudo - <Time>"): converta antes para o
  * layout de pacote (convert-folders.ts) — sem banco, sem rede:
  *
  *   pnpm --filter @galaxie/ingestor assets:acervo --converter <origem> --pasta <saída> \
@@ -71,7 +71,7 @@ if (values.converter) {
     }),
   });
   console.log(
-    `Pacote em ${resolve(values.pasta)}: ${report.folders} pastas · ${report.logos} escudos (${report.svg} SVG, ${report.pngOnly} só PNG, ${report.national} seleções) · ${report.duplicates.length} cópias idênticas · ${report.flags.length} bandeiras e ${report.ignored.length} arquivos ignorados · ${report.rejected.length} SVG recusados`,
+    `Pacote em ${resolve(values.pasta)}: ${report.folders} pastas · ${report.logos} escudos (${report.svg} SVG, ${report.webp} WebP, ${report.pngOnly} só PNG, ${report.national} seleções) · ${report.duplicates.length} cópias idênticas · ${report.flags.length} bandeiras e ${report.ignored.length} arquivos ignorados · ${report.rejected.length} SVG recusados`,
   );
   for (const r of report.rejected) console.warn(`  SVG recusado ${r.file}: ${r.reason}`);
   if (!values.mapear) process.exit(0);
