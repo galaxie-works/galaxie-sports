@@ -234,19 +234,24 @@ export class WtwRunner {
         );
       }
       if (res.retryLater) {
-        // falha do provedor conta como tentativa: depois de WTW_RUN_MAX_ATTEMPTS, fica só com os direitos já publicados.
-        // Orçamento esgotado e espera depois de falha não chamaram o provedor: devolvem a tentativa
-        const again = res.attempted
-          ? group.filter((g) => attemptsOfRow(g.run) < WTW_RUN_MAX_ATTEMPTS).map((g) => g.run)
-          : group.map((g) => g.run);
-        await this.requeue(again, res.retryAt, { refund: !res.attempted });
-        if (again.length)
+        // a conta é por execução: só as que entraram numa chamada que falhou gastam a tentativa (depois de
+        // WTW_RUN_MAX_ATTEMPTS, ficam só com os direitos já publicados). As que não chegaram ao provedor (orçamento
+        // esgotado, espera depois de falha, mercado no teto diário) devolvem a tentativa e voltam para a fila
+        const tried = group.filter((g) => res.attempted.has(g.run.id)).map((g) => g.run);
+        const again = tried.filter((r) => attemptsOfRow(r) < WTW_RUN_MAX_ATTEMPTS);
+        await this.requeue(again, res.retryAt);
+        await this.requeue(
+          group.filter((g) => !res.attempted.has(g.run.id)).map((g) => g.run),
+          res.retryAt,
+          { refund: true },
+        );
+        if (again.length || group.length > tried.length)
           this.log(
             `${group[0]!.group}: alocação adiada (${res.reasons.values().next().value ?? ''}) — volta para a fila`,
           );
-        if (again.length < group.length)
+        if (again.length < tried.length)
           this.log(
-            `${group[0]!.group}: ${group.length - again.length} execução(ões) desistida(s) da alocação depois de ${WTW_RUN_MAX_ATTEMPTS} tentativas (ficam com os direitos)`,
+            `${group[0]!.group}: ${tried.length - again.length} execução(ões) desistida(s) da alocação depois de ${WTW_RUN_MAX_ATTEMPTS} tentativas (ficam com os direitos)`,
           );
       }
     }
@@ -303,15 +308,16 @@ export class WtwRunner {
     retryLater?: boolean;
     /** Com `retryLater`: a partir de quando tentar de novo (espera depois de falha do provedor). */
     retryAt?: Date | null;
-    /** Alguma chamada ao provedor falhou de verdade nesta rodada (conta como tentativa da execução). */
-    attempted?: boolean;
+    /** Execuções que entraram numa chamada ao provedor que falhou de verdade (contam a tentativa). */
+    attempted: Set<string>;
   }> {
     const byEvent: AllocationResult['byEvent'] = new Map();
     const shares = new Map<string, CallShare>();
     const reasons = new Map<string, string>();
     const runReasons = new Map<string, string>();
     const manual = group[0]!.run.mode === 'full' && group[0]!.run.window === 'manual';
-    const empty = { byEvent, shares, reasons, runReasons, notes: null, calls: 0, deferred: false };
+    const attempted = new Set<string>();
+    const empty = { byEvent, shares, reasons, runReasons, notes: null, calls: 0, deferred: false, attempted };
 
     // mercados × jogos que precisam do LLM
     const need = group.filter((c) =>
@@ -362,7 +368,6 @@ export class WtwRunner {
       if (!retryAt || at > retryAt) retryAt = at;
     };
     let allocatedAny = false;
-    let attempted = false;
     for (const [i, all] of chunks.entries()) {
       const ids = new Set(all.map((e) => e.id));
       let inChunk = used.filter((c) => ids.has(c.info.id));
@@ -471,7 +476,7 @@ export class WtwRunner {
         for (const m of marketsHere) reasons.set(m, `alocação falhou: ${message.slice(0, 200)}`);
         // orçamento esgotado não chamou o provedor: tenta na próxima rodada. Falha do provedor espera
         // (30 min, 1 h…) e desiste no dia depois de WTW_RESEARCH_MAX_FAILURES falhas.
-        if (!budget) attempted = true;
+        if (!budget) for (const c of inChunk) attempted.add(c.run.id);
         if (budget) transient ??= message.slice(0, 200);
         else if (isTransient(err) && started.failures + 1 < WTW_RESEARCH_MAX_FAILURES) {
           transient ??= message.slice(0, 200);
