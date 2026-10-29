@@ -19,7 +19,7 @@ export default async function LivePage() {
   return (
     <>
       <PageHeader title={t.live.nav.label} kind="ao vivo" />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <Suspense fallback={<LiveBoardFallback />}>
           <LiveBoard api={liveEventsRequest(locale)} />
         </Suspense>

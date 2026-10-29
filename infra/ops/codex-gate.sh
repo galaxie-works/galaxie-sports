@@ -14,9 +14,10 @@
 # "@codex review", então nenhum review vai chegar. O portão confere as threads que existem e avisa que o commit atual
 # não foi revisado. CODEX_REQUIRE_CURRENT=1 faz isso falhar (aí é preciso pedir "@codex review" no PR). PR sem nada do
 # Codex (Dependabot, PR anterior à integração) passa com aviso: o portão barra P1 aberto, não a falta de review.
-# Review rodando no fim da espera: espera mais CODEX_WAIT_MIN e, se não terminar, falha.
-# Saída: 0 = sem P1 aberto; 1 = P1 aberto, review ainda rodando, review atual exigido e ausente, ou o GitHub não
-# respondeu.
+# Review rodando no fim da espera: espera mais CODEX_WAIT_MIN. Se não terminar (Codex travado ou sem cota), ou se o
+# review em andamento é de um commit anterior ao atual (o resumo diz o commit), é como o review que falhou: avisa e
+# confere as threads. P1 aberto barra sempre; o review que terminar depois dispara o check de novo (pull_request_review).
+# Saída: 0 = sem P1 aberto; 1 = P1 aberto, review atual exigido e ausente, ou o GitHub não respondeu.
 set -euo pipefail
 
 PR="${1:?uso: codex-gate.sh <número do PR>}"
@@ -31,7 +32,8 @@ read -r created head < <(gh api "repos/$REPO/pulls/$PR" --jq '"\(.created_at) \(
 pushed="$(gh api "repos/$REPO/commits/$head" --jq .commit.committer.date)"
 
 # "<estado> <commit do último review>": running | current (terminado no commit atual) | stale (terminado num commit
-# anterior, ou só o 👍) | failed (o Codex não terminou: sem cota ou erro dele; o 👀 pode ficar) | none
+# anterior, ou só o 👍) | old (rodando, mas num commit anterior) | failed (o Codex não terminou: sem cota ou erro
+# dele; o 👀 pode ficar) | none
 review_state() {
   local reactions status sha state
   # 👀 = review rodando; 👍 = terminou sem achado
@@ -49,6 +51,10 @@ review_state() {
     *" -") case " $reactions" in *" +1 "*) state=stale ;; *) state=none ;; esac ;;
     *) state=running ;;
   esac
+  # o resumo diz que o review em andamento é de um commit anterior: o do commit atual não começou
+  if [ "$state" = running ] && [ "${status:--}" = running ] && [ "${sha:--}" != - ] && [ "$sha" != "$head" ]; then
+    state=old
+  fi
   echo "$state ${sha:--}"
 }
 
@@ -62,17 +68,16 @@ while :; do
   # review que falhou não vai terminar: decide já, como no fim da espera
   [ "$state" = failed ] && deadline=$now
   if [ "$now" -ge "$deadline" ]; then
-    if [ "$state" = running ]; then
-      if [ "$now" -lt $((deadline + WAIT_MIN * 60)) ]; then
-        echo "review do Codex rodando; esperando terminar"
-        sleep 30
-        continue
-      fi
-      echo "::error::Codex ainda revisando o PR #$PR; rode o check de novo quando ele terminar"
-      echo "Codex ainda revisando o PR #$PR: rode de novo quando terminar." >> "$SUMMARY"
-      exit 1
+    if [ "$state" = running ] && [ "$now" -lt $((deadline + WAIT_MIN * 60)) ]; then
+      echo "review do Codex rodando; esperando terminar"
+      sleep 30
+      continue
     fi
-    if [ "$state" = failed ]; then
+    if [ "$state" = running ]; then
+      msg="o review do Codex continua rodando depois de $WAIT_MIN min a mais de espera (travado ou sem cota; peça \"@codex review\" se ele não voltar)"
+    elif [ "$state" = old ]; then
+      msg="o review do Codex em andamento é do commit ${reviewed:0:7}, não do atual ${head:0:7} (peça \"@codex review\" para revisar o atual)"
+    elif [ "$state" = failed ]; then
       msg="o review do Codex do commit ${reviewed:0:7} falhou (sem cota ou erro do Codex; peça \"@codex review\" quando ele voltar)"
     elif [ "$state" = stale ]; then
       msg="o último review do Codex é do commit ${reviewed:0:7}, não do atual ${head:0:7} (o Codex revisa ao abrir o PR, ao sair de rascunho ou com \"@codex review\")"

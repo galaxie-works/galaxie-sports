@@ -45,6 +45,7 @@ import {
   encodeCursor,
   likeEscape,
   logoCreditText,
+  logoFormats,
   logoSource,
   parseInput,
   UUID_RE,
@@ -258,6 +259,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const body: Competition = {
           ...summary!,
           logo_source: logoSource(row.logoOrigin),
+          logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
           logo_credit: credit
             ? {
                 source: 'Wikimedia Commons',
@@ -479,6 +481,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoOrigin: asset.origin,
+        logoVariants: asset.variants,
         logoAssetId: asset.id,
       })
       .from(competition)

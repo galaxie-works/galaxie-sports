@@ -444,7 +444,7 @@ describe('ApiSportsClient: falhas depois do fetch', () => {
     const save = store.save.bind(store);
     store.save = async (record) => {
       if (opts.failSave?.()) throw new Error('falha ao gravar o raw');
-      await save(record);
+      return save(record);
     };
     const governor = new InMemoryQuotaGovernor(
       () => defaultPolicy(100),

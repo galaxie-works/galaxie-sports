@@ -77,6 +77,22 @@ export function imageInfo(buf: Uint8Array, fallbackType = 'application/octet-str
         width: 1 + (buf[24]! | (buf[25]! << 8) | (buf[26]! << 16)),
         height: 1 + (buf[27]! | (buf[28]! << 8) | (buf[29]! << 16)),
       };
+    // VP8 (com perdas): quadro-chave começa em 20, com o código 9d 01 2a e 14 bits de largura e altura
+    if (chunk === 'VP8 ' && buf[23] === 0x9d && buf[24] === 0x01 && buf[25] === 0x2a)
+      return {
+        contentType: 'image/webp',
+        width: view.getUint16(26, true) & 0x3fff,
+        height: view.getUint16(28, true) & 0x3fff,
+      };
+    // VP8L (sem perdas): assinatura 0x2f e 14 bits (menos 1) de largura e altura
+    if (chunk === 'VP8L' && buf[20] === 0x2f) {
+      const [b1, b2, b3, b4] = [buf[21]!, buf[22]!, buf[23]!, buf[24]!];
+      return {
+        contentType: 'image/webp',
+        width: 1 + (((b2 & 0x3f) << 8) | b1),
+        height: 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6)),
+      };
+    }
     return { contentType: 'image/webp', width: null, height: null };
   }
   const head = new TextDecoder().decode(buf.subarray(0, Math.min(buf.length, 4096)));

@@ -25,6 +25,10 @@ export type AcervoKind = 'team' | 'competition';
 export const MATCH_STATUSES = ['auto', 'manual', 'rejected', 'ambiguous', 'unmatched', 'duplicate'] as const;
 export type MatchStatus = (typeof MATCH_STATUSES)[number];
 
+/** Formatos de um logo no pacote: o servido e os demais publicados em `logo_formats` na API. */
+export const LOGO_FORMATS = ['svg', 'png', 'webp'] as const;
+export type LogoFormat = (typeof LOGO_FORMATS)[number];
+
 export interface AcervoCandidate {
   id: string;
   name: string;
@@ -46,6 +50,11 @@ export interface AcervoLogo {
   file: string;
   /** PNG do mesmo logo, quando houver: fonte da paleta de cores (mais fiel que ler as cores do SVG). */
   palette_file?: string | undefined;
+  /**
+   * Arquivo de cada formato do mesmo logo (o servido entra também). Ausente nos manifestos antigos: aí
+   * valem `file` e `palette_file`.
+   */
+  formats?: Partial<Record<LogoFormat, string>> | undefined;
   sha256: string;
   /** Id em core.participant (team) ou core.competition (competition); null = sem vínculo. */
   target_id: string | null;

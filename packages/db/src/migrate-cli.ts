@@ -12,6 +12,14 @@ if (!url) {
 await runMigrations(url, {
   onRetry: (attempt) =>
     console.warn(`Migration esperou trava além do lock_timeout (tentativa ${attempt}); tentando de novo.`),
+  concurrent: {
+    onIndex: (index, outcome, ms) => {
+      if (outcome === 'created')
+        console.log(
+          `Índice ${index.schema}.${index.name} criado com CONCURRENTLY em ${(ms / 1000).toFixed(1)} s.`,
+        );
+    },
+  },
 });
 console.log('Migrations aplicadas.');
 

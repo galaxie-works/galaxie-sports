@@ -20,15 +20,48 @@ create table raw.api_response (
   results         int,                        -- campo "results" do envelope
   errors          jsonb,                      -- campo "errors" do envelope
   body            jsonb not null,             -- envelope completo {get, parameters, errors, results, paging, response}
+  body_hash       text not null,              -- sha256 do body (dedupe na gravação)
   quota_remaining int,                        -- header x-ratelimit-requests-remaining
-  fetched_at      timestamptz not null default now(),
+  fetched_at      timestamptz not null default now(), -- primeira vez que este corpo chegou
+  last_seen_at    timestamptz,                -- última vez que o mesmo corpo voltou (null = só em fetched_at)
+  seen_count      int  not null default 1,    -- quantas vezes o corpo chegou
+  retention       text not null default 'keep', -- keep | live (§1.1)
   job_id          text                        -- job que originou a chamada
 );
-create index on raw.api_response (sport, endpoint, request_hash, fetched_at desc);
+create index on raw.api_response (provider, sport, endpoint, request_hash, fetched_at desc);
+create index on raw.api_response (sport, coalesce(last_seen_at, fetched_at));             -- frescor (métrica)
+create index on raw.api_response (coalesce(last_seen_at, fetched_at)) where retention = 'live'; -- retenção
 ```
 
 - O **espelho compatível** (`/mirror/...`) responde servindo o `body` mais recente para o mesmo `request_hash` — ou remontando a resposta a partir do `core` quando a combinação de parâmetros nunca foi pedida ao fornecedor.
-- Política de retenção: tudo é mantido; respostas idênticas consecutivas (mesmo hash do `body`) podem ser deduplicadas com ponteiro.
+- O frescor (cache do cliente, espelho, `--plan` dos jobs, métrica `galaxie_raw_last_fetched_timestamp_seconds`) conta por `coalesce(last_seen_at, fetched_at)`: um corpo repetido não vira linha nova, mas conta como resposta recente.
+
+### 1.1 Retenção dos dados que crescem
+
+Decisão de 28/10/2026 (lote 6 da auditoria de produção). Operação: [runbook de retenção](runbooks/retencao-de-dados.md).
+
+**`raw.api_response`**
+
+- **Dedupe na gravação:** um corpo igual ao da última resposta da mesma requisição (mesmo `request_hash`, mesmo status e mesmo `body_hash`) não grava linha nova; a última linha ganha `last_seen_at` e `seen_count`. Um corpo que volta depois de outro diferente (A, B, A) grava de novo: compara só com a última.
+- **Ao vivo, 30 dias:** o cliente da api-sports grava `retention = 'live'` em toda chamada de prioridade LIVE (o poll `fixtures?live=` e os detalhes `fixtures?id=` da confirmação e da reconciliação). O job diário `data-retention` apaga as linhas `live` cujo último "visto em" passou de 30 dias, **menos a última resposta de sucesso de cada requisição**: o reprocessamento e o espelho continuam achando o estado final do jogo.
+- **Diário, catálogo, temporada e detalhe: para sempre** (`retention = 'keep'`).
+- O histórico gravado antes da dedupe é arrumado uma vez pelo `raw:compactar-historico` (classifica e junta as repetidas; idempotente).
+
+**Tabelas de operação** (job `data-retention`, regras em `services/ingestor/src/ops/ops-retention.ts`)
+
+| Tabela | Guarda | Detalhe |
+|---|---|---|
+| `ops.change_feed` | 7 dias (job `change-feed-prune`) | Mantém a última mudança de cada entidade e nunca apaga acima do menor cursor: `api.webhook_cursor` (sempre) e o piso do GapCursor do cache da demo (`demo_auth.cache_feed_cursor`) e do purge da API (`api.change_feed_cursor`), enquanto eles retomariam dali (24 h) |
+| `ops.llm_usage` | 90 dias por chamada | Antes de apagar, cada dia vira linha em `ops.llm_usage_daily` (dia, dia de orçamento, faixa, agente, provedor, modelo, tier, desfecho), que fica para sempre |
+| `ops.job_run` | 90 dias | A última execução e o último sucesso de cada job ficam sempre (métricas e alerta de job falhando) |
+| `ops.quota_ledger` | 90 dias de cota | O Governor só lê o dia corrente |
+| `ops.job_request` | 30 dias depois de encerrado | Pendente e em execução ficam |
+| `ops.normalize_failure` | 90 dias depois de resolvida | Pendente e poison ficam |
+| `api.webhook_delivery` | entregue: 30 dias; `dead`: 90 dias | Pendente fica |
+
+Ficam para sempre, de propósito: `core.event_state_log` (a API pública mostra o histórico de estados do jogo; cresce com o número de jogos, não com o tempo), `ops.runtime_setting_log`, `api.api_key_event` e `semantic.review_log` (auditoria), `enrich.wtw_run` (o `run_key` é a trava que impede rodar de novo a mesma janela) e `enrich.related_run` (uma linha por jogo e janela). `ops.quality_*` é podado pelo próprio job `data-quality`.
+
+O tamanho do banco e das maiores tabelas sai em `galaxie_db_database_bytes` e `galaxie_db_table_bytes{table}`; os alertas `DiskFillingUp` (crítico: o disco acaba em menos de 3 dias no ritmo atual) e `DatabaseGrowingFast` (aviso: mais de 1 GiB em 24 h) olham a tendência.
 
 ## 2. `core` — modelo normalizado
 
@@ -81,7 +114,7 @@ erDiagram
 
 Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ricos, ligadas ao `core.event`.
 
-> **Implementado no futebol (issue #22):** `core.football_fixture` guarda o resumo (`fixture`/`league`/`teams`/`goals`/`score`) e, em `detail` (JSONB), as partes do detalhe recebidas (`events`, `lineups`, `statistics`, `players`), mescladas por chave — o ao vivo traz só `events` e não apaga as escalações. Escalações e estatísticas ficam no JSONB até alguma consulta precisar de índice; a timeline vai para `core.event_incident` e as pessoas citadas para `core.person`. As tabelas abaixo são o alvo para quando houver consulta que justifique.
+> **Implementado no futebol (issue #22):** `core.football_fixture` guarda o resumo (`fixture`/`league`/`teams`/`goals`/`score`) e, em `detail` (JSONB), as partes do detalhe recebidas (`events`, `lineups`, `statistics`, `players`), mescladas por chave — o ao vivo traz só `events` e não apaga as escalações. Escalações e estatísticas ficam no JSONB até alguma consulta precisar de índice; a timeline vai para `core.event_incident` e as pessoas citadas para `core.person`. Quem jogou e quem dirigiu cada partida também fica fora do JSON, em `player_pids`/`coach_pids` (IDs do fornecedor, mantidos por trigger a cada escrita do detalhe; as linhas antigas são preenchidas pelo job `fixture-people`): o perfil da pessoa filtra as partidas por eles antes de abrir o `detail`. As tabelas abaixo são o alvo para quando houver consulta que justifique.
 
 | Esporte | Tabelas |
 |---|---|

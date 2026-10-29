@@ -123,6 +123,11 @@ export interface ServerOptions {
   /** Envio do buffer de uso ao backend (ms; padrão 1000) e consolidação no Postgres (ms; padrão 60000). */
   usageFlushIntervalMs?: number;
   usagePersistIntervalMs?: number;
+  /**
+   * Consolida o uso no Postgres (api.usage_daily). Padrão: sim, com banco. false: só conta no Valkey (o candidato do
+   * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
+   */
+  usagePersist?: boolean;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -427,7 +432,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (usage) {
     const persister =
-      options.db && usageBackend
+      options.db && usageBackend && options.usagePersist !== false
         ? new UsagePersister(options.db, usageBackend, {
             intervalMs: options.usagePersistIntervalMs ?? 60_000,
             onError: (err) => app.log.warn({ err }, 'falha ao consolidar uso'),

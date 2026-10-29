@@ -78,7 +78,15 @@ import {
 import { positionName } from '../../people/stats.js';
 import { scheduleWindow } from '../../time.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
-import { assetUrl, decodeCursor, encodeCursor, logoSource, parseInput, UUID_RE } from '../../util.js';
+import {
+  assetUrl,
+  decodeCursor,
+  encodeCursor,
+  logoFormats,
+  logoSource,
+  parseInput,
+  UUID_RE,
+} from '../../util.js';
 import { resolveMarket } from '../../events/relevance.js';
 import { buildCtx, eventPage, localeOf, sportCheck, stakesVary } from './events.js';
 import { effectiveMinReview, meetsReview } from './semantic.js';
@@ -125,6 +133,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         logoUrl: asset.sourceUrl,
         logoPalette: asset.palette,
         logoOrigin: asset.origin,
+        logoVariants: asset.variants,
       })
       .from(participant)
       .leftJoin(asset, eq(asset.id, teamLogoId(ctx.logos.enabled())))
@@ -207,6 +216,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
     return {
       ...toSummary(row, nick, names),
       logo_source: logoSource(row.logoOrigin),
+      logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,

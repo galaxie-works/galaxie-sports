@@ -58,6 +58,7 @@ export const DOC_SECTIONS: Partial<Record<DocNavId, readonly (readonly [id: stri
     ['ids', 'ids'],
     ['locales', 'locales'],
     ['cache', 'cache'],
+    ['imagens', 'images'],
     ['paginacao', 'pagination'],
     ['erros', 'errors'],
     ['versionamento', 'versioning'],

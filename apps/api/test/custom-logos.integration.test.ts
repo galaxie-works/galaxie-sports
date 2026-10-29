@@ -90,6 +90,22 @@ beforeAll(async () => {
         sourceUrl: 'acervo://exemplo/teams/br/palmeiras.svg',
         storageKey: 'acervo/football/teams/palmeiras-uuid.0b6e3a000000.svg',
         palette: { version: 1, dominant: '#0b6e3a', secondary: null, monochrome: false },
+        variants: {
+          svg: {
+            storage_key: 'acervo/football/teams/palmeiras-uuid.0b6e3a000000.svg',
+            sha256: '0b6e3a000000',
+            bytes: 593,
+            width: 512,
+            height: 512,
+          },
+          webp: {
+            storage_key: 'acervo/football/teams/palmeiras-uuid.0b6e3a111111.webp',
+            sha256: '0b6e3a111111',
+            bytes: 470,
+            width: 128,
+            height: 128,
+          },
+        },
       },
       {
         kind: 'league_logo',
@@ -181,7 +197,7 @@ describe('ASSETS_CUSTOM_LOGOS', () => {
     const res = await get(`/v1/teams/${ids.palmeiras}`);
     expect(res.statusCode).toBe(200);
     const team = res.json<Team>();
-    expect(team).toMatchObject({ logo: PROVIDER_PAL, logo_source: 'provider' });
+    expect(team).toMatchObject({ logo: PROVIDER_PAL, logo_source: 'provider', logo_formats: null });
     expect(team.colors?.primary).toBe('#006437');
     const again = await get(`/v1/teams/${ids.palmeiras}`);
     expect(again.headers['x-galaxie-cache']).toBe('HIT');
@@ -196,6 +212,12 @@ describe('ASSETS_CUSTOM_LOGOS', () => {
     expect(res.headers['x-galaxie-cache']).not.toBe('HIT');
     const team = res.json<Team>();
     expect(team).toMatchObject({ logo: ACERVO_PAL, logo_source: 'acervo' });
+    // os formatos do mesmo escudo; o que o pacote não trouxe vem null
+    expect(team.logo_formats).toEqual({
+      svg: ACERVO_PAL,
+      png: null,
+      webp: `${ASSETS}/acervo/football/teams/palmeiras-uuid.0b6e3a111111.webp`,
+    });
     // as cores do time vêm do escudo novo
     expect(team.colors?.primary).toBe('#0b6e3a');
     expect((await get(`/v1/teams/${ids.flamengo}`)).json<Team>()).toMatchObject({
@@ -208,7 +230,8 @@ describe('ASSETS_CUSTOM_LOGOS', () => {
     expect(ev.participants.map((p) => p.logo)).toEqual([ACERVO_PAL, PROVIDER_FLA]);
 
     const comp = (await get(`/v1/competitions/${ids.serieA}`)).json<Competition>();
-    expect(comp).toMatchObject({ logo: ACERVO_SERIE_A, logo_source: 'acervo' });
+    // asset do acervo sem formatos gravados (importado antes da 0058): null até reimportar
+    expect(comp).toMatchObject({ logo: ACERVO_SERIE_A, logo_source: 'acervo', logo_formats: null });
 
     const search = (await get('/v1/search?q=palmeiras&types=team')).json<SearchResponse>();
     expect(search.data[0]).toMatchObject({ type: 'team', image: ACERVO_PAL });
