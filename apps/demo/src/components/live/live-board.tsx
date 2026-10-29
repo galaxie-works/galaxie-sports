@@ -337,9 +337,8 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
   const options = liveFilterOptions([...events, ...upLoaded], filters, sportLabel, up.sports);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
       <LiveFilterBar filters={filters} options={options} onChange={writeFilters} />
-      <RefreshTimer state={refresh} sourceLastAt={sourceLastAt} className="sticky top-16 z-[5]" />
 
       {!showsStatus(filters, 'live') ? null : !hydrated || q.isPending ? (
         <CardsSkeleton count={6} />
@@ -427,6 +426,16 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           sportLabel={sportLabel}
         />
       ) : null}
+
+      {/* Rodapé fixo sobreposto à lista: `sticky` (e não `fixed`) para ocupar só a coluna do conteúdo, ao
+          lado da barra lateral e do player acoplado, e terminar abaixo do último card no fim da rolagem, sem
+          esconder nada. `mt-auto` o mantém no pé da tela quando a lista é curta; as margens negativas o
+          levam às bordas da coluna e a área segura do iPhone fica por baixo do texto. */}
+      <RefreshTimer
+        state={refresh}
+        sourceLastAt={sourceLastAt}
+        className="bg-background/90 supports-[backdrop-filter]:bg-background/75 sticky bottom-0 z-[5] -mx-4 -mb-4 mt-auto rounded-none border-x-0 border-b-0 px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:-mx-6 md:-mb-6 md:px-6"
+      />
     </div>
   );
 }
