@@ -102,7 +102,8 @@ function ExploreNavItem({ pathname, section }: { pathname: string | null; sectio
     agenda: t.nav.explore.index.agendaTitle,
   };
   const liveActive = isActive(pathname, LIVE_HREF);
-  const activeSection = EXPLORE_SECTIONS.find((s) => isActive(pathname, s.href, section));
+  // só na página da seção: numa filha (`/esportes/futebol`, `/paises/br`) acende o item específico dela
+  const activeSection = EXPLORE_SECTIONS.find((s) => pathname === s.href || section === s.href);
   return (
     <Collapsible defaultOpen render={<SidebarMenuItem />}>
       <SidebarMenuButton
