@@ -13,6 +13,7 @@ import {
   flattenFilterRules,
 } from '@/components/reui/filters/filters-query';
 import type {
+  FilterChangeDetails,
   FilterField,
   FilterOperator,
   FilterOption,
@@ -155,17 +156,21 @@ export function AgendaFilterBar({
     },
   ];
 
-  const onQueryChange = (changed: FilterQuery) => {
+  const onQueryChange = (changed: FilterQuery, details: FilterChangeDetails) => {
+    // um valor por filtro e só "é": duplicar ou negar um chip mostraria um filtro que a API não aplica
+    if (details.reason === 'duplicate' || details.reason === 'negate') return;
     // o chip novo nasce sem condição; com uma só ("é"), ela já vem escolhida e o chip abre nos valores
     let next: FilterQuery = {
       ...changed,
       rules: changed.rules.map((r) => (r.type === 'rule' && !r.operator ? { ...r, operator: OPERATOR } : r)),
     };
     const chosen = fromFilterQuery(next);
-    // trocar esporte ou país tira a competição (ela pode não ser daquele esporte ou país)
+    // trocar esporte ou país tira a competição (ela pode não ser daquele esporte ou país); compara com a
+    // escolha que a barra mostra, não com a URL, que fica para trás enquanto a navegação corre
+    const shown = fromFilterQuery(query);
     if (
-      (chosen.esporte !== (params.esporte ?? null) || chosen.pais !== (params.pais ?? null)) &&
-      chosen.competicao === (params.competicao ?? null) &&
+      (chosen.esporte !== shown.esporte || chosen.pais !== shown.pais) &&
+      chosen.competicao === shown.competicao &&
       chosen.competicao
     ) {
       chosen.competicao = null;
