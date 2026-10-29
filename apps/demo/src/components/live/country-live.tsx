@@ -9,6 +9,7 @@ import { Section } from '@/components/sport/section';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { countryLiveKey, fetchCountryLiveEvents } from '@/lib/galaxie/live';
 import type { ApiRequest } from '@/lib/galaxie/request';
+import type { ContentLocale } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
 import { SPORTS } from '@/lib/navigation';
@@ -22,13 +23,22 @@ import { useLiveRefresh } from './use-live-refresh';
  * conta do card em Países), por competição, com placar e relógio atualizados como na página Ao vivo. Sem
  * jogo, carregando ou com erro, a seção não aparece.
  */
-export function CountryLive({ code, api }: { code: string; api: ApiRequest }) {
+export function CountryLive({
+  code,
+  content,
+  api,
+}: {
+  code: string;
+  /** Idioma do conteúdo da página (`contentLocale`), para os nomes baterem com o resto dela. */
+  content: ContentLocale;
+  api: ApiRequest;
+}) {
   const { locale, t } = useI18n();
   const hydrated = useHydrated();
-  const queryKey = countryLiveKey(code);
+  const queryKey = countryLiveKey(code, content);
   const q = useQuery({
     queryKey,
-    queryFn: () => fetchCountryLiveEvents(locale, code),
+    queryFn: () => fetchCountryLiveEvents(locale, content, code),
     staleTime: 10_000,
   });
   const data = hydrated ? q.data : undefined;

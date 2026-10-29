@@ -116,7 +116,11 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/paises/[co
         </div>
 
         {/* jogos em andamento do país (o "N ao vivo" do card em Países); some quando não há nenhum */}
-        <CountryLive code={country.code} api={liveEventsRequest(locale, content, country.code)} />
+        <CountryLive
+          code={country.code}
+          content={content}
+          api={liveEventsRequest(locale, content, country.code)}
+        />
 
         {data.sports.length === 0 ? (
           <EmptyState title={tc.empty.title} description={tc.empty.description} />
