@@ -22,6 +22,20 @@ export const CACHE_TTL = {
 
 export type CacheResource = keyof typeof CACHE_TTL;
 
+/**
+ * Stale-while-revalidate das rotas quentes (`staleSec` do sendCached): por quanto tempo depois do TTL o valor
+ * anterior ainda é servido enquanto uma única requisição recalcula. Purge apaga a entrada na hora, então isto
+ * só cobre o vencimento do TTL, nunca uma mudança já conhecida.
+ */
+export const STALE_SEC = {
+  /** Placar ao vivo e detalhe do jogo. */
+  live: 5,
+  /** Agenda do dia. */
+  schedule: 30,
+  /** Tabela de classificação. */
+  standings: 60,
+} as const;
+
 /** O navegador revalida em no máximo 5 min (ETag/304); a CDN segue o TTL cheio e é purgada ativamente. */
 export const CLIENT_MAX_AGE_SEC = 300;
 

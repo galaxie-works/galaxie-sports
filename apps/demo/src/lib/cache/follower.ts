@@ -18,7 +18,7 @@
  *   aparecerem (ou abandonadas depois de `gapTimeoutMs`, como no SSE e nos webhooks).
  * - Nunca derruba o servidor: toda falha vira aviso no log e nova tentativa.
  */
-import { GapCursor, tagsForChange } from '@galaxie/db/change-feed';
+import { GAP_TIMEOUT_MS, GapCursor, tagsForChange, type AbandonedGap } from '@galaxie/db/change-feed';
 
 import { BUSY_TAGS } from './tags';
 
@@ -116,7 +116,7 @@ export class ChangeFeedFollower {
       confirmMs: options.confirmMs ?? 10_000,
       batch: options.batch ?? 500,
       chunk: options.chunk ?? 200,
-      gapTimeoutMs: options.gapTimeoutMs ?? 10_000,
+      gapTimeoutMs: options.gapTimeoutMs ?? GAP_TIMEOUT_MS,
       resumeMaxAgeMs: options.resumeMaxAgeMs ?? 24 * 3_600_000,
       resumeMaxLag: options.resumeMaxLag ?? 50_000,
       startGapMs: options.startGapMs ?? 60_000,
@@ -201,7 +201,11 @@ export class ChangeFeedFollower {
       saved.lastId <= latest &&
       this.now() - saved.updatedAt.getTime() <= this.o.resumeMaxAgeMs &&
       latest - saved.lastId <= this.o.resumeMaxLag;
-    const options = { gapTimeoutMs: this.o.gapTimeoutMs, now: this.now };
+    const options = {
+      gapTimeoutMs: this.o.gapTimeoutMs,
+      now: this.now,
+      onAbandon: (gap: AbandonedGap) => this.log.warn('lacuna do change feed abandonada', { ...gap }),
+    };
     if (resumable) {
       this.cursor = new GapCursor(saved.lastId, options);
     } else {

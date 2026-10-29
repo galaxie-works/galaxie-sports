@@ -289,7 +289,10 @@ export async function liveSchedulerStates(db: Database): Promise<LiveSchedulerRo
 }
 
 export interface ChangeFeedConsumerRow {
-  /** `demo-cache:<nome>` (demo_auth.cache_feed_cursor) ou `webhooks:<nome>` (api.webhook_cursor). */
+  /**
+   * `demo-cache:<nome>` (demo_auth.cache_feed_cursor), `webhooks:<nome>` (api.webhook_cursor) ou `api:<nome>`
+   * (api.change_feed_cursor: o purge do cache da API, `api:cache-purge`).
+   */
   consumer: string;
   /** Mudanças depois do cursor (contadas até 10 000). */
   pending: number;
@@ -305,7 +308,10 @@ export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsu
   const [reg] = await db.execute<{ demo: boolean }>(
     sql`select to_regclass('demo_auth.cache_feed_cursor') is not null as demo`,
   );
-  const sources = [sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`];
+  const sources = [
+    sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`,
+    sql`select 'api:' || name, last_change_id from api.change_feed_cursor`,
+  ];
   if (reg?.demo)
     sources.push(sql`select 'demo-cache:' || name, last_change_id from demo_auth.cache_feed_cursor`);
   const rows = await db.execute<{ consumer: string; pending: number; age: number | string | null }>(sql`
