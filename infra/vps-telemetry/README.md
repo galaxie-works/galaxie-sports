@@ -125,7 +125,7 @@ Variável do repositório; vazia, o roteiro é o de cima. Ligada:
 1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull e do dump, a API e a demo da versão nova sobem ao lado
    das que estão no ar (`api-candidate` e `demo-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
    router no Traefik**, a API com o prefixo `gs-candidate:` no Valkey para cache, rate limit, uso e relay do SSE não se
-   misturarem com os da versão no ar). Com migration nova, o migrate roda antes do candidato (numa transação; a versão
+   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). Com migration nova, o migrate roda antes do candidato (numa transação; a versão
    no ar segue sobre o schema novo até a troca). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
    troca: a versão anterior segue no ar e o deploy sai com 1 (com migration aplicada, ele avisa e mostra o dump).
 2. **Troca da API e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao

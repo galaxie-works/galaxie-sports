@@ -79,6 +79,8 @@ const app = buildServer({
   // prefixo próprio no Valkey (cache, rate limit, uso, liderança e canal do relay do SSE): o candidato do deploy
   // (api-candidate, infra/vps-telemetry/deploy-gh.sh) roda ao lado da versão no ar sem misturar as chaves dela
   ...(process.env.REDIS_KEY_PREFIX?.trim() ? { keyPrefix: process.env.REDIS_KEY_PREFIX.trim() } : {}),
+  // USAGE_PERSIST=off: o uso fica só no Valkey, sem consolidar em api.usage_daily (o candidato do deploy)
+  ...(process.env.USAGE_PERSIST?.trim().toLowerCase() === 'off' ? { usagePersist: false } : {}),
   logger: true,
   changeFeed: true,
   realtime: {

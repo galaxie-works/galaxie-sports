@@ -335,6 +335,7 @@ jobs:
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
             jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
+              and .services["api-candidate"].environment.USAGE_PERSIST == "off"
               and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
               and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
               and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
