@@ -40,7 +40,7 @@ import { unsafeSvgReason } from './svg-safety.js';
 
 /** Teto por arquivo: escudo não passa disso; acima é lixo ou ataque. */
 const MAX_BYTES = 5 * 1024 * 1024;
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+export const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const SVG_RE = /^(Escudo|Bandeira) - (.+)\.svg$/i;
 const PNG_RE = /^x(\d+) - (Escudo|Bandeira) - (.+)\.png$/i;
 const WEBP_RE = /^(?:x(\d+) - )?(Escudo|Bandeira) - (.+)\.webp$/i;
@@ -122,18 +122,18 @@ interface Candidate {
 }
 
 /** "RIFF" + tamanho + "WEBP". */
-const isWebp = (b: Buffer) =>
+export const isWebp = (b: Buffer) =>
   b.length >= 16 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP';
 
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+export const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 
-function readLimited(path: string): Buffer | null {
+export function readLimited(path: string): Buffer | null {
   const st = statSync(path);
   if (!st.isFile() || st.size > MAX_BYTES) return null;
   return readFileSync(path);
 }
 
-function listDir(path: string): string[] {
+export function listDir(path: string): string[] {
   return existsSync(path) && statSync(path).isDirectory() ? readdirSync(path).sort() : [];
 }
 

@@ -96,6 +96,17 @@ Na importação:
 - um arquivo diferente do manifesto (hash) é ignorado e mantém o vínculo que já existe;
 - um alvo que não existe no banco é ignorado.
 
+## Base organizada por país (conversor, layout de 29/10/2026)
+
+O `--converter` detecta sozinho o layout `<País>/<Tipo>/<Nome>/Original/svg|png|webp/` (é o do acervo `galaxie-proprio` desde a revisão `2026-10-29`). O tipo é `Times`, `Seleções`, `Campeonatos` ou `Entidades`, e os arquivos se chamam `[x512 - ]Escudo|Logo - <Nome>.<ext>` (`convert-countries.ts`):
+
+- **Times** viram `teams/<país>/<slug>`, **Seleções** `teams/<país>/selecao-<slug>` (seleção principal do país) e **Campeonatos** `competitions/<país>/<slug>`. `Internacionais` vale como internacional (`WORLD`).
+- O nome de exibição é o da pasta. Cada item leva o SVG, o maior PNG e o maior WebP da variante `Original`. As outras variantes (`Escuro`, `Mono`...) vão só para o relatório, até a API publicar variantes.
+- Ficam de fora e vão para o relatório: **Entidades** (FIFA, CONMEBOL...), que não têm alvo na base; logos de **edição** ("Eurocopa 1960"), porque o alvo é a competição; e **bandeiras** ("Bandeira - Suíça").
+- **Mudança de layout:** a chave nova herda o vínculo e a curadoria da chave antiga pelo tipo e pelo nome (o país tem de bater, ou a chave antiga ser internacional). Os 547 vínculos da revisão `2026-10-23` passam inteiros.
+- **Competições:** os nomes de mercado ("Campeonato Brasileiro Série A") ligam pela liga da api-sports em `competition-leagues.ts`, quando a liga existe no banco, é do mesmo país e os nomes têm uma palavra com o mesmo começo. Fora da tabela, casam pelo nome.
+- Os times não estão mais em pastas de competição, então casam no país com o limiar alto (0,9). Revise os ambíguos e os sem par na cobertura.
+
 ## Base organizada por competição (conversor)
 
 Uma base no formato `<País> - <Competição>/svg|png|webp/Escudo - <Time>.<ext>` (é o caso do acervo `galaxie-proprio`) entra pelo conversor. Ele grava o pacote no layout acima, sem banco e sem rede:
@@ -141,7 +152,7 @@ O contêiner do ingestor roda como `node`, com o repositório em `/srv`, o que i
 # 1. no computador com a base: gerar o pacote (ou reaproveitar o gerado no dev)
 pnpm --filter @galaxie/ingestor assets:acervo --converter "C:\Users\consa\Downloads\Escudos" \
   --pasta ../../data/assets/acervo-galaxie-proprio --acervo galaxie-proprio --nome "Acervo próprio Galaxie" \
-  --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-23
+  --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-29
 tar -C data/assets -czf acervo-galaxie-proprio.tgz acervo-galaxie-proprio
 scp acervo-galaxie-proprio.tgz <vps>:/tmp/
 

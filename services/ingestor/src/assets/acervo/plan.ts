@@ -5,7 +5,8 @@
  */
 import { normalizeName } from '@galaxie/knowledge';
 import { ACERVO_SCHEMA_VERSION, type AcervoLogo, type AcervoManifest } from './manifest.js';
-import { matchLogo, type MatchOptions, type MatchTarget } from './match.js';
+import { COMPETITION_LEAGUES } from './competition-leagues.js';
+import { matchLogo, shareWordStart, type MatchOptions, type MatchTarget } from './match.js';
 import type { ScanResult } from './scan.js';
 
 export interface CountryRow {
@@ -71,6 +72,27 @@ export function planManifest(
 ): PlanResult {
   const prev = new Map((previous?.logos ?? []).map((l) => [l.key, l]));
   const targetName = new Map(targets.map((t) => [`${t.kind}:${t.id}`, t.name]));
+  const targetById = new Map(targets.map((t) => [`${t.kind}:${t.id}`, t]));
+  // a pasta mudou de organização (chave nova): o mesmo logo, pelo tipo e pelo nome, herda o vínculo e a
+  // curadoria da chave antiga. Só valem os que saíram do pacote, e o país tem de bater (ou ser o
+  // internacional, onde os clubes das copas europeias ficavam).
+  const scanned = new Set(scan.logos.map((s) => s.key));
+  const byName = new Map<string, AcervoLogo[]>();
+  for (const l of previous?.logos ?? []) {
+    if (scanned.has(l.key) || !['auto', 'manual', 'rejected'].includes(l.match)) continue;
+    const k = `${l.kind}|${l.national ? 'n' : 'c'}|${normalizeName(l.name)}`;
+    byName.set(k, [...(byName.get(k) ?? []), l]);
+  }
+  const inherited = (s: ScanResult['logos'][number], country: string | null): AcervoLogo | undefined => {
+    const list = byName.get(`${s.kind}|${s.national ? 'n' : 'c'}|${normalizeName(s.name)}`) ?? [];
+    const hits = list.filter(
+      (l) =>
+        (s.national || l.country === country || l.country === 'WORLD') &&
+        (l.match === 'rejected' || (l.target_id && targetName.has(`${l.kind}:${l.target_id}`))),
+    );
+    // dois vínculos diferentes para o mesmo nome: não herda, casa de novo
+    return new Set(hits.map((h) => `${h.match}:${h.target_id}`)).size === 1 ? hits[0] : undefined;
+  };
   const unknown = new Set<string>();
   const logos: AcervoLogo[] = scan.logos.map((s) => {
     const group = scan.groups[s.countryFolder];
@@ -94,7 +116,15 @@ export function planManifest(
       ...(s.formats && Object.keys(s.formats).length ? { formats: s.formats } : {}),
       sha256: s.sha256,
     };
-    const old = prev.get(s.key);
+    const old = prev.get(s.key) ?? inherited(s, country);
+    if (old && old.key !== s.key && old.match === 'auto')
+      return {
+        ...base,
+        target_id: old.target_id,
+        target_name: targetName.get(`${s.kind}:${old.target_id}`) ?? old.target_name,
+        match: 'auto',
+        ...(old.confidence !== undefined ? { confidence: old.confidence } : {}),
+      };
     // curadoria manda: o id escolhido à mão (ou a recusa) atravessa novas varreduras
     if (old && (old.match === 'manual' || old.match === 'rejected'))
       return {
@@ -106,6 +136,14 @@ export function planManifest(
         match: old.match,
       };
     if (!country) return { ...base, target_id: null, match: 'unmatched' };
+    // logo de competição com a liga na tabela: liga direto, se o alvo for do mesmo país e parecido no nome
+    if (s.kind === 'competition') {
+      const league = COMPETITION_LEAGUES.get(normalizeName(`${folderCountry} ${s.name}`));
+      const id = league !== undefined ? options.leagueCompetitions?.get(league) : undefined;
+      const t = id ? targetById.get(`competition:${id}`) : undefined;
+      if (t && t.country === country && shareWordStart(s.name, t.name))
+        return { ...base, target_id: t.id, target_name: t.name, match: 'auto', confidence: 1 };
+    }
     const r = matchLogo(
       {
         key: s.key,
