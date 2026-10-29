@@ -107,6 +107,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
   { name: 'change-feed-prune', service: 'ingestor', cron: '45 2 * * *', runNow: true },
   { name: 'data-retention', service: 'ingestor', cron: '20 3 * * *', runNow: true },
+  { name: 'fixture-people', service: 'ingestor', cron: '25 4 * * *', runNow: true },
   { name: 'quota-status', service: 'ingestor', cron: '5 * * * *', runNow: true },
   { name: 'data-quality', service: 'ingestor', cron: '40 4 * * *', runNow: true },
   { name: 'bootstrap-catalog', service: 'ingestor', cron: '15 3 * * 1', runNow: false },

@@ -313,6 +313,11 @@ export default defineMessages(
           description:
             'Apaga o bruto do ao vivo com mais de 30 dias e o histórico antigo de operação (execuções, cota, IA agregada por dia).',
         },
+        'fixture-people': {
+          label: 'Jogadores por partida',
+          description:
+            'Registra quem jogou e quem dirigiu cada partida antiga, para o perfil da pessoa abrir rápido.',
+        },
         'quota-status': {
           label: 'Leitura da cota',
           description: 'Lê o contador oficial do fornecedor (gratuito) e reconcilia a cota do dia.',
@@ -1190,6 +1195,10 @@ export default defineMessages(
             label: 'Data retention',
             description:
               'Deletes live raw responses older than 30 days and old operations history (runs, quota, AI usage rolled up by day).',
+          },
+          'fixture-people': {
+            label: 'Players per match',
+            description: 'Records who played and who coached each older match, so person profiles load fast.',
           },
           'quota-status': {
             label: 'Quota reading',
@@ -2075,6 +2084,11 @@ export default defineMessages(
             label: 'Retención de datos',
             description:
               'Borra el bruto del en vivo con más de 30 días y el historial viejo de operación (ejecuciones, cuota, IA agregada por día).',
+          },
+          'fixture-people': {
+            label: 'Jugadores por partido',
+            description:
+              'Registra quién jugó y quién dirigió cada partido viejo, para que el perfil de la persona abra rápido.',
           },
           'quota-status': {
             label: 'Lectura de la cuota',
