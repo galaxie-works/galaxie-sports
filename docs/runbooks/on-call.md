@@ -15,10 +15,11 @@ Convenções dos comandos: a VPS é `root@<vps>` (endereço no [runbook do deplo
 2. **O cliente está sentindo?** De fora da VPS:
 
    ```bash
-   curl -sS -o /dev/null -w '%{http_code} %{time_total}s\n' https://api.sports.galaxie.works/health/ready
+   curl -sS -w '\n%{http_code} %{time_total}s\n' https://api.sports.galaxie.works/health/ready
    ```
 
-   `200` com `{"status":"ok"}` = API e banco de pé. `503` = sem Postgres. Sem resposta = API ou VPS fora.
+   `200` com `"status":"ok"` = API, banco e Valkey de pé. `200` com `"status":"degraded"` = sem Valkey: a API serve,
+   mas sem cache e com o limite em modo degradado. `503` = sem Postgres. Sem resposta = API ou VPS fora.
 3. **Mudou alguma coisa?** O deploy mais recente costuma ser a causa:
 
    ```bash

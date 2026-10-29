@@ -2,10 +2,7 @@
   "uid": "galaxie-slo",
   "title": "Galaxie Sports · SLOs e orçamento de erro",
   "description": "SLOs de docs/14-slos-e-error-budget.md: orçamento de 28 dias, queima e indicadores. Regras em infra/observability/prometheus/slo.yml.",
-  "tags": [
-    "galaxie",
-    "slo"
-  ],
+  "tags": ["galaxie", "slo"],
   "timezone": "utc",
   "refresh": "1m",
   "schemaVersion": 39,
@@ -53,9 +50,7 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -120,9 +115,7 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -179,9 +172,7 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
