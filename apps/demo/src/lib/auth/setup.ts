@@ -66,7 +66,10 @@ export async function setupAuthDatabase(): Promise<void> {
   const lock = await pool.connect();
   try {
     await lock.query('select pg_advisory_lock($1)', [SETUP_LOCK]);
-    await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
+    // com o papel da demo (dono do demo_auth, sem CREATE no banco), `create schema if not exists` falharia mesmo
+    // com o schema já criado pelo migrate (packages/db/src/roles.ts): só cria quando falta
+    const { rowCount } = await pool.query('select 1 from pg_namespace where nspname = $1', [AUTH_SCHEMA]);
+    if (!rowCount) await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
     const { auth } = await import('./server');
     const { runMigrations } = await getMigrations(auth.options);
     await runMigrations();

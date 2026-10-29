@@ -192,10 +192,22 @@ export async function rawFreshness(
     .map((r) => ({ sport: r.sport, lastFetchedAt: new Date(r.last_fetched_at!) }));
 }
 
+/**
+ * Quem deveria atualizar o jogo em andamento: `poller` = está no plano publicado pelo processo do ao vivo
+ * (`includedEventIds` em ops.sync_cursor); `clock` = só o relógio dos eventos o moveu pelo horário (fora do
+ * catálogo, abaixo de LIVE_MIN_PRIORITY ou esporte sem ao vivo), e a fonte só confirma depois (reconciliação
+ * ou agenda D-1 do sync diário).
+ */
+export type LiveCoverage = 'poller' | 'clock';
+
 export interface LiveRow {
   sport: string;
+  coverage: LiveCoverage;
   events: number;
-  /** Maior idade (s) da última atualização válida entre os eventos ao vivo do esporte. */
+  /**
+   * Maior idade (s) da última atualização válida entre os eventos ao vivo do esporte, contada no máximo desde
+   * o apito: antes dele a última observação é a agenda do sync, e o `live` da fonte ainda não traz o jogo.
+   */
   maxStalenessSeconds: number;
 }
 
@@ -203,16 +215,34 @@ export interface LiveRow {
 export const LIVE_STATUSES = ['starting', 'live', 'break'] as const;
 
 export async function liveEvents(db: Database): Promise<LiveRow[]> {
-  const rows = await db.execute<{ sport: string; events: number; max_staleness: number | string | null }>(sql`
-    select sport,
+  const rows = await db.execute<{
+    sport: string;
+    coverage: LiveCoverage;
+    events: number;
+    max_staleness: number | string | null;
+  }>(sql`
+    with covered as (
+      select distinct c.sport, ids.id
+      from ops.sync_cursor c
+      cross join lateral jsonb_array_elements_text(
+        case when jsonb_typeof(c.cursor->'includedEventIds') = 'array' then c.cursor->'includedEventIds'
+             else '[]'::jsonb end
+      ) as ids(id)
+      where c.endpoint = 'live:scheduler' and c.key = 'state'
+    )
+    select e.sport,
+           case when cv.id is null then 'clock' else 'poller' end as coverage,
            count(*)::int as events,
-           extract(epoch from max(now() - coalesce(last_valid_at, updated_at)))::float8 as max_staleness
-    from core.event
-    where status in ('starting', 'live', 'break')
-    group by sport
+           extract(epoch from max(now() - greatest(coalesce(e.last_valid_at, e.updated_at), e.starts_at)))::float8
+             as max_staleness
+    from core.event e
+    left join covered cv on cv.sport = e.sport and cv.id = e.id::text
+    where e.status in ('starting', 'live', 'break')
+    group by 1, 2
   `);
   return rows.map((r) => ({
     sport: r.sport,
+    coverage: r.coverage,
     events: Number(r.events),
     maxStalenessSeconds: Math.max(0, Number(r.max_staleness ?? 0)),
   }));

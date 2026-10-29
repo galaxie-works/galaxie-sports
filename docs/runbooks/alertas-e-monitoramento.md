@@ -22,7 +22,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 |---|---|---|
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
 | `api` (de fora) | Monitores da Better Stack | Site, API, demo ou assets sem resposta para a internet |
-| `ao-vivo` | `LiveEventStale` | Jogo em andamento sem atualização há mais de 2 intervalos do poller |
+| `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
 | `ia` | `AiSpendNearDailyBudget` | Gasto do dia de orçamento em 80% ou mais do `AI_DAILY_USD_BUDGET` efetivo |
 | `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Backup atrasado, verificação ou ensaio falhando, disco acima de 85% |

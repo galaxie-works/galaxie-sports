@@ -15,6 +15,8 @@ x-node-env: &node-env
   NODE_ENV: production
   APP_ENV: staging
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Dono do banco (POSTGRES_USER): só o migrate usa. Cada serviço sobrescreve com o papel dele (DB_URL_<SERVIÇO>,
+  # docs/runbooks/papeis-do-banco.md); sem a variável, o serviço segue com o dono (troca sem downtime, um por vez).
   DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
   REDIS_URL: redis://valkey:6379
   S3_ENDPOINT: http://s3:9000
@@ -148,6 +150,14 @@ services:
     command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
     environment:
       <<: *node-env
+      # papéis por serviço (packages/db/src/roles.ts): off até a troca; on cria os papéis, aplica os GRANTs e dá
+      # LOGIN com a senha das URLs abaixo (o usuário da URL tem de ser o papel: galaxie_api, galaxie_demo…)
+      DB_ROLES: ${DB_ROLES:-off}
+      DB_URL_API: ${DB_URL_API:-}
+      DB_URL_DEMO: ${DB_URL_DEMO:-}
+      DB_URL_INGESTOR: ${DB_URL_INGESTOR:-}
+      DB_URL_AGENTS: ${DB_URL_AGENTS:-}
+      DB_URL_BACKUP: ${DB_URL_BACKUP:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -161,8 +171,10 @@ services:
     mem_limit: 512m
     environment:
       <<: *node-env
+      DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       API_PORT: '8080'
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # Bearer exigido em /metrics (o Prometheus da stack manda o mesmo): sem ele, qualquer contêiner da rede lia as métricas
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
@@ -211,7 +223,7 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
       S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
       # Login e usuários da demo (Better Auth): schema demo_auth no mesmo Postgres
-      DEMO_DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+      DEMO_DATABASE_URL: ${DB_URL_DEMO:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}
       BETTER_AUTH_URL: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}
       # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
@@ -301,6 +313,7 @@ services:
     mem_limit: 1152m
     environment:
       <<: *node-env
+      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
@@ -347,6 +360,7 @@ services:
     mem_limit: 768m
     environment:
       <<: *node-env
+      DATABASE_URL: ${DB_URL_AGENTS:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       SCHEDULER_PROFILE: agents
       SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
       SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
@@ -446,9 +460,10 @@ services:
     environment:
       PGHOST: postgres
       PGPORT: '5432'
-      PGUSER: ${POSTGRES_USER:-galaxie}
-      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      # usuário e senha saem da URL (infra/backup/lib.sh): o papel galaxie_backup (pg_read_all_data) ou, antes da
+      # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
+      DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
@@ -482,7 +497,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
     volumes:
       - promdata:/prometheus
