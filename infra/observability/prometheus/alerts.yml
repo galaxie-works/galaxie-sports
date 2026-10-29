@@ -255,11 +255,17 @@ groups:
           summary: 'Coletor de métricas {{ $labels.collector }} falhando'
           description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'
 
+      # p95 das rotas de cliente (fora /metrics, /health, /internal) e só com tráfego: ≥ 0,2 req/s, ~60 requisições na
+      # janela. Abaixo disso o cache de 10 s do ao vivo nunca está quente e o p95 é a requisição mais lenta da janela
+      # (#450: 0,03 req/s em jogo ao vivo, cada /v1/events/live montado do zero). Rota lenta com pouco tráfego fica
+      # com o ApiRouteLatencyP99High e o SLO de 1 s.
       - alert: ApiLatencyP95High
         expr: >-
           histogram_quantile(0.95,
-            sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!="/metrics"}[5m]))
+            sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m]))
           ) > 0.15
+          and on ()
+          sum(rate(galaxie_http_request_duration_seconds_count{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m])) > 0.2
         for: 10m
         labels:
           severity: warning

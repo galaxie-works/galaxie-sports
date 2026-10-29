@@ -436,6 +436,57 @@ tests:
         alertname: ApiRouteLatencyP99High
         exp_alerts: []
 
+  - name: p95 acima de 150 ms com tráfego dispara depois de 10 min
+    interval: 1m
+    input_series:
+      # 30 req/min (0,5 req/s), todas entre 0,25 e 0,5 s
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="0.25"}'
+        values: '0x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="0.5"}'
+        values: '0+30x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="+Inf"}'
+        values: '0+30x30'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/events/live",method="GET",status_code="200"}'
+        values: '0+30x30'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: ApiLatencyP95High
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ApiLatencyP95High
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'p95 da API acima de 150 ms'
+              description: 'p95 atual: 487.5ms (NFR: ≤ 150 ms com cache quente).'
+
+  - name: p95 lento com tráfego mínimo não dispara, e healthcheck não conta como tráfego (#450)
+    interval: 1m
+    input_series:
+      # 2 req/min do ao vivo, lentas (cache sempre frio)
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="0.25"}'
+        values: '0x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="1"}'
+        values: '0+2x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="+Inf"}'
+        values: '0+2x30'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/events/live",method="GET",status_code="200"}'
+        values: '0+2x30'
+      # healthchecks do Docker e do monitor externo: 0,5 req/s, rápidos (com eles no p95, a regra antiga disparava)
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/health",method="GET",status_code="200",le="0.25"}'
+        values: '0+30x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/health",method="GET",status_code="200",le="1"}'
+        values: '0+30x30'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/health",method="GET",status_code="200",le="+Inf"}'
+        values: '0+30x30'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/health",method="GET",status_code="200"}'
+        values: '0+30x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: ApiLatencyP95High
+        exp_alerts: []
+
   - name: lacuna do change feed abandonada vai para o resumo
     interval: 1m
     input_series:
