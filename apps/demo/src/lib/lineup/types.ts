@@ -44,6 +44,10 @@ export const CHECK_KEYS = [
 export type CheckKey = (typeof CHECK_KEYS)[number];
 export type CheckResult = 'pass' | 'fail' | 'skip';
 
+/** Campos que o gravador pode recusar ao ler a fonte (o mesmo `LINEUP_FLAG_FIELDS` do banco). */
+export const FLAG_FIELDS = ['price_amount', 'price_currency', 'valid_from', 'valid_to'] as const;
+export type FlagField = (typeof FLAG_FIELDS)[number];
+
 /** Resultado do validador para um plano ou vínculo (do jsonb `verification`). */
 export interface VerificationView {
   tier: SourceTier | null;
@@ -65,6 +69,8 @@ export interface VerificationView {
     verified: boolean;
   }[];
   priceConflict: boolean;
+  /** Valores lidos na fonte e recusados pelo gravador (o item entrou sem eles), com o motivo. */
+  flags: { field: FlagField; value: string; reason: string }[];
   /** Página oficial lida do nosso lado (proveniência da grade). */
   page: { url: string; fetchedAt: string; hash: string; via: string } | null;
   checkedAt: string | null;
@@ -336,6 +342,12 @@ export function verificationView(raw: unknown): VerificationView | null {
       },
     ];
   });
+  const flags = (Array.isArray(v.flags) ? v.flags : []).flatMap((x) => {
+    if (!x || typeof x !== 'object') return [];
+    const o = x as Record<string, unknown>;
+    if (!(FLAG_FIELDS as readonly string[]).includes(o.field as string)) return [];
+    return [{ field: o.field as FlagField, value: text(o.value) ?? '', reason: text(o.reason) ?? '' }];
+  });
   return {
     tier: (SOURCE_TIERS as readonly string[]).includes(v.tier as string) ? (v.tier as SourceTier) : null,
     finalUrl: text(v.final_url),
@@ -348,6 +360,7 @@ export function verificationView(raw: unknown): VerificationView | null {
       : null,
     prices,
     priceConflict: v.price_conflict === true,
+    flags,
     page:
       pageRaw && text(pageRaw.url)
         ? {

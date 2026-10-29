@@ -324,6 +324,9 @@ describe('preço cheio de lista', () => {
   it('formata como publicado, na moeda do país', () => {
     expect(formatPrice(149.9, 'BRL', 'BR')).toBe('R$ 149,90/mês');
     expect(formatPrice(34900, 'ARS', 'AR')).toBe('$ 34.900/mes');
+    // preço 0 publicado: plano grátis
+    expect(formatPrice(0, 'ARS', 'AR')).toBe('Gratis');
+    expect(formatPrice(0, 'BRL', 'BR')).toBe('Grátis');
   });
 });
 
