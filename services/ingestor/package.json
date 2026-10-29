@@ -30,6 +30,8 @@
     "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
     "events:importance": "node --env-file-if-exists=../../.env dist/cli/events-importance.js",
     "change-feed:prune": "node --env-file-if-exists=../../.env dist/cli/change-feed-prune.js",
+    "data:retention": "node --env-file-if-exists=../../.env dist/cli/data-retention.js",
+    "raw:compactar-historico": "node --env-file-if-exists=../../.env dist/cli/raw-history.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",

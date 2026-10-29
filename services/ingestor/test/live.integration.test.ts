@@ -208,12 +208,19 @@ describe('ao vivo no Postgres', () => {
     const usage = await world.governor.usage('football', '2026-10-21');
     expect(usage.used.LIVE).toBeLessThanOrEqual(usage.budget.LIVE);
 
-    // raw: cada tick gravou o envelope; o detalhe do encerrado marcou o cursor (o sync diário não repete)
+    // raw: cada tick foi registrado (o corpo repetido só soma no "visto em"), como ao vivo (retenção de 30 dias);
+    // o detalhe do encerrado marcou o cursor (o sync diário não repete)
     const [raw] = await db
-      .select({ n: sql<number>`count(*)::int` })
+      .select({
+        rows: sql<number>`count(*)::int`,
+        seen: sql<number>`sum(${apiResponse.seenCount})::int`,
+        live: sql<number>`count(*) filter (where ${apiResponse.retention} = 'live')::int`,
+      })
       .from(apiResponse)
       .where(sql`${apiResponse.params} ? 'live'`);
-    expect(raw!.n).toBe(world.requests.filter((r) => r.params.live).length);
+    expect(raw!.seen).toBe(world.requests.filter((r) => r.params.live).length);
+    expect(raw!.rows).toBeLessThanOrEqual(raw!.seen);
+    expect(raw!.live).toBe(raw!.rows);
     const done = await db.select().from(syncCursor).where(eq(syncCursor.endpoint, '/fixtures'));
     expect(done.map((d) => d.key).sort()).toEqual(['id=9101', 'id=9102', 'id=9201']);
 

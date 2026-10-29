@@ -407,6 +407,20 @@
       "when": 1793291450142,
       "tag": "0058_cursor_do_purge",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1793294867601,
+      "tag": "0059_raw_dedupe_e_ledger_diario",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1793294877972,
+      "tag": "0060_indices_concorrentes",
+      "breakpoints": true
     }
   ]
 }
