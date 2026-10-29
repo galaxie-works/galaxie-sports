@@ -18,7 +18,7 @@ import {
 } from '@galaxie/db';
 import type { Logger } from '@galaxie/observability';
 import { AI_CREDIT_CHECK, applyOverrides, envReport, scheduledJob } from '@galaxie/runtime-config';
-import type { CreditCheckResult } from './ai-credit.js';
+import { reportAiHeartbeat, type CreditCheckResult } from './ai-credit.js';
 import type { RunResult, RunTrigger } from './runner.js';
 import { nextRuns, scheduleFromEnv, type ScheduledJob } from './schedule.js';
 import { JobSlots } from './slots.js';
@@ -336,6 +336,9 @@ export class SchedulerService {
         status: result.status,
         detail: JSON.stringify(result.detail),
       }).catch((err: unknown) => this.log.warn({ err }, 'não foi possível gravar a checagem de crédito'));
+    await reportAiHeartbeat(this.env.AI_HEARTBEAT_URL, result.status).catch((err: unknown) =>
+      this.log.warn({ err }, 'não foi possível avisar o heartbeat da IA'),
+    );
   }
 
   private track(p: Promise<unknown>): void {

@@ -211,6 +211,19 @@ chaves novas sob `acervo/` e não move nada desse prefixo. A demo é o próprio 
 Para ser avisado no celular, instale o app da Better Stack com a mesma conta e marque "Push notification" em cada
 monitor (se o plano gratuito oferecer; senão fica o e-mail).
 
+### Heartbeat da IA
+
+A IA para sem a API cair (conta sem crédito, chave recusada), então nenhum monitor de URL vê. A checagem horária de
+crédito do serviço `agents` (`services/ingestor/src/scheduler/ai-credit.ts`) avisa um **Heartbeat** da Better Stack:
+`pass` chama a URL, `fail` chama `<URL>/fail` (incidente na hora) e `warn` (rede, limite de taxa, IA desligada, sem
+chave) não chama nada. Sem nenhuma chamada além do período mais a tolerância, a Better Stack abre o incidente sozinha.
+
+- Better Stack: Heartbeats → Create, período de 1 hora e tolerância de 1 hora (um aviso isolado não acende a página).
+- VPS: `AI_HEARTBEAT_URL=<URL do heartbeat>` no `.env` e `docker compose up -d agents`. A URL é um segredo (quem a
+  tiver marca a IA como ok): só no `.env`, nunca no repositório.
+- Só vê o provedor efetivo (`AI_PROVIDER`). A revisão da base semântica (`AI_REVIEW_PROVIDER`, padrão Gemini) e a
+  pesquisa de direitos (`AI_RIGHTS_PROVIDER`) podem usar outra conta e não entram nessa checagem.
+
 ### Página de status
 
 - Endereço: **https://status.galaxie.works** (o provisório da Better Stack fica em `*.betteruptime.com`).
@@ -225,6 +238,7 @@ monitor (se o plano gratuito oferecer; senão fica o e-mail).
   | `/health/ready` | API Services | Readiness of the API to serve data requests. |
   | `/health/db` | Data Storage | Storage for fixtures, results, standings and statistics. |
   | assets (`br.svg`) | Images & Media | Team crests, league logos, flags and player photos. |
+  | heartbeat da IA | AI Enrichment | AI-generated summaries, match context and where-to-watch research. |
 
 - O `/health/ready` responde 200 `degraded` com o Valkey fora, então "API Services" segue verde nesse caso (o
   monitor só vê disponibilidade). Por isso o texto público não promete cache.
