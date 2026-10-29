@@ -15,7 +15,8 @@ Camada opcional de escudos e logos em alta qualidade por cima dos logos do forne
 | Vínculo | `core.participant.custom_logo_asset_id` e `core.competition.custom_logo_asset_id`, ao lado do `logo_asset_id` do fornecedor, que nunca é tocado |
 | Flag | `packages/runtime-config/src/registry.ts` (seção `assets`). A API relê a cada 15 s, com precedência banco > env > padrão (`apps/api/src/assets/custom-logos.ts`) |
 | Cache | A versão da flag (valor + instante da última mudança no painel) entra na chave de todas as respostas (`VariantResponseCache`). Trocar a flag passa a ler chaves novas na hora, sem purge e sem servir resposta velha. Uma resposta montada durante a troca cai numa chave que ninguém mais usa |
-| Contrato | `logo_source` (`provider` \| `acervo` \| `null`) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
+| Contrato | `logo_source` (`provider` \| `acervo` \| `null`) e `logo_formats` (`{ svg, png, webp }`, null fora do acervo) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
+| Formatos | `core.asset.variants` (migration `0058_acervo_formatos`): SVG, maior PNG e maior WebP do mesmo escudo, cada um no storage como `acervo/football/{teams\|leagues}/<id>.<sha256[0:12]>.{svg\|png\|webp}`. `logo` continua sendo um só (SVG, senão PNG, senão WebP) |
 | Cores do time | Saem do escudo efetivo. A paleta do logo do acervo é calculada na importação: do maior PNG do pacote quando há, senão das cores de preenchimento do SVG (`svg-palette.ts`) |
 | "Sem logo" (#178) | Time cujo logo do fornecedor era genérico e foi desligado (`logo_asset_id` nulo) ganha o do acervo com a flag ligada: o `coalesce` preenche o buraco |
 
@@ -25,12 +26,12 @@ Os binários nunca entram no repositório. A pasta do pacote segue este layout:
 
 ```
 <pasta>/acervo.yaml                         id, nome, autor, licença, revisão (+ nomes opcionais)
-<pasta>/teams/<país>/<slug>.svg|png         clubes e seleções
-<pasta>/competitions/<país|world>/<slug>.svg|png
+<pasta>/teams/<país>/<slug>.svg|png|webp    clubes e seleções
+<pasta>/competitions/<país|world>/<slug>.svg|png|webp
 ```
 
 - `<país>` é o código (`br`, `gb-eng`) ou o nome (`brazil`, `england`). `world` vale para torneios internacionais.
-- Variantes do mesmo logo (`x.svg`, `x.png`, `x@4x.png`) viram um item só. O SVG é o servido, ou o maior PNG quando não há SVG. A paleta sai do maior PNG.
+- Variantes do mesmo logo (`x.svg`, `x.png`, `x@4x.png`, `x.webp`) viram um item só. O SVG é o servido, ou o maior PNG, ou o maior WebP. A paleta sai do maior PNG. Os três formatos vão para `formats` no manifesto e são publicados em `logo_formats`.
 - `acervo.yaml`:
 
 ```yaml
@@ -95,6 +96,17 @@ Na importação:
 - um arquivo diferente do manifesto (hash) é ignorado e mantém o vínculo que já existe;
 - um alvo que não existe no banco é ignorado.
 
+## Base organizada por país (conversor, layout de 29/10/2026)
+
+O `--converter` detecta sozinho o layout `<País>/<Tipo>/<Nome>/Original/svg|png|webp/` (é o do acervo `galaxie-proprio` desde a revisão `2026-10-29`). O tipo é `Times`, `Seleções`, `Campeonatos` ou `Entidades`, e os arquivos se chamam `[x512 - ]Escudo|Logo - <Nome>.<ext>` (`convert-countries.ts`):
+
+- **Times** viram `teams/<país>/<slug>`, **Seleções** `teams/<país>/selecao-<slug>` (seleção principal do país) e **Campeonatos** `competitions/<país>/<slug>`. `Internacionais` vale como internacional (`WORLD`).
+- O nome de exibição é o da pasta. Cada item leva o SVG, o maior PNG e o maior WebP da variante `Original`. As outras variantes (`Escuro`, `Mono`...) vão só para o relatório, até a API publicar variantes.
+- Ficam de fora e vão para o relatório: **Entidades** (FIFA, CONMEBOL...), que não têm alvo na base; logos de **edição** ("Eurocopa 1960"), porque o alvo é a competição; e **bandeiras** ("Bandeira - Suíça").
+- **Mudança de layout:** a chave nova herda o vínculo e a curadoria da chave antiga pelo tipo e pelo nome (o país tem de bater, ou a chave antiga ser internacional). Os 547 vínculos da revisão `2026-10-23` passam inteiros.
+- **Competições:** os nomes de mercado ("Campeonato Brasileiro Série A") ligam pela liga da api-sports em `competition-leagues.ts`, quando a liga existe no banco, é do mesmo país e os nomes têm uma palavra com o mesmo começo. Fora da tabela, casam pelo nome.
+- Os times não estão mais em pastas de competição, então casam no país com o limiar alto (0,9). Revise os ambíguos e os sem par na cobertura.
+
 ## Base organizada por competição (conversor)
 
 Uma base no formato `<País> - <Competição>/svg|png|webp/Escudo - <Time>.<ext>` (é o caso do acervo `galaxie-proprio`) entra pelo conversor. Ele grava o pacote no layout acima, sem banco e sem rede:
@@ -105,9 +117,9 @@ pnpm --filter @galaxie/ingestor assets:acervo --converter "<origem>" --pasta ../
   --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-23
 ```
 
-- **Arquivos:** SVG de preferência, senão o maior PNG; o maior PNG vai junto para a paleta, e o WebP fica de fora.
+- **Arquivos:** SVG, o maior PNG e o maior WebP de cada escudo. O SVG é o servido (senão o PNG, senão o WebP), e o PNG também é a fonte da paleta.
 - **Seleções e bandeiras:** "Escudo - Seleção - <País>" vira escudo de seleção; "Bandeira - <País>" não é escudo e fica de fora.
-- **Entrada não confiável:** o conversor lê só SVG e PNG, confere a assinatura do PNG e o tamanho (até 5 MB) e recusa SVG com conteúdo ativo (`svg-safety.ts`). Nesse caso o escudo cai no PNG. Os arquivos são gravados com nomes saneados, nunca com o nome original.
+- **Entrada não confiável:** o conversor lê só SVG, PNG e WebP, confere a assinatura do PNG e do WebP e o tamanho (até 5 MB) e recusa SVG com conteúdo ativo (`svg-safety.ts`). Nesse caso o escudo cai no PNG. Os arquivos são gravados com nomes saneados, nunca com o nome original.
 - **Repetidos:** o mesmo arquivo em mais de uma pasta entra uma vez só, de preferência na pasta da liga nacional.
 - **Grupos:** cada pasta vira um grupo no `acervo.yaml`, com o país e as ligas da api-sports dela (`FOLDER_LEAGUES` em `convert-folders.ts`). O mapeamento usa esse grupo.
 
@@ -123,6 +135,15 @@ Quando dois logos caem no mesmo time:
 - se um vence com folga de 0,1 (por exemplo "Independiente" × "Independiente Rivadavia"), fica ele;
 - senão, os dois vão para a curadoria.
 
+## Reabastecer (novos escudos na pasta)
+
+A pasta de origem pode crescer e mudar à vontade: o fluxo inteiro é idempotente.
+
+1. Pasta nova de competição: inclua a linha dela em `FOLDER_LEAGUES` (`convert-folders.ts`) com as ligas da api-sports, senão ela casa só pelo país.
+2. Rode o `--converter` de novo, com a `--revisao` do dia. O pacote anterior é refeito do zero.
+3. Rode o `--mapear` contra o manifesto versionado: os vínculos `manual` e `rejected` ficam, os logos novos entram, e os que saíram da pasta somem do manifesto (o time volta ao logo do fornecedor na importação).
+4. Revise o relatório `<id>.cobertura.md` e os ambíguos, versione o manifesto e importe. Logo que não mudou não é regravado, e um asset importado antes da `0058` ganha os formatos na primeira reimportação.
+
 ## Produção (VPS)
 
 O contêiner do ingestor roda como `node`, com o repositório em `/srv`, o que inclui o `config` versionado em `/srv/config`. O manifesto e o relatório da produção vão para `/tmp` do contêiner, partindo da cópia versionada, para manter a curadoria (`rejected`/`manual`). Depois do deploy com a migration `0023`:
@@ -131,7 +152,7 @@ O contêiner do ingestor roda como `node`, com o repositório em `/srv`, o que i
 # 1. no computador com a base: gerar o pacote (ou reaproveitar o gerado no dev)
 pnpm --filter @galaxie/ingestor assets:acervo --converter "C:\Users\consa\Downloads\Escudos" \
   --pasta ../../data/assets/acervo-galaxie-proprio --acervo galaxie-proprio --nome "Acervo próprio Galaxie" \
-  --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-23
+  --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-29
 tar -C data/assets -czf acervo-galaxie-proprio.tgz acervo-galaxie-proprio
 scp acervo-galaxie-proprio.tgz <vps>:/tmp/
 

@@ -114,7 +114,7 @@ erDiagram
 
 Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ricos, ligadas ao `core.event`.
 
-> **Implementado no futebol (issue #22):** `core.football_fixture` guarda o resumo (`fixture`/`league`/`teams`/`goals`/`score`) e, em `detail` (JSONB), as partes do detalhe recebidas (`events`, `lineups`, `statistics`, `players`), mescladas por chave — o ao vivo traz só `events` e não apaga as escalações. Escalações e estatísticas ficam no JSONB até alguma consulta precisar de índice; a timeline vai para `core.event_incident` e as pessoas citadas para `core.person`. As tabelas abaixo são o alvo para quando houver consulta que justifique.
+> **Implementado no futebol (issue #22):** `core.football_fixture` guarda o resumo (`fixture`/`league`/`teams`/`goals`/`score`) e, em `detail` (JSONB), as partes do detalhe recebidas (`events`, `lineups`, `statistics`, `players`), mescladas por chave — o ao vivo traz só `events` e não apaga as escalações. Escalações e estatísticas ficam no JSONB até alguma consulta precisar de índice; a timeline vai para `core.event_incident` e as pessoas citadas para `core.person`. Quem jogou e quem dirigiu cada partida também fica fora do JSON, em `player_pids`/`coach_pids` (IDs do fornecedor, mantidos por trigger a cada escrita do detalhe; as linhas antigas são preenchidas pelo job `fixture-people`): o perfil da pessoa filtra as partidas por eles antes de abrir o `detail`. As tabelas abaixo são o alvo para quando houver consulta que justifique.
 
 | Esporte | Tabelas |
 |---|---|

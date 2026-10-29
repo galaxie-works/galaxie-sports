@@ -15,6 +15,9 @@ export {
   themeToCssVars,
   type GsCssVars,
   type GsEvent,
+  type GsEventContext,
+  type GsHeadToHead,
+  type GsRelated,
   type GsStandings,
   type GsWhereToWatch,
   type ThemePresetId,
@@ -39,6 +42,11 @@ export { MatchCard, type MatchCardProps } from './widgets/match-card.js';
 export { LiveList, type LiveListProps } from './widgets/live-list.js';
 export { StandingsTable, type StandingsTableProps } from './widgets/standings-table.js';
 export { WhereToWatch, type WhereToWatchProps } from './widgets/where-to-watch.js';
+export { AiContext, type AiContextProps } from './widgets/ai-context.js';
+export { MatchStakes, type MatchStakesProps } from './widgets/match-stakes.js';
+export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos.js';
+export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
+export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
 
 // catálogo, preview e registry
 export { WIDGET_CATALOG, type WidgetCatalogEntry, type WidgetPropsByKind } from './catalog.js';

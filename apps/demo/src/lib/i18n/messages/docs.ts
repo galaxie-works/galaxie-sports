@@ -203,6 +203,16 @@ export default defineMessages(
           unchanged: 'nada mudou: reaproveita',
         },
       },
+      images: {
+        title: 'Logos e imagens',
+        body: 'Toda imagem sai em <c>logo</c>, <c>image</c> ou <c>photo</c> como uma URL do nosso CDN. A URL é imutável: quando o arquivo muda, a URL muda, então dá para guardar em cache por 30 dias.',
+        source:
+          '<c>logo_source</c> (detalhe do time e da competição) diz a origem do logo: <c>provider</c>, a fonte de dados; <c>acervo</c>, os escudos em alta resolução da Galaxie; <c>commons</c>, um arquivo de licença livre, com o crédito em <c>logo_credit</c>.',
+        formats:
+          '<c>logo_formats</c> traz o mesmo escudo em <c>svg</c>, <c>png</c> e <c>webp</c> quando <c>logo_source</c> é <c>acervo</c>. Use o SVG para telas e TV em qualquer tamanho, e o PNG ou o WebP onde vetor não roda. O formato que faltar vem <c>null</c>, e o campo inteiro é <c>null</c> nos demais logos.',
+        colors:
+          '<c>colors</c> do time sai do escudo em uso: a cor predominante, a secundária e um gradiente pronto para fundos.',
+      },
       pagination: {
         title: 'Paginação por cursor',
         body: 'Listas longas (<c>/v1/events</c>, <c>/v1/competitions</c>, <c>/v1/teams</c>, jogos do time…) respondem <c>{page}</c>. Repita a mesma query com <c>?cursor=</c> até <c>next_cursor</c> vir <c>null</c>. <c>limit</c> vai de 1 a 200 (padrão 50). Listas curtas (<c>/v1/sports</c>, <c>/v1/countries</c>) vêm inteiras em <c>{list}</c>.',
@@ -623,6 +633,16 @@ export default defineMessages(
             revalidate: 'Revalidation: 304 with no body while nothing has changed',
             unchanged: 'nothing changed: reuse it',
           },
+        },
+        images: {
+          title: 'Logos and images',
+          body: 'Every image comes in <c>logo</c>, <c>image</c> or <c>photo</c> as a URL on our CDN. The URL is immutable: when the file changes, the URL changes, so you can cache it for 30 days.',
+          source:
+            '<c>logo_source</c> (team and competition detail) tells where the logo comes from: <c>provider</c>, the data source; <c>acervo</c>, Galaxie’s high-resolution crests; <c>commons</c>, a freely licensed file, credited in <c>logo_credit</c>.',
+          formats:
+            '<c>logo_formats</c> has the same crest as <c>svg</c>, <c>png</c> and <c>webp</c> when <c>logo_source</c> is <c>acervo</c>. Use the SVG for screens and TV at any size, and PNG or WebP where vectors don’t render. A missing format is <c>null</c>, and the whole field is <c>null</c> for other logos.',
+          colors:
+            'The team’s <c>colors</c> come from the crest in use: the main color, the secondary one and a ready-made background gradient.',
         },
         pagination: {
           title: 'Cursor pagination',
@@ -1048,6 +1068,16 @@ export default defineMessages(
             revalidate: 'Revalidación: 304 sin cuerpo mientras nada cambie',
             unchanged: 'nada cambió: reutilizá',
           },
+        },
+        images: {
+          title: 'Escudos e imágenes',
+          body: 'Toda imagen llega en <c>logo</c>, <c>image</c> o <c>photo</c> como una URL de nuestro CDN. La URL es inmutable: cuando el archivo cambia, cambia la URL, así que podés guardarla en caché por 30 días.',
+          source:
+            '<c>logo_source</c> (detalle del equipo y de la competencia) indica el origen del escudo: <c>provider</c>, la fuente de datos; <c>acervo</c>, los escudos en alta resolución de Galaxie; <c>commons</c>, un archivo de licencia libre, con el crédito en <c>logo_credit</c>.',
+          formats:
+            '<c>logo_formats</c> trae el mismo escudo en <c>svg</c>, <c>png</c> y <c>webp</c> cuando <c>logo_source</c> es <c>acervo</c>. Usá el SVG para pantallas y TV en cualquier tamaño, y el PNG o el WebP donde el vector no funcione. El formato que falte llega <c>null</c>, y el campo entero es <c>null</c> en los demás escudos.',
+          colors:
+            'Los <c>colors</c> del equipo salen del escudo en uso: el color predominante, el secundario y un degradé listo para fondos.',
         },
         pagination: {
           title: 'Paginación por cursor',

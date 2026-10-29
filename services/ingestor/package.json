@@ -32,6 +32,7 @@
     "change-feed:prune": "node --env-file-if-exists=../../.env dist/cli/change-feed-prune.js",
     "data:retention": "node --env-file-if-exists=../../.env dist/cli/data-retention.js",
     "raw:compactar-historico": "node --env-file-if-exists=../../.env dist/cli/raw-history.js",
+    "fixture-people": "node --env-file-if-exists=../../.env dist/cli/fixture-people.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
@@ -70,7 +71,7 @@
     "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1153.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",

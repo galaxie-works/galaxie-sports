@@ -64,8 +64,9 @@ clamp_max(
 - **Fora da conta:** rota desconhecida (`route="unmatched"`, os 404 de caminho inexistente), `/health*` e `/metrics`.
   4xx não é erro do servidor: chave inválida, 404 de recurso e 429 de limite contam como boas.
 - **Ponto cego:** o Prometheus mora na mesma VPS. Com a VPS inteira fora, não há dado nenhum, e o intervalo não entra
-  na conta. Quem vê isso é o monitor externo (Better Stack, a ligar pelo dono:
-  [runbook de alertas](runbooks/alertas-e-monitoramento.md#monitor-externo-better-stack-plano-gratuito)).
+  na conta. Quem vê isso é o monitor externo (Better Stack, com a página pública
+  em https://status.galaxie.works:
+  [runbook de alertas](runbooks/alertas-e-monitoramento.md#monitor-externo-e-página-de-status-better-stack-plano-gratuito)).
 - **Deploy conta:** a troca de contêiner num deploy derruba a raspagem por alguns segundos. É custo real para o
   cliente e deve caber no orçamento; se não couber, é sinal para o deploy sem downtime (lote 7).
 

@@ -8,8 +8,9 @@
  *   pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>            # importa (idempotente)
  *   pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
  *
- * Base organizada por competição ("<País> - <Competição>/svg|png/Escudo - <Time>"): converta antes para o
- * layout de pacote (convert-folders.ts) — sem banco, sem rede:
+ * Base organizada por país ("<País>/Times|Seleções|Campeonatos/<Nome>/Original/svg|png|webp/...",
+ * convert-countries.ts) ou por competição ("<País> - <Competição>/svg|png|webp/Escudo - <Time>",
+ * convert-folders.ts): converta antes para o layout de pacote — sem banco, sem rede. O layout é detectado:
  *
  *   pnpm --filter @galaxie/ingestor assets:acervo --converter <origem> --pasta <saída> \
  *     --acervo <id> --nome "<nome>" --autor "<autor>" --licenca "<licença>" [--revisao <AAAA-MM-DD>]
@@ -25,6 +26,7 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq } from 'drizzle-orm';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
+import { convertCountries, isCountryLayout } from '../assets/acervo/convert-countries.js';
 import { convertFolders } from '../assets/acervo/convert-folders.js';
 import {
   detachAcervo,
@@ -59,8 +61,9 @@ const { values } = parseArgs({
 
 if (values.converter) {
   if (!values.pasta) throw new Error('--converter precisa de --pasta <saída>.');
-  const report = convertFolders({
-    source: resolve(values.converter),
+  const source = resolve(values.converter);
+  const options = {
+    source,
     out: resolve(values.pasta),
     info: validateAcervoInfo({
       id: values.acervo,
@@ -69,11 +72,17 @@ if (values.converter) {
       license: values.licenca,
       revision: values.revisao ?? new Date().toISOString().slice(0, 10),
     }),
-  });
+  };
+  const byCountry = isCountryLayout(source) ? convertCountries(options) : undefined;
+  const report = byCountry ?? convertFolders(options);
   console.log(
-    `Pacote em ${resolve(values.pasta)}: ${report.folders} pastas · ${report.logos} escudos (${report.svg} SVG, ${report.pngOnly} só PNG, ${report.national} seleções) · ${report.duplicates.length} cópias idênticas · ${report.flags.length} bandeiras e ${report.ignored.length} arquivos ignorados · ${report.rejected.length} SVG recusados`,
+    `Pacote em ${resolve(values.pasta)}: ${report.folders} pastas · ${report.logos} escudos (${report.svg} SVG, ${report.webp} WebP, ${report.pngOnly} só PNG, ${report.national} seleções) · ${report.duplicates.length} cópias idênticas · ${report.flags.length} bandeiras e ${report.ignored.length} arquivos ignorados · ${report.rejected.length} SVG recusados`,
   );
   for (const r of report.rejected) console.warn(`  SVG recusado ${r.file}: ${r.reason}`);
+  if (byCountry)
+    console.log(
+      `  layout por país: ${byCountry.competitions} logos de competição · ${byCountry.entities.length} entidades e ${byCountry.editions.length} logos de edição fora · ${byCountry.otherVariants.length} variantes além de Original`,
+    );
   if (!values.mapear) process.exit(0);
 }
 

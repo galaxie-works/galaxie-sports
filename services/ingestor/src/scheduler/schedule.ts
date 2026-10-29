@@ -139,6 +139,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 60 * MINUTE,
   },
   {
+    name: 'fixture-people',
+    description:
+      'Preenche quem jogou e quem dirigiu cada partida (football_fixture.player_pids/coach_pids) nas linhas anteriores ao trigger, em lotes com pausa; sem linha nula, só confere e sai',
+    cron: '25 4 * * *',
+    script: 'dist/cli/fixture-people.js',
+    args: [],
+    timeoutMs: 60 * MINUTE,
+  },
+  {
     name: 'quota-status',
     description: 'Lê /status de cada API (não consome cota) e reconcilia o Quota Governor',
     cron: '5 * * * *',

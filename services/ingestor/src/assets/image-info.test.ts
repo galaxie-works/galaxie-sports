@@ -40,6 +40,19 @@ describe('imageInfo', () => {
     expect(imageInfo(jpeg)).toEqual({ contentType: 'image/jpeg', width: 70, height: 50 });
   });
 
+  it('lê WebP sem perdas (VP8L) e com perdas (VP8)', () => {
+    const lossless = new Uint8Array([
+      82, 73, 70, 70, 36, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56, 76, 23, 0, 0, 0, 47, 43, 193, 49, 0, 7, 16,
+      253, 143, 254, 7, 0,
+    ]);
+    expect(imageInfo(lossless)).toEqual({ contentType: 'image/webp', width: 300, height: 200 });
+    const lossy = new Uint8Array([
+      82, 73, 70, 70, 196, 0, 0, 0, 87, 69, 66, 80, 86, 80, 56, 32, 184, 0, 0, 0, 240, 16, 0, 157, 1, 42, 44,
+      1, 200, 0, 62, 109,
+    ]);
+    expect(imageInfo(lossy)).toEqual({ contentType: 'image/webp', width: 300, height: 200 });
+  });
+
   it('usa o Content-Type para o que não reconhece', () => {
     expect(imageInfo(new Uint8Array([1, 2, 3]), 'image/x-icon; charset=binary')).toEqual({
       contentType: 'image/x-icon',

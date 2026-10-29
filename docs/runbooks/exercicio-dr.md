@@ -115,7 +115,8 @@ isso ela é obrigatória com a cifragem ligada: `BACKUP_AGE_RECIPIENTS` sem `BAC
    - A linha `AGE-SECRET-KEY-1…` vai em `BACKUP_AGE_IDENTITY=` no `.env`.
    - A linha `# public key: age1…` vai em `BACKUP_AGE_RECIPIENTS`.
 4. **Destinatários e recriação.** Ponha `BACKUP_AGE_RECIPIENTS=<pública da recuperação>,<pública do ensaio>` no `.env`
-   e rode `docker compose up -d --no-deps backup`. A partida já faz um backup (`BACKUP_ON_START=true`).
+   e rode `docker compose up -d --no-deps backup` e depois `docker compose exec backup backup.sh`, para já ter um dump
+   cifrado. A partida só faz backup quando o último tem mais de `BACKUP_ON_START_MIN_AGE_H` horas.
 5. **Conferência:**
    - `docker compose exec backup sh -c 'ls -l /backups | tail -3'` tem de mostrar o `.dump.age` mais recente;
    - `docker compose exec backup restore-drill.sh` tem de terminar OK;

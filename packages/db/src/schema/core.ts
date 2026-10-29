@@ -98,6 +98,19 @@ export type AssetPalette = {
   monochrome: boolean;
 };
 
+/** Formatos publicados de um logo do acervo: cada um é um objeto no storage com a nossa nomenclatura. */
+export const ASSET_FORMATS = ['svg', 'png', 'webp'] as const;
+export type AssetFormat = (typeof ASSET_FORMATS)[number];
+export type AssetVariant = {
+  storage_key: string;
+  sha256: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+};
+/** Todos os formatos do mesmo logo (o servido em `storage_key` entra também); vazio fora do acervo. */
+export type AssetVariants = Partial<Record<AssetFormat, AssetVariant>>;
+
 export const asset = core.table(
   'asset',
   {
@@ -115,6 +128,8 @@ export const asset = core.table(
     origin: assetOrigin('origin').notNull().default('provider'),
     /** Id do acervo (manifesto em config/assets/acervo/<id>.yaml) quando origin = acervo. */
     acervo: text('acervo'),
+    /** Logo do acervo: SVG, PNG e WebP do mesmo escudo, quando o pacote traz (`assets:acervo`). */
+    variants: jsonb('variants').$type<AssetVariants>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],
@@ -909,6 +924,13 @@ export const footballFixture = core.table(
     /** Eventos, escalações, estatísticas e jogadores (de fixtures?id ou ids). */
     detail: jsonb('detail'),
     detailFetchedAt: timestamp('detail_fetched_at', { withTimezone: true }),
+    /**
+     * IDs do fornecedor de quem está em `detail.players` e dos técnicos de `detail.lineups`, mantidos por trigger
+     * (migration 0061): o perfil da pessoa filtra as partidas por eles antes de abrir o `detail`. Nulo = linha
+     * ainda não preenchida (o job fixture-people preenche as antigas); a consulta trata como "pode ter".
+     */
+    playerPids: integer('player_pids').array(),
+    coachPids: integer('coach_pids').array(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex('football_fixture_provider_uq').on(t.providerFixtureId)],
