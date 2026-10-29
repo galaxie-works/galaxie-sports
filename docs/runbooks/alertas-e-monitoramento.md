@@ -238,7 +238,7 @@ chave) não chama nada. Sem nenhuma chamada além do período mais a tolerância
   | `/health/ready` | API Services | Readiness of the API to serve data requests. |
   | `/health/db` | Data Storage | Storage for fixtures, results, standings and statistics. |
   | assets (`br.svg`) | Images & Media | Team crests, league logos, flags and player photos. |
-  | heartbeat da IA | AI Enrichment | AI-generated summaries, match context and where-to-watch research. |
+  | heartbeat da IA | AI Enrichment | AI-powered match summaries, editorial context and where-to-watch insights. |
 
 - O `/health/ready` responde 200 `degraded` com o Valkey fora, então "API Services" segue verde nesse caso (o
   monitor só vê disponibilidade). Por isso o texto público não promete cache.
