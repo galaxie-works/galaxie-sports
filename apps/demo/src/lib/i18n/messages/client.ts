@@ -196,7 +196,7 @@ export default defineMessages(
           'Crie uma chave em <k>Chaves publicáveis</k> com o domínio do site nas origens permitidas (ex.: https://www.seuportal.com.br) e troque gs_pk_live_… por ela. Em outro domínio, a chave não funciona.',
         embedOptions: 'Opções',
         embedOptionsHint:
-          'Para usar o mesmo widget em outro jogo ou competição, acrescente event-id="…" ou competition-id="…"; locale="es" e market="AR" trocam o idioma e o país.',
+          'Para usar o mesmo widget em outro jogo ou competição, acrescente event-id="…", competition-id="…" ou team-id="…"; locale="es" e market="AR" trocam o idioma e o país.',
         embedLive: 'No código HTML, salvar o widget atualiza o visual em todos os sites em poucos minutos.',
         reactDescription: 'Rode no projeto do seu app (Next.js ou React com shadcn).',
         command: 'Comando',
@@ -427,7 +427,7 @@ export default defineMessages(
             'Create a key under <k>Publishable keys</k> with the site domain in the allowed origins (e.g. https://www.yourportal.com) and replace gs_pk_live_… with it. On any other domain the key does not work.',
           embedOptions: 'Options',
           embedOptionsHint:
-            'To reuse the widget for another match or competition, add event-id="…" or competition-id="…"; locale="es" and market="AR" change the language and country.',
+            'To reuse the widget for another match or competition, add event-id="…", competition-id="…" or team-id="…"; locale="es" and market="AR" change the language and country.',
           embedLive:
             'With the HTML code, saving the widget updates its look on every site within a few minutes.',
           reactDescription: "Run it in your app's project (Next.js or React with shadcn).",
@@ -665,7 +665,7 @@ export default defineMessages(
             'Creá una clave en <k>Claves publicables</k> con el dominio del sitio en los orígenes permitidos (ej.: https://www.tuportal.com.ar) y reemplazá gs_pk_live_… por ella. En otro dominio, la clave no funciona.',
           embedOptions: 'Opciones',
           embedOptionsHint:
-            'Para usar el mismo widget en otro partido o competición, agregá event-id="…" o competition-id="…"; locale="en" y market="BR" cambian el idioma y el país.',
+            'Para usar el mismo widget en otro partido o competición, agregá event-id="…", competition-id="…" o team-id="…"; locale="en" y market="BR" cambian el idioma y el país.',
           embedLive:
             'Con el código HTML, guardar el widget actualiza el diseño en todos los sitios en pocos minutos.',
           reactDescription: 'Corrélo en el proyecto de tu app (Next.js o React con shadcn).',

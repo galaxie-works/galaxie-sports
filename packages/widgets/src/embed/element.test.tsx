@@ -12,6 +12,8 @@ import {
 } from './element.js';
 
 const WIDGET = '01a16029-9283-77d0-b2e5-1d89336b2dbc';
+const SCHEDULE = '01a16029-9283-77d0-b2e5-1d89336b2dbd';
+const VIDEOS = '01a16029-9283-77d0-b2e5-1d89336b2dbe';
 
 const config = (over: Partial<EmbedConfig> = {}): EmbedConfig => ({
   id: WIDGET,
@@ -29,6 +31,14 @@ const preview = createPreviewFetch();
 const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
   const url = String(input);
   if (url === `https://sports.exemplo.test/e/${WIDGET}.json`) return Response.json(config());
+  if (url === `https://sports.exemplo.test/e/${SCHEDULE}.json`)
+    return Response.json(
+      config({ id: SCHEDULE, kind: 'team_schedule', defaults: { teamId: 'time-salvo-no-builder' } }),
+    );
+  if (url === `https://sports.exemplo.test/e/${VIDEOS}.json`)
+    return Response.json(
+      config({ id: VIDEOS, kind: 'related_videos', defaults: { eventId: PREVIEW_IDS.finishedEvent } }),
+    );
   if (url.includes('/e/')) return Response.json({ error: 'not_found' }, { status: 404 });
   return preview(input, init);
 });
@@ -76,6 +86,19 @@ describe('<galaxie-widget>', () => {
     );
   });
 
+  it('os tipos novos também: agenda do time com team-id no atributo e vídeos do jogo', async () => {
+    document.body.innerHTML =
+      `<${EMBED_TAG} widget="${SCHEDULE}" key="k" team-id="${PREVIEW_IDS.team}"></${EMBED_TAG}>` +
+      `<${EMBED_TAG} widget="${VIDEOS}" key="k"></${EMBED_TAG}>`;
+    const [schedule, videos] = document.querySelectorAll(EMBED_TAG);
+    await waitFor(() => expect(shadowText(schedule!)).toContain('Próximos jogos'));
+    await waitFor(() => expect(shadowText(videos!)).toContain('Vídeos do jogo'));
+    expect(videos!.shadowRoot!.querySelectorAll('.gs-video').length).toBeGreaterThan(0);
+    const calls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(calls.some((u) => u.includes(`/v1/teams/${PREVIEW_IDS.team}/events`))).toBe(true);
+    expect(calls.some((u) => u.includes('time-salvo-no-builder'))).toBe(false);
+  });
+
   it('carregar o script de novo não registra o elemento duas vezes', () => {
     expect(() => defineGalaxieWidgetElement()).not.toThrow();
   });
@@ -83,6 +106,10 @@ describe('<galaxie-widget>', () => {
 
 describe('resolveEmbed', () => {
   it('atributos trocam idioma, mercado e entidade; valores inválidos ficam com o salvo', () => {
+    expect(resolveEmbed(config({ defaults: { teamId: 'salvo' } }), { teamId: 'outro-time' })).toMatchObject({
+      teamId: 'outro-time',
+    });
+    expect(resolveEmbed(config({ defaults: { teamId: 'salvo' } }))).toMatchObject({ teamId: 'salvo' });
     expect(resolveEmbed(config(), { locale: 'es', market: 'ar', eventId: 'outro' })).toMatchObject({
       locale: 'es',
       market: 'AR',

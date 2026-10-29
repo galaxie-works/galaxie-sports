@@ -18,6 +18,11 @@ const WIDGETS = {
   live_list: { file: 'src/widgets/live-list.tsx', component: 'LiveList' },
   standings: { file: 'src/widgets/standings-table.tsx', component: 'StandingsTable' },
   where_to_watch: { file: 'src/widgets/where-to-watch.tsx', component: 'WhereToWatch' },
+  ai_context: { file: 'src/widgets/ai-context.tsx', component: 'AiContext' },
+  match_stakes: { file: 'src/widgets/match-stakes.tsx', component: 'MatchStakes' },
+  related_videos: { file: 'src/widgets/related-videos.tsx', component: 'RelatedVideos' },
+  head_to_head: { file: 'src/widgets/head-to-head.tsx', component: 'HeadToHead' },
+  team_schedule: { file: 'src/widgets/team-schedule.tsx', component: 'TeamSchedule' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

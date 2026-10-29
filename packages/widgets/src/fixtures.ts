@@ -1,14 +1,31 @@
 // Dados de exemplo para o preview do Builder e para os testes. Os objetos seguem os contratos completos
 // da API (@galaxie/contracts): se um contrato mudar, o typecheck daqui acusa.
-import type { Event, Standings, WhereToWatch, WhereToWatchAvailability } from '@galaxie/contracts';
+import type {
+  Event,
+  EventContext,
+  HeadToHead,
+  RelatedContent,
+  Standings,
+  WhereToWatch,
+  WhereToWatchAvailability,
+} from '@galaxie/contracts';
 
-import type { GsEvent, GsStandings, GsWhereToWatch } from './core/model.js';
+import type {
+  GsEvent,
+  GsEventContext,
+  GsHeadToHead,
+  GsRelated,
+  GsStandings,
+  GsWhereToWatch,
+} from './core/model.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
   scheduledEvent: '0199a5c0-0000-7000-8000-000000000002',
   finishedEvent: '0199a5c0-0000-7000-8000-000000000003',
   competition: 'liga-exemplo',
+  /** Clube Aurora (a agenda do time). */
+  team: '0199a5c0-0000-7000-8000-0000000000a1',
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -86,7 +103,7 @@ function makeEvent(e: {
   score: [number | null, number | null];
   minute?: number;
   penalty?: [number, number];
-  winner?: 'home' | 'away';
+  winner?: 'home' | 'away' | 'draw';
 }): Event {
   const pair = (h: number | null, a: number | null) => ({ home: h, away: a });
   return {
@@ -110,8 +127,8 @@ function makeEvent(e: {
     relevance: null,
     relevance_by_market: null,
     participants: [
-      participant(e.home, 'home', e.winner ? e.winner === 'home' : null),
-      participant(e.away, 'away', e.winner ? e.winner === 'away' : null),
+      participant(e.home, 'home', e.winner && e.winner !== 'draw' ? e.winner === 'home' : null),
+      participant(e.away, 'away', e.winner && e.winner !== 'draw' ? e.winner === 'away' : null),
     ],
     score: {
       ...pair(e.score[0], e.score[1]),
@@ -161,6 +178,12 @@ export interface PreviewFixtures {
   events: GsEvent[];
   standings: GsStandings;
   whereToWatch: GsWhereToWatch;
+  /** Contexto de IA por evento (o agendado tem cenário; o encerrado, cenário e resumo). */
+  contexts: Record<string, GsEventContext>;
+  related: GsRelated;
+  h2h: GsHeadToHead;
+  /** Agenda do Clube Aurora: resultados das últimas semanas, o jogo ao vivo e os próximos. */
+  teamEvents: GsEvent[];
 }
 
 const esporte = { id: 'esporte_exemplo', name: 'Esporte Exemplo 2', logo: null, logo_dark: null };
@@ -216,6 +239,29 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
       winner: 'home',
     }),
   ];
+  // o jogo mais tarde: o que está em jogo, as tags do torcedor e o grito da torcida
+  const later = events[1]!;
+  later.derby = { slug: 'classico-exemplo', name: 'Clássico da Serra', intensity: 4 };
+  later.participants[0] = {
+    ...later.participants[0]!,
+    fan_tags: [
+      { code: 'in_title_race', priority: 15, text: { 'pt-BR': 'Na briga pelo título' } },
+      { code: 'can_reach_top_4', priority: 40, text: { 'pt-BR': 'De olho no G-4' } },
+    ],
+    cheer: { text: 'Vamos, Serra!' },
+  };
+  later.participants[1] = {
+    ...later.participants[1]!,
+    fan_tags: [{ code: 'relegation_fight', priority: 20, text: { 'pt-BR': 'Contra o rebaixamento' } }],
+    cheer: { text: 'Litoral até o fim!' },
+  };
+  later.stakes = [
+    stake('home', TEAMS.serra.id, 'win_takes_lead', 'Com vitória, assume a liderança'),
+    stake('home', TEAMS.serra.id, 'unbeaten_home', 'Invicto em casa há 8 jogos'),
+    stake('away', TEAMS.litoral.id, 'needs_points_relegation', 'Precisa pontuar para sair do Z-4'),
+    stake('both', null, 'derby_bragging', 'Vale a melhor campanha no clássico do ano'),
+  ];
+
   const standings: Standings = {
     competition_id: COMPETITION_ID,
     season: { year: now.getUTCFullYear(), label: String(now.getUTCFullYear()) },
@@ -372,7 +418,266 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
     },
     updated_at: verified,
   };
-  return { events, standings, whereToWatch };
+  const contexts = previewContexts(now);
+  const related = previewRelated(now);
+  const h2h = previewH2h(now);
+  const teamEvents = previewTeamEvents(now, events[0]!);
+  return { events, standings, whereToWatch, contexts, related, h2h, teamEvents };
+}
+
+function stake(
+  team: 'home' | 'away' | 'both',
+  teamId: string | null,
+  code: string,
+  text: string,
+): Event['stakes'][number] {
+  return { team, team_id: teamId, code, text: { 'pt-BR': text }, phase: 'pre_match', salient: true };
+}
+
+function contextText(kind: 'scenario' | 'recap', text: string, at: Date): EventContext['data'][number] {
+  return {
+    kind,
+    locale: 'pt-BR',
+    text,
+    sentences: [text],
+    origin: 'llm',
+    model: 'exemplo',
+    confidence: 0.9,
+    review_status: 'auto',
+    generated_at: at.toISOString(),
+    fits: { tv: true, mobile: true, web: true },
+    sources: [{ kind: 'core', ref: 'core.event', url: null }],
+  };
+}
+
+function previewContexts(now: Date): Record<string, EventContext> {
+  const ctx = (event_id: string, data: EventContext['data']): EventContext => ({
+    event_id,
+    locale: 'pt-BR',
+    data,
+  });
+  return {
+    [PREVIEW_IDS.liveEvent]: ctx(PREVIEW_IDS.liveEvent, [
+      contextText(
+        'scenario',
+        'Líder da Liga Exemplo, o Aurora recebe o Estrela do Sul precisando vencer para abrir quatro pontos de vantagem. O Estrela não perde há cinco rodadas e chega embalado depois de eliminar o rival na copa.',
+        now,
+      ),
+    ]),
+    [PREVIEW_IDS.scheduledEvent]: ctx(PREVIEW_IDS.scheduledEvent, [
+      contextText(
+        'scenario',
+        'O Atlético Serra assume a liderança se vencer o clássico e o Aurora tropeçar. Do outro lado, o União Litoral precisa pontuar para deixar a zona de rebaixamento: perdeu três dos últimos quatro jogos fora de casa.',
+        now,
+      ),
+    ]),
+    [PREVIEW_IDS.finishedEvent]: ctx(PREVIEW_IDS.finishedEvent, [
+      contextText(
+        'scenario',
+        'Real Planalto e Sporting Vale decidem a vaga na final em jogo único. Em caso de empate, a decisão vai para os pênaltis.',
+        new Date(now.getTime() - 6 * 60 * 60_000),
+      ),
+      contextText(
+        'recap',
+        'O Real Planalto está na final. Depois de um 0 a 0 truncado, com o Vale mais perigoso no segundo tempo, o goleiro do Planalto defendeu duas cobranças e garantiu a vitória por 4 a 3 nos pênaltis.',
+        now,
+      ),
+    ]),
+  };
+}
+
+/** Miniatura genérica (SVG em data URI) na cor do tipo de vídeo. */
+function thumb(color: string, label: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" fill="${color}"/><circle cx="160" cy="90" r="30" fill="#fff" fill-opacity=".9"/><path d="M151 75v30l25-15z" fill="${color}"/><text x="16" y="164" font-family="sans-serif" font-size="16" font-weight="700" fill="#fff">${label}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function previewRelated(now: Date): RelatedContent {
+  const item = (
+    n: number,
+    type: RelatedContent['data'][number]['content_type'],
+    label: string,
+    title: string,
+    channel: string,
+    duration: number,
+    color: string,
+    format: 'short' | 'long' = 'long',
+  ): RelatedContent['data'][number] => ({
+    id: `0199a5c0-0000-7000-8000-0000000001${String(n).padStart(2, '0')}`,
+    provider: 'youtube',
+    external_id: `exemplo-${n}`,
+    url: `https://www.youtube.com/watch?v=exemplo-${n}`,
+    // sem player nos dados de exemplo: a miniatura não toca nada
+    embed_url: null,
+    title,
+    content_type: type,
+    content_type_label: label,
+    format,
+    aspect_ratio: format === 'short' ? '9:16' : '16:9',
+    duration_seconds: duration,
+    published_at: new Date(now.getTime() - n * 20 * 60_000).toISOString(),
+    thumbnail_url: thumb(color, channel),
+    language: 'pt-BR',
+    channel: { id: `canal-${n}`, title: channel, handle: null, source_tier: 'official' },
+    views: 1000 * (10 - n),
+    confidence: 0.95,
+    classified_by: 'rules@v1',
+    last_checked_at: now.toISOString(),
+  });
+  return {
+    event_id: PREVIEW_IDS.finishedEvent,
+    data: [
+      item(
+        1,
+        'highlights',
+        'Melhores momentos',
+        'Planalto 0 (4) x (3) 0 Vale: melhores momentos',
+        'Liga Exemplo',
+        512,
+        '#1d4ed8',
+      ),
+      item(
+        2,
+        'penalties',
+        'Pênaltis',
+        'Todas as cobranças da disputa de pênaltis',
+        'Real Planalto',
+        268,
+        '#7c3aed',
+      ),
+      item(
+        3,
+        'interview',
+        'Entrevista',
+        'Goleiro do Planalto: "a gente treinou cada cobrança"',
+        'TV Exemplo',
+        194,
+        '#0891b2',
+      ),
+      item(
+        4,
+        'press_conference',
+        'Coletiva',
+        'Coletiva do técnico do Sporting Vale',
+        'Sporting Vale',
+        1260,
+        '#ca8a04',
+      ),
+      item(
+        5,
+        'fan_reaction',
+        'Torcida',
+        'A festa da torcida no apito final',
+        'Real Planalto',
+        41,
+        '#dc2626',
+        'short',
+      ),
+      item(
+        6,
+        'analysis',
+        'Análise',
+        'Como o Planalto segurou o Vale no segundo tempo',
+        'Canal Exemplo',
+        655,
+        '#15803d',
+      ),
+    ],
+    counts: { highlights: 1, penalties: 1, interview: 1, press_conference: 1, fan_reaction: 1, analysis: 1 },
+    updated_at: now.toISOString(),
+  };
+}
+
+function previewH2h(now: Date): HeadToHead {
+  const days = (d: number) => new Date(now.getTime() - d * 24 * 60 * 60_000);
+  const meetings: [number, TeamKey, TeamKey, number, number][] = [
+    [120, 'litoral', 'serra', 1, 2],
+    [300, 'serra', 'litoral', 1, 1],
+    [480, 'litoral', 'serra', 0, 3],
+    [650, 'serra', 'litoral', 2, 0],
+    [830, 'litoral', 'serra', 2, 1],
+  ];
+  const team = (key: TeamKey) => ({
+    id: TEAMS[key].id,
+    name: TEAMS[key].name,
+    logo: shield(TEAMS[key].color),
+  });
+  return {
+    event_id: PREVIEW_IDS.scheduledEvent,
+    participants: [team('serra'), team('litoral')],
+    summary: {
+      scope: 'database',
+      since: days(830).getUTCFullYear(),
+      played: 5,
+      draws: 1,
+      teams: [
+        { id: TEAMS.serra.id, wins: 3, goals: 8 },
+        { id: TEAMS.litoral.id, wins: 1, goals: 4 },
+      ],
+    },
+    all_time: {
+      derby: { slug: 'classico-exemplo', name: 'Clássico da Serra' },
+      matches: 214,
+      draws: 61,
+      teams: [
+        { id: TEAMS.serra.id, wins: 88, goals: 301 },
+        { id: TEAMS.litoral.id, wins: 65, goals: 254 },
+      ],
+      basis: 'official',
+      as_of: now.toISOString().slice(0, 10),
+      sources: [],
+      review_status: 'reviewed',
+    },
+    events: meetings.map(([ago, home, away, h, a], i) =>
+      makeEvent({
+        id: `0199a5c0-0000-7000-8000-0000000002${String(i).padStart(2, '0')}`,
+        home,
+        away,
+        startsAt: days(ago),
+        status: 'finished',
+        score: [h, a],
+        winner: h === a ? 'draw' : h > a ? 'home' : 'away',
+      }),
+    ),
+  };
+}
+
+function previewTeamEvents(now: Date, live: Event): Event[] {
+  const days = (d: number) => new Date(now.getTime() + d * 24 * 60 * 60_000);
+  const past: [number, TeamKey, TeamKey, number, number][] = [
+    [-4, 'vale', 'aurora', 1, 3],
+    [-11, 'aurora', 'serra', 1, 1],
+    [-18, 'litoral', 'aurora', 2, 1],
+  ];
+  const next: [number, TeamKey, TeamKey][] = [
+    [4, 'aurora', 'planalto'],
+    [11, 'serra', 'aurora'],
+    [18, 'aurora', 'litoral'],
+  ];
+  return [
+    ...past.map(([d, home, away, h, a], i) =>
+      makeEvent({
+        id: `0199a5c0-0000-7000-8000-0000000003${String(i).padStart(2, '0')}`,
+        home,
+        away,
+        startsAt: days(d),
+        status: 'finished',
+        score: [h, a],
+        winner: h === a ? 'draw' : h > a ? 'home' : 'away',
+      }),
+    ),
+    live,
+    ...next.map(([d, home, away], i) =>
+      makeEvent({
+        id: `0199a5c0-0000-7000-8000-0000000003${String(i + 5).padStart(2, '0')}`,
+        home,
+        away,
+        startsAt: days(d),
+        status: 'scheduled',
+        score: [null, null],
+      }),
+    ),
+  ];
 }
 
 const json = (body: unknown, status = 200) =>
@@ -391,6 +696,16 @@ export function createPreviewFetch(options: { now?: Date } = {}): typeof fetch {
       return json({ data: f.events.filter((e) => e.status === 'live' || e.status === 'break') });
     }
     if (path.endsWith('/v1/events')) return json({ data: f.events, next_cursor: null });
+    const context = /\/v1\/events\/([^/]+)\/context$/.exec(path);
+    if (context) {
+      const id = decodeURIComponent(context[1]!);
+      return json(f.contexts[id] ?? { event_id: id, locale: 'pt-BR', data: [] });
+    }
+    const related = /\/v1\/events\/([^/]+)\/related$/.exec(path);
+    if (related) return json({ ...f.related, event_id: decodeURIComponent(related[1]!) });
+    const h2h = /\/v1\/events\/([^/]+)\/h2h$/.exec(path);
+    if (h2h) return json({ ...f.h2h, event_id: decodeURIComponent(h2h[1]!) });
+    if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });
     const event = /\/v1\/events\/([^/]+)$/.exec(path);
