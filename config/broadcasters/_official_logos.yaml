@@ -2787,6 +2787,39 @@ logos:
     broadcaster: null
     channel: null
     status: 'unmapped'
+  - node: '346:3892'
+    name: 'SporTV'
+    letter: 'S'
+    hd: false
+    light: '346:3893'
+    dark: '346:3896'
+    broadcaster: 'sportv'
+    channel: null
+    status: 'primary'
+    curated: true
+    note: 'componente novo no acervo (29/10/2026), seção Premium Content'
+  - node: '346:3931'
+    name: 'SporTV 2'
+    letter: 'S'
+    hd: false
+    light: '346:3932'
+    dark: '346:3936'
+    broadcaster: 'sportv'
+    channel: 'SporTV 2'
+    status: 'channel'
+    curated: true
+    note: 'componente novo no acervo (29/10/2026), seção Premium Content'
+  - node: '346:3950'
+    name: 'SporTV 3'
+    letter: 'S'
+    hd: false
+    light: '346:3951'
+    dark: '346:3954'
+    broadcaster: 'sportv'
+    channel: 'SporTV 3'
+    status: 'channel'
+    curated: true
+    note: 'componente novo no acervo (29/10/2026), seção Premium Content'
   - node: '335:26292'
     name: 'TBS'
     letter: 'T'
