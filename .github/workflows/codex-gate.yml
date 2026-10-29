@@ -35,7 +35,8 @@ jobs:
   gate:
     name: Codex sem P1 aberto
     runs-on: ubuntu-latest
-    # espera até 10 min de PR aberto (ou 3 depois do push) e mais 10 por um review que esteja rodando
+    # espera até 10 min de PR aberto (ou 3 depois do push) e mais 10 por um review que esteja rodando; review que não
+    # termina nisso, ou que roda num commit anterior, só gera aviso (P1 aberto barra sempre)
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
