@@ -73,6 +73,20 @@ describe('buildRegistryItem', () => {
     expect(item.meta.galaxie).toMatchObject({ kind: 'match_card', locale: 'es', market: 'AR' });
   });
 
+  it.each([
+    ['ai_context', 'AiContextProps', '{"eventId":"jogo"}'],
+    ['related_videos', 'RelatedVideosProps', '{"eventId":"jogo"}'],
+    ['team_schedule', 'TeamScheduleProps', '{"teamId":"time"}'],
+  ] as const)('props padrão dos tipos novos (%s)', (kind, props, json) => {
+    const item = buildRegistryItem({
+      ...base,
+      kind,
+      name: 'x',
+      defaults: { eventId: 'jogo', teamId: 'time', competitionId: 'ignorado' },
+    });
+    expect(item.files[1]!.content).toContain(`const GALAXIE_DEFAULTS: Partial<${props}> = ${json};`);
+  });
+
   it('o núcleo é o mesmo para todos os widgets e junta model.ts + react.tsx', () => {
     const a = buildRegistryItem({ ...base, kind: 'standings', name: 'a' });
     const b = buildRegistryItem({ ...base, kind: 'live_list', name: 'b', theme: DEFAULT_THEMES.light });

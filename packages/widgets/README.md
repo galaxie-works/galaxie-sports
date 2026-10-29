@@ -3,12 +3,21 @@
 Widgets React da Galaxie Sports e o gerador do item de registry shadcn usado pelo **Galaxie Sports Builder**.
 A operadora monta o widget com a identidade dela na demo e instala no app dela com `npx shadcn add <url>`.
 
-| `kind`           | Componente       | No registry             | Props obrigatórias  |
-| ---------------- | ---------------- | ----------------------- | ------------------- |
-| `match_card`     | `MatchCard`      | `GalaxieMatchCard`      | `eventId`           |
-| `live_list`      | `LiveList`       | `GalaxieLiveList`       | —                   |
-| `standings`      | `StandingsTable` | `GalaxieStandingsTable` | `competitionId`     |
-| `where_to_watch` | `WhereToWatch`   | `GalaxieWhereToWatch`   | `eventId`, `market` |
+| `kind`           | Componente       | No registry             | Props obrigatórias  | Rota da API (módulo)                                 |
+| ---------------- | ---------------- | ----------------------- | ------------------- | ---------------------------------------------------- |
+| `match_card`     | `MatchCard`      | `GalaxieMatchCard`      | `eventId`           | `/v1/events/{id}`                                    |
+| `live_list`      | `LiveList`       | `GalaxieLiveList`       | —                   | `/v1/events`, `/v1/events/live`                      |
+| `standings`      | `StandingsTable` | `GalaxieStandingsTable` | `competitionId`     | `/v1/competitions/{id}/seasons/{s}/standings`        |
+| `where_to_watch` | `WhereToWatch`   | `GalaxieWhereToWatch`   | `eventId`, `market` | `/v1/events/{id}/where-to-watch` (`where_to_watch`)  |
+| `ai_context`     | `AiContext`      | `GalaxieAiContext`      | `eventId`           | `/v1/events/{id}/context` (`live_intelligence`)      |
+| `match_stakes`   | `MatchStakes`    | `GalaxieMatchStakes`    | `eventId`           | `/v1/events/{id}` (stakes, `fan_tags`, `cheer`)      |
+| `related_videos` | `RelatedVideos`  | `GalaxieRelatedVideos`  | `eventId`           | `/v1/events/{id}/related` (add-on `related_content`) |
+| `head_to_head`   | `HeadToHead`     | `GalaxieHeadToHead`     | `eventId`           | `/v1/events/{id}/h2h`                                |
+| `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
+
+Sem módulo indicado, a rota é do `core_data`. Uma chave publicável presa a um widget só alcança os módulos do
+tipo dele (`WIDGET_KIND_MODULES` em `@galaxie/db`); o tenant sem o módulo vê o aviso de 403 no lugar do widget.
+Os vídeos tocam no player oficial do YouTube dentro do widget (só `https://www.youtube.com/...` vira iframe).
 
 Os componentes só dependem de React (18 ou 19), não usam Tailwind nem Next e buscam os dados na API pública
 (`/v1/...`) com a chave publicável. Têm estados de carregamento, erro (com o 403 de chave sem o módulo
@@ -56,7 +65,7 @@ lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, 
 ```html
 <script src="https://sports.galaxie.works/embed.js" async></script>
 <galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
-<!-- opcionais: event-id, competition-id, locale, market -->
+<!-- opcionais: event-id, competition-id, team-id, locale, market -->
 ```
 
 - O widget desenha num Shadow DOM: o CSS do tema do site não entra e o do widget não sai.
@@ -72,7 +81,13 @@ lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, 
 ```tsx
 import { DEFAULT_THEMES, GalaxieWidgetProvider, MatchCard, createPreviewFetch } from '@galaxie/widgets';
 
-<GalaxieWidgetProvider baseUrl={apiUrl} publishableKey={key} theme={DEFAULT_THEMES.dark} locale="pt-BR" market="BR">
+<GalaxieWidgetProvider
+  baseUrl={apiUrl}
+  publishableKey={key}
+  theme={DEFAULT_THEMES.dark}
+  locale="pt-BR"
+  market="BR"
+>
   <MatchCard eventId={id} />
 </GalaxieWidgetProvider>;
 

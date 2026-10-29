@@ -18,9 +18,14 @@ import { createRoot, type Root } from 'react-dom/client';
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
 import { WIDGET_KINDS, WIDGET_LOCALES } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
+import { AiContext } from '../widgets/ai-context.js';
+import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
+import { MatchStakes } from '../widgets/match-stakes.js';
+import { RelatedVideos } from '../widgets/related-videos.js';
 import { StandingsTable } from '../widgets/standings-table.js';
+import { TeamSchedule } from '../widgets/team-schedule.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
 export const EMBED_TAG = 'galaxie-widget';
@@ -39,13 +44,22 @@ export interface EmbedConfig {
 }
 
 /** Atributos que trocam o salvo no Builder (um mesmo widget servindo a vários jogos ou competições). */
-export const EMBED_ATTRIBUTES = ['widget', 'key', 'locale', 'market', 'event-id', 'competition-id'] as const;
+export const EMBED_ATTRIBUTES = [
+  'widget',
+  'key',
+  'locale',
+  'market',
+  'event-id',
+  'competition-id',
+  'team-id',
+] as const;
 
 export interface EmbedOverrides {
   locale?: string | null;
   market?: string | null;
   eventId?: string | null;
   competitionId?: string | null;
+  teamId?: string | null;
 }
 
 const isLocale = (v: unknown): v is WidgetLocale => (WIDGET_LOCALES as readonly unknown[]).includes(v);
@@ -58,7 +72,8 @@ export function resolveEmbed(config: EmbedConfig, overrides: EmbedOverrides = {}
   ).toUpperCase();
   const eventId = overrides.eventId || config.defaults.eventId;
   const competitionId = overrides.competitionId || config.defaults.competitionId;
-  return { locale, market, eventId, competitionId, sport: config.defaults.sport };
+  const teamId = overrides.teamId || config.defaults.teamId;
+  return { locale, market, eventId, competitionId, teamId, sport: config.defaults.sport };
 }
 
 /** Lê e confere a resposta de `/e/<id>.json` (vem da rede: nada de confiar no formato). */
@@ -72,7 +87,7 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
-  const { eventId, competitionId, market, sport } = resolveEmbed(config, overrides);
+  const { eventId, competitionId, teamId, market, sport } = resolveEmbed(config, overrides);
   switch (config.kind) {
     case 'match_card':
       return <MatchCard eventId={eventId ?? ''} />;
@@ -82,6 +97,16 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <StandingsTable competitionId={competitionId ?? ''} season="current" />;
     case 'live_list':
       return <LiveList competitionId={competitionId} sport={sport} />;
+    case 'ai_context':
+      return <AiContext eventId={eventId ?? ''} />;
+    case 'match_stakes':
+      return <MatchStakes eventId={eventId ?? ''} />;
+    case 'related_videos':
+      return <RelatedVideos eventId={eventId ?? ''} />;
+    case 'head_to_head':
+      return <HeadToHead eventId={eventId ?? ''} />;
+    case 'team_schedule':
+      return <TeamSchedule teamId={teamId ?? ''} />;
   }
 }
 
@@ -175,6 +200,7 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
         market: this.getAttribute('market'),
         eventId: this.getAttribute('event-id'),
         competitionId: this.getAttribute('competition-id'),
+        teamId: this.getAttribute('team-id'),
       };
       const { locale, market } = resolveEmbed(config, overrides);
       this.root.render(

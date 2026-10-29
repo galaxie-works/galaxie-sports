@@ -5,7 +5,17 @@
 
 // ─── configuração (mesmo formato salvo no banco pelo Builder) ───────────────────────────────────
 
-export const WIDGET_KINDS = ['match_card', 'live_list', 'standings', 'where_to_watch'] as const;
+export const WIDGET_KINDS = [
+  'match_card',
+  'live_list',
+  'standings',
+  'where_to_watch',
+  'ai_context',
+  'match_stakes',
+  'related_videos',
+  'head_to_head',
+  'team_schedule',
+] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
 export const WIDGET_LOCALES = ['pt-BR', 'es', 'en'] as const;
@@ -69,6 +79,29 @@ export interface GsParticipant {
   short_name: string | null;
   logo: string | null;
   winner: boolean | null;
+  /** Tags do torcedor ("Na briga pelo título"), por relevância. */
+  fan_tags?: GsFanTag[] | undefined;
+  /** Grito curto da torcida no mercado da resposta. */
+  cheer?: { text: string } | null | undefined;
+}
+
+/** Rótulo no locale da resposta (`{ "pt-BR": "…" }`). */
+export type GsLocalizedText = Record<string, string>;
+
+export interface GsFanTag {
+  code: string;
+  priority: number;
+  text: GsLocalizedText;
+}
+
+/** O que está em jogo para cada time (motor de regras). */
+export interface GsStake {
+  team: 'home' | 'away' | 'both';
+  team_id: string | null;
+  code: string;
+  text: GsLocalizedText;
+  phase: 'pre_match' | 'result';
+  salient: boolean;
 }
 
 export interface GsEvent {
@@ -82,6 +115,65 @@ export interface GsEvent {
   participants: GsParticipant[];
   score: GsSidePair & { penalty: GsSidePair | null };
   venue: { name: string; city: string | null } | null;
+  derby?: { slug: string; name: string; intensity: number } | null | undefined;
+  stakes?: GsStake[] | undefined;
+}
+
+/** Cenário pré-jogo e resumo pós-jogo de IA (`/v1/events/{id}/context`). */
+export interface GsEventContextText {
+  kind: 'scenario' | 'recap';
+  locale: string;
+  text: string;
+  origin: 'llm' | 'fallback';
+  generated_at: string;
+}
+
+export interface GsEventContext {
+  event_id: string;
+  locale: string;
+  data: GsEventContextText[];
+}
+
+/** Vídeo relacionado ao evento (`/v1/events/{id}/related`). */
+export interface GsRelatedItem {
+  id: string;
+  url: string;
+  embed_url: string | null;
+  title: string;
+  content_type: string;
+  content_type_label: string;
+  format: 'short' | 'long';
+  aspect_ratio: '16:9' | '9:16' | '4:3' | '1:1';
+  duration_seconds: number | null;
+  published_at: string;
+  thumbnail_url: string | null;
+  channel: { title: string; source_tier: string };
+}
+
+export interface GsRelated {
+  event_id: string;
+  data: GsRelatedItem[];
+  updated_at: string | null;
+}
+
+/** Confronto direto (`/v1/events/{id}/h2h`). */
+export interface GsHeadToHead {
+  event_id: string;
+  participants: { id: string; name: string; logo: string | null }[];
+  summary: {
+    since: number | null;
+    played: number;
+    draws: number;
+    teams: { id: string; wins: number; goals: number }[];
+  };
+  all_time: {
+    derby: { slug: string; name: string } | null;
+    matches: number;
+    draws: number;
+    teams: { id: string; wins: number; goals: number | null }[];
+    as_of: string;
+  } | null;
+  events: GsEvent[];
 }
 
 export interface GsEventList {
@@ -353,6 +445,7 @@ export const WIDGET_CSS = `
 .gs-header{display:flex;align-items:center;gap:8px;min-width:0;color:var(--gs-muted-foreground);font-size:.85em}
 .gs-title{margin:0;font-size:1em;font-weight:700;color:var(--gs-foreground)}
 .gs-spacer{flex:1}
+.gs-grow{flex:1;min-width:0}
 .gs-muted{color:var(--gs-muted-foreground)}
 .gs-small{font-size:.8em}
 .gs-truncate{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -436,6 +529,40 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-credit{font-size:.68em;color:var(--gs-muted-foreground);text-decoration:none}
 .gs-credit:hover{text-decoration:underline}
 .gs-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.gs-prose{margin:0;line-height:1.55;overflow-wrap:break-word}
+.gs-seg{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--gs-border);border-radius:999px}
+.gs-seg button{appearance:none;padding:2px 10px;border:0;border-radius:999px;background:transparent;color:var(--gs-muted-foreground);font:inherit;font-size:.78em;font-weight:700;cursor:pointer}
+.gs-seg button[aria-pressed=true]{background:var(--gs-primary);color:var(--gs-primary-foreground)}
+.gs-seg button:focus-visible,.gs-thumb:focus-visible{outline:2px solid var(--gs-primary);outline-offset:2px}
+.gs-sides{display:flex;flex-wrap:wrap;gap:var(--gs-gap)}
+.gs-side{display:flex;flex-direction:column;gap:8px;flex:1 1 12em;min-width:0;padding:calc(var(--gs-pad)*.75);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.75)}
+.gs-side-head{display:flex;align-items:center;gap:8px;min-width:0;font-weight:700}
+.gs-tag{display:inline-flex;padding:2px 8px;border-radius:999px;font-size:.75em;font-weight:700;color:var(--gs-primary);background:color-mix(in srgb,var(--gs-primary) 13%,transparent)}
+.gs-bullets{display:flex;flex-direction:column;gap:4px;margin:0;padding-left:1.1em}
+.gs-cheer{margin:0;padding-left:10px;border-left:3px solid var(--gs-primary);font-style:italic;font-weight:600}
+.gs-videos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--gs-gap);margin:0;padding:0;list-style:none}
+.gs-video{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gs-thumb{position:relative;display:block;width:100%;aspect-ratio:16/9;padding:0;border:0;border-radius:calc(var(--gs-radius)*.6);overflow:hidden;background:color-mix(in srgb,var(--gs-foreground) 8%,transparent);cursor:pointer}
+.gs-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.gs-thumb-badge{position:absolute;right:6px;bottom:6px;padding:1px 6px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff;font-size:.72em;font-weight:700}
+.gs-thumb-type{position:absolute;left:6px;top:6px;padding:1px 6px;border-radius:4px;background:var(--gs-primary);color:var(--gs-primary-foreground);font-size:.68em;font-weight:700}
+.gs-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:.85em;line-height:1.3}
+.gs-player{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
+.gs-player[data-vertical]{max-width:320px;aspect-ratio:9/16;margin:0 auto}
+.gs-h2h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap);text-align:center}
+.gs-stat{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.gs-stat strong{font-size:1.6em;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.gs-bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--gs-foreground) 8%,transparent)}
+.gs-bar span{display:block;height:100%}
+.gs-bar [data-part=home]{background:var(--gs-primary)}.gs-bar [data-part=draw]{background:var(--gs-muted-foreground)}.gs-bar [data-part=away]{background:color-mix(in srgb,var(--gs-foreground) 40%,transparent)}
+.gs-fixture{display:flex;align-items:center;gap:var(--gs-gap);padding:calc(var(--gs-gap)*.7) 0;border-top:1px solid var(--gs-border);min-width:0}
+.gs-fixture:first-child{border-top:0}
+.gs-meeting{display:flex;flex:1;align-items:center;justify-content:center;gap:6px;min-width:0}
+.gs-meeting strong{flex:none;font-variant-numeric:tabular-nums}
+.gs-meeting [data-lost]{color:var(--gs-muted-foreground)}
+.gs-fixture-date{flex:none;width:6.5em;font-size:.8em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
+.gs-result{display:inline-grid;place-items:center;flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;font-size:.75em;font-weight:800;color:#fff;background:var(--gs-muted-foreground)}
+.gs-result[data-r=W]{background:#16a34a}.gs-result[data-r=L]{background:var(--gs-live)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -499,6 +626,33 @@ export interface WidgetTexts {
     /** "Fonte: {publisher}". */
     confirmedSource: string;
     kind: Record<GsPlatformKind, string>;
+  };
+  /** Contexto de IA: cenário antes do jogo e resumo depois. */
+  context: { title: string; scenario: string; recap: string; empty: string; aiNote: string };
+  /** O que está em jogo: stakes, tags do torcedor e o grito da torcida. */
+  stakes: { title: string; empty: string; cheer: string; derby: string };
+  /** Vídeos do jogo (conteúdo relacionado). "Assistir: {title}". */
+  videos: { title: string; empty: string; play: string; close: string };
+  /** Confronto direto. "{n} jogos desde {year}", "Histórico geral: {n} jogos". */
+  h2h: {
+    title: string;
+    wins: string;
+    draws: string;
+    since: string;
+    played: string;
+    allTime: string;
+    recent: string;
+    empty: string;
+  };
+  /** Agenda do time: próximos jogos e últimos resultados (V/E/D). */
+  schedule: {
+    title: string;
+    next: string;
+    recent: string;
+    empty: string;
+    home: string;
+    away: string;
+    result: { W: string; D: string; L: string };
   };
 }
 
@@ -573,6 +727,44 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         streaming: 'Streaming',
       },
     },
+    context: {
+      title: 'Contexto do jogo',
+      scenario: 'Antes do jogo',
+      recap: 'Depois do jogo',
+      empty: 'O contexto deste jogo sai mais perto da partida.',
+      aiNote: 'Texto gerado com IA a partir dos dados do jogo.',
+    },
+    stakes: {
+      title: 'O que está em jogo',
+      empty: 'Nada decisivo em jogo nesta partida.',
+      cheer: 'Grito da torcida',
+      derby: 'Clássico',
+    },
+    videos: {
+      title: 'Vídeos do jogo',
+      empty: 'Os vídeos deste jogo aparecem aqui assim que saírem.',
+      play: 'Assistir: {title}',
+      close: 'Fechar vídeo',
+    },
+    h2h: {
+      title: 'Confronto direto',
+      wins: 'Vitórias',
+      draws: 'Empates',
+      since: '{n} jogos desde {year}',
+      played: '{n} jogos',
+      allTime: 'Histórico geral: {n} jogos',
+      recent: 'Últimos confrontos',
+      empty: 'Os times ainda não se enfrentaram.',
+    },
+    schedule: {
+      title: 'Agenda',
+      next: 'Próximos jogos',
+      recent: 'Últimos resultados',
+      empty: 'Nenhum jogo nas próximas semanas.',
+      home: 'Casa',
+      away: 'Fora',
+      result: { W: 'V', D: 'E', L: 'D' },
+    },
   },
   es: {
     status: {
@@ -644,6 +836,44 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         streaming: 'Streaming',
       },
     },
+    context: {
+      title: 'Contexto del partido',
+      scenario: 'Antes del partido',
+      recap: 'Después del partido',
+      empty: 'El contexto de este partido se publica más cerca del encuentro.',
+      aiNote: 'Texto generado con IA a partir de los datos del partido.',
+    },
+    stakes: {
+      title: 'Qué está en juego',
+      empty: 'Nada decisivo en juego en este partido.',
+      cheer: 'Grito de la hinchada',
+      derby: 'Clásico',
+    },
+    videos: {
+      title: 'Videos del partido',
+      empty: 'Los videos de este partido aparecen aquí apenas se publiquen.',
+      play: 'Ver: {title}',
+      close: 'Cerrar video',
+    },
+    h2h: {
+      title: 'Historial',
+      wins: 'Victorias',
+      draws: 'Empates',
+      since: '{n} partidos desde {year}',
+      played: '{n} partidos',
+      allTime: 'Historial completo: {n} partidos',
+      recent: 'Últimos enfrentamientos',
+      empty: 'Los equipos todavía no se enfrentaron.',
+    },
+    schedule: {
+      title: 'Agenda',
+      next: 'Próximos partidos',
+      recent: 'Últimos resultados',
+      empty: 'No hay partidos en las próximas semanas.',
+      home: 'Local',
+      away: 'Visitante',
+      result: { W: 'G', D: 'E', L: 'P' },
+    },
   },
   en: {
     status: {
@@ -714,6 +944,44 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         telco_bundle: 'Telecom bundle with TV',
         streaming: 'Streaming',
       },
+    },
+    context: {
+      title: 'Match context',
+      scenario: 'Before the match',
+      recap: 'After the match',
+      empty: 'The context for this match is published closer to kick-off.',
+      aiNote: 'Text generated with AI from the match data.',
+    },
+    stakes: {
+      title: "What's at stake",
+      empty: 'Nothing decisive at stake in this match.',
+      cheer: 'Fan chant',
+      derby: 'Derby',
+    },
+    videos: {
+      title: 'Match videos',
+      empty: 'Videos of this match show up here as soon as they are out.',
+      play: 'Watch: {title}',
+      close: 'Close video',
+    },
+    h2h: {
+      title: 'Head to head',
+      wins: 'Wins',
+      draws: 'Draws',
+      since: '{n} matches since {year}',
+      played: '{n} matches',
+      allTime: 'All-time: {n} matches',
+      recent: 'Recent meetings',
+      empty: 'These teams have not met yet.',
+    },
+    schedule: {
+      title: 'Schedule',
+      next: 'Upcoming matches',
+      recent: 'Recent results',
+      empty: 'No matches in the coming weeks.',
+      home: 'Home',
+      away: 'Away',
+      result: { W: 'W', D: 'D', L: 'L' },
     },
   },
 };
@@ -838,4 +1106,69 @@ export function eventRefreshMs(
     return Math.min(Math.max(wake, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
+}
+
+// ─── textos da API e modelos ─────────────────────────────────────────────────────────────────────
+
+/** Rótulo de `{ "pt-BR": "…" }`: o locale pedido, senão o primeiro que vier (a API manda um só). */
+export function localized(text: GsLocalizedText | null | undefined, locale?: string | undefined): string {
+  if (!text) return '';
+  return (locale && text[locale]) || Object.values(text)[0] || '';
+}
+
+/** Troca `{chave}` no modelo de texto. */
+export function fillText(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
+/** Duração do vídeo: 1:05:09, 4:32, 0:45. */
+export function durationText(seconds: number | null | undefined): string | null {
+  if (!seconds || seconds < 0) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+/** Resultado do time num jogo encerrado: V, E ou D (null antes do fim ou sem o time). */
+export function teamResult(event: GsEvent, teamId: string): 'W' | 'D' | 'L' | null {
+  if (event.status !== 'finished') return null;
+  const me = event.participants.find((p) => p.id === teamId);
+  if (!me) return null;
+  if (me.winner === true) return 'W';
+  if (me.winner === false) return 'L';
+  return 'D';
+}
+
+/**
+ * Player incorporável só de endereço https do YouTube (o único provedor do conteúdo relacionado), para
+ * o iframe nunca apontar para outra origem vinda da rede.
+ */
+export function safeEmbedUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return null;
+    if (!/^(www\.)?youtube(-nocookie)?\.com$/.test(u.hostname)) return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Imagem da rede: http(s) ou `data:image/` (as miniaturas e os escudos dos dados de exemplo). */
+export function safeImage(url: string | null | undefined): string | null {
+  return url?.startsWith('data:image/') ? url : safeLink(url);
+}
+
+/** Link externo só http(s) (nada de `javascript:` vindo da rede). */
+export function safeLink(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch {
+    return null;
+  }
 }
