@@ -11,10 +11,14 @@
 #   ALERT_SMTP_USER      usuário do SMTP (opcional)
 #   ALERT_SMTP_PASSWORD  senha do SMTP (opcional; só no .env da VPS, nunca no repositório)
 #   ALERT_EMAIL_FROM     remetente (padrão: ALERT_SMTP_USER)
+# Issue no GitHub (cada alerta abre uma issue com o rótulo `alerta` e ela fecha quando resolve; alerta-grafana.yml):
+#   ALERT_GITHUB_TOKEN   fine-grained PAT só deste repositório, com Actions: read and write
+#   ALERT_GITHUB_REPO    dono/repositório (padrão: galaxie-works/galaxie-sports)
 #
 # Roteamento: severity=critical (os 5 sinais graves) e o Prometheus fora do ar vão para o push na hora e também
 # entram no resumo; o resto (warning) só no resumo. Só push: o resumo sai no push, com prioridade baixa. Só e-mail:
-# o crítico sai por e-mail na hora. Nenhum: os alertas seguem visíveis no Grafana (Alerting) e no Prometheus.
+# o crítico sai por e-mail na hora. A issue no GitHub corre por fora: todo alerta, crítico ou não, na hora. Nenhum
+# canal: os alertas seguem visíveis no Grafana (Alerting) e no Prometheus.
 set -eu
 dir=/tmp/grafana-provisioning
 src=/etc/grafana/alerting
@@ -72,17 +76,44 @@ EOF
   echo "alertas por push ligados (ntfy): crítico na hora"
 fi
 
-if [ -n "$email$push" ]; then
-  urgent="${push:-$email}"
-  digest="${email:-push-resumo}"
+github=
+if [ -n "${ALERT_GITHUB_TOKEN:-}" ]; then
+  github='issue-github'
+  repo="${ALERT_GITHUB_REPO:-galaxie-works/galaxie-sports}"
+  export GALAXIE_GITHUB_DISPATCH_URL="https://api.github.com/repos/$repo/actions/workflows/alerta-grafana.yml/dispatches"
+  cp "$src/github.yml" "$dir/alerting/"
+  echo "alertas no GitHub ligados ($repo): uma issue por alerta"
+fi
+
+if [ -n "$email$push$github" ]; then
   cp "$src/templates.yml" "$src/mute-timings.yml" "$dir/alerting/"
-  cat >"$dir/alerting/policies.yml" <<EOF
+  # sem push nem e-mail, o que não casar com rota nenhuma cai na issue (na prática, a rota da issue pega tudo)
+  root="${email:-${push:+push-resumo}}"
+  {
+    cat <<EOF
 apiVersion: 1
 policies:
   - orgId: 1
-    receiver: $digest
+    receiver: ${root:-$github}
     group_by: ['grafana_folder', 'alertname']
     routes:
+EOF
+    if [ -n "$github" ]; then
+      cat <<EOF
+      # uma issue por alerta: agrupar por todos os rótulos põe um alerta só em cada envio. Sai na hora e de novo
+      # quando resolve (o workflow fecha a issue); o repetido de 12 h só reabre se alguém fechou a issue antes
+      - receiver: $github
+        group_by: ['...']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 12h
+        continue: true
+EOF
+    fi
+    if [ -n "$email$push" ]; then
+      urgent="${push:-$email}"
+      digest="${email:-push-resumo}"
+      cat <<EOF
       # os 5 sinais graves (alerts.yml: severity=critical e o rótulo sinal), na hora; repete a cada 3 h
       - receiver: $urgent
         object_matchers:
@@ -109,8 +140,10 @@ policies:
         mute_time_intervals:
           - fora-do-resumo-diario
 EOF
+    fi
+  } >"$dir/alerting/policies.yml"
 else
-  echo "alertas sem canal: defina ALERT_NTFY_URL (push) e/ou ALERT_EMAIL_TO e ALERT_SMTP_HOST (resumo por e-mail); os alertas seguem visíveis no Grafana"
+  echo "alertas sem canal: defina ALERT_NTFY_URL (push), ALERT_EMAIL_TO e ALERT_SMTP_HOST (resumo por e-mail) e/ou ALERT_GITHUB_TOKEN (issue no GitHub); os alertas seguem visíveis no Grafana"
 fi
 
 export GF_PATHS_PROVISIONING="$dir"
