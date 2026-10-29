@@ -468,14 +468,19 @@ function withFlags(
 
 /**
  * Opções do `reconcile` para a checagem gravada: com a checagem do validador, preço sem prova limpa o do
- * rascunho. Sem checagem nova, só a sinalização antiga sai (a fonte agora veio válida).
+ * rascunho, e a data de vigência recusada nesta gravação limpa a antiga (senão ela seguiria valendo).
+ * Sem checagem nova, só a sinalização antiga sai (a fonte agora veio válida).
  */
 function draftMeta(
   verification: LineupVerification | null,
   cur: LineupVerification | null,
   now: Date,
 ): { meta?: Record<string, unknown>; clearable?: readonly string[] } {
-  if (verification) return { meta: { verification }, clearable: PRICE_FIELDS };
+  if (verification) {
+    const rejected = (verification.flags ?? []).map((f) => f.field);
+    const dates = DATE_FLAG_FIELDS.filter(([flag]) => rejected.includes(flag)).map(([, field]) => field);
+    return { meta: { verification }, clearable: [...PRICE_FIELDS, ...dates] };
+  }
   return cur?.flags ? { meta: { verification: withFlags(cur, [], now) } } : {};
 }
 
@@ -870,6 +875,10 @@ export async function availabilityForChannels(
 // ─── gravação da pesquisa ────────────────────────────────────────────────────────────────────────
 
 const PRICE_FIELDS = ['priceText', 'priceAmount', 'priceCurrency'] as const;
+const DATE_FLAG_FIELDS = [
+  ['valid_from', 'validFrom'],
+  ['valid_to', 'validTo'],
+] as const;
 
 /** Slug da oferta de complemento: `<ref>[-<canal>][-f<meses>]`. */
 export function addonSlug(refId: string, channel: string | null, commitmentMonths: number | null): string {

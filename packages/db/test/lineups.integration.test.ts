@@ -490,4 +490,19 @@ describe('grade: valor inválido vindo da fonte sinaliza, não derruba', () => {
       proposeManualLineupEdit(db, { type: 'plan', id: planId }, { fields: { priceAmount: 0 }, by: 'w' }),
     ).rejects.toThrow(LineupError);
   });
+
+  it('data de vigência recusada depois limpa a gravada no rascunho', async () => {
+    const plan = { name: 'Plan Vigencia', validFrom: '2026-01-01', validTo: '2026-12-31', sources: [PAGE] };
+    const first = await upsertLineupDraft(db, base({ plans: [plan], addons: [] }));
+    const planId = first.planIds['plan-vigencia']!;
+    const r = await upsertLineupDraft(db, base({ plans: [{ ...plan, validTo: '31/12/2027' }], addons: [] }));
+    expect(r.flagged).toEqual([
+      expect.objectContaining({
+        item: 'Plan Vigencia',
+        flag: expect.objectContaining({ field: 'valid_to' }),
+      }),
+    ]);
+    const [row] = await db.select().from(platformPlan).where(eq(platformPlan.id, planId));
+    expect(row).toMatchObject({ validFrom: '2026-01-01', validTo: null });
+  });
 });
