@@ -21,7 +21,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | Sinal | Alerta | Dispara quando |
 |---|---|---|
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
-| `api` (de fora) | Monitores da Better Stack | Site ou API sem resposta para a internet (demo e assets: monitores ainda a criar) |
+| `api` (de fora) | Monitores da Better Stack | Site, API ou assets sem resposta para a internet |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
@@ -203,8 +203,10 @@ O plano gratuito não tem o tipo Keyword; os `/health*` devolvem 503 quando falh
 | API viva | `https://api.sports.galaxie.works/health` | Processo da API fora ou VPS inteira fora |
 | API pronta | `https://api.sports.galaxie.works/health/ready` | 503 sem Postgres (sem Valkey ainda responde 200 `degraded`) |
 | API com banco | `https://api.sports.galaxie.works/health/db` | 503 sem Postgres |
+| Assets | `https://assets.sports.galaxie.works/galaxie-sports-assets/api-sports/flags/br.svg` | Imagens (escudos, logos, bandeiras, fotos) fora |
 
-Ainda não criados (previstos): a página de login da demo e uma imagem fixa do `assets.` (um logo de time que não muda).
+O monitor dos assets usa a bandeira do Brasil do espelho da api-sports: a importação do acervo próprio só grava
+chaves novas sob `acervo/` e não move nada desse prefixo. A demo é o próprio site (monitor "Site").
 
 Para ser avisado no celular, instale o app da Better Stack com a mesma conta e marque "Push notification" em cada
 monitor (se o plano gratuito oferecer; senão fica o e-mail).
@@ -222,6 +224,7 @@ monitor (se o plano gratuito oferecer; senão fica o e-mail).
   | `/health` | API | Availability of the Galaxie Sports REST API. |
   | `/health/ready` | API Services | Readiness of the API to serve data requests. |
   | `/health/db` | Data Storage | Storage for fixtures, results, standings and statistics. |
+  | assets (`br.svg`) | Images & Media | Team crests, league logos, flags and player photos. |
 
 - O `/health/ready` responde 200 `degraded` com o Valkey fora, então "API Services" segue verde nesse caso (o
   monitor só vê disponibilidade). Por isso o texto público não promete cache.
