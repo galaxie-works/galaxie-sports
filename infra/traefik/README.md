@@ -15,7 +15,7 @@ Encrypt limita a 5 por semana por conjunto de domínios.
 |---|---|
 | Configuração estática (entrypoints, ACME, provider Docker, access log) | este `compose.yml`, na VPS em `/docker/traefik` |
 | Routers e serviços do Galaxie Sports | labels em [`infra/vps-telemetry/compose.yml`](../vps-telemetry/compose.yml) (`gsports-*`) |
-| Compressão (gzip e br) | middleware `gsports-compress`, por labels na stack do Galaxie Sports, ligado por `EDGE_MIDDLEWARES` no `.env` dela (abaixo) |
+| Compressão (gzip e br) e nova tentativa | middlewares `gsports-compress` e `gsports-retry`, por labels na stack do Galaxie Sports, ligados por `EDGE_MIDDLEWARES` no `.env` dela (abaixo) |
 | Routers das outras stacks | nos composes delas, fora deste repositório (não mexer) |
 | Firewall (`ufw`), SSH, Docker | [docs/runbooks/bootstrap-vps.md](../../docs/runbooks/bootstrap-vps.md) |
 
@@ -87,3 +87,11 @@ curl -sS -N -m 5 -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://$API_
 
 Voltar: tirar a linha do `.env` (ou `cp .env.bak-compress .env`) e o mesmo `docker compose up -d api demo s3 maintenance`.
 O próximo deploy já usa o `.env` como estiver.
+
+## Nova tentativa (`gsports-retry`)
+
+Declarado do mesmo jeito (labels iguais nos quatro serviços, o CI confere): até 2 tentativas, a primeira depois de
+100 ms, **só quando a conexão com o contêiner falha** (recusada ou caída antes de qualquer resposta); com resposta,
+qualquer status, não tenta de novo. Serve à troca sem página de manutenção do deploy: o contêiner antigo da API ou da
+demo para de aceitar conexão no SIGTERM, antes de o Traefik tirá-lo do balanceamento, e a requisição vai para o novo.
+Ligar junto com a compressão: `EDGE_MIDDLEWARES=gsports-compress,gsports-retry` (mesmo `up -d` acima).

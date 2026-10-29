@@ -334,14 +334,14 @@ jobs:
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
 
-      # O Traefik descarta um middleware declarado diferente em dois contêineres: o gsports-compress tem de ser igual
-      # em todos os serviços que o declaram (infra/traefik/README.md › Compressão)
-      - name: Middleware de compressão igual em todos os serviços
+      # O Traefik descarta um middleware declarado diferente em dois contêineres: os gsports-* têm de ser iguais em
+      # todos os serviços que os declaram (infra/traefik/README.md)
+      - name: Middlewares da borda iguais em todos os serviços
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json |
-            jq -e '[.services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-compress.")))
+            jq -e '[.services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
               | select(length > 0)] | (length >= 2) and (unique | length == 1)' >/dev/null ||
-            { echo "::error::traefik.http.middlewares.gsports-compress.* difere entre os serviços (ou sumiu)"; exit 1; }
+            { echo "::error::traefik.http.middlewares.gsports-* difere entre os serviços (ou sumiu)"; exit 1; }
 
       # O deploy-gh.sh baixa as imagens dos serviços com IMAGE_TAG no compose; todas precisam sair do job build acima
       - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
