@@ -385,7 +385,7 @@ jobs:
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
-            infra/vps-telemetry/live-hold.sh
+            infra/vps-telemetry/live-hold.sh infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
@@ -397,6 +397,9 @@ jobs:
       # versão que nunca fica healthy
       - name: Troca sem página de manutenção (rolling-swap.sh com o Traefik)
         run: bash infra/vps-telemetry/rolling-swap.test.sh
+
+      - name: Poda das imagens antigas na VPS (prune-images.sh com o Docker)
+        run: bash infra/vps-telemetry/prune-images.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
