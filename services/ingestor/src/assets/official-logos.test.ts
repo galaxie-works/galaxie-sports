@@ -73,6 +73,37 @@ describe('SVG exportado do acervo', () => {
     expect(cleanFigmaSvg(EXPORT).svg).toBe(svg);
   });
 
+  it('componente da seção Premium Content (nome sem letra, variantes Color=Original - ...)', () => {
+    const premium = `<svg width="134" height="100" viewBox="0 0 134 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="134" height="100" fill="#F5F5F5"/>
+<g id="Premium Content">
+<g id="Row">
+<g id="Sportv">
+<rect x="-23.5" y="-147.5" width="180.333" height="271" rx="3.5" stroke="#00AEEF" stroke-dasharray="10 5"/>
+<g id="Color=Original - Dark" clip-path="url(#clip0_335_3346)">
+<g id="Logo">
+<path id="Vector" d="M0 0H10V10H0Z" fill="white"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_335_3346">
+<rect width="133.333" height="100" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+`;
+    const { svg, componentName } = cleanFigmaSvg(premium);
+    expect(componentName).toBe('Sportv');
+    expect(svg).toMatch(/^<svg width="134" height="100" viewBox="0 0 134 100" fill="none"/);
+    expect(svg).toContain('<g id="Color=Original - Dark" clip-path="url(#clip0_335_3346)">');
+    expect(svg).toContain('<clipPath id="clip0_335_3346">');
+    expect(svg).not.toContain('#F5F5F5');
+    expect(svg).not.toContain('stroke-dasharray');
+  });
+
   it('recusa SVG sem o grupo do componente', () => {
     expect(() => cleanFigmaSvg('<svg width="1" height="1"><rect/></svg>')).toThrow(/símbolo/);
     expect(() => cleanFigmaSvg('nada')).toThrow(/<svg>/);
