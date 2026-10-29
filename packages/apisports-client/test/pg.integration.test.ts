@@ -618,6 +618,13 @@ describe('PgRawStore: dedupe pelo hash do corpo', () => {
       ['ha', 200, 1],
       ['ha', 500, 1],
     ]);
+    // o mesmo corpo buscado depois fora do ao vivo (DAILY) torna a resposta permanente
+    expect(await store.save({ ...a, statusCode: 500, fetchedAt: at(6), retention: 'keep' })).toBe('seen');
+    const [last] = (await rows()).slice(-1);
+    expect(last).toMatchObject({ retention: 'keep', seenCount: 2 });
+    // e o ao vivo repetindo depois não volta a `live`
+    await store.save({ ...a, statusCode: 500, fetchedAt: at(7) });
+    expect((await rows()).slice(-1)[0]!.retention).toBe('keep');
     // sem `retention`, a gravação é `keep`
     await store.save({ ...base, requestHash: 'dedupe-h2', body: {}, bodyHash: 'hk', fetchedAt: at(0) });
     const [k] = await db.select().from(apiResponse).where(eq(apiResponse.requestHash, 'dedupe-h2'));

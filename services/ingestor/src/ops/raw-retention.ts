@@ -116,11 +116,15 @@ export interface RawHistoryReport {
   dryRun: boolean;
 }
 
-/** Linhas do raw antigas que vieram dos jobs do ao vivo e ainda estão como `keep`. */
+/**
+ * Linhas do raw antigas que vieram dos jobs do ao vivo e ainda estão como `keep`. Só as nunca repetidas
+ * (`last_seen_at` nulo): a cabeça de uma sequência juntada que uma busca fora do ao vivo repetiu ficou `keep` de
+ * propósito, e rodar de novo não pode devolvê-la a `live`.
+ */
 const unclassifiedLive = sql`
   select r.id from raw.api_response r
     join ops.job_run j on r.job_id = 'job-run:' || j.id::text
-   where r.retention = 'keep' and r.job_id like 'job-run:%'
+   where r.retention = 'keep' and r.last_seen_at is null and r.job_id like 'job-run:%'
      and j.job in (${sql.join(
        LIVE_JOBS.map((j) => sql`${j}`),
        sql`, `,
@@ -133,7 +137,7 @@ const unclassifiedLive = sql`
 function repeatedRuns(requestFilter: ReturnType<typeof sql>) {
   return sql`
     with o as (
-      select id, provider, sport, endpoint, request_hash, fetched_at, last_seen_at, seen_count,
+      select id, provider, sport, endpoint, request_hash, fetched_at, last_seen_at, seen_count, retention,
              pg_column_size(body) as bytes,
              case when lag(body_hash) over w = body_hash and lag(status_code) over w = status_code
                   then 0 else 1 end as brk
@@ -149,10 +153,11 @@ function repeatedRuns(requestFilter: ReturnType<typeof sql>) {
              (array_agg(id order by fetched_at, id))[1] as head,
              max(coalesce(last_seen_at, fetched_at)) as seen,
              sum(seen_count)::int as seen_count,
+             bool_or(retention = 'keep') as keep,
              count(*) as rows
         from g group by 1, 2, 3, 4, 5 having count(*) > 1
     )
-    select runs.head, runs.seen, runs.seen_count, g.id, g.bytes
+    select runs.head, runs.seen, runs.seen_count, runs.keep, g.id, g.bytes
       from runs
       join g using (provider, sport, endpoint, request_hash, run)
      where g.id <> runs.head`;
@@ -214,14 +219,16 @@ export async function compactRawHistory(
       sql`, `,
     )})`;
     const [row] = await db.transaction(async (tx) => {
-      // a cabeça de cada sequência herda o último "visto em" e a contagem; as repetidas saem
+      // a cabeça de cada sequência herda o último "visto em", a contagem e o `keep`; as repetidas saem
       return tx.execute<{ n: number; bytes: string | null }>(sql`
         with v as (${repeatedRuns(filter)}),
         h as (
           update raw.api_response r
              set last_seen_at = greatest(coalesce(r.last_seen_at, r.fetched_at), x.seen),
-                 seen_count = x.seen_count
-            from (select distinct head, seen, seen_count from v) x
+                 seen_count = x.seen_count,
+                 -- uma repetida fora do ao vivo torna a sequência permanente
+                 retention = case when x.keep then 'keep' else r.retention end
+            from (select distinct head, seen, seen_count, keep from v) x
            where r.id = x.head
           returning 1
         ),

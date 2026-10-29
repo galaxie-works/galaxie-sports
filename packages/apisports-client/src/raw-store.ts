@@ -89,6 +89,8 @@ export class InMemoryRawStore implements RawStore {
       if (record.fetchedAt > seenAt(last)) last.lastSeenAt = record.fetchedAt;
       last.seenCount += 1;
       if (record.quotaRemaining != null) last.quotaRemaining = record.quotaRemaining;
+      // uma busca fora do ao vivo com o mesmo corpo torna a resposta permanente
+      if ((record.retention ?? 'keep') === 'keep') last.retention = 'keep';
       return 'seen';
     }
     this.records.push({ ...record, lastSeenAt: null, seenCount: 1 });
@@ -135,7 +137,8 @@ export class PgRawStore implements RawStore {
 
   /**
    * Um comando só: compara com a última resposta da requisição (índice api_response_lookup_idx) e, se o corpo
-   * e o status são os mesmos, só estende o "visto em"; senão grava a linha nova.
+   * e o status são os mesmos, só estende o "visto em"; senão grava a linha nova. Corpo repetido por uma busca
+   * fora do ao vivo (`keep`) torna a linha permanente, mesmo que o ao vivo a tenha gravado primeiro.
    */
   async save(record: RawRecord): Promise<RawSaveOutcome> {
     const fetchedAt = record.fetchedAt.toISOString();
@@ -151,7 +154,8 @@ export class PgRawStore implements RawStore {
         update raw.api_response r
            set last_seen_at = greatest(coalesce(r.last_seen_at, r.fetched_at), ${fetchedAt}::timestamptz),
                seen_count = r.seen_count + 1,
-               quota_remaining = coalesce(${record.quotaRemaining}::int, r.quota_remaining)
+               quota_remaining = coalesce(${record.quotaRemaining}::int, r.quota_remaining),
+               retention = case when ${record.retention ?? 'keep'} = 'keep' then 'keep' else r.retention end
           from last
          where r.id = last.id and last.body_hash = ${record.bodyHash}
            and last.status_code = ${record.statusCode}::int

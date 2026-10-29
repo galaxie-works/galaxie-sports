@@ -121,30 +121,34 @@ describe('compactRawHistory', () => {
     // A A A B B A: viram A(3) B(2) A(1)
     const a1 = await raw('r1', daysAgo(10, 0), { jobId: jl });
     await raw('r1', daysAgo(10, 1), { jobId: jl });
-    await raw('r1', daysAgo(10, 2), { jobId: jl, lastSeenAt: daysAgo(10, 3) });
+    await raw('r1', daysAgo(10, 2), { jobId: jl });
     const b1 = await raw('r1', daysAgo(10, 4), { jobId: jl, body: 'b' });
     await raw('r1', daysAgo(10, 5), { jobId: jl, body: 'b' });
     const a2 = await raw('r1', daysAgo(10, 6), { jobId: jl });
     // mesmo corpo com status diferente não junta
     const c1 = await raw('r2', daysAgo(9), { jobId: jd });
     const c2 = await raw('r2', daysAgo(8), { jobId: jd, status: 500 });
+    // o ao vivo buscou primeiro e o sync diário repetiu o corpo: a sequência fica permanente
+    const m1 = await raw('r3', daysAgo(7), { jobId: jl });
+    await raw('r3', daysAgo(6), { jobId: jd });
 
     const plan = await compactRawHistory(db, { dryRun: true });
-    expect(plan).toMatchObject({ classified: 6, merged: 3, dryRun: true });
-    expect(await rawIds()).toHaveLength(8);
+    expect(plan).toMatchObject({ classified: 7, merged: 4, dryRun: true });
+    expect(await rawIds()).toHaveLength(10);
 
     const done = await compactRawHistory(db, { batchRequests: 1, classifyBatch: 2, pauseMs: 0 });
-    expect(done).toMatchObject({ classified: 6, merged: 3 });
-    expect(await rawIds()).toEqual([a1, b1, a2, c1, c2]);
+    expect(done).toMatchObject({ classified: 7, merged: 4 });
+    expect(await rawIds()).toEqual([a1, b1, a2, c1, c2, m1]);
     const rows = await db.select().from(apiResponse).orderBy(asc(apiResponse.id));
     expect(rows.find((r) => r.id === a1)).toMatchObject({
       seenCount: 3,
-      lastSeenAt: daysAgo(10, 3),
+      lastSeenAt: daysAgo(10, 2),
       retention: 'live',
     });
     expect(rows.find((r) => r.id === b1)).toMatchObject({ seenCount: 2, lastSeenAt: daysAgo(10, 5) });
     expect(rows.find((r) => r.id === a2)).toMatchObject({ seenCount: 1, lastSeenAt: null });
     expect(rows.find((r) => r.id === c1)!.retention).toBe('keep');
+    expect(rows.find((r) => r.id === m1)).toMatchObject({ retention: 'keep', seenCount: 2 });
 
     // idempotente
     expect(await compactRawHistory(db, { pauseMs: 0 })).toMatchObject({ classified: 0, merged: 0 });

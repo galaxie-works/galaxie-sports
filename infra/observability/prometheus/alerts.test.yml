@@ -294,18 +294,19 @@ tests:
               description: 'O alvo node-exporter:9100 não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
   - name: disco acabando em menos de 3 dias no ritmo atual
-    interval: 10m
+    # amostra por minuto: com amostras espaçadas, o lookback de 5 min deixa a série sumir e o `for` recomeça
+    interval: 1m
     input_series:
       # 100 GB de disco, 40 GB livres caindo 1 GB por hora
       - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
-        values: '40000000000-166666667x30'
+        values: '40000000000-16666667x180'
       - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
-        values: '100000000000x30'
+        values: '100000000000x180'
       # disco folgado (80% livre) caindo no mesmo ritmo: não avisa
       - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",device="/dev/sdb1",fstype="ext4",mountpoint="/data/outro"}'
-        values: '80000000000-166666667x30'
+        values: '80000000000-16666667x180'
       - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",device="/dev/sdb1",fstype="ext4",mountpoint="/data/outro"}'
-        values: '100000000000x30'
+        values: '100000000000x180'
     alert_rule_test:
       - eval_time: 50m
         alertname: DiskFillingUp
