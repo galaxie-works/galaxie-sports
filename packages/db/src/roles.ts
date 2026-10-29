@@ -18,6 +18,7 @@
  * subida. Por isso o schema é criado aqui, já com esse dono, e as tabelas existentes passam para ele.
  */
 import postgres from 'postgres';
+import { resolveDbTimeouts, sessionParams } from './client.js';
 
 /** Schemas da aplicação (migrations). Schema novo em migration entra aqui e na matriz (o CI confere). */
 export const APP_SCHEMAS = [
@@ -137,7 +138,12 @@ const splitScope = (scope: string): { schema: string; table: string | null } => 
 export async function applyRoles(url: string, options: ApplyRolesOptions = {}): Promise<ApplyRolesResult> {
   const prefix = options.prefix ?? 'galaxie_';
   if (!/^[a-z][a-z0-9_]*$/.test(prefix)) throw new Error(`prefixo de papel inválido: ${prefix}`);
-  const sql = postgres(url, { max: 1, onnotice: () => {} });
+  // perfil migrate (lock_timeout curto): o ALTER OWNER do demo_auth não enfileira a demo atrás de um job longo
+  const sql = postgres(url, {
+    max: 1,
+    onnotice: () => {},
+    connection: sessionParams(resolveDbTimeouts('migrate'), 'galaxie-migrate-roles'),
+  });
   const role = (s: RoleService) => sql(roleName(s, prefix));
   const login: string[] = [];
   try {
