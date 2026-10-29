@@ -40,7 +40,7 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 
 | Alerta | Quer dizer |
 |---|---|
-| `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min |
+| `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min; não conta enquanto há execução em andamento (o `live-run` fica no ar a janela inteira do ao vivo) |
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
