@@ -336,6 +336,35 @@ describe('logo enviado no painel', () => {
     expect(feed.some((f) => f.topic === 'lineup')).toBe(true);
   });
 
+  it('versão para o tema escuro: coluna própria, histórico por variante e volta sem mexer no claro', async () => {
+    const target = { type: 'broadcaster' as const, id: 'canal-exemplo' };
+    const [start] = await db.select().from(broadcaster).where(eq(broadcaster.id, 'canal-exemplo'));
+    const dark = await setCustomLogo(db, target, file('e'.repeat(64)), ADMIN, 'dark');
+    expect(dark.previousAssetId).toBeNull();
+    const [b] = await db.select().from(broadcaster).where(eq(broadcaster.id, 'canal-exemplo'));
+    expect(b!.customLogoDarkAssetId).toBe(dark.assetId);
+    expect(b!.customLogoAssetId).toBe(start!.customLogoAssetId);
+    const history = await listLogoUploads(db, target);
+    expect(history[0]).toMatchObject({ variant: 'dark', assetId: dark.assetId });
+
+    // voltar o claro não desfaz o escuro (cada variante tem o seu último envio)
+    expect(await revertCustomLogo(db, target, ADMIN, 'dark')).toBe(true);
+    const [back] = await db.select().from(broadcaster).where(eq(broadcaster.id, 'canal-exemplo'));
+    expect(back!.customLogoDarkAssetId).toBeNull();
+    expect(back!.customLogoAssetId).toBe(start!.customLogoAssetId);
+    expect(await revertCustomLogo(db, target, ADMIN, 'dark')).toBe(false);
+
+    const res = await setCustomLogo(
+      db,
+      { type: 'platform', id: platformId },
+      file('f'.repeat(64)),
+      ADMIN,
+      'dark',
+    );
+    const [p] = await db.select().from(platform).where(eq(platform.id, platformId));
+    expect(p!.customLogoDarkAssetId).toBe(res.assetId);
+  });
+
   it('alvo inexistente: erro', async () => {
     await expect(
       setCustomLogo(db, { type: 'broadcaster', id: 'nao-existe' }, file('d'.repeat(64)), ADMIN),

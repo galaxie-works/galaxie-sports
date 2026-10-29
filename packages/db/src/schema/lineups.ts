@@ -240,6 +240,8 @@ export const platform = enrich.table(
      * regrava). O anterior fica em `enrich.logo_upload`, para voltar.
      */
     customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
+    /** Versão para tema escuro enviada no painel (sem ela, vale a do acervo ou o logo claro). */
+    customLogoDarkAssetId: uuid('custom_logo_dark_asset_id').references(() => asset.id),
     /** Mesmo serviço que uma entrada da biblioteca de emissoras (streaming). */
     broadcasterId: text('broadcaster_id').references(() => broadcaster.id, { onDelete: 'set null' }),
     /**
@@ -424,6 +426,10 @@ export const lineupPage = enrich.table(
 export const LOGO_UPLOAD_TARGETS = ['platform', 'broadcaster'] as const;
 export type LogoUploadTarget = (typeof LOGO_UPLOAD_TARGETS)[number];
 
+/** Variante do logo enviado: `light` (fundo claro, o `logo` da API) ou `dark` (tema escuro, o `logo_dark`). */
+export const LOGO_VARIANTS = ['light', 'dark'] as const;
+export type LogoVariant = (typeof LOGO_VARIANTS)[number];
+
 /**
  * Histórico dos logos enviados no painel: cada envio liga o asset novo em `custom_logo_asset_id` e guarda o
  * que estava antes (null = sem logo do painel, vale o da origem), para voltar. Nada é apagado: os arquivos
@@ -436,6 +442,8 @@ export const logoUpload = enrich.table(
     targetType: text('target_type').$type<LogoUploadTarget>().notNull(),
     /** uuid da plataforma ou id da biblioteca de emissoras. */
     targetId: text('target_id').notNull(),
+    /** Qual logo o envio trocou: o claro (`custom_logo_asset_id`) ou o do tema escuro. */
+    variant: text('variant').$type<LogoVariant>().notNull().default('light'),
     assetId: uuid('asset_id')
       .notNull()
       .references(() => asset.id),

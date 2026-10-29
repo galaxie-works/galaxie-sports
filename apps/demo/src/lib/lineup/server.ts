@@ -54,19 +54,27 @@ type LibraryRow = {
   kind: string;
   storage_key: string | null;
   source_url: string | null;
+  dark_storage_key: string | null;
   custom: boolean;
+  custom_dark: boolean;
 };
-// logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, como na API
-const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url,
-      b.custom_logo_asset_id is not null as custom
+// logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, como na API; a versão escura
+// do painel vale sempre, a do acervo só sem logo claro do painel
+const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url, d.storage_key as dark_storage_key,
+      b.custom_logo_asset_id is not null as custom,
+      b.custom_logo_dark_asset_id is not null as custom_dark
     from enrich.broadcaster b
-    left join core.asset a on a.id = coalesce(b.custom_logo_asset_id, b.logo_asset_id)`;
+    left join core.asset a on a.id = coalesce(b.custom_logo_asset_id, b.logo_asset_id)
+    left join core.asset d on d.id = coalesce(b.custom_logo_dark_asset_id,
+      case when b.custom_logo_asset_id is null then b.logo_dark_asset_id end)`;
 const toEntry = (r: LibraryRow): LibraryEntry => ({
   id: r.id,
   name: r.name,
   kind: r.kind,
   logoUrl: assetUrl(r.storage_key, r.source_url),
+  logoDarkUrl: r.dark_storage_key ? assetUrl(r.dark_storage_key, null) : null,
   customLogo: r.custom === true,
+  customDarkLogo: r.custom_dark === true,
 });
 
 /** Nome e logo das entradas da biblioteca de emissoras usadas nas grades. */
@@ -109,12 +117,14 @@ async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
   }
   // logo da plataforma: o enviado no painel vale no lugar do da busca de logos
   const logoOf = (l: PlatformLineup) => l.platform.customLogoAssetId ?? l.platform.logoAssetId;
-  const logos = lineups.map(logoOf).filter((x): x is string => Boolean(x));
+  const logos = lineups
+    .flatMap((l) => [logoOf(l), l.platform.customLogoDarkAssetId])
+    .filter((x): x is string => Boolean(x));
   const [library, assets] = await Promise.all([readLibrary([...refs]), assetUrls(logos)]);
-  return lineups.map((l) => {
-    const id = logoOf(l);
-    return lineupView(l, library, id ? (assets.get(id) ?? null) : null);
-  });
+  const urlOf = (id: string | null | undefined) => (id ? (assets.get(id) ?? null) : null);
+  return lineups.map((l) =>
+    lineupView(l, library, urlOf(logoOf(l)), urlOf(l.platform.customLogoDarkAssetId)),
+  );
 }
 
 const today = () => new Date().toISOString().slice(0, 10);

@@ -243,6 +243,15 @@ export default defineMessages(
           revert: 'Voltar ao logo anterior',
           reverted: 'Logo anterior restaurado',
           unavailable: 'Upload desligado: o storage de assets não está configurado neste ambiente.',
+          preview: 'Como sai hoje',
+          onLight: 'Fundo claro',
+          onDark: 'Tema escuro',
+          darkMissing:
+            'Sem versão para o tema escuro: no escuro, o logo claro sai sobre uma placa clara. Envie uma versão clara (branca ou vazada) para usar no lugar.',
+          variant: 'Qual logo enviar',
+          variants: { light: 'Para fundo claro', dark: 'Para tema escuro' },
+          uploadedDark: 'Versão para o tema escuro enviada: já sai na API',
+          revertDark: 'Voltar à versão escura anterior',
         },
       },
       requests: {
@@ -567,6 +576,15 @@ export default defineMessages(
             revert: 'Back to the previous logo',
             reverted: 'Previous logo restored',
             unavailable: 'Upload is off: the asset storage is not configured in this environment.',
+            preview: 'How it shows today',
+            onLight: 'Light background',
+            onDark: 'Dark theme',
+            darkMissing:
+              'No dark-theme version: on dark, the light logo is shown on a light plate. Upload a light (white or knockout) version to use instead.',
+            variant: 'Which logo to upload',
+            variants: { light: 'For light background', dark: 'For dark theme' },
+            uploadedDark: 'Dark-theme version uploaded: already served by the API',
+            revertDark: 'Back to the previous dark version',
           },
         },
         requests: {
@@ -894,6 +912,15 @@ export default defineMessages(
             revert: 'Volver al logo anterior',
             reverted: 'Logo anterior restaurado',
             unavailable: 'Subida desactivada: el storage de assets no está configurado en este entorno.',
+            preview: 'Cómo sale hoy',
+            onLight: 'Fondo claro',
+            onDark: 'Tema oscuro',
+            darkMissing:
+              'Sin versión para el tema oscuro: en oscuro, el logo claro sale sobre una placa clara. Subí una versión clara (blanca o calada) para usar en su lugar.',
+            variant: 'Qué logo subir',
+            variants: { light: 'Para fondo claro', dark: 'Para tema oscuro' },
+            uploadedDark: 'Versión para el tema oscuro subida: ya sale en la API',
+            revertDark: 'Volver a la versión oscura anterior',
           },
         },
         requests: {

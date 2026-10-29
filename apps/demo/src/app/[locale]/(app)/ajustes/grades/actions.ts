@@ -43,6 +43,7 @@ import {
   isTargetId,
   parseDomains,
   type CreatableType,
+  type LogoVariant,
   type LineupStatus,
   type TargetType,
 } from '@/lib/lineup/types';
@@ -284,6 +285,8 @@ export async function createLineupItem(
   return { ok: true };
 }
 
+const validLogoVariant = (v: unknown): v is LogoVariant => v === 'light' || v === 'dark';
+
 const validLogoTarget = (type: unknown, id: unknown): type is 'platform' | 'broadcaster' =>
   (type === 'platform' && isId(id)) ||
   (type === 'broadcaster' && typeof id === 'string' && /^[a-z0-9][a-z0-9._-]{0,119}$/i.test(id));
@@ -299,7 +302,8 @@ export async function uploadLineupLogo(form: FormData): Promise<AdminLineupResul
   const type = form.get('targetType');
   const id = form.get('targetId');
   const file = form.get('file');
-  if (!validLogoTarget(type, id)) return { ok: false, error: t.itemNotFound };
+  const variant = form.get('variant') ?? 'light';
+  if (!validLogoTarget(type, id) || !validLogoVariant(variant)) return { ok: false, error: t.itemNotFound };
   if (!(file instanceof Blob) || !file.size) return { ok: false, error: t.logo.empty };
   // antes de ler o arquivo inteiro (a validação confere de novo, pelo conteúdo)
   if (file.size > LOGO_MAX_KB * 1024)
@@ -311,6 +315,7 @@ export async function uploadLineupLogo(form: FormData): Promise<AdminLineupResul
       target: { type, id: id as string },
       body: new Uint8Array(await file.arrayBuffer()),
       by: me.email,
+      variant,
     });
   } catch (err) {
     if (err instanceof LogoUploadError)
@@ -323,15 +328,20 @@ export async function uploadLineupLogo(form: FormData): Promise<AdminLineupResul
   return { ok: true };
 }
 
-/** Voltar ao logo anterior ao último envio. */
+/** Voltar ao logo anterior ao último envio, no logo claro ou na versão para o tema escuro. */
 export async function revertLineupLogo(target: {
   type: 'platform' | 'broadcaster';
   id: string;
+  variant?: LogoVariant;
 }): Promise<AdminLineupResult> {
   const me = await requireAdmin();
   const t = await texts();
-  if (!validLogoTarget(target?.type, target?.id)) return { ok: false, error: t.itemNotFound };
-  if (!(await revertCustomLogo(lineupDb(), target, me.email))) return { ok: false, error: t.logo.noRevert };
+  const variant = target?.variant ?? 'light';
+  if (!validLogoTarget(target?.type, target?.id) || !validLogoVariant(variant))
+    return { ok: false, error: t.itemNotFound };
+  const ref = { type: target.type, id: target.id };
+  if (!(await revertCustomLogo(lineupDb(), ref, me.email, variant)))
+    return { ok: false, error: t.logo.noRevert };
   revalidate();
   return { ok: true };
 }

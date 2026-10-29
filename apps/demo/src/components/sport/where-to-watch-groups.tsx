@@ -35,8 +35,10 @@ function money(amount: number, currency: string | null): string {
 }
 
 /**
- * Logo de emissora ou plataforma: a versão escura no tema escuro (acervo oficial), a clara no claro;
- * sem logo, as iniciais. Arquivos do nosso storage, fora do otimizador do Next.
+ * Logo de emissora ou plataforma: a versão escura no tema escuro (painel ou acervo oficial), a clara no
+ * claro; sem logo, as iniciais. Sem versão escura, o logo (feito para fundo claro, como diz o contrato)
+ * sai sobre uma placa clara no tema escuro, para não sumir no fundo. Arquivos do nosso storage, fora do
+ * otimizador do Next.
  */
 export function BrandLogo({
   name,
@@ -65,10 +67,20 @@ export function BrandLogo({
         {initials(name)}
       </span>
     );
-  if (!logoDark || !logo || logoDark === logo)
+  if (!logoDark)
     return (
-      <img src={(logoDark ?? logo)!} alt="" title={title} className={cn(box, 'shrink-0 object-contain')} />
+      <span
+        className={cn(
+          box,
+          'inline-flex shrink-0 items-center justify-center rounded-sm dark:bg-white dark:p-0.5',
+        )}
+        title={title}
+      >
+        <img src={logo!} alt="" className="size-full object-contain" />
+      </span>
     );
+  if (!logo || logoDark === logo)
+    return <img src={logoDark} alt="" title={title} className={cn(box, 'shrink-0 object-contain')} />;
   return (
     <span className={cn(box, 'inline-flex shrink-0')} title={title}>
       <img src={logo} alt="" className="size-full object-contain dark:hidden" />
