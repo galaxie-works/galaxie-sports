@@ -982,4 +982,5 @@ Formato RFC 9457 (`application/problem+json`):
 
 - `/v1` estável; mudanças incompatíveis vão para `/v2` com 6 meses de convivência.
 - Campos novos podem ser adicionados a qualquer momento (clientes devem ignorar campos desconhecidos).
+- O CI compara o OpenAPI do PR com o da `main` (`.github/workflows/openapi.yml`, oasdiff): rota, parâmetro ou campo removido, tipo trocado ou parâmetro novo obrigatório falha o PR. Quebra de propósito só com o rótulo `quebra-de-contrato`, e aí ela entra na nota de versão e no aviso aos tenants.
 - O espelho `/mirror` segue a versão do fornecedor (`v3` futebol, `v1`/`v2` demais) — mudança de versão do fornecedor gera um novo prefixo (`/mirror/football-v4`).
