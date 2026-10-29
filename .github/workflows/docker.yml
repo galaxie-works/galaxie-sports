@@ -411,6 +411,10 @@ jobs:
       PGPORT: '5432'
       PGUSER: galaxie
       PGPASSWORD: galaxie
+      # Papel do backup (packages/db/src/roles.ts), como na stack: o migrate dá LOGIN com esta senha e o backup, o
+      # verificador e os ensaios rodam com ele (sem superusuário). A restauração real continua com o dono.
+      BACKUP_ROLE_URL: postgres://galaxie_backup:ci0papel0do0backup0so0de0teste@localhost:5432/galaxie_backup_e2e
+      MIGRATE_CMD: DATABASE_URL=postgres://galaxie:galaxie@localhost:5432/galaxie_backup_e2e DB_URL_BACKUP=$BACKUP_ROLE_URL pnpm --filter @galaxie/db db:migrate
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -431,7 +435,7 @@ jobs:
       - name: Banco descartável migrado
         run: |
           psql -d galaxie_sports -c "create database $E2E_DB"
-          DATABASE_URL="postgres://galaxie:galaxie@localhost:5432/$E2E_DB" pnpm --filter @galaxie/db db:migrate
+          sh -c "$MIGRATE_CMD"
 
       - name: backup → perda → ensaio → restore
         run: bash infra/backup/e2e-test.sh
