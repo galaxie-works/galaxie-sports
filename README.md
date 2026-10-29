@@ -269,6 +269,9 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
 | 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
+| 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
+| — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
+| — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
 | — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
 
