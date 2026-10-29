@@ -22,6 +22,8 @@ services:
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=rolling-swap-test_default
       - --entrypoints.websecure.address=:8081
+      - --accesslog=true
+      - --accesslog.format=json
     ports: ['${TEST_PORT}:8081']
     volumes: ['/var/run/docker.sock:/var/run/docker.sock:ro']
   app:
@@ -54,7 +56,12 @@ cleanup() {
 trap cleanup EXIT
 
 export TEST_PORT=$PORT
-get() { curl -s -m 2 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" || echo 000; }
+# uma linha por requisição: o status (000 = sem resposta) e o código de saída do curl
+get() {
+  local code rc=0
+  code=$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/") || rc=$?
+  echo "${code:-000} $rc"
+}
 body() { curl -s -m 2 "http://127.0.0.1:$PORT/" || true; }
 wait_body() {
   for _ in $(seq 60); do
@@ -74,8 +81,8 @@ wait_body v1
 echo "── troca para v2 com tráfego a cada 50 ms"
 : > codes.txt
 (while :; do
-  get >> codes.txt
-  echo >> codes.txt
+  line=$(get)
+  echo "$line" >> codes.txt
   sleep 0.05
 done) &
 LOOP=$!
@@ -83,15 +90,16 @@ APP_VERSION=2 bash "$HERE/rolling-swap.sh" app
 sleep 3
 kill "$LOOP"
 LOOP=""
-total=$(grep -c . codes.txt)
-bad=$(grep -vc '^200$' codes.txt || true)
+total=$(grep -cE '^[0-9]{3} ' codes.txt)
+bad=$(grep -E '^[0-9]{3} ' codes.txt | grep -vc '^200 0$' || true)
 echo "requisições durante a troca: $total · fora de 200: $bad"
 [ "$total" -ge 20 ] || {
   echo "FAIL  laço de requisições curto demais ($total)"
   exit 1
 }
 [ "$bad" = 0 ] || {
-  echo "FAIL  respostas fora de 200 durante a troca: $(grep -v '^200$' codes.txt | sort | uniq -c | tr '\n' ' ')"
+  echo "FAIL  respostas fora de 200 durante a troca (status e código do curl): $(grep -E '^[0-9]{3} ' codes.txt | grep -v '^200 0$' | sort | uniq -c | tr '\n' ' ')"
+  APP_VERSION=2 docker compose logs traefik 2>/dev/null | grep -v '"DownstreamStatus":200' | tail -n 20
   exit 1
 }
 [ "$(body)" = v2 ] || {
