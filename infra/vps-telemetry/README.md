@@ -427,7 +427,7 @@ cheio só de chaves sem TTL recusaria gravações, e cache e rate limit seguem p
 
 ### Alertas: push no celular e resumo por e-mail
 
-As regras ficam no Prometheus (`infra/observability/prometheus/alerts.yml`). O Grafana lê os alertas disparando: o
+As regras ficam no Prometheus (`infra/observability/prometheus/alerts.yml` e, as dos SLOs, `slo.yml`). O Grafana lê os alertas disparando: o
 crítico (os 5 sinais graves) sai na hora como push pelo ntfy; o resto entra no resumo diário por e-mail, às 08:00 de
 Brasília. Passo a passo, teste e o monitor externo: `docs/runbooks/alertas-e-monitoramento.md`. No `.env` da VPS (o
 tópico e a senha nunca vão para o repositório):

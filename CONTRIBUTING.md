@@ -43,4 +43,5 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 6. **Privacidade**: nunca envie e-mail ou dado pessoal em requisições externas (User-Agent genérico, ex.: `galaxie-sports/0.1`).
 7. **Segredos**: só em `.env` (ignorado pelo Git). Nunca commite chaves.
 8. **Commits**: mensagem em português, convencional (`feat(escopo): ...`), com `Closes #N` quando fechar issue.
-9. **PRs**: um PR por conjunto coeso de issues, descrição com resumo, como testar e o que ficou fora; `Closes #N` para cada issue concluída.
+9. **Contrato da API**: mudou `packages/contracts`? O check "contrato OpenAPI" falha com quebra do `/v1` (docs/05 §8); quebra de propósito leva o rótulo `quebra-de-contrato`.
+10. **PRs**: um PR por conjunto coeso de issues, descrição com resumo, como testar e o que ficou fora; `Closes #N` para cada issue concluída.

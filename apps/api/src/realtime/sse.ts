@@ -30,6 +30,11 @@ declare module 'fastify' {
 export interface SseOptions {
   /** Conexões SSE simultâneas por tenant (todas as instâncias, via Valkey). Padrão 100. */
   maxConnectionsPerTenant?: number;
+  /**
+   * Teto de streams abertos neste processo, somando todos os tenants (SSE_MAX_CONNECTIONS). Acima dele a
+   * abertura recebe 503 com Retry-After, antes de o processo ficar sem memória. Padrão 1000.
+   */
+  maxConnections?: number;
   /** Intervalo do heartbeat (comentário SSE). Padrão 15 s. */
   heartbeatMs?: number;
   /** Bytes enfileirados para um cliente lento antes de derrubar a conexão. Padrão 1 MiB. */
@@ -42,12 +47,25 @@ export interface SseOptions {
   streamTokenSecret?: string | undefined;
 }
 
+/** Ganchos de métrica do SSE (a API liga no Prometheus; ver observability.ts). */
+export interface SseMetrics {
+  /** Streams abertos neste processo, depois de cada abertura e fechamento. */
+  connections(open: number): void;
+  rejected(reason: 'process_limit' | 'tenant_limit'): void;
+}
+
 interface StreamDeps {
   db: Database;
   stream: ChangeStream;
   limiter: ConnectionLimiter;
   options: SseOptions;
   tokens: StreamTokenSigner;
+  metrics?: SseMetrics | undefined;
+}
+
+/** Retry-After do 503 de teto do processo: espalhado, para os clientes recusados não voltarem todos juntos. */
+export function processLimitRetryAfter(random: () => number = Math.random): number {
+  return 15 + Math.floor(random() * 30);
 }
 
 /** Prazo para uma revogação (chave, tenant, plano) encerrar um stream aberto. */
@@ -141,6 +159,10 @@ export function redactKey(url: string): string {
 export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Promise<Set<SseConnection>> {
   const open = new Set<SseConnection>();
   const maxConnections = deps.options.maxConnectionsPerTenant ?? 100;
+  const maxProcessConnections = deps.options.maxConnections ?? 1_000;
+  // vagas do processo: contadas desde antes do acquire no Valkey (aberturas simultâneas não furam o teto)
+  let reserved = 0;
+  const metrics = deps.metrics;
   const heartbeatMs = deps.options.heartbeatMs ?? 15_000;
   const maxBufferBytes = deps.options.maxBufferBytes ?? 1024 * 1024;
   const maxReplay = deps.options.maxReplay ?? 5_000;
@@ -169,7 +191,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
 
   app.get(
     '/v1/stream',
-    { config: { module: 'core_data', allowQueryKey: true, allowStreamToken: true } },
+    { config: { module: 'core_data', allowQueryKey: true, allowStreamToken: true, longLived: true } },
     async (request, reply): Promise<void> => {
       const q = parseInput(StreamQuery, request.query);
       let tenant = request.tenant!;
@@ -203,6 +225,24 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
 
       // o cliente pode cair enquanto o acquire espera o Valkey: o 'close' dispara antes de existir o
       // cleanup, e sem esta marca o heartbeat renovaria o lease (vaga do tenant) para sempre
+      if (reserved >= maxProcessConnections) {
+        metrics?.rejected('process_limit');
+        throw new ProblemError(
+          503,
+          'DEGRADED',
+          'Limite de conexões de tempo real desta instância atingido',
+          'Tente reconectar após o Retry-After; enquanto isso, o estado pode ser lido pela API REST.',
+          { headers: { 'retry-after': String(processLimitRetryAfter()) } },
+        );
+      }
+      reserved += 1;
+      let slotHeld = true;
+      const releaseSlot = () => {
+        if (!slotHeld) return;
+        slotHeld = false;
+        reserved -= 1;
+      };
+
       const res = reply.raw;
       let clientGone = false;
       const onEarlyClose = () => {
@@ -219,12 +259,15 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         });
       res.off('close', onEarlyClose);
       if (clientGone || res.destroyed) {
+        releaseSlot();
         if (acquired) deps.limiter.release(tenant.tenantId, connectionId).catch(() => {});
         reply.hijack();
         res.destroy();
         return;
       }
-      if (!acquired)
+      if (!acquired) {
+        releaseSlot();
+        metrics?.rejected('tenant_limit');
         throw new ProblemError(
           429,
           'RATE_LIMITED',
@@ -232,6 +275,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
           `Máximo de ${maxConnections} conexões SSE abertas por tenant.`,
           { headers: { 'retry-after': '30' } },
         );
+      }
 
       // a partir daqui a resposta é nossa (stream longo): o hijack pula os hooks onSend, então os
       // headers de segurança e de CORS (EventSource de outra origem) vão aqui, à mão
@@ -257,6 +301,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         conn.destroy();
       });
       open.add(conn);
+      metrics?.connections(open.size);
 
       let replaying = true;
       const backlog: RealtimeChange[] = [];
@@ -300,6 +345,8 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         clearInterval(heartbeat);
         unsubscribe();
         open.delete(conn);
+        releaseSlot();
+        metrics?.connections(open.size);
         conn.closed = true;
         deps.limiter.release(tenant.tenantId, connectionId).catch(() => {});
       };

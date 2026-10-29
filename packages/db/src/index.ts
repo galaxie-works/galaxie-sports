@@ -36,7 +36,7 @@ export {
   type ChangeInput,
   type ChangeTagSource,
 } from './change-feed.js';
-export { GapCursor } from './gap-cursor.js';
+export { GapCursor, GAP_MAX_SEEN, GAP_TIMEOUT_MS, type AbandonedGap } from './gap-cursor.js';
 export {
   readEventContext,
   EVENT_CONTEXT_KINDS,

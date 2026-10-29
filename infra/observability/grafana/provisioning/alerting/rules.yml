@@ -1,5 +1,5 @@
 # Ponte dos alertas do Prometheus para o Grafana (que manda o push e o e-mail). As regras de verdade ficam em
-# infra/observability/prometheus/alerts.yml (testadas com promtool); esta regra só lê os que estão disparando
+# infra/observability/prometheus/alerts.yml e slo.yml (testadas com promtool); esta regra só lê os que estão disparando
 # (série ALERTS) e vira uma instância por alerta, com os rótulos dele. O nome original vai em `prometheus_alert`
 # (o rótulo `alertname` é o título desta regra no Grafana).
 # Os rótulos do alerta (severity, sinal) decidem o canal (entrypoint.sh). Sem ALERT_NTFY_URL nem SMTP, os alertas

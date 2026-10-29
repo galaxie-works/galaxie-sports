@@ -179,6 +179,8 @@ services:
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
+      # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
+      SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}

@@ -14,7 +14,7 @@ import {
 import { asset, event, eventParticipant, participant, stage, venue, venueDisplay } from '@galaxie/db';
 import { assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
-import { CACHE_TTL } from '../../cache/policy.js';
+import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
@@ -119,6 +119,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.schedule,
+      staleSec: STALE_SEC.schedule,
       vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? []), ...stakesVary(query.stakes)],
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz, query.stakes);
@@ -155,6 +156,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.live,
+      staleSec: STALE_SEC.live,
       vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? []), ...stakesVary(query.stakes)],
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz, query.stakes);
@@ -202,6 +204,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: ics ? CACHE_TTL.schedule : CACHE_TTL.standings,
+      staleSec: STALE_SEC.live,
       vary: [
         locale,
         ics ? 'ics' : tz,
