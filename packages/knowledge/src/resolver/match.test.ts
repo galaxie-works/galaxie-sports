@@ -39,6 +39,9 @@ const pool = (candidates: Candidate[], covered = true): CandidatePool => ({
 describe('normalização', () => {
   it('remove acentos, pontuação e prefixos societários', () => {
     expect(normalizeName('Grêmio Foot-Ball Porto Alegrense')).toBe('gremio foot ball porto alegrense');
+    expect(normalizeName('Araklıspor')).toBe('araklispor');
+    expect(normalizeName('Blau-Weiß Linz')).toBe('blau weiss linz');
+    expect(normalizeName('AS Dakar Sacré-Cœur')).toBe('as dakar sacre coeur');
     expect(coreTokens('Fortaleza EC')).toEqual(['fortaleza']);
     expect(coreTokens('SC Corinthians Paulista')).toEqual(['corinthians', 'paulista']);
     expect(nameSimilarity('Fortaleza EC', 'Fortaleza')).toBe(0.97);
