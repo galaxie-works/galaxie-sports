@@ -52,7 +52,7 @@ import {
 } from './where-to-watch.js';
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
-import { RealtimeChange, StreamQuery } from './realtime.js';
+import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
@@ -541,7 +541,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           description:
             'Stream `text/event-stream`: cada mensagem tem `id` (use no `Last-Event-ID` para retomar), ' +
             '`event` (o tópico) e `data` (RealtimeChange). Heartbeat por comentário a cada 15 s. ' +
-            'Autentique com `x-galaxie-key` ou `?key=` (EventSource). Detalhes em docs/05 §5.',
+            'Autentique com `x-galaxie-key` ou, no navegador (`EventSource` não envia headers), com o token curto ' +
+            'em `?token=` (`POST /v1/stream/token`). `?key=` é obsoleto: aceito até 27/12/2026 com os headers ' +
+            '`Deprecation` e `Sunset`. Detalhes em docs/05 §5.',
           tags: ['Tempo real'],
           requestParams: {
             query: StreamQuery,
@@ -555,6 +557,24 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
               content: { 'text/event-stream': { schema: RealtimeChange } },
             },
             ...errorResponses(400, 401, 403, 429, 503),
+          },
+        },
+      },
+      '/v1/stream/token': {
+        post: {
+          summary: 'Token curto para abrir o stream no navegador',
+          description:
+            'Troca a chave secreta (header `x-galaxie-key`, sempre no seu backend) por um token de 5 minutos para ' +
+            'o `EventSource` do navegador abrir `/v1/stream?token=…`. O token vale só para abrir o stream do seu ' +
+            'tenant; o stream aberto continua depois do prazo e encerra se a chave for revogada. Ao reconectar ' +
+            'depois de um erro, peça outro token. Sem corpo. Trial não tem tempo real (403).',
+          tags: ['Tempo real'],
+          responses: {
+            '201': {
+              description: 'Token emitido (não guarde: peça um por conexão)',
+              content: { 'application/json': { schema: StreamToken } },
+            },
+            ...errorResponses(401, 403, 429, 503),
           },
         },
       },

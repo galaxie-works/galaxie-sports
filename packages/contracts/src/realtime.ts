@@ -63,17 +63,46 @@ export const StreamQuery = z.object({
     .min(0)
     .optional()
     .meta({ description: 'Alternativa ao header `Last-Event-ID` para retomar a partir de uma mudança.' }),
+  token: z
+    .string()
+    .max(1000)
+    .optional()
+    .meta({
+      description:
+        'Token curto (5 min) para clientes `EventSource`, que não enviam headers: peça em ' +
+        '`POST /v1/stream/token` no seu backend, com a chave no header, e abra o stream com `?token=`. ' +
+        'Vale só para abrir este stream do seu tenant (docs/05 §5.1).',
+    }),
   key: z
     .string()
     .max(200)
     .optional()
     .meta({
+      param: { deprecated: true },
       description:
-        'Chave da API para clientes `EventSource` (que não enviam headers). Prefira o header `x-galaxie-key`: ' +
-        'a chave na URL pode ficar em históricos e logs de proxies (docs/05 §5.1).',
+        '**Obsoleto** (aceito até 27/12/2026, com os headers `Deprecation` e `Sunset`): a chave secreta na URL ' +
+        'fica em históricos, logs de proxies e referers. Use `?token=` (`POST /v1/stream/token`) ou o header ' +
+        '`x-galaxie-key` (docs/05 §5.1).',
     }),
 });
 export type StreamQuery = z.infer<typeof StreamQuery>;
+
+/** Resposta de `POST /v1/stream/token`: o token curto do SSE. */
+export const StreamToken = z
+  .object({
+    data: z.object({
+      token: z.string().meta({
+        description: 'Abre o `/v1/stream` do tenant em `?token=`; não serve para outra rota.',
+        example: 'gst_eyJ2IjoxLCJ0Ijoi….Zm9v',
+      }),
+      expires_at: z.iso
+        .datetime()
+        .meta({ description: 'Prazo para ABRIR o stream (o stream aberto continua).' }),
+      expires_in: z.number().int().meta({ description: 'Segundos até expirar.', example: 300 }),
+    }),
+  })
+  .meta({ id: 'StreamToken' });
+export type StreamToken = z.infer<typeof StreamToken>;
 
 /**
  * Mudança entregue por SSE (`data:`) e webhooks (corpo). Compacta: o evento, o tópico, os campos que

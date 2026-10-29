@@ -102,6 +102,8 @@ export class MatchChannelAgent {
       ),
       maxOutputTokens: this.options.maxOutputTokens ?? 10_000,
       purpose: channelPurpose(input.competition.slug, input.round, input.window, countries),
+      // faixa de orçamento pela prioridade da competição (#357)
+      competition: { slug: input.competition.slug },
     });
     const { data, ...meta } = result;
     const byEvent = new Map<string, Map<string, ChannelProposal[]>>();

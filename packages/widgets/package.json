@@ -2,7 +2,7 @@
   "name": "@galaxie/widgets",
   "version": "0.1.0",
   "private": true,
-  "description": "Widgets React da Galaxie Sports (placar, jogos do dia, tabela e onde assistir) e o gerador de item de registry shadcn do Builder",
+  "description": "Widgets React da Galaxie Sports (placar, jogos do dia, tabela, onde assistir, contexto de IA, o que está em jogo, vídeos, confronto direto e agenda do time), o gerador de item de registry shadcn do Builder e o embed HTML (<galaxie-widget>)",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -15,6 +15,10 @@
     "./registry": {
       "types": "./dist/registry/index.d.ts",
       "default": "./dist/registry/index.js"
+    },
+    "./embed-script": {
+      "types": "./dist/embed-script.d.ts",
+      "default": "./dist/embed-script.js"
     }
   },
   "files": [
@@ -22,7 +26,7 @@
   ],
   "scripts": {
     "embed": "node scripts/embed-sources.mjs",
-    "build": "node scripts/embed-sources.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/embed-sources.mjs && tsc -p tsconfig.build.json && node scripts/build-embed.mjs",
     "typecheck": "node scripts/embed-sources.mjs && tsc -p tsconfig.json --noEmit",
     "test": "node scripts/embed-sources.mjs && vitest run",
     "registry:item": "node scripts/registry-item.mjs"
@@ -36,9 +40,10 @@
     "@testing-library/react": "^16.3.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "happy-dom": "^20.0.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "shadcn": "^4.22.1"
   }
 }

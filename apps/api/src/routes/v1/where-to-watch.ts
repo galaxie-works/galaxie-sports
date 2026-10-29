@@ -141,7 +141,11 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           availability,
           updated_at: data.updatedAt ? formatInstant(data.updatedAt, tz) : null,
         };
-        return { body, tags: [wtwTag(params.id), `event:${params.id}`, ...lineupTags(platformIds)] };
+        // `broadcaster`: logos de canais e streamings da biblioteca (um logo enviado no painel purga isto)
+        return {
+          body,
+          tags: [wtwTag(params.id), `event:${params.id}`, ...lineupTags(platformIds), 'broadcaster'],
+        };
       },
     });
   });

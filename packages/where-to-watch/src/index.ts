@@ -20,6 +20,7 @@ export * from './official-logos.js';
 export * from './store.js';
 export * from './editorial.js';
 export * from './match-channel.js';
+export * from './logo-upload.js';
 export * from './public.js';
 export * from './audit.js';
 export * from './metrics.js';

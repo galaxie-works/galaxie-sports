@@ -149,7 +149,7 @@ export function matchOfficialLogo(base: string, library: OfficialLogoTarget[]): 
  * Planeja o manifesto: casa cada componente com a biblioteca e escolhe, por emissora (e por canal),
  * um único logo — o mais forte, e sem HD antes do HD. Os demais da mesma emissora/canal viram
  * `variant` (HD do mesmo nome) ou ficam `unmapped` com a nota do conflito. Entradas `curated` do
- * manifesto anterior são mantidas como estão.
+ * manifesto anterior são mantidas como estão, inclusive as de componentes fora do frame lido.
  */
 export function planOfficialLogos(
   components: OfficialLogoComponent[],
@@ -178,6 +178,9 @@ export function planOfficialLogos(
       strength: m?.strength ?? 0,
     };
   });
+  // curadoria de componente fora do frame lido (ex.: seção Premium Content): fica como está
+  const seen = new Set(components.map((c) => c.node));
+  for (const fixed of curated.values()) if (!seen.has(fixed.node)) entries.push({ ...fixed, strength: 4 });
   // um logo por (emissora, canal): curadoria > força do casamento > sem HD > ordem do acervo
   const slot = (e: OfficialLogoEntry) => `${e.broadcaster}\u0000${e.channel ? channelKey(e.channel) : ''}`;
   const groups = new Map<string, (OfficialLogoEntry & { strength: number })[]>();

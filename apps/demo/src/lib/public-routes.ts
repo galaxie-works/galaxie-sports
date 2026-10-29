@@ -35,6 +35,13 @@ const EXAMPLE_IMAGES = '/exemplo/img/';
  */
 const REGISTRY_ITEM = /^\/r\/[^/]+\.json$/;
 
+/**
+ * Embed HTML dos widgets: o script (`/embed.js`) e a configuração pública de cada widget (`/e/<id>.json`),
+ * lidos pela página do portal, sem sessão (ver `app/embed.js/route.ts` e `app/e/[id]/route.ts`).
+ */
+const EMBED_SCRIPT = '/embed.js';
+const EMBED_CONFIG = /^\/e\/[^/]+\.json$/;
+
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
 /** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
@@ -45,6 +52,8 @@ export function isPublicPath(pathname: string): boolean {
     includes(PUBLIC_FILES, pathname) ||
     includes(EXAMPLE_PATHS, pathname) ||
     pathname.startsWith(EXAMPLE_IMAGES) ||
-    REGISTRY_ITEM.test(pathname)
+    REGISTRY_ITEM.test(pathname) ||
+    pathname === EMBED_SCRIPT ||
+    EMBED_CONFIG.test(pathname)
   );
 }

@@ -64,6 +64,7 @@ describe('ApiSportsProvider', () => {
     await p.listEvents({ sport: 'football', participantIds: ['121', '131'] });
     await p.getEventDetail('football', '1492407');
     await p.listLive('football', ['71', '13']);
+    await p.listLive('football', ['307']);
     await p.listLive('football');
     await p.listParticipants({ sport: 'football', country: 'Brazil' });
     await p.listParticipants({ sport: 'football', competitionId: '71', season: 2024 });
@@ -76,6 +77,7 @@ describe('ApiSportsProvider', () => {
       ['/fixtures/headtohead', { h2h: '121-131' }, 'ADHOC'],
       ['/fixtures', { id: '1492407' }, 'ADHOC'],
       ['/fixtures', { live: '71-13' }, 'LIVE'],
+      ['/fixtures', { live: '307-307' }, 'LIVE'],
       ['/fixtures', { live: 'all' }, 'LIVE'],
       ['/teams', { country: 'Brazil' }, 'ADHOC'],
       ['/teams', { league: '71', season: 2024 }, 'ADHOC'],

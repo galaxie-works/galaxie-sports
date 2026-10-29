@@ -20,7 +20,10 @@ function loadDenylist(): MediaDenylist | undefined {
 }
 const mediaDenylist = loadDenylist();
 
-const db = process.env.DATABASE_URL ? createDb(process.env.DATABASE_URL) : undefined;
+// perfil `api`: statement/lock/idle-in-transaction curtos (consulta presa solta a conexão antes do timeout da requisição)
+const db = process.env.DATABASE_URL
+  ? createDb(process.env.DATABASE_URL, { profile: 'api', applicationName: 'galaxie-api' })
+  : undefined;
 
 const REVIEW_STATUSES: ReviewStatus[] = ['draft', 'reviewed', 'approved'];
 const minReviewStatus = process.env.SEMANTIC_MIN_REVIEW_STATUS as ReviewStatus | undefined;
@@ -55,8 +58,15 @@ if (db) {
 // piso editorial da grade de canais e ofertas: lido depois das sobrescritas do painel (banco > env > padrão)
 const lineupMinReview = lineupMinReviewStatus(process.env);
 
+// commandTimeout: Valkey lento (cheio, swap, AOF reescrevendo) vira erro em 1 s, e o cache e o rate limit seguem
+// o caminho de falha deles, em vez de a requisição esperar o comando para sempre
+const redisCommandTimeoutMs = Number(process.env.REDIS_COMMAND_TIMEOUT_MS) || 1_000;
 const redis = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 1, enableOfflineQueue: false })
+  ? new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      commandTimeout: redisCommandTimeoutMs,
+    })
   : undefined;
 redis?.on('error', () => {}); // reconexão automática; falhas de cache/rate limit são registradas por requisição
 
@@ -66,10 +76,19 @@ const app = buildServer({
   ...hardening,
   ...(db ? { db } : {}),
   ...(redis ? { redis } : {}),
+  // prefixo próprio no Valkey (cache, rate limit, uso, liderança e canal do relay do SSE): o candidato do deploy
+  // (api-candidate, infra/vps-telemetry/deploy-gh.sh) roda ao lado da versão no ar sem misturar as chaves dela
+  ...(process.env.REDIS_KEY_PREFIX?.trim() ? { keyPrefix: process.env.REDIS_KEY_PREFIX.trim() } : {}),
+  // USAGE_PERSIST=off: o uso fica só no Valkey, sem consolidar em api.usage_daily (o candidato do deploy)
+  ...(process.env.USAGE_PERSIST?.trim().toLowerCase() === 'off' ? { usagePersist: false } : {}),
   logger: true,
   changeFeed: true,
   realtime: {
     maxConnectionsPerTenant: Number(process.env.SSE_MAX_CONNECTIONS_PER_TENANT ?? 100),
+    // teto do processo (todos os tenants): acima dele, 503 com Retry-After em vez de estourar o mem_limit
+    maxConnections: Number(process.env.SSE_MAX_CONNECTIONS ?? 1000),
+    // segredo do token curto do SSE: o mesmo em todas as instâncias (sem ele, um aleatório por processo)
+    streamTokenSecret: process.env.STREAM_TOKEN_SECRET,
   },
   ...(process.env.ASSETS_PUBLIC_BASE_URL ? { assetsBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL } : {}),
   customLogos: true,

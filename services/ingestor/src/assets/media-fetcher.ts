@@ -1,4 +1,5 @@
 import { systemClock, type Clock } from '@galaxie/apisports-client';
+import { guardedFetch, isNotPublicError } from '@galaxie/net-guard';
 
 /** User-Agent genérico: nunca identifica pessoas (CONTRIBUTING, regra de privacidade). */
 export const MEDIA_USER_AGENT = 'galaxie-sports-asset-mirror/0.1';
@@ -8,8 +9,14 @@ export type MediaFetchResult =
   | { status: 'not_found'; httpStatus: number; attempts: number }
   | { status: 'error'; reason: string; rateLimited: boolean; attempts: number };
 
+export type MediaFetch = (url: string, init?: RequestInit) => Promise<Response>;
+
 export interface MediaFetcherOptions {
-  fetch?: typeof globalThis.fetch;
+  /**
+   * Padrão: `guardedFetch` — a URL vem do fornecedor e cada redirecionamento da CDN é seguido com o DNS
+   * conferido na conexão (IP privado, loopback e metadados da nuvem recusados).
+   */
+  fetch?: MediaFetch;
   clock?: Clock;
   /** Novas tentativas em 429/5xx/erro de rede. Padrão 4. */
   maxRetries?: number;
@@ -26,7 +33,7 @@ export interface MediaFetcherOptions {
  * TODOS os downloads em andamento — evita rajadas de 429 quando a CDN começa a limitar.
  */
 export class MediaFetcher {
-  private readonly fetchFn: typeof globalThis.fetch;
+  private readonly fetchFn: MediaFetch;
   private readonly clock: Clock;
   private readonly maxRetries: number;
   private readonly backoffBaseMs: number;
@@ -35,7 +42,7 @@ export class MediaFetcher {
   private pauseUntil = 0;
 
   constructor(options: MediaFetcherOptions = {}) {
-    this.fetchFn = options.fetch ?? globalThis.fetch;
+    this.fetchFn = options.fetch ?? guardedFetch();
     this.clock = options.clock ?? systemClock;
     this.maxRetries = options.maxRetries ?? 4;
     this.backoffBaseMs = options.backoffBaseMs ?? 1_000;
@@ -70,6 +77,9 @@ export class MediaFetcher {
         });
       } catch (err) {
         lastReason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        // endereço não público (na URL ou num redirecionamento): repetir não muda nada
+        if (isNotPublicError(err))
+          return { status: 'error', reason: lastReason, rateLimited: false, attempts: attempt };
         rateLimited = false;
         if (attempt <= this.maxRetries) await this.clock.sleep(this.backoff(attempt, null));
         continue;

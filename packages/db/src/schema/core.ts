@@ -98,6 +98,28 @@ export type AssetPalette = {
   monochrome: boolean;
 };
 
+/** Formatos publicados de um logo do acervo: cada um é um objeto no storage com a nossa nomenclatura. */
+export const ASSET_FORMATS = ['svg', 'png', 'webp'] as const;
+export type AssetFormat = (typeof ASSET_FORMATS)[number];
+export type AssetVariant = {
+  storage_key: string;
+  sha256: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+};
+/** Tamanhos fixos gerados do PNG do acervo (o maior, 512, é o próprio `png`/`webp`). */
+export const ASSET_SIZES = [64, 128, 256] as const;
+export type AssetSize = (typeof ASSET_SIZES)[number];
+export type AssetRasterFormat = Exclude<AssetFormat, 'svg'>;
+/**
+ * Todos os formatos do mesmo logo (o servido em `storage_key` entra também) e, em `sizes`, o PNG e o WebP
+ * em cada tamanho fixo; vazio fora do acervo.
+ */
+export type AssetVariants = Partial<Record<AssetFormat, AssetVariant>> & {
+  sizes?: Partial<Record<`${AssetSize}`, Partial<Record<AssetRasterFormat, AssetVariant>>>>;
+};
+
 export const asset = core.table(
   'asset',
   {
@@ -115,6 +137,8 @@ export const asset = core.table(
     origin: assetOrigin('origin').notNull().default('provider'),
     /** Id do acervo (manifesto em config/assets/acervo/<id>.yaml) quando origin = acervo. */
     acervo: text('acervo'),
+    /** Logo do acervo: SVG, PNG e WebP do mesmo escudo, quando o pacote traz (`assets:acervo`). */
+    variants: jsonb('variants').$type<AssetVariants>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('asset_source_url_uq').on(t.sourceUrl)],
@@ -523,6 +547,8 @@ export const personSeasonStat = core.table(
   (t) => [
     primaryKey({ columns: [t.personId, t.participantId, t.seasonId] }),
     index('person_season_stat_season_idx').on(t.seasonId),
+    // estatísticas do elenco de um time (people/queries.ts); índice criado sem travar (migration 0060)
+    index('person_season_stat_participant_idx').on(t.participantId),
   ],
 );
 
@@ -757,6 +783,9 @@ export const event = core.table(
     index('event_provisional_idx')
       .on(t.competitionId, t.seasonId)
       .where(sql`${t.isProvisional}`),
+    // jogos de uma temporada e de uma fase (times, contexto, chaveamento); criados sem travar (migration 0060)
+    index('event_season_idx').on(t.seasonId),
+    index('event_stage_idx').on(t.stageId),
   ],
 );
 
@@ -820,6 +849,11 @@ export const eventIncident = core.table(
     uniqueIndex('event_incident_seq_uq').on(t.eventId, t.sequence),
     // perfil do jogador: os times em que ele marcou, levou cartão ou foi substituído
     index('event_incident_person_idx').on(t.personId),
+    // FKs: apagar ou fundir time/pessoa não varre a maior tabela do core (migration 0060)
+    index('event_incident_participant_idx').on(t.participantId),
+    index('event_incident_assist_person_idx')
+      .on(t.assistPersonId)
+      .where(sql`${t.assistPersonId} is not null`),
   ],
 );
 
@@ -856,7 +890,11 @@ export const standing = core.table(
     source: text('source').notNull().default('provider'),
     updatedAt: updatedAt(),
   },
-  (t) => [primaryKey({ columns: [t.seasonId, t.group, t.participantId] })],
+  (t) => [
+    primaryKey({ columns: [t.seasonId, t.group, t.participantId] }),
+    // campanha de um time nas tabelas (teams.ts)
+    index('standing_participant_idx').on(t.participantId),
+  ],
 );
 
 // ─── mapeamento de provedores ────────────────────────────────────────────────────────────────────
@@ -895,6 +933,13 @@ export const footballFixture = core.table(
     /** Eventos, escalações, estatísticas e jogadores (de fixtures?id ou ids). */
     detail: jsonb('detail'),
     detailFetchedAt: timestamp('detail_fetched_at', { withTimezone: true }),
+    /**
+     * IDs do fornecedor de quem está em `detail.players` e dos técnicos de `detail.lineups`, mantidos por trigger
+     * (migration 0061): o perfil da pessoa filtra as partidas por eles antes de abrir o `detail`. Nulo = linha
+     * ainda não preenchida (o job fixture-people preenche as antigas); a consulta trata como "pode ter".
+     */
+    playerPids: integer('player_pids').array(),
+    coachPids: integer('coach_pids').array(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex('football_fixture_provider_uq').on(t.providerFixtureId)],

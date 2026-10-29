@@ -18,9 +18,11 @@ import {
 } from '@galaxie/db';
 import type { Logger } from '@galaxie/observability';
 import { AI_CREDIT_CHECK, applyOverrides, envReport, scheduledJob } from '@galaxie/runtime-config';
-import type { CreditCheckResult } from './ai-credit.js';
+import { reportAiHeartbeat, type CreditCheckResult } from './ai-credit.js';
+import type { MissedSlot } from './catch-up.js';
 import type { RunResult, RunTrigger } from './runner.js';
 import { nextRuns, scheduleFromEnv, type ScheduledJob } from './schedule.js';
+import { JobSlots } from './slots.js';
 
 export type SchedulerProfile = 'ingestor' | 'agents';
 
@@ -38,7 +40,13 @@ export interface SchedulerServiceOptions {
   refreshMs?: number;
   /** Só no perfil agents: checagem do crédito da conta de IA. */
   creditCheck?: ((env: NodeJS.ProcessEnv) => Promise<CreditCheckResult>) | undefined;
+  /** Intervalo da checagem de crédito (padrão: 1 h, para o alerta AiCreditExhausted sair no mesmo dia). */
   creditEveryMs?: number;
+  /**
+   * Teto de jobs simultâneos fora da faixa do ao vivo (`live`); o excedente espera vaga na ordem de chegada.
+   * Sem valor: sem teto.
+   */
+  maxJobs?: number | undefined;
 }
 
 interface ActiveCron {
@@ -59,9 +67,11 @@ export class SchedulerService {
   private refreshing: Promise<void> | null = null;
   private started = false;
   private programmed = false;
+  private readonly slots: JobSlots | undefined;
 
   constructor(private readonly options: SchedulerServiceOptions) {
     this.log = options.log;
+    this.slots = options.maxJobs ? new JobSlots(options.maxJobs) : undefined;
     this.env = { ...options.env };
     this.current = scheduleFromEnv(this.env, options.jobs);
   }
@@ -98,11 +108,14 @@ export class SchedulerService {
       this.track(this.checkCredit());
       this.creditTimer = setInterval(
         () => this.track(this.checkCredit()),
-        this.options.creditEveryMs ?? 6 * 3_600_000,
+        this.options.creditEveryMs ?? 3_600_000,
       );
       this.creditTimer.unref?.();
     }
-    this.log.info({ profile: this.options.profile, jobs: this.activeCrons() }, 'scheduler iniciado');
+    this.log.info(
+      { profile: this.options.profile, max_jobs: this.slots?.max ?? null, jobs: this.activeCrons() },
+      'scheduler iniciado',
+    );
   }
 
   /** Relê a configuração do painel, reprograma a agenda, relata o env e atende os pedidos. */
@@ -216,9 +229,16 @@ export class SchedulerService {
       );
     // sob demanda, alguns jobs mudam de modo (ex.: a reconciliação do ao vivo confere tudo)
     const onDemand = (trigger === 'panel' || trigger === 'manual') && job.onDemandArgs;
-    const run = this.options.run(onDemand ? { ...job, args: job.onDemandArgs! } : job, {
-      trigger,
-      env: this.env,
+    const target = onDemand ? { ...job, args: job.onDemandArgs! } : job;
+    // marcado como em andamento já na fila: o cron seguinte do mesmo job pula em vez de enfileirar de novo
+    const run = this.admit(job).then(async (release) => {
+      if (!release) return queueClosed(job.name);
+      try {
+        // o env do momento em que a vaga abriu (o painel pode ter mudado algo enquanto esperava)
+        return await this.options.run(target, { trigger, env: this.env });
+      } finally {
+        release();
+      }
     });
     this.running.set(name, run);
     void run
@@ -227,6 +247,38 @@ export class SchedulerService {
       })
       .catch(() => {});
     return run;
+  }
+
+  /**
+   * Roda agora, uma vez, os jobs cujo último horário passou sem execução (catch-up.ts). Pula o que já está rodando
+   * (cron do mesmo minuto, SCHEDULER_RUN_ON_START) e o que saiu da agenda; a trava do job pula o que outro processo
+   * roda. Entra na fila do teto de jobs como qualquer outro.
+   */
+  catchUp(missed: readonly MissedSlot[]): void {
+    for (const m of missed) {
+      if (this.running.has(m.job) || !this.current.some((j) => j.name === m.job)) continue;
+      this.log.info(
+        { job: m.job, slot: m.slot.toISOString() },
+        'catch-up: horário perdido com o scheduler fora do ar; rodando agora',
+      );
+      this.track(this.execute(m.job, 'catchup'));
+    }
+  }
+
+  /** Vaga no teto de jobs simultâneos; a faixa do ao vivo nunca espera. */
+  private async admit(job: ScheduledJob): Promise<(() => void) | null> {
+    if (!this.slots || job.live) return () => {};
+    if (this.slots.running >= this.slots.max)
+      this.log.info(
+        {
+          job: job.name,
+          max_jobs: this.slots.max,
+          queued: this.slots.queued + 1,
+          running: [...this.running.keys()],
+        },
+        'teto de jobs simultâneos atingido; job na fila',
+      );
+    return this.slots.acquire();
   }
 
   private async pollRequests(): Promise<void> {
@@ -270,12 +322,14 @@ export class SchedulerService {
         return;
       }
       await finishJobRequest(db, req.id, {
-        status: result.status === 'ok' ? 'done' : 'error',
+        status: result.status === 'ok' || result.status === 'budget_skipped' ? 'done' : 'error',
         runId: result.runId,
         detail:
           result.status === 'ok'
             ? null
-            : `exit_code=${result.exitCode ?? '-'}${result.timedOut ? ' timeout' : ''}`,
+            : result.status === 'budget_skipped'
+              ? 'budget_skipped'
+              : `exit_code=${result.exitCode ?? '-'}${result.timedOut ? ' timeout' : ''}`,
       });
     } catch (err) {
       log.error({ err }, 'falha ao atender pedido do painel');
@@ -299,6 +353,9 @@ export class SchedulerService {
         status: result.status,
         detail: JSON.stringify(result.detail),
       }).catch((err: unknown) => this.log.warn({ err }, 'não foi possível gravar a checagem de crédito'));
+    await reportAiHeartbeat(this.env.AI_HEARTBEAT_URL, result.status).catch((err: unknown) =>
+      this.log.warn({ err }, 'não foi possível avisar o heartbeat da IA'),
+    );
   }
 
   private track(p: Promise<unknown>): void {
@@ -310,6 +367,8 @@ export class SchedulerService {
   /** Para de agendar; devolve as execuções em andamento (o chamador decide quanto esperar). */
   stop(): Promise<unknown>[] {
     this.started = false;
+    // quem ainda esperava vaga não começa mais
+    this.slots?.close();
     clearInterval(this.refreshTimer);
     clearInterval(this.creditTimer);
     for (const c of this.crons.values()) c.cron.stop();
@@ -317,6 +376,19 @@ export class SchedulerService {
     this.programmed = false;
     return [...this.running.values(), ...this.background];
   }
+}
+
+/** Job que esperava vaga quando o scheduler encerrou: não rodou (sem registro em ops.job_run). */
+function queueClosed(job: string): RunResult {
+  return {
+    job,
+    runId: undefined,
+    status: 'skipped',
+    exitCode: null,
+    signal: null,
+    timedOut: false,
+    durationMs: 0,
+  };
 }
 
 /** Próxima execução de cada job da agenda efetiva (para logs e `--list`). */

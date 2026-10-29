@@ -33,7 +33,12 @@ esac
 admin() { psql -X -q -t -A -v ON_ERROR_STOP=1 -d postgres "$@"; }
 in_work() { psql -X -q -t -A -v ON_ERROR_STOP=1 -d "$work" -c "$1"; }
 in_prod() { psql -X -q -t -A -v ON_ERROR_STOP=1 -d "$prod" -c "$1"; }
-drop_work() { admin -c "drop database if exists \"$work\" with (force)" >/dev/null 2>&1 || true; }
+# dump cifrado: a cópia decifrada para o pg_restore (apagada no fim, com sucesso ou não)
+plain_tmp="$BACKUP_DIR/.drill-$$.dump"
+drop_work() {
+  admin -c "drop database if exists \"$work\" with (force)" >/dev/null 2>&1 || true
+  rm -f "$plain_tmp"
+}
 
 started=$(date -u +%s)
 run_id=$(job_start pg-restore-drill)
@@ -75,7 +80,8 @@ need=$((db_bytes * RESTORE_DRILL_SPACE_FACTOR))
 log info "ensaio: restaurando $(basename "$dump") em $work"
 admin -c "create database \"$work\"" >/dev/null || finish_fail "não deu para criar $work"
 restore_started=$(date -u +%s)
-pg_restore --no-owner --no-privileges --exit-on-error --jobs="${RESTORE_JOBS:-2}" -d "$work" "$dump" ||
+source_dump=$(plain_dump "$dump" "$plain_tmp") || finish_fail "dump cifrado não decifra: $(basename "$dump")"
+pg_restore --no-owner --no-privileges --exit-on-error --jobs="${RESTORE_JOBS:-2}" -d "$work" "$source_dump" ||
   finish_fail "pg_restore falhou"
 restore_s=$(($(date -u +%s) - restore_started))
 

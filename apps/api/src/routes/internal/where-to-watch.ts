@@ -17,7 +17,8 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import { ACCESS_MODELS, BROADCAST_MEDIA } from '@galaxie/contracts';
-import { broadcastCorrection, event, wtwRun, type Database } from '@galaxie/db';
+import { broadcastCorrection, event, readRuntimeOverrides, wtwRun, type Database } from '@galaxie/db';
+import { applyOverrides, budgetDayFromEnv, budgetDayOf } from '@galaxie/runtime-config';
 import {
   addOption,
   AUDIT_VERDICTS,
@@ -352,7 +353,19 @@ export async function internalWhereToWatchRoutes(app: FastifyInstance, ctx: AppC
       const countries = q.countries
         ? q.countries.toUpperCase().split(',')
         : (ctx.wtwConfig?.().countries ?? []);
-      const m = await computeWtwMetrics(db, { countries, ...(q.days ? { days: q.days } : {}) });
+      const m = await computeWtwMetrics(db, {
+        countries,
+        ...(q.days ? { days: q.days } : {}),
+        // o gasto de IA "de hoje" no mesmo dia de orçamento dos tetos: a virada vem do env com as
+        // sobrescritas do painel (como no wtw-audit); sem a tabela, o env do processo
+        budgetDay: budgetDayOf(
+          new Date(),
+          budgetDayFromEnv(
+            applyOverrides(process.env, await readRuntimeOverrides(db).catch(() => new Map<string, string>()))
+              .env,
+          ),
+        ),
+      });
       noStore(reply);
       if (q.format === 'prometheus')
         return reply

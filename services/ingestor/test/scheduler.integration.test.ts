@@ -6,6 +6,7 @@ import { defaultPolicy } from '@galaxie/apisports-client';
 import {
   closeDb,
   createDb,
+  jobRequest,
   jobRun,
   mergeJobRunStats,
   runMigrations,
@@ -16,6 +17,7 @@ import { createLogger, createMetrics } from '@galaxie/observability';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { closeOrphans, lastJobStarts } from '../src/scheduler/catch-up.js';
 import { PgRunRecorder, runJob } from '../src/scheduler/runner.js';
 import type { ScheduledJob } from '../src/scheduler/schedule.js';
 
@@ -116,7 +118,10 @@ describe('trava por job entre processos (advisory lock de sessão)', () => {
     const before = await runs();
 
     const first = runJob(slow, { ...options, trigger: 'schedule' });
-    await new Promise((r) => setTimeout(r, 300));
+    // o runner só grava o job_run depois de pegar a trava: espera a linha em vez de um tempo fixo
+    // (300 ms não bastavam no CI com o Postgres 18 carregado)
+    for (let i = 0; i < 100 && (await runs()) === before; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(await runs()).toBe(before + 1);
     // ex.: `scheduler --run live-run` no console com o ao vivo agendado no ar
     const second = await runJob(slow, { ...options, trigger: 'manual' });
     expect(second).toMatchObject({ status: 'skipped', runId: undefined, exitCode: null });
@@ -149,5 +154,52 @@ describe('trava por job entre processos (advisory lock de sessão)', () => {
     await held!.release().catch(() => {});
     // soltar normalmente não conta como perda
     expect(lost).toBe(1);
+  });
+});
+
+describe('volta de um reinício (catch-up)', () => {
+  it('execução e pedido órfãos fecham como interrompidos só com a trava livre; interrompida não conta como "rodou"', async () => {
+    const bootedAt = new Date();
+    const before = new Date(bootedAt.getTime() - 10 * 60_000);
+    const [ok] = await db
+      .insert(jobRun)
+      .values({ job: 'orfao-a', status: 'ok', startedAt: new Date(bootedAt.getTime() - 60 * 60_000) })
+      .returning();
+    const [orphanA] = await db
+      .insert(jobRun)
+      .values({ job: 'orfao-a', status: 'running', startedAt: before })
+      .returning();
+    const [orphanB] = await db
+      .insert(jobRun)
+      .values({ job: 'orfao-b', status: 'running', startedAt: before })
+      .returning();
+    const [request] = await db
+      .insert(jobRequest)
+      .values({ job: 'orfao-a', requestedBy: 'teste', status: 'running', pickedAt: before })
+      .returning();
+    // outro processo segura a trava do orfao-b (um `scheduler --run` no console): a linha é dele
+    const held = await tryJobLock(testUrl, 'orfao-b');
+    try {
+      const report = await closeOrphans(db, ['orfao-a', 'orfao-b'], {
+        bootedAt,
+        lock: (job) => tryJobLock(testUrl, job),
+      });
+      expect(report).toEqual({ runs: 1, requests: 1, busy: ['orfao-b'] });
+    } finally {
+      await held?.release();
+    }
+    const [a] = await db.select().from(jobRun).where(eq(jobRun.id, orphanA!.id));
+    expect(a).toMatchObject({ status: 'error', stats: { interrupted: true } });
+    expect(a?.error).toMatch(/interrompido/);
+    const [b] = await db.select().from(jobRun).where(eq(jobRun.id, orphanB!.id));
+    expect(b?.status).toBe('running');
+    const [r] = await db.select().from(jobRequest).where(eq(jobRequest.id, request!.id));
+    expect(r).toMatchObject({ status: 'error', detail: 'interrompido: o scheduler reiniciou' });
+
+    // a interrompida não conta: o último início do orfao-a é o da execução ok
+    const starts = await lastJobStarts(db, ['orfao-a', 'orfao-b', 'nunca-rodou']);
+    expect(starts.get('orfao-a')).toEqual(ok!.startedAt);
+    expect(starts.get('orfao-b')).toEqual(before);
+    expect(starts.has('nunca-rodou')).toBe(false);
   });
 });

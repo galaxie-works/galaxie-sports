@@ -51,6 +51,7 @@
     "@galaxie/db": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
+    "@galaxie/net-guard": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
@@ -58,7 +59,7 @@
     "ajv": "^8.20.0",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
-    "openai": "^7.39.0",
+    "openai": "^7.44.0",
     "playwright-core": "1.64.0",
     "yaml": "^2.9.1"
   },

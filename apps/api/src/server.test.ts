@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCALAR_INTEGRITY, SCALAR_URL } from './routes/docs.js';
 import { buildServer } from './server.js';
 import { memoryTenant } from './test-helpers.js';
 
@@ -14,6 +15,48 @@ describe('health', () => {
     const res = await buildServer().inject({ method: 'GET', url: '/health/db' });
     expect(res.statusCode).toBe(503);
   });
+
+  it('prontidão: sem Postgres é 503', async () => {
+    const res = await buildServer().inject({ method: 'GET', url: '/health/ready' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      status: 'unavailable',
+      checks: { postgres: 'unconfigured', valkey: 'unconfigured' },
+    });
+  });
+
+  it('prontidão: Valkey lento ou fora deixa a API pronta, mas degradada', async () => {
+    const db = { execute: async () => [] };
+    const hung = { ping: () => new Promise(() => {}), defineCommand: () => {} };
+    const slow = await buildServer({ db: db as never, redis: hung as never }).inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    expect(slow.statusCode).toBe(200);
+    expect(slow.json()).toEqual({ status: 'degraded', checks: { postgres: 'ok', valkey: 'timeout' } });
+
+    const ok = await buildServer({
+      db: db as never,
+      redis: { ping: async () => 'PONG', defineCommand: () => {} } as never,
+    }).inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    expect(ok.json()).toEqual({ status: 'ok', checks: { postgres: 'ok', valkey: 'ok' } });
+  });
+
+  it('prontidão: Postgres com erro é 503, e /health segue 200', async () => {
+    const db = {
+      execute: async () => {
+        throw new Error('connection refused');
+      },
+    };
+    const app = buildServer({ db: db as never });
+    const ready = await app.inject({ method: 'GET', url: '/health/ready' });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({ status: 'unavailable', checks: { postgres: 'error' } });
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200);
+  });
 });
 
 describe('documentação', () => {
@@ -26,6 +69,12 @@ describe('documentação', () => {
     expect(docs.statusCode).toBe(200);
     expect(docs.headers['content-type']).toContain('text/html');
     expect(docs.body).toContain('/openapi.json');
+    // Scalar com SRI: versão fixa, arquivo do pacote e hash sha384
+    expect(docs.body).toContain(
+      `<script src="${SCALAR_URL}" integrity="${SCALAR_INTEGRITY}" crossorigin="anonymous"></script>`,
+    );
+    expect(SCALAR_URL).toMatch(/@\d+\.\d+\.\d+\/dist\/browser\/standalone\.js$/);
+    expect(SCALAR_INTEGRITY).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
   });
 });
 

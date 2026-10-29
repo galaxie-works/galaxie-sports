@@ -17,6 +17,9 @@ export const COMPANY = {
 /** E-mail de contato público (apresentação, termos, privacidade e JSON-LD). */
 export const CONTACT_EMAIL = 'hello@galaxie.works';
 
+/** Página pública de status (Better Stack, fora da VPS: continua no ar quando ela cai). */
+export const STATUS_URL = 'https://status.galaxie.works';
+
 /** Logo usado no JSON-LD (servido de /public, fora do proxy). */
 export const LOGO_PATH = '/brand/galaxie_logo_dark.png';
 

@@ -54,14 +54,19 @@ type LibraryRow = {
   kind: string;
   storage_key: string | null;
   source_url: string | null;
+  custom: boolean;
 };
-const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url
-    from enrich.broadcaster b left join core.asset a on a.id = b.logo_asset_id`;
+// logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, como na API
+const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url,
+      b.custom_logo_asset_id is not null as custom
+    from enrich.broadcaster b
+    left join core.asset a on a.id = coalesce(b.custom_logo_asset_id, b.logo_asset_id)`;
 const toEntry = (r: LibraryRow): LibraryEntry => ({
   id: r.id,
   name: r.name,
   kind: r.kind,
   logoUrl: assetUrl(r.storage_key, r.source_url),
+  customLogo: r.custom === true,
 });
 
 /** Nome e logo das entradas da biblioteca de emissoras usadas nas grades. */
@@ -102,11 +107,14 @@ async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
       p.services.forEach((s) => refs.add(s.serviceId));
     }
   }
-  const logos = lineups.map((l) => l.platform.logoAssetId).filter((x): x is string => Boolean(x));
+  // logo da plataforma: o enviado no painel vale no lugar do da busca de logos
+  const logoOf = (l: PlatformLineup) => l.platform.customLogoAssetId ?? l.platform.logoAssetId;
+  const logos = lineups.map(logoOf).filter((x): x is string => Boolean(x));
   const [library, assets] = await Promise.all([readLibrary([...refs]), assetUrls(logos)]);
-  return lineups.map((l) =>
-    lineupView(l, library, l.platform.logoAssetId ? (assets.get(l.platform.logoAssetId) ?? null) : null),
-  );
+  return lineups.map((l) => {
+    const id = logoOf(l);
+    return lineupView(l, library, id ? (assets.get(id) ?? null) : null);
+  });
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -206,6 +214,21 @@ export async function findOperatorTarget(
 }
 
 // ─── admin ───────────────────────────────────────────────────────────────────────────────────────
+
+/** Canal ou streaming da biblioteca que o painel pode pôr num plano (com os países). */
+export interface PlanLibraryOption extends LibraryEntry {
+  countries: string[];
+}
+
+/** Biblioteca inteira de canais e streamings (sem rádio), para criar vínculos e complementos à mão. */
+export async function readPlanLibrary(): Promise<PlanLibraryOption[]> {
+  const list = await rows<LibraryRow & { countries: string[] }>(
+    `select b.id, b.name, b.kind, null as storage_key, null as source_url, false as custom, b.countries
+       from enrich.broadcaster b where b.kind = any($1) order by b.name`,
+    [[...PLAN_LIBRARY_KINDS]],
+  );
+  return list.map((r) => ({ ...toEntry(r), countries: r.countries ?? [] }));
+}
 
 /** Todas as grades, com tudo (rascunho, conferido, aprovado e rejeitado), para a revisão. */
 export async function readAllLineups(): Promise<LineupView[]> {

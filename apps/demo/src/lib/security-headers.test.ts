@@ -9,18 +9,19 @@ describe('cabeçalhos de segurança', () => {
   it('sempre: só a própria demo em iframe, nosniff e Referrer-Policy', () => {
     for (const production of [true, false]) {
       const h = asMap(production);
-      expect(h.get('content-security-policy')).toBe("frame-ancestors 'self'");
+      expect(h.get('content-security-policy')).toContain("frame-ancestors 'self'");
       expect(h.get('x-frame-options')).toBe('SAMEORIGIN');
       expect(h.get('x-content-type-options')).toBe('nosniff');
       expect(h.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
     }
   });
 
-  it('produção: HSTS e a CSP completa em observação; dev sem eles', () => {
+  it('produção: HSTS e a CSP completa bloqueando; dev só com o frame-ancestors', () => {
     expect(asMap(true).get('strict-transport-security')).toMatch(/^max-age=\d+$/);
-    expect(asMap(true).get('content-security-policy-report-only')).toBe(CONTENT_SECURITY_POLICY);
+    expect(asMap(true).get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY);
+    expect(asMap(true).has('content-security-policy-report-only')).toBe(false);
     expect(asMap(false).has('strict-transport-security')).toBe(false);
-    expect(asMap(false).has('content-security-policy-report-only')).toBe(false);
+    expect(asMap(false).get('content-security-policy')).toBe("frame-ancestors 'self'");
   });
 
   it('a CSP cobre o player do YouTube sem cookies e não abre plugins nem base externa', () => {

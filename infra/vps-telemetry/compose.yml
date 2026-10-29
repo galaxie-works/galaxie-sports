@@ -15,6 +15,8 @@ x-node-env: &node-env
   NODE_ENV: production
   APP_ENV: staging
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  # Dono do banco (POSTGRES_USER): só o migrate usa. Cada serviço sobrescreve com o papel dele (DB_URL_<SERVIÇO>,
+  # docs/runbooks/papeis-do-banco.md); sem a variável, o serviço segue com o dono (troca sem downtime, um por vez).
   DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
   REDIS_URL: redis://valkey:6379
   S3_ENDPOINT: http://s3:9000
@@ -35,7 +37,8 @@ x-node-env: &node-env
   APISPORTS_PLAN_AMERICAN_FOOTBALL: ${APISPORTS_PLAN_AMERICAN_FOOTBALL:-}
   APISPORTS_PLAN_RUGBY: ${APISPORTS_PLAN_RUGBY:-}
   APISPORTS_PLAN_VOLLEYBALL: ${APISPORTS_PLAN_VOLLEYBALL:-}
-  QUOTA_RESERVE_PERCENT: ${QUOTA_RESERVE_PERCENT:-15}
+  # Abaixo desta parte da cota do dia só o ao vivo chama (APP_ENV acima diz ao Governor que é produção).
+  QUOTA_LIVE_RESERVE_PERCENT: ${QUOTA_LIVE_RESERVE_PERCENT:-25}
   # URL pública dos assets (logos, bandeiras, fotos) servidos pelo Traefik direto do bucket
   ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
 
@@ -50,6 +53,27 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     shm_size: 256mb
+    # Ajustado ao contêiner de 1 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
+    # max_connections fica nos 100 do padrão: a soma dos pools no pico é 67 (conta no README › Conexões). Teto
+    # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=640MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - idle_in_transaction_session_timeout=30min
+      - -c
+      - log_min_duration_statement=5s
+      - -c
+      - log_lock_waits=on
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -63,7 +87,10 @@ services:
     image: valkey/valkey:8-alpine
     restart: unless-stopped
     mem_limit: 256m
-    command: ['valkey-server', '--appendonly', 'yes']
+    # maxmemory abaixo do mem_limit (folga para o fork do AOF e a fragmentação): cheio, despeja pela LRU só chave
+    # com TTL — todas têm (cache, rate limit, uso, leases do SSE), menos o contador gs:purge-seq, que não pode sumir.
+    command:
+      ['valkey-server', '--appendonly', 'yes', '--maxmemory', '160mb', '--maxmemory-policy', 'volatile-lru']
     volumes:
       - valkeydata:/data
     healthcheck:
@@ -86,9 +113,15 @@ services:
       - s3data:/data
     labels:
       - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
       - traefik.http.routers.gsports-assets.rule=Host(`${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}`) && PathPrefix(`/${S3_BUCKET:-galaxie-sports-assets}/`) && (Method(`GET`) || Method(`HEAD`))
       - traefik.http.routers.gsports-assets.entrypoints=websecure
       - traefik.http.routers.gsports-assets.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-assets.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-assets.loadbalancer.server.port=9000
     logging: *logging
 
@@ -123,22 +156,37 @@ services:
     command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
     environment:
       <<: *node-env
+      # papéis por serviço (packages/db/src/roles.ts): off até a troca; on cria os papéis, aplica os GRANTs e dá
+      # LOGIN com a senha das URLs abaixo (o usuário da URL tem de ser o papel: galaxie_api, galaxie_demo…)
+      DB_ROLES: ${DB_ROLES:-off}
+      DB_URL_API: ${DB_URL_API:-}
+      DB_URL_DEMO: ${DB_URL_DEMO:-}
+      DB_URL_INGESTOR: ${DB_URL_INGESTOR:-}
+      DB_URL_AGENTS: ${DB_URL_AGENTS:-}
+      DB_URL_BACKUP: ${DB_URL_BACKUP:-}
     depends_on:
       postgres:
         condition: service_healthy
     restart: 'no'
     logging: *logging
 
-  api:
+  api: &api
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
-    environment:
+    environment: &api-env
       <<: *node-env
+      DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       API_PORT: '8080'
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # Bearer exigido em /metrics (o Prometheus da stack manda o mesmo): sem ele, qualquer contêiner da rede lia as métricas
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
+      # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
+      # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
+      STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
+      # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
+      SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
@@ -158,27 +206,38 @@ services:
     # /metrics e /internal não passam pelo Traefik (equivale ao bloqueio que o Caddy fazia).
     labels:
       - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
       - traefik.http.routers.gsports-api.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
       - traefik.http.routers.gsports-api.entrypoints=websecure
       - traefik.http.routers.gsports-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-api.loadbalancer.server.port=8080
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
 
   # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
-  demo:
+  demo: &demo
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
-    environment:
+    environment: &demo-env
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
       # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
       # demo só tinha a origem gravada (`acervo-oficial://…`), que o navegador não carrega
       ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
+      # Upload de logos no painel (Ajustes → Grades e ofertas): grava no mesmo bucket que a API serve
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
       # Login e usuários da demo (Better Auth): schema demo_auth no mesmo Postgres
-      DEMO_DATABASE_URL: postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+      DEMO_DATABASE_URL: ${DB_URL_DEMO:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}
       BETTER_AUTH_URL: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}
       # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
@@ -200,11 +259,45 @@ services:
     # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
       - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
       - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
       - traefik.http.routers.gsports-demo.entrypoints=websecure
       - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
     logging: *logging
+
+  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe, com DEPLOY_CANDIDATE=on): a API e a demo da
+  # versão nova ao lado das que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
+  # da troca. Mesmo env e mesmos limites dos originais (as âncoras); a API com prefixo próprio no Valkey (cache, rate
+  # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e a demo
+  # falando com ela. Sobem com --no-deps e
+  # saem logo depois do smoke. README › Atualizar › Candidato e troca sem manutenção.
+  api-candidate:
+    <<: *api
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *api-env
+      REDIS_KEY_PREFIX: 'gs-candidate:'
+      # o uso do smoke não vai para api.usage_daily: o epoch do prefixo novo travaria a consolidação da produção
+      USAGE_PERSIST: 'off'
+    depends_on: {}
+    labels: [traefik.enable=false]
+
+  demo-candidate:
+    <<: *demo
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *demo-env
+      GALAXIE_API_URL: http://api-candidate:8080
+    depends_on: {}
+    labels: [traefik.enable=false]
 
   # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
   # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.
@@ -243,15 +336,22 @@ services:
     labels:
       - works.galaxie.maintenance-rev=ea68f94e0334
       - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
       - traefik.http.routers.gsports-demo-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
       - traefik.http.routers.gsports-demo-maintenance.entrypoints=websecure
       - traefik.http.routers.gsports-demo-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.routers.gsports-demo-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
       - traefik.http.routers.gsports-demo-maintenance.service=gsports-maintenance-site
       - traefik.http.services.gsports-maintenance-site.loadbalancer.server.port=8080
       - traefik.http.routers.gsports-api-maintenance.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
       - traefik.http.routers.gsports-api-maintenance.entrypoints=websecure
       - traefik.http.routers.gsports-api-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.routers.gsports-api-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
       - traefik.http.routers.gsports-api-maintenance.service=gsports-maintenance-api
       - traefik.http.services.gsports-maintenance-api.loadbalancer.server.port=8081
@@ -262,9 +362,13 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    # scheduler + faixa do ao vivo (live-run, live-reconcile, events-clock) + SCHEDULER_MAX_JOBS jobs, cada um com
+    # heap fixo: a soma no pior caso é 1024 MB; os 128 MB a mais são folga para pilhas, alocador e buffers de I/O,
+    # que o cgroup também conta (README › Memória dos jobs)
+    mem_limit: 1152m
     environment:
       <<: *node-env
+      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
@@ -284,6 +388,8 @@ services:
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
       SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
       SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+      SCHEDULER_MAX_JOBS: ${SCHEDULER_MAX_JOBS:-2}
+      SCHEDULER_JOB_HEAP_MB: ${SCHEDULER_JOB_HEAP_MB:-160}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
@@ -305,14 +411,20 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    # scheduler + SCHEDULER_MAX_JOBS jobs de 128 MB de heap: ~690 MB no pior caso (README › Memória dos jobs)
+    mem_limit: 768m
     environment:
       <<: *node-env
+      DATABASE_URL: ${DB_URL_AGENTS:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       SCHEDULER_PROFILE: agents
+      SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
+      SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
       AI_PROVIDER: ${AI_PROVIDER:-openai}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # heartbeat da checagem de crédito na página de status (Better Stack); vazio = não avisa
+      AI_HEARTBEAT_URL: ${AI_HEARTBEAT_URL:-}
       # pesquisa de direitos por temporada com outro provedor (vazio = AI_PROVIDER)
       AI_RIGHTS_PROVIDER: ${AI_RIGHTS_PROVIDER:-}
       AI_RIGHTS_MODEL: ${AI_RIGHTS_MODEL:-}
@@ -331,6 +443,12 @@ services:
       AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-10}
       AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-}
       AI_AGENT_DEFAULT_USD_BUDGET: ${AI_AGENT_DEFAULT_USD_BUDGET:-}
+      # política de execução (#357; vazio = padrão do código; também em Ajustes → Operação → IA): faixas por
+      # prioridade em % do teto global, corte P0/P1 e virada do dia de orçamento (06:00 em Brasília)
+      AI_BAND_SHARES: ${AI_BAND_SHARES:-}
+      AI_P0_MIN_AUDIENCE: ${AI_P0_MIN_AUDIENCE:-}
+      AI_BUDGET_DAY_START: ${AI_BUDGET_DAY_START:-}
+      AI_BUDGET_TIMEZONE: ${AI_BUDGET_TIMEZONE:-}
       AI_MAX_SEARCHES_PER_CALL: ${AI_MAX_SEARCHES_PER_CALL:-5}
       WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
       WTW_MIN_RELEVANCE: ${WTW_MIN_RELEVANCE:-60}
@@ -399,15 +517,23 @@ services:
     environment:
       PGHOST: postgres
       PGPORT: '5432'
-      PGUSER: ${POSTGRES_USER:-galaxie}
-      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      # usuário e senha saem da URL (infra/backup/lib.sh): o papel galaxie_backup (pg_read_all_data) ou, antes da
+      # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
+      DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
       RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
+      # na partida, só quando o último dump bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H h (always = sempre):
+      # todo deploy recria este serviço, e o dump completo disputava o disco com o pós-deploy e o smoke
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_ON_START_MIN_AGE_H: ${BACKUP_ON_START_MIN_AGE_H:-20}
+      # dumps cifrados com age (docs/runbooks/exercicio-dr.md › Dumps cifrados): chaves públicas da recuperação (privada só
+      # com o Wagner) e do ensaio; a privada do ensaio decifra no ensaio mensal e no restore. Vazio = dump em claro
+      BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:-}
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
       BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
@@ -416,9 +542,12 @@ services:
       AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
     volumes:
       - backups:/backups
+    # o dump de partida (BACKUP_ON_START) segura as tabelas e faria o migrate esperar trava: só depois dele
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     logging: *logging
 
   # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────
@@ -428,7 +557,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
     volumes:
       - promdata:/prometheus
@@ -460,12 +589,17 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: http://localhost:3000
-      # e-mail dos alertas (infra/observability/grafana/entrypoint.sh); vazio = alertas só no Grafana
+      # canais dos alertas (infra/observability/grafana/entrypoint.sh): push no celular para o crítico (ntfy),
+      # resumo diário por e-mail e uma issue no GitHub por alerta; vazios = alertas só no Grafana
+      ALERT_NTFY_URL: ${ALERT_NTFY_URL:-}
+      ALERT_NTFY_TOKEN: ${ALERT_NTFY_TOKEN:-}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
       ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
       ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-}
       ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
       ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-}
+      ALERT_GITHUB_TOKEN: ${ALERT_GITHUB_TOKEN:-}
+      ALERT_GITHUB_REPO: ${ALERT_GITHUB_REPO:-}
     volumes:
       - grafanadata:/var/lib/grafana
     depends_on:

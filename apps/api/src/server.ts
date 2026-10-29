@@ -37,7 +37,15 @@ import {
 import { ProblemError, problems, registerErrorHandling } from './errors.js';
 import { RulesRegistry } from './events/rules-registry.js';
 import { MemoryRateLimiter, RedisRateLimiter, type RateLimiter } from './rate-limit.js';
-import { apiKeyFrom, registerRealtime, type RealtimeOptions } from './realtime/index.js';
+import {
+  apiKeyFrom,
+  queryKeyUsed,
+  QUERY_KEY_DEPRECATION_HEADERS,
+  registerRealtime,
+  streamTokenFrom,
+  type RealtimeOptions,
+} from './realtime/index.js';
+import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
@@ -115,6 +123,11 @@ export interface ServerOptions {
   /** Envio do buffer de uso ao backend (ms; padrão 1000) e consolidação no Postgres (ms; padrão 60000). */
   usageFlushIntervalMs?: number;
   usagePersistIntervalMs?: number;
+  /**
+   * Consolida o uso no Postgres (api.usage_daily). Padrão: sim, com banco. false: só conta no Valkey (o candidato do
+   * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
+   */
+  usagePersist?: boolean;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -148,7 +161,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     for (const method of [r.method].flat()) routeTable.push({ method, url: r.url, config: r.config ?? {} });
   });
   app.decorate('routeTable', routeTable);
-  registerObservability(app, { db: options.db });
+  const metrics = registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const baseCache =
@@ -190,6 +203,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         ...options.authenticator,
       })
     : undefined;
+  const realtimeOptions: RealtimeOptions = typeof options.realtime === 'object' ? options.realtime : {};
+  // token curto do SSE (POST /v1/stream/token → /v1/stream?token=): só com o tempo real ligado
+  const streamTokens =
+    options.realtime && options.db
+      ? new StreamTokenSigner({ secret: realtimeOptions.streamTokenSecret })
+      : undefined;
+  // `?key=` no SSE (obsoleto): um aviso por tenant por dia UTC
+  const queryKeyWarned = new Set<string>();
   const publishableStore =
     options.publishableStore ?? (options.db ? new PgPublishableStore(options.db) : undefined);
   const publishable = publishableStore
@@ -267,11 +288,27 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   app.addHook('onRequest', async (request, reply) => {
     const module = request.routeOptions.config?.module;
     if (!module && !request.routeOptions.config?.authenticated) return;
-    const secretKey = apiKeyFrom(request);
-    const pk = secretKey ? undefined : publishableKeyFrom(request);
+    // ordem: chave secreta no header > token do SSE (`?token=`) > `?key=` (obsoleto) > chave publicável
+    const streamToken = streamTokenFrom(request);
+    const secretKey = streamToken ? undefined : apiKeyFrom(request);
+    const pk = secretKey || streamToken ? undefined : publishableKeyFrom(request);
     let authenticate: (maxAgeMs?: number) => Promise<TenantContext>;
     const origin = pk ? requestOrigin(request) : undefined;
-    if (pk) {
+    if (streamToken) {
+      if (!authenticator || !streamTokens)
+        throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      const claims = streamTokens.verify(streamToken);
+      if (!claims)
+        throw problems.invalidKey(
+          'Token do stream inválido ou expirado: peça outro em POST /v1/stream/token.',
+        );
+      // o stream aberto revalida a CHAVE que pediu o token (revogação encerra em até 60 s)
+      authenticate = async (maxAgeMs?: number) => {
+        const ctx = await authenticator.authenticateProvenKey(claims.keyPrefix, claims.keyId, { maxAgeMs });
+        if (ctx.tenantId !== claims.tenantId) throw problems.invalidKey();
+        return ctx;
+      };
+    } else if (pk) {
       assertPublishableRoute(request);
       if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
       authenticate = () => publishable.authenticate(pk, origin, { ip: request.ip });
@@ -282,6 +319,23 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         authenticator.authenticate(secretKey, { ip: request.ip, maxAgeMs });
     }
     const tenant = await authenticate();
+    if (secretKey && queryKeyUsed(request)) {
+      // `?key=` aceito até o Sunset; o cliente troca para o token curto (docs/05 §5.1)
+      reply.headers(QUERY_KEY_DEPRECATION_HEADERS);
+      const warnKey = `${utcDay()}|${tenant.tenantId}`;
+      if (!queryKeyWarned.has(warnKey)) {
+        if (queryKeyWarned.size > 10_000) queryKeyWarned.clear();
+        queryKeyWarned.add(warnKey);
+        request.log.warn(
+          {
+            tenant: tenant.slug,
+            event: 'sse.query_key_deprecated',
+            sunset: QUERY_KEY_DEPRECATION_HEADERS.sunset,
+          },
+          'SSE com a chave secreta em ?key= (obsoleto): o tenant precisa trocar para POST /v1/stream/token',
+        );
+      }
+    }
     // só depois de a origem conferir com a chave (CORS da resposta)
     if (origin) request.publishableOrigin = origin;
     request.tenant = tenant;
@@ -336,7 +390,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     }
   });
 
+  // Vivacidade: o processo responde. É o healthcheck do Docker, que decide se o Traefik manda tráfego e se o
+  // contêiner é reiniciado (infra/healthcheck/selfheal.mjs); por isso não olha dependência nenhuma.
   app.get('/health', async () => ({ status: 'ok', service: 'galaxie-sports-api' }));
+
+  // Prontidão, para o monitor externo e o Prometheus: sem Postgres a API não serve dado (503); sem Valkey ela
+  // segue com cache e rate limit em modo degradado (200 "degraded"). Timeout curto por dependência.
+  // docs/runbooks/alertas-e-monitoramento.md
+  app.get('/health/ready', async (_req, reply) => {
+    const db = options.db;
+    const redis = options.redis;
+    const [postgres, valkey] = await Promise.all([
+      db ? probe(() => pingDb(db), READY_TIMEOUT_MS) : Promise.resolve('unconfigured' as const),
+      redis ? probe(() => redis.ping(), READY_TIMEOUT_MS) : Promise.resolve('unconfigured' as const),
+    ]);
+    const status =
+      postgres !== 'ok' ? 'unavailable' : valkey === 'ok' || valkey === 'unconfigured' ? 'ok' : 'degraded';
+    return reply.code(postgres === 'ok' ? 200 : 503).send({ status, checks: { postgres, valkey } });
+  });
 
   app.get('/health/db', async (_req, reply) => {
     if (!options.db)
@@ -361,7 +432,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (usage) {
     const persister =
-      options.db && usageBackend
+      options.db && usageBackend && options.usagePersist !== false
         ? new UsagePersister(options.db, usageBackend, {
             intervalMs: options.usagePersistIntervalMs ?? 60_000,
             onError: (err) => app.log.warn({ err }, 'falha ao consolidar uso'),
@@ -379,6 +450,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (options.changeFeed && options.db) {
     const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+      onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
@@ -392,7 +464,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       db: options.db,
       ...(options.redis ? { redis: options.redis } : {}),
       keyPrefix: prefix,
-      options: typeof options.realtime === 'object' ? options.realtime : {},
+      options: {
+        onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'sse', reason: gap.reason }),
+        ...realtimeOptions,
+      },
+      tokens: streamTokens!,
+      metrics: {
+        connections: (open) => metrics.sseConnections.set(open),
+        rejected: (reason) => metrics.sseRejected.inc({ reason }),
+      },
     });
   }
 
@@ -403,5 +483,26 @@ declare module 'fastify' {
   interface FastifyInstance {
     changeFeed?: ChangeFeedListener;
     routeTable: { method: string; url: string; config: FastifyContextConfig }[];
+  }
+}
+
+/** Timeout de cada dependência no /health/ready (o monitor externo espera alguns segundos; isto fica bem abaixo). */
+const READY_TIMEOUT_MS = 1_500;
+
+async function probe(check: () => Promise<unknown>, timeoutMs: number): Promise<'ok' | 'timeout' | 'error'> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs);
+  });
+  try {
+    return await Promise.race([
+      check().then(
+        () => 'ok' as const,
+        () => 'error' as const,
+      ),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }

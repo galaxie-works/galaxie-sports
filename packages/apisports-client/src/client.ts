@@ -33,6 +33,11 @@ export interface ApiSportsClientOptions {
   clock?: Clock;
   /** Respostas grandes (fixtures?date=) podem passar de 60 s. */
   timeoutMs?: number;
+  /**
+   * Tempo limite das chamadas de prioridade LIVE (padrão 30 s). O ao vivo repete a cada poucos segundos: uma
+   * chamada pendurada por 3 min segura o tick inteiro, e a próxima traz o placar de qualquer jeito.
+   */
+  liveTimeoutMs?: number;
   /** Chamado quando o fornecedor desloca a janela de temporadas do plano de uma API. */
   onPlanChange?: (plan: PlanRules, sport: ApiSport) => void;
   /**
@@ -73,7 +78,7 @@ export interface ProviderStatus {
  * 1. reaproveita o raw se houver resposta fresca (TTL por endpoint) — sem gastar cota;
  * 2. é pré-validada contra as restrições do plano;
  * 3. respeita o limite por minuto (no processo e, com o PgQuotaGovernor, somando os processos da chave)
- *    e reserva cota no Quota Governor;
+ *    e reserva cota no Quota Governor (que pausa a API depois de um 429 e usa o header de cota como piso);
  *    pedidos idênticos simultâneos (no processo ou entre processos) geram uma única chamada;
  * 4. grava o envelope integral em raw.api_response e o desfecho em ops.quota_ledger.
  */
@@ -83,12 +88,14 @@ export class ApiSportsClient {
   private readonly fetchFn: typeof globalThis.fetch;
   private readonly clock: Clock;
   private readonly timeoutMs: number;
+  private readonly liveTimeoutMs: number;
   private readonly inFlight = new Map<string, Promise<CallResult<unknown>>>();
 
   constructor(private readonly options: ApiSportsClientOptions) {
     this.clock = options.clock ?? systemClock;
     this.fetchFn = options.fetch ?? globalThis.fetch;
     this.timeoutMs = options.timeoutMs ?? 180_000;
+    this.liveTimeoutMs = options.liveTimeoutMs ?? 30_000;
   }
 
   /** Regras do plano do futebol (API principal). Para as demais APIs, use `planRulesFor(sport)`. */
@@ -183,6 +190,7 @@ export class ApiSportsClient {
     maxAge: number,
   ): Promise<CallResult<T>> {
     const startedAt = this.clock.now();
+    const timeoutMs = req.priority === 'LIVE' ? this.liveTimeoutMs : this.timeoutMs;
     // O limitador local vem antes da reserva: o Governor marca o envio (sent_at) na reserva e, com o
     // limite por minuto na política, espera a vaga somando os outros processos que usam a chave.
     await this.limiterFor(req.sport).take(req.sport);
@@ -195,7 +203,6 @@ export class ApiSportsClient {
           endpoint: req.endpoint,
           requestHash: hash,
           jobId: req.jobId,
-          critical: req.critical,
         });
         break;
       } catch (err) {
@@ -209,7 +216,7 @@ export class ApiSportsClient {
           this.emit(req, hash, { source: 'cache', durationMs: this.clock.now() - startedAt });
           return hit;
         }
-        if (now - startedAt > this.timeoutMs) throw err;
+        if (now - startedAt > timeoutMs) throw err;
       }
     }
 
@@ -219,7 +226,7 @@ export class ApiSportsClient {
     try {
       response = await this.fetchFn(url, {
         headers: { 'x-apisports-key': this.options.apiKey },
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       // o timeout vale também para a leitura do corpo, que pode falhar depois do status
       text = await response.text();
@@ -230,7 +237,9 @@ export class ApiSportsClient {
       throw new ApiSportsError(outcome, String(err), hash);
     }
 
+    // cota do dia da conta inteira (as duas pontas que usam a chave); o Governor usa como piso
     const quotaRemaining = toInt(response.headers.get('x-ratelimit-requests-remaining'));
+    const quotaLimit = toInt(response.headers.get('x-ratelimit-requests-limit'));
     let envelope: Envelope<T> | undefined;
     try {
       envelope = JSON.parse(text) as Envelope<T>;
@@ -261,11 +270,13 @@ export class ApiSportsClient {
         quotaRemaining: quotaRemaining ?? null,
         jobId: req.jobId ?? null,
         fetchedAt,
+        // o que o ao vivo busca fica 30 dias no raw (data-retention); o resto, para sempre
+        retention: req.priority === 'LIVE' ? 'live' : 'keep',
       });
     } finally {
       // A chamada foi feita: o ticket nunca fica pending, mesmo se a gravação do raw falhar.
       // O settle vem depois do save para quem espera a mesma requisição já encontrar o raw.
-      await this.options.governor.settle(ticket, outcome, quotaRemaining);
+      await this.options.governor.settle(ticket, outcome, quotaRemaining, quotaLimit);
     }
     this.emit(req, hash, {
       source: 'network',

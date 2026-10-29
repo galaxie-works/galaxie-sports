@@ -1,6 +1,25 @@
 #!/bin/sh
 # Funções comuns dos scripts de backup/restore. Conexão via variáveis padrão do libpq:
 # PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE.
+#
+# Na stack, usuário e senha vêm da URL do papel do backup (DB_URL_BACKUP=postgres://galaxie_backup:<senha>@host:porta/
+# banco; packages/db/src/roles.ts): pg_read_all_data, CREATEDB para o ensaio e escrita só em ops.job_run. Sem a URL,
+# valem PGUSER/PGPASSWORD (CI, máquina de dev). Senha só com letras e números (openssl rand -hex 32): a URL não é
+# decodificada aqui. A restauração real (restore.sh) precisa do dono do banco: passe a URL dele em DB_URL_BACKUP.
+if [ -n "${DB_URL_BACKUP:-}" ]; then
+  _auth=$(printf '%s' "$DB_URL_BACKUP" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://##; s#@[^@]*$##')
+  case "$_auth" in
+  *%*)
+    # o migrate decodifica a URL ao dar a senha ao papel; aqui ela iria codificada e nada autenticaria
+    echo "DB_URL_BACKUP com caractere codificado (%): use senha só com letras e números (openssl rand -hex 32)" >&2
+    exit 1
+    ;;
+  esac
+  PGUSER="${_auth%%:*}"
+  PGPASSWORD="${_auth#*:}"
+  export PGUSER PGPASSWORD
+  unset _auth
+fi
 
 : "${PGDATABASE:?Defina PGDATABASE}"
 : "${BACKUP_DIR:=/backups}"
@@ -44,8 +63,9 @@ job_finish() {
 }
 
 # Dumps do banco em BACKUP_DIR, do mais antigo ao mais recente (o nome leva o horário UTC: ordem de nome = ordem de tempo).
+# Cifrado (BACKUP_AGE_RECIPIENTS) o dump termina em .dump.age; os em claro de antes da cifragem continuam na lista.
 list_dumps() {
-  ls -1 "$BACKUP_DIR"/"${PGDATABASE}"_*.dump 2>/dev/null | sort || true
+  ls -1 "$BACKUP_DIR"/"${PGDATABASE}"_*.dump "$BACKUP_DIR"/"${PGDATABASE}"_*.dump.age 2>/dev/null | sort || true
 }
 
 latest_dump() {
@@ -67,6 +87,70 @@ prune_dumps() {
   fi
   list_dumps | head -n "$extra" | while read -r f; do rm -f "$f" "$f.sha256"; done
   echo "$extra"
+}
+
+# ── Cifragem dos dumps (age) ─────────────────────────────────────────────────────────────────────────────────────
+# BACKUP_AGE_RECIPIENTS: chaves públicas do age (age1…), separadas por vírgula, espaço ou quebra de linha. Com ela, o
+# dump sai do contêiner (volume, NAS, S3) só cifrado: a chave de recuperação do Wagner (privada fora da VPS) e a do
+# ensaio. BACKUP_AGE_IDENTITY: a chave PRIVADA do ensaio (AGE-SECRET-KEY-1…), que fica só no .env da VPS e decifra o
+# dump no ensaio mensal e no restore. docs/runbooks/exercicio-dr.md › Dumps cifrados.
+age_enabled() {
+  [ -n "${BACKUP_AGE_RECIPIENTS:-}" ]
+}
+
+# Grava os destinatários num arquivo (um por linha) e imprime o caminho; falha se algum não for uma chave pública.
+age_recipients_file() {
+  f=$(mktemp)
+  printf '%s\n' "$BACKUP_AGE_RECIPIENTS" | tr ', \t' '\n\n\n' | sed '/^$/d' >"$f"
+  if [ ! -s "$f" ] || grep -qv '^age1[02-9ac-hj-np-z]\{58\}$' "$f"; then
+    rm -f "$f"
+    return 1
+  fi
+  echo "$f"
+}
+
+# Grava a chave privada do ensaio num arquivo só do dono (0600) e imprime o caminho; sem ela, falha.
+age_identity_file() {
+  [ -n "${BACKUP_AGE_IDENTITY:-}" ] || return 1
+  f=$(umask 077 && mktemp)
+  printf '%s\n' "$BACKUP_AGE_IDENTITY" >"$f"
+  echo "$f"
+}
+
+# Sobras em claro de uma execução interrompida (contêiner morto, máquina reiniciada) no volume: o dump em claro do
+# backup cifrado (.dump.partial) e as cópias decifradas do ensaio e do restore. Sem argumento, apaga todas (partida do
+# agendador, antes de qualquer backup); com minutos, só as mais velhas que isso (outra execução pode estar no meio).
+clean_plaintext() {
+  older_than="${1:-}"
+  # shellcheck disable=SC2086 # sem minutos, o filtro some de propósito
+  find "$BACKUP_DIR" -maxdepth 1 -type f \( -name '*.dump.partial' -o -name '.drill-*.dump' -o -name '.restore-*.dump' \) \
+    ${older_than:+-mmin +$older_than} -print 2>/dev/null | while read -r f; do
+    rm -f "$f" && log warn "sobra em claro de uma execução interrompida apagada: $(basename "$f")"
+  done
+}
+
+# Dump pronto para o pg_restore: em claro, o próprio arquivo; cifrado (.age), decifra em "$2" (o chamador apaga).
+# Imprime o caminho do arquivo em claro; falha sem a chave do ensaio ou se o arquivo não decifra (age confere a
+# autenticidade de cada bloco: arquivo trocado ou corrompido não passa).
+plain_dump() {
+  case "$1" in
+  *.age) ;;
+  *)
+    echo "$1"
+    return 0
+    ;;
+  esac
+  id=$(age_identity_file) || {
+    log error "dump cifrado sem BACKUP_AGE_IDENTITY (chave do ensaio) para decifrar: $(basename "$1")" >&2
+    return 1
+  }
+  if ! age -d -i "$id" -o "$2" "$1"; then
+    rm -f "$id" "$2"
+    log error "não deu para decifrar $(basename "$1") com a chave do ensaio" >&2
+    return 1
+  fi
+  rm -f "$id"
+  echo "$2"
 }
 
 s3_enabled() {

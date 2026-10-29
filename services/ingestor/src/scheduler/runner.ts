@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { jobRun, type Database, type JobLock } from '@galaxie/db';
+import { EXIT_BUDGET_SKIPPED } from '@galaxie/runtime-config';
 import type { Logger } from '@galaxie/observability';
 import type { ScheduledJob } from './schedule.js';
 
@@ -10,7 +11,7 @@ export interface RunRecorder {
   start(job: string): Promise<string>;
   finish(
     id: string,
-    status: 'ok' | 'error',
+    status: 'ok' | 'error' | 'budget_skipped',
     error: string | null,
     stats: Record<string, unknown>,
   ): Promise<void>;
@@ -29,7 +30,7 @@ export class PgRunRecorder implements RunRecorder {
 
   async finish(
     id: string,
-    status: 'ok' | 'error',
+    status: 'ok' | 'error' | 'budget_skipped',
     error: string | null,
     stats: Record<string, unknown>,
   ): Promise<void> {
@@ -46,8 +47,11 @@ export class PgRunRecorder implements RunRecorder {
   }
 }
 
-/** De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START ou o painel de Operação. */
-export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel';
+/**
+ * De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START, o painel de Operação ou o catch-up da partida
+ * (horário perdido com o scheduler fora do ar, catch-up.ts).
+ */
+export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel' | 'catchup';
 
 export interface RunOptions {
   /** Raiz do pacote do ingestor (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
@@ -58,6 +62,8 @@ export interface RunOptions {
   trigger: RunTrigger;
   /** Tempo para o processo encerrar depois do SIGTERM antes do SIGKILL. */
   killGraceMs?: number;
+  /** Heap do processo do job quando a definição não traz o seu (--max-old-space-size, MB). */
+  heapMb?: number;
   /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */
   signal?: AbortSignal | undefined;
   /**
@@ -70,12 +76,40 @@ export interface RunOptions {
 export interface RunResult {
   job: string;
   runId: string | undefined;
-  /** `skipped`: outro processo já rodava o job (trava ocupada); nada foi executado. */
-  status: 'ok' | 'error' | 'skipped';
+  /**
+   * `skipped`: outro processo já rodava o job (trava ocupada); nada foi executado. `budget_skipped`: o
+   * job gravou a saída determinística porque o orçamento de IA recusou (saída EXIT_BUDGET_SKIPPED).
+   */
+  status: 'ok' | 'error' | 'skipped' | 'budget_skipped';
   exitCode: number | null;
   signal: NodeJS.Signals | null;
   timedOut: boolean;
   durationMs: number;
+}
+
+/** Código de saída do `scheduler --run`: budget_skipped (gravou o determinístico) não é falha. */
+export const runExitCode = (status: RunResult['status']): number =>
+  status === 'ok' || status === 'budget_skipped' ? 0 : 1;
+
+/**
+ * Heap padrão de um job (MB). O teto faz o job que vaza memória morrer sozinho com "heap out of memory" (código
+ * 134 em ops.job_run), em vez de o kernel matar o maior processo do contêiner (o ao vivo, ou o scheduler).
+ */
+export const DEFAULT_JOB_HEAP_MB = 160;
+
+/**
+ * Geração nova de cada job: 3 × 8 MB. Sem o flag, o V8 dimensiona pelo tamanho da máquina e pode reservar até
+ * ~190 MB por processo, o que tiraria a soma dos jobs do mem_limit.
+ */
+export const JOB_SEMI_SPACE_MB = 8;
+
+/** Flags de memória do filho (vêm antes do script e valem por cima de um NODE_OPTIONS herdado). */
+export function heapFlags(job: Pick<ScheduledJob, 'heapMb'>, fallbackMb = DEFAULT_JOB_HEAP_MB): string[] {
+  const mb = job.heapMb ?? fallbackMb;
+  return [
+    `--max-old-space-size=${Math.max(32, Math.round(mb))}`,
+    `--max-semi-space-size=${JOB_SEMI_SPACE_MB}`,
+  ];
 }
 
 /**
@@ -133,11 +167,22 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
     Pick<RunResult, 'exitCode' | 'signal' | 'timedOut'> & { spawnError?: Error }
   >((done) => {
     const cwd = resolve(options.cwd, job.cwd ?? '.');
-    const child = spawn(process.execPath, [resolve(cwd, job.script), ...job.args], {
-      cwd,
-      env: { ...(options.env ?? process.env), ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}) },
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
+    const child = spawn(
+      process.execPath,
+      [...heapFlags(job, options.heapMb), resolve(cwd, job.script), ...job.args],
+      {
+        cwd,
+        env: {
+          // nome da sessão no Postgres (pg_stat_activity): quem segura conexão ou consulta
+          PGAPPNAME: `galaxie-job:${job.name}`,
+          ...(options.env ?? process.env),
+          // o job sabe que veio do scheduler: a IA desconta das faixas por prioridade, não da `manual`
+          GALAXIE_INVOKER: 'scheduler',
+          ...(runId ? { GALAXIE_SCHEDULER_RUN_ID: runId } : {}),
+        },
+        stdio: ['ignore', 'inherit', 'inherit'],
+      },
+    );
     let timedOut = false;
     let killTimer: NodeJS.Timeout | undefined;
     const onAbort = () => {
@@ -167,9 +212,15 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
   });
 
   const durationMs = Date.now() - startedAt;
-  const status = outcome.exitCode === 0 && !outcome.timedOut ? 'ok' : 'error';
+  const status: 'ok' | 'error' | 'budget_skipped' = outcome.timedOut
+    ? 'error'
+    : outcome.exitCode === 0
+      ? 'ok'
+      : outcome.exitCode === EXIT_BUDGET_SKIPPED
+        ? 'budget_skipped'
+        : 'error';
   const error =
-    status === 'ok'
+    status !== 'error'
       ? null
       : outcome.spawnError
         ? `falha ao iniciar: ${outcome.spawnError.message}`
@@ -184,6 +235,8 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
         signal: outcome.signal,
         duration_ms: durationMs,
         trigger: options.trigger,
+        // cortado pelo encerramento do scheduler (deploy, reinício): o catch-up da partida roda de novo
+        ...(options.signal?.aborted ? { interrupted: true } : {}),
       });
     } catch (err) {
       log.error({ err }, 'não foi possível registrar o fim do job em ops.job_run');
@@ -192,6 +245,8 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
 
   const fields = { status, exit_code: outcome.exitCode, duration_ms: durationMs };
   if (status === 'ok') log.info(fields, 'job concluído');
+  else if (status === 'budget_skipped')
+    log.warn(fields, 'job concluído com a saída determinística: orçamento de IA recusou');
   else log.error({ ...fields, error }, 'job falhou');
 
   return { job: job.name, runId, status, durationMs, ...outcome };

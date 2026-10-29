@@ -2,7 +2,9 @@
  * Importação de um acervo customizado de logos: espelha no storage os logos com vínculo no manifesto
  * (com a nossa nomenclatura, `acervoStorageKey`), grava core.asset com `origin = acervo` (paleta incluída) e liga o asset em
  * `custom_logo_asset_id` do time ou da competição — o logo do fornecedor (`logo_asset_id`) nunca é
- * tocado. Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
+ * tocado. Os outros formatos do mesmo escudo (SVG, PNG e WebP do pacote) vão para o storage com a mesma
+ * nomenclatura e ficam em `core.asset.variants`, publicados pela API em `logo_formats`; do PNG saem
+ * PNG e WebP em 64, 128 e 256 px (`variants.sizes`, `logo_sizes` na API). Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
  * manifesto sai do time (o asset fica, sem apagar nada). A API só mostra esses logos com a flag
  * ASSETS_CUSTOM_LOGOS ligada.
  */
@@ -20,13 +22,15 @@ import {
   participant,
   providerMap,
   teamProfile,
+  type AssetVariants,
   type Database,
 } from '@galaxie/db';
 import { publishTeamLogoChanges, teamsUsing } from '../asset-store.js';
 import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import { paletteFromPng, type AssetPalette } from '../palette.js';
-import type { AcervoLogo, AcervoManifest } from './manifest.js';
+import { LOGO_FORMATS, type AcervoLogo, type AcervoManifest, type LogoFormat } from './manifest.js';
+import { sizedLogos } from './sizes.js';
 import type { MatchTarget } from './match.js';
 import type { CountryRow } from './plan.js';
 import { paletteFromSvg } from './svg-palette.js';
@@ -35,7 +39,27 @@ import { unsafeSvgReason } from './svg-safety.js';
 /** Rastro interno no asset (nunca publicado): o acervo e o arquivo do pacote, único por arquivo. */
 export const acervoSourceUrl = (id: string, file: string) => `acervo://${id}/${file}`;
 
-const EXTENSIONS: Record<string, string> = { 'image/svg+xml': 'svg', 'image/png': 'png' };
+const EXTENSIONS: Record<string, string> = {
+  'image/svg+xml': 'svg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+const FORMAT_TYPES: Record<LogoFormat, string> = {
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+/** Formatos do logo: os do manifesto, ou (manifesto antigo, sem `formats`) o servido e o PNG da paleta. */
+export function logoFormats(logo: AcervoLogo): Partial<Record<LogoFormat, string>> {
+  if (logo.formats && Object.keys(logo.formats).length) return logo.formats;
+  const out: Partial<Record<LogoFormat, string>> = {};
+  for (const file of [logo.file, logo.palette_file]) {
+    const ext = file?.split('.').pop()?.toLowerCase() as LogoFormat | undefined;
+    if (file && ext && LOGO_FORMATS.includes(ext)) out[ext] ??= file;
+  }
+  return out;
+}
 
 /**
  * Chave publicada no storage (e na URL que a API devolve): só a nossa nomenclatura — tipo, id do nosso
@@ -271,7 +295,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         emit({
           type: 'skipped',
           key: logo.key,
-          reason: `tipo não aceito (${info.contentType}): só SVG e PNG`,
+          reason: `tipo não aceito (${info.contentType}): só SVG, PNG e WebP`,
         });
         continue;
       }
@@ -280,6 +304,69 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
       if (uploaded) {
         await objects.put(storageKey, body, info.contentType, hash);
         report.uploaded += 1;
+      }
+      // os demais formatos do mesmo escudo: arquivo inválido fica de fora sem derrubar o logo
+      const variants: AssetVariants = {};
+      let pngBody: Uint8Array | null = info.contentType === 'image/png' ? body : null;
+      for (const [format, file] of Object.entries(logoFormats(logo)) as [LogoFormat, string][]) {
+        if (file === logo.file) {
+          variants[format] = {
+            storage_key: storageKey,
+            sha256: hash,
+            bytes: body.length,
+            width: info.width,
+            height: info.height,
+          };
+          continue;
+        }
+        const vBody = new Uint8Array(readFileSync(join(options.dir, file)));
+        const vInfo = imageInfo(vBody);
+        const vUnsafe = vInfo.contentType === 'image/svg+xml' ? unsafeSvgReason(vBody) : null;
+        if (vInfo.contentType !== FORMAT_TYPES[format] || vUnsafe) {
+          emit({
+            type: 'skipped',
+            key: `${logo.key}.${format}`,
+            reason: vUnsafe ? `SVG recusado: ${vUnsafe}` : `não é ${format}`,
+          });
+          continue;
+        }
+        const vHash = sha256(vBody);
+        const vKey = acervoStorageKey(logo.kind, logo.target_id, vHash, vInfo.contentType)!;
+        if ((await objects.head(vKey))?.sha256 !== vHash) {
+          await objects.put(vKey, vBody, vInfo.contentType, vHash);
+          report.uploaded += 1;
+        }
+        variants[format] = {
+          storage_key: vKey,
+          sha256: vHash,
+          bytes: vBody.length,
+          width: vInfo.width,
+          height: vInfo.height,
+        };
+        if (format === 'png') pngBody = vBody;
+      }
+      // tamanhos fixos (64/128/256) do PNG em PNG e WebP: falha aqui não derruba o logo
+      if (pngBody) {
+        try {
+          for (const sized of await sizedLogos(pngBody)) {
+            const sHash = sha256(sized.body);
+            const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;
+            if ((await objects.head(sKey))?.sha256 !== sHash) {
+              await objects.put(sKey, sized.body, sized.contentType, sHash);
+              report.uploaded += 1;
+            }
+            const bySize = ((variants.sizes ??= {})[`${sized.size}`] ??= {});
+            bySize[sized.format] = {
+              storage_key: sKey,
+              sha256: sHash,
+              bytes: sized.body.length,
+              width: sized.size,
+              height: sized.size,
+            };
+          }
+        } catch (err) {
+          emit({ type: 'skipped', key: `${logo.key}.sizes`, reason: `tamanhos não gerados: ${String(err)}` });
+        }
       }
       const paletteBody = logo.palette_file
         ? new Uint8Array(readFileSync(join(options.dir, logo.palette_file)))
@@ -296,6 +383,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
         palette: paletteOf(body, info.contentType, paletteBody),
         origin: 'acervo' as const,
         acervo: id,
+        variants,
       };
       const { sourceUrl: _url, ...updatable } = values;
       // a regravação de um asset já ligado e o aviso aos times que o usam saem juntos: se um item seguinte
@@ -308,7 +396,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
             target: asset.sourceUrl,
             set: updatable,
             // só regrava quando algo mudou: rodar de novo não toca o banco
-            setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null`,
+            setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null or ${asset.variants} is distinct from ${JSON.stringify(variants)}::jsonb`,
           })
           .returning({ id: asset.id });
         if (upserted) await publishTeamLogoChanges(tx, await teamsUsing(tx, [upserted.id]));

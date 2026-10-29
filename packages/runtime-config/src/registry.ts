@@ -5,6 +5,15 @@
  * nunca têm valor lido, gravado nem exibido.
  */
 
+import {
+  BUDGET_DAY_START_PATTERN,
+  DEFAULT_BAND_SHARES_TEXT,
+  DEFAULT_BUDGET_DAY,
+  checkBandShares,
+  isTimeZone,
+} from './ai-policy.js';
+import type { ValidationError } from './resolve.js';
+
 /**
  * Agentes com pool de tokens próprio, fora da soma do AI_DAILY_TOKEN_BUDGET global (fração dele; o
  * ledger, @galaxie/ai-ledger, e o painel leem daqui):
@@ -66,6 +75,8 @@ export interface SettingDef {
   allowEmpty?: boolean;
   /** text: formato aceito. */
   pattern?: RegExp;
+  /** text: regra além do formato (ex.: as faixas da IA somam 100); devolve o erro ou null. */
+  check?: (value: string) => ValidationError | null;
   /** Mudança sensível (custo ou cobertura): o painel pede confirmação. */
   critical?: boolean;
   /** cron: job agendado. */
@@ -95,6 +106,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'assets-mirror', service: 'ingestor', cron: '30 1 * * *', runNow: false },
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
   { name: 'change-feed-prune', service: 'ingestor', cron: '45 2 * * *', runNow: true },
+  { name: 'data-retention', service: 'ingestor', cron: '20 3 * * *', runNow: true },
+  { name: 'fixture-people', service: 'ingestor', cron: '25 4 * * *', runNow: true },
   { name: 'quota-status', service: 'ingestor', cron: '5 * * * *', runNow: true },
   { name: 'data-quality', service: 'ingestor', cron: '40 4 * * *', runNow: true },
   { name: 'bootstrap-catalog', service: 'ingestor', cron: '15 3 * * 1', runNow: false },
@@ -367,6 +380,36 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '0.5',
     critical: true,
   }),
+  // política de execução (#357): o teto global dividido em faixas por prioridade (% que somam 100)
+  agents('ai', {
+    key: 'AI_BAND_SHARES',
+    type: 'text',
+    pattern: /^[a-z0-9]+=\d{1,3}([,;\s]+[a-z0-9]+=\d{1,3})*$/i,
+    check: (value) => {
+      const r = checkBandShares(value);
+      return r.ok ? null : r.error;
+    },
+    default: DEFAULT_BAND_SHARES_TEXT,
+    critical: true,
+  }),
+  // corte P0/P1: audiência mínima (pontos de config/geo/market-audience.yaml) para a competição ser P0
+  agents('ai', { key: 'AI_P0_MIN_AUDIENCE', type: 'int', min: 1, max: 40, default: '25', critical: true }),
+  // virada do dia de orçamento (todos os tetos de IA): horário local e fuso
+  agents('ai', {
+    key: 'AI_BUDGET_DAY_START',
+    type: 'text',
+    pattern: BUDGET_DAY_START_PATTERN,
+    default: DEFAULT_BUDGET_DAY.start,
+    critical: true,
+  }),
+  agents('ai', {
+    key: 'AI_BUDGET_TIMEZONE',
+    type: 'text',
+    pattern: /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/,
+    check: (value) => (isTimeZone(value) ? null : { code: 'format' }),
+    default: DEFAULT_BUDGET_DAY.timeZone,
+    critical: true,
+  }),
   // buscas na web por chamada: OpenAI e Anthropic aplicam na API; o Gemini recebe no prompt e o
   // painel conta as chamadas que passaram do teto
   agents('ai', {
@@ -564,14 +607,15 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   })),
   {
-    key: 'QUOTA_RESERVE_PERCENT',
+    // produção: abaixo disso só o ao vivo chama; no dev o Governor impõe pelo menos 70% (vale para tudo)
+    key: 'QUOTA_LIVE_RESERVE_PERCENT',
     section: 'provider',
     type: 'int',
     services: ['ingestor', 'api'],
     apply: 'next-run',
     min: 0,
     max: 50,
-    default: '15',
+    default: '25',
   },
 
   // ── Logos ───────────────────────────────────────────────────────────────────────────────────

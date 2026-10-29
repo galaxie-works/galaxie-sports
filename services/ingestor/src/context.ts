@@ -33,6 +33,7 @@ export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorCo
   if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const planFor = plansFromEnv(env);
   const db = createDb(DATABASE_URL);
+  const liveTimeoutMs = Number(env.APISPORTS_LIVE_TIMEOUT_MS) || undefined;
   const governor = new PgQuotaGovernor(db, quotaPolicyFromEnv(env));
   const offline = !APISPORTS_KEY;
   const client = new ApiSportsClient({
@@ -41,6 +42,8 @@ export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorCo
     governor,
     planFor: (sport) => new PlanRules(planFor(sport)),
     offline,
+    // chamada do ao vivo desiste em 30 s (APISPORTS_LIVE_TIMEOUT_MS); as de catálogo seguem com 180 s
+    ...(liveTimeoutMs ? { liveTimeoutMs } : {}),
     onCall: logProviderCall(),
     onPlanChange: (rules, sport) =>
       logger.warn(

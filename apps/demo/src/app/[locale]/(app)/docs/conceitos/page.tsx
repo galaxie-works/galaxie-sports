@@ -213,7 +213,16 @@ const NOT_FOUND_SAMPLE = `{
 }`;
 
 /** TTL por tipo de dado (os nomes ficam em `t.docs.concepts.cache[tipo]`). */
-const CACHE_ROWS = ['catalog', 'squads', 'today', 'live', 'whereToWatch', 'ai', 'semantic', 'images'] as const;
+const CACHE_ROWS = [
+  'catalog',
+  'squads',
+  'today',
+  'live',
+  'whereToWatch',
+  'ai',
+  'semantic',
+  'images',
+] as const;
 
 const ERROR_ROWS = [
   ['400 INVALID_PARAMS', 'invalidParams'],
@@ -278,6 +287,13 @@ export default async function ConceptsPage() {
         <P>{docText(text.cache.purge, { a: docLink('/docs/tempo-real') })}</P>
       </DocSection>
 
+      <DocSection id="imagens" title={text.images.title}>
+        <P>{docText(text.images.body)}</P>
+        <Bullets
+          items={[docText(text.images.source), docText(text.images.formats), docText(text.images.colors)]}
+        />
+      </DocSection>
+
       <DocSection id="paginacao" title={text.pagination.title}>
         <P>
           {docText(
@@ -292,7 +308,10 @@ export default async function ConceptsPage() {
 
       <DocSection id="erros" title={text.errors.title}>
         <P>{docText(text.errors.body)}</P>
-        <CodeTabs title="404 Not Found" examples={[{ label: 'JSON', language: 'json', code: NOT_FOUND_SAMPLE }]} />
+        <CodeTabs
+          title="404 Not Found"
+          examples={[{ label: 'JSON', language: 'json', code: NOT_FOUND_SAMPLE }]}
+        />
         <DocTable
           head={[text.errors.headStatus, text.errors.headWhen]}
           rows={ERROR_ROWS.map(([status, row]) => [status, text.errors[row]])}
@@ -302,7 +321,11 @@ export default async function ConceptsPage() {
 
       <DocSection id="versionamento" title={text.versioning.title}>
         <Bullets
-          items={[docText(text.versioning.stable), text.versioning.newFields, docText(text.versioning.missing)]}
+          items={[
+            docText(text.versioning.stable),
+            text.versioning.newFields,
+            docText(text.versioning.missing),
+          ]}
         />
       </DocSection>
     </DocPage>

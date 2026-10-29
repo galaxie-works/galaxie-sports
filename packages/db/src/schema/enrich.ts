@@ -652,6 +652,11 @@ export const broadcaster = enrich.table('broadcaster', {
   website: text('website'),
   markets: jsonb('markets').$type<Record<string, BroadcasterMarket>>().notNull(),
   logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+  /**
+   * Logo enviado no painel (Ajustes → Grades e ofertas): vale no lugar do `logo_asset_id`, que a
+   * sincronização da biblioteca regrava. Histórico (e o anterior, para voltar) em `enrich.logo_upload`.
+   */
+  customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
   /** URL do arquivo de origem do logo (site oficial ou Wikimedia Commons). */
   logoSourceUrl: text('logo_source_url'),
   /** Página de origem (descrição do arquivo, press kit). */

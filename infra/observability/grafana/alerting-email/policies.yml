@@ -1,9 +1,0 @@
-# Todo alerta vai para o e-mail da operação, agrupado pelo alerta do Prometheus; repete a cada 4 h enquanto durar.
-apiVersion: 1
-policies:
-  - orgId: 1
-    receiver: email-operacao
-    group_by: ['alertname', 'prometheus_alert']
-    group_wait: 30s
-    group_interval: 5m
-    repeat_interval: 4h

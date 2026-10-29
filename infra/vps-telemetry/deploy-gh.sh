@@ -8,7 +8,8 @@
 # Ambiente: SHA (obrigatório); VPS (padrão root@145.223.94.149) e VPS_DIR; IMAGE_PREFIX (padrão
 # ghcr.io/galaxie-works/galaxie-sports); GHCR_USER e GHCR_TOKEN (token que lê os pacotes; vazio = pacotes públicos);
 # FORCE=1 publica de novo um SHA que já está no ar; ON_SKIP=fail faz o SHA já no ar sem FORCE sair com 1 em vez de 0
-# (disparo manual: nunca verde sem publicar). A chave SSH e o known_hosts vêm do workflow.
+# (disparo manual: nunca verde sem publicar); DEPLOY_CANDIDATE=on liga o candidato e a troca sem manutenção (abaixo;
+# vazio = o roteiro de antes). A chave SSH e o known_hosts vêm do workflow.
 #
 # Passos:
 #   1. as imagens do SHA existem no GHCR (antes de tocar a VPS)
@@ -17,19 +18,27 @@
 #   4. login no GHCR num DOCKER_CONFIG temporário da VPS (o token chega pelo stdin, nunca na linha de comando, e o
 #      arquivo sai no fim): a VPS não guarda credencial do GitHub
 #   5. compose.yml do SHA e IMAGE_TAG no .env, validados; docker compose pull só dos serviços com imagem nossa (os de
-#      terceiros, como o postgres, ficam na imagem que já está na VPS); backup dos dois arquivos e troca
-#   6. docker compose up -d (escala atual do ingestor; PULL_POLICY=missing) e migrate com saída 0
+#      terceiros, como o postgres, ficam na imagem que já está na VPS); com migration nova no journal do SHA, dump do
+#      banco (pre-migrate-dump.sh; falhou = para sem trocar nada); backup dos dois arquivos e troca
+#   5b. com DEPLOY_CANDIDATE=on: migration nova aplicada já aqui (a versão no ar segue, sobre o schema novo); a API e
+#      a demo novas sobem ao lado das que estão no ar, sem tráfego (candidate.sh), e o smoke roda nelas. Smoke com
+#      FAIL = para aqui, sem troca: a versão anterior segue no ar
+#   6. docker compose up -d (escala atual do ingestor; PULL_POLICY=missing) e migrate com saída 0. Com
+#      DEPLOY_CANDIDATE=on, a API e a demo trocam antes, sem página de manutenção (rolling-swap.sh: o contêiner novo
+#      sobe ao lado do antigo, e o antigo só sai com o novo healthy)
 #   7. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA) e smoke test (smoke.mjs)
 #   8. up, migrate, pós-deploy ou smoke com falha → volta para o SHA anterior quando é garantidamente o estado de antes
 #      (nenhuma migration nova aplicada, backups e imagens antigas na VPS); senão imprime o rollback manual
 #   9. lineup-render (perfil render): baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha)
 #  10. religa o espelho de assets (mirror-assets) se ele não estiver rodando
+#  11. com DEPLOY_CANDIDATE=on: guarda só os 10 backups mais novos do compose.yml e do .env na VPS
 # As notas de versão são publicadas pelo workflow depois deste script, só com sucesso.
 # Saída: 0 = publicado (ou já estava no ar); 1 = falhou (a mensagem diz se voltou para a versão anterior).
 set -euo pipefail
 
 : "${SHA:?defina SHA}"
 case "${FORCE:-}" in 1 | true | sim | yes) FORCE=1 ;; *) FORCE="" ;; esac
+case "${DEPLOY_CANDIDATE:-}" in on | 1 | true | sim | yes) CANDIDATE=1 ;; *) CANDIDATE="" ;; esac
 VPS="${VPS:-root@145.223.94.149}"
 DIR="${VPS_DIR:-/docker/galaxie-sports}"
 REG="${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}"
@@ -70,6 +79,9 @@ mapfile -t NAMES < <(jq -r --arg z ":$ZERO" '.services[].image | select(endswith
   exit 1
 }
 echo "serviços: ${SERVICES[*]} · imagens: ${NAMES[*]}"
+# o compose do SHA tem os dois candidatos? (um SHA anterior a eles publica sem o candidato)
+HAS_CANDIDATE="$(docker compose -f "$STACK/compose.yml" --env-file "$STACK/env.example" --profile candidate config --services |
+  grep -cxE 'api-candidate|demo-candidate')" || HAS_CANDIDATE=0
 # --services: só a lista acima (o CI confere que ela bate com as imagens que o docker.yml publica)
 [ "${1:-}" != --services ] || exit 0
 
@@ -87,6 +99,9 @@ OLD=""
 SCALE=""
 MIG_BEFORE=""
 MIG_AFTER=""
+PRE_DUMP="" # dump de antes do migrate (só com migration nova)
+EARLY_MIG="" # migrations aplicadas antes da troca, para o candidato
+CAND_UP=""
 LOCK_ID="gha-$RUN_ID-$(date +%s)"
 
 rollback_help() {
@@ -101,6 +116,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
@@ -111,8 +127,14 @@ on_exit() {
     echo "FAIL  deploy parou no meio (código $code): a ${SHA:0:7} está no ar, sem o resto do roteiro"
     rollback_help
   fi
-  # credencial e trava: as duas saem mesmo com o job cancelado (o runner manda INT/TERM antes de matar)
-  ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG; if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
+  # candidato que ficou no ar (job cancelado no meio do smoke)
+  if [ -n "$CAND_UP" ]; then
+    ssh -o ConnectTimeout=20 "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh" ||
+      echo "WARN  candidato não foi removido; confira: ssh $VPS 'cd $DIR && docker compose --profile candidate ps -a'"
+  fi
+  # credencial, trava, .env da versão nova (tem os segredos) e o smoke copiado: saem mesmo com o job cancelado (o
+  # runner manda INT/TERM antes de matar)
+  ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG $DIR/.env.next $DIR/.smoke-$RUN_ID.mjs; if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
     echo "WARN  limpeza na VPS não rodou; confira: ssh $VPS 'ls -d $CFG $LOCK'"
 }
 trap on_exit EXIT
@@ -177,15 +199,75 @@ if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing 
   exit 1
 fi
 echo "baixando as imagens (${SERVICES[*]})"
-if ! ssh "$VPS" "$CD && (umask 077 && sed -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|' .env > .env.check) \
-  && docker compose -f compose.yml.new --env-file .env.check config -q \
-  && $PULL -f compose.yml.new --env-file .env.check pull --quiet ${SERVICES[*]} </dev/null; ok=\$?; rm -f .env.check; exit \$ok"; then
+# .env.next: o .env com a versão nova, para validar e baixar. Com o candidato, ele sobe com este arquivo, que sai na
+# troca (ou na limpeza da saída); sem o candidato, sai aqui mesmo
+if ! ssh "$VPS" "$CD && (umask 077 && sed -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|' .env > .env.next) \
+  && docker compose -f compose.yml.new --env-file .env.next config -q \
+  && $PULL -f compose.yml.new --env-file .env.next pull --quiet ${SERVICES[*]} </dev/null; ok=\$?; \
+  [ \$ok = 0 ] && [ -n '$CANDIDATE' ] || rm -f .env.next; exit \$ok"; then
   echo "FAIL  compose.yml/.env novos inválidos ou pull do GHCR falhou; nada foi trocado na VPS"
   exit 1
 fi
-ssh "$VPS" "$CD && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
-  && mv compose.yml.new compose.yml && sed -i -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|' .env"
+
+# migrations aplicadas antes de qualquer troca: a base da volta automática (restore_previous)
 MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""
+
+# ── dump antes do migrate ───────────────────────────────────────────────────────────────────────────────────
+# Migration nova não tem volta automática (restore_previous recusa): o dump é a volta. Só quando o journal do SHA tem
+# mais migrations que o banco; sem espaço ou com o pg_dump falhando, para aqui, sem ter trocado nada.
+journal="$(grep -c '"idx"' "$TARGET/packages/db/drizzle/meta/_journal.json")" || journal=""
+if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
+  echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
+elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$HERE/pre-migrate-dump.sh")"; then
+  printf '%s\n' "$out" | grep -v '^PRE_DUMP=' || true
+  PRE_DUMP="$(sed -n 's/^PRE_DUMP=//p' <<< "$out")"
+else
+  printf '%s\n' "$out"
+  echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
+  exit 1
+fi
+
+# ── candidato: smoke na versão nova antes da troca (DEPLOY_CANDIDATE=on) ─────────────────────────────────────
+if [ -n "$CANDIDATE" ] && [ "$HAS_CANDIDATE" != 2 ]; then
+  echo "WARN  compose.yml da ${SHA:0:7} sem api-candidate e demo-candidate: publica sem o candidato"
+  CANDIDATE=""
+fi
+if [ -n "$CANDIDATE" ]; then
+  # migration nova: o candidato precisa do schema novo. Aplicada aqui, com o dump já feito, numa transação (falhou =
+  # nada aplicado); a versão no ar segue sobre o schema novo até a troca, como já acontecia entre o migrate e o up
+  if ! [[ "$journal" =~ ^[0-9]+$ && "$MIG_BEFORE" =~ ^[0-9]+$ ]]; then
+    echo "FAIL  não deu para contar as migrations (journal: '$journal', banco: '$MIG_BEFORE'); nada foi trocado na VPS"
+    exit 1
+  fi
+  if [ "$journal" -gt "$MIG_BEFORE" ]; then
+    echo "candidato: $((journal - MIG_BEFORE)) migration(s) nova(s), aplicada(s) antes da troca"
+    if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new --env-file .env.next run --rm --no-deps migrate </dev/null"; then
+      echo "FAIL  migrate da ${SHA:0:7} falhou antes da troca; a ${OLD:0:7} segue no ar e nada foi trocado"
+      exit 1
+    fi
+    EARLY_MIG=$((journal - MIG_BEFORE))
+  fi
+  echo "candidato: api e demo da ${SHA:0:7} ao lado das que estão no ar (sem tráfego)"
+  CAND_UP=1
+  ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
+  if ! ssh "$VPS" "cd $DIR && bash -s -- up" < "$HERE/candidate.sh" ||
+    ! ssh "$VPS" "cd $DIR && bash -s -- smoke .smoke-$RUN_ID.mjs" < "$HERE/candidate.sh"; then
+    ssh "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh" || true
+    CAND_UP=""
+    echo "FAIL  candidato da ${SHA:0:7} reprovado (acima): sem troca, a ${OLD:0:7} segue no ar"
+    if [ -n "$EARLY_MIG" ]; then
+      echo "FAIL  $EARLY_MIG migration(s) da ${SHA:0:7} já aplicada(s): a ${OLD:0:7} roda sobre o schema novo. Corrija para frente; voltar o banco é o dump de antes do migrate${PRE_DUMP:+ ($PRE_DUMP)}"
+    fi
+    exit 1
+  fi
+  ssh "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh"
+  CAND_UP=""
+  echo "candidato aprovado no smoke: trocando"
+fi
+
+ssh "$VPS" "$CD && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
+  && mv compose.yml.new compose.yml && sed -i -e 's|^IMAGE_TAG=.*|IMAGE_TAG=$SHA|' -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|' .env \
+  && rm -f .env.next"
 
 # Volta compose.yml e .env do deploy anterior e sobe de novo com as imagens antigas, que continuam na VPS. Só quando é
 # garantidamente o estado de antes: nenhuma migration nova aplicada, SHA anterior diferente, backups no lugar e as
@@ -203,7 +285,8 @@ restore_previous() {
     why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
     && prefix=\$(sed -n 's/^IMAGE_PREFIX=//p' .env.bak-$o) \
-    && for s in ${NAMES[*]}; do docker image inspect \$prefix-\$s:$OLD >/dev/null || exit 1; done \
+    && for s in ${NAMES[*]}; do docker image inspect \$prefix-\$s:$OLD >/dev/null 2>&1 \
+      || { [ -n '$CANDIDATE' ] && DOCKER_CONFIG=$CFG docker pull -q \$prefix-\$s:$OLD >/dev/null; } || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
     && docker compose up -d --scale ingestor=$SCALE --quiet-pull </dev/null"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
@@ -223,6 +306,13 @@ restore_previous() {
 }
 
 STAGE=up
+# API e demo primeiro, sem página de manutenção: o contêiner novo sobe ao lado do antigo (rolling-swap.sh)
+if [ -n "$CANDIDATE" ]; then
+  echo "troca sem manutenção: api e demo"
+  if ! ssh "$VPS" "cd $DIR && bash -s -- api demo" < "$HERE/rolling-swap.sh"; then
+    restore_previous "troca da api ou da demo falhou (contêiner novo sem healthcheck verde)"
+  fi
+fi
 echo "subindo a stack"
 if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE --quiet-pull </dev/null 2>&1")"; then
   :
@@ -289,6 +379,12 @@ ssh "$VPS" "cd $DIR && if pgrep -f mirror-assets >/dev/null; then echo 'mirror: 
   elif [ -n \"\$(docker compose ps -q ingestor)\" ]; then \
     (setsid nohup docker compose exec -T ingestor node dist/cli/mirror-assets.js --concorrencia 4 </dev/null > /tmp/mirror.log 2>&1 &); echo 'mirror: religado'; \
   else echo 'mirror: ingestor fora do ar, nada a religar'; fi" || echo "WARN  mirror: não deu para religar"
+
+# ── backups do compose.yml e do .env: os 10 mais novos de cada ─────────────────────────────────────────────
+if [ -n "$CANDIDATE" ]; then
+  ssh "$VPS" "cd $DIR && for f in compose.yml .env; do ls -1t \$f.bak-* 2>/dev/null | tail -n +11 | xargs -r rm -f --; done" ||
+    echo "WARN  backups antigos do compose.yml e do .env não foram podados"
+fi
 
 echo "result=deployed" >> "${GITHUB_OUTPUT:-/dev/null}"
 echo "PASS  ${SHA:0:7} no ar"

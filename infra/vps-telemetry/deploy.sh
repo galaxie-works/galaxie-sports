@@ -22,7 +22,8 @@
 #      menos 30), para o resto caber no teto; trava mais velha que LOCK_STALE_MIN (padrão: teto + 10 min, no
 #      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
-#   5. compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
+#   5. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada);
+#      compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
 #      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
 #   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
 #      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
@@ -90,6 +91,7 @@ SCALE=""
 LOCKED=""
 MIG_BEFORE="" # migrations aplicadas antes do up e depois do migrate; vazio = não deu para contar
 MIG_AFTER=""
+PRE_DUMP="" # dump de antes do migrate (só com migration nova)
 LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 
 # Como voltar. O comando de voltar a imagem só aparece sem migration nova aplicada (contagem igual antes e depois):
@@ -105,6 +107,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
@@ -288,6 +291,19 @@ esac
 # outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
 if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
   echo "FAIL  não deu para baixar a imagem da página de manutenção (Docker Hub fora? docker compose < 2.23?); nada foi trocado na VPS"
+  exit 1
+fi
+# dump antes do migrate, só com migration nova no journal do SHA (a volta que o rollback automático não dá); falhou
+# → para aqui, sem ter trocado nada (o mesmo passo do deploy-gh.sh)
+journal="$(grep -c '"idx"' "$WT/packages/db/drizzle/meta/_journal.json")" || journal=""
+if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
+  echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
+elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$ROOT/infra/vps-telemetry/pre-migrate-dump.sh")"; then
+  printf '%s\n' "$out" | grep -v '^PRE_DUMP=' || true
+  PRE_DUMP="$(sed -n 's/^PRE_DUMP=//p' <<< "$out")"
+else
+  printf '%s\n' "$out"
+  echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
   exit 1
 fi
 ssh "$VPS" "$CD && (umask 077 && sed 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env > .env.check) \

@@ -286,3 +286,13 @@ export const webhookCursor = api.table('webhook_cursor', {
   lastChangeId: bigint('last_change_id', { mode: 'number' }).notNull().default(0),
   updatedAt: updatedAt(),
 });
+
+/**
+ * Marca d'água dos consumidores do `ops.change_feed` que rodam dentro da API (uma linha por consumidor; hoje o
+ * purge do cache, `cache-purge`). Sobrevive ao restart: as mudanças que caem durante um deploy ainda purgam.
+ */
+export const changeFeedCursor = api.table('change_feed_cursor', {
+  name: text('name').primaryKey(),
+  lastChangeId: bigint('last_change_id', { mode: 'number' }).notNull(),
+  updatedAt: updatedAt(),
+});

@@ -112,6 +112,59 @@ export const LogoSource = z.enum(['provider', 'acervo', 'commons']).nullable().m
 });
 export type LogoSource = z.infer<typeof LogoSource>;
 
+export const LogoFormats = z
+  .object({
+    svg: z.url().nullable().meta({ description: 'Vetor (SVG estático, sem script).' }),
+    png: z.url().nullable().meta({ description: 'O maior PNG do escudo, com transparência.' }),
+    webp: z.url().nullable().meta({ description: 'O maior WebP do escudo, com transparência.' }),
+  })
+  .nullable()
+  .meta({
+    id: 'LogoFormats',
+    description:
+      'O mesmo escudo em SVG, PNG e WebP, quando o `logo` vem do acervo (`logo_source` = `acervo`). Cada formato ausente vem null; null inteiro nos logos do fornecedor e da Commons, que têm um formato só (o de `logo`).',
+    example: {
+      svg: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.52ee37d4a3a9.svg',
+      png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
+      webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
+    },
+  });
+export type LogoFormats = z.infer<typeof LogoFormats>;
+
+const SizedLogo = z
+  .object({
+    png: z.url().nullable().meta({ description: 'PNG quadrado, com transparência.' }),
+    webp: z.url().nullable().meta({ description: 'WebP quadrado, com transparência.' }),
+  })
+  .meta({ id: 'SizedLogo' });
+
+export const LogoSizes = z
+  .object({
+    '64': SizedLogo.nullable(),
+    '128': SizedLogo.nullable(),
+    '256': SizedLogo.nullable(),
+    '512': SizedLogo.nullable(),
+  })
+  .nullable()
+  .meta({
+    id: 'LogoSizes',
+    description:
+      'O escudo do acervo em PNG e WebP nos tamanhos fixos 64, 128, 256 e 512 px (quadrado, o logo encaixado sem corte, sobra transparente). O 512 é o mesmo arquivo de `logo_formats`. Tamanho ausente vem null; null inteiro fora do acervo (`logo_source` diferente de `acervo`).',
+    example: {
+      '64': {
+        png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.1f0c55e3b2a1.png',
+        webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.7d2e90ab4c11.webp',
+      },
+      '128': null,
+      '256': null,
+      '512': {
+        png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
+        webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
+      },
+    },
+  });
+export type LogoSizes = z.infer<typeof LogoSizes>;
+
 /** Crédito de um logo vindo da Wikimedia Commons (arquivo de licença livre): plataformas e competições. */
 export const LogoCredit = z
   .object({

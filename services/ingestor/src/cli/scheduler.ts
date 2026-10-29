@@ -10,6 +10,10 @@
  *            SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
  *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
  *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
+ *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents)
+ *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
+ *            SCHEDULER_CATCHUP=off desliga o catch-up da partida; SCHEDULER_CATCHUP_MAX_HOURS (padrão 24): horário
+ *            perdido mais velho que isto não roda na volta (scheduler/catch-up.ts)
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
@@ -23,7 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { logger, report } from '../logger.js';
 import { checkAiCredit } from '../scheduler/ai-credit.js';
-import { PgRunRecorder, runJob } from '../scheduler/runner.js';
+import { closeOrphans, lastJobStarts, missedSlots } from '../scheduler/catch-up.js';
+import { PgRunRecorder, runJob, runExitCode } from '../scheduler/runner.js';
 import { jobsForProfile } from '../scheduler/schedule.js';
 import { describeSchedule, SchedulerService, type SchedulerProfile } from '../scheduler/service.js';
 
@@ -36,12 +41,35 @@ const arg = (flag: string) => {
   return i >= 0 ? (process.argv[i + 1] ?? '') : undefined;
 };
 
+/** Inteiro positivo do env, ou o padrão (valor inválido não pode virar "sem teto"). */
+const positiveInt = (raw: string | undefined, fallback: number): number => {
+  const n = Number(raw?.trim());
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+};
+// a soma tem de caber no mem_limit do contêiner (infra/vps-telemetry/README.md › Memória dos jobs)
+const maxJobs = positiveInt(process.env.SCHEDULER_MAX_JOBS, profile === 'agents' ? 3 : 2);
+const jobHeapMb = positiveInt(process.env.SCHEDULER_JOB_HEAP_MB, profile === 'agents' ? 128 : 160);
+
 const databaseUrl = process.env.DATABASE_URL;
-const db: Database | undefined = databaseUrl ? createDb(databaseUrl, { max: 2 }) : undefined;
+const db: Database | undefined = databaseUrl
+  ? createDb(databaseUrl, { max: 2, applicationName: 'galaxie-scheduler' })
+  : undefined;
 if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
 const recorder = db ? new PgRunRecorder(db) : undefined;
 /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
 const shutdownController = new AbortController();
+const bootedAt = new Date();
+/** Trava do job (advisory lock de sessão): `null` = outro processo já o roda. */
+const jobLock = databaseUrl
+  ? (name: string) =>
+      tryJobLock(databaseUrl, name, {
+        onLost: () =>
+          log.warn(
+            { job: name },
+            'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
+          ),
+      })
+  : undefined;
 
 const service = new SchedulerService({
   profile,
@@ -51,26 +79,19 @@ const service = new SchedulerService({
   log,
   refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
   creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
+  maxJobs,
   run: (job, { trigger, env }) =>
     runJob(job, {
       cwd: packageRoot,
       env,
+      heapMb: jobHeapMb,
       recorder,
       logger: log,
       trigger,
       signal: shutdownController.signal,
       // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
       // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
-      lock: databaseUrl
-        ? (name) =>
-            tryJobLock(databaseUrl, name, {
-              onLost: () =>
-                log.warn(
-                  { job: name },
-                  'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
-                ),
-            })
-        : undefined,
+      lock: jobLock,
     }),
 });
 
@@ -91,7 +112,7 @@ if (manual !== undefined) {
   if (result.status === 'skipped')
     console.error(`"${manual}" já está rodando em outro processo; nada feito.`);
   if (db) await closeDb(db);
-  process.exit(result.status === 'ok' ? 0 : 1);
+  process.exit(runExitCode(result.status));
 }
 
 // ── modo serviço ──────────────────────────────────────────────────────────────────────────────────
@@ -117,6 +138,33 @@ for (const name of (process.env.SCHEDULER_RUN_ON_START ?? '')
     log.error({ err, job: name }, 'falha no job de partida');
   }
 }
+
+// Volta de um reinício: fecha o `running` que o processo anterior deixou (só com a trava do job livre) e roda uma
+// vez o job cujo horário passou com o scheduler fora do ar (scheduler/catch-up.ts)
+async function recover(): Promise<void> {
+  if (!db || !jobLock) return;
+  const orphans = await closeOrphans(
+    db,
+    definitions.map((j) => j.name),
+    { bootedAt, lock: jobLock },
+  );
+  if (orphans.runs || orphans.requests || orphans.busy.length)
+    log.info(orphans, 'execuções e pedidos deixados como running pelo processo anterior');
+  if (['off', 'false', '0'].includes((process.env.SCHEDULER_CATCHUP ?? '').trim().toLowerCase())) return;
+  const maxHours = Number(process.env.SCHEDULER_CATCHUP_MAX_HOURS);
+  const missed = missedSlots(
+    service.schedule,
+    await lastJobStarts(
+      db,
+      service.schedule.map((j) => j.name),
+    ),
+    {
+      ...(Number.isFinite(maxHours) && maxHours > 0 ? { maxAgeMs: maxHours * 3_600_000 } : {}),
+    },
+  );
+  service.catchUp(missed);
+}
+void recover().catch((err: unknown) => log.warn({ err }, 'catch-up da partida não rodou'));
 
 let stopping = false;
 async function shutdown(signal: string) {

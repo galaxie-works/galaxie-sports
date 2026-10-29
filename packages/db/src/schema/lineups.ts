@@ -92,9 +92,22 @@ export interface LineupVerification {
   prices?: LineupPriceObservation[];
   /** Mais de um valor entre os preços vistos. */
   price_conflict?: boolean;
+  /** Valores da fonte que o gravador recusou (o item entrou sem eles), para a revisão decidir. */
+  flags?: LineupFieldFlag[];
   /** Página oficial lida do nosso lado (proveniência da grade). */
   page?: LineupPageRef;
   checked_at: string;
+}
+
+/** Campo do rascunho que pode chegar inválido da fonte (preço 0, moeda fora da ISO 4217, data torta). */
+export const LINEUP_FLAG_FIELDS = ['price_amount', 'price_currency', 'valid_from', 'valid_to'] as const;
+export type LineupFlagField = (typeof LINEUP_FLAG_FIELDS)[number];
+
+/** Valor lido na fonte e recusado pelo gravador: o campo, o valor como veio e o motivo. */
+export interface LineupFieldFlag {
+  field: LineupFlagField;
+  value: string;
+  reason: string;
 }
 
 /** Um preço visto para o plano (pesquisa ou página oficial). */
@@ -162,7 +175,32 @@ export interface LineupSource {
  * Mudança encontrada pela pesquisa num item já revisado/aprovado (o item não volta a rascunho): os
  * campos novos ficam aqui até alguém aprovar (aplica) ou descartar. `removed` = não foi mais visto.
  */
-export type LineupProposedChange = Record<string, unknown> & { removed?: boolean; seen_at?: string };
+export type LineupProposedChange = Record<string, unknown> & {
+  removed?: boolean;
+  seen_at?: string;
+  /**
+   * Edição manual do painel esperando aprovação: quem editou, quando e a URL da fonte informada. A pesquisa
+   * não a sobrescreve; aprovar aplica e marca os campos em `manual_fields`.
+   */
+  manual?: LineupManualEdit;
+};
+
+/** Autor de uma edição manual da grade. */
+export interface LineupManualEdit {
+  by: string;
+  at: string;
+  /** URL da fonte informada no painel (vira fonte `editorial` do item ao aprovar). */
+  source_url?: string | null;
+}
+
+/**
+ * Campos editados à mão no painel (Ajustes → Grades e ofertas), com quem editou e quando: a pesquisa
+ * seguinte não os sobrescreve (nem no rascunho, nem como mudança proposta). Chaves = campos da proposta
+ * (`name`, `priceAmount`, `access`...); `created` = item criado à mão; `removed` = vínculo tirado do plano
+ * à mão (fica `rejected`, e a pesquisa não o traz de volta). Equivalente, para a grade, do
+ * `semantic.review_override` da revisão semântica.
+ */
+export type LineupManualFields = Record<string, { by: string; at: string }>;
 
 const reviewColumns = () => ({
   reviewStatus: text('review_status').$type<LineupReviewStatus>().notNull().default('draft'),
@@ -173,6 +211,7 @@ const reviewColumns = () => ({
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
   /** Última vez que a pesquisa (ou a operadora) confirmou o item. */
   seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
+  manualFields: jsonb('manual_fields').$type<LineupManualFields>().notNull().default({}),
 });
 
 /** Operadora de TV paga, vMVPD, combo de telecom ou streaming num país. */
@@ -196,6 +235,11 @@ export const platform = enrich.table(
       .notNull()
       .default(sql`'{}'::text[]`),
     logoAssetId: uuid('logo_asset_id').references(() => asset.id),
+    /**
+     * Logo enviado no painel (`setCustomLogo`): vale no lugar do `logo_asset_id` (que a busca de logos
+     * regrava). O anterior fica em `enrich.logo_upload`, para voltar.
+     */
+    customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
     /** Mesmo serviço que uma entrada da biblioteca de emissoras (streaming). */
     broadcasterId: text('broadcaster_id').references(() => broadcaster.id, { onDelete: 'set null' }),
     /**
@@ -374,4 +418,33 @@ export const lineupPage = enrich.table(
     updatedAt: updatedAt(),
   },
   (t) => [index('lineup_page_platform_idx').on(t.platformId)],
+);
+
+/** Entidade que recebe logo enviado no painel: plataforma da grade ou entrada da biblioteca de emissoras. */
+export const LOGO_UPLOAD_TARGETS = ['platform', 'broadcaster'] as const;
+export type LogoUploadTarget = (typeof LOGO_UPLOAD_TARGETS)[number];
+
+/**
+ * Histórico dos logos enviados no painel: cada envio liga o asset novo em `custom_logo_asset_id` e guarda o
+ * que estava antes (null = sem logo do painel, vale o da origem), para voltar. Nada é apagado: os arquivos
+ * ficam no storage (chave pelo hash) e os assets em core.asset.
+ */
+export const logoUpload = enrich.table(
+  'logo_upload',
+  {
+    id: pkUuidV7(),
+    targetType: text('target_type').$type<LogoUploadTarget>().notNull(),
+    /** uuid da plataforma ou id da biblioteca de emissoras. */
+    targetId: text('target_id').notNull(),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => asset.id),
+    previousAssetId: uuid('previous_asset_id').references(() => asset.id),
+    /** Quem enviou (e-mail do admin). */
+    uploadedBy: text('uploaded_by').notNull(),
+    revertedAt: timestamp('reverted_at', { withTimezone: true }),
+    revertedBy: text('reverted_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('logo_upload_target_idx').on(t.targetType, t.targetId, t.createdAt)],
 );

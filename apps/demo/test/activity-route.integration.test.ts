@@ -31,7 +31,7 @@ const post = (body: unknown, headers: Record<string, string> = { cookie }) =>
   route.POST(
     new Request('http://demo.test/api/atividade', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', ...headers },
       body: JSON.stringify(body),
     }),
   );
@@ -47,6 +47,20 @@ const pages = async () =>
 describe('POST /api/atividade', () => {
   it('sem sessão → 401', async () => {
     expect((await post({ path: '/times/1' }, {})).status).toBe(401);
+  });
+
+  it('CSRF: outra origem → 403, corpo sem JSON → 415, nada gravado', async () => {
+    const before = (await pages()).length;
+    expect((await post({ path: '/times/1' }, { cookie, 'sec-fetch-site': 'cross-site' })).status).toBe(403);
+    expect(
+      (
+        await post(
+          { path: '/times/1' },
+          { cookie, 'sec-fetch-site': 'same-origin', 'content-type': 'text/plain' },
+        )
+      ).status,
+    ).toBe(415);
+    expect((await pages()).length).toBe(before);
   });
 
   it('grava caminho interno; recusa o que levaria para outra origem', async () => {

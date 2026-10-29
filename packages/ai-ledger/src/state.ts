@@ -3,7 +3,14 @@
  * US$ (`unlimited` tira o teto; 0 é inválido). Lidos pelas regras do registro do painel
  * (@galaxie/runtime-config): o serviço aceita exatamente o que o painel aceita.
  */
-import { validateSettingKey, type ValidationError } from '@galaxie/runtime-config';
+import {
+  DEFAULT_BUDGET_DAY,
+  parseBandShares,
+  validateSettingKey,
+  type AiBand,
+  type BudgetDay,
+  type ValidationError,
+} from '@galaxie/runtime-config';
 import { LlmError } from './errors.js';
 
 /**
@@ -230,7 +237,16 @@ export interface LedgerSettings {
   agentUsdOrigins: Record<string, AgentCapOrigin>;
   /** AI_AGENT_DEFAULT_USD_BUDGET: teto do agente fora de `agentUsdBudgets`; null = sem teto próprio. */
   agentDefaultUsdBudget: number | null;
+  /** AI_BAND_SHARES: % do teto global de cada faixa (soma 100; a reserva só serve a P0). */
+  bandShares: Record<AiBand, number>;
+  /** AI_BUDGET_DAY_START e AI_BUDGET_TIMEZONE: virada do dia de orçamento (padrão 06:00 em Brasília). */
+  budgetDay: BudgetDay;
+  /** AI_P0_MIN_AUDIENCE: audiência mínima (market-audience.yaml) para a competição ser P0. */
+  p0MinAudience: number;
 }
+
+/** Corte P0/P1 padrão: 25 pontos (a Série B no Brasil e a Sul-Americana entram; as europeias, 16–20, não). */
+export const DEFAULT_P0_MIN_AUDIENCE = 25;
 
 /** Lê AI_STATUS, AI_AGENT_STATUS e os tetos do dia; valor inválido falha a configuração (LlmError `config`). */
 export function ledgerSettingsFromEnv(env: Env = process.env): LedgerSettings {
@@ -243,5 +259,12 @@ export function ledgerSettingsFromEnv(env: Env = process.env): LedgerSettings {
       agentUsdBudgetsAndOrigins(env),
     ),
     agentDefaultUsdBudget: limitEnv(env, 'AI_AGENT_DEFAULT_USD_BUDGET', DEFAULT_AGENT_DEFAULT_USD_BUDGET),
+    // o registro já conferiu o formato e a soma; vazio = o padrão
+    bandShares: parseBandShares(registryEnv(env, 'AI_BAND_SHARES'))!,
+    budgetDay: {
+      timeZone: registryEnv(env, 'AI_BUDGET_TIMEZONE') ?? DEFAULT_BUDGET_DAY.timeZone,
+      start: registryEnv(env, 'AI_BUDGET_DAY_START') ?? DEFAULT_BUDGET_DAY.start,
+    },
+    p0MinAudience: Number(registryEnv(env, 'AI_P0_MIN_AUDIENCE') ?? DEFAULT_P0_MIN_AUDIENCE),
   };
 }

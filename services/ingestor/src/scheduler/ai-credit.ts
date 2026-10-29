@@ -1,8 +1,13 @@
 /**
  * Crédito da conta de IA: a mesma checagem do deploy (infra/vps-telemetry/deploy.sh), feita pelo
  * scheduler dos agentes, que tem a chave. Uma chamada mínima (~20 tokens) ao modelo leve do provedor
- * efetivo; o resultado vai para ops.runtime_check e aparece no painel de Operação. Com a IA desligada
- * (AI_STATUS=off, inclusive pelo painel) não chama o provedor: `warn` com o código `ai_off`.
+ * efetivo, de hora em hora; o resultado vai para ops.runtime_check, aparece no painel de Operação e vira
+ * a métrica galaxie_ai_credit_check (alerta AiCreditExhausted). Com a IA desligada (AI_STATUS=off,
+ * inclusive pelo painel) não chama o provedor: `warn` com o código `ai_off`.
+ *
+ * `fail` = a IA está parada até alguém agir: conta sem crédito (402, ou 429/400 com o código ou a mensagem
+ * de cota/billing, a mesma regra de services/ai-agents/src/llm/errors.ts) ou chave recusada (401/403).
+ * Limite de taxa (429 sem esses sinais), erro do provedor e falha de rede ficam em `warn`.
  */
 
 export type CreditStatus = 'pass' | 'warn' | 'fail';
@@ -15,6 +20,8 @@ export interface CreditCheckDetail {
   /** Status HTTP e código de erro do provedor (ex.: 429 insufficient_quota). */
   http?: number;
   error?: string;
+  /** Por que a checagem falhou: sem crédito no provedor ou chave recusada. */
+  reason?: 'no_credit' | 'auth';
 }
 
 export interface CreditCheckResult {
@@ -23,6 +30,22 @@ export interface CreditCheckResult {
 }
 
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+
+const NO_CREDIT_CODES = ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'];
+const NO_CREDIT_TEXT =
+  /no credits remaining|insufficient_quota|credit balance is too low|exceeded your current quota|prepayment credits are depleted/i;
+
+/** Resposta de erro que deixa a IA parada até alguém recarregar a conta ou trocar a chave. */
+function failureReason(http: number, codes: string[], message: string): CreditCheckDetail['reason'] {
+  if (http === 401 || http === 403) return 'auth';
+  if (http === 402) return 'no_credit';
+  if (
+    (http === 429 || http === 400) &&
+    (codes.some((c) => NO_CREDIT_CODES.includes(c)) || NO_CREDIT_TEXT.test(message))
+  )
+    return 'no_credit';
+  return undefined;
+}
 
 const LIGHT_DEFAULT: Record<string, string> = {
   openai: 'gpt-6-luna',
@@ -88,13 +111,25 @@ export async function checkAiCredit(
     if (res.ok) return { status: 'pass', detail: { code: 'ok', provider, model } };
     // Gemini: { error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }; OpenAI/Anthropic: code ou type em texto
     const body = (await res.json().catch(() => ({}))) as {
-      error?: { code?: string | number; type?: string; status?: string };
+      error?: { code?: string | number; type?: string; status?: string; message?: string };
     };
     const code = typeof body.error?.code === 'string' ? body.error.code : '';
     const error = code || body.error?.type || body.error?.status || '';
+    const reason = failureReason(
+      res.status,
+      [code, body.error?.type ?? ''].filter(Boolean),
+      typeof body.error?.message === 'string' ? body.error.message : '',
+    );
     return {
-      status: 'warn',
-      detail: { code: 'http', provider, model, http: res.status, ...(error ? { error } : {}) },
+      status: reason ? 'fail' : 'warn',
+      detail: {
+        code: 'http',
+        provider,
+        model,
+        http: res.status,
+        ...(error ? { error } : {}),
+        ...(reason ? { reason } : {}),
+      },
     };
   } catch (err) {
     return {
@@ -107,4 +142,26 @@ export async function checkAiCredit(
       },
     };
   }
+}
+
+/**
+ * Heartbeat da página de status pública (Better Stack, `AI_HEARTBEAT_URL`): `pass` bate o ponto, `fail`
+ * avisa a falha na hora (`/fail`). `warn` (limite de taxa, rede, IA desligada, sem chave) não manda nada:
+ * um soluço não acende a página, e a IA parada por mais tempo que a tolerância do heartbeat acende sozinha.
+ * Falha ao chamar a Better Stack só vai para o log: nunca derruba a checagem.
+ */
+export async function reportAiHeartbeat(
+  url: string | undefined,
+  status: CreditStatus,
+  fetchImpl: Fetch = fetch,
+  timeoutMs = 10_000,
+): Promise<'sent' | 'skipped'> {
+  const base = url?.trim().replace(/\/+$/, '');
+  if (!base || status === 'warn') return 'skipped';
+  const res = await fetchImpl(status === 'fail' ? `${base}/fail` : base, {
+    method: 'GET',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`heartbeat respondeu ${res.status}`);
+  return 'sent';
 }

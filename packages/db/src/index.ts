@@ -1,6 +1,32 @@
 export * from './schema/index.js';
-export { createDb, closeDb, pingDb, type Database, type CreateDbOptions } from './client.js';
+export {
+  createDb,
+  closeDb,
+  pingDb,
+  resolveDbTimeouts,
+  sessionParams,
+  DB_POOL_MAX,
+  DB_TIMEOUTS,
+  type Database,
+  type CreateDbOptions,
+  type DbProfile,
+  type DbTimeouts,
+} from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export {
+  APP_SCHEMAS,
+  DEMO_AUTH_SCHEMA,
+  ROLE_GRANTS,
+  ROLE_SERVICES,
+  ROLE_URL_ENV,
+  applyRoles,
+  roleName,
+  rolePasswordsFromEnv,
+  type ApplyRolesOptions,
+  type ApplyRolesResult,
+  type RoleGrants,
+  type RoleService,
+} from './roles.js';
 export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export {
@@ -10,7 +36,7 @@ export {
   type ChangeInput,
   type ChangeTagSource,
 } from './change-feed.js';
-export { GapCursor } from './gap-cursor.js';
+export { GapCursor, GAP_MAX_SEEN, GAP_TIMEOUT_MS, type AbandonedGap } from './gap-cursor.js';
 export {
   readEventContext,
   EVENT_CONTEXT_KINDS,
@@ -131,6 +157,19 @@ export {
   LineupError,
   OPERATOR_SOURCE_NOTE,
   MAX_LINEUP_SOURCES,
+  MANUAL_SOURCE_NOTE,
+  MANUAL_REMOVABLE_TYPES,
+  proposeManualLineupEdit,
+  createManualLineupItem,
+  setCustomLogo,
+  revertCustomLogo,
+  listLogoUploads,
+  panelLogoSourceUrl,
+  type ManualLineupEditInput,
+  type ManualLineupItemInput,
+  type StoredLogoFile,
+  type LogoTargetRef,
+  type LogoUploadRow,
   type LineupPlatform,
   type LineupPlan,
   type LineupPlanChannel,

@@ -20,8 +20,8 @@ import {
   type LineupPageStatus,
   type LineupPageVia,
 } from '@galaxie/db';
+import { guardedFetch, isPublicHttpUrl } from '@galaxie/net-guard';
 import { hostOf, registrableDomain } from '@galaxie/where-to-watch';
-import { isPublicHttpUrl } from '../wtw/fetcher.js';
 import { isOfficialUrl, type PlatformOfficial } from './validate.js';
 
 /** O mesmo formato do User-Agent usado com a Wikimedia: projeto e repositório, sem e-mail. */
@@ -279,6 +279,7 @@ export const memoryPageStore = (): PageStore & { rows: Map<string, unknown> } =>
 };
 
 export interface OfficialPageReaderOptions {
+  /** Padrão: `guardedFetch` (DNS conferido na conexão; IP privado, loopback e metadados recusados). */
   fetch?: (url: string, init: RequestInit) => Promise<Response>;
   renderer?: PageRenderer | null;
   store?: PageStore | null;
@@ -319,7 +320,7 @@ export class OfficialPageReader {
   private fetched = 0;
 
   constructor(private readonly opts: OfficialPageReaderOptions = {}) {
-    this.fetchImpl = opts.fetch ?? ((url, init) => fetch(url, init));
+    this.fetchImpl = opts.fetch ?? guardedFetch();
     this.ua = opts.userAgent ?? LINEUP_USER_AGENT;
     this.minInterval = opts.minIntervalMs ?? 3_000;
     this.maxPages = opts.maxPages ?? 30;
@@ -371,9 +372,19 @@ export class OfficialPageReader {
     });
   }
 
+  /** Corpo até `maxBytes` (o resto nem é baixado). */
   private async readBody(res: Response): Promise<string> {
-    const buf = new Uint8Array(await res.arrayBuffer());
-    return new TextDecoder('utf-8').decode(buf.subarray(0, this.maxBytes));
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    const reader = res.body?.getReader();
+    while (reader && total < this.maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value.subarray(0, this.maxBytes - total));
+      total += Math.min(value.byteLength, this.maxBytes - total);
+    }
+    await reader?.cancel().catch(() => {});
+    return new TextDecoder('utf-8').decode(Buffer.concat(chunks));
   }
 
   private async finish(

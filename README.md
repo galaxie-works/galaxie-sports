@@ -225,6 +225,8 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor live:run [--plan]` | Live Scheduler + Live Poller (`fixtures?live=`), com o orçamento LIVE do dia — ver [docs/07 §2.1](docs/07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente) |
 | `SIM_DATABASE_URL=… pnpm --filter @galaxie/ingestor live:simulate [--velocidade 3]` | Só desenvolvimento: jogos ao vivo simulados (sem rede) num banco `galaxie_sim*`, para a demo Ao vivo e o minuto a minuto — ver [docs/09 §2.3](docs/09-app-demonstracao.md#23-ao-vivo-e-minuto-a-minuto) |
 | `pnpm --filter @galaxie/ingestor change-feed:prune [--dias 7] [--plan]` | Retenção do `ops.change_feed` (job diário do scheduler) |
+| `pnpm --filter @galaxie/ingestor data:retention [--plan] [--dias-raw 30]` | Retenção do raw do ao vivo e das tabelas de operação (job diário `data-retention`; docs/04 §1.1) |
+| `pnpm --filter @galaxie/ingestor raw:compactar-historico [--aplicar]` | Arruma uma vez o histórico do raw gravado antes da dedupe (sem `--aplicar`, só o plano) |
 | `pnpm --filter @galaxie/ai-agents context:run` · `recap:run` · `wtw:run` · `curator:run --dry-run` · `eval:report` | Agentes de IA (cenário, resumo, onde assistir, curador) e painel de custo/qualidade; sem chave de LLM seguem só com o determinístico — ver [docs/07](docs/07-ia-tempo-real-e-enriquecimento.md) |
 | `pnpm --filter @galaxie/ai-agents review:suggestions [--plan] [--falso]` · `pnpm --filter @galaxie/knowledge review:export [--gravar]` | Revisão semântica: o Gemini decide as sugestões de edição em aberto (a aprovada entra no ar como edição no banco, sem deploy; `--falso` = provedor falso do dev) e a exportação leva essas edições para os YAML — ver [docs/06 §2.1.1](docs/06-semantica-e-conteudo.md#211-sugestões-decididas-pela-ia-job-review-suggestions) |
 | `pnpm --filter @galaxie/api tenant:create --slug <slug>` | Cria/atualiza um tenant a partir do modelo do plano (`config/plans.yaml`) e gera uma chave de API (mercados, esportes, limites e escopos por flags) |
@@ -269,6 +271,9 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
 | 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
+| 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
+| — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
+| — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
 | — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
 

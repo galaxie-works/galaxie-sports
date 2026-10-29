@@ -71,7 +71,7 @@ export function VerificationCell({
     <div className="flex min-w-0 flex-col gap-1 text-xs break-words">
       {isPlan ? (
         <span className={cn('font-medium', !price && 'text-muted-foreground')}>
-          {price ? money(price.amount, price.currency) : V.noPrice}
+          {price ? (price.amount === 0 ? V.free : money(price.amount, price.currency)) : V.noPrice}
           {!price && claimed ? (
             <span className="text-muted-foreground font-normal">
               {' '}
@@ -87,6 +87,17 @@ export function VerificationCell({
         </span>
       ) : null}
       {v?.priceConflict ? <Badge variant="warning-light">{V.priceConflict}</Badge> : null}
+      {/* valor lido na fonte e recusado: o item entrou sem ele; quem decide é a revisão */}
+      {v?.flags.length ? (
+        <div className="flex flex-col gap-0.5">
+          {v.flags.map((fl, i) => (
+            <Badge key={i} variant="warning-light" title={fl.reason} className="h-auto whitespace-normal">
+              {fill(V.flags[fl.field], { value: fl.value })}
+            </Badge>
+          ))}
+          <span className="text-warning">{V.flagsHint}</span>
+        </div>
+      ) : null}
       {v && v.prices.length > 1 ? (
         <details className="text-muted-foreground">
           <summary className="hover:text-foreground cursor-pointer">{V.prices}</summary>

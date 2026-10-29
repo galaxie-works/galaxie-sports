@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_BAND_SHARES,
+  DEFAULT_BAND_SHARES_TEXT,
+  DEFAULT_BUDGET_DAY,
+  bandLimitsUsd,
+  budgetDayFromEnv,
+  budgetDayOf,
+  checkBandShares,
+  formatBandShares,
+  isTimeZone,
+  parseBandShares,
+} from './ai-policy.js';
+import { settingDef } from './registry.js';
+import { validateSettingKey } from './resolve.js';
+
+describe('faixas do orçamento de IA (AI_BAND_SHARES)', () => {
+  it('padrão calibrado no gasto de 21 a 25/10: 45% P0 + 10% de reserva só da P0, 15% P1, 15% clientes, 5% resto, 10% manual', () => {
+    expect(DEFAULT_BAND_SHARES_TEXT).toBe('p0=45,reserve=10,p1=15,clients=15,rest=5,manual=10');
+    expect(settingDef('AI_BAND_SHARES')?.default).toBe(DEFAULT_BAND_SHARES_TEXT);
+    expect(Object.values(DEFAULT_BAND_SHARES).reduce((a, b) => a + b, 0)).toBe(100);
+  });
+
+  it('o registro (painel e serviço) aceita só as seis faixas somando 100, e grava na ordem das faixas', () => {
+    expect(validateSettingKey('AI_BAND_SHARES', 'manual=3 rest=5 clients=12 p1=15 reserve=10 p0=55')).toEqual(
+      {
+        ok: true,
+        value: 'manual=3 rest=5 clients=12 p1=15 reserve=10 p0=55',
+      },
+    );
+    expect(validateSettingKey('AI_BAND_SHARES', 'p0=60,reserve=10,p1=15,clients=12,rest=5,manual=3')).toEqual(
+      {
+        ok: false,
+        error: { code: 'shares', detail: '105' },
+      },
+    );
+    expect(validateSettingKey('AI_BAND_SHARES', 'p0=55,reserve=10,p1=15,clients=12,rest=8')).toMatchObject({
+      ok: false,
+      error: { code: 'format', values: ['manual'] },
+    });
+    expect(
+      validateSettingKey('AI_BAND_SHARES', 'p0=55,p0=10,p1=15,clients=12,rest=5,manual=3'),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'format' },
+    });
+    expect(
+      validateSettingKey('AI_BAND_SHARES', 'p2=55,reserve=10,p1=15,clients=12,rest=5,manual=3'),
+    ).toMatchObject({
+      ok: false,
+    });
+    expect(checkBandShares('p0=100,reserve=0,p1=0,clients=0,rest=0,manual=0')).toMatchObject({ ok: true });
+    expect(formatBandShares(parseBandShares('manual=10 rest=5 clients=15 p1=15 reserve=10 p0=45')!)).toBe(
+      DEFAULT_BAND_SHARES_TEXT,
+    );
+    expect(parseBandShares('')).toEqual(DEFAULT_BAND_SHARES);
+    expect(parseBandShares('p0=1')).toBeNull();
+  });
+
+  it('teto de cada faixa: a % do teto global; a P0 soma a reserva; sem teto global, sem teto', () => {
+    expect(bandLimitsUsd(10, DEFAULT_BAND_SHARES)).toEqual({
+      p0: 5.5,
+      p1: 1.5,
+      clients: 1.5,
+      rest: 0.5,
+      manual: 1,
+    });
+    expect(bandLimitsUsd(null, DEFAULT_BAND_SHARES).p0).toBeNull();
+  });
+
+  it('corte P0/P1 e virada do dia no registro', () => {
+    expect(validateSettingKey('AI_P0_MIN_AUDIENCE', '25')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_P0_MIN_AUDIENCE', '41')).toMatchObject({
+      ok: false,
+      error: { code: 'range' },
+    });
+    expect(validateSettingKey('AI_BUDGET_DAY_START', '06:00')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_BUDGET_DAY_START', '6h')).toMatchObject({ ok: false });
+    expect(validateSettingKey('AI_BUDGET_DAY_START', '24:00')).toMatchObject({ ok: false });
+    expect(validateSettingKey('AI_BUDGET_TIMEZONE', 'America/Sao_Paulo')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_BUDGET_TIMEZONE', 'America/Atlantida')).toMatchObject({
+      ok: false,
+      error: { code: 'format' },
+    });
+    expect(isTimeZone('UTC')).toBe(true);
+  });
+});
+
+describe('dia de orçamento (vira às 06:00 em Brasília)', () => {
+  it('05:59 em Brasília ainda é o dia anterior; 06:00 começa o novo', () => {
+    // Brasília = UTC-3: 06:00 local = 09:00Z
+    expect(budgetDayOf(new Date('2026-10-26T08:59:59Z'), DEFAULT_BUDGET_DAY)).toBe('2026-10-25');
+    expect(budgetDayOf(new Date('2026-10-26T09:00:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-10-26');
+    // a rodada da noite (quarta 19h–23h30 em Brasília, já quinta em UTC) fica num dia só
+    expect(budgetDayOf(new Date('2026-10-28T22:00:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-10-28');
+    expect(budgetDayOf(new Date('2026-10-29T02:30:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-10-28');
+  });
+
+  it('fuso com horário de verão: a virada segue o relógio local nos dias de troca', () => {
+    const ny = { timeZone: 'America/New_York', start: '06:00' };
+    // 08/03/2026: o relógio adianta às 02:00 (EST para EDT); 06:30 local = 10:30Z
+    expect(budgetDayOf(new Date('2026-03-08T10:30:00Z'), ny)).toBe('2026-03-08');
+    expect(budgetDayOf(new Date('2026-03-08T09:59:00Z'), ny)).toBe('2026-03-07'); // 05:59 EDT
+    // 01/11/2026: o relógio atrasa às 02:00 (EDT para EST); 05:30 local = 10:30Z
+    expect(budgetDayOf(new Date('2026-11-01T10:30:00Z'), ny)).toBe('2026-10-31');
+    expect(budgetDayOf(new Date('2026-11-01T11:00:00Z'), ny)).toBe('2026-11-01'); // 06:00 EST
+    // virada de mês e de ano
+    expect(budgetDayOf(new Date('2027-01-01T08:00:00Z'), DEFAULT_BUDGET_DAY)).toBe('2026-12-31');
+  });
+
+  it('configurável; sem configuração, o dia UTC de antes', () => {
+    expect(budgetDayOf(new Date('2026-10-26T00:30:00Z'))).toBe('2026-10-26');
+    expect(budgetDayOf(new Date('2026-10-26T06:30:00Z'), { timeZone: 'UTC', start: '07:00' })).toBe(
+      '2026-10-25',
+    );
+    expect(budgetDayOf(new Date('2026-10-26T07:00:00Z'), { timeZone: 'UTC', start: '07:00' })).toBe(
+      '2026-10-26',
+    );
+  });
+});
+
+describe('virada do dia de orçamento lida do env', () => {
+  it('lê fuso e horário (com as sobrescritas já aplicadas); inválido ou vazio cai no padrão', () => {
+    expect(budgetDayFromEnv({ AI_BUDGET_TIMEZONE: 'UTC', AI_BUDGET_DAY_START: '00:00' })).toEqual({
+      timeZone: 'UTC',
+      start: '00:00',
+    });
+    expect(budgetDayFromEnv({ AI_BUDGET_TIMEZONE: 'Lugar/Nenhum', AI_BUDGET_DAY_START: '6h' })).toEqual(
+      DEFAULT_BUDGET_DAY,
+    );
+    expect(budgetDayFromEnv({})).toEqual(DEFAULT_BUDGET_DAY);
+  });
+});

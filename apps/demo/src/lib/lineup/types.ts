@@ -44,6 +44,10 @@ export const CHECK_KEYS = [
 export type CheckKey = (typeof CHECK_KEYS)[number];
 export type CheckResult = 'pass' | 'fail' | 'skip';
 
+/** Campos que o gravador pode recusar ao ler a fonte (o mesmo `LINEUP_FLAG_FIELDS` do banco). */
+export const FLAG_FIELDS = ['price_amount', 'price_currency', 'valid_from', 'valid_to'] as const;
+export type FlagField = (typeof FLAG_FIELDS)[number];
+
 /** Resultado do validador para um plano ou vínculo (do jsonb `verification`). */
 export interface VerificationView {
   tier: SourceTier | null;
@@ -65,6 +69,8 @@ export interface VerificationView {
     verified: boolean;
   }[];
   priceConflict: boolean;
+  /** Valores lidos na fonte e recusados pelo gravador (o item entrou sem eles), com o motivo. */
+  flags: { field: FlagField; value: string; reason: string }[];
   /** Página oficial lida do nosso lado (proveniência da grade). */
   page: { url: string; fetchedAt: string; hash: string; via: string } | null;
   checkedAt: string | null;
@@ -120,7 +126,50 @@ export interface ItemView {
   pendingChange: Record<string, unknown> | null;
   /** Checagens do validador (planos e vínculos); null = sem checagem (pesquisa anterior ou operadora). */
   verification?: VerificationView | null;
+  /** Valores atuais dos campos que o painel edita à mão (`MANUAL_FIELDS` do tipo). */
+  edit?: Record<string, string | number | null>;
+  /** Campos editados à mão (quem e quando) e a edição manual esperando aprovação. */
+  manual?: ManualView;
+  /** Entidade dona do logo mostrado (plataforma ou entrada da biblioteca); null = sem logo (plano). */
+  logoTarget?: LogoTargetView | null;
 }
+
+/** Edição manual no painel: campos já editados (a pesquisa não mexe) e a edição pendente. */
+export interface ManualView {
+  fields: Record<string, { by: string; at: string }>;
+  pending: { by: string; at: string } | null;
+}
+
+export interface LogoTargetView {
+  type: 'platform' | 'broadcaster';
+  id: string;
+  /** Há logo enviado no painel valendo (dá para voltar ao anterior). */
+  custom: boolean;
+}
+
+/**
+ * Campos que o painel edita à mão em cada tipo de item, os mesmos que o banco aceita (`sanitizeProposal`).
+ * Preço com moeda: o texto como publicado e o valor cheio com a moeda ISO 4217.
+ */
+export const MANUAL_FIELDS = {
+  platform: ['name', 'kind', 'website'],
+  plan: ['name', 'priceText', 'priceAmount', 'priceCurrency', 'url'],
+  plan_channel: ['access'],
+  plan_service: ['access'],
+  addon: ['name', 'priceText', 'priceAmount', 'priceCurrency', 'url'],
+} as const satisfies Record<TargetType, readonly string[]>;
+export type ManualField = (typeof MANUAL_FIELDS)[TargetType][number];
+
+/** Acesso que o painel grava num vínculo (`unverified` = sem prova: não sai na API). */
+export const MANUAL_ACCESS = ['included', 'addon', 'unverified'] as const;
+
+/** Tipos de item que o painel cria à mão. */
+export const CREATABLE_TYPES = ['platform', 'plan', 'plan_channel', 'plan_service', 'addon'] as const;
+export type CreatableType = (typeof CREATABLE_TYPES)[number];
+
+/** Limites do upload de logo (os de `@galaxie/where-to-watch`, repetidos para o navegador). */
+export const LOGO_MAX_KB = 512;
+export const LOGO_MIN_PX = 128;
 
 export interface PlanView extends ItemView {
   type: 'plan';
@@ -167,6 +216,8 @@ export interface LibraryEntry {
   name: string;
   kind: string;
   logoUrl: string | null;
+  /** Logo enviado no painel valendo. */
+  customLogo?: boolean;
 }
 
 /** Tipos de emissora que entram num plano: canal de TV (aberta ou paga) ou streaming. Rádio não. */
@@ -207,6 +258,7 @@ interface SourceLike {
 
 interface ReviewedLike {
   reviewStatus: string;
+  manualFields?: Record<string, { by: string; at: string }> | null;
   sources: SourceLike[];
   proposedChange?: Record<string, unknown> | null;
   reviewedBy: string | null;
@@ -223,6 +275,7 @@ export interface LineupLike {
     country: string;
     website: string | null;
     logoAssetId?: string | null;
+    customLogoAssetId?: string | null;
     broadcasterId?: string | null;
   };
   plans: {
@@ -247,6 +300,8 @@ export interface LineupLike {
     channel: string | null;
     priceAmount: number | string | null;
     priceCurrency: string | null;
+    priceText?: string | null;
+    url?: string | null;
     commitmentMonths: number | null;
   })[];
 }
@@ -287,6 +342,12 @@ export function verificationView(raw: unknown): VerificationView | null {
       },
     ];
   });
+  const flags = (Array.isArray(v.flags) ? v.flags : []).flatMap((x) => {
+    if (!x || typeof x !== 'object') return [];
+    const o = x as Record<string, unknown>;
+    if (!(FLAG_FIELDS as readonly string[]).includes(o.field as string)) return [];
+    return [{ field: o.field as FlagField, value: text(o.value) ?? '', reason: text(o.reason) ?? '' }];
+  });
   return {
     tier: (SOURCE_TIERS as readonly string[]).includes(v.tier as string) ? (v.tier as SourceTier) : null,
     finalUrl: text(v.final_url),
@@ -299,6 +360,7 @@ export function verificationView(raw: unknown): VerificationView | null {
       : null,
     prices,
     priceConflict: v.price_conflict === true,
+    flags,
     page:
       pageRaw && text(pageRaw.url)
         ? {
@@ -314,8 +376,20 @@ export function verificationView(raw: unknown): VerificationView | null {
 const asStatus = (v: string): LineupStatus =>
   (REVIEW_STATUSES as readonly string[]).includes(v) ? (v as LineupStatus) : 'draft';
 
+function manualView(row: ReviewedLike): ManualView {
+  const pending = row.proposedChange?.manual as { by?: unknown; at?: unknown } | undefined;
+  return {
+    fields: row.manualFields ?? {},
+    pending:
+      pending && typeof pending.by === 'string' && typeof pending.at === 'string'
+        ? { by: pending.by, at: pending.at }
+        : null,
+  };
+}
+
 function reviewed(row: ReviewedLike) {
   return {
+    manual: manualView(row),
     status: asStatus(row.reviewStatus),
     sources: (row.sources ?? []).map((s) => ({
       url: s.url ?? null,
@@ -341,6 +415,11 @@ export function lineupView(
 ): LineupView {
   const p = lineup.platform;
   const ref = (id: string) => library.get(id);
+  const libraryLogo = (id: string): LogoTargetView => ({
+    type: 'broadcaster',
+    id,
+    custom: ref(id)?.customLogo === true,
+  });
   return {
     platform: {
       type: 'platform',
@@ -351,7 +430,9 @@ export function lineupView(
         ? (p.kind as PlatformKind)
         : 'pay_tv_operator',
       fields: { name: p.name, website: p.website },
+      edit: { name: p.name, kind: p.kind, website: p.website },
       logoUrl: platformLogo ?? (p.broadcasterId ? (ref(p.broadcasterId)?.logoUrl ?? null) : null),
+      logoTarget: { type: 'platform', id: p.id, custom: Boolean(p.customLogoAssetId) },
       ...reviewed(p),
     },
     plans: lineup.plans.map(({ plan, channels, services }) => ({
@@ -359,7 +440,15 @@ export function lineupView(
       id: plan.id,
       name: plan.name,
       fields: { name: plan.name, priceText: plan.priceText, url: plan.url },
+      edit: {
+        name: plan.name,
+        priceText: plan.priceText,
+        priceAmount: amount(plan.priceAmount),
+        priceCurrency: plan.priceCurrency ?? null,
+        url: plan.url,
+      },
       logoUrl: null,
+      logoTarget: null,
       validFrom: plan.validFrom,
       validTo: plan.validTo,
       price:
@@ -373,7 +462,9 @@ export function lineupView(
         id: `${c.planId}:${c.channelId}`,
         name: ref(c.channelId)?.name ?? c.channelId,
         fields: { access: c.access },
+        edit: { access: c.access },
         logoUrl: ref(c.channelId)?.logoUrl ?? null,
+        logoTarget: libraryLogo(c.channelId),
         ...reviewed(c),
         verification: verificationView(c.verification),
       })),
@@ -382,7 +473,9 @@ export function lineupView(
         id: `${s.planId}:${s.serviceId}`,
         name: ref(s.serviceId)?.name ?? s.serviceId,
         fields: { access: s.access },
+        edit: { access: s.access },
         logoUrl: ref(s.serviceId)?.logoUrl ?? null,
+        logoTarget: libraryLogo(s.serviceId),
         ...reviewed(s),
         verification: verificationView(s.verification),
       })),
@@ -393,7 +486,15 @@ export function lineupView(
       name: a.name,
       kind: a.kind === 'channel' ? ('channel' as const) : ('service' as const),
       fields: {},
+      edit: {
+        name: a.name,
+        priceText: a.priceText ?? null,
+        priceAmount: amount(a.priceAmount),
+        priceCurrency: a.priceCurrency,
+        url: a.url ?? null,
+      },
       logoUrl: ref(a.refId)?.logoUrl ?? null,
+      logoTarget: libraryLogo(a.refId),
       price:
         amount(a.priceAmount) !== null && a.priceCurrency
           ? { amount: amount(a.priceAmount)!, currency: a.priceCurrency }

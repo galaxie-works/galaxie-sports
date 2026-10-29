@@ -6,6 +6,7 @@
 import { getMigrations } from 'better-auth/db/migration';
 
 import { AUTH_SCHEMA, hasDatabase, pool } from './db';
+import { indexIfMissing } from './ddl';
 import { sendInvite } from './invite';
 import { OTP_GUARD_TABLES } from './otp-guard';
 
@@ -18,7 +19,7 @@ create table if not exists invite (
   error text,
   created_at timestamptz not null default now()
 );
-create index if not exists invite_user_idx on invite (user_id, created_at desc);
+${indexIfMissing('invite_user_idx', 'invite (user_id, created_at desc)')}
 
 create table if not exists activity (
   id bigserial primary key,
@@ -30,9 +31,16 @@ create table if not exists activity (
   user_agent text,
   created_at timestamptz not null default now()
 );
-create index if not exists activity_user_idx on activity (user_id, created_at desc);
--- Trilha de navegação (aditivo: linhas antigas ficam nulas): de onde veio e a profundidade na trilha.
-alter table activity add column if not exists from_path text, add column if not exists trail_depth integer;
+${indexIfMissing('activity_user_idx', 'activity (user_id, created_at desc)')}
+-- Trilha de navegação (aditivo: linhas antigas ficam nulas): de onde veio e a profundidade na trilha. Só quando
+-- falta: o alter pede trava exclusiva mesmo com as colunas lá e esperaria qualquer leitura aberta da tabela.
+do $$ begin
+  if (select count(*) from information_schema.columns
+       where table_schema = current_schema() and table_name = 'activity'
+         and column_name in ('from_path', 'trail_depth')) < 2 then
+    alter table activity add column if not exists from_path text, add column if not exists trail_depth integer;
+  end if;
+end $$;
 `;
 
 /**
@@ -66,7 +74,10 @@ export async function setupAuthDatabase(): Promise<void> {
   const lock = await pool.connect();
   try {
     await lock.query('select pg_advisory_lock($1)', [SETUP_LOCK]);
-    await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
+    // com o papel da demo (dono do demo_auth, sem CREATE no banco), `create schema if not exists` falharia mesmo
+    // com o schema já criado pelo migrate (packages/db/src/roles.ts): só cria quando falta
+    const { rowCount } = await pool.query('select 1 from pg_namespace where nspname = $1', [AUTH_SCHEMA]);
+    if (!rowCount) await pool.query(`create schema if not exists ${AUTH_SCHEMA}`);
     const { auth } = await import('./server');
     const { runMigrations } = await getMigrations(auth.options);
     await runMigrations();

@@ -78,6 +78,17 @@ const video = (
 });
 
 describe('YouTube Data API', () => {
+  it('toda chamada sai com tempo limite (a Data API parada não pendura o job)', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const fetch: FetchLike = async (_url, init) => {
+      signals.push(init?.signal);
+      return new Response(JSON.stringify({ items: [] }));
+    };
+    await new YoutubeClient({ apiKey: 'k', fetch }).videos(['v1']);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+  });
+
   it('converte duração ISO 8601', () => {
     expect(parseIsoDuration('PT1H2M3S')).toBe(3723);
     expect(parseIsoDuration('PT45S')).toBe(45);

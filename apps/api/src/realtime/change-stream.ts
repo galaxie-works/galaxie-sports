@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, asc, gt, notInArray, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { RealtimeChange } from '@galaxie/contracts';
-import { CHANGE_FEED_CHANNEL, changeFeed, type Database } from '@galaxie/db';
+import { CHANGE_FEED_CHANNEL, changeFeed, type AbandonedGap, type Database } from '@galaxie/db';
 import { toRealtimeChange } from './changes.js';
 import { GapCursor } from './gap-cursor.js';
 
@@ -19,8 +19,10 @@ export interface ChangeStreamOptions {
   pollIntervalMs?: number;
   /** Duração da liderança do relay no Valkey. Padrão 10 s (renovada a cada ciclo). */
   leaseMs?: number;
-  /** Tempo máximo de espera por um ID ausente (transação lenta) antes de pulá-lo. Padrão 10 s. */
+  /** Tempo máximo de espera por um ID ausente (transação lenta) antes de pulá-lo. Padrão 90 s (GAP_TIMEOUT_MS). */
   gapTimeoutMs?: number;
+  /** Lacuna abandonada (mudanças que o SSE não entregou): métrica `galaxie_change_feed_gaps_abandoned_total`. */
+  onGapAbandoned?: (gap: AbandonedGap) => void;
   /** Usa LISTEN/NOTIFY para acordar na hora. Padrão true. */
   listen?: boolean;
   logger?: Logger;
@@ -110,8 +112,13 @@ export class ChangeStream {
     this.stopped = false;
     const { redis } = this.options;
     if (redis) {
-      // conexão dedicada ao SUBSCRIBE (no modo assinante ela não aceita outros comandos)
-      this.subscriber = redis.duplicate({ enableOfflineQueue: true, maxRetriesPerRequest: null });
+      // conexão dedicada ao SUBSCRIBE (no modo assinante ela não aceita outros comandos); sem o commandTimeout
+      // da conexão principal: o SUBSCRIBE fica na fila enquanto o Valkey está fora e sai quando ele volta
+      this.subscriber = redis.duplicate({
+        enableOfflineQueue: true,
+        maxRetriesPerRequest: null,
+        commandTimeout: undefined,
+      });
       this.subscriber.on('error', (err) =>
         this.options.logger?.warn({ err }, 'stream: falha no Valkey (sub)'),
       );
@@ -208,6 +215,10 @@ export class ChangeStream {
       const floor = stored != null ? Number(stored) : await this.latestId();
       this.cursor = new GapCursor(floor, {
         ...(this.options.gapTimeoutMs != null ? { gapTimeoutMs: this.options.gapTimeoutMs } : {}),
+        onAbandon: (gap) => {
+          this.options.logger?.warn({ gap }, 'stream: lacuna do change feed abandonada');
+          this.options.onGapAbandoned?.(gap);
+        },
       });
     }
     const cursor = this.cursor;

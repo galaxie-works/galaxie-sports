@@ -1,0 +1,88 @@
+name: Contrato da API (OpenAPI)
+
+# Compara o OpenAPI da API pública (buildOpenApiDocument, @galaxie/contracts) da base do PR com o do PR. Mudança que
+# quebra cliente (rota, parâmetro ou campo removido, tipo trocado, parâmetro novo obrigatório…) falha o check, a não ser
+# com o rótulo `quebra-de-contrato` no PR: aí passa com aviso, e a quebra vai para a nota de versão e para os tenants.
+# O que muda sem quebrar aparece no resumo do job. Regras: https://github.com/oasdiff/oasdiff (breaking, nível ERR).
+#
+# Só no PR: o rótulo mora nele, e o check roda de novo quando o rótulo entra ou sai.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openapi-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    name: contrato OpenAPI (quebra = rótulo quebra-de-contrato)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OASDIFF_VERSION: 1.34.1
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      ALLOWED: ${{ contains(github.event.pull_request.labels.*.name, 'quebra-de-contrato') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: OpenAPI do PR
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @galaxie/contracts build
+          node packages/contracts/scripts/openapi-dump.mjs > "$RUNNER_TEMP/head.json"
+
+      # O script de dump é o do PR (a base pode não ter); o build do pacote é o da base
+      - name: OpenAPI da base
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/base"
+          pnpm install --frozen-lockfile
+          pnpm --filter @galaxie/contracts build
+          node "$GITHUB_WORKSPACE/packages/contracts/scripts/openapi-dump.mjs" packages/contracts/dist > "$RUNNER_TEMP/base.json"
+
+      - name: Instala o oasdiff (binário oficial, checksum verificado)
+        run: |
+          cd "$RUNNER_TEMP"
+          base="https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}"
+          tarball="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          curl -sSfLO "$base/checksums.txt"
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf "$tarball" oasdiff
+          rm -f "$tarball" checksums.txt
+
+      - name: Mudanças do contrato
+        run: |
+          cd "$RUNNER_TEMP"
+          {
+            echo "## Contrato OpenAPI: base ${BASE_SHA:0:7} → PR"
+            echo
+            ./oasdiff changelog base.json head.json --format markdown || echo "(changelog indisponível)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Quebra de contrato
+        run: |
+          cd "$RUNNER_TEMP"
+          # sem o rótulo, cada quebra vira anotação de erro no PR; o texto vai para o log
+          [ "$ALLOWED" = true ] || ./oasdiff breaking base.json head.json --format githubactions || true
+          if ./oasdiff breaking base.json head.json --fail-on ERR; then
+            echo "sem quebra de contrato"
+          elif [ "$ALLOWED" = true ]; then
+            echo "::warning::quebra de contrato aceita pelo rótulo quebra-de-contrato: registre na nota de versão e avise os tenants"
+          else
+            echo "::error::o PR quebra o contrato da API pública (/v1). Se for de propósito, ponha o rótulo quebra-de-contrato no PR."
+            exit 1
+          fi

@@ -28,8 +28,6 @@ export interface CallRequest {
   jobId?: string;
   /** Sobrescreve o TTL do endpoint (ms). 0 força ida à rede. */
   maxAgeMs?: number;
-  /** Só para LIVE: autoriza usar a reserva de segurança (decisões, finais). */
-  critical?: boolean;
 }
 
 export interface CallResult<T = unknown> {

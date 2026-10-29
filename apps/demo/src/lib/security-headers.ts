@@ -18,11 +18,11 @@
  */
 
 export interface SecurityHeadersOptions {
-  /** Produção: HSTS e a CSP em observação (em dev o Next precisa de eval e do websocket do HMR). */
+  /** Produção: HSTS e a CSP completa (em dev o Next precisa de eval e do websocket do HMR). */
   production: boolean;
 }
 
-/** CSP completa da demo (em observação: ver o comentário do módulo). */
+/** CSP completa da demo (produção; ver o comentário do módulo). */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   // IFrame Player API do YouTube (carregada ao abrir o player) e o script que ela puxa
@@ -43,7 +43,11 @@ export const CONTENT_SECURITY_POLICY = [
 
 export function securityHeaders({ production }: SecurityHeadersOptions): { key: string; value: string }[] {
   return [
-    { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+    // produção: a CSP completa (inclui o frame-ancestors); dev: só o frame-ancestors
+    {
+      key: 'Content-Security-Policy',
+      value: production ? CONTENT_SECURITY_POLICY : "frame-ancestors 'self'",
+    },
     { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -51,7 +55,6 @@ export function securityHeaders({ production }: SecurityHeadersOptions): { key: 
       ? [
           // sem includeSubDomains nem preload: vale só para o domínio da demo
           { key: 'Strict-Transport-Security', value: 'max-age=31536000' },
-          { key: 'Content-Security-Policy-Report-Only', value: CONTENT_SECURITY_POLICY },
         ]
       : []),
   ];

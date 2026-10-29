@@ -19,6 +19,8 @@ export function validationMessage(t: Dictionary['ops'], error: ValidationError):
       return fill(t.errors.markets, { values });
     case 'cron':
       return t.errors.cron;
+    case 'shares':
+      return fill(t.errors.shares, { sum: error.detail ?? '?' });
     default:
       return t.errors[error.code];
   }

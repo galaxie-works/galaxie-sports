@@ -86,7 +86,6 @@ export class ApiSportsProvider implements SportsDataProvider {
       params,
       priority: opts.priority ?? 'ADHOC',
       ...(opts.jobId ? { jobId: opts.jobId } : {}),
-      ...(opts.critical ? { critical: true } : {}),
     };
     try {
       const res = await this.client.get(req);
@@ -128,7 +127,9 @@ export class ApiSportsProvider implements SportsDataProvider {
 
   listLive(sport: string, competitionIds?: string[], options?: CallOptions): Promise<ProviderResult> {
     this.assertSport(sport, 'ao vivo');
-    const live = competitionIds?.length ? competitionIds.join('-') : 'all';
+    // a api-sports só aceita `all` ou `id-id[-id...]`: uma liga sozinha é recusada (http_error), então repete o id
+    const ids = competitionIds ?? [];
+    const live = ids.length === 1 ? `${ids[0]}-${ids[0]}` : ids.length ? ids.join('-') : 'all';
     return this.call('/fixtures', { live }, { priority: 'LIVE', ...options });
   }
 

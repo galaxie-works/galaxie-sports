@@ -3,6 +3,7 @@
  * convites e atividade). O resto do banco (dados esportivos) é lido só pela API Galaxie Sports.
  */
 import { Pool } from 'pg';
+import { DB_TIMEOUTS } from '@galaxie/db/client';
 
 export const AUTH_SCHEMA = 'demo_auth';
 
@@ -17,6 +18,12 @@ function createPool(): Pool {
     connectionString,
     max: 5,
     options: `-c search_path=${AUTH_SCHEMA}`,
+    application_name: 'galaxie-demo-auth',
+    // freios de requisição, como na API; a consulta com folga maior, porque o painel de Operação agrega
+    // ops.job_run, ops.llm_usage e o conteúdo relacionado (página de admin, fora do caminho da API)
+    statement_timeout: 30_000,
+    lock_timeout: DB_TIMEOUTS.api.lockMs,
+    idle_in_transaction_session_timeout: DB_TIMEOUTS.api.idleInTransactionMs,
   });
   // Uma conexão ociosa encerrada pelo Postgres (restart, failover, pg_terminate_backend, DROP DATABASE
   // ... WITH FORCE: 57P01) é descartada pelo pg-pool, que então emite 'error' no pool. Sem ouvinte, o

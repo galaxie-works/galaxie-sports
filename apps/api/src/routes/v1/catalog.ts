@@ -34,7 +34,7 @@ import {
   type I18nText,
 } from '@galaxie/db';
 import { sendCached } from '../../cache/http.js';
-import { CACHE_TTL } from '../../cache/policy.js';
+import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
@@ -45,6 +45,8 @@ import {
   encodeCursor,
   likeEscape,
   logoCreditText,
+  logoFormats,
+  logoSizes,
   logoSource,
   parseInput,
   UUID_RE,
@@ -258,6 +260,8 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const body: Competition = {
           ...summary!,
           logo_source: logoSource(row.logoOrigin),
+          logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
+          logo_sizes: logoSizes(ctx.assetsBaseUrl, row.logoVariants),
           logo_credit: credit
             ? {
                 source: 'Wikimedia Commons',
@@ -296,6 +300,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.standings,
+      staleSec: STALE_SEC.standings,
       vary: [locale, tz],
       load: async () => {
         const db = requireDb(ctx);
@@ -478,6 +483,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoOrigin: asset.origin,
+        logoVariants: asset.variants,
         logoAssetId: asset.id,
       })
       .from(competition)

@@ -228,7 +228,8 @@ export function fakeApi(now: () => Date): FakeApi {
       return new Response(JSON.stringify({ ...envelope(url.pathname, params, []), errors: failing.errors }));
     }
     const body = route(url.pathname, params, now());
-    return new Response(JSON.stringify(body), { headers: { 'x-ratelimit-requests-remaining': '50' } });
+    // sem header de cota: o fornecedor falso não tem conta para contar, e o piso fica com o ledger
+    return new Response(JSON.stringify(body));
   }) as typeof globalThis.fetch;
   return {
     calls,

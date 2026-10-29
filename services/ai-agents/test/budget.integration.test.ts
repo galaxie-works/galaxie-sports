@@ -4,7 +4,7 @@
  * provedor e caem, de forma determinística, no texto/algoritmo de reserva. O onde assistir (execução
  * `skipped`) é coberto em `wtw-runner.integration.test.ts`.
  */
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { llmUsage, participant, type Database } from '@galaxie/db';
 import { loadKnowledge } from '@galaxie/knowledge';
@@ -112,8 +112,15 @@ afterAll(async () => {
 
 describe('orçamento diário esgotado → todos os agentes caem no determinístico', () => {
   it('a fábrica dos agentes usa o ledger compartilhado ops.llm_usage', async () => {
+    // dia UTC como o da linha semeada: com o padrão (06:00 em Brasília), entre 00:00 e 09:00 UTC o dia de
+    // orçamento ainda é o anterior e a linha não contaria
     const runtime = createLlmClient({
-      env: { OPENAI_API_KEY: 'sk-teste', AI_DAILY_TOKEN_BUDGET: String(LIMIT) },
+      env: {
+        OPENAI_API_KEY: 'sk-teste',
+        AI_DAILY_TOKEN_BUDGET: String(LIMIT),
+        AI_BUDGET_TIMEZONE: 'UTC',
+        AI_BUDGET_DAY_START: '00:00',
+      },
       db,
     });
     expect(runtime.budget.store).toBeInstanceOf(PgTokenBudgetStore);
@@ -133,13 +140,44 @@ describe('orçamento diário esgotado → todos os agentes caem no determinísti
     expect(fake.calls).toBe(0);
     const rows = await readEventContext(db, secondLeg, { kinds: ['scenario'] });
     expect(rows).toHaveLength(8);
-    expect(
-      rows.every((r) => r.content.origin === 'fallback' && r.content.fallbackReason === 'llm_error'),
-    ).toBe(true);
+    expect(rows.every((r) => r.content.origin === 'fallback' && r.content.fallbackReason === 'budget')).toBe(
+      true,
+    );
     expect(rows.every((r) => r.model === 'template:scenario-rules-labels@v1')).toBe(true);
     expect(rows.find((r) => r.locale === 'pt-BR')!.content.run.errors.join(' ')).toContain(
       'Orçamento diário de tokens esgotado',
     );
+  });
+
+  it('cenário: recusado pelo orçamento, não regrava nem republica na rodada seguinte do mesmo dia', async () => {
+    const count = async () =>
+      (
+        await db.execute<{ n: number }>(
+          sql`select count(*)::int as n from enrich.event_context where event_id = ${secondLeg} and kind = 'scenario'`,
+        )
+      )[0]!.n;
+    const feed = async () =>
+      (await db.execute<{ n: number }>(sql`select count(*)::int as n from ops.change_feed`))[0]!.n;
+    const before = { rows: await count(), feed: await feed() };
+    // `now` no mesmo dia de orçamento em que a linha foi gravada (generatedAt é a hora real da gravação)
+    const again = await runScenarioAgent(db, { now: new Date(), llm, eventId: secondLeg });
+    expect(again.items[0]).toMatchObject({
+      action: 'skipped',
+      reason: 'fatos inalterados desde a última geração',
+    });
+    expect({ rows: await count(), feed: await feed() }).toEqual(before);
+
+    // o operador abriu espaço no meio do dia (outro teto, sem o de tokens esgotado): tenta de novo agora
+    const roomy = new FakeLlmClient(() => ({ texts: [] }));
+    const withRoom = withTokenBudget(roomy, { dailyLimit: null }); // ledger em memória: não suja o teste do ledger abaixo
+    expect(await withRoom.hasRoom('context', { slug: 'conmebol-libertadores' })).toBe(true);
+    expect(
+      await llm.hasRoom('context', { slug: 'conmebol-libertadores' }, { unit: 'tokens', requested: 1 }),
+    ).toBe(false);
+    const retried = await runScenarioAgent(db, { now: new Date(), llm: withRoom, eventId: secondLeg });
+    expect(retried.items[0]!.action).toBe('generated');
+    expect(roomy.calls).toBeGreaterThan(0);
+    expect(await count()).toBeGreaterThan(before.rows);
   });
 
   it('resumo: texto montado da timeline, sem chamar o provedor', async () => {
