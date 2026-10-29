@@ -96,6 +96,9 @@ function scriptOrigin(): string | null {
   }
 }
 
+/** Validade da configuração lida (igual ao `max-age` de `/e/<id>.json`). */
+const CONFIG_TTL_MS = 60_000;
+
 const HOST_CSS =
   ':host{display:block}:host([hidden]){display:none}.gs-embed-error{font:13px/1.4 system-ui,sans-serif;opacity:.7}';
 
@@ -111,17 +114,21 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
   if (typeof customElements === 'undefined' || customElements.get(EMBED_TAG)) return;
   const baseOrigin = options.origin ?? scriptOrigin() ?? globalThis.location?.origin ?? '';
   const fetchImpl = options.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
-  // vários elementos com o mesmo widget na página: uma leitura da configuração
-  const configs = new Map<string, Promise<EmbedConfig | null>>();
+  // vários elementos com o mesmo widget na página: uma leitura da configuração por CONFIG_TTL_MS (o mesmo
+  // cache da rota), para um widget salvo de novo chegar a páginas abertas há muito tempo; falha não fica
+  const configs = new Map<string, { pending: Promise<EmbedConfig | null>; expiresAt: number }>();
   const loadConfig = (id: string) => {
-    let pending = configs.get(id);
-    if (!pending) {
-      pending = fetchImpl(`${baseOrigin}/e/${encodeURIComponent(id)}.json`, { credentials: 'omit' })
-        .then((res) => (res.ok ? res.json() : null))
-        .then(parseEmbedConfig)
-        .catch(() => null);
-      configs.set(id, pending);
-    }
+    const cached = configs.get(id);
+    if (cached && cached.expiresAt > Date.now()) return cached.pending;
+    const pending = fetchImpl(`${baseOrigin}/e/${encodeURIComponent(id)}.json`, { credentials: 'omit' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(parseEmbedConfig)
+      .catch(() => null)
+      .then((config) => {
+        if (!config) configs.delete(id);
+        return config;
+      });
+    configs.set(id, { pending, expiresAt: Date.now() + CONFIG_TTL_MS });
     return pending;
   };
 

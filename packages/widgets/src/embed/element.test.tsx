@@ -69,6 +69,11 @@ describe('<galaxie-widget>', () => {
     document.body.innerHTML = `<${EMBED_TAG} widget="nao-existe"></${EMBED_TAG}>`;
     const el = document.querySelector(EMBED_TAG)!;
     await waitFor(() => expect(shadowText(el)).toContain('widget indisponível'));
+    // a falha não fica em cache: outro elemento tenta de novo
+    document.body.innerHTML += `<${EMBED_TAG} widget="nao-existe"></${EMBED_TAG}>`;
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/e/nao-existe'))).toHaveLength(2),
+    );
   });
 
   it('carregar o script de novo não registra o elemento duas vezes', () => {
