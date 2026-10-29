@@ -173,7 +173,8 @@ services:
       <<: *node-env
       DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       API_PORT: '8080'
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      # Bearer exigido em /metrics (o Prometheus da stack manda o mesmo): sem ele, qualquer contêiner da rede lia as métricas
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
@@ -496,7 +497,7 @@ services:
     restart: unless-stopped
     mem_limit: 512m
     environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
     volumes:
       - promdata:/prometheus
