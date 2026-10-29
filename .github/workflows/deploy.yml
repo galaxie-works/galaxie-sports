@@ -9,6 +9,11 @@ name: Deploy
 #   gh workflow run deploy.yml                           # o commit mais novo da main
 #   gh workflow run deploy.yml -f sha=<sha> -f force=1   # um commit específico, mesmo já no ar (voltar versão)
 #
+# Com jogo ao vivo de prioridade alta, o deploy espera o jogo acabar (teto de 3 h; infra/vps-telemetry/live-hold.sh,
+# decisão de 28/10/2026). force=1 no disparo manual (hotfix) publica sem esperar. DEPLOY_LIVE_HOLD=off (variável do
+# repositório) desliga a espera. DEPLOY_CANDIDATE=on liga o candidato com smoke antes da troca e a troca sem página de
+# manutenção (deploy-gh.sh; README da stack › Atualizar).
+#
 # No disparo manual, o gate espera o CI e as imagens do SHA terminarem (até ci_wait_min, padrão 30 min) e falha se não
 # terminarem ou não ficarem verdes; SHA já no ar sem force=1 também falha. Disparo manual nunca termina verde sem
 # publicar.
@@ -23,7 +28,7 @@ on:
         description: Commit da main a publicar (vazio = o mais novo)
         required: false
       force:
-        description: Publicar mesmo se o SHA já estiver no ar (1 = sim)
+        description: Publicar mesmo se o SHA já estiver no ar e sem esperar jogo ao vivo (hotfix; 1 = sim)
         required: false
         default: ''
       skip_ci_check:
@@ -133,8 +138,9 @@ jobs:
     if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
     # o roteiro leva ~10 min; o teto de 45 min fica no passo do deploy (folga para o pull da imagem do lineup-render,
-    # ~2 GB, quando a pasta muda). O do job é maior: estourar o do job cancela tudo, e o aviso por push não sairia
-    timeout-minutes: 55
+    # ~2 GB, quando a pasta muda), e a espera por jogo ao vivo tem o dela (3 h e pouco). O do job é maior: estourar o
+    # do job cancela tudo, e o aviso por push não sairia
+    timeout-minutes: 250
     # Um deploy por vez e nunca cancelado no meio. Com outro rodando, o GitHub guarda só o pendente mais novo:
     # merges em sequência viram um deploy só, do último commit.
     concurrency:
@@ -176,7 +182,21 @@ jobs:
           printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
+      # Antes de tocar a VPS: jogo ao vivo de prioridade alta segura o deploy (teto de 3 h; force=1 publica já). O log
+      # e o resumo dizem quais jogos seguraram e por quanto tempo
+      - name: Espera jogo ao vivo de prioridade alta
+        id: hold
+        if: vars.DEPLOY_LIVE_HOLD != 'off'
+        timeout-minutes: 195
+        env:
+          FORCE: ${{ inputs.force }}
+          EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash infra/vps-telemetry/live-hold.sh
+
       - name: Login no GHCR (conferir as imagens do SHA)
+        if: steps.hold.outputs.result != 'superseded'
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
@@ -185,6 +205,7 @@ jobs:
 
       - name: Deploy na VPS
         id: deploy
+        if: steps.hold.outputs.result != 'superseded'
         timeout-minutes: 45
         env:
           GHCR_USER: ${{ github.actor }}
@@ -193,6 +214,8 @@ jobs:
           # disparo manual com o SHA já no ar e sem force: falha (nunca verde sem publicar); no automático, só pula
           ON_SKIP: ${{ github.event_name == 'workflow_dispatch' && 'fail' || 'pass' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
+          # candidato com smoke antes da troca e troca sem manutenção (vazio = o roteiro de antes)
+          DEPLOY_CANDIDATE: ${{ vars.DEPLOY_CANDIDATE }}
         run: |
           set -o pipefail
           bash infra/vps-telemetry/deploy-gh.sh 2>&1 | tee "$RUNNER_TEMP/deploy.log"

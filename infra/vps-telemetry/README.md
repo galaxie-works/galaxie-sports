@@ -109,6 +109,46 @@ aparece no relatório. Para rodar só o smoke test:
 ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
 ```
 
+### Jogo ao vivo segura o deploy
+
+Antes de tocar a VPS, o job de deploy consulta (só leitura) os jogos em `starting`, `live` ou `break` de competição com
+`live_priority = high` e início nas últimas 6 h ([`live-hold.sh`](live-hold.sh)). Com algum no ar, espera, consultando a
+cada 2 min, até 3 h; o log e o resumo do Actions dizem quais jogos seguraram e por quanto tempo. Passado o teto, publica
+com aviso. Hotfix: disparo manual com `force=1` publica na hora. No automático, se outro commit entra na `main` durante a
+espera, este deploy sai e o do commit novo (que já espera na fila) cobre os dois. Consulta com falha não segura nada.
+Desligar: variável do repositório `DEPLOY_LIVE_HOLD=off`.
+
+### Candidato e troca sem manutenção (`DEPLOY_CANDIDATE=on`)
+
+Variável do repositório; vazia, o roteiro é o de cima. Ligada:
+
+1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull e do dump, a API e a demo da versão nova sobem ao lado
+   das que estão no ar (`api-candidate` e `demo-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
+   router no Traefik**, a API com o prefixo `gs-candidate:` no Valkey para cache, rate limit, uso e relay do SSE não se
+   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). Com migration nova, o migrate roda antes do candidato (numa transação; a versão
+   no ar segue sobre o schema novo até a troca). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
+   troca: a versão anterior segue no ar e o deploy sai com 1 (com migration aplicada, ele avisa e mostra o dump).
+2. **Troca da API e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
+   lado do antigo (`--scale 2 --no-recreate`), o antigo só para com o novo healthy (o Traefik só balanceia contêiner
+   healthy), e o `gsports-retry` (ligado em `EDGE_MIDDLEWARES`, [infra/traefik](../traefik/README.md)) manda a conexão
+   recusada pelo antigo no SIGTERM para o novo. O CI testa com o Traefik de verdade e tráfego a cada 50 ms (zero
+   respostas fora de 200) e com uma versão que nunca fica healthy (a troca recusa e a anterior segue). O resto da stack
+   (ingestor, agents, backup, observabilidade) sobe como antes; o smoke de depois do pós-deploy continua valendo.
+3. A volta automática baixa do GHCR a imagem da versão anterior se o prune diário da VPS já a tiver apagado, e o deploy
+   guarda só os 10 backups mais novos de `compose.yml` e `.env`.
+
+Ligar (com o OK do Wagner; sem staging, o primeiro deploy com ela é o teste), depois de `EDGE_MIDDLEWARES` ter o
+`gsports-retry`:
+
+```bash
+gh variable set DEPLOY_CANDIDATE --body on
+```
+
+Acompanhar o primeiro deploy no log do Actions: `candidato healthy`, o resultado do smoke do candidato, `ok  api trocado
+sem manutenção` e `ok  demo trocado sem manutenção`. Voltar: `gh variable delete DEPLOY_CANDIDATE` (o próximo deploy já
+sai pelo roteiro de antes). Candidato esquecido no ar (job morto no meio):
+`docker compose --profile candidate rm -sf api-candidate demo-candidate`.
+
 Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam** quando não acham (lista vazia), então
 um diretório fora da imagem não dá erro, só some a funcionalidade. Por isso as imagens levam `config/` inteiro (e a API a
 base semântica), com `RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH`, e o
