@@ -380,11 +380,11 @@ function cleanUrl(v: string | null | undefined): string | null {
   }
 }
 
-/** Preço: número positivo com até 2 casas (string numérica também vale); null = sem preço. */
+/** Preço: número com até 2 casas (string numérica também vale); 0 = plano grátis; null = sem preço. */
 function cleanAmount(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN;
-  if (!Number.isFinite(n) || n <= 0 || n >= 1e10)
+  if (!Number.isFinite(n) || n < 0 || n >= 1e10)
     throw new LineupError('invalid_input', `Preço inválido: ${String(v)}`);
   return Math.round(n * 100) / 100;
 }
@@ -399,7 +399,8 @@ function cleanCurrency(v: unknown): string | null {
 }
 
 /**
- * Campo do rascunho vindo da fonte (pesquisa, página oficial, curadoria): valor inválido não derruba a
+ * Campo do rascunho vindo da fonte (pesquisa, página oficial, curadoria): valor inválido (preço negativo,
+ * moeda fora da ISO 4217, data torta) não derruba a
  * gravação. O campo fica vazio e o valor lido, com o motivo, vai para a revisão em `verification.flags`.
  * A edição manual no painel continua recusando (`sanitizeProposal`, `createManualLineupItem`).
  */

@@ -485,6 +485,8 @@ export interface WidgetTexts {
     addonsAvailable: string;
     /** "a partir de {price}". */
     priceFrom: string;
+    /** Complemento de preço 0 (grátis). */
+    free: string;
     yourOperator: string;
     notInYourOperator: string;
     toConfirmTitle: string;
@@ -555,6 +557,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       includedServices: 'Streamings inclusos',
       addonsAvailable: 'Disponível como complemento',
       priceFrom: 'a partir de {price}',
+      free: 'grátis',
       yourOperator: 'Sua operadora',
       notInYourOperator: 'Este jogo não está na grade da sua operadora.',
       toConfirmTitle: 'Canal deste jogo a confirmar',
@@ -626,6 +629,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       includedServices: 'Streamings incluidos',
       addonsAvailable: 'Disponible como adicional',
       priceFrom: 'desde {price}',
+      free: 'gratis',
       yourOperator: 'Tu operadora',
       notInYourOperator: 'Este partido no está en la grilla de tu operadora.',
       toConfirmTitle: 'Canal de este partido a confirmar',
@@ -697,6 +701,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       includedServices: 'Streaming included',
       addonsAvailable: 'Available as an add-on',
       priceFrom: 'from {price}',
+      free: 'free',
       yourOperator: 'Your operator',
       notInYourOperator: 'This match is not in the lineup of your operator.',
       toConfirmTitle: 'Channel for this match to be confirmed',

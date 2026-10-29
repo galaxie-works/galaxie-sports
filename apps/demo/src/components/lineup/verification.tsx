@@ -71,7 +71,7 @@ export function VerificationCell({
     <div className="flex min-w-0 flex-col gap-1 text-xs break-words">
       {isPlan ? (
         <span className={cn('font-medium', !price && 'text-muted-foreground')}>
-          {price ? money(price.amount, price.currency) : V.noPrice}
+          {price ? (price.amount === 0 ? V.free : money(price.amount, price.currency)) : V.noPrice}
           {!price && claimed ? (
             <span className="text-muted-foreground font-normal">
               {' '}

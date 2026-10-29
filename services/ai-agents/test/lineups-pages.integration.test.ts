@@ -314,8 +314,8 @@ describe('lineups-curate: curadoria interna com prévia', () => {
   });
 });
 
-describe('lineups-pages: valor inválido na página sinaliza, não derruba o job', () => {
-  it('plano com "R$ 0" entra sem preço, com o valor lido e o motivo; os outros planos seguem', async () => {
+describe('lineups-pages: preço 0 e erros não derrubam o job', () => {
+  it('plano com "R$ 0" na página é plano grátis: preço 0 e "Grátis", sem sinalização', async () => {
     const free = { ...fixture, text: fixture.text.replaceAll('R$ 149,90', 'R$ 0') };
     const { reader } = readerWith(() => free, db);
     const later = new Date(NOW.getTime() + 2 * 86_400_000);
@@ -324,46 +324,24 @@ describe('lineups-pages: valor inválido na página sinaliza, não derruba o job
       { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
     );
     expect(out!.error).toBeUndefined();
-    expect(out!.flagged).toEqual([
-      { item: 'Plano Futebol', flag: { field: 'price_amount', value: '0', reason: 'Preço inválido: 0' } },
-    ]);
+    expect(out!.flagged).toEqual([]);
+    expect(out!.plans.find((p) => p.name === 'Plano Futebol')!.price).toBe(0);
     const lineup = (await getPlatformLineup(db, platformId, {
       minReview: 'draft',
       includeUnverified: true,
     }))!;
     const futebol = lineup.plans.find((p) => p.plan.name === 'Plano Futebol')!;
     expect([futebol.plan.priceAmount, futebol.plan.priceCurrency, futebol.plan.priceText]).toEqual([
-      null,
-      null,
-      null,
+      0,
+      'BRL',
+      'Grátis',
     ]);
-    expect(futebol.plan.verification).toMatchObject({
-      flags: [{ field: 'price_amount', value: '0' }],
-      page: { url: PAGE },
-    });
-    // o valor lido fica entre os preços vistos, com a fonte
-    expect(futebol.plan.verification?.prices).toContainEqual(
-      expect.objectContaining({ amount: 0, origin: 'page' }),
-    );
-    // a grade do plano foi gravada mesmo assim
+    expect(futebol.plan.verification?.flags).toBeUndefined();
+    // a grade do plano e os outros planos seguem
     expect(futebol.channels.filter((c) => c.access === 'included').map((c) => c.channelId)).toEqual(
       expect.arrayContaining(['globo', 'cazetv']),
     );
     expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceAmount).toBe(99.9);
-
-    // a página corrigida tira a sinalização
-    const fixed = readerWith(() => fixture, db);
-    const [again] = await confirmFromPages(
-      { db, config, reader: fixed.reader, now: () => new Date(later.getTime() + 60_000) },
-      { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
-    );
-    expect(again!.flagged).toEqual([]);
-    const [row] = await db
-      .select()
-      .from(platformPlan)
-      .where(and(eq(platformPlan.platformId, platformId), eq(platformPlan.slug, 'plano-futebol')));
-    expect(row).toMatchObject({ priceAmount: 149.9, priceCurrency: 'BRL' });
-    expect(row!.verification?.flags).toBeUndefined();
   });
 
   it('erro numa plataforma fica no resultado dela e a leitura segue nas outras', async () => {

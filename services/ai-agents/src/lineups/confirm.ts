@@ -12,9 +12,9 @@
  *   recente (o da página, lido hoje).
  * - Hash da página mudou e o plano já foi revisado: mudança para revisar.
  * - Site oficial que redireciona para outro domínio: rebrand, mudança proposta na plataforma.
- * - Valor inválido lido na página (preço 0, moeda torta) não derruba nada: o item entra sem ele, com a
- *   sinalização para a revisão (`verification.flags`). Erro numa plataforma fica no resultado dela e a
- *   leitura segue nas outras.
+ * - Preço 0 publicado é plano grátis ("Grátis"). Valor inválido lido na página (preço negativo, moeda
+ *   torta) não derruba nada: o item entra sem ele, com a sinalização para a revisão
+ *   (`verification.flags`). Erro numa plataforma fica no resultado dela e a leitura segue nas outras.
  */
 import { and, inArray, ne } from 'drizzle-orm';
 import {
