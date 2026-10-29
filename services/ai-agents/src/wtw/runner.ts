@@ -12,7 +12,7 @@
  *
  * O LLM só propõe: tudo passa pelo validador determinístico antes de gravar.
  */
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { wtwRun, type Database } from '@galaxie/db';
 import {
   applyAgentResult,
@@ -41,7 +41,15 @@ import { CachingPageFetcher, type PageFetcher } from './fetcher.js';
 import { groupKeyOf, roundKeyOf } from './groups.js';
 import type { AllocationMarket } from './prompt.js';
 import { marketRelevance, priorityOf, wtwPolicyFromEnv, type WtwPolicy } from './relevance.js';
-import { claimRuns, requeueStale, type WtwRunRow } from './scheduler.js';
+import {
+  WTW_RUN_MAX_ATTEMPTS,
+  attemptsOf,
+  attemptsOfRow,
+  claimRuns,
+  requeueStale,
+  withAttempts,
+  type WtwRunRow,
+} from './scheduler.js';
 import { WTW_MAX_MATCHES_PER_CALL } from './schema.js';
 import {
   estimateCallUsd,
@@ -118,7 +126,11 @@ export class WtwRunner {
     country?: string;
   }): Promise<RunOutcome[]> {
     const { db } = this.deps;
-    await requeueStale(db, this.now());
+    const stale = await requeueStale(db, this.now());
+    if (stale.failed)
+      this.log(
+        `${stale.failed} execução(ões) desistida(s) depois de ${WTW_RUN_MAX_ATTEMPTS} tentativas sem terminar`,
+      );
     const runs = await claimRuns(db, {
       now: this.now(),
       limit: opts.limit,
@@ -196,7 +208,12 @@ export class WtwRunner {
       const res = await this.allocateGroup(group, spend, callsLeft);
       callsLeft -= res.calls;
       if (res.deferred) {
-        await this.requeue(group.map((g) => g.run));
+        // não tentou: a reserva não conta como tentativa
+        await this.requeue(
+          group.map((g) => g.run),
+          null,
+          { refund: true },
+        );
         this.log(`${group[0]!.group}: sem chamada disponível nesta rodada — volta para a fila`);
         continue;
       }
@@ -217,13 +234,20 @@ export class WtwRunner {
         );
       }
       if (res.retryLater) {
-        await this.requeue(
-          group.map((g) => g.run),
-          res.retryAt,
-        );
-        this.log(
-          `${group[0]!.group}: alocação adiada (${res.reasons.values().next().value ?? ''}) — volta para a fila`,
-        );
+        // falha do provedor conta como tentativa: depois de WTW_RUN_MAX_ATTEMPTS, fica só com os direitos já publicados.
+        // Orçamento esgotado e espera depois de falha não chamaram o provedor: devolvem a tentativa
+        const again = res.attempted
+          ? group.filter((g) => attemptsOfRow(g.run) < WTW_RUN_MAX_ATTEMPTS).map((g) => g.run)
+          : group.map((g) => g.run);
+        await this.requeue(again, res.retryAt, { refund: !res.attempted });
+        if (again.length)
+          this.log(
+            `${group[0]!.group}: alocação adiada (${res.reasons.values().next().value ?? ''}) — volta para a fila`,
+          );
+        if (again.length < group.length)
+          this.log(
+            `${group[0]!.group}: ${group.length - again.length} execução(ões) desistida(s) da alocação depois de ${WTW_RUN_MAX_ATTEMPTS} tentativas (ficam com os direitos)`,
+          );
       }
     }
     if (fetcher.hits)
@@ -239,12 +263,24 @@ export class WtwRunner {
     return null;
   }
 
-  /** Devolve para a fila; com `at`, a execução só volta a ser reservada a partir dali (espera). */
-  private async requeue(runs: WtwRunRow[], at: Date | null = null): Promise<void> {
+  /**
+   * Devolve para a fila; com `at`, a execução só volta a ser reservada a partir dali (espera). `refund`: a reserva não
+   * chegou a tentar (sem chamada disponível) e devolve a tentativa que contou.
+   */
+  private async requeue(
+    runs: WtwRunRow[],
+    at: Date | null = null,
+    opts: { refund?: boolean } = {},
+  ): Promise<void> {
     for (const r of runs)
       await this.deps.db
         .update(wtwRun)
-        .set({ status: 'queued', startedAt: null, ...(at ? { scheduledFor: at } : {}) })
+        .set({
+          status: 'queued',
+          startedAt: null,
+          ...(at ? { scheduledFor: at } : {}),
+          ...(opts.refund ? { stats: withAttempts(sql`greatest(${attemptsOf} - 1, 0)`) } : {}),
+        })
         .where(eq(wtwRun.id, r.id));
   }
 
@@ -267,6 +303,8 @@ export class WtwRunner {
     retryLater?: boolean;
     /** Com `retryLater`: a partir de quando tentar de novo (espera depois de falha do provedor). */
     retryAt?: Date | null;
+    /** Alguma chamada ao provedor falhou de verdade nesta rodada (conta como tentativa da execução). */
+    attempted?: boolean;
   }> {
     const byEvent: AllocationResult['byEvent'] = new Map();
     const shares = new Map<string, CallShare>();
@@ -324,6 +362,7 @@ export class WtwRunner {
       if (!retryAt || at > retryAt) retryAt = at;
     };
     let allocatedAny = false;
+    let attempted = false;
     for (const [i, all] of chunks.entries()) {
       const ids = new Set(all.map((e) => e.id));
       let inChunk = used.filter((c) => ids.has(c.info.id));
@@ -432,6 +471,7 @@ export class WtwRunner {
         for (const m of marketsHere) reasons.set(m, `alocação falhou: ${message.slice(0, 200)}`);
         // orçamento esgotado não chamou o provedor: tenta na próxima rodada. Falha do provedor espera
         // (30 min, 1 h…) e desiste no dia depois de WTW_RESEARCH_MAX_FAILURES falhas.
+        if (!budget) attempted = true;
         if (budget) transient ??= message.slice(0, 200);
         else if (isTransient(err) && started.failures + 1 < WTW_RESEARCH_MAX_FAILURES) {
           transient ??= message.slice(0, 200);
@@ -452,6 +492,7 @@ export class WtwRunner {
       deferred: false,
       retryLater,
       retryAt: retryLater ? retryAt : null,
+      attempted,
     };
   }
 

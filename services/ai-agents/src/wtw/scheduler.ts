@@ -12,7 +12,7 @@
  * buraco é a pesquisa de direitos por temporada (`wtw-rights`). Cada (evento, país, janela) vira um
  * registro idempotente em enrich.wtw_run (`run_key` único).
  */
-import { and, asc, eq, gt, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import {
   competition,
   event,
@@ -313,17 +313,58 @@ export async function claimRuns(
   const all = [...new Set([...ids.map((r) => r.id), ...siblings.map((r) => r.id)])];
   return db
     .update(wtwRun)
-    .set({ status: 'running', startedAt: opts.now })
+    .set({ status: 'running', startedAt: opts.now, stats: withAttempts(sql`${attemptsOf} + 1`) })
     .where(and(inArray(wtwRun.id, all), eq(wtwRun.status, 'queued')))
     .returning();
 }
 
-/** Execuções que ficaram `running` por mais de `staleMs` (worker caiu) voltam para a fila. */
-export async function requeueStale(db: Database, now: Date, staleMs = 30 * 60_000): Promise<number> {
-  const rows = await db
+/**
+ * Tentativas de uma execução: cada reserva (queued → running) conta uma, em `stats.attempts`; a reserva que voltou
+ * para a fila sem tentar (rodada sem chamada disponível) devolve a sua. Uma execução que derruba o worker ou estoura o
+ * tempo volta para a fila com espera crescente (15 min, 30 min…) e, na WTW_RUN_MAX_ATTEMPTS-ésima vez, fecha como
+ * `failed` com o motivo, em vez de voltar para sempre gastando IA. O estado aparece no admin do onde assistir (status,
+ * error e stats.attempts de cada execução).
+ */
+export const WTW_RUN_MAX_ATTEMPTS = 3;
+const STALE_BACKOFF_MIN = 15;
+
+export const attemptsOf = sql<number>`coalesce((${wtwRun.stats} ->> 'attempts')::int, 0)`;
+export const withAttempts = (value: SQL) =>
+  sql`coalesce(${wtwRun.stats}, '{}'::jsonb) || jsonb_build_object('attempts', ${value})`;
+
+/** Tentativas já feitas de uma execução reservada (`stats.attempts`). */
+export const attemptsOfRow = (run: Pick<WtwRunRow, 'stats'>): number => {
+  const n = Number((run.stats as Record<string, unknown> | null)?.attempts);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/**
+ * Execuções que ficaram `running` por mais de `staleMs` (worker caiu, tempo do job estourou): voltam para a fila com
+ * espera crescente, ou fecham como `failed` depois de WTW_RUN_MAX_ATTEMPTS tentativas.
+ */
+export async function requeueStale(
+  db: Database,
+  now: Date,
+  staleMs = 30 * 60_000,
+): Promise<{ requeued: number; failed: number }> {
+  const stale = and(eq(wtwRun.status, 'running'), lte(wtwRun.startedAt, new Date(now.getTime() - staleMs)));
+  const failed = await db
     .update(wtwRun)
-    .set({ status: 'queued', startedAt: null })
-    .where(and(eq(wtwRun.status, 'running'), lte(wtwRun.startedAt, new Date(now.getTime() - staleMs))))
+    .set({
+      status: 'failed',
+      finishedAt: now,
+      error: sql`'desistiu depois de ' || ${attemptsOf} || ' tentativas sem terminar (o worker caiu ou o job estourou o tempo)'`,
+    })
+    .where(and(stale, sql`${attemptsOf} >= ${WTW_RUN_MAX_ATTEMPTS}`))
     .returning({ id: wtwRun.id });
-  return rows.length;
+  const requeued = await db
+    .update(wtwRun)
+    .set({
+      status: 'queued',
+      startedAt: null,
+      scheduledFor: sql`${now.toISOString()}::timestamptz + make_interval(mins => ${STALE_BACKOFF_MIN} * power(2, greatest(${attemptsOf} - 1, 0))::int)`,
+    })
+    .where(stale)
+    .returning({ id: wtwRun.id });
+  return { requeued: requeued.length, failed: failed.length };
 }
