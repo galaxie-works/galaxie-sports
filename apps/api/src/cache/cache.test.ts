@@ -247,9 +247,10 @@ describe('sendCached — singleflight e stale-while-revalidate (rotas quentes)',
         ...(opts.staleSec !== 0 ? { staleSec: opts.staleSec ?? 5 } : {}),
         load: async () => {
           loads += 1;
+          const placar = value; // lido do banco no começo do load
           await new Promise<void>((r) => gates.push(r));
           if (fail) throw fail;
-          return { body: { placar: value }, tags: ['event', 'event:1'] };
+          return { body: { placar }, tags: ['event', 'event:1'] };
         },
       }),
     );
@@ -351,6 +352,22 @@ describe('sendCached — singleflight e stale-while-revalidate (rotas quentes)',
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('quem entra num load depois de um purge não recebe a resposta anterior à mudança', async () => {
+    const cache = new MemoryResponseCache();
+    const t = gatedApp(cache);
+    const leader = t.app.inject({ url: '/live' });
+    await vi.waitFor(() => expect(t.loads()).toBe(1));
+    await cache.purgeTags(['event:1']); // gol durante o load do líder
+    t.set('gol');
+    const late = t.app.inject({ url: '/live' }); // chegou depois do purge
+    await vi.waitFor(() => expect(t.loads()).toBe(1));
+    await t.release(); // o líder termina com o placar antigo (gravação recusada)
+    expect((await leader).json()).toEqual({ placar: 'v1' });
+    await vi.waitFor(() => expect(t.loads()).toBe(2));
+    await t.release();
+    expect((await late).json()).toEqual({ placar: 'gol' });
   });
 
   it('recálculo que falha (banco fora) serve o valor anterior; erro do cliente (404) vale', async () => {

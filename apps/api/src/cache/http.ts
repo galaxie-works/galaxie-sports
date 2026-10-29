@@ -41,6 +41,8 @@ export interface CachedRouteOptions {
 interface Computed {
   entry: CachedResponse;
   ttl: number;
+  /** A gravação foi recusada: uma tag da resposta foi purgada durante o load (a resposta pode ser anterior). */
+  refused?: boolean;
 }
 
 /**
@@ -176,10 +178,15 @@ export async function sendCached(
       ttl = 0;
     }
   } else if (options.staleSec) {
-    const running = inflight.get(key);
-    ({ entry, ttl } = await singleflight(key, () => compute(request, cache, key, options, readable)));
+    const joined = inflight.has(key);
+    const run = () => singleflight(key, () => compute(request, cache, key, options, readable));
+    let result = await run();
+    // entrou num load já em andamento e um purge caiu durante ele: o purge pode ser anterior a esta requisição e
+    // a resposta, anterior à mudança. Refaz (o load novo começa depois do purge)
+    if (joined && result.refused) result = await run();
+    ({ entry, ttl } = result);
     reply.header('x-galaxie-cache', 'MISS');
-    countResult(request, running ? 'coalesced' : 'miss');
+    countResult(request, joined ? 'coalesced' : 'miss');
   } else {
     ({ entry, ttl } = await compute(request, cache, key, options, readable));
     reply.header('x-galaxie-cache', 'MISS');
@@ -237,6 +244,7 @@ async function compute(
   const body =
     loaded.contentType && typeof loaded.body === 'string' ? loaded.body : JSON.stringify(loaded.body);
   let ttl = loaded.ttl ?? options.ttl;
+  let refused = false;
   const entry: CachedResponse = {
     status: 200,
     body,
@@ -252,10 +260,13 @@ async function compute(
     try {
       // recusada: uma tag da resposta foi purgada durante o load, então ela pode ser anterior à mudança;
       // sai sem cache compartilhado (a próxima requisição monta de novo)
-      if (!(await cache.set(key, entry, ttl + (options.staleSec ?? 0), since))) ttl = 0;
+      if (!(await cache.set(key, entry, ttl + (options.staleSec ?? 0), since))) {
+        ttl = 0;
+        refused = true;
+      }
     } catch (err) {
       request.log.warn({ err }, 'cache indisponível (escrita)');
     }
   }
-  return { entry, ttl };
+  return { entry, ttl, refused };
 }
