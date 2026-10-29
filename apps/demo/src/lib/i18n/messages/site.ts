@@ -26,6 +26,7 @@ export default defineMessages(
       skip: 'Ir para o conteúdo',
       terms: 'Termos de uso',
       privacy: 'Privacidade',
+      status: 'Status',
     },
     footer: {
       product: 'Galaxie Sports é um produto da Galaxie Works.',
@@ -124,6 +125,7 @@ export default defineMessages(
         skip: 'Skip to content',
         terms: 'Terms of use',
         privacy: 'Privacy',
+        status: 'Status',
       },
       footer: {
         product: 'Galaxie Sports is a product of Galaxie Works.',
@@ -221,6 +223,7 @@ export default defineMessages(
         skip: 'Ir al contenido',
         terms: 'Términos de uso',
         privacy: 'Privacidad',
+        status: 'Estado',
       },
       footer: {
         product: 'Galaxie Sports es un producto de Galaxie Works.',
