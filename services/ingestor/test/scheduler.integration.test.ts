@@ -118,7 +118,10 @@ describe('trava por job entre processos (advisory lock de sessão)', () => {
     const before = await runs();
 
     const first = runJob(slow, { ...options, trigger: 'schedule' });
-    await new Promise((r) => setTimeout(r, 300));
+    // o runner só grava o job_run depois de pegar a trava: espera a linha em vez de um tempo fixo
+    // (300 ms não bastavam no CI com o Postgres 18 carregado)
+    for (let i = 0; i < 100 && (await runs()) === before; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(await runs()).toBe(before + 1);
     // ex.: `scheduler --run live-run` no console com o ao vivo agendado no ar
     const second = await runJob(slow, { ...options, trigger: 'manual' });
     expect(second).toMatchObject({ status: 'skipped', runId: undefined, exitCode: null });
