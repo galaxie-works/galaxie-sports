@@ -122,13 +122,24 @@ Banco antes da aplicação (o migrate roda no `up`; restaurar primeiro evita mig
 
 ```bash
 docker compose up -d postgres valkey s3 s3-init
-# copiar o .dump.age e o .sha256 do NAS para o volume backups e restaurar com a chave de recuperação:
-# exercicio-dr.md › "Restaurar com a chave de recuperação (VPS perdida)"
+# do NAS para a VPS: o .dump.age mais recente e o .sha256 dele (scp para /root/restore/)
+set -a; . ./.env; set +a
+# o restore.sh confere o .sha256 do .dump.age e decifra com a chave em BACKUP_AGE_IDENTITY (o conteúdo da chave de
+# recuperação, do cofre; só nesta execução). Avulso e sem dependências: o serviço backup depende do migrate, e o
+# papel do DB_URL_BACKUP ainda não existe; a restauração real roda com o dono do banco
+docker compose run --rm --no-deps -v /root/restore:/restore:ro \
+  -e BACKUP_AGE_IDENTITY="$(cat /root/restore/galaxie-backup-recuperacao.key)" \
+  -e DB_URL_BACKUP="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" \
+  backup sh -ec 'cp /restore/*.dump.age /restore/*.dump.age.sha256 /backups/ && restore.sh --yes "$(basename /restore/*.dump.age)"'
+shred -u /root/restore/galaxie-backup-recuperacao.key
 docker compose up -d
 docker compose ps        # migrate e s3-init: Exited (0); o resto: Up/healthy
 ```
 
-Depois do restore, os papéis do banco: [README da stack › Depois de restaurar um dump](../../infra/vps-telemetry/README.md).
+A chave de recuperação vai para `/root/restore/` só para esse comando e sai com o `shred`. O `restore.sh` restaura num
+banco novo, confere e troca pelo nome; o banco vazio da subida fica como `<db>_pre_restore_<data>` (apague depois).
+O `up -d` roda o migrate sobre o banco restaurado, que também recria os GRANTs dos papéis
+([README da stack › Depois de restaurar um dump](../../infra/vps-telemetry/README.md)).
 
 **Assets (S3)**: o volume `s3data` não tem backup próprio. Logos, bandeiras e fotos voltam pelo espelho
 (`docker compose exec -T ingestor node dist/cli/mirror-assets.js --descobrir-raw --concorrencia 4`, sem cota da
