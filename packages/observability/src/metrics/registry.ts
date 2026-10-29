@@ -6,6 +6,7 @@ import { aiBudget, effectiveOpsSettings, jobExpectations, type JobExpectation } 
 import {
   aiSpendUsd,
   changeFeedConsumers,
+  dbSizes,
   jobStats,
   ledgerCounts,
   liveEvents,
@@ -15,6 +16,7 @@ import {
   providerSnapshots,
   rawFreshness,
   type ChangeFeedConsumerRow,
+  type DbSizeData,
   type JobStatsRow,
   type LedgerCountRow,
   type LiveRow,
@@ -233,6 +235,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
+  // tamanho muda devagar: no máximo uma leitura por minuto, por mais scrapers que haja
+  const sizes = new CollectorGroup<DbSizeData>('db_size', () => dbSizes(db), Math.max(ttl, 60_000), onError);
   const changeFeed = new CollectorGroup<ChangeFeedConsumerRow[]>(
     'change_feed',
     () => changeFeedConsumers(db),
@@ -372,12 +376,32 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     },
   );
 
+  // ── tamanho do banco (retenção, lote 6; alerta DatabaseGrowingFast) ─────────────────────────────
+  dbGauge(
+    registry,
+    sizes,
+    'galaxie_db_database_bytes',
+    'Tamanho do banco (pg_database_size, bytes)',
+    [],
+    (g, d) => g.set(d.databaseBytes),
+  );
+  dbGauge(
+    registry,
+    sizes,
+    'galaxie_db_table_bytes',
+    'Tamanho das maiores tabelas e das que a retenção poda (tabela + índices + TOAST, bytes)',
+    ['table'],
+    (g, d) => {
+      for (const r of d.tables) g.set({ table: r.table }, r.bytes);
+    },
+  );
+
   // ── frescor do raw ───────────────────────────────────────────────────────────────────────────────
   dbGauge(
     registry,
     freshness,
     'galaxie_raw_last_fetched_timestamp_seconds',
-    'Última resposta gravada em raw.api_response por esporte (epoch s; só a janela recente)',
+    'Última resposta recebida em raw.api_response por esporte, nova ou repetida (last_seen_at; epoch s; só a janela recente)',
     ['sport'],
     (g, rows) => {
       for (const r of rows) g.set({ sport: r.sport }, seconds(r.lastFetchedAt));
