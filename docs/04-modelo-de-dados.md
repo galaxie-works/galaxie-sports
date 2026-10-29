@@ -51,7 +51,7 @@ Decisão de 28/10/2026 (lote 6 da auditoria de produção). Operação: [runbook
 
 | Tabela | Guarda | Detalhe |
 |---|---|---|
-| `ops.change_feed` | 7 dias (job `change-feed-prune`) | Mantém a última mudança de cada entidade e nunca apaga acima do menor cursor: `api.webhook_cursor` (sempre) e o piso do GapCursor do cache da demo (`demo_auth.cache_feed_cursor`, enquanto a demo retomaria dele: 24 h) |
+| `ops.change_feed` | 7 dias (job `change-feed-prune`) | Mantém a última mudança de cada entidade e nunca apaga acima do menor cursor: `api.webhook_cursor` (sempre) e o piso do GapCursor do cache da demo (`demo_auth.cache_feed_cursor`) e do purge da API (`api.change_feed_cursor`), enquanto eles retomariam dali (24 h) |
 | `ops.llm_usage` | 90 dias por chamada | Antes de apagar, cada dia vira linha em `ops.llm_usage_daily` (dia, dia de orçamento, faixa, agente, provedor, modelo, tier, desfecho), que fica para sempre |
 | `ops.job_run` | 90 dias | A última execução e o último sucesso de cada job ficam sempre (métricas e alerta de job falhando) |
 | `ops.quota_ledger` | 90 dias de cota | O Governor só lê o dia corrente |

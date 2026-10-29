@@ -120,6 +120,29 @@ describe('pruneChangeFeed', () => {
     await db.execute(sql`drop schema demo_auth cascade`);
   });
 
+  it('respeita o cursor do purge do cache da API (api.change_feed_cursor) do mesmo jeito', async () => {
+    await db.delete(changeFeed);
+    await db.delete(changeFeedPrune);
+    await db.delete(webhookCursor);
+    // a tabela vem na migration do lote 5; aqui é criada se ainda não existir
+    await db.execute(sql`
+      create table if not exists api.change_feed_cursor (
+        name text primary key, last_change_id bigint not null, updated_at timestamptz not null default now())`);
+    const f1 = await add('f', daysAgo(20));
+    const f2 = await add('f', daysAgo(15));
+    await add('f', daysAgo(1));
+    await db.execute(sql`delete from api.change_feed_cursor`);
+    await db.execute(
+      sql`insert into api.change_feed_cursor (name, last_change_id) values ('cache-purge', ${f1})`,
+    );
+    expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(1);
+    expect(await ids()).toContain(f2);
+    await db.execute(sql`update api.change_feed_cursor set updated_at = now() - interval '2 days'`);
+    expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(1);
+    expect(await ids()).not.toContain(f2);
+    await db.execute(sql`delete from api.change_feed_cursor`);
+  });
+
   it('recusa retenção menor que 1 dia', async () => {
     await expect(pruneChangeFeed(db, { retentionDays: 0 })).rejects.toThrow('≥ 1 dia');
   });
