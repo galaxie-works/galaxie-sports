@@ -113,9 +113,13 @@ services:
       - s3data:/data
     labels:
       - traefik.enable=true
+      # compressão (infra/traefik/README.md › Compressão): o mesmo middleware em api, demo, s3 e maintenance
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.routers.gsports-assets.rule=Host(`${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}`) && PathPrefix(`/${S3_BUCKET:-galaxie-sports-assets}/`) && (Method(`GET`) || Method(`HEAD`))
       - traefik.http.routers.gsports-assets.entrypoints=websecure
       - traefik.http.routers.gsports-assets.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-assets.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-assets.loadbalancer.server.port=9000
     logging: *logging
 
@@ -198,9 +202,13 @@ services:
     # /metrics e /internal não passam pelo Traefik (equivale ao bloqueio que o Caddy fazia).
     labels:
       - traefik.enable=true
+      # compressão (infra/traefik/README.md › Compressão): o mesmo middleware em api, demo, s3 e maintenance
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.routers.gsports-api.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
       - traefik.http.routers.gsports-api.entrypoints=websecure
       - traefik.http.routers.gsports-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-api.loadbalancer.server.port=8080
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
@@ -245,9 +253,13 @@ services:
     # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
       - traefik.enable=true
+      # compressão (infra/traefik/README.md › Compressão): o mesmo middleware em api, demo, s3 e maintenance
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
       - traefik.http.routers.gsports-demo.entrypoints=websecure
       - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
     logging: *logging
 
@@ -288,15 +300,20 @@ services:
     labels:
       - works.galaxie.maintenance-rev=ea68f94e0334
       - traefik.enable=true
+      # compressão (infra/traefik/README.md › Compressão): o mesmo middleware em api, demo, s3 e maintenance
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.routers.gsports-demo-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
       - traefik.http.routers.gsports-demo-maintenance.entrypoints=websecure
       - traefik.http.routers.gsports-demo-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-demo-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.routers.gsports-demo-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
       - traefik.http.routers.gsports-demo-maintenance.service=gsports-maintenance-site
       - traefik.http.services.gsports-maintenance-site.loadbalancer.server.port=8080
       - traefik.http.routers.gsports-api-maintenance.rule=Host(`${API_DOMAIN:?defina API_DOMAIN}`) && !PathPrefix(`/metrics`) && !PathPrefix(`/internal`)
       - traefik.http.routers.gsports-api-maintenance.entrypoints=websecure
       - traefik.http.routers.gsports-api-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.routers.gsports-api-maintenance.priority=${MAINTENANCE_PRIORITY:-1}
       - traefik.http.routers.gsports-api-maintenance.service=gsports-maintenance-api
       - traefik.http.services.gsports-maintenance-api.loadbalancer.server.port=8081

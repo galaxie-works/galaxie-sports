@@ -183,6 +183,8 @@ precedência **banco > env > padrão do código** (registro em `packages/runtime
 
 ## Deploy (primeira vez)
 
+VPS nova do zero (SSH, Docker, firewall, Traefik e a ordem de restauração do banco): [docs/runbooks/bootstrap-vps.md](../../docs/runbooks/bootstrap-vps.md).
+
 ```bash
 mkdir -p /docker/galaxie-sports && cd /docker/galaxie-sports
 # compose.yml deste diretório, no commit mergeado; .env a partir de env.example (chmod 600)
@@ -252,12 +254,12 @@ O `EventSource` não manda header. Desde 28/10/2026 o navegador abre o `/v1/stre
 aceita até 27/12/2026, com os headers `Deprecation` e `Sunset` e um aviso por tenant por dia no log da API
 (`sse.query_key_deprecated`: `docker compose logs api | grep query_key_deprecated` mostra quem falta trocar). Defina
 `STREAM_TOKEN_SECRET` (`openssl rand -hex 32`) no `.env` para o token valer entre instâncias e sobreviver a um deploy;
-sem ele, cada processo da API sorteia o seu. Na VPS a borda é o Traefik (v3,
-configurado por argumentos fora deste repositório; não há Caddy aqui), com **access log desligado** (sem
-`--accesslog`), e a API redige `?key=` e `?token=` nos próprios logs. Hoje a chave na query não vai para log: na verificação de
-2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API.
+sem ele, cada processo da API sorteia o seu. Na VPS a borda é o Traefik (v3; não há Caddy aqui), versionado em
+[`infra/traefik`](../traefik/README.md), e a API redige `?key=` e `?token=` nos próprios logs. Na verificação de
+2026-10-25 houve 0 ocorrências de `key=` em 7 dias de logs do Traefik e da API, que até ali rodava sem access log.
 
-Se o access log do Traefik for ligado, ele precisa descartar o `RequestPath`, que leva a query (chave ou token):
+O access log do Traefik ([`infra/traefik/compose.yml`](../traefik/compose.yml), aplicado à mão com o OK do Wagner)
+descarta o `RequestPath`, que leva a query (chave ou token), e os headers:
 
 ```text
 --accesslog=true --accesslog.format=json --accesslog.fields.defaultmode=keep
