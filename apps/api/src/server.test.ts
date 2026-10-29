@@ -15,6 +15,48 @@ describe('health', () => {
     const res = await buildServer().inject({ method: 'GET', url: '/health/db' });
     expect(res.statusCode).toBe(503);
   });
+
+  it('prontidão: sem Postgres é 503', async () => {
+    const res = await buildServer().inject({ method: 'GET', url: '/health/ready' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      status: 'unavailable',
+      checks: { postgres: 'unconfigured', valkey: 'unconfigured' },
+    });
+  });
+
+  it('prontidão: Valkey lento ou fora deixa a API pronta, mas degradada', async () => {
+    const db = { execute: async () => [] };
+    const hung = { ping: () => new Promise(() => {}), defineCommand: () => {} };
+    const slow = await buildServer({ db: db as never, redis: hung as never }).inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    expect(slow.statusCode).toBe(200);
+    expect(slow.json()).toEqual({ status: 'degraded', checks: { postgres: 'ok', valkey: 'timeout' } });
+
+    const ok = await buildServer({
+      db: db as never,
+      redis: { ping: async () => 'PONG', defineCommand: () => {} } as never,
+    }).inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    expect(ok.json()).toEqual({ status: 'ok', checks: { postgres: 'ok', valkey: 'ok' } });
+  });
+
+  it('prontidão: Postgres com erro é 503, e /health segue 200', async () => {
+    const db = {
+      execute: async () => {
+        throw new Error('connection refused');
+      },
+    };
+    const app = buildServer({ db: db as never });
+    const ready = await app.inject({ method: 'GET', url: '/health/ready' });
+    expect(ready.statusCode).toBe(503);
+    expect(ready.json()).toMatchObject({ status: 'unavailable', checks: { postgres: 'error' } });
+    expect((await app.inject({ method: 'GET', url: '/health' })).statusCode).toBe(200);
+  });
 });
 
 describe('documentação', () => {

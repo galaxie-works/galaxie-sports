@@ -365,12 +365,15 @@ limit, chaves verificadas, contadores de uso (4 dias; o hash leva a época e o p
 contador de poucos bytes que não pode sumir (o cache depende de ele só crescer): sem TTL, nunca é despejado. Valkey
 cheio só de chaves sem TTL recusaria gravações, e cache e rate limit seguem pelo caminho de falha aberta.
 
-### Alertas por e-mail
+### Alertas: push no celular e resumo por e-mail
 
-As regras ficam no Prometheus (`infra/observability/prometheus/alerts.yml`). O Grafana lê os alertas disparando e manda
-o e-mail. Para ligar, o dono põe no `.env` da VPS (a senha nunca vai para o repositório):
+As regras ficam no Prometheus (`infra/observability/prometheus/alerts.yml`). O Grafana lê os alertas disparando: o
+crítico (os 5 sinais graves) sai na hora como push pelo ntfy; o resto entra no resumo diário por e-mail, às 08:00 de
+Brasília. Passo a passo, teste e o monitor externo: `docs/runbooks/alertas-e-monitoramento.md`. No `.env` da VPS (o
+tópico e a senha nunca vão para o repositório):
 
 ```dotenv
+ALERT_NTFY_URL=https://ntfy.sh/<tópico secreto>   # push; o nome do tópico é a senha
 ALERT_EMAIL_TO=voce@exemplo.com          # vários: separados por ;
 ALERT_EMAIL_FROM=alertas@exemplo.com     # remetente aceito pelo SMTP
 ALERT_SMTP_HOST=smtp.exemplo.com:587     # host:porta; STARTTLS quando o servidor oferece
@@ -378,11 +381,11 @@ ALERT_SMTP_USER=alertas@exemplo.com
 ALERT_SMTP_PASSWORD=<senha de app do SMTP>
 ```
 
-Depois, `docker compose up -d grafana`. O log do Grafana diz `alertas por e-mail ligados`. Para testar, use Alerting →
-Contact points → `email-operacao` → Test. Sem `ALERT_EMAIL_TO` ou `ALERT_SMTP_HOST`, os alertas continuam visíveis em
-Alerting → Alert rules (regra "Alerta do Prometheus") e no `/alerts` do Prometheus (túnel SSH), sem notificação.
+Depois, `docker compose up -d grafana`. O log do Grafana diz `alertas por push ligados` e `alertas por e-mail ligados`.
+Para testar, use Alerting → Contact points → `push-imediato` (ou `email-operacao`) → Test. Sem canal nenhum, os alertas
+continuam visíveis em Alerting → Alert rules (regra "Alerta do Prometheus") e no `/alerts` do Prometheus (túnel SSH).
 
 ## Pendências
 
-- O dono configura o SMTP dos alertas (acima).
+- O dono configura o tópico do ntfy e o SMTP dos alertas (acima) e o monitor externo (runbook de alertas).
 - Cabeçalhos de cache/CDN para os assets.

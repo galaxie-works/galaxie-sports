@@ -327,8 +327,9 @@ docker compose -p galaxie-staging-local -f infra/portainer/stack.yml --env-file 
 
 ## O que fica de fora (próximos passos)
 
-- **Notificações de alerta**: o canal é o e-mail, pelo Grafana; falta o dono definir o SMTP (`ALERT_*`). Outros canais
-  (chat, pager) entram como mais um contact point em `infra/observability/grafana/alerting-email/`.
+- **Notificações de alerta**: push (ntfy) para o crítico e resumo diário por e-mail, pelo Grafana
+  (`ALERT_NTFY_URL` e `ALERT_*` do SMTP); roteamento em `infra/observability/grafana/entrypoint.sh` e runbook em
+  `docs/runbooks/alertas-e-monitoramento.md`.
 - **Alerta com o intervalo dinâmico**: o Live Scheduler já publica `galaxie_live_scheduler_interval_seconds`, mas o
   `LiveEventStale` segue sobre `LIVE_POLL_INTERVAL_SECONDS`: com 15 s (Pro) ele dispararia em todo intervalo de jogo
   (o poller pula o HT e os eventos em `break` ficam sem atualização). Falta excluir `break` da idade máxima e trocar a base.

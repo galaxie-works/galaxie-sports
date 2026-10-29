@@ -1,5 +1,6 @@
 # Só entra no provisionamento com ALERT_EMAIL_TO e ALERT_SMTP_HOST definidos (entrypoint.sh): e-mail vazio
 # derrubaria o provisionamento do Grafana. $ALERT_EMAIL_TO vem do ambiente (vários: separados por ;).
+# É o resumo diário (08:00 de Brasília) e, sem push configurado, também o canal imediato do crítico.
 apiVersion: 1
 contactPoints:
   - orgId: 1
@@ -10,3 +11,5 @@ contactPoints:
         settings:
           addresses: $ALERT_EMAIL_TO
           singleEmail: true
+          subject: '{{ template "galaxie.email.subject" . }}'
+          message: '{{ template "galaxie.text" . }}'

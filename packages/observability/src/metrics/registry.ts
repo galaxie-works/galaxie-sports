@@ -2,12 +2,15 @@ import { performance } from 'node:perf_hooks';
 import { API_SPORTS, utcDayString, type QuotaPolicy } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
 import { collectDefaultMetrics, Gauge, Histogram, Registry } from 'prom-client';
+import { aiBudget, effectiveOpsSettings, jobExpectations, type JobExpectation } from './ops.js';
 import {
+  aiSpendUsd,
   changeFeedConsumers,
   jobStats,
   ledgerCounts,
   liveEvents,
   liveSchedulerStates,
+  opsState,
   plannedBudgets,
   providerSnapshots,
   rawFreshness,
@@ -17,6 +20,7 @@ import {
   type LiveRow,
   type LiveSchedulerRow,
   type FreshnessRow,
+  type OpsStateRow,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
 
@@ -112,6 +116,12 @@ function dbGauge<T, L extends string>(
 
 const seconds = (d: Date) => d.getTime() / 1000;
 
+interface OpsData {
+  state: OpsStateRow;
+  jobs: JobExpectation[];
+  ai: { dailyUsd: number | null; budgetDay: string; spentUsd: number };
+}
+
 interface QuotaData {
   dayUtc: string;
   yesterday: string;
@@ -191,7 +201,24 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
-  const groups = [quota, jobs, freshness, live, changeFeed] as CollectorGroup<unknown>[];
+  // configuração efetiva (agendas, teto da IA), sinais de vida dos schedulers e crédito/gasto da IA
+  const ops = new CollectorGroup<OpsData>(
+    'ops',
+    async () => {
+      const at = now();
+      const state = await opsState(db);
+      const settings = effectiveOpsSettings(state.overrides, state.reported);
+      const budget = aiBudget(settings, at);
+      return {
+        state,
+        jobs: jobExpectations(settings, at),
+        ai: { ...budget, spentUsd: await aiSpendUsd(db, budget.budgetDay) },
+      };
+    },
+    ttl,
+    onError,
+  );
+  const groups = [quota, jobs, freshness, live, changeFeed, ops] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
   dbGauge(
@@ -406,6 +433,70 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ['consumer'],
     (g, rows) => {
       for (const r of rows) g.set({ consumer: r.consumer }, r.oldestPendingAgeSeconds);
+    },
+  );
+
+  // ── sinais de vida, agenda esperada e IA (fonte: ops.runtime_env, ops.runtime_setting, ops.runtime_check, ops.llm_usage)
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_service_last_report_timestamp_seconds',
+    'Último relato do serviço em ops.runtime_env (epoch s; os schedulers relatam a cada 30 s, a API só na partida). ' +
+      'Rótulo `component`: o scrape já põe `service` no alvo',
+    ['component'],
+    (g, d) => {
+      for (const r of d.state.lastReport) g.set({ component: r.service }, seconds(r.at));
+    },
+  );
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_job_expected_interval_seconds',
+    'Maior intervalo entre execuções na agenda efetiva do job (banco > env do serviço > padrão; só jobs ligados)',
+    ['job_name', 'component'],
+    (g, d) => {
+      for (const j of d.jobs) g.set({ job_name: j.job, component: j.service }, j.intervalSeconds);
+    },
+  );
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_ai_credit_check',
+    'Resultado da última checagem do crédito da conta de IA (1 no status atual: pass, warn ou fail)',
+    ['status', 'provider'],
+    (g, d) => {
+      const c = d.state.aiCredit;
+      if (c) g.set({ status: c.status, provider: c.provider ?? '' }, 1);
+    },
+  );
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_ai_credit_checked_timestamp_seconds',
+    'Hora da última checagem do crédito da conta de IA (epoch s)',
+    [],
+    (g, d) => {
+      if (d.state.aiCredit) g.set(seconds(d.state.aiCredit.checkedAt));
+    },
+  );
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_ai_spend_usd',
+    'Gasto de IA em US$ no dia de orçamento corrente (ops.llm_usage, todos os agentes)',
+    ['budget_day'],
+    (g, d) => {
+      g.set({ budget_day: d.ai.budgetDay }, d.ai.spentUsd);
+    },
+  );
+  dbGauge(
+    registry,
+    ops,
+    'galaxie_ai_daily_budget_usd',
+    'Teto diário global da IA em US$ (AI_DAILY_USD_BUDGET efetivo; ausente = unlimited)',
+    [],
+    (g, d) => {
+      if (d.ai.dailyUsd !== null) g.set(d.ai.dailyUsd);
     },
   );
 

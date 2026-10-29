@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
-import { quotaBudget, quotaLedger, type Database } from '@galaxie/db';
+import { quotaBudget, quotaLedger, readRuntimeOverrides, type Database } from '@galaxie/db';
+import { AI_CREDIT_CHECK } from '@galaxie/runtime-config';
 
 /**
  * Consultas somente leitura que alimentam as métricas. Tudo é lido do banco a cada coleta (com cache curto),
@@ -291,4 +292,55 @@ export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsu
     pending: Number(r.pending),
     oldestPendingAgeSeconds: Math.max(0, Number(r.age ?? 0)),
   }));
+}
+
+export interface OpsStateRow {
+  /** Sobrescritas do painel (ops.runtime_setting). */
+  overrides: Map<string, string>;
+  /** Env relatado por cada serviço (ops.runtime_env). */
+  reported: { service: string; key: string; value: string | null }[];
+  /** Último relato de cada serviço (sinal de vida do scheduler: a cada releitura, 30 s). */
+  lastReport: { service: string; at: Date }[];
+  /** Última checagem do crédito da conta de IA (scheduler dos agentes). */
+  aiCredit: { status: string; provider: string | null; checkedAt: Date } | null;
+}
+
+/** Configuração efetiva, sinais de vida dos serviços e a checagem do crédito da IA. */
+export async function opsState(db: Database): Promise<OpsStateRow> {
+  const [overrides, reported, credit] = await Promise.all([
+    readRuntimeOverrides(db),
+    db.execute<{ service: string; key: string; value: string | null; reported_at: string | Date }>(
+      sql`select service, key, value, reported_at from ops.runtime_env`,
+    ),
+    db.execute<{ status: string; detail: string | null; checked_at: string | Date }>(sql`
+      select status, detail, checked_at from ops.runtime_check
+       where name = ${AI_CREDIT_CHECK} order by checked_at desc limit 1`),
+  ]);
+  const last = new Map<string, Date>();
+  for (const r of reported) {
+    const at = new Date(r.reported_at);
+    if (!last.has(r.service) || at > last.get(r.service)!) last.set(r.service, at);
+  }
+  const c = credit[0];
+  const provider = (() => {
+    try {
+      return c?.detail ? ((JSON.parse(c.detail) as { provider?: string }).provider ?? null) : null;
+    } catch {
+      return null; // detalhe antigo em texto
+    }
+  })();
+  return {
+    overrides,
+    reported: reported.map((r) => ({ service: r.service, key: r.key, value: r.value })),
+    lastReport: [...last].map(([service, at]) => ({ service, at })),
+    aiCredit: c ? { status: c.status, provider, checkedAt: new Date(c.checked_at) } : null,
+  };
+}
+
+/** Gasto em US$ do dia de orçamento (todos os agentes; a mesma soma do teto global do ledger). */
+export async function aiSpendUsd(db: Database, budgetDay: string): Promise<number> {
+  const [row] = await db.execute<{ usd: string | number | null }>(sql`
+    select coalesce(sum(cost_usd), 0) as usd from ops.llm_usage
+     where coalesce(budget_day, day_utc) = ${budgetDay}::date`);
+  return Number(row?.usd ?? 0);
 }

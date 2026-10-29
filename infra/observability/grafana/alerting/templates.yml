@@ -1,0 +1,40 @@
+# Textos das notificações (push e e-mail). Cada alerta chega do Prometheus pela ponte (provisioning/alerting/rules.yml)
+# com os rótulos dele: prometheus_alert (nome), severity, sinal (um dos 5 sinais graves do push) e os do alvo.
+# Sem cifrão aqui: o provisionamento do Grafana troca as variáveis de ambiente escritas com ele.
+apiVersion: 1
+templates:
+  - orgId: 1
+    name: galaxie
+    template: |
+      {{ define "galaxie.name" -}}
+      {{ if .Labels.prometheus_alert }}{{ .Labels.prometheus_alert }}{{ else }}{{ .Labels.alertname }}{{ end }}
+      {{- end }}
+
+      {{ define "galaxie.alert" -}}
+      {{ template "galaxie.name" . }}
+      {{- with .Labels.sinal }} [{{ . }}]{{ end }}
+      {{- with .Labels.job_name }} job={{ . }}{{ end }}
+      {{- with .Labels.component }} serviço={{ . }}{{ end }}
+      {{- with .Labels.sport }} esporte={{ . }}{{ end }}
+      {{- with .Labels.device }} disco={{ . }}{{ end }}
+      {{- with .Labels.consumer }} consumidor={{ . }}{{ end }}
+      {{- with .Labels.provider }} provedor={{ . }}{{ end }}
+      {{- end }}
+
+      {{ define "galaxie.title" -}}
+      Galaxie Sports: {{ if gt (len .Alerts.Firing) 0 }}{{ range .Alerts.Firing }}{{ template "galaxie.name" . }} {{ end }}{{ else }}resolvido{{ end }}
+      {{- end }}
+
+      {{ define "galaxie.text" -}}
+      {{ if gt (len .Alerts.Firing) 0 }}Disparando ({{ len .Alerts.Firing }}):
+      {{ range .Alerts.Firing }}• {{ template "galaxie.alert" . }} (desde {{ .StartsAt.Format "02/01 15:04 MST" }})
+      {{ end }}{{ end }}
+      {{- if gt (len .Alerts.Resolved) 0 }}Resolvido ({{ len .Alerts.Resolved }}):
+      {{ range .Alerts.Resolved }}• {{ template "galaxie.alert" . }}
+      {{ end }}{{ end -}}
+      Detalhes: Grafana → Alerting (túnel SSH) e docs/runbooks/alertas-e-monitoramento.md
+      {{- end }}
+
+      {{ define "galaxie.email.subject" -}}
+      Galaxie Sports: {{ len .Alerts.Firing }} alerta(s) disparando{{ if gt (len .Alerts.Resolved) 0 }}, {{ len .Alerts.Resolved }} resolvido(s){{ end }}
+      {{- end }}
