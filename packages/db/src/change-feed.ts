@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 
 /** Marca d'água dos consumidores do change feed (SSE, webhooks, cache da demo). */
-export { GapCursor } from './gap-cursor.js';
+export { GapCursor, GAP_MAX_SEEN, GAP_TIMEOUT_MS, type AbandonedGap } from './gap-cursor.js';
 
 /** Canal do LISTEN/NOTIFY usado para acordar os consumidores do change feed (purge de cache, SSE...). */
 export const CHANGE_FEED_CHANNEL = 'ops_change_feed';

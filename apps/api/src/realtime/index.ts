@@ -3,7 +3,7 @@ import type { Redis } from 'ioredis';
 import type { Database } from '@galaxie/db';
 import { ChangeStream, type ChangeStreamOptions } from './change-stream.js';
 import { MemoryConnectionLimiter, RedisConnectionLimiter } from './connection-limiter.js';
-import { redactKey, streamRoutes, type SseConnection, type SseOptions } from './sse.js';
+import { redactKey, streamRoutes, type SseConnection, type SseMetrics, type SseOptions } from './sse.js';
 import type { StreamTokenSigner } from './stream-token.js';
 
 export type RealtimeOptions = SseOptions & Omit<ChangeStreamOptions, 'redis' | 'keyPrefix' | 'logger'>;
@@ -26,6 +26,7 @@ export function registerRealtime(
     keyPrefix: string;
     options: RealtimeOptions;
     tokens: StreamTokenSigner;
+    metrics?: SseMetrics;
   },
 ): void {
   const stream = new ChangeStream(deps.db, {
@@ -45,6 +46,7 @@ export function registerRealtime(
       limiter,
       options: deps.options,
       tokens: deps.tokens,
+      metrics: deps.metrics,
     });
   });
   app.decorate('realtime', stream);

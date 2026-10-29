@@ -210,7 +210,7 @@ groups:
           summary: 'node-exporter fora do ar: sem medida de disco'
           description: 'O alvo {{ $labels.instance }} não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
-      # Consumidor do ops.change_feed (cache da demo, webhooks) com mudança pendente há mais de 10 min.
+      # Consumidor do ops.change_feed (cache da demo, webhooks, purge do cache da API) com mudança pendente há mais de 10 min.
       - alert: ChangeFeedStalled
         expr: galaxie_change_feed_pending_age_seconds > 600
         for: 5m
@@ -218,7 +218,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
-          description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks) e o cursor dele.'
+          description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
 
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
@@ -240,3 +240,40 @@ groups:
         annotations:
           summary: 'p95 da API acima de 150 ms'
           description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente).'
+
+      # p99 por rota (o p95 acima mistura todas): uma rota quente que ficou lenta (placar ao vivo sem cache, consulta
+      # sem índice) aparece mesmo com o resto rápido. Só rota com tráfego (≥ 30 req/min, para o p99 não ser uma
+      # requisição só), fora /metrics, /health e /internal, e por 15 min seguidos.
+      - alert: ApiRouteLatencyP99High
+        expr: >-
+          histogram_quantile(0.99,
+            sum by (route, le) (rate(galaxie_http_request_duration_seconds_bucket{route!~"/metrics|/health.*|/internal/.*|unmatched"}[10m]))
+          ) > 1
+          and on (route)
+          sum by (route) (rate(galaxie_http_request_duration_seconds_count{route!~"/metrics|/health.*|/internal/.*|unmatched"}[10m])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p99 de {{ $labels.route }} acima de 1 s'
+          description: 'A rota {{ $labels.route }} tem p99 acima de 1 s há 15 minutos. Veja no Grafana a latência por rota e o galaxie_cache_requests_total (miss/stale).'
+
+      # O GapCursor desistiu de um id do change feed (venceu os 90 s e continuou faltando na releitura, ou a
+      # proteção de memória): o SSE ou o purge do cache podem ter perdido mudanças. Uma transação revertida também
+      # abre lacuna, então isto vai para o resumo, não para o push.
+      - alert: ChangeFeedGapAbandoned
+        expr: sum by (consumer, reason) (increase(galaxie_change_feed_gaps_abandoned_total[1h])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Lacuna do change feed abandonada ({{ $labels.consumer }}, {{ $labels.reason }})'
+          description: 'O consumidor {{ $labels.consumer }} pulou ids do ops.change_feed na última hora. Os ids estão no log da API ("lacuna do change feed abandonada"); transação do ingestor mais longa que 90 s é a causa provável.'
+
+      # Teto de streams SSE do processo (SSE_MAX_CONNECTIONS) estourou: clientes receberam 503.
+      - alert: SseProcessLimitReached
+        expr: sum(increase(galaxie_sse_connections_rejected_total{reason="process_limit"}[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Teto de conexões SSE da API atingido'
+          description: 'Aberturas do /v1/stream recusadas com 503 nos últimos 15 min. Veja galaxie_sse_connections_open e a memória do contêiner antes de subir SSE_MAX_CONNECTIONS.'

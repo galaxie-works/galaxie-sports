@@ -312,7 +312,118 @@ tests:
               consumer: demo-cache:demo
             exp_annotations:
               summary: 'Fila do change feed parada para demo-cache:demo'
-              description: 'A mudança pendente mais antiga tem 17m 40s. Veja se o consumidor está no ar (demo, worker de webhooks) e o cursor dele.'
+              description: 'A mudança pendente mais antiga tem 17m 40s. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
+
+  - name: p99 por rota acima de 1 s com tráfego dispara depois de 15 min; rota fria e /internal não
+    interval: 1m
+    input_series:
+      # /v1/events/live: 1 req/s, todas entre 1 e 2,5 s
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="0.5"}'
+        values: '0x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="1"}'
+        values: '0x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="2.5"}'
+        values: '0+60x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="200",le="+Inf"}'
+        values: '0+60x40'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/events/live",method="GET",status_code="200"}'
+        values: '0+60x40'
+      # /v1/events/live com status 304: rápido, entra no mesmo p99 da rota
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="304",le="0.5"}'
+        values: '0+6x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="304",le="1"}'
+        values: '0+6x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="304",le="2.5"}'
+        values: '0+6x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events/live",method="GET",status_code="304",le="+Inf"}'
+        values: '0+6x40'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/events/live",method="GET",status_code="304"}'
+        values: '0+6x40'
+      # rota fria: lenta, mas 3 req/min (o p99 seria uma requisição só)
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/teams/:id",method="GET",status_code="200",le="1"}'
+        values: '0x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/teams/:id",method="GET",status_code="200",le="+Inf"}'
+        values: '0+3x40'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/teams/:id",method="GET",status_code="200"}'
+        values: '0+3x40'
+      # admin interno: lento e com tráfego, fora do alerta
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/internal/admin/tenants",method="GET",status_code="200",le="1"}'
+        values: '0x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/internal/admin/tenants",method="GET",status_code="200",le="+Inf"}'
+        values: '0+60x40'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/internal/admin/tenants",method="GET",status_code="200"}'
+        values: '0+60x40'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: ApiRouteLatencyP99High
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: ApiRouteLatencyP99High
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              route: /v1/events/live
+            exp_annotations:
+              summary: 'p99 de /v1/events/live acima de 1 s'
+              description: 'A rota /v1/events/live tem p99 acima de 1 s há 15 minutos. Veja no Grafana a latência por rota e o galaxie_cache_requests_total (miss/stale).'
+
+  - name: p99 rápido não dispara
+    interval: 1m
+    input_series:
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events",method="GET",status_code="200",le="0.1"}'
+        values: '0+600x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events",method="GET",status_code="200",le="1"}'
+        values: '0+600x40'
+      - series: 'galaxie_http_request_duration_seconds_bucket{route="/v1/events",method="GET",status_code="200",le="+Inf"}'
+        values: '0+600x40'
+      - series: 'galaxie_http_request_duration_seconds_count{route="/v1/events",method="GET",status_code="200"}'
+        values: '0+600x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ApiRouteLatencyP99High
+        exp_alerts: []
+
+  - name: lacuna do change feed abandonada vai para o resumo
+    interval: 1m
+    input_series:
+      - series: 'galaxie_change_feed_gaps_abandoned_total{consumer="sse",reason="timeout",job="galaxie-api",instance="api:8080"}'
+        values: '0 0 0 1 1 1 1 1'
+      - series: 'galaxie_change_feed_gaps_abandoned_total{consumer="cache-purge",reason="timeout",job="galaxie-api",instance="api:8080"}'
+        values: '0x8'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ChangeFeedGapAbandoned
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: ChangeFeedGapAbandoned
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              consumer: sse
+              reason: timeout
+            exp_annotations:
+              summary: 'Lacuna do change feed abandonada (sse, timeout)'
+              description: 'O consumidor sse pulou ids do ops.change_feed na última hora. Os ids estão no log da API ("lacuna do change feed abandonada"); transação do ingestor mais longa que 90 s é a causa provável.'
+
+  - name: teto de conexões SSE do processo estourado
+    interval: 1m
+    input_series:
+      - series: 'galaxie_sse_connections_rejected_total{reason="process_limit",job="galaxie-api",instance="api:8080"}'
+        values: '0 0 0 7 9 9'
+      - series: 'galaxie_sse_connections_rejected_total{reason="tenant_limit",job="galaxie-api",instance="api:8080"}'
+        values: '0 5 10 15 20 25'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: SseProcessLimitReached
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: SseProcessLimitReached
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'Teto de conexões SSE da API atingido'
+              description: 'Aberturas do /v1/stream recusadas com 503 nos últimos 15 min. Veja galaxie_sse_connections_open e a memória do contêiner antes de subir SSE_MAX_CONNECTIONS.'
 
   - name: API fora do ar por 2 minutos
     interval: 1m

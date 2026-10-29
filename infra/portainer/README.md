@@ -218,8 +218,9 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 ao vivo em andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
 `MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
 (política de backup: [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)), `DiskAlmostFull` (disco dos
-volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown` e `ChangeFeedStalled` (consumidor do change feed com
-mudança pendente há mais de 10 min). Eles aparecem como _firing_ no Prometheus e no Grafana (_Alerting → Alert rules_).
+volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown`, `ChangeFeedStalled` (consumidor do change feed com
+mudança pendente há mais de 10 min), `ChangeFeedGapAbandoned` (lacuna do change feed abandonada pelo SSE ou pelo purge),
+`ApiRouteLatencyP99High` (p99 de uma rota com tráfego acima de 1 s) e `SseProcessLimitReached` (503 no `/v1/stream`). Eles aparecem como _firing_ no Prometheus e no Grafana (_Alerting → Alert rules_).
 **Notificação** por e-mail: o Grafana repassa os alertas disparando (regra "Alerta do Prometheus") quando
 `ALERT_EMAIL_TO` e `ALERT_SMTP_HOST` estão definidos — ver
 [infra/vps-telemetry/README.md §Alertas por e-mail](../vps-telemetry/README.md#alertas-por-e-mail).

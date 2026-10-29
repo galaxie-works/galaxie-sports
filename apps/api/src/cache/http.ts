@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { cacheControl } from './policy.js';
 import type { CachedResponse, ResponseCache } from './store.js';
+import { ProblemError } from '../errors.js';
 import { validatedInput } from '../util.js';
 
 export interface Loaded {
@@ -26,6 +27,32 @@ export interface CachedRouteOptions {
   load: () => Promise<Loaded>;
   /** Validação por requisição sobre os metadados (roda também no HIT; ex.: esporte fora do plano). */
   check?: (meta: Record<string, string>) => void;
+  /**
+   * Rotas quentes (placar ao vivo, agenda do dia, tabela): segundos que a entrada fica no Valkey depois do TTL.
+   * Vencido o TTL, só uma requisição deste processo recalcula; as que chegam enquanto isso recebem o valor
+   * anterior (`x-galaxie-cache: STALE`, `no-cache`). Sem entrada nenhuma, as requisições simultâneas esperam o
+   * mesmo load (singleflight). Purge apaga a entrada: depois de uma mudança nunca se serve o valor velho.
+   * Só para rotas cujo load não varia além da chave do cache (o resultado é dividido entre as requisições).
+   */
+  staleSec?: number;
+}
+
+/** Resultado de um load: a entrada e o TTL anunciado (0 quando a gravação foi recusada por um purge). */
+interface Computed {
+  entry: CachedResponse;
+  ttl: number;
+}
+
+/**
+ * Loads em andamento neste processo, por chave do cache (singleflight das rotas com `staleSec`). A API roda
+ * numa instância só; com várias, cada uma recalcularia uma vez por vencimento, o que ainda é limitado.
+ */
+const inflight = new Map<string, Promise<Computed>>();
+
+type CacheResult = 'hit' | 'miss' | 'stale' | 'coalesced';
+
+function countResult(request: FastifyRequest, result: CacheResult): void {
+  request.server.metrics?.cacheResults.inc({ result });
 }
 
 /**
@@ -122,45 +149,41 @@ export async function sendCached(
   }
 
   let ttl: number;
-  if (entry) {
+  if (entry && !isStale(entry, options)) {
     reply.header('x-galaxie-cache', 'HIT');
+    countResult(request, 'hit');
     ttl = remainingTtl(entry, options.ttl);
-  } else {
-    // marca d'água dos purges antes de ler o banco: purge que cair durante o load recusa a gravação
-    // (com o cache fora do ar na leitura, não insiste: a gravação abaixo cai no mesmo erro, ou grava sem a checagem)
-    let since: number | undefined;
-    if (readable) {
+  } else if (entry) {
+    // vencida, ainda na janela do stale-while-revalidate: uma requisição recalcula, as outras levam a anterior
+    const running = inflight.get(key);
+    let fresh: Computed | undefined;
+    if (!running) {
       try {
-        since = await cache.purgeMark();
+        fresh = await singleflight(key, () => compute(request, cache, key, options, readable));
       } catch (err) {
-        request.log.warn({ err }, 'cache indisponível (leitura)');
+        // erro do cliente (404, plano) vale; falha do banco ou timeout cai no valor anterior
+        if (err instanceof ProblemError && err.status < 500) throw err;
+        request.log.warn({ err }, 'cache: recálculo falhou; servindo o valor anterior');
       }
     }
-    const loaded = await options.load();
-    const body =
-      loaded.contentType && typeof loaded.body === 'string' ? loaded.body : JSON.stringify(loaded.body);
-    ttl = loaded.ttl ?? options.ttl;
-    entry = {
-      status: 200,
-      body,
-      etag: etagOf(body),
-      tags: loaded.tags,
-      ...(loaded.headers ? { headers: loaded.headers } : {}),
-      ...(loaded.contentType ? { contentType: loaded.contentType } : {}),
-      ...(loaded.meta ? { meta: loaded.meta } : {}),
-      storedAt: Date.now(),
-      ttl,
-    };
+    if (fresh) {
+      reply.header('x-galaxie-cache', 'MISS');
+      countResult(request, 'miss');
+      ({ entry, ttl } = fresh);
+    } else {
+      reply.header('x-galaxie-cache', 'STALE');
+      countResult(request, 'stale');
+      ttl = 0;
+    }
+  } else if (options.staleSec) {
+    const running = inflight.get(key);
+    ({ entry, ttl } = await singleflight(key, () => compute(request, cache, key, options, readable)));
     reply.header('x-galaxie-cache', 'MISS');
-    if (loaded.store !== false && ttl > 0) {
-      try {
-        // recusada: uma tag da resposta foi purgada durante o load, então ela pode ser anterior à mudança;
-        // sai sem cache compartilhado (a próxima requisição monta de novo)
-        if (!(await cache.set(key, entry, ttl, since))) ttl = 0;
-      } catch (err) {
-        request.log.warn({ err }, 'cache indisponível (escrita)');
-      }
-    }
+    countResult(request, running ? 'coalesced' : 'miss');
+  } else {
+    ({ entry, ttl } = await compute(request, cache, key, options, readable));
+    reply.header('x-galaxie-cache', 'MISS');
+    countResult(request, 'miss');
   }
 
   options.check?.(entry.meta ?? {});
@@ -173,4 +196,66 @@ export async function sendCached(
     .code(entry.status)
     .header('content-type', entry.contentType ?? 'application/json; charset=utf-8')
     .send(entry.body);
+}
+
+/** A entrada passou do TTL e só está no Valkey pela janela do stale-while-revalidate? */
+function isStale(entry: CachedResponse, options: CachedRouteOptions, now = Date.now()): boolean {
+  if (!options.staleSec || entry.ttl == null) return false;
+  return now - entry.storedAt >= entry.ttl * 1000;
+}
+
+/** Um load por chave neste processo: quem chega durante o load espera o mesmo resultado. */
+function singleflight(key: string, run: () => Promise<Computed>): Promise<Computed> {
+  const running = inflight.get(key);
+  if (running) return running;
+  const p = run().finally(() => {
+    if (inflight.get(key) === p) inflight.delete(key);
+  });
+  inflight.set(key, p);
+  return p;
+}
+
+/** Monta a resposta do banco e grava no cache (com a janela de stale, se a rota tiver). */
+async function compute(
+  request: FastifyRequest,
+  cache: ResponseCache,
+  key: string,
+  options: CachedRouteOptions,
+  readable: boolean,
+): Promise<Computed> {
+  // marca d'água dos purges antes de ler o banco: purge que cair durante o load recusa a gravação
+  // (com o cache fora do ar na leitura, não insiste: a gravação abaixo cai no mesmo erro, ou grava sem a checagem)
+  let since: number | undefined;
+  if (readable) {
+    try {
+      since = await cache.purgeMark();
+    } catch (err) {
+      request.log.warn({ err }, 'cache indisponível (leitura)');
+    }
+  }
+  const loaded = await options.load();
+  const body =
+    loaded.contentType && typeof loaded.body === 'string' ? loaded.body : JSON.stringify(loaded.body);
+  let ttl = loaded.ttl ?? options.ttl;
+  const entry: CachedResponse = {
+    status: 200,
+    body,
+    etag: etagOf(body),
+    tags: loaded.tags,
+    ...(loaded.headers ? { headers: loaded.headers } : {}),
+    ...(loaded.contentType ? { contentType: loaded.contentType } : {}),
+    ...(loaded.meta ? { meta: loaded.meta } : {}),
+    storedAt: Date.now(),
+    ttl,
+  };
+  if (loaded.store !== false && ttl > 0) {
+    try {
+      // recusada: uma tag da resposta foi purgada durante o load, então ela pode ser anterior à mudança;
+      // sai sem cache compartilhado (a próxima requisição monta de novo)
+      if (!(await cache.set(key, entry, ttl + (options.staleSec ?? 0), since))) ttl = 0;
+    } catch (err) {
+      request.log.warn({ err }, 'cache indisponível (escrita)');
+    }
+  }
+  return { entry, ttl };
 }

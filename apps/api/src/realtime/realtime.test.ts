@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import type { RealtimeChange } from '@galaxie/contracts';
+import { GAP_TIMEOUT_MS, type AbandonedGap } from '@galaxie/db';
 import { scopeChange, toRealtimeChange, topicsForTenant, type ChangeFilter } from './changes.js';
 import { GapCursor } from './gap-cursor.js';
 import { formatSse, redactKey, SseConnection } from './sse.js';
@@ -19,17 +20,47 @@ describe('GapCursor', () => {
     expect(c.seenIds).toEqual([]);
   });
 
-  it('abandona uma lacuna depois do timeout (transação revertida)', () => {
+  it('abandona uma lacuna vencida só depois de reler (transação revertida)', () => {
     let now = 0;
-    const c = new GapCursor(0, { gapTimeoutMs: 1_000, now: () => now });
+    const abandoned: AbandonedGap[] = [];
+    const c = new GapCursor(0, { gapTimeoutMs: 1_000, now: () => now, onAbandon: (g) => abandoned.push(g) });
     c.mark([1, 3, 4]);
     expect(c.floor).toBe(1);
     now = 999;
     c.advance();
     expect(c.floor).toBe(1);
     now = 1_000;
-    c.advance();
+    c.advance(); // venceu, mas a última leitura é de antes do vencimento
+    expect(c.floor).toBe(1);
+    c.mark([]); // releitura sem o 2
     expect(c.floor).toBe(4);
+    expect(abandoned).toEqual([{ from: 2, to: 2, reason: 'timeout', waitedMs: 1_000 }]);
+  });
+
+  it('o COMMIT que chega entre o vencimento e a releitura não se perde', () => {
+    let now = 0;
+    const abandoned: AbandonedGap[] = [];
+    const c = new GapCursor(0, { gapTimeoutMs: 1_000, now: () => now, onAbandon: (g) => abandoned.push(g) });
+    c.mark([1, 3]);
+    now = 5_000;
+    c.advance();
+    c.advance(); // sem leitura nova, nunca abandona
+    expect(c.floor).toBe(1);
+    expect(c.isNew(2)).toBe(true);
+    c.mark([2]); // a transação lenta comitou: a releitura traz o 2
+    expect(c.floor).toBe(3);
+    expect(abandoned).toEqual([]);
+  });
+
+  it('padrão de 90 s: uma transação de 60 s do ingestor não abre lacuna', () => {
+    let now = 0;
+    const c = new GapCursor(0, { now: () => now });
+    c.mark([1, 3]);
+    for (now = 1_000; now <= 60_000; now += 1_000) c.mark([]);
+    expect(c.floor).toBe(1);
+    c.mark([2]);
+    expect(c.floor).toBe(3);
+    expect(GAP_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000);
   });
 
   it('lacunas consecutivas têm cada uma o seu prazo', () => {
@@ -37,14 +68,26 @@ describe('GapCursor', () => {
     const c = new GapCursor(0, { gapTimeoutMs: 100, now: () => now });
     c.mark([2, 4]);
     now = 100;
-    c.advance();
+    c.mark([]);
+    c.mark([]);
     expect(c.floor).toBe(2); // pulou o 1; o 3 começa a contar agora
     now = 150;
-    c.advance();
+    c.mark([]);
     expect(c.floor).toBe(2);
     now = 200;
-    c.advance();
+    c.mark([]);
+    c.mark([]);
     expect(c.floor).toBe(4);
+  });
+
+  it('proteção de memória: muitas linhas acima da lacuna a encerram sem esperar', () => {
+    const abandoned: AbandonedGap[] = [];
+    const c = new GapCursor(0, { maxSeen: 3, now: () => 0, onAbandon: (g) => abandoned.push(g) });
+    c.mark([5, 6]);
+    expect(c.floor).toBe(0);
+    c.mark([7]);
+    expect(c.floor).toBe(7);
+    expect(abandoned).toEqual([{ from: 1, to: 4, reason: 'max_seen', waitedMs: 0 }]);
   });
 });
 

@@ -12,6 +12,7 @@ import {
 } from './http.js';
 import { cacheControl } from './policy.js';
 import { MemoryResponseCache } from './store.js';
+import { problems, registerErrorHandling } from '../errors.js';
 import { parseInput } from '../util.js';
 
 function appWith(cache: MemoryResponseCache, load: () => unknown, ttl = 60) {
@@ -224,5 +225,162 @@ describe('surrogateKeyHeader', () => {
     expect(tags.join(' ').length).toBeGreaterThan(SURROGATE_KEY_MAX);
     expect(header).toBe('event competition');
     expect(header.length).toBeLessThanOrEqual(SURROGATE_KEY_MAX);
+  });
+});
+
+describe('sendCached — singleflight e stale-while-revalidate (rotas quentes)', () => {
+  /** Load controlado pelo teste: cada chamada espera `release()` e devolve o valor da vez. */
+  function gatedApp(cache: MemoryResponseCache, opts: { ttl?: number; staleSec?: number } = {}) {
+    const app = Fastify();
+    registerErrorHandling(app);
+    const results: string[] = [];
+    app.decorate('metrics', {
+      cacheResults: { inc: ({ result }: { result: string }) => results.push(result) },
+    } as never);
+    let loads = 0;
+    let value = 'v1';
+    let fail: Error | undefined;
+    const gates: (() => void)[] = [];
+    app.get('/live', (request, reply) =>
+      sendCached(request, reply, cache, {
+        ttl: opts.ttl ?? 10,
+        ...(opts.staleSec !== 0 ? { staleSec: opts.staleSec ?? 5 } : {}),
+        load: async () => {
+          loads += 1;
+          await new Promise<void>((r) => gates.push(r));
+          if (fail) throw fail;
+          return { body: { placar: value }, tags: ['event', 'event:1'] };
+        },
+      }),
+    );
+    return {
+      app,
+      results,
+      loads: () => loads,
+      set: (v: string) => (value = v),
+      failWith: (e: Error | undefined) => (fail = e),
+      /** Libera os loads pendentes. */
+      release: async () => {
+        await vi.waitFor(() => expect(gates.length).toBeGreaterThan(0));
+        for (const g of gates.splice(0)) g();
+      },
+    };
+  }
+
+  it('cache vazio: requisições simultâneas esperam um único load (singleflight)', async () => {
+    const t = gatedApp(new MemoryResponseCache());
+    const all = Promise.all(Array.from({ length: 20 }, () => t.app.inject({ url: '/live' })));
+    await t.release();
+    const res = await all;
+    expect(t.loads()).toBe(1);
+    expect(new Set(res.map((r) => r.body))).toEqual(new Set([JSON.stringify({ placar: 'v1' })]));
+    expect(res.every((r) => r.statusCode === 200 && r.headers['x-galaxie-cache'] === 'MISS')).toBe(true);
+    expect(t.results.filter((r) => r === 'miss')).toHaveLength(1);
+    expect(t.results.filter((r) => r === 'coalesced')).toHaveLength(19);
+  });
+
+  it('TTL vencido: só uma requisição recalcula, as outras recebem o valor anterior', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-29T20:00:00Z'), toFake: ['Date'] });
+    try {
+      const t = gatedApp(new MemoryResponseCache());
+      const first = t.app.inject({ url: '/live' });
+      await t.release();
+      expect((await first).json()).toEqual({ placar: 'v1' });
+
+      vi.advanceTimersByTime(11_000); // passou do TTL de 10 s, dentro da janela de 5 s
+      t.set('v2');
+      const leader = t.app.inject({ url: '/live' });
+      await vi.waitFor(() => expect(t.loads()).toBe(2));
+      const others = await Promise.all(Array.from({ length: 10 }, () => t.app.inject({ url: '/live' })));
+      for (const r of others) {
+        expect(r.headers['x-galaxie-cache']).toBe('STALE');
+        expect(r.headers['cache-control']).toBe('no-cache');
+        expect(r.json()).toEqual({ placar: 'v1' });
+      }
+      expect(t.loads()).toBe(2);
+      await t.release();
+      const led = await leader;
+      expect(led.headers['x-galaxie-cache']).toBe('MISS');
+      expect(led.json()).toEqual({ placar: 'v2' });
+
+      const after = await t.app.inject({ url: '/live' });
+      expect(after.headers['x-galaxie-cache']).toBe('HIT');
+      expect(after.json()).toEqual({ placar: 'v2' });
+      expect(t.results.filter((r) => r === 'stale')).toHaveLength(10);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('passada a janela de stale, a entrada some: MISS normal, sem valor velho', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-29T20:00:00Z'), toFake: ['Date'] });
+    try {
+      const cache = new MemoryResponseCache();
+      const t = gatedApp(cache);
+      const first = t.app.inject({ url: '/live' });
+      await t.release();
+      await first;
+      vi.advanceTimersByTime(15_000); // TTL 10 s + stale 5 s
+      t.set('v2');
+      const next = t.app.inject({ url: '/live' });
+      await t.release();
+      expect((await next).json()).toEqual({ placar: 'v2' });
+      expect((await next).headers['x-galaxie-cache']).toBe('MISS');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('purge apaga a entrada: depois de uma mudança nunca se serve o valor anterior', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-29T20:00:00Z'), toFake: ['Date'] });
+    try {
+      const cache = new MemoryResponseCache();
+      const t = gatedApp(cache);
+      const first = t.app.inject({ url: '/live' });
+      await t.release();
+      await first;
+      vi.advanceTimersByTime(11_000);
+      await cache.purgeTags(['event:1']);
+      t.set('gol');
+      const a = t.app.inject({ url: '/live' });
+      const b = t.app.inject({ url: '/live' });
+      await t.release();
+      expect((await a).json()).toEqual({ placar: 'gol' });
+      expect((await b).json()).toEqual({ placar: 'gol' });
+      expect(t.loads()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('recálculo que falha (banco fora) serve o valor anterior; erro do cliente (404) vale', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-29T20:00:00Z'), toFake: ['Date'] });
+    try {
+      const t = gatedApp(new MemoryResponseCache());
+      const first = t.app.inject({ url: '/live' });
+      await t.release();
+      await first;
+      vi.advanceTimersByTime(11_000);
+      t.failWith(new Error('connection terminated'));
+      const down = t.app.inject({ url: '/live' });
+      await t.release();
+      expect((await down).headers['x-galaxie-cache']).toBe('STALE');
+      expect((await down).json()).toEqual({ placar: 'v1' });
+
+      t.failWith(problems.notFound('Evento'));
+      const gone = t.app.inject({ url: '/live' });
+      await t.release();
+      expect((await gone).statusCode).toBe(404);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rota sem staleSec segue como antes: cada requisição sem cache faz o seu load', async () => {
+    const t = gatedApp(new MemoryResponseCache(), { staleSec: 0 });
+    const all = Promise.all([t.app.inject({ url: '/live' }), t.app.inject({ url: '/live' })]);
+    await vi.waitFor(() => expect(t.loads()).toBe(2));
+    await t.release();
+    await all;
   });
 });
