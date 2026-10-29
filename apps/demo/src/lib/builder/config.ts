@@ -228,6 +228,18 @@ export const registryUrl = (id: string, base = REGISTRY_BASE_URL) => `${base}/r/
 export const installCommand = (id: string, base = REGISTRY_BASE_URL) =>
   `npx shadcn@latest add ${registryUrl(id, base)}`;
 
+/**
+ * Embed HTML (qualquer site: WordPress, CMS de portal, HTML puro). O script registra `<galaxie-widget>`, que
+ * lê a configuração salva em `/e/<id>.json`; a chave publicável vai no atributo `key` e só funciona nas
+ * origens permitidas dela.
+ */
+export function embedSnippet(id: string, base = REGISTRY_BASE_URL): string {
+  return [
+    `<script src="${base}/embed.js" async></script>`,
+    `<galaxie-widget widget="${id}" key="gs_pk_live_…"></galaxie-widget>`,
+  ].join('\n');
+}
+
 /** `<uuid>.json` (o segmento da rota) → id do widget, ou null. */
 export function parseRegistryParam(param: string): string | null {
   const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i.exec(param);

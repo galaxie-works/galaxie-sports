@@ -48,6 +48,25 @@ o aviso de chave ausente, sem chamar a API.
 Polling: 30 s com o jogo ao vivo, 1 min nos 30 min antes do início; jogo agendado mais longe acorda quando entra
 nessa janela (no máximo a cada 6 h). Encerrado, adiado ou cancelado não atualiza mais.
 
+## Embed HTML (qualquer site)
+
+Para portais, WordPress e sites sem React: o script registra o elemento `<galaxie-widget>` e cada elemento
+lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, entidade padrão e base da API).
+
+```html
+<script src="https://sports.galaxie.works/embed.js" async></script>
+<galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
+<!-- opcionais: event-id, competition-id, locale, market -->
+```
+
+- O widget desenha num Shadow DOM: o CSS do tema do site não entra e o do widget não sai.
+- As chamadas à API saem da página do portal, então a API confere a origem do site contra as origens
+  permitidas da chave publicável. A chave copiada para outro domínio não funciona.
+- Salvar o widget no Builder muda o visual em todos os sites (cache de 60 s na configuração).
+- `scripts/build-embed.mjs` (no `build`) empacota `src/embed/entry.ts` com o React em `dist/embed.js` e
+  exporta o mesmo texto em `@galaxie/widgets/embed-script` (`EMBED_SCRIPT`, `EMBED_VERSION`), que a rota
+  `/embed.js` da demo serve. Cerca de 80 KB com gzip, quase tudo React.
+
 ## Uso como pacote (demo e Builder)
 
 ```tsx
