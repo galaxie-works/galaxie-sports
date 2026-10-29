@@ -64,14 +64,14 @@ const LOGO_BOX = { xs: 'size-6 p-0.5', sm: 'size-8 p-1', md: 'size-10 p-1.5' } a
  * Logo de competição.
  * - `color`: o logo original num "chip" claro: boa parte dos logos (Champions, Premier League…) é escura
  *   e sumiria no fundo do tema.
- * - `mono`: o mesmo arquivo em uma cor só, por filtro (preto no tema claro, branco suave no escuro), sem
- *   chip. Não gera arquivo novo nem altera o asset servido; `filter` vale para imagem de qualquer origem
- *   (mask-image exigiria CORS no bucket). Logo com fundo cheio vira silhueta.
+ * - `mono` (padrão): o mesmo arquivo em uma cor só, por filtro (preto no tema claro, branco suave no
+ *   escuro), sem chip. Não gera arquivo novo nem altera o asset servido; `filter` vale para imagem de
+ *   qualquer origem (mask-image exigiria CORS no bucket). Logo com fundo cheio vira silhueta.
  */
 export function LeagueLogo({
   competition,
   size = 'sm',
-  tone = 'color',
+  tone = 'mono',
 }: {
   competition: Pick<ExploreCompetition, 'logo' | 'name'>;
   size?: keyof typeof LOGO_BOX;
