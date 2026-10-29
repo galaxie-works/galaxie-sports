@@ -4,8 +4,14 @@
 # PR com falha, conflito ou P1 aberto fica de fora e é relatado. PR empilhado sobre um que entra é reapontado
 # para a main antes do merge (o --delete-branch fecharia o PR). O deploy sai pelo Actions (DEPLOY_AUTO).
 # Uso: infra/ops/merge-train.sh <pr> [<pr>...]   (do checkout principal; gh autenticado)
-cd "${GALAXIE_ROOT:-/g/galaxie-sports}" || exit 1
-wait_ci() { prev=""; for i in $(seq 1 100); do s=$(gh pr checks $1 2>/dev/null | awk -F'	' '{print $1"="$2}' | sort); if [ -n "$s" ] && ! echo "$s" | grep -qE "=(pending|queued)" && [ "$s" = "$prev" ]; then echo "$s" | cut -d= -f2 | sort | uniq -c | tr '
+# Teste: infra/ops/merge-train.test.sh (carrega só as funções, com o gh falso)
+
+# Um resultado por nome de check. Execução cancelada de um nome que tem outra verde no mesmo commit não conta: o
+# portão do Codex roda no push e no review, e uma execução cancelada ao lado da verde deixava o PR de fora (#395, #413).
+# Cancelada sozinha conta como falha (o gh mostra "cancel" no --json e "fail" no texto)
+CHECKS_JQ='group_by(.name)[] | any(.[]; .bucket == "pass") as $ok | .[] | select(($ok and .state == "CANCELLED") | not)
+  | "\(.name)=\(if .bucket == "cancel" then "fail" else .bucket end)"'
+wait_ci() { prev=""; for i in $(seq 1 100); do s=$(gh pr checks $1 --json name,state,bucket --jq "$CHECKS_JQ" 2>/dev/null | sort); if [ -n "$s" ] && ! echo "$s" | grep -qE "=(pending|queued)" && [ "$s" = "$prev" ]; then echo "$s" | cut -d= -f2 | sort | uniq -c | tr '
 ' ' '; return; fi; prev="$s"; sleep 60; done; echo "timeout"; }
 # CI completo = nada pendente e a mesma lista de checks em duas leituras seguidas (60 s); PRs que só
 # mexem em docs ou workflows têm menos checks, por isso não há contagem mínima
@@ -17,6 +23,8 @@ codex_p1() {
            | .comments.nodes[0] | select((.author.login|test("codex"))
            and (.body|test("P1 Badge")))] | length' 2>/dev/null || echo 0
 }
+[ "${BASH_SOURCE[0]}" = "$0" ] || return 0  # carregado pelo teste: só as funções
+cd "${GALAXIE_ROOT:-/g/galaxie-sports}" || exit 1
 merged=()
 for p in "$@"; do
   st=$(gh pr view $p --json state,mergeable --jq '"\(.state) \(.mergeable)"')

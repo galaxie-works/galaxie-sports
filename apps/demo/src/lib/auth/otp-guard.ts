@@ -20,6 +20,7 @@
  * docs/runbooks/demo-login.md. Chegar a um dos tetos sai no log como aviso.
  */
 import { pool } from './db';
+import { indexIfMissing } from './ddl';
 
 /** Janela da contagem de tentativas erradas. */
 export const OTP_FAILURE_WINDOW_MINUTES = 60;
@@ -40,16 +41,16 @@ create table if not exists otp_failure (
   ip text,
   created_at timestamptz not null default now()
 );
-create index if not exists otp_failure_email_idx on otp_failure (email, created_at desc);
-create index if not exists otp_failure_created_idx on otp_failure (created_at);
+${indexIfMissing('otp_failure_email_idx', 'otp_failure (email, created_at desc)')}
+${indexIfMissing('otp_failure_created_idx', 'otp_failure (created_at)')}
 
 create table if not exists otp_request (
   id bigserial primary key,
   email text not null,
   created_at timestamptz not null default now()
 );
-create index if not exists otp_request_email_idx on otp_request (email, created_at desc);
-create index if not exists otp_request_created_idx on otp_request (created_at);
+${indexIfMissing('otp_request_email_idx', 'otp_request (email, created_at desc)')}
+${indexIfMissing('otp_request_created_idx', 'otp_request (created_at)')}
 `;
 
 const within = (minutes: number) => `created_at > now() - make_interval(mins => ${minutes})`;

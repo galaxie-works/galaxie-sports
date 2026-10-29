@@ -8,6 +8,7 @@ export default defineMessages(
       countries: 'Países',
       docs: 'Documentação',
       client: 'Cliente',
+      toggle: 'Abrir ou fechar {label}',
     },
     userMenu: {
       admin: 'Admin',
@@ -42,6 +43,7 @@ export default defineMessages(
         countries: 'Countries',
         docs: 'Documentation',
         client: 'Client',
+        toggle: 'Expand or collapse {label}',
       },
       userMenu: {
         admin: 'Admin',
@@ -75,6 +77,7 @@ export default defineMessages(
         countries: 'Países',
         docs: 'Documentación',
         client: 'Cliente',
+        toggle: 'Abrir o cerrar {label}',
       },
       userMenu: {
         admin: 'Admin',

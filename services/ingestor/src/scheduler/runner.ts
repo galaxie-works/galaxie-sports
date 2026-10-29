@@ -47,8 +47,11 @@ export class PgRunRecorder implements RunRecorder {
   }
 }
 
-/** De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START ou o painel de Operação. */
-export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel';
+/**
+ * De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START, o painel de Operação ou o catch-up da partida
+ * (horário perdido com o scheduler fora do ar, catch-up.ts).
+ */
+export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel' | 'catchup';
 
 export interface RunOptions {
   /** Raiz do pacote do ingestor (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
@@ -232,6 +235,8 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
         signal: outcome.signal,
         duration_ms: durationMs,
         trigger: options.trigger,
+        // cortado pelo encerramento do scheduler (deploy, reinício): o catch-up da partida roda de novo
+        ...(options.signal?.aborted ? { interrupted: true } : {}),
       });
     } catch (err) {
       log.error({ err }, 'não foi possível registrar o fim do job em ops.job_run');
