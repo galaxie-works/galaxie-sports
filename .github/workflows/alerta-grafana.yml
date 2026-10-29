@@ -16,9 +16,10 @@ permissions:
   issues: write
 
 concurrency:
-  # um por alerta, em ordem: o "resolvido" espera o "disparou" do mesmo alerta terminar de abrir a issue
+  # um por alerta, em ordem: o "resolvido" espera o "disparou" do mesmo alerta terminar de abrir a issue. queue: max
+  # guarda até 100 na fila; o padrão (single) deixaria só um esperando e o mais novo cancelaria o "disparou" pendente
   group: alerta-grafana-${{ fromJSON(inputs.payload).fingerprint }}
-  cancel-in-progress: false
+  queue: max
 
 jobs:
   issue:
