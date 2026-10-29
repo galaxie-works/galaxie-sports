@@ -30,6 +30,11 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   live_list: ['core_data'],
   standings: ['core_data'],
   where_to_watch: ['core_data', 'where_to_watch'],
+  ai_context: ['core_data', 'live_intelligence'],
+  match_stakes: ['core_data'],
+  related_videos: ['core_data', 'related_content'],
+  head_to_head: ['core_data'],
+  team_schedule: ['core_data'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {

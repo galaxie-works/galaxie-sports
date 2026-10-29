@@ -1,7 +1,10 @@
 #!/bin/sh
 # Agenda do serviço de backup (UTC):
 #   - um dump por dia em BACKUP_TIME (HH:MM) e, por padrão, um na partida (prova cedo que credenciais, disco e
-#     destino remoto funcionam);
+#     destino remoto funcionam) quando o último bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H horas (padrão 20;
+#     BACKUP_ON_START=always faz sempre). Todo deploy recria este serviço (a imagem leva a tag do deploy): o dump
+#     completo, com o COPY do raw, disputava disco e cache com o pós-deploy e o smoke, e vários deploys num dia
+#     giravam os 7 diários;
 #   - o verificador (backup-check.sh) a cada BACKUP_CHECK_INTERVAL_H horas (padrão 6) e depois de cada dump;
 #   - o ensaio de restauração (restore-drill.sh) no dia RESTORE_DRILL_DAY de cada mês (padrão 1), logo depois do
 #     dump do dia; RESTORE_DRILL_DAY=off desliga.
@@ -10,6 +13,8 @@ set -eu
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
 : "${BACKUP_TIME:=03:30}"
 : "${BACKUP_ON_START:=true}"
+: "${BACKUP_ON_START_MIN_AGE_H:=20}"
+[ "$BACKUP_ON_START_MIN_AGE_H" -ge 0 ] 2>/dev/null || BACKUP_ON_START_MIN_AGE_H=20
 : "${BACKUP_CHECK_INTERVAL_H:=6}"
 : "${RESTORE_DRILL_DAY:=1}"
 # intervalo inválido ou 0 viraria um laço sem espera
@@ -48,8 +53,14 @@ daily() {
   fi
 }
 
-if [ "$BACKUP_ON_START" = true ]; then
+if [ "$BACKUP_ON_START" = always ]; then
   backup.sh || log error "backup de partida falhou"
+elif [ "$BACKUP_ON_START" = true ]; then
+  if find "$BACKUP_DIR/.last_success" -mmin "-$((BACKUP_ON_START_MIN_AGE_H * 60))" 2>/dev/null | grep -q .; then
+    log info "backup de partida dispensado: o último bem-sucedido tem menos de $BACKUP_ON_START_MIN_AGE_H h"
+  else
+    backup.sh || log error "backup de partida falhou"
+  fi
 fi
 backup-check.sh || true
 next_check=$(($(date -u +%s) + BACKUP_CHECK_INTERVAL_H * 3600))

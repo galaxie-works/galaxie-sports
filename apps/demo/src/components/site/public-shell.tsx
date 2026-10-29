@@ -6,10 +6,11 @@ import { CONTACT_EMAIL, LOGO_PATH } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
 /** Seções da apresentação, na ordem do menu. */
-const SECTIONS = ['features', 'sports', 'markets', 'access'] as const;
+const SECTIONS = ['layer', 'audience', 'features', 'markets', 'access'] as const;
 const SECTION_IDS: Record<(typeof SECTIONS)[number], string> = {
+  layer: 'camada',
+  audience: 'para-quem',
   features: 'recursos',
-  sports: 'esportes',
   markets: 'mercados',
   access: 'acesso',
 };

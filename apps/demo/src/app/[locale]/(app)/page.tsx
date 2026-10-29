@@ -60,7 +60,7 @@ function Totals({ summary, t, locale }: { summary: ExploreSummary | null; t: Dic
           <li key={tile.href}>
             <Link
               href={tile.href}
-              className="explore-card group/tile focus-visible:ring-ring hover:border-primary/40 flex h-full flex-col gap-0.5 rounded-xl border px-4 py-3 transition-colors outline-none focus-visible:ring-2"
+              className="tile-card group/tile focus-visible:ring-ring flex h-full flex-col gap-0.5 rounded-xl border px-4 py-3 outline-none focus-visible:ring-2"
             >
               <span
                 className={cn(
@@ -126,9 +126,8 @@ async function Content() {
             const live = data.reduce((n, d) => n + (d?.live ?? 0), 0);
             const header = (
               <>
-                <h3 className="flex items-center gap-3">
-                  <span className="bg-primary h-6 w-1 rounded-full" aria-hidden />
-                  <span className="text-lg font-bold tracking-[0.14em]">{group}</span>
+                <h3 className="flex items-baseline gap-2">
+                  <span className="text-base font-semibold tracking-wide">{group}</span>
                   <span className="text-muted-foreground text-sm font-medium">{t.nav.groups[group]}</span>
                 </h3>
                 <span className="text-muted-foreground flex items-center gap-3 text-xs">
@@ -149,7 +148,7 @@ async function Content() {
                       aria-hidden
                     />
                   </summary>
-                  <ul className="explore-card mt-3 divide-y overflow-hidden rounded-xl border">
+                  <ul className="tile-card mt-3 divide-y overflow-hidden rounded-xl border">
                     {countries.map((c) => (
                       <CountryRow
                         key={c.code}

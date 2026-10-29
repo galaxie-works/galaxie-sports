@@ -110,6 +110,13 @@ function defaultProps(kind: WidgetKind, defaults: WidgetDefaults, market: string
       return pick(['competitionId']);
     case 'where_to_watch':
       return { ...pick(['eventId']), ...(market ? { market } : {}) };
+    case 'ai_context':
+    case 'match_stakes':
+    case 'related_videos':
+    case 'head_to_head':
+      return pick(['eventId']);
+    case 'team_schedule':
+      return pick(['teamId']);
   }
 }
 

@@ -169,6 +169,8 @@ describe('papéis por serviço', () => {
     // o cursor do change feed já existe e a API o lê (o /metrics); o resto do login, não
     await demo`insert into demo_auth.cache_feed_cursor (name, last_change_id) values ('teste', 1)`;
     expect(await conn('api')`select name from demo_auth.cache_feed_cursor`).toHaveLength(1);
+    // piso da poda do change feed
+    expect(await conn('ingestor')`select name from demo_auth.cache_feed_cursor`).toHaveLength(1);
     await denied(conn('api')`select * from demo_auth.legacy`);
     await denied(conn('ingestor')`select * from demo_auth.legacy`);
   });

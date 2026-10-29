@@ -2,7 +2,7 @@
  * Porta de entrada da demo: toda página e toda leitura da API exigem sessão válida, com acesso dentro
  * do prazo; a área /ajustes (e /api/ajustes) exige admin e o painel do cliente (/cliente e /api/cliente)
  * exige o papel `client` ou admin (`lib/auth/roles.ts`). As exceções (login, apresentação, termos,
- * privacidade, robots.txt, sitemap e o registry dos widgets) estão em `lib/public-routes.ts`; sem sessão, a raiz mostra a
+ * privacidade, robots.txt, sitemap, o registry e o embed dos widgets) estão em `lib/public-routes.ts`; sem sessão, a raiz mostra a
  * apresentação em vez de redirecionar para o login. Roda em Node (Next 16), então valida a sessão no banco antes de
  * qualquer conteúdo renderizar.
  *

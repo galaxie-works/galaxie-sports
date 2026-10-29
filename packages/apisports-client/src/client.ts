@@ -270,6 +270,8 @@ export class ApiSportsClient {
         quotaRemaining: quotaRemaining ?? null,
         jobId: req.jobId ?? null,
         fetchedAt,
+        // o que o ao vivo busca fica 30 dias no raw (data-retention); o resto, para sempre
+        retention: req.priority === 'LIVE' ? 'live' : 'keep',
       });
     } finally {
       // A chamada foi feita: o ticket nunca fica pending, mesmo se a gravação do raw falhar.

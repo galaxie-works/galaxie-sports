@@ -6,7 +6,17 @@ import { ops } from './ops.js';
 // ─── Galaxie Sports Builder: widgets da operadora e chaves publicáveis (docs/05 §1.3) ────────────
 
 /** Tipos de widget que o Builder monta e o pacote de widgets renderiza. */
-export const WIDGET_KINDS = ['match_card', 'live_list', 'standings', 'where_to_watch'] as const;
+export const WIDGET_KINDS = [
+  'match_card',
+  'live_list',
+  'standings',
+  'where_to_watch',
+  'ai_context',
+  'match_stakes',
+  'related_videos',
+  'head_to_head',
+  'team_schedule',
+] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
 /** Identidade visual do widget. Cores são strings CSS (`#0a84ff`, `oklch(...)`, `rgb(...)`). */

@@ -182,9 +182,10 @@ export async function rawFreshness(
   );
   const rows = await db.execute<{ sport: string; last_fetched_at: string | Date | null }>(sql`
     select s.sport,
-           (select max(r.fetched_at) from raw.api_response r
+           (select max(coalesce(r.last_seen_at, r.fetched_at)) from raw.api_response r
              where r.sport = s.sport
-               and r.fetched_at >= now() - make_interval(hours => ${windowHours}::int)) as last_fetched_at
+               and coalesce(r.last_seen_at, r.fetched_at) >= now() - make_interval(hours => ${windowHours}::int))
+             as last_fetched_at
     from (values ${list}) as s(sport)
   `);
   return rows
@@ -370,6 +371,59 @@ export async function opsState(db: Database): Promise<OpsStateRow> {
     reported: reported.map((r) => ({ service: r.service, key: r.key, value: r.value })),
     lastReport: [...last].map(([service, at]) => ({ service, at })),
     aiCredit: c ? { status: c.status, provider, checkedAt: new Date(c.checked_at) } : null,
+  };
+}
+
+export interface TableSizeRow {
+  /** `schema.tabela`. */
+  table: string;
+  /** Tabela + índices + TOAST. */
+  bytes: number;
+}
+
+export interface DbSizeData {
+  databaseBytes: number;
+  tables: TableSizeRow[];
+}
+
+/** Schemas da aplicação olhados no tamanho por tabela. */
+const SIZE_SCHEMAS = [
+  'raw',
+  'core',
+  'ops',
+  'api',
+  'enrich',
+  'semantic',
+  'multisport',
+  'equestrian',
+  'demo_auth',
+];
+
+/**
+ * Tamanho do banco e das maiores tabelas (só catálogo e stat dos arquivos, sem varrer dados). As que a retenção
+ * poda (raw.api_response, ops.change_feed, ops.llm_usage...) aparecem sempre, mesmo fora das maiores.
+ */
+export async function dbSizes(db: Database, limit = 15): Promise<DbSizeData> {
+  const always = ['raw.api_response', 'ops.change_feed', 'ops.llm_usage', 'ops.job_run', 'ops.quota_ledger'];
+  const rows = await db.execute<{ table: string; bytes: number; database_bytes: number }>(sql`
+    with t as (
+      select n.nspname || '.' || c.relname as table, pg_total_relation_size(c.oid)::float8 as bytes
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where c.relkind in ('r', 'p')
+         and n.nspname in (${sql.join(
+           SIZE_SCHEMAS.map((s) => sql`${s}`),
+           sql`, `,
+         )})
+    ), ranked as (select t.*, row_number() over (order by bytes desc) as rk from t)
+    select ranked.table, ranked.bytes, pg_database_size(current_database())::float8 as database_bytes
+      from ranked
+     where rk <= ${limit} or ranked.table in (${sql.join(
+       always.map((s) => sql`${s}`),
+       sql`, `,
+     )})`);
+  return {
+    databaseBytes: Number(rows[0]?.database_bytes ?? 0),
+    tables: rows.map((r) => ({ table: r.table, bytes: Number(r.bytes) })),
   };
 }
 
