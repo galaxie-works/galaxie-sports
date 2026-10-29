@@ -1,0 +1,39 @@
+name: Alerta do Grafana
+
+# Alerta do Grafana vira issue com o rótulo `alerta` (e fecha quando resolve): infra/ops/alerta-issue.sh. Quem dispara
+# é o contato issue-github do Grafana (infra/observability/grafana/alerting/github.yml), pela API de
+# workflow_dispatch, com o token ALERT_GITHUB_TOKEN do .env da VPS. Também roda à mão para testar: Actions → Alerta do
+# Grafana → Run workflow, com um payload como o do runbook (docs/runbooks/alertas-e-monitoramento.md).
+on:
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: JSON do alerta (template galaxie.github.payload do Grafana)
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # um por alerta, em ordem: o "resolvido" espera o "disparou" do mesmo alerta terminar de abrir a issue
+  group: alerta-grafana-${{ fromJSON(inputs.payload).fingerprint }}
+  cancel-in-progress: false
+
+jobs:
+  issue:
+    name: Abrir ou fechar a issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: infra/ops
+
+      - name: Issue do alerta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ALERTA_PAYLOAD: ${{ inputs.payload }}
+        run: bash infra/ops/alerta-issue.sh
