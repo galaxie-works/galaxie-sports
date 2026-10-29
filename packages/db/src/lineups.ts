@@ -43,6 +43,7 @@ import {
   type LineupPageContent,
   type LineupPageStatus,
   type LineupPageVia,
+  type LineupFieldFlag,
   type LineupVerification,
   type LogoUploadTarget,
   type PlatformKind,
@@ -195,6 +196,8 @@ export interface LineupUpsertResult {
   removed: number;
   /** Mudanças em itens revisados/aprovados, guardadas em `proposed_change`. */
   changes: LineupChange[];
+  /** Valores recusados (o item entrou sem eles), por nome do plano ou do complemento. */
+  flagged: { item: string; flag: LineupFieldFlag }[];
 }
 
 /** Campos que um pedido de revisão (ou uma mudança pendente) pode propor, por tipo de item. */
@@ -377,11 +380,11 @@ function cleanUrl(v: string | null | undefined): string | null {
   }
 }
 
-/** Preço: número positivo com até 2 casas (string numérica também vale); null = sem preço. */
+/** Preço: número com até 2 casas (string numérica também vale); 0 = plano grátis; null = sem preço. */
 function cleanAmount(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null;
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : Number.NaN;
-  if (!Number.isFinite(n) || n <= 0 || n >= 1e10)
+  if (!Number.isFinite(n) || n < 0 || n >= 1e10)
     throw new LineupError('invalid_input', `Preço inválido: ${String(v)}`);
   return Math.round(n * 100) / 100;
 }
@@ -393,6 +396,93 @@ function cleanCurrency(v: unknown): string | null {
   const c = typeof v === 'string' ? v.trim().toUpperCase() : '';
   if (!CURRENCY_RE.test(c)) throw new LineupError('invalid_input', `Moeda inválida (ISO 4217): ${String(v)}`);
   return c;
+}
+
+/**
+ * Campo do rascunho vindo da fonte (pesquisa, página oficial, curadoria): valor inválido (preço negativo,
+ * moeda fora da ISO 4217, data torta) não derruba a
+ * gravação. O campo fica vazio e o valor lido, com o motivo, vai para a revisão em `verification.flags`.
+ * A edição manual no painel continua recusando (`sanitizeProposal`, `createManualLineupItem`).
+ */
+function draftField<T>(
+  flags: LineupFieldFlag[],
+  field: LineupFieldFlag['field'],
+  raw: unknown,
+  clean: (v: unknown) => T | null,
+): T | null {
+  try {
+    return clean(raw);
+  } catch (err) {
+    if (!(err instanceof LineupError)) throw err;
+    flags.push({ field, value: String(raw).slice(0, 80), reason: err.message });
+    return null;
+  }
+}
+
+/** Preço do rascunho: valor ou moeda recusados deixam o item sem preço (nem o texto do preço fica). */
+function draftPrice(
+  flags: LineupFieldFlag[],
+  item: { priceText?: string | null; priceAmount?: number | null; priceCurrency?: string | null },
+): { priceText: string | null; priceAmount?: number | null; priceCurrency?: string | null } {
+  const priceText = cleanText(item.priceText, 120);
+  if (item.priceAmount === undefined) return { priceText };
+  const before = flags.length;
+  const priceAmount = draftField(flags, 'price_amount', item.priceAmount, cleanAmount);
+  const priceCurrency =
+    priceAmount === null ? null : draftField(flags, 'price_currency', item.priceCurrency, cleanCurrency);
+  if (flags.length > before) return { priceText: null, priceAmount: null, priceCurrency: null };
+  return { priceText, priceAmount, priceCurrency };
+}
+
+/**
+ * As sinalizações desta gravação substituem as anteriores (a fonte corrigida limpa a sinalização). Item
+ * sem checagem do validador que precisa sinalizar ganha uma checagem vazia, só para levar as sinalizações.
+ */
+function withFlags(
+  verification: LineupVerification | null,
+  flags: LineupFieldFlag[],
+  now: Date,
+): LineupVerification | null {
+  if (!verification && !flags.length) return null;
+  const out: LineupVerification = verification
+    ? { ...verification }
+    : {
+        source_url: null,
+        final_url: null,
+        final_host: null,
+        tier: null,
+        excerpt: null,
+        checks: {
+          redirect: 'skip',
+          official: 'skip',
+          excerpt: 'skip',
+          plan_specific: 'skip',
+          not_reused: 'skip',
+        },
+        verified: false,
+        checked_at: now.toISOString(),
+      };
+  if (flags.length) out.flags = flags;
+  else delete out.flags;
+  return out;
+}
+
+/**
+ * Opções do `reconcile` para a checagem gravada: com a checagem do validador, preço sem prova limpa o do
+ * rascunho, e a data de vigência recusada nesta gravação limpa a antiga (senão ela seguiria valendo).
+ * Sem checagem nova, só a sinalização antiga sai (a fonte agora veio válida).
+ */
+function draftMeta(
+  verification: LineupVerification | null,
+  cur: LineupVerification | null,
+  now: Date,
+): { meta?: Record<string, unknown>; clearable?: readonly string[] } {
+  if (verification) {
+    const rejected = (verification.flags ?? []).map((f) => f.field);
+    const dates = DATE_FLAG_FIELDS.filter(([flag]) => rejected.includes(flag)).map(([, field]) => field);
+    return { meta: { verification }, clearable: [...PRICE_FIELDS, ...dates] };
+  }
+  return cur?.flags ? { meta: { verification: withFlags(cur, [], now) } } : {};
 }
 
 /** Domínios oficiais: host (com caminho opcional), minúsculo, sem esquema nem `www.`, sem repetidos. */
@@ -786,6 +876,10 @@ export async function availabilityForChannels(
 // ─── gravação da pesquisa ────────────────────────────────────────────────────────────────────────
 
 const PRICE_FIELDS = ['priceText', 'priceAmount', 'priceCurrency'] as const;
+const DATE_FLAG_FIELDS = [
+  ['valid_from', 'validFrom'],
+  ['valid_to', 'validTo'],
+] as const;
 
 /** Slug da oferta de complemento: `<ref>[-<canal>][-f<meses>]`. */
 export function addonSlug(refId: string, channel: string | null, commitmentMonths: number | null): string {
@@ -990,6 +1084,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
       skipped: 0,
       removed: 0,
       changes: [],
+      flagged: [],
     };
     const ctx: UpsertCtx = { tx, now, seenAt, result };
     const fields = {
@@ -1039,18 +1134,16 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         continue;
       }
       seenPlans.add(planSlug);
-      const priceAmount = p.priceAmount === undefined ? undefined : cleanAmount(p.priceAmount);
+      const flags: LineupFieldFlag[] = [];
       const planFields = {
         name: planName,
-        priceText: cleanText(p.priceText, 120),
-        ...(priceAmount !== undefined
-          ? { priceAmount, priceCurrency: priceAmount === null ? null : cleanCurrency(p.priceCurrency) }
-          : {}),
+        ...draftPrice(flags, p),
         url: cleanUrl(p.url),
-        validFrom: cleanDay(p.validFrom),
-        validTo: cleanDay(p.validTo),
+        validFrom: draftField(flags, 'valid_from', p.validFrom, (v) => cleanDay(v as string | null)),
+        validTo: draftField(flags, 'valid_to', p.validTo, (v) => cleanDay(v as string | null)),
       };
-      const verification = p.verification ?? null;
+      const verification = withFlags(p.verification ?? null, flags, now);
+      for (const flag of flags) result.flagged.push({ item: planName, flag });
       const [curPlan] = await tx
         .select()
         .from(platformPlan)
@@ -1081,7 +1174,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
           curPlan,
           planFields,
           planSources,
-          verification ? { meta: { verification }, clearable: PRICE_FIELDS } : {},
+          draftMeta(verification, curPlan.verification, now),
         );
         await tx.update(platformPlan).set(set).where(eq(platformPlan.id, planId));
       }
@@ -1137,16 +1230,14 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         continue;
       }
       seenAddons.add(slug);
-      const priceAmount = a.priceAmount === undefined ? undefined : cleanAmount(a.priceAmount);
+      const flags: LineupFieldFlag[] = [];
       const fields = {
         name,
-        priceText: cleanText(a.priceText, 120),
-        ...(priceAmount !== undefined
-          ? { priceAmount, priceCurrency: priceAmount === null ? null : cleanCurrency(a.priceCurrency) }
-          : {}),
+        ...draftPrice(flags, a),
         url: cleanUrl(a.url),
       };
-      const verification = a.verification ?? null;
+      const verification = withFlags(a.verification ?? null, flags, now);
+      for (const flag of flags) result.flagged.push({ item: name, flag });
       const [curAddon] = await tx
         .select()
         .from(platformAddon)
@@ -1174,7 +1265,7 @@ export async function upsertLineupDraft(db: Database, input: LineupDraftInput): 
         curAddon,
         fields,
         sources,
-        verification ? { meta: { verification }, clearable: PRICE_FIELDS } : {},
+        draftMeta(verification, curAddon.verification, now),
       );
       await tx.update(platformAddon).set(set).where(eq(platformAddon.id, curAddon.id));
     }

@@ -18,6 +18,7 @@ import {
   parseProposed,
   parseRequestFilters,
   planCurrentAt,
+  verificationView,
   proposedView,
   type LibraryEntry,
   type LineupLike,
@@ -343,5 +344,22 @@ describe('assetUrl', () => {
     expect(assetUrl(null, 'commons://File:Logo.svg', base)).toBeNull();
     expect(assetUrl(null, 'https://canal.exemplo/logo.png', base)).toBe('https://canal.exemplo/logo.png');
     expect(assetUrl(null, null, base)).toBeNull();
+  });
+});
+
+describe('verificationView: sinalizações do gravador', () => {
+  it('lê o valor recusado e o motivo; campo desconhecido fica de fora', () => {
+    const v = verificationView({
+      tier: 'official',
+      checks: { official: 'pass' },
+      verified: true,
+      flags: [
+        { field: 'price_amount', value: '0', reason: 'Preço inválido: 0' },
+        { field: 'outro', value: 'x', reason: 'y' },
+        'lixo',
+      ],
+    });
+    expect(v?.flags).toEqual([{ field: 'price_amount', value: '0', reason: 'Preço inválido: 0' }]);
+    expect(verificationView({ verified: false })?.flags).toEqual([]);
   });
 });

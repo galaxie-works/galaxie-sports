@@ -429,9 +429,11 @@ function PlatformCard({
           {addons.map((a) => (
             <span key={`${a.id}|${a.channel ?? ''}`} className="gs-small">
               {a.channel ?? a.name}
-              {a.price_from !== null
-                ? ` · ${t.priceFrom.replace('{price}', money(a.price_from, a.currency))}`
-                : ''}
+              {a.price_from === 0
+                ? ` · ${t.free}`
+                : a.price_from !== null
+                  ? ` · ${t.priceFrom.replace('{price}', money(a.price_from, a.currency))}`
+                  : ''}
             </span>
           ))}
         </div>

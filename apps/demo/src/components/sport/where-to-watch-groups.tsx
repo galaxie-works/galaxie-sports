@@ -206,7 +206,9 @@ function PlatformCard({ entry, mine, t }: { entry: PlatformAvailability; mine: b
                 {a.price_from !== null ? (
                   <span className="text-muted-foreground">
                     {' · '}
-                    {fill(t.priceFrom, { price: money(a.price_from, a.currency) })}
+                    {a.price_from === 0
+                      ? t.free
+                      : fill(t.priceFrom, { price: money(a.price_from, a.currency) })}
                   </span>
                 ) : null}
               </li>
