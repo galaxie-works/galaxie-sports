@@ -1,8 +1,11 @@
 /**
  * Retenção do `ops.change_feed` (follow-up do #35): apaga mudanças com mais de N dias, mas mantém a
  * mais recente de cada entidade (`entity_type`, `entity_id`) — quem consulta "a última mudança de X"
- * continua achando — e nunca apaga o que o enfileirador de webhooks ainda não leu
- * (`api.webhook_cursor`). O SSE só retoma pelo `Last-Event-ID` dentro da janela de retenção: o maior id
+ * continua achando — e nunca apaga o que um consumidor com cursor ainda não leu: o enfileirador de webhooks
+ * (`api.webhook_cursor`, sempre) e o piso do GapCursor do cache da demo (`demo_auth.cache_feed_cursor`) e do purge
+ * do cache da API (`api.change_feed_cursor`), enquanto eles ainda retomariam dali (atualizados nas últimas
+ * CURSOR_RESUME_HOURS). O SSE só retoma pelo
+ * `Last-Event-ID` dentro da janela de retenção: o maior id
  * apagado fica em `ops.change_feed_prune`, e quem retoma de antes dele recebe `replay_truncated`.
  * Apaga em lotes curtos para não segurar locks; rode uma vez por dia (job `change-feed-prune`).
  */
@@ -10,6 +13,12 @@ import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
 
 export const DEFAULT_CHANGE_FEED_RETENTION_DAYS = 7;
+
+/**
+ * O cache da demo (`resumeMaxAgeMs` em apps/demo/src/lib/cache/follower.ts) e o purge da API só retomam de um cursor
+ * salvo há até 24 h; mais velho que isso, recomeçam do fim do feed e não precisam do que ficou para trás.
+ */
+export const CURSOR_RESUME_HOURS = 24;
 
 export interface ChangeFeedRetentionOptions {
   /** Idade mínima (dias) para apagar. Padrão 7. */
@@ -25,7 +34,10 @@ export interface ChangeFeedRetentionReport {
   cutoff: Date;
   /** Apagadas (ou que seriam apagadas, no `dryRun`). */
   deleted: number;
-  /** Maior id que o enfileirador de webhooks já leu (limite superior do que pode ser apagado); null = sem consumidor. */
+  /**
+   * Menor piso entre os consumidores com cursor (webhooks, cache da demo, purge da API): limite superior do que pode ser
+   * apagado; null = sem consumidor.
+   */
   webhookCursor: number | null;
   dryRun: boolean;
 }
@@ -50,9 +62,17 @@ export async function pruneChangeFeed(
     throw new Error('A retenção do change feed precisa ser de ≥ 1 dia.');
   const batch = options.batchSize ?? 5000;
   const cutoff = new Date((options.now ?? new Date()).getTime() - days * 86_400_000);
-  const [cur] = await db.execute<{ id: string | null }>(
-    sql`select min(last_change_id)::text as id from api.webhook_cursor`,
-  );
+  // cursores que só existem depois da demo (demo_auth) e do purge da API (lote 5) terem rodado uma vez
+  const [has] = await db.execute<{ demo: boolean; purge: boolean }>(sql`
+    select to_regclass('demo_auth.cache_feed_cursor') is not null as demo,
+           to_regclass('api.change_feed_cursor') is not null as purge`);
+  const resumable = sql`updated_at > now() - make_interval(hours => ${CURSOR_RESUME_HOURS}::int)`;
+  const [cur] = await db.execute<{ id: string | null }>(sql`
+    select min(id)::text as id from (
+      select last_change_id as id from api.webhook_cursor
+      ${has?.demo ? sql`union all select last_change_id from demo_auth.cache_feed_cursor where ${resumable}` : sql``}
+      ${has?.purge ? sql`union all select last_change_id from api.change_feed_cursor where ${resumable}` : sql``}
+    ) c`);
   const webhookCursor = cur?.id == null ? null : Number(cur.id);
   const report: ChangeFeedRetentionReport = {
     cutoff,

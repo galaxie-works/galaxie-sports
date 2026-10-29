@@ -13,6 +13,20 @@ export {
   type DbTimeouts,
 } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export {
+  APP_SCHEMAS,
+  DEMO_AUTH_SCHEMA,
+  ROLE_GRANTS,
+  ROLE_SERVICES,
+  ROLE_URL_ENV,
+  applyRoles,
+  roleName,
+  rolePasswordsFromEnv,
+  type ApplyRolesOptions,
+  type ApplyRolesResult,
+  type RoleGrants,
+  type RoleService,
+} from './roles.js';
 export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export {
@@ -22,7 +36,7 @@ export {
   type ChangeInput,
   type ChangeTagSource,
 } from './change-feed.js';
-export { GapCursor } from './gap-cursor.js';
+export { GapCursor, GAP_MAX_SEEN, GAP_TIMEOUT_MS, type AbandonedGap } from './gap-cursor.js';
 export {
   readEventContext,
   EVENT_CONTEXT_KINDS,

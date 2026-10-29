@@ -331,6 +331,30 @@ jobs:
       - name: docker compose config (VPS com Traefik)
         run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 
+      - name: docker compose config (candidatos do deploy)
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
+            jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
+              and .services["api-candidate"].environment.USAGE_PERSIST == "off"
+              and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
+              and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
+              and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
+              and .services["api-candidate"].image == .services.api.image
+              and .services["demo-candidate"].image == .services.demo.image' >/dev/null ||
+            { echo "::error::api-candidate/demo-candidate fora do esperado (sem router, prefixo próprio, mesma imagem)"; exit 1; }
+
+      - name: docker compose config (o Traefik da VPS)
+        run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
+
+      # O Traefik descarta um middleware declarado diferente em dois contêineres: os gsports-* têm de ser iguais em
+      # todos os serviços que os declaram (infra/traefik/README.md)
+      - name: Middlewares da borda iguais em todos os serviços
+        run: |
+          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json |
+            jq -e '[.services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
+              | select(length > 0)] | (length >= 2) and (unique | length == 1)' >/dev/null ||
+            { echo "::error::traefik.http.middlewares.gsports-* difere entre os serviços (ou sumiu)"; exit 1; }
+
       # O deploy-gh.sh baixa as imagens dos serviços com IMAGE_TAG no compose; todas precisam sair do job build acima
       - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
         run: |
@@ -343,7 +367,7 @@ jobs:
       - name: Alertas — teste simulado (promtool)
         run: |
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
-            prom/prometheus:v3.15.1 test rules alerts.test.yml
+            prom/prometheus:v3.15.1 test rules alerts.test.yml slo.test.yml
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
             prom/prometheus:v3.15.1 check config prometheus.yml --syntax-only
 
@@ -359,7 +383,20 @@ jobs:
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
-            infra/nas-backup/nas-pull.sh
+            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
+            infra/vps-telemetry/live-hold.sh
+
+      - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
+        run: bash infra/ops/merge-train.test.sh
+
+      - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
+        run: bash infra/ops/codex-gate.test.sh
+
+      # A troca da API e da demo no deploy (DEPLOY_CANDIDATE=on): Traefik de verdade, tráfego durante a troca e uma
+      # versão que nunca fica healthy
+      - name: Troca sem página de manutenção (rolling-swap.sh com o Traefik)
+        run: bash infra/vps-telemetry/rolling-swap.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -411,6 +448,10 @@ jobs:
       PGPORT: '5432'
       PGUSER: galaxie
       PGPASSWORD: galaxie
+      # Papel do backup (packages/db/src/roles.ts), como na stack: o migrate dá LOGIN com esta senha e o backup, o
+      # verificador e os ensaios rodam com ele (sem superusuário). A restauração real continua com o dono.
+      BACKUP_ROLE_URL: postgres://galaxie_backup:ci0papel0do0backup0so0de0teste@localhost:5432/galaxie_backup_e2e
+      MIGRATE_CMD: DATABASE_URL=postgres://galaxie:galaxie@localhost:5432/galaxie_backup_e2e DB_URL_BACKUP=$BACKUP_ROLE_URL pnpm --filter @galaxie/db db:migrate
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -431,7 +472,7 @@ jobs:
       - name: Banco descartável migrado
         run: |
           psql -d galaxie_sports -c "create database $E2E_DB"
-          DATABASE_URL="postgres://galaxie:galaxie@localhost:5432/$E2E_DB" pnpm --filter @galaxie/db db:migrate
+          sh -c "$MIGRATE_CMD"
 
       - name: backup → perda → ensaio → restore
         run: bash infra/backup/e2e-test.sh

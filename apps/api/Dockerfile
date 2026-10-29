@@ -35,10 +35,14 @@ COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
 ENV GEO_CONFIG_DIR=/srv/config/geo RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config \
     MEDIA_DENYLIST_PATH=/srv/config/assets/denylist.yaml KNOWLEDGE_DIR=/srv/data/knowledge
+COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
 USER node
 EXPOSE 8080
-HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
-  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.API_PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+# Vivacidade (/health, sem dependências: um soluço do Valkey ou do Postgres não tira a API do Traefik nem
+# reinicia o contêiner). Travado, o processo é encerrado e o Docker sobe outro (infra/healthcheck/selfheal.mjs).
+# A prontidão com Postgres e Valkey fica no /health/ready, para o monitor externo.
+HEALTHCHECK --interval=15s --timeout=6s --start-period=20s --retries=3 \
+  CMD node /usr/local/lib/galaxie/selfheal.mjs http "http://127.0.0.1:${API_PORT:-8080}/health"
 ENTRYPOINT ["/sbin/tini", "--"]
 # Heap fixo para caber no mem_limit de 512m (velho 320 + novo 3 × 16 + ~50 do processo): sem o flag, o V8 dimensiona
 # pela máquina e um vazamento vira OOM do contêiner em vez de "heap out of memory" no log. O migrate (mesma imagem)

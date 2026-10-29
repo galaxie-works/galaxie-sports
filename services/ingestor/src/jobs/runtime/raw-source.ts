@@ -1,4 +1,4 @@
-import type { RawRecord } from '@galaxie/apisports-client';
+import type { RawRecord, StoredRawRecord } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
 
 /** Consulta ao raw: endpoint + filtros sobre os parâmetros normalizados da requisição. */
@@ -25,9 +25,12 @@ export interface RawEntry {
  * pessoas, h2h) são montados a partir do que já foi baixado.
  */
 export interface RawSource {
-  /** Resposta de sucesso mais recente de cada requisição distinta que casa com a consulta. */
+  /**
+   * Resposta de sucesso mais recente de cada requisição distinta que casa com a consulta; `fetchedAt` é a última
+   * vez que o fornecedor a entregou (o raw não duplica corpo igual, só estende o "visto em").
+   */
   latest(query: RawQuery): AsyncIterable<RawEntry>;
-  /** Momento da resposta de sucesso mais recente por request hash (para o `--plan`: cache × rede). */
+  /** Última entrega de sucesso por request hash (para o `--plan`: cache × rede). */
   lastFetched(hashes: string[]): Promise<Map<string, Date>>;
 }
 
@@ -47,8 +50,11 @@ export function matchesQuery(params: Record<string, string>, q: RawQuery): boole
 }
 
 /** Sobre os registros do InMemoryRawStore (testes unitários e simulações). */
+const seenAt = (r: RawRecord | StoredRawRecord): Date =>
+  ('lastSeenAt' in r ? r.lastSeenAt : null) ?? r.fetchedAt;
+
 export class InMemoryRawSource implements RawSource {
-  constructor(private readonly records: RawRecord[]) {}
+  constructor(private readonly records: (RawRecord | StoredRawRecord)[]) {}
 
   async *latest(query: RawQuery): AsyncIterable<RawEntry> {
     const byHash = new Map<string, RawRecord>();
@@ -64,7 +70,7 @@ export class InMemoryRawSource implements RawSource {
         params: r.params,
         response: body.response,
         paging: body.paging ?? null,
-        fetchedAt: r.fetchedAt,
+        fetchedAt: seenAt(r),
       };
     }
   }
@@ -75,7 +81,7 @@ export class InMemoryRawSource implements RawSource {
     for (const r of this.records) {
       if (!wanted.has(r.requestHash) || !isSuccess(r)) continue;
       const prev = out.get(r.requestHash);
-      if (!prev || prev < r.fetchedAt) out.set(r.requestHash, r.fetchedAt);
+      if (!prev || prev < seenAt(r)) out.set(r.requestHash, seenAt(r));
     }
     return out;
   }
@@ -114,7 +120,7 @@ export class PgRawSource implements RawSource {
     }
     const text = `select distinct on (request_hash)
         params, body->'response' as response, body->'paging' as paging,
-        (extract(epoch from fetched_at) * 1000)::float8 as fetched_ms
+        (extract(epoch from coalesce(last_seen_at, fetched_at)) * 1000)::float8 as fetched_ms
       from raw.api_response
       where ${conditions.join(' and ')}
       order by request_hash, fetched_at desc`;
@@ -142,7 +148,7 @@ export class PgRawSource implements RawSource {
     for (let i = 0; i < unique.length; i += 5000) {
       const chunk = unique.slice(i, i + 5000);
       const rows = (await this.db.$client.unsafe(
-        `select request_hash, (extract(epoch from max(fetched_at)) * 1000)::float8 as fetched_ms
+        `select request_hash, (extract(epoch from max(coalesce(last_seen_at, fetched_at))) * 1000)::float8 as fetched_ms
            from raw.api_response
           where request_hash = any($1::text[])
             and status_code between 200 and 299

@@ -492,6 +492,8 @@ export function listPriceCheck(excerpt: string, amount: number): LineupCheckResu
 /** Preço como publicado, a partir do número e da moeda ("R$ 149,90/mês"). */
 export function formatPrice(amount: number, currency: string, country: string): string {
   const locale = COUNTRY_LOCALE[country] ?? 'es';
+  // preço 0 publicado na página: plano (ou complemento) grátis
+  if (amount === 0) return locale.startsWith('pt') ? 'Grátis' : 'Gratis';
   const money = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

@@ -219,6 +219,7 @@ export default defineMessages(
       includedServices: 'Streamings inclusos',
       addonsAvailable: 'Disponível como complemento',
       priceFrom: 'a partir de {price}',
+      free: 'grátis',
       regions: 'Praças: {regions}',
       clientChannels: 'Na sua lista: {channels}',
       kind: {
@@ -451,6 +452,7 @@ export default defineMessages(
         includedServices: 'Streaming included',
         addonsAvailable: 'Available as an add-on',
         priceFrom: 'from {price}',
+        free: 'free',
         regions: 'Regions: {regions}',
         clientChannels: 'In your list: {channels}',
         kind: {
@@ -682,6 +684,7 @@ export default defineMessages(
         includedServices: 'Streamings incluidos',
         addonsAvailable: 'Disponible como adicional',
         priceFrom: 'desde {price}',
+        free: 'gratis',
         regions: 'Plazas: {regions}',
         clientChannels: 'En tu lista: {channels}',
         kind: {

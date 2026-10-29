@@ -1,0 +1,195 @@
+# Testes simulados dos SLOs: docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w \
+#   --entrypoint promtool prom/prometheus:v3.15.1 test rules slo.test.yml
+rule_files:
+  - slo.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: 10% de 5xx na API dispara a queima rápida (push, sinal api)
+    interval: 1m
+    input_series:
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",instance="api:8080",service="api",method="GET",route="/v1/events",status_code="200"}'
+        values: '0+900x90'
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",instance="api:8080",service="api",method="GET",route="/v1/events",status_code="500"}'
+        values: '0+100x90'
+      - series: 'up{job="galaxie-api",instance="api:8080",service="api"}'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SloBurnRateFast
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: api
+              slo: api-disponibilidade
+            exp_annotations:
+              summary: 'SLO api-disponibilidade queimando o orçamento de erro rápido'
+              description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+    promql_expr_test:
+      - expr: round(slo:sli_error:ratio_rate1h{slo="api-disponibilidade"}, 0.001)
+        eval_time: 70m
+        exp_samples:
+          - labels: '{slo="api-disponibilidade"}'
+            value: 0.1
+
+  - name: API saudável não queima orçamento; rota fora das principais não conta na latência
+    interval: 1m
+    input_series:
+      # 0,1% de 5xx: abaixo de 1x do orçamento de 99,5%
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route="/v1/events/:id",status_code="200"}'
+        values: '0+999x90'
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route="/v1/events/:id",status_code="503"}'
+        values: '0+1x90'
+      - series: 'galaxie_http_request_duration_seconds_bucket{job="galaxie-api",method="GET",route="/v1/events/:id",status_code="200",le="1"}'
+        values: '0+999x90'
+      # busca lenta: fora da lista de rotas principais
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route="/v1/search",status_code="200"}'
+        values: '0+100x90'
+      - series: 'galaxie_http_request_duration_seconds_bucket{job="galaxie-api",method="GET",route="/v1/search",status_code="200",le="1"}'
+        values: '0x90'
+      - series: 'up{job="galaxie-api",instance="api:8080"}'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SloBurnRateFast
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: SloBurnRateSlow
+        exp_alerts: []
+    promql_expr_test:
+      - expr: slo:sli_error:ratio_rate1h{slo="api-latencia"}
+        eval_time: 70m
+        exp_samples:
+          - labels: 'slo:sli_error:ratio_rate1h{slo="api-latencia"}'
+            value: 0
+
+  - name: API fora do ar conta como erro mesmo sem requisição registrada
+    interval: 1m
+    input_series:
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route="/v1/events",status_code="200"}'
+        values: '0+1000x10 _x80'
+      - series: 'up{job="galaxie-api",instance="api:8080"}'
+        values: '1x10 0x80'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SloBurnRateFast
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: api
+              slo: api-disponibilidade
+            exp_annotations:
+              summary: 'SLO api-disponibilidade queimando o orçamento de erro rápido'
+              description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+
+  - name: 20% das rotas principais acima de 1 s dispara a queima rápida da latência
+    interval: 1m
+    input_series:
+      - series: 'galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route="/v1/competitions/:id/seasons/:season/standings",status_code="200"}'
+        values: '0+100x90'
+      - series: 'galaxie_http_request_duration_seconds_bucket{job="galaxie-api",method="GET",route="/v1/competitions/:id/seasons/:season/standings",status_code="200",le="1"}'
+        values: '0+80x90'
+      - series: 'up{job="galaxie-api",instance="api:8080"}'
+        values: '1x90'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SloBurnRateFast
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: api
+              slo: api-latencia
+            exp_annotations:
+              summary: 'SLO api-latencia queimando o orçamento de erro rápido'
+              description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+
+  - name: ao vivo atrasado queima o orçamento (resumo diário; o push é do LiveEventStale)
+    interval: 1m
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{job="galaxie-api"}'
+        values: '300x150'
+      - series: 'galaxie_live_events{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '2x150'
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '900x150'
+      # jogo só pelo relógio: fora do SLO
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="basketball",coverage="clock"}'
+        values: '9000x150'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: SloBurnRateFast
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: ao-vivo
+            exp_annotations:
+              summary: 'SLO ao-vivo queimando o orçamento de erro rápido'
+              description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+      - eval_time: 140m
+        alertname: SloBurnRateSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: ao-vivo
+            exp_annotations:
+              summary: 'SLO ao-vivo queimando o orçamento de erro devagar'
+              description: 'Erro de 1x a 3x o permitido pelo SLO no último dia ou nos últimos 3 dias: nesse ritmo o orçamento de 28 dias acaba antes da hora. Veja o painel "SLOs e orçamento de erro".'
+
+  - name: ao vivo dentro do ritmo, ou sem jogo, não tem erro
+    interval: 1m
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{job="galaxie-api"}'
+        values: '300x40'
+      - series: 'galaxie_live_events{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '2x20 0x20'
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '120x20 _x20'
+    promql_expr_test:
+      - expr: slo:ao_vivo:ok
+        eval_time: 10m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+      - expr: slo:ao_vivo:ok
+        eval_time: 35m
+        exp_samples: []
+
+  - name: backup bom só com dump recente e verificador sem falha
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job="galaxie-api",job_name="pg-backup"}'
+        values: '0x30'
+      - series: 'galaxie_job_consecutive_failures{job="galaxie-api",job_name="backup-check"}'
+        values: '0x15 1x15'
+    promql_expr_test:
+      - expr: slo:backup:ok
+        eval_time: 10m
+        exp_samples:
+          - labels: 'slo:backup:ok'
+            value: 1
+      - expr: slo:backup:ok
+        eval_time: 20m
+        exp_samples:
+          - labels: 'slo:backup:ok'
+            value: 0
+
+  - name: sync diário parado por horas esgota o orçamento do frescor
+    interval: 1m
+    input_series:
+      # último sucesso no instante 0: bom até 26 h, ruim depois
+      - series: 'galaxie_job_last_success_timestamp_seconds{job="galaxie-api",job_name="sync-daily"}'
+        values: '0x1860'
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: ErrorBudgetExhausted
+        exp_alerts: []
+      - eval_time: 30h
+        alertname: ErrorBudgetExhausted
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: frescor-diario
+            exp_annotations:
+              summary: 'Orçamento de erro do SLO frescor-diario acabou'
+              description: 'O erro dos últimos 28 dias passou do permitido pelo SLO. Vale a política de docs/14-slos-e-error-budget.md: segurar features do componente e priorizar confiabilidade até o orçamento voltar.'

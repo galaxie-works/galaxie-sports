@@ -19,6 +19,7 @@ import {
 import type { Logger } from '@galaxie/observability';
 import { AI_CREDIT_CHECK, applyOverrides, envReport, scheduledJob } from '@galaxie/runtime-config';
 import type { CreditCheckResult } from './ai-credit.js';
+import type { MissedSlot } from './catch-up.js';
 import type { RunResult, RunTrigger } from './runner.js';
 import { nextRuns, scheduleFromEnv, type ScheduledJob } from './schedule.js';
 import { JobSlots } from './slots.js';
@@ -39,6 +40,7 @@ export interface SchedulerServiceOptions {
   refreshMs?: number;
   /** Só no perfil agents: checagem do crédito da conta de IA. */
   creditCheck?: ((env: NodeJS.ProcessEnv) => Promise<CreditCheckResult>) | undefined;
+  /** Intervalo da checagem de crédito (padrão: 1 h, para o alerta AiCreditExhausted sair no mesmo dia). */
   creditEveryMs?: number;
   /**
    * Teto de jobs simultâneos fora da faixa do ao vivo (`live`); o excedente espera vaga na ordem de chegada.
@@ -106,7 +108,7 @@ export class SchedulerService {
       this.track(this.checkCredit());
       this.creditTimer = setInterval(
         () => this.track(this.checkCredit()),
-        this.options.creditEveryMs ?? 6 * 3_600_000,
+        this.options.creditEveryMs ?? 3_600_000,
       );
       this.creditTimer.unref?.();
     }
@@ -245,6 +247,22 @@ export class SchedulerService {
       })
       .catch(() => {});
     return run;
+  }
+
+  /**
+   * Roda agora, uma vez, os jobs cujo último horário passou sem execução (catch-up.ts). Pula o que já está rodando
+   * (cron do mesmo minuto, SCHEDULER_RUN_ON_START) e o que saiu da agenda; a trava do job pula o que outro processo
+   * roda. Entra na fila do teto de jobs como qualquer outro.
+   */
+  catchUp(missed: readonly MissedSlot[]): void {
+    for (const m of missed) {
+      if (this.running.has(m.job) || !this.current.some((j) => j.name === m.job)) continue;
+      this.log.info(
+        { job: m.job, slot: m.slot.toISOString() },
+        'catch-up: horário perdido com o scheduler fora do ar; rodando agora',
+      );
+      this.track(this.execute(m.job, 'catchup'));
+    }
   }
 
   /** Vaga no teto de jobs simultâneos; a faixa do ao vivo nunca espera. */

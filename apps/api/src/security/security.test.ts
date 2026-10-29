@@ -144,6 +144,8 @@ describe('auditoria de rotas', () => {
   const PUBLIC = new Set([
     'GET /health',
     'GET /health/db',
+    // prontidão para o monitor externo: só ok/degraded/unavailable por dependência, sem dado nenhum
+    'GET /health/ready',
     'GET /metrics',
     'GET /openapi.json',
     'GET /docs',

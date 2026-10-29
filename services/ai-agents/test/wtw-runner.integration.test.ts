@@ -38,7 +38,13 @@ import { activeMarkets } from '../src/wtw/markets.js';
 import type { WtwPolicy } from '../src/wtw/relevance.js';
 import { planRightsResearch, RightsResearcher } from '../src/wtw/rights-runner.js';
 import { WtwRunner } from '../src/wtw/runner.js';
-import { enqueueRuns, planDueRuns } from '../src/wtw/scheduler.js';
+import {
+  claimRuns,
+  enqueueRuns,
+  planDueRuns,
+  requeueStale,
+  WTW_RUN_MAX_ATTEMPTS,
+} from '../src/wtw/scheduler.js';
 import {
   finishResearch,
   marketSpendToday,
@@ -817,6 +823,69 @@ describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
     now = new Date(now.getTime() + 6 * H);
     expect(await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! })).toEqual([]);
     expect(fake.calls).toHaveLength(3);
+  });
+});
+
+describe('tentativas da execução (worker que cai ou estoura o tempo)', () => {
+  it('cada reserva conta; a travada volta com espera crescente e, na 3ª, fecha como failed com o motivo', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 9 * 24 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 90', startsAt });
+    let now = new Date(startsAt.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const row = async () => (await db.select().from(wtwRun).where(eq(wtwRun.eventId, ids[0]!)))[0]!;
+    const attempts = async () => (((await row()).stats ?? {}) as { attempts?: number }).attempts;
+
+    for (let i = 1; i <= WTW_RUN_MAX_ATTEMPTS; i++) {
+      // reserva (o worker começa) e o worker some: fica running
+      const claimed = await claimRuns(db, { now, limit: 10, eventId: ids[0]! });
+      expect(claimed).toHaveLength(1);
+      expect(await attempts()).toBe(i);
+      // 31 min depois, a execução travada é recolhida
+      now = new Date(now.getTime() + 31 * 60_000);
+      const res = await requeueStale(db, now);
+      if (i < WTW_RUN_MAX_ATTEMPTS) {
+        expect(res).toEqual({ requeued: 1, failed: 0 });
+        expect(await row()).toMatchObject({
+          status: 'queued',
+          startedAt: null,
+          scheduledFor: new Date(now.getTime() + 15 * 2 ** (i - 1) * 60_000),
+        });
+        // antes da espera, nada é reservado
+        expect(await claimRuns(db, { now, limit: 10, eventId: ids[0]! })).toEqual([]);
+        now = (await row()).scheduledFor;
+      } else {
+        expect(res).toEqual({ requeued: 0, failed: 1 });
+        const last = await row();
+        expect(last.status).toBe('failed');
+        expect(last.error).toMatch(/desistiu depois de 3 tentativas sem terminar/);
+        expect(last.finishedAt).toEqual(now);
+      }
+    }
+    // fechada: nunca mais é reservada
+    now = new Date(now.getTime() + 2 * H);
+    expect(await claimRuns(db, { now, limit: 10, eventId: ids[0]! })).toEqual([]);
+  });
+
+  it('orçamento esgotado não gasta tentativa: a rodada segue voltando até haver orçamento', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 10 * 24 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 91', startsAt });
+    const now = new Date(startsAt.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const { runner, fake } = setup(now, { dailyLimit: 10 });
+    for (let i = 0; i < WTW_RUN_MAX_ATTEMPTS + 1; i++)
+      await runner.runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+    expect(fake.calls).toHaveLength(0);
+    const [r] = await db.select().from(wtwRun).where(eq(wtwRun.eventId, ids[0]!));
+    expect(r?.status).toBe('queued');
+    expect((r?.stats as { attempts?: number }).attempts).toBe(0);
   });
 });
 
