@@ -1,4 +1,4 @@
-# Alertas e monitoramento: push, resumo diário e monitor externo
+# Alertas e monitoramento: push, resumo diário, issue no GitHub e monitor externo
 
 Como os alertas de produção chegam ao dono, o que cada um quer dizer e como ligar os canais. Desde o lote 1 da
 auditoria de 28/10/2026.
@@ -7,7 +7,7 @@ auditoria de 28/10/2026.
 
 | Camada | Onde roda | O que vê | Canal |
 |---|---|---|---|
-| Prometheus + Grafana | Na própria VPS | Banco, jobs, ao vivo, IA, backup, disco, processo da API | Push (ntfy) na hora para o crítico; resumo diário por e-mail para o resto |
+| Prometheus + Grafana | Na própria VPS | Banco, jobs, ao vivo, IA, backup, disco, processo da API | Push (ntfy) na hora para o crítico; resumo diário por e-mail para o resto; uma issue no GitHub por alerta |
 | Workflow de deploy | GitHub Actions | Deploy falho, cancelado ou travado (teto de 45 min) | Push (ntfy) pelo mesmo tópico |
 | Monitor externo | Better Stack (fora da VPS) | Site, API, demo e assets vistos da internet; a VPS inteira fora do ar | App da Better Stack e e-mail |
 
@@ -22,6 +22,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 |---|---|---|
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
 | `api` (de fora) | Monitores da Better Stack | Site, API, demo ou assets sem resposta para a internet |
+| `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
 | `ia` | `AiSpendNearDailyBudget` | Gasto do dia de orçamento em 80% ou mais do `AI_DAILY_USD_BUDGET` efetivo |
@@ -30,6 +31,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | (alertador cego) | `DatasourceError` do Grafana | O Grafana não consegue consultar o Prometheus |
 
 O push repete a cada 3 h enquanto o alerta durar e avisa quando resolve. Todo crítico também entra no resumo diário.
+O primeiro passo de cada sinal está no [runbook de on-call](on-call.md).
 
 ## Resumo diário (e-mail, 08:00 de Brasília)
 
@@ -41,8 +43,14 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min |
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
-| `ChangeFeedStalled` | Cache da demo ou webhooks atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
+| `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
+| `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
+| `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
+| `SseProcessLimitReached` | O teto de streams SSE do processo (`SSE_MAX_CONNECTIONS`) estourou e clientes receberam 503 |
 | `AiCreditCheckStale` | A checagem de crédito não roda há 3 h (contêiner `agents` fora?) |
+| `SloBurnRateSlow` | Um SLO gasta o orçamento devagar demais: 10% dele em 1 dia ou em 3 dias ([docs/14](../14-slos-e-error-budget.md)) |
+| `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale`) |
+| `ErrorBudgetExhausted` | O orçamento de 28 dias de um SLO acabou: vale a política de congelar features do componente |
 | `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown`, `ApiLatencyP95High` | Como antes |
 
 Sem SMTP configurado, o resumo sai no push com prioridade baixa. Sem push configurado, o crítico sai por e-mail na
@@ -107,6 +115,77 @@ ALERT_SMTP_PASSWORD=<senha de app do SMTP>
 
 Depois `docker compose up -d grafana` (log: `alertas por e-mail ligados`) e Alerting → Contact points →
 `email-operacao` → Test.
+
+## Issue no GitHub por alerta
+
+Todo alerta do Grafana, crítico ou não, abre uma issue em `galaxie-works/galaxie-sports` na hora, e a issue fecha
+sozinha quando o alerta resolve. É o registro do incidente no board e o ponto de partida para investigar. Não troca o
+push nem o e-mail: os três canais correm juntos.
+
+Como funciona: o contato `issue-github` do Grafana (`infra/observability/grafana/alerting/github.yml`) chama a API de
+`workflow_dispatch` do workflow **Alerta do Grafana** (`.github/workflows/alerta-grafana.yml`) com o alerta em JSON
+(template `galaxie.github.payload`). O workflow roda `infra/ops/alerta-issue.sh`, que:
+
+| Chega | Issue aberta do mesmo alerta? | Faz |
+|---|---|---|
+| `firing` | Não | Abre a issue |
+| `firing` | Sim | Nada (o Grafana repete a cada 12 h) |
+| `resolved` | Sim | Comenta a hora e fecha como concluída |
+| `resolved` | Não | Nada |
+
+"Mesmo alerta" é a fingerprint do Grafana (a mesma para os mesmos rótulos), guardada num comentário escondido no corpo
+da issue (`<!-- alerta-grafana fingerprint=… -->`). Fechar a issue à mão antes de resolver é seguro: se o alerta
+continuar disparando, abre outra em até 12 h.
+
+Como reconhecer as issues:
+
+- rótulo `alerta` (e `critico` também quando `severity=critical`);
+- título `Alerta: <nome> [sinal] job=… serviço=…`, o mesmo texto da linha do push (ex.: `Alerta: ApiDown [api]`);
+- autor `github-actions[bot]`.
+
+Para listar as abertas: `gh issue list --label alerta --state open`.
+
+### Ligar
+
+1. No GitHub, crie um token em Settings → Developer settings → Personal access tokens → **Fine-grained tokens** →
+   Generate new token:
+   - Resource owner: `galaxie-works`; Repository access: **Only select repositories** → `galaxie-sports`;
+   - Repository permissions: **Actions: Read and write** (Metadata: Read-only vem junto). Nada mais;
+   - validade: até 1 ano, com lembrete para renovar.
+
+   O token só dispara workflows deste repositório (inclusive o deploy manual, que segue protegido pelo ambiente
+   `producao`); não lê nem grava código. Ele fica só no `.env` da VPS.
+2. No `.env` da VPS (`/docker/galaxie-sports/.env`):
+
+   ```dotenv
+   ALERT_GITHUB_TOKEN=github_pat_...
+   # ALERT_GITHUB_REPO=galaxie-works/galaxie-sports   # padrão
+   ```
+
+3. Recrie o Grafana e confira o log:
+
+   ```bash
+   cd /docker/galaxie-sports && docker compose up -d grafana && docker compose logs grafana | grep alertas
+   ```
+
+   Esperado: `alertas no GitHub ligados (galaxie-works/galaxie-sports): uma issue por alerta`.
+
+O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão da `main`.
+
+### Testar
+
+- **Só o workflow:** Actions → Alerta do Grafana → Run workflow, com o payload abaixo. Abre a issue de teste; rode de
+  novo trocando `firing` por `resolved` e ela fecha.
+
+  ```json
+  {"status":"firing","fingerprint":"00000000beef","name":"Teste","detail":"Teste [manual]","severity":"warning","summary":"Teste do canal","startsAt":"2026-10-29T12:00:00Z","endsAt":"0001-01-01T00:00:00Z","url":"","labels":{"prometheus_alert":"Teste"}}
+  ```
+
+- **Do Grafana ao GitHub:** pelo túnel, Alerting → Contact points → `issue-github` → Test. Abre uma issue com o alerta
+  de teste do Grafana (feche à mão: o teste não manda o `resolved`).
+- **Sem issue?** Veja o log do Grafana (`docker compose logs grafana | grep -i webhook`): 401 é token errado ou
+  vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
+  input recusado. Depois, a execução em Actions → Alerta do Grafana.
 
 ## Monitor externo (Better Stack, plano gratuito)
 

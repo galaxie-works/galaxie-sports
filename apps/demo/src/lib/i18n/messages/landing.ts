@@ -1,7 +1,7 @@
 /**
- * Apresentação pública (/sobre e a raiz sem sessão): herói, números, a grade do que a API entrega com
- * exemplos reais da base (jogos, lances, tags e números copiados da API em 23/10/2026), esportes,
- * mercados e acesso. Só no servidor.
+ * Apresentação pública (/sobre e a raiz sem sessão): herói, números, a camada Galaxie (o que vai por cima
+ * do dado), para quem é, a grade com exemplos reais da base (jogos, lances, tags e números copiados da API
+ * em 23/10/2026), esportes, mercados e acesso. Só no servidor.
  *
  * Nomes próprios (times, apelidos, jogadores, competições e cidades) ficam em `proper-names.ts`. Os textos de contexto
  * (tags, o que está em jogo, resumo) vêm da API em pt-BR e espanhol; o inglês é tradução nossa, porque a
@@ -12,24 +12,87 @@ import { defineMessages } from '../define';
 export default defineMessages(
   {
     hero: {
-      eyebrow: 'API B2B de dados esportivos',
-      title: 'Dados esportivos que falam como a torcida.',
-      lead: 'Agenda, resultados, ao vivo, estatísticas, onde assistir e o contexto que dá sentido a cada jogo, numa única API para operadoras de TV e streaming da América Latina.',
-      cta: 'Entrar na demo',
-      secondary: 'Ver o que a API entrega',
-      invite: 'Acesso só por convite.',
+      eyebrow: 'Camada de experiência do torcedor · América Latina',
+      title: 'Cada jogo contado na voz da torcida.',
+      lead: 'Mais engajamento, retenção e tempo de sessão para a sua audiência esportiva. Onde assistir em 8 países, semântica enriquecida na voz do torcedor e contexto ao vivo com IA, entregues via API numa camada white-label para empresas de mídia, entretenimento e portais esportivos da América Latina.',
+      cta: 'Agendar uma demonstração',
+      secondary: 'Conhecer a camada',
+      invite: 'A demo completa é por convite.',
     },
     stats: {
       label: 'A Galaxie Sports em números',
-      sports: 'esportes no catálogo',
-      markets: 'mercados com relevância por país',
       watch: 'países com onde assistir',
-      voices: 'variantes regionais do espanhol',
+      locales: 'variantes regionais de idioma',
+      markets: 'mercados com relevância por país',
+      sports: 'esportes no mesmo formato',
+    },
+    layer: {
+      eyebrow: 'Muito além do placar',
+      title: 'A camada que faz o torcedor ficar',
+      lead: 'Placar e tabela são o ponto de partida. O que gera engajamento é contexto: onde o jogo passa, por que ele importa e como cada torcida vive a partida. A Galaxie entrega essa camada pronta para escalar no seu produto, em português e no espanhol de cada país.',
+      flow: {
+        source: {
+          title: 'Dados esportivos',
+          body: 'Agenda, placares, lances, escalações e estatísticas de 12 esportes, ao vivo e sempre atualizados.',
+        },
+        galaxie: {
+          title: 'Camada Galaxie',
+          body: 'Onde assistir, semântica na voz do torcedor, contexto com IA e vídeos: tudo o que transforma cada partida em engajamento.',
+        },
+        product: {
+          title: 'Seu produto',
+          body: 'Experiências que prendem a audiência no site, no app, na TV conectada, no push e no CRM, com a sua marca.',
+        },
+      },
+      features: {
+        watch: 'Onde assistir',
+        voice: 'Voz da torcida',
+        derbies: 'Clássicos e rivalidades',
+        chants: 'Apelidos e gritos de guerra',
+        mascots: 'Mascotes',
+        derbyWeek: 'Clássicos da semana',
+        importance: 'Peso de cada jogo',
+        fanTags: 'Tags do torcedor',
+        stakes: 'O que está em disputa',
+        relevance: 'Relevância por país',
+        preview: 'Cenário pré-jogo com IA',
+        recap: 'Resumo com IA',
+        live: 'Minuto a minuto',
+        lineups: 'Escalações em campo',
+        stats: 'Estatísticas e xG',
+        h2h: 'Confronto direto',
+        players: 'Perfis de jogador',
+        videos: 'Vídeos oficiais',
+        timezone: 'Horário de cada mercado',
+        glossary: 'Glossário de cada mercado',
+        copy: 'Chamadas prontas para push e CRM',
+        affinity: 'Afinidade de torcida para CRM',
+        multisport: 'Olimpíadas e Pan',
+      },
+      pillars: {
+        watch: {
+          title: 'Onde assistir, país a país',
+          body: 'TV aberta, TV paga, streaming e YouTube de cada jogo em 8 países. Cada opção é verificada e chega com fonte e data da última checagem: informação precisa para a pergunta que o torcedor mais faz.',
+        },
+        semantic: {
+          title: 'Semântica na voz do torcedor',
+          body: 'Clássicos com intensidade e retrospecto, rivalidades, apelidos de times, seleções e competições, mascotes, gritos de guerra, o que cada time disputa, o glossário de cada mercado e chamadas prontas para push e CRM. Tudo na língua da arquibancada, em português e em 7 variantes do espanhol.',
+        },
+        context: {
+          title: 'Contexto ao vivo com IA',
+          body: 'Cenário antes do jogo, o que está em jogo em cada rodada e resumo no apito final, sempre com fontes e nível de confiança.',
+        },
+        related: {
+          title: 'Vídeos de cada jogo',
+          body: 'Melhores momentos, gols e coletivas de canais oficiais ligados a cada partida, prontos para tocar na sua página.',
+        },
+      },
+      note: 'Placar é só o começo. A Galaxie entrega a camada que transforma cada jogo em audiência.',
     },
     bento: {
-      eyebrow: 'Recursos',
-      title: 'O que a API entrega',
-      lead: 'Exemplos reais da nossa base, do jeito que aparecem no app de demonstração.',
+      eyebrow: 'Na prática',
+      title: 'A camada com dados reais',
+      lead: 'Exemplos da nossa base, do jeito que aparecem no app de demonstração.',
       timeline: {
         tag: 'Ao vivo · Minuto a minuto',
         title: 'Cada lance, na hora',
@@ -222,10 +285,27 @@ export default defineMessages(
     },
     audience: {
       eyebrow: 'Para quem é',
-      title: 'Feito para quem transmite esporte',
-      body: 'Para operadoras de TV por assinatura, plataformas de streaming e equipes de produto, grafismo e programação que precisam de dados esportivos confiáveis em português e espanhol. É um serviço B2B: não há venda ao público final.',
+      title: 'Feito para quem vive de audiência esportiva',
+      lead: 'Um serviço B2B para empresas de mídia, entretenimento e portais esportivos da América Latina. Não há venda ao público final.',
+      segments: {
+        portals: {
+          title: 'Portais esportivos',
+          body: 'Páginas de jogo e de time com onde assistir, clássicos e o que está em disputa: mais páginas indexáveis, mais tempo de sessão e mais pageviews, sem ampliar a equipe editorial.',
+        },
+        media: {
+          title: 'Mídia, entretenimento e streaming',
+          body: 'Agenda, cards ao vivo e contexto para app, vídeo e TV conectada, com a relevância por país apontando o jogo certo para cada mercado.',
+        },
+        networks: {
+          title: 'Redes de sites e conteúdo',
+          body: 'Um único feed para toda a rede, em português e no espanhol de cada país, com páginas de jogo otimizadas para SEO.',
+        },
+      },
     },
     access: {
+      eyebrow: 'Acesso',
+      heading: 'Comece com uma demonstração personalizada',
+      lead: 'Apresentamos a camada com as partidas e os mercados mais relevantes para a sua audiência e estruturamos um piloto com metas claras.',
       title: 'Como funciona o acesso',
       steps: {
         invite: {
@@ -243,33 +323,96 @@ export default defineMessages(
       },
     },
     cta: {
-      title: 'Veja a API em ação',
-      body: 'A demo mostra tudo isso com dados reais. Ainda não tem acesso? Escreva para a gente.',
+      title: 'Leve a camada Galaxie para o seu produto',
+      body: 'Mostre quais partidas e mercados importam para a sua audiência e apresentamos a camada operando nessas partidas. Já tem convite? Acesse a demo.',
       signIn: 'Entrar na demo',
-      contact: 'Pedir acesso',
+      contact: 'Agendar uma demonstração',
     },
   },
   {
     en: {
       hero: {
-        eyebrow: 'B2B sports data API',
-        title: 'Sports data that speaks like the fans.',
-        lead: 'Schedules, results, live data, statistics, where to watch and the context that gives every match meaning, in a single API for TV and streaming operators in Latin America.',
-        cta: 'Sign in to the demo',
-        secondary: 'See what the API delivers',
-        invite: 'Invitation-only access.',
+        eyebrow: 'Fan experience layer · Latin America',
+        title: 'Every match told in the fans’ own voice.',
+        lead: 'More engagement, retention and session time for your sports audience. Where to watch in 8 countries, rich semantics in the fan’s own voice and live AI context, delivered via API in a white-label layer for media, entertainment and sports news companies across Latin America.',
+        cta: 'Book a demo',
+        secondary: 'Meet the layer',
+        invite: 'The full demo is invitation-only.',
       },
       stats: {
         label: 'Galaxie Sports in numbers',
-        sports: 'sports in the catalog',
-        markets: 'markets with country relevance',
         watch: 'countries with where to watch',
-        voices: 'regional Spanish variants',
+        locales: 'regional language variants',
+        markets: 'markets with country relevance',
+        sports: 'sports in one format',
+      },
+      layer: {
+        eyebrow: 'Far beyond the score',
+        title: 'The layer that keeps fans around',
+        lead: 'Scores and standings are the starting point. What drives engagement is context: where the match is on, why it matters and how each fan base lives the game. Galaxie delivers that layer ready to scale in your product, in Portuguese and each country’s Spanish.',
+        flow: {
+          source: {
+            title: 'Sports data',
+            body: 'Schedules, scores, plays, lineups and statistics for 12 sports, live and always up to date.',
+          },
+          galaxie: {
+            title: 'Galaxie layer',
+            body: 'Where to watch, semantics in the fan’s voice, AI context and videos: everything that turns every match into engagement.',
+          },
+          product: {
+            title: 'Your product',
+            body: 'Experiences that keep your audience on your website, app, connected TV, push and CRM, under your brand.',
+          },
+        },
+        features: {
+          watch: 'Where to watch',
+          voice: 'Fan voice',
+          derbies: 'Derbies and rivalries',
+          chants: 'Nicknames and chants',
+          mascots: 'Mascots',
+          derbyWeek: 'Derbies of the week',
+          importance: 'Weight of every match',
+          fanTags: 'Fan tags',
+          stakes: 'What is on the line',
+          relevance: 'Relevance by country',
+          preview: 'AI match preview',
+          recap: 'AI recap',
+          live: 'Play-by-play',
+          lineups: 'Lineups on the pitch',
+          stats: 'Statistics and xG',
+          h2h: 'Head-to-head',
+          players: 'Player profiles',
+          videos: 'Official videos',
+          timezone: 'Local kickoff times',
+          glossary: 'Glossary for each market',
+          copy: 'Ready-made push and CRM copy',
+          affinity: 'Fan affinity for CRM',
+          multisport: 'Olympics and Pan Am Games',
+        },
+        pillars: {
+          watch: {
+            title: 'Where to watch, country by country',
+            body: 'Free-to-air, pay TV, streaming and YouTube for every match in 8 countries. Every option is verified and comes with its source and last-checked date: accurate answers to the question fans ask most.',
+          },
+          semantic: {
+            title: 'Semantics in the fan’s voice',
+            body: 'Derbies with intensity and head-to-head record, rivalries, nicknames for clubs, national teams and competitions, mascots, chants, what each team is playing for, each market’s glossary and ready-made push and CRM copy. All in the language of the stands, in Portuguese and 7 Spanish variants.',
+          },
+          context: {
+            title: 'Live AI context',
+            body: 'Pre-match scenario, what is at stake in every round and a recap at the final whistle, always with sources and a confidence level.',
+          },
+          related: {
+            title: 'Videos for every match',
+            body: 'Highlights, goals and press conferences from official channels linked to every match, ready to play on your page.',
+          },
+        },
+        note: 'The score is just the start. Galaxie delivers the layer that turns every match into audience.',
       },
       bento: {
-        eyebrow: 'Features',
-        title: 'What the API delivers',
-        lead: 'Real examples from our database, as they appear in the demo app.',
+        eyebrow: 'In practice',
+        title: 'The layer with real data',
+        lead: 'Examples from our database, as they appear in the demo app.',
         timeline: {
           tag: 'Live · Play-by-play',
           title: 'Every play, as it happens',
@@ -462,10 +605,27 @@ export default defineMessages(
       },
       audience: {
         eyebrow: 'Who it is for',
-        title: 'Built for sports broadcasters',
-        body: 'For pay-TV operators, streaming platforms and the product, graphics and programming teams that need reliable sports data in Portuguese and Spanish. It is a B2B service: there are no sales to end consumers.',
+        title: 'Built for businesses that live on sports audiences',
+        lead: 'A B2B service for media, entertainment and sports news companies in Latin America. There are no sales to end consumers.',
+        segments: {
+          portals: {
+            title: 'Sports news sites',
+            body: 'Match and team pages with where to watch, derbies and what is on the line: more indexable pages, longer sessions and more pageviews, without expanding the editorial team.',
+          },
+          media: {
+            title: 'Media, entertainment and streaming',
+            body: 'Schedules, live cards and context for apps, video and connected TV, with relevance by country pointing to the right match for each market.',
+          },
+          networks: {
+            title: 'Site and content networks',
+            body: 'A single feed for the whole network, in Portuguese and each country’s Spanish, with SEO-optimized match pages.',
+          },
+        },
       },
       access: {
+        eyebrow: 'Access',
+        heading: 'Start with a tailored demo',
+        lead: 'We present the layer with the matches and markets that matter most to your audience and structure a pilot with clear goals.',
         title: 'How access works',
         steps: {
           invite: {
@@ -483,32 +643,95 @@ export default defineMessages(
         },
       },
       cta: {
-        title: 'See the API in action',
-        body: 'The demo shows all of this with real data. No access yet? Write to us.',
+        title: 'Bring the Galaxie layer to your product',
+        body: 'Tell us which matches and markets matter to your audience and we will present the layer running on those matches. Already invited? Sign in to the demo.',
         signIn: 'Sign in to the demo',
-        contact: 'Request access',
+        contact: 'Book a demo',
       },
     },
     'es-AR': {
       hero: {
-        eyebrow: 'API B2B de datos deportivos',
-        title: 'Datos deportivos que hablan como la hinchada.',
-        lead: 'Agenda, resultados, en vivo, estadísticas, dónde ver y el contexto que le da sentido a cada partido, en una sola API para operadores de TV y streaming de América Latina.',
-        cta: 'Ingresar a la demo',
-        secondary: 'Ver qué entrega la API',
-        invite: 'Acceso solo por invitación.',
+        eyebrow: 'Capa de experiencia del hincha · América Latina',
+        title: 'Cada partido contado con la voz de la hinchada.',
+        lead: 'Más engagement, retención y tiempo de sesión para tu audiencia deportiva. Dónde ver en 8 países, semántica enriquecida en la voz del hincha y contexto en vivo con IA, entregados vía API en una capa white-label para empresas de medios, entretenimiento y portales deportivos de América Latina.',
+        cta: 'Agendar una demo',
+        secondary: 'Conocer la capa',
+        invite: 'La demo completa es por invitación.',
       },
       stats: {
         label: 'Galaxie Sports en números',
-        sports: 'deportes en el catálogo',
-        markets: 'mercados con relevancia por país',
         watch: 'países con dónde ver',
-        voices: 'variantes regionales del español',
+        locales: 'variantes regionales de idioma',
+        markets: 'mercados con relevancia por país',
+        sports: 'deportes en un mismo formato',
+      },
+      layer: {
+        eyebrow: 'Mucho más que el resultado',
+        title: 'La capa que hace que el hincha se quede',
+        lead: 'Resultados y tablas son el punto de partida. Lo que genera engagement es el contexto: dónde se ve el partido, por qué importa y cómo lo vive cada hinchada. Galaxie entrega esa capa lista para escalar en tu producto, en portugués y en el español de cada país.',
+        flow: {
+          source: {
+            title: 'Datos deportivos',
+            body: 'Agenda, resultados, jugadas, formaciones y estadísticas de 12 deportes, en vivo y siempre actualizados.',
+          },
+          galaxie: {
+            title: 'Capa Galaxie',
+            body: 'Dónde ver, semántica en la voz del hincha, contexto con IA y videos: todo lo que convierte cada partido en engagement.',
+          },
+          product: {
+            title: 'Tu producto',
+            body: 'Experiencias que retienen a la audiencia en el sitio, la app, la TV conectada, el push y el CRM, con tu marca.',
+          },
+        },
+        features: {
+          watch: 'Dónde ver',
+          voice: 'Voz del hincha',
+          derbies: 'Clásicos y rivalidades',
+          chants: 'Apodos y cantos de guerra',
+          mascots: 'Mascotas',
+          derbyWeek: 'Clásicos de la semana',
+          importance: 'Peso de cada partido',
+          fanTags: 'Tags del hincha',
+          stakes: 'Lo que está en disputa',
+          relevance: 'Relevancia por país',
+          preview: 'Previa con IA',
+          recap: 'Resumen con IA',
+          live: 'Minuto a minuto',
+          lineups: 'Formaciones en la cancha',
+          stats: 'Estadísticas y xG',
+          h2h: 'Historial',
+          players: 'Perfiles de jugadores',
+          videos: 'Videos oficiales',
+          timezone: 'Horario de cada mercado',
+          glossary: 'Glosario de cada mercado',
+          copy: 'Textos listos para push y CRM',
+          affinity: 'Afinidad de hinchas para CRM',
+          multisport: 'Juegos Olímpicos y Panamericanos',
+        },
+        pillars: {
+          watch: {
+            title: 'Dónde ver, país por país',
+            body: 'TV abierta, TV paga, streaming y YouTube de cada partido en 8 países. Cada opción está verificada y llega con fuente y fecha del último chequeo: información precisa para la pregunta que más hace el hincha.',
+          },
+          semantic: {
+            title: 'Semántica en la voz del hincha',
+            body: 'Clásicos con intensidad e historial, rivalidades, apodos de clubes, selecciones y competiciones, mascotas, cantos de guerra, lo que pelea cada equipo, el glosario de cada mercado y textos listos para push y CRM. Todo en el idioma de la tribuna, en portugués y en 7 variantes del español.',
+          },
+          context: {
+            title: 'Contexto en vivo con IA',
+            body: 'Previa del partido, lo que está en juego en cada fecha y resumen al pitazo final, siempre con fuentes y nivel de confianza.',
+          },
+          related: {
+            title: 'Videos de cada partido',
+            body: 'Mejores momentos, goles y conferencias de canales oficiales vinculados a cada partido, listos para reproducir en tu página.',
+          },
+        },
+        note: 'El resultado es solo el comienzo. Galaxie entrega la capa que convierte cada partido en audiencia.',
       },
       bento: {
-        eyebrow: 'Recursos',
-        title: 'Qué entrega la API',
-        lead: 'Ejemplos reales de nuestra base, tal como aparecen en la app de demostración.',
+        eyebrow: 'En la práctica',
+        title: 'La capa con datos reales',
+        lead: 'Ejemplos de nuestra base, tal como aparecen en la app de demostración.',
         timeline: {
           tag: 'En vivo · Minuto a minuto',
           title: 'Cada jugada, en el momento',
@@ -701,10 +924,27 @@ export default defineMessages(
       },
       audience: {
         eyebrow: 'Para quién es',
-        title: 'Hecho para quien transmite deporte',
-        body: 'Para operadores de TV paga, plataformas de streaming y equipos de producto, gráfica y programación que necesitan datos deportivos confiables en portugués y español. Es un servicio B2B: no hay venta al público final.',
+        title: 'Hecho para quien vive de la audiencia deportiva',
+        lead: 'Un servicio B2B para empresas de medios, entretenimiento y portales deportivos de América Latina. No hay venta al público final.',
+        segments: {
+          portals: {
+            title: 'Portales deportivos',
+            body: 'Páginas de partido y de equipo con dónde ver, clásicos y lo que está en disputa: más páginas indexables, más tiempo de sesión y más pageviews, sin ampliar el equipo editorial.',
+          },
+          media: {
+            title: 'Medios, entretenimiento y streaming',
+            body: 'Agenda, tarjetas en vivo y contexto para app, video y TV conectada, con la relevancia por país marcando el partido justo para cada mercado.',
+          },
+          networks: {
+            title: 'Redes de sitios y contenido',
+            body: 'Un único feed para toda la red, en portugués y en el español de cada país, con páginas de partido optimizadas para SEO.',
+          },
+        },
       },
       access: {
+        eyebrow: 'Acceso',
+        heading: 'Empezá con una demo a medida',
+        lead: 'Presentamos la capa con los partidos y los mercados más relevantes para tu audiencia y estructuramos un piloto con metas claras.',
         title: 'Cómo funciona el acceso',
         steps: {
           invite: {
@@ -722,10 +962,10 @@ export default defineMessages(
         },
       },
       cta: {
-        title: 'Mirá la API en acción',
-        body: 'La demo muestra todo esto con datos reales. ¿Todavía sin acceso? Escribinos.',
+        title: 'Llevá la capa Galaxie a tu producto',
+        body: 'Contanos qué partidos y mercados le importan a tu audiencia y te presentamos la capa funcionando en esos partidos. ¿Ya tenés invitación? Ingresá a la demo.',
         signIn: 'Ingresar a la demo',
-        contact: 'Pedir acceso',
+        contact: 'Agendar una demo',
       },
     },
   },

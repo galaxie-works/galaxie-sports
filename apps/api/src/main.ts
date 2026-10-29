@@ -76,10 +76,17 @@ const app = buildServer({
   ...hardening,
   ...(db ? { db } : {}),
   ...(redis ? { redis } : {}),
+  // prefixo próprio no Valkey (cache, rate limit, uso, liderança e canal do relay do SSE): o candidato do deploy
+  // (api-candidate, infra/vps-telemetry/deploy-gh.sh) roda ao lado da versão no ar sem misturar as chaves dela
+  ...(process.env.REDIS_KEY_PREFIX?.trim() ? { keyPrefix: process.env.REDIS_KEY_PREFIX.trim() } : {}),
+  // USAGE_PERSIST=off: o uso fica só no Valkey, sem consolidar em api.usage_daily (o candidato do deploy)
+  ...(process.env.USAGE_PERSIST?.trim().toLowerCase() === 'off' ? { usagePersist: false } : {}),
   logger: true,
   changeFeed: true,
   realtime: {
     maxConnectionsPerTenant: Number(process.env.SSE_MAX_CONNECTIONS_PER_TENANT ?? 100),
+    // teto do processo (todos os tenants): acima dele, 503 com Retry-After em vez de estourar o mem_limit
+    maxConnections: Number(process.env.SSE_MAX_CONNECTIONS ?? 1000),
     // segredo do token curto do SSE: o mesmo em todas as instâncias (sem ele, um aleatório por processo)
     streamTokenSecret: process.env.STREAM_TOKEN_SECRET,
   },

@@ -123,6 +123,11 @@ export interface ServerOptions {
   /** Envio do buffer de uso ao backend (ms; padrão 1000) e consolidação no Postgres (ms; padrão 60000). */
   usageFlushIntervalMs?: number;
   usagePersistIntervalMs?: number;
+  /**
+   * Consolida o uso no Postgres (api.usage_daily). Padrão: sim, com banco. false: só conta no Valkey (o candidato do
+   * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
+   */
+  usagePersist?: boolean;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -156,7 +161,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     for (const method of [r.method].flat()) routeTable.push({ method, url: r.url, config: r.config ?? {} });
   });
   app.decorate('routeTable', routeTable);
-  registerObservability(app, { db: options.db });
+  const metrics = registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const baseCache =
@@ -427,7 +432,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (usage) {
     const persister =
-      options.db && usageBackend
+      options.db && usageBackend && options.usagePersist !== false
         ? new UsagePersister(options.db, usageBackend, {
             intervalMs: options.usagePersistIntervalMs ?? 60_000,
             onError: (err) => app.log.warn({ err }, 'falha ao consolidar uso'),
@@ -445,6 +450,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (options.changeFeed && options.db) {
     const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+      onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
@@ -458,8 +464,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       db: options.db,
       ...(options.redis ? { redis: options.redis } : {}),
       keyPrefix: prefix,
-      options: realtimeOptions,
+      options: {
+        onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'sse', reason: gap.reason }),
+        ...realtimeOptions,
+      },
       tokens: streamTokens!,
+      metrics: {
+        connections: (open) => metrics.sseConnections.set(open),
+        rejected: (reason) => metrics.sseRejected.inc({ reason }),
+      },
     });
   }
 

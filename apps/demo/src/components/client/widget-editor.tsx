@@ -1,10 +1,15 @@
 'use client';
 
 import {
+  AiContext,
   GalaxieWidgetProvider,
+  HeadToHead,
   LiveList,
   MatchCard,
+  MatchStakes,
+  RelatedVideos,
   StandingsTable,
+  TeamSchedule,
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
@@ -25,6 +30,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ENTITY_TYPES,
   NAME_MAX,
@@ -33,6 +39,7 @@ import {
   WIDGET_KINDS,
   WIDGET_LOCALES,
   defaultsFromEntity,
+  embedSnippet,
   installCommand,
   usageSnippet,
   type WidgetLocale,
@@ -40,7 +47,7 @@ import {
 import type { WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
-import { fill } from '@/lib/i18n/text';
+import { fill, rich } from '@/lib/i18n/text';
 
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
@@ -105,6 +112,16 @@ function PreviewWidget({
         return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} />;
       case 'live_list':
         return <LiveList />;
+      case 'ai_context':
+        return <AiContext {...WIDGET_CATALOG.ai_context.exampleProps} />;
+      case 'match_stakes':
+        return <MatchStakes {...WIDGET_CATALOG.match_stakes.exampleProps} />;
+      case 'related_videos':
+        return <RelatedVideos {...WIDGET_CATALOG.related_videos.exampleProps} />;
+      case 'head_to_head':
+        return <HeadToHead {...WIDGET_CATALOG.head_to_head.exampleProps} />;
+      case 'team_schedule':
+        return <TeamSchedule {...WIDGET_CATALOG.team_schedule.exampleProps} />;
     }
   }
   switch (kind) {
@@ -116,6 +133,16 @@ function PreviewWidget({
       return <StandingsTable competitionId={entity.id} season="current" />;
     case 'live_list':
       return <LiveList competitionId={entity.id} />;
+    case 'ai_context':
+      return <AiContext eventId={entity.id} />;
+    case 'match_stakes':
+      return <MatchStakes eventId={entity.id} />;
+    case 'related_videos':
+      return <RelatedVideos eventId={entity.id} />;
+    case 'head_to_head':
+      return <HeadToHead eventId={entity.id} />;
+    case 'team_schedule':
+      return <TeamSchedule teamId={entity.id} />;
   }
 }
 
@@ -367,19 +394,58 @@ export function WidgetEditor({
                       <AlertDescription>{e.install.dirty}</AlertDescription>
                     </Alert>
                   ) : null}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">{e.install.command}</span>
-                    <CodeSnippet code={installCommand(saved.id)} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">{e.install.usage}</span>
-                    <CodeSnippet code={usage} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">{e.install.env}</span>
-                    <span className="text-muted-foreground text-xs">{e.install.envHint}</span>
-                    <CodeSnippet code={`${PUBLISHABLE_KEY_ENV}=gs_pk_live_…`} />
-                  </div>
+                  <Tabs defaultValue="html">
+                    <TabsList>
+                      <TabsTrigger value="html">{e.install.tabHtml}</TabsTrigger>
+                      <TabsTrigger value="react">{e.install.tabReact}</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="html" className="flex flex-col gap-3 pt-1">
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.embed}</span>
+                        <span className="text-muted-foreground text-xs">{e.install.embedHint}</span>
+                        <CodeSnippet code={embedSnippet(saved.id)} />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.embedKey}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {rich(e.install.embedKeyHint, {
+                            k: (chunk) => (
+                              <Link
+                                href="/cliente/chaves"
+                                className="text-foreground underline underline-offset-2"
+                              >
+                                {chunk}
+                              </Link>
+                            ),
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.embedOptions}</span>
+                        <span className="text-muted-foreground text-xs">{e.install.embedOptionsHint}</span>
+                      </div>
+                      <Alert>
+                        <Info />
+                        <AlertDescription>{e.install.embedLive}</AlertDescription>
+                      </Alert>
+                    </TabsContent>
+                    <TabsContent value="react" className="flex flex-col gap-3 pt-1">
+                      <span className="text-muted-foreground text-xs">{e.install.reactDescription}</span>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.command}</span>
+                        <CodeSnippet code={installCommand(saved.id)} />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.usage}</span>
+                        <CodeSnippet code={usage} />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-sm font-medium">{e.install.env}</span>
+                        <span className="text-muted-foreground text-xs">{e.install.envHint}</span>
+                        <CodeSnippet code={`${PUBLISHABLE_KEY_ENV}=gs_pk_live_…`} />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </>
               ) : (
                 <Alert>

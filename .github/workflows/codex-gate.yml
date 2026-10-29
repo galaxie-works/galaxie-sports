@@ -4,8 +4,8 @@ name: Codex
 # (infra/ops/codex-gate.sh; a mesma regra do merge-train.sh). Só lê o PR: nenhum comentário, nenhuma escrita.
 #
 # Reavalia quando o PR muda (push, reabertura, saída de rascunho), quando chega um review (o do Codex inclusive) e na
-# fila de merge. Resolver uma thread não dispara workflow no GitHub: depois de resolver, rode o check de novo
-# ("Re-run" na aba Checks do PR, ou gh run rerun <id>) ou mande um commit.
+# fila de merge. Resolver uma thread não dispara workflow no GitHub: depois de resolver, rode de novo o check reprovado
+# ("Re-run" na aba Checks do PR, ou gh run rerun <id>; o do push e o do review, se os dois reprovaram) ou mande um commit.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -24,15 +24,19 @@ permissions:
   issues: read
 
 concurrency:
-  # o evento mais novo do mesmo PR vale; o anterior (esperando o review) é cancelado
-  group: codex-gate-${{ github.event.pull_request.number || github.event.merge_group.head_ref || inputs.pr }}
+  # Uma fila por PR e por tipo de evento: o push novo cancela a execução do commit anterior e o review novo cancela o
+  # review anterior. Push e review não se cancelam: valem para o mesmo commit, e a execução cancelada de um evento
+  # ficaria ao lado da verde do outro como check reprovado (gh pr checks mostra "fail"; o trem deixava o PR de fora,
+  # #395 e #413). Cancelada e verde do mesmo evento não aparecem juntas: o gh pr checks fica com a mais nova.
+  group: codex-gate-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.merge_group.head_ref || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   gate:
     name: Codex sem P1 aberto
     runs-on: ubuntu-latest
-    # espera até 10 min de PR aberto (ou 3 depois do push) e mais 10 por um review que esteja rodando
+    # espera até 10 min de PR aberto (ou 3 depois do push) e mais 10 por um review que esteja rodando; review que não
+    # termina nisso, ou que roda num commit anterior, só gera aviso (P1 aberto barra sempre)
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,8 +1,25 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyServerOptions } from 'fastify';
 import type { Database } from '@galaxie/db';
-import { createMetrics, loggerOptions, maskIp, quotaPolicyFromEnv } from '@galaxie/observability';
+import {
+  createMetrics,
+  loggerOptions,
+  maskIp,
+  quotaPolicyFromEnv,
+  type GalaxieMetrics,
+} from '@galaxie/observability';
 import { redactKey } from './realtime/sse.js';
+
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    /** Resposta longa (stream SSE): fica fora do histograma de latência, que mediria a duração da conexão. */
+    longLived?: boolean;
+  }
+  interface FastifyInstance {
+    /** Métricas Prometheus deste processo (registradas por `registerObservability`). */
+    metrics?: GalaxieMetrics;
+  }
+}
 
 /**
  * Observabilidade da API (issue #6): logs JSON (pino) e /metrics (Prometheus).
@@ -32,11 +49,14 @@ export interface ObservabilityOptions {
 }
 
 /**
- * Registra o histograma de latência de todas as rotas e o GET /metrics.
- * Chamar logo após criar a instância (antes das rotas). Se METRICS_TOKEN estiver definido,
+ * Registra o histograma de latência de todas as rotas (p95/p99 por rota no Prometheus) e o GET /metrics, e
+ * decora `app.metrics`. Chamar logo após criar a instância (antes das rotas). Se METRICS_TOKEN estiver definido,
  * /metrics exige `Authorization: Bearer <token>` — o proxy público também não deve expor a rota.
  */
-export function registerObservability(app: FastifyInstance, options: ObservabilityOptions = {}): void {
+export function registerObservability(
+  app: FastifyInstance,
+  options: ObservabilityOptions = {},
+): GalaxieMetrics {
   const env = options.env ?? process.env;
   const metrics = createMetrics({
     db: options.db,
@@ -45,6 +65,7 @@ export function registerObservability(app: FastifyInstance, options: Observabili
     onCollectorError: (collector, err) => app.log.error({ err, collector }, 'falha ao coletar métricas'),
   });
   const token = env.METRICS_TOKEN;
+  app.decorate('metrics', metrics);
 
   // healthchecks do Docker/proxy a cada poucos segundos não precisam virar log de acesso
   app.addHook('onRoute', (route) => {
@@ -52,6 +73,9 @@ export function registerObservability(app: FastifyInstance, options: Observabili
   });
 
   app.addHook('onResponse', async (req, reply) => {
+    // o onResponse do Fastify roda também no fim de uma resposta assumida (hijack): sem isto, cada stream SSE
+    // entraria no histograma com a duração da conexão (minutos) e puxaria o p99 da API inteira
+    if (req.routeOptions.config?.longLived) return;
     metrics.httpDuration.observe(
       {
         method: req.method,
@@ -69,6 +93,7 @@ export function registerObservability(app: FastifyInstance, options: Observabili
     const body = await metrics.registry.metrics();
     return reply.type(metrics.registry.contentType).send(body);
   });
+  return metrics;
 }
 
 function bearerMatches(header: string | undefined, token: string): boolean {

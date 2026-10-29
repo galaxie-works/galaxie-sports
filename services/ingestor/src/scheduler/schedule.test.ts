@@ -35,6 +35,8 @@ describe('scheduleFromEnv', () => {
       'assets-mirror',
       'assets-palette',
       'change-feed-prune',
+      'data-retention',
+      'fixture-people',
       'quota-status',
       'data-quality',
     ]);

@@ -1,0 +1,307 @@
+# SLOs e orçamento de erro do Galaxie Sports (docs/14-slos-e-error-budget.md). Testadas com
+# `promtool test rules slo.test.yml`. Ficam fora do alerts.yml porque olham até 28 dias para trás: no mesmo arquivo,
+# os testes simulados de 36 dias do alerts.test.yml avaliariam estas regras a cada minuto.
+# Os alertas seguem o roteamento do alerts.yml: severity critical com `sinal` vira push; warning vai para o resumo.
+groups:
+  # Cada SLO grava o erro em várias janelas como slo:sli_error:ratio_rate<janela>{slo} e o alvo como
+  # slo:objective:ratio{slo}. Queima = erro ÷ (1 − alvo): queima 1 gasta o orçamento de 28 dias em 28 dias.
+  # As taxas de 5 min são gravadas uma vez (slo:*:rate5m) e as janelas maiores são médias delas: barato e ponderado
+  # pelas requisições. As janelas só ficam completas depois de 3 dias de regra no ar (28 dias para o orçamento).
+  - name: galaxie-slo
+    rules:
+      - record: slo:objective:ratio
+        expr: vector(0.995)
+        labels:
+          slo: api-disponibilidade
+      - record: slo:objective:ratio
+        expr: vector(0.99)
+        labels:
+          slo: api-latencia
+      - record: slo:objective:ratio
+        expr: vector(0.99)
+        labels:
+          slo: ao-vivo
+      - record: slo:objective:ratio
+        expr: vector(0.99)
+        labels:
+          slo: frescor-diario
+      - record: slo:objective:ratio
+        expr: vector(0.99)
+        labels:
+          slo: backup
+
+      # Disponibilidade da API pública: respostas 5xx das rotas /v1 (rota desconhecida, /health e /metrics ficam de
+      # fora) mais a fração do tempo em que o Prometheus não raspa a API. Com a API fora ninguém conta as requisições
+      # perdidas; o tempo fora entra como erro. Teto de 1.
+      - record: slo:api_requests:rate5m
+        expr: sum(rate(galaxie_http_request_duration_seconds_count{job="galaxie-api",route=~"/v1/.+"}[5m]))
+      - record: slo:api_requests_errors:rate5m
+        expr: >-
+          sum(rate(galaxie_http_request_duration_seconds_count{job="galaxie-api",route=~"/v1/.+",status_code=~"5.."}[5m]))
+          or vector(0)
+      - record: slo:sli_error:ratio_rate5m
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (slo:api_requests_errors:rate5m / slo:api_requests:rate5m or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[5m]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate30m
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[30m]) / avg_over_time(slo:api_requests:rate5m[30m]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[30m]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate1h
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[1h]) / avg_over_time(slo:api_requests:rate5m[1h]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[1h]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate2h
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[2h]) / avg_over_time(slo:api_requests:rate5m[2h]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[2h]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate6h
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[6h]) / avg_over_time(slo:api_requests:rate5m[6h]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[6h]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate1d
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[1d]) / avg_over_time(slo:api_requests:rate5m[1d]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[1d]))),
+            1
+          )
+      - record: slo:sli_error:ratio_rate3d
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[3d]) / avg_over_time(slo:api_requests:rate5m[3d]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[3d]))),
+            1
+          )
+
+      # Latência das rotas principais (GET de jogos, ao vivo, lances, estatísticas, escalações, tabela e time):
+      # requisições sem 5xx respondidas em até 1 s (bucket le="1" do histograma da API). 99% = p99 ≤ 1 s.
+      - record: slo:api_main_requests:rate5m
+        expr: >-
+          sum(rate(galaxie_http_request_duration_seconds_count{job="galaxie-api",method="GET",route=~"/v1/events|/v1/events/live|/v1/events/:id|/v1/events/:id/(timeline|stats|lineups)|/v1/competitions/:id/seasons/:season/standings|/v1/teams/:id/overview",status_code!~"5.."}[5m]))
+      - record: slo:api_main_requests_fast:rate5m
+        expr: >-
+          sum(rate(galaxie_http_request_duration_seconds_bucket{job="galaxie-api",method="GET",route=~"/v1/events|/v1/events/live|/v1/events/:id|/v1/events/:id/(timeline|stats|lineups)|/v1/competitions/:id/seasons/:season/standings|/v1/teams/:id/overview",status_code!~"5..",le="1"}[5m]))
+      - record: slo:sli_error:ratio_rate5m
+        labels:
+          slo: api-latencia
+        expr: 1 - slo:api_main_requests_fast:rate5m / slo:api_main_requests:rate5m
+      - record: slo:sli_error:ratio_rate30m
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[30m]) / avg_over_time(slo:api_main_requests:rate5m[30m])
+      - record: slo:sli_error:ratio_rate1h
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[1h]) / avg_over_time(slo:api_main_requests:rate5m[1h])
+      - record: slo:sli_error:ratio_rate2h
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[2h]) / avg_over_time(slo:api_main_requests:rate5m[2h])
+      - record: slo:sli_error:ratio_rate6h
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[6h]) / avg_over_time(slo:api_main_requests:rate5m[6h])
+      - record: slo:sli_error:ratio_rate1d
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[1d]) / avg_over_time(slo:api_main_requests:rate5m[1d])
+      - record: slo:sli_error:ratio_rate3d
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[3d]) / avg_over_time(slo:api_main_requests:rate5m[3d])
+
+      # Ao vivo: 1 em cada avaliação com jogo do plano do ao vivo em andamento e nenhum deles mais de 2 intervalos do
+      # poller sem atualização (o mesmo limite do LiveEventStale); 0 quando algum está; sem série quando não há jogo.
+      # As janelas contam só os minutos com jogo.
+      - record: slo:ao_vivo:ok
+        expr: >-
+          (
+            max(galaxie_live_event_max_staleness_seconds{coverage="poller"})
+            <= bool on() 2 * max(galaxie_live_poll_interval_seconds)
+          )
+          and on() (sum(galaxie_live_events{coverage="poller"}) > 0)
+      - record: slo:sli_error:ratio_rate5m
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[5m])
+      - record: slo:sli_error:ratio_rate30m
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[30m])
+      - record: slo:sli_error:ratio_rate1h
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[1h])
+      - record: slo:sli_error:ratio_rate2h
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[2h])
+      - record: slo:sli_error:ratio_rate6h
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[6h])
+      - record: slo:sli_error:ratio_rate1d
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[1d])
+      - record: slo:sli_error:ratio_rate3d
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[3d])
+
+      # Frescor dos dados diários: o sync-daily (00:05 UTC) com sucesso há no máximo 26 h.
+      - record: slo:frescor_diario:ok
+        expr: min(time() - galaxie_job_last_success_timestamp_seconds{job_name="sync-daily"} <= bool 26 * 3600)
+
+      # Backup: dump do Postgres com sucesso há no máximo 26 h e o verificador (backup-check, a cada 6 h) sem falha.
+      - record: slo:backup:ok
+        expr: >-
+          min(
+            (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} <= bool 26 * 3600)
+            or (galaxie_job_consecutive_failures{job_name="backup-check"} == bool 0)
+          )
+
+      # Queima rápida: 2% do orçamento em 1 h (14,4x) ou 5% em 6 h (6x); a janela curta confirma que ainda está
+      # acontecendo e faz o alerta resolver logo. Na API é push (sinal api). No ao vivo o LiveEventStale já manda o
+      # push no primeiro minuto, então a queima rápida dele vai para o resumo diário.
+      - alert: SloBurnRateFast
+        expr: >-
+          (
+            slo:sli_error:ratio_rate1h{slo=~"api-.+"} > on(slo) group_left() (14.4 * (1 - slo:objective:ratio))
+            and on(slo)
+            slo:sli_error:ratio_rate5m > on(slo) group_left() (14.4 * (1 - slo:objective:ratio))
+          )
+          or
+          (
+            slo:sli_error:ratio_rate6h{slo=~"api-.+"} > on(slo) group_left() (6 * (1 - slo:objective:ratio))
+            and on(slo)
+            slo:sli_error:ratio_rate30m > on(slo) group_left() (6 * (1 - slo:objective:ratio))
+          )
+        for: 2m
+        labels:
+          severity: critical
+          sinal: api
+        annotations:
+          summary: 'SLO {{ $labels.slo }} queimando o orçamento de erro rápido'
+          description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+
+      - alert: SloBurnRateFast
+        expr: >-
+          (
+            slo:sli_error:ratio_rate1h{slo="ao-vivo"} > on(slo) group_left() (14.4 * (1 - slo:objective:ratio))
+            and on(slo)
+            slo:sli_error:ratio_rate5m > on(slo) group_left() (14.4 * (1 - slo:objective:ratio))
+          )
+          or
+          (
+            slo:sli_error:ratio_rate6h{slo="ao-vivo"} > on(slo) group_left() (6 * (1 - slo:objective:ratio))
+            and on(slo)
+            slo:sli_error:ratio_rate30m > on(slo) group_left() (6 * (1 - slo:objective:ratio))
+          )
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'SLO {{ $labels.slo }} queimando o orçamento de erro rápido'
+          description: 'Erro de 6x a 14,4x o permitido pelo SLO na última hora ou nas últimas 6 h. Primeiro passo em docs/runbooks/on-call.md; queima por janela no painel "SLOs e orçamento de erro".'
+
+      # Queima lenta: 10% do orçamento em 1 dia (3x) ou em 3 dias (1x). Vai para o resumo diário.
+      - alert: SloBurnRateSlow
+        expr: >-
+          (
+            slo:sli_error:ratio_rate1d > on(slo) group_left() (3 * (1 - slo:objective:ratio))
+            and on(slo)
+            slo:sli_error:ratio_rate2h > on(slo) group_left() (3 * (1 - slo:objective:ratio))
+          )
+          or
+          (
+            slo:sli_error:ratio_rate3d > on(slo) group_left() (1 - slo:objective:ratio)
+            and on(slo)
+            slo:sli_error:ratio_rate6h > on(slo) group_left() (1 - slo:objective:ratio)
+          )
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'SLO {{ $labels.slo }} queimando o orçamento de erro devagar'
+          description: 'Erro de 1x a 3x o permitido pelo SLO no último dia ou nos últimos 3 dias: nesse ritmo o orçamento de 28 dias acaba antes da hora. Veja o painel "SLOs e orçamento de erro".'
+
+  # Orçamento de 28 dias, a cada 5 min (as consultas olham 28 dias para trás). Com a retenção do Prometheus menor que
+  # 28 dias (PROMETHEUS_RETENTION, padrão 15d), a janela real é a retenção.
+  - name: galaxie-slo-budget
+    interval: 5m
+    rules:
+      - record: slo:sli_error:ratio_28d
+        labels:
+          slo: api-disponibilidade
+        expr: >-
+          clamp_max(
+            (avg_over_time(slo:api_requests_errors:rate5m[28d]) / avg_over_time(slo:api_requests:rate5m[28d]) or vector(0))
+            + (1 - avg(avg_over_time(up{job="galaxie-api"}[28d]))),
+            1
+          )
+      - record: slo:sli_error:ratio_28d
+        labels:
+          slo: api-latencia
+        expr: >-
+          1 - avg_over_time(slo:api_main_requests_fast:rate5m[28d]) / avg_over_time(slo:api_main_requests:rate5m[28d])
+      - record: slo:sli_error:ratio_28d
+        labels:
+          slo: ao-vivo
+        expr: 1 - avg_over_time(slo:ao_vivo:ok[28d])
+      - record: slo:sli_error:ratio_28d
+        labels:
+          slo: frescor-diario
+        expr: 1 - avg_over_time(slo:frescor_diario:ok[28d])
+      - record: slo:sli_error:ratio_28d
+        labels:
+          slo: backup
+        expr: 1 - avg_over_time(slo:backup:ok[28d])
+      # 1 = orçamento inteiro; 0 = acabou; negativo = estourado.
+      - record: slo:error_budget_remaining:ratio
+        expr: 1 - slo:sli_error:ratio_28d / on(slo) (1 - slo:objective:ratio)
+
+      - alert: ErrorBudgetExhausted
+        expr: slo:error_budget_remaining:ratio <= 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Orçamento de erro do SLO {{ $labels.slo }} acabou'
+          description: 'O erro dos últimos 28 dias passou do permitido pelo SLO. Vale a política de docs/14-slos-e-error-budget.md: segurar features do componente e priorizar confiabilidade até o orçamento voltar.'

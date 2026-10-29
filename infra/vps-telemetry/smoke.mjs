@@ -7,6 +7,11 @@
  *   docker compose exec -T demo node - < smoke.mjs
  * FAIL = funcionalidade quebrada (código/imagem/config) → sai com 1. WARN = dado incompleto (sync,
  * cota, IA) → não derruba o deploy, mas aparece no relatório.
+ *
+ * Com DEPLOY_CANDIDATE=on, o deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
+ * novas, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
+ * semântica, os nomes, a importância e o cache são os da versão no ar. Check novo que depende do pós-deploy deve
+ * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.
  */
 const API = process.env.GALAXIE_API_URL ?? 'http://api:8080';
 const KEY = process.env.GALAXIE_DEMO_KEY ?? '';
@@ -47,6 +52,11 @@ async function check(name, fn) {
 
 const fail = (detail) => ({ level: 'FAIL', detail });
 const warn = (detail) => ({ level: 'WARN', detail });
+// dado que só existe depois do pós-deploy (seed semântico, nomes, importância): no candidato, ainda não
+const CANDIDATE = process.env.SMOKE_PHASE === 'candidate';
+const afterPostDeploy = (detail) =>
+  CANDIDATE ? warn(`${detail} (candidato: antes do pós-deploy)`) : fail(detail);
+if (CANDIDATE) console.log('smoke no candidato (antes da troca e do pós-deploy)');
 
 await check('API /health', async () => {
   const res = await fetch(`${API}/health`);
@@ -228,7 +238,8 @@ await check('Busca global: apelido da base semântica, sem acento', async () => 
   if (status !== 200) return fail(`status ${status}`);
   const hits = Array.isArray(body) ? body : [];
   const pal = hits.find((r) => r.type === 'team' && r.id === PALMEIRAS);
-  if (!pal) return fail('"verdao" não achou o Palmeiras — apelidos da base semântica fora da base?');
+  if (!pal)
+    return afterPostDeploy('"verdao" não achou o Palmeiras — apelidos da base semântica fora da base?');
   const games = hits.filter((r) => r.type === 'event').length;
   return `${hits.length} resultados · Palmeiras por "${pal.matched ?? pal.name}" · ${games} jogos`;
 });

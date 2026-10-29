@@ -8,6 +8,7 @@ import {
   REGISTRY_COMPONENTS,
   REQUIRED_ENTITY,
   WIDGET_KINDS,
+  embedSnippet,
   installCommand,
   parseOrigins,
   parseRegistryParam,
@@ -148,6 +149,13 @@ describe('instalação', () => {
   it('comando do shadcn com a URL do registry', () => {
     expect(installCommand(ID, 'https://sports.galaxie.works')).toBe(
       `npx shadcn@latest add https://sports.galaxie.works/r/${ID}.json`,
+    );
+  });
+
+  it('embed HTML: o script uma vez e o elemento com o id do widget', () => {
+    expect(embedSnippet(ID, 'https://sports.galaxie.works')).toBe(
+      `<script src="https://sports.galaxie.works/embed.js" async></script>\n` +
+        `<galaxie-widget widget="${ID}" key="gs_pk_live_…"></galaxie-widget>`,
     );
   });
 

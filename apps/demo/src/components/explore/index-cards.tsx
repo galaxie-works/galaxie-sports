@@ -2,7 +2,6 @@ import type { ExploreCountry } from '@galaxie/contracts';
 import Link from 'next/link';
 
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
-import { SPORT_HUES } from '@/lib/explore';
 import type { FamilyStats } from '@/lib/explore-index';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
@@ -10,11 +9,10 @@ import { plural } from '@/lib/i18n/text';
 import { SPORTS, type CountryNav } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
-import { LeagueLogo, LivePill, Stat } from './sport-card';
-import { SportTexture } from './sport-texture';
+import { LeagueLogo, LivePill, Stat, TILE, TILE_ICON } from './sport-card';
+import { SportTexture, TEXTURE_TONE } from './sport-texture';
 
-const CARD =
-  'explore-card group/entry focus-visible:ring-ring hover:border-primary/40 relative flex w-full flex-col overflow-hidden rounded-xl border p-4 transition-colors outline-none focus-visible:ring-2';
+const CARD = cn(TILE, 'w-full p-4');
 
 /**
  * Família de esporte no índice (`/esportes`): o card inteiro leva à página da família. Os números são a soma
@@ -25,20 +23,16 @@ export function FamilyCard({ stats, t, locale }: { stats: FamilyStats; t: Dictio
   const slug = stats.family.sports[0];
   const Icon = SPORTS.find((s) => s.slug === slug)!.icon;
   return (
-    <Link
-      href={stats.href}
-      style={{ '--hue': SPORT_HUES[slug] } as React.CSSProperties}
-      className={cn(CARD, 'min-h-48 gap-4')}
-    >
-      <SportTexture sport={slug} className="w-[88%] text-[var(--tint)]" />
+    <Link href={stats.href} className={cn(CARD, 'min-h-44 gap-4')}>
+      <SportTexture sport={slug} className={cn(TEXTURE_TONE, 'w-[80%]')} />
       <div className="flex items-start justify-between gap-2">
-        <AnimatedSportIcon slug={slug} className="text-primary size-11">
+        <AnimatedSportIcon slug={slug} className={cn(TILE_ICON, 'size-8')}>
           <Icon />
         </AnimatedSportIcon>
         <LivePill count={stats.live} t={te} />
       </div>
       <div className="mt-auto flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{t.nav.families[stats.family.id]}</h2>
+        <h2 className="text-base font-semibold tracking-tight">{t.nav.families[stats.family.id]}</h2>
         <div className="grid grid-cols-2 gap-2">
           <Stat
             value={stats.competitions}
@@ -94,7 +88,7 @@ export function CountryIndexCard({
             src={data.flag}
             alt=""
             draggable={false}
-            className="h-7 w-10 shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-white/15"
+            className="h-7 w-10 shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-border"
           />
         ) : (
           <span className="bg-muted h-7 w-10 shrink-0 rounded-[3px]" aria-hidden />

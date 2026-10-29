@@ -8,16 +8,18 @@ import { defineMessages } from '../define';
 export default defineMessages(
   {
     meta: {
-      title: 'Galaxie Sports · API de dados esportivos para TV e streaming',
+      title: 'Galaxie Sports · Camada de experiência do torcedor para mídia esportiva',
       description:
-        'API B2B de dados esportivos para operadoras de TV e streaming da América Latina: agenda, resultados, ao vivo, estatísticas, onde assistir e contexto editorial em português e espanhol.',
+        'Onde assistir em 8 países, clássicos e torcidas em português e espanhol regional e contexto ao vivo com IA, numa API white-label para empresas de mídia, entretenimento e portais esportivos da América Latina.',
     },
     nav: {
       home: 'Galaxie Sports, página inicial',
       logoAlt: 'Galaxie Works',
       signIn: 'Entrar',
       about: 'Sobre',
-      features: 'Recursos',
+      layer: 'A camada',
+      audience: 'Para quem',
+      features: 'Na prática',
       sports: 'Esportes',
       markets: 'Mercados',
       access: 'Acesso',
@@ -106,16 +108,18 @@ export default defineMessages(
   {
     en: {
       meta: {
-        title: 'Galaxie Sports · Sports data API for TV and streaming',
+        title: 'Galaxie Sports · Fan experience layer for sports media',
         description:
-          'B2B sports data API for TV and streaming operators in Latin America: schedules, results, live data, statistics, where to watch and editorial context in Portuguese and Spanish.',
+          'Where to watch in 8 countries, derbies and fan culture in Portuguese and regional Spanish, and live AI context, in a white-label API for media, entertainment and sports news companies in Latin America.',
       },
       nav: {
         home: 'Galaxie Sports, home page',
         logoAlt: 'Galaxie Works',
         signIn: 'Sign in',
         about: 'About',
-        features: 'Features',
+        layer: 'The layer',
+        audience: 'Who it is for',
+        features: 'In practice',
         sports: 'Sports',
         markets: 'Markets',
         access: 'Access',
@@ -203,16 +207,18 @@ export default defineMessages(
     },
     'es-AR': {
       meta: {
-        title: 'Galaxie Sports · API de datos deportivos para TV y streaming',
+        title: 'Galaxie Sports · Capa de experiencia del hincha para medios deportivos',
         description:
-          'API B2B de datos deportivos para operadores de TV y streaming de América Latina: agenda, resultados, en vivo, estadísticas, dónde ver y contexto editorial en portugués y español.',
+          'Dónde ver en 8 países, clásicos e hinchadas en portugués y español regional, y contexto en vivo con IA, en una API white-label para empresas de medios, entretenimiento y portales deportivos de América Latina.',
       },
       nav: {
         home: 'Galaxie Sports, página de inicio',
         logoAlt: 'Galaxie Works',
         signIn: 'Ingresar',
         about: 'Acerca de',
-        features: 'Recursos',
+        layer: 'La capa',
+        audience: 'Para quién',
+        features: 'En la práctica',
         sports: 'Deportes',
         markets: 'Mercados',
         access: 'Acceso',

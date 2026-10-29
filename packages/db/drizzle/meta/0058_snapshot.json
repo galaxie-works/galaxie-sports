@@ -1,5 +1,5 @@
 {
-  "id": "7f85c293-273b-4f13-bd89-0d01c2d6a09c",
+  "id": "f1da6546-8217-4ed2-88e8-199c13251577",
   "prevId": "abf998dd-a48e-4ca9-ac61-339c81595a97",
   "version": "7",
   "dialect": "postgresql",
@@ -248,12 +248,6 @@
         "acervo": {
           "name": "acervo",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "variants": {
-          "name": "variants",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -14590,6 +14584,38 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "api.change_feed_cursor": {
+      "name": "change_feed_cursor",
+      "schema": "api",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_change_id": {
+          "name": "last_change_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

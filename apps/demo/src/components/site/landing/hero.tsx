@@ -5,6 +5,7 @@ import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill } from '@/lib/i18n/text';
 import { HEADLINE, showcase } from '@/lib/showcase';
+import { CONTACT_EMAIL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
 import { Chip, Flag, TeamMark } from './parts';
@@ -71,7 +72,10 @@ function MatchPreview({ t, locale }: { t: Text['bento']; locale: Locale }) {
   );
 }
 
-/** Herói da apresentação: proposta, chamadas e um jogo real da base ao lado. */
+/**
+ * Herói da apresentação: a camada Galaxie como proposta, a conversa comercial como chamada principal (a demo é
+ * por convite; o botão de entrar fica no cabeçalho) e um jogo real da base ao lado.
+ */
 export function Hero({ t, locale }: { t: Text; locale: Locale }) {
   return (
     <section className="grid items-center gap-14 pt-10 pb-16 sm:pt-16 lg:grid-cols-[1.15fr_1fr] lg:gap-10 lg:pb-24">
@@ -87,11 +91,14 @@ export function Hero({ t, locale }: { t: Text; locale: Locale }) {
           {t.hero.lead}
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <a href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5 text-base')}>
+          <a
+            href={`mailto:${CONTACT_EMAIL}`}
+            className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5 text-base')}
+          >
             {t.hero.cta}
           </a>
           <a
-            href="#recursos"
+            href="#camada"
             className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5 text-base')}
           >
             {t.hero.secondary}
@@ -107,14 +114,14 @@ export function Hero({ t, locale }: { t: Text; locale: Locale }) {
   );
 }
 
-/** Faixa com os números fixos do produto. */
+/** Faixa com os números fixos do produto, a começar pelo que é da camada (onde assistir e idiomas). */
 export function Numbers({ t, locale }: { t: Text['stats']; locale: Locale }) {
   const nf = new Intl.NumberFormat(locale);
   const items = [
-    { value: HEADLINE.sports, label: t.sports },
-    { value: HEADLINE.markets, label: t.markets },
     { value: HEADLINE.watch, label: t.watch },
-    { value: HEADLINE.voices, label: t.voices },
+    { value: HEADLINE.voices + 1, label: t.locales },
+    { value: HEADLINE.markets, label: t.markets },
+    { value: HEADLINE.sports, label: t.sports },
   ];
   return (
     <section aria-label={t.label}>

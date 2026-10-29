@@ -34,7 +34,7 @@ import {
   type I18nText,
 } from '@galaxie/db';
 import { sendCached } from '../../cache/http.js';
-import { CACHE_TTL } from '../../cache/policy.js';
+import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
@@ -298,6 +298,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.standings,
+      staleSec: STALE_SEC.standings,
       vary: [locale, tz],
       load: async () => {
         const db = requireDb(ctx);

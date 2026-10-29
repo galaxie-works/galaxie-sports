@@ -93,8 +93,8 @@ export function parseCuration(raw: unknown): CuratedLineup {
   if (!Array.isArray(c.plans) || !c.plans.length) fail('plans: ao menos um plano');
   for (const p of c.plans) {
     if (!p.name?.trim()) fail('plano sem nome');
-    if (p.price_amount !== null && !(typeof p.price_amount === 'number' && p.price_amount > 0))
-      fail(`${p.name}: price_amount número positivo ou null`);
+    if (p.price_amount !== null && !(typeof p.price_amount === 'number' && p.price_amount >= 0))
+      fail(`${p.name}: price_amount número (0 = grátis) ou null`);
     if (!Array.isArray(p.channels) || !Array.isArray(p.services))
       fail(`${p.name}: channels e services são listas`);
   }
