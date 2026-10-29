@@ -365,6 +365,14 @@ describe('logo enviado no painel', () => {
     expect(p!.customLogoDarkAssetId).toBe(res.assetId);
   });
 
+  it('versão escura sem logo claro: recusada (a API não serviria)', async () => {
+    await expect(
+      setCustomLogo(db, { type: 'broadcaster', id: 'canal-de-fora' }, file('9'.repeat(64)), ADMIN, 'dark'),
+    ).rejects.toMatchObject({ code: 'invalid_input' });
+    const [b] = await db.select().from(broadcaster).where(eq(broadcaster.id, 'canal-de-fora'));
+    expect(b!.customLogoDarkAssetId).toBeNull();
+  });
+
   it('alvo inexistente: erro', async () => {
     await expect(
       setCustomLogo(db, { type: 'broadcaster', id: 'nao-existe' }, file('d'.repeat(64)), ADMIN),

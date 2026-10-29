@@ -457,7 +457,7 @@ export function lineupView(
         custom: Boolean(p.customLogoAssetId),
         customDark: Boolean(p.customLogoDarkAssetId),
         logo: platformLogoUrl,
-        // como na API: a escura do painel; senão, a do acervo só quando o logo é o da biblioteca
+        // como na API: `platformLogoDark` (a do painel ou a do acervo do próprio asset); sem asset, a da biblioteca
         logoDark: platformLogoDark ?? (platformLogo ? null : (platformRef?.logoDarkUrl ?? null)),
       },
       ...reviewed(p),

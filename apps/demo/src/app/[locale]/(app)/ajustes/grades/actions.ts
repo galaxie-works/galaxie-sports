@@ -320,7 +320,8 @@ export async function uploadLineupLogo(form: FormData): Promise<AdminLineupResul
   } catch (err) {
     if (err instanceof LogoUploadError)
       return { ok: false, error: fill(t.logo[err.code], { kb: LOGO_MAX_KB }) };
-    if (err instanceof LineupError) return { ok: false, error: t.itemNotFound };
+    if (err instanceof LineupError)
+      return { ok: false, error: err.code === 'invalid_input' ? t.logo.lightFirst : t.itemNotFound };
     console.error('[ajustes] falha no upload do logo', err);
     return { ok: false, error: t.generic };
   }

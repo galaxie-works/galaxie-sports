@@ -105,6 +105,21 @@ async function assetUrls(ids: string[]): Promise<Map<string, string | null>> {
   return new Map(list.map((r) => [r.id, assetUrl(r.storage_key, r.source_url)]));
 }
 
+/**
+ * Versão escura do acervo para logos de plataforma que são o logo de uma entrada da biblioteca (mesmo
+ * site oficial), como `loadLogoBook` na API: asset do logo → URL da versão escura.
+ */
+async function officialDarkUrls(ids: string[]): Promise<Map<string, string | null>> {
+  if (!ids.length) return new Map();
+  const list = await rows<{ id: string; storage_key: string | null }>(
+    `select b.logo_asset_id::text as id, d.storage_key
+      from enrich.broadcaster b join core.asset d on d.id = b.logo_dark_asset_id
+      where b.logo_asset_id = any($1)`,
+    [ids],
+  );
+  return new Map(list.map((r) => [r.id, r.storage_key ? assetUrl(r.storage_key, null) : null]));
+}
+
 /** Grades do banco → grades do navegador, com nomes e logos da biblioteca. */
 async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
   const refs = new Set<string>();
@@ -117,14 +132,22 @@ async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
   }
   // logo da plataforma: o enviado no painel vale no lugar do da busca de logos
   const logoOf = (l: PlatformLineup) => l.platform.customLogoAssetId ?? l.platform.logoAssetId;
-  const logos = lineups
-    .flatMap((l) => [logoOf(l), l.platform.customLogoDarkAssetId])
-    .filter((x): x is string => Boolean(x));
-  const [library, assets] = await Promise.all([readLibrary([...refs]), assetUrls(logos)]);
-  const urlOf = (id: string | null | undefined) => (id ? (assets.get(id) ?? null) : null);
-  return lineups.map((l) =>
-    lineupView(l, library, urlOf(logoOf(l)), urlOf(l.platform.customLogoDarkAssetId)),
+  const own = lineups.map(logoOf).filter((x): x is string => Boolean(x));
+  const logos = [...own, ...lineups.map((l) => l.platform.customLogoDarkAssetId)].filter((x): x is string =>
+    Boolean(x),
   );
+  const [library, assets, official] = await Promise.all([
+    readLibrary([...refs]),
+    assetUrls(logos),
+    officialDarkUrls(own),
+  ]);
+  const urlOf = (id: string | null | undefined) => (id ? (assets.get(id) ?? null) : null);
+  // escura: a do painel; senão, a do acervo que acompanha o logo da plataforma
+  return lineups.map((l) => {
+    const id = logoOf(l);
+    const dark = urlOf(l.platform.customLogoDarkAssetId) ?? (id ? (official.get(id) ?? null) : null);
+    return lineupView(l, library, urlOf(id), dark);
+  });
 }
 
 const today = () => new Date().toISOString().slice(0, 10);

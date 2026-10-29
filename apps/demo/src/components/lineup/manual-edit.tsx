@@ -280,7 +280,7 @@ export function LogoUploader({
                 <Sun />
                 {L.variants.light}
               </ToggleGroupItem>
-              <ToggleGroupItem value="dark">
+              <ToggleGroupItem value="dark" disabled={!logo}>
                 <Moon />
                 {L.variants.dark}
               </ToggleGroupItem>

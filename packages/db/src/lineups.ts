@@ -2379,6 +2379,29 @@ async function publishLogoChange(tx: Tx, target: LogoTargetRef): Promise<void> {
   });
 }
 
+/**
+ * A entidade já tem um logo claro (do painel ou da origem)? A versão escura sozinha não sai: a API e os
+ * clientes partem do `logo` e só trocam pelo `logo_dark` no tema escuro.
+ */
+async function hasLightLogo(tx: Tx, target: LogoTargetRef): Promise<boolean> {
+  if (target.type === 'platform') {
+    const [row] = await tx
+      .select({ custom: platform.customLogoAssetId, own: platform.logoAssetId, lib: platform.broadcasterId })
+      .from(platform)
+      .where(eq(platform.id, target.id));
+    return Boolean(row && (row.custom ?? row.own ?? row.lib));
+  }
+  const [row] = await tx
+    .select({
+      custom: broadcaster.customLogoAssetId,
+      own: broadcaster.logoAssetId,
+      source: broadcaster.logoSourceUrl,
+    })
+    .from(broadcaster)
+    .where(eq(broadcaster.id, target.id));
+  return Boolean(row && (row.custom ?? row.own ?? row.source));
+}
+
 async function logoTargetExists(tx: Tx, target: LogoTargetRef): Promise<boolean> {
   if (target.type === 'platform') {
     if (!isUuid(target.id)) return false;
@@ -2456,6 +2479,11 @@ export async function setCustomLogo(
   return db.transaction(async (tx) => {
     if (!(await logoTargetExists(tx, target)))
       throw new LineupError('target_not_found', 'Plataforma ou canal inexistente.');
+    if (variant === 'dark' && !(await hasLightLogo(tx, target)))
+      throw new LineupError(
+        'invalid_input',
+        'Sem logo claro: envie o logo para fundo claro antes da versão escura.',
+      );
     const values = {
       storageKey: file.storageKey,
       sha256: file.sha256,
