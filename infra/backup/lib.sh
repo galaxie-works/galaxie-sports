@@ -9,7 +9,11 @@
 if [ -n "${DB_URL_BACKUP:-}" ]; then
   _auth=$(printf '%s' "$DB_URL_BACKUP" | sed -E 's#^[A-Za-z][A-Za-z0-9+.-]*://##; s#@[^@]*$##')
   case "$_auth" in
-  *%*) echo "DB_URL_BACKUP com caractere codificado (%): use senha só com letras e números" >&2 ;;
+  *%*)
+    # o migrate decodifica a URL ao dar a senha ao papel; aqui ela iria codificada e nada autenticaria
+    echo "DB_URL_BACKUP com caractere codificado (%): use senha só com letras e números (openssl rand -hex 32)" >&2
+    exit 1
+    ;;
   esac
   PGUSER="${_auth%%:*}"
   PGPASSWORD="${_auth#*:}"

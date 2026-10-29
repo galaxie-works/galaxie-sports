@@ -124,6 +124,11 @@ export function rolePasswordsFromEnv(
     const password = decodeURIComponent(url.password);
     if (password.length < 16)
       throw new Error(`${ROLE_URL_ENV[service]}: senha do papel ausente ou curta (mínimo 16 caracteres)`);
+    // o backup lê a senha da mesma URL em shell, sem decodificar (infra/backup/lib.sh): só letras e números
+    if (!/^[A-Za-z0-9]+$/.test(password))
+      throw new Error(
+        `${ROLE_URL_ENV[service]}: senha do papel só com letras e números (openssl rand -hex 32)`,
+      );
     out[service] = password;
   }
   return out;

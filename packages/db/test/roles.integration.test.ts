@@ -217,5 +217,12 @@ describe('papéis por serviço', () => {
     expect(() =>
       rolePasswordsFromEnv({ DB_URL_AGENTS: `postgres://${prefix}agents:curta@postgres/db` }, prefix),
     ).toThrow(/senha/);
+    // codificada na URL: o backup leria a senha sem decodificar (lib.sh), então nem o papel a recebe
+    expect(() =>
+      rolePasswordsFromEnv(
+        { DB_URL_BACKUP: `postgres://${prefix}backup:${'a'.repeat(20)}%40x@postgres/db` },
+        prefix,
+      ),
+    ).toThrow(/letras e números/);
   });
 });
