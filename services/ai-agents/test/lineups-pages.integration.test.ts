@@ -313,3 +313,87 @@ describe('lineups-curate: curadoria interna com prévia', () => {
     expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceCurrency).toBe('BRL');
   });
 });
+
+describe('lineups-pages: valor inválido na página sinaliza, não derruba o job', () => {
+  it('plano com "R$ 0" entra sem preço, com o valor lido e o motivo; os outros planos seguem', async () => {
+    const free = { ...fixture, text: fixture.text.replaceAll('R$ 149,90', 'R$ 0') };
+    const { reader } = readerWith(() => free, db);
+    const later = new Date(NOW.getTime() + 2 * 86_400_000);
+    const [out] = await confirmFromPages(
+      { db, config, reader, now: () => later },
+      { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
+    );
+    expect(out!.error).toBeUndefined();
+    expect(out!.flagged).toEqual([
+      { item: 'Plano Futebol', flag: { field: 'price_amount', value: '0', reason: 'Preço inválido: 0' } },
+    ]);
+    const lineup = (await getPlatformLineup(db, platformId, {
+      minReview: 'draft',
+      includeUnverified: true,
+    }))!;
+    const futebol = lineup.plans.find((p) => p.plan.name === 'Plano Futebol')!;
+    expect([futebol.plan.priceAmount, futebol.plan.priceCurrency, futebol.plan.priceText]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(futebol.plan.verification).toMatchObject({
+      flags: [{ field: 'price_amount', value: '0' }],
+      page: { url: PAGE },
+    });
+    // o valor lido fica entre os preços vistos, com a fonte
+    expect(futebol.plan.verification?.prices).toContainEqual(
+      expect.objectContaining({ amount: 0, origin: 'page' }),
+    );
+    // a grade do plano foi gravada mesmo assim
+    expect(futebol.channels.filter((c) => c.access === 'included').map((c) => c.channelId)).toEqual(
+      expect.arrayContaining(['globo', 'cazetv']),
+    );
+    expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceAmount).toBe(99.9);
+
+    // a página corrigida tira a sinalização
+    const fixed = readerWith(() => fixture, db);
+    const [again] = await confirmFromPages(
+      { db, config, reader: fixed.reader, now: () => new Date(later.getTime() + 60_000) },
+      { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
+    );
+    expect(again!.flagged).toEqual([]);
+    const [row] = await db
+      .select()
+      .from(platformPlan)
+      .where(and(eq(platformPlan.platformId, platformId), eq(platformPlan.slug, 'plano-futebol')));
+    expect(row).toMatchObject({ priceAmount: 149.9, priceCurrency: 'BRL' });
+    expect(row!.verification?.flags).toBeUndefined();
+  });
+
+  it('erro numa plataforma fica no resultado dela e a leitura segue nas outras', async () => {
+    const BROKEN = 'https://plataforma-0.exemplo/planos';
+    await upsertLineupDraft(db, {
+      platform: {
+        name: 'Plataforma 0',
+        kind: 'vmvpd',
+        country: 'BR',
+        website: 'https://plataforma-0.exemplo',
+        sources: [BROKEN],
+      },
+      plans: [{ name: 'Plano Único', url: BROKEN, sources: [BROKEN] }],
+      seenAt: NOW,
+    });
+    const { reader } = readerWith(() => fixture, db);
+    const read = reader.read.bind(reader);
+    reader.read = async (url, ...rest) => {
+      if (url === BROKEN) throw new Error('falha inesperada na leitura');
+      return read(url, ...rest);
+    };
+    const logs: string[] = [];
+    const outs = await confirmFromPages(
+      { db, config, reader, now: () => NOW, log: (m) => logs.push(m) },
+      { countries: ['BR'] },
+    );
+    const bySlug = new Map(outs.map((o) => [o.slug, o]));
+    expect(bySlug.get('br-plataforma-0')).toMatchObject({ error: 'falha inesperada na leitura', plans: [] });
+    expect(bySlug.get('br-plataforma-a')!.error).toBeUndefined();
+    expect(bySlug.get('br-plataforma-a')!.plans.length).toBeGreaterThan(0);
+    expect(logs).toContain('br-plataforma-0: erro — falha inesperada na leitura');
+  });
+});

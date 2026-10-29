@@ -17,6 +17,7 @@ import {
   listPlatforms,
   planChannel,
   platformPlan,
+  proposeManualLineupEdit,
   resolveLineupReviewRequest,
   runMigrations,
   setLineupReviewStatus,
@@ -418,5 +419,75 @@ describe('grade: pesquisa → rascunho → aprovação', () => {
       platformId: null,
       platform: null,
     });
+  });
+});
+
+describe('grade: valor inválido vindo da fonte sinaliza, não derruba', () => {
+  const PAGE = 'https://gratis.exemplo/planos';
+  const base = (over: Partial<LineupDraftInput> = {}): LineupDraftInput => ({
+    platform: { name: 'Streaming Grátis Exemplo', kind: 'streaming', country: 'AR', sources: [PAGE] },
+    plans: [
+      { name: 'Plan Gratuito', priceAmount: 0, priceCurrency: 'ARS', priceText: '$ 0', sources: [PAGE] },
+      { name: 'Plan Pago', priceAmount: 9999, priceCurrency: 'ARS', priceText: '$ 9.999', sources: [PAGE] },
+      { name: 'Plan Moeda', priceAmount: 10, priceCurrency: 'peso', validTo: '31/12/2026', sources: [PAGE] },
+    ],
+    addons: [
+      {
+        kind: 'service',
+        refId: 'streaming-exemplo',
+        name: 'Streaming Exemplo',
+        priceAmount: 0,
+        priceCurrency: 'ARS',
+        priceText: '$ 0',
+        sources: [PAGE],
+      },
+    ],
+    seenAt: SEEN,
+    ...over,
+  });
+
+  it('grava o plano e o complemento sem o valor, com o valor lido e o motivo para a revisão', async () => {
+    const r = await upsertLineupDraft(db, base());
+    expect(r.flagged).toEqual([
+      { item: 'Plan Gratuito', flag: { field: 'price_amount', value: '0', reason: 'Preço inválido: 0' } },
+      {
+        item: 'Plan Moeda',
+        flag: { field: 'price_currency', value: 'peso', reason: 'Moeda inválida (ISO 4217): peso' },
+      },
+      {
+        item: 'Plan Moeda',
+        flag: { field: 'valid_to', value: '31/12/2026', reason: 'Data inválida (YYYY-MM-DD): 31/12/2026' },
+      },
+      { item: 'Streaming Exemplo', flag: { field: 'price_amount', value: '0', reason: 'Preço inválido: 0' } },
+    ]);
+    const lineup = (await getPlatformLineup(db, r.platformId, { minReview: 'draft' }))!;
+    const plan = (name: string) => lineup.plans.find((p) => p.plan.name === name)!.plan;
+    expect(plan('Plan Gratuito')).toMatchObject({
+      reviewStatus: 'draft',
+      priceAmount: null,
+      priceCurrency: null,
+      priceText: null,
+      verification: { verified: false, flags: [{ field: 'price_amount', value: '0' }] },
+    });
+    expect(plan('Plan Pago')).toMatchObject({ priceAmount: 9999, priceCurrency: 'ARS', verification: null });
+    expect(plan('Plan Moeda')).toMatchObject({ priceAmount: null, validTo: null });
+    expect(lineup.addons[0]).toMatchObject({
+      priceAmount: null,
+      verification: { flags: [{ field: 'price_amount', value: '0' }] },
+    });
+  });
+
+  it('a fonte corrigida limpa a sinalização; a edição manual continua recusando preço 0', async () => {
+    const d = base();
+    d.plans![0] = { ...d.plans![0]!, priceAmount: 1, priceText: '$ 1' };
+    const r = await upsertLineupDraft(db, d);
+    expect(r.flagged.map((f) => f.item)).toEqual(['Plan Moeda', 'Plan Moeda', 'Streaming Exemplo']);
+    const planId = r.planIds['plan-gratuito']!;
+    const [row] = await db.select().from(platformPlan).where(eq(platformPlan.id, planId));
+    expect(row).toMatchObject({ priceAmount: 1, priceText: '$ 1' });
+    expect(row!.verification?.flags).toBeUndefined();
+    await expect(
+      proposeManualLineupEdit(db, { type: 'plan', id: planId }, { fields: { priceAmount: 0 }, by: 'w' }),
+    ).rejects.toThrow(LineupError);
   });
 });

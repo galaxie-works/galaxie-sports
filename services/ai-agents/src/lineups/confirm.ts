@@ -12,6 +12,9 @@
  *   recente (o da página, lido hoje).
  * - Hash da página mudou e o plano já foi revisado: mudança para revisar.
  * - Site oficial que redireciona para outro domínio: rebrand, mudança proposta na plataforma.
+ * - Valor inválido lido na página (preço 0, moeda torta) não derruba nada: o item entra sem ele, com a
+ *   sinalização para a revisão (`verification.flags`). Erro numa plataforma fica no resultado dela e a
+ *   leitura segue nas outras.
  */
 import { and, inArray, ne } from 'drizzle-orm';
 import {
@@ -23,6 +26,7 @@ import {
   type Database,
   type LineupAddonDraft,
   type LineupChange,
+  type LineupFieldFlag,
   type LineupPageContent,
   type LineupPageRef,
   type LineupPlanDraft,
@@ -74,6 +78,8 @@ export interface PlatformPagesOutcome {
   updated: number;
   removed: number;
   changes: LineupChange[];
+  /** Valores lidos e recusados pelo gravador (o item entrou sem eles), para a revisão. */
+  flagged: { item: string; flag: LineupFieldFlag }[];
   error?: string;
 }
 
@@ -150,10 +156,32 @@ export async function confirmFromPages(
   for (const row of rows
     .filter((r) => !opts.platformSlug || r.slug === opts.platformSlug)
     .sort((a, b) => a.slug.localeCompare(b.slug))) {
-    out.push(await confirmPlatform(deps, row, opts, now(), log));
+    // uma plataforma que falha não derruba as outras: o erro fica no resultado dela
+    try {
+      out.push(await confirmPlatform(deps, row, opts, now(), log));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      log(`${row.slug}: erro — ${message}`);
+      out.push({ ...emptyOutcome(row), error: message });
+    }
   }
   return out;
 }
+
+const emptyOutcome = (row: Pick<LineupPlatform, 'slug' | 'country'>): PlatformPagesOutcome => ({
+  slug: row.slug,
+  country: row.country,
+  pages: [],
+  plans: [],
+  addons: 0,
+  unknownAddons: [],
+  rebrandTo: null,
+  created: 0,
+  updated: 0,
+  removed: 0,
+  changes: [],
+  flagged: [],
+});
 
 async function confirmPlatform(
   deps: ConfirmDeps,
@@ -165,19 +193,7 @@ async function confirmPlatform(
   const { db, config, reader } = deps;
   const dir = config.directory(row.country);
   const day = now.toISOString().slice(0, 10);
-  const outcome: PlatformPagesOutcome = {
-    slug: row.slug,
-    country: row.country,
-    pages: [],
-    plans: [],
-    addons: 0,
-    unknownAddons: [],
-    rebrandTo: null,
-    created: 0,
-    updated: 0,
-    removed: 0,
-    changes: [],
-  };
+  const outcome = emptyOutcome(row);
   // rebrand: o site oficial passou a redirecionar para outro domínio
   if (row.website) {
     const target = await reader.rebrandTarget(row.website);
@@ -373,6 +389,7 @@ async function confirmPlatform(
     outcome.updated = r.updated;
     outcome.removed = r.removed;
     outcome.changes = r.changes;
+    outcome.flagged = r.flagged;
     // a página mudou: plano já revisado vira mudança para revisar (mesmo sem diferença na grade)
     if (hashChanged)
       for (const [name, { read }] of best) {
@@ -400,7 +417,8 @@ async function confirmPlatform(
             .map((p) => p.name)
             .join(', ')}`
         : '') +
-      (outcome.rebrandTo ? ` · site redireciona para ${outcome.rebrandTo}` : ''),
+      (outcome.rebrandTo ? ` · site redireciona para ${outcome.rebrandTo}` : '') +
+      (outcome.flagged.length ? ` · ${outcome.flagged.length} valor(es) recusado(s) para revisar` : ''),
   );
   return outcome;
 }

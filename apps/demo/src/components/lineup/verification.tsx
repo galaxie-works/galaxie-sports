@@ -87,6 +87,17 @@ export function VerificationCell({
         </span>
       ) : null}
       {v?.priceConflict ? <Badge variant="warning-light">{V.priceConflict}</Badge> : null}
+      {/* valor lido na fonte e recusado: o item entrou sem ele; quem decide é a revisão */}
+      {v?.flags.length ? (
+        <div className="flex flex-col gap-0.5">
+          {v.flags.map((fl, i) => (
+            <Badge key={i} variant="warning-light" title={fl.reason} className="h-auto whitespace-normal">
+              {fill(V.flags[fl.field], { value: fl.value })}
+            </Badge>
+          ))}
+          <span className="text-warning">{V.flagsHint}</span>
+        </div>
+      ) : null}
       {v && v.prices.length > 1 ? (
         <details className="text-muted-foreground">
           <summary className="hover:text-foreground cursor-pointer">{V.prices}</summary>
