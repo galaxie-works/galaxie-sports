@@ -480,7 +480,9 @@ export const SETTINGS: readonly SettingDef[] = [
     type: 'text',
     // `3d,1d` ou horas (`36h`), de 1 h a 14 d; `off` = sem retentativas (espelho de parseRetryOffsets)
     pattern: RETRY_OFFSETS_PATTERN,
-    default: '3d,1d',
+    // 6h: última chance antes do jogo (a escala por jogo — ex.: o exclusivo do Prime Video — às
+    // vezes só sai na véspera, e a pesquisa de 1d pode ter falhado)
+    default: '3d,1d,6h',
     critical: true,
   }),
   agents('wtw', { key: 'WTW_CHANNEL_POST', type: 'enum', options: ['off', 'on'], default: 'on' }),

@@ -18,7 +18,7 @@ import {
   type WtwConfig,
   curatedDecides,
 } from '@galaxie/where-to-watch';
-import { BudgetExceededError, LlmError } from '../llm/errors.js';
+import { LlmError } from '../llm/errors.js';
 import type { UsageWithSearches } from '../llm/budget.js';
 import type { LlmClient } from '../llm/types.js';
 import { WhereToWatchAgent } from './agent.js';
@@ -31,6 +31,7 @@ import {
   estimateCallUsd,
   failureUsage,
   finishResearch,
+  isOutage,
   marketSpendToday,
   startResearch,
   withinCap,
@@ -312,7 +313,7 @@ export class RightsResearcher {
       return { ...base, status: 'done', costUsd: cost, byCountry };
     } catch (err) {
       const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
-      const status = err instanceof BudgetExceededError ? 'skipped' : 'failed';
+      const status = isOutage(err) ? 'skipped' : 'failed';
       const failed = failureUsage(err, estimate);
       await finishResearch(db, researchId, {
         status,
