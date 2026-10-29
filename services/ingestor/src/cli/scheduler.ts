@@ -12,6 +12,8 @@
  *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
  *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents)
  *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
+ *            SCHEDULER_CATCHUP=off desliga o catch-up da partida; SCHEDULER_CATCHUP_MAX_HOURS (padrão 24): horário
+ *            perdido mais velho que isto não roda na volta (scheduler/catch-up.ts)
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
@@ -25,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { logger, report } from '../logger.js';
 import { checkAiCredit } from '../scheduler/ai-credit.js';
+import { closeOrphans, lastJobStarts, missedSlots } from '../scheduler/catch-up.js';
 import { PgRunRecorder, runJob, runExitCode } from '../scheduler/runner.js';
 import { jobsForProfile } from '../scheduler/schedule.js';
 import { describeSchedule, SchedulerService, type SchedulerProfile } from '../scheduler/service.js';
@@ -55,6 +58,18 @@ if (!db) log.warn('DATABASE_URL não definida: as execuções não serão regist
 const recorder = db ? new PgRunRecorder(db) : undefined;
 /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
 const shutdownController = new AbortController();
+const bootedAt = new Date();
+/** Trava do job (advisory lock de sessão): `null` = outro processo já o roda. */
+const jobLock = databaseUrl
+  ? (name: string) =>
+      tryJobLock(databaseUrl, name, {
+        onLost: () =>
+          log.warn(
+            { job: name },
+            'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
+          ),
+      })
+  : undefined;
 
 const service = new SchedulerService({
   profile,
@@ -76,16 +91,7 @@ const service = new SchedulerService({
       signal: shutdownController.signal,
       // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
       // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
-      lock: databaseUrl
-        ? (name) =>
-            tryJobLock(databaseUrl, name, {
-              onLost: () =>
-                log.warn(
-                  { job: name },
-                  'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
-                ),
-            })
-        : undefined,
+      lock: jobLock,
     }),
 });
 
@@ -132,6 +138,33 @@ for (const name of (process.env.SCHEDULER_RUN_ON_START ?? '')
     log.error({ err, job: name }, 'falha no job de partida');
   }
 }
+
+// Volta de um reinício: fecha o `running` que o processo anterior deixou (só com a trava do job livre) e roda uma
+// vez o job cujo horário passou com o scheduler fora do ar (scheduler/catch-up.ts)
+async function recover(): Promise<void> {
+  if (!db || !jobLock) return;
+  const orphans = await closeOrphans(
+    db,
+    definitions.map((j) => j.name),
+    { bootedAt, lock: jobLock },
+  );
+  if (orphans.runs || orphans.requests || orphans.busy.length)
+    log.info(orphans, 'execuções e pedidos deixados como running pelo processo anterior');
+  if (['off', 'false', '0'].includes((process.env.SCHEDULER_CATCHUP ?? '').trim().toLowerCase())) return;
+  const maxHours = Number(process.env.SCHEDULER_CATCHUP_MAX_HOURS);
+  const missed = missedSlots(
+    service.schedule,
+    await lastJobStarts(
+      db,
+      service.schedule.map((j) => j.name),
+    ),
+    {
+      ...(Number.isFinite(maxHours) && maxHours > 0 ? { maxAgeMs: maxHours * 3_600_000 } : {}),
+    },
+  );
+  service.catchUp(missed);
+}
+void recover().catch((err: unknown) => log.warn({ err }, 'catch-up da partida não rodou'));
 
 let stopping = false;
 async function shutdown(signal: string) {

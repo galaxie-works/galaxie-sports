@@ -156,7 +156,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     for (const method of [r.method].flat()) routeTable.push({ method, url: r.url, config: r.config ?? {} });
   });
   app.decorate('routeTable', routeTable);
-  registerObservability(app, { db: options.db });
+  const metrics = registerObservability(app, { db: options.db });
   const prefix = options.keyPrefix ?? 'gs:';
 
   const baseCache =
@@ -385,7 +385,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     }
   });
 
+  // Vivacidade: o processo responde. É o healthcheck do Docker, que decide se o Traefik manda tráfego e se o
+  // contêiner é reiniciado (infra/healthcheck/selfheal.mjs); por isso não olha dependência nenhuma.
   app.get('/health', async () => ({ status: 'ok', service: 'galaxie-sports-api' }));
+
+  // Prontidão, para o monitor externo e o Prometheus: sem Postgres a API não serve dado (503); sem Valkey ela
+  // segue com cache e rate limit em modo degradado (200 "degraded"). Timeout curto por dependência.
+  // docs/runbooks/alertas-e-monitoramento.md
+  app.get('/health/ready', async (_req, reply) => {
+    const db = options.db;
+    const redis = options.redis;
+    const [postgres, valkey] = await Promise.all([
+      db ? probe(() => pingDb(db), READY_TIMEOUT_MS) : Promise.resolve('unconfigured' as const),
+      redis ? probe(() => redis.ping(), READY_TIMEOUT_MS) : Promise.resolve('unconfigured' as const),
+    ]);
+    const status =
+      postgres !== 'ok' ? 'unavailable' : valkey === 'ok' || valkey === 'unconfigured' ? 'ok' : 'degraded';
+    return reply.code(postgres === 'ok' ? 200 : 503).send({ status, checks: { postgres, valkey } });
+  });
 
   app.get('/health/db', async (_req, reply) => {
     if (!options.db)
@@ -428,6 +445,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   if (options.changeFeed && options.db) {
     const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+      onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
@@ -441,8 +459,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       db: options.db,
       ...(options.redis ? { redis: options.redis } : {}),
       keyPrefix: prefix,
-      options: realtimeOptions,
+      options: {
+        onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'sse', reason: gap.reason }),
+        ...realtimeOptions,
+      },
       tokens: streamTokens!,
+      metrics: {
+        connections: (open) => metrics.sseConnections.set(open),
+        rejected: (reason) => metrics.sseRejected.inc({ reason }),
+      },
     });
   }
 
@@ -453,5 +478,26 @@ declare module 'fastify' {
   interface FastifyInstance {
     changeFeed?: ChangeFeedListener;
     routeTable: { method: string; url: string; config: FastifyContextConfig }[];
+  }
+}
+
+/** Timeout de cada dependência no /health/ready (o monitor externo espera alguns segundos; isto fica bem abaixo). */
+const READY_TIMEOUT_MS = 1_500;
+
+async function probe(check: () => Promise<unknown>, timeoutMs: number): Promise<'ok' | 'timeout' | 'error'> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs);
+  });
+  try {
+    return await Promise.race([
+      check().then(
+        () => 'ok' as const,
+        () => 'error' as const,
+      ),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }

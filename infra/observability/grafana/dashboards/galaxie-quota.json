@@ -240,7 +240,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "Ao vivo: maior atraso de atualização",
-      "description": "Alerta quando passa de 2 intervalos do live poller (linha tracejada).",
+      "description": "Jogos do plano do ao vivo (coverage=poller). Alerta quando passa de 2 intervalos do live poller (linha tracejada). Os que só o relógio pôs em andamento (fora do catálogo, esporte sem ao vivo) não entram.",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "gridPos": { "h": 9, "w": 8, "x": 0, "y": 29 },
       "fieldConfig": {
@@ -259,7 +259,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max by (sport) (galaxie_live_event_max_staleness_seconds)",
+          "expr": "max by (sport) (galaxie_live_event_max_staleness_seconds{coverage=\"poller\"})",
           "legendFormat": "{{sport}}"
         },
         {

@@ -166,6 +166,38 @@ export const llmUsage = ops.table(
   ],
 );
 
+/**
+ * Agregado diário do `ops.llm_usage`, gravado pela retenção (`data-retention`) antes de apagar o detalhe
+ * antigo: o histórico de gasto por dia, agente, modelo e desfecho fica para sempre; a linha por chamada
+ * (com o `purpose`) fica LLM_USAGE_RETENTION_DAYS. Os tetos do dia leem só o detalhe, sempre recente.
+ */
+export const llmUsageDaily = ops.table(
+  'llm_usage_daily',
+  {
+    dayUtc: date('day_utc').notNull(),
+    /** `coalesce(budget_day, day_utc)` do detalhe. */
+    budgetDay: date('budget_day').notNull(),
+    /** Faixa de orçamento; '' nas linhas antigas sem faixa. */
+    band: text('band').notNull().default(''),
+    agent: text('agent').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    tier: text('tier').notNull(),
+    outcome: text('outcome').notNull(),
+    calls: integer('calls').notNull(),
+    inputTokens: bigint('input_tokens', { mode: 'number' }).notNull(),
+    outputTokens: bigint('output_tokens', { mode: 'number' }).notNull(),
+    webSearches: integer('web_searches').notNull(),
+    costUsd: numeric('cost_usd', { precision: 14, scale: 6 }),
+    aggregatedAt: timestamp('aggregated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      columns: [t.dayUtc, t.budgetDay, t.band, t.agent, t.provider, t.model, t.tier, t.outcome],
+    }),
+  ],
+);
+
 /** Mudanças publicadas — alimenta SSE, webhooks e purge de CDN. */
 export const changeFeed = ops.table(
   'change_feed',

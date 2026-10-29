@@ -308,6 +308,11 @@ export default defineMessages(
           label: 'Limpeza do feed de mudanças',
           description: 'Apaga mudanças antigas do feed que alimenta webhooks e tempo real.',
         },
+        'data-retention': {
+          label: 'Retenção de dados',
+          description:
+            'Apaga o bruto do ao vivo com mais de 30 dias e o histórico antigo de operação (execuções, cota, IA agregada por dia).',
+        },
         'quota-status': {
           label: 'Leitura da cota',
           description: 'Lê o contador oficial do fornecedor (gratuito) e reconcilia a cota do dia.',
@@ -1180,6 +1185,11 @@ export default defineMessages(
           'change-feed-prune': {
             label: 'Change feed cleanup',
             description: 'Deletes old changes from the feed behind webhooks and real time.',
+          },
+          'data-retention': {
+            label: 'Data retention',
+            description:
+              'Deletes live raw responses older than 30 days and old operations history (runs, quota, AI usage rolled up by day).',
           },
           'quota-status': {
             label: 'Quota reading',
@@ -2060,6 +2070,11 @@ export default defineMessages(
           'change-feed-prune': {
             label: 'Limpieza del feed de cambios',
             description: 'Borra cambios viejos del feed que alimenta webhooks y tiempo real.',
+          },
+          'data-retention': {
+            label: 'Retención de datos',
+            description:
+              'Borra el bruto del en vivo con más de 30 días y el historial viejo de operación (ejecuciones, cuota, IA agregada por día).',
           },
           'quota-status': {
             label: 'Lectura de la cuota',

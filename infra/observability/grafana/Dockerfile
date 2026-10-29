@@ -1,9 +1,9 @@
-# Grafana com datasource (Prometheus), o painel de cota e a ponte dos alertas do Prometheus provisionados; o e-mail dos
-# alertas liga com ALERT_EMAIL_TO e ALERT_SMTP_HOST (entrypoint.sh).
+# Grafana com datasource (Prometheus), o painel de cota e a ponte dos alertas do Prometheus provisionados; os canais
+# dos alertas (push pelo ntfy e resumo diário por e-mail) ligam pelo ambiente (entrypoint.sh).
 #   docker build -t galaxie-sports-grafana infra/observability/grafana
 FROM grafana/grafana:13.2.4
 COPY provisioning/ /etc/grafana/provisioning/
-COPY alerting-email/ /etc/grafana/alerting-email/
+COPY alerting/ /etc/grafana/alerting/
 COPY dashboards/ /etc/grafana/dashboards/galaxie/
 COPY --chmod=0755 entrypoint.sh /etc/grafana/galaxie-entrypoint.sh
 ENV GF_AUTH_ANONYMOUS_ENABLED=false \

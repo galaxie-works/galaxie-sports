@@ -132,8 +132,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
-    # o roteiro leva ~10 min; o teto deixa folga para o pull da imagem do lineup-render (~2 GB, quando a pasta muda)
-    timeout-minutes: 45
+    # o roteiro leva ~10 min; o teto de 45 min fica no passo do deploy (folga para o pull da imagem do lineup-render,
+    # ~2 GB, quando a pasta muda). O do job é maior: estourar o do job cancela tudo, e o aviso por push não sairia
+    timeout-minutes: 55
     # Um deploy por vez e nunca cancelado no meio. Com outro rodando, o GitHub guarda só o pendente mais novo:
     # merges em sequência viram um deploy só, do último commit.
     concurrency:
@@ -184,6 +185,7 @@ jobs:
 
       - name: Deploy na VPS
         id: deploy
+        timeout-minutes: 45
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -212,3 +214,29 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           rm -f ~/.ssh/id_deploy
+
+      # Deploy travado ou falho (teto de 45 min, trava da VPS ocupada, smoke vermelho, volta de versão): push no
+      # celular pelo mesmo tópico do Grafana (secrets ALERT_NTFY_URL e, opcional, ALERT_NTFY_TOKEN do ambiente
+      # producao). Sem o secret, fica só o e-mail do GitHub. docs/runbooks/alertas-e-monitoramento.md
+      - name: Aviso por push
+        if: failure() || cancelled()
+        env:
+          NTFY_URL: ${{ secrets.ALERT_NTFY_URL }}
+          NTFY_TOKEN: ${{ secrets.ALERT_NTFY_TOKEN }}
+          STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NTFY_URL" ]; then
+            echo "::notice::sem o secret ALERT_NTFY_URL no ambiente producao: aviso só pelo e-mail do GitHub"
+            exit 0
+          fi
+          auth=()
+          [ -z "$NTFY_TOKEN" ] || auth=(-H "Authorization: Bearer $NTFY_TOKEN")
+          last=$(grep -E '^(FAIL|WARN)' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 3 || true)
+          curl -fsS -m 15 "${auth[@]}" \
+            -H "Title: Galaxie Sports: deploy ${SHA:0:7} parou ($STATUS) [deploy]" \
+            -H 'Priority: high' -H 'Tags: rotating_light' -H "Click: $RUN_URL" \
+            --data-binary "O deploy de produção não terminou. Veja o log e a trava da VPS antes de disparar de novo.
+          ${last:-(sem linha FAIL no log: teto de tempo ou cancelamento)}
+          $RUN_URL" "${NTFY_URL%/}" >/dev/null ||
+            echo "::warning::push do aviso de deploy não saiu"

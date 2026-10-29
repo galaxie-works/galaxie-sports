@@ -1,0 +1,14 @@
+# Janela do resumo diário: as notificações da rota do resumo só saem das 08:00 às 08:15 de Brasília. Fora dela ficam
+# seguradas e saem na janela seguinte, se o alerta ainda estiver disparando (o que disparou e resolveu de madrugada
+# fica no histórico do Grafana, não no e-mail).
+apiVersion: 1
+muteTimes:
+  - orgId: 1
+    name: fora-do-resumo-diario
+    time_intervals:
+      - times:
+          - start_time: '00:00'
+            end_time: '08:00'
+          - start_time: '08:15'
+            end_time: '24:00'
+        location: America/Sao_Paulo

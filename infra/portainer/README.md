@@ -205,7 +205,7 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `galaxie_quota_budget` | `api`, `priority` | `ops.quota_budget` ou fatia padrão |
 | `galaxie_job_runs` (24 h), `galaxie_job_consecutive_failures`, `galaxie_job_last_run_timestamp_seconds`, `galaxie_job_last_success_timestamp_seconds`, `galaxie_job_last_duration_seconds` | `job_name` (+ `status`) | `ops.job_run` |
 | `galaxie_raw_last_fetched_timestamp_seconds` | `sport` | `raw.api_response` (janela de 7 dias) |
-| `galaxie_live_events`, `galaxie_live_event_max_staleness_seconds` | `sport` | `core.event` em andamento |
+| `galaxie_live_events`, `galaxie_live_event_max_staleness_seconds` | `sport`, `coverage` (`poller` = no plano do `live-run`; `clock` = só o relógio dos eventos) | `core.event` em andamento (atraso contado no máximo desde o apito) + `includedEventIds` do estado `live:scheduler` |
 | `galaxie_live_poll_interval_seconds` | — | `LIVE_POLL_INTERVAL_SECONDS` (base do alerta `LiveEventStale`) |
 | `galaxie_live_scheduler_interval_seconds`, `_ticks_left`, `_window_minutes`, `_active_events`, `_updated_timestamp_seconds` | `sport` | Estado publicado pelo `live-run` em `ops.sync_cursor` (`live:scheduler`) |
 | `galaxie_http_request_duration_seconds` | `method`, `route`, `status_code` | Fastify (histograma) |
@@ -214,12 +214,16 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 | `process_*`, `nodejs_*` | — | prom-client |
 
 **Alertas** ([`alerts.yml`](../observability/prometheus/alerts.yml), testados com `promtool` no CI):
-`QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento em
-andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
+`QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento do plano do
+ao vivo em andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
 `MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
 (política de backup: [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)), `DiskAlmostFull` (disco dos
-volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown` e `ChangeFeedStalled` (consumidor do change feed com
-mudança pendente há mais de 10 min). Eles aparecem como _firing_ no Prometheus e no Grafana (_Alerting → Alert rules_).
+volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown`, `ChangeFeedStalled` (consumidor do change feed com
+mudança pendente há mais de 10 min), `ChangeFeedGapAbandoned` (lacuna do change feed abandonada pelo SSE ou pelo purge),
+`ApiRouteLatencyP99High` (p99 de uma rota com tráfego acima de 1 s) e `SseProcessLimitReached` (503 no `/v1/stream`).
+Os SLOs ficam em [`slo.yml`](../observability/prometheus/slo.yml): regras de
+gravação `slo:*` e os alertas de orçamento de erro `SloBurnRateFast`, `SloBurnRateSlow` e `ErrorBudgetExhausted`
+([docs/14](../../docs/14-slos-e-error-budget.md)). Eles aparecem como _firing_ no Prometheus e no Grafana (_Alerting → Alert rules_).
 **Notificação** por e-mail: o Grafana repassa os alertas disparando (regra "Alerta do Prometheus") quando
 `ALERT_EMAIL_TO` e `ALERT_SMTP_HOST` estão definidos — ver
 [infra/vps-telemetry/README.md §Alertas por e-mail](../vps-telemetry/README.md#alertas-por-e-mail).
@@ -228,7 +232,7 @@ Teste simulado dos alertas, localmente:
 
 ```bash
 docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
-  prom/prometheus:v3.15.1 test rules alerts.test.yml
+  prom/prometheus:v3.15.1 test rules alerts.test.yml slo.test.yml
 ```
 
 ## Backups
@@ -327,8 +331,9 @@ docker compose -p galaxie-staging-local -f infra/portainer/stack.yml --env-file 
 
 ## O que fica de fora (próximos passos)
 
-- **Notificações de alerta**: o canal é o e-mail, pelo Grafana; falta o dono definir o SMTP (`ALERT_*`). Outros canais
-  (chat, pager) entram como mais um contact point em `infra/observability/grafana/alerting-email/`.
+- **Notificações de alerta**: push (ntfy) para o crítico e resumo diário por e-mail, pelo Grafana
+  (`ALERT_NTFY_URL` e `ALERT_*` do SMTP); roteamento em `infra/observability/grafana/entrypoint.sh` e runbook em
+  `docs/runbooks/alertas-e-monitoramento.md`.
 - **Alerta com o intervalo dinâmico**: o Live Scheduler já publica `galaxie_live_scheduler_interval_seconds`, mas o
   `LiveEventStale` segue sobre `LIVE_POLL_INTERVAL_SECONDS`: com 15 s (Pro) ele dispararia em todo intervalo de jogo
   (o poller pula o HT e os eventos em `break` ficam sem atualização). Falta excluir `break` da idade máxima e trocar a base.

@@ -153,21 +153,34 @@ beforeAll(async () => {
 
   // ── ao vivo ──
   await db.insert(sport).values({ slug: 'football', name: { 'pt-BR': 'Futebol' } });
+  const planned = await db
+    .insert(event)
+    .values([
+      {
+        sport: 'football',
+        startsAt: ago(HOUR),
+        endsAtExpected: ago(-HOUR),
+        status: 'live',
+        lastValidAt: ago(15 * MIN),
+      },
+      {
+        sport: 'football',
+        startsAt: ago(HOUR),
+        endsAtExpected: ago(-HOUR),
+        status: 'break',
+        lastValidAt: ago(2 * MIN),
+      },
+      // no plano, antes do apito: a última observação é a agenda da madrugada, mas ainda não está atrasado
+      {
+        sport: 'football',
+        startsAt: ago(-5 * MIN),
+        endsAtExpected: ago(-2 * HOUR),
+        status: 'starting',
+        lastValidAt: ago(10 * HOUR),
+      },
+    ])
+    .returning({ id: event.id });
   await db.insert(event).values([
-    {
-      sport: 'football',
-      startsAt: ago(HOUR),
-      endsAtExpected: ago(-HOUR),
-      status: 'live',
-      lastValidAt: ago(15 * MIN),
-    },
-    {
-      sport: 'football',
-      startsAt: ago(HOUR),
-      endsAtExpected: ago(-HOUR),
-      status: 'break',
-      lastValidAt: ago(2 * MIN),
-    },
     {
       sport: 'football',
       startsAt: ago(3 * HOUR),
@@ -175,7 +188,30 @@ beforeAll(async () => {
       status: 'finished',
       lastValidAt: ago(5 * HOUR),
     },
+    // fora do plano (tier 3 do espelho): o relógio o pôs em andamento pelo horário; atraso conta do apito
+    {
+      sport: 'football',
+      startsAt: ago(HOUR),
+      endsAtExpected: ago(-HOUR),
+      status: 'live',
+      lastValidAt: ago(15 * HOUR),
+    },
   ]);
+  // estado publicado pelo processo do ao vivo: plano do dia com os jogos que o poller acompanha
+  await db.insert(syncCursor).values({
+    sport: 'football',
+    endpoint: 'live:scheduler',
+    key: 'state',
+    cursor: {
+      sport: 'football',
+      intervalSeconds: 372.5,
+      ticksLeft: 31,
+      windowMinutes: 250,
+      activeEvents: 3,
+      includedEventIds: planned.map((e) => e.id),
+    },
+    updatedAt: ago(MIN),
+  });
 }, 60_000);
 
 afterAll(async () => {
@@ -293,29 +329,23 @@ describe('frescor e ao vivo', () => {
     expect(m.get('galaxie_raw_last_fetched_timestamp_seconds', { sport: 'hockey' })).toBeUndefined();
   });
 
-  it('eventos em andamento e o mais desatualizado', async () => {
+  it('eventos em andamento e o mais desatualizado, separados pela cobertura do ao vivo', async () => {
     const m = await scrape();
-    expect(m.get('galaxie_live_events', { sport: 'football' })).toBe(2);
-    const staleness = m.get('galaxie_live_event_max_staleness_seconds', { sport: 'football' })!;
+    const poller = { sport: 'football', coverage: 'poller' };
+    const clock = { sport: 'football', coverage: 'clock' };
+    expect(m.get('galaxie_live_events', poller)).toBe(3);
+    expect(m.get('galaxie_live_events', clock)).toBe(1);
+    const staleness = m.get('galaxie_live_event_max_staleness_seconds', poller)!;
     expect(staleness).toBeGreaterThan(15 * 60 - 5);
     expect(staleness).toBeLessThan(15 * 60 + 120);
+    // só o relógio: conta do apito (1 h), não da agenda de 15 h atrás
+    const byClock = m.get('galaxie_live_event_max_staleness_seconds', clock)!;
+    expect(byClock).toBeGreaterThan(60 * 60 - 5);
+    expect(byClock).toBeLessThan(60 * 60 + 120);
     expect(m.get('galaxie_live_poll_interval_seconds')).toBe(240);
   });
 
   it('estado do Live Scheduler publicado pelo processo do ao vivo', async () => {
-    await db.insert(syncCursor).values({
-      sport: 'football',
-      endpoint: 'live:scheduler',
-      key: 'state',
-      cursor: {
-        sport: 'football',
-        intervalSeconds: 372.5,
-        ticksLeft: 31,
-        windowMinutes: 250,
-        activeEvents: 3,
-      },
-      updatedAt: ago(MIN),
-    });
     const m = await scrape();
     expect(m.get('galaxie_live_scheduler_interval_seconds', { sport: 'football' })).toBe(372.5);
     expect(m.get('galaxie_live_scheduler_ticks_left', { sport: 'football' })).toBe(31);
@@ -364,9 +394,57 @@ describe('frescor e ao vivo', () => {
 
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed']) {
+    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'ops']) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
+  });
+});
+
+describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', () => {
+  // dia de orçamento padrão: vira às 06:00 de Brasília (09:00 UTC)
+  const budgetDay = new Date(realNow.getTime() - 9 * HOUR).toISOString().slice(0, 10);
+
+  beforeAll(async () => {
+    await db.execute(sql`
+      insert into ops.runtime_env (service, key, value, configured, reported_at) values
+        ('ingestor', 'SCHEDULE_LIVE_RUN', '*/2 * * * *', true, now() - interval '20 seconds'),
+        ('agents', 'AI_DAILY_USD_BUDGET', '12', true, now() - interval '30 minutes')`);
+    await db.execute(sql`
+      insert into ops.runtime_setting (key, value, value_type, updated_by) values
+        ('SCHEDULE_WTW_RUN', 'off', 'cron', 'teste'),
+        ('AI_DAILY_USD_BUDGET', '20', 'number', 'teste')`);
+    await db.execute(sql`
+      insert into ops.runtime_check (service, name, status, detail, checked_at) values
+        ('agents', 'ai-credit-check', 'fail', '{"code":"http","provider":"gemini","http":429}', now() - interval '10 minutes')`);
+    await db.execute(sql`
+      insert into ops.llm_usage (day_utc, budget_day, agent, purpose, provider, model, tier, cost_usd, outcome) values
+        (${budgetDay}::date, ${budgetDay}::date, 'wtw', 'wtw', 'gemini', 'm', 'light', 3.5, 'ok'),
+        (${budgetDay}::date, null, 'context', 'context', 'gemini', 'm', 'light', 1.25, 'ok'),
+        (${budgetDay}::date - 1, ${budgetDay}::date - 1, 'wtw', 'wtw', 'gemini', 'm', 'light', 9, 'ok')`);
+  });
+
+  it('último relato de cada serviço', async () => {
+    const m = await scrape();
+    const ingestor = m.get('galaxie_service_last_report_timestamp_seconds', { component: 'ingestor' })!;
+    expect(Date.now() / 1000 - ingestor).toBeLessThan(120);
+    const agents = m.get('galaxie_service_last_report_timestamp_seconds', { component: 'agents' })!;
+    expect(Date.now() / 1000 - agents).toBeGreaterThan(25 * 60);
+  });
+
+  it('intervalo esperado pela agenda efetiva (banco > env relatado > padrão)', async () => {
+    const m = await scrape();
+    expect(
+      m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'ingestor' }),
+    ).toBe(120);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'quota-status' })).toBe(3600);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'wtw-run' })).toBeUndefined();
+  });
+
+  it('crédito da IA e gasto do dia de orçamento contra o teto', async () => {
+    const m = await scrape();
+    expect(m.get('galaxie_ai_credit_check', { status: 'fail', provider: 'gemini' })).toBe(1);
+    expect(m.get('galaxie_ai_spend_usd', { budget_day: budgetDay })).toBeCloseTo(4.75);
+    expect(m.get('galaxie_ai_daily_budget_usd')).toBe(20);
   });
 });
 

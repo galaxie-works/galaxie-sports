@@ -32,12 +32,61 @@ describe('checkAiCredit (mesma checagem do deploy.sh)', () => {
     expect(JSON.parse(init.body as string)).toEqual({ model: 'gpt-x', input: 'ok', max_output_tokens: 16 });
   });
 
-  it('conta sem crédito: aviso com o código do provedor', async () => {
+  it('conta sem crédito: falha com o código do provedor', async () => {
     const fetch = vi.fn(async () => json(429, { error: { code: 'insufficient_quota' } }));
     expect(await checkAiCredit({ OPENAI_API_KEY: 'sk' }, fetch)).toMatchObject({
-      status: 'warn',
-      detail: { code: 'http', http: 429, error: 'insufficient_quota' },
+      status: 'fail',
+      detail: { code: 'http', http: 429, error: 'insufficient_quota', reason: 'no_credit' },
     });
+  });
+
+  it('sem crédito pela mensagem (Gemini pré-pago, Anthropic) ou 402: falha', async () => {
+    const gemini = vi.fn(async () =>
+      json(429, {
+        error: {
+          code: 429,
+          status: 'RESOURCE_EXHAUSTED',
+          message: 'Your prepayment credits are depleted. Please go to AI Studio to manage your billing.',
+        },
+      }),
+    );
+    expect(await checkAiCredit({ AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g' }, gemini)).toMatchObject({
+      status: 'fail',
+      detail: { http: 429, error: 'RESOURCE_EXHAUSTED', reason: 'no_credit' },
+    });
+    const anthropic = vi.fn(async () =>
+      json(400, {
+        type: 'error',
+        error: {
+          type: 'invalid_request_error',
+          message: 'Your credit balance is too low to access the API.',
+        },
+      }),
+    );
+    expect(
+      await checkAiCredit({ AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'k' }, anthropic),
+    ).toMatchObject({ status: 'fail', detail: { http: 400, reason: 'no_credit' } });
+    const paymentRequired = vi.fn(async () => json(402, {}));
+    expect(await checkAiCredit({ OPENAI_API_KEY: 'sk' }, paymentRequired)).toMatchObject({
+      status: 'fail',
+      detail: { http: 402, reason: 'no_credit' },
+    });
+  });
+
+  it('chave recusada (401/403): falha; erro do provedor e 400 comum: aviso', async () => {
+    const denied = vi.fn(async () => json(403, { error: { code: 403, status: 'PERMISSION_DENIED' } }));
+    expect(await checkAiCredit({ AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g' }, denied)).toMatchObject({
+      status: 'fail',
+      detail: { http: 403, reason: 'auth' },
+    });
+    const down = vi.fn(async () => json(503, { error: { code: 503, status: 'UNAVAILABLE' } }));
+    const r = await checkAiCredit({ AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g' }, down);
+    expect(r.status).toBe('warn');
+    expect(r.detail.reason).toBeUndefined();
+    const bad = vi.fn(async () =>
+      json(400, { error: { type: 'invalid_request_error', message: 'bad model' } }),
+    );
+    expect((await checkAiCredit({ OPENAI_API_KEY: 'sk' }, bad)).status).toBe('warn');
   });
 
   it('Anthropic usa a própria chave e o modelo leve dela; falha de rede vira aviso', async () => {
@@ -55,7 +104,7 @@ describe('checkAiCredit (mesma checagem do deploy.sh)', () => {
     expect((fetch.mock.calls[0] as unknown as [string])[0]).toBe('https://api.anthropic.com/v1/messages');
   });
 
-  it('Gemini usa GEMINI_API_KEY e o modelo leve dele; cota esgotada vira aviso com o status', async () => {
+  it('Gemini usa GEMINI_API_KEY e o modelo leve dele; limite de taxa (429 sem sinal de billing) é aviso', async () => {
     const fetch = vi.fn(async () => json(429, { error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }));
     const r = await checkAiCredit(
       { AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'sk' },
