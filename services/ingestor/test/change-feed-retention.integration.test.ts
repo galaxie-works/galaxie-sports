@@ -94,6 +94,32 @@ describe('pruneChangeFeed', () => {
     expect(await mark()).toBe(old[1]); // tudo o que sumiu está coberto pela marca
   });
 
+  it('respeita o piso do GapCursor do cache da demo enquanto ela ainda retomaria dele', async () => {
+    await db.delete(changeFeed);
+    await db.delete(changeFeedPrune);
+    await db.delete(webhookCursor);
+    await db.execute(sql`create schema if not exists demo_auth`);
+    await db.execute(sql`
+      create table if not exists demo_auth.cache_feed_cursor (
+        name text primary key, last_change_id bigint not null, updated_at timestamptz not null default now())`);
+    const e1 = await add('e', daysAgo(20));
+    const e2 = await add('e', daysAgo(15));
+    await add('e', daysAgo(1));
+    // a demo processou só até e1 (o cursor salvo é o piso do GapCursor dela)
+    await db.execute(
+      sql`insert into demo_auth.cache_feed_cursor (name, last_change_id) values ('demo-cache', ${e1})`,
+    );
+    const plan = await pruneChangeFeed(db, { now: NOW, retentionDays: 7, dryRun: true });
+    expect(plan).toMatchObject({ deleted: 1, webhookCursor: e1 });
+    expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(1);
+    expect(await ids()).toContain(e2);
+    // cursor parado há mais de 24 h: a demo não retoma dele (resumeMaxAgeMs), então não segura a poda
+    await db.execute(sql`update demo_auth.cache_feed_cursor set updated_at = now() - interval '2 days'`);
+    expect((await pruneChangeFeed(db, { now: NOW, retentionDays: 7 })).deleted).toBe(1);
+    expect(await ids()).not.toContain(e2);
+    await db.execute(sql`drop schema demo_auth cascade`);
+  });
+
   it('recusa retenção menor que 1 dia', async () => {
     await expect(pruneChangeFeed(db, { retentionDays: 0 })).rejects.toThrow('≥ 1 dia');
   });

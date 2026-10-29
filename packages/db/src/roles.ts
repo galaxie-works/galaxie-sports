@@ -60,9 +60,10 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
     write: ['ops', 'semantic', 'enrich', 'api', 'core.asset'],
   },
-  // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy)
+  // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
+  // piso da poda do change feed (change-feed-prune)
   ingestor: {
-    read: [...APP_SCHEMAS],
+    read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
     write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)

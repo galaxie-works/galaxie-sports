@@ -74,7 +74,13 @@ function queryParams(query: unknown): Record<string, string> {
 async function latestRaw(db: Database, sport: string, endpoint: string, hash: string) {
   const success = sql`(${apiResponse.errors} is null or ${apiResponse.errors} in ('[]'::jsonb, '{}'::jsonb))`;
   const [row] = await db
-    .select({ body: apiResponse.body, fetchedAt: apiResponse.fetchedAt })
+    .select({
+      body: apiResponse.body,
+      // o corpo pode ter voltado igual depois (raw deduplicado): o frescor conta pelo "visto em"
+      fetchedAt: sql<Date>`coalesce(${apiResponse.lastSeenAt}, ${apiResponse.fetchedAt})`.mapWith(
+        apiResponse.fetchedAt,
+      ),
+    })
     .from(apiResponse)
     .where(
       and(

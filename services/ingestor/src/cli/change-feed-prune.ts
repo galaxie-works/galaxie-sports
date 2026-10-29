@@ -30,7 +30,7 @@ await runCli(async () => {
       {
         'anterior a': result.cutoff.toISOString(),
         [values.plan ? 'seriam apagadas' : 'apagadas']: result.deleted,
-        'cursor dos webhooks': result.webhookCursor ?? '—',
+        'piso dos consumidores (webhooks, cache da demo)': result.webhookCursor ?? '—',
       },
     ]);
   } finally {

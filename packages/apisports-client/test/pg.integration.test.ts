@@ -561,3 +561,98 @@ describe('conta compartilhada entre dev e produção', () => {
     expect(waits).toEqual([25_000]);
   });
 });
+
+describe('PgRawStore: dedupe pelo hash do corpo', () => {
+  const base = {
+    provider: 'api-sports',
+    sport: 'handball',
+    apiVersion: 'v1',
+    endpoint: '/games',
+    params: { live: 'all' },
+    requestHash: 'dedupe-h1',
+    page: 1,
+    statusCode: 200,
+    results: 1,
+    errors: [],
+    quotaRemaining: 900,
+    jobId: 'job-run:x',
+  };
+  const at = (min: number) => new Date(Date.UTC(2026, 9, 21, 15, min));
+  const rows = () =>
+    db
+      .select()
+      .from(apiResponse)
+      .where(eq(apiResponse.requestHash, 'dedupe-h1'))
+      .orderBy(apiResponse.fetchedAt);
+
+  it('corpo igual ao último da requisição só estende o "visto em"; corpo novo vira linha', async () => {
+    const store = new PgRawStore(db);
+    const scope = { provider: 'api-sports', sport: 'handball', endpoint: '/games' };
+    const a = { ...base, body: { response: ['a'] }, bodyHash: 'ha', retention: 'live' as const };
+    expect(await store.save({ ...a, fetchedAt: at(0) })).toBe('inserted');
+    expect(await store.save({ ...a, fetchedAt: at(1), quotaRemaining: 899 })).toBe('seen');
+    expect(await store.save({ ...a, fetchedAt: at(2), quotaRemaining: null })).toBe('seen');
+    let r = await rows();
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ fetchedAt: at(0), lastSeenAt: at(2), seenCount: 3, quotaRemaining: 899 });
+    expect(r[0]!.retention).toBe('live');
+
+    // o frescor conta pelo "visto em": com TTL de 30 s, às 15:02:20 ainda é hit (chegou de novo às 15:02)
+    const hit = await store.findFresh('dedupe-h1', 30_000, new Date(at(2).getTime() + 20_000), scope);
+    expect(hit?.fetchedAt).toEqual(at(2));
+    expect(
+      await store.findFresh('dedupe-h1', 30_000, new Date(at(2).getTime() + 40_000), scope),
+    ).toBeUndefined();
+
+    // corpo diferente: linha nova; e A de novo depois de B também é linha nova (compara só com a última)
+    expect(await store.save({ ...a, body: { response: ['b'] }, bodyHash: 'hb', fetchedAt: at(3) })).toBe(
+      'inserted',
+    );
+    expect(await store.save({ ...a, fetchedAt: at(4) })).toBe('inserted');
+    // mesmo corpo com outro status não é a mesma resposta
+    expect(await store.save({ ...a, statusCode: 500, fetchedAt: at(5) })).toBe('inserted');
+    r = await rows();
+    expect(r.map((x) => [x.bodyHash, x.statusCode, x.seenCount])).toEqual([
+      ['ha', 200, 3],
+      ['hb', 200, 1],
+      ['ha', 200, 1],
+      ['ha', 500, 1],
+    ]);
+    // sem `retention`, a gravação é `keep`
+    await store.save({ ...base, requestHash: 'dedupe-h2', body: {}, bodyHash: 'hk', fetchedAt: at(0) });
+    const [k] = await db.select().from(apiResponse).where(eq(apiResponse.requestHash, 'dedupe-h2'));
+    expect(k).toMatchObject({ retention: 'keep', seenCount: 1, lastSeenAt: null });
+  });
+
+  it('o cliente grava o que o ao vivo busca como live e o resto como keep', async () => {
+    const body = JSON.stringify({
+      get: 'games',
+      parameters: [],
+      errors: [],
+      results: 0,
+      paging: { current: 1, total: 1 },
+      response: [],
+    });
+    const client = new ApiSportsClient({
+      apiKey: 'k',
+      store: new PgRawStore(db),
+      governor: new PgQuotaGovernor(db, () => defaultPolicy(100), now),
+      fetch: (async () => new Response(body)) as typeof globalThis.fetch,
+      clock: { now: () => now().getTime(), sleep: async () => {} },
+      rateLimiter: new RateLimiter(10),
+    });
+    await client.get({ sport: 'rugby', endpoint: '/games', params: { live: 'all' }, priority: 'LIVE' });
+    await client.get({
+      sport: 'rugby',
+      endpoint: '/games',
+      params: { date: '2026-10-21' },
+      priority: 'DAILY',
+    });
+    const r = await db
+      .select({ params: apiResponse.params, retention: apiResponse.retention })
+      .from(apiResponse)
+      .where(eq(apiResponse.sport, 'rugby'));
+    expect(r.find((x) => 'live' in x.params)?.retention).toBe('live');
+    expect(r.find((x) => 'date' in x.params)?.retention).toBe('keep');
+  });
+});

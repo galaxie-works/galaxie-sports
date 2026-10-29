@@ -210,6 +210,32 @@ groups:
           summary: 'node-exporter fora do ar: sem medida de disco'
           description: 'O alvo {{ $labels.instance }} não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
+      # Tendência do disco (lote 6): no ritmo das últimas 12 h, acaba em menos de 3 dias. Só com menos da metade
+      # livre, para um dump grande e passageiro não acordar ninguém com o disco folgado.
+      - alert: DiskFillingUp
+        expr: >-
+          predict_linear(node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|overlay"}[12h], 3 * 86400) < 0
+          and node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{job="node",fstype!~"tmpfs|overlay"} < 0.5
+        for: 1h
+        labels:
+          severity: critical
+          sinal: backup-disco
+        annotations:
+          summary: 'Disco {{ $labels.device }} acaba em menos de 3 dias no ritmo atual'
+          description: 'O espaço livre cai rápido (tendência das últimas 12 h). Veja galaxie_db_table_bytes (qual tabela cresce), o job data-retention e os dumps em /backups.'
+
+      # O banco cresceu mais de 1 GiB em 24 h: o normal é bem menos (o raw do ao vivo fica 30 dias). Uma rodada de
+      # sincronização NAS → produção também dispara, por isso é só aviso.
+      - alert: DatabaseGrowingFast
+        expr: delta(galaxie_db_database_bytes[24h]) > 1073741824
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Banco cresceu mais de 1 GiB em 24 h'
+          description: 'Veja galaxie_db_table_bytes para achar a tabela e se o job data-retention está rodando (docs/runbooks/retencao-de-dados.md).'
+
       # Consumidor do ops.change_feed (cache da demo, webhooks, purge do cache da API) com mudança pendente há mais de 10 min.
       - alert: ChangeFeedStalled
         expr: galaxie_change_feed_pending_age_seconds > 600

@@ -293,6 +293,58 @@ tests:
               summary: 'node-exporter fora do ar: sem medida de disco'
               description: 'O alvo node-exporter:9100 não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
+  - name: disco acabando em menos de 3 dias no ritmo atual
+    interval: 10m
+    input_series:
+      # 100 GB de disco, 40 GB livres caindo 1 GB por hora
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
+        values: '40000000000-166666667x30'
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",device="/dev/sda1",fstype="ext4",mountpoint="/data/promdata"}'
+        values: '100000000000x30'
+      # disco folgado (80% livre) caindo no mesmo ritmo: não avisa
+      - series: 'node_filesystem_avail_bytes{job="node",instance="node-exporter:9100",device="/dev/sdb1",fstype="ext4",mountpoint="/data/outro"}'
+        values: '80000000000-166666667x30'
+      - series: 'node_filesystem_size_bytes{job="node",instance="node-exporter:9100",device="/dev/sdb1",fstype="ext4",mountpoint="/data/outro"}'
+        values: '100000000000x30'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: DiskFillingUp
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: DiskFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: backup-disco
+              job: node
+              instance: node-exporter:9100
+              device: /dev/sda1
+              fstype: ext4
+              mountpoint: /data/promdata
+            exp_annotations:
+              summary: 'Disco /dev/sda1 acaba em menos de 3 dias no ritmo atual'
+              description: 'O espaço livre cai rápido (tendência das últimas 12 h). Veja galaxie_db_table_bytes (qual tabela cresce), o job data-retention e os dumps em /backups.'
+
+  - name: banco crescendo mais de 1 GiB por dia
+    interval: 1h
+    input_series:
+      - series: 'galaxie_db_database_bytes{job="galaxie-api",instance="api:8080"}'
+        values: '5000000000x24 7000000000x6'
+    alert_rule_test:
+      - eval_time: 23h
+        alertname: DatabaseGrowingFast
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: DatabaseGrowingFast
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: galaxie-api
+              instance: api:8080
+            exp_annotations:
+              summary: 'Banco cresceu mais de 1 GiB em 24 h'
+              description: 'Veja galaxie_db_table_bytes para achar a tabela e se o job data-retention está rodando (docs/runbooks/retencao-de-dados.md).'
+
   - name: fila do change feed parada
     interval: 1m
     input_series:
