@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/app-shell/page-header';
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { CountryLive } from '@/components/live/country-live';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { Section } from '@/components/sport/section';
@@ -14,7 +15,7 @@ import { UrlTabs } from '@/components/sport/url-tabs';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { countryCompetitionsRequest, getCountryCompetitions } from '@/lib/galaxie/api';
+import { countryCompetitionsRequest, getCountryCompetitions, liveEventsRequest } from '@/lib/galaxie/api';
 import { contentLocale } from '@/lib/i18n/config';
 import { getI18n } from '@/lib/i18n/server';
 import { plural } from '@/lib/i18n/text';
@@ -113,6 +114,9 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/paises/[co
             </div>
           </div>
         </div>
+
+        {/* jogos em andamento do país (o "N ao vivo" do card em Países); some quando não há nenhum */}
+        <CountryLive code={country.code} api={liveEventsRequest(locale, content, country.code)} />
 
         {data.sports.length === 0 ? (
           <EmptyState title={tc.empty.title} description={tc.empty.description} />

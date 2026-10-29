@@ -700,6 +700,15 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
   });
 
+  it('ao vivo do país: competição ou participante do país, como o card em Países', async () => {
+    const all = (await get('/v1/events/live')).json().data as EventBody[];
+    const br = (await get('/v1/events/live?country=br')).json().data as EventBody[];
+    expect(br.length).toBeGreaterThan(0);
+    expect(br.every((e) => all.some((a) => a.id === e.id))).toBe(true);
+    const none = (await get('/v1/events/live?country=ZZ')).json().data as EventBody[];
+    expect(none).toEqual([]);
+  });
+
   it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
     const live = (await get('/v1/events/live')).json().data as EventBody[];
     const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;
