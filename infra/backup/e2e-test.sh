@@ -19,6 +19,13 @@ run() {
     -e PGHOST="$PGHOST" -e PGPORT="$PGPORT" -e PGUSER="$PGUSER" -e PGPASSWORD="$PGPASSWORD" -e PGDATABASE="$E2E_DB" \
     "$BACKUP_IMAGE" "$@"
 }
+# Como na stack: backup, verificador e ensaios com o papel do backup (DB_URL_BACKUP; packages/db/src/roles.ts), sem
+# superusuário. Sem BACKUP_ROLE_URL, com o dono. A restauração real continua com o dono.
+run_role() {
+  docker run --rm --network "$DOCKER_NETWORK" -v "$volume:/backups" \
+    -e PGHOST="$PGHOST" -e PGPORT="$PGPORT" -e PGUSER="$PGUSER" -e PGPASSWORD="$PGPASSWORD" -e PGDATABASE="$E2E_DB" \
+    -e DB_URL_BACKUP="${BACKUP_ROLE_URL:-}" "$BACKUP_IMAGE" "$@"
+}
 psql_e2e() { run psql -X -t -A -v ON_ERROR_STOP=1 -c "$1"; }
 psql_admin() { run psql -X -t -A -v ON_ERROR_STOP=1 -d postgres -c "$1"; }
 
@@ -36,7 +43,13 @@ echo "1) dado marcador"
 psql_e2e "insert into ops.job_run (job, status) values ('e2e-marker', 'ok')" >/dev/null
 
 echo "2) backup"
-run backup.sh
+if [ -n "${BACKUP_ROLE_URL:-}" ]; then
+  # o lib.sh troca para o usuário da URL: o backup não roda como superusuário
+  # shellcheck disable=SC2016 # expandido dentro do contêiner
+  who=$(run_role sh -c '. /usr/local/lib/galaxie-backup/lib.sh && psql -X -t -A -c "select current_user || chr(32) || rolsuper from pg_roles where rolname = current_user"')
+  [ "$who" = "galaxie_backup false" ] || { echo "backup deveria rodar como galaxie_backup sem superusuário: $who" >&2; exit 1; }
+fi
+run_role backup.sh
 [ "$(psql_e2e "select status from ops.job_run where job = 'pg-backup' order by started_at desc limit 1")" = ok ]
 
 echo "3) perda de dados"
@@ -44,13 +57,13 @@ psql_e2e "delete from ops.job_run where job = 'e2e-marker'" >/dev/null
 [ "$(psql_e2e "select count(*) from ops.job_run where job = 'e2e-marker'")" = 0 ]
 
 echo "4) ensaio (--verify) não altera o banco"
-run restore.sh --verify latest
+run_role restore.sh --verify latest
 [ "$(psql_e2e "select count(*) from ops.job_run where job = 'e2e-marker'")" = 0 ]
 
 echo "4b) dump sem .sha256 só passa com --no-checksum"
 run sh -c 'f=$(ls -1t /backups/*.dump | head -n 1); mv "$f.sha256" "$f.sha256.fora"'
 if run restore.sh --verify latest >/dev/null 2>&1; then echo "restore sem checksum deveria falhar" >&2; exit 1; fi
-run restore.sh --verify --no-checksum latest
+run_role restore.sh --verify --no-checksum latest
 run sh -c 'f=$(ls -1t /backups/*.dump | head -n 1); mv "$f.sha256.fora" "$f.sha256"'
 
 echo "5) restauração real exige confirmação"
@@ -62,23 +75,29 @@ run restore.sh --yes latest
 # a execução de backup que estava em andamento no momento do dump é marcada como interrompida
 [ "$(psql_e2e "select count(*) from ops.job_run where status = 'running'")" = 0 ]
 [ -n "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_pre_restore_%'")" ]
+# o dump vai sem GRANTs (--no-privileges): depois da restauração real, o migrate aplica os papéis de novo
+# (README › Papéis do banco); MIGRATE_CMD é esse passo aqui
+if [ -n "${MIGRATE_CMD:-}" ]; then
+  echo "6b) papéis de novo depois da restauração (migrate)"
+  sh -c "$MIGRATE_CMD"
+fi
 
 echo "7) verificador (backup-check.sh) com o dump de agora"
-run backup-check.sh
+run_role backup-check.sh
 [ "$(psql_e2e "select status from ops.job_run where job = 'backup-check' order by started_at desc limit 1")" = ok ]
 
 echo "8) ensaio de restauração no schema real (banco de CI sem partidas: só ops.job_run e sem a checagem de partida)"
-run env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh
+run_role env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh
 [ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = ok ]
 [ -z "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_drill_%'")" ]
 # com a checagem padrão o banco de CI (sem core.event) falha, registra o erro e também não deixa o temporário
-if run restore-drill.sh >/dev/null 2>&1; then echo "ensaio sem partidas deveria falhar" >&2; exit 1; fi
+if run_role restore-drill.sh >/dev/null 2>&1; then echo "ensaio sem partidas deveria falhar" >&2; exit 1; fi
 [ "$(psql_e2e "select status from ops.job_run where job = 'pg-restore-drill' order by started_at desc limit 1")" = error ]
 [ -z "$(psql_admin "select datname from pg_database where datname like '${E2E_DB}_drill_%'")" ]
 
 echo "9) retenção por contagem (BACKUP_KEEP_DAILY=2)"
 run sh -c "for d in 01 02 03; do : > /backups/${E2E_DB}_202001\${d}T033000Z.dump; done"
-run env BACKUP_KEEP_DAILY=2 backup.sh
+run_role env BACKUP_KEEP_DAILY=2 backup.sh
 [ "$(run sh -c 'ls /backups/*.dump | wc -l')" = 2 ]
 [ -z "$(run sh -c 'ls /backups/*_202001*.dump 2>/dev/null')" ]
 

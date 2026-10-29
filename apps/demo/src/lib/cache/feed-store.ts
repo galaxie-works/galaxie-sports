@@ -13,7 +13,9 @@ export function pgFeedStore(db: Database): FeedStore {
   let ready: Promise<unknown> | undefined;
   const ensureCursorTable = () => {
     ready ??= (async () => {
-      await sql`create schema if not exists demo_auth`;
+      // só cria o schema quando falta: o papel da demo não tem CREATE no banco (packages/db/src/roles.ts)
+      const [schema] = await sql`select 1 as ok from pg_namespace where nspname = 'demo_auth'`;
+      if (!schema) await sql`create schema if not exists demo_auth`;
       await sql`
         create table if not exists demo_auth.cache_feed_cursor (
           name text primary key,

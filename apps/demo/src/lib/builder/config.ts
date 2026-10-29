@@ -20,6 +20,11 @@ export const WIDGET_KINDS = [
   'live_list',
   'standings',
   'where_to_watch',
+  'ai_context',
+  'match_stakes',
+  'related_videos',
+  'head_to_head',
+  'team_schedule',
 ] as const satisfies readonly WidgetKind[];
 
 export const isWidgetKind = (v: unknown): v is WidgetKind =>
@@ -44,11 +49,16 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   live_list: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
+  ai_context: ['event'],
+  match_stakes: ['event'],
+  related_videos: ['event'],
+  head_to_head: ['event'],
+  team_schedule: ['team'],
 };
 
 /**
- * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` no placar e no
- * onde assistir, `competitionId` na tabela). O widget salvo grava a entidade no arquivo instalado e o
+ * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` nos widgets de
+ * um jogo, `competitionId` na tabela e `teamId` na agenda do time). O widget salvo grava a entidade no arquivo instalado e o
  * snippet de uso vai sem props: sem ela, o componente instalado só mostraria erro.
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
@@ -56,6 +66,11 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   live_list: null,
   standings: 'competition',
   where_to_watch: 'event',
+  ai_context: 'event',
+  match_stakes: 'event',
+  related_videos: 'event',
+  head_to_head: 'event',
+  team_schedule: 'team',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -228,6 +243,18 @@ export const registryUrl = (id: string, base = REGISTRY_BASE_URL) => `${base}/r/
 export const installCommand = (id: string, base = REGISTRY_BASE_URL) =>
   `npx shadcn@latest add ${registryUrl(id, base)}`;
 
+/**
+ * Embed HTML (qualquer site: WordPress, CMS de portal, HTML puro). O script registra `<galaxie-widget>`, que
+ * lê a configuração salva em `/e/<id>.json`; a chave publicável vai no atributo `key` e só funciona nas
+ * origens permitidas dela.
+ */
+export function embedSnippet(id: string, base = REGISTRY_BASE_URL): string {
+  return [
+    `<script src="${base}/embed.js" async></script>`,
+    `<galaxie-widget widget="${id}" key="gs_pk_live_…"></galaxie-widget>`,
+  ].join('\n');
+}
+
 /** `<uuid>.json` (o segmento da rota) → id do widget, ou null. */
 export function parseRegistryParam(param: string): string | null {
   const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.json$/i.exec(param);
@@ -240,6 +267,11 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   live_list: 'GalaxieLiveList',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
+  ai_context: 'GalaxieAiContext',
+  match_stakes: 'GalaxieMatchStakes',
+  related_videos: 'GalaxieRelatedVideos',
+  head_to_head: 'GalaxieHeadToHead',
+  team_schedule: 'GalaxieTeamSchedule',
 };
 
 /**

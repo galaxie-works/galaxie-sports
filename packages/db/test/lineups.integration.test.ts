@@ -17,6 +17,7 @@ import {
   listPlatforms,
   planChannel,
   platformPlan,
+  proposeManualLineupEdit,
   resolveLineupReviewRequest,
   runMigrations,
   setLineupReviewStatus,
@@ -418,5 +419,105 @@ describe('grade: pesquisa → rascunho → aprovação', () => {
       platformId: null,
       platform: null,
     });
+  });
+});
+
+describe('grade: valor inválido vindo da fonte sinaliza, não derruba', () => {
+  const PAGE = 'https://gratis.exemplo/planos';
+  const base = (over: Partial<LineupDraftInput> = {}): LineupDraftInput => ({
+    platform: { name: 'Streaming Grátis Exemplo', kind: 'streaming', country: 'AR', sources: [PAGE] },
+    plans: [
+      { name: 'Plan Gratuito', priceAmount: 0, priceCurrency: 'ARS', priceText: 'Gratis', sources: [PAGE] },
+      { name: 'Plan Errado', priceAmount: -5, priceCurrency: 'ARS', priceText: '$ -5', sources: [PAGE] },
+      { name: 'Plan Moeda', priceAmount: 10, priceCurrency: 'peso', validTo: '31/12/2026', sources: [PAGE] },
+    ],
+    addons: [
+      {
+        kind: 'service',
+        refId: 'streaming-exemplo',
+        name: 'Streaming Exemplo',
+        priceAmount: -1,
+        priceCurrency: 'ARS',
+        priceText: '$ -1',
+        sources: [PAGE],
+      },
+    ],
+    seenAt: SEEN,
+    ...over,
+  });
+
+  it('preço 0 é plano grátis; o inválido entra sem o valor, com o valor lido e o motivo para a revisão', async () => {
+    const r = await upsertLineupDraft(db, base());
+    expect(r.flagged).toEqual([
+      { item: 'Plan Errado', flag: { field: 'price_amount', value: '-5', reason: 'Preço inválido: -5' } },
+      {
+        item: 'Plan Moeda',
+        flag: { field: 'price_currency', value: 'peso', reason: 'Moeda inválida (ISO 4217): peso' },
+      },
+      {
+        item: 'Plan Moeda',
+        flag: { field: 'valid_to', value: '31/12/2026', reason: 'Data inválida (YYYY-MM-DD): 31/12/2026' },
+      },
+      {
+        item: 'Streaming Exemplo',
+        flag: { field: 'price_amount', value: '-1', reason: 'Preço inválido: -1' },
+      },
+    ]);
+    const lineup = (await getPlatformLineup(db, r.platformId, { minReview: 'draft' }))!;
+    const plan = (name: string) => lineup.plans.find((p) => p.plan.name === name)!.plan;
+    expect(plan('Plan Gratuito')).toMatchObject({
+      priceAmount: 0,
+      priceCurrency: 'ARS',
+      priceText: 'Gratis',
+      verification: null,
+    });
+    expect(plan('Plan Errado')).toMatchObject({
+      reviewStatus: 'draft',
+      priceAmount: null,
+      priceCurrency: null,
+      priceText: null,
+      verification: { verified: false, flags: [{ field: 'price_amount', value: '-5' }] },
+    });
+    expect(plan('Plan Moeda')).toMatchObject({ priceAmount: null, validTo: null });
+    expect(lineup.addons[0]).toMatchObject({
+      priceAmount: null,
+      verification: { flags: [{ field: 'price_amount', value: '-1' }] },
+    });
+  });
+
+  it('a fonte corrigida limpa a sinalização; a edição manual aceita 0 e recusa negativo', async () => {
+    const d = base();
+    d.plans![1] = { ...d.plans![1]!, priceAmount: 1, priceText: '$ 1' };
+    const r = await upsertLineupDraft(db, d);
+    expect(r.flagged.map((f) => f.item)).toEqual(['Plan Moeda', 'Plan Moeda', 'Streaming Exemplo']);
+    const planId = r.planIds['plan-errado']!;
+    const [row] = await db.select().from(platformPlan).where(eq(platformPlan.id, planId));
+    expect(row).toMatchObject({ priceAmount: 1, priceText: '$ 1' });
+    expect(row!.verification?.flags).toBeUndefined();
+    await expect(
+      proposeManualLineupEdit(db, { type: 'plan', id: planId }, { fields: { priceAmount: -1 }, by: 'w' }),
+    ).rejects.toThrow(LineupError);
+    expect(
+      await proposeManualLineupEdit(
+        db,
+        { type: 'plan', id: planId },
+        { fields: { priceAmount: 0 }, by: 'w' },
+      ),
+    ).toBe(true);
+  });
+
+  it('data de vigência recusada depois limpa a gravada no rascunho', async () => {
+    const plan = { name: 'Plan Vigencia', validFrom: '2026-01-01', validTo: '2026-12-31', sources: [PAGE] };
+    const first = await upsertLineupDraft(db, base({ plans: [plan], addons: [] }));
+    const planId = first.planIds['plan-vigencia']!;
+    const r = await upsertLineupDraft(db, base({ plans: [{ ...plan, validTo: '31/12/2027' }], addons: [] }));
+    expect(r.flagged).toEqual([
+      expect.objectContaining({
+        item: 'Plan Vigencia',
+        flag: expect.objectContaining({ field: 'valid_to' }),
+      }),
+    ]);
+    const [row] = await db.select().from(platformPlan).where(eq(platformPlan.id, planId));
+    expect(row).toMatchObject({ validFrom: '2026-01-01', validTo: null });
   });
 });

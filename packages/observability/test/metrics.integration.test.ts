@@ -153,21 +153,34 @@ beforeAll(async () => {
 
   // ── ao vivo ──
   await db.insert(sport).values({ slug: 'football', name: { 'pt-BR': 'Futebol' } });
+  const planned = await db
+    .insert(event)
+    .values([
+      {
+        sport: 'football',
+        startsAt: ago(HOUR),
+        endsAtExpected: ago(-HOUR),
+        status: 'live',
+        lastValidAt: ago(15 * MIN),
+      },
+      {
+        sport: 'football',
+        startsAt: ago(HOUR),
+        endsAtExpected: ago(-HOUR),
+        status: 'break',
+        lastValidAt: ago(2 * MIN),
+      },
+      // no plano, antes do apito: a última observação é a agenda da madrugada, mas ainda não está atrasado
+      {
+        sport: 'football',
+        startsAt: ago(-5 * MIN),
+        endsAtExpected: ago(-2 * HOUR),
+        status: 'starting',
+        lastValidAt: ago(10 * HOUR),
+      },
+    ])
+    .returning({ id: event.id });
   await db.insert(event).values([
-    {
-      sport: 'football',
-      startsAt: ago(HOUR),
-      endsAtExpected: ago(-HOUR),
-      status: 'live',
-      lastValidAt: ago(15 * MIN),
-    },
-    {
-      sport: 'football',
-      startsAt: ago(HOUR),
-      endsAtExpected: ago(-HOUR),
-      status: 'break',
-      lastValidAt: ago(2 * MIN),
-    },
     {
       sport: 'football',
       startsAt: ago(3 * HOUR),
@@ -175,7 +188,30 @@ beforeAll(async () => {
       status: 'finished',
       lastValidAt: ago(5 * HOUR),
     },
+    // fora do plano (tier 3 do espelho): o relógio o pôs em andamento pelo horário; atraso conta do apito
+    {
+      sport: 'football',
+      startsAt: ago(HOUR),
+      endsAtExpected: ago(-HOUR),
+      status: 'live',
+      lastValidAt: ago(15 * HOUR),
+    },
   ]);
+  // estado publicado pelo processo do ao vivo: plano do dia com os jogos que o poller acompanha
+  await db.insert(syncCursor).values({
+    sport: 'football',
+    endpoint: 'live:scheduler',
+    key: 'state',
+    cursor: {
+      sport: 'football',
+      intervalSeconds: 372.5,
+      ticksLeft: 31,
+      windowMinutes: 250,
+      activeEvents: 3,
+      includedEventIds: planned.map((e) => e.id),
+    },
+    updatedAt: ago(MIN),
+  });
 }, 60_000);
 
 afterAll(async () => {
@@ -293,29 +329,23 @@ describe('frescor e ao vivo', () => {
     expect(m.get('galaxie_raw_last_fetched_timestamp_seconds', { sport: 'hockey' })).toBeUndefined();
   });
 
-  it('eventos em andamento e o mais desatualizado', async () => {
+  it('eventos em andamento e o mais desatualizado, separados pela cobertura do ao vivo', async () => {
     const m = await scrape();
-    expect(m.get('galaxie_live_events', { sport: 'football' })).toBe(2);
-    const staleness = m.get('galaxie_live_event_max_staleness_seconds', { sport: 'football' })!;
+    const poller = { sport: 'football', coverage: 'poller' };
+    const clock = { sport: 'football', coverage: 'clock' };
+    expect(m.get('galaxie_live_events', poller)).toBe(3);
+    expect(m.get('galaxie_live_events', clock)).toBe(1);
+    const staleness = m.get('galaxie_live_event_max_staleness_seconds', poller)!;
     expect(staleness).toBeGreaterThan(15 * 60 - 5);
     expect(staleness).toBeLessThan(15 * 60 + 120);
+    // só o relógio: conta do apito (1 h), não da agenda de 15 h atrás
+    const byClock = m.get('galaxie_live_event_max_staleness_seconds', clock)!;
+    expect(byClock).toBeGreaterThan(60 * 60 - 5);
+    expect(byClock).toBeLessThan(60 * 60 + 120);
     expect(m.get('galaxie_live_poll_interval_seconds')).toBe(240);
   });
 
   it('estado do Live Scheduler publicado pelo processo do ao vivo', async () => {
-    await db.insert(syncCursor).values({
-      sport: 'football',
-      endpoint: 'live:scheduler',
-      key: 'state',
-      cursor: {
-        sport: 'football',
-        intervalSeconds: 372.5,
-        ticksLeft: 31,
-        windowMinutes: 250,
-        activeEvents: 3,
-      },
-      updatedAt: ago(MIN),
-    });
     const m = await scrape();
     expect(m.get('galaxie_live_scheduler_interval_seconds', { sport: 'football' })).toBe(372.5);
     expect(m.get('galaxie_live_scheduler_ticks_left', { sport: 'football' })).toBe(31);

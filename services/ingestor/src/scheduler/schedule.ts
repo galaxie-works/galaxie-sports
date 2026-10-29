@@ -130,6 +130,24 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 30 * MINUTE,
   },
   {
+    name: 'data-retention',
+    description:
+      'Retenção dos dados que só crescem (docs/04 §1.1): raw do ao vivo com mais de 30 dias (fica a última resposta de cada requisição), ledger de IA com mais de 90 dias (agregado por dia antes), job_run, quota_ledger, job_request, normalize_failure e entregas de webhook',
+    cron: '20 3 * * *',
+    script: 'dist/cli/data-retention.js',
+    args: [],
+    timeoutMs: 60 * MINUTE,
+  },
+  {
+    name: 'fixture-people',
+    description:
+      'Preenche quem jogou e quem dirigiu cada partida (football_fixture.player_pids/coach_pids) nas linhas anteriores ao trigger, em lotes com pausa; sem linha nula, só confere e sai',
+    cron: '25 4 * * *',
+    script: 'dist/cli/fixture-people.js',
+    args: [],
+    timeoutMs: 60 * MINUTE,
+  },
+  {
     name: 'quota-status',
     description: 'Lê /status de cada API (não consome cota) e reconcilia o Quota Governor',
     cron: '5 * * * *',

@@ -182,9 +182,10 @@ export async function rawFreshness(
   );
   const rows = await db.execute<{ sport: string; last_fetched_at: string | Date | null }>(sql`
     select s.sport,
-           (select max(r.fetched_at) from raw.api_response r
+           (select max(coalesce(r.last_seen_at, r.fetched_at)) from raw.api_response r
              where r.sport = s.sport
-               and r.fetched_at >= now() - make_interval(hours => ${windowHours}::int)) as last_fetched_at
+               and coalesce(r.last_seen_at, r.fetched_at) >= now() - make_interval(hours => ${windowHours}::int))
+             as last_fetched_at
     from (values ${list}) as s(sport)
   `);
   return rows
@@ -192,10 +193,22 @@ export async function rawFreshness(
     .map((r) => ({ sport: r.sport, lastFetchedAt: new Date(r.last_fetched_at!) }));
 }
 
+/**
+ * Quem deveria atualizar o jogo em andamento: `poller` = está no plano publicado pelo processo do ao vivo
+ * (`includedEventIds` em ops.sync_cursor); `clock` = só o relógio dos eventos o moveu pelo horário (fora do
+ * catálogo, abaixo de LIVE_MIN_PRIORITY ou esporte sem ao vivo), e a fonte só confirma depois (reconciliação
+ * ou agenda D-1 do sync diário).
+ */
+export type LiveCoverage = 'poller' | 'clock';
+
 export interface LiveRow {
   sport: string;
+  coverage: LiveCoverage;
   events: number;
-  /** Maior idade (s) da última atualização válida entre os eventos ao vivo do esporte. */
+  /**
+   * Maior idade (s) da última atualização válida entre os eventos ao vivo do esporte, contada no máximo desde
+   * o apito: antes dele a última observação é a agenda do sync, e o `live` da fonte ainda não traz o jogo.
+   */
   maxStalenessSeconds: number;
 }
 
@@ -203,16 +216,34 @@ export interface LiveRow {
 export const LIVE_STATUSES = ['starting', 'live', 'break'] as const;
 
 export async function liveEvents(db: Database): Promise<LiveRow[]> {
-  const rows = await db.execute<{ sport: string; events: number; max_staleness: number | string | null }>(sql`
-    select sport,
+  const rows = await db.execute<{
+    sport: string;
+    coverage: LiveCoverage;
+    events: number;
+    max_staleness: number | string | null;
+  }>(sql`
+    with covered as (
+      select distinct c.sport, ids.id
+      from ops.sync_cursor c
+      cross join lateral jsonb_array_elements_text(
+        case when jsonb_typeof(c.cursor->'includedEventIds') = 'array' then c.cursor->'includedEventIds'
+             else '[]'::jsonb end
+      ) as ids(id)
+      where c.endpoint = 'live:scheduler' and c.key = 'state'
+    )
+    select e.sport,
+           case when cv.id is null then 'clock' else 'poller' end as coverage,
            count(*)::int as events,
-           extract(epoch from max(now() - coalesce(last_valid_at, updated_at)))::float8 as max_staleness
-    from core.event
-    where status in ('starting', 'live', 'break')
-    group by sport
+           extract(epoch from max(now() - greatest(coalesce(e.last_valid_at, e.updated_at), e.starts_at)))::float8
+             as max_staleness
+    from core.event e
+    left join covered cv on cv.sport = e.sport and cv.id = e.id::text
+    where e.status in ('starting', 'live', 'break')
+    group by 1, 2
   `);
   return rows.map((r) => ({
     sport: r.sport,
+    coverage: r.coverage,
     events: Number(r.events),
     maxStalenessSeconds: Math.max(0, Number(r.max_staleness ?? 0)),
   }));
@@ -259,7 +290,10 @@ export async function liveSchedulerStates(db: Database): Promise<LiveSchedulerRo
 }
 
 export interface ChangeFeedConsumerRow {
-  /** `demo-cache:<nome>` (demo_auth.cache_feed_cursor) ou `webhooks:<nome>` (api.webhook_cursor). */
+  /**
+   * `demo-cache:<nome>` (demo_auth.cache_feed_cursor), `webhooks:<nome>` (api.webhook_cursor) ou `api:<nome>`
+   * (api.change_feed_cursor: o purge do cache da API, `api:cache-purge`).
+   */
   consumer: string;
   /** Mudanças depois do cursor (contadas até 10 000). */
   pending: number;
@@ -275,7 +309,10 @@ export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsu
   const [reg] = await db.execute<{ demo: boolean }>(
     sql`select to_regclass('demo_auth.cache_feed_cursor') is not null as demo`,
   );
-  const sources = [sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`];
+  const sources = [
+    sql`select 'webhooks:' || name as consumer, last_change_id from api.webhook_cursor`,
+    sql`select 'api:' || name, last_change_id from api.change_feed_cursor`,
+  ];
   if (reg?.demo)
     sources.push(sql`select 'demo-cache:' || name, last_change_id from demo_auth.cache_feed_cursor`);
   const rows = await db.execute<{ consumer: string; pending: number; age: number | string | null }>(sql`
@@ -334,6 +371,59 @@ export async function opsState(db: Database): Promise<OpsStateRow> {
     reported: reported.map((r) => ({ service: r.service, key: r.key, value: r.value })),
     lastReport: [...last].map(([service, at]) => ({ service, at })),
     aiCredit: c ? { status: c.status, provider, checkedAt: new Date(c.checked_at) } : null,
+  };
+}
+
+export interface TableSizeRow {
+  /** `schema.tabela`. */
+  table: string;
+  /** Tabela + índices + TOAST. */
+  bytes: number;
+}
+
+export interface DbSizeData {
+  databaseBytes: number;
+  tables: TableSizeRow[];
+}
+
+/** Schemas da aplicação olhados no tamanho por tabela. */
+const SIZE_SCHEMAS = [
+  'raw',
+  'core',
+  'ops',
+  'api',
+  'enrich',
+  'semantic',
+  'multisport',
+  'equestrian',
+  'demo_auth',
+];
+
+/**
+ * Tamanho do banco e das maiores tabelas (só catálogo e stat dos arquivos, sem varrer dados). As que a retenção
+ * poda (raw.api_response, ops.change_feed, ops.llm_usage...) aparecem sempre, mesmo fora das maiores.
+ */
+export async function dbSizes(db: Database, limit = 15): Promise<DbSizeData> {
+  const always = ['raw.api_response', 'ops.change_feed', 'ops.llm_usage', 'ops.job_run', 'ops.quota_ledger'];
+  const rows = await db.execute<{ table: string; bytes: number; database_bytes: number }>(sql`
+    with t as (
+      select n.nspname || '.' || c.relname as table, pg_total_relation_size(c.oid)::float8 as bytes
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where c.relkind in ('r', 'p')
+         and n.nspname in (${sql.join(
+           SIZE_SCHEMAS.map((s) => sql`${s}`),
+           sql`, `,
+         )})
+    ), ranked as (select t.*, row_number() over (order by bytes desc) as rk from t)
+    select ranked.table, ranked.bytes, pg_database_size(current_database())::float8 as database_bytes
+      from ranked
+     where rk <= ${limit} or ranked.table in (${sql.join(
+       always.map((s) => sql`${s}`),
+       sql`, `,
+     )})`);
+  return {
+    databaseBytes: Number(rows[0]?.database_bytes ?? 0),
+    tables: rows.map((r) => ({ table: r.table, bytes: Number(r.bytes) })),
   };
 }
 

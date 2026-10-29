@@ -10,7 +10,7 @@ import { registerCors } from '../security/cors.js';
 import { registerSecurityHeaders } from '../security/headers.js';
 import type { ChangeStream } from './change-stream.js';
 import type { ConnectionLimiter } from './connection-limiter.js';
-import { streamRoutes } from './sse.js';
+import { processLimitRetryAfter, streamRoutes, type SseMetrics } from './sse.js';
 import { StreamTokenSigner } from './stream-token.js';
 
 const ctx: TenantContext = {
@@ -54,6 +54,8 @@ async function harness(options: {
   reauthenticate?: (maxAgeMs?: number) => Promise<TenantContext>;
   cors?: boolean;
   tenant?: TenantContext;
+  maxConnections?: number;
+  metrics?: SseMetrics;
 }): Promise<string> {
   app = Fastify();
   registerErrorHandling(app);
@@ -78,8 +80,12 @@ async function harness(options: {
       db: {} as Database,
       stream,
       limiter: options.limiter,
-      options: { heartbeatMs: 30 },
+      options: {
+        heartbeatMs: 30,
+        ...(options.maxConnections != null ? { maxConnections: options.maxConnections } : {}),
+      },
       tokens: new StreamTokenSigner(),
+      metrics: options.metrics,
     });
   });
   await app.listen({ host: '127.0.0.1', port: 0 });
@@ -117,6 +123,82 @@ describe('GET /v1/stream — plano trial', () => {
     expect(c.res()!.statusCode).toBe(403);
     expect(c.body()).toContain('MODULE_NOT_IN_PLAN');
     expect(calls.acquire).toBe(0);
+  });
+});
+
+describe('GET /v1/stream — teto de conexões do processo', () => {
+  function recordingMetrics() {
+    const seen = { open: [] as number[], rejected: [] as string[] };
+    const metrics: SseMetrics = {
+      connections: (n) => seen.open.push(n),
+      rejected: (r) => seen.rejected.push(r),
+    };
+    return { metrics, seen };
+  }
+
+  it('acima do teto: 503 com Retry-After, sem tocar no limite do tenant; a vaga volta quando um stream fecha', async () => {
+    const { limiter, calls } = spyLimiter();
+    const { metrics, seen } = recordingMetrics();
+    const url = await harness({ limiter, maxConnections: 2, metrics });
+    const a = connect(url);
+    const b = connect(url);
+    await expect.poll(() => a.body() + b.body()).toMatch(/ready[\s\S]*ready/);
+    expect(seen.open.at(-1)).toBe(2);
+
+    const c = connect(url);
+    await expect.poll(() => c.ended()).toBe(true);
+    expect(c.res()!.statusCode).toBe(503);
+    const retryAfter = Number(c.res()!.headers['retry-after']);
+    expect(retryAfter).toBeGreaterThanOrEqual(15);
+    expect(retryAfter).toBeLessThan(45);
+    expect(c.body()).toContain('DEGRADED');
+    expect(calls.acquire).toBe(2);
+    expect(seen.rejected).toEqual(['process_limit']);
+
+    a.req.destroy();
+    await expect.poll(() => seen.open.at(-1)).toBe(1);
+    const d = connect(url);
+    await expect.poll(() => d.body()).toContain('event: ready');
+    expect(d.res()!.statusCode).toBe(200);
+    expect(seen.open.at(-1)).toBe(2);
+    b.req.destroy();
+    d.req.destroy();
+  });
+
+  it('aberturas simultâneas esperando o Valkey também contam no teto', async () => {
+    let open!: (v: boolean) => void;
+    const gate = new Promise<boolean>((r) => (open = r));
+    const { limiter, calls } = spyLimiter(gate);
+    const url = await harness({ limiter, maxConnections: 1 });
+    const a = connect(url);
+    await expect.poll(() => calls.acquire).toBe(1);
+    const b = connect(url);
+    await expect.poll(() => b.ended()).toBe(true);
+    expect(b.res()!.statusCode).toBe(503);
+    open(true);
+    await expect.poll(() => a.body()).toContain('event: ready');
+    a.req.destroy();
+  });
+
+  it('recusa do tenant (429) e cliente que cai no acquire devolvem a vaga do processo', async () => {
+    const refused: ConnectionLimiter = {
+      acquire: async () => false,
+      renew: async () => {},
+      release: async () => {},
+    };
+    const { metrics, seen } = recordingMetrics();
+    const url = await harness({ limiter: refused, maxConnections: 1, metrics });
+    for (let i = 0; i < 3; i += 1) {
+      const c = connect(url);
+      await expect.poll(() => c.ended()).toBe(true);
+      expect(c.res()!.statusCode).toBe(429);
+    }
+    expect(seen.rejected).toEqual(['tenant_limit', 'tenant_limit', 'tenant_limit']);
+  });
+
+  it('Retry-After espalhado entre 15 e 44 s', () => {
+    expect(processLimitRetryAfter(() => 0)).toBe(15);
+    expect(processLimitRetryAfter(() => 0.999)).toBe(44);
   });
 });
 

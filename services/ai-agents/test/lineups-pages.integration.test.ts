@@ -313,3 +313,65 @@ describe('lineups-curate: curadoria interna com prévia', () => {
     expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceCurrency).toBe('BRL');
   });
 });
+
+describe('lineups-pages: preço 0 e erros não derrubam o job', () => {
+  it('plano com "R$ 0" na página é plano grátis: preço 0 e "Grátis", sem sinalização', async () => {
+    const free = { ...fixture, text: fixture.text.replaceAll('R$ 149,90', 'R$ 0') };
+    const { reader } = readerWith(() => free, db);
+    const later = new Date(NOW.getTime() + 2 * 86_400_000);
+    const [out] = await confirmFromPages(
+      { db, config, reader, now: () => later },
+      { countries: ['BR'], platformSlug: 'br-plataforma-a', force: true },
+    );
+    expect(out!.error).toBeUndefined();
+    expect(out!.flagged).toEqual([]);
+    expect(out!.plans.find((p) => p.name === 'Plano Futebol')!.price).toBe(0);
+    const lineup = (await getPlatformLineup(db, platformId, {
+      minReview: 'draft',
+      includeUnverified: true,
+    }))!;
+    const futebol = lineup.plans.find((p) => p.plan.name === 'Plano Futebol')!;
+    expect([futebol.plan.priceAmount, futebol.plan.priceCurrency, futebol.plan.priceText]).toEqual([
+      0,
+      'BRL',
+      'Grátis',
+    ]);
+    expect(futebol.plan.verification?.flags).toBeUndefined();
+    // a grade do plano e os outros planos seguem
+    expect(futebol.channels.filter((c) => c.access === 'included').map((c) => c.channelId)).toEqual(
+      expect.arrayContaining(['globo', 'cazetv']),
+    );
+    expect(lineup.plans.find((p) => p.plan.name === 'Plano TV')!.plan.priceAmount).toBe(99.9);
+  });
+
+  it('erro numa plataforma fica no resultado dela e a leitura segue nas outras', async () => {
+    const BROKEN = 'https://plataforma-0.exemplo/planos';
+    await upsertLineupDraft(db, {
+      platform: {
+        name: 'Plataforma 0',
+        kind: 'vmvpd',
+        country: 'BR',
+        website: 'https://plataforma-0.exemplo',
+        sources: [BROKEN],
+      },
+      plans: [{ name: 'Plano Único', url: BROKEN, sources: [BROKEN] }],
+      seenAt: NOW,
+    });
+    const { reader } = readerWith(() => fixture, db);
+    const read = reader.read.bind(reader);
+    reader.read = async (url, ...rest) => {
+      if (url === BROKEN) throw new Error('falha inesperada na leitura');
+      return read(url, ...rest);
+    };
+    const logs: string[] = [];
+    const outs = await confirmFromPages(
+      { db, config, reader, now: () => NOW, log: (m) => logs.push(m) },
+      { countries: ['BR'] },
+    );
+    const bySlug = new Map(outs.map((o) => [o.slug, o]));
+    expect(bySlug.get('br-plataforma-0')).toMatchObject({ error: 'falha inesperada na leitura', plans: [] });
+    expect(bySlug.get('br-plataforma-a')!.error).toBeUndefined();
+    expect(bySlug.get('br-plataforma-a')!.plans.length).toBeGreaterThan(0);
+    expect(logs).toContain('br-plataforma-0: erro — falha inesperada na leitura');
+  });
+});

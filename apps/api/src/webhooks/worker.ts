@@ -200,6 +200,8 @@ export class WebhookWorker {
       if (!this.cursor || state.lastChangeId > this.cursor.floor)
         this.cursor = new GapCursor(state.lastChangeId, {
           ...(this.options.gapTimeoutMs != null ? { gapTimeoutMs: this.options.gapTimeoutMs } : {}),
+          onAbandon: (gap) =>
+            this.options.logger?.warn({ gap }, 'webhooks: lacuna do change feed abandonada'),
         });
       const cursor = this.cursor;
 

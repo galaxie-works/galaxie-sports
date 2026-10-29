@@ -3,12 +3,21 @@
 Widgets React da Galaxie Sports e o gerador do item de registry shadcn usado pelo **Galaxie Sports Builder**.
 A operadora monta o widget com a identidade dela na demo e instala no app dela com `npx shadcn add <url>`.
 
-| `kind`           | Componente       | No registry             | Props obrigatórias  |
-| ---------------- | ---------------- | ----------------------- | ------------------- |
-| `match_card`     | `MatchCard`      | `GalaxieMatchCard`      | `eventId`           |
-| `live_list`      | `LiveList`       | `GalaxieLiveList`       | —                   |
-| `standings`      | `StandingsTable` | `GalaxieStandingsTable` | `competitionId`     |
-| `where_to_watch` | `WhereToWatch`   | `GalaxieWhereToWatch`   | `eventId`, `market` |
+| `kind`           | Componente       | No registry             | Props obrigatórias  | Rota da API (módulo)                                 |
+| ---------------- | ---------------- | ----------------------- | ------------------- | ---------------------------------------------------- |
+| `match_card`     | `MatchCard`      | `GalaxieMatchCard`      | `eventId`           | `/v1/events/{id}`                                    |
+| `live_list`      | `LiveList`       | `GalaxieLiveList`       | —                   | `/v1/events`, `/v1/events/live`                      |
+| `standings`      | `StandingsTable` | `GalaxieStandingsTable` | `competitionId`     | `/v1/competitions/{id}/seasons/{s}/standings`        |
+| `where_to_watch` | `WhereToWatch`   | `GalaxieWhereToWatch`   | `eventId`, `market` | `/v1/events/{id}/where-to-watch` (`where_to_watch`)  |
+| `ai_context`     | `AiContext`      | `GalaxieAiContext`      | `eventId`           | `/v1/events/{id}/context` (`live_intelligence`)      |
+| `match_stakes`   | `MatchStakes`    | `GalaxieMatchStakes`    | `eventId`           | `/v1/events/{id}` (stakes, `fan_tags`, `cheer`)      |
+| `related_videos` | `RelatedVideos`  | `GalaxieRelatedVideos`  | `eventId`           | `/v1/events/{id}/related` (add-on `related_content`) |
+| `head_to_head`   | `HeadToHead`     | `GalaxieHeadToHead`     | `eventId`           | `/v1/events/{id}/h2h`                                |
+| `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
+
+Sem módulo indicado, a rota é do `core_data`. Uma chave publicável presa a um widget só alcança os módulos do
+tipo dele (`WIDGET_KIND_MODULES` em `@galaxie/db`); o tenant sem o módulo vê o aviso de 403 no lugar do widget.
+Os vídeos tocam no player oficial do YouTube dentro do widget (só `https://www.youtube.com/...` vira iframe).
 
 Os componentes só dependem de React (18 ou 19), não usam Tailwind nem Next e buscam os dados na API pública
 (`/v1/...`) com a chave publicável. Têm estados de carregamento, erro (com o 403 de chave sem o módulo
@@ -48,12 +57,37 @@ o aviso de chave ausente, sem chamar a API.
 Polling: 30 s com o jogo ao vivo, 1 min nos 30 min antes do início; jogo agendado mais longe acorda quando entra
 nessa janela (no máximo a cada 6 h). Encerrado, adiado ou cancelado não atualiza mais.
 
+## Embed HTML (qualquer site)
+
+Para portais, WordPress e sites sem React: o script registra o elemento `<galaxie-widget>` e cada elemento
+lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, entidade padrão e base da API).
+
+```html
+<script src="https://sports.galaxie.works/embed.js" async></script>
+<galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
+<!-- opcionais: event-id, competition-id, team-id, locale, market -->
+```
+
+- O widget desenha num Shadow DOM: o CSS do tema do site não entra e o do widget não sai.
+- As chamadas à API saem da página do portal, então a API confere a origem do site contra as origens
+  permitidas da chave publicável. A chave copiada para outro domínio não funciona.
+- Salvar o widget no Builder muda o visual em todos os sites (cache de 60 s na configuração).
+- `scripts/build-embed.mjs` (no `build`) empacota `src/embed/entry.ts` com o React em `dist/embed.js` e
+  exporta o mesmo texto em `@galaxie/widgets/embed-script` (`EMBED_SCRIPT`, `EMBED_VERSION`), que a rota
+  `/embed.js` da demo serve. Cerca de 80 KB com gzip, quase tudo React.
+
 ## Uso como pacote (demo e Builder)
 
 ```tsx
 import { DEFAULT_THEMES, GalaxieWidgetProvider, MatchCard, createPreviewFetch } from '@galaxie/widgets';
 
-<GalaxieWidgetProvider baseUrl={apiUrl} publishableKey={key} theme={DEFAULT_THEMES.dark} locale="pt-BR" market="BR">
+<GalaxieWidgetProvider
+  baseUrl={apiUrl}
+  publishableKey={key}
+  theme={DEFAULT_THEMES.dark}
+  locale="pt-BR"
+  market="BR"
+>
   <MatchCard eventId={id} />
 </GalaxieWidgetProvider>;
 
