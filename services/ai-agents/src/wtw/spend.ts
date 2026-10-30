@@ -196,6 +196,12 @@ export async function reapStaleResearch(db: Database, now: Date): Promise<number
       // o fim real não se sabe: conta do teto (a espera depois da falha corre dali, não de agora)
       finishedAt: sql`${wtwResearch.startedAt} + ${`${WTW_RESEARCH_STALE_MS / 60_000} minutes`}::interval`,
       error: 'interrompida: o processo terminou antes de fechar a pesquisa',
+      // o provedor pode ter cobrado a chamada interrompida: entra a estimativa do tipo no teto do
+      // mercado, como no timeout (`failureUsage`)
+      costUsd: sql`coalesce(${wtwResearch.costUsd}, 0) + (case ${wtwResearch.kind} ${sql.join(
+        Object.entries(DEFAULT_CALL_USD).map(([k, v]) => sql`when ${k} then ${v}::numeric`),
+        sql` `,
+      )} else 0 end)`,
     })
     .where(
       and(

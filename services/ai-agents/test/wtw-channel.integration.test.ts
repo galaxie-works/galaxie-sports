@@ -643,6 +643,8 @@ describe('canal do jogo: teto diário por mercado', () => {
       status: 'failed',
       failures: 1,
       error: expect.stringMatching(/interrompida/),
+      // a chamada interrompida pode ter sido cobrada: a estimativa entra no teto do mercado
+      costUsd: '0.150000',
     });
   });
 
