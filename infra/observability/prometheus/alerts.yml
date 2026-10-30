@@ -33,6 +33,9 @@ groups:
       # Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min (job
       # que leva mais que o intervalo pula horários). Job que nunca teve sucesso conta da primeira execução. Job
       # desligado na agenda não tem intervalo e fica de fora; job que nunca rodou: SchedulerHeartbeatStale.
+      # Job com execução em andamento não está atrasado: o live-run fica no ar a janela inteira do ao vivo (horas) e
+      # só registra sucesso ao sair. Execução travada esbarra no tempo limite do job e vira erro; o ao vivo parado
+      # com jogo em campo é o LiveEventStale; execução órfã de um scheduler que caiu é fechada na volta dele.
       - alert: JobOverdue
         expr: >-
           (
@@ -40,6 +43,7 @@ groups:
           )
           > on(job_name) group_left(component)
           clamp_min(2 * galaxie_job_expected_interval_seconds, 1800)
+          unless on(job_name) galaxie_job_running_since_timestamp_seconds
         for: 10m
         labels:
           severity: warning
@@ -255,22 +259,23 @@ groups:
           summary: 'Coletor de métricas {{ $labels.collector }} falhando'
           description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'
 
-      # NFR de p95 ≤ 150 ms com cache quente: só vale com tráfego (≥ 1 req/s nas rotas da API). Abaixo disso quase toda
-      # requisição é MISS (o TTL do ao vivo é 10 s) e o p95 de 5 min vira o tempo de uma ou duas montagens frias (#450).
-      # Fora /metrics, /health e /internal, como no p99 por rota.
+      # p95 das rotas de cliente (fora /metrics, /health, /internal) e só com tráfego: ≥ 0,2 req/s, ~60 requisições na
+      # janela. Abaixo disso o cache de 10 s do ao vivo nunca está quente e o p95 é a requisição mais lenta da janela
+      # (#450: 0,03 req/s em jogo ao vivo, cada /v1/events/live montado do zero). Rota lenta com pouco tráfego fica
+      # com o ApiRouteLatencyP99High e o SLO de 1 s.
       - alert: ApiLatencyP95High
         expr: >-
           histogram_quantile(0.95,
             sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m]))
           ) > 0.15
           and on ()
-          sum(rate(galaxie_http_request_duration_seconds_count{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m])) > 1
+          sum(rate(galaxie_http_request_duration_seconds_count{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m])) > 0.2
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: 'p95 da API acima de 150 ms'
-          description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente, com 1 req/s ou mais nas rotas da API).'
+          description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente).'
 
       # p99 por rota (o p95 acima mistura todas): uma rota quente que ficou lenta (placar ao vivo sem cache, consulta
       # sem índice) aparece mesmo com o resto rápido. Só rota com tráfego (≥ 30 req/min, para o p99 não ser uma

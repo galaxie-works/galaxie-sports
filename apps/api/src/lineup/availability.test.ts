@@ -250,7 +250,7 @@ describe('montagem das plataformas', () => {
   });
 
   it('logo da plataforma: o asset dela; senão, o da entrada dela na biblioteca', () => {
-    const book = new LogoBook(
+    let book = new LogoBook(
       new Map([
         [
           'streaming_exemplo',
@@ -290,6 +290,36 @@ describe('montagem das plataformas', () => {
     expect(
       book.platform({ ...STREAMING, broadcasterId: 'streaming_exemplo', logoAssetId: 'asset-3' }).logo,
     ).toBe('https://cdn.test/s.png');
+    // versão para o tema escuro enviada no painel: vale no lugar da do acervo, com o logo próprio ou o da biblioteca
+    book = new LogoBook(
+      new Map([
+        [
+          'streaming_exemplo',
+          {
+            name: 'Streaming Exemplo',
+            logo: 'https://cdn.test/s.png',
+            logo_dark: 'https://cdn.test/s-dark.png',
+          },
+        ],
+      ]),
+      new Map([
+        [
+          'asset-2',
+          { url: 'https://cdn.test/acervo.svg', darkUrl: 'https://cdn.test/acervo-dark.svg', credit: null },
+        ],
+        ['asset-dark', { url: 'https://cdn.test/painel-dark.svg', darkUrl: null, credit: null }],
+      ]),
+    );
+    expect(
+      book.platform({ ...OPERATOR, logoAssetId: 'asset-2', customLogoDarkAssetId: 'asset-dark' }).logo_dark,
+    ).toBe('https://cdn.test/painel-dark.svg');
+    expect(
+      book.platform({
+        ...STREAMING,
+        broadcasterId: 'streaming_exemplo',
+        customLogoDarkAssetId: 'asset-dark',
+      }),
+    ).toMatchObject({ logo: 'https://cdn.test/s.png', logo_dark: 'https://cdn.test/painel-dark.svg' });
   });
 
   it('crédito do logo: autor quando há, sempre a fonte e a licença', () => {

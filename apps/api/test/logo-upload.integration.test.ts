@@ -203,6 +203,33 @@ describe('logo enviado no painel até a URL servida pela API', () => {
       .toBe(first);
   });
 
+  it('versão para o tema escuro: sai como dark_url e logo_dark, sem trocar o logo claro', async () => {
+    const light = (await broadcasterLogo())!.url;
+    const darkUrl = async () =>
+      ((await get('/v1/broadcasters/canal_exemplo')).json().logo as { dark_url: string | null } | null)
+        ?.dark_url ?? null;
+    const wtwDark = async () =>
+      (
+        (await get(`/v1/events/${eventId}/where-to-watch?country=BR`)).json().options as {
+          logo_dark: string | null;
+        }[]
+      )[0]!.logo_dark;
+    const res = await uploadLogo(db, objects, {
+      target: { type: 'broadcaster', id: 'canal_exemplo' },
+      body: svg('#ffffff'),
+      by: ADMIN,
+      variant: 'dark',
+    });
+    const url = `${ASSETS}/${res.storageKey}`;
+    await expect.poll(darkUrl, { timeout: 5_000, interval: 50 }).toBe(url);
+    await expect.poll(wtwDark, { timeout: 5_000, interval: 50 }).toBe(url);
+    expect((await broadcasterLogo())!.url).toBe(light);
+    expect(await revertCustomLogo(db, { type: 'broadcaster', id: 'canal_exemplo' }, ADMIN, 'dark')).toBe(
+      true,
+    );
+    await expect.poll(darkUrl, { timeout: 5_000, interval: 50 }).toBeNull();
+  });
+
   it('plataforma: o logo enviado sai em /v1/platforms (purga pelo trigger da grade)', async () => {
     const logo = async () =>
       ((await get('/v1/platforms?country=BR')).json().data as { id: string; logo: string | null }[]).find(

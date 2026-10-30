@@ -37,6 +37,7 @@
 #  10. notas de versão: tag deploy-AAAA-MM-DD.N e release no GitHub com os PRs desde o deploy anterior
 #  11. lineup-render (perfil render): construída na própria VPS quando a pasta muda, com a tag da versão do
 #      Playwright, em até LR_BUILD_MIN minutos (padrão 15) e só se couber no teto; nunca falha o deploy
+#  12. poda as imagens de versões antigas (prune-images.sh: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores, padrão 3)
 # Falha depois do passo 6 deixa a versão nova no ar e imprime o comando para voltar à anterior.
 set -euo pipefail
 
@@ -426,3 +427,8 @@ lr_build() {
   fi
 }
 lr_build
+
+# imagens de versões antigas: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores (padrão 3). O roteiro vem deste checkout
+# (o SHA publicado pode ser anterior a ele); nada aqui falha o deploy.
+ssh "$VPS" "cd $DIR && bash -s -- ${DEPLOY_KEEP_IMAGES:-3}" < "$ROOT/infra/vps-telemetry/prune-images.sh" ||
+  echo "WARN  imagens antigas não foram podadas"

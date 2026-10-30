@@ -464,10 +464,18 @@ export async function getEvent(id: string, locale: ContentLocale, market?: strin
   return orNotFound(api.event(id, { ...localeQuery(locale), ...(market ? { market } : {}) }));
 }
 
-export const liveEventsRequest = (locale: Locale, content?: SupportedLocale): ApiRequest => ({
+export const liveEventsRequest = (
+  locale: Locale,
+  content?: SupportedLocale,
+  country?: string,
+): ApiRequest => ({
   method: 'GET',
   route: '/v1/events/live',
-  query: { market: defaultMarket(locale), ...localeQuery(content ?? locale) },
+  query: {
+    ...(country ? { country } : {}),
+    market: defaultMarket(locale),
+    ...localeQuery(content ?? locale),
+  },
   description: text(locale).liveEvents,
   note: text(locale).liveEventsNote,
 });
