@@ -57,6 +57,7 @@ import {
   finishResearch,
   isOutage,
   marketSpendToday,
+  reapStaleResearch,
   researchBackoffMs,
   startResearch,
   withinCap,
@@ -127,6 +128,8 @@ export class WtwRunner {
     country?: string;
   }): Promise<RunOutcome[]> {
     const { db } = this.deps;
+    const reaped = await reapStaleResearch(db, this.now());
+    if (reaped) this.log(`${reaped} pesquisa(s) presa(s) em andamento fechada(s) como falha`);
     const stale = await requeueStale(db, this.now());
     if (stale.failed)
       this.log(

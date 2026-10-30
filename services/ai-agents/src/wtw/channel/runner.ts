@@ -42,6 +42,7 @@ import {
   finishResearch,
   isOutage,
   marketSpendToday,
+  reapStaleResearch,
   startResearch,
   withinCap,
   WTW_RESEARCH_MAX_FAILURES,
@@ -117,6 +118,10 @@ export class MatchChannelRunner {
   ): Promise<ChannelRunReport> {
     const { db } = this.deps;
     const dryRun = opts.dryRun ?? false;
+    if (!dryRun) {
+      const reaped = await reapStaleResearch(db, this.now());
+      if (reaped) this.log(`${reaped} pesquisa(s) presa(s) em andamento fechada(s) como falha`);
+    }
     const fetcher = new CachingPageFetcher(this.deps.fetcher);
     const infos = await loadEventInfos(db, [
       ...new Set(groups.flatMap((g) => g.targets.map((t) => t.event.id))),

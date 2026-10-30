@@ -33,6 +33,7 @@ import {
   finishResearch,
   isOutage,
   marketSpendToday,
+  reapStaleResearch,
   startResearch,
   withinCap,
 } from './spend.js';
@@ -214,6 +215,8 @@ export class RightsResearcher {
       this.log('Sem cliente de LLM: pesquisa de direitos adiada.');
       return out;
     }
+    const reaped = await reapStaleResearch(this.deps.db, this.now());
+    if (reaped) this.log(`${reaped} pesquisa(s) presa(s) em andamento fechada(s) como falha`);
     const agent = new WhereToWatchAgent(this.deps.llm);
     const spend = await marketSpendToday(this.deps.db, this.now());
     const estimate = await estimateCallUsd(this.deps.db, 'rights');
