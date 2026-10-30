@@ -17,6 +17,7 @@ import {
   asset,
   broadcaster,
   LOGO_UPLOAD_TARGETS,
+  LOGO_VARIANTS,
   logoUpload,
   LINEUP_ACCESS,
   LINEUP_REQUEST_STATUSES,
@@ -46,6 +47,7 @@ import {
   type LineupFieldFlag,
   type LineupVerification,
   type LogoUploadTarget,
+  type LogoVariant,
   type PlatformKind,
 } from './schema/index.js';
 import { publishChange } from './change-feed.js';
@@ -2377,6 +2379,29 @@ async function publishLogoChange(tx: Tx, target: LogoTargetRef): Promise<void> {
   });
 }
 
+/**
+ * A entidade já tem um logo claro (do painel ou da origem)? A versão escura sozinha não sai: a API e os
+ * clientes partem do `logo` e só trocam pelo `logo_dark` no tema escuro.
+ */
+async function hasLightLogo(tx: Tx, target: LogoTargetRef): Promise<boolean> {
+  if (target.type === 'platform') {
+    const [row] = await tx
+      .select({ custom: platform.customLogoAssetId, own: platform.logoAssetId, lib: platform.broadcasterId })
+      .from(platform)
+      .where(eq(platform.id, target.id));
+    return Boolean(row && (row.custom ?? row.own ?? row.lib));
+  }
+  const [row] = await tx
+    .select({
+      custom: broadcaster.customLogoAssetId,
+      own: broadcaster.logoAssetId,
+      source: broadcaster.logoSourceUrl,
+    })
+    .from(broadcaster)
+    .where(eq(broadcaster.id, target.id));
+  return Boolean(row && (row.custom ?? row.own ?? row.source));
+}
+
 async function logoTargetExists(tx: Tx, target: LogoTargetRef): Promise<boolean> {
   if (target.type === 'platform') {
     if (!isUuid(target.id)) return false;
@@ -2388,39 +2413,55 @@ async function logoTargetExists(tx: Tx, target: LogoTargetRef): Promise<boolean>
   );
 }
 
-async function currentCustomLogo(tx: Tx, target: LogoTargetRef): Promise<string | null> {
+/** Coluna do logo do painel por variante: o claro (`custom_logo_asset_id`) ou o do tema escuro. */
+const platformLogoColumn = (variant: LogoVariant) =>
+  variant === 'dark' ? platform.customLogoDarkAssetId : platform.customLogoAssetId;
+const broadcasterLogoColumn = (variant: LogoVariant) =>
+  variant === 'dark' ? broadcaster.customLogoDarkAssetId : broadcaster.customLogoAssetId;
+
+async function currentCustomLogo(
+  tx: Tx,
+  target: LogoTargetRef,
+  variant: LogoVariant,
+): Promise<string | null> {
   const [row] =
     target.type === 'platform'
       ? await tx
-          .select({ id: platform.customLogoAssetId })
+          .select({ id: platformLogoColumn(variant) })
           .from(platform)
           .where(eq(platform.id, target.id))
           .for('update')
       : await tx
-          .select({ id: broadcaster.customLogoAssetId })
+          .select({ id: broadcasterLogoColumn(variant) })
           .from(broadcaster)
           .where(eq(broadcaster.id, target.id))
           .for('update');
   return row?.id ?? null;
 }
 
-async function setCustomLogoId(tx: Tx, target: LogoTargetRef, assetId: string | null): Promise<void> {
-  const now = new Date();
-  if (target.type === 'platform')
-    await tx
-      .update(platform)
-      .set({ customLogoAssetId: assetId, updatedAt: now })
-      .where(eq(platform.id, target.id));
-  else
-    await tx
-      .update(broadcaster)
-      .set({ customLogoAssetId: assetId, updatedAt: now })
-      .where(eq(broadcaster.id, target.id));
+async function setCustomLogoId(
+  tx: Tx,
+  target: LogoTargetRef,
+  variant: LogoVariant,
+  assetId: string | null,
+): Promise<void> {
+  const set =
+    variant === 'dark'
+      ? { customLogoDarkAssetId: assetId, updatedAt: new Date() }
+      : { customLogoAssetId: assetId, updatedAt: new Date() };
+  if (target.type === 'platform') await tx.update(platform).set(set).where(eq(platform.id, target.id));
+  else await tx.update(broadcaster).set(set).where(eq(broadcaster.id, target.id));
 }
 
+const checkVariant = (variant: LogoVariant) => {
+  if (!LOGO_VARIANTS.includes(variant))
+    throw new LineupError('invalid_input', `Variante de logo inválida: ${String(variant)}`);
+};
+
 /**
- * Registra o logo enviado no painel (o arquivo já está no storage) e liga na entidade, no
- * `custom_logo_asset_id`: vale no lugar do logo da origem, sem passo manual. O anterior fica no histórico
+ * Registra o logo enviado no painel (o arquivo já está no storage) e liga na entidade: o claro em
+ * `custom_logo_asset_id` (vale no lugar do logo da origem) e o do tema escuro em
+ * `custom_logo_dark_asset_id` (vale no lugar da versão escura do acervo). O anterior fica no histórico
  * (`enrich.logo_upload`) para voltar com `revertCustomLogo`. Mesmo arquivo de novo = o mesmo asset.
  */
 export async function setCustomLogo(
@@ -2428,14 +2469,21 @@ export async function setCustomLogo(
   target: LogoTargetRef,
   file: StoredLogoFile,
   by: string,
+  variant: LogoVariant = 'light',
 ): Promise<{ assetId: string; previousAssetId: string | null; uploadId: string }> {
   if (!LOGO_UPLOAD_TARGETS.includes(target.type))
     throw new LineupError('invalid_input', `Alvo de logo inválido: ${String(target.type)}`);
+  checkVariant(variant);
   const who = by?.trim();
   if (!who) throw new LineupError('invalid_input', 'by vazio.');
   return db.transaction(async (tx) => {
     if (!(await logoTargetExists(tx, target)))
       throw new LineupError('target_not_found', 'Plataforma ou canal inexistente.');
+    if (variant === 'dark' && !(await hasLightLogo(tx, target)))
+      throw new LineupError(
+        'invalid_input',
+        'Sem logo claro: envie o logo para fundo claro antes da versão escura.',
+      );
     const values = {
       storageKey: file.storageKey,
       sha256: file.sha256,
@@ -2449,13 +2497,14 @@ export async function setCustomLogo(
       .values({ kind: 'broadcaster_logo', sourceUrl: panelLogoSourceUrl(target, file.sha256), ...values })
       .onConflictDoUpdate({ target: asset.sourceUrl, set: values })
       .returning({ id: asset.id });
-    const previous = await currentCustomLogo(tx, target);
-    await setCustomLogoId(tx, target, row!.id);
+    const previous = await currentCustomLogo(tx, target, variant);
+    await setCustomLogoId(tx, target, variant, row!.id);
     const [upload] = await tx
       .insert(logoUpload)
       .values({
         targetType: target.type,
         targetId: target.id,
+        variant,
         assetId: row!.id,
         previousAssetId: previous,
         uploadedBy: who,
@@ -2467,15 +2516,21 @@ export async function setCustomLogo(
 }
 
 /**
- * Volta ao logo anterior ao último envio ainda valendo (null = sem logo do painel: vale o da origem).
- * Devolve false se não há envio a desfazer.
+ * Volta ao logo anterior ao último envio ainda valendo, na variante (null = sem logo do painel: vale o
+ * da origem). Devolve false se não há envio a desfazer.
  */
-export async function revertCustomLogo(db: Database, target: LogoTargetRef, by: string): Promise<boolean> {
+export async function revertCustomLogo(
+  db: Database,
+  target: LogoTargetRef,
+  by: string,
+  variant: LogoVariant = 'light',
+): Promise<boolean> {
+  checkVariant(variant);
   const who = by?.trim();
   if (!who) throw new LineupError('invalid_input', 'by vazio.');
   return db.transaction(async (tx) => {
     if (!(await logoTargetExists(tx, target))) return false;
-    const current = await currentCustomLogo(tx, target);
+    const current = await currentCustomLogo(tx, target, variant);
     const [last] = await tx
       .select()
       .from(logoUpload)
@@ -2483,13 +2538,14 @@ export async function revertCustomLogo(db: Database, target: LogoTargetRef, by: 
         and(
           eq(logoUpload.targetType, target.type),
           eq(logoUpload.targetId, target.id),
+          eq(logoUpload.variant, variant),
           sql`${logoUpload.revertedAt} is null`,
         ),
       )
       .orderBy(desc(logoUpload.createdAt), desc(logoUpload.id))
       .limit(1);
     if (!last || last.assetId !== current) return false;
-    await setCustomLogoId(tx, target, last.previousAssetId);
+    await setCustomLogoId(tx, target, variant, last.previousAssetId);
     await tx
       .update(logoUpload)
       .set({ revertedAt: new Date(), revertedBy: who })

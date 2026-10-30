@@ -140,11 +140,19 @@ export interface ManualView {
   pending: { by: string; at: string } | null;
 }
 
+/** Logo para fundo claro (o `logo` da API) ou versão para o tema escuro (o `logo_dark`). */
+export type LogoVariant = 'light' | 'dark';
+
 export interface LogoTargetView {
   type: 'platform' | 'broadcaster';
   id: string;
   /** Há logo enviado no painel valendo (dá para voltar ao anterior). */
   custom: boolean;
+  /** Há versão para o tema escuro enviada no painel valendo. */
+  customDark?: boolean;
+  /** Logo mostrado hoje no fundo claro e no tema escuro (null = sem versão escura: vale o claro). */
+  logo?: string | null;
+  logoDark?: string | null;
 }
 
 /**
@@ -216,8 +224,12 @@ export interface LibraryEntry {
   name: string;
   kind: string;
   logoUrl: string | null;
+  /** Versão para o tema escuro (painel ou acervo oficial); null = vale o `logoUrl`. */
+  logoDarkUrl?: string | null;
   /** Logo enviado no painel valendo. */
   customLogo?: boolean;
+  /** Versão escura enviada no painel valendo. */
+  customDarkLogo?: boolean;
 }
 
 /** Tipos de emissora que entram num plano: canal de TV (aberta ou paga) ou streaming. Rádio não. */
@@ -276,6 +288,7 @@ export interface LineupLike {
     website: string | null;
     logoAssetId?: string | null;
     customLogoAssetId?: string | null;
+    customLogoDarkAssetId?: string | null;
     broadcasterId?: string | null;
   };
   plans: {
@@ -412,6 +425,7 @@ export function lineupView(
   lineup: LineupLike,
   library: ReadonlyMap<string, LibraryEntry>,
   platformLogo: string | null = null,
+  platformLogoDark: string | null = null,
 ): LineupView {
   const p = lineup.platform;
   const ref = (id: string) => library.get(id);
@@ -419,7 +433,12 @@ export function lineupView(
     type: 'broadcaster',
     id,
     custom: ref(id)?.customLogo === true,
+    customDark: ref(id)?.customDarkLogo === true,
+    logo: ref(id)?.logoUrl ?? null,
+    logoDark: ref(id)?.logoDarkUrl ?? null,
   });
+  const platformRef = p.broadcasterId ? ref(p.broadcasterId) : undefined;
+  const platformLogoUrl = platformLogo ?? platformRef?.logoUrl ?? null;
   return {
     platform: {
       type: 'platform',
@@ -431,8 +450,16 @@ export function lineupView(
         : 'pay_tv_operator',
       fields: { name: p.name, website: p.website },
       edit: { name: p.name, kind: p.kind, website: p.website },
-      logoUrl: platformLogo ?? (p.broadcasterId ? (ref(p.broadcasterId)?.logoUrl ?? null) : null),
-      logoTarget: { type: 'platform', id: p.id, custom: Boolean(p.customLogoAssetId) },
+      logoUrl: platformLogoUrl,
+      logoTarget: {
+        type: 'platform',
+        id: p.id,
+        custom: Boolean(p.customLogoAssetId),
+        customDark: Boolean(p.customLogoDarkAssetId),
+        logo: platformLogoUrl,
+        // como na API: `platformLogoDark` (a do painel ou a do acervo do próprio asset); sem asset, a da biblioteca
+        logoDark: platformLogoDark ?? (platformLogo ? null : (platformRef?.logoDarkUrl ?? null)),
+      },
       ...reviewed(p),
     },
     plans: lineup.plans.map(({ plan, channels, services }) => ({

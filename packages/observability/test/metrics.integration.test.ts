@@ -129,6 +129,9 @@ beforeAll(async () => {
     run('recap-run', 'error', 3 * HOUR),
     run('recap-run', 'budget_skipped', 2 * HOUR),
     run('recap-run', 'error', 1 * HOUR),
+    // ao vivo no ar há 2 h: o último sucesso é antigo, mas há execução em andamento
+    run('live-run', 'ok', 5 * HOUR),
+    run('live-run', 'running', 2 * HOUR),
   ]);
 
   // ── raw ──
@@ -316,6 +319,15 @@ describe('métricas de jobs (ops.job_run)', () => {
       0,
     );
     expect(m.get('galaxie_job_last_duration_seconds', { job_name: 'daily-sync' })).toBeCloseTo(120, 0);
+  });
+
+  it('execução em andamento tem o início exposto; job parado não tem a série', async () => {
+    const m = await scrape();
+    expect(m.get('galaxie_job_running_since_timestamp_seconds', { job_name: 'live-run' })).toBeCloseTo(
+      ago(2 * HOUR).getTime() / 1000,
+      0,
+    );
+    expect(m.get('galaxie_job_running_since_timestamp_seconds', { job_name: 'daily-sync' })).toBeUndefined();
   });
 });
 

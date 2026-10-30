@@ -32,6 +32,7 @@
 #   9. lineup-render (perfil render): baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha)
 #  10. religa o espelho de assets (mirror-assets) se ele não estiver rodando
 #  11. com DEPLOY_CANDIDATE=on: guarda só os 10 backups mais novos do compose.yml e do .env na VPS
+#  12. poda as imagens de versões antigas (prune-images.sh: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores, padrão 3)
 # As notas de versão são publicadas pelo workflow depois deste script, só com sucesso.
 # Saída: 0 = publicado (ou já estava no ar); 1 = falhou (a mensagem diz se voltou para a versão anterior).
 set -euo pipefail
@@ -385,6 +386,10 @@ if [ -n "$CANDIDATE" ]; then
   ssh "$VPS" "cd $DIR && for f in compose.yml .env; do ls -1t \$f.bak-* 2>/dev/null | tail -n +11 | xargs -r rm -f --; done" ||
     echo "WARN  backups antigos do compose.yml e do .env não foram podados"
 fi
+
+# ── imagens de versões antigas: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores (padrão 3) ──────────────────────
+ssh "$VPS" "cd $DIR && bash -s -- ${DEPLOY_KEEP_IMAGES:-3}" < "$HERE/prune-images.sh" ||
+  echo "WARN  imagens antigas não foram podadas"
 
 echo "result=deployed" >> "${GITHUB_OUTPUT:-/dev/null}"
 echo "PASS  ${SHA:0:7} no ar"

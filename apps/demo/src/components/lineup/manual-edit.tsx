@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ImageUp, Pencil, Plus, Save, Undo2 } from 'lucide-react';
+import { Check, ImageUp, Moon, Pencil, Plus, Save, Sun, Undo2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -35,7 +35,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
+import { cn } from '@/lib/utils';
 import { fill } from '@/lib/i18n/text';
 import {
   CREATABLE_TYPES,
@@ -49,6 +51,7 @@ import {
   type CreatableType,
   type ItemView,
   type LogoTargetView,
+  type LogoVariant,
 } from '@/lib/lineup/types';
 
 type Result = { ok: boolean; error?: string };
@@ -184,7 +187,27 @@ function SourceUrlField({
   );
 }
 
-/** Enviar o logo da operadora ou do canal (PNG ou SVG) e voltar ao anterior. */
+/** Logo sobre um fundo (claro ou escuro), para conferir o contraste antes de enviar. */
+function LogoSwatch({ url, dark, label }: { url: string | null; dark: boolean; label: string }) {
+  return (
+    <figure className="flex flex-col gap-1">
+      <div
+        className={cn(
+          'flex h-14 w-24 items-center justify-center rounded-md border p-2',
+          dark ? 'border-neutral-700 bg-neutral-900' : 'border-neutral-200 bg-white',
+        )}
+      >
+        {url ? <img src={url} alt="" className="max-h-full max-w-full object-contain" /> : null}
+      </div>
+      <figcaption className="text-muted-foreground text-xs">{label}</figcaption>
+    </figure>
+  );
+}
+
+/**
+ * Enviar o logo da operadora ou do canal (PNG ou SVG), para fundo claro ou para o tema escuro, e voltar
+ * ao anterior. A prévia mostra como cada um sai hoje; sem versão escura, o claro sai sobre uma placa clara.
+ */
 export function LogoUploader({
   target,
   storageEnabled,
@@ -196,25 +219,73 @@ export function LogoUploader({
   const L = t.lineup.admin.manual.logo;
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [variant, setVariant] = useState<LogoVariant>('light');
   const { run, error, pending } = useAction(() => {
     setFile(null);
     if (input.current) input.current.value = '';
   });
   const id = `logo-${target.type}-${target.id}`;
+  const logo = target.logo ?? null;
+  const logoDark = target.logoDark ?? null;
   const upload = () => {
     if (!file) return;
     const form = new FormData();
     form.set('targetType', target.type);
     form.set('targetId', target.id);
+    form.set('variant', variant);
     form.set('file', file);
-    run(() => uploadLineupLogo(form), L.uploaded);
+    run(() => uploadLineupLogo(form), variant === 'dark' ? L.uploadedDark : L.uploaded);
   };
+  const canRevert = variant === 'dark' ? target.customDark === true : target.custom;
   return (
     <FieldSet>
       <FieldLegend variant="label">{fill(L.title, { target: L.targets[target.type] })}</FieldLegend>
       <FieldDescription>{fill(L.hint, { min: LOGO_MIN_PX, kb: LOGO_MAX_KB })}</FieldDescription>
+      {logo || logoDark ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">{L.preview}</span>
+          <div className="flex flex-wrap gap-3">
+            <LogoSwatch url={logo ?? logoDark} dark={false} label={L.onLight} />
+            {logoDark ? (
+              <LogoSwatch url={logoDark} dark label={L.onDark} />
+            ) : (
+              <figure className="flex flex-col gap-1">
+                <div className="flex h-14 w-24 items-center justify-center rounded-md border border-neutral-700 bg-neutral-900 p-2">
+                  <span className="flex size-full items-center justify-center rounded-sm bg-white p-1">
+                    <img src={logo!} alt="" className="max-h-full max-w-full object-contain" />
+                  </span>
+                </div>
+                <figcaption className="text-muted-foreground text-xs">{L.onDark}</figcaption>
+              </figure>
+            )}
+          </div>
+          {!logoDark ? <p className="text-muted-foreground text-xs">{L.darkMissing}</p> : null}
+        </div>
+      ) : null}
       {storageEnabled ? (
         <>
+          <Field>
+            <FieldLabel>{L.variant}</FieldLabel>
+            <ToggleGroup
+              variant="outline"
+              size="sm"
+              spacing={0}
+              value={[variant]}
+              onValueChange={(next) => {
+                const v = next[0];
+                if (v === 'light' || v === 'dark') setVariant(v);
+              }}
+            >
+              <ToggleGroupItem value="light">
+                <Sun />
+                {L.variants.light}
+              </ToggleGroupItem>
+              <ToggleGroupItem value="dark" disabled={!logo}>
+                <Moon />
+                {L.variants.dark}
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </Field>
           <Field>
             <FieldLabel htmlFor={id} className="sr-only">
               {L.file}
@@ -232,16 +303,18 @@ export function LogoUploader({
               {pending ? <Spinner /> : <ImageUp />}
               {L.upload}
             </Button>
-            {target.custom ? (
+            {canRevert ? (
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 disabled={pending}
-                onClick={() => run(() => revertLineupLogo({ type: target.type, id: target.id }), L.reverted)}
+                onClick={() =>
+                  run(() => revertLineupLogo({ type: target.type, id: target.id, variant }), L.reverted)
+                }
               >
                 <Undo2 />
-                {L.revert}
+                {variant === 'dark' ? L.revertDark : L.revert}
               </Button>
             ) : null}
           </div>
