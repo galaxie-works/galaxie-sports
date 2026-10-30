@@ -12,7 +12,7 @@ próximo deploy, porque as imagens copiam esta pasta para `/srv/config`.
 | `geo/*.yaml` | Confederações, audiência por mercado e escopo das competições por país | `@galaxie/geo` | `GEO_CONFIG_DIR` |
 | `plans.yaml` | Modelos de plano comercial usados ao criar um tenant | `apps/api` | `PLANS_CONFIG_PATH` |
 | `ai-policy.yaml` | Política de execução da IA: faixas do orçamento diário, prioridades | `@galaxie/ai-ledger` | `AI_POLICY_FILE` |
-| `assets/denylist.yaml` | Mídia da api-sports que não pode ser usada | ingestor e API | `MEDIA_DENYLIST_PATH` |
+| `assets/denylist.yaml` | Mídia da api-sports que não pode ser usada | API e ingestor (`assets:mirror`) | API: `MEDIA_DENYLIST_PATH`; ingestor: opção `--denylist` (não lê a variável) |
 | `assets/acervo/`, `assets/commons/` | Mapeamento do acervo próprio de escudos e das imagens do Wikimedia Commons | `services/ingestor` (`assets:acervo`, `assets:commons*`) | — |
 | `fixtures/provisional.yaml` | Jogos anunciados que o fornecedor ainda não publicou | `services/ingestor` (`provisional:sync`) | `PROVISIONAL_FIXTURES_PATH` |
 | `related-content/channels.yaml` | Canais do YouTube permitidos no conteúdo relacionado e o nível de confiança de cada um | `services/ai-agents` | — |

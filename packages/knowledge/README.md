@@ -14,7 +14,9 @@ pnpm knowledge:i18n         # cobertura de traduções
 pnpm --filter @galaxie/knowledge review:export [--gravar]   # leva as edições aprovadas no banco para o YAML
 ```
 
-Conceitos: [docs/06](../../docs/06-semantica-e-conteudo.md). A pasta é lida de `KNOWLEDGE_DIR`.
+Conceitos: [docs/06](../../docs/06-semantica-e-conteudo.md). Estes CLIs usam a `data/knowledge` do repositório; para
+outra pasta, passe `--dir <pasta>` (eles não leem `KNOWLEDGE_DIR`). A variável `KNOWLEDGE_DIR` só vale na API e no
+`review:suggestions` dos agentes.
 
 ## Depende de
 
