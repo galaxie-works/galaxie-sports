@@ -274,7 +274,8 @@ services:
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
   # Mesma imagem da API, sem porta e sem router. Na primeira subida o cursor começa do fim do change feed (não reenvia
   # o histórico). Sem HTTP para conferir, o healthcheck da imagem (GET /health na 8080) fica desligado; uma queda do
-  # processo é coberta pelo restart.
+  # processo é coberta pelo restart. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
+# --remove-orphans (deploy-gh.sh/deploy.sh), para o worker da versão recusada não seguir entregando.
   webhooks:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -285,6 +286,8 @@ services:
       <<: *node-env
       DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # depois de `webhook seal-secrets` (SECURITY.md › Webhooks): segredo legado em texto puro deixa de assinar
+      WEBHOOK_REJECT_PLAINTEXT_SECRETS: ${WEBHOOK_REJECT_PLAINTEXT_SECRETS:-}
     healthcheck:
       disable: true
     depends_on:

@@ -100,7 +100,7 @@ LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 rollback_help() {
   local o="${OLD:0:7}"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
       echo "FAIL  $((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) já aplicada(s): não volte só a imagem para ${o} (o código antigo pode quebrar com o schema novo)"
@@ -333,7 +333,7 @@ restore_previous() {
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
     && for s in api ingestor demo backup prometheus grafana; do docker image inspect $REG-\$s:$OLD >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
-    && docker compose up -d --scale ingestor=$SCALE --quiet-pull"; then
+    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
