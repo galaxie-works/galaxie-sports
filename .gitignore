@@ -38,3 +38,6 @@ apps/demo/.screenshots/
 
 # Fontes embutidos dos widgets (packages/widgets/scripts/embed-sources.mjs), refeitos a cada build/teste
 packages/widgets/src/registry/sources.generated.ts
+
+# dump do Valkey/Redis gerado ao rodar o servidor local numa pasta do repo
+dump.rdb

@@ -1,5 +1,5 @@
 # Stack de staging do Galaxie Sports na VPS "telemetry" (Traefik já em produção, em network_mode: host).
-# Derivada de infra/portainer/stack.yml: sem Caddy (o Traefik faz TLS e roteamento), sem builds (imagens do GHCR),
+# Derivada da antiga stack do Portainer (aposentada em 30/10/2026): sem Caddy (o Traefik faz TLS e roteamento), sem builds (imagens do GHCR),
 # rede com sub-rede fixa (TRUST_PROXY conhecido), limites de memória e o app de demonstração.
 # Passo a passo, verificação e reverso: infra/vps-telemetry/README.md.
 #
@@ -269,6 +269,28 @@ services:
       - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
       - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
+    logging: *logging
+
+  # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
+  # Mesma imagem da API, sem porta e sem router. Na primeira subida o cursor começa do fim do change feed (não reenvia
+  # o histórico). Sem HTTP para conferir, o healthcheck da imagem (GET /health na 8080) fica desligado; uma queda do
+  # processo é coberta pelo restart.
+  webhooks:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ['node', '--max-old-space-size=160', 'dist/webhooks/worker-main.js']
+    environment:
+      <<: *node-env
+      DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 20s
     logging: *logging
 
   # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe, com DEPLOY_CANDIDATE=on): a API e a demo da

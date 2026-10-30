@@ -72,13 +72,12 @@ updates:
         patterns: ['*']
         update-types: [minor, patch]
 
-  # Imagens dos compose: infra local, stack do Portainer, stack de produção (VPS) e o Traefik da VPS. As de produção
+  # Imagens dos compose: infra local, stack de produção (VPS) e o Traefik da VPS. As de produção
   # (postgres, valkey, rustfs, aws-cli, caddy da manutenção, node-exporter) e o Traefik só mudam na VPS pelo deploy;
   # o Traefik, à mão (infra/traefik/README.md).
   - package-ecosystem: docker-compose
     directories:
       - /infra
-      - /infra/portainer
       - /infra/vps-telemetry
       - /infra/traefik
     schedule:

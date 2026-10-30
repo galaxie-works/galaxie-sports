@@ -102,7 +102,7 @@ flowchart LR
 
 - **Node.js 24 + TypeScript** (Fastify, Zod, Drizzle), **PostgreSQL 17** (JSONB para o raw), **Redis/Valkey** + BullMQ, object storage S3-compatível, **Claude API** para os agentes.
 - Camadas `raw → core → semantic/enrich → serving`; o raw é imutável e permite reprocessar tudo **sem gastar cota**.
-- Deploy inicial em VPS com Docker/Portainer.
+- Deploy em VPS com Docker Compose atrás do Traefik, pelo GitHub Actions ([infra](infra/README.md)).
 
 Detalhes: [docs/02-arquitetura.md](docs/02-arquitetura.md) · Modelo de dados: [docs/04-modelo-de-dados.md](docs/04-modelo-de-dados.md) · Contrato da API: [docs/05-api-publica.md](docs/05-api-publica.md).
 

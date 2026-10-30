@@ -325,9 +325,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: docker compose config (stack do Portainer)
-        run: docker compose -f infra/portainer/stack.yml --env-file infra/portainer/stack.env.example config -q
-
       - name: docker compose config (VPS com Traefik)
         run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 

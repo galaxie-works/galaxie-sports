@@ -97,13 +97,13 @@ Regras que o grafo já segue e que valem manter:
 
 | Imagem (GHCR) | Feita de | Serviços na stack da VPS que o deploy usa (`infra/vps-telemetry/compose.yml`) |
 |---|---|---|
-| `galaxie-sports-api` | `apps/api/Dockerfile` | `api`, `api-candidate` (perfil `candidate` do deploy), `migrate` |
+| `galaxie-sports-api` | `apps/api/Dockerfile` | `api`, `api-candidate` (perfil `candidate` do deploy), `migrate`, `webhooks` |
 | `galaxie-sports-ingestor` | `services/ingestor/Dockerfile` (leva o `ai-agents` junto) | `ingestor` (`SCHEDULER_PROFILE=ingestor`), `agents` (`SCHEDULER_PROFILE=agents`) |
 | `galaxie-sports-demo` | `apps/demo/Dockerfile` | `demo`, `demo-candidate` |
 | `galaxie-sports-lineup-render` | `infra/lineup-render` (fora do workspace pnpm) | `lineup-render` |
 | `galaxie-sports-backup` | `infra/backup` | `backup` |
 | `galaxie-sports-prometheus` / `-grafana` | `infra/observability` | `prometheus`, `grafana` |
-| `galaxie-sports-caddy` | `infra/caddy` | só na stack do Portainer; na VPS o `maintenance` usa o Caddy oficial |
+| `galaxie-sports-caddy` | `infra/caddy` | nenhum (era da stack do Portainer); o `maintenance` da VPS usa o Caddy oficial |
 
 O build e o push estão em `.github/workflows/docker.yml`; o deploy por SSH em `.github/workflows/deploy.yml`
 (passo a passo em [runbooks/deploy-pelo-github.md](runbooks/deploy-pelo-github.md)).
@@ -118,11 +118,11 @@ Nada aqui está quebrado; são pontos onde quem chega ao repo tropeça ou onde u
 | F2 | `apps/demo` | O nome "demo" esconde que a mesma app é o site público, o portal do cliente, o Builder de widgets, a documentação e os ajustes da operação. | Renomear não vale o custo agora. Se um dia o site público ou o portal do cliente precisarem de deploy separado, essa é a primeira divisão. |
 | F3 | `apps/demo` | O schema `demo_auth` é criado em tempo de execução (`src/lib/auth/setup.ts`), fora das migrations do `packages/db`. | Levar para uma migration Drizzle quando mexer no login de novo, para o banco ter um dono só. |
 | F4 | `services/ingestor` × `services/ai-agents` | O scheduler do ingestor roda os CLIs dos agentes pelo caminho `../ai-agents` (`src/scheduler/schedule.ts`) e a imagem do ingestor empacota os dois. A dependência existe mas não aparece no `package.json`. A regra de "sem crédito na IA" também está duplicada (`scheduler/ai-credit.ts` repete `ai-agents/src/llm/errors.ts`). | Documentado nos dois READMEs. Quando mexer de novo, mover a classificação de erro para `@galaxie/ai-ledger` e importar dos dois lados. |
-| F5 | `infra/portainer` × `infra/vps-telemetry` | Há duas stacks. A que está em produção é a `vps-telemetry` (Traefik, deploy pelo Actions); a do Portainer (Caddy) é a primeira staging e ficou como referência. O nome `vps-telemetry` é o nome da máquina, não do papel. | Ver `infra/README.md`. Decidir se a stack do Portainer ainda serve; se não, arquivar. |
-| F6 | `apps/api/dump.rdb` | Um dump do Redis/Valkey está versionado dentro da API (foi gerado por um `valkey` local rodando nessa pasta). | Remover e pôr `dump.rdb` no `.gitignore` (precisa de OK, por isso não foi feito aqui). |
+| F5 | `infra/portainer` × `infra/vps-telemetry` | Havia duas stacks; a do Portainer (Caddy) era a primeira staging e não recebia mais as mudanças. | **Resolvido em 30/10/2026**: a stack do Portainer saiu e o backup/restore dela foi para `infra/backup/README.md`. Falta só tirar `infra/caddy` quando `build caddy` deixar de ser check obrigatório. |
+| F6 | `apps/api/dump.rdb` | Um dump do Redis/Valkey estava versionado dentro da API. | **Resolvido em 30/10/2026**: removido e `dump.rdb` no `.gitignore`. |
 | F7 | Configuração | Os pacotes acham `config/` e `data/` por caminho relativo à pasta do pacote (`../../config`), e as imagens recriam esse layout em `/srv`. Mover uma pasta quebra em silêncio em produção. | A maior parte aceita uma variável (`RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `AI_POLICY_FILE`; `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH` só na API), listadas em `config/README.md`. Os CLIs do `knowledge` e o `assets:mirror` só aceitam opção de linha de comando (`--dir`, `--denylist`); vale padronizar quando mexer neles. |
 | F8 | `services/ingestor` | O pacote cresceu para mais de 50 CLIs: além da ingestão da api-sports, faz Wikidata, Wikimedia Commons, F1DB, hipismo, acervo de logos e qualidade. | Agrupar os CLIs por área no README (feito). Se o acervo de imagens ganhar ritmo próprio, ele é candidato a um serviço `services/assets`. |
-| F9 | `apps/api` (webhooks) | O worker de entrega dos webhooks (`pnpm --filter @galaxie/api webhooks:worker`) não tem serviço em nenhuma das duas stacks. Na VPS, nenhum webhook é enfileirado nem entregue hoje. | Confirmar se é intencional (nenhum cliente com webhook ainda) e, quando houver, adicionar um serviço `webhooks` com a imagem da API. |
+| F9 | `apps/api` (webhooks) | O worker de entrega dos webhooks não tinha serviço na VPS: nenhum webhook era enfileirado nem entregue. | **Resolvido em 30/10/2026**: serviço `webhooks` na stack da VPS, com a imagem da API. |
 | F10 | `README.md` e `CONTRIBUTING.md` | A seção de estrutura dizia que a demo estava "a criar" e a tabela de organização não tinha `ai-ledger`, `net-guard`, `runtime-config`, `widgets` nem a demo. | Corrigido junto com este documento. |
 
 ## 6. Candidatos a repositório próprio
