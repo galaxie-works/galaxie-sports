@@ -66,6 +66,11 @@ const UPCOMING_STALE_MS = 2 * 60_000;
 const FINISHED_FETCH_LIMIT = 24;
 /** Encerrados com um esporte só escolhido: a lista inteira é dele. */
 const FINISHED_FETCH_LIMIT_ONE_SPORT = 60;
+/**
+ * Os encerrados são refeitos a cada minuto enquanto a seção está aberta: o jogo que acaba de terminar sai do
+ * ao vivo e entra aqui, e o que passou da janela sai (o início da janela é recalculado a cada busca).
+ */
+const FINISHED_REFRESH_MS = 60_000;
 
 interface CompetitionGroup {
   key: string;
@@ -264,8 +269,6 @@ function useUpcoming(locale: Locale, filters: LiveFilters) {
     /** A lista da seção, antes do filtro no navegador. */
     list: list.data,
     loading: sportsQuery.isPending || (list.pending && !list.data.length),
-    /** A agenda (os esportes) ainda não respondeu: os encerrados esperam por ela. */
-    sportsPending: sportsQuery.isPending,
     /** Alguma busca (a agenda ou os próximos da lista) falhou. */
     error: sportsQuery.isError || list.error,
     retry: () => {
@@ -277,21 +280,25 @@ function useUpcoming(locale: Locale, filters: LiveFilters) {
 
 /**
  * Encerrados na janela escolhida (6 a 72 h), buscados só com "Encerrados" no filtro de status. Os recortes
- * são os mesmos dos próximos (um por esporte da agenda, ou já filtrados por país/competição).
+ * são os dos próximos (um por esporte, ou já filtrados por país/competição), mas os esportes não saem só da
+ * agenda: ela conta só o que ainda vai acontecer, e um esporte sem jogo marcado ficaria de fora. Entram todos
+ * os esportes do menu, mais os da agenda.
  */
-function useFinished(locale: Locale, filters: LiveFilters, sports: string[], enabled: boolean) {
+function useFinished(locale: Locale, filters: LiveFilters, agendaSports: string[], enabled: boolean) {
   const hours = finishedWindowHours(filters);
-  const { base, targeted } = useMemo(() => {
-    if (!enabled) return { base: [], targeted: [] };
-    const scopes = upcomingScopes(filters, sports);
-    // sem esporte na agenda, uma busca sem recorte
-    return scopes.base.length ? scopes : { ...scopes, base: [{}] };
-  }, [enabled, filters, sports]);
+  const { base, targeted } = useMemo(
+    () =>
+      enabled
+        ? upcomingScopes(filters, [...new Set([...SPORTS.map((s) => s.slug), ...agendaSports])])
+        : { base: [], targeted: [] },
+    [enabled, filters, agendaSports],
+  );
   const limit = filters.sport.length === 1 ? FINISHED_FETCH_LIMIT_ONE_SPORT : FINISHED_FETCH_LIMIT;
   const query = (scope: UpcomingScope) => ({
     queryKey: [...finishedKey(scope, hours), limit],
     queryFn: () => fetchFinished(locale, scope, hours, limit),
-    staleTime: UPCOMING_STALE_MS,
+    staleTime: FINISHED_REFRESH_MS,
+    refetchInterval: FINISHED_REFRESH_MS,
   });
   const baseResults = useQueries({ queries: base.map(query), combine: combineUpcoming });
   const targetedResults = useQueries({ queries: targeted.map(query), combine: combineUpcoming });
@@ -450,7 +457,7 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
   const up = useUpcoming(locale, filters);
   const showFinished = showsStatus(filters, 'finished');
   const upSports = useMemo(() => up.sports.map((s) => s.slug), [up.sports]);
-  const done = useFinished(locale, filters, upSports, showFinished && !up.sportsPending);
+  const done = useFinished(locale, filters, upSports, showFinished);
   const hydrated = useHydrated();
   const data = hydrated ? q.data : undefined;
   const events = useMemo(() => data ?? [], [data]);
@@ -546,7 +553,7 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
         <FinishedGames
           events={doneShown}
           hours={done.hours}
-          loading={!hydrated || up.sportsPending || done.loading}
+          loading={!hydrated || done.loading}
           error={hydrated && done.error}
           onRetry={done.retry}
           sportLabel={sportLabel}
