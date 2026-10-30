@@ -129,6 +129,11 @@ export default defineMessages(
         ultra: 'Ultra · 75.000/dia',
         mega: 'Mega · 150.000/dia',
       },
+      postgame: {
+        off: 'Desligado',
+        fechamento: 'Fechamento',
+        'tempo-real': 'Tempo real',
+      },
     },
     actions: {
       save: 'Salvar',
@@ -273,6 +278,11 @@ export default defineMessages(
         'live-run': {
           label: 'Ao vivo',
           description: 'Acompanha os jogos em andamento enquanto houver janela.',
+        },
+        'postgame-close': {
+          label: 'Fechamento pós-jogo',
+          description:
+            'Busca de novo a lista do dia dos esportes com jogo sem resultado confirmado, no modo e no intervalo de cada esporte, até o fim. Rodar agora busca todas as datas pendentes, respeitando o teto do dia.',
         },
         'live-reconcile': {
           label: 'Reconciliação do ao vivo',
@@ -524,6 +534,16 @@ export default defineMessages(
       rugby: 'Rúgbi',
       volleyball: 'Vôlei',
     },
+    postgameFor: {
+      label: 'Fechamento pós-jogo: {api}',
+      description:
+        'Quando o placar final dos jogos sem ao vivo entra. Fechamento: confere a partir do fim previsto. Tempo real: desde o apito. Desligado: só na agenda do dia seguinte. No futebol, vale para as ligas fora do ao vivo.',
+    },
+    postgameIntervalFor: {
+      label: 'Intervalo do pós-jogo: {api}',
+      description:
+        'Minutos entre uma consulta e outra da lista do dia (1 para tempo real). Cada consulta gasta 1 chamada da cota do esporte.',
+    },
     planFor: {
       label: 'Plano: {api}',
       description: 'Plano contratado desta API. Vazio herda o plano padrão.',
@@ -603,6 +623,11 @@ export default defineMessages(
         description:
           'Sem jogo nos próximos minutos, o processo do ao vivo sai e o agendador o reinicia na próxima janela.',
         unit: 'min',
+      },
+      POSTGAME_MAX_CALLS_DAY: {
+        label: 'Teto do pós-jogo por esporte',
+        description:
+          'Chamadas por dia que o fechamento pós-jogo pode gastar em cada esporte, além da agenda diária. No teto, o resto do dia fica para a agenda do dia seguinte.',
       },
       LIVE_MIN_PRIORITY: {
         label: 'Ligas acompanhadas ao vivo',
@@ -1021,6 +1046,11 @@ export default defineMessages(
           ultra: 'Ultra · 75,000/day',
           mega: 'Mega · 150,000/day',
         },
+        postgame: {
+          off: 'Off',
+          fechamento: 'Closing',
+          'tempo-real': 'Real time',
+        },
       },
       actions: {
         save: 'Save',
@@ -1159,6 +1189,11 @@ export default defineMessages(
               "Yesterday's, today's and tomorrow's matches, injuries and finished match details. Uses daily quota.",
           },
           'live-run': { label: 'Live', description: 'Follows ongoing matches while there is a window.' },
+          'postgame-close': {
+            label: 'Post-match closing',
+            description:
+              'Fetches again the day list of sports with matches whose result is not confirmed, in each sport mode and interval, until full time. Run now fetches every pending date, within the daily cap.',
+          },
           'live-reconcile': {
             label: 'Live reconciliation',
             description:
@@ -1402,6 +1437,16 @@ export default defineMessages(
         rugby: 'Rugby',
         volleyball: 'Volleyball',
       },
+      postgameFor: {
+        label: 'Post-match closing: {api}',
+        description:
+          'When the final score of matches without live coverage comes in. Closing: checks from the expected end. Real time: from kick-off. Off: only in the next day schedule. In football, applies to leagues outside live.',
+      },
+      postgameIntervalFor: {
+        label: 'Post-match interval: {api}',
+        description:
+          'Minutes between checks of the day list (1 for real time). Each check spends 1 call from the sport quota.',
+      },
       planFor: {
         label: 'Plan: {api}',
         description: 'Subscribed plan for this API. Empty inherits the default plan.',
@@ -1482,6 +1527,11 @@ export default defineMessages(
           description:
             'With no match in the next minutes, the live process exits and the scheduler restarts it in the next window.',
           unit: 'min',
+        },
+        POSTGAME_MAX_CALLS_DAY: {
+          label: 'Post-match cap per sport',
+          description:
+            'Calls per day post-match closing may spend in each sport, besides the daily schedule. At the cap, the rest of the day waits for the next day schedule.',
         },
         LIVE_MIN_PRIORITY: {
           label: 'Leagues followed live',
@@ -1906,6 +1956,11 @@ export default defineMessages(
           ultra: 'Ultra · 75.000/día',
           mega: 'Mega · 150.000/día',
         },
+        postgame: {
+          off: 'Apagado',
+          fechamento: 'Cierre',
+          'tempo-real': 'Tiempo real',
+        },
       },
       actions: {
         save: 'Guardar',
@@ -2045,6 +2100,11 @@ export default defineMessages(
               'Partidos de ayer, hoy y mañana, lesiones y detalle de los terminados. Gasta cuota del día.',
           },
           'live-run': { label: 'En vivo', description: 'Sigue los partidos en curso mientras haya ventana.' },
+          'postgame-close': {
+            label: 'Cierre pospartido',
+            description:
+              'Vuelve a buscar la lista del día de los deportes con partidos sin resultado confirmado, en el modo y el intervalo de cada deporte, hasta el final. Correr ahora busca todas las fechas pendientes, dentro del tope del día.',
+          },
           'live-reconcile': {
             label: 'Reconciliación del en vivo',
             description:
@@ -2294,6 +2354,16 @@ export default defineMessages(
         rugby: 'Rugby',
         volleyball: 'Vóley',
       },
+      postgameFor: {
+        label: 'Cierre pospartido: {api}',
+        description:
+          'Cuándo entra el marcador final de los partidos sin en vivo. Cierre: revisa desde el final previsto. Tiempo real: desde el inicio. Apagado: solo en la agenda del día siguiente. En fútbol, vale para las ligas fuera del en vivo.',
+      },
+      postgameIntervalFor: {
+        label: 'Intervalo del pospartido: {api}',
+        description:
+          'Minutos entre una consulta y otra de la lista del día (1 para tiempo real). Cada consulta gasta 1 llamada de la cuota del deporte.',
+      },
       planFor: {
         label: 'Plan: {api}',
         description: 'Plan contratado de esta API. Vacío hereda el plan por defecto.',
@@ -2374,6 +2444,11 @@ export default defineMessages(
           description:
             'Sin partidos en los próximos minutos, el proceso del en vivo sale y el programador lo reinicia en la próxima ventana.',
           unit: 'min',
+        },
+        POSTGAME_MAX_CALLS_DAY: {
+          label: 'Tope del pospartido por deporte',
+          description:
+            'Llamadas por día que el cierre pospartido puede gastar en cada deporte, además de la agenda diaria. En el tope, el resto del día queda para la agenda del día siguiente.',
         },
         LIVE_MIN_PRIORITY: {
           label: 'Ligas seguidas en vivo',

@@ -98,6 +98,7 @@ export interface ScheduledJobDef {
 export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'sync-daily', service: 'ingestor', cron: '5 0 * * *', runNow: false },
   { name: 'live-run', service: 'ingestor', cron: '*/5 * * * *', runNow: false },
+  { name: 'postgame-close', service: 'ingestor', cron: '* * * * *', runNow: true },
   { name: 'live-reconcile', service: 'ingestor', cron: '*/10 * * * *', runNow: true },
   { name: 'normalize-football', service: 'ingestor', cron: '35 0 * * *', runNow: true },
   { name: 'normalize-sports', service: 'ingestor', cron: '15 * * * *', runNow: true },
@@ -162,6 +163,23 @@ export const APISPORTS_APIS = [
 
 export function planKey(api: string): string {
   return `APISPORTS_PLAN_${api.toUpperCase().replace(/-/g, '_')}`;
+}
+
+/**
+ * Fechamento pós-jogo (jobs postgame-close): esportes cobertos, um modo e um intervalo por esporte. Fórmula 1
+ * fica de fora (as sessões têm pipeline próprio). No futebol, só os jogos fora do plano do ao vivo.
+ */
+export const POSTGAME_APIS = APISPORTS_APIS.filter((api) => api !== 'formula-1');
+/** `fechamento`: confere a partir do fim previsto; `tempo-real`: desde o apito. Os dois no intervalo do esporte. */
+export const POSTGAME_MODES = ['off', 'fechamento', 'tempo-real'] as const;
+export type PostgameMode = (typeof POSTGAME_MODES)[number];
+
+export function postgameModeKey(api: string): string {
+  return `POSTGAME_${api.toUpperCase().replace(/-/g, '_')}`;
+}
+
+export function postgameIntervalKey(api: string): string {
+  return `${postgameModeKey(api)}_MIN`;
 }
 
 /** Mercados do Onde Assistir (ISO 3166-1 alfa-2; o mesmo de WTW_COUNTRIES). */
@@ -594,6 +612,38 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'next-run',
     default: 'free',
     critical: true,
+  },
+  ...POSTGAME_APIS.flatMap((api): SettingDef[] => [
+    {
+      key: postgameModeKey(api),
+      section: 'live',
+      type: 'enum',
+      options: POSTGAME_MODES,
+      services: ['ingestor'],
+      apply: 'next-run',
+      default: 'fechamento',
+    },
+    {
+      key: postgameIntervalKey(api),
+      section: 'live',
+      type: 'int',
+      services: ['ingestor'],
+      apply: 'next-run',
+      min: 1,
+      max: 180,
+      default: '15',
+    },
+  ]),
+  {
+    // teto de chamadas do fechamento pós-jogo por esporte e dia UTC (fora da agenda diária)
+    key: 'POSTGAME_MAX_CALLS_DAY',
+    section: 'live',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 1,
+    max: 2_000,
+    default: '40',
   },
   ...APISPORTS_APIS.map((api): SettingDef => ({
     key: planKey(api),
