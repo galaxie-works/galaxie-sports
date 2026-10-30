@@ -452,6 +452,9 @@ logos:
   country: AR
   group: argentina
   name: Gimnasia y Esgrima Mendoza
+  aliases:
+  - 'Gimnasia Mendoza'
+  - 'Gimnasia y Esgrima de Mendoza'
   file: teams/argentina/gimnasia-y-esgrima-mendoza.svg
   palette_file: teams/argentina/gimnasia-y-esgrima-mendoza.png
   formats:
@@ -506,6 +509,10 @@ logos:
   country: AR
   group: argentina
   name: Independiente Rivadavia
+  aliases:
+  - 'Ind. Rivadavia'
+  - 'Independ. Rivadavia'
+  - 'Independiente Rivadavia Mendoza'
   file: teams/argentina/independiente-rivadavia.svg
   palette_file: teams/argentina/independiente-rivadavia.png
   formats:
@@ -831,6 +838,10 @@ logos:
   country: AT
   group: austria
   name: Blau-Weiß Linz
+  aliases:
+  - 'BW Linz'
+  - 'Blau-Weiss Linz'
+  - 'FC Blau Weiss Linz'
   file: teams/austria/blau-wei-linz.svg
   palette_file: teams/austria/blau-wei-linz.png
   formats:
@@ -851,6 +862,9 @@ logos:
   country: AT
   group: austria
   name: FC Hertha Wels
+  aliases:
+  - 'Hertha Wels'
+  - 'WSC Hertha Wels'
   file: teams/austria/fc-hertha-wels.svg
   palette_file: teams/austria/fc-hertha-wels.png
   formats:
@@ -1101,6 +1115,9 @@ logos:
   country: AU
   group: australia
   name: APIA Leichhardt FC
+  aliases:
+  - 'APIA Leichhardt'
+  - 'APIA Leichhardt Tigers'
   file: teams/australia/apia-leichhardt-fc.svg
   palette_file: teams/australia/apia-leichhardt-fc.png
   formats:
@@ -1167,6 +1184,9 @@ logos:
   country: AU
   group: australia
   name: Sydney United 58 FC
+  aliases:
+  - 'Sydney United'
+  - 'Sydney United 58'
   file: teams/australia/sydney-united-58-fc.svg
   palette_file: teams/australia/sydney-united-58-fc.png
   formats:
@@ -1189,6 +1209,9 @@ logos:
   country: AZ
   group: azerbaijao
   name: Azerbaijan Premier League
+  aliases:
+  - 'Premyer Liqa'
+  - 'Premier League'
   file: competitions/azerbaijao/azerbaijan-premier-league.svg
   palette_file: competitions/azerbaijao/azerbaijan-premier-league.png
   formats:
@@ -1290,6 +1313,8 @@ logos:
   country: BD
   group: bangladesh
   name: Bangladesh Football League
+  aliases:
+  - 'Premier League'
   file: competitions/bangladesh/bangladesh-football-league.svg
   palette_file: competitions/bangladesh/bangladesh-football-league.png
   formats:
@@ -1517,6 +1542,9 @@ logos:
   country: BE
   group: belgica
   name: Oud Heverlee Leuven
+  aliases:
+  - 'OH Leuven'
+  - 'Oud-Heverlee Leuven'
   file: teams/belgica/oud-heverlee-leuven.svg
   palette_file: teams/belgica/oud-heverlee-leuven.png
   formats:
@@ -1569,6 +1597,11 @@ logos:
   country: BE
   group: belgica
   name: Sint Truidense
+  aliases:
+  - 'St. Truiden'
+  - 'Sint-Truiden'
+  - 'Sint-Truidense VV'
+  - 'STVV'
   file: teams/belgica/sint-truidense.svg
   palette_file: teams/belgica/sint-truidense.png
   formats:
@@ -1655,6 +1688,9 @@ logos:
   country: BG
   group: bulgaria
   name: Parva Liga
+  aliases:
+  - 'First League'
+  - 'Parva Liga'
   file: competitions/bulgaria/parva-liga.svg
   palette_file: competitions/bulgaria/parva-liga.png
   formats:
@@ -2099,6 +2135,9 @@ logos:
   country: BR
   group: brasil
   name: Centro Esportivo Olhodaguense
+  aliases:
+  - 'Olhodaguense'
+  - 'CE Olhodaguense'
   file: teams/brasil/centro-esportivo-olhodaguense.svg
   palette_file: teams/brasil/centro-esportivo-olhodaguense.png
   formats:
@@ -2298,6 +2337,9 @@ logos:
   country: BR
   group: brasil
   name: Esporte Clube Osasco
+  aliases:
+  - 'EC Osasco'
+  - 'Osasco'
   file: teams/brasil/esporte-clube-osasco.svg
   palette_file: teams/brasil/esporte-clube-osasco.png
   formats:
@@ -2499,6 +2541,11 @@ logos:
   country: BR
   group: brasil
   name: Internacional de Santa Maria
+  aliases:
+  - 'Internacional SM'
+  - 'Inter de Santa Maria'
+  - 'Internacional-SM'
+  - 'Inter SM'
   file: teams/brasil/internacional-de-santa-maria.svg
   palette_file: teams/brasil/internacional-de-santa-maria.png
   formats:
@@ -2520,6 +2567,9 @@ logos:
   country: BR
   group: brasil
   name: Ipanema Atlético Clube
+  aliases:
+  - 'Ipanema'
+  - 'Ipanema AL'
   file: teams/brasil/ipanema-atletico-clube.svg
   palette_file: teams/brasil/ipanema-atletico-clube.png
   formats:
@@ -2874,6 +2924,10 @@ logos:
   country: BR
   group: brasil
   name: URT
+  aliases:
+  - 'URT-MG'
+  - 'URT MG'
+  - 'Uniao Recreativa dos Trabalhadores'
   file: teams/brasil/urt.svg
   palette_file: teams/brasil/urt.png
   formats:
@@ -3141,6 +3195,8 @@ logos:
   country: CL
   group: chile
   name: Liga de Ascenso
+  aliases:
+  - 'Primera B'
   file: competitions/chile/liga-de-ascenso.svg
   palette_file: competitions/chile/liga-de-ascenso.png
   formats:
@@ -3207,6 +3263,9 @@ logos:
   country: CN
   group: china
   name: Shenzhen FC
+  aliases:
+  - 'Shenzhen'
+  - 'Shenzhen Football Club'
   file: teams/china/shenzhen-fc.svg
   palette_file: teams/china/shenzhen-fc.png
   formats:
@@ -3229,6 +3288,9 @@ logos:
   country: CN
   group: china
   name: Tianjin Tianhai
+  aliases:
+  - 'Tianjin Quanjian'
+  - 'Tianjin Tianhai FC'
   file: teams/china/tianjin-tianhai.svg
   palette_file: teams/china/tianjin-tianhai.png
   formats:
@@ -3295,6 +3357,8 @@ logos:
   country: CW
   group: curacao
   name: CRKSV Jong Holland
+  aliases:
+  - 'Jong Holland'
   file: teams/curacao/crksv-jong-holland.svg
   palette_file: teams/curacao/crksv-jong-holland.png
   formats:
@@ -3328,6 +3392,9 @@ logos:
   country: CY
   group: chipre
   name: Cypriot First Division
+  aliases:
+  - '1. Division'
+  - 'First Division'
   file: competitions/chipre/cypriot-first-division.svg
   palette_file: competitions/chipre/cypriot-first-division.png
   formats:
@@ -3347,6 +3414,10 @@ logos:
   country: CY
   group: chipre
   name: Omonoia
+  aliases:
+  - 'Omonia Nicosia'
+  - 'Omonia'
+  - 'AC Omonia'
   file: teams/chipre/omonoia.svg
   palette_file: teams/chipre/omonoia.png
   formats:
@@ -3400,6 +3471,10 @@ logos:
   country: CZ
   group: tchequia
   name: Chance Liga
+  aliases:
+  - 'Czech Liga'
+  - '1. Liga'
+  - 'Fortuna Liga'
   file: competitions/tchequia/chance-liga.svg
   palette_file: competitions/tchequia/chance-liga.png
   formats:
@@ -3420,6 +3495,10 @@ logos:
   country: CZ
   group: tchequia
   name: Chance Narodní Liga
+  aliases:
+  - 'FNL'
+  - 'Czech National Football League'
+  - '2. Liga'
   file: competitions/tchequia/chance-narodni-liga.svg
   palette_file: competitions/tchequia/chance-narodni-liga.png
   formats:
@@ -3915,6 +3994,11 @@ logos:
   country: DE
   group: alemanha
   name: Colônia
+  aliases:
+  - '1. FC Köln'
+  - 'FC Koln'
+  - '1. FC Koln'
+  - 'FC Cologne'
   file: teams/alemanha/colonia.svg
   palette_file: teams/alemanha/colonia.png
   formats:
@@ -3936,6 +4020,9 @@ logos:
   country: DE
   group: alemanha
   name: CSC 03 Kassel
+  aliases:
+  - 'CSC 03 Kassel'
+  - 'CSC Kassel'
   file: teams/alemanha/csc-03-kassel.svg
   palette_file: teams/alemanha/csc-03-kassel.png
   formats:
@@ -4920,6 +5007,9 @@ logos:
   country: DK
   group: dinamarca
   name: 1st Division
+  aliases:
+  - '1. Division'
+  - 'NordicBet Liga'
   file: competitions/dinamarca/1st-division.svg
   palette_file: competitions/dinamarca/1st-division.png
   formats:
@@ -4969,6 +5059,9 @@ logos:
   country: DK
   group: dinamarca
   name: AGF
+  aliases:
+  - 'Aarhus'
+  - 'AGF Aarhus'
   file: teams/dinamarca/agf.svg
   palette_file: teams/dinamarca/agf.png
   formats:
@@ -5119,6 +5212,8 @@ logos:
   country: EE
   group: estonia
   name: Premium Liiga
+  aliases:
+  - 'Meistriliiga'
   file: competitions/estonia/premium-liiga.svg
   palette_file: competitions/estonia/premium-liiga.png
   formats:
@@ -5204,6 +5299,9 @@ logos:
   country: ES
   group: espanha
   name: La Liga 2
+  aliases:
+  - 'Segunda División'
+  - 'Segunda Division'
   file: competitions/espanha/la-liga-2.svg
   palette_file: competitions/espanha/la-liga-2.png
   formats:
@@ -5223,6 +5321,9 @@ logos:
   country: ES
   group: espanha
   name: Primera Federación
+  aliases:
+  - 'Primera División RFEF'
+  - 'Primera Division RFEF'
   file: competitions/espanha/primera-federacion.svg
   palette_file: competitions/espanha/primera-federacion.png
   formats:
@@ -5242,6 +5343,9 @@ logos:
   country: ES
   group: espanha
   name: Segunda Federación
+  aliases:
+  - 'Segunda División RFEF'
+  - 'Segunda Division RFEF'
   file: competitions/espanha/segunda-federacion.svg
   palette_file: competitions/espanha/segunda-federacion.png
   formats:
@@ -6386,6 +6490,9 @@ logos:
   country: FR
   group: franca
   name: Brest
+  aliases:
+  - 'Stade Brestois 29'
+  - 'Stade Brestois'
   file: teams/franca/brest.svg
   palette_file: teams/franca/brest.png
   formats:
@@ -6848,6 +6955,10 @@ logos:
   country: FR
   group: franca
   name: Olympique de Marselha
+  aliases:
+  - 'Marseille'
+  - 'Olympique Marseille'
+  - 'Olympique de Marseille'
   file: teams/franca/olympique-de-marselha.svg
   palette_file: teams/franca/olympique-de-marselha.png
   formats:
@@ -7152,6 +7263,9 @@ logos:
   country: FR
   group: franca
   name: Stade Lavallois
+  aliases:
+  - 'Laval'
+  - 'Stade Lavallois MFC'
   file: teams/franca/stade-lavallois.svg
   palette_file: teams/franca/stade-lavallois.png
   formats:
@@ -8057,6 +8171,8 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: Queens Park Rangers
+  aliases:
+  - 'QPR'
   file: teams/inglaterra/queens-park-rangers.svg
   palette_file: teams/inglaterra/queens-park-rangers.png
   formats:
@@ -8092,6 +8208,8 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: Sheffield United
+  aliases:
+  - 'Sheffield Utd'
   file: teams/inglaterra/sheffield-united.svg
   palette_file: teams/inglaterra/sheffield-united.png
   formats:
@@ -8206,6 +8324,8 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: West Bromwich Albion
+  aliases:
+  - 'West Brom'
   file: teams/inglaterra/west-bromwich-albion.svg
   palette_file: teams/inglaterra/west-bromwich-albion.png
   formats:
@@ -8434,6 +8554,8 @@ logos:
   country: GB-SCT
   group: escocia
   name: Dundee United
+  aliases:
+  - 'Dundee Utd'
   file: teams/escocia/dundee-united.svg
   palette_file: teams/escocia/dundee-united.png
   formats:
@@ -8468,6 +8590,9 @@ logos:
   country: GB-SCT
   group: escocia
   name: Hearts
+  aliases:
+  - 'Heart Of Midlothian'
+  - 'Heart of Midlothian'
   file: teams/escocia/hearts.svg
   palette_file: teams/escocia/hearts.png
   formats:
@@ -8614,6 +8739,9 @@ logos:
   country: GB-WLS
   group: pais-de-gales
   name: Cymru Premier
+  aliases:
+  - 'Premier League'
+  - 'Cymru Premier'
   file: competitions/pais-de-gales/cymru-premier.svg
   palette_file: competitions/pais-de-gales/cymru-premier.png
   formats:
@@ -8680,6 +8808,8 @@ logos:
   country: GE
   group: georgia
   name: FC Spartaki Tbilisi
+  aliases:
+  - 'Spartaki Tbilisi'
   file: teams/georgia/fc-spartaki-tbilisi.svg
   palette_file: teams/georgia/fc-spartaki-tbilisi.png
   formats:
@@ -8856,6 +8986,10 @@ logos:
   country: GR
   group: grecia
   name: AEK Atenas
+  aliases:
+  - 'AEK Athens FC'
+  - 'AEK Athens'
+  - 'AEK'
   file: teams/grecia/aek-atenas.svg
   palette_file: teams/grecia/aek-atenas.png
   formats:
@@ -8988,6 +9122,9 @@ logos:
   country: GR
   group: grecia
   name: Diagoras Rhodes
+  aliases:
+  - 'Diagoras'
+  - 'Diagoras Rodou'
   file: teams/grecia/diagoras-rhodes.svg
   palette_file: teams/grecia/diagoras-rhodes.png
   formats:
@@ -9192,6 +9329,10 @@ logos:
   country: GR
   group: grecia
   name: Olympiacos
+  aliases:
+  - 'Olympiakos Piraeus'
+  - 'Olympiacos Piraeus'
+  - 'Olympiakos'
   file: teams/grecia/olympiacos.svg
   palette_file: teams/grecia/olympiacos.png
   formats:
@@ -9433,6 +9574,9 @@ logos:
   country: HR
   group: croacia
   name: Croatian Football League
+  aliases:
+  - 'HNL'
+  - '1. HNL'
   file: competitions/croacia/croatian-football-league.svg
   palette_file: competitions/croacia/croatian-football-league.png
   formats:
@@ -9518,6 +9662,8 @@ logos:
   country: HU
   group: hungria
   name: Nemzeti Bajnokság I
+  aliases:
+  - 'NB I'
   file: competitions/hungria/nemzeti-bajnoksag-i.svg
   palette_file: competitions/hungria/nemzeti-bajnoksag-i.png
   formats:
@@ -9536,6 +9682,8 @@ logos:
   country: HU
   group: hungria
   name: Nemzeti Bajnokság II
+  aliases:
+  - 'NB II'
   file: competitions/hungria/nemzeti-bajnoksag-ii.svg
   palette_file: competitions/hungria/nemzeti-bajnoksag-ii.png
   formats:
@@ -9587,6 +9735,8 @@ logos:
   country: ID
   group: indonesia
   name: Indonesian Super League
+  aliases:
+  - 'Liga 1'
   file: competitions/indonesia/indonesian-super-league.svg
   palette_file: competitions/indonesia/indonesian-super-league.png
   formats:
@@ -9605,6 +9755,8 @@ logos:
   country: ID
   group: indonesia
   name: Pegadaian Championship (Kejuaraan)
+  aliases:
+  - 'Liga 2'
   file: competitions/indonesia/pegadaian-championship-kejuaraan.svg
   palette_file: competitions/indonesia/pegadaian-championship-kejuaraan.png
   formats:
@@ -9674,6 +9826,9 @@ logos:
   country: IL
   group: israel
   name: Israeli Premier League
+  aliases:
+  - 'Ligat Ha''al'
+  - 'Ligat haAl'
   file: competitions/israel/israeli-premier-league.svg
   palette_file: competitions/israel/israeli-premier-league.png
   formats:
@@ -9756,6 +9911,9 @@ logos:
   country: IQ
   group: iraque
   name: Iraq Stars League
+  aliases:
+  - 'Iraqi League'
+  - 'Stars League'
   file: competitions/iraque/iraq-stars-league.svg
   palette_file: competitions/iraque/iraq-stars-league.png
   formats:
@@ -9792,6 +9950,8 @@ logos:
   country: IR
   group: ira
   name: Esteghlal FC
+  aliases:
+  - 'Esteghlal'
   file: teams/ira/esteghlal-fc.svg
   palette_file: teams/ira/esteghlal-fc.png
   formats:
@@ -9825,6 +9985,10 @@ logos:
   country: IS
   group: islandia
   name: Besta deild karla
+  aliases:
+  - 'Úrvalsdeild'
+  - 'Urvalsdeild'
+  - 'Besta deild'
   file: competitions/islandia/besta-deild-karla.svg
   palette_file: competitions/islandia/besta-deild-karla.png
   formats:
@@ -10611,6 +10775,9 @@ logos:
   country: JM
   group: jamaica
   name: Montego Bay United
+  aliases:
+  - 'Montego Bay'
+  - 'Montego Bay Utd'
   file: teams/jamaica/montego-bay-united.svg
   palette_file: teams/jamaica/montego-bay-united.png
   formats:
@@ -10628,6 +10795,10 @@ logos:
   country: JO
   group: jordania
   name: Al-Faisaly
+  aliases:
+  - 'Al Faisaly'
+  - 'Al-Faisaly Amman'
+  - 'Al Faisaly Amman'
   file: teams/jordania/al-faisaly.svg
   palette_file: teams/jordania/al-faisaly.png
   formats:
@@ -10646,6 +10817,10 @@ logos:
   country: JO
   group: jordania
   name: Al-Hussein Irbid
+  aliases:
+  - 'Al Hussein'
+  - 'Al-Hussein'
+  - 'Al Hussein Irbid'
   file: teams/jordania/al-hussein-irbid.svg
   palette_file: teams/jordania/al-hussein-irbid.png
   formats:
@@ -10664,6 +10839,10 @@ logos:
   country: JO
   group: jordania
   name: Al-Wehdat
+  aliases:
+  - 'Al Wehdat'
+  - 'Al-Wahdat'
+  - 'Al Wahdat'
   file: teams/jordania/al-wehdat.svg
   palette_file: teams/jordania/al-wehdat.png
   formats:
@@ -10879,6 +11058,8 @@ logos:
   country: LT
   group: lituania
   name: TOPLYGA
+  aliases:
+  - 'A Lyga'
   file: competitions/lituania/toplyga.svg
   palette_file: competitions/lituania/toplyga.png
   formats:
@@ -10897,6 +11078,8 @@ logos:
   country: LT
   group: lituania
   name: FK Palanga
+  aliases:
+  - 'Palanga'
   file: teams/lituania/fk-palanga.svg
   palette_file: teams/lituania/fk-palanga.png
   formats:
@@ -10980,6 +11163,8 @@ logos:
   country: LV
   group: letonia
   name: Latvian Higher League
+  aliases:
+  - 'Virsliga'
   file: competitions/letonia/latvian-higher-league.svg
   palette_file: competitions/letonia/latvian-higher-league.png
   formats:
@@ -11078,6 +11263,10 @@ logos:
   country: MD
   group: moldavia
   name: Moldovan Liga
+  aliases:
+  - 'Super Liga'
+  - 'Divizia Națională'
+  - 'Divizia Nationala'
   file: competitions/moldavia/moldovan-liga.svg
   palette_file: competitions/moldavia/moldovan-liga.png
   formats:
@@ -11183,6 +11372,9 @@ logos:
   country: MV
   group: maldivas
   name: Maziya S&RC
+  aliases:
+  - 'Maziya'
+  - 'Maziya S&R'
   file: teams/maldivas/maziya-s-rc.svg
   palette_file: teams/maldivas/maziya-s-rc.png
   formats:
@@ -11266,6 +11458,9 @@ logos:
   country: NG
   group: nigeria
   name: Nigeria Premier Football League
+  aliases:
+  - 'NPFL'
+  - 'Professional League'
   file: competitions/nigeria/nigeria-premier-football-league.svg
   palette_file: competitions/nigeria/nigeria-premier-football-league.png
   formats:
@@ -11978,9 +12173,12 @@ logos:
   confidence: 1
 - key: competitions/noruega/norwegian-first-division
   kind: competition
-  country: false
+  country: 'NO'
   group: noruega
   name: Norwegian First Division
+  aliases:
+  - '1. Division'
+  - 'OBOS-ligaen'
   file: competitions/noruega/norwegian-first-division.svg
   palette_file: competitions/noruega/norwegian-first-division.png
   formats:
@@ -12115,6 +12313,9 @@ logos:
   country: PA
   group: panama
   name: Panamanian Football League
+  aliases:
+  - 'LPF'
+  - 'Liga Panameña de Fútbol'
   file: competitions/panama/panamanian-football-league.svg
   palette_file: competitions/panama/panamanian-football-league.png
   formats:
@@ -12183,6 +12384,9 @@ logos:
   country: PL
   group: polonia
   name: Polish 1 Liga
+  aliases:
+  - 'I Liga'
+  - '1. Liga'
   file: competitions/polonia/polish-1-liga.svg
   palette_file: competitions/polonia/polish-1-liga.png
   formats:
@@ -12727,6 +12931,9 @@ logos:
   country: RO
   group: romenia
   name: Superliga
+  aliases:
+  - 'Liga I'
+  - 'SuperLiga'
   file: competitions/romenia/superliga.svg
   palette_file: competitions/romenia/superliga.png
   formats:
@@ -12990,6 +13197,9 @@ logos:
   country: RO
   group: romenia
   name: U Cluj
+  aliases:
+  - 'Universitatea Cluj'
+  - 'U. Cluj'
   file: teams/romenia/u-cluj.svg
   palette_file: teams/romenia/u-cluj.png
   formats:
@@ -13058,6 +13268,8 @@ logos:
   country: RS
   group: servia
   name: Serbian SuperLiga
+  aliases:
+  - 'Super Liga'
   file: competitions/servia/serbian-superliga.svg
   palette_file: competitions/servia/serbian-superliga.png
   formats:
@@ -13076,6 +13288,10 @@ logos:
   country: RS
   group: servia
   name: Estrela Vermelha
+  aliases:
+  - 'FK Crvena Zvezda'
+  - 'Crvena Zvezda'
+  - 'Red Star Belgrade'
   file: teams/servia/estrela-vermelha.svg
   palette_file: teams/servia/estrela-vermelha.png
   formats:
@@ -13227,6 +13443,10 @@ logos:
   country: RU
   group: russia
   name: Dínamo Moscou
+  aliases:
+  - 'Dinamo Moscow'
+  - 'Dynamo Moscow'
+  - 'Dinamo Moskva'
   file: teams/russia/dinamo-moscou.svg
   palette_file: teams/russia/dinamo-moscou.png
   formats:
@@ -13282,6 +13502,8 @@ logos:
   country: RU
   group: russia
   name: FC Elista
+  aliases:
+  - 'Elista'
   file: teams/russia/fc-elista.svg
   palette_file: teams/russia/fc-elista.png
   formats:
@@ -13862,6 +14084,9 @@ logos:
   country: SE
   group: suecia
   name: Linköping FC
+  aliases:
+  - 'Linköpings FC'
+  - 'Linkopings FC'
   file: teams/suecia/linkoping-fc.svg
   palette_file: teams/suecia/linkoping-fc.png
   formats:
@@ -13950,6 +14175,9 @@ logos:
   country: SI
   group: eslovenia
   name: Slovenian PrvaLiga
+  aliases:
+  - '1. SNL'
+  - 'Prva Liga'
   file: competitions/eslovenia/slovenian-prvaliga.svg
   palette_file: competitions/eslovenia/slovenian-prvaliga.png
   formats:
@@ -14002,6 +14230,10 @@ logos:
   country: SK
   group: eslovaquia
   name: Slovak First Football League
+  aliases:
+  - 'Super Liga'
+  - 'Niké liga'
+  - 'Nike liga'
   file: competitions/eslovaquia/slovak-first-football-league.svg
   palette_file: competitions/eslovaquia/slovak-first-football-league.png
   formats:
@@ -14055,6 +14287,8 @@ logos:
   country: SM
   group: san-marino
   name: Sammarinese Football Championship
+  aliases:
+  - 'Campionato Sammarinese'
   file: competitions/san-marino/sammarinese-football-championship.svg
   palette_file: competitions/san-marino/sammarinese-football-championship.png
   formats:
@@ -14093,6 +14327,10 @@ logos:
   country: SN
   group: senegal
   name: AS Dakar Sacré-Cœur
+  aliases:
+  - 'Dakar Sacre Coeur'
+  - 'AS Dakar Sacre Coeur'
+  - 'Dakar Sacré-Cœur'
   file: teams/senegal/as-dakar-sacre-c-ur.svg
   palette_file: teams/senegal/as-dakar-sacre-c-ur.png
   formats:
@@ -14225,6 +14463,10 @@ logos:
   country: TR
   group: turquia
   name: 12 Bingolspor
+  aliases:
+  - '12 Bingöl Spor'
+  - 'Bingolspor'
+  - '12 Bingol Spor'
   file: teams/turquia/12-bingolspor.svg
   palette_file: teams/turquia/12-bingolspor.png
   formats:
@@ -14433,6 +14675,9 @@ logos:
   country: TR
   group: turquia
   name: Araklıspor
+  aliases:
+  - 'Araklispor'
+  - 'Araklı Spor'
   file: teams/turquia/arakl-spor.svg
   palette_file: teams/turquia/arakl-spor.png
   formats:
@@ -14514,6 +14759,9 @@ logos:
   country: TR
   group: turquia
   name: Beyoğluspor
+  aliases:
+  - 'Beyoglu Yeni Carsi'
+  - 'Beyoğlu Yeni Çarşı'
   file: teams/turquia/beyogluspor.svg
   palette_file: teams/turquia/beyogluspor.png
   formats:
@@ -14563,6 +14811,9 @@ logos:
   country: TR
   group: turquia
   name: Diyarbakırspor
+  aliases:
+  - 'Diyarbakirspor'
+  - 'Diyarbekirspor'
   file: teams/turquia/diyarbak-rspor.svg
   palette_file: teams/turquia/diyarbak-rspor.png
   formats:
@@ -14738,6 +14989,9 @@ logos:
   country: TR
   group: turquia
   name: Gaziosmanpaşaspor
+  aliases:
+  - 'Gaziosmanpasa'
+  - 'GOP'
   file: teams/turquia/gaziosmanpasaspor.svg
   palette_file: teams/turquia/gaziosmanpasaspor.png
   formats:
@@ -15014,6 +15268,9 @@ logos:
   country: TR
   group: turquia
   name: Mardinspor
+  aliases:
+  - 'Mardin 1969 Spor'
+  - 'Mardin Spor'
   file: teams/turquia/mardinspor.svg
   palette_file: teams/turquia/mardinspor.png
   formats:
@@ -15052,6 +15309,10 @@ logos:
   country: TR
   group: turquia
   name: Musspor
+  aliases:
+  - 'Muş Spor'
+  - '49 Muşspor'
+  - 'Mus Spor'
   file: teams/turquia/musspor.svg
   palette_file: teams/turquia/musspor.png
   formats:
@@ -15198,6 +15459,9 @@ logos:
   country: TZ
   group: tanzania
   name: NBC Premier League
+  aliases:
+  - 'Ligi kuu Bara'
+  - 'Premier League'
   file: competitions/tanzania/nbc-premier-league.svg
   palette_file: competitions/tanzania/nbc-premier-league.png
   formats:
@@ -15233,6 +15497,8 @@ logos:
   country: UA
   group: ucrania
   name: Ukrainian Premier League
+  aliases:
+  - 'Premier League'
   file: competitions/ucrania/ukrainian-premier-league.svg
   palette_file: competitions/ucrania/ukrainian-premier-league.png
   formats:
@@ -15316,6 +15582,9 @@ logos:
   country: US
   group: estados-unidos
   name: National Women's Soccer League
+  aliases:
+  - 'NWSL Women'
+  - 'NWSL'
   file: competitions/estados-unidos/national-women-s-soccer-league.svg
   palette_file: competitions/estados-unidos/national-women-s-soccer-league.png
   formats:
@@ -15383,6 +15652,9 @@ logos:
   country: US
   group: estados-unidos
   name: Atlanta United 2
+  aliases:
+  - 'Atlanta United II'
+  - 'Atlanta United FC II'
   file: teams/estados-unidos/atlanta-united-2.svg
   palette_file: teams/estados-unidos/atlanta-united-2.png
   formats:
@@ -15498,6 +15770,9 @@ logos:
   country: US
   group: estados-unidos
   name: CT United FC
+  aliases:
+  - 'Connecticut United'
+  - 'CT United'
   file: teams/estados-unidos/ct-united-fc.svg
   palette_file: teams/estados-unidos/ct-united-fc.png
   formats:
@@ -15547,6 +15822,9 @@ logos:
   country: US
   group: estados-unidos
   name: FC Cincinnati 2
+  aliases:
+  - 'FC Cincinnati II'
+  - 'FC Cincinnati 2'
   file: teams/estados-unidos/fc-cincinnati-2.svg
   palette_file: teams/estados-unidos/fc-cincinnati-2.png
   formats:
@@ -15646,6 +15924,10 @@ logos:
   country: US
   group: estados-unidos
   name: LAFC2
+  aliases:
+  - 'Los Angeles FC II'
+  - 'LAFC II'
+  - 'Los Angeles FC 2'
   file: teams/estados-unidos/lafc2.svg
   palette_file: teams/estados-unidos/lafc2.png
   formats:
@@ -15861,6 +16143,9 @@ logos:
   country: US
   group: estados-unidos
   name: Red Bull New York II
+  aliases:
+  - 'New York Red Bulls II'
+  - 'NY Red Bulls II'
   file: teams/estados-unidos/red-bull-new-york-ii.svg
   palette_file: teams/estados-unidos/red-bull-new-york-ii.png
   formats:
@@ -15959,6 +16244,9 @@ logos:
   country: US
   group: estados-unidos
   name: Sporting Kansas City II
+  aliases:
+  - 'Sporting KC II'
+  - 'Sporting Kansas City II'
   file: teams/estados-unidos/sporting-kansas-city-ii.svg
   palette_file: teams/estados-unidos/sporting-kansas-city-ii.png
   formats:
