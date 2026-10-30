@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { groupWhereToWatch, hasGroups } from '@/lib/where-to-watch';
 
-import { WhereToWatchGroups } from './where-to-watch-groups';
+import { BrandLogo, WhereToWatchGroups } from './where-to-watch-groups';
 
 const option = (patch: Partial<WhereToWatchOption>): WhereToWatchOption => ({
   id: '0199a5c0-0000-7000-8000-0000000000f1',
@@ -213,6 +213,21 @@ describe('onde assistir agrupado (página do jogo)', () => {
     const html = render(wtw);
     expect(html).toMatch(/src="https:\/\/cdn\.exemplo\.test\/canal\.png"[^>]*dark:hidden/);
     expect(html).toMatch(/src="https:\/\/cdn\.exemplo\.test\/canal-dark\.png"[^>]*dark:block/);
+  });
+
+  it('sem versão escura, o logo claro ganha placa clara no tema escuro', () => {
+    const only = renderToStaticMarkup(
+      <BrandLogo name="Canal" logo="https://cdn.exemplo.test/canal.png" logoDark={null} />,
+    );
+    expect(only).toMatch(/dark:bg-white[^>]*><img src="https:\/\/cdn\.exemplo\.test\/canal\.png"/);
+    const both = renderToStaticMarkup(
+      <BrandLogo
+        name="Canal"
+        logo="https://cdn.exemplo.test/canal.png"
+        logoDark="https://cdn.exemplo.test/canal-dark.png"
+      />,
+    );
+    expect(both).not.toContain('dark:bg-white');
   });
 
   it('sem plataforma, os cartões não aparecem e o resto segue', () => {

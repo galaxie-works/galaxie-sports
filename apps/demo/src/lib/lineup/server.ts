@@ -54,19 +54,27 @@ type LibraryRow = {
   kind: string;
   storage_key: string | null;
   source_url: string | null;
+  dark_storage_key: string | null;
   custom: boolean;
+  custom_dark: boolean;
 };
-// logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, como na API
-const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url,
-      b.custom_logo_asset_id is not null as custom
+// logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, como na API; a versão escura
+// do painel vale sempre, a do acervo só sem logo claro do painel
+const LIBRARY_SELECT = `select b.id, b.name, b.kind, a.storage_key, a.source_url, d.storage_key as dark_storage_key,
+      b.custom_logo_asset_id is not null as custom,
+      b.custom_logo_dark_asset_id is not null as custom_dark
     from enrich.broadcaster b
-    left join core.asset a on a.id = coalesce(b.custom_logo_asset_id, b.logo_asset_id)`;
+    left join core.asset a on a.id = coalesce(b.custom_logo_asset_id, b.logo_asset_id)
+    left join core.asset d on d.id = coalesce(b.custom_logo_dark_asset_id,
+      case when b.custom_logo_asset_id is null then b.logo_dark_asset_id end)`;
 const toEntry = (r: LibraryRow): LibraryEntry => ({
   id: r.id,
   name: r.name,
   kind: r.kind,
   logoUrl: assetUrl(r.storage_key, r.source_url),
+  logoDarkUrl: r.dark_storage_key ? assetUrl(r.dark_storage_key, null) : null,
   customLogo: r.custom === true,
+  customDarkLogo: r.custom_dark === true,
 });
 
 /** Nome e logo das entradas da biblioteca de emissoras usadas nas grades. */
@@ -97,6 +105,21 @@ async function assetUrls(ids: string[]): Promise<Map<string, string | null>> {
   return new Map(list.map((r) => [r.id, assetUrl(r.storage_key, r.source_url)]));
 }
 
+/**
+ * Versão escura do acervo para logos de plataforma que são o logo de uma entrada da biblioteca (mesmo
+ * site oficial), como `loadLogoBook` na API: asset do logo → URL da versão escura.
+ */
+async function officialDarkUrls(ids: string[]): Promise<Map<string, string | null>> {
+  if (!ids.length) return new Map();
+  const list = await rows<{ id: string; storage_key: string | null }>(
+    `select b.logo_asset_id::text as id, d.storage_key
+      from enrich.broadcaster b join core.asset d on d.id = b.logo_dark_asset_id
+      where b.logo_asset_id = any($1)`,
+    [ids],
+  );
+  return new Map(list.map((r) => [r.id, r.storage_key ? assetUrl(r.storage_key, null) : null]));
+}
+
 /** Grades do banco → grades do navegador, com nomes e logos da biblioteca. */
 async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
   const refs = new Set<string>();
@@ -109,11 +132,21 @@ async function toViews(lineups: PlatformLineup[]): Promise<LineupView[]> {
   }
   // logo da plataforma: o enviado no painel vale no lugar do da busca de logos
   const logoOf = (l: PlatformLineup) => l.platform.customLogoAssetId ?? l.platform.logoAssetId;
-  const logos = lineups.map(logoOf).filter((x): x is string => Boolean(x));
-  const [library, assets] = await Promise.all([readLibrary([...refs]), assetUrls(logos)]);
+  const own = lineups.map(logoOf).filter((x): x is string => Boolean(x));
+  const logos = [...own, ...lineups.map((l) => l.platform.customLogoDarkAssetId)].filter((x): x is string =>
+    Boolean(x),
+  );
+  const [library, assets, official] = await Promise.all([
+    readLibrary([...refs]),
+    assetUrls(logos),
+    officialDarkUrls(own),
+  ]);
+  const urlOf = (id: string | null | undefined) => (id ? (assets.get(id) ?? null) : null);
+  // escura: a do painel; senão, a do acervo que acompanha o logo da plataforma
   return lineups.map((l) => {
     const id = logoOf(l);
-    return lineupView(l, library, id ? (assets.get(id) ?? null) : null);
+    const dark = urlOf(l.platform.customLogoDarkAssetId) ?? (id ? (official.get(id) ?? null) : null);
+    return lineupView(l, library, urlOf(id), dark);
   });
 }
 
