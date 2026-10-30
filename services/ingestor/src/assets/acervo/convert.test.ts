@@ -427,6 +427,80 @@ describe('conversor da base por país', () => {
     });
   });
 
+  it('vínculo automático anterior fica enquanto o alvo existir, mesmo que o casador mude', () => {
+    const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
+    const targets = [club('cam', 'Atletico Mineiro', 'BR'), club('ame', 'America Mineiro', 'BR')];
+    const scan = scanAcervo(out);
+    const first = planManifest(scan, targets, countries, undefined, new Date()).manifest;
+    const atl = first.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')!;
+    expect(atl).toMatchObject({ target_id: 'cam', match: 'auto' });
+    // o vínculo publicado é outro (de uma revisão anterior): a varredura nova não o troca
+    Object.assign(atl, { target_id: 'ame', target_name: 'America Mineiro', confidence: 0.9 });
+    const second = planManifest(scan, targets, countries, first, new Date()).manifest;
+    expect(second.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')).toMatchObject({
+      target_id: 'ame',
+      match: 'auto',
+      confidence: 0.9,
+    });
+    // o alvo saiu do cadastro: casa de novo
+    const third = planManifest(scan, [targets[0]!], countries, first, new Date()).manifest;
+    expect(third.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')).toMatchObject({
+      target_id: 'cam',
+      match: 'auto',
+    });
+  });
+
+  it('logo antigo herdado por duas pastas novas não deixa dois vínculos no mesmo alvo', () => {
+    const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
+    const logo = (key: string, countryFolder: string) => ({
+      key,
+      kind: 'team' as const,
+      countryFolder,
+      name: 'Atlético Mineiro',
+      file: `${key}.svg`,
+      sha256: key,
+    });
+    const scan = {
+      info: { id: 'x', name: 'x', revision: '1' },
+      groups: { brasil: { country: 'Brasil' }, mundial: { country: 'Mundial' } },
+      logos: [
+        logo('teams/brasil/atletico-mineiro', 'brasil'),
+        logo('teams/mundial/atletico-mineiro', 'mundial'),
+      ],
+      ignored: [],
+      rejected: {},
+    } as unknown as ReturnType<typeof scanAcervo>;
+    const previous = {
+      schema_version: 1,
+      acervo: scan.info,
+      generated_at: '2026-10-29T00:00:00Z',
+      logos: [
+        {
+          key: 'teams/mundial-libertadores/atletico-mineiro',
+          kind: 'team' as const,
+          country: 'WORLD',
+          name: 'Atlético Mineiro',
+          file: 'x.svg',
+          sha256: 'x',
+          target_id: 'cam',
+          match: 'auto' as const,
+          confidence: 1,
+        },
+      ],
+    } as unknown as Parameters<typeof planManifest>[3];
+    const { manifest } = planManifest(
+      scan,
+      [club('cam', 'Atletico Mineiro', 'BR')],
+      countries,
+      previous,
+      new Date(),
+    );
+    expect(manifest.logos.filter((l) => l.target_id === 'cam').map((l) => l.key)).toEqual([
+      'teams/brasil/atletico-mineiro',
+    ]);
+    expect(manifest.logos.find((l) => l.key === 'teams/mundial/atletico-mineiro')!.match).toBe('duplicate');
+  });
+
   it('logo de competição liga pela liga da api-sports quando o nome de mercado difere do cadastro', () => {
     const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
     const serieA: MatchTarget = {
