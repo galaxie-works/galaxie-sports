@@ -5,6 +5,7 @@ import { createFilterQuery, createFilterRule } from '@/components/reui/filters/f
 
 import {
   combineUpcoming,
+  finishedWindowHours,
   fromFilterQuery,
   groupUpcoming,
   hasLiveFilters,
@@ -14,6 +15,7 @@ import {
   NO_LIVE_FILTERS,
   parseLiveFilters,
   showsStatus,
+  syncWindowRule,
   toFilterQuery,
   MAX_TARGETED_SCOPES,
   upcomingScopes,
@@ -67,6 +69,7 @@ describe('filtros do Ao vivo na URL', () => {
     const p = new URLSearchParams('status=ao-vivo,xyz&esporte=football,,football,mma&pais=br&competicao=nbb');
     expect(parseLiveFilters(p)).toEqual({
       status: ['live'],
+      window: [],
       sport: ['football', 'mma'],
       country: ['BR'],
       competition: ['nbb'],
@@ -106,10 +109,13 @@ describe('filtro dos jogos', () => {
     expect(ids(f({ sport: ['mma'], country: ['BR'] }))).toEqual([]);
   });
 
-  it('os dois status equivalem a nenhum', () => {
+  it('sem status: ao vivo e próximos; encerrados só quando escolhidos', () => {
     expect(showsStatus(NO_LIVE_FILTERS, 'live')).toBe(true);
+    expect(showsStatus(NO_LIVE_FILTERS, 'finished')).toBe(false);
     expect(showsStatus(f({ status: ['live', 'upcoming'] }), 'upcoming')).toBe(true);
     expect(showsStatus(f({ status: ['live'] }), 'upcoming')).toBe(false);
+    expect(showsStatus(f({ status: ['finished'] }), 'finished')).toBe(true);
+    expect(showsStatus(f({ status: ['finished'] }), 'live')).toBe(false);
   });
 });
 
@@ -265,5 +271,55 @@ describe('buscas de próximos combinadas', () => {
 
   it('tudo certo: sem erro', () => {
     expect(combineUpcoming([ok([])]).error).toBe(false);
+  });
+});
+
+describe('janela dos encerrados', () => {
+  it('lê a janela da URL; padrão 12 h, valor fora da lista vira a padrão', () => {
+    const p = (q: string) => parseLiveFilters(new URLSearchParams(q));
+    expect(p('status=encerrados&janela=48').window).toEqual(['48']);
+    expect(finishedWindowHours(p('status=encerrados&janela=48'))).toBe(48);
+    expect(finishedWindowHours(p('status=encerrados'))).toBe(12);
+    expect(p('status=encerrados&janela=13').window).toEqual([]);
+    // a padrão não fica guardada: as duas URLs são o mesmo filtro
+    expect(p('status=encerrados&janela=12')).toEqual(p('status=encerrados'));
+  });
+
+  it('a janela só vale com "Encerrados"', () => {
+    expect(parseLiveFilters(new URLSearchParams('status=ao-vivo&janela=24')).window).toEqual([]);
+  });
+
+  it('ida e volta pela URL', () => {
+    const filters = f({ status: ['finished'], window: ['72'], sport: ['football'] });
+    const search = liveFiltersSearch(filters);
+    expect(new URLSearchParams(search).toString()).toBe('status=encerrados&janela=72&esporte=football');
+    expect(parseLiveFilters(new URLSearchParams(search))).toEqual(filters);
+  });
+
+  it('com "Encerrados" o chip da janela aparece, na padrão quando nenhuma foi escolhida', () => {
+    const q = toFilterQuery(f({ status: ['finished'] }));
+    const window = q.rules.find((r) => r.type === 'rule' && r.path[0] === 'window');
+    expect(window).toMatchObject({ value: '12', operator: 'is' });
+    expect(fromFilterQuery(q)).toEqual(f({ status: ['finished'] }));
+    expect(fromFilterQuery(toFilterQuery(f({ status: ['finished'], window: ['6'] }))).window).toEqual(['6']);
+  });
+
+  it('o chip da janela entra e sai junto com "Encerrados"', () => {
+    const status = (value: string[]) =>
+      createFilterRule({ id: 'status', path: ['status'], operator: 'is_any_of', value });
+    const sport = createFilterRule({
+      id: 'sport',
+      path: ['sport'],
+      operator: 'is_any_of',
+      value: ['football'],
+    });
+    const added = syncWindowRule(createFilterQuery([status(['live', 'finished']), sport]));
+    expect(added.rules.map((r) => (r.type === 'rule' ? r.path[0] : ''))).toEqual([
+      'status',
+      'window',
+      'sport',
+    ]);
+    const removed = syncWindowRule(createFilterQuery([status(['live']), ...added.rules.slice(1)]));
+    expect(removed.rules.map((r) => (r.type === 'rule' ? r.path[0] : ''))).toEqual(['status', 'sport']);
   });
 });
