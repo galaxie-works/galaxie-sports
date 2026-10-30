@@ -452,9 +452,6 @@ logos:
   country: AR
   group: argentina
   name: Gimnasia y Esgrima Mendoza
-  aliases:
-  - 'Gimnasia Mendoza'
-  - 'Gimnasia y Esgrima de Mendoza'
   file: teams/argentina/gimnasia-y-esgrima-mendoza.svg
   palette_file: teams/argentina/gimnasia-y-esgrima-mendoza.png
   formats:
@@ -462,13 +459,16 @@ logos:
     png: teams/argentina/gimnasia-y-esgrima-mendoza.png
     webp: teams/argentina/gimnasia-y-esgrima-mendoza.webp
   sha256: a19f317f4265d49d35f0dc6d18aab8371dcbcb3b72592677d09659e077a26c19
+  aliases:
+  - Gimnasia Mendoza
+  - Gimnasia y Esgrima de Mendoza
   target_id: null
   match: ambiguous
-  confidence: 0.784
+  confidence: 0.833
   candidates:
   - id: 01a15fc2-ae0b-778e-8d34-37b207320cef
     name: Gimnasia L.P.
-    confidence: 0.784
+    confidence: 0.833
 - key: teams/argentina/huracan
   kind: team
   country: AR
@@ -506,10 +506,6 @@ logos:
   country: AR
   group: argentina
   name: Independiente Rivadavia
-  aliases:
-  - 'Ind. Rivadavia'
-  - 'Independ. Rivadavia'
-  - 'Independiente Rivadavia Mendoza'
   file: teams/argentina/independiente-rivadavia.svg
   palette_file: teams/argentina/independiente-rivadavia.png
   formats:
@@ -517,13 +513,14 @@ logos:
     png: teams/argentina/independiente-rivadavia.png
     webp: teams/argentina/independiente-rivadavia.webp
   sha256: b5e26a1d9e08e4828503a34af3ab5eac449bd4471ceb621e74b8089510c5dfd0
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fc2-b8ea-769c-941c-6a74203d8d93
-    name: Independiente
-    confidence: 0.85
+  aliases:
+  - Ind. Rivadavia
+  - Independ. Rivadavia
+  - Independiente Rivadavia Mendoza
+  target_id: 01a163b8-61c9-70f7-b2a4-bf319ba9b2f5
+  target_name: Independ. Rivadavia
+  match: auto
+  confidence: 1
 - key: teams/argentina/instituto-cordoba
   kind: team
   country: AR
@@ -834,10 +831,6 @@ logos:
   country: AT
   group: austria
   name: Blau-Weiß Linz
-  aliases:
-  - 'BW Linz'
-  - 'Blau-Weiss Linz'
-  - 'FC Blau Weiss Linz'
   file: teams/austria/blau-wei-linz.svg
   palette_file: teams/austria/blau-wei-linz.png
   formats:
@@ -845,16 +838,19 @@ logos:
     png: teams/austria/blau-wei-linz.png
     webp: teams/austria/blau-wei-linz.webp
   sha256: 5325954893dcfcc7fd36bde45fb1c7693fa000e2059d8eac658305c93b4984b0
-  target_id: null
-  match: unmatched
+  aliases:
+  - BW Linz
+  - Blau-Weiss Linz
+  - FC Blau Weiss Linz
+  target_id: 01a163be-21a8-7b1a-ab7f-2e29274968f6
+  target_name: FC BW Linz
+  match: auto
+  confidence: 0.97
 - key: teams/austria/fc-hertha-wels
   kind: team
   country: AT
   group: austria
   name: FC Hertha Wels
-  aliases:
-  - 'Hertha Wels'
-  - 'WSC Hertha Wels'
   file: teams/austria/fc-hertha-wels.svg
   palette_file: teams/austria/fc-hertha-wels.png
   formats:
@@ -862,6 +858,9 @@ logos:
     png: teams/austria/fc-hertha-wels.png
     webp: teams/austria/fc-hertha-wels.webp
   sha256: 9481938ec377ce3cd1360bb6ad1d2adea824dfd056a22fe0f936032e048d1a09
+  aliases:
+  - Hertha Wels
+  - WSC Hertha Wels
   target_id: null
   match: ambiguous
   confidence: 0.85
@@ -1102,9 +1101,6 @@ logos:
   country: AU
   group: australia
   name: APIA Leichhardt FC
-  aliases:
-  - 'APIA Leichhardt'
-  - 'APIA Leichhardt Tigers'
   file: teams/australia/apia-leichhardt-fc.svg
   palette_file: teams/australia/apia-leichhardt-fc.png
   formats:
@@ -1112,6 +1108,9 @@ logos:
     png: teams/australia/apia-leichhardt-fc.png
     webp: teams/australia/apia-leichhardt-fc.webp
   sha256: 33ed0ee57009eb7c9c15663f04a2327ae5967876a28fd234c8a8b655eec5d934
+  aliases:
+  - APIA Leichhardt
+  - APIA Leichhardt Tigers
   target_id: null
   match: unmatched
 - key: teams/australia/bonnyrigg-white-eagles-fc
@@ -1168,9 +1167,6 @@ logos:
   country: AU
   group: australia
   name: Sydney United 58 FC
-  aliases:
-  - 'Sydney United'
-  - 'Sydney United 58'
   file: teams/australia/sydney-united-58-fc.svg
   palette_file: teams/australia/sydney-united-58-fc.png
   formats:
@@ -1178,21 +1174,21 @@ logos:
     png: teams/australia/sydney-united-58-fc.png
     webp: teams/australia/sydney-united-58-fc.webp
   sha256: ce3732f8f3743a6b6a2bd8a0d1d0128e7861817bab55d8be25fa0b7dcce1c83e
+  aliases:
+  - Sydney United
+  - Sydney United 58
   target_id: null
   match: ambiguous
-  confidence: 0.8
+  confidence: 0.85
   candidates:
   - id: 01a163be-21a8-78ae-85c7-fff63c386d8a
     name: Sydney
-    confidence: 0.8
+    confidence: 0.85
 - key: competitions/azerbaijao/azerbaijan-premier-league
   kind: competition
   country: AZ
   group: azerbaijao
   name: Azerbaijan Premier League
-  aliases:
-  - 'Premyer Liqa'
-  - 'Premier League'
   file: competitions/azerbaijao/azerbaijan-premier-league.svg
   palette_file: competitions/azerbaijao/azerbaijan-premier-league.png
   formats:
@@ -1200,8 +1196,13 @@ logos:
     png: competitions/azerbaijao/azerbaijan-premier-league.png
     webp: competitions/azerbaijao/azerbaijan-premier-league.webp
   sha256: 3d47c8b4df194504d5afbc462bcd154cc9c2b13be8aa66b048f29d699825c438
-  target_id: null
-  match: unmatched
+  aliases:
+  - Premyer Liqa
+  - Premier League
+  target_id: 01a15fba-b086-7cb7-a468-867cbaeab06f
+  target_name: Premyer Liqa
+  match: auto
+  confidence: 1
 - key: teams/azerbaijao/sabah
   kind: team
   country: AZ
@@ -1289,8 +1290,6 @@ logos:
   country: BD
   group: bangladesh
   name: Bangladesh Football League
-  aliases:
-  - 'Premier League'
   file: competitions/bangladesh/bangladesh-football-league.svg
   palette_file: competitions/bangladesh/bangladesh-football-league.png
   formats:
@@ -1298,8 +1297,12 @@ logos:
     png: competitions/bangladesh/bangladesh-football-league.png
     webp: competitions/bangladesh/bangladesh-football-league.webp
   sha256: 7cf020aeecfd04f6b0af2653b46a75ff98056608396a64ce47e3a0c2cf499948
-  target_id: null
-  match: unmatched
+  aliases:
+  - Premier League
+  target_id: 01a15fba-b2bb-7dc8-b1bf-984c6b65f950
+  target_name: Premier League
+  match: auto
+  confidence: 1
 - key: competitions/belgica/challenger-pro-league
   kind: competition
   country: BE
@@ -1514,9 +1517,6 @@ logos:
   country: BE
   group: belgica
   name: Oud Heverlee Leuven
-  aliases:
-  - 'OH Leuven'
-  - 'Oud-Heverlee Leuven'
   file: teams/belgica/oud-heverlee-leuven.svg
   palette_file: teams/belgica/oud-heverlee-leuven.png
   formats:
@@ -1524,8 +1524,13 @@ logos:
     png: teams/belgica/oud-heverlee-leuven.png
     webp: teams/belgica/oud-heverlee-leuven.webp
   sha256: 33a28c62c798fd698e7693012c72ce8663260fb650b13f6cdbd62c39477067f4
-  target_id: null
-  match: unmatched
+  aliases:
+  - OH Leuven
+  - Oud-Heverlee Leuven
+  target_id: 01a163be-21a8-7a0e-ac57-9fbef41f552a
+  target_name: OH Leuven
+  match: auto
+  confidence: 1
 - key: teams/belgica/raal-la-louviere
   kind: team
   country: BE
@@ -1564,11 +1569,6 @@ logos:
   country: BE
   group: belgica
   name: Sint Truidense
-  aliases:
-  - 'St. Truiden'
-  - 'Sint-Truiden'
-  - 'Sint-Truidense VV'
-  - 'STVV'
   file: teams/belgica/sint-truidense.svg
   palette_file: teams/belgica/sint-truidense.png
   formats:
@@ -1576,8 +1576,15 @@ logos:
     png: teams/belgica/sint-truidense.png
     webp: teams/belgica/sint-truidense.webp
   sha256: 11858fe3d28e0cab164bd4a3785873ad24488d03c299ac96528c16b4701edc3e
-  target_id: null
-  match: unmatched
+  aliases:
+  - St. Truiden
+  - Sint-Truiden
+  - Sint-Truidense VV
+  - STVV
+  target_id: 01a163b8-b6a7-7c3c-a054-4a13c5901945
+  target_name: St. Truiden
+  match: auto
+  confidence: 1
 - key: teams/belgica/standard-liege
   kind: team
   country: BE
@@ -1648,9 +1655,6 @@ logos:
   country: BG
   group: bulgaria
   name: Parva Liga
-  aliases:
-  - 'First League'
-  - 'Parva Liga'
   file: competitions/bulgaria/parva-liga.svg
   palette_file: competitions/bulgaria/parva-liga.png
   formats:
@@ -1658,8 +1662,13 @@ logos:
     png: competitions/bulgaria/parva-liga.png
     webp: competitions/bulgaria/parva-liga.webp
   sha256: 80717aec06cd9846d51756928bb75d79518eafc46aae90622ead366e40bc3955
-  target_id: null
-  match: unmatched
+  aliases:
+  - First League
+  - Parva Liga
+  target_id: 01a15fba-b3c5-74ea-b3eb-6c5725ffcf8e
+  target_name: First League
+  match: auto
+  confidence: 1
 - key: teams/bulgaria/cska-sofia
   kind: team
   country: BG
@@ -2086,9 +2095,6 @@ logos:
   country: BR
   group: brasil
   name: Centro Esportivo Olhodaguense
-  aliases:
-  - 'Olhodaguense'
-  - 'CE Olhodaguense'
   file: teams/brasil/centro-esportivo-olhodaguense.svg
   palette_file: teams/brasil/centro-esportivo-olhodaguense.png
   formats:
@@ -2096,6 +2102,9 @@ logos:
     png: teams/brasil/centro-esportivo-olhodaguense.png
     webp: teams/brasil/centro-esportivo-olhodaguense.webp
   sha256: b161481b03b694371c2081df8df5e26873bf1618cd91e2625c25330042252604
+  aliases:
+  - Olhodaguense
+  - CE Olhodaguense
   target_id: null
   match: ambiguous
   confidence: 0.8
@@ -2285,9 +2294,6 @@ logos:
   country: BR
   group: brasil
   name: Esporte Clube Osasco
-  aliases:
-  - 'EC Osasco'
-  - 'Osasco'
   file: teams/brasil/esporte-clube-osasco.svg
   palette_file: teams/brasil/esporte-clube-osasco.png
   formats:
@@ -2295,8 +2301,19 @@ logos:
     png: teams/brasil/esporte-clube-osasco.png
     webp: teams/brasil/esporte-clube-osasco.webp
   sha256: 071012e0c685aeba58d16a0f182c8ed1a6de8a8a2879efad2e0a26e78e203d8e
+  aliases:
+  - EC Osasco
+  - Osasco
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a15fba-ff9b-72ea-b623-4e37181ffef4
+    name: Grêmio Osasco
+    confidence: 0.85
+  - id: 01a15fba-ff9a-76b3-983e-218df06830b8
+    name: Gremio Osasco Audax
+    confidence: 0.8
 - key: teams/brasil/flamengo
   kind: team
   country: BR
@@ -2478,11 +2495,6 @@ logos:
   country: BR
   group: brasil
   name: Internacional de Santa Maria
-  aliases:
-  - 'Internacional SM'
-  - 'Inter de Santa Maria'
-  - 'Internacional-SM'
-  - 'Inter SM'
   file: teams/brasil/internacional-de-santa-maria.svg
   palette_file: teams/brasil/internacional-de-santa-maria.png
   formats:
@@ -2490,24 +2502,20 @@ logos:
     png: teams/brasil/internacional-de-santa-maria.png
     webp: teams/brasil/internacional-de-santa-maria.webp
   sha256: d64fd6a0f617c869d23563408139d9938b8d692ffd0bfa56b910a35821ed6e39
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-ff9d-7700-a470-b806455a18c4
-    name: Santa Maria
-    confidence: 0.85
-  - id: 01a15fba-ec17-726c-8170-880bac00402d
-    name: Internacional
-    confidence: 0.8
+  aliases:
+  - Internacional SM
+  - Inter de Santa Maria
+  - Internacional-SM
+  - Inter SM
+  target_id: 01a15fba-ff9b-7451-bcde-f8e73c294180
+  target_name: Inter Santa Maria
+  match: auto
+  confidence: 0.97
 - key: teams/brasil/ipanema-atletico-clube
   kind: team
   country: BR
   group: brasil
   name: Ipanema Atlético Clube
-  aliases:
-  - 'Ipanema'
-  - 'Ipanema AL'
   file: teams/brasil/ipanema-atletico-clube.svg
   palette_file: teams/brasil/ipanema-atletico-clube.png
   formats:
@@ -2515,6 +2523,9 @@ logos:
     png: teams/brasil/ipanema-atletico-clube.png
     webp: teams/brasil/ipanema-atletico-clube.webp
   sha256: 1f221b4f6e4da9ffb1d86f9397bd9f7c348d25924ebb245181aae73934057f61
+  aliases:
+  - Ipanema
+  - Ipanema AL
   target_id: null
   match: unmatched
 - key: teams/brasil/itabirito-fc
@@ -2859,10 +2870,6 @@ logos:
   country: BR
   group: brasil
   name: URT
-  aliases:
-  - 'URT-MG'
-  - 'URT MG'
-  - 'Uniao Recreativa dos Trabalhadores'
   file: teams/brasil/urt.svg
   palette_file: teams/brasil/urt.png
   formats:
@@ -2870,8 +2877,17 @@ logos:
     png: teams/brasil/urt.png
     webp: teams/brasil/urt.webp
   sha256: bf3eb24e5c4a93ba4a15b5893e309b2453c17a08dacc83b294ffb17edc5cd423
+  aliases:
+  - URT-MG
+  - URT MG
+  - Uniao Recreativa dos Trabalhadores
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a15fba-ff9a-7407-b987-a83a1ea727ba
+    name: Uniao Trabalhadores
+    confidence: 0.85
 - key: teams/brasil/vasco-da-gama
   kind: team
   country: BR
@@ -3121,8 +3137,6 @@ logos:
   country: CL
   group: chile
   name: Liga de Ascenso
-  aliases:
-  - 'Primera B'
   file: competitions/chile/liga-de-ascenso.svg
   palette_file: competitions/chile/liga-de-ascenso.png
   formats:
@@ -3130,8 +3144,12 @@ logos:
     png: competitions/chile/liga-de-ascenso.png
     webp: competitions/chile/liga-de-ascenso.webp
   sha256: 4f6b6b4ca41730a43d998048086b93df51115974e9f935bf62f55788d483d965
-  target_id: null
-  match: unmatched
+  aliases:
+  - Primera B
+  target_id: 01a15fba-b3d3-7513-af91-a433753ef1e1
+  target_name: Primera B
+  match: auto
+  confidence: 1
 - key: competitions/chile/liga-de-primera
   kind: competition
   country: CL
@@ -3185,9 +3203,6 @@ logos:
   country: CN
   group: china
   name: Shenzhen FC
-  aliases:
-  - 'Shenzhen'
-  - 'Shenzhen Football Club'
   file: teams/china/shenzhen-fc.svg
   palette_file: teams/china/shenzhen-fc.png
   formats:
@@ -3195,6 +3210,9 @@ logos:
     png: teams/china/shenzhen-fc.png
     webp: teams/china/shenzhen-fc.webp
   sha256: c5bd9c580b840020813ce8a7bc3b37215171c08838160133602e5ac897fc39ed
+  aliases:
+  - Shenzhen
+  - Shenzhen Football Club
   target_id: null
   match: ambiguous
   confidence: 0.85
@@ -3207,9 +3225,6 @@ logos:
   country: CN
   group: china
   name: Tianjin Tianhai
-  aliases:
-  - 'Tianjin Quanjian'
-  - 'Tianjin Tianhai FC'
   file: teams/china/tianjin-tianhai.svg
   palette_file: teams/china/tianjin-tianhai.png
   formats:
@@ -3217,6 +3232,9 @@ logos:
     png: teams/china/tianjin-tianhai.png
     webp: teams/china/tianjin-tianhai.webp
   sha256: ce9dfa7b797307221db95dce8a0f83d7659ce6698dfba2bdad8c41fa514b6aff
+  aliases:
+  - Tianjin Quanjian
+  - Tianjin Tianhai FC
   target_id: null
   match: unmatched
 - key: competitions/colombia/categoria-primera-a
@@ -3273,8 +3291,6 @@ logos:
   country: CW
   group: curacao
   name: CRKSV Jong Holland
-  aliases:
-  - 'Jong Holland'
   file: teams/curacao/crksv-jong-holland.svg
   palette_file: teams/curacao/crksv-jong-holland.png
   formats:
@@ -3282,6 +3298,8 @@ logos:
     png: teams/curacao/crksv-jong-holland.png
     webp: teams/curacao/crksv-jong-holland.webp
   sha256: d2e2791044e434c4d303de3b2303295d3ed55eb1437c56b0c614fbf0d086242a
+  aliases:
+  - Jong Holland
   target_id: null
   match: unmatched
 - key: teams/curacao/selecao-curacao
@@ -3306,9 +3324,6 @@ logos:
   country: CY
   group: chipre
   name: Cypriot First Division
-  aliases:
-  - '1. Division'
-  - 'First Division'
   file: competitions/chipre/cypriot-first-division.svg
   palette_file: competitions/chipre/cypriot-first-division.png
   formats:
@@ -3316,17 +3331,18 @@ logos:
     png: competitions/chipre/cypriot-first-division.png
     webp: competitions/chipre/cypriot-first-division.webp
   sha256: b0b4cf5783844c2a0a5f4eadf7e3beb62bad5e7ff0acfe719589098e29f39274
-  target_id: null
-  match: unmatched
+  aliases:
+  - 1. Division
+  - First Division
+  target_id: 01a15fba-b3d9-76bf-b963-997042d33f4f
+  target_name: 1. Division
+  match: auto
+  confidence: 1
 - key: teams/chipre/omonoia
   kind: team
   country: CY
   group: chipre
   name: Omonoia
-  aliases:
-  - 'Omonia Nicosia'
-  - 'Omonia'
-  - 'AC Omonia'
   file: teams/chipre/omonoia.svg
   palette_file: teams/chipre/omonoia.png
   formats:
@@ -3334,8 +3350,14 @@ logos:
     png: teams/chipre/omonoia.png
     webp: teams/chipre/omonoia.webp
   sha256: d7cc8125ac734bdef589580bca68047094f374f7a80573b9f0bcaff58272eb53
-  target_id: null
-  match: unmatched
+  aliases:
+  - Omonia Nicosia
+  - Omonia
+  - AC Omonia
+  target_id: 01a163b8-b249-72b7-a459-f7b6454b6289
+  target_name: Omonia Nicosia
+  match: auto
+  confidence: 1
 - key: teams/chipre/pafos
   kind: team
   country: CY
@@ -3374,10 +3396,6 @@ logos:
   country: CZ
   group: tchequia
   name: Chance Liga
-  aliases:
-  - 'Czech Liga'
-  - '1. Liga'
-  - 'Fortuna Liga'
   file: competitions/tchequia/chance-liga.svg
   palette_file: competitions/tchequia/chance-liga.png
   formats:
@@ -3385,17 +3403,19 @@ logos:
     png: competitions/tchequia/chance-liga.png
     webp: competitions/tchequia/chance-liga.webp
   sha256: 53ee29fcd59c0207455cda926e2b61773ba3ff040782076fcfafa6414fbe1605
-  target_id: null
-  match: unmatched
+  aliases:
+  - Czech Liga
+  - 1. Liga
+  - Fortuna Liga
+  target_id: 01a15fba-b396-7db4-9cfc-3c42178f465d
+  target_name: Czech Liga
+  match: auto
+  confidence: 1
 - key: competitions/tchequia/chance-narodni-liga
   kind: competition
   country: CZ
   group: tchequia
   name: Chance Narodní Liga
-  aliases:
-  - 'FNL'
-  - 'Czech National Football League'
-  - '2. Liga'
   file: competitions/tchequia/chance-narodni-liga.svg
   palette_file: competitions/tchequia/chance-narodni-liga.png
   formats:
@@ -3403,8 +3423,14 @@ logos:
     png: competitions/tchequia/chance-narodni-liga.png
     webp: competitions/tchequia/chance-narodni-liga.webp
   sha256: fd31a167ac4d0ed3715a0f999b2ca66ab38590a8f848c62514d9fba1b3341839
-  target_id: null
-  match: unmatched
+  aliases:
+  - FNL
+  - Czech National Football League
+  - 2. Liga
+  target_id: 01a15fba-b399-7cd2-adba-2d9ca1ae8c05
+  target_name: FNL
+  match: auto
+  confidence: 1
 - key: teams/tchequia/jablonec
   kind: team
   country: CZ
@@ -3885,11 +3911,6 @@ logos:
   country: DE
   group: alemanha
   name: Colônia
-  aliases:
-  - '1. FC Köln'
-  - 'FC Koln'
-  - '1. FC Koln'
-  - 'FC Cologne'
   file: teams/alemanha/colonia.svg
   palette_file: teams/alemanha/colonia.png
   formats:
@@ -3897,16 +3918,20 @@ logos:
     png: teams/alemanha/colonia.png
     webp: teams/alemanha/colonia.webp
   sha256: c524c55e1b799ef275b69169751676d73dc48021e875e28a5ca93052f47c8626
-  target_id: null
-  match: unmatched
+  aliases:
+  - 1. FC Köln
+  - FC Koln
+  - 1. FC Koln
+  - FC Cologne
+  target_id: 01a163b8-6dc7-7b71-914b-65b769451e13
+  target_name: 1. FC Köln
+  match: auto
+  confidence: 1
 - key: teams/alemanha/csc-03-kassel
   kind: team
   country: DE
   group: alemanha
   name: CSC 03 Kassel
-  aliases:
-  - 'CSC 03 Kassel'
-  - 'CSC Kassel'
   file: teams/alemanha/csc-03-kassel.svg
   palette_file: teams/alemanha/csc-03-kassel.png
   formats:
@@ -3914,13 +3939,16 @@ logos:
     png: teams/alemanha/csc-03-kassel.png
     webp: teams/alemanha/csc-03-kassel.webp
   sha256: d61bda11bb104b006ecc270d02ffdaa72a565b9903ef65a44de0a383c4580f16
+  aliases:
+  - CSC 03 Kassel
+  - CSC Kassel
   target_id: null
   match: ambiguous
-  confidence: 0.8
+  confidence: 0.85
   candidates:
   - id: 01a163be-21af-742a-bee0-5e007a733040
     name: Kassel
-    confidence: 0.8
+    confidence: 0.85
 - key: teams/alemanha/dgf-flensborg
   kind: team
   country: DE
@@ -4896,9 +4924,6 @@ logos:
   country: DK
   group: dinamarca
   name: 1st Division
-  aliases:
-  - '1. Division'
-  - 'NordicBet Liga'
   file: competitions/dinamarca/1st-division.svg
   palette_file: competitions/dinamarca/1st-division.png
   formats:
@@ -4906,8 +4931,13 @@ logos:
     png: competitions/dinamarca/1st-division.png
     webp: competitions/dinamarca/1st-division.webp
   sha256: e35608884f66e0efa1f12c1713cd7ae56bbfe8f89e2af9ff6aebc03e637d2591
-  target_id: null
-  match: unmatched
+  aliases:
+  - 1. Division
+  - NordicBet Liga
+  target_id: 01a15fba-af8e-7d91-aa0a-291384b787ed
+  target_name: 1. Division
+  match: auto
+  confidence: 1
 - key: competitions/dinamarca/2nd-division
   kind: competition
   country: DK
@@ -4943,9 +4973,6 @@ logos:
   country: DK
   group: dinamarca
   name: AGF
-  aliases:
-  - 'Aarhus'
-  - 'AGF Aarhus'
   file: teams/dinamarca/agf.svg
   palette_file: teams/dinamarca/agf.png
   formats:
@@ -4953,8 +4980,13 @@ logos:
     png: teams/dinamarca/agf.png
     webp: teams/dinamarca/agf.webp
   sha256: 5592aa0fe972b6d99c1d089ad59b877f1c8e732768c334b78223b383fc07e88a
-  target_id: null
-  match: unmatched
+  aliases:
+  - Aarhus
+  - AGF Aarhus
+  target_id: 01a163b8-b249-7d16-8257-69e1676cf0b6
+  target_name: Aarhus
+  match: auto
+  confidence: 1
 - key: teams/dinamarca/copenhague
   kind: team
   country: DK
@@ -5091,8 +5123,6 @@ logos:
   country: EE
   group: estonia
   name: Premium Liiga
-  aliases:
-  - 'Meistriliiga'
   file: competitions/estonia/premium-liiga.svg
   palette_file: competitions/estonia/premium-liiga.png
   formats:
@@ -5100,8 +5130,12 @@ logos:
     png: competitions/estonia/premium-liiga.png
     webp: competitions/estonia/premium-liiga.webp
   sha256: b8597a24e656e783ef2cce770bb37b12b7699005cc1b952f48bf73c07670d1c2
-  target_id: null
-  match: unmatched
+  aliases:
+  - Meistriliiga
+  target_id: 01a15fba-b024-7831-9c0b-0ff5431d33a6
+  target_name: Meistriliiga
+  match: auto
+  confidence: 1
 - key: teams/estonia/selecao-estonia
   kind: team
   country: EE
@@ -5174,9 +5208,6 @@ logos:
   country: ES
   group: espanha
   name: La Liga 2
-  aliases:
-  - 'Segunda División'
-  - 'Segunda Division'
   file: competitions/espanha/la-liga-2.svg
   palette_file: competitions/espanha/la-liga-2.png
   formats:
@@ -5184,21 +5215,18 @@ logos:
     png: competitions/espanha/la-liga-2.png
     webp: competitions/espanha/la-liga-2.webp
   sha256: eb5211123d4db2acf38c6a8ae4c90c6722fcc30124a38d7936b11f3c2609e554
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-af6c-73bd-b537-e1b6cb3a9b78
-    name: La Liga
-    confidence: 0.85
+  aliases:
+  - Segunda División
+  - Segunda Division
+  target_id: 01a15fba-b1b1-7fce-a951-2a583427673a
+  target_name: Segunda División
+  match: auto
+  confidence: 1
 - key: competitions/espanha/primera-federacion
   kind: competition
   country: ES
   group: espanha
   name: Primera Federación
-  aliases:
-  - 'Primera División RFEF'
-  - 'Primera Division RFEF'
   file: competitions/espanha/primera-federacion.svg
   palette_file: competitions/espanha/primera-federacion.png
   formats:
@@ -5206,16 +5234,18 @@ logos:
     png: competitions/espanha/primera-federacion.png
     webp: competitions/espanha/primera-federacion.webp
   sha256: d529cdfd39fe0ad175fb6858b7957348cb8d5ae731facdb3f4bf7b08e27f6be4
-  target_id: null
-  match: unmatched
+  aliases:
+  - Primera División RFEF
+  - Primera Division RFEF
+  target_id: 01a15fba-b531-7a69-926d-7bfab587564e
+  target_name: Primera División RFEF - Group 1
+  match: auto
+  confidence: 1
 - key: competitions/espanha/segunda-federacion
   kind: competition
   country: ES
   group: espanha
   name: Segunda Federación
-  aliases:
-  - 'Segunda División RFEF'
-  - 'Segunda Division RFEF'
   file: competitions/espanha/segunda-federacion.svg
   palette_file: competitions/espanha/segunda-federacion.png
   formats:
@@ -5223,8 +5253,28 @@ logos:
     png: competitions/espanha/segunda-federacion.png
     webp: competitions/espanha/segunda-federacion.webp
   sha256: b68dbf82be56cc83e10bcebd474dcf0cfd82a8fc2d235549b60729f8be88c2a1
+  aliases:
+  - Segunda División RFEF
+  - Segunda Division RFEF
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a15fba-b1b1-7fce-a951-2a583427673a
+    name: Segunda División
+    confidence: 0.85
+  - id: 01a15fba-b936-7ec0-8de4-7403d0769c05
+    name: Segunda División RFEF - Group 1
+    confidence: 0.8
+  - id: 01a15fba-b939-7d1c-878e-c3cf319c0467
+    name: Segunda División RFEF - Group 2
+    confidence: 0.8
+  - id: 01a15fba-b93c-768d-b2f0-7284a29e44cd
+    name: Segunda División RFEF - Group 3
+    confidence: 0.8
+  - id: 01a15fba-b93e-7bb2-9011-aff554962c1f
+    name: Segunda División RFEF - Group 4
+    confidence: 0.8
 - key: teams/espanha/albacete
   kind: team
   country: ES
@@ -6109,7 +6159,12 @@ logos:
     webp: competitions/franca/national-1.webp
   sha256: 3597ca35fe53c823756423e1091d7315baf062c6e9dfda295f6c1c1b6c152bbd
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 1
+  candidates:
+  - id: 01a15fba-b007-7ce9-9f0c-a5801dfd67e3
+    name: Ligue 3
+    confidence: 1
 - key: teams/franca/afc-creil
   kind: team
   country: FR
@@ -6335,9 +6390,6 @@ logos:
   country: FR
   group: franca
   name: Brest
-  aliases:
-  - 'Stade Brestois 29'
-  - 'Stade Brestois'
   file: teams/franca/brest.svg
   palette_file: teams/franca/brest.png
   formats:
@@ -6345,13 +6397,13 @@ logos:
     png: teams/franca/brest.png
     webp: teams/franca/brest.webp
   sha256: e0d9fcfc40698fee4948bed48344a3dd118ba15f9de94ab2b0c2cdb2d271c5ef
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a16f5e-060c-75b3-8e49-4fa3a0363f56
-    name: ASPTT Brest
-    confidence: 0.85
+  aliases:
+  - Stade Brestois 29
+  - Stade Brestois
+  target_id: 01a163b8-976f-761b-b520-aac12b44ad2b
+  target_name: Stade Brestois 29
+  match: auto
+  confidence: 1
 - key: teams/franca/chambery-savoie-football
   kind: team
   country: FR
@@ -6800,10 +6852,6 @@ logos:
   country: FR
   group: franca
   name: Olympique de Marselha
-  aliases:
-  - 'Marseille'
-  - 'Olympique Marseille'
-  - 'Olympique de Marseille'
   file: teams/franca/olympique-de-marselha.svg
   palette_file: teams/franca/olympique-de-marselha.png
   formats:
@@ -6811,8 +6859,14 @@ logos:
     png: teams/franca/olympique-de-marselha.png
     webp: teams/franca/olympique-de-marselha.webp
   sha256: d47fe54cf812616752cbc23010ceb8726749fad755542ebec702a2f8e567a6ce
-  target_id: null
-  match: unmatched
+  aliases:
+  - Marseille
+  - Olympique Marseille
+  - Olympique de Marseille
+  target_id: 01a163b8-976f-7a9f-b1df-15440ae0ab55
+  target_name: Marseille
+  match: auto
+  confidence: 1
 - key: teams/franca/paris-fc
   kind: team
   country: FR
@@ -7102,9 +7156,6 @@ logos:
   country: FR
   group: franca
   name: Stade Lavallois
-  aliases:
-  - 'Laval'
-  - 'Stade Lavallois MFC'
   file: teams/franca/stade-lavallois.svg
   palette_file: teams/franca/stade-lavallois.png
   formats:
@@ -7112,8 +7163,13 @@ logos:
     png: teams/franca/stade-lavallois.png
     webp: teams/franca/stade-lavallois.webp
   sha256: 19c07bf1c6f6fa7df0818d089160afc35cbd458c40137cb89cbc174f8280abab
-  target_id: null
-  match: unmatched
+  aliases:
+  - Laval
+  - Stade Lavallois MFC
+  target_id: 01a163bd-dbd0-7ee7-8c5c-31f9326c0225
+  target_name: Laval
+  match: auto
+  confidence: 1
 - key: teams/franca/stade-plabennecois-football
   kind: team
   country: FR
@@ -8005,8 +8061,6 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: Queens Park Rangers
-  aliases:
-  - 'QPR'
   file: teams/inglaterra/queens-park-rangers.svg
   palette_file: teams/inglaterra/queens-park-rangers.png
   formats:
@@ -8014,8 +8068,12 @@ logos:
     png: teams/inglaterra/queens-park-rangers.png
     webp: teams/inglaterra/queens-park-rangers.webp
   sha256: b244eaa2392fcf88de95a9e0843f3102e5c6e55ccf731635b257fea63de4975d
-  target_id: null
-  match: unmatched
+  aliases:
+  - QPR
+  target_id: 01a163bd-2223-759a-b95e-b40ef098af2a
+  target_name: QPR
+  match: auto
+  confidence: 1
 - key: teams/inglaterra/selecao-inglaterra
   kind: team
   country: GB-ENG
@@ -8038,8 +8096,6 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: Sheffield United
-  aliases:
-  - 'Sheffield Utd'
   file: teams/inglaterra/sheffield-united.svg
   palette_file: teams/inglaterra/sheffield-united.png
   formats:
@@ -8047,13 +8103,12 @@ logos:
     png: teams/inglaterra/sheffield-united.png
     webp: teams/inglaterra/sheffield-united.webp
   sha256: a45c033b89d10fe420f98f826962c1cbac3f2c997cffedcd3b178d113a40e5f1
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163be-21ab-7bb6-bebc-f5e141fe0092
-    name: Sheffield
-    confidence: 0.85
+  aliases:
+  - Sheffield Utd
+  target_id: 01a163ba-1a75-7dcd-bab8-f25e7ad03906
+  target_name: Sheffield Utd
+  match: auto
+  confidence: 1
 - key: teams/inglaterra/southampton
   kind: team
   country: GB-ENG
@@ -8155,8 +8210,6 @@ logos:
   country: GB-ENG
   group: inglaterra
   name: West Bromwich Albion
-  aliases:
-  - 'West Brom'
   file: teams/inglaterra/west-bromwich-albion.svg
   palette_file: teams/inglaterra/west-bromwich-albion.png
   formats:
@@ -8164,8 +8217,12 @@ logos:
     png: teams/inglaterra/west-bromwich-albion.png
     webp: teams/inglaterra/west-bromwich-albion.webp
   sha256: 0ca60945d410c59b480a1252301376cc3f56d070722538bd1a44e9f22ae08247
-  target_id: null
-  match: unmatched
+  aliases:
+  - West Brom
+  target_id: 01a163bb-6d7f-7fa4-8882-46b3a3fb06dd
+  target_name: West Brom
+  match: auto
+  confidence: 1
 - key: teams/inglaterra/west-ham
   kind: team
   country: GB-ENG
@@ -8381,8 +8438,6 @@ logos:
   country: GB-SCT
   group: escocia
   name: Dundee United
-  aliases:
-  - 'Dundee Utd'
   file: teams/escocia/dundee-united.svg
   palette_file: teams/escocia/dundee-united.png
   formats:
@@ -8390,13 +8445,12 @@ logos:
     png: teams/escocia/dundee-united.png
     webp: teams/escocia/dundee-united.webp
   sha256: c853abd24b220ee1941f4274235b3bc0d5179028c0e07c36f5b563f426210eee
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163be-21a8-78d2-9afe-a55e250d80c2
-    name: Dundee
-    confidence: 0.85
+  aliases:
+  - Dundee Utd
+  target_id: 01a163b9-4094-735f-9829-e7dabe812771
+  target_name: Dundee Utd
+  match: auto
+  confidence: 1
 - key: teams/escocia/falkirk
   kind: team
   country: GB-SCT
@@ -8418,9 +8472,6 @@ logos:
   country: GB-SCT
   group: escocia
   name: Hearts
-  aliases:
-  - 'Heart Of Midlothian'
-  - 'Heart of Midlothian'
   file: teams/escocia/hearts.svg
   palette_file: teams/escocia/hearts.png
   formats:
@@ -8428,13 +8479,13 @@ logos:
     png: teams/escocia/hearts.png
     webp: teams/escocia/hearts.webp
   sha256: 66c0f1f6ad89dec0c0037071c7581c7db7d1f4822bc90096197c0a4663cfed40
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163be-21aa-7854-8e3f-1144c3b384dd
-    name: Kelty Hearts
-    confidence: 0.85
+  aliases:
+  - Heart Of Midlothian
+  - Heart of Midlothian
+  target_id: 01a163b8-b249-7c77-8b12-1e70f355c093
+  target_name: Heart Of Midlothian
+  match: auto
+  confidence: 1
 - key: teams/escocia/hibernian
   kind: team
   country: GB-SCT
@@ -8567,9 +8618,6 @@ logos:
   country: GB-WLS
   group: pais-de-gales
   name: Cymru Premier
-  aliases:
-  - 'Premier League'
-  - 'Cymru Premier'
   file: competitions/pais-de-gales/cymru-premier.svg
   palette_file: competitions/pais-de-gales/cymru-premier.png
   formats:
@@ -8577,8 +8625,13 @@ logos:
     png: competitions/pais-de-gales/cymru-premier.png
     webp: competitions/pais-de-gales/cymru-premier.webp
   sha256: cb38dd4eb73325c3dae5319e7072a48c6a5ca684d8de86df7bcdcc7998682300
-  target_id: null
-  match: unmatched
+  aliases:
+  - Premier League
+  - Cymru Premier
+  target_id: 01a15fba-b091-7f01-b17b-e94a526de913
+  target_name: Premier League
+  match: auto
+  confidence: 1
 - key: competitions/pais-de-gales/cymru-south
   kind: competition
   country: GB-WLS
@@ -8631,8 +8684,6 @@ logos:
   country: GE
   group: georgia
   name: FC Spartaki Tbilisi
-  aliases:
-  - 'Spartaki Tbilisi'
   file: teams/georgia/fc-spartaki-tbilisi.svg
   palette_file: teams/georgia/fc-spartaki-tbilisi.png
   formats:
@@ -8640,6 +8691,8 @@ logos:
     png: teams/georgia/fc-spartaki-tbilisi.png
     webp: teams/georgia/fc-spartaki-tbilisi.webp
   sha256: 677e52098758632b3b664b918c01cafd656f9e5a0d37deaba5f6fabd5d61f70f
+  aliases:
+  - Spartaki Tbilisi
   target_id: null
   match: unmatched
 - key: teams/georgia/iberia
@@ -8807,10 +8860,6 @@ logos:
   country: GR
   group: grecia
   name: AEK Atenas
-  aliases:
-  - 'AEK Athens FC'
-  - 'AEK Athens'
-  - 'AEK'
   file: teams/grecia/aek-atenas.svg
   palette_file: teams/grecia/aek-atenas.png
   formats:
@@ -8818,8 +8867,14 @@ logos:
     png: teams/grecia/aek-atenas.png
     webp: teams/grecia/aek-atenas.webp
   sha256: 2052b1a05147352b4b35ddc3caa516cd7572be93ed5673c530a04ce3e185bef8
-  target_id: null
-  match: unmatched
+  aliases:
+  - AEK Athens FC
+  - AEK Athens
+  - AEK
+  target_id: 01a163b8-b249-754e-8c22-a6b13435356b
+  target_name: AEK Athens FC
+  match: auto
+  confidence: 1
 - key: teams/grecia/agios-nikolaos
   kind: team
   country: GR
@@ -8937,9 +8992,6 @@ logos:
   country: GR
   group: grecia
   name: Diagoras Rhodes
-  aliases:
-  - 'Diagoras'
-  - 'Diagoras Rodou'
   file: teams/grecia/diagoras-rhodes.svg
   palette_file: teams/grecia/diagoras-rhodes.png
   formats:
@@ -8947,6 +8999,9 @@ logos:
     png: teams/grecia/diagoras-rhodes.png
     webp: teams/grecia/diagoras-rhodes.webp
   sha256: 17aeafe8ad3bd200a20992ea0f9ffac3197e5f0548695262fad9c33b910c742b
+  aliases:
+  - Diagoras
+  - Diagoras Rodou
   target_id: null
   match: unmatched
 - key: teams/grecia/diagoras-vrachnaiika
@@ -9141,10 +9196,6 @@ logos:
   country: GR
   group: grecia
   name: Olympiacos
-  aliases:
-  - 'Olympiakos Piraeus'
-  - 'Olympiacos Piraeus'
-  - 'Olympiakos'
   file: teams/grecia/olympiacos.svg
   palette_file: teams/grecia/olympiacos.png
   formats:
@@ -9152,8 +9203,14 @@ logos:
     png: teams/grecia/olympiacos.png
     webp: teams/grecia/olympiacos.webp
   sha256: 780149b9f9fceb54189aedc43270e65e68b666cc76fc1b68bcc82412c168efd5
-  target_id: null
-  match: unmatched
+  aliases:
+  - Olympiakos Piraeus
+  - Olympiacos Piraeus
+  - Olympiakos
+  target_id: 01a163b8-b249-7372-89b5-afd3f05e9891
+  target_name: Olympiakos Piraeus
+  match: auto
+  confidence: 1
 - key: teams/grecia/olympiakos-kiminon
   kind: team
   country: GR
@@ -9380,9 +9437,6 @@ logos:
   country: HR
   group: croacia
   name: Croatian Football League
-  aliases:
-  - 'HNL'
-  - '1. HNL'
   file: competitions/croacia/croatian-football-league.svg
   palette_file: competitions/croacia/croatian-football-league.png
   formats:
@@ -9390,8 +9444,13 @@ logos:
     png: competitions/croacia/croatian-football-league.png
     webp: competitions/croacia/croatian-football-league.webp
   sha256: 93217369cc2df4b0e219952ec3964cd94ba15e0688db69c976d91f16a005bc03
-  target_id: null
-  match: unmatched
+  aliases:
+  - HNL
+  - 1. HNL
+  target_id: 01a15fba-b1d2-7864-9761-0b5828e5b6b3
+  target_name: HNL
+  match: auto
+  confidence: 1
 - key: teams/croacia/dinamo-zagreb
   kind: team
   country: HR
@@ -9463,8 +9522,6 @@ logos:
   country: HU
   group: hungria
   name: Nemzeti Bajnokság I
-  aliases:
-  - 'NB I'
   file: competitions/hungria/nemzeti-bajnoksag-i.svg
   palette_file: competitions/hungria/nemzeti-bajnoksag-i.png
   formats:
@@ -9472,15 +9529,17 @@ logos:
     png: competitions/hungria/nemzeti-bajnoksag-i.png
     webp: competitions/hungria/nemzeti-bajnoksag-i.webp
   sha256: c5204818588b9768072eec0063c1f8c5b837345d4a8ee5a68f7a148341bd5fcf
-  target_id: null
-  match: unmatched
+  aliases:
+  - NB I
+  target_id: 01a15fba-afa5-7835-b2dc-8559bc35c682
+  target_name: NB I
+  match: auto
+  confidence: 1
 - key: competitions/hungria/nemzeti-bajnoksag-ii
   kind: competition
   country: HU
   group: hungria
   name: Nemzeti Bajnokság II
-  aliases:
-  - 'NB II'
   file: competitions/hungria/nemzeti-bajnoksag-ii.svg
   palette_file: competitions/hungria/nemzeti-bajnoksag-ii.png
   formats:
@@ -9488,8 +9547,12 @@ logos:
     png: competitions/hungria/nemzeti-bajnoksag-ii.png
     webp: competitions/hungria/nemzeti-bajnoksag-ii.webp
   sha256: 2591ab98754925144c81355bd5e994b17a708c300a5febdf5805d7401fe87d99
-  target_id: null
-  match: unmatched
+  aliases:
+  - NB II
+  target_id: 01a15fba-afa8-775c-9568-06e10cab48a6
+  target_name: NB II
+  match: auto
+  confidence: 1
 - key: teams/hungria/ferencvaros
   kind: team
   country: HU
@@ -9528,8 +9591,6 @@ logos:
   country: ID
   group: indonesia
   name: Indonesian Super League
-  aliases:
-  - 'Liga 1'
   file: competitions/indonesia/indonesian-super-league.svg
   palette_file: competitions/indonesia/indonesian-super-league.png
   formats:
@@ -9537,15 +9598,17 @@ logos:
     png: competitions/indonesia/indonesian-super-league.png
     webp: competitions/indonesia/indonesian-super-league.webp
   sha256: ab524702fb1e3bf23c874513ef4a55d16d7e0b60f0e48fa39c96210355eeae73
-  target_id: null
-  match: unmatched
+  aliases:
+  - Liga 1
+  target_id: 01a15fba-b30a-76b3-b1a1-407ccedc9671
+  target_name: Liga 1
+  match: auto
+  confidence: 1
 - key: competitions/indonesia/pegadaian-championship-kejuaraan
   kind: competition
   country: ID
   group: indonesia
   name: Pegadaian Championship (Kejuaraan)
-  aliases:
-  - 'Liga 2'
   file: competitions/indonesia/pegadaian-championship-kejuaraan.svg
   palette_file: competitions/indonesia/pegadaian-championship-kejuaraan.png
   formats:
@@ -9553,8 +9616,12 @@ logos:
     png: competitions/indonesia/pegadaian-championship-kejuaraan.png
     webp: competitions/indonesia/pegadaian-championship-kejuaraan.webp
   sha256: 77a10e66080bee4717fda564b23b016b4e2c58f288b1a99198cf875100e98d85
-  target_id: null
-  match: unmatched
+  aliases:
+  - Liga 2
+  target_id: 01a15fba-b61c-7640-98ee-ecd1d7e29364
+  target_name: Liga 2
+  match: auto
+  confidence: 1
 - key: competitions/irlanda/league-of-ireland-first-division
   kind: competition
   country: IE
@@ -9611,9 +9678,6 @@ logos:
   country: IL
   group: israel
   name: Israeli Premier League
-  aliases:
-  - 'Ligat Ha''al'
-  - 'Ligat haAl'
   file: competitions/israel/israeli-premier-league.svg
   palette_file: competitions/israel/israeli-premier-league.png
   formats:
@@ -9621,8 +9685,13 @@ logos:
     png: competitions/israel/israeli-premier-league.png
     webp: competitions/israel/israeli-premier-league.webp
   sha256: e941f1fb738509ac5d6f288cf73c4318cf5df4dc81d6afdb3228fbb4c638a8a3
-  target_id: null
-  match: unmatched
+  aliases:
+  - Ligat Ha'al
+  - Ligat haAl
+  target_id: 01a15fba-b289-7277-8fce-2ec15af301d2
+  target_name: Ligat Ha'al
+  match: auto
+  confidence: 1
 - key: teams/israel/hapoel-beer-sheva
   kind: team
   country: IL
@@ -9691,9 +9760,6 @@ logos:
   country: IQ
   group: iraque
   name: Iraq Stars League
-  aliases:
-  - 'Iraqi League'
-  - 'Stars League'
   file: competitions/iraque/iraq-stars-league.svg
   palette_file: competitions/iraque/iraq-stars-league.png
   formats:
@@ -9701,8 +9767,13 @@ logos:
     png: competitions/iraque/iraq-stars-league.png
     webp: competitions/iraque/iraq-stars-league.webp
   sha256: cf7974e402705e133bed94d7719413c88be465723a54a8b0d468e4a937826e5f
-  target_id: null
-  match: unmatched
+  aliases:
+  - Iraqi League
+  - Stars League
+  target_id: 01a15fba-b6c2-799f-bf40-14b786d85ed5
+  target_name: Iraqi League
+  match: auto
+  confidence: 1
 - key: teams/iraque/selecao-iraque
   kind: team
   country: IQ
@@ -9725,8 +9796,6 @@ logos:
   country: IR
   group: ira
   name: Esteghlal FC
-  aliases:
-  - 'Esteghlal'
   file: teams/ira/esteghlal-fc.svg
   palette_file: teams/ira/esteghlal-fc.png
   formats:
@@ -9734,6 +9803,8 @@ logos:
     png: teams/ira/esteghlal-fc.png
     webp: teams/ira/esteghlal-fc.webp
   sha256: 3a5c3f1ec49b364edaabead6f9e037fc11e52d284c91787b03ff6421baa21c8e
+  aliases:
+  - Esteghlal
   target_id: null
   match: unmatched
 - key: teams/ira/selecao-ira
@@ -9758,10 +9829,6 @@ logos:
   country: IS
   group: islandia
   name: Besta deild karla
-  aliases:
-  - 'Úrvalsdeild'
-  - 'Urvalsdeild'
-  - 'Besta deild'
   file: competitions/islandia/besta-deild-karla.svg
   palette_file: competitions/islandia/besta-deild-karla.png
   formats:
@@ -9769,8 +9836,14 @@ logos:
     png: competitions/islandia/besta-deild-karla.png
     webp: competitions/islandia/besta-deild-karla.webp
   sha256: bf7ca2912a66aa46e40a9b4522562aa5f60a38a0819e908a5f23ea820b3e9826
-  target_id: null
-  match: unmatched
+  aliases:
+  - Úrvalsdeild
+  - Urvalsdeild
+  - Besta deild
+  target_id: 01a15fba-b1c4-7fe7-ac72-4a4fe5ab949c
+  target_name: Úrvalsdeild
+  match: auto
+  confidence: 1
 - key: teams/islandia/selecao-islandia
   kind: team
   country: IS
@@ -10542,9 +10615,6 @@ logos:
   country: JM
   group: jamaica
   name: Montego Bay United
-  aliases:
-  - 'Montego Bay'
-  - 'Montego Bay Utd'
   file: teams/jamaica/montego-bay-united.svg
   palette_file: teams/jamaica/montego-bay-united.png
   formats:
@@ -10552,6 +10622,9 @@ logos:
     png: teams/jamaica/montego-bay-united.png
     webp: teams/jamaica/montego-bay-united.webp
   sha256: 77044e92549b3caa52524d3510c29617d2234a1233d399da37e5d509fd853e05
+  aliases:
+  - Montego Bay
+  - Montego Bay Utd
   target_id: null
   match: unmatched
 - key: teams/jordania/al-faisaly
@@ -10559,10 +10632,6 @@ logos:
   country: JO
   group: jordania
   name: Al-Faisaly
-  aliases:
-  - 'Al Faisaly'
-  - 'Al-Faisaly Amman'
-  - 'Al Faisaly Amman'
   file: teams/jordania/al-faisaly.svg
   palette_file: teams/jordania/al-faisaly.png
   formats:
@@ -10570,6 +10639,10 @@ logos:
     png: teams/jordania/al-faisaly.png
     webp: teams/jordania/al-faisaly.webp
   sha256: 9f5594d221508fae527f3624a44696f1ec02d93049b85d46ccfc7d6d46a42ca1
+  aliases:
+  - Al Faisaly
+  - Al-Faisaly Amman
+  - Al Faisaly Amman
   target_id: null
   match: unmatched
 - key: teams/jordania/al-hussein-irbid
@@ -10577,10 +10650,6 @@ logos:
   country: JO
   group: jordania
   name: Al-Hussein Irbid
-  aliases:
-  - 'Al Hussein'
-  - 'Al-Hussein'
-  - 'Al Hussein Irbid'
   file: teams/jordania/al-hussein-irbid.svg
   palette_file: teams/jordania/al-hussein-irbid.png
   formats:
@@ -10588,6 +10657,10 @@ logos:
     png: teams/jordania/al-hussein-irbid.png
     webp: teams/jordania/al-hussein-irbid.webp
   sha256: d17e4fbde223f315a607a7797c53357209f2fac0316624d00c9ef4ae607b74e0
+  aliases:
+  - Al Hussein
+  - Al-Hussein
+  - Al Hussein Irbid
   target_id: null
   match: unmatched
 - key: teams/jordania/al-wehdat
@@ -10595,10 +10668,6 @@ logos:
   country: JO
   group: jordania
   name: Al-Wehdat
-  aliases:
-  - 'Al Wehdat'
-  - 'Al-Wahdat'
-  - 'Al Wahdat'
   file: teams/jordania/al-wehdat.svg
   palette_file: teams/jordania/al-wehdat.png
   formats:
@@ -10606,6 +10675,10 @@ logos:
     png: teams/jordania/al-wehdat.png
     webp: teams/jordania/al-wehdat.webp
   sha256: 7d600256861090bcea2d066c05c4e71b218646986ed53210372874ebcdbfadc5
+  aliases:
+  - Al Wehdat
+  - Al-Wahdat
+  - Al Wahdat
   target_id: null
   match: unmatched
 - key: teams/jordania/selecao-jordania
@@ -10810,8 +10883,6 @@ logos:
   country: LT
   group: lituania
   name: TOPLYGA
-  aliases:
-  - 'A Lyga'
   file: competitions/lituania/toplyga.svg
   palette_file: competitions/lituania/toplyga.png
   formats:
@@ -10819,15 +10890,17 @@ logos:
     png: competitions/lituania/toplyga.png
     webp: competitions/lituania/toplyga.webp
   sha256: 63677677b4556a5bc45ec80d225893dc5cb6536d2023eb3c7a8bb88ea4fd71b5
-  target_id: null
-  match: unmatched
+  aliases:
+  - A Lyga
+  target_id: 01a15fba-b117-7402-aaa4-51795afd2fc3
+  target_name: A Lyga
+  match: auto
+  confidence: 1
 - key: teams/lituania/fk-palanga
   kind: team
   country: LT
   group: lituania
   name: FK Palanga
-  aliases:
-  - 'Palanga'
   file: teams/lituania/fk-palanga.svg
   palette_file: teams/lituania/fk-palanga.png
   formats:
@@ -10835,6 +10908,8 @@ logos:
     png: teams/lituania/fk-palanga.png
     webp: teams/lituania/fk-palanga.webp
   sha256: 5a3aabcd88d9c2a17adde908e1b7e6be042cdb55255628f6026d521aba1aeb4c
+  aliases:
+  - Palanga
   target_id: null
   match: unmatched
 - key: teams/lituania/kauno-zalgiris
@@ -10909,8 +10984,6 @@ logos:
   country: LV
   group: letonia
   name: Latvian Higher League
-  aliases:
-  - 'Virsliga'
   file: competitions/letonia/latvian-higher-league.svg
   palette_file: competitions/letonia/latvian-higher-league.png
   formats:
@@ -10918,8 +10991,12 @@ logos:
     png: competitions/letonia/latvian-higher-league.png
     webp: competitions/letonia/latvian-higher-league.webp
   sha256: 532bcdb577513d0a609dbb943499ce3beb23b99633d8074f0cf3109444d1d5e5
-  target_id: null
-  match: unmatched
+  aliases:
+  - Virsliga
+  target_id: 01a15fba-b111-73e1-b326-36b6b4458aea
+  target_name: Virsliga
+  match: auto
+  confidence: 1
 - key: teams/letonia/riga
   kind: team
   country: LV
@@ -11005,10 +11082,6 @@ logos:
   country: MD
   group: moldavia
   name: Moldovan Liga
-  aliases:
-  - 'Super Liga'
-  - 'Divizia Națională'
-  - 'Divizia Nationala'
   file: competitions/moldavia/moldovan-liga.svg
   palette_file: competitions/moldavia/moldovan-liga.png
   formats:
@@ -11016,8 +11089,14 @@ logos:
     png: competitions/moldavia/moldovan-liga.png
     webp: competitions/moldavia/moldovan-liga.webp
   sha256: 3f810df4441861d8734f487c2cb89a8c5505e849c99a5bb6dea08998718c3357
-  target_id: null
-  match: unmatched
+  aliases:
+  - Super Liga
+  - Divizia Națională
+  - Divizia Nationala
+  target_id: 01a15fba-b294-7ec8-b5b2-39e40ef9c924
+  target_name: Super Liga
+  match: auto
+  confidence: 1
 - key: teams/moldavia/selecao-moldavia
   kind: team
   country: MD
@@ -11108,9 +11187,6 @@ logos:
   country: MV
   group: maldivas
   name: Maziya S&RC
-  aliases:
-  - 'Maziya'
-  - 'Maziya S&R'
   file: teams/maldivas/maziya-s-rc.svg
   palette_file: teams/maldivas/maziya-s-rc.png
   formats:
@@ -11118,6 +11194,9 @@ logos:
     png: teams/maldivas/maziya-s-rc.png
     webp: teams/maldivas/maziya-s-rc.webp
   sha256: 573249cd0c6f966c6cea848efd20994bd4e09bd6f68c9cc60b26c1c5685a88a3
+  aliases:
+  - Maziya
+  - Maziya S&R
   target_id: null
   match: unmatched
 - key: competitions/mexico/liga-de-expansion-mx
@@ -11191,9 +11270,6 @@ logos:
   country: NG
   group: nigeria
   name: Nigeria Premier Football League
-  aliases:
-  - 'NPFL'
-  - 'Professional League'
   file: competitions/nigeria/nigeria-premier-football-league.svg
   palette_file: competitions/nigeria/nigeria-premier-football-league.png
   formats:
@@ -11201,8 +11277,13 @@ logos:
     png: competitions/nigeria/nigeria-premier-football-league.png
     webp: competitions/nigeria/nigeria-premier-football-league.webp
   sha256: e0367ececc2690caa3b485b0b791e347e0c2f3ca73699a989cee97346765e3c9
-  target_id: null
-  match: unmatched
+  aliases:
+  - NPFL
+  - Professional League
+  target_id: 01a15fba-b29c-759a-8bc9-2777dd480394
+  target_name: NPFL
+  match: auto
+  confidence: 1
 - key: competitions/paises-baixos/eerste-divisie
   kind: competition
   country: NL
@@ -11901,12 +11982,9 @@ logos:
   confidence: 1
 - key: competitions/noruega/norwegian-first-division
   kind: competition
-  country: 'NO'
+  country: false
   group: noruega
   name: Norwegian First Division
-  aliases:
-  - '1. Division'
-  - 'OBOS-ligaen'
   file: competitions/noruega/norwegian-first-division.svg
   palette_file: competitions/noruega/norwegian-first-division.png
   formats:
@@ -11914,8 +11992,13 @@ logos:
     png: competitions/noruega/norwegian-first-division.png
     webp: competitions/noruega/norwegian-first-division.webp
   sha256: 4d6efa345d9a8eb02aa048623a28053c4fc81b03d50e3d3a2efc73ab6c373664
-  target_id: null
-  match: unmatched
+  aliases:
+  - 1. Division
+  - OBOS-ligaen
+  target_id: 01a15fba-b21a-7a63-b4f6-6a9e4b31f8d9
+  target_name: 1. Division
+  match: auto
+  confidence: 1
 - key: teams/noruega/bod-glimt
   kind: team
   country: 'NO'
@@ -12036,9 +12119,6 @@ logos:
   country: PA
   group: panama
   name: Panamanian Football League
-  aliases:
-  - 'LPF'
-  - 'Liga Panameña de Fútbol'
   file: competitions/panama/panamanian-football-league.svg
   palette_file: competitions/panama/panamanian-football-league.png
   formats:
@@ -12046,8 +12126,13 @@ logos:
     png: competitions/panama/panamanian-football-league.png
     webp: competitions/panama/panamanian-football-league.webp
   sha256: 116909f715b4dee30613b7cf5bd77f833f6fe6a862e8350f106d33699ccee85d
-  target_id: null
-  match: unmatched
+  aliases:
+  - LPF
+  - Liga Panameña de Fútbol
+  target_id: 01a15fba-b30d-79f1-a59c-e25575b44290
+  target_name: Liga Panameña de Fútbol
+  match: auto
+  confidence: 1
 - key: teams/panama/selecao-panama
   kind: team
   country: PA
@@ -12102,9 +12187,6 @@ logos:
   country: PL
   group: polonia
   name: Polish 1 Liga
-  aliases:
-  - 'I Liga'
-  - '1. Liga'
   file: competitions/polonia/polish-1-liga.svg
   palette_file: competitions/polonia/polish-1-liga.png
   formats:
@@ -12112,8 +12194,13 @@ logos:
     png: competitions/polonia/polish-1-liga.png
     webp: competitions/polonia/polish-1-liga.webp
   sha256: ef6a8b6700d71f1942ad3d1761c77dd195f4c207aafeea35dc383ebdd8bcee59
-  target_id: null
-  match: unmatched
+  aliases:
+  - I Liga
+  - 1. Liga
+  target_id: 01a15fba-b3ec-7e64-8b04-23d60aabadd1
+  target_name: I Liga
+  match: auto
+  confidence: 1
 - key: teams/polonia/jagiellonia
   kind: team
   country: PL
@@ -12644,9 +12731,6 @@ logos:
   country: RO
   group: romenia
   name: Superliga
-  aliases:
-  - 'Liga I'
-  - 'SuperLiga'
   file: competitions/romenia/superliga.svg
   palette_file: competitions/romenia/superliga.png
   formats:
@@ -12654,8 +12738,13 @@ logos:
     png: competitions/romenia/superliga.png
     webp: competitions/romenia/superliga.webp
   sha256: e789db9821ed40b10fb0bb172f958ea082aef86734fff4c5effb7db1ee0228d8
-  target_id: null
-  match: unmatched
+  aliases:
+  - Liga I
+  - SuperLiga
+  target_id: 01a15fba-b237-7ef5-b71d-af6590c4d35a
+  target_name: Liga I
+  match: auto
+  confidence: 1
 - key: teams/romenia/arges-pitesti
   kind: team
   country: RO
@@ -12905,9 +12994,6 @@ logos:
   country: RO
   group: romenia
   name: U Cluj
-  aliases:
-  - 'Universitatea Cluj'
-  - 'U. Cluj'
   file: teams/romenia/u-cluj.svg
   palette_file: teams/romenia/u-cluj.png
   formats:
@@ -12915,8 +13001,13 @@ logos:
     png: teams/romenia/u-cluj.png
     webp: teams/romenia/u-cluj.webp
   sha256: 55071276046960e8b22025d52b53ec99b8377aa4cc209eeb6ca98e61269d1f61
-  target_id: null
-  match: unmatched
+  aliases:
+  - Universitatea Cluj
+  - U. Cluj
+  target_id: 01a163b8-b6a7-7cb9-9808-bd9733504322
+  target_name: Universitatea Cluj
+  match: auto
+  confidence: 1
 - key: teams/romenia/u-craiova
   kind: team
   country: RO
@@ -12971,8 +13062,6 @@ logos:
   country: RS
   group: servia
   name: Serbian SuperLiga
-  aliases:
-  - 'Super Liga'
   file: competitions/servia/serbian-superliga.svg
   palette_file: competitions/servia/serbian-superliga.png
   formats:
@@ -12980,17 +13069,17 @@ logos:
     png: competitions/servia/serbian-superliga.png
     webp: competitions/servia/serbian-superliga.webp
   sha256: 8d668a830edacc9ac96507c68f077789bc06060a67c46fa96df378463879add3
-  target_id: null
-  match: unmatched
+  aliases:
+  - Super Liga
+  target_id: 01a15fba-b23c-7686-b922-5398d0ca35ab
+  target_name: Super Liga
+  match: auto
+  confidence: 1
 - key: teams/servia/estrela-vermelha
   kind: team
   country: RS
   group: servia
   name: Estrela Vermelha
-  aliases:
-  - 'FK Crvena Zvezda'
-  - 'Crvena Zvezda'
-  - 'Red Star Belgrade'
   file: teams/servia/estrela-vermelha.svg
   palette_file: teams/servia/estrela-vermelha.png
   formats:
@@ -12998,8 +13087,14 @@ logos:
     png: teams/servia/estrela-vermelha.png
     webp: teams/servia/estrela-vermelha.webp
   sha256: d0400ce4cfd1b3849beeee881922ac93a40289afd37487cdfa6f6382a4eda613
-  target_id: null
-  match: unmatched
+  aliases:
+  - FK Crvena Zvezda
+  - Crvena Zvezda
+  - Red Star Belgrade
+  target_id: 01a163b8-b249-7ecd-89dc-65522dbf28d4
+  target_name: FK Crvena Zvezda
+  match: auto
+  confidence: 1
 - key: teams/servia/selecao-servia
   kind: team
   country: RS
@@ -13136,10 +13231,6 @@ logos:
   country: RU
   group: russia
   name: Dínamo Moscou
-  aliases:
-  - 'Dinamo Moscow'
-  - 'Dynamo Moscow'
-  - 'Dinamo Moskva'
   file: teams/russia/dinamo-moscou.svg
   palette_file: teams/russia/dinamo-moscou.png
   formats:
@@ -13147,8 +13238,17 @@ logos:
     png: teams/russia/dinamo-moscou.png
     webp: teams/russia/dinamo-moscou.webp
   sha256: bed5dd87cb5fa45d122e6b2458b19e98be952d07d870e18dfb596b3a6cfdf173
+  aliases:
+  - Dinamo Moscow
+  - Dynamo Moscow
+  - Dinamo Moskva
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a163bb-7d48-7b9c-a388-28357cf571bf
+    name: Dynamo
+    confidence: 0.85
 - key: teams/russia/fakel
   kind: team
   country: RU
@@ -13186,8 +13286,6 @@ logos:
   country: RU
   group: russia
   name: FC Elista
-  aliases:
-  - 'Elista'
   file: teams/russia/fc-elista.svg
   palette_file: teams/russia/fc-elista.png
   formats:
@@ -13195,6 +13293,8 @@ logos:
     png: teams/russia/fc-elista.png
     webp: teams/russia/fc-elista.webp
   sha256: 1da05ae13eb6252b3b69e67627be506e3f4295190e3f747f9c178fc4e2740573
+  aliases:
+  - Elista
   target_id: null
   match: unmatched
 - key: teams/russia/fc-sokol-saratov
@@ -13766,9 +13866,6 @@ logos:
   country: SE
   group: suecia
   name: Linköping FC
-  aliases:
-  - 'Linköpings FC'
-  - 'Linkopings FC'
   file: teams/suecia/linkoping-fc.svg
   palette_file: teams/suecia/linkoping-fc.png
   formats:
@@ -13776,6 +13873,9 @@ logos:
     png: teams/suecia/linkoping-fc.png
     webp: teams/suecia/linkoping-fc.webp
   sha256: ad7f2fe6e0c79b17bde05ee2ce351490d7df44a69a0c3829bbb4ffdf58b77beb
+  aliases:
+  - Linköpings FC
+  - Linkopings FC
   target_id: null
   match: ambiguous
   confidence: 0.85
@@ -13854,9 +13954,6 @@ logos:
   country: SI
   group: eslovenia
   name: Slovenian PrvaLiga
-  aliases:
-  - '1. SNL'
-  - 'Prva Liga'
   file: competitions/eslovenia/slovenian-prvaliga.svg
   palette_file: competitions/eslovenia/slovenian-prvaliga.png
   formats:
@@ -13864,8 +13961,13 @@ logos:
     png: competitions/eslovenia/slovenian-prvaliga.png
     webp: competitions/eslovenia/slovenian-prvaliga.webp
   sha256: 0f2689f7d3e1c69776a00d941965d35109017658c495ca72d3b3104a54e24454
-  target_id: null
-  match: unmatched
+  aliases:
+  - 1. SNL
+  - Prva Liga
+  target_id: 01a15fba-b3a8-7a4b-8e80-6ac504177d89
+  target_name: 1. SNL
+  match: auto
+  confidence: 1
 - key: teams/eslovenia/celje
   kind: team
   country: SI
@@ -13904,10 +14006,6 @@ logos:
   country: SK
   group: eslovaquia
   name: Slovak First Football League
-  aliases:
-  - 'Super Liga'
-  - 'Niké liga'
-  - 'Nike liga'
   file: competitions/eslovaquia/slovak-first-football-league.svg
   palette_file: competitions/eslovaquia/slovak-first-football-league.png
   formats:
@@ -13915,8 +14013,14 @@ logos:
     png: competitions/eslovaquia/slovak-first-football-league.png
     webp: competitions/eslovaquia/slovak-first-football-league.webp
   sha256: c0a1d625ad41b135f898a13553c34faf57181668456d9c635783fb401f2bc90b
-  target_id: null
-  match: unmatched
+  aliases:
+  - Super Liga
+  - Niké liga
+  - Nike liga
+  target_id: 01a15fba-b3ef-7fc7-b94e-cb1a4d696450
+  target_name: Super Liga
+  match: auto
+  confidence: 1
 - key: teams/eslovaquia/selecao-eslovaquia
   kind: team
   country: SK
@@ -13955,8 +14059,6 @@ logos:
   country: SM
   group: san-marino
   name: Sammarinese Football Championship
-  aliases:
-  - 'Campionato Sammarinese'
   file: competitions/san-marino/sammarinese-football-championship.svg
   palette_file: competitions/san-marino/sammarinese-football-championship.png
   formats:
@@ -13964,8 +14066,15 @@ logos:
     png: competitions/san-marino/sammarinese-football-championship.png
     webp: competitions/san-marino/sammarinese-football-championship.webp
   sha256: 408acaf64d6faefd165deaf7b97e5f5f3ccb15b12e5f44517e2fc3f41b971972
+  aliases:
+  - Campionato Sammarinese
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a15fba-b2a6-75ae-9c57-1f9b096278c4
+    name: Campionato
+    confidence: 0.85
 - key: teams/san-marino/selecao-san-marino
   kind: team
   country: SM
@@ -13988,10 +14097,6 @@ logos:
   country: SN
   group: senegal
   name: AS Dakar Sacré-Cœur
-  aliases:
-  - 'Dakar Sacre Coeur'
-  - 'AS Dakar Sacre Coeur'
-  - 'Dakar Sacré-Cœur'
   file: teams/senegal/as-dakar-sacre-c-ur.svg
   palette_file: teams/senegal/as-dakar-sacre-c-ur.png
   formats:
@@ -13999,6 +14104,10 @@ logos:
     png: teams/senegal/as-dakar-sacre-c-ur.png
     webp: teams/senegal/as-dakar-sacre-c-ur.webp
   sha256: 33844b5593489219c601483a81d9281b6910c3e19116a5416f6fb69bf2a9f122
+  aliases:
+  - Dakar Sacre Coeur
+  - AS Dakar Sacre Coeur
+  - Dakar Sacré-Cœur
   target_id: null
   match: unmatched
 - key: teams/senegal/selecao-senegal
@@ -14120,10 +14229,6 @@ logos:
   country: TR
   group: turquia
   name: 12 Bingolspor
-  aliases:
-  - '12 Bingöl Spor'
-  - 'Bingolspor'
-  - '12 Bingol Spor'
   file: teams/turquia/12-bingolspor.svg
   palette_file: teams/turquia/12-bingolspor.png
   formats:
@@ -14131,6 +14236,10 @@ logos:
     png: teams/turquia/12-bingolspor.png
     webp: teams/turquia/12-bingolspor.webp
   sha256: 30c410d9bc421b03254943a7a6781f28d685d89fa554a585de587829ab205bb1
+  aliases:
+  - 12 Bingöl Spor
+  - Bingolspor
+  - 12 Bingol Spor
   target_id: null
   match: unmatched
 - key: teams/turquia/1461-trabzon
@@ -14328,9 +14437,6 @@ logos:
   country: TR
   group: turquia
   name: Araklıspor
-  aliases:
-  - 'Araklispor'
-  - 'Araklı Spor'
   file: teams/turquia/arakl-spor.svg
   palette_file: teams/turquia/arakl-spor.png
   formats:
@@ -14338,6 +14444,9 @@ logos:
     png: teams/turquia/arakl-spor.png
     webp: teams/turquia/arakl-spor.webp
   sha256: 0d715e7705df5e3eb897eee1af3ee989ea3c18373dc45187bc4dcf8ea6dfed1a
+  aliases:
+  - Araklispor
+  - Araklı Spor
   target_id: null
   match: unmatched
 - key: teams/turquia/arnavutkoy-belediyespor
@@ -14409,9 +14518,6 @@ logos:
   country: TR
   group: turquia
   name: Beyoğluspor
-  aliases:
-  - 'Beyoglu Yeni Carsi'
-  - 'Beyoğlu Yeni Çarşı'
   file: teams/turquia/beyogluspor.svg
   palette_file: teams/turquia/beyogluspor.png
   formats:
@@ -14419,6 +14525,9 @@ logos:
     png: teams/turquia/beyogluspor.png
     webp: teams/turquia/beyogluspor.webp
   sha256: b809ac9226338b5a935ebccca07eb149f7f24bb967531f41e76b9415c7cb01d7
+  aliases:
+  - Beyoglu Yeni Carsi
+  - Beyoğlu Yeni Çarşı
   target_id: null
   match: unmatched
 - key: teams/turquia/corluspor-1947
@@ -14458,9 +14567,6 @@ logos:
   country: TR
   group: turquia
   name: Diyarbakırspor
-  aliases:
-  - 'Diyarbakirspor'
-  - 'Diyarbekirspor'
   file: teams/turquia/diyarbak-rspor.svg
   palette_file: teams/turquia/diyarbak-rspor.png
   formats:
@@ -14468,6 +14574,9 @@ logos:
     png: teams/turquia/diyarbak-rspor.png
     webp: teams/turquia/diyarbak-rspor.webp
   sha256: 2c62a90e54b92c4b1215d5b553650ce7333b6666cccd610ebf33fd99bc11ac5b
+  aliases:
+  - Diyarbakirspor
+  - Diyarbekirspor
   target_id: null
   match: unmatched
 - key: teams/turquia/elazigspor
@@ -14633,9 +14742,6 @@ logos:
   country: TR
   group: turquia
   name: Gaziosmanpaşaspor
-  aliases:
-  - 'Gaziosmanpasa'
-  - 'GOP'
   file: teams/turquia/gaziosmanpasaspor.svg
   palette_file: teams/turquia/gaziosmanpasaspor.png
   formats:
@@ -14643,6 +14749,9 @@ logos:
     png: teams/turquia/gaziosmanpasaspor.png
     webp: teams/turquia/gaziosmanpasaspor.webp
   sha256: f835d3b1ba95b0d9b678b612c86f90e8ad3633b2fd90115f79753d1bc3a57cf8
+  aliases:
+  - Gaziosmanpasa
+  - GOP
   target_id: null
   match: unmatched
 - key: teams/turquia/genclerbirligi
@@ -14909,9 +15018,6 @@ logos:
   country: TR
   group: turquia
   name: Mardinspor
-  aliases:
-  - 'Mardin 1969 Spor'
-  - 'Mardin Spor'
   file: teams/turquia/mardinspor.svg
   palette_file: teams/turquia/mardinspor.png
   formats:
@@ -14919,8 +15025,16 @@ logos:
     png: teams/turquia/mardinspor.png
     webp: teams/turquia/mardinspor.webp
   sha256: 5fa83d755c66ea36fc004d497e77c6a8b65281637f7aa8cb68886a0f2f53f8f6
+  aliases:
+  - Mardin 1969 Spor
+  - Mardin Spor
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.85
+  candidates:
+  - id: 01a163be-21aa-7f8d-a41a-b20a85df60ec
+    name: Mardin 1969
+    confidence: 0.85
 - key: teams/turquia/menemen-fk
   kind: team
   country: TR
@@ -14942,10 +15056,6 @@ logos:
   country: TR
   group: turquia
   name: Musspor
-  aliases:
-  - 'Muş Spor'
-  - '49 Muşspor'
-  - 'Mus Spor'
   file: teams/turquia/musspor.svg
   palette_file: teams/turquia/musspor.png
   formats:
@@ -14953,6 +15063,10 @@ logos:
     png: teams/turquia/musspor.png
     webp: teams/turquia/musspor.webp
   sha256: 12d26ae7662c8738885b0b557123120827e595a0bf7626d876e201b563a8df77
+  aliases:
+  - Muş Spor
+  - 49 Muşspor
+  - Mus Spor
   target_id: null
   match: unmatched
 - key: teams/turquia/rizespor
@@ -15088,9 +15202,6 @@ logos:
   country: TZ
   group: tanzania
   name: NBC Premier League
-  aliases:
-  - 'Ligi kuu Bara'
-  - 'Premier League'
   file: competitions/tanzania/nbc-premier-league.svg
   palette_file: competitions/tanzania/nbc-premier-league.png
   formats:
@@ -15098,8 +15209,13 @@ logos:
     png: competitions/tanzania/nbc-premier-league.png
     webp: competitions/tanzania/nbc-premier-league.webp
   sha256: b48fc513fa634cb615fadfc77ee4648f8808aca3d029f00a388996929bdab767
-  target_id: null
-  match: unmatched
+  aliases:
+  - Ligi kuu Bara
+  - Premier League
+  target_id: 01a15fba-b169-7404-917b-a81709e860a8
+  target_name: Ligi kuu Bara
+  match: auto
+  confidence: 1
 - key: competitions/ucrania/persha-liga
   kind: competition
   country: UA
@@ -15121,8 +15237,6 @@ logos:
   country: UA
   group: ucrania
   name: Ukrainian Premier League
-  aliases:
-  - 'Premier League'
   file: competitions/ucrania/ukrainian-premier-league.svg
   palette_file: competitions/ucrania/ukrainian-premier-league.png
   formats:
@@ -15130,16 +15244,12 @@ logos:
     png: competitions/ucrania/ukrainian-premier-league.png
     webp: competitions/ucrania/ukrainian-premier-league.webp
   sha256: 6a7589f21e239e4f525a52cae745a76461e9a0ca14b00bf5f0801e74797326de
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-afe2-79b0-b120-89c6eb9e36f5
-    name: Premier League
-    confidence: 0.85
-  - id: 01a15fba-b927-7989-887a-32fb0d1d42eb
-    name: Premier League
-    confidence: 0.85
+  aliases:
+  - Premier League
+  target_id: 01a15fba-afe2-79b0-b120-89c6eb9e36f5
+  target_name: Premier League
+  match: auto
+  confidence: 1
 - key: teams/ucrania/selecao-ucrania
   kind: team
   country: UA
@@ -15210,9 +15320,6 @@ logos:
   country: US
   group: estados-unidos
   name: National Women's Soccer League
-  aliases:
-  - 'NWSL Women'
-  - 'NWSL'
   file: competitions/estados-unidos/national-women-s-soccer-league.svg
   palette_file: competitions/estados-unidos/national-women-s-soccer-league.png
   formats:
@@ -15220,8 +15327,13 @@ logos:
     png: competitions/estados-unidos/national-women-s-soccer-league.png
     webp: competitions/estados-unidos/national-women-s-soccer-league.webp
   sha256: 03355b252a3ebbff3ffff926326dd14792bc75456b7e2a59e7eea22f83f6721f
-  target_id: null
-  match: unmatched
+  aliases:
+  - NWSL Women
+  - NWSL
+  target_id: 01a15fba-b5b2-77f0-9b4b-2f758ca7da05
+  target_name: NWSL Women
+  match: auto
+  confidence: 1
 - key: competitions/estados-unidos/usl-championship
   kind: competition
   country: US
@@ -15275,9 +15387,6 @@ logos:
   country: US
   group: estados-unidos
   name: Atlanta United 2
-  aliases:
-  - 'Atlanta United II'
-  - 'Atlanta United FC II'
   file: teams/estados-unidos/atlanta-united-2.svg
   palette_file: teams/estados-unidos/atlanta-united-2.png
   formats:
@@ -15285,13 +15394,13 @@ logos:
     png: teams/estados-unidos/atlanta-united-2.png
     webp: teams/estados-unidos/atlanta-united-2.webp
   sha256: 8a8ec0f716d01a7c5bca2869ba53aae66982e1ca799b202af846968b4d97f206
-  target_id: null
-  match: ambiguous
-  confidence: 0.864
-  candidates:
-  - id: 01a163bd-efa5-7c02-b593-44924de4d4bf
-    name: Atlanta United FC
-    confidence: 0.864
+  aliases:
+  - Atlanta United II
+  - Atlanta United FC II
+  target_id: 01a16745-5dff-783d-ab5e-59c7b7e6c865
+  target_name: Atlanta United II
+  match: auto
+  confidence: 1
 - key: teams/estados-unidos/austin-fc
   kind: team
   country: US
@@ -15393,9 +15502,6 @@ logos:
   country: US
   group: estados-unidos
   name: CT United FC
-  aliases:
-  - 'Connecticut United'
-  - 'CT United'
   file: teams/estados-unidos/ct-united-fc.svg
   palette_file: teams/estados-unidos/ct-united-fc.png
   formats:
@@ -15403,6 +15509,9 @@ logos:
     png: teams/estados-unidos/ct-united-fc.png
     webp: teams/estados-unidos/ct-united-fc.webp
   sha256: 7e4807457370a7e31949d5ab641482d7580d431d6b50505bedaee13678ac55b9
+  aliases:
+  - Connecticut United
+  - CT United
   target_id: null
   match: unmatched
 - key: teams/estados-unidos/d-c-united
@@ -15442,9 +15551,6 @@ logos:
   country: US
   group: estados-unidos
   name: FC Cincinnati 2
-  aliases:
-  - 'FC Cincinnati II'
-  - 'FC Cincinnati 2'
   file: teams/estados-unidos/fc-cincinnati-2.svg
   palette_file: teams/estados-unidos/fc-cincinnati-2.png
   formats:
@@ -15452,13 +15558,13 @@ logos:
     png: teams/estados-unidos/fc-cincinnati-2.png
     webp: teams/estados-unidos/fc-cincinnati-2.webp
   sha256: d9ead5cb0533f1bf1803fa369f79880da430b7b6eb34a55d1e9f144c7bcf5b15
-  target_id: null
-  match: ambiguous
-  confidence: 0.853
-  candidates:
-  - id: 01a15fba-f504-7ace-9d0c-f07aba99db88
-    name: FC Cincinnati
-    confidence: 0.853
+  aliases:
+  - FC Cincinnati II
+  - FC Cincinnati 2
+  target_id: 01a163be-21ae-7b33-b597-fdf3150d9bf3
+  target_name: FC Cincinnati II
+  match: auto
+  confidence: 1
 - key: teams/estados-unidos/fc-dallas
   kind: team
   country: US
@@ -15544,10 +15650,6 @@ logos:
   country: US
   group: estados-unidos
   name: LAFC2
-  aliases:
-  - 'Los Angeles FC II'
-  - 'LAFC II'
-  - 'Los Angeles FC 2'
   file: teams/estados-unidos/lafc2.svg
   palette_file: teams/estados-unidos/lafc2.png
   formats:
@@ -15555,8 +15657,17 @@ logos:
     png: teams/estados-unidos/lafc2.png
     webp: teams/estados-unidos/lafc2.webp
   sha256: 2084daca8f9640207f30423d9a62b2438d7377d28bfbc15371ca8c009609a17a
+  aliases:
+  - Los Angeles FC II
+  - LAFC II
+  - Los Angeles FC 2
   target_id: null
-  match: unmatched
+  match: ambiguous
+  confidence: 0.853
+  candidates:
+  - id: 01a163b8-8b4d-71f0-842e-80c60c1cd5f0
+    name: Los Angeles FC
+    confidence: 0.853
 - key: teams/estados-unidos/los-angeles-fc
   kind: team
   country: US
@@ -15754,9 +15865,6 @@ logos:
   country: US
   group: estados-unidos
   name: Red Bull New York II
-  aliases:
-  - 'New York Red Bulls II'
-  - 'NY Red Bulls II'
   file: teams/estados-unidos/red-bull-new-york-ii.svg
   palette_file: teams/estados-unidos/red-bull-new-york-ii.png
   formats:
@@ -15764,6 +15872,9 @@ logos:
     png: teams/estados-unidos/red-bull-new-york-ii.png
     webp: teams/estados-unidos/red-bull-new-york-ii.webp
   sha256: 2f66dce7d10783bb0f8b782526a899bf6a5be3250d996cb9c613ba0cf110d1c0
+  aliases:
+  - New York Red Bulls II
+  - NY Red Bulls II
   target_id: null
   match: unmatched
 - key: teams/estados-unidos/san-diego-fc
@@ -15852,9 +15963,6 @@ logos:
   country: US
   group: estados-unidos
   name: Sporting Kansas City II
-  aliases:
-  - 'Sporting KC II'
-  - 'Sporting Kansas City II'
   file: teams/estados-unidos/sporting-kansas-city-ii.svg
   palette_file: teams/estados-unidos/sporting-kansas-city-ii.png
   formats:
@@ -15862,6 +15970,9 @@ logos:
     png: teams/estados-unidos/sporting-kansas-city-ii.png
     webp: teams/estados-unidos/sporting-kansas-city-ii.webp
   sha256: 20f1fe94cf5bc7fa2ae97d56a1a31f228934fdb6bd3c5feed6e47847603c2a88
+  aliases:
+  - Sporting KC II
+  - Sporting Kansas City II
   target_id: null
   match: unmatched
 - key: teams/estados-unidos/st-louis-city-sc
@@ -15938,8 +16049,10 @@ logos:
     png: competitions/uruguai/liga-auf-uruguaya.png
     webp: competitions/uruguai/liga-auf-uruguaya.webp
   sha256: 3103d1e223d4aa3ecffdcfaca881c8f661a7a56dd914aee64388384201d26242
-  target_id: null
-  match: unmatched
+  target_id: 01a15fba-b131-714b-bc9c-b2835cd24160
+  target_name: Primera División
+  match: auto
+  confidence: 1
 - key: competitions/uruguai/segunda-division-de-uruguay
   kind: competition
   country: UY
