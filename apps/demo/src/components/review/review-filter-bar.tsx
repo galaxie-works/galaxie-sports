@@ -14,6 +14,7 @@ import type {
   FilterQuery,
 } from '@/components/reui/filters/filters-types';
 import { Spinner } from '@/components/ui/spinner';
+import { sortByLabel } from '@/lib/alphabetical';
 import { useI18n } from '@/lib/i18n/client';
 import { SPORTS } from '@/lib/navigation';
 import {
@@ -111,7 +112,8 @@ export function ReviewFiltersBar({ filters, counts, options }: Props) {
     values: string[],
     label: (v: string) => string,
     icon: (v: string) => React.ReactNode,
-  ): FilterOption[] => values.map((v) => ({ value: v, label: label(v), icon: icon(v), keywords: [v] }));
+  ): FilterOption[] =>
+    sortByLabel(values.map((v) => ({ value: v, label: label(v), icon: icon(v), keywords: [v] })));
   // o que está na URL e saiu do catálogo continua escolhível (e removível)
   const withSelected = (values: string[], selected: string[]) => [
     ...values,
