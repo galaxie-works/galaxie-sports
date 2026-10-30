@@ -411,6 +411,22 @@ describe('conversor da base por país', () => {
     expect(by('teams/brasil/selecao-brasil')).toMatchObject({ target_id: 'bra', match: 'manual' });
   });
 
+  it('apelido da curadoria liga pelo nome do cadastro e atravessa a varredura', () => {
+    const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
+    const targets = [club('cam', 'Atletico-MG', 'BR'), club('ame', 'America Mineiro', 'BR')];
+    const scan = scanAcervo(out);
+    const first = planManifest(scan, targets, countries, undefined, new Date()).manifest;
+    const atl = first.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')!;
+    expect(atl.match).not.toBe('auto');
+    atl.aliases = ['Atletico-MG', 'Nome que não existe'];
+    const second = planManifest(scan, targets, countries, first, new Date()).manifest;
+    expect(second.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')).toMatchObject({
+      target_id: 'cam',
+      match: 'auto',
+      aliases: ['Atletico-MG', 'Nome que não existe'],
+    });
+  });
+
   it('logo de competição liga pela liga da api-sports quando o nome de mercado difere do cadastro', () => {
     const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
     const serieA: MatchTarget = {

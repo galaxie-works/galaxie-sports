@@ -6,7 +6,7 @@
 import { normalizeName } from '@galaxie/knowledge';
 import { ACERVO_SCHEMA_VERSION, type AcervoLogo, type AcervoManifest } from './manifest.js';
 import { COMPETITION_LEAGUES } from './competition-leagues.js';
-import { matchLogo, shareWordStart, type MatchOptions, type MatchTarget } from './match.js';
+import { matchLogo, type MatchOptions, type MatchTarget } from './match.js';
 import type { ScanResult } from './scan.js';
 
 export interface CountryRow {
@@ -117,6 +117,9 @@ export function planManifest(
       sha256: s.sha256,
     };
     const old = prev.get(s.key) ?? inherited(s, country);
+    // curadoria por nome: os apelidos (o nome do time no cadastro) atravessam as varreduras
+    const aliases = old?.aliases?.filter((a) => a.trim()) ?? [];
+    if (aliases.length) Object.assign(base, { aliases });
     if (old && old.key !== s.key && old.match === 'auto')
       return {
         ...base,
@@ -136,26 +139,37 @@ export function planManifest(
         match: old.match,
       };
     if (!country) return { ...base, target_id: null, match: 'unmatched' };
-    // logo de competição com a liga na tabela: liga direto, se o alvo for do mesmo país e parecido no nome
+    // logo de competição com a liga na tabela (curada à mão): liga direto, se o alvo for do mesmo país
     if (s.kind === 'competition') {
       const league = COMPETITION_LEAGUES.get(normalizeName(`${folderCountry} ${s.name}`));
       const id = league !== undefined ? options.leagueCompetitions?.get(league) : undefined;
       const t = id ? targetById.get(`competition:${id}`) : undefined;
-      if (t && t.country === country && shareWordStart(s.name, t.name))
+      if (t && t.country === country)
         return { ...base, target_id: t.id, target_name: t.name, match: 'auto', confidence: 1 };
     }
-    const r = matchLogo(
-      {
-        key: s.key,
-        kind: s.kind,
-        country,
-        name: s.name,
-        ...(s.national ? { national: true, nationalCountry: resolveCountry(s.name, countries) } : {}),
-        ...(competitionIds.length ? { competitionIds } : {}),
-      },
-      targets,
-      options,
-    );
+    // o nome do arquivo e cada apelido: vale o melhor resultado (ligado > ambíguo > sem par, depois confiança)
+    const rank = { auto: 2, ambiguous: 1, unmatched: 0 } as const;
+    const r = [s.name, ...aliases]
+      .map((name) =>
+        matchLogo(
+          {
+            key: s.key,
+            kind: s.kind,
+            country,
+            name,
+            ...(s.national ? { national: true, nationalCountry: resolveCountry(s.name, countries) } : {}),
+            ...(competitionIds.length ? { competitionIds } : {}),
+          },
+          targets,
+          options,
+        ),
+      )
+      .reduce((best, x) =>
+        rank[x.status] > rank[best.status] ||
+        (rank[x.status] === rank[best.status] && (x.confidence ?? 0) > (best.confidence ?? 0))
+          ? x
+          : best,
+      );
     return {
       ...base,
       target_id: r.targetId,
