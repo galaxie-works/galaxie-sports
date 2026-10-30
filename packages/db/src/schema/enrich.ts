@@ -657,6 +657,11 @@ export const broadcaster = enrich.table('broadcaster', {
    * sincronização da biblioteca regrava. Histórico (e o anterior, para voltar) em `enrich.logo_upload`.
    */
   customLogoAssetId: uuid('custom_logo_asset_id').references(() => asset.id),
+  /**
+   * Versão para tema escuro enviada no painel: vale no lugar do `logo_dark_asset_id` (e também quando o
+   * logo claro é o do painel). Histórico em `enrich.logo_upload` (variante `dark`).
+   */
+  customLogoDarkAssetId: uuid('custom_logo_dark_asset_id').references(() => asset.id),
   /** URL do arquivo de origem do logo (site oficial ou Wikimedia Commons). */
   logoSourceUrl: text('logo_source_url'),
   /** Página de origem (descrição do arquivo, press kit). */

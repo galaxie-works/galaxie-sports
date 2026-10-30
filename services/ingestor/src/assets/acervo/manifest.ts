@@ -44,6 +44,12 @@ export interface AcervoLogo {
   /** Pasta de competição do pacote ("Brasil - Campeonato Brasileiro Série A"), quando houver. */
   group?: string | undefined;
   name: string;
+  /**
+   * Curadoria por nome: outros nomes do mesmo time ou competição, como estão no cadastro ("Sheffield Utd",
+   * "Heart Of Midlothian"). O mapeamento tenta cada um com as mesmas regras do nome do arquivo, e eles
+   * atravessam as varreduras. Um apelido que não existe no cadastro não liga nada.
+   */
+  aliases?: string[] | undefined;
   /** Escudo de seleção. */
   national?: boolean | undefined;
   /** Arquivo servido (SVG de preferência; senão o maior PNG), relativo à pasta do pacote. */

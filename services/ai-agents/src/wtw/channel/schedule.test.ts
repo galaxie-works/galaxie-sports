@@ -17,12 +17,13 @@ const at = (iso: string) => new Date(iso);
 const DEFAULT = channelScheduleFromEnv({});
 
 describe('momentos do canal do jogo: leitura das flags', () => {
-  it('padrão: consulta semanal segunda 06:00 UTC, retentativas 3d e 1d, pós-jogo ligado', () => {
+  it('padrão: consulta semanal segunda 06:00 UTC, retentativas 3d, 1d e 6h, pós-jogo ligado', () => {
     expect(DEFAULT).toEqual({
       weeklyCron: '0 6 * * 1',
       retries: [
         { label: 'retry-3d', ms: 3 * D },
         { label: 'retry-1d', ms: D },
+        { label: 'retry-6h', ms: 6 * H },
       ],
       post: true,
     });

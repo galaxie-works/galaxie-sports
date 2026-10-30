@@ -17,6 +17,20 @@ export function settingText(t: T, def: SettingDef): { label: string; description
     const name = t.apis[api as keyof T['apis']] ?? api;
     return { label: fill(t.planFor.label, { api: name }), description: t.planFor.description };
   }
+  if (def.key.startsWith('POSTGAME_') && def.key !== 'POSTGAME_MAX_CALLS_DAY') {
+    const interval = def.key.endsWith('_MIN');
+    const api = def.key
+      .slice('POSTGAME_'.length, interval ? -'_MIN'.length : undefined)
+      .toLowerCase()
+      .replace(/_/g, '-');
+    const name = t.apis[api as keyof T['apis']] ?? api;
+    const tpl = interval ? t.postgameIntervalFor : t.postgameFor;
+    return {
+      label: fill(tpl.label, { api: name }),
+      description: tpl.description,
+      ...(interval ? { unit: 'min' } : {}),
+    };
+  }
   const text = t.settings[def.key];
   return {
     label: text?.label ?? def.key,
@@ -38,6 +52,8 @@ export function optionLabel(t: T, def: SettingDef, option: string): string {
     return t.values.priorities[option as keyof T['values']['priorities']] ?? option;
   if (def.key.startsWith('APISPORTS_PLAN'))
     return t.values.plans[option as keyof T['values']['plans']] ?? option;
+  if (def.key.startsWith('POSTGAME_'))
+    return t.values.postgame[option as keyof T['values']['postgame']] ?? option;
   if (def.key === 'AI_PROVIDER')
     return option === 'openai' ? 'OpenAI' : option === 'anthropic' ? 'Anthropic' : option;
   return option;

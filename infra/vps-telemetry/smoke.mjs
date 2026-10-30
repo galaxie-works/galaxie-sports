@@ -332,7 +332,9 @@ await check('Demo: páginas públicas sem termos internos', async () => {
     /openai/i,
     /anthropic/i,
     /gemini/i,
-    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/,
+    // segmentos de 2+ caracteres e fora de token com hífen: o build ID do Next no payload do React
+    // (`"b":"u-K_A-rYEK…"`, aleatório a cada build) casava com `K_A` e reprovava o deploy (30/10/2026)
+    /(?<![\w-])[A-Z][A-Z0-9]+(?:_[A-Z0-9]{2,})+(?![\w-])/,
     /192\.168\.|\blocalhost\b|\bapi:8080\b/,
   ];
   const found = [];

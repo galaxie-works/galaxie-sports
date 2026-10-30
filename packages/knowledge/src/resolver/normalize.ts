@@ -1,8 +1,23 @@
 /** Normalização de nomes de clubes para o casamento slug ↔ api-sports (issue #17). */
 
+/** Letras sem decomposição em base + acento: viram a grafia ASCII de costume ("Araklıspor", "Blau-Weiß"). */
+const FOLD: Record<string, string> = {
+  ı: 'i',
+  ß: 'ss',
+  œ: 'oe',
+  æ: 'ae',
+  ø: 'o',
+  ł: 'l',
+  đ: 'd',
+  þ: 'th',
+  ð: 'd',
+};
+
 /** Minúsculas, sem acentos, só letras/dígitos separados por espaço. */
 export function normalizeName(s: string): string {
   return s
+    .toLowerCase()
+    .replace(/[ıßœæøłđþð]/g, (c) => FOLD[c]!)
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()

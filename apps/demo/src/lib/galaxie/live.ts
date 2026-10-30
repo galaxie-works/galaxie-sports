@@ -29,6 +29,24 @@ export async function fetchLiveEvents(locale: Locale): Promise<Event[]> {
     .data;
 }
 
+/** Ao vivo de um país (competição ou participante do país, a mesma conta do card em Países). */
+export const countryLiveKey = (code: string, content: string) =>
+  ['country-live-events', code, content] as const;
+
+/** `content`: o idioma do conteúdo da página do país (`contentLocale`), o mesmo das competições. */
+export async function fetchCountryLiveEvents(
+  locale: Locale,
+  content: ContentLocale,
+  code: string,
+): Promise<Event[]> {
+  return (
+    await getJson<{ data: Event[] }>(content, '/v1/events/live', {
+      market: defaultMarket(locale),
+      country: code,
+    })
+  ).data;
+}
+
 export async function fetchTimeline(id: string, locale: ContentLocale): Promise<EventTimeline> {
   return getJson<EventTimeline>(locale, `/v1/events/${encodeURIComponent(id)}/timeline`);
 }

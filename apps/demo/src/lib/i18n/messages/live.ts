@@ -9,7 +9,7 @@ export default defineMessages(
     },
     board: {
       liveGames: 'Ao vivo agora',
-      description: 'Por esporte e competição, do mais relevante para o menos relevante.',
+      description: 'Por esporte e competição, em ordem alfabética.',
       errorTitle: 'Não foi possível carregar o que está ao vivo',
       errorDescription: 'A API não respondeu. A página tenta de novo sozinha.',
       emptyTitle: 'Nada ao vivo agora',
@@ -280,7 +280,7 @@ export default defineMessages(
       },
       board: {
         liveGames: 'Live now',
-        description: 'By sport and competition, from most to least relevant.',
+        description: 'By sport and competition, in alphabetical order.',
         errorTitle: "Couldn't load what's live",
         errorDescription: "The API didn't respond. The page will try again on its own.",
         emptyTitle: 'Nothing live right now',
@@ -547,7 +547,7 @@ export default defineMessages(
       },
       board: {
         liveGames: 'En vivo ahora',
-        description: 'Por deporte y competencia, del más relevante al menos relevante.',
+        description: 'Por deporte y competencia, en orden alfabético.',
         errorTitle: 'No pudimos cargar lo que está en vivo',
         errorDescription: 'La API no respondió. La página vuelve a intentar sola.',
         emptyTitle: 'No hay nada en vivo ahora',

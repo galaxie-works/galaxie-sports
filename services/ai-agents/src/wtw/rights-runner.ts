@@ -18,7 +18,7 @@ import {
   type WtwConfig,
   curatedDecides,
 } from '@galaxie/where-to-watch';
-import { BudgetExceededError, LlmError } from '../llm/errors.js';
+import { LlmError } from '../llm/errors.js';
 import type { UsageWithSearches } from '../llm/budget.js';
 import type { LlmClient } from '../llm/types.js';
 import { WhereToWatchAgent } from './agent.js';
@@ -31,7 +31,9 @@ import {
   estimateCallUsd,
   failureUsage,
   finishResearch,
+  isOutage,
   marketSpendToday,
+  reapStaleResearch,
   startResearch,
   withinCap,
 } from './spend.js';
@@ -213,6 +215,8 @@ export class RightsResearcher {
       this.log('Sem cliente de LLM: pesquisa de direitos adiada.');
       return out;
     }
+    const reaped = await reapStaleResearch(this.deps.db, this.now());
+    if (reaped) this.log(`${reaped} pesquisa(s) presa(s) em andamento fechada(s) como falha`);
     const agent = new WhereToWatchAgent(this.deps.llm);
     const spend = await marketSpendToday(this.deps.db, this.now());
     const estimate = await estimateCallUsd(this.deps.db, 'rights');
@@ -312,7 +316,7 @@ export class RightsResearcher {
       return { ...base, status: 'done', costUsd: cost, byCountry };
     } catch (err) {
       const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
-      const status = err instanceof BudgetExceededError ? 'skipped' : 'failed';
+      const status = isOutage(err) ? 'skipped' : 'failed';
       const failed = failureUsage(err, estimate);
       await finishResearch(db, researchId, {
         status,

@@ -166,13 +166,25 @@ export class LogoBook {
     return { id, name: ref?.name ?? id, logo: ref?.logo ?? null, logo_dark: ref?.logo_dark ?? null };
   }
 
-  /** Plataforma: logo do asset dela (com o crédito); senão, o da entrada dela na biblioteca. */
+  /**
+   * Plataforma: logo do asset dela (com o crédito); senão, o da entrada dela na biblioteca. A versão
+   * para o tema escuro enviada no painel vale no lugar da do acervo, nos dois casos.
+   */
   platform(row: LineupPlatform): Platform {
     const lib = row.broadcasterId ? this.library.get(row.broadcasterId) : undefined;
     const id = platformLogoAssetId(row);
     const own = id ? this.assets.get(id) : undefined;
-    if (own?.url) return { ...base(row), logo: own.url, logo_dark: own.darkUrl, logo_credit: own.credit };
-    return { ...base(row), logo: lib?.logo ?? null, logo_dark: lib?.logo_dark ?? null, logo_credit: null };
+    const customDark = row.customLogoDarkAssetId
+      ? (this.assets.get(row.customLogoDarkAssetId)?.url ?? null)
+      : null;
+    if (own?.url)
+      return { ...base(row), logo: own.url, logo_dark: customDark ?? own.darkUrl, logo_credit: own.credit };
+    return {
+      ...base(row),
+      logo: lib?.logo ?? null,
+      logo_dark: customDark ?? lib?.logo_dark ?? null,
+      logo_credit: null,
+    };
   }
 }
 
@@ -184,6 +196,8 @@ const base = (row: LineupPlatform) => ({
   country: row.country,
   broadcaster_id: row.broadcasterId,
 });
+
+const isId = (id: string | null | undefined): id is string => !!id;
 
 const httpOnly = (url: string | null | undefined) => (url && /^https?:\/\//.test(url) ? url : null);
 
@@ -197,7 +211,9 @@ export async function loadLogoBook(
   const ids = [
     ...new Set([...libraryIds, ...platforms.flatMap((p) => (p.broadcasterId ? [p.broadcasterId] : []))]),
   ];
-  const assetIds = [...new Set(platforms.flatMap((p) => platformLogoAssetId(p) ?? []))];
+  const assetIds = [
+    ...new Set(platforms.flatMap((p) => [platformLogoAssetId(p), p.customLogoDarkAssetId]).filter(isId)),
+  ];
   const dark = alias(asset, 'dark_logo');
   const [rows, assets, darks] = await Promise.all([
     ids.length ? listBroadcasters(db, { ids }) : Promise.resolve([]),

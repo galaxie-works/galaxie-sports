@@ -5,7 +5,7 @@
  *   weekly     consulta semanal (WTW_CHANNEL_WEEKLY_CRON, padrão segunda 06:00 UTC): as rodadas cujo
  *              primeiro jogo cai entre `tick + maior retentativa` e `próximo tick + maior retentativa`
  *              (padrão: de 3 a 10 dias à frente). Cada rodada entra em uma consulta só.
- *   retry-Nd   retentativas (WTW_CHANNEL_RETRY_OFFSETS, padrão `3d,1d`) antes do primeiro jogo ainda por
+ *   retry-Nd   retentativas (WTW_CHANNEL_RETRY_OFFSETS, padrão `3d,1d,6h`) antes do primeiro jogo ainda por
  *              começar da rodada — só para os jogos × mercados SEM canal confirmado.
  *   post       3 h depois do último jogo do dia, até 72 h (WTW_CHANNEL_POST): só os encerrados sem canal.
  *
@@ -36,7 +36,7 @@ export const CHANNEL_ROUND_SPREAD_MS = 4 * D;
 export const CHANNEL_RETRY_MIN_GAP_MS = 24 * H;
 
 export const DEFAULT_CHANNEL_WEEKLY_CRON = '0 6 * * 1';
-export const DEFAULT_CHANNEL_RETRY_OFFSETS = '3d,1d';
+export const DEFAULT_CHANNEL_RETRY_OFFSETS = '3d,1d,6h';
 export const DEFAULT_CHANNEL_POST = 'on';
 
 export interface RetryOffset {

@@ -826,6 +826,42 @@ describe('pesquisas retentadas: custo, espera e limite de falhas', () => {
   });
 });
 
+describe('conta do provedor sem crédito', () => {
+  it('não conta no limite de falhas do dia: cada rodada do agendador tenta de novo', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 7 * 24 * H);
+    const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 85', startsAt });
+    let now = new Date(startsAt.getTime() - 40 * H);
+    await enqueueRuns(
+      db,
+      (await plan(now, ['BR'])).filter((d) => ids.includes(d.eventId)),
+      now,
+    );
+    const fake = new FakeLlmClient(
+      () =>
+        new LlmError('gemini: conta sem crédito (recarregue o saldo no painel do provedor).', 'quota', false),
+    );
+    const runner = () =>
+      new WtwRunner({
+        db,
+        llm: fake,
+        config,
+        fetcher: new FakePageFetcher({ ...PAGES }),
+        policy,
+        now: () => now,
+      });
+    // mais tentativas que WTW_RESEARCH_MAX_FAILURES, uma por rodada do agendador (10 min)
+    for (let i = 1; i <= WTW_RESEARCH_MAX_FAILURES + 2; i++) {
+      await runner().runQueued({ limit: 10, maxCalls: 3, eventId: ids[0]! });
+      expect(fake.calls, `rodada ${i}`).toHaveLength(i);
+      now = new Date(now.getTime() + 10 * 60_000);
+    }
+    const rows = await db.select().from(wtwResearch).where(eq(wtwResearch.round, 'Rodada 85'));
+    expect(rows.map((r) => ({ status: r.status, failures: r.failures }))).toEqual([
+      { status: 'skipped', failures: 0 },
+    ]);
+  });
+});
+
 describe('tentativas da execução (worker que cai ou estoura o tempo)', () => {
   it('cada reserva conta; a travada volta com espera crescente e, na 3ª, fecha como failed com o motivo', async () => {
     const startsAt = new Date(KICKOFF.getTime() + 9 * 24 * H);

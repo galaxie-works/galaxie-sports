@@ -28,7 +28,7 @@ import {
   type FetchedPage,
   type WtwConfig,
 } from '@galaxie/where-to-watch';
-import { BudgetExceededError, LlmError } from '../../llm/errors.js';
+import { LlmError } from '../../llm/errors.js';
 import type { UsageWithSearches } from '../../llm/budget.js';
 import type { LlmClient } from '../../llm/types.js';
 import { loadEventInfos, type EventInfo } from '../event-info.js';
@@ -40,7 +40,9 @@ import {
   estimateCallUsd,
   failureUsage,
   finishResearch,
+  isOutage,
   marketSpendToday,
+  reapStaleResearch,
   startResearch,
   withinCap,
   WTW_RESEARCH_MAX_FAILURES,
@@ -116,6 +118,10 @@ export class MatchChannelRunner {
   ): Promise<ChannelRunReport> {
     const { db } = this.deps;
     const dryRun = opts.dryRun ?? false;
+    if (!dryRun) {
+      const reaped = await reapStaleResearch(db, this.now());
+      if (reaped) this.log(`${reaped} pesquisa(s) presa(s) em andamento fechada(s) como falha`);
+    }
     const fetcher = new CachingPageFetcher(this.deps.fetcher);
     const infos = await loadEventInfos(db, [
       ...new Set(groups.flatMap((g) => g.targets.map((t) => t.event.id))),
@@ -276,7 +282,7 @@ export class MatchChannelRunner {
           const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
           const failed = failureUsage(err, estimateUsd);
           await finishResearch(db, researchId, {
-            status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
+            status: isOutage(err) ? 'skipped' : 'failed',
             usage: failed.usage,
             ...(failed.stats ? { stats: failed.stats } : {}),
             error: message.slice(0, 500),

@@ -14,6 +14,7 @@ import {
   flattenFilterRules,
 } from '@/components/reui/filters/filters-query';
 import type { FilterQuery } from '@/components/reui/filters/filters-types';
+import { compareAlpha, sortByLabel } from '@/lib/alphabetical';
 import type { UpcomingScope } from '@/lib/galaxie/live';
 
 export type LiveStatus = 'live' | 'upcoming' | 'finished';
@@ -179,11 +180,11 @@ function collect(
   // o que está na URL e não aparece nos jogos de agora continua escolhível (e removível)
   for (const value of selected)
     if (!out.has(value)) out.set(value, { value, label: value, image: null, count: 0 });
-  return [...out.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  return sortByLabel([...out.values()]);
 }
 
 /**
- * Opções de cada filtro a partir dos jogos que a página tem (ao vivo e próximos). O país se restringe ao
+ * Opções de cada filtro, em ordem alfabética, a partir dos jogos que a página tem (ao vivo e próximos). O país se restringe ao
  * esporte escolhido e a competição, ao esporte e ao país: escolher "Basquete" deixa só as ligas de basquete.
  */
 export function liveFilterOptions(
@@ -216,7 +217,7 @@ export function liveFilterOptions(
     });
   }
   return {
-    sport: [...sport.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    sport: sortByLabel([...sport.values()]),
     country: collect(
       bySport,
       (e) => {
@@ -301,10 +302,14 @@ export interface UpcomingGroup {
 }
 
 /**
- * Próximos por esporte, sem repetidos e por horário, até `perSport` jogos em cada um. Os esportes seguem
- * `order` (mais jogos na semana primeiro); os que não estão nela vão para o fim.
+ * Próximos por esporte, sem repetidos e por horário, até `perSport` jogos em cada um. Os esportes vão em
+ * ordem alfabética do nome (`sportLabel`), como no ao vivo.
  */
-export function groupUpcoming(events: Event[], order: string[], perSport: number): UpcomingGroup[] {
+export function groupUpcoming(
+  events: Event[],
+  sportLabel: (slug: string) => string,
+  perSport: number,
+): UpcomingGroup[] {
   const seen = new Set<string>();
   const bySport = new Map<string, Event[]>();
   for (const e of [...events].sort(
@@ -314,12 +319,8 @@ export function groupUpcoming(events: Event[], order: string[], perSport: number
     seen.add(e.id);
     bySport.set(e.sport, [...(bySport.get(e.sport) ?? []), e]);
   }
-  const rank = (s: string) => {
-    const i = order.indexOf(s);
-    return i < 0 ? order.length : i;
-  };
   return [...bySport.entries()]
-    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
+    .sort(([a], [b]) => compareAlpha(sportLabel(a), sportLabel(b)) || a.localeCompare(b))
     .map(([sport, list]) => ({ sport, total: list.length, events: list.slice(0, perSport) }));
 }
 

@@ -4,10 +4,10 @@
  * por mercado (WTW_DAILY_USD_PER_MARKET) vale além do orçamento global de tokens — assim um mercado
  * não consome o dia dos outros.
  */
-import { and, desc, eq, gte, isNotNull, like, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, like, lt, sql } from 'drizzle-orm';
 import { wtwResearch, type Database } from '@galaxie/db';
 import type { UsageWithSearches } from '../llm/budget.js';
-import { LlmError } from '../llm/errors.js';
+import { BudgetExceededError, LlmError } from '../llm/errors.js';
 
 /** Estimativas iniciais (medidas no teste real de 2026-10-22; o histórico substitui quando houver). */
 export const DEFAULT_CALL_USD = { allocation: 0.15, rights: 0.25, channel: 0.15 } as const;
@@ -176,6 +176,43 @@ export async function startResearch(db: Database, s: ResearchStart): Promise<Res
   return row ? { id: row.id, failures } : { id: null, reason: 'running' };
 }
 
+/**
+ * Pesquisa `running` há mais que isso foi interrompida: o job (`wtw-run`, `wtw-channel`) tem teto de
+ * 20 min no agendador e um deploy ou o teto mata o processo no meio da chamada, sem `finishResearch`.
+ */
+export const WTW_RESEARCH_STALE_MS = 30 * 60_000;
+
+/**
+ * Fecha como falha (soma uma no dia, abre a espera) as pesquisas presas em `running`. Sem isso a chave
+ * ficava "em andamento" para sempre: `startResearch` não chamava de novo e o canal do jogo dava os
+ * jogos daquele momento como já pesquisados — o momento estava perdido.
+ */
+export async function reapStaleResearch(db: Database, now: Date): Promise<number> {
+  const rows = await db
+    .update(wtwResearch)
+    .set({
+      status: 'failed',
+      failures: sql`${wtwResearch.failures} + 1`,
+      // o fim real não se sabe: conta do teto (a espera depois da falha corre dali, não de agora)
+      finishedAt: sql`${wtwResearch.startedAt} + ${`${WTW_RESEARCH_STALE_MS / 60_000} minutes`}::interval`,
+      error: 'interrompida: o processo terminou antes de fechar a pesquisa',
+      // o provedor pode ter cobrado a chamada interrompida: entra a estimativa do tipo no teto do
+      // mercado, como no timeout (`failureUsage`)
+      costUsd: sql`coalesce(${wtwResearch.costUsd}, 0) + (case ${wtwResearch.kind} ${sql.join(
+        Object.entries(DEFAULT_CALL_USD).map(([k, v]) => sql`when ${k} then ${v}::numeric`),
+        sql` `,
+      )} else 0 end)`,
+    })
+    .where(
+      and(
+        eq(wtwResearch.status, 'running'),
+        lt(wtwResearch.startedAt, new Date(now.getTime() - WTW_RESEARCH_STALE_MS)),
+      ),
+    )
+    .returning({ id: wtwResearch.id });
+  return rows.length;
+}
+
 /** Falhas de hoje (UTC) somadas nas chaves da família, e a mais recente. */
 async function familyFailures(
   db: Database,
@@ -236,6 +273,16 @@ export async function finishResearch(
       ...(f.model ? { provider: f.model.provider, model: f.model.model } : {}),
     })
     .where(eq(wtwResearch.id, id));
+}
+
+/**
+ * Falha que não é desta pesquisa: orçamento esgotado, IA desligada ou conta do provedor sem crédito.
+ * Fica `skipped` — não soma no limite de falhas do dia nem abre espera —, então a próxima execução do
+ * agendador tenta de novo assim que o crédito volta (a checagem de crédito de hora em hora alerta).
+ * Contar como falha fazia 3 erros de crédito de madrugada encerrarem a família no dia UTC inteiro.
+ */
+export function isOutage(err: unknown): boolean {
+  return err instanceof BudgetExceededError || (err instanceof LlmError && err.kind === 'quota');
 }
 
 /**

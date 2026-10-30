@@ -163,24 +163,47 @@ Detalhes: [docs/09-app-demonstracao.md](docs/09-app-demonstracao.md).
 
 ## Estrutura do repositório
 
+Monorepo pnpm + Turborepo. Cada parte principal tem um `README.md` com o que faz, como roda e do que depende; o mapa
+completo, o grafo de dependências, as fronteiras confusas e as candidatas a repositório próprio estão em
+[docs/15 · Organização do monorepo](docs/15-organizacao-do-monorepo.md).
+
 ```
 galaxie-sports/
-├── apps/                       # api (Fastify) · demo (a criar, #62)
-├── services/                   # ingestor (jobs, normalização, ao vivo) · ai-agents (LLM, cenário, resumo, onde assistir, curador)
-├── packages/                   # db · apisports-client · providers · contracts · rules · knowledge · where-to-watch · observability
-├── infra/                      # docker-compose.yml (Postgres, Valkey, RustFS) · portainer · observability · backup
-├── config/
-│   ├── competitions/football.yaml   # 145 competições com IDs verificados e tiers
-│   ├── competitions/<esporte>.yaml  # demais 11 APIs, prioridade LatAm (NBB, Liga A, Superliga, LVA, VNL...)
-│   └── assets/denylist.yaml         # mídia do fornecedor que não pode ser usada (ex.: logo do Paulistão)
-├── data/
-│   └── knowledge/              # base semântica (times, clássicos, seleções, competições)
-├── scripts/
-│   └── pwsh/                   # Sync-ApiSportsAssets.ps1 · Get-ApiSportsStatus.ps1
-├── docs/                       # documentação (ver abaixo) + research/ + images/
-├── .env.example
-└── README.md
+├── apps/
+│   ├── api/                 # API pública Fastify: /mirror, /v1, SSE, webhooks, admin
+│   └── demo/                # Next.js: site, demo, portal do cliente, Builder de widgets, ajustes da operação
+├── services/
+│   ├── ingestor/            # scheduler + CLIs: api-sports → raw → core, ao vivo, assets, fontes abertas
+│   └── ai-agents/           # agentes de IA (onde assistir, cenário, resumo, curadoria, vídeos, grades)
+├── packages/                # bibliotecas compartilhadas (tabela abaixo)
+├── config/                  # YAML de operação: competições, regras, emissoras, direitos, geo, planos, política de IA
+├── data/knowledge/          # base semântica versionada (times, clássicos, copy)
+├── infra/                   # compose local, stack da VPS, Traefik, backup, Prometheus/Grafana, scripts de operação
+├── scripts/pwsh/            # Get-ApiSportsStatus.ps1 · Sync-ApiSportsAssets.ps1
+├── tests/load/              # cenários k6
+└── docs/                    # documentação (pt-BR), runbooks, pesquisas, postmortems
 ```
+
+| Parte | O que faz |
+|---|---|
+| [apps/api](apps/api/README.md) | API pública; única porta de entrada dos clientes e da demo |
+| [apps/demo](apps/demo/README.md) | App Next.js da demonstração, do portal do cliente e do console da operação |
+| [services/ingestor](services/ingestor/README.md) | Ingestão, normalização, ao vivo, assets; roda o scheduler (perfis `ingestor` e `agents`) |
+| [services/ai-agents](services/ai-agents/README.md) | Agentes de IA e a camada de LLM independente de provedor |
+| [packages/db](packages/db/README.md) | Schema Drizzle, migrations e cliente do Postgres |
+| [packages/apisports-client](packages/apisports-client/README.md) | Único ponto de saída para a api-sports (raw, cota, plano) |
+| [packages/providers](packages/providers/README.md) | Interface de provedor, modelo neutro, máquina de estados do evento |
+| [packages/contracts](packages/contracts/README.md) | DTOs Zod → OpenAPI e cliente tipado da API |
+| [packages/rules](packages/rules/README.md) | Tabelas calculadas e o que está em jogo |
+| [packages/knowledge](packages/knowledge/README.md) | Base semântica: validação, seed, clássicos, copy |
+| [packages/where-to-watch](packages/where-to-watch/README.md) | Emissoras, direitos e validador do onde assistir |
+| [packages/geo](packages/geo/README.md) | Confederações, países e escopo das competições |
+| [packages/runtime-config](packages/runtime-config/README.md) | Flags da operação (banco > env > padrão) |
+| [packages/ai-ledger](packages/ai-ledger/README.md) | Orçamento diário de IA em tokens e US$ |
+| [packages/observability](packages/observability/README.md) | Logger e métricas Prometheus |
+| [packages/net-guard](packages/net-guard/README.md) | Proteção contra SSRF nas buscas de URLs de terceiros |
+| [packages/widgets](packages/widgets/README.md) | Widgets React, item de registry shadcn e embed HTML |
+| [config](config/README.md) · [infra](infra/README.md) | Configuração de operação · infraestrutura e deploy |
 
 ## Como rodar
 
@@ -240,7 +263,7 @@ Os jobs de ingestão (`bootstrap:*`, `sync:daily`) aceitam `--plan` (rede × cac
 
 **Ambiente local sem chave**: `pnpm snapshot:restore` + `pnpm --filter @galaxie/ingestor bootstrap:catalog` sem `APISPORTS_KEY` — o cliente entra em modo offline e só lê o raw.
 
-Ainda por vir: o app de demonstração (`apps/demo`) e os marcos F6–F8 do [roadmap](docs/10-roadmap-e-backlog.md).
+Para a demo, veja [apps/demo](apps/demo/README.md). Próximos marcos no [roadmap](docs/10-roadmap-e-backlog.md).
 
 Ferramentas já disponíveis:
 
@@ -272,6 +295,7 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
+| 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |
 | — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
 | — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |

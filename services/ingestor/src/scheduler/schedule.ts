@@ -55,6 +55,17 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     heapMb: 128,
   },
   {
+    name: 'postgame-close',
+    description:
+      'Fechamento pós-jogo: busca de novo a lista do dia (games/fixtures?date=, ADHOC) dos esportes com jogo pendente, no modo e no intervalo de cada esporte (POSTGAME_*), até o fim confirmado; sem nada na vez, sai sem chamar',
+    cron: '* * * * *',
+    script: 'dist/cli/postgame-close.js',
+    args: [],
+    onDemandArgs: ['--forcar'],
+    timeoutMs: 10 * MINUTE,
+    heapMb: 128,
+  },
+  {
     name: 'live-reconcile',
     description:
       'Reconciliação do ao vivo: detalhe (LIVE) dos jogos acompanhados pelo ao vivo que pararam de atualizar e agenda do dia (ADHOC, no máximo 1 por data a cada 60 min e dentro da fatia ADHOC) para os do catálogo encerrados pelo relógio sem placar da fonte; sob demanda (painel), detalhe de todos os em andamento',

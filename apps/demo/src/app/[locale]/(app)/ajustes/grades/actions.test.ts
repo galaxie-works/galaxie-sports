@@ -290,7 +290,19 @@ describe('edição manual', () => {
       target: { type: 'broadcaster', id: 'canal-exemplo' },
       body: expect.any(Uint8Array),
       by: ADMIN.email,
+      variant: 'light',
     });
+    const dark = form('broadcaster', 'canal-exemplo');
+    dark.set('variant', 'dark');
+    expect(await uploadLineupLogo(dark)).toEqual({ ok: true });
+    expect(uploadLogo).toHaveBeenLastCalledWith(
+      expect.anything(),
+      objects,
+      expect.objectContaining({ variant: 'dark' }),
+    );
+    const bad = form('broadcaster', 'canal-exemplo');
+    bad.set('variant', 'sepia');
+    expect((await uploadLineupLogo(bad)).ok).toBe(false);
     uploadLogo.mockRejectedValueOnce(new LogoUploadError('unsupported_type', 'não é PNG'));
     expect(await uploadLineupLogo(form('platform', PLATFORM))).toEqual({
       ok: false,

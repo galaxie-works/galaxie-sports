@@ -15,8 +15,8 @@ Camada opcional de escudos e logos em alta qualidade por cima dos logos do forne
 | Vínculo | `core.participant.custom_logo_asset_id` e `core.competition.custom_logo_asset_id`, ao lado do `logo_asset_id` do fornecedor, que nunca é tocado |
 | Flag | `packages/runtime-config/src/registry.ts` (seção `assets`). A API relê a cada 15 s, com precedência banco > env > padrão (`apps/api/src/assets/custom-logos.ts`) |
 | Cache | A versão da flag (valor + instante da última mudança no painel) entra na chave de todas as respostas (`VariantResponseCache`). Trocar a flag passa a ler chaves novas na hora, sem purge e sem servir resposta velha. Uma resposta montada durante a troca cai numa chave que ninguém mais usa |
-| Contrato | `logo_source` (`provider` \| `acervo` \| `null`) `logo_formats` (`{ svg, png, webp }`, null fora do acervo) e `logo_sizes` (`{ 64, 128, 256, 512 }`, cada um `{ png, webp }`) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
-| Formatos | `core.asset.variants` (migration `0058_acervo_formatos`): SVG, maior PNG e maior WebP do mesmo escudo, cada um no storage como `acervo/football/{teams\|leagues}/<id>.<sha256[0:12]>.{svg\|png\|webp}`. `logo` continua sendo um só (SVG, senão PNG, senão WebP) |
+| Contrato | `logo_source` (`provider` \| `acervo` \| `null`), `logo_formats` (`{ svg, png, webp }`, null fora do acervo) e `logo_sizes` (`{ 64, 128, 256, 512 }`, cada um `{ png, webp }`) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
+| Formatos | `core.asset.variants` (migration `0062_acervo_formatos`): SVG, maior PNG e maior WebP do mesmo escudo, cada um no storage como `acervo/football/{teams\|leagues}/<id>.<sha256[0:12]>.{svg\|png\|webp}`. `logo` continua sendo um só (SVG, senão PNG, senão WebP) |
 | Tamanhos | `variants.sizes`: do PNG do pacote, a importação gera PNG e WebP em 64, 128 e 256 px (`sharp`, encaixe sem corte com sobra transparente; não amplia PNG menor). O 512 é o próprio PNG/WebP do pacote. Reimportar regera e só grava o que mudou |
 | Cores do time | Saem do escudo efetivo. A paleta do logo do acervo é calculada na importação: do maior PNG do pacote quando há, senão das cores de preenchimento do SVG (`svg-palette.ts`) |
 | "Sem logo" (#178) | Time cujo logo do fornecedor era genérico e foi desligado (`logo_asset_id` nulo) ganha o do acervo com a flag ligada: o `coalesce` preenche o buraco |
@@ -66,6 +66,12 @@ pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--pla
 
 ## Manifesto e curadoria
 
+> **Atenção (30/10/2026):** não rode `--mapear` sobre o manifesto versionado antes de corrigir o casador. Com as
+> mudanças do #456 (tabela de ligas e `normalizeName`), a varredura rebaixa para `ambiguous`/`unmatched` 88 escudos
+> que hoje estão ligados (Bayern, Cruzeiro, Atlético-MG, Lyon, Slavia Praha…), e a importação desligaria esses
+> logos. O manifesto versionado é o combinado de 30/10: os 808 vínculos anteriores intactos mais os 57 que a
+> curadoria por apelido resolveu (865 ligados). Para importar, use-o direto, sem `--mapear`.
+
 `config/assets/acervo/<id>.yaml` é versionado e guarda o rastro de cada logo: chave, arquivo, país, nome, `sha256`, `target_id` (time ou competição), `match` e confiança. A revisão do pacote fica em `acervo.revision`.
 
 O mapeamento é conservador:
@@ -86,6 +92,7 @@ Valores de `match`:
 | `ambiguous` | Candidatos próximos: fica sem vínculo e aparece no relatório com os candidatos |
 | `unmatched` | Nenhum candidato razoável no país |
 | `manual` | Curadoria: escreva `target_id` e `match: manual`. A próxima varredura mantém |
+| (apelidos) | Curadoria por nome: `aliases: ["Sheffield Utd"]` com o nome do time ou da competição no cadastro. A próxima varredura tenta cada apelido com as mesmas regras do nome do arquivo e os mantém. Um apelido que não existe no cadastro não liga nada |
 | `rejected` | Curadoria: não tem par. A próxima varredura mantém |
 | `duplicate` | Outro logo do pacote já cobre o mesmo time: vale o da liga nacional |
 
@@ -143,7 +150,7 @@ A pasta de origem pode crescer e mudar à vontade: o fluxo inteiro é idempotent
 1. Pasta nova de competição: inclua a linha dela em `FOLDER_LEAGUES` (`convert-folders.ts`) com as ligas da api-sports, senão ela casa só pelo país.
 2. Rode o `--converter` de novo, com a `--revisao` do dia. O pacote anterior é refeito do zero.
 3. Rode o `--mapear` contra o manifesto versionado: os vínculos `manual` e `rejected` ficam, os logos novos entram, e os que saíram da pasta somem do manifesto (o time volta ao logo do fornecedor na importação).
-4. Revise o relatório `<id>.cobertura.md` e os ambíguos, versione o manifesto e importe. Logo que não mudou não é regravado, e um asset importado antes da `0058` ganha os formatos na primeira reimportação.
+4. Revise o relatório `<id>.cobertura.md` e os ambíguos, versione o manifesto e importe. Logo que não mudou não é regravado, e um asset importado antes da `0062` ganha os formatos na primeira reimportação.
 
 ## Produção (VPS)
 
