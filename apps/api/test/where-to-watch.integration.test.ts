@@ -200,41 +200,6 @@ describe('GET /v1/events/{id}/where-to-watch', () => {
     expect(es.message).toBe('Todavía no tenemos la información de transmisión.');
   });
 
-  it('canal escolhido por rodada (Brasileirão) e ainda sem confirmação: só "canal a confirmar", sem detentores', async () => {
-    const [comp] = await db
-      .insert(competition)
-      .values({
-        sport: 'football',
-        slug: 'brasileirao-serie-a',
-        name: 'Brasileirão',
-        type: 'league',
-        tier: 1,
-      })
-      .returning();
-    const [ev] = await db
-      .insert(event)
-      .values({
-        sport: 'football',
-        competitionId: comp!.id,
-        startsAt: KICKOFF,
-        endsAtExpected: new Date(KICKOFF.getTime() + 7_200_000),
-      })
-      .returning();
-    const body = (await get(`/v1/events/${ev!.id}/where-to-watch?country=BR`)).json();
-    expect(body).toMatchObject({
-      status: 'unknown',
-      options: [],
-      to_confirm: [],
-      message: 'Canal deste jogo a confirmar. O canal do jogo sai mais perto da partida.',
-      availability: {
-        free_tv: [],
-        pay_tv_channels: [],
-        platforms: [],
-        match_channel: { state: 'to_confirm' },
-      },
-    });
-  });
-
   it('plano, mercado, parâmetros e evento inexistente', async () => {
     expect((await get(`/v1/events/${eventId}/where-to-watch?country=BR`, keyNoModule)).json().code).toBe(
       'MODULE_NOT_IN_PLAN',

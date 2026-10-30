@@ -97,13 +97,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           event_id: data.eventId,
           country: data.country,
           status: data.status,
-          // escolha por rodada sem canal confirmado: "Canal deste jogo a confirmar", não "sem informações"
-          message:
-            data.status !== 'unknown'
-              ? null
-              : data.channelPerRound
-                ? [matchChannel.headline, matchChannel.hint].filter(Boolean).join('. ')
-                : unknownMessage(locale),
+          message: data.status === 'unknown' ? unknownMessage(locale) : null,
           options: data.options.map(({ row, sources, ...o }) => ({
             id: row.id,
             provider: row.providerName,

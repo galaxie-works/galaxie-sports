@@ -2,7 +2,6 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { broadcastOption, competition, event, season, type Database } from '@galaxie/db';
 import type { WtwConfig } from './config/directory.js';
-import type { RightsEntry } from './config/types.js';
 import type { AccessModel, BroadcastMedium, Evidence, SourceKind } from '@galaxie/db';
 import { listBroadcasters } from './library.js';
 import {
@@ -111,11 +110,6 @@ export interface PublicWhereToWatch {
    * "a confirmar". Nunca "sem informações" quando a curadoria ou a pesquisa sabem quem pode passar.
    */
   fromRights: PublicRightsOption[];
-  /**
-   * Competição com escolha do canal por rodada e o canal deste jogo ainda sem confirmação: nenhum
-   * detentor é listado, e a mensagem de `unknown` vira o "canal a confirmar" do `matchChannel`.
-   */
-  channelPerRound: boolean;
   updatedAt: Date | null;
 }
 
@@ -129,39 +123,31 @@ export interface PublicRightsOption {
   logo: PublicLogo | null;
 }
 
-/** Linha de direitos efetiva do evento no país (curadoria vence a pesquisada). */
-async function effectiveRightsOf(
+/** Detentores dos direitos efetivos do evento no país (curadoria vence; incertos se não há certos). */
+async function rightsToConfirm(
   db: Database,
   config: WtwConfig,
   eventId: string,
   country: string,
-): Promise<RightsEntry | null> {
-  if (!config.has(country)) return null;
+): Promise<Omit<PublicRightsOption, 'logo'>[]> {
+  if (!config.has(country)) return [];
   const [ev] = await db
     .select({ slug: competition.slug, startsAt: event.startsAt, year: season.year })
     .from(event)
     .innerJoin(competition, eq(competition.id, event.competitionId))
     .leftJoin(season, eq(season.id, event.seasonId))
     .where(eq(event.id, eventId));
-  if (!ev) return null;
+  if (!ev) return [];
   const year = ev.year ?? ev.startsAt.getUTCFullYear();
   const researched = new ResearchedRightsIndex(
     await currentResearchedRights(db, { competitions: [ev.slug], countries: [country] }),
   );
-  return effectiveRights(
-    config.directory(country).rightsFor(ev.slug, ev.startsAt),
+  const directory = config.directory(country);
+  const entry = effectiveRights(
+    directory.rightsFor(ev.slug, ev.startsAt),
     researched.get(ev.slug, year, country),
   );
-}
-
-/** Detentores da linha de direitos (incertos se não há certos), "a confirmar". */
-function rightsToConfirm(
-  config: WtwConfig,
-  entry: RightsEntry | null,
-  country: string,
-): Omit<PublicRightsOption, 'logo'>[] {
   if (!entry) return [];
-  const directory = config.directory(country);
   const ids = entry.holders.length ? entry.holders : entry.uncertainHolders;
   const sources = entry.sources.map((url) => ({ publisher: new URL(url).hostname, url }));
   return ids.flatMap((id) => {
@@ -218,21 +204,14 @@ export async function getPublicWhereToWatch(
       .map((r) => withMatchChannel(r, matchChannels)),
     ...promoted,
   ].sort(order);
-  // Competição com escolha por rodada (Brasileirão: 8 detentores, cada jogo num deles): sem canal
-  // confirmado, listar os detentores sugere canais que não passam o jogo. Fica só o "canal a
-  // confirmar" de `matchChannel`, sem detentores nem as plataformas deles.
-  const rights =
-    config && !confirmed.length ? await effectiveRightsOf(db, config, params.eventId, country) : null;
-  const perRound = !!rights?.perRoundSelection;
   // "a confirmar" só aparece enquanto nenhuma opção estiver confirmada
-  const probable =
-    confirmed.length || perRound
-      ? []
-      : rows.filter((r) => r.status === 'probable' && inRegion(r)).sort(order);
+  const probable = confirmed.length
+    ? []
+    : rows.filter((r) => r.status === 'probable' && inRegion(r)).sort(order);
 
   const fallback =
-    config && !confirmed.length && !probable.length && !perRound
-      ? rightsToConfirm(config, rights, country)
+    config && !confirmed.length && !probable.length
+      ? await rightsToConfirm(db, config, params.eventId, country)
       : [];
   const ids = [
     ...new Set([
@@ -281,7 +260,6 @@ export async function getPublicWhereToWatch(
     options,
     toConfirm,
     fromRights: fallback.map((f) => ({ ...f, logo: logoOf(f) })),
-    channelPerRound: perRound,
     updatedAt: stamps.length ? new Date(Math.max(...stamps)) : null,
   };
 }
