@@ -122,7 +122,7 @@ function ClientEventCard({ event }: { event: Event }) {
 }
 
 /** Cartão que acende por alguns segundos quando o placar muda. */
-function LiveCard({ event }: { event: Event }) {
+export function LiveCard({ event }: { event: Event }) {
   const score = `${event.score.home ?? '-'}:${event.score.away ?? '-'}`;
   const prev = useRef(score);
   const [flash, setFlash] = useState(false);

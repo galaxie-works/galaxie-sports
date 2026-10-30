@@ -566,6 +566,13 @@ tests:
       # fora da agenda (backup tem alerta próprio): sem intervalo esperado, sem alerta
       - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"}'
         values: '0x60'
+      # ao vivo no ar há horas: sucesso antigo, mas com execução em andamento não está atrasado
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="live-run-longo"}'
+        values: '0x60'
+      - series: 'galaxie_job_expected_interval_seconds{job_name="live-run-longo",component="ingestor"}'
+        values: '300x60'
+      - series: 'galaxie_job_running_since_timestamp_seconds{job_name="live-run-longo"}'
+        values: '60x60'
     alert_rule_test:
       - eval_time: 35m
         alertname: JobOverdue

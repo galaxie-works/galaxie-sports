@@ -365,6 +365,17 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   dbGauge(
     registry,
     jobs,
+    'galaxie_job_running_since_timestamp_seconds',
+    'Início da execução em andamento (epoch s); ausente sem execução rodando',
+    ['job_name'],
+    (g, rows) => {
+      for (const r of rows)
+        if (r.lastStatus === 'running') g.set({ job_name: r.job }, seconds(r.lastStartedAt));
+    },
+  );
+  dbGauge(
+    registry,
+    jobs,
     'galaxie_job_last_duration_seconds',
     'Duração da execução mais recente já concluída (s)',
     ['job_name'],

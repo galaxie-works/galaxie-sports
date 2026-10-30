@@ -700,6 +700,30 @@ describe('/v1/events — agenda e ao vivo', () => {
     expect(data.every((e) => e.momentum === 'live')).toBe(true);
   });
 
+  it('ao vivo do país: competição ou participante do país, como o card em Países', async () => {
+    const all = (await get('/v1/events/live')).json().data as EventBody[];
+    // o país vem do participante: um time de um jogo ao vivo passa a ser da Argentina
+    const team = all[0]!.participants[0]!.id;
+    const [before] = await db
+      .select({ code: participant.countryCode })
+      .from(participant)
+      .where(eq(participant.id, team));
+    await db.update(participant).set({ countryCode: 'AR' }).where(eq(participant.id, team));
+    let byCountry: EventBody[];
+    try {
+      byCountry = (await get('/v1/events/live?country=ar')).json().data as EventBody[];
+    } finally {
+      await db
+        .update(participant)
+        .set({ countryCode: before?.code ?? null })
+        .where(eq(participant.id, team));
+    }
+    expect(byCountry.map((e) => e.id)).toContain(all[0]!.id);
+    expect(byCountry.every((e) => all.some((a) => a.id === e.id))).toBe(true);
+    const none = (await get('/v1/events/live?country=ZZ')).json().data as EventBody[];
+    expect(none).toEqual([]);
+  });
+
   it('detalhe de jogo ao vivo: o HIT do Valkey mantém o TTL de 10 s (não o de 1 h da rota)', async () => {
     const live = (await get('/v1/events/live')).json().data as EventBody[];
     const url = `/v1/events/${live[0]!.id}?tz=America/Argentina/Buenos_Aires`;

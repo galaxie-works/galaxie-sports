@@ -33,6 +33,9 @@ groups:
       # Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min (job
       # que leva mais que o intervalo pula horários). Job que nunca teve sucesso conta da primeira execução. Job
       # desligado na agenda não tem intervalo e fica de fora; job que nunca rodou: SchedulerHeartbeatStale.
+      # Job com execução em andamento não está atrasado: o live-run fica no ar a janela inteira do ao vivo (horas) e
+      # só registra sucesso ao sair. Execução travada esbarra no tempo limite do job e vira erro; o ao vivo parado
+      # com jogo em campo é o LiveEventStale; execução órfã de um scheduler que caiu é fechada na volta dele.
       - alert: JobOverdue
         expr: >-
           (
@@ -40,6 +43,7 @@ groups:
           )
           > on(job_name) group_left(component)
           clamp_min(2 * galaxie_job_expected_interval_seconds, 1800)
+          unless on(job_name) galaxie_job_running_since_timestamp_seconds
         for: 10m
         labels:
           severity: warning
