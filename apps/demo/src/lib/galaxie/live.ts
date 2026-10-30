@@ -65,6 +65,32 @@ export async function fetchUpcoming(locale: Locale, scope: UpcomingScope, limit:
   return page.data;
 }
 
+export const finishedKey = (scope: UpcomingScope, hours: number) =>
+  ['finished-events', hours, scope.sport ?? '', scope.country ?? '', scope.competition ?? ''] as const;
+
+/**
+ * Encerrados de um recorte (a seção "Encerrados" do Ao vivo): jogos que começaram nas últimas `hours` horas
+ * e já terminaram, dos mais importantes para os menos. O início da janela é arredondado ao minuto, para
+ * buscas seguidas caírem no mesmo cache da API.
+ */
+export async function fetchFinished(
+  locale: Locale,
+  scope: UpcomingScope,
+  hours: number,
+  limit: number,
+): Promise<Event[]> {
+  const filters = Object.fromEntries(Object.entries(scope).filter(([, v]) => !!v)) as Record<string, string>;
+  const minute = Math.floor(Date.now() / 60_000) * 60_000;
+  const page = await getJson<Page<Event>>(locale, '/v1/events', {
+    from: new Date(minute - hours * 3600_000).toISOString(),
+    status: 'finished',
+    order: 'importance',
+    limit,
+    ...filters,
+  });
+  return page.data;
+}
+
 /** Relevância do evento para ordenar: `relevance.score` no mercado pedido ou a `importance` global (0–100). */
 export function relevanceOf(e: Event): number {
   return e.relevance?.score ?? e.importance;

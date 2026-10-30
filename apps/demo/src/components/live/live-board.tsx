@@ -2,7 +2,7 @@
 
 import type { Event } from '@galaxie/contracts';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { CalendarClock, CircleAlert, RotateCw } from 'lucide-react';
+import { CalendarClock, CircleAlert, CircleCheck, RotateCw } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,8 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useHydrated } from '@/hooks/use-hydrated';
 import {
+  fetchFinished,
   fetchLiveEvents,
   fetchUpcoming,
+  finishedKey,
   fetchUpcomingSports,
   LIVE_EVENTS_KEY,
   relevanceOf,
@@ -28,13 +30,14 @@ import {
 import type { ApiRequest } from '@/lib/galaxie/request';
 import type { Locale } from '@/lib/i18n/config';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
-import { plural } from '@/lib/i18n/text';
+import { fill, plural } from '@/lib/i18n/text';
 import { SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { LiveFilterBar } from './live-filter-bar';
 import {
   combineUpcoming,
+  finishedWindowHours,
   groupUpcoming,
   hasLiveFilters,
   liveFilterOptions,
@@ -59,6 +62,10 @@ const UPCOMING_PER_SPORT_FEW = 6;
  */
 const UPCOMING_SPORTS_STALE_MS = 5 * 60_000;
 const UPCOMING_STALE_MS = 2 * 60_000;
+/** Encerrados por busca (um esporte, um esporte num país ou uma competição), dos mais importantes. */
+const FINISHED_FETCH_LIMIT = 24;
+/** Encerrados com um esporte só escolhido: a lista inteira é dele. */
+const FINISHED_FETCH_LIMIT_ONE_SPORT = 60;
 
 interface CompetitionGroup {
   key: string;
@@ -155,6 +162,68 @@ function CardsSkeleton({ count }: { count: number }) {
   );
 }
 
+/** Jogos por esporte e competição (o país antes da liga), na ordem de `groupLive`. */
+function GroupedEvents({
+  groups,
+  renderCard,
+}: {
+  groups: SportGroup[];
+  renderCard: (e: Event) => React.ReactNode;
+}) {
+  const { t } = useI18n();
+  const tb = t.live.board;
+  return (
+    <div className="flex flex-col gap-8">
+      {groups.map((g) => {
+        const Icon = g.icon;
+        return (
+          <section key={g.sport} className="flex flex-col gap-4" aria-label={g.label}>
+            <h3 className="flex items-center gap-2 text-base font-semibold">
+              {Icon ? <Icon className="size-4" aria-hidden /> : null}
+              {g.label}
+              <span className="text-muted-foreground text-sm font-normal tabular-nums">
+                {g.competitions.reduce((n, c) => n + c.events.length, 0)}
+              </span>
+            </h3>
+            {g.competitions.map((c) => (
+              <div key={c.key} className="flex flex-col gap-2">
+                <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                  {/* o país antes da liga: "Croácia · First NL", "Israel · Liga Leumit" */}
+                  {c.competition?.country ? (
+                    <>
+                      <CompetitionCountry
+                        country={c.competition.country}
+                        label
+                        className="text-foreground font-medium"
+                      />
+                      <span aria-hidden>·</span>
+                    </>
+                  ) : null}
+                  {c.competition ? (
+                    <Link
+                      href={`/competicoes/${c.competition.slug}`}
+                      className="text-foreground flex items-center gap-2 font-medium hover:underline"
+                    >
+                      <Crest src={c.competition.logo} name={c.competition.name} size="xs" />
+                      {c.competition.name}
+                    </Link>
+                  ) : (
+                    <span>{tb.noCompetition}</span>
+                  )}
+                  <span className="tabular-nums">· {c.events.length}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {c.events.map(renderCard)}
+                </div>
+              </div>
+            ))}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Enquanto a página não lê a URL (os filtros): o mesmo esqueleto do carregamento. */
 export function LiveBoardFallback() {
   return <CardsSkeleton count={6} />;
@@ -195,6 +264,8 @@ function useUpcoming(locale: Locale, filters: LiveFilters) {
     /** A lista da seção, antes do filtro no navegador. */
     list: list.data,
     loading: sportsQuery.isPending || (list.pending && !list.data.length),
+    /** A agenda (os esportes) ainda não respondeu: os encerrados esperam por ela. */
+    sportsPending: sportsQuery.isPending,
     /** Alguma busca (a agenda ou os próximos da lista) falhou. */
     error: sportsQuery.isError || list.error,
     retry: () => {
@@ -202,6 +273,87 @@ function useUpcoming(locale: Locale, filters: LiveFilters) {
       list.retry();
     },
   };
+}
+
+/**
+ * Encerrados na janela escolhida (6 a 72 h), buscados só com "Encerrados" no filtro de status. Os recortes
+ * são os mesmos dos próximos (um por esporte da agenda, ou já filtrados por país/competição).
+ */
+function useFinished(locale: Locale, filters: LiveFilters, sports: string[], enabled: boolean) {
+  const hours = finishedWindowHours(filters);
+  const { base, targeted } = useMemo(() => {
+    if (!enabled) return { base: [], targeted: [] };
+    const scopes = upcomingScopes(filters, sports);
+    // sem esporte na agenda, uma busca sem recorte
+    return scopes.base.length ? scopes : { ...scopes, base: [{}] };
+  }, [enabled, filters, sports]);
+  const limit = filters.sport.length === 1 ? FINISHED_FETCH_LIMIT_ONE_SPORT : FINISHED_FETCH_LIMIT;
+  const query = (scope: UpcomingScope) => ({
+    queryKey: [...finishedKey(scope, hours), limit],
+    queryFn: () => fetchFinished(locale, scope, hours, limit),
+    staleTime: UPCOMING_STALE_MS,
+  });
+  const baseResults = useQueries({ queries: base.map(query), combine: combineUpcoming });
+  const targetedResults = useQueries({ queries: targeted.map(query), combine: combineUpcoming });
+  const list = targeted.length ? targetedResults : baseResults;
+  return {
+    hours,
+    loaded: [...baseResults.data, ...targetedResults.data],
+    list: list.data,
+    loading: list.pending && !list.data.length,
+    error: list.error,
+    retry: list.retry,
+  };
+}
+
+/** Encerrados na janela, por esporte e competição (o mais relevante primeiro), já filtrados. */
+function FinishedGames({
+  events,
+  hours,
+  loading,
+  error,
+  onRetry,
+  sportLabel,
+}: {
+  events: Event[];
+  hours: number;
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+  sportLabel: (slug: string) => string;
+}) {
+  const { locale, t } = useI18n();
+  const tb = t.live.board;
+  const groups = useMemo(() => groupLive(events, sportLabel), [events, sportLabel]);
+  if (loading) return <CardsSkeleton count={3} />;
+  const icon = <CircleCheck className="size-4" aria-hidden />;
+  if (error && !events.length)
+    return (
+      <Section title={fill(tb.finished, { hours })} icon={icon}>
+        <EmptyState title={tb.finishedErrorTitle} description={tb.finishedErrorDescription}>
+          <Button variant="outline" size="sm" className="mx-auto" onClick={onRetry}>
+            <RotateCw aria-hidden />
+            {t.live.filters.ui.retry}
+          </Button>
+        </EmptyState>
+      </Section>
+    );
+  return (
+    <Section
+      title={
+        events.length
+          ? plural(locale, events.length, tb.finishedCount, { hours })
+          : fill(tb.finished, { hours })
+      }
+      icon={icon}
+    >
+      {events.length ? (
+        <GroupedEvents groups={groups} renderCard={(e) => <ClientEventCard key={e.id} event={e} />} />
+      ) : (
+        <p className="text-muted-foreground text-sm">{fill(t.live.filters.finishedEmpty, { hours })}</p>
+      )}
+    </Section>
+  );
 }
 
 /**
@@ -296,6 +448,9 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
     staleTime: 10_000,
   });
   const up = useUpcoming(locale, filters);
+  const showFinished = showsStatus(filters, 'finished');
+  const upSports = useMemo(() => up.sports.map((s) => s.slug), [up.sports]);
+  const done = useFinished(locale, filters, upSports, showFinished && !up.sportsPending);
   const hydrated = useHydrated();
   const data = hydrated ? q.data : undefined;
   const events = useMemo(() => data ?? [], [data]);
@@ -334,7 +489,16 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
         ? UPCOMING_PER_SPORT_FEW
         : UPCOMING_PER_SPORT,
   );
-  const options = liveFilterOptions([...events, ...upLoaded], filters, sportLabel, up.sports);
+  const doneLoaded = hydrated && showFinished ? done.loaded : [];
+  const doneShown = useMemo(() => {
+    const seen = new Set<string>();
+    return (hydrated && showFinished ? done.list : []).filter((e) => {
+      if (seen.has(e.id) || !matchesLiveFilters(e, filters)) return false;
+      seen.add(e.id);
+      return true;
+    });
+  }, [hydrated, showFinished, done.list, filters]);
+  const options = liveFilterOptions([...events, ...upLoaded, ...doneLoaded], filters, sportLabel, up.sports);
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -363,56 +527,7 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           description={tb.description}
           api={api}
         >
-          <div className="flex flex-col gap-8">
-            {groups.map((g) => {
-              const Icon = g.icon;
-              return (
-                <section key={g.sport} className="flex flex-col gap-4" aria-label={g.label}>
-                  <h3 className="flex items-center gap-2 text-base font-semibold">
-                    {Icon ? <Icon className="size-4" aria-hidden /> : null}
-                    {g.label}
-                    <span className="text-muted-foreground text-sm font-normal tabular-nums">
-                      {g.competitions.reduce((n, c) => n + c.events.length, 0)}
-                    </span>
-                  </h3>
-                  {g.competitions.map((c) => (
-                    <div key={c.key} className="flex flex-col gap-2">
-                      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                        {/* o país antes da liga: "Croácia · First NL", "Israel · Liga Leumit" */}
-                        {c.competition?.country ? (
-                          <>
-                            <CompetitionCountry
-                              country={c.competition.country}
-                              label
-                              className="text-foreground font-medium"
-                            />
-                            <span aria-hidden>·</span>
-                          </>
-                        ) : null}
-                        {c.competition ? (
-                          <Link
-                            href={`/competicoes/${c.competition.slug}`}
-                            className="text-foreground flex items-center gap-2 font-medium hover:underline"
-                          >
-                            <Crest src={c.competition.logo} name={c.competition.name} size="xs" />
-                            {c.competition.name}
-                          </Link>
-                        ) : (
-                          <span>{tb.noCompetition}</span>
-                        )}
-                        <span className="tabular-nums">· {c.events.length}</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {c.events.map((e) => (
-                          <LiveCard key={e.id} event={e} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </section>
-              );
-            })}
-          </div>
+          <GroupedEvents groups={groups} renderCard={(e) => <LiveCard key={e.id} event={e} />} />
         </Section>
       )}
 
@@ -423,6 +538,17 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
           filtered={filtered}
           error={hydrated && up.error}
           onRetry={up.retry}
+          sportLabel={sportLabel}
+        />
+      ) : null}
+
+      {showFinished ? (
+        <FinishedGames
+          events={doneShown}
+          hours={done.hours}
+          loading={!hydrated || up.sportsPending || done.loading}
+          error={hydrated && done.error}
+          onRetry={done.retry}
           sportLabel={sportLabel}
         />
       ) : null}

@@ -1,5 +1,6 @@
 /**
- * Filtros da página Ao vivo: status (ao vivo / próximos), esporte, país e competição. Puro (sem React):
+ * Filtros da página Ao vivo: status (ao vivo / próximos / encerrados), a janela dos encerrados, esporte, país
+ * e competição. Puro (sem React):
  * lê e escreve a query string, filtra os eventos já buscados e monta as opções de cada filtro a partir
  * deles. A API aceita um esporte, um país e uma competição por chamada; aqui a escolha é múltipla, por isso
  * o ao vivo é filtrado no navegador e os próximos são buscados em recortes (`upcomingScopes`) e filtrados
@@ -15,35 +16,78 @@ import {
 import type { FilterQuery } from '@/components/reui/filters/filters-types';
 import type { UpcomingScope } from '@/lib/galaxie/live';
 
-export type LiveStatus = 'live' | 'upcoming';
-export const LIVE_STATUSES: readonly LiveStatus[] = ['live', 'upcoming'];
+export type LiveStatus = 'live' | 'upcoming' | 'finished';
+export const LIVE_STATUSES: readonly LiveStatus[] = ['live', 'upcoming', 'finished'];
+
+/** Janelas dos encerrados, em horas (apito inicial dentro da janela e jogo já terminado). */
+export const FINISHED_WINDOWS = [6, 12, 24, 48, 72] as const;
+export const DEFAULT_FINISHED_WINDOW = 12;
 
 /** Escolhas de cada filtro; lista vazia = sem filtro (tudo). */
 export interface LiveFilters {
   status: LiveStatus[];
+  /** Janela dos encerrados (no máximo um valor, em horas); vazia = a padrão. Só existe com "Encerrados". */
+  window: string[];
   sport: string[];
   country: string[];
   competition: string[];
 }
 
 export type LiveFilterField = keyof LiveFilters;
-export const LIVE_FILTER_FIELDS: readonly LiveFilterField[] = ['status', 'sport', 'country', 'competition'];
+export const LIVE_FILTER_FIELDS: readonly LiveFilterField[] = [
+  'status',
+  'window',
+  'sport',
+  'country',
+  'competition',
+];
 
-export const NO_LIVE_FILTERS: LiveFilters = { status: [], sport: [], country: [], competition: [] };
+export const NO_LIVE_FILTERS: LiveFilters = {
+  status: [],
+  window: [],
+  sport: [],
+  country: [],
+  competition: [],
+};
 
 /** Nome de cada filtro na URL (`?esporte=football,basketball&pais=BR`), como os demais da demo. */
 export const LIVE_FILTER_PARAMS: Record<LiveFilterField, string> = {
   status: 'status',
+  window: 'janela',
   sport: 'esporte',
   country: 'pais',
   competition: 'competicao',
 };
 
-/** Status na URL: `?status=ao-vivo` ou `?status=proximos`. */
-const STATUS_PARAM: Record<LiveStatus, string> = { live: 'ao-vivo', upcoming: 'proximos' };
+/** Status na URL: `?status=ao-vivo`, `?status=proximos` ou `?status=encerrados` (com `&janela=24`). */
+const STATUS_PARAM: Record<LiveStatus, string> = {
+  live: 'ao-vivo',
+  upcoming: 'proximos',
+  finished: 'encerrados',
+};
 
-/** Operador único dos chips: "é um destes" (escolha múltipla). */
+/** Operador dos chips: "é um destes" (escolha múltipla). */
 export const LIVE_FILTER_OPERATOR = 'is_any_of';
+/** Operador do chip da janela: escolha única ("últimas 12 horas"). */
+export const WINDOW_FILTER_OPERATOR = 'is';
+
+const isWindow = (v: string) => (FINISHED_WINDOWS as readonly number[]).includes(Number(v));
+
+/**
+ * A janela só vale com "Encerrados" escolhido e a padrão não é guardada: assim `?status=encerrados` e
+ * `?status=encerrados&janela=12` são o mesmo filtro.
+ */
+function normalizeWindow(status: LiveStatus[], window: string[]): string[] {
+  const value = window.filter(isWindow).at(-1);
+  if (!status.includes('finished') || !value || Number(value) === DEFAULT_FINISHED_WINDOW) return [];
+  return [String(Number(value))];
+}
+
+/** Horas da janela dos encerrados (a padrão quando nenhuma foi escolhida). */
+export function finishedWindowHours(filters: LiveFilters): number {
+  const value = Number(filters.window[0]);
+  return isWindow(String(value)) ? value : DEFAULT_FINISHED_WINDOW;
+}
 
 const splitList = (raw: string | null) => [
   ...new Set(
@@ -60,6 +104,7 @@ export function parseLiveFilters(params: Pick<URLSearchParams, 'get'>): LiveFilt
     .filter((s): s is LiveStatus => !!s);
   return {
     status,
+    window: normalizeWindow(status, splitList(params.get(LIVE_FILTER_PARAMS.window))),
     sport: splitList(params.get(LIVE_FILTER_PARAMS.sport)),
     country: splitList(params.get(LIVE_FILTER_PARAMS.country)).map((c) => c.toUpperCase()),
     competition: splitList(params.get(LIVE_FILTER_PARAMS.competition)),
@@ -79,8 +124,11 @@ export function liveFiltersSearch(filters: LiveFilters, current: string | URLSea
   return search ? `?${search}` : '';
 }
 
-/** Os dois status escolhidos equivalem a nenhum: só conta quando sobra um. */
+/**
+ * Sem status escolhido, a página mostra ao vivo e próximos; os encerrados só aparecem quando escolhidos.
+ */
 export function showsStatus(filters: LiveFilters, status: LiveStatus): boolean {
+  if (status === 'finished') return filters.status.includes('finished');
   return !filters.status.length || filters.status.includes(status);
 }
 
@@ -106,7 +154,7 @@ export interface LiveFilterOption {
   label: string;
   /** Bandeira (país) ou escudo (competição), quando a API manda. */
   image: string | null;
-  /** Quantos jogos (ao vivo e próximos) têm o valor. */
+  /** Quantos jogos (ao vivo, próximos e encerrados) têm o valor. */
   count: number;
 }
 
@@ -275,26 +323,67 @@ export function groupUpcoming(events: Event[], order: string[], perSport: number
     .map(([sport, list]) => ({ sport, total: list.length, events: list.slice(0, perSport) }));
 }
 
-// ─── ponte com o componente de filtros (ReUI): um chip por filtro, sempre "é um destes" ───
+// ─── ponte com o componente de filtros (ReUI): um chip por filtro, "é um destes" (a janela, "é") ───
 
+const windowRule = (hours: string) =>
+  createFilterRule<unknown>({
+    id: 'window',
+    path: ['window'],
+    operator: WINDOW_FILTER_OPERATOR,
+    value: hours,
+  });
+
+/** Com "Encerrados", o chip da janela aparece sempre, na padrão (12 h) quando nenhuma foi escolhida. */
 export function toFilterQuery(filters: LiveFilters): FilterQuery {
   return createFilterQuery(
-    LIVE_FILTER_FIELDS.filter((f) => filters[f].length).map((f) =>
-      createFilterRule({ id: f, path: [f], operator: LIVE_FILTER_OPERATOR, value: [...filters[f]] }),
-    ),
+    LIVE_FILTER_FIELDS.flatMap((f) => {
+      if (f === 'window')
+        return filters.status.includes('finished') ? [windowRule(String(finishedWindowHours(filters)))] : [];
+      return filters[f].length
+        ? [
+            createFilterRule<unknown>({
+              id: f,
+              path: [f],
+              operator: LIVE_FILTER_OPERATOR,
+              value: [...filters[f]],
+            }),
+          ]
+        : [];
+    }),
   );
+}
+
+/**
+ * O chip da janela acompanha o de status: entra (na padrão) quando "Encerrados" é escolhido e sai quando
+ * deixa de ser. Os demais chips ficam como estão (inclusive os ainda sem valor).
+ */
+export function syncWindowRule(query: FilterQuery): FilterQuery {
+  const finished = fromFilterQuery(query).status.includes('finished');
+  const hasWindow = query.rules.some((r) => r.type === 'rule' && r.path[0] === 'window');
+  if (finished && !hasWindow) {
+    const at = query.rules.findIndex((r) => r.type === 'rule' && r.path[0] === 'status') + 1;
+    const rules = [...query.rules];
+    rules.splice(at, 0, windowRule(String(DEFAULT_FINISHED_WINDOW)));
+    return { ...query, rules };
+  }
+  if (!finished && hasWindow)
+    return { ...query, rules: query.rules.filter((r) => !(r.type === 'rule' && r.path[0] === 'window')) };
+  return query;
 }
 
 /** Só os chips completos (com algum valor) viram filtro; o chip recém-criado, ainda vazio, não. */
 export function fromFilterQuery(query: FilterQuery): LiveFilters {
-  const out: LiveFilters = { status: [], sport: [], country: [], competition: [] };
+  const out: LiveFilters = { status: [], window: [], sport: [], country: [], competition: [] };
   for (const rule of flattenFilterRules(query)) {
     const field = rule.path[0] as LiveFilterField | undefined;
-    if (!field || !LIVE_FILTER_FIELDS.includes(field) || !Array.isArray(rule.value)) continue;
-    const values = (rule.value as unknown[]).filter((v): v is string => typeof v === 'string');
+    if (!field || !LIVE_FILTER_FIELDS.includes(field)) continue;
+    const raw = Array.isArray(rule.value) ? (rule.value as unknown[]) : [rule.value];
+    const values = raw.filter((v): v is string => typeof v === 'string' && v !== '');
+    if (!values.length) continue;
     if (field === 'status')
       out.status = values.filter((v): v is LiveStatus => (LIVE_STATUSES as string[]).includes(v));
     else out[field] = values;
   }
+  out.window = normalizeWindow(out.status, out.window);
   return out;
 }

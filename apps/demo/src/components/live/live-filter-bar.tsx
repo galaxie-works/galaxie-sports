@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarClock, Flag, Radio, Shapes, Trophy } from 'lucide-react';
+import { CalendarClock, CircleCheck, Flag, History, Radio, Shapes, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { Filters, FiltersRow, useFilterFocusStore } from '@/components/reui/filters/filters';
@@ -20,10 +20,13 @@ import { SPORTS } from '@/lib/navigation';
 
 import { LiveDot } from './live-nav-item';
 import {
+  FINISHED_WINDOWS,
   fromFilterQuery,
   LIVE_FILTER_OPERATOR,
   liveFiltersSearch,
+  syncWindowRule,
   toFilterQuery,
+  WINDOW_FILTER_OPERATOR,
   type LiveFilterOption,
   type LiveFilterOptions,
   type LiveFilters,
@@ -146,6 +149,9 @@ export function LiveFilterBar({
 
   const inUse = new Set(query.rules.flatMap((r) => (r.type === 'rule' ? r.path : [])));
   const operators: FilterOperator[] = [{ value: LIVE_FILTER_OPERATOR, label: tf.operator, arity: 'many' }];
+  const windowOperators: FilterOperator[] = [
+    { value: WINDOW_FILTER_OPERATOR, label: tf.windowOperator, arity: 'one' },
+  ];
   const base = (id: keyof LiveFilters) =>
     ({
       id,
@@ -161,6 +167,16 @@ export function LiveFilterBar({
   ): FilterOption[] =>
     list.map((o) => ({ value: o.value, label: o.label, icon: icon(o), keywords: [o.value] }));
 
+  const windowField: FilterField = {
+    ...base('window'),
+    icon: <History aria-hidden />,
+    operators: windowOperators,
+    defaultOperator: WINDOW_FILTER_OPERATOR,
+    searchable: false,
+    disabled: true,
+    options: FINISHED_WINDOWS.map((h) => ({ value: String(h), label: fill(tf.windowOption, { hours: h }) })),
+  };
+
   const fields: FilterField[] = [
     {
       ...base('status'),
@@ -173,8 +189,16 @@ export function LiveFilterBar({
           label: tf.status.upcoming,
           icon: <CalendarClock className="size-3.5" aria-hidden />,
         },
+        {
+          value: 'finished',
+          label: tf.status.finished,
+          icon: <CircleCheck className="size-3.5" aria-hidden />,
+        },
       ],
     },
+    // a janela dos encerrados: escolha única. O chip entra e sai junto com "Encerrados" (`syncWindowRule`) e
+    // não é oferecido no "Filtrar"
+    ...(inUse.has('window') ? [windowField] : []),
     {
       ...base('sport'),
       icon: <Shapes aria-hidden />,
@@ -200,12 +224,12 @@ export function LiveFilterBar({
 
   const onQueryChange = (changed: FilterQuery) => {
     // o chip novo nasce sem condição; com uma só ("é"), ela já vem escolhida e o chip abre nos valores
-    const next: FilterQuery = {
+    const next = syncWindowRule({
       ...changed,
       rules: changed.rules.map((r) =>
         r.type === 'rule' && !r.operator ? { ...r, operator: LIVE_FILTER_OPERATOR } : r,
       ),
-    };
+    });
     const nextFilters = fromFilterQuery(next);
     const nextKey = liveFiltersSearch(nextFilters);
     setState({ key: nextKey, query: next });
