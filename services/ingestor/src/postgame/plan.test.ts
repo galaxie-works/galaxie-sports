@@ -77,9 +77,17 @@ describe('fechamento pós-jogo: quem está na vez', () => {
     expect(due.map((d) => `${d.sport} ${d.date}`)).toEqual(['volleyball 2026-10-29', 'nba 2026-10-29']);
     expect(capped).toEqual(['nba']);
 
-    await recordCalls(cursors, due, NOW);
+    // só o que saiu para o fornecedor conta: a lista do vôlei que a cota negou não gasta o dia
+    await recordCalls(
+      cursors,
+      new Map([
+        ['nba', 1],
+        ['volleyball', 0],
+      ]),
+      NOW,
+    );
     const state = await cursors.load([capCursor('nba', '2026-10-30'), capCursor('volleyball', '2026-10-30')]);
     expect(state.get('nba|postgame:cap|day=2026-10-30')?.cursor).toEqual({ calls: 40 });
-    expect(state.get('volleyball|postgame:cap|day=2026-10-30')?.cursor).toEqual({ calls: 1 });
+    expect(state.get('volleyball|postgame:cap|day=2026-10-30')).toBeUndefined();
   });
 });

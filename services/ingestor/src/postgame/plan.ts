@@ -173,17 +173,20 @@ export async function dueLists(
   return { due, capped: [...capped] };
 }
 
-/** Soma as chamadas do dia no cursor do teto de cada esporte. */
-export async function recordCalls(cursors: CursorStore, due: readonly DueList[], now: Date): Promise<void> {
+/** Soma no cursor do teto de cada esporte as chamadas que de fato saíram para o fornecedor nesta execução. */
+export async function recordCalls(
+  cursors: CursorStore,
+  calls: ReadonlyMap<string, number>,
+  now: Date,
+): Promise<void> {
   const today = now.toISOString().slice(0, 10);
-  const bySport = new Map<string, number>();
-  for (const d of due) bySport.set(d.sport, (bySport.get(d.sport) ?? 0) + 1);
-  if (!bySport.size) return;
-  const refs = [...bySport.keys()].map((s) => capCursor(s, today));
+  const spent = [...calls].filter(([, n]) => n > 0);
+  if (!spent.length) return;
+  const refs = spent.map(([sport]) => capCursor(sport, today));
   const state = await cursors.load(refs);
-  for (const ref of refs) {
+  for (const [sport, n] of spent) {
+    const ref = capCursor(sport, today);
     const prev = state.get(`${ref.sport}|${ref.endpoint}|${ref.key}`)?.cursor?.calls;
-    const calls = (typeof prev === 'number' ? prev : 0) + (bySport.get(ref.sport) ?? 0);
-    await cursors.complete([ref], { calls }, now);
+    await cursors.complete([ref], { calls: (typeof prev === 'number' ? prev : 0) + n }, now);
   }
 }

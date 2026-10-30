@@ -65,16 +65,25 @@ await runCli(async () => {
       ],
     };
     const normalize = normalizeAfterFetch(ctx.db, {
+      // os outros esportes vão ao core já aqui, sem esperar o normalize-sports de hora em hora
+      otherSports: true,
       onError: (err, endpoint, params) =>
         logger.warn({ err, endpoint, params }, 'fechamento pós-jogo: falha ao normalizar a lista'),
     });
+    // o teto conta só o que saiu para o fornecedor (cota negada, rate limit ou offline não gastam o dia)
+    const calls = new Map<string, number>();
     const report = await planOrRun(
       ctx,
       spec,
       { ...values, 'sem-live': false },
-      { afterFetch: normalize.afterFetch },
+      {
+        afterFetch: async (envelope, request) => {
+          if (request.source === 'network') calls.set(request.sport, (calls.get(request.sport) ?? 0) + 1);
+          await normalize.afterFetch(envelope, request);
+        },
+      },
     );
-    await recordCalls(ctx.cursors, due, now);
+    await recordCalls(ctx.cursors, calls, now);
     if (report) {
       const n = normalize.report();
       console.log(
