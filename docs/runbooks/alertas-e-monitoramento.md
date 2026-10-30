@@ -9,7 +9,7 @@ auditoria de 28/10/2026.
 |---|---|---|---|
 | Prometheus + Grafana | Na própria VPS | Banco, jobs, ao vivo, IA, backup, disco, processo da API | Push (ntfy) na hora para o crítico; resumo diário por e-mail para o resto; uma issue no GitHub por alerta |
 | Workflow de deploy | GitHub Actions | Deploy falho, cancelado ou travado (teto de 45 min) | Push (ntfy) pelo mesmo tópico |
-| Monitor externo | Better Stack (fora da VPS) | Site, API, demo e assets vistos da internet; a VPS inteira fora do ar | App da Better Stack e e-mail |
+| Monitor externo | Better Stack (fora da VPS) | Site e API vistos da internet; a VPS inteira fora do ar. Página pública em status.galaxie.works | E-mail (e app da Better Stack) |
 
 O alertador mora na mesma VPS que vigia: se a VPS cair, ele cai junto. Por isso o monitor externo é parte do desenho,
 não um extra.
@@ -21,7 +21,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | Sinal | Alerta | Dispara quando |
 |---|---|---|
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
-| `api` (de fora) | Monitores da Better Stack | Site, API, demo ou assets sem resposta para a internet |
+| `api` (de fora) | Monitores da Better Stack | Site, API ou assets sem resposta para a internet |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
@@ -40,18 +40,19 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 
 | Alerta | Quer dizer |
 |---|---|
-| `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min |
+| `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min; não conta enquanto há execução em andamento (o `live-run` fica no ar a janela inteira do ao vivo) |
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
 | `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
+| `ApiLatencyP95High` | p95 das rotas de cliente acima de 150 ms por 10 min, só com tráfego (≥ 0,2 req/s, fora `/metrics`, `/health`, `/internal`). Com menos que isso o cache do ao vivo (10 s) nunca está quente e o p95 seria a requisição mais lenta da janela (#450) |
 | `SseProcessLimitReached` | O teto de streams SSE do processo (`SSE_MAX_CONNECTIONS`) estourou e clientes receberam 503 |
 | `AiCreditCheckStale` | A checagem de crédito não roda há 3 h (contêiner `agents` fora?) |
 | `SloBurnRateSlow` | Um SLO gasta o orçamento devagar demais: 10% dele em 1 dia ou em 3 dias ([docs/14](../14-slos-e-error-budget.md)) |
 | `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale`) |
 | `ErrorBudgetExhausted` | O orçamento de 28 dias de um SLO acabou: vale a política de congelar features do componente |
-| `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown`, `ApiLatencyP95High` | Como antes |
+| `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown` | Como antes |
 
 Sem SMTP configurado, o resumo sai no push com prioridade baixa. Sem push configurado, o crítico sai por e-mail na
 hora.
@@ -187,30 +188,63 @@ O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão
   vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
   input recusado. Depois, a execução em Actions → Alerta do Grafana.
 
-## Monitor externo (Better Stack, plano gratuito)
+## Monitor externo e página de status (Better Stack, plano gratuito)
 
-Quem cria a conta é o dono. O plano gratuito tem 10 monitores com checagem a cada 3 min e uma página de status.
+Ligado em 29/10/2026 ([#430](https://github.com/galaxie-works/galaxie-sports/issues/430)). A conta é do dono, em
+betterstack.com (Uptime). Nada disso roda na VPS: é o que continua de pé quando ela cai.
 
-1. Crie a conta em betterstack.com (Uptime) com o e-mail de operação.
-2. Crie os monitores (Monitors → Create monitor), todos com checagem a cada 3 min:
+### Monitores
 
-   | Monitor | Tipo | URL | Confere |
-   |---|---|---|---|
-   | Site | URL is available | `https://sports.galaxie.works` | HTTP 2xx |
-   | API viva | Keyword | `https://api.sports.galaxie.works/health` | palavra `ok` |
-   | API pronta | URL is available | `https://api.sports.galaxie.works/health/ready` | HTTP 2xx (503 = sem Postgres) |
-   | API com banco | URL is available | `https://api.sports.galaxie.works/health/db` | HTTP 2xx |
-   | Assets | URL is available | uma imagem fixa do `assets.`, ex.: um logo de time que não muda | HTTP 2xx |
-   | Demo | URL is available | a página de login da demo | HTTP 2xx |
+Todos do tipo **URL becomes unavailable**, checagem a cada 3 min, 4 regiões, confirmação de 1 min e aviso por e-mail.
+O plano gratuito não tem o tipo Keyword; os `/health*` devolvem 503 quando falham, o que basta.
 
-   O `/health/ready` responde `{"status":"degraded"}` com 200 quando só o Valkey está fora: a API segue servindo
-   (cache e limite em modo degradado). Para ser avisado disso também, troque o tipo do "API pronta" para Keyword sem a
-   palavra `degraded`.
-3. **Push do app:** instale o app da Better Stack no celular, entre com a mesma conta e permita notificações. Em
-   cada monitor, em "On-call escalation", marque e-mail e push. Se o plano gratuito não oferecer push na sua conta,
-   fica o e-mail: crie no celular uma regra de notificação para o remetente da Better Stack.
-4. **Página de status:** Status pages → Create, com os monitores públicos (site, API viva, demo). Para usar
-   `status.galaxie.works`, mande o CNAME que a Better Stack mostrar; o registro é criado na Hostinger.
+| Monitor | URL | Fora do ar quer dizer |
+|---|---|---|
+| Site | `https://sports.galaxie.works` | Site/demo fora |
+| API viva | `https://api.sports.galaxie.works/health` | Processo da API fora ou VPS inteira fora |
+| API pronta | `https://api.sports.galaxie.works/health/ready` | 503 sem Postgres (sem Valkey ainda responde 200 `degraded`) |
+| API com banco | `https://api.sports.galaxie.works/health/db` | 503 sem Postgres |
+| Assets | `https://assets.sports.galaxie.works/galaxie-sports-assets/api-sports/flags/br.svg` | Imagens (escudos, logos, bandeiras, fotos) fora |
+
+O monitor dos assets usa a bandeira do Brasil do espelho da api-sports: a importação do acervo próprio só grava
+chaves novas sob `acervo/` e não move nada desse prefixo. A demo é o próprio site (monitor "Site").
+
+Para ser avisado no celular, instale o app da Better Stack com a mesma conta e marque "Push notification" em cada
+monitor (se o plano gratuito oferecer; senão fica o e-mail).
+
+### Heartbeat da IA
+
+A IA para sem a API cair (conta sem crédito, chave recusada), então nenhum monitor de URL vê. A checagem horária de
+crédito do serviço `agents` (`services/ingestor/src/scheduler/ai-credit.ts`) avisa um **Heartbeat** da Better Stack:
+`pass` chama a URL, `fail` chama `<URL>/fail` (incidente na hora) e `warn` (rede, limite de taxa, IA desligada, sem
+chave) não chama nada. Sem nenhuma chamada além do período mais a tolerância, a Better Stack abre o incidente sozinha.
+
+- Better Stack: Heartbeats → Create, período de 1 hora e tolerância de 1 hora (um aviso isolado não acende a página).
+- VPS: `AI_HEARTBEAT_URL=<URL do heartbeat>` no `.env` e `docker compose up -d agents`. A URL é um segredo (quem a
+  tiver marca a IA como ok): só no `.env`, nunca no repositório.
+- Só vê o provedor efetivo (`AI_PROVIDER`). A revisão da base semântica (`AI_REVIEW_PROVIDER`, padrão Gemini) e a
+  pesquisa de direitos (`AI_RIGHTS_PROVIDER`) podem usar outra conta e não entram nessa checagem.
+
+### Página de status
+
+- Endereço: **https://status.galaxie.works** (o provisório da Better Stack fica em `*.betteruptime.com`).
+- DNS na Hostinger (hPanel → Domínios → galaxie.works → DNS): `CNAME status → statuspage.betteruptime.com`. A Better
+  Stack emite o certificado sozinha depois que vê o CNAME; o ✓ verde em Settings → Custom domain confirma.
+- Seção **Services** (Structure), textos em inglês para o cliente, sem detalhe de bastidor:
+
+  | Monitor | Public name | Explanation |
+  |---|---|---|
+  | `sports.galaxie.works` | Website | Galaxie Sports website and customer dashboard. |
+  | `/health` | API | Availability of the Galaxie Sports REST API. |
+  | `/health/ready` | API Services | Readiness of the API to serve data requests. |
+  | `/health/db` | Data Storage | Storage for fixtures, results, standings and statistics. |
+  | assets (`br.svg`) | Images & Media | Team crests, league logos, flags and player photos. |
+  | heartbeat da IA | AI Enrichment | AI-powered match summaries, editorial context and where-to-watch insights. |
+
+- O `/health/ready` responde 200 `degraded` com o Valkey fora, então "API Services" segue verde nesse caso (o
+  monitor só vê disponibilidade). Por isso o texto público não promete cache.
+- Incidente ou manutenção planejada: abra pela aba **Status updates** ou **Maintenance** da página, para o cliente ler
+  o aviso lá em vez de só ver vermelho.
 
 ## Saúde da API: vivacidade e prontidão
 

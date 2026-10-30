@@ -152,12 +152,9 @@ export function cleanFigmaSvg(raw: string): CleanedFigmaSvg {
   const width = attr(root[0], 'width');
   const height = attr(root[0], 'height');
   const viewBox = attr(root[0], 'viewBox') ?? `0 0 ${width} ${height}`;
-  const component = [...raw.matchAll(/<g\b[^>]*\sid="([^"]*\/[^"]*)"[^>]*>/g)].at(-1);
-  const componentName = component ? fixMojibake(decodeXmlText(component[1]!)) : null;
-  const after = component ? component.index + component[0].length : 0;
-  const symbolStart = raw.slice(after).search(/<g\b/);
-  if (!component || symbolStart < 0) throw new Error('SVG sem o grupo do símbolo (Theme=...).');
-  const start = after + symbolStart;
+  const symbol = figmaSymbolStart(raw);
+  if (!symbol) throw new Error('SVG sem o grupo do símbolo (Theme=... ou Color=...).');
+  const { start, componentName } = symbol;
   const end = elementEnd(raw, start);
   if (end < 0) throw new Error('SVG mal formado (grupo do símbolo sem fechamento).');
   const body = raw.slice(start, end);
@@ -185,6 +182,26 @@ export function cleanFigmaSvg(raw: string): CleanedFigmaSvg {
     '',
   ].join('\n');
   return { svg, componentName };
+}
+
+/**
+ * Onde começa o grupo do símbolo no SVG exportado. No frame "Channel Logos" o componente tem nome com a
+ * letra (`A/AMC`) e o símbolo é o primeiro grupo dentro dele. Fora dele (seção "Premium Content") o
+ * componente não tem barra no nome e as variantes são `Color=Original - Light`/`Color=Original - Dark`:
+ * aí o símbolo é o grupo `Theme=...`/`Color=...` e o nome vem do grupo pai.
+ */
+function figmaSymbolStart(raw: string): { start: number; componentName: string | null } | null {
+  const component = [...raw.matchAll(/<g\b[^>]*\sid="([^"]*\/[^"]*)"[^>]*>/g)].at(-1);
+  if (component) {
+    const after = component.index + component[0].length;
+    const symbolStart = raw.slice(after).search(/<g\b/);
+    if (symbolStart < 0) return null;
+    return { start: after + symbolStart, componentName: fixMojibake(decodeXmlText(component[1]!)) };
+  }
+  const variant = raw.match(/<g\b[^>]*\sid="(?:Theme|Color)=[^"]*"[^>]*>/);
+  if (!variant) return null;
+  const parent = [...raw.slice(0, variant.index).matchAll(/<g\b[^>]*\sid="([^"]*)"[^>]*>/g)].at(-1);
+  return { start: variant.index!, componentName: parent ? fixMojibake(decodeXmlText(parent[1]!)) : null };
 }
 
 /** Arquivo do símbolo na pasta exportada: `335:20142` → `335-20142.svg`. */
