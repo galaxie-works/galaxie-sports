@@ -116,15 +116,22 @@ describe('filtro dos jogos', () => {
 describe('opções dos filtros', () => {
   const label = (slug: string) => slug.toUpperCase();
 
-  it('vêm dos jogos, com contagem, da mais comum para a menos', () => {
+  it('vêm dos jogos, com contagem, em ordem alfabética do nome', () => {
     const o = liveFilterOptions(EVENTS, NO_LIVE_FILTERS, label);
     expect(o.sport.map((s) => [s.value, s.label, s.count])).toEqual([
-      ['football', 'FOOTBALL', 4],
       ['basketball', 'BASKETBALL', 1],
+      ['football', 'FOOTBALL', 4],
       ['mma', 'MMA', 1],
     ]);
-    expect(o.country.map((c) => c.value)).toEqual(['BR', 'AR', 'WORLD']);
-    expect(o.competition[0]).toMatchObject({ value: 'brasileirao-serie-a', label: 'Brasileirão', count: 2 });
+    // pelo nome mostrado (AR, Brasil, WORLD), não pelo código nem pela contagem
+    expect(o.country.map((c) => c.value)).toEqual(['AR', 'BR', 'WORLD']);
+    expect(o.competition.map((c) => c.label)).toEqual([
+      'Brasileirão',
+      'Libertadores',
+      'Liga Profesional',
+      'NBB',
+    ]);
+    expect(o.competition[0]).toMatchObject({ value: 'brasileirao-serie-a', count: 2 });
   });
 
   it('país segue o esporte; competição segue esporte e país', () => {
@@ -209,11 +216,12 @@ describe('próximos por esporte', () => {
     ev('e', 'hockey', null, '2026-10-25T11:00:00Z'),
   ];
 
-  it('agrupa na ordem da agenda, por horário, sem repetidos e com corte por esporte', () => {
-    const groups = groupUpcoming(list, ['football', 'basketball'], 2);
+  it('esportes em ordem alfabética do nome; jogos por horário, sem repetidos e com corte por esporte', () => {
+    const names: Record<string, string> = { football: 'Futebol', basketball: 'Basquete', hockey: 'Hóquei' };
+    const groups = groupUpcoming(list, (s) => names[s] ?? s, 2);
     expect(groups.map((g) => [g.sport, g.total, g.events.map((e) => e.id)])).toEqual([
-      ['football', 3, ['c', 'a']],
       ['basketball', 1, ['b']],
+      ['football', 3, ['c', 'a']],
       ['hockey', 1, ['e']],
     ]);
   });
@@ -226,10 +234,10 @@ describe('opções de esporte com a agenda', () => {
       { slug: 'volleyball', count: 12 },
     ]);
     expect(o.sport.map((s) => [s.value, s.count])).toEqual([
-      ['football', 300],
-      ['volleyball', 12],
       ['basketball', 1],
+      ['football', 300],
       ['mma', 1],
+      ['volleyball', 12],
     ]);
   });
 });

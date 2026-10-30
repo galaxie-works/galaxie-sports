@@ -25,11 +25,12 @@ import {
   UPCOMING_SPORTS_KEY,
   type UpcomingScope,
 } from '@/lib/galaxie/live';
+import { compareAlpha } from '@/lib/alphabetical';
 import type { ApiRequest } from '@/lib/galaxie/request';
 import type { Locale } from '@/lib/i18n/config';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
-import { SPORTS } from '@/lib/navigation';
+import { countryHref, SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 import { LiveFilterBar } from './live-filter-bar';
@@ -63,7 +64,6 @@ const UPCOMING_STALE_MS = 2 * 60_000;
 interface CompetitionGroup {
   key: string;
   competition: Event['competition'];
-  score: number;
   events: Event[];
 }
 
@@ -71,7 +71,6 @@ interface SportGroup {
   sport: string;
   label: string;
   icon: (typeof SPORTS)[number]['icon'] | null;
-  score: number;
   competitions: CompetitionGroup[];
 }
 
@@ -80,15 +79,33 @@ const byRelevance = (a: Event, b: Event) =>
   Date.parse(a.starts_at) - Date.parse(b.starts_at) ||
   a.id.localeCompare(b.id);
 
-/** Agrupa por esporte e competição; grupos e jogos em ordem de relevância (a maior primeiro). */
+/**
+ * Competição em ordem alfabética do que o cabeçalho mostra: "Rússia · Superliga Russa" pelo país e depois
+ * pela liga; as internacionais (sem país no cabeçalho) pelo próprio nome. Sem competição vai para o fim.
+ */
+const byCompetitionName = (a: CompetitionGroup, b: CompetitionGroup) => {
+  if (!a.competition || !b.competition) return Number(!a.competition) - Number(!b.competition);
+  const country = (c: NonNullable<Event['competition']>) =>
+    c.country && countryHref(c.country.code) ? c.country.name : c.name;
+  return (
+    compareAlpha(country(a.competition), country(b.competition)) ||
+    compareAlpha(a.competition.name, b.competition.name) ||
+    a.key.localeCompare(b.key)
+  );
+};
+
+/**
+ * Agrupa por esporte e competição. Esportes e competições em ordem alfabética (a competição pelo país e
+ * depois pelo nome, como no cabeçalho; sem competição vai para o fim); dentro de cada competição, os jogos
+ * em ordem de relevância.
+ */
 export function groupLive(events: Event[], sportLabel: (slug: string) => string): SportGroup[] {
   const sports = new Map<string, Map<string, CompetitionGroup>>();
   for (const e of events) {
     const comps = sports.get(e.sport) ?? new Map<string, CompetitionGroup>();
     const key = e.competition?.id ?? 'sem-competicao';
-    const g = comps.get(key) ?? { key, competition: e.competition, score: 0, events: [] };
+    const g = comps.get(key) ?? { key, competition: e.competition, events: [] };
     g.events.push(e);
-    g.score = Math.max(g.score, relevanceOf(e));
     comps.set(key, g);
     sports.set(e.sport, comps);
   }
@@ -97,18 +114,15 @@ export function groupLive(events: Event[], sportLabel: (slug: string) => string)
       const nav = SPORTS.find((s) => s.slug === sport);
       const competitions = [...comps.values()]
         .map((c) => ({ ...c, events: [...c.events].sort(byRelevance) }))
-        .sort(
-          (a, b) => b.score - a.score || (a.competition?.name ?? '').localeCompare(b.competition?.name ?? ''),
-        );
+        .sort(byCompetitionName);
       return {
         sport,
         label: sportLabel(sport),
         icon: nav?.icon ?? null,
-        score: Math.max(...competitions.map((c) => c.score)),
         competitions,
       };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => compareAlpha(a.label, b.label) || a.sport.localeCompare(b.sport));
 }
 
 /**
@@ -327,7 +341,7 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
   const upLoaded = hydrated ? up.loaded : [];
   const upcomingGroups = groupUpcoming(
     upList.filter((e) => matchesLiveFilters(e, filters)),
-    up.sports.map((s) => s.slug),
+    sportLabel,
     filters.sport.length === 1
       ? UPCOMING_FETCH_LIMIT
       : filtered
