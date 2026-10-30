@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next';
 import { AppPages } from '@/components/site/landing/app-pages';
 import { Audience } from '@/components/site/landing/audience';
 import { Bento } from '@/components/site/landing/bento';
+import { FanJourney } from '@/components/site/landing/fan-journey';
 import { Hero, Numbers } from '@/components/site/landing/hero';
 import { Layer } from '@/components/site/landing/layer';
 import { MarketsGrid } from '@/components/site/landing/markets';
@@ -76,6 +77,18 @@ export default async function AboutPage() {
 
       <Hero t={l} locale={locale} />
       <Numbers t={l.stats} locale={locale} />
+
+      <section aria-labelledby="jornada" className="pt-24">
+        <SectionHeading
+          id="jornada"
+          eyebrow={l.journey.eyebrow}
+          title={l.journey.title}
+          lead={l.journey.lead}
+        />
+        <div className="mt-10">
+          <FanJourney t={l.journey} context={l} locale={locale} />
+        </div>
+      </section>
 
       <section aria-labelledby="camada" className="pt-24">
         <SectionHeading id="camada" eyebrow={l.layer.eyebrow} title={l.layer.title} lead={l.layer.lead} />

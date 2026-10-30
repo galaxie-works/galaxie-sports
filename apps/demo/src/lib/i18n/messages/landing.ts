@@ -16,7 +16,7 @@ export default defineMessages(
       title: 'Cada jogo contado na voz da torcida.',
       lead: 'Mais engajamento, retenção e tempo de sessão para a sua audiência esportiva. Onde assistir em 8 países, semântica enriquecida na voz do torcedor e contexto ao vivo com IA, entregues via API numa camada white-label para empresas de mídia, entretenimento e portais esportivos da América Latina.',
       cta: 'Agendar uma demonstração',
-      secondary: 'Conhecer a camada',
+      secondary: 'Ver a jornada do torcedor',
       invite: 'A demo completa é por convite.',
     },
     stats: {
@@ -25,6 +25,45 @@ export default defineMessages(
       locales: 'variantes regionais de idioma',
       markets: 'mercados com relevância por país',
       sports: 'esportes no mesmo formato',
+    },
+    journey: {
+      eyebrow: 'A jornada do torcedor',
+      title: 'Cada jogo abre uma história. A experiência continua até o próximo.',
+      lead: 'Do “onde assistir?” ao que fica depois do apito: cada momento vira um motivo para descobrir, acompanhar e voltar.',
+      link: 'Ver a jornada',
+      panel: {
+        sample: 'Exemplo de partida',
+        market: 'Relevância no mercado',
+        where: 'Encontre onde assistir',
+        stakes: 'O que está em jogo',
+        live: 'O jogo em movimento',
+        after: 'A história segue depois do apito',
+        highlights: 'Melhores momentos',
+        goals: 'Gols',
+        press: 'Coletivas',
+      },
+      steps: {
+        watch: {
+          label: 'Antes do jogo',
+          title: 'Onde assistir?',
+          body: 'Opções de transmissão verificadas para cada mercado, com tipo de mídia, acesso e fonte.',
+        },
+        stakes: {
+          label: 'Contexto',
+          title: 'Por que importa?',
+          body: 'Rivalidade, momento da competição e o que cada equipe disputa — na linguagem da torcida.',
+        },
+        live: {
+          label: 'Ao vivo',
+          title: 'O que está acontecendo?',
+          body: 'Lances e contexto acompanham o placar para transformar uma atualização em uma história.',
+        },
+        after: {
+          label: 'Depois do apito',
+          title: 'O que fica do jogo?',
+          body: 'Vídeos oficiais e conteúdo relacionado dão continuidade à visita e apontam o próximo motivo para voltar.',
+        },
+      },
     },
     layer: {
       eyebrow: 'Muito além do placar',
@@ -336,7 +375,7 @@ export default defineMessages(
         title: 'Every match told in the fans’ own voice.',
         lead: 'More engagement, retention and session time for your sports audience. Where to watch in 8 countries, rich semantics in the fan’s own voice and live AI context, delivered via API in a white-label layer for media, entertainment and sports news companies across Latin America.',
         cta: 'Book a demo',
-        secondary: 'Meet the layer',
+        secondary: 'See the fan journey',
         invite: 'The full demo is invitation-only.',
       },
       stats: {
@@ -345,6 +384,45 @@ export default defineMessages(
         locales: 'regional language variants',
         markets: 'markets with country relevance',
         sports: 'sports in one format',
+      },
+      journey: {
+        eyebrow: 'The fan journey',
+        title: 'Every match opens a story. The experience carries on to the next.',
+        lead: 'From “where can I watch?” to what remains after the final whistle, every moment becomes a reason to discover, follow and return.',
+        link: 'See the journey',
+        panel: {
+          sample: 'Match example',
+          market: 'Market relevance',
+          where: 'Find where to watch',
+          stakes: 'What is at stake',
+          live: 'The match in motion',
+          after: 'The story continues after the whistle',
+          highlights: 'Highlights',
+          goals: 'Goals',
+          press: 'Press conferences',
+        },
+        steps: {
+          watch: {
+            label: 'Before the match',
+            title: 'Where can I watch?',
+            body: 'Verified viewing options for each market, with media type, access model and source.',
+          },
+          stakes: {
+            label: 'The context',
+            title: 'Why does it matter?',
+            body: 'Rivalries, competition context and what each team is playing for, in the fans’ own language.',
+          },
+          live: {
+            label: 'Live',
+            title: 'What is happening?',
+            body: 'Plays and context follow the score, turning an update into a story.',
+          },
+          after: {
+            label: 'After the whistle',
+            title: 'What stays with the fan?',
+            body: 'Official videos and related content extend the visit and offer the next reason to return.',
+          },
+        },
       },
       layer: {
         eyebrow: 'Far beyond the score',
@@ -655,7 +733,7 @@ export default defineMessages(
         title: 'Cada partido contado con la voz de la hinchada.',
         lead: 'Más engagement, retención y tiempo de sesión para tu audiencia deportiva. Dónde ver en 8 países, semántica enriquecida en la voz del hincha y contexto en vivo con IA, entregados vía API en una capa white-label para empresas de medios, entretenimiento y portales deportivos de América Latina.',
         cta: 'Agendar una demo',
-        secondary: 'Conocer la capa',
+        secondary: 'Ver el recorrido del hincha',
         invite: 'La demo completa es por invitación.',
       },
       stats: {
@@ -664,6 +742,45 @@ export default defineMessages(
         locales: 'variantes regionales de idioma',
         markets: 'mercados con relevancia por país',
         sports: 'deportes en un mismo formato',
+      },
+      journey: {
+        eyebrow: 'El recorrido del hincha',
+        title: 'Cada partido abre una historia. La experiencia sigue hasta el próximo.',
+        lead: 'Desde “¿dónde lo veo?” hasta lo que queda después del pitazo: cada momento es un motivo para descubrir, seguir y volver.',
+        link: 'Ver el recorrido',
+        panel: {
+          sample: 'Partido de ejemplo',
+          market: 'Relevancia en el mercado',
+          where: 'Encontrá dónde verlo',
+          stakes: 'Lo que está en juego',
+          live: 'El partido en movimiento',
+          after: 'La historia sigue después del pitazo',
+          highlights: 'Mejores momentos',
+          goals: 'Goles',
+          press: 'Conferencias de prensa',
+        },
+        steps: {
+          watch: {
+            label: 'Antes del partido',
+            title: '¿Dónde lo veo?',
+            body: 'Opciones verificadas para cada mercado, con tipo de medio, acceso y fuente.',
+          },
+          stakes: {
+            label: 'El contexto',
+            title: '¿Por qué importa?',
+            body: 'Rivalidades, contexto del torneo y lo que pelea cada equipo, en la voz de la hinchada.',
+          },
+          live: {
+            label: 'En vivo',
+            title: '¿Qué está pasando?',
+            body: 'Jugadas y contexto acompañan el resultado para convertir una actualización en una historia.',
+          },
+          after: {
+            label: 'Después del pitazo',
+            title: '¿Qué queda del partido?',
+            body: 'Videos oficiales y contenido relacionado prolongan la visita y dan el próximo motivo para volver.',
+          },
+        },
       },
       layer: {
         eyebrow: 'Mucho más que el resultado',

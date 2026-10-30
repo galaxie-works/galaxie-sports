@@ -12,25 +12,24 @@ import { Chip, Flag, TeamMark } from './parts';
 
 type Text = Dictionary['landing'];
 
-/** Cartão do próximo jogo (amostra real): times, horário no Brasil e as tags do torcedor. */
-function MatchPreview({ t, locale }: { t: Text['bento']; locale: Locale }) {
-  const { round: ROUND, semi: SEMI, timeZone, market, finalist } = showcase(locale);
-  const when = new Intl.DateTimeFormat(locale, {
-    timeZone,
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-    hourCycle: locale === 'en' ? 'h12' : 'h23',
-  }).format(new Date(ROUND.startsAt));
+/** Amostra de jogo com times, apelidos, contexto e relevância no mercado da página. */
+function MatchPreview({
+  t,
+  journey,
+  locale,
+}: {
+  t: Text['bento'];
+  journey: Text['journey'];
+  locale: Locale;
+}) {
+  const { round: ROUND, semi: SEMI, market, finalist } = showcase(locale);
   const score = SEMI.relevance.find((r) => r.market === market)?.score ?? 0;
   return (
     <div className="relative mx-auto w-full max-w-md lg:mx-0">
       <div className="bg-card/80 relative rounded-3xl border p-5 shadow-[0_30px_80px_-30px_oklch(0.55_0.2_279/0.6)] backdrop-blur-md sm:p-6">
         <div className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-primary font-semibold tracking-wide uppercase">{t.stakes.kickoff}</span>
-          <span className="text-muted-foreground tabular-nums">{when}</span>
+          <span className="text-primary font-semibold tracking-wide uppercase">{journey.panel.sample}</span>
+          <span className="text-muted-foreground tabular-nums">{ROUND.competition}</span>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {fill(t.stakes.stage, { competition: ROUND.competition })}
@@ -98,17 +97,17 @@ export function Hero({ t, locale }: { t: Text; locale: Locale }) {
             {t.hero.cta}
           </a>
           <a
-            href="#camada"
+            href="#jornada"
             className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5 text-base')}
           >
-            {t.hero.secondary}
+            {t.journey.link}
             <ArrowRight className="size-4" aria-hidden />
           </a>
         </div>
         <p className="text-muted-foreground mt-4 text-sm">{t.hero.invite}</p>
       </div>
       <div className="landing-rise [animation-delay:120ms]">
-        <MatchPreview t={t.bento} locale={locale} />
+        <MatchPreview t={t.bento} journey={t.journey} locale={locale} />
       </div>
     </section>
   );
