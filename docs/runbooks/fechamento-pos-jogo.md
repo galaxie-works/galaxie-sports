@@ -33,6 +33,10 @@ tem pipeline próprio e fica de fora. As mudanças valem na próxima execução,
 - Nos planos free (100/dia), a agenda diária usa 3. Com o teto padrão de 40, sobra folga.
 - `tempo-real` com 1 min durante um jogo de 2 h gasta umas 120 chamadas: só caberia num plano pago.
 - No teto do dia, o esporte para e o resto fica para a agenda D-1. O log avisa (`teto de chamadas do dia atingido`).
+- Cada esporte roda na sua execução: a cota negada de um não segura os outros. O esporte negado fica 1 h em espera
+  (`postgame:hold`), sem chamar nem registrar execução.
+- No modo `fechamento`, uma data que não fecha depois de 12 buscas fica para a agenda D-1 (`postgame:tries`). Isso
+  acontece quando o fornecedor nunca encerra o jogo. No `tempo-real` o limite é só o teto do dia.
 
 ## Operar
 

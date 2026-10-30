@@ -3,6 +3,10 @@ import { InMemoryCursorStore } from '../jobs/runtime/cursor-store.js';
 import {
   capCursor,
   dueLists,
+  holdSport,
+  MAX_TRIES_PER_DATE,
+  recordTries,
+  triesCursor,
   listCursor,
   listEndpoint,
   postgameSports,
@@ -89,5 +93,34 @@ describe('fechamento pós-jogo: quem está na vez', () => {
     const state = await cursors.load([capCursor('nba', '2026-10-30'), capCursor('volleyball', '2026-10-30')]);
     expect(state.get('nba|postgame:cap|day=2026-10-30')?.cursor).toEqual({ calls: 40 });
     expect(state.get('volleyball|postgame:cap|day=2026-10-30')).toBeUndefined();
+  });
+
+  it('cota negada põe o esporte em espera por 1 h, sem segurar os outros', async () => {
+    const cursors = new InMemoryCursorStore();
+    await holdSport(cursors, 'nba', NOW);
+    const { due, held } = await dueLists(cursors, sports, pending, new Date(NOW.getTime() + 30 * MIN), 40);
+    expect(held).toEqual(['nba']);
+    expect(due.map((d) => d.sport)).toEqual(['volleyball']);
+    // passada a espera, volta
+    const later = await dueLists(cursors, sports, pending, new Date(NOW.getTime() + 61 * MIN), 40);
+    expect(later.held).toEqual([]);
+    expect(later.due.some((d) => d.sport === 'nba')).toBe(true);
+  });
+
+  it('data que não fecha depois do teto de tentativas fica para a agenda D-1', async () => {
+    const cursors = new InMemoryCursorStore();
+    for (let i = 0; i < MAX_TRIES_PER_DATE; i++)
+      await recordTries(cursors, [{ sport: 'nba', date: '2026-10-29', pending: 2 }], NOW);
+    const state = await cursors.load([triesCursor('nba', '2026-10-29')]);
+    expect(state.get('nba|postgame:tries|date=2026-10-29')?.cursor).toEqual({ n: MAX_TRIES_PER_DATE });
+    // NBA está em tempo real nesta suíte: o teto de tentativas não vale (o jogo inteiro é coberto)
+    const rt = await dueLists(cursors, sports, pending, NOW, 40);
+    expect(rt.exhausted).toEqual([]);
+    expect(rt.due.some((d) => d.sport === 'nba' && d.date === '2026-10-29')).toBe(true);
+    // no modo fechamento, a data sai depois do teto
+    const closing = postgameSports({});
+    const { due, exhausted } = await dueLists(cursors, closing, pending, NOW, 40);
+    expect(exhausted.map((d) => `${d.sport} ${d.date}`)).toEqual(['nba 2026-10-29']);
+    expect(due.map((d) => `${d.sport} ${d.date}`)).toEqual(['volleyball 2026-10-29', 'nba 2026-10-30']);
   });
 });
