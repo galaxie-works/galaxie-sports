@@ -46,12 +46,13 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
 | `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
+| `ApiLatencyP95High` | p95 das rotas de cliente acima de 150 ms por 10 min, só com tráfego (≥ 0,2 req/s, fora `/metrics`, `/health`, `/internal`). Com menos que isso o cache do ao vivo (10 s) nunca está quente e o p95 seria a requisição mais lenta da janela (#450) |
 | `SseProcessLimitReached` | O teto de streams SSE do processo (`SSE_MAX_CONNECTIONS`) estourou e clientes receberam 503 |
 | `AiCreditCheckStale` | A checagem de crédito não roda há 3 h (contêiner `agents` fora?) |
 | `SloBurnRateSlow` | Um SLO gasta o orçamento devagar demais: 10% dele em 1 dia ou em 3 dias ([docs/14](../14-slos-e-error-budget.md)) |
 | `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale`) |
 | `ErrorBudgetExhausted` | O orçamento de 28 dias de um SLO acabou: vale a política de congelar features do componente |
-| `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown`, `ApiLatencyP95High` | Como antes |
+| `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown` | Como antes |
 
 Sem SMTP configurado, o resumo sai no push com prioridade baixa. Sem push configurado, o crítico sai por e-mail na
 hora.
