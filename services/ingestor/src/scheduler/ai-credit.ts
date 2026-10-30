@@ -143,3 +143,25 @@ export async function checkAiCredit(
     };
   }
 }
+
+/**
+ * Heartbeat da página de status pública (Better Stack, `AI_HEARTBEAT_URL`): `pass` bate o ponto, `fail`
+ * avisa a falha na hora (`/fail`). `warn` (limite de taxa, rede, IA desligada, sem chave) não manda nada:
+ * um soluço não acende a página, e a IA parada por mais tempo que a tolerância do heartbeat acende sozinha.
+ * Falha ao chamar a Better Stack só vai para o log: nunca derruba a checagem.
+ */
+export async function reportAiHeartbeat(
+  url: string | undefined,
+  status: CreditStatus,
+  fetchImpl: Fetch = fetch,
+  timeoutMs = 10_000,
+): Promise<'sent' | 'skipped'> {
+  const base = url?.trim().replace(/\/+$/, '');
+  if (!base || status === 'warn') return 'skipped';
+  const res = await fetchImpl(status === 'fail' ? `${base}/fail` : base, {
+    method: 'GET',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`heartbeat respondeu ${res.status}`);
+  return 'sent';
+}

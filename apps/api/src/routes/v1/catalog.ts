@@ -46,6 +46,7 @@ import {
   likeEscape,
   logoCreditText,
   logoFormats,
+  logoSizes,
   logoSource,
   parseInput,
   UUID_RE,
@@ -260,6 +261,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           ...summary!,
           logo_source: logoSource(row.logoOrigin),
           logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
+          logo_sizes: logoSizes(ctx.assetsBaseUrl, row.logoVariants),
           logo_credit: credit
             ? {
                 source: 'Wikimedia Commons',

@@ -216,7 +216,7 @@ nunca contado em memória: várias réplicas da API reportam o mesmo número e n
 **Alertas** ([`alerts.yml`](../observability/prometheus/alerts.yml), testados com `promtool` no CI):
 `QuotaBelow20Percent` (cota < 20% por 5 min), `JobFailingRepeatedly` (≥ 3 falhas seguidas), `LiveEventStale` (evento do plano do
 ao vivo em andamento sem atualização há mais de 2 intervalos), `BackupStale` (último backup OK há mais de 26 h), `FootballRawStale` (nada novo no raw do futebol há 26 h), `ApiDown`,
-`MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
+`MetricsCollectorDown`, `ApiLatencyP95High` (p95 > 150 ms nas rotas da API, só com 1 req/s ou mais), `BackupCheckFailed`, `RestoreDrillFailed`, `RestoreDrillStale`
 (política de backup: [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md)), `DiskAlmostFull` (disco dos
 volumes acima de 85%, pelo `node-exporter`), `NodeExporterDown`, `ChangeFeedStalled` (consumidor do change feed com
 mudança pendente há mais de 10 min), `ChangeFeedGapAbandoned` (lacuna do change feed abandonada pelo SSE ou pelo purge),

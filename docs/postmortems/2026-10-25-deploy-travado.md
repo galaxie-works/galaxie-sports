@@ -80,7 +80,7 @@ não registro.
 | Trava na VPS com dono, liberada no `trap`, tomada com WARN quando passa do teto | previne | feito | #330 |
 | Deploy pelo GitHub Actions (imagens no GHCR, a VPS baixa); `deploy.sh` vira plano B | previne | feito | #384 |
 | Push quando o deploy falha, é cancelado ou estoura o teto | detecta | feito | #403 |
-| Monitor externo (Better Stack) para saber de fora se a API caiu num deploy | detecta | aberto (conta é do dono) | [runbook de alertas](../runbooks/alertas-e-monitoramento.md#monitor-externo-better-stack-plano-gratuito) |
+| Monitor externo (Better Stack) para saber de fora se a API caiu num deploy | detecta | feito em 29/10 ([#430](https://github.com/galaxie-works/galaxie-sports/issues/430)) | [runbook de alertas](../runbooks/alertas-e-monitoramento.md#monitor-externo-e-página-de-status-better-stack-plano-gratuito) |
 
 ## Fontes
 

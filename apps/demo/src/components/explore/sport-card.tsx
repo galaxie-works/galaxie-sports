@@ -94,46 +94,28 @@ export function LivePill({ count, t, className }: { count: number; t: ExploreTex
 const LOGO_BOX = { xs: 'size-6 p-0.5', sm: 'size-8 p-1', md: 'size-10 p-1.5' } as const;
 
 /**
- * Logo de competição.
- * - `color`: o logo original num "chip" claro: boa parte dos logos (Champions, Premier League…) é escura
- *   e sumiria no fundo do tema.
- * - `mono` (padrão): o mesmo arquivo em uma cor só, por filtro (preto no tema claro, branco suave no
- *   escuro), sem chip. Não gera arquivo novo nem altera o asset servido; `filter` vale para imagem de
- *   qualquer origem (mask-image exigiria CORS no bucket). Logo com fundo cheio vira silhueta.
+ * Logo de competição num "chip" claro: boa parte dos logos (Champions, Premier League…) é escura e
+ * sumiria no fundo do tema.
  */
 export function LeagueLogo({
   competition,
   size = 'sm',
-  tone = 'mono',
 }: {
   competition: Pick<ExploreCompetition, 'logo' | 'name'>;
   size?: keyof typeof LOGO_BOX;
-  tone?: 'color' | 'mono';
 }) {
-  const mono = tone === 'mono';
   return (
     <span
       title={competition.name}
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-md',
-        mono ? 'bg-muted/60' : 'bg-white/90 shadow-sm',
+        'flex shrink-0 items-center justify-center rounded-md bg-white/90 shadow-sm',
         LOGO_BOX[size],
       )}
     >
       {competition.logo ? (
-        <img
-          src={competition.logo}
-          alt=""
-          draggable={false}
-          className={cn(
-            'size-full object-contain',
-            mono && 'opacity-70 brightness-0 dark:opacity-80 dark:invert',
-          )}
-        />
+        <img src={competition.logo} alt="" draggable={false} className="size-full object-contain" />
       ) : (
-        <span className={cn('text-[9px] font-semibold', mono ? 'text-muted-foreground' : 'text-zinc-700')}>
-          {initials(competition.name)}
-        </span>
+        <span className="text-[9px] font-semibold text-zinc-700">{initials(competition.name)}</span>
       )}
     </span>
   );

@@ -143,6 +143,26 @@ describe('planejamento do manifesto', () => {
     });
   });
 
+  it('curadoria de componente fora do frame lido (ex.: Premium Content) não some no replanejamento', () => {
+    const premium = {
+      node: '346:3892',
+      name: 'SporTV',
+      letter: 'S',
+      hd: false,
+      light: '346:3893',
+      dark: '346:3896',
+      broadcaster: 'espn',
+      channel: null,
+      status: 'primary' as const,
+      curated: true,
+      note: 'Premium Content',
+    };
+    const plan = planOfficialLogos([component('E/ESPN')], LIBRARY, [premium]);
+    expect(plan.find((p) => p.node === '346:3892')).toEqual(premium);
+    // a curadoria vence o casamento automático do mesmo slot
+    expect(plan.find((p) => p.name === 'ESPN')).toMatchObject({ broadcaster: null, status: 'unmapped' });
+  });
+
   it('agrupa principal e canais por emissora (variantes e sem mapeamento ficam de fora)', () => {
     const logos = planOfficialLogos(
       [component('E/ESPN'), component('E/ESPN HD'), component('E/ESPN 3'), component('C/Cartoon Network')],
