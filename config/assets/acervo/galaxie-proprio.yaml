@@ -1987,6 +1987,10 @@ logos:
     png: teams/brasil/barcelona-de-ilheus.png
     webp: teams/brasil/barcelona-de-ilheus.webp
   sha256: 5aa48c7639fcb3ac349965ab755a97b57474c428890e31d30901b093c7ab9845
+  aliases:
+  - Barcelona de Ilheus
+  - Barcelona BA
+  - Barcelona FC
   target_id: null
   match: ambiguous
   confidence: 0.85
@@ -4363,15 +4367,7 @@ logos:
     webp: teams/alemanha/mulheimer-sv-06.webp
   sha256: 3c77390859416b274537fd36c6ed51557efa7fb0e2741818c1524cfb9f8f6427
   target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163bf-c200-7b9b-998b-6ae0c97cb4e0
-    name: Mülheimer
-    confidence: 0.85
-  - id: 01a16f0a-5159-7584-bc6d-aa9700aa89d8
-    name: Mulheimer SV 07
-    confidence: 0.81
+  match: rejected
 - key: teams/alemanha/paderborn
   kind: team
   country: DE
