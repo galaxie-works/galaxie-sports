@@ -694,6 +694,12 @@ export type EventsQuery = z.input<typeof EventsQuery>;
 export const LiveEventsQuery = LocaleQuery.extend({
   sport: z.string().max(40).optional(),
   competition: z.string().min(1).max(120).optional().meta({ description: 'UUID ou slug da competição.' }),
+  country: z
+    .string()
+    .max(20)
+    .transform((v) => v.toUpperCase())
+    .optional()
+    .meta({ description: 'País da competição ou de um participante (como em `/v1/events`).', example: 'BR' }),
   market: MarketParam.optional(),
   stakes: StakesParam,
 });

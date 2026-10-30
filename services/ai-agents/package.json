@@ -45,7 +45,7 @@
     "ai:status": "node --env-file-if-exists=../../.env dist/cli/ai-status.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.136.0",
+    "@anthropic-ai/sdk": "^1.3.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
@@ -59,7 +59,7 @@
     "ajv": "^8.20.0",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
-    "openai": "^7.39.0",
+    "openai": "^7.44.0",
     "playwright-core": "1.64.0",
     "yaml": "^2.9.1"
   },

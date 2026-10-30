@@ -3,7 +3,8 @@
  * (com a nossa nomenclatura, `acervoStorageKey`), grava core.asset com `origin = acervo` (paleta incluída) e liga o asset em
  * `custom_logo_asset_id` do time ou da competição — o logo do fornecedor (`logo_asset_id`) nunca é
  * tocado. Os outros formatos do mesmo escudo (SVG, PNG e WebP do pacote) vão para o storage com a mesma
- * nomenclatura e ficam em `core.asset.variants`, publicados pela API em `logo_formats`. Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
+ * nomenclatura e ficam em `core.asset.variants`, publicados pela API em `logo_formats`; do PNG saem
+ * PNG e WebP em 64, 128 e 256 px (`variants.sizes`, `logo_sizes` na API). Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
  * manifesto sai do time (o asset fica, sem apagar nada). A API só mostra esses logos com a flag
  * ASSETS_CUSTOM_LOGOS ligada.
  */
@@ -29,6 +30,7 @@ import { imageInfo } from '../image-info.js';
 import type { ObjectStore } from '../object-store.js';
 import { paletteFromPng, type AssetPalette } from '../palette.js';
 import { LOGO_FORMATS, type AcervoLogo, type AcervoManifest, type LogoFormat } from './manifest.js';
+import { sizedLogos } from './sizes.js';
 import type { MatchTarget } from './match.js';
 import type { CountryRow } from './plan.js';
 import { paletteFromSvg } from './svg-palette.js';
@@ -305,6 +307,7 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
       }
       // os demais formatos do mesmo escudo: arquivo inválido fica de fora sem derrubar o logo
       const variants: AssetVariants = {};
+      let pngBody: Uint8Array | null = info.contentType === 'image/png' ? body : null;
       for (const [format, file] of Object.entries(logoFormats(logo)) as [LogoFormat, string][]) {
         if (file === logo.file) {
           variants[format] = {
@@ -340,6 +343,30 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
           width: vInfo.width,
           height: vInfo.height,
         };
+        if (format === 'png') pngBody = vBody;
+      }
+      // tamanhos fixos (64/128/256) do PNG em PNG e WebP: falha aqui não derruba o logo
+      if (pngBody) {
+        try {
+          for (const sized of await sizedLogos(pngBody)) {
+            const sHash = sha256(sized.body);
+            const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;
+            if ((await objects.head(sKey))?.sha256 !== sHash) {
+              await objects.put(sKey, sized.body, sized.contentType, sHash);
+              report.uploaded += 1;
+            }
+            const bySize = ((variants.sizes ??= {})[`${sized.size}`] ??= {});
+            bySize[sized.format] = {
+              storage_key: sKey,
+              sha256: sHash,
+              bytes: sized.body.length,
+              width: sized.size,
+              height: sized.size,
+            };
+          }
+        } catch (err) {
+          emit({ type: 'skipped', key: `${logo.key}.sizes`, reason: `tamanhos não gerados: ${String(err)}` });
+        }
       }
       const paletteBody = logo.palette_file
         ? new Uint8Array(readFileSync(join(options.dir, logo.palette_file)))

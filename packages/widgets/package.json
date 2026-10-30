@@ -41,9 +41,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
-    "happy-dom": "^20.0.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "happy-dom": "^21.0.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "shadcn": "^4.22.1"
   }
 }
