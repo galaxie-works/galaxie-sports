@@ -450,6 +450,57 @@ describe('conversor da base por país', () => {
     });
   });
 
+  it('logo antigo herdado por duas pastas novas não deixa dois vínculos no mesmo alvo', () => {
+    const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
+    const logo = (key: string, countryFolder: string) => ({
+      key,
+      kind: 'team' as const,
+      countryFolder,
+      name: 'Atlético Mineiro',
+      file: `${key}.svg`,
+      sha256: key,
+    });
+    const scan = {
+      info: { id: 'x', name: 'x', revision: '1' },
+      groups: { brasil: { country: 'Brasil' }, mundial: { country: 'Mundial' } },
+      logos: [
+        logo('teams/brasil/atletico-mineiro', 'brasil'),
+        logo('teams/mundial/atletico-mineiro', 'mundial'),
+      ],
+      ignored: [],
+      rejected: {},
+    } as unknown as ReturnType<typeof scanAcervo>;
+    const previous = {
+      schema_version: 1,
+      acervo: scan.info,
+      generated_at: '2026-10-29T00:00:00Z',
+      logos: [
+        {
+          key: 'teams/mundial-libertadores/atletico-mineiro',
+          kind: 'team' as const,
+          country: 'WORLD',
+          name: 'Atlético Mineiro',
+          file: 'x.svg',
+          sha256: 'x',
+          target_id: 'cam',
+          match: 'auto' as const,
+          confidence: 1,
+        },
+      ],
+    } as unknown as Parameters<typeof planManifest>[3];
+    const { manifest } = planManifest(
+      scan,
+      [club('cam', 'Atletico Mineiro', 'BR')],
+      countries,
+      previous,
+      new Date(),
+    );
+    expect(manifest.logos.filter((l) => l.target_id === 'cam').map((l) => l.key)).toEqual([
+      'teams/brasil/atletico-mineiro',
+    ]);
+    expect(manifest.logos.find((l) => l.key === 'teams/mundial/atletico-mineiro')!.match).toBe('duplicate');
+  });
+
   it('logo de competição liga pela liga da api-sports quando o nome de mercado difere do cadastro', () => {
     const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
     const serieA: MatchTarget = {

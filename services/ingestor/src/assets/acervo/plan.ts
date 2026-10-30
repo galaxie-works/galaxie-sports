@@ -196,12 +196,13 @@ export function planManifest(
     const manual = list.some((l) => l.match === 'manual');
     const autos = list.filter((l) => l.match === 'auto');
     if (!manual && autos.length < 2) continue;
-    // um vínculo mantido da varredura anterior vence o automático novo no mesmo alvo
+    // um vínculo mantido da varredura anterior vence o automático novo no mesmo alvo (dois mantidos no
+    // mesmo alvo, como o logo antigo copiado para duas pastas, seguem a regra geral abaixo)
     const keptHere = autos.filter((l) => kept.has(l.key));
-    if (!manual && keptHere.length) {
-      const domesticKept = keptHere.some((l) => l.country !== 'WORLD');
+    if (!manual && keptHere.length === 1) {
+      const domesticKept = keptHere[0]!.country !== 'WORLD';
       for (const l of autos) {
-        if (kept.has(l.key)) continue;
+        if (l === keptHere[0]) continue;
         l.candidates = [
           { id: l.target_id!, name: l.target_name ?? l.target_id!, confidence: l.confidence ?? 0 },
         ];
