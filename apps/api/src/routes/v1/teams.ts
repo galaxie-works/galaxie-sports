@@ -83,6 +83,7 @@ import {
   decodeCursor,
   encodeCursor,
   logoFormats,
+  logoSizes,
   logoSource,
   parseInput,
   UUID_RE,
@@ -217,6 +218,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       ...toSummary(row, nick, names),
       logo_source: logoSource(row.logoOrigin),
       logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
+      logo_sizes: logoSizes(ctx.assetsBaseUrl, row.logoVariants),
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,

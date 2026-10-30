@@ -5,3 +5,5 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # binários prontos vêm dos opcionais @img/sharp-*; o script de instalação só confere
+  sharp: false
