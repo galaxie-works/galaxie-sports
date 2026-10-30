@@ -46,6 +46,7 @@ const platform = (id: string, slug: string, name: string, kind: PlatformKind): L
   officialDomains: [],
   logoAssetId: null,
   customLogoAssetId: null,
+  customLogoDarkAssetId: null,
   broadcasterId: null,
   planPages: [],
   planPagesHash: null,

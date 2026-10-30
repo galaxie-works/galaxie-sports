@@ -309,7 +309,7 @@ Os direitos dizem **quem pode** passar; o canal do jogo diz **quem passa este jo
 | Momento (`purpose`) | Flag (padrão) | Quando | Quem entra |
 |---|---|---|---|
 | `weekly` | `WTW_CHANNEL_WEEKLY_CRON` (`0 6 * * 1`, segunda 06:00 UTC; `off` desliga) | no tick, para as rodadas cujo primeiro jogo cai entre `tick + maior retentativa` e `próximo tick + maior retentativa` (padrão: 3 a 10 dias à frente); cada rodada entra em uma consulta só; tick perdido é recuperado até a primeira retentativa abrir | todos os jogos × mercados da rodada sem canal confirmado |
-| `retry-3d`, `retry-1d` | `WTW_CHANNEL_RETRY_OFFSETS` (`3d,1d`; horas também, ex. `36h`; `off` desliga) | antes do primeiro jogo ainda por começar da rodada; a retentativa que abriria menos de 24 h depois da consulta semanal da rodada é dispensada | **só** os que seguem sem canal confirmado |
+| `retry-3d`, `retry-1d`, `retry-6h` | `WTW_CHANNEL_RETRY_OFFSETS` (`3d,1d,6h`; horas também, ex. `36h`; `off` desliga) | antes do primeiro jogo ainda por começar da rodada; a retentativa que abriria menos de 24 h depois da consulta semanal da rodada é dispensada | **só** os que seguem sem canal confirmado |
 | `post` | `WTW_CHANNEL_POST` (`on`) | 3 h depois do último jogo do dia, até 72 h | **só** os encerrados sem canal confirmado (alimenta o onde assistir dos encerrados) |
 
 `wtw:channel --plan` mostra os momentos vigentes (tick atual e próximo) e o momento de cada grupo. Os tetos de sempre continuam valendo em toda chamada: buscas por chamada (`AI_MAX_SEARCHES_PER_CALL`), teto do agente `wtw` (`AI_AGENT_USD_BUDGETS`), teto por mercado e orçamento global.

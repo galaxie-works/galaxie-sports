@@ -7,7 +7,7 @@
 import { and, desc, eq, gte, isNotNull, like, sql } from 'drizzle-orm';
 import { wtwResearch, type Database } from '@galaxie/db';
 import type { UsageWithSearches } from '../llm/budget.js';
-import { LlmError } from '../llm/errors.js';
+import { BudgetExceededError, LlmError } from '../llm/errors.js';
 
 /** Estimativas iniciais (medidas no teste real de 2026-10-22; o histórico substitui quando houver). */
 export const DEFAULT_CALL_USD = { allocation: 0.15, rights: 0.25, channel: 0.15 } as const;
@@ -236,6 +236,16 @@ export async function finishResearch(
       ...(f.model ? { provider: f.model.provider, model: f.model.model } : {}),
     })
     .where(eq(wtwResearch.id, id));
+}
+
+/**
+ * Falha que não é desta pesquisa: orçamento esgotado, IA desligada ou conta do provedor sem crédito.
+ * Fica `skipped` — não soma no limite de falhas do dia nem abre espera —, então a próxima execução do
+ * agendador tenta de novo assim que o crédito volta (a checagem de crédito de hora em hora alerta).
+ * Contar como falha fazia 3 erros de crédito de madrugada encerrarem a família no dia UTC inteiro.
+ */
+export function isOutage(err: unknown): boolean {
+  return err instanceof BudgetExceededError || (err instanceof LlmError && err.kind === 'quota');
 }
 
 /**

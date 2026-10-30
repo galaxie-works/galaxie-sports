@@ -1,4 +1,3 @@
-import type { ExploreAgenda } from '@galaxie/contracts';
 import { CalendarDays, Sparkles } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -6,20 +5,18 @@ import { Suspense } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
-import { CountryFlag } from '@/components/sport/country-flag';
+import { AgendaFilterBar } from '@/components/sport/agenda-filter-bar';
 import { EventCard } from '@/components/sport/event-card';
 import { FilterChip } from '@/components/sport/filter-chip';
-import { FilterCombobox } from '@/components/sport/filter-combobox';
 import { ScrollRow } from '@/components/sport/scroll-row';
 import { Section } from '@/components/sport/section';
 import { Skeleton } from '@/components/ui/skeleton';
 import { exploreAgendaRequest, getExploreAgenda } from '@/lib/galaxie/api';
-import { agendaHref, readAgendaParams, type AgendaParams } from '@/lib/explore-index';
+import { agendaHref, readAgendaParams } from '@/lib/explore-index';
 import { defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { COUNTRIES, sportBySlug } from '@/lib/navigation';
 import type { TrailVisit } from '@/lib/trail';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -50,97 +47,6 @@ function dayLabel(date: string, index: number, locale: Locale, t: Dictionary) {
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
-function Filters({
-  agenda,
-  params,
-  t,
-  locale,
-}: {
-  agenda: ExploreAgenda;
-  params: AgendaParams;
-  t: Dictionary;
-  locale: Locale;
-}) {
-  const ti = t.nav.explore.index;
-  const filtered = !!(params.esporte || params.pais || params.competicao);
-  // trocar um filtro volta ao primeiro dia com jogos (o dia escolhido pode ficar vazio)
-  const href = (change: AgendaParams) => agendaHref({ ...params, dia: null, ...change });
-  const countryCount = new Map(agenda.facets.countries.map((c) => [c.code, c.count]));
-  return (
-    <div className="flex flex-col gap-3">
-      <ScrollRow
-        className="gap-2 py-0.5"
-        label={ti.sport}
-        previous={t.common.scrollPrevious}
-        next={t.common.scrollNext}
-      >
-        <FilterChip href={href({ esporte: null, competicao: null })} active={!params.esporte}>
-          {ti.all}
-        </FilterChip>
-        {agenda.facets.sports.map((s) => {
-          const nav = sportBySlug(s.slug);
-          return (
-            <FilterChip
-              key={s.slug}
-              href={href({ esporte: s.slug, competicao: null })}
-              active={params.esporte === s.slug}
-            >
-              {nav ? t.nav.sports[nav.slug] : s.slug}{' '}
-              <span className="tabular-nums opacity-70">{s.count}</span>
-            </FilterChip>
-          );
-        })}
-      </ScrollRow>
-      <ScrollRow
-        className="gap-2 py-0.5"
-        label={ti.country}
-        previous={t.common.scrollPrevious}
-        next={t.common.scrollNext}
-      >
-        <FilterChip href={href({ pais: null, competicao: null })} active={!params.pais}>
-          {ti.all}
-        </FilterChip>
-        {COUNTRIES.map((c) => (
-          <FilterChip
-            key={c.code}
-            href={href({ pais: c.code, competicao: null })}
-            active={params.pais === c.code}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <CountryFlag code={c.code} />
-              {t.nav.countries[c.code]}
-              <span className="tabular-nums opacity-70">{countryCount.get(c.code) ?? 0}</span>
-            </span>
-          </FilterChip>
-        ))}
-      </ScrollRow>
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterCombobox
-          param="competicao"
-          value={params.competicao ?? null}
-          reset={['dia', 'limite']}
-          options={agenda.facets.competitions.map((c) => ({
-            value: c.slug,
-            label: c.name,
-            hint: plural(locale, c.count, ti.dayGames),
-          }))}
-          texts={{
-            label: ti.competition,
-            all: ti.allCompetitions,
-            search: ti.searchCompetition,
-            empty: ti.noCompetition,
-          }}
-        />
-        {filtered ? (
-          <Link href={agendaHref({})} className="text-primary text-xs hover:underline">
-            {ti.clearFilters}
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/agenda'>['searchParams'] }) {
   const search = await searchParams;
   const params = readAgendaParams(search);
@@ -169,7 +75,7 @@ async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/ag
         <p className="text-sm font-medium tabular-nums">{plural(locale, agenda.total, ti.totalFiltered)}</p>
       </div>
 
-      <Filters agenda={agenda} params={params} t={t} locale={locale} />
+      <AgendaFilterBar facets={agenda.facets} params={params} />
 
       {agenda.total === 0 ? (
         <EmptyState title={ti.noGamesWindow} />

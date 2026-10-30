@@ -10,12 +10,14 @@
  * 3. grava no mesmo storage e com o mesmo padrão de nome dos outros logos (conteúdo endereçável, sem nome
  *    de marca): `broadcasters/<sha256[0..16]>.<ext>` (biblioteca, como `logoStorageKey` do ingestor) e
  *    `platforms/<sha256[0..16]>.<ext>` (plataforma, como o `PLATFORM_LOGO_PREFIX`);
- * 4. registra o asset e liga na entidade (`setCustomLogo` de `@galaxie/db`), que publica a mudança no
- *    change feed (a API purga as respostas que mostram o logo) e guarda o anterior para voltar.
+ * 4. registra o asset e liga na entidade (`setCustomLogo` de `@galaxie/db`), como logo claro ou como a
+ *    versão para o tema escuro, publica a mudança no change feed (a API purga as respostas que mostram o
+ *    logo) e guarda o anterior para voltar.
  */
 import { createHash } from 'node:crypto';
 import type { Database } from '@galaxie/db/client';
 import { setCustomLogo, type LogoTargetRef } from '@galaxie/db/lineups';
+import type { LogoVariant } from '@galaxie/db';
 
 /** Tamanho máximo do arquivo enviado. */
 export const LOGO_UPLOAD_MAX_BYTES = 512 * 1024;
@@ -350,7 +352,7 @@ export interface UploadLogoResult {
 export async function uploadLogo(
   db: Database,
   objects: LogoObjectStore,
-  input: { target: LogoTargetRef; body: Uint8Array; by: string },
+  input: { target: LogoTargetRef; body: Uint8Array; by: string; variant?: LogoVariant },
 ): Promise<UploadLogoResult> {
   const logo = validateLogoUpload(input.body);
   const sha256 = createHash('sha256').update(logo.body).digest('hex');
@@ -368,6 +370,7 @@ export async function uploadLogo(
       height: logo.height,
     },
     input.by,
+    input.variant ?? 'light',
   );
   return {
     assetId: linked.assetId,

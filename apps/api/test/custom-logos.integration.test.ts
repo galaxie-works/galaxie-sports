@@ -230,7 +230,7 @@ describe('ASSETS_CUSTOM_LOGOS', () => {
     expect(ev.participants.map((p) => p.logo)).toEqual([ACERVO_PAL, PROVIDER_FLA]);
 
     const comp = (await get(`/v1/competitions/${ids.serieA}`)).json<Competition>();
-    // asset do acervo sem formatos gravados (importado antes da 0058): null até reimportar
+    // asset do acervo sem formatos gravados (importado antes da 0062): null até reimportar
     expect(comp).toMatchObject({ logo: ACERVO_SERIE_A, logo_source: 'acervo', logo_formats: null });
 
     const search = (await get('/v1/search?q=palmeiras&types=team')).json<SearchResponse>();

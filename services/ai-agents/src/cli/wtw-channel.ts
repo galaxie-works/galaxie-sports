@@ -7,7 +7,7 @@
  *   pnpm --filter @galaxie/ai-agents wtw:channel                             # importa e pesquisa os grupos devidos (cron: 10 min)
  * Momentos (WTW_CHANNEL_*, também em Ajustes → Esportes e features → Onde assistir): consulta semanal
  * (WTW_CHANNEL_WEEKLY_CRON, padrão segunda 06:00 UTC), retentativas só para quem segue sem canal
- * confirmado (WTW_CHANNEL_RETRY_OFFSETS, padrão 3d,1d) e pós-jogo dos encerrados sem canal
+ * confirmado (WTW_CHANNEL_RETRY_OFFSETS, padrão 3d,1d,6h) e pós-jogo dos encerrados sem canal
  * (WTW_CHANNEL_POST, padrão on). Jogo × mercado com canal confirmado não volta à pesquisa.
  * Opções: --pais BR (senão WTW_MARKETS, senão os mercados dos tenants com where_to_watch), --chamadas N
  * (chamadas ao modelo por execução, padrão 2), --sem-importar (pula a importação das opções salvas).
