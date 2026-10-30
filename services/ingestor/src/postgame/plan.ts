@@ -34,6 +34,12 @@ export const DEFAULT_INTERVAL_MIN = 15;
 export const DEFAULT_MAX_CALLS_DAY = 40;
 export const POSTGAME_CURSOR_ENDPOINT = 'postgame:list';
 export const POSTGAME_CAP_ENDPOINT = 'postgame:cap';
+export const POSTGAME_TRIES_ENDPOINT = 'postgame:tries';
+export const POSTGAME_HOLD_ENDPOINT = 'postgame:hold';
+/** Buscas da lista de uma data sem fechar todos os jogos: depois disso a data fica para a agenda D-1. */
+export const MAX_TRIES_PER_DATE = 12;
+/** Esporte com a cota ADHOC negada fica este tempo sem tentar (nem registrar execução). */
+export const HOLD_AFTER_QUOTA_MS = 60 * 60_000;
 
 export interface PostgameSport {
   sport: ApiSport;
@@ -128,6 +134,19 @@ export const capCursor = (sport: string, day: string): CursorRef => ({
   key: `day=${day}`,
 });
 
+export const triesCursor = (sport: string, date: string): CursorRef => ({
+  sport,
+  endpoint: POSTGAME_TRIES_ENDPOINT,
+  key: `date=${date}`,
+});
+export const holdCursor = (sport: string): CursorRef => ({
+  sport,
+  endpoint: POSTGAME_HOLD_ENDPOINT,
+  key: 'hold',
+});
+
+const idOf = (r: CursorRef) => `${r.sport}|${r.endpoint}|${r.key}`;
+
 export interface DueList {
   sport: ApiSport;
   date: string;
@@ -135,8 +154,9 @@ export interface DueList {
 }
 
 /**
- * Datas na vez: a última busca da lista (esporte, data) foi há pelo menos o intervalo do esporte, e o esporte
- * ainda tem chamadas no dia. Cada esporte gasta no máximo o que sobra do teto; as datas mais antigas primeiro.
+ * Datas na vez: a última busca da lista (esporte, data) foi há pelo menos o intervalo do esporte, o esporte não
+ * está em espera por cota negada, a data ainda não passou de MAX_TRIES_PER_DATE buscas e o esporte ainda tem
+ * chamadas no dia. Cada esporte gasta no máximo o que sobra do teto; as datas mais antigas primeiro.
  */
 export async function dueLists(
   cursors: CursorStore,
@@ -144,23 +164,36 @@ export async function dueLists(
   pending: readonly PendingDay[],
   now: Date,
   maxPerDay: number,
-): Promise<{ due: DueList[]; capped: ApiSport[] }> {
+): Promise<{ due: DueList[]; capped: ApiSport[]; held: ApiSport[]; exhausted: DueList[] }> {
   const today = now.toISOString().slice(0, 10);
   const bySport = new Map(sports.map((s) => [s.sport, s] as const));
-  const refs = pending.map((p) => listCursor(p.sport, p.date));
-  const caps = [...new Set(pending.map((p) => p.sport))].map((s) => capCursor(s, today));
-  const state = await cursors.load([...refs, ...caps]);
+  const sportIds = [...new Set(pending.map((p) => p.sport))];
+  const refs = pending.flatMap((p) => [listCursor(p.sport, p.date), triesCursor(p.sport, p.date)]);
+  const caps = sportIds.map((s) => capCursor(s, today));
+  const holds = sportIds.map((s) => holdCursor(s));
+  const state = await cursors.load([...refs, ...caps, ...holds]);
   const used = new Map<string, number>();
   for (const c of caps) {
-    const n = state.get(`${c.sport}|${c.endpoint}|${c.key}`)?.cursor?.calls;
+    const n = state.get(idOf(c))?.cursor?.calls;
     used.set(c.sport, typeof n === 'number' ? n : 0);
   }
+  const heldSet = new Set<ApiSport>();
+  for (const h of holds) {
+    const until = state.get(idOf(h))?.cursor?.until;
+    if (typeof until === 'string' && Date.parse(until) > now.getTime()) heldSet.add(h.sport as ApiSport);
+  }
   const due: DueList[] = [];
+  const exhausted: DueList[] = [];
   const capped = new Set<ApiSport>();
   for (const p of pending) {
     const cfg = bySport.get(p.sport);
-    if (!cfg) continue;
-    const last = state.get(`${p.sport}|${POSTGAME_CURSOR_ENDPOINT}|date=${p.date}`)?.completedAt;
+    if (!cfg || heldSet.has(p.sport)) continue;
+    const tries = state.get(idOf(triesCursor(p.sport, p.date)))?.cursor?.n;
+    if (typeof tries === 'number' && tries >= MAX_TRIES_PER_DATE) {
+      exhausted.push({ sport: p.sport, date: p.date, pending: p.pending });
+      continue;
+    }
+    const last = state.get(idOf(listCursor(p.sport, p.date)))?.completedAt;
     if (last && now.getTime() - last.getTime() < cfg.intervalMin * MIN - SLACK_MS) continue;
     const spent = used.get(p.sport) ?? 0;
     if (spent >= maxPerDay) {
@@ -170,7 +203,28 @@ export async function dueLists(
     used.set(p.sport, spent + 1);
     due.push({ sport: p.sport, date: p.date, pending: p.pending });
   }
-  return { due, capped: [...capped] };
+  return { due, capped: [...capped], held: [...heldSet], exhausted };
+}
+
+/** Põe o esporte em espera depois de uma cota negada: nada é tentado (nem registrado) até `until`. */
+export async function holdSport(cursors: CursorStore, sport: string, now: Date): Promise<void> {
+  const until = new Date(now.getTime() + HOLD_AFTER_QUOTA_MS).toISOString();
+  await cursors.complete([holdCursor(sport)], { until }, now);
+}
+
+/** Soma uma tentativa em cada (esporte, data) cuja lista saiu para o fornecedor. */
+export async function recordTries(
+  cursors: CursorStore,
+  fetched: readonly DueList[],
+  now: Date,
+): Promise<void> {
+  if (!fetched.length) return;
+  const refs = fetched.map((d) => triesCursor(d.sport, d.date));
+  const state = await cursors.load(refs);
+  for (const ref of refs) {
+    const prev = state.get(idOf(ref))?.cursor?.n;
+    await cursors.complete([ref], { n: (typeof prev === 'number' ? prev : 0) + 1 }, now);
+  }
 }
 
 /** Soma no cursor do teto de cada esporte as chamadas que de fato saíram para o fornecedor nesta execução. */
