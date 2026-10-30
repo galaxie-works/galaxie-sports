@@ -595,6 +595,57 @@ describe('canal do jogo: teto diário por mercado', () => {
     expect(llm.calls[0]!.messages[0]!.content).toMatch(/- MX \(México\)/);
   });
 
+  it('pesquisa presa em andamento (processo morto no meio) não deixa o momento perdido', async () => {
+    const startsAt = new Date(KICKOFF.getTime() + 25 * 24 * H);
+    const now = new Date(startsAt.getTime() - 30 * H);
+    await seedMoreRounds('Regular Season - 70', startsAt, 2);
+    const groups = await groupsOf(now, ['BR'], 'Regular Season - 70');
+    const g = groups[0]!;
+    const key = `channel:${g.key}:${g.season}:BR:morta`;
+    const stuck = (startedAt: Date) =>
+      db
+        .insert(wtwResearch)
+        .values({
+          kind: 'channel',
+          researchKey: key,
+          competitionSlug: 'liga-dividida',
+          markets: ['BR'],
+          status: 'running',
+          startedAt,
+          createdAt: startedAt,
+        })
+        .returning({ id: wtwResearch.id });
+    const llm = silent(0.1);
+    const runner = new MatchChannelRunner({
+      db,
+      llm,
+      config,
+      policy,
+      fetcher: new FakePageFetcher({}),
+      now: () => now,
+    });
+    // ainda pode estar rodando (10 min): o momento fica com ela
+    const [recent] = await stuck(new Date(now.getTime() - 10 * 60_000));
+    expect((await runner.run(groups, { maxCalls: 3, importSaved: false })).groups[0]!.status).toBe(
+      'already_researched',
+    );
+    expect(llm.calls).toHaveLength(0);
+    // 2 h em andamento: o processo morreu; a linha fecha como falha e o momento é pesquisado
+    await db
+      .update(wtwResearch)
+      .set({ startedAt: new Date(now.getTime() - 2 * H) })
+      .where(eq(wtwResearch.id, recent!.id));
+    const r = await runner.run(groups, { maxCalls: 3, importSaved: false });
+    expect(r.groups[0]).toMatchObject({ status: 'researched', calls: 1 });
+    expect(llm.calls).toHaveLength(1);
+    const [dead] = await db.select().from(wtwResearch).where(eq(wtwResearch.id, recent!.id));
+    expect(dead).toMatchObject({
+      status: 'failed',
+      failures: 1,
+      error: expect.stringMatching(/interrompida/),
+    });
+  });
+
   it('mercado cortado pelo teto não fica marcado como pesquisado: entra na rodada seguinte', async () => {
     const startsAt = new Date(KICKOFF.getTime() + 20 * 24 * H);
     const now = new Date(startsAt.getTime() - 30 * H);
