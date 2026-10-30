@@ -24,12 +24,12 @@ não há manutenção de versões antigas.
 | Área | Controle | Onde |
 |---|---|---|
 | Chaves de tenant | Segredo de 256 bits; só o hash scrypt com sal fica no banco; exibida uma vez; rotação com graça; revogação; escopos | `apps/api/src/auth`, [docs/05 §1.1–1.2](docs/05-api-publica.md#11-implementação-schema-api) |
-| Rotas administrativas | `/internal/admin/*`: bloqueadas no proxy público, chave administrativa + allowlist de IP (fora → 404), `no-store`, sem CORS | `apps/api/src/admin`, `infra/caddy/Caddyfile` (stack do Portainer), router do Traefik em `infra/vps-telemetry/compose.yml` (VPS) |
+| Rotas administrativas | `/internal/admin/*`: bloqueadas no proxy público, chave administrativa + allowlist de IP (fora → 404), `no-store`, sem CORS | `apps/api/src/admin`, router do Traefik em `infra/vps-telemetry/compose.yml` (VPS) |
 | Headers | nosniff, `X-Frame-Options: DENY`, CSP restritiva, `no-referrer`, COOP/CORP, HSTS (`HSTS_MAX_AGE`) | `apps/api/src/security/headers.ts` |
 | CORS | Lista explícita (`CORS_ORIGINS`), sem credenciais, nunca em `/internal/*` | `apps/api/src/security/cors.ts` |
 | Entrada | Zod em params/query/corpo de todas as rotas; corpo ≤ 64 KiB; query do espelho limitada; auditoria automática de rotas | `apps/api/src/security/security.test.ts` |
 | Abuso | Rate limit por tenant × rota (Valkey); cache negativo de chaves inválidas (sem recalcular scrypt); rate limit por IP na borda | `apps/api/src/server.ts`, `auth/authenticator.ts` |
-| Logs | Sem headers de chave e com IP mascarado; a chave do SSE em `?key=` é redigida pela API e pelo Caddy (stack do Portainer). Na VPS, a borda é o Traefik, com access log desligado: a chave na query não vai para log. Ligar o access log exige descartar o `RequestPath` | `apps/api/src/observability.ts`, `infra/caddy/Caddyfile`, [infra/vps-telemetry/README.md](infra/vps-telemetry/README.md#logs-e-a-chave-do-sse-key) |
+| Logs | Sem headers de chave e com IP mascarado; a chave do SSE em `?key=` é redigida pela API. Na VPS, a borda é o Traefik, com access log desligado: a chave na query não vai para log. Ligar o access log exige descartar o `RequestPath` | `apps/api/src/observability.ts`, [infra/vps-telemetry/README.md](infra/vps-telemetry/README.md#logs-e-a-chave-do-sse-key) |
 | Segredos no Git | gitleaks no CI (histórico completo) + `.gitignore` de `.env*` | `.github/workflows/ci.yml`, `.gitleaks.toml` |
 | Dependências | Dependabot (npm, Actions, Docker, Compose) + `pnpm audit --prod` informativo | `.github/dependabot.yml` |
 | Backups / DR | Política 3-2-1 com RPO 24 h e RTO alvo de 2 h: dump diário com 7 na VPS (por contagem), cópia no NAS do dono (14 diários + 8 semanais + 12 mensais) e snapshot diário da VPS no provedor da VPS; verificador a cada 6 h (dump e, com o recibo ligado, cópia do NAS com no máximo 26 h); ensaio de restauração automático todo mês, num banco temporário, com conferência e registro em `ops.job_run`; alertas (backup atrasado, ensaio falhou, disco acima de 85%, API fora, fila do change feed parada) por e-mail pelo Grafana. Cópia do NAS: stack `galaxie-sports-backup-nas`, com chaves SSH restritas (só leitura da pasta e só o `touch` do recibo). **Cabe ao dono**: configurar o SMTP dos alertas (sem ele, ficam só no Grafana) | [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md), [infra/vps-telemetry/README.md](infra/vps-telemetry/README.md#backups-ensaio-e-alertas) |
@@ -128,5 +128,5 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
 
 ## Backups e recuperação
 
-Procedimento, ensaio mensal e rollback: [infra/portainer/README.md](infra/portainer/README.md#restore-testado). Registro
+Procedimento, ensaio mensal e rollback: [infra/backup/README.md](infra/backup/README.md#restore-testado). Registro
 do último exercício de DR, com tempos e conferência: [docs/runbooks/exercicio-dr.md](docs/runbooks/exercicio-dr.md).

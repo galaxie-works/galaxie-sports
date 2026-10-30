@@ -93,10 +93,10 @@ galaxie-sports/
 │   └── pwsh/                 # scripts PowerShell operacionais
 ├── infra/
 │   ├── docker-compose.yml    # Postgres 17, Valkey, RustFS (S3), bucket de assets
-│   ├── portainer/            # stack de staging (Portainer) + guia de deploy/restore
+│   ├── vps-telemetry/        # stack da VPS (Traefik) + scripts do deploy
 │   ├── backup/               # imagem de backup: pg_dump diário, retenção, restore scriptado
 │   ├── observability/        # Prometheus (alertas) e Grafana (painel de cota)
-│   └── caddy/                # proxy reverso com TLS automático
+│   └── traefik/              # borda da VPS (TLS e roteamento)
 └── docs/                     # esta documentação
 ```
 
@@ -210,7 +210,7 @@ sequenceDiagram
 | Ambiente | Onde | Dados |
 |---|---|---|
 | `local` | Docker Compose (`infra/docker-compose.yml`) | Snapshot do raw (dump) — zero chamadas ao fornecedor |
-| `staging` | VPS + Portainer ([`infra/portainer`](../infra/portainer/README.md): stack, TLS, backups, restore e observabilidade) | Ingestão real com chave free |
+| `staging` | VPS com Traefik ([`infra/vps-telemetry`](../infra/vps-telemetry/README.md): stack e deploy; backups e restore em [`infra/backup`](../infra/backup/README.md)) | Ingestão real |
 | `production` | VPS dedicada ou nuvem gerenciada | Plano pago do fornecedor + CDN |
 
 Variáveis de ambiente principais (nunca versionadas):

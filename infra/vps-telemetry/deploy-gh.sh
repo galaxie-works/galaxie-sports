@@ -108,7 +108,7 @@ LOCK_ID="gha-$RUN_ID-$(date +%s)"
 rollback_help() {
   local o="${OLD:0:7}"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
     echo "FAIL  ou rode o workflow Deploy com sha=${OLD} (as imagens dele seguem no GHCR)"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
@@ -289,7 +289,7 @@ restore_previous() {
     && for s in ${NAMES[*]}; do docker image inspect \$prefix-\$s:$OLD >/dev/null 2>&1 \
       || { [ -n '$CANDIDATE' ] && DOCKER_CONFIG=$CFG docker pull -q \$prefix-\$s:$OLD >/dev/null; } || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
-    && docker compose up -d --scale ingestor=$SCALE --quiet-pull </dev/null"; then
+    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull </dev/null"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then

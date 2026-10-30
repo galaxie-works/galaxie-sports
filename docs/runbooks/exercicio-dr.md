@@ -2,7 +2,7 @@
 
 Política de backup do Postgres, o que roda sozinho (verificador, ensaio mensal e alertas), o que o NAS do dono faz, e
 o roteiro do exercício completo, com o registro dos exercícios feitos. O procedimento operacional (restore real e
-rollback) está em [infra/portainer/README.md §Backups e §Restore](../../infra/portainer/README.md#backups).
+rollback) está em [infra/backup/README.md](../../infra/backup/README.md).
 
 ## Objetivos
 

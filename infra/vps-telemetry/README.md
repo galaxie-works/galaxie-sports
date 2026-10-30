@@ -1,6 +1,6 @@
 # Staging na VPS "telemetry" (Traefik)
 
-Stack em [`compose.yml`](compose.yml), derivada de [`infra/portainer/stack.yml`](../portainer/stack.yml) para uma VPS que
+Stack em [`compose.yml`](compose.yml), derivada da antiga stack do Portainer (aposentada em 30/10/2026) para uma VPS que
 **já tem Traefik v3 em produção** (`network_mode: host`, provider Docker com `exposedByDefault=false`,
 entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 
@@ -11,6 +11,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | Sem `build:`; imagens do GHCR (o deploy baixa as do SHA; `PULL_POLICY=missing` no resto do tempo) | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
 | Sub-rede fixa `172.30.50.0/24` e `TRUST_PROXY=172.30.50.1` | o Traefik chega aos contêineres pelo gateway da rede |
 | `mem_limit` por serviço (S3 1g, Grafana 512m: com 256m os dois chegam ao limite) | a VPS hospeda outras stacks |
+| Serviço `webhooks`: worker de entrega dos webhooks, com a imagem da API e sem porta | entrega das notificações assinadas aos clientes (docs/05 §5.2) |
 | Serviço `demo` com login próprio (convites, papéis, prazo e atividade) | o app de demonstração (metadados em negociação) |
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |

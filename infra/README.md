@@ -6,14 +6,13 @@ observabilidade e os scripts de operação.
 | Pasta / arquivo | O que é | Onde roda |
 |---|---|---|
 | [`docker-compose.yml`](docker-compose.yml) | Infra **local**: Postgres 17 (porta 5433), Valkey, RustFS/S3 + bucket, e o k6 (perfil `load`) | máquina de dev (`pnpm infra:up`) |
-| [`vps-telemetry/`](vps-telemetry/README.md) | **Stack que o deploy usa hoje**: Traefik na borda, imagens do GHCR, `api`, `demo`, `ingestor`, `agents`, `lineup-render`, backup, Prometheus e Grafana, página de manutenção, scripts do deploy (`deploy-gh.sh`, `live-hold.sh`) | VPS (o nome é o da máquina) |
+| [`vps-telemetry/`](vps-telemetry/README.md) | **A stack da VPS**: Traefik na borda, imagens do GHCR, `api`, `demo`, `ingestor`, `agents`, `webhooks`, `lineup-render`, backup, Prometheus e Grafana, página de manutenção, scripts do deploy (`deploy-gh.sh`, `live-hold.sh`) | VPS (o nome é o da máquina) |
 | [`traefik/`](traefik/README.md) | Cópia do Traefik da VPS, que serve todas as stacks de lá | VPS |
-| [`portainer/`](portainer/README.md) | Primeira stack de staging (Caddy com TLS, `build:` local). Ficou como referência | Portainer |
 | [`ops/`](ops/README.md) | Plano B de operação a partir da máquina de dev (deploy, trem de merge, portão do Codex, issue de alerta) | dev (Git Bash) |
-| `backup/` | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
+| [`backup/`](backup/README.md) | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
 | `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) | NAS |
 | `observability/` | Imagens do Prometheus (alertas, SLOs, testes de regra) e do Grafana (painéis de cota e SLO, alertas → issues) | VPS |
-| `caddy/` | Imagem do Caddy da stack do Portainer | Portainer |
+| `caddy/` | Imagem do Caddy da antiga stack do Portainer, sem uso. Fica só enquanto `build caddy` for check obrigatório da `main`; sai quando o check for retirado | nenhum |
 | `lineup-render/` | Servidor do Playwright para renderizar páginas de grade com JavaScript. Fora do workspace pnpm (tem `package-lock.json` próprio) | VPS (`lineup-render`) |
 | `healthcheck/selfheal.mjs` | Healthcheck com auto-reinício, copiado nas imagens Node (API, demo, ingestor) | dentro das imagens |
 
@@ -29,8 +28,7 @@ Passo a passo: [docs/runbooks/deploy-pelo-github.md](../docs/runbooks/deploy-pel
 [docs/runbooks/exercicio-dr.md](../docs/runbooks/exercicio-dr.md) · Alertas:
 [docs/runbooks/alertas-e-monitoramento.md](../docs/runbooks/alertas-e-monitoramento.md).
 
-## Duas stacks
+## Stack única
 
-A `vps-telemetry/compose.yml` é derivada da `portainer/stack.yml` e é a que está no ar. Quem muda um serviço deve mudar
-a `vps-telemetry`; a do Portainer não recebe as mudanças mais recentes (ex.: `agents`, `lineup-render`, `demo`). Ver
-[docs/15 §5, F5](../docs/15-organizacao-do-monorepo.md#5-fronteiras-confusas-hoje).
+A stack do Portainer (Caddy com TLS e `build:` local) foi a primeira staging e foi aposentada em 30/10/2026. O que ela
+documentava de backup e restore está em [backup/README.md](backup/README.md); o resto vale pela `vps-telemetry`.

@@ -10,7 +10,7 @@
 #
 # A restauração real é feita num banco novo (<db>_restoring), conferida e só então trocada pelo nome:
 # o banco anterior fica guardado como <db>_pre_restore_<data> para rollback (apague quando não precisar mais).
-# Pare API e ingestor antes (ver infra/portainer/README.md) — conexões abertas ao banco antigo são encerradas.
+# Pare API, ingestor, agents e webhooks antes (ver infra/backup/README.md) — conexões ao banco antigo são encerradas.
 set -eu
 . /usr/local/lib/galaxie-backup/lib.sh
 
