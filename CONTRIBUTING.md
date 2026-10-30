@@ -17,6 +17,9 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 
 ## Organização
 
+Cada pasta abaixo tem um `README.md` próprio. Mapa geral, dependências e fronteiras: [docs/15](docs/15-organizacao-do-monorepo.md).
+Apps e serviços não importam uns aos outros; código compartilhado vai para `packages/`, e `packages/` nunca importa `apps/` nem `services/`.
+
 | Onde | O quê |
 |---|---|
 | `packages/db` | Schema Drizzle (`src/schema/*`), migrations (`drizzle/`), cliente e migrator |
@@ -30,7 +33,12 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 | `services/ingestor` | Jobs de bootstrap, sync, live, assets e normalização raw → core; CLIs em `src/cli` |
 | `packages/where-to-watch` | Onde assistir determinístico: dicionário de emissoras e tabela de direitos (`config/broadcasters`, `config/broadcast-rights`), validador, versionamento, correção editorial, auditoria e métricas |
 | `services/ai-agents` | Camada de LLM independente de provedor (OpenAI/Anthropic, orçamento de tokens) e agentes de IA (onde assistir, cenário, live scheduler, curadoria) |
+| `packages/runtime-config` | Flags da operação que mudam sem deploy (banco > env > padrão), editadas em Ajustes na demo |
+| `packages/ai-ledger` | Orçamento diário de IA (`ops.llm_usage`): preços, tetos em tokens e US$ e reserva antes de cada chamada |
+| `packages/net-guard` | Proteção contra SSRF: use `guardedFetch` para qualquer URL de terceiro |
+| `packages/widgets` | Widgets React, item de registry shadcn do Builder e embed `<galaxie-widget>` |
 | `apps/api` | API pública (Fastify): `/mirror/...` e `/v1/...` |
+| `apps/demo` | Next.js: demo, portal do cliente, Builder e ajustes da operação; dado esportivo só pela API |
 | `docs/` | Documentação (pt-BR). Atualize o doc relevante junto com o código |
 
 ## Regras
