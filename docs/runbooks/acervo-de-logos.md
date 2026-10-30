@@ -66,11 +66,10 @@ pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--pla
 
 ## Manifesto e curadoria
 
-> **Atenção (30/10/2026):** não rode `--mapear` sobre o manifesto versionado antes de corrigir o casador. Com as
-> mudanças do #456 (tabela de ligas e `normalizeName`), a varredura rebaixa para `ambiguous`/`unmatched` 88 escudos
-> que hoje estão ligados (Bayern, Cruzeiro, Atlético-MG, Lyon, Slavia Praha…), e a importação desligaria esses
-> logos. O manifesto versionado é o combinado de 30/10: os 808 vínculos anteriores intactos mais os 57 que a
-> curadoria por apelido resolveu (865 ligados). Para importar, use-o direto, sem `--mapear`.
+> **Vínculos mantidos (30/10/2026):** o `--mapear` não desfaz um vínculo `auto` cujo alvo ainda existe no cadastro.
+> Antes, ele recasava tudo, e as mudanças do #456 (tabela de ligas e `normalizeName`) rebaixavam 88 escudos ligados
+> (Bayern, Cruzeiro, Lyon…). Agora só os sem vínculo são casados de novo, e um automático novo que disputa o alvo
+> de um vínculo mantido vai para a curadoria. Para trocar um vínculo automático, use `match: manual`.
 
 `config/assets/acervo/<id>.yaml` é versionado e guarda o rastro de cada logo: chave, arquivo, país, nome, `sha256`, `target_id` (time ou competição), `match` e confiança. A revisão do pacote fica em `acervo.revision`.
 
