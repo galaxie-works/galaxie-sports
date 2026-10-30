@@ -72,7 +72,7 @@
     "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/client-s3": "^3.1157.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
@@ -87,7 +87,7 @@
     "@galaxie/where-to-watch": "workspace:*",
     "croner": "^10.0.1",
     "drizzle-orm": "^0.45.4",
-    "sharp": "0.34.4",
+    "sharp": "0.35.5",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
