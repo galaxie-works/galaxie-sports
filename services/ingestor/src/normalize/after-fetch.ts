@@ -9,7 +9,12 @@
  * tenta de novo.
  */
 import type { Database } from '@galaxie/db';
-import { normalizeFootballEnvelope, type EnvelopeLike } from '@galaxie/providers';
+import {
+  normalizeFootballEnvelope,
+  normalizeSportEnvelope,
+  type ApiSportsOtherSport,
+  type EnvelopeLike,
+} from '@galaxie/providers';
 import type { AfterFetch } from '../jobs/runtime/runner.js';
 import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
@@ -17,7 +22,16 @@ export interface NormalizeAfterFetchOptions extends UpsertOptions {
   /** Endpoints normalizados (padrão: todos os do futebol que alimentam o core). */
   endpoints?: readonly string[] | undefined;
   onError?: ((err: unknown, endpoint: string, params: Record<string, string>) => void) | undefined;
+  /**
+   * Também normaliza as respostas dos outros 11 esportes (`normalizeSportEnvelope`), sem esperar o
+   * `normalize-sports` de hora em hora. Só a lista do dia (`/games`, `/fights`, `/races`) entra aqui; o resto
+   * continua com o job de normalização.
+   */
+  otherSports?: boolean | undefined;
 }
+
+/** Endpoints dos outros esportes normalizados direto no gancho (a lista do dia). */
+const OTHER_SPORT_LIST_ENDPOINTS = new Set(['/games', '/fights', '/races']);
 
 export interface NormalizeAfterFetchReport {
   responses: number;
@@ -43,17 +57,29 @@ export function normalizeAfterFetch(
   const allowed = options.endpoints ? new Set(options.endpoints) : null;
   const afterFetch: AfterFetch = async (envelope, request) => {
     report.responses += 1;
-    if (request.sport !== 'football' || (allowed && !allowed.has(request.endpoint))) {
+    const other =
+      request.sport !== 'football' &&
+      !!options.otherSports &&
+      OTHER_SPORT_LIST_ENDPOINTS.has(request.endpoint);
+    if ((request.sport !== 'football' && !other) || (allowed && !allowed.has(request.endpoint))) {
       report.skipped += 1;
       return;
     }
     try {
-      const normalized = normalizeFootballEnvelope(
-        request.endpoint,
-        envelope as EnvelopeLike,
-        request.fetchedAt,
-        request.params,
-      );
+      const normalized = other
+        ? normalizeSportEnvelope(
+            request.sport as ApiSportsOtherSport,
+            request.endpoint,
+            envelope as EnvelopeLike,
+            request.fetchedAt,
+            request.params,
+          )
+        : normalizeFootballEnvelope(
+            request.endpoint,
+            envelope as EnvelopeLike,
+            request.fetchedAt,
+            request.params,
+          );
       if (!normalized) {
         report.skipped += 1;
         return;
