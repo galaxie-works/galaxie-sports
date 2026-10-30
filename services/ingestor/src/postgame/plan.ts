@@ -36,7 +36,11 @@ export const POSTGAME_CURSOR_ENDPOINT = 'postgame:list';
 export const POSTGAME_CAP_ENDPOINT = 'postgame:cap';
 export const POSTGAME_TRIES_ENDPOINT = 'postgame:tries';
 export const POSTGAME_HOLD_ENDPOINT = 'postgame:hold';
-/** Buscas da lista de uma data sem fechar todos os jogos: depois disso a data fica para a agenda D-1. */
+/**
+ * Buscas da lista de uma data sem fechar todos os jogos, no modo `fechamento` (que começa no fim previsto): depois
+ * disso a data fica para a agenda D-1. No `tempo-real` não vale, porque as buscas cobrem o jogo inteiro; ali quem
+ * limita é o teto do dia.
+ */
 export const MAX_TRIES_PER_DATE = 12;
 /** Esporte com a cota ADHOC negada fica este tempo sem tentar (nem registrar execução). */
 export const HOLD_AFTER_QUOTA_MS = 60 * 60_000;
@@ -155,7 +159,8 @@ export interface DueList {
 
 /**
  * Datas na vez: a última busca da lista (esporte, data) foi há pelo menos o intervalo do esporte, o esporte não
- * está em espera por cota negada, a data ainda não passou de MAX_TRIES_PER_DATE buscas e o esporte ainda tem
+ * está em espera por cota negada, a data ainda não passou de MAX_TRIES_PER_DATE buscas (só no modo fechamento) e o
+ * esporte ainda tem
  * chamadas no dia. Cada esporte gasta no máximo o que sobra do teto; as datas mais antigas primeiro.
  */
 export async function dueLists(
@@ -189,7 +194,7 @@ export async function dueLists(
     const cfg = bySport.get(p.sport);
     if (!cfg || heldSet.has(p.sport)) continue;
     const tries = state.get(idOf(triesCursor(p.sport, p.date)))?.cursor?.n;
-    if (typeof tries === 'number' && tries >= MAX_TRIES_PER_DATE) {
+    if (cfg.mode === 'fechamento' && typeof tries === 'number' && tries >= MAX_TRIES_PER_DATE) {
       exhausted.push({ sport: p.sport, date: p.date, pending: p.pending });
       continue;
     }

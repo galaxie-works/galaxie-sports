@@ -113,7 +113,13 @@ describe('fechamento pós-jogo: quem está na vez', () => {
       await recordTries(cursors, [{ sport: 'nba', date: '2026-10-29', pending: 2 }], NOW);
     const state = await cursors.load([triesCursor('nba', '2026-10-29')]);
     expect(state.get('nba|postgame:tries|date=2026-10-29')?.cursor).toEqual({ n: MAX_TRIES_PER_DATE });
-    const { due, exhausted } = await dueLists(cursors, sports, pending, NOW, 40);
+    // NBA está em tempo real nesta suíte: o teto de tentativas não vale (o jogo inteiro é coberto)
+    const rt = await dueLists(cursors, sports, pending, NOW, 40);
+    expect(rt.exhausted).toEqual([]);
+    expect(rt.due.some((d) => d.sport === 'nba' && d.date === '2026-10-29')).toBe(true);
+    // no modo fechamento, a data sai depois do teto
+    const closing = postgameSports({});
+    const { due, exhausted } = await dueLists(cursors, closing, pending, NOW, 40);
     expect(exhausted.map((d) => `${d.sport} ${d.date}`)).toEqual(['nba 2026-10-29']);
     expect(due.map((d) => `${d.sport} ${d.date}`)).toEqual(['volleyball 2026-10-29', 'nba 2026-10-30']);
   });
