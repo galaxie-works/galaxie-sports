@@ -2,7 +2,7 @@ import { LanguageSelect } from '@/components/app-shell/language-select';
 import { buttonVariants } from '@/components/ui/button';
 import { StarfieldBackground } from '@/components/ui/starfield';
 import { getT } from '@/lib/i18n/server';
-import { CONTACT_EMAIL, LOGO_PATH } from '@/lib/site';
+import { CONTACT_EMAIL, LOGO_PATH, STATUS_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
 /** Seções da apresentação, na ordem do menu. */
@@ -17,7 +17,7 @@ const SECTION_IDS: Record<(typeof SECTIONS)[number], string> = {
 
 /**
  * Moldura das páginas públicas (apresentação, termos e privacidade): o céu estrelado do login, um
- * cabeçalho em pílula que acompanha a rolagem e o rodapé com os links legais e o idioma. Links comuns
+ * cabeçalho em pílula que acompanha a rolagem e o rodapé com os links legais, o status e o idioma. Links comuns
  * (`<a>`), não `<Link>`: a raiz muda de página quando a pessoa entra, e a navegação completa não deixa a
  * apresentação no cache do roteador. `onLanding`: as âncoras do menu apontam para a própria página.
  */
@@ -105,6 +105,9 @@ export async function PublicShell({
               </a>
               <a href="/privacidade" className="hover:text-foreground">
                 {t.nav.privacy}
+              </a>
+              <a href={STATUS_URL} className="hover:text-foreground">
+                {t.nav.status}
               </a>
             </nav>
             <LanguageSelect className="h-9" />

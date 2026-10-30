@@ -108,8 +108,17 @@ export type AssetVariant = {
   width: number | null;
   height: number | null;
 };
-/** Todos os formatos do mesmo logo (o servido em `storage_key` entra também); vazio fora do acervo. */
-export type AssetVariants = Partial<Record<AssetFormat, AssetVariant>>;
+/** Tamanhos fixos gerados do PNG do acervo (o maior, 512, é o próprio `png`/`webp`). */
+export const ASSET_SIZES = [64, 128, 256] as const;
+export type AssetSize = (typeof ASSET_SIZES)[number];
+export type AssetRasterFormat = Exclude<AssetFormat, 'svg'>;
+/**
+ * Todos os formatos do mesmo logo (o servido em `storage_key` entra também) e, em `sizes`, o PNG e o WebP
+ * em cada tamanho fixo; vazio fora do acervo.
+ */
+export type AssetVariants = Partial<Record<AssetFormat, AssetVariant>> & {
+  sizes?: Partial<Record<`${AssetSize}`, Partial<Record<AssetRasterFormat, AssetVariant>>>>;
+};
 
 export const asset = core.table(
   'asset',

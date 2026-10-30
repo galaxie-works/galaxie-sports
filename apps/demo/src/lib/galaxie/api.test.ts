@@ -92,6 +92,11 @@ const PAIRS: [string, ApiRequest, (c: ReturnType<typeof createGalaxieClient>) =>
   ['escalações', lineupsRequest(EVENT, 'pt-BR'), (c) => c.eventLineups(EVENT)],
   ['estatísticas', statsRequest(EVENT, 'pt-BR'), (c) => c.eventStats(EVENT)],
   ['ao vivo', liveEventsRequest('pt-BR'), (c) => c.liveEvents({ market: 'BR' })],
+  [
+    'ao vivo do país',
+    liveEventsRequest('pt-BR', 'pt-BR', 'BR'),
+    (c) => c.liveEvents({ country: 'BR', market: 'BR' }),
+  ],
   ['minuto a minuto', timelineRequest(EVENT, 'pt-BR'), (c) => c.eventTimeline(EVENT)],
   ['pessoa', personRequest(TEAM, 'pt-BR'), (c) => c.person(TEAM)],
   ['perfil', personOverviewRequest(TEAM, 'pt-BR'), (c) => c.personOverview(TEAM)],

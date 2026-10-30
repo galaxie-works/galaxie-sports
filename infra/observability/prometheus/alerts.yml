@@ -259,17 +259,22 @@ groups:
           summary: 'Coletor de métricas {{ $labels.collector }} falhando'
           description: 'A consulta ao banco para as métricas falha há 5 minutos (banco indisponível?).'
 
+      # NFR de p95 ≤ 150 ms com cache quente: só vale com tráfego (≥ 1 req/s nas rotas da API). Abaixo disso quase toda
+      # requisição é MISS (o TTL do ao vivo é 10 s) e o p95 de 5 min vira o tempo de uma ou duas montagens frias (#450).
+      # Fora /metrics, /health e /internal, como no p99 por rota.
       - alert: ApiLatencyP95High
         expr: >-
           histogram_quantile(0.95,
-            sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!="/metrics"}[5m]))
+            sum by (le) (rate(galaxie_http_request_duration_seconds_bucket{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m]))
           ) > 0.15
+          and on ()
+          sum(rate(galaxie_http_request_duration_seconds_count{route!~"/metrics|/health.*|/internal/.*|unmatched"}[5m])) > 1
         for: 10m
         labels:
           severity: warning
         annotations:
           summary: 'p95 da API acima de 150 ms'
-          description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente).'
+          description: 'p95 atual: {{ $value | humanizeDuration }} (NFR: ≤ 150 ms com cache quente, com 1 req/s ou mais nas rotas da API).'
 
       # p99 por rota (o p95 acima mistura todas): uma rota quente que ficou lenta (placar ao vivo sem cache, consulta
       # sem índice) aparece mesmo com o resto rápido. Só rota com tráfego (≥ 30 req/min, para o p99 não ser uma

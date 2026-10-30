@@ -169,6 +169,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
                 sport: query.sport,
                 sports,
                 competition: query.competition,
+                country: query.country,
                 status: IN_PLAY,
               }),
               actuallyLiveCond(bctx.now),

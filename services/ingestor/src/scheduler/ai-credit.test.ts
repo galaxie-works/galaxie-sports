@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { checkAiCredit } from './ai-credit.js';
+import { checkAiCredit, reportAiHeartbeat } from './ai-credit.js';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -125,5 +125,36 @@ describe('checkAiCredit (mesma checagem do deploy.sh)', () => {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
     );
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('g');
+  });
+});
+
+describe('reportAiHeartbeat (página de status)', () => {
+  const ok = () => vi.fn(async () => new Response(null, { status: 200 }));
+
+  it('pass bate o ponto; fail avisa em /fail', async () => {
+    const fetch = ok();
+    expect(await reportAiHeartbeat('https://uptime.example/api/v1/heartbeat/abc/', 'pass', fetch)).toBe(
+      'sent',
+    );
+    expect(await reportAiHeartbeat('https://uptime.example/api/v1/heartbeat/abc', 'fail', fetch)).toBe(
+      'sent',
+    );
+    expect(fetch.mock.calls.map((c) => (c as unknown as [string])[0])).toEqual([
+      'https://uptime.example/api/v1/heartbeat/abc',
+      'https://uptime.example/api/v1/heartbeat/abc/fail',
+    ]);
+  });
+
+  it('sem URL ou com aviso (rede, limite, IA desligada): não chama', async () => {
+    const fetch = ok();
+    expect(await reportAiHeartbeat(undefined, 'pass', fetch)).toBe('skipped');
+    expect(await reportAiHeartbeat('  ', 'fail', fetch)).toBe('skipped');
+    expect(await reportAiHeartbeat('https://uptime.example/hb', 'warn', fetch)).toBe('skipped');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('heartbeat fora do ar: erro para o chamador registrar no log', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 503 }));
+    await expect(reportAiHeartbeat('https://uptime.example/hb', 'pass', fetch)).rejects.toThrow('503');
   });
 });
