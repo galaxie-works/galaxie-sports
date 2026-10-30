@@ -21,6 +21,7 @@ import type {
 } from '@/components/reui/filters/filters-types';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Spinner } from '@/components/ui/spinner';
+import { sortByLabel } from '@/lib/alphabetical';
 import { agendaHref, type AgendaParams } from '@/lib/explore-index';
 import { useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
@@ -101,11 +102,13 @@ export function AgendaFilterBar({
       defaultOperator: OPERATOR,
       disabled: inUse.has(id),
     }) satisfies Partial<FilterField>;
-  // o que está na URL e não tem jogo na janela continua escolhível (e removível)
+  // em ordem alfabética, inclusive o que está na URL e não tem jogo na janela (continua escolhível e removível)
   const withSelected = (options: FilterOption[], selected: string | null | undefined) =>
-    selected && !options.some((o) => o.value === selected)
-      ? [...options, { value: selected, label: selected, description: games(0) }]
-      : options;
+    sortByLabel(
+      selected && !options.some((o) => o.value === selected)
+        ? [...options, { value: selected, label: selected, description: games(0) }]
+        : options,
+    );
 
   const countryCount = new Map(facets.countries.map((c) => [c.code, c.count]));
   const fields: FilterField[] = [
@@ -132,13 +135,15 @@ export function AgendaFilterBar({
       ...base('pais', tf.fields.country),
       icon: <Flag aria-hidden />,
       placeholder: tf.search.country,
-      options: COUNTRIES.map((c) => ({
-        value: c.code,
-        label: t.nav.countries[c.code],
-        description: games(countryCount.get(c.code) ?? 0),
-        icon: <CountryFlag code={c.code} />,
-        keywords: [c.code],
-      })),
+      options: sortByLabel(
+        COUNTRIES.map((c) => ({
+          value: c.code,
+          label: t.nav.countries[c.code],
+          description: games(countryCount.get(c.code) ?? 0),
+          icon: <CountryFlag code={c.code} />,
+          keywords: [c.code],
+        })),
+      ),
     },
     {
       ...base('competicao', tf.fields.competition),
