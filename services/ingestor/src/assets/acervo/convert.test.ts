@@ -427,6 +427,29 @@ describe('conversor da base por país', () => {
     });
   });
 
+  it('vínculo automático anterior fica enquanto o alvo existir, mesmo que o casador mude', () => {
+    const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
+    const targets = [club('cam', 'Atletico Mineiro', 'BR'), club('ame', 'America Mineiro', 'BR')];
+    const scan = scanAcervo(out);
+    const first = planManifest(scan, targets, countries, undefined, new Date()).manifest;
+    const atl = first.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')!;
+    expect(atl).toMatchObject({ target_id: 'cam', match: 'auto' });
+    // o vínculo publicado é outro (de uma revisão anterior): a varredura nova não o troca
+    Object.assign(atl, { target_id: 'ame', target_name: 'America Mineiro', confidence: 0.9 });
+    const second = planManifest(scan, targets, countries, first, new Date()).manifest;
+    expect(second.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')).toMatchObject({
+      target_id: 'ame',
+      match: 'auto',
+      confidence: 0.9,
+    });
+    // o alvo saiu do cadastro: casa de novo
+    const third = planManifest(scan, [targets[0]!], countries, first, new Date()).manifest;
+    expect(third.logos.find((l) => l.key === 'teams/brasil/atletico-mineiro')).toMatchObject({
+      target_id: 'cam',
+      match: 'auto',
+    });
+  });
+
   it('logo de competição liga pela liga da api-sports quando o nome de mercado difere do cadastro', () => {
     const countries: CountryRow[] = [{ code: 'BR', names: ['Brasil', 'Brazil'] }];
     const serieA: MatchTarget = {

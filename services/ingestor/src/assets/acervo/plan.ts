@@ -1,7 +1,7 @@
 /**
  * Varredura → manifesto: resolve o país de cada pasta, casa cada logo com os alvos do banco e mescla com
- * o manifesto anterior, preservando a curadoria (`manual`, `rejected`). Função pura sobre os dados já
- * carregados (os testes não precisam de banco).
+ * o manifesto anterior, preservando a curadoria (`manual`, `rejected`) e os vínculos automáticos cujo alvo
+ * ainda existe. Função pura sobre os dados já carregados (os testes não precisam de banco).
  */
 import { normalizeName } from '@galaxie/knowledge';
 import { ACERVO_SCHEMA_VERSION, type AcervoLogo, type AcervoManifest } from './manifest.js';
@@ -94,6 +94,7 @@ export function planManifest(
     return new Set(hits.map((h) => `${h.match}:${h.target_id}`)).size === 1 ? hits[0] : undefined;
   };
   const unknown = new Set<string>();
+  const kept = new Set<string>();
   const logos: AcervoLogo[] = scan.logos.map((s) => {
     const group = scan.groups[s.countryFolder];
     const folderCountry = group?.country ?? s.countryFolder;
@@ -120,7 +121,10 @@ export function planManifest(
     // curadoria por nome: os apelidos (o nome do time no cadastro) atravessam as varreduras
     const aliases = old?.aliases?.filter((a) => a.trim()) ?? [];
     if (aliases.length) Object.assign(base, { aliases });
-    if (old && old.key !== s.key && old.match === 'auto')
+    // vínculo automático já feito fica enquanto o alvo existir: uma varredura nova (casador, apelidos ou
+    // tabela de ligas diferentes) não desfaz o que já está publicado; para trocar, a curadoria usa manual
+    if (old?.match === 'auto' && old.target_id && targetName.has(`${s.kind}:${old.target_id}`)) {
+      kept.add(s.key);
       return {
         ...base,
         target_id: old.target_id,
@@ -128,6 +132,7 @@ export function planManifest(
         match: 'auto',
         ...(old.confidence !== undefined ? { confidence: old.confidence } : {}),
       };
+    }
     // curadoria manda: o id escolhido à mão (ou a recusa) atravessa novas varreduras
     if (old && (old.match === 'manual' || old.match === 'rejected'))
       return {
@@ -191,6 +196,21 @@ export function planManifest(
     const manual = list.some((l) => l.match === 'manual');
     const autos = list.filter((l) => l.match === 'auto');
     if (!manual && autos.length < 2) continue;
+    // um vínculo mantido da varredura anterior vence o automático novo no mesmo alvo
+    const keptHere = autos.filter((l) => kept.has(l.key));
+    if (!manual && keptHere.length) {
+      const domesticKept = keptHere.some((l) => l.country !== 'WORLD');
+      for (const l of autos) {
+        if (kept.has(l.key)) continue;
+        l.candidates = [
+          { id: l.target_id!, name: l.target_name ?? l.target_id!, confidence: l.confidence ?? 0 },
+        ];
+        l.match = domesticKept && l.country === 'WORLD' ? 'duplicate' : 'ambiguous';
+        l.target_id = null;
+        delete l.target_name;
+      }
+      continue;
+    }
     // o mesmo time na pasta da liga nacional e na de um torneio internacional: vale o da liga nacional
     const domestic = autos.filter((l) => l.country !== 'WORLD');
     if (!manual && domestic.length === 1) {
