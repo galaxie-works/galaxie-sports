@@ -85,7 +85,7 @@
     "@galaxie/rules": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
-    "croner": "^10.0.1",
+    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4",
     "sharp": "0.34.4",
     "yaml": "^2.9.1",
