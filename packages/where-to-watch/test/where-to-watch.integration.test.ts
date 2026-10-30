@@ -480,6 +480,16 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
       storageKey: null,
       sourceUrl: expect.stringMatching(/^https:\/\/upload\.wikimedia\.org\//),
     });
+    // com a configuração: o Brasileirão escolhe o canal por rodada (cada jogo num dos 8 detentores) —
+    // sem canal confirmado, nada de detentores; fica só o "canal a confirmar"
+    expect(rights!.perRoundSelection).toBe(true);
+    expect(await getPublicWhereToWatch(db, { eventId, country: 'BR' }, config)).toMatchObject({
+      status: 'unknown',
+      options: [],
+      toConfirm: [],
+      fromRights: [],
+      matchChannel: { phase: 'pre', state: 'to_confirm', channels: [] },
+    });
   });
 
   it('país sem nenhuma opção gravada: detentores dos direitos "a confirmar" (incertos, se só houver eles)', async () => {

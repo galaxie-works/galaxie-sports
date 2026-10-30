@@ -293,11 +293,19 @@ export const WhereToWatch = z
     event_id: z.uuid(),
     country: z.string(),
     status: z.enum(['resolved', 'unknown']),
-    message: z.string().nullable().meta({ description: 'Mensagem localizada quando status = unknown.' }),
+    message: z
+      .string()
+      .nullable()
+      .meta({
+        description:
+          'Mensagem localizada quando status = unknown ("Não temos as informações de transmissão ainda" ou, com o canal ' +
+          'escolhido por rodada, "Canal deste jogo a confirmar").',
+      }),
     options: z.array(WhereToWatchOption),
     to_confirm: z.array(WhereToWatchToConfirm).meta({
       description:
-        'Detentores de direitos sem o jogo confirmado ("canal a confirmar"). Só vem preenchido quando `options` está vazio.',
+        'Detentores de direitos sem o jogo confirmado ("canal a confirmar"). Só vem preenchido quando `options` está vazio. ' +
+        'Competição com o canal escolhido por rodada (ex.: Brasileirão) vem vazio: `message` traz o "canal a confirmar".',
     }),
     availability: WhereToWatchAvailability,
     updated_at: z.string().nullable(),
