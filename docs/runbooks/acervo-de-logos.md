@@ -15,8 +15,9 @@ Camada opcional de escudos e logos em alta qualidade por cima dos logos do forne
 | Vínculo | `core.participant.custom_logo_asset_id` e `core.competition.custom_logo_asset_id`, ao lado do `logo_asset_id` do fornecedor, que nunca é tocado |
 | Flag | `packages/runtime-config/src/registry.ts` (seção `assets`). A API relê a cada 15 s, com precedência banco > env > padrão (`apps/api/src/assets/custom-logos.ts`) |
 | Cache | A versão da flag (valor + instante da última mudança no painel) entra na chave de todas as respostas (`VariantResponseCache`). Trocar a flag passa a ler chaves novas na hora, sem purge e sem servir resposta velha. Uma resposta montada durante a troca cai numa chave que ninguém mais usa |
-| Contrato | `logo_source` (`provider` \| `acervo` \| `null`) e `logo_formats` (`{ svg, png, webp }`, null fora do acervo) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
+| Contrato | `logo_source` (`provider` \| `acervo` \| `null`) `logo_formats` (`{ svg, png, webp }`, null fora do acervo) e `logo_sizes` (`{ 64, 128, 256, 512 }`, cada um `{ png, webp }`) em `Team` (`/v1/teams/{id}`) e `Competition` (`/v1/competitions/{id}`) |
 | Formatos | `core.asset.variants` (migration `0058_acervo_formatos`): SVG, maior PNG e maior WebP do mesmo escudo, cada um no storage como `acervo/football/{teams\|leagues}/<id>.<sha256[0:12]>.{svg\|png\|webp}`. `logo` continua sendo um só (SVG, senão PNG, senão WebP) |
+| Tamanhos | `variants.sizes`: do PNG do pacote, a importação gera PNG e WebP em 64, 128 e 256 px (`sharp`, encaixe sem corte com sobra transparente; não amplia PNG menor). O 512 é o próprio PNG/WebP do pacote. Reimportar regera e só grava o que mudou |
 | Cores do time | Saem do escudo efetivo. A paleta do logo do acervo é calculada na importação: do maior PNG do pacote quando há, senão das cores de preenchimento do SVG (`svg-palette.ts`) |
 | "Sem logo" (#178) | Time cujo logo do fornecedor era genérico e foi desligado (`logo_asset_id` nulo) ganha o do acervo com a flag ligada: o `coalesce` preenche o buraco |
 

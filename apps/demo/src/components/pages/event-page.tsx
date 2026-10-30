@@ -30,7 +30,7 @@ import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
 import { Section } from '@/components/sport/section';
 import { SourceNote } from '@/components/sport/source-note';
-import { WhereToWatchGroups } from '@/components/sport/where-to-watch-groups';
+import { BrandLogo, WhereToWatchGroups } from '@/components/sport/where-to-watch-groups';
 import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -372,7 +372,7 @@ function WhereToWatchCard({
                   className="flex items-center gap-3 rounded-md border border-dashed p-2"
                 >
                   {c.logo ? (
-                    <img src={c.logo_dark ?? c.logo} alt="" className="h-9 w-12 shrink-0 object-contain" />
+                    <BrandLogo name={c.provider} logo={c.logo} logoDark={c.logo_dark} />
                   ) : (
                     <Tv className="text-muted-foreground size-5 w-12 shrink-0" aria-hidden />
                   )}

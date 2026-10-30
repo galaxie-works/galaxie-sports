@@ -6,7 +6,7 @@
  * (config/broadcasters/_logos.yaml), espelhado no nosso storage pelo Asset Mirror do ingestor
  * (core.asset, kind `broadcaster_logo`).
  */
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
   asset,
@@ -209,7 +209,8 @@ export async function listBroadcasters(
     if (!filter.ids.length) return [];
     conds.push(inArray(broadcaster.id, filter.ids));
   }
-  // logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, e a versão escura da origem sai
+  // logo enviado no painel (custom_logo_asset_id) vale no lugar do da origem, e a versão escura da origem
+  // sai; a versão escura enviada no painel (custom_logo_dark_asset_id) vale nos dois casos
   const rows = await db
     .select({
       b: broadcaster,
@@ -226,7 +227,14 @@ export async function listBroadcasters(
     )
     .leftJoin(
       darkAsset,
-      and(isNull(broadcaster.customLogoAssetId), eq(darkAsset.id, broadcaster.logoDarkAssetId)),
+      or(
+        eq(darkAsset.id, broadcaster.customLogoDarkAssetId),
+        and(
+          isNull(broadcaster.customLogoDarkAssetId),
+          isNull(broadcaster.customLogoAssetId),
+          eq(darkAsset.id, broadcaster.logoDarkAssetId),
+        ),
+      ),
     )
     .where(conds.length ? sql.join(conds, sql` and `) : undefined)
     .orderBy(asc(broadcaster.name));
