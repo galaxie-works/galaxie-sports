@@ -28,7 +28,7 @@ import {
   type FetchedPage,
   type WtwConfig,
 } from '@galaxie/where-to-watch';
-import { BudgetExceededError, LlmError } from '../../llm/errors.js';
+import { LlmError } from '../../llm/errors.js';
 import type { UsageWithSearches } from '../../llm/budget.js';
 import type { LlmClient } from '../../llm/types.js';
 import { loadEventInfos, type EventInfo } from '../event-info.js';
@@ -40,6 +40,7 @@ import {
   estimateCallUsd,
   failureUsage,
   finishResearch,
+  isOutage,
   marketSpendToday,
   startResearch,
   withinCap,
@@ -276,7 +277,7 @@ export class MatchChannelRunner {
           const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
           const failed = failureUsage(err, estimateUsd);
           await finishResearch(db, researchId, {
-            status: err instanceof BudgetExceededError ? 'skipped' : 'failed',
+            status: isOutage(err) ? 'skipped' : 'failed',
             usage: failed.usage,
             ...(failed.stats ? { stats: failed.stats } : {}),
             error: message.slice(0, 500),

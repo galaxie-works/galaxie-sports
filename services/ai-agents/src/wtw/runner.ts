@@ -55,6 +55,7 @@ import {
   estimateCallUsd,
   failureUsage,
   finishResearch,
+  isOutage,
   marketSpendToday,
   researchBackoffMs,
   startResearch,
@@ -462,7 +463,7 @@ export class WtwRunner {
         for (const m of marketsHere) reasons.set(m, `alocação por rodada (${researchId})`);
       } catch (err) {
         const message = err instanceof LlmError || err instanceof Error ? err.message : String(err);
-        const budget = err instanceof BudgetExceededError;
+        const budget = isOutage(err);
         const failed = failureUsage(err, estimate);
         await finishResearch(this.deps.db, researchId, {
           status: budget ? 'skipped' : 'failed',
@@ -474,7 +475,7 @@ export class WtwRunner {
         const lost = failed.usage?.costUsd ?? 0;
         for (const m of marketsHere) spend.set(m, (spend.get(m) ?? 0) + lost / marketsHere.length);
         for (const m of marketsHere) reasons.set(m, `alocação falhou: ${message.slice(0, 200)}`);
-        // orçamento esgotado não chamou o provedor: tenta na próxima rodada. Falha do provedor espera
+        // orçamento esgotado ou conta sem crédito: tenta na próxima rodada. Falha do provedor espera
         // (30 min, 1 h…) e desiste no dia depois de WTW_RESEARCH_MAX_FAILURES falhas.
         if (!budget) for (const c of inChunk) attempted.add(c.run.id);
         if (budget) transient ??= message.slice(0, 200);
