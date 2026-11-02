@@ -38,7 +38,8 @@ O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `a
 - no push para a `main` com `<sha>`, `main` e `staging`.
 
 Imagem cuja entrada não mudou (o hash vai na tag `in-<hash>` e no rótulo `works.galaxie.context-tree`) não é
-reconstruída: ganha as tags novas. Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
+reconstruída: ganha as tags novas (como a entrada é calculada: `docs/runbooks/deploy-pelo-github.md` › Imagens
+reaproveitadas). Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
 Actions faz `docker login` na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário que sai no fim. A VPS não
 guarda credencial do GitHub, por isso o `.env` dela fica com `PULL_POLICY=missing`: o `deploy-gh.sh` baixa as imagens
 antes do `up`, e nada vem do registry fora do deploy.
