@@ -453,7 +453,7 @@ async function readRequests(): Promise<JobRequestRow[]> {
     detail: string | null;
   }>(
     `select id::text, job, status, requested_by, requested_at, finished_at, detail
-       from ops.job_request order by requested_at desc limit 20`,
+       from ops.job_request where type is null order by requested_at desc limit 20`,
   );
   return rows.map((r) => ({
     id: r.id,

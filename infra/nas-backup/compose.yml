@@ -1,5 +1,5 @@
 # Stack `galaxie-sports-backup-nas` do NAS (Portainer do NAS, ambiente local): puxa os dumps do Postgres de produção
-# da VPS uma vez por dia, confere o sha256, faz a rotação 14/8/12 e deixa o recibo na VPS.
+# da VPS uma vez por dia, confere o sha256, faz a rotação 7/4/6 e deixa o recibo na VPS.
 # Instalação e chaves: docs/runbooks/exercicio-dr.md §Cópia no NAS. Nada de segredo aqui: as chaves SSH ficam só na
 # pasta do NAS (NAS_BACKUP_PATH/ssh), geradas lá mesmo.
 services:
@@ -11,10 +11,13 @@ services:
       TZ: UTC
       VPS_HOST: ${VPS_HOST:?defina VPS_HOST}
       VPS_USER: ${VPS_USER:-root}
-      NAS_KEEP_DAILY: ${NAS_KEEP_DAILY:-14}
-      NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-8}
-      NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-12}
+      NAS_KEEP_DAILY: ${NAS_KEEP_DAILY:-7}
+      NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-4}
+      NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-6}
       NAS_BWLIMIT: ${NAS_BWLIMIT:-}
+      # Prefixos do bucket de assets (os mesmos de BACKUP_S3_SYNC_PREFIXES na VPS); vazio = só os dumps
+      NAS_S3_PREFIXES: ${NAS_S3_PREFIXES:-}
+      NAS_S3_DELETE: ${NAS_S3_DELETE:-false}
       # Duas tentativas por dia (UTC): depois do dump das 03:30 e uma de reserva. Uma cópia em dia não baixa de novo.
       NAS_PULL_CRON: ${NAS_PULL_CRON:-15 5,17 * * *}
       NAS_PULL_ON_START: ${NAS_PULL_ON_START:-true}

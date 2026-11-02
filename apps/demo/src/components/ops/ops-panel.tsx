@@ -610,6 +610,7 @@ function LlmCard({ snapshot, timeZone }: Ctx) {
 const RUN_VARIANT = {
   ok: 'success-light',
   budget_skipped: 'warning-light',
+  interrupted: 'warning-light',
   error: 'destructive-light',
   running: 'info-light',
 } as const;

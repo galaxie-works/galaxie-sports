@@ -75,7 +75,8 @@ groups:
   # Política de backup e DR: docs/runbooks/exercicio-dr.md.
   - name: galaxie-backup
     rules:
-      # backup-check.sh (a cada 6 h): último dump com mais de 26 h ou, com o recibo do NAS ligado, cópia do NAS atrasada.
+      # backup-check.sh (a cada 6 h): último dump com mais de 26 h ou, com o recibo do NAS ligado, cópia do NAS atrasada e,
+      # com BACKUP_S3_SYNC_PREFIXES, sync dos assets (s3-sync.sh) sem recibo recente.
       - alert: BackupCheckFailed
         expr: galaxie_job_consecutive_failures{job_name="backup-check"} >= 1
         labels:
@@ -83,7 +84,7 @@ groups:
           sinal: backup-disco
         annotations:
           summary: 'Verificação do backup falhou'
-          description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+          description: 'Último dump atrasado, cópia do NAS ou sync dos assets do S3 sem recibo recente. Veja ops.job_run (job backup-check, coluna error; job s3-sync para o motivo do sync) e os logs do container backup.'
 
       - alert: RestoreDrillFailed
         expr: galaxie_job_consecutive_failures{job_name="pg-restore-drill"} >= 1
@@ -249,6 +250,18 @@ groups:
         annotations:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
           description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
+
+      # Tarefa da fila pronta há mais de 1 h sem worker pegar: o worker caiu, ou não atende o tipo, ou uma tarefa longa
+      # ocupa a vaga (pode ser normal numa carga grande, por isso vai para o resumo). Backoff não conta: a idade
+      # só corre depois do run_after.
+      - alert: TarefaPendenteAntiga
+        expr: galaxie_queue_oldest_pending_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tarefa {{ $labels.type }} esperando worker há {{ $value | humanizeDuration }}'
+          description: 'Veja se o worker está no ar e atende o tipo {{ $labels.type }}, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
 
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
