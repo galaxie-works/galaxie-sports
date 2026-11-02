@@ -163,6 +163,7 @@ services:
       DB_URL_DEMO: ${DB_URL_DEMO:-}
       DB_URL_INGESTOR: ${DB_URL_INGESTOR:-}
       DB_URL_AGENTS: ${DB_URL_AGENTS:-}
+      DB_URL_LIVE: ${DB_URL_LIVE:-}
       DB_URL_BACKUP: ${DB_URL_BACKUP:-}
     depends_on:
       postgres:
