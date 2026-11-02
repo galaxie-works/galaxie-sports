@@ -339,8 +339,9 @@ export interface WebhookEndpointStatsRow {
   pending: number;
   /** Entregas na DLQ (status `dead`, guardadas 90 dias). */
   dead: number;
-  /** Tentativas que terminaram na última hora, por desfecho. */
+  /** Entregas com sucesso na última hora. */
   deliveredLastHour: number;
+  /** Entregas ainda sem sucesso cuja última tentativa (com falha) foi na última hora: entregas, não tentativas. */
   failedLastHour: number;
   /** Entregas com falha desde o último sucesso do endpoint (pendentes em retentativa ou na DLQ). */
   consecutiveFailures: number;

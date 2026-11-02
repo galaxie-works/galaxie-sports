@@ -53,7 +53,7 @@ aberto.
 | `ChangeFeedStalled` com `consumer="webhooks:default"` | O enfileirador não avança no change feed | Igual ao worker parado |
 
 Métricas (no `/metrics` da API, com rótulos `endpoint` e `tenant`): `galaxie_webhook_pending`,
-`galaxie_webhook_dead`, `galaxie_webhook_delivered_last_hour`, `galaxie_webhook_failed_last_hour`,
+`galaxie_webhook_dead`, `galaxie_webhook_delivered_last_hour`, `galaxie_webhook_failing_deliveries_last_hour`,
 `galaxie_webhook_consecutive_failures`, `galaxie_webhook_delivery_latency_p95_seconds`,
 `galaxie_webhook_endpoint_active` e, sem rótulo, `galaxie_webhook_overdue_seconds`.
 
@@ -90,7 +90,7 @@ Veja o erro em `wh dlq --id <endpoint>` e avise o cliente (o receptor dele respo
 ### Lento
 
 Quase sempre é o receptor do cliente perto dos 10 s de timeout, o que dispara retentativas. Confira
-`galaxie_webhook_failed_last_hour` do endpoint. Se todos os endpoints estão lentos ao mesmo tempo, veja CPU e memória
+`galaxie_webhook_failing_deliveries_last_hour` do endpoint. Se todos os endpoints estão lentos ao mesmo tempo, veja CPU e memória
 do contêiner `webhooks` (`docker stats --no-stream webhooks`).
 
 ## Rotacionar o segredo de um cliente

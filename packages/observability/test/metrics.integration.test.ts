@@ -460,7 +460,7 @@ describe('frescor e ao vivo', () => {
       expect(m.get('galaxie_webhook_pending', l)).toBe(2);
       expect(m.get('galaxie_webhook_dead', l)).toBe(2);
       expect(m.get('galaxie_webhook_delivered_last_hour', l)).toBe(1);
-      expect(m.get('galaxie_webhook_failed_last_hour', l)).toBe(2);
+      expect(m.get('galaxie_webhook_failing_deliveries_last_hour', l)).toBe(2);
       expect(m.get('galaxie_webhook_consecutive_failures', l)).toBe(2);
       expect(m.get('galaxie_webhook_delivery_latency_p95_seconds', l)).toBeCloseTo(4, 0);
       // endpoint sem entrega: sem série de latência

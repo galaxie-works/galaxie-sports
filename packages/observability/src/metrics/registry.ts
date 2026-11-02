@@ -551,8 +551,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     (r) => r.deliveredLastHour,
   );
   perEndpoint(
-    'galaxie_webhook_failed_last_hour',
-    'Tentativas com falha na última hora (HTTP fora de 2xx, timeout, destino bloqueado)',
+    'galaxie_webhook_failing_deliveries_last_hour',
+    'Entregas cuja última tentativa, na última hora, falhou (HTTP fora de 2xx, timeout, destino bloqueado). Conta entregas, não tentativas; a que depois deu certo sai da conta',
     (r) => r.failedLastHour,
   );
   perEndpoint(

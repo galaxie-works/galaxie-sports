@@ -5,7 +5,7 @@
  * O worker (`apps/api/src/webhooks/worker.ts`) é quem entrega: o teste e o reenvio só põem entregas na fila, e a
  * checagem de destino (SSRF), a assinatura e as retentativas são as mesmas de uma mudança real.
  */
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, notInArray, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   PLANS_WITHOUT_REALTIME,
@@ -260,7 +260,7 @@ export async function deleteTenantWebhook(
 /**
  * Põe na fila uma entrega de teste (`webhook.test`), assinada e entregue pelo worker como qualquer outra. O
  * `change_id` é negativo: nunca colide com uma mudança real (ids do change feed são positivos). `null` se o
- * endpoint não é do tenant ou está desativado.
+ * endpoint não é do tenant, está desativado, ou o tenant está suspenso ou sem tempo real no plano.
  */
 export async function sendTenantWebhookTest(
   db: Database,
@@ -268,14 +268,19 @@ export async function sendTenantWebhookTest(
   endpointId: string,
   now: Date = new Date(),
 ): Promise<number | null> {
+  // as mesmas condições do worker: endpoint ativo, tenant ativo e plano com tempo real (senão a entrega iria
+  // direto para a DLQ sem envio, e o painel diria que o teste saiu)
   const [ep] = await db
     .select({ id: webhookEndpoint.id })
     .from(webhookEndpoint)
+    .innerJoin(tenant, eq(tenant.id, webhookEndpoint.tenantId))
     .where(
       and(
         eq(webhookEndpoint.id, endpointId),
         eq(webhookEndpoint.tenantId, tenantId),
         eq(webhookEndpoint.active, true),
+        eq(tenant.status, 'active'),
+        notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
       ),
     );
   if (!ep) return null;

@@ -398,7 +398,18 @@ function DeliveriesDialog({
 
 type Confirm = 'rotate' | 'remove' | null;
 
-function RowActions({ row, available, timeZone }: { row: WebhookRow; available: boolean; timeZone: string }) {
+function RowActions({
+  row,
+  available,
+  canDeliver,
+  timeZone,
+}: {
+  row: WebhookRow;
+  available: boolean;
+  /** Plano com tempo real: sem ele o worker não envia, então não há teste. */
+  canDeliver: boolean;
+  timeZone: string;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const a = t.webhooks.actions;
@@ -433,7 +444,7 @@ function RowActions({ row, available, timeZone }: { row: WebhookRow; available: 
           {pending ? <Spinner /> : <MoreHorizontal />}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-52">
-          {row.active ? (
+          {row.active && canDeliver ? (
             <DropdownMenuItem
               onClick={() =>
                 run(
@@ -684,7 +695,7 @@ export function WebhooksPanel({
                     )}
                   </TableCell>
                   <TableCell className="pr-4 text-right">
-                    <RowActions row={row} available={available} timeZone={timeZone} />
+                    <RowActions row={row} available={available} canDeliver={planAllows} timeZone={timeZone} />
                   </TableCell>
                 </TableRow>
               ))}
