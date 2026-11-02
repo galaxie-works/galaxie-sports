@@ -19,6 +19,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/net-guard": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "@galaxie/widgets": "workspace:*",

@@ -521,17 +521,35 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   );
 
   // ── webhooks para clientes (fonte: api.webhook_endpoint × api.webhook_delivery; docs/runbooks/webhooks.md) ─
-  const perEndpoint = (name: string, help: string, value: (r: WebhookStats['endpoints'][number]) => number | null) =>
+  const perEndpoint = (
+    name: string,
+    help: string,
+    value: (r: WebhookStats['endpoints'][number]) => number | null,
+  ) =>
     dbGauge(registry, webhooks, name, help, ['endpoint', 'tenant'], (g, d) => {
       for (const r of d.endpoints) {
         const v = value(r);
         if (v !== null) g.set({ endpoint: r.endpoint, tenant: r.tenant }, v);
       }
     });
-  perEndpoint('galaxie_webhook_endpoint_active', 'Webhook ativo (1) ou desativado (0)', (r) => (r.active ? 1 : 0));
-  perEndpoint('galaxie_webhook_pending', 'Entregas na fila do endpoint (inclui as em retentativa)', (r) => r.pending);
-  perEndpoint('galaxie_webhook_dead', 'Entregas na DLQ do endpoint (status dead, guardadas 90 dias)', (r) => r.dead);
-  perEndpoint('galaxie_webhook_delivered_last_hour', 'Entregas com sucesso na última hora', (r) => r.deliveredLastHour);
+  perEndpoint('galaxie_webhook_endpoint_active', 'Webhook ativo (1) ou desativado (0)', (r) =>
+    r.active ? 1 : 0,
+  );
+  perEndpoint(
+    'galaxie_webhook_pending',
+    'Entregas na fila do endpoint (inclui as em retentativa)',
+    (r) => r.pending,
+  );
+  perEndpoint(
+    'galaxie_webhook_dead',
+    'Entregas na DLQ do endpoint (status dead, guardadas 90 dias)',
+    (r) => r.dead,
+  );
+  perEndpoint(
+    'galaxie_webhook_delivered_last_hour',
+    'Entregas com sucesso na última hora',
+    (r) => r.deliveredLastHour,
+  );
   perEndpoint(
     'galaxie_webhook_failed_last_hour',
     'Tentativas com falha na última hora (HTTP fora de 2xx, timeout, destino bloqueado)',

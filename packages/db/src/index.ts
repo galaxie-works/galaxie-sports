@@ -211,3 +211,10 @@ export {
   type SaveChannelListInput,
   type TenantChannelList,
 } from './channel-lists.js';
+export {
+  generateWebhookSecret,
+  WEBHOOK_KEK_ENV,
+  WEBHOOK_REJECT_PLAINTEXT_ENV,
+  WebhookSecretBox,
+  WebhookSecretError,
+} from './webhook-secret-box.js';

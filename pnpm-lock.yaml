@@ -117,6 +117,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/net-guard':
+        specifier: workspace:*
+        version: link:../../packages/net-guard
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../../packages/runtime-config

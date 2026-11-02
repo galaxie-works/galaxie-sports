@@ -18,6 +18,7 @@ import {
   webhookEndpoint,
   type Database,
 } from '@galaxie/db';
+import { createTenantWebhook, rotateTenantWebhookSecret, sendTenantWebhookTest } from '@galaxie/db/webhooks';
 import { upsertTenant } from '../src/auth/admin.js';
 import {
   createWebhookEndpoint,
@@ -180,6 +181,28 @@ describe('webhooks assinados', () => {
     expect(await db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, ep.id))).toHaveLength(
       1,
     );
+  });
+
+  it('portal do cliente: segredo rotacionado assina a entrega de teste (webhook.test) feita pelo worker', async () => {
+    const [t] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const ep = await createTenantWebhook(
+      db,
+      t!.id,
+      { url: `${base}/portal-test`, topics: [], filters: {}, description: 'portal' },
+      secrets,
+    );
+    const rotated = await rotateTenantWebhookSecret(db, t!.id, ep.id, secrets);
+    expect(rotated).not.toBe(ep.secret);
+    expect(await sendTenantWebhookTest(db, t!.id, ep.id)).not.toBeNull();
+    await expect.poll(() => hits('/portal-test').length, { timeout: 5_000 }).toBe(1);
+    const [hit] = hits('/portal-test');
+    const sig = hit!.headers['x-galaxie-signature'] as string;
+    expect(verifyWebhookSignature(rotated!, hit!.body, sig)).toBe(true);
+    expect(verifyWebhookSignature(ep.secret, hit!.body, sig)).toBe(false);
+    expect(hit!.headers['x-galaxie-event']).toBe('webhook.test');
+    expect(JSON.parse(hit!.body)).toMatchObject({ topic: 'webhook.test', test: true });
+    // sem filtro, ele receberia as mudanças dos testes seguintes
+    await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
   });
 
   it('retenta com backoff exponencial após 500 e reenvia o mesmo corpo e idempotency key', async () => {

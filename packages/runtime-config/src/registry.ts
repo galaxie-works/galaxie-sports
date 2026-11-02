@@ -693,7 +693,8 @@ export const SETTINGS: readonly SettingDef[] = [
   secret('QUALITY_API_KEY', 'credentials', ['ingestor']),
   secret('S3_SECRET_KEY', 'credentials', ['ingestor']),
   secret('METRICS_TOKEN', 'credentials', ['api']),
-  secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['api']),
+  // KEK dos webhooks: o worker não relata ao painel; a demo (cadastro no painel do cliente) relata se está definida
+  secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['demo']),
   secret('ADMIN_KEY_HASHES', 'credentials', ['api']),
   secret('GALAXIE_DEMO_KEY', 'credentials', ['demo']),
   secret('BETTER_AUTH_SECRET', 'credentials', ['demo']),

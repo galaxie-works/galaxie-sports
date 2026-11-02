@@ -422,14 +422,35 @@ describe('frescor e ao vivo', () => {
     const base = { endpointId: ok!.id, topic: 'event.score_changed', payload: {} };
     await db.insert(webhookDelivery).values([
       // entregue há 30 min, 4 s depois de enfileirada
-      { ...base, changeId: 1, status: 'delivered', attempts: 1, createdAt: ago(30 * MIN + 4000), deliveredAt: ago(30 * MIN), lastAttemptAt: ago(30 * MIN) },
+      {
+        ...base,
+        changeId: 1,
+        status: 'delivered',
+        attempts: 1,
+        createdAt: ago(30 * MIN + 4000),
+        deliveredAt: ago(30 * MIN),
+        lastAttemptAt: ago(30 * MIN),
+      },
       // duas falhas depois do sucesso: uma em retentativa, outra na DLQ
-      { ...base, changeId: 2, status: 'pending', attempts: 3, lastAttemptAt: ago(10 * MIN), nextRetryAt: ago(15 * MIN) },
+      {
+        ...base,
+        changeId: 2,
+        status: 'pending',
+        attempts: 3,
+        lastAttemptAt: ago(10 * MIN),
+        nextRetryAt: ago(15 * MIN),
+      },
       { ...base, changeId: 3, status: 'dead', attempts: 10, lastAttemptAt: ago(5 * MIN) },
       // falha antiga, antes do sucesso: não conta como seguida
       { ...base, changeId: 4, status: 'dead', attempts: 10, lastAttemptAt: ago(2 * HOUR) },
       // ainda não tentada
-      { ...base, changeId: 5, status: 'pending', attempts: 0, nextRetryAt: new Date(realNow.getTime() + HOUR) },
+      {
+        ...base,
+        changeId: 5,
+        status: 'pending',
+        attempts: 0,
+        nextRetryAt: new Date(realNow.getTime() + HOUR),
+      },
     ]);
     try {
       const m = await scrape();
