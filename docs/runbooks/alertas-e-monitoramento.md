@@ -188,6 +188,39 @@ O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão
   vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
   input recusado. Depois, a execução em Actions → Alerta do Grafana.
 
+## Reabertura e diagnóstico automático
+
+- **Alerta que volta em até 24 h** reabre a issue fechada com a mesma fingerprint, em vez de abrir outra. Ele comenta
+  "Disparou de novo" e conta as vezes no título (`(3×)`). Antes, um alerta que oscilava (ex.: `LiveEventStale` no fim
+  de semana de 31/10) abria uma issue por ocorrência.
+- **Ao abrir ou reabrir**, o `alerta-issue.sh` dispara o workflow **Diagnóstico de alerta** (`diagnostico.yml`), que
+  comenta na issue um diagnóstico **só leitura** da produção, com estas seções:
+  - alertas disparando;
+  - contêineres e disco;
+  - a parte específica do alerta: plano do ao vivo e jogos parados, SLO por janela, execuções do job, p95 por rota e
+    consultas lentas, gasto de IA, cota, disco ou backup.
+
+**Como a ponte funciona:**
+
+- O workflow roda no ambiente `producao` com a chave `VPS_DIAG_SSH_KEY`.
+- No `authorized_keys` da VPS, essa chave só roda `/docker/galaxie-sports/diagnostico.sh`
+  (`command="…",restrict`: sem shell, sem PTY e sem túnel). O script é o `infra/vps-telemetry/diagnostico.sh`, e o
+  deploy grava a versão do SHA publicado.
+- O pedido (ex.: `JobFailingRepeatedly job=recap-run`) vai como texto, validado no workflow e no script, e só escolhe um
+  bloco de consultas fixas. O SQL roda em transação somente leitura.
+
+Rodar à mão, ou de uma sessão:
+
+```bash
+gh workflow run diagnostico.yml -f alerta="LiveEventStale sport=football" -f issue=513
+```
+
+Trocar a chave:
+
+1. Gere um par novo e ponha a pública no `authorized_keys` com a mesma linha `command=…,restrict`. O backup de antes da
+   primeira chave é `authorized_keys.bak-pre-diag-20261102`.
+2. Rode `gh secret set VPS_DIAG_SSH_KEY --env producao < chave` e apague a linha antiga.
+
 ## Monitor externo e página de status (Better Stack, plano gratuito)
 
 Ligado em 29/10/2026 ([#430](https://github.com/galaxie-works/galaxie-sports/issues/430)). A conta é do dono, em
