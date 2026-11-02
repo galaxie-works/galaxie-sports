@@ -7,8 +7,9 @@
 #   1. RustFS → $BACKUP_S3_SYNC_DIR/<prefixo>/ (no volume `backups`: o NAS puxa dali, nas-pull.sh);
 #   2. com BACKUP_S3_BUCKET, dali → s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_DEST_PREFIX/<prefixo>/ (padrão: assets/).
 # `aws s3 sync` só copia o que mudou. Nada é apagado (BACKUP_S3_SYNC_DELETE=true espelha as remoções): objeto sumido do
-# RustFS por engano continua na cópia, e um sync que lê um bucket vazio não esvazia o backup. A retenção do remoto é do
-# bucket (versionamento, ou regra de ciclo de vida só no prefixo dos dumps: ver README).
+# RustFS por engano continua na cópia, e um sync que lê um bucket vazio não esvazia o backup. O bucket remoto guarda
+# tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade
+# (BACKUP_KEEP_DAILY), e a do NAS.
 # Variáveis: BACKUP_S3_SYNC_PREFIXES, BACKUP_S3_SYNC_DIR ($BACKUP_DIR/s3), BACKUP_S3_SYNC_DEST_PREFIX (assets),
 #            BACKUP_S3_SYNC_DELETE (false), S3_ENDPOINT / S3_BUCKET / S3_ACCESS_KEY / S3_SECRET_KEY (o RustFS),
 #            BACKUP_S3_BUCKET / BACKUP_S3_ENDPOINT + AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (o bucket remoto).

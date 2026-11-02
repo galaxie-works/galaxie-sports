@@ -174,8 +174,7 @@ s3_uri() {
 # espaço ou vírgula (ex.: "broadcasters platforms"). Vazio = o passo não existe. s3-sync.sh espelha cada prefixo em
 # $BACKUP_S3_SYNC_DIR (volume `backups`, de onde o NAS puxa) e dali para o bucket remoto, sem apagar nada por padrão.
 : "${BACKUP_S3_SYNC_DIR:=$BACKUP_DIR/s3}"
-# Fora do prefixo dos dumps: a regra de ciclo de vida do bucket remoto expira por idade do objeto, e um escudo que nunca
-# muda (e por isso nunca é reenviado) sumiria junto com o dump de 30 dias.
+# Num prefixo irmão do dos dumps (o bucket remoto guarda tudo, sem regra de ciclo de vida).
 : "${BACKUP_S3_SYNC_DEST_PREFIX:=assets}"
 : "${BACKUP_S3_SYNC_DELETE:=false}"
 

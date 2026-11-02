@@ -23,8 +23,8 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
 | 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
 
-A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada (retenção pela regra de ciclo de
-vida do bucket, só no prefixo dos dumps). Os assets do bucket do RustFS (escudos, logos enviados no painel) têm cópia à
+A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
+ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local (por quantidade) e a do NAS. Os assets do bucket do RustFS (escudos, logos enviados no painel) têm cópia à
 parte, nos mesmos dois lugares: [Assets do S3](#assets-do-s3). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
 disco, sem conferência de que o banco nele está íntegro.
 
@@ -112,9 +112,9 @@ o `mem_limit` do serviço `backup` e o disco do volume.
 
 1. Depois de cada dump (e na partida do serviço, se o recibo estiver velho), cada prefixo é espelhado do RustFS para
    `s3/<prefixo>/` no volume `backups` (`aws s3 sync`, só o que mudou, sem apagar) e dali para o bucket remoto, em
-   `assets/<prefixo>/` (`BACKUP_S3_SYNC_DEST_PREFIX`). O prefixo `assets/` é irmão do dos dumps: a regra de ciclo de vida
-   de 30 dias do bucket remoto expira por idade do objeto e, num logo que nunca muda, apagaria a única cópia. **Escope a
-   regra ao prefixo dos dumps**; para guardar versões de objetos sobrescritos, ligue o versionamento do bucket remoto.
+   `assets/<prefixo>/` (`BACKUP_S3_SYNC_DEST_PREFIX`). O prefixo `assets/` é irmão do dos dumps. O bucket remoto guarda
+   tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); para guardar versões de objetos
+   sobrescritos, ligue o versionamento do bucket.
 2. O NAS puxa `s3/<prefixo>/` pela mesma chave só de leitura dos dumps (o `rrsync -ro` já enxerga o volume inteiro) para
    `$NAS_BACKUP_PATH/s3/<prefixo>/`, sem rotação: os objetos são endereçados pelo conteúdo e nada é apagado
    (`NAS_S3_DELETE=true` espelha). O recibo `.nas_last_pull` só é tocado com os assets copiados.
@@ -122,8 +122,7 @@ o `mem_limit` do serviço `backup` e o disco do volume.
    está definido: sync que falha ou para vira `BackupCheckFailed`, e o motivo está no job `s3-sync` de `ops.job_run`
    (3 falhas seguidas também acendem `JobFailingRepeatedly`). Falha do sync não derruba o backup do banco.
 
-**Ligar (uma vez, com o OK do Wagner):** ponha `BACKUP_S3_SYNC_PREFIXES` no `.env` da VPS, ajuste a regra de ciclo de vida
-do bucket remoto (só no prefixo dos dumps) e rode `docker compose up -d --no-deps backup`: a partida já faz o primeiro
+**Ligar (uma vez, com o OK do Wagner):** ponha `BACKUP_S3_SYNC_PREFIXES` no `.env` da VPS e rode `docker compose up -d --no-deps backup`: a partida já faz o primeiro
 sync. Confira com `docker compose exec backup s3-sync.sh` (termina com a contagem de objetos) e
 `aws s3 ls s3://<bucket>/assets/ --recursive --summarize`. No NAS, ponha `NAS_S3_PREFIXES` (a mesma lista) na stack,
 copie o `nas-pull.sh` novo e reinicie o contêiner; o `last_run.txt` passa a citar os assets. O volume `backups` da VPS

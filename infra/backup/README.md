@@ -19,8 +19,8 @@ A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-back
 - `pg_dump --format=custom --compress=zstd:5` do banco inteiro (o schema `raw` é o ativo mais caro de reconstruir),
   validado com `pg_restore --list`, com `.sha256` ao lado. Ficam os `BACKUP_KEEP_DAILY` (7) dumps mais recentes no volume
   `backups`, contados por quantidade: com o backup parado, nada some.
-- Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). Configure no bucket
-  uma regra de ciclo de vida de 30 dias. Use um bucket fora da VPS: o RustFS da stack não serve como cópia externa.
+- Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS.
+  Use um bucket fora da VPS: o RustFS da stack não serve como cópia externa.
 - Cada execução vira uma linha `pg-backup` em `ops.job_run`, que alimenta as métricas e o alerta `BackupStale`.
 - Backup avulso: `docker compose exec backup backup.sh`.
 
@@ -50,10 +50,9 @@ RustFS vazio não esvazia o backup. Os objetos de logo têm o hash no nome, ent�
 derruba o backup do banco (o dump já está guardado): ela vira erro do job `s3-sync`, o recibo envelhece e o verificador
 dispara `BackupCheckFailed`.
 
-**Retenção do remoto.** Os assets ficam num prefixo irmão dos dumps (`assets/`, não `postgres/s3/…`) porque a regra de
-ciclo de vida de 30 dias do bucket expira por idade do objeto: um logo que não muda nunca é reenviado e sumiria junto com
-o dump antigo. Escope a regra ao prefixo dos dumps (`BACKUP_S3_PREFIX`) e, se quiser guardar versões, ligue o
-versionamento do bucket.
+**Retenção do remoto.** O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS. Os assets ficam num prefixo irmão dos dumps (`assets/`, não
+`postgres/s3/…`), e o `s3-sync.sh` só apaga com `BACKUP_S3_SYNC_DELETE=true`
+(padrão `false`: nada some do espelho nem do remoto).
 
 Limites: o `aws s3 sync` lista os dois lados a cada execução e o contêiner tem `mem_limit: 256m`. Para algumas dezenas de
 milhares de objetos, sem problema; para centenas de milhares (a mídia `api-sports/`), meça antes e suba o limite.

@@ -75,7 +75,7 @@ if s3_enabled; then
   fi
 fi
 
-# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota usa regra de ciclo de vida do bucket; o NAS, a
+# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota guarda tudo, sem regra de ciclo de vida: decisão de 02/11/2026; o NAS, a
 # rotação dele).
 deleted=$(prune_dumps)
 
