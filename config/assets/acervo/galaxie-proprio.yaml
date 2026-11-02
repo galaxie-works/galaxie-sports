@@ -861,16 +861,10 @@ logos:
   aliases:
   - Hertha Wels
   - WSC Hertha Wels
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a16746-0a78-70e5-81b0-d775b74574cf
-    name: Hertha
-    confidence: 0.85
-  - id: 01a16746-f588-79f7-898d-bc13b41e0c7d
-    name: Wels
-    confidence: 0.85
+  target_id: 01a16746-0a78-70e5-81b0-d775b74574cf
+  match: manual
+  confidence: 1
+  target_name: Hertha
 - key: teams/austria/fc-liefering
   kind: team
   country: AT
@@ -2884,13 +2878,10 @@ logos:
   - URT-MG
   - URT MG
   - Uniao Recreativa dos Trabalhadores
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-ff9a-7407-b987-a83a1ea727ba
-    name: Uniao Trabalhadores
-    confidence: 0.85
+  target_id: 01a15fba-ff9a-7407-b987-a83a1ea727ba
+  match: manual
+  confidence: 1
+  target_name: Uniao Trabalhadores
 - key: teams/brasil/vasco-da-gama
   kind: team
   country: BR
@@ -5251,25 +5242,10 @@ logos:
   aliases:
   - Segunda División RFEF
   - Segunda Division RFEF
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-b1b1-7fce-a951-2a583427673a
-    name: Segunda División
-    confidence: 0.85
-  - id: 01a15fba-b936-7ec0-8de4-7403d0769c05
-    name: Segunda División RFEF - Group 1
-    confidence: 0.8
-  - id: 01a15fba-b939-7d1c-878e-c3cf319c0467
-    name: Segunda División RFEF - Group 2
-    confidence: 0.8
-  - id: 01a15fba-b93c-768d-b2f0-7284a29e44cd
-    name: Segunda División RFEF - Group 3
-    confidence: 0.8
-  - id: 01a15fba-b93e-7bb2-9011-aff554962c1f
-    name: Segunda División RFEF - Group 4
-    confidence: 0.8
+  target_id: 01a15fba-b936-7ec0-8de4-7403d0769c05
+  match: manual
+  confidence: 1
+  target_name: Segunda División RFEF - Group 1
 - key: teams/espanha/albacete
   kind: team
   country: ES
@@ -6154,12 +6130,7 @@ logos:
     webp: competitions/franca/national-1.webp
   sha256: 3597ca35fe53c823756423e1091d7315baf062c6e9dfda295f6c1c1b6c152bbd
   target_id: null
-  match: ambiguous
-  confidence: 1
-  candidates:
-  - id: 01a15fba-b007-7ce9-9f0c-a5801dfd67e3
-    name: Ligue 3
-    confidence: 1
+  match: rejected
 - key: teams/franca/afc-creil
   kind: team
   country: FR
@@ -13237,13 +13208,10 @@ logos:
   - Dinamo Moscow
   - Dynamo Moscow
   - Dinamo Moskva
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163bb-7d48-7b9c-a388-28357cf571bf
-    name: Dynamo
-    confidence: 0.85
+  target_id: 01a163bb-7d48-7b9c-a388-28357cf571bf
+  match: manual
+  confidence: 1
+  target_name: Dynamo
 - key: teams/russia/fakel
   kind: team
   country: RU
@@ -14063,13 +14031,10 @@ logos:
   sha256: 408acaf64d6faefd165deaf7b97e5f5f3ccb15b12e5f44517e2fc3f41b971972
   aliases:
   - Campionato Sammarinese
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-b2a6-75ae-9c57-1f9b096278c4
-    name: Campionato
-    confidence: 0.85
+  target_id: 01a15fba-b2a6-75ae-9c57-1f9b096278c4
+  match: manual
+  confidence: 1
+  target_name: Campionato
 - key: teams/san-marino/selecao-san-marino
   kind: team
   country: SM
@@ -15024,12 +14989,7 @@ logos:
   - Mardin 1969 Spor
   - Mardin Spor
   target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163be-21aa-7f8d-a41a-b20a85df60ec
-    name: Mardin 1969
-    confidence: 0.85
+  match: rejected
 - key: teams/turquia/menemen-fk
   kind: team
   country: TR
