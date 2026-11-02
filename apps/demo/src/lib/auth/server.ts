@@ -23,6 +23,7 @@ import {
   recordOtpFailure,
   registerOtpRequest,
 } from './otp-guard';
+import { isReviewerEmail, reviewerLogin, reviewerOtp } from './reviewer';
 
 /**
  * Código de acesso: 6 dígitos, vale 10 minutos, até 5 tentativas erradas por código. Somando os códigos,
@@ -36,6 +37,9 @@ export const OTP_MAX_ATTEMPTS = 5;
  * `OTP_RESEND_GUARD_SECONDS` de otp-guard.ts, no banco).
  */
 export const OTP_RESEND_SECONDS = 60;
+
+/** Conta de revisão externa com código fixo (reviewer.ts); nula sem DEMO_REVIEWER_EMAIL e DEMO_REVIEWER_CODE. */
+const reviewer = reviewerLogin(process.env, OTP_LENGTH);
 
 /** Idioma de uma requisição ao auth: o cookie da demo ou o `Accept-Language`. */
 export function localeFromHeaders(headers: Headers | null | undefined): Locale {
@@ -233,9 +237,13 @@ export const auth = betterAuth({
       // Só quem já tem conta (convidado) recebe código; e-mail desconhecido recebe a mesma resposta.
       disableSignUp: true,
       storeOTP: 'hashed',
+      // Conta de revisão: código fixo combinado; os demais e-mails recebem o código aleatório de sempre.
+      generateOTP: (data) => reviewerOtp(reviewer, data),
       async sendVerificationOTP({ email, otp, type }, ctx) {
         // A demo só usa o código para entrar; os outros tipos estão desligados (disabledPaths).
         if (type !== 'sign-in') return;
+        // O revisor já tem o código combinado; não manda e-mail para uma caixa que ninguém lê.
+        if (isReviewerEmail(reviewer, email)) return;
         deliverOtp(email, otp, localeFromHeaders(ctx?.headers));
       },
     }),

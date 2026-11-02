@@ -102,7 +102,7 @@ services:
 
   # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
   s3:
-    image: rustfs/rustfs:1.0.3
+    image: rustfs/rustfs:1.0.4
     restart: unless-stopped
     mem_limit: 1g
     environment:
@@ -127,7 +127,7 @@ services:
 
   # Cria o bucket e libera leitura anônima só de objetos (s3:GetObject); listar o bucket continua exigindo chave.
   s3-init:
-    image: amazon/aws-cli:2.38.2
+    image: amazon/aws-cli:2.38.6
     depends_on:
       - s3
     environment:
@@ -243,6 +243,9 @@ services:
       # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
       DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-}
+      # Conta de revisão externa com código fixo (apps/demo/src/lib/auth/reviewer.ts)
+      DEMO_REVIEWER_EMAIL: ${DEMO_REVIEWER_EMAIL:-}
+      DEMO_REVIEWER_CODE: ${DEMO_REVIEWER_CODE:-}
       # E-mail de convite e de redefinição de senha (sem SMTP o painel mostra o link para copiar)
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
