@@ -144,6 +144,34 @@ ssh root@<vps> 'cd /docker/galaxie-sports && docker compose ps prometheus && doc
 Disco cheio derruba o Prometheus primeiro: confira `df -h`. Depois de subir, os alertas que estavam disparando voltam
 em 1 a 2 min.
 
+## Uso por contêiner (memória e CPU)
+
+Medição do #533 para fechar `mem_limit` e `cpus` por serviço. Um coletor na VPS (`/root/stats/collect.sh`, cron de cada
+minuto, só até 12/11/2026 UTC) grava o `docker stats` de todos os contêineres, com a hora em UTC, num CSV por dia:
+`/root/stats/docker-stats-AAAA-MM-DD.csv`, com as colunas `hora,nome,uso / limite,% do limite,% de CPU` (CPU em % de
+**uma** vCPU: 200% = as 2 vCPU cheias). O pico de verdade é em dia de rodada cheia (sábado e domingo).
+
+```bash
+ssh root@<vps> '/root/stats/summarize.sh'                                       # tudo desde o início
+ssh root@<vps> 'DE=2026-11-07 ATE=2026-11-08 /root/stats/summarize.sh'          # só o fim de semana (dias UTC)
+```
+
+Sai uma linha por contêiner (limite, pico, p95 e média de memória em MiB, `uso/lim` = pico sobre o limite, pico, p95 e
+média de CPU) e, no fim, a soma de todos por instante: o pico dessa soma é o que tem de caber nos 7,9 GB. Para a conta
+direta do CSV, sem o script (pico de memória por contêiner, em MiB):
+
+```bash
+cat /root/stats/docker-stats-*.csv | awk -F, '{ split($3, u, " / "); m = u[1] + 0
+  if (u[1] ~ /GiB/) m *= 1024; else if (u[1] ~ /KiB/) m /= 1024
+  if (m > max[$2]) max[$2] = m } END { for (c in max) printf "%8.0f MiB  %s
+", max[c], c }' | sort -rn
+```
+
+Contêiner fora da stack (`traefik`, `openobserve`, `galaxie-remote-*`) também aparece: divide a mesma RAM. Memória do
+host sem o Docker (e a CPU dele, em janelas de 10 min) vem do `sar`: `sar -r -f /var/log/sysstat/saDD` (`DD` = o dia do
+mês). Acabada a medição, apague a linha do cron (`crontab -e`) e guarde os CSVs; fonte dos scripts:
+`infra/ops/vps-stats/`.
+
 ## Depois
 
 - **Resolveu?** O push avisa quando o alerta resolve. Confira no painel "SLOs e orçamento de erro" quanto do orçamento
