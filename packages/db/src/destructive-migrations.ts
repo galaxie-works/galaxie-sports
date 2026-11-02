@@ -53,10 +53,11 @@ function mask(text: string): string {
       out += blank(text.slice(i, end), ' ');
       i = end;
     } else if (c === "'" || c === '"') {
-      // aspas repetidas dentro ('' ou "") escapam a própria aspa
+      // aspas repetidas dentro ('' ou "") escapam a própria aspa; em E'…' a barra também escapa o caractere seguinte
+      const escapes = c === "'" && /^[eE]$/.test(text[i - 1] ?? '') && !/\w/.test(text[i - 2] ?? '');
       let close = i + 1;
       while (close < text.length && !(text[close] === c && text[close + 1] !== c))
-        close += text[close] === c ? 2 : 1;
+        close += text[close] === c || (escapes && text[close] === '\\') ? 2 : 1;
       out += c + blank(text.slice(i + 1, close), '_') + (close < text.length ? c : '');
       i = close + 1;
     } else {
@@ -67,19 +68,38 @@ function mask(text: string): string {
   return out;
 }
 
-/** O que vem depois de `from` até a vírgula seguinte fora de parênteses (ou o fim do comando), sem os parênteses. */
-function columnDefinition(statement: string, from: number): string {
+/**
+ * O que vem depois de `from` até a vírgula seguinte fora de parênteses (ou o fim do comando): inteiro (`full`) e
+ * sem o que está entre parênteses (`top`, onde `CHECK (x IS NOT NULL)` não atrapalha a procura de NOT NULL).
+ */
+function columnDefinition(statement: string, from: number): { full: string; top: string } {
   let depth = 0;
-  let def = '';
+  let full = '';
+  let top = '';
   for (let i = from; i < statement.length; i++) {
     const c = statement[i]!;
+    if (c === ',' && depth === 0) break;
+    full += c;
     if (c === '(') depth += 1;
     else if (c === ')') depth -= 1;
-    else if (c === ',' && depth === 0) break;
-    else if (depth === 0) def += c;
+    else if (depth === 0) top += c;
   }
-  return def;
+  return { full, top };
 }
+
+/** Depois de `ADD` sem a palavra COLUMN, isto não é uma coluna. */
+const NOT_A_COLUMN = new Set([
+  'CONSTRAINT',
+  'PRIMARY',
+  'FOREIGN',
+  'UNIQUE',
+  'CHECK',
+  'EXCLUDE',
+  'VALUE',
+  'ATTRIBUTE',
+  'TABLE',
+  'SCHEMA',
+]);
 
 const IDENT = String.raw`(?:"[^"]*"|\w+)`;
 
@@ -120,11 +140,16 @@ export function destructiveStatements(text: string): DestructiveStatement[] {
     }
     for (const m of statement.matchAll(/\bSET\s+NOT\s+NULL\b/gi)) add(offset + m.index, 'SET NOT NULL');
     for (const m of statement.matchAll(
-      new RegExp(String.raw`\bADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?${IDENT}`, 'gi'),
+      new RegExp(String.raw`\bADD\s+(COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(${IDENT})`, 'gi'),
     )) {
-      const def = columnDefinition(statement, m.index + m[0].length);
-      if (/\bNOT\s+NULL\b/i.test(def) && !/\b(?:DEFAULT|GENERATED|SERIAL|BIGSERIAL|SMALLSERIAL)\b/i.test(def))
-        add(offset + m.index, 'ADD COLUMN NOT NULL sem DEFAULT');
+      // COLUMN é opcional no Postgres: `ADD x integer NOT NULL` também é uma coluna nova
+      if (!m[1] && NOT_A_COLUMN.has(m[2]!.toUpperCase())) continue;
+      const { full, top } = columnDefinition(statement, m.index + m[0].length);
+      // `DEFAULT NULL` não preenche nada: o INSERT da versão antiga ainda leva NULL
+      const defaulted =
+        /\b(?:DEFAULT|GENERATED|SERIAL|BIGSERIAL|SMALLSERIAL)\b/i.test(top) &&
+        !/\bDEFAULT\s+\(*\s*NULL\b/i.test(full);
+      if (/\bNOT\s+NULL\b/i.test(top) && !defaulted) add(offset + m.index, 'ADD COLUMN NOT NULL sem DEFAULT');
     }
     for (const m of statement.matchAll(/\bTRUNCATE\b/gi)) add(offset + m.index, 'TRUNCATE');
     offset += statement.length + 1;

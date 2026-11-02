@@ -86,7 +86,7 @@ lido da API na hora, não do evento original). Colocar o rótulo sozinho não di
 - **`DROP INDEX` conta**, mesmo `CONCURRENTLY IF EXISTS` de índice substituído (ver "Trocar um índice").
 - **`DROP DEFAULT`, `DROP NOT NULL`, `DROP IDENTITY` e `DROP EXPRESSION` não contam**: só afrouxam a coluna.
 - **`ADD COLUMN … NOT NULL` sem `DEFAULT` conta**: o `INSERT` da versão antiga, que não conhece a coluna, falha.
-  Com `DEFAULT`, `GENERATED` ou `serial` não conta.
+  Com `DEFAULT` (menos `DEFAULT NULL`, que não preenche nada), `GENERATED` ou `serial` não conta; `ADD` sem a palavra `COLUMN` vale igual.
 - **`DROP TRIGGER`/`DROP POLICY` seguido de `CREATE`** (padrão de reaplicar um objeto) também conta; prefira
   `CREATE OR REPLACE` quando existir.
 - O check é de **texto**: não sabe se a coluna ainda é usada pelo código. Quem abre o PR `contrair` atesta que não é.

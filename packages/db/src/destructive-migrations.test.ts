@@ -77,6 +77,38 @@ ALTER TYPE "core"."event_status" ADD VALUE 'novo';`),
     ).toEqual(['ADD COLUMN NOT NULL sem DEFAULT']);
   });
 
+  it('ADD sem a palavra COLUMN também é coluna nova', () => {
+    expect(rules('ALTER TABLE t ADD x integer NOT NULL;')).toEqual(['ADD COLUMN NOT NULL sem DEFAULT']);
+    expect(rules('ALTER TABLE t ADD "x" integer NOT NULL DEFAULT 0;')).toEqual([]);
+    expect(rules('ALTER TABLE t ADD CONSTRAINT c CHECK (x IS NOT NULL);')).toEqual([]);
+    expect(rules('ALTER TABLE t ADD PRIMARY KEY (a);')).toEqual([]);
+    expect(rules("ALTER TYPE s ADD VALUE 'novo';")).toEqual([]);
+  });
+
+  it('DEFAULT NULL não preenche nada: NOT NULL junto continua destrutivo', () => {
+    expect(rules('ALTER TABLE t ADD COLUMN x integer DEFAULT NULL NOT NULL;')).toEqual([
+      'ADD COLUMN NOT NULL sem DEFAULT',
+    ]);
+    expect(rules('ALTER TABLE t ADD COLUMN x integer DEFAULT (NULL) NOT NULL;')).toEqual([
+      'ADD COLUMN NOT NULL sem DEFAULT',
+    ]);
+    expect(rules('ALTER TABLE t ADD COLUMN x integer NOT NULL DEFAULT NULL::integer;')).toEqual([
+      'ADD COLUMN NOT NULL sem DEFAULT',
+    ]);
+    expect(rules('ALTER TABLE t ADD COLUMN x text NOT NULL DEFAULT nullif(1, 1)::text;')).toEqual([]);
+    expect(rules('ALTER TABLE t ADD COLUMN x integer DEFAULT NULL;')).toEqual([]);
+  });
+
+  it("E'…' tem escape com barra: a aspa escapada não fecha o texto e o resto do arquivo segue sendo lido", () => {
+    expect(rules("INSERT INTO t VALUES (E'it\\'s'); DROP TABLE t;")).toEqual(['DROP TABLE']);
+    expect(rules("INSERT INTO t VALUES (e'a\\\\'); DROP TABLE t;")).toEqual(['DROP TABLE']);
+    // sem o E, a barra é comum e a aspa seguinte fecha o texto
+    expect(rules("INSERT INTO t VALUES ('a\\'); DROP TABLE t;")).toEqual(['DROP TABLE']);
+    // E dentro de um nome não é prefixo
+    expect(rules("SELECT type'x\\'; DROP TABLE t;")).toEqual(['DROP TABLE']);
+    expect(rules("INSERT INTO t VALUES (E'DROP TABLE x\\' RENAME');")).toEqual([]);
+  });
+
   it('ignora comentários, texto entre aspas simples e nomes entre aspas duplas', () => {
     expect(
       rules(`-- DROP TABLE "core"."event";
