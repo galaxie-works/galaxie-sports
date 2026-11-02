@@ -243,6 +243,9 @@ services:
       # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
       DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-}
+      # Conta de revisão externa com código fixo (apps/demo/src/lib/auth/reviewer.ts)
+      DEMO_REVIEWER_EMAIL: ${DEMO_REVIEWER_EMAIL:-}
+      DEMO_REVIEWER_CODE: ${DEMO_REVIEWER_CODE:-}
       # E-mail de convite e de redefinição de senha (sem SMTP o painel mostra o link para copiar)
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
