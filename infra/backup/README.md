@@ -41,6 +41,10 @@ Depois de cada dump (e na partida, se o recibo estiver velho), `s3-sync.sh`:
 3. grava o recibo `/backups/.s3_last_sync`, que o `backup-check.sh` confere (mesmo limite de `BACKUP_MAX_AGE_H`), e a
    linha `s3-sync` em `ops.job_run`.
 
+Um prefixo sem nenhum objeto (nome errado, ou ainda vazio) falha o sync em vez de passar em silêncio: `aws s3 sync` de um
+prefixo inexistente termina com sucesso sem copiar nada, e o recibo daria o backup por feito. Ponha na lista só prefixos que
+já têm objetos.
+
 Nada é apagado por padrão (`BACKUP_S3_SYNC_DELETE=false`): o objeto que sumiu do RustFS por engano continua na cópia, e um
 RustFS vazio não esvazia o backup. Os objetos de logo têm o hash no nome, então não são reescritos. Falha do sync não
 derruba o backup do banco (o dump já está guardado): ela vira erro do job `s3-sync`, o recibo envelhece e o verificador

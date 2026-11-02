@@ -49,6 +49,10 @@ for p in $(s3_sync_prefixes); do
   # shellcheck disable=SC2086 # delete vazio some de propósito
   aws_assets sync --only-show-errors $delete "s3://$S3_BUCKET/$p/" "$BACKUP_S3_SYNC_DIR/$p/" ||
     fail "copiar o prefixo $p do RustFS"
+  # `aws s3 sync` de um prefixo que não existe (nome errado) termina com sucesso e não copia nada: sem nenhum objeto
+  # no espelho, o recibo não sai. Ponha na lista só prefixo que já tem objeto (um novo entra quando receber o primeiro).
+  [ -n "$(find "$BACKUP_S3_SYNC_DIR/$p" -type f | head -n 1)" ] ||
+    fail "o prefixo $p não tem nenhum objeto no RustFS (nome errado? ponha na lista só prefixos que já têm objetos)"
   if [ "$remote_enabled" = true ]; then
     # shellcheck disable=SC2086
     aws_s3 sync --only-show-errors $delete "$BACKUP_S3_SYNC_DIR/$p/" \

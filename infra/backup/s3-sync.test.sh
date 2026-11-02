@@ -13,7 +13,8 @@ mkdir -p "$work/bin"
 calls="$work/calls.log"
 
 # aws falso: registra "<chave usada> <argumentos>"; `sync s3://… <pasta>` cria um objeto na pasta (como o sync real);
-# AWS_FAKE_FAIL=<texto> faz falhar a chamada cujos argumentos contêm o texto.
+# AWS_FAKE_FAIL=<texto> faz falhar a chamada cujos argumentos contêm o texto; AWS_FAKE_EMPTY=1 deixa o prefixo vazio
+# (o sync real de um prefixo que não existe sai com sucesso e sem copiar nada).
 cat >"$work/bin/aws" <<'FAKE'
 #!/bin/sh
 echo "key=${AWS_ACCESS_KEY_ID:-} $*" >>"$CALLS"
@@ -25,7 +26,7 @@ while [ $# -gt 0 ]; do
     src=""
     dst=""
     for a in "$@"; do case "$a" in --*) ;; *) if [ -z "$src" ]; then src="$a"; else dst="$a"; fi ;; esac; done
-    case "$src" in s3://*) mkdir -p "$dst" && echo x >"$dst/objeto.png" ;; esac
+    case "$src" in s3://*) mkdir -p "$dst" && { [ -n "${AWS_FAKE_EMPTY:-}" ] || echo x >"$dst/objeto.png"; } ;; esac
     exit 0
     ;;
   esac
@@ -106,6 +107,12 @@ novo
 export BACKUP_S3_SYNC_PREFIXES=broadcasters BACKUP_S3_BUCKET=bucket-remoto AWS_FAKE_FAIL="s3://bucket-remoto"
 if sync; then r=0; else r=$?; fi
 confere "falha no envio ao remoto: sai com erro e não grava o recibo" '[ "$r" != 0 ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ]'
+
+novo
+export BACKUP_S3_SYNC_PREFIXES=broadcasters BACKUP_S3_BUCKET=bucket-remoto AWS_FAKE_EMPTY=1
+if sync; then r=0; else r=$?; fi
+confere "prefixo sem objeto no RustFS (nome errado) falha, não envia ao remoto e não grava o recibo"   '[ "$r" != 0 ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ] && ! grep -q "s3://bucket-remoto" "$calls" && grep -q "nenhum objeto" "$work/out.log"'
+unset AWS_FAKE_EMPTY
 
 # recibo velho não vale: o s3-sync.sh não apaga o anterior, e o verificador olha a idade
 novo
