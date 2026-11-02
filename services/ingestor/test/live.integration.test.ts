@@ -243,7 +243,10 @@ describe('ao vivo no Postgres', () => {
   it('recálculo de tabelas: temporadas com resultado novo, idempotente; tabela do provedor mais nova prevalece', async () => {
     const pal = await eventRow(9101);
     const since = new Date(Date.now() - 3_600_000);
-    expect(await seasonsWithNewResults(db, since)).toContain(pal.seasonId);
+    // a janela de "temporada atual" conta a partir de hoje; os jogos semeados têm data fixa (21/10),
+    // então ela é alargada até eles para o teste não vencer com o calendário
+    const recentDays = Math.ceil((since.getTime() - pal.startsAt.getTime()) / 86_400_000) + 1;
+    expect(await seasonsWithNewResults(db, since, Math.max(10, recentDays))).toContain(pal.seasonId);
     const first = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
     expect(first[0]).toMatchObject({ outcome: 'written', results: 4, rows: 4 });
     const again = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
