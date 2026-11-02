@@ -173,8 +173,8 @@ describe('versionsNote', () => {
   const sha = 'abcdef1234567890';
   it('traz o SHA e o hash de cada imagem, marcando a trocada', () => {
     assert.equal(
-      versionsNote(sha, 'api=in-1234567890abc demo=in-fedcba0987654', 'demo'),
-      'SHA `abcdef1` · `api` in-1234567 · `demo` in-fedcba0 (trocada)',
+      versionsNote(sha, 'api=in-apiabcdefghi demo=in-demoabcdefg', 'demo'),
+      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada)',
     );
   });
   it('sem versões, sem linha', () => {

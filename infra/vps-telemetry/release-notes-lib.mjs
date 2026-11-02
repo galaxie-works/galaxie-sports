@@ -165,7 +165,9 @@ export function versionsNote(sha, versions, swapped = '') {
     .map((pair) => pair.split('='));
   if (!pairs.length) return undefined;
   const changed = new Set(swapped.split(/\s+/).filter(Boolean));
-  const items = pairs.map(([name, tag]) => `\`${name}\` ${tag.slice(0, 10)}${changed.has(name) ? ' (trocada)' : ''}`);
+  const items = pairs.map(
+    ([name, tag]) => `\`${name}\` ${tag.slice(0, 10)}${changed.has(name) ? ' (trocada)' : ''}`,
+  );
   return `SHA \`${sha.slice(0, 7)}\` · ${items.join(' · ')}`;
 }
 
