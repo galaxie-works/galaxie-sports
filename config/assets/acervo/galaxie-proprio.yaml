@@ -1984,13 +1984,9 @@ logos:
   aliases:
   - Barcelona de Ilheus
   - Barcelona BA
-  target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a15fba-ff9f-7759-8a27-6ad827e327a8
-    name: Barcelona EC
-    confidence: 0.85
+  target_id: 01a15fba-ff9d-706b-90e6-d606c1a4a7ca
+  match: manual
+  confidence: 1
 - key: teams/brasil/boavista-sc
   kind: team
   country: BR
