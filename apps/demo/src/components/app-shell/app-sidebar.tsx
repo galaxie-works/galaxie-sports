@@ -276,6 +276,21 @@ function SidebarNav({ pathname, section = null }: { pathname: string | null; sec
   );
 }
 
+/** Termos e privacidade também na área logada (onde o player do YouTube toca), como no login e no site. */
+function LegalLinks() {
+  const { t } = useI18n();
+  return (
+    <nav className="text-muted-foreground flex gap-4 px-2 pb-1 text-xs group-data-[collapsible=icon]:hidden">
+      <a href="/termos" className="hover:text-foreground underline-offset-4 hover:underline">
+        {t.auth.about.terms}
+      </a>
+      <a href="/privacidade" className="hover:text-foreground underline-offset-4 hover:underline">
+        {t.auth.about.privacy}
+      </a>
+    </nav>
+  );
+}
+
 export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
@@ -306,6 +321,7 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <UserMenu />
+        <LegalLinks />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
