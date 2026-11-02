@@ -16,6 +16,7 @@ export { runMigrations, migrationsFolder } from './migrate.js';
 export {
   APP_SCHEMAS,
   DEMO_AUTH_SCHEMA,
+  ROLE_CONNECTION_LIMITS,
   ROLE_GRANTS,
   ROLE_SERVICES,
   ROLE_URL_ENV,

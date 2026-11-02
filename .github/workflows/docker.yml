@@ -4,6 +4,11 @@ name: Imagens e stack de staging
 # stack usa (o caddy fica de fora: a VPS usa o Traefik): na fila com a tag <sha> do commit que vai virar a main; no push
 # com <sha>, main e staging. Imagem cuja entrada não mudou não é reconstruída: ganha as tags novas (passo "Entrada da
 # imagem"). O deploy (deploy.yml) sobe a stack com as imagens do SHA — ver infra/vps-telemetry/README.md.
+# A entrada de api, ingestor e demo é calculada por infra/ops/image-inputs.mjs a partir do grafo do pnpm: as pastas do
+# fechamento de dependências do app (com as de dev, que o build compila), o que o Dockerfile copia de fora do grafo e os
+# arquivos da raiz. Um merge só na demo reaproveita a api e o ingestor. Mudança em config/ continua reconstruindo api e
+# ingestor, de propósito: o config/ inteiro vai dentro dessas duas imagens. Na demo só entram config/broadcasters e
+# config/broadcast-rights, as pastas que o Dockerfile dela copia.
 # Sem filtro de caminhos: todo commit da main precisa das imagens do próprio SHA, e um check obrigatório que não roda
 # (PR só de docs) trava o PR para sempre. PR que não muda a entrada das imagens só reaproveita e termina em segundos.
 on:
@@ -41,20 +46,17 @@ jobs:
       fail-fast: false
       matrix:
         # inputs = o que o build lê do contexto e muda a imagem. As três do Node copiam a raiz inteira (COPY . ., menos
-        # o .dockerignore); docs, .github, infra, scripts e tests ficam de fora porque nenhum build os lê.
+        # o .dockerignore), mas só leem parte dela: não têm inputs aqui, a lista sai de infra/ops/image-inputs.mjs.
         include:
           - image: api
             context: .
             file: apps/api/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: ingestor
             context: .
             file: services/ingestor/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: demo
             context: .
             file: apps/demo/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: backup
             context: infra/backup
             file: infra/backup/Dockerfile
@@ -87,14 +89,22 @@ jobs:
       # Hash da entrada: pasta única = hash git dela (o mesmo rótulo works.galaxie.context-tree que o deploy.sh confere na
       # VPS); várias = sha256 da listagem git delas. A imagem já publicada com a tag in-<hash> é a que um build agora
       # daria: ganha as tags deste commit (imagetools, sem baixar camada) em vez de ser reconstruída. Na fila, a imagem
-      # do próprio SHA (publicada pelo grupo) serve também para o push na main que vem logo depois.
+      # do próprio SHA (publicada pelo grupo) serve também para o push na main que vem logo depois. Sem inputs na matriz,
+      # a lista vem do grafo do pnpm (o Node já instalado no runner basta: o script não tem dependências).
       - name: Entrada da imagem
         id: input
         env:
           INPUTS: ${{ matrix.inputs }}
           NAME: ${{ matrix.image }}
         run: |
-          read -ra paths <<< "$INPUTS"
+          # o script roda fora do read: dentro dele, uma falha passaria calada e o ls-tree sem caminho listaria a raiz
+          if [ -n "$INPUTS" ]; then
+            list="$INPUTS"
+          else
+            list=$(node infra/ops/image-inputs.mjs "$NAME")
+          fi
+          read -ra paths <<< "$list"
+          echo "entrada de $NAME: ${paths[*]}"
           if [ "${#paths[@]}" = 1 ]; then
             hash=$(git rev-parse "HEAD:${paths[0]}")
           else
@@ -404,6 +414,9 @@ jobs:
 
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
+
+      - name: Entrada das imagens (quais mudam com cada caminho; lista ⇄ Dockerfiles)
+        run: node --test infra/ops/image-inputs.test.mjs
 
       - name: Página de manutenção (rótulo de revisão bate com o conteúdo das configs)
         run: |
