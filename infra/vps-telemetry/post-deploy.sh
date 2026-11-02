@@ -8,6 +8,8 @@
 #          nem LLM), limpeza do cache de respostas da API e conta da IA. O seed roda em todo deploy, não só quando
 #          data/knowledge muda: é ele que liga os perfis aos participantes que a ingestão trouxe desde o último
 #          deploy
+#   sem-cache  o mesmo, sem a limpeza do cache: um deploy que não troca API, webhooks, ingestor nem agents não invalida
+#          as respostas guardadas
 #   seed   só o seed da base semântica (depois de voltar para a versão anterior)
 #   cache  só a limpeza do cache (depois de voltar para a versão anterior)
 #
@@ -97,10 +99,15 @@ case "$step" in
     cache
     ai
     ;;
+  sem-cache)
+    semantic
+    derived
+    ai
+    ;;
   seed) semantic ;;
   cache) cache ;;
   *)
-    echo "uso: post-deploy.sh all|seed|cache" >&2
+    echo "uso: post-deploy.sh all|sem-cache|seed|cache" >&2
     exit 2
     ;;
 esac

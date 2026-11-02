@@ -53,7 +53,7 @@ if not r: print("   (vazio)")'
 logs() { dc logs --no-log-prefix --since "$2" "$1" 2>/dev/null; }
 section() { printf '\n== %s\n' "$*"; }
 
-echo "Diagnóstico de \"$ALERT\"${REST:+ ($REST)} em $(date -u +%FT%TZ) · versão $(sed -n 's/^IMAGE_TAG=//p' .env | cut -c1-8)"
+echo "Diagnóstico de \"$ALERT\"${REST:+ ($REST)} em $(date -u +%FT%TZ) · versão $(sed -n 's/^\(DEPLOY_SHA\|IMAGE_TAG\)=//p' .env | head -n 1 | cut -c1-8)"
 
 section "Alertas disparando agora (Prometheus)"
 dc exec -T prometheus wget -qO- http://localhost:9090/api/v1/alerts 2>/dev/null |

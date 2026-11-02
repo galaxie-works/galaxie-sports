@@ -23,7 +23,8 @@
 #      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
 #   5. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada);
-#      compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
+#      compose.yml do SHA e as tags das imagens no .env (o SHA em cada TAG_*, em IMAGE_TAG num SHA anterior a elas, e em
+#      DEPLOY_SHA), validados antes de trocar (com backup dos dois); a imagem da página de
 #      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
 #   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
 #      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
@@ -248,7 +249,7 @@ if [ "$SECONDS" -ge $((PRELOCK_MAX_MIN * 60)) ]; then
 fi
 
 # ── trava na VPS ────────────────────────────────────────────────────────────────────────────────────────────
-# Dois deploys (de máquinas diferentes) leriam o mesmo IMAGE_TAG anterior, disputariam compose.yml.new, o .env e o
+# Dois deploys (de máquinas diferentes) leriam o mesmo SHA anterior, disputariam compose.yml.new, o .env e o
 # compose up, e calculariam a mesma tag da release. mkdir é atômico; o dono fica em owner e a trava sai no fim
 # (trap EXIT, que também roda quando o deploy-safe.sh mata o deploy pelo teto de tempo). Trava mais velha que
 # LOCK_STALE_MIN é de um deploy que morreu sem liberar (máquina desligada, ssh perdido no fim): é tomada.
@@ -269,7 +270,9 @@ case "$lock" in
 esac
 LOCKED=1
 
-OLD="$(ssh "$VPS" "grep -E '^IMAGE_TAG=' $DIR/.env | cut -d= -f2")"
+# o SHA publicado: DEPLOY_SHA; antes das tags por serviço, IMAGE_TAG
+OLD="$(ssh "$VPS" "sed -n 's/^DEPLOY_SHA=//p' $DIR/.env | tail -n 1")"
+[ -n "$OLD" ] || OLD="$(ssh "$VPS" "sed -n 's/^IMAGE_TAG=//p' $DIR/.env | tail -n 1")"
 echo "na VPS: ${OLD:0:7} → ${SHA:0:7}"
 
 echo "enviando imagens"
@@ -287,7 +290,7 @@ case "$SCALE" in
     exit 1
     ;;
 esac
-# página de manutenção (serviço maintenance: imagem upstream fixa, sem IMAGE_TAG): baixa a imagem só se ainda não
+# página de manutenção (serviço maintenance: imagem upstream fixa, sem tag de deploy): baixa a imagem só se ainda não
 # estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
 # outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
 if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
@@ -307,10 +310,17 @@ else
   echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
   exit 1
 fi
-ssh "$VPS" "$CD && (umask 077 && sed 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env > .env.check) \
-  && { docker compose -f compose.yml.new --env-file .env.check config -q; ok=\$?; rm -f .env.check; [ \$ok = 0 ]; } \
+# as imagens construídas aqui têm a tag do SHA: ele vai em todas as TAG_* (ou em IMAGE_TAG, num SHA anterior a elas)
+env_lines="DEPLOY_SHA=$SHA"
+if grep -q '^TAG_API=' "$WT/infra/vps-telemetry/env.example"; then
+  for t in API DEMO INGESTOR BACKUP PROMETHEUS GRAFANA; do env_lines+=$'\n'"TAG_$t=$SHA"; done
+else
+  env_lines+=$'\n'"IMAGE_TAG=$SHA"
+fi
+ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA)=' .env; printf '%s\n' '$env_lines'; } > .env.next) \
+  && { docker compose -f compose.yml.new --env-file .env.next config -q || { rm -f .env.next; exit 1; }; } \
   && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
-  && mv compose.yml.new compose.yml && sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env"
+  && mv compose.yml.new compose.yml && mv .env.next .env"
 # contagem de migrations antes do up: o rollback automático só vale se nenhuma nova foi aplicada (o código antigo
 # não foi escrito para o schema novo); sem a contagem, rollback só manual
 MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""
@@ -331,7 +341,7 @@ restore_previous() {
   elif [ "$MIG_AFTER" != "$MIG_BEFORE" ]; then
     why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
-    && for s in api ingestor demo backup prometheus grafana; do docker image inspect $REG-\$s:$OLD >/dev/null || exit 1; done \
+    && for img in \$(docker compose -f compose.yml.bak-$o --env-file .env.bak-$o config --images); do docker image inspect \$img >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
     && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
