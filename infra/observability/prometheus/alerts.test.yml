@@ -180,7 +180,7 @@ tests:
               job_name: backup-check
             exp_annotations:
               summary: 'Verificação do backup falhou'
-              description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+              description: 'Último dump atrasado, cópia do NAS ou sync dos assets do S3 sem recibo recente. Veja ops.job_run (job backup-check, coluna error; job s3-sync para o motivo do sync) e os logs do container backup.'
       - eval_time: 2m
         alertname: RestoreDrillFailed
         exp_alerts:

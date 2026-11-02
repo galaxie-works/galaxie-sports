@@ -1,0 +1,8 @@
+# Achados já avaliados do gitleaks (fingerprint = commit:arquivo:regra:linha). Só entra aqui valor que NÃO é segredo.
+# 75f1c45b: chaves descartáveis do RustFS de teste do e2e-test.sh (caso 11), literais só nesse commit; desde o commit
+# seguinte são geradas na hora com /dev/urandom. O CI varre todos os commits do PR, então o achado do commit antigo
+# continuaria acusado sem esta lista (sem reescrever a história do branch).
+75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:157
+75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:161
+75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:167
+75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:168
