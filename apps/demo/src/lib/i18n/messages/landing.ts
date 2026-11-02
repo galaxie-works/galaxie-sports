@@ -84,7 +84,8 @@ export default defineMessages(
         },
         related: {
           title: 'Vídeos de cada jogo',
-          body: 'Melhores momentos, gols e coletivas de canais oficiais ligados a cada partida, prontos para tocar na sua página.',
+          body: 'Melhores momentos, gols e coletivas dos canais oficiais no YouTube, ligados a cada partida e tocando no player oficial do YouTube na sua página.',
+          badge: 'Vídeos do YouTube',
         },
       },
       note: 'Placar é só o começo. A Galaxie entrega a camada que transforma cada jogo em audiência.',
@@ -404,7 +405,8 @@ export default defineMessages(
           },
           related: {
             title: 'Videos for every match',
-            body: 'Highlights, goals and press conferences from official channels linked to every match, ready to play on your page.',
+            body: 'Highlights, goals and press conferences from official YouTube channels, linked to every match and played in the official YouTube player on your page.',
+            badge: 'Videos from YouTube',
           },
         },
         note: 'The score is just the start. Galaxie delivers the layer that turns every match into audience.',
@@ -723,7 +725,8 @@ export default defineMessages(
           },
           related: {
             title: 'Videos de cada partido',
-            body: 'Mejores momentos, goles y conferencias de canales oficiales vinculados a cada partido, listos para reproducir en tu página.',
+            body: 'Mejores momentos, goles y conferencias de los canales oficiales en YouTube, vinculados a cada partido y reproducidos en el reproductor oficial de YouTube en tu página.',
+            badge: 'Videos de YouTube',
           },
         },
         note: 'El resultado es solo el comienzo. Galaxie entrega la capa que convierte cada partido en audiencia.',

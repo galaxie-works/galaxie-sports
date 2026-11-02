@@ -30,6 +30,19 @@ const PILLARS = [
   { key: 'related', icon: PlayCircle, hue: 320 },
 ] as const satisfies readonly { key: keyof Text['pillars']; icon: LucideIcon; hue: number }[];
 
+/** Ícone oficial do YouTube (vermelho, triângulo branco), sem alterar cor nem proporção. */
+function YoutubeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 17" aria-hidden className={className}>
+      <path
+        fill="#FF0000"
+        d="M23.5 2.65A3.02 3.02 0 0 0 21.38.52C19.5 0 12 0 12 0S4.5 0 2.62.52A3.02 3.02 0 0 0 .5 2.65 31.5 31.5 0 0 0 0 8.5a31.5 31.5 0 0 0 .5 5.85 3.02 3.02 0 0 0 2.12 2.13C4.5 17 12 17 12 17s7.5 0 9.38-.52a3.02 3.02 0 0 0 2.12-2.13A31.5 31.5 0 0 0 24 8.5a31.5 31.5 0 0 0-.5-5.85Z"
+      />
+      <path fill="#FFF" d="M9.6 12.14 15.82 8.5 9.6 4.86v7.28Z" />
+    </svg>
+  );
+}
+
 /**
  * Recursos da camada em duas faixas que correm em sentidos opostos. Cada faixa leva a lista duas vezes (a
  * segunda escondida dos leitores de tela) para o loop emendar.
@@ -129,6 +142,12 @@ export function Layer({ t }: { t: Text }) {
                 <span className="text-muted-foreground text-sm leading-relaxed text-pretty">
                   {pillar.body}
                 </span>
+                {'badge' in pillar ? (
+                  <span className="mt-1 inline-flex items-center gap-2 text-sm font-medium">
+                    <YoutubeIcon className="h-4 w-auto" />
+                    {pillar.badge}
+                  </span>
+                ) : null}
               </span>
             </li>
           );
