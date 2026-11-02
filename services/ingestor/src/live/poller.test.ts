@@ -2,7 +2,7 @@ import { FakeProvider, normalizeFixtures, type NormalizedBatch } from '@galaxie/
 import { describe, expect, it } from 'vitest';
 import { apiFixture, cupFinal, wednesdayNight, type WorldMatch } from '../testing/live-world.js';
 import { InMemoryLiveStore } from './memory-store.js';
-import { LivePoller } from './poller.js';
+import { LivePoller, TickFencedError } from './poller.js';
 import type { LiveCandidate } from './types.js';
 
 const MIN = 60_000;
@@ -200,5 +200,132 @@ describe('LivePoller', () => {
     expect(r.featured).toBe('9500');
     expect(r.calls).toBe(2);
     expect(finishedIds).toEqual([]); // ainda em andamento: o cursor do detalhe não é marcado
+  });
+
+  describe('líder e reserva', () => {
+    const at = (min: number) => new Date(kick + min * MIN);
+    const details = (provider: FakeProvider) =>
+      provider.calls.filter((c) => c.method === 'getEventDetail').length;
+
+    it('a nova líder herda as tentativas de confirmar o resultado: não repete a chamada da antiga', async () => {
+      const { store, provider, poller, tracked } = setup([match]);
+      provider.willReturn('listLive', batchAt([match], at(100)));
+      await poller.tick({
+        now: at(100),
+        leagues: ['71'],
+        tracked: await tracked(at(100)),
+        finalizeBudget: 2,
+      });
+      // sumiu do live, e o detalhe ainda não diz que acabou
+      provider
+        .willReturn('listLive', batchAt([], at(101)))
+        .willReturn('getEventDetail', batchAt([match], at(100), true));
+      await poller.tick({
+        now: at(101),
+        leagues: ['71'],
+        tracked: await tracked(at(101)),
+        finalizeBudget: 2,
+      });
+      expect(details(provider)).toBe(1);
+
+      const successor = new LivePoller(provider, store, { sport: 'football' });
+      successor.restoreFinalizeAttempts(
+        JSON.parse(JSON.stringify(poller.exportFinalizeAttempts(at(101)))) as Record<
+          string,
+          { attempts: number; nextAt: number }
+        >,
+      );
+      // dentro do backoff de 1 min da antiga: nada
+      provider.willReturn('listLive', batchAt([], at(101.5)));
+      await successor.tick({
+        now: at(101.5),
+        leagues: ['71'],
+        tracked: await tracked(at(101.5)),
+        finalizeBudget: 2,
+      });
+      expect(details(provider)).toBe(1);
+      // passado o backoff: agora sim
+      provider
+        .willReturn('listLive', batchAt([], at(102)))
+        .willReturn('getEventDetail', batchAt([match], at(112), true));
+      await successor.tick({
+        now: at(102),
+        leagues: ['71'],
+        tracked: await tracked(at(102)),
+        finalizeBudget: 2,
+      });
+      expect(details(provider)).toBe(2);
+    });
+
+    it('o bastão esquece tentativas de mais de um dia', async () => {
+      const { poller } = setup([match]);
+      poller.restoreFinalizeAttempts({
+        velho: { attempts: 3, nextAt: 0 },
+        novo: { attempts: 1, nextAt: 1_000 },
+      });
+      expect(Object.keys(poller.exportFinalizeAttempts(new Date(1_000)))).toEqual(['velho', 'novo']);
+      expect(Object.keys(poller.exportFinalizeAttempts(new Date(24 * 60 * MIN + 500)))).toEqual(['novo']);
+    });
+
+    it('trava perdida antes do tick: nenhuma chamada', async () => {
+      const { provider, poller, tracked } = setup([match]);
+      const fence = AbortSignal.abort();
+      await expect(
+        poller.tick({
+          now: at(15),
+          leagues: ['71'],
+          tracked: await tracked(at(15)),
+          finalizeBudget: 1,
+          fence,
+        }),
+      ).rejects.toBeInstanceOf(TickFencedError);
+      expect(provider.calls).toHaveLength(0);
+    });
+
+    it('trava perdida com a chamada no ar: descarta a resposta, sem gravar nem publicar', async () => {
+      const { store, provider, poller, tracked } = setup([match]);
+      const list = await tracked(at(25));
+      provider.willReturn('listLive', batchAt([match], at(25)));
+      const fence = new AbortController();
+      const listLive = provider.listLive.bind(provider);
+      provider.listLive = async (...args) => {
+        const result = await listLive(...args);
+        fence.abort();
+        return result;
+      };
+      await expect(
+        poller.tick({ now: at(25), leagues: ['71'], tracked: list, finalizeBudget: 1, fence: fence.signal }),
+      ).rejects.toBeInstanceOf(TickFencedError);
+      expect(store.state('9101')).toMatchObject({ status: 'scheduled' });
+      expect(store.published).toHaveLength(0);
+    });
+
+    it('trava perdida depois de gravar: corta as chamadas novas, mas publica o que já mudou no core', async () => {
+      const { store, provider, poller, tracked } = setup([match]);
+      provider.willReturn('listLive', batchAt([match], at(25)));
+      const list = await tracked(at(25));
+      await poller.tick({ now: at(25), leagues: ['71'], tracked: list, finalizeBudget: 1 });
+      const published = store.published.length;
+
+      const later = await tracked(at(100));
+      const fence = new AbortController();
+      const applyBatch = store.applyBatch.bind(store);
+      store.applyBatch = async (batch) => {
+        await applyBatch(batch);
+        fence.abort();
+      };
+      provider.willReturn('listLive', batchAt([match], at(100)));
+      const r = await poller.tick({
+        now: at(100),
+        leagues: ['71'],
+        tracked: later,
+        featured: later[0],
+        finalizeBudget: 1,
+        fence: fence.signal,
+      });
+      expect(r.calls).toBe(1);
+      expect(provider.calls.filter((c) => c.method === 'getEventDetail')).toHaveLength(0);
+      expect(store.published.length).toBeGreaterThan(published);
+    });
   });
 });

@@ -10,16 +10,25 @@
  * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY, LIVE_MIN_PRIORITY.
  * O painel de Operação sobrescreve essas variáveis pelo banco; o processo relê a cada minuto, sem reiniciar.
  * SIGTERM/SIGINT encerram com elegância (termina o tick em andamento, registra ops.job_run, fecha o banco).
+ * LIVE_LEADER=on (padrão off) liga líder e reserva (live/leader.ts): fica no ar como --continuo, só a cópia com a
+ * trava `live:leader` chama a api-sports e a outra tenta a trava a cada LIVE_LEADER_RETRY_MS (padrão 1000).
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { closeDb, readRuntimeOverrides } from '@galaxie/db';
+import { closeDb, jobLockContender, readRuntimeOverrides } from '@galaxie/db';
 import { applyOverrides, runtimeBaseEnv } from '@galaxie/runtime-config';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
-import { LiveRunner } from '../live/runner.js';
+import { PgLiveHandoffStore } from '../live/handoff.js';
+import {
+  LIVE_LEADER_LOCK,
+  liveLeaderSessionName,
+  liveLeaderSettings,
+  runLiveLeadership,
+} from '../live/leader.js';
+import { LiveRunner, type LiveRunSummary } from '../live/runner.js';
 import {
   decideTick,
   DEFAULT_LIVE_OPTIONS,
@@ -122,6 +131,7 @@ await runCli(async () => {
     strict: true,
   });
   if (!['hoje', 'amanha'].includes(values.dia)) throw new Error('--dia deve ser hoje ou amanha.');
+  const leader = liveLeaderSettings();
   // as opções da linha de comando vencem; o resto vem do env (que o scheduler já entrega com o painel)
   const settingsFrom = (env: NodeJS.ProcessEnv) => {
     const featured = values.destaque ?? env.LIVE_FEATURED?.trim() ?? 'off';
@@ -141,7 +151,8 @@ await runCli(async () => {
       maxIntervalMs:
         maxIntervalMin !== undefined ? maxIntervalMin * 60_000 : DEFAULT_LIVE_OPTIONS.maxIntervalMs,
       protectDaily,
-      idleExitMs: values.continuo ? null : (idleMin ?? 15) * 60_000,
+      // líder e reserva não saem ociosas: a líder dorme com a trava na mão (a reserva assumiria só para sair)
+      idleExitMs: values.continuo || leader.enabled ? null : (idleMin ?? 15) * 60_000,
       ...(minPriority ? { minPriority } : {}),
     };
   };
@@ -155,7 +166,8 @@ await runCli(async () => {
     ...(initial.minPriority ? { minPriority: initial.minPriority } : {}),
   };
   const sport = values.esporte;
-  const ctx = contextFromEnv();
+  // o perfil `live` chega com a eleição, que só o serviço do ao vivo liga (#535); sem ela, seguem os tempos dos jobs
+  const ctx = contextFromEnv(process.env, leader.enabled ? { dbProfile: 'live' } : {});
 
   try {
     if (values.plan) {
@@ -189,37 +201,134 @@ await runCli(async () => {
     if (!new ApiSportsProvider(ctx.client).supports(sport))
       throw new Error(`Ainda não há provedor ao vivo para "${sport}" (só o plano: --plan).`);
     const runs = new PgJobRunStore(ctx.db);
-    const runId = await runs.start('live:run');
-    const jobId = `job-run:${runId}`;
     const cursors = new PgCursorStore(ctx.db);
-    const store = new PgLiveStore(ctx.db, {
-      publish: !values['sem-publicar'],
-      onFinished: async (changes) => {
-        if (values['sem-tabelas']) return;
-        const seasonIds = [...new Set(changes.flatMap((c) => (c.seasonId ? [c.seasonId] : [])))];
-        if (!seasonIds.length) return;
-        const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
-        for (const t of tables) {
-          const fields = {
-            season_id: t.seasonId,
-            competition: t.competition,
-            outcome: t.outcome,
-            rows: t.rows,
-            ...(needsAttention(t)
-              ? {
-                  detail: t.detail,
-                  skipped: t.skipped,
-                  unclassified: t.unclassified,
-                  unmatched_rounds: t.unmatchedRounds,
-                }
-              : {}),
-          };
-          if (needsAttention(t)) log.warn(fields, 'tabela após jogo encerrado pede atenção');
-          else log.info(fields, 'tabela recalculada após jogo encerrado');
-        }
-      },
-    });
-    const provider = new ApiSportsProvider(ctx.client, { priority: 'LIVE', jobId });
+    const handoff = leader.enabled ? new PgLiveHandoffStore(ctx.db) : undefined;
+
+    /** Uma execução em ops.job_run; com líder e reserva, um mandato de líder (a reserva não registra nada). */
+    const runTerm = async (signal: AbortSignal, fence?: AbortSignal): Promise<LiveRunSummary> => {
+      // só a dona da trava abre execução: se há outra aberta, a líder anterior morreu sem registrar o fim
+      if (leader.enabled)
+        await runs.closeInterrupted('live:run', 'interrompido: a líder morreu sem encerrar');
+      const runId = await runs.start('live:run');
+      const jobId = `job-run:${runId}`;
+      const store = new PgLiveStore(ctx.db, {
+        publish: !values['sem-publicar'],
+        onFinished: async (changes) => {
+          if (values['sem-tabelas']) return;
+          const seasonIds = [...new Set(changes.flatMap((c) => (c.seasonId ? [c.seasonId] : [])))];
+          if (!seasonIds.length) return;
+          const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
+          for (const t of tables) {
+            const fields = {
+              season_id: t.seasonId,
+              competition: t.competition,
+              outcome: t.outcome,
+              rows: t.rows,
+              ...(needsAttention(t)
+                ? {
+                    detail: t.detail,
+                    skipped: t.skipped,
+                    unclassified: t.unclassified,
+                    unmatched_rounds: t.unmatchedRounds,
+                  }
+                : {}),
+            };
+            if (needsAttention(t)) log.warn(fields, 'tabela após jogo encerrado pede atenção');
+            else log.info(fields, 'tabela recalculada após jogo encerrado');
+          }
+        },
+      });
+      const provider = new ApiSportsProvider(ctx.client, { priority: 'LIVE', jobId });
+
+      let lastStateKey = '';
+      let lastStateAt = 0;
+      const latest: { plan?: LiveDayPlan } = {};
+      const runner = new LiveRunner({
+        sport,
+        provider,
+        store,
+        governor: ctx.governor,
+        log,
+        jobId,
+        handoff,
+        options: { ...options, idleExitMs: initial.idleExitMs },
+        // painel de Operação: relê LIVE_* do banco a cada minuto (banco > env do contêiner > padrão)
+        refresh: {
+          everyMs: 60_000,
+          load: async () => {
+            const { env } = applyOverrides(baseEnv, await readRuntimeOverrides(ctx.db));
+            return settingsFrom(env);
+          },
+        },
+        hooks: {
+          onPlan: async (plan) => {
+            latest.plan = plan;
+            const state = liveStateFromPlan(plan, new Date());
+            const key = JSON.stringify({ ...state, updatedAt: null });
+            if (key === lastStateKey && Date.now() - lastStateAt < 60_000) return;
+            lastStateKey = key;
+            lastStateAt = Date.now();
+            await saveLiveState(ctx.db, state).catch((err: unknown) =>
+              log.warn({ err }, 'não foi possível gravar o estado do ao vivo'),
+            );
+          },
+          onDetailFetched: async (providerEventId, at) => {
+            // o detalhe do encerrado já veio pelo ao vivo: o sync diário não busca de novo
+            await cursors.complete(
+              [{ sport, endpoint: '/fixtures', key: `id=${providerEventId}` }],
+              { source: 'live', jobRunId: runId, fetchedAt: at.toISOString() },
+              new Date(),
+            );
+          },
+          onTick: (tick) => {
+            for (const c of tick.changes.filter((x) => x.goal || x.finished))
+              log.info(
+                {
+                  event_id: c.eventId,
+                  provider_event_id: c.providerEventId,
+                  score: c.score,
+                  status: c.statusDetail,
+                  goal: c.goal,
+                  finished: c.finished,
+                },
+                c.finished ? 'jogo encerrado' : 'gol',
+              );
+          },
+        },
+      });
+      log.info({ sport, featured, run_id: runId }, 'ao vivo iniciado');
+      try {
+        const summary = await runner.run(signal, fence);
+        const stats = {
+          stoppedBy: summary.stoppedBy,
+          ticks: summary.ticks,
+          errors: summary.errors,
+          changes: summary.changes,
+          published: summary.published,
+          goals: summary.goals,
+          finalized: summary.finalized,
+          days: [...summary.plans.keys()],
+        };
+        const lost = summary.stoppedBy === 'lost';
+        // passagem de bastão: o estado mais recente fica publicado antes de soltar a trava (quem perdeu a trava
+        // não escreve: a outra cópia já pode estar gravando)
+        if (leader.enabled && !lost && latest.plan)
+          await saveLiveState(ctx.db, liveStateFromPlan(latest.plan, new Date())).catch((err: unknown) =>
+            log.warn({ err }, 'não foi possível gravar o estado do ao vivo'),
+          );
+        // a trava costuma cair junto com o banco: a execução pode ficar sem fechar, e isso não derruba a cópia
+        await runs.finish(runId, { status: 'ok', callsSpent: summary.calls, stats }).catch((err: unknown) => {
+          if (!lost) throw err;
+          log.warn({ err, run_id: runId }, 'não foi possível fechar a execução depois de perder a trava');
+        });
+        log.info({ ...stats, calls: summary.calls }, 'ao vivo encerrado');
+        return summary;
+      } catch (err) {
+        await runs.finish(runId, { status: 'error', callsSpent: 0, stats: {}, error: String(err) });
+        throw err;
+      }
+    };
+
     const controller = new AbortController();
     const stop = (signal: string) => {
       if (controller.signal.aborted) return;
@@ -229,77 +338,20 @@ await runCli(async () => {
     process.once('SIGTERM', () => stop('SIGTERM'));
     process.once('SIGINT', () => stop('SIGINT'));
 
-    let lastStateKey = '';
-    let lastStateAt = 0;
-    const runner = new LiveRunner({
-      sport,
-      provider,
-      store,
-      governor: ctx.governor,
-      log,
-      jobId,
-      options: { ...options, idleExitMs: initial.idleExitMs },
-      // painel de Operação: relê LIVE_* do banco a cada minuto (banco > env do contêiner > padrão)
-      refresh: {
-        everyMs: 60_000,
-        load: async () => {
-          const { env } = applyOverrides(baseEnv, await readRuntimeOverrides(ctx.db));
-          return settingsFrom(env);
-        },
-      },
-      hooks: {
-        onPlan: async (plan) => {
-          const state = liveStateFromPlan(plan, new Date());
-          const key = JSON.stringify({ ...state, updatedAt: null });
-          if (key === lastStateKey && Date.now() - lastStateAt < 60_000) return;
-          lastStateKey = key;
-          lastStateAt = Date.now();
-          await saveLiveState(ctx.db, state).catch((err: unknown) =>
-            log.warn({ err }, 'não foi possível gravar o estado do ao vivo'),
-          );
-        },
-        onDetailFetched: async (providerEventId, at) => {
-          // o detalhe do encerrado já veio pelo ao vivo: o sync diário não busca de novo
-          await cursors.complete(
-            [{ sport, endpoint: '/fixtures', key: `id=${providerEventId}` }],
-            { source: 'live', jobRunId: runId, fetchedAt: at.toISOString() },
-            new Date(),
-          );
-        },
-        onTick: (tick) => {
-          for (const c of tick.changes.filter((x) => x.goal || x.finished))
-            log.info(
-              {
-                event_id: c.eventId,
-                provider_event_id: c.providerEventId,
-                score: c.score,
-                status: c.statusDetail,
-                goal: c.goal,
-                finished: c.finished,
-              },
-              c.finished ? 'jogo encerrado' : 'gol',
-            );
-        },
-      },
+    if (!leader.enabled) {
+      await runTerm(controller.signal);
+      return;
+    }
+    const lock = jobLockContender(process.env.DATABASE_URL!, LIVE_LEADER_LOCK, {
+      applicationName: liveLeaderSessionName(leader.instance),
     });
-    log.info({ sport, featured, run_id: runId }, 'ao vivo iniciado');
     try {
-      const summary = await runner.run(controller.signal);
-      const stats = {
-        stoppedBy: summary.stoppedBy,
-        ticks: summary.ticks,
-        errors: summary.errors,
-        changes: summary.changes,
-        published: summary.published,
-        goals: summary.goals,
-        finalized: summary.finalized,
-        days: [...summary.plans.keys()],
-      };
-      await runs.finish(runId, { status: 'ok', callsSpent: summary.calls, stats });
-      log.info({ ...stats, calls: summary.calls }, 'ao vivo encerrado');
-    } catch (err) {
-      await runs.finish(runId, { status: 'error', callsSpent: 0, stats: {}, error: String(err) });
-      throw err;
+      await runLiveLeadership(
+        { lock, instance: leader.instance, retryMs: leader.retryMs, log, term: runTerm },
+        controller.signal,
+      );
+    } finally {
+      await lock.close();
     }
   } finally {
     await closeDb(ctx.db);

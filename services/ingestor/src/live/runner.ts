@@ -6,7 +6,8 @@
  */
 import type { QuotaGovernor } from '@galaxie/apisports-client';
 import { isInPlay, type SportsDataProvider } from '@galaxie/providers';
-import { LivePoller, type TickReport } from './poller.js';
+import type { LiveHandoffStore } from './handoff.js';
+import { LivePoller, TickFencedError, type TickReport } from './poller.js';
 import {
   decideTick,
   liveOptions,
@@ -111,9 +112,12 @@ export interface LiveRunnerDeps {
   options?: Partial<LiveRunnerOptions>;
   jobId?: string | undefined;
   refresh?: LiveOptionsRefresh | undefined;
+  /** Líder e reserva: retoma de onde a líder anterior parou e deixa o bastão a cada tick. */
+  handoff?: LiveHandoffStore | undefined;
 }
 
-export type LiveStopReason = 'idle' | 'aborted' | 'until' | 'max_ticks';
+/** `lost`: a trava de líder caiu (`fence`); o tick em andamento foi descartado. */
+export type LiveStopReason = 'idle' | 'aborted' | 'until' | 'max_ticks' | 'lost';
 
 export interface LiveRunSummary {
   stoppedBy: LiveStopReason;
@@ -313,7 +317,54 @@ export class LiveRunner {
     );
   }
 
-  async run(signal?: AbortSignal): Promise<LiveRunSummary> {
+  /** Retoma o que a líder anterior deixou; falhou a leitura, começa do zero (pior caso: um tick a mais). */
+  private async restoreHandoff(): Promise<void> {
+    const store = this.deps.handoff;
+    if (!store) return;
+    try {
+      const saved = await store.load(this.deps.sport);
+      if (!saved) return;
+      this.lastTickAt = saved.lastTickAt ? new Date(saved.lastTickAt) : null;
+      this.backoffUntil = saved.backoffUntil ? new Date(saved.backoffUntil) : null;
+      this.consecutiveFailures = saved.consecutiveFailures;
+      for (const [id, at] of Object.entries(saved.halftimeSeenAt)) this.halftimeSeenAt.set(id, new Date(at));
+      this.poller.restoreFinalizeAttempts(saved.finalizeAttempts);
+      this.log.info(
+        { last_tick_at: saved.lastTickAt, backoff_until: saved.backoffUntil },
+        'ao vivo retomado do bastão da líder anterior',
+      );
+    } catch (err) {
+      this.log.warn({ err }, 'não foi possível ler o bastão do ao vivo; começando do zero');
+    }
+  }
+
+  private async saveHandoff(now: Date): Promise<void> {
+    const store = this.deps.handoff;
+    if (!store) return;
+    try {
+      await store.save(
+        this.deps.sport,
+        {
+          lastTickAt: this.lastTickAt?.toISOString() ?? null,
+          backoffUntil: this.backoffUntil?.toISOString() ?? null,
+          consecutiveFailures: this.consecutiveFailures,
+          halftimeSeenAt: Object.fromEntries(
+            [...this.halftimeSeenAt].map(([id, at]) => [id, at.toISOString()]),
+          ),
+          finalizeAttempts: this.poller.exportFinalizeAttempts(now),
+        },
+        now,
+      );
+    } catch (err) {
+      this.log.warn({ err }, 'não foi possível gravar o bastão do ao vivo');
+    }
+  }
+
+  /**
+   * `signal` encerra com elegância: termina o tick em andamento. `fence` (só com líder e reserva) avisa que a
+   * trava caiu: o tick é descartado, nenhuma chamada nova sai e o run volta com `stoppedBy: 'lost'`.
+   */
+  async run(signal?: AbortSignal, fence?: AbortSignal): Promise<LiveRunSummary> {
     const summary: LiveRunSummary = {
       stoppedBy: 'idle',
       ticks: 0,
@@ -327,14 +378,20 @@ export class LiveRunner {
       gaps: [],
     };
     const opts = this.options;
+    const wake = signal && fence ? AbortSignal.any([signal, fence]) : (signal ?? fence);
+    await this.restoreHandoff();
     // com releitura de configuração, nenhuma espera passa do intervalo dela
     const refreshCap = this.deps.refresh?.everyMs ?? Infinity;
     const sleepUntil = async (until: Date, cap = Infinity) => {
       const ms = Math.min(until.getTime() - this.clock.now(), cap, refreshCap);
-      await this.clock.sleep(Math.max(1_000, ms), signal);
+      await this.clock.sleep(Math.max(1_000, ms), wake);
     };
 
     for (;;) {
+      if (fence?.aborted) {
+        summary.stoppedBy = 'lost';
+        break;
+      }
       if (signal?.aborted) {
         summary.stoppedBy = 'aborted';
         break;
@@ -354,6 +411,7 @@ export class LiveRunner {
         await this.refreshOptions();
         step = await this.plan(now);
       } catch (err) {
+        if (fence?.aborted) continue;
         // erro inesperado ao planejar (ex.: banco ou Governor fora): não derruba o processo; tenta de novo
         this.giveUpAfter('plan', err);
         this.log.error({ err }, 'falha ao planejar o ao vivo; tentando de novo');
@@ -402,6 +460,9 @@ export class LiveRunner {
         continue;
       }
 
+      // o sinal chegou enquanto planejava: não começa outro tick
+      if (wake?.aborted) continue;
+
       // ── tick ──
       const active = new Set(decision.eventIds);
       const tracked = plan.included.filter((m) => active.has(m.candidate.eventId)).map((m) => m.candidate);
@@ -418,17 +479,28 @@ export class LiveRunner {
           tracked,
           featured,
           finalizeBudget,
+          fence,
         });
       } catch (err) {
+        // perdeu a trava no meio: nada conta, quem assumir faz este tick
+        if (err instanceof TickFencedError || fence?.aborted) continue;
         // erro inesperado (ex.: banco): não derruba o processo; tenta de novo no próximo intervalo
         this.giveUpAfter('tick', err);
         this.log.error({ err }, 'falha no tick ao vivo');
         this.lastTickAt = now;
         summary.errors += 1;
+        await this.saveHandoff(now);
         continue;
       }
       this.consecutiveErrors.tick = 0;
-      if (this.lastTickAt) summary.gaps.push(now.getTime() - this.lastTickAt.getTime());
+      if (this.lastTickAt) {
+        const gap = now.getTime() - this.lastTickAt.getTime();
+        summary.gaps.push(gap);
+        // com líder e reserva, o intervalo atravessa as trocas: é a prova de que a passagem não abriu buraco.
+        // O ingestor não tem /metrics por processo; a métrica entra com a #538.
+        if (this.deps.handoff)
+          this.log.info({ live_tick_interval_seconds: gap / 1000 }, 'intervalo entre ticks do ao vivo');
+      }
       this.lastTickAt = now;
       summary.ticks += 1;
       summary.calls += report.calls;
@@ -470,6 +542,8 @@ export class LiveRunner {
           'tick ao vivo',
         );
       }
+      // depois de perder a trava, quem escreve o bastão é a outra cópia
+      if (!fence?.aborted) await this.saveHandoff(now);
       try {
         await this.deps.hooks?.onTick?.(report, plan);
       } catch (err) {

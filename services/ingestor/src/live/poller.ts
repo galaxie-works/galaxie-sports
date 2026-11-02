@@ -22,6 +22,16 @@ export interface TickInput {
   featured?: LiveCandidate | null | undefined;
   /** Máximo de chamadas de confirmação do resultado final neste tick. */
   finalizeBudget: number;
+  /** Abortado quando esta cópia perde a liderança: nenhuma chamada nova ao fornecedor (líder e reserva). */
+  fence?: AbortSignal | undefined;
+}
+
+/** O tick foi descartado antes de gravar qualquer coisa: a trava de líder caiu no meio dele. */
+export class TickFencedError extends Error {
+  constructor() {
+    super('tick descartado: esta cópia perdeu a liderança do ao vivo');
+    this.name = 'TickFencedError';
+  }
 }
 
 export interface TickReport {
@@ -68,14 +78,35 @@ export function spent(result: ProviderResult): number {
  */
 export const FINALIZE_BACKOFF_MS = [0, 60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 20 * 60_000, 30 * 60_000];
 
+/** Tentativas de confirmar o resultado de um jogo (entram no bastão entre líder e reserva). */
+export interface FinalizeAttempt {
+  attempts: number;
+  nextAt: number;
+}
+
+/** Depois disto a tentativa já não decide nada: o backoff inteiro cabe com folga e o jogo saiu do plano. */
+const FINALIZE_MEMORY_MS = 24 * 3_600_000;
+
 export class LivePoller {
-  private readonly finalizeAttempts = new Map<string, { attempts: number; nextAt: number }>();
+  private readonly finalizeAttempts = new Map<string, FinalizeAttempt>();
 
   constructor(
     private readonly provider: SportsDataProvider,
     private readonly store: LiveStore,
     private readonly options: LivePollerOptions,
   ) {}
+
+  /** Tentativas ainda úteis, para a próxima líder não repetir a confirmação que esta já fez. */
+  exportFinalizeAttempts(now: Date): Record<string, FinalizeAttempt> {
+    const out: Record<string, FinalizeAttempt> = {};
+    for (const [id, state] of this.finalizeAttempts)
+      if (state.nextAt > now.getTime() - FINALIZE_MEMORY_MS) out[id] = state;
+    return out;
+  }
+
+  restoreFinalizeAttempts(saved: Record<string, FinalizeAttempt>): void {
+    for (const [id, state] of Object.entries(saved)) this.finalizeAttempts.set(id, state);
+  }
 
   private callOptions() {
     return { priority: 'LIVE' as const, ...(this.options.jobId ? { jobId: this.options.jobId } : {}) };
@@ -86,9 +117,13 @@ export class LivePoller {
     const providerId = this.provider.id;
     const leagues = new Set(input.leagues);
     const inPlay = input.tracked.filter((c) => c.providerEventId && isInPlay(c.status));
+    const { fence } = input;
 
+    if (fence?.aborted) throw new TickFencedError();
     const result = await this.provider.listLive(sport, input.leagues, this.callOptions());
     let calls = spent(result);
+    // resposta de quem já não é líder: a outra cópia pode estar gravando o mesmo jogo
+    if (fence?.aborted) throw new TickFencedError();
 
     if (result.status === 'error') {
       // a fonte falhou: last-known-good (mantém o placar, marca stale) para o que estava em andamento
@@ -134,12 +169,15 @@ export class LivePoller {
     const before = await this.store.snapshots(providerId, sport, ids);
     if (result.status === 'ok') await this.store.applyBatch(result.batch);
 
+    // daqui em diante o core já mudou: perder a trava só corta as chamadas novas. O diff e a publicação seguem,
+    // porque a próxima líder compara com o core já gravado e nunca publicaria este gol (o sinal se perderia).
+
     // confirmação do resultado de quem saiu do live (1 chamada por jogo, reservada no orçamento)
     const finalized: string[] = [];
     let budget = input.finalizeBudget;
     const maxAttempts = this.options.maxFinalizeAttempts ?? FINALIZE_BACKOFF_MS.length;
     for (const id of vanished) {
-      if (budget <= 0) break;
+      if (budget <= 0 || fence?.aborted) break;
       const state = this.finalizeAttempts.get(id) ?? { attempts: 0, nextAt: 0 };
       if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
       const attempts = state.attempts + 1;
@@ -158,7 +196,7 @@ export class LivePoller {
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite
     let featured: string | undefined;
-    if (featuredId) {
+    if (featuredId && !fence?.aborted) {
       const detail = await this.provider.getEventDetail(sport, featuredId, this.callOptions());
       calls += spent(detail);
       if (detail.status === 'ok') {

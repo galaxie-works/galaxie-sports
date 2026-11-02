@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { jobRun, type Database } from '@galaxie/db';
 
 export type JobRunStatus = 'running' | 'ok' | 'partial' | 'error';
@@ -55,5 +55,15 @@ export class PgJobRunStore implements JobRunStore {
         error: result.error ?? null,
       })
       .where(eq(jobRun.id, id));
+  }
+
+  /** Fecha as execuções do job que ficaram abertas (o processo morreu sem registrar o fim). Devolve quantas. */
+  async closeInterrupted(job: string, error: string): Promise<number> {
+    const rows = await this.db
+      .update(jobRun)
+      .set({ status: 'error', finishedAt: new Date(), error })
+      .where(and(eq(jobRun.job, job), eq(jobRun.status, 'running')))
+      .returning({ id: jobRun.id });
+    return rows.length;
   }
 }

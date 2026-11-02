@@ -28,7 +28,14 @@ export {
   type RoleGrants,
   type RoleService,
 } from './roles.js';
-export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
+export {
+  jobLockContender,
+  tryJobLock,
+  type JobLock,
+  type JobLockContender,
+  type JobLockContenderOptions,
+  type JobLockOptions,
+} from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export {
   publishChange,
