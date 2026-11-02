@@ -367,7 +367,7 @@ Com as variáveis do `.env` carregadas no shell: `set -a; . ./.env; set +a`.
 
 ## Backups, ensaio e alertas
 
-Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 14 diários + 8 semanais + 12 mensais no NAS, snapshot diário do
+Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 7 diários + 4 semanais + 6 mensais no NAS, snapshot diário do
 provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensaio mensal de restauração:
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md). Na VPS:
 

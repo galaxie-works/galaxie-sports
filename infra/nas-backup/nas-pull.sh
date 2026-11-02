@@ -6,8 +6,8 @@
 #   1. lista os dumps do volume `backups` da VPS (chave só de leitura: rrsync -ro);
 #   2. para cada dia UTC dos últimos NAS_KEEP_DAILY, baixa o dump mais recente daquele dia se o NAS não o tem (troca o
 #      do mesmo dia mais antigo), com o .sha256, e confere o hash antes de guardar em daily/;
-#   3. rotação avô-pai-filho por hardlink: weekly/ fica com o último dump de cada semana ISO (8) e monthly/ com o
-#      último de cada mês (12); daily/ com os 14 dias mais recentes. Por contagem: com a cópia parada, nada some;
+#   3. rotação avô-pai-filho por hardlink: weekly/ fica com o último dump de cada semana ISO (4) e monthly/ com o
+#      último de cada mês (6); daily/ com os 7 dias mais recentes. Por contagem: com a cópia parada, nada some;
 #   4. com NAS_S3_PREFIXES (os mesmos de BACKUP_S3_SYNC_PREFIXES da VPS), puxa também esses prefixos do bucket de assets,
 #      que o s3-sync.sh da VPS espelha em s3/<prefixo>/ no volume `backups`, para $NAS_DIR/s3/<prefixo>/ (rsync, só o que
 #      mudou). Sem rotação: os objetos são endereçados pelo conteúdo e nada é apagado (NAS_S3_DELETE=true espelha);
@@ -21,9 +21,9 @@ set -eu
 : "${VPS_USER:=root}"
 : "${VPS_PORT:=22}"
 : "${DUMP_PREFIX:=galaxie_sports_}"
-: "${NAS_KEEP_DAILY:=14}"
-: "${NAS_KEEP_WEEKLY:=8}"
-: "${NAS_KEEP_MONTHLY:=12}"
+: "${NAS_KEEP_DAILY:=7}"
+: "${NAS_KEEP_WEEKLY:=4}"
+: "${NAS_KEEP_MONTHLY:=6}"
 # Limite de banda do rsync em KiB/s (vazio = sem limite).
 : "${NAS_BWLIMIT:=}"
 # Prefixos do bucket de assets a puxar, separados por espaço ou vírgula (vazio = só os dumps) e se espelha as remoções.
