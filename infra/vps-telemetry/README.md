@@ -110,15 +110,6 @@ aparece no relatório. Para rodar só o smoke test:
 ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
 ```
 
-### Jogo ao vivo segura o deploy
-
-Antes de tocar a VPS, o job de deploy consulta (só leitura) os jogos em `starting`, `live` ou `break` de competição com
-`live_priority = high` e início nas últimas 6 h ([`live-hold.sh`](live-hold.sh)). Com algum no ar, espera, consultando a
-cada 2 min, até 3 h; o log e o resumo do Actions dizem quais jogos seguraram e por quanto tempo. Passado o teto, publica
-com aviso. Hotfix: disparo manual com `force=1` publica na hora. No automático, se outro commit entra na `main` durante a
-espera, este deploy sai e o do commit novo (que já espera na fila) cobre os dois. Consulta com falha não segura nada.
-Desligar: variável do repositório `DEPLOY_LIVE_HOLD=off`.
-
 ### Candidato e troca sem manutenção (`DEPLOY_CANDIDATE=on`)
 
 Variável do repositório; vazia, o roteiro é o de cima. Ligada:
