@@ -186,6 +186,10 @@ PULL="DOCKER_CONFIG=$CFG docker compose"
 
 # ── compose.yml e .env novos, imagens novas ─────────────────────────────────────────────────────────────────
 ssh "$VPS" "cat > $DIR/compose.yml.new" < "$STACK/compose.yml"
+# script do diagnóstico só leitura (a única coisa que a chave VPS_DIAG_SSH_KEY roda): sempre o do SHA publicado
+if [ -f "$STACK/diagnostico.sh" ]; then
+  ssh "$VPS" "cat > $DIR/diagnostico.sh.new && chmod 755 $DIR/diagnostico.sh.new && mv $DIR/diagnostico.sh.new $DIR/diagnostico.sh"     < "$STACK/diagnostico.sh" || echo "WARN  não consegui gravar o diagnostico.sh na VPS (o diagnóstico de alerta fica na versão anterior)"
+fi
 # escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
 SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
   SCALE=""
