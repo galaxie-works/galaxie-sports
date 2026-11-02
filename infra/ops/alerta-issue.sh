@@ -8,10 +8,13 @@
 # O payload (template galaxie.github.payload) traz um alerta só: status (firing|resolved), fingerprint, name, detail,
 # severity, summary, startsAt, endsAt, url e labels. A fingerprint (a mesma para os mesmos rótulos) vai num marcador
 # escondido no corpo da issue e é a chave da deduplicação:
-#   - firing sem issue aberta: abre "Alerta: <detail>" com o rótulo `alerta` (e `critico` se severity=critical);
+#   - firing sem issue aberta, mas com uma fechada há menos de 24 h: reabre essa, comenta a nova ocorrência e conta
+#     as vezes no título ("(3×)"), em vez de abrir outra (um alerta que oscila não enche o repositório);
+#   - firing sem issue aberta nem recente: abre "Alerta: <detail>" com o rótulo `alerta` (e `critico` se critical);
 #   - firing com issue aberta: nada (o Grafana repete a cada 12 h; a issue já está lá);
 #   - resolved com issue aberta: comenta a hora e fecha como concluída;
 #   - resolved sem issue aberta: nada (alguém fechou à mão, ou o alerta disparou antes do canal existir).
+# Ao abrir ou reabrir, dispara o diagnóstico só leitura (.github/workflows/diagnostico.yml), que comenta na issue.
 set -euo pipefail
 
 REPO="${GH_REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
@@ -66,6 +69,35 @@ if [ -n "$open_issue" ]; then
   exit 0
 fi
 
+# pedido do diagnóstico: o alerta do Prometheus (ou o nome) e os rótulos que escolhem as consultas
+diag_request() {
+  jq -r '(.labels // {}) as $l | [($l.prometheus_alert // $l.alertname // ""), ($l | to_entries | map(select(.key == "job" or .key == "slo" or .key == "sport" or .key == "esporte" or .key == "provedor")) | map("\(.key)=\(.value)") | .[])] | join(" ")' <<<"$P" |
+    tr -cd 'A-Za-z0-9 =_.:-'
+}
+diagnose() {
+  gh workflow run diagnostico.yml -R "$REPO" -f alerta="$(diag_request)" -f issue="$1" >/dev/null 2>&1 ||
+    echo "::warning::não consegui disparar o diagnóstico da issue #$1"
+}
+
+# fechada há menos de 24 h com a mesma fingerprint: reabre a mesma (o alerta voltou)
+recent="$(gh issue list -R "$REPO" --label alerta --state closed --limit 100 --json number,body,closedAt,title |
+  jq -r --arg m "$marker" --argjson now "$(date +%s)" '
+    [.[] | select(.body | contains($m)) | select(($now - (.closedAt | fromdateiso8601)) < 86400)][0]
+    | if . then "\(.number)|\(.title)" else empty end')"
+if [ -n "$recent" ]; then
+  n="${recent%%|*}"
+  old_title="${recent#*|}"
+  count="$(sed -n 's/.*(\([0-9]*\)×)$/\1/p' <<<"$old_title")"
+  count=$((${count:-1} + 1))
+  base="${old_title% (*×)}"
+  gh issue reopen "$n" -R "$REPO" >/dev/null
+  gh issue edit "$n" -R "$REPO" --title "${base:0:220} (${count}×)" >/dev/null
+  gh issue comment "$n" -R "$REPO" --body "Disparou de novo${since:+ em $since} (${count}ª vez em 24 h). Reaberta em vez de abrir outra."
+  echo "::notice::$name voltou a disparar: issue #$n reaberta (${count}×)"
+  diagnose "$n"
+  exit 0
+fi
+
 ensure_label() {
   gh label create "$1" -R "$REPO" --color "$2" --description "$3" >/dev/null 2>&1 || true
 }
@@ -97,3 +129,4 @@ EOF
 )"
 new="$(gh issue create -R "$REPO" --title "${title:0:240}" --label "$labels" --body "$body")"
 echo "::notice::$name disparou: $new"
+diagnose "${new##*/}"

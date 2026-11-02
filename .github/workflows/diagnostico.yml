@@ -1,0 +1,77 @@
+name: Diagnóstico de alerta
+
+# Diagnóstico SÓ LEITURA da produção para um alerta, comentado na issue do alerta. Quem dispara é o
+# infra/ops/alerta-issue.sh, ao abrir ou reabrir a issue (ou à mão / por uma sessão: gh workflow run diagnostico.yml
+# -f alerta="LiveEventStale sport=football" -f issue=513).
+#
+# A chave VPS_DIAG_SSH_KEY (ambiente producao) só roda um comando na VPS: o authorized_keys força
+# /docker/galaxie-sports/diagnostico.sh (infra/vps-telemetry/diagnostico.sh, gravado pelo deploy), com `restrict`. O
+# pedido vai como texto (SSH_ORIGINAL_COMMAND), validado aqui e de novo no script; nada dele é executado.
+on:
+  workflow_dispatch:
+    inputs:
+      alerta:
+        description: 'Alerta e rótulos (ex.: "JobFailingRepeatedly job=recap-run")'
+        required: true
+      issue:
+        description: Issue onde comentar (vazio = só no log)
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: diagnostico-${{ inputs.issue || inputs.alerta }}
+  cancel-in-progress: false
+
+jobs:
+  diagnostico:
+    name: Diagnóstico na VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: producao
+    steps:
+      - name: Pedido válido
+        env:
+          ALERTA: ${{ inputs.alerta }}
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          [[ "$ALERTA" =~ ^[A-Za-z0-9\ =_.:-]{1,200}$ ]] || { echo "::error::alerta com caracteres fora do permitido"; exit 1; }
+          [[ -z "$ISSUE" || "$ISSUE" =~ ^[0-9]{1,7}$ ]] || { echo "::error::issue inválida"; exit 1; }
+
+      - name: Rodar o diagnóstico
+        env:
+          SSH_KEY: ${{ secrets.VPS_DIAG_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          ALERTA: ${{ inputs.alerta }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::secrets VPS_DIAG_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_diag && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          # o comando é ignorado pelo servidor (o authorized_keys força o script); vai só como o pedido
+          ssh -i ~/.ssh/id_diag -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            root@145.223.94.149 "$ALERTA" > diag.txt 2>&1 || echo "(o diagnóstico terminou com erro: $?)" >> diag.txt
+          cat diag.txt
+
+      - name: Comentar na issue
+        if: inputs.issue != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ inputs.issue }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### Diagnóstico automático (só leitura)"
+            echo
+            echo '```'
+            head -c 60000 diag.txt
+            echo '```'
+            echo
+            echo "Gerado por [diagnostico.yml]($RUN_URL). Nada foi alterado na produção."
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
