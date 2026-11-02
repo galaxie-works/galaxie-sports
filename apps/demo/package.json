@@ -55,7 +55,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "happy-dom": "^21.0.4",
-    "shadcn": "^4.22.1",
+    "shadcn": "^4.23.0",
     "tailwindcss": "^4"
   },
   "description": "App de demonstração (Next.js + shadcn/ui + ReUI) que consome somente a API Galaxie Sports"
