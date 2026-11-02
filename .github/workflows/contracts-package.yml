@@ -27,6 +27,8 @@ concurrency:
 jobs:
   publish:
     name: publicar @galaxie-works/contracts
+    # O disparo manual escolhe a ref: de outra branch, publicaria código que não passou pela main
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
