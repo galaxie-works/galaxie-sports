@@ -3,6 +3,8 @@
 #   backup.sh                  # um backup agora
 # Variáveis: BACKUP_DIR (/backups), BACKUP_KEEP_DAILY (7 dumps), BACKUP_COMPRESS (zstd:5),
 #            BACKUP_S3_BUCKET / BACKUP_S3_PREFIX / BACKUP_S3_ENDPOINT + AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+#            BACKUP_S3_SYNC_PREFIXES: com ela, depois do dump o s3-sync.sh copia esses prefixos do bucket de assets (RustFS)
+#            para o volume e para o bucket remoto (cabeçalho do s3-sync.sh); sem ela, nada muda
 set -eu
 # shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
@@ -73,7 +75,7 @@ if s3_enabled; then
   fi
 fi
 
-# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota usa regra de ciclo de vida do bucket; o NAS, a
+# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota guarda tudo, sem regra de ciclo de vida: decisão de 02/11/2026; o NAS, a
 # rotação dele).
 deleted=$(prune_dumps)
 
@@ -81,3 +83,9 @@ duration=$(($(date -u +%s) - started))
 printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$file" >"$BACKUP_DIR/.last_success"
 job_finish "$run_id" ok "" "{\"file\":\"$(basename "$file")\",\"bytes\":$size,\"duration_s\":$duration,\"uploaded\":$uploaded,\"deleted_old\":$deleted}"
 log info "backup concluído: $(basename "$file") ($size bytes, ${duration}s, remota=$uploaded, removidos=$deleted)"
+
+# Os assets vêm depois do dump, que já está guardado e registrado: um RustFS fora do ar não derruba o backup do banco. A
+# falha do sync tem job próprio (s3-sync) e o backup-check.sh a acusa pelo recibo; aqui só sai com erro para o chamador ver.
+if s3_sync_enabled; then
+  s3-sync.sh || exit 1
+fi

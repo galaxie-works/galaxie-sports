@@ -23,8 +23,9 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
 | 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
 
-A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada (retenção pela regra de ciclo de
-vida do bucket). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
+A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
+ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local (por quantidade) e a do NAS. Os assets do bucket do RustFS (escudos, logos enviados no painel) têm cópia à
+parte, nos mesmos dois lugares: [Assets do S3](#assets-do-s3). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
 disco, sem conferência de que o banco nele está íntegro.
 
 ### Cópia no NAS
@@ -76,6 +77,72 @@ pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atu
   reinicie o container.
 - Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
   26 h.
+
+### Assets do S3
+
+O dump não leva o bucket `galaxie-sports-assets` do RustFS (serviço `s3` da stack). Levantamento de 02/11/2026, só
+leitura, direto no volume `s3data` da VPS (148,4 mil objetos, 5,55 GiB), com a origem de cada prefixo conferida em
+`core.asset`:
+
+| Prefixo | Objetos | Tamanho | Mudou em 7 dias | Quem grava | Se perder |
+|---|---:|---:|---:|---|---|
+| `api-sports/` (`football` 129.150 · `basketball` 1.843 · `volley` 1.078 · demais esportes e bandeiras) | 136.226 | 3,84 GiB | 2.610 | `assets:mirror`: espelho da CDN de mídia do fornecedor (origem `provider`) | Reconstituível: `assets:mirror` rebaixa da CDN (fora da cota) a partir de `core.asset.source_url`. Leva horas e depende da CDN estar no ar |
+| `commons/f1/` e `commons/people/` | 2.384 | 1,47 GiB | 0 | `assets:commons`: fotos de pilotos, carros e pessoas da Wikimedia Commons (origem `commons`) | Reconstituível pela rede (`commons://` em `core.asset.source_url`). Parcial: a escolha das fotos fica no banco e nos manifestos, que o dump e o repositório guardam |
+| `acervo/football/` (`teams`, `leagues`) | 8.849 | 200 MiB | 8.272 (importação em curso) | `assets:acervo`: escudos do pacote licenciado e as variantes geradas (64/128/256, SVG/PNG/WebP) | Reconstituível: o pacote tem cópia fora da VPS (OneDrive) e reimportar regera tudo, com as mesmas chaves (id + hash). Leva horas; barato de copiar |
+| `wikimedia/` | 175 | 20 MiB | 0 | Sem gravador no código atual: 175 linhas de `core.asset` de origem `commons` apontam para ele (versão anterior da importação de fotos) | Só se reconstitui rebaixando da Commons, sem rotina que faça isso hoje: **copie** |
+| `broadcasters/` | 742 | 32 MiB | 12 | `official-logos` (SVG baixado) **e** o upload do painel (Ajustes → Grades e ofertas, `logo-upload.ts`: 14 uploads hoje, `painel://` em `core.asset.source_url`) | **Precisa de cópia**: o logo enviado à mão não existe em outro lugar, e o prefixo mistura os dois |
+| `platforms/` | 23 | 350 KiB | 2 | `platform-logos` (origem `commons`) **e** o upload do painel | **Precisa de cópia**, pelo mesmo motivo |
+| `competitions/` | 1 | 6 KiB | 0 | `competition-logos` | Reconstituível, mas custa nada copiar |
+| `tasks/` (pacotes da fila de tarefas, ainda não existe) | | | | a fila durável (épico #558) | **Precisa de cópia**: entra na lista quando a fila for ao ar |
+
+**O que copiar** (`BACKUP_S3_SYNC_PREFIXES` na VPS e `NAS_S3_PREFIXES` no NAS, a mesma lista): o que é insubstituível
+(`broadcasters`, `platforms`, `wikimedia`) mais o que é pequeno e encurta muito o RTO (`competitions`, `commons/people`,
+`acervo`): 9,8 mil objetos e cerca de 260 MiB.
+
+```text
+BACKUP_S3_SYNC_PREFIXES=broadcasters platforms competitions wikimedia commons/people acervo
+```
+
+Fora da lista, de propósito: `api-sports/` (3,84 GiB e 136 mil objetos, uma listagem completa por execução, e é só espelho
+da CDN) e `commons/f1/` (1,47 GiB de fotos que a Commons devolve). Ficam por conta do `assets:mirror` e do
+`assets:commons`. Se mudar de ideia, são só mais entradas na lista (`api-sports/football` e assim por diante), medindo antes
+o `mem_limit` do serviço `backup` e o disco do volume.
+
+**Como funciona** (`infra/backup/s3-sync.sh`; variáveis em [infra/backup/README.md](../../infra/backup/README.md#assets-do-s3-rustfs)):
+
+1. Depois de cada dump (e na partida do serviço, se o recibo estiver velho), cada prefixo é espelhado do RustFS para
+   `s3/<prefixo>/` no volume `backups` (`aws s3 sync`, só o que mudou, sem apagar) e dali para o bucket remoto, em
+   `assets/<prefixo>/` (`BACKUP_S3_SYNC_DEST_PREFIX`). O prefixo `assets/` é irmão do dos dumps. O bucket remoto guarda
+   tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); para guardar versões de objetos
+   sobrescritos, ligue o versionamento do bucket.
+2. O NAS puxa `s3/<prefixo>/` pela mesma chave só de leitura dos dumps (o `rrsync -ro` já enxerga o volume inteiro) para
+   `$NAS_BACKUP_PATH/s3/<prefixo>/`, sem rotação: os objetos são endereçados pelo conteúdo e nada é apagado
+   (`NAS_S3_DELETE=true` espelha). O recibo `.nas_last_pull` só é tocado com os assets copiados.
+3. O verificador (`backup-check.sh`) exige o recibo `.s3_last_sync` com no máximo 26 h quando `BACKUP_S3_SYNC_PREFIXES`
+   está definido: sync que falha ou para vira `BackupCheckFailed`, e o motivo está no job `s3-sync` de `ops.job_run`
+   (3 falhas seguidas também acendem `JobFailingRepeatedly`). Falha do sync não derruba o backup do banco.
+
+**Ligar (uma vez, com o OK do Wagner):** ponha `BACKUP_S3_SYNC_PREFIXES` no `.env` da VPS e rode `docker compose up -d --no-deps backup`: a partida já faz o primeiro
+sync. Confira com `docker compose exec backup s3-sync.sh` (termina com a contagem de objetos) e
+`aws s3 ls s3://<bucket>/assets/ --recursive --summarize`. No NAS, ponha `NAS_S3_PREFIXES` (a mesma lista) na stack,
+copie o `nas-pull.sh` novo e reinicie o contêiner; o `last_run.txt` passa a citar os assets. O volume `backups` da VPS
+cresce o tamanho da lista (260 MiB acima).
+
+**Restaurar um prefixo no RustFS** (VPS nova ou bucket perdido). Do bucket remoto, de dentro do contêiner `backup` (ele
+tem as chaves dos dois lados), com o `s3-init` da stack já executado (ele cria o bucket e a leitura pública de objetos):
+
+```bash
+# 1. do bucket remoto para o volume (pule se o volume já tem s3/<prefixo>/)
+docker compose exec backup sh -c 'aws ${BACKUP_S3_ENDPOINT:+--endpoint-url $BACKUP_S3_ENDPOINT} s3 sync \
+  s3://$BACKUP_S3_BUCKET/${BACKUP_S3_SYNC_DEST_PREFIX:-assets}/broadcasters/ /backups/s3/broadcasters/'
+# 2. do volume para o RustFS (chaves do RustFS)
+docker compose exec backup sh -c 'AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY \
+  aws --endpoint-url $S3_ENDPOINT s3 sync /backups/s3/broadcasters/ s3://$S3_BUCKET/broadcasters/'
+```
+
+Repita com cada prefixo. Com a cópia só no NAS, traga o `s3/<prefixo>/` do NAS para `/backups/s3/<prefixo>/` (`docker cp`
+ou `rsync`) e rode só o passo 2. Depois, a página do time volta a mostrar o escudo (conferência no
+[roteiro](#roteiro-do-exercício-completo), passo 6).
 
 ### Dumps cifrados (age)
 
@@ -140,7 +207,8 @@ O serviço `backup` (`infra/backup/entrypoint.sh`) agenda, em UTC:
 | Quando | Script | O que faz | Registro (`ops.job_run`) e alerta |
 |---|---|---|---|
 | Diário, `BACKUP_TIME` (03:30) e na partida | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h) |
-| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h; com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
+| Depois de cada dump, com `BACKUP_S3_SYNC_PREFIXES` (e na partida, se o recibo estiver velho) | `s3-sync.sh` | Assets do RustFS → volume (`s3/`) → bucket remoto (`assets/`), sem apagar | `s3-sync` → `BackupCheckFailed` (recibo velho) e `JobFailingRepeatedly` (3 falhas) |
+| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h; com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h; com o sync dos assets ligado, o recibo `.s3_last_sync` com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
 | Dia `RESTORE_DRILL_DAY` (1) de cada mês, depois do dump | `restore-drill.sh` | Restaura o dump mais recente em `<banco>_drill_<data>` (nunca o de produção), confere e apaga | `pg-restore-drill` → `RestoreDrillFailed` (1ª falha), `RestoreDrillStale` (sem sucesso há 35 dias) |
 
 O ensaio confere: dump com no máximo 26 h e `.sha256` certo; espaço livre de pelo menos 2x o tamanho do banco no disco
@@ -185,8 +253,20 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
    (`runMigrations`/`pnpm db:migrate` com `DATABASE_URL` do banco restaurado).
 5. **Prova de vida da API**: suba a API apontando para o banco restaurado e rode o smoke de carga
    ([tests/load](../../tests/load/README.md)) — respostas 200 do catálogo e do autoatendimento.
-6. **Limpeza**: `DROP DATABASE galaxie_drill WITH (FORCE)` (e `_pre_restore_*`), `docker volume rm galaxie-dr-drill`.
-7. **Registro**: acrescente uma linha na tabela abaixo (data, origem, tamanho, tempos, divergências, ações).
+6. **Assets (S3)**: numa stack limpa (RustFS vazio, `s3-init` já rodou), restaure um prefixo do bucket remoto (ou do NAS)
+   como em [Assets do S3](#assets-do-s3) (restaurar um prefixo) e confira pela API que o escudo próprio é servido. Use um
+   time com escudo do acervo (`acervo`) e uma emissora com logo enviado no painel (`broadcasters`):
+   ```bash
+   ID=<id de um time com logo_source=acervo>
+   URL=$(curl -s -H "x-galaxie-key: $API_KEY" "https://$API_DOMAIN/v1/teams/$ID" | jq -r .logo)
+   curl -s -o /tmp/escudo -w '%{http_code} %{content_type} %{size_download}\n' "$URL"
+   ```
+   Tem de ser `200`, com `image/svg+xml` (ou `image/png`/`image/webp`) e tamanho maior que zero; sem a restauração do
+   prefixo, o mesmo comando dá `404`. Para a integridade, o `sha256` do arquivo baixado começa com o hash que está no nome
+   da chave. A página do time no site passa a mostrar o escudo próprio.
+7. **Limpeza**: `DROP DATABASE galaxie_drill WITH (FORCE)` (e `_pre_restore_*`), `docker volume rm galaxie-dr-drill`, e o
+   RustFS e o volume de assets descartáveis do passo 6.
+8. **Registro**: acrescente uma linha na tabela abaixo (data, origem, tamanho, tempos, divergências, ações).
 
 ## Registro dos exercícios
 
@@ -201,5 +281,5 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
 | Banco corrompido / `DROP` acidental | Pare API e ingestor → `restore.sh --yes latest` → confira → suba os serviços. Perda: desde o último dump |
 | VPS perdida | Primeiro, o snapshot diário do provedor da VPS (volta a VPS inteira do dia anterior). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido. Passo a passo (SSH, Docker, firewall, Traefik, stack): [bootstrap-vps.md](bootstrap-vps.md) |
 | Valkey perdido | Sem restauração: cache e rate limit se reconstroem; contadores de uso do dia corrente voltam a partir do último consolidado em `api.usage_daily` (o flush usa `greatest`, nada regride) |
-| Bucket de assets perdido | `assets:mirror` rebaixa da CDN de mídia (fora da cota); `core.asset` guarda as URLs de origem |
+| Bucket de assets perdido | Primeiro, os prefixos com cópia ([Assets do S3](#assets-do-s3)): `broadcasters`, `platforms`, `acervo` e os demais da lista voltam do bucket remoto ou do NAS. O que ficou de fora se reconstitui: `assets:mirror` rebaixa a mídia da CDN (fora da cota), `assets:commons` as fotos da Commons e `assets:acervo` reimporta o pacote; `core.asset` guarda as URLs de origem |
 | Vazamento de segredo | [SECURITY.md §Rotação de segredos](../../SECURITY.md#rotação-de-segredos) |

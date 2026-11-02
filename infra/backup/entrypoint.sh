@@ -5,6 +5,7 @@
 #     BACKUP_ON_START=always faz sempre). Todo deploy recria este serviço (a imagem leva a tag do deploy): o dump
 #     completo, com o COPY do raw, disputava disco e cache com o pós-deploy e o smoke, e vários deploys num dia
 #     giravam os 7 diários;
+#   - com BACKUP_S3_SYNC_PREFIXES, o sync dos assets (s3-sync.sh) logo depois de cada dump e, se o recibo estiver velho, na partida;
 #   - o verificador (backup-check.sh) a cada BACKUP_CHECK_INTERVAL_H horas (padrão 6) e depois de cada dump;
 #   - o ensaio de restauração (restore-drill.sh) no dia RESTORE_DRILL_DAY de cada mês (padrão 1), logo depois do
 #     dump do dia; RESTORE_DRILL_DAY=off desliga.
@@ -61,6 +62,11 @@ elif [ "$BACKUP_ON_START" = true ]; then
   else
     backup.sh || log error "backup de partida falhou"
   fi
+fi
+# Assets: o sync roda depois de cada dump; sem recibo recente (primeira vez com BACKUP_S3_SYNC_PREFIXES, ou dump de
+# partida dispensado), roda já, para o verificador não acusar um recibo que só existiria no próximo dump.
+if s3_sync_enabled && ! find "$(s3_sync_receipt)" -mmin "-$((BACKUP_MAX_AGE_H * 60))" 2>/dev/null | grep -q .; then
+  s3-sync.sh || log error "sync do S3 de partida falhou"
 fi
 backup-check.sh || true
 next_check=$(($(date -u +%s) + BACKUP_CHECK_INTERVAL_H * 3600))
