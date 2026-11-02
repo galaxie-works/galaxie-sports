@@ -1,0 +1,88 @@
+name: Pacote de contratos
+
+# Publica o packages/contracts como pacote PRIVADO no GitHub Packages, para quem está fora do monorepo (o app Expo, em
+# galaxie-works/galaxie-sports-app). Cada mudança na main vira a versão 0.1.<número da execução>.
+#
+# O GitHub exige o escopo da organização, então o pacote sai como @galaxie-works/contracts; no monorepo ele segue
+# @galaxie/contracts e com `private: true`, o que impede publicar por engano no npm público. O nome e o resto só mudam
+# aqui, na cópia do job. Instalar pede um token com read:packages. Como usar: packages/contracts/README.md.
+#
+# NUNCA marcar o pacote como público nas configurações: pacote público não volta a ser privado.
+on:
+  push:
+    branches: [main]
+    paths:
+      - packages/contracts/**
+      - .github/workflows/contracts-package.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: contracts-package
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publicar @galaxie-works/contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PACKAGE_NAME: '@galaxie-works/contracts'
+      PACKAGE_VERSION: 0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@galaxie-works'
+
+      - name: Build
+        run: |
+          pnpm install --frozen-lockfile --filter @galaxie/contracts...
+          pnpm --filter @galaxie/contracts build
+
+      - name: Publicar
+        working-directory: packages/contracts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Reexecução do mesmo run: a versão já existe e não há o que publicar
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION já publicado"
+            exit 0
+          fi
+          npm pkg delete private scripts devDependencies
+          npm pkg set \
+            name="$PACKAGE_NAME" \
+            version="$PACKAGE_VERSION" \
+            'files[]=dist' \
+            repository.type=git \
+            repository.url=git+https://github.com/galaxie-works/galaxie-sports.git \
+            repository.directory=packages/contracts \
+            publishConfig.registry=https://npm.pkg.github.com \
+            publishConfig.access=restricted
+          npm publish --ignore-scripts
+          echo "Publicado: $PACKAGE_NAME@$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+      # O pacote precisa continuar privado. Se esta leitura falhar por permissão do token, fica só o aviso.
+      - name: Conferir que é privado
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! visibility=$(gh api orgs/galaxie-works/packages/npm/contracts --jq .visibility); then
+            echo "::warning::Não deu para ler a visibilidade do pacote: confira em github.com/orgs/galaxie-works/packages"
+            exit 0
+          fi
+          echo "Visibilidade: $visibility"
+          if [ "$visibility" != "private" ]; then
+            echo "::error::O pacote está como $visibility, e deveria ser privado"
+            exit 1
+          fi
