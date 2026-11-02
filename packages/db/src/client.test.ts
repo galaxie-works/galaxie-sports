@@ -14,6 +14,17 @@ describe('resolveDbTimeouts', () => {
     expect(migrate.lockMs).toBeLessThan(job.lockMs);
   });
 
+  it('o ao vivo tem teto de consulta de 30 s: acima da API e bem abaixo dos jobs', () => {
+    const live = resolveDbTimeouts('live', {}, {});
+    const api = resolveDbTimeouts('api', {}, {});
+    const job = resolveDbTimeouts('job', {}, {});
+    expect(live.statementMs).toBe(30_000);
+    expect(live.statementMs).toBeGreaterThan(api.statementMs);
+    expect(live.statementMs).toBeLessThan(job.statementMs);
+    expect(live.lockMs).toBeLessThan(job.lockMs);
+    expect(live.idleInTransactionMs).toBeGreaterThan(0);
+  });
+
   it('opções e env sobrescrevem o perfil, nessa ordem', () => {
     expect(resolveDbTimeouts('job', { lockMs: 1_000 }, {}).lockMs).toBe(1_000);
     const env = { DB_STATEMENT_TIMEOUT_MS: '0', DB_LOCK_TIMEOUT_MS: '2500' };

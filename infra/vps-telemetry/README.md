@@ -38,7 +38,8 @@ O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `a
 - no push para a `main` com `<sha>`, `main` e `staging`.
 
 Imagem cuja entrada não mudou (o hash vai na tag `in-<hash>` e no rótulo `works.galaxie.context-tree`) não é
-reconstruída: ganha as tags novas. Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
+reconstruída: ganha as tags novas (como a entrada é calculada: `docs/runbooks/deploy-pelo-github.md` › Imagens
+reaproveitadas). Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
 Actions faz `docker login` na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário que sai no fim. A VPS não
 guarda credencial do GitHub, por isso o `.env` dela fica com `PULL_POLICY=missing`: o `deploy-gh.sh` baixa as imagens
 antes do `up`, e nada vem do registry fora do deploy.
@@ -305,7 +306,9 @@ URL num middleware antes do log.
 
 O `POSTGRES_USER` é o dono do banco. É o superusuário que a imagem do Postgres cria, e só o `migrate` deveria usá-lo.
 Cada serviço entra com um papel próprio, sem superusuário e sem DDL, com GRANT por schema. A matriz e o levantamento do
-que cada serviço lê e escreve estão em `packages/db/src/roles.ts`.
+que cada serviço lê e escreve estão em `packages/db/src/roles.ts` e no
+[runbook dos papéis](../../docs/runbooks/papeis-do-banco.md). O migrate também aplica um `CONNECTION LIMIT` a cada papel
+(`ROLE_CONNECTION_LIMITS`).
 
 | papel | lê | escreve |
 | --- | --- | --- |
@@ -313,6 +316,7 @@ que cada serviço lê e escreve estão em `packages/db/src/roles.ts`.
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api` e `core.asset`; é dono do `demo_auth` |
 | `galaxie_ingestor` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset` e `api.tenant_channel_list` |
+| `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response` e, em `ops`, só `change_feed`, `job_run`, `sync_cursor` e as tabelas da cota |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o banco do ensaio |
 
 - **Como o `migrate` aplica:** com `DB_ROLES=on`, a cada deploy ele cria os papéis que faltam, revoga e concede a matriz
@@ -326,7 +330,7 @@ que cada serviço lê e escreve estão em `packages/db/src/roles.ts`.
 Um serviço por vez. Cada passo é um `up -d` de um serviço só, e o resto continua no ar.
 
 1. **Backup e senhas.** Antes de tudo, `cp .env .env.bak-pre-papeis`. Depois gere uma senha por papel:
-   `for s in API DEMO INGESTOR AGENTS BACKUP; do echo "$s $(openssl rand -hex 32)"; done`.
+   `for s in API DEMO INGESTOR AGENTS LIVE BACKUP; do echo "$s $(openssl rand -hex 32)"; done`.
 2. **Papéis sem trocar ninguém.** No `.env`, ponha `DB_ROLES=on` e rode:
    `docker compose run --rm --no-deps migrate </dev/null`.
    - O log tem de dizer `Papéis do banco aplicados: galaxie_api, …`.
@@ -400,6 +404,7 @@ Uma consulta presa, o Valkey cheio ou um job vazando memória não podem derruba
 | --- | --- | --- |
 | Pool da API (`profile: 'api'`) | `statement_timeout` 10 s, `lock_timeout` 3 s, `idle_in_transaction_session_timeout` 15 s | Abaixo do timeout de 30 s da requisição: a consulta presa solta a conexão e o pool de 10 não fica todo esperando trava. |
 | Pools da demo | Builder e change feed como a API; login/painel com `statement_timeout` 30 s | O painel de Operação agrega `ops.job_run` e `ops.llm_usage` (página de admin, fora do caminho da API). |
+| Ao vivo (`profile: 'live'`, para o serviço `live`) | 30 s, 10 s, 30 s | O tick não pode ficar preso numa consulta; a espera por trava cobre o advisory lock do upsert, que um `normalize` em lote segura por alguns segundos. Os CLIs do ao vivo seguem no perfil `job` até o serviço existir. |
 | Jobs e CLIs (`profile: 'job'`, o padrão) | 10 min, 60 s, 10 min | Normalização e sync têm consultas de minutos; o teto pega só o que travou, bem abaixo do tempo limite dos jobs (15 a 120 min). |
 | Migrate (`profile: 'migrate'`) | sem `statement_timeout`; `lock_timeout` 5 s, até 5 tentativas com 10 s entre elas | Índice novo em tabela grande demora. Na fila de um `ACCESS EXCLUSIVE`, a migration faria a API inteira esperar atrás dela; o drizzle aplica tudo numa transação, então desistir não deixa nada pela metade. |
 | Postgres (servidor) | `idle_in_transaction_session_timeout` 30 min; log de consulta acima de 5 s e de espera por trava | Rede de segurança para o `psql` à mão; os da aplicação vêm por pool. |
@@ -435,6 +440,13 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 | **Total** | **~106: passava do limite** | **67, com ~30 de folga para CLI à mão e `psql`** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
+
+Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
+`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
+soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
+pico real da tabela acima (67) mais os candidatos do deploy (API e demo, 20) dá 87 de 97 vagas; o serviço `live` em duas
+cópias durante a troca soma mais 17 (o ao vivo deixa de ocupar o ingestor, então o líquido é menor), o que deixa
+poucas vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
 
 ### Memória dos jobs
 

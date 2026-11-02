@@ -38,7 +38,7 @@ export const DEMO_AUTH_SCHEMA = 'demo_auth';
 /** Cursor do change feed da demo, lido pelo /metrics da API (packages/observability). */
 const DEMO_FEED_CURSOR = 'cache_feed_cursor';
 
-export type RoleService = 'api' | 'demo' | 'ingestor' | 'agents' | 'backup';
+export type RoleService = 'api' | 'demo' | 'ingestor' | 'agents' | 'live' | 'backup';
 
 export interface RoleGrants {
   /** Schemas (ou `schema.tabela`) só de leitura. */
@@ -71,6 +71,28 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     read: [...APP_SCHEMAS],
     write: ['enrich', 'semantic', 'ops', 'core.asset', 'api.tenant_channel_list'],
   },
+  // ao vivo (live-run, live-reconcile, events-clock; serviço próprio da mesma imagem do ingestor). Levantamento
+  // pelo código, não pela issue: o cliente da api-sports grava TODA resposta em raw.api_response (retention
+  // `live`, com o UPDATE de last_seen_at/seen_count quando o corpo se repete), então o raw entra na escrita.
+  // - core: upsertBatch (eventos, incidentes, participantes, detalhe, tabelas, catálogo que o lote traz),
+  //   advanceEventClock (event_state_log) e recomputeStandings (core.standing);
+  // - ops: change_feed (publishChange e os triggers do core.event), job_run, sync_cursor (estado do ao vivo e
+  //   cursores do detalhe/reconciliação) e o Quota Governor (quota_ledger, quota_snapshot, quota_budget);
+  // - leitura: core, ops (sobrescritas do painel, uso da cota), raw (cache do cliente) e semantic (os pares de
+  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian.
+  live: {
+    read: ['core', 'ops', 'raw', 'semantic'],
+    write: [
+      'core',
+      'raw.api_response',
+      'ops.change_feed',
+      'ops.job_run',
+      'ops.sync_cursor',
+      'ops.quota_ledger',
+      'ops.quota_snapshot',
+      'ops.quota_budget',
+    ],
+  },
   // pg_dump lê tudo pelo pg_read_all_data (inclusive demo_auth e drizzle); grava o próprio ops.job_run e
   // cria/apaga o banco do ensaio de restauração (CREATEDB)
   backup: { read: [], write: ['ops.job_run'] },
@@ -84,7 +106,35 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
   demo: 'DB_URL_DEMO',
   ingestor: 'DB_URL_INGESTOR',
   agents: 'DB_URL_AGENTS',
+  live: 'DB_URL_LIVE',
   backup: 'DB_URL_BACKUP',
+};
+
+/**
+ * `CONNECTION LIMIT` de cada papel (o Postgres recusa a conexão que passa disso com 53300). É o teto do vazamento: um
+ * serviço com pool sem freio ou em laço de reconexão para no limite dele e não esgota o `max_connections` (100, 3
+ * reservadas ao superusuário) que a API também usa. A soma dos tetos passa do `max_connections` de propósito: o
+ * teto não reserva vaga, só contém um papel; o que tem de caber é o pico real (README da infra › Conexões).
+ *
+ * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
+ * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
+ * - demo: login 5 + Builder 3 + change feed 2 = 10 por cópia × 3 (no ar, nova e candidata) = 30;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais o ao vivo enquanto ele roda aqui
+ *   (3 × (4 + 1) = 15) = 27, mais CLI à mão e a sobreposição de um deploy: 40. Quando o serviço `live` existir
+ *   (#535) o ao vivo sai daqui e o teto cai para 25;
+ * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
+ * - live: 2 cópias (a no ar e a nova durante a troca) × (scheduler 2 + 3 processos × (4 + 1) = 17) = 34, mais folga: 36.
+ *   Se o serviço rodar os três no mesmo processo, com um pool só, o teto pode cair para 12;
+ * - backup: pg_dump 1, ensaio de restauração 1, psql da verificação 1: 6 com folga.
+ * O dono do banco (migrate, CLI de manutenção, sincronização) é superusuário e não tem limite.
+ */
+export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
+  api: 45,
+  demo: 30,
+  ingestor: 40,
+  agents: 25,
+  live: 36,
+  backup: 6,
 };
 
 export const roleName = (service: RoleService, prefix = 'galaxie_'): string => `${prefix}${service}`;
@@ -167,6 +217,7 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
         exception when duplicate_object then null;
         end $$`;
       await sql`alter role ${role(service)} nosuperuser nocreaterole noreplication nobypassrls`;
+      await sql`alter role ${role(service)} connection limit ${sql.unsafe(String(ROLE_CONNECTION_LIMITS[service]))}`;
       await sql`alter role ${role(service)} ${sql.unsafe(service === 'backup' ? 'createdb' : 'nocreatedb')}`;
     }
     await sql`grant pg_read_all_data to ${role('backup')}`;

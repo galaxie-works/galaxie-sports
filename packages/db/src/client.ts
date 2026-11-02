@@ -11,10 +11,14 @@ export type Database = PostgresJsDatabase<typeof schema> & { $client: postgres.S
  *   timeout de 30 s da requisição, e o pool de 10 não fica todo preso esperando trava.
  * - `job`: jobs do scheduler e CLIs. Normalização e sync podem ter consultas de minutos; o teto só pega o
  *   que travou de verdade, bem abaixo do tempo limite dos jobs (15 a 120 min).
+ * - `live`: o tick do ao vivo (live-run, live-reconcile, events-clock). Escreve placar a cada poucos segundos e
+ *   não pode ficar preso numa consulta: 30 s de consulta, bem abaixo do tempo entre ticks no pior caso; a espera
+ *   por trava (inclusive o advisory lock do upsert, que um `normalize` em lote pode segurar por alguns segundos) é
+ *   mais curta que a dos jobs, mas não tão curta quanto a da API.
  * - `migrate`: sem teto de consulta (índice novo em tabela grande demora), mas desiste rápido de esperar
  *   trava: a migration na fila de um ACCESS EXCLUSIVE faria tudo o que vem depois esperar junto.
  */
-export type DbProfile = 'api' | 'job' | 'migrate';
+export type DbProfile = 'api' | 'job' | 'live' | 'migrate';
 
 /** Tempos em ms; 0 = sem teto (vale o do servidor). */
 export interface DbTimeouts {
@@ -29,11 +33,12 @@ export interface DbTimeouts {
 export const DB_TIMEOUTS: Readonly<Record<DbProfile, Readonly<DbTimeouts>>> = {
   api: { statementMs: 10_000, lockMs: 3_000, idleInTransactionMs: 15_000 },
   job: { statementMs: 10 * 60_000, lockMs: 60_000, idleInTransactionMs: 10 * 60_000 },
+  live: { statementMs: 30_000, lockMs: 10_000, idleInTransactionMs: 30_000 },
   migrate: { statementMs: 0, lockMs: 5_000, idleInTransactionMs: 0 },
 };
 
 /** Pool padrão de cada perfil (a soma de todos tem de caber no max_connections; ver infra/vps-telemetry/README.md). */
-export const DB_POOL_MAX: Readonly<Record<DbProfile, number>> = { api: 10, job: 4, migrate: 1 };
+export const DB_POOL_MAX: Readonly<Record<DbProfile, number>> = { api: 10, job: 4, live: 4, migrate: 1 };
 
 export interface CreateDbOptions {
   /** Máximo de conexões no pool (padrão: o do perfil). */
