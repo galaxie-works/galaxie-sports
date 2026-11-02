@@ -15,6 +15,9 @@ services:
       NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-8}
       NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-12}
       NAS_BWLIMIT: ${NAS_BWLIMIT:-}
+      # Prefixos do bucket de assets (os mesmos de BACKUP_S3_SYNC_PREFIXES na VPS); vazio = só os dumps
+      NAS_S3_PREFIXES: ${NAS_S3_PREFIXES:-}
+      NAS_S3_DELETE: ${NAS_S3_DELETE:-false}
       # Duas tentativas por dia (UTC): depois do dump das 03:30 e uma de reserva. Uma cópia em dia não baixa de novo.
       NAS_PULL_CRON: ${NAS_PULL_CRON:-15 5,17 * * *}
       NAS_PULL_ON_START: ${NAS_PULL_ON_START:-true}

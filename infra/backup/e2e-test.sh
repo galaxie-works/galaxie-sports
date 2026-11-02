@@ -147,4 +147,59 @@ if run env BACKUP_AGE_RECIPIENTS="$drill_pub" backup.sh >/dev/null 2>&1; then
 fi
 cipher backup-check.sh
 
-echo "OK: backup, restauração, verificador, ensaio, retenção e cifragem verificados"
+echo "11) cópia dos assets (s3-sync.sh) com um S3 de verdade: RustFS, o mesmo da stack, com dois buckets (assets e remoto)"
+s3_port="${E2E_S3_PORT:-19000}"
+s3_name="galaxie-backup-e2e-s3-$$"
+s3_net=(--network "$DOCKER_NETWORK")
+s3_ep="http://localhost:$s3_port"
+# fora do modo host (rede da stack), o RustFS fala pelo nome do contêiner
+[ "$DOCKER_NETWORK" = host ] || s3_ep="http://$s3_name:$s3_port"
+docker run -d --rm --name "$s3_name" "${s3_net[@]}" -e RUSTFS_ACCESS_KEY=e2e-chave -e RUSTFS_SECRET_KEY=e2e-segredo-0123456789   -e RUSTFS_CONSOLE_ENABLE=false -e RUSTFS_ADDRESS=":$s3_port" "${E2E_RUSTFS_IMAGE:-rustfs/rustfs:1.0.4}" >/dev/null
+trap 'docker rm -f "$s3_name" >/dev/null 2>&1 || true; cleanup' EXIT
+# o aws da própria imagem de backup, com as chaves do RustFS do teste
+aws_e2e() {
+  docker run --rm "${s3_net[@]}" -v "$volume:/backups" -e AWS_ACCESS_KEY_ID=e2e-chave -e AWS_SECRET_ACCESS_KEY=e2e-segredo-0123456789     -e AWS_DEFAULT_REGION=us-east-1 "$BACKUP_IMAGE" aws --endpoint-url "$s3_ep" "$@"
+}
+for i in $(seq 1 30); do aws_e2e s3api list-buckets >/dev/null 2>&1 && break; [ "$i" -lt 30 ] || { echo "RustFS não subiu" >&2; docker logs "$s3_name" >&2; exit 1; }; sleep 2; done
+aws_e2e s3api create-bucket --bucket assets-e2e >/dev/null
+aws_e2e s3api create-bucket --bucket remoto-e2e >/dev/null
+# objetos de quatro prefixos: três valem cópia (um com subpasta), um não
+sync_env=(-e S3_ENDPOINT="$s3_ep" -e S3_BUCKET=assets-e2e -e S3_ACCESS_KEY=e2e-chave -e S3_SECRET_KEY=e2e-segredo-0123456789
+  -e BACKUP_S3_BUCKET=remoto-e2e -e BACKUP_S3_ENDPOINT="$s3_ep" -e AWS_ACCESS_KEY_ID=e2e-chave -e AWS_SECRET_ACCESS_KEY=e2e-segredo-0123456789
+  -e AWS_DEFAULT_REGION=us-east-1)
+for f in broadcasters/a.svg broadcasters/b.png platforms/p.png commons/people/q.jpg api-sports/football/teams/1.png; do
+  docker run --rm "${s3_net[@]}" "${sync_env[@]}" "$BACKUP_IMAGE" sh -c "echo 'conteudo $f' | aws --endpoint-url '$s3_ep' s3 cp - 's3://assets-e2e/$f'" >/dev/null
+done
+sync_run() { docker run --rm "${s3_net[@]}" -v "$volume:/backups" -e PGHOST="$PGHOST" -e PGPORT="$PGPORT" -e PGUSER="$PGUSER"   -e PGPASSWORD="$PGPASSWORD" -e PGDATABASE="$E2E_DB" -e BACKUP_S3_SYNC_PREFIXES="broadcasters,platforms commons/people" "${sync_env[@]}" "$@"; }
+sync_run "$BACKUP_IMAGE" s3-sync.sh
+# espelho no volume (de onde o NAS puxa) e no bucket remoto, só dos prefixos pedidos
+[ "$(run sh -c 'cat /backups/s3/broadcasters/a.svg /backups/s3/platforms/p.png /backups/s3/commons/people/q.jpg | wc -l')" = 3 ]
+[ -z "$(run sh -c 'ls /backups/s3/api-sports 2>/dev/null')" ] || { echo "prefixo fora da lista foi copiado" >&2; exit 1; }
+remote=$(aws_e2e s3 ls s3://remoto-e2e/assets/ --recursive | awk '{print $4}' | sort | tr '
+' ' ')
+[ "$remote" = "assets/broadcasters/a.svg assets/broadcasters/b.png assets/commons/people/q.jpg assets/platforms/p.png " ] ||
+  { echo "bucket remoto com objetos errados: $remote" >&2; exit 1; }
+[ -n "$(run sh -c 'ls /backups/.s3_last_sync')" ]
+# o verificador exige o recibo quando o sync está ligado, e aceita o recibo de agora
+sync_run "$BACKUP_IMAGE" backup-check.sh
+run rm -f /backups/.s3_last_sync
+if sync_run "$BACKUP_IMAGE" backup-check.sh >/dev/null 2>&1; then echo "backup-check sem recibo do S3 deveria falhar" >&2; exit 1; fi
+# nada é apagado por padrão: o objeto que sumiu do RustFS continua no espelho e no remoto
+aws_e2e s3 rm s3://assets-e2e/broadcasters/b.png >/dev/null
+sync_run "$BACKUP_IMAGE" s3-sync.sh
+[ "$(run sh -c 'cat /backups/s3/broadcasters/b.png | wc -l')" = 1 ]
+aws_e2e s3 ls s3://remoto-e2e/assets/broadcasters/b.png | grep -q b.png
+# com BACKUP_S3_SYNC_DELETE=true, a remoção chega aos dois lados
+sync_run -e BACKUP_S3_SYNC_DELETE=true "$BACKUP_IMAGE" s3-sync.sh
+[ -z "$(run sh -c 'ls /backups/s3/broadcasters/b.png 2>/dev/null')" ]
+[ -z "$(aws_e2e s3 ls s3://remoto-e2e/assets/broadcasters/b.png)" ]
+# restauração do prefixo: do bucket remoto de volta para um RustFS vazio, e o objeto volta a ser servido
+aws_e2e s3api create-bucket --bucket restaurado-e2e >/dev/null
+aws_e2e s3 sync --only-show-errors s3://remoto-e2e/assets/broadcasters/ s3://restaurado-e2e/broadcasters/
+[ "$(aws_e2e s3 cp s3://restaurado-e2e/broadcasters/a.svg - | tr -d '
+')" = "conteudo broadcasters/a.svg" ]
+# recibo do sync no registro do verificador
+sync_run "$BACKUP_IMAGE" s3-sync.sh
+sync_run "$BACKUP_IMAGE" backup-check.sh
+
+echo "OK: backup, restauração, verificador, ensaio, retenção, cifragem e cópia dos assets verificados"

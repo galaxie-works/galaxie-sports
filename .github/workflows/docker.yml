@@ -380,7 +380,7 @@ jobs:
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
-            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
+            infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh
 
@@ -397,6 +397,12 @@ jobs:
 
       - name: Poda das imagens antigas na VPS (prune-images.sh com o Docker)
         run: bash infra/vps-telemetry/prune-images.test.sh
+
+      - name: Cópia dos assets do S3 e recibo no verificador (s3-sync.sh com aws falso)
+        run: bash infra/backup/s3-sync.test.sh
+
+      - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
+        run: bash infra/nas-backup/nas-pull.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

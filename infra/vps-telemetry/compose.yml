@@ -536,7 +536,8 @@ services:
 
   # ── backups ───────────────────────────────────────────────────────────────────────────────────
   # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
-  # 6 h, ensaio de restauração no dia 1 de cada mês e cópia opcional para S3 externo (docs/runbooks/exercicio-dr.md).
+  # 6 h, ensaio de restauração no dia 1 de cada mês, cópia opcional para S3 externo e, com BACKUP_S3_SYNC_PREFIXES, a
+  # dos assets do RustFS (docs/runbooks/exercicio-dr.md).
   backup:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
     pull_policy: ${PULL_POLICY:-always}
@@ -568,6 +569,16 @@ services:
       AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
       AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      # cópia dos assets do RustFS (infra/backup/s3-sync.sh): prefixos de primeiro nível do bucket que valem backup,
+      # separados por espaço ou vírgula (ex.: "broadcasters platforms"). Vazio = não copia. Vão para o volume
+      # (s3/<prefixo>/, de onde o NAS puxa) e, com BACKUP_S3_BUCKET, para <BACKUP_S3_SYNC_DEST_PREFIX>/<prefixo>/ do remoto
+      BACKUP_S3_SYNC_PREFIXES: ${BACKUP_S3_SYNC_PREFIXES:-}
+      BACKUP_S3_SYNC_DEST_PREFIX: ${BACKUP_S3_SYNC_DEST_PREFIX:-assets}
+      BACKUP_S3_SYNC_DELETE: ${BACKUP_S3_SYNC_DELETE:-false}
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
     volumes:
       - backups:/backups
     # o dump de partida (BACKUP_ON_START) segura as tabelas e faria o migrate esperar trava: só depois dele
