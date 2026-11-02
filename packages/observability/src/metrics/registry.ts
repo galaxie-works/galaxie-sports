@@ -14,6 +14,7 @@ import {
   opsState,
   plannedBudgets,
   providerSnapshots,
+  queueStats,
   rawFreshness,
   type ChangeFeedConsumerRow,
   type DbSizeData,
@@ -23,6 +24,7 @@ import {
   type LiveSchedulerRow,
   type FreshnessRow,
   type OpsStateRow,
+  type QueueStats,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
 
@@ -260,7 +262,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
-  const groups = [quota, jobs, freshness, live, changeFeed, ops] as CollectorGroup<unknown>[];
+  const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl, onError);
+  const groups = [quota, jobs, freshness, live, changeFeed, ops, queue] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
   dbGauge(
@@ -578,6 +581,60 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     [],
     (g, d) => {
       if (d.ai.dailyUsd !== null) g.set(d.ai.dailyUsd);
+    },
+  );
+
+  // ── fila de tarefas (ops.job_request com `type`) ─────────────────────────────────────────────────
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_tasks_pending',
+    'Tarefas da fila esperando worker por tipo (com as de backoff e as de concessão vencida)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) g.set({ type: t.type }, t.pending);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_tasks_running',
+    'Tarefas da fila em execução por tipo (concessão viva)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) g.set({ type: t.type }, t.running);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_oldest_pending_age_seconds',
+    'Há quanto tempo a tarefa mais antiga do tipo está pronta sem worker pegar (s; ausente = nenhuma pronta)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) {
+        if (t.oldestPendingSeconds !== null) g.set({ type: t.type }, t.oldestPendingSeconds);
+      }
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_resumed_24h',
+    'Execuções que retomaram uma tarefa interrompida nas últimas 24 h, por tipo (retomada não é falha)',
+    ['type'],
+    (g, d) => {
+      for (const r of d.runs) g.set({ type: r.type }, r.resumed);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_failed_24h',
+    'Tentativas de tarefa da fila que falharam nas últimas 24 h, por tipo',
+    ['type'],
+    (g, d) => {
+      for (const r of d.runs) g.set({ type: r.type }, r.failed);
     },
   );
 
