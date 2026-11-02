@@ -367,6 +367,27 @@ tests:
               summary: 'Fila do change feed parada para demo-cache:demo'
               description: 'A mudança pendente mais antiga tem 17m 40s. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
 
+  - name: tarefa da fila pronta há mais de 1 h sem worker dispara depois de 10 min; o tipo em dia não
+    interval: 1m
+    input_series:
+      - series: 'galaxie_queue_oldest_pending_age_seconds{type="acervo-escudos"}'
+        values: '3000+60x25'
+      - series: 'galaxie_queue_oldest_pending_age_seconds{type="espelho-assets"}'
+        values: '60x25'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: TarefaPendenteAntiga
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: TarefaPendenteAntiga
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              type: acervo-escudos
+            exp_annotations:
+              summary: 'Tarefa acervo-escudos esperando worker há 1h 12m 0s'
+              description: 'Veja se o worker está no ar e atende o tipo acervo-escudos, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
+
   - name: p99 por rota acima de 1 s com tráfego dispara depois de 15 min; rota fria e /internal não
     interval: 1m
     input_series:

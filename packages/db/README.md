@@ -44,6 +44,63 @@ pnpm db:studio      # Drizzle Studio
 Mudou `src/schema`? Rode `pnpm db:generate` e commite a pasta `drizzle/`; o CI falha com drift e confere o `when` do
 journal (CONTRIBUTING, regra 2). `DB_ROLES` cria os papéis de banco por serviço (`src/roles.ts`).
 
+## Fila de tarefas
+
+`@galaxie/db/queue` é a fila de trabalho longo no Postgres, para o que não pode morrer quando o contêiner é recriado no
+deploy (importação do acervo, espelho de assets, carga histórica). Mora em `ops.job_request`, nas linhas com `type`; a
+linha sem `type` continua sendo pedido de "rodar agora" do painel, e o `job` da tarefa leva o prefixo `fila:` para o
+scheduler nunca alcançá-la. Cada tomada abre uma linha em `ops.job_run` (`job` = tipo, `request_id` = tarefa).
+
+```text
+              enqueue
+                 │
+                 ▼
+      ┌──────► pending ◄─────────────────────────────────┐
+      │          │ takeNext (prioridade, run_after;      │
+      │          │ SKIP LOCKED; attempts + 1)            │
+      │          ▼                                       │
+      │       running ───── release (SIGTERM) ───────────┤ devolve a tentativa
+      │        │  │  │                                   │ run: interrupted
+      │        │  │  └───── concessão vencida ───────────┤ gasta a tentativa
+      │        │  │         (próximo takeNext)            │ run: interrupted
+      │        │  │                                       │
+      │        │  └──────── finish(error), sobra tentativa ┘ run_after + backoff
+      │        │                                            run: error
+      │        ├──────────► done     finish(ok)             run: ok
+      │        └──────────► error    finish(error) ou concessão vencida
+      │                              na última tentativa    run: error
+      └── renew (a cada 30 s) e checkpoint não mudam o estado
+```
+
+| Operação | O que faz | Devolve |
+|---|---|---|
+| `enqueue(db, { type, params, priority, runAfter, dedupeKey, maxAttempts, requestedBy })` | Cria a tarefa. Com `dedupeKey`, só uma viva (pendente ou em execução) por tipo e chave, para o scheduler não enfileirar duas vezes | `{ id, created }` |
+| `takeNext(db, workerId, types)` | Fecha as concessões vencidas dos `types` e toma a próxima pronta, maior prioridade e `run_after` mais antigo primeiro. Concessão de 90 s | `QueueTask` ou `null` |
+| `renew(db, task)` | Empurra a concessão por mais 90 s. O worker chama a cada 30 s | `boolean` |
+| `checkpoint(db, task, data)` | Grava o progresso (substitui o anterior) | `boolean` |
+| `finish(db, task, 'ok' \| 'error', detail, { callsSpent, stats })` | Encerra a tomada. No erro, nova tentativa com backoff (30 s, 1 min, 2 min… até 1 h) até `max_attempts` | `'done' \| 'retry' \| 'error'` ou `null` |
+| `release(db, task)` | No SIGTERM: volta para pendente na hora, com o checkpoint, e devolve a tentativa | `boolean` |
+
+O contrato para quem escreve um worker:
+
+- **A tomada é a prova da posse.** `renew`, `checkpoint`, `finish` e `release` recebem o `task` do `takeNext` e só valem
+  para a tomada corrente (pelo `run_id`). `false` ou `null` quer dizer que a concessão venceu e outro worker retomou: **pare
+  de trabalhar**, sem gravar mais nada.
+- **Retomar é o padrão.** Toda tomada recebe o `checkpoint` da anterior. A tarefa precisa continuar dele e aguentar repetir
+  o último trecho, porque o que veio depois do último `checkpoint` se perde.
+- **Retomada não é falha.** A execução cortada por `release` ou concessão vencida fecha como `interrupted`, a seguinte grava
+  `resumed_from` e `galaxie_job_consecutive_failures` não sobe. Nova tentativa depois de um `finish(error)` recebe o
+  checkpoint, mas não é retomada (`resumed_from` nulo): a anterior falhou de fato.
+- **Tentativas.** `attempts` conta ao tomar, `release` devolve. Deploy com SIGTERM não gasta tentativa. Queda sem `release`
+  gasta, senão a tarefa que derruba o worker o derrubaria para sempre; na última, a tarefa encerra em erro. Tarefa longa que
+  pode cair várias vezes sem culpa pede um `maxAttempts` maior no `enqueue`.
+- **O relógio é o do banco.** Prazos e `run_after` usam `now()` do Postgres, não o do contêiner.
+
+Métricas (`/metrics`): `galaxie_queue_tasks_pending`, `galaxie_queue_tasks_running`,
+`galaxie_queue_oldest_pending_age_seconds`, `galaxie_queue_resumed_24h` e `galaxie_queue_failed_24h`, todas por `type`.
+Alerta: `TarefaPendenteAntiga`, com tarefa pronta há mais de 1 h sem worker pegar. Retenção: encerrada sai depois de
+30 dias, com o checkpoint; viva fica, por mais velha.
+
 ## Migrations: expandir e contrair
 
 A troca de versão no deploy é lado a lado, e o candidato aplica a migration **antes** da troca: por alguns segundos a

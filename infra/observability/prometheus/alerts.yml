@@ -250,6 +250,18 @@ groups:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
           description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
 
+      # Tarefa da fila pronta há mais de 1 h sem worker pegar: o worker caiu, ou não atende o tipo, ou uma tarefa longa
+      # ocupa a vaga (pode ser normal numa carga grande, por isso vai para o resumo). Backoff não conta: a idade
+      # só corre depois do run_after.
+      - alert: TarefaPendenteAntiga
+        expr: galaxie_queue_oldest_pending_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tarefa {{ $labels.type }} esperando worker há {{ $value | humanizeDuration }}'
+          description: 'Veja se o worker está no ar e atende o tipo {{ $labels.type }}, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
+
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
         for: 5m
