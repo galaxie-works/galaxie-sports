@@ -38,9 +38,8 @@ notas de versão (tag deploy-AAAA-MM-DD.N)
    - No **disparo manual**, o gate espera os workflows terminarem, até `ci_wait_min` minutos (padrão 30, no máximo
      60). Se não terminarem, ou terminarem sem sucesso, o job **falha** com o motivo (`skip_ci_check=1` pula essa
      conferência, só em emergência). O disparo manual nunca termina verde sem publicar.
-   - **Jogo ao vivo de prioridade alta** segura o deploy (consulta só de leitura, a cada 2 min, teto de 3 h; o log diz
-     quais jogos). `force=1` no disparo manual (hotfix) publica na hora; `DEPLOY_LIVE_HOLD=off` desliga
-     ([README da stack › Jogo ao vivo segura o deploy](../../infra/vps-telemetry/README.md)).
+   - Jogo ao vivo **não** segura o deploy: a espera por jogo de prioridade alta (28/10/2026) saiu em 02/11/2026, porque
+     com merges em sequência cada commit novo reiniciava a espera e nada publicava.
 1. Confere no GHCR as imagens do SHA (antes de tocar a VPS). Com `DEPLOY_CANDIDATE=on`, o smoke roda na versão nova
    antes da troca e a API e a demo trocam sem página de manutenção
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
