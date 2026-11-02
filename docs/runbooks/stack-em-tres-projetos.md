@@ -124,7 +124,11 @@ tem o Postgres: subi-lo daria dois no mesmo volume. Por isso o deploy publica as
 
 - `infra/vps-telemetry/deploy-gh.test.sh`, no CI: transição, falha no meio, repetição, reverso e deploys depois dela,
   numa stack de brinquedo com imagens mínimas.
-- Ensaio único com os nomes reais, num Docker isolado. O resultado está no PR da #532.
+- Ensaio único em 02/11/2026, num Docker isolado, com os nomes reais, o `compose` anterior e o novo, e Postgres, Valkey,
+  RustFS, aws-cli, node-exporter e Caddy de verdade; as imagens nossas eram de mentira. `aplicar`, repetir, `reverter`,
+  `aplicar` de novo e `limpar` passaram; a linha gravada no Postgres e a chave no Valkey sobreviveram, e os contêineres de
+  apps não mudaram. O `aplicar` levou cerca de 1 min. Um cliente na rede viu o Postgres fora em uma amostra só, mas com o
+  banco quase vazio: o número não vale para a produção.
 - **Não testado no NAS:** o SSH do NAS não tem Docker sem `sudo`, o Portainer não roda o script na pasta da stack, e a stack
   de dev de lá só tem Postgres, Valkey e S3.
 - **Não testado na VPS:** o primeiro `aplicar` de verdade é o da transição.
