@@ -52,10 +52,29 @@ describe('prepareCrest', () => {
     expect(c.palette?.dominant).toBeTruthy();
   });
 
-  it('PNG de 200 px: não amplia, e só gera os tamanhos menores', async () => {
+  it('PNG de 200 px: não amplia, centraliza numa tela de 512 quadrada', async () => {
     const c = await prepareCrest('team', TEAM, await png(200));
-    expect(c.variants.png).toMatchObject({ width: 200, height: 200 });
-    expect(Object.keys(c.variants.sizes ?? {})).toEqual(['64', '128']);
+    expect(c.variants.png).toMatchObject({ width: 512, height: 512 });
+    const body = c.objects.find((o) => o.key === c.variants.png!.storage_key)!.body;
+    const { data, info } = await sharp(body).raw().toBuffer({ resolveWithObject: true });
+    const alpha = (x: number, y: number) => data[(y * info.width + x) * info.channels + 3];
+    expect(alpha(0, 0)).toBe(0); // sobra transparente
+    expect(alpha(256, 256)).toBe(255); // o escudo, no tamanho original, no centro
+    expect(alpha(156, 256)).toBe(255);
+    expect(alpha(150, 256)).toBe(0);
+  });
+
+  it('PNG retangular: 512×512 com sobra transparente', async () => {
+    const wide = new Uint8Array(
+      await sharp({
+        create: { width: 1000, height: 500, channels: 4, background: { r: 0, g: 0, b: 255, alpha: 1 } },
+      })
+        .png()
+        .toBuffer(),
+    );
+    const c = await prepareCrest('team', TEAM, wide);
+    expect(c.variants.png).toMatchObject({ width: 512, height: 512 });
+    expect(c.variants.webp).toMatchObject({ width: 512, height: 512 });
   });
 
   it('WebP é aceito', async () => {

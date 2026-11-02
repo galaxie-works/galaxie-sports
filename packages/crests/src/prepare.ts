@@ -90,7 +90,10 @@ export interface PreparedCrest {
 const sha256 = (buf: Uint8Array) => createHash('sha256').update(buf).digest('hex');
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
-/** PNG de no máximo 512 px de lado, sem cortar nem ampliar (o SVG é renderizado direto em 512). */
+/**
+ * PNG de 512×512 com o escudo encaixado sem cortar e sobra transparente, como o 512 de `logo_sizes` promete.
+ * O SVG é renderizado direto em 512; PNG/WebP menor não é ampliado, fica centralizado na tela de 512.
+ */
 async function rasterPng(body: Uint8Array, contentType: string): Promise<Uint8Array> {
   if (contentType === 'image/svg+xml') {
     // densidade que leva o lado maior do SVG a 512 px: renderiza nítido em vez de ampliar um bitmap pequeno
@@ -103,8 +106,21 @@ async function rasterPng(body: Uint8Array, contentType: string): Promise<Uint8Ar
       .toBuffer();
     return new Uint8Array(png);
   }
-  const png = await sharp(body)
+  // o 512 de `logo_sizes` é quadrado: reduz sem ampliar e centraliza numa tela de 512 transparente
+  const { data, info } = await sharp(body)
     .resize(CREST_RASTER_PX, CREST_RASTER_PX, { fit: 'inside', withoutEnlargement: true })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  const padX = CREST_RASTER_PX - info.width;
+  const padY = CREST_RASTER_PX - info.height;
+  const png = await sharp(data)
+    .extend({
+      left: Math.floor(padX / 2),
+      right: Math.ceil(padX / 2),
+      top: Math.floor(padY / 2),
+      bottom: Math.ceil(padY / 2),
+      background: TRANSPARENT,
+    })
     .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
   return new Uint8Array(png);
