@@ -36,7 +36,7 @@ import {
   type ConvertReport,
 } from './convert-folders.js';
 import type { AcervoGroup } from './scan.js';
-import { unsafeSvgReason } from './svg-safety.js';
+import { unsafeSvgReason } from '@galaxie/crests';
 
 type Kind = 'team' | 'national' | 'competition' | 'entity';
 const TYPE_DIRS: Record<string, Kind> = {

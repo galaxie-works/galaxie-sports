@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { systemClock, type Clock } from '@galaxie/apisports-client';
 import { asset, type Database } from '@galaxie/db';
-import { imageInfo } from './image-info.js';
+import { imageInfo } from '@galaxie/crests';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
 

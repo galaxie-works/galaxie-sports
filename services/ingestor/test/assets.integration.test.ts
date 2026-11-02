@@ -35,7 +35,7 @@ import {
   previewPlayerPhotos,
   registerPlayerPhotos,
 } from '../src/assets/person-photos.js';
-import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
+import { PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { relinkRecoveredLogos } from '../src/assets/relink-logos.js';

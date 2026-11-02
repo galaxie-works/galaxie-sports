@@ -22,7 +22,7 @@ import { asset, assetCredit, competition, type Database } from '@galaxie/db';
 import type { WikimediaClient } from './commons/client.js';
 import { commonsSourceUrl } from './commons/import.js';
 import { readLicense } from './commons/license.js';
-import { imageInfo } from './image-info.js';
+import { imageInfo } from '@galaxie/crests';
 import type { ObjectStore } from './object-store.js';
 
 /** Prefixo das chaves dos logos de competição da Commons no bucket. */

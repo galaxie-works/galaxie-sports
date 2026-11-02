@@ -27,6 +27,10 @@
       "types": "./dist/lineups.d.ts",
       "default": "./dist/lineups.js"
     },
+    "./crests": {
+      "types": "./dist/crests.d.ts",
+      "default": "./dist/crests.js"
+    },
     "./channel-lists": {
       "types": "./dist/channel-lists.d.ts",
       "default": "./dist/channel-lists.js"

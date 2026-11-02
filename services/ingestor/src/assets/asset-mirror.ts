@@ -10,10 +10,9 @@ import {
   type MediaDenylistEntry,
 } from '@galaxie/apisports-client';
 import type { AssetStore, LogoCleanup, MirrorAsset } from './asset-store.js';
-import { imageInfo } from './image-info.js';
+import { imageInfo, paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
-import { paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from './palette.js';
 import { isPlaceholderPhoto, PERSON_PHOTO_KINDS } from './person-photos.js';
 import { isPlaceholderLogo, LOGO_KINDS } from './placeholder-logos.js';
 

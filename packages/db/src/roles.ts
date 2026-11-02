@@ -55,10 +55,11 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // API pública e /internal: chaves, uso, webhooks, onde assistir pelo admin, erros de reprodução e
   // runtime_env/publishable_key/change_feed em ops
   api: { read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`], write: ['api', 'enrich', 'ops'] },
-  // demo (painel de Ajustes): revisão semântica, grades e logos, vídeos, operação, widgets e chaves
+  // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
+  // operação, widgets e chaves
   demo: {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
-    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset'],
+    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset', 'core.participant', 'core.competition'],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
   // piso da poda do change feed (change-feed-prune)

@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { MediaAssetKind } from '@galaxie/apisports-client';
 import { asset } from '@galaxie/db';
-import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { PERSON_PHOTO_KINDS } from './person-photos.js';
 
 /** Kinds de core.asset que são logo de time ou de competição (o placeholder vira "sem logo"). */

@@ -17,7 +17,7 @@ import {
   type AssetPalette,
   type Database,
 } from '@galaxie/db';
-import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
 import { LOGO_KIND_VALUES, LOGO_KINDS, MISSING_ASSET } from './placeholder-logos.js';
 

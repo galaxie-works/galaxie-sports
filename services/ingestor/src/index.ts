@@ -30,8 +30,7 @@ export { seedGeo, type GeoSeedStats } from './geo/seed.js';
 export * from './snapshot/raw-snapshot.js';
 export { loadMediaDenylist, runAssetMirror, type MirrorReport } from './assets/asset-mirror.js';
 export { InMemoryAssetStore, PgAssetStore, type AssetStore, type LogoCleanup } from './assets/asset-store.js';
-export { PLACEHOLDER_LOGO_SHA256 } from './assets/palette.js';
-export { imageInfo } from './assets/image-info.js';
+export { imageInfo, PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 export { MediaFetcher, MEDIA_USER_AGENT } from './assets/media-fetcher.js';
 export {
   InMemoryObjectStore,

@@ -30,6 +30,7 @@ e do que depende.
 | [`packages/knowledge`](../packages/knowledge/README.md) | lib | `@galaxie/knowledge` | Base semântica: validação, seed, clássicos, copy | — |
 | [`packages/where-to-watch`](../packages/where-to-watch/README.md) | lib | `@galaxie/where-to-watch` | Emissoras, direitos e validador do onde assistir | — |
 | [`packages/geo`](../packages/geo/README.md) | lib | `@galaxie/geo` | Confederações, países e escopo das competições | — |
+| [`packages/crests`](../packages/crests/README.md) | lib | `@galaxie/crests` | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o preparo do envio no painel | — |
 | [`packages/runtime-config`](../packages/runtime-config/README.md) | lib | `@galaxie/runtime-config` | Flags da operação (banco > env > padrão) | — |
 | [`packages/ai-ledger`](../packages/ai-ledger/README.md) | lib | `@galaxie/ai-ledger` | Orçamento diário de IA em tokens e US$ | — |
 | [`packages/observability`](../packages/observability/README.md) | lib | `@galaxie/observability` | Logger pino e métricas Prometheus | — |
@@ -61,6 +62,7 @@ flowchart TB
     WTW[where-to-watch]
     GEO[geo]
     LEDGER[ai-ledger]
+    CREST[crests]
   end
   subgraph base
     DB[db]
@@ -73,13 +75,13 @@ flowchart TB
   end
 
   API --> PROV & RULES & KNOW & WTW & GEO & CONTR & OBS & RC & DB & APIS
-  DEMO --> CONTR & WTW & WID & RC & DB
-  ING --> PROV & RULES & KNOW & WTW & GEO & LEDGER & CONTR & OBS & RC & NET & DB & APIS
+  DEMO --> CONTR & WTW & WID & RC & CREST & DB
+  ING --> PROV & RULES & KNOW & WTW & GEO & LEDGER & CREST & CONTR & OBS & RC & NET & DB & APIS
   AI --> PROV & RULES & KNOW & WTW & GEO & LEDGER & CONTR & RC & NET & DB
   ING -. executa os CLIs por caminho .-> AI
   PROV --> APIS
   APIS --> DB
-  RULES & KNOW & WTW --> DB
+  RULES & KNOW & WTW & CREST --> DB
   LEDGER --> DB & RC
   OBS --> DB & APIS & RC
 ```

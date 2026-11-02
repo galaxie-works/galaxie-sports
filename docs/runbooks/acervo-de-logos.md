@@ -47,6 +47,33 @@ names: # opcional: nome de exibição por chave (senão, o slug do arquivo)
   teams/br/sao-paulo: São Paulo
 ```
 
+## Trocar um escudo (painel)
+
+Para trocar o escudo de **um** time ou de **uma** competição, não reimporte o acervo: use **Ajustes → Escudos** no
+painel (só admin).
+
+1. Busque o time ou a competição (sem diferenciar acento). A linha mostra o escudo de hoje nos fundos claro e
+   escuro e de onde ele vem: enviado no painel, acervo ou fornecedor.
+2. Escolha o arquivo (SVG, PNG ou WebP, até 5 MB; PNG e WebP com pelo menos 128 px). A prévia do novo aparece nos
+   dois fundos.
+3. **Enviar escudo.** O painel confere o arquivo como o conversor (SVG com conteúdo ativo é recusado), gera o
+   PNG e o WebP de 512 px (do SVG, renderizado) e os tamanhos 64/128/256, calcula a paleta, grava tudo no storage
+   com a mesma nomenclatura do acervo e liga em `custom_logo_asset_id`. A API recebe a mudança pelo change feed
+   e purga o time ou a competição. Leva segundos e não depende de SSH, `/tmp`, manifesto nem deploy.
+4. **Voltar ao anterior** desfaz o último envio (volta ao escudo do acervo, ou ao do fornecedor).
+
+Como fica com a importação em lote:
+
+- o asset enviado tem `origin = acervo` e `acervo = painel`, então segue a flag `ASSETS_CUSTOM_LOGOS` e sai em
+  `logo_formats`/`logo_sizes` como os outros;
+- a importação **não troca nem desliga** um escudo enviado no painel: ele é a decisão mais recente. O `--plan` e
+  a importação contam esses em "mantidos do painel". Para o time voltar ao escudo do pacote, use Voltar no painel;
+- `--desvincular` de um acervo também não mexe nos enviados no painel;
+- o histórico (quem enviou, quando, o anterior) fica em `enrich.logo_upload`, com alvo `team` ou `competition`.
+
+Ao mudar o arquivo na pasta Escudos, envie o mesmo arquivo no painel. O manifesto versionado não precisa mudar
+para isso.
+
 ## Comandos
 
 ```bash

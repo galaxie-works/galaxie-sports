@@ -198,6 +198,7 @@ galaxie-sports/
 | [packages/knowledge](packages/knowledge/README.md) | Base semântica: validação, seed, clássicos, copy |
 | [packages/where-to-watch](packages/where-to-watch/README.md) | Emissoras, direitos e validador do onde assistir |
 | [packages/geo](packages/geo/README.md) | Confederações, países e escopo das competições |
+| [packages/crests](packages/crests/README.md) | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o envio no painel |
 | [packages/runtime-config](packages/runtime-config/README.md) | Flags da operação (banco > env > padrão) |
 | [packages/ai-ledger](packages/ai-ledger/README.md) | Orçamento diário de IA em tokens e US$ |
 | [packages/observability](packages/observability/README.md) | Logger e métricas Prometheus |

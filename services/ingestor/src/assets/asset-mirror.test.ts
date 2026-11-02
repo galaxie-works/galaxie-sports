@@ -10,7 +10,7 @@ import { loadMediaDenylist, runAssetMirror } from './asset-mirror.js';
 import { InMemoryAssetStore } from './asset-store.js';
 import { MediaFetcher } from './media-fetcher.js';
 import { InMemoryObjectStore } from './object-store.js';
-import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
+import { PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { runPaletteBackfill } from './palette-backfill.js';
 import { isPlaceholderPhoto, PLACEHOLDER_PHOTO_SHA256, playerPhotoUrl } from './person-photos.js';
 import { isPlaceholderLogo } from './placeholder-logos.js';

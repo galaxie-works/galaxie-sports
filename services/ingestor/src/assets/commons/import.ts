@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { asset, assetCredit, participantPhoto, providerMap, publishChange, type Database } from '@galaxie/db';
 import { f1dbDriverId } from '@galaxie/providers';
-import { imageInfo } from '../image-info.js';
+import { imageInfo } from '@galaxie/crests';
 import type { ObjectStore } from '../object-store.js';
 import type { WikimediaClient } from './client.js';
 import { readLicense } from './license.js';

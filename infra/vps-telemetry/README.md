@@ -310,7 +310,7 @@ que cada serviço lê e escreve estão em `packages/db/src/roles.ts`.
 | papel | lê | escreve |
 | --- | --- | --- |
 | `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` (o `/metrics`) | `api`, `enrich`, `ops` |
-| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api` e `core.asset`; é dono do `demo_auth` |
+| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`, `core.participant` e `core.competition` (escudo enviado em Ajustes → Escudos); é dono do `demo_auth` |
 | `galaxie_ingestor` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset` e `api.tenant_channel_list` |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o banco do ensaio |
