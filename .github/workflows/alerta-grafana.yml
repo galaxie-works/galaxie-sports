@@ -14,6 +14,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # dispara o diagnóstico (diagnostico.yml) ao abrir ou reabrir a issue
+  actions: write
 
 concurrency:
   # um por alerta, em ordem: o "resolvido" espera o "disparou" do mesmo alerta terminar de abrir a issue. queue: max
