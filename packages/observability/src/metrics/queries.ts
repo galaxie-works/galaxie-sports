@@ -331,6 +331,85 @@ export async function changeFeedConsumers(db: Database): Promise<ChangeFeedConsu
   }));
 }
 
+export interface WebhookEndpointStatsRow {
+  endpoint: string;
+  tenant: string;
+  active: boolean;
+  /** Entregas na fila (status `pending`), inclusive as que esperam retentativa. */
+  pending: number;
+  /** Entregas na DLQ (status `dead`, guardadas 90 dias). */
+  dead: number;
+  /** Tentativas que terminaram na última hora, por desfecho. */
+  deliveredLastHour: number;
+  failedLastHour: number;
+  /** Entregas com falha desde o último sucesso do endpoint (pendentes em retentativa ou na DLQ). */
+  consecutiveFailures: number;
+  /** p95 (s) da mudança enfileirada até a entrega, na última hora; null sem entrega. */
+  latencyP95Seconds: number | null;
+}
+
+export interface WebhookStats {
+  endpoints: WebhookEndpointStatsRow[];
+  /**
+   * Há quanto tempo (s) a entrega vencida mais antiga espera o worker; 0 sem atraso. O worker reivindica a cada
+   * segundo e empurra o `next_retry_at` para frente: com ele no ar, fica perto de 0.
+   */
+  overdueSeconds: number;
+}
+
+/** Estado dos webhooks para clientes (api.webhook_endpoint × api.webhook_delivery). */
+export async function webhookStats(db: Database): Promise<WebhookStats> {
+  const rows = await db.execute<{
+    endpoint: string;
+    tenant: string;
+    active: boolean;
+    pending: number;
+    dead: number;
+    delivered_1h: number;
+    failed_1h: number;
+    consecutive: number;
+    p95: number | string | null;
+  }>(sql`
+    select e.id::text as endpoint, t.slug as tenant, e.active,
+           count(d.id) filter (where d.status = 'pending')::int as pending,
+           count(d.id) filter (where d.status = 'dead')::int as dead,
+           count(d.id) filter (where d.status = 'delivered' and d.delivered_at > now() - interval '1 hour')::int
+             as delivered_1h,
+           count(d.id) filter (where d.status <> 'delivered' and d.attempts > 0
+                                 and d.last_attempt_at > now() - interval '1 hour')::int as failed_1h,
+           count(d.id) filter (where d.status <> 'delivered' and d.attempts > 0
+                                 and d.last_attempt_at > coalesce(ok.last_ok, '-infinity'::timestamptz))::int
+             as consecutive,
+           percentile_cont(0.95) within group (order by extract(epoch from d.delivered_at - d.created_at))
+             filter (where d.status = 'delivered' and d.delivered_at > now() - interval '1 hour') as p95
+      from api.webhook_endpoint e
+      join api.tenant t on t.id = e.tenant_id
+      left join lateral (select max(x.delivered_at) as last_ok from api.webhook_delivery x
+                          where x.endpoint_id = e.id and x.status = 'delivered') ok on true
+      -- entregues só da última hora: as de 30 dias não entram em nenhuma contagem
+      left join api.webhook_delivery d on d.endpoint_id = e.id
+                                       and (d.status <> 'delivered' or d.delivered_at > now() - interval '1 hour')
+     group by e.id, t.slug, e.active, ok.last_ok
+  `);
+  const [overdue] = await db.execute<{ s: number | string | null }>(sql`
+    select extract(epoch from now() - min(next_retry_at))::float8 as s
+      from api.webhook_delivery where status = 'pending' and next_retry_at <= now()`);
+  return {
+    endpoints: rows.map((r) => ({
+      endpoint: r.endpoint,
+      tenant: r.tenant,
+      active: r.active,
+      pending: Number(r.pending),
+      dead: Number(r.dead),
+      deliveredLastHour: Number(r.delivered_1h),
+      failedLastHour: Number(r.failed_1h),
+      consecutiveFailures: Number(r.consecutive),
+      latencyP95Seconds: r.p95 == null ? null : Number(r.p95),
+    })),
+    overdueSeconds: Math.max(0, Number(overdue?.s ?? 0)),
+  };
+}
+
 export interface OpsStateRow {
   /** Sobrescritas do painel (ops.runtime_setting). */
   overrides: Map<string, string>;

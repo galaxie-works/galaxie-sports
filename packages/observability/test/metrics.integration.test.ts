@@ -13,7 +13,10 @@ import {
   runMigrations,
   sport,
   syncCursor,
+  tenant,
   webhookCursor,
+  webhookDelivery,
+  webhookEndpoint,
   type Database,
 } from '@galaxie/db';
 import { sql } from 'drizzle-orm';
@@ -404,9 +407,57 @@ describe('frescor e ao vivo', () => {
     }
   });
 
+  it('webhooks: fila, DLQ, falhas seguidas desde o último sucesso, latência e atraso do worker', async () => {
+    const [t] = await db
+      .insert(tenant)
+      .values({ slug: 'portal-x', name: 'Portal X', plan: 'core_data', modules: ['core_data'] })
+      .returning({ id: tenant.id });
+    const [ok, quiet] = await db
+      .insert(webhookEndpoint)
+      .values([
+        { tenantId: t!.id, url: 'https://x.example/hook', secret: 'enc:v1:x' },
+        { tenantId: t!.id, url: 'https://y.example/hook', secret: 'enc:v1:y', active: false },
+      ])
+      .returning({ id: webhookEndpoint.id });
+    const base = { endpointId: ok!.id, topic: 'event.score_changed', payload: {} };
+    await db.insert(webhookDelivery).values([
+      // entregue há 30 min, 4 s depois de enfileirada
+      { ...base, changeId: 1, status: 'delivered', attempts: 1, createdAt: ago(30 * MIN + 4000), deliveredAt: ago(30 * MIN), lastAttemptAt: ago(30 * MIN) },
+      // duas falhas depois do sucesso: uma em retentativa, outra na DLQ
+      { ...base, changeId: 2, status: 'pending', attempts: 3, lastAttemptAt: ago(10 * MIN), nextRetryAt: ago(15 * MIN) },
+      { ...base, changeId: 3, status: 'dead', attempts: 10, lastAttemptAt: ago(5 * MIN) },
+      // falha antiga, antes do sucesso: não conta como seguida
+      { ...base, changeId: 4, status: 'dead', attempts: 10, lastAttemptAt: ago(2 * HOUR) },
+      // ainda não tentada
+      { ...base, changeId: 5, status: 'pending', attempts: 0, nextRetryAt: new Date(realNow.getTime() + HOUR) },
+    ]);
+    try {
+      const m = await scrape();
+      const l = { endpoint: ok!.id, tenant: 'portal-x' };
+      expect(m.get('galaxie_webhook_endpoint_active', l)).toBe(1);
+      expect(m.get('galaxie_webhook_endpoint_active', { endpoint: quiet!.id })).toBe(0);
+      expect(m.get('galaxie_webhook_pending', l)).toBe(2);
+      expect(m.get('galaxie_webhook_dead', l)).toBe(2);
+      expect(m.get('galaxie_webhook_delivered_last_hour', l)).toBe(1);
+      expect(m.get('galaxie_webhook_failed_last_hour', l)).toBe(2);
+      expect(m.get('galaxie_webhook_consecutive_failures', l)).toBe(2);
+      expect(m.get('galaxie_webhook_delivery_latency_p95_seconds', l)).toBeCloseTo(4, 0);
+      // endpoint sem entrega: sem série de latência
+      expect(m.get('galaxie_webhook_delivery_latency_p95_seconds', { endpoint: quiet!.id })).toBeUndefined();
+      const overdue = m.get('galaxie_webhook_overdue_seconds')!;
+      expect(overdue).toBeGreaterThan(15 * 60 - 5);
+      expect(overdue).toBeLessThan(15 * 60 + 120);
+    } finally {
+      await db.delete(tenant).where(sql`${tenant.id} = ${t!.id}`);
+    }
+    const m = await scrape();
+    expect(m.get('galaxie_webhook_overdue_seconds')).toBe(0);
+    expect(m.series('galaxie_webhook_pending')).toHaveLength(0);
+  });
+
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'ops']) {
+    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'webhooks', 'ops']) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
   });

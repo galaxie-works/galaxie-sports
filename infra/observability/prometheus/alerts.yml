@@ -250,6 +250,49 @@ groups:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
           description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
 
+      # ── Webhooks para clientes (docs/runbooks/webhooks.md) ──────────────────────────────────────────────────
+      # Entrega vencida há mais de 5 min sem o worker pegar: worker parado (contêiner fora, banco recusando) ou travado.
+      # Com o worker no ar a reivindicação é a cada segundo e o atraso fica perto de 0.
+      - alert: WebhookWorkerDown
+        expr: galaxie_webhook_overdue_seconds > 300
+        for: 5m
+        labels:
+          # warning pela regra dos 5 sinais (cabeçalho); a issue no GitHub sai na hora. Candidato a 6º sinal do push
+          # quando houver cliente pagando por webhook.
+          severity: warning
+        annotations:
+          summary: 'Worker de webhooks parado: entregas vencidas há {{ $value | humanizeDuration }}'
+          description: 'Nenhuma entrega sai para os clientes. Veja docker compose ps webhooks e os logs do worker (docs/runbooks/webhooks.md › Worker parado).'
+
+      # A DLQ do endpoint cresceu na última hora: o cliente perdeu avisos (10 tentativas em ~1h30 sem 2xx).
+      - alert: WebhookDeadLetters
+        expr: delta(galaxie_webhook_dead[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Webhook {{ $labels.endpoint }} ({{ $labels.tenant }}) mandou entregas para a DLQ'
+          description: 'A DLQ do endpoint cresceu na última hora. Veja webhook dlq --id {{ $labels.endpoint }}; depois de o cliente corrigir, webhook replay (docs/runbooks/webhooks.md › DLQ).'
+
+      # Endpoint ativo com 5+ entregas falhando desde o último sucesso, há 15 min: o receptor do cliente está fora.
+      - alert: WebhookEndpointFailing
+        expr: galaxie_webhook_consecutive_failures >= 5 and on (endpoint) galaxie_webhook_endpoint_active == 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Webhook {{ $labels.endpoint }} ({{ $labels.tenant }}) falhando seguido'
+          description: '{{ $value }} entregas falharam desde o último sucesso. Avise o cliente; se ele não responder, webhook disable --id {{ $labels.endpoint }} (docs/runbooks/webhooks.md › Endpoint falhando).'
+
+      # Meta: ≤ 5 s da mudança à entrega, como no SSE. Acima de 30 s por 15 min a entrega está lenta.
+      - alert: WebhookDeliverySlow
+        expr: galaxie_webhook_delivery_latency_p95_seconds > 30
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Webhooks lentos para {{ $labels.tenant }}: p95 de {{ $value | humanizeDuration }}'
+          description: 'O p95 da mudança até a entrega passou de 30 s (meta 5 s). Receptor lento (timeouts e retentativas) ou worker sobrecarregado (docs/runbooks/webhooks.md › Lento).'
+
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
         for: 5m

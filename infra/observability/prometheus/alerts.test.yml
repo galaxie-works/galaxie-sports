@@ -683,3 +683,89 @@ tests:
       - eval_time: 10m
         alertname: AiSpendNearDailyBudget
         exp_alerts: []
+
+  - name: worker de webhooks parado dispara depois de 5 min com entrega vencida há mais de 5 min
+    interval: 1m
+    input_series:
+      - series: 'galaxie_webhook_overdue_seconds'
+        values: '0 1 0 60 120 180 240 300 360 420 480 540 600 660'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: WebhookWorkerDown
+        exp_alerts: []
+      - eval_time: 13m
+        alertname: WebhookWorkerDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'Worker de webhooks parado: entregas vencidas há 11m 0s'
+              description: 'Nenhuma entrega sai para os clientes. Veja docker compose ps webhooks e os logs do worker (docs/runbooks/webhooks.md › Worker parado).'
+
+  - name: DLQ que cresce dispara; DLQ parada ou esvaziada pelo replay não
+    interval: 1m
+    input_series:
+      - series: 'galaxie_webhook_dead{endpoint="e1",tenant="portal-x"}'
+        values: '2x30 3x30'
+      - series: 'galaxie_webhook_dead{endpoint="e2",tenant="portal-y"}'
+        values: '5x30 0x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WebhookDeadLetters
+        exp_alerts: []
+      - eval_time: 45m
+        alertname: WebhookDeadLetters
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              endpoint: e1
+              tenant: portal-x
+            exp_annotations:
+              summary: 'Webhook e1 (portal-x) mandou entregas para a DLQ'
+              description: 'A DLQ do endpoint cresceu na última hora. Veja webhook dlq --id e1; depois de o cliente corrigir, webhook replay (docs/runbooks/webhooks.md › DLQ).'
+
+  - name: endpoint ativo falhando seguido dispara depois de 15 min; desativado não
+    interval: 1m
+    input_series:
+      - series: 'galaxie_webhook_consecutive_failures{endpoint="e1",tenant="portal-x"}'
+        values: '0 2 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22'
+      - series: 'galaxie_webhook_endpoint_active{endpoint="e1",tenant="portal-x"}'
+        values: '1x20'
+      - series: 'galaxie_webhook_consecutive_failures{endpoint="e2",tenant="portal-y"}'
+        values: '30x20'
+      - series: 'galaxie_webhook_endpoint_active{endpoint="e2",tenant="portal-y"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: WebhookEndpointFailing
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: WebhookEndpointFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              endpoint: e1
+              tenant: portal-x
+            exp_annotations:
+              summary: 'Webhook e1 (portal-x) falhando seguido'
+              description: '21 entregas falharam desde o último sucesso. Avise o cliente; se ele não responder, webhook disable --id e1 (docs/runbooks/webhooks.md › Endpoint falhando).'
+
+  - name: entrega lenta (p95 > 30 s) dispara depois de 15 min
+    interval: 1m
+    input_series:
+      - series: 'galaxie_webhook_delivery_latency_p95_seconds{endpoint="e1",tenant="portal-x"}'
+        values: '3x5 45x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: WebhookDeliverySlow
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: WebhookDeliverySlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              endpoint: e1
+              tenant: portal-x
+            exp_annotations:
+              summary: 'Webhooks lentos para portal-x: p95 de 45s'
+              description: 'O p95 da mudança até a entrega passou de 30 s (meta 5 s). Receptor lento (timeouts e retentativas) ou worker sobrecarregado (docs/runbooks/webhooks.md › Lento).'

@@ -44,6 +44,7 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
+| `WebhookWorkerDown`, `WebhookDeadLetters`, `WebhookEndpointFailing`, `WebhookDeliverySlow` | Webhooks para clientes: worker parado (entrega vencida há 5 min), DLQ crescendo, endpoint com 5+ falhas seguidas, p95 acima de 30 s. O que fazer em cada um: [webhooks.md](webhooks.md#alertas) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
 | `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
 | `ApiLatencyP95High` | p95 das rotas de cliente acima de 150 ms por 10 min, só com tráfego (≥ 0,2 req/s, fora `/metrics`, `/health`, `/internal`). Com menos que isso o cache do ao vivo (10 s) nunca está quente e o p95 seria a requisição mais lenta da janela (#450) |
@@ -288,5 +289,6 @@ docker compose exec api cat /tmp/selfheal.log
 | `galaxie_ai_credit_checked_timestamp_seconds` | Hora da última checagem |
 | `galaxie_ai_spend_usd{budget_day}` | Gasto em US$ do dia de orçamento em `ops.llm_usage` (todos os agentes) |
 | `galaxie_ai_daily_budget_usd` | Teto global efetivo (sem a série quando é `unlimited`) |
+| `galaxie_webhook_*{endpoint,tenant}`, `galaxie_webhook_overdue_seconds` | Fila, DLQ, falhas, latência e atraso do worker dos webhooks (`api.webhook_delivery`; lista em [webhooks.md](webhooks.md#alertas)) |
 
 O rótulo é `component`, não `service`: o scrape do Prometheus já põe `service="api"` em toda série da API.
