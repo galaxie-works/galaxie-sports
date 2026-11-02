@@ -106,7 +106,7 @@ o que faltar.
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
    - `api`, `webhooks` e `demo` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o novo
      healthy). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
-   - `backup`, `prometheus`, `grafana` e o que não tem imagem nossa, quando mudaram.
+   - o que não tem imagem nossa, quando mudou (a página de manutenção, por exemplo).
 9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
    falhas", que também confere a versão da API e da demo). Por último, a **conferência**
    (`deploy-verify.sh`): para cada serviço trocado, o digest e o rótulo da imagem do contêiner, e o que o processo expõe.
@@ -164,11 +164,11 @@ Uma variável por imagem, sempre o `in-<hash>` da entrada dela no SHA publicado:
 | `TAG_API` | `api`, `webhooks`, `migrate`, `api-candidate` |
 | `TAG_DEMO` | `demo`, `demo-candidate` |
 | `TAG_INGESTOR` | `ingestor`, `agents` |
-| `TAG_BACKUP` | `backup` |
-| `TAG_PROMETHEUS` | `prometheus` |
-| `TAG_GRAFANA` | `grafana` |
+| `TAG_BACKUP` | `backup` (projeto `dados`; só por runbook) |
+| `TAG_PROMETHEUS` | `prometheus` (projeto `obs`) |
+| `TAG_GRAFANA` | `grafana` (projeto `obs`) |
 
-`DEPLOY_SHA` é só o registro do SHA publicado (notas de versão, volta de versão). **Não pode entrar no env de nenhum
+`DEPLOY_SHA` (e `DEPLOY_SHA_OBS`, no deploy de obs) é só o registro do SHA publicado (notas de versão, volta de versão). **Não pode entrar no env de nenhum
 serviço:** env novo recria o contêiner e desfaz o ganho. Duas leituras úteis na VPS:
 
 ```bash
@@ -201,22 +201,18 @@ sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale i
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte
 compara de novo: se o SHA dele ainda pedir a imagem nova, ele troca.
 
-### Voltar para um SHA anterior às tags por serviço
+### Voltar para um SHA antigo
 
-`gh workflow run deploy.yml -f sha=<sha> -f force=1` continua valendo para um SHA cujo `compose.yml` ainda usa
-`IMAGE_TAG`: o roteiro vem da `main`, o `compose.yml` do SHA. Sem `TAG_API` no `env.example` do SHA, ele baixa as imagens
-com a tag `<sha>`, grava `IMAGE_TAG=<sha>` (e tira as `TAG_*` do `.env`) e troca só o que tem outro digest. Como há uma
-tag só, qualquer falha volta a stack inteira. O deploy seguinte, de um SHA novo, regrava as `TAG_*` e tira o `IMAGE_TAG`.
+`gh workflow run deploy.yml -f sha=<sha> -f force=1` continua valendo para um SHA anterior aos três projetos (a tag `<sha>`
+existe para todo commit). O compose dele tem o Postgres e os outros dados, e subir isso daria dois Postgres no mesmo volume:
+o deploy publica as **imagens** do SHA com o `compose.yml` de apps deste checkout, e o smoke do SHA. Um SHA anterior ao
+`/health` do worker deixa os webhooks como estão (com `WARN`).
 
-Comandos:
+### Dados e observabilidade
 
-```bash
-gh workflow run deploy.yml                              # o commit mais novo da main (espera o CI dele terminar)
-gh workflow run deploy.yml -f force=1                   # publica de novo o SHA que já está no ar
-gh workflow run deploy.yml -f sha=<sha> -f force=1      # um SHA específico (também serve para voltar versão)
-gh workflow run deploy.yml -f ci_wait_min=45            # espera mais pelo CI do SHA
-gh run watch $(gh run list --workflow deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-```
+O deploy automático só conhece o `compose.yml` de apps. `gh workflow run deploy.yml -f project=obs` publica Prometheus e
+Grafana. Dados, só por runbook: [Dados e observabilidade](stack-dados-e-observabilidade.md). VPS ainda num projeto só: o deploy
+recusa ([transição](stack-em-tres-projetos.md)).
 
 ## Repositório público: o que não vaza
 

@@ -2,7 +2,7 @@
 # Confere, no fim do deploy, que cada serviço trocado está mesmo na versão pedida. Nasceu de 30/10 a 02/11/2026, quando
 # deploys verdes não publicaram nada e ninguém conferia. Roda NA VPS, em /docker/galaxie-sports:
 #
-#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- <serviço>=<ref>=<tag>=<porta> ...' < deploy-verify.sh
+#   ssh <vps> 'cd /docker/galaxie-sports && COMPOSE_FILE=compose.yml bash -s -- <serviço>=<ref>=<tag>=<porta> ...' < deploy-verify.sh
 #
 # Para cada contêiner do serviço:
 #   - a imagem é a da referência (digest);

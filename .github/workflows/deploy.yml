@@ -8,6 +8,7 @@ name: Deploy
 #
 #   gh workflow run deploy.yml                           # o commit mais novo da main
 #   gh workflow run deploy.yml -f sha=<sha> -f force=1   # um commit específico, mesmo já no ar (voltar versão)
+#   gh workflow run deploy.yml -f project=obs            # Prometheus e Grafana (o automático só publica os apps)
 #
 # O deploy não espera jogo ao vivo (a trava de 28/10/2026 saiu em 02/11/2026: com merges em sequência, cada commit
 # novo reiniciava a espera e nada publicava). O smoke roda num candidato antes da troca, e a API, os webhooks e a demo
@@ -38,6 +39,12 @@ on:
         description: Minutos de espera pelo CI e pelas imagens do SHA ainda rodando
         required: false
         default: '30'
+      project:
+        description: O que publicar (apps = o de sempre; obs = Prometheus e Grafana; dados só por runbook)
+        required: false
+        type: choice
+        options: [apps, obs]
+        default: apps
 
 permissions:
   contents: read
@@ -196,6 +203,7 @@ jobs:
           FORCE: ${{ inputs.force }}
           # disparo manual com o SHA já no ar e sem force: falha (nunca verde sem publicar); no automático, só pula
           ON_SKIP: ${{ github.event_name == 'workflow_dispatch' && 'fail' || 'pass' }}
+          PROJECT: ${{ inputs.project || 'apps' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail

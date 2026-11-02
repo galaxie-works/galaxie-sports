@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Plano da troca: compara, serviço a serviço, o que está no ar com o que o SHA pede, e diz quem troca. Roda NA VPS, em
-# /docker/galaxie-sports, com o compose.yml.new e o .env.next que o deploy-gh.sh deixou lá e as imagens já baixadas:
+# /docker/galaxie-sports, com o compose novo (PLAN_FILE) e o .env.next que o deploy-gh.sh deixou lá e as imagens já baixadas:
 #
-#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- <escala do ingestor> api=<ref> demo=<ref> ...' < deploy-plan.sh
+#   ssh <vps> 'cd /docker/galaxie-sports && PLAN_FILE=compose.yml.new bash -s -- <escala do ingestor> api=<ref> demo=<ref> ...' < deploy-plan.sh
 #
 # Cada serviço=referência é um serviço com imagem nossa. Um serviço troca quando:
 #   - a imagem nova tem outro digest (docker image inspect) que a do contêiner no ar (docker inspect): tag diferente com
@@ -19,7 +19,7 @@ export PULL_POLICY=missing
 
 scale="${1:?informe a escala do ingestor}"
 shift
-C=(docker compose -f compose.yml.new --env-file .env.next)
+C=(docker compose -f "${PLAN_FILE:-compose.yml.new}" --env-file .env.next)
 TAG_VARS=(TAG_API TAG_DEMO TAG_INGESTOR TAG_BACKUP TAG_PROMETHEUS TAG_GRAFANA IMAGE_TAG)
 declare -A REFS=()
 for arg in "$@"; do REFS["${arg%%=*}"]="${arg#*=}"; done

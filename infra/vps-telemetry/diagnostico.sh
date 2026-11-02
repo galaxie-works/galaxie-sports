@@ -31,15 +31,18 @@ SLO="$(label slo)"
 
 # sem stdin (o exec do docker compose consumiria o resto); o sql() abaixo usa o stdin de propósito
 dc() { docker compose "$@" </dev/null; }
+# Postgres e Prometheus estão nos projetos `dados` e `obs`; antes da transição, neste
+dados() { if [ -f compose.dados.yml ]; then dc -f compose.dados.yml "$@"; else dc "$@"; fi; }
+obs() { if [ -f compose.obs.yml ]; then dc -f compose.obs.yml "$@"; else dc "$@"; fi; }
 sql() {
   { echo "set default_transaction_read_only = on; set statement_timeout = '20s';"; cat; } |
-    docker compose exec -T postgres sh -c 'psql -X -q -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -' 2>&1 | head -80
+    dados exec -T postgres sh -c 'psql -X -q -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -' 2>&1 | head -80
 }
 # PromQL instantânea: imprime "rótulos = valor" por série
 prom() {
   local q
   q="$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$1")"
-  dc exec -T prometheus wget -qO- "http://localhost:9090/api/v1/query?query=$q" 2>/dev/null |
+  obs exec -T prometheus wget -qO- "http://localhost:9090/api/v1/query?query=$q" 2>/dev/null |
     python3 -c 'import json,sys
 try:
   r=json.load(sys.stdin)["data"]["result"]
@@ -56,7 +59,7 @@ section() { printf '\n== %s\n' "$*"; }
 echo "Diagnóstico de \"$ALERT\"${REST:+ ($REST)} em $(date -u +%FT%TZ) · versão $(sed -n 's/^\(DEPLOY_SHA\|IMAGE_TAG\)=//p' .env | head -n 1 | cut -c1-8)"
 
 section "Alertas disparando agora (Prometheus)"
-dc exec -T prometheus wget -qO- http://localhost:9090/api/v1/alerts 2>/dev/null |
+obs exec -T prometheus wget -qO- http://localhost:9090/api/v1/alerts 2>/dev/null |
   python3 -c 'import json,sys
 a=[x for x in json.load(sys.stdin)["data"]["alerts"] if x["state"]=="firing"]
 for x in a[:20]:
