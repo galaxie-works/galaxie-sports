@@ -7,6 +7,7 @@
 #   - transição de IMAGE_TAG para as tags por serviço sem recriar nada
 #   - merge só na demo troca só a demo; merge que só muda o compose de um serviço troca só ele
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
+#   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta a stack inteira
 #   - um SHA anterior às tags por serviço continua publicável, e dele se volta para a frente
 #
@@ -24,7 +25,7 @@ PORT="${TEST_REGISTRY_PORT:-15055}"
 REGISTRY_CT="galaxie-deploy-test-registry"
 P="localhost:$PORT/galaxie-deploy-test/gs"
 NAMES=(api demo ingestor backup prometheus grafana)
-SERVICES=(agents api backup demo grafana ingestor maintenance migrate postgres prometheus valkey webhooks)
+SERVICES=(agents api backup demo grafana ingestor maintenance migrate postgres prometheus s3-init valkey webhooks)
 ZERO=0000000000000000000000000000000000000000
 fail=0
 
@@ -121,6 +122,11 @@ services:
     pull_policy: missing
     restart: unless-stopped
     stop_grace_period: 1s
+  s3-init:
+    image: galaxie-deploy-test-tools:1
+    pull_policy: never
+    command: ['sh', '-c', 'exit 0']
+    restart: 'no'
   migrate:
     <<: *app
     image: ${IMAGE_PREFIX:?}-api:${TAG_API:?}
@@ -340,6 +346,24 @@ expect_log '^plano:.*agents: troca \(config mudou\)'
 expect_recreated "$before" agents
 expect_eq "agents com a configuração nova" "$(cd "$VPS_D" && docker compose exec -T agents printenv AGENTE </dev/null)" dois
 expect_eq "agents mexe no cache" "$(cat "$VPS_D/post-deploy.log")" "all $C3"
+
+echo "── s3-init muda e termina com erro: o deploy reprova; volta a configuração anterior"
+sed -i "s/'exit 0'/'exit 3'/" "$REPO_T/infra/vps-telemetry/compose.yml"
+C3B="$(commit "c3b")"
+publish
+before="$(created)"
+deploy "$C3B" DEPLOY_CANDIDATE=on
+expect_rc 1
+expect_log '^plano:.*s3-init: troca \(config mudou\)'
+expect_log '^FAIL  s3-init terminou com código 3'
+expect_log '^FAIL  deploy parcial .*s3-init na versão anterior'
+expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C3"
+expect_recreated "$before" s3-init
+sed -i "s/'exit 3'/'exit 0'/" "$REPO_T/infra/vps-telemetry/compose.yml"
+C3="$(commit "c3c")"
+publish
+deploy "$C3" DEPLOY_CANDIDATE=on
+expect_rc 0
 
 echo "── C4: API boa e demo que passa no candidato e não sobe: a API fica nova, a demo volta"
 echo y >> "$REPO_T/apps/api/x"
