@@ -20,7 +20,7 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 | Camada | Onde | O que | Retenção | Quem mantém |
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
-| 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 14 diários + 8 semanais + 12 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
+| 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 7 diários + 4 semanais + 6 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
 | 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
@@ -40,9 +40,9 @@ compose [infra/nas-backup/compose.yml](../../infra/nas-backup/compose.yml) e o s
    parou). O NAS guarda um dump por dia. Se a VPS tiver um mais novo do mesmo dia (o backup roda também na partida do
    serviço, a cada deploy), o novo substitui o anterior depois de conferido.
 2. **Confere** o sha256 de cada dump baixado antes de movê-lo para `daily/`. Se não conferir, apaga a cópia e falha.
-3. **Faz a rotação** avô-pai-filho por hardlink, sem duplicar espaço: `daily/` fica com os 14 dias mais recentes,
-   `weekly/` com o último dump de cada semana ISO (8 semanas; normalmente o de domingo) e `monthly/` com o último de
-   cada mês (12 meses). A rotação conta dumps, não idade: com a cópia parada, nada some.
+3. **Faz a rotação** avô-pai-filho por hardlink, sem duplicar espaço: `daily/` fica com os 7 dias mais recentes,
+   `weekly/` com o último dump de cada semana ISO (4 semanas; normalmente o de domingo) e `monthly/` com o último de
+   cada mês (6 meses). A rotação conta dumps, não idade: com a cópia parada, nada some.
 4. **Deixa o recibo** `.nas_last_pull` no volume da VPS, mas só quando o próprio dump mais recente da VPS está
    guardado e conferido. Com `BACKUP_NAS_RECEIPT=true`, que é o padrão do compose da VPS desde este PR, o verificador acusa
    cópia do NAS com mais de 26 h (alerta `BackupCheckFailed`).
@@ -196,8 +196,8 @@ isso ela é obrigatória com a cifragem ligada: `BACKUP_AGE_RECIPIENTS` sem `BAC
 
 Outra opção: rode o `restore.sh` com `BACKUP_AGE_IDENTITY` igual à chave de recuperação, só durante a restauração.
 
-**Transição:** os dumps em claro de antes continuam no NAS até a rotação apagá-los, em 14 dias (diários), 8 semanas
-e 12 meses (mensais). Para acabar com eles antes, apague `daily/`, `weekly/` e `monthly/*.dump` no NAS (os `.dump.age`
+**Transição:** os dumps em claro de antes continuam no NAS até a rotação apagá-los, em 7 dias (diários), 4 semanas
+e 6 meses (mensais). Para acabar com eles antes, apague `daily/`, `weekly/` e `monthly/*.dump` no NAS (os `.dump.age`
 ficam).
 
 ## O que roda sozinho
