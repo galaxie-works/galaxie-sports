@@ -8,6 +8,7 @@ A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-back
 | Script | O que faz |
 |---|---|
 | `backup.sh` | Um backup agora (o `entrypoint.sh` agenda um por dia às `BACKUP_TIME` UTC e um na partida) |
+| `s3-sync.sh` | Cópia opcional dos prefixos do bucket de assets (RustFS) para o volume e o bucket remoto |
 | `backup-check.sh` | Healthcheck: _unhealthy_ se o último sucesso tiver mais de 26 h |
 | `restore.sh` | Lista, ensaia (`--verify`) ou restaura (`--yes`) um dump |
 | `restore-drill.sh` | Ensaio de restauração completo, com conferência |
@@ -18,10 +19,43 @@ A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-back
 - `pg_dump --format=custom --compress=zstd:5` do banco inteiro (o schema `raw` é o ativo mais caro de reconstruir),
   validado com `pg_restore --list`, com `.sha256` ao lado. Ficam os `BACKUP_KEEP_DAILY` (7) dumps mais recentes no volume
   `backups`, contados por quantidade: com o backup parado, nada some.
-- Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). Configure no bucket
-  uma regra de ciclo de vida de 30 dias. Use um bucket fora da VPS: o RustFS da stack não serve como cópia externa.
+- Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS.
+  Use um bucket fora da VPS: o RustFS da stack não serve como cópia externa.
 - Cada execução vira uma linha `pg-backup` em `ops.job_run`, que alimenta as métricas e o alerta `BackupStale`.
 - Backup avulso: `docker compose exec backup backup.sh`.
+
+## Assets do S3 (RustFS)
+
+O dump não leva o conteúdo do bucket `galaxie-sports-assets` (escudos e variantes, mídia, logos enviados no painel). O que
+não se refaz a partir do pacote do acervo nem da CDN de mídia entra por `BACKUP_S3_SYNC_PREFIXES` (prefixos de primeiro
+ou segundo nível, separados por espaço ou vírgula; vazio = nada muda). Qual prefixo vale a cópia, com tamanhos e o que
+cada um é: [docs/runbooks/exercicio-dr.md › Assets do S3](../../docs/runbooks/exercicio-dr.md#assets-do-s3).
+
+Depois de cada dump (e na partida, se o recibo estiver velho), `s3-sync.sh`:
+
+1. espelha cada prefixo do RustFS (`S3_ENDPOINT`, com as chaves `S3_ACCESS_KEY`/`S3_SECRET_KEY`) em
+   `/backups/s3/<prefixo>/`, no volume `backups`, de onde o NAS puxa (`NAS_S3_PREFIXES`; ver
+   [`infra/nas-backup`](../nas-backup)). O volume passa a ter o tamanho dos prefixos a mais;
+2. com `BACKUP_S3_BUCKET`, copia dali para `s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_DEST_PREFIX/<prefixo>/` (padrão
+   `assets/`). `aws s3 sync` só envia o que mudou;
+3. grava o recibo `/backups/.s3_last_sync`, que o `backup-check.sh` confere (mesmo limite de `BACKUP_MAX_AGE_H`), e a
+   linha `s3-sync` em `ops.job_run`.
+
+Um prefixo sem nenhum objeto (nome errado, ou ainda vazio) falha o sync em vez de passar em silêncio: `aws s3 sync` de um
+prefixo inexistente termina com sucesso sem copiar nada, e o recibo daria o backup por feito. Ponha na lista só prefixos que
+já têm objetos.
+
+Nada é apagado por padrão (`BACKUP_S3_SYNC_DELETE=false`): o objeto que sumiu do RustFS por engano continua na cópia, e um
+RustFS vazio não esvazia o backup. Os objetos de logo têm o hash no nome, então não são reescritos. Falha do sync não
+derruba o backup do banco (o dump já está guardado): ela vira erro do job `s3-sync`, o recibo envelhece e o verificador
+dispara `BackupCheckFailed`.
+
+**Retenção do remoto.** O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS. Os assets ficam num prefixo irmão dos dumps (`assets/`, não
+`postgres/s3/…`), e o `s3-sync.sh` só apaga com `BACKUP_S3_SYNC_DELETE=true`
+(padrão `false`: nada some do espelho nem do remoto).
+
+Limites: o `aws s3 sync` lista os dois lados a cada execução e o contêiner tem `mem_limit: 256m`. Para algumas dezenas de
+milhares de objetos, sem problema; para centenas de milhares (a mídia `api-sports/`), meça antes e suba o limite.
 
 ## Restore (testado)
 
@@ -52,4 +86,6 @@ pelo nome. O banco anterior fica como `<db>_pre_restore_<data>` para rollback.
    ou use o caminho `s3://...`, e siga o passo 2.
 
 Variáveis: `BACKUP_DIR`, `BACKUP_KEEP_DAILY`, `BACKUP_COMPRESS`, `BACKUP_TIME`, `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`,
-`BACKUP_S3_ENDPOINT` com `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (ver o cabeçalho de `backup.sh`).
+`BACKUP_S3_ENDPOINT` com `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (ver o cabeçalho de `backup.sh`); dos assets:
+`BACKUP_S3_SYNC_PREFIXES`, `BACKUP_S3_SYNC_DEST_PREFIX`, `BACKUP_S3_SYNC_DELETE`, `BACKUP_S3_SYNC_DIR` (cabeçalho de
+`s3-sync.sh`).

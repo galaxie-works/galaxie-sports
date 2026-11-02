@@ -23,6 +23,10 @@ jobs:
     name: checks (Postgres ${{ matrix.postgres }}, Valkey ${{ matrix.valkey }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # ler os rótulos do PR (passo da migration destrutiva); continua sem escrever em nada
+    permissions:
+      contents: read
+      pull-requests: read
     strategy:
       fail-fast: false
       # 17/8 é o que roda em produção; 18/9 é o alvo do upgrade (issue #201). Ao migrar, sai a linha 17/8.
@@ -105,6 +109,42 @@ jobs:
             echo "::warning::Commit base indisponível: conferindo só a ordem interna do journal."
             node packages/db/dist/journal-check-cli.js
           fi
+
+      # A troca de versão é lado a lado e o candidato migra antes dela: a migration nova tem que servir também à
+      # versão antiga. DROP, RENAME, mudança de tipo e NOT NULL sem DEFAULT (contrair) quebram a antiga e a volta do
+      # código; só entram num PR próprio com o rótulo `contrair`, depois do deploy que parou de usar o que sai
+      # (docs/runbooks/migrations.md). Migrations novas = as que o PR acrescenta sobre a base (1º pai do commit
+      # testado, como no passo acima). Só no PR o rótulo decide; na fila e no push o PR já passou por aqui, então só
+      # avisa. O rótulo é lido da API na hora (o payload do evento fica velho ao reexecutar o job depois de rotular).
+      - name: Migration destrutiva sem o rótulo contrair
+        env:
+          EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PAYLOAD_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          base=$(git cat-file -p HEAD | awk '/^parent /{print $2; exit}')
+          if [ -z "$base" ] || ! git fetch -q --no-tags --depth=1 origin "$base"; then
+            if [ "$EVENT" = pull_request ] || [ "$EVENT" = merge_group ]; then
+              echo "::error::Commit base ($base) indisponível: sem ele não dá para saber quais migrations o PR acrescenta."
+              exit 1
+            fi
+            echo "::warning::Commit base indisponível: migrations destrutivas não conferidas neste push."
+            exit 0
+          fi
+          mapfile -t files < <(git diff --name-only --no-renames --diff-filter=A "$base" HEAD -- 'packages/db/drizzle/*.sql')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Nenhuma migration nova."
+            exit 0
+          fi
+          mode=--warn
+          if [ "$EVENT" = pull_request ]; then
+            labels=$(gh api "repos/$REPO/issues/$PR_NUMBER/labels" --paginate --jq '.[].name' 2>/dev/null) \
+              || labels=$(printf '%s' "$PAYLOAD_LABELS" | jq -r '.[]')
+            if printf '%s\n' "$labels" | grep -qx contrair; then mode=--allowed; else mode=; fi
+          fi
+          node packages/db/dist/destructive-migrations-cli.js $mode "${files[@]}"
 
       - name: Migrations sem drift (schema TS ⇄ SQL versionado)
         working-directory: packages/db
