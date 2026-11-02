@@ -21,10 +21,11 @@ case "${1:-}" in
     ;;
 esac
 
+# o .env só muda depois de o contêiner subir: falhou aqui, um deploy depois não força a manutenção sem ninguém pedir
+MAINTENANCE_PRIORITY="$priority" docker compose up -d --no-deps --quiet-pull maintenance </dev/null
 if grep -q '^MAINTENANCE_PRIORITY=' .env; then
   sed -i "s|^MAINTENANCE_PRIORITY=.*|MAINTENANCE_PRIORITY=$priority|" .env
 else
   echo "MAINTENANCE_PRIORITY=$priority" >> .env
 fi
-docker compose up -d --no-deps --quiet-pull maintenance </dev/null
 echo "manutenção: $1 (MAINTENANCE_PRIORITY=$priority)"
