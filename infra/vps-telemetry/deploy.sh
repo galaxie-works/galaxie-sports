@@ -215,7 +215,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
   for spec in api:apps/api ingestor:services/ingestor demo:apps/demo; do
     name="${spec%%:*}"
     echo "build $name"
-    docker build -q -f "$WT/${spec#*:}/Dockerfile" -t "$REG-$name:$SHA" "$WT" >/dev/null
+    docker build -q --build-arg "IMAGE_HASH=$SHA" -f "$WT/${spec#*:}/Dockerfile" -t "$REG-$name:$SHA" "$WT" >/dev/null
   done
 fi
 

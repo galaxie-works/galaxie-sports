@@ -15,7 +15,7 @@ merge (fila nativa do GitHub, ou trem de merge no Actions)
 CI + Imagens no SHA ──► imagens <sha>, main, staging no GHCR (só reconstrói o que mudou)
         │  os dois verdes (workflow_run)
         ▼
-Deploy (deploy.yml): trava na VPS → pull do GHCR → plano (quem mudou) → migrate → troca só da lista → pós-deploy → smoke
+Deploy (deploy.yml): trava na VPS → pull do GHCR → plano (quem mudou) → migrate → troca só da lista → pós-deploy → smoke → confere as versões
         │                                   └─ falhou um serviço → volta só ele; mais de um, sem migration nova → SHA anterior
         ▼
 notas de versão (tag deploy-AAAA-MM-DD.N)
@@ -101,14 +101,16 @@ o que faltar.
    na versão nova antes da troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
 8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
-   comentário no compose): termina aqui, verde, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem notas de
-   versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
+   comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
+   notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
    - `api` lado a lado (`rolling-swap.sh`: o antigo só sai com o novo healthy) e `webhooks` por recriação;
    - `demo` lado a lado;
    - `backup`, `prometheus`, `grafana` e o que não tem imagem nossa, quando mudaram.
 9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
-   falhas").
+   falhas", que também confere a versão da API e da demo). Por último, a **conferência**
+   (`deploy-verify.sh`): para cada serviço trocado, o digest e o rótulo da imagem do contêiner, e o que o processo expõe.
+   Serviço na versão errada é `FAIL  <serviço>: …` no resumo do job, e volta só ele.
    - O pós-deploy começa pelo **seed da base semântica** (`data/knowledge` → `semantic.*`, exigido pelo #362).
    - Roda com o `data/knowledge` da imagem nova, `--dir /srv/data/knowledge` e o SHA no `semantic.load_run`.
    - Roda em todo deploy, não só quando `data/knowledge` muda: é ele que liga os perfis aos participantes que a
@@ -127,7 +129,31 @@ o que faltar.
       nova, imprime o rollback manual, porque o código antigo pode não aguentar o schema novo.
 11. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
 12. Religa o espelho de assets.
-13. Publica as notas de versão (`release-notes.mjs`), só quando publicou.
+13. Publica as notas de versão (`release-notes.mjs`), só quando publicou, com o SHA do deploy ao lado do hash de cada
+    imagem e marcando as que trocaram.
+
+### A versão que cada serviço roda
+
+O que identifica a versão é o hash da entrada da imagem (`in-<hash>`), não o SHA: a imagem é reaproveitada entre commits,
+então ela não pode conter o SHA. O `docker.yml` passa `IMAGE_HASH` como build-arg e a imagem guarda em `GALAXIE_IMAGE_HASH`.
+Para saber qual SHA está no ar, veja o `DEPLOY_SHA` do `.env` ou as notas de versão.
+
+| Serviço | Onde ler |
+| --- | --- |
+| `api` | `GET /version` (público) e `build_info` no `/metrics` |
+| `demo` | `GET /api/version` (público) |
+| `webhooks` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
+| `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
+| `backup`, `prometheus`, `grafana` | rótulo `works.galaxie.context-tree` da imagem |
+
+O formato é `{ service, image_hash, started_at, node }`, e cada processo escreve o mesmo numa linha de log na partida. O
+Prometheus raspa `api`, `webhooks`, `ingestor` e `agents`, e o painel **SLOs** do Grafana tem a tabela "Versão no ar por
+serviço". A demo não é raspada: não tem `/metrics`.
+
+```bash
+curl -s https://api.sports.galaxie.works/version
+cd /docker/galaxie-sports && docker compose exec -T ingestor node -e "fetch('http://127.0.0.1:9464/version').then(r=>r.text()).then(console.log)"
+```
 
 ### As tags no `.env` da VPS
 

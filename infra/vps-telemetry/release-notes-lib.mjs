@@ -154,5 +154,20 @@ export function nextTag(names, today) {
   return { tag: `deploy-${today}.${n}`, n };
 }
 
+/**
+ * A linha das versões nas notas: o SHA publicado e o hash de cada imagem, marcando as que este deploy trocou.
+ * `versions` = "api=in-abc demo=in-def"; `swapped` = os serviços trocados, separados por espaço. Vazio sem versões.
+ */
+export function versionsNote(sha, versions, swapped = '') {
+  const pairs = (versions ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((pair) => pair.split('='));
+  if (!pairs.length) return undefined;
+  const changed = new Set(swapped.split(/\s+/).filter(Boolean));
+  const items = pairs.map(([name, tag]) => `\`${name}\` ${tag.slice(0, 10)}${changed.has(name) ? ' (trocada)' : ''}`);
+  return `SHA \`${sha.slice(0, 7)}\` · ${items.join(' · ')}`;
+}
+
 /** Título padrão da release a partir do nome da tag. */
 export const titleOf = (tag) => `Deploy ${tag.date} nº ${tag.n}`;

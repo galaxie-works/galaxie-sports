@@ -107,7 +107,7 @@ respostas (falha também derruba o deploy; a partir daqui a versão nova fica no
 **smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
 e campanha do time, o time numa temporada passada (`?season=2025`), stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global, o resumo da home Explorar, a
 rota do painel de Operação (protegida e sem valor de credencial) e a proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
-aparece no relatório. Para rodar só o smoke test:
+aparece no relatório. Serviço por serviço, o deploy termina conferindo a versão no ar (`deploy-verify.sh`; runbook › A versão que cada serviço roda). Para rodar só o smoke test:
 
 ```bash
 ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs

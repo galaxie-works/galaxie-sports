@@ -281,8 +281,8 @@ services:
     logging: *logging
 
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
-  # Mesma imagem da API, sem porta e sem router. Na primeira subida o cursor começa do fim do change feed (não reenvia
-  # o histórico). Sem HTTP para conferir, o healthcheck da imagem (GET /health na 8080) fica desligado; uma queda do
+  # Mesma imagem da API, sem router: a 8080 só tem /health, /version e /metrics (servidor de operação). Na primeira subida
+  # o cursor começa do fim do change feed (não reenvia o histórico). O healthcheck da imagem fica desligado; uma queda do
   # processo é coberta pelo restart. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
   # --remove-orphans (deploy-gh.sh/deploy.sh), para o worker da versão recusada não seguir entregando.
   webhooks:
@@ -297,6 +297,8 @@ services:
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       # depois de `webhook seal-secrets` (SECURITY.md › Webhooks): segredo legado em texto puro deixa de assinar
       WEBHOOK_REJECT_PLAINTEXT_SECRETS: ${WEBHOOK_REJECT_PLAINTEXT_SECRETS:-}
+      # Bearer do /metrics do servidor de operação do worker (build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
     healthcheck:
       disable: true
     depends_on:
@@ -403,6 +405,8 @@ services:
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
@@ -450,6 +454,8 @@ services:
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_AGENTS:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       SCHEDULER_PROFILE: agents
       SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
       SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}

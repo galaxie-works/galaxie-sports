@@ -10,6 +10,7 @@ export * from './logger.js';
 export * from './metrics/registry.js';
 export * from './metrics/quota.js';
 export * from './metrics/queries.js';
+export * from './version.js';
 
 /**
  * A conta da api-sports é a mesma no dev (NAS) e na produção. Produção é APP_ENV `production` ou `staging` (as

@@ -139,6 +139,9 @@ jobs:
           # nos PRs as imagens do Node ficam no Docker local para as checagens de arquivos abaixo
           load: ${{ env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo') }}
           labels: works.galaxie.context-tree=${{ steps.input.outputs.hash }}
+          # as três do Node gravam o hash em GALAXIE_IMAGE_HASH (o /version e o build_info leem dali). Determinístico: a
+          # mesma entrada dá o mesmo valor, e o reaproveitamento acima continua valendo
+          build-args: ${{ matrix.context == '.' && format('IMAGE_HASH=in-{0}', steps.input.outputs.hash) || '' }}
           # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
           tags: ${{ steps.input.outputs.tags }}
           # A fila lê o cache da main (o GitHub só deixa ler o da própria ref e o da branch padrão) e não grava: a ref
@@ -168,6 +171,15 @@ jobs:
             const missing = need.filter((p) => !p || p.includes("undefined") || !fs.existsSync(p));
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
             console.log("ok:", need.length, "caminhos");'
+
+      - name: Hash da entrada dentro da imagem (GALAXIE_IMAGE_HASH)
+        if: env.PUBLISH != 'true' && steps.input.outputs.source == '' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo')
+        env:
+          WANT: GALAXIE_IMAGE_HASH=in-${{ steps.input.outputs.hash }}
+        run: |
+          docker image inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$IMAGE:$GITHUB_SHA" | grep -qx "$WANT" ||
+            { echo "::error::a imagem não tem $WANT"; exit 1; }
+          echo "$WANT"
 
       # O repositório é público e as imagens vão para o GHCR: nenhum .env pode entrar (o .dockerignore exclui **/.env*,
       # menos o .env.example). Segredo só no .env da VPS, em tempo de execução.
@@ -375,7 +387,7 @@ jobs:
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/deploy-gh.test.sh \
-            infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
+            infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \

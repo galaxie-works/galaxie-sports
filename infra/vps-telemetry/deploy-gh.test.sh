@@ -8,6 +8,7 @@
 #   - merge só na demo troca só a demo; merge que só muda o compose de um serviço troca só ele
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
 #   - falha em mais de um volta a stack inteira
+#   - serviço que expõe outra versão termina vermelho, com o nome dele, e volta só ele
 #   - um SHA anterior às tags por serviço continua publicável, e dele se volta para a frente
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
@@ -64,6 +65,8 @@ pkg() {
   printf '{"name":"%s","version":"0.0.0"}\n' "$2" > "$REPO_T/$1/package.json"
 }
 pkg apps/api @galaxie/api
+# o que diz ao deploy que os processos deste SHA expõem a versão
+echo 'ENV GALAXIE_IMAGE_HASH=x' > "$REPO_T/apps/api/Dockerfile"
 pkg apps/demo @galaxie/demo
 pkg services/ingestor @galaxie/ingestor
 pkg services/ai-agents @galaxie/ai-agents
@@ -77,7 +80,7 @@ echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a"
   "$REPO_T/infra/observability/grafana/a" >/dev/null
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"
-for f in deploy-gh.sh deploy-plan.sh rolling-swap.sh candidate.sh pre-migrate-dump.sh prune-images.sh; do
+for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh rolling-swap.sh candidate.sh pre-migrate-dump.sh prune-images.sh; do
   cp "$HERE/$f" "$REPO_T/infra/vps-telemetry/"
 done
 # pós-deploy e smoke de faz de conta. O node do contêiner é um sh: o smoke.mjs daqui é shell.
@@ -170,17 +173,19 @@ YML
 mkdir -p "$BUILD/rootfs"
 printf '#!/bin/sh\necho 1\n' > "$BUILD/rootfs/psql"
 printf '#!/bin/sh\nexit 0\n' > "$BUILD/rootfs/valkey-cli"
-printf '#!/bin/sh\nexec sh -s\n' > "$BUILD/rootfs/node"
+# o node de mentira: com -e (a conferência da versão) responde o que a imagem expõe; com - (o smoke) é um sh
+printf '#!/bin/sh\n[ "$1" = -e ] && exec cat /exposto\nexec sh -s\n' > "$BUILD/rootfs/node"
 chmod +x "$BUILD/rootfs/"*
 
 # Dockerfile das imagens: conteúdo = o hash da entrada, para digest mudar só quando a entrada muda. Marcadores na raiz
 # do repositório (fora da entrada; o commit muda também a pasta do app) fazem a versão ruim: QUEBRA_<imagem> nunca fica
-# healthy fora do candidato, SMOKE_FALHA_<imagem> reprova o smoke fora do candidato.
+# healthy fora do candidato, SMOKE_FALHA_<imagem> reprova o smoke fora do candidato, MENTE_<imagem> expõe outra versão.
 image_dockerfile() {
   cat <<DOCKER
 FROM busybox:1.37
 COPY rootfs/ /usr/local/bin/
-RUN echo "$1" > /version
+LABEL works.galaxie.context-tree=$1
+RUN echo "$1" > /version && echo "in-$1" > /exposto
 $2
 HEALTHCHECK --interval=1s --timeout=2s --retries=2 --start-period=0s CMD test ! -f /quebrada -o -n "\$CANDIDATO"
 CMD ["sh", "-c", "trap 'exit 0' TERM; while :; do sleep 1 & wait \$!; done"]
@@ -211,6 +216,7 @@ publish() {
       extra=""
       [ ! -f "$REPO_T/QUEBRA_$name" ] || extra+=$'RUN touch /quebrada\n'
       [ ! -f "$REPO_T/SMOKE_FALHA_$name" ] || extra+=$'RUN touch /smoke-falha\n'
+      [ ! -f "$REPO_T/MENTE_$name" ] || extra+=$'RUN echo in-velho > /exposto\n'
       image_dockerfile "$h" "$extra" | docker build -q -f - -t "$P-$name:in-$h" "$BUILD" >/dev/null
       docker push -q "$P-$name:in-$h" >/dev/null
     fi
@@ -295,7 +301,7 @@ expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C1"
 expect_eq "IMAGE_TAG saiu do .env" "$(env_of IMAGE_TAG)" ""
 expect_eq "o resto do .env ficou" "$(env_of OUTRA)" "mantida"
 expect_eq "backup do .env" "$(sed -n 's/^IMAGE_TAG=//p' "$VPS_D/.env.bak-${C0:0:7}")" "$C0"
-expect_eq "resultado skip" "$(cat "$WORK/github_output")" "result=skip"
+expect_eq "resultado skip" "$(grep '^result=' "$WORK/github_output")" "result=skip"
 
 echo "── mesmo SHA sem force: pula; com ON_SKIP=fail, vermelho"
 deploy "$C1"
@@ -325,7 +331,10 @@ expect_eq "TAG_API igual" "$(env_of TAG_API)" "$api_tag"
 expect_eq "um contêiner da demo" "$(cd "$VPS_D" && docker compose ps -q demo </dev/null | grep -c .)" 1
 expect_eq "demo nova no ar" "$(image_of demo)" "$(hash_of demo)"
 expect_eq "pós-deploy sem limpar o cache" "$(cat "$VPS_D/post-deploy.log")" "sem-cache $C2"
-expect_eq "resultado deployed" "$(cat "$WORK/github_output")" "result=deployed"
+expect_eq "resultado deployed" "$(grep '^result=' "$WORK/github_output")" "result=deployed"
+expect_log '^ok  demo na versão in-'
+expect_eq "só a demo na lista das notas" "$(grep '^swapped=' "$WORK/github_output")" "swapped=demo"
+if grep -q "^versions=.*demo=in-$(hash_of demo)" "$WORK/github_output"; then ok "hash nas notas"; else bad "hash fora das notas"; fi
 expect_eq "sem candidato no ar" "$(cd "$VPS_D" && docker compose --profile candidate ps -aq api-candidate demo-candidate </dev/null | grep -c . || true)" 0
 
 echo "── C3: só o compose do agents muda: troca só ele (configuração, mesma imagem)"
@@ -436,6 +445,30 @@ echo t >> "$REPO_T/apps/demo/x"
 C10="$(commit "c10")"
 publish
 deploy "$C10"
+expect_rc 0
+
+echo "── demo no ar expondo outra versão: vermelho, com o nome dela, e volta só ela"
+echo s >> "$REPO_T/apps/demo/x"
+touch "$REPO_T/MENTE_demo"
+C_M="$(commit "mente")"
+publish
+demo_old="$(env_of TAG_DEMO)"
+before="$(created)"
+deploy "$C_M"
+expect_rc 1
+expect_log '^FAIL  demo: expõe in-velho em /api/version'
+expect_log '^FAIL  deploy parcial .*demo na versão anterior'
+expect_eq "TAG_DEMO voltou" "$(env_of TAG_DEMO)" "$demo_old"
+expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C10"
+after="$(created)"
+for svc in api webhooks ingestor agents; do
+  expect_eq "$svc intacto" "$(sed -n "s/^$svc //p" <<< "$after")" "$(sed -n "s/^$svc //p" <<< "$before")"
+done
+rm "$REPO_T/MENTE_demo"
+echo r >> "$REPO_T/apps/demo/x"
+C_OK="$(commit "conserta")"
+publish
+deploy "$C_OK"
 expect_rc 0
 
 echo "── volta para o SHA anterior às tags por serviço (force), e de lá para a frente"

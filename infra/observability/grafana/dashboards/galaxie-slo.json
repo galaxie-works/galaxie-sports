@@ -2,7 +2,10 @@
   "uid": "galaxie-slo",
   "title": "Galaxie Sports · SLOs e orçamento de erro",
   "description": "SLOs de docs/14-slos-e-error-budget.md: orçamento de 28 dias, queima e indicadores. Regras em infra/observability/prometheus/slo.yml.",
-  "tags": ["galaxie", "slo"],
+  "tags": [
+    "galaxie",
+    "slo"
+  ],
   "timezone": "utc",
   "refresh": "1m",
   "schemaVersion": 39,
@@ -50,7 +53,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -115,7 +120,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -172,7 +179,9 @@
       },
       "options": {
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -543,6 +552,112 @@
           },
           "expr": "slo:backup:ok",
           "legendFormat": "backup"
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "type": "row",
+      "title": "Versão no ar",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "panels": []
+    },
+    {
+      "id": 110,
+      "type": "table",
+      "title": "Versão no ar por serviço",
+      "description": "Hash da entrada da imagem (tag in-<hash>) que cada serviço roda e há quanto tempo o processo está no ar. O SHA do deploy está nas notas de versão (tag deploy-AAAA-MM-DD.N), ao lado destes hashes. A demo não é raspada: GET /api/version.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "No ar há"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Serviço",
+            "desc": false
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service, image_hash) (build_info)",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (time() - process_start_time_seconds{job=~\"galaxie-api|galaxie-services\"})",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "service",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Value #A": true
+            },
+            "renameByName": {
+              "service": "Serviço",
+              "image_hash": "Versão (in-<hash>)",
+              "Value #B": "No ar há"
+            }
+          }
         }
       ]
     }
