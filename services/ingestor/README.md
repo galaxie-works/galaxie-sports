@@ -42,6 +42,42 @@ manutenção. `SCHEDULER_PROFILE=agents` roda só os agentes de IA, executando o
 dois pacotes, e a VPS sobe a mesma imagem duas vezes (`ingestor` e `agents`). Essa dependência não aparece no
 `package.json` (ver [docs/15 §5, F4](../../docs/15-organizacao-do-monorepo.md#5-fronteiras-confusas-hoje)).
 
+## Ao vivo: líder e reserva
+
+Hoje o `live-run` nasce pelo cron e tem a trava por job do scheduler. Com `LIVE_LEADER=on` (padrão `off`; quem liga é o
+serviço `live`, #535) ele vira duas cópias no ar: uma líder e uma reserva.
+
+- **Eleição**: a trava é `live:leader`, um advisory lock de sessão numa conexão só dela (`jobLockContender`). Quem tem a
+  trava faz os ticks e chama a api-sports. Quem não tem não chama nada e tenta a trava a cada `LIVE_LEADER_RETRY_MS`
+  (padrão 1000). Com a variável ligada, o processo não sai ocioso: a líder dorme com a trava na mão.
+- **Líder morreu** (`docker kill`, queda da máquina): o Postgres fecha a sessão, a trava some e a reserva assume na
+  tentativa seguinte.
+- **Conexão da trava caiu com a líder viva** (`onLost`): a cópia descarta o tick e volta para a espera.
+- **A cerca que vale é a do banco**: o aviso da trava pode atrasar, e a reserva já pode ter assumido nesse meio-tempo.
+  Cada mandato pega uma época nova ao receber a trava (`ops.sync_cursor`, endpoint `live:leader_epoch`). Primeiro saem as
+  chamadas ao fornecedor. Depois, retrato, gravação e publicação do tick rodam numa transação só, que trava a linha da
+  época e desiste se ela mudou. A nova líder só recebe a época depois do commit da antiga: ou lê o que a antiga gravou
+  (e o diff não repete o gol), ou a antiga não grava nada. O bastão passa pela mesma conferência.
+- **SIGTERM na líder**: termina o tick em andamento, grava o estado (`saveLiveState`) e o `ops.job_run`, e só então solta
+  a trava.
+- **Nada se repete na troca**: candidatos, retratos do diff e orçamento do dia (`planLiveDay`, `ticksLeft`) já vêm do
+  Postgres. O que só existia na memória e muda a decisão de chamar (último tick, backoff, intervalo visto, tentativas de
+  confirmar o resultado) é o bastão, em `ops.sync_cursor` (endpoint `live:scheduler`, chave `handoff`), gravado a cada
+  tick. Se a líder morre com a chamada no ar, a nova pode repeti-la; a resposta de até 10 s no raw evita gastar cota.
+- **Fora da eleição**: `live-reconcile` e `events-clock` continuam como cron, cada um com a trava por job.
+
+Para ver quem é a líder:
+
+```sql
+select a.application_name, a.backend_start, l.pid is not null as lider
+  from pg_stat_activity a
+  left join pg_locks l on l.pid = a.pid and l.locktype = 'advisory' and l.granted
+ where a.application_name like 'galaxie-live-leader:%';
+```
+
+Nos logs, `live_leader` (0 ou 1, com `instance`) sai a cada troca e `live_tick_interval_seconds` a cada tick, medido
+desde o último tick de qualquer cópia. O ingestor não expõe `/metrics` por processo: as métricas ficam para a #538.
+
 ## Depende de
 
 - **Pacotes**: `apisports-client` (única saída para a api-sports), `db`, `providers`, `rules`, `knowledge`,

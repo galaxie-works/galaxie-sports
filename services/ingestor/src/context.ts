@@ -5,7 +5,7 @@ import {
   plansFromEnv,
   PlanRules,
 } from '@galaxie/apisports-client';
-import { createDb, type Database } from '@galaxie/db';
+import { createDb, type Database, type DbProfile } from '@galaxie/db';
 import { quotaPolicyFromEnv } from '@galaxie/observability';
 import { PgCatalogSource, type CatalogSource } from './jobs/catalog-source.js';
 import { PgCursorStore } from './jobs/runtime/cursor-store.js';
@@ -28,11 +28,14 @@ export interface IngestorContext {
  * (regras do plano, limite por minuto e política do Quota Governor).
  * Sem APISPORTS_KEY o cliente entra em modo offline: útil depois de restaurar um snapshot do raw.
  */
-export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorContext {
+export function contextFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { dbProfile?: DbProfile | undefined } = {},
+): IngestorContext {
   const { APISPORTS_KEY, DATABASE_URL } = env;
   if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const planFor = plansFromEnv(env);
-  const db = createDb(DATABASE_URL);
+  const db = createDb(DATABASE_URL, options.dbProfile ? { profile: options.dbProfile } : {});
   const liveTimeoutMs = Number(env.APISPORTS_LIVE_TIMEOUT_MS) || undefined;
   const governor = new PgQuotaGovernor(db, quotaPolicyFromEnv(env));
   const offline = !APISPORTS_KEY;
