@@ -15,6 +15,24 @@ helpers de banco compartilhados (trava de job, change feed, grades, widgets, ví
 
 Modelo completo: [docs/04](../../docs/04-modelo-de-dados.md).
 
+## Papéis por serviço
+
+`src/roles.ts` define um papel de login por serviço (sem superusuário, sem DDL), e o `migrate` aplica os GRANTs e o
+`CONNECTION LIMIT` de cada um a cada deploy (`DB_ROLES=on`). A URL do serviço (`DB_URL_<SERVIÇO>`) troca o dono pelo
+papel. Detalhes e passo a passo: [runbook](../../docs/runbooks/papeis-do-banco.md).
+
+| Papel | URL | Lê | Escreve | Conexões |
+|---|---|---|---|---|
+| `galaxie_api` | `DB_URL_API` | todos os schemas | `api`, `enrich`, `ops` | 45 |
+| `galaxie_demo` | `DB_URL_DEMO` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset` (dona do `demo_auth`) | 30 |
+| `galaxie_ingestor` | `DB_URL_INGESTOR` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 40 |
+| `galaxie_agents` | `DB_URL_AGENTS` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
+| `galaxie_live` | `DB_URL_LIVE` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_*` | 36 |
+| `galaxie_backup` | `DB_URL_BACKUP` | tudo | `ops.job_run` (`CREATEDB` para o ensaio de restauração) | 6 |
+
+Tempos por perfil de conexão (`createDb({ profile })`): `api` 10 s de consulta, `live` 30 s, `job` 10 min, `migrate` sem
+teto de consulta.
+
 ## Como usar
 
 ```bash

@@ -30,6 +30,46 @@ notas de versão (tag deploy-AAAA-MM-DD.N)
 | Pós-deploy | `infra/vps-telemetry/post-deploy.sh` | Seed semântico (`--dir /srv/data/knowledge`, com o `GIT_SHA` do deploy; falha só avisa), nomes, importância, cache e conta da IA; o mesmo nos dois roteiros. |
 | Trem de merge | `.github/workflows/merge-train.yml` | O `merge-train.sh` rodando no Actions, enquanto não houver fila nativa. |
 
+### Imagens reaproveitadas
+
+O hash é o `sha256` do `git ls-tree HEAD` da entrada da imagem, e vai na tag `in-<hash>` e no rótulo
+`works.galaxie.context-tree`. Entrada igual à de uma imagem publicada: ela só ganha as tags do commit, sem build (log
+`entrada <hash>: <imagem>` no passo "Entrada da imagem", que também lista os caminhos).
+
+As imagens de pasta única (`backup`, `prometheus`, `grafana`, `caddy`) usam o hash git da própria pasta. A entrada de
+`api`, `ingestor` e `demo` sai do grafo do pnpm, em `infra/ops/image-inputs.mjs`:
+
+- as pastas dos pacotes do workspace no fechamento de dependências do app, com as `devDependencies`, porque o
+  `pnpm --filter "@galaxie/<app>..."` do Dockerfile as compila. O ingestor soma o fechamento de `@galaxie/ai-agents`, que
+  o Dockerfile dele também constrói;
+- o que o Dockerfile copia de fora do grafo: `config`, `data/knowledge` e `infra/healthcheck/selfheal.mjs` em `api` e
+  `ingestor`; `config/broadcasters`, `config/broadcast-rights` e o mesmo `selfheal.mjs` na `demo`;
+- os arquivos da raiz: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.base.json`,
+  `.nvmrc` e `.dockerignore`.
+
+| Mudou | Imagens que mudam |
+| --- | --- |
+| `apps/demo` ou `packages/widgets` | `demo` |
+| `apps/api` | `api` |
+| `services/ai-agents` | `ingestor` |
+| `services/ingestor` | `api` e `ingestor` (a API tem o ingestor em `devDependencies`, nos testes de integração) |
+| `config/` em geral, `data/knowledge` | `api` e `ingestor` |
+| `config/broadcasters`, `config/broadcast-rights` | as três |
+| `packages/db`, `pnpm-lock.yaml`, `infra/healthcheck/selfheal.mjs` | as três |
+
+**Mudança em `config/` continua reconstruindo `api` e `ingestor`, de propósito:** o `config/` inteiro vai dentro dessas
+duas imagens. Não é reconstrução à toa, é conteúdo novo na imagem.
+
+Para saber o que um conjunto de caminhos muda, sem rodar o workflow:
+
+```bash
+node infra/ops/image-inputs.mjs --changed config/assets/denylist.yaml apps/demo/src/app/page.tsx
+```
+
+Dockerfile que passar a copiar algo novo de fora do grafo, ou a construir outro pacote, tem de entrar na lista do script:
+o teste `infra/ops/image-inputs.test.mjs`, no job `stack` do `docker.yml`, compara a lista com os Dockerfiles e reprova
+o que faltar.
+
 ### O deploy pelo Actions
 
 0. **Gate**: o commit precisa estar na `main`, com o CI e as imagens dele verdes.
@@ -267,7 +307,8 @@ expirou com o job). Se sobrar um diretório desses de um job morto, pode apagar.
 
 - **Deploy**: hoje são ~40 min, com build local e envio de ~1 GB pela rede de casa. Pelo Actions, o pull de camadas
   novas na VPS leva poucos minutos, e o roteiro inteiro, ~10 min.
-- **Imagens**: um PR que não mexe na entrada das imagens (docs, infra fora das pastas delas) só reaproveita.
+- **Imagens**: um PR que não mexe na entrada de uma imagem só reaproveita essa imagem (ver
+  [Imagens reaproveitadas](#imagens-reaproveitadas)).
 - **Merge**:
   - Com a fila nativa, os PRs são testados em lote.
   - Com o trem, continua um CI por PR, mas sem a máquina de dev, e o deploy não espera o trem acabar.
