@@ -14989,12 +14989,7 @@ logos:
   - Mardin 1969 Spor
   - Mardin Spor
   target_id: null
-  match: ambiguous
-  confidence: 0.85
-  candidates:
-  - id: 01a163be-21aa-7f8d-a41a-b20a85df60ec
-    name: Mardin 1969
-    confidence: 0.85
+  match: rejected
 - key: teams/turquia/menemen-fk
   kind: team
   country: TR
