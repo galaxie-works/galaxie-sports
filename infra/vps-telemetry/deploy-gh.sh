@@ -402,9 +402,9 @@ fi
 STAGE=up
 COMPOSE_BAK="COMPOSE_FILE=$OLD_COMPOSE COMPOSE_ENV_FILES=$OLD_ENV"
 
-# sobe os serviços e espera ficarem healthy (quem roda uma vez, só sobe)
+# sobe os serviços e espera ficarem healthy; quem roda uma vez, espera terminar com saída 0
 up_wait() {
-  local s scale="" long=() once=()
+  local s scale="" rc long=() once=()
   for s in "$@"; do
     [ "$s" != ingestor ] || scale="--scale ingestor=$SCALE"
     if [ -n "${ONE_SHOT[$s]:-}" ]; then once+=("$s"); else long+=("$s"); fi
@@ -412,7 +412,13 @@ up_wait() {
   if [ "${#long[@]}" -gt 0 ]; then
     ssh "$VPS" "$CD && docker compose up -d --no-deps --wait --wait-timeout ${SWAP_HEALTH_TIMEOUT:-180} $scale --quiet-pull ${long[*]} </dev/null" || return $?
   fi
-  [ "${#once[@]}" -eq 0 ] || ssh "$VPS" "$CD && docker compose up -d --no-deps --quiet-pull ${once[*]} </dev/null"
+  for s in "${once[@]}"; do
+    rc="$(ssh "$VPS" "$CD && docker compose up -d --no-deps --quiet-pull $s </dev/null 2>/dev/null && timeout ${SWAP_HEALTH_TIMEOUT:-180} docker wait \$(docker compose ps -aq $s </dev/null)")" || return $?
+    if [ "$rc" != 0 ]; then
+      echo "FAIL  $s terminou com código $rc"
+      return 1
+    fi
+  done
 }
 
 # Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: api e demo lado a lado (o antigo só sai com o

@@ -122,7 +122,7 @@ on_exit() {
   fi
   if [ -n "$LOCKED" ]; then
     ssh -o ConnectTimeout=20 "$VPS" \
-      "if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
+      "rm -f $DIR/.env.next; if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
       echo "WARN  trava da VPS não liberada; libere com: ssh $VPS 'rm -rf $LOCK'"
   fi
   if [ -n "$WT" ]; then git -C "$ROOT" worktree remove --force "$WT" >/dev/null 2>&1 || true; fi
@@ -290,10 +290,20 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# as imagens construídas aqui têm a tag do SHA: ele vai em todas as TAG_* (ou em IMAGE_TAG, num SHA anterior a elas)
+env_lines="DEPLOY_SHA=$SHA"
+if grep -q '^TAG_API=' "$WT/infra/vps-telemetry/env.example"; then
+  for t in API DEMO INGESTOR BACKUP PROMETHEUS GRAFANA; do env_lines+=$'\n'"TAG_$t=$SHA"; done
+else
+  env_lines+=$'\n'"IMAGE_TAG=$SHA"
+fi
+# .env.next: o .env com as tags novas. Vem antes de qualquer comando no compose novo: o .env de antes das tags por serviço
+# não tem as TAG_*, e o compose novo não interpola sem elas. Vira o .env na troca (ou sai na limpeza da saída)
+ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA)=' .env; printf '%s\n' '$env_lines'; } > .env.next)"
 # página de manutenção (serviço maintenance: imagem upstream fixa, sem tag de deploy): baixa a imagem só se ainda não
 # estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
 # outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
-if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
+if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new --env-file .env.next pull --policy missing --quiet maintenance"; then
   echo "FAIL  não deu para baixar a imagem da página de manutenção (Docker Hub fora? docker compose < 2.23?); nada foi trocado na VPS"
   exit 1
 fi
@@ -310,15 +320,7 @@ else
   echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
   exit 1
 fi
-# as imagens construídas aqui têm a tag do SHA: ele vai em todas as TAG_* (ou em IMAGE_TAG, num SHA anterior a elas)
-env_lines="DEPLOY_SHA=$SHA"
-if grep -q '^TAG_API=' "$WT/infra/vps-telemetry/env.example"; then
-  for t in API DEMO INGESTOR BACKUP PROMETHEUS GRAFANA; do env_lines+=$'\n'"TAG_$t=$SHA"; done
-else
-  env_lines+=$'\n'"IMAGE_TAG=$SHA"
-fi
-ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA)=' .env; printf '%s\n' '$env_lines'; } > .env.next) \
-  && { docker compose -f compose.yml.new --env-file .env.next config -q || { rm -f .env.next; exit 1; }; } \
+ssh "$VPS" "$CD && docker compose -f compose.yml.new --env-file .env.next config -q \
   && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
   && mv compose.yml.new compose.yml && mv .env.next .env"
 # contagem de migrations antes do up: o rollback automático só vale se nenhuma nova foi aplicada (o código antigo
