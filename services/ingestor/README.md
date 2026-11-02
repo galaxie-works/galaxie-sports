@@ -52,9 +52,12 @@ serviço `live`, #535) ele vira duas cópias no ar: uma líder e uma reserva.
   (padrão 1000). Com a variável ligada, o processo não sai ocioso: a líder dorme com a trava na mão.
 - **Líder morreu** (`docker kill`, queda da máquina): o Postgres fecha a sessão, a trava some e a reserva assume na
   tentativa seguinte.
-- **Conexão da trava caiu com a líder viva** (`onLost`): a cópia corta o tick e volta para a espera. Antes de gravar, a
-  resposta é descartada. Depois de gravar, nenhuma chamada nova sai, mas o que já mudou no core é publicado, porque a
-  próxima líder compara com o core já gravado e nunca publicaria aquele gol.
+- **Conexão da trava caiu com a líder viva** (`onLost`): a cópia descarta o tick e volta para a espera.
+- **A cerca que vale é a do banco**: o aviso da trava pode atrasar, e a reserva já pode ter assumido nesse meio-tempo.
+  Cada mandato pega uma época nova ao receber a trava (`ops.sync_cursor`, endpoint `live:leader_epoch`). Primeiro saem as
+  chamadas ao fornecedor. Depois, retrato, gravação e publicação do tick rodam numa transação só, que trava a linha da
+  época e desiste se ela mudou. A nova líder só recebe a época depois do commit da antiga: ou lê o que a antiga gravou
+  (e o diff não repete o gol), ou a antiga não grava nada. O bastão passa pela mesma conferência.
 - **SIGTERM na líder**: termina o tick em andamento, grava o estado (`saveLiveState`) e o `ops.job_run`, e só então solta
   a trava.
 - **Nada se repete na troca**: candidatos, retratos do diff e orçamento do dia (`planLiveDay`, `ticksLeft`) já vêm do

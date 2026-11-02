@@ -3,10 +3,12 @@
  * decisão de chamar a api-sports. Sem isto a nova líder repetiria o tick que a antiga acabou de fazer e a
  * confirmação do resultado que ela já tentou. O resto (candidatos, retratos do diff, orçamento do dia) já vem
  * do Postgres. Fica em `ops.sync_cursor` (endpoint `live:scheduler`, chave `handoff`, uma linha por esporte)
- * e é gravado a cada tick, então vale também quando a líder morre sem aviso.
+ * e é gravado a cada tick, então vale também quando a líder morre sem aviso. A gravação passa pela época do
+ * mandato: quem perdeu a trava não pisa no bastão da sucessora.
  */
 import { and, eq } from 'drizzle-orm';
 import { syncCursor, type Database } from '@galaxie/db';
+import { assertLiveLeaderEpoch, type LiveLeaderGuard } from './leader-epoch.js';
 import type { FinalizeAttempt } from './poller.js';
 import { LIVE_STATE_ENDPOINT } from './state.js';
 
@@ -31,6 +33,7 @@ export class PgLiveHandoffStore implements LiveHandoffStore {
   constructor(
     private readonly db: Database,
     private readonly provider = 'api-sports',
+    private readonly leaderEpoch?: LiveLeaderGuard,
   ) {}
 
   async load(sport: string): Promise<LiveHandoff | null> {
@@ -49,21 +52,24 @@ export class PgLiveHandoffStore implements LiveHandoffStore {
   }
 
   async save(sport: string, handoff: LiveHandoff, at: Date): Promise<void> {
-    await this.db
-      .insert(syncCursor)
-      .values({
-        provider: this.provider,
-        sport,
-        endpoint: LIVE_STATE_ENDPOINT,
-        key: LIVE_HANDOFF_KEY,
-        cursor: handoff,
-        completedAt: at,
-        updatedAt: at,
-      })
-      .onConflictDoUpdate({
-        target: [syncCursor.provider, syncCursor.sport, syncCursor.endpoint, syncCursor.key],
-        set: { cursor: handoff, completedAt: at, updatedAt: at },
-      });
+    await this.db.transaction(async (tx) => {
+      if (this.leaderEpoch) await assertLiveLeaderEpoch(tx, this.leaderEpoch);
+      await tx
+        .insert(syncCursor)
+        .values({
+          provider: this.provider,
+          sport,
+          endpoint: LIVE_STATE_ENDPOINT,
+          key: LIVE_HANDOFF_KEY,
+          cursor: handoff,
+          completedAt: at,
+          updatedAt: at,
+        })
+        .onConflictDoUpdate({
+          target: [syncCursor.provider, syncCursor.sport, syncCursor.endpoint, syncCursor.key],
+          set: { cursor: handoff, completedAt: at, updatedAt: at },
+        });
+    });
   }
 }
 

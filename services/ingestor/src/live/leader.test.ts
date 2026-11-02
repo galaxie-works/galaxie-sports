@@ -2,6 +2,7 @@ import { ApiSportsProvider, type ProviderResult } from '@galaxie/providers';
 import { describe, expect, it, vi } from 'vitest';
 import { liveWorld, wednesdayNight } from '../testing/live-world.js';
 import { InMemoryLiveHandoffStore } from './handoff.js';
+import { TickFencedError } from './leader-epoch.js';
 import {
   DEFAULT_LIVE_LEADER_RETRY_MS,
   liveLeaderSettings,
@@ -12,6 +13,7 @@ import { LiveRunner, type LiveClock, type LiveRunnerOptions, type LiveRunSummary
 
 const RETRY = 1_000;
 const noop = { info() {}, warn() {}, error() {}, debug() {} };
+const claimEpoch = () => Promise.resolve(1);
 
 /** Trava falsa: `busy` tentativas devolvem ocupada; `lose()` derruba a conexão de quem a segura. */
 class FakeLock implements LiveLeaderLock {
@@ -101,6 +103,7 @@ describe('runLiveLeadership', () => {
         lock,
         instance: 'b',
         retryMs: RETRY,
+        claimEpoch,
         clock: world.clock,
         log: noop,
         term: (signal, fence) => runner({ maxTicks: 1 }).run(signal, fence),
@@ -124,7 +127,7 @@ describe('runLiveLeadership', () => {
       return { stoppedBy: 'aborted' } as LiveRunSummary;
     });
     await runLiveLeadership(
-      { lock, instance: 'b', retryMs: RETRY, clock: world.clock, log: noop, term },
+      { lock, instance: 'b', retryMs: RETRY, claimEpoch, clock: world.clock, log: noop, term },
       controller.signal,
     );
     const gaps = lock.attempts.slice(1).map((at, i) => at - lock.attempts[i]!);
@@ -139,7 +142,7 @@ describe('runLiveLeadership', () => {
     const sleep = vi.spyOn(world.clock, 'sleep').mockImplementation(async () => controller.abort());
     const term = vi.fn();
     const summary = await runLiveLeadership(
-      { lock, instance: 'b', retryMs: RETRY, clock: world.clock, log: noop, term },
+      { lock, instance: 'b', retryMs: RETRY, claimEpoch, clock: world.clock, log: noop, term },
       controller.signal,
     );
     expect(summary).toBeNull();
@@ -171,6 +174,7 @@ describe('runLiveLeadership', () => {
         lock,
         instance: 'a',
         retryMs: RETRY,
+        claimEpoch,
         clock: world.clock,
         log: noop,
         term: async (signal, fence) => {
@@ -207,6 +211,7 @@ describe('runLiveLeadership', () => {
         lock,
         instance: 'a',
         retryMs: RETRY,
+        claimEpoch,
         clock: world.clock,
         log: noop,
         term: async (signal, fence) => {
@@ -232,6 +237,7 @@ describe('runLiveLeadership', () => {
           lock,
           instance: 'a',
           retryMs: RETRY,
+          claimEpoch,
           clock: world.clock,
           log: noop,
           term: () => Promise.reject(new Error('ao vivo desistiu')),
@@ -257,7 +263,7 @@ describe('runLiveLeadership', () => {
       });
     const warn = vi.fn();
     const summary = await runLiveLeadership(
-      { lock, instance: 'a', retryMs: RETRY, clock: world.clock, log: { ...noop, warn }, term },
+      { lock, instance: 'a', retryMs: RETRY, claimEpoch, clock: world.clock, log: { ...noop, warn }, term },
       controller.signal,
     );
     expect(summary).toMatchObject({ stoppedBy: 'aborted' });
@@ -266,6 +272,56 @@ describe('runLiveLeadership', () => {
       expect.anything(),
       'mandato terminou com erro depois de perder a trava',
     );
+  });
+
+  it('época recusada pelo banco sem o aviso da trava: é perda, volta para a espera e não chama mais nada', async () => {
+    const { world, provider, runner, lock } = scene();
+    const controller = new AbortController();
+    const atomic = vi.spyOn(world.store, 'atomic');
+    atomic.mockRejectedValueOnce(new TickFencedError());
+    const summaries: LiveRunSummary[] = [];
+    let callsWhenWaiting = -1;
+    await runLiveLeadership(
+      {
+        lock,
+        instance: 'a',
+        retryMs: RETRY,
+        claimEpoch,
+        clock: world.clock,
+        log: noop,
+        term: async (signal, fence) => {
+          if (summaries.length) {
+            callsWhenWaiting = provider.calls;
+            controller.abort();
+          }
+          const summary = await runner({}).run(signal, fence);
+          summaries.push(summary);
+          return summary;
+        },
+      },
+      controller.signal,
+    );
+    expect(summaries[0]).toMatchObject({ stoppedBy: 'lost', ticks: 0 });
+    expect(callsWhenWaiting).toBe(1);
+    expect(lock.events).toEqual(['trava', 'soltou', 'trava', 'soltou']);
+  });
+
+  it('cada mandato recebe a época aberta no banco; sem conseguir abrir, solta a trava e disputa de novo', async () => {
+    const { world, lock } = scene();
+    const controller = new AbortController();
+    const claim = vi.fn<() => Promise<number>>().mockRejectedValueOnce(new Error('banco fora'));
+    claim.mockResolvedValueOnce(7);
+    const term = vi.fn(async () => {
+      controller.abort();
+      return { stoppedBy: 'aborted' } as LiveRunSummary;
+    });
+    await runLiveLeadership(
+      { lock, instance: 'a', retryMs: RETRY, claimEpoch: claim, clock: world.clock, log: noop, term },
+      controller.signal,
+    );
+    expect(lock.events).toEqual(['trava', 'soltou', 'trava', 'soltou']);
+    expect(term).toHaveBeenCalledTimes(1);
+    expect(term).toHaveBeenCalledWith(controller.signal, expect.any(AbortSignal), 7);
   });
 
   it('banco fora ao disputar a trava: avisa uma vez por queda e segue tentando', async () => {
@@ -278,7 +334,7 @@ describe('runLiveLeadership', () => {
       return { stoppedBy: 'aborted' } as LiveRunSummary;
     });
     await runLiveLeadership(
-      { lock, instance: 'a', retryMs: RETRY, clock: world.clock, log: { ...noop, warn }, term },
+      { lock, instance: 'a', retryMs: RETRY, claimEpoch, clock: world.clock, log: { ...noop, warn }, term },
       controller.signal,
     );
     expect(lock.attempts).toHaveLength(4);

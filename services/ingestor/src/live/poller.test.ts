@@ -2,7 +2,8 @@ import { FakeProvider, normalizeFixtures, type NormalizedBatch } from '@galaxie/
 import { describe, expect, it } from 'vitest';
 import { apiFixture, cupFinal, wednesdayNight, type WorldMatch } from '../testing/live-world.js';
 import { InMemoryLiveStore } from './memory-store.js';
-import { LivePoller, TickFencedError } from './poller.js';
+import { TickFencedError } from './leader-epoch.js';
+import { LivePoller } from './poller.js';
 import type { LiveCandidate } from './types.js';
 
 const MIN = 60_000;
@@ -300,32 +301,49 @@ describe('LivePoller', () => {
       expect(store.published).toHaveLength(0);
     });
 
-    it('trava perdida depois de gravar: corta as chamadas novas, mas publica o que já mudou no core', async () => {
+    it('trava perdida entre as chamadas de detalhe: nenhuma chamada nova e nada gravado', async () => {
+      const { store, provider, poller, tracked } = setup([match]);
+      provider.willReturn('listLive', batchAt([match], at(100)));
+      const first = await tracked(at(100));
+      await poller.tick({ now: at(100), leagues: ['71'], tracked: first, finalizeBudget: 1 });
+      const batches = store.batches;
+      const published = store.published.length;
+
+      // sumiu do live; a trava cai com a primeira confirmação no ar
+      const fence = new AbortController();
+      const later = await tracked(at(111));
+      provider
+        .willReturn('listLive', batchAt([], at(111)))
+        .willReturn('getEventDetail', batchAt([match], at(111), true));
+      const detail = provider.getEventDetail.bind(provider);
+      provider.getEventDetail = async (...args) => {
+        const result = await detail(...args);
+        fence.abort();
+        return result;
+      };
+      await expect(
+        poller.tick({
+          now: at(111),
+          leagues: ['71'],
+          tracked: later,
+          finalizeBudget: 2,
+          fence: fence.signal,
+        }),
+      ).rejects.toBeInstanceOf(TickFencedError);
+      expect(store.batches).toBe(batches);
+      expect(store.published).toHaveLength(published);
+    });
+
+    it('banco recusou a época: o tick não grava nem publica, e o erro chega a quem chamou', async () => {
       const { store, provider, poller, tracked } = setup([match]);
       provider.willReturn('listLive', batchAt([match], at(25)));
       const list = await tracked(at(25));
-      await poller.tick({ now: at(25), leagues: ['71'], tracked: list, finalizeBudget: 1 });
-      const published = store.published.length;
-
-      const later = await tracked(at(100));
-      const fence = new AbortController();
-      const applyBatch = store.applyBatch.bind(store);
-      store.applyBatch = async (batch) => {
-        await applyBatch(batch);
-        fence.abort();
-      };
-      provider.willReturn('listLive', batchAt([match], at(100)));
-      const r = await poller.tick({
-        now: at(100),
-        leagues: ['71'],
-        tracked: later,
-        featured: later[0],
-        finalizeBudget: 1,
-        fence: fence.signal,
-      });
-      expect(r.calls).toBe(1);
-      expect(provider.calls.filter((c) => c.method === 'getEventDetail')).toHaveLength(0);
-      expect(store.published.length).toBeGreaterThan(published);
+      store.atomic = () => Promise.reject(new TickFencedError());
+      await expect(
+        poller.tick({ now: at(25), leagues: ['71'], tracked: list, finalizeBudget: 1 }),
+      ).rejects.toBeInstanceOf(TickFencedError);
+      expect(store.batches).toBe(0);
+      expect(store.published).toHaveLength(0);
     });
   });
 });

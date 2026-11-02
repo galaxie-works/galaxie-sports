@@ -22,6 +22,7 @@ import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
 import { PgLiveHandoffStore } from '../live/handoff.js';
+import { claimLiveLeaderEpoch } from '../live/leader-epoch.js';
 import {
   LIVE_LEADER_LOCK,
   liveLeaderSessionName,
@@ -202,17 +203,32 @@ await runCli(async () => {
       throw new Error(`Ainda não há provedor ao vivo para "${sport}" (só o plano: --plan).`);
     const runs = new PgJobRunStore(ctx.db);
     const cursors = new PgCursorStore(ctx.db);
-    const handoff = leader.enabled ? new PgLiveHandoffStore(ctx.db) : undefined;
 
     /** Uma execução em ops.job_run; com líder e reserva, um mandato de líder (a reserva não registra nada). */
-    const runTerm = async (signal: AbortSignal, fence?: AbortSignal): Promise<LiveRunSummary> => {
+    const runTerm = async (
+      signal: AbortSignal,
+      fence?: AbortSignal,
+      epoch?: number,
+    ): Promise<LiveRunSummary> => {
       // só a dona da trava abre execução: se há outra aberta, a líder anterior morreu sem registrar o fim
       if (leader.enabled)
         await runs.closeInterrupted('live:run', 'interrompido: a líder morreu sem encerrar');
       const runId = await runs.start('live:run');
       const jobId = `job-run:${runId}`;
+      const leaderEpoch = epoch === undefined ? undefined : { sport, epoch };
+      const handoff = leader.enabled ? new PgLiveHandoffStore(ctx.db, 'api-sports', leaderEpoch) : undefined;
+      // a sucessora pode já ter marcado a execução como interrompida: esse resultado fica
+      const finishRun = async (result: Parameters<typeof runs.finish>[1]) => {
+        if (!leader.enabled) return runs.finish(runId, result);
+        if (!(await runs.finishIfRunning(runId, result)))
+          log.warn(
+            { run_id: runId, epoch },
+            'execução já fechada pela líder seguinte; mantendo o resultado dela',
+          );
+      };
       const store = new PgLiveStore(ctx.db, {
         publish: !values['sem-publicar'],
+        leaderEpoch,
         onFinished: async (changes) => {
           if (values['sem-tabelas']) return;
           const seasonIds = [...new Set(changes.flatMap((c) => (c.seasonId ? [c.seasonId] : [])))];
@@ -308,6 +324,7 @@ await runCli(async () => {
           goals: summary.goals,
           finalized: summary.finalized,
           days: [...summary.plans.keys()],
+          ...(epoch === undefined ? {} : { leader_epoch: epoch }),
         };
         const lost = summary.stoppedBy === 'lost';
         // passagem de bastão: o estado mais recente fica publicado antes de soltar a trava (quem perdeu a trava
@@ -317,14 +334,14 @@ await runCli(async () => {
             log.warn({ err }, 'não foi possível gravar o estado do ao vivo'),
           );
         // a trava costuma cair junto com o banco: a execução pode ficar sem fechar, e isso não derruba a cópia
-        await runs.finish(runId, { status: 'ok', callsSpent: summary.calls, stats }).catch((err: unknown) => {
+        await finishRun({ status: 'ok', callsSpent: summary.calls, stats }).catch((err: unknown) => {
           if (!lost) throw err;
           log.warn({ err, run_id: runId }, 'não foi possível fechar a execução depois de perder a trava');
         });
         log.info({ ...stats, calls: summary.calls }, 'ao vivo encerrado');
         return summary;
       } catch (err) {
-        await runs.finish(runId, { status: 'error', callsSpent: 0, stats: {}, error: String(err) });
+        await finishRun({ status: 'error', callsSpent: 0, stats: {}, error: String(err) });
         throw err;
       }
     };
@@ -347,7 +364,14 @@ await runCli(async () => {
     });
     try {
       await runLiveLeadership(
-        { lock, instance: leader.instance, retryMs: leader.retryMs, log, term: runTerm },
+        {
+          lock,
+          instance: leader.instance,
+          retryMs: leader.retryMs,
+          log,
+          claimEpoch: () => claimLiveLeaderEpoch(ctx.db, sport, leader.instance),
+          term: runTerm,
+        },
         controller.signal,
       );
     } finally {

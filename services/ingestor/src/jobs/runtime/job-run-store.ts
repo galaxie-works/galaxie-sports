@@ -57,6 +57,25 @@ export class PgJobRunStore implements JobRunStore {
       .where(eq(jobRun.id, id));
   }
 
+  /**
+   * Fecha a execução só se ela ainda estiver aberta. Devolve `false` se outro processo já a fechou: é o caso da
+   * líder que perdeu a trava, cuja sucessora marcou a execução como interrompida. O `id` é só daquele mandato.
+   */
+  async finishIfRunning(id: string, result: JobRunFinish): Promise<boolean> {
+    const rows = await this.db
+      .update(jobRun)
+      .set({
+        status: result.status,
+        finishedAt: new Date(),
+        callsSpent: result.callsSpent,
+        stats: result.stats,
+        error: result.error ?? null,
+      })
+      .where(and(eq(jobRun.id, id), eq(jobRun.status, 'running')))
+      .returning({ id: jobRun.id });
+    return rows.length > 0;
+  }
+
   /** Fecha as execuções do job que ficaram abertas (o processo morreu sem registrar o fim). Devolve quantas. */
   async closeInterrupted(job: string, error: string): Promise<number> {
     const rows = await this.db

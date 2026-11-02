@@ -7,8 +7,14 @@
  * Jogos que somem do `live` normalmente acabaram: o poller confirma o resultado com o detalhe
  * (`fixtures?id=`, reservado no orçamento pelo scheduler), que também grava escalações e estatísticas.
  */
-import { isInPlay, type ProviderResult, type SportsDataProvider } from '@galaxie/providers';
+import {
+  isInPlay,
+  type NormalizedBatch,
+  type ProviderResult,
+  type SportsDataProvider,
+} from '@galaxie/providers';
 import { diffSnapshot, isSignificant, type EventSnapshot, type LiveChange } from './diff.js';
+import { TickFencedError } from './leader-epoch.js';
 import type { LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
 
@@ -24,14 +30,6 @@ export interface TickInput {
   finalizeBudget: number;
   /** Abortado quando esta cópia perde a liderança: nenhuma chamada nova ao fornecedor (líder e reserva). */
   fence?: AbortSignal | undefined;
-}
-
-/** O tick foi descartado antes de gravar qualquer coisa: a trava de líder caiu no meio dele. */
-export class TickFencedError extends Error {
-  constructor() {
-    super('tick descartado: esta cópia perdeu a liderança do ao vivo');
-    this.name = 'TickFencedError';
-  }
 }
 
 export interface TickReport {
@@ -125,20 +123,26 @@ export class LivePoller {
     // resposta de quem já não é líder: a outra cópia pode estar gravando o mesmo jogo
     if (fence?.aborted) throw new TickFencedError();
 
+    // Primeiro tudo o que vai ao fornecedor; depois a escrita, numa transação só (`atomic`): sem rede com a
+    // transação aberta e sem meio-termo na troca de líder, em que o core muda e o gol não é publicado.
+
     if (result.status === 'error') {
       // a fonte falhou: last-known-good (mantém o placar, marca stale) para o que estava em andamento
       const ids = inPlay.map((c) => c.providerEventId!);
-      const before = await this.store.snapshots(providerId, sport, ids);
-      const staleMarked = await this.store.applyFailure({
-        provider: providerId,
-        sport,
-        providerEventIds: ids,
-        at: result.fetchedAt,
-        reason: result.error.kind,
+      const { staleMarked, changes, published } = await this.store.atomic(async (store) => {
+        const before = await store.snapshots(providerId, sport, ids);
+        const staleMarked = await store.applyFailure({
+          provider: providerId,
+          sport,
+          providerEventIds: ids,
+          at: result.fetchedAt,
+          reason: result.error.kind,
+        });
+        const after = await store.snapshots(providerId, sport, ids);
+        const changes = this.diff(before, after);
+        const published = await store.publish(changes.filter((c) => isSignificant(c)));
+        return { staleMarked, changes, published };
       });
-      const after = await this.store.snapshots(providerId, sport, ids);
-      const changes = this.diff(before, after);
-      const published = await this.store.publish(changes.filter((c) => isSignificant(c)));
       return {
         at: input.now,
         leagues: input.leagues,
@@ -166,50 +170,59 @@ export class LivePoller {
         : undefined;
     const ids = [...new Set([...batchIds, ...vanished, ...(featuredId ? [featuredId] : [])])];
 
-    const before = await this.store.snapshots(providerId, sport, ids);
-    if (result.status === 'ok') await this.store.applyBatch(result.batch);
-
-    // daqui em diante o core já mudou: perder a trava só corta as chamadas novas. O diff e a publicação seguem,
-    // porque a próxima líder compara com o core já gravado e nunca publicaria este gol (o sinal se perderia).
-
     // confirmação do resultado de quem saiu do live (1 chamada por jogo, reservada no orçamento)
-    const finalized: string[] = [];
+    const details: NormalizedBatch[] = [];
+    const confirmed: { id: string; at: Date }[] = [];
     let budget = input.finalizeBudget;
     const maxAttempts = this.options.maxFinalizeAttempts ?? FINALIZE_BACKOFF_MS.length;
     for (const id of vanished) {
-      if (budget <= 0 || fence?.aborted) break;
+      if (budget <= 0) break;
       const state = this.finalizeAttempts.get(id) ?? { attempts: 0, nextAt: 0 };
       if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
       const attempts = state.attempts + 1;
       const wait = FINALIZE_BACKOFF_MS[Math.min(attempts, FINALIZE_BACKOFF_MS.length - 1)]!;
       this.finalizeAttempts.set(id, { attempts, nextAt: input.now.getTime() + wait });
       budget -= 1;
+      if (fence?.aborted) throw new TickFencedError();
       const detail = await this.provider.getEventDetail(sport, id, this.callOptions());
       calls += spent(detail);
       if (detail.status !== 'ok') continue;
-      await this.store.applyBatch(detail.batch);
+      details.push(detail.batch);
       const ev = detail.batch.events.find((e) => e.id === id);
-      if (ev?.observation.status !== 'finished') continue;
-      finalized.push(id);
-      await this.options.onDetailFetched?.(id, detail.fetchedAt);
+      if (ev?.observation.status === 'finished') confirmed.push({ id, at: detail.fetchedAt });
     }
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite
     let featured: string | undefined;
-    if (featuredId && !fence?.aborted) {
+    if (featuredId) {
+      if (fence?.aborted) throw new TickFencedError();
       const detail = await this.provider.getEventDetail(sport, featuredId, this.callOptions());
       calls += spent(detail);
       if (detail.status === 'ok') {
-        await this.store.applyBatch(detail.batch);
+        details.push(detail.batch);
         featured = featuredId;
       }
     }
 
-    const after = await this.store.snapshots(providerId, sport, ids);
-    const changes = this.diff(before, after);
-    const published = await this.store.publish(
-      changes.filter((c) => this.options.publishClock || isSignificant(c)),
-    );
+    if (fence?.aborted) throw new TickFencedError();
+    const { changes, published } = await this.store.atomic(async (store) => {
+      const before = await store.snapshots(providerId, sport, ids);
+      if (result.status === 'ok') await store.applyBatch(result.batch);
+      for (const batch of details) await store.applyBatch(batch);
+      const after = await store.snapshots(providerId, sport, ids);
+      const changes = this.diff(before, after);
+      const published = await store.publish(
+        changes.filter((c) => this.options.publishClock || isSignificant(c)),
+      );
+      return { changes, published };
+    });
+
+    // gravado: o que vem agora acompanha o que entrou no core, mesmo se a trava tiver caído nesse meio-tempo
+    const finalized: string[] = [];
+    for (const { id, at } of confirmed) {
+      finalized.push(id);
+      await this.options.onDetailFetched?.(id, at);
+    }
     const done = changes.filter((c) => c.finished);
     if (done.length) await this.store.onFinished?.(done);
     for (const c of done) this.finalizeAttempts.delete(c.providerEventId);

@@ -16,10 +16,12 @@ import {
   syncCursor,
   type Database,
 } from '@galaxie/db';
-import { ApiSportsProvider, normalizeFixtures, type ProviderResult } from '@galaxie/providers';
+import { ApiSportsProvider, FakeProvider, normalizeFixtures, type ProviderResult } from '@galaxie/providers';
 import { PgJobRunStore } from '../src/jobs/runtime/job-run-store.js';
 import { LIVE_HANDOFF_KEY, PgLiveHandoffStore } from '../src/live/handoff.js';
 import { LIVE_LEADER_LOCK, liveLeaderSessionName, runLiveLeadership } from '../src/live/leader.js';
+import { claimLiveLeaderEpoch, TickFencedError, type LiveLeaderGuard } from '../src/live/leader-epoch.js';
+import { LivePoller } from '../src/live/poller.js';
 import {
   LiveRunner,
   systemLiveClock,
@@ -119,14 +121,16 @@ function copy(name: string, world: World, options: Partial<LiveRunnerOptions>) {
       instance: name,
       retryMs: RETRY_MS,
       clock: systemLiveClock,
-      term: async (signal, fence) => {
+      claimEpoch: () => claimLiveLeaderEpoch(db, 'football', name),
+      term: async (signal, fence, epoch) => {
+        const leaderEpoch = { sport: 'football', epoch };
         const summary = await new LiveRunner({
           sport: 'football',
           provider,
-          store: new PgLiveStore(db),
+          store: new PgLiveStore(db, { leaderEpoch }),
           governor: world.governor,
           clock: world.clock,
-          handoff: new PgLiveHandoffStore(db),
+          handoff: new PgLiveHandoffStore(db, 'api-sports', leaderEpoch),
           options: { idleExitMs: null, ...options },
         }).run(signal, fence);
         terms.push(summary);
@@ -385,6 +389,145 @@ describe('líder e reserva no Postgres', () => {
     expect(world.requests).toHaveLength(a.provider.calls - 1 + b.provider.calls);
     expectNoRepeat(world, matches, await feedOf(matches));
   }, 90_000);
+
+  /** Um jogo com gol, já em andamento no core, e o mesmo retorno do fornecedor para as duas cópias. */
+  async function goalScene(dayOffset: number) {
+    const matches = night(dayOffset).slice(0, 1);
+    const match = matches[0]!;
+    const goalMinute = match.goals[0]!.minute;
+    const before = new Date(match.kickoff.getTime() + (goalMinute - 5) * MIN);
+    const after = new Date(match.kickoff.getTime() + (goalMinute + 3) * MIN);
+    await scenario(matches, before);
+    await upsertBatch(
+      db,
+      normalizeFixtures(
+        matches.map((m) => apiFixture(m, before, teamId)),
+        before,
+      ),
+    );
+    const withGoal = normalizeFixtures(
+      matches.map((m) => apiFixture(m, after, teamId)),
+      after,
+    );
+    const tracked = await new PgLiveStore(db).candidates(
+      'football',
+      'api-sports',
+      new Date(match.kickoff.getTime() - DAY),
+      new Date(match.kickoff.getTime() + DAY),
+    );
+    const list = tracked.filter((c) => c.providerEventId === String(match.fixtureId));
+    const tick = (store: PgLiveStore) => {
+      const provider = new FakeProvider('api-sports').willReturn('listLive', withGoal);
+      return new LivePoller(provider, store, { sport: 'football' }).tick({
+        now: after,
+        leagues: [String(match.leagueId)],
+        tracked: list,
+        finalizeBudget: 0,
+      });
+    };
+    return { matches, match, tick };
+  }
+
+  const goalsOf = async (matches: WorldMatch[]) => (await feedOf(matches)).goals;
+
+  it('líder que perdeu o mandato sem saber: o banco recusa a escrita e o gol sai uma vez, pela sucessora', async () => {
+    const { matches, match, tick } = await goalScene(4);
+    const old = await claimLiveLeaderEpoch(db, 'football', 'a');
+    const next = await claimLiveLeaderEpoch(db, 'football', 'b');
+    expect(next).toBe(old + 1);
+
+    // a resposta chega à antiga depois da troca, e o aviso da trava ainda não chegou
+    const guardOld = { sport: 'football', epoch: old };
+    await expect(tick(new PgLiveStore(db, { leaderEpoch: guardOld }))).rejects.toBeInstanceOf(
+      TickFencedError,
+    );
+    expect(await goalsOf(matches)).toEqual([]);
+
+    const report = await tick(new PgLiveStore(db, { leaderEpoch: { sport: 'football', epoch: next } }));
+    expect(report.published).toBeGreaterThan(0);
+    expect(await goalsOf(matches)).toEqual([`${match.fixtureId}:1-0`]);
+  });
+
+  it('troca com a escrita em andamento: a sucessora espera o commit e o diff dela não repete o gol', async () => {
+    const { matches, match, tick } = await goalScene(5);
+    const epoch = await claimLiveLeaderEpoch(db, 'football', 'a');
+
+    // a antiga publica e fica parada antes do commit, com a linha da época travada
+    let holding!: () => void;
+    let commit!: () => void;
+    const inTransaction = new Promise<void>((r) => (holding = r));
+    const canCommit = new Promise<void>((r) => (commit = r));
+    class HeldStore extends PgLiveStore {
+      override atomic<T>(fn: Parameters<PgLiveStore['atomic']>[0] & ((s: never) => Promise<T>)): Promise<T> {
+        return super.atomic(async (store) => {
+          const out = await fn(store as never);
+          holding();
+          await canCommit;
+          return out;
+        }) as Promise<T>;
+      }
+    }
+    const oldTick = tick(new HeldStore(db, { leaderEpoch: { sport: 'football', epoch } }));
+    await inTransaction;
+
+    let claimed = false;
+    const claim = claimLiveLeaderEpoch(db, 'football', 'b').then((n) => {
+      claimed = true;
+      return n;
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(claimed).toBe(false);
+
+    commit();
+    expect((await oldTick).published).toBeGreaterThan(0);
+    const next = await claim;
+    expect(next).toBe(epoch + 1);
+
+    const report = await tick(new PgLiveStore(db, { leaderEpoch: { sport: 'football', epoch: next } }));
+    expect(report.changes.filter((c) => c.goal)).toEqual([]);
+    expect(await goalsOf(matches)).toEqual([`${match.fixtureId}:1-0`]);
+  });
+
+  it('bastão de quem perdeu o mandato é recusado: o da sucessora fica', async () => {
+    const old: LiveLeaderGuard = {
+      sport: 'football',
+      epoch: await claimLiveLeaderEpoch(db, 'football', 'a'),
+    };
+    const current: LiveLeaderGuard = {
+      sport: 'football',
+      epoch: await claimLiveLeaderEpoch(db, 'football', 'b'),
+    };
+    const baton = (lastTickAt: string) => ({
+      lastTickAt,
+      backoffUntil: null,
+      consecutiveFailures: 0,
+      halftimeSeenAt: {},
+      finalizeAttempts: {},
+    });
+    const at = new Date('2026-10-30T22:00:00Z');
+    await new PgLiveHandoffStore(db, 'api-sports', current).save('football', baton('novo'), at);
+    await expect(
+      new PgLiveHandoffStore(db, 'api-sports', old).save('football', baton('velho'), at),
+    ).rejects.toBeInstanceOf(TickFencedError);
+    expect((await new PgLiveHandoffStore(db).load('football'))?.lastTickAt).toBe('novo');
+  });
+
+  it('finish tardio de quem perdeu o mandato não reabre a execução que a sucessora fechou', async () => {
+    const runs = new PgJobRunStore(db);
+    const stale = await runs.start('live:run');
+    expect(await runs.closeInterrupted('live:run', 'interrompido: a líder morreu sem encerrar')).toBe(1);
+    expect(await runs.finishIfRunning(stale, { status: 'ok', callsSpent: 9, stats: { ticks: 9 } })).toBe(
+      false,
+    );
+    const [row] = await db.select().from(jobRun).where(eq(jobRun.id, stale));
+    expect(row).toMatchObject({ status: 'error', error: 'interrompido: a líder morreu sem encerrar' });
+    expect(row!.callsSpent).not.toBe(9);
+
+    const open = await runs.start('live:run');
+    expect(await runs.finishIfRunning(open, { status: 'ok', callsSpent: 2, stats: {} })).toBe(true);
+    const [closed] = await db.select().from(jobRun).where(eq(jobRun.id, open));
+    expect(closed).toMatchObject({ status: 'ok', callsSpent: 2 });
+  });
 
   it('execução aberta por uma líder que morreu é fechada pela seguinte; as outras ficam como estão', async () => {
     const runs = new PgJobRunStore(db);

@@ -7,7 +7,8 @@
 import type { QuotaGovernor } from '@galaxie/apisports-client';
 import { isInPlay, type SportsDataProvider } from '@galaxie/providers';
 import type { LiveHandoffStore } from './handoff.js';
-import { LivePoller, TickFencedError, type TickReport } from './poller.js';
+import { TickFencedError } from './leader-epoch.js';
+import { LivePoller, type TickReport } from './poller.js';
 import {
   decideTick,
   liveOptions,
@@ -116,7 +117,7 @@ export interface LiveRunnerDeps {
   handoff?: LiveHandoffStore | undefined;
 }
 
-/** `lost`: a trava de líder caiu (`fence`); o tick em andamento foi descartado. */
+/** `lost`: esta cópia deixou de ser líder (trava caiu ou época passou); o tick em andamento foi descartado. */
 export type LiveStopReason = 'idle' | 'aborted' | 'until' | 'max_ticks' | 'lost';
 
 export interface LiveRunSummary {
@@ -148,6 +149,8 @@ export class LiveRunner {
   private readonly consecutiveErrors = { plan: 0, tick: 0 };
   private order: { key: string; ids: string[] } | null = null;
   private lastRefreshAt = -Infinity;
+  /** O banco recusou uma escrita: outra cópia já abriu um mandato, mesmo sem o aviso da trava ter chegado. */
+  private fenced = false;
 
   constructor(private readonly deps: LiveRunnerDeps) {
     this.clock = deps.clock ?? systemLiveClock;
@@ -356,13 +359,15 @@ export class LiveRunner {
         now,
       );
     } catch (err) {
-      this.log.warn({ err }, 'não foi possível gravar o bastão do ao vivo');
+      if (err instanceof TickFencedError) this.fenced = true;
+      else this.log.warn({ err }, 'não foi possível gravar o bastão do ao vivo');
     }
   }
 
   /**
    * `signal` encerra com elegância: termina o tick em andamento. `fence` (só com líder e reserva) avisa que a
-   * trava caiu: o tick é descartado, nenhuma chamada nova sai e o run volta com `stoppedBy: 'lost'`.
+   * trava caiu: o tick é descartado, nenhuma chamada nova sai e o run volta com `stoppedBy: 'lost'`. O mesmo vale
+   * quando a época do mandato já passou, que é o que a transação de escrita confere no banco.
    */
   async run(signal?: AbortSignal, fence?: AbortSignal): Promise<LiveRunSummary> {
     const summary: LiveRunSummary = {
@@ -388,7 +393,7 @@ export class LiveRunner {
     };
 
     for (;;) {
-      if (fence?.aborted) {
+      if (fence?.aborted || this.fenced) {
         summary.stoppedBy = 'lost';
         break;
       }
@@ -482,8 +487,9 @@ export class LiveRunner {
           fence,
         });
       } catch (err) {
-        // perdeu a trava no meio: nada conta, quem assumir faz este tick
-        if (err instanceof TickFencedError || fence?.aborted) continue;
+        // perdeu a liderança no meio: nada conta, quem assumir faz este tick
+        if (err instanceof TickFencedError) this.fenced = true;
+        if (this.fenced || fence?.aborted) continue;
         // erro inesperado (ex.: banco): não derruba o processo; tenta de novo no próximo intervalo
         this.giveUpAfter('tick', err);
         this.log.error({ err }, 'falha no tick ao vivo');
@@ -542,8 +548,8 @@ export class LiveRunner {
           'tick ao vivo',
         );
       }
-      // depois de perder a trava, quem escreve o bastão é a outra cópia
-      if (!fence?.aborted) await this.saveHandoff(now);
+      // quem perdeu a liderança é recusado pela época: o bastão da sucessora fica intacto
+      await this.saveHandoff(now);
       try {
         await this.deps.hooks?.onTick?.(report, plan);
       } catch (err) {

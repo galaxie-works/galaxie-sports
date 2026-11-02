@@ -41,11 +41,14 @@ export interface LiveLeaderDeps {
   retryMs: number;
   clock?: LiveClock;
   log?: LiveLogger;
+  /** Abre o mandato no banco e devolve a época dele (`claimLiveLeaderEpoch`). */
+  claimEpoch(): Promise<number>;
   /**
    * Um mandato de líder. `signal` é o encerramento com elegância (termina o tick); `fence`, a perda da trava
-   * (descarta o tick). Volta só depois de registrar o que precisa: a trava é solta logo em seguida.
+   * (descarta o tick); `epoch`, o que as escritas do mandato apresentam ao banco. Volta só depois de registrar o
+   * que precisa: a trava é solta logo em seguida.
    */
-  term(signal: AbortSignal, fence: AbortSignal): Promise<LiveRunSummary>;
+  term(signal: AbortSignal, fence: AbortSignal, epoch: number): Promise<LiveRunSummary>;
 }
 
 /**
@@ -82,25 +85,42 @@ export async function runLiveLeadership(
       continue;
     }
 
+    // sem a época o mandato não pode escrever: solta a trava e volta para a disputa
+    let epoch: number;
+    try {
+      epoch = await deps.claimEpoch();
+    } catch (err) {
+      log.warn({ ...fields, err }, 'não foi possível abrir o mandato do ao vivo; soltando a trava');
+      await lock
+        .release()
+        .catch((e: unknown) => log.warn({ ...fields, err: e }, 'não foi possível soltar a trava do líder'));
+      await clock.sleep(deps.retryMs, signal);
+      continue;
+    }
+
     log.info(
-      { ...fields, live_leader: 1, waited_ms: clock.now() - waitingSince },
+      { ...fields, live_leader: 1, epoch, waited_ms: clock.now() - waitingSince },
       'esta cópia assumiu a liderança do ao vivo',
     );
+    // o aviso da trava pode atrasar: a recusa da época no banco (`stoppedBy: 'lost'`) também é perda
+    let lost = false;
     try {
-      last = await deps.term(signal, fence.signal);
-      if (!fence.signal.aborted) return last;
+      last = await deps.term(signal, fence.signal, epoch);
+      lost = fence.signal.aborted || last.stoppedBy === 'lost';
+      if (!lost) return last;
     } catch (err) {
       // com a trava perdida o erro é consequência (ex.: banco fora) e a outra cópia já pode ter assumido
-      if (!fence.signal.aborted) throw err;
+      lost = fence.signal.aborted;
+      if (!lost) throw err;
       log.warn({ ...fields, err }, 'mandato terminou com erro depois de perder a trava');
     } finally {
       await lock
         .release()
         .catch((err: unknown) => log.warn({ ...fields, err }, 'não foi possível soltar a trava do líder'));
       log.info(
-        { ...fields, live_leader: 0, lost: fence.signal.aborted },
-        fence.signal.aborted
-          ? 'esta cópia perdeu a trava do líder; tick descartado'
+        { ...fields, live_leader: 0, epoch, lost },
+        lost
+          ? 'esta cópia perdeu a liderança do ao vivo; tick descartado'
           : 'esta cópia soltou a liderança do ao vivo',
       );
     }

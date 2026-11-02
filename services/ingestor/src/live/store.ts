@@ -7,9 +7,10 @@ import { inArray, sql } from 'drizzle-orm';
 import { event, eventIncident, publishChange, type Database } from '@galaxie/db';
 import type { EventStatus, FailureReason, NormalizedBatch, StatusSource } from '@galaxie/providers';
 import { applyProviderFailure } from '../normalize/event-state.js';
-import { resolveIds } from '../normalize/sql-helpers.js';
+import { resolveIds, type Executor } from '../normalize/sql-helpers.js';
 import { upsertBatch, type UpsertOptions } from '../normalize/upsert-core.js';
 import type { EventSnapshot, LiveChange } from './diff.js';
+import { assertLiveLeaderEpoch, type LiveLeaderGuard } from './leader-epoch.js';
 import type { LiveCandidate, LivePriority } from './types.js';
 
 export interface LiveFailureInput {
@@ -37,6 +38,11 @@ export interface LiveStore {
   publish(changes: readonly LiveChange[]): Promise<number>;
   /** Eventos que acabaram de terminar (ex.: recalcular a tabela da temporada). */
   onFinished?(changes: readonly LiveChange[]): Promise<void>;
+  /**
+   * Retrato, gravação e publicação de um tick como uma coisa só. Com líder e reserva, é uma transação que confere
+   * a época do mandato e lança `TickFencedError` se ele já passou; sem elas, só chama `fn`.
+   */
+  atomic<T>(fn: (store: LiveStore) => Promise<T>): Promise<T>;
 }
 
 const LIVE_PRIORITIES = new Set<LivePriority>(['high', 'medium', 'low', 'none']);
@@ -97,13 +103,24 @@ export interface PgLiveStoreOptions {
   publish?: boolean;
   /** Chamado com as mudanças que terminaram jogos (ex.: recálculo de tabelas). */
   onFinished?: (changes: readonly LiveChange[]) => Promise<void>;
+  /** Líder e reserva: as escritas do tick só valem enquanto esta época for a atual. */
+  leaderEpoch?: LiveLeaderGuard | undefined;
 }
 
 export class PgLiveStore implements LiveStore {
   constructor(
-    private readonly db: Database,
+    private readonly db: Executor,
     private readonly options: PgLiveStoreOptions = {},
   ) {}
+
+  async atomic<T>(fn: (store: LiveStore) => Promise<T>): Promise<T> {
+    const guard = this.options.leaderEpoch;
+    if (!guard) return fn(this);
+    return (this.db as Pick<Database, 'transaction'>).transaction(async (tx) => {
+      await assertLiveLeaderEpoch(tx, guard);
+      return fn(new PgLiveStore(tx, { ...this.options, leaderEpoch: undefined }));
+    });
+  }
 
   async candidates(sport: string, provider: string, from: Date, to: Date): Promise<LiveCandidate[]> {
     const rows = await this.db.execute<CandidateRow>(sql`
@@ -210,12 +227,12 @@ export class PgLiveStore implements LiveStore {
   }
 
   async applyBatch(batch: NormalizedBatch): Promise<void> {
-    await upsertBatch(this.db, batch, this.options.upsert ?? {});
+    await upsertBatch(this.db as Pick<Database, 'transaction'>, batch, this.options.upsert ?? {});
   }
 
   async applyFailure(input: LiveFailureInput): Promise<number> {
     if (!input.providerEventIds.length) return 0;
-    const r = await applyProviderFailure(this.db, {
+    const r = await applyProviderFailure(this.db as Pick<Database, 'transaction'>, {
       ...input,
       providerEventIds: [...input.providerEventIds],
     });
