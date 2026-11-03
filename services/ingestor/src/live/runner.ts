@@ -5,6 +5,7 @@
  * ou encerrar. Relógio injetável: os testes simulam dias inteiros em milissegundos.
  */
 import type { QuotaGovernor } from '@galaxie/apisports-client';
+import type { LiveTickCursor } from '@galaxie/observability';
 import { isInPlay, type SportsDataProvider } from '@galaxie/providers';
 import type { LiveHandoffStore } from './handoff.js';
 import { TickFencedError } from './leader-epoch.js';
@@ -18,6 +19,15 @@ import {
   type LiveSchedulerOptions,
 } from './schedule.js';
 import type { LiveStore } from './store.js';
+import {
+  liveTickNeedsSave,
+  liveTickSaved,
+  recordLivePace,
+  recordLiveTick,
+  type LivePace,
+  type LiveTickSaved,
+  type LiveTickStore,
+} from './tick-record.js';
 import type { LiveCandidate, LiveDayPlan, LivePrioritizer } from './types.js';
 
 export interface LiveClock {
@@ -115,6 +125,13 @@ export interface LiveRunnerDeps {
   refresh?: LiveOptionsRefresh | undefined;
   /** Líder e reserva: retoma de onde a líder anterior parou e deixa o bastão a cada tick. */
   handoff?: LiveHandoffStore | undefined;
+  /**
+   * Ritmo para o `/metrics` do scheduler (#538): último tick, intervalo, intervalo planejado e pausas. Grava a cada
+   * tick e quando o ritmo muda; o intervalo atravessa a troca de líder ou de versão porque o registro é do banco.
+   */
+  tickRecord?: LiveTickStore | undefined;
+  /** Quem grava o ritmo (hostname da cópia). */
+  instance?: string | undefined;
 }
 
 /** `lost`: esta cópia deixou de ser líder (trava caiu ou época passou); o tick em andamento foi descartado. */
@@ -151,6 +168,9 @@ export class LiveRunner {
   private lastRefreshAt = -Infinity;
   /** O banco recusou uma escrita: outra cópia já abriu um mandato, mesmo sem o aviso da trava ter chegado. */
   private fenced = false;
+  /** Ritmo publicado (espelho do registro do banco) e o que já foi gravado dele. */
+  private tickCursor: LiveTickCursor | null = null;
+  private tickSaved: LiveTickSaved | null = null;
 
   constructor(private readonly deps: LiveRunnerDeps) {
     this.clock = deps.clock ?? systemLiveClock;
@@ -364,6 +384,38 @@ export class LiveRunner {
     }
   }
 
+  /** Retoma o último tick registrado (de qualquer cópia): é ele que dá o intervalo através da troca. */
+  private async restoreTick(): Promise<void> {
+    const store = this.deps.tickRecord;
+    if (!store) return;
+    try {
+      this.tickCursor = await store.load(this.deps.sport);
+      if (this.tickCursor) this.tickSaved = liveTickSaved(this.tickCursor);
+    } catch (err) {
+      this.log.warn({ err }, 'não foi possível ler o ritmo do ao vivo; o intervalo recomeça neste tick');
+    }
+  }
+
+  /** Muda o ritmo publicado (espera de propósito ou volta ao intervalo do plano); grava com `saveTick`. */
+  private setPace(pace: LivePace, now: Date): void {
+    if (!this.deps.tickRecord) return;
+    this.tickCursor = recordLivePace(this.tickCursor, pace, now, this.deps.instance ?? 'local');
+  }
+
+  /** Grava o ritmo se mudou o que importa desde a última gravação (nas esperas e a cada tick). */
+  private async saveTick(now: Date): Promise<void> {
+    const store = this.deps.tickRecord;
+    if (!store || !this.tickCursor) return;
+    if (!liveTickNeedsSave(this.tickCursor, this.tickSaved)) return;
+    try {
+      await store.save(this.deps.sport, this.tickCursor, now);
+      this.tickSaved = liveTickSaved(this.tickCursor);
+    } catch (err) {
+      if (err instanceof TickFencedError) this.fenced = true;
+      else this.log.warn({ err }, 'não foi possível gravar o ritmo do ao vivo');
+    }
+  }
+
   /**
    * `signal` encerra com elegância: termina o tick em andamento. `fence` (só com líder e reserva) avisa que a
    * trava caiu: o tick é descartado, nenhuma chamada nova sai e o run volta com `stoppedBy: 'lost'`. O mesmo vale
@@ -384,7 +436,8 @@ export class LiveRunner {
     };
     const opts = this.options;
     const wake = signal && fence ? AbortSignal.any([signal, fence]) : (signal ?? fence);
-    await this.restoreHandoff();
+    // a reserva tem 2 s para assumir: as duas leituras vão juntas
+    await Promise.all([this.restoreHandoff(), this.restoreTick()]);
     // com releitura de configuração, nenhuma espera passa do intervalo dela
     const refreshCap = this.deps.refresh?.everyMs ?? Infinity;
     const sleepUntil = async (until: Date, cap = Infinity) => {
@@ -432,6 +485,8 @@ export class LiveRunner {
       if (decision.kind === 'done') {
         const next = this.nextDayWindowStart(candidates, plan);
         const wake = next && next < plan.dayEnd ? next : plan.dayEnd;
+        this.setPace({ pausedUntil: wake }, now);
+        await this.saveTick(now);
         if (opts.idleExitMs !== null && (!next || next.getTime() - now.getTime() > opts.idleExitMs)) {
           this.log.info(
             { next_window: next?.toISOString() ?? null },
@@ -445,6 +500,20 @@ export class LiveRunner {
       }
 
       if (decision.kind === 'wait') {
+        const until =
+          this.backoffUntil && this.backoffUntil > decision.until ? this.backoffUntil : decision.until;
+        // esperar o intervalo do plano é o ritmo normal; meio-tempo, orçamento, entre janelas ou depois de erro da
+        // fonte são pausas de propósito (o alerta de intervalo entre ticks não olha para elas)
+        if (decision.reason === 'interval' && until === decision.until && this.lastTickAt)
+          this.setPace(
+            {
+              plannedIntervalSeconds: (decision.until.getTime() - this.lastTickAt.getTime()) / 1000,
+              pausedUntil: null,
+            },
+            now,
+          );
+        else this.setPace({ pausedUntil: until }, now);
+        await this.saveTick(now);
         if (
           !decision.active &&
           opts.idleExitMs !== null &&
@@ -454,13 +523,13 @@ export class LiveRunner {
           summary.stoppedBy = 'idle';
           break;
         }
-        const until =
-          this.backoffUntil && this.backoffUntil > decision.until ? this.backoffUntil : decision.until;
         await sleepUntil(opts.until && opts.until < until ? opts.until : until, opts.replanEveryMs);
         continue;
       }
 
       if (this.backoffUntil && this.backoffUntil > now) {
+        this.setPace({ pausedUntil: this.backoffUntil }, now);
+        await this.saveTick(now);
         await sleepUntil(this.backoffUntil, opts.replanEveryMs);
         continue;
       }
@@ -494,8 +563,12 @@ export class LiveRunner {
         this.giveUpAfter('tick', err);
         this.log.error({ err }, 'falha no tick ao vivo');
         this.lastTickAt = now;
+        this.tickCursor = this.deps.tickRecord
+          ? recordLiveTick(this.tickCursor, now, this.deps.instance ?? 'local', decision.intervalMs / 1000)
+          : null;
         summary.errors += 1;
         await this.saveHandoff(now);
+        await this.saveTick(now);
         continue;
       }
       this.consecutiveErrors.tick = 0;
@@ -503,11 +576,18 @@ export class LiveRunner {
         const gap = now.getTime() - this.lastTickAt.getTime();
         summary.gaps.push(gap);
         // com líder e reserva, o intervalo atravessa as trocas: é a prova de que a passagem não abriu buraco.
-        // O ingestor não tem /metrics por processo; a métrica entra com a #538.
+        // a métrica sai no /metrics do scheduler (tick-record.ts); o log fica para quem lê só os logs
         if (this.deps.handoff)
           this.log.info({ live_tick_interval_seconds: gap / 1000 }, 'intervalo entre ticks do ao vivo');
       }
       this.lastTickAt = now;
+      if (this.deps.tickRecord)
+        this.tickCursor = recordLiveTick(
+          this.tickCursor,
+          now,
+          this.deps.instance ?? 'local',
+          decision.intervalMs / 1000,
+        );
       summary.ticks += 1;
       summary.calls += report.calls;
       summary.changes += report.changes.length;
@@ -550,6 +630,7 @@ export class LiveRunner {
       }
       // quem perdeu a liderança é recusado pela época: o bastão da sucessora fica intacto
       await this.saveHandoff(now);
+      await this.saveTick(now);
       try {
         await this.deps.hooks?.onTick?.(report, plan);
       } catch (err) {

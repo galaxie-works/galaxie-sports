@@ -40,6 +40,7 @@ import {
 } from '../live/schedule.js';
 import { liveStateFromPlan, saveLiveState } from '../live/state.js';
 import { PgLiveStore } from '../live/store.js';
+import { PgLiveTickStore } from '../live/tick-record.js';
 import type { LiveDayPlan } from '../live/types.js';
 import { logger, report } from '../logger.js';
 import { needsAttention, recomputeStandings } from '../standings/recompute.js';
@@ -267,6 +268,9 @@ await runCli(async () => {
         log,
         jobId,
         handoff,
+        // ritmo para o /metrics do scheduler (live_last_tick_age_seconds e afins), com a mesma cerca de época do bastão
+        tickRecord: new PgLiveTickStore(ctx.db, 'api-sports', leaderEpoch),
+        instance: leader.instance,
         options: { ...options, idleExitMs: initial.idleExitMs },
         // painel de Operação: relê LIVE_* do banco a cada minuto (banco > env do contêiner > padrão)
         refresh: {

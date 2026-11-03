@@ -7,6 +7,7 @@ import {
 } from '@galaxie/apisports-client';
 
 export * from './logger.js';
+export * from './metrics/live-tick.js';
 export * from './metrics/registry.js';
 export * from './metrics/quota.js';
 export * from './metrics/queries.js';

@@ -6,6 +6,7 @@
  */
 import { hostname } from 'node:os';
 import type { JobLock, JobLockOptions } from '@galaxie/db';
+import { LIVE_LEADER_SESSION_PREFIX } from '@galaxie/observability';
 import { systemLiveClock, type LiveClock, type LiveLogger, type LiveRunSummary } from './runner.js';
 
 export const LIVE_LEADER_LOCK = 'live:leader';
@@ -29,7 +30,7 @@ export function liveLeaderSettings(env: NodeJS.ProcessEnv = process.env): LiveLe
 }
 
 /** Nome da sessão da trava em pg_stat_activity: a consulta do README mostra as cópias e quem é a líder. */
-export const liveLeaderSessionName = (instance: string) => `galaxie-live-leader:${instance}`;
+export const liveLeaderSessionName = (instance: string) => `${LIVE_LEADER_SESSION_PREFIX}${instance}`;
 
 export interface LiveLeaderLock {
   tryAcquire(options?: JobLockOptions): Promise<JobLock | null>;

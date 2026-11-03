@@ -1,6 +1,6 @@
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
-import { Registry } from 'prom-client';
+import { Gauge, Registry } from 'prom-client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { bearerMatches, registerBuildInfo, startOpsServer, versionInfo } from './version.js';
 
@@ -36,8 +36,8 @@ describe('startOpsServer', () => {
   let server: Server | undefined;
   afterEach(() => server?.close());
 
-  const start = async (env: NodeJS.ProcessEnv) => {
-    server = startOpsServer({ service: 'ingestor', port: 0, env });
+  const start = async (env: NodeJS.ProcessEnv, register?: (registry: Registry) => void) => {
+    server = startOpsServer({ service: 'ingestor', port: 0, env, ...(register ? { register } : {}) });
     const running = server;
     await new Promise((resolve) => running.once('listening', resolve));
     return `http://127.0.0.1:${(running.address() as AddressInfo).port}`;
@@ -60,6 +60,15 @@ describe('startOpsServer', () => {
     const body = await res.text();
     expect(body).toContain('build_info{service="ingestor",image_hash="in-abc"} 1');
     expect(body).toContain('process_start_time_seconds');
+  });
+
+  it('as métricas do próprio serviço entram no /metrics junto com as do processo', async () => {
+    const url = await start({}, (registry) => {
+      new Gauge({ name: 'live_window_open', help: 'x', registers: [registry] }).set(1);
+    });
+    const body = await (await fetch(`${url}/metrics`)).text();
+    expect(body).toContain('live_window_open 1');
+    expect(body).toContain('build_info{service="ingestor"');
   });
 
   it('caminho desconhecido é 404 e método diferente de GET é 405', async () => {
