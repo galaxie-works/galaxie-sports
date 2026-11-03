@@ -8,6 +8,11 @@
  *   pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>            # importa (idempotente)
  *   pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
  *
+ * O pacote também vem do S3, sem cópia para dentro do contêiner: `--pacote s3://<bucket>/tasks/<id>/<arquivo>.tgz`
+ * baixa para um diretório temporário do próprio processo, extrai e apaga no fim (`--pacote` aceita ainda um `.tgz` ou
+ * uma pasta local, como o `--pasta`). `--manifesto s3://…/<id>.yaml` lê e grava o manifesto no S3 (o `--mapear` sobe
+ * o manifesto e o relatório de cobertura ao lado); sem o objeto no S3, parte da cópia versionada.
+ *
  * Base organizada por país ("<País>/Times|Seleções|Campeonatos/<Nome>/Original/svg|png|webp/...",
  * convert-countries.ts) ou por competição ("<País> - <Competição>/svg|png|webp/Escudo - <Time>",
  * convert-folders.ts): converta antes para o layout de pacote — sem banco, sem rede. O layout é detectado:
@@ -21,7 +26,7 @@
  *
  * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq } from 'drizzle-orm';
@@ -36,6 +41,15 @@ import {
   loadTargets,
 } from '../assets/acervo/import.js';
 import { ACERVO_ID_RE, readManifest, validateAcervoInfo, writeManifest } from '../assets/acervo/manifest.js';
+import {
+  formatS3Uri,
+  openPackage,
+  parseS3Uri,
+  S3PackageStore,
+  tempDir,
+  type OpenedPackage,
+  type S3Uri,
+} from '../assets/acervo/pacote.js';
 import { planManifest } from '../assets/acervo/plan.js';
 import { coverage, renderReport } from '../assets/acervo/report.js';
 import { scanAcervo } from '../assets/acervo/scan.js';
@@ -44,6 +58,7 @@ import { objectStoreFromEnv } from '../assets/object-store.js';
 const { values } = parseArgs({
   options: {
     pasta: { type: 'string' },
+    pacote: { type: 'string' },
     acervo: { type: 'string' },
     manifesto: { type: 'string' },
     mapear: { type: 'boolean', default: false },
@@ -90,14 +105,47 @@ const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
 
 const MANIFEST_DIR = resolve('../../config/assets/acervo');
-const dir = values.pasta ? resolve(values.pasta) : undefined;
+if (values.pasta && values.pacote) throw new Error('Use --pasta ou --pacote, não os dois.');
+let packageStore: S3PackageStore | undefined;
+const store = () => (packageStore ??= S3PackageStore.fromEnv());
+const opened: OpenedPackage | undefined = values.pacote ? await openPackage(values.pacote, store) : undefined;
+// o diretório temporário sai mesmo se algo abaixo lançar antes do finally
+process.once('exit', () => opened?.cleanup());
+if (opened)
+  console.log(
+    `Pacote ${opened.source}${opened.extract ? `: ${opened.extract.files} arquivos extraídos em ${opened.dir}` : ''}`,
+  );
+const dir = opened?.dir ?? (values.pasta ? resolve(values.pasta) : undefined);
 const scan = dir ? scanAcervo(dir) : undefined;
 const id = scan?.info.id ?? values.acervo;
-if (!id || !ACERVO_ID_RE.test(id)) throw new Error('Informe --pasta <dir do pacote> ou --acervo <id>.');
+if (!id || !ACERVO_ID_RE.test(id))
+  throw new Error('Informe --pasta <dir do pacote>, --pacote <s3://… ou .tgz> ou --acervo <id>.');
 if (values.acervo && scan && values.acervo !== scan.info.id)
   throw new Error(`--acervo ${values.acervo} difere do acervo.yaml do pacote (${scan.info.id}).`);
-const manifestPath = values.manifesto ? resolve(values.manifesto) : join(MANIFEST_DIR, `${id}.yaml`);
+
+// manifesto no S3: cópia local num diretório temporário; sem o objeto, parte do versionado
+const manifestUri: S3Uri | undefined = values.manifesto?.startsWith('s3://')
+  ? (parseS3Uri(values.manifesto) ??
+    (() => {
+      throw new Error(`--manifesto inválido: ${values.manifesto}`);
+    })())
+  : undefined;
+const manifestTmp = manifestUri ? tempDir('galaxie-manifesto-') : undefined;
+process.once('exit', () => manifestTmp?.cleanup());
+const manifestPath = manifestTmp
+  ? join(manifestTmp.dir, `${id}.yaml`)
+  : values.manifesto
+    ? resolve(values.manifesto)
+    : join(MANIFEST_DIR, `${id}.yaml`);
 const reportPath = manifestPath.replace(/\.ya?ml$/, '') + '.cobertura.md';
+const reportUri = (u: S3Uri): S3Uri => ({ ...u, key: u.key.replace(/\.ya?ml$/, '') + '.cobertura.md' });
+if (manifestUri && !(await store().download(manifestUri, manifestPath))) {
+  const versioned = join(MANIFEST_DIR, `${id}.yaml`);
+  if (existsSync(versioned)) copyFileSync(versioned, manifestPath);
+  console.log(
+    `Manifesto ${formatS3Uri(manifestUri)} ainda não existe: ${existsSync(manifestPath) ? 'parte do versionado' : 'começa vazio'}.`,
+  );
+}
 
 const db = createDb(DATABASE_URL);
 try {
@@ -126,12 +174,17 @@ try {
     for (const [file, reason] of Object.entries(scan.rejected))
       console.warn(`  SVG recusado ${file}: ${reason}`);
     console.log(`Manifesto: ${manifestPath}\nRelatório: ${reportPath}`);
+    if (manifestUri) {
+      await store().upload(manifestUri, readFileSync(manifestPath), 'application/yaml');
+      await store().upload(reportUri(manifestUri), readFileSync(reportPath), 'text/markdown; charset=utf-8');
+      console.log(`No S3: ${formatS3Uri(manifestUri)} e ${formatS3Uri(reportUri(manifestUri))}`);
+    }
     for (const c of coverage(manifest.logos).slice(0, 20))
       console.log(
         `  ${c.country.padEnd(7)} ${String(c.total).padStart(5)} logos · ${c.linked} ligados · ${c.ambiguous} ambíguos · ${c.unmatched} sem par`,
       );
   } else {
-    if (!dir) throw new Error('A importação precisa de --pasta (os arquivos do pacote).');
+    if (!dir) throw new Error('A importação precisa de --pasta ou --pacote (os arquivos do pacote).');
     if (!existsSync(manifestPath))
       throw new Error(`Sem manifesto em ${manifestPath}: rode antes com --mapear.`);
     const manifest = readManifest(manifestPath);
@@ -172,4 +225,7 @@ try {
   }
 } finally {
   await closeDb(db);
+  opened?.cleanup();
+  manifestTmp?.cleanup();
+  packageStore?.close();
 }
