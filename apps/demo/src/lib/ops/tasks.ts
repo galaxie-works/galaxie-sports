@@ -125,7 +125,7 @@ export function taskTypesView(): TaskTypeView[] {
  * A lista do painel (a prévia já aprovada vem marcada pela consulta, `approved`). Sem as colunas da fila (migration
  * pendente), null: o resto do painel continua.
  */
-export async function readTasks(db: Database = queueDb()): Promise<OpsTasks | null> {
+export async function readTasks(db: Database = queueDb()): Promise<Omit<OpsTasks, 'workers'> | null> {
   let rows: TaskRow[];
   try {
     rows = await listTasks(db, { limit: TASKS_LIMIT });

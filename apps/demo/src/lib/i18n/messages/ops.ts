@@ -591,6 +591,19 @@ export default defineMessages(
         progress: 'Progresso',
         actions: 'Ações',
       },
+      workers: {
+        title: 'Workers',
+        description:
+          'Quem executa a fila agora, pelas concessões no banco: o worker renova a cada 30 s, e a concessão vence em 90 s sem renovar.',
+        none: 'Nenhum worker tomou tarefa nas últimas 24 h. Confira o serviço worker (docker compose ps worker).',
+        states: { busy: 'Rodando', idle: 'Ocioso', expired: 'Concessão vencida' },
+        task: 'tentativa {attempt}',
+        batch: 'Lote: {batch}',
+        renewed: 'Concessão renovada {when}, vale até {until}',
+        lastSeen: 'Última tarefa encerrada {when}',
+        expiredHint:
+          'O worker parou de renovar (caiu ou travou): a tarefa volta à fila com o checkpoint, e outro worker a retoma.',
+      },
       empty: 'Nenhuma tarefa na fila.',
       emptyFilter: 'Nenhuma tarefa neste estado.',
       view: 'Ver',
@@ -1627,6 +1640,19 @@ export default defineMessages(
           worker: 'Worker',
           progress: 'Progress',
           actions: 'Actions',
+        },
+        workers: {
+          title: 'Workers',
+          description:
+            'Who is running the queue right now, from the leases in the database: the worker renews every 30 s, and the lease expires after 90 s without renewal.',
+          none: 'No worker has taken a task in the last 24 h. Check the worker service (docker compose ps worker).',
+          states: { busy: 'Running', idle: 'Idle', expired: 'Lease expired' },
+          task: 'attempt {attempt}',
+          batch: 'Batch: {batch}',
+          renewed: 'Lease renewed {when}, valid until {until}',
+          lastSeen: 'Last task finished {when}',
+          expiredHint:
+            'The worker stopped renewing (crashed or stuck): the task goes back to the queue with its checkpoint, and another worker resumes it.',
         },
         empty: 'No tasks in the queue.',
         emptyFilter: 'No tasks in this state.',
@@ -2680,6 +2706,19 @@ export default defineMessages(
           worker: 'Worker',
           progress: 'Progreso',
           actions: 'Acciones',
+        },
+        workers: {
+          title: 'Workers',
+          description:
+            'Quién ejecuta la cola ahora, según las concesiones en la base: el worker renueva cada 30 s, y la concesión vence a los 90 s sin renovar.',
+          none: 'Ningún worker tomó tareas en las últimas 24 h. Revisa el servicio worker (docker compose ps worker).',
+          states: { busy: 'Ejecutando', idle: 'Inactivo', expired: 'Concesión vencida' },
+          task: 'intento {attempt}',
+          batch: 'Lote: {batch}',
+          renewed: 'Concesión renovada {when}, válida hasta {until}',
+          lastSeen: 'Última tarea cerrada {when}',
+          expiredHint:
+            'El worker dejó de renovar (cayó o se trabó): la tarea vuelve a la cola con su checkpoint y otro worker la retoma.',
         },
         empty: 'No hay tareas en la cola.',
         emptyFilter: 'No hay tareas en este estado.',

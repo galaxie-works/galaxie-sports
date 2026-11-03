@@ -1,7 +1,8 @@
 /**
  * Executores dos tipos de tarefa da fila (`@galaxie/db/queue-types` declara; aqui roda) e `runTask`, que leva uma
  * tomada do `takeNext` até o `finish`: confere a regra (`checkRunnable` e, na destrutiva, a aprovação no banco com `checkApproval`), renova a concessão enquanto o executor
- * trabalha e para sem gravar nada se a tomada perder a tarefa. O laço do worker (#542) toma e chama `runTask`.
+ * trabalha e para sem gravar nada se a tomada perder a tarefa. O worker (#542, `src/worker`) toma no processo pai e
+ * chama `runTask` num processo filho, com a renovação no pai (`leaseLost`).
  */
 import { checkpoint, finish, release, renew, QUEUE_RENEW_MS, type QueueTask } from '@galaxie/db/queue';
 import {
@@ -62,10 +63,15 @@ export interface TaskOutcome {
 
 export type TaskHandler = (ctx: TaskContext) => Promise<TaskOutcome>;
 
-/** Exemplo (`exemplo.eco`): um lote por repetição, checkpoint a cada lote; retoma do último lote gravado. */
-export const exemploEco: TaskHandler = async ({ params, previa, checkpoint: from, save }) => {
+/**
+ * Exemplo (`exemplo.eco`): um lote por repetição, checkpoint a cada lote; retoma do último lote gravado. `pausaMs` faz
+ * cada lote demorar, para exercitar a drenagem do worker (o lote em andamento fecha; o encerramento é conferido entre
+ * dois lotes).
+ */
+export const exemploEco: TaskHandler = async ({ params, previa, checkpoint: from, save, checkStop }) => {
   const mensagem = String(params.mensagem);
   const repeticoes = Number(params.repeticoes);
+  const pausaMs = Number(params.pausaMs ?? 0);
   if (previa) {
     await save({
       previa: {
@@ -79,6 +85,8 @@ export const exemploEco: TaskHandler = async ({ params, previa, checkpoint: from
   }
   let cp = from;
   for (let i = readProgress(cp)?.feitos ?? 0; i < repeticoes; i++) {
+    checkStop();
+    if (pausaMs > 0) await new Promise((r) => setTimeout(r, pausaMs));
     const next = {
       progresso: { feitos: i + 1, total: repeticoes, lote: `lote ${i + 1}` },
       log: appendLog(cp, `lote ${i + 1}/${repeticoes}: ${mensagem}`),
@@ -117,6 +125,11 @@ export async function runTask(
     renewMs?: number;
     /** Encerramento do worker (SIGTERM): o executor para entre os lotes e a tarefa volta à fila. */
     signal?: AbortSignal;
+    /**
+     * A concessão é renovada por outro processo (o pai, no worker da fila: `src/worker`): sem renovação aqui, e o
+     * abort deste sinal diz que a tomada perdeu a tarefa (o executor para no próximo `save`, sem gravar).
+     */
+    leaseLost?: AbortSignal;
   } = {},
 ): Promise<'done' | 'retry' | 'error' | 'deferred' | 'released' | null> {
   const handlers = options.handlers ?? TASK_HANDLERS;
@@ -128,14 +141,18 @@ export async function runTask(
     (handler ? null : `este worker não roda ${task.type}`);
   if (refused) return finish(db, { ...task, attempts: task.maxAttempts }, 'error', refused);
 
-  let lost = false;
-  const timer = setInterval(() => {
-    renew(db, task)
-      .then((ok) => {
-        if (!ok) lost = true;
-      })
-      .catch(() => {});
-  }, options.renewMs ?? QUEUE_RENEW_MS);
+  let renewLost = false;
+  const external = options.leaseLost;
+  const isLost = () => renewLost || Boolean(external?.aborted);
+  const timer = external
+    ? undefined
+    : setInterval(() => {
+        renew(db, task)
+          .then((ok) => {
+            if (!ok) renewLost = true;
+          })
+          .catch(() => {});
+      }, options.renewMs ?? QUEUE_RENEW_MS);
   const signal = options.signal ?? new AbortController().signal;
   try {
     const meta = paramsMeta(task.params);
@@ -147,20 +164,20 @@ export async function runTask(
       previaId: meta.previaId,
       checkpoint: task.checkpoint,
       save: async (data) => {
-        if (lost || !(await checkpoint(db, task, data))) throw new TaskLeaseLostError(task.id);
+        if (isLost() || !(await checkpoint(db, task, data))) throw new TaskLeaseLostError(task.id);
       },
       signal,
       checkStop: () => {
         if (signal.aborted) throw new TaskInterruptedError(task.id);
       },
     });
-    if (lost) return null;
+    if (isLost()) return null;
     return finish(db, task, 'ok', outcome.detail ?? null, {
       ...(outcome.stats ? { stats: outcome.stats } : {}),
       ...(outcome.runAfter ? { runAfter: outcome.runAfter } : {}),
     });
   } catch (err) {
-    if (err instanceof TaskLeaseLostError || lost) return null;
+    if (err instanceof TaskLeaseLostError || isLost()) return null;
     // o encerramento interrompeu entre dois lotes (ou o executor parou no meio de um, pelo signal): devolve sem culpa
     if (err instanceof TaskInterruptedError || signal.aborted)
       return (await release(db, task)) ? 'released' : null;

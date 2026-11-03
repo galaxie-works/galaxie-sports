@@ -104,6 +104,10 @@ o que faltar.
    comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
    notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
+   - `worker` (a fila de tarefas; mesma imagem e o mesmo grupo do ingestor, logo depois dele), lado a lado: o novo sobe
+     e fica healthy, e o antigo **drena** (`rolling-swap.sh` espera o `/health` dizer `idle` ou 75 s): o lote em
+     andamento fecha e a tarefa volta à fila, onde o novo a retoma do checkpoint
+     ([tarefas › O worker](tarefas.md#o-worker));
    - `api`, `webhooks` e `demo` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o novo
      healthy). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
    - o que não tem imagem nossa, quando mudou (a página de manutenção, por exemplo).
@@ -194,7 +198,8 @@ sed -i 's|^TAG_DEMO=.*|TAG_DEMO=in-<hash anterior>|' .env
 PULL_POLICY=missing docker compose up -d --no-deps demo
 ```
 
-`api`, `webhooks` e `demo` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
+`api`, `webhooks`, `demo` e `worker` também voltam sem manutenção (o worker drenando), da máquina de dev, depois de
+editar o `.env`:
 `ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- demo' < infra/vps-telemetry/rolling-swap.sh`. Os outros
 sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte

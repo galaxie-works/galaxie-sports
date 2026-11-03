@@ -10,7 +10,7 @@ Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela
 | --- | --- | --- | --- |
 | `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops` | 45 |
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`; é dono do `demo_auth` | 30 |
-| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 40 |
+| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 55 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
 | `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_ledger`, `ops.quota_snapshot`, `ops.quota_budget` | 36 |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o ensaio de restauração | 6 |
@@ -33,7 +33,7 @@ O papel não escreve em `semantic`, `enrich`, `api`, `multisport` nem `equestria
 
 `applyRoles` roda `ALTER ROLE … CONNECTION LIMIT n` com `ROLE_CONNECTION_LIMITS`. Passou do teto, o Postgres recusa a conexão (SQLSTATE 53300, `too many connections for role`). A conta de cada teto está no comentário do mapa: pool do perfil (`DB_POOL_MAX`) × cópias que coexistem num deploy (a no ar, a nova e o candidato) + uma conexão de trava por processo de job + folga para CLI.
 
-A soma dos tetos (182) passa do `max_connections` do Postgres (100, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
+A soma dos tetos (197) passa do `max_connections` do Postgres (100, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
 
 Para ver quem está perto do teto:
 

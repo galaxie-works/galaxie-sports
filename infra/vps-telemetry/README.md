@@ -138,7 +138,9 @@ lista:
    healthy), e o `gsports-retry` (ligado em `EDGE_MIDDLEWARES`, [infra/traefik](../traefik/README.md)) manda a conexão
    recusada pelo antigo no SIGTERM para o novo. O CI testa com o Traefik de verdade e tráfego a cada 50 ms (zero
    respostas fora de 200) e com uma versão que nunca fica healthy (a troca recusa e a anterior segue). O smoke de depois
-   do pós-deploy continua valendo.
+   do pós-deploy continua valendo. O `worker` da fila troca do mesmo jeito, logo depois do ingestor: o antigo **drena**
+   antes de sair (`docker stop -t 75`, com o `/health` acompanhado até dizer `idle`), e o novo retoma a tarefa devolvida
+   do checkpoint ([tarefas › O worker](../../docs/runbooks/tarefas.md#o-worker)).
 3. O deploy guarda só os 10 backups mais novos de `compose.yml` e `.env`.
 
 A troca sem erro nenhum na borda depende de `EDGE_MIDDLEWARES` ter o `gsports-retry` ([infra/traefik](../traefik/README.md)).
@@ -444,18 +446,21 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 | API | 10 | 10 |
 | Demo (login 5, Builder 3, change feed 2) | 10 | 10 |
 | Ingestor: scheduler | 2 | 2 |
-| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | ao vivo 3 × (4 + 1) + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 25 |
+| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | ao vivo 3 × (4 + 1) + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 20 |
+| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | — | 2 + `WORKER_MAX_TASKS` 2 × 6 = 14 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
-| **Total** | **~106: passava do limite** | **67, com ~30 de folga para CLI à mão e `psql`** |
+| **Total** | **~106: passava do limite** | **76, com ~20 de folga para CLI à mão e `psql`** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
-`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
-soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
-pico real da tabela acima (67) mais os candidatos do deploy (API e demo, 20) dá 87 de 97 vagas; o serviço `live` em duas
+`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 55 (com o worker, que usa o mesmo
+papel), agents 25, live 36, backup 6. A soma (197) passa do `max_connections` de propósito, porque o teto contém um
+papel com vazamento e não reserva vaga. O pico real da tabela acima (76) mais os candidatos do deploy (API e demo, 20)
+dá 96 de 97 vagas no pior caso; na prática a troca do worker (que dobra os 14 dele por alguns segundos) não coincide
+com a do candidato, e o worker raramente tem duas tarefas de carga ao mesmo tempo. O serviço `live` em duas
 cópias durante a troca soma mais 17 (o ao vivo deixa de ocupar o ingestor, então o líquido é menor), o que deixa
 poucas vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
 
@@ -469,9 +474,15 @@ heap (geração nova e o próprio Node):
 
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
-| `ingestor` (1152m) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB (128 de folga) |
+| `ingestor` (928m) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 1 × 160, + 5 × 64 | 800 MB (128 de folga) |
+| `worker` (576m, `cpus: 1.0`) | worker 64 + `WORKER_MAX_TASKS` 2 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 512 MB (64 de folga) |
 | `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
 | `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
+
+O trabalho longo (espelho de assets, carga histórica, acervo, backfills) saiu do `ingestor` para o `worker` (#542):
+com `QUEUE_MODE=enqueue` o scheduler só enfileira, e o `ingestor` ficou com um job por vez fora da faixa do ao vivo. Na
+troca do deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 1088 MB de worker no pior
+caso. Mudou `WORKER_MAX_TASKS` ou `WORKER_TASK_HEAP_MB` no `.env`: refaça a conta e o `mem_limit` do `worker`.
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
 mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça

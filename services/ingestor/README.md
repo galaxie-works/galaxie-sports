@@ -32,7 +32,14 @@ A lista completa, com o que cada um faz, está na tabela "Como rodar" do [README
 | Assets e imagens | `assets:mirror`, `assets:palette`, `assets:acervo`, `assets:commons*`, `assets:competition-logos`, `assets:official-logos`, `assets:platform-logos`, `assets:fotos-wikidata` |
 | Fontes abertas | `multisport:seed`, `multisport:wikidata`, `multisport:qa`, `titulos:wikidata`, `pessoas:wikidata-por-time`, `canais:wikidata`, `f1db:import`, `f1:biografia`, `equestrian:import`, `geo:seed` |
 | Qualidade | `quality:run` (confere a API publicada; `QUALITY_API_URL` + `QUALITY_API_KEY`) |
-| Agendador | `scheduler` |
+| Agendador e fila | `scheduler`, `gs tarefa` (CLI da fila) e o worker (`node dist/cli/worker.js`, o serviço `worker` da stack) |
+
+## Worker da fila
+
+`src/cli/worker.ts` é o serviço `worker` da stack: toma as tarefas de `ops.job_request` dos tipos em `TASK_HANDLERS`
+(`src/tasks/run.ts`), roda cada uma num processo filho com heap fixo (`src/worker/child.ts`), renova a concessão e drena
+no SIGTERM. O laço, as vagas e a drenagem estão em `src/worker/`; operação e variáveis em
+[docs/runbooks/tarefas.md](../../docs/runbooks/tarefas.md#o-worker).
 
 ## Scheduler
 

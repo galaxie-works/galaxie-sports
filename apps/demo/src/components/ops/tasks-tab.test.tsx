@@ -18,7 +18,7 @@ vi.mock('@/components/reui/code-block/code-block', () => ({
   CodeBlock: ({ code }: { code: string }) => <pre data-testid="code">{code}</pre>,
 }));
 
-const { TasksTab, TaskDetailBody, matchesFilter } = await import('./tasks-tab');
+const { TasksTab, TaskDetailBody, matchesFilter, WorkersPanel } = await import('./tasks-tab');
 
 afterEach(cleanup);
 
@@ -86,6 +86,7 @@ const wrap = (ui: React.ReactNode) =>
 describe('lista de tarefas', () => {
   const tasks: OpsTasks = {
     types: TYPES,
+    workers: [],
     items: [
       item({
         id: 'a',
@@ -220,5 +221,56 @@ describe('detalhe da tarefa', () => {
     expect(text).toContain('lote 3/3: oi');
     expect(text).toContain('retomada');
     expect(screen.getByTestId('code').textContent).toContain('"feitos": 3');
+  });
+});
+
+describe('workers da fila', () => {
+  it('mostra o worker rodando com a tarefa, o lote e a renovação; o ocioso e o de concessão vencida', () => {
+    const { container } = wrap(
+      <WorkersPanel
+        timeZone="UTC"
+        now={NOW}
+        workers={[
+          {
+            id: 'c0ffee:1',
+            state: 'busy',
+            lastSeenAt: null,
+            tasks: [
+              {
+                id: 't1',
+                type: 'carga.historica',
+                attempts: 2,
+                batch: 'detalhes · liga 71',
+                done: 3,
+                total: 10,
+                pickedAt: '2026-11-02T11:50:00.000Z',
+                lockedUntil: '2026-11-02T12:01:10.000Z',
+                lastRenewAt: '2026-11-02T11:59:40.000Z',
+              },
+            ],
+          },
+          { id: 'beef:7', state: 'idle', lastSeenAt: '2026-11-02T10:00:00.000Z', tasks: [] },
+          { id: 'dead:9', state: 'expired', lastSeenAt: null, tasks: [] },
+        ]}
+      />,
+    );
+    const busy = container.querySelector('li[data-worker="c0ffee:1"]')!;
+    expect(busy.textContent).toContain('Rodando');
+    expect(busy.textContent).toContain('carga.historica');
+    expect(busy.textContent).toContain('tentativa 2');
+    expect(busy.textContent).toContain('Lote: detalhes · liga 71');
+    expect(busy.textContent).toContain('3 de 10');
+    expect(busy.textContent).toContain('Concessão renovada');
+    const idle = container.querySelector('li[data-worker="beef:7"]')!;
+    expect(idle.textContent).toContain('Ocioso');
+    expect(idle.textContent).toContain('Última tarefa encerrada');
+    const expired = container.querySelector('li[data-worker="dead:9"]')!;
+    expect(expired.textContent).toContain('Concessão vencida');
+    expect(expired.textContent).toContain('outro worker a retoma');
+  });
+
+  it('sem worker nas últimas 24 h, diz onde conferir', () => {
+    const { container } = wrap(<WorkersPanel timeZone="UTC" now={NOW} workers={[]} />);
+    expect(container.textContent).toContain('Nenhum worker tomou tarefa nas últimas 24 h');
   });
 });

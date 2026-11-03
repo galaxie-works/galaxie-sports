@@ -288,6 +288,37 @@ export interface TaskTypeView {
 export interface OpsTasks {
   items: TaskListItem[];
   types: TaskTypeView[];
+  /** Estado dos workers da fila, lido das concessões (sem chamar o worker por HTTP). */
+  workers: WorkerView[];
+}
+
+/**
+ * `busy`: tem tarefa com a concessão em dia; `expired`: a concessão de uma tarefa dele venceu (parou de renovar: caiu
+ * ou travou; outro worker retoma); `idle`: tomou tarefa nas últimas 24 h e não tem nenhuma agora.
+ */
+export type WorkerStateView = 'busy' | 'idle' | 'expired';
+
+export interface WorkerTaskView {
+  id: string;
+  type: string;
+  attempts: number;
+  /** Lote atual (`checkpoint.progresso.lote`) e contagem, quando o executor grava. */
+  batch: string | null;
+  done: number | null;
+  total: number | null;
+  pickedAt: string | null;
+  /** Fim da concessão; a última renovação foi 90 s antes. */
+  lockedUntil: string | null;
+  lastRenewAt: string | null;
+}
+
+export interface WorkerView {
+  /** `<hostname>:<pid>` (o contêiner) ou WORKER_ID. */
+  id: string;
+  state: WorkerStateView;
+  tasks: WorkerTaskView[];
+  /** Fim da última tomada encerrada (o worker ocioso). */
+  lastSeenAt: string | null;
 }
 
 // ── Qualidade dos dados (job data-quality, ops.quality_*) ────────────────────────────────────────

@@ -3,7 +3,9 @@
 # stack): uma stack descartável com o Traefik da VPS (mesma versão) e um app com healthcheck e o gsports-retry, como a
 # API e a demo. Enquanto a troca roda, um laço pede a rota pelo Traefik a cada 50 ms; qualquer resposta que não seja
 # 200 falha o teste. Depois, uma versão que nunca fica healthy: a troca tem de falhar e a versão anterior seguir no ar.
-# Por último, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Depois, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Por último, a drenagem do worker da fila: o antigo recebe SIGTERM, o /health dele diz `idle` quando o lote fecha e ele
+# sai sozinho; o que não drena no prazo leva SIGKILL e um aviso.
 #
 #   bash infra/vps-telemetry/rolling-swap.test.sh
 set -euo pipefail
@@ -54,6 +56,31 @@ services:
       APP_VERSION: ${APP_VERSION}
     healthcheck:
       disable: true
+  # o worker da fila de mentira: no SIGTERM, o "lote" fecha em DRAIN_MS, o /health passa a dizer idle e ele sai
+  fila:
+    image: node:24.22.1-alpine
+    command:
+      - node
+      - -e
+      - |
+        let idle = false, draining = false;
+        require('node:http').createServer((q, r) => r.end(JSON.stringify({ status: 'ok', idle }))).listen(8080);
+        process.on('SIGTERM', () => {
+          if (draining) return;
+          draining = true;
+          setTimeout(() => { idle = true; setTimeout(() => process.exit(0), 4000); }, Number(process.env.DRAIN_MS));
+        });
+        setInterval(() => {}, 1000);
+    environment:
+      APP_VERSION: ${APP_VERSION}
+      DRAIN_MS: ${DRAIN_MS:-3000}
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8080/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
 YML
 
 cleanup() {
@@ -119,7 +146,7 @@ n=$(APP_VERSION=2 docker compose ps -q app | grep -c .)
   echo "FAIL  $n contêineres do app depois da troca (esperado 1)"
   exit 1
 }
-APP_VERSION=2 docker compose up -d --quiet-pull 2>&1 | grep -q 'Recreate' && {
+APP_VERSION=2 docker compose up -d --quiet-pull app 2>&1 | grep -q 'Recreate' && {
   echo "FAIL  o up -d seguinte recriou o app (a troca deixou uma configuração diferente)"
   exit 1
 }
@@ -155,3 +182,38 @@ got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSI
   exit 1
 }
 echo "ok  worker sem healthcheck trocado"
+
+echo "── worker da fila: o antigo drena (o /health diz idle quando o lote fecha) e sai sozinho; o novo fica no ar"
+export SWAP_DRAIN_SERVICES=fila
+APP_VERSION=1 docker compose up -d --quiet-pull --wait fila
+out="$(APP_VERSION=2 bash "$HERE/rolling-swap.sh" fila)"
+printf '%s\n' "$out" | sed 's/^/      /'
+check() {
+  grep -qE -- "$1" <<< "$out" || {
+    echo "FAIL  faltou na saída da troca: $1"
+    exit 1
+  }
+}
+check '^fila: drenando 1 contêiner\(es\) antigo\(s\)'
+check '^fila: [0-9a-f]{12} sem tarefa \(/health idle\) depois de [2-9] s'
+check '^ok  fila: [0-9a-f]{12} drenado em ([6-9]|1[0-9]) s \(saída 0\)'
+check '^ok  fila trocado sem manutenção'
+n=$(APP_VERSION=2 docker compose ps -q fila | grep -c .)
+[ "$n" = 1 ] || {
+  echo "FAIL  $n contêineres da fila depois da troca (esperado 1)"
+  exit 1
+}
+echo "ok  worker da fila drenado antes de sair"
+
+echo "── worker da fila que não drena no prazo: SIGKILL e aviso"
+# a v3 nunca fecha o lote; a troca seguinte (v4) tem prazo de 4 s
+APP_VERSION=3 DRAIN_MS=600000 bash "$HERE/rolling-swap.sh" fila >/dev/null
+out="$(APP_VERSION=4 SWAP_DRAIN_TIMEOUT=4 bash "$HERE/rolling-swap.sh" fila)"
+printf '%s\n' "$out" | sed 's/^/      /'
+check '^WARN  fila: [0-9a-f]{12} não drenou em 4 s \(SIGKILL\)'
+got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSION=4 docker compose ps -q fila)" | sed -n 's/^APP_VERSION=//p')
+[ "$got" = 4 ] || {
+  echo "FAIL  a fila ficou na versão '$got', não 4"
+  exit 1
+}
+echo "ok  prazo da drenagem: SIGKILL, aviso e a versão nova no ar"
