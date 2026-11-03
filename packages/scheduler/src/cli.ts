@@ -24,7 +24,7 @@
  */
 import { writeFile } from 'node:fs/promises';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
-import { startOpsServer, versionInfo, type Logger } from '@galaxie/observability';
+import { startOpsServer, versionInfo, type Logger, type OpsServerOptions } from '@galaxie/observability';
 import { checkAiCredit } from './ai-credit.js';
 import { closeOrphans, lastJobStarts, missedSlots } from './catch-up.js';
 import { PgRunRecorder, runJob, runExitCode } from './runner.js';
@@ -39,6 +39,11 @@ export interface SchedulerCliOptions {
   /** Raiz do pacote do serviço: o `script` de cada job é relativo a ela. */
   packageRoot: string;
   log: Logger;
+  /**
+   * Métricas do serviço no `/metrics` do scheduler, lidas do banco a cada coleta (o ingestor expõe as do ritmo do ao
+   * vivo, já que o `live-run` é um processo filho sem servidor próprio). Só no modo serviço e com DATABASE_URL.
+   */
+  metrics?: ((db: Database) => NonNullable<OpsServerOptions['register']>) | undefined;
 }
 
 /** Saída do `--list`: tabela legível no terminal; JSON estruturado quando roda em contêiner. */
@@ -147,6 +152,7 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     service: serviceName,
     port: Number(process.env.SCHEDULER_OPS_PORT ?? 9464) || 9464,
     onError: (err) => log.warn({ err }, 'servidor de operação do scheduler com falha'),
+    ...(db && options.metrics ? { register: options.metrics(db) } : {}),
   });
   const heartbeatFile = process.env.SCHEDULER_HEARTBEAT_FILE ?? '/tmp/galaxie-scheduler.heartbeat';
   const beat = () =>

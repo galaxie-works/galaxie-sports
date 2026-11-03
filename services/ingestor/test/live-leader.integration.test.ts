@@ -7,6 +7,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { defaultPolicy, PgQuotaGovernor, PgRawStore } from '@galaxie/apisports-client';
+import { LIVE_TICK_CURSOR_KEY, type LiveTickCursor } from '@galaxie/observability';
 import {
   changeFeed,
   competition,
@@ -30,6 +31,7 @@ import {
 } from '../src/live/runner.js';
 import { LIVE_STATE_ENDPOINT } from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
+import { PgLiveTickStore } from '../src/live/tick-record.js';
 import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { apiFixture, liveWorld, wednesdayNight, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';
@@ -85,6 +87,15 @@ class CountingProvider extends ApiSportsProvider {
 
 type World = ReturnType<typeof liveWorld>;
 
+/** Guarda o que a cópia gravou como ritmo, para o teste ver o primeiro intervalo dela (o banco só guarda o último). */
+class RecordingTickStore extends PgLiveTickStore {
+  readonly saved: LiveTickCursor[] = [];
+  override async save(...args: Parameters<PgLiveTickStore['save']>): Promise<void> {
+    await super.save(...args);
+    this.saved.push(structuredClone(args[1]));
+  }
+}
+
 /** Uma cópia do `live-run`: a própria conexão de trava, o próprio runner, o mesmo banco. */
 function copy(name: string, world: World, options: Partial<LiveRunnerOptions>) {
   const lock = jobLockContender(disposable.url, LIVE_LEADER_LOCK, {
@@ -97,6 +108,7 @@ function copy(name: string, world: World, options: Partial<LiveRunnerOptions>) {
   );
   const controller = new AbortController();
   const terms: LiveRunSummary[] = [];
+  const ticks: RecordingTickStore[] = [];
   const state = { acquiredAt: null as number | null, releasedAt: null as number | null, lost: false };
   const done = runLiveLeadership(
     {
@@ -131,6 +143,8 @@ function copy(name: string, world: World, options: Partial<LiveRunnerOptions>) {
           governor: world.governor,
           clock: world.clock,
           handoff: new PgLiveHandoffStore(db, 'api-sports', leaderEpoch),
+          tickRecord: ticks[ticks.push(new RecordingTickStore(db, 'api-sports', leaderEpoch)) - 1]!,
+          instance: name,
           options: { idleExitMs: null, ...options },
         }).run(signal, fence);
         terms.push(summary);
@@ -139,7 +153,11 @@ function copy(name: string, world: World, options: Partial<LiveRunnerOptions>) {
     },
     controller.signal,
   ).finally(() => lock.close());
-  return { name, provider, controller, terms, state, done };
+  const ticksSaved = () => ticks.flatMap((t) => t.saved);
+  /** O ritmo gravado no primeiro tick desta cópia, depois do último da anterior (`after`): o intervalo atravessa a troca. */
+  const firstTick = (after: LiveTickCursor | undefined) =>
+    ticksSaved().find((c) => c.lastTickAt !== (after?.lastTickAt ?? null));
+  return { name, provider, controller, terms, state, done, firstTick, ticks: ticksSaved };
 }
 
 const waitFor = async (what: string, ok: () => boolean, ms = 15_000) => {
@@ -164,7 +182,12 @@ async function scenario(matches: WorldMatch[], start: Date) {
   // o handoff do cenário anterior é de outro dia: cada cenário começa sem bastão
   await db
     .delete(syncCursor)
-    .where(and(eq(syncCursor.endpoint, LIVE_STATE_ENDPOINT), eq(syncCursor.key, LIVE_HANDOFF_KEY)));
+    .where(
+      and(
+        eq(syncCursor.endpoint, LIVE_STATE_ENDPOINT),
+        inArray(syncCursor.key, [LIVE_HANDOFF_KEY, LIVE_TICK_CURSOR_KEY]),
+      ),
+    );
   const world = liveWorld({
     matches,
     plan: 'free',
@@ -347,6 +370,13 @@ describe('líder e reserva no Postgres', () => {
     expect(firstGap).toBeGreaterThanOrEqual(15_000);
     expect(firstGap).toBeLessThanOrEqual(plan!.baseIntervalMs * 1.1);
 
+    // o ritmo gravado atravessa a troca: o intervalo do primeiro tick da nova líder é o mesmo do runner, e quem
+    // gravou por último é ela (#538)
+    const bFirst = b.firstTick(a.ticks().at(-1));
+    expect(bFirst).toMatchObject({ instance: 'b', pausedUntil: null });
+    expect(bFirst!.lastIntervalSeconds).toBeCloseTo(firstGap / 1000, 1);
+    expect((await new PgLiveTickStore(db).load('football'))!.instance).toBe('b');
+
     // toda chamada no fornecedor foi feita por uma das duas, uma vez só
     expect(world.requests).toHaveLength(a.provider.calls + b.provider.calls);
     expectNoRepeat(world, matches, await feedOf(matches));
@@ -386,6 +416,8 @@ describe('líder e reserva no Postgres', () => {
     const summaryB = await b.done;
     expect(summaryB).toMatchObject({ stoppedBy: 'until' });
     expect(summaryB!.gaps[0]).toBeGreaterThanOrEqual(15_000);
+    // líder morta: o primeiro tick da reserva mede o intervalo desde o último tick registrado pela antiga
+    expect(b.firstTick(a.ticks().at(-1))!.lastIntervalSeconds).toBeCloseTo(summaryB!.gaps[0]! / 1000, 1);
     expect(world.requests).toHaveLength(a.provider.calls - 1 + b.provider.calls);
     expectNoRepeat(world, matches, await feedOf(matches));
   }, 90_000);
@@ -510,6 +542,32 @@ describe('líder e reserva no Postgres', () => {
       new PgLiveHandoffStore(db, 'api-sports', old).save('football', baton('velho'), at),
     ).rejects.toBeInstanceOf(TickFencedError);
     expect((await new PgLiveHandoffStore(db).load('football'))?.lastTickAt).toBe('novo');
+  });
+
+  it('ritmo de quem perdeu o mandato é recusado: o da sucessora fica', async () => {
+    const old: LiveLeaderGuard = {
+      sport: 'football',
+      epoch: await claimLiveLeaderEpoch(db, 'football', 'a'),
+    };
+    const current: LiveLeaderGuard = {
+      sport: 'football',
+      epoch: await claimLiveLeaderEpoch(db, 'football', 'b'),
+    };
+    const cursor = (instance: string) => ({
+      instance,
+      updatedAt: '2026-10-30T22:00:00.000Z',
+      lastTickAt: '2026-10-30T22:00:00.000Z',
+      lastIntervalSeconds: 15,
+      recent: [],
+      plannedIntervalSeconds: 15,
+      pausedUntil: null,
+    });
+    const at = new Date('2026-10-30T22:00:00Z');
+    await new PgLiveTickStore(db, 'api-sports', current).save('football', cursor('novo'), at);
+    await expect(
+      new PgLiveTickStore(db, 'api-sports', old).save('football', cursor('velho'), at),
+    ).rejects.toBeInstanceOf(TickFencedError);
+    expect((await new PgLiveTickStore(db).load('football'))?.instance).toBe('novo');
   });
 
   it('finish tardio de quem perdeu o mandato não reabre a execução que a sucessora fechou', async () => {
