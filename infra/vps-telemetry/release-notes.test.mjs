@@ -186,7 +186,7 @@ describe('servicesSection', () => {
         '| Serviço | Versão | Situação |',
         '|---|---|---|',
         '| `api`, `webhooks`, `migrate` | `in-apiOLDO` → `in-apiabcd` | trocada |',
-        '| `demo` | `in-demoabc` | sem troca |',
+        '| `site`, `console` | `in-demoabc` | sem troca |',
         '| `ingestor`, `agents`, `worker` | `in-ingOLDO` → `in-ingabcd` | trocada |',
         '| `lineup-render` | `in-lrabcde` | sem troca |',
       ].join('\n'),
@@ -216,13 +216,26 @@ describe('servicesSection', () => {
 
   it('sem a versão anterior, a troca diz que ela não foi registrada; a mesma tag diz "mesma versão"', () => {
     assert.match(
-      servicesSection(versions, 'demo'),
-      /\| `demo` \| `in-demoabc` \| trocada \(anterior não registrada\) \|/,
+      servicesSection(versions, 'site'),
+      /\| `site`, `console` \| `in-demoabc` \| trocada \(anterior não registrada\) \|/,
     );
     assert.match(
-      servicesSection(versions, 'demo', previous),
-      /\| `demo` \| `in-demoabc` \| trocada \(mesma versão\) \|/,
+      servicesSection(versions, 'site', previous),
+      /\| `site`, `console` \| `in-demoabc` \| trocada \(mesma versão\) \|/,
     );
+  });
+
+  it('a imagem da demo roda como site e console (#546): trocar só o console troca a imagem', () => {
+    const now = 'demo=in-demoNOVONO';
+    const out = servicesSection(now, 'console', 'demo=in-demoVELHO');
+    assert.match(out, /\| `site`, `console` \| `in-demoVEL` → `in-demoNOV` \| trocada \|/);
+    assert.doesNotMatch(out, /sem imagem nossa/);
+  });
+
+  it('o serviço demo de um SHA de antes da divisão conta como a própria imagem, sem linha à parte', () => {
+    const out = servicesSection(versions, 'demo', previous);
+    assert.match(out, /\| `site`, `console` \| `in-demoabc` \| trocada \(mesma versão\) \|/);
+    assert.doesNotMatch(out, /sem imagem nossa/);
   });
 
   it('sem versões, sem seção', () => {
@@ -406,7 +419,7 @@ process.exit(2);
         created.body,
         /\| `ingestor`, `agents`, `worker` \| `in-antiga1` → `in-nova123` \| trocada \|/,
       );
-      assert.match(created.body, /\| `demo` \| `in-demo123` \| sem troca \|/);
+      assert.match(created.body, /\| `site`, `console` \| `in-demo123` \| sem troca \|/);
       assert.match(created.body, /<!-- galaxie-versions: ingestor=in-nova123456 demo=in-demo123456 -->\s*$/);
     }));
 

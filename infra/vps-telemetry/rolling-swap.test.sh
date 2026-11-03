@@ -6,6 +6,9 @@
 # Depois, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
 # Depois, a drenagem do worker da fila: o antigo recebe SIGTERM, o /health dele diz `idle` quando o lote fecha e ele
 # sai sozinho; o que não drena no prazo leva SIGKILL e um aviso.
+# Depois, o site e o console no mesmo host (issue #546), com as prioridades e o PathRegexp do compose.yml: os prefixos
+# do console vão para ele e o resto para o site; com o console fora, os prefixos dele caem na manutenção e o site segue;
+# o --retire tira um serviço e a troca de um serviço sem contêiner no ar espera o healthy.
 # Por último, um serviço com duas cópias e líder (como o `live`, #537): a líder é quem segura um flock num volume
 # comum; a troca é cópia a cópia, a líder primeiro, sem ficar com menos de uma cópia healthy (nem sem líder por mais que
 # a passagem), e termina com as duas cópias na versão nova. Uma versão que nunca fica healthy deixa as duas antigas. E a
@@ -85,6 +88,49 @@ services:
       retries: 2
       start_period: 1s
       start_interval: 1s
+  # site e console como no compose.yml da VPS (prioridades 1000, 1500 e 2000, PathRegexp com o $ escapado), em outro host
+  site: &web
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'site']
+    healthcheck: &web-health
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:80/']
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.site.rule=Host(`web.test`)
+      - traefik.http.routers.site.entrypoints=websecure
+      - traefik.http.routers.site.priority=1000
+      - traefik.http.routers.site.service=site
+      - traefik.http.services.site.loadbalancer.server.port=80
+      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console-maintenance.entrypoints=websecure
+      - traefik.http.routers.console-maintenance.priority=1500
+      - traefik.http.routers.console-maintenance.service=maintenance
+  console:
+    <<: *web
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'console']
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console.entrypoints=websecure
+      - traefik.http.routers.console.priority=2000
+      - traefik.http.routers.console.service=console
+      - traefik.http.services.console.loadbalancer.server.port=80
+  maintenance:
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--status', '503', '--body', 'manutencao']
+    healthcheck:
+      disable: true
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.maintenance-host.rule=Host(`maintenance.test`)
+      - traefik.http.routers.maintenance-host.entrypoints=websecure
+      - traefik.http.routers.maintenance-host.service=maintenance
+      - traefik.http.services.maintenance.loadbalancer.server.port=80
   # duas cópias; a líder é quem pega o flock e grava o hostname (o do contêiner, como o live_leader{instance})
   live:
     image: busybox:1.37
@@ -247,6 +293,53 @@ got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSI
 }
 echo "ok  prazo da drenagem: SIGKILL, aviso e a versão nova no ar"
 
+echo "── site e console no mesmo host: prefixos do console nele, o resto no site; console fora não afeta o site"
+web() { curl -s -m 2 -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+web_status() { curl -s -m 2 -o /dev/null -w '%{http_code}' -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+# espera cada caminho responder o corpo esperado (o Traefik leva um instante para ver contêiner novo, parado ou saudável)
+expect_web() {
+  local path want got=""
+  for _ in $(seq 60); do
+    got=""
+    for pair in "$@"; do
+      path="${pair%%=*}"
+      want="${pair#*=}"
+      got="$(web "$path")"
+      [ "$got" = "$want" ] || break
+    done
+    [ "$got" = "$want" ] && return 0
+    sleep 1
+  done
+  echo "FAIL  $path respondeu '$got', não '$want'"
+  APP_VERSION=4 docker compose ps -a
+  exit 1
+}
+APP_VERSION=4 docker compose up -d --quiet-pull site console maintenance
+expect_web /=site /times/1=site /clientes=site /ajustes-antigos=site /login=site /api/auth/x=site \
+  /cliente=console /cliente/builder/novo=console /ajustes=console /api/ajustes/operacao=console /api/cliente/x=console
+echo "ok  console pelos prefixos dele (PathRegexp e prioridade), o resto no site"
+
+APP_VERSION=4 docker compose stop console >/dev/null
+expect_web /cliente/builder=manutencao /ajustes=manutencao /=site /times/1=site
+[ "$(web_status /cliente)" = 503 ] || {
+  echo "FAIL  /cliente com o console fora respondeu $(web_status /cliente), não 503"
+  exit 1
+}
+echo "ok  console fora: os prefixos dele na manutenção (503), o site segue"
+
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" --retire console
+n=$(APP_VERSION=4 docker compose ps -aq console | grep -c . || true)
+[ "$n" = 0 ] || {
+  echo "FAIL  --retire deixou $n contêiner(es) do console"
+  exit 1
+}
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" console
+[ "$(docker inspect -f '{{.State.Health.Status}}' "$(APP_VERSION=4 docker compose ps -q console)")" = healthy ] || {
+  echo "FAIL  a troca de um serviço sem contêiner no ar terminou antes do healthy"
+  exit 1
+}
+expect_web /cliente=console /=site
+echo "ok  --retire tira o serviço, e a troca de um serviço sem contêiner no ar sobe e espera o healthy"
 echo "── live com duas cópias e líder: troca cópia a cópia, a líder primeiro, sem ficar sem cópia healthy"
 copies() { docker ps -q --filter label=com.docker.compose.project=rolling-swap-test --filter label=com.docker.compose.service=live "$@"; }
 leader() { docker exec "$(copies --filter status=running | head -n 1)" cat /shared/leader 2>/dev/null || true; }

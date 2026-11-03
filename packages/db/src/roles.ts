@@ -122,7 +122,9 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  *
  * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
  * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
- * - demo: login 5 + Builder 3 + change feed 2 = 10 por cópia × 3 (no ar, nova e candidata) = 30;
+ * - demo (a imagem roda como `site` e `console`, #546): site = login 5 + Builder 3 + change feed 2 = 10; console =
+ *   login 5 + Builder 3 + tarefas 2 = 10. No pior momento do deploy ficam no ar os dois e os dois candidatos (40; na
+ *   troca, um deles em duas cópias, 30; na primeira troca, a demo antiga ao lado dos dois, 30), mais folga para CLI: 60;
  * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 7 (a stack passa 1: o trabalho longo foi para o worker),
  *   mais o ao vivo quando ele roda aqui (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço
  *   `live`, que não refaz o teto do papel: 3 × (4 + 1) = 15) = 22; o worker da fila (#542), no mesmo papel: pai 2 +
@@ -138,7 +140,7 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  */
 export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
   api: 45,
-  demo: 30,
+  demo: 60,
   ingestor: 55,
   agents: 25,
   live: 45,

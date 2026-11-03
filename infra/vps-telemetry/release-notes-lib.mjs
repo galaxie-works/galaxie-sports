@@ -45,7 +45,7 @@ export const AREAS = [
     ],
   ],
   ['API', ['api', 'contracts', 'webhooks', 'widgets']],
-  ['App e navegação', ['demo', 'explorar', 'nav', 'live']],
+  ['App e navegação', ['demo', 'site', 'console', 'explorar', 'nav', 'live']],
   ['Infra e qualidade', ['infra', 'ci', 'smoke', 'deps', 'docker', 'db', 'test', 'tests']],
 ];
 export const areaOf = (pr) =>
@@ -154,9 +154,14 @@ export function nextTag(names, today) {
   return { tag: `deploy-${today}.${n}`, n };
 }
 
-/** Serviços que rodam cada imagem (o deploy informa os serviços trocados; a versão é da imagem). O resto é 1 para 1. */
+/**
+ * Serviços que rodam cada imagem (o deploy informa os serviços trocados; a versão é da imagem). O resto é 1 para 1. A
+ * imagem da demo roda como `site` e `console` (#546); um deploy de um SHA anterior à divisão troca o serviço `demo`, que
+ * conta como a própria imagem.
+ */
 export const IMAGE_SERVICES = {
   api: ['api', 'webhooks', 'migrate'],
+  demo: ['site', 'console'],
   ingestor: ['ingestor', 'agents', 'worker'],
 };
 
@@ -209,7 +214,7 @@ export function servicesSection(versions, swapped = '', previous = '') {
     const old = before.get(name);
     let state = 'sem troca';
     let version = `\`${short(tag)}\``;
-    if (services.some((s) => changed.has(s))) {
+    if (changed.has(name) || services.some((s) => changed.has(s))) {
       if (!old) state = 'trocada (anterior não registrada)';
       else if (short(old) === short(tag)) state = 'trocada (mesma versão)';
       else {
@@ -219,7 +224,7 @@ export function servicesSection(versions, swapped = '', previous = '') {
     }
     return `| ${code(services)} | ${version} | ${state} |`;
   });
-  const covered = new Set(pairs.flatMap(([name]) => IMAGE_SERVICES[name] ?? [name]));
+  const covered = new Set(pairs.flatMap(([name]) => [name, ...(IMAGE_SERVICES[name] ?? [])]));
   for (const service of [...changed].filter((s) => !covered.has(s))) {
     rows.push(`| \`${service}\` | sem imagem nossa | trocada |`);
   }
