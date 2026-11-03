@@ -48,7 +48,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 # O scheduler só agenda (heap pequeno); cada job é um processo filho com heap próprio (SCHEDULER_JOB_HEAP_MB e o
 # heapMb do job) e o teto SCHEDULER_MAX_JOBS. A conta da memória está em infra/vps-telemetry/README.md › Memória.
 # CLI rodada à mão (docker compose run ... node dist/cli/x.js) fica no padrão do V8.
-# A imagem traz dois schedulers, cada um com a entrada do próprio pacote: o do ingestor (padrão) e o dos agentes de IA
-# (SCHEDULER_PROFILE=agents, o serviço `agents` da stack). Quando a stack passar o `command` dos agentes, este CMD
+# A imagem traz dois schedulers, cada um com a entrada do próprio pacote: o do ingestor (padrão, e SCHEDULER_PROFILE=live
+# para o serviço `live`, só o ao vivo) e o dos agentes de IA (SCHEDULER_PROFILE=agents, o serviço `agents` da stack). Quando a stack passar o `command` dos agentes, este CMD
 # volta a ser só o do ingestor.
 CMD ["sh", "-c", "if [ \"$SCHEDULER_PROFILE\" = agents ]; then exec node --max-old-space-size=64 --max-semi-space-size=8 /srv/services/ai-agents/dist/cli/agents-scheduler.js; fi; exec node --max-old-space-size=64 --max-semi-space-size=8 dist/cli/scheduler.js"]

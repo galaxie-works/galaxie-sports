@@ -28,6 +28,7 @@ export {
   scheduleKey,
   scheduledJob,
   settingDef,
+  reportedService,
   settingsForService,
   type LineupMinReviewStatus,
   type RuntimeService,

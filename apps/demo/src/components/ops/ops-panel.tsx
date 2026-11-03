@@ -305,7 +305,24 @@ function ServicesCard({ snapshot, timeZone }: Ctx) {
       <div className="flex flex-col divide-y">
         {snapshot.services.map((s) => (
           <div key={s.service} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <span>{T.services[s.service]}</span>
+            <div className="flex min-w-0 flex-col">
+              <span>{T.services[s.service]}</span>
+              {s.live ? (
+                <span className="text-muted-foreground text-xs">
+                  {s.live.leader
+                    ? fill(T.status.liveLeader, {
+                        instance: s.live.leader.slice(0, 12),
+                        epoch: String(s.live.epoch ?? '—'),
+                        when: s.live.leaderSince ? f.relative(s.live.leaderSince, now) : '—',
+                      })
+                    : T.status.liveNoLeader}
+                  {' · '}
+                  {s.live.lastTickAt
+                    ? fill(T.status.liveLastTick, { when: f.relative(s.live.lastTickAt, now) })
+                    : T.status.liveNoTick}
+                </span>
+              ) : null}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-xs">
                 {s.reportedAt
@@ -750,7 +767,7 @@ function ScheduleTab({ snapshot, timeZone }: Ctx) {
   const others = snapshot.settings.filter((s) => s.section === 'schedule' && !settingDef(s.key)!.job);
   return (
     <div className="flex flex-col gap-4">
-      {(['ingestor', 'agents'] as const).map((service) => (
+      {(['ingestor', 'live', 'agents'] as const).map((service) => (
         <Frame key={service}>
           <FramePanel className="p-0">
             <FrameHeader className="px-4 pt-4">

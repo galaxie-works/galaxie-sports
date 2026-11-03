@@ -373,7 +373,7 @@ Travas contra laço:
 
 - só age num processo que já passou no healthcheck alguma vez: a migration e os jobs avulsos (`docker compose run ...
   node dist/cli/...`) usam a mesma imagem, nunca respondem ao healthcheck e não podem ser encerrados no meio;
-- espera 6 falhas seguidas (API e demo: ~1,5 min; ingestor e agents: ~3 min) e o processo ter pelo menos 2 min de vida;
+- espera 6 falhas seguidas (API e demo: ~1,5 min; live, ingestor e agents: ~3 min) e o processo ter pelo menos 2 min de vida;
 - no máximo 3 reinícios em 30 min; depois disso só fica `unhealthy` e o alerta da camada de cima avisa;
 - `SELFHEAL=off` no ambiente do serviço desliga o encerramento (fica só a marcação).
 

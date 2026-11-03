@@ -16,6 +16,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
 | Serviço `agents`: imagem do ingestor com `SCHEDULER_PROFILE=agents` (resumo, cenário, Onde Assistir) e teto diário de tokens | IA ligada mesmo com o ingestor parado, com custo previsível |
+| Serviço `live`: imagem do ingestor com `SCHEDULER_PROFILE=live` (só o ao vivo: `live-run`, `live-reconcile`, `events-clock`) | o deploy do ingestor não corta o placar ([Ao vivo](#ao-vivo-serviço-live)) |
 | Serviço `maintenance` (Caddy fixo) com routers de prioridade 1 nos hosts da demo e da API | 503 de manutenção em vez do 404 do Traefik enquanto demo ou API são recriadas |
 
 Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API pública) e `ASSETS_DOMAIN` (assets).
@@ -221,12 +222,55 @@ Ajustes → Operação, na demo (só admin), mostra e altera as flags da operaç
 **padrão de fábrica**: o painel grava em `ops.runtime_setting` (com histórico em `ops.runtime_setting_log`) e vale a
 precedência **banco > env > padrão do código** (registro em `packages/runtime-config`).
 
-- Os schedulers (`ingestor` e `agents`) releem a cada 30 s (`SCHEDULER_REFRESH_SECONDS`): reprogramam as agendas
+- Os schedulers (`ingestor`, `live` e `agents`) releem a cada 30 s (`SCHEDULER_REFRESH_SECONDS`): reprogramam as agendas
   mudadas e entregam o env efetivo a cada job, que lê os valores no começo da execução. O ao vivo relê `LIVE_*` a cada
   minuto. Nada disso reinicia contêiner; só `LIVE_POLL_INTERVAL_SECONDS` (lido pela API) espera a API reiniciar.
 - Cada contêiner relata o próprio env em `ops.runtime_env` (segredos só como "configurado"), que também é o sinal de
   vida mostrado no painel. "Rodar agora" entra em `ops.job_request` e o scheduler do perfil executa.
 - Para voltar tudo ao `.env`: "Voltar ao padrão" em cada flag, ou `delete from ops.runtime_setting;` no banco.
+
+## Ao vivo (serviço `live`)
+
+O placar ao vivo roda num serviço próprio (#535), com a imagem do ingestor e o scheduler no perfil `live`
+(`SCHEDULER_PROFILE=live`): só `live-run`, `live-reconcile` e `events-clock`. O `ingestor` sobe com
+`SCHEDULER_LIVE=external` e não roda mais nenhum dos três. Assim, um deploy que não muda a imagem do ingestor (`TAG_INGESTOR`)
+não toca no `live`, e recriar o ingestor não corta o placar.
+
+- **`live-run` sempre no ar**: no perfil `live` ele roda com `--continuo` e `LIVE_LEADER=on` (líder e reserva pela trava
+  `live:leader`, [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)) e sem a trava
+  por job do scheduler: a liderança é a trava. Saiu (erro, SIGTERM, queda do banco), o scheduler sobe de novo em 1 s
+  (atraso que dobra a cada saída rápida, até 60 s). `SCHEDULE_LIVE_RUN=off` desliga; outro cron não muda nada.
+- **`live-reconcile` e `events-clock`** seguem no cron, com a trava por job: um por vez em todo o banco.
+- **Banco**: `DATABASE_URL` é o `DB_URL_LIVE` (papel `galaxie_live`; sem ele, o dono, como os outros) e os processos usam o
+  perfil de tempos `live` (30 s de consulta, 10 s de trava). Antes de pôr o `DB_URL_LIVE` no `.env`, os papéis têm de
+  estar ligados (`DB_ROLES=on`, [Papéis do banco](#papéis-do-banco)).
+- **Memória**: 640m ([Memória dos jobs](#memória-dos-jobs)); `stop_grace_period` de 40 s, como o ingestor: no SIGTERM a
+  líder fecha o tick, publica o estado e solta a trava.
+- **Escala 0 do ingestor** (a ingestão rodando em outro ambiente com a mesma chave): o deploy deixa o `live` como está e,
+  quando sobe o projeto inteiro, também em 0.
+
+Onde ver:
+
+- **Painel**: Ajustes → Operação › Agendadores e serviços mostra o `Ao vivo` (último sinal, a cópia líder e desde quando,
+  e o último tick); a aba Agenda tem os três jobs no grupo `Ao vivo`.
+- **Métricas**: `/metrics` e `/version` na 9464 de cada cópia (o Prometheus acha as cópias pelo DNS do Docker,
+  `service="live"`); o alerta `SchedulerHeartbeatStale` vale para o `live` como para os outros schedulers.
+- **Quem é a líder**: a consulta de [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)
+  (`application_name` `galaxie-live-leader:<contêiner>`), ou `docker compose logs live | grep liderança`.
+
+**Deploy**: o `live` entra no plano como os outros (imagem do ingestor) e o `deploy-gh.sh` o troca **antes** de ingestor e
+agents, sozinho, por recriação simples: o ao vivo fica parado do SIGTERM até o contêiner novo subir (até ~40 s de tick +
+partida). Os três voltam juntos se um deles falhar (mesma `TAG_INGESTOR`). A troca com a reserva já no ar é a #537.
+
+**Primeira subida** (a versão anterior roda o ao vivo dentro do ingestor): o `live` sobe e, até o ingestor ser recriado com
+`SCHEDULER_LIVE=external`, os dois acompanham os jogos (o `live-run` antigo não conhece a eleição). São alguns segundos com o
+dobro de chamadas, sem perda. Confira depois: `docker compose ps live`, a líder na consulta acima e, no painel, o `Ao vivo`
+no ar.
+
+**Voltar para uma versão sem o serviço**: o deploy de um SHA anterior sobe o ingestor com o ao vivo dentro e remove o
+`live` (`--remove-orphans`). Apague o relato dele para o painel e o `SchedulerHeartbeatStale` não o mostrarem fora do ar:
+`delete from ops.runtime_env where service = 'live';`. No dev (NAS) o ao vivo continua no ingestor (`SCHEDULER_LIVE`
+padrão `internal`); para provar o perfil à mão: `SCHEDULER_PROFILE=live pnpm --filter @galaxie/ingestor scheduler`.
 
 ## Deploy (primeira vez)
 
@@ -447,20 +491,20 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 | API | 10 | 10 |
 | Demo (login 5, Builder 3, change feed 2) | 10 | 10 |
 | Ingestor: scheduler | 2 | 2 |
-| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | ao vivo 3 × (4 + 1) + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 25 |
+| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 10 |
+| Live: scheduler e jobs | (dentro do ingestor) | scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) + `live-reconcile` e `events-clock` 2 × (4 + 1) = 18 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
-| **Total** | **~106: passava do limite** | **67, com ~30 de folga para CLI à mão e `psql`** |
+| **Total** | **~106: passava do limite** | **70, com ~27 de folga para CLI à mão e `psql`** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
 `ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
 soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
-pico real da tabela acima (67) mais os candidatos do deploy (API e demo, 20) dá 87 de 97 vagas; o serviço `live` em duas
-cópias durante a troca soma mais 17 (o ao vivo deixa de ocupar o ingestor, então o líquido é menor), o que deixa
-poucas vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
+pico real da tabela acima (70) mais os candidatos do deploy (API e demo, 20) dá 90 de 97 vagas, o que deixa poucas
+vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
 
 ### Memória dos jobs
 
@@ -472,9 +516,15 @@ heap (geração nova e o próprio Node):
 
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
-| `ingestor` (1152m) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB (128 de folga) |
+| `ingestor` (704m) | scheduler 64 + `SCHEDULER_MAX_JOBS` 2 × 160, + 3 × 64 | 576 MB (128 de folga) |
+| `live` (640m) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB (64 de folga) |
 | `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
 | `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
+
+O ao vivo saiu do ingestor para o `live` (#535): o ingestor caiu de 1152m para 704m e o `live` levou 640m. Só de heap, o
+`live` soma 320 MB (a estimativa da issue); com os 64 MB por processo da mesma conta dos outros, 576. Com
+`SCHEDULER_LIVE=internal` (dev, ou a volta para uma versão anterior, que traz o compose dela) o ingestor precisa dos
+1152m de antes.
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
 mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça

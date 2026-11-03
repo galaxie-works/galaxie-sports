@@ -99,9 +99,10 @@ LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 # Como voltar. O comando de voltar a imagem só aparece sem migration nova aplicada (contagem igual antes e depois):
 # com schema novo, o código antigo pode quebrar, e a saída é corrigir para frente ou restaurar também o banco.
 rollback_help() {
-  local o="${OLD:0:7}"
+  local o="${OLD:0:7}" live_flag=""
+  [ "${SCALE:-1}" != 0 ] || live_flag=" --scale live=0"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}$live_flag'"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
       echo "FAIL  $((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) já aplicada(s): não volte só a imagem para ${o} (o código antigo pode quebrar com o schema novo)"
@@ -281,7 +282,8 @@ ssh "$VPS" "$RETAG"
 
 # compose.yml e .env novos validados juntos antes de trocar: config inválido para aqui, com a stack intocada
 scp -q "$WT/infra/vps-telemetry/compose.yml" "$VPS:$DIR/compose.yml.new"
-# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
+# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente; o live, com a mesma chave, acompanha); falha
+# do ps não pode virar 0
 SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
   SCALE=""
 case "$SCALE" in
@@ -290,6 +292,9 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# com o ingestor em 0, o live também (avaliado na VPS: só se o compose em uso tiver o serviço)
+LIVE_SCALE_REMOTE=""
+[ "$SCALE" != 0 ] || LIVE_SCALE_REMOTE="\$(grep -q '^  live:' compose.yml && echo --scale live=0)"
 # as imagens construídas aqui têm a tag do SHA: ele vai nas TAG_* de apps. Dados e obs não passam por este roteiro
 env_lines="DEPLOY_SHA=$SHA"
 for t in API DEMO INGESTOR; do env_lines+=$'\n'"TAG_$t=$SHA"; done
@@ -341,7 +346,7 @@ restore_previous() {
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
     && for img in \$(docker compose -f compose.yml.bak-$o --env-file .env.bak-$o config --images); do docker image inspect \$img >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
-    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull"; then
+    && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
@@ -356,7 +361,7 @@ restore_previous() {
 
 STAGE=up
 echo "subindo a stack"
-if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE --quiet-pull 2>&1")"; then
+if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull 2>&1")"; then
   :
 else
   rc=$?

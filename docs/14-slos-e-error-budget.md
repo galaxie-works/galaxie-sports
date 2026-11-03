@@ -99,13 +99,14 @@ Fração ruim = minutos com jogo do plano do ao vivo em andamento (`coverage="po
 ritmo: a idade do último tick, de qualquer cópia, passa do intervalo do plano mais 15 s. Minuto sem jogo não conta.
 
 ```promql
-# slo:ao_vivo:tick_gap_ok, por esporte (1 bom, 0 ruim; sem série fora da janela ou em pausa de propósito)
+# slo:ao_vivo:tick_gap_ok, por esporte (1 bom, 0 ruim; sem série fora da janela ou em pausa de propósito); max by sport
+# porque cada cópia do serviço live expõe as mesmas séries
 (
-  live_last_tick_age_seconds
-  <= bool on(sport) (live_tick_planned_interval_seconds + 15)
+  max by (sport) (live_last_tick_age_seconds)
+  <= bool on(sport) (max by (sport) (live_tick_planned_interval_seconds) + 15)
 )
-and on(sport) (live_window_open == 1)
-and on(sport) (live_tick_paused == 0)
+and on(sport) (max by (sport) (live_window_open) == 1)
+and on(sport) (max by (sport) (live_tick_paused) == 0)
 
 # slo:ao_vivo:ok (1 bom, 0 ruim, sem série sem jogo)
 (
@@ -131,8 +132,9 @@ and on() (sum(galaxie_live_events{coverage="poller"}) > 0)
   aberta. Sem as séries do scheduler (o `/metrics` dele
   fora, como no segundo da troca de contêiner), o ritmo não é medido e vale só o atraso do jogo.
 - **De onde vêm as séries:** o `live-run` é um processo filho do scheduler, sem servidor próprio. A cada tick ele grava
-  o ritmo em `ops.sync_cursor` (`live:scheduler`, chave `tick`) e o `/metrics` do scheduler do ingestor (porta 9464,
-  job `galaxie-services`) lê dali a cada coleta: `live_last_tick_age_seconds`, `live_tick_interval_seconds`,
+  o ritmo em `ops.sync_cursor` (`live:scheduler`, chave `tick`) e o `/metrics` do scheduler do serviço `live` (#535;
+  o do ingestor com `SCHEDULER_LIVE=internal`; porta 9464, job `galaxie-services`, uma série por cópia, as mesmas) lê
+  dali a cada coleta: `live_last_tick_age_seconds`, `live_tick_interval_seconds`,
   `live_tick_interval_max_seconds`, `live_tick_planned_interval_seconds`, `live_tick_paused`, `live_window_open` e
   `live_leader{instance}` (no Prometheus, `exported_instance`).
 

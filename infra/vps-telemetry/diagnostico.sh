@@ -73,11 +73,20 @@ uptime | sed 's/^/   /'
 df -h / | tail -1 | sed 's/^/   disco: /'
 
 live_block() {
-  section "Plano do ao vivo (últimas linhas do dia)"
-  logs ingestor 30m | grep '"msg":"plano ao vivo do dia"' | tail -2 |
+  section "Plano do ao vivo (últimas linhas do dia; serviço live, ou o ingestor com SCHEDULER_LIVE=internal)"
+  { logs live 30m; logs ingestor 30m; } | grep '"msg":"plano ao vivo do dia"' | tail -2 |
     python3 -c 'import json,sys
 for l in sys.stdin:
   d=json.loads(l); print("  ", {k:d.get(k) for k in ("day","live_budget","daily_protected","included","relevant","window_minutes","interval_s","ticks_left")})'
+  section "Ao vivo: cópias do live-run e a líder (trava live:leader)"
+  sql <<'SQL'
+select a.application_name, a.backend_start::timestamp(0), l.pid is not null as lider
+  from pg_stat_activity a
+  left join pg_locks l on l.pid = a.pid and l.locktype = 'advisory' and l.granted
+ where a.application_name like 'galaxie-live-leader:%';
+select cursor->>'instance' as lider_do_mandato, cursor->>'epoch' as epoca, updated_at::timestamp(0) as desde
+  from ops.sync_cursor where endpoint = 'live:leader_epoch';
+SQL
   section "Ao vivo: jogos e atraso máx por cobertura"
   prom 'galaxie_live_events'
   prom 'galaxie_live_event_max_staleness_seconds'
@@ -118,8 +127,8 @@ where started_at > now() - interval '24 hours'
   and ('$j' <> '' or status not in ('ok', 'running'))
 order by started_at desc limit 15;
 SQL
-  section "Log do ingestor e dos agentes: erros na última hora"
-  for s in ingestor agents; do
+  section "Log do ingestor, do ao vivo e dos agentes: erros na última hora"
+  for s in ingestor live agents; do
     logs "$s" 60m | grep -E '"level":"(error|fatal)"' | grep -oE '"msg":"[^"]{0,120}"' | sort | uniq -c | sort -rn | head -6 | sed "s/^/   $s /"
   done
 }
