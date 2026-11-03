@@ -71,6 +71,24 @@ describe('startOpsServer', () => {
     expect(body).toContain('build_info{service="ingestor"');
   });
 
+  it('o /health leva o estado que o serviço informa', async () => {
+    server = startOpsServer({
+      service: 'worker',
+      port: 0,
+      env: {},
+      health: () => ({ idle: false, task: { id: 't1', type: 'exemplo.eco' } }),
+    });
+    const running = server;
+    await new Promise((resolve) => running.once('listening', resolve));
+    const url = `http://127.0.0.1:${(running.address() as AddressInfo).port}`;
+    expect(await (await fetch(`${url}/health`)).json()).toEqual({
+      status: 'ok',
+      service: 'worker',
+      idle: false,
+      task: { id: 't1', type: 'exemplo.eco' },
+    });
+  });
+
   it('caminho desconhecido é 404 e método diferente de GET é 405', async () => {
     const url = await start({});
     expect((await fetch(`${url}/x`)).status).toBe(404);

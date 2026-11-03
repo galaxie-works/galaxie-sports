@@ -412,9 +412,10 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    # scheduler + SCHEDULER_MAX_JOBS jobs, cada um com heap fixo: a soma no pior caso é 576 MB; os 128 MB a mais são
-    # folga para pilhas, alocador e buffers de I/O, que o cgroup também conta (README › Memória dos jobs)
-    mem_limit: 704m
+    # scheduler + SCHEDULER_MAX_JOBS jobs, cada um com heap fixo: a soma no pior caso é 352 MB; os 128 MB a mais são
+    # folga para pilhas, alocador e buffers de I/O, que o cgroup também conta (README › Memória dos jobs). O ao vivo
+    # está no `live` e o trabalho longo no `worker` (QUEUE_MODE=enqueue)
+    mem_limit: 480m
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
@@ -433,8 +434,13 @@ services:
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
       SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
       SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
-      SCHEDULER_MAX_JOBS: ${SCHEDULER_MAX_JOBS:-2}
+      # 1 job fora da faixa do ao vivo: o pesado (espelho de assets e as tarefas da fila) roda no worker. Variável
+      # própria no .env (como a dos agents): um SCHEDULER_MAX_JOBS=2 antigo no .env não passa do mem_limit acima
+      SCHEDULER_MAX_JOBS: ${INGESTOR_MAX_JOBS:-1}
       SCHEDULER_JOB_HEAP_MB: ${SCHEDULER_JOB_HEAP_MB:-160}
+      # enqueue: o job com tarefa equivalente (assets-mirror → assets.espelhar) só enfileira, e o worker executa
+      # (docs/runbooks/tarefas.md › O scheduler e a fila). `run` volta a rodar no ingestor, sem worker
+      QUEUE_MODE: ${QUEUE_MODE:-enqueue}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
@@ -443,6 +449,50 @@ services:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 40s
+    logging: *logging
+
+  # Worker da fila de tarefas (#542; docs/runbooks/tarefas.md): toma as tarefas de ops.job_request (acervo, espelho de
+  # assets, carga histórica, backfills), roda cada uma num processo filho com heap fixo, renova a concessão e retoma
+  # do checkpoint o que outro worker deixou. Mesma imagem do ingestor e o papel dele no banco (escrita larga). No
+  # SIGTERM drena: para de tomar, o lote em andamento fecha (WORKER_DRAIN_S, 60 s) e o que não fechou volta à fila
+  # com o checkpoint; o stop_grace_period cobre a drenagem e o SIGKILL do filho. O deploy troca lado a lado depois do
+  # ingestor e antes da API (rolling-swap.sh drena o antigo: espera o /health dizer `idle` ou o prazo). Vagas:
+  # WORKER_CONCURRENCY_<TIPO> (padrão 1; o espelho 2; 0 tira o tipo), com o teto WORKER_MAX_TASKS somando os tipos.
+  # Chamadas à api-sports passam pelo Quota Governor, com a reserva do ao vivo (QUOTA_LIVE_RESERVE_PERCENT).
+  # /health, /version e /metrics na 8080 (sem router no Traefik).
+  worker:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    command: ['node', '--max-old-space-size=64', '--max-semi-space-size=8', 'dist/cli/worker.js']
+    cpus: 1.0
+    # pai 64 + WORKER_MAX_TASKS 2 × (heap do filho 160 + 64) = 512 MB; 64 de folga (README › Memória dos jobs)
+    mem_limit: 576m
+    environment:
+      <<: *node-env
+      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do worker (worker_tasks_running, worker_task_duration_seconds, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
+      APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      WORKER_MAX_TASKS: ${WORKER_MAX_TASKS:-2}
+      WORKER_TASK_HEAP_MB: ${WORKER_TASK_HEAP_MB:-160}
+      WORKER_DRAIN_S: ${WORKER_DRAIN_S:-60}
+      WORKER_CONCURRENCY_ASSETS_ESPELHAR: ${WORKER_CONCURRENCY_ASSETS_ESPELHAR:-2}
+      WORKER_CONCURRENCY_CARGA_HISTORICA: ${WORKER_CONCURRENCY_CARGA_HISTORICA:-1}
+      WORKER_CONCURRENCY_ACERVO_IMPORTAR: ${WORKER_CONCURRENCY_ACERVO_IMPORTAR:-1}
+      WORKER_CONCURRENCY_BACKFILL_NORMALIZAR: ${WORKER_CONCURRENCY_BACKFILL_NORMALIZAR:-1}
+      WORKER_CONCURRENCY_BACKFILL_TABELAS: ${WORKER_CONCURRENCY_BACKFILL_TABELAS:-1}
+      WORKER_CONCURRENCY_EXEMPLO_ECO: ${WORKER_CONCURRENCY_EXEMPLO_ECO:-1}
+    healthcheck:
+      test: ['CMD', 'node', '/usr/local/lib/galaxie/selfheal.mjs', 'http', 'http://127.0.0.1:8080/health']
+      interval: 15s
+      timeout: 6s
+      start_period: 20s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 75s
     logging: *logging
 
   # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do

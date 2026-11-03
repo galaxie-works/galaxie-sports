@@ -10,7 +10,8 @@
  * Variáveis: SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
  *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
  *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
- *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents)
+ *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents; a stack
+ *            da VPS passa 1 no ingestor, que deixou o trabalho longo para o worker da fila)
  *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
  *            SCHEDULER_CATCHUP=off desliga o catch-up da partida; SCHEDULER_CATCHUP_MAX_HOURS (padrão 24): horário
  *            perdido mais velho que isto não roda na volta (catch-up.ts)

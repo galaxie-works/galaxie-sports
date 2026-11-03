@@ -17,6 +17,7 @@
 #   - o contêiner avulso de um job manual longo (docker compose run) sobrevive à troca do ingestor e à volta do projeto
 #   - serviço que expõe outra versão termina vermelho, com o nome dele, e volta só ele
 #   - webhooks trocam lado a lado, e a manutenção forçada fica de fora do deploy
+#   - o worker da fila troca no grupo do ingestor, depois dele e antes da API, lado a lado e drenando o antigo
 #   - --project obs troca só o que é dele, e o deploy de apps não toca em obs nem em dados
 #   - um SHA anterior aos três projetos continua publicável, sem subir um segundo Postgres no mesmo volume
 #   - a demo vira site e console (issue #546): os dois sobem lado a lado, a demo sai depois, o candidato e o smoke rodam
@@ -37,13 +38,13 @@ PORT="${TEST_REGISTRY_PORT:-15055}"
 REGISTRY_CT="$PROJECT_T-registry"
 P="localhost:$PORT/$PROJECT_T/gs"
 NAMES=(api demo ingestor backup prometheus grafana)
-APPS=(agents api console demo ingestor live maintenance migrate site tarefa webhooks)
+APPS=(agents api console demo ingestor live maintenance migrate site tarefa webhooks worker)
 DADOS=(backup postgres s3 s3-init valkey)
 OBS=(grafana node-exporter prometheus)
 ZERO=0000000000000000000000000000000000000000
 fail=0
 
-export SWAP_SETTLE_S=1 SWAP_STOP_GRACE_S=2 SWAP_HEALTH_TIMEOUT=25 CANDIDATE_TIMEOUT=25 DEPLOY_KEEP_IMAGES=3
+export SWAP_SETTLE_S=1 SWAP_STOP_GRACE_S=2 SWAP_HEALTH_TIMEOUT=25 CANDIDATE_TIMEOUT=25 DEPLOY_KEEP_IMAGES=3 SWAP_DRAIN_TIMEOUT=10
 # a líder do live de faz de conta é a cópia onde a pergunta roda: parada uma, a outra responde (a liderança passou)
 export SWAP_LEADER_CMD=hostname SWAP_LEADER_TIMEOUT=20
 export OLD_PROJECT="$PROJECT_T" NETWORK_SUBNET="" MOVE_TIMEOUT=25
@@ -192,6 +193,12 @@ services_apps() {
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
     environment:
       AGENTE: um
+  # o worker da fila: no SIGTERM, o lote em andamento leva 3 s para fechar (a drenagem espera)
+  worker:
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
+    command: ['sh', '-c', "trap 'sleep 3; exit 0' TERM; while :; do sleep 1 & wait \$\$!; done"]
+    stop_grace_period: 10s
   api-candidate:
     <<: *api
     profiles: [candidate]
@@ -597,6 +604,32 @@ expect_rc 0
 expect_recreated "$before" demo
 expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C5"
 
+echo "── C5W: ingestor e API mudam: o worker troca depois do ingestor e antes da API, drenando o antigo"
+echo x >> "$REPO_T/services/ingestor/x"
+echo x >> "$REPO_T/apps/api/x"
+C5W="$(commit "c5w")"
+publish
+before="$(created)"
+worker_old="$(id_of worker)"
+deploy "$C5W"
+expect_rc 0
+expect_log '^plano:.*worker: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
+expect_log '^trocando: live ingestor agents worker$'
+expect_log '^worker: drenando 1 contêiner\(es\) antigo\(s\)'
+expect_log "^ok  worker: ${worker_old:0:12} drenado em [3-9] s \\(saída 0\\)"
+expect_log '^ok  worker trocado sem manutenção'
+expect_log '^ok  worker na versão in-'
+line_of() { grep -nE -- "$1" "$LAST_OUT" | head -n 1 | cut -d: -f1; }
+if [ "$(line_of '^ok  worker trocado')" -lt "$(line_of '^trocando: api webhooks')" ]; then
+  ok "worker troca antes da API"
+else
+  bad "worker trocou depois da API"
+fi
+expect_recreated "$before" live ingestor agents worker api webhooks migrate
+expect_eq "worker novo no ar" "$(image_of worker)" "$(hash_of ingestor)"
+expect_eq "um contêiner do worker" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=worker | grep -c .)" 1
+expect_eq "worker antigo removido" "$(docker ps -aq --filter "id=$worker_old" | grep -c . || true)" 0
+
 echo "── C6: ingestor que não sobe: o live, que troca primeiro, falha; voltam live, ingestor e agents"
 echo y >> "$REPO_T/services/ingestor/x"
 touch "$REPO_T/QUEBRA_ingestor"
@@ -607,12 +640,13 @@ ing_old="$(env_of TAG_INGESTOR)"
 ing_old_ver="$(image_of ingestor)"
 deploy "$C6"
 expect_rc 1
-expect_log '^trocando: live ingestor agents'
-expect_log '^FAIL  live ingestor agents: a troca falhou'
+expect_log '^trocando: live ingestor agents worker'
+expect_log '^FAIL  live ingestor agents worker: a troca falhou'
 expect_eq "TAG_INGESTOR voltou" "$(env_of TAG_INGESTOR)" "$ing_old"
 expect_eq "live anterior no ar" "$(image_of live)" "$ing_old_ver"
 expect_eq "ingestor anterior no ar" "$(image_of ingestor)" "$ing_old_ver"
 expect_eq "agents anterior no ar" "$(image_of agents)" "$ing_old_ver"
+expect_eq "worker anterior no ar (nem chegou a trocar)" "$(image_of worker)" "$ing_old_ver"
 after="$(created)"
 for svc in api webhooks demo; do
   expect_eq "$svc intacto" "$(sed -n "s/^$svc //p" <<< "$after")" "$(sed -n "s/^$svc //p" <<< "$before")"
@@ -662,7 +696,7 @@ expect_log '^ok  live: liderança passou de '
 expect_log '^ok  live trocado cópia a cópia \(2 no ar\)'
 expect_log '^ok  live na versão in-'
 expect_eq "duas cópias do live" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=live | grep -c .)" 2
-expect_recreated "$before" live ingestor agents demo
+expect_recreated "$before" live ingestor agents worker demo
 expect_eq "live novo no ar" "$(image_of live)" "$(hash_of ingestor)"
 # o live sobe (e fica healthy) antes de o ingestor da versão nova, que não roda mais o ao vivo, ser recriado
 nanos() { date -d "$(docker inspect -f '{{.Created}}' "$(id_of "$1")")" +%s%N; }

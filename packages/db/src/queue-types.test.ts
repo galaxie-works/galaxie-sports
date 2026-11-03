@@ -77,6 +77,14 @@ describe('params', () => {
         options: null,
         default: 3,
       },
+      {
+        name: 'pausaMs',
+        kind: 'integer',
+        required: false,
+        description: 'Espera em cada lote (ms), para exercitar a drenagem do worker',
+        options: null,
+        default: 0,
+      },
     ]);
     expect(paramFields(DESTRUTIVA).map((f) => [f.name, f.kind, f.required, f.options])).toEqual([
       ['pais', 'enum', true, ['BR', 'AR']],
@@ -101,7 +109,7 @@ describe('params', () => {
   it('valida pelo schema, aplica o padrão e recusa chave desconhecida', () => {
     expect(parseParams(eco, { mensagem: ' oi ' })).toEqual({
       ok: true,
-      value: { mensagem: 'oi', repeticoes: 3 },
+      value: { mensagem: 'oi', repeticoes: 3, pausaMs: 0 },
     });
     const bad = parseParams(eco, { mensagem: '', repeticoes: 99, extra: 1 });
     expect(bad.ok).toBe(false);
