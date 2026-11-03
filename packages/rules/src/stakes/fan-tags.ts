@@ -15,8 +15,8 @@ import { titleOrdinal } from './titles.js';
  * vaga continental/acesso > demais; no máximo 3 por participante.
  */
 
-/** Locales das tags: os 8 mercados da API mais `en` (reserva da cadeia de fallback). */
-export const FAN_TAG_LOCALES = [...STAKE_LOCALES, 'en'] as const;
+/** Locales das tags: os mesmos dos stakes (os 8 mercados da API e `en`). */
+export const FAN_TAG_LOCALES = STAKE_LOCALES;
 export type FanTagLocale = (typeof FAN_TAG_LOCALES)[number];
 
 /** Faixas de relevância (a `priority` da tag = base da faixa + ordem dentro dela; menor = mais importante). */
@@ -691,7 +691,10 @@ function goals(locale: FanTagLocale, n: number): string {
 function interpolate(template: string, locale: FanTagLocale, n: number | undefined): string {
   return template.replace(/\{(n|nth|goals)\}/g, (_, key: string) => {
     if (n === undefined) return '';
-    if (key === 'nth') return titleOrdinal(n, baseKey(locale) === 'pt-BR' ? 'pt' : 'es', true);
+    if (key === 'nth') {
+      const base = baseKey(locale);
+      return titleOrdinal(n, base === 'pt-BR' ? 'pt' : base, true);
+    }
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

@@ -231,6 +231,7 @@ export function tieLegs(sport: string, ruleLegs: number | undefined, tieSize: nu
 const LEG_NAMES: Record<string, [string, string]> = {
   pt: ['Ida', 'Volta'],
   es: ['Ida', 'Vuelta'],
+  en: ['1st leg', '2nd leg'],
 };
 
 const TITLE_FAMILIES = new Set([

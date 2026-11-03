@@ -96,25 +96,31 @@ export function medalQuality(
   const level = (g.medalDataQuality ?? null) as MedalDataQuality['level'];
   const coverage = g.medalCoverage == null ? null : Number(g.medalCoverage);
   const publishable = !!level && PUBLISHABLE.has(level);
-  const pt = locale.startsWith('pt');
+  const lang = locale.startsWith('pt') ? 'pt' : locale.startsWith('en') ? 'en' : 'es';
   let notice: string | null = null;
   if (level === 'partial') {
     const pct =
       coverage == null
         ? null
         : new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(coverage);
-    notice = pt
-      ? `Quadro parcial${pct ? `: cobertura de ${pct} das medalhas distribuídas` : ''}.`
-      : `Cuadro parcial${pct ? `: cobertura del ${pct} de las medallas entregadas` : ''}.`;
+    notice = {
+      pt: `Quadro parcial${pct ? `: cobertura de ${pct} das medalhas distribuídas` : ''}.`,
+      es: `Cuadro parcial${pct ? `: cobertura del ${pct} de las medallas entregadas` : ''}.`,
+      en: `Partial table${pct ? `: ${pct} of the medals awarded are covered` : ''}.`,
+    }[lang];
   } else if (!publishable) {
     notice =
       g.status === 'upcoming'
-        ? pt
-          ? 'Os Jogos ainda não começaram.'
-          : 'Los Juegos todavía no comenzaron.'
-        : pt
-          ? 'Dados de medalhas insuficientes para publicar o quadro desta edição.'
-          : 'Datos de medallas insuficientes para publicar el cuadro de esta edición.';
+        ? {
+            pt: 'Os Jogos ainda não começaram.',
+            es: 'Los Juegos todavía no comenzaron.',
+            en: 'The Games have not started yet.',
+          }[lang]
+        : {
+            pt: 'Dados de medalhas insuficientes para publicar o quadro desta edição.',
+            es: 'Datos de medallas insuficientes para publicar el cuadro de esta edición.',
+            en: 'Not enough medal data to publish the table for this edition.',
+          }[lang];
   }
   return { level, coverage, publishable, notice };
 }

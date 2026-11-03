@@ -3,7 +3,7 @@
 Pacote **`@galaxie/rules`** (`packages/rules`). Funções **puras e determinísticas** — mesma entrada, mesma saída, sem I/O e sem IA:
 
 1. **Tabelas calculadas localmente** ([#24](https://github.com/galaxie-works/galaxie-sports/issues/24)): classificação a partir dos resultados, com os critérios de desempate de cada regulamento, grupos, punições e aplicação incremental sobre a tabela do provedor.
-2. **Contexto competitivo — stakes** ([#28](https://github.com/galaxie-works/galaxie-sports/issues/28)): o que está em jogo em cada partida, como **códigos estruturados** (`advances_with_draw`, `needs_win_by_2`, `can_clinch_title`…). O motor **calcula**; o agente de Cenário apenas **redige** (ver [docs/07 §2.3](../07-ia-tempo-real-e-enriquecimento.md#23-agente-cenário-pré-jogo-e-resumo-pós-jogo)). Nenhum texto livre é gerado aqui: os textos vêm de um mapa fixo de rótulos para os 8 mercados ([rotulos.md](rotulos.md)).
+2. **Contexto competitivo — stakes** ([#28](https://github.com/galaxie-works/galaxie-sports/issues/28)): o que está em jogo em cada partida, como **códigos estruturados** (`advances_with_draw`, `needs_win_by_2`, `can_clinch_title`…). O motor **calcula**; o agente de Cenário apenas **redige** (ver [docs/07 §2.3](../07-ia-tempo-real-e-enriquecimento.md#23-agente-cenário-pré-jogo-e-resumo-pós-jogo)). Nenhum texto livre é gerado aqui: os textos vêm de um mapa fixo de rótulos para os 8 mercados e para `en` ([rotulos.md](rotulos.md)).
 
 | Entrada | O quê |
 |---|---|
@@ -353,7 +353,7 @@ Os códigos são matemáticos, todos verdadeiros, mas nem todos relevantes: com 
 
 A API devolve a lista saliente em `stakes` e a completa com `?stakes=all` ([docs/05 §3.2](../05-api-publica.md#32-eventos)); os agentes de Cenário e Resumo recebem só a saliente. As tags do torcedor e os sinais de jogo decisivo da importância seguem com o corte próprio (`isRelevantForFans`).
 
-Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) estão em [rotulos.md](rotulos.md), gerado a partir de `packages/rules/src/stakes/labels.ts`. As **tags do torcedor** (`fan_tags` da API: rótulos curtos por participante, ordenados por relevância, para cards personalizados pelo clube) estão em [tags-torcedor.md](tags-torcedor.md), gerado a partir de `packages/rules/src/stakes/fan-tags.ts` pelo mesmo comando (`pnpm --filter @galaxie/rules docs:labels`). Diferenças regionais: prorrogação = *alargue* (AR, UY, CL), *tiempos extra* (MX), *tiempo extra* (CO, EC), *tiempo suplementario* (PE); rodada = *jornada* (MX) e *fecha* (demais).
+Os rótulos dos **8 mercados** (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) e de **`en`** (um só catálogo, sem variantes regionais) estão em [rotulos.md](rotulos.md), gerado a partir de `packages/rules/src/stakes/labels.ts`. As **tags do torcedor** (`fan_tags` da API: rótulos curtos por participante, ordenados por relevância, para cards personalizados pelo clube) estão em [tags-torcedor.md](tags-torcedor.md), gerado a partir de `packages/rules/src/stakes/fan-tags.ts` pelo mesmo comando (`pnpm --filter @galaxie/rules docs:labels`). Diferenças regionais: prorrogação = *alargue* (AR, UY, CL), *tiempos extra* (MX), *tiempo extra* (CO, EC), *tiempo suplementario* (PE); rodada = *jornada* (MX) e *fecha* (demais).
 
 ## 4. Fora do escopo (por ora)
 
