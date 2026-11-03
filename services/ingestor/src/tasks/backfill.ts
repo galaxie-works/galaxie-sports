@@ -61,13 +61,16 @@ export function backfillNormalizar(deps: NormalizarDeps = normalizarDeps): TaskH
     }
     const result = await runLots(ctx, lots, async (lot) => {
       const r = await deps.run(ctx.db, lot.endpoint);
-      return { stats: r, log: `${r.respostas} resposta(s)${r.erros ? ` · ${r.erros} com erro` : ''}` };
+      // endpoint com resposta que não normalizou não está feito: o lote fica pendente e a tarefa tenta de novo (as
+      // falhas ficam em ops.normalize_failure); esgotadas as tentativas, ela encerra em falha, sem fingir sucesso
+      if (r.erros)
+        throw new Error(
+          `${lot.endpoint}: ${r.erros} de ${r.respostas} resposta(s) com erro na normalização (ops.normalize_failure)`,
+        );
+      return { stats: r, log: `${r.respostas} resposta(s)` };
     });
-    const erros = result.totais.erros ?? 0;
     return {
-      detail:
-        `normalizados ${result.totais.respostas ?? 0} respostas em ${result.total} endpoint(s)` +
-        (erros ? ` · ${erros} com erro (ops.normalize_failure)` : ''),
+      detail: `normalizados ${result.totais.respostas ?? 0} respostas em ${result.total} endpoint(s)`,
       stats: result.totais,
     };
   };

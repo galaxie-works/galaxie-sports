@@ -167,6 +167,43 @@ describe('acervo.importar', () => {
   });
 });
 
+describe('acervo.importar: a aprovação vale para o que a prévia viu', () => {
+  it('manifesto trocado no S3 depois da prévia: a execução aprovada é recusada na hora, sem nova tentativa', async () => {
+    const objects = new InMemoryObjectStore();
+    const handlers: Record<string, TaskHandler> = {
+      'acervo.importar': acervoImportar({
+        packages: () => packages,
+        objects: () => objects,
+        manifestDir: join(work, 'nao-usado'),
+        bucket: () => BUCKET,
+      }),
+    };
+    const params = { pacote: PACOTE, acervo: 'exemplo', manifesto: MANIFESTO, lote: 10 };
+    const { id: previewId } = await requestTask(db, {
+      type: 'acervo.importar',
+      params,
+      previa: true,
+      requestedBy: 'ana',
+    });
+    expect(await runTask(db, (await takeNext(db, 'w', ['acervo.importar']))!, { handlers })).toBe('done');
+    const original = packages.objects.get(MANIFESTO)!;
+    packages.objects.set(
+      MANIFESTO,
+      new Uint8Array([...original, ...new TextEncoder().encode('# trocado' + String.fromCharCode(10))]),
+    );
+    try {
+      const { id: realId } = await approvePreview(db, previewId, 'bia');
+      expect(await runTask(db, (await takeNext(db, 'w', ['acervo.importar']))!, { handlers })).toBe('error');
+      const real = await getTask(db, realId);
+      expect(real.status).toBe('error');
+      expect(real.lastError).toMatch(/manifesto mudou depois da prévia/);
+      expect(objects.objects.size).toBe(0);
+    } finally {
+      packages.objects.set(MANIFESTO, original);
+    }
+  });
+});
+
 describe('carga.historica com provedor falso', () => {
   it('cota esgotada: finish com runAfter no próximo dia de cota, sem falhar nem gastar tentativa', async () => {
     const lots = cargaLots({ etapas: ['temporadas', 'pessoas'] }, [71]);

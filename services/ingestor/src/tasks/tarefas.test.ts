@@ -162,6 +162,26 @@ describe('carga.historica', () => {
     expect(done.stats).toMatchObject({ chamadas: 59, lotes: 5 });
   });
 
+  it('teto de chamadas do lote: roda o mesmo lote de novo até terminar, sem dar o lote por feito antes', async () => {
+    const fake = fakeDeps((_lot, call) =>
+      call < 3
+        ? { status: 'limite', chamadas: 10, pendentes: 20 - call * 10 }
+        : { status: 'ok', chamadas: 2, pendentes: 0 },
+    );
+    const soPessoas = cargaLots({ etapas: ['pessoas'] }, []);
+    fake.deps.lots = async () => soPessoas;
+    const ctx = fakeCtx({ etapas: ['pessoas'], tierMax: 2, semLive: false, maxChamadasPorLote: 10 });
+    const out = await cargaHistorica(() => fake.deps)(ctx);
+    expect(fake.calls).toEqual(['pessoas', 'pessoas', 'pessoas']);
+    expect(out.stats).toMatchObject({ chamadas: 22, lotes: 1 });
+
+    const stuck = fakeDeps(() => ({ status: 'limite', chamadas: 0, pendentes: 5 }));
+    stuck.deps.lots = async () => soPessoas;
+    await expect(
+      cargaHistorica(() => stuck.deps)(fakeCtx({ etapas: ['pessoas'], tierMax: 2, semLive: false })),
+    ).rejects.toThrow(/sem chamada nenhuma/);
+  });
+
   it('rate limit do fornecedor: volta em 15 min', async () => {
     const now = new Date('2026-11-03T15:20:00Z');
     const fake = fakeDeps(() => ({ status: 'pausa', chamadas: 0, pendentes: 1 }));
@@ -359,9 +379,23 @@ describe('backfills', () => {
       {},
       { checkpoint: { concluidos: ['endpoint:/fixtures'], totais: { respostas: 10, erros: 0 } } },
     );
-    const out = await backfillNormalizar(deps)(ctx);
+    // /standings tem resposta que não normalizou: o lote não fica feito e a tarefa falha (vai tentar de novo)
+    await expect(backfillNormalizar(deps)(ctx)).rejects.toThrow(/\/standings: 1 de 1/);
+    expect(ran).toEqual(['/standings']);
+    expect(ctx.saves).toHaveLength(0);
+
+    // corrigido o normalizador, a retomada faz /standings e /teams, sem repetir /fixtures
+    ran.length = 0;
+    const fixed = {
+      ...deps,
+      run: async (_db: Database, endpoint: string) => {
+        ran.push(endpoint);
+        return { respostas: endpoint === '/teams' ? 5 : 1, erros: 0 };
+      },
+    };
+    const out = await backfillNormalizar(fixed)(ctx);
     expect(ran).toEqual(['/standings', '/teams']);
-    expect(out.stats).toEqual({ respostas: 16, erros: 1 });
+    expect(out.stats).toEqual({ respostas: 16, erros: 0 });
 
     const previa = fakeCtx({ endpoints: ['/teams', '/odds'] }, { previa: true });
     await backfillNormalizar(deps)(previa);

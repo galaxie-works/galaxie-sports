@@ -206,26 +206,29 @@ export function cargaHistorica(
 
       if (p.semLive) await deps.prepareDay();
       const result = await runLots(ctx, lots, async (lot) => {
-        const r = await deps.run(lot, p);
-        const stats = { chamadas: r.chamadas };
+        let r = await deps.run(lot, p);
+        let chamadas = r.chamadas;
+        // teto do lote: o lote não acabou; roda de novo (os cursores continuam de onde parou) até terminar, com a
+        // parada do deploy conferida entre as rodadas
+        while (r.status === 'limite') {
+          if (!r.chamadas)
+            throw new Error(
+              `${lot.label}: o teto do lote parou sem chamada nenhuma (${r.pendentes} pendentes)`,
+            );
+          ctx.checkStop();
+          r = await deps.run(lot, p);
+          chamadas += r.chamadas;
+        }
+        const stats = { chamadas };
         if (r.status === 'cota')
-          return {
-            stats,
-            adiarAte: nextQuotaDay(now()),
-            log: `cota do dia esgotada (${r.chamadas} chamadas)`,
-          };
+          return { stats, adiarAte: nextQuotaDay(now()), log: `cota do dia esgotada (${chamadas} chamadas)` };
         if (r.status === 'pausa')
           return {
             stats,
             adiarAte: new Date(now().getTime() + RATE_LIMIT_PAUSE_MS),
             log: 'o fornecedor pediu pausa (rate limit)',
           };
-        return {
-          stats: { ...stats, pendentes: r.pendentes },
-          log:
-            `${r.chamadas} chamada(s)` +
-            (r.status === 'limite' ? ` · teto do lote: ${r.pendentes} item(ns) para a próxima carga` : ''),
-        };
+        return { stats: { ...stats, pendentes: r.pendentes }, log: `${chamadas} chamada(s)` };
       });
       const chamadas = result.totais.chamadas ?? 0;
       if (result.adiarAte)

@@ -10,9 +10,12 @@
  *   regrava o asset e liga ao time ou à competição, e o checkpoint é o último lote. Depois do último, o passo de
  *   desligar os que saíram do manifesto. Idempotente: retomar refaz no máximo o lote em andamento, sem regravar nada.
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
+import { eq } from 'drizzle-orm';
+import { jobRequest, type Database } from '@galaxie/db';
 import { appendLog } from '@galaxie/db/queue-types';
 import {
   acervoLots,
@@ -35,6 +38,7 @@ import {
 import { coverage, renderReport } from '../assets/acervo/report.js';
 import { objectStoreFromEnv, type ObjectStore } from '../assets/object-store.js';
 import { runLots } from './lotes.js';
+import { TaskRefusedError } from './errors.js';
 import type { TaskHandler } from './run.js';
 
 export interface AcervoTaskDeps {
@@ -87,7 +91,9 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
       const info = validateAcervoInfo(yaml?.acervo);
       if (info.id !== params.acervo)
         throw new Error(`o pacote é do acervo ${info.id}, não de ${params.acervo}`);
-      const manifest = await loadManifest(d, params, manifestTmp?.dir);
+      const { manifest, sha256: manifestoSha256 } = await loadManifest(d, params, manifestTmp?.dir);
+      if (!pkg.sha256) throw new TaskRefusedError('o pacote da tarefa precisa ser um .tgz (s3://…)');
+      const proof: Proof = { pacoteSha256: pkg.sha256, manifestoSha256 };
       const wanted = wantedLogos(manifest);
       const existing = await existingTargets(ctx.db, wanted);
       const lots = acervoLots(wanted, params.lote);
@@ -129,6 +135,7 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
               })),
           },
           cobertura: { s3: formatS3Uri(uri), markdown: markdown.slice(0, REPORT_IN_CHECKPOINT) },
+          prova: proof,
           log: [`prévia: ${report.linked} ligados · ${report.detached} desligados · ${lots.length} lotes`],
         });
         return {
@@ -136,6 +143,16 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
           stats: { ...report, lotes: lots.length },
         };
       }
+
+      // a aprovação vale para o que a prévia viu: pacote ou manifesto trocado no S3 (ou o versionado mudou num deploy)
+      // depois da prévia não é aplicado; quem quiser o novo roda outra prévia
+      const approved = await previewProof(ctx.db, ctx.previaId);
+      if (!approved)
+        throw new TaskRefusedError('a prévia aprovada não guardou a prova do pacote e do manifesto');
+      if (approved.pacoteSha256 !== proof.pacoteSha256)
+        throw new TaskRefusedError('o pacote mudou depois da prévia aprovada: rode a prévia de novo');
+      if (approved.manifestoSha256 !== proof.manifestoSha256)
+        throw new TaskRefusedError('o manifesto mudou depois da prévia aprovada: rode a prévia de novo');
 
       const objects = d.objects();
       try {
@@ -184,7 +201,7 @@ async function loadManifest(
   d: AcervoTaskDeps,
   params: AcervoParams,
   tmp: string | undefined,
-): Promise<AcervoManifest> {
+): Promise<{ manifest: AcervoManifest; sha256: string }> {
   let path = join(d.manifestDir, `${params.acervo}.yaml`);
   if (params.manifesto) {
     const uri = parseS3Uri(params.manifesto);
@@ -200,5 +217,23 @@ async function loadManifest(
   const manifest = readManifest(path);
   if (manifest.acervo.id !== params.acervo)
     throw new Error(`o manifesto é do acervo ${manifest.acervo.id}, não de ${params.acervo}`);
-  return manifest;
+  return { manifest, sha256: createHash('sha256').update(readFileSync(path)).digest('hex') };
+}
+
+/** O conteúdo que a prévia viu: a execução aprovada só roda sobre o mesmo pacote e o mesmo manifesto. */
+interface Proof {
+  pacoteSha256: string;
+  manifestoSha256: string;
+}
+
+async function previewProof(db: Database, previaId: string | null): Promise<Proof | null> {
+  if (!previaId) return null;
+  const [row] = await db
+    .select({ checkpoint: jobRequest.checkpoint })
+    .from(jobRequest)
+    .where(eq(jobRequest.id, previaId));
+  const proof = (row?.checkpoint as { prova?: Partial<Proof> } | null)?.prova;
+  return proof?.pacoteSha256 && proof.manifestoSha256
+    ? { pacoteSha256: proof.pacoteSha256, manifestoSha256: proof.manifestoSha256 }
+    : null;
 }

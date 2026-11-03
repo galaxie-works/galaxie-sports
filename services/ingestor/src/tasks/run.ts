@@ -16,20 +16,12 @@ import {
 import type { Database } from '@galaxie/db';
 import { checkApproval } from '@galaxie/db/queue-admin';
 import { acervoImportar } from './acervo.js';
+import { TaskInterruptedError, TaskRefusedError } from './errors.js';
 import { backfillNormalizar, backfillTabelas } from './backfill.js';
 import { cargaHistorica } from './carga.js';
 import { assetsEspelhar } from './espelho.js';
 
-/**
- * O worker está encerrando (SIGTERM do deploy): o executor para entre dois lotes, depois do último checkpoint, e o
- * `runTask` devolve a tarefa à fila (`release`), sem gastar tentativa. A próxima tomada continua do checkpoint.
- */
-export class TaskInterruptedError extends Error {
-  constructor(id: string) {
-    super(`tarefa ${id}: interrompida pelo encerramento do worker`);
-    this.name = 'TaskInterruptedError';
-  }
-}
+export { TaskInterruptedError, TaskRefusedError };
 
 /** A tomada perdeu a tarefa (concessão vencida e outro worker retomou): parar sem gravar mais nada. */
 export class TaskLeaseLostError extends Error {
@@ -172,6 +164,8 @@ export async function runTask(
     // o encerramento interrompeu entre dois lotes (ou o executor parou no meio de um, pelo signal): devolve sem culpa
     if (err instanceof TaskInterruptedError || signal.aborted)
       return (await release(db, task)) ? 'released' : null;
+    if (err instanceof TaskRefusedError)
+      return finish(db, { ...task, attempts: task.maxAttempts }, 'error', err.message);
     return finish(db, task, 'error', err instanceof Error ? err.message : String(err));
   } finally {
     clearInterval(timer);

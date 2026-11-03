@@ -104,6 +104,14 @@ gs tarefa enfileirar backfill.tabelas --param dias=400 --param lote=50
   hora em `run_after` e o motivo no detalhe. O limite de requisições do fornecedor (`rate_limited`) faz o mesmo, com
   volta em 15 min.
 - **CDN pedindo pausa** (`assets.espelhar`, 429 em sequência): volta à fila em 30 min.
+- **A aprovação vale para o que a prévia viu** (`acervo.importar`): a prévia guarda o sha256 do pacote e do manifesto
+  em `checkpoint.prova`. Se o pacote ou o manifesto mudou no S3 (ou o versionado mudou num deploy) antes da execução,
+  ela é recusada na hora, sem nova tentativa. Rode outra prévia.
+- **Normalização com erro** (`backfill.normalizar`): o endpoint com resposta que não normalizou não conta como feito; a
+  tarefa tenta de novo e, esgotadas as tentativas, encerra em falha (as respostas ficam em `ops.normalize_failure`).
+  Corrigida a causa, **Reprocessar** continua dos endpoints que faltam.
+- **Teto de chamadas do lote** (`carga.historica`, `maxChamadasPorLote`): o lote roda de novo até terminar; o teto só
+  divide o trabalho em rodadas menores, com a parada do deploy conferida entre elas.
 - **Deploy no meio** (SIGTERM): o executor termina o lote em andamento, grava o checkpoint e a tarefa volta à fila na
   hora (`release`), sem gastar tentativa. O espelho também para no meio do lote e grava o cursor.
 
