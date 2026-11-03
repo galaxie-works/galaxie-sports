@@ -48,7 +48,7 @@ describe('normalizeFixtures — lista de uma temporada', () => {
         season: { competitionId: '71', year: 2024 },
         providerLabel: 'Regular Season - 1',
         kind: 'regular',
-        name: { 'pt-BR': 'Rodada 1', es: 'Fecha 1', en: 'Regular Season - 1' },
+        name: { 'pt-BR': 'Rodada 1', es: 'Fecha 1', en: 'Matchday 1' },
         order: 2001,
       },
     ]);
