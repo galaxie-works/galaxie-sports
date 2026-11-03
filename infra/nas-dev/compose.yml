@@ -1,0 +1,197 @@
+# Stack `galaxie-sports-dev` do NAS (Portainer do NAS, ambiente local, stack id 10): a infra de DESENVOLVIMENTO.
+# Fonte de verdade da stack: o arquivo do Portainer é uma cópia deste (docs/runbooks/ambiente-de-dev.md › Aplicar a
+# stack). Só LAN. Nada de segredo aqui: as senhas vêm do ambiente da stack (infra/nas-dev/env.example).
+#
+# Dev e produção dividem a conta da api-sports, a chave do YouTube (100 buscas/dia) e o crédito de IA. Por isso:
+# - postgres, valkey e s3 sobem sempre (o dev precisa deles);
+# - ingestor e agents ficam no perfil `workers`, que NÃO sobe sozinho (COMPOSE_PROFILES=workers para ligar). Quando
+#   sobem, nascem com tudo desligado: todo SCHEDULE_* em `off`, AI_STATUS=off, YOUTUBE_SEARCH=off, sem APISPORTS_KEY
+#   (o ingestor lê só do raw espelhado) e com um orçamento pequeno declarado para cada serviço que gasta cota.
+# - nenhum serviço recebe APP_ENV: sem ele o Quota Governor trata o ambiente como dev e segura a reserva de pelo menos
+#   70 % da conta (a produção usa APP_ENV=staging; nunca copie essa linha para cá).
+# Teste que trava estas regras: services/ingestor/src/scheduler/nas-dev-compose.test.ts.
+
+# Ambiente comum dos workers. DATABASE_URL usa o dono do banco: o dev não tem papéis por serviço (DB_ROLES).
+x-worker-env: &worker-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://valkey:6379
+  S3_ENDPOINT: http://s3:9000
+  S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY}
+  ASSETS_PUBLIC_BASE_URL: ${ASSETS_PUBLIC_BASE_URL:-http://192.168.1.34:9000/galaxie-sports-assets}
+  # IA: desligada por padrão. Ligada, cada agente tem um teto diário em US$ pequeno (a lista mescla sobre os padrões do
+  # código, então cobre todos os agentes) e o dia todo tem teto em tokens e em US$ (o mínimo aceito é 0,5).
+  AI_STATUS: ${AI_STATUS:-off}
+  AI_AGENT_STATUS: ${AI_AGENT_STATUS:-}
+  AI_PROVIDER: ${AI_PROVIDER:-openai}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  AI_DAILY_TOKEN_BUDGET: ${AI_DAILY_TOKEN_BUDGET:-100000}
+  AI_DAILY_USD_BUDGET: ${AI_DAILY_USD_BUDGET:-0.5}
+  AI_AGENT_USD_BUDGETS: ${AI_AGENT_USD_BUDGETS:-lineups=0.1,wtw=0.1,context=0.1,related=0.05,f1profile=0.1,f1bio=0.1,curator=0.1,review=0.05,channels=0.05,live=0.05,assets=0.1}
+  AI_AGENT_DEFAULT_USD_BUDGET: ${AI_AGENT_DEFAULT_USD_BUDGET:-0.05}
+  AI_MAX_SEARCHES_PER_CALL: ${AI_MAX_SEARCHES_PER_CALL:-2}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    command:
+      [
+        'postgres',
+        '-c',
+        'shared_buffers=1GB',
+        '-c',
+        'effective_cache_size=4GB',
+        '-c',
+        'work_mem=32MB',
+        '-c',
+        'maintenance_work_mem=512MB',
+        '-c',
+        'max_connections=200',
+      ]
+    ports: ['5433:5432']
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command:
+      ['valkey-server', '--appendonly', 'yes', '--maxmemory', '1gb', '--maxmemory-policy', 'allkeys-lru']
+    ports: ['6379:6379']
+    volumes: ['valkeydata:/data']
+  s3:
+    image: rustfs/rustfs:1.0.2
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports: ['9000:9000', '9001:9001']
+    volumes: ['s3data:/data']
+
+  # ── workers (perfil `workers`: não sobem sem COMPOSE_PROFILES=workers) ─────────────────────────────────────────────
+  # As imagens são as do GHCR, privadas: o Portainer do NAS precisa de um registro ghcr.io com token read:packages.
+  # O banco de dev é migrado pela máquina de dev (pnpm db:migrate); estes serviços não migram.
+
+  # Ingestor: scheduler + ao vivo. Sem APISPORTS_KEY ele roda em modo offline (só lê o raw espelhado, nunca chama o
+  # fornecedor: o que não está no raw conta como "bloqueado" no relatório do job, sem gastar cota). Os jobs que precisam
+  # da chave (quota-status, live-run, live-reconcile) falham com mensagem clara se alguém os ligar sem ela.
+  ingestor:
+    profiles: ['workers']
+    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-staging}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: 1152m
+    environment:
+      <<: *worker-env
+      # api-sports: vazio = offline. Com a chave, valem a reserva do Governor (no dev, pelo menos 70 % da conta fica
+      # intocada), o plano de cada API e o teto por minuto abaixo.
+      APISPORTS_KEY: ${APISPORTS_KEY:-}
+      APISPORTS_PLAN: ${APISPORTS_PLAN:-free}
+      APISPORTS_PLAN_FOOTBALL: ${APISPORTS_PLAN_FOOTBALL:-}
+      APISPORTS_PLAN_AFL: ${APISPORTS_PLAN_AFL:-}
+      APISPORTS_PLAN_BASEBALL: ${APISPORTS_PLAN_BASEBALL:-}
+      APISPORTS_PLAN_BASKETBALL: ${APISPORTS_PLAN_BASKETBALL:-}
+      APISPORTS_PLAN_FORMULA_1: ${APISPORTS_PLAN_FORMULA_1:-}
+      APISPORTS_PLAN_HANDBALL: ${APISPORTS_PLAN_HANDBALL:-}
+      APISPORTS_PLAN_HOCKEY: ${APISPORTS_PLAN_HOCKEY:-}
+      APISPORTS_PLAN_MMA: ${APISPORTS_PLAN_MMA:-}
+      APISPORTS_PLAN_NBA: ${APISPORTS_PLAN_NBA:-}
+      APISPORTS_PLAN_AMERICAN_FOOTBALL: ${APISPORTS_PLAN_AMERICAN_FOOTBALL:-}
+      APISPORTS_PLAN_RUGBY: ${APISPORTS_PLAN_RUGBY:-}
+      APISPORTS_PLAN_VOLLEYBALL: ${APISPORTS_PLAN_VOLLEYBALL:-}
+      APISPORTS_PER_MINUTE: ${APISPORTS_PER_MINUTE:-10}
+      POSTGAME_MAX_CALLS_DAY: ${POSTGAME_MAX_CALLS_DAY:-10}
+      LIVE_FEATURED: ${LIVE_FEATURED:-off}
+      LIVE_MAX_INTERVAL_MINUTES: ${LIVE_MAX_INTERVAL_MINUTES:-15}
+      LIVE_IDLE_EXIT_MINUTES: ${LIVE_IDLE_EXIT_MINUTES:-15}
+      LIVE_PROTECT_DAILY: ${LIVE_PROTECT_DAILY:-}
+      LIVE_MIN_PRIORITY: ${LIVE_MIN_PRIORITY:-medium}
+      SCHEDULER_PROFILE: ingestor
+      SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
+      SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
+      SCHEDULER_MAX_JOBS: ${SCHEDULER_MAX_JOBS:-2}
+      SCHEDULER_JOB_HEAP_MB: ${SCHEDULER_JOB_HEAP_MB:-160}
+      # Uma variável por job do ingestor (schedule.ts › DEFAULT_JOBS): `off` desliga; um cron de 5 campos (UTC) liga.
+      # O teste da stack falha se um job novo ficar de fora desta lista.
+      SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-off}
+      SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-off}
+      SCHEDULE_POSTGAME_CLOSE: ${SCHEDULE_POSTGAME_CLOSE:-off}
+      SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-off}
+      SCHEDULE_NORMALIZE_FOOTBALL: ${SCHEDULE_NORMALIZE_FOOTBALL:-off}
+      SCHEDULE_NORMALIZE_SPORTS: ${SCHEDULE_NORMALIZE_SPORTS:-off}
+      SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-off}
+      SCHEDULE_EVENTS_IMPORTANCE: ${SCHEDULE_EVENTS_IMPORTANCE:-off}
+      SCHEDULE_ASSETS_MIRROR: ${SCHEDULE_ASSETS_MIRROR:-off}
+      SCHEDULE_ASSETS_PALETTE: ${SCHEDULE_ASSETS_PALETTE:-off}
+      SCHEDULE_CHANGE_FEED_PRUNE: ${SCHEDULE_CHANGE_FEED_PRUNE:-off}
+      SCHEDULE_DATA_RETENTION: ${SCHEDULE_DATA_RETENTION:-off}
+      SCHEDULE_FIXTURE_PEOPLE: ${SCHEDULE_FIXTURE_PEOPLE:-off}
+      SCHEDULE_QUOTA_STATUS: ${SCHEDULE_QUOTA_STATUS:-off}
+      SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-off}
+      SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-off}
+    stop_grace_period: 40s
+    logging: *logging
+
+  # Agentes de IA: o mesmo scheduler no perfil `agents`. Desligados em três camadas: nenhum job agendado, AI_STATUS=off
+  # (nenhuma chamada ao LLM mesmo se alguém ligar um job) e YOUTUBE_SEARCH=off (nenhuma chamada ao YouTube).
+  agents:
+    profiles: ['workers']
+    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-staging}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      <<: *worker-env
+      SCHEDULER_PROFILE: agents
+      SCHEDULER_RUN_ON_START: ${AGENTS_RUN_ON_START:-}
+      SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
+      SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
+      AI_RIGHTS_PROVIDER: ${AI_RIGHTS_PROVIDER:-}
+      AI_REVIEW_PROVIDER: ${AI_REVIEW_PROVIDER:-gemini}
+      AI_CHANNELS_PROVIDER: ${AI_CHANNELS_PROVIDER:-gemini}
+      WTW_MARKETS: ${WTW_MARKETS:-BR,AR,MX,CO,CL,PE,UY,EC}
+      WTW_DAILY_USD_PER_MARKET: ${WTW_DAILY_USD_PER_MARKET:-0.1}
+      # YouTube: a chave e o balde de 100 buscas/dia são os mesmos da produção. Desligado por padrão (YOUTUBE_SEARCH=off
+      # faz o related-run sair sem chamar); ligado só para teste pontual, com balde próprio do dev bem pequeno.
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      YOUTUBE_SEARCH: ${YOUTUBE_SEARCH:-off}
+      YOUTUBE_SEARCH_DAILY_QUOTA: ${YOUTUBE_SEARCH_DAILY_QUOTA:-5}
+      YOUTUBE_DAILY_QUOTA: ${YOUTUBE_DAILY_QUOTA:-200}
+      # Uma variável por job dos agentes (schedule.ts › AGENT_JOBS).
+      SCHEDULE_RECAP_RUN: ${SCHEDULE_RECAP_RUN:-off}
+      SCHEDULE_CONTEXT_RUN: ${SCHEDULE_CONTEXT_RUN:-off}
+      SCHEDULE_WTW_RUN: ${SCHEDULE_WTW_RUN:-off}
+      SCHEDULE_WTW_CHANNEL: ${SCHEDULE_WTW_CHANNEL:-off}
+      SCHEDULE_RELATED_RUN: ${SCHEDULE_RELATED_RUN:-off}
+      SCHEDULE_WTW_RIGHTS: ${SCHEDULE_WTW_RIGHTS:-off}
+      SCHEDULE_REVIEW_SUGGESTIONS: ${SCHEDULE_REVIEW_SUGGESTIONS:-off}
+      SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-off}
+      SCHEDULE_LINEUPS_PAGES: ${SCHEDULE_LINEUPS_PAGES:-off}
+      SCHEDULE_CHANNEL_LISTS: ${SCHEDULE_CHANNEL_LISTS:-off}
+    stop_grace_period: 40s
+    logging: *logging
+
+volumes:
+  pgdata:
+  valkeydata:
+  s3data:
