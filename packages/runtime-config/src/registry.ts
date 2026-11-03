@@ -23,8 +23,11 @@ import type { ValidationError } from './resolve.js';
  */
 export const SEPARATE_TOKEN_POOLS: Readonly<Record<string, number>> = { assets: 0.2 };
 
-/** Contêiner (ou processo) que lê a variável. */
-export type RuntimeService = 'ingestor' | 'agents' | 'api' | 'demo';
+/**
+ * Contêiner (ou processo) que lê a variável. `live`: o serviço do ao vivo (scheduler no perfil `live`, #535); com
+ * `SCHEDULER_LIVE=internal` (dev, rollback) os jobs dele rodam no `ingestor`, que por isso também lê as flags dele.
+ */
+export type RuntimeService = 'ingestor' | 'agents' | 'live' | 'api' | 'demo';
 
 export const SETTING_SECTIONS = [
   'live',
@@ -52,7 +55,9 @@ export interface SettingDef {
   key: string;
   section: SettingSection;
   type: SettingType;
-  /** Quem lê; o primeiro é o de referência para o valor do env mostrado no painel. */
+  /**
+   * Quem lê; o valor do env mostrado no painel é o do primeiro que relatou a chave (`reportedService`), nesta ordem.
+   */
   services: readonly RuntimeService[];
   apply: SettingApply;
   /** Padrão do código (texto). `null` = sem padrão (vazio). */
@@ -83,10 +88,13 @@ export interface SettingDef {
   job?: string;
 }
 
-/** Jobs agendados: nome (o mesmo de ops.job_run), perfil do scheduler e agenda padrão (UTC). */
+/**
+ * Jobs agendados: nome (o mesmo de ops.job_run), perfil do scheduler e agenda padrão (UTC). Os do ao vivo são do
+ * serviço `live`; com `SCHEDULER_LIVE=internal` o `ingestor` os roda.
+ */
 export interface ScheduledJobDef {
   name: string;
-  service: 'ingestor' | 'agents';
+  service: 'ingestor' | 'agents' | 'live';
   cron: string;
   /**
    * Seguro para "rodar agora" no painel: não gasta cota do fornecedor nem dispara gasto grande de IA
@@ -97,12 +105,12 @@ export interface ScheduledJobDef {
 
 export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'sync-daily', service: 'ingestor', cron: '5 0 * * *', runNow: false },
-  { name: 'live-run', service: 'ingestor', cron: '*/5 * * * *', runNow: false },
+  { name: 'live-run', service: 'live', cron: '*/5 * * * *', runNow: false },
   { name: 'postgame-close', service: 'ingestor', cron: '* * * * *', runNow: true },
-  { name: 'live-reconcile', service: 'ingestor', cron: '*/10 * * * *', runNow: true },
+  { name: 'live-reconcile', service: 'live', cron: '*/10 * * * *', runNow: true },
   { name: 'normalize-football', service: 'ingestor', cron: '35 0 * * *', runNow: true },
   { name: 'normalize-sports', service: 'ingestor', cron: '15 * * * *', runNow: true },
-  { name: 'events-clock', service: 'ingestor', cron: '* * * * *', runNow: true },
+  { name: 'events-clock', service: 'live', cron: '* * * * *', runNow: true },
   { name: 'events-importance', service: 'ingestor', cron: '20 * * * *', runNow: true },
   { name: 'assets-mirror', service: 'ingestor', cron: '30 1 * * *', runNow: false },
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
@@ -249,7 +257,7 @@ export function parseAgentStatus(raw: string | null | undefined): Record<string,
 
 const live = (def: Omit<SettingDef, 'section' | 'services' | 'apply'>): SettingDef => ({
   section: 'live',
-  services: ['ingestor'],
+  services: ['live', 'ingestor'],
   apply: 'refresh',
   ...def,
 });
@@ -308,7 +316,8 @@ export const SETTINGS: readonly SettingDef[] = [
     key: scheduleKey(j.name),
     section: 'schedule',
     type: 'cron',
-    services: [j.service],
+    // o ingestor também lê a agenda dos jobs do ao vivo (SCHEDULER_LIVE=internal)
+    services: j.service === 'live' ? ['live', 'ingestor'] : [j.service],
     apply: 'refresh',
     default: j.cron,
     job: j.name,
@@ -684,7 +693,7 @@ export const SETTINGS: readonly SettingDef[] = [
   },
 
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
-  secret('APISPORTS_KEY', 'provider', ['ingestor']),
+  secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
   secret('OPENAI_API_KEY', 'ai', ['agents']),
   secret('ANTHROPIC_API_KEY', 'ai', ['agents']),
   secret('GEMINI_API_KEY', 'ai', ['agents']),
@@ -709,6 +718,18 @@ export function settingDef(key: string): SettingDef | undefined {
 }
 
 export const isSecret = (def: SettingDef) => def.type === 'secret';
+
+/**
+ * O serviço cujo relato vale para a chave no painel: o primeiro de `def.services` que a relatou (`reported` diz se
+ * relatou), ou o primeiro da lista. Com o ao vivo no `ingestor` (SCHEDULER_LIVE=internal) o serviço `live` não relata,
+ * e o valor mostrado é o do ingestor.
+ */
+export function reportedService(
+  def: Pick<SettingDef, 'services'>,
+  reported: (service: RuntimeService) => boolean,
+): RuntimeService {
+  return def.services.find(reported) ?? def.services[0]!;
+}
 
 /** Flags que um serviço lê (incluindo segredos, para o relatório de "configurado"). */
 export function settingsForService(service: RuntimeService): SettingDef[] {

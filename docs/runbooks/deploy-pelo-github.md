@@ -105,13 +105,18 @@ o que faltar.
 8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
    comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
    notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
-   - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
+   - `live` (o ao vivo, #535), sozinho e antes do resto, por recriação simples: o ingestor da versão nova não roda mais
+     o ao vivo, então o `live` não espera por ele. Só troca quando a imagem do ingestor (ou a configuração dele) muda;
+   - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está, e o
+     `live` também). `live`, `ingestor` e `agents` são da mesma tag: falhou um, voltam os três. Voltando para uma versão
+     sem o `live`, ele sai depois de o ingestor dela subir;
    - `api`, `webhooks`, `site` e `console` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o
-     novo healthy; só a configuração de um dos dois mudou → troca só ele). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
+     novo healthy; só a configuração de um dos dois mudou → troca só ele). O worker dos webhooks fecha a entrega em
+     andamento no SIGTERM, e o novo retoma pelo cursor;
    - o que não tem imagem nossa, quando mudou (a página de manutenção, por exemplo).
-9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
-   falhas", que também confere a versão da API e da demo, roda no site e no console e confere o 404 do que é do outro). Por último, a
-   **conferência**
+9. Pós-deploy (sem a limpeza do cache quando API, webhooks, live, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
+   falhas", que também confere a versão da API e da demo, roda no site e no console e confere o 404 do que é do outro). Por
+   último, a **conferência**
    (`deploy-verify.sh`): para cada serviço trocado, o digest e o rótulo da imagem do contêiner, e o que o processo expõe.
    Serviço na versão errada é `FAIL  <serviço>: …` no resumo do job, e volta só ele.
    - O pós-deploy começa pelo **seed da base semântica** (`data/knowledge` → `semantic.*`, exigido pelo #362).
@@ -146,12 +151,12 @@ Para saber qual SHA está no ar, veja o `DEPLOY_SHA` do `.env` ou as notas de ve
 | `api` | `GET /version` (público) e `build_info` no `/metrics` |
 | `site`, `console` | `GET /api/version` (público pelo site; `service` diz qual) e `build_info` no `/metrics` da 9464, sem router |
 | `webhooks` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
-| `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
+| `live`, `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
 | `backup`, `prometheus`, `grafana` | rótulo `works.galaxie.context-tree` da imagem |
 
 O formato é `{ service, image_hash, started_at, node }`, e cada processo escreve o mesmo numa linha de log na partida. O
-Prometheus raspa `api`, `webhooks`, `ingestor`, `agents`, `site` e `console`, e o painel **SLOs** do Grafana tem a tabela
-"Versão no ar por serviço" e a memória (RSS e heap) de cada um.
+Prometheus raspa `api`, `webhooks`, `ingestor`, `agents`, `site`, `console` e cada cópia do `live` (pelo DNS do Docker), e o
+painel **SLOs** do Grafana tem a tabela "Versão no ar por serviço" e a memória (RSS e heap) de cada um.
 
 ```bash
 curl -s https://api.sports.galaxie.works/version
@@ -166,7 +171,7 @@ Uma variável por imagem, sempre o `in-<hash>` da entrada dela no SHA publicado:
 | --- | --- |
 | `TAG_API` | `api`, `webhooks`, `migrate`, `api-candidate` |
 | `TAG_DEMO` | `site`, `console`, `site-candidate`, `console-candidate` (antes da issue #546, `demo`) |
-| `TAG_INGESTOR` | `ingestor`, `agents` |
+| `TAG_INGESTOR` | `live`, `ingestor`, `agents` |
 | `TAG_BACKUP` | `backup` (projeto `dados`; só por runbook) |
 | `TAG_PROMETHEUS` | `prometheus` (projeto `obs`) |
 | `TAG_GRAFANA` | `grafana` (projeto `obs`) |

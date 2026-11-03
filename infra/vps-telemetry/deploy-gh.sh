@@ -37,13 +37,14 @@
 #   7b. com a api ou o app web (site e console; num SHA de antes da divisão, a demo) na lista: os candidatos sobem ao lado
 #      dos que estão no ar, sem tráfego (candidate.sh), e o smoke roda em cada um web. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
-#      nada a publicar. Senão, a troca, só da lista: ingestor/agents (recriação simples) → api, webhooks → site, console
-#      (ou demo) (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com
-#      o novo healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado. Serviço que saiu do compose
-#      (SAI do plano: a demo, quando virou site e console) sai depois que os da mesma imagem trocaram (rolling-swap.sh
+#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho: o ao vivo não espera o resto) → ingestor/agents
+#      (recriação simples; os três são da TAG_INGESTOR e voltam juntos) → api, webhooks → site, console (ou demo)
+#      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
+#      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado. Serviço que saiu do compose (SAI
+#      do plano: a demo, quando virou site e console) sai depois que os da mesma imagem trocaram (rolling-swap.sh
 #      --retire); na volta do grupo, ele sobe de novo antes de os novos saírem
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
-#      API, webhooks, ingestor e agents ficaram), smoke test (smoke.mjs em cada contêiner web no ar, com a versão
+#      API, webhooks, live, ingestor e agents ficaram), smoke test (smoke.mjs em cada contêiner web no ar, com a versão
 #      esperada de API e demo) e conferência de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a
 #      versão que o processo expõe)
 #  10. falhou a troca de um serviço ou ele está na versão errada: volta só ele (e os da mesma tag), com a TAG_* e a
@@ -218,10 +219,18 @@ CAND_UP=""
 TROCA="" # serviços que trocam neste deploy (deploy-plan.sh)
 LOCK_ID="gha-$RUN_ID-$(date +%s)"
 
+# --scale do up do projeto inteiro: o ingestor na escala de antes e, com ela 0, o live também (a mesma chave da
+# api-sports). Roda na VPS: o live só entra se o compose em uso ($1) o tiver
+scale_flags() {
+  printf -- '--scale ingestor=%s' "${SCALE:-1}"
+  [ "${SCALE:-1}" != 0 ] || printf " \$(grep -q '^  live:' %s && echo --scale live=0)" "$1"
+}
+
 rollback_help() {
-  local o="${OLD:0:7}"
+  local o="${OLD:0:7}" live_flag=""
+  [ "${SCALE:-1}" != 0 ] || live_flag=" --scale live=0"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp $CF.bak-$o $CF && cp .env.bak-$BAK_SUFFIX$o .env && $DC up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp $CF.bak-$o $CF && cp .env.bak-$BAK_SUFFIX$o .env && $DC up -d --remove-orphans --scale ingestor=${SCALE:-1}$live_flag'"
     echo "FAIL  ou rode o workflow Deploy com sha=${OLD} (as imagens dele seguem no GHCR)"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
@@ -313,7 +322,7 @@ ssh "$VPS" "cat > $DIR/$CF.new" < "$COMPOSE_SRC/$CF"
 if [ "$PROJECT" = apps ] && [ -f "$STACK/diagnostico.sh" ] && [ -z "$PRESPLIT" ]; then
   ssh "$VPS" "cat > $DIR/diagnostico.sh.new && chmod 755 $DIR/diagnostico.sh.new && mv $DIR/diagnostico.sh.new $DIR/diagnostico.sh"     < "$STACK/diagnostico.sh" || echo "WARN  não consegui gravar o diagnostico.sh na VPS (o diagnóstico de alerta fica na versão anterior)"
 fi
-# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
+# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente; o live acompanha); falha do ps não pode virar 0
 SCALE=0
 if [ "$PROJECT" = apps ]; then
   SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
@@ -460,7 +469,7 @@ restore_previous() {
   elif ! ssh "$VPS" "$CD && test -f $OLD_COMPOSE && test -f $OLD_ENV \
     && $PULL -f $OLD_COMPOSE --env-file $OLD_ENV pull --policy missing --quiet </dev/null \
     && cp $OLD_COMPOSE $CF && cp $OLD_ENV .env \
-    && $DC up -d --remove-orphans $( [ "$PROJECT" != apps ] || echo "--scale ingestor=$SCALE" ) --quiet-pull </dev/null"; then
+    && $DC up -d --remove-orphans $( [ "$PROJECT" != apps ] || scale_flags "$CF" ) --quiet-pull </dev/null"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
@@ -513,7 +522,7 @@ COMPOSE_BAK="COMPOSE_FILE=$OLD_COMPOSE COMPOSE_ENV_FILES=$OLD_ENV"
 up_wait() {
   local s scale="" rc long=() once=()
   for s in "$@"; do
-    [ "$s" != ingestor ] || scale="--scale ingestor=$SCALE"
+    [ "$s" != ingestor ] || scale+=" --scale ingestor=$SCALE"
     if [ -n "${ONE_SHOT[$s]:-}" ]; then once+=("$s"); else long+=("$s"); fi
   done
   if [ "${#long[@]}" -gt 0 ]; then
@@ -528,16 +537,21 @@ up_wait() {
   done
 }
 
-# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: api, webhooks, site, console e demo lado a lado (o
-# antigo só sai com o novo healthy), o resto por recriação simples. TOUCHED = os que saíram da configuração de antes.
-# Com o grupo no ar, sai quem deixou o compose e tinha a mesma imagem (GONE: a demo, quando site e console sobem);
-# RETIRED[grupo] guarda quem saiu, para a volta do grupo subi-lo de novo.
+# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho (recriação simples; o
+# ingestor da versão nova não roda mais o ao vivo, então ele não pode esperar o resto), api, webhooks, site, console e
+# demo lado a lado (o antigo só sai com o novo healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da
+# configuração de antes. Com o grupo no ar, sai quem deixou o compose e tinha a mesma imagem (GONE: a demo, quando site e
+# console sobem); RETIRED[grupo] guarda quem saiu, para a volta do grupo subi-lo de novo.
 TOUCHED=()
 swap_group() {
   local s plain=() images=" " gone
   TOUCHED=()
   for s in "$@"; do
     case "$s" in
+      live)
+        TOUCHED+=("$s")
+        up_wait "$s" || return $?
+        ;;
       api | webhooks | site | console | demo)
         ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
         TOUCHED+=("$s")
@@ -548,6 +562,7 @@ swap_group() {
   if [ "${#plain[@]}" -gt 0 ]; then
     TOUCHED+=("${plain[@]}")
     up_wait "${plain[@]}" || return $?
+    drop_orphan_live "${plain[@]}"
   fi
   for s in "$@"; do images+="${SVC_IMAGE[$s]:-} "; done
   for gone in "${!GONE[@]}"; do
@@ -559,6 +574,20 @@ swap_group() {
       echo "WARN  $gone saiu do compose e não foi tirado do ar; confira: ssh $VPS 'cd $DIR && docker ps -a | grep $gone'"
     fi
   done
+}
+
+# Volta para uma versão sem o serviço `live` (o ao vivo dentro do ingestor): com o ingestor dela no ar, o `live` que
+# ficou da versão de depois sai, senão os dois acompanhariam os jogos. Só quando o ingestor foi trocado agora.
+drop_orphan_live() {
+  [ "$PROJECT" = apps ] && [ -z "${SVC_IMAGE[live]:-}" ] || return 0
+  case " $* " in *" ingestor "*) ;; *) return 0 ;; esac
+  # o projeto vem do rótulo do ingestor no ar (sem ingestor, escala 0, o live também não devia estar no ar)
+  ssh "$VPS" "cd $DIR && c=\$(docker compose ps -q ingestor </dev/null | head -n 1) && if [ -n \"\$c\" ]; then \
+    p=\$(docker inspect -f '{{index .Config.Labels \"com.docker.compose.project\"}}' \$c) \
+    && ids=\$(docker ps -aq --filter label=com.docker.compose.project=\$p --filter label=com.docker.compose.service=live) \
+    && if [ -n \"\$ids\" ]; then docker stop -t 40 \$ids >/dev/null && docker rm \$ids >/dev/null \
+      && echo 'live: removido (a versão publicada roda o ao vivo no ingestor)'; fi; fi" ||
+    echo "WARN  não deu para remover o live que sobrou; confira: ssh $VPS 'cd $DIR && docker ps --filter label=com.docker.compose.service=live'"
 }
 
 # Volta só os serviços em TOUCHED para o compose.yml e o .env de antes, e a tag do grupo no .env (quem não tem imagem
@@ -608,8 +637,9 @@ mark_not_published() {
   ssh "$VPS" "cd $DIR && sed -i 's|^$SHA_KEY=.*|$SHA_KEY=$OLD|' .env" || echo "WARN  $SHA_KEY não voltou no .env"
 }
 
-# ingestor/agents → api/webhooks → site/console (ou demo) → cada imagem do resto → o que não tem imagem nossa
-GROUPS_ORDER=("ingestor agents" "api webhooks" "site console demo" "backup" "prometheus" "grafana")
+# live → ingestor/agents (o mesmo grupo: a TAG_INGESTOR) → api/webhooks → site/console (ou demo) → cada imagem do
+# resto → o que não tem imagem nossa
+GROUPS_ORDER=("live ingestor agents" "api webhooks" "site console demo" "backup" "prometheus" "grafana")
 others=""
 for s in $TROCA; do
   case " ${GROUPS_ORDER[*]} " in *" $s "*) ;; *) others+=" $s" ;; esac
@@ -666,9 +696,9 @@ after_swap_failed() {
 
 if [ "$PROJECT" = apps ]; then
 
-# a limpeza do cache só faz sentido com API, webhooks, ingestor ou agents novos; um SHA sem o passo sem-cache limpa sempre
+# a limpeza do cache só faz sentido com API, webhooks, live, ingestor ou agents novos; um SHA sem o passo sem-cache limpa sempre
 POST_STEP=all
-if grep -q 'sem-cache)' "$POST" && ! in_troca api && ! in_troca webhooks && ! in_troca ingestor && ! in_troca agents; then
+if grep -q 'sem-cache)' "$POST" && ! in_troca api && ! in_troca webhooks && ! in_troca live && ! in_troca ingestor && ! in_troca agents; then
   POST_STEP=sem-cache
 fi
 if ! ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- $POST_STEP" < "$POST"; then
@@ -708,14 +738,14 @@ for group in "${to_verify[@]}"; do
   for s in $group; do
     name="${SVC_IMAGE[$s]:-}"
     [ -n "$name" ] && [ -z "${ONE_SHOT[$s]:-}" ] && [ -z "${VERIFIED[$s]:-}" ] || continue
-    [ "$s" != ingestor ] || [ "$SCALE" != 0 ] || continue
+    { [ "$s" != ingestor ] && [ "$s" != live ]; } || [ "$SCALE" != 0 ] || continue
     VERIFIED[$s]=1
     port=""
     if [ -n "$HAS_VERSION" ]; then
       case "$s" in
         api | webhooks) port=8080 ;;
         site | console | demo) port=3000 ;;
-        ingestor | agents) port=9464 ;;
+        live | ingestor | agents) port=9464 ;;
       esac
     fi
     tag="${IMAGE_TAG_OF[$name]}"

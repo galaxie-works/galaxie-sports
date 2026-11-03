@@ -134,7 +134,43 @@ tests:
               sport: football
             exp_annotations:
               summary: 'Ao vivo de football sem tick há 2m 23s'
-              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  # Serviço live com duas cópias (#537): cada uma expõe as mesmas séries, lidas do mesmo Postgres. O alerta agrega por
+  # esporte e sai uma vez.
+  - name: duas cópias do live com as mesmas séries disparam um alerta só
+    interval: 15s
+    input_series:
+      - series: 'live_last_tick_age_seconds{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_last_tick_age_seconds{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '15x80'
+      - series: 'live_tick_planned_interval_seconds{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '1x80'
+      - series: 'live_window_open{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '0x80'
+      - series: 'live_tick_paused{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
 
   - name: troca de líder ou de versão que cabe nos 60 s não alerta
     interval: 15s
@@ -216,7 +252,7 @@ tests:
               sport: football
             exp_annotations:
               summary: 'Ao vivo de football sem tick há 5m 23s'
-              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
 
   - name: o runner volta a ticar e o alerta resolve
     interval: 15s
@@ -239,7 +275,7 @@ tests:
               sport: football
             exp_annotations:
               summary: 'Ao vivo de football sem tick há 2m 23s'
-              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
       - eval_time: 9m
         alertname: LiveTickGap
         exp_alerts: []
@@ -757,6 +793,9 @@ tests:
         values: '0x30'
       - series: 'galaxie_service_last_report_timestamp_seconds{component="agents"}'
         values: '0+60x30'
+      # o serviço do ao vivo relata como os outros schedulers
+      - series: 'galaxie_service_last_report_timestamp_seconds{component="live"}'
+        values: '0+60x2 120x28'
       # a API só relata na partida: fora do alerta
       - series: 'galaxie_service_last_report_timestamp_seconds{component="api"}'
         values: '0x30'
@@ -773,6 +812,12 @@ tests:
             exp_annotations:
               summary: 'Scheduler ingestor sem sinal de vida há 20m 0s'
               description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps ingestor e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
+          - exp_labels:
+              severity: warning
+              component: live
+            exp_annotations:
+              summary: 'Scheduler live sem sinal de vida há 18m 0s'
+              description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps live e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
 
   - name: crédito da IA em falha vai para o push
     interval: 1m
