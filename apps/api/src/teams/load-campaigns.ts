@@ -12,7 +12,7 @@ import {
   standing,
 } from '@galaxie/db';
 import { loadStageMatches, type BuildContext } from '../events/builder.js';
-import { pickText } from '../i18n.js';
+import { competitionName } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { competitionProfileJoin } from '../competitions/profile.js';
@@ -85,6 +85,7 @@ export async function loadTeamCompetitions(
         slug: competition.slug,
         name: competition.name,
         labels: competition.labels,
+        countryCode: competition.countryCode,
         type: competition.type,
         tier: competition.tier,
       },
@@ -252,7 +253,7 @@ export async function loadTeamCompetitions(
         competition: {
           id: r.c.id,
           slug: r.c.slug,
-          name: pickText(labels, locale, r.c.name)!,
+          name: competitionName(labels, r.c.countryCode, r.c.name, locale),
           logo: assetUrl(bctx.assetsBaseUrl, r.logoKey, r.logoUrl),
         },
         season: { year: r.s.year, label: r.s.label },

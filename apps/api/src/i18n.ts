@@ -1,7 +1,13 @@
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '@galaxie/contracts';
+import { competitionName } from '@galaxie/geo';
 import { fallbackChain } from '@galaxie/knowledge';
 
 export { fallbackChain };
+/**
+ * Nome de competição: nacional sai no idioma do próprio país em qualquer locale; continental e mundial seguem
+ * a cadeia dos campos i18n (regra em packages/geo/src/language.ts). Todo ponto que monta o nome usa isto.
+ */
+export { competitionName };
 
 const SUPPORTED = new Map(SUPPORTED_LOCALES.map((l) => [l.toLowerCase(), l]));
 

@@ -47,7 +47,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, formatInstant, pickText, resolveLocale } from '../../i18n.js';
 import { decodeCursor, encodeCursor, parseInput, UUID_RE } from '../../util.js';
 
 const MODULE = { module: 'multisport' } as const;
@@ -324,6 +324,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
               slug: competition.slug,
               name: competition.name,
               labels: competition.labels,
+              countryCode: competition.countryCode,
             },
             s: { year: season.year, label: season.label },
           })
@@ -337,7 +338,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           competitions: comps.map((r) => ({
             id: r.c.id,
             slug: r.c.slug,
-            name: pickText(r.c.labels as I18n, locale, r.c.name)!,
+            name: competitionName(r.c.labels as I18n, r.c.countryCode, r.c.name, locale),
             sport: r.gc.sport,
             gender: r.gc.gender,
             season: r.s ? { year: r.s.year, label: r.s.label } : null,

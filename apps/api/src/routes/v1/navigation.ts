@@ -28,7 +28,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { competitionLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
@@ -393,7 +393,7 @@ export async function navigationRoutes(
         id: r.c.id,
         slug: r.c.slug,
         sport: r.c.sport,
-        name: pickText(labels, locale, r.c.name)!,
+        name: competitionName(labels, r.country?.code, r.c.name, locale),
         official_name: r.c.name,
         nicknames: pickList(profile?.nicknames, locale),
         type: r.c.type,
