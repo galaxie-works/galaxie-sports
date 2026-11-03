@@ -108,6 +108,10 @@ jobs:
           fi
           echo "TURBO_SCM_BASE=$base" >> "$GITHUB_ENV"
           echo "AFFECTED=--affected" >> "$GITHUB_ENV"
+          # O build do Next da demo (~90 s, em cada uma das duas pernas) já é feito, em todo PR que muda a demo, pelo check
+          # obrigatório `build demo` do docker.yml (docker build da imagem). Aqui ele sai do PR; as dependências da demo
+          # continuam sendo construídas pelo typecheck e pelos testes (dependsOn ^build). Na fila e no push entra de novo.
+          echo "BUILD_FILTER=--filter=!@galaxie/demo" >> "$GITHUB_ENV"
           node -e '
             const fs = require("fs");
             const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
@@ -135,7 +139,7 @@ jobs:
         run: pnpm test:deps
 
       - name: Build
-        run: pnpm build $AFFECTED
+        run: pnpm exec turbo run build $AFFECTED $BUILD_FILTER
 
       # A base semântica e as checagens de migration abaixo rodam o dist do knowledge e do db, mesmo no PR que não chega
       # a esses pacotes (o build acima só constrói o que o PR alcança); o turbo reaproveita o que já construiu.
