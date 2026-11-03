@@ -6,9 +6,13 @@
 import { inArray, sql } from 'drizzle-orm';
 import { event, eventIncident, publishChange, type Database } from '@galaxie/db';
 import type { EventStatus, FailureReason, NormalizedBatch, StatusSource } from '@galaxie/providers';
-import { applyProviderFailure } from '../normalize/event-state.js';
-import { resolveIds, type Executor } from '../normalize/sql-helpers.js';
-import { upsertBatch, type UpsertOptions } from '../normalize/upsert-core.js';
+import {
+  applyProviderFailure,
+  type Executor,
+  resolveIds,
+  upsertBatch,
+  type UpsertOptions,
+} from '@galaxie/core-writer';
 import type { EventSnapshot, LiveChange } from './diff.js';
 import { assertLiveLeaderEpoch, type LiveLeaderGuard } from './leader-epoch.js';
 import type { LiveCandidate, LivePriority } from './types.js';

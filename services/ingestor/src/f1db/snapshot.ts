@@ -4,7 +4,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { F1DB_PROVIDER, F1DB_SPORT, type CoreF1Snapshot } from '@galaxie/providers';
-import type { Executor } from '../normalize/sql-helpers.js';
+import { type Executor } from '@galaxie/core-writer';
 
 export async function loadCoreF1Snapshot(db: Executor): Promise<CoreF1Snapshot> {
   const linked = await db.execute<{ entity_type: string; provider_id: string; entity_id: string }>(sql`

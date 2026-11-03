@@ -9,13 +9,18 @@ import {
   type Clock,
   type MediaDenylistEntry,
 } from '@galaxie/apisports-client';
+import {
+  isPlaceholderLogo,
+  LOGO_KINDS,
+  PERSON_PHOTO_KINDS,
+  PLACEHOLDER_LOGO_SHA256,
+} from '@galaxie/core-writer';
 import type { AssetStore, LogoCleanup, MirrorAsset } from './asset-store.js';
 import { imageInfo } from './image-info.js';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
-import { paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from './palette.js';
-import { isPlaceholderPhoto, PERSON_PHOTO_KINDS } from './person-photos.js';
-import { isPlaceholderLogo, LOGO_KINDS } from './placeholder-logos.js';
+import { paletteFromPng } from './palette.js';
+import { isPlaceholderPhoto } from './person-photos.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {

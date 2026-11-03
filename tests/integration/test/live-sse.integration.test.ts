@@ -23,7 +23,8 @@ import {
   PRO_PLAN,
 } from '@galaxie/apisports-client';
 import { changeFeed, closeDb, competition, createDb, runMigrations, sport, type Database } from '@galaxie/db';
-import { LivePoller, PgLiveStore, upsertBatch } from '@galaxie/ingestor';
+import { upsertBatch } from '@galaxie/core-writer';
+import { LivePoller, PgLiveStore } from '@galaxie/ingestor';
 import { ApiSportsProvider, normalizeFixtures, type ApiFixture } from '@galaxie/providers';
 import { buildServer, createApiKey, upsertTenant } from '@galaxie/api';
 import { openSse, type SseClient } from './sse-client.js';

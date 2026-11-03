@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  coachPhotoUrl,
   extractMediaUrls,
+  flagUrl,
   isProviderMediaUrl,
   MediaDenylist,
   mediaKindFromUrl,
+  mediaUrl,
   mediaStorageKey,
   normalizeMediaUrl,
+  playerPhotoUrl,
   publicAssetUrl,
   rewriteMediaUrl,
   rewriteMediaUrls,
@@ -13,6 +17,28 @@ import {
 
 const BASE = 'http://localhost:9000/galaxie-sports-assets/';
 const PAULISTAO = 'https://media.api-sports.io/football/leagues/475.png';
+
+describe('construtores de URL da CDN de mídia', () => {
+  it('monta a URL de um caminho, com ou sem barra inicial', () => {
+    expect(mediaUrl('football/teams/121.png')).toBe('https://media.api-sports.io/football/teams/121.png');
+    expect(mediaUrl('/flags/br.svg')).toBe('https://media.api-sports.io/flags/br.svg');
+  });
+
+  it('monta bandeira, foto de jogador e foto de técnico', () => {
+    expect(flagUrl('US')).toBe('https://media.api-sports.io/flags/us.svg');
+    expect(flagUrl('au')).toBe('https://media.api-sports.io/flags/au.svg');
+    expect(playerPhotoUrl('154')).toBe('https://media.api-sports.io/football/players/154.png');
+    expect(coachPhotoUrl('12')).toBe('https://media.api-sports.io/football/coachs/12.png');
+  });
+
+  it('o que o construtor monta é reconhecido como mídia do fornecedor e volta com o tipo certo', () => {
+    expect(isProviderMediaUrl(flagUrl('BR'))).toBe(true);
+    expect(mediaKindFromUrl(flagUrl('BR'))).toBe('flag');
+    expect(mediaKindFromUrl(playerPhotoUrl('1'))).toBe('player');
+    expect(mediaKindFromUrl(coachPhotoUrl('1'))).toBe('coach');
+    expect(normalizeMediaUrl(playerPhotoUrl('1'))).toBe(playerPhotoUrl('1'));
+  });
+});
 
 describe('URLs de mídia', () => {
   it('reconhece a CDN e seus espelhos, e só ela', () => {

@@ -7,9 +7,9 @@ import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { competition, participant, season, sport, standing, type Database } from '@galaxie/db';
 import { normalizeFixtures } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { syncCompetitionPrestige } from '../src/catalog/prestige.js';
 import { recomputeEventImportance } from '../src/normalize/importance.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { apiFixture, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';
 

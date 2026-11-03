@@ -4,7 +4,7 @@
  *   pnpm --filter @galaxie/ingestor events:clock [esporte]
  */
 import { closeDb, createDb } from '@galaxie/db';
-import { advanceEventClock } from '../normalize/event-state.js';
+import { advanceEventClock } from '@galaxie/core-writer';
 
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error('Defina DATABASE_URL (.env).');

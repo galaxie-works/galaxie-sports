@@ -67,7 +67,6 @@ flowchart LR
 | `packages/db` | Schema, migrations e seeds (inclui carga da base semântica YAML) | PostgreSQL 17, Drizzle ORM |
 | `packages/apisports-client` | Cliente tipado da api-sports com contabilização de cota e gravação do raw | TypeScript |
 | `packages/contracts` | Tipos/DTOs da API pública compartilhados com o demo | TypeScript + Zod → OpenAPI |
-| `scripts/pwsh` | Utilitários operacionais em PowerShell 7 (download de assets, inspeção de cota) | PowerShell 7 |
 | `data/knowledge` | Base semântica versionada em YAML (fonte da verdade editorial) | YAML + validação por JSON Schema |
 | `config/competitions` | Catálogo de competições, tiers e prioridades de live | YAML |
 
@@ -89,8 +88,6 @@ galaxie-sports/
 │   └── competitions/         # catálogo de competições por esporte
 ├── data/
 │   └── knowledge/            # base semântica (YAML)
-├── scripts/
-│   └── pwsh/                 # scripts PowerShell operacionais
 ├── infra/
 │   ├── docker-compose.yml    # Postgres 17, Valkey, RustFS (S3), bucket de assets
 │   ├── vps-telemetry/        # stack da VPS (Traefik) + scripts do deploy

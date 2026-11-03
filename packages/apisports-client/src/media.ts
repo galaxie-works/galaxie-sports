@@ -11,6 +11,33 @@ const MEDIA_HOST = /^media(?:-\d+)?\.api-sports\.io$/i;
 /** Encontra URLs de mídia em texto (JSON serializado, inclusive com barras escapadas `\/`). */
 const MEDIA_URL_IN_TEXT = /https?:(?:\\?\/){2}media(?:-\d+)?\.api-sports\.io(?:\\?\/[A-Za-z0-9_\-.]+)+/gi;
 
+/** Origem canônica da CDN de mídia. */
+export const MEDIA_BASE_URL = 'https://media.api-sports.io';
+
+/** URL da CDN de mídia para um caminho (`/flags/br.svg`, `football/teams/121.png`): a única que escreve o host. */
+export function mediaUrl(path: string): string {
+  return `${MEDIA_BASE_URL}/${path.replace(/^\/+/, '')}`;
+}
+
+/** Bandeira de país/região: `flags/<código em minúsculas>.svg` (ex.: `US` -> `flags/us.svg`). */
+export function flagUrl(countryCode: string): string {
+  return mediaUrl(`flags/${countryCode.toLowerCase()}.svg`);
+}
+
+/** Prefixos dos retratos de futebol; o id da api-sports e o `.png` entram depois (também usados em SQL). */
+export const PLAYER_PHOTO_URL_PREFIX = mediaUrl('football/players/');
+export const COACH_PHOTO_URL_PREFIX = mediaUrl('football/coachs/');
+
+/** Foto de jogador na CDN de mídia: vem do id, não da API de dados (não gasta cota). */
+export function playerPhotoUrl(providerId: string): string {
+  return `${PLAYER_PHOTO_URL_PREFIX}${providerId}.png`;
+}
+
+/** Foto de técnico na CDN de mídia (id da api-sports, sem o prefixo `coach:`). */
+export function coachPhotoUrl(providerId: string): string {
+  return `${COACH_PHOTO_URL_PREFIX}${providerId}.png`;
+}
+
 /** Prefixo das chaves no bucket para o que veio da api-sports. */
 export const MEDIA_STORAGE_PREFIX = 'api-sports';
 
@@ -42,7 +69,7 @@ export function isProviderMediaUrl(url: string): boolean {
 export function normalizeMediaUrl(url: string): string | undefined {
   if (!isProviderMediaUrl(url)) return undefined;
   const u = new URL(url);
-  return `https://media.api-sports.io${u.pathname.replace(/\/{2,}/g, '/')}`;
+  return `${MEDIA_BASE_URL}${u.pathname.replace(/\/{2,}/g, '/')}`;
 }
 
 /** Chave do objeto no bucket: `api-sports/<caminho original>` (ex.: `api-sports/football/teams/121.png`). */

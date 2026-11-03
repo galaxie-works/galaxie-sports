@@ -80,6 +80,7 @@
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
+    "@galaxie/core-writer": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
