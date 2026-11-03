@@ -12,6 +12,11 @@
  * novas, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
  * semântica, os nomes, a importância e o cache são os da versão no ar. Check novo que depende do pós-deploy deve
  * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.
+ *
+ * Retry (#533): a VPS fica saturada durante o deploy (extração de imagens, candidatos subindo) e a primeira consulta a
+ * frio pode passar do statement_timeout da API. A checagem que recebe 5xx ou estoura o tempo numa requisição roda UMA
+ * vez mais, depois de SMOKE_RETRY_MS (5 s). Se a segunda passa, a linha sai `PASS … (2ª tentativa)` e o relatório
+ * ganha um WARN apontando a checagem. 4xx não repete: é erro de verdade, não carga.
  */
 const API = process.env.GALAXIE_API_URL ?? 'http://api:8080';
 const KEY = process.env.GALAXIE_DEMO_KEY ?? '';
@@ -27,6 +32,28 @@ const PAL_FLU_SEMI = '01a163b8-7ca2-71e8-a92e-8dc201d5d83a';
 const results = [];
 const record = (level, name, detail) => results.push({ level, name, detail });
 
+// ── retry de 5xx e de tempo esgotado ────────────────────────────────────────────────────────────────────────
+const RETRY_MS = Number(process.env.SMOKE_RETRY_MS ?? 5000);
+const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS ?? 60000);
+const rawFetch = globalThis.fetch;
+// motivos de 5xx/tempo esgotado vistos na tentativa em curso (null = fora de uma checagem)
+let transient = null;
+const TIMEOUT_CODES = new Set(['UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_CONNECT_TIMEOUT']);
+const isTimeout = (err) =>
+  err?.name === 'TimeoutError' || err?.name === 'AbortError' || TIMEOUT_CODES.has(err?.cause?.code);
+// as checagens usam o `fetch` global: este o substitui para dar tempo máximo a cada requisição e anotar quem
+// devolveu 5xx ou estourou o tempo. (A página de manutenção espera um 503 de propósito e usa `rawFetch`.)
+globalThis.fetch = async (url, init = {}) => {
+  try {
+    const res = await rawFetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), ...init });
+    if (res.status >= 500) transient?.push(`status ${res.status}`);
+    return res;
+  } catch (err) {
+    if (isTimeout(err)) transient?.push('tempo esgotado');
+    throw err;
+  }
+};
+
 async function api(path) {
   const res = await fetch(`${API}${path}`, { headers: { 'x-galaxie-key': KEY } });
   const text = await res.text();
@@ -39,14 +66,36 @@ async function api(path) {
   return { status: res.status, body: body?.data ?? body };
 }
 
-async function check(name, fn) {
+async function attempt(fn) {
+  transient = [];
+  let out;
   try {
-    const out = await fn();
-    if (out === true || out === undefined) record('PASS', name, '');
-    else if (typeof out === 'string') record('PASS', name, out);
-    else record(out.level, name, out.detail);
+    out = await fn();
   } catch (err) {
-    record('FAIL', name, err instanceof Error ? err.message : String(err));
+    out = { level: 'FAIL', detail: err instanceof Error ? err.message : String(err) };
+  }
+  const seen = transient;
+  transient = null;
+  if (out === true || out === undefined) return { level: 'PASS', detail: '', seen };
+  if (typeof out === 'string') return { level: 'PASS', detail: out, seen };
+  return { level: out.level, detail: out.detail, seen };
+}
+
+async function check(name, fn) {
+  const first = await attempt(fn);
+  // só repete o que reprovou E viu 5xx ou tempo esgotado: dado faltando (WARN) ou 4xx é resposta, não carga
+  if (first.level !== 'FAIL' || !first.seen.length) return record(first.level, name, first.detail);
+  await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
+  const second = await attempt(fn);
+  if (second.level === 'PASS') {
+    record('PASS', name, second.detail ? `${second.detail} (2ª tentativa)` : '(2ª tentativa)');
+    record(
+      'WARN',
+      'Checagem repetida',
+      `"${name}": ${first.seen[0]} na 1ª tentativa, passou na 2ª (VPS ocupada?)`,
+    );
+  } else {
+    record(second.level, name, `${second.detail} (após 2 tentativas; 1ª: ${first.seen[0]})`);
   }
 }
 
@@ -86,7 +135,7 @@ await check('Página de manutenção (503 do Traefik quando demo ou API saem do 
   // O serviço maintenance só aparece para o usuário durante um deploy ou reinício; aqui, pela rede da stack, confere
   // que ele está no ar e responde o 503 certo. Os routers dele no Traefik (prioridade 1) se conferem de fora: README.
   const get = (url) =>
-    fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch((err) => {
+    rawFetch(url, { redirect: 'manual', signal: AbortSignal.timeout(5000) }).catch((err) => {
       throw new Error(`contêiner maintenance fora do ar? ${url}: ${err.cause?.code ?? err.message}`);
     });
   const nocache = (res) =>
@@ -263,7 +312,8 @@ await check('Busca global: apelido da base semântica, sem acento', async () => 
   return `${hits.length} resultados · Palmeiras por "${pal.matched ?? pal.name}" · ${games} jogos`;
 });
 
-await check('Home Explorar: resumo por esporte e por país', async () => {
+const HOME_CHECK = 'Home Explorar: resumo por esporte e por país';
+await check(HOME_CHECK, async () => {
   const { status, body } = await api('/v1/explore/summary?locale=pt-BR');
   if (status !== 200) return fail(`status ${status}`);
   const football = body?.sports?.find((s) => s.slug === 'football');
@@ -304,6 +354,13 @@ await check('Agenda conta os mesmos jogos que a home', async () => {
   const total = agenda.total ?? -1;
   const days = (agenda.days ?? []).reduce((n, d) => n + d.count, 0);
   if (days !== total) return fail(`agenda: soma dos dias ${days} ≠ total ${total}`);
+  // sem o resumo da home (5xx a frio, por exemplo) não há com o que comparar: "home 0" seria só sintoma. A causa
+  // é a checagem da home, que já está no relatório; esta fica como aviso dependente
+  const homeFailed = results.some((r) => r.name === HOME_CHECK && r.level === 'FAIL');
+  if (summary.status !== 200 || homeFailed)
+    return warn(
+      `não conferida: depende de "${HOME_CHECK}" (resumo: status ${summary.status}); agenda com ${total} jogos`,
+    );
   // os dois caches (60 s) podem estar alguns jogos defasados entre si; diferença grande é consulta divergente
   if (Math.abs(home - total) > Math.max(3, home * 0.02))
     return fail(`home ${home} × agenda ${total} jogos nos próximos 7 dias`);
