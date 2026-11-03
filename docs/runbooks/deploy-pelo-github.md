@@ -52,7 +52,7 @@ As imagens de pasta única (`backup`, `prometheus`, `grafana`, `caddy`) usam o h
 | `apps/demo` ou `packages/widgets` | `demo` |
 | `apps/api` | `api` |
 | `services/ai-agents` | `ingestor` |
-| `services/ingestor` | `api` e `ingestor` (a API tem o ingestor em `devDependencies`, nos testes de integração) |
+| `services/ingestor` | `ingestor` (a API não depende dele: os testes que cruzam os dois ficam em `tests/integration`, fora das imagens) |
 | `config/` em geral, `data/knowledge` | `api` e `ingestor` |
 | `config/broadcasters`, `config/broadcast-rights` | as três |
 | `packages/db`, `pnpm-lock.yaml`, `infra/healthcheck/selfheal.mjs` | as três |
