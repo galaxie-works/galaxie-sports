@@ -179,7 +179,7 @@ describe('servicesSection', () => {
 
   it('uma linha por imagem: tag anterior → nova nas trocadas, "sem troca" nas que ficaram', () => {
     assert.equal(
-      servicesSection(versions, 'api webhooks ingestor agents', previous),
+      servicesSection(versions, 'api webhooks ingestor agents worker', previous),
       [
         '## Serviços publicados',
         '',
@@ -187,7 +187,7 @@ describe('servicesSection', () => {
         '|---|---|---|',
         '| `api`, `webhooks`, `migrate` | `in-apiOLDO` → `in-apiabcd` | trocada |',
         '| `site`, `console` | `in-demoabc` | sem troca |',
-        '| `ingestor`, `agents` | `in-ingOLDO` → `in-ingabcd` | trocada |',
+        '| `ingestor`, `agents`, `worker` | `in-ingOLDO` → `in-ingabcd` | trocada |',
         '| `lineup-render` | `in-lrabcde` | sem troca |',
       ].join('\n'),
     );
@@ -415,7 +415,10 @@ process.exit(2);
       const [created, ...rest] = calls();
       assert.equal(rest.length, 0);
       assert.match(created.body, /## Serviços publicados\n\n\| Serviço \| Versão \| Situação \|/);
-      assert.match(created.body, /\| `ingestor`, `agents` \| `in-antiga1` → `in-nova123` \| trocada \|/);
+      assert.match(
+        created.body,
+        /\| `ingestor`, `agents`, `worker` \| `in-antiga1` → `in-nova123` \| trocada \|/,
+      );
       assert.match(created.body, /\| `site`, `console` \| `in-demo123` \| sem troca \|/);
       assert.match(created.body, /<!-- galaxie-versions: ingestor=in-nova123456 demo=in-demo123456 -->\s*$/);
     }));

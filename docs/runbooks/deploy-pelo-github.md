@@ -109,8 +109,12 @@ o que faltar.
      antiga, a líder primeiro, sobe uma nova, espera ela ficar healthy, para a antiga e espera outra cópia pegar a
      liderança. Só troca quando a imagem do ingestor (ou a configuração dele) muda;
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está, e o
-     `live` também). `live`, `ingestor` e `agents` são da mesma tag: falhou um, voltam os três. Voltando para uma versão
-     sem o `live`, ele sai depois de o ingestor dela subir;
+     `live` também). `live`, `ingestor`, `agents` e `worker` são da mesma tag: falhou um, voltam todos. Voltando para
+     uma versão sem o `live`, ele sai depois de o ingestor dela subir;
+   - `worker` (a fila de tarefas; mesma imagem e o mesmo grupo do ingestor, logo depois dele), lado a lado: o novo sobe
+     e fica healthy, e o antigo **drena** (`rolling-swap.sh` espera o `/health` dizer `idle` ou 75 s): o lote em
+     andamento fecha e a tarefa volta à fila, onde o novo a retoma do checkpoint
+     ([tarefas › O worker](tarefas.md#o-worker));
    - `api`, `webhooks`, `site` e `console` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o
      novo healthy; só a configuração de um dos dois mudou → troca só ele). O worker dos webhooks fecha a entrega em
      andamento no SIGTERM, e o novo retoma pelo cursor;
@@ -165,12 +169,12 @@ Para saber qual SHA está no ar, veja o `DEPLOY_SHA` do `.env` ou as notas de ve
 | --- | --- |
 | `api` | `GET /version` (público) e `build_info` no `/metrics` |
 | `site`, `console` | `GET /api/version` (público pelo site; `service` diz qual) e `build_info` no `/metrics` da 9464, sem router |
-| `webhooks` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
+| `webhooks`, `worker` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
 | `live`, `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
 | `backup`, `prometheus`, `grafana` | rótulo `works.galaxie.context-tree` da imagem |
 
 O formato é `{ service, image_hash, started_at, node }`, e cada processo escreve o mesmo numa linha de log na partida. O
-Prometheus raspa `api`, `webhooks`, `ingestor`, `agents`, `site`, `console` e cada cópia do `live` (pelo DNS do Docker), e o
+Prometheus raspa `api`, `webhooks`, `ingestor`, `agents`, `worker`, `site`, `console` e cada cópia do `live` (pelo DNS do Docker), e o
 painel **SLOs** do Grafana tem a tabela "Versão no ar por serviço" e a memória (RSS e heap) de cada um.
 
 ```bash
@@ -186,7 +190,7 @@ Uma variável por imagem, sempre o `in-<hash>` da entrada dela no SHA publicado:
 | --- | --- |
 | `TAG_API` | `api`, `webhooks`, `migrate`, `api-candidate` |
 | `TAG_DEMO` | `site`, `console`, `site-candidate`, `console-candidate` (antes da issue #546, `demo`) |
-| `TAG_INGESTOR` | `live`, `ingestor`, `agents` |
+| `TAG_INGESTOR` | `live`, `ingestor`, `agents`, `worker` |
 | `TAG_BACKUP` | `backup` (projeto `dados`; só por runbook) |
 | `TAG_PROMETHEUS` | `prometheus` (projeto `obs`) |
 | `TAG_GRAFANA` | `grafana` (projeto `obs`) |
@@ -218,7 +222,8 @@ sed -i 's|^TAG_DEMO=.*|TAG_DEMO=in-<hash anterior>|' .env
 PULL_POLICY=missing docker compose up -d --no-deps site console
 ```
 
-`api`, `webhooks`, `site` e `console` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
+`api`, `webhooks`, `site`, `console` e `worker` também voltam sem manutenção (o worker drenando), da máquina de dev,
+depois de editar o `.env`:
 `ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- site console' < infra/vps-telemetry/rolling-swap.sh`. Os outros
 sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte

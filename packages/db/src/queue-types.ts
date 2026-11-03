@@ -51,6 +51,13 @@ export const EXEMPLO_ECO = defineTaskType({
   params: z.object({
     mensagem: z.string().trim().min(1).max(200).describe('Texto que a tarefa devolve'),
     repeticoes: z.number().int().min(1).max(20).default(3).describe('Quantos lotes simular'),
+    pausaMs: z
+      .number()
+      .int()
+      .min(0)
+      .max(30_000)
+      .default(0)
+      .describe('Espera em cada lote (ms), para exercitar a drenagem do worker'),
   }),
   previa: true,
   destrutiva: false,

@@ -38,12 +38,13 @@
 #      dos que estão no ar, sem tráfego (candidate.sh), e o smoke roda em cada um web. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
 #      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho, cópia a cópia e a líder primeiro pelo
-#      rolling-swap.sh: o ao vivo não para) → ingestor/agents (recriação simples; os três são da TAG_INGESTOR e voltam
-#      juntos) → api, webhooks → site, console (ou demo)
-#      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
-#      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado. Serviço que saiu do compose (SAI
-#      do plano: a demo, quando virou site e console) sai depois que os da mesma imagem trocaram (rolling-swap.sh
-#      --retire); na volta do grupo, ele sobe de novo antes de os novos saírem
+#      rolling-swap.sh: o ao vivo não para) → ingestor/agents (recriação simples) → worker da fila (lado a lado, drenando
+#      o antigo: o lote em andamento fecha e a tarefa volta à fila, onde o novo a retoma); os quatro são da TAG_INGESTOR
+#      e voltam juntos → api, webhooks → site, console (ou demo) (rolling-swap.sh, sem página de manutenção: o contêiner
+#      novo sobe ao lado do antigo, e o antigo só sai com o novo healthy) → o resto. Sempre com --no-deps: quem não está
+#      na lista não é recriado. Serviço que saiu do compose (SAI do plano: a demo, quando virou site e console) sai depois
+#      que os da mesma imagem trocaram (rolling-swap.sh --retire); na volta do grupo, ele sobe de novo antes de os novos
+#      saírem
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
 #      API, webhooks, live, ingestor e agents ficaram), smoke test (smoke.mjs em cada contêiner web no ar, com a versão
 #      esperada de API e demo) e conferência de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a
@@ -538,34 +539,38 @@ up_wait() {
   done
 }
 
-# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho, cópia a cópia (a líder
-# primeiro; a reserva assume enquanto a nova sobe), api, webhooks, site, console e demo lado a lado (o antigo só sai com
-# o novo healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da configuração de antes (o live entra
-# antes da troca: falhou no meio, uma cópia já pode estar na versão nova). Com o grupo no ar, sai quem deixou o compose e
-# tinha a mesma imagem (GONE: a demo, quando site e console sobem); RETIRED[grupo] guarda quem saiu, para a volta do
-# grupo subi-lo de novo.
+# Troca lado a lado (rolling-swap.sh): o antigo só sai com o novo healthy. O worker da fila drena antes de sair.
+side_by_side() { case "$1" in api | webhooks | site | console | demo | worker) return 0 ;; esac; return 1; }
+
+# Troca um grupo (os serviços da mesma tag), nesta ordem: o live primeiro e sozinho, cópia a cópia (a líder primeiro; a
+# reserva assume enquanto a nova sobe); depois os de recriação simples (ingestor, agents), juntos; por último os lado a
+# lado, um por vez na ordem dada (o worker depois do ingestor, drenando o antigo; api, webhooks, site, console e demo).
+# TOUCHED = os que saíram da configuração de antes (o live entra antes da troca: falhou no meio, uma cópia já pode estar
+# na versão nova). Com o grupo no ar, sai quem deixou o compose e tinha a mesma imagem (GONE: a demo, quando site e
+# console sobem); RETIRED[grupo] guarda quem saiu, para a volta do grupo subi-lo de novo.
 TOUCHED=()
 swap_group() {
-  local s plain=() images=" " gone
+  local s plain=() rolling=() images=" " gone
   TOUCHED=()
   for s in "$@"; do
-    case "$s" in
-      live)
-        TOUCHED+=("$s")
-        ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
-        ;;
-      api | webhooks | site | console | demo)
-        ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
-        TOUCHED+=("$s")
-        ;;
-      *) plain+=("$s") ;;
-    esac
+    if [ "$s" = live ]; then
+      TOUCHED+=("$s")
+      ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
+    elif side_by_side "$s"; then
+      rolling+=("$s")
+    else
+      plain+=("$s")
+    fi
   done
   if [ "${#plain[@]}" -gt 0 ]; then
     TOUCHED+=("${plain[@]}")
     up_wait "${plain[@]}" || return $?
     drop_orphan_live "${plain[@]}"
   fi
+  for s in "${rolling[@]}"; do
+    ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
+    TOUCHED+=("$s")
+  done
   for s in "$@"; do images+="${SVC_IMAGE[$s]:-} "; done
   for gone in "${!GONE[@]}"; do
     case "$images" in *" ${GONE[$gone]} "*) ;; *) continue ;; esac
@@ -622,7 +627,7 @@ rollback_group() {
       continue
     fi
     case "$s" in
-      live | api | webhooks | site | console | demo)
+      live | api | webhooks | site | console | demo | worker)
         ssh "$VPS" "cd $DIR && export $COMPOSE_BAK && if docker compose config --services </dev/null | grep -qx $s; then \
           bash -s -- $s; else bash -s -- --retire $s; fi" < "$HERE/rolling-swap.sh" ||
           echo "FAIL  $s: a volta para a configuração anterior falhou"
@@ -644,9 +649,9 @@ mark_not_published() {
   ssh "$VPS" "cd $DIR && sed -i 's|^$SHA_KEY=.*|$SHA_KEY=$OLD|' .env" || echo "WARN  $SHA_KEY não voltou no .env"
 }
 
-# live → ingestor/agents (o mesmo grupo: a TAG_INGESTOR) → api/webhooks → site/console (ou demo) → cada imagem do
-# resto → o que não tem imagem nossa
-GROUPS_ORDER=("live ingestor agents" "api webhooks" "site console demo" "backup" "prometheus" "grafana")
+# live → ingestor/agents → worker (o mesmo grupo: a TAG_INGESTOR, nesta ordem dentro dele) → api/webhooks →
+# site/console (ou demo) → cada imagem do resto → o que não tem imagem nossa
+GROUPS_ORDER=("live ingestor agents worker" "api webhooks" "site console demo" "backup" "prometheus" "grafana")
 others=""
 for s in $TROCA; do
   case " ${GROUPS_ORDER[*]} " in *" $s "*) ;; *) others+=" $s" ;; esac
@@ -750,7 +755,7 @@ for group in "${to_verify[@]}"; do
     port=""
     if [ -n "$HAS_VERSION" ]; then
       case "$s" in
-        api | webhooks) port=8080 ;;
+        api | webhooks | worker) port=8080 ;;
         site | console | demo) port=3000 ;;
         live | ingestor | agents) port=9464 ;;
       esac

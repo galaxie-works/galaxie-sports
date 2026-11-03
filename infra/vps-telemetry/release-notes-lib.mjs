@@ -162,7 +162,7 @@ export function nextTag(names, today) {
 export const IMAGE_SERVICES = {
   api: ['api', 'webhooks', 'migrate'],
   demo: ['site', 'console'],
-  ingestor: ['ingestor', 'agents'],
+  ingestor: ['ingestor', 'agents', 'worker'],
 };
 
 const short = (tag) => tag.slice(0, 10);

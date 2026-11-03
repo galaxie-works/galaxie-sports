@@ -168,8 +168,8 @@ docker logs <job> > /root/logs/<job>-$(date +%F).log 2>&1 && docker rm <job>   #
 - O espelho de assets não é mais religado pelo deploy: roda só como job do scheduler (`assets-mirror`), com cursor por
   tipo de asset, e retoma de onde parou. Para rodar mais vezes por dia, mude `SCHEDULE_ASSETS_MIRROR` no painel
   (Ajustes → Operação), por exemplo `30 */3 * * *`.
-- Quando a fila de tarefas tiver worker (#542), estes jobs viram tarefas ([tarefas](tarefas.md)) e o contêiner avulso
-  fica para o que ainda não tem tipo.
+- Os que já têm tipo na fila (acervo, espelho, carga histórica, backfills) vão para a fila, e o serviço `worker` os
+  executa, drenando no deploy ([tarefas](tarefas.md#o-worker)). O contêiner avulso fica para o que ainda não tem tipo.
 
 ## Uso por contêiner (memória e CPU)
 

@@ -40,6 +40,10 @@ scrape_configs:
       - targets: ['agents:9464']
         labels:
           service: agents
+      # worker da fila de tarefas (#542): worker_tasks_running, worker_task_duration_seconds e build_info
+      - targets: ['worker:8080']
+        labels:
+          service: worker
       - targets: ['site:9464']
         labels:
           service: site

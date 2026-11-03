@@ -125,10 +125,12 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  * - demo (a imagem roda como `site` e `console`, #546): site = login 5 + Builder 3 + change feed 2 = 10; console =
  *   login 5 + Builder 3 + tarefas 2 = 10. No pior momento do deploy ficam no ar os dois e os dois candidatos (40; na
  *   troca, um deles em duas cópias, 30; na primeira troca, a demo antiga ao lado dos dois, 30), mais folga para CLI: 60;
- * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais o ao vivo quando ele roda aqui
- *   (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço `live`, que não refaz o teto do
- *   papel: 3 × (4 + 1) = 15) = 27, mais CLI à mão e a sobreposição de um deploy: 40. Com o `live` no ar (#535) o pico
- *   aqui é 12; o teto só cai quando a volta para antes dele deixar de ser opção;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 7 (a stack passa 1: o trabalho longo foi para o worker),
+ *   mais o ao vivo quando ele roda aqui (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço
+ *   `live`, que não refaz o teto do papel: 3 × (4 + 1) = 15) = 22; o worker da fila (#542), no mesmo papel: pai 2 +
+ *   `WORKER_MAX_TASKS` 2 × (2 do `runTask` + 4 do contexto do job) = 14, duas cópias durante a troca do deploy = 28;
+ *   mais CLI à mão: 55. Com o `live` no ar (#535) o pico aqui é 7 + 28; o teto só cai quando a volta para antes dele
+ *   deixar de ser opção;
  * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
  * - live: 2 cópias sempre, mais a nova durante a troca (#537). Cada cópia: scheduler 2 + live-run (4 + trava da cópia
  *   + trava `live:leader`) = 8; `live-reconcile` e `events-clock` (4 + 1 cada) rodam numa cópia por vez em todo o
@@ -139,7 +141,7 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
 export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
   api: 45,
   demo: 60,
-  ingestor: 40,
+  ingestor: 55,
   agents: 25,
   live: 45,
   backup: 6,
