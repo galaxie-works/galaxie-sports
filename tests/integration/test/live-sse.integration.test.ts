@@ -25,8 +25,7 @@ import {
 import { changeFeed, closeDb, competition, createDb, runMigrations, sport, type Database } from '@galaxie/db';
 import { LivePoller, PgLiveStore, upsertBatch } from '@galaxie/ingestor';
 import { ApiSportsProvider, normalizeFixtures, type ApiFixture } from '@galaxie/providers';
-import { createApiKey, upsertTenant } from '../src/auth/admin.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, createApiKey, upsertTenant } from '@galaxie/api';
 import { openSse, type SseClient } from './sse-client.js';
 
 const adminUrl = process.env.DATABASE_URL;

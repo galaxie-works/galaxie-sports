@@ -20,9 +20,7 @@ import {
 } from '@galaxie/db';
 import { loadGeoConfig } from '@galaxie/geo';
 import { seedGeo } from '@galaxie/ingestor';
-import { createApiKey, upsertTenant } from '../src/auth/admin.js';
-import { RecordingCdnPurger } from '../src/cache/purger.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, createApiKey, RecordingCdnPurger, upsertTenant } from '@galaxie/api';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
