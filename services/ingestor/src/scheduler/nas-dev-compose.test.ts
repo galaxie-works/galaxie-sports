@@ -23,6 +23,7 @@ interface Service {
   restart?: string;
   depends_on?: Record<string, { condition?: string }> | string[];
   environment?: Record<string, string>;
+  volumes?: string[];
 }
 const compose = parse(readFileSync(composePath, 'utf8'), { merge: true }) as {
   services: Record<string, Service>;
@@ -32,7 +33,7 @@ const vps = parse(readFileSync(vpsComposePath, 'utf8'), { merge: true }) as {
 };
 
 /** Os segredos da stack: sem padrão no compose (`${VAR:?}`), a stack não sobe sem eles. */
-const SECRETS = ['POSTGRES_PASSWORD', 'S3_ACCESS_KEY', 'S3_SECRET_KEY'];
+const SECRETS = ['POSTGRES_PASSWORD', 'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'BACKUP_AGE_IDENTITY'];
 /** O texto do compose sem as linhas de comentário (que citam `${VAR:?}` como exemplo); `$${VAR}` é do shell do contêiner. */
 const composeSemComentarios = readFileSync(composePath, 'utf8')
   .split('\n')
@@ -187,6 +188,58 @@ describe('stack de dev do NAS (infra/nas-dev/compose.yml)', () => {
     expect(required.size).toBeGreaterThan(0);
     for (const name of required) expect(example, name).toMatch(new RegExp(`^${name}=`, 'm'));
     expect(/^IMAGE_TAG=main$/m.test(example)).toBe(true);
+    // as com `:?` param a stack inteira quando faltam: o env.example traz cada uma com um valor (o compose config do CI
+    // lê este arquivo)
+    const strict = new Set(
+      [...composeSemComentarios.matchAll(/(?<!\$)\$\{([A-Z0-9_]+):\?/g)].map((m) => m[1]!),
+    );
+    expect(strict.size).toBeGreaterThan(0);
+    for (const name of strict) expect(example, name).toMatch(new RegExp(`^${name}=.+`, 'm'));
+  });
+
+  // ── espelho semanal produção → dev (#551) ───────────────────────────────────────────────────────────────────
+  describe('serviço espelho (produção → dev)', () => {
+    const espelho = compose.services.espelho!;
+    const env = (overrides: Record<string, string> = {}) =>
+      Object.fromEntries(
+        Object.entries(espelho.environment ?? {}).map(([k, v]) => [k, interpolate(String(v), overrides)]),
+      );
+
+    it('sobe com a infra (sem perfil), na imagem do Postgres 17 (pg_restore da versão do servidor)', () => {
+      expect(espelho).toBeDefined();
+      expect(espelho.profiles).toBeUndefined();
+      expect(espelho.image).toBe(compose.services.postgres?.image);
+    });
+
+    it('a chave do ensaio é obrigatória (a stack não sobe sem ela) e nunca tem padrão; o resto tem padrão', () => {
+      expect(String(espelho.environment?.BACKUP_AGE_IDENTITY)).toMatch(/^\$\{BACKUP_AGE_IDENTITY:\?/);
+      for (const v of espelho.volumes ?? []) expect(v).toMatch(/^\$\{NAS_[A-Z_]+:-\/volume1\//);
+    });
+
+    it('semanal por padrão, sem espelhar na partida, só o banco (nenhum prefixo do S3) e sem apagar objetos', () => {
+      const e = env();
+      expect(e.ESPELHO_CRON!.split(/\s+/)).toHaveLength(5);
+      expect(e.ESPELHO_CRON!.split(/\s+/)[4]).toMatch(/^[0-6]$/); // um dia da semana
+      expect(e.ESPELHO_ON_START).toBe('false');
+      expect(e.ESPELHO_S3_PREFIXES).toBe('');
+      expect(e.ESPELHO_S3_DELETE).toBe('false');
+      expect(e.ESPELHO_TEST_EMAIL_SUFFIX).toBe('@galaxie.test');
+      expect(env({ ESPELHO_CRON: '0 7 * * 3' }).ESPELHO_CRON).toBe('0 7 * * 3');
+    });
+
+    it('fala só com o Postgres e o RustFS da própria stack (nada alcança a VPS)', () => {
+      const e = env({ POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd' });
+      expect(e.PGHOST).toBe('postgres');
+      expect(e.PGDATABASE).toBe('d');
+      expect(e.S3_ENDPOINT).toBe('http://s3:9000');
+      for (const k of Object.keys(e)) expect(k, k).not.toMatch(/^VPS_/);
+    });
+
+    it('a pasta dos backups do NAS entra só leitura; a da stack, para script, recibo e dumps do dev', () => {
+      const volumes = espelho.volumes ?? [];
+      expect(volumes.find((v) => v.includes('NAS_BACKUP_PATH'))).toMatch(/:\/backups:ro$/);
+      expect(volumes.find((v) => v.includes('NAS_DEV_PATH'))).toMatch(/:\/data$/);
+    });
   });
 
   it('o env.example só traz valores desligados e baratos nos serviços que gastam cota', () => {
@@ -197,5 +250,7 @@ describe('stack de dev do NAS (infra/nas-dev/compose.yml)', () => {
     expect(get('APISPORTS_KEY')).toBe('');
     expect(get('YOUTUBE_API_KEY')).toBe('');
     expect(get('COMPOSE_PROFILES')).toBe('');
+    expect(get('ESPELHO_ON_START')).toBe('false');
+    expect(get('ESPELHO_S3_PREFIXES')).toBe('');
   });
 });

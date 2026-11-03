@@ -265,6 +265,71 @@ services:
     stop_grace_period: 40s
     logging: *logging
 
+  # ── espelho semanal produção → dev (#551) ──────────────────────────────────────────────────────────────────────
+  # O dump diário mais recente que a stack galaxie-sports-backup-nas guardou (NAS_BACKUP_PATH, só leitura aqui) vira o
+  # banco de dev pelo infra/ops/mirror-prod-to-dev.sh: decifrado com a chave privada do ensaio (a mesma do backup da
+  # VPS), restaurado num banco temporário, sem sessões, códigos de login, chaves e webhooks, com usuários fictícios
+  # (as contas de teste e as chaves do dev voltam), conferido e só então trocado pelo nome; os prefixos públicos do
+  # bucket de assets (ESPELHO_S3_PREFIXES, do que o nas-pull.sh guardou) vão para o RustFS do dev. Produção intacta:
+  # nada aqui alcança a VPS. Script, SQL, recibo (last_run.txt) e dumps do dev de antes de cada troca ficam em
+  # NAS_DEV_PATH. Runbook: docs/runbooks/ambiente-de-dev.md › Espelho semanal produção → dev.
+  espelho:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    depends_on:
+      - postgres
+      - s3
+      - valkey
+    environment:
+      TZ: UTC
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-galaxie}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      # chave PRIVADA do ensaio (AGE-SECRET-KEY-1…), a mesma BACKUP_AGE_IDENTITY do .env da VPS; obrigatória
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:?defina BACKUP_AGE_IDENTITY (chave privada do ensaio; docs/runbooks/ambiente-de-dev.md)}
+      # toda segunda às 06:30 UTC, depois da cópia das 05:15 do nas-pull.sh; a partida não espelha (ESPELHO_ON_START=true
+      # ou `plan` para uma prévia na partida)
+      ESPELHO_CRON: ${ESPELHO_CRON:-30 6 * * 1}
+      ESPELHO_ON_START: ${ESPELHO_ON_START:-false}
+      # prefixos públicos do bucket de assets (escudos, logos: os de NAS_S3_PREFIXES menos tasks-bucket, que é recusado);
+      # vazio = só o banco
+      ESPELHO_S3_PREFIXES: ${ESPELHO_S3_PREFIXES:-}
+      ESPELHO_S3_DELETE: ${ESPELHO_S3_DELETE:-false}
+      ESPELHO_TEST_EMAIL_SUFFIX: ${ESPELHO_TEST_EMAIL_SUFFIX:-@galaxie.test}
+      ESPELHO_KEEP_DEV_DUMPS: ${ESPELHO_KEEP_DEV_DUMPS:-3}
+      RESTORE_JOBS: ${ESPELHO_RESTORE_JOBS:-2}
+      # depois da troca, o cache de respostas da API do dev (Valkey) é esvaziado; off = não mexe
+      ESPELHO_VALKEY_HOST: ${ESPELHO_VALKEY_HOST:-valkey}
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+    volumes:
+      # a pasta da stack galaxie-sports-backup-nas (só leitura) e a pasta desta stack no NAS
+      - ${NAS_BACKUP_PATH:-/volume1/Docker/galaxie-sports-backups}:/backups:ro
+      - ${NAS_DEV_PATH:-/volume1/Docker/galaxie-sports-dev}:/data
+    # O script e a SQL vêm da pasta do NAS (cópias de infra/ops/mirror-prod-to-dev.sh e .sql em NAS_DEV_PATH, como o
+    # nas-pull.sh na pasta da stack de backup): nada ao lado deste arquivo, então a stack a partir do git continua só
+    # dele e das variáveis. A saída do crond vai para o log do container.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        apk add --no-cache -q age aws-cli redis
+        # o crond não repassa o ambiente do container para os jobs
+        export -p > /etc/espelho.env
+        echo "$$ESPELHO_CRON . /etc/espelho.env; /bin/sh /data/mirror-prod-to-dev.sh >/proc/1/fd/1 2>&1" | crontab -
+        case "$$ESPELHO_ON_START" in
+          true) /bin/sh /data/mirror-prod-to-dev.sh || true ;;
+          plan) /bin/sh /data/mirror-prod-to-dev.sh --plan || true ;;
+        esac
+        exec crond -f -l 8
+    logging: *logging
+
 volumes:
   pgdata:
   valkeydata:

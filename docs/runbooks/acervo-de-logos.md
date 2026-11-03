@@ -210,6 +210,9 @@ docker compose -f compose.dados.yml run --rm --no-deps -v /root/logs:/out --entr
 
 - O `--mapear` da produção casa contra o banco de produção, porque os ids diferem dos do dev. Ele mantém as decisões de
   curadoria do manifesto versionado. Uma segunda importação não regrava nada.
+- **Regra (#551):** manifesto e relatório de cobertura são gerados **contra a produção**, nunca contra o dev, mesmo depois
+  do espelho semanal produção → dev: a CLI avisa quando o `DATABASE_URL` é o do dev
+  ([ambiente de dev › Arquivos gerados a partir de dados](ambiente-de-dev.md#arquivos-gerados-a-partir-de-dados-só-contra-a-produção)).
 - Para tirar o acervo de exemplo:
   `docker compose run --rm --no-deps ingestor node dist/cli/assets-acervo.js --acervo exemplo --desvincular`.
 - Quando a fila (#543) e o worker (#542) estiverem no ar, a importação vira a tarefa `acervo.importar`, com prévia e

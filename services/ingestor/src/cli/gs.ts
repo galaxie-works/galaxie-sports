@@ -7,7 +7,7 @@
  *   node services/ingestor/dist/cli/gs.js tarefa enfileirar exemplo.eco --param mensagem=oi --previa
  */
 import { hostname, userInfo } from 'node:os';
-import { closeDb, createDb } from '@galaxie/db';
+import { closeDb, createDb, devDatabaseWarning } from '@galaxie/db';
 import { runEsquemaCli, USAGE_ESQUEMA } from '../dev/esquema.js';
 import { runTarefaCli, USAGE } from '../tasks/cli.js';
 
@@ -28,6 +28,13 @@ if (!DATABASE_URL) {
   console.error('Defina DATABASE_URL (.env).');
   process.exit(2);
 }
+// tarefa que gera arquivo a partir de dados (manifesto do acervo, relatórios) é da produção, nunca do dev (#551);
+// dev:esquema é do dev por definição, sem aviso
+const avisoDev =
+  command === 'tarefa'
+    ? devDatabaseWarning(DATABASE_URL, 'o arquivo que uma tarefa gera a partir de dados')
+    : undefined;
+if (avisoDev) console.error(avisoDev);
 
 const user = (() => {
   try {
