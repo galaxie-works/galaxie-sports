@@ -283,8 +283,9 @@ describe('exceções', () => {
   });
 
   it('a lista versionada é válida: regra conhecida, motivo de verdade e sem repetição', () => {
+    // A lista pode estar vazia (é o objetivo, #577); cada linha que voltar precisa ter motivo de verdade.
     const list = loadExceptions();
-    assert.ok(list.length > 0);
+    assert.ok(Array.isArray(list));
     assert.ok(list.every((e) => e.reason.length >= 20));
   });
 

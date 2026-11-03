@@ -435,6 +435,10 @@ jobs:
       - name: Hash da entrada (a fórmula que o docker.yml e o deploy dividem)
         run: bash infra/ops/image-hash.test.sh
 
+      # Alerta ProducaoAtrasada (#530): a decisão com fatos de faz de conta e o "desde quando" num repositório de verdade
+      - name: Produção atrasada (decisão do alerta; hash por commit)
+        run: node --test infra/ops/producao-atrasada.test.mjs
+
       - name: Página de manutenção (rótulo de revisão bate com o conteúdo das configs)
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json \

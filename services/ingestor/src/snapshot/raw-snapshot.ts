@@ -7,8 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { createGunzip, createGzip } from 'node:zlib';
 import { inArray, not, sql } from 'drizzle-orm';
 import { apiResponse, asset, type Database } from '@galaxie/db';
-import { MISSING_ASSET } from '../assets/placeholder-logos.js';
-import type { Tx } from '../normalize/sql-helpers.js';
+import { MISSING_ASSET, type Tx } from '@galaxie/core-writer';
 
 /**
  * Snapshot do raw (#20): NDJSON comprimido com gzip, uma linha por registro.

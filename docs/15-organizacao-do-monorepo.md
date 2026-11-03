@@ -34,13 +34,13 @@ e do que depende.
 | [`packages/runtime-config`](../packages/runtime-config/README.md) | lib | `@galaxie/runtime-config` | Flags da operação (banco > env > padrão) | — |
 | [`packages/ai-ledger`](../packages/ai-ledger/README.md) | lib | `@galaxie/ai-ledger` | Orçamento diário de IA em tokens e US$ | — |
 | [`packages/scheduler`](../packages/scheduler/README.md) | lib | `@galaxie/scheduler` | Motor de agendamento do ingestor e dos agentes (cron em UTC, um processo por job, trava, catch-up) | — |
+| [`packages/core-writer`](../packages/core-writer/README.md) | lib | `@galaxie/core-writer` | Grava o lote neutro dos provedores no core (`upsertBatch`), com a máquina de estados do evento, a importância e a junção do jogo provisório | — |
 | [`packages/observability`](../packages/observability/README.md) | lib | `@galaxie/observability` | Logger pino e métricas Prometheus | — |
 | [`packages/net-guard`](../packages/net-guard/README.md) | lib | `@galaxie/net-guard` | Proteção contra SSRF nas buscas de URLs de terceiros | — |
 | [`packages/widgets`](../packages/widgets/README.md) | lib | `@galaxie/widgets` | Widgets React, item de registry shadcn e embed HTML | servida pela demo |
 | [`config/`](../config/README.md) | dados | — | YAML de operação: competições, direitos, emissoras, regras, planos | copiada nas imagens |
 | [`data/knowledge`](../data/knowledge/SCHEMA.md) | dados | — | Base semântica versionada (times, clássicos, copy) | copiada nas imagens |
 | [`infra/`](../infra/README.md) | infra | — | Compose local, stack da VPS, backup, observabilidade, scripts de operação | várias |
-| `scripts/pwsh` | ferramenta | — | PowerShell de apoio (status da cota, cópia de assets) | — |
 | [`tests/integration`](../tests/integration/README.md) | testes | `@galaxie/integration-tests` | Integração que cruza API e ingestor (o ingestor semeia o core, a API serve) | — |
 | [`tests/load`](../tests/load/README.md) | testes | — | Cenários k6 | — |
 | `docs/` | docs | — | Documentação de produto, arquitetura, runbooks e pesquisas | — |
@@ -69,6 +69,7 @@ flowchart TB
   end
   subgraph domínio
     packages_ai_ledger[ai-ledger]
+    packages_core_writer[core-writer]
     packages_geo[geo]
     packages_knowledge[knowledge]
     packages_providers[providers]
@@ -95,6 +96,7 @@ flowchart TB
   apps_demo --> packages_contracts & packages_db & packages_runtime_config & packages_where_to_watch & packages_widgets
   packages_ai_ledger --> packages_db & packages_runtime_config
   packages_apisports_client --> packages_db
+  packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules
   packages_knowledge --> packages_db
   packages_observability --> packages_apisports_client & packages_db & packages_runtime_config
   packages_providers --> packages_apisports_client
@@ -103,12 +105,12 @@ flowchart TB
   packages_where_to_watch --> packages_db
   packages_widgets --> packages_contracts
   services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
-  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
+  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
 ```
 <!-- deps-map:end -->
 
 As camadas vêm de `scripts/deps/rules.mjs`: **app** (`apps/*`), **serviço** (`services/*`), **domínio**
-(`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`), **base** (`db`, `contracts`, `observability`,
+(`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`, `core-writer`), **base** (`db`, `contracts`, `observability`,
 `runtime-config`, `net-guard`, `apisports-client`, `scheduler`) **interface** (`widgets`) e **testes** (`tests/integration`, a folha do grafo que cruza API e ingestor, #563). Pacote novo em `packages/`
 precisa entrar numa delas, senão o `lint:deps` reprova.
 
@@ -134,8 +136,8 @@ Outras convenções do grafo, que a ferramenta ainda não cobra:
    `contracts`). São os mais fáceis de reaproveitar fora daqui.
 2. **O banco tem um dono de schema**: `packages/db`. Tabela nova entra por migration Drizzle.
 
-**Exceções.** O que já violava quando a regra entrou está em [`scripts/deps/exceptions.json`](../scripts/deps/exceptions.json),
-com o motivo de cada linha; a lista só encolhe (exceção que não cobre mais nada também reprova). Para adicionar uma regra ou
+**Exceções.** A lista de [`scripts/deps/exceptions.json`](../scripts/deps/exceptions.json) está vazia desde 03/11/2026 (#577):
+quem precisar de uma exceção escreve a linha com o motivo, e a lista só encolhe (exceção que não cobre mais nada também reprova). Para adicionar uma regra ou
 mudar uma camada, edite `scripts/deps/rules.mjs` e rode `pnpm deps:map`.
 
 ## 4. O que roda onde
