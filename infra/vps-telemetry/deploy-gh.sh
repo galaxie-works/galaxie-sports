@@ -52,12 +52,12 @@
 #      é garantidamente o estado de antes (nenhuma migration nova aplicada, backups na VPS, imagens antigas na VPS ou
 #      no GHCR); senão imprime o rollback manual
 #  11. lineup-render (perfil render): baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha)
-#  12. religa o espelho de assets (mirror-assets) se ele não estiver rodando
-#  13. guarda só os 10 backups mais novos do compose e do .env na VPS
-#  14. poda as imagens de versões antigas (prune-images.sh: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores, padrão 3)
+#  12. guarda só os 10 backups mais novos do compose e do .env na VPS
+#  13. poda as imagens de versões antigas (prune-images.sh: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores, padrão 3)
 # As notas de versão são publicadas pelo workflow depois deste script, só com sucesso.
-# Em obs, sem os passos do banco (7), do candidato (7b), do pós-deploy e do smoke (9) e os de apps (11 e 12), sem notas de
-# versão, e com o SHA em DEPLOY_SHA_OBS.
+# Em obs, sem os passos do banco (7), do candidato (7b), do pós-deploy e do smoke (9) e o de apps (11), sem notas de
+# versão, e com o SHA em DEPLOY_SHA_OBS. O espelho de assets não é mais religado aqui: roda só como job do scheduler
+# (assets-mirror, com cursor), e job manual longo é contêiner avulso (docs/runbooks/on-call.md), que o deploy não toca.
 # Saída: 0 = publicado, já estava no ar ou nada a publicar; 1 = falhou (a mensagem diz o que voltou e o que ficou).
 set -euo pipefail
 
@@ -765,13 +765,6 @@ lr_pull() {
   [ "$have" = "$tree" ] || echo "WARN  lineup-render: $image no GHCR é de outra versão da pasta (${have:-sem rótulo}); o docker.yml publica quando a pasta muda"
 }
 lr_pull
-
-# ── espelho de assets ───────────────────────────────────────────────────────────────────────────────────────
-# a troca do ingestor mata o mirror que rodava dentro dele; sem ingestor no ar (escala 0), não há o que religar
-[ "$PROJECT" != apps ] || ssh "$VPS" "cd $DIR && if pgrep -f mirror-assets >/dev/null; then echo 'mirror: já rodando'; \
-  elif [ -n \"\$(docker compose ps -q ingestor)\" ]; then \
-    (setsid nohup docker compose exec -T ingestor node dist/cli/mirror-assets.js --concorrencia 4 </dev/null > /tmp/mirror.log 2>&1 &); echo 'mirror: religado'; \
-  else echo 'mirror: ingestor fora do ar, nada a religar'; fi" || echo "WARN  mirror: não deu para religar"
 
 # ── backups do compose e do .env: os 10 mais novos de cada ─────────────────────────────────────────────────
 ssh "$VPS" "cd $DIR && for f in compose.yml compose.obs.yml .env; do ls -1t \$f.bak-* 2>/dev/null | tail -n +11 | xargs -r rm -f --; done" ||

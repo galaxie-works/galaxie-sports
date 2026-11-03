@@ -88,7 +88,8 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   },
   {
     name: 'assets-mirror',
-    description: 'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API)',
+    description:
+      'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API); retoma do cursor por tipo de asset onde a execução anterior parou',
     cron: '30 1 * * *',
     script: 'dist/cli/mirror-assets.js',
     args: ['--descobrir-raw', '--limite', '2000'],

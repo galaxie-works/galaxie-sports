@@ -51,6 +51,8 @@ export interface OpsServerOptions {
   env?: NodeJS.ProcessEnv;
   /** Falha do servidor (porta ocupada, por exemplo): só avisa, o serviço segue sem ele. */
   onError?: (err: Error) => void;
+  /** Métricas do próprio serviço, além das do processo e do `build_info` (ex.: as do ritmo do ao vivo, lidas do banco). */
+  register?: (registry: Registry) => void;
 }
 
 /**
@@ -65,6 +67,7 @@ export function startOpsServer(options: OpsServerOptions): Server {
   const registry = new Registry();
   collectDefaultMetrics({ register: registry });
   registerBuildInfo(registry, service, env);
+  options.register?.(registry);
 
   const server = createServer((req, res) => {
     const json = (status: number, body: unknown) => {

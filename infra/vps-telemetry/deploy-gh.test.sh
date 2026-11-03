@@ -11,6 +11,7 @@
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
 #   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta o projeto inteiro
+#   - o contêiner avulso de um job manual longo (docker compose run) sobrevive à troca do ingestor e à volta do projeto
 #   - serviço que expõe outra versão termina vermelho, com o nome dele, e volta só ele
 #   - webhooks trocam lado a lado, e a manutenção forçada fica de fora do deploy
 #   - --project obs troca só o que é dele, e o deploy de apps não toca em obs nem em dados
@@ -607,8 +608,14 @@ rm "$REPO_T/QUEBRA_ingestor"
 echo z >> "$REPO_T/services/ingestor/x"
 C7_BASE="$(commit "c7-base")"
 publish
+# job manual longo como contêiner avulso (docs/runbooks/on-call.md): é do serviço ingestor, mas não é o contêiner do
+# serviço, e o deploy não pode recriá-lo nem matá-lo
+(cd "$VPS_D" && docker compose run -d --no-deps --name "$PROJECT_T-avulso" ingestor </dev/null >/dev/null)
+avulso="true $(docker inspect -f '{{.Created}}' "$PROJECT_T-avulso")"
 deploy "$C7_BASE"
 expect_rc 0
+expect_eq "contêiner avulso intacto na troca do ingestor" \
+  "$(docker inspect -f '{{.State.Running}} {{.Created}}' "$PROJECT_T-avulso")" "$avulso"
 env_before="$(cat "$VPS_D/.env")"
 echo w >> "$REPO_T/services/ingestor/x"
 echo w >> "$REPO_T/apps/demo/x"
@@ -621,6 +628,10 @@ expect_log 'a troca falhou em mais de um serviço'
 expect_log '^FAIL  deploy desfeito'
 expect_eq ".env de antes" "$(cat "$VPS_D/.env")" "$env_before"
 expect_eq "um Postgres rodando" "$(docker ps -q --filter "volume=${PROJECT_T}_pgdata" | grep -c .)" 1
+expect_eq "contêiner avulso intacto na volta do projeto" \
+  "$(docker inspect -f '{{.State.Running}} {{.Created}}' "$PROJECT_T-avulso")" "$avulso"
+# id_of olha todos os contêineres do serviço: o avulso sai antes dos próximos cenários
+docker rm -f "$PROJECT_T-avulso" >/dev/null
 rm "$REPO_T/QUEBRA_ingestor" "$REPO_T/QUEBRA_demo"
 echo v >> "$REPO_T/services/ingestor/x"
 echo v >> "$REPO_T/apps/demo/x"

@@ -35,7 +35,7 @@ Convenções dos comandos: a VPS é `root@<vps>` (endereço no [runbook do deplo
 | Sinal | Alertas | Primeiro passo |
 |---|---|---|
 | `api` | `ApiDown`, `SloBurnRateFast` (`api-disponibilidade`, `api-latencia`), monitor externo | Ver se a API responde e se houve deploy; voltar a versão se o deploy for a causa |
-| `ao-vivo` | `LiveEventStale` | Ver se o `live-run` está rodando e se a cota LIVE acabou |
+| `ao-vivo` | `LiveEventStale`, `LiveTickGap` | Ver se o `live-run` está rodando e se a cota LIVE acabou. No painel "SLOs e orçamento de erro", a linha "Ritmo do ao vivo" mostra a idade do último tick, o intervalo através do deploy e quem é a líder |
 | `ia` | `AiCreditExhausted`, `AiSpendNearDailyBudget` | Crédito: recarregar e "verificar agora". Gasto: ver o agente que mais gastou |
 | `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Logs do contêiner `backup`; para disco, `df -h` (sem `prune`) |
 | `deploy` | "Aviso por push" do `deploy.yml` | Abrir o run: ver se o deploy voltou sozinho para a versão anterior |
@@ -143,6 +143,33 @@ ssh root@<vps> 'cd /docker/galaxie-sports && docker compose -f compose.obs.yml p
 
 Disco cheio derruba o Prometheus primeiro: confira `df -h`. Depois de subir, os alertas que estavam disparando voltam
 em 1 a 2 min.
+
+## Job manual longo: contêiner avulso, nunca `exec`
+
+Regra: **`docker compose exec` só para olhar** (um `psql`, um `ls`, um `--plan` curto). Todo trabalho de mais de um
+minuto (importação do acervo, carga histórica do #417, recálculo, normalização completa) roda como contêiner avulso:
+
+```bash
+cd /docker/galaxie-sports
+docker compose run -d --no-deps --name <job> ingestor node dist/cli/<cli>.js <opções>
+docker logs -f <job>                                                  # acompanhar; Ctrl+C sai só do log
+docker logs <job> > /root/logs/<job>-$(date +%F).log 2>&1 && docker rm <job>   # no fim: guarda o log e remove
+```
+
+- **Por quê:** o deploy recria o contêiner do serviço `ingestor`, e um `exec` dentro dele morre junto, com o `/tmp`. Em
+  02/11 a importação do acervo foi refeita do zero por isso. O contêiner do `run` é avulso (rótulo `oneoff` do compose):
+  o deploy só troca os serviços da lista, com `--no-deps`, e não toca nele.
+- **Nada de `nohup ... &` nem log em `/tmp`:** o log fica no Docker enquanto o contêiner existe e vai para `/root/logs/`
+  no fim. Sem `--rm`, para o log sobreviver até você guardar.
+- **Arquivo de entrada** (pacote, planilha) vai para o S3 da stack, num prefixo aleatório `tasks/<id>/`, e o CLI lê de
+  lá (ex.: `assets:acervo --pacote s3://…`). Nunca `docker compose cp` para dentro do contêiner.
+- **Antes de um deploy no meio do job:** não precisa esperar. Se o próprio contêiner avulso cair (VPS reiniciou), rode
+  de novo: os CLIs longos são idempotentes e retomam (cursores em `ops.sync_cursor`).
+- O espelho de assets não é mais religado pelo deploy: roda só como job do scheduler (`assets-mirror`), com cursor por
+  tipo de asset, e retoma de onde parou. Para rodar mais vezes por dia, mude `SCHEDULE_ASSETS_MIRROR` no painel
+  (Ajustes → Operação), por exemplo `30 */3 * * *`.
+- Quando a fila de tarefas tiver worker (#542), estes jobs viram tarefas ([tarefas](tarefas.md)) e o contêiner avulso
+  fica para o que ainda não tem tipo.
 
 ## Uso por contêiner (memória e CPU)
 
