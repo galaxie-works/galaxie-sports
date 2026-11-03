@@ -335,6 +335,18 @@ jobs:
             docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config -q
           done
 
+      # A stack de dev do NAS é lida pelo Portainer direto do git (#552): o arquivo tem de fechar sozinho, com e sem o
+      # perfil workers, e o migrate tem de ser o da produção na tag main (o resto das regras está no vitest do ingestor)
+      - name: docker compose config (stack de dev do NAS, a partir do git)
+        run: |
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example --profile workers config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config --format json |
+            jq -e '.services.migrate.image == "ghcr.io/galaxie-works/galaxie-sports-api:main"
+              and .services.migrate.restart == "no"
+              and (.services.migrate.depends_on.postgres.condition == "service_healthy")' >/dev/null ||
+            { echo "::error::migrate da stack de dev fora do esperado (imagem api:main, restart no, espera o postgres)"; exit 1; }
+
       - name: docker compose config (candidatos do deploy)
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
@@ -393,10 +405,14 @@ jobs:
             infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
-            infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
+            infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
+            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
+
+      - name: Migrate do dev pela máquina (migrate-dev.sh com docker e pnpm falsos; recusa URL que não é a do dev)
+        run: bash infra/ops/migrate-dev.test.sh
 
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh
