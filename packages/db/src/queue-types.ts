@@ -57,10 +57,165 @@ export const EXEMPLO_ECO = defineTaskType({
   maxAttempts: 3,
 });
 
+// ── tipos reais (#543): executores em services/ingestor/src/tasks ─────────────────────────────────
+
+/** Endereço `s3://<bucket>/<chave>` (sem `..`). */
+const s3Uri = (ext: RegExp, what: string) =>
+  z
+    .string()
+    .trim()
+    .regex(
+      /^s3:\/\/[a-z0-9][a-z0-9.-]{1,62}\/(?!.*(?:^|\/)\.\.(?:\/|$)).+$/i,
+      `use s3://<bucket>/<chave> (${what})`,
+    )
+    .regex(ext, `use s3://<bucket>/<chave> (${what})`);
+
+/**
+ * Acervo de escudos: o pacote vem do S3 (`tasks/<id>/`), a importação anda em lotes por país (até `lote` escudos
+ * cada) e o checkpoint é o último lote. Religa escudos, então é destrutiva: a prévia (como o `--plan` de
+ * `assets:acervo`) grava o plano e o relatório de cobertura em `tasks/<id da prévia>/cobertura.md` no S3 e em
+ * `checkpoint.previa`; a execução só sai da aprovação.
+ */
+export const ACERVO_IMPORTAR = defineTaskType({
+  type: 'acervo.importar',
+  descricao:
+    'Importa o acervo de escudos de um pacote no S3: liga os escudos do manifesto aos times e competições e desliga os que saíram. Em lotes por país.',
+  params: z.object({
+    pacote: s3Uri(/\.(tgz|tar\.gz)$/i, '.tgz').describe(
+      'Pacote no S3: s3://<bucket>/tasks/<id>/<arquivo>.tgz',
+    ),
+    acervo: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9-]{0,40}$/, 'id do acervo: letras minúsculas, números e hífen')
+      .describe('Id do acervo (o mesmo do acervo.yaml do pacote)'),
+    manifesto: s3Uri(/\.ya?ml$/i, '.yaml')
+      .optional()
+      .describe('Manifesto no S3 (padrão: o versionado em config/assets/acervo/<acervo>.yaml)'),
+    lote: z.number().int().min(10).max(500).default(100).describe('Escudos por lote'),
+  }),
+  previa: true,
+  destrutiva: true,
+  maxAttempts: 10,
+});
+
+/**
+ * Espelho de assets (o `mirror-assets`): lotes de `lote` assets com o cursor por tipo de asset em ops.sync_cursor;
+ * retoma de onde parou. Não é destrutiva: é a manutenção diária do scheduler (com QUEUE_MODE=enqueue, o cron só
+ * enfileira esta tarefa).
+ */
+export const ASSETS_ESPELHAR = defineTaskType({
+  type: 'assets.espelhar',
+  descricao:
+    'Espelha no S3 os logos, bandeiras e fotos que faltam (CDN de mídia; não gasta cota da API), retomando do cursor por tipo de asset.',
+  params: z.object({
+    limite: z.number().int().min(1).max(200_000).default(2000).describe('Máximo de assets nesta tarefa'),
+    lote: z
+      .number()
+      .int()
+      .min(10)
+      .max(5000)
+      .default(200)
+      .describe('Assets por lote (checkpoint a cada lote)'),
+    descobrirRaw: z.boolean().default(true).describe('Antes, registra as URLs de mídia do raw novo'),
+    retentarAusentes: z.boolean().default(false).describe('Tenta de novo os ausentes (404, bloqueados)'),
+    caminho: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, 'pasta da CDN: football, volley…')
+      .optional()
+      .describe('Só a mídia de um esporte (pasta na CDN)'),
+    concorrencia: z.number().int().min(1).max(8).default(3).describe('Downloads simultâneos'),
+  }),
+  previa: true,
+  destrutiva: false,
+  maxAttempts: 5,
+});
+
+/** Etapas da carga histórica do futebol (#417), na ordem em que rodam. */
+export const CARGA_ETAPAS = ['temporadas', 'detalhes', 'pessoas', 'perfis'] as const;
+export type CargaEtapa = (typeof CARGA_ETAPAS)[number];
+
+/**
+ * Carga histórica do futebol (#417): temporadas e detalhes em lotes por liga, depois pessoas e perfis; checkpoint por
+ * lote. Quando a cota do dia acaba, a tarefa volta à fila para o próximo dia de cota (não falha).
+ */
+export const CARGA_HISTORICA = defineTaskType({
+  type: 'carga.historica',
+  descricao:
+    'Carga histórica do futebol: temporadas, detalhes, pessoas e perfis, em lotes por liga. Gasta cota; quando a cota do dia acaba, volta à fila para o dia seguinte.',
+  params: z.object({
+    etapas: z
+      .array(z.enum(CARGA_ETAPAS))
+      .min(1)
+      .default([...CARGA_ETAPAS])
+      .describe('Etapas, na ordem: temporadas, detalhes, pessoas, perfis'),
+    tierMax: z.number().int().min(1).max(3).default(2).describe('Maior tier do catálogo incluído'),
+    ligas: z.array(z.number().int().positive()).optional().describe('Só estas ligas (ids da api-sports)'),
+    semLive: z.boolean().default(false).describe('Planeja o dia sem ao vivo, para liberar a cota à carga'),
+    maxChamadasPorLote: z
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe('Teto de chamadas que gastam cota em cada lote'),
+  }),
+  previa: true,
+  destrutiva: false,
+  maxAttempts: 5,
+});
+
+/**
+ * Normalização raw → core do futebol, completa (o `normalize:football --tudo`), em lotes por endpoint do raw. Sem
+ * chamada ao fornecedor; reprocessar o mesmo endpoint dá o mesmo resultado.
+ */
+export const BACKFILL_NORMALIZAR = defineTaskType({
+  type: 'backfill.normalizar',
+  descricao:
+    'Reprocessa o raw do futebol para o core (normalização completa), um endpoint por lote. Não chama o fornecedor.',
+  params: z.object({
+    endpoints: z
+      .array(z.string().regex(/^\/[a-z/]+$/, 'endpoint como /fixtures'))
+      .optional()
+      .describe('Só estes endpoints (padrão: todos os do raw do futebol)'),
+  }),
+  previa: true,
+  destrutiva: false,
+  maxAttempts: 5,
+});
+
+/**
+ * Recálculo local das tabelas (o `standings:recompute`), em lotes de temporadas. Sem chamada ao fornecedor.
+ */
+export const BACKFILL_TABELAS = defineTaskType({
+  type: 'backfill.tabelas',
+  descricao:
+    'Recalcula as tabelas a partir dos resultados do core, em lotes de temporadas. Não chama o fornecedor.',
+  params: z.object({
+    dias: z
+      .number()
+      .int()
+      .min(0)
+      .max(3650)
+      .default(4)
+      .describe('Temporadas com resultado novo nestes dias (ignorado com temporadas)'),
+    temporadas: z.array(z.string().uuid()).optional().describe('Só estas temporadas (ids do core)'),
+    lote: z.number().int().min(1).max(200).default(20).describe('Temporadas por lote'),
+  }),
+  previa: true,
+  destrutiva: false,
+  maxAttempts: 5,
+});
+
 export type TaskRegistry = readonly TaskTypeDef[];
 
-/** Todos os tipos conhecidos. A #543 acrescenta aqui os reais (acervo, carga, backfill, espelho). */
-export const TASK_TYPES: TaskRegistry = [EXEMPLO_ECO as unknown as TaskTypeDef];
+/** Todos os tipos conhecidos. */
+export const TASK_TYPES: TaskRegistry = [
+  EXEMPLO_ECO,
+  ACERVO_IMPORTAR,
+  ASSETS_ESPELHAR,
+  CARGA_HISTORICA,
+  BACKFILL_NORMALIZAR,
+  BACKFILL_TABELAS,
+] as unknown as TaskRegistry;
 
 export function taskType(type: string, registry: TaskRegistry = TASK_TYPES): TaskTypeDef | undefined {
   return registry.find((d) => d.type === type);
