@@ -402,7 +402,7 @@ process.exit(2);
       const [created, ...rest] = calls();
       assert.equal(rest.length, 0);
       assert.match(created.body, /## Serviços publicados\n\n\| Serviço \| Versão \| Situação \|/);
-      assert.match(created.body, /\| `ingestor`, `agents` \| `in-antiga1` → `in-nova123` \| trocada \|/);
+| `ingestor`, `agents`, `worker` |      assert.match(created.body, /\| `ingestor`, `agents` \| `in-antiga1` → `in-nova123` \| trocada \|/);
       assert.match(created.body, /\| `demo` \| `in-demo123` \| sem troca \|/);
       assert.match(created.body, /<!-- galaxie-versions: ingestor=in-nova123456 demo=in-demo123456 -->\s*$/);
     }));
