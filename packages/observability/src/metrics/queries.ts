@@ -162,6 +162,50 @@ export async function jobStats(db: Database): Promise<JobStatsRow[]> {
   }));
 }
 
+export interface QueueStats {
+  tasks: {
+    type: string;
+    /** Esperando worker: pendentes (mesmo em backoff) e de concessão vencida, que ninguém está tocando. */
+    pending: number;
+    running: number;
+    /** Idade (s) da mais antiga pronta para ser tomada: desde o `run_after` ou desde que a concessão venceu. */
+    oldestPendingSeconds: number | null;
+  }[];
+  /** Execuções das últimas 24 h, por tipo. */
+  runs: { type: string; resumed: number; failed: number }[];
+}
+
+/** Estado da fila de tarefas (ops.job_request com `type`, packages/db/src/queue.ts). */
+export async function queueStats(db: Database): Promise<QueueStats> {
+  const [tasks, runs] = await Promise.all([
+    db.execute<{ type: string; pending: number; running: number; oldest: number | null }>(sql`
+      select type,
+             count(*) filter (where status = 'pending' or locked_until < now())::int as pending,
+             count(*) filter (where status = 'running' and locked_until >= now())::int as running,
+             extract(epoch from now() - min(case when status = 'running' then locked_until else run_after end)
+               filter (where (status = 'pending' and run_after <= now()) or locked_until < now()))::float8 as oldest
+        from ops.job_request
+       where status in ('pending', 'running') and type is not null
+       group by type`),
+    db.execute<{ type: string; resumed: number; failed: number }>(sql`
+      select job as type,
+             count(*) filter (where resumed_from is not null)::int as resumed,
+             count(*) filter (where status = 'error')::int as failed
+        from ops.job_run
+       where request_id is not null and started_at >= now() - interval '24 hours'
+       group by job`),
+  ]);
+  return {
+    tasks: tasks.map((t) => ({
+      type: t.type,
+      pending: Number(t.pending),
+      running: Number(t.running),
+      oldestPendingSeconds: t.oldest === null ? null : Number(t.oldest),
+    })),
+    runs: runs.map((r) => ({ type: r.type, resumed: Number(r.resumed), failed: Number(r.failed) })),
+  };
+}
+
 export interface FreshnessRow {
   sport: string;
   lastFetchedAt: Date;

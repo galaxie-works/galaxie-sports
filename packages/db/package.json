@@ -31,6 +31,10 @@
       "types": "./dist/channel-lists.d.ts",
       "default": "./dist/channel-lists.js"
     },
+    "./queue": {
+      "types": "./dist/queue.d.ts",
+      "default": "./dist/queue.js"
+    },
     "./related": {
       "types": "./dist/related-content.d.ts",
       "default": "./dist/related-content.js"
