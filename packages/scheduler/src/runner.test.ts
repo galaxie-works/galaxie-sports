@@ -130,6 +130,19 @@ describe('runJob', () => {
     expect(recorder.rows.get('run-1')!.error).toMatch(/tempo limite/);
   });
 
+  it('o job que fica no ar (keepAlive) não tem tempo limite: só o encerramento o para', async () => {
+    const stop = new AbortController();
+    setTimeout(() => stop.abort(), 400);
+    const result = await runJob(job('hang.mjs', { keepAlive: true, timeoutMs: 100 }), {
+      cwd: dir,
+      logger,
+      trigger: 'keepalive',
+      signal: stop.signal,
+    });
+    expect(result.timedOut).toBe(false);
+    expect(result.durationMs).toBeGreaterThanOrEqual(350);
+  });
+
   it('roda mesmo sem banco para registrar', async () => {
     const result = await runJob(job('fail.mjs'), { cwd: dir, logger, trigger: 'manual' });
     expect(result).toMatchObject({ status: 'error', runId: undefined });

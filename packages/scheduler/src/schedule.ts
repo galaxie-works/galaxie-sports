@@ -34,8 +34,9 @@ export interface ScheduledJob {
   };
   /**
    * Processo de longa duração: sobe com o scheduler e, quando sai, sobe de novo (atraso curto, crescente se ele cai logo
-   * depois de subir); o cron não é programado. `SCHEDULE_<JOB>=off` desliga. Ex.: o `live-run --continuo` do perfil
-   * `live`, que espera a liderança do ao vivo.
+   * depois de subir); o cron não é programado e o `timeoutMs` não vale (o processo fica no ar por dias).
+   * `SCHEDULE_<JOB>=off` desliga e encerra o processo. Ex.: o `live-run --continuo` do perfil `live`, que espera a
+   * liderança do ao vivo.
    */
   keepAlive?: boolean;
   /**

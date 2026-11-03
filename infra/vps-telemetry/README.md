@@ -498,8 +498,8 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
-`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 25, agents 25, live 36, backup 6. A
-soma (167) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
+`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
+soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
 pico real da tabela acima (70) mais os candidatos do deploy (API e demo, 20) dá 90 de 97 vagas, o que deixa poucas
 vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
 

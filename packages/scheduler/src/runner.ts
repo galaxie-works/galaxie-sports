@@ -206,12 +206,15 @@ async function spawnJob(
     };
     if (options.signal?.aborted) onAbort();
     else options.signal?.addEventListener('abort', onAbort, { once: true });
-    const timer = setTimeout(() => {
-      timedOut = true;
-      log.warn({ timeout_ms: job.timeoutMs }, 'job excedeu o tempo limite; encerrando');
-      child.kill('SIGTERM');
-      killTimer = setTimeout(() => child.kill('SIGKILL'), options.killGraceMs ?? 10_000);
-    }, job.timeoutMs);
+    // o job que fica no ar (keepAlive) não tem tempo limite: encerrar por tempo pararia o ao vivo no meio do jogo
+    const timer = job.keepAlive
+      ? undefined
+      : setTimeout(() => {
+          timedOut = true;
+          log.warn({ timeout_ms: job.timeoutMs }, 'job excedeu o tempo limite; encerrando');
+          child.kill('SIGTERM');
+          killTimer = setTimeout(() => child.kill('SIGKILL'), options.killGraceMs ?? 10_000);
+        }, job.timeoutMs);
     child.once('error', (spawnError) => {
       clearTimeout(timer);
       clearTimeout(killTimer);

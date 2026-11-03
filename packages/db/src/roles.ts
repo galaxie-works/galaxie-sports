@@ -123,9 +123,10 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
  * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
  * - demo: login 5 + Builder 3 + change feed 2 = 10 por cópia × 3 (no ar, nova e candidata) = 30;
- * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais CLI à mão e a sobreposição de um deploy:
- *   25. O ao vivo saiu daqui para o serviço `live` (#535); com `SCHEDULER_LIVE=internal` (dev, ou a volta para uma
- *   versão anterior) o ingestor o roda de novo, com o papel do dono ou um teto maior;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais o ao vivo quando ele roda aqui
+ *   (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço `live`, que não refaz o teto do
+ *   papel: 3 × (4 + 1) = 15) = 27, mais CLI à mão e a sobreposição de um deploy: 40. Com o `live` no ar (#535) o pico
+ *   aqui é 12; o teto só cai quando a volta para antes dele deixar de ser opção;
  * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
  * - live: 2 cópias (a no ar e a nova durante a troca) × (scheduler 2 + 3 processos × (4 + 1) = 17) = 34, mais folga: 36.
  *   Se o serviço rodar os três no mesmo processo, com um pool só, o teto pode cair para 12;
@@ -135,7 +136,7 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
 export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
   api: 45,
   demo: 30,
-  ingestor: 25,
+  ingestor: 40,
   agents: 25,
   live: 36,
   backup: 6,
