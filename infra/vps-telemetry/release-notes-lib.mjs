@@ -157,7 +157,7 @@ export function nextTag(names, today) {
 /** Serviços que rodam cada imagem (o deploy informa os serviços trocados; a versão é da imagem). O resto é 1 para 1. */
 export const IMAGE_SERVICES = {
   api: ['api', 'webhooks', 'migrate'],
-  ingestor: ['ingestor', 'agents'],
+  ingestor: ['ingestor', 'agents', 'worker'],
 };
 
 const short = (tag) => tag.slice(0, 10);

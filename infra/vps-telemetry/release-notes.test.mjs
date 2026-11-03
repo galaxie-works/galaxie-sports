@@ -179,7 +179,7 @@ describe('servicesSection', () => {
 
   it('uma linha por imagem: tag anterior → nova nas trocadas, "sem troca" nas que ficaram', () => {
     assert.equal(
-      servicesSection(versions, 'api webhooks ingestor agents', previous),
+      servicesSection(versions, 'api webhooks ingestor agents worker', previous),
       [
         '## Serviços publicados',
         '',
@@ -187,7 +187,7 @@ describe('servicesSection', () => {
         '|---|---|---|',
         '| `api`, `webhooks`, `migrate` | `in-apiOLDO` → `in-apiabcd` | trocada |',
         '| `demo` | `in-demoabc` | sem troca |',
-        '| `ingestor`, `agents` | `in-ingOLDO` → `in-ingabcd` | trocada |',
+        '| `ingestor`, `agents`, `worker` | `in-ingOLDO` → `in-ingabcd` | trocada |',
         '| `lineup-render` | `in-lrabcde` | sem troca |',
       ].join('\n'),
     );
