@@ -23,9 +23,9 @@ import {
   type ApiFixture,
   type ApiFixtureEvent,
 } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { LivePoller } from '../live/poller.js';
 import { PgLiveStore } from '../live/store.js';
-import { upsertBatch } from '../normalize/upsert-core.js';
 import { apiFixture, liveWorld, matchState, realOffset, type WorldMatch } from '../testing/live-world.js';
 
 const MIN = 60_000;

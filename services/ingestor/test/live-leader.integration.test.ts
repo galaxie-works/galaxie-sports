@@ -18,6 +18,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { ApiSportsProvider, FakeProvider, normalizeFixtures, type ProviderResult } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { PgJobRunStore } from '../src/jobs/runtime/job-run-store.js';
 import { LIVE_HANDOFF_KEY, PgLiveHandoffStore } from '../src/live/handoff.js';
 import { LIVE_LEADER_LOCK, liveLeaderSessionName, runLiveLeadership } from '../src/live/leader.js';
@@ -32,7 +33,6 @@ import {
 import { LIVE_STATE_ENDPOINT } from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
 import { PgLiveTickStore } from '../src/live/tick-record.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { apiFixture, liveWorld, wednesdayNight, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';
 

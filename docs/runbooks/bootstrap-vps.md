@@ -103,10 +103,13 @@ primeira requisição de cada host.
 
 ```bash
 mkdir -p /docker/galaxie-sports && cd /docker/galaxie-sports
-# compose.yml = infra/vps-telemetry/compose.yml do commit no ar (a tag deploy-* mais recente);
+# compose.yml, compose.dados.yml e compose.obs.yml = os de infra/vps-telemetry do commit no ar (a tag deploy-* mais recente);
 # .env do cofre (chmod 600), com o SHA desse commit em cada TAG_* (TAG_API, TAG_DEMO, TAG_INGESTOR, TAG_BACKUP,
 # TAG_PROMETHEUS, TAG_GRAFANA) e em DEPLOY_SHA, e PULL_POLICY=missing
-docker compose config -q
+# a rede e os volumes são externos aos três projetos: criados uma vez (sub-rede fixa: TRUST_PROXY=172.30.50.1)
+docker network create --subnet 172.30.50.0/24 --gateway 172.30.50.1 galaxie-sports_default
+for v in pgdata valkeydata s3data backups promdata grafanadata; do docker volume create galaxie-sports_$v; done
+for f in compose.yml compose.dados.yml compose.obs.yml; do docker compose -f $f config -q; done
 ```
 
 As imagens do GHCR são privadas. Login temporário com um token pessoal só de `read:packages`, num `DOCKER_CONFIG` que
@@ -122,7 +125,7 @@ rm -rf "$DOCKER_CONFIG"; unset DOCKER_CONFIG
 Banco antes da aplicação (o migrate roda no `up`; restaurar primeiro evita migrar um banco vazio à toa):
 
 ```bash
-docker compose up -d postgres valkey s3 s3-init
+docker compose -f compose.dados.yml up -d postgres valkey s3 s3-init
 # do NAS para a VPS: o .dump.age mais recente e o .sha256 dele (scp para /root/restore/)
 set -a; . ./.env; set +a
 # o restore.sh confere o .sha256 do .dump.age e decifra com a chave em BACKUP_AGE_IDENTITY (o conteúdo da chave de

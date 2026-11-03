@@ -14,6 +14,11 @@
 set -euo pipefail
 export PULL_POLICY=missing # as imagens já foram baixadas pelo deploy
 
+# Postgres, Valkey e backup estão no projeto `dados` (docs/runbooks/stack-em-tres-projetos.md); antes da transição, neste
+dados() {
+  if [ -f compose.dados.yml ]; then docker compose -f compose.dados.yml "$@"; else docker compose "$@"; fi
+}
+
 C=(docker compose -f compose.yml.new --env-file .env.next --profile candidate)
 SERVICES=(api-candidate demo-candidate)
 
@@ -60,7 +65,7 @@ smoke() {
 down() {
   "${C[@]}" rm -sf "${SERVICES[@]}" </dev/null >/dev/null 2>&1 || true
   # chaves do candidato no Valkey (cache, rate limit, uso, relay): as de cache expiram sozinhas, o resto não
-  docker compose exec -T valkey sh -ec '
+  dados exec -T valkey sh -ec '
     keys=$(valkey-cli --scan --pattern "gs-candidate:*")
     [ -z "$keys" ] || printf "%s\n" "$keys" | xargs -n 200 valkey-cli del >/dev/null' </dev/null ||
     echo "WARN  candidato: chaves gs-candidate:* não foram apagadas do Valkey"

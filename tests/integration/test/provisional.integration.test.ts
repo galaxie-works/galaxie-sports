@@ -15,7 +15,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import { loadGeoConfig } from '@galaxie/geo';
-import { parseProvisionalFile, seedGeo, syncProvisionalFixtures, upsertBatch } from '@galaxie/ingestor';
+import { upsertBatch } from '@galaxie/core-writer';
+import { parseProvisionalFile, seedGeo, syncProvisionalFixtures } from '@galaxie/ingestor';
 import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
 import { buildServer, createApiKey, RecordingCdnPurger, upsertTenant } from '@galaxie/api';
 

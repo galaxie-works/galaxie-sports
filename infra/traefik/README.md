@@ -80,12 +80,12 @@ Ligar (precisa do OK do Wagner; não reinicia o Traefik):
 cd /docker/galaxie-sports
 cp .env .env.bak-compress
 echo 'EDGE_MIDDLEWARES=gsports-compress' >> .env
-docker compose up -d api demo s3 maintenance      # recria os quatro (a demo e a API ficam ~30 s na página de manutenção)
+docker compose up -d --no-deps api demo maintenance && docker compose -f compose.dados.yml up -d --no-deps s3   # recria os quatro (a demo e a API ficam ~30 s na página de manutenção)
 curl -sS -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://$API_DOMAIN/v1/sports" -H "x-galaxie-key: $KEY" | grep -i content-encoding   # br
 curl -sS -N -m 5 -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://$API_DOMAIN/v1/stream?token=$TOKEN" | grep -ci content-encoding   # 0
 ```
 
-Voltar: tirar a linha do `.env` (ou `cp .env.bak-compress .env`) e o mesmo `docker compose up -d api demo s3 maintenance`.
+Voltar: tirar a linha do `.env` (ou `cp .env.bak-compress .env`) e os mesmos dois comandos.
 O próximo deploy já usa o `.env` como estiver.
 
 ## Nova tentativa (`gsports-retry`)

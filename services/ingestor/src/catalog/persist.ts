@@ -11,7 +11,7 @@ import {
   type Database,
   type I18nText,
 } from '@galaxie/db';
-import { LOGO_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
+import { LOGO_KINDS, MISSING_ASSET } from '@galaxie/core-writer';
 import { canonicalCountryName } from './countries.js';
 
 // ─── formato intermediário (comum aos 12 esportes) ───────────────────────────────────────────────

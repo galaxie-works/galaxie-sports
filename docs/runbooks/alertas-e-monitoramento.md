@@ -81,7 +81,7 @@ precisa ser longo e aleatório, e não vai para o repositório.
 4. Recrie o Grafana e confira o log:
 
    ```bash
-   cd /docker/galaxie-sports && docker compose up -d grafana && docker compose logs grafana | grep alertas
+   cd /docker/galaxie-sports && docker compose -f compose.obs.yml up -d grafana && docker compose -f compose.obs.yml logs grafana | grep alertas
    ```
 
    Esperado: `alertas por push ligados (ntfy): crítico na hora`.
@@ -116,7 +116,7 @@ ALERT_SMTP_USER=alertas@exemplo.com
 ALERT_SMTP_PASSWORD=<senha de app do SMTP>
 ```
 
-Depois `docker compose up -d grafana` (log: `alertas por e-mail ligados`) e Alerting → Contact points →
+Depois `docker compose -f compose.obs.yml up -d grafana` (log: `alertas por e-mail ligados`) e Alerting → Contact points →
 `email-operacao` → Test.
 
 ## Issue no GitHub por alerta
@@ -168,7 +168,7 @@ Para listar as abertas: `gh issue list --label alerta --state open`.
 3. Recrie o Grafana e confira o log:
 
    ```bash
-   cd /docker/galaxie-sports && docker compose up -d grafana && docker compose logs grafana | grep alertas
+   cd /docker/galaxie-sports && docker compose -f compose.obs.yml up -d grafana && docker compose -f compose.obs.yml logs grafana | grep alertas
    ```
 
    Esperado: `alertas no GitHub ligados (galaxie-works/galaxie-sports): uma issue por alerta`.
@@ -186,7 +186,7 @@ O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão
 
 - **Do Grafana ao GitHub:** pelo túnel, Alerting → Contact points → `issue-github` → Test. Abre uma issue com o alerta
   de teste do Grafana (feche à mão: o teste não manda o `resolved`).
-- **Sem issue?** Veja o log do Grafana (`docker compose logs grafana | grep -i webhook`): 401 é token errado ou
+- **Sem issue?** Veja o log do Grafana (`docker compose -f compose.obs.yml logs grafana | grep -i webhook`): 401 é token errado ou
   vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
   input recusado. Depois, a execução em Actions → Alerta do Grafana.
 
