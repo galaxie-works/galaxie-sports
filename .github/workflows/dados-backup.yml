@@ -80,6 +80,25 @@ jobs:
           printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
+      # a mesma trava do deploy.sh e do deploy-gh.sh (.deploy.lock): o grupo de concorrência do Actions não vê um deploy
+      # rodando da máquina de alguém, e os dois mexem no .env
+      - name: Trava da VPS
+        env:
+          LOCK_ID: gha-dados-${{ github.run_id }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          LOCK="$DIR/.deploy.lock"
+          owner="$LOCK_ID $TAG $(date -u +%FT%TZ)"
+          lock="$(ssh "$VPS" "if mkdir $LOCK 2>/dev/null; then echo '$owner' > $LOCK/owner && echo ok;             elif [ -n \"\$(find $LOCK -maxdepth 0 -mmin +90 2>/dev/null)\" ]; then               old=\$(cat $LOCK/owner 2>/dev/null || echo '(sem dono)');               rm -rf $LOCK && mkdir $LOCK && echo '$owner' > $LOCK/owner && echo \"tomada \$old\";             else cat $LOCK/owner 2>/dev/null || echo '(sem dono)'; fi")"
+          case "$lock" in
+            ok) ;;
+            tomada*) echo "::warning::trava da VPS com mais de 90 min tomada (era: ${lock#tomada })" ;;
+            *)
+              echo "::error::outro deploy em andamento na VPS: ${lock:-(trava disputada agora)}; espere e rode de novo"
+              exit 1
+              ;;
+          esac
+
       - name: Trocar a imagem do backup na VPS
         env:
           TAG: ${{ steps.tag.outputs.tag }}
@@ -107,12 +126,26 @@ jobs:
           CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
         run: ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG" || echo "::warning::não consegui remover $CFG na VPS; remova à mão"
 
+      # o pipefail vale no shell remoto (o status do s3-sync.sh, não o do tail); depois o recibo tem de ser deste sync e,
+      # com o bucket das tarefas ligado, a pasta s3/tasks-bucket tem de existir
       - name: s3-sync.sh agora
         if: inputs.sync == '1'
         run: |
-          set -o pipefail
-          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup s3-sync.sh </dev/null 2>&1 | tail -n 5"
-          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup sh -c 'cat /backups/.s3_last_sync; ls /backups/s3' </dev/null"
+          ssh "$VPS" "set -o pipefail; cd $DIR && docker compose -f compose.dados.yml exec -T backup s3-sync.sh </dev/null 2>&1 | tail -n 5"
+          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup sh -c '
+            set -e
+            [ -n \"\$(find /backups/.s3_last_sync -mmin -20 2>/dev/null)\" ] || { echo \"recibo /backups/.s3_last_sync não é deste sync\"; exit 1; }
+            cat /backups/.s3_last_sync; ls /backups/s3
+            [ \"\${BACKUP_S3_SYNC_TASKS_BUCKET:-false}\" != true ] || [ -d /backups/s3/tasks-bucket ] || { echo \"s3/tasks-bucket não existe\"; exit 1; }' </dev/null"
+
+      - name: Soltar a trava da VPS
+        if: always()
+        env:
+          LOCK_ID: gha-dados-${{ github.run_id }}
+        run: |
+          LOCK="$DIR/.deploy.lock"
+          ssh -o ConnectTimeout=20 "$VPS" "if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
+            echo "::warning::não consegui soltar a trava $LOCK na VPS; confira o dono e remova à mão"
 
       - name: Guardar só os 10 .env.bak-dados-* mais novos
         if: always()
