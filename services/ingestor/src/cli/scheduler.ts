@@ -11,6 +11,7 @@
  * `../scheduler/schedule.ts`; as variáveis (SCHEDULE_<JOB>, SCHEDULER_*) estão em `packages/scheduler/src/cli.ts`.
  */
 import { fileURLToPath } from 'node:url';
+import { registerLiveTickMetrics } from '@galaxie/observability';
 import { runScheduler } from '@galaxie/scheduler';
 import { logger } from '../logger.js';
 import { DEFAULT_JOBS } from '../scheduler/schedule.js';
@@ -32,4 +33,10 @@ await runScheduler({
   jobs: DEFAULT_JOBS,
   packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
   log: logger.child({ component: 'scheduler' }),
+  // o live-run é um processo filho sem servidor: o ritmo dele sai daqui, lido do Postgres a cada coleta (#538)
+  metrics: (db) => (registry) =>
+    registerLiveTickMetrics(registry, db, {
+      onCollectorError: (collector, err) =>
+        logger.warn({ err, collector }, 'não foi possível ler o ritmo do ao vivo para o /metrics'),
+    }),
 });
