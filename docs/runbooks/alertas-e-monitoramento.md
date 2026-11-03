@@ -278,7 +278,7 @@ Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, n
 - O ingestor é lido da release `deploy-*`, não do processo. Ele reflete o que o último deploy publicou: um ingestor
   trocado ou parado à mão fora do deploy não aparece, e uma release que falhou ao ser publicada (`release não publicada`
   no passo "Notas de versão") pode dar falso atraso do ingestor. Se a release ficar ilegível de vez (formato das notas
-  mudou), a execução avisa `ingestor sem leitura` e uma issue aberta não fecha sozinha: feche à mão e ajuste
+  mudou; hoje é o marcador `galaxie-versions` no fim das notas), a execução avisa `ingestor sem leitura` e uma issue aberta não fecha sozinha: feche à mão e ajuste
   `ingestorDaRelease`.
 - A versão que roda é procurada nos últimos 120 commits que mexeram na imagem. Fora disso (ou com uma tag que não veio
   do CI), o atraso é contado desde o commit mais antigo olhado e a mensagem diz "ou mais".

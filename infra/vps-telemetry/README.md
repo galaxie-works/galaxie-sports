@@ -39,10 +39,13 @@ externos, com o nome de quando era um projeto só. Dia a dia:
 [Dados e observabilidade](../../docs/runbooks/stack-dados-e-observabilidade.md). Transição:
 [Stack em três projetos](../../docs/runbooks/stack-em-tres-projetos.md).
 
+Por unidade (Borda, Dados, Observabilidade, API, Web, Ao vivo, Processamento): o que roda, o smoke, como voltar uma
+versão e quem conversa com quem estão em [UNIDADES.md](UNIDADES.md).
+
 ## Imagens
 
 O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `api`, `ingestor`, `demo`, `backup`,
-`prometheus` e `grafana` (o `caddy` não é publicado):
+`prometheus` e `grafana`:
 
 - na fila de merge (`merge_group`) com a tag `<sha>` do commit que vai virar a `main`;
 - no push para a `main` com `<sha>`, `main` e `staging`.

@@ -8,7 +8,8 @@
  *   node infra/vps-telemetry/release-notes.mjs --to <sha>                        # chamado pelo deploy.sh
  *   node infra/vps-telemetry/release-notes.mjs --to <sha> --from <ref> --title "…"  # retroativa
  *   node infra/vps-telemetry/release-notes.mjs --to <sha> --dry                  # só imprime as notas
- *   ... --versions "api=in-abc demo=in-def" --swapped "demo"                     # o deploy: hash de cada imagem nas notas
+ *   ... --versions "api=in-abc demo=in-def" --swapped "demo"                     # o deploy: seção "Serviços publicados"
+ *   ... --previous "api=in-xyz demo=in-def"                                      # versões do deploy anterior (padrão: as da release dele)
  *
  * - Tag e release saem juntas (`gh release create --target`, a tag nasce no GitHub): sem tag local, nem tag
  *   publicada sem release se a criação falhar. Tags e numeração vêm do GitHub (`git ls-remote`), não do clone;
@@ -16,6 +17,8 @@
  * - Tags `deploy-*` ainda sem release (publicação que falhou no fluxo antigo) são concluídas antes, cada uma com os
  *   PRs dela e sem virar a "Latest"; senão as notas desses PRs se perderiam.
  * - Sem PR novo desde a última tag (redeploy do mesmo código), não cria tag nem release.
+ * - "Serviços publicados": cada imagem com a tag anterior → nova, trocada ou "sem troca". A tag anterior vem da release do
+ *   deploy anterior (um marcador no fim das notas, ou a linha de versões das notas antigas) ou de --previous.
  * Requer o gh autenticado com permissão de escrita no repositório.
  */
 import { execFileSync } from 'node:child_process';
@@ -28,7 +31,9 @@ import {
   parseSubject,
   renderSections,
   titleOf,
-  versionsNote,
+  previousVersions,
+  servicesSection,
+  versionsMarker,
 } from './release-notes-lib.mjs';
 
 const args = process.argv.slice(2);
@@ -44,7 +49,7 @@ const git = (...a) => run('git', a);
 const repo = run('gh', ['repo', 'view', '--json', 'url', '--jq', '.url']);
 
 /** Publica (ou, com --dry, imprime) a release de `tag` com os PRs de from..to. */
-const publish = ({ tag, title, from, fromLabel, to, existingTag, note }) => {
+const publish = ({ tag, title, from, fromLabel, to, existingTag, note, marker }) => {
   const log = git('log', '--first-parent', '--format=%s', `${from}..${to}`).split('\n').filter(Boolean);
   const prs = log.map(parseSubject).filter(Boolean);
   if (!prs.length) {
@@ -56,6 +61,7 @@ const publish = ({ tag, title, from, fromLabel, to, existingTag, note }) => {
     ...(note ? ['', note] : []),
     '',
     ...renderSections(prs, repo),
+    ...(marker ? [marker] : []),
   ].join('\n');
   if (dry) {
     console.log(`${tag} — ${title}\n\n${body}\n`);
@@ -116,11 +122,24 @@ const today = deployDate();
 const localTags = git('tag', '--list', 'deploy-*').split('\n').filter(Boolean);
 const { tag: autoTag, n } = nextTag([...remoteTags.map((t) => t.name), ...localTags], today);
 const tag = opt('tag') ?? autoTag;
+// as versões do deploy anterior, para mostrar "tag anterior → nova": --previous, ou as da release da tag anterior
+const previousTag = fromRef ? (fromRef.startsWith('deploy-') ? fromRef : undefined) : latest?.name;
+const readPrevious = () => {
+  if (opt('previous') !== undefined) return opt('previous');
+  if (!previousTag) return undefined;
+  try {
+    return previousVersions(run('gh', ['release', 'view', previousTag, '--json', 'body', '--jq', '.body']));
+  } catch {
+    return undefined; // sem a release anterior (ou sem rede), a troca sai sem a tag anterior
+  }
+};
+const versions = opt('versions');
 publish({
   tag,
   title: opt('title') ?? `Deploy ${today} nº ${n}`,
   from,
   fromLabel,
   to,
-  note: versionsNote(to, opt('versions'), opt('swapped')),
+  note: servicesSection(versions, opt('swapped'), versions ? readPrevious() : undefined),
+  marker: versionsMarker(versions),
 });
