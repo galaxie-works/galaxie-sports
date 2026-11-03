@@ -116,7 +116,7 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
 
 /**
  * `CONNECTION LIMIT` de cada papel (o Postgres recusa a conexão que passa disso com 53300). É o teto do vazamento: um
- * serviço com pool sem freio ou em laço de reconexão para no limite dele e não esgota o `max_connections` (100, 3
+ * serviço com pool sem freio ou em laço de reconexão para no limite dele e não esgota o `max_connections` (130, 3
  * reservadas ao superusuário) que a API também usa. A soma dos tetos passa do `max_connections` de propósito: o
  * teto não reserva vaga, só contém um papel; o que tem de caber é o pico real (README da infra › Conexões).
  *
