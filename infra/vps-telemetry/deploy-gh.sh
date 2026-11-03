@@ -37,8 +37,9 @@
 #   7b. com a api ou o app web (site e console; num SHA de antes da divisão, a demo) na lista: os candidatos sobem ao lado
 #      dos que estão no ar, sem tráfego (candidate.sh), e o smoke roda em cada um web. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
-#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho: o ao vivo não espera o resto) → ingestor/agents
-#      (recriação simples; os três são da TAG_INGESTOR e voltam juntos) → api, webhooks → site, console (ou demo)
+#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho, cópia a cópia e a líder primeiro pelo
+#      rolling-swap.sh: o ao vivo não para) → ingestor/agents (recriação simples; os três são da TAG_INGESTOR e voltam
+#      juntos) → api, webhooks → site, console (ou demo)
 #      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
 #      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado. Serviço que saiu do compose (SAI
 #      do plano: a demo, quando virou site e console) sai depois que os da mesma imagem trocaram (rolling-swap.sh
@@ -537,11 +538,12 @@ up_wait() {
   done
 }
 
-# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho (recriação simples; o
-# ingestor da versão nova não roda mais o ao vivo, então ele não pode esperar o resto), api, webhooks, site, console e
-# demo lado a lado (o antigo só sai com o novo healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da
-# configuração de antes. Com o grupo no ar, sai quem deixou o compose e tinha a mesma imagem (GONE: a demo, quando site e
-# console sobem); RETIRED[grupo] guarda quem saiu, para a volta do grupo subi-lo de novo.
+# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho, cópia a cópia (a líder
+# primeiro; a reserva assume enquanto a nova sobe), api, webhooks, site, console e demo lado a lado (o antigo só sai com
+# o novo healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da configuração de antes (o live entra
+# antes da troca: falhou no meio, uma cópia já pode estar na versão nova). Com o grupo no ar, sai quem deixou o compose e
+# tinha a mesma imagem (GONE: a demo, quando site e console sobem); RETIRED[grupo] guarda quem saiu, para a volta do
+# grupo subi-lo de novo.
 TOUCHED=()
 swap_group() {
   local s plain=() images=" " gone
@@ -550,7 +552,7 @@ swap_group() {
     case "$s" in
       live)
         TOUCHED+=("$s")
-        up_wait "$s" || return $?
+        ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
         ;;
       api | webhooks | site | console | demo)
         ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
@@ -614,8 +616,13 @@ rollback_group() {
     fi
   fi
   for s in "${TOUCHED[@]}"; do
+    # o live da configuração anterior: cópia a cópia, como na ida; sem ele (versão de antes do serviço), sai
+    if [ "$s" = live ] && ! ssh "$VPS" "cd $DIR && grep -q '^  live:' $OLD_COMPOSE"; then
+      ssh "$VPS" "$CD && $DC rm -sf live </dev/null" || echo "FAIL  live: a volta para a configuração anterior falhou"
+      continue
+    fi
     case "$s" in
-      api | webhooks | site | console | demo)
+      live | api | webhooks | site | console | demo)
         ssh "$VPS" "cd $DIR && export $COMPOSE_BAK && if docker compose config --services </dev/null | grep -qx $s; then \
           bash -s -- $s; else bash -s -- --retire $s; fi" < "$HERE/rolling-swap.sh" ||
           echo "FAIL  $s: a volta para a configuração anterior falhou"

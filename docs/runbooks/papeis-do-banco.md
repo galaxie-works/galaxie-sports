@@ -12,7 +12,7 @@ Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`; é dono do `demo_auth` | 60 |
 | `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 40 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
-| `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_ledger`, `ops.quota_snapshot`, `ops.quota_budget` | 36 |
+| `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_ledger`, `ops.quota_snapshot`, `ops.quota_budget` | 45 |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o ensaio de restauração | 6 |
 
 ### Por que o `galaxie_live` escreve em `raw.api_response`
@@ -35,7 +35,7 @@ O papel não escreve em `semantic`, `enrich`, `api`, `multisport` nem `equestria
 
 O da demo vale para os dois serviços da imagem dela, `site` e `console` (#546): os dois e os dois candidatos do deploy somam 40 no pior momento, e o teto é 60 com a folga.
 
-A soma dos tetos (212) passa do `max_connections` do Postgres (100, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
+A soma dos tetos (221) passa do `max_connections` do Postgres (100, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
 
 Para ver quem está perto do teto:
 

@@ -352,13 +352,17 @@ services:
   # Ao vivo (#535): a mesma imagem do ingestor com o scheduler no perfil `live`, só com a faixa do ao vivo
   # (live-run, live-reconcile, events-clock). Um deploy que não muda a imagem do ingestor não toca nele, e a troca do
   # ingestor não corta mais o placar. O live-run fica no ar com líder e reserva (LIVE_LEADER=on, trava `live:leader`
-  # no Postgres); morreu, o scheduler sobe de novo. O deploy o troca antes de ingestor e agents.
+  # no Postgres); morreu, o scheduler sobe de novo. Duas cópias sempre (#537): uma lidera, a outra assume em ~1 s se a
+  # líder cair. O deploy troca uma cópia por vez, a líder primeiro (rolling-swap.sh), antes de ingestor e agents.
   live:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    # scheduler 64 + live-run 128 + live-reconcile 64 + events-clock 64 de heap, + 4 × 64 por processo (geração nova e
-    # o próprio Node): 576 MB no pior caso, 64 de folga (README › Memória dos jobs)
+    # o Compose (v2) sobe as cópias sem swarm; `--scale live=N` no up vale por cima. Uma cópia (dev): LIVE_REPLICAS=1
+    deploy:
+      replicas: ${LIVE_REPLICAS:-2}
+    # por cópia: scheduler 64 + live-run 128 + live-reconcile 64 + events-clock 64 de heap, + 4 × 64 por processo
+    # (geração nova e o próprio Node): 576 MB no pior caso, 64 de folga (README › Memória dos jobs)
     mem_limit: 640m
     environment:
       <<: *node-env
@@ -369,6 +373,10 @@ services:
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       SCHEDULER_PROFILE: live
       LIVE_LEADER: 'on'
+      # no SIGTERM, o scheduler espera o live-run fechar o tick: a chamada no ar (APISPORTS_LIVE_TIMEOUT_MS, 30 s) e a
+      # gravação (perfil `live` do banco: 30 s de consulta), mais o estado e o job_run; detalhe novo não abre
+      # (README › Ao vivo). Abaixo do stop_grace_period
+      SCHEDULER_STOP_WAIT_SECONDS: '70'
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
       SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-*/10 * * * *}
       SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
@@ -380,9 +388,22 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    # Healthcheck vem da imagem (batimento do scheduler, como no ingestor). No SIGTERM a líder fecha o tick, publica o
-    # estado e solta a trava; o tick tem teto próprio (README › Ao vivo)
-    stop_grace_period: 40s
+    # O da imagem (batimento do scheduler, como no ingestor), com a primeira checagem em 2 s: a troca espera a cópia
+    # nova ficar healthy antes de parar a antiga
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
+        ]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    # No SIGTERM a líder fecha o tick (até 70 s no pior caso: SCHEDULER_STOP_WAIT_SECONDS; o normal é 1 a 3 s), publica
+    # o estado e solta a trava; a reserva assume na tentativa seguinte. 5 s a mais para o scheduler sair antes do SIGKILL
+    stop_grace_period: 75s
     logging: *logging
 
   # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run. A faixa do ao
