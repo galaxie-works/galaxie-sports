@@ -106,7 +106,7 @@ hostname_of() { docker inspect -f '{{.Config.Hostname}}' "$1" 2>/dev/null || tru
 
 # troca as cópias de um serviço com líder, uma por vez, a líder primeiro
 swap_replicas() {
-  local svc="$1" leader host id new t0 now took old_host
+  local svc="$1" leader host id new t0 old_host stopped
   local -a old=() ordered=()
   mapfile -t old < <(docker compose ps -q "$svc" </dev/null)
   leader="$(leader_host "$svc")"
