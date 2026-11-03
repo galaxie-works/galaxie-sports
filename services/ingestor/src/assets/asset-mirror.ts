@@ -62,6 +62,8 @@ export interface AssetMirrorOptions {
   checkpointEvery?: number;
   /** Encerramento (SIGTERM do deploy): os workers param de pegar asset novo e o cursor é gravado. */
   signal?: AbortSignal | undefined;
+  /** Pula a limpeza do início (bloqueados, logos e fotos genéricos): a tarefa em lotes limpa só no primeiro. */
+  skipCleanup?: boolean;
   onProgress?: (event: MirrorEvent) => void;
 }
 
@@ -149,17 +151,19 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     notFoundUrls: [],
   };
 
-  if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
-  report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
-    placeholders: options.placeholderLogos,
-    dryRun: options.dryRun,
-    // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
-    denylisted: denylist.urls,
-  });
-  report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
-    placeholders: options.placeholderPhotos,
-    dryRun: options.dryRun,
-  });
+  if (!options.skipCleanup) {
+    if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
+    report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
+      placeholders: options.placeholderLogos,
+      dryRun: options.dryRun,
+      // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
+      denylisted: denylist.urls,
+    });
+    report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
+      placeholders: options.placeholderPhotos,
+      dryRun: options.dryRun,
+    });
+  }
 
   const cursorStore = options.cursor && !options.personPhotos && !options.dryRun ? options.cursor : undefined;
   const after = cursorStore ? await cursorStore.load() : undefined;

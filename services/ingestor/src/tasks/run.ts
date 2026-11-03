@@ -3,7 +3,7 @@
  * tomada do `takeNext` até o `finish`: confere a regra (`checkRunnable` e, na destrutiva, a aprovação no banco com `checkApproval`), renova a concessão enquanto o executor
  * trabalha e para sem gravar nada se a tomada perder a tarefa. O laço do worker (#542) toma e chama `runTask`.
  */
-import { checkpoint, finish, renew, QUEUE_RENEW_MS, type QueueTask } from '@galaxie/db/queue';
+import { checkpoint, finish, release, renew, QUEUE_RENEW_MS, type QueueTask } from '@galaxie/db/queue';
 import {
   appendLog,
   checkRunnable,
@@ -15,6 +15,21 @@ import {
 } from '@galaxie/db/queue-types';
 import type { Database } from '@galaxie/db';
 import { checkApproval } from '@galaxie/db/queue-admin';
+import { acervoImportar } from './acervo.js';
+import { backfillNormalizar, backfillTabelas } from './backfill.js';
+import { cargaHistorica } from './carga.js';
+import { assetsEspelhar } from './espelho.js';
+
+/**
+ * O worker está encerrando (SIGTERM do deploy): o executor para entre dois lotes, depois do último checkpoint, e o
+ * `runTask` devolve a tarefa à fila (`release`), sem gastar tentativa. A próxima tomada continua do checkpoint.
+ */
+export class TaskInterruptedError extends Error {
+  constructor(id: string) {
+    super(`tarefa ${id}: interrompida pelo encerramento do worker`);
+    this.name = 'TaskInterruptedError';
+  }
+}
 
 /** A tomada perdeu a tarefa (concessão vencida e outro worker retomou): parar sem gravar mais nada. */
 export class TaskLeaseLostError extends Error {
@@ -25,6 +40,7 @@ export class TaskLeaseLostError extends Error {
 }
 
 export interface TaskContext {
+  db: Database;
   task: QueueTask;
   /** Os params do tipo (sem as chaves reservadas), já validados pelo schema. */
   params: Record<string, unknown>;
@@ -36,11 +52,20 @@ export interface TaskContext {
   checkpoint: unknown;
   /** Grava o progresso (substitui o anterior). Lança TaskLeaseLostError se a tomada perdeu a tarefa. */
   save: (data: unknown) => Promise<void>;
+  /** Encerramento do worker (SIGTERM): o executor confere entre os lotes. */
+  signal: AbortSignal;
+  /** Entre dois lotes: lança TaskInterruptedError se o worker está encerrando. */
+  checkStop: () => void;
 }
 
 export interface TaskOutcome {
   detail?: string;
   stats?: Record<string, unknown>;
+  /**
+   * A tarefa não acabou e só continua depois deste instante (cota do dia esgotada, CDN pedindo pausa): volta à fila
+   * com o checkpoint, sem gastar tentativa e sem falhar.
+   */
+  runAfter?: Date;
 }
 
 export type TaskHandler = (ctx: TaskContext) => Promise<TaskOutcome>;
@@ -74,6 +99,11 @@ export const exemploEco: TaskHandler = async ({ params, previa, checkpoint: from
 
 export const TASK_HANDLERS: Readonly<Record<string, TaskHandler>> = {
   'exemplo.eco': exemploEco,
+  'acervo.importar': acervoImportar(),
+  'assets.espelhar': assetsEspelhar(),
+  'carga.historica': cargaHistorica(),
+  'backfill.normalizar': backfillNormalizar(),
+  'backfill.tabelas': backfillTabelas(),
 };
 
 /** Os tipos que este worker sabe rodar (o `types` do `takeNext`). */
@@ -82,8 +112,9 @@ export const handledTypes = (handlers: Readonly<Record<string, TaskHandler>> = T
 
 /**
  * Roda uma tomada até o fim. Recusa (tipo sem executor, destrutiva sem prévia, params que não conferem) encerra em
- * erro na hora, sem nova tentativa: repetir não muda a resposta. Devolve o destino do `finish`, ou null se a tomada
- * perdeu a tarefa no caminho.
+ * erro na hora, sem nova tentativa: repetir não muda a resposta. Devolve o destino do `finish` (`deferred` quando o
+ * executor pediu para continuar depois), `released` quando o `signal` interrompeu entre dois lotes, ou null se a
+ * tomada perdeu a tarefa no caminho.
  */
 export async function runTask(
   db: Database,
@@ -92,8 +123,10 @@ export async function runTask(
     handlers?: Readonly<Record<string, TaskHandler>>;
     registry?: TaskRegistry;
     renewMs?: number;
+    /** Encerramento do worker (SIGTERM): o executor para entre os lotes e a tarefa volta à fila. */
+    signal?: AbortSignal;
   } = {},
-): Promise<'done' | 'retry' | 'error' | null> {
+): Promise<'done' | 'retry' | 'error' | 'deferred' | 'released' | null> {
   const handlers = options.handlers ?? TASK_HANDLERS;
   const handler = handlers[task.type];
   const registry = options.registry ?? TASK_TYPES;
@@ -111,9 +144,11 @@ export async function runTask(
       })
       .catch(() => {});
   }, options.renewMs ?? QUEUE_RENEW_MS);
+  const signal = options.signal ?? new AbortController().signal;
   try {
     const meta = paramsMeta(task.params);
     const outcome = await handler!({
+      db,
       task,
       params: ownParams(task.params),
       previa: meta.previa,
@@ -122,11 +157,21 @@ export async function runTask(
       save: async (data) => {
         if (lost || !(await checkpoint(db, task, data))) throw new TaskLeaseLostError(task.id);
       },
+      signal,
+      checkStop: () => {
+        if (signal.aborted) throw new TaskInterruptedError(task.id);
+      },
     });
     if (lost) return null;
-    return finish(db, task, 'ok', outcome.detail ?? null, outcome.stats ? { stats: outcome.stats } : {});
+    return finish(db, task, 'ok', outcome.detail ?? null, {
+      ...(outcome.stats ? { stats: outcome.stats } : {}),
+      ...(outcome.runAfter ? { runAfter: outcome.runAfter } : {}),
+    });
   } catch (err) {
     if (err instanceof TaskLeaseLostError || lost) return null;
+    // o encerramento interrompeu entre dois lotes (ou o executor parou no meio de um, pelo signal): devolve sem culpa
+    if (err instanceof TaskInterruptedError || signal.aborted)
+      return (await release(db, task)) ? 'released' : null;
     return finish(db, task, 'error', err instanceof Error ? err.message : String(err));
   } finally {
     clearInterval(timer);

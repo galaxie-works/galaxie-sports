@@ -255,17 +255,26 @@ export async function checkpoint(
   return rows.length > 0;
 }
 
-/** Destino da tarefa depois do `finish`: `retry` volta a pendente com backoff; null, a tomada já tinha perdido a tarefa. */
-export type QueueFinishResult = 'done' | 'retry' | 'error';
+/**
+ * Destino da tarefa depois do `finish`: `retry` volta a pendente com backoff; `deferred` volta a pendente para
+ * `runAfter` (trabalho bom, mas não acabou: cota do dia esgotada); null, a tomada já tinha perdido a tarefa.
+ */
+export type QueueFinishResult = 'done' | 'retry' | 'error' | 'deferred';
 
 export interface QueueRunResult {
   callsSpent?: number;
   stats?: Record<string, unknown>;
+  /**
+   * Só com `ok`: a tomada fez a parte dela, mas a tarefa não acabou e só pode continuar depois (a cota do dia
+   * acabou). Volta a pendente com o checkpoint para este instante, sem gastar tentativa; a execução fecha `ok`.
+   */
+  runAfter?: Date;
 }
 
 /**
- * Encerra a tomada. `ok` conclui. `error` agenda nova tentativa com backoff, mantendo o checkpoint, ou encerra em
- * erro se era a última (`attempts` = `max_attempts`). A execução em ops.job_run fecha junto.
+ * Encerra a tomada. `ok` conclui (ou, com `runAfter`, adia: volta a pendente para aquele instante, com o checkpoint e
+ * sem gastar tentativa). `error` agenda nova tentativa com backoff, mantendo o checkpoint, ou encerra em erro se era a
+ * última (`attempts` = `max_attempts`). A execução em ops.job_run fecha junto.
  */
 export async function finish(
   db: Pick<Database, 'transaction'>,
@@ -276,27 +285,41 @@ export async function finish(
 ): Promise<QueueFinishResult | null> {
   const message = detail ?? null;
   const result: QueueFinishResult =
-    outcome === 'ok' ? 'done' : task.attempts >= task.maxAttempts ? 'error' : 'retry';
+    outcome === 'ok'
+      ? run.runAfter
+        ? 'deferred'
+        : 'done'
+      : task.attempts >= task.maxAttempts
+        ? 'error'
+        : 'retry';
   return db.transaction(async (tx) => {
     const released = { lockedBy: null, lockedUntil: null };
     const rows = await tx
       .update(jobRequest)
       .set(
-        result === 'retry'
+        result === 'deferred'
           ? {
               ...released,
               status: 'pending',
               detail: message,
-              lastError: message,
-              runAfter: sql`now() + make_interval(secs => ${queueBackoffMs(task.attempts) / 1000}::double precision)`,
+              attempts: sql`greatest(${jobRequest.attempts} - 1, 0)`,
+              runAfter: run.runAfter!,
             }
-          : {
-              ...released,
-              status: result,
-              finishedAt: sql`now()`,
-              detail: message,
-              ...(outcome === 'error' ? { lastError: message } : {}),
-            },
+          : result === 'retry'
+            ? {
+                ...released,
+                status: 'pending',
+                detail: message,
+                lastError: message,
+                runAfter: sql`now() + make_interval(secs => ${queueBackoffMs(task.attempts) / 1000}::double precision)`,
+              }
+            : {
+                ...released,
+                status: result,
+                finishedAt: sql`now()`,
+                detail: message,
+                ...(outcome === 'error' ? { lastError: message } : {}),
+              },
       )
       .where(owned(task))
       .returning({ id: jobRequest.id });

@@ -14,6 +14,8 @@
  *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
  *            SCHEDULER_CATCHUP=off desliga o catch-up da partida; SCHEDULER_CATCHUP_MAX_HOURS (padrão 24): horário
  *            perdido mais velho que isto não roda na volta (catch-up.ts)
+ *            QUEUE_MODE=run|enqueue (padrão run): com enqueue, os jobs com `task` só enfileiram a tarefa na fila
+ *            (dedupe por job e dia) e o worker executa (queue-mode.ts); os outros rodam como sempre
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
@@ -27,6 +29,7 @@ import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { startOpsServer, versionInfo, type Logger } from '@galaxie/observability';
 import { checkAiCredit } from './ai-credit.js';
 import { closeOrphans, lastJobStarts, missedSlots } from './catch-up.js';
+import { enqueueJob, queueMode } from './queue-mode.js';
 import { PgRunRecorder, runJob, runExitCode } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
 import { describeSchedule, SchedulerService, type SchedulerProfile } from './service.js';
@@ -105,18 +108,21 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
     maxJobs,
     run: (job, { trigger, env }) =>
-      runJob(job, {
-        cwd: packageRoot,
-        env,
-        heapMb: jobHeapMb,
-        recorder,
-        logger: log,
-        trigger,
-        signal: shutdownController.signal,
-        // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
-        // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
-        lock: jobLock,
-      }),
+      // QUEUE_MODE=enqueue: o job pesado vira tarefa da fila e o worker executa (sem banco, roda como sempre)
+      job.task && db && queueMode(env) === 'enqueue'
+        ? enqueueJob(db, job, { trigger, recorder, logger: log })
+        : runJob(job, {
+            cwd: packageRoot,
+            env,
+            heapMb: jobHeapMb,
+            recorder,
+            logger: log,
+            trigger,
+            signal: shutdownController.signal,
+            // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
+            // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
+            lock: jobLock,
+          }),
   });
 
   if (process.argv.includes('--list') || arg('--run') !== undefined) {

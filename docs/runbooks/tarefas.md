@@ -5,9 +5,9 @@ Trabalho avulso e longo (carga Ultra, backfill, acervo, espelho) entra numa fila
 pelo painel, a prévia com aprovação, acompanhar, cancelar e reprocessar. O contrato da fila para quem escreve worker
 está em [packages/db/README.md](../../packages/db/README.md#fila-de-tarefas).
 
-> **Estado (#544):** a CLI, o painel e a regra da prévia estão prontos, com um tipo de exemplo (`exemplo.eco`). O
-> serviço `worker` que toma as tarefas (#542) e os tipos reais (#543) vêm depois: até lá, a tarefa enfileirada fica
-> pendente.
+> **Estado (#543):** a CLI, o painel, a regra da prévia e os tipos reais (acervo, espelho, carga histórica e backfills)
+> estão prontos. O serviço `worker` que toma as tarefas (#542) vem depois: até lá, a tarefa enfileirada fica pendente,
+> e o trabalho longo roda como contêiner avulso ([on-call](on-call.md#job-manual-longo-contêiner-avulso-nunca-exec)).
 
 ## A regra: prévia antes do que muda dado
 
@@ -57,6 +57,72 @@ No contêiner do ingestor: `node dist/cli/gs.js tarefa ...`. Todos os comandos a
 | `reprocessar <id>` | Tarefa nova com os mesmos params, ligada à original (`params.reprocessaDe`) | a que ainda está pendente ou rodando |
 
 Saída: `0` ok, `1` recusa da regra (a mensagem diz o porquê), `2` uso errado.
+
+## Os tipos
+
+Cada tipo anda em lotes idempotentes: grava o checkpoint depois de cada lote (os concluídos e o último), confere o
+encerramento do worker entre dois lotes e, na retomada, pula os concluídos. O lote que estava em andamento roda de
+novo, com o mesmo resultado.
+
+| Tipo | O que faz | Lote e checkpoint | Prévia | Destrutiva |
+| --- | --- | --- | --- | --- |
+| `acervo.importar` | Importa o acervo de escudos de um pacote no S3 (o `assets:acervo` da [runbook do acervo](acervo-de-logos.md)) | Por país, até `lote` escudos (padrão 100); depois do último, desliga os que saíram do manifesto | Plano como o `--plan` (ligados, desligados, ignorados, lotes) e relatório de cobertura em `tasks/<id da prévia>/cobertura.md` no S3 e em `checkpoint.cobertura` | Sim: religa escudos |
+| `assets.espelhar` | Espelha logos, bandeiras e fotos da CDN de mídia no S3 (o `mirror-assets`) | Lotes de `lote` assets (padrão 200) até `limite` (padrão 2000), com o cursor por tipo de asset em `ops.sync_cursor` | Quantos pendentes e quantos lotes | Não |
+| `carga.historica` | Carga histórica do futebol (#417): `bootstrap:seasons`, `:details`, `:people` e `:perfis` | Temporadas e detalhes, uma liga por lote; pessoas e perfis, um lote cada | Chamadas de cota que gastaria (rede), do raw (cache) e já feitas | Não (gasta cota) |
+| `backfill.normalizar` | Normalização completa raw → core do futebol (o `normalize:football --tudo`) | Um endpoint do raw por lote | Respostas por endpoint | Não |
+| `backfill.tabelas` | Recálculo local das tabelas (o `standings:recompute`) | Lotes de `lote` temporadas (padrão 20) | Quantas temporadas | Não |
+| `exemplo.eco` | Exemplo e teste da fila | Um lote por repetição | Quantos lotes | Não |
+
+Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
+
+| Tipo | Parâmetros |
+| --- | --- |
+| `acervo.importar` | `pacote` (`s3://<bucket>/tasks/<id>/<arquivo>.tgz`), `acervo` (id do acervo.yaml), `manifesto` (opcional, `s3://…/<acervo>.yaml`; padrão: o versionado), `lote` |
+| `assets.espelhar` | `limite`, `lote`, `descobrirRaw` (padrão sim), `retentarAusentes`, `caminho` (pasta da CDN: `volley`…), `concorrencia` |
+| `carga.historica` | `etapas` (lista JSON: `temporadas`, `detalhes`, `pessoas`, `perfis`; padrão todas), `tierMax` (padrão 2), `ligas` (lista JSON de ids da api-sports), `semLive`, `maxChamadasPorLote` |
+| `backfill.normalizar` | `endpoints` (lista JSON, ex. `["/fixtures"]`; padrão: todos os do raw) |
+| `backfill.tabelas` | `dias` (padrão 4), `temporadas` (lista JSON de ids), `lote` |
+
+Exemplos (no contêiner, troque `pnpm --filter @galaxie/ingestor gs` por `node dist/cli/gs.js`):
+
+```bash
+# acervo: o pacote vai antes para o S3 (runbook do acervo); a prévia vai para o painel, onde um admin aprova
+gs tarefa enfileirar acervo.importar --previa --param pacote=s3://galaxie-sports-assets/tasks/<id>/acervo-galaxie-proprio.tgz \
+  --param acervo=galaxie-proprio --param manifesto=s3://galaxie-sports-assets/tasks/<id>/galaxie-proprio.yaml
+# espelho maior que o do horário
+gs tarefa enfileirar assets.espelhar --param limite=20000 --param lote=500
+# carga Ultra (#417): só as ligas do Brasil e da Argentina, primeiro a prévia de quanto gasta
+gs tarefa enfileirar carga.historica --previa --param 'ligas=[71,72,128]' --param semLive=true
+gs tarefa enfileirar carga.historica --param 'ligas=[71,72,128]' --param semLive=true --prioridade 5
+# backfills
+gs tarefa enfileirar backfill.normalizar --param 'endpoints=["/fixtures","/standings"]'
+gs tarefa enfileirar backfill.tabelas --param dias=400 --param lote=50
+```
+
+- **Cota do dia esgotada** (`carga.historica`): a tarefa não falha. O lote que parou fica pendente e a tarefa volta à
+  fila para o próximo dia de cota (00:30 UTC), sem gastar tentativa. No painel ela aparece como **Retomada**, com a
+  hora em `run_after` e o motivo no detalhe. O limite de requisições do fornecedor (`rate_limited`) faz o mesmo, com
+  volta em 15 min.
+- **CDN pedindo pausa** (`assets.espelhar`, 429 em sequência): volta à fila em 30 min.
+- **Deploy no meio** (SIGTERM): o executor termina o lote em andamento, grava o checkpoint e a tarefa volta à fila na
+  hora (`release`), sem gastar tentativa. O espelho também para no meio do lote e grava o cursor.
+
+CLIs manuais longos que viraram tipo: `assets:acervo` (importação), `assets:mirror`, `bootstrap:seasons`,
+`bootstrap:details`, `bootstrap:people`, `bootstrap:perfis`, `normalize:football --tudo` e `standings:recompute`. Os
+CLIs continuam funcionando como antes, para rodar como contêiner avulso enquanto não houver worker.
+
+## O scheduler e a fila (QUEUE_MODE)
+
+O job agendado que tem tarefa equivalente (hoje, `assets-mirror` → `assets.espelhar`) segue a variável `QUEUE_MODE`
+do contêiner do scheduler:
+
+- `run` (padrão): o horário executa o CLI, como sempre. É o que vale enquanto não existe o serviço `worker` (#542).
+- `enqueue`: o horário só enfileira a tarefa, com `dedupe_key` = `<job>:<dia UTC>` (o horário seguinte, o catch-up e o
+  "rodar agora" do painel não criam outra enquanto a do dia estiver viva), e o worker executa. A #542 liga este modo
+  quando o worker estiver no ar. Tipo destrutivo nunca entra assim: só por prévia e aprovação.
+
+O registro de cada enfileiramento fica em `ops.job_run` do job (`stats.tarefa`, `stats.nova`), com `requested_by` =
+`scheduler:<job>` na tarefa.
 
 ## Pelo painel
 
@@ -116,9 +182,12 @@ O resto do checkpoint é livre e aparece em JSON.
 1. Declare o tipo em `TASK_TYPES` (`packages/db/src/queue-types.ts`) com `defineTaskType`: `type`, `descricao`,
    schema zod dos `params` (sem `previa`, `previaId` e `reprocessaDe`, que são do sistema), `previa`, `destrutiva` e,
    se a tarefa é longa, `maxAttempts`.
-2. Escreva o executor e registre em `TASK_HANDLERS` (`services/ingestor/src/tasks/run.ts`). Ele recebe `params`,
-   `previa`, `previaId`, o `checkpoint` anterior e `save` para gravar o progresso. Em prévia, grave `checkpoint.previa`
-   e não mude nada. Continue do checkpoint: o trecho depois do último `save` se repete na retomada.
+2. Escreva o executor e registre em `TASK_HANDLERS` (`services/ingestor/src/tasks/run.ts`). Ele recebe `db`, `params`,
+   `previa`, `previaId`, o `checkpoint` anterior, `save` para gravar o progresso e `checkStop`/`signal` do
+   encerramento. Em prévia, grave `checkpoint.previa` e não mude nada. Continue do checkpoint: o trecho depois do
+   último `save` se repete na retomada. O laço de lotes pronto é `runLots` (`src/tasks/lotes.ts`); para continuar
+   depois (cota), devolva `runAfter` no resultado.
 3. CLI e painel passam a mostrar o tipo e o formulário sozinhos, pelo schema.
 
-O upload de pacote pelo painel direto para o S3 ainda não existe: entra com o tipo do acervo (#543).
+O upload de pacote pelo painel direto para o S3 ainda não existe: o pacote do `acervo.importar` sobe pelo `aws s3 cp`
+do contêiner `s3-init` ([runbook do acervo](acervo-de-logos.md#produção-vps)).

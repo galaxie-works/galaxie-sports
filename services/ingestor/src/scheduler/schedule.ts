@@ -94,6 +94,8 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     script: 'dist/cli/mirror-assets.js',
     args: ['--descobrir-raw', '--limite', '2000'],
     timeoutMs: 90 * MINUTE,
+    // QUEUE_MODE=enqueue (#542): o horário só enfileira; o worker roda em lotes, com o mesmo cursor
+    task: { type: 'assets.espelhar', params: { descobrirRaw: true, limite: 2000 } },
   },
   {
     name: 'assets-palette',
