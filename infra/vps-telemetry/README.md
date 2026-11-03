@@ -16,7 +16,7 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
 | Serviço `agents`: imagem do ingestor com `SCHEDULER_PROFILE=agents` (resumo, cenário, Onde Assistir) e teto diário de tokens | IA ligada mesmo com o ingestor parado, com custo previsível |
-| Serviço `live`: imagem do ingestor com `SCHEDULER_PROFILE=live` (só o ao vivo: `live-run`, `live-reconcile`, `events-clock`) | o deploy do ingestor não corta o placar ([Ao vivo](#ao-vivo-serviço-live)) |
+| Serviço `live`: imagem do ingestor com `SCHEDULER_PROFILE=live` (só o ao vivo: `live-run`, `live-reconcile`, `events-clock`), duas cópias | o deploy não corta o placar ([Ao vivo](#ao-vivo-serviço-live)) |
 | Serviço `maintenance` (Caddy fixo) com routers de prioridade 1 nos hosts da demo e da API | 503 de manutenção em vez do 404 do Traefik enquanto demo ou API são recriadas |
 
 Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API pública) e `ASSETS_DOMAIN` (assets).
@@ -238,6 +238,10 @@ O placar ao vivo roda num serviço próprio (#535), com a imagem do ingestor e o
 `SCHEDULER_LIVE=external` e não roda mais nenhum dos três. Assim, um deploy que não muda a imagem do ingestor (`TAG_INGESTOR`)
 não toca no `live`, e recriar o ingestor não corta o placar.
 
+- **Duas cópias sempre** (#537, `deploy.replicas: ${LIVE_REPLICAS:-2}`; o Compose v2 sobe as cópias sem swarm): uma é a
+  líder e chama a api-sports; a outra é a reserva e assume em ~1 s se a líder cair. Um serviço só (não `live-a`/`live-b`):
+  o healthcheck é por contêiner, os logs saem com o número da cópia, o Prometheus acha as duas pelo DNS e a troca só
+  precisa saber o número de cópias.
 - **`live-run` sempre no ar**: no perfil `live` ele roda com `--continuo` e `LIVE_LEADER=on` (líder e reserva pela trava
   `live:leader`, [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)) e sem a trava
   por job do scheduler: a liderança é a trava. Saiu (erro, SIGTERM, queda do banco), o scheduler sobe de novo em 1 s
@@ -246,8 +250,13 @@ não toca no `live`, e recriar o ingestor não corta o placar.
 - **Banco**: `DATABASE_URL` é o `DB_URL_LIVE` (papel `galaxie_live`; sem ele, o dono, como os outros) e os processos usam o
   perfil de tempos `live` (30 s de consulta, 10 s de trava). Antes de pôr o `DB_URL_LIVE` no `.env`, os papéis têm de
   estar ligados (`DB_ROLES=on`, [Papéis do banco](#papéis-do-banco)).
-- **Memória**: 640m ([Memória dos jobs](#memória-dos-jobs)); `stop_grace_period` de 40 s, como o ingestor: no SIGTERM a
-  líder fecha o tick, publica o estado e solta a trava.
+- **Memória**: 640m por cópia ([Memória dos jobs](#memória-dos-jobs)).
+- **Encerramento**: no SIGTERM a líder fecha o tick, publica o estado e solta a trava. O tick mais longo nessa hora é a
+  chamada no ar (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação numa transação (perfil `live`: 30 s de consulta):
+  com o encerramento pedido, o tick não abre as chamadas de detalhe (confirmação do final e destaque; até 6 × 30 s), que
+  a próxima líder faz. Por isso o scheduler espera 70 s (`SCHEDULER_STOP_WAIT_SECONDS`: 30 + 30 e o estado) e o
+  `stop_grace_period` é 75 s. Enquanto a líder não solta a trava, a reserva espera: o normal é o tick acabar em 1 a 3 s,
+  e os 70 s só valem com a fonte e o banco no limite ao mesmo tempo.
 - **Escala 0 do ingestor** (a ingestão rodando em outro ambiente com a mesma chave): o deploy deixa o `live` como está e,
   quando sobe o projeto inteiro, também em 0.
 
@@ -260,17 +269,21 @@ Onde ver:
 - **Quem é a líder**: a consulta de [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)
   (`application_name` `galaxie-live-leader:<contêiner>`), ou `docker compose logs live | grep liderança`.
 
-**Deploy**: o `live` entra no plano como os outros (imagem do ingestor) e o `deploy-gh.sh` o troca **antes** de ingestor e
-agents, sozinho, por recriação simples: o ao vivo fica parado do SIGTERM até o contêiner novo subir (até ~40 s de tick +
-partida). Os três voltam juntos se um deles falhar (mesma `TAG_INGESTOR`). A troca com a reserva já no ar é a #537.
+**Deploy**: o `live` entra no plano como os outros (imagem do ingestor; só troca quando ela ou a configuração dele muda) e
+o `deploy-gh.sh` o troca **antes** de ingestor e agents, cópia a cópia ([`rolling-swap.sh`](rolling-swap.sh)). Para cada
+cópia antiga, a líder primeiro: sobe uma nova, espera ela ficar healthy, para a antiga e espera outra cópia pegar a
+liderança antes de seguir. Nunca fica com menos de duas cópias healthy, e o ao vivo só para o tempo de a reserva pegar a
+trava (~1 s depois de a líder soltar). Os três voltam juntos se um deles falhar (mesma `TAG_INGESTOR`). O log do deploy diz
+`live: 2 cópia(s); líder <contêiner> (troca primeiro)` e `liderança passou de <antiga> para <nova> em N s`. Runbook
+(quem é a líder, forçar a troca, uma cópia no dev): [Ao vivo: líder e reserva](../../docs/runbooks/ao-vivo-lider-e-reserva.md).
 
 **Primeira subida** (a versão anterior roda o ao vivo dentro do ingestor): o `live` sobe e, até o ingestor ser recriado com
 `SCHEDULER_LIVE=external`, os dois acompanham os jogos (o `live-run` antigo não conhece a eleição). São alguns segundos com o
 dobro de chamadas, sem perda. Confira depois: `docker compose ps live`, a líder na consulta acima e, no painel, o `Ao vivo`
 no ar.
 
-**Voltar para uma versão sem o serviço**: o deploy de um SHA anterior sobe o ingestor com o ao vivo dentro e remove o
-`live` (`--remove-orphans`). Apague o relato dele para o painel e o `SchedulerHeartbeatStale` não o mostrarem fora do ar:
+**Voltar para uma versão sem o serviço**: o deploy de um SHA anterior sobe o ingestor com o ao vivo dentro e, depois
+dele, remove as cópias do `live`. Apague o relato dele para o painel e o `SchedulerHeartbeatStale` não o mostrarem fora do ar:
 `delete from ops.runtime_env where service = 'live';`. No dev (NAS) o ao vivo continua no ingestor (`SCHEDULER_LIVE`
 padrão `internal`); para provar o perfil à mão: `SCHEDULER_PROFILE=live pnpm --filter @galaxie/ingestor scheduler`.
 
@@ -494,22 +507,23 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 | Demo (login 5, Builder 3, change feed 2) | 10 | 10 |
 | Ingestor: scheduler | 2 | 2 |
 | Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 5 |
-| Live: scheduler e jobs | (dentro do ingestor) | scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) + `live-reconcile` e `events-clock` 2 × (4 + 1) = 18 |
+| Live: scheduler e jobs | (dentro do ingestor) | por cópia, scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) = 8, × 2 cópias; `live-reconcile` e `events-clock` 2 × (4 + 1) numa cópia por vez = 26 |
 | Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_MAX_TASKS` 2 × 6 = 14 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
-| **Total** | **~106: passava do limite** | **79, com ~18 de folga para CLI à mão e `psql`** |
+| **Total** | **~106: passava do limite** | **87, com ~10 de folga para CLI à mão e `psql`** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
 `ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 55 (com o worker, que usa o mesmo
-papel, e a volta para antes do `live`), agents 25, live 36, backup 6. A soma (197) passa do `max_connections` de
-propósito, porque o teto contém um papel com vazamento e não reserva vaga. O pico real da tabela acima (79) mais os
-candidatos do deploy (API e demo, 20) passa das 97 vagas só no pior caso, com o worker em duas tarefas de carga ao
-mesmo tempo; na prática a troca do worker (que dobra os 14 dele por alguns segundos) não coincide com a do candidato.
-Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
+papel, e a volta para antes do `live`), agents 25, live 45, backup 6. A soma (206) passa do `max_connections` de
+propósito, porque o teto contém um papel com vazamento e não reserva vaga. O pico real da tabela acima (87) mais os
+candidatos do deploy (API e demo, 20) passa das 97 vagas no papel; na prática os candidatos saem antes da troca do
+`live` (que soma uma terceira cópia, 8) e da do worker (que dobra os 14 dele por até 75 s), e o worker raramente tem
+duas tarefas de carga ao mesmo tempo. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa
+~5 MB).
 
 ### Memória dos jobs
 
@@ -522,14 +536,15 @@ heap (geração nova e o próprio Node):
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
 | `ingestor` (480m) | scheduler 64 + `SCHEDULER_MAX_JOBS` 1 × 160, + 2 × 64 | 352 MB (128 de folga) |
-| `live` (640m) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB (64 de folga) |
+| `live` (640m, cada uma das 2 cópias) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB (64 de folga) |
 | `worker` (576m, `cpus: 1.0`) | worker 64 + `WORKER_MAX_TASKS` 2 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 512 MB (64 de folga) |
 | `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
 | `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
 
 O ao vivo saiu do ingestor para o `live` (#535) e o trabalho longo (espelho de assets, carga histórica, acervo,
-backfills) para o `worker` (#542): o ingestor caiu de 1152m para 480m, o `live` levou 640m e o `worker` 576m. Só de
-heap, o `live` soma 320 MB (a estimativa da issue); com os 64 MB por processo da mesma conta dos outros, 576. Com
+backfills) para o `worker` (#542): o ingestor caiu de 1152m para 480m, o `live` levou 640m por cópia (1280m com as duas,
+#537; a reserva fica perto do scheduler e de um `live-run` parado, ~150 MB de verdade) e o `worker` 576m. Só de heap, o
+`live` soma 320 MB (a estimativa da issue); com os 64 MB por processo da mesma conta dos outros, 576. Com
 `SCHEDULER_LIVE=internal` (dev, ou a volta para uma versão anterior, que traz o compose dela) o ingestor precisa dos
 1152m de antes. Com `QUEUE_MODE=enqueue` o scheduler só enfileira, e o `ingestor` ficou com um job por vez. Na troca do
 deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 1088 MB de worker no pior caso.

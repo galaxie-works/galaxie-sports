@@ -17,6 +17,8 @@
  *            perdido mais velho que isto não roda na volta (catch-up.ts)
  *            QUEUE_MODE=run|enqueue (padrão run): com enqueue, os jobs com `task` só enfileiram a tarefa na fila
  *            (dedupe por job e dia) e o worker executa (queue-mode.ts); os outros rodam como sempre
+ *            SCHEDULER_STOP_WAIT_SECONDS (padrão 25): no SIGTERM, quanto esperar os jobs em andamento terminarem antes de
+ *            sair (o contêiner cai junto, e os filhos com ele); fica abaixo do stop_grace_period do serviço
  *
  * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
@@ -85,6 +87,8 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
 
   // a soma tem de caber no mem_limit do contêiner (infra/vps-telemetry/README.md › Memória dos jobs)
   const maxJobs = positiveInt(process.env.SCHEDULER_MAX_JOBS, profile === 'agents' ? 3 : 2);
+  // o ao vivo fecha o tick em andamento no SIGTERM: o serviço `live` dá mais tempo (compose › stop_grace_period)
+  const stopWaitMs = positiveInt(process.env.SCHEDULER_STOP_WAIT_SECONDS, 25) * 1000;
   const jobHeapMb = positiveInt(process.env.SCHEDULER_JOB_HEAP_MB, profile === 'agents' ? 128 : 160);
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -241,7 +245,7 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     log.info({ signal, running: running.length }, 'encerrando scheduler; aguardando jobs em andamento');
     clearInterval(heartbeat);
     shutdownController.abort();
-    await Promise.race([Promise.allSettled(running), new Promise((r) => setTimeout(r, 25_000))]);
+    await Promise.race([Promise.allSettled(running), new Promise((r) => setTimeout(r, stopWaitMs))]);
     if (db) await closeDb(db);
     process.exit(0);
   }

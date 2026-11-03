@@ -37,11 +37,12 @@
 #   7b. com a api ou a demo na lista: a API e a demo novas sobem ao lado das que estão no ar, sem tráfego (candidate.sh),
 #      e o smoke roda nelas. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
-#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho: o ao vivo não espera o resto) → ingestor/agents
-#      (recriação simples) → worker da fila (lado a lado, drenando o antigo: o lote em andamento fecha e a tarefa volta à
-#      fila, onde o novo a retoma); os quatro são da TAG_INGESTOR e voltam juntos → api, webhooks e demo (rolling-swap.sh,
-#      sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo healthy) → o resto.
-#      Sempre com --no-deps: quem não está na lista não é recriado
+#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho, cópia a cópia e a líder primeiro pelo
+#      rolling-swap.sh: o ao vivo não para) → ingestor/agents (recriação simples) → worker da fila (lado a lado, drenando
+#      o antigo: o lote em andamento fecha e a tarefa volta à fila, onde o novo a retoma); os quatro são da TAG_INGESTOR
+#      e voltam juntos → api, webhooks e demo (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado
+#      do antigo, e o antigo só sai com o novo healthy) → o resto. Sempre com --no-deps: quem não está na lista não é
+#      recriado
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
 #      API, webhooks, live, ingestor e agents ficaram), smoke test (smoke.mjs, com a versão esperada de API e demo) e conferência
 #      de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a versão que o processo expõe)
@@ -502,10 +503,11 @@ up_wait() {
 # Troca lado a lado (rolling-swap.sh): o antigo só sai com o novo healthy. O worker da fila drena antes de sair.
 side_by_side() { case "$1" in api | webhooks | demo | worker) return 0 ;; esac; return 1; }
 
-# Troca um grupo (os serviços da mesma tag), nesta ordem: o live primeiro e sozinho (recriação simples; o ingestor da
-# versão nova não roda mais o ao vivo, então ele não pode esperar o resto); depois os de recriação simples (ingestor,
-# agents), juntos; por último os lado a lado, um por vez na ordem dada (o worker depois do ingestor, drenando o antigo;
-# api, webhooks e demo). TOUCHED = os que saíram da configuração de antes.
+# Troca um grupo (os serviços da mesma tag), nesta ordem: o live primeiro e sozinho, cópia a cópia (a líder primeiro; a
+# reserva assume enquanto a nova sobe); depois os de recriação simples (ingestor, agents), juntos; por último os lado a
+# lado, um por vez na ordem dada (o worker depois do ingestor, drenando o antigo; api, webhooks e demo). TOUCHED = os
+# que saíram da configuração de antes (o live entra antes da troca: falhou no meio, uma cópia já pode estar na versão
+# nova).
 TOUCHED=()
 swap_group() {
   local s plain=() rolling=()
@@ -513,7 +515,7 @@ swap_group() {
   for s in "$@"; do
     if [ "$s" = live ]; then
       TOUCHED+=("$s")
-      up_wait "$s" || return $?
+      ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
     elif side_by_side "$s"; then
       rolling+=("$s")
     else
@@ -562,7 +564,16 @@ rollback_group() {
     fi
   fi
   for s in "${TOUCHED[@]}"; do
+    # o live da configuração anterior: cópia a cópia, como na ida; sem ele (versão de antes do serviço), sai
+    if [ "$s" = live ] && ! ssh "$VPS" "cd $DIR && grep -q '^  live:' $OLD_COMPOSE"; then
+      ssh "$VPS" "$CD && $DC rm -sf live </dev/null" || echo "FAIL  live: a volta para a configuração anterior falhou"
+      continue
+    fi
     case "$s" in
+      live)
+        ssh "$VPS" "cd $DIR && $COMPOSE_BAK bash -s -- $s" < "$HERE/rolling-swap.sh" ||
+          echo "FAIL  $s: a volta para a configuração anterior falhou"
+        ;;
       api | webhooks | demo | worker)
         # serviço que a configuração anterior não tem (o worker no deploy que o criou): sai, drenando
         if ssh "$VPS" "cd $DIR && export $COMPOSE_BAK && docker compose config --services </dev/null | grep -qx $s"; then

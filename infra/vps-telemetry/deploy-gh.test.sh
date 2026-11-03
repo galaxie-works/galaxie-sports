@@ -9,8 +9,8 @@
 #     ela é idempotente e tem reverso
 #   - merge só na demo troca só a demo (o live, o ingestor e o resto ficam); merge que só muda o compose de um serviço
 #     troca só ele
-#   - imagem do ingestor nova: o live troca antes do ingestor e dos agents, e volta junto com eles; a volta para uma
-#     versão sem o live (o ao vivo dentro do ingestor) o tira do ar
+#   - imagem do ingestor nova: o live (duas cópias) troca antes do ingestor e dos agents, cópia a cópia e a líder
+#     primeiro, e volta junto com eles; a volta para uma versão sem o live (o ao vivo dentro do ingestor) o tira do ar
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
 #   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta o projeto inteiro
@@ -43,6 +43,8 @@ ZERO=0000000000000000000000000000000000000000
 fail=0
 
 export SWAP_SETTLE_S=1 SWAP_STOP_GRACE_S=2 SWAP_HEALTH_TIMEOUT=25 CANDIDATE_TIMEOUT=25 DEPLOY_KEEP_IMAGES=3 SWAP_DRAIN_TIMEOUT=10
+# a líder do live de faz de conta é a cópia onde a pergunta roda: parada uma, a outra responde (a liderança passou)
+export SWAP_LEADER_CMD=hostname SWAP_LEADER_TIMEOUT=20
 export OLD_PROJECT="$PROJECT_T" NETWORK_SUBNET="" MOVE_TIMEOUT=25
 
 cleanup() {
@@ -182,6 +184,8 @@ services_apps() {
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
     environment:
       SCHEDULER_PROFILE: live
+    deploy:
+      replicas: 2
   ingestor:
     <<: *app
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
@@ -646,7 +650,11 @@ deploy "$C8"
 expect_rc 0
 expect_log '^plano:.*live: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
 expect_log '^trocando: live ingestor agents'
+expect_log '^live: 2 cópia\(s\); líder [0-9a-f]+ \(troca primeiro\)'
+expect_log '^ok  live: liderança passou de '
+expect_log '^ok  live trocado cópia a cópia \(2 no ar\)'
 expect_log '^ok  live na versão in-'
+expect_eq "duas cópias do live" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=live | grep -c .)" 2
 expect_recreated "$before" live ingestor agents worker demo
 expect_eq "live novo no ar" "$(image_of live)" "$(hash_of ingestor)"
 # o live sobe (e fica healthy) antes de o ingestor da versão nova, que não roda mais o ao vivo, ser recriado

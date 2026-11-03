@@ -75,7 +75,7 @@ a entrada pelo `SCHEDULER_PROFILE`.
 
 No ingestor (`SCHEDULER_LIVE=internal`) o `live-run` nasce pelo cron e tem a trava por job do scheduler. No serviço `live`
 (perfil `live`, #535) ele fica no ar com `LIVE_LEADER=on` (padrão `off` fora dele), e cada cópia do serviço é uma
-candidata: uma líder e, com duas cópias, uma reserva.
+candidata: na VPS são duas (#537), uma líder e uma reserva. Runbook: [Ao vivo: líder e reserva](../../docs/runbooks/ao-vivo-lider-e-reserva.md).
 
 - **Eleição**: a trava é `live:leader`, um advisory lock de sessão numa conexão só dela (`jobLockContender`). Quem tem a
   trava faz os ticks e chama a api-sports. Quem não tem não chama nada e tenta a trava a cada `LIVE_LEADER_RETRY_MS`
@@ -88,8 +88,8 @@ candidata: uma líder e, com duas cópias, uma reserva.
   chamadas ao fornecedor. Depois, retrato, gravação e publicação do tick rodam numa transação só, que trava a linha da
   época e desiste se ela mudou. A nova líder só recebe a época depois do commit da antiga: ou lê o que a antiga gravou
   (e o diff não repete o gol), ou a antiga não grava nada. O bastão passa pela mesma conferência.
-- **SIGTERM na líder**: termina o tick em andamento, grava o estado (`saveLiveState`) e o `ops.job_run`, e só então solta
-  a trava.
+- **SIGTERM na líder**: termina o tick em andamento (sem abrir chamada nova de detalhe: a próxima líder faz), grava o
+  estado (`saveLiveState`) e o `ops.job_run`, e só então solta a trava.
 - **Nada se repete na troca**: candidatos, retratos do diff e orçamento do dia (`planLiveDay`, `ticksLeft`) já vêm do
   Postgres. O que só existia na memória e muda a decisão de chamar (último tick, backoff, intervalo visto, tentativas de
   confirmar o resultado) é o bastão, em `ops.sync_cursor` (endpoint `live:scheduler`, chave `handoff`), gravado a cada
