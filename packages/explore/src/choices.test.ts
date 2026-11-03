@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  announcedCandidates,
   countryActivity,
+  pickAnnounced,
   pickMainCompetition,
   rankTopCompetitions,
   type CatalogItem,
   type WindowEvent,
-} from './summary.js';
+} from './choices.js';
 
 const comp = (slug: string, over: Partial<CatalogItem> = {}): CatalogItem => ({
   id: slug,
@@ -119,21 +121,20 @@ describe('countryActivity', () => {
       }),
     ];
     const { highlight } = countryActivity(events, 'BR', WINDOW, new Set(['football|conmebol-libertadores']));
+    // sem textos: a API escreve os motivos no idioma da requisição
     expect(highlight).toEqual({
       id: 'lib',
+      startsAt: at(48).toISOString(),
+      competition: { sport: 'football', slug: 'conmebol-libertadores' },
+      appeal: [0, 0],
       relevance: {
         market: 'BR',
         score: 95,
         bonus: 10,
         reasons: ['team_from_market', 'continental_competition'],
         details: [
-          { code: 'team_from_market', points: 10, text: 'Time do país', participant: null },
-          {
-            code: 'continental_competition',
-            points: 5,
-            text: 'Competição da confederação',
-            participant: null,
-          },
+          { code: 'team_from_market', points: 10 },
+          { code: 'continental_competition', points: 5 },
         ],
       },
     });
@@ -168,5 +169,30 @@ describe('countryActivity', () => {
       live: 0,
       highlight: null,
     });
+  });
+});
+
+describe('anunciados', () => {
+  const provisional = [
+    ev('p3', { startsAt: at(24 * 30) }),
+    ev('p1', { startsAt: at(24 * 10) }),
+    ev('passado', { startsAt: at(-2) }),
+    ev('adiado', { startsAt: at(24 * 5), status: 'postponed' }),
+    ev('p2', { startsAt: at(24 * 20) }),
+    ev('uy', { startsAt: at(24), participantCountries: ['UY'], competition: null }),
+  ];
+
+  it('guarda um a mais que o card, do mais cedo ao mais tarde, só os futuros do país', () => {
+    expect(announcedCandidates(provisional, 'BR', NOW, new Set()).map((c) => c.id)).toEqual([
+      'p1',
+      'p2',
+      'p3',
+    ]);
+  });
+
+  it('o card tira o destaque da janela e mostra dois', () => {
+    const all = announcedCandidates(provisional, 'BR', NOW, new Set());
+    expect(pickAnnounced(all, 'p1').map((c) => c.id)).toEqual(['p2', 'p3']);
+    expect(pickAnnounced(all, null).map((c) => c.id)).toEqual(['p1', 'p2']);
   });
 });

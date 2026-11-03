@@ -37,6 +37,7 @@ describe('scheduleFromEnv', () => {
       'normalize-sports',
       'events-clock',
       'events-importance',
+      'explore-summary',
       'assets-mirror',
       'assets-palette',
       'change-feed-prune',

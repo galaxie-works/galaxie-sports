@@ -93,6 +93,17 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 20 * MINUTE,
   },
   {
+    name: 'explore-summary',
+    description:
+      'Resumo da home Explorar pré-calculado (core.explore_summary): recalcula quando um jogo muda de status e a cada 10 min; sem mudança, confere e sai (sem chamadas ao fornecedor)',
+    cron: '* * * * *',
+    script: 'dist/cli/explore-summary.js',
+    args: [],
+    onDemandArgs: ['--forcar'],
+    timeoutMs: 5 * MINUTE,
+    heapMb: 128,
+  },
+  {
     name: 'assets-mirror',
     description:
       'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API); retoma do cursor por tipo de asset onde a execução anterior parou',

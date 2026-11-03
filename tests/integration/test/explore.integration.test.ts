@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import { eq } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,6 +13,7 @@ import {
   createDb,
   event,
   eventParticipant,
+  exploreSummary,
   participant,
   runMigrations,
   sport,
@@ -19,7 +21,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { loadGeoConfig } from '@galaxie/geo';
-import { seedGeo } from '@galaxie/ingestor';
+import { refreshExploreSummary, seedGeo } from '@galaxie/ingestor';
 import { buildServer, createApiKey, RecordingCdnPurger, upsertTenant } from '@galaxie/api';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -414,5 +416,100 @@ describe('GET /v1/explore/agenda', () => {
   it('respeita os esportes do plano, como o resumo', async () => {
     const agenda = (await get('/v1/explore/agenda', basketballKey)).json<ExploreAgenda>();
     expect(agenda.total).toBe(0);
+  });
+});
+
+// Os testes acima respondem sem pré-cálculo (a conta feita na requisição, o caminho da primeira subida). Estes gravam o
+// resumo com o job do ingestor e conferem que a API passa a ler dele, com o mesmo corpo.
+describe('resumo pré-calculado (job explore-summary, #596)', () => {
+  const SUMMARY = '/v1/explore/summary?locale=pt-BR&tz=America/Sao_Paulo';
+  const geo = loadGeoConfig();
+  const clearCache = async () => {
+    let cursor = '0';
+    do {
+      const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}*`, 'COUNT', 500);
+      if (keys.length) await redis.del(...keys);
+      cursor = next;
+    } while (cursor !== '0');
+  };
+  const summary = async (k = key) => {
+    await clearCache();
+    const res = await get(SUMMARY, k);
+    expect(res.statusCode).toBe(200);
+    return res.json<ExploreSummary>();
+  };
+  const upcomingBr = (body: ExploreSummary) => body.countries.find((c) => c.code === 'BR')!.upcoming;
+
+  afterAll(async () => {
+    await db.delete(exploreSummary);
+    if (ids.extra) await db.delete(event).where(eq(event.id, ids.extra));
+    await clearCache();
+  });
+
+  it('o job grava o resumo uma vez e, sem mudança, não refaz a conta', async () => {
+    const first = await refreshExploreSummary(db, geo, { now: NOW });
+    expect(first.reason).toBe('sem resumo gravado');
+    expect(first.rows).toBeGreaterThan(geo.navigationCountries.length);
+    const rows = await db.select().from(exploreSummary);
+    expect(rows.find((r) => r.sport === '*' && r.market === '*')?.generatedAt).toEqual(NOW);
+    expect(new Set(rows.map((r) => r.generatedAt.getTime()))).toEqual(new Set([NOW.getTime()]));
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    // uma rodada que começou antes (conta mais velha) e terminou depois não sobrescreve a mais nova
+    const older = await refreshExploreSummary(db, geo, {
+      now: new Date(NOW.getTime() - 60_000),
+      force: true,
+    });
+    expect(older.rows).toBe(0);
+    const [meta] = await db.select().from(exploreSummary).where(eq(exploreSummary.market, '*'));
+    expect(meta?.generatedAt).toEqual(NOW);
+  });
+
+  it('a API responde do pré-calculado o mesmo corpo da conta feita na hora, com e sem recorte do plano', async () => {
+    for (const k of [key, basketballKey]) {
+      const precomputed = await summary(k);
+      await db.delete(exploreSummary);
+      const computed = await summary(k);
+      expect(precomputed).toEqual(computed);
+      await refreshExploreSummary(db, geo, { now: NOW });
+    }
+  });
+
+  it('jogo novo só entra depois do job; resumo com mais de 30 min volta à conta da hora', async () => {
+    const before = upcomingBr(await summary());
+    const [extra] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: ids['brasileirao-serie-a']!,
+        startsAt: hours(40),
+        endsAtExpected: hours(42),
+      })
+      .returning();
+    ids.extra = extra!.id;
+    // a API lê o pré-calculado: o jogo novo ainda não aparece (prova de que não contou na requisição)
+    expect(upcomingBr(await summary())).toBe(before);
+    // velho (31 min): a API ignora o pré-calculado e conta na hora
+    await db.update(exploreSummary).set({ generatedAt: new Date(NOW.getTime() - 31 * 60_000) });
+    expect(upcomingBr(await summary())).toBe(before + 1);
+    // o job vê o resumo velho (passou de 10 min) e refaz
+    const again = await refreshExploreSummary(db, geo, { now: NOW });
+    expect(again.reason).toMatch(/^resumo com \d+ s$/);
+    expect(upcomingBr(await summary())).toBe(before + 1);
+  });
+
+  it('mudança de status de jogo no change feed faz o job refazer no minuto seguinte', async () => {
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    // o change feed grava com o relógio do banco (depois de NOW); o job olha o que veio depois da última conta.
+    // Só o relógio (minuto do jogo) não muda o resumo
+    await db
+      .update(event)
+      .set({ clock: { minute: 10, extra: null, period: '1H' } })
+      .where(eq(event.id, ids.extra!));
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    await db.update(event).set({ status: 'postponed' }).where(eq(event.id, ids.extra!));
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe(
+      '1 mudança(s) de jogo no change feed',
+    );
   });
 });
