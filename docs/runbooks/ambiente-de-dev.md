@@ -152,7 +152,9 @@ instalados na partida, como o `backup-nas` faz com o `rsync`), pelo `crond`, com
    com as `account` delas, os tenants que só existem no dev (id e slug livres) e as chaves da API e publicáveis do dev.
    Assim o `.env` da máquina de dev continua valendo depois do espelho.
 5. **Conferência**, antes de qualquer troca: nenhuma sessão nem código de login, nenhuma chave nem chave publicável da
-   produção (os prefixos e hashes do dump são guardados em `espelho_tmp` só para isso), nenhum webhook, nenhuma
+   produção (os prefixos e hashes do dump são guardados em `espelho_tmp` só para isso; as chaves do próprio dev não
+   contam, mesmo que a produção também as tenha ou tenha tido: ficam, com `AVISO: chave(s) do dev…` no log pedindo
+   rotação no dev), nenhum webhook, nenhuma
    sobrescrita do painel, nenhum pedido pendente, nenhum usuário com e-mail real. Qualquer sobra barra o espelho.
 6. **Contagens por tabela**, dev de hoje × cópia, no log. Com `--plan` para aqui: apaga o temporário, grava
    `last_plan.txt` e não aplica nada.

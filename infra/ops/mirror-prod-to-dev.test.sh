@@ -53,6 +53,7 @@ case "$all" in
   printf 'a,b,c\nd,e,f\n' >"$csv"
   exit 0
   ;;
+*"espelho:colisoes"*) printf '%s\n' "${PSQL_FAKE_COLISOES:-0/0}"; exit 0 ;;
 *"espelho_tmp.prod_api_key"*)
   printf 'sessoes_codigos_e_afins=0\ncontas_de_login_reais=0\nusuarios_reais=0\nchaves_api_da_producao=%s\n' "${PSQL_FAKE_SOBRA:-0}"
   printf 'chaves_publicaveis_da_producao=0\nwebhooks=0\nsobrescritas_do_painel=0\npedidos_pendentes=0\nbackfills_pendentes=0\n'
@@ -150,6 +151,11 @@ confere "preserva do dev as contas de teste, os tenants e as chaves do dev" \
   'grep -q "copy (select \"email\",\"id\",\"name\" from demo_auth.\"user\" where email like .%@galaxie.test" "$calls" &&
    grep -q "insert into api.\"tenant\"" "$calls" && grep -q "insert into api.\"api_key\"" "$calls" && grep -q "insert into ops.\"publishable_key\"" "$calls" &&
    grep -q "insert into demo_auth.\"account\"" "$calls"'
+confere "a conferência não conta as chaves do dev como sobra da produção" \
+  'grep -q "prefix not in (select prefix from espelho_tmp.dev_api_key)" "$calls" &&
+   grep -q "key_hash not in (select key_hash from espelho_tmp.dev_publishable_key)" "$calls" &&
+   grep -q "insert into espelho_tmp.dev_api_key select prefix from espelho_tmp.api_key" "$calls" &&
+   ! grep -q "AVISO: chave(s) do dev" "$work/out.log"'
 confere "imprime as contagens por tabela, dev de hoje × cópia" \
   'grep -q "core.event *100 *120" "$work/out.log" && grep -q "demo_auth.session *7 *0" "$work/out.log"'
 confere "apaga o temporário e não aplica: sem dump do dev, sem rename, sem aws" \
@@ -157,6 +163,12 @@ confere "apaga o temporário e não aplica: sem dump do dev, sem rename, sem aws
    ! grep -q "rename to" "$calls" && ! grep -q "^aws" "$calls"'
 confere "a prévia deixa last_plan.txt e não toca em last_run.txt" \
   'grep -q "prévia: dump $dump" "$data/last_plan.txt" && grep -q "core.event=120" "$data/last_plan.txt" && [ ! -f "$data/last_run.txt" ]'
+
+echo "== prévia com chave do dev que a produção também tem"
+limpa
+PSQL_FAKE_COLISOES=1/0 roda --plan && r=0 || r=$?
+confere "a chave do dev não barra o espelho e sai como aviso" \
+  '[ "$r" = 0 ] && grep -q "AVISO: chave(s) do dev que a produção também tem ou teve (api/publicável: 1/0)" "$work/out.log"'
 
 echo "== aplicação"
 limpa

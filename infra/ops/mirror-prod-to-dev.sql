@@ -26,6 +26,9 @@ create schema espelho_tmp;
 -- o que era da produção, para a conferência do script (nada disso pode sobrar no dev)
 create table espelho_tmp.prod_api_key as select prefix from api.api_key;
 create table espelho_tmp.prod_publishable_key as select key_hash from ops.publishable_key;
+-- o que o script preserva do dev (prefixos e hashes das chaves do dev): não conta como sobra da produção na conferência
+create table espelho_tmp.dev_api_key (prefix text);
+create table espelho_tmp.dev_publishable_key (key_hash text);
 
 -- 1. demo_auth: tudo some, menos user e cache_feed_cursor
 do $$
