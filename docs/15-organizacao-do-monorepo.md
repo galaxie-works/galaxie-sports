@@ -3,7 +3,8 @@
 Este documento é o mapa do repositório: o que mora em cada pasta, quem depende de quem, o que vira imagem na VPS e
 onde as fronteiras estão confusas hoje. Ele **não** move nada; as mudanças sugeridas no fim dependem de decisão.
 
-> Levantamento de 30/10/2026, a partir do `main` em `a1b71ee`.
+> Levantamento de 30/10/2026, a partir do `main` em `a1b71ee`. O mapa da seção 3 e as regras de dependência passaram a ser
+> geradas e cobradas pelo CI em 02/11/2026 (#547).
 
 ## 1. Por que um monorepo
 
@@ -21,7 +22,7 @@ e do que depende.
 | [`apps/api`](../apps/api/README.md) | app | `@galaxie/api` | API pública Fastify: `/mirror`, `/v1`, SSE, webhooks, admin | `galaxie-sports-api` |
 | [`apps/demo`](../apps/demo/README.md) | app | `@galaxie/demo` | Next.js: site, demo, portal do cliente, Builder, painel de operação | `galaxie-sports-demo` |
 | [`services/ingestor`](../services/ingestor/README.md) | serviço | `@galaxie/ingestor` | Scheduler e CLIs de bootstrap, sync, ao vivo, normalização e assets | `galaxie-sports-ingestor` |
-| [`services/ai-agents`](../services/ai-agents/README.md) | serviço | `@galaxie/ai-agents` | Agentes de IA (onde assistir, cenário, resumo, curadoria, vídeos, grades) | dentro da imagem do ingestor |
+| [`services/ai-agents`](../services/ai-agents/README.md) | serviço | `@galaxie/ai-agents` | Agentes de IA (onde assistir, cenário, resumo, curadoria, vídeos, grades) e o scheduler deles (`dist/cli/agents-scheduler.js`) | dentro da imagem do ingestor |
 | [`packages/db`](../packages/db/README.md) | lib | `@galaxie/db` | Schema Drizzle, migrations e cliente do Postgres | — |
 | [`packages/apisports-client`](../packages/apisports-client/README.md) | lib | `@galaxie/apisports-client` | Único ponto de saída para a api-sports (raw, cota, plano) | — |
 | [`packages/providers`](../packages/providers/README.md) | lib | `@galaxie/providers` | Interface de provedor, modelo neutro, máquina de estados do evento | — |
@@ -32,6 +33,7 @@ e do que depende.
 | [`packages/geo`](../packages/geo/README.md) | lib | `@galaxie/geo` | Confederações, países e escopo das competições | — |
 | [`packages/runtime-config`](../packages/runtime-config/README.md) | lib | `@galaxie/runtime-config` | Flags da operação (banco > env > padrão) | — |
 | [`packages/ai-ledger`](../packages/ai-ledger/README.md) | lib | `@galaxie/ai-ledger` | Orçamento diário de IA em tokens e US$ | — |
+| [`packages/scheduler`](../packages/scheduler/README.md) | lib | `@galaxie/scheduler` | Motor de agendamento do ingestor e dos agentes (cron em UTC, um processo por job, trava, catch-up) | — |
 | [`packages/observability`](../packages/observability/README.md) | lib | `@galaxie/observability` | Logger pino e métricas Prometheus | — |
 | [`packages/net-guard`](../packages/net-guard/README.md) | lib | `@galaxie/net-guard` | Proteção contra SSRF nas buscas de URLs de terceiros | — |
 | [`packages/widgets`](../packages/widgets/README.md) | lib | `@galaxie/widgets` | Widgets React, item de registry shadcn e embed HTML | servida pela demo |
@@ -79,6 +81,7 @@ flowchart TB
     packages_net_guard[net-guard]
     packages_observability[observability]
     packages_runtime_config[runtime-config]
+    packages_scheduler[scheduler]
   end
   subgraph interface
     packages_widgets[widgets]
@@ -92,10 +95,11 @@ flowchart TB
   packages_observability --> packages_apisports_client & packages_db & packages_runtime_config
   packages_providers --> packages_apisports_client
   packages_rules --> packages_db
+  packages_scheduler --> packages_db & packages_observability & packages_runtime_config
   packages_where_to_watch --> packages_db
   packages_widgets --> packages_contracts
-  services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
-  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
+  services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
+  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
 ```
 <!-- deps-map:end -->
 
@@ -134,7 +138,7 @@ mudar uma camada, edite `scripts/deps/rules.mjs` e rode `pnpm deps:map`.
 | Imagem (GHCR) | Feita de | Serviços na stack da VPS que o deploy usa (`infra/vps-telemetry/compose.yml`) |
 |---|---|---|
 | `galaxie-sports-api` | `apps/api/Dockerfile` | `api`, `api-candidate` (perfil `candidate` do deploy), `migrate`, `webhooks` |
-| `galaxie-sports-ingestor` | `services/ingestor/Dockerfile` (leva o `ai-agents` junto) | `ingestor` (`SCHEDULER_PROFILE=ingestor`), `agents` (`SCHEDULER_PROFILE=agents`) |
+| `galaxie-sports-ingestor` | `services/ingestor/Dockerfile` (leva o `ai-agents` junto) | `ingestor` (`dist/cli/scheduler.js`), `agents` (`SCHEDULER_PROFILE=agents`: o `CMD` sobe o `dist/cli/agents-scheduler.js` do `ai-agents`) |
 | `galaxie-sports-demo` | `apps/demo/Dockerfile` | `demo`, `demo-candidate` |
 | `galaxie-sports-lineup-render` | `infra/lineup-render` (fora do workspace pnpm) | `lineup-render` |
 | `galaxie-sports-backup` | `infra/backup` | `backup` |
@@ -153,7 +157,7 @@ Nada aqui está quebrado; são pontos onde quem chega ao repo tropeça ou onde u
 | F1 | `apps/demo` | O README e a doc dizem que a demo "consome **somente** a API", mas ela também lê e grava no Postgres: `@galaxie/db` (grades, vídeos relacionados, widgets do Builder), o schema próprio `demo_auth` (login, convites, cache do change feed) e as tabelas de `ops` no painel de operação. | Assumir por escrito que a demo é também o **console de operação**, e manter a regra "nada de dado esportivo direto do banco: isso vem da API". Ver o README da demo. |
 | F2 | `apps/demo` | O nome "demo" esconde que a mesma app é o site público, o portal do cliente, o Builder de widgets, a documentação e os ajustes da operação. | Renomear não vale o custo agora. Se um dia o site público ou o portal do cliente precisarem de deploy separado, essa é a primeira divisão. |
 | F3 | `apps/demo` | O schema `demo_auth` é criado em tempo de execução (`src/lib/auth/setup.ts`), fora das migrations do `packages/db`. | Levar para uma migration Drizzle quando mexer no login de novo, para o banco ter um dono só. |
-| F4 | `services/ingestor` × `services/ai-agents` | O scheduler do ingestor roda os CLIs dos agentes pelo caminho `../ai-agents` (`src/scheduler/schedule.ts`) e a imagem do ingestor empacota os dois. A dependência existe mas não aparece no `package.json`. A regra de "sem crédito na IA" também está duplicada (`scheduler/ai-credit.ts` repete `ai-agents/src/llm/errors.ts`). | Documentado nos dois READMEs. Quando mexer de novo, mover a classificação de erro para `@galaxie/ai-ledger` e importar dos dois lados. |
+| F4 | `services/ingestor` × `services/ai-agents` | **Resolvido em 02/11/2026 (#547)**: o motor do scheduler virou o pacote `@galaxie/scheduler`, e os agentes ganharam entrada própria (`dist/cli/agents-scheduler.js`, jobs em `src/scheduler/jobs.ts`); o ingestor não conhece mais o pacote deles. O que sobra: a imagem do ingestor ainda empacota os dois e o `CMD` escolhe a entrada pelo `SCHEDULER_PROFILE`, e a regra de "sem crédito na IA" segue duplicada (`packages/scheduler/src/ai-credit.ts` repete `ai-agents/src/llm/errors.ts`). | Quando a stack passar o `command` do serviço `agents`, o `CMD` volta a ser só o do ingestor. Mover a classificação de erro para `@galaxie/ai-ledger` e importar dos dois lados. |
 | F5 | `infra/portainer` × `infra/vps-telemetry` | Havia duas stacks; a do Portainer (Caddy) era a primeira staging e não recebia mais as mudanças. | **Resolvido em 30/10/2026**: a stack do Portainer saiu e o backup/restore dela foi para `infra/backup/README.md`. Falta só tirar `infra/caddy` quando `build caddy` deixar de ser check obrigatório. |
 | F6 | `apps/api/dump.rdb` | Um dump do Redis/Valkey estava versionado dentro da API. | **Resolvido em 30/10/2026**: removido e `dump.rdb` no `.gitignore`. |
 | F7 | Configuração | Os pacotes acham `config/` e `data/` por caminho relativo à pasta do pacote (`../../config`), e as imagens recriam esse layout em `/srv`. Mover uma pasta quebra em silêncio em produção. | A maior parte aceita uma variável (`RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `AI_POLICY_FILE`; `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH` só na API), listadas em `config/README.md`. Os CLIs do `knowledge` e o `assets:mirror` só aceitam opção de linha de comando (`--dir`, `--denylist`); vale padronizar quando mexer neles. |

@@ -34,13 +34,15 @@ A lista completa, com o que cada um faz, está na tabela "Como rodar" do [README
 | Qualidade | `quality:run` (confere a API publicada; `QUALITY_API_URL` + `QUALITY_API_KEY`) |
 | Agendador | `scheduler` |
 
-## Scheduler e o perfil `agents`
+## Scheduler
 
-`src/scheduler/schedule.ts` define os jobs. `SCHEDULER_PROFILE=ingestor` (padrão) roda ingestão, normalização, ao vivo e
-manutenção. `SCHEDULER_PROFILE=agents` roda só os agentes de IA, executando os CLIs de
-[`services/ai-agents`](../ai-agents/README.md) pelo caminho `../ai-agents`. Por isso a imagem do ingestor empacota os
-dois pacotes, e a VPS sobe a mesma imagem duas vezes (`ingestor` e `agents`). Essa dependência não aparece no
-`package.json` (ver [docs/15 §5, F4](../../docs/15-organizacao-do-monorepo.md#5-fronteiras-confusas-hoje)).
+`src/scheduler/schedule.ts` define os jobs (ingestão, normalização, ao vivo e manutenção) e `src/cli/scheduler.ts` os entrega ao
+motor [`@galaxie/scheduler`](../../packages/scheduler/README.md), o mesmo dos agentes de IA.
+
+Os agentes têm entrada própria em [`services/ai-agents`](../ai-agents/README.md) (`dist/cli/agents-scheduler.js`): este
+scheduler não conhece o pacote deles, e `SCHEDULER_PROFILE=agents` aqui falha com a indicação da entrada certa. A imagem do
+ingestor traz os dois pacotes (a VPS sobe a mesma imagem duas vezes, `ingestor` e `agents`), e o `CMD` do `Dockerfile` escolhe
+a entrada pelo `SCHEDULER_PROFILE`.
 
 ## Ao vivo: líder e reserva
 

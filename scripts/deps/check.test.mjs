@@ -1,7 +1,7 @@
 // Testes da regra de dependência: node --test scripts/deps (monta repositórios pequenos num diretório temporário).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -76,6 +76,19 @@ describe('imports no código', () => {
       'app-nao-importa-servico: apps/demo/src/a.ts -> services/ingestor',
       'app-nao-importa-servico: apps/demo/src/b.ts -> services/ingestor',
     ]);
+  });
+
+  it('pacote já compilado (dist/ e link em node_modules) não esconde o import das regras', async () => {
+    const root = repo(
+      { ...PKGS, 'services/ingestor': { main: './dist/index.js', exports: { '.': { default: './dist/index.js' } } } },
+      {
+        'services/ingestor/dist/index.js': 'export const x = 1;\n',
+        'apps/demo/src/page.ts': "import { x } from '@galaxie/ingestor';\nexport { x };\n",
+      },
+    );
+    mkdirSync(join(root, 'node_modules', '@galaxie'), { recursive: true });
+    symlinkSync(join(root, 'services', 'ingestor'), join(root, 'node_modules', '@galaxie', 'ingestor'), 'junction');
+    assert.deepEqual(await rules(root), ['app-nao-importa-servico: apps/demo/src/page.ts -> services/ingestor']);
   });
 
   it('app não importa app', async () => {

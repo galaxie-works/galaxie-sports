@@ -106,6 +106,12 @@ export async function collect(root = REPO_ROOT) {
       {
         extensions: ['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx', '.json'],
         extensionAlias: { '.js': ['.ts', '.tsx', '.js'], '.mjs': ['.mts', '.mjs'], '.jsx': ['.tsx', '.jsx'] },
+        // Pacote npm e @galaxie/* não se resolvem de propósito: o alvo de um `@galaxie/x` sai do NOME (abaixo). Se
+        // resolvesse, com o pacote compilado ele cairia em x/dist, que o `exclude` acima tira do grafo, e o import
+        // sumiria das regras só em quem já rodou o build.
+        exportsFields: [],
+        mainFields: [],
+        mainFiles: ['index'],
       },
     );
     const modules = JSON.parse(result.output).modules;

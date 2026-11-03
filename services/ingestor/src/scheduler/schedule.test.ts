@@ -9,7 +9,11 @@ import {
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIVE_OPTIONS } from '../live/schedule.js';
 import { DEFAULT_CHANGE_FEED_RETENTION_DAYS } from '../ops/change-feed-retention.js';
-import { AGENT_JOBS, DEFAULT_JOBS, envKey, jobsForProfile, nextRuns, scheduleFromEnv } from './schedule.js';
+import { envKey, nextRuns, scheduleFromEnv as scheduleJobs } from '@galaxie/scheduler';
+import { DEFAULT_JOBS } from './schedule.js';
+
+/** A agenda do ingestor com as sobrescritas do ambiente. */
+const scheduleFromEnv = (env: NodeJS.ProcessEnv) => scheduleJobs(env, DEFAULT_JOBS);
 
 describe('scheduleFromEnv', () => {
   it('usa a agenda padrão quando não há sobrescritas', () => {
@@ -81,61 +85,6 @@ describe('scheduleFromEnv', () => {
     });
   });
 
-  it('perfil agents: só os agentes de IA, rodando no pacote do ai-agents', () => {
-    const jobs = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_CONTEXT_RUN: 'off' });
-    expect(jobs.map((j) => j.name)).toEqual([
-      'recap-run',
-      'wtw-run',
-      'wtw-channel',
-      'related-run',
-      'wtw-rights',
-      'review-suggestions',
-      'lineups-revisit',
-      'lineups-pages',
-      'channel-lists',
-    ]);
-    expect(jobs.every((j) => j.cwd === '../ai-agents')).toBe(true);
-    expect(jobsForProfile(undefined)).toBe(DEFAULT_JOBS);
-    expect(jobsForProfile(' Agents ')).toBe(AGENT_JOBS);
-    expect(() => jobsForProfile('api')).toThrow(/SCHEDULER_PROFILE inválido/);
-  });
-
-  it('revisita a grade de canais e ofertas uma vez por semana, com teto de pesquisas por execução', () => {
-    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-revisit')!;
-    expect(job).toMatchObject({
-      cron: '50 4 * * 1',
-      script: 'dist/cli/lineups-research.js',
-      cwd: '../ai-agents',
-      args: ['--revisitar', '--dias', '30', '--max', '4', '--max-paginas', '10'],
-    });
-    expect(
-      scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_REVISIT: 'off' }),
-    ).not.toContainEqual(expect.objectContaining({ name: 'lineups-revisit' }));
-  });
-
-  it('confirma a grade pela página oficial uma vez por dia, depois da revisita', () => {
-    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'lineups-pages')!;
-    expect(job).toMatchObject({
-      cron: '20 5 * * *',
-      script: 'dist/cli/lineups-pages.js',
-      cwd: '../ai-agents',
-      args: ['--max-paginas', '20'],
-    });
-    expect(
-      scheduleFromEnv({ SCHEDULER_PROFILE: 'agents', SCHEDULE_LINEUPS_PAGES: 'off' }),
-    ).not.toContainEqual(expect.objectContaining({ name: 'lineups-pages' }));
-  });
-
-  it('confere as sobras das listas de canais a cada 10 min, repetindo as que falharam', () => {
-    const job = scheduleFromEnv({ SCHEDULER_PROFILE: 'agents' }).find((j) => j.name === 'channel-lists')!;
-    expect(job).toMatchObject({
-      cron: '*/10 * * * *',
-      script: 'dist/cli/channel-lists.js',
-      cwd: '../ai-agents',
-      args: ['--max', '10', '--repetir-falhas'],
-    });
-  });
-
   it('recusa expressão cron inválida com mensagem legível', () => {
     expect(() => scheduleFromEnv({ SCHEDULE_QUOTA_STATUS: 'toda hora' })).toThrow(
       /Agenda inválida para "quota-status"/,
@@ -156,12 +105,15 @@ describe('scheduleFromEnv', () => {
 });
 
 describe('registro do painel de Operação (@galaxie/runtime-config)', () => {
-  it('cada job agendado tem a mesma agenda padrão e o mesmo perfil no registro', () => {
-    const fromCode = [
-      ...DEFAULT_JOBS.map((j) => ({ name: j.name, service: 'ingestor', cron: j.cron })),
-      ...AGENT_JOBS.map((j) => ({ name: j.name, service: 'agents', cron: j.cron })),
-    ];
-    expect(SCHEDULED_JOBS.map(({ name, service, cron }) => ({ name, service, cron }))).toEqual(fromCode);
+  it('cada job do ingestor tem a mesma agenda padrão e o mesmo perfil no registro', () => {
+    const fromCode = DEFAULT_JOBS.map((j) => ({ name: j.name, service: 'ingestor', cron: j.cron }));
+    expect(
+      SCHEDULED_JOBS.filter((j) => j.service === 'ingestor').map(({ name, service, cron }) => ({
+        name,
+        service,
+        cron,
+      })),
+    ).toEqual(fromCode);
     for (const j of fromCode) expect(scheduleKey(j.name)).toBe(envKey(j.name));
   });
 
