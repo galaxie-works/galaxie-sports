@@ -185,7 +185,7 @@ describe('servicesSection', () => {
         '',
         '| Serviço | Versão | Situação |',
         '|---|---|---|',
-        '| `api`, `webhooks` | `in-apiOLDO` → `in-apiabcd` | trocada |',
+        '| `api`, `webhooks`, `migrate` | `in-apiOLDO` → `in-apiabcd` | trocada |',
         '| `demo` | `in-demoabc` | sem troca |',
         '| `ingestor`, `agents` | `in-ingOLDO` → `in-ingabcd` | trocada |',
         '| `lineup-render` | `in-lrabcde` | sem troca |',
@@ -196,8 +196,15 @@ describe('servicesSection', () => {
   it('a troca de um serviço da imagem vale pela imagem (webhooks sozinho troca a imagem da API)', () => {
     assert.match(
       servicesSection(versions, 'webhooks', previous),
-      /\| `api`, `webhooks` \| `in-apiOLDO` → `in-apiabcd` \| trocada \|/,
+      /\| `api`, `webhooks`, `migrate` \| `in-apiOLDO` → `in-apiabcd` \| trocada \|/,
     );
+  });
+
+  it('o migrate sozinho também troca a imagem da API; serviço sem imagem nossa ganha a própria linha', () => {
+    const out = servicesSection(versions, 'migrate maintenance', previous);
+    assert.match(out, /\| `api`, `webhooks`, `migrate` \| `in-apiOLDO` → `in-apiabcd` \| trocada \|/);
+    assert.match(out, /\| `maintenance` \| sem imagem nossa \| trocada \|$/);
+    assert.equal(out.match(/sem troca/g).length, 3);
   });
 
   it('nada trocado: todas "sem troca", sem seta', () => {

@@ -156,7 +156,7 @@ export function nextTag(names, today) {
 
 /** Serviços que rodam cada imagem (o deploy informa os serviços trocados; a versão é da imagem). O resto é 1 para 1. */
 export const IMAGE_SERVICES = {
-  api: ['api', 'webhooks'],
+  api: ['api', 'webhooks', 'migrate'],
   ingestor: ['ingestor', 'agents'],
 };
 
@@ -195,7 +195,8 @@ export function previousVersions(body) {
  * A seção "Serviços publicados": uma linha por imagem com os serviços que a rodam, a versão (tag anterior → nova
  * quando trocou) e se o deploy a trocou ou não. `versions` = "api=in-abc demo=in-def" (a tag no ar agora);
  * `swapped` = os serviços que o deploy trocou, separados por espaço; `previous` = as versões do deploy anterior,
- * no formato de `versions` (sem elas, a troca sai sem a tag anterior). Vazio sem versões.
+ * no formato de `versions` (sem elas, a troca sai sem a tag anterior). Serviço trocado que não roda nenhuma dessas
+ * imagens (a `maintenance`, por exemplo, que é de terceiros) ganha a própria linha. Vazio sem versões.
  */
 export function servicesSection(versions, swapped = '', previous = '') {
   const pairs = parseVersions(versions);
@@ -218,6 +219,10 @@ export function servicesSection(versions, swapped = '', previous = '') {
     }
     return `| ${code(services)} | ${version} | ${state} |`;
   });
+  const covered = new Set(pairs.flatMap(([name]) => IMAGE_SERVICES[name] ?? [name]));
+  for (const service of [...changed].filter((s) => !covered.has(s))) {
+    rows.push(`| \`${service}\` | sem imagem nossa | trocada |`);
+  }
   return ['## Serviços publicados', '', '| Serviço | Versão | Situação |', '|---|---|---|', ...rows].join(
     '\n',
   );
