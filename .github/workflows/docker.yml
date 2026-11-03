@@ -192,6 +192,36 @@ jobs:
           fi
           echo "nenhum .env na imagem"
 
+  # A stack de dev do NAS (Portainer, GitOps por polling; infra/nas-dev/compose.yml) acompanha a branch `nas-dev`, não a
+  # main: este job avança a branch para o SHA só depois de TODAS as imagens do commit terem saído com a tag `main`.
+  # Assim o redeploy do Portainer nunca vê um commit cujas imagens ainda não existem: o poll de 5 min caía no meio do
+  # build, puxava a imagem anterior e, sem commit novo, não tentava de novo (a migration ficava sem aplicar até o merge
+  # seguinte). Push pelo GITHUB_TOKEN não dispara workflow nenhum. Build de uma imagem falhou = a branch não anda, e o
+  # `gs dev:esquema` avisa o atraso. Runbook: docs/runbooks/ambiente-de-dev.md › Stack a partir do git.
+  nas-dev:
+    name: avança nas-dev (stack de dev do NAS)
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: nas-dev = este SHA (imagens main publicadas)
+        run: |
+          # execuções da main saem em ordem (concurrency acima), mas se a branch já estiver à frente deste SHA
+          # (commit seguinte publicado antes), não há o que fazer: avançar para trás seria voltar o dev
+          if git fetch origin nas-dev 2>/dev/null && git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::notice::nas-dev já está em $(git rev-parse --short FETCH_HEAD), à frente de $(git rev-parse --short HEAD); nada a fazer"
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/nas-dev"
+          echo "nas-dev → $(git rev-parse --short HEAD)"
+
   # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta muda.
   # No PR e na fila de merge, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
   # works.galaxie.context-tree da tag publicada no GHCR: uma execução trocada na fila pela do commit seguinte não deixa
@@ -335,6 +365,18 @@ jobs:
             docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config -q
           done
 
+      # A stack de dev do NAS é lida pelo Portainer direto do git (#552): o arquivo tem de fechar sozinho, com e sem o
+      # perfil workers, e o migrate tem de ser o da produção na tag main (o resto das regras está no vitest do ingestor)
+      - name: docker compose config (stack de dev do NAS, a partir do git)
+        run: |
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example --profile workers config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config --format json |
+            jq -e '.services.migrate.image == "ghcr.io/galaxie-works/galaxie-sports-api:main"
+              and .services.migrate.restart == "no"
+              and (.services.migrate.depends_on.postgres.condition == "service_healthy")' >/dev/null ||
+            { echo "::error::migrate da stack de dev fora do esperado (imagem api:main, restart no, espera o postgres)"; exit 1; }
+
       - name: docker compose config (candidatos do deploy)
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
@@ -393,10 +435,14 @@ jobs:
             infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
-            infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
+            infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
+            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
+
+      - name: Migrate do dev pela máquina (migrate-dev.sh com docker e pnpm falsos; recusa URL que não é a do dev)
+        run: bash infra/ops/migrate-dev.test.sh
 
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh

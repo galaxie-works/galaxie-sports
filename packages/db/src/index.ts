@@ -13,6 +13,7 @@ export {
   type DbTimeouts,
 } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { journalProblems, type Journal, type JournalEntry } from './journal.js';
 export {
   APP_SCHEMAS,
   DEMO_AUTH_SCHEMA,

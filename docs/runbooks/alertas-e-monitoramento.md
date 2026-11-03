@@ -294,6 +294,16 @@ verdade, com push se o secret existir); só vale com a produção atrás da main
 `GH_REPO=galaxie-works/galaxie-sports node infra/ops/producao-atrasada.mjs verificar` (só lê; sem `GITHUB_OUTPUT` não
 abre issue nem manda push).
 
+## Esquema do dev atrasado (`DevEsquemaAtrasado`)
+
+O Postgres de **dev** mora no NAS da LAN: o Prometheus da VPS não o enxerga e o GitHub não entra na LAN, então este
+sinal não passa pelo Grafana (não entra no resumo diário por e-mail) nem por workflow. Quem aplica as migrations no dev
+é o `migrate` da stack do git no Portainer do NAS, a cada merge na main; quem confere é o comando
+`pnpm --filter @galaxie/ingestor gs dev:esquema`, rodado da máquina de dev, que compara `drizzle.__drizzle_migrations`
+com o journal da main e sai com 1 quando o dev está atrasado há mais de 24 h. Falha do `migrate` aparece como contêiner
+com saída ≠ 0 na stack do Portainer. Estados, saída e o plano B (`infra/ops/migrate-dev.sh`):
+[ambiente de dev › Esquema do dev atrasado](ambiente-de-dev.md#esquema-do-dev-atrasado-devesquemaatrasado).
+
 ## Monitor externo e página de status (Better Stack, plano gratuito)
 
 Ligado em 29/10/2026 ([#430](https://github.com/galaxie-works/galaxie-sports/issues/430)). A conta é do dono, em
