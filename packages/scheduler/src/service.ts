@@ -7,7 +7,8 @@
  * (segredos só como configurado/não configurado), que também serve de sinal de vida para o painel.
  *
  * Job `keepAlive` (o `live-run` do perfil `live`) não tem cron: sobe com o serviço e, quando o processo sai, sobe de
- * novo depois de `keepAliveDelayMs` (dobra a cada saída rápida, até `keepAliveMaxDelayMs`).
+ * novo depois de `keepAliveDelayMs` (dobra a cada saída rápida, até `keepAliveMaxDelayMs`). Desligado (`off` no painel
+ * ou no env), o processo em andamento recebe SIGTERM e não volta.
  */
 import { Cron } from 'croner';
 import {
@@ -38,8 +39,14 @@ export interface SchedulerServiceOptions {
   env: NodeJS.ProcessEnv;
   db?: Database | undefined;
   log: Logger;
-  /** Executa um job com o env efetivo (no serviço real, `runJob` num processo filho). */
-  run: (job: ScheduledJob, ctx: { trigger: RunTrigger; env: NodeJS.ProcessEnv }) => Promise<RunResult>;
+  /**
+   * Executa um job com o env efetivo (no serviço real, `runJob` num processo filho). `signal`, só nos jobs `keepAlive`:
+   * abortado quando o job sai da agenda, o processo deve encerrar (SIGTERM).
+   */
+  run: (
+    job: ScheduledJob,
+    ctx: { trigger: RunTrigger; env: NodeJS.ProcessEnv; signal?: AbortSignal | undefined },
+  ) => Promise<RunResult>;
   /** Releitura da configuração e da fila de pedidos. */
   refreshMs?: number;
   /** Só no perfil agents: checagem do crédito da conta de IA. */
@@ -82,6 +89,8 @@ export class SchedulerService {
   /** Jobs `keepAlive` esperando a hora de subir de novo, e o atraso da próxima saída rápida. */
   private readonly relaunch = new Map<string, NodeJS.Timeout>();
   private readonly backoff = new Map<string, number>();
+  /** Encerramento de cada job `keepAlive` no ar: abortado quando ele sai da agenda (painel ou env). */
+  private readonly keepAliveStops = new Map<string, AbortController>();
 
   constructor(private readonly options: SchedulerServiceOptions) {
     this.log = options.log;
@@ -214,23 +223,36 @@ export class SchedulerService {
     // a primeira programação não é "mudança"; as seguintes vêm do painel
     if (changes.length && this.programmed) this.log.info({ changes }, 'agenda reprogramada');
     this.programmed = true;
+    // desligado no painel (ou fora da agenda): o processo que fica no ar encerra, e não volta
+    for (const [name, stop] of this.keepAliveStops)
+      if (!this.current.some((j) => j.name === name && j.keepAlive) && !stop.signal.aborted) {
+        this.log.info({ job: name }, 'job que fica no ar desligado; encerrando o processo');
+        stop.abort();
+      }
     for (const job of this.current) if (job.keepAlive) this.keepAlive(job.name);
   }
 
   /**
    * Sobe o job `keepAlive` se ele não está no ar nem esperando a hora de voltar. Desligado no painel (fora da agenda),
-   * o processo em andamento segue até sair e não volta.
+   * o `reconcile` aborta o processo em andamento, e ele não volta.
    */
   private keepAlive(name: string): void {
     if (!this.started || this.running.has(name) || this.relaunch.has(name)) return;
     const startedAt = Date.now();
+    const stop = new AbortController();
     let run: Promise<RunResult>;
     try {
-      run = this.execute(name, 'keepalive');
+      run = this.execute(name, 'keepalive', { signal: stop.signal });
     } catch (err) {
       this.log.error({ err, job: name }, 'falha ao subir o job que fica no ar');
       return;
     }
+    this.keepAliveStops.set(name, stop);
+    void run
+      .finally(() => {
+        if (this.keepAliveStops.get(name) === stop) this.keepAliveStops.delete(name);
+      })
+      .catch(() => {});
     this.track(
       run.then(
         (result) => this.scheduleRelaunch(name, Date.now() - startedAt, result.status),
@@ -287,7 +309,7 @@ export class SchedulerService {
    * Executa um job agora com o env efetivo. `panel` e `manual` aceitam um job desligado na agenda
    * (rodar sob demanda é justamente o uso de um job sem agenda).
    */
-  execute(name: string, trigger: RunTrigger): Promise<RunResult> {
+  execute(name: string, trigger: RunTrigger, opts: { signal?: AbortSignal } = {}): Promise<RunResult> {
     const job =
       this.current.find((j) => j.name === name) ??
       (trigger === 'panel' || trigger === 'manual'
@@ -305,7 +327,7 @@ export class SchedulerService {
       if (!release) return queueClosed(job.name);
       try {
         // o env do momento em que a vaga abriu (o painel pode ter mudado algo enquanto esperava)
-        return await this.options.run(target, { trigger, env: this.env });
+        return await this.options.run(target, { trigger, env: this.env, signal: opts.signal });
       } finally {
         release();
       }

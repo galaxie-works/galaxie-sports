@@ -90,6 +90,41 @@ describe('SchedulerService: job que fica no ar (keepAlive)', () => {
     expect(launches).toHaveLength(1);
   });
 
+  it('desligado no painel com o processo no ar: o processo recebe o encerramento e não volta', async () => {
+    const aborted: string[] = [];
+    let launches = 0;
+    const env: NodeJS.ProcessEnv = {};
+    const s = new SchedulerService({
+      profile: 'live',
+      jobs: [job('live-run', { keepAlive: true, lock: 'instance', live: true })],
+      env,
+      log: logger,
+      keepAliveDelayMs: 20,
+      run: (j, { signal }) => {
+        launches += 1;
+        return new Promise<RunResult>((resolve) => {
+          signal?.addEventListener('abort', () => {
+            aborted.push(j.name);
+            resolve(result(j.name, 'ok'));
+          });
+        });
+      },
+    });
+    running = s;
+    await s.start();
+    await sleep(30);
+    expect(launches).toBe(1);
+    // o painel desliga (a releitura entrega o env efetivo com SCHEDULE_LIVE_RUN=off)
+    (s as unknown as { applyConfig(o: Map<string, string>): void }).applyConfig(
+      new Map([['SCHEDULE_LIVE_RUN', 'off']]),
+    );
+    await s.refresh();
+    await sleep(80);
+    expect(aborted).toEqual(['live-run']);
+    expect(launches).toBe(1);
+    expect(s.keptAlive()).toEqual([]);
+  });
+
   it('SCHEDULE_<JOB>=off desliga', async () => {
     const { s, launches } = supervised({ env: { SCHEDULE_LIVE_RUN: 'off' } });
     await s.start();

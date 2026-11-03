@@ -123,7 +123,7 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
     creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
     maxJobs,
-    run: (job, { trigger, env }) =>
+    run: (job, { trigger, env, signal }) =>
       // QUEUE_MODE=enqueue: o job pesado vira tarefa da fila e o worker executa (sem banco, roda como sempre)
       job.task && db && queueMode(env) === 'enqueue'
         ? enqueueJob(db, job, { trigger, recorder, logger: log })
@@ -134,7 +134,8 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
             recorder,
             logger: log,
             trigger,
-            signal: shutdownController.signal,
+            // o encerramento do scheduler e, no job que fica no ar, o desligamento dele pelo painel
+            signal: signal ? AbortSignal.any([shutdownController.signal, signal]) : shutdownController.signal,
             // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
             // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
             lock: jobLock,

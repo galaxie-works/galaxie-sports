@@ -506,9 +506,9 @@ describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', 
 
   it('intervalo esperado pela agenda efetiva (banco > env relatado > padrão)', async () => {
     const m = await scrape();
-    expect(
-      m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'ingestor' }),
-    ).toBe(120);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'live' })).toBe(
+      120,
+    );
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'quota-status' })).toBe(3600);
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'wtw-run' })).toBeUndefined();
   });
