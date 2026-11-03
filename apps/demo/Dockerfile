@@ -34,6 +34,10 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 WTW
 WORKDIR /srv
 COPY --from=build --chown=node:node /out ./
 COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
+# O hash da entrada da imagem (tag in-<hash>), passado pelo docker.yml. Nunca o SHA do commit: a imagem é reaproveitada
+# entre commits, e o mesmo conteúdo tem de dar a mesma imagem. /version e build_info leem daqui.
+ARG IMAGE_HASH=dev
+ENV GALAXIE_IMAGE_HASH=${IMAGE_HASH}
 USER node
 EXPOSE 3000
 # Vivacidade sem depender da API (/robots.txt sai do próprio Next); travado, o processo é encerrado e o Docker

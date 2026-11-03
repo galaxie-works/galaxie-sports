@@ -9,6 +9,7 @@
  *                                    da api-sports, agendador
  *   domain   packages/ (lista abaixo)  regras de negócio compartilhadas (provedores, tabelas, base semântica, ...)
  *   ui       packages/ (lista abaixo)  bibliotecas de interface entregues ao cliente
+ *   test     tests/integration       testes que cruzam API e ingestor; folha do grafo, fora de toda imagem
  *
  * Pacote novo em packages/ precisa entrar numa das listas: sem camada, o lint:deps reprova.
  */
@@ -35,15 +36,17 @@ export const LAYER_TITLES = {
   domain: 'domínio',
   base: 'base',
   ui: 'interface',
+  test: 'testes',
 };
 
-/** @typedef {{ dir: string, name: string, kind: 'app'|'service'|'base'|'domain'|'ui'|null, group: string }} Unit */
+/** @typedef {{ dir: string, name: string, kind: 'app'|'service'|'base'|'domain'|'ui'|'test'|null, group: string }} Unit */
 
 /** A camada de uma pasta de pacote (`apps/api`, `packages/db`), ou null se um pacote novo ainda não foi classificado. */
 export function kindOf(dir) {
   const [group, name] = dir.split('/');
   if (group === 'apps') return 'app';
   if (group === 'services') return 'service';
+  if (group === 'tests') return 'test';
   for (const [kind, names] of Object.entries(PACKAGE_LAYERS)) if (names.includes(name)) return kind;
   return null;
 }
@@ -76,6 +79,12 @@ export const RULES = [
     summary: 'Nenhum pacote (packages/*) importa app ou serviço.',
     why: 'Pacote é a camada de baixo: se ele depende de quem o usa, o grafo vira um nó e o Turborepo perde o que isolar.',
     applies: (from, to) => from.group === 'packages' && (to.kind === 'app' || to.kind === 'service'),
+  },
+  {
+    id: 'ninguem-importa-teste',
+    summary: 'Ninguém importa o pacote de testes de integração (tests/integration).',
+    why: 'Ele é uma folha do grafo de propósito: depende da API e do ingestor, e nada depende dele, então não entra na imagem nem na entrada de nenhuma delas (#563).',
+    applies: (_from, to) => to.kind === 'test',
   },
   {
     id: 'base-nao-importa-dominio',

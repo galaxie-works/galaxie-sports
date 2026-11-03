@@ -6,3 +6,6 @@
 75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:161
 75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:167
 75f1c45b17ee2aabe81e725662a42fabd37560e4:infra/backup/e2e-test.sh:generic-api-key:168
+# 1b0ea6bb: valor de exemplo em infra/vps-telemetry/release-notes.test.mjs (um hash in-<hash> de mentira); trocado no
+# commit seguinte.
+1b0ea6bba2387e166708b2b37c044c7e144cfe15:infra/vps-telemetry/release-notes.test.mjs:generic-api-key:176

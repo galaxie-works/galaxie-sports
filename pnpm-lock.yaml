@@ -89,10 +89,6 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
-    devDependencies:
-      '@galaxie/ingestor':
-        specifier: workspace:*
-        version: link:../../services/ingestor
 
   apps/demo:
     dependencies:
@@ -558,6 +554,45 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+
+  tests/integration:
+    devDependencies:
+      '@galaxie/api':
+        specifier: workspace:*
+        version: link:../../apps/api
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../../packages/apisports-client
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
+      '@galaxie/ingestor':
+        specifier: workspace:*
+        version: link:../../services/ingestor
+      '@galaxie/knowledge':
+        specifier: workspace:*
+        version: link:../../packages/knowledge
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
+      fastify:
+        specifier: ^5.12.7
+        version: 5.12.7
+      ioredis:
+        specifier: ^6.0.0
+        version: 6.0.0
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

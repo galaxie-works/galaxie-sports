@@ -45,7 +45,8 @@ testes); `src/guardrails` são as regras de publicação; cada agente tem sua pa
 
 - **Pacotes**: `db`, `ai-ledger` (teto diário em tokens e US$ antes de cada chamada), `runtime-config`, `where-to-watch`,
   `knowledge`, `rules`, `providers`, `geo`, `contracts`, `net-guard` (toda busca de URL de terceiro).
-- **Serviços**: Postgres, provedor de LLM (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ou `GEMINI_API_KEY`), YouTube (`YOUTUBE_API_KEY`) e o
+- **Serviços**: Postgres, provedor de LLM (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ou `GEMINI_API_KEY`), YouTube (`YOUTUBE_API_KEY`; `YOUTUBE_SEARCH=off`
+  desliga toda chamada à Data API, padrão do dev: [ambiente de dev](../../docs/runbooks/ambiente-de-dev.md)) e o
   `lineup-render` (`LINEUP_RENDER_WS`).
 - **Arquivos**: `config/ai-policy.yaml` (`AI_POLICY_FILE`), `config/broadcasters`, `config/broadcast-rights`,
   `config/related-content`, `data/knowledge`.

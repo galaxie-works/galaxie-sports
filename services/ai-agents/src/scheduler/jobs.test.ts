@@ -1,7 +1,9 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { SCHEDULED_JOBS, scheduleKey } from '@galaxie/runtime-config';
 import { envKey, scheduleFromEnv as scheduleJobs } from '@galaxie/scheduler';
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 import { AGENT_JOBS } from './jobs.js';
 
 /** A agenda dos agentes com as sobrescritas do ambiente. */
@@ -74,5 +76,26 @@ describe('agenda dos agentes de IA', () => {
       })),
     ).toEqual(fromCode);
     for (const j of fromCode) expect(scheduleKey(j.name)).toBe(envKey(j.name));
+  });
+});
+
+describe('stack de dev do NAS (infra/nas-dev/compose.yml): serviço agents', () => {
+  const composePath = fileURLToPath(new URL('../../../../infra/nas-dev/compose.yml', import.meta.url));
+  const compose = parse(readFileSync(composePath, 'utf8'), { merge: true }) as {
+    services: Record<string, { environment?: Record<string, string> }>;
+  };
+  const environment = compose.services.agents?.environment ?? {};
+
+  it('nenhum job dos agentes está agendado por padrão', () => {
+    // sem nenhum ajuste: cada SCHEDULE_<JOB> da stack vale "off" (o ${VAR:-off} resolve para off)
+    const env = Object.fromEntries(
+      Object.entries(environment).map(([k, v]) => [k, String(v).replace(/\$\{[A-Z0-9_]+:-([^}]*)\}/g, '$1')]),
+    );
+    expect(scheduleFromEnv(env).map((j) => j.name)).toEqual([]);
+  });
+
+  it('cada job do código tem a sua variável SCHEDULE_ na stack (job novo sem ela ficaria ligado)', () => {
+    const declared = Object.keys(environment).filter((k) => k.startsWith('SCHEDULE_'));
+    expect(declared.sort()).toEqual(AGENT_JOBS.map((j) => envKey(j.name)).sort());
   });
 });

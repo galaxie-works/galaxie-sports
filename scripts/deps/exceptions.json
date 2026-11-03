@@ -1,47 +1,5 @@
 [
   {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/package.json",
-    "to": "services/ingestor",
-    "reason": "devDependency usada só pelos testes de integração da API, que semeiam o banco com funções do ingestor; sai quando essas funções de semente forem para um pacote (ver as linhas abaixo)."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/events.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste usa upsertBatch, normalizeFootballFromRaw, PgAssetStore e PLACEHOLDER_LOGO_SHA256 do ingestor para montar o cenário; mover o upsert do core, a normalização e o armazém de assets para pacotes."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/explore.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste usa o seedGeo do ingestor para carregar países e confederações; mover a semente de geo para um pacote."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/live-sse.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste do SSE roda o LivePoller, o PgLiveStore e o upsertBatch do ingestor para produzir eventos ao vivo; o motor do ao vivo precisa de um pacote próprio ou de um simulador de teste fora do serviço."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/navigation.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste usa o seedGeo do ingestor para carregar países e confederações; mover a semente de geo para um pacote."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/provisional.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste usa parseProvisionalFile, syncProvisionalFixtures, seedGeo e upsertBatch do ingestor; mover a gravação de jogos provisórios e as sementes para um pacote."
-  },
-  {
-    "rule": "app-nao-importa-servico",
-    "from": "apps/api/test/semantic-multisport.integration.test.ts",
-    "to": "services/ingestor",
-    "reason": "O teste usa seedMultisport e linkGamesCompetitions do ingestor para montar a base multiesporte; mover essas sementes para um pacote."
-  },
-  {
     "rule": "servico-nao-importa-servico",
     "from": "services/ai-agents/package.json",
     "to": "services/ingestor",
