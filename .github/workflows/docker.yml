@@ -1,7 +1,7 @@
 name: Imagens e stack de staging
 
 # Constrói e valida em todo PR. No push para a main e na fila de merge (merge_group) publica no GHCR as imagens que a
-# stack usa (o caddy fica de fora: a VPS usa o Traefik): na fila com a tag <sha> do commit que vai virar a main; no push
+# stack usa: na fila com a tag <sha> do commit que vai virar a main; no push
 # com <sha>, main e staging. Imagem cuja entrada não mudou não é reconstruída: ganha as tags novas (passo "Entrada da
 # imagem"). O deploy (deploy.yml) sobe a stack com as imagens do SHA — ver infra/vps-telemetry/README.md.
 # A entrada de api, ingestor e demo é calculada por infra/ops/image-inputs.mjs a partir do grafo do pnpm: as pastas do
@@ -38,8 +38,8 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}
-      # Publica no push para a main e na fila de merge; o caddy fica de fora (a VPS usa o Traefik).
-      PUBLISH: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'merge_group') && matrix.image != 'caddy' }}
+      # Publica no push para a main e na fila de merge.
+      PUBLISH: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'merge_group') }}
       # PR de fork não tem token para o GHCR: constrói sempre, sem consultar o registry
       SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
@@ -67,9 +67,6 @@ jobs:
           - image: grafana
             context: infra/observability/grafana
             file: infra/observability/grafana/Dockerfile
-          - image: caddy
-            context: infra/caddy
-            file: infra/caddy/Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -97,7 +94,7 @@ jobs:
           hash=$(bash infra/ops/image-hash.sh "$NAME")
           echo "hash=$hash" >> "$GITHUB_OUTPUT"
           src=""
-          if [ "$SAME_REPO" = true ] && [ "$NAME" != caddy ]; then
+          if [ "$SAME_REPO" = true ]; then
             for ref in "$IMAGE:$GITHUB_SHA" "$IMAGE:in-$hash"; do
               if docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
                 src="$ref"
@@ -378,11 +375,6 @@ jobs:
             prom/prometheus:v3.15.1 test rules alerts.test.yml slo.test.yml
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
             prom/prometheus:v3.15.1 check config prometheus.yml --syntax-only
-
-      - name: Caddyfile
-        run: |
-          docker run --rm -e API_DOMAIN=api.example.test -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
-            caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
       - name: Painel do Grafana é JSON válido
         run: jq empty infra/observability/grafana/dashboards/*.json

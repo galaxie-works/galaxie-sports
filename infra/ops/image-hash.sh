@@ -18,7 +18,6 @@ case "$image" in
   backup) list=infra/backup ;;
   prometheus) list=infra/observability/prometheus ;;
   grafana) list=infra/observability/grafana ;;
-  caddy) list=infra/caddy ;;
   *) list="$(node "$ROOT/infra/ops/image-inputs.mjs" "$image")" ;;
 esac
 read -ra paths <<< "$list"
