@@ -32,11 +32,12 @@ import { AiPolicyCard } from './ai-policy-card';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
+import { TasksTab } from './tasks-tab';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 /** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
 export const PANEL_TABS = {
-  system: ['status', 'quality', 'live', 'schedule', 'ai', 'provider', 'assets', 'history'],
+  system: ['status', 'quality', 'live', 'schedule', 'tasks', 'ai', 'provider', 'assets', 'history'],
   features: ['sports', 'related', 'wtw'],
 } as const;
 export type PanelScope = keyof typeof PANEL_TABS;
@@ -154,6 +155,9 @@ export function OpsPanel({
         </TabsContent>
         <TabsContent value="schedule" className="mt-4">
           <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
+        <TabsContent value="tasks" className="mt-4">
+          <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />
         </TabsContent>
         <TabsContent value="provider" className="mt-4 flex flex-col gap-4">
           <SectionCard

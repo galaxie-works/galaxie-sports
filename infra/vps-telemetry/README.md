@@ -113,18 +113,18 @@ aparece no relatório. Serviço por serviço, o deploy termina conferindo a vers
 ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
 ```
 
-### Candidato e troca sem manutenção (`DEPLOY_CANDIDATE=on`)
+### Candidato e troca sem manutenção
 
-O deploy pelo Actions troca só o que mudou, sempre sem página de manutenção na API e na demo (runbook
-[Merge e deploy pelo GitHub](../../docs/runbooks/deploy-pelo-github.md) › O deploy pelo Actions). O candidato depende da
-variável do repositório; vazia, a versão nova só passa pelo smoke depois da troca. Ligada, com a API ou a demo na lista:
+O deploy pelo Actions troca só o que mudou, sem página de manutenção (runbook
+[Merge e deploy pelo GitHub](../../docs/runbooks/deploy-pelo-github.md) › O deploy pelo Actions). Com a API ou a demo na
+lista:
 
 1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull, do dump e do migrate, a API e a demo da versão nova sobem ao lado
    das que estão no ar (`api-candidate` e `demo-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
    router no Traefik**, a API com o prefixo `gs-candidate:` no Valkey para cache, rate limit, uso e relay do SSE não se
    misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
    troca: a versão anterior segue no ar e o deploy sai com 1 (com migration aplicada, ele avisa e mostra o dump).
-2. **Troca da API e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
+2. **Troca da API, dos webhooks e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
    lado do antigo (`--scale 2 --no-recreate`), o antigo só para com o novo healthy (o Traefik só balanceia contêiner
    healthy), e o `gsports-retry` (ligado em `EDGE_MIDDLEWARES`, [infra/traefik](../traefik/README.md)) manda a conexão
    recusada pelo antigo no SIGTERM para o novo. O CI testa com o Traefik de verdade e tráfego a cada 50 ms (zero
@@ -132,16 +132,9 @@ variável do repositório; vazia, a versão nova só passa pelo smoke depois da 
    do pós-deploy continua valendo.
 3. O deploy guarda só os 10 backups mais novos de `compose.yml` e `.env`.
 
-Ligar (com o OK do Wagner; sem staging, o primeiro deploy com ela é o teste), depois de `EDGE_MIDDLEWARES` ter o
-`gsports-retry`:
-
-```bash
-gh variable set DEPLOY_CANDIDATE --body on
-```
-
-Acompanhar o primeiro deploy no log do Actions: `candidato healthy`, o resultado do smoke do candidato, `ok  api trocado
-sem manutenção` e `ok  demo trocado sem manutenção`. Voltar: `gh variable delete DEPLOY_CANDIDATE` (o próximo deploy já
-sai sem o candidato). Candidato esquecido no ar (job morto no meio):
+A troca sem erro nenhum na borda depende de `EDGE_MIDDLEWARES` ter o `gsports-retry` ([infra/traefik](../traefik/README.md)).
+No log do Actions: `candidato healthy`, o resultado do smoke do candidato e `ok  <serviço> trocado sem manutenção`. Um SHA
+antigo, sem os candidatos no compose, publica sem eles, com `WARN`. Candidato esquecido no ar (job morto no meio):
 `docker compose --profile candidate rm -sf api-candidate demo-candidate`.
 
 Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam** quando não acham (lista vazia), então
@@ -151,8 +144,9 @@ CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
 
 ## Página de manutenção
 
-Quando um deploy ou um reinício recria a `demo` ou a `api`, o Traefik fica alguns segundos sem backend para o router
-delas e responderia **404** numa página válida. O serviço `maintenance` cobre esse intervalo sem tocar na stack do
+O deploy troca sem esta página. Ela cobre o que sobra: quando um reinício (ou o plano B, `deploy.sh`) deixa a `demo` ou a
+`api` sem contêiner healthy, o Traefik fica alguns segundos sem backend para o router delas e responderia **404** numa
+página válida; e serve de ferramenta para a manutenção do banco (abaixo). O serviço `maintenance` cobre esse intervalo sem tocar na stack do
 Traefik, só com labels da nossa stack:
 
 - **Routers de prioridade 1** (`gsports-demo-maintenance` e `gsports-api-maintenance`) com as mesmas regras de host dos
@@ -195,9 +189,15 @@ ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start demo'
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                     # de volta: 307 → /login
 ```
 
-**Forçar a manutenção** (migração demorada, restauração do banco): `MAINTENANCE_PRIORITY=10000` no `.env` e
-`docker compose up -d maintenance` (recria só ele; os routers passam a ganhar dos de verdade nos dois hosts). Para
-voltar: `MAINTENANCE_PRIORITY=1` (ou apagar a linha) e `docker compose up -d maintenance`. Enquanto forçada, ninguém
+**Forçar a manutenção** (upgrade do Postgres, restauração do banco): [`maintenance.sh`](maintenance.sh), que grava
+`MAINTENANCE_PRIORITY` no `.env` e recria só esse serviço (os routers passam a ganhar dos de verdade nos dois hosts):
+
+```bash
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
+```
+
+Enquanto forçada, ninguém
 alcança a demo nem a API pelo Traefik (nem admin), um deploy mantém a manutenção (o valor fica no `.env`) e o smoke
 test continua passando, porque fala com os contêineres pela rede interna. Alternativa pontual, para um serviço só:
 `docker compose stop demo` (ou `api`) também cai na página, até o `start`.

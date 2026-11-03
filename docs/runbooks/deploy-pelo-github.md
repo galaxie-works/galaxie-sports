@@ -97,15 +97,15 @@ o que faltar.
    no ar, e o hash da configuração do compose com o rótulo do contêiner. Só os diferentes trocam. O log (e o resumo do
    job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`.
 7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
-   dele mudou, se há migration nova ou com `force=1`. Com `DEPLOY_CANDIDATE=on` e a API ou a demo na lista, o smoke roda
-   na versão nova antes da troca
+   dele mudou, se há migration nova ou com `force=1`. Com a API ou a demo na lista, o **smoke roda na versão nova antes
+   da troca**, num candidato sem tráfego; reprovado, nada troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
 8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
    comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
    notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
-   - `api` lado a lado (`rolling-swap.sh`: o antigo só sai com o novo healthy) e `webhooks` por recriação;
-   - `demo` lado a lado;
+   - `api`, `webhooks` e `demo` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o novo
+     healthy). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
    - `backup`, `prometheus`, `grafana` e o que não tem imagem nossa, quando mudaram.
 9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
    falhas", que também confere a versão da API e da demo). Por último, a **conferência**
@@ -195,7 +195,7 @@ sed -i 's|^TAG_DEMO=.*|TAG_DEMO=in-<hash anterior>|' .env
 PULL_POLICY=missing docker compose up -d --no-deps demo
 ```
 
-`api` e `demo` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
+`api`, `webhooks` e `demo` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
 `ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- demo' < infra/vps-telemetry/rolling-swap.sh`. Os outros
 sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte

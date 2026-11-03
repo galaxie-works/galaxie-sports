@@ -10,6 +10,7 @@
 #   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta a stack inteira
 #   - serviço que expõe outra versão termina vermelho, com o nome dele, e volta só ele
+#   - webhooks trocam lado a lado, e a manutenção forçada fica de fora do deploy
 #   - um SHA anterior às tags por serviço continua publicável, e dele se volta para a frente
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
@@ -81,7 +82,7 @@ echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a"
   "$REPO_T/infra/observability/grafana/a" >/dev/null
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"
-for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh rolling-swap.sh candidate.sh pre-migrate-dump.sh prune-images.sh; do
+for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh maintenance.sh rolling-swap.sh candidate.sh pre-migrate-dump.sh prune-images.sh; do
   cp "$HERE/$f" "$REPO_T/infra/vps-telemetry/"
 done
 # pós-deploy e smoke de faz de conta. O node do contêiner é um sh: o smoke.mjs daqui é shell.
@@ -125,6 +126,8 @@ services:
     pull_policy: missing
     restart: unless-stopped
     stop_grace_period: 1s
+    labels:
+      - traefik.prioridade=${MAINTENANCE_PRIORITY:-1}
   s3-init:
     image: galaxie-deploy-test-tools:1
     pull_policy: never
@@ -297,7 +300,7 @@ printf '%s\n' "$NEW_ENV_EXAMPLE" > "$REPO_T/infra/vps-telemetry/env.example"
 C1="$(commit "c1")"
 publish
 before="$(created)"
-deploy "$C1" DEPLOY_CANDIDATE=on
+deploy "$C1"
 expect_rc 0
 expect_log '^plano:.*demo: igual, fica'
 expect_log '^SKIP  nada a publicar'
@@ -323,7 +326,7 @@ publish
 before="$(created)"
 api_tag="$(env_of TAG_API)"
 : > "$VPS_D/post-deploy.log"
-deploy "$C2" DEPLOY_CANDIDATE=on
+deploy "$C2"
 expect_rc 0
 expect_log '^plano:.*demo: troca \([^ ]+ → in-[0-9a-f]+\)'
 expect_log '^plano:.*ingestor: igual, fica'
@@ -349,7 +352,7 @@ C3="$(commit "c3")"
 publish
 before="$(created)"
 : > "$VPS_D/post-deploy.log"
-deploy "$C3" DEPLOY_CANDIDATE=on
+deploy "$C3"
 expect_rc 0
 expect_log '^plano:.*agents: troca \(config mudou\)'
 expect_recreated "$before" agents
@@ -361,7 +364,7 @@ sed -i "s/'exit 0'/'exit 3'/" "$REPO_T/infra/vps-telemetry/compose.yml"
 C3B="$(commit "c3b")"
 publish
 before="$(created)"
-deploy "$C3B" DEPLOY_CANDIDATE=on
+deploy "$C3B"
 expect_rc 1
 expect_log '^plano:.*s3-init: troca \(config mudou\)'
 expect_log '^FAIL  s3-init terminou com código 3'
@@ -371,7 +374,7 @@ expect_recreated "$before" s3-init
 sed -i "s/'exit 3'/'exit 0'/" "$REPO_T/infra/vps-telemetry/compose.yml"
 C3="$(commit "c3c")"
 publish
-deploy "$C3" DEPLOY_CANDIDATE=on
+deploy "$C3"
 expect_rc 0
 
 echo "── C4: API boa e demo que passa no candidato e não sobe: a API fica nova, a demo volta"
@@ -383,12 +386,13 @@ publish
 before="$(created)"
 demo_old="$(env_of TAG_DEMO)"
 demo_old_ver="$(image_of demo)"
-deploy "$C4" DEPLOY_CANDIDATE=on
+deploy "$C4"
 expect_rc 1
 expect_log '^FAIL  demo: a troca falhou'
 expect_log '^FAIL  demo: de volta na versão anterior'
 expect_log '^FAIL  deploy parcial .*demo na versão anterior'
 expect_recreated "$before" api webhooks migrate
+expect_log 'ok  webhooks trocado sem manutenção'
 expect_eq "API nova no ar" "$(image_of api)" "$(hash_of api)"
 expect_eq "demo anterior no ar" "$(image_of demo)" "$demo_old_ver"
 expect_eq "TAG_DEMO voltou" "$(env_of TAG_DEMO)" "$demo_old"
@@ -402,7 +406,7 @@ echo z >> "$REPO_T/apps/demo/x"
 C5="$(commit "c5")"
 publish
 before="$(created)"
-deploy "$C5" DEPLOY_CANDIDATE=on
+deploy "$C5"
 expect_rc 0
 expect_recreated "$before" demo
 expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C5"
@@ -415,7 +419,7 @@ publish
 before="$(created)"
 ing_old="$(env_of TAG_INGESTOR)"
 ing_old_ver="$(image_of ingestor)"
-deploy "$C6" DEPLOY_CANDIDATE=on
+deploy "$C6"
 expect_rc 1
 expect_log '^FAIL  ingestor agents: a troca falhou'
 expect_eq "TAG_INGESTOR voltou" "$(env_of TAG_INGESTOR)" "$ing_old"
@@ -431,7 +435,7 @@ rm "$REPO_T/QUEBRA_ingestor"
 echo z >> "$REPO_T/services/ingestor/x"
 C5_FIX="$(commit "c7-base")"
 publish
-deploy "$C5_FIX" DEPLOY_CANDIDATE=on
+deploy "$C5_FIX"
 expect_rc 0
 env_before="$(cat "$VPS_D/.env")"
 echo w >> "$REPO_T/services/ingestor/x"
@@ -439,7 +443,7 @@ echo w >> "$REPO_T/apps/demo/x"
 touch "$REPO_T/QUEBRA_ingestor" "$REPO_T/QUEBRA_demo"
 C7="$(commit "c7")"
 publish
-deploy "$C7" DEPLOY_CANDIDATE=on
+deploy "$C7"
 expect_rc 1
 expect_log 'a troca falhou em mais de um serviço'
 expect_log '^FAIL  deploy desfeito'
@@ -449,7 +453,7 @@ echo v >> "$REPO_T/services/ingestor/x"
 echo v >> "$REPO_T/apps/demo/x"
 C8="$(commit "c8")"
 publish
-deploy "$C8" DEPLOY_CANDIDATE=on
+deploy "$C8"
 expect_rc 0
 
 echo "── smoke vermelho com um grupo trocado: volta só ele"
@@ -494,6 +498,23 @@ C_OK="$(commit "conserta")"
 publish
 deploy "$C_OK"
 expect_rc 0
+
+echo "── manutenção forçada: só ela muda, um deploy no meio a mantém, e o down volta"
+before="$(created)"
+(cd "$VPS_D" && bash -s -- up < "$REPO_T/infra/vps-telemetry/maintenance.sh") >/dev/null 2>&1
+expect_recreated "$before" maintenance
+expect_eq "prioridade no .env" "$(env_of MAINTENANCE_PRIORITY)" 10000
+maint_label() { docker inspect -f '{{index .Config.Labels "traefik.prioridade"}}' "$(cd "$VPS_D" && docker compose ps -q maintenance </dev/null)"; }
+expect_eq "prioridade no contêiner" "$(maint_label)" 10000
+echo q >> "$REPO_T/apps/demo/x"
+C_MA="$(commit "durante a manutenção")"
+publish
+deploy "$C_MA"
+expect_rc 0
+expect_log '^plano:.*maintenance: igual, fica'
+expect_eq "segue forçada" "$(maint_label)" 10000
+(cd "$VPS_D" && bash -s -- down < "$REPO_T/infra/vps-telemetry/maintenance.sh") >/dev/null 2>&1
+expect_eq "de volta" "$(maint_label)" 1
 
 echo "── volta para o SHA anterior às tags por serviço (force), e de lá para a frente"
 git -C "$REPO_T" worktree add -q --detach "$WORK/alvo" "$C0"
