@@ -289,6 +289,18 @@ groups:
           summary: 'Tarefa {{ $labels.type }} esperando worker há {{ $value | humanizeDuration }}'
           description: 'Veja se o worker está no ar e atende o tipo {{ $labels.type }}, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
 
+      # Resumo da home Explorar pré-calculado (#596): o job explore-summary refaz no minuto seguinte a uma mudança de
+      # status de jogo e a cada 10 min. Passou de 30 min (ou nunca gravou: +Inf), a API volta a montar a home na
+      # requisição, a consulta pesada que estoura o statement_timeout a frio com a VPS ocupada (deploy).
+      - alert: ExploreSummaryStale
+        expr: galaxie_explore_summary_age_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Resumo da home Explorar sem recálculo há {{ $value | humanizeDuration }}'
+          description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
+
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
         for: 5m

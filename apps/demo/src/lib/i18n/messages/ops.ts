@@ -319,6 +319,11 @@ export default defineMessages(
           label: 'Importância dos jogos',
           description: 'Recalcula a relevância dos jogos dos próximos 7 dias pela tabela. Não gasta cota.',
         },
+        'explore-summary': {
+          label: 'Resumo da home Explorar',
+          description:
+            'Prepara os números e os destaques da home quando um jogo muda de status e a cada 10 min. Não gasta cota.',
+        },
         'assets-mirror': {
           label: 'Espelho de imagens',
           description: 'Copia escudos, bandeiras e fotos para o nosso armazenamento.',
@@ -1386,6 +1391,11 @@ export default defineMessages(
             label: 'Match importance',
             description:
               'Recomputes relevance of the next 7 days of matches from the standings. Uses no quota.',
+          },
+          'explore-summary': {
+            label: 'Explore home summary',
+            description:
+              'Prepares the home numbers and highlights when a match changes status and every 10 min. Uses no quota.',
           },
           'assets-mirror': {
             label: 'Image mirror',
@@ -2456,6 +2466,11 @@ export default defineMessages(
             label: 'Importancia de los partidos',
             description:
               'Recalcula la relevancia de los partidos de los próximos 7 días por la tabla. No gasta cuota.',
+          },
+          'explore-summary': {
+            label: 'Resumen de la home Explorar',
+            description:
+              'Prepara los números y los destacados de la home cuando un partido cambia de estado y cada 10 min. No gasta cuota.',
           },
           'assets-mirror': {
             label: 'Espejo de imágenes',
