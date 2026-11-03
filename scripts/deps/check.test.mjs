@@ -24,7 +24,10 @@ function repo(packages, files = {}) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);
   };
-  write('pnpm-workspace.yaml', 'packages:\n  - apps/*\n  - services/*\n  - packages/*\n');
+  write(
+    'pnpm-workspace.yaml',
+    'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n',
+  );
   for (const [dir, deps] of Object.entries(packages)) {
     const name = `@galaxie/${dir.split('/')[1]}`;
     write(`${dir}/package.json`, JSON.stringify({ name, ...deps }));
@@ -80,15 +83,24 @@ describe('imports no código', () => {
 
   it('pacote já compilado (dist/ e link em node_modules) não esconde o import das regras', async () => {
     const root = repo(
-      { ...PKGS, 'services/ingestor': { main: './dist/index.js', exports: { '.': { default: './dist/index.js' } } } },
+      {
+        ...PKGS,
+        'services/ingestor': { main: './dist/index.js', exports: { '.': { default: './dist/index.js' } } },
+      },
       {
         'services/ingestor/dist/index.js': 'export const x = 1;\n',
         'apps/demo/src/page.ts': "import { x } from '@galaxie/ingestor';\nexport { x };\n",
       },
     );
     mkdirSync(join(root, 'node_modules', '@galaxie'), { recursive: true });
-    symlinkSync(join(root, 'services', 'ingestor'), join(root, 'node_modules', '@galaxie', 'ingestor'), 'junction');
-    assert.deepEqual(await rules(root), ['app-nao-importa-servico: apps/demo/src/page.ts -> services/ingestor']);
+    symlinkSync(
+      join(root, 'services', 'ingestor'),
+      join(root, 'node_modules', '@galaxie', 'ingestor'),
+      'junction',
+    );
+    assert.deepEqual(await rules(root), [
+      'app-nao-importa-servico: apps/demo/src/page.ts -> services/ingestor',
+    ]);
   });
 
   it('app não importa app', async () => {
@@ -198,6 +210,23 @@ describe('api-sports', () => {
 });
 
 describe('camadas', () => {
+  it('o pacote de testes de integração importa API e ingestor, mas ninguém o importa', async () => {
+    const root = repo(
+      {
+        ...PKGS,
+        'tests/integration': {
+          name: '@galaxie/integration-tests',
+          devDependencies: { '@galaxie/api': 'workspace:*', '@galaxie/ingestor': 'workspace:*' },
+        },
+      },
+      {
+        'tests/integration/test/a.ts': "import { x } from '@galaxie/ingestor';\nexport { x };\n",
+        'apps/demo/src/a.ts': "import { x } from '@galaxie/integration-tests';\nexport { x };\n",
+      },
+    );
+    assert.deepEqual(await rules(root), ['ninguem-importa-teste: apps/demo/src/a.ts -> tests/integration']);
+  });
+
   it('pacote novo sem camada reprova com pacote-sem-camada', async () => {
     const root = repo({ ...PKGS, 'packages/novidade': {} });
     assert.deepEqual(await rules(root), [
@@ -211,6 +240,7 @@ describe('camadas', () => {
     assert.equal(kindOf('packages/db'), 'base');
     assert.equal(kindOf('packages/rules'), 'domain');
     assert.equal(kindOf('packages/widgets'), 'ui');
+    assert.equal(kindOf('tests/integration'), 'test');
     assert.equal(kindOf('packages/nada'), null);
     assert.ok(isTestFile('apps/api/src/x.test.ts'));
     assert.ok(isTestFile('apps/api/test/x.ts'));
@@ -222,7 +252,7 @@ describe('camadas', () => {
     const root = repo(PKGS);
     writeFileSync(
       join(root, 'pnpm-workspace.yaml'),
-      'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tools/*\n',
+      'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n  - tools/*\n',
     );
     await assert.rejects(() => collect(root), /scripts\/deps\/rules\.mjs/);
   });

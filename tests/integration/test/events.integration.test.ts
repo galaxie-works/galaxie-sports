@@ -39,9 +39,7 @@ import {
   upsertBatch,
 } from '@galaxie/ingestor';
 import { normalizeFixtures, normalizeSportEnvelope, type ApiFixture } from '@galaxie/providers';
-import { createApiKey, upsertTenant } from '../src/auth/admin.js';
-import { rebuildFromCore } from '../src/routes/mirror-rebuild.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, createApiKey, rebuildFromCore, upsertTenant } from '@galaxie/api';
 
 /*
  * Integração das rotas /v1 de eventos, times, pessoas e contexto, e da remontagem do espelho.

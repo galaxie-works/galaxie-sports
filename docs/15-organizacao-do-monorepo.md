@@ -41,6 +41,7 @@ e do que depende.
 | [`data/knowledge`](../data/knowledge/SCHEMA.md) | dados | — | Base semântica versionada (times, clássicos, copy) | copiada nas imagens |
 | [`infra/`](../infra/README.md) | infra | — | Compose local, stack da VPS, backup, observabilidade, scripts de operação | várias |
 | `scripts/pwsh` | ferramenta | — | PowerShell de apoio (status da cota, cópia de assets) | — |
+| [`tests/integration`](../tests/integration/README.md) | testes | `@galaxie/integration-tests` | Integração que cruza API e ingestor (o ingestor semeia o core, a API serve) | — |
 | [`tests/load`](../tests/load/README.md) | testes | — | Cenários k6 | — |
 | `docs/` | docs | — | Documentação de produto, arquitetura, runbooks e pesquisas | — |
 
@@ -86,6 +87,9 @@ flowchart TB
   subgraph interface
     packages_widgets[widgets]
   end
+  subgraph testes
+    tests_integration[tests/integration]
+  end
 
   apps_api --> packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
   apps_demo --> packages_contracts & packages_db & packages_runtime_config & packages_where_to_watch & packages_widgets
@@ -105,7 +109,7 @@ flowchart TB
 
 As camadas vêm de `scripts/deps/rules.mjs`: **app** (`apps/*`), **serviço** (`services/*`), **domínio**
 (`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`), **base** (`db`, `contracts`, `observability`,
-`runtime-config`, `net-guard`, `apisports-client`, `scheduler`) e **interface** (`widgets`). Pacote novo em `packages/`
+`runtime-config`, `net-guard`, `apisports-client`, `scheduler`) **interface** (`widgets`) e **testes** (`tests/integration`, a folha do grafo que cruza API e ingestor, #563). Pacote novo em `packages/`
 precisa entrar numa delas, senão o `lint:deps` reprova.
 
 O CI (`pnpm lint:deps`, passo "Regra de dependência" do job `checks`) cobra estas regras, e o PR que viola é reprovado com o
@@ -118,6 +122,7 @@ nome da regra:
 | `app-nao-importa-servico` | Nenhum app (apps/*) importa serviço (services/*). | App e serviço sobem e caem separados: o app que importa o serviço leva o código dele junto na imagem. |
 | `servico-nao-importa-servico` | Um serviço não importa outro serviço. | Serviços rodam em contêineres separados; o que é comum a dois serviços vai para packages/. |
 | `pacote-nao-importa-app-nem-servico` | Nenhum pacote (packages/*) importa app ou serviço. | Pacote é a camada de baixo: se ele depende de quem o usa, o grafo vira um nó e o Turborepo perde o que isolar. |
+| `ninguem-importa-teste` | Ninguém importa o pacote de testes de integração (tests/integration). | Ele é uma folha do grafo de propósito: depende da API e do ingestor, e nada depende dele, então não entra na imagem nem na entrada de nenhuma delas (#563). |
 | `base-nao-importa-dominio` | Pacote de base não importa pacote de domínio. | A base (banco, contratos, logs, flags, SSRF, cliente da api-sports) é reaproveitável sem a regra de negócio; o domínio é quem a usa. |
 | `so-o-apisports-client-fala-com-a-api-sports` | Só o pacote apisports-client fala com a api-sports. | Cota, raw, plano e limite por minuto vivem no cliente; chamada por fora gasta cota sem contar e sem guardar o raw. |
 | `pacote-sem-camada` | Todo pacote de packages/ está numa camada. | Sem camada, as regras acima não sabem de que lado do pacote ficam; adicione-o a PACKAGE_LAYERS em scripts/deps/rules.mjs. |

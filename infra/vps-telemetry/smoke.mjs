@@ -63,6 +63,25 @@ await check('API /health', async () => {
   return res.ok ? true : fail(`status ${res.status}`);
 });
 
+// A versão que API e demo expõem é a que o deploy pediu (SMOKE_API_IMAGE e SMOKE_DEMO_IMAGE, a tag in-<hash> de cada uma;
+// fora do deploy, sem as variáveis, só mostra). Sem a rota (versão anterior a ela, na volta de um serviço): só avisa.
+await check('Versão da API e da demo', async () => {
+  const read = async (base, path, want) => {
+    const res = await fetch(`${base}${path}`);
+    if (res.status === 404) return { warn: `${path} não existe nesta versão` };
+    const hash = (await res.json()).image_hash;
+    if (want && hash !== want) return { fail: `${path} expõe ${hash}, não ${want}` };
+    return { hash };
+  };
+  const api = await read(API, '/version', process.env.SMOKE_API_IMAGE);
+  const demo = await read(DEMO, '/api/version', process.env.SMOKE_DEMO_IMAGE);
+  const failed = api.fail ?? demo.fail;
+  if (failed) return fail(failed);
+  const missing = api.warn ?? demo.warn;
+  if (missing) return warn(missing);
+  return `API ${api.hash} · demo ${demo.hash}`;
+});
+
 await check('Página de manutenção (503 do Traefik quando demo ou API saem do ar)', async () => {
   // O serviço maintenance só aparece para o usuário durante um deploy ou reinício; aqui, pela rede da stack, confere
   // que ele está no ar e responde o 503 certo. Os routers dele no Traefik (prioridade 1) se conferem de fora: README.

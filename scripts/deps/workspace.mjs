@@ -2,8 +2,11 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { kindOf } from './rules.mjs';
 
-/** As três pastas do workspace (pnpm-workspace.yaml); uma quarta exige rever as regras antes. */
-export const WORKSPACE_GROUPS = ['apps', 'services', 'packages'];
+/** As pastas do workspace (pnpm-workspace.yaml); uma nova exige rever as regras antes. */
+export const WORKSPACE_GROUPS = ['apps', 'services', 'packages', 'tests'];
+
+/** Os padrões do pnpm-workspace.yaml que as regras conhecem (`tests/` só tem o pacote de integração). */
+const EXPECTED_GLOBS = ['apps/*', 'services/*', 'packages/*', 'tests/integration'];
 
 export const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 
@@ -24,7 +27,7 @@ export function readUnits(root) {
         else if (!/^\s*(#.*)?$/.test(line)) break;
       }
     }
-    const expected = WORKSPACE_GROUPS.map((g) => `${g}/*`);
+    const expected = EXPECTED_GLOBS;
     if (globs.length && JSON.stringify([...globs].sort()) !== JSON.stringify([...expected].sort())) {
       throw new Error(
         `pnpm-workspace.yaml lista ${globs.join(', ')}; as regras de dependência conhecem só ${expected.join(', ')}. ` +

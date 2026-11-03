@@ -4,6 +4,11 @@
 # Passo a passo, verificação e reverso: infra/vps-telemetry/README.md.
 #
 # Validar: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
+#
+# Cada imagem tem a própria tag no .env (TAG_API: api, webhooks, migrate e candidato; TAG_DEMO: demo e candidato;
+# TAG_INGESTOR: ingestor e agents; TAG_BACKUP; TAG_PROMETHEUS; TAG_GRAFANA), para um deploy trocar só o que mudou
+# (deploy-gh.sh). O SHA publicado fica em DEPLOY_SHA, que não pode entrar no env de nenhum serviço: env novo recria o
+# contêiner.
 
 x-logging: &logging
   driver: json-file
@@ -151,7 +156,7 @@ services:
   # ── aplicação ─────────────────────────────────────────────────────────────────────────────────
   # Aplica as migrations (idempotente) antes de API e ingestor subirem.
   migrate:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
     environment:
@@ -172,7 +177,7 @@ services:
     logging: *logging
 
   api: &api
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
@@ -222,7 +227,7 @@ services:
 
   # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
   demo: &demo
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${TAG_DEMO:?defina TAG_DEMO}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
@@ -276,12 +281,12 @@ services:
     logging: *logging
 
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
-  # Mesma imagem da API, sem porta e sem router. Na primeira subida o cursor começa do fim do change feed (não reenvia
-  # o histórico). Sem HTTP para conferir, o healthcheck da imagem (GET /health na 8080) fica desligado; uma queda do
+  # Mesma imagem da API, sem router: a 8080 só tem /health, /version e /metrics (servidor de operação). Na primeira subida
+  # o cursor começa do fim do change feed (não reenvia o histórico). O healthcheck da imagem fica desligado; uma queda do
   # processo é coberta pelo restart. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
   # --remove-orphans (deploy-gh.sh/deploy.sh), para o worker da versão recusada não seguir entregando.
   webhooks:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 256m
@@ -292,6 +297,8 @@ services:
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       # depois de `webhook seal-secrets` (SECURITY.md › Webhooks): segredo legado em texto puro deixa de assinar
       WEBHOOK_REJECT_PLAINTEXT_SECRETS: ${WEBHOOK_REJECT_PLAINTEXT_SECRETS:-}
+      # Bearer do /metrics do servidor de operação do worker (build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
     healthcheck:
       disable: true
     depends_on:
@@ -331,7 +338,7 @@ services:
   # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
   # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.
   # Os routers têm prioridade 1 (a padrão do Traefik é o tamanho da regra): só ganham quando o router da demo ou da
-  # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem IMAGE_TAG: deploy normal não recria.
+  # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem tag de deploy: deploy normal não recria.
   # Mudou o conteúdo das configs → atualize works.galaxie.maintenance-rev (o CI confere com maintenance-rev.mjs e diz
   # o valor); é ele que faz o próximo deploy recriar o serviço. MAINTENANCE_PRIORITY=10000 no .env +
   # `docker compose up -d maintenance` força a manutenção (README › Página de manutenção).
@@ -388,7 +395,7 @@ services:
 
   # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
   ingestor:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     # scheduler + faixa do ao vivo (live-run, live-reconcile, events-clock) + SCHEDULER_MAX_JOBS jobs, cada um com
@@ -398,6 +405,8 @@ services:
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
@@ -437,7 +446,7 @@ services:
   # todos os agentes e a ordem das fotos da F1 (ledger ops.llm_usage). Tetos: número
   # ou "unlimited"; 0 é inválido.
   agents:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     # scheduler + SCHEDULER_MAX_JOBS jobs de 128 MB de heap: ~690 MB no pior caso (README › Memória dos jobs)
@@ -445,6 +454,8 @@ services:
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_AGENTS:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       SCHEDULER_PROFILE: agents
       SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
       SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
@@ -540,7 +551,7 @@ services:
   # 6 h, ensaio de restauração no dia 1 de cada mês, cópia opcional para S3 externo e, com BACKUP_S3_SYNC_PREFIXES, a
   # dos assets do RustFS (docs/runbooks/exercicio-dr.md).
   backup:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${TAG_BACKUP:?defina TAG_BACKUP}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 256m
@@ -592,7 +603,7 @@ services:
 
   # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────
   prometheus:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${TAG_PROMETHEUS:?defina TAG_PROMETHEUS}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
@@ -621,7 +632,7 @@ services:
     logging: *logging
 
   grafana:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${TAG_GRAFANA:?defina TAG_GRAFANA}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m

@@ -4,6 +4,7 @@
  * entregas usam `FOR UPDATE SKIP LOCKED`).
  */
 import { closeDb, createDb } from '@galaxie/db';
+import { startOpsServer, versionInfo } from '@galaxie/observability';
 import { WebhookSecretBox } from './secret-box.js';
 import { WebhookWorker } from './worker.js';
 
@@ -47,7 +48,15 @@ const worker = new WebhookWorker(db, {
   logger: { info: log('info'), warn: log('warn') },
 });
 
+// /health, /version e /metrics do worker (sem router no Traefik); na porta da imagem, a do healthcheck dela
+const ops = startOpsServer({
+  service: 'webhooks',
+  port: num('API_PORT') ?? 8080,
+  onError: (err) => log('warn')({ err }, 'webhooks: servidor de operação com falha'),
+});
+
 const shutdown = async () => {
+  ops.close();
   await worker.stop();
   await closeDb(db);
   process.exit(0);
@@ -56,4 +65,4 @@ process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);
 
 await worker.start();
-log('info')({}, 'webhooks: worker iniciado');
+log('info')(versionInfo('webhooks'), 'webhooks: worker iniciado');

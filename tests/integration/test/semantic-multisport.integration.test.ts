@@ -33,8 +33,7 @@ import {
 } from '@galaxie/db';
 import { linkGamesCompetitions, seedMultisport } from '@galaxie/ingestor';
 import { loadKnowledge, seedSemantic } from '@galaxie/knowledge';
-import { createApiKey, upsertTenant } from '../src/auth/admin.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, createApiKey, upsertTenant } from '@galaxie/api';
 
 /*
  * Rotas semânticas (#45, #43) e multiesportivas (#75, #78) contra um Postgres descartável, com a base
