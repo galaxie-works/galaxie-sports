@@ -48,10 +48,10 @@ import {
   type StageKind,
 } from '@galaxie/providers';
 import { createDerbyLookup } from '@galaxie/knowledge';
-import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '../assets/placeholder-logos.js';
-import { slugify } from '../catalog/football-catalog.js';
-import { logger } from '../logger.js';
-import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from '../provisional/match.js';
+import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from './placeholder-logos.js';
+import { slugify } from './slug.js';
+import { logger } from './logger.js';
+import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from './match.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
 import {
   competitionRules,

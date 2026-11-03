@@ -17,9 +17,9 @@ import {
   type F1dbRow,
   type F1dbTables,
 } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { importF1db } from '../src/f1db/import.js';
 import { loadF1dbRaw, storeF1dbRelease } from '../src/f1db/package-raw.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { disposableDb } from './db.js';
 
 const testDb = disposableDb();

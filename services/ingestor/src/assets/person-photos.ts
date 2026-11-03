@@ -1,9 +1,7 @@
 import { sql, type SQL } from 'drizzle-orm';
-import type { MediaAssetKind } from '@galaxie/apisports-client';
+import { COACH_PHOTO_URL_PREFIX, PLAYER_PHOTO_URL_PREFIX } from '@galaxie/apisports-client';
+import { PERSON_PHOTO_KINDS } from '@galaxie/core-writer';
 import type { Database } from '@galaxie/db';
-
-/** Kinds de core.asset que são foto de pessoa (o placeholder vira "sem foto" e a pessoa é desvinculada). */
-export const PERSON_PHOTO_KINDS: ReadonlySet<string> = new Set<MediaAssetKind>(['player', 'coach']);
 
 /**
  * Imagens genéricas que a CDN de mídia devolve com 200 quando a pessoa não tem foto. Medido na CDN em
@@ -23,16 +21,6 @@ export function isPlaceholderPhoto(
   placeholders: ReadonlySet<string> = PLACEHOLDER_PHOTO_SHA256,
 ): boolean {
   return PERSON_PHOTO_KINDS.has(kind) && placeholders.has(sha256);
-}
-
-/** URL da foto de jogador na CDN de mídia: vem do id, não da API de dados (não gasta cota). */
-export function playerPhotoUrl(providerId: string): string {
-  return `https://media.api-sports.io/football/players/${providerId}.png`;
-}
-
-/** URL da foto de técnico na CDN de mídia (id da api-sports, sem o prefixo `coach:`). */
-export function coachPhotoUrl(providerId: string): string {
-  return `https://media.api-sports.io/football/coachs/${providerId}.png`;
 }
 
 /**
@@ -110,8 +98,8 @@ function photoCandidates(since: Date): SQL {
       select pr.person_id, pr.tier,
         case when pr.provider_id like 'coach:%' then 'coach' else 'player' end::core.asset_kind as kind,
         case when pr.provider_id like 'coach:%'
-          then 'https://media.api-sports.io/football/coachs/' || substr(pr.provider_id, 7) || '.png'
-          else 'https://media.api-sports.io/football/players/' || pr.provider_id || '.png'
+          then ${COACH_PHOTO_URL_PREFIX}::text || substr(pr.provider_id, 7) || '.png'
+          else ${PLAYER_PHOTO_URL_PREFIX}::text || pr.provider_id || '.png'
         end as url
       from priority pr
       join core.person p on p.id = pr.person_id

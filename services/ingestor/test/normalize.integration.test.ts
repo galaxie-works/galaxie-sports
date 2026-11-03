@@ -47,11 +47,10 @@ import {
   type ApiTeamItem,
   type NormalizedBatch,
 } from '@galaxie/providers';
-import { advanceEventClock, applyProviderFailure } from '../src/normalize/event-state.js';
+import { advanceEventClock, applyProviderFailure, upsertBatch } from '@galaxie/core-writer';
 import { deriveProviderNames } from '../src/normalize/name-history.js';
 import { ingestProviderResult } from '../src/normalize/ingest.js';
 import { normalizeFootballFromRaw, runNormalizeFootballJob } from '../src/normalize/raw-runner.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');

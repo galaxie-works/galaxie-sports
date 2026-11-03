@@ -11,7 +11,7 @@
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
 import { API_SPORTS_OTHER_SPORTS, isApiSportsOtherSport, type ApiSportsOtherSport } from '@galaxie/providers';
-import { advanceEventClock } from '../normalize/event-state.js';
+import { advanceEventClock } from '@galaxie/core-writer';
 import { pendingNormalizeFailures, runNormalizeSportsJob } from '../normalize/raw-runner.js';
 
 const { values, positionals } = parseArgs({

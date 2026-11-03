@@ -332,8 +332,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: docker compose config (VPS com Traefik)
-        run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
+      - name: docker compose config (os três projetos da VPS)
+        run: |
+          for f in compose.yml compose.dados.yml compose.obs.yml; do
+            docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config -q
+          done
 
       - name: docker compose config (candidatos do deploy)
         run: |
@@ -354,15 +357,16 @@ jobs:
       # todos os serviços que os declaram (infra/traefik/README.md)
       - name: Middlewares da borda iguais em todos os serviços
         run: |
-          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json |
-            jq -e '[.services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
+          for f in compose.yml compose.dados.yml; do
+            docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config --format json
+          done | jq -es '[.[].services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
               | select(length > 0)] | (length >= 2) and (unique | length == 1)' >/dev/null ||
             { echo "::error::traefik.http.middlewares.gsports-* difere entre os serviços (ou sumiu)"; exit 1; }
 
-      # O deploy-gh.sh baixa as imagens dos serviços com TAG_* no compose; todas precisam sair do job build acima
+      # O deploy-gh.sh baixa as imagens dos serviços com TAG_* nos composes; todas precisam sair do job build acima
       - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
         run: |
-          out=$(SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --services)
+          out=$(for p in apps dados obs; do SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --project "$p" --services; done)
           echo "$out"
           got=$(printf '%s\n' "$out" | sed -n 's/.*imagens: //p' | tr ' ' '\n' | sort | tr '\n' ' ')
           want="api backup demo grafana ingestor prometheus "
@@ -390,7 +394,7 @@ jobs:
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
-            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)

@@ -25,11 +25,17 @@ import {
   type NormalizedBatch,
   type SportStandingsContext,
 } from '@galaxie/providers';
+import {
+  addStats,
+  emptyStats,
+  upsertBatch,
+  type UpsertOptions,
+  type UpsertStats,
+} from '@galaxie/core-writer';
 import { linkNbaLogos } from '../catalog/nba-logos.js';
 import { SPORTS } from '../catalog/persist.js';
 import { logger } from '../logger.js';
 import { recomputeNbaStandings } from '../standings/nba.js';
-import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
 export interface NormalizeRawOptions extends UpsertOptions {
   provider?: string;
