@@ -69,6 +69,6 @@
   "devDependencies": {
     "@galaxie/core-writer": "workspace:*",
     "@galaxie/providers": "workspace:*",
-    "postgres": "^3.4.9"
+    "postgres": "^4.0.0"
   }
 }
