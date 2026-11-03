@@ -144,6 +144,12 @@ jobs:
             docker compose -f compose.dados.yml config -q </dev/null
             DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml pull --quiet backup </dev/null
             DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml up -d --no-deps --wait --wait-timeout 180 backup </dev/null
+            # o backup não tem healthcheck: --wait só espera running. Meio minuto depois ele tem de seguir de pé, sem reinício
+            id=\$(docker compose -f compose.dados.yml ps -q backup </dev/null)
+            sleep 30
+            state=\$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' \"\$id\")
+            if [ \"\$state\" != 'running 0' ]; then echo \"backup não ficou de pé (\$state)\"; docker logs --tail 30 \"\$id\"; exit 1; fi
+            docker logs --tail 5 \"\$id\"
             docker compose -f compose.dados.yml ps backup </dev/null
             echo \"voltar: TAG_BACKUP=\${cur:-?} no .env (cópia em .env.bak-dados-*) e docker compose -f compose.dados.yml up -d --no-deps backup\""
 
