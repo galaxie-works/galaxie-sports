@@ -11,7 +11,7 @@
  * Execução interrompida pelo reinício (SIGTERM no encerramento, ou `running` órfã de um processo morto, fechada aqui
  * com a trava livre) leva `stats.interrupted` e não conta como "rodou": o job cortado no meio roda de novo.
  */
-import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { jobRequest, jobRun, type Database, type JobLock } from '@galaxie/db';
 import { nextRuns, type ScheduledJob } from './schedule.js';
 
@@ -109,6 +109,8 @@ export async function closeOrphans(
           inArray(jobRun.job, [...jobs]),
           eq(jobRun.status, 'running'),
           lt(jobRun.startedAt, opts.bootedAt),
+          // execução de tarefa da fila é do worker: a concessão vencida é quem fecha (packages/db/src/queue.ts)
+          isNull(jobRun.requestId),
         ),
       ),
     db
@@ -139,7 +141,14 @@ export async function closeOrphans(
           finishedAt: now,
           stats: sql`coalesce(${jobRun.stats}, '{}'::jsonb) || '{"interrupted": true}'::jsonb`,
         })
-        .where(and(eq(jobRun.job, job), eq(jobRun.status, 'running'), lt(jobRun.startedAt, opts.bootedAt)))
+        .where(
+          and(
+            eq(jobRun.job, job),
+            eq(jobRun.status, 'running'),
+            lt(jobRun.startedAt, opts.bootedAt),
+            isNull(jobRun.requestId),
+          ),
+        )
         .returning({ id: jobRun.id });
       const requests = await db
         .update(jobRequest)

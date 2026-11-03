@@ -97,7 +97,7 @@ export interface FailureInput extends ProviderScope {
  * válido, marca `is_stale` e deixa o relógio avançar. Devolve quantos eventos mudaram.
  */
 export async function applyProviderFailure(
-  db: Database,
+  db: Pick<Database, 'transaction'>,
   input: FailureInput,
   options: MachineOptions = {},
 ): Promise<{ changed: number; transitions: number }> {

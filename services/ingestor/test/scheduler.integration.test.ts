@@ -177,6 +177,16 @@ describe('volta de um reinício (catch-up)', () => {
       .insert(jobRequest)
       .values({ job: 'orfao-a', requestedBy: 'teste', status: 'running', pickedAt: before })
       .returning();
+    // tarefa da fila com o nome de um job agendado: a execução é do worker, e a volta do scheduler não mexe
+    const [queued] = await db
+      .insert(jobRun)
+      .values({
+        job: 'orfao-a',
+        status: 'running',
+        startedAt: new Date(bootedAt.getTime() - 2 * 60 * 60_000),
+        requestId: '019a4f00-0000-7000-8000-000000000001',
+      })
+      .returning();
     // outro processo segura a trava do orfao-b (um `scheduler --run` no console): a linha é dele
     const held = await tryJobLock(testUrl, 'orfao-b');
     try {
@@ -193,6 +203,8 @@ describe('volta de um reinício (catch-up)', () => {
     expect(a?.error).toMatch(/interrompido/);
     const [b] = await db.select().from(jobRun).where(eq(jobRun.id, orphanB!.id));
     expect(b?.status).toBe('running');
+    const [q] = await db.select().from(jobRun).where(eq(jobRun.id, queued!.id));
+    expect(q?.status).toBe('running');
     const [r] = await db.select().from(jobRequest).where(eq(jobRequest.id, request!.id));
     expect(r).toMatchObject({ status: 'error', detail: 'interrompido: o scheduler reiniciou' });
 

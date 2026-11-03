@@ -260,7 +260,7 @@ class Refs {
 
 /** Grava um lote normalizado no core numa transação. */
 export async function upsertBatch(
-  db: Database,
+  db: Pick<Database, 'transaction'>,
   batch: NormalizedBatch,
   options: UpsertOptions = {},
 ): Promise<UpsertStats> {

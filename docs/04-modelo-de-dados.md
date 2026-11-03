@@ -55,7 +55,7 @@ Decisão de 28/10/2026 (lote 6 da auditoria de produção). Operação: [runbook
 | `ops.llm_usage` | 90 dias por chamada | Antes de apagar, cada dia vira linha em `ops.llm_usage_daily` (dia, dia de orçamento, faixa, agente, provedor, modelo, tier, desfecho), que fica para sempre |
 | `ops.job_run` | 90 dias | A última execução e o último sucesso de cada job ficam sempre (métricas e alerta de job falhando) |
 | `ops.quota_ledger` | 90 dias de cota | O Governor só lê o dia corrente |
-| `ops.job_request` | 30 dias depois de encerrado | Pendente e em execução ficam |
+| `ops.job_request` | 30 dias depois de encerrado | Pedidos de "rodar agora" e tarefas da fila ([contrato](../packages/db/README.md#fila-de-tarefas)). Pendente e em execução ficam, inclusive a tarefa de concessão vencida, que ainda vai ser retomada |
 | `ops.normalize_failure` | 90 dias depois de resolvida | Pendente e poison ficam |
 | `api.webhook_delivery` | entregue: 30 dias; `dead`: 90 dias | Pendente fica |
 

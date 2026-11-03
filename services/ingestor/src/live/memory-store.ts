@@ -36,6 +36,10 @@ export class InMemoryLiveStore implements LiveStore {
   /** Lotes aplicados (inspeção nos testes). */
   batches = 0;
 
+  atomic<T>(fn: (store: LiveStore) => Promise<T>): Promise<T> {
+    return fn(this);
+  }
+
   seed(events: readonly SeedEvent[]): this {
     for (const e of events) {
       const eventId = e.eventId ?? `ev-${e.providerEventId}`;

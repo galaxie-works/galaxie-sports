@@ -235,6 +235,28 @@ describe('pruneOpsTables', () => {
       { job: 'x', requestedBy: 'a', status: 'pending', requestedAt: daysAgo(40) },
       { job: 'x', requestedBy: 'a', status: 'done', finishedAt: daysAgo(5) },
     ]);
+    // fila de tarefas: velhas e vivas ficam (pendente, em backoff, concessão viva, concessão vencida à espera de
+    // quem retome); encerrada há mais de 30 dias sai, com o checkpoint
+    const task = (status: string, extra: Partial<typeof jobRequest.$inferInsert> = {}) => ({
+      job: 'fila:acervo',
+      type: 'acervo',
+      requestedBy: 'a',
+      requestedAt: daysAgo(40),
+      status,
+      checkpoint: { feitos: 1 },
+      ...extra,
+    });
+    await db
+      .insert(jobRequest)
+      .values([
+        task('pending', { runAfter: daysAgo(40) }),
+        task('pending', { runAfter: new Date(NOW.getTime() + 60_000), attempts: 2, lastError: 'backoff' }),
+        task('running', { lockedBy: 'w', lockedUntil: new Date(NOW.getTime() + 60_000) }),
+        task('running', { lockedBy: 'morto', lockedUntil: daysAgo(35) }),
+        task('done', { finishedAt: daysAgo(31) }),
+        task('error', { finishedAt: daysAgo(31), lastError: 'esgotou' }),
+        task('done', { finishedAt: daysAgo(5) }),
+      ]);
     await db.insert(normalizeFailure).values([
       { provider: 'api-sports', sport: 'football', rawId: 1, endpoint: '/f', resolvedAt: daysAgo(100) },
       { provider: 'api-sports', sport: 'football', rawId: 2, endpoint: '/f', lastFailedAt: daysAgo(100) },
@@ -246,7 +268,7 @@ describe('pruneOpsTables', () => {
       llmUsage: 4,
       jobRun: 4,
       quotaLedger: 1,
-      jobRequest: 1,
+      jobRequest: 3,
       normalizeFailure: 1,
       webhookDelivered: 0,
       webhookDead: 0,
@@ -278,7 +300,9 @@ describe('pruneOpsTables', () => {
     ]);
     expect(runs.some((r) => r.id === jOld!.id)).toBe(false);
     expect((await db.select().from(quotaLedger)).map((q) => q.dayUtc)).toEqual(['2026-11-30']);
-    expect((await db.select().from(jobRequest)).map((r) => r.status).sort()).toEqual(['done', 'pending']);
+    expect((await db.select().from(jobRequest)).map((r) => r.status).sort()).toEqual(
+      ['done', 'pending', 'done', 'pending', 'pending', 'running', 'running'].sort(),
+    );
     expect((await db.select().from(normalizeFailure)).map((r) => r.rawId)).toEqual([2]);
 
     // idempotente
