@@ -126,6 +126,15 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 
 > **Implementado nos outros 11 esportes (issue #25):** um espelho **genérico** em vez de uma tabela por esporte — `core.sport_event_detail` (`event_id`, `sport`, `provider`, `provider_event_id`, `kind` = `game`/`race`/`fight`, `summary` JSONB com o item do fornecedor, `detail` JSONB com as partes vindas de endpoints auxiliares e `detail_fetched_at`). O placar com parciais vai para `core.event.score` (`periods`, `breakdown`) e os N participantes para `core.event_participant`. As tabelas por esporte acima continuam como alvo para quando uma consulta pedir índice. Detalhes em §3.5.
 
+### 2.3 Derivados para leitura
+
+Tabelas calculadas a partir do core por um job, para a API não fazer conta pesada na requisição. Não são fonte de nada:
+apagadas, o job grava de novo e a API, enquanto isso, calcula na hora.
+
+| Tabela | Campos-chave | Observação |
+|---|---|---|
+| `core.explore_summary` | PK `sport`, `market`; `data` (jsonb), `generated_at` | Resumo da home "Explorar" (`/v1/explore/summary`, #596), por esporte e mercado (país): `('*','*')` traz a versão do formato e a janela de 7 dias; `(esporte,'*')` os números do esporte (competições, participantes, próximos, ao vivo, ids das competições em destaque); `('*',país)` liga principal e ids dos clubes em destaque; `(esporte,país)` próximos e ao vivo do país naquele esporte, o jogo de maior relevância no mercado (id, início, relevância com os códigos e pontos dos motivos, desempates) e os anunciados — só os pares com algum jogo. Sem idioma, tenant nem imagens: a API aplica o recorte de esportes do plano somando os esportes do plano e junta nomes, logos e eventos por id. O job `explore-summary` do ingestor (`@galaxie/explore`) reescreve tudo numa transação, com o mesmo `generated_at`, no minuto seguinte a uma mudança de jogo no change feed (status, importância, anunciado) e a cada 10 min. Mais de 30 min sem recálculo: a API volta à conta na requisição (aviso no log, alerta `ExploreSummaryStale`). Dezenas de linhas, sem retenção |
+
 ## 3. `core.event` — a entidade canônica
 
 | Campo | Tipo | Descrição |

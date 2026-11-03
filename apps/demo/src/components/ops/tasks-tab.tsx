@@ -60,6 +60,8 @@ import type {
   TaskParamFieldView,
   TaskStateView,
   TaskTypeView,
+  WorkerStateView,
+  WorkerView,
 } from '@/lib/ops/types';
 
 /** Filtros da lista, na ordem dos botões. */
@@ -152,6 +154,85 @@ function ProgressCell({ item }: { item: TaskListItem }) {
   );
 }
 
+const WORKER_VARIANT: Record<WorkerStateView, 'info-light' | 'secondary' | 'warning-light'> = {
+  busy: 'info-light',
+  idle: 'secondary',
+  expired: 'warning-light',
+};
+
+/**
+ * Os workers da fila: ocioso, a tarefa atual com o lote e a última renovação da concessão. Lido do banco
+ * (`ops.job_request.locked_by`/`locked_until` e as tomadas das últimas 24 h), sem chamar o worker por HTTP.
+ */
+export function WorkersPanel({
+  workers,
+  timeZone,
+  now,
+}: {
+  workers: WorkerView[];
+  timeZone: string;
+  now: string;
+}) {
+  const { t } = useI18n();
+  const W = t.ops.tasks.workers;
+  const f = useFormatters(timeZone);
+  const at = Date.parse(now);
+  return (
+    <section className="flex flex-col gap-2 px-4 pt-3" aria-label={W.title}>
+      <div className="flex flex-col gap-0.5">
+        <h3 className="text-sm font-medium">{W.title}</h3>
+        <p className="text-muted-foreground text-xs">{W.description}</p>
+      </div>
+      {workers.length ? (
+        <ul className="flex flex-col gap-2">
+          {workers.map((w) => (
+            <li
+              key={w.id}
+              data-worker={w.id}
+              className="border-border flex flex-col gap-1 rounded-md border px-3 py-2 text-xs"
+            >
+              <span className="flex flex-wrap items-center gap-2">
+                <Badge variant={WORKER_VARIANT[w.state]}>{W.states[w.state]}</Badge>
+                <span className="font-mono text-[11px]">{w.id}</span>
+                {w.state === 'idle' && w.lastSeenAt ? (
+                  <span className="text-muted-foreground" title={f.dateTime(w.lastSeenAt)}>
+                    {fill(W.lastSeen, { when: f.relative(w.lastSeenAt, at) })}
+                  </span>
+                ) : null}
+              </span>
+              {w.tasks.map((task) => (
+                <span key={task.id} className="flex flex-col gap-0.5 pl-1">
+                  <span>
+                    <span className="font-mono">{task.type}</span>{' '}
+                    <span className="text-muted-foreground">
+                      {fill(W.task, { attempt: task.attempts })}
+                      {task.batch ? ` · ${fill(W.batch, { batch: task.batch })}` : ''}
+                      {task.done !== null && task.total
+                        ? ` · ${fill(t.ops.tasks.progressOf, { done: task.done, total: task.total })}`
+                        : ''}
+                    </span>
+                  </span>
+                  {task.lastRenewAt && task.lockedUntil ? (
+                    <span className="text-muted-foreground" title={f.dateTime(task.lockedUntil)}>
+                      {fill(W.renewed, {
+                        when: f.relative(task.lastRenewAt, at),
+                        until: f.time(task.lockedUntil),
+                      })}
+                    </span>
+                  ) : null}
+                </span>
+              ))}
+              {w.state === 'expired' ? <span className="text-muted-foreground">{W.expiredHint}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-muted-foreground text-xs">{W.none}</p>
+      )}
+    </section>
+  );
+}
+
 export function TasksTab({
   tasks,
   timeZone,
@@ -195,6 +276,7 @@ export function TasksTab({
             {T.enqueue}
           </Button>
         </div>
+        <WorkersPanel workers={tasks.workers} timeZone={timeZone} now={now} />
         <div className="px-4 py-3">
           <ToggleGroup
             variant="outline"

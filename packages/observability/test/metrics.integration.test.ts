@@ -6,6 +6,7 @@ import {
   closeDb,
   createDb,
   event,
+  exploreSummary,
   jobRequest,
   jobRun,
   quotaBudget,
@@ -465,9 +466,36 @@ describe('frescor e ao vivo', () => {
     }
   });
 
+  it('idade do resumo da home Explorar: +Inf sem resumo, a idade da linha de controle com ele', async () => {
+    let m = await scrape();
+    expect(m.get('galaxie_explore_summary_age_seconds')).toBe(Number.POSITIVE_INFINITY);
+    expect(m.text).toContain('galaxie_explore_summary_age_seconds +Inf');
+    await db.insert(exploreSummary).values([
+      { sport: '*', market: '*', data: { version: 1 }, generatedAt: ago(40 * MIN) },
+      { sport: 'football', market: '*', data: {}, generatedAt: ago(40 * MIN) },
+    ]);
+    try {
+      m = await scrape();
+      const age = m.get('galaxie_explore_summary_age_seconds')!;
+      expect(age).toBeGreaterThan(40 * 60 - 5);
+      expect(age).toBeLessThan(40 * 60 + 120);
+    } finally {
+      await db.delete(exploreSummary);
+    }
+  });
+
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'ops', 'queue']) {
+    for (const collector of [
+      'quota',
+      'jobs',
+      'freshness',
+      'live',
+      'change_feed',
+      'ops',
+      'queue',
+      'explore',
+    ]) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
   });
@@ -506,9 +534,9 @@ describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', 
 
   it('intervalo esperado pela agenda efetiva (banco > env relatado > padrão)', async () => {
     const m = await scrape();
-    expect(
-      m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'ingestor' }),
-    ).toBe(120);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'live' })).toBe(
+      120,
+    );
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'quota-status' })).toBe(3600);
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'wtw-run' })).toBeUndefined();
   });
@@ -526,7 +554,7 @@ describe('banco indisponível', () => {
     const u = new URL(testUrl);
     u.port = '1';
     // uma conexão por coletor: com max 1 as consultas fazem fila atrás do recuo de reconexão do postgres.js
-    const broken = createDb(u.toString(), { max: 8 });
+    const broken = createDb(u.toString(), { max: 12 });
     try {
       const m = await scrape(broken);
       expect(m.get('galaxie_metrics_collector_up', { collector: 'quota' })).toBe(0);

@@ -10,8 +10,13 @@
 #   - a configuração dele mudou (compose ou .env): o hash do compose (config --hash) comparado com o rótulo do contêiner.
 #     A referência da imagem entra nesse hash, então ele é calculado com a tag que o contêiner já usa
 #   - não existe, está parado (quem tem restart) ou terminou com erro (quem roda uma vez, como o migrate)
-# A escala 0 do ingestor é escolha de quem opera: fica como está.
-# Imprime uma linha por serviço e, por último, TROCA=<os que trocam>. Só leitura. Saída ≠ 0 = não deu para decidir.
+# A escala 0 do ingestor é escolha de quem opera (a ingestão roda em outro ambiente, com a mesma chave): fica como está,
+# e o `live`, que chama a api-sports com a mesma chave, também.
+# Serviço com contêiner no projeto que o compose novo não declara em nenhum perfil (a demo, quando virou site e console;
+# site e console, na volta para antes disso) sai: linha "<serviço>: sai" e SAI=<serviço>:<imagem>, com a imagem pelo
+# nome curto (demo, api...). O deploy-gh.sh o tira depois que os serviços da mesma imagem trocam (rolling-swap.sh --retire).
+# Imprime uma linha por serviço e, por último, SAI=<os que saem> e TROCA=<os que trocam>. Só leitura. Saída ≠ 0 = não deu
+# para decidir.
 # O script chega pelo stdin (bash -s): todo comando lê de /dev/null.
 set -euo pipefail
 shopt -s inherit_errexit # falha do docker dentro de $(...) para o plano, em vez de virar "nada muda"
@@ -87,8 +92,8 @@ why_swap() {
 services="$("${C[@]}" config --services </dev/null)"
 troca=()
 for svc in $(printf '%s\n' "$services" | sort); do
-  if [ "$svc" = ingestor ] && [ "$scale" = 0 ]; then
-    echo "$svc: escala 0, fica"
+  if { [ "$svc" = ingestor ] || [ "$svc" = live ]; } && [ "$scale" = 0 ]; then
+    echo "$svc: escala 0 do ingestor, fica"
     continue
   fi
   why="$(why_swap "$svc")"
@@ -100,4 +105,27 @@ for svc in $(printf '%s\n' "$services" | sort); do
   fi
 done
 
+# os que saem: contêiner do projeto cujo serviço o compose novo não declara (com todos os perfis: candidatos e afins ficam)
+project="$("${C[@]}" config </dev/null | sed -n 's/^name: //p')"
+profiles=()
+while IFS= read -r p; do
+  [ -z "$p" ] || profiles+=(--profile "$p")
+done < <("${C[@]}" config --profiles </dev/null)
+declared="$("${C[@]}" "${profiles[@]}" config --services </dev/null)"
+declare -A GONE=()
+while read -r svc image; do
+  [ -n "$svc" ] || continue
+  ! printf '%s\n' "$declared" | grep -qx -- "$svc" || continue
+  image="${image%@*}"
+  image="${image%:*}"
+  GONE[$svc]="${image##*-}"
+done < <(docker ps -a --filter "label=com.docker.compose.project=$project" \
+  --format '{{.Label "com.docker.compose.service"}} {{.Image}}' </dev/null)
+sai=()
+for svc in $(printf '%s\n' "${!GONE[@]}" | sort); do
+  echo "$svc: sai (fora do compose novo; imagem ${GONE[$svc]})"
+  sai+=("$svc:${GONE[$svc]}")
+done
+
+echo "SAI=${sai[*]:-}"
 echo "TROCA=${troca[*]:-}"

@@ -16,6 +16,13 @@ describe('/api/version', () => {
     expect(new Date(body.started_at).getTime()).not.toBeNaN();
   });
 
+  it('o serviço é o papel do contêiner (APP_ROLE)', async () => {
+    vi.stubEnv('APP_ROLE', 'console');
+    expect((await (await GET()).json()).service).toBe('console');
+    vi.stubEnv('APP_ROLE', 'site');
+    expect((await (await GET()).json()).service).toBe('site');
+  });
+
   it('fora de imagem é dev', async () => {
     vi.stubEnv('GALAXIE_IMAGE_HASH', '');
     expect((await (await GET()).json()).image_hash).toBe('dev');

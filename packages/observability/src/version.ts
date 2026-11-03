@@ -53,6 +53,11 @@ export interface OpsServerOptions {
   onError?: (err: Error) => void;
   /** Métricas do próprio serviço, além das do processo e do `build_info` (ex.: as do ritmo do ao vivo, lidas do banco). */
   register?: (registry: Registry) => void;
+  /**
+   * Estado do serviço no corpo do `/health`, além de `status` e `service` (ex.: o worker da fila diz se está ocioso e
+   * o que roda). Lido a cada requisição; não muda o código da resposta.
+   */
+  health?: () => Record<string, unknown>;
 }
 
 /**
@@ -76,7 +81,7 @@ export function startOpsServer(options: OpsServerOptions): Server {
     };
     const path = req.url?.split('?')[0];
     if (req.method !== 'GET') return json(405, { error: 'method not allowed' });
-    if (path === '/health') return json(200, { status: 'ok', service });
+    if (path === '/health') return json(200, { status: 'ok', service, ...options.health?.() });
     if (path === '/version') return json(200, versionInfo(service, env));
     if (path !== '/metrics') return json(404, { error: 'not found' });
     if (token && !bearerMatches(req.headers.authorization, token)) {

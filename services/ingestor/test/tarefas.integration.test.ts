@@ -99,7 +99,7 @@ describe('prévia → aprovação → execução', () => {
     const first = await work();
     expect(first.result).toBe('done');
     const preview = await getTask(db, previewId);
-    expect(preview.params).toEqual({ mensagem: 'olá', repeticoes: 2, previa: true });
+    expect(preview.params).toEqual({ mensagem: 'olá', repeticoes: 2, pausaMs: 0, previa: true });
     expect(readPreview(preview.checkpoint)).toMatchObject({ contagens: { lotes: 2 }, amostra: ['olá'] });
     expect(awaitingApproval(preview)).toBe(true);
     expect(await listTasks(db, { status: ['pending'] })).toEqual([]);
@@ -112,7 +112,7 @@ describe('prévia → aprovação → execução', () => {
     expect(second.task.id).toBe(realId);
     expect(second.result).toBe('done');
     const real = await getTask(db, realId);
-    expect(real.params).toEqual({ mensagem: 'olá', repeticoes: 2, previaId: previewId });
+    expect(real.params).toEqual({ mensagem: 'olá', repeticoes: 2, pausaMs: 0, previaId: previewId });
     expect(real.requestedBy).toBe('bia@galaxie.test');
     expect(readProgress(real.checkpoint)).toEqual({ feitos: 2, total: 2, lote: 'lote 2' });
     expect(readLog(real.checkpoint)).toEqual(['lote 1/2: olá', 'lote 2/2: olá']);

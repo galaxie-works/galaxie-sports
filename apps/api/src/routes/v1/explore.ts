@@ -14,8 +14,9 @@ import { buildCtx, localeOf } from './events.js';
 const MODULE = { module: 'core_data' } as const;
 
 /**
- * 60 s: os contadores de jogos e de ao vivo envelhecem no máximo um minuto. Sem a tag `event` de propósito:
- * cada placar purgaria o resumo inteiro, que é o mais caro de montar.
+ * 60 s: a agenda (contada na requisição) envelhece no máximo um minuto; o resumo da home vem do pré-calculado do job
+ * `explore-summary` (#596), refeito no minuto seguinte a uma mudança de status de jogo e a cada 10 min, e o cache só
+ * poupa a junção de nomes e eventos. Sem a tag `event` de propósito: cada placar purgaria o resumo inteiro.
  */
 export const EXPLORE_TTL = 60;
 
@@ -55,6 +56,7 @@ export async function exploreRoutes(
           geoConfig(),
           sports,
           ctx.assetsBaseUrl,
+          request.log,
         );
         return { body, tags: ['sport', 'competition', 'country', 'asset'] };
       },

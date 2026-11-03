@@ -1,6 +1,12 @@
 import { MINUTE, type ScheduledJob } from '@galaxie/scheduler';
 
 /**
+ * Perfis do scheduler desta imagem (`SCHEDULER_PROFILE`): `ingestor` (sync, normalização, assets, cargas) e `live` (o
+ * serviço do ao vivo, #535). Os agentes de IA têm entrada própria (`@galaxie/ai-agents`).
+ */
+export type IngestorSchedulerProfile = 'ingestor' | 'live';
+
+/**
  * Agenda padrão do staging. Cada item pode ser sobrescrito por variável de ambiente
  * `SCHEDULE_<NOME_EM_MAIÚSCULAS>` (ex.: SCHEDULE_QUOTA_STATUS="*\/30 * * * *") ou desligado com "off".
  */
@@ -87,6 +93,17 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 20 * MINUTE,
   },
   {
+    name: 'explore-summary',
+    description:
+      'Resumo da home Explorar pré-calculado (core.explore_summary): recalcula quando um jogo muda de status e a cada 10 min; sem mudança, confere e sai (sem chamadas ao fornecedor)',
+    cron: '* * * * *',
+    script: 'dist/cli/explore-summary.js',
+    args: [],
+    onDemandArgs: ['--forcar'],
+    timeoutMs: 5 * MINUTE,
+    heapMb: 128,
+  },
+  {
     name: 'assets-mirror',
     description:
       'Espelha logos/bandeiras/fotos do raw para o S3 (CDN de mídia; não consome cota da API); retoma do cursor por tipo de asset onde a execução anterior parou',
@@ -160,3 +177,44 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 60 * MINUTE,
   },
 ];
+
+/** Onde roda a faixa do ao vivo (`SCHEDULER_LIVE`): `internal` (padrão) no ingestor, `external` no serviço `live`. */
+export type SchedulerLiveMode = 'internal' | 'external';
+
+export function schedulerLiveMode(env: NodeJS.ProcessEnv = process.env): SchedulerLiveMode {
+  const raw = env.SCHEDULER_LIVE?.trim().toLowerCase() || 'internal';
+  if (raw !== 'internal' && raw !== 'external')
+    throw new Error(`SCHEDULER_LIVE deve ser internal ou external (recebido: ${env.SCHEDULER_LIVE}).`);
+  return raw;
+}
+
+/**
+ * Os jobs de cada perfil (agenda padrão do código, antes das sobrescritas `SCHEDULE_<JOB>`):
+ * - `ingestor`: todos; com `SCHEDULER_LIVE=external`, menos a faixa do ao vivo (`live: true`), que roda no serviço
+ *   `live`. O padrão `internal` deixa o dev e a volta para uma versão anterior com um contêiner só.
+ * - `live`: só a faixa do ao vivo. O `live-run` fica no ar (`--continuo`, `keepAlive`: morreu, o scheduler sobe de
+ *   novo) com a trava por cópia em vez da trava por job: quem decide quem chama a api-sports é a liderança
+ *   (`LIVE_LEADER=on`, live/leader.ts), e a trava por job deixaria a reserva sempre de fora. `live-reconcile` e
+ *   `events-clock` seguem no cron, com a trava por job (um por vez em todo o banco, qualquer que seja a cópia).
+ */
+export function jobsForProfile(
+  profile: IngestorSchedulerProfile,
+  env: NodeJS.ProcessEnv = process.env,
+  jobs: readonly ScheduledJob[] = DEFAULT_JOBS,
+): ScheduledJob[] {
+  if (profile === 'ingestor')
+    return schedulerLiveMode(env) === 'external' ? jobs.filter((j) => !j.live) : [...jobs];
+  return jobs
+    .filter((j) => j.live)
+    .map((j) =>
+      j.name === 'live-run'
+        ? {
+            ...j,
+            description: `${j.description}. No serviço live: fica no ar (--continuo) com líder e reserva`,
+            args: [...j.args.filter((a) => a !== '--continuo'), '--continuo'],
+            keepAlive: true,
+            lock: 'instance' as const,
+          }
+        : j,
+    );
+}

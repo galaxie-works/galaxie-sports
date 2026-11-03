@@ -29,6 +29,18 @@ export interface ServiceStatus {
   reportedAt: string | null;
   /** Scheduler relatando dentro do esperado (a API relata só na partida). */
   alive: boolean;
+  /** Só no `live`: quem é a líder e o último tick. */
+  live?: LiveServiceStatus;
+}
+
+/** O serviço do ao vivo (#535): a líder (época da liderança) e o último tick, lidos de `ops.sync_cursor`. */
+export interface LiveServiceStatus {
+  /** Cópia (ID do contêiner) que abriu o mandato atual; `null` = nenhuma assumiu ainda. */
+  leader: string | null;
+  epoch: number | null;
+  leaderSince: string | null;
+  /** Último tick de qualquer cópia (registro do ritmo, #538); `null` sem registro. */
+  lastTickAt: string | null;
 }
 
 export interface JobRunSummary {
@@ -42,7 +54,7 @@ export interface JobRunSummary {
 
 export interface JobStatus {
   name: string;
-  service: 'ingestor' | 'agents';
+  service: 'ingestor' | 'agents' | 'live';
   runNow: boolean;
   last: JobRunSummary | null;
   lastOkAt: string | null;
@@ -288,6 +300,37 @@ export interface TaskTypeView {
 export interface OpsTasks {
   items: TaskListItem[];
   types: TaskTypeView[];
+  /** Estado dos workers da fila, lido das concessões (sem chamar o worker por HTTP). */
+  workers: WorkerView[];
+}
+
+/**
+ * `busy`: tem tarefa com a concessão em dia; `expired`: a concessão de uma tarefa dele venceu (parou de renovar: caiu
+ * ou travou; outro worker retoma); `idle`: tomou tarefa nas últimas 24 h e não tem nenhuma agora.
+ */
+export type WorkerStateView = 'busy' | 'idle' | 'expired';
+
+export interface WorkerTaskView {
+  id: string;
+  type: string;
+  attempts: number;
+  /** Lote atual (`checkpoint.progresso.lote`) e contagem, quando o executor grava. */
+  batch: string | null;
+  done: number | null;
+  total: number | null;
+  pickedAt: string | null;
+  /** Fim da concessão; a última renovação foi 90 s antes. */
+  lockedUntil: string | null;
+  lastRenewAt: string | null;
+}
+
+export interface WorkerView {
+  /** `<hostname>:<pid>` (o contêiner) ou WORKER_ID. */
+  id: string;
+  state: WorkerStateView;
+  tasks: WorkerTaskView[];
+  /** Fim da última tomada encerrada (o worker ocioso). */
+  lastSeenAt: string | null;
 }
 
 // ── Qualidade dos dados (job data-quality, ops.quality_*) ────────────────────────────────────────

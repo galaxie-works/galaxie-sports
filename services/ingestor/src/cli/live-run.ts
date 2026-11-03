@@ -168,7 +168,8 @@ await runCli(async () => {
     ...(initial.minPriority ? { minPriority: initial.minPriority } : {}),
   };
   const sport = values.esporte;
-  // o perfil `live` chega com a eleição, que só o serviço do ao vivo liga (#535); sem ela, seguem os tempos dos jobs
+  // tempos do banco do perfil `live` com a eleição ou no serviço do ao vivo (SCHEDULER_PROFILE=live); sem os dois,
+  // os dos jobs
   const ctx = contextFromEnv(process.env, leader.enabled ? { dbProfile: 'live' } : {});
 
   try {

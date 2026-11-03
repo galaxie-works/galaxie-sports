@@ -42,6 +42,36 @@ export function parseS3Uri(uri: string): S3Uri | null {
 
 export const formatS3Uri = (u: S3Uri) => `s3://${u.bucket}/${u.key}`;
 
+/** Bucket privado dos pacotes e relatórios das tarefas (`tasks/<id>/`), quando S3_TASKS_BUCKET não está no env. */
+export const DEFAULT_TASKS_BUCKET = 'galaxie-sports-tasks';
+
+/**
+ * O bucket das tarefas (S3_TASKS_BUCKET, padrão `galaxie-sports-tasks`): privado, sem leitura anônima e fora do
+ * Traefik (#587). O bucket de assets (S3_BUCKET) é público por chave, então os dois nunca podem ser o mesmo.
+ */
+export function tasksBucket(env: NodeJS.ProcessEnv = process.env): string {
+  const bucket = env.S3_TASKS_BUCKET?.trim() || DEFAULT_TASKS_BUCKET;
+  if (env.S3_BUCKET && bucket === env.S3_BUCKET.trim())
+    throw new Error(
+      `S3_TASKS_BUCKET (${bucket}) não pode ser o bucket público de assets (S3_BUCKET): os pacotes ficariam com leitura anônima.`,
+    );
+  return bucket;
+}
+
+/**
+ * Aviso para um pacote ou manifesto no bucket público de assets (S3_BUCKET): ainda é aceito (o que já estava lá antes
+ * da #587), mas qualquer um com a chave baixa o objeto. undefined quando o endereço não é do bucket público.
+ */
+export function publicBucketWarning(uri: S3Uri, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const assets = env.S3_BUCKET?.trim();
+  if (!assets || uri.bucket !== assets) return undefined;
+  const tasks = env.S3_TASKS_BUCKET?.trim() || DEFAULT_TASKS_BUCKET;
+  return (
+    `${formatS3Uri(uri)} está no bucket público de assets (leitura anônima por chave): ` +
+    `suba para s3://${tasks}/tasks/<id>/ (docs/runbooks/acervo-de-logos.md)`
+  );
+}
+
 /** Onde o pacote e o manifesto moram: o S3 da stack em produção, um falso nos testes. */
 export interface PackageStore {
   /** Grava o objeto em `dest`. false: o objeto não existe. */
@@ -55,7 +85,10 @@ function isNotFound(err: unknown): boolean {
   return e?.name === 'NotFound' || e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
 }
 
-/** S3 compatível (RustFS da stack), com as credenciais de S3_ENDPOINT, S3_ACCESS_KEY e S3_SECRET_KEY. */
+/**
+ * S3 compatível (RustFS da stack), com as credenciais de S3_ENDPOINT, S3_ACCESS_KEY e S3_SECRET_KEY. O bucket vem de
+ * cada endereço: a mesma chave lê o bucket privado das tarefas (S3_TASKS_BUCKET) e o de assets.
+ */
 export class S3PackageStore implements PackageStore {
   constructor(private readonly s3: S3Client) {}
 

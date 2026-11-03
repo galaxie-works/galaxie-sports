@@ -30,6 +30,7 @@
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/observability": "workspace:*",

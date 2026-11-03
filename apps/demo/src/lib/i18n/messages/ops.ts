@@ -111,6 +111,7 @@ export default defineMessages(
     services: {
       ingestor: 'Ingestor',
       agents: 'Agentes de IA',
+      live: 'Ao vivo',
       api: 'API',
       demo: 'Demo',
     },
@@ -195,6 +196,10 @@ export default defineMessages(
       never: 'Nunca relatou',
       reported: 'Último sinal {when}',
       startedAt: 'Partida {when}',
+      liveLeader: 'Líder {instance} (mandato {epoch}, desde {when})',
+      liveNoLeader: 'Nenhuma cópia assumiu a liderança ainda',
+      liveLastTick: 'Último tick {when}',
+      liveNoTick: 'Sem tick registrado',
       quota: 'Cota da api-sports hoje',
       quotaDay: 'Dia de cota {day} (UTC)',
       llmDay: 'Dia de orçamento {day} (vira às {start}, {timeZone})',
@@ -269,7 +274,13 @@ export default defineMessages(
       lastOk: 'último sucesso {when}',
       errors24h: { one: '{count} erro em 24 h', other: '{count} erros em 24 h' },
       queued: 'Na fila ({status})',
-      triggers: { schedule: 'agenda', manual: 'manual', start: 'partida', panel: 'painel' },
+      triggers: {
+        schedule: 'agenda',
+        manual: 'manual',
+        start: 'partida',
+        panel: 'painel',
+        keepalive: 'religado',
+      },
       off: 'Desligado',
       edit: 'Editar agenda',
       names: {
@@ -307,6 +318,11 @@ export default defineMessages(
         'events-importance': {
           label: 'Importância dos jogos',
           description: 'Recalcula a relevância dos jogos dos próximos 7 dias pela tabela. Não gasta cota.',
+        },
+        'explore-summary': {
+          label: 'Resumo da home Explorar',
+          description:
+            'Prepara os números e os destaques da home quando um jogo muda de status e a cada 10 min. Não gasta cota.',
         },
         'assets-mirror': {
           label: 'Espelho de imagens',
@@ -590,6 +606,19 @@ export default defineMessages(
         worker: 'Worker',
         progress: 'Progresso',
         actions: 'Ações',
+      },
+      workers: {
+        title: 'Workers',
+        description:
+          'Quem executa a fila agora, pelas concessões no banco: o worker renova a cada 30 s, e a concessão vence em 90 s sem renovar.',
+        none: 'Nenhum worker tomou tarefa nas últimas 24 h. Confira o serviço worker (docker compose ps worker).',
+        states: { busy: 'Rodando', idle: 'Ocioso', expired: 'Concessão vencida' },
+        task: 'tentativa {attempt}',
+        batch: 'Lote: {batch}',
+        renewed: 'Concessão renovada {when}, vale até {until}',
+        lastSeen: 'Última tarefa encerrada {when}',
+        expiredHint:
+          'O worker parou de renovar (caiu ou travou): a tarefa volta à fila com o checkpoint, e outro worker a retoma.',
       },
       empty: 'Nenhuma tarefa na fila.',
       emptyFilter: 'Nenhuma tarefa neste estado.',
@@ -1164,7 +1193,7 @@ export default defineMessages(
         'next-run': 'Applies on the next run',
         restart: 'Applies on restart: {service}',
       },
-      services: { ingestor: 'Ingestor', agents: 'AI agents', api: 'API', demo: 'Demo' },
+      services: { ingestor: 'Ingestor', agents: 'AI agents', live: 'Live', api: 'API', demo: 'Demo' },
       values: {
         empty: 'empty',
         unlimited: 'No limit',
@@ -1246,6 +1275,10 @@ export default defineMessages(
         never: 'Never reported',
         reported: 'Last signal {when}',
         startedAt: 'Started {when}',
+        liveLeader: 'Leader {instance} (term {epoch}, since {when})',
+        liveNoLeader: 'No copy has taken the lead yet',
+        liveLastTick: 'Last tick {when}',
+        liveNoTick: 'No tick recorded',
         quota: 'api-sports quota today',
         quotaDay: 'Quota day {day} (UTC)',
         llmDay: 'Budget day {day} (rolls over at {start}, {timeZone})',
@@ -1315,7 +1348,13 @@ export default defineMessages(
         lastOk: 'last success {when}',
         errors24h: { one: '{count} error in 24 h', other: '{count} errors in 24 h' },
         queued: 'Queued ({status})',
-        triggers: { schedule: 'schedule', manual: 'manual', start: 'startup', panel: 'panel' },
+        triggers: {
+          schedule: 'schedule',
+          manual: 'manual',
+          start: 'startup',
+          panel: 'panel',
+          keepalive: 'restarted',
+        },
         off: 'Off',
         edit: 'Edit schedule',
         names: {
@@ -1352,6 +1391,11 @@ export default defineMessages(
             label: 'Match importance',
             description:
               'Recomputes relevance of the next 7 days of matches from the standings. Uses no quota.',
+          },
+          'explore-summary': {
+            label: 'Explore home summary',
+            description:
+              'Prepares the home numbers and highlights when a match changes status and every 10 min. Uses no quota.',
           },
           'assets-mirror': {
             label: 'Image mirror',
@@ -1627,6 +1671,19 @@ export default defineMessages(
           worker: 'Worker',
           progress: 'Progress',
           actions: 'Actions',
+        },
+        workers: {
+          title: 'Workers',
+          description:
+            'Who is running the queue right now, from the leases in the database: the worker renews every 30 s, and the lease expires after 90 s without renewal.',
+          none: 'No worker has taken a task in the last 24 h. Check the worker service (docker compose ps worker).',
+          states: { busy: 'Running', idle: 'Idle', expired: 'Lease expired' },
+          task: 'attempt {attempt}',
+          batch: 'Batch: {batch}',
+          renewed: 'Lease renewed {when}, valid until {until}',
+          lastSeen: 'Last task finished {when}',
+          expiredHint:
+            'The worker stopped renewing (crashed or stuck): the task goes back to the queue with its checkpoint, and another worker resumes it.',
         },
         empty: 'No tasks in the queue.',
         emptyFilter: 'No tasks in this state.',
@@ -2210,7 +2267,7 @@ export default defineMessages(
         'next-run': 'Rige en la próxima ejecución',
         restart: 'Rige al reiniciar: {service}',
       },
-      services: { ingestor: 'Ingestor', agents: 'Agentes de IA', api: 'API', demo: 'Demo' },
+      services: { ingestor: 'Ingestor', agents: 'Agentes de IA', live: 'En vivo', api: 'API', demo: 'Demo' },
       values: {
         empty: 'vacío',
         unlimited: 'Sin límite',
@@ -2292,6 +2349,10 @@ export default defineMessages(
         never: 'Nunca informó',
         reported: 'Última señal {when}',
         startedAt: 'Arranque {when}',
+        liveLeader: 'Líder {instance} (mandato {epoch}, desde {when})',
+        liveNoLeader: 'Ninguna copia asumió el liderazgo todavía',
+        liveLastTick: 'Último tick {when}',
+        liveNoTick: 'Sin tick registrado',
         quota: 'Cuota de api-sports hoy',
         quotaDay: 'Día de cuota {day} (UTC)',
         llmDay: 'Día de presupuesto {day} (cambia a las {start}, {timeZone})',
@@ -2362,7 +2423,13 @@ export default defineMessages(
         lastOk: 'último éxito {when}',
         errors24h: { one: '{count} error en 24 h', other: '{count} errores en 24 h' },
         queued: 'En la cola ({status})',
-        triggers: { schedule: 'agenda', manual: 'manual', start: 'arranque', panel: 'panel' },
+        triggers: {
+          schedule: 'agenda',
+          manual: 'manual',
+          start: 'arranque',
+          panel: 'panel',
+          keepalive: 'reiniciado',
+        },
         off: 'Apagado',
         edit: 'Editar agenda',
         names: {
@@ -2399,6 +2466,11 @@ export default defineMessages(
             label: 'Importancia de los partidos',
             description:
               'Recalcula la relevancia de los partidos de los próximos 7 días por la tabla. No gasta cuota.',
+          },
+          'explore-summary': {
+            label: 'Resumen de la home Explorar',
+            description:
+              'Prepara los números y los destacados de la home cuando un partido cambia de estado y cada 10 min. No gasta cuota.',
           },
           'assets-mirror': {
             label: 'Espejo de imágenes',
@@ -2680,6 +2752,19 @@ export default defineMessages(
           worker: 'Worker',
           progress: 'Progreso',
           actions: 'Acciones',
+        },
+        workers: {
+          title: 'Workers',
+          description:
+            'Quién ejecuta la cola ahora, según las concesiones en la base: el worker renueva cada 30 s, y la concesión vence a los 90 s sin renovar.',
+          none: 'Ningún worker tomó tareas en las últimas 24 h. Revisa el servicio worker (docker compose ps worker).',
+          states: { busy: 'Ejecutando', idle: 'Inactivo', expired: 'Concesión vencida' },
+          task: 'intento {attempt}',
+          batch: 'Lote: {batch}',
+          renewed: 'Concesión renovada {when}, válida hasta {until}',
+          lastSeen: 'Última tarea cerrada {when}',
+          expiredHint:
+            'El worker dejó de renovar (cayó o se trabó): la tarea vuelve a la cola con su checkpoint y otro worker la retoma.',
         },
         empty: 'No hay tareas en la cola.',
         emptyFilter: 'No hay tareas en este estado.',

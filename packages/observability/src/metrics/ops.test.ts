@@ -30,6 +30,18 @@ describe('effectiveOpsSettings', () => {
     expect(settings.get('SCHEDULE_QUOTA_STATUS')).toBe('5 * * * *');
   });
 
+  it('agenda do ao vivo: o relato do serviço live vale; sem ele (SCHEDULER_LIVE=internal), o do ingestor', () => {
+    const both = effectiveOpsSettings(new Map(), [
+      { service: 'ingestor', key: 'SCHEDULE_LIVE_RECONCILE', value: '*/30 * * * *' },
+      { service: 'live', key: 'SCHEDULE_LIVE_RECONCILE', value: '*/15 * * * *' },
+    ]);
+    expect(both.get('SCHEDULE_LIVE_RECONCILE')).toBe('*/15 * * * *');
+    const internal = effectiveOpsSettings(new Map(), [
+      { service: 'ingestor', key: 'SCHEDULE_LIVE_RECONCILE', value: '*/30 * * * *' },
+    ]);
+    expect(internal.get('SCHEDULE_LIVE_RECONCILE')).toBe('*/30 * * * *');
+  });
+
   it('sobrescrita inválida do banco é ignorada', () => {
     const settings = effectiveOpsSettings(new Map([['SCHEDULE_LIVE_RUN', 'a cada 5 min']]), []);
     expect(settings.get('SCHEDULE_LIVE_RUN')).toBe('*/5 * * * *');
@@ -40,11 +52,13 @@ describe('jobExpectations', () => {
   it('só jobs ligados, com o serviço de cada um', () => {
     const jobs = jobExpectations(effectiveOpsSettings(new Map([['SCHEDULE_WTW_RUN', 'off']]), []), now);
     expect(jobs.find((j) => j.job === 'wtw-run')).toBeUndefined();
+    // a faixa do ao vivo é do serviço live (#535)
     expect(jobs.find((j) => j.job === 'live-run')).toEqual({
       job: 'live-run',
-      service: 'ingestor',
+      service: 'live',
       intervalSeconds: 300,
     });
+    expect(jobs.find((j) => j.job === 'sync-daily')?.service).toBe('ingestor');
     expect(jobs.find((j) => j.job === 'recap-run')?.service).toBe('agents');
   });
 });

@@ -11,7 +11,9 @@ import {
   openPackage,
   packageRoot,
   parseS3Uri,
+  publicBucketWarning,
   safeEntryPath,
+  tasksBucket,
 } from './pacote.js';
 import { scanAcervo } from './scan.js';
 
@@ -34,6 +36,35 @@ describe('parseS3Uri', () => {
     expect(parseS3Uri('s3://b/')).toBeNull();
     expect(parseS3Uri('s3://bucket/a/../b.tgz')).toBeNull();
     expect(parseS3Uri('https://x/y')).toBeNull();
+  });
+});
+
+describe('bucket das tarefas (#587)', () => {
+  const env = { S3_BUCKET: 'galaxie-sports-assets' };
+
+  it('S3_TASKS_BUCKET manda; sem ela, o privado galaxie-sports-tasks', () => {
+    expect(tasksBucket(env)).toBe('galaxie-sports-tasks');
+    expect(tasksBucket({ ...env, S3_TASKS_BUCKET: ' tarefas-dev ' })).toBe('tarefas-dev');
+    expect(tasksBucket({ ...env, S3_TASKS_BUCKET: '' })).toBe('galaxie-sports-tasks');
+  });
+
+  it('recusa o bucket público de assets como bucket das tarefas', () => {
+    expect(() => tasksBucket({ ...env, S3_TASKS_BUCKET: 'galaxie-sports-assets' })).toThrow(/público/);
+  });
+
+  it('avisa (sem recusar) pacote no bucket público; o privado e outros buckets passam calados', () => {
+    const publico = parseS3Uri('s3://galaxie-sports-assets/tasks/abc/pacote.tgz')!;
+    expect(publicBucketWarning(publico, env)).toMatch(
+      /bucket público de assets.*s3:\/\/galaxie-sports-tasks\/tasks\/<id>\//,
+    );
+    expect(publicBucketWarning(publico, { ...env, S3_TASKS_BUCKET: 'tarefas-dev' })).toContain(
+      's3://tarefas-dev/tasks/<id>/',
+    );
+    expect(
+      publicBucketWarning(parseS3Uri('s3://galaxie-sports-tasks/tasks/abc/p.tgz')!, env),
+    ).toBeUndefined();
+    expect(publicBucketWarning(parseS3Uri('s3://outro/tasks/abc/p.tgz')!, env)).toBeUndefined();
+    expect(publicBucketWarning(publico, {})).toBeUndefined();
   });
 });
 

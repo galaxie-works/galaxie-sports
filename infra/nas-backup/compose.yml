@@ -15,7 +15,8 @@ services:
       NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-4}
       NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-6}
       NAS_BWLIMIT: ${NAS_BWLIMIT:-}
-      # Prefixos do bucket de assets (os mesmos de BACKUP_S3_SYNC_PREFIXES na VPS); vazio = só os dumps
+      # Prefixos do bucket de assets (os mesmos de BACKUP_S3_SYNC_PREFIXES na VPS), mais `tasks-bucket` para o bucket
+      # privado das tarefas (BACKUP_S3_SYNC_TASKS_BUCKET=true na VPS); vazio = só os dumps
       NAS_S3_PREFIXES: ${NAS_S3_PREFIXES:-}
       NAS_S3_DELETE: ${NAS_S3_DELETE:-false}
       # Duas tentativas por dia (UTC): depois do dump das 03:30 e uma de reserva. Uma cópia em dia não baixa de novo.
