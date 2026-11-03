@@ -263,7 +263,7 @@ describe('perfil live com duas cópias do scheduler', () => {
         select a.application_name, l.pid is not null as lider
           from pg_stat_activity a
           left join pg_locks l on l.pid = a.pid and l.locktype = 'advisory' and l.granted
-         where a.application_name like 'galaxie-live-leader:%'`);
+         where a.application_name like 'galaxie-live-leader:%' and a.datname = current_database()`);
       expect(leaders.filter((l) => l.lider).length).toBeLessThanOrEqual(1);
 
       // tica: os jogos andam até o fim, com cada gol e cada encerramento publicados uma vez só
