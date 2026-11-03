@@ -4,7 +4,7 @@
 # deploy-gh.sh deixou lá (a versão no ar segue com o compose.yml e o .env de sempre):
 #
 #   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- up'            < candidate.sh   # sobe e espera healthy
-#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- smoke <arquivo>' < candidate.sh  # smoke.mjs no candidato
+#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- smoke <arquivo> [VAR=valor...]' < candidate.sh  # smoke.mjs no candidato
 #   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- down'          < candidate.sh   # tira os dois e as chaves
 #
 # Serviços api-candidate e demo-candidate do compose.yml (perfil `candidate`): mesmo env e limites da api e da demo,
@@ -48,10 +48,13 @@ up() {
 }
 
 smoke() {
-  local file="${1:?arquivo do smoke}"
+  local file="${1:?arquivo do smoke}" v
+  shift
+  local -a extra=()
+  for v in "$@"; do extra+=(-e "$v"); done
   # SMOKE_PHASE=candidate: o smoke sabe que roda antes do pós-deploy (seed semântico, nomes, importância e cache
   # ainda da versão anterior)
-  "${C[@]}" exec -T -e SMOKE_PHASE=candidate demo-candidate node - < "$file"
+  "${C[@]}" exec -T -e SMOKE_PHASE=candidate "${extra[@]}" demo-candidate node - < "$file"
 }
 
 down() {
@@ -65,7 +68,10 @@ down() {
 
 case "${1:-}" in
   up) up ;;
-  smoke) smoke "${2:-}" ;;
+  smoke)
+    shift
+    smoke "$@"
+    ;;
   down) down ;;
   *)
     echo "uso: candidate.sh up|smoke <arquivo>|down" >&2

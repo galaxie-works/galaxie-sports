@@ -36,9 +36,10 @@
 #      contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo healthy)/webhooks → demo (rolling-swap.sh) →
 #      o resto. Sempre com --no-deps: quem não está na lista não é recriado
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
-#      API, webhooks, ingestor e agents ficaram) e smoke test (smoke.mjs)
-#  10. falhou a troca de um serviço: volta só ele (e os da mesma tag), com a TAG_* e a configuração de antes; os outros
-#      ficam, o deploy segue até o smoke e termina vermelho, sem gravar o SHA (o deploy seguinte tenta de novo). Falhou
+#      API, webhooks, ingestor e agents ficaram), smoke test (smoke.mjs, com a versão esperada de API e demo) e conferência
+#      de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a versão que o processo expõe)
+#  10. falhou a troca de um serviço ou ele está na versão errada: volta só ele (e os da mesma tag), com a TAG_* e a
+#      configuração de antes; os outros ficam, o deploy segue e termina vermelho, sem gravar o SHA (o deploy seguinte tenta de novo). Falhou
 #      em mais de um, ou o pós-deploy ou o smoke com mais de um trocado: volta a stack inteira para o SHA anterior quando
 #      é garantidamente o estado de antes (nenhuma migration nova aplicada, backups na VPS, imagens antigas na VPS ou
 #      no GHCR); senão imprime o rollback manual
@@ -139,6 +140,9 @@ else
   for name in "${NAMES[@]}"; do ENV_LINES+=$'\n'"TAG_${name^^}=${IMAGE_TAG_OF[$name]}"; done
 fi
 ENV_TAG_KEYS='IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA'
+# os processos deste SHA expõem a versão? (um SHA anterior só se confere pelo digest e pelo rótulo)
+HAS_VERSION=""
+if [ -z "$LEGACY" ] && grep -q GALAXIE_IMAGE_HASH "$TARGET/apps/api/Dockerfile"; then HAS_VERSION=1; fi
 
 # ── saída: limpa a credencial, libera a trava e, se parou com a versão nova no ar, diz como voltar ───────────────
 STAGE=start # start → up → finished; restored = já tratado
@@ -332,8 +336,10 @@ if [ -n "$CANDIDATE" ] && { in_troca api || in_troca demo; }; then
   echo "candidato: api e demo da ${SHA:0:7} ao lado das que estão no ar (sem tráfego)"
   CAND_UP=1
   ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
+  cand_smoke=""
+  [ -z "$HAS_VERSION" ] || cand_smoke="SMOKE_API_IMAGE=${IMAGE_TAG_OF[api]} SMOKE_DEMO_IMAGE=${IMAGE_TAG_OF[demo]}"
   if ! ssh "$VPS" "cd $DIR && bash -s -- up" < "$HERE/candidate.sh" ||
-    ! ssh "$VPS" "cd $DIR && bash -s -- smoke .smoke-$RUN_ID.mjs" < "$HERE/candidate.sh"; then
+    ! ssh "$VPS" "cd $DIR && bash -s -- smoke .smoke-$RUN_ID.mjs $cand_smoke" < "$HERE/candidate.sh"; then
     ssh "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh" || true
     CAND_UP=""
     echo "FAIL  candidato da ${SHA:0:7} reprovado (acima): sem troca, a ${OLD:0:7} segue no ar"
@@ -536,9 +542,77 @@ if ! ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- $POST_STEP" < "$POST"; then
 fi
 
 echo "smoke test"
-if ! ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$STACK/smoke.mjs"; then
+# as tags do .env, não as do SHA: um grupo que voltou acima tem de expor a anterior
+smoke_env=""
+if [ -n "$HAS_VERSION" ]; then
+  smoke_env="-e SMOKE_API_IMAGE=\$(sed -n 's/^TAG_API=//p' .env) -e SMOKE_DEMO_IMAGE=\$(sed -n 's/^TAG_DEMO=//p' .env)"
+fi
+if ! ssh "$VPS" "cd $DIR && docker compose exec -T $smoke_env demo node -" < "$STACK/smoke.mjs"; then
   after_swap_failed "smoke test com falha"
 fi
+
+# ── confere: cada serviço trocado está na versão pedida ─────────────────────────────────────────────────────
+# Digest e rótulo da imagem do contêiner, e o que o processo expõe. Serviço na versão errada: FAIL, e volta só ele. Com
+# FORCE, confere todos os nossos, porque a lista pode estar vazia.
+verify_args=()
+to_verify=("${SWAPPED_GROUPS[@]:-}")
+[ -z "$FORCE" ] || to_verify+=("${SERVICES[*]}")
+declare -A VERIFIED=()
+for group in "${to_verify[@]}"; do
+  for s in $group; do
+    name="${SVC_IMAGE[$s]:-}"
+    [ -n "$name" ] && [ -z "${ONE_SHOT[$s]:-}" ] && [ -z "${VERIFIED[$s]:-}" ] || continue
+    [ "$s" != ingestor ] || [ "$SCALE" != 0 ] || continue
+    VERIFIED[$s]=1
+    port=""
+    if [ -n "$HAS_VERSION" ]; then
+      case "$s" in
+        api | webhooks) port=8080 ;;
+        demo) port=3000 ;;
+        ingestor | agents) port=9464 ;;
+      esac
+    fi
+    tag="${IMAGE_TAG_OF[$name]}"
+    [ -z "$LEGACY" ] || tag=""
+    verify_args+=("$s=$REG-$name:${IMAGE_TAG_OF[$name]}=$tag=$port")
+  done
+done
+if [ "${#verify_args[@]}" -gt 0 ]; then
+  echo "conferindo a versão de cada serviço"
+  if verify_out="$(ssh "$VPS" "cd $DIR && bash -s -- ${verify_args[*]}" < "$HERE/deploy-verify.sh")"; then
+    grep -v '^DIVERGENTE=' <<< "$verify_out"
+  else
+    rc=$?
+    grep -v '^DIVERGENTE=' <<< "$verify_out" || true
+    if [ "$rc" = 255 ]; then
+      echo "FAIL  sem conexão com a VPS para conferir as versões; o deploy não foi conferido"
+      exit 1
+    fi
+    divergent="$(sed -n 's/^DIVERGENTE=//p' <<< "$verify_out")"
+    [ -n "$divergent" ] || divergent="(a conferência não terminou: código $rc)"
+    [ -z "$LEGACY" ] || restore_previous "serviço na versão errada: $divergent"
+    kept=()
+    for group in "${SWAPPED_GROUPS[@]:-}"; do
+      hit=""
+      for s in $group; do
+        case " $divergent " in *" $s "*) hit=1 ;; esac
+      done
+      if [ -n "$hit" ]; then
+        read -ra members <<< "$group"
+        TOUCHED=("${members[@]}")
+        rollback_group "${members[@]}"
+        FAILED+=("$group")
+      elif [ -n "$group" ]; then
+        kept+=("$group")
+      fi
+    done
+    SWAPPED_GROUPS=("${kept[@]:-}")
+    # divergência fora da lista (FORCE) não tem o que voltar: fica o FAIL acima e o vermelho abaixo
+    [ "${#FAILED[@]}" -gt 0 ] || FAILED+=("$divergent")
+    [ "${#FAILED[@]}" -lt 2 ] || restore_previous "mais de um serviço na versão errada (${FAILED[*]})"
+  fi
+fi
+
 if [ "${#FAILED[@]}" -gt 0 ]; then
   STAGE=restored
   mark_not_published
@@ -588,5 +662,12 @@ fi
 ssh "$VPS" "cd $DIR && bash -s -- ${DEPLOY_KEEP_IMAGES:-3}" < "$HERE/prune-images.sh" ||
   echo "WARN  imagens antigas não foram podadas"
 
-echo "result=deployed" >> "${GITHUB_OUTPUT:-/dev/null}"
+# para as notas de versão: o hash de cada imagem no ar e o que este deploy trocou
+versions=""
+for name in "${NAMES[@]}"; do versions+="$name=${IMAGE_TAG_OF[$name]} "; done
+{
+  echo "versions=${versions% }"
+  echo "swapped=${SWAPPED_GROUPS[*]:-}"
+  echo "result=deployed"
+} >> "${GITHUB_OUTPUT:-/dev/null}"
 echo "PASS  ${SHA:0:7} no ar"

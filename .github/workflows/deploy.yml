@@ -207,7 +207,9 @@ jobs:
         if: steps.deploy.outputs.result == 'deployed'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" || echo "::warning::release não publicada"
+          VERSIONS: ${{ steps.deploy.outputs.versions }}
+          SWAPPED: ${{ steps.deploy.outputs.swapped }}
+        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" --versions "$VERSIONS" --swapped "$SWAPPED" || echo "::warning::release não publicada"
 
       - name: Resumo
         if: always()
