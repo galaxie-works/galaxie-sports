@@ -103,8 +103,9 @@ o que faltar.
 8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
    comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
    notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
-   - `live` (o ao vivo, #535), sozinho e antes do resto, por recriação simples: o ingestor da versão nova não roda mais
-     o ao vivo, então o `live` não espera por ele. Só troca quando a imagem do ingestor (ou a configuração dele) muda;
+   - `live` (o ao vivo, #535), sozinho e antes do resto, cópia a cópia (`rolling-swap.sh`, #537): para cada cópia
+     antiga, a líder primeiro, sobe uma nova, espera ela ficar healthy, para a antiga e espera outra cópia pegar a
+     liderança. Só troca quando a imagem do ingestor (ou a configuração dele) muda;
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está, e o
      `live` também). `live`, `ingestor` e `agents` são da mesma tag: falhou um, voltam os três. Voltando para uma versão
      sem o `live`, ele sai depois de o ingestor dela subir;

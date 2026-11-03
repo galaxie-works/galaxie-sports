@@ -30,6 +30,12 @@ export interface TickInput {
   finalizeBudget: number;
   /** Abortado quando esta cópia perde a liderança: nenhuma chamada nova ao fornecedor (líder e reserva). */
   fence?: AbortSignal | undefined;
+  /**
+   * Abortado no encerramento (SIGTERM): o tick termina com o que o `listLive` trouxe e não abre as chamadas de detalhe
+   * (confirmação do final e destaque), que a próxima líder faz. Assim o tick mais longo no encerramento é uma chamada
+   * (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação, e cabe no `stop_grace_period` do serviço `live`.
+   */
+  stop?: AbortSignal | undefined;
 }
 
 export interface TickReport {
@@ -176,7 +182,7 @@ export class LivePoller {
     let budget = input.finalizeBudget;
     const maxAttempts = this.options.maxFinalizeAttempts ?? FINALIZE_BACKOFF_MS.length;
     for (const id of vanished) {
-      if (budget <= 0) break;
+      if (budget <= 0 || input.stop?.aborted) break;
       const state = this.finalizeAttempts.get(id) ?? { attempts: 0, nextAt: 0 };
       if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
       const attempts = state.attempts + 1;
@@ -194,7 +200,7 @@ export class LivePoller {
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite
     let featured: string | undefined;
-    if (featuredId) {
+    if (featuredId && !input.stop?.aborted) {
       if (fence?.aborted) throw new TickFencedError();
       const detail = await this.provider.getEventDetail(sport, featuredId, this.callOptions());
       calls += spent(detail);

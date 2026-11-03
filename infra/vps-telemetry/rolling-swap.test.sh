@@ -3,7 +3,11 @@
 # stack): uma stack descartável com o Traefik da VPS (mesma versão) e um app com healthcheck e o gsports-retry, como a
 # API e a demo. Enquanto a troca roda, um laço pede a rota pelo Traefik a cada 50 ms; qualquer resposta que não seja
 # 200 falha o teste. Depois, uma versão que nunca fica healthy: a troca tem de falhar e a versão anterior seguir no ar.
-# Por último, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Depois, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Por último, um serviço com duas cópias e líder (como o `live`, #537): a líder é quem segura um flock num volume
+# comum; a troca é cópia a cópia, a líder primeiro, sem ficar com menos de uma cópia healthy (nem sem líder por mais que
+# a passagem), e termina com as duas cópias na versão nova. Uma versão que nunca fica healthy deixa as duas antigas. E a
+# primeira troca para duas cópias (o live estava com uma): troca a que existe e sobe a segunda.
 #
 #   bash infra/vps-telemetry/rolling-swap.test.sh
 set -euo pipefail
@@ -54,6 +58,28 @@ services:
       APP_VERSION: ${APP_VERSION}
     healthcheck:
       disable: true
+  # duas cópias; a líder é quem pega o flock e grava o hostname (o do contêiner, como o live_leader{instance})
+  live:
+    image: busybox:1.37
+    command:
+      - sh
+      - -c
+      - "trap 'exit 0' TERM; flock /shared/lock sh -c 'hostname > /shared/leader; exec sleep 2147483647' & while :; do sleep 1 & wait $$!; done"
+    environment:
+      APP_VERSION: ${APP_VERSION}
+    volumes: [shared:/shared]
+    stop_grace_period: 5s
+    healthcheck:
+      test: ['CMD-SHELL', '${APP_HEALTHY:-true}']
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+    deploy:
+      replicas: ${LIVE_REPLICAS:-2}
+volumes:
+  shared:
 YML
 
 cleanup() {
@@ -83,7 +109,8 @@ wait_body() {
 }
 
 echo "── v1 no ar"
-APP_VERSION=1 docker compose up -d --quiet-pull
+# só o app e o Traefik: worker e live sobem nas seções deles
+APP_VERSION=1 docker compose up -d --quiet-pull traefik app
 wait_body v1
 
 echo "── troca para v2 com tráfego a cada 50 ms"
@@ -119,7 +146,9 @@ n=$(APP_VERSION=2 docker compose ps -q app | grep -c .)
   echo "FAIL  $n contêineres do app depois da troca (esperado 1)"
   exit 1
 }
-APP_VERSION=2 docker compose up -d --quiet-pull 2>&1 | grep -q 'Recreate' && {
+# a saída inteira antes do grep: o grep -q fecharia o pipe e cortaria o compose no meio de uma recriação
+up_out="$(APP_VERSION=2 docker compose up -d --quiet-pull traefik app 2>&1)"
+grep -q 'Recreate' <<< "$up_out" && {
   echo "FAIL  o up -d seguinte recriou o app (a troca deixou uma configuração diferente)"
   exit 1
 }
@@ -155,3 +184,111 @@ got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSI
   exit 1
 }
 echo "ok  worker sem healthcheck trocado"
+
+echo "── live com duas cópias e líder: troca cópia a cópia, a líder primeiro, sem ficar sem cópia healthy"
+copies() { docker ps -q --filter label=com.docker.compose.project=rolling-swap-test --filter label=com.docker.compose.service=live "$@"; }
+leader() { docker exec "$(copies --filter status=running | head -n 1)" cat /shared/leader 2>/dev/null || true; }
+APP_VERSION=1 docker compose up -d --quiet-pull live
+for _ in $(seq 60); do
+  [ "$(copies --filter health=healthy | grep -c .)" = 2 ] && [ -n "$(leader)" ] && break
+  sleep 1
+done
+[ "$(copies --filter health=healthy | grep -c .)" = 2 ] || {
+  echo "FAIL  as duas cópias v1 não ficaram healthy"
+  exit 1
+}
+old_leader="$(leader)"
+old_leader_id=""
+for id in $(copies); do [ "$(docker inspect -f '{{.Config.Hostname}}' "$id")" = "$old_leader" ] && old_leader_id="$id"; done
+: > healthy.txt
+(while :; do
+  echo "$(copies --filter health=healthy | grep -c .) $(leader)" >> healthy.txt
+  sleep 0.2
+done) &
+LOOP=$!
+APP_VERSION=2 SWAP_LEADER_CMD='cat /shared/leader' SWAP_LEADER_TIMEOUT=20 bash "$HERE/rolling-swap.sh" live | tee swap.txt
+kill "$LOOP"
+LOOP=""
+min=$(awk '{print $1}' healthy.txt | sort -n | head -n 1)
+echo "amostras: $(grep -c . healthy.txt) · mínimo de cópias healthy durante a troca: $min"
+[ "$min" -ge 1 ] || {
+  echo "FAIL  a troca ficou com $min cópia(s) healthy"
+  exit 1
+}
+first="$(sed -n 's/^ok  live: cópia \([0-9a-f]*\) trocada.*/\1/p' swap.txt | head -n 1)"
+[ -n "$old_leader_id" ] && [ "${old_leader_id:0:12}" = "$first" ] || {
+  echo "FAIL  a primeira cópia trocada ($first) não foi a líder (${old_leader_id:0:12}, $old_leader)"
+  exit 1
+}
+grep -q "^ok  live: liderança passou de $old_leader para " swap.txt || {
+  echo "FAIL  a troca não esperou a liderança passar"
+  exit 1
+}
+n=$(copies | grep -c .)
+[ "$n" = 2 ] || {
+  echo "FAIL  $n cópias depois da troca (esperado 2)"
+  exit 1
+}
+for id in $(copies); do
+  got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$id" | sed -n 's/^APP_VERSION=//p')
+  [ "$got" = 2 ] || {
+    echo "FAIL  cópia ${id:0:12} na versão '$got', não 2"
+    exit 1
+  }
+done
+new_leader="$(leader)"
+hosts=$(for id in $(copies); do docker inspect -f '{{.Config.Hostname}}' "$id"; done)
+grep -qx "$new_leader" <<< "$hosts" || {
+  echo "FAIL  a líder depois da troca ($new_leader) não é uma das cópias novas"
+  exit 1
+}
+up_out="$(APP_VERSION=2 docker compose up -d --quiet-pull live 2>&1)"
+grep -q 'Recreate' <<< "$up_out" && {
+  echo "FAIL  o up -d seguinte recriou o live (a troca deixou uma configuração diferente)"
+  exit 1
+}
+echo "ok  duas cópias trocadas uma a uma, a líder primeiro ($old_leader → $new_leader), mínimo de $min healthy"
+
+echo "── live v3 nunca fica healthy: a troca falha e as duas v2 seguem, com líder"
+if APP_VERSION=3 APP_HEALTHY=false SWAP_HEALTH_TIMEOUT=15 SWAP_LEADER_CMD='cat /shared/leader' bash "$HERE/rolling-swap.sh" live; then
+  echo "FAIL  a troca para uma versão sem healthcheck verde passou"
+  exit 1
+fi
+n=$(copies | grep -c .)
+[ "$n" = 2 ] || {
+  echo "FAIL  $n cópias depois da troca recusada (esperado 2)"
+  exit 1
+}
+grep -qx "$(leader)" <<< "$(for id in $(copies); do docker inspect -f '{{.Config.Hostname}}' "$id"; done)" || {
+  echo "FAIL  sem líder entre as cópias v2 depois da troca recusada"
+  exit 1
+}
+echo "ok  troca do live recusada: a cópia nova saiu e as duas v2 seguiram, com líder"
+
+echo "── live de uma cópia para duas (a primeira troca com duas cópias): troca a que existe e sobe a segunda"
+APP_VERSION=2 LIVE_REPLICAS=1 docker compose up -d --quiet-pull live
+for _ in $(seq 30); do
+  [ "$(copies | grep -c .)" = 1 ] && [ "$(copies --filter health=healthy | grep -c .)" = 1 ] && break
+  sleep 1
+done
+[ "$(copies | grep -c .)" = 1 ] || {
+  echo "FAIL  o live não ficou com uma cópia ($(copies | grep -c .))"
+  exit 1
+}
+APP_VERSION=4 LIVE_REPLICAS=2 SWAP_LEADER_CMD='cat /shared/leader' SWAP_LEADER_TIMEOUT=20 bash "$HERE/rolling-swap.sh" live | tee swap.txt
+grep -q '^ok  live: 1 → 2 cópia(s), como no compose' swap.txt || {
+  echo "FAIL  a troca não subiu a segunda cópia"
+  exit 1
+}
+[ "$(copies --filter health=healthy | grep -c .)" = 2 ] || {
+  echo "FAIL  $(copies --filter health=healthy | grep -c .) cópia(s) healthy depois da troca de 1 para 2"
+  exit 1
+}
+for id in $(copies); do
+  got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$id" | sed -n 's/^APP_VERSION=//p')
+  [ "$got" = 4 ] || {
+    echo "FAIL  cópia ${id:0:12} na versão '$got', não 4"
+    exit 1
+  }
+done
+echo "ok  de uma cópia para duas: a que existia trocada, a segunda subiu na versão nova"

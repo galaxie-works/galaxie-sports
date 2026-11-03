@@ -128,8 +128,9 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  *   papel: 3 × (4 + 1) = 15) = 27, mais CLI à mão e a sobreposição de um deploy: 40. Com o `live` no ar (#535) o pico
  *   aqui é 12; o teto só cai quando a volta para antes dele deixar de ser opção;
  * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
- * - live: 2 cópias (a no ar e a nova durante a troca) × (scheduler 2 + 3 processos × (4 + 1) = 17) = 34, mais folga: 36.
- *   Se o serviço rodar os três no mesmo processo, com um pool só, o teto pode cair para 12;
+ * - live: 2 cópias sempre, mais a nova durante a troca (#537). Cada cópia: scheduler 2 + live-run (4 + trava da cópia
+ *   + trava `live:leader`) = 8; `live-reconcile` e `events-clock` (4 + 1 cada) rodam numa cópia por vez em todo o
+ *   banco: 3 × 8 + 10 = 34, mais as travas tentadas e soltas na hora e folga: 45;
  * - backup: pg_dump 1, ensaio de restauração 1, psql da verificação 1: 6 com folga.
  * O dono do banco (migrate, CLI de manutenção, sincronização) é superusuário e não tem limite.
  */
@@ -138,7 +139,7 @@ export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
   demo: 30,
   ingestor: 40,
   agents: 25,
-  live: 36,
+  live: 45,
   backup: 6,
 };
 
