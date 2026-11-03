@@ -8,4 +8,5 @@ export { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './c
 export { ChangeStream, registerRealtime, type RealtimeOptions } from './realtime/index.js';
 export { WebhookWorker, type WebhookWorkerOptions } from './webhooks/worker.js';
 export { signWebhook, verifyWebhookSignature, SIGNATURE_HEADER } from './webhooks/signature.js';
+export { rebuildFromCore } from './routes/mirror-rebuild.js';
 export { createWebhookEndpoint, replayDeadDeliveries } from './webhooks/admin.js';
