@@ -18,8 +18,8 @@ const isShortCheer = (s: unknown): s is string => typeof s === 'string' && !!s.t
 
 /**
  * Grito da torcida para o card do evento: primeiro `copy_hints.<locale>.cheer` (locale exato, o do clube
- * no mesmo idioma e depois o idioma, como em `/v1/teams/{id}/semantic` — pt-BR não cai para espanhol),
- * depois `rallying_cries`
+ * no mesmo idioma e depois o idioma, como em `/v1/teams/{id}/semantic` — pt-BR não cai para espanhol;
+ * `en` cai nos gritos do idioma do próprio clube, `hintLocales`), depois `rallying_cries`
  * (grito público do clube, sem locale). Letras de hino ou canção nunca são servidas: o texto precisa
  * passar por `checkChant` sem erro nem aviso. `source_url` = primeira fonte do perfil, quando houver.
  */

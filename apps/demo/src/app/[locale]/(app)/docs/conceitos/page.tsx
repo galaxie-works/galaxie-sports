@@ -237,10 +237,13 @@ const ERROR_ROWS = [
   ['500 INTERNAL_ERROR', 'internal'],
 ] as const;
 
-/** País do mercado de um locale, no idioma da tela (`es-MX` → "México" / "Mexico"). */
+/** País do mercado de um locale, no idioma da tela (`es-MX` → "México" / "Mexico"); `en`, só o idioma ("Inglês"). */
 function marketName(apiLocale: string, locale: Locale): string {
   const region = apiLocale.split('-')[1];
-  return (region && new Intl.DisplayNames([locale], { type: 'region' }).of(region)) || apiLocale;
+  const name = region
+    ? new Intl.DisplayNames([locale], { type: 'region' }).of(region)
+    : new Intl.DisplayNames([locale], { type: 'language' }).of(apiLocale);
+  return name || apiLocale;
 }
 
 export default async function ConceptsPage() {

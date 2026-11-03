@@ -52,73 +52,99 @@ function classify(prefix: string, hasNumber: boolean): StageKind {
   return hasNumber ? 'regular' : 'other';
 }
 
-function withRound(base: { pt: string; es: string }, n: number | null): { pt: string; es: string } {
-  return n == null ? base : { pt: `${base.pt} · Rodada ${n}`, es: `${base.es} · Fecha ${n}` };
-}
-
-function names(
-  kind: StageKind,
-  prefix: string,
-  n: number | null,
-  ordinal: number | null,
-): {
+/** Nome da fase nos três idiomas servidos (pt-BR, es e en). */
+interface StageNames {
   pt: string;
   es: string;
-} {
+  en: string;
+}
+
+const same = (text: string): StageNames => ({ pt: text, es: text, en: text });
+
+function withRound(base: StageNames, n: number | null): StageNames {
+  return n == null
+    ? base
+    : { pt: `${base.pt} · Rodada ${n}`, es: `${base.es} · Fecha ${n}`, en: `${base.en} · Matchday ${n}` };
+}
+
+/** 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th", 11 → "11th". */
+export function englishOrdinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  const suffix = ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  return `${n}${suffix}`;
+}
+
+function names(kind: StageKind, prefix: string, n: number | null, ordinal: number | null): StageNames {
   switch (kind) {
     case 'regular':
       if (/^regular season$|^rs$/i.test(prefix))
         return n == null
-          ? { pt: 'Fase regular', es: 'Fase regular' }
-          : { pt: `Rodada ${n}`, es: `Fecha ${n}` };
-      return withRound({ pt: prefix, es: prefix }, n);
+          ? { pt: 'Fase regular', es: 'Fase regular', en: 'Regular season' }
+          : { pt: `Rodada ${n}`, es: `Fecha ${n}`, en: `Matchday ${n}` };
+      return withRound(same(prefix), n);
     case 'league_phase':
-      return withRound({ pt: 'Fase de liga', es: 'Fase de liga' }, n);
+      return withRound({ pt: 'Fase de liga', es: 'Fase de liga', en: 'League phase' }, n);
     case 'group': {
       const g = /group\s+([a-z0-9]+)/i.exec(prefix)?.[1];
       const base =
         g && g.toLowerCase() !== 'stage'
-          ? { pt: `Grupo ${g.toUpperCase()}`, es: `Grupo ${g.toUpperCase()}` }
-          : { pt: 'Fase de grupos', es: 'Fase de grupos' };
+          ? { pt: `Grupo ${g.toUpperCase()}`, es: `Grupo ${g.toUpperCase()}`, en: `Group ${g.toUpperCase()}` }
+          : { pt: 'Fase de grupos', es: 'Fase de grupos', en: 'Group stage' };
       return withRound(base, n);
     }
     case 'qualifying':
-      if (ordinal != null) return { pt: `${ordinal}ª fase preliminar`, es: `${ordinal}ª fase previa` };
-      return withRound({ pt: 'Fase preliminar', es: 'Fase previa' }, n);
+      if (ordinal != null)
+        return {
+          pt: `${ordinal}ª fase preliminar`,
+          es: `${ordinal}ª fase previa`,
+          en: `${englishOrdinal(ordinal)} qualifying round`,
+        };
+      return withRound({ pt: 'Fase preliminar', es: 'Fase previa', en: 'Qualifying round' }, n);
     case 'relegation':
-      return withRound({ pt: 'Fase de rebaixamento', es: 'Fase por la permanencia' }, n);
+      return withRound(
+        { pt: 'Fase de rebaixamento', es: 'Fase por la permanencia', en: 'Relegation round' },
+        n,
+      );
     case 'playoff':
-      return withRound({ pt: 'Playoffs', es: 'Playoffs' }, n);
-    case 'knockout_round':
-      return { pt: `${ordinal ?? n ?? ''}ª fase`.trim(), es: `${ordinal ?? n ?? ''}ª ronda`.trim() };
+      return withRound({ pt: 'Playoffs', es: 'Playoffs', en: 'Play-offs' }, n);
+    case 'knockout_round': {
+      const k = ordinal ?? n;
+      return {
+        pt: `${k ?? ''}ª fase`.trim(),
+        es: `${k ?? ''}ª ronda`.trim(),
+        en: k == null ? 'Round' : `${englishOrdinal(k)} round`,
+      };
+    }
     case 'round_of_128':
-      return { pt: '64 avos de final', es: '64avos de final' };
+      return { pt: '64 avos de final', es: '64avos de final', en: 'Round of 128' };
     case 'round_of_64':
-      return { pt: '32 avos de final', es: '32avos de final' };
+      return { pt: '32 avos de final', es: '32avos de final', en: 'Round of 64' };
     case 'round_of_32':
-      return { pt: '16 avos de final', es: 'Dieciseisavos de final' };
+      return { pt: '16 avos de final', es: 'Dieciseisavos de final', en: 'Round of 32' };
     case 'round_of_16':
-      return { pt: 'Oitavas de final', es: 'Octavos de final' };
+      return { pt: 'Oitavas de final', es: 'Octavos de final', en: 'Round of 16' };
     case 'quarter_final':
-      return { pt: 'Quartas de final', es: 'Cuartos de final' };
+      return { pt: 'Quartas de final', es: 'Cuartos de final', en: 'Quarter-finals' };
     case 'semi_final':
-      return { pt: 'Semifinal', es: 'Semifinales' };
+      return { pt: 'Semifinal', es: 'Semifinales', en: 'Semi-finals' };
     case 'third_place':
-      return { pt: 'Disputa do 3º lugar', es: 'Tercer puesto' };
+      return { pt: 'Disputa do 3º lugar', es: 'Tercer puesto', en: 'Third place' };
     case 'final':
-      return { pt: 'Final', es: 'Final' };
+      return same('Final');
     case 'friendly':
-      return { pt: 'Amistosos', es: 'Amistosos' };
+      return { pt: 'Amistosos', es: 'Amistosos', en: 'Friendlies' };
     case 'race_weekend':
-      return { pt: prefix, es: prefix };
+      return same(prefix);
     default:
-      return withRound({ pt: prefix, es: prefix }, n);
+      return withRound(same(prefix), n);
   }
 }
 
 /**
  * Traduz o texto de rodada da api-sports ("Regular Season - 12", "Group B - 3", "Round of 16",
- * "2nd Preliminary Round"...) em fase canônica (`core.stage.kind`), nome localizado e ordem.
+ * "2nd Preliminary Round"...) em fase canônica (`core.stage.kind`), nome localizado (pt-BR, es e en — o
+ * inglês é escrito aqui, não copiado do rótulo do fornecedor) e ordem.
  */
 /** Fases de mata-mata que podem vir depois do nome do torneio ("Apertura - Quarter-finals"). */
 const TOURNAMENT_KNOCKOUT: ReadonlySet<StageKind> = new Set([
@@ -142,7 +168,11 @@ export function parseRound(label: string): ParsedRound {
       const tournament = knockout[1]!.trim();
       return {
         kind,
-        name: { 'pt-BR': `${tournament} · ${n.pt}`, es: `${tournament} · ${n.es}`, en: label },
+        name: {
+          'pt-BR': `${tournament} · ${n.pt}`,
+          es: `${tournament} · ${n.es}`,
+          en: `${tournament} · ${n.en}`,
+        },
         order: PHASE_RANK[kind] * 1000,
         number: null,
       };
@@ -157,7 +187,7 @@ export function parseRound(label: string): ParsedRound {
   const n = names(kind, prefix, number, ordinal);
   return {
     kind,
-    name: { 'pt-BR': n.pt, es: n.es, en: label },
+    name: { 'pt-BR': n.pt, es: n.es, en: n.en },
     order: PHASE_RANK[kind] * 1000 + (number ?? ordinal ?? 0),
     number,
   };

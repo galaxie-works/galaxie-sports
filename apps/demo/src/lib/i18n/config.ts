@@ -70,12 +70,12 @@ export function resolveLocale(cookie: string | null | undefined, acceptLanguage:
 export type ContentLocale = Locale | SupportedLocale;
 
 /**
- * Locale pedido à API. A API fala pt-BR e espanhol (`es-*`), não inglês: com a demo em inglês, os dados
- * (tags do torcedor, resumos, gritos) vêm em espanhol; nomes de times e competições já caem no inglês pela
- * cadeia `es → en` do banco.
+ * Locale pedido à API. A API fala pt-BR, espanhol (`es-*`) e inglês (`en`): com a demo em inglês, nomes,
+ * fases e rótulos fixos vêm em inglês e o texto livre (gritos, fatos) no idioma do próprio clube. A exceção
+ * é o contexto de IA (`contextLocale`), que não é gerado em inglês.
  */
 export function apiLocale(locale: ContentLocale): SupportedLocale {
-  return locale === 'en' ? 'es-AR' : locale;
+  return locale;
 }
 
 /** Variante de espanhol de cada mercado da API (a voz local: voseo, "hinchada", "afición"…). */
@@ -91,15 +91,25 @@ const SPANISH_BY_COUNTRY: Record<string, SupportedLocale> = {
 
 /**
  * Locale do conteúdo de um time, jogo, clássico ou competição: o contexto vem do país de origem, no
- * idioma da tela. Em espanhol (e em inglês, que pede espanhol), um time chileno sai na voz do Chile
- * (`es-CL`) e o Boca na da Argentina; sem país ou fora dos mercados, o espanhol padrão (`es-AR`). Em
- * pt-BR, tudo sai em português (os perfis hispânicos já trazem a tradução feita a partir do contexto
- * local).
+ * idioma da tela. Em espanhol, um time chileno sai na voz do Chile (`es-CL`) e o Boca na da Argentina;
+ * sem país ou fora dos mercados, o espanhol padrão (`es-AR`). Em pt-BR, tudo sai em português (os perfis
+ * hispânicos já trazem a tradução feita a partir do contexto local). Em inglês, tudo sai em `en` (a voz
+ * do país só vale para o espanhol): a API devolve nomes e fases em inglês e os gritos no idioma do clube.
  */
 export function contentLocale(locale: Locale, country: string | null | undefined): SupportedLocale {
   const base = apiLocale(locale);
-  if (base === 'pt-BR') return base;
+  if (base === 'pt-BR' || base === 'en') return base;
   return SPANISH_BY_COUNTRY[(country ?? '').toUpperCase()] ?? base;
+}
+
+/**
+ * Locale do contexto de IA do jogo (cenário e resumo, `/v1/events/{id}/context`): a API não gera texto em
+ * inglês, então a tela em inglês continua pedindo o que já pedia — a voz em espanhol do país do mandante
+ * (`es-CL` para um time chileno; `es-AR` para os demais, inclusive os brasileiros). Nos outros idiomas é o
+ * mesmo `contentLocale`.
+ */
+export function contextLocale(locale: Locale, country: string | null | undefined): SupportedLocale {
+  return contentLocale(locale === 'en' ? 'es-AR' : locale, country);
 }
 
 const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {
@@ -111,6 +121,8 @@ const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {
   'es-PE': 'America/Lima',
   'es-UY': 'America/Montevideo',
   'es-EC': 'America/Guayaquil',
+  // inglês não tem mercado próprio: segue o fuso que a demo em inglês sempre usou (o de es-AR)
+  en: 'America/Argentina/Buenos_Aires',
 };
 
 /** Fuso do mercado do locale da API: vai no `?tz` das chamadas (o "hoje" e o "amanhã" da API). */

@@ -134,11 +134,10 @@ describe('idioma das chamadas', () => {
     expect(localeQuery('pt-BR')).toEqual({ locale: 'pt-BR', tz: 'America/Sao_Paulo' });
   });
 
-  it('espanhol e inglês pedem es-AR (a API não fala inglês)', () => {
-    const es = { locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' };
-    expect(localeQuery('es-AR')).toEqual(es);
-    expect(localeQuery('en')).toEqual(es);
-    expect(requestUrl(eventRequest(EVENT, 'en'), BASE)).toContain('locale=es-AR');
+  it('espanhol pede es-AR; inglês pede en com o fuso de sempre', () => {
+    expect(localeQuery('es-AR')).toEqual({ locale: 'es-AR', tz: 'America/Argentina/Buenos_Aires' });
+    expect(localeQuery('en')).toEqual({ locale: 'en', tz: 'America/Argentina/Buenos_Aires' });
+    expect(requestUrl(eventRequest(EVENT, 'en'), BASE)).toContain('locale=en');
   });
 
   it('pede o conteúdo na voz do país e descreve no idioma da tela', () => {

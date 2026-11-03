@@ -4,8 +4,8 @@
  * em 23/10/2026), esportes, mercados e acesso. Só no servidor.
  *
  * Nomes próprios (times, apelidos, jogadores, competições e cidades) ficam em `proper-names.ts`. Os textos de contexto
- * (tags, o que está em jogo, resumo) vêm da API em pt-BR e espanhol; o inglês é tradução nossa, porque a
- * API não fala inglês (com a demo em inglês, o conteúdo sai em espanhol).
+ * (tags, o que está em jogo, resumo) vêm da API em pt-BR e espanhol; o inglês é tradução nossa, porque o
+ * resumo de IA não é gerado em inglês (a API serve `en` só para nomes, fases e rótulos fixos).
  */
 import { defineMessages } from '../define';
 

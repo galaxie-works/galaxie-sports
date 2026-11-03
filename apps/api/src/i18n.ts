@@ -28,7 +28,7 @@ export function parseAcceptLanguage(header: string | undefined): string[] {
 
 /**
  * Locale da resposta: `?locale` (já validado) tem precedência; depois Accept-Language, casando a tag
- * exata (es-AR) ou só o idioma (es → primeiro locale es-* suportado; pt → pt-BR). Padrão: pt-BR.
+ * exata (es-AR) ou só o idioma (es → primeiro locale es-* suportado; pt → pt-BR; en-US → en). Padrão: pt-BR.
  */
 export function resolveLocale(
   queryLocale: SupportedLocale | undefined,
@@ -39,7 +39,8 @@ export function resolveLocale(
     const exact = SUPPORTED.get(tag.toLowerCase());
     if (exact) return exact;
     const lang = tag.split('-')[0]!.toLowerCase();
-    const sameLang = SUPPORTED_LOCALES.find((l) => l.toLowerCase().startsWith(`${lang}-`));
+    const sameLang =
+      SUPPORTED.get(lang) ?? SUPPORTED_LOCALES.find((l) => l.toLowerCase().startsWith(`${lang}-`));
     if (sameLang) return sameLang;
   }
   return DEFAULT_LOCALE;
@@ -48,11 +49,16 @@ export function resolveLocale(
 /**
  * Locales das dicas por mercado (`copy_hints`, gritos): o pedido, depois o do próprio clube quando é o mesmo
  * idioma (o Boca, escrito em es-AR, fala rioplatense também para es-MX), depois o idioma (es-MX → es).
- * Nunca outro idioma: pt-BR não cai para espanhol.
+ * Nunca outro idioma: pt-BR não cai para espanhol. Exceção: `en` não tem grito próprio (ninguém escreve
+ * "Avanti, Palestra!" em inglês), então cai nos do idioma do próprio clube (`text_locale`): o Palmeiras
+ * grita em português e o Boca em rioplatense também para quem lê em inglês.
  */
 export function hintLocales(locale: string, originLocale?: string | null): string[] {
   const lang = locale.split('-')[0]!;
-  const origin = originLocale && originLocale.split('-')[0] === lang ? [originLocale] : [];
+  const originLang = originLocale?.split('-')[0];
+  if (lang === 'en' && originLocale && originLang && originLang !== 'en')
+    return [...new Set([locale, originLocale, originLang])];
+  const origin = originLocale && originLang === lang ? [originLocale] : [];
   return [...new Set([locale, ...origin, lang])];
 }
 

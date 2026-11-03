@@ -95,7 +95,7 @@ const CHAMPIONSHIPS: Record<string, { pt: string; es: string; en: string }> = {
 };
 
 const tr = (locale: Locale, t: { pt: string; es: string; en?: string }) =>
-  locale.startsWith('es') ? t.es : t.pt;
+  locale.startsWith('es') ? t.es : locale.startsWith('en') ? (t.en ?? t.pt) : t.pt;
 
 export function notice(locale: Locale, license: string | null): EqAthleteDetail['notice'] {
   return {
