@@ -44,54 +44,90 @@ e do que depende.
 
 ## 3. Quem depende de quem
 
+O mapa abaixo **é gerado** pela mesma ferramenta que cobra as regras no CI ([dependency-cruiser](https://github.com/sverweij/dependency-cruiser),
+configurada em [`scripts/deps`](../scripts/deps)): uma seta por par de pacotes em que o código de produção de um importa
+o outro (testes ficam de fora do desenho, mas entram nas regras). Não edite à mão:
+
+```bash
+pnpm deps:map     # reescreve o mapa e a tabela de regras abaixo; commite o resultado
+pnpm lint:deps    # o que o CI roda: reprova violação de regra e mapa desatualizado
+```
+
+<!-- deps-map:start — gerado por `pnpm deps:map`; não edite à mão -->
 ```mermaid
 flowchart TB
   subgraph apps
-    API[apps/api]
-    DEMO[apps/demo]
+    apps_api[apps/api]
+    apps_demo[apps/demo]
   end
   subgraph services
-    ING[services/ingestor]
-    AI[services/ai-agents]
+    services_ai_agents[services/ai-agents]
+    services_ingestor[services/ingestor]
   end
   subgraph domínio
-    PROV[providers]
-    RULES[rules]
-    KNOW[knowledge]
-    WTW[where-to-watch]
-    GEO[geo]
-    LEDGER[ai-ledger]
+    packages_ai_ledger[ai-ledger]
+    packages_geo[geo]
+    packages_knowledge[knowledge]
+    packages_providers[providers]
+    packages_rules[rules]
+    packages_where_to_watch[where-to-watch]
   end
   subgraph base
-    DB[db]
-    APIS[apisports-client]
-    CONTR[contracts]
-    RC[runtime-config]
-    OBS[observability]
-    NET[net-guard]
-    WID[widgets]
+    packages_apisports_client[apisports-client]
+    packages_contracts[contracts]
+    packages_db[db]
+    packages_net_guard[net-guard]
+    packages_observability[observability]
+    packages_runtime_config[runtime-config]
+  end
+  subgraph interface
+    packages_widgets[widgets]
   end
 
-  API --> PROV & RULES & KNOW & WTW & GEO & CONTR & OBS & RC & DB & APIS
-  DEMO --> CONTR & WTW & WID & RC & DB
-  ING --> PROV & RULES & KNOW & WTW & GEO & LEDGER & CONTR & OBS & RC & NET & DB & APIS
-  AI --> PROV & RULES & KNOW & WTW & GEO & LEDGER & CONTR & RC & NET & DB
-  ING -. executa os CLIs por caminho .-> AI
-  PROV --> APIS
-  APIS --> DB
-  RULES & KNOW & WTW --> DB
-  LEDGER --> DB & RC
-  OBS --> DB & APIS & RC
+  apps_api --> packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
+  apps_demo --> packages_contracts & packages_db & packages_runtime_config & packages_where_to_watch & packages_widgets
+  packages_ai_ledger --> packages_db & packages_runtime_config
+  packages_apisports_client --> packages_db
+  packages_knowledge --> packages_db
+  packages_observability --> packages_apisports_client & packages_db & packages_runtime_config
+  packages_providers --> packages_apisports_client
+  packages_rules --> packages_db
+  packages_where_to_watch --> packages_db
+  packages_widgets --> packages_contracts
+  services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
+  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
 ```
+<!-- deps-map:end -->
 
-Regras que o grafo já segue e que valem manter:
+As camadas vêm de `scripts/deps/rules.mjs`: **app** (`apps/*`), **serviço** (`services/*`), **domínio**
+(`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`), **base** (`db`, `contracts`, `observability`,
+`runtime-config`, `net-guard`, `apisports-client`, `scheduler`) e **interface** (`widgets`). Pacote novo em `packages/`
+precisa entrar numa delas, senão o `lint:deps` reprova.
 
-1. **Apps e serviços não importam uns aos outros.** Código compartilhado vai para `packages/`.
-2. **`packages/` não importa `apps/` nem `services/`.**
-3. **Toda chamada à api-sports passa pelo `@galaxie/apisports-client`** (CONTRIBUTING, regra 1).
-4. **`contracts`, `net-guard`, `geo`, `runtime-config` e `widgets` não dependem de nenhum outro pacote do repo.** São os
-   mais fáceis de reaproveitar fora daqui.
-5. **O banco tem um dono de schema**: `packages/db`. Tabela nova entra por migration Drizzle.
+O CI (`pnpm lint:deps`, passo "Regra de dependência" do job `checks`) cobra estas regras, e o PR que viola é reprovado com o
+nome da regra:
+
+<!-- deps-rules:start — gerado por `pnpm deps:map`; não edite à mão -->
+| Regra | O que exige | Por quê |
+|---|---|---|
+| `app-nao-importa-app` | Um app não importa outro app. | Cada app vira uma imagem e um processo próprios; o que os dois precisam vai para packages/. |
+| `app-nao-importa-servico` | Nenhum app (apps/*) importa serviço (services/*). | App e serviço sobem e caem separados: o app que importa o serviço leva o código dele junto na imagem. |
+| `servico-nao-importa-servico` | Um serviço não importa outro serviço. | Serviços rodam em contêineres separados; o que é comum a dois serviços vai para packages/. |
+| `pacote-nao-importa-app-nem-servico` | Nenhum pacote (packages/*) importa app ou serviço. | Pacote é a camada de baixo: se ele depende de quem o usa, o grafo vira um nó e o Turborepo perde o que isolar. |
+| `base-nao-importa-dominio` | Pacote de base não importa pacote de domínio. | A base (banco, contratos, logs, flags, SSRF, cliente da api-sports) é reaproveitável sem a regra de negócio; o domínio é quem a usa. |
+| `so-o-apisports-client-fala-com-a-api-sports` | Só o pacote apisports-client fala com a api-sports. | Cota, raw, plano e limite por minuto vivem no cliente; chamada por fora gasta cota sem contar e sem guardar o raw. |
+| `pacote-sem-camada` | Todo pacote de packages/ está numa camada. | Sem camada, as regras acima não sabem de que lado do pacote ficam; adicione-o a PACKAGE_LAYERS em scripts/deps/rules.mjs. |
+<!-- deps-rules:end -->
+
+Outras convenções do grafo, que a ferramenta ainda não cobra:
+
+1. **`contracts`, `net-guard`, `geo` e `runtime-config` não dependem de nenhum outro pacote do repo** (`widgets` só do
+   `contracts`). São os mais fáceis de reaproveitar fora daqui.
+2. **O banco tem um dono de schema**: `packages/db`. Tabela nova entra por migration Drizzle.
+
+**Exceções.** O que já violava quando a regra entrou está em [`scripts/deps/exceptions.json`](../scripts/deps/exceptions.json),
+com o motivo de cada linha; a lista só encolhe (exceção que não cobre mais nada também reprova). Para adicionar uma regra ou
+mudar uma camada, edite `scripts/deps/rules.mjs` e rode `pnpm deps:map`.
 
 ## 4. O que roda onde
 
