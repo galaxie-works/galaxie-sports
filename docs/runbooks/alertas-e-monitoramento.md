@@ -9,6 +9,7 @@ auditoria de 28/10/2026.
 |---|---|---|---|
 | Prometheus + Grafana | Na própria VPS | Banco, jobs, ao vivo, IA, backup, disco, processo da API | Push (ntfy) na hora para o crítico; resumo diário por e-mail para o resto; uma issue no GitHub por alerta |
 | Workflow de deploy | GitHub Actions | Deploy falho, cancelado ou travado (teto de 45 min) | Push (ntfy) pelo mesmo tópico |
+| Produção atrasada | GitHub Actions (`producao-atrasada.yml`, a cada 30 min) | A versão no ar atrás da main há mais de 2 h, sem deploy rodando (deploy verde sem publicar, trava presa) | Issue `alerta` e push (ntfy) |
 | Monitor externo | Better Stack (fora da VPS) | Site e API vistos da internet; a VPS inteira fora do ar. Página pública em status.galaxie.works | E-mail (e app da Better Stack) |
 
 O alertador mora na mesma VPS que vigia: se a VPS cair, ele cai junto. Por isso o monitor externo é parte do desenho,
@@ -221,6 +222,73 @@ Trocar a chave:
 1. Gere um par novo e ponha a pública no `authorized_keys` com a mesma linha `command=…,restrict`. O backup de antes da
    primeira chave é `authorized_keys.bak-pre-diag-20261102`.
 2. Rode `gh secret set VPS_DIAG_SSH_KEY --env producao < chave` e apague a linha antiga.
+
+## Produção atrasada (`ProducaoAtrasada`)
+
+Entre 30/10 e 02/11/2026 os deploys terminaram verdes sem publicar e ninguém soube até olhar a VPS. Este alerta avisa
+quando a produção fica para trás da main por mais de 2 h com o deploy parado. Não é pelo Prometheus: o alertador da VPS
+cairia junto com ela. Quem vigia é o workflow **Produção atrasada** (`.github/workflows/producao-atrasada.yml`), no
+GitHub, a cada 30 min (`infra/ops/producao-atrasada.mjs`, testes em `producao-atrasada.test.mjs`).
+
+**Como decide:**
+
+1. Calcula o `in-<hash>` esperado de cada imagem (`api`, `demo`, `ingestor`) no HEAD da main, com `infra/ops/image-hash.sh`,
+   a mesma fórmula do `docker.yml` e do `deploy-gh.sh`.
+2. Lê o que roda: `GET https://api.sports.galaxie.works/version` e `GET https://sports.galaxie.works/api/version`
+   (`image_hash`). O ingestor não tem endpoint público; vale o que a release `deploy-*` mais recente diz que publicou.
+3. Compara **hash, não SHA**. Merge que só muda docs, workflow ou a pasta de outra imagem não muda o hash, então não é
+   atraso e não alerta.
+4. O relógio das 2 h começa no **primeiro commit da main que mudou a imagem depois da versão que roda**, não no HEAD.
+   Com merges em sequência, o relógio do HEAD reiniciaria a cada um e uma produção parada nunca alertaria.
+5. Há execução do `deploy.yml` em andamento (criada há menos de 100 min): nada. O atraso está sendo resolvido.
+
+**O que acontece:**
+
+| Situação | Faz |
+|---|---|
+| Atraso de mais de 2 h, sem deploy rodando | Abre (ou reabre, se fechada há menos de 24 h) a issue `Alerta: ProducaoAtrasada` com o rótulo `alerta` (diagnóstico só leitura comentado) e manda o push pelo ntfy. A issue aberta não gera push novo a cada 30 min |
+| API e demo no hash da main | Fecha a issue sozinha |
+| Atraso de menos de 2 h, deploy rodando ou `/version` fora do ar | Nada (API fora do ar é do `ApiDown`) |
+
+O push usa os secrets `ALERT_NTFY_URL` e `ALERT_NTFY_TOKEN` do ambiente `producao`, os mesmos do aviso do `deploy.yml`.
+Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, não entra no resumo diário por e-mail
+(o resumo é só dos alertas do Grafana): o registro é a issue e o push.
+
+**O que olhar quando dispara** (nesta ordem):
+
+1. **Último run do `deploy.yml`:** `gh run list --workflow deploy.yml --limit 5`. Um run verde que não publicou
+   (o passo "Deploy na VPS" diz `nada a publicar` ou o gate disse `go=false`) ou um run vermelho/cancelado diz onde
+   parou. Run vermelho: o log do passo "Deploy na VPS" e o aviso por push de quando falhou.
+2. **O CI e as imagens do HEAD:** `gh run list --branch main --limit 6`. Sem CI verde do HEAD o deploy automático não
+   sai (o gate espera `ci.yml` e `docker.yml` verdes). Com merges mais rápidos que o CI, o gate pula commit após commit.
+   Corrija a main ou dispare à mão: `gh workflow run deploy.yml`.
+3. **`DEPLOY_AUTO`:** `gh variable list`. Sem `DEPLOY_AUTO=on` o deploy automático não roda (plano B ligado).
+4. **A trava da VPS:** `ssh root@145.223.94.149 'cat /docker/galaxie-sports/.deploy.lock/owner'`. Trava de deploy morto
+   com mais de 90 min é tomada pelo próximo deploy; antes disso, o [runbook do deploy](deploy-pelo-github.md#plano-b-contingência)
+   diz como liberar. O diagnóstico automático da issue já traz a trava e a imagem de cada serviço (depois do primeiro
+   deploy que gravar o `diagnostico.sh` novo).
+5. **O que roda de fato:** `ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose ps -a --format "{{.Service}}: {{.Image}} ({{.Status}})"'`.
+   Compare com o `image_hash` do `/version`. Contêiner com tag antiga e deploy verde: o swap falhou, ver o log do passo.
+6. Publique de novo com `gh workflow run deploy.yml` (SHA já no ar precisa de `-f force=1`). A issue fecha na checagem
+   seguinte (até 30 min) quando a versão alcançar a main.
+
+**Limites conhecidos:**
+
+- O ingestor é lido da release `deploy-*`, não do processo. Ele reflete o que o último deploy publicou: um ingestor
+  trocado ou parado à mão fora do deploy não aparece, e uma release que falhou ao ser publicada (`release não publicada`
+  no passo "Notas de versão") pode dar falso atraso do ingestor.
+- A versão que roda é procurada nos últimos 120 commits que mexeram na imagem. Fora disso (ou com uma tag que não veio
+  do CI), o atraso é contado desde o commit mais antigo olhado e a mensagem diz "ou mais".
+- Voltar versão de propósito (`deploy.yml` com `force=1` num SHA antigo) também é "atrás da main": passadas 2 h, o alerta
+  abre. Faça um deploy da main ou feche a issue sabendo que ela reabre na checagem seguinte.
+- A lista de pastas de cada imagem é a de hoje; se mudou entre a versão que roda e o HEAD, o cálculo no passado é
+  aproximado (o hash do HEAD, que decide se há atraso, é exato).
+
+**Testar:** `gh workflow run producao-atrasada.yml -f limite_min=1` trata um atraso de 1 min como alerta (abre a issue de
+verdade, com push se o secret existir); só vale com a produção atrás da main. Sem atraso nenhum a execução termina em
+"decisão: resolved". A decisão sai também no resumo da execução. Localmente, a leitura sem efeito colateral:
+`GH_REPO=galaxie-works/galaxie-sports node infra/ops/producao-atrasada.mjs verificar` (só lê; sem `GITHUB_OUTPUT` não
+abre issue nem manda push).
 
 ## Monitor externo e página de status (Better Stack, plano gratuito)
 
