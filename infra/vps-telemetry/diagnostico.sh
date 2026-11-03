@@ -169,7 +169,22 @@ from ops.quota_ledger where day_utc = current_date group by 1, 2 order by 1, 3 d
 SQL
 }
 
+# ProducaoAtrasada: por que o deploy não chegou aqui. A trava do deploy (mesma do deploy.sh e do deploy-gh.sh) e a imagem
+# que cada serviço roda de fato
+deploy_block() {
+  section "Trava do deploy na VPS"
+  if [ -d .deploy.lock ]; then
+    echo "   trava ocupada há $(( ($(date +%s) - $(stat -c %Y .deploy.lock)) / 60 )) min (mais de 90 min = deploy morto, o próximo a toma); dono (id, SHA, hora):"
+    sed 's/^/   /' .deploy.lock/owner 2>/dev/null | head -5
+  else
+    echo "   livre"
+  fi
+  section "Imagem de cada serviço no ar"
+  dc ps --format '{{.Service}}: {{.Image}} ({{.Status}})' | sed 's/^/   /'
+}
+
 case "$ALERT" in
+  ProducaoAtrasada) deploy_block ;;
   LiveEventStale | FootballRawStale) live_block; quota_block ;;
   SloBurnRateFast | SloBurnRateSlow | ErrorBudgetExhausted)
     slo_block
