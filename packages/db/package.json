@@ -35,6 +35,14 @@
       "types": "./dist/queue.d.ts",
       "default": "./dist/queue.js"
     },
+    "./queue-types": {
+      "types": "./dist/queue-types.d.ts",
+      "default": "./dist/queue-types.js"
+    },
+    "./queue-admin": {
+      "types": "./dist/queue-admin.d.ts",
+      "default": "./dist/queue-admin.js"
+    },
     "./related": {
       "types": "./dist/related-content.d.ts",
       "default": "./dist/related-content.js"
@@ -59,7 +67,8 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.11"

@@ -101,6 +101,26 @@ Métricas (`/metrics`): `galaxie_queue_tasks_pending`, `galaxie_queue_tasks_runn
 Alerta: `TarefaPendenteAntiga`, com tarefa pronta há mais de 1 h sem worker pegar. Retenção: encerrada sai depois de
 30 dias, com o checkpoint; viva fica, por mais velha.
 
+### Tipos de tarefa, prévia e operação
+
+`@galaxie/db/queue-types` é o registro dos tipos (`TASK_TYPES`): descrição, schema zod dos `params`, se roda em prévia
+(`previa`) e se apaga, troca ou religa dados (`destrutiva`). `@galaxie/db/queue-admin` é o lado de quem pede, usado
+pela CLI `gs tarefa` e pelo painel (Ajustes → Sistema → Tarefas): `requestTask` (valida pelo registro), `listTasks`,
+`getTask`, `cancelTask` (só pendente; estado `canceled`), `reprocessTask` (nova, com `params.reprocessaDe`) e
+`approvePreview`.
+
+- **Prévia**: tarefa comum com `params.previa = true`; o executor grava o plano em `checkpoint.previa`
+  (`{ resumo?, contagens, amostra }`) e não muda nada.
+- **Aprovação**: `approvePreview` enfileira a execução de verdade com os mesmos params e `params.previaId`, uma por
+  prévia (`dedupe_key` `previa:<id>`).
+- **Destrutiva**: `requestTask` recusa sem prévia, e o worker confere de novo com `checkRunnable` antes de executar.
+- `previa`, `previaId` e `reprocessaDe` são chaves reservadas dos `params`: nenhum tipo declara, quem pede não manda.
+- Convenções do checkpoint que o painel mostra: `progresso` (`{ feitos, total?, lote? }`), `log` (últimas 20 linhas)
+  e `previa`.
+
+Os executores moram no worker (`services/ingestor/src/tasks/run.ts`: `TASK_HANDLERS` e `runTask`). Passo a passo de
+operação: [docs/runbooks/tarefas.md](../../docs/runbooks/tarefas.md).
+
 ## Migrations: expandir e contrair
 
 A troca de versão no deploy é lado a lado, e o candidato aplica a migration **antes** da troca: por alguns segundos a
