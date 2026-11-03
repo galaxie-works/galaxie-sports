@@ -454,6 +454,14 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     expect(rows.find((r) => r.sport === '*' && r.market === '*')?.generatedAt).toEqual(NOW);
     expect(new Set(rows.map((r) => r.generatedAt.getTime()))).toEqual(new Set([NOW.getTime()]));
     expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    // uma rodada que começou antes (conta mais velha) e terminou depois não sobrescreve a mais nova
+    const older = await refreshExploreSummary(db, geo, {
+      now: new Date(NOW.getTime() - 60_000),
+      force: true,
+    });
+    expect(older.rows).toBe(0);
+    const [meta] = await db.select().from(exploreSummary).where(eq(exploreSummary.market, '*'));
+    expect(meta?.generatedAt).toEqual(NOW);
   });
 
   it('a API responde do pré-calculado o mesmo corpo da conta feita na hora, com e sem recorte do plano', async () => {

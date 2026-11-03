@@ -18,9 +18,11 @@ await runCli(async () => {
   try {
     const result = await refreshExploreSummary(db, loadGeoConfig(), { force: values.forcar });
     console.log(
-      result.reason
-        ? `Resumo do Explorar recalculado (${result.reason}): ${result.rows} linhas em ${result.ms} ms`
-        : `Resumo do Explorar em dia (sem mudança de status desde a última conta): nada a fazer`,
+      result.reason && !result.rows
+        ? `Resumo do Explorar recalculado (${result.reason}), mas não gravado: outra rodada gravou uma conta mais nova`
+        : result.reason
+          ? `Resumo do Explorar recalculado (${result.reason}): ${result.rows} linhas em ${result.ms} ms`
+          : `Resumo do Explorar em dia (sem mudança de status desde a última conta): nada a fazer`,
     );
   } finally {
     await closeDb(db);

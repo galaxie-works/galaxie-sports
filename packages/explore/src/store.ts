@@ -79,16 +79,22 @@ export function snapshotFromRows(
 
 /**
  * Troca o resumo inteiro numa transação (quem lê vê o anterior ou o novo, nunca a mistura). A trava da transação
- * enfileira duas gravações simultâneas (uma rodada à mão junto com a do horário) em vez de uma falhar na chave.
+ * enfileira duas gravações simultâneas (uma rodada à mão junto com a do horário) em vez de uma falhar na chave; a
+ * que chega por último com uma conta mais velha que a gravada não sobrescreve (devolve 0 linhas).
  */
 export async function saveExploreSnapshot(db: Database, snapshot: ExploreSnapshot): Promise<number> {
   const rows = snapshotRows(snapshot);
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('core.explore_summary'))`);
+    const [stored] = await tx
+      .select({ generatedAt: exploreSummary.generatedAt })
+      .from(exploreSummary)
+      .where(and(eq(exploreSummary.sport, ALL), eq(exploreSummary.market, ALL)));
+    if (stored && stored.generatedAt > snapshot.generatedAt) return 0;
     await tx.delete(exploreSummary);
     await tx.insert(exploreSummary).values(rows);
+    return rows.length;
   });
-  return rows.length;
 }
 
 /** O resumo gravado (null quando ainda não há, ou é de outra versão do formato). */
