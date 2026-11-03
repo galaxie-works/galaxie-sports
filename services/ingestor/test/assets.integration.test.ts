@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { coachPhotoUrl, MediaDenylist, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import {
@@ -696,7 +696,12 @@ describe('cursor do espelho no Postgres (ops.sync_cursor)', () => {
     const r1 = await runAssetMirror({ ...deps, limit: 1 });
     expect(r1).toMatchObject({ pending: 1, failed: 1 });
     const saved = await cursor.load();
-    expect(saved.team_logo?.createdAt).toMatch(/\.\d{6}/); // microssegundos preservados
+    // o cursor guarda o instante com a precisão do banco (o texto do Postgres tira os zeros finais dos microssegundos,
+    // então a comparação é no próprio banco, não pelo número de dígitos)
+    const [exact] = await db.execute<{ same: boolean }>(
+      sql`select created_at = ${saved.team_logo!.createdAt}::timestamptz as same from core.asset where id = ${saved.team_logo!.id}`,
+    );
+    expect(exact?.same).toBe(true);
 
     const r2 = await runAssetMirror({ ...deps, limit: 5 });
     // pulou o que falhou e foi até o fim: a bandeira é de outro caminho, fora deste escopo
