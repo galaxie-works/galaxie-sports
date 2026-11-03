@@ -78,6 +78,14 @@ describe('extractTgz', () => {
     expect(existsSync(join(work, 'fora.txt'))).toBe(false);
   });
 
+  it('recusa registro de nome longo ou pax grande demais antes de ler para a memória', async () => {
+    const file = write(
+      'meta.tgz',
+      tgz([{ name: `pacote/${'z'.repeat(70 * 1024)}.svg`, body: Buffer.from('x'), long: 'gnu' }]),
+    );
+    await expect(extractTgz(file, join(work, 'out-meta'))).rejects.toThrow(/registro de cabeçalho/);
+  });
+
   it('respeita o teto de tamanho e acusa o tar truncado', async () => {
     const big = write('big.tgz', tgz([{ name: 'a.bin', body: Buffer.alloc(4096) }]));
     await expect(extractTgz(big, join(work, 'out-big'), { maxBytes: 1024 })).rejects.toThrow(/MiB/);
@@ -97,6 +105,7 @@ describe('openPackage', () => {
     const pkg = await openPackage('s3://galaxie/tasks/t1/acervo-exemplo.tgz', () => store);
     try {
       expect(pkg.source).toBe('s3://galaxie/tasks/t1/acervo-exemplo.tgz');
+      expect(pkg.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(pkg.dir.endsWith('acervo-exemplo')).toBe(true);
       // o pacote extraído é o mesmo da pasta: mesma varredura
       expect(scanAcervo(pkg.dir).logos).toEqual(scanAcervo(EXEMPLO).logos);

@@ -20,6 +20,7 @@ import {
   statSync,
   writeSync,
 } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
@@ -144,6 +145,8 @@ export interface ExtractReport {
 }
 
 const BLOCK = 512;
+/** Teto de um registro de nome longo (GNU) ou pax, que é lido para a memória. */
+const MAX_META_BYTES = 64 * 1024;
 
 /** Campo de texto do cabeçalho tar (até o primeiro NUL). */
 const text = (b: Buffer, start: number, len: number) => {
@@ -236,6 +239,8 @@ export async function extractTgz(
     remaining = size;
     padding = (BLOCK - (size % BLOCK)) % BLOCK;
     if (type === 'L' || type === 'x') {
+      // o registro vai inteiro para a memória: nome longo ou pax de verdade têm poucos KiB
+      if (size > MAX_META_BYTES) throw new Error(`pacote com registro de cabeçalho de ${size} bytes`);
       meta = { kind: type === 'L' ? 'longname' : 'pax', chunks: [] };
       return;
     }
@@ -306,6 +311,13 @@ export async function extractTgz(
   return report;
 }
 
+/** sha256 de um arquivo, em fluxo. */
+export async function fileSha256(file: string): Promise<string> {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
+  return hash.digest('hex');
+}
+
 /** A pasta do pacote dentro do que foi extraído: a própria, ou a única subpasta, com o acervo.yaml. */
 export function packageRoot(dir: string): string {
   if (existsSync(join(dir, 'acervo.yaml'))) return dir;
@@ -321,6 +333,8 @@ export interface OpenedPackage {
   /** De onde veio: o endereço s3:// ou o caminho local. */
   source: string;
   extract?: ExtractReport;
+  /** sha256 do `.tgz` (ausente na pasta local): a prova do conteúdo, que a tarefa compara com a da prévia. */
+  sha256?: string;
   /** Apaga o diretório temporário (não faz nada com uma pasta local). */
   cleanup(): void;
 }
@@ -353,6 +367,7 @@ export async function openPackage(
     if (uri && !(await store().download(uri, archive)))
       throw new Error(`pacote não encontrado no S3: ${formatS3Uri(uri)}`);
     const out = join(tmp.dir, 'pacote');
+    const sha256 = await fileSha256(archive);
     const extract = await extractTgz(archive, out, limits);
     // o .tgz baixado não faz mais falta: o disco temporário fica só com a pasta
     if (uri) rmSync(archive, { force: true });
@@ -360,6 +375,7 @@ export async function openPackage(
       dir: packageRoot(out),
       source: uri ? formatS3Uri(uri) : resolve(spec),
       extract,
+      sha256,
       cleanup: tmp.cleanup,
     };
   } catch (err) {
