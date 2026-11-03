@@ -104,7 +104,8 @@ jobs:
           fi
           install -d -m 700 ~/.ssh
           (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
-          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+          # keepalive: o s3-sync.sh fica minutos sem imprimir nada (--only-show-errors) e a conexão parada caía (broken pipe)
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n  ServerAliveInterval 30\n  ServerAliveCountMax 10\n' > ~/.ssh/config
           chmod 600 ~/.ssh/config
 
       # a mesma trava do deploy.sh e do deploy-gh.sh (.deploy.lock): o grupo de concorrência do Actions não vê um deploy
