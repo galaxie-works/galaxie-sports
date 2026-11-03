@@ -56,7 +56,10 @@ export interface LiveLeaderRow {
 
 export interface LiveTickSample {
   sport: string;
-  /** Idade do último tick (s); `null` sem tick registrado. */
+  /**
+   * Idade do último tick (s), descontada a pausa de propósito: depois que ela acaba, conta desde o fim dela, não
+   * desde o tick de antes do meio-tempo. `null` sem tick registrado.
+   */
   lastTickAgeSeconds: number | null;
   intervalSeconds: number | null;
   /** Maior intervalo entre ticks nos últimos 5 min; `null` sem intervalo medido. */
@@ -146,10 +149,13 @@ export function liveTickSamples(rows: readonly LiveTickRow[], now: Date): LiveTi
   const t = now.getTime();
   return rows.map(({ sport, tick, segments }) => {
     const lastTickMs = tick?.lastTickAt ? Date.parse(tick.lastTickAt) : null;
+    // o tick devido é o do fim da pausa (meio-tempo, entre janelas, espera da fonte): é dali que o atraso conta
+    const pausedMs = tick?.pausedUntil ? Date.parse(tick.pausedUntil) : 0;
+    const baselineMs = lastTickMs === null ? null : Math.max(lastTickMs, pausedMs);
     const recent = (tick?.recent ?? []).filter((r) => t - Date.parse(r.at) <= LIVE_TICK_RECENT_MS);
     return {
       sport,
-      lastTickAgeSeconds: lastTickMs === null ? null : Math.max(0, round1((t - lastTickMs) / 1000)),
+      lastTickAgeSeconds: baselineMs === null ? null : Math.max(0, round1((t - baselineMs) / 1000)),
       intervalSeconds: tick?.lastIntervalSeconds ?? null,
       intervalMaxSeconds: recent.length ? Math.max(...recent.map((r) => r.seconds)) : null,
       plannedIntervalSeconds: tick?.plannedIntervalSeconds ?? 0,
@@ -169,7 +175,8 @@ export interface LiveTickMetricsOptions {
 /**
  * Registra no `registry` as métricas do ritmo do ao vivo, lidas do Postgres a cada coleta:
  *
- * - `live_last_tick_age_seconds{sport}`: idade do último tick de qualquer cópia (s).
+ * - `live_last_tick_age_seconds{sport}`: idade do último tick de qualquer cópia (s), contada desde o fim da pausa de
+ *   propósito quando houve uma (o meio-tempo não conta como atraso do tick que volta depois dele).
  * - `live_tick_interval_seconds{sport}`: último intervalo entre ticks (s), atravessando a troca de líder ou de versão.
  * - `live_tick_interval_max_seconds{sport}`: maior intervalo dos últimos 5 min (s).
  * - `live_tick_planned_interval_seconds{sport}`: intervalo que o plano pede entre ticks (0 = desconhecido).
@@ -229,7 +236,7 @@ export function registerLiveTickMetrics(
 
   sportGauge(
     'live_last_tick_age_seconds',
-    'Idade do último tick do ao vivo, de qualquer cópia (s)',
+    'Idade do último tick do ao vivo, de qualquer cópia (s); depois de uma pausa de propósito, conta desde o fim dela',
     (s) => s.lastTickAgeSeconds,
   );
   sportGauge(

@@ -84,7 +84,7 @@ a cada coleta: o `live-run` é um processo filho sem servidor, então grava o ri
 
 | Métrica | O que é |
 |---|---|
-| `live_last_tick_age_seconds{sport}` | Idade do último tick de qualquer cópia (s) |
+| `live_last_tick_age_seconds{sport}` | Idade do último tick de qualquer cópia (s); depois de uma pausa de propósito, conta desde o fim dela |
 | `live_tick_interval_seconds{sport}` | Último intervalo entre ticks (s), atravessando a troca de líder ou de versão |
 | `live_tick_interval_max_seconds{sport}` | Maior intervalo dos últimos 5 min (s) |
 | `live_tick_planned_interval_seconds{sport}` | Intervalo que o plano pede entre ticks (s) |

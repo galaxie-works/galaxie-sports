@@ -111,11 +111,28 @@ describe('liveTickSamples', () => {
       NOW,
     );
     expect(during[0]!.paused).toBe(true);
+    // durante a pausa o tick ainda não é devido: idade 0
+    expect(during[0]!.lastTickAgeSeconds).toBe(0);
     const after = liveTickSamples(
       [{ sport: 'football', tick: tick({ pausedUntil: ago(1) }), segments: open }],
       NOW,
     );
     expect(after[0]!.paused).toBe(false);
+  });
+
+  it('depois do meio-tempo a idade conta desde o fim da pausa, não desde o tick de antes', () => {
+    // último tick há 11 min; a pausa de 10 min acabou há 1 s: o tick que volta tem 1 s de atraso, não 11 min
+    const [s] = liveTickSamples(
+      [{ sport: 'football', tick: tick({ lastTickAt: ago(660), pausedUntil: ago(1) }), segments: open }],
+      NOW,
+    );
+    expect(s!.lastTickAgeSeconds).toBe(1);
+    // e se o tick não volta, a idade segue crescendo a partir do fim da pausa
+    const [late] = liveTickSamples(
+      [{ sport: 'football', tick: tick({ lastTickAt: ago(900), pausedUntil: ago(75) }), segments: open }],
+      NOW,
+    );
+    expect(late!.lastTickAgeSeconds).toBe(75);
   });
 
   it('sem registro de tick: janela existe, idade e intervalos não', () => {

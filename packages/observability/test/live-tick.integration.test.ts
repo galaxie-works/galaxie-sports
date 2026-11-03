@@ -110,6 +110,13 @@ describe('métricas do ritmo do ao vivo', () => {
     expect(get('live_window_open', { sport: 'football' })).toBe(1);
   });
 
+  it('pausa que acabou há 2 s: a idade conta desde o fim dela, não desde o tick de antes do meio-tempo', async () => {
+    await put('football', 'tick', tick({ lastTickAt: ago(602), pausedUntil: ago(2) }));
+    const get = await scrape();
+    expect(get('live_last_tick_age_seconds', { sport: 'football' })).toBeCloseTo(2, 0);
+    expect(get('live_tick_paused', { sport: 'football' })).toBe(0);
+  });
+
   it('plano do dia sem janela aberta agora: janela fechada', async () => {
     await put('football', 'state', { segments: [{ start: ahead(3600), end: ahead(7200), leagues: ['71'] }] });
     const get = await scrape();

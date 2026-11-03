@@ -127,7 +127,8 @@ and on() (sum(galaxie_live_events{coverage="poller"}) > 0)
   gasta, e o `LiveTickGap` avisa depois de 1 min. Sem `LIVE_LEADER=on` o `live-run` só volta no próximo horário do
   scheduler (a cada 5 min), e a troca gasta orçamento: é o custo de não ter a reserva.
 - **O que não conta:** meio-tempo, orçamento do dia esgotado e espera depois de erro da fonte (o runner publica a pausa
-  de propósito em `live_tick_paused`), e o minuto sem janela aberta. Sem as séries do scheduler (o `/metrics` dele
+  de propósito em `live_tick_paused`; quando ela acaba, a idade do tick conta desde o fim dela), e o minuto sem janela
+  aberta. Sem as séries do scheduler (o `/metrics` dele
   fora, como no segundo da troca de contêiner), o ritmo não é medido e vale só o atraso do jogo.
 - **De onde vêm as séries:** o `live-run` é um processo filho do scheduler, sem servidor próprio. A cada tick ele grava
   o ritmo em `ops.sync_cursor` (`live:scheduler`, chave `tick`) e o `/metrics` do scheduler do ingestor (porta 9464,
