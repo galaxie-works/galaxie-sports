@@ -30,9 +30,24 @@ echo "key=${AWS_ACCESS_KEY_ID:-} $*" >>"$CALLS"
 case "$1 $2" in
 "s3api head-bucket") [ -d "$S3ROOT/$4" ] ;;
 "s3api head-object")
+  # --bucket B --key K --query '[ContentLength,ETag,ContentType,Metadata."origem-etag"]' --output text
   f="$S3ROOT/$4/$6"
+  m="$S3ROOT/.meta/$4/$6"
   [ -f "$f" ] || exit 254
-  wc -c <"$f" | tr -d ' '
+  printf '%s\t"%s"\t%s\t%s\n' "$(wc -c <"$f" | tr -d ' ')" "$(md5sum <"$f" | cut -c1-32)" \
+    "$(cat "$m.tipo" 2>/dev/null || echo application/gzip)" "$(cat "$m.origem" 2>/dev/null || echo None)"
+  ;;
+"s3api copy-object")
+  # --bucket B --key K --copy-source A/K --metadata-directive REPLACE [--content-type T] --metadata origem-etag=E
+  [ -n "${AWS_FAKE_FAIL_CP:-}" ] && exit 1
+  b=$4 k=$6 from=$8
+  shift 10
+  tipo=""
+  [ "$1" = --content-type ] && { tipo=$2; shift 2; }
+  mkdir -p "$(dirname "$S3ROOT/$b/$k")" "$(dirname "$S3ROOT/.meta/$b/$k")"
+  cp "$S3ROOT/$from" "$S3ROOT/$b/$k"
+  [ -z "$tipo" ] || echo "$tipo" >"$S3ROOT/.meta/$b/$k.tipo"
+  echo "${2#origem-etag=}" >"$S3ROOT/.meta/$b/$k.origem"
   ;;
 "s3 ls")
   b=${4#s3://}
@@ -41,12 +56,6 @@ case "$1 $2" in
   out=$(cd "$S3ROOT/$b" && find tasks -type f | sort)
   [ -n "$out" ] || exit 1
   printf '%s\n' "$out" | while read -r k; do echo "2026-11-03 10:00:00 $(wc -c <"$S3ROOT/$b/$k" | tr -d ' ') $k"; done
-  ;;
-"s3 cp")
-  [ -n "${AWS_FAKE_FAIL_CP:-}" ] && exit 1
-  from=${4#s3://}
-  to=${5#s3://}
-  mkdir -p "$(dirname "$S3ROOT/$to")" && cp "$S3ROOT/$from" "$S3ROOT/$to"
   ;;
 "s3 rm") rm "$S3ROOT/${4#s3://}" ;;
 *)
@@ -89,7 +98,7 @@ mover() { (cd "$work" && bash "$script" "$@") >"$work/out.log" 2>&1; }
 novo
 mover --plan && r=0 || r=$?
 confere "prévia: sai 0 e lista os dois objetos para copiar" '[ "$r" = 0 ] && grep -q "copiar 2 · já no privado 0 · conflito 0" "$work/out.log"'
-confere "prévia: não grava nada" '[ -f "$pub/tasks/a1/acervo.tgz" ] && [ -z "$(find "$priv" -type f)" ] && ! grep -Eq " s3 (cp|rm) " "$calls"'
+confere "prévia: não grava nada" '[ -f "$pub/tasks/a1/acervo.tgz" ] && [ -z "$(find "$priv" -type f)" ] && ! grep -Eq " (s3 rm|copy-object) " "$calls"'
 confere "aws com a chave do RustFS, não a do bucket remoto do backup" '! grep -q "key=chave-remota" "$calls" && grep -q "key=chave-rustfs" "$calls"'
 confere "fora de tasks/ ninguém mexe" '! grep -q "acervo/x.svg" "$calls"'
 
@@ -97,7 +106,9 @@ novo
 mover && r=0 || r=$?
 confere "move: sai 0, copia os dois e apaga do público" \
   '[ "$r" = 0 ] && [ "$(cat "$priv/tasks/a1/acervo.tgz")" = pacote-a ] && [ -f "$priv/tasks/b2/exemplo.yaml" ] && [ ! -e "$pub/tasks/a1/acervo.tgz" ] && [ ! -e "$pub/tasks/b2/exemplo.yaml" ]'
-confere "move: confere o tamanho no privado antes de apagar" '[ "$(grep -c "s3api head-object --bucket galaxie-sports-tasks" "$calls")" = 2 ]'
+confere "move: confere tamanho e ETag no privado antes de apagar" '[ "$(grep -c "s3api head-object --bucket galaxie-sports-tasks" "$calls")" = 2 ]'
+confere "move: a cópia leva o tipo e o ETag da origem nos metadados" \
+  'grep -q -- "--content-type application/gzip --metadata origem-etag=$(md5sum <"$priv/tasks/a1/acervo.tgz" | cut -c1-32)" "$calls"'
 confere "move: o escudo fora de tasks/ fica" '[ -f "$pub/acervo/x.svg" ]'
 mover && r=0 || r=$?
 confere "rodar de novo: nada a mover (idempotente)" '[ "$r" = 0 ] && grep -q "nada a mover" "$work/out.log"'
@@ -106,7 +117,13 @@ novo
 mkdir -p "$priv/tasks/a1" && cp "$pub/tasks/a1/acervo.tgz" "$priv/tasks/a1/"
 mover && r=0 || r=$?
 confere "já copiado antes (rodada que caiu no meio): não copia de novo, só apaga do público" \
-  '[ "$r" = 0 ] && [ "$(grep -c " s3 cp " "$calls")" = 1 ] && [ ! -e "$pub/tasks/a1/acervo.tgz" ]'
+  '[ "$r" = 0 ] && [ "$(grep -c " copy-object " "$calls")" = 1 ] && [ ! -e "$pub/tasks/a1/acervo.tgz" ]'
+
+novo
+mkdir -p "$priv/tasks/a1" && echo pacote-X >"$priv/tasks/a1/acervo.tgz"
+mover && r=0 || r=$?
+confere "mesma chave e mesmo tamanho, outro conteúdo (ETag diferente): conflito, nada sobrescrito nem apagado" \
+  '[ "$r" = 4 ] && [ "$(cat "$priv/tasks/a1/acervo.tgz")" = pacote-X ] && [ -f "$pub/tasks/a1/acervo.tgz" ]'
 
 novo
 mkdir -p "$priv/tasks/a1" && echo outro-conteudo-maior >"$priv/tasks/a1/acervo.tgz"
@@ -138,7 +155,7 @@ novo
 rm -rf "$priv"
 mover && r=0 || r=$?
 confere "sem o bucket privado (s3-init não aplicado): falha antes de copiar" \
-  '[ "$r" = 1 ] && grep -q "aplique antes o s3-init" "$work/out.log" && ! grep -Eq " s3 (cp|rm) " "$calls"'
+  '[ "$r" = 1 ] && grep -q "aplique antes o s3-init" "$work/out.log" && ! grep -Eq " (s3 rm|copy-object) " "$calls"'
 
 novo
 mover --destino galaxie-sports-assets && r=0 || r=$?
@@ -152,7 +169,7 @@ confere "contêiner sem S3_TASKS_BUCKET (backup ainda não recriado): usa galaxi
 novo
 rm -rf "$pub/tasks"
 mover && r=0 || r=$?
-confere "nada em tasks/ do público: sai 0 sem gravar" '[ "$r" = 0 ] && grep -q "nada a mover" "$work/out.log" && ! grep -Eq " s3 (cp|rm) " "$calls"'
+confere "nada em tasks/ do público: sai 0 sem gravar" '[ "$r" = 0 ] && grep -q "nada a mover" "$work/out.log" && ! grep -Eq " (s3 rm|copy-object) " "$calls"'
 
 novo
 (cd "$work" && bash -s -- <"$script") >"$work/out.log" 2>&1 && r=0 || r=$?

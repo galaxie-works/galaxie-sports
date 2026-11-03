@@ -122,7 +122,10 @@ services:
         aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
         echo "bucket $$BUCKET pronto (leitura pública de objetos, sem listagem)"
         aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$TASKS_BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$TASKS_BUCKET"
-        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET" >/dev/null 2>&1 || true
+        # sem política nenhuma, e conferido: apagar falhou ou sobrou política = o s3-init falha (nada de "privado" sem ser)
+        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET"
+        out=$$(aws --endpoint-url http://s3:9000 s3api get-bucket-policy --bucket "$$TASKS_BUCKET" 2>&1) && { echo "$$TASKS_BUCKET continua com política: $$out" >&2; exit 1; }
+        echo "$$out" | grep -q NoSuchBucketPolicy || { echo "não deu para conferir a política de $$TASKS_BUCKET: $$out" >&2; exit 1; }
         echo "bucket $$TASKS_BUCKET pronto (privado: sem leitura anônima)"
     restart: 'no'
     logging: *logging

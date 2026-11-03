@@ -63,6 +63,7 @@ services:
     command:
       - |
         set -e
+        [ "$$TASKS_BUCKET" != "$$BUCKET" ] || { echo "S3_TASKS_BUCKET não pode ser o bucket público ($$BUCKET)" >&2; exit 1; }
         ready=0
         for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && { ready=1; break; }; sleep 2; done
         [ "$$ready" = 1 ] || { echo "s3 indisponível depois de 60 s" >&2; exit 1; }
@@ -71,7 +72,10 @@ services:
         echo "bucket $$BUCKET pronto"
         # bucket privado das tarefas (tasks/<id>/, #587): sem política, sem leitura anônima
         aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$TASKS_BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$TASKS_BUCKET"
-        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET" >/dev/null 2>&1 || true
+        # sem política nenhuma, e conferido: apagar falhou ou sobrou política = o s3-init falha (nada de "privado" sem ser)
+        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET"
+        out=$$(aws --endpoint-url http://s3:9000 s3api get-bucket-policy --bucket "$$TASKS_BUCKET" 2>&1) && { echo "$$TASKS_BUCKET continua com política: $$out" >&2; exit 1; }
+        echo "$$out" | grep -q NoSuchBucketPolicy || { echo "não deu para conferir a política de $$TASKS_BUCKET: $$out" >&2; exit 1; }
         echo "bucket $$TASKS_BUCKET pronto (privado)"
     restart: 'no'
 

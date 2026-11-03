@@ -91,7 +91,7 @@ curl -s -o /dev/null -w '%{http_code}\n' "https://$ASSETS_DOMAIN/galaxie-sports-
 docker compose -f compose.dados.yml exec -T backup sh -c 'AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET_KEY" aws --endpoint-url "$S3_ENDPOINT" s3 rm "s3://$S3_TASKS_BUCKET/tasks/teste-587/ok.txt"'
 ```
 
-Depois, o que ficou em `tasks/` do bucket de assets vai para o privado (cópia conferida pelo tamanho, depois apaga do
+Depois, o que ficou em `tasks/` do bucket de assets vai para o privado (cópia conferida por tamanho e ETag, depois apaga do
 público; idempotente). Da máquina de dev, prévia primeiro:
 
 ```bash

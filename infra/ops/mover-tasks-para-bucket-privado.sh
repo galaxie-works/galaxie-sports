@@ -12,11 +12,14 @@
 #   --destino <bucket>    bucket privado (padrão: S3_TASKS_BUCKET do contêiner, senão galaxie-sports-tasks)
 #   --forcar              remove do bucket público mesmo com tarefa viva (pending/running) apontando para ele
 #
-# Para cada objeto de tasks/ no bucket público:
-#   1. ausente no privado: copia (cópia no próprio RustFS, com o mesmo tipo de conteúdo), confere o tamanho no destino;
-#   2. já no privado com o mesmo tamanho: nada a copiar (rodar de novo é seguro: idempotente);
-#   3. no privado com outro tamanho: conflito, não sobrescreve nem apaga a origem (resolva à mão);
+# Para cada objeto de tasks/ no bucket público (a identidade é o ETag da origem: o MD5 do conteúdo):
+#   1. ausente no privado: copia (copy-object no próprio RustFS, com o mesmo tipo de conteúdo e o ETag da origem nos
+#      metadados, `origem-etag`) e confere tamanho e ETag no destino;
+#   2. já no privado com o mesmo tamanho e o mesmo ETag (ou `origem-etag` igual ao ETag da origem): nada a copiar
+#      (rodar de novo é seguro: idempotente);
+#   3. no privado com outro conteúdo (tamanho ou ETag diferentes): conflito, não sobrescreve nem apaga a origem;
 #   4. só depois de 1 ou 2 conferidos, apaga do bucket público.
+# copy-object copia até 5 GB por objeto (o pacote do acervo tem teto de 2 GiB extraído).
 # Tarefa viva (pending/running em ops.job_request) com params apontando para s3://<origem>/tasks/ ainda vai ler de lá:
 # com ela, a cópia acontece mas a remoção não (a não ser com --forcar). Prévia concluída e ainda não aprovada também
 # lê o pacote de lá na aprovação: rode a prévia de novo com o endereço novo (docs/runbooks/tarefas.md).
@@ -98,6 +101,18 @@ list_objects() {
 src_list=$(list_objects "$src")
 dst_list=$(list_objects "$dst")
 
+# "<tamanho>\t<etag>\t<tipo>\t<origem-etag>" de um objeto (aspas do ETag tiradas; ausente = None).
+head_info() {
+  rustfs s3api head-object --bucket "$1" --key "$2" \
+    --query '[ContentLength,ETag,ContentType,Metadata."origem-etag"]' --output text 2>/dev/null | tr -d '\r"'
+}
+# Mesmo conteúdo: mesmo tamanho e o ETag do destino (ou o da origem que a cópia gravou) igual ao da origem.
+same_object() { # same_object <info do destino> <tamanho> <etag da origem>
+  local size etag _ctype origin
+  IFS=$'\t' read -r size etag _ctype origin <<<"$1"
+  [ "$size" = "$2" ] && { [ "$etag" = "$3" ] || [ "$origin" = "$3" ]; }
+}
+
 # Tarefas vivas que ainda leem do bucket público (o papel do backup lê tudo: pg_read_all_data). Sem resposta do banco,
 # não dá para saber: a remoção fica bloqueada como se houvesse (fail safe).
 # shellcheck disable=SC2016
@@ -119,22 +134,24 @@ plan_lines=""
 while IFS=$'\t' read -r size key; do
   [ -n "$key" ] || continue
   bytes=$((bytes + size))
-  existing=$(printf '%s\n' "$dst_list" | awk -F '\t' -v k="$key" '$2 == k { print $1; exit }')
-  if [ -z "$existing" ]; then
+  src_info=$(head_info "$src" "$key") || die "ler $key no bucket público"
+  IFS=$'\t' read -r _ etag ctype _ <<<"$src_info"
+  [ -n "$etag" ] && [ "$etag" != None ] || die "$key no bucket público sem ETag"
+  if ! printf '%s\n' "$dst_list" | awk -F '\t' -v k="$key" '$2 == k { found = 1 } END { exit !found }'; then
     action=copiar
     copy=$((copy + 1))
-  elif [ "$existing" = "$size" ]; then
+  elif same_object "$(head_info "$dst" "$key")" "$size" "$etag"; then
     action=ja-no-privado
     done_already=$((done_already + 1))
   else
     action=conflito
     conflicts=$((conflicts + 1))
   fi
-  plan_lines="${plan_lines}${action}	${size}	${key}
+  plan_lines="${plan_lines}${action}	${size}	${etag}	${ctype:-None}	${key}
 "
 done <<<"$src_list"
 
-printf '%s' "$plan_lines" | awk -F '\t' '{ printf "  %-14s %12s  %s\n", $1, $2, $3 }'
+printf '%s' "$plan_lines" | awk -F '\t' '{ printf "  %-14s %12s  %s\n", $1, $2, $5 }'
 echo "total: $((copy + done_already + conflicts)) objeto(s), $bytes bytes · copiar $copy · já no privado $done_already · conflito $conflicts"
 if [ "$live_tasks" = "?" ]; then
   echo "tarefas vivas apontando para s3://$src/tasks/: não deu para consultar o banco (a remoção fica bloqueada)"
@@ -158,22 +175,24 @@ fi
 moved=0
 removed=0
 kept=0
-while IFS=$'\t' read -r action size key; do
+while IFS=$'\t' read -r action size etag ctype key; do
   [ -n "$key" ] || continue
   case "$action" in
   conflito)
-    echo "conflito, mantido nos dois: $key (público $size bytes)" >&2
+    echo "conflito (mesma chave, outro conteúdo), mantido nos dois: $key (público $size bytes)" >&2
     kept=$((kept + 1))
     continue
     ;;
   copiar)
-    rustfs s3 cp --only-show-errors "s3://$src/$key" "s3://$dst/$key" >/dev/null || die "copiar $key"
+    type_args=()
+    [ "$ctype" = None ] || type_args=(--content-type "$ctype")
+    rustfs s3api copy-object --bucket "$dst" --key "$key" --copy-source "$src/$key" --metadata-directive REPLACE \
+      "${type_args[@]}" --metadata "origem-etag=$etag" >/dev/null || die "copiar $key"
     moved=$((moved + 1))
     ;;
   esac
-  got=$(rustfs s3api head-object --bucket "$dst" --key "$key" --query ContentLength --output text 2>/dev/null | tr -d '\r') ||
-    die "conferir $key no bucket privado"
-  [ "$got" = "$size" ] || die "$key no bucket privado com $got bytes (esperado $size): a origem fica"
+  got=$(head_info "$dst" "$key") || die "conferir $key no bucket privado"
+  same_object "$got" "$size" "$etag" || die "$key no bucket privado não confere com a origem ($got): a origem fica"
   if [ "$can_remove" = true ]; then
     rustfs s3 rm --only-show-errors "s3://$src/$key" >/dev/null || die "apagar $key do bucket público"
     removed=$((removed + 1))
