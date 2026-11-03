@@ -247,8 +247,8 @@ GitHub, a cada 30 min (`infra/ops/producao-atrasada.mjs`, testes em `producao-at
 | Situação | Faz |
 |---|---|
 | Atraso de mais de 2 h, sem deploy rodando | Abre (ou reabre, se fechada há menos de 24 h) a issue `Alerta: ProducaoAtrasada` com o rótulo `alerta` (diagnóstico só leitura comentado) e manda o push pelo ntfy. A issue aberta não gera push novo a cada 30 min |
-| API e demo no hash da main | Fecha a issue sozinha |
-| Atraso de menos de 2 h, deploy rodando ou `/version` fora do ar | Nada (API fora do ar é do `ApiDown`) |
+| API, demo e ingestor lidos e no hash da main | Fecha a issue sozinha |
+| Atraso de menos de 2 h, deploy rodando, ou alguma leitura falhou (`/version` fora do ar, release ilegível) | Nada: a issue aberta segue aberta até as três leituras baterem (API fora do ar é do `ApiDown`) |
 
 O push usa os secrets `ALERT_NTFY_URL` e `ALERT_NTFY_TOKEN` do ambiente `producao`, os mesmos do aviso do `deploy.yml`.
 Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, não entra no resumo diário por e-mail
@@ -276,7 +276,9 @@ Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, n
 
 - O ingestor é lido da release `deploy-*`, não do processo. Ele reflete o que o último deploy publicou: um ingestor
   trocado ou parado à mão fora do deploy não aparece, e uma release que falhou ao ser publicada (`release não publicada`
-  no passo "Notas de versão") pode dar falso atraso do ingestor.
+  no passo "Notas de versão") pode dar falso atraso do ingestor. Se a release ficar ilegível de vez (formato das notas
+  mudou), a execução avisa `ingestor sem leitura` e uma issue aberta não fecha sozinha: feche à mão e ajuste
+  `ingestorDaRelease`.
 - A versão que roda é procurada nos últimos 120 commits que mexeram na imagem. Fora disso (ou com uma tag que não veio
   do CI), o atraso é contado desde o commit mais antigo olhado e a mensagem diz "ou mais".
 - Voltar versão de propósito (`deploy.yml` com `force=1` num SHA antigo) também é "atrás da main": passadas 2 h, o alerta

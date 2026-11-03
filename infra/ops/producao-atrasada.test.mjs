@@ -154,6 +154,16 @@ describe('a decisão do alerta', () => {
     assert.equal(r.novo, false);
   });
 
+  it('sem leitura do ingestor (release fora do ar): API e demo iguais não fecham a issue aberta', async () => {
+    const r = await rodar({
+      noAr: { ...EM_DIA, ingestor: new Error('release indisponível') },
+      issueAberta: true,
+    });
+    assert.equal(r.acao, 'nada');
+    assert.equal(r.payload, null);
+    assert.match(r.motivo, /sem leitura de ingestor/);
+  });
+
   it('resposta sem image_hash válido (imagem local, "dev"): sem leitura', async () => {
     const r = await rodar({ noAr: { ...EM_DIA, demo: 'dev' } });
     assert.equal(r.imagens[1].estado, 'sem-leitura');

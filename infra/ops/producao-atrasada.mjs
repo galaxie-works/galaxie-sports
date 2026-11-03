@@ -77,7 +77,7 @@ export function desdeQuando({ noAr, esperado, commits, hashEm, headCt }) {
 /**
  * A decisão, pura. imagens = [{ imagem, estado: igual|atrasada|desconhecida|sem-leitura, desde, noAr, esperado }].
  *   firing    alguma imagem atrás há mais de limiteS e nenhum deploy em andamento: abre (ou segue aberta) a issue
- *   resolved  API e demo no hash esperado (e nenhuma outra atrás): fecha a issue
+ *   resolved  as três imagens lidas e no hash esperado: fecha a issue
  *   nada      o resto: atraso ainda curto, deploy em andamento, ou sem leitura para decidir
  */
 export function decidir({ imagens, agora, limiteS = LIMITE_S, deployAtivo = false }) {
@@ -97,9 +97,11 @@ export function decidir({ imagens, agora, limiteS = LIMITE_S, deployAtivo = fals
       motivo: `atraso ainda abaixo de ${duracao(limiteS)}: ${atrasadas.map(descreve).join('; ')}`,
     };
   }
-  const igual = (nome) => imagens.find((i) => i.imagem === nome)?.estado === 'igual';
-  if (igual('api') && igual('demo'))
+  // só as três lidas e iguais fecham a issue: uma leitura que falhou (release fora do ar por um instante, /version
+  // fora) não prova que o atraso que abriu a issue acabou
+  if (imagens.length && imagens.every((i) => i.estado === 'igual')) {
     return { acao: 'resolved', resumo: '', motivo: 'produção no hash da main' };
+  }
   const sem = imagens.filter((i) => i.estado === 'sem-leitura').map((i) => i.imagem);
   return { acao: 'nada', resumo: '', motivo: `sem leitura de ${sem.join(', ')}: nada a decidir` };
 }
