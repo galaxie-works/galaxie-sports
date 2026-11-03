@@ -72,6 +72,8 @@ export interface TaskRow {
   runId: string | null;
   detail: string | null;
   lastError: string | null;
+  /** Prévia que já tem execução aprovada (alguma tarefa com `params.previaId` = esta). */
+  approved: boolean;
 }
 
 export interface TaskRunRow {
@@ -117,8 +119,15 @@ export function taskState(row: Pick<TaskRow, 'status' | 'runId'>): TaskState {
 }
 
 /** Prévia concluída, com plano gravado, esperando alguém aprovar (o painel destaca). */
-export function awaitingApproval(row: Pick<TaskRow, 'status' | 'params' | 'checkpoint'>): boolean {
-  return row.status === 'done' && paramsMeta(row.params).previa && readPreview(row.checkpoint) !== null;
+export function awaitingApproval(
+  row: Pick<TaskRow, 'status' | 'params' | 'checkpoint' | 'approved'>,
+): boolean {
+  return (
+    row.status === 'done' &&
+    !row.approved &&
+    paramsMeta(row.params).previa &&
+    readPreview(row.checkpoint) !== null
+  );
 }
 
 const taskColumns = {
@@ -140,6 +149,8 @@ const taskColumns = {
   runId: jobRequest.runId,
   detail: jobRequest.detail,
   lastError: jobRequest.lastError,
+  // o drizzle escreve a coluna sem a tabela, e dentro da subconsulta ela seria a do `a`: a de fora vai qualificada
+  approved: sql<boolean>`exists (select 1 from ops.job_request a where a.type = "job_request"."type" and a.params ->> 'previaId' = "job_request"."id"::text)`,
 };
 
 const asTask = (row: Omit<TaskRow, 'type'> & { type: string | null }): TaskRow => ({
@@ -345,38 +356,83 @@ export async function approvePreview(
   by: string,
   registry: TaskRegistry = TASK_TYPES,
 ): Promise<{ id: string }> {
-  const preview = await findTask(db, previewId);
-  if (!paramsMeta(preview.params).previa)
-    throw new TaskError('nao_e_previa', `A tarefa ${previewId} não é uma prévia.`);
-  if (preview.status !== 'done')
-    throw new TaskError(
-      'previa_nao_concluida',
-      `A prévia ${previewId} está ${preview.status}: só a concluída pode ser aprovada.`,
-    );
-  if (!readPreview(preview.checkpoint))
-    throw new TaskError(
-      'previa_sem_resultado',
-      `A prévia ${previewId} não gravou o plano (checkpoint.previa).`,
-    );
-  const [existing] = await db
+  await findTask(db, previewId);
+  // A trava na linha da prévia serializa as aprovações: a segunda espera a primeira terminar e, já com o
+  // snapshot novo, enxerga a execução criada, mesmo que ela já tenha encerrado (o dedupe_key só cobre a viva).
+  return db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select(taskColumns)
+      .from(jobRequest)
+      .where(eq(jobRequest.id, previewId))
+      .for('update');
+    const preview = asTask(locked!);
+    if (!paramsMeta(preview.params).previa)
+      throw new TaskError('nao_e_previa', `A tarefa ${previewId} não é uma prévia.`);
+    if (preview.status !== 'done')
+      throw new TaskError(
+        'previa_nao_concluida',
+        `A prévia ${previewId} está ${preview.status}: só a concluída pode ser aprovada.`,
+      );
+    if (!readPreview(preview.checkpoint))
+      throw new TaskError(
+        'previa_sem_resultado',
+        `A prévia ${previewId} não gravou o plano (checkpoint.previa).`,
+      );
+    const [existing] = await tx
+      .select({ id: jobRequest.id })
+      .from(jobRequest)
+      .where(and(eq(jobRequest.type, preview.type), sql`${jobRequest.params} ->> 'previaId' = ${previewId}`))
+      .limit(1);
+    if (existing)
+      throw new TaskError('ja_aprovada', `A prévia ${previewId} já foi aprovada (${existing.id}).`, [
+        existing.id,
+      ]);
+    const def = definition(preview.type, registry);
+    const params = validParams(preview.type, ownParams(preview.params), registry);
+    const { id, created } = await enqueue(tx, {
+      type: preview.type,
+      params: { ...params, previaId: preview.id },
+      priority: preview.priority,
+      requestedBy: by,
+      dedupeKey: `previa:${preview.id}`,
+      ...(def.maxAttempts ? { maxAttempts: def.maxAttempts } : {}),
+    });
+    if (!created) throw new TaskError('ja_aprovada', `A prévia ${previewId} já foi aprovada (${id}).`, [id]);
+    return { id };
+  });
+}
+
+/**
+ * Antes de executar uma tarefa destrutiva (worker): confere no banco que ela é a prévia, ou a execução que o
+ * `approvePreview` criou para uma prévia concluída do mesmo tipo (a primeira com aquele `previaId`). Um `previaId`
+ * qualquer, posto pelo `enqueue` direto, não vale. Devolve o motivo da recusa, ou null.
+ */
+export async function checkApproval(
+  db: Pick<Database, 'select'>,
+  task: { id: string; type: string; params: unknown },
+  registry: TaskRegistry = TASK_TYPES,
+): Promise<string | null> {
+  const def = taskType(task.type, registry);
+  const meta = paramsMeta(task.params);
+  if (!def?.destrutiva || meta.previa) return null;
+  const refused = `${task.type} é destrutiva e não tem aprovação válida (previaId)`;
+  if (!meta.previaId || !UUID_RE.test(meta.previaId)) return refused;
+  const [preview] = await db
+    .select({ type: jobRequest.type, status: jobRequest.status, params: jobRequest.params })
+    .from(jobRequest)
+    .where(eq(jobRequest.id, meta.previaId));
+  if (
+    !preview ||
+    preview.type !== task.type ||
+    preview.status !== 'done' ||
+    !paramsMeta(preview.params).previa
+  )
+    return refused;
+  const [first] = await db
     .select({ id: jobRequest.id })
     .from(jobRequest)
-    .where(and(eq(jobRequest.type, preview.type), sql`${jobRequest.params} ->> 'previaId' = ${previewId}`))
+    .where(and(eq(jobRequest.type, task.type), sql`${jobRequest.params} ->> 'previaId' = ${meta.previaId}`))
+    .orderBy(asc(jobRequest.requestedAt), asc(jobRequest.id))
     .limit(1);
-  if (existing)
-    throw new TaskError('ja_aprovada', `A prévia ${previewId} já foi aprovada (${existing.id}).`, [
-      existing.id,
-    ]);
-  const def = definition(preview.type, registry);
-  const params = validParams(preview.type, ownParams(preview.params), registry);
-  const { id, created } = await enqueue(db, {
-    type: preview.type,
-    params: { ...params, previaId: preview.id },
-    priority: preview.priority,
-    requestedBy: by,
-    dedupeKey: `previa:${preview.id}`,
-    ...(def.maxAttempts ? { maxAttempts: def.maxAttempts } : {}),
-  });
-  if (!created) throw new TaskError('ja_aprovada', `A prévia ${previewId} já foi aprovada (${id}).`, [id]);
-  return { id };
+  return first?.id === task.id ? null : refused;
 }

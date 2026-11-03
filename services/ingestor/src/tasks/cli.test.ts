@@ -26,6 +26,7 @@ function row(over: Partial<TaskRow> = {}): TaskRow {
     runId: null,
     detail: null,
     lastError: null,
+    approved: false,
     ...over,
   };
 }

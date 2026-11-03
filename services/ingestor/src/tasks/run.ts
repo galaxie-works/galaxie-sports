@@ -1,6 +1,6 @@
 /**
  * Executores dos tipos de tarefa da fila (`@galaxie/db/queue-types` declara; aqui roda) e `runTask`, que leva uma
- * tomada do `takeNext` até o `finish`: confere a regra (`checkRunnable`), renova a concessão enquanto o executor
+ * tomada do `takeNext` até o `finish`: confere a regra (`checkRunnable` e, na destrutiva, a aprovação no banco com `checkApproval`), renova a concessão enquanto o executor
  * trabalha e para sem gravar nada se a tomada perder a tarefa. O laço do worker (#542) toma e chama `runTask`.
  */
 import { checkpoint, finish, renew, QUEUE_RENEW_MS, type QueueTask } from '@galaxie/db/queue';
@@ -14,6 +14,7 @@ import {
   type TaskRegistry,
 } from '@galaxie/db/queue-types';
 import type { Database } from '@galaxie/db';
+import { checkApproval } from '@galaxie/db/queue-admin';
 
 /** A tomada perdeu a tarefa (concessão vencida e outro worker retomou): parar sem gravar mais nada. */
 export class TaskLeaseLostError extends Error {
@@ -95,8 +96,10 @@ export async function runTask(
 ): Promise<'done' | 'retry' | 'error' | null> {
   const handlers = options.handlers ?? TASK_HANDLERS;
   const handler = handlers[task.type];
+  const registry = options.registry ?? TASK_TYPES;
   const refused =
-    checkRunnable(task, options.registry ?? TASK_TYPES) ??
+    checkRunnable(task, registry) ??
+    (await checkApproval(db, task, registry)) ??
     (handler ? null : `este worker não roda ${task.type}`);
   if (refused) return finish(db, { ...task, attempts: task.maxAttempts }, 'error', refused);
 

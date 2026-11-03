@@ -118,6 +118,13 @@ describe('prévia → aprovação → execução', () => {
     expect(readLog(real.checkpoint)).toEqual(['lote 1/2: olá', 'lote 2/2: olá']);
     expect(real.runs.map((r) => r.status)).toEqual(['ok']);
 
+    // a lista (CLI e painel) já não mostra a prévia aprovada como aguardando
+    const listed = await listTasks(db);
+    const listedPreview = listed.find((t) => t.id === previewId)!;
+    expect(listedPreview.approved).toBe(true);
+    expect(awaitingApproval(listedPreview)).toBe(false);
+    expect(listed.find((t) => t.id === realId)!.approved).toBe(false);
+
     const after = await getTask(db, previewId);
     expect(after.approvals).toEqual([expect.objectContaining({ id: realId, status: 'done' })]);
   });
@@ -169,6 +176,38 @@ describe('tipo destrutivo', () => {
     expect(apagou).toEqual([]);
     await approvePreview(db, id, 'admin', registry);
     await work();
+    expect(apagou).toEqual(['BR']);
+  });
+
+  it('o worker recusa a execução com previaId forjado ou de prévia que não é dela', async () => {
+    const { id: previewId } = await requestTask(
+      db,
+      { type: 'teste.apaga', params: { alvo: 'BR' }, previa: true, requestedBy: 'a' },
+      registry,
+    );
+    // previaId que não existe
+    await enqueue(db, {
+      type: 'teste.apaga',
+      params: { alvo: 'BR', previaId: '019a0000-0000-7000-8000-000000000000' },
+      priority: 10,
+    });
+    expect((await work()).result).toBe('error');
+    // prévia ainda não concluída: roda a prévia primeiro
+    await work();
+    const { id: realId } = await approvePreview(db, previewId, 'admin', registry);
+    // uma segunda execução com o mesmo previaId, pelo enqueue direto: não é a aprovada
+    const { id: forged } = await enqueue(db, {
+      type: 'teste.apaga',
+      params: { alvo: 'BR', previaId: previewId },
+      priority: 10,
+    });
+    const first = await work();
+    expect(first.task.id).toBe(forged);
+    expect(first.result).toBe('error');
+    expect((await getTask(db, forged)).lastError).toMatch(/aprovação válida/);
+    expect(apagou).toEqual([]);
+    const second = await work();
+    expect(second.task.id).toBe(realId);
     expect(apagou).toEqual(['BR']);
   });
 

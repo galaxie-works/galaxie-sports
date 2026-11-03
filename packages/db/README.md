@@ -113,7 +113,9 @@ pela CLI `gs tarefa` e pelo painel (Ajustes → Sistema → Tarefas): `requestTa
   (`{ resumo?, contagens, amostra }`) e não muda nada.
 - **Aprovação**: `approvePreview` enfileira a execução de verdade com os mesmos params e `params.previaId`, uma por
   prévia (`dedupe_key` `previa:<id>`).
-- **Destrutiva**: `requestTask` recusa sem prévia, e o worker confere de novo com `checkRunnable` antes de executar.
+- **Destrutiva**: `requestTask` recusa sem prévia, e o worker confere de novo antes de executar: `checkRunnable` (regra
+  e params) e `checkApproval` (o `previaId` aponta para uma prévia concluída do mesmo tipo e esta é a execução que a
+  aprovação criou). A aprovação trava a linha da prévia, então duas aprovações nunca criam duas execuções.
 - `previa`, `previaId` e `reprocessaDe` são chaves reservadas dos `params`: nenhum tipo declara, quem pede não manda.
 - Convenções do checkpoint que o painel mostra: `progresso` (`{ feitos, total?, lote? }`), `log` (últimas 20 linhas)
   e `previa`.

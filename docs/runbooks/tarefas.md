@@ -22,7 +22,8 @@ A ferramenta sinaliza, uma pessoa decide. Tipo que apaga, troca ou religa dados 
 3. Sem aprovação, nada muda. Cada prévia aprova uma vez só (dois cliques ao mesmo tempo criam uma execução).
 
 A CLI recusa o tipo destrutivo sem `--previa`, e o painel trava o "Só a prévia" ligado. O worker confere de novo antes
-de executar (`checkRunnable`): uma tarefa destrutiva que pulou a regra pelo `enqueue` direto encerra em erro sem rodar.
+de executar (`checkRunnable` e `checkApproval`): uma tarefa destrutiva que pulou a regra pelo `enqueue` direto, ou que
+traz um `previaId` que não é o da execução criada pela aprovação, encerra em erro sem rodar.
 A aprovação não tem comando na CLI, só o botão do painel, que exige papel de admin.
 
 Tipo não destrutivo também pode rodar em prévia, quando o executor sabe (`previa: true` no registro): útil para ver o

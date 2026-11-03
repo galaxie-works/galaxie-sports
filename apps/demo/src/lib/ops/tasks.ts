@@ -88,8 +88,6 @@ export function toTaskDetail(task: TaskDetail): TaskDetailView {
   return {
     ...item,
     destrutiva: taskType(task.type)?.destrutiva ?? false,
-    // já aprovada: não aguarda mais (a lista não sabe; o detalhe sabe)
-    awaitingApproval: item.awaitingApproval && task.approvals.length === 0,
     params: ownParams(task.params),
     checkpoint: task.checkpoint,
     preview: preview
@@ -124,8 +122,8 @@ export function taskTypesView(): TaskTypeView[] {
 }
 
 /**
- * A lista do painel. Prévia já aprovada sai do "aguardando aprovação" aqui também (uma consulta pelas execuções
- * aprovadas das prévias listadas). Sem as colunas da fila (migration pendente), null: o resto do painel continua.
+ * A lista do painel (a prévia já aprovada vem marcada pela consulta, `approved`). Sem as colunas da fila (migration
+ * pendente), null: o resto do painel continua.
  */
 export async function readTasks(db: Database = queueDb()): Promise<OpsTasks | null> {
   let rows: TaskRow[];
@@ -137,20 +135,7 @@ export async function readTasks(db: Database = queueDb()): Promise<OpsTasks | nu
     if (code === '42P01' || code === '42703') return null;
     throw err;
   }
-  const items = rows.map(toTaskItem);
-  const approved = new Set(items.map((i) => i.previaId).filter((id): id is string => Boolean(id)));
-  const waiting = items.filter((i) => i.awaitingApproval && !approved.has(i.id));
-  // a aprovação pode ter saído da janela listada: confere as que sobraram
-  const outside = waiting.length ? await Promise.all(waiting.map((i) => getTask(db, i.id))) : [];
-  const approvedOutside = new Set(outside.filter((t) => t.approvals.length).map((t) => t.id));
-  return {
-    items: items.map((i) =>
-      i.awaitingApproval && (approved.has(i.id) || approvedOutside.has(i.id))
-        ? { ...i, awaitingApproval: false }
-        : i,
-    ),
-    types: taskTypesView(),
-  };
+  return { items: rows.map(toTaskItem), types: taskTypesView() };
 }
 
 /** Detalhe de uma tarefa (o painel pede ao abrir). */
