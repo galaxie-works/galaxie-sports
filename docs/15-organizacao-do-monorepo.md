@@ -150,10 +150,26 @@ mudar uma camada, edite `scripts/deps/rules.mjs` e rode `pnpm deps:map`.
 | `galaxie-sports-lineup-render` | `infra/lineup-render` (fora do workspace pnpm) | `lineup-render` |
 | `galaxie-sports-backup` | `infra/backup` | `backup` (`compose.dados.yml`, só por runbook) |
 | `galaxie-sports-prometheus` / `-grafana` | `infra/observability` | `prometheus`, `grafana` (`compose.obs.yml`, `deploy.yml -f project=obs`) |
-| `galaxie-sports-caddy` | `infra/caddy` | nenhum (era da stack do Portainer); o `maintenance` da VPS usa o Caddy oficial |
 
 O build e o push estão em `.github/workflows/docker.yml`; o deploy por SSH em `.github/workflows/deploy.yml`
-(passo a passo em [runbooks/deploy-pelo-github.md](runbooks/deploy-pelo-github.md)).
+(passo a passo em [runbooks/deploy-pelo-github.md](runbooks/deploy-pelo-github.md)). A página de manutenção da VPS usa o
+Caddy oficial (imagem de terceiros, sem build nosso).
+
+### Unidades de deploy
+
+A stack da VPS se divide em sete unidades que sobem, caem e voltam de versão sozinhas (épico #558). O que cada uma roda, o
+smoke dela, como voltar uma versão (`TAG_*` no `.env` ou `deploy.yml -f sha=<sha> -f force=1`) e com quem ela conversa estão
+em [`infra/vps-telemetry/UNIDADES.md`](../infra/vps-telemetry/UNIDADES.md). Onde mora o código de cada uma:
+
+| Unidade | Código e arquivos |
+|---|---|
+| [Borda](../infra/vps-telemetry/UNIDADES.md#borda) | [`infra/traefik`](../infra/traefik/README.md); `maintenance` no `compose.yml` |
+| [Dados](../infra/vps-telemetry/UNIDADES.md#dados) | `compose.dados.yml`, [`infra/backup`](../infra/backup/README.md), [`packages/db`](../packages/db/README.md) (migrations) |
+| [Observabilidade](../infra/vps-telemetry/UNIDADES.md#observabilidade) | `compose.obs.yml`, `infra/observability` |
+| [API](../infra/vps-telemetry/UNIDADES.md#api) | [`apps/api`](../apps/api/README.md) (`api`, `webhooks`, `migrate`) |
+| [Web](../infra/vps-telemetry/UNIDADES.md#web) | [`apps/demo`](../apps/demo/README.md) |
+| [Ao vivo](../infra/vps-telemetry/UNIDADES.md#ao-vivo) | `live-run` em [`services/ingestor`](../services/ingestor/README.md) (serviço próprio em breve) |
+| [Processamento](../infra/vps-telemetry/UNIDADES.md#processamento) | [`services/ingestor`](../services/ingestor/README.md), [`services/ai-agents`](../services/ai-agents/README.md), `infra/lineup-render` |
 
 ## 5. Fronteiras confusas hoje
 
@@ -165,7 +181,7 @@ Nada aqui está quebrado; são pontos onde quem chega ao repo tropeça ou onde u
 | F2 | `apps/demo` | O nome "demo" esconde que a mesma app é o site público, o portal do cliente, o Builder de widgets, a documentação e os ajustes da operação. | Renomear não vale o custo agora. Se um dia o site público ou o portal do cliente precisarem de deploy separado, essa é a primeira divisão. |
 | F3 | `apps/demo` | O schema `demo_auth` é criado em tempo de execução (`src/lib/auth/setup.ts`), fora das migrations do `packages/db`. | Levar para uma migration Drizzle quando mexer no login de novo, para o banco ter um dono só. |
 | F4 | `services/ingestor` × `services/ai-agents` | **Resolvido em 02/11/2026 (#547)**: o motor do scheduler virou o pacote `@galaxie/scheduler`, e os agentes ganharam entrada própria (`dist/cli/agents-scheduler.js`, jobs em `src/scheduler/jobs.ts`); o ingestor não conhece mais o pacote deles. O que sobra: a imagem do ingestor ainda empacota os dois e o `CMD` escolhe a entrada pelo `SCHEDULER_PROFILE`, e a regra de "sem crédito na IA" segue duplicada (`packages/scheduler/src/ai-credit.ts` repete `ai-agents/src/llm/errors.ts`). | Quando a stack passar o `command` do serviço `agents`, o `CMD` volta a ser só o do ingestor. Mover a classificação de erro para `@galaxie/ai-ledger` e importar dos dois lados. |
-| F5 | `infra/portainer` × `infra/vps-telemetry` | Havia duas stacks; a do Portainer (Caddy) era a primeira staging e não recebia mais as mudanças. | **Resolvido em 30/10/2026**: a stack do Portainer saiu e o backup/restore dela foi para `infra/backup/README.md`. Falta só tirar `infra/caddy` quando `build caddy` deixar de ser check obrigatório. |
+| F5 | `infra/portainer` × `infra/vps-telemetry` | Havia duas stacks; a do Portainer (Caddy) era a primeira staging e não recebia mais as mudanças. | **Resolvido em 30/10/2026**: a stack do Portainer saiu e o backup/restore dela foi para `infra/backup/README.md`. A imagem do Caddy dela e o `build caddy` saíram em 03/11/2026 (#553). |
 | F6 | `apps/api/dump.rdb` | Um dump do Redis/Valkey estava versionado dentro da API. | **Resolvido em 30/10/2026**: removido e `dump.rdb` no `.gitignore`. |
 | F7 | Configuração | Os pacotes acham `config/` e `data/` por caminho relativo à pasta do pacote (`../../config`), e as imagens recriam esse layout em `/srv`. Mover uma pasta quebra em silêncio em produção. | A maior parte aceita uma variável (`RULES_CONFIG_DIR`, `WTW_CONFIG_DIR`, `GEO_CONFIG_DIR`, `AI_POLICY_FILE`; `KNOWLEDGE_DIR` e `MEDIA_DENYLIST_PATH` só na API), listadas em `config/README.md`. Os CLIs do `knowledge` e o `assets:mirror` só aceitam opção de linha de comando (`--dir`, `--denylist`); vale padronizar quando mexer neles. |
 | F8 | `services/ingestor` | O pacote cresceu para mais de 50 CLIs: além da ingestão da api-sports, faz Wikidata, Wikimedia Commons, F1DB, hipismo, acervo de logos e qualidade. | Agrupar os CLIs por área no README (feito). Se o acervo de imagens ganhar ritmo próprio, ele é candidato a um serviço `services/assets`. |

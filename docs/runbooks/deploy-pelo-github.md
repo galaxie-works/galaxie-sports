@@ -37,7 +37,7 @@ O hash é o `sha256` do `git ls-tree HEAD` da entrada da imagem (`infra/ops/imag
 imagem publicada: ela só ganha as tags do commit, sem build (log `entrada <hash>: <imagem>` no passo "Entrada da imagem",
 que também lista os caminhos).
 
-As imagens de pasta única (`backup`, `prometheus`, `grafana`, `caddy`) usam o hash git da própria pasta. A entrada de
+As imagens de pasta única (`backup`, `prometheus`, `grafana`) usam o hash git da própria pasta. A entrada de
 `api`, `ingestor` e `demo` sai do grafo do pnpm, em `infra/ops/image-inputs.mjs`:
 
 - as pastas dos pacotes do workspace no fechamento de dependências do app, com as `devDependencies`, porque o
@@ -129,8 +129,9 @@ o que faltar.
       nova, imprime o rollback manual, porque o código antigo pode não aguentar o schema novo.
 11. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
 12. Religa o espelho de assets.
-13. Publica as notas de versão (`release-notes.mjs`), só quando publicou, com o SHA do deploy ao lado do hash de cada
-    imagem e marcando as que trocaram.
+13. Publica as notas de versão (`release-notes.mjs`), só quando publicou: a seção "Serviços publicados" (cada imagem com os
+    serviços que a rodam, a tag anterior → nova e "trocada" ou "sem troca") e, no fim, um marcador `galaxie-versions` com as
+    tags inteiras, de onde a release seguinte lê a tag anterior e o alerta `ProducaoAtrasada` lê a do ingestor.
 
 ### A versão que cada serviço roda
 
@@ -250,7 +251,7 @@ Checks obrigatórios (nomes exatos dos jobs; app do GitHub Actions, id 15368):
 
 - `checks (Postgres 17, Valkey 8)` e `checks (Postgres 18, Valkey 9)`
 - `Segredos (gitleaks)`
-- `build api`, `build ingestor`, `build demo`, `build backup`, `build prometheus`, `build grafana`, `build caddy`,
+- `build api`, `build ingestor`, `build demo`, `build backup`, `build prometheus`, `build grafana`,
   `build lineup-render`
 - `valida stack, alertas e scripts`
 - `backup e restore ponta a ponta (Postgres 17)` e `backup e restore ponta a ponta (Postgres 18)`
@@ -275,7 +276,6 @@ gh api -X PUT repos/galaxie-works/galaxie-sports/branches/main/protection --inpu
       { "context": "build backup", "app_id": 15368 },
       { "context": "build prometheus", "app_id": 15368 },
       { "context": "build grafana", "app_id": 15368 },
-      { "context": "build caddy", "app_id": 15368 },
       { "context": "build lineup-render", "app_id": 15368 },
       { "context": "valida stack, alertas e scripts", "app_id": 15368 },
       { "context": "backup e restore ponta a ponta (Postgres 17)", "app_id": 15368 },
