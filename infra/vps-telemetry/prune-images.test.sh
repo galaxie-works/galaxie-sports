@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Teste da poda das imagens antigas (prune-images.sh) contra o Docker de verdade, no CI (docker.yml › valida stack):
 # imagens mínimas (docker import de um arquivo só) com o nome e a tag da stack, um .env e .env.bak-* como os do
-# deploy. Ficam a versão no ar, as KEEP anteriores, a tag em uso por contêiner parado, o lineup-render e o que não é
-# do IMAGE_PREFIX; sai o resto.
+# deploy. Ficam a versão no ar, as KEEP anteriores de cada imagem, a tag em uso por contêiner parado, o lineup-render e o
+# que não é do IMAGE_PREFIX; sai o resto.
 #
 #   bash infra/vps-telemetry/prune-images.test.sh
 set -euo pipefail
@@ -27,6 +27,12 @@ img() {
   echo "$1" > "$dir/v"
   tar -C "$dir" -c v | docker import -c 'CMD ["/v"]' - "$1" >/dev/null
   rm -rf "$dir"
+}
+
+# um .env com uma tag por imagem: demo com a dada, e as outras com in-<a repetida> (nunca mudam)
+tags_env() {
+  printf 'IMAGE_PREFIX=%s\nTAG_API=%s\nTAG_DEMO=%s\nTAG_INGESTOR=%s\nTAG_BACKUP=%s\nTAG_PROMETHEUS=%s\nTAG_GRAFANA=%s\n' \
+    "$P" "$1" "$2" "in-$FIX" "in-$FIX" "in-$FIX" "in-$FIX"
 }
 
 # S[0] mais velha … S[5] no ar; S[1] tem um contêiner parado
@@ -79,16 +85,46 @@ want "$P-api:${S[1]}" # contêiner parado
 want "$P-lineup-render:1.64.0"
 want "$P-api:manual"
 want "$OTHER-api:${S[0]}"
-grep -q '^imagens: 5 tag(s) antiga(s) removida(s); ficaram a no ar e 2 anterior(es), 1 antiga(s) em uso por contêiner;' <<< "$out" || {
+grep -q '^imagens: 5 tag(s) antiga(s) removida(s); de cada imagem ficaram a no ar e até 2 anterior(es), 1 antiga(s) em uso por contêiner;' <<< "$out" || {
   echo "FAIL  resumo inesperado"
   fail=1
 }
 
-# .env sem IMAGE_TAG: não remove nada
+echo "── tags por serviço: cada imagem guarda as próprias anteriores"
+rm -f .env.bak-*
+FIX="$(printf 'f%.0s' $(seq 40))"
+D=()
+for i in 1 2 3 4; do D+=("in-$(printf "$i%.0s" $(seq 40))"); done
+A="in-$(printf 'a%.0s' $(seq 40))"
+A_OLD="in-$(printf 'b%.0s' $(seq 40))"
+A_OLDER="in-$(printf 'c%.0s' $(seq 40))"
+for t in "${D[@]}"; do img "$P-demo:$t"; done
+for t in "$A" "$A_OLD" "$A_OLDER"; do img "$P-api:$t"; done
+img "$P-ingestor:in-$FIX"
+# a demo mudou em todo deploy; a API, só no mais velho: ela guarda a anterior mesmo com a demo tendo girado várias vezes.
+tags_env "$A" "${D[3]}" > .env
+tags_env "$A" "${D[2]}" > .env.bak-c
+tags_env "$A" "${D[1]}" > .env.bak-b
+tags_env "$A_OLD" "${D[0]}" > .env.bak-a
+touch -d "@1700000000" .env.bak-a
+touch -d "@1700000060" .env.bak-b
+touch -d "@1700000120" .env.bak-c
+out="$(bash -s -- 1 < "$HERE/prune-images.sh")"
+echo "$out"
+want "$P-demo:${D[3]}"
+want "$P-demo:${D[2]}"
+gone "$P-demo:${D[1]}"
+gone "$P-demo:${D[0]}"
+want "$P-api:$A"
+want "$P-api:$A_OLD"
+gone "$P-api:$A_OLDER"
+want "$P-ingestor:in-$FIX"
+
+# .env sem tag: não remove nada
 printf 'IMAGE_PREFIX=%s\n' "$P" > .env
 out="$(bash -s -- 0 < "$HERE/prune-images.sh")"
-grep -q '^WARN  imagens: IMAGE_PREFIX ou IMAGE_TAG fora do .env' <<< "$out" && has "$P-api:${S[5]}" || {
-  echo "FAIL  sem IMAGE_TAG deveria só avisar"
+grep -q '^WARN  imagens: tag de api fora do .env' <<< "$out" && has "$P-api:$A" || {
+  echo "FAIL  sem tag deveria só avisar"
   fail=1
 }
 
