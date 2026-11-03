@@ -633,7 +633,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_interval_seconds",
+          "expr": "max by (sport) (live_tick_interval_seconds)",
           "legendFormat": "último intervalo ({{sport}})"
         },
         {
@@ -642,7 +642,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_interval_max_seconds",
+          "expr": "max by (sport) (live_tick_interval_max_seconds)",
           "legendFormat": "maior dos últimos 5 min ({{sport}})"
         },
         {
@@ -651,7 +651,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_planned_interval_seconds > 0",
+          "expr": "max by (sport) (live_tick_planned_interval_seconds) > 0",
           "legendFormat": "intervalo do plano ({{sport}})"
         }
       ]
@@ -736,7 +736,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_last_tick_age_seconds and on(sport) (live_window_open == 1) and on(sport) (live_tick_paused == 0)",
+          "expr": "max by (sport) (live_last_tick_age_seconds) and on(sport) (max by (sport) (live_window_open) == 1) and on(sport) (max by (sport) (live_tick_paused) == 0)",
           "legendFormat": "{{sport}}"
         },
         {

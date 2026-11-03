@@ -9,8 +9,8 @@ import {
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LIVE_OPTIONS } from '../live/schedule.js';
 import { DEFAULT_CHANGE_FEED_RETENTION_DAYS } from '../ops/change-feed-retention.js';
-import { envKey, nextRuns, scheduleFromEnv as scheduleJobs } from '@galaxie/scheduler';
-import { DEFAULT_JOBS } from './schedule.js';
+import { envKey, jobLockName, nextRuns, scheduleFromEnv as scheduleJobs } from '@galaxie/scheduler';
+import { DEFAULT_JOBS, jobsForProfile, schedulerLiveMode } from './schedule.js';
 
 /** A agenda do ingestor com as sobrescritas do ambiente. */
 const scheduleFromEnv = (env: NodeJS.ProcessEnv) => scheduleJobs(env, DEFAULT_JOBS);
@@ -104,17 +104,71 @@ describe('scheduleFromEnv', () => {
   });
 });
 
+describe('jobsForProfile e SCHEDULER_LIVE', () => {
+  const names = (jobs: { name: string }[]) => jobs.map((j) => j.name);
+  const liveJobs = ['live-run', 'live-reconcile', 'events-clock'];
+
+  it('perfil live: só os três jobs da faixa do ao vivo', () => {
+    expect(names(jobsForProfile('live', {}))).toEqual(liveJobs);
+    expect(DEFAULT_JOBS.filter((j) => j.live).map((j) => j.name)).toEqual(liveJobs);
+  });
+
+  it('perfil live: o live-run fica no ar (--continuo), com trava por cópia; reconcile e relógio seguem no cron com a trava do job', () => {
+    const [run, reconcile, clock] = jobsForProfile('live', {});
+    expect(run).toMatchObject({ args: ['--continuo'], keepAlive: true, lock: 'instance', heapMb: 128 });
+    expect(jobLockName(run!, 'copia-a')).toBe('live-run@copia-a');
+    for (const j of [reconcile!, clock!]) {
+      expect(j.keepAlive).toBeUndefined();
+      expect(j.lock).toBeUndefined();
+      expect(jobLockName(j, 'copia-a')).toBe(j.name);
+    }
+    expect(reconcile!.cron).toBe('*/10 * * * *');
+    expect(clock!.cron).toBe('* * * * *');
+    // a agenda padrão do código não muda (o ingestor com SCHEDULER_LIVE=internal roda o live-run de sempre)
+    expect(DEFAULT_JOBS.find((j) => j.name === 'live-run')).toMatchObject({ args: [] });
+    expect(DEFAULT_JOBS.find((j) => j.name === 'live-run')!.keepAlive).toBeUndefined();
+  });
+
+  it('perfil ingestor: com SCHEDULER_LIVE=internal (padrão) roda tudo; com external, nada do ao vivo', () => {
+    expect(names(jobsForProfile('ingestor', {}))).toEqual(names([...DEFAULT_JOBS]));
+    expect(names(jobsForProfile('ingestor', { SCHEDULER_LIVE: 'internal' }))).toEqual(
+      names([...DEFAULT_JOBS]),
+    );
+    const external = names(jobsForProfile('ingestor', { SCHEDULER_LIVE: ' External ' }));
+    expect(external).toEqual(names(DEFAULT_JOBS.filter((j) => !j.live)));
+    for (const j of liveJobs) expect(external).not.toContain(j);
+  });
+
+  it('SCHEDULER_LIVE inválido falha alto', () => {
+    expect(schedulerLiveMode({})).toBe('internal');
+    expect(() => schedulerLiveMode({ SCHEDULER_LIVE: 'fora' })).toThrow(/SCHEDULER_LIVE/);
+    expect(() => jobsForProfile('ingestor', { SCHEDULER_LIVE: 'fora' })).toThrow(/SCHEDULER_LIVE/);
+  });
+
+  it('SCHEDULE_<JOB>=off também desliga no perfil live', () => {
+    expect(names(scheduleJobs({ SCHEDULE_EVENTS_CLOCK: 'off' }, jobsForProfile('live', {})))).toEqual([
+      'live-run',
+      'live-reconcile',
+    ]);
+  });
+});
+
 describe('registro do painel de Operação (@galaxie/runtime-config)', () => {
-  it('cada job do ingestor tem a mesma agenda padrão e o mesmo perfil no registro', () => {
-    const fromCode = DEFAULT_JOBS.map((j) => ({ name: j.name, service: 'ingestor', cron: j.cron }));
+  it('cada job do ingestor tem a mesma agenda padrão e o mesmo perfil no registro (a faixa do ao vivo é do live)', () => {
+    const fromCode = DEFAULT_JOBS.map((j) => ({
+      name: j.name,
+      service: j.live ? 'live' : 'ingestor',
+      cron: j.cron,
+    }));
     expect(
-      SCHEDULED_JOBS.filter((j) => j.service === 'ingestor').map(({ name, service, cron }) => ({
-        name,
-        service,
-        cron,
-      })),
+      SCHEDULED_JOBS.filter((j) => j.service === 'ingestor' || j.service === 'live').map(
+        ({ name, service, cron }) => ({ name, service, cron }),
+      ),
     ).toEqual(fromCode);
     for (const j of fromCode) expect(scheduleKey(j.name)).toBe(envKey(j.name));
+    // o ingestor lê a agenda do ao vivo com SCHEDULER_LIVE=internal
+    for (const j of DEFAULT_JOBS.filter((x) => x.live))
+      expect(settingDef(scheduleKey(j.name))?.services).toEqual(['live', 'ingestor']);
   });
 
   it('padrões do ao vivo e da retenção batem com o código', () => {

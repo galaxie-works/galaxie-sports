@@ -68,13 +68,13 @@ pelo nome. O banco anterior fica como `<db>_pre_restore_<data>` para rollback.
    docker compose -f compose.dados.yml exec backup restore.sh --verify latest
    ```
 2. **Restauração real**, na pasta da stack na VPS:
-   1. `docker compose stop api demo ingestor agents webhooks` (evita escrita entre o dump e a troca).
+   1. `docker compose stop api demo live ingestor agents webhooks` (evita escrita entre o dump e a troca).
    2. `docker compose -f compose.dados.yml exec backup restore.sh --yes latest` (ou `--yes galaxie_sports_<data>.dump`, ou
       `--yes s3://<bucket>/postgres/<arquivo>.dump` para baixar da cópia remota). Com os papéis por serviço ligados, a
       restauração precisa do dono do banco: veja "Depois de restaurar um dump" no
       [README da VPS](../vps-telemetry/README.md).
    3. `docker compose run --rm migrate` (o dump vai sem GRANTs; o migrate refaz os papéis), depois
-      `docker compose start api demo ingestor agents webhooks`; confira `https://$API_DOMAIN/health/db` e o painel.
+      `docker compose start api demo live ingestor agents webhooks`; confira `https://$API_DOMAIN/health/db` e o painel.
 3. **Rollback** (se o restaurado não servir), no `postgres`:
    ```sql
    ALTER DATABASE galaxie_sports RENAME TO galaxie_sports_descartado;

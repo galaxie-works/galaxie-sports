@@ -79,7 +79,9 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // - ops: change_feed (publishChange e os triggers do core.event), job_run, sync_cursor (estado do ao vivo e
   //   cursores do detalhe/reconciliação) e o Quota Governor (quota_ledger, quota_snapshot, quota_budget);
   // - leitura: core, ops (sobrescritas do painel, uso da cota), raw (cache do cliente) e semantic (os pares de
-  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian.
+  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian;
+  // - o scheduler do serviço (perfil `live`, #535): relata o env ao painel (ops.runtime_env, que também é o sinal de
+  //   vida) e atende o "rodar agora" do live-reconcile e do events-clock (ops.job_request).
   live: {
     read: ['core', 'ops', 'raw', 'semantic'],
     write: [
@@ -87,6 +89,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'raw.api_response',
       'ops.change_feed',
       'ops.job_run',
+      'ops.job_request',
+      'ops.runtime_env',
       'ops.sync_cursor',
       'ops.quota_ledger',
       'ops.quota_snapshot',
@@ -119,10 +123,12 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
  * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
  * - demo: login 5 + Builder 3 + change feed 2 = 10 por cópia × 3 (no ar, nova e candidata) = 30;
- * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 7, mais o ao vivo enquanto ele roda aqui
- *   (3 × (4 + 1) = 15) = 22; o worker da fila (#542), no mesmo papel: pai 2 + `WORKER_MAX_TASKS` 2 × (2 do `runTask` +
- *   4 do contexto do job) = 14, duas cópias durante a troca do deploy = 28; mais CLI à mão: 55. Quando o serviço
- *   `live` existir (#535) o ao vivo sai daqui e o teto cai para 40;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 7 (a stack passa 1: o trabalho longo foi para o worker),
+ *   mais o ao vivo quando ele roda aqui (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço
+ *   `live`, que não refaz o teto do papel: 3 × (4 + 1) = 15) = 22; o worker da fila (#542), no mesmo papel: pai 2 +
+ *   `WORKER_MAX_TASKS` 2 × (2 do `runTask` + 4 do contexto do job) = 14, duas cópias durante a troca do deploy = 28;
+ *   mais CLI à mão: 55. Com o `live` no ar (#535) o pico aqui é 7 + 28; o teto só cai quando a volta para antes dele
+ *   deixar de ser opção;
  * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
  * - live: 2 cópias (a no ar e a nova durante a troca) × (scheduler 2 + 3 processos × (4 + 1) = 17) = 34, mais folga: 36.
  *   Se o serviço rodar os três no mesmo processo, com um pool só, o teto pode cair para 12;

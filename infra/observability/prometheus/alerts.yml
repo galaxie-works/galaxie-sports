@@ -51,10 +51,12 @@ groups:
           summary: 'Job {{ $labels.job_name }} sem sucesso há {{ $value | humanizeDuration }}'
           description: 'Mais de 2 intervalos da agenda sem execução com sucesso. Veja o scheduler {{ $labels.component }} (Ajustes → Sistema), ops.job_run e os logs com job={{ $labels.job_name }}.'
 
-      # Os schedulers (ingestor e agents) relatam o env em ops.runtime_env a cada 30 s: 10 min sem relato = scheduler
-      # parado ou sem banco. Com jogo ao vivo, o LiveEventStale (push) dispara antes.
+      # Os schedulers (ingestor, agents e live) relatam o env em ops.runtime_env a cada 30 s: 10 min sem relato =
+      # scheduler parado ou sem banco. Com jogo ao vivo, o LiveEventStale (push) dispara antes. O live só tem série
+      # depois do primeiro relato (com SCHEDULER_LIVE=internal o ao vivo roda no ingestor); ao voltar para internal,
+      # apague as linhas dele: delete from ops.runtime_env where service = 'live'.
       - alert: SchedulerHeartbeatStale
-        expr: time() - galaxie_service_last_report_timestamp_seconds{component=~"ingestor|agents"} > 600
+        expr: time() - galaxie_service_last_report_timestamp_seconds{component=~"ingestor|agents|live"} > 600
         for: 5m
         labels:
           severity: warning
@@ -182,7 +184,8 @@ groups:
           description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
 
       # Ritmo do ao vivo (#538). live_last_tick_age_seconds é a idade do último tick de qualquer cópia: o /metrics do
-      # scheduler do ingestor lê do Postgres o registro que o live-run grava a cada tick, então a troca de líder ou de
+      # scheduler do live (#535; do ingestor com SCHEDULER_LIVE=internal) lê do Postgres o registro que o live-run grava a
+      # cada tick, e cada cópia do serviço expõe as mesmas séries (por isso o max by sport). A troca de líder ou de
       # versão aparece como buraco entre dois ticks (com LIVE_LEADER=on a reserva assume em ~2 s; sem ele, o live-run
       # volta no próximo horário do scheduler). O limite é 60 s ou 2 intervalos do plano, o que for maior: o plano
       # espaça os ticks até 15 min quando o orçamento do dia aperta, e isso não é falha. Fica de fora a pausa de
@@ -191,18 +194,18 @@ groups:
       - alert: LiveTickGap
         expr: >-
           (
-            live_last_tick_age_seconds
-            > on(sport) clamp_min(2 * live_tick_planned_interval_seconds, 60)
+            max by (sport) (live_last_tick_age_seconds)
+            > on(sport) clamp_min(2 * max by (sport) (live_tick_planned_interval_seconds), 60)
           )
-          and on(sport) (live_window_open == 1)
-          and on(sport) (live_tick_paused == 0)
+          and on(sport) (max by (sport) (live_window_open) == 1)
+          and on(sport) (max by (sport) (live_tick_paused) == 0)
         for: 1m
         labels:
           severity: critical
           sinal: ao-vivo
         annotations:
           summary: 'Ao vivo de {{ $labels.sport }} sem tick há {{ $value | humanizeDuration }}'
-          description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+          description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
 
   - name: galaxie-platform
     rules:

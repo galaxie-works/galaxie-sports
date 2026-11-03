@@ -46,6 +46,26 @@ no SIGTERM. O laço, as vagas e a drenagem estão em `src/worker/`; operação e
 `src/scheduler/schedule.ts` define os jobs (ingestão, normalização, ao vivo e manutenção) e `src/cli/scheduler.ts` os entrega ao
 motor [`@galaxie/scheduler`](../../packages/scheduler/README.md), o mesmo dos agentes de IA.
 
+`SCHEDULER_PROFILE` escolhe quais jobs (`jobsForProfile`):
+
+| Perfil | Jobs | Onde |
+| --- | --- | --- |
+| `ingestor` (padrão) | todos; com `SCHEDULER_LIVE=external`, menos a faixa do ao vivo (`live: true`) | serviço `ingestor` (na VPS, `external`) |
+| `live` | só `live-run`, `live-reconcile` e `events-clock` | serviço `live` (#535) |
+
+`SCHEDULER_LIVE` (padrão `internal`) existe para o dev e a volta de versão continuarem com um contêiner só: no NAS o ao vivo
+roda no ingestor, como antes. No perfil `live`:
+
+- o `live-run` roda com `--continuo` e `LIVE_LEADER=on` (o perfil liga; `LIVE_LEADER=off` explícito recusa a partida) e
+  fica no ar: sem cron, o scheduler o sobe na partida e de novo quando ele sai (`keepAlive`, 1 s, dobrando a cada saída
+  rápida até 60 s). Ele não usa a trava por job do scheduler, que deixaria a reserva sempre de fora; usa uma trava por
+  cópia (`live-run@<contêiner>`), que só serve para a outra cópia saber, na partida, se a execução `running` é órfã;
+- `live-reconcile` e `events-clock` seguem no cron, com a trava por job;
+- os processos usam o perfil de tempos `live` do banco (`contextFromEnv` lê o `SCHEDULER_PROFILE`), e o scheduler relata
+  ao painel como `live`.
+
+Para rodar o perfil à mão: `SCHEDULER_PROFILE=live pnpm --filter @galaxie/ingestor scheduler` (com `--list`, só a agenda).
+
 Os agentes têm entrada própria em [`services/ai-agents`](../ai-agents/README.md) (`dist/cli/agents-scheduler.js`): este
 scheduler não conhece o pacote deles, e `SCHEDULER_PROFILE=agents` aqui falha com a indicação da entrada certa. A imagem do
 ingestor traz os dois pacotes (a VPS sobe a mesma imagem duas vezes, `ingestor` e `agents`), e o `CMD` do `Dockerfile` escolhe
@@ -53,8 +73,9 @@ a entrada pelo `SCHEDULER_PROFILE`.
 
 ## Ao vivo: líder e reserva
 
-Hoje o `live-run` nasce pelo cron e tem a trava por job do scheduler. Com `LIVE_LEADER=on` (padrão `off`; quem liga é o
-serviço `live`, #535) ele vira duas cópias no ar: uma líder e uma reserva.
+No ingestor (`SCHEDULER_LIVE=internal`) o `live-run` nasce pelo cron e tem a trava por job do scheduler. No serviço `live`
+(perfil `live`, #535) ele fica no ar com `LIVE_LEADER=on` (padrão `off` fora dele), e cada cópia do serviço é uma
+candidata: uma líder e, com duas cópias, uma reserva.
 
 - **Eleição**: a trava é `live:leader`, um advisory lock de sessão numa conexão só dela (`jobLockContender`). Quem tem a
   trava faz os ticks e chama a api-sports. Quem não tem não chama nada e tenta a trava a cada `LIVE_LEADER_RETRY_MS`
@@ -99,7 +120,8 @@ a cada coleta: o `live-run` é um processo filho sem servidor, então grava o ri
 | `live_window_open{sport}` | 1 quando o plano do dia tem janela aberta agora |
 | `live_leader{instance}` | 1 na cópia com a trava `live:leader`, 0 nas reservas (só com `LIVE_LEADER=on`) |
 
-O alerta `LiveTickGap` e o SLO `ao-vivo` usam essas séries (`docs/14-slos-e-error-budget.md`).
+O alerta `LiveTickGap` e o SLO `ao-vivo` usam essas séries (`docs/14-slos-e-error-budget.md`). No painel (Ajustes →
+Operação), o serviço `Ao vivo` mostra a líder do mandato atual e o último tick.
 
 ## Depende de
 
@@ -111,4 +133,5 @@ O alerta `LiveTickGap` e o SLO `ao-vivo` usam essas séries (`docs/14-slos-e-err
 
 ## Deploy
 
-Imagem `galaxie-sports-ingestor` (`Dockerfile`, build a partir da raiz). Na VPS: serviços `ingestor` e `agents`.
+Imagem `galaxie-sports-ingestor` (`Dockerfile`, build a partir da raiz). Na VPS: serviços `live`, `ingestor` e `agents`
+(`infra/vps-telemetry/README.md` › Ao vivo).

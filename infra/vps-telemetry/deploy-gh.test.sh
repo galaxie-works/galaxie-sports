@@ -7,7 +7,10 @@
 #
 #   - a VPS num projeto só recusa o deploy; a transição mantém volumes, rede e os contêineres de apps; falha nela desfaz;
 #     ela é idempotente e tem reverso
-#   - merge só na demo troca só a demo; merge que só muda o compose de um serviço troca só ele
+#   - merge só na demo troca só a demo (o live, o ingestor e o resto ficam); merge que só muda o compose de um serviço
+#     troca só ele
+#   - imagem do ingestor nova: o live troca antes do ingestor e dos agents, e volta junto com eles; a volta para uma
+#     versão sem o live (o ao vivo dentro do ingestor) o tira do ar
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
 #   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta o projeto inteiro
@@ -33,7 +36,7 @@ PORT="${TEST_REGISTRY_PORT:-15055}"
 REGISTRY_CT="$PROJECT_T-registry"
 P="localhost:$PORT/$PROJECT_T/gs"
 NAMES=(api demo ingestor backup prometheus grafana)
-APPS=(agents api demo ingestor maintenance migrate tarefa webhooks worker)
+APPS=(agents api demo ingestor live maintenance migrate tarefa webhooks worker)
 DADOS=(backup postgres s3 s3-init valkey)
 OBS=(grafana node-exporter prometheus)
 ZERO=0000000000000000000000000000000000000000
@@ -174,6 +177,11 @@ services_apps() {
   demo: &demo
     <<: *app
     image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
+  live:
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
+    environment:
+      SCHEDULER_PROFILE: live
   ingestor:
     <<: *app
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
@@ -469,6 +477,7 @@ deploy "$C2"
 expect_rc 0
 expect_log '^plano:.*demo: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
 expect_log '^plano:.*ingestor: igual, fica'
+expect_log '^plano:.*live: igual, fica'
 expect_log '^plano:.*api: igual, fica'
 expect_log '^plano:.*migrate: igual, fica'
 expect_log '^candidato aprovado'
@@ -560,7 +569,7 @@ worker_old="$(id_of worker)"
 deploy "$C5W"
 expect_rc 0
 expect_log '^plano:.*worker: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
-expect_log '^trocando: ingestor agents worker$'
+expect_log '^trocando: live ingestor agents worker$'
 expect_log '^worker: drenando 1 contêiner\(es\) antigo\(s\)'
 expect_log "^ok  worker: ${worker_old:0:12} drenado em [3-9] s \\(saída 0\\)"
 expect_log '^ok  worker trocado sem manutenção'
@@ -571,12 +580,12 @@ if [ "$(line_of '^ok  worker trocado')" -lt "$(line_of '^trocando: api webhooks'
 else
   bad "worker trocou depois da API"
 fi
-expect_recreated "$before" ingestor agents worker api webhooks migrate
+expect_recreated "$before" live ingestor agents worker api webhooks migrate
 expect_eq "worker novo no ar" "$(image_of worker)" "$(hash_of ingestor)"
 expect_eq "um contêiner do worker" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=worker | grep -c .)" 1
 expect_eq "worker antigo removido" "$(docker ps -aq --filter "id=$worker_old" | grep -c . || true)" 0
 
-echo "── C6: ingestor que não sobe: volta só ingestor e agents"
+echo "── C6: ingestor que não sobe: o live, que troca primeiro, falha; voltam live, ingestor e agents"
 echo y >> "$REPO_T/services/ingestor/x"
 touch "$REPO_T/QUEBRA_ingestor"
 C6="$(commit "c6")"
@@ -586,8 +595,10 @@ ing_old="$(env_of TAG_INGESTOR)"
 ing_old_ver="$(image_of ingestor)"
 deploy "$C6"
 expect_rc 1
-expect_log '^FAIL  ingestor agents worker: a troca falhou'
+expect_log '^trocando: live ingestor agents worker'
+expect_log '^FAIL  live ingestor agents worker: a troca falhou'
 expect_eq "TAG_INGESTOR voltou" "$(env_of TAG_INGESTOR)" "$ing_old"
+expect_eq "live anterior no ar" "$(image_of live)" "$ing_old_ver"
 expect_eq "ingestor anterior no ar" "$(image_of ingestor)" "$ing_old_ver"
 expect_eq "agents anterior no ar" "$(image_of agents)" "$ing_old_ver"
 expect_eq "worker anterior no ar (nem chegou a trocar)" "$(image_of worker)" "$ing_old_ver"
@@ -630,8 +641,41 @@ echo v >> "$REPO_T/services/ingestor/x"
 echo v >> "$REPO_T/apps/demo/x"
 C8="$(commit "c8")"
 publish
+before="$(created)"
 deploy "$C8"
 expect_rc 0
+expect_log '^plano:.*live: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
+expect_log '^trocando: live ingestor agents'
+expect_log '^ok  live na versão in-'
+expect_recreated "$before" live ingestor agents worker demo
+expect_eq "live novo no ar" "$(image_of live)" "$(hash_of ingestor)"
+# o live sobe (e fica healthy) antes de o ingestor da versão nova, que não roda mais o ao vivo, ser recriado
+nanos() { date -d "$(docker inspect -f '{{.Created}}' "$(id_of "$1")")" +%s%N; }
+if [ "$(nanos live)" -lt "$(nanos ingestor)" ] && [ "$(nanos live)" -lt "$(nanos agents)" ]; then
+  ok "live trocado antes de ingestor e agents"
+else
+  bad "live não foi trocado antes de ingestor e agents"
+fi
+
+echo "── volta para uma versão sem o serviço live: o ingestor dela roda o ao vivo, e o live que sobrou sai"
+cp "$REPO_T/infra/vps-telemetry/compose.yml" "$WORK/compose-com-live.yml"
+sed -i '/^  live:$/,/^  ingestor:$/{/^  ingestor:$/!d}' "$REPO_T/infra/vps-telemetry/compose.yml"
+echo s >> "$REPO_T/services/ingestor/x"
+C_SL="$(commit "sem live")"
+publish
+deploy "$C_SL"
+expect_rc 0
+expect_log '^live: removido'
+expect_eq "nenhum live no ar" "$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=live | grep -c . || true)" 0
+expect_eq "ingestor da versão sem live" "$(image_of ingestor)" "$(hash_of ingestor)"
+cp "$WORK/compose-com-live.yml" "$REPO_T/infra/vps-telemetry/compose.yml"
+echo r >> "$REPO_T/services/ingestor/x"
+C_CL="$(commit "com live de novo")"
+publish
+deploy "$C_CL"
+expect_rc 0
+expect_log '^plano:.*live: troca \(novo\)'
+expect_eq "live de volta" "$(image_of live)" "$(hash_of ingestor)"
 
 echo "── smoke vermelho com um grupo trocado: volta só ele"
 echo u >> "$REPO_T/apps/demo/x"
@@ -643,7 +687,7 @@ deploy "$C9"
 expect_rc 1
 expect_log '^FAIL  deploy da .*: smoke test com falha'
 expect_eq "TAG_DEMO voltou" "$(env_of TAG_DEMO)" "$demo_old"
-expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C8"
+expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C_CL"
 rm "$REPO_T/SMOKE_FALHA_demo"
 echo t >> "$REPO_T/apps/demo/x"
 C10="$(commit "c10")"
