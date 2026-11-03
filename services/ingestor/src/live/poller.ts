@@ -33,7 +33,8 @@ export interface TickInput {
   /**
    * Abortado no encerramento (SIGTERM): o tick termina com o que o `listLive` trouxe e não abre as chamadas de detalhe
    * (confirmação do final e destaque), que a próxima líder faz. Assim o tick mais longo no encerramento é uma chamada
-   * (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação, e cabe no `stop_grace_period` do serviço `live`.
+   * (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação (30 s de consulta no perfil `live`), e cabe na espera do
+   * scheduler (`SCHEDULER_STOP_WAIT_SECONDS` 70) e no `stop_grace_period` (75 s) do serviço `live`.
    */
   stop?: AbortSignal | undefined;
 }

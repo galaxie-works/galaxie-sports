@@ -247,10 +247,11 @@ não toca no `live`, e recriar o ingestor não corta o placar.
   estar ligados (`DB_ROLES=on`, [Papéis do banco](#papéis-do-banco)).
 - **Memória**: 640m por cópia ([Memória dos jobs](#memória-dos-jobs)).
 - **Encerramento**: no SIGTERM a líder fecha o tick, publica o estado e solta a trava. O tick mais longo nessa hora é a
-  chamada no ar (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação: com o encerramento pedido, o tick não abre as chamadas
-  de detalhe (confirmação do final e destaque; até 6 × 30 s), que a próxima líder faz. Por isso o scheduler espera
-  40 s (`SCHEDULER_STOP_WAIT_SECONDS`) e o `stop_grace_period` é 45 s. Enquanto a líder não solta a trava, a reserva
-  espera: o normal é o tick acabar em 1 a 3 s.
+  chamada no ar (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação numa transação (perfil `live`: 30 s de consulta):
+  com o encerramento pedido, o tick não abre as chamadas de detalhe (confirmação do final e destaque; até 6 × 30 s), que
+  a próxima líder faz. Por isso o scheduler espera 70 s (`SCHEDULER_STOP_WAIT_SECONDS`: 30 + 30 e o estado) e o
+  `stop_grace_period` é 75 s. Enquanto a líder não solta a trava, a reserva espera: o normal é o tick acabar em 1 a 3 s,
+  e os 70 s só valem com a fonte e o banco no limite ao mesmo tempo.
 - **Escala 0 do ingestor** (a ingestão rodando em outro ambiente com a mesma chave): o deploy deixa o `live` como está e,
   quando sobe o projeto inteiro, também em 0.
 

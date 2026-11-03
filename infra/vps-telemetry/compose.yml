@@ -307,8 +307,9 @@ services:
       SCHEDULER_PROFILE: live
       LIVE_LEADER: 'on'
       # no SIGTERM, o scheduler espera o live-run fechar o tick: a chamada no ar (APISPORTS_LIVE_TIMEOUT_MS, 30 s) e a
-      # gravação; detalhe novo não abre (README › Ao vivo). Abaixo do stop_grace_period
-      SCHEDULER_STOP_WAIT_SECONDS: '40'
+      # gravação (perfil `live` do banco: 30 s de consulta), mais o estado e o job_run; detalhe novo não abre
+      # (README › Ao vivo). Abaixo do stop_grace_period
+      SCHEDULER_STOP_WAIT_SECONDS: '70'
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
       SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-*/10 * * * *}
       SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
@@ -333,9 +334,9 @@ services:
       retries: 3
       start_period: 30s
       start_interval: 2s
-    # No SIGTERM a líder fecha o tick (até ~40 s: SCHEDULER_STOP_WAIT_SECONDS), publica o estado e solta a trava; a
-    # reserva assume na tentativa seguinte. 5 s a mais para o scheduler sair antes do SIGKILL
-    stop_grace_period: 45s
+    # No SIGTERM a líder fecha o tick (até 70 s no pior caso: SCHEDULER_STOP_WAIT_SECONDS; o normal é 1 a 3 s), publica
+    # o estado e solta a trava; a reserva assume na tentativa seguinte. 5 s a mais para o scheduler sair antes do SIGKILL
+    stop_grace_period: 75s
     logging: *logging
 
   # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run. A faixa do ao

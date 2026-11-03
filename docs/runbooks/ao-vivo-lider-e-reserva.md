@@ -45,7 +45,7 @@ select pg_terminate_backend(a.pid)
 SQL
 ```
 
-Reiniciando a cópia líder: com `docker restart -t 45 <id>` a líder fecha o tick, solta a trava e volta como reserva.
+Reiniciando a cópia líder: com `docker restart -t 75 <id>` a líder fecha o tick, solta a trava e volta como reserva.
 
 **Ensaio de queda** (`docker kill`, sem aviso): `docker kill <id da líder>`. O Postgres fecha a sessão, a trava some e a
 reserva assume na tentativa seguinte. O `docker kill` conta como parada manual, então o contêiner morto pode ficar
