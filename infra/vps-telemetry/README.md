@@ -499,12 +499,11 @@ Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
-`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
-soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
+`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 60 (site e console), ingestor 40, agents 25, live 36, backup 6. A
+soma (212) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
 pico da tabela acima (77) mais os candidatos do deploy (API, site e console, 30) dá 107 de 97 vagas no papel; na prática os
-pools abrem conexão sob demanda e o candidato só roda o smoke (uma ou duas por pool), mas o teto do papel `galaxie_demo`
-(30) fica abaixo dos quatro pools juntos (site, console e os dois candidatos, 40) quando os papéis do banco forem
-ligados: suba o `demo` em `ROLE_CONNECTION_LIMITS` antes; o serviço `live` em duas
+pools abrem conexão sob demanda e o candidato só roda o smoke (uma ou duas por pool), e o teto do papel `galaxie_demo` (60)
+cobre os quatro pools juntos (site, console e os dois candidatos, 40) com folga; o serviço `live` em duas
 cópias durante a troca soma mais 17 (o ao vivo deixa de ocupar o ingestor, então o líquido é menor), o que deixa
 poucas vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
 
