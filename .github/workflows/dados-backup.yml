@@ -1,0 +1,119 @@
+name: Dados — imagem do backup
+
+# Publica na VPS a imagem do serviço `backup` do projeto dados (compose.dados.yml), que o deploy.yml não toca
+# (docs/runbooks/stack-dados-e-observabilidade.md: dados só por runbook). Só por disparo manual: grava TAG_BACKUP=in-<hash>
+# no .env da VPS, baixa a imagem com o token deste job (login temporário, como no deploy) e recria só o `backup`
+# (--no-deps: postgres, valkey e s3 ficam como estão). Recriar o backup não afeta ninguém. Voltar: o .env.bak-dados-* e
+# `docker compose -f compose.dados.yml up -d --no-deps backup`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit da main cuja imagem de backup publicar (vazio = a ponta da main)
+        required: false
+      sync:
+        description: Rodar o s3-sync.sh depois de subir (1 = sim)
+        required: false
+        default: '1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: backup na VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: producao
+    permissions:
+      contents: read
+      packages: read # a VPS baixa a imagem com o token deste job (vale só enquanto ele roda)
+    env:
+      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+      DIR: /docker/galaxie-sports
+      IMAGE: ghcr.io/galaxie-works/galaxie-sports-backup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha || 'main' }}
+
+      - name: Tag da imagem (infra/ops/image-hash.sh)
+        id: tag
+        run: |
+          sha=$(git rev-parse HEAD)
+          hash=$(bash infra/ops/image-hash.sh backup)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=in-$hash" >> "$GITHUB_OUTPUT"
+          echo "commit ${sha:0:7} → $IMAGE:in-$hash"
+
+      - name: Login no GHCR (conferir a imagem)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: A imagem existe no GHCR
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker manifest inspect "$IMAGE:$TAG" >/dev/null ||
+            { echo "::error::$IMAGE:$TAG não está no GHCR (o workflow de imagens terminou com sucesso neste commit?)"; exit 1; }
+
+      - name: Chave SSH da VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::secrets VPS_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados (docs/runbooks/deploy-pelo-github.md)"
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Trocar a imagem do backup na VPS
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          # credencial temporária (o token chega pelo stdin, nunca na linha de comando; sai no passo de limpeza)
+          printf '%s' "$GHCR_TOKEN" | ssh "$VPS" "umask 077 && mkdir -p $CFG && DOCKER_CONFIG=$CFG docker login ghcr.io -u '$GHCR_USER' --password-stdin >/dev/null"
+          ssh "$VPS" "set -e; cd $DIR
+            cur=\$(sed -n 's/^TAG_BACKUP=//p' .env | tail -n 1)
+            echo \"TAG_BACKUP: \${cur:-vazio} → $TAG\"
+            cp -p .env .env.bak-dados-\$(date -u +%Y%m%dT%H%M%SZ)
+            if grep -q '^TAG_BACKUP=' .env; then sed -i 's|^TAG_BACKUP=.*|TAG_BACKUP=$TAG|' .env; else echo 'TAG_BACKUP=$TAG' >> .env; fi
+            docker compose -f compose.dados.yml config -q </dev/null
+            DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml pull --quiet backup </dev/null
+            docker compose -f compose.dados.yml up -d --no-deps --wait --wait-timeout 180 backup </dev/null
+            docker compose -f compose.dados.yml ps backup </dev/null
+            echo \"voltar: TAG_BACKUP=\${cur:-?} no .env (cópia em .env.bak-dados-*) e docker compose -f compose.dados.yml up -d --no-deps backup\""
+
+      - name: Limpar a credencial na VPS
+        if: always()
+        env:
+          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+        run: ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG" || echo "::warning::não consegui remover $CFG na VPS; remova à mão"
+
+      - name: s3-sync.sh agora
+        if: inputs.sync == '1'
+        run: |
+          set -o pipefail
+          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup s3-sync.sh </dev/null 2>&1 | tail -n 5"
+          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup sh -c 'cat /backups/.s3_last_sync; ls /backups/s3' </dev/null"
+
+      - name: Guardar só os 10 .env.bak-dados-* mais novos
+        if: always()
+        run: ssh -o ConnectTimeout=20 "$VPS" "cd $DIR && ls -1t .env.bak-dados-* 2>/dev/null | tail -n +11 | xargs -r rm -f --" || true

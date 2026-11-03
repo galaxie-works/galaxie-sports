@@ -50,8 +50,12 @@ docker compose -f compose.dados.yml.new config -q && mv compose.dados.yml.new co
 docker compose -f compose.dados.yml up -d --no-deps --wait backup     # o que mudou; nunca sem nome de serviço
 ```
 
-Imagem nova do `backup`: `bash infra/ops/image-hash.sh backup`, num checkout do SHA, dá a tag. Grave `TAG_BACKUP=in-<hash>`
-no `.env` e baixe com login temporário antes de subir (`docs/runbooks/bootstrap-vps.md` tem o `DOCKER_CONFIG` temporário).
+Imagem nova do `backup`: o workflow **Dados — imagem do backup** (`.github/workflows/dados-backup.yml`, só por disparo
+manual: `gh workflow run dados-backup.yml -f sha=<commit>`; `sync=1`, o padrão, roda o `s3-sync.sh` em seguida) calcula a
+tag com `infra/ops/image-hash.sh backup`, grava `TAG_BACKUP=in-<hash>` no `.env` (cópia em `.env.bak-dados-<data>`), baixa a
+imagem com o token do próprio job (login temporário, como no deploy; a VPS não guarda credencial) e recria só o `backup`
+(`--no-deps`). À mão: a mesma sequência com o login temporário de `docs/runbooks/bootstrap-vps.md`. O `deploy.yml` não
+troca esta imagem: uma mudança em `infra/backup` só chega à VPS por aqui.
 
 Risco por serviço:
 
