@@ -226,14 +226,18 @@ if [ "$dev_exists" = true ]; then
        end if;
      end \$\$"
   # as chaves do dev (as da produção já saíram): só as de tenant que existe na cópia
-  preserva api api_key "true" "tenant_id in (select id from api.tenant)"
+  # a conferência abaixo não conta as chaves do dev como sobra da produção, mesmo que a produção também as tenha
+  # (histórico: a produção nasceu do dev e rotacionou as suas; a do dev continua a do dev): ficam anotadas em espelho_tmp
+  preserva api api_key "true" "tenant_id in (select id from api.tenant)" \
+    "insert into espelho_tmp.dev_api_key select prefix from espelho_tmp.api_key"
   preserva ops publishable_key "true" "tenant_id in (select id from api.tenant)" \
     "do \$\$ begin
        if exists (select 1 from information_schema.columns where table_schema = 'espelho_tmp' and table_name = 'publishable_key' and column_name = 'widget_id') then
          update espelho_tmp.publishable_key set widget_id = null
           where widget_id is not null and widget_id not in (select id from ops.widget);
        end if;
-     end \$\$"
+     end \$\$;
+     insert into espelho_tmp.dev_publishable_key select key_hash from espelho_tmp.publishable_key"
 fi
 
 # ── 5. conferência: nada da produção que não possa estar no dev ─────────────────────────────────────────────────
@@ -245,8 +249,10 @@ conferencia=$(psql -X -At -F '=' -v ON_ERROR_STOP=1 -d "$work" -c "
     where \"userId\" not in (select id from demo_auth.\"user\" where email like '%$suffix_sql')
   union all select 'usuarios_reais', count(*) from demo_auth.\"user\"
     where email not like '%@exemplo.invalid' and email not like '%$suffix_sql'
-  union all select 'chaves_api_da_producao', count(*) from api.api_key where prefix in (select prefix from espelho_tmp.prod_api_key)
-  union all select 'chaves_publicaveis_da_producao', count(*) from ops.publishable_key where key_hash in (select key_hash from espelho_tmp.prod_publishable_key)
+  union all select 'chaves_api_da_producao', count(*) from api.api_key
+    where prefix in (select prefix from espelho_tmp.prod_api_key) and prefix not in (select prefix from espelho_tmp.dev_api_key)
+  union all select 'chaves_publicaveis_da_producao', count(*) from ops.publishable_key
+    where key_hash in (select key_hash from espelho_tmp.prod_publishable_key) and key_hash not in (select key_hash from espelho_tmp.dev_publishable_key)
   union all select 'webhooks', count(*) from api.webhook_endpoint
   union all select 'sobrescritas_do_painel', count(*) from ops.runtime_setting
   union all select 'pedidos_pendentes', count(*) from ops.job_request where status in ('pending', 'running')
@@ -255,6 +261,15 @@ conferencia=$(psql -X -At -F '=' -v ON_ERROR_STOP=1 -d "$work" -c "
 [ -n "$conferencia" ] || fail "a conferência não devolveu nada (o dump tem o schema esperado?)"
 sobras=$(printf '%s\n' "$conferencia" | awk -F= '$2 != 0 { print $1 "=" $2 }' | tr '\n' ' ')
 [ -z "$sobras" ] || fail "sobrou coisa da produção na cópia: $sobras"
+# chaves do dev que a produção também tem (ou teve): não são sobra, mas o dev deveria rotacioná-las
+# espelho:colisoes (o teste acha a consulta por este marcador)
+colisoes=$(psql -X -At -d "$work" -c "-- espelho:colisoes
+  select (select count(*) from espelho_tmp.dev_api_key where prefix in (select prefix from espelho_tmp.prod_api_key))
+      || '/' || (select count(*) from espelho_tmp.dev_publishable_key where key_hash in (select key_hash from espelho_tmp.prod_publishable_key))" 2>/dev/null || echo "?")
+case "$colisoes" in
+  0/0) ;;
+  *) log warn "AVISO: chave(s) do dev que a produção também tem ou teve (api/publicável: $colisoes); ficam porque são do dev, mas rotacione-as no dev" ;;
+esac
 psql -X -q -v ON_ERROR_STOP=1 -d "$work" -c "drop schema espelho_tmp cascade" || fail "não deu para apagar o schema espelho_tmp"
 resumo_conferencia=$(printf '%s\n' "$conferencia" | tr '\n' ' ' | sed 's/ $//')
 log info "conferência OK: $resumo_conferencia"
