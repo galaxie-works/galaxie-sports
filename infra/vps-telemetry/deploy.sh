@@ -26,8 +26,9 @@
 #      compose.yml do SHA e as tags das imagens no .env (o SHA em cada TAG_*, em IMAGE_TAG num SHA anterior a elas, e em
 #      DEPLOY_SHA), validados antes de trocar (com backup dos dois); a imagem da página de
 #      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
-#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
-#      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
+#   6. docker compose up -d --remove-orphans (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do
+#      registry; o serviço que saiu do compose, como a demo quando virou site e console, sai junto). A
+#      página de manutenção não é recriada: enquanto site, console e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
 #   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica (falha
@@ -361,7 +362,7 @@ restore_previous() {
 
 STAGE=up
 echo "subindo a stack"
-if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull 2>&1")"; then
+if out="$(ssh "$VPS" "$CD && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull 2>&1")"; then
   :
 else
   rc=$?
@@ -394,7 +395,11 @@ MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
 
 echo "smoke test"
-ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+# no site e no console: cada um confere o que o papel dele atende (APP_ROLE do contêiner)
+for svc in site console; do
+  echo "smoke no $svc"
+  ssh "$VPS" "cd $DIR && docker compose exec -T $svc node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+done
 STAGE=finished
 
 # notas de versão: tag deploy-AAAA-MM-DD.N no commit publicado e release no GitHub com os PRs desde o deploy

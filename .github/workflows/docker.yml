@@ -340,12 +340,17 @@ jobs:
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
             jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
               and .services["api-candidate"].environment.USAGE_PERSIST == "off"
-              and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
               and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
-              and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
               and .services["api-candidate"].image == .services.api.image
-              and .services["demo-candidate"].image == .services.demo.image' >/dev/null ||
-            { echo "::error::api-candidate/demo-candidate fora do esperado (sem router, prefixo próprio, mesma imagem)"; exit 1; }
+              and ([.services as $s | ("site", "console") | . as $w | $s[$w + "-candidate"] as $c
+                | $c.environment.GALAXIE_API_URL == "http://api-candidate:8080"
+                  and ($c.labels | keys) == ["traefik.enable"]
+                  and $c.image == $s[$w].image
+                  and $c.mem_limit == $s[$w].mem_limit
+                  and $c.environment.APP_ROLE == $w and $s[$w].environment.APP_ROLE == $w] | all)
+              and .services.site.image == .services.console.image
+              and (.services | has("demo") | not)' >/dev/null ||
+            { echo "::error::candidatos fora do esperado (api, site e console: sem router, prefixo próprio, mesma imagem e papel)"; exit 1; }
 
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
