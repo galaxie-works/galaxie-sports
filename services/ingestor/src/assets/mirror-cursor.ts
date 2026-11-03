@@ -41,8 +41,10 @@ export function mirrorCursorStore(
   const scopeKey = mirrorScopeKey(scope);
   /** Tipos com linha no banco: no fim da volta, todos zeram. */
   const known = new Set<string>();
-  return {
+  let loaded = false;
+  const store: MirrorCursorStore = {
     async load() {
+      loaded = true;
       const out: MirrorCursor = {};
       for (const [key, state] of await cursors.list(MIRROR_CURSOR_SPORT, MIRROR_CURSOR_ENDPOINT)) {
         const params = new URLSearchParams(key);
@@ -56,6 +58,8 @@ export function mirrorCursorStore(
       return out;
     },
     async save(cursor) {
+      // zerar sem ter lido (`--do-inicio`) precisa saber quais tipos têm linha
+      if (!loaded) await store.load();
       const at = now();
       for (const kind of new Set([...known, ...Object.keys(cursor)])) {
         known.add(kind);
@@ -68,4 +72,5 @@ export function mirrorCursorStore(
       }
     },
   };
+  return store;
 }
