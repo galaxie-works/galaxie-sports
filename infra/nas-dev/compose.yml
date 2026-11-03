@@ -319,7 +319,12 @@ services:
       - -c
       - |
         set -e
-        apk add --no-cache -q age aws-cli redis
+        # --no-scripts: no Docker do NAS (kernel 6.6.0.x do ADM) o apk 3 não consegue rodar os scripts de pacote (pre/post-install
+        # do redis, trigger do busybox: "killed by signal 9", com ou sem limite de memória, seccomp ou privilégio) e sai em 2,
+        # derrubando o container. Nenhum desses scripts faz falta aqui (usuário redis, symlinks do busybox); o que importa
+        # é conferido logo abaixo.
+        apk add --no-cache -q --no-scripts age aws-cli redis
+        for t in age aws redis-cli; do command -v "$$t" >/dev/null || { echo "$$t não instalado" >&2; exit 1; }; done
         # o crond não repassa o ambiente do container para os jobs
         export -p > /etc/espelho.env
         echo "$$ESPELHO_CRON . /etc/espelho.env; /bin/sh /data/mirror-prod-to-dev.sh >/proc/1/fd/1 2>&1" | crontab -
