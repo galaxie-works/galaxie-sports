@@ -86,7 +86,7 @@ Na base de dev (NAS, 23/10/2026), com a api-sports de 2024 já carregada:
 ssh root@145.223.94.149
 cd /docker/galaxie-sports
 # 1. backup do banco antes (o mesmo serviço do dump diário)
-docker compose exec -T backup backup.sh
+docker compose -f compose.dados.yml exec -T backup backup.sh
 # 2. o volume do release tem de ser do usuário do container (uid 1000); só na primeira vez
 docker compose run --rm --no-deps --user root -v galaxie-f1db:/data/f1db --entrypoint chown ingestor \
   -R 1000:1000 /data/f1db
@@ -97,7 +97,7 @@ docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f
 docker compose run --rm --no-deps -v galaxie-f1db:/data/f1db -e F1DB_DIR=/data/f1db \
   -e NODE_OPTIONS=--max-old-space-size=384 ingestor node dist/cli/f1db-import.js
 # 5. limpa o cache de respostas da API (mesmo passo do deploy)
-for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
+for p in 'gs:cache:*' 'gs:tag:*'; do docker compose -f compose.dados.yml exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
 ```
 
 Limites do container do ingestor:

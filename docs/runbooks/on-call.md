@@ -104,7 +104,7 @@ A queima do SLO `ao-vivo` não manda push: ela chega no resumo diário e diz se 
 - **`BackupStale` ou `BackupCheckFailed`**:
 
   ```bash
-  ssh root@<vps> 'cd /docker/galaxie-sports && docker compose logs --tail 100 backup && docker compose exec -T backup ls -lt /backups | head'
+  ssh root@<vps> 'cd /docker/galaxie-sports && docker compose -f compose.dados.yml logs --tail 100 backup && docker compose -f compose.dados.yml exec -T backup ls -lt /backups | head'
   ```
 
   O `error` do job em Ajustes → Sistema (jobs `pg-backup` e `backup-check`) diz qual parte falhou: dump, conferência
@@ -138,7 +138,7 @@ Abra o link do run no push (ou `gh run list --workflow deploy.yml --limit 3`) e 
 O Grafana não consegue consultar o Prometheus, então nenhum outro alerta chega.
 
 ```bash
-ssh root@<vps> 'cd /docker/galaxie-sports && docker compose ps prometheus && docker compose logs --tail 50 prometheus'
+ssh root@<vps> 'cd /docker/galaxie-sports && docker compose -f compose.obs.yml ps prometheus && docker compose -f compose.obs.yml logs --tail 50 prometheus'
 ```
 
 Disco cheio derruba o Prometheus primeiro: confira `df -h`. Depois de subir, os alertas que estavam disparando voltam

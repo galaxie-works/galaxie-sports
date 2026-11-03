@@ -5,7 +5,7 @@ set -e
 S="$(dirname "$0")"; VPS=root@145.223.94.149; SSHO="-o ServerAliveInterval=30"
 scp -q "$S/sync-upsert.sql" "$S/sync-dry.sql" "$S/sync-remap.sql" $VPS:/tmp/
 echo "== exporta do NAS"; bash "$S/nas-export.sh"
-ssh $SSHO $VPS 'cd /docker/galaxie-sports && P="docker compose exec -T postgres"; C=$(docker compose ps -q postgres)
+ssh $SSHO $VPS 'cd /docker/galaxie-sports && P="docker compose -f compose.dados.yml exec -T postgres"; C=$(docker compose -f compose.dados.yml ps -q postgres)
 for f in sync-upsert sync-dry sync-remap; do docker cp /tmp/$f.sql $C:/tmp/; done
 $P psql -U galaxie -d postgres -Atc "drop database if exists galaxie_sync" -c "create database galaxie_sync" >/dev/null
 $P pg_dump -U galaxie -d galaxie_sports -s -n public --no-owner | $P psql -U galaxie -d galaxie_sync -q 2>&1 | grep -v "already exists" | grep -i error | head -3
