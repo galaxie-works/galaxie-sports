@@ -25,6 +25,7 @@
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
+import { startOpsServer, versionInfo } from '@galaxie/observability';
 import { logger, report } from '../logger.js';
 import { checkAiCredit } from '../scheduler/ai-credit.js';
 import { closeOrphans, lastJobStarts, missedSlots } from '../scheduler/catch-up.js';
@@ -116,6 +117,14 @@ if (manual !== undefined) {
 }
 
 // ── modo serviço ──────────────────────────────────────────────────────────────────────────────────
+// /health, /version e /metrics deste processo (sem router no Traefik); os jobs são processos filhos, sem servidor
+const serviceName = profile === 'agents' ? 'agents' : 'ingestor';
+log.info(versionInfo(serviceName), 'partida');
+startOpsServer({
+  service: serviceName,
+  port: Number(process.env.SCHEDULER_OPS_PORT ?? 9464) || 9464,
+  onError: (err) => log.warn({ err }, 'servidor de operação do scheduler com falha'),
+});
 const heartbeatFile = process.env.SCHEDULER_HEARTBEAT_FILE ?? '/tmp/galaxie-scheduler.heartbeat';
 const beat = () =>
   writeFile(heartbeatFile, new Date().toISOString()).catch((err: unknown) =>

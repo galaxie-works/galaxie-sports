@@ -8,7 +8,8 @@
 # Para cada serviço, na ordem dada:
 #   1. docker compose up --no-deps --no-recreate --scale <serviço>=N+1: um contêiner a mais, com a configuração nova;
 #      o antigo continua atendendo
-#   2. espera o novo ficar healthy (o Traefik só balanceia contêiner healthy; teto SWAP_HEALTH_TIMEOUT, padrão 180 s)
+#   2. espera o novo ficar healthy (o Traefik só balanceia contêiner healthy; teto SWAP_HEALTH_TIMEOUT, padrão 180 s). Sem
+#      healthcheck (a configuração de um SHA antigo, na volta de versão): basta estar rodando depois de SWAP_SETTLE_S
 #   3. SWAP_SETTLE_S (padrão 3 s) para o Traefik pôr o novo no balanceamento, e docker stop no antigo: ele para de
 #      aceitar conexão no SIGTERM, e o gsports-retry do Traefik manda a requisição recusada para o novo
 #   4. remove o antigo; o serviço fica com um contêiner só, na configuração nova (o `up -d` seguinte não o recria)
@@ -47,7 +48,12 @@ for svc in "$@"; do
     st="$(health "$new")"
     case "$st" in
       healthy) break ;;
-      starting | running) ;;
+      running)
+        # só o contêiner sem healthcheck chega aqui: sobreviveu à espera, conta como no ar
+        sleep "$SETTLE"
+        [ "$(health "$new")" != running ] || break
+        ;;
+      starting) ;;
       *)
         echo "FAIL  $svc: contêiner novo está $st"
         docker logs --tail 30 "$new" 2>&1 | sed 's/^/      /' || true

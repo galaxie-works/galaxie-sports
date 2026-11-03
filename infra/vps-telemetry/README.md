@@ -39,7 +39,9 @@ O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `a
 
 Imagem cuja entrada não mudou (o hash vai na tag `in-<hash>` e no rótulo `works.galaxie.context-tree`) não é
 reconstruída: ganha as tags novas (como a entrada é calculada: `docs/runbooks/deploy-pelo-github.md` › Imagens
-reaproveitadas). Use o **SHA do commit** em `IMAGE_TAG`. Os pacotes são privados: o deploy pelo
+reaproveitadas). O `.env` da VPS tem uma tag por imagem (`TAG_API`, `TAG_DEMO`, `TAG_INGESTOR`, `TAG_BACKUP`,
+`TAG_PROMETHEUS`, `TAG_GRAFANA`): o deploy pelo Actions grava nelas o `in-<hash>` de cada imagem e troca só o que mudou;
+à mão, vale o **SHA do commit** em todas. `DEPLOY_SHA` só registra o SHA publicado. Os pacotes são privados: o deploy pelo
 Actions faz `docker login` na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário que sai no fim. A VPS não
 guarda credencial do GitHub, por isso o `.env` dela fica com `PULL_POLICY=missing`: o `deploy-gh.sh` baixa as imagens
 antes do `up`, e nada vem do registry fora do deploy.
@@ -94,8 +96,8 @@ pasta vai no rótulo da imagem; igual ao de uma imagem da VPS, ela só ganha a t
 `PRELOCK_MAX_MIN` minutos antes de tocar a VPS, para ali: o resto precisa caber no teto do `deploy-safe.sh`
 (`DEPLOY_TIMEOUT`, padrão 80 min; o limite padrão é o teto menos 30 min, 50 min com o teto padrão). Com a **trava na VPS** (`.deploy.lock`: um deploy por vez, de qualquer máquina; quem chega com outro
 em andamento sai com `FAIL` e o comando para liberar; trava com mais de `LOCK_STALE_MIN` minutos, padrão teto + 10 (90 com o teto padrão), é de
-deploy morto e é tomada com `WARN`), envia por `docker save | ssh docker load`, valida e troca `compose.yml` e
-`IMAGE_TAG` (com backup dos dois), sobe a stack mantendo a escala do ingestor (`PULL_POLICY=missing`) e confere o
+deploy morto e é tomada com `WARN`), envia por `docker save | ssh docker load`, valida e troca `compose.yml` e as tags do
+`.env` (o SHA em todas, com backup dos dois), sobe a stack mantendo a escala do ingestor (`PULL_POLICY=missing`) e confere o
 `migrate` (saída 0). Se o `up` ou o `migrate` falha, volta `compose.yml` e `.env` anteriores e sobe a stack de novo na
 versão anterior só quando é garantidamente o estado de antes: nenhuma migration nova aplicada (contagem de
 `drizzle.__drizzle_migrations` igual antes e depois), imagens antigas ainda na VPS e não é redeploy do mesmo SHA. Senão,
@@ -105,41 +107,34 @@ respostas (falha também derruba o deploy; a partir daqui a versão nova fica no
 **smoke test** (`smoke.mjs`), que confere cada funcionalidade entregue **com dados**, não só o status 200: glossário, cores
 e campanha do time, o time numa temporada passada (`?season=2025`), stakes e tags do torcedor, minuto a minuto, resumo da IA, conteúdo relacionado, emissoras, a busca global, o resumo da home Explorar, a
 rota do painel de Operação (protegida e sem valor de credencial) e a proteção do login. `FAIL` (código, imagem ou config quebrados) sai com 1; `WARN` (dado incompleto: sync, cota, IA)
-aparece no relatório. Para rodar só o smoke test:
+aparece no relatório. Serviço por serviço, o deploy termina conferindo a versão no ar (`deploy-verify.sh`; runbook › A versão que cada serviço roda). Para rodar só o smoke test:
 
 ```bash
 ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
 ```
 
-### Candidato e troca sem manutenção (`DEPLOY_CANDIDATE=on`)
+### Candidato e troca sem manutenção
 
-Variável do repositório; vazia, o roteiro é o de cima. Ligada:
+O deploy pelo Actions troca só o que mudou, sem página de manutenção (runbook
+[Merge e deploy pelo GitHub](../../docs/runbooks/deploy-pelo-github.md) › O deploy pelo Actions). Com a API ou a demo na
+lista:
 
-1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull e do dump, a API e a demo da versão nova sobem ao lado
+1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull, do dump e do migrate, a API e a demo da versão nova sobem ao lado
    das que estão no ar (`api-candidate` e `demo-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
    router no Traefik**, a API com o prefixo `gs-candidate:` no Valkey para cache, rate limit, uso e relay do SSE não se
-   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). Com migration nova, o migrate roda antes do candidato (numa transação; a versão
-   no ar segue sobre o schema novo até a troca). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
+   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
    troca: a versão anterior segue no ar e o deploy sai com 1 (com migration aplicada, ele avisa e mostra o dump).
-2. **Troca da API e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
+2. **Troca da API, dos webhooks e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
    lado do antigo (`--scale 2 --no-recreate`), o antigo só para com o novo healthy (o Traefik só balanceia contêiner
    healthy), e o `gsports-retry` (ligado em `EDGE_MIDDLEWARES`, [infra/traefik](../traefik/README.md)) manda a conexão
    recusada pelo antigo no SIGTERM para o novo. O CI testa com o Traefik de verdade e tráfego a cada 50 ms (zero
-   respostas fora de 200) e com uma versão que nunca fica healthy (a troca recusa e a anterior segue). O resto da stack
-   (ingestor, agents, backup, observabilidade) sobe como antes; o smoke de depois do pós-deploy continua valendo.
-3. A volta automática baixa do GHCR a imagem da versão anterior se o prune diário da VPS já a tiver apagado, e o deploy
-   guarda só os 10 backups mais novos de `compose.yml` e `.env`.
+   respostas fora de 200) e com uma versão que nunca fica healthy (a troca recusa e a anterior segue). O smoke de depois
+   do pós-deploy continua valendo.
+3. O deploy guarda só os 10 backups mais novos de `compose.yml` e `.env`.
 
-Ligar (com o OK do Wagner; sem staging, o primeiro deploy com ela é o teste), depois de `EDGE_MIDDLEWARES` ter o
-`gsports-retry`:
-
-```bash
-gh variable set DEPLOY_CANDIDATE --body on
-```
-
-Acompanhar o primeiro deploy no log do Actions: `candidato healthy`, o resultado do smoke do candidato, `ok  api trocado
-sem manutenção` e `ok  demo trocado sem manutenção`. Voltar: `gh variable delete DEPLOY_CANDIDATE` (o próximo deploy já
-sai pelo roteiro de antes). Candidato esquecido no ar (job morto no meio):
+A troca sem erro nenhum na borda depende de `EDGE_MIDDLEWARES` ter o `gsports-retry` ([infra/traefik](../traefik/README.md)).
+No log do Actions: `candidato healthy`, o resultado do smoke do candidato e `ok  <serviço> trocado sem manutenção`. Um SHA
+antigo, sem os candidatos no compose, publica sem eles, com `WARN`. Candidato esquecido no ar (job morto no meio):
 `docker compose --profile candidate rm -sf api-candidate demo-candidate`.
 
 Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam** quando não acham (lista vazia), então
@@ -149,8 +144,9 @@ CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
 
 ## Página de manutenção
 
-Quando um deploy ou um reinício recria a `demo` ou a `api`, o Traefik fica alguns segundos sem backend para o router
-delas e responderia **404** numa página válida. O serviço `maintenance` cobre esse intervalo sem tocar na stack do
+O deploy troca sem esta página. Ela cobre o que sobra: quando um reinício (ou o plano B, `deploy.sh`) deixa a `demo` ou a
+`api` sem contêiner healthy, o Traefik fica alguns segundos sem backend para o router delas e responderia **404** numa
+página válida; e serve de ferramenta para a manutenção do banco (abaixo). O serviço `maintenance` cobre esse intervalo sem tocar na stack do
 Traefik, só com labels da nossa stack:
 
 - **Routers de prioridade 1** (`gsports-demo-maintenance` e `gsports-api-maintenance`) com as mesmas regras de host dos
@@ -167,9 +163,9 @@ Traefik, só com labels da nossa stack:
 - Qualquer caminho e qualquer método, inclusive `/health`, recebem o 503: monitores externos enxergam a manutenção.
 
 **Não é recriado pelos deploys.** Imagem upstream fixa (`caddy:2.11.7-alpine`, `pull_policy: missing`), sem
-`IMAGE_TAG`, e a config inteira (Caddyfile, HTML e JSON) inline no `compose.yml` (`configs:` com `content:`, porque a
-VPS só recebe esse arquivo). O hash do serviço não muda de um deploy para o outro, então o `docker compose up -d
---scale ingestor=N` do `deploy.sh` deixa o contêiner como está, e ele segue respondendo enquanto demo e API sobem. O
+tag de deploy, e a config inteira (Caddyfile, HTML e JSON) inline no `compose.yml` (`configs:` com `content:`, porque a
+VPS só recebe esse arquivo). O hash do serviço não muda de um deploy para o outro, então os deploys deixam o contêiner
+como está, e ele segue respondendo enquanto demo e API sobem. O
 `deploy.sh` só baixa a imagem antes de trocar o `compose.yml`, se ela ainda não estiver na VPS.
 
 **Editou a página, o JSON ou o Caddyfile?** O compose não recria um serviço quando só muda o conteúdo de uma config
@@ -193,9 +189,15 @@ ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start demo'
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                     # de volta: 307 → /login
 ```
 
-**Forçar a manutenção** (migração demorada, restauração do banco): `MAINTENANCE_PRIORITY=10000` no `.env` e
-`docker compose up -d maintenance` (recria só ele; os routers passam a ganhar dos de verdade nos dois hosts). Para
-voltar: `MAINTENANCE_PRIORITY=1` (ou apagar a linha) e `docker compose up -d maintenance`. Enquanto forçada, ninguém
+**Forçar a manutenção** (upgrade do Postgres, restauração do banco): [`maintenance.sh`](maintenance.sh), que grava
+`MAINTENANCE_PRIORITY` no `.env` e recria só esse serviço (os routers passam a ganhar dos de verdade nos dois hosts):
+
+```bash
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
+```
+
+Enquanto forçada, ninguém
 alcança a demo nem a API pelo Traefik (nem admin), um deploy mantém a manutenção (o valor fica no `.env`) e o smoke
 test continua passando, porque fala com os contêineres pela rede interna. Alternativa pontual, para um serviço só:
 `docker compose stop demo` (ou `api`) também cai na página, até o `start`.

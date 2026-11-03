@@ -10,8 +10,8 @@ name: Deploy
 #   gh workflow run deploy.yml -f sha=<sha> -f force=1   # um commit específico, mesmo já no ar (voltar versão)
 #
 # O deploy não espera jogo ao vivo (a trava de 28/10/2026 saiu em 02/11/2026: com merges em sequência, cada commit
-# novo reiniciava a espera e nada publicava). DEPLOY_CANDIDATE=on liga o candidato com smoke antes da troca e a troca
-# sem página de manutenção (deploy-gh.sh; README da stack › Atualizar).
+# novo reiniciava a espera e nada publicava). O smoke roda num candidato antes da troca, e a API, os webhooks e a demo
+# trocam sem página de manutenção (deploy-gh.sh; README da stack › Atualizar).
 #
 # No disparo manual, o gate espera o CI e as imagens do SHA terminarem (até ci_wait_min, padrão 30 min) e falha se não
 # terminarem ou não ficarem verdes; SHA já no ar sem force=1 também falha. Disparo manual nunca termina verde sem
@@ -197,8 +197,6 @@ jobs:
           # disparo manual com o SHA já no ar e sem force: falha (nunca verde sem publicar); no automático, só pula
           ON_SKIP: ${{ github.event_name == 'workflow_dispatch' && 'fail' || 'pass' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
-          # candidato com smoke antes da troca e troca sem manutenção (vazio = o roteiro de antes)
-          DEPLOY_CANDIDATE: ${{ vars.DEPLOY_CANDIDATE }}
         run: |
           set -o pipefail
           bash infra/vps-telemetry/deploy-gh.sh 2>&1 | tee "$RUNNER_TEMP/deploy.log"
@@ -207,7 +205,9 @@ jobs:
         if: steps.deploy.outputs.result == 'deployed'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" || echo "::warning::release não publicada"
+          VERSIONS: ${{ steps.deploy.outputs.versions }}
+          SWAPPED: ${{ steps.deploy.outputs.swapped }}
+        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" --versions "$VERSIONS" --swapped "$SWAPPED" || echo "::warning::release não publicada"
 
       - name: Resumo
         if: always()
@@ -216,7 +216,7 @@ jobs:
             echo "## Deploy ${SHA:0:7}"
             echo
             echo '```'
-            grep -E '^(PASS|FAIL|WARN|SKIP)|ok ·|aviso|na VPS:|release ' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 40 || echo "(sem log)"
+            grep -E '^(PASS|FAIL|WARN|SKIP|plano:)|ok ·|aviso|na VPS:|release ' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 40 || echo "(sem log)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           rm -f ~/.ssh/id_deploy

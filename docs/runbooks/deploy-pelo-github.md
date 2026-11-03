@@ -15,26 +15,27 @@ merge (fila nativa do GitHub, ou trem de merge no Actions)
 CI + Imagens no SHA ──► imagens <sha>, main, staging no GHCR (só reconstrói o que mudou)
         │  os dois verdes (workflow_run)
         ▼
-Deploy (deploy.yml): trava na VPS → pull do GHCR → up → migrate → pós-deploy → smoke
-        │                                   └─ falhou sem migration nova → volta para o SHA anterior
+Deploy (deploy.yml): trava na VPS → pull do GHCR → plano (quem mudou) → migrate → troca só da lista → pós-deploy → smoke → confere as versões
+        │                                   └─ falhou um serviço → volta só ele; mais de um, sem migration nova → SHA anterior
         ▼
 notas de versão (tag deploy-AAAA-MM-DD.N)
 ```
 
 | Peça | Arquivo | O que faz |
 | --- | --- | --- |
-| Imagens | `.github/workflows/docker.yml` | Em PR, na fila (`merge_group`) e no push na main. Publica `api`, `ingestor`, `demo`, `backup`, `prometheus` e `grafana` na fila (tag `<sha>`) e no push (`<sha>`, `main`, `staging`). Cada imagem tem o hash da sua entrada (tag `in-<hash>`): entrada igual à de uma imagem já publicada → só ganha as tags novas, sem build. Cache de camadas do GHA (a fila lê o da main e não grava). |
+| Imagens | `.github/workflows/docker.yml` | Em PR, na fila (`merge_group`) e no push na main. Publica `api`, `ingestor`, `demo`, `backup`, `prometheus` e `grafana` na fila (tag `<sha>`) e no push (`<sha>`, `main`, `staging`). Cada imagem tem o hash da sua entrada (tag `in-<hash>`, calculada por `infra/ops/image-hash.sh`): entrada igual à de uma imagem já publicada → só ganha as tags novas, sem build. Cache de camadas do GHA (a fila lê o da main e não grava). |
 | CI | `.github/workflows/ci.yml` | O de sempre, agora também em `merge_group`. |
 | Portão do Codex | `.github/workflows/codex-gate.yml` + `infra/ops/codex-gate.sh` | Check `Codex sem P1 aberto`: falha com thread do Codex com "P1 Badge" sem resolver (a regra do `codex_p1()` do trem). Pronto na hora quando o review terminado é do commit atual do PR. Senão espera até 10 min de PR aberto e 3 min depois do último commit, e espera também o review que estiver rodando (👀). Sem review do commit atual no fim da espera, o Codex não vai revisar sozinho (só revisa ao abrir, ao sair de rascunho ou com `@codex review`): confere as threads que existem e avisa; com `CODEX_REQUIRE_CURRENT=1`, falha. Review que terminou sem revisar (resumo com `status: failed`, como no limite de uso do Codex) não espera: avisa e confere as threads. Review que continua rodando 10 min depois da espera (Codex travado ou sem cota), ou que roda num commit anterior ao atual (o resumo diz o commit), também: avisa e confere as threads. P1 aberto barra sempre, e o review que terminar depois dispara o check de novo. Teste em `infra/ops/codex-gate.test.sh`. |
-| Deploy | `.github/workflows/deploy.yml` + `infra/vps-telemetry/deploy-gh.sh` | Dispara quando CI e Imagens terminam verdes na ponta da main (com `DEPLOY_AUTO=on`) ou à mão. Um por vez (`concurrency`); com vários merges seguidos, sai um deploy só, do último commit. |
+| Deploy | `.github/workflows/deploy.yml` + `infra/vps-telemetry/deploy-gh.sh` e `deploy-plan.sh` | Dispara quando CI e Imagens terminam verdes na ponta da main (com `DEPLOY_AUTO=on`) ou à mão. Um por vez (`concurrency`); com vários merges seguidos, sai um deploy só, do último commit. Troca só os serviços cuja imagem ou configuração mudou. |
 | Pós-deploy | `infra/vps-telemetry/post-deploy.sh` | Seed semântico (`--dir /srv/data/knowledge`, com o `GIT_SHA` do deploy; falha só avisa), nomes, importância, cache e conta da IA; o mesmo nos dois roteiros. |
 | Trem de merge | `.github/workflows/merge-train.yml` | O `merge-train.sh` rodando no Actions, enquanto não houver fila nativa. |
 
 ### Imagens reaproveitadas
 
-O hash é o `sha256` do `git ls-tree HEAD` da entrada da imagem, e vai na tag `in-<hash>` e no rótulo
-`works.galaxie.context-tree`. Entrada igual à de uma imagem publicada: ela só ganha as tags do commit, sem build (log
-`entrada <hash>: <imagem>` no passo "Entrada da imagem", que também lista os caminhos).
+O hash é o `sha256` do `git ls-tree HEAD` da entrada da imagem (`infra/ops/image-hash.sh`, a mesma fórmula no
+`docker.yml` e no deploy), e vai na tag `in-<hash>` e no rótulo `works.galaxie.context-tree`. Entrada igual à de uma
+imagem publicada: ela só ganha as tags do commit, sem build (log `entrada <hash>: <imagem>` no passo "Entrada da imagem",
+que também lista os caminhos).
 
 As imagens de pasta única (`backup`, `prometheus`, `grafana`, `caddy`) usam o hash git da própria pasta. A entrada de
 `api`, `ingestor` e `demo` sai do grafo do pnpm, em `infra/ops/image-inputs.mjs`:
@@ -52,7 +53,7 @@ As imagens de pasta única (`backup`, `prometheus`, `grafana`, `caddy`) usam o h
 | `apps/demo` ou `packages/widgets` | `demo` |
 | `apps/api` | `api` |
 | `services/ai-agents` | `ingestor` |
-| `services/ingestor` | `api` e `ingestor` (a API tem o ingestor em `devDependencies`, nos testes de integração) |
+| `services/ingestor` | `ingestor` (a API não depende dele: os testes que cruzam os dois ficam em `tests/integration`, fora das imagens) |
 | `config/` em geral, `data/knowledge` | `api` e `ingestor` |
 | `config/broadcasters`, `config/broadcast-rights` | as três |
 | `packages/db`, `pnpm-lock.yaml`, `infra/healthcheck/selfheal.mjs` | as três |
@@ -80,35 +81,132 @@ o que faltar.
      conferência, só em emergência). O disparo manual nunca termina verde sem publicar.
    - Jogo ao vivo **não** segura o deploy: a espera por jogo de prioridade alta (28/10/2026) saiu em 02/11/2026, porque
      com merges em sequência cada commit novo reiniciava a espera e nada publicava.
-1. Confere no GHCR as imagens do SHA (antes de tocar a VPS). Com `DEPLOY_CANDIDATE=on`, o smoke roda na versão nova
-   antes da troca e a API e a demo trocam sem página de manutenção
-   ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
+1. Confere no GHCR as imagens do SHA, com as tags `<sha>` e `in-<hash>` (antes de tocar a VPS).
 2. Pega a trava da VPS (`/docker/galaxie-sports/.deploy.lock`). É a mesma do `deploy.sh`, então Actions e plano B
    nunca rodam juntos.
 3. SHA já no ar:
-   - com `force=1`, publica de novo (pull, up, pós-deploy, smoke e notas de versão);
+   - com `force=1`, publica de novo (pull, migrate, pós-deploy, smoke e notas de versão; contêiner com a imagem e a
+     configuração certas não é recriado);
    - sem `force`, o automático só pula (o CI e as imagens disparam o deploy duas vezes no mesmo commit), e o disparo
      manual **falha** dizendo para usar `force=1`.
 4. Faz login no GHCR na VPS com o token do próprio job, num `DOCKER_CONFIG` temporário. O token vai pelo stdin e o
    diretório sai no fim; o token expira com o job. A VPS não guarda credencial do GitHub.
-5. Valida o `compose.yml` do SHA e o `.env` com `IMAGE_TAG`/`IMAGE_PREFIX` novos. O `docker compose pull` baixa só os
-   serviços com imagem nossa; postgres, valkey e rustfs ficam na imagem que já está na VPS. Depois faz backup dos dois
-   arquivos e troca.
-6. `up -d` com a escala atual do ingestor, `migrate` com saída 0, pós-deploy e smoke test (o "N ok · avisos · falhas").
+5. Valida o `compose.yml` do SHA e o `.env` com as tags novas. O `docker compose pull` baixa só os serviços com imagem
+   nossa; postgres, valkey e rustfs ficam na imagem que já está na VPS.
+6. **Plano** (`deploy-plan.sh`): compara, serviço a serviço, o digest da imagem `in-<hash>` com o da imagem do contêiner
+   no ar, e o hash da configuração do compose com o rótulo do contêiner. Só os diferentes trocam. O log (e o resumo do
+   job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`.
+7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
+   dele mudou, se há migration nova ou com `force=1`. Com a API ou a demo na lista, o **smoke roda na versão nova antes
+   da troca**, num candidato sem tráfego; reprovado, nada troca
+   ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
+8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
+   comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
+   notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
+   - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
+   - `api`, `webhooks` e `demo` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o novo
+     healthy). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
+   - `backup`, `prometheus`, `grafana` e o que não tem imagem nossa, quando mudaram.
+9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
+   falhas", que também confere a versão da API e da demo). Por último, a **conferência**
+   (`deploy-verify.sh`): para cada serviço trocado, o digest e o rótulo da imagem do contêiner, e o que o processo expõe.
+   Serviço na versão errada é `FAIL  <serviço>: …` no resumo do job, e volta só ele.
    - O pós-deploy começa pelo **seed da base semântica** (`data/knowledge` → `semantic.*`, exigido pelo #362).
    - Roda com o `data/knowledge` da imagem nova, `--dir /srv/data/knowledge` e o SHA no `semantic.load_run`.
    - Roda em todo deploy, não só quando `data/knowledge` muda: é ele que liga os perfis aos participantes que a
      ingestão trouxe desde o último.
    - É idempotente, sem cota nem LLM, e a falha vira `WARN` sem derrubar o deploy. Para repetir à mão:
      `docker compose run --rm --no-deps ingestor node /srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js --dir /srv/data/knowledge`.
-7. Se o up, o migrate, o pós-deploy ou o smoke falham, volta para o SHA anterior quando é garantidamente o estado de
-   antes: nenhuma migration nova, backups e imagens antigas na VPS. Depois roda o seed semântico com a base da versão
-   anterior e limpa o cache de novo. Com migration nova,
-   imprime o rollback manual, porque o código antigo pode não aguentar o schema novo. O job fica vermelho nos dois
-   casos.
-8. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
-9. Religa o espelho de assets.
-10. Publica as notas de versão (`release-notes.mjs`).
+10. Falha, do menor para o maior:
+    - **Migrate**: nada foi trocado; a versão anterior segue no ar.
+    - **Um serviço não troca**: volta só ele (e os da mesma tag), com a tag e a configuração anteriores. Os outros ficam
+      na versão nova, o deploy segue até o smoke e o job fica vermelho, com `FAIL  deploy parcial …`. O `DEPLOY_SHA`
+      fica o anterior, então o deploy seguinte, mesmo do mesmo SHA, compara e tenta de novo.
+    - **Pós-deploy ou smoke vermelhos com um grupo trocado**: volta esse grupo.
+    - **Mais de um serviço falhou, ou pós-deploy ou smoke com mais de um grupo trocado**: volta a stack inteira para o
+      SHA anterior quando é garantidamente o estado de antes (nenhuma migration nova, backups na VPS; imagem que falta
+      vem do GHCR). Depois roda o seed semântico com a base da versão anterior e limpa o cache de novo. Com migration
+      nova, imprime o rollback manual, porque o código antigo pode não aguentar o schema novo.
+11. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
+12. Religa o espelho de assets.
+13. Publica as notas de versão (`release-notes.mjs`), só quando publicou, com o SHA do deploy ao lado do hash de cada
+    imagem e marcando as que trocaram.
+
+### A versão que cada serviço roda
+
+O que identifica a versão é o hash da entrada da imagem (`in-<hash>`), não o SHA: a imagem é reaproveitada entre commits,
+então ela não pode conter o SHA. O `docker.yml` passa `IMAGE_HASH` como build-arg e a imagem guarda em `GALAXIE_IMAGE_HASH`.
+Para saber qual SHA está no ar, veja o `DEPLOY_SHA` do `.env` ou as notas de versão.
+
+| Serviço | Onde ler |
+| --- | --- |
+| `api` | `GET /version` (público) e `build_info` no `/metrics` |
+| `demo` | `GET /api/version` (público) |
+| `webhooks` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
+| `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
+| `backup`, `prometheus`, `grafana` | rótulo `works.galaxie.context-tree` da imagem |
+
+O formato é `{ service, image_hash, started_at, node }`, e cada processo escreve o mesmo numa linha de log na partida. O
+Prometheus raspa `api`, `webhooks`, `ingestor` e `agents`, e o painel **SLOs** do Grafana tem a tabela "Versão no ar por
+serviço". A demo não é raspada: não tem `/metrics`.
+
+```bash
+curl -s https://api.sports.galaxie.works/version
+cd /docker/galaxie-sports && docker compose exec -T ingestor node -e "fetch('http://127.0.0.1:9464/version').then(r=>r.text()).then(console.log)"
+```
+
+### As tags no `.env` da VPS
+
+Uma variável por imagem, sempre o `in-<hash>` da entrada dela no SHA publicado:
+
+| Variável | Serviços |
+| --- | --- |
+| `TAG_API` | `api`, `webhooks`, `migrate`, `api-candidate` |
+| `TAG_DEMO` | `demo`, `demo-candidate` |
+| `TAG_INGESTOR` | `ingestor`, `agents` |
+| `TAG_BACKUP` | `backup` |
+| `TAG_PROMETHEUS` | `prometheus` |
+| `TAG_GRAFANA` | `grafana` |
+
+`DEPLOY_SHA` é só o registro do SHA publicado (notas de versão, volta de versão). **Não pode entrar no env de nenhum
+serviço:** env novo recria o contêiner e desfaz o ganho. Duas leituras úteis na VPS:
+
+```bash
+grep -E '^(TAG_|DEPLOY_SHA=)' /docker/galaxie-sports/.env
+# a imagem de cada contêiner (o digest é o que o plano compara, não a tag)
+cd /docker/galaxie-sports && docker compose ps -a --format '{{.Service}}: {{.Image}}'
+```
+
+Para saber a tag de uma imagem em um SHA, no checkout dele: `bash infra/ops/image-hash.sh demo`.
+
+Um contêiner pode seguir com uma tag antiga no `docker compose ps`, diferente da do `.env`, com o mesmo digest (entrada
+mudou, imagem saiu igual; ou contêiner que passou pela transição de `IMAGE_TAG`). É normal, e o plano o dá por igual.
+Um `docker compose up -d` à mão, sem nome de serviço, recriaria esse contêiner: prefira nomear o serviço.
+
+### Voltar um serviço só
+
+O `.env.bak-<sha7>` e o `compose.yml.bak-<sha7>` são os do deploy anterior ao `<sha7>`. Para voltar a demo, sem tocar nos
+outros:
+
+```bash
+cd /docker/galaxie-sports
+grep '^TAG_DEMO=' .env.bak-<sha7>                                  # a tag anterior
+sed -i 's|^TAG_DEMO=.*|TAG_DEMO=in-<hash anterior>|' .env
+PULL_POLICY=missing docker compose up -d --no-deps demo
+```
+
+`api`, `webhooks` e `demo` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
+`ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- demo' < infra/vps-telemetry/rolling-swap.sh`. Os outros
+sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
+já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte
+compara de novo: se o SHA dele ainda pedir a imagem nova, ele troca.
+
+### Voltar para um SHA anterior às tags por serviço
+
+`gh workflow run deploy.yml -f sha=<sha> -f force=1` continua valendo para um SHA cujo `compose.yml` ainda usa
+`IMAGE_TAG`: o roteiro vem da `main`, o `compose.yml` do SHA. Sem `TAG_API` no `env.example` do SHA, ele baixa as imagens
+com a tag `<sha>`, grava `IMAGE_TAG=<sha>` (e tira as `TAG_*` do `.env`) e troca só o que tem outro digest. Como há uma
+tag só, qualquer falha volta a stack inteira. O deploy seguinte, de um SHA novo, regrava as `TAG_*` e tira o `IMAGE_TAG`.
 
 Comandos:
 

@@ -8,7 +8,7 @@
  * FAIL = funcionalidade quebrada (código/imagem/config) → sai com 1. WARN = dado incompleto (sync,
  * cota, IA) → não derruba o deploy, mas aparece no relatório.
  *
- * Com DEPLOY_CANDIDATE=on, o deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
+ * O deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
  * novas, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
  * semântica, os nomes, a importância e o cache são os da versão no ar. Check novo que depende do pós-deploy deve
  * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.
@@ -61,6 +61,25 @@ if (CANDIDATE) console.log('smoke no candidato (antes da troca e do pós-deploy)
 await check('API /health', async () => {
   const res = await fetch(`${API}/health`);
   return res.ok ? true : fail(`status ${res.status}`);
+});
+
+// A versão que API e demo expõem é a que o deploy pediu (SMOKE_API_IMAGE e SMOKE_DEMO_IMAGE, a tag in-<hash> de cada uma;
+// fora do deploy, sem as variáveis, só mostra). Sem a rota (versão anterior a ela, na volta de um serviço): só avisa.
+await check('Versão da API e da demo', async () => {
+  const read = async (base, path, want) => {
+    const res = await fetch(`${base}${path}`);
+    if (res.status === 404) return { warn: `${path} não existe nesta versão` };
+    const hash = (await res.json()).image_hash;
+    if (want && hash !== want) return { fail: `${path} expõe ${hash}, não ${want}` };
+    return { hash };
+  };
+  const api = await read(API, '/version', process.env.SMOKE_API_IMAGE);
+  const demo = await read(DEMO, '/api/version', process.env.SMOKE_DEMO_IMAGE);
+  const failed = api.fail ?? demo.fail;
+  if (failed) return fail(failed);
+  const missing = api.warn ?? demo.warn;
+  if (missing) return warn(missing);
+  return `API ${api.hash} · demo ${demo.hash}`;
 });
 
 await check('Página de manutenção (503 do Traefik quando demo ou API saem do ar)', async () => {

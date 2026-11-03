@@ -3,6 +3,7 @@
 # stack): uma stack descartável com o Traefik da VPS (mesma versão) e um app com healthcheck e o gsports-retry, como a
 # API e a demo. Enquanto a troca roda, um laço pede a rota pelo Traefik a cada 50 ms; qualquer resposta que não seja
 # 200 falha o teste. Depois, uma versão que nunca fica healthy: a troca tem de falhar e a versão anterior seguir no ar.
+# Por último, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
 #
 #   bash infra/vps-telemetry/rolling-swap.test.sh
 set -euo pipefail
@@ -46,6 +47,13 @@ services:
       - traefik.http.routers.app.entrypoints=websecure
       - traefik.http.routers.app.middlewares=gsports-retry
       - traefik.http.services.app.loadbalancer.server.port=80
+  worker:
+    image: caddy:2.11.7-alpine
+    command: ['sh', '-c', "trap 'exit 0' TERM; while :; do sleep 1 & wait $$!; done"]
+    environment:
+      APP_VERSION: ${APP_VERSION}
+    healthcheck:
+      disable: true
 YML
 
 cleanup() {
@@ -132,3 +140,18 @@ n=$(APP_VERSION=2 docker compose ps -q app | grep -c .)
   exit 1
 }
 echo "ok  troca recusada: o contêiner novo saiu e a v2 seguiu no ar"
+
+echo "── worker sem healthcheck: troca e fica um contêiner só, com a versão nova"
+APP_VERSION=2 docker compose up -d --quiet-pull worker
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" worker
+n=$(APP_VERSION=4 docker compose ps -q worker | grep -c .)
+[ "$n" = 1 ] || {
+  echo "FAIL  $n contêineres do worker depois da troca (esperado 1)"
+  exit 1
+}
+got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSION=4 docker compose ps -q worker)" | sed -n 's/^APP_VERSION=//p')
+[ "$got" = 4 ] || {
+  echo "FAIL  o worker ficou na versão '$got', não 4"
+  exit 1
+}
+echo "ok  worker sem healthcheck trocado"
