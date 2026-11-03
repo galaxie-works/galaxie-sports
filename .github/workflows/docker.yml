@@ -192,6 +192,36 @@ jobs:
           fi
           echo "nenhum .env na imagem"
 
+  # A stack de dev do NAS (Portainer, GitOps por polling; infra/nas-dev/compose.yml) acompanha a branch `nas-dev`, não a
+  # main: este job avança a branch para o SHA só depois de TODAS as imagens do commit terem saído com a tag `main`.
+  # Assim o redeploy do Portainer nunca vê um commit cujas imagens ainda não existem: o poll de 5 min caía no meio do
+  # build, puxava a imagem anterior e, sem commit novo, não tentava de novo (a migration ficava sem aplicar até o merge
+  # seguinte). Push pelo GITHUB_TOKEN não dispara workflow nenhum. Build de uma imagem falhou = a branch não anda, e o
+  # `gs dev:esquema` avisa o atraso. Runbook: docs/runbooks/ambiente-de-dev.md › Stack a partir do git.
+  nas-dev:
+    name: avança nas-dev (stack de dev do NAS)
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: nas-dev = este SHA (imagens main publicadas)
+        run: |
+          # execuções da main saem em ordem (concurrency acima), mas se a branch já estiver à frente deste SHA
+          # (commit seguinte publicado antes), não há o que fazer: avançar para trás seria voltar o dev
+          if git fetch origin nas-dev 2>/dev/null && git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::notice::nas-dev já está em $(git rev-parse --short FETCH_HEAD), à frente de $(git rev-parse --short HEAD); nada a fazer"
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/nas-dev"
+          echo "nas-dev → $(git rev-parse --short HEAD)"
+
   # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta muda.
   # No PR e na fila de merge, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
   # works.galaxie.context-tree da tag publicada no GHCR: uma execução trocada na fila pela do commit seguinte não deixa

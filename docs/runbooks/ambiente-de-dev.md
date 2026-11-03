@@ -2,8 +2,9 @@
 
 A infra de **desenvolvimento** roda no NAS da LAN (`192.168.1.34`), na stack `galaxie-sports-dev` do Portainer do NAS.
 O compose é [infra/nas-dev/compose.yml](../../infra/nas-dev/compose.yml) e o Portainer o lê **direto do git** (branch
-`main`, [Stack a partir do git](#stack-a-partir-do-git)): a cada commit novo na main ele puxa as imagens de novo e
-redeploya, e o serviço `migrate` aplica as migrations no Postgres do dev. As variáveis estão em
+`nas-dev`, a main com atraso que o `docker.yml` avança depois de publicar as imagens; [Stack a partir do
+git](#stack-a-partir-do-git)): a cada commit novo ele puxa as imagens de novo e redeploya, e o serviço `migrate` aplica
+as migrations no Postgres do dev. As variáveis estão em
 [infra/nas-dev/env.example](../../infra/nas-dev/env.example). Postgres 17 em `:5433`, Valkey em `:6379` e RustFS (S3) em
 `:9000`/`:9001` ficam sempre no ar.
 
@@ -123,12 +124,22 @@ select key, updated_at from ops.runtime_setting order by key;
 ## Stack a partir do git
 
 Decisão de 03/11/2026 (#552): a stack `galaxie-sports-dev` é uma stack **a partir do repositório** no Portainer CE 2.39
-do NAS, com atualização automática por polling e re-pull das imagens. O Portainer confere a branch `main` a cada 5 min
-e, a cada commit novo, baixa o repositório, puxa as imagens de novo e faz o `compose up` da stack: quem não mudou de
-configuração fica no ar (Postgres, Valkey, RustFS), os contêineres de uma vez (`migrate`, `s3-init`) rodam de novo e os
-workers, se o perfil estiver ligado, trocam para a imagem `main` recém-publicada. Sem chave SSH, sem `sudo`, sem socket
-do Docker: o GitHub Actions não alcança a LAN, então o cron é o polling do próprio Portainer. **Colar o arquivo no editor
-deixou de ser o caminho**: o que está na main é o que roda.
+do NAS, com atualização automática por polling e re-pull das imagens. O Portainer confere a branch **`nas-dev`** a cada
+5 min e, a cada commit novo, baixa o repositório, puxa as imagens de novo e faz o `compose up` da stack: quem não mudou
+de configuração fica no ar (Postgres, Valkey, RustFS), os contêineres de uma vez (`migrate`, `s3-init`) rodam de novo e
+os workers, se o perfil estiver ligado, trocam para a imagem `main` recém-publicada. Sem chave SSH, sem `sudo`, sem
+socket do Docker: o GitHub Actions não alcança a LAN, então o cron é o polling do próprio Portainer. **Colar o arquivo
+no editor deixou de ser o caminho**: o que está na main é o que roda.
+
+**Por que `nas-dev`, e não `main`.** O polling só redeploya quando vê um commit novo, e não tenta de novo depois. Se o
+Portainer apontasse para a main, o poll de 5 min cairia no meio do build das imagens (3 a 6 min depois do push), puxaria
+a `api:main` do commit anterior e, sem outro commit, ficaria assim: a migration nova só entraria no merge seguinte. A
+`nas-dev` é a main com atraso: o job `nas-dev` do [docker.yml](../../.github/workflows/docker.yml) a avança para o SHA
+**só depois de todas as imagens do commit saírem com a tag `main`** (`needs: build`, push pelo `GITHUB_TOKEN`, que não
+dispara workflow). O redeploy, portanto, nunca vê um commit cujas imagens ainda não existem. Build de uma imagem
+vermelho = a branch não anda e o dev fica na versão anterior, inteira (nunca meio a meio); o `gs dev:esquema` avisa o
+atraso. Nunca faça commit na `nas-dev`: o job a sobrescreve (`push` simples, sem `--force`: um commit à mão nela
+quebraria o job até ser removido).
 
 O compose foi feito para isso: não depende de nenhum arquivo ao lado (só dele e das variáveis da stack), toda variável
 sem segredo tem padrão e os três segredos (`POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`) são `${VAR:?}`: sem eles
@@ -154,7 +165,7 @@ na tag `main` com a imagem e o comando da produção, workers na mesma tag, segr
 |---|---|
 | Name | `galaxie-sports-dev` (**exatamente**: ver abaixo) |
 | Repository URL | `https://github.com/galaxie-works/galaxie-sports` |
-| Repository reference | `refs/heads/main` |
+| Repository reference | `refs/heads/nas-dev` (a main com atraso, avançada pelo `docker.yml` depois das imagens; ver acima) |
 | Compose path | `infra/nas-dev/compose.yml` |
 | Authentication | desligada (repo pública); ligada com o PAT só de leitura quando ficar privada |
 | GitOps updates | **ligado**, mecanismo **Polling**, *Fetch interval* `5m`, **Re-pull image** ligado; *Force redeployment* desligado (recriaria Postgres, Valkey e RustFS a cada commit) |
@@ -188,7 +199,8 @@ A stack antiga (stack id 10, colada à mão) e a nova não podem ter o mesmo nom
 O serviço `migrate` do compose é o mesmo da produção ([infra/vps-telemetry/compose.yml](../../infra/vps-telemetry/compose.yml)):
 a imagem `api` e o comando `node node_modules/@galaxie/db/dist/migrate-cli.js`, fixo na tag `main` (`IMAGE_TAG`),
 `pull_policy: always`, `restart: "no"`, esperando o Postgres da stack ficar saudável e com `DB_ROLES=off` (o dev não tem
-papéis por serviço). Como o Portainer redeploya a cada commit novo na branch, o `migrate` roda **a cada merge na main**:
+papéis por serviço). Como o Portainer redeploya a cada commit novo na `nas-dev` (cada commit da main, assim que as
+imagens dele saem), o `migrate` roda **a cada merge na main**:
 nada a aplicar = sai em 0 em segundos; migration nova = aplica e sai em 0; falhou = contêiner com saída ≠ 0 na lista da
 stack, com o log dizendo qual migration, e os workers não sobem (dependem dele). Vale o critério da #550: depois de um
 merge com migration nova, o dev tem a migration em menos de 1 h sem ninguém mexer no Portainer.

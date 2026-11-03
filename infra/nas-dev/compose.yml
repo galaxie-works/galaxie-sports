@@ -1,7 +1,9 @@
 # Stack `galaxie-sports-dev` do NAS (Portainer do NAS, ambiente local): a infra de DESENVOLVIMENTO.
 # Stack A PARTIR DO GIT no Portainer (docs/runbooks/ambiente-de-dev.md › Stack a partir do git): o Portainer lê este
-# arquivo da main, confere a branch a cada 5 min e, a cada commit novo, puxa as imagens de novo e redeploya. Por isso
-# ele não depende de nada ao lado: só deste arquivo e das variáveis da stack. Variável sem segredo tem padrão; segredo
+# arquivo da branch `nas-dev`, confere a branch a cada 5 min e, a cada commit novo, puxa as imagens de novo e
+# redeploya. A `nas-dev` é a main com atraso: o docker.yml (job nas-dev) a avança para cada commit da main só depois de
+# publicar TODAS as imagens dele com a tag `main`, para o redeploy nunca puxar uma imagem anterior ao commit. Por isso
+# este arquivo não depende de nada ao lado: só dele e das variáveis da stack. Variável sem segredo tem padrão; segredo
 # é `${VAR:?}` (a stack não sobe sem ele). Só LAN. Nada de segredo aqui: as senhas vêm do ambiente da stack
 # (infra/nas-dev/env.example).
 #
