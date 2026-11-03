@@ -5,7 +5,7 @@ set -e
 S="$(dirname "$0")"; VPS=root@145.223.94.149; SSHO="-o ServerAliveInterval=30"
 scp -q "$S/sync-upsert.sql" "$S/sync-apply.sql" "$S/sync-remap.sql" "$S/sync-orphans.sql" $VPS:/tmp/
 echo "== exporta do NAS"; bash "$S/nas-export.sh"
-ssh $SSHO $VPS 'cd /docker/galaxie-sports && P="docker compose exec -T postgres"; C=$(docker compose ps -q postgres)
+ssh $SSHO $VPS 'cd /docker/galaxie-sports && P="docker compose -f compose.dados.yml exec -T postgres"; C=$(docker compose -f compose.dados.yml ps -q postgres)
 for f in sync-upsert sync-apply sync-remap sync-orphans; do docker cp /tmp/$f.sql $C:/tmp/; done
 $P psql -U galaxie -d postgres -Atc "drop database if exists galaxie_sync" -c "create database galaxie_sync" >/dev/null
 $P pg_dump -U galaxie -d galaxie_sports -s -n public --no-owner | $P psql -U galaxie -d galaxie_sync -q 2>&1 | grep -v "already exists" | grep -i error | head -3
@@ -21,4 +21,4 @@ $P psql -U galaxie -d galaxie_sports -Atc "delete from core.event_participant c 
 $P psql -U galaxie -d galaxie_sports -Atc "drop schema sync_core cascade" -c "drop schema sync_multisport cascade" >/dev/null 2>&1; $P psql -U galaxie -d postgres -Atc "drop database galaxie_sync" >/dev/null
 echo "== jogos por esporte"; $P psql -U galaxie -d galaxie_sports -Atc "select sport, count(*) from core.event group by 1 order by 2 desc" | tr "\n" " "; echo'
 echo "== S3"; bash "$S/s3copy.sh" 2>&1 | grep -v "command not found" | tail -2
-ssh $SSHO $VPS 'cd /docker/galaxie-sports && for p in "gs:cache:*" "gs:tag:*"; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern \"$p\" | xargs -r -n 500 valkey-cli del" >/dev/null; done; docker compose restart demo >/dev/null 2>&1; echo "== cache limpo, demo reiniciada"'
+ssh $SSHO $VPS 'cd /docker/galaxie-sports && for p in "gs:cache:*" "gs:tag:*"; do docker compose -f compose.dados.yml exec -T valkey sh -c "valkey-cli --scan --pattern \"$p\" | xargs -r -n 500 valkey-cli del" >/dev/null; done; docker compose restart demo >/dev/null 2>&1; echo "== cache limpo, demo reiniciada"'

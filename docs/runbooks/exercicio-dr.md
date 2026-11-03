@@ -122,8 +122,8 @@ o `mem_limit` do serviço `backup` e o disco do volume.
    está definido: sync que falha ou para vira `BackupCheckFailed`, e o motivo está no job `s3-sync` de `ops.job_run`
    (3 falhas seguidas também acendem `JobFailingRepeatedly`). Falha do sync não derruba o backup do banco.
 
-**Ligar (uma vez, com o OK do Wagner):** ponha `BACKUP_S3_SYNC_PREFIXES` no `.env` da VPS e rode `docker compose up -d --no-deps backup`: a partida já faz o primeiro
-sync. Confira com `docker compose exec backup s3-sync.sh` (termina com a contagem de objetos) e
+**Ligar (uma vez, com o OK do Wagner):** ponha `BACKUP_S3_SYNC_PREFIXES` no `.env` da VPS e rode `docker compose -f compose.dados.yml up -d --no-deps backup`: a partida já faz o primeiro
+sync. Confira com `docker compose -f compose.dados.yml exec backup s3-sync.sh` (termina com a contagem de objetos) e
 `aws s3 ls s3://<bucket>/assets/ --recursive --summarize`. No NAS, ponha `NAS_S3_PREFIXES` (a mesma lista) na stack,
 copie o `nas-pull.sh` novo e reinicie o contêiner; o `last_run.txt` passa a citar os assets. O volume `backups` da VPS
 cresce o tamanho da lista (260 MiB acima).
@@ -133,10 +133,10 @@ tem as chaves dos dois lados), com o `s3-init` da stack já executado (ele cria 
 
 ```bash
 # 1. do bucket remoto para o volume (pule se o volume já tem s3/<prefixo>/)
-docker compose exec backup sh -c 'aws ${BACKUP_S3_ENDPOINT:+--endpoint-url $BACKUP_S3_ENDPOINT} s3 sync \
+docker compose -f compose.dados.yml exec backup sh -c 'aws ${BACKUP_S3_ENDPOINT:+--endpoint-url $BACKUP_S3_ENDPOINT} s3 sync \
   s3://$BACKUP_S3_BUCKET/${BACKUP_S3_SYNC_DEST_PREFIX:-assets}/broadcasters/ /backups/s3/broadcasters/'
 # 2. do volume para o RustFS (chaves do RustFS)
-docker compose exec backup sh -c 'AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY \
+docker compose -f compose.dados.yml exec backup sh -c 'AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY \
   aws --endpoint-url $S3_ENDPOINT s3 sync /backups/s3/broadcasters/ s3://$S3_BUCKET/broadcasters/'
 ```
 
@@ -178,15 +178,15 @@ isso ela é obrigatória com a cifragem ligada: `BACKUP_AGE_RECIPIENTS` sem `BAC
 
    Depois, apague o arquivo da máquina. Sem essa chave, os dumps do NAS não se leem. A chave nunca vai para a VPS, o
    NAS, o repositório ou o chat.
-3. **Chave do ensaio, na VPS:** rode `docker compose run --rm --no-deps --entrypoint age-keygen backup </dev/null`.
+3. **Chave do ensaio, na VPS:** rode `docker compose -f compose.dados.yml run --rm --no-deps --entrypoint age-keygen backup </dev/null`.
    - A linha `AGE-SECRET-KEY-1…` vai em `BACKUP_AGE_IDENTITY=` no `.env`.
    - A linha `# public key: age1…` vai em `BACKUP_AGE_RECIPIENTS`.
 4. **Destinatários e recriação.** Ponha `BACKUP_AGE_RECIPIENTS=<pública da recuperação>,<pública do ensaio>` no `.env`
-   e rode `docker compose up -d --no-deps backup` e depois `docker compose exec backup backup.sh`, para já ter um dump
+   e rode `docker compose -f compose.dados.yml up -d --no-deps backup` e depois `docker compose -f compose.dados.yml exec backup backup.sh`, para já ter um dump
    cifrado. A partida só faz backup quando o último tem mais de `BACKUP_ON_START_MIN_AGE_H` horas.
 5. **Conferência:**
-   - `docker compose exec backup sh -c 'ls -l /backups | tail -3'` tem de mostrar o `.dump.age` mais recente;
-   - `docker compose exec backup restore-drill.sh` tem de terminar OK;
+   - `docker compose -f compose.dados.yml exec backup sh -c 'ls -l /backups | tail -3'` tem de mostrar o `.dump.age` mais recente;
+   - `docker compose -f compose.dados.yml exec backup restore-drill.sh` tem de terminar OK;
    - no dia seguinte, o `last_run.txt` do NAS tem de citar o `.dump.age`.
 
 **Restaurar com a chave de recuperação (VPS perdida):** copie o `.dump.age` e o `.sha256` do NAS. Depois:
@@ -215,7 +215,7 @@ O ensaio confere: dump com no máximo 26 h e `.sha256` certo; espaço livre de p
 dos volumes; `pg_restore` sem erro; migrations aplicadas no restaurado (> 0 e não mais que na produção); linhas em
 `core.competition`, `core.event`, `raw.api_response` e `ops.job_run` (`RESTORE_DRILL_TABLES`); e última atualização de
 partida até 72 h antes do dump (`RESTORE_DRILL_EVENT_MAX_AGE_H`). O resultado, com tempos e contagens, fica em
-`ops.job_run.stats`. Avulso: `docker compose exec backup restore-drill.sh`. Banco temporário de um ensaio interrompido é
+`ops.job_run.stats`. Avulso: `docker compose -f compose.dados.yml exec backup restore-drill.sh`. Banco temporário de um ensaio interrompido é
 apagado no ensaio seguinte.
 
 Os alertas (e os demais: disco acima de 85%, API fora, fila do change feed parada) saem do Prometheus e vão por e-mail

@@ -15,6 +15,10 @@ pnpm test                 # unitários (src/**/*.test.ts)
 pnpm test:integration     # integração (test/**/*.integration.test.ts) contra o Postgres local
 ```
 
+No PR, o CI roda build, typecheck e testes só nos pacotes que a mudança alcança (os que mudaram e quem depende deles, `turbo --affected`); na fila de
+merge e no push para a `main` roda tudo. Mudou `config/`, `data/`, `docs/rules/` ou o `package.json` da raiz? Todos os pacotes entram (estão em
+`globalDependencies` do `turbo.json`). Para ver o mesmo recorte localmente: `pnpm test --affected` (compara com a `main`).
+
 ## Organização
 
 Cada pasta abaixo tem um `README.md` próprio. Mapa geral, dependências e fronteiras: [docs/15](docs/15-organizacao-do-monorepo.md).
