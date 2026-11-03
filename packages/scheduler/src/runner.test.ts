@@ -14,9 +14,9 @@ class MemoryRecorder implements RunRecorder {
     string,
     { job: string; status: string; error: string | null; stats?: Record<string, unknown> }
   >();
-  async start(job: string) {
+  async start(job: string, stats?: Record<string, unknown>) {
     const id = `run-${this.rows.size + 1}`;
-    this.rows.set(id, { job, status: 'running', error: null });
+    this.rows.set(id, { job, status: 'running', error: null, ...(stats ? { stats } : {}) });
     return id;
   }
   async finish(
@@ -25,7 +25,8 @@ class MemoryRecorder implements RunRecorder {
     error: string | null,
     stats: Record<string, unknown>,
   ) {
-    this.rows.set(id, { ...this.rows.get(id)!, status, error, stats });
+    const prev = this.rows.get(id)!;
+    this.rows.set(id, { ...prev, status, error, stats: { ...prev.stats, ...stats } });
   }
 }
 
@@ -169,5 +170,33 @@ describe('runJob', () => {
       },
     });
     expect(offline.status).toBe('ok');
+  });
+
+  it('trava por cópia: o nome leva a cópia do scheduler, que fica na execução (a outra cópia confere a órfã por ela)', async () => {
+    const asked: string[] = [];
+    const lock = async (name: string) => {
+      asked.push(name);
+      return { release: async () => {} };
+    };
+    const recorder = new MemoryRecorder();
+    await runJob(job('ok.mjs', { lock: 'instance' }), {
+      cwd: dir,
+      recorder,
+      logger,
+      trigger: 'keepalive',
+      lock,
+      instance: 'copia-a',
+    });
+    await runJob(job('ok.mjs'), {
+      cwd: dir,
+      recorder,
+      logger,
+      trigger: 'schedule',
+      lock,
+      instance: 'copia-a',
+    });
+    expect(asked).toEqual(['teste@copia-a', 'teste']);
+    expect(recorder.rows.get('run-1')!.stats).toMatchObject({ instance: 'copia-a', trigger: 'keepalive' });
+    expect(recorder.rows.get('run-2')!.stats).not.toHaveProperty('instance');
   });
 });

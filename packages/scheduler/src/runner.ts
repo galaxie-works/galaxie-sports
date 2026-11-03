@@ -1,14 +1,16 @@
 import { spawn } from 'node:child_process';
+import { hostname } from 'node:os';
 import { resolve } from 'node:path';
 import { eq, sql } from 'drizzle-orm';
 import { jobRun, type Database, type JobLock } from '@galaxie/db';
 import { EXIT_BUDGET_SKIPPED } from '@galaxie/runtime-config';
 import type { Logger } from '@galaxie/observability';
-import type { ScheduledJob } from './schedule.js';
+import { jobLockName, type ScheduledJob } from './schedule.js';
 
 /** Onde o scheduler registra cada execução (ops.job_run alimenta as métricas e o alerta "job falhando 3×"). */
 export interface RunRecorder {
-  start(job: string): Promise<string>;
+  /** `stats` iniciais (ex.: a cópia do scheduler, no job com trava por cópia). */
+  start(job: string, stats?: Record<string, unknown>): Promise<string>;
   finish(
     id: string,
     status: 'ok' | 'error' | 'budget_skipped',
@@ -20,10 +22,10 @@ export interface RunRecorder {
 export class PgRunRecorder implements RunRecorder {
   constructor(private readonly db: Database) {}
 
-  async start(job: string): Promise<string> {
+  async start(job: string, stats?: Record<string, unknown>): Promise<string> {
     const [row] = await this.db
       .insert(jobRun)
-      .values({ job, status: 'running' })
+      .values({ job, status: 'running', ...(stats ? { stats } : {}) })
       .returning({ id: jobRun.id });
     return row!.id;
   }
@@ -49,9 +51,9 @@ export class PgRunRecorder implements RunRecorder {
 
 /**
  * De onde veio a execução: agenda, CLI `--run`, SCHEDULER_RUN_ON_START, o painel de Operação ou o catch-up da partida
- * (horário perdido com o scheduler fora do ar, catch-up.ts).
+ * (horário perdido com o scheduler fora do ar, catch-up.ts) ou a volta de um job `keepAlive` que saiu.
  */
-export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel' | 'catchup';
+export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel' | 'catchup' | 'keepalive';
 
 export interface RunOptions {
   /** Raiz do pacote dono do scheduler (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
@@ -67,10 +69,12 @@ export interface RunOptions {
   /** Encerramento do scheduler: repassa SIGTERM ao filho (ex.: o ao vivo termina o tick e sai). */
   signal?: AbortSignal | undefined;
   /**
-   * Trava entre processos (no serviço real, advisory lock de sessão do Postgres, `tryJobLock`): `null` =
-   * outro processo já roda este job, e esta execução é pulada sem registro em ops.job_run.
+   * Trava entre processos (no serviço real, advisory lock de sessão do Postgres, `tryJobLock`), pelo nome que
+   * `jobLockName` dá: `null` = outro processo já roda este job, e esta execução é pulada sem registro em ops.job_run.
    */
-  lock?: ((job: string) => Promise<JobLock | null>) | undefined;
+  lock?: ((name: string) => Promise<JobLock | null>) | undefined;
+  /** Esta cópia do scheduler (padrão: o hostname, que no contêiner é o ID dele): nome da trava por cópia. */
+  instance?: string | undefined;
 }
 
 export interface RunResult {
@@ -86,6 +90,10 @@ export interface RunResult {
   timedOut: boolean;
   durationMs: number;
 }
+
+/** Esta cópia do scheduler: o hostname (no contêiner, o ID dele), ou `HOSTNAME` do env. */
+export const schedulerInstance = (env: NodeJS.ProcessEnv = process.env): string =>
+  env.HOSTNAME?.trim() || hostname();
 
 /** Código de saída do `scheduler --run`: budget_skipped (gravou o determinístico) não é falha. */
 export const runExitCode = (status: RunResult['status']): number =>
@@ -118,10 +126,11 @@ export function heapFlags(job: Pick<ScheduledJob, 'heapMb'>, fallbackMb = DEFAUL
  */
 export async function runJob(job: ScheduledJob, options: RunOptions): Promise<RunResult> {
   const startedAt = Date.now();
+  const instance = options.instance ?? schedulerInstance();
   let lock: JobLock | null | undefined;
   if (options.lock) {
     try {
-      lock = await options.lock(job.name);
+      lock = await options.lock(jobLockName(job, instance));
     } catch (err) {
       // banco fora: segue sem a trava (o job também depende do banco e falha por conta própria)
       options.logger.warn({ err, job: job.name }, 'não foi possível obter a trava do job; seguindo sem ela');
@@ -143,7 +152,7 @@ export async function runJob(job: ScheduledJob, options: RunOptions): Promise<Ru
     }
   }
   try {
-    return await spawnJob(job, options, startedAt);
+    return await spawnJob(job, options, startedAt, instance);
   } finally {
     await lock
       ?.release()
@@ -153,10 +162,16 @@ export async function runJob(job: ScheduledJob, options: RunOptions): Promise<Ru
   }
 }
 
-async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: number): Promise<RunResult> {
+async function spawnJob(
+  job: ScheduledJob,
+  options: RunOptions,
+  startedAt: number,
+  instance: string,
+): Promise<RunResult> {
   let runId: string | undefined;
   try {
-    runId = await options.recorder?.start(job.name);
+    // a cópia fica na execução da trava por cópia: na partida, a outra cópia confere por ela se a linha é órfã
+    runId = await options.recorder?.start(job.name, job.lock === 'instance' ? { instance } : undefined);
   } catch (err) {
     options.logger.error({ err, job: job.name }, 'não foi possível registrar o início do job em ops.job_run');
   }

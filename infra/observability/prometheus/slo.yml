@@ -156,14 +156,15 @@ groups:
       # avisa. Meio-tempo, orçamento do dia e espera depois de erro da fonte são pausa de propósito e não contam.
       # Sem as séries do scheduler (o /metrics dele fora, como na troca de contêiner) o ritmo não é medido e vale
       # só o atraso do jogo.
+      # Cada cópia do serviço live expõe as mesmas séries (lidas do mesmo Postgres): max by sport, uma série por esporte.
       - record: slo:ao_vivo:tick_gap_ok
         expr: >-
           (
-            live_last_tick_age_seconds
-            <= bool on(sport) (live_tick_planned_interval_seconds + 15)
+            max by (sport) (live_last_tick_age_seconds)
+            <= bool on(sport) (max by (sport) (live_tick_planned_interval_seconds) + 15)
           )
-          and on(sport) (live_window_open == 1)
-          and on(sport) (live_tick_paused == 0)
+          and on(sport) (max by (sport) (live_window_open) == 1)
+          and on(sport) (max by (sport) (live_tick_paused) == 0)
       - record: slo:ao_vivo:ok
         expr: >-
           (

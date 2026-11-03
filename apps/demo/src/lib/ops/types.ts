@@ -29,6 +29,18 @@ export interface ServiceStatus {
   reportedAt: string | null;
   /** Scheduler relatando dentro do esperado (a API relata só na partida). */
   alive: boolean;
+  /** Só no `live`: quem é a líder e o último tick. */
+  live?: LiveServiceStatus;
+}
+
+/** O serviço do ao vivo (#535): a líder (época da liderança) e o último tick, lidos de `ops.sync_cursor`. */
+export interface LiveServiceStatus {
+  /** Cópia (ID do contêiner) que abriu o mandato atual; `null` = nenhuma assumiu ainda. */
+  leader: string | null;
+  epoch: number | null;
+  leaderSince: string | null;
+  /** Último tick de qualquer cópia (registro do ritmo, #538); `null` sem registro. */
+  lastTickAt: string | null;
 }
 
 export interface JobRunSummary {
@@ -42,7 +54,7 @@ export interface JobRunSummary {
 
 export interface JobStatus {
   name: string;
-  service: 'ingestor' | 'agents';
+  service: 'ingestor' | 'agents' | 'live';
   runNow: boolean;
   last: JobRunSummary | null;
   lastOkAt: string | null;

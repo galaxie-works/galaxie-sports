@@ -10,7 +10,8 @@
 #   - a configuração dele mudou (compose ou .env): o hash do compose (config --hash) comparado com o rótulo do contêiner.
 #     A referência da imagem entra nesse hash, então ele é calculado com a tag que o contêiner já usa
 #   - não existe, está parado (quem tem restart) ou terminou com erro (quem roda uma vez, como o migrate)
-# A escala 0 do ingestor é escolha de quem opera: fica como está.
+# A escala 0 do ingestor é escolha de quem opera (a ingestão roda em outro ambiente, com a mesma chave): fica como está,
+# e o `live`, que chama a api-sports com a mesma chave, também.
 # Imprime uma linha por serviço e, por último, TROCA=<os que trocam>. Só leitura. Saída ≠ 0 = não deu para decidir.
 # O script chega pelo stdin (bash -s): todo comando lê de /dev/null.
 set -euo pipefail
@@ -87,8 +88,8 @@ why_swap() {
 services="$("${C[@]}" config --services </dev/null)"
 troca=()
 for svc in $(printf '%s\n' "$services" | sort); do
-  if [ "$svc" = ingestor ] && [ "$scale" = 0 ]; then
-    echo "$svc: escala 0, fica"
+  if { [ "$svc" = ingestor ] || [ "$svc" = live ]; } && [ "$scale" = 0 ]; then
+    echo "$svc: escala 0 do ingestor, fica"
     continue
   fi
   why="$(why_swap "$svc")"

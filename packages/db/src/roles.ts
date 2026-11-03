@@ -79,7 +79,9 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // - ops: change_feed (publishChange e os triggers do core.event), job_run, sync_cursor (estado do ao vivo e
   //   cursores do detalhe/reconciliação) e o Quota Governor (quota_ledger, quota_snapshot, quota_budget);
   // - leitura: core, ops (sobrescritas do painel, uso da cota), raw (cache do cliente) e semantic (os pares de
-  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian.
+  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian;
+  // - o scheduler do serviço (perfil `live`, #535): relata o env ao painel (ops.runtime_env, que também é o sinal de
+  //   vida) e atende o "rodar agora" do live-reconcile e do events-clock (ops.job_request).
   live: {
     read: ['core', 'ops', 'raw', 'semantic'],
     write: [
@@ -87,6 +89,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'raw.api_response',
       'ops.change_feed',
       'ops.job_run',
+      'ops.job_request',
+      'ops.runtime_env',
       'ops.sync_cursor',
       'ops.quota_ledger',
       'ops.quota_snapshot',
@@ -119,9 +123,9 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
  * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
  * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
  * - demo: login 5 + Builder 3 + change feed 2 = 10 por cópia × 3 (no ar, nova e candidata) = 30;
- * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais o ao vivo enquanto ele roda aqui
- *   (3 × (4 + 1) = 15) = 27, mais CLI à mão e a sobreposição de um deploy: 40. Quando o serviço `live` existir
- *   (#535) o ao vivo sai daqui e o teto cai para 25;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 12, mais CLI à mão e a sobreposição de um deploy:
+ *   25. O ao vivo saiu daqui para o serviço `live` (#535); com `SCHEDULER_LIVE=internal` (dev, ou a volta para uma
+ *   versão anterior) o ingestor o roda de novo, com o papel do dono ou um teto maior;
  * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
  * - live: 2 cópias (a no ar e a nova durante a troca) × (scheduler 2 + 3 processos × (4 + 1) = 17) = 34, mais folga: 36.
  *   Se o serviço rodar os três no mesmo processo, com um pool só, o teto pode cair para 12;
@@ -131,7 +135,7 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
 export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
   api: 45,
   demo: 30,
-  ingestor: 40,
+  ingestor: 25,
   agents: 25,
   live: 36,
   backup: 6,

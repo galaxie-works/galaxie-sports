@@ -5,6 +5,9 @@
  * novos no começo), as agendas mudadas são reprogramadas sem reiniciar o contêiner e os pedidos de
  * "rodar agora" (ops.job_request) são executados. O env do contêiner é relatado em ops.runtime_env
  * (segredos só como configurado/não configurado), que também serve de sinal de vida para o painel.
+ *
+ * Job `keepAlive` (o `live-run` do perfil `live`) não tem cron: sobe com o serviço e, quando o processo sai, sobe de
+ * novo depois de `keepAliveDelayMs` (dobra a cada saída rápida, até `keepAliveMaxDelayMs`).
  */
 import { Cron } from 'croner';
 import {
@@ -24,7 +27,8 @@ import type { RunResult, RunTrigger } from './runner.js';
 import { nextRuns, scheduleFromEnv, type ScheduledJob } from './schedule.js';
 import { JobSlots } from './slots.js';
 
-export type SchedulerProfile = 'ingestor' | 'agents';
+/** Quem agenda: o ingestor, os agentes de IA ou o ao vivo (serviço `live`, só os jobs da faixa do ao vivo). */
+export type SchedulerProfile = 'ingestor' | 'agents' | 'live';
 
 export interface SchedulerServiceOptions {
   profile: SchedulerProfile;
@@ -47,7 +51,14 @@ export interface SchedulerServiceOptions {
    * Sem valor: sem teto.
    */
   maxJobs?: number | undefined;
+  /** Atraso para religar um job `keepAlive` que saiu (padrão 1 s). */
+  keepAliveDelayMs?: number;
+  /** Teto do atraso quando o job `keepAlive` sai logo depois de subir (padrão 60 s). */
+  keepAliveMaxDelayMs?: number;
 }
+
+/** Um job `keepAlive` que ficou no ar ao menos isto saiu "depois de trabalhar": volta com o atraso mínimo. */
+const KEEPALIVE_STABLE_MS = 60_000;
 
 interface ActiveCron {
   pattern: string;
@@ -68,6 +79,9 @@ export class SchedulerService {
   private started = false;
   private programmed = false;
   private readonly slots: JobSlots | undefined;
+  /** Jobs `keepAlive` esperando a hora de subir de novo, e o atraso da próxima saída rápida. */
+  private readonly relaunch = new Map<string, NodeJS.Timeout>();
+  private readonly backoff = new Map<string, number>();
 
   constructor(private readonly options: SchedulerServiceOptions) {
     this.log = options.log;
@@ -84,6 +98,11 @@ export class SchedulerService {
   /** Agenda efetiva (jobs ligados). */
   get schedule(): readonly ScheduledJob[] {
     return this.current;
+  }
+
+  /** Jobs `keepAlive` da agenda efetiva (sem cron: ficam no ar e voltam quando saem). */
+  keptAlive(): string[] {
+    return this.current.filter((j) => j.keepAlive).map((j) => j.name);
   }
 
   /** Crons programados agora, com a próxima execução. */
@@ -113,7 +132,12 @@ export class SchedulerService {
       this.creditTimer.unref?.();
     }
     this.log.info(
-      { profile: this.options.profile, max_jobs: this.slots?.max ?? null, jobs: this.activeCrons() },
+      {
+        profile: this.options.profile,
+        max_jobs: this.slots?.max ?? null,
+        jobs: this.activeCrons(),
+        keep_alive: this.keptAlive(),
+      },
       'scheduler iniciado',
     );
   }
@@ -173,9 +197,9 @@ export class SchedulerService {
     }
   }
 
-  /** Para os crons que mudaram ou saíram e programa os novos. */
+  /** Para os crons que mudaram ou saíram e programa os novos; sobe os jobs `keepAlive` que não estão no ar. */
   private reconcile(): void {
-    const wanted = new Map(this.current.map((j) => [j.name, j]));
+    const wanted = new Map(this.current.filter((j) => !j.keepAlive).map((j) => [j.name, j]));
     const names = new Set([...this.crons.keys(), ...wanted.keys()]);
     const changes: { job: string; from: string | null; to: string | null }[] = [];
     for (const name of names) {
@@ -190,6 +214,52 @@ export class SchedulerService {
     // a primeira programação não é "mudança"; as seguintes vêm do painel
     if (changes.length && this.programmed) this.log.info({ changes }, 'agenda reprogramada');
     this.programmed = true;
+    for (const job of this.current) if (job.keepAlive) this.keepAlive(job.name);
+  }
+
+  /**
+   * Sobe o job `keepAlive` se ele não está no ar nem esperando a hora de voltar. Desligado no painel (fora da agenda),
+   * o processo em andamento segue até sair e não volta.
+   */
+  private keepAlive(name: string): void {
+    if (!this.started || this.running.has(name) || this.relaunch.has(name)) return;
+    const startedAt = Date.now();
+    let run: Promise<RunResult>;
+    try {
+      run = this.execute(name, 'keepalive');
+    } catch (err) {
+      this.log.error({ err, job: name }, 'falha ao subir o job que fica no ar');
+      return;
+    }
+    this.track(
+      run.then(
+        (result) => this.scheduleRelaunch(name, Date.now() - startedAt, result.status),
+        (err: unknown) => {
+          this.log.error({ err, job: name }, 'falha ao subir o job que fica no ar');
+          this.scheduleRelaunch(name, Date.now() - startedAt, 'error');
+        },
+      ),
+    );
+  }
+
+  private scheduleRelaunch(name: string, ranMs: number, status: RunResult['status']): void {
+    if (!this.started) return;
+    const min = this.options.keepAliveDelayMs ?? 1_000;
+    const max = Math.max(min, this.options.keepAliveMaxDelayMs ?? 60_000);
+    // ficou no ar e saiu: volta logo; caiu logo depois de subir (sem banco, sem chave): espera cada vez mais
+    const quick = ranMs < KEEPALIVE_STABLE_MS;
+    const delay = quick ? Math.min(max, this.backoff.get(name) ?? min) : min;
+    this.backoff.set(name, quick ? Math.min(max, delay * 2) : min);
+    const fields = { job: name, status, ran_ms: ranMs, retry_ms: delay };
+    if (quick && status !== 'ok')
+      this.log.warn(fields, 'job que fica no ar saiu logo depois de subir; subindo de novo');
+    else this.log.info(fields, 'job que fica no ar saiu; subindo de novo');
+    const timer = setTimeout(() => {
+      this.relaunch.delete(name);
+      if (this.current.some((j) => j.name === name && j.keepAlive)) this.keepAlive(name);
+    }, delay);
+    timer.unref?.();
+    this.relaunch.set(name, timer);
   }
 
   private cronFor(job: ScheduledJob): Cron {
@@ -267,7 +337,7 @@ export class SchedulerService {
 
   /** Vaga no teto de jobs simultâneos; a faixa do ao vivo nunca espera. */
   private async admit(job: ScheduledJob): Promise<(() => void) | null> {
-    if (!this.slots || job.live) return () => {};
+    if (!this.slots || job.live || job.keepAlive) return () => {};
     if (this.slots.running >= this.slots.max)
       this.log.info(
         {
@@ -371,6 +441,8 @@ export class SchedulerService {
     this.slots?.close();
     clearInterval(this.refreshTimer);
     clearInterval(this.creditTimer);
+    for (const t of this.relaunch.values()) clearTimeout(t);
+    this.relaunch.clear();
     for (const c of this.crons.values()) c.cron.stop();
     this.crons.clear();
     this.programmed = false;

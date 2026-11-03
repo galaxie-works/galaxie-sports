@@ -213,7 +213,8 @@ describe('papéis por serviço', () => {
     await live`
       insert into ops.sync_cursor (sport, endpoint, key, cursor) values ('football', 'live:scheduler', 'state', '{}')
       on conflict (provider, sport, endpoint, key) do update set cursor = excluded.cursor`;
-    for (const t of ['quota_ledger', 'quota_snapshot', 'quota_budget'])
+    // o scheduler do serviço: relato ao painel e "rodar agora" do live-reconcile e do events-clock
+    for (const t of ['quota_ledger', 'quota_snapshot', 'quota_budget', 'runtime_env', 'job_request'])
       expect(
         (
           await owner<{ ok: boolean }[]>`
@@ -234,13 +235,7 @@ describe('papéis por serviço', () => {
       live`insert into enrich.platform (slug, name, kind, country) values ('x', 'x', 'streaming', 'BR')`,
     );
     // as demais tabelas de ops e o api: sem INSERT (a escrita de ops do ao vivo é por tabela)
-    for (const t of [
-      'ops.llm_usage',
-      'ops.normalize_failure',
-      'ops.runtime_setting',
-      'ops.job_request',
-      'api.tenant',
-    ]) {
+    for (const t of ['ops.llm_usage', 'ops.normalize_failure', 'ops.runtime_setting', 'api.tenant']) {
       const [p] = await owner<{ ins: boolean; upd: boolean; del: boolean }[]>`
         select has_table_privilege(${roleName('live', prefix)}, ${t}, 'insert') as ins,
                has_table_privilege(${roleName('live', prefix)}, ${t}, 'update') as upd,

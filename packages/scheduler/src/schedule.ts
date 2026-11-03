@@ -32,6 +32,24 @@ export interface ScheduledJob {
     params?: Record<string, unknown>;
     priority?: number;
   };
+  /**
+   * Processo de longa duração: sobe com o scheduler e, quando sai, sobe de novo (atraso curto, crescente se ele cai logo
+   * depois de subir); o cron não é programado. `SCHEDULE_<JOB>=off` desliga. Ex.: o `live-run --continuo` do perfil
+   * `live`, que espera a liderança do ao vivo.
+   */
+  keepAlive?: boolean;
+  /**
+   * Alcance da trava do job (advisory lock de sessão): `job` (padrão) = um processo do job em todo o banco; `instance`
+   * = um por cópia do scheduler, para o job que se coordena sozinho entre as cópias (o `live-run` com líder e reserva:
+   * a trava por job deixaria a reserva sempre de fora). A trava por cópia ainda diz, na partida, se a execução
+   * `running` de outra cópia é órfã.
+   */
+  lock?: 'job' | 'instance';
+}
+
+/** Nome da trava do job: o do job, ou `<job>@<cópia>` quando a trava é por cópia do scheduler. */
+export function jobLockName(job: Pick<ScheduledJob, 'name' | 'lock'>, instance: string): string {
+  return job.lock === 'instance' ? `${job.name}@${instance}` : job.name;
 }
 
 /** Um minuto em ms, para os `timeoutMs` das definições dos jobs. */

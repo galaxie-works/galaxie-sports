@@ -1,7 +1,7 @@
 /**
- * O CLI do scheduler, compartilhado pelos dois serviços que agendam jobs: o ingestor (`dist/cli/scheduler.js`) e os
- * agentes de IA (`dist/cli/agents-scheduler.js`). Cada um passa o perfil, a lista de jobs e a raiz do próprio pacote
- * (onde ficam o `dist/` e os CLIs que o scheduler executa); o resto é igual.
+ * O CLI do scheduler, compartilhado pelos serviços que agendam jobs: o ingestor e o ao vivo (`dist/cli/scheduler.js`,
+ * perfis `ingestor` e `live`) e os agentes de IA (`dist/cli/agents-scheduler.js`). Cada um passa o perfil, a lista de
+ * jobs e a raiz do próprio pacote (onde ficam o `dist/` e os CLIs que o scheduler executa); o resto é igual.
  *
  *   node dist/cli/scheduler.js               # inicia (fica no ar; SIGTERM encerra com elegância)
  *   node dist/cli/scheduler.js --list        # mostra a agenda efetiva e as próximas execuções
@@ -21,8 +21,9 @@
  * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
  *
  * Cada job roda em um processo por vez em todo o banco (advisory lock de sessão, solto quando o processo
- * cai): se outro scheduler já está rodando o job, a execução é pulada (o `--run` sai com código 1).
- * SCHEDULER_TIMEOUT_MINUTES não vale para o ao vivo, que tem tempo limite próprio.
+ * cai): se outro scheduler já está rodando o job, a execução é pulada (o `--run` sai com código 1). O job com trava
+ * por cópia (`lock: 'instance'`, o `live-run` do perfil `live`) roda um por cópia do scheduler: quem coordena as
+ * cópias é ele (líder e reserva). SCHEDULER_TIMEOUT_MINUTES não vale para o ao vivo, que tem tempo limite próprio.
  */
 import { writeFile } from 'node:fs/promises';
 import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
@@ -30,12 +31,15 @@ import { startOpsServer, versionInfo, type Logger, type OpsServerOptions } from 
 import { checkAiCredit } from './ai-credit.js';
 import { closeOrphans, lastJobStarts, missedSlots } from './catch-up.js';
 import { enqueueJob, queueMode } from './queue-mode.js';
-import { PgRunRecorder, runJob, runExitCode } from './runner.js';
+import { PgRunRecorder, runJob, runExitCode, schedulerInstance } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
 import { describeSchedule, SchedulerService, type SchedulerProfile } from './service.js';
 
 export interface SchedulerCliOptions {
-  /** Quem agenda: define o registro do painel (ingestor ou agents), o crédito da IA e os padrões de memória. */
+  /**
+   * Quem agenda: define o registro do painel (ingestor, agents ou live), o nome do serviço no `/health` e no `/version`,
+   * o crédito da IA, os padrões de memória e o perfil de tempos do banco (`live` no ao vivo).
+   */
   profile: SchedulerProfile;
   /** Os jobs do serviço (agenda padrão do código). */
   jobs: readonly ScheduledJob[];
@@ -84,14 +88,21 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
 
   const databaseUrl = process.env.DATABASE_URL;
   const db: Database | undefined = databaseUrl
-    ? createDb(databaseUrl, { max: 2, applicationName: 'galaxie-scheduler' })
+    ? createDb(databaseUrl, {
+        max: 2,
+        applicationName: 'galaxie-scheduler',
+        // o ao vivo não pode ficar preso numa consulta (packages/db/src/client.ts › DB_TIMEOUTS)
+        ...(profile === 'live' ? { profile: 'live' as const } : {}),
+      })
     : undefined;
   if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
   const recorder = db ? new PgRunRecorder(db) : undefined;
   /** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
   const shutdownController = new AbortController();
   const bootedAt = new Date();
-  /** Trava do job (advisory lock de sessão): `null` = outro processo já o roda. */
+  /** Esta cópia do scheduler (o ID do contêiner): nome da trava por cópia e `stats.instance` da execução. */
+  const instance = schedulerInstance();
+  /** Trava do job (advisory lock de sessão, pelo nome que `jobLockName` dá): `null` = outro processo já o roda. */
   const jobLock = databaseUrl
     ? (name: string) =>
         tryJobLock(databaseUrl, name, {
@@ -127,6 +138,7 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
             // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
             // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
             lock: jobLock,
+            instance,
           }),
   });
 
@@ -152,8 +164,8 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
 
   // ── modo serviço ──────────────────────────────────────────────────────────────────────────────────
   // /health, /version e /metrics deste processo (sem router no Traefik); os jobs são processos filhos, sem servidor
-  const serviceName = profile === 'agents' ? 'agents' : 'ingestor';
-  log.info(versionInfo(serviceName), 'partida');
+  const serviceName = profile;
+  log.info({ ...versionInfo(serviceName), instance }, 'partida');
   startOpsServer({
     service: serviceName,
     port: Number(process.env.SCHEDULER_OPS_PORT ?? 9464) || 9464,
