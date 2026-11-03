@@ -545,7 +545,7 @@ Cada sessão aparece em `pg_stat_activity` com o nome do pool (`galaxie-api`, `g
 select application_name, state, count(*) from pg_stat_activity where datname is not null group by 1, 2 order by 3 desc;
 ```
 
-Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
+Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusuário; o contêiner do Postgres foi a 1,5 GB para caber o pior caso):
 
 | Pool | Antes | Depois |
 | --- | --- | --- |
@@ -566,11 +566,11 @@ Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMI
 `ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 60 (site e console), ingestor 55 (com o worker,
 que usa o mesmo papel, e a volta para antes do `live`), agents 25, live 45, backup 6. A soma (236) passa do
 `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O pico da tabela acima
-(97) mais os candidatos do deploy (API, site e console, 30) passa bem das 97 vagas no papel; na prática os pools abrem
+(97) mais os candidatos do deploy (API, site e console, 30) dá 127 de 127 vagas no papel; na prática os pools abrem
 conexão sob demanda, o candidato só roda o smoke (uma ou duas por pool) e sai antes da troca do `live` (que soma uma
 terceira cópia, 8) e da do worker (que dobra os 14 dele por até 75 s), o worker raramente tem duas tarefas de carga ao
 mesmo tempo, e o teto do papel `galaxie_demo` (60) cobre os quatro pools da demo juntos (site, console e os dois
-candidatos, 40) com folga. Sobram poucas vagas livres: se o pico passar de ~90, suba o `max_connections` (cada conexão
+candidatos, 40) com folga. Com 130, o pico da tabela (97) cabe com ~30 de folga; se passar de ~120, suba o `max_connections` e o `mem_limit` do Postgres juntos (cada conexão
 ociosa custa ~5 MB).
 
 ### Memória dos jobs

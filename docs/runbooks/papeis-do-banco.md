@@ -35,7 +35,7 @@ O papel não escreve em `semantic`, `enrich`, `api`, `multisport` nem `equestria
 
 O da demo vale para os dois serviços da imagem dela, `site` e `console` (#546): os dois e os dois candidatos do deploy somam 40 no pior momento, e o teto é 60 com a folga.
 
-A soma dos tetos (236) passa do `max_connections` do Postgres (100, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
+A soma dos tetos (236) passa do `max_connections` do Postgres (130 desde 03/11/2026, 3 reservadas ao superusuário) de propósito: o teto não reserva vaga, só impede que um papel com pool vazando tome a vaga dos outros. O que precisa caber é o pico real, que está na tabela do README da infra (› Freios › Conexões).
 
 Para ver quem está perto do teto:
 
