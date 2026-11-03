@@ -3,13 +3,17 @@
  * entregue responde com DADOS — não só 200. Nasceu de bugs que só apareciam em produção e em silêncio
  * (regulamentos fora da imagem → tags vazias; glossário vazio; base de dados defasada).
  *
- * Roda dentro do contêiner `demo` (tem a chave da demo e a URL interna da API):
- *   docker compose exec -T demo node - < smoke.mjs
+ * Roda dentro dos contêineres do app web, `site` e `console` (têm a chave da demo e a URL interna da API), e cada um
+ * confere o que o papel dele atende (APP_ROLE do contêiner, apps/demo/src/lib/app-role.ts): o site, a API, o público, a
+ * demo e o 404 no portal e no painel; o console, o portal, o painel (inclusive /api/ajustes/operacao) e o 404 no
+ * público. Sem APP_ROLE (a demo de antes da divisão), tudo:
+ *   docker compose exec -T site node - < smoke.mjs
+ *   docker compose exec -T console node - < smoke.mjs
  * FAIL = funcionalidade quebrada (código/imagem/config) → sai com 1. WARN = dado incompleto (sync,
  * cota, IA) → não derruba o deploy, mas aparece no relatório.
  *
- * O deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
- * novas, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
+ * O deploy também roda este smoke ANTES da troca, no `site-candidate` e no `console-candidate` (a API, o site e o
+ * console novos, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
  * semântica, os nomes, a importância e o cache são os da versão no ar. Check novo que depende do pós-deploy deve
  * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.
  *
@@ -28,6 +32,17 @@ const MAINT_API = process.env.SMOKE_MAINTENANCE_API_URL ?? 'http://maintenance:8
 // IDs canônicos estáveis usados como referência (time e jogo com dados completos)
 const PALMEIRAS = '01a15fba-ec17-7d8b-90d7-47b3ccbe967e';
 const PAL_FLU_SEMI = '01a163b8-7ca2-71e8-a92e-8dc201d5d83a';
+
+// Papel do contêiner em que o smoke roda: o site confere a API, o público e a demo; o console, o portal e o painel; sem
+// APP_ROLE (a demo de antes da divisão), tudo. `only(...)` liga e desliga as checagens que vêm depois dele.
+const ROLE = ['site', 'console'].includes(process.env.APP_ROLE) ? process.env.APP_ROLE : 'all';
+const SITE = ROLE !== 'console';
+const CONSOLE = ROLE !== 'site';
+let enabled = true;
+const only = (condition) => {
+  enabled = condition;
+};
+if (ROLE !== 'all') console.log(`smoke no ${ROLE}`);
 
 const results = [];
 const record = (level, name, detail) => results.push({ level, name, detail });
@@ -82,6 +97,7 @@ async function attempt(fn) {
 }
 
 async function check(name, fn) {
+  if (!enabled) return;
   const first = await attempt(fn);
   // só repete o que reprovou E viu 5xx ou tempo esgotado: dado faltando (WARN) ou 4xx é resposta, não carga
   if (first.level !== 'FAIL' || !first.seen.length) return record(first.level, name, first.detail);
@@ -128,8 +144,31 @@ await check('Versão da API e da demo', async () => {
   if (failed) return fail(failed);
   const missing = api.warn ?? demo.warn;
   if (missing) return warn(missing);
-  return `API ${api.hash} · demo ${demo.hash}`;
+  return `API ${api.hash} · ${ROLE === 'all' ? 'demo' : ROLE} ${demo.hash}`;
 });
+
+await check('Papel do contêiner: 404 no que é do outro serviço', async () => {
+  if (ROLE === 'all') return 'sem APP_ROLE: tudo num processo';
+  const version = await (await fetch(`${DEMO}/api/version`)).json().catch(() => ({}));
+  // imagem de antes da divisão sob o serviço novo: atende tudo, e o Traefik ainda separa os caminhos
+  if (version.service === 'demo') return warn(`imagem anterior à divisão: o ${ROLE} atende tudo`);
+  if (version.service !== ROLE) return fail(`/api/version diz service ${version.service}, não ${ROLE}`);
+  const other =
+    ROLE === 'site'
+      ? ['/ajustes', '/cliente', '/cliente/builder', '/api/ajustes/operacao']
+      : ['/', '/sobre', '/times', '/docs', '/embed.js', '/r/00000000-0000-7000-8000-000000000000.json'];
+  for (const path of other) {
+    const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
+    if (res.status !== 404) return fail(`${path} no ${ROLE}: status ${res.status} (esperado 404)`);
+  }
+  // o login e a API do auth abrem nos dois (mesmo host: a sessão vale no site e no console)
+  const login = await fetch(`${DEMO}/login`, { redirect: 'manual' });
+  if (login.status !== 200) return fail(`/login no ${ROLE}: status ${login.status} (esperado 200)`);
+  return `${other.length} caminhos do outro serviço com 404 · /login 200`;
+});
+
+// ── só no site: a API pública, a página de manutenção, o público e a demo ──────────────────────────────────────
+only(SITE);
 
 await check('Página de manutenção (503 do Traefik quando demo ou API saem do ar)', async () => {
   // O serviço maintenance só aparece para o usuário durante um deploy ou reinício; aqui, pela rede da stack, confere
@@ -388,8 +427,8 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
   const about = await (await fetch(`${DEMO}/sobre`)).text();
   if (!about.includes('application/ld+json') || !about.includes('og:title'))
     return fail('/sobre sem JSON-LD ou Open Graph');
-  // o resto continua exigindo login
-  for (const path of ['/times', '/docs', '/ajustes', '/sobre/x']) {
+  // o resto continua exigindo login (/ajustes e /cliente: no console, abaixo)
+  for (const path of ['/times', '/docs', '/sobre/x']) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 307 && res.status !== 302)
       return fail(`${path} sem sessão deveria redirecionar para o login (status ${res.status})`);
@@ -441,7 +480,7 @@ await check('Demo: links antigos de esporte levam à família', async () => {
   return true;
 });
 
-await check('Builder: registry público dos widgets e painel do cliente protegido', async () => {
+await check('Builder: registry público dos widgets', async () => {
   // id bem formado que não existe: a rota é pública (sem redirecionar para o login) e responde 404 em JSON
   const missing = '00000000-0000-7000-8000-000000000000';
   const res = await fetch(`${DEMO}/r/${missing}.json`, { redirect: 'manual' });
@@ -450,7 +489,14 @@ await check('Builder: registry público dos widgets e painel do cliente protegid
   if (res.status !== 404)
     return fail(`/r/<id inexistente>.json deveria responder 404 (status ${res.status})`);
   if (!res.headers.get('content-type')?.includes('application/json')) return fail('404 do registry sem JSON');
-  for (const path of ['/cliente', '/cliente/builder']) {
+  return true;
+});
+
+// ── só no console: o portal do cliente (com o Builder) e o painel de operação ──────────────────────────────────
+only(CONSOLE);
+
+await check('Portal do cliente, Builder e Ajustes protegidos', async () => {
+  for (const path of ['/cliente', '/cliente/builder', '/ajustes']) {
     const page = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (page.status !== 307 && page.status !== 302)
       return fail(`${path} sem sessão deveria redirecionar para o login (status ${page.status})`);
@@ -501,6 +547,8 @@ await check('Painel de Operação: configuração protegida e sem segredos', asy
   // o ingestor pode estar com escala 0 de propósito (ingestão em outro ambiente): só avisa
   return down.length ? warn(`${summary} · sem sinal de ${down.map((s) => s.service).join(', ')}`) : summary;
 });
+
+only(true);
 
 const width = Math.max(...results.map((r) => r.name.length));
 for (const r of results) console.log(`${r.level.padEnd(4)}  ${r.name.padEnd(width)}  ${r.detail}`);
