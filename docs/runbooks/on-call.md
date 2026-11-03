@@ -161,8 +161,9 @@ docker logs <job> > /root/logs/<job>-$(date +%F).log 2>&1 && docker rm <job>   #
   o deploy só troca os serviços da lista, com `--no-deps`, e não toca nele.
 - **Nada de `nohup ... &` nem log em `/tmp`:** o log fica no Docker enquanto o contêiner existe e vai para `/root/logs/`
   no fim. Sem `--rm`, para o log sobreviver até você guardar.
-- **Arquivo de entrada** (pacote, planilha) vai para o S3 da stack, num prefixo aleatório `tasks/<id>/`, e o CLI lê de
-  lá (ex.: `assets:acervo --pacote s3://…`). Nunca `docker compose cp` para dentro do contêiner.
+- **Arquivo de entrada** (pacote, planilha) vai para o bucket privado das tarefas (`galaxie-sports-tasks`, sem leitura
+  anônima), num prefixo aleatório `tasks/<id>/`, e o CLI lê de lá (ex.: `assets:acervo --pacote
+  s3://galaxie-sports-tasks/tasks/<id>/…`). Nunca `docker compose cp` para dentro do contêiner, nem o bucket de assets.
 - **Antes de um deploy no meio do job:** não precisa esperar. Se o próprio contêiner avulso cair (VPS reiniciou), rode
   de novo: os CLIs longos são idempotentes e retomam (cursores em `ops.sync_cursor`).
 - O espelho de assets não é mais religado pelo deploy: roda só como job do scheduler (`assets-mirror`), com cursor por

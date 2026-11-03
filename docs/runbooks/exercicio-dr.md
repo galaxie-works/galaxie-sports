@@ -93,7 +93,7 @@ leitura, direto no volume `s3data` da VPS (148,4 mil objetos, 5,55 GiB), com a o
 | `broadcasters/` | 742 | 32 MiB | 12 | `official-logos` (SVG baixado) **e** o upload do painel (Ajustes → Grades e ofertas, `logo-upload.ts`: 14 uploads hoje, `painel://` em `core.asset.source_url`) | **Precisa de cópia**: o logo enviado à mão não existe em outro lugar, e o prefixo mistura os dois |
 | `platforms/` | 23 | 350 KiB | 2 | `platform-logos` (origem `commons`) **e** o upload do painel | **Precisa de cópia**, pelo mesmo motivo |
 | `competitions/` | 1 | 6 KiB | 0 | `competition-logos` | Reconstituível, mas custa nada copiar |
-| `tasks/` (pacotes da fila de tarefas, ainda não existe) | | | | a fila durável (épico #558) | **Precisa de cópia**: entra na lista quando a fila for ao ar |
+| `tasks/` (pacotes da fila de tarefas) | | | | Saiu deste bucket: mora no bucket privado `galaxie-sports-tasks` (#587; abaixo) | — |
 
 **O que copiar** (`BACKUP_S3_SYNC_PREFIXES` na VPS e `NAS_S3_PREFIXES` no NAS, a mesma lista): o que é insubstituível
 (`broadcasters`, `platforms`, `wikimedia`) mais o que é pequeno e encurta muito o RTO (`competitions`, `commons/people`,
@@ -102,6 +102,13 @@ leitura, direto no volume `s3data` da VPS (148,4 mil objetos, 5,55 GiB), com a o
 ```text
 BACKUP_S3_SYNC_PREFIXES=broadcasters platforms competitions wikimedia commons/people acervo
 ```
+
+**Bucket das tarefas** (`galaxie-sports-tasks`, `S3_TASKS_BUCKET`; #587): os pacotes do acervo e os relatórios da fila
+(`tasks/<id>/`) ficam num bucket privado, sem leitura anônima e fora do Traefik. O pacote licenciado tem cópia fora da VPS
+(OneDrive), mas o manifesto e o relatório gravados pela tarefa não. Copie com `BACKUP_S3_SYNC_TASKS_BUCKET=true`: o
+`s3-sync.sh` leva o bucket inteiro para `s3/tasks-bucket/` do volume (e `tasks/` do remoto, se houver), no mesmo recibo
+([infra/backup/README.md › Bucket das tarefas](../../infra/backup/README.md#bucket-das-tarefas)). No NAS, acrescente
+`tasks-bucket` a `NAS_S3_PREFIXES`: ele puxa `s3/tasks-bucket/` como qualquer prefixo.
 
 Fora da lista, de propósito: `api-sports/` (3,84 GiB e 136 mil objetos, uma listagem completa por execução, e é só espelho
 da CDN) e `commons/f1/` (1,47 GiB de fotos que a Commons devolve). Ficam por conta do `assets:mirror` e do

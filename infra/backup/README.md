@@ -57,6 +57,24 @@ dispara `BackupCheckFailed`.
 Limites: o `aws s3 sync` lista os dois lados a cada execução e o contêiner tem `mem_limit: 256m`. Para algumas dezenas de
 milhares de objetos, sem problema; para centenas de milhares (a mídia `api-sports/`), meça antes e suba o limite.
 
+### Bucket das tarefas
+
+Os pacotes do acervo e os relatórios das tarefas da fila (`tasks/<id>/`) moram no bucket privado `S3_TASKS_BUCKET`
+(padrão `galaxie-sports-tasks`, sem leitura anônima; #587), não no de assets. Com `BACKUP_S3_SYNC_TASKS_BUCKET=true`
+(padrão `false`), o `s3-sync.sh` copia esse bucket inteiro no mesmo passo e com o mesmo recibo:
+
+1. RustFS → `/backups/s3/tasks-bucket/` no volume, ao lado dos prefixos do bucket de assets. O NAS puxa como mais um
+   prefixo: basta acrescentar `tasks-bucket` a `NAS_S3_PREFIXES` (`infra/nas-backup/compose.yml`). Por isso
+   `tasks-bucket` não pode ser prefixo de `BACKUP_S3_SYNC_PREFIXES` (o script recusa);
+2. com `BACKUP_S3_BUCKET`, dali → `s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_TASKS_DEST_PREFIX/` (padrão `tasks/`, irmão de
+   `assets/` e `postgres/`; o script recusa um destino igual a um dos dois).
+
+Bucket vazio é normal (nenhuma tarefa com arquivo ainda) e não falha; bucket que não existe falha. `BACKUP_S3_SYNC_DELETE`
+vale para ele também. Na produção não há bucket remoto (`BACKUP_S3_BUCKET` vazio): a cópia fora da VPS é a do NAS, com
+`tasks-bucket` em `NAS_S3_PREFIXES`. O `env.example` já vem com `BACKUP_S3_SYNC_TASKS_BUCKET=true` (é cópia: nada é
+apagado). O `tasks` saiu da lista de prefixos do bucket de assets: depois da migração
+(`infra/ops/mover-tasks-para-bucket-privado.sh`) não sobra nada lá.
+
 ## Restore (testado)
 
 O restore real é feito num banco novo, conferido (contagens de `raw`, `ops`, `core` e migrations) e só então trocado
@@ -87,5 +105,6 @@ pelo nome. O banco anterior fica como `<db>_pre_restore_<data>` para rollback.
 
 Variáveis: `BACKUP_DIR`, `BACKUP_KEEP_DAILY`, `BACKUP_COMPRESS`, `BACKUP_TIME`, `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`,
 `BACKUP_S3_ENDPOINT` com `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (ver o cabeçalho de `backup.sh`); dos assets:
-`BACKUP_S3_SYNC_PREFIXES`, `BACKUP_S3_SYNC_DEST_PREFIX`, `BACKUP_S3_SYNC_DELETE`, `BACKUP_S3_SYNC_DIR` (cabeçalho de
-`s3-sync.sh`).
+`BACKUP_S3_SYNC_PREFIXES`, `BACKUP_S3_SYNC_DEST_PREFIX`, `BACKUP_S3_SYNC_DELETE`, `BACKUP_S3_SYNC_DIR`; do bucket das
+tarefas: `BACKUP_S3_SYNC_TASKS_BUCKET`, `BACKUP_S3_SYNC_TASKS_DEST_PREFIX`, `BACKUP_S3_SYNC_TASKS_DIR`, `S3_TASKS_BUCKET`
+(cabeçalho de `s3-sync.sh`).

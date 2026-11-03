@@ -390,6 +390,7 @@ jobs:
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/deploy-gh.test.sh \
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
+            infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
@@ -415,6 +416,9 @@ jobs:
 
       - name: Cópia dos assets do S3 e recibo no verificador (s3-sync.sh com aws falso)
         run: bash infra/backup/s3-sync.test.sh
+
+      - name: Migração de tasks/ para o bucket privado (mover-tasks-para-bucket-privado.sh com docker, aws e psql falsos)
+        run: bash infra/ops/mover-tasks-para-bucket-privado.test.sh
 
       - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
         run: bash infra/nas-backup/nas-pull.test.sh

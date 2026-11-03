@@ -87,7 +87,7 @@ services:
       RUSTFS_CONSOLE_ENABLE: 'true'
     ports: ['9000:9000', '9001:9001']
     volumes: ['s3data:/data']
-  # Cria o bucket de assets com leitura pública (o mesmo do infra/docker-compose.yml) e encerra. Num s3data novo sem ele
+  # Cria o bucket de assets com leitura pública e o privado das tarefas (os mesmos do infra/docker-compose.yml) e encerra. Num s3data novo sem ele
   # o bucket não existe e os jobs de assets falham; num volume que já tem o bucket, só reaplica a mesma política.
   s3-init:
     image: amazon/aws-cli:2.39.2
@@ -98,16 +98,25 @@ services:
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
       AWS_DEFAULT_REGION: us-east-1
       BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
         set -e
+        [ "$$TASKS_BUCKET" != "$$BUCKET" ] || { echo "S3_TASKS_BUCKET não pode ser o bucket público ($$BUCKET)" >&2; exit 1; }
         ready=0
         for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && { ready=1; break; }; sleep 2; done
         [ "$$ready" = 1 ] || { echo "s3 indisponível depois de 60 s" >&2; exit 1; }
         aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
         aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
         echo "bucket $$BUCKET pronto"
+        # bucket privado das tarefas (tasks/<id>/, #587): sem política, sem leitura anônima
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$TASKS_BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$TASKS_BUCKET"
+        # sem política nenhuma, e conferido: apagar falhou ou sobrou política = o s3-init falha (nada de "privado" sem ser)
+        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET"
+        out=$$(aws --endpoint-url http://s3:9000 s3api get-bucket-policy --bucket "$$TASKS_BUCKET" 2>&1) && { echo "$$TASKS_BUCKET continua com política: $$out" >&2; exit 1; }
+        echo "$$out" | grep -q NoSuchBucketPolicy || { echo "não deu para conferir a política de $$TASKS_BUCKET: $$out" >&2; exit 1; }
+        echo "bucket $$TASKS_BUCKET pronto (privado)"
     restart: 'no'
 
   # ── workers (perfil `workers`: não sobem sem COMPOSE_PROFILES=workers) ─────────────────────────────────────────────

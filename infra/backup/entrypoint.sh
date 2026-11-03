@@ -5,7 +5,8 @@
 #     BACKUP_ON_START=always faz sempre). Todo deploy recria este serviço (a imagem leva a tag do deploy): o dump
 #     completo, com o COPY do raw, disputava disco e cache com o pós-deploy e o smoke, e vários deploys num dia
 #     giravam os 7 diários;
-#   - com BACKUP_S3_SYNC_PREFIXES, o sync dos assets (s3-sync.sh) logo depois de cada dump e, se o recibo estiver velho, na partida;
+#   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o sync do S3 (s3-sync.sh) logo depois de cada
+#     dump e, se o recibo estiver velho, na partida;
 #   - o verificador (backup-check.sh) a cada BACKUP_CHECK_INTERVAL_H horas (padrão 6) e depois de cada dump;
 #   - o ensaio de restauração (restore-drill.sh) no dia RESTORE_DRILL_DAY de cada mês (padrão 1), logo depois do
 #     dump do dia; RESTORE_DRILL_DAY=off desliga.

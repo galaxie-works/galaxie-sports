@@ -5,8 +5,8 @@
 #   - o dump mais recente em BACKUP_DIR tem mais de BACKUP_MAX_AGE_H horas (padrão 26), ou não há dump;
 #   - com BACKUP_NAS_RECEIPT=true, o recibo do NAS ($BACKUP_DIR/.nas_last_pull, que o NAS toca depois de copiar;
 #     ver docs/runbooks/exercicio-dr.md) tem mais de BACKUP_MAX_AGE_H horas, ou não existe;
-#   - com BACKUP_S3_SYNC_PREFIXES, o recibo do sync dos assets ($BACKUP_DIR/.s3_last_sync, que o s3-sync.sh grava depois
-#     de copiar todos os prefixos) tem mais de BACKUP_MAX_AGE_H horas, ou não existe.
+#   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o recibo do sync do S3 ($BACKUP_DIR/.s3_last_sync,
+#     que o s3-sync.sh grava depois de copiar tudo) tem mais de BACKUP_MAX_AGE_H horas, ou não existe.
 set -eu
 # shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
