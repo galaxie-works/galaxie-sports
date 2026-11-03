@@ -37,8 +37,9 @@
 #   7b. com a api ou a demo na lista: a API e a demo novas sobem ao lado das que estão no ar, sem tráfego (candidate.sh),
 #      e o smoke roda nelas. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
-#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho: o ao vivo não espera o resto) → ingestor/agents
-#      (recriação simples; os três são da TAG_INGESTOR e voltam juntos) → api, webhooks e demo
+#      nada a publicar. Senão, a troca, só da lista: live (antes, sozinho, cópia a cópia e a líder primeiro pelo
+#      rolling-swap.sh: o ao vivo não para) → ingestor/agents (recriação simples; os três são da TAG_INGESTOR e voltam
+#      juntos) → api, webhooks e demo
 #      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
 #      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
@@ -498,10 +499,10 @@ up_wait() {
   done
 }
 
-# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho (recriação simples; o
-# ingestor da versão nova não roda mais o ao vivo, então ele não pode esperar o resto), api, webhooks e demo lado a lado
-# (o antigo só sai com o novo healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da configuração de
-# antes.
+# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: o live primeiro e sozinho, cópia a cópia (a líder
+# primeiro; a reserva assume enquanto a nova sobe), api, webhooks e demo lado a lado (o antigo só sai com o novo
+# healthy), o resto por recriação simples, junto. TOUCHED = os que saíram da configuração de antes (o live entra antes da
+# troca: falhou no meio, uma cópia já pode estar na versão nova).
 TOUCHED=()
 swap_group() {
   local s plain=()
@@ -510,7 +511,7 @@ swap_group() {
     case "$s" in
       live)
         TOUCHED+=("$s")
-        up_wait "$s" || return $?
+        ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
         ;;
       api | webhooks | demo)
         ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
@@ -556,8 +557,13 @@ rollback_group() {
     fi
   fi
   for s in "${TOUCHED[@]}"; do
+    # o live da configuração anterior: cópia a cópia, como na ida; sem ele (versão de antes do serviço), sai
+    if [ "$s" = live ] && ! ssh "$VPS" "cd $DIR && grep -q '^  live:' $OLD_COMPOSE"; then
+      ssh "$VPS" "$CD && $DC rm -sf live </dev/null" || echo "FAIL  live: a volta para a configuração anterior falhou"
+      continue
+    fi
     case "$s" in
-      api | webhooks | demo)
+      live | api | webhooks | demo)
         ssh "$VPS" "cd $DIR && $COMPOSE_BAK bash -s -- $s" < "$HERE/rolling-swap.sh" ||
           echo "FAIL  $s: a volta para a configuração anterior falhou"
         ;;

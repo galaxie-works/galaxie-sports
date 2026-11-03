@@ -554,6 +554,7 @@ export class LiveRunner {
           featured,
           finalizeBudget,
           fence,
+          stop: signal,
         });
       } catch (err) {
         // perdeu a liderança no meio: nada conta, quem assumir faz este tick
