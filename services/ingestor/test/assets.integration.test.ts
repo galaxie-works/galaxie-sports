@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
+import { coachPhotoUrl, MediaDenylist, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
@@ -24,6 +24,7 @@ import {
   type ApiPlayerItem,
   type NormalizedParticipant,
 } from '@galaxie/providers';
+import { PLACEHOLDER_LOGO_SHA256, upsertBatch } from '@galaxie/core-writer';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore, runRawDiscovery, type RawDiscoveryReport } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
@@ -31,20 +32,16 @@ import { mirrorCursorStore } from '../src/assets/mirror-cursor.js';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import {
-  coachPhotoUrl,
   pendingPersonPhotoIds,
-  playerPhotoUrl,
   previewPlayerPhotos,
   registerPlayerPhotos,
 } from '../src/assets/person-photos.js';
-import { PLACEHOLDER_LOGO_SHA256 } from '../src/assets/palette.js';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { relinkRecoveredLogos } from '../src/assets/relink-logos.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
 import { encodePng } from './png.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 
 const testDb = disposableDb();
 let db: Database;

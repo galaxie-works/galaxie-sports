@@ -9,7 +9,7 @@
  * Resposta que falha várias vezes seguidas vira poison (ops.normalize_failure) e o cursor segue sem ela.
  */
 import { closeDb, createDb } from '@galaxie/db';
-import { advanceEventClock } from '../normalize/event-state.js';
+import { advanceEventClock } from '@galaxie/core-writer';
 import { pendingNormalizeFailures, runNormalizeFootballJob } from '../normalize/raw-runner.js';
 
 const url = process.env.DATABASE_URL;

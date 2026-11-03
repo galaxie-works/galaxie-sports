@@ -280,14 +280,7 @@ URLs de mídia **não consomem cota**. Padrões do futebol:
 | Jogador | `https://media.api-sports.io/football/players/{id}.png` |
 | Técnico | `https://media.api-sports.io/football/coachs/{id}.png` |
 
-O script [`scripts/pwsh/Sync-ApiSportsAssets.ps1`](../scripts/pwsh/Sync-ApiSportsAssets.ps1) **não adivinha IDs**: ele varre as respostas JSON do raw e extrai toda URL `media.api-sports.io` — funciona para os 12 esportes e qualquer tipo de imagem. É idempotente (só baixa o que falta), registra 404 para não repetir, grava `manifest.csv` com SHA-256 e respeita o limite da CDN com paralelismo baixo e *backoff*.
-
-```powershell
-# 1) exportar o raw para JSON (comando do monorepo)
-pnpm raw:export --out ./data/raw
-# 2) espelhar os assets
-./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets -ThrottleLimit 4
-```
+O Asset Mirror (§7.1) **não adivinha IDs**: ele varre as respostas do raw e extrai toda URL `media.api-sports.io` (`extractMediaUrls`, em `@galaxie/apisports-client`) — funciona para os 12 esportes e qualquer tipo de imagem. É idempotente (só baixa o que falta), registra 404 para não repetir, guarda o SHA-256 em `core.asset` e respeita o limite da CDN com paralelismo baixo e *backoff*. O PowerShell de apoio que fazia a mesma cópia em disco foi removido (#577): só o cliente fala com a api-sports.
 
 ### 7.1 Asset Mirror em Node (worker agendado)
 

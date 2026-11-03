@@ -4,7 +4,8 @@
  * referência e chamada de temporada inteira) e a normalização pura para o formato comum (persist.ts).
  * Endpoints e formatos: docs/research/api-sports-outros-esportes.md.
  */
-import { isProviderMediaUrl, type ApiSport, type Params } from '@galaxie/apisports-client';
+import { flagUrl, isProviderMediaUrl, type ApiSport, type Params } from '@galaxie/apisports-client';
+import { slugify } from '@galaxie/core-writer';
 import type { I18nText } from '@galaxie/db';
 import { F1_COMPETITION_ID, MMA_COMPETITION_ID } from '@galaxie/providers';
 import type { SportCatalogCompetition } from './catalog-config.js';
@@ -12,7 +13,6 @@ import {
   canonicalCountryName,
   mergeSameYear,
   seasonLabel,
-  slugify,
   UK_NATIONS,
   type ApiSeason,
 } from './football-catalog.js';
@@ -501,7 +501,7 @@ export function aflQuarterCalls(games: unknown, now: Date): SeasonCall[] {
   }));
 }
 
-const USA: ProviderCountry = { name: 'USA', code: 'US', flag: 'https://media.api-sports.io/flags/us.svg' };
+const USA: ProviderCountry = { name: 'USA', code: 'US', flag: flagUrl('US') };
 
 function buildNba(responses: ReferenceResponses, ctx: BuildContext): CatalogRows {
   const cfgs = configById(ctx.catalog);
@@ -579,7 +579,7 @@ export const SPORT_PROFILES: Record<OtherSport, SportProfile> = {
       buildLeagueCatalog(undefined, r.get('/leagues'), ctx, {
         name: 'Australia',
         code: 'AU',
-        flag: 'https://media.api-sports.io/flags/au.svg',
+        flag: flagUrl('AU'),
       }),
     seasonCall: games,
     standingsCalls: standings,
