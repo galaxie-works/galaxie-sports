@@ -92,12 +92,37 @@ export function recordLivePace(
 }
 
 /**
- * O que obriga a gravar fora de um tick: o último tick e a pausa. O intervalo planejado vai junto com o próximo tick
- * (regravar a cada ajuste dele custaria uma transação com a espera da troca de líder em andamento, e a reserva tem 2 s
- * para assumir).
+ * O que obriga a gravar fora de um tick: o último tick e a pausa. O intervalo planejado vai junto com o próximo tick,
+ * salvo quando sobe de verdade (ver `liveTickNeedsSave`): regravar a cada ajuste pequeno dele custaria uma transação na
+ * hora em que a reserva assume, e ela tem 2 s.
  */
 export function liveTickKey(tick: LiveTickCursor): string {
   return JSON.stringify([tick.lastTickAt, tick.pausedUntil]);
+}
+
+/** Quanto o intervalo planejado pode subir sem gravar antes do tick: cabe nos 15 s de folga do SLO do ao vivo. */
+export const PLANNED_SLACK_SECONDS = 10;
+
+/** O que o banco já tem do ritmo desta cópia. */
+export interface LiveTickSaved {
+  key: string;
+  planned: number | null;
+}
+
+export const liveTickSaved = (tick: LiveTickCursor): LiveTickSaved => ({
+  key: liveTickKey(tick),
+  planned: tick.plannedIntervalSeconds,
+});
+
+/**
+ * Precisa gravar agora: o último tick ou a pausa mudaram, ou o plano passou a pedir um intervalo bem maior (replanejou,
+ * ou a configuração do painel mudou). Sem isto o banco mostraria o intervalo curto de antes até o tick atrasado
+ * acontecer, e o SLO e o `LiveTickGap` veriam buraco onde o runner segue o plano novo. Intervalo que encurta espera o
+ * próximo tick: o limite antigo, mais folgado, não gera alarme falso.
+ */
+export function liveTickNeedsSave(tick: LiveTickCursor, saved: LiveTickSaved | null): boolean {
+  if (!saved || liveTickKey(tick) !== saved.key) return true;
+  return (tick.plannedIntervalSeconds ?? 0) > (saved.planned ?? 0) + PLANNED_SLACK_SECONDS;
 }
 
 export interface LiveTickStore {

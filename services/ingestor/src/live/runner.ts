@@ -20,10 +20,12 @@ import {
 } from './schedule.js';
 import type { LiveStore } from './store.js';
 import {
-  liveTickKey,
+  liveTickNeedsSave,
+  liveTickSaved,
   recordLivePace,
   recordLiveTick,
   type LivePace,
+  type LiveTickSaved,
   type LiveTickStore,
 } from './tick-record.js';
 import type { LiveCandidate, LiveDayPlan, LivePrioritizer } from './types.js';
@@ -166,9 +168,9 @@ export class LiveRunner {
   private lastRefreshAt = -Infinity;
   /** O banco recusou uma escrita: outra cópia já abriu um mandato, mesmo sem o aviso da trava ter chegado. */
   private fenced = false;
-  /** Ritmo publicado (espelho do registro do banco) e a chave do que já foi gravado. */
+  /** Ritmo publicado (espelho do registro do banco) e o que já foi gravado dele. */
   private tickCursor: LiveTickCursor | null = null;
-  private tickSavedKey = '';
+  private tickSaved: LiveTickSaved | null = null;
 
   constructor(private readonly deps: LiveRunnerDeps) {
     this.clock = deps.clock ?? systemLiveClock;
@@ -388,7 +390,7 @@ export class LiveRunner {
     if (!store) return;
     try {
       this.tickCursor = await store.load(this.deps.sport);
-      if (this.tickCursor) this.tickSavedKey = liveTickKey(this.tickCursor);
+      if (this.tickCursor) this.tickSaved = liveTickSaved(this.tickCursor);
     } catch (err) {
       this.log.warn({ err }, 'não foi possível ler o ritmo do ao vivo; o intervalo recomeça neste tick');
     }
@@ -400,15 +402,14 @@ export class LiveRunner {
     this.tickCursor = recordLivePace(this.tickCursor, pace, now, this.deps.instance ?? 'local');
   }
 
-  /** Grava o ritmo se mudou desde a última gravação (nas esperas longas e a cada tick). */
+  /** Grava o ritmo se mudou o que importa desde a última gravação (nas esperas e a cada tick). */
   private async saveTick(now: Date): Promise<void> {
     const store = this.deps.tickRecord;
     if (!store || !this.tickCursor) return;
-    const key = liveTickKey(this.tickCursor);
-    if (key === this.tickSavedKey) return;
+    if (!liveTickNeedsSave(this.tickCursor, this.tickSaved)) return;
     try {
       await store.save(this.deps.sport, this.tickCursor, now);
-      this.tickSavedKey = key;
+      this.tickSaved = liveTickSaved(this.tickCursor);
     } catch (err) {
       if (err instanceof TickFencedError) this.fenced = true;
       else this.log.warn({ err }, 'não foi possível gravar o ritmo do ao vivo');

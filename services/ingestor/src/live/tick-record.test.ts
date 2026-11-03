@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { LiveTickCursor } from '@galaxie/observability';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { liveWorld, wednesdayNight } from '../testing/live-world.js';
 import { InMemoryLiveHandoffStore } from './handoff.js';
@@ -7,6 +8,8 @@ import {
   emptyLiveTick,
   InMemoryLiveTickStore,
   liveTickKey,
+  liveTickNeedsSave,
+  liveTickSaved,
   MAX_COUNTED_GAP_MS,
   recordLivePace,
   recordLiveTick,
@@ -87,6 +90,26 @@ describe('recordLivePace e liveTickKey', () => {
     expect(resumed).toMatchObject({ plannedIntervalSeconds: 30, pausedUntil: null });
   });
 
+  it('intervalo planejado que sobe de verdade é gravado antes do tick atrasado; ajuste pequeno ou queda espera', () => {
+    const tick = recordLiveTick(null, T0, 'a', 15);
+    const saved = liveTickSaved(tick);
+    const planned = (s: number) =>
+      recordLivePace(tick, { plannedIntervalSeconds: s, pausedUntil: null }, plus(T0, 5), 'a');
+    expect(liveTickNeedsSave(tick, null)).toBe(true);
+    expect(liveTickNeedsSave(tick, saved)).toBe(false);
+    // a reserva que assume vê o plano 5 s maior: não vale uma transação a menos de 2 s da primeira chamada
+    expect(liveTickNeedsSave(planned(20), saved)).toBe(false);
+    expect(liveTickNeedsSave(planned(25), saved)).toBe(false);
+    // 15 s -> 5 min (replanejou ou o painel mudou): sem gravar, o SLO e o LiveTickGap veriam buraco aos 30 s e 60 s
+    expect(liveTickNeedsSave(planned(300), saved)).toBe(true);
+    // encurtou: o limite antigo é mais folgado, nenhum alarme falso
+    expect(liveTickNeedsSave(planned(5), liveTickSaved(planned(300)))).toBe(false);
+    // pausa nova sempre grava
+    expect(
+      liveTickNeedsSave(recordLivePace(tick, { pausedUntil: plus(T0, 600) }, plus(T0, 5), 'a'), saved),
+    ).toBe(true);
+  });
+
   it('a chave só muda com um tick novo ou com a pausa; o intervalo planejado espera o próximo tick', () => {
     const tick = recordLiveTick(null, T0, 'a', 15);
     expect(liveTickKey(recordLivePace(tick, { pausedUntil: null }, plus(T0, 5), 'a'))).toBe(
@@ -111,7 +134,12 @@ function scene(start = '2026-10-21T22:10:00Z') {
   );
   const tickRecord = new InMemoryLiveTickStore();
   const handoff = new InMemoryLiveHandoffStore();
-  const runner = (options: Partial<LiveRunnerOptions>, instance = 'a', useHandoff = true) =>
+  const runner = (
+    options: Partial<LiveRunnerOptions>,
+    instance = 'a',
+    useHandoff = true,
+    extra: Partial<ConstructorParameters<typeof LiveRunner>[0]> = {},
+  ) =>
     new LiveRunner({
       sport: 'football',
       provider,
@@ -122,6 +150,7 @@ function scene(start = '2026-10-21T22:10:00Z') {
       instance,
       ...(useHandoff ? { handoff } : {}),
       options: { idleExitMs: null, ...options },
+      ...extra,
     });
   return { world, tickRecord, runner };
 }
@@ -176,6 +205,30 @@ describe('LiveRunner grava o ritmo do ao vivo', () => {
     const saved = (await tickRecord.load('football'))!;
     expect(saved.lastTickAt).toBeNull();
     expect(Date.parse(saved.pausedUntil!)).toBeGreaterThan(Date.parse('2026-10-21T08:00:00Z'));
+  });
+
+  it('plano que passa a pedir intervalo bem maior grava o intervalo novo antes do tick atrasado', async () => {
+    const { tickRecord, runner } = scene();
+    const saves: { planned: number | null; lastTickAt: string | null }[] = [];
+    const save = tickRecord.save.bind(tickRecord);
+    tickRecord.save = async (sport: string, tick: LiveTickCursor) => {
+      saves.push({ planned: tick.plannedIntervalSeconds, lastTickAt: tick.lastTickAt });
+      return save(sport, tick);
+    };
+    // depois do primeiro tick o painel passa a proteger mais cota do DAILY: o orçamento do ao vivo encolhe e o
+    // intervalo do plano cresce; o runner espera o intervalo novo e o ritmo gravado já tem de dizer isso
+    const panel: { protectDaily: number | undefined } = { protectDaily: undefined };
+    const load = async () => ({ protectDaily: panel.protectDaily });
+    await runner({ maxTicks: 1 }, 'a', true, { refresh: { everyMs: 1, load } }).run();
+    const first = saves.at(-1)!;
+    panel.protectDaily = 70;
+    const second = runner({ maxTicks: 2 }, 'a', true, { refresh: { everyMs: 1, load } });
+    saves.length = 0;
+    await second.run();
+    const beforeNextTick = saves.find(
+      (s) => s.lastTickAt === first.lastTickAt && s.planned !== first.planned,
+    );
+    expect(beforeNextTick?.planned).toBeGreaterThan((first.planned ?? 0) + 10);
   });
 
   it('falha ao gravar o ritmo não derruba o ao vivo', async () => {
