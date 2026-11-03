@@ -6,6 +6,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "gs": "./dist/cli/gs.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -69,7 +72,8 @@
     "assets:commons:atribuicao": "node --env-file-if-exists=../../.env dist/cli/assets-commons-atribuicao.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js",
     "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js",
-    "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
+    "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js",
+    "gs": "node --env-file-if-exists=../../.env dist/cli/gs.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1160.0",
@@ -84,8 +88,8 @@
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
+    "@galaxie/scheduler": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
-    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4",
     "sharp": "0.35.5",
     "yaml": "^2.9.1",

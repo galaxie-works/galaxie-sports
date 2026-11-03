@@ -1,8 +1,7 @@
 import { createLogger } from '@galaxie/observability';
+import { SchedulerService, type RunResult, type RunTrigger, type ScheduledJob } from '@galaxie/scheduler';
 import { describe, expect, it } from 'vitest';
-import type { RunResult, RunTrigger } from './runner.js';
-import { DEFAULT_JOBS, type ScheduledJob } from './schedule.js';
-import { SchedulerService } from './service.js';
+import { DEFAULT_JOBS } from './schedule.js';
 
 const logger = createLogger({ service: 'test', level: 'silent' });
 

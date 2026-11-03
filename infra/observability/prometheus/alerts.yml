@@ -117,7 +117,7 @@ groups:
           summary: 'Nenhum ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
           description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
 
-  # Conta da IA (services/ingestor/src/scheduler/ai-credit.ts, de hora em hora) e gasto do dia contra o teto global.
+  # Conta da IA (packages/scheduler/src/ai-credit.ts, de hora em hora) e gasto do dia contra o teto global.
   - name: galaxie-ai
     rules:
       - alert: AiCreditExhausted

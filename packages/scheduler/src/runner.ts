@@ -54,7 +54,7 @@ export class PgRunRecorder implements RunRecorder {
 export type RunTrigger = 'schedule' | 'manual' | 'start' | 'panel' | 'catchup';
 
 export interface RunOptions {
-  /** Raiz do pacote do ingestor (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
+  /** Raiz do pacote dono do scheduler (onde fica dist/). Os CLIs resolvem caminhos relativos a ela. */
   cwd: string;
   env?: NodeJS.ProcessEnv;
   recorder?: RunRecorder | undefined;
@@ -166,7 +166,7 @@ async function spawnJob(job: ScheduledJob, options: RunOptions, startedAt: numbe
   const outcome = await new Promise<
     Pick<RunResult, 'exitCode' | 'signal' | 'timedOut'> & { spawnError?: Error }
   >((done) => {
-    const cwd = resolve(options.cwd, job.cwd ?? '.');
+    const { cwd } = options;
     const child = spawn(
       process.execPath,
       [...heapFlags(job, options.heapMb), resolve(cwd, job.script), ...job.args],

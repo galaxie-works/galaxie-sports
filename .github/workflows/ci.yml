@@ -78,6 +78,17 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # As fronteiras de docs/15 (scripts/deps): app não importa app nem serviço, serviço não importa serviço, pacote
+      # não importa app nem serviço, base não importa domínio e só o apisports-client fala com a api-sports. O PR que
+      # viola é reprovado com o nome da regra; o que já violava está em scripts/deps/exceptions.json, com o motivo. O
+      # mapa de docs/15 sai da mesma ferramenta (`pnpm deps:map`): desatualizado reprova no PR e só avisa na fila e no
+      # push, para dois PRs que somam arestas diferentes não se derrubarem na fila.
+      - name: Regra de dependência
+        run: pnpm lint:deps --map=${{ github.event_name == 'pull_request' && 'error' || 'warn' }}
+
+      - name: Testes da regra de dependência
+        run: pnpm test:deps
+
       - name: Build
         run: pnpm build
 
