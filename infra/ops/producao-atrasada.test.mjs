@@ -219,6 +219,21 @@ describe('leitura dos dados', () => {
     const corpo =
       'Publicado na produção: `85e2f12` · 1 PR(s).\n\nSHA `85e2f12` · `api` in-f827e43 (trocada) · `backup` in-c552796 · `demo` in-7848f94 (trocada) · `ingestor` in-33aa925 (trocada) · `prometheus` in-629d666\n\n## Novidades';
     assert.equal(ingestorDaRelease(corpo), 'in-33aa925');
+    // formato novo: a tabela "Serviços publicados" e o marcador com a tag inteira (o marcador é quem vale)
+    const novo = `Publicado na produção: \`85e2f12\` · 1 PR(s).
+
+## Serviços publicados
+
+| Serviço | Versão | Situação |
+|---|---|---|
+| \`api\`, \`webhooks\` | \`in-f827e43\` | sem troca |
+| \`ingestor\`, \`agents\` | \`in-1111111\` → \`in-33aa925\` | trocada |
+
+## Novidades
+
+<!-- galaxie-versions: api=in-f827e43aaaa ingestor=${tag(7)} demo=in-7848f94 -->`;
+    assert.equal(ingestorDaRelease(novo), tag(7));
+    assert.equal(ingestorDaRelease('<!-- galaxie-versions: api=in-f827e43 demo=in-7848f94 -->'), null);
     assert.equal(ingestorDaRelease('sem versões'), null);
     assert.equal(ingestorDaRelease(undefined), null);
   });

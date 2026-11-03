@@ -14,8 +14,10 @@ import {
   parseRemoteTags,
   parseSubject,
   renderSections,
+  previousVersions,
+  servicesSection,
   titleOf,
-  versionsNote,
+  versionsMarker,
 } from './release-notes-lib.mjs';
 
 const REPO = 'https://github.com/exemplo/repo';
@@ -169,28 +171,96 @@ describe('titleOf', () => {
 });
 
 // CLI ponta a ponta: repositório descartável com origin local e um gh falso que só registra as chamadas
-describe('versionsNote', () => {
-  const sha = 'abcdef1234567890';
-  it('traz o SHA e o hash de cada imagem, marcando a trocada', () => {
+describe('servicesSection', () => {
+  const versions =
+    'api=in-apiabcdefghi demo=in-demoabcdefg ingestor=in-ingabcdefgh lineup-render=in-lrabcdefghi';
+  const previous =
+    'api=in-apiOLDOLDOL demo=in-demoabcdefg ingestor=in-ingOLDOLDO lineup-render=in-lrabcdefghi';
+
+  it('uma linha por imagem: tag anterior → nova nas trocadas, "sem troca" nas que ficaram', () => {
     assert.equal(
-      versionsNote(sha, 'api=in-apiabcdefghi demo=in-demoabcdefg', 'demo'),
-      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada)',
+      servicesSection(versions, 'api webhooks ingestor agents', previous),
+      [
+        '## Serviços publicados',
+        '',
+        '| Serviço | Versão | Situação |',
+        '|---|---|---|',
+        '| `api`, `webhooks`, `migrate` | `in-apiOLDO` → `in-apiabcd` | trocada |',
+        '| `site`, `console` | `in-demoabc` | sem troca |',
+        '| `ingestor`, `agents` | `in-ingOLDO` → `in-ingabcd` | trocada |',
+        '| `lineup-render` | `in-lrabcde` | sem troca |',
+      ].join('\n'),
     );
   });
-  it('a imagem da demo roda como site e console: diz qual dos dois trocou', () => {
-    const versions = 'api=in-apiabcdefghi demo=in-demoabcdefg';
-    assert.equal(
-      versionsNote(sha, versions, 'console'),
-      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada: console)',
-    );
-    assert.equal(
-      versionsNote(sha, versions, 'site console'),
-      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada: site, console)',
+
+  it('a troca de um serviço da imagem vale pela imagem (webhooks sozinho troca a imagem da API)', () => {
+    assert.match(
+      servicesSection(versions, 'webhooks', previous),
+      /\| `api`, `webhooks`, `migrate` \| `in-apiOLDO` → `in-apiabcd` \| trocada \|/,
     );
   });
-  it('sem versões, sem linha', () => {
-    assert.equal(versionsNote(sha, undefined), undefined);
-    assert.equal(versionsNote(sha, ''), undefined);
+
+  it('o migrate sozinho também troca a imagem da API; serviço sem imagem nossa ganha a própria linha', () => {
+    const out = servicesSection(versions, 'migrate maintenance', previous);
+    assert.match(out, /\| `api`, `webhooks`, `migrate` \| `in-apiOLDO` → `in-apiabcd` \| trocada \|/);
+    assert.match(out, /\| `maintenance` \| sem imagem nossa \| trocada \|$/);
+    assert.equal(out.match(/sem troca/g).length, 3);
+  });
+
+  it('nada trocado: todas "sem troca", sem seta', () => {
+    const out = servicesSection(versions, '', previous);
+    assert.equal(out.match(/sem troca/g).length, 4);
+    assert.doesNotMatch(out, /→/);
+    assert.equal(out, servicesSection(versions, undefined, previous));
+  });
+
+  it('sem a versão anterior, a troca diz que ela não foi registrada; a mesma tag diz "mesma versão"', () => {
+    assert.match(
+      servicesSection(versions, 'site'),
+      /\| `site`, `console` \| `in-demoabc` \| trocada \(anterior não registrada\) \|/,
+    );
+    assert.match(
+      servicesSection(versions, 'site', previous),
+      /\| `site`, `console` \| `in-demoabc` \| trocada \(mesma versão\) \|/,
+    );
+  });
+
+  it('a imagem da demo roda como site e console (#546): trocar só o console troca a imagem', () => {
+    const now = 'demo=in-demoNOVONO';
+    const out = servicesSection(now, 'console', 'demo=in-demoVELHO');
+    assert.match(out, /\| `site`, `console` \| `in-demoVEL` → `in-demoNOV` \| trocada \|/);
+    assert.doesNotMatch(out, /sem imagem nossa/);
+  });
+
+  it('o serviço demo de um SHA de antes da divisão conta como a própria imagem, sem linha à parte', () => {
+    const out = servicesSection(versions, 'demo', previous);
+    assert.match(out, /\| `site`, `console` \| `in-demoabc` \| trocada \(mesma versão\) \|/);
+    assert.doesNotMatch(out, /sem imagem nossa/);
+  });
+
+  it('sem versões, sem seção', () => {
+    assert.equal(servicesSection(undefined), undefined);
+    assert.equal(servicesSection(''), undefined);
+    assert.equal(versionsMarker(''), undefined);
+  });
+});
+
+describe('previousVersions', () => {
+  it('lê o marcador com as tags inteiras', () => {
+    const marker = versionsMarker('api=in-aaaaaaaaaaaaaaaa demo=in-bbbbbbbbbbbbbbbb');
+    assert.equal(marker, '<!-- galaxie-versions: api=in-aaaaaaaaaaaaaaaa demo=in-bbbbbbbbbbbbbbbb -->');
+    assert.equal(previousVersions(`texto\n\n${marker}`), 'api=in-aaaaaaaaaaaaaaaa demo=in-bbbbbbbbbbbbbbbb');
+  });
+
+  it('lê a linha de versões das notas de antes do marcador', () => {
+    const body =
+      'Publicado\n\nSHA `abcdef1` · `api` in-1a2b3c4d · `lineup-render` in-9f8e7d6c (trocada)\n\n## Novidades';
+    assert.equal(previousVersions(body), 'api=in-1a2b3c4d lineup-render=in-9f8e7d6c');
+  });
+
+  it('notas sem versões, nada', () => {
+    assert.equal(previousVersions('## Novidades\n- algo'), undefined);
+    assert.equal(previousVersions(undefined), undefined);
   });
 });
 
@@ -202,6 +272,11 @@ const a = process.argv.slice(2);
 if (a[0] === 'repo') { console.log('https://github.com/exemplo/repo'); process.exit(0); }
 if (a[0] === 'release' && a[1] === 'list') {
   console.log((process.env.GH_RELEASED || 'deploy-2026-10-20.1').split(',').join('\\n'));
+  process.exit(0);
+}
+if (a[0] === 'release' && a[1] === 'view') {
+  if (!process.env.GH_PREV_BODY) process.exit(1);
+  console.log(process.env.GH_PREV_BODY);
   process.exit(0);
 }
 if (a[0] === 'release' && a[1] === 'create') {
@@ -244,6 +319,7 @@ process.exit(2);
       chmodSync(join(bin, 'gh'), 0o755);
       const log = join(tmp, 'gh.log');
       let released;
+      let previousBody;
       const cli = (...args) =>
         execFileSync(process.execPath, [script, ...args], {
           cwd: work,
@@ -253,15 +329,17 @@ process.exit(2);
             PATH: `${bin}${delimiter}${process.env.PATH}`,
             GH_FAKE_LOG: log,
             ...(released ? { GH_RELEASED: released } : {}),
+            ...(previousBody ? { GH_PREV_BODY: previousBody } : {}),
           },
         });
       const setReleased = (names) => (released = names.join(','));
+      const setPreviousBody = (body) => (previousBody = body);
       const calls = () =>
         readFileSync(log, 'utf8')
           .split('\n')
           .filter(Boolean)
           .map((l) => JSON.parse(l));
-      fn({ git, cli, calls, setReleased });
+      fn({ git, cli, calls, setReleased, setPreviousBody });
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
@@ -319,6 +397,50 @@ process.exit(2);
       assert.ok(recovered.args.includes('--latest=false'));
       assert.match(recovered.body, /Pontos do sprint/);
       assert.match(created.body, /1 PR\(s\) desde `deploy-2026-10-20\.2`/);
+    }));
+
+  it('"Serviços publicados" mostra a tag anterior (da release dela) → nova e grava o marcador para a próxima', () =>
+    withRepo(({ git, cli, calls, setReleased, setPreviousBody }) => {
+      git('tag', 'deploy-2026-10-20.2');
+      git('commit', '-q', '--allow-empty', '-m', 'feat(api): busca (#4)');
+      git('push', '-q', 'origin', 'HEAD:main', 'deploy-2026-10-20.2');
+      setReleased(['deploy-2026-10-20.1', 'deploy-2026-10-21.1', 'deploy-2026-10-20.2']);
+      setPreviousBody(
+        'Publicado\n\n## Serviços publicados\n\n<!-- galaxie-versions: ingestor=in-antiga1234 demo=in-demo123456 -->',
+      );
+      cli(
+        ...['--to', git('rev-parse', 'HEAD')],
+        ...['--versions', 'ingestor=in-nova123456 demo=in-demo123456', '--swapped', 'ingestor agents'],
+      );
+      const [created, ...rest] = calls();
+      assert.equal(rest.length, 0);
+      assert.match(created.body, /## Serviços publicados\n\n\| Serviço \| Versão \| Situação \|/);
+      assert.match(created.body, /\| `ingestor`, `agents` \| `in-antiga1` → `in-nova123` \| trocada \|/);
+      assert.match(created.body, /\| `site`, `console` \| `in-demo123` \| sem troca \|/);
+      assert.match(created.body, /<!-- galaxie-versions: ingestor=in-nova123456 demo=in-demo123456 -->\s*$/);
+    }));
+
+  it('sem a release anterior ao alcance, a troca sai sem a tag anterior; --previous manda', () =>
+    withRepo(({ git, cli, calls, setReleased }) => {
+      git('tag', 'deploy-2026-10-20.2');
+      git('commit', '-q', '--allow-empty', '-m', 'feat(api): busca (#4)');
+      git('push', '-q', 'origin', 'HEAD:main', 'deploy-2026-10-20.2');
+      setReleased(['deploy-2026-10-20.1', 'deploy-2026-10-21.1', 'deploy-2026-10-20.2']);
+      const to = git('rev-parse', 'HEAD');
+      cli('--to', to, '--versions', 'demo=in-nova123456', '--swapped', 'demo');
+      cli(
+        '--to',
+        to,
+        '--versions',
+        'demo=in-nova123456',
+        '--swapped',
+        'demo',
+        '--previous',
+        'demo=in-velha12345',
+      );
+      const [semAnterior, comAnterior] = calls();
+      assert.match(semAnterior.body, /trocada \(anterior não registrada\)/);
+      assert.match(comAnterior.body, /`in-velha12` → `in-nova123` \| trocada/);
     }));
 
   it('com --dry só imprime; redeploy do mesmo commit não gera release nova', () =>
