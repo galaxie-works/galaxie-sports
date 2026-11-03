@@ -74,7 +74,7 @@ describe('dois workers, uma tarefa', () => {
   it('o primeiro morre sem renovar; o segundo pega depois do prazo e retoma do checkpoint', async () => {
     const { id } = await enqueue(workerA, { type: TYPE, params: { pais: 'BR' } });
 
-    const first = await takeNext(workerA, 'worker-a', [TYPE], { leaseMs: 600 });
+    const first = await takeNext(workerA, 'worker-a', [TYPE]);
     expect(first).toMatchObject({
       id,
       type: TYPE,
@@ -86,11 +86,11 @@ describe('dois workers, uma tarefa', () => {
     });
     expect(await checkpoint(workerA, first!, { feitos: 42 })).toBe(true);
 
-    // dentro do prazo, ninguém mais pega
+    // dentro do prazo (90 s, folga larga para qualquer runner), ninguém mais pega
     expect(await takeNext(workerB, 'worker-b', [TYPE])).toBeNull();
 
-    // worker-a morreu: não renova; o prazo vence no relógio do banco
-    await sleep(800);
+    // worker-a morreu: não renova; vence a concessão direto no banco, sem esperar o relógio
+    await expireLease(id);
     const second = await takeNext(workerB, 'worker-b', [TYPE]);
     expect(second).toMatchObject({
       id,

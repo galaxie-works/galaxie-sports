@@ -17,9 +17,8 @@
 set -euo pipefail
 
 # Postgres, Valkey e backup estão no projeto `dados` (docs/runbooks/stack-em-tres-projetos.md); antes da transição, neste
-dados() {
-  if [ -f compose.dados.yml ]; then docker compose -f compose.dados.yml "$@"; else docker compose "$@"; fi
-}
+# (array, e não função: o `timeout` abaixo só executa comando, não função do shell)
+if [ -f compose.dados.yml ]; then DADOS=(docker compose -f compose.dados.yml); else DADOS=(docker compose); fi
 
 want="${1:?informe quantas migrations o journal do SHA novo tem}"
 label="${2:-deploy}"
@@ -37,7 +36,7 @@ case "$label" in *[!A-Za-z0-9._-]*)
 esac
 
 # todo docker compose com </dev/null: este script chega pela stdin do bash -s, e o docker a consumiria
-applied="$(dados exec -T postgres sh -c \
+applied="$("${DADOS[@]}" exec -T postgres sh -c \
   'psql -X -q -t -A -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) from drizzle.__drizzle_migrations"' \
   </dev/null 2>/dev/null || true)"
 if [[ "$applied" =~ ^[0-9]+$ ]] && [ "$applied" -ge "$want" ]; then
@@ -105,7 +104,7 @@ fi
 echo "PRE_DUMP=pre-migrate/$name"'
 
 # a imagem do backup em uso já está na VPS: nada de pull (o deploy não passa credencial do GHCR aqui)
-if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" dados run --rm --no-deps --pull never -T --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
+if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" "${DADOS[@]}" run --rm --no-deps --pull never -T --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
   echo "FAIL  dump antes do migrate não terminou (falhou ou passou de $TIMEOUT_MIN min)"
   exit 1
 fi
