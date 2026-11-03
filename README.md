@@ -200,6 +200,7 @@ galaxie-sports/
 | [packages/geo](packages/geo/README.md) | Confederações, países e escopo das competições |
 | [packages/runtime-config](packages/runtime-config/README.md) | Flags da operação (banco > env > padrão) |
 | [packages/ai-ledger](packages/ai-ledger/README.md) | Orçamento diário de IA em tokens e US$ |
+| [packages/scheduler](packages/scheduler/README.md) | Motor de agendamento do ingestor e dos agentes de IA |
 | [packages/observability](packages/observability/README.md) | Logger e métricas Prometheus |
 | [packages/net-guard](packages/net-guard/README.md) | Proteção contra SSRF nas buscas de URLs de terceiros |
 | [packages/widgets](packages/widgets/README.md) | Widgets React, item de registry shadcn e embed HTML |

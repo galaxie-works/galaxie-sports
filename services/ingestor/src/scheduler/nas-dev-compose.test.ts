@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { settingDef } from '@galaxie/runtime-config';
+import { envKey, scheduleFromEnv } from '@galaxie/scheduler';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { AGENT_JOBS, DEFAULT_JOBS, envKey, jobsForProfile, scheduleFromEnv } from './schedule.js';
+import { DEFAULT_JOBS } from './schedule.js';
 
 /**
  * Stack de dev do NAS (infra/nas-dev/compose.yml). Dev e produção dividem a conta da api-sports, a chave do YouTube
@@ -50,25 +51,22 @@ describe('stack de dev do NAS (infra/nas-dev/compose.yml)', () => {
 
   it('nenhum job do ingestor está agendado por padrão (inclusive o ao vivo)', () => {
     const env = defaultEnv('ingestor');
-    expect(scheduleFromEnv(env, jobsForProfile('ingestor')).map((j) => j.name)).toEqual([]);
+    expect(scheduleFromEnv(env, DEFAULT_JOBS).map((j) => j.name)).toEqual([]);
     for (const job of ['live-run', 'live-reconcile', 'events-clock']) expect(env[envKey(job)]).toBe('off');
   });
 
-  it('nenhum job dos agentes está agendado por padrão', () => {
-    const env = defaultEnv('agents');
-    expect(scheduleFromEnv(env, jobsForProfile('agents')).map((j) => j.name)).toEqual([]);
-  });
-
-  it('cada job do código tem a sua variável SCHEDULE_ na stack (job novo sem ela ficaria ligado)', () => {
-    const declared = (service: 'ingestor' | 'agents') =>
-      Object.keys(compose.services[service]?.environment ?? {}).filter((k) => k.startsWith('SCHEDULE_'));
-    expect(declared('ingestor').sort()).toEqual(DEFAULT_JOBS.map((j) => envKey(j.name)).sort());
-    expect(declared('agents').sort()).toEqual(AGENT_JOBS.map((j) => envKey(j.name)).sort());
+  // a agenda dos agentes (nenhum job ligado por padrão e uma SCHEDULE_ por job) é conferida em
+  // services/ai-agents/src/scheduler/jobs.test.ts, que enxerga a lista deles
+  it('cada job do ingestor tem a sua variável SCHEDULE_ na stack (job novo sem ela ficaria ligado)', () => {
+    const declared = Object.keys(compose.services.ingestor?.environment ?? {}).filter((k) =>
+      k.startsWith('SCHEDULE_'),
+    );
+    expect(declared.sort()).toEqual(DEFAULT_JOBS.map((j) => envKey(j.name)).sort());
   });
 
   it('ligar um job é só definir a variável com um cron', () => {
     const env = defaultEnv('ingestor', { SCHEDULE_NORMALIZE_SPORTS: '15 * * * *' });
-    expect(scheduleFromEnv(env, jobsForProfile('ingestor')).map((j) => [j.name, j.cron])).toEqual([
+    expect(scheduleFromEnv(env, DEFAULT_JOBS).map((j) => [j.name, j.cron])).toEqual([
       ['normalize-sports', '15 * * * *'],
     ]);
   });

@@ -17,9 +17,7 @@ import { createLogger, createMetrics } from '@galaxie/observability';
 import { eq } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeOrphans, lastJobStarts } from '../src/scheduler/catch-up.js';
-import { PgRunRecorder, runJob } from '../src/scheduler/runner.js';
-import type { ScheduledJob } from '../src/scheduler/schedule.js';
+import { closeOrphans, lastJobStarts, PgRunRecorder, runJob, type ScheduledJob } from '@galaxie/scheduler';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');

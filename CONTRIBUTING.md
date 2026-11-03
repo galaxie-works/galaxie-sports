@@ -10,7 +10,7 @@ Guia curto para quem (pessoa ou agente) implementa issues do [backlog](https://g
 
 ```bash
 pnpm install
-pnpm format:check && pnpm lint && pnpm build && pnpm typecheck
+pnpm format:check && pnpm lint && pnpm lint:deps && pnpm build && pnpm typecheck
 pnpm test                 # unitários (src/**/*.test.ts)
 pnpm test:integration     # integração (test/**/*.integration.test.ts) contra o Postgres local
 ```
@@ -19,6 +19,8 @@ pnpm test:integration     # integração (test/**/*.integration.test.ts) contra 
 
 Cada pasta abaixo tem um `README.md` próprio. Mapa geral, dependências e fronteiras: [docs/15](docs/15-organizacao-do-monorepo.md).
 Apps e serviços não importam uns aos outros; código compartilhado vai para `packages/`, e `packages/` nunca importa `apps/` nem `services/`.
+O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da regra, e a lista do que já violava, com o motivo de cada linha, fica em
+`scripts/deps/exceptions.json`. Mudou a dependência entre pacotes? Rode `pnpm deps:map` e commite o mapa de docs/15.
 
 | Onde | O quê |
 |---|---|
@@ -35,6 +37,7 @@ Apps e serviços não importam uns aos outros; código compartilhado vai para `p
 | `services/ai-agents` | Camada de LLM independente de provedor (OpenAI/Anthropic, orçamento de tokens) e agentes de IA (onde assistir, cenário, live scheduler, curadoria) |
 | `packages/runtime-config` | Flags da operação que mudam sem deploy (banco > env > padrão), editadas em Ajustes na demo |
 | `packages/ai-ledger` | Orçamento diário de IA (`ops.llm_usage`): preços, tetos em tokens e US$ e reserva antes de cada chamada |
+| `packages/scheduler` | Motor de agendamento do ingestor e dos agentes de IA (cron em UTC, um processo por job, trava, catch-up) |
 | `packages/net-guard` | Proteção contra SSRF: use `guardedFetch` para qualquer URL de terceiro |
 | `packages/widgets` | Widgets React, item de registry shadcn do Builder e embed `<galaxie-widget>` |
 | `apps/api` | API pública (Fastify): `/mirror/...` e `/v1/...` |

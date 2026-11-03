@@ -1,0 +1,38 @@
+[
+  {
+    "rule": "servico-nao-importa-servico",
+    "from": "services/ai-agents/package.json",
+    "to": "services/ingestor",
+    "reason": "devDependency usada só pelo helper dos testes de integração dos agentes (ver a linha abaixo)."
+  },
+  {
+    "rule": "servico-nao-importa-servico",
+    "from": "services/ai-agents/test/helpers.ts",
+    "to": "services/ingestor",
+    "reason": "O helper grava o lote neutro com o upsertBatch do ingestor para montar o cenário dos agentes; mover o upsert do core para um pacote compartilhado."
+  },
+  {
+    "rule": "so-o-apisports-client-fala-com-a-api-sports",
+    "from": "scripts/pwsh/Get-ApiSportsStatus.ps1",
+    "to": "api-sports",
+    "reason": "Diagnóstico de operador em PowerShell: lê o /status de cada API direto, sem passar pela cota. Trocar pelo CLI quota do ingestor (que usa o cliente) e apagar o script."
+  },
+  {
+    "rule": "so-o-apisports-client-fala-com-a-api-sports",
+    "from": "scripts/pwsh/Sync-ApiSportsAssets.ps1",
+    "to": "api-sports",
+    "reason": "Cópia manual de mídia em PowerShell, fora do Node; o assets:mirror do ingestor faz o mesmo pelo cliente. Apagar o script."
+  },
+  {
+    "rule": "so-o-apisports-client-fala-com-a-api-sports",
+    "from": "services/ingestor/src/assets/person-photos.ts",
+    "to": "api-sports",
+    "reason": "Monta a URL das fotos de jogador e técnico na CDN de mídia com o host escrito à mão; mover os construtores de URL para packages/apisports-client/src/media.ts, que já conhece o host."
+  },
+  {
+    "rule": "so-o-apisports-client-fala-com-a-api-sports",
+    "from": "services/ingestor/src/catalog/sport-catalog.ts",
+    "to": "api-sports",
+    "reason": "A bandeira dos EUA do catálogo da NBA usa a URL da CDN de mídia escrita à mão; mover o construtor de URL de bandeira para packages/apisports-client/src/media.ts."
+  }
+]

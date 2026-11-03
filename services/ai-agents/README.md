@@ -29,8 +29,11 @@ pnpm --filter @galaxie/ai-agents ai:status          # provedor, orçamento e est
 pnpm --filter @galaxie/ai-agents curator:run --dry-run
 ```
 
-Em produção eles não têm processo próprio: o scheduler do [ingestor](../ingestor/README.md) com
-`SCHEDULER_PROFILE=agents` chama estes CLIs (`cwd: ../ai-agents`), e a imagem do ingestor leva este pacote junto.
+Em produção, `dist/cli/agents-scheduler.js` agenda estes CLIs (jobs em `src/scheduler/jobs.ts`) com o motor
+[`@galaxie/scheduler`](../../packages/scheduler/README.md), o mesmo do [ingestor](../ingestor/README.md); o `script` de cada
+job é relativo à raiz deste pacote. A imagem do ingestor leva este pacote junto, e o serviço `agents` da stack sobe essa
+imagem com `SCHEDULER_PROFILE=agents` (o `CMD` escolhe esta entrada). Localmente: `pnpm --filter @galaxie/ai-agents scheduler`
+(`--list` mostra a agenda; `--run <job>` roda um job agora).
 
 ## Organização
 
