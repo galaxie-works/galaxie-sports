@@ -63,13 +63,16 @@ Os pacotes do acervo e os relatórios das tarefas da fila (`tasks/<id>/`) moram 
 (padrão `galaxie-sports-tasks`, sem leitura anônima; #587), não no de assets. Com `BACKUP_S3_SYNC_TASKS_BUCKET=true`
 (padrão `false`), o `s3-sync.sh` copia esse bucket inteiro no mesmo passo e com o mesmo recibo:
 
-1. RustFS → `/backups/s3-tasks/` no volume (fora de `s3/`, para não colidir com um prefixo do bucket de assets);
+1. RustFS → `/backups/s3/tasks-bucket/` no volume, ao lado dos prefixos do bucket de assets. O NAS puxa como mais um
+   prefixo: basta acrescentar `tasks-bucket` a `NAS_S3_PREFIXES` (`infra/nas-backup/compose.yml`). Por isso
+   `tasks-bucket` não pode ser prefixo de `BACKUP_S3_SYNC_PREFIXES` (o script recusa);
 2. com `BACKUP_S3_BUCKET`, dali → `s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_TASKS_DEST_PREFIX/` (padrão `tasks/`, irmão de
    `assets/` e `postgres/`; o script recusa um destino igual a um dos dois).
 
 Bucket vazio é normal (nenhuma tarefa com arquivo ainda) e não falha; bucket que não existe falha. `BACKUP_S3_SYNC_DELETE`
-vale para ele também. O NAS ainda não puxa `s3-tasks/` (o `nas-pull.sh` só conhece `NAS_S3_PREFIXES`): a cópia fora da
-VPS desse bucket é a do bucket remoto. O `tasks` saiu da lista de prefixos do bucket de assets: depois da migração
+vale para ele também. Na produção não há bucket remoto (`BACKUP_S3_BUCKET` vazio): a cópia fora da VPS é a do NAS, com
+`tasks-bucket` em `NAS_S3_PREFIXES`. O `env.example` já vem com `BACKUP_S3_SYNC_TASKS_BUCKET=true` (é cópia: nada é
+apagado). O `tasks` saiu da lista de prefixos do bucket de assets: depois da migração
 (`infra/ops/mover-tasks-para-bucket-privado.sh`) não sobra nada lá.
 
 ## Restore (testado)

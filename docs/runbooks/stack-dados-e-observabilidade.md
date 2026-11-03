@@ -100,9 +100,14 @@ ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s' < infra/ops/mover
 ```
 
 Saída `3`: há tarefa viva (`pending`/`running`) com o pacote no bucket de assets; a cópia foi feita, a remoção não.
-Espere ela terminar e rode de novo (ou `--forcar`). Saída `4`: a mesma chave já existe no privado com outro tamanho;
-nada foi sobrescrito, resolva à mão. Para ligar a cópia do bucket no backup, `BACKUP_S3_SYNC_TASKS_BUCKET=true` no `.env`
-e `docker compose -f compose.dados.yml up -d --no-deps --wait backup`.
+Espere ela terminar e rode de novo (ou `--forcar`). Saída `4`: a mesma chave já existe no privado com outro conteúdo
+(tamanho ou ETag); nada foi sobrescrito, resolva à mão.
+
+**Backup do bucket das tarefas.** Na produção não há bucket remoto: a cópia fora da VPS é a do NAS. Ligue
+`BACKUP_S3_SYNC_TASKS_BUCKET=true` no `.env` da VPS (é cópia, nada é apagado) e recrie o `backup`
+(`docker compose -f compose.dados.yml up -d --no-deps --wait backup`): a partida já espelha o bucket em
+`s3/tasks-bucket/` do volume. Depois, no NAS, acrescente `tasks-bucket` a `NAS_S3_PREFIXES` da stack
+`galaxie-sports-backup-nas` (`infra/nas-backup/compose.yml`): ele puxa `s3/tasks-bucket/` como qualquer prefixo.
 
 **Upgrade do Postgres** (#201), restauração do banco e outra manutenção longa: force a página de manutenção antes e tire
 depois ([README da stack › Página de manutenção](../../infra/vps-telemetry/README.md)):

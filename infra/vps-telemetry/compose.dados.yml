@@ -171,7 +171,8 @@ services:
       BACKUP_S3_SYNC_DEST_PREFIX: ${BACKUP_S3_SYNC_DEST_PREFIX:-assets}
       BACKUP_S3_SYNC_DELETE: ${BACKUP_S3_SYNC_DELETE:-false}
       # true copia também o bucket privado das tarefas inteiro (S3_TASKS_BUCKET: pacotes do acervo, relatórios) para
-      # s3-tasks/ do volume e <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/ do remoto. false (padrão) = não copia
+      # s3/tasks-bucket/ do volume (o NAS puxa com tasks-bucket em NAS_S3_PREFIXES) e <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/
+      # do remoto, se houver. Sem a variável no .env = não copia (o env.example já traz true)
       BACKUP_S3_SYNC_TASKS_BUCKET: ${BACKUP_S3_SYNC_TASKS_BUCKET:-false}
       BACKUP_S3_SYNC_TASKS_DEST_PREFIX: ${BACKUP_S3_SYNC_TASKS_DEST_PREFIX:-tasks}
       S3_ENDPOINT: http://s3:9000

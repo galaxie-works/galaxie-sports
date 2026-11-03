@@ -185,10 +185,12 @@ s3_sync_prefixes() {
 }
 
 # Bucket privado das tarefas (S3_TASKS_BUCKET: pacotes do acervo, relatórios, tasks/<id>/; #587): com
-# BACKUP_S3_SYNC_TASKS_BUCKET=true, o s3-sync.sh copia o bucket inteiro para $BACKUP_S3_SYNC_TASKS_DIR (fora de s3/, para
-# não colidir com um prefixo do bucket de assets) e dali para <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/ do remoto.
+# BACKUP_S3_SYNC_TASKS_BUCKET=true, o s3-sync.sh copia o bucket inteiro para s3/tasks-bucket/ do volume, ao lado dos
+# prefixos do bucket de assets, de onde o NAS puxa como mais um prefixo (tasks-bucket em NAS_S3_PREFIXES), e, com bucket
+# remoto, para <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/ dele. Por isso `tasks-bucket` não pode ser prefixo do bucket de assets.
 : "${BACKUP_S3_SYNC_TASKS_BUCKET:=false}"
-: "${BACKUP_S3_SYNC_TASKS_DIR:=$BACKUP_DIR/s3-tasks}"
+S3_SYNC_TASKS_NAME=tasks-bucket
+: "${BACKUP_S3_SYNC_TASKS_DIR:=$BACKUP_S3_SYNC_DIR/$S3_SYNC_TASKS_NAME}"
 : "${BACKUP_S3_SYNC_TASKS_DEST_PREFIX:=tasks}"
 
 s3_sync_tasks_enabled() {

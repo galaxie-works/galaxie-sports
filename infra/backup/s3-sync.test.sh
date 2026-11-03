@@ -99,17 +99,32 @@ export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto
 sync
 confere "só o bucket das tarefas: sync ligado, sai 0 e grava o recibo com o bucket" \
   '[ -s "$BACKUP_DIR/.s3_last_sync" ] && grep -q "bucket:galaxie-sports-tasks" "$BACKUP_DIR/.s3_last_sync"'
-confere "bucket das tarefas inteiro, com a chave do RustFS, para s3-tasks/ do volume" \
-  'grep -q "key=chave-rustfs --endpoint-url http://s3:9000 s3 sync --only-show-errors s3://galaxie-sports-tasks/ $BACKUP_DIR/s3-tasks/" "$calls" && [ -f "$BACKUP_DIR/s3-tasks/objeto.png" ]'
+confere "bucket das tarefas inteiro, com a chave do RustFS, para s3/tasks-bucket/ do volume (onde o NAS puxa)" \
+  'grep -q "key=chave-rustfs --endpoint-url http://s3:9000 s3 sync --only-show-errors s3://galaxie-sports-tasks/ $BACKUP_DIR/s3/tasks-bucket/" "$calls" && [ -f "$BACKUP_DIR/s3/tasks-bucket/objeto.png" ]'
+confere "o recibo e o log contam o objeto uma vez só" 'grep -q "1 objeto(s)" "$work/out.log"'
 confere "bucket das tarefas no remoto em tasks/, com a chave do remoto" \
-  'grep -q "key=chave-remota s3 sync --only-show-errors $BACKUP_DIR/s3-tasks/ s3://bucket-remoto/tasks/" "$calls"'
+  'grep -q "key=chave-remota s3 sync --only-show-errors $BACKUP_DIR/s3/tasks-bucket/ s3://bucket-remoto/tasks/" "$calls"'
 confere "sem prefixos, o bucket de assets não é lido" '! grep -q "s3://galaxie-sports-assets" "$calls"'
 
 novo
 export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_SYNC_PREFIXES=broadcasters BACKUP_S3_SYNC_TASKS_DEST_PREFIX=tarefas
 sync
 confere "prefixos e bucket das tarefas juntos; BACKUP_S3_SYNC_TASKS_DEST_PREFIX ignorado sem remoto" \
-  '[ "$(wc -l <"$calls" | tr -d " ")" = 2 ] && [ -f "$BACKUP_DIR/s3/broadcasters/objeto.png" ] && [ -f "$BACKUP_DIR/s3-tasks/objeto.png" ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+  '[ "$(wc -l <"$calls" | tr -d " ")" = 2 ] && [ -f "$BACKUP_DIR/s3/broadcasters/objeto.png" ] && [ -f "$BACKUP_DIR/s3/tasks-bucket/objeto.png" ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true
+sync
+confere "sem bucket remoto (a produção): só o volume, em s3/tasks-bucket/, e o recibo" \
+  '[ "$(wc -l <"$calls" | tr -d " ")" = 1 ] && [ -f "$BACKUP_DIR/s3/tasks-bucket/objeto.png" ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+
+for ruim in tasks-bucket tasks-bucket/x; do
+  novo
+  export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_SYNC_PREFIXES="broadcasters $ruim"
+  if sync; then r=0; else r=$?; fi
+  confere "prefixo $ruim do bucket de assets colide com a cópia do bucket das tarefas: falha antes de copiar" \
+    '[ "$r" != 0 ] && [ ! -s "$calls" ] && grep -q "colide" "$work/out.log"'
+done
 
 novo
 export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto BACKUP_S3_SYNC_TASKS_DEST_PREFIX=tarefas

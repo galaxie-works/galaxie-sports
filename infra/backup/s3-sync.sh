@@ -7,7 +7,8 @@
 # Para cada prefixo:
 #   1. RustFS → $BACKUP_S3_SYNC_DIR/<prefixo>/ (no volume `backups`: o NAS puxa dali, nas-pull.sh);
 #   2. com BACKUP_S3_BUCKET, dali → s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_DEST_PREFIX/<prefixo>/ (padrão: assets/).
-# O bucket das tarefas vai inteiro, do mesmo jeito: RustFS → $BACKUP_S3_SYNC_TASKS_DIR/ (s3-tasks/ no volume) e, com
+# O bucket das tarefas vai inteiro, do mesmo jeito: RustFS → $BACKUP_S3_SYNC_TASKS_DIR/ (s3/tasks-bucket/ no volume, que o
+# NAS puxa com tasks-bucket em NAS_S3_PREFIXES) e, com
 # BACKUP_S3_BUCKET, → s3://$BACKUP_S3_BUCKET/$BACKUP_S3_SYNC_TASKS_DEST_PREFIX/ (padrão: tasks/). Bucket vazio é normal
 # (nenhuma tarefa com arquivo ainda); bucket que não existe é erro.
 # `aws s3 sync` só copia o que mudou. Nada é apagado (BACKUP_S3_SYNC_DELETE=true espelha as remoções): objeto sumido do
@@ -16,7 +17,7 @@
 # (BACKUP_KEEP_DAILY), e a do NAS.
 # Variáveis: BACKUP_S3_SYNC_PREFIXES, BACKUP_S3_SYNC_DIR ($BACKUP_DIR/s3), BACKUP_S3_SYNC_DEST_PREFIX (assets),
 #            BACKUP_S3_SYNC_DELETE (false), BACKUP_S3_SYNC_TASKS_BUCKET (false), BACKUP_S3_SYNC_TASKS_DIR
-#            ($BACKUP_DIR/s3-tasks), BACKUP_S3_SYNC_TASKS_DEST_PREFIX (tasks),
+#            ($BACKUP_S3_SYNC_DIR/tasks-bucket), BACKUP_S3_SYNC_TASKS_DEST_PREFIX (tasks),
 #            S3_ENDPOINT / S3_BUCKET / S3_TASKS_BUCKET / S3_ACCESS_KEY / S3_SECRET_KEY (o RustFS),
 #            BACKUP_S3_BUCKET / BACKUP_S3_ENDPOINT + AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (o bucket remoto).
 # Registro em ops.job_run (job s3-sync) e recibo $BACKUP_DIR/.s3_last_sync, que o backup-check.sh confere.
@@ -47,6 +48,12 @@ if s3_sync_tasks_enabled; then
   printf '%s' "$S3_TASKS_BUCKET" | grep -q '^[a-z0-9][a-z0-9.-]\{1,62\}$' ||
     fail "S3_TASKS_BUCKET inválido: $S3_TASKS_BUCKET"
   [ "$S3_TASKS_BUCKET" != "${S3_BUCKET:-}" ] || fail "S3_TASKS_BUCKET não pode ser o bucket de assets (S3_BUCKET)"
+  # s3/tasks-bucket/ é do bucket das tarefas: um prefixo do bucket de assets com esse nome misturaria os dois
+  for p in $(s3_sync_prefixes); do
+    case "$p" in "$S3_SYNC_TASKS_NAME" | "$S3_SYNC_TASKS_NAME"/*)
+      fail "o prefixo $p de BACKUP_S3_SYNC_PREFIXES colide com a cópia do bucket das tarefas (s3/$S3_SYNC_TASKS_NAME/)" ;;
+    esac
+  done
   s3_sync_prefix_valid "$BACKUP_S3_SYNC_TASKS_DEST_PREFIX" ||
     fail "BACKUP_S3_SYNC_TASKS_DEST_PREFIX inválido: $BACKUP_S3_SYNC_TASKS_DEST_PREFIX"
   # destino próprio no remoto: nem o dos dumps nem o dos assets
@@ -100,7 +107,10 @@ fi
 
 mkdir -p "$BACKUP_S3_SYNC_DIR"
 mirrors="$BACKUP_S3_SYNC_DIR"
-[ "$tasks_enabled" = true ] && mirrors="$mirrors $BACKUP_S3_SYNC_TASKS_DIR"
+# o padrão (s3/tasks-bucket/) já está dentro de s3/; só uma pasta de fora entra à parte
+if [ "$tasks_enabled" = true ]; then
+  case "$BACKUP_S3_SYNC_TASKS_DIR" in "$BACKUP_S3_SYNC_DIR"/*) ;; *) mirrors="$mirrors $BACKUP_S3_SYNC_TASKS_DIR" ;; esac
+fi
 # shellcheck disable=SC2086 # mirrors: uma ou duas pastas, separadas por espaço de propósito
 objects=$(find $mirrors -type f | wc -l | tr -d ' ')
 # shellcheck disable=SC2086

@@ -123,7 +123,8 @@ assets. Quem lê é quem tem a chave do RustFS: o `ingestor` (CLI avulso), o `wo
   `s3://$S3_TASKS_BUCKET/tasks/<id aleatório>/` com a chave do RustFS, e o serviço que fizer o upload (`console`) ganha
   `S3_TASKS_BUCKET` no `compose.yml`. Download para o operador, se houver, por URL assinada de curta duração, nunca
   tornando o bucket público.
-- **Backup:** `BACKUP_S3_SYNC_TASKS_BUCKET=true` copia o bucket inteiro ([infra/backup › Bucket das
+- **Backup:** `BACKUP_S3_SYNC_TASKS_BUCKET=true` copia o bucket inteiro para `s3/tasks-bucket/` do volume, e o NAS puxa
+  com `tasks-bucket` em `NAS_S3_PREFIXES` ([infra/backup › Bucket das
   tarefas](../../infra/backup/README.md#bucket-das-tarefas)).
 - **O que ficou no bucket de assets** antes da #587: `infra/ops/mover-tasks-para-bucket-privado.sh` (passo a passo em
   [dados](stack-dados-e-observabilidade.md#bucket-privado-das-tarefas-587)). Prévia concluída e ainda não aprovada que

@@ -106,9 +106,9 @@ BACKUP_S3_SYNC_PREFIXES=broadcasters platforms competitions wikimedia commons/pe
 **Bucket das tarefas** (`galaxie-sports-tasks`, `S3_TASKS_BUCKET`; #587): os pacotes do acervo e os relatórios da fila
 (`tasks/<id>/`) ficam num bucket privado, sem leitura anônima e fora do Traefik. O pacote licenciado tem cópia fora da VPS
 (OneDrive), mas o manifesto e o relatório gravados pela tarefa não. Copie com `BACKUP_S3_SYNC_TASKS_BUCKET=true`: o
-`s3-sync.sh` leva o bucket inteiro para `s3-tasks/` do volume e `tasks/` do remoto, no mesmo recibo
-([infra/backup/README.md › Bucket das tarefas](../../infra/backup/README.md#bucket-das-tarefas)). O NAS ainda não puxa
-esse bucket.
+`s3-sync.sh` leva o bucket inteiro para `s3/tasks-bucket/` do volume (e `tasks/` do remoto, se houver), no mesmo recibo
+([infra/backup/README.md › Bucket das tarefas](../../infra/backup/README.md#bucket-das-tarefas)). No NAS, acrescente
+`tasks-bucket` a `NAS_S3_PREFIXES`: ele puxa `s3/tasks-bucket/` como qualquer prefixo.
 
 Fora da lista, de propósito: `api-sports/` (3,84 GiB e 136 mil objetos, uma listagem completa por execução, e é só espelho
 da CDN) e `commons/f1/` (1,47 GiB de fotos que a Commons devolve). Ficam por conta do `assets:mirror` e do
