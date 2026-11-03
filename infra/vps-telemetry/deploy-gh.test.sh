@@ -7,15 +7,21 @@
 #
 #   - a VPS num projeto só recusa o deploy; a transição mantém volumes, rede e os contêineres de apps; falha nela desfaz;
 #     ela é idempotente e tem reverso
-#   - merge só na demo troca só a demo; merge que só muda o compose de um serviço troca só ele
+#   - merge só na demo troca só a demo (o live, o ingestor e o resto ficam); merge que só muda o compose de um serviço
+#     troca só ele
+#   - imagem do ingestor nova: o live (duas cópias) troca antes do ingestor e dos agents, cópia a cópia e a líder
+#     primeiro, e volta junto com eles; a volta para uma versão sem o live (o ao vivo dentro do ingestor) o tira do ar
 #   - falha num serviço volta só ele e fica registrada; o deploy seguinte tenta de novo
 #   - serviço de uma execução só que termina com erro reprova o deploy
 #   - falha em mais de um volta o projeto inteiro
 #   - o contêiner avulso de um job manual longo (docker compose run) sobrevive à troca do ingestor e à volta do projeto
 #   - serviço que expõe outra versão termina vermelho, com o nome dele, e volta só ele
 #   - webhooks trocam lado a lado, e a manutenção forçada fica de fora do deploy
+#   - o worker da fila troca no grupo do ingestor, depois dele e antes da API, lado a lado e drenando o antigo
 #   - --project obs troca só o que é dele, e o deploy de apps não toca em obs nem em dados
 #   - um SHA anterior aos três projetos continua publicável, sem subir um segundo Postgres no mesmo volume
+#   - a demo vira site e console (issue #546): os dois sobem lado a lado, a demo sai depois, o candidato e o smoke rodam
+#     nos dois; só a configuração do console muda → troca só ele; volta para um SHA com a demo e de novo para a frente
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
 set -euo pipefail
@@ -32,13 +38,15 @@ PORT="${TEST_REGISTRY_PORT:-15055}"
 REGISTRY_CT="$PROJECT_T-registry"
 P="localhost:$PORT/$PROJECT_T/gs"
 NAMES=(api demo ingestor backup prometheus grafana)
-APPS=(agents api demo ingestor maintenance migrate tarefa webhooks)
+APPS=(agents api console demo ingestor live maintenance migrate site tarefa webhooks worker)
 DADOS=(backup postgres s3 s3-init valkey)
 OBS=(grafana node-exporter prometheus)
 ZERO=0000000000000000000000000000000000000000
 fail=0
 
-export SWAP_SETTLE_S=1 SWAP_STOP_GRACE_S=2 SWAP_HEALTH_TIMEOUT=25 CANDIDATE_TIMEOUT=25 DEPLOY_KEEP_IMAGES=3
+export SWAP_SETTLE_S=1 SWAP_STOP_GRACE_S=2 SWAP_HEALTH_TIMEOUT=25 CANDIDATE_TIMEOUT=25 DEPLOY_KEEP_IMAGES=3 SWAP_DRAIN_TIMEOUT=10
+# a líder do live de faz de conta é a cópia onde a pergunta roda: parada uma, a outra responde (a liderança passou)
+export SWAP_LEADER_CMD=hostname SWAP_LEADER_TIMEOUT=20
 export OLD_PROJECT="$PROJECT_T" NETWORK_SUBNET="" MOVE_TIMEOUT=25
 
 cleanup() {
@@ -170,9 +178,13 @@ services_apps() {
   webhooks:
     <<: *app
     image: \${IMAGE_PREFIX:?}-api:\${TAG_API:?}
-  demo: &demo
+  live:
     <<: *app
-    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
+    image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
+    environment:
+      SCHEDULER_PROFILE: live
+    deploy:
+      replicas: 2
   ingestor:
     <<: *app
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
@@ -181,17 +193,62 @@ services_apps() {
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
     environment:
       AGENTE: um
+  # o worker da fila: no SIGTERM, o lote em andamento leva 3 s para fechar (a drenagem espera)
+  worker:
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
+    command: ['sh', '-c', "trap 'sleep 3; exit 0' TERM; while :; do sleep 1 & wait \$\$!; done"]
+    stop_grace_period: 10s
   api-candidate:
     <<: *api
     profiles: [candidate]
     restart: 'no'
     environment:
       CANDIDATO: '1'
+YML
+  web_services
+}
+# o app web: a demo num serviço só (antes da issue #546) ou, com SPLIT=1, site e console da mesma imagem
+SPLIT=""
+web_services() {
+  if [ -z "$SPLIT" ]; then
+    cat <<YML
+  demo: &demo
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
   demo-candidate:
     <<: *demo
     profiles: [candidate]
     restart: 'no'
     environment:
+      CANDIDATO: '1'
+YML
+    return
+  fi
+  cat <<YML
+  site: &site
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
+    environment:
+      APP_ROLE: site
+  console: &console
+    <<: *site
+    environment:
+      APP_ROLE: console
+      PAPEL: um
+  site-candidate:
+    <<: *site
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      APP_ROLE: site
+      CANDIDATO: '1'
+  console-candidate:
+    <<: *console
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      APP_ROLE: console
       CANDIDATO: '1'
 YML
 }
@@ -313,10 +370,13 @@ project_of() { # o projeto de um serviço, depois da transição
 id_of() { docker ps -aq --filter "label=com.docker.compose.project=$(project_of "$1")" --filter "label=com.docker.compose.service=$1" | head -n 1; }
 created() { # o .Created de cada serviço
   local svc
+  local id
   for svc in "${APPS[@]}" "${DADOS[@]}" "${OBS[@]}"; do
-    printf '%s %s\n' "$svc" "$(docker inspect -f '{{.Created}}' "$(id_of "$svc")")"
+    id="$(id_of "$svc")"
+    if [ -n "$id" ]; then printf '%s %s\n' "$svc" "$(docker inspect -f '{{.Created}}' "$id")"; else printf '%s -\n' "$svc"; fi
   done
 }
+running() { docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter "label=com.docker.compose.service=$1" | grep -c . || true; }
 env_of() { sed -n "s/^$1=//p" "$VPS_D/.env" | tail -n 1; }
 image_of() { docker exec "$(id_of "$1")" cat /version; } # o conteúdo de /version do contêiner no ar
 
@@ -462,6 +522,7 @@ deploy "$C2"
 expect_rc 0
 expect_log '^plano:.*demo: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
 expect_log '^plano:.*ingestor: igual, fica'
+expect_log '^plano:.*live: igual, fica'
 expect_log '^plano:.*api: igual, fica'
 expect_log '^plano:.*migrate: igual, fica'
 expect_log '^candidato aprovado'
@@ -543,7 +604,33 @@ expect_rc 0
 expect_recreated "$before" demo
 expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C5"
 
-echo "── C6: ingestor que não sobe: volta só ingestor e agents"
+echo "── C5W: ingestor e API mudam: o worker troca depois do ingestor e antes da API, drenando o antigo"
+echo x >> "$REPO_T/services/ingestor/x"
+echo x >> "$REPO_T/apps/api/x"
+C5W="$(commit "c5w")"
+publish
+before="$(created)"
+worker_old="$(id_of worker)"
+deploy "$C5W"
+expect_rc 0
+expect_log '^plano:.*worker: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
+expect_log '^trocando: live ingestor agents worker$'
+expect_log '^worker: drenando 1 contêiner\(es\) antigo\(s\)'
+expect_log "^ok  worker: ${worker_old:0:12} drenado em [3-9] s \\(saída 0\\)"
+expect_log '^ok  worker trocado sem manutenção'
+expect_log '^ok  worker na versão in-'
+line_of() { grep -nE -- "$1" "$LAST_OUT" | head -n 1 | cut -d: -f1; }
+if [ "$(line_of '^ok  worker trocado')" -lt "$(line_of '^trocando: api webhooks')" ]; then
+  ok "worker troca antes da API"
+else
+  bad "worker trocou depois da API"
+fi
+expect_recreated "$before" live ingestor agents worker api webhooks migrate
+expect_eq "worker novo no ar" "$(image_of worker)" "$(hash_of ingestor)"
+expect_eq "um contêiner do worker" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=worker | grep -c .)" 1
+expect_eq "worker antigo removido" "$(docker ps -aq --filter "id=$worker_old" | grep -c . || true)" 0
+
+echo "── C6: ingestor que não sobe: o live, que troca primeiro, falha; voltam live, ingestor e agents"
 echo y >> "$REPO_T/services/ingestor/x"
 touch "$REPO_T/QUEBRA_ingestor"
 C6="$(commit "c6")"
@@ -553,10 +640,13 @@ ing_old="$(env_of TAG_INGESTOR)"
 ing_old_ver="$(image_of ingestor)"
 deploy "$C6"
 expect_rc 1
-expect_log '^FAIL  ingestor agents: a troca falhou'
+expect_log '^trocando: live ingestor agents worker'
+expect_log '^FAIL  live ingestor agents worker: a troca falhou'
 expect_eq "TAG_INGESTOR voltou" "$(env_of TAG_INGESTOR)" "$ing_old"
+expect_eq "live anterior no ar" "$(image_of live)" "$ing_old_ver"
 expect_eq "ingestor anterior no ar" "$(image_of ingestor)" "$ing_old_ver"
 expect_eq "agents anterior no ar" "$(image_of agents)" "$ing_old_ver"
+expect_eq "worker anterior no ar (nem chegou a trocar)" "$(image_of worker)" "$ing_old_ver"
 after="$(created)"
 for svc in api webhooks demo; do
   expect_eq "$svc intacto" "$(sed -n "s/^$svc //p" <<< "$after")" "$(sed -n "s/^$svc //p" <<< "$before")"
@@ -596,8 +686,45 @@ echo v >> "$REPO_T/services/ingestor/x"
 echo v >> "$REPO_T/apps/demo/x"
 C8="$(commit "c8")"
 publish
+before="$(created)"
 deploy "$C8"
 expect_rc 0
+expect_log '^plano:.*live: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
+expect_log '^trocando: live ingestor agents'
+expect_log '^live: 2 cópia\(s\); líder [0-9a-f]+ \(troca primeiro\)'
+expect_log '^ok  live: liderança passou de '
+expect_log '^ok  live trocado cópia a cópia \(2 no ar\)'
+expect_log '^ok  live na versão in-'
+expect_eq "duas cópias do live" "$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=live | grep -c .)" 2
+expect_recreated "$before" live ingestor agents worker demo
+expect_eq "live novo no ar" "$(image_of live)" "$(hash_of ingestor)"
+# o live sobe (e fica healthy) antes de o ingestor da versão nova, que não roda mais o ao vivo, ser recriado
+nanos() { date -d "$(docker inspect -f '{{.Created}}' "$(id_of "$1")")" +%s%N; }
+if [ "$(nanos live)" -lt "$(nanos ingestor)" ] && [ "$(nanos live)" -lt "$(nanos agents)" ]; then
+  ok "live trocado antes de ingestor e agents"
+else
+  bad "live não foi trocado antes de ingestor e agents"
+fi
+
+echo "── volta para uma versão sem o serviço live: o ingestor dela roda o ao vivo, e o live que sobrou sai"
+cp "$REPO_T/infra/vps-telemetry/compose.yml" "$WORK/compose-com-live.yml"
+sed -i '/^  live:$/,/^  ingestor:$/{/^  ingestor:$/!d}' "$REPO_T/infra/vps-telemetry/compose.yml"
+echo s >> "$REPO_T/services/ingestor/x"
+C_SL="$(commit "sem live")"
+publish
+deploy "$C_SL"
+expect_rc 0
+expect_log '^live: removido'
+expect_eq "nenhum live no ar" "$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_T" --filter label=com.docker.compose.service=live | grep -c . || true)" 0
+expect_eq "ingestor da versão sem live" "$(image_of ingestor)" "$(hash_of ingestor)"
+cp "$WORK/compose-com-live.yml" "$REPO_T/infra/vps-telemetry/compose.yml"
+echo r >> "$REPO_T/services/ingestor/x"
+C_CL="$(commit "com live de novo")"
+publish
+deploy "$C_CL"
+expect_rc 0
+expect_log '^plano:.*live: troca \(novo\)'
+expect_eq "live de volta" "$(image_of live)" "$(hash_of ingestor)"
 
 echo "── smoke vermelho com um grupo trocado: volta só ele"
 echo u >> "$REPO_T/apps/demo/x"
@@ -609,7 +736,7 @@ deploy "$C9"
 expect_rc 1
 expect_log '^FAIL  deploy da .*: smoke test com falha'
 expect_eq "TAG_DEMO voltou" "$(env_of TAG_DEMO)" "$demo_old"
-expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C8"
+expect_eq "DEPLOY_SHA é o anterior" "$(env_of DEPLOY_SHA)" "$C_CL"
 rm "$REPO_T/SMOKE_FALHA_demo"
 echo t >> "$REPO_T/apps/demo/x"
 C10="$(commit "c10")"
@@ -703,5 +830,88 @@ expect_rc 0
 expect_eq "TAG_DEMO de novo" "$(env_of TAG_DEMO)" "in-$(hash_of demo)"
 expect_eq "demo da frente no ar" "$(image_of demo)" "$(hash_of demo)"
 
-[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou e transição para três projetos"
+echo "── C12: a demo vira site e console (#546): os dois sobem, a demo sai depois deles"
+SPLIT=1
+write_split_composes "$REPO_T/infra/vps-telemetry"
+# o compose regravado volta ao AGENTE da C3; só a divisão muda
+sed -i 's/AGENTE: um/AGENTE: dois/' "$REPO_T/infra/vps-telemetry/compose.yml"
+C12="$(commit "c12: site e console")"
+publish
+before="$(created)"
+deploy "$C12"
+expect_rc 0
+expect_log '^plano:.*site: troca \(novo\)'
+expect_log '^plano:.*console: troca \(novo\)'
+expect_log '^plano:.*demo: sai \(fora do compose novo; imagem demo\)'
+expect_log '^candidato healthy: api-candidate site-candidate console-candidate'
+expect_log '^smoke no site-candidate'
+expect_log '^smoke no console-candidate'
+expect_log '^ok  site no ar'
+expect_log '^ok  console no ar'
+expect_log '^ok  demo saiu'
+expect_log '^smoke no site$'
+expect_log '^smoke no console$'
+expect_log '^ok  site na versão in-'
+expect_log '^ok  console na versão in-'
+expect_recreated "$before" demo site console
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_eq "um site" "$(running site)" 1
+expect_eq "um console" "$(running console)" 1
+expect_eq "site na imagem da demo" "$(image_of site)" "$(hash_of demo)"
+expect_eq "console no papel dele" "$(docker exec "$(id_of console)" printenv APP_ROLE)" console
+expect_eq "notas: site e console" "$(grep '^swapped=' "$WORK/github_output")" "swapped=site console"
+expect_eq "sem candidato no ar" "$(running site-candidate)$(running console-candidate)$(running api-candidate)" 000
+
+echo "── C13: só a configuração do console muda: troca só o console, o site fica"
+sed -i 's/PAPEL: um/PAPEL: dois/' "$REPO_T/infra/vps-telemetry/compose.yml"
+C13="$(commit "c13: console")"
+publish
+before="$(created)"
+deploy "$C13"
+expect_rc 0
+expect_log '^plano:.*console: troca \(config mudou\)'
+expect_log '^plano:.*site: igual, fica'
+expect_log 'ok  console trocado sem manutenção'
+expect_recreated "$before" console
+expect_eq "console com a configuração nova" "$(docker exec "$(id_of console)" printenv PAPEL)" dois
+expect_eq "notas: só o console" "$(grep '^swapped=' "$WORK/github_output")" "swapped=console"
+
+echo "── volta para a C11 (a demo, antes da divisão): a demo sobe e site e console saem depois dela"
+git -C "$REPO_T" worktree add -q --detach "$WORK/alvo-c11" "$C11"
+before="$(created)"
+deploy "$C11" FORCE=1 TARGET_DIR="$WORK/alvo-c11"
+expect_rc 0
+expect_log '^plano:.*demo: troca \(novo\)'
+expect_log '^plano:.*site: sai'
+expect_log '^plano:.*console: sai'
+expect_log '^ok  site saiu'
+expect_log '^ok  console saiu'
+expect_log '^smoke no demo$'
+expect_eq "demo no ar" "$(running demo)" 1
+expect_eq "nenhum site" "$(running site)" 0
+expect_eq "nenhum console" "$(running console)" 0
+
+echo "── e de novo para a frente"
+deploy "$C13"
+expect_rc 0
+expect_log '^ok  demo saiu'
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_eq "site e console no ar" "$(running site)$(running console)" 11
+
+echo "── demo que ficou no ar (a retirada falhou antes): o deploy seguinte a tira, mesmo sem nada a trocar"
+(cd "$VPS_D" && docker compose -f "compose.yml.bak-${C11:0:7}" --env-file ".env.bak-${C11:0:7}" \
+  up -d --no-deps --quiet-pull demo </dev/null) >/dev/null 2>&1
+expect_eq "demo de volta, órfã" "$(running demo)" 1
+before="$(created)"
+C14="$(commit "c14: nada muda")"
+publish
+deploy "$C14"
+expect_rc 0
+expect_log '^plano:.*demo: sai'
+expect_log '^ok  demo saiu'
+expect_log '^SKIP  nada a publicar'
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_recreated "$before" demo
+
+[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou, transição para três projetos e a divisão em site e console"
 exit "$fail"

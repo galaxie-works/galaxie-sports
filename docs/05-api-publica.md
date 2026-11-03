@@ -283,7 +283,7 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 
 #### 3.1.2 Resumo da home "Explorar" (`apps/api/src/routes/v1/explore.ts`)
 
-`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. São sete consultas em lote mais a montagem dos jogos em destaque (uma vez, para todos os países), nenhuma por esporte ou por país; a montagem fica em `apps/api/src/explore/summary.ts`, com as escolhas em funções puras e testadas.
+`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Sem pré-cálculo ou com ele velho (mais de 30 min), faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
 
 | Campo | Conteúdo |
 |---|---|
@@ -959,7 +959,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Recurso | TTL (CDN) | Invalidação ativa |
 |---|---|---|
 | Países, competições, times, venues, navegação (`/v1/navigation`, `/v1/countries/{code}/*`) | 24 h | Na sincronização diária |
-| Resumo da home (`/v1/explore/summary`) | 60 s | Não (contadores de jogos envelhecem até 1 min) |
+| Resumo da home (`/v1/explore/summary`) | 60 s | Não (lê o pré-calculado, refeito no minuto seguinte a uma mudança de jogo e a cada 10 min) |
 | Elencos, tabelas | 1 h | Ao fim de cada rodada |
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |

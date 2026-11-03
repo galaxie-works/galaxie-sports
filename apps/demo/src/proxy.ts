@@ -9,9 +9,13 @@
  * Também escolhe o idioma: cookie `galaxie-idioma` ou, no primeiro acesso, o `Accept-Language`. As
  * páginas vivem em `app/[locale]/...`; o proxy reescreve `/times/1` para `/<idioma>/times/1` sem mudar a
  * URL visível (links, trilha e "voltar" do login continuam sem prefixo).
+ *
+ * Antes de tudo, o papel do processo (`APP_ROLE`, `lib/app-role.ts`): o `site` responde 404 ao portal e ao painel, e o
+ * `console` ao público e à demo. Sem a variável (`all`), atende tudo.
  */
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { appRole, servesPath } from '@/lib/app-role';
 import { accessPathname, matchesPrefix, routeAccess } from '@/lib/auth/roles';
 import { REVALIDATE_HEADER, REVALIDATE_ROUTE } from '@/lib/cache/signature';
 import { auth, isAccessExpired } from '@/lib/auth/server';
@@ -57,8 +61,22 @@ function render(request: NextRequest, pathname = request.nextUrl.pathname) {
   return response;
 }
 
+/** Rota do outro papel: 404, sem dizer qual serviço a atende (JSON na API, texto nas páginas). */
+function notServedHere(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const title = getDictionary(localeOf(request)).common.notFound;
+  const headers = { 'cache-control': 'no-store' };
+  return pathname.startsWith('/api/')
+    ? NextResponse.json({ title }, { status: 404, headers })
+    : new NextResponse(title, {
+        status: 404,
+        headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' },
+      });
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (!servesPath(appRole(), pathname)) return notServedHere(request);
   if (matchesPrefix(pathname, LEGACY_PASSWORD_PAGES)) {
     return NextResponse.redirect(new URL('/login', request.url));
   }

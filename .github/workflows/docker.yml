@@ -340,12 +340,17 @@ jobs:
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
             jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
               and .services["api-candidate"].environment.USAGE_PERSIST == "off"
-              and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
               and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
-              and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
               and .services["api-candidate"].image == .services.api.image
-              and .services["demo-candidate"].image == .services.demo.image' >/dev/null ||
-            { echo "::error::api-candidate/demo-candidate fora do esperado (sem router, prefixo próprio, mesma imagem)"; exit 1; }
+              and ([.services as $s | ("site", "console") | . as $w | $s[$w + "-candidate"] as $c
+                | $c.environment.GALAXIE_API_URL == "http://api-candidate:8080"
+                  and ($c.labels | keys) == ["traefik.enable"]
+                  and $c.image == $s[$w].image
+                  and $c.mem_limit == $s[$w].mem_limit
+                  and $c.environment.APP_ROLE == $w and $s[$w].environment.APP_ROLE == $w] | all)
+              and .services.site.image == .services.console.image
+              and (.services | has("demo") | not)' >/dev/null ||
+            { echo "::error::candidatos fora do esperado (api, site e console: sem router, prefixo próprio, mesma imagem e papel)"; exit 1; }
 
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
@@ -385,6 +390,7 @@ jobs:
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/deploy-gh.test.sh \
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
+            infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
@@ -411,6 +417,9 @@ jobs:
       - name: Cópia dos assets do S3 e recibo no verificador (s3-sync.sh com aws falso)
         run: bash infra/backup/s3-sync.test.sh
 
+      - name: Migração de tasks/ para o bucket privado (mover-tasks-para-bucket-privado.sh com docker, aws e psql falsos)
+        run: bash infra/ops/mover-tasks-para-bucket-privado.test.sh
+
       - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
         run: bash infra/nas-backup/nas-pull.test.sh
 
@@ -420,6 +429,9 @@ jobs:
 
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
+
+      - name: Smoke do deploy (retry de 5xx e de tempo esgotado; agenda dependente da home)
+        run: node --test infra/vps-telemetry/smoke.test.mjs
 
       - name: Entrada das imagens (quais mudam com cada caminho; lista ⇄ Dockerfiles)
         run: node --test infra/ops/image-inputs.test.mjs

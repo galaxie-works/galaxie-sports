@@ -5,6 +5,7 @@ import {
   budgetDayOf,
   isCronOff,
   nextCronRuns,
+  reportedService,
   resolveAll,
   scheduleKey,
   type RuntimeService,
@@ -39,7 +40,9 @@ export function effectiveOpsSettings(
       overrides,
       env: (key) => {
         const def = OPS_SETTINGS.find((d) => d.key === key);
-        return def ? (env.get(`${def.services[0]}|${key}`) ?? null) : null;
+        if (!def) return null;
+        const service = reportedService(def, (s) => env.has(`${s}|${key}`));
+        return env.get(`${service}|${key}`) ?? null;
       },
     },
     OPS_SETTINGS,

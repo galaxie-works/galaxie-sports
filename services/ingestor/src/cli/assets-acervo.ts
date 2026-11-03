@@ -8,10 +8,12 @@
  *   pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>            # importa (idempotente)
  *   pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
  *
- * O pacote também vem do S3, sem cópia para dentro do contêiner: `--pacote s3://<bucket>/tasks/<id>/<arquivo>.tgz`
+ * O pacote também vem do S3, sem cópia para dentro do contêiner: `--pacote s3://galaxie-sports-tasks/tasks/<id>/<arquivo>.tgz`
  * baixa para um diretório temporário do próprio processo, extrai e apaga no fim (`--pacote` aceita ainda um `.tgz` ou
  * uma pasta local, como o `--pasta`). `--manifesto s3://…/<id>.yaml` lê e grava o manifesto no S3 (o `--mapear` sobe
- * o manifesto e o relatório de cobertura ao lado); sem o objeto no S3, parte da cópia versionada.
+ * o manifesto e o relatório de cobertura ao lado); sem o objeto no S3, parte da cópia versionada. O lugar do pacote
+ * e do manifesto é o bucket privado das tarefas (S3_TASKS_BUCKET, padrão galaxie-sports-tasks, #587); um endereço no
+ * bucket público de assets (S3_BUCKET) ainda é aceito, com aviso: lá qualquer um com a chave baixa o objeto.
  *
  * Base organizada por país ("<País>/Times|Seleções|Campeonatos/<Nome>/Original/svg|png|webp/...",
  * convert-countries.ts) ou por competição ("<País> - <Competição>/svg|png|webp/Escudo - <Time>",
@@ -24,7 +26,7 @@
  * config/assets/acervo/<id>.cobertura.md. A pasta do pacote nunca entra no git. Ver
  * docs/runbooks/acervo-de-logos.md.
  *
- * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY.
+ * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_TASKS_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -45,6 +47,7 @@ import {
   formatS3Uri,
   openPackage,
   parseS3Uri,
+  publicBucketWarning,
   S3PackageStore,
   tempDir,
   type OpenedPackage,
@@ -108,6 +111,12 @@ const MANIFEST_DIR = resolve('../../config/assets/acervo');
 if (values.pasta && values.pacote) throw new Error('Use --pasta ou --pacote, não os dois.');
 let packageStore: S3PackageStore | undefined;
 const store = () => (packageStore ??= S3PackageStore.fromEnv());
+// pacote ou manifesto no bucket público de assets: segue, mas avisa (o lugar é o bucket privado das tarefas)
+for (const spec of [values.pacote, values.manifesto]) {
+  const uri = spec?.startsWith('s3://') ? parseS3Uri(spec) : null;
+  const warning = uri ? publicBucketWarning(uri) : undefined;
+  if (warning) console.warn(`Aviso: ${warning}`);
+}
 const opened: OpenedPackage | undefined = values.pacote ? await openPackage(values.pacote, store) : undefined;
 // o diretório temporário sai mesmo se algo abaixo lançar antes do finally
 process.once('exit', () => opened?.cleanup());

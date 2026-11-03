@@ -13,7 +13,7 @@ operacional; o mapa do código está em [docs/15](../../docs/15-organizacao-do-m
 | [API](#api) | `api` (+ `api-candidate`), `webhooks`, `migrate` | `compose.yml` | `TAG_API` | deploy de apps |
 | [Web](#web) | `demo` (+ `demo-candidate`); site e console em breve | `compose.yml` | `TAG_DEMO` | deploy de apps |
 | [Ao vivo](#ao-vivo) | `live` (em breve) | `compose.yml` | `TAG_INGESTOR` (hoje) | deploy de apps |
-| [Processamento](#processamento) | `ingestor`, `agents`, `lineup-render`; `worker` em breve | `compose.yml` | `TAG_INGESTOR` · `lineup-render`, tag fixa no compose | deploy de apps |
+| [Processamento](#processamento) | `ingestor`, `agents`, `worker`, `lineup-render` | `compose.yml` | `TAG_INGESTOR` · `lineup-render`, tag fixa no compose | deploy de apps |
 
 "Deploy de apps" é o automático: `deploy.yml` sobe sozinho quando o CI e as imagens da ponta da `main` terminam verdes, e
 só troca o serviço cuja imagem mudou. A release `deploy-AAAA-MM-DD.N` traz a seção **Serviços publicados** (serviço, tag
@@ -53,11 +53,11 @@ esconder o desvio:
 
 | Canal | Quem usa | Observação |
 |---|---|---|
-| Postgres (`compose.dados.yml`) | `api`, `webhooks`, `migrate`, `demo`, `ingestor`, `agents`, `backup` | cada serviço com o papel e os tempos limite dele ([papéis do banco](../../docs/runbooks/papeis-do-banco.md)) |
+| Postgres (`compose.dados.yml`) | `api`, `webhooks`, `migrate`, `demo`, `ingestor`, `agents`, `worker`, `backup` | cada serviço com o papel e os tempos limite dele ([papéis do banco](../../docs/runbooks/papeis-do-banco.md)) |
 | Valkey | `api`, `webhooks`, `migrate`, `ingestor`, `agents` | a `demo` não fala com ele; o `api-candidate` usa o prefixo `gs-candidate:` para não misturar com o que está no ar |
-| S3 (`s3`) | `api`, `webhooks`, `migrate`, `demo`, `ingestor`, `agents` (assets); `backup` (cópia dos dumps, opcional); leitura pública pelo Traefik | só objetos, sem listagem |
+| S3 (`s3`) | `api`, `webhooks`, `migrate`, `demo`, `ingestor`, `agents`, `worker` (assets); `backup` (cópia dos dumps, opcional); leitura pública pelo Traefik | só objetos, sem listagem |
 | HTTP, desvios conhecidos | `demo` → `api` (`GALAXIE_API_URL`); `ingestor` → `api` (`QUALITY_API_URL`, conferência de qualidade) | fora do caminho do Ao vivo; a demo só lê dado esportivo pela API |
-| HTTP, só leitura | `prometheus` raspa `/metrics` de `api`, `webhooks`, `ingestor`, `agents`; `traefik` roteia por labels para `api`, `demo`, `s3`, `maintenance` | nada disso chama de volta |
+| HTTP, só leitura | `prometheus` raspa `/metrics` de `api`, `webhooks`, `ingestor`, `agents`, `worker`; `traefik` roteia por labels para `api`, `demo`, `s3`, `maintenance` | nada disso chama de volta |
 | WebSocket | `agents` → `lineup-render` | rede `render` própria, sem Postgres, Valkey nem S3 |
 
 ## Borda
@@ -190,22 +190,26 @@ do épico. Evite durante jogo até o `live` sair do ingestor.
 **O que roda.** O `ingestor` (scheduler e CLIs de sync, normalização, assets e qualidade); os `agents` (a mesma imagem com
 `SCHEDULER_PROFILE=agents`: onde assistir, cenário, resumo, curadoria, vídeos, grades; teto diário de tokens); o
 `lineup-render`, o Chromium headless do perfil `render` (`docker compose --profile render up -d lineup-render`, só
-durante a leitura das páginas e cai depois); e, em breve, o `worker` das tarefas duráveis (#556).
+durante a leitura das páginas e cai depois); e o `worker` das tarefas da fila (a mesma imagem, `dist/cli/worker.js`:
+acervo, espelho de assets, carga histórica e backfills, cada tarefa num processo filho; drena no SIGTERM;
+[tarefas › O worker](../../docs/runbooks/tarefas.md#o-worker)).
 
 **Smoke.**
 
 ```bash
 cd /docker/galaxie-sports
-docker compose ps ingestor agents                             # Up
+docker compose ps ingestor agents worker                      # Up (worker: healthy)
 docker compose exec -T ingestor node -e "fetch('http://127.0.0.1:9464/version').then(r=>r.text()).then(console.log)"
 docker compose logs --since 10m ingestor | tail                # jobs rodando, sem erro de cota nem de conexão
 ```
 
-O mesmo `/version` e `/metrics` na 9464 vale para os `agents`. Job parado vira o alerta `SchedulerHeartbeatStale` no Prometheus e issue
+O mesmo `/version` e `/metrics` na 9464 vale para os `agents`; o `worker` responde na 8080 (`/health` diz `idle` e a
+tarefa em andamento). Job parado vira o alerta `SchedulerHeartbeatStale` no Prometheus e issue
 ([alertas](../../docs/runbooks/alertas-e-monitoramento.md)).
 
-**Voltar.** `TAG_INGESTOR` (vale para `ingestor` e `agents`), pelo caminho 2:
-`docker compose up -d --no-deps --scale ingestor=<escala atual> ingestor` e depois `agents`. Evite trocar o ingestor no
+**Voltar.** `TAG_INGESTOR` (vale para `ingestor`, `agents` e `worker`), pelo caminho 2:
+`docker compose up -d --no-deps --scale ingestor=<escala atual> ingestor` e depois `agents`; o `worker` volta lado a lado,
+drenando (`bash -s -- worker < rolling-swap.sh`). Evite trocar o ingestor no
 meio de importação longa. O `lineup-render` não tem tag no `.env`: a versão do Playwright está no `compose.yml` (e em
 `infra/lineup-render/versions.mjs`), então volta com o `compose.yml` do SHA anterior (caminho 1).
 

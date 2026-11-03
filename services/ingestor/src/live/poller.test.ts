@@ -203,6 +203,35 @@ describe('LivePoller', () => {
     expect(finishedIds).toEqual([]); // ainda em andamento: o cursor do detalhe não é marcado
   });
 
+  it('no encerramento (SIGTERM) o tick grava o listLive e não abre chamada de detalhe; a confirmação fica para depois', async () => {
+    const final = cupFinal();
+    const { store, provider, poller, tracked } = setup([match, final]);
+    const t1 = new Date(kick + 100 * MIN);
+    provider.willReturn('listLive', batchAt([match], t1));
+    await poller.tick({ now: t1, leagues: ['71'], tracked: await tracked(t1), finalizeBudget: 2 });
+
+    // o jogo saiu do live (pediria a confirmação) e há destaque: com o encerramento já pedido, nenhum detalhe
+    const t2 = new Date(kick + 112 * MIN);
+    const stop = new AbortController();
+    stop.abort();
+    provider.willReturn('listLive', batchAt([], t2));
+    const live = await tracked(t2);
+    const r = await poller.tick({
+      now: t2,
+      leagues: ['71', '73'],
+      tracked: live,
+      featured: live.find((c) => c.providerEventId === '9500'),
+      finalizeBudget: 2,
+      stop: stop.signal,
+    });
+    expect(r).toMatchObject({ vanished: ['9101'], finalized: [], calls: 1 });
+    expect(r.featured).toBeUndefined();
+    expect(provider.calls.filter((c) => c.method === 'getEventDetail')).toHaveLength(0);
+    expect(store.state('9101')!.status).toBe('live');
+    // a tentativa não foi gasta: o bastão passa a confirmação para a próxima líder fazer já no primeiro tick
+    expect(poller.exportFinalizeAttempts(t2)).toEqual({});
+  });
+
   describe('líder e reserva', () => {
     const at = (min: number) => new Date(kick + min * MIN);
     const details = (provider: FakeProvider) =>

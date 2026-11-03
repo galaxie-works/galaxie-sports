@@ -62,6 +62,53 @@ Risco por serviço:
 | `valkey` | Cache e rate limit fora por segundos |
 | `postgres` | API, demo e jobs falham até ele voltar. Faça um backup antes e veja a página de manutenção abaixo |
 
+### Bucket privado das tarefas (#587)
+
+O `s3-init` cria, além do bucket de assets, o privado das tarefas (`S3_TASKS_BUCKET`, padrão `galaxie-sports-tasks`):
+sem política (sem leitura anônima), fora do Traefik. É idempotente: rodar de novo só reaplica as políticas, e o RustFS
+não reinicia. Aplicar, uma vez, depois do merge (o deploy automático já leva `S3_TASKS_BUCKET` ao `ingestor` e ao
+`worker`, com o padrão; o `.env` só precisa da linha se o nome for outro). Traga o arquivo da `main` com o `scp` do começo
+desta seção e, na VPS:
+
+```bash
+cd /docker/galaxie-sports
+cp compose.dados.yml compose.dados.yml.bak-$(date +%F)
+docker compose -f compose.dados.yml.new config -q && mv compose.dados.yml.new compose.dados.yml
+docker compose -f compose.dados.yml up -d s3-init                    # cria o bucket; sai sozinho
+docker compose -f compose.dados.yml logs s3-init | tail -3           # "bucket galaxie-sports-tasks pronto (privado…)"
+docker compose -f compose.dados.yml up -d --no-deps --wait backup    # o backup passa a ver S3_TASKS_BUCKET
+```
+
+Conferir (critério da issue): um objeto em `tasks/` do bucket privado não sai sem chave, e o de assets segue sem
+listagem.
+
+```bash
+S3_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker compose -f compose.dados.yml ps -q s3))
+docker compose -f compose.dados.yml exec -T backup sh -c 'echo ok | AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET_KEY" aws --endpoint-url "$S3_ENDPOINT" s3 cp - "s3://$S3_TASKS_BUCKET/tasks/teste-587/ok.txt"'
+curl -s -o /dev/null -w '%{http_code}\n' "http://$S3_IP:9000/galaxie-sports-tasks/tasks/teste-587/ok.txt"    # 403
+curl -s -o /dev/null -w '%{http_code}\n' "http://$S3_IP:9000/galaxie-sports-tasks/"                         # 403
+curl -s -o /dev/null -w '%{http_code}\n' "https://$ASSETS_DOMAIN/galaxie-sports-assets/"                    # 403/404 (sem listagem)
+docker compose -f compose.dados.yml exec -T backup sh -c 'AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET_KEY" aws --endpoint-url "$S3_ENDPOINT" s3 rm "s3://$S3_TASKS_BUCKET/tasks/teste-587/ok.txt"'
+```
+
+Depois, o que ficou em `tasks/` do bucket de assets vai para o privado (cópia conferida por tamanho e ETag, depois apaga do
+público; idempotente). Da máquina de dev, prévia primeiro:
+
+```bash
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- --plan' < infra/ops/mover-tasks-para-bucket-privado.sh
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s' < infra/ops/mover-tasks-para-bucket-privado.sh
+```
+
+Saída `3`: há tarefa viva (`pending`/`running`) com o pacote no bucket de assets; a cópia foi feita, a remoção não.
+Espere ela terminar e rode de novo (ou `--forcar`). Saída `4`: a mesma chave já existe no privado com outro conteúdo
+(tamanho ou ETag); nada foi sobrescrito, resolva à mão.
+
+**Backup do bucket das tarefas.** Na produção não há bucket remoto: a cópia fora da VPS é a do NAS. Ligue
+`BACKUP_S3_SYNC_TASKS_BUCKET=true` no `.env` da VPS (é cópia, nada é apagado) e recrie o `backup`
+(`docker compose -f compose.dados.yml up -d --no-deps --wait backup`): a partida já espelha o bucket em
+`s3/tasks-bucket/` do volume. Depois, no NAS, acrescente `tasks-bucket` a `NAS_S3_PREFIXES` da stack
+`galaxie-sports-backup-nas` (`infra/nas-backup/compose.yml`): ele puxa `s3/tasks-bucket/` como qualquer prefixo.
+
 **Upgrade do Postgres** (#201), restauração do banco e outra manutenção longa: force a página de manutenção antes e tire
 depois ([README da stack › Página de manutenção](../../infra/vps-telemetry/README.md)):
 

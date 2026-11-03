@@ -6,17 +6,18 @@ entrypoints `web`/`websecure`, certresolver `letsencrypt` por HTTP-01).
 
 | Diferença para a stack do Portainer | Por quê |
 |---|---|
-| Sem Caddy; labels do Traefik na `api`, na `demo` e no `s3` | o Traefik da VPS faz TLS e roteamento |
+| Sem Caddy; labels do Traefik na `api`, no `site`, no `console` e no `s3` | o Traefik da VPS faz TLS e roteamento |
 | `/metrics` e `/internal` fora do router da API | mesmo bloqueio que o Caddy fazia |
 | Sem `build:`; imagens do GHCR (o deploy baixa as do SHA; `PULL_POLICY=missing` no resto do tempo) | não compilar o monorepo na VPS (2 vCPU compartilhadas) |
 | Sub-rede fixa `172.30.50.0/24` e `TRUST_PROXY=172.30.50.1` | o Traefik chega aos contêineres pelo gateway da rede |
 | `mem_limit` por serviço (S3 1g, Grafana 512m: com 256m os dois chegam ao limite) | a VPS hospeda outras stacks |
 | Serviço `webhooks`: worker de entrega dos webhooks, com a imagem da API e sem porta | entrega das notificações assinadas aos clientes (docs/05 §5.2) |
-| Serviço `demo` com login próprio (convites, papéis, prazo e atividade) | o app de demonstração (metadados em negociação) |
+| App de demonstração em dois serviços da mesma imagem: `site` (público, demo, docs, embed) e `console` (portal do cliente, Builder, Ajustes), com login próprio (convites, papéis, prazo e atividade) | um vazamento no painel não derruba o site nem o portal de quem paga (issue #546; [Site e console](#site-e-console)) |
 | Assets públicos: `GET/HEAD` do bucket via Traefik, bucket com leitura anônima só de objetos | logos, bandeiras e fotos na demo e na API |
 | Grafana sem rota pública | acesso por túnel SSH |
 | Serviço `agents`: imagem do ingestor com `SCHEDULER_PROFILE=agents` (resumo, cenário, Onde Assistir) e teto diário de tokens | IA ligada mesmo com o ingestor parado, com custo previsível |
-| Serviço `maintenance` (Caddy fixo) com routers de prioridade 1 nos hosts da demo e da API | 503 de manutenção em vez do 404 do Traefik enquanto demo ou API são recriadas |
+| Serviço `live`: imagem do ingestor com `SCHEDULER_PROFILE=live` (só o ao vivo: `live-run`, `live-reconcile`, `events-clock`), duas cópias | o deploy não corta o placar ([Ao vivo](#ao-vivo-serviço-live)) |
+| Serviço `maintenance` (Caddy fixo) com routers de prioridade 1 nos hosts da demo e da API (e o do console, 1500, declarado no site) | 503 de manutenção em vez do 404 do Traefik enquanto site, console ou API são recriados |
 
 Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API pública) e `ASSETS_DOMAIN` (assets).
 **O DNS precisa resolver antes de subir**, senão o desafio HTTP-01 do Let's Encrypt falha.
@@ -122,32 +123,35 @@ rota do painel de Operação (protegida e sem valor de credencial) e a proteçã
 aparece no relatório. Serviço por serviço, o deploy termina conferindo a versão no ar (`deploy-verify.sh`; runbook › A versão que cada serviço roda). Para rodar só o smoke test:
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T demo node -' < infra/vps-telemetry/smoke.mjs
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T site node -' < infra/vps-telemetry/smoke.mjs
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T console node -' < infra/vps-telemetry/smoke.mjs
 ```
 
 ### Candidato e troca sem manutenção
 
 O deploy pelo Actions troca só o que mudou, sem página de manutenção (runbook
-[Merge e deploy pelo GitHub](../../docs/runbooks/deploy-pelo-github.md) › O deploy pelo Actions). Com a API ou a demo na
+[Merge e deploy pelo GitHub](../../docs/runbooks/deploy-pelo-github.md) › O deploy pelo Actions). Com a API, o site ou o console na
 lista:
 
-1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull, do dump e do migrate, a API e a demo da versão nova sobem ao lado
-   das que estão no ar (`api-candidate` e `demo-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
+1. **Candidato** ([`candidate.sh`](candidate.sh)): depois do pull, do dump e do migrate, a API, o site e o console da versão nova sobem
+   ao lado dos que estão no ar (`api-candidate`, `site-candidate` e `console-candidate`, perfil `candidate` do compose: mesmo env e limites, **sem
    router no Traefik**, a API com o prefixo `gs-candidate:` no Valkey para cache, rate limit, uso e relay do SSE não se
-   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). O smoke roda no candidato com `SMOKE_PHASE=candidate`. `FAIL` = sem
+   misturarem com os da versão no ar, e com `USAGE_PERSIST=off`: o uso do smoke não vai para `api.usage_daily`). O smoke roda em cada candidato web (site e console, cada um no papel dele) com `SMOKE_PHASE=candidate`. `FAIL` = sem
    troca: a versão anterior segue no ar e o deploy sai com 1 (com migration aplicada, ele avisa e mostra o dump).
-2. **Troca da API, dos webhooks e da demo sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
+2. **Troca da API, dos webhooks, do site e do console sem página de manutenção** ([`rolling-swap.sh`](rolling-swap.sh)): o contêiner novo sobe ao
    lado do antigo (`--scale 2 --no-recreate`), o antigo só para com o novo healthy (o Traefik só balanceia contêiner
    healthy), e o `gsports-retry` (ligado em `EDGE_MIDDLEWARES`, [infra/traefik](../traefik/README.md)) manda a conexão
    recusada pelo antigo no SIGTERM para o novo. O CI testa com o Traefik de verdade e tráfego a cada 50 ms (zero
    respostas fora de 200) e com uma versão que nunca fica healthy (a troca recusa e a anterior segue). O smoke de depois
-   do pós-deploy continua valendo.
+   do pós-deploy continua valendo. O `worker` da fila troca do mesmo jeito, logo depois do ingestor: o antigo **drena**
+   antes de sair (`docker stop -t 75`, com o `/health` acompanhado até dizer `idle`), e o novo retoma a tarefa devolvida
+   do checkpoint ([tarefas › O worker](../../docs/runbooks/tarefas.md#o-worker)).
 3. O deploy guarda só os 10 backups mais novos de `compose.yml` e `.env`.
 
 A troca sem erro nenhum na borda depende de `EDGE_MIDDLEWARES` ter o `gsports-retry` ([infra/traefik](../traefik/README.md)).
 No log do Actions: `candidato healthy`, o resultado do smoke do candidato e `ok  <serviço> trocado sem manutenção`. Um SHA
 antigo, sem os candidatos no compose, publica sem eles, com `WARN`. Candidato esquecido no ar (job morto no meio):
-`docker compose --profile candidate rm -sf api-candidate demo-candidate`.
+`docker compose --profile candidate rm -sf api-candidate site-candidate console-candidate`.
 
 Os pacotes leem `config/` e `data/knowledge` a partir de si mesmos e **silenciam** quando não acham (lista vazia), então
 um diretório fora da imagem não dá erro, só some a funcionalidade. Por isso as imagens levam `config/` inteiro (e a API a
@@ -156,13 +160,16 @@ CI confere os caminhos dentro das imagens de `api` e `ingestor` em todo PR.
 
 ## Página de manutenção
 
-O deploy troca sem esta página. Ela cobre o que sobra: quando um reinício (ou o plano B, `deploy.sh`) deixa a `demo` ou a
-`api` sem contêiner healthy, o Traefik fica alguns segundos sem backend para o router delas e responderia **404** numa
+O deploy troca sem esta página. Ela cobre o que sobra: quando um reinício (ou o plano B, `deploy.sh`) deixa o `site`, o `console` ou
+a `api` sem contêiner healthy, o Traefik fica alguns segundos sem backend para o router delas e responderia **404** numa
 página válida; e serve de ferramenta para a manutenção do banco (abaixo). O serviço `maintenance` cobre esse intervalo sem tocar na stack do
 Traefik, só com labels da nossa stack:
 
 - **Routers de prioridade 1** (`gsports-demo-maintenance` e `gsports-api-maintenance`) com as mesmas regras de host dos
-  routers da demo e da API (a da API também sem `/metrics` e `/internal`), `websecure` e o certresolver `letsencrypt`.
+  routers do site e da API (a da API também sem `/metrics` e `/internal`), `websecure` e o certresolver `letsencrypt`.
+  O console tem o dele, `gsports-console-maintenance` (prioridade 1500, entre o site, 1000, e o console, 2000, com os
+  prefixos do console), declarado nos rótulos do `site` e apontando para o serviço `gsports-maintenance-site`: com o
+  console fora, os caminhos dele recebem a página, não o 404 do site.
   A prioridade padrão do Traefik é o tamanho da regra, então o router de verdade sempre ganha; o de manutenção só
   responde quando o outro some: contêiner parado, recriado ou ainda sem healthcheck `healthy` (o provider Docker do
   Traefik ignora contêiner `starting`/`unhealthy`).
@@ -177,7 +184,7 @@ Traefik, só com labels da nossa stack:
 **Não é recriado pelos deploys.** Imagem upstream fixa (`caddy:2.11.7-alpine`, `pull_policy: missing`), sem
 tag de deploy, e a config inteira (Caddyfile, HTML e JSON) inline no `compose.yml` (`configs:` com `content:`, porque a
 VPS só recebe esse arquivo). O hash do serviço não muda de um deploy para o outro, então os deploys deixam o contêiner
-como está, e ele segue respondendo enquanto demo e API sobem. O
+como está, e ele segue respondendo enquanto site, console e API sobem. O
 `deploy.sh` só baixa a imagem antes de trocar o `compose.yml`, se ela ainda não estiver na VPS.
 
 **Editou a página, o JSON ou o Caddyfile?** O compose não recria um serviço quando só muda o conteúdo de uma config
@@ -189,15 +196,15 @@ docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry
   | node infra/vps-telemetry/maintenance-rev.mjs
 ```
 
-Com o rótulo novo, o próximo deploy recria só o `maintenance` (cerca de 1 s, normalmente com demo e API no ar).
+Com o rótulo novo, o próximo deploy recria só o `maintenance` (cerca de 1 s, normalmente com site, console e API no ar).
 
 **Conferir.** O smoke test confere, pela rede da stack, que o contêiner está no ar e responde os dois 503
 (`http://maintenance:8080` e `:8081`). Os routers do Traefik se conferem de fora, numa janela combinada:
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop demo'
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop site'
 curl -sS -D - -o /dev/null https://$DEMO_DOMAIN/competicoes/brasileirao-serie-a   # 503, Retry-After: 30, text/html
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start demo'
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start site'
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                     # de volta: 307 → /login
 ```
 
@@ -212,7 +219,49 @@ ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- down' < infra/v
 Enquanto forçada, ninguém
 alcança a demo nem a API pelo Traefik (nem admin), um deploy mantém a manutenção (o valor fica no `.env`) e o smoke
 test continua passando, porque fala com os contêineres pela rede interna. Alternativa pontual, para um serviço só:
-`docker compose stop demo` (ou `api`) também cai na página, até o `start`.
+`docker compose stop site` (ou `console`, ou `api`) também cai na página, até o `start`.
+
+## Site e console
+
+A imagem da demo roda em dois serviços (issue #546), para um vazamento de memória no painel não derrubar o site e o
+portal de quem paga. `APP_ROLE` diz ao processo qual é o papel dele; sem a variável (`next dev`, imagem antiga) ele
+atende tudo, como antes. A tabela das rotas fica em
+[`apps/demo/src/lib/app-role.ts`](../../apps/demo/src/lib/app-role.ts), com teste que exige uma entrada para cada pasta
+de `app/`:
+
+| Serviço | Atende | Responde 404 a | Na partida | `mem_limit` |
+| --- | --- | --- | --- | --- |
+| `site` | público, demo (explorador), `/docs`, `/exemplo`, `/embed.js`, `/e/*`, `/r/*` (registry), `/api/related`, `/api/interno/revalidar` | `/cliente` (com o Builder), `/ajustes`, `/api/cliente`, `/api/ajustes` | banco do login, seguidor do change feed | 512m (heap 320) |
+| `console` | `/cliente`, `/cliente/builder`, `/ajustes`, `/api/cliente`, `/api/ajustes` | o resto | banco do login (sem o change feed: o cache do explorador é do site) | 384m (heap 224) |
+| os dois | `/login`, `/api/auth`, `/api/version` (com `service: site\|console`), `/api/galaxie` (o proxy da API; a pré-visualização do Builder usa), `/api/atividade`, `/robots.txt` (healthcheck da imagem), ícones, `/_next` | | | |
+
+**Traefik, no mesmo host.** `gsports-console` casa `Host(DEMO_DOMAIN) && PathRegexp(^/(ajustes|api/ajustes|api/cliente|cliente)(/|$))`
+com prioridade 2000; `gsports-site` casa o host inteiro com 1000; `gsports-console-maintenance` (1500, nos rótulos do
+site) manda os prefixos do console para a página de manutenção quando ele sai do ar; `gsports-demo-maintenance` (1)
+cobre o resto. O login e a API do auth ficam no site: sem o console, ninguém perde o login da demo. A sessão do Better
+Auth é um cookie do host, então vale nos dois (entrar pelo `/login`, abrir o `/cliente` e voltar ao explorador sem
+logar de novo). Os arquivos do build (`/_next/static`) também vêm do site: é a mesma imagem, e o deploy troca os dois no
+mesmo grupo (só nos segundos entre a troca de um e a do outro a página do console pede ao site um arquivo de outro build).
+
+**Métricas.** Cada processo expõe `/metrics` na porta 9464 da rede interna (`DEMO_METRICS_PORT`, Bearer `METRICS_TOKEN`):
+`build_info{service="site"|"console"}`, memória (RSS e heap) e o início do processo. O Prometheus raspa `site:9464` e
+`console:9464` no job `galaxie-services` (entra no ar com o próximo deploy de obs) e o painel de SLOs mostra a versão e a
+memória por serviço.
+
+**A primeira troca** (a demo vira site e console) é um deploy normal: o plano diz `site: troca (novo)`,
+`console: troca (novo)` e `demo: sai`; os dois sobem lado a lado com a demo (o router do site, 1000, já ganha do da demo,
+que não tem prioridade e fica com a do tamanho da regra), e a demo só sai (`rolling-swap.sh --retire`) com os dois
+healthy. Se a troca deles falhar, a demo nunca saiu; se o smoke ou a conferência reprovarem depois, a volta sobe a demo de
+novo e só então tira os dois. Voltar para um SHA de antes da divisão faz o caminho inverso. Conferir de fora:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/cliente        # 307 → /login (console)
+curl -sS https://$DEMO_DOMAIN/api/version                                     # "service":"site"
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop console'
+curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/cliente        # 503 (manutenção)
+curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/sobre          # 200: o site segue
+ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start console'
+```
 
 ## Painel de Operação (flags sem editar o `.env`)
 
@@ -221,12 +270,68 @@ Ajustes → Operação, na demo (só admin), mostra e altera as flags da operaç
 **padrão de fábrica**: o painel grava em `ops.runtime_setting` (com histórico em `ops.runtime_setting_log`) e vale a
 precedência **banco > env > padrão do código** (registro em `packages/runtime-config`).
 
-- Os schedulers (`ingestor` e `agents`) releem a cada 30 s (`SCHEDULER_REFRESH_SECONDS`): reprogramam as agendas
+- Os schedulers (`ingestor`, `live` e `agents`) releem a cada 30 s (`SCHEDULER_REFRESH_SECONDS`): reprogramam as agendas
   mudadas e entregam o env efetivo a cada job, que lê os valores no começo da execução. O ao vivo relê `LIVE_*` a cada
   minuto. Nada disso reinicia contêiner; só `LIVE_POLL_INTERVAL_SECONDS` (lido pela API) espera a API reiniciar.
 - Cada contêiner relata o próprio env em `ops.runtime_env` (segredos só como "configurado"), que também é o sinal de
   vida mostrado no painel. "Rodar agora" entra em `ops.job_request` e o scheduler do perfil executa.
 - Para voltar tudo ao `.env`: "Voltar ao padrão" em cada flag, ou `delete from ops.runtime_setting;` no banco.
+
+## Ao vivo (serviço `live`)
+
+O placar ao vivo roda num serviço próprio (#535), com a imagem do ingestor e o scheduler no perfil `live`
+(`SCHEDULER_PROFILE=live`): só `live-run`, `live-reconcile` e `events-clock`. O `ingestor` sobe com
+`SCHEDULER_LIVE=external` e não roda mais nenhum dos três. Assim, um deploy que não muda a imagem do ingestor (`TAG_INGESTOR`)
+não toca no `live`, e recriar o ingestor não corta o placar.
+
+- **Duas cópias sempre** (#537, `deploy.replicas: ${LIVE_REPLICAS:-2}`; o Compose v2 sobe as cópias sem swarm): uma é a
+  líder e chama a api-sports; a outra é a reserva e assume em ~1 s se a líder cair. Um serviço só (não `live-a`/`live-b`):
+  o healthcheck é por contêiner, os logs saem com o número da cópia, o Prometheus acha as duas pelo DNS e a troca só
+  precisa saber o número de cópias.
+- **`live-run` sempre no ar**: no perfil `live` ele roda com `--continuo` e `LIVE_LEADER=on` (líder e reserva pela trava
+  `live:leader`, [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)) e sem a trava
+  por job do scheduler: a liderança é a trava. Saiu (erro, SIGTERM, queda do banco), o scheduler sobe de novo em 1 s
+  (atraso que dobra a cada saída rápida, até 60 s). `SCHEDULE_LIVE_RUN=off` desliga; outro cron não muda nada.
+- **`live-reconcile` e `events-clock`** seguem no cron, com a trava por job: um por vez em todo o banco.
+- **Banco**: `DATABASE_URL` é o `DB_URL_LIVE` (papel `galaxie_live`; sem ele, o dono, como os outros) e os processos usam o
+  perfil de tempos `live` (30 s de consulta, 10 s de trava). Antes de pôr o `DB_URL_LIVE` no `.env`, os papéis têm de
+  estar ligados (`DB_ROLES=on`, [Papéis do banco](#papéis-do-banco)).
+- **Memória**: 640m por cópia ([Memória dos jobs](#memória-dos-jobs)).
+- **Encerramento**: no SIGTERM a líder fecha o tick, publica o estado e solta a trava. O tick mais longo nessa hora é a
+  chamada no ar (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação numa transação (perfil `live`: 30 s de consulta):
+  com o encerramento pedido, o tick não abre as chamadas de detalhe (confirmação do final e destaque; até 6 × 30 s), que
+  a próxima líder faz. Por isso o scheduler espera 70 s (`SCHEDULER_STOP_WAIT_SECONDS`: 30 + 30 e o estado) e o
+  `stop_grace_period` é 75 s. Enquanto a líder não solta a trava, a reserva espera: o normal é o tick acabar em 1 a 3 s,
+  e os 70 s só valem com a fonte e o banco no limite ao mesmo tempo.
+- **Escala 0 do ingestor** (a ingestão rodando em outro ambiente com a mesma chave): o deploy deixa o `live` como está e,
+  quando sobe o projeto inteiro, também em 0.
+
+Onde ver:
+
+- **Painel**: Ajustes → Operação › Agendadores e serviços mostra o `Ao vivo` (último sinal, a cópia líder e desde quando,
+  e o último tick); a aba Agenda tem os três jobs no grupo `Ao vivo`.
+- **Métricas**: `/metrics` e `/version` na 9464 de cada cópia (o Prometheus acha as cópias pelo DNS do Docker,
+  `service="live"`); o alerta `SchedulerHeartbeatStale` vale para o `live` como para os outros schedulers.
+- **Quem é a líder**: a consulta de [services/ingestor › Ao vivo](../../services/ingestor/README.md#ao-vivo-líder-e-reserva)
+  (`application_name` `galaxie-live-leader:<contêiner>`), ou `docker compose logs live | grep liderança`.
+
+**Deploy**: o `live` entra no plano como os outros (imagem do ingestor; só troca quando ela ou a configuração dele muda) e
+o `deploy-gh.sh` o troca **antes** de ingestor e agents, cópia a cópia ([`rolling-swap.sh`](rolling-swap.sh)). Para cada
+cópia antiga, a líder primeiro: sobe uma nova, espera ela ficar healthy, para a antiga e espera outra cópia pegar a
+liderança antes de seguir. Nunca fica com menos de duas cópias healthy, e o ao vivo só para o tempo de a reserva pegar a
+trava (~1 s depois de a líder soltar). Os três voltam juntos se um deles falhar (mesma `TAG_INGESTOR`). O log do deploy diz
+`live: 2 cópia(s); líder <contêiner> (troca primeiro)` e `liderança passou de <antiga> para <nova> em N s`. Runbook
+(quem é a líder, forçar a troca, uma cópia no dev): [Ao vivo: líder e reserva](../../docs/runbooks/ao-vivo-lider-e-reserva.md).
+
+**Primeira subida** (a versão anterior roda o ao vivo dentro do ingestor): o `live` sobe e, até o ingestor ser recriado com
+`SCHEDULER_LIVE=external`, os dois acompanham os jogos (o `live-run` antigo não conhece a eleição). São alguns segundos com o
+dobro de chamadas, sem perda. Confira depois: `docker compose ps live`, a líder na consulta acima e, no painel, o `Ao vivo`
+no ar.
+
+**Voltar para uma versão sem o serviço**: o deploy de um SHA anterior sobe o ingestor com o ao vivo dentro e, depois
+dele, remove as cópias do `live`. Apague o relato dele para o painel e o `SchedulerHeartbeatStale` não o mostrarem fora do ar:
+`delete from ops.runtime_env where service = 'live';`. No dev (NAS) o ao vivo continua no ingestor (`SCHEDULER_LIVE`
+padrão `internal`); para provar o perfil à mão: `SCHEDULER_PROFILE=live pnpm --filter @galaxie/ingestor scheduler`.
 
 ## Deploy (primeira vez)
 
@@ -254,8 +359,8 @@ O banco local já tem o bootstrap (raw + core). Em vez de refazer as chamadas:
 
 ```bash
 docker compose exec api node dist/cli/tenant-create.js --slug demo --name Demo --plan enterprise --daily-quota none --label demo-vps
-# copiar a chave exibida para GALAXIE_DEMO_KEY no .env (sem colar em chat/log) e recriar só a demo:
-docker compose up -d demo
+# copiar a chave exibida para GALAXIE_DEMO_KEY no .env (sem colar em chat/log) e recriar só o app web:
+docker compose up -d site console
 ```
 
 ### Login da demo
@@ -366,7 +471,7 @@ Um serviço por vez. Cada passo é um `up -d` de um serviço só, e o resto cont
    conferir, rode `docker compose -f compose.dados.yml exec backup sh -c '. /usr/local/lib/galaxie-backup/lib.sh; psql -Atc "select current_user"'`
    (tem de dar `galaxie_backup`), depois `docker compose -f compose.dados.yml exec backup backup.sh` e
    `docker compose -f compose.dados.yml exec backup restore-drill.sh`.
-6. **Smoke.** `docker compose exec -T demo node - < smoke.mjs` (ou o próximo deploy).
+6. **Smoke.** `docker compose exec -T site node - < smoke.mjs` e o mesmo no `console` (ou o próximo deploy).
 7. **Reverso, a qualquer momento.** Tire a `DB_URL_<SERVIÇO>` do `.env` e rode `docker compose up -d --no-deps <serviço>`:
    ele volta para o dono. `DB_ROLES=off` só para de reaplicar; os papéis continuam no banco, inofensivos sem as URLs.
 
@@ -440,27 +545,33 @@ Cada sessão aparece em `pg_stat_activity` com o nome do pool (`galaxie-api`, `g
 select application_name, state, count(*) from pg_stat_activity where datname is not null group by 1, 2 order by 3 desc;
 ```
 
-Soma no pico (`max_connections` = 100, 3 reservadas ao superusuário):
+Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusuário; o contêiner do Postgres foi a 1,5 GB para caber o pior caso):
 
 | Pool | Antes | Depois |
 | --- | --- | --- |
 | API | 10 | 10 |
-| Demo (login 5, Builder 3, change feed 2) | 10 | 10 |
+| Site (login 5, Builder 3, change feed 2) e console (login 5, Builder 3, tarefas 2; sem change feed), #546 | 10 (a demo) | 20 |
 | Ingestor: scheduler | 2 | 2 |
-| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | ao vivo 3 × (4 + 1) + `SCHEDULER_MAX_JOBS` 2 × (4 + 1) = 25 |
+| Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 5 |
+| Live: scheduler e jobs | (dentro do ingestor) | por cópia, scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) = 8, × 2 cópias; `live-reconcile` e `events-clock` 2 × (4 + 1) numa cópia por vez = 26 |
+| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_MAX_TASKS` 2 × 6 = 14 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
-| **Total** | **~106: passava do limite** | **67, com ~30 de folga para CLI à mão e `psql`** |
+| **Total** | **~106: passava do limite** | **97, sem folga no pior caso: CLI à mão e `psql` dependem de as fases do deploy não coincidirem** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
 Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMIT`, aplicado pelo `migrate`;
-`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 30, ingestor 40, agents 25, live 36, backup 6. A
-soma (182) passa do `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O
-pico real da tabela acima (67) mais os candidatos do deploy (API e demo, 20) dá 87 de 97 vagas; o serviço `live` em duas
-cópias durante a troca soma mais 17 (o ao vivo deixa de ocupar o ingestor, então o líquido é menor), o que deixa
-poucas vagas livres. Se o pico passar de ~90, suba o `max_connections` (cada conexão ociosa custa ~5 MB).
+`ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 60 (site e console), ingestor 55 (com o worker,
+que usa o mesmo papel, e a volta para antes do `live`), agents 25, live 45, backup 6. A soma (236) passa do
+`max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O pico da tabela acima
+(97) mais os candidatos do deploy (API, site e console, 30) dá 127 de 127 vagas no papel; na prática os pools abrem
+conexão sob demanda, o candidato só roda o smoke (uma ou duas por pool) e sai antes da troca do `live` (que soma uma
+terceira cópia, 8) e da do worker (que dobra os 14 dele por até 75 s), o worker raramente tem duas tarefas de carga ao
+mesmo tempo, e o teto do papel `galaxie_demo` (60) cobre os quatro pools da demo juntos (site, console e os dois
+candidatos, 40) com folga. Com 130, o pico da tabela (97) cabe com ~30 de folga; se passar de ~120, suba o `max_connections` e o `mem_limit` do Postgres juntos (cada conexão
+ociosa custa ~5 MB).
 
 ### Memória dos jobs
 
@@ -472,9 +583,21 @@ heap (geração nova e o próprio Node):
 
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
-| `ingestor` (1152m) | scheduler 64 + ao vivo (`live-run` 128, `live-reconcile` 64, `events-clock` 64, nunca esperam vaga) + `SCHEDULER_MAX_JOBS` 2 × 160, + 6 × 64 | 1024 MB (128 de folga) |
+| `ingestor` (480m) | scheduler 64 + `SCHEDULER_MAX_JOBS` 1 × 160, + 2 × 64 | 352 MB (128 de folga) |
+| `live` (640m, cada uma das 2 cópias) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB (64 de folga) |
+| `worker` (576m, `cpus: 1.0`) | worker 64 + `WORKER_MAX_TASKS` 2 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 512 MB (64 de folga) |
 | `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
-| `api` e `demo` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
+| `api` e `site` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
+| `console` (384m) | heap 224 (`command` do compose) + geração nova 3 × 16 + ~50; sem o cache do explorador e sem o seguidor do change feed | ~322 MB |
+
+O ao vivo saiu do ingestor para o `live` (#535) e o trabalho longo (espelho de assets, carga histórica, acervo,
+backfills) para o `worker` (#542): o ingestor caiu de 1152m para 480m, o `live` levou 640m por cópia (1280m com as duas,
+#537; a reserva fica perto do scheduler e de um `live-run` parado, ~150 MB de verdade) e o `worker` 576m. Só de heap, o
+`live` soma 320 MB (a estimativa da issue); com os 64 MB por processo da mesma conta dos outros, 576. Com
+`SCHEDULER_LIVE=internal` (dev, ou a volta para uma versão anterior, que traz o compose dela) o ingestor precisa dos
+1152m de antes. Com `QUEUE_MODE=enqueue` o scheduler só enfileira, e o `ingestor` ficou com um job por vez. Na troca do
+deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 1088 MB de worker no pior caso.
+Mudou `WORKER_MAX_TASKS` ou `WORKER_TASK_HEAP_MB` no `.env`: refaça a conta e o `mem_limit` do `worker`.
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
 mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça

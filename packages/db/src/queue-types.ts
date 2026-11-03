@@ -51,6 +51,13 @@ export const EXEMPLO_ECO = defineTaskType({
   params: z.object({
     mensagem: z.string().trim().min(1).max(200).describe('Texto que a tarefa devolve'),
     repeticoes: z.number().int().min(1).max(20).default(3).describe('Quantos lotes simular'),
+    pausaMs: z
+      .number()
+      .int()
+      .min(0)
+      .max(30_000)
+      .default(0)
+      .describe('Espera em cada lote (ms), para exercitar a drenagem do worker'),
   }),
   previa: true,
   destrutiva: false,
@@ -71,10 +78,10 @@ const s3Uri = (ext: RegExp, what: string) =>
     .regex(ext, `use s3://<bucket>/<chave> (${what})`);
 
 /**
- * Acervo de escudos: o pacote vem do S3 (`tasks/<id>/`), a importação anda em lotes por país (até `lote` escudos
- * cada) e o checkpoint é o último lote. Religa escudos, então é destrutiva: a prévia (como o `--plan` de
- * `assets:acervo`) grava o plano e o relatório de cobertura em `tasks/<id da prévia>/cobertura.md` no S3 e em
- * `checkpoint.previa`; a execução só sai da aprovação.
+ * Acervo de escudos: o pacote vem do S3 (`tasks/<id>/` do bucket privado das tarefas, S3_TASKS_BUCKET), a importação
+ * anda em lotes por país (até `lote` escudos cada) e o checkpoint é o último lote. Religa escudos, então é destrutiva:
+ * a prévia (como o `--plan` de `assets:acervo`) grava o plano e o relatório de cobertura em
+ * `tasks/<id da prévia>/cobertura.md` do bucket das tarefas e em `checkpoint.previa`; a execução só sai da aprovação.
  */
 export const ACERVO_IMPORTAR = defineTaskType({
   type: 'acervo.importar',
@@ -82,7 +89,7 @@ export const ACERVO_IMPORTAR = defineTaskType({
     'Importa o acervo de escudos de um pacote no S3: liga os escudos do manifesto aos times e competições e desliga os que saíram. Em lotes por país.',
   params: z.object({
     pacote: s3Uri(/\.(tgz|tar\.gz)$/i, '.tgz').describe(
-      'Pacote no S3: s3://<bucket>/tasks/<id>/<arquivo>.tgz',
+      'Pacote no S3: s3://galaxie-sports-tasks/tasks/<id>/<arquivo>.tgz (bucket privado das tarefas)',
     ),
     acervo: z
       .string()

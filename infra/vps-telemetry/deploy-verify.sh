@@ -7,7 +7,7 @@
 # Para cada contêiner do serviço:
 #   - a imagem é a da referência (digest);
 #   - com tag in-<hash>: o rótulo works.galaxie.context-tree da imagem é esse hash;
-#   - com porta: o que o processo expõe (GET /version; na demo, /api/version) é essa tag.
+#   - com porta: o que o processo expõe (GET /version; no app web, site, console ou demo, /api/version) é essa tag.
 # Tag vazia (SHA anterior às tags por serviço) ou porta vazia (SHA anterior ao /version) pulam a conferência respectiva.
 # Imprime ok ou FAIL por serviço e, por último, DIVERGENTE=<os que falharam>. Saída 1 = algum divergiu.
 # O script chega pelo stdin (bash -s): todo comando lê de /dev/null.
@@ -31,7 +31,7 @@ check() {
   fi
   want="$(docker image inspect -f '{{.Id}}' "$ref")"
   path=/version
-  [ "$svc" != demo ] || path=/api/version
+  case "$svc" in site | console | demo) path=/api/version ;; esac
   for id in $ids; do
     have="$(docker inspect -f '{{.Image}}' "$id")"
     if [ "$have" != "$want" ]; then

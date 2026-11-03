@@ -7,6 +7,7 @@ import {
   aiSpendUsd,
   changeFeedConsumers,
   dbSizes,
+  exploreSummaryAge,
   jobStats,
   ledgerCounts,
   liveEvents,
@@ -263,7 +264,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     onError,
   );
   const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl, onError);
-  const groups = [quota, jobs, freshness, live, changeFeed, ops, queue] as CollectorGroup<unknown>[];
+  const explore = new CollectorGroup<number | null>('explore', () => exploreSummaryAge(db), ttl, onError);
+  const groups = [quota, jobs, freshness, live, changeFeed, ops, queue, explore] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
   dbGauge(
@@ -518,6 +520,16 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     (g, rows) => {
       for (const r of rows) g.set({ consumer: r.consumer }, r.oldestPendingAgeSeconds);
     },
+  );
+
+  // ── resumo da home Explorar pré-calculado (fonte: core.explore_summary, job explore-summary)
+  dbGauge(
+    registry,
+    explore,
+    'galaxie_explore_summary_age_seconds',
+    'Idade do resumo da home Explorar pré-calculado (s; +Inf = nunca gravado). Acima de 30 min a API calcula na requisição',
+    [],
+    (g, age) => g.set(age ?? Number.POSITIVE_INFINITY),
   );
 
   // ── sinais de vida, agenda esperada e IA (fonte: ops.runtime_env, ops.runtime_setting, ops.runtime_check, ops.llm_usage)

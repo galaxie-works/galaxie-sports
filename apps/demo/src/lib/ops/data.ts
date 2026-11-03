@@ -23,6 +23,7 @@ import {
   parseAgentUsdBudgets,
   parseBandShares,
   planKey,
+  reportedService,
   resolveAll,
   validateSettingKey,
   type RuntimeService,
@@ -41,13 +42,16 @@ import type {
   LlmSpend,
   OpsSetting,
   OpsSnapshot,
+  LiveServiceStatus,
   QuotaRow,
   ServiceStatus,
+  WorkerView,
 } from './types';
 
 /** Scheduler sem relatar há mais que isto = fora do ar (ele relata a cada 30 s). */
 const ALIVE_MS = 3 * 60_000;
-const SERVICES: RuntimeService[] = ['ingestor', 'agents', 'api', 'demo'];
+/** `live` só aparece depois do primeiro relato: com SCHEDULER_LIVE=internal (dev) o ao vivo roda no ingestor. */
+const SERVICES: RuntimeService[] = ['ingestor', 'live', 'agents', 'api', 'demo'];
 const iso = (d: Date | string | null | undefined) => (d ? new Date(d).toISOString() : null);
 const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 
@@ -86,17 +90,19 @@ async function readSettings(now: Date) {
     env.set(`demo|${r.key}`, { service: 'demo', ...r, reported_at: demoAt });
 
   const overrideMap = new Map(overrides.map((o) => [o.key, o]));
+  // o relato do primeiro serviço que leu a chave (o ao vivo no `live` ou, com SCHEDULER_LIVE=internal, no ingestor)
+  const reportedRow = (key: string) => {
+    const def = SETTINGS.find((s) => s.key === key);
+    return def ? env.get(`${reportedService(def, (svc) => env.has(`${svc}|${key}`))}|${key}`) : undefined;
+  };
   const resolved = resolveAll({
     overrides: new Map(overrides.map((o) => [o.key, o.value])),
-    env: (key) => {
-      const def = SETTINGS.find((s) => s.key === key);
-      return def ? (env.get(`${def.services[0]}|${key}`)?.value ?? null) : null;
-    },
+    env: (key) => reportedRow(key)?.value ?? null,
   });
 
   const settings: OpsSetting[] = resolved.map((r) => {
     const def = SETTINGS.find((s) => s.key === r.key)!;
-    const reported = env.get(`${def.services[0]}|${r.key}`);
+    const reported = reportedRow(r.key);
     const o = overrideMap.get(r.key);
     return {
       key: r.key,
@@ -121,17 +127,48 @@ async function readSettings(now: Date) {
     const prev = lastReport.get(r.service);
     if (!prev || r.reported_at > prev) lastReport.set(r.service, r.reported_at);
   }
-  const services: ServiceStatus[] = SERVICES.map((service) => {
-    const at = service === 'demo' ? demoAt : lastReport.get(service);
-    return {
-      service,
-      reportedAt: iso(at),
-      alive:
-        service === 'demo' ||
-        (service === 'api' ? Boolean(at) : Boolean(at && now.getTime() - at.getTime() < ALIVE_MS)),
-    };
-  });
+  const services: ServiceStatus[] = SERVICES.filter((s) => s !== 'live' || lastReport.has(s)).map(
+    (service) => {
+      const at = service === 'demo' ? demoAt : lastReport.get(service);
+      return {
+        service,
+        reportedAt: iso(at),
+        alive:
+          service === 'demo' ||
+          (service === 'api' ? Boolean(at) : Boolean(at && now.getTime() - at.getTime() < ALIVE_MS)),
+      };
+    },
+  );
+  const live = services.find((s) => s.service === 'live');
+  if (live) live.live = await readLiveService();
   return { settings, services };
+}
+
+/**
+ * Líder e último tick do ao vivo (`ops.sync_cursor` do futebol): a época da liderança (`live:leader_epoch`, gravada
+ * por quem assume) e o ritmo (`live:scheduler` › `tick`, gravado a cada tick). Sem as linhas, campos nulos.
+ */
+async function readLiveService(): Promise<LiveServiceStatus> {
+  const rows = await query<{
+    endpoint: string;
+    key: string;
+    cursor: Record<string, unknown> | null;
+    updated_at: Date;
+  }>(
+    `select endpoint, key, cursor, updated_at from ops.sync_cursor
+      where provider = 'api-sports' and sport = 'football'
+        and ((endpoint = 'live:leader_epoch' and key = 'current') or (endpoint = 'live:scheduler' and key = 'tick'))`,
+  );
+  const leader = rows.find((r) => r.endpoint === 'live:leader_epoch');
+  const tick = rows.find((r) => r.endpoint === 'live:scheduler');
+  const text = (v: unknown) => (typeof v === 'string' && v ? v : null);
+  const epoch = Number(leader?.cursor?.epoch);
+  return {
+    leader: text(leader?.cursor?.instance),
+    epoch: Number.isFinite(epoch) ? epoch : null,
+    leaderSince: iso(leader?.updated_at),
+    lastTickAt: text(tick?.cursor?.lastTickAt),
+  };
 }
 
 async function readJobs(): Promise<JobStatus[]> {
@@ -467,6 +504,93 @@ async function readRequests(): Promise<JobRequestRow[]> {
   }));
 }
 
+/** Prazo da concessão da fila (QUEUE_LEASE_MS em @galaxie/db/queue): a última renovação foi este tanto antes do fim. */
+const QUEUE_LEASE_MS = 90_000;
+
+interface WorkerTaskRow {
+  worker: string;
+  id: string;
+  type: string;
+  attempts: number;
+  checkpoint: unknown;
+  picked_at: Date | null;
+  locked_until: Date | null;
+}
+
+/** `checkpoint.progresso` (convenção da fila: `{ feitos, total?, lote? }`). */
+function progressOf(checkpoint: unknown): {
+  done: number | null;
+  total: number | null;
+  batch: string | null;
+} {
+  const p =
+    checkpoint && typeof checkpoint === 'object'
+      ? (checkpoint as { progresso?: { feitos?: unknown; total?: unknown; lote?: unknown } }).progresso
+      : undefined;
+  return {
+    done: typeof p?.feitos === 'number' ? p.feitos : null,
+    total: typeof p?.total === 'number' ? p.total : null,
+    batch: typeof p?.lote === 'string' ? p.lote : null,
+  };
+}
+
+/**
+ * Os workers da fila e o que cada um roda, só pelo banco: as tarefas em execução (`locked_by`, `locked_until`, o lote
+ * do checkpoint) e quem tomou tarefa nas últimas 24 h (`ops.job_run.stats.worker`). O worker que nunca tomou nada não
+ * aparece: o painel não chama o worker por HTTP.
+ */
+export async function readWorkers(now: Date = new Date()): Promise<WorkerView[]> {
+  let running: WorkerTaskRow[];
+  let recent: { worker: string; last_seen: Date | null }[];
+  try {
+    [running, recent] = await Promise.all([
+      query<WorkerTaskRow>(
+        `select locked_by as worker, id::text, type, attempts, checkpoint, picked_at, locked_until
+           from ops.job_request
+          where type is not null and status = 'running' and locked_by is not null
+          order by picked_at`,
+      ),
+      query<{ worker: string; last_seen: Date | null }>(
+        `select stats->>'worker' as worker, max(finished_at) as last_seen
+           from ops.job_run
+          where request_id is not null and stats ? 'worker' and started_at > now() - interval '24 hours'
+          group by 1`,
+      ),
+    ]);
+  } catch (err) {
+    // colunas da fila ainda não migradas: a aba mostra o aviso dela
+    if ((err as { code?: string }).code === '42703' || err instanceof OpsUnavailableError) return [];
+    throw err;
+  }
+  const byId = new Map<string, WorkerView>();
+  const worker = (id: string) => {
+    let w = byId.get(id);
+    if (!w) {
+      w = { id, state: 'idle', tasks: [], lastSeenAt: null };
+      byId.set(id, w);
+    }
+    return w;
+  };
+  for (const r of recent) worker(r.worker).lastSeenAt = iso(r.last_seen);
+  for (const r of running) {
+    const w = worker(r.worker);
+    const until = r.locked_until ? new Date(r.locked_until).getTime() : null;
+    w.tasks.push({
+      id: r.id,
+      type: r.type,
+      attempts: r.attempts,
+      ...progressOf(r.checkpoint),
+      pickedAt: iso(r.picked_at),
+      lockedUntil: iso(r.locked_until),
+      lastRenewAt: until ? new Date(until - QUEUE_LEASE_MS).toISOString() : null,
+    });
+    const expired = until !== null && until < now.getTime();
+    w.state = expired || w.state === 'expired' ? 'expired' : 'busy';
+  }
+  const order = { expired: 0, busy: 1, idle: 2 } as const;
+  return [...byId.values()].sort((a, b) => order[a.state] - order[b.state] || a.id.localeCompare(b.id));
+}
+
 /**
  * Tudo que o painel mostra, numa leitura. Quem chama confere a sessão de admin (página e rota usam
  * `requireAdmin`/`adminFromHeaders`); esta função não lê cookies, para servir também à checagem do smoke.
@@ -474,7 +598,7 @@ async function readRequests(): Promise<JobRequestRow[]> {
 export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
   const { settings, services } = await readSettings(now);
-  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks] = await Promise.all([
+  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers] = await Promise.all([
     readJobs(),
     readQuota(dayUtc, settings),
     readLlm(now, settings),
@@ -484,6 +608,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     readQuality(),
     readYoutube(now, settings),
     readTasks(),
+    readWorkers(now),
   ]);
   return {
     generatedAt: now.toISOString(),
@@ -499,6 +624,6 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     requests,
     quality,
     youtube,
-    tasks,
+    tasks: tasks ? { ...tasks, workers } : null,
   };
 }

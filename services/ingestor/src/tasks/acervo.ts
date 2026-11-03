@@ -1,10 +1,12 @@
 /**
- * `acervo.importar`: o `assets:acervo` como tarefa da fila. O pacote vem do S3 (`params.pacote`, em `tasks/<id>/`),
+ * `acervo.importar`: o `assets:acervo` como tarefa da fila. O pacote vem do S3 (`params.pacote`, em `tasks/<id>/` do
+ * bucket privado das tarefas, S3_TASKS_BUCKET; um endereço no bucket público de assets ainda vale, com aviso no log),
  * baixado para um diretório temporário da tomada; o manifesto é o versionado em config/assets/acervo/<acervo>.yaml ou
  * `params.manifesto` no S3.
  *
  * - Prévia (`previa`): o plano, como o `--plan` de hoje (ligados, desligados, ignorados, lotes), sem gravar nada no
- *   banco nem no storage dos logos; o relatório de cobertura vai para `tasks/<id da prévia>/cobertura.md` no S3 e o
+ *   banco nem no storage dos logos; o relatório de cobertura vai para `tasks/<id da prévia>/cobertura.md` no bucket
+ *   privado das tarefas e o
  *   resumo dele para `checkpoint.previa`.
  * - Execução (só com `previaId`, da aprovação): lotes por país, até `lote` escudos cada; cada lote grava no storage,
  *   regrava o asset e liga ao time ou à competição, e o checkpoint é o último lote. Depois do último, o passo de
@@ -30,7 +32,9 @@ import {
   formatS3Uri,
   openPackage,
   parseS3Uri,
+  publicBucketWarning,
   S3PackageStore,
+  tasksBucket,
   tempDir,
   type PackageStore,
   type S3Uri,
@@ -48,8 +52,10 @@ export interface AcervoTaskDeps {
   objects: () => ObjectStore & { close?: () => void };
   /** Onde ficam os manifestos versionados. */
   manifestDir: string;
-  /** Bucket do relatório da prévia (`tasks/<id>/cobertura.md`). */
+  /** Bucket do relatório da prévia (`tasks/<id>/cobertura.md`): o privado das tarefas (S3_TASKS_BUCKET). */
   bucket: () => string;
+  /** Aviso para pacote ou manifesto no bucket público de assets (vai para o log da prévia). */
+  publicWarning?: (uri: S3Uri) => string | undefined;
 }
 
 export function acervoEnvDeps(env: NodeJS.ProcessEnv = process.env): AcervoTaskDeps {
@@ -58,14 +64,12 @@ export function acervoEnvDeps(env: NodeJS.ProcessEnv = process.env): AcervoTaskD
     packages: () => (packages ??= S3PackageStore.fromEnv(env)),
     objects: () => objectStoreFromEnv(env),
     manifestDir: resolve('../../config/assets/acervo'),
-    bucket: () => {
-      if (!env.S3_BUCKET) throw new Error('Defina S3_BUCKET (.env).');
-      return env.S3_BUCKET;
-    },
+    bucket: () => tasksBucket(env),
+    publicWarning: (uri) => publicBucketWarning(uri, env),
   };
 }
 
-/** Chave do relatório de cobertura da prévia no S3. */
+/** Chave do relatório de cobertura da prévia no bucket das tarefas. */
 export const coverageKey = (taskId: string) => `tasks/${taskId}/cobertura.md`;
 
 /** Tamanho máximo do relatório copiado no checkpoint (o inteiro fica no S3). */
@@ -136,7 +140,10 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
           },
           cobertura: { s3: formatS3Uri(uri), markdown: markdown.slice(0, REPORT_IN_CHECKPOINT) },
           prova: proof,
-          log: [`prévia: ${report.linked} ligados · ${report.detached} desligados · ${lots.length} lotes`],
+          log: [
+            ...publicWarnings(d, params),
+            `prévia: ${report.linked} ligados · ${report.detached} desligados · ${lots.length} lotes`,
+          ],
         });
         return {
           detail: `prévia pronta: ${report.linked} ligados, ${report.detached} desligados`,
@@ -187,6 +194,15 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
       manifestTmp?.cleanup();
     }
   };
+}
+
+/** Avisos de pacote ou manifesto no bucket público de assets (aceitos; o lugar deles é o privado das tarefas). */
+export function publicWarnings(d: AcervoTaskDeps, params: { pacote: string; manifesto?: string }): string[] {
+  if (!d.publicWarning) return [];
+  return [params.pacote, params.manifesto]
+    .map((spec) => (spec ? parseS3Uri(spec) : null))
+    .map((uri) => (uri ? d.publicWarning!(uri) : undefined))
+    .filter((w): w is string => Boolean(w));
 }
 
 /** Na prévia nada vai para o storage dos logos. */

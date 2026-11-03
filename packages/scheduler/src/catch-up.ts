@@ -89,30 +89,29 @@ export interface OrphanReport {
 }
 
 /**
- * Fecha o que um scheduler morto deixou como `running` (ops.job_run e ops.job_request), só para os jobs cuja trava
- * está livre: com a trava ocupada, outro processo (um `scheduler --run` no console, o contêiner antigo ainda saindo)
- * roda o job de verdade e a linha é dele.
+ * Fecha o que um scheduler morto deixou como `running` (ops.job_run e ops.job_request), só quando a trava de quem a
+ * abriu está livre: com a trava ocupada, outro processo (um `scheduler --run` no console, o contêiner antigo ainda
+ * saindo, a outra cópia do `live`) roda o job de verdade e a linha é dele. A execução de um job com trava por cópia
+ * (`lock: 'instance'`) leva a cópia em `stats.instance`, e a trava conferida é a dessa cópia (`<job>@<cópia>`); as
+ * outras, e os pedidos do painel, a do job.
  */
 export async function closeOrphans(
   db: Database,
   jobs: readonly string[],
-  opts: { bootedAt: Date; lock: (job: string) => Promise<JobLock | null> },
+  opts: { bootedAt: Date; lock: (name: string) => Promise<JobLock | null> },
 ): Promise<OrphanReport> {
   const report: OrphanReport = { runs: 0, requests: 0, busy: [] };
   if (!jobs.length) return report;
+  const instance = sql<string | null>`${jobRun.stats} ->> 'instance'`;
+  const orphanRun = and(
+    inArray(jobRun.job, [...jobs]),
+    eq(jobRun.status, 'running'),
+    lt(jobRun.startedAt, opts.bootedAt),
+    // execução de tarefa da fila é do worker: a concessão vencida é quem fecha (packages/db/src/queue.ts)
+    isNull(jobRun.requestId),
+  );
   const [runRows, requestRows] = await Promise.all([
-    db
-      .selectDistinct({ job: jobRun.job })
-      .from(jobRun)
-      .where(
-        and(
-          inArray(jobRun.job, [...jobs]),
-          eq(jobRun.status, 'running'),
-          lt(jobRun.startedAt, opts.bootedAt),
-          // execução de tarefa da fila é do worker: a concessão vencida é quem fecha (packages/db/src/queue.ts)
-          isNull(jobRun.requestId),
-        ),
-      ),
+    db.selectDistinct({ job: jobRun.job, instance }).from(jobRun).where(orphanRun),
     db
       .selectDistinct({ job: jobRequest.job })
       .from(jobRequest)
@@ -124,12 +123,16 @@ export async function closeOrphans(
         ),
       ),
   ]);
-  const names = [...new Set([...runRows, ...requestRows].map((r) => r.job))];
+  // um dono por trava: o job (linhas sem cópia e pedidos) ou cada cópia que deixou linha
+  const owners = new Map<string, { job: string; instance: string | null }>();
+  for (const r of runRows)
+    owners.set(r.instance ? `${r.job}@${r.instance}` : r.job, { job: r.job, instance: r.instance ?? null });
+  for (const r of requestRows) owners.set(r.job, { job: r.job, instance: null });
   const now = new Date();
-  for (const job of names) {
-    const lock = await opts.lock(job);
+  for (const [name, owner] of owners) {
+    const lock = await opts.lock(name);
     if (!lock) {
-      report.busy.push(job);
+      if (!report.busy.includes(owner.job)) report.busy.push(owner.job);
       continue;
     }
     try {
@@ -143,25 +146,25 @@ export async function closeOrphans(
         })
         .where(
           and(
-            eq(jobRun.job, job),
-            eq(jobRun.status, 'running'),
-            lt(jobRun.startedAt, opts.bootedAt),
-            isNull(jobRun.requestId),
+            orphanRun,
+            eq(jobRun.job, owner.job),
+            owner.instance === null ? sql`${instance} is null` : sql`${instance} = ${owner.instance}`,
           ),
         )
         .returning({ id: jobRun.id });
+      report.runs += runs.length;
+      if (owner.instance !== null) continue;
       const requests = await db
         .update(jobRequest)
         .set({ status: 'error', finishedAt: now, detail: 'interrompido: o scheduler reiniciou' })
         .where(
           and(
-            eq(jobRequest.job, job),
+            eq(jobRequest.job, owner.job),
             eq(jobRequest.status, 'running'),
             lt(jobRequest.pickedAt, opts.bootedAt),
           ),
         )
         .returning({ id: jobRequest.id });
-      report.runs += runs.length;
       report.requests += requests.length;
     } finally {
       await lock.release();

@@ -26,8 +26,9 @@
 #      compose.yml do SHA e as tags das imagens no .env (o SHA em cada TAG_*, em IMAGE_TAG num SHA anterior a elas, e em
 #      DEPLOY_SHA), validados antes de trocar (com backup dos dois); a imagem da página de
 #      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
-#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
-#      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
+#   6. docker compose up -d --remove-orphans (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do
+#      registry; o serviço que saiu do compose, como a demo quando virou site e console, sai junto). A
+#      página de manutenção não é recriada: enquanto site, console e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
 #   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica (falha
@@ -99,9 +100,10 @@ LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 # Como voltar. O comando de voltar a imagem só aparece sem migration nova aplicada (contagem igual antes e depois):
 # com schema novo, o código antigo pode quebrar, e a saída é corrigir para frente ou restaurar também o banco.
 rollback_help() {
-  local o="${OLD:0:7}"
+  local o="${OLD:0:7}" live_flag=""
+  [ "${SCALE:-1}" != 0 ] || live_flag=" --scale live=0"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}$live_flag'"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
       echo "FAIL  $((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) já aplicada(s): não volte só a imagem para ${o} (o código antigo pode quebrar com o schema novo)"
@@ -281,7 +283,8 @@ ssh "$VPS" "$RETAG"
 
 # compose.yml e .env novos validados juntos antes de trocar: config inválido para aqui, com a stack intocada
 scp -q "$WT/infra/vps-telemetry/compose.yml" "$VPS:$DIR/compose.yml.new"
-# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
+# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente; o live, com a mesma chave, acompanha); falha
+# do ps não pode virar 0
 SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
   SCALE=""
 case "$SCALE" in
@@ -290,6 +293,9 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# com o ingestor em 0, o live também (avaliado na VPS: só se o compose em uso tiver o serviço)
+LIVE_SCALE_REMOTE=""
+[ "$SCALE" != 0 ] || LIVE_SCALE_REMOTE="\$(grep -q '^  live:' compose.yml && echo --scale live=0)"
 # as imagens construídas aqui têm a tag do SHA: ele vai nas TAG_* de apps. Dados e obs não passam por este roteiro
 env_lines="DEPLOY_SHA=$SHA"
 for t in API DEMO INGESTOR; do env_lines+=$'\n'"TAG_$t=$SHA"; done
@@ -341,7 +347,7 @@ restore_previous() {
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
     && for img in \$(docker compose -f compose.yml.bak-$o --env-file .env.bak-$o config --images); do docker image inspect \$img >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
-    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull"; then
+    && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
@@ -356,7 +362,7 @@ restore_previous() {
 
 STAGE=up
 echo "subindo a stack"
-if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE --quiet-pull 2>&1")"; then
+if out="$(ssh "$VPS" "$CD && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull 2>&1")"; then
   :
 else
   rc=$?
@@ -389,7 +395,11 @@ MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
 
 echo "smoke test"
-ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+# no site e no console: cada um confere o que o papel dele atende (APP_ROLE do contêiner)
+for svc in site console; do
+  echo "smoke no $svc"
+  ssh "$VPS" "cd $DIR && docker compose exec -T $svc node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+done
 STAGE=finished
 
 # notas de versão: tag deploy-AAAA-MM-DD.N no commit publicado e release no GitHub com os PRs desde o deploy

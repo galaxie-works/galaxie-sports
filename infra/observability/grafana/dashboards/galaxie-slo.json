@@ -633,7 +633,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_interval_seconds",
+          "expr": "max by (sport) (live_tick_interval_seconds)",
           "legendFormat": "último intervalo ({{sport}})"
         },
         {
@@ -642,7 +642,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_interval_max_seconds",
+          "expr": "max by (sport) (live_tick_interval_max_seconds)",
           "legendFormat": "maior dos últimos 5 min ({{sport}})"
         },
         {
@@ -651,7 +651,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_tick_planned_interval_seconds > 0",
+          "expr": "max by (sport) (live_tick_planned_interval_seconds) > 0",
           "legendFormat": "intervalo do plano ({{sport}})"
         }
       ]
@@ -736,7 +736,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "live_last_tick_age_seconds and on(sport) (live_window_open == 1) and on(sport) (live_tick_paused == 0)",
+          "expr": "max by (sport) (live_last_tick_age_seconds) and on(sport) (max by (sport) (live_window_open) == 1) and on(sport) (max by (sport) (live_tick_paused) == 0)",
           "legendFormat": "{{sport}}"
         },
         {
@@ -943,6 +943,102 @@
               "Value #B": "No ar há"
             }
           }
+        }
+      ]
+    },
+    {
+      "id": 111,
+      "type": "timeseries",
+      "title": "Memória por serviço (RSS)",
+      "description": "Memória residente de cada processo Node, por serviço. O site e o console (a mesma imagem da demo, APP_ROLE) têm mem_limit próprio: site 512 MB, console 384 MB (infra/vps-telemetry/README.md › Memória dos jobs). Um vazamento no console aparece só na linha dele.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (process_resident_memory_bytes{job=~\"galaxie-api|galaxie-services\"})",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "type": "timeseries",
+      "title": "Heap do V8 em uso por serviço",
+      "description": "Heap em uso de cada processo Node. Teto do heap: site 320 MB, console 224 MB, API 320 MB (--max-old-space-size).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (nodejs_heap_size_used_bytes{job=~\"galaxie-api|galaxie-services\"})",
+          "legendFormat": "{{service}}"
         }
       ]
     }
