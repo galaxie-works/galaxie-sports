@@ -69,13 +69,13 @@ No log do deploy:
 
 ```text
 live: 2 cópia(s); líder 3f2a1b9c0d4e (troca primeiro)
-ok  live: liderança passou de 3f2a1b9c0d4e para 7c6d5e4f3a2b em 2 s (com o fim do tick da antiga)
+ok  live: liderança passou de 3f2a1b9c0d4e para 7c6d5e4f3a2b em 2 s (a antiga levou 1 s para fechar o tick e sair)
 ok  live: cópia 3f2a1b9c0d4e trocada por 9a8b7c6d5e4f
 ...
 ok  live trocado cópia a cópia (2 no ar)
 ```
 
-Sem nenhuma cópia assumindo a liderança em 60 s (`SWAP_LEADER_TIMEOUT`), a troca sai com `FAIL` e o deploy volta o grupo
+Sem nenhuma cópia assumindo a liderança em 60 s depois de a antiga sair (`SWAP_LEADER_TIMEOUT`), a troca sai com `FAIL` e o deploy volta o grupo
 `live ingestor agents` para a versão anterior. Para olhar o efeito no placar: `live_last_tick_age_seconds`,
 `live_tick_interval_max_seconds` (abaixo de 15 s) e `live_leader` no Prometheus; o alerta `LiveTickGap` dispara se o ritmo
 parar por mais de 1 min.

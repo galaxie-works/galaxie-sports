@@ -129,20 +129,20 @@ swap_replicas() {
     leader="$(leader_host "$svc")"
     t0=$SECONDS
     docker stop -t "$(grace_of "$id")" "$id" >/dev/null
+    # o teto da passagem conta depois que a antiga saiu: o fim do tick dela (até o stop_grace_period) não entra
+    stopped=$SECONDS
     if [ -n "$leader" ] && [ "$leader" = "$old_host" ]; then
       # a líder saiu: outra cópia (a reserva ou a nova) assume na tentativa seguinte (LIVE_LEADER_RETRY_MS)
       while :; do
         host="$(leader_host "$svc")"
         [ -z "$host" ] || [ "$host" = "$old_host" ] || break
-        if [ $((SECONDS - t0)) -ge "$LEADER_TIMEOUT" ]; then
-          echo "FAIL  $svc: nenhuma cópia assumiu a liderança em $LEADER_TIMEOUT s depois de parar a líder ${id:0:12}"
+        if [ $((SECONDS - stopped)) -ge "$LEADER_TIMEOUT" ]; then
+          echo "FAIL  $svc: nenhuma cópia assumiu a liderança em $LEADER_TIMEOUT s depois de a líder ${id:0:12} sair"
           exit 1
         fi
         sleep 1
       done
-      now=$SECONDS
-      took=$((now - t0))
-      echo "ok  $svc: liderança passou de $old_host para $host em ${took} s (com o fim do tick da antiga)"
+      echo "ok  $svc: liderança passou de $old_host para $host em $((SECONDS - t0)) s (a antiga levou $((stopped - t0)) s para fechar o tick e sair)"
     fi
     docker rm "$id" >/dev/null
     echo "ok  $svc: cópia ${id:0:12} trocada por ${new:0:12}"
