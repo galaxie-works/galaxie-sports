@@ -112,6 +112,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'normalize-sports', service: 'ingestor', cron: '15 * * * *', runNow: true },
   { name: 'events-clock', service: 'live', cron: '* * * * *', runNow: true },
   { name: 'events-importance', service: 'ingestor', cron: '20 * * * *', runNow: true },
+  { name: 'explore-summary', service: 'ingestor', cron: '* * * * *', runNow: true },
   { name: 'assets-mirror', service: 'ingestor', cron: '30 1 * * *', runNow: false },
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
   { name: 'change-feed-prune', service: 'ingestor', cron: '45 2 * * *', runNow: true },

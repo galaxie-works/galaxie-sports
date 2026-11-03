@@ -47,6 +47,7 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
 | `TarefaPendenteAntiga` | Tarefa da fila pronta há mais de 1 h sem worker pegar, por tipo: worker fora do ar ou tarefa longa na frente ([contrato](../../packages/db/README.md#fila-de-tarefas)) |
+| `ExploreSummaryStale` | Resumo da home Explorar (`core.explore_summary`) sem recálculo há mais de 30 min, ou nunca gravado: a API volta a montar a home na requisição, lenta a frio. Veja o job `explore-summary` ([pacote](../../packages/explore/README.md)) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
 | `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
 | `ApiLatencyP95High` | p95 das rotas de cliente acima de 150 ms por 10 min, só com tráfego (≥ 0,2 req/s, fora `/metrics`, `/health`, `/internal`). Com menos que isso o cache do ao vivo (10 s) nunca está quente e o p95 seria a requisição mais lenta da janela (#450) |

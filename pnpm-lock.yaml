@@ -50,6 +50,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/explore':
+        specifier: workspace:*
+        version: link:../../packages/explore
       '@galaxie/geo':
         specifier: workspace:*
         version: link:../../packages/geo
@@ -310,6 +313,24 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
 
+  packages/explore:
+    dependencies:
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../geo
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../providers
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
+
   packages/geo:
     dependencies:
       yaml:
@@ -547,6 +568,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/explore':
+        specifier: workspace:*
+        version: link:../../packages/explore
       '@galaxie/geo':
         specifier: workspace:*
         version: link:../../packages/geo

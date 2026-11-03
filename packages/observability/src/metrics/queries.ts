@@ -346,6 +346,19 @@ export interface ChangeFeedConsumerRow {
 }
 
 /**
+ * Idade (s) do resumo da home "Explorar" pré-calculado em `core.explore_summary` (job `explore-summary`, #596); null
+ * quando ainda não há resumo gravado. A linha de controle (`*`,`*`) leva o mesmo `generated_at` das outras.
+ */
+export async function exploreSummaryAge(db: Database): Promise<number | null> {
+  const [row] = await db.execute<{ age: number | string | null }>(sql`
+    select extract(epoch from now() - max(generated_at))::float8 as age
+      from core.explore_summary
+     where sport = '*' and market = '*'
+  `);
+  return row?.age == null ? null : Math.max(0, Number(row.age));
+}
+
+/**
  * Consumidores do `ops.change_feed` com cursor salvo no banco: quanto falta e há quanto tempo a mais antiga
  * espera. O cursor da demo é criado pela própria demo na primeira leitura (a tabela pode não existir).
  */

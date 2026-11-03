@@ -972,3 +972,25 @@ export const sportEventDetail = core.table(
   },
   (t) => [uniqueIndex('sport_event_detail_provider_uq').on(t.provider, t.sport, t.providerEventId)],
 );
+
+// ─── derivados para leitura ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Resumo da home "Explorar" pré-calculado (#596) pelo job `explore-summary` do ingestor (`@galaxie/explore`), que a
+ * API lê numa consulta só. Uma linha por esporte e mercado: `('*','*')` traz a versão do formato e a janela,
+ * `(esporte,'*')` os números do esporte, `('*',país)` a liga principal e os clubes em destaque, `(esporte,país)` os
+ * jogos, o destaque e os anunciados do país naquele esporte (só os pares com algum jogo). O job reescreve tudo numa
+ * transação; `generated_at` é o mesmo em todas as linhas.
+ */
+export const exploreSummary = core.table(
+  'explore_summary',
+  {
+    /** Slug do esporte, ou `*` na linha que vale para todos. */
+    sport: text('sport').notNull(),
+    /** Código do país (mercado), ou `*` na linha sem país. */
+    market: text('market').notNull(),
+    data: jsonb('data').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.sport, t.market] })],
+);

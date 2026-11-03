@@ -1,0 +1,30 @@
+{
+  "name": "@galaxie/explore",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Home Explorar: seleção do resumo por esporte e por país (contadores, destaques, jogo do país), pré-calculada pelo ingestor e lida pela API",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {
+    "@galaxie/contracts": "workspace:*",
+    "@galaxie/db": "workspace:*",
+    "@galaxie/geo": "workspace:*",
+    "@galaxie/providers": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  }
+}
