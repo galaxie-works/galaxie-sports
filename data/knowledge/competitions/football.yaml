@@ -63,7 +63,7 @@ competitions:
 
   - slug: brasileirao-serie-b
     api_sports_league_id: 72
-    labels: { pt-BR: "Brasileirão Série B", es: "Serie B de Brasil", en: "Brazilian Série B" }
+    labels: { pt-BR: "Brasileirão Série B", en: "Brazilian Série B" }
     nicknames: { pt-BR: ["Série B", "Segundona"] }
     trophy_nickname: null
     sources:
@@ -74,7 +74,7 @@ competitions:
 
   - slug: brasileirao-serie-c
     api_sports_league_id: 75
-    labels: { pt-BR: "Brasileirão Série C", es: "Serie C de Brasil", en: "Brazilian Série C" }
+    labels: { pt-BR: "Brasileirão Série C", en: "Brazilian Série C" }
     nicknames: { pt-BR: ["Série C"] }
     trophy_nickname: null
     sources:
@@ -84,7 +84,7 @@ competitions:
 
   - slug: brasileirao-serie-d
     api_sports_league_id: 76
-    labels: { pt-BR: "Brasileirão Série D", es: "Serie D de Brasil", en: "Brazilian Série D" }
+    labels: { pt-BR: "Brasileirão Série D", en: "Brazilian Série D" }
     nicknames: { pt-BR: ["Série D"] }
     trophy_nickname: null
     sources:
@@ -94,7 +94,7 @@ competitions:
 
   - slug: copa-do-brasil
     api_sports_league_id: 73
-    labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
+    labels: { pt-BR: "Copa do Brasil", en: "Copa do Brasil" }
     nicknames: { pt-BR: [] }
     trophy_nickname: null
     sources:
@@ -106,7 +106,7 @@ competitions:
 
   - slug: supercopa-do-brasil
     api_sports_league_id: 632
-    labels: { pt-BR: "Supercopa do Brasil", es: "Supercopa de Brasil", en: "Brazilian Super Cup" }
+    labels: { pt-BR: "Supercopa do Brasil", en: "Brazilian Super Cup" }
     nicknames: { pt-BR: ["Supercopa"] }
     trophy_nickname: null
     sources:

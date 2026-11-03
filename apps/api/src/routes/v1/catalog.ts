@@ -37,7 +37,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import {
   assetUrl,
@@ -541,7 +541,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         id: r.c.id,
         slug: r.c.slug,
         sport: r.c.sport,
-        name: pickText(labels, locale, r.c.name)!,
+        name: competitionName(labels, r.c.countryCode, r.c.name, locale),
         official_name: r.c.name,
         nicknames: pickList(profile?.nicknames, locale),
         type: r.c.type,

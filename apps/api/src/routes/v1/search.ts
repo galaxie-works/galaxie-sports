@@ -13,7 +13,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { actuallyLiveCond, IN_PLAY, sportScope } from '../../events/queries.js';
-import { pickText } from '../../i18n.js';
+import { competitionName, pickText } from '../../i18n.js';
 import {
   accentPattern,
   bestMatch,
@@ -232,7 +232,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
     const hits: Hit[] = [];
     for (const r of rows) {
       const labels = { ...(r.labels ?? {}), ...(r.profile_labels ?? {}) };
-      const name = pickText(labels, locale, r.name)!;
+      const name = competitionName(labels, r.country_code, r.name, locale);
       const m = bestMatch(
         name,
         [r.name, ...Object.values(labels), ...stringsOf(r.nicknames), r.trophy, r.slug.replace(/-/g, ' ')],
@@ -424,6 +424,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
       is_provisional: boolean;
       competition: string | null;
       competition_labels: Text;
+      competition_country: string | null;
     }>(sql`
       select event.id, event.sport, event.starts_at, event.status,
              (event.status in (${sql.join(
@@ -431,7 +432,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
                sql`, `,
              )}) and ${actuallyLiveCond(now)}) as live,
              event.is_provisional,
-             c.name as competition, c.labels as competition_labels
+             c.name as competition, c.labels as competition_labels, c.country_code as competition_country
         from core.event
         left join core.competition c on c.id = event.competition_id
        where exists (select 1 from core.event_participant ep
@@ -483,7 +484,9 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
         .filter((h): h is Hit => !!h)
         .sort((a, b) => a.rank - b.rank)[0];
       if (!team) continue;
-      const competition = r.competition ? pickText(r.competition_labels, locale, r.competition) : null;
+      const competition = r.competition
+        ? competitionName(r.competition_labels, r.competition_country, r.competition, locale)
+        : null;
       hits.push({
         rank: team.rank,
         result: {
