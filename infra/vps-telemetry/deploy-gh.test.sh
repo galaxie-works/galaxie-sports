@@ -747,6 +747,8 @@ expect_eq "demo da frente no ar" "$(image_of demo)" "$(hash_of demo)"
 echo "── C12: a demo vira site e console (#546): os dois sobem, a demo sai depois deles"
 SPLIT=1
 write_split_composes "$REPO_T/infra/vps-telemetry"
+# o compose regravado volta ao AGENTE da C3; só a divisão muda
+sed -i 's/AGENTE: um/AGENTE: dois/' "$REPO_T/infra/vps-telemetry/compose.yml"
 C12="$(commit "c12: site e console")"
 publish
 before="$(created)"
@@ -809,6 +811,21 @@ expect_rc 0
 expect_log '^ok  demo saiu'
 expect_eq "nenhum contêiner da demo" "$(running demo)" 0
 expect_eq "site e console no ar" "$(running site)$(running console)" 11
+
+echo "── demo que ficou no ar (a retirada falhou antes): o deploy seguinte a tira, mesmo sem nada a trocar"
+(cd "$VPS_D" && docker compose -f "compose.yml.bak-${C11:0:7}" --env-file ".env.bak-${C11:0:7}" \
+  up -d --no-deps --quiet-pull demo </dev/null) >/dev/null 2>&1
+expect_eq "demo de volta, órfã" "$(running demo)" 1
+before="$(created)"
+C14="$(commit "c14: nada muda")"
+publish
+deploy "$C14"
+expect_rc 0
+expect_log '^plano:.*demo: sai'
+expect_log '^ok  demo saiu'
+expect_log '^SKIP  nada a publicar'
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_recreated "$before" demo
 
 [ "$fail" = 0 ] && echo "PASS  deploy só do que mudou, transição para três projetos e a divisão em site e console"
 exit "$fail"

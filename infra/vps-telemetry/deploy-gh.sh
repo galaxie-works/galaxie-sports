@@ -166,7 +166,6 @@ WEB=()
 for svc in site console demo; do
   [ -z "${SVC_IMAGE[$svc]:-}" ] || WEB+=("$svc")
 done
-in_web() { case " ${WEB[*]} " in *" $1 "*) return 0 ;; esac; return 1; }
 # o compose do SHA tem os candidatos (api e um por serviço web)? (um SHA anterior a eles publica sem o candidato)
 candidates="$(docker compose -f "$COMPOSE_SRC/$CF" --env-file "$COMPOSE_SRC/env.example" --profile candidate config --services)"
 HAS_CANDIDATE=1
@@ -480,9 +479,28 @@ restore_previous() {
   exit 1
 }
 
+# Quem saiu do compose e segue no ar sem o grupo da imagem dele ter trocado neste deploy (a retirada falhou num deploy
+# anterior, por exemplo): sai agora. Só imagem nossa que um serviço do compose novo usa (os substitutos já estão no ar,
+# no plano como "igual, fica") e fora dos grupos que falharam (argumentos: as imagens deles). Falhou: avisa, e o
+# deploy seguinte tenta de novo.
+retire_leftovers() {
+  local gone ours=" " s
+  for s in "${!SVC_IMAGE[@]}"; do ours+="${SVC_IMAGE[$s]} "; done
+  for gone in "${!GONE[@]}"; do
+    case "$ours" in *" ${GONE[$gone]} "*) ;; *) continue ;; esac
+    case " $* " in *" ${GONE[$gone]} "*) continue ;; esac
+    if ssh "$VPS" "cd $DIR && bash -s -- --retire $gone" < "$HERE/rolling-swap.sh"; then
+      unset "GONE[$gone]"
+    else
+      echo "WARN  $gone saiu do compose e não foi tirado do ar; o próximo deploy tenta de novo"
+    fi
+  done
+}
+
 # Nada mudou (docs, workflow, comentário no compose): compose.yml e .env do SHA gravados acima, e só. Sem pós-deploy
 # (o cache continua valendo) e sem smoke: não há versão nova para conferir.
 if [ -z "$TROCA" ] && [ -z "$FORCE" ]; then
+  retire_leftovers
   echo "result=skip" >> "${GITHUB_OUTPUT:-/dev/null}"
   echo "SKIP  nada a publicar: ${SHA:0:7} não muda nenhum serviço no ar"
   exit 0
@@ -620,6 +638,12 @@ for group in "${GROUPS_ORDER[@]}"; do
   fi
 done
 [ "${#FAILED[@]}" -lt 2 ] || restore_previous "a troca falhou em mais de um serviço (${FAILED[*]})"
+failed_images=""
+for group in "${FAILED[@]:-}"; do
+  for s in $group; do failed_images+="${SVC_IMAGE[$s]:-} "; done
+done
+# shellcheck disable=SC2086 # uma imagem por argumento
+retire_leftovers $failed_images
 
 # Pós-deploy ou smoke vermelho: com um grupo trocado, é dele; com mais, não dá para saber de quem
 after_swap_failed() {
