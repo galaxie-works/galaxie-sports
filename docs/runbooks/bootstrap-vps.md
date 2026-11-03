@@ -104,7 +104,8 @@ primeira requisição de cada host.
 ```bash
 mkdir -p /docker/galaxie-sports && cd /docker/galaxie-sports
 # compose.yml = infra/vps-telemetry/compose.yml do commit no ar (a tag deploy-* mais recente);
-# .env do cofre (chmod 600), com IMAGE_TAG=<sha desse commit> e PULL_POLICY=missing
+# .env do cofre (chmod 600), com o SHA desse commit em cada TAG_* (TAG_API, TAG_DEMO, TAG_INGESTOR, TAG_BACKUP,
+# TAG_PROMETHEUS, TAG_GRAFANA) e em DEPLOY_SHA, e PULL_POLICY=missing
 docker compose config -q
 ```
 

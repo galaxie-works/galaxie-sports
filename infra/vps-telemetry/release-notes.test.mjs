@@ -15,6 +15,7 @@ import {
   parseSubject,
   renderSections,
   titleOf,
+  versionsNote,
 } from './release-notes-lib.mjs';
 
 const REPO = 'https://github.com/exemplo/repo';
@@ -168,6 +169,20 @@ describe('titleOf', () => {
 });
 
 // CLI ponta a ponta: repositório descartável com origin local e um gh falso que só registra as chamadas
+describe('versionsNote', () => {
+  const sha = 'abcdef1234567890';
+  it('traz o SHA e o hash de cada imagem, marcando a trocada', () => {
+    assert.equal(
+      versionsNote(sha, 'api=in-apiabcdefghi demo=in-demoabcdefg', 'demo'),
+      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada)',
+    );
+  });
+  it('sem versões, sem linha', () => {
+    assert.equal(versionsNote(sha, undefined), undefined);
+    assert.equal(versionsNote(sha, ''), undefined);
+  });
+});
+
 describe('release-notes.mjs', () => {
   const script = fileURLToPath(new URL('./release-notes.mjs', import.meta.url));
   const GH_FAKE = `#!/usr/bin/env node

@@ -8,6 +8,7 @@
  *   node infra/vps-telemetry/release-notes.mjs --to <sha>                        # chamado pelo deploy.sh
  *   node infra/vps-telemetry/release-notes.mjs --to <sha> --from <ref> --title "…"  # retroativa
  *   node infra/vps-telemetry/release-notes.mjs --to <sha> --dry                  # só imprime as notas
+ *   ... --versions "api=in-abc demo=in-def" --swapped "demo"                     # o deploy: hash de cada imagem nas notas
  *
  * - Tag e release saem juntas (`gh release create --target`, a tag nasce no GitHub): sem tag local, nem tag
  *   publicada sem release se a criação falhar. Tags e numeração vêm do GitHub (`git ls-remote`), não do clone;
@@ -27,6 +28,7 @@ import {
   parseSubject,
   renderSections,
   titleOf,
+  versionsNote,
 } from './release-notes-lib.mjs';
 
 const args = process.argv.slice(2);
@@ -114,4 +116,11 @@ const today = deployDate();
 const localTags = git('tag', '--list', 'deploy-*').split('\n').filter(Boolean);
 const { tag: autoTag, n } = nextTag([...remoteTags.map((t) => t.name), ...localTags], today);
 const tag = opt('tag') ?? autoTag;
-publish({ tag, title: opt('title') ?? `Deploy ${today} nº ${n}`, from, fromLabel, to });
+publish({
+  tag,
+  title: opt('title') ?? `Deploy ${today} nº ${n}`,
+  from,
+  fromLabel,
+  to,
+  note: versionsNote(to, opt('versions'), opt('swapped')),
+});

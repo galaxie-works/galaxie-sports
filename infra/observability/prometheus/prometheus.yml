@@ -20,6 +20,24 @@ scrape_configs:
         labels:
           service: api
 
+  # Quem não tem API: só o build_info e as métricas do processo (servidor de operação de @galaxie/observability). O
+  # ingestor na escala 0 fica como alvo fora do ar, sem alerta: os alertas de up são do job galaxie-api.
+  - job_name: galaxie-services
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /tmp/metrics-token
+    static_configs:
+      - targets: ['webhooks:8080']
+        labels:
+          service: webhooks
+      - targets: ['ingestor:9464']
+        labels:
+          service: ingestor
+      - targets: ['agents:9464']
+        labels:
+          service: agents
+
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']

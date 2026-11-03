@@ -17,9 +17,7 @@ import {
 import { loadGeoConfig } from '@galaxie/geo';
 import { parseProvisionalFile, seedGeo, syncProvisionalFixtures, upsertBatch } from '@galaxie/ingestor';
 import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
-import { createApiKey, upsertTenant } from '../src/auth/admin.js';
-import { RecordingCdnPurger } from '../src/cache/purger.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, createApiKey, RecordingCdnPurger, upsertTenant } from '@galaxie/api';
 
 /*
  * Jogo provisório nas rotas /v1: anunciado pela curadoria (provisional:sync) antes do fornecedor, ele

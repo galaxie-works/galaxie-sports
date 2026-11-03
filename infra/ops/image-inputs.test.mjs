@@ -29,8 +29,9 @@ describe('quais imagens mudam com cada caminho', () => {
     ['config/broadcast-rights: as três', ['config/broadcast-rights/br.yaml'], ['api', 'demo', 'ingestor']],
     ['data/knowledge: api e ingestor', ['data/knowledge/glossary/pt-BR.yaml'], ['api', 'ingestor']],
     ['só apps/api: só a api', ['apps/api/src/main.ts'], ['api']],
-    // a api tem @galaxie/ingestor em devDependencies (testes de integração), e o build dela o compila
-    ['services/ingestor: api e ingestor', ['services/ingestor/src/x.ts'], ['api', 'ingestor']],
+    // issue #563: a api não depende do ingestor (os testes que cruzam os dois ficam em tests/integration)
+    ['services/ingestor: só o ingestor', ['services/ingestor/src/x.ts'], ['ingestor']],
+    ['tests/integration: nenhuma (nenhuma imagem depende dele)', ['tests/integration/test/x.ts'], []],
     ['packages/widgets: só a demo', ['packages/widgets/src/index.ts'], ['demo']],
     [
       'o selfheal copiado pelos Dockerfiles: as três',
@@ -79,6 +80,12 @@ describe('entrada no repositório', () => {
     ]) {
       assert.ok(inputs.includes(dir), dir);
     }
+  });
+
+  it('a api não leva o ingestor nem os testes que cruzam os dois', () => {
+    const inputs = imageInputs('api');
+    assert.ok(!inputs.includes('services/ingestor'));
+    assert.ok(!inputs.includes('tests/integration'));
   });
 
   it('a demo não leva o config/ inteiro nem a base semântica', () => {

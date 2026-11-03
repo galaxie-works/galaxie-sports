@@ -207,7 +207,9 @@ jobs:
         if: steps.deploy.outputs.result == 'deployed'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" || echo "::warning::release não publicada"
+          VERSIONS: ${{ steps.deploy.outputs.versions }}
+          SWAPPED: ${{ steps.deploy.outputs.swapped }}
+        run: node infra/vps-telemetry/release-notes.mjs --to "$SHA" --versions "$VERSIONS" --swapped "$SWAPPED" || echo "::warning::release não publicada"
 
       - name: Resumo
         if: always()
@@ -216,7 +218,7 @@ jobs:
             echo "## Deploy ${SHA:0:7}"
             echo
             echo '```'
-            grep -E '^(PASS|FAIL|WARN|SKIP)|ok ·|aviso|na VPS:|release ' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 40 || echo "(sem log)"
+            grep -E '^(PASS|FAIL|WARN|SKIP|plano:)|ok ·|aviso|na VPS:|release ' "$RUNNER_TEMP/deploy.log" 2>/dev/null | tail -n 40 || echo "(sem log)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           rm -f ~/.ssh/id_deploy

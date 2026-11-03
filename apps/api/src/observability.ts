@@ -1,11 +1,13 @@
-import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest, FastifyServerOptions } from 'fastify';
 import type { Database } from '@galaxie/db';
 import {
+  bearerMatches,
   createMetrics,
   loggerOptions,
   maskIp,
   quotaPolicyFromEnv,
+  registerBuildInfo,
+  versionInfo,
   type GalaxieMetrics,
 } from '@galaxie/observability';
 import { redactKey } from './realtime/sse.js';
@@ -49,8 +51,8 @@ export interface ObservabilityOptions {
 }
 
 /**
- * Registra o histograma de latência de todas as rotas (p95/p99 por rota no Prometheus) e o GET /metrics, e
- * decora `app.metrics`. Chamar logo após criar a instância (antes das rotas). Se METRICS_TOKEN estiver definido,
+ * Registra o histograma de latência de todas as rotas (p95/p99 por rota no Prometheus), o GET /metrics e o GET /version
+ * (sem autenticação: a versão que o deploy e o smoke conferem), e decora `app.metrics`. Chamar logo após criar a instância (antes das rotas). Se METRICS_TOKEN estiver definido,
  * /metrics exige `Authorization: Bearer <token>` — o proxy público também não deve expor a rota.
  */
 export function registerObservability(
@@ -66,6 +68,8 @@ export function registerObservability(
   });
   const token = env.METRICS_TOKEN;
   app.decorate('metrics', metrics);
+  registerBuildInfo(metrics.registry, 'api', env);
+  app.addHook('onReady', async () => app.log.info(versionInfo('api', env), 'partida'));
 
   // healthchecks do Docker/proxy a cada poucos segundos não precisam virar log de acesso
   app.addHook('onRoute', (route) => {
@@ -93,11 +97,6 @@ export function registerObservability(
     const body = await metrics.registry.metrics();
     return reply.type(metrics.registry.contentType).send(body);
   });
+  app.get('/version', { logLevel: 'warn' }, async () => versionInfo('api', env));
   return metrics;
-}
-
-function bearerMatches(header: string | undefined, token: string): boolean {
-  const given = Buffer.from(header?.replace(/^Bearer\s+/i, '') ?? '');
-  const expected = Buffer.from(token);
-  return given.length === expected.length && timingSafeEqual(given, expected);
 }
