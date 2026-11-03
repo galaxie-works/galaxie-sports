@@ -126,6 +126,20 @@ o que faltar.
      ingestão trouxe desde o último.
    - É idempotente, sem cota nem LLM, e a falha vira `WARN` sem derrubar o deploy. Para repetir à mão:
      `docker compose run --rm --no-deps ingestor node /srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js --dir /srv/data/knowledge`.
+   - **Retry do smoke (#533).** A VPS (2 vCPU) fica saturada durante o deploy (extração de imagens, candidatos subindo),
+     e o cache de respostas do candidato nasce vazio e o do ar é limpo no pós-deploy: o smoke sempre bate a frio. A
+     consulta da home (`/v1/explore/summary`), que leva poucos ms em repouso, já passou dos 10 s do `statement_timeout`
+     do perfil `api` e devolveu 500, e o deploy foi reprovado. Por isso a checagem que **reprova com 5xx ou tempo
+     esgotado** (60 s por requisição, `SMOKE_TIMEOUT_MS`) roda **uma vez mais** depois de 5 s (`SMOKE_RETRY_MS`).
+   - Se a segunda passa, a linha sai `PASS  <checagem>  … (2ª tentativa)` e vem junto um
+     `WARN  Checagem repetida  "<checagem>": status 500 na 1ª tentativa, passou na 2ª (VPS ocupada?)`: o deploy segue, e
+     quem lê o resumo vê que a VPS estava apertada. Se as duas falham, o `FAIL` traz o motivo da primeira. 4xx e dado
+     faltando (`WARN`) não repetem.
+   - "Agenda conta os mesmos jogos que a home" vira `WARN  … depende de "Home Explorar…"` quando a home falhou, em vez do
+     falso "home 0 × agenda N": o relatório aponta a causa certa.
+   - `WARN  Checagem repetida` em todo deploy é sinal para tirar a carga a frio da consulta, não para esticar o retry
+     (#596: pré-calcular o resumo da home). O teste é `infra/vps-telemetry/smoke.test.mjs` (job `stack` do `docker.yml`):
+     roda o `smoke.mjs` contra um servidor local que responde 500 e depois 200.
 10. Falha, do menor para o maior:
     - **Migrate**: nada foi trocado; a versão anterior segue no ar.
     - **Um serviço não troca**: volta só ele (e os da mesma tag), com a tag e a configuração anteriores. Os outros ficam

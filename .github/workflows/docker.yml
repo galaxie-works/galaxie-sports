@@ -426,6 +426,9 @@ jobs:
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
 
+      - name: Smoke do deploy (retry de 5xx e de tempo esgotado; agenda dependente da home)
+        run: node --test infra/vps-telemetry/smoke.test.mjs
+
       - name: Entrada das imagens (quais mudam com cada caminho; lista ⇄ Dockerfiles)
         run: node --test infra/ops/image-inputs.test.mjs
 
