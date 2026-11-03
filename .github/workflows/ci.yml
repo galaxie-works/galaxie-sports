@@ -61,7 +61,11 @@ jobs:
       DATABASE_URL: postgres://galaxie:galaxie@localhost:5432/galaxie_sports
       REDIS_URL: redis://localhost:6379
     steps:
+      # No PR o checkout é o commit de merge (main + PR) e precisa dos dois pais para o turbo achar a base do --affected:
+      # com profundidade 1 o commit de merge fica sem pais e o turbo cai calado para "tudo mudou".
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -71,6 +75,47 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # No PR, build, typecheck e testes (unitários e de integração) rodam só nos pacotes que a mudança alcança: os que
+      # mudaram e quem depende deles (`turbo --affected`, base = o 1º pai do commit de merge, a main em que o PR entra).
+      # Formatação, lint e a regra de dependência olham o repositório todo (são rápidos e cobrem arquivos fora dos pacotes).
+      # Na fila de merge e no push para a main roda tudo: o deploy só publica um SHA com o CI completo. O que está fora
+      # dos pacotes mas muda o resultado (config/, data/, docs/rules/, package.json, este arquivo) está em
+      # globalDependencies do turbo.json e afeta todos. O docker.yml não tem filtro (ver o cabeçalho dele).
+      - name: Escopo (pacotes afetados no PR; tudo na fila de merge e no push)
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "Fila de merge ou push: o CI roda tudo."
+            exit 0
+          fi
+          base=$(git rev-parse --verify --quiet 'HEAD^1' || true)
+          if [ -z "$base" ]; then
+            echo "::warning::Commit base indisponível: o CI roda tudo."
+            exit 0
+          fi
+          export TURBO_SCM_BASE="$base"
+          if ! pnpm exec turbo run build --affected --dry=json > "$RUNNER_TEMP/affected.json" 2> "$RUNNER_TEMP/affected.err"; then
+            cat "$RUNNER_TEMP/affected.err"
+            echo "::warning::O turbo não calculou os pacotes afetados: o CI roda tudo."
+            exit 0
+          fi
+          if grep -q "unable to detect git range" "$RUNNER_TEMP/affected.err"; then
+            cat "$RUNNER_TEMP/affected.err"
+            echo "::warning::O turbo não achou a base do --affected (e assumiu que tudo mudou): o CI roda tudo."
+            exit 0
+          fi
+          echo "TURBO_SCM_BASE=$base" >> "$GITHUB_ENV"
+          echo "AFFECTED=--affected" >> "$GITHUB_ENV"
+          node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const names = j.packages.filter((p) => p !== "//").map((p) => p.replace("@galaxie/", ""));
+            const text = names.length ? names.join(", ") : "nenhum (a mudança está fora dos pacotes)";
+            console.log(`Pacotes afetados (${names.length}): ${text}`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `**Pacotes afetados (${names.length}):** ${text}\n`);
+          ' "$RUNNER_TEMP/affected.json"
 
       - name: Formatação
         run: pnpm format:check
@@ -90,16 +135,21 @@ jobs:
         run: pnpm test:deps
 
       - name: Build
-        run: pnpm build
+        run: pnpm build $AFFECTED
+
+      # A base semântica e as checagens de migration abaixo rodam o dist do knowledge e do db, mesmo no PR que não chega
+      # a esses pacotes (o build acima só constrói o que o PR alcança); o turbo reaproveita o que já construiu.
+      - name: Build do db e do knowledge (checagens de migration e da base semântica)
+        run: pnpm exec turbo run build --filter=@galaxie/db --filter=@galaxie/knowledge
 
       - name: Base semântica (JSON Schema + referências em data/knowledge)
         run: pnpm --filter @galaxie/knowledge knowledge:validate
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm typecheck $AFFECTED
 
       - name: Testes unitários
-        run: pnpm test
+        run: pnpm test $AFFECTED
 
       # O migrator só aplica a migration com `when` maior que o da última aplicada: renumerada no merge e com
       # `when` menor, ela seria pulada em silêncio na produção (aqui o banco é vazio e tudo passa). A base é o
@@ -178,7 +228,7 @@ jobs:
           docker exec "$id" psql -U galaxie -d galaxie_sports -tAc "SHOW max_locks_per_transaction"
 
       - name: Testes de integração (Postgres)
-        run: pnpm test:integration
+        run: pnpm test:integration $AFFECTED
 
   secrets:
     name: Segredos (gitleaks)
