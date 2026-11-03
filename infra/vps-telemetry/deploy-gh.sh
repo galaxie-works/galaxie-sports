@@ -659,11 +659,12 @@ if [ -n "$HAS_VERSION" ]; then
 fi
 # em cada contêiner web no ar (site e console; a demo, num SHA de antes da divisão ou depois da volta do grupo), pelo
 # rótulo do projeto e não pelo compose: o serviço que voltou pode não estar no compose.yml novo. Cada um confere o que o
-# papel dele atende (APP_ROLE do contêiner)
+# papel dele atende (APP_ROLE do contêiner). Contêiner avulso (docker compose run) não conta
 ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
 if ! ssh "$VPS" "cd $DIR && p=\$(docker compose config </dev/null | sed -n 's/^name: //p') && rc=0 && n=0 && \
   for s in site console demo; do \
-    id=\$(docker ps -q --filter label=com.docker.compose.project=\$p --filter label=com.docker.compose.service=\$s </dev/null | head -n 1); \
+    id=\$(docker ps -q --filter label=com.docker.compose.project=\$p --filter label=com.docker.compose.service=\$s \
+      --filter label=com.docker.compose.oneoff=False </dev/null | head -n 1); \
     [ -n \"\$id\" ] || continue; n=\$((n + 1)); echo \"smoke no \$s\"; \
     docker exec -i $smoke_env \$id node - < .smoke-$RUN_ID.mjs || rc=1; \
   done; [ \$n -gt 0 ] || { echo 'FAIL  nenhum contêiner web (site, console ou demo) no ar para o smoke'; rc=1; }; exit \$rc"; then
