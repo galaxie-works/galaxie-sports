@@ -22,7 +22,7 @@ A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-back
 - Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS.
   Use um bucket fora da VPS: o RustFS da stack não serve como cópia externa.
 - Cada execução vira uma linha `pg-backup` em `ops.job_run`, que alimenta as métricas e o alerta `BackupStale`.
-- Backup avulso: `docker compose exec backup backup.sh`.
+- Backup avulso: `docker compose -f compose.dados.yml exec backup backup.sh`.
 
 ## Assets do S3 (RustFS)
 
@@ -64,12 +64,12 @@ pelo nome. O banco anterior fica como `<db>_pre_restore_<data>` para rollback.
 
 1. **Ensaio** (não toca no banco real; faça mensalmente):
    ```bash
-   docker compose exec backup restore.sh --list
-   docker compose exec backup restore.sh --verify latest
+   docker compose -f compose.dados.yml exec backup restore.sh --list
+   docker compose -f compose.dados.yml exec backup restore.sh --verify latest
    ```
 2. **Restauração real**, na pasta da stack na VPS:
    1. `docker compose stop api demo ingestor agents webhooks` (evita escrita entre o dump e a troca).
-   2. `docker compose exec backup restore.sh --yes latest` (ou `--yes galaxie_sports_<data>.dump`, ou
+   2. `docker compose -f compose.dados.yml exec backup restore.sh --yes latest` (ou `--yes galaxie_sports_<data>.dump`, ou
       `--yes s3://<bucket>/postgres/<arquivo>.dump` para baixar da cópia remota). Com os papéis por serviço ligados, a
       restauração precisa do dono do banco: veja "Depois de restaurar um dump" no
       [README da VPS](../vps-telemetry/README.md).

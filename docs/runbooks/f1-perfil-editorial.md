@@ -65,7 +65,7 @@ Comandos (na VPS, depois do deploy, no container `ingestor`):
 docker compose exec -T ingestor node dist/cli/f1-biografia.js --plan
 docker compose exec -T ingestor node dist/cli/f1-biografia.js
 # 2. limpar o cache das respostas da API (como no deploy)
-for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
+for p in 'gs:cache:*' 'gs:tag:*'; do docker compose -f compose.dados.yml exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
 ```
 
 ## Revisão

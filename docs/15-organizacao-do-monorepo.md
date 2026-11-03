@@ -140,14 +140,14 @@ mudar uma camada, edite `scripts/deps/rules.mjs` e rode `pnpm deps:map`.
 
 ## 4. O que roda onde
 
-| Imagem (GHCR) | Feita de | Serviços na stack da VPS que o deploy usa (`infra/vps-telemetry/compose.yml`) |
+| Imagem (GHCR) | Feita de | Serviços na stack da VPS (`infra/vps-telemetry/compose.yml`, o único que o deploy automático usa, salvo onde indicado) |
 |---|---|---|
 | `galaxie-sports-api` | `apps/api/Dockerfile` | `api`, `api-candidate` (perfil `candidate` do deploy), `migrate`, `webhooks` |
 | `galaxie-sports-ingestor` | `services/ingestor/Dockerfile` (leva o `ai-agents` junto) | `ingestor` (`dist/cli/scheduler.js`), `agents` (`SCHEDULER_PROFILE=agents`: o `CMD` sobe o `dist/cli/agents-scheduler.js` do `ai-agents`) |
 | `galaxie-sports-demo` | `apps/demo/Dockerfile` | `demo`, `demo-candidate` |
 | `galaxie-sports-lineup-render` | `infra/lineup-render` (fora do workspace pnpm) | `lineup-render` |
-| `galaxie-sports-backup` | `infra/backup` | `backup` |
-| `galaxie-sports-prometheus` / `-grafana` | `infra/observability` | `prometheus`, `grafana` |
+| `galaxie-sports-backup` | `infra/backup` | `backup` (`compose.dados.yml`, só por runbook) |
+| `galaxie-sports-prometheus` / `-grafana` | `infra/observability` | `prometheus`, `grafana` (`compose.obs.yml`, `deploy.yml -f project=obs`) |
 | `galaxie-sports-caddy` | `infra/caddy` | nenhum (era da stack do Portainer); o `maintenance` da VPS usa o Caddy oficial |
 
 O build e o push estão em `.github/workflows/docker.yml`; o deploy por SSH em `.github/workflows/deploy.yml`

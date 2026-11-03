@@ -29,6 +29,15 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).
 
+## Três projetos
+
+A stack são três projetos do Compose na mesma rede (`galaxie-sports_default`, sub-rede fixa do `TRUST_PROXY`) e com um
+`.env` só: `compose.yml` (apps, o único que o deploy automático conhece), `compose.dados.yml` (Postgres, Valkey, S3, backup) e
+`compose.obs.yml` (Prometheus, Grafana, node-exporter). `docker compose` sem `-f` fala só com os apps. Rede e volumes são
+externos, com o nome de quando era um projeto só. Dia a dia:
+[Dados e observabilidade](../../docs/runbooks/stack-dados-e-observabilidade.md). Transição:
+[Stack em três projetos](../../docs/runbooks/stack-em-tres-projetos.md).
+
 ## Imagens
 
 O workflow [`docker.yml`](../../.github/workflows/docker.yml) publica no GHCR `api`, `ingestor`, `demo`, `backup`,
@@ -272,7 +281,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/api-
 curl -sS -o /dev/null -w '%{http_code}\n' https://$ASSETS_DOMAIN/$S3_BUCKET/                          # 403/404 (sem listagem)
 ```
 
-- Backup inicial: `docker compose exec backup ls -la /backups`.
+- Backup inicial: `docker compose -f compose.dados.yml exec backup ls -la /backups`.
 - Grafana: `ssh -L 3000:<IP do contêiner grafana>:3000 root@<vps>` e abrir `http://localhost:3000`.
 - As outras stacks continuam respondendo como antes.
 
@@ -350,10 +359,10 @@ Um serviço por vez. Cada passo é um `up -d` de um serviço só, e o resto cont
    - API: rode `curl -s https://api.sports.galaxie.works/health/db` e confira o `/metrics` pelo Prometheus.
    - Demo: entre no painel, aprove um item na revisão e confira Ajustes → Sistema. Na subida, a demo roda as migrações
      do Better Auth no `demo_auth`, como dona.
-5. **Backup.** Acrescente `DB_URL_BACKUP=…`, rode o `migrate` e depois `docker compose up -d --no-deps backup`. Para
-   conferir, rode `docker compose exec backup sh -c '. /usr/local/lib/galaxie-backup/lib.sh; psql -Atc "select current_user"'`
-   (tem de dar `galaxie_backup`), depois `docker compose exec backup backup.sh` e
-   `docker compose exec backup restore-drill.sh`.
+5. **Backup.** Acrescente `DB_URL_BACKUP=…`, rode o `migrate` e depois `docker compose -f compose.dados.yml up -d --no-deps backup`. Para
+   conferir, rode `docker compose -f compose.dados.yml exec backup sh -c '. /usr/local/lib/galaxie-backup/lib.sh; psql -Atc "select current_user"'`
+   (tem de dar `galaxie_backup`), depois `docker compose -f compose.dados.yml exec backup backup.sh` e
+   `docker compose -f compose.dados.yml exec backup restore-drill.sh`.
 6. **Smoke.** `docker compose exec -T demo node - < smoke.mjs` (ou o próximo deploy).
 7. **Reverso, a qualquer momento.** Tire a `DB_URL_<SERVIÇO>` do `.env` e rode `docker compose up -d --no-deps <serviço>`:
    ele volta para o dono. `DB_ROLES=off` só para de reaplicar; os papéis continuam no banco, inofensivos sem as URLs.
@@ -364,7 +373,7 @@ O dump vai sem GRANTs (`--no-privileges`). Depois de `restore.sh --yes`, rode `d
 os papéis voltarem a valer.
 
 A restauração real precisa do dono:
-`docker compose exec -e DB_URL_BACKUP="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" backup restore.sh --yes <dump>`.
+`docker compose -f compose.dados.yml exec -e DB_URL_BACKUP="postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@postgres:5432/$POSTGRES_DB" backup restore.sh --yes <dump>`.
 Com as variáveis do `.env` carregadas no shell: `set -a; . ./.env; set +a`.
 
 ## Backups, ensaio e alertas
@@ -373,9 +382,9 @@ Política (RPO 24 h, RTO 2 h; 7 dumps na VPS, 7 diários + 4 semanais + 6 mensai
 provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensaio mensal de restauração:
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md). Na VPS:
 
-- `docker compose exec backup backup-check.sh`: verificação avulsa (último dump e, com `BACKUP_NAS_RECEIPT=true`, o
+- `docker compose -f compose.dados.yml exec backup backup-check.sh`: verificação avulsa (último dump e, com `BACKUP_NAS_RECEIPT=true`, o
   padrão, o recibo `.nas_last_pull` que o NAS deixa depois de copiar e conferir).
-- `docker compose exec backup restore-drill.sh`: ensaio avulso. Restaura num banco `galaxie_sports_drill_<data>`, nunca
+- `docker compose -f compose.dados.yml exec backup restore-drill.sh`: ensaio avulso. Restaura num banco `galaxie_sports_drill_<data>`, nunca
   no de produção, e precisa de 2x o tamanho do banco livre no disco.
 - Resultado dos dois em `ops.job_run` (jobs `backup-check` e `pg-restore-drill`) e nas métricas `galaxie_job_*`.
 - O serviço `node-exporter` mede o disco onde o Docker guarda os volumes (alerta acima de 85%). Ele monta o volume
@@ -387,7 +396,7 @@ provedor), a cópia diária do NAS (stack `galaxie-sports-backup-nas`) e o ensai
   (`PRE_MIGRATE_KEEP`). Com `BACKUP_AGE_RECIPIENTS`, sai cifrado como os diários (`.dump.age`, conferido com a chave
   do ensaio) e nada em claro fica no volume. Sem espaço (menos da metade do tamanho do banco livre) ou com o `pg_dump` falhando, o deploy
   para sem ter tocado em nada; `SKIP_PRE_MIGRATE_DUMP=1` publica sem ele. Migration nova não tem rollback automático:
-  voltar é parar API e ingestor, `docker compose exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
+  voltar é parar API e ingestor, `docker compose -f compose.dados.yml exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
   falhou imprime o comando) e subir a versão anterior.
 - O dump de partida do serviço `backup` (`BACKUP_ON_START`) espera o `migrate` terminar: o `pg_dump` segura as
   tabelas e o `migrate`, com `lock_timeout` curto, desistiria. E só roda quando o último dump bem-sucedido tem mais de
@@ -493,7 +502,7 @@ ALERT_SMTP_USER=alertas@exemplo.com
 ALERT_SMTP_PASSWORD=<senha de app do SMTP>
 ```
 
-Depois, `docker compose up -d grafana`. O log do Grafana diz `alertas por push ligados` e `alertas por e-mail ligados`.
+Depois, `docker compose -f compose.obs.yml up -d grafana`. O log do Grafana diz `alertas por push ligados` e `alertas por e-mail ligados`.
 Para testar, use Alerting → Contact points → `push-imediato` (ou `email-operacao`) → Test. Sem canal nenhum, os alertas
 continuam visíveis em Alerting → Alert rules (regra "Alerta do Prometheus") e no `/alerts` do Prometheus (túnel SSH).
 
