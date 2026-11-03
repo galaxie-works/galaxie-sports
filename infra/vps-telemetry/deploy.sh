@@ -76,7 +76,7 @@ TREE_LABEL="works.galaxie.context-tree"
 # comandos do compose na VPS: as imagens chegam por docker load; o registry nunca é consultado
 CD="cd $DIR && export PULL_POLICY=missing"
 # migrations aplicadas no banco (o migrator do drizzle registra cada uma em drizzle.__drizzle_migrations)
-MIGRATIONS_SQL="cd $DIR && docker compose exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"'"
+MIGRATIONS_SQL="cd $DIR && docker compose -f compose.dados.yml exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"'"
 
 # conexão morta (queda do SSH no meio do envio das imagens) vira erro em ~2 min, em vez de travar o deploy
 ssh() { command ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$@"; }
@@ -109,7 +109,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
-    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose -f compose.dados.yml exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
@@ -290,16 +290,12 @@ case "$SCALE" in
     exit 1
     ;;
 esac
-# as imagens construídas aqui têm a tag do SHA: ele vai em todas as TAG_* (ou em IMAGE_TAG, num SHA anterior a elas)
+# as imagens construídas aqui têm a tag do SHA: ele vai nas TAG_* de apps. Dados e obs não passam por este roteiro
 env_lines="DEPLOY_SHA=$SHA"
-if grep -q '^TAG_API=' "$WT/infra/vps-telemetry/env.example"; then
-  for t in API DEMO INGESTOR BACKUP PROMETHEUS GRAFANA; do env_lines+=$'\n'"TAG_$t=$SHA"; done
-else
-  env_lines+=$'\n'"IMAGE_TAG=$SHA"
-fi
+for t in API DEMO INGESTOR; do env_lines+=$'\n'"TAG_$t=$SHA"; done
 # .env.next: o .env com as tags novas. Vem antes de qualquer comando no compose novo: o .env de antes das tags por serviço
 # não tem as TAG_*, e o compose novo não interpola sem elas. Vira o .env na troca (ou sai na limpeza da saída)
-ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA)=' .env; printf '%s\n' '$env_lines'; } > .env.next)"
+ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR)=' .env; printf '%s\n' '$env_lines'; } > .env.next)"
 # página de manutenção (serviço maintenance: imagem upstream fixa, sem tag de deploy): baixa a imagem só se ainda não
 # estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
 # outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.

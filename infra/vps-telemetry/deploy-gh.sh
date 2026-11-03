@@ -3,7 +3,11 @@
 # e a VPS só as baixa. Mesmo roteiro do deploy.sh (que segue como plano B, da máquina de dev), sem build e sem
 # docker save | ssh. Roda no runner, a partir do checkout no SHA:
 #
-#   SHA=<sha> infra/vps-telemetry/deploy-gh.sh
+#   SHA=<sha> infra/vps-telemetry/deploy-gh.sh                  # apps (compose.yml), o deploy automático
+#   SHA=<sha> infra/vps-telemetry/deploy-gh.sh --project obs    # observabilidade (compose.obs.yml), à mão
+#
+# A stack é três projetos na mesma rede (docs/runbooks/stack-em-tres-projetos.md). Dados (compose.dados.yml) não passam por
+# aqui, só por runbook (docs/runbooks/stack-dados-e-observabilidade.md). VPS ainda num projeto só: recusa.
 #
 # Ambiente: SHA (obrigatório); VPS (padrão root@145.223.94.149) e VPS_DIR; IMAGE_PREFIX (padrão
 # ghcr.io/galaxie-works/galaxie-sports); GHCR_USER e GHCR_TOKEN (token que lê os pacotes; vazio = pacotes públicos);
@@ -14,8 +18,9 @@
 # Só troca o que mudou. Cada imagem tem a própria tag no .env da VPS (TAG_API, TAG_DEMO, TAG_INGESTOR, TAG_BACKUP,
 # TAG_PROMETHEUS, TAG_GRAFANA), sempre o in-<hash> da entrada dela no SHA (infra/ops/image-hash.sh, a mesma fórmula do
 # docker.yml). DEPLOY_SHA, no mesmo .env, só registra o SHA publicado: não vai para o env de nenhum serviço (env novo
-# recriaria o contêiner). Um SHA anterior às tags por serviço (compose com IMAGE_TAG) continua publicável, para voltar
-# versão: grava IMAGE_TAG=<sha>, e qualquer falha volta a stack inteira.
+# recriaria o contêiner). Um SHA anterior aos três projetos continua publicável, para voltar versão: o compose dele tem o
+# Postgres e os outros dados, e subir isso daria dois Postgres no mesmo volume. Então publica as imagens dele (tag <sha>) com
+# o compose.yml de apps deste checkout, e o smoke dele.
 #
 # Passos:
 #   1. as imagens do SHA (tags <sha> e in-<hash>) existem no GHCR (antes de tocar a VPS)
@@ -31,7 +36,7 @@
 #      dele mudou, se há migration nova ou com FORCE
 #   7b. com a api ou a demo na lista: a API e a demo novas sobem ao lado das que estão no ar, sem tráfego (candidate.sh),
 #      e o smoke roda nelas. Smoke com FAIL = para aqui, sem troca
-#   8. backup do compose.yml e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
+#   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
 #      nada a publicar. Senão, a troca, só da lista: ingestor/agents (recriação simples) → api, webhooks e demo
 #      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
 #      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado
@@ -45,11 +50,53 @@
 #      no GHCR); senão imprime o rollback manual
 #  11. lineup-render (perfil render): baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha)
 #  12. religa o espelho de assets (mirror-assets) se ele não estiver rodando
-#  13. guarda só os 10 backups mais novos do compose.yml e do .env na VPS
+#  13. guarda só os 10 backups mais novos do compose e do .env na VPS
 #  14. poda as imagens de versões antigas (prune-images.sh: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores, padrão 3)
 # As notas de versão são publicadas pelo workflow depois deste script, só com sucesso.
+# Em obs, sem os passos do banco (7), do candidato (7b), do pós-deploy e do smoke (9) e os de apps (11 e 12), sem notas de
+# versão, e com o SHA em DEPLOY_SHA_OBS.
 # Saída: 0 = publicado, já estava no ar ou nada a publicar; 1 = falhou (a mensagem diz o que voltou e o que ficou).
 set -euo pipefail
+
+PROJECT="${PROJECT:-apps}"
+ONLY_SERVICES=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project)
+      PROJECT="${2:?--project apps|obs}"
+      shift 2
+      ;;
+    --services)
+      ONLY_SERVICES=1
+      shift
+      ;;
+    *)
+      echo "uso: deploy-gh.sh [--project apps|obs] [--services]" >&2
+      exit 2
+      ;;
+  esac
+done
+case "$PROJECT:$ONLY_SERVICES" in
+  apps:*)
+    CF=compose.yml
+    SHA_KEY=DEPLOY_SHA
+    BAK_SUFFIX=""
+    ;;
+  obs:*)
+    CF=compose.obs.yml
+    SHA_KEY=DEPLOY_SHA_OBS
+    BAK_SUFFIX="obs-"
+    ;;
+  dados:1)
+    # só a lista (o CI confere as imagens dos três); publicar dados é por runbook
+    CF=compose.dados.yml
+    ;;
+  *)
+    echo "FAIL  projeto '$PROJECT' não se publica por aqui (apps, obs; dados só por runbook)"
+    exit 1
+    ;;
+esac
+DC="docker compose -f $CF"
 
 : "${SHA:?defina SHA}"
 case "${FORCE:-}" in 1 | true | sim | yes) FORCE=1 ;; *) FORCE="" ;; esac
@@ -64,7 +111,18 @@ HERE="$ROOT/infra/vps-telemetry"
 TARGET="${TARGET_DIR:-$ROOT}"
 STACK="$TARGET/infra/vps-telemetry"
 POST="$STACK/post-deploy.sh"
-[ -f "$POST" ] || POST="$HERE/post-deploy.sh"
+# SHA anterior aos três projetos: o compose e o pós-deploy vêm deste checkout (acima, no cabeçalho)
+PRESPLIT=""
+COMPOSE_SRC="$STACK"
+if [ ! -f "$STACK/compose.dados.yml" ]; then
+  if [ "$PROJECT" != apps ]; then
+    echo "FAIL  o SHA ${SHA:0:7} é anterior aos três projetos: não tem $CF"
+    exit 1
+  fi
+  PRESPLIT=1
+  COMPOSE_SRC="$HERE"
+  POST="$HERE/post-deploy.sh"
+fi
 if [ "$(git -C "$TARGET" rev-parse HEAD)" != "$(git -C "$ROOT" rev-parse "$SHA^{commit}")" ]; then
   echo "FAIL  o checkout em $TARGET não está no SHA ${SHA:0:7}"
   exit 1
@@ -76,27 +134,21 @@ TREE_LABEL="works.galaxie.context-tree"
 RUN_ID="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 CFG="$DIR/.ghcr-$RUN_ID" # DOCKER_CONFIG temporário na VPS
 CD="cd $DIR && export PULL_POLICY=missing"
-MIGRATIONS_SQL="cd $DIR && docker compose exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"' </dev/null"
+DADOS_DC="docker compose -f compose.dados.yml"
+MIGRATIONS_SQL="cd $DIR && $DADOS_DC exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"' </dev/null"
 
 ssh() { command ssh -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$@"; }
 
 echo "deploy ${SHA:0:7} (GitHub Actions)"
 
 # ── serviços com imagem nossa ───────────────────────────────────────────────────────────────────────────────
-# os que têm a tag de zeros do env.example no compose do SHA; fora de perfil, como o lineup-render, não. Sem TAG_API no
-# env.example, o SHA é anterior às tags por serviço: uma tag só para tudo
-if grep -q '^TAG_API=' "$STACK/env.example"; then
-  LEGACY=""
-  ZERO="$(sed -n 's/^TAG_API=//p' "$STACK/env.example")"
-else
-  LEGACY=1
-  ZERO="$(sed -n 's/^IMAGE_TAG=//p' "$STACK/env.example")"
-fi
-config_json="$(docker compose -f "$STACK/compose.yml" --env-file "$STACK/env.example" config --format json)"
+# os que têm a tag de zeros do env.example no compose do SHA; fora de perfil, como o lineup-render, não
+ZERO="$(sed -n 's/^TAG_API=//p' "$COMPOSE_SRC/env.example")"
+config_json="$(docker compose -f "$COMPOSE_SRC/$CF" --env-file "$COMPOSE_SRC/env.example" config --format json)"
 mapfile -t SERVICES < <(jq -r --arg z ":$ZERO" '.services | to_entries[] | select(.value.image | endswith($z)) | .key' <<< "$config_json" | sort)
 mapfile -t NAMES < <(jq -r --arg z ":$ZERO" '.services[].image | select(endswith($z)) | rtrimstr($z) | sub(".*-"; "")' <<< "$config_json" | sort -u)
 [ "${#SERVICES[@]}" -gt 0 ] || {
-  echo "FAIL  nenhum serviço com a tag de imagem no compose.yml"
+  echo "FAIL  nenhum serviço com a tag de imagem no $CF"
   exit 1
 }
 echo "serviços: ${SERVICES[*]} · imagens: ${NAMES[*]}"
@@ -106,15 +158,15 @@ while IFS='=' read -r svc name; do SVC_IMAGE[$svc]="$name"; done < <(jq -r --arg
   '.services | to_entries[] | select(.value.image | endswith($z)) | "\(.key)=\(.value.image | rtrimstr($z) | sub(".*-"; ""))"' <<< "$config_json")
 while IFS= read -r svc; do ONE_SHOT[$svc]=1; done < <(jq -r '.services | to_entries[] | select(.value.restart == "no") | .key' <<< "$config_json")
 # o compose do SHA tem os dois candidatos? (um SHA anterior a eles publica sem o candidato)
-HAS_CANDIDATE="$(docker compose -f "$STACK/compose.yml" --env-file "$STACK/env.example" --profile candidate config --services |
+HAS_CANDIDATE="$(docker compose -f "$COMPOSE_SRC/$CF" --env-file "$COMPOSE_SRC/env.example" --profile candidate config --services |
   grep -cxE 'api-candidate|demo-candidate')" || HAS_CANDIDATE=0
-# --services: só a lista acima (o CI confere que ela bate com as imagens que o docker.yml publica)
-[ "${1:-}" != --services ] || exit 0
+# --services: só a lista acima (o CI confere que ela, nos três projetos, bate com as imagens que o docker.yml publica)
+[ -z "$ONLY_SERVICES" ] || exit 0
 
 # a tag de cada imagem neste SHA: o in-<hash> da entrada dela (o que o docker.yml publicou), calculado no checkout do SHA
 declare -A IMAGE_TAG_OF=()
 for name in "${NAMES[@]}"; do
-  if [ -n "$LEGACY" ]; then
+  if [ -n "$PRESPLIT" ]; then
     IMAGE_TAG_OF[$name]="$SHA"
   elif hash="$(bash "$TARGET/infra/ops/image-hash.sh" "$name" 2>/dev/null)" && [ -n "$hash" ]; then
     IMAGE_TAG_OF[$name]="in-$hash"
@@ -131,17 +183,16 @@ for name in "${NAMES[@]}"; do
 done
 echo "imagens do SHA no GHCR: ok"
 
-# o que o .env.next leva: a tag de cada imagem (ou a única, num SHA anterior às tags por serviço) e o SHA publicado
-ENV_LINES="DEPLOY_SHA=$SHA"
-if [ -n "$LEGACY" ]; then
-  ENV_LINES+=$'\n'"IMAGE_TAG=$SHA"
-else
-  for name in "${NAMES[@]}"; do ENV_LINES+=$'\n'"TAG_${name^^}=${IMAGE_TAG_OF[$name]}"; done
-fi
-ENV_TAG_KEYS='IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR|TAG_BACKUP|TAG_PROMETHEUS|TAG_GRAFANA'
+# o que o .env.next leva: a tag de cada imagem deste projeto e o SHA publicado. As tags dos outros projetos ficam
+ENV_LINES="$SHA_KEY=$SHA"
+ENV_TAG_KEYS="IMAGE_TAG|$SHA_KEY"
+for name in "${NAMES[@]}"; do
+  ENV_LINES+=$'\n'"TAG_${name^^}=${IMAGE_TAG_OF[$name]}"
+  ENV_TAG_KEYS+="|TAG_${name^^}"
+done
 # os processos deste SHA expõem a versão? (um SHA anterior só se confere pelo digest e pelo rótulo)
 HAS_VERSION=""
-if [ -z "$LEGACY" ] && grep -q GALAXIE_IMAGE_HASH "$TARGET/apps/api/Dockerfile"; then HAS_VERSION=1; fi
+if [ -z "$PRESPLIT" ] && grep -q GALAXIE_IMAGE_HASH "$TARGET/apps/api/Dockerfile"; then HAS_VERSION=1; fi
 
 # ── saída: limpa a credencial, libera a trava e, se parou com a versão nova no ar, diz como voltar ───────────────
 STAGE=start # start → up → finished; restored = já tratado
@@ -158,7 +209,7 @@ LOCK_ID="gha-$RUN_ID-$(date +%s)"
 rollback_help() {
   local o="${OLD:0:7}"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp $CF.bak-$o $CF && cp .env.bak-$BAK_SUFFIX$o .env && $DC up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
     echo "FAIL  ou rode o workflow Deploy com sha=${OLD} (as imagens dele seguem no GHCR)"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
@@ -167,9 +218,9 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
-    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && $DADOS_DC exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
-  echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
+  echo "FAIL  conferir: ssh $VPS 'cd $DIR && $DC ps -a && $DC logs --tail 50'"
 }
 
 on_exit() {
@@ -210,9 +261,17 @@ case "$lock" in
     ;;
 esac
 
+# a VPS já está em três projetos? Sem isso, o compose novo deixaria os dados sem dono
+if ! ssh "$VPS" "test -f $DIR/compose.dados.yml"; then
+  echo "FAIL  a VPS ainda está num projeto só: rode a transição antes (docs/runbooks/stack-em-tres-projetos.md); nada foi tocado"
+  exit 1
+fi
+
 # o SHA publicado: DEPLOY_SHA; antes das tags por serviço, IMAGE_TAG
-OLD="$(ssh "$VPS" "sed -n 's/^DEPLOY_SHA=//p' $DIR/.env | tail -n 1")"
-[ -n "$OLD" ] || OLD="$(ssh "$VPS" "sed -n 's/^IMAGE_TAG=//p' $DIR/.env | tail -n 1")"
+OLD="$(ssh "$VPS" "sed -n 's/^$SHA_KEY=//p' $DIR/.env | tail -n 1")"
+[ -n "$OLD" ] || [ "$PROJECT" != apps ] || OLD="$(ssh "$VPS" "sed -n 's/^IMAGE_TAG=//p' $DIR/.env | tail -n 1")"
+# o primeiro deploy de obs: o SHA de apps não diz o que obs tem no ar
+OLD="${OLD:-sem-registro}"
 if [ "$OLD" = "$SHA" ] && [ -z "$FORCE" ]; then
   if [ "${ON_SKIP:-pass}" = fail ]; then
     echo "FAIL  ${SHA:0:7} já está no ar e nada foi publicado; para publicar de novo, dispare com force=1"
@@ -237,14 +296,17 @@ fi
 PULL="DOCKER_CONFIG=$CFG docker compose"
 
 # ── compose.yml e .env novos, imagens novas ─────────────────────────────────────────────────────────────────
-ssh "$VPS" "cat > $DIR/compose.yml.new" < "$STACK/compose.yml"
+ssh "$VPS" "cat > $DIR/$CF.new" < "$COMPOSE_SRC/$CF"
 # script do diagnóstico só leitura (a única coisa que a chave VPS_DIAG_SSH_KEY roda): sempre o do SHA publicado
-if [ -f "$STACK/diagnostico.sh" ]; then
+if [ "$PROJECT" = apps ] && [ -f "$STACK/diagnostico.sh" ] && [ -z "$PRESPLIT" ]; then
   ssh "$VPS" "cat > $DIR/diagnostico.sh.new && chmod 755 $DIR/diagnostico.sh.new && mv $DIR/diagnostico.sh.new $DIR/diagnostico.sh"     < "$STACK/diagnostico.sh" || echo "WARN  não consegui gravar o diagnostico.sh na VPS (o diagnóstico de alerta fica na versão anterior)"
 fi
 # escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
-SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
-  SCALE=""
+SCALE=0
+if [ "$PROJECT" = apps ]; then
+  SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
+    SCALE=""
+fi
 case "$SCALE" in
   '' | *[!0-9]*)
     echo "FAIL  não deu para ler a escala atual do ingestor (\"$SCALE\"); nada foi trocado na VPS"
@@ -254,8 +316,8 @@ esac
 echo "baixando as imagens (${SERVICES[*]})"
 # .env.next: o .env com a versão nova, para validar, baixar e planejar; vira o .env na troca (ou sai na limpeza da saída)
 if ! ssh "$VPS" "$CD && (umask 077 && { grep -vE '^($ENV_TAG_KEYS)=' .env | sed -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|'; printf '%s\n' '$ENV_LINES'; } > .env.next) \
-  && docker compose -f compose.yml.new --env-file .env.next config -q \
-  && $PULL -f compose.yml.new --env-file .env.next pull --policy missing --quiet ${SERVICES[*]} </dev/null"; then
+  && docker compose -f $CF.new --env-file .env.next config -q \
+  && $PULL -f $CF.new --env-file .env.next pull --policy missing --quiet ${SERVICES[*]} </dev/null"; then
   echo "FAIL  compose.yml/.env novos inválidos ou pull do GHCR falhou; nada foi trocado na VPS"
   exit 1
 fi
@@ -266,7 +328,7 @@ for svc in "${SERVICES[@]}"; do
   name="${SVC_IMAGE[$svc]}"
   plan_args+=("$svc=$REG-$name:${IMAGE_TAG_OF[$name]}")
 done
-if ! plan="$(ssh "$VPS" "cd $DIR && bash -s -- ${plan_args[*]}" < "$HERE/deploy-plan.sh")"; then
+if ! plan="$(ssh "$VPS" "cd $DIR && PLAN_FILE=$CF.new bash -s -- ${plan_args[*]}" < "$HERE/deploy-plan.sh")"; then
   printf '%s\n' "$plan"
   echo "FAIL  não deu para comparar o que está no ar com o que o SHA pede; nada foi trocado na VPS"
   exit 1
@@ -274,6 +336,15 @@ fi
 TROCA="$(sed -n 's/^TROCA=//p' <<< "$plan")"
 echo "plano: $(grep -v '^TROCA=' <<< "$plan" | paste -sd '|' | sed 's/|/ · /g')"
 in_troca() { case " $TROCA " in *" $1 "*) return 0 ;; esac; return 1; }
+# Worker de um SHA anterior à versão exposta não tem o /health que o compose daqui espera: os webhooks ficam como estão
+if [ -n "$PRESPLIT" ] && ! grep -q GALAXIE_IMAGE_HASH "$TARGET/apps/api/Dockerfile" && in_troca webhooks; then
+  echo "WARN  webhooks ficam: a ${SHA:0:7} é anterior ao /health do worker"
+  TROCA="$(for s in $TROCA; do [ "$s" = webhooks ] || printf '%s ' "$s"; done)"
+  TROCA="${TROCA% }"
+fi
+
+# ── o banco, só em apps ─────────────────────────────────────────────────────────────────────────────────────
+if [ "$PROJECT" = apps ]; then
 
 # migrations aplicadas antes de qualquer troca: a base da volta automática (restore_previous)
 MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""
@@ -305,7 +376,7 @@ elif [ -n "$TROCA" ] || [ -n "$FORCE" ]; then
 fi
 if [ -n "$FORCE" ] || [ -n "$NEW_MIG" ] || in_troca migrate; then
   echo "migrate da ${SHA:0:7}${NEW_MIG:+ ($NEW_MIG migration(s) nova(s))}"
-  COMPOSE_NEW="docker compose -f compose.yml.new --env-file .env.next"
+  COMPOSE_NEW="docker compose -f $CF.new --env-file .env.next"
   if migrate="$(ssh "$VPS" "$CD && $COMPOSE_NEW up -d --no-deps --quiet-pull migrate </dev/null 2>/dev/null && docker wait \$($COMPOSE_NEW ps -aq migrate </dev/null)")"; then
     :
   else
@@ -346,9 +417,11 @@ elif in_troca api || in_troca demo; then
   echo "candidato aprovado no smoke: trocando"
 fi
 
-OLD_COMPOSE="compose.yml.bak-${OLD:0:7}"
-OLD_ENV=".env.bak-${OLD:0:7}"
-ssh "$VPS" "$CD && cp compose.yml $OLD_COMPOSE && cp .env $OLD_ENV && mv compose.yml.new compose.yml && mv .env.next .env"
+fi # apps
+
+OLD_COMPOSE="$CF.bak-${OLD:0:7}"
+OLD_ENV=".env.bak-$BAK_SUFFIX${OLD:0:7}"
+ssh "$VPS" "$CD && cp $CF $OLD_COMPOSE && cp .env $OLD_ENV && mv $CF.new $CF && mv .env.next .env"
 
 # Volta compose.yml e .env do deploy anterior e sobe de novo com as imagens antigas, que continuam na VPS ou no GHCR. Só
 # quando é garantidamente o estado de antes: nenhuma migration nova aplicada, SHA anterior diferente e backups no lugar.
@@ -366,17 +439,19 @@ restore_previous() {
     why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f $OLD_COMPOSE && test -f $OLD_ENV \
     && $PULL -f $OLD_COMPOSE --env-file $OLD_ENV pull --policy missing --quiet </dev/null \
-    && cp $OLD_COMPOSE compose.yml && cp $OLD_ENV .env \
-    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull </dev/null"; then
+    && cp $OLD_COMPOSE $CF && cp $OLD_ENV .env \
+    && $DC up -d --remove-orphans $( [ "$PROJECT" != apps ] || echo "--scale ingestor=$SCALE" ) --quiet-pull </dev/null"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
-    # a base semântica volta para a da versão anterior (a imagem dela traz o data/knowledge dela)
-    ssh "$VPS" "cd $DIR && GIT_SHA=$OLD bash -s -- seed" < "$HERE/post-deploy.sh" ||
-      echo "WARN  seed semântico da ${o} não rodou depois de voltar"
-    ssh "$VPS" "cd $DIR && bash -s -- cache" < "$HERE/post-deploy.sh" || echo "WARN  cache não foi limpo depois de voltar"
-    echo "FAIL  deploy desfeito: compose.yml e .env de ${o} de volta e a stack subiu de novo nela; investigue antes de repetir"
-    ssh "$VPS" "cd $DIR && docker compose ps -a --format '{{.Service}}: {{.Status}}'" || true
+    if [ "$PROJECT" = apps ]; then
+      # a base semântica volta para a da versão anterior (a imagem dela traz o data/knowledge dela)
+      ssh "$VPS" "cd $DIR && GIT_SHA=$OLD bash -s -- seed" < "$HERE/post-deploy.sh" ||
+        echo "WARN  seed semântico da ${o} não rodou depois de voltar"
+      ssh "$VPS" "cd $DIR && bash -s -- cache" < "$HERE/post-deploy.sh" || echo "WARN  cache não foi limpo depois de voltar"
+    fi
+    echo "FAIL  deploy desfeito: $CF e .env de ${o} de volta e o projeto subiu de novo nela; investigue antes de repetir"
+    ssh "$VPS" "cd $DIR && $DC ps -a --format '{{.Service}}: {{.Status}}'" || true
   else
     echo "FAIL  sem restauração automática ($why); a stack pode estar com contêineres das duas versões"
     rollback_help
@@ -403,10 +478,10 @@ up_wait() {
     if [ -n "${ONE_SHOT[$s]:-}" ]; then once+=("$s"); else long+=("$s"); fi
   done
   if [ "${#long[@]}" -gt 0 ]; then
-    ssh "$VPS" "$CD && docker compose up -d --no-deps --wait --wait-timeout ${SWAP_HEALTH_TIMEOUT:-180} $scale --quiet-pull ${long[*]} </dev/null" || return $?
+    ssh "$VPS" "$CD && $DC up -d --no-deps --wait --wait-timeout ${SWAP_HEALTH_TIMEOUT:-180} $scale --quiet-pull ${long[*]} </dev/null" || return $?
   fi
   for s in "${once[@]}"; do
-    rc="$(ssh "$VPS" "$CD && docker compose up -d --no-deps --quiet-pull $s </dev/null 2>/dev/null && timeout ${SWAP_HEALTH_TIMEOUT:-180} docker wait \$(docker compose ps -aq $s </dev/null)")" || return $?
+    rc="$(ssh "$VPS" "$CD && $DC up -d --no-deps --quiet-pull $s </dev/null 2>/dev/null && timeout ${SWAP_HEALTH_TIMEOUT:-180} docker wait \$($DC ps -aq $s </dev/null)")" || return $?
     if [ "$rc" != 0 ]; then
       echo "FAIL  $s terminou com código $rc"
       return 1
@@ -460,7 +535,7 @@ rollback_group() {
         scale=""
         [ "$s" != ingestor ] || scale="--scale ingestor=$SCALE"
         ssh "$VPS" "$CD && export $COMPOSE_BAK && if docker compose config --services </dev/null | grep -qx $s; then \
-          docker compose up -d --no-deps $scale --quiet-pull $s </dev/null; else docker compose -f compose.yml rm -sf $s </dev/null; fi" ||
+          docker compose up -d --no-deps $scale --quiet-pull $s </dev/null; else $DC rm -sf $s </dev/null; fi" ||
           echo "FAIL  $s: a volta para a configuração anterior falhou"
         ;;
     esac
@@ -470,7 +545,7 @@ rollback_group() {
 
 # o .env fica com o SHA anterior: o deploy seguinte, mesmo do mesmo SHA, compara e tenta de novo o que voltou
 mark_not_published() {
-  ssh "$VPS" "cd $DIR && sed -i 's|^DEPLOY_SHA=.*|DEPLOY_SHA=$OLD|' .env" || echo "WARN  DEPLOY_SHA não voltou no .env"
+  ssh "$VPS" "cd $DIR && sed -i 's|^$SHA_KEY=.*|$SHA_KEY=$OLD|' .env" || echo "WARN  $SHA_KEY não voltou no .env"
 }
 
 # ingestor/agents → api/webhooks → demo → cada imagem do resto → o que não tem imagem nossa
@@ -497,8 +572,6 @@ for group in "${GROUPS_ORDER[@]}"; do
       echo "FAIL  conexão com a VPS caiu durante a troca de ${members[*]}; estado da stack desconhecido"
       exit 1
     fi
-    # o SHA anterior às tags por serviço tem uma tag só: não há como voltar um serviço
-    [ -z "$LEGACY" ] || restore_previous "troca de ${members[*]} falhou"
     echo "FAIL  ${members[*]}: a troca falhou"
     rollback_group "${members[@]}"
     FAILED+=("${members[*]}")
@@ -509,7 +582,7 @@ done
 # Pós-deploy ou smoke vermelho: com um grupo trocado, é dele; com mais, não dá para saber de quem
 after_swap_failed() {
   local group
-  if [ -z "$LEGACY" ] && [ "${#SWAPPED_GROUPS[@]}" = 1 ]; then
+  if [ "${#SWAPPED_GROUPS[@]}" = 1 ]; then
     STAGE=restored
     read -ra group <<< "${SWAPPED_GROUPS[0]}"
     TOUCHED=("${group[@]}")
@@ -524,6 +597,8 @@ after_swap_failed() {
   fi
   restore_previous "$1"
 }
+
+if [ "$PROJECT" = apps ]; then
 
 # a limpeza do cache só faz sentido com API, webhooks, ingestor ou agents novos; um SHA sem o passo sem-cache limpa sempre
 POST_STEP=all
@@ -543,6 +618,8 @@ fi
 if ! ssh "$VPS" "cd $DIR && docker compose exec -T $smoke_env demo node -" < "$STACK/smoke.mjs"; then
   after_swap_failed "smoke test com falha"
 fi
+
+fi # apps
 
 # ── confere: cada serviço trocado está na versão pedida ─────────────────────────────────────────────────────
 # Digest e rótulo da imagem do contêiner, e o que o processo expõe. Serviço na versão errada: FAIL, e volta só ele. Com
@@ -566,13 +643,13 @@ for group in "${to_verify[@]}"; do
       esac
     fi
     tag="${IMAGE_TAG_OF[$name]}"
-    [ -z "$LEGACY" ] || tag=""
+    [ -z "$PRESPLIT" ] || tag=""
     verify_args+=("$s=$REG-$name:${IMAGE_TAG_OF[$name]}=$tag=$port")
   done
 done
 if [ "${#verify_args[@]}" -gt 0 ]; then
   echo "conferindo a versão de cada serviço"
-  if verify_out="$(ssh "$VPS" "cd $DIR && bash -s -- ${verify_args[*]}" < "$HERE/deploy-verify.sh")"; then
+  if verify_out="$(ssh "$VPS" "cd $DIR && COMPOSE_FILE=$CF bash -s -- ${verify_args[*]}" < "$HERE/deploy-verify.sh")"; then
     grep -v '^DIVERGENTE=' <<< "$verify_out"
   else
     rc=$?
@@ -583,7 +660,6 @@ if [ "${#verify_args[@]}" -gt 0 ]; then
     fi
     divergent="$(sed -n 's/^DIVERGENTE=//p' <<< "$verify_out")"
     [ -n "$divergent" ] || divergent="(a conferência não terminou: código $rc)"
-    [ -z "$LEGACY" ] || restore_previous "serviço na versão errada: $divergent"
     kept=()
     for group in "${SWAPPED_GROUPS[@]:-}"; do
       hit=""
@@ -618,6 +694,7 @@ STAGE=finished
 # A tag é a versão do Playwright (a do compose.yml), não o SHA; o docker.yml a publica quando a pasta muda, com o hash
 # da pasta no rótulo. Só baixa quando a VPS não tem essa versão da pasta. Nada aqui falha o deploy.
 lr_pull() {
+  [ "$PROJECT" = apps ] || return 0
   local tree version image have
   tree="$(git -C "$ROOT" rev-parse -q --verify "$SHA:infra/lineup-render")" || return 0
   version="$(git -C "$ROOT" show "$SHA:infra/lineup-render/package.json" |
@@ -640,13 +717,13 @@ lr_pull
 
 # ── espelho de assets ───────────────────────────────────────────────────────────────────────────────────────
 # a troca do ingestor mata o mirror que rodava dentro dele; sem ingestor no ar (escala 0), não há o que religar
-ssh "$VPS" "cd $DIR && if pgrep -f mirror-assets >/dev/null; then echo 'mirror: já rodando'; \
+[ "$PROJECT" != apps ] || ssh "$VPS" "cd $DIR && if pgrep -f mirror-assets >/dev/null; then echo 'mirror: já rodando'; \
   elif [ -n \"\$(docker compose ps -q ingestor)\" ]; then \
     (setsid nohup docker compose exec -T ingestor node dist/cli/mirror-assets.js --concorrencia 4 </dev/null > /tmp/mirror.log 2>&1 &); echo 'mirror: religado'; \
   else echo 'mirror: ingestor fora do ar, nada a religar'; fi" || echo "WARN  mirror: não deu para religar"
 
-# ── backups do compose.yml e do .env: os 10 mais novos de cada ─────────────────────────────────────────────
-ssh "$VPS" "cd $DIR && for f in compose.yml .env; do ls -1t \$f.bak-* 2>/dev/null | tail -n +11 | xargs -r rm -f --; done" ||
+# ── backups do compose e do .env: os 10 mais novos de cada ─────────────────────────────────────────────────
+ssh "$VPS" "cd $DIR && for f in compose.yml compose.obs.yml .env; do ls -1t \$f.bak-* 2>/dev/null | tail -n +11 | xargs -r rm -f --; done" ||
   echo "WARN  backups antigos do compose.yml e do .env não foram podados"
 
 # ── imagens de versões antigas: ficam a no ar e as DEPLOY_KEEP_IMAGES anteriores (padrão 3) ──────────────────────
@@ -656,9 +733,13 @@ ssh "$VPS" "cd $DIR && bash -s -- ${DEPLOY_KEEP_IMAGES:-3}" < "$HERE/prune-image
 # para as notas de versão: o hash de cada imagem no ar e o que este deploy trocou
 versions=""
 for name in "${NAMES[@]}"; do versions+="$name=${IMAGE_TAG_OF[$name]} "; done
-{
-  echo "versions=${versions% }"
-  echo "swapped=${SWAPPED_GROUPS[*]:-}"
-  echo "result=deployed"
-} >> "${GITHUB_OUTPUT:-/dev/null}"
+if [ "$PROJECT" = apps ]; then
+  {
+    echo "versions=${versions% }"
+    echo "swapped=${SWAPPED_GROUPS[*]:-}"
+    echo "result=deployed"
+  } >> "${GITHUB_OUTPUT:-/dev/null}"
+else
+  echo "result=$PROJECT" >> "${GITHUB_OUTPUT:-/dev/null}"
+fi
 echo "PASS  ${SHA:0:7} no ar"
