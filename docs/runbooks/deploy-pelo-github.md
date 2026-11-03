@@ -128,8 +128,7 @@ o que faltar.
       vem do GHCR). Depois roda o seed semântico com a base da versão anterior e limpa o cache de novo. Com migration
       nova, imprime o rollback manual, porque o código antigo pode não aguentar o schema novo.
 11. lineup-render: baixa a imagem da versão do Playwright quando a pasta mudou (nunca falha o deploy).
-12. Religa o espelho de assets.
-13. Publica as notas de versão (`release-notes.mjs`), só quando publicou, com o SHA do deploy ao lado do hash de cada
+12. Publica as notas de versão (`release-notes.mjs`), só quando publicou, com o SHA do deploy ao lado do hash de cada
     imagem e marcando as que trocaram.
 
 ### A versão que cada serviço roda
