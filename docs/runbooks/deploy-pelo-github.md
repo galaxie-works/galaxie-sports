@@ -95,20 +95,23 @@ o que faltar.
    nossa; postgres, valkey e rustfs ficam na imagem que já está na VPS.
 6. **Plano** (`deploy-plan.sh`): compara, serviço a serviço, o digest da imagem `in-<hash>` com o da imagem do contêiner
    no ar, e o hash da configuração do compose com o rótulo do contêiner. Só os diferentes trocam. O log (e o resumo do
-   job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`.
+   job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`. Serviço que saiu do compose aparece como
+   `<serviço>: sai` (a demo, quando virou `site` e `console`): sai depois que os da mesma imagem trocaram
+   (`rolling-swap.sh --retire`), e a volta do grupo o sobe de novo antes de tirar os novos.
 7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
-   dele mudou, se há migration nova ou com `force=1`. Com a API ou a demo na lista, o **smoke roda na versão nova antes
-   da troca**, num candidato sem tráfego; reprovado, nada troca
+   dele mudou, se há migration nova ou com `force=1`. Com a API, o site ou o console na lista, o **smoke roda na versão nova
+   antes da troca**, nos candidatos sem tráfego (`site-candidate` e `console-candidate`, cada um no papel dele); reprovado, nada troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
 8. Backup do `compose.yml` e do `.env` (os mesmos `.bak-<sha>`) e troca dos dois. **Lista vazia** (docs, workflow,
    comentário no compose): termina aqui, verde e sem alarme, como `SKIP nada a publicar`, sem pós-deploy, sem smoke, sem
    notas de versão. Senão, troca só a lista, sempre com `--no-deps`, nesta ordem:
    - `ingestor` e `agents`, por recriação simples (a escala atual do ingestor continua; escala 0 fica como está);
-   - `api`, `webhooks` e `demo` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o novo
-     healthy). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
+   - `api`, `webhooks`, `site` e `console` lado a lado, sem página de manutenção (`rolling-swap.sh`: o antigo só sai com o
+     novo healthy; só a configuração de um dos dois mudou → troca só ele). O worker dos webhooks fecha a entrega em andamento no SIGTERM, e o novo retoma pelo cursor;
    - o que não tem imagem nossa, quando mudou (a página de manutenção, por exemplo).
 9. Pós-deploy (sem a limpeza do cache quando API, webhooks, ingestor e agents ficaram) e smoke test (o "N ok · avisos ·
-   falhas", que também confere a versão da API e da demo). Por último, a **conferência**
+   falhas", que também confere a versão da API e da demo, roda no site e no console e confere o 404 do que é do outro). Por último, a
+   **conferência**
    (`deploy-verify.sh`): para cada serviço trocado, o digest e o rótulo da imagem do contêiner, e o que o processo expõe.
    Serviço na versão errada é `FAIL  <serviço>: …` no resumo do job, e volta só ele.
    - O pós-deploy começa pelo **seed da base semântica** (`data/knowledge` → `semantic.*`, exigido pelo #362).
@@ -141,14 +144,14 @@ Para saber qual SHA está no ar, veja o `DEPLOY_SHA` do `.env` ou as notas de ve
 | Serviço | Onde ler |
 | --- | --- |
 | `api` | `GET /version` (público) e `build_info` no `/metrics` |
-| `demo` | `GET /api/version` (público) |
+| `site`, `console` | `GET /api/version` (público pelo site; `service` diz qual) e `build_info` no `/metrics` da 9464, sem router |
 | `webhooks` | `/version` e `/metrics` na 8080 da rede da stack, sem router |
 | `ingestor`, `agents` | `/version` e `/metrics` na 9464 da rede da stack, sem router |
 | `backup`, `prometheus`, `grafana` | rótulo `works.galaxie.context-tree` da imagem |
 
 O formato é `{ service, image_hash, started_at, node }`, e cada processo escreve o mesmo numa linha de log na partida. O
-Prometheus raspa `api`, `webhooks`, `ingestor` e `agents`, e o painel **SLOs** do Grafana tem a tabela "Versão no ar por
-serviço". A demo não é raspada: não tem `/metrics`.
+Prometheus raspa `api`, `webhooks`, `ingestor`, `agents`, `site` e `console`, e o painel **SLOs** do Grafana tem a tabela
+"Versão no ar por serviço" e a memória (RSS e heap) de cada um.
 
 ```bash
 curl -s https://api.sports.galaxie.works/version
@@ -162,7 +165,7 @@ Uma variável por imagem, sempre o `in-<hash>` da entrada dela no SHA publicado:
 | Variável | Serviços |
 | --- | --- |
 | `TAG_API` | `api`, `webhooks`, `migrate`, `api-candidate` |
-| `TAG_DEMO` | `demo`, `demo-candidate` |
+| `TAG_DEMO` | `site`, `console`, `site-candidate`, `console-candidate` (antes da issue #546, `demo`) |
 | `TAG_INGESTOR` | `ingestor`, `agents` |
 | `TAG_BACKUP` | `backup` (projeto `dados`; só por runbook) |
 | `TAG_PROMETHEUS` | `prometheus` (projeto `obs`) |
@@ -185,18 +188,18 @@ Um `docker compose up -d` à mão, sem nome de serviço, recriaria esse contêin
 
 ### Voltar um serviço só
 
-O `.env.bak-<sha7>` e o `compose.yml.bak-<sha7>` são os do deploy anterior ao `<sha7>`. Para voltar a demo, sem tocar nos
-outros:
+O `.env.bak-<sha7>` e o `compose.yml.bak-<sha7>` são os do deploy anterior ao `<sha7>`. Para voltar o site e o console, sem tocar
+nos outros:
 
 ```bash
 cd /docker/galaxie-sports
 grep '^TAG_DEMO=' .env.bak-<sha7>                                  # a tag anterior
 sed -i 's|^TAG_DEMO=.*|TAG_DEMO=in-<hash anterior>|' .env
-PULL_POLICY=missing docker compose up -d --no-deps demo
+PULL_POLICY=missing docker compose up -d --no-deps site console
 ```
 
-`api`, `webhooks` e `demo` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
-`ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- demo' < infra/vps-telemetry/rolling-swap.sh`. Os outros
+`api`, `webhooks`, `site` e `console` também voltam sem manutenção, da máquina de dev, depois de editar o `.env`:
+`ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- site console' < infra/vps-telemetry/rolling-swap.sh`. Os outros
 sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte
 compara de novo: se o SHA dele ainda pedir a imagem nova, ele troca.

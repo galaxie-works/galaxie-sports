@@ -6,7 +6,7 @@
 #
 # Validar: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
 #
-# Cada imagem tem a própria tag no .env (TAG_API: api, webhooks, migrate e candidato; TAG_DEMO: demo e candidato;
+# Cada imagem tem a própria tag no .env (TAG_API: api, webhooks, migrate e candidato; TAG_DEMO: site, console e candidatos;
 # TAG_INGESTOR: ingestor e agents; TAG_BACKUP; TAG_PROMETHEUS; TAG_GRAFANA), para um deploy trocar só o que mudou
 # (deploy-gh.sh). O SHA publicado fica em DEPLOY_SHA, que não pode entrar no env de nenhum serviço: env novo recria o
 # contêiner.
@@ -117,13 +117,29 @@ services:
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
 
-  # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
-  demo: &demo
+  # App de demonstração (Next.js), em dois serviços da mesma imagem (issue #546): `site` (público, demo, docs, exemplo,
+  # embed e registry dos widgets) e `console` (portal do cliente com o Builder e o painel de Ajustes). APP_ROLE desliga
+  # no processo as rotas do outro papel (404) e o que só o outro usa (o console não segue o change feed); a tabela das
+  # rotas é apps/demo/src/lib/app-role.ts. Um vazamento no painel derruba só o console: o site, a demo e o login seguem.
+  # Fala com a API pela rede interna; a chave fica só no servidor.
+  #
+  # Traefik, no mesmo host: o router do console casa os prefixos dele (PathRegexp igual ao CONSOLE_PATH_REGEXP do
+  # app-role.ts, conferido no teste) com prioridade 2000; o do site casa o host inteiro com prioridade 1000; o de
+  # manutenção do console (1500, declarado no site, aponta para o serviço maintenance) cobre os prefixos do console quando
+  # ele sai do ar, e o de manutenção da demo (1) o resto. Um contêiner `demo` de antes da divisão (rótulo sem prioridade:
+  # a do tamanho da regra, ~30) perde dos dois; o deploy o tira depois que eles sobem (deploy-plan.sh › SAI). Login e /api/auth ficam no site: o cookie de sessão é do host, vale nos dois.
+  # Healthcheck: o da imagem (/robots.txt, que os dois papéis atendem), com o intervalo da partida curto para a troca.
+  # Memória: README › Memória dos jobs (site 512m como a demo de antes; console 384m, heap 224).
+  site: &site
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${TAG_DEMO:?defina TAG_DEMO}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment: &demo-env
+      APP_ROLE: site
+      # /metrics do processo (build_info, memória) numa porta só da rede interna, para o Prometheus; sem router
+      DEMO_METRICS_PORT: '9464'
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
       # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
@@ -155,20 +171,61 @@ services:
         condition: service_healthy
     expose:
       - '3000'
+      - '9464'
+    healthcheck:
+      interval: 15s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+      start_interval: 2s
     # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
       - traefik.enable=true
-      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, site, console, s3 e maintenance; ligados por EDGE_MIDDLEWARES
       - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
       - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.middlewares.gsports-retry.retry.attempts=2
       - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
-      - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
-      - traefik.http.routers.gsports-demo.entrypoints=websecure
-      - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
-      - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
-      - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
+      - traefik.http.routers.gsports-site.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
+      - traefik.http.routers.gsports-site.entrypoints=websecure
+      - traefik.http.routers.gsports-site.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-site.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-site.priority=1000
+      - traefik.http.routers.gsports-site.service=gsports-site
+      - traefik.http.services.gsports-site.loadbalancer.server.port=3000
+      # console fora do ar (reinício, OOM): os prefixos dele vão para a página de manutenção (serviço maintenance), não
+      # para o 404 do site. Fica no site para o compose do maintenance não mudar; com o site também fora, o router de
+      # manutenção da demo (prioridade 1) cobre o host inteiro
+      - traefik.http.routers.gsports-console-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console-maintenance.entrypoints=websecure
+      - traefik.http.routers.gsports-console-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-console-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-console-maintenance.priority=1500
+      - traefik.http.routers.gsports-console-maintenance.service=gsports-maintenance-site
     logging: *logging
+
+  console: &console
+    <<: *site
+    mem_limit: 384m
+    # heap menor que o do site (320): sem o cache do explorador; 224 + geração nova 3 × 16 + ~50 cabem em 384m
+    command: ['node', '--max-old-space-size=224', '--max-semi-space-size=16', 'apps/demo/server.js']
+    environment: &console-env
+      <<: *demo-env
+      APP_ROLE: console
+    labels:
+      - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, site, console, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
+      - traefik.http.routers.gsports-console.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console.entrypoints=websecure
+      - traefik.http.routers.gsports-console.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-console.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-console.priority=2000
+      - traefik.http.routers.gsports-console.service=gsports-console
+      - traefik.http.services.gsports-console.loadbalancer.server.port=3000
 
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
   # Mesma imagem da API, sem router: a 8080 só tem /health, /version e /metrics (servidor de operação). Na primeira subida
@@ -196,11 +253,11 @@ services:
     stop_grace_period: 20s
     logging: *logging
 
-  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe): a API e a demo da
-  # versão nova ao lado das que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
+  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe): a API, o site e o console da
+  # versão nova ao lado dos que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
   # da troca. Mesmo env e mesmos limites dos originais (as âncoras); a API com prefixo próprio no Valkey (cache, rate
-  # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e a demo
-  # falando com ela. Sobem com --no-deps e
+  # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e site e
+  # console falando com ela. Sobem com --no-deps e
   # saem logo depois do smoke. README › Atualizar › Candidato e troca sem manutenção.
   api-candidate:
     <<: *api
@@ -214,12 +271,22 @@ services:
     depends_on: {}
     labels: [traefik.enable=false]
 
-  demo-candidate:
-    <<: *demo
+  site-candidate:
+    <<: *site
     profiles: [candidate]
     restart: 'no'
     environment:
       <<: *demo-env
+      GALAXIE_API_URL: http://api-candidate:8080
+    depends_on: {}
+    labels: [traefik.enable=false]
+
+  console-candidate:
+    <<: *console
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *console-env
       GALAXIE_API_URL: http://api-candidate:8080
     depends_on: {}
     labels: [traefik.enable=false]

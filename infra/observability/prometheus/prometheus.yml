@@ -20,8 +20,9 @@ scrape_configs:
         labels:
           service: api
 
-  # Quem não tem API: só o build_info e as métricas do processo (servidor de operação de @galaxie/observability). O
-  # ingestor na escala 0 fica como alvo fora do ar, sem alerta: os alertas de up são do job galaxie-api.
+  # Quem não tem API: só o build_info e as métricas do processo (servidor de operação de @galaxie/observability; no site
+  # e no console, os dois serviços da imagem da demo, apps/demo/src/lib/ops/metrics.ts). O ingestor na escala 0 fica como
+  # alvo fora do ar, sem alerta: os alertas de up são do job galaxie-api.
   - job_name: galaxie-services
     metrics_path: /metrics
     authorization:
@@ -37,6 +38,12 @@ scrape_configs:
       - targets: ['agents:9464']
         labels:
           service: agents
+      - targets: ['site:9464']
+        labels:
+          service: site
+      - targets: ['console:9464']
+        labels:
+          service: console
 
   - job_name: prometheus
     static_configs:

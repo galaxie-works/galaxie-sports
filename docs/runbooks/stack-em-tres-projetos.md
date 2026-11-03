@@ -6,7 +6,7 @@ disso, um deploy de app não passa perto do banco. O dia a dia está em
 
 | Projeto | Arquivo | Serviços | Quem aplica |
 | --- | --- | --- | --- |
-| `galaxie-sports` (apps) | `compose.yml` | `api`, `webhooks`, `migrate`, `demo`, `ingestor`, `agents`, `maintenance`, candidatos, `lineup-render` | deploy automático |
+| `galaxie-sports` (apps) | `compose.yml` | `api`, `webhooks`, `migrate`, `site` e `console` (a `demo` até a issue #546), `ingestor`, `agents`, `maintenance`, candidatos, `lineup-render` | deploy automático |
 | `galaxie-sports-dados` | `compose.dados.yml` | `postgres`, `valkey`, `s3`, `s3-init`, `backup` | runbook |
 | `galaxie-sports-obs` | `compose.obs.yml` | `prometheus`, `grafana`, `node-exporter` | `deploy.yml -f project=obs` |
 

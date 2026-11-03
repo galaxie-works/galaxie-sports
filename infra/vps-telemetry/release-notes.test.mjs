@@ -177,6 +177,17 @@ describe('versionsNote', () => {
       'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada)',
     );
   });
+  it('a imagem da demo roda como site e console: diz qual dos dois trocou', () => {
+    const versions = 'api=in-apiabcdefghi demo=in-demoabcdefg';
+    assert.equal(
+      versionsNote(sha, versions, 'console'),
+      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada: console)',
+    );
+    assert.equal(
+      versionsNote(sha, versions, 'site console'),
+      'SHA `abcdef1` · `api` in-apiabcd · `demo` in-demoabc (trocada: site, console)',
+    );
+  });
   it('sem versões, sem linha', () => {
     assert.equal(versionsNote(sha, undefined), undefined);
     assert.equal(versionsNote(sha, ''), undefined);

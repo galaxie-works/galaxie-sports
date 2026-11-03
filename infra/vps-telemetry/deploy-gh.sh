@@ -34,15 +34,18 @@
 #   7. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada); migrate
 #      com saída 0 antes de qualquer troca (a versão no ar segue, sobre o schema novo), só se a imagem ou a configuração
 #      dele mudou, se há migration nova ou com FORCE
-#   7b. com a api ou a demo na lista: a API e a demo novas sobem ao lado das que estão no ar, sem tráfego (candidate.sh),
-#      e o smoke roda nelas. Smoke com FAIL = para aqui, sem troca
+#   7b. com a api ou o app web (site e console; num SHA de antes da divisão, a demo) na lista: os candidatos sobem ao lado
+#      dos que estão no ar, sem tráfego (candidate.sh), e o smoke roda em cada um web. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
-#      nada a publicar. Senão, a troca, só da lista: ingestor/agents (recriação simples) → api, webhooks e demo
-#      (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com o novo
-#      healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado
+#      nada a publicar. Senão, a troca, só da lista: ingestor/agents (recriação simples) → api, webhooks → site, console
+#      (ou demo) (rolling-swap.sh, sem página de manutenção: o contêiner novo sobe ao lado do antigo, e o antigo só sai com
+#      o novo healthy) → o resto. Sempre com --no-deps: quem não está na lista não é recriado. Serviço que saiu do compose
+#      (SAI do plano: a demo, quando virou site e console) sai depois que os da mesma imagem trocaram (rolling-swap.sh
+#      --retire); na volta do grupo, ele sobe de novo antes de os novos saírem
 #   9. pós-deploy (post-deploy.sh: seed semântico, nomes, importância, cache, conta da IA; sem a limpeza do cache quando
-#      API, webhooks, ingestor e agents ficaram), smoke test (smoke.mjs, com a versão esperada de API e demo) e conferência
-#      de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a versão que o processo expõe)
+#      API, webhooks, ingestor e agents ficaram), smoke test (smoke.mjs em cada contêiner web no ar, com a versão
+#      esperada de API e demo) e conferência de cada serviço trocado (deploy-verify.sh: digest, rótulo da imagem e a
+#      versão que o processo expõe)
 #  10. falhou a troca de um serviço ou ele está na versão errada: volta só ele (e os da mesma tag), com a TAG_* e a
 #      configuração de antes; os outros ficam, o deploy segue e termina vermelho, sem gravar o SHA (o deploy seguinte tenta de novo). Falhou
 #      em mais de um, ou o pós-deploy ou o smoke com mais de um trocado: volta a stack inteira para o SHA anterior quando
@@ -157,9 +160,19 @@ declare -A SVC_IMAGE=() ONE_SHOT=()
 while IFS='=' read -r svc name; do SVC_IMAGE[$svc]="$name"; done < <(jq -r --arg z ":$ZERO" \
   '.services | to_entries[] | select(.value.image | endswith($z)) | "\(.key)=\(.value.image | rtrimstr($z) | sub(".*-"; ""))"' <<< "$config_json")
 while IFS= read -r svc; do ONE_SHOT[$svc]=1; done < <(jq -r '.services | to_entries[] | select(.value.restart == "no") | .key' <<< "$config_json")
-# o compose do SHA tem os dois candidatos? (um SHA anterior a eles publica sem o candidato)
-HAS_CANDIDATE="$(docker compose -f "$COMPOSE_SRC/$CF" --env-file "$COMPOSE_SRC/env.example" --profile candidate config --services |
-  grep -cxE 'api-candidate|demo-candidate')" || HAS_CANDIDATE=0
+# o app web do SHA: site e console (issue #546) ou, antes da divisão, a demo; a troca, o smoke e a conferência valem
+# para cada um
+WEB=()
+for svc in site console demo; do
+  [ -z "${SVC_IMAGE[$svc]:-}" ] || WEB+=("$svc")
+done
+in_web() { case " ${WEB[*]} " in *" $1 "*) return 0 ;; esac; return 1; }
+# o compose do SHA tem os candidatos (api e um por serviço web)? (um SHA anterior a eles publica sem o candidato)
+candidates="$(docker compose -f "$COMPOSE_SRC/$CF" --env-file "$COMPOSE_SRC/env.example" --profile candidate config --services)"
+HAS_CANDIDATE=1
+for svc in api "${WEB[@]}"; do
+  grep -qx -- "$svc-candidate" <<< "$candidates" || HAS_CANDIDATE=""
+done
 # --services: só a lista acima (o CI confere que ela, nos três projetos, bate com as imagens que o docker.yml publica)
 [ -z "$ONLY_SERVICES" ] || exit 0
 
@@ -334,8 +347,11 @@ if ! plan="$(ssh "$VPS" "cd $DIR && PLAN_FILE=$CF.new bash -s -- ${plan_args[*]}
   exit 1
 fi
 TROCA="$(sed -n 's/^TROCA=//p' <<< "$plan")"
-echo "plano: $(grep -v '^TROCA=' <<< "$plan" | paste -sd '|' | sed 's/|/ · /g')"
+echo "plano: $(grep -vE '^(TROCA|SAI)=' <<< "$plan" | paste -sd '|' | sed 's/|/ · /g')"
 in_troca() { case " $TROCA " in *" $1 "*) return 0 ;; esac; return 1; }
+# serviços no ar que o compose novo não tem (serviço → imagem): saem quando os da mesma imagem trocam (swap_group)
+declare -A GONE=() RETIRED=()
+for entry in $(sed -n 's/^SAI=//p' <<< "$plan"); do GONE[${entry%%:*}]="${entry#*:}"; done
 # Worker de um SHA anterior à versão exposta não tem o /health que o compose daqui espera: os webhooks ficam como estão
 if [ -n "$PRESPLIT" ] && ! grep -q GALAXIE_IMAGE_HASH "$TARGET/apps/api/Dockerfile" && in_troca webhooks; then
   echo "WARN  webhooks ficam: a ${SHA:0:7} é anterior ao /health do worker"
@@ -394,10 +410,15 @@ TROCA="${TROCA% }"
 MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 
 # ── candidato: smoke na versão nova antes da troca ──────────────────────────────────────────────────────────
-if [ "$HAS_CANDIDATE" != 2 ] && { in_troca api || in_troca demo; }; then
-  echo "WARN  compose.yml da ${SHA:0:7} sem api-candidate e demo-candidate: publica sem o candidato"
-elif in_troca api || in_troca demo; then
-  echo "candidato: api e demo da ${SHA:0:7} ao lado das que estão no ar (sem tráfego)"
+web_in_troca() {
+  local s
+  for s in "${WEB[@]}"; do in_troca "$s" && return 0; done
+  return 1
+}
+if [ -z "$HAS_CANDIDATE" ] && { in_troca api || web_in_troca; }; then
+  echo "WARN  compose.yml da ${SHA:0:7} sem os candidatos (api-candidate e ${WEB[*]/%/-candidate}): publica sem o candidato"
+elif in_troca api || web_in_troca; then
+  echo "candidato: api e ${WEB[*]} da ${SHA:0:7} ao lado dos que estão no ar (sem tráfego)"
   CAND_UP=1
   ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
   cand_smoke=""
@@ -489,30 +510,50 @@ up_wait() {
   done
 }
 
-# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: api, webhooks e demo lado a lado (o antigo só sai
-# com o novo healthy), o resto por recriação simples. TOUCHED = os que saíram da configuração de antes.
+# Troca um grupo (os serviços da mesma tag), um por vez na ordem dada: api, webhooks, site, console e demo lado a lado (o
+# antigo só sai com o novo healthy), o resto por recriação simples. TOUCHED = os que saíram da configuração de antes.
+# Com o grupo no ar, sai quem deixou o compose e tinha a mesma imagem (GONE: a demo, quando site e console sobem);
+# RETIRED[grupo] guarda quem saiu, para a volta do grupo subi-lo de novo.
 TOUCHED=()
 swap_group() {
-  local s plain=()
+  local s plain=() images=" " gone
   TOUCHED=()
   for s in "$@"; do
     case "$s" in
-      api | webhooks | demo)
+      api | webhooks | site | console | demo)
         ssh "$VPS" "cd $DIR && bash -s -- $s" < "$HERE/rolling-swap.sh" || return $?
         TOUCHED+=("$s")
         ;;
       *) plain+=("$s") ;;
     esac
   done
-  [ "${#plain[@]}" -gt 0 ] || return 0
-  TOUCHED+=("${plain[@]}")
-  up_wait "${plain[@]}"
+  if [ "${#plain[@]}" -gt 0 ]; then
+    TOUCHED+=("${plain[@]}")
+    up_wait "${plain[@]}" || return $?
+  fi
+  for s in "$@"; do images+="${SVC_IMAGE[$s]:-} "; done
+  for gone in "${!GONE[@]}"; do
+    case "$images" in *" ${GONE[$gone]} "*) ;; *) continue ;; esac
+    if ssh "$VPS" "cd $DIR && bash -s -- --retire $gone" < "$HERE/rolling-swap.sh"; then
+      RETIRED["$*"]+="$gone "
+      unset "GONE[$gone]"
+    else
+      echo "WARN  $gone saiu do compose e não foi tirado do ar; confira: ssh $VPS 'cd $DIR && docker ps -a | grep $gone'"
+    fi
+  done
 }
 
 # Volta só os serviços em TOUCHED para o compose.yml e o .env de antes, e a tag do grupo no .env (quem não tem imagem
-# nossa fica sem isso). A configuração nova do serviço só entra no próximo deploy, que compara e tenta de novo.
+# nossa fica sem isso). A configuração nova do serviço só entra no próximo deploy, que compara e tenta de novo. Quem
+# saiu na troca do grupo (RETIRED) sobe de novo primeiro; serviço que o compose de antes não tem (site e console na
+# volta para a demo) sai depois.
 rollback_group() {
-  local s scale var="" name tag=""
+  local s scale var="" name tag="" key="$*" gone
+  for gone in ${RETIRED[$key]:-}; do
+    ssh "$VPS" "cd $DIR && $COMPOSE_BAK bash -s -- $gone" < "$HERE/rolling-swap.sh" ||
+      echo "FAIL  $gone: não voltou ao ar com a configuração anterior"
+  done
+  unset "RETIRED[$key]"
   for s in "$@"; do
     name="${SVC_IMAGE[$s]:-}"
     [ -z "$name" ] || var="TAG_${name^^}"
@@ -527,8 +568,9 @@ rollback_group() {
   fi
   for s in "${TOUCHED[@]}"; do
     case "$s" in
-      api | webhooks | demo)
-        ssh "$VPS" "cd $DIR && $COMPOSE_BAK bash -s -- $s" < "$HERE/rolling-swap.sh" ||
+      api | webhooks | site | console | demo)
+        ssh "$VPS" "cd $DIR && export $COMPOSE_BAK && if docker compose config --services </dev/null | grep -qx $s; then \
+          bash -s -- $s; else bash -s -- --retire $s; fi" < "$HERE/rolling-swap.sh" ||
           echo "FAIL  $s: a volta para a configuração anterior falhou"
         ;;
       *)
@@ -548,8 +590,8 @@ mark_not_published() {
   ssh "$VPS" "cd $DIR && sed -i 's|^$SHA_KEY=.*|$SHA_KEY=$OLD|' .env" || echo "WARN  $SHA_KEY não voltou no .env"
 }
 
-# ingestor/agents → api/webhooks → demo → cada imagem do resto → o que não tem imagem nossa
-GROUPS_ORDER=("ingestor agents" "api webhooks" "demo" "backup" "prometheus" "grafana")
+# ingestor/agents → api/webhooks → site/console (ou demo) → cada imagem do resto → o que não tem imagem nossa
+GROUPS_ORDER=("ingestor agents" "api webhooks" "site console demo" "backup" "prometheus" "grafana")
 others=""
 for s in $TROCA; do
   case " ${GROUPS_ORDER[*]} " in *" $s "*) ;; *) others+=" $s" ;; esac
@@ -615,7 +657,16 @@ smoke_env=""
 if [ -n "$HAS_VERSION" ]; then
   smoke_env="-e SMOKE_API_IMAGE=\$(sed -n 's/^TAG_API=//p' .env) -e SMOKE_DEMO_IMAGE=\$(sed -n 's/^TAG_DEMO=//p' .env)"
 fi
-if ! ssh "$VPS" "cd $DIR && docker compose exec -T $smoke_env demo node -" < "$STACK/smoke.mjs"; then
+# em cada contêiner web no ar (site e console; a demo, num SHA de antes da divisão ou depois da volta do grupo), pelo
+# rótulo do projeto e não pelo compose: o serviço que voltou pode não estar no compose.yml novo. Cada um confere o que o
+# papel dele atende (APP_ROLE do contêiner)
+ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
+if ! ssh "$VPS" "cd $DIR && p=\$(docker compose config </dev/null | sed -n 's/^name: //p') && rc=0 && n=0 && \
+  for s in site console demo; do \
+    id=\$(docker ps -q --filter label=com.docker.compose.project=\$p --filter label=com.docker.compose.service=\$s </dev/null | head -n 1); \
+    [ -n \"\$id\" ] || continue; n=\$((n + 1)); echo \"smoke no \$s\"; \
+    docker exec -i $smoke_env \$id node - < .smoke-$RUN_ID.mjs || rc=1; \
+  done; [ \$n -gt 0 ] || { echo 'FAIL  nenhum contêiner web (site, console ou demo) no ar para o smoke'; rc=1; }; exit \$rc"; then
   after_swap_failed "smoke test com falha"
 fi
 
@@ -638,7 +689,7 @@ for group in "${to_verify[@]}"; do
     if [ -n "$HAS_VERSION" ]; then
       case "$s" in
         api | webhooks) port=8080 ;;
-        demo) port=3000 ;;
+        site | console | demo) port=3000 ;;
         ingestor | agents) port=9464 ;;
       esac
     fi

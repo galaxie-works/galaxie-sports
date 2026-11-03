@@ -1,15 +1,30 @@
 /**
  * Na subida do servidor (Node): prepara o banco de usuários da demo, garante o primeiro admin e começa a
  * seguir o `ops.change_feed`, que revalida o cache da demo quando os dados mudam (lib/cache/follower.ts).
+ *
+ * O que sobe depende do papel (`APP_ROLE`, lib/app-role.ts): o `console` não tem o cache do explorador nem a rota de
+ * revalidação, então não segue o change feed. Com `DEMO_METRICS_PORT`, o `/metrics` do processo (lib/ops/metrics.ts).
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
   if (process.env.NEXT_PHASE === 'phase-production-build') return;
+  const { appRole, serviceName } = await import('./lib/app-role');
+  const role = appRole();
+  if (role !== 'all') console.log(`[demo] papel do processo: ${role}`);
+  const metricsPort = Number(process.env.DEMO_METRICS_PORT);
+  if (Number.isInteger(metricsPort) && metricsPort > 0) {
+    const { startMetricsServer } = await import('./lib/ops/metrics');
+    startMetricsServer({ service: serviceName(role), port: metricsPort });
+  }
   const { setupAuthDatabase } = await import('./lib/auth/setup');
   try {
     await setupAuthDatabase();
   } catch (err) {
     console.error('[demo-auth] falha ao preparar o banco de usuários', err);
+  }
+  if (role === 'console') {
+    console.log('[demo-cache] console: sem o seguidor do change feed (o cache do explorador fica no site)');
+    return;
   }
   try {
     const { startCacheFeed } = await import('./lib/cache/start');

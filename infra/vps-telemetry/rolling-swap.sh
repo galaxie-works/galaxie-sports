@@ -3,7 +3,8 @@
 # dele e só então para o antigo. Roda NA VPS, em /docker/galaxie-sports, depois de o deploy-gh.sh pôr o compose.yml e
 # o .env novos no lugar (e no CI, contra uma stack de teste com Traefik: docker.yml › troca sem manutenção):
 #
-#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- api demo' < rolling-swap.sh
+#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- api site console' < rolling-swap.sh
+#   ssh <vps> 'cd /docker/galaxie-sports && bash -s -- --retire demo'    < rolling-swap.sh   # tira um serviço que saiu do compose
 #
 # Para cada serviço, na ordem dada:
 #   1. docker compose up --no-deps --no-recreate --scale <serviço>=N+1: um contêiner a mais, com a configuração nova;
@@ -14,7 +15,13 @@
 #      aceitar conexão no SIGTERM, e o gsports-retry do Traefik manda a requisição recusada para o novo
 #   4. remove o antigo; o serviço fica com um contêiner só, na configuração nova (o `up -d` seguinte não o recria)
 # Novo sem ficar healthy: sai o novo, o antigo segue no ar e o script sai com 1 (o deploy volta para a versão anterior).
-# Serviço sem contêiner no ar: só sobe. Sem COMPOSE_FILE, usa o compose.yml do diretório.
+# Serviço sem contêiner no ar (novo no compose, como site e console na divisão da demo): sobe e espera o mesmo healthy;
+# sem ficar healthy, sai e o script sai com 1.
+#
+# --retire <serviço>...: para (com o mesmo tempo de graça) e remove os contêineres do projeto com esse serviço, mesmo que
+# ele não esteja mais no compose (a demo depois da divisão em site e console, ou site e console na volta para antes
+# dela). O deploy só chama depois de os serviços que o substituem estarem healthy.
+# Sem COMPOSE_FILE, usa o compose.yml do diretório.
 set -euo pipefail
 export PULL_POLICY="${PULL_POLICY:-missing}"
 
@@ -27,14 +34,37 @@ health() {
     echo ausente
 }
 
+if [ "${1:-}" = --retire ]; then
+  shift
+  # os contêineres do projeto com o serviço, inclusive o que o compose atual não declara mais
+  project="$(docker compose config </dev/null 2>/dev/null | sed -n 's/^name: //p')" || project=""
+  project="${project:-${COMPOSE_PROJECT_NAME:-}}"
+  if [ -z "$project" ]; then
+    echo "FAIL  sem o nome do projeto (name: do compose ou COMPOSE_PROJECT_NAME)"
+    exit 1
+  fi
+  for svc in "$@"; do
+    mapfile -t ids < <(docker ps -aq --filter "label=com.docker.compose.project=$project" \
+      --filter "label=com.docker.compose.service=$svc" </dev/null)
+    if [ "${#ids[@]}" -eq 0 ]; then
+      echo "$svc: nada no ar para tirar"
+      continue
+    fi
+    docker stop -t "$STOP_GRACE" "${ids[@]}" >/dev/null
+    docker rm "${ids[@]}" >/dev/null
+    echo "ok  $svc saiu (${#ids[@]} contêiner(es))"
+  done
+  exit 0
+fi
+
 for svc in "$@"; do
   mapfile -t old < <(docker compose ps -q "$svc" </dev/null)
   if [ "${#old[@]}" -eq 0 ]; then
     echo "$svc: nada no ar; subindo"
     docker compose up -d --no-deps --quiet-pull "$svc" </dev/null
-    continue
+  else
+    docker compose up -d --no-deps --no-recreate --quiet-pull --scale "$svc=$((${#old[@]} + 1))" "$svc" </dev/null
   fi
-  docker compose up -d --no-deps --no-recreate --quiet-pull --scale "$svc=$((${#old[@]} + 1))" "$svc" </dev/null
   new=""
   for id in $(docker compose ps -q "$svc" </dev/null); do
     printf '%s\n' "${old[@]}" | grep -qx "$id" || new="$id"
@@ -62,12 +92,20 @@ for svc in "$@"; do
         ;;
     esac
     if [ "$SECONDS" -ge "$deadline" ]; then
-      echo "FAIL  $svc: contêiner novo não ficou healthy em $TIMEOUT s; o antigo segue no ar"
+      if [ "${#old[@]}" -eq 0 ]; then
+        echo "FAIL  $svc: contêiner novo não ficou healthy em $TIMEOUT s"
+      else
+        echo "FAIL  $svc: contêiner novo não ficou healthy em $TIMEOUT s; o antigo segue no ar"
+      fi
       docker rm -f "$new" >/dev/null
       exit 1
     fi
     sleep 2
   done
+  if [ "${#old[@]}" -eq 0 ]; then
+    echo "ok  $svc no ar (${new:0:12})"
+    continue
+  fi
   sleep "$SETTLE"
   docker stop -t "$STOP_GRACE" "${old[@]}" >/dev/null
   docker rm "${old[@]}" >/dev/null

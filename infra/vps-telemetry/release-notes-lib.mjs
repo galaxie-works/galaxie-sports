@@ -45,7 +45,7 @@ export const AREAS = [
     ],
   ],
   ['API', ['api', 'contracts', 'webhooks', 'widgets']],
-  ['App e navegação', ['demo', 'explorar', 'nav', 'live']],
+  ['App e navegação', ['demo', 'site', 'console', 'explorar', 'nav', 'live']],
   ['Infra e qualidade', ['infra', 'ci', 'smoke', 'deps', 'docker', 'db', 'test', 'tests']],
 ];
 export const areaOf = (pr) =>
@@ -155,6 +155,12 @@ export function nextTag(names, today) {
 }
 
 /**
+ * Serviços que rodam uma imagem com outro nome: a da demo vira o `site` e o `console` (issue #546). Trocar só um deles
+ * aparece nas notas com o nome dele.
+ */
+const IMAGE_SERVICES = { demo: ['site', 'console'] };
+
+/**
  * A linha das versões nas notas: o SHA publicado e o hash de cada imagem, marcando as que este deploy trocou.
  * `versions` = "api=in-abc demo=in-def"; `swapped` = os serviços trocados, separados por espaço. Vazio sem versões.
  */
@@ -165,9 +171,12 @@ export function versionsNote(sha, versions, swapped = '') {
     .map((pair) => pair.split('='));
   if (!pairs.length) return undefined;
   const changed = new Set(swapped.split(/\s+/).filter(Boolean));
-  const items = pairs.map(
-    ([name, tag]) => `\`${name}\` ${tag.slice(0, 10)}${changed.has(name) ? ' (trocada)' : ''}`,
-  );
+  const mark = (name) => {
+    if (changed.has(name)) return ' (trocada)';
+    const services = (IMAGE_SERVICES[name] ?? []).filter((s) => changed.has(s));
+    return services.length ? ` (trocada: ${services.join(', ')})` : '';
+  };
+  const items = pairs.map(([name, tag]) => `\`${name}\` ${tag.slice(0, 10)}${mark(name)}`);
   return `SHA \`${sha.slice(0, 7)}\` · ${items.join(' · ')}`;
 }
 

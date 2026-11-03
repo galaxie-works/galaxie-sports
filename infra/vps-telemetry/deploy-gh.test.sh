@@ -15,6 +15,8 @@
 #   - webhooks trocam lado a lado, e a manutenção forçada fica de fora do deploy
 #   - --project obs troca só o que é dele, e o deploy de apps não toca em obs nem em dados
 #   - um SHA anterior aos três projetos continua publicável, sem subir um segundo Postgres no mesmo volume
+#   - a demo vira site e console (issue #546): os dois sobem lado a lado, a demo sai depois, o candidato e o smoke rodam
+#     nos dois; só a configuração do console muda → troca só ele; volta para um SHA com a demo e de novo para a frente
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
 set -euo pipefail
@@ -31,7 +33,7 @@ PORT="${TEST_REGISTRY_PORT:-15055}"
 REGISTRY_CT="$PROJECT_T-registry"
 P="localhost:$PORT/$PROJECT_T/gs"
 NAMES=(api demo ingestor backup prometheus grafana)
-APPS=(agents api demo ingestor maintenance migrate tarefa webhooks)
+APPS=(agents api console demo ingestor maintenance migrate site tarefa webhooks)
 DADOS=(backup postgres s3 s3-init valkey)
 OBS=(grafana node-exporter prometheus)
 ZERO=0000000000000000000000000000000000000000
@@ -169,9 +171,6 @@ services_apps() {
   webhooks:
     <<: *app
     image: \${IMAGE_PREFIX:?}-api:\${TAG_API:?}
-  demo: &demo
-    <<: *app
-    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
   ingestor:
     <<: *app
     image: \${IMAGE_PREFIX:?}-ingestor:\${TAG_INGESTOR:?}
@@ -186,11 +185,50 @@ services_apps() {
     restart: 'no'
     environment:
       CANDIDATO: '1'
+YML
+  web_services
+}
+# o app web: a demo num serviço só (antes da issue #546) ou, com SPLIT=1, site e console da mesma imagem
+SPLIT=""
+web_services() {
+  if [ -z "$SPLIT" ]; then
+    cat <<YML
+  demo: &demo
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
   demo-candidate:
     <<: *demo
     profiles: [candidate]
     restart: 'no'
     environment:
+      CANDIDATO: '1'
+YML
+    return
+  fi
+  cat <<YML
+  site: &site
+    <<: *app
+    image: \${IMAGE_PREFIX:?}-demo:\${TAG_DEMO:?}
+    environment:
+      APP_ROLE: site
+  console: &console
+    <<: *site
+    environment:
+      APP_ROLE: console
+      PAPEL: um
+  site-candidate:
+    <<: *site
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      APP_ROLE: site
+      CANDIDATO: '1'
+  console-candidate:
+    <<: *console
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      APP_ROLE: console
       CANDIDATO: '1'
 YML
 }
@@ -312,10 +350,13 @@ project_of() { # o projeto de um serviço, depois da transição
 id_of() { docker ps -aq --filter "label=com.docker.compose.project=$(project_of "$1")" --filter "label=com.docker.compose.service=$1" | head -n 1; }
 created() { # o .Created de cada serviço
   local svc
+  local id
   for svc in "${APPS[@]}" "${DADOS[@]}" "${OBS[@]}"; do
-    printf '%s %s\n' "$svc" "$(docker inspect -f '{{.Created}}' "$(id_of "$svc")")"
+    id="$(id_of "$svc")"
+    if [ -n "$id" ]; then printf '%s %s\n' "$svc" "$(docker inspect -f '{{.Created}}' "$id")"; else printf '%s -\n' "$svc"; fi
   done
 }
+running() { docker ps -q --filter "label=com.docker.compose.project=$PROJECT_T" --filter "label=com.docker.compose.service=$1" | grep -c . || true; }
 env_of() { sed -n "s/^$1=//p" "$VPS_D/.env" | tail -n 1; }
 image_of() { docker exec "$(id_of "$1")" cat /version; } # o conteúdo de /version do contêiner no ar
 
@@ -692,5 +733,71 @@ expect_rc 0
 expect_eq "TAG_DEMO de novo" "$(env_of TAG_DEMO)" "in-$(hash_of demo)"
 expect_eq "demo da frente no ar" "$(image_of demo)" "$(hash_of demo)"
 
-[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou e transição para três projetos"
+echo "── C12: a demo vira site e console (#546): os dois sobem, a demo sai depois deles"
+SPLIT=1
+write_split_composes "$REPO_T/infra/vps-telemetry"
+C12="$(commit "c12: site e console")"
+publish
+before="$(created)"
+deploy "$C12"
+expect_rc 0
+expect_log '^plano:.*site: troca \(novo\)'
+expect_log '^plano:.*console: troca \(novo\)'
+expect_log '^plano:.*demo: sai \(fora do compose novo; imagem demo\)'
+expect_log '^candidato healthy: api-candidate site-candidate console-candidate'
+expect_log '^smoke no site-candidate'
+expect_log '^smoke no console-candidate'
+expect_log '^ok  site no ar'
+expect_log '^ok  console no ar'
+expect_log '^ok  demo saiu'
+expect_log '^smoke no site$'
+expect_log '^smoke no console$'
+expect_log '^ok  site na versão in-'
+expect_log '^ok  console na versão in-'
+expect_recreated "$before" demo site console
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_eq "um site" "$(running site)" 1
+expect_eq "um console" "$(running console)" 1
+expect_eq "site na imagem da demo" "$(image_of site)" "$(hash_of demo)"
+expect_eq "console no papel dele" "$(docker exec "$(id_of console)" printenv APP_ROLE)" console
+expect_eq "notas: site e console" "$(grep '^swapped=' "$WORK/github_output")" "swapped=site console"
+expect_eq "sem candidato no ar" "$(running site-candidate)$(running console-candidate)$(running api-candidate)" 000
+
+echo "── C13: só a configuração do console muda: troca só o console, o site fica"
+sed -i 's/PAPEL: um/PAPEL: dois/' "$REPO_T/infra/vps-telemetry/compose.yml"
+C13="$(commit "c13: console")"
+publish
+before="$(created)"
+deploy "$C13"
+expect_rc 0
+expect_log '^plano:.*console: troca \(config mudou\)'
+expect_log '^plano:.*site: igual, fica'
+expect_log 'ok  console trocado sem manutenção'
+expect_recreated "$before" console
+expect_eq "console com a configuração nova" "$(docker exec "$(id_of console)" printenv PAPEL)" dois
+expect_eq "notas: só o console" "$(grep '^swapped=' "$WORK/github_output")" "swapped=console"
+
+echo "── volta para a C11 (a demo, antes da divisão): a demo sobe e site e console saem depois dela"
+git -C "$REPO_T" worktree add -q --detach "$WORK/alvo-c11" "$C11"
+before="$(created)"
+deploy "$C11" FORCE=1 TARGET_DIR="$WORK/alvo-c11"
+expect_rc 0
+expect_log '^plano:.*demo: troca \(novo\)'
+expect_log '^plano:.*site: sai'
+expect_log '^plano:.*console: sai'
+expect_log '^ok  site saiu'
+expect_log '^ok  console saiu'
+expect_log '^smoke no demo$'
+expect_eq "demo no ar" "$(running demo)" 1
+expect_eq "nenhum site" "$(running site)" 0
+expect_eq "nenhum console" "$(running console)" 0
+
+echo "── e de novo para a frente"
+deploy "$C13"
+expect_rc 0
+expect_log '^ok  demo saiu'
+expect_eq "nenhum contêiner da demo" "$(running demo)" 0
+expect_eq "site e console no ar" "$(running site)$(running console)" 11
+
+[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou, transição para três projetos e a divisão em site e console"
 exit "$fail"

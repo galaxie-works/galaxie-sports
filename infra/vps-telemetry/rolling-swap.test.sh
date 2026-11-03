@@ -3,7 +3,10 @@
 # stack): uma stack descartável com o Traefik da VPS (mesma versão) e um app com healthcheck e o gsports-retry, como a
 # API e a demo. Enquanto a troca roda, um laço pede a rota pelo Traefik a cada 50 ms; qualquer resposta que não seja
 # 200 falha o teste. Depois, uma versão que nunca fica healthy: a troca tem de falhar e a versão anterior seguir no ar.
-# Por último, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Depois, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Por último, o site e o console no mesmo host (issue #546), com as prioridades e o PathRegexp do compose.yml: os prefixos
+# do console vão para ele e o resto para o site; com o console fora, os prefixos dele caem na manutenção e o site segue;
+# o --retire tira um serviço e a troca de um serviço sem contêiner no ar espera o healthy.
 #
 #   bash infra/vps-telemetry/rolling-swap.test.sh
 set -euo pipefail
@@ -54,6 +57,49 @@ services:
       APP_VERSION: ${APP_VERSION}
     healthcheck:
       disable: true
+  # site e console como no compose.yml da VPS (prioridades 1000, 1500 e 2000, PathRegexp com o $ escapado), em outro host
+  site: &web
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'site']
+    healthcheck: &web-health
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:80/']
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.site.rule=Host(`web.test`)
+      - traefik.http.routers.site.entrypoints=websecure
+      - traefik.http.routers.site.priority=1000
+      - traefik.http.routers.site.service=site
+      - traefik.http.services.site.loadbalancer.server.port=80
+      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console-maintenance.entrypoints=websecure
+      - traefik.http.routers.console-maintenance.priority=1500
+      - traefik.http.routers.console-maintenance.service=maintenance
+  console:
+    <<: *web
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'console']
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console.entrypoints=websecure
+      - traefik.http.routers.console.priority=2000
+      - traefik.http.routers.console.service=console
+      - traefik.http.services.console.loadbalancer.server.port=80
+  maintenance:
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--status', '503', '--body', 'manutencao']
+    healthcheck:
+      disable: true
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.maintenance-host.rule=Host(`maintenance.test`)
+      - traefik.http.routers.maintenance-host.entrypoints=websecure
+      - traefik.http.routers.maintenance-host.service=maintenance
+      - traefik.http.services.maintenance.loadbalancer.server.port=80
 YML
 
 cleanup() {
@@ -155,3 +201,51 @@ got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSI
   exit 1
 }
 echo "ok  worker sem healthcheck trocado"
+
+echo "── site e console no mesmo host: prefixos do console nele, o resto no site; console fora não afeta o site"
+web() { curl -s -m 2 -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+web_status() { curl -s -m 2 -o /dev/null -w '%{http_code}' -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+# espera cada caminho responder o corpo esperado (o Traefik leva um instante para ver contêiner novo, parado ou saudável)
+expect_web() {
+  local path want got=""
+  for _ in $(seq 60); do
+    got=""
+    for pair in "$@"; do
+      path="${pair%%=*}"
+      want="${pair#*=}"
+      got="$(web "$path")"
+      [ "$got" = "$want" ] || break
+    done
+    [ "$got" = "$want" ] && return 0
+    sleep 1
+  done
+  echo "FAIL  $path respondeu '$got', não '$want'"
+  APP_VERSION=4 docker compose ps -a
+  exit 1
+}
+APP_VERSION=4 docker compose up -d --quiet-pull site console maintenance
+expect_web /=site /times/1=site /clientes=site /ajustes-antigos=site /login=site /api/auth/x=site \
+  /cliente=console /cliente/builder/novo=console /ajustes=console /api/ajustes/operacao=console /api/cliente/x=console
+echo "ok  console pelos prefixos dele (PathRegexp e prioridade), o resto no site"
+
+APP_VERSION=4 docker compose stop console >/dev/null
+expect_web /cliente/builder=manutencao /ajustes=manutencao /=site /times/1=site
+[ "$(web_status /cliente)" = 503 ] || {
+  echo "FAIL  /cliente com o console fora respondeu $(web_status /cliente), não 503"
+  exit 1
+}
+echo "ok  console fora: os prefixos dele na manutenção (503), o site segue"
+
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" --retire console
+n=$(APP_VERSION=4 docker compose ps -aq console | grep -c . || true)
+[ "$n" = 0 ] || {
+  echo "FAIL  --retire deixou $n contêiner(es) do console"
+  exit 1
+}
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" console
+[ "$(docker inspect -f '{{.State.Health.Status}}' "$(APP_VERSION=4 docker compose ps -q console)")" = healthy ] || {
+  echo "FAIL  a troca de um serviço sem contêiner no ar terminou antes do healthy"
+  exit 1
+}
+expect_web /cliente=console /=site
+echo "ok  --retire tira o serviço, e a troca de um serviço sem contêiner no ar sobe e espera o healthy"
