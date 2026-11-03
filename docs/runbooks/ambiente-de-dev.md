@@ -20,6 +20,7 @@ as migrations no Postgres do dev. As variáveis estão em
 |---|---|---|
 | Postgres, Valkey, RustFS | Sempre ligados (o `s3-init` cria o bucket de assets, com leitura pública, e encerra) | — |
 | `migrate` | Roda a cada atualização da stack (a cada merge na main) com a imagem `api:main` e encerra: as migrations da main no Postgres do dev ([abaixo](#migrate-as-migrations-da-main-no-dev)) | — (plano B: `infra/ops/migrate-dev.sh`) |
+| `espelho` (produção → dev, semanal) | Sempre ligado: `crond` que roda o espelho toda segunda às 06:30 UTC (`ESPELHO_CRON`); a partida não espelha | Ver [Espelho semanal produção → dev](#espelho-semanal-produção--dev) |
 | `ingestor` (scheduler, ao vivo) | **Não sobe**: está no perfil `workers` do compose | `COMPOSE_PROFILES=workers` no ambiente da stack |
 | `agents` (agentes de IA) | **Não sobe**: perfil `workers` | idem |
 | Cada job do ingestor e dos agentes | `SCHEDULE_<JOB>=off` (inclusive `live-run`, `live-reconcile` e `events-clock`) | `SCHEDULE_<JOB>=<cron de 5 campos, UTC>`, ou "Rodar agora" no painel |
@@ -121,6 +122,125 @@ resultado no dia 02/11/2026 (nenhuma sobrescrita no banco de dev):
 select key, updated_at from ops.runtime_setting order by key;
 ```
 
+## Espelho semanal produção → dev
+
+Dev e produção precisam do mesmo cadastro (times, competições, emissoras) com os mesmos ids: o manifesto do acervo
+gerado no dev não tinha o Barcelona BA (#525) e importá-lo teria tirado um escudo certo da produção. Por isso, toda
+semana o dev vira uma cópia da produção **sem segredos, sem sessões e com usuários fictícios** (#551). A produção fica
+intacta: o espelho lê a cópia dos dumps que o NAS já guarda e escreve só no Postgres e no RustFS do dev.
+
+Roda no NAS, no serviço `espelho` da própria stack `galaxie-sports-dev` (um `postgres:17-alpine` com `age` e `aws-cli`
+instalados na partida, como o `backup-nas` faz com o `rsync`), pelo `crond`, com o script
+[infra/ops/mirror-prod-to-dev.sh](../../infra/ops/mirror-prod-to-dev.sh) e a SQL
+[infra/ops/mirror-prod-to-dev.sql](../../infra/ops/mirror-prod-to-dev.sql) copiados para a pasta da stack
+(`NAS_DEV_PATH`). A cada execução:
+
+1. **Dump.** O mais recente de `daily/` da pasta da stack `galaxie-sports-backup-nas` (`NAS_BACKUP_PATH`, montada só
+   leitura em `/backups`), com o `.sha256` conferido e, sendo `.dump.age`, decifrado com a **chave privada do ensaio**
+   (`BACKUP_AGE_IDENTITY`, a mesma do `.env` da VPS; [exercício de DR › Dumps cifrados](exercicio-dr.md#dumps-cifrados-age))
+   numa cópia apagada ao sair.
+2. **Banco temporário.** `pg_restore` em `<POSTGRES_DB>_espelho`, no Postgres do dev.
+3. **Anonimização** (`mirror-prod-to-dev.sql`, numa transação): todo o `demo_auth` é esvaziado, menos `user` e
+   `cache_feed_cursor` (negar por padrão: sessão, código de login, conta, convite, atividade, tentativas e o que o
+   Better Auth criar amanhã); os usuários viram `Pessoa N` / `pessoa-N@exemplo.invalid` sem foto nem perfil (papel e
+   tenant ficam); `api.api_key`, `api.webhook_endpoint` (e as entregas) e `ops.publishable_key` são apagadas;
+   `ops.runtime_setting`, o histórico e `ops.runtime_env` saem (o painel manda mais que o ambiente: uma sobrescrita da
+   produção ligaria job, IA ou YouTube no dev); pedidos pendentes/em curso de `ops.job_request` e backfills pendentes
+   saem (um worker do dev os executaria); colunas de autoria com e-mail viram `usuario@exemplo.invalid`.
+4. **O que é do dev volta** do banco de dev de hoje: as contas de teste (e-mail terminado em
+   `ESPELHO_TEST_EMAIL_SUFFIX`, padrão `@galaxie.test`: `teste.admin@galaxie.test` e `teste.convidado@galaxie.test`)
+   com as `account` delas, os tenants que só existem no dev (id e slug livres) e as chaves da API e publicáveis do dev.
+   Assim o `.env` da máquina de dev continua valendo depois do espelho.
+5. **Conferência**, antes de qualquer troca: nenhuma sessão nem código de login, nenhuma chave nem chave publicável da
+   produção (os prefixos e hashes do dump são guardados em `espelho_tmp` só para isso), nenhum webhook, nenhuma
+   sobrescrita do painel, nenhum pedido pendente, nenhum usuário com e-mail real. Qualquer sobra barra o espelho.
+6. **Contagens por tabela**, dev de hoje × cópia, no log. Com `--plan` para aqui: apaga o temporário, grava
+   `last_plan.txt` e não aplica nada.
+7. **Aplicação.** Dump do dev de hoje em `NAS_DEV_PATH/dev-dumps/` (os 3 mais recentes ficam; `ESPELHO_KEEP_DEV_DUMPS`),
+   conexões do dev fechadas e derrubadas (o `next dev`, os workers e as CLIs reconectam no banco novo), troca pelo nome:
+   o dev anterior fica como `<POSTGRES_DB>_pre_espelho` (sem conexões; o anterior a ele só é apagado com a troca
+   feita) e a cópia vira `<POSTGRES_DB>`.
+   Em seguida o Valkey do dev é esvaziado (`ESPELHO_VALKEY_HOST`, `off` desliga): o cache de respostas da API foi
+   montado sobre o banco antigo e a troca não passa pelo change feed; filas e contadores do dev recomeçam do zero.
+8. **Assets.** Cada prefixo de `ESPELHO_S3_PREFIXES` vai de `s3/<prefixo>/` da pasta do NAS (o que o `nas-pull.sh`
+   guardou) para o bucket público do RustFS do dev. Só prefixos públicos (escudos, logos: os mesmos de
+   `NAS_S3_PREFIXES`, por exemplo `acervo competitions broadcasters platforms commons/people wikimedia`); `tasks-bucket`
+   é recusado (bucket privado das tarefas: pacotes licenciados e uploads de cliente). O prefixo `api-sports/` não entra
+   em backup nenhum: no dev, o job `assets-mirror` o refaz sem gastar cota.
+9. **Recibo** em `NAS_DEV_PATH/last_run.txt` e log JSON (`service: espelho`) no container.
+
+### Variáveis da stack
+
+| Variável | Para quê | Padrão |
+|---|---|---|
+| `BACKUP_AGE_IDENTITY` | Chave **privada** do ensaio (`AGE-SECRET-KEY-1…`), a mesma do `.env` da VPS. Obrigatória: sem ela a stack não sobe. Só no ambiente da stack do Portainer, nunca em arquivo do repositório | — |
+| `NAS_BACKUP_PATH` | Pasta da stack `galaxie-sports-backup-nas` (`daily/`, `s3/`), montada só leitura | `/volume1/Docker/galaxie-sports-backups` |
+| `NAS_DEV_PATH` | Pasta desta stack: script, SQL, `last_run.txt`, `last_plan.txt`, `dev-dumps/`, `tmp/` | `/volume1/Docker/galaxie-sports-dev` |
+| `ESPELHO_CRON` | Cron de 5 campos (UTC) | `30 6 * * 1` (segunda, depois da cópia das 05:15 do `nas-pull.sh`) |
+| `ESPELHO_ON_START` | `true` espelha na partida; `plan` só faz a prévia na partida | `false` |
+| `ESPELHO_S3_PREFIXES` | Prefixos públicos do bucket de assets a copiar (vazio = só o banco) | vazio |
+| `ESPELHO_S3_DELETE` | `true` apaga do bucket do dev o que sumiu da cópia | `false` |
+| `ESPELHO_TEST_EMAIL_SUFFIX` | Sufixo das contas de teste que ficam | `@galaxie.test` |
+| `ESPELHO_KEEP_DEV_DUMPS` | Dumps do dev guardados antes de cada troca | `3` |
+| `ESPELHO_RESTORE_JOBS` | Paralelismo do `pg_restore` | `2` |
+| `ESPELHO_VALKEY_HOST` | Valkey a esvaziar depois da troca (`off` = não mexe) | `valkey` |
+
+A chave do ensaio no dev não abre nada além do que a VPS já tem: o backup da VPS usa a mesma para conferir cada dump.
+A chave de recuperação continua só com o Wagner.
+
+### Instalar e rodar à mão
+
+1. Copie `infra/ops/mirror-prod-to-dev.sh` e `infra/ops/mirror-prod-to-dev.sql` para `NAS_DEV_PATH` no NAS (o compose
+   roda os arquivos da pasta; atualizar o script é copiar de novo, sem refazer a stack).
+2. No Portainer, acrescente `BACKUP_AGE_IDENTITY` (e `ESPELHO_S3_PREFIXES`, se quiser os assets; `NAS_BACKUP_PATH` e
+   `NAS_DEV_PATH` só se as pastas não forem as padrão) às variáveis da stack **antes** de o compose com o `espelho`
+   chegar à `nas-dev` ([stack a partir do git](#stack-a-partir-do-git)): a chave é `${VAR:?}`, e o redeploy sem ela
+   falha a stack inteira. Com a variável lá, o polling aplica o compose sozinho (ou *Pull and redeploy*).
+3. Primeira vez, uma **prévia** no console do container `espelho`:
+
+   ```sh
+   . /etc/espelho.env; sh /data/mirror-prod-to-dev.sh --plan
+   ```
+
+   Saem o dump usado, a tabela `tabela / dev (hoje) / cópia` com as contagens de todas as tabelas, a conferência e, no
+   fim, `prévia concluída … nada aplicado`.
+4. Aplicar à mão (ou esperar a segunda): `. /etc/espelho.env; sh /data/mirror-prod-to-dev.sh`. Um dump específico:
+   `--dump galaxie_sports_<data>.dump.age`.
+
+**Ler o recibo.** `NAS_DEV_PATH/last_run.txt` tem uma linha, como no `nas-pull.sh`:
+
+```text
+2026-11-09T06:41:12Z ok: dump galaxie_sports_20261109T033000Z.dump.age; 187 tabelas; core.event=51234 core.participant=9876; conferência: sessoes_codigos_e_afins=0 contas_de_login_reais=0 usuarios_reais=0 chaves_api_da_producao=0 chaves_publicaveis_da_producao=0 webhooks=0 sobrescritas_do_painel=0 pedidos_pendentes=0 backfills_pendentes=0; dev anterior em galaxie_sports_pre_espelho e em galaxie_sports_dev_20261109T063001Z.dump; assets: 1842 objeto(s); 412s
+```
+
+`erro: …` em vez de `ok:` diz em que passo parou; nos passos até a conferência o dev fica intacto e o temporário é
+apagado. A prévia grava `last_plan.txt` do mesmo jeito. O log do container (`service: espelho`) tem o passo a passo.
+
+**Rollback** (o dev de antes do último espelho): no Postgres do dev, `alter database galaxie_sports rename to
+galaxie_sports_espelho_ruim; alter database galaxie_sports_pre_espelho rename to galaxie_sports; alter database
+galaxie_sports with allow_connections true;`. Ou restaure o dump de `dev-dumps/` com `pg_restore`.
+
+**Depois do espelho:** as contas de teste entram como antes (o código sai no log do `next dev`); as chaves do `.env` de
+dev continuam valendo; `ops.runtime_setting` está vazio, então o que vale é o ambiente da stack (tudo `off`); os ledgers
+(`ops.quota_ledger`, `ops.llm_usage`) trazem as linhas da produção até a hora do dump. **Esquema:** a cópia traz as
+migrations da produção; quando o dev estava à frente (migrations da main ainda não publicadas), o recibo e o log trazem
+`AVISO: a cópia tem N migration(s) a menos que o dev`, e aí é rodar `pnpm db:migrate` na máquina de dev (ou o serviço
+`migrate` da stack, #550) para reaplicar as que faltam, antes de subir workers ou CLIs na versão nova.
+
+### Arquivos gerados a partir de dados: só contra a produção
+
+Arquivo versionado gerado a partir de dados do banco (o manifesto do acervo e o relatório de cobertura do
+`assets:acervo --mapear`, relatórios de cobertura em `config/`) é gerado **contra a produção**, nunca contra o dev. O
+dev é a produção só até o próximo espelho; o que ele tem a mais (um teste) ou a menos (uma correção feita na produção
+na semana) entraria no arquivo e, importado, tiraria ou trocaria um dado certo da produção (#525). O espelho reduz a
+diferença, não a elimina.
+
+As CLIs avisam quando o `DATABASE_URL` é o do dev (host `192.168.1.34` ou porta `5433`;
+`packages/db/src/dev-database.ts`): o `assets:acervo --mapear` e o `gs` imprimem o aviso e seguem, porque a prévia no
+dev continua útil; o arquivo que vai para o repositório sai da execução na produção
+([acervo de logos](acervo-de-logos.md)). Critério de aceite do #551: depois do espelho, o `--mapear` no dev gera o mesmo
+manifesto que na produção (confira as duas saídas na primeira semana).
+
 ## Stack a partir do git
 
 Decisão de 03/11/2026 (#552): a stack `galaxie-sports-dev` é uma stack **a partir do repositório** no Portainer CE 2.39
@@ -142,8 +262,9 @@ atraso. Nunca faça commit na `nas-dev`: o job a sobrescreve (`push` simples, se
 quebraria o job até ser removido).
 
 O compose foi feito para isso: não depende de nenhum arquivo ao lado (só dele e das variáveis da stack), toda variável
-sem segredo tem padrão e os três segredos (`POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`) são `${VAR:?}`: sem eles
-a stack não sobe, em vez de subir um Postgres sem senha. O CI valida o arquivo
+sem segredo tem padrão e os quatro segredos (`POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` e, desde o #551,
+`BACKUP_AGE_IDENTITY`, a chave do ensaio que o `espelho` usa) são `${VAR:?}`: sem eles a stack não sobe, em vez de subir
+um Postgres sem senha. O CI valida o arquivo
 (`docker compose … config -q`, com e sem o perfil `workers`) e o vitest do ingestor trava as regras (migrate sem perfil
 na tag `main` com a imagem e o comando da produção, workers na mesma tag, segredos sem padrão).
 
@@ -279,7 +400,9 @@ select job, status, count(*) from ops.job_run where started_at > now() - interva
 ```
 
 Num ambiente recém-criado as duas primeiras tabelas ficam vazias. O banco de dev atual guarda o histórico anterior à
-stack (até 24/10/2026), então a conferência é por "nenhuma linha depois da aplicação".
+stack (até 24/10/2026), então a conferência é por "nenhuma linha depois da aplicação". Depois de um espelho
+(seção acima) os ledgers trazem as linhas da **produção** até a hora do dump: a conferência passa a ser "nenhuma linha
+depois do espelho" (`last_run.txt` tem o horário).
 
 ## Rollback
 

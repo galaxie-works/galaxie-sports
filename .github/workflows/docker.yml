@@ -397,6 +397,9 @@ jobs:
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
 
+      - name: docker compose config (a stack de dev do NAS, com o serviço espelho)
+        run: docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
+
       # O Traefik descarta um middleware declarado diferente em dois contêineres: os gsports-* têm de ser iguais em
       # todos os serviços que os declaram (infra/traefik/README.md)
       - name: Middlewares da borda iguais em todos os serviços
@@ -432,7 +435,7 @@ jobs:
             infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/deploy-gh.test.sh \
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
-            infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh \
+            infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh             infra/ops/mirror-prod-to-dev.sh infra/ops/mirror-prod-to-dev.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
@@ -468,6 +471,9 @@ jobs:
 
       - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
         run: bash infra/nas-backup/nas-pull.test.sh
+
+      - name: Espelho produção → dev (mirror-prod-to-dev.sh com psql, pg_restore, age e aws falsos)
+        run: bash infra/ops/mirror-prod-to-dev.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

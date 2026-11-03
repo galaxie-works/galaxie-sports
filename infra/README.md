@@ -11,7 +11,7 @@ observabilidade e os scripts de operação.
 | [`ops/`](ops/README.md) | Plano B de operação a partir da máquina de dev (deploy, trem de merge, portão do Codex, issue de alerta) | dev (Git Bash) |
 | [`backup/`](backup/README.md) | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
 | `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) | NAS |
-| [`nas-dev/`](nas-dev/compose.yml) | Stack `galaxie-sports-dev` do NAS: Postgres, Valkey e RustFS do **desenvolvimento**, mais ingestor e agents no perfil `workers`, que nascem com tudo que gasta cota desligado ([ambiente de dev](../docs/runbooks/ambiente-de-dev.md)) | NAS |
+| [`nas-dev/`](nas-dev/compose.yml) | Stack `galaxie-sports-dev` do NAS: Postgres, Valkey e RustFS do **desenvolvimento**, mais ingestor e agents no perfil `workers`, que nascem com tudo que gasta cota desligado, e o `espelho` semanal produção → dev a partir dos dumps do NAS ([ambiente de dev](../docs/runbooks/ambiente-de-dev.md)) | NAS |
 | `observability/` | Imagens do Prometheus (alertas, SLOs, testes de regra) e do Grafana (painéis de cota e SLO, alertas → issues) | VPS |
 | `lineup-render/` | Servidor do Playwright para renderizar páginas de grade com JavaScript. Fora do workspace pnpm (tem `package-lock.json` próprio) | VPS (`lineup-render`) |
 | `healthcheck/selfheal.mjs` | Healthcheck com auto-reinício, copiado nas imagens Node (API, demo, ingestor) | dentro das imagens |
