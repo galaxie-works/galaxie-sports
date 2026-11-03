@@ -119,7 +119,8 @@ describe('cursor do espelho de assets', () => {
       flag: { createdAt: 'b', id: '2' },
     });
     expect(await volei.load()).toEqual({ team_logo: { createdAt: 'c', id: '3' } });
-    await padrao.save({});
+    // zerar sem ler antes (`--do-inicio`) também zera todos os tipos
+    await mirrorCursorStore(cursors).save({});
     expect(await mirrorCursorStore(cursors).load()).toEqual({});
     expect(await mirrorCursorStore(cursors, { pathPrefix: 'volley' }).load()).toEqual({
       team_logo: { createdAt: 'c', id: '3' },
