@@ -181,6 +181,22 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
   await beat();
   const heartbeat = setInterval(() => void beat(), 30_000);
 
+  // O `running` que o processo anterior deixou fecha antes de qualquer job subir: o job que fica no ar (trava por
+  // cópia) pegaria a trava `<job>@<cópia>` do mesmo hostname (o contêiner reiniciado) e a linha órfã ficaria `running`
+  if (db && jobLock) {
+    try {
+      const orphans = await closeOrphans(
+        db,
+        definitions.map((j) => j.name),
+        { bootedAt, lock: jobLock },
+      );
+      if (orphans.runs || orphans.requests || orphans.busy.length)
+        log.info(orphans, 'execuções e pedidos deixados como running pelo processo anterior');
+    } catch (err) {
+      log.warn({ err }, 'não foi possível fechar as execuções deixadas pelo processo anterior');
+    }
+  }
+
   await service.start();
 
   for (const name of (process.env.SCHEDULER_RUN_ON_START ?? '')
@@ -196,17 +212,10 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     }
   }
 
-  // Volta de um reinício: fecha o `running` que o processo anterior deixou (só com a trava do job livre) e roda uma
-  // vez o job cujo horário passou com o scheduler fora do ar (catch-up.ts)
+  // Volta de um reinício: roda uma vez o job cujo horário passou com o scheduler fora do ar (catch-up.ts); o `running`
+  // deixado pelo processo anterior já fechou antes da partida (acima)
   async function recover(): Promise<void> {
     if (!db || !jobLock) return;
-    const orphans = await closeOrphans(
-      db,
-      definitions.map((j) => j.name),
-      { bootedAt, lock: jobLock },
-    );
-    if (orphans.runs || orphans.requests || orphans.busy.length)
-      log.info(orphans, 'execuções e pedidos deixados como running pelo processo anterior');
     if (['off', 'false', '0'].includes((process.env.SCHEDULER_CATCHUP ?? '').trim().toLowerCase())) return;
     const maxHours = Number(process.env.SCHEDULER_CATCHUP_MAX_HOURS);
     const missed = missedSlots(
