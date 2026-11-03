@@ -70,3 +70,62 @@ export async function tryJobLock(
     },
   };
 }
+
+export interface JobLockContenderOptions {
+  /** Nome da sessão em pg_stat_activity (quem está na disputa e quem tem a trava). */
+  applicationName?: string | undefined;
+}
+
+/** Disputa contínua pela mesma trava, numa conexão só (a reserva do ao vivo tenta a cada segundo). */
+export interface JobLockContender {
+  /** Tenta pegar a trava sem esperar: `null` = outro processo a segura; banco fora lança. */
+  tryAcquire(options?: JobLockOptions): Promise<JobLock | null>;
+  /** Fecha a conexão (e solta a trava, se ainda a segurar). */
+  close(): Promise<void>;
+}
+
+/**
+ * Como `tryJobLock`, para quem tenta de novo o tempo todo: abrir uma conexão por tentativa custaria uma
+ * autenticação por segundo no Postgres, e esta conexão fica como a sessão visível da cópia em espera. Se ela
+ * cair, a próxima tentativa reconecta sozinha; se caiu com a trava na mão, avisa `onLost`.
+ */
+export function jobLockContender(
+  url: string,
+  job: string,
+  options: JobLockContenderOptions = {},
+): JobLockContender {
+  /** Presente só enquanto a trava está na mão: identifica o mandato e avisa a perda. */
+  let holder: { onLost: (() => void) | undefined } | null = null;
+  const sql = postgres(url, {
+    max: 1,
+    idle_timeout: 0,
+    max_lifetime: null,
+    onnotice: () => {},
+    ...(options.applicationName ? { connection: { application_name: options.applicationName } } : {}),
+    onclose: () => {
+      const lost = holder;
+      holder = null;
+      lost?.onLost?.();
+    },
+  });
+  return {
+    async tryAcquire(acquire = {}) {
+      const [row] = await sql<{ locked: boolean }[]>`
+        select pg_try_advisory_lock(hashtext(${JOB_LOCK_SPACE}), hashtext(${job})) as locked`;
+      if (!row?.locked) return null;
+      const mine = { onLost: acquire.onLost };
+      holder = mine;
+      return {
+        async release() {
+          if (holder !== mine) return;
+          holder = null;
+          await sql`select pg_advisory_unlock(hashtext(${JOB_LOCK_SPACE}), hashtext(${job}))`.catch(() => {});
+        },
+      };
+    },
+    async close() {
+      holder = null;
+      await sql.end({ timeout: 5 });
+    },
+  };
+}
