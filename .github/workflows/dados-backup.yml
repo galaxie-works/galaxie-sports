@@ -1,0 +1,185 @@
+name: Dados — imagem do backup
+
+# Publica na VPS a imagem do serviço `backup` do projeto dados (compose.dados.yml), que o deploy.yml não toca
+# (docs/runbooks/stack-dados-e-observabilidade.md: dados só por runbook). Só por disparo manual: grava TAG_BACKUP=in-<hash>
+# no .env da VPS, baixa a imagem com o token deste job (login temporário, como no deploy; o `up` também usa a credencial,
+# porque o backup tem pull_policy always) e recria só o `backup` (--no-deps: postgres, valkey e s3 ficam como estão). Recriar o backup não afeta ninguém. Voltar: o .env.bak-dados-* e
+# `docker compose -f compose.dados.yml up -d --no-deps backup`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit da main cuja imagem de backup publicar (vazio = a ponta da main)
+        required: false
+      sync:
+        description: Rodar o s3-sync.sh depois de subir (1 = sim)
+        required: false
+        default: '1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: backup na VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: producao
+    permissions:
+      actions: read # CI e imagens do commit
+      contents: read
+      packages: read # a VPS baixa a imagem com o token deste job (vale só enquanto ele roda)
+    env:
+      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+      DIR: /docker/galaxie-sports
+      IMAGE: ghcr.io/galaxie-works/galaxie-sports-backup
+    steps:
+      # a mesma régua do gate do deploy.yml: o commit tem de estar na main e com o CI e o workflow de imagens verdes
+      # (o in-<hash> também sai de commit de fila de merge; só o manifesto não basta)
+      - name: Commit na main e CI verde
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          head=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          sha=$(gh api "repos/$GH_REPO/commits/${INPUT_SHA:-$head}" --jq .sha)
+          status=$(gh api "repos/$GH_REPO/compare/$sha...main" --jq .status)
+          case "$status" in identical | ahead) ;; *)
+            echo "::error::${sha:0:7} não está na main ($status)"
+            exit 1
+            ;;
+          esac
+          for wf in ci.yml docker.yml; do
+            run=$(gh api "repos/$GH_REPO/actions/workflows/$wf/runs?head_sha=$sha&event=push&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status) \(.conclusion // "-")"') || run=""
+            echo "$wf: ${run:-sem execução}"
+            [ "$run" = "completed success" ] || { echo "::error::$wf não está verde em ${sha:0:7} (${run:-sem execução}); nada publicado"; exit 1; }
+          done
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pick.outputs.sha }}
+
+      - name: Tag da imagem (infra/ops/image-hash.sh)
+        id: tag
+        run: |
+          sha=$(git rev-parse HEAD)
+          [ "$sha" = "${{ steps.pick.outputs.sha }}" ] || { echo "::error::checkout em $sha, esperado ${{ steps.pick.outputs.sha }}"; exit 1; }
+          hash=$(bash infra/ops/image-hash.sh backup)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=in-$hash" >> "$GITHUB_OUTPUT"
+          echo "commit ${sha:0:7} → $IMAGE:in-$hash"
+
+      - name: Login no GHCR (conferir a imagem)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: A imagem existe no GHCR
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker manifest inspect "$IMAGE:$TAG" >/dev/null ||
+            { echo "::error::$IMAGE:$TAG não está no GHCR (o workflow de imagens terminou com sucesso neste commit?)"; exit 1; }
+
+      - name: Chave SSH da VPS
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
+            echo "::error::secrets VPS_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados (docs/runbooks/deploy-pelo-github.md)"
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          printf 'Host *\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      # a mesma trava do deploy.sh e do deploy-gh.sh (.deploy.lock): o grupo de concorrência do Actions não vê um deploy
+      # rodando da máquina de alguém, e os dois mexem no .env
+      - name: Trava da VPS
+        env:
+          LOCK_ID: gha-dados-${{ github.run_id }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          LOCK="$DIR/.deploy.lock"
+          owner="$LOCK_ID $TAG $(date -u +%FT%TZ)"
+          lock="$(ssh "$VPS" "if mkdir $LOCK 2>/dev/null; then echo '$owner' > $LOCK/owner && echo ok;             elif [ -n \"\$(find $LOCK -maxdepth 0 -mmin +90 2>/dev/null)\" ]; then               old=\$(cat $LOCK/owner 2>/dev/null || echo '(sem dono)');               rm -rf $LOCK && mkdir $LOCK && echo '$owner' > $LOCK/owner && echo \"tomada \$old\";             else cat $LOCK/owner 2>/dev/null || echo '(sem dono)'; fi")"
+          case "$lock" in
+            ok) ;;
+            tomada*) echo "::warning::trava da VPS com mais de 90 min tomada (era: ${lock#tomada })" ;;
+            *)
+              echo "::error::outro deploy em andamento na VPS: ${lock:-(trava disputada agora)}; espere e rode de novo"
+              exit 1
+              ;;
+          esac
+
+      - name: Trocar a imagem do backup na VPS
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          # credencial temporária (o token chega pelo stdin, nunca na linha de comando; sai no passo de limpeza)
+          printf '%s' "$GHCR_TOKEN" | ssh "$VPS" "umask 077 && mkdir -p $CFG && DOCKER_CONFIG=$CFG docker login ghcr.io -u '$GHCR_USER' --password-stdin >/dev/null"
+          ssh "$VPS" "set -e; cd $DIR
+            cur=\$(sed -n 's/^TAG_BACKUP=//p' .env | tail -n 1)
+            echo \"TAG_BACKUP: \${cur:-vazio} → $TAG\"
+            cp -p .env .env.bak-dados-\$(date -u +%Y%m%dT%H%M%SZ)
+            if grep -q '^TAG_BACKUP=' .env; then sed -i 's|^TAG_BACKUP=.*|TAG_BACKUP=$TAG|' .env; else echo 'TAG_BACKUP=$TAG' >> .env; fi
+            docker compose -f compose.dados.yml config -q </dev/null
+            DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml pull --quiet backup </dev/null
+            DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml up -d --no-deps --wait --wait-timeout 180 backup </dev/null
+            # o backup não tem healthcheck: --wait só espera running. Meio minuto depois ele tem de seguir de pé, sem reinício
+            id=\$(docker compose -f compose.dados.yml ps -q backup </dev/null)
+            sleep 30
+            state=\$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' \"\$id\")
+            if [ \"\$state\" != 'running 0' ]; then echo \"backup não ficou de pé (\$state)\"; docker logs --tail 30 \"\$id\"; exit 1; fi
+            docker logs --tail 5 \"\$id\"
+            docker compose -f compose.dados.yml ps backup </dev/null
+            echo \"voltar: TAG_BACKUP=\${cur:-?} no .env (cópia em .env.bak-dados-*) e docker compose -f compose.dados.yml up -d --no-deps backup\""
+
+      - name: Limpar a credencial na VPS
+        if: always()
+        env:
+          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+        run: ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG" || echo "::warning::não consegui remover $CFG na VPS; remova à mão"
+
+      # o pipefail vale no shell remoto (o status do s3-sync.sh, não o do tail); depois o recibo tem de ser deste sync e,
+      # com o bucket das tarefas ligado, a pasta s3/tasks-bucket tem de existir
+      - name: s3-sync.sh agora
+        if: inputs.sync == '1'
+        run: |
+          ssh "$VPS" "set -o pipefail; cd $DIR && docker compose -f compose.dados.yml exec -T backup s3-sync.sh </dev/null 2>&1 | tail -n 5"
+          ssh "$VPS" "cd $DIR && docker compose -f compose.dados.yml exec -T backup sh -c '
+            set -e
+            [ -n \"\$(find /backups/.s3_last_sync -mmin -20 2>/dev/null)\" ] || { echo \"recibo /backups/.s3_last_sync não é deste sync\"; exit 1; }
+            cat /backups/.s3_last_sync; ls /backups/s3
+            [ \"\${BACKUP_S3_SYNC_TASKS_BUCKET:-false}\" != true ] || [ -d /backups/s3/tasks-bucket ] || { echo \"s3/tasks-bucket não existe\"; exit 1; }' </dev/null"
+
+      - name: Soltar a trava da VPS
+        if: always()
+        env:
+          LOCK_ID: gha-dados-${{ github.run_id }}
+        run: |
+          LOCK="$DIR/.deploy.lock"
+          ssh -o ConnectTimeout=20 "$VPS" "if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
+            echo "::warning::não consegui soltar a trava $LOCK na VPS; confira o dono e remova à mão"
+
+      - name: Guardar só os 10 .env.bak-dados-* mais novos
+        if: always()
+        run: ssh -o ConnectTimeout=20 "$VPS" "cd $DIR && ls -1t .env.bak-dados-* 2>/dev/null | tail -n +11 | xargs -r rm -f --" || true
