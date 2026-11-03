@@ -115,7 +115,8 @@ async function main(): Promise<void> {
     const tier = intFlag(values.tier, 'tier');
     const limit = intFlag(values.limite, 'limite');
     const report = await runRelatedAgent(db, {
-      youtube: apiKey ? new YoutubeClient({ apiKey }) : null,
+      // `--plan` nunca chama o YouTube: não cria o cliente (com YOUTUBE_SEARCH=off ele recusa nascer)
+      youtube: apiKey && !values.plan ? new YoutubeClient({ apiKey }) : null,
       allowlist,
       wtw,
       plan: values.plan,

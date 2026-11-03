@@ -15,7 +15,7 @@ Valkey em `:6379` e RustFS (S3) em `:9000`/`:9001` ficam sempre no ar.
 
 | Serviço | Estado no dev | Como ligar |
 |---|---|---|
-| Postgres, Valkey, RustFS | Sempre ligados | — |
+| Postgres, Valkey, RustFS | Sempre ligados (o `s3-init` cria o bucket de assets, com leitura pública, e encerra) | — |
 | `ingestor` (scheduler, ao vivo) | **Não sobe**: está no perfil `workers` do compose | `COMPOSE_PROFILES=workers` no ambiente da stack |
 | `agents` (agentes de IA) | **Não sobe**: perfil `workers` | idem |
 | Cada job do ingestor e dos agentes | `SCHEDULE_<JOB>=off` (inclusive `live-run`, `live-reconcile` e `events-clock`) | `SCHEDULE_<JOB>=<cron de 5 campos, UTC>`, ou "Rodar agora" no painel |

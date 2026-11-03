@@ -42,7 +42,7 @@ describe('stack de dev do NAS (infra/nas-dev/compose.yml)', () => {
   it('ingestor e agents ficam no perfil workers: a stack nova não sobe worker nenhum', () => {
     expect(compose.services.ingestor?.profiles).toEqual(['workers']);
     expect(compose.services.agents?.profiles).toEqual(['workers']);
-    for (const infra of ['postgres', 'valkey', 's3']) {
+    for (const infra of ['postgres', 'valkey', 's3', 's3-init']) {
       expect(compose.services[infra], infra).toBeDefined();
       expect(compose.services[infra]?.profiles, infra).toBeUndefined();
     }
