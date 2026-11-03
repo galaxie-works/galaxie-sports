@@ -34,7 +34,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: high
-    labels: { pt-BR: "Superliga Masculina de Vôlei", es: "Superliga de Brasil (masculina)", en: "Brazilian Superliga (men's)" }
+    labels: { pt-BR: "Superliga Masculina de Vôlei", en: "Brazilian Superliga (men's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: superliga-feminina
     name: "Superliga Women"
@@ -46,7 +46,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: high
-    labels: { pt-BR: "Superliga Feminina de Vôlei", es: "Superliga de Brasil (femenina)", en: "Brazilian Superliga (women's)" }
+    labels: { pt-BR: "Superliga Feminina de Vôlei", en: "Brazilian Superliga (women's)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: lva
     name: "LVA"

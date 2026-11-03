@@ -27,7 +27,7 @@ import {
 import type { GeoConfig } from '@galaxie/geo';
 import { buildEvents, type BuildContext } from '../events/builder.js';
 import { reasonDto } from '../events/relevance.js';
-import { pickText } from '../i18n.js';
+import { competitionName, pickText } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { competitionLogoId, logoIdSql } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
@@ -72,7 +72,12 @@ export async function selectWindowEvents(
           ...r,
           competition: {
             ...r.competition,
-            name: pickText((r.competition.labels ?? {}) as I18n, bctx.locale, r.competition.name)!,
+            name: competitionName(
+              r.competition.labels,
+              r.competition.countryCode,
+              r.competition.name ?? r.competition.slug,
+              bctx.locale,
+            ),
           },
         }
       : r,
@@ -164,6 +169,7 @@ export async function loadExploreSummary(
             slug: competition.slug,
             name: competition.name,
             labels: competition.labels,
+            countryCode: competition.countryCode,
             profileLabels: competitionProfile.labels,
             type: competition.type,
             tier: competition.tier,
@@ -199,7 +205,12 @@ export async function loadExploreSummary(
         id: c.id,
         slug: c.slug,
         sport: c.sport,
-        name: pickText({ ...(c.labels ?? {}), ...(c.profileLabels ?? {}) } as I18n, locale, c.name)!,
+        name: competitionName(
+          { ...(c.labels ?? {}), ...(c.profileLabels ?? {}) } as I18n,
+          c.countryCode,
+          c.name,
+          locale,
+        ),
         type: c.type,
         tier: c.tier,
         logo: assetUrl(assetsBaseUrl, c.logoKey, c.logoUrl),
