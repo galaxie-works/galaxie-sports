@@ -39,6 +39,7 @@ chmod +x "$work/bin/aws" "$work/bin/psql"
 
 export PATH="$work/bin:$PATH" CALLS="$calls" BACKUP_LIB="$here/lib.sh" PGDATABASE=galaxie_sports
 export S3_ENDPOINT=http://s3:9000 S3_BUCKET=galaxie-sports-assets S3_ACCESS_KEY=chave-rustfs S3_SECRET_KEY=segredo-rustfs
+export S3_TASKS_BUCKET=galaxie-sports-tasks
 export AWS_ACCESS_KEY_ID=chave-remota AWS_SECRET_ACCESS_KEY=segredo-remoto
 
 fails=0
@@ -47,7 +48,9 @@ novo() { # novo: volume limpo e sem chamadas
   mkdir -p "$work/backups"
   export BACKUP_DIR="$work/backups"
   unset BACKUP_S3_SYNC_PREFIXES BACKUP_S3_SYNC_DIR BACKUP_S3_SYNC_DELETE BACKUP_S3_SYNC_DEST_PREFIX BACKUP_S3_BUCKET \
-    BACKUP_S3_ENDPOINT AWS_FAKE_FAIL
+    BACKUP_S3_ENDPOINT AWS_FAKE_FAIL AWS_FAKE_EMPTY BACKUP_S3_SYNC_TASKS_BUCKET BACKUP_S3_SYNC_TASKS_DIR \
+    BACKUP_S3_SYNC_TASKS_DEST_PREFIX
+  export S3_TASKS_BUCKET=galaxie-sports-tasks
   : >"$calls"
 }
 confere() { # confere <nome> <condição em sh>
@@ -89,6 +92,61 @@ export BACKUP_S3_SYNC_PREFIXES=broadcasters
 sync
 confere "sem bucket remoto: só espelha no volume (para o NAS) e ainda grava o recibo" \
   '[ "$(wc -l <"$calls" | tr -d " ")" = 1 ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+
+# ── bucket privado das tarefas (#587) ──────────────────────────────────────────────────────────────────────────
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto
+sync
+confere "só o bucket das tarefas: sync ligado, sai 0 e grava o recibo com o bucket" \
+  '[ -s "$BACKUP_DIR/.s3_last_sync" ] && grep -q "bucket:galaxie-sports-tasks" "$BACKUP_DIR/.s3_last_sync"'
+confere "bucket das tarefas inteiro, com a chave do RustFS, para s3-tasks/ do volume" \
+  'grep -q "key=chave-rustfs --endpoint-url http://s3:9000 s3 sync --only-show-errors s3://galaxie-sports-tasks/ $BACKUP_DIR/s3-tasks/" "$calls" && [ -f "$BACKUP_DIR/s3-tasks/objeto.png" ]'
+confere "bucket das tarefas no remoto em tasks/, com a chave do remoto" \
+  'grep -q "key=chave-remota s3 sync --only-show-errors $BACKUP_DIR/s3-tasks/ s3://bucket-remoto/tasks/" "$calls"'
+confere "sem prefixos, o bucket de assets não é lido" '! grep -q "s3://galaxie-sports-assets" "$calls"'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_SYNC_PREFIXES=broadcasters BACKUP_S3_SYNC_TASKS_DEST_PREFIX=tarefas
+sync
+confere "prefixos e bucket das tarefas juntos; BACKUP_S3_SYNC_TASKS_DEST_PREFIX ignorado sem remoto" \
+  '[ "$(wc -l <"$calls" | tr -d " ")" = 2 ] && [ -f "$BACKUP_DIR/s3/broadcasters/objeto.png" ] && [ -f "$BACKUP_DIR/s3-tasks/objeto.png" ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto BACKUP_S3_SYNC_TASKS_DEST_PREFIX=tarefas
+sync
+confere "BACKUP_S3_SYNC_TASKS_DEST_PREFIX: s3://<bucket>/tarefas/" 'grep -q "s3://bucket-remoto/tarefas/" "$calls"'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto AWS_FAKE_EMPTY=1
+if sync; then r=0; else r=$?; fi
+confere "bucket das tarefas vazio é normal: sai 0 e grava o recibo" '[ "$r" = 0 ] && [ -s "$BACKUP_DIR/.s3_last_sync" ]'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=1
+sync
+confere "BACKUP_S3_SYNC_TASKS_BUCKET diferente de true: desligado" '[ ! -s "$calls" ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ]'
+
+for caso in "S3_TASKS_BUCKET=galaxie-sports-assets|o bucket de assets" "S3_TASKS_BUCKET=|S3_TASKS_BUCKET vazio" \
+  "S3_TASKS_BUCKET=Bucket_Ruim|nome inválido" "BACKUP_S3_SYNC_TASKS_DEST_PREFIX=assets|destino igual ao dos assets" \
+  "BACKUP_S3_SYNC_TASKS_DEST_PREFIX=postgres|destino igual ao dos dumps" "BACKUP_S3_SYNC_TASKS_DEST_PREFIX=../x|destino inválido"; do
+  novo
+  export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto "${caso%%|*}"
+  if sync; then r=0; else r=$?; fi
+  confere "bucket das tarefas com ${caso#*|}: falha antes de copiar qualquer coisa" \
+    '[ "$r" != 0 ] && [ ! -s "$calls" ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ]'
+done
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true BACKUP_S3_BUCKET=bucket-remoto AWS_FAKE_FAIL="s3://bucket-remoto/tasks"
+if sync; then r=0; else r=$?; fi
+confere "falha no envio do bucket das tarefas ao remoto: sai com erro e não grava o recibo" \
+  '[ "$r" != 0 ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ] && grep -q "bucket das tarefas" "$work/out.log"'
+
+novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true AWS_FAKE_FAIL="s3://galaxie-sports-tasks"
+if sync; then r=0; else r=$?; fi
+confere "bucket das tarefas que não existe no RustFS: sai com erro e não grava o recibo" \
+  '[ "$r" != 0 ] && [ ! -e "$BACKUP_DIR/.s3_last_sync" ]'
 
 for ruim in "../fora" "/abs" "pasta/" "com espaco/../x" 'a;b' 'a$(b)'; do
   novo
@@ -145,6 +203,13 @@ confere "sync ligado e recibo de agora: o verificador passa" '[ "$r" = 0 ]'
 touch -d '2 days ago' "$BACKUP_DIR/.s3_last_sync"
 check && r=0 || r=$?
 confere "recibo com mais de 26 h: o verificador acusa" '[ "$r" != 0 ] && grep -q "último sync do S3 há" "$work/out.log"'
+
+novo
+dump_novo
+export BACKUP_S3_SYNC_TASKS_BUCKET=true
+check && r=0 || r=$?
+confere "só o bucket das tarefas ligado e sem recibo: o verificador acusa" \
+  '[ "$r" != 0 ] && grep -q "sem recibo do sync do S3" "$work/out.log"'
 
 if [ "$fails" -gt 0 ]; then
   echo "$fails falha(s)" >&2

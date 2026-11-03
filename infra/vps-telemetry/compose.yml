@@ -422,6 +422,9 @@ services:
       # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      # Bucket privado dos pacotes e relatórios das tarefas (tasks/<id>/, #587): o `assets:acervo --pacote` avulso
+      # (docker compose run ingestor) lê de lá; sem leitura anônima, fora do Traefik (compose.dados.yml › s3-init)
+      S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
       # live-run, live-reconcile e events-clock rodam no serviço `live`
       SCHEDULER_LIVE: external
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
@@ -474,6 +477,8 @@ services:
       # Bearer do /metrics do worker (worker_tasks_running, worker_task_duration_seconds, build_info), igual ao da API
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      # Bucket privado das tarefas (#587): relatório da prévia do acervo em tasks/<id>/cobertura.md
+      S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
       WORKER_MAX_TASKS: ${WORKER_MAX_TASKS:-2}
       WORKER_TASK_HEAP_MB: ${WORKER_TASK_HEAP_MB:-160}
       WORKER_DRAIN_S: ${WORKER_DRAIN_S:-60}

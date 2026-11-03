@@ -67,7 +67,7 @@ novo, com o mesmo resultado.
 
 | Tipo | O que faz | Lote e checkpoint | Prévia | Destrutiva |
 | --- | --- | --- | --- | --- |
-| `acervo.importar` | Importa o acervo de escudos de um pacote no S3 (o `assets:acervo` da [runbook do acervo](acervo-de-logos.md)) | Por país, até `lote` escudos (padrão 100); depois do último, desliga os que saíram do manifesto | Plano como o `--plan` (ligados, desligados, ignorados, lotes) e relatório de cobertura em `tasks/<id da prévia>/cobertura.md` no S3 e em `checkpoint.cobertura` | Sim: religa escudos |
+| `acervo.importar` | Importa o acervo de escudos de um pacote no S3 (o `assets:acervo` da [runbook do acervo](acervo-de-logos.md)) | Por país, até `lote` escudos (padrão 100); depois do último, desliga os que saíram do manifesto | Plano como o `--plan` (ligados, desligados, ignorados, lotes) e relatório de cobertura em `tasks/<id da prévia>/cobertura.md` do bucket privado das tarefas e em `checkpoint.cobertura` | Sim: religa escudos |
 | `assets.espelhar` | Espelha logos, bandeiras e fotos da CDN de mídia no S3 (o `mirror-assets`) | Lotes de `lote` assets (padrão 200) até `limite` (padrão 2000), com o cursor por tipo de asset em `ops.sync_cursor` | Quantos pendentes e quantos lotes | Não |
 | `carga.historica` | Carga histórica do futebol (#417): `bootstrap:seasons`, `:details`, `:people` e `:perfis` | Temporadas e detalhes, uma liga por lote; pessoas e perfis, um lote cada | Chamadas de cota que gastaria (rede), do raw (cache) e já feitas | Não (gasta cota) |
 | `backfill.normalizar` | Normalização completa raw → core do futebol (o `normalize:football --tudo`) | Um endpoint do raw por lote | Respostas por endpoint | Não |
@@ -78,7 +78,7 @@ Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 
 | Tipo | Parâmetros |
 | --- | --- |
-| `acervo.importar` | `pacote` (`s3://<bucket>/tasks/<id>/<arquivo>.tgz`), `acervo` (id do acervo.yaml), `manifesto` (opcional, `s3://…/<acervo>.yaml`; padrão: o versionado), `lote` |
+| `acervo.importar` | `pacote` (`s3://galaxie-sports-tasks/tasks/<id>/<arquivo>.tgz`), `acervo` (id do acervo.yaml), `manifesto` (opcional, `s3://…/<acervo>.yaml`; padrão: o versionado), `lote` |
 | `assets.espelhar` | `limite`, `lote`, `descobrirRaw` (padrão sim), `retentarAusentes`, `caminho` (pasta da CDN: `volley`…), `concorrencia` |
 | `carga.historica` | `etapas` (lista JSON: `temporadas`, `detalhes`, `pessoas`, `perfis`; padrão todas), `tierMax` (padrão 2), `ligas` (lista JSON de ids da api-sports), `semLive`, `maxChamadasPorLote` |
 | `backfill.normalizar` | `endpoints` (lista JSON, ex. `["/fixtures"]`; padrão: todos os do raw) |
@@ -87,9 +87,9 @@ Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 Exemplos (no contêiner, troque `pnpm --filter @galaxie/ingestor gs` por `node dist/cli/gs.js`):
 
 ```bash
-# acervo: o pacote vai antes para o S3 (runbook do acervo); a prévia vai para o painel, onde um admin aprova
-gs tarefa enfileirar acervo.importar --previa --param pacote=s3://galaxie-sports-assets/tasks/<id>/acervo-galaxie-proprio.tgz \
-  --param acervo=galaxie-proprio --param manifesto=s3://galaxie-sports-assets/tasks/<id>/galaxie-proprio.yaml
+# acervo: o pacote vai antes para o bucket privado (runbook do acervo); a prévia vai para o painel, onde um admin aprova
+gs tarefa enfileirar acervo.importar --previa --param pacote=s3://galaxie-sports-tasks/tasks/<id>/acervo-galaxie-proprio.tgz \
+  --param acervo=galaxie-proprio --param manifesto=s3://galaxie-sports-tasks/tasks/<id>/galaxie-proprio.yaml
 # espelho maior que o do horário
 gs tarefa enfileirar assets.espelhar --param limite=20000 --param lote=500
 # carga Ultra (#417): só as ligas do Brasil e da Argentina, primeiro a prévia de quanto gasta
@@ -108,6 +108,26 @@ gs tarefa enfileirar backfill.tabelas --param dias=400 --param lote=50
 - **A aprovação vale para o que a prévia viu** (`acervo.importar`): a prévia guarda o sha256 do pacote e do manifesto
   em `checkpoint.prova`. Se o pacote ou o manifesto mudou no S3 (ou o versionado mudou num deploy) antes da execução,
   ela é recusada na hora, sem nova tentativa. Rode outra prévia.
+
+### Arquivos das tarefas: o bucket privado
+
+Pacotes, manifestos e relatórios das tarefas moram em `tasks/<id>/` do bucket **`galaxie-sports-tasks`**
+(`S3_TASKS_BUCKET`; #587), não no de assets. O `s3-init` do projeto `dados` cria esse bucket sem política nenhuma: sem
+leitura anônima (um `curl` sem assinatura devolve 403), sem listagem e fora do Traefik, que só roteia o bucket de
+assets. Quem lê é quem tem a chave do RustFS: o `ingestor` (CLI avulso), o `worker` e o `backup`.
+
+- **Executores:** o relatório da prévia do `acervo.importar` vai para `s3://$S3_TASKS_BUCKET/tasks/<id da prévia>/`. O
+  `pacote` e o `manifesto` ainda podem apontar para o bucket de assets (o que já estava lá antes): a tarefa roda e o log
+  da prévia leva um aviso. `S3_TASKS_BUCKET` igual a `S3_BUCKET` é recusado.
+- **Painel (upload, #543/#544, ainda não feito):** quando o painel subir arquivos de tarefa, grava em
+  `s3://$S3_TASKS_BUCKET/tasks/<id aleatório>/` com a chave do RustFS, e o serviço que fizer o upload (`console`) ganha
+  `S3_TASKS_BUCKET` no `compose.yml`. Download para o operador, se houver, por URL assinada de curta duração, nunca
+  tornando o bucket público.
+- **Backup:** `BACKUP_S3_SYNC_TASKS_BUCKET=true` copia o bucket inteiro ([infra/backup › Bucket das
+  tarefas](../../infra/backup/README.md#bucket-das-tarefas)).
+- **O que ficou no bucket de assets** antes da #587: `infra/ops/mover-tasks-para-bucket-privado.sh` (passo a passo em
+  [dados](stack-dados-e-observabilidade.md#bucket-privado-das-tarefas-587)). Prévia concluída e ainda não aprovada que
+  aponte para o bucket de assets: depois da migração, rode a prévia de novo com o endereço novo.
 - **Normalização com erro** (`backfill.normalizar`): o endpoint com resposta que não normalizou não conta como feito; a
   tarefa tenta de novo e, esgotadas as tentativas, encerra em falha (as respostas ficam em `ops.normalize_failure`).
   Corrigida a causa, **Reprocessar** continua dos endpoints que faltam.

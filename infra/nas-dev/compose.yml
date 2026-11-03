@@ -87,7 +87,7 @@ services:
       RUSTFS_CONSOLE_ENABLE: 'true'
     ports: ['9000:9000', '9001:9001']
     volumes: ['s3data:/data']
-  # Cria o bucket de assets com leitura pública (o mesmo do infra/docker-compose.yml) e encerra. Num s3data novo sem ele
+  # Cria o bucket de assets com leitura pública e o privado das tarefas (os mesmos do infra/docker-compose.yml) e encerra. Num s3data novo sem ele
   # o bucket não existe e os jobs de assets falham; num volume que já tem o bucket, só reaplica a mesma política.
   s3-init:
     image: amazon/aws-cli:2.39.2
@@ -98,6 +98,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
       AWS_DEFAULT_REGION: us-east-1
       BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
@@ -108,6 +109,10 @@ services:
         aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
         aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
         echo "bucket $$BUCKET pronto"
+        # bucket privado das tarefas (tasks/<id>/, #587): sem política, sem leitura anônima
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$TASKS_BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$TASKS_BUCKET"
+        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET" >/dev/null 2>&1 || true
+        echo "bucket $$TASKS_BUCKET pronto (privado)"
     restart: 'no'
 
   # ── workers (perfil `workers`: não sobem sem COMPOSE_PROFILES=workers) ─────────────────────────────────────────────

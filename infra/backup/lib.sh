@@ -184,8 +184,20 @@ s3_sync_prefixes() {
   printf '%s\n' "${BACKUP_S3_SYNC_PREFIXES:-}" | tr ', \t' '\n\n\n' | sed '/^$/d'
 }
 
+# Bucket privado das tarefas (S3_TASKS_BUCKET: pacotes do acervo, relatórios, tasks/<id>/; #587): com
+# BACKUP_S3_SYNC_TASKS_BUCKET=true, o s3-sync.sh copia o bucket inteiro para $BACKUP_S3_SYNC_TASKS_DIR (fora de s3/, para
+# não colidir com um prefixo do bucket de assets) e dali para <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/ do remoto.
+: "${BACKUP_S3_SYNC_TASKS_BUCKET:=false}"
+: "${BACKUP_S3_SYNC_TASKS_DIR:=$BACKUP_DIR/s3-tasks}"
+: "${BACKUP_S3_SYNC_TASKS_DEST_PREFIX:=tasks}"
+
+s3_sync_tasks_enabled() {
+  [ "$BACKUP_S3_SYNC_TASKS_BUCKET" = true ]
+}
+
+# Ligado com prefixos do bucket de assets, com o bucket das tarefas, ou com os dois (o recibo é um só).
 s3_sync_enabled() {
-  [ -n "$(s3_sync_prefixes)" ]
+  [ -n "$(s3_sync_prefixes)" ] || s3_sync_tasks_enabled
 }
 
 s3_sync_prefix_valid() {
@@ -201,7 +213,8 @@ aws_assets() {
     aws --endpoint-url "${S3_ENDPOINT:?defina S3_ENDPOINT}" s3 "$@"
 }
 
-# Recibo do último sync completo (todos os prefixos, volume e bucket remoto): backup-check.sh confere a idade.
+# Recibo do último sync completo (todos os prefixos e, se ligado, o bucket das tarefas, no volume e no bucket remoto):
+# backup-check.sh confere a idade.
 s3_sync_receipt() {
   printf '%s' "$BACKUP_DIR/.s3_last_sync"
 }
