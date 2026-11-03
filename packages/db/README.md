@@ -66,6 +66,8 @@ scheduler nunca alcançá-la. Cada tomada abre uma linha em `ops.job_run` (`job`
       │        │  │                                       │
       │        │  └──────── finish(error), sobra tentativa ┘ run_after + backoff
       │        │                                            run: error
+      │        ├── finish(ok, { runAfter }) ── volta a pending em run_after,
+      │        │   (cota do dia esgotada)     devolve a tentativa; run: ok
       │        ├──────────► done     finish(ok)             run: ok
       │        └──────────► error    finish(error) ou concessão vencida
       │                              na última tentativa    run: error
@@ -78,7 +80,7 @@ scheduler nunca alcançá-la. Cada tomada abre uma linha em `ops.job_run` (`job`
 | `takeNext(db, workerId, types)` | Fecha as concessões vencidas dos `types` e toma a próxima pronta, maior prioridade e `run_after` mais antigo primeiro. Concessão de 90 s | `QueueTask` ou `null` |
 | `renew(db, task)` | Empurra a concessão por mais 90 s. O worker chama a cada 30 s | `boolean` |
 | `checkpoint(db, task, data)` | Grava o progresso (substitui o anterior) | `boolean` |
-| `finish(db, task, 'ok' \| 'error', detail, { callsSpent, stats })` | Encerra a tomada. No erro, nova tentativa com backoff (30 s, 1 min, 2 min… até 1 h) até `max_attempts` | `'done' \| 'retry' \| 'error'` ou `null` |
+| `finish(db, task, 'ok' \| 'error', detail, { callsSpent, stats, runAfter })` | Encerra a tomada. No erro, nova tentativa com backoff (30 s, 1 min, 2 min… até 1 h) até `max_attempts`. `ok` com `runAfter`: a tarefa não acabou e só continua depois (cota do dia esgotada); volta a pendente para aquele instante, com o checkpoint e sem gastar tentativa | `'done' \| 'retry' \| 'error' \| 'deferred'` ou `null` |
 | `release(db, task)` | No SIGTERM: volta para pendente na hora, com o checkpoint, e devolve a tentativa | `boolean` |
 
 O contrato para quem escreve um worker:
@@ -120,8 +122,12 @@ pela CLI `gs tarefa` e pelo painel (Ajustes → Sistema → Tarefas): `requestTa
 - Convenções do checkpoint que o painel mostra: `progresso` (`{ feitos, total?, lote? }`), `log` (últimas 20 linhas)
   e `previa`.
 
-Os executores moram no worker (`services/ingestor/src/tasks/run.ts`: `TASK_HANDLERS` e `runTask`). Passo a passo de
-operação: [docs/runbooks/tarefas.md](../../docs/runbooks/tarefas.md).
+Os executores moram no worker (`services/ingestor/src/tasks/run.ts`: `TASK_HANDLERS` e `runTask`). Tipos registrados:
+`exemplo.eco`, `acervo.importar` (destrutiva), `assets.espelhar`, `carga.historica`, `backfill.normalizar` e
+`backfill.tabelas`. O executor recebe o `signal` do encerramento e confere entre os lotes (`checkStop`): a tarefa
+interrompida volta à fila com `release`. Com QUEUE_MODE=enqueue, o scheduler só enfileira os jobs que declaram `task`
+(`@galaxie/scheduler`, `queue-mode.ts`). Passo a passo de operação:
+[docs/runbooks/tarefas.md](../../docs/runbooks/tarefas.md).
 
 ## Migrations: expandir e contrair
 

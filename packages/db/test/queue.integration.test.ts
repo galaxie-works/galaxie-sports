@@ -312,6 +312,39 @@ describe('release no SIGTERM', () => {
   });
 });
 
+describe('finish com runAfter (cota do dia esgotada)', () => {
+  it('volta para pendente no instante pedido, com o checkpoint, sem gastar tentativa; a execução fecha ok', async () => {
+    const { id } = await enqueue(workerA, { type: TYPE, maxAttempts: 1 });
+    const task = await takeNext(workerA, 'w', [TYPE]);
+    await checkpoint(workerA, task!, { concluidos: ['liga:71'] });
+    const amanha = new Date(Date.now() + 6 * 3_600_000);
+    expect(
+      await finish(workerA, task!, 'ok', 'cota do dia esgotada', {
+        runAfter: amanha,
+        stats: { chamadas: 7 },
+      }),
+    ).toBe('deferred');
+    const row = await request(id);
+    expect(row).toMatchObject({
+      status: 'pending',
+      attempts: 0,
+      lockedBy: null,
+      detail: 'cota do dia esgotada',
+      lastError: null,
+      finishedAt: null,
+      checkpoint: { concluidos: ['liga:71'] },
+    });
+    expect(row.runAfter!.getTime()).toBe(amanha.getTime());
+    expect(await run(task!.runId)).toMatchObject({ status: 'ok', stats: { chamadas: 7 } });
+    // antes da hora ninguém pega; na hora, segue (com max_attempts 1: adiar não gastou a tentativa)
+    expect(await takeNext(workerB, 'w2', [TYPE])).toBeNull();
+    await skipBackoff(id);
+    const next = await takeNext(workerB, 'w2', [TYPE]);
+    expect(next).toMatchObject({ attempts: 1, checkpoint: { concluidos: ['liga:71'] } });
+    expect(await finish(workerB, next!, 'ok')).toBe('done');
+  });
+});
+
 describe('ordem e escolha', () => {
   it('maior prioridade primeiro, depois quem está pronto há mais tempo; futuro e outro tipo ficam', async () => {
     const low = await enqueue(workerA, {

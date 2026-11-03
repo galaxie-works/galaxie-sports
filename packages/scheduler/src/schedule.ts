@@ -22,6 +22,16 @@ export interface ScheduledJob {
   live?: boolean;
   /** Teto do heap do processo do job (--max-old-space-size, MB); padrão SCHEDULER_JOB_HEAP_MB. */
   heapMb?: number;
+  /**
+   * A tarefa da fila equivalente (`@galaxie/db/queue-types`). Com QUEUE_MODE=enqueue, o horário só enfileira esta
+   * tarefa (dedupe por job e dia) e o worker executa; com `run` (padrão), o CLI roda como sempre (queue-mode.ts).
+   */
+  task?: {
+    type: string;
+    /** Params do tipo (validados pelo schema; os padrões dele completam o resto). */
+    params?: Record<string, unknown>;
+    priority?: number;
+  };
 }
 
 /** Um minuto em ms, para os `timeoutMs` das definições dos jobs. */
