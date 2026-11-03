@@ -22,12 +22,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     shm_size: 256mb
     # Ajustado ao contêiner de 1 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
-    # max_connections fica nos 100 do padrão: a soma dos pools no pico é 67 (conta no README › Conexões). Teto
+    # max_connections em 150 (eram os 100 do padrão): com live em duas cópias, site, console e worker a soma dos pools
+    # no pico chega a 97, as 97 vagas de antes (conta no README › Conexões); cada conexão ociosa custa ~5 MB, e 150 é só o teto. Teto
     # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
     command:
       - postgres
       - -c
-      - max_connections=100
+      - max_connections=150
       - -c
       - shared_buffers=256MB
       - -c
