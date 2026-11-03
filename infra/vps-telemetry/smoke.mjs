@@ -8,7 +8,7 @@
  * FAIL = funcionalidade quebrada (código/imagem/config) → sai com 1. WARN = dado incompleto (sync,
  * cota, IA) → não derruba o deploy, mas aparece no relatório.
  *
- * Com DEPLOY_CANDIDATE=on, o deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
+ * O deploy também roda este smoke ANTES da troca, no `demo-candidate` (a API e a demo
  * novas, sem tráfego; README › Candidato), com SMOKE_PHASE=candidate. Ali o pós-deploy ainda não rodou: a base
  * semântica, os nomes, a importância e o cache são os da versão no ar. Check novo que depende do pós-deploy deve
  * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.

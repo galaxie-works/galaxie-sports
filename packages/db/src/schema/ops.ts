@@ -296,7 +296,7 @@ export const jobRequest = ops.table(
     job: text('job').notNull(),
     requestedBy: text('requested_by').notNull(),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
-    /** pending | running | done | error | skipped | expired */
+    /** pending | running | done | error | skipped | expired; tarefa da fila também canceled (só pendente) */
     status: text('status').notNull().default('pending'),
     pickedAt: timestamp('picked_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),

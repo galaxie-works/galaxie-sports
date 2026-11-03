@@ -390,7 +390,7 @@ jobs:
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
-            infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
@@ -399,7 +399,7 @@ jobs:
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh
 
-      # A troca da API e da demo no deploy: Traefik de verdade, tráfego durante a troca e uma versão que nunca fica
+      # A troca da API, dos webhooks e da demo no deploy: Traefik de verdade, tráfego durante a troca e uma versão que nunca fica
       # healthy
       - name: Troca sem página de manutenção (rolling-swap.sh com o Traefik)
         run: bash infra/vps-telemetry/rolling-swap.test.sh
