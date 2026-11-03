@@ -282,8 +282,9 @@ services:
 
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
   # Mesma imagem da API, sem router: a 8080 só tem /health, /version e /metrics (servidor de operação). Na primeira subida
-  # o cursor começa do fim do change feed (não reenvia o histórico). O healthcheck da imagem fica desligado; uma queda do
-  # processo é coberta pelo restart. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
+  # o cursor começa do fim do change feed (não reenvia o histórico). Healthcheck vem da imagem (GET /health): o deploy troca
+  # lado a lado (rolling-swap.sh); duas instâncias juntas não entregam em dobro (FOR UPDATE SKIP LOCKED), o worker fecha a
+  # entrega em andamento no SIGTERM (stop_grace_period) e o novo retoma pelo cursor. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
   # --remove-orphans (deploy-gh.sh/deploy.sh), para o worker da versão recusada não seguir entregando.
   webhooks:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
@@ -299,15 +300,13 @@ services:
       WEBHOOK_REJECT_PLAINTEXT_SECRETS: ${WEBHOOK_REJECT_PLAINTEXT_SECRETS:-}
       # Bearer do /metrics do servidor de operação do worker (build_info), igual ao da API
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
-    healthcheck:
-      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 20s
     logging: *logging
 
-  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe, com DEPLOY_CANDIDATE=on): a API e a demo da
+  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe): a API e a demo da
   # versão nova ao lado das que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
   # da troca. Mesmo env e mesmos limites dos originais (as âncoras); a API com prefixo próprio no Valkey (cache, rate
   # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e a demo
@@ -336,12 +335,12 @@ services:
     labels: [traefik.enable=false]
 
   # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
-  # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.
+  # (reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend. O deploy troca sem ela.
   # Os routers têm prioridade 1 (a padrão do Traefik é o tamanho da regra): só ganham quando o router da demo ou da
   # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem tag de deploy: deploy normal não recria.
   # Mudou o conteúdo das configs → atualize works.galaxie.maintenance-rev (o CI confere com maintenance-rev.mjs e diz
-  # o valor); é ele que faz o próximo deploy recriar o serviço. MAINTENANCE_PRIORITY=10000 no .env +
-  # `docker compose up -d maintenance` força a manutenção (README › Página de manutenção).
+  # o valor); é ele que faz o próximo deploy recriar o serviço. Forçar a manutenção, para mexer no banco:
+  # maintenance.sh up|down (README › Página de manutenção).
   # Mesmos hosts e mesma regra da API (sem /metrics e /internal) dos routers originais.
   maintenance:
     image: caddy:2.11.7-alpine
