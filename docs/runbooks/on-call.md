@@ -35,7 +35,7 @@ Convenções dos comandos: a VPS é `root@<vps>` (endereço no [runbook do deplo
 | Sinal | Alertas | Primeiro passo |
 |---|---|---|
 | `api` | `ApiDown`, `SloBurnRateFast` (`api-disponibilidade`, `api-latencia`), monitor externo | Ver se a API responde e se houve deploy; voltar a versão se o deploy for a causa |
-| `ao-vivo` | `LiveEventStale` | Ver se o `live-run` está rodando e se a cota LIVE acabou |
+| `ao-vivo` | `LiveEventStale`, `LiveTickGap` | Ver se o `live-run` está rodando e se a cota LIVE acabou. No painel "SLOs e orçamento de erro", a linha "Ritmo do ao vivo" mostra a idade do último tick, o intervalo através do deploy e quem é a líder |
 | `ia` | `AiCreditExhausted`, `AiSpendNearDailyBudget` | Crédito: recarregar e "verificar agora". Gasto: ver o agente que mais gastou |
 | `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Logs do contêiner `backup`; para disco, `df -h` (sem `prune`) |
 | `deploy` | "Aviso por push" do `deploy.yml` | Abrir o run: ver se o deploy voltou sozinho para a versão anterior |

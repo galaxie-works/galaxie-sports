@@ -25,6 +25,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | `api` (de fora) | Monitores da Better Stack | Site, API ou assets sem resposta para a internet |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
+| `ao-vivo` | `LiveTickGap` | Há jogo em andamento (janela do plano aberta) e o último tick do `live-run`, de qualquer cópia, passou de 60 s (ou de 2 intervalos do plano, quando o plano espaça mais) por 1 min. Meio-tempo, orçamento do dia e espera depois de erro da fonte não contam. Olha o runner parado, antes de o jogo ficar atrasado: deploy do `live` que não passou o bastão aparece aqui |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
 | `ia` | `AiSpendNearDailyBudget` | Gasto do dia de orçamento em 80% ou mais do `AI_DAILY_USD_BUDGET` efetivo |
 | `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Backup atrasado, verificação ou ensaio falhando, disco acima de 85% |
@@ -52,7 +53,7 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `SseProcessLimitReached` | O teto de streams SSE do processo (`SSE_MAX_CONNECTIONS`) estourou e clientes receberam 503 |
 | `AiCreditCheckStale` | A checagem de crédito não roda há 3 h (contêiner `agents` fora?) |
 | `SloBurnRateSlow` | Um SLO gasta o orçamento devagar demais: 10% dele em 1 dia ou em 3 dias ([docs/14](../14-slos-e-error-budget.md)) |
-| `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale`) |
+| `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale` e o `LiveTickGap`) |
 | `ErrorBudgetExhausted` | O orçamento de 28 dias de um SLO acabou: vale a política de congelar features do componente |
 | `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown` | Como antes |
 

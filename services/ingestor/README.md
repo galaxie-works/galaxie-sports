@@ -78,7 +78,21 @@ select a.application_name, a.backend_start, l.pid is not null as lider
 ```
 
 Nos logs, `live_leader` (0 ou 1, com `instance`) sai a cada troca e `live_tick_interval_seconds` a cada tick, medido
-desde o último tick de qualquer cópia. O ingestor não expõe `/metrics` por processo: as métricas ficam para a #538.
+desde o último tick de qualquer cópia. As mesmas medidas saem no `/metrics` do scheduler (porta 9464), lidas do Postgres
+a cada coleta: o `live-run` é um processo filho sem servidor, então grava o ritmo em `ops.sync_cursor` (endpoint
+`live:scheduler`, chave `tick`, com a mesma cerca de época do bastão) e o scheduler o expõe, de qualquer cópia:
+
+| Métrica | O que é |
+|---|---|
+| `live_last_tick_age_seconds{sport}` | Idade do último tick de qualquer cópia (s); depois de uma pausa de propósito, conta desde o fim dela |
+| `live_tick_interval_seconds{sport}` | Último intervalo entre ticks (s), atravessando a troca de líder ou de versão |
+| `live_tick_interval_max_seconds{sport}` | Maior intervalo dos últimos 5 min (s) |
+| `live_tick_planned_interval_seconds{sport}` | Intervalo que o plano pede entre ticks (s) |
+| `live_tick_paused{sport}` | 1 na pausa de propósito (meio-tempo, orçamento do dia, espera depois de erro da fonte) |
+| `live_window_open{sport}` | 1 quando o plano do dia tem janela aberta agora |
+| `live_leader{instance}` | 1 na cópia com a trava `live:leader`, 0 nas reservas (só com `LIVE_LEADER=on`) |
+
+O alerta `LiveTickGap` e o SLO `ao-vivo` usam essas séries (`docs/14-slos-e-error-budget.md`).
 
 ## Depende de
 

@@ -103,6 +103,147 @@ tests:
               summary: 'Evento ao vivo de football sem atualização há 12m 0s'
               description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
 
+  # Ritmo do ao vivo (#538): amostras a cada 15 s, o alerta é avaliado a cada 1 min. A idade do último tick sobe 15 s por
+  # amostra quando o runner para.
+  - name: ao vivo sem tick por mais de 60 s dispara o push depois de 1 min (sinal ao-vivo)
+    interval: 15s
+    input_series:
+      # no ritmo por 5 min, depois o runner para
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiveTickGap
+        exp_alerts: []
+      # idade de 83 s: passou de 60 s, mas ainda pendente (for: 1m)
+      - eval_time: 6m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  - name: troca de líder ou de versão que cabe nos 60 s não alerta
+    interval: 15s
+    input_series:
+      # ticks de 15 s e uma troca de 30 s: a idade chega a 45 s (15 s do plano + 30 s) e fica ali por duas avaliações
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x11 45x8 8x30'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x50'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x50'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x50'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: LiveTickGap
+        exp_alerts: []
+
+  - name: pausa de propósito (meio-tempo, orçamento) ou sem janela aberta não dispara o buraco entre ticks
+    interval: 15s
+    input_series:
+      # meio-tempo: o runner pula 10 min de propósito e a idade passa de 9 min
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x19 1x60'
+      # outro esporte sem janela aberta (ex.: dia sem jogo): a idade só cresce
+      - series: 'live_last_tick_age_seconds{sport="basketball"}'
+        values: '3600+15x80'
+      - series: 'live_tick_planned_interval_seconds{sport="basketball"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="basketball"}'
+        values: '0x80'
+      - series: 'live_tick_paused{sport="basketball"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 19m
+        alertname: LiveTickGap
+        exp_alerts: []
+
+  - name: ao vivo com intervalo longo no plano (orçamento apertado) só alerta depois de 2 intervalos
+    interval: 15s
+    input_series:
+      # plano de um tick a cada 2 min: 150 s sem tick é normal (limite de 240 s), 263 s não
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '120x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 5m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  - name: o runner volta a ticar e o alerta resolve
+    interval: 15s
+    input_series:
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x12 8x40'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do ingestor; troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+      - eval_time: 9m
+        alertname: LiveTickGap
+        exp_alerts: []
+
   - name: backup sem sucesso há mais de 26 horas
     interval: 1m
     input_series:
