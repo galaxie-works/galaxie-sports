@@ -39,6 +39,7 @@ e do que depende.
 | [`data/knowledge`](../data/knowledge/SCHEMA.md) | dados | — | Base semântica versionada (times, clássicos, copy) | copiada nas imagens |
 | [`infra/`](../infra/README.md) | infra | — | Compose local, stack da VPS, backup, observabilidade, scripts de operação | várias |
 | `scripts/pwsh` | ferramenta | — | PowerShell de apoio (status da cota, cópia de assets) | — |
+| [`tests/integration`](../tests/integration/README.md) | testes | `@galaxie/integration-tests` | Integração que cruza API e ingestor (o ingestor semeia o core, a API serve) | — |
 | [`tests/load`](../tests/load/README.md) | testes | — | Cenários k6 | — |
 | `docs/` | docs | — | Documentação de produto, arquitetura, runbooks e pesquisas | — |
 
@@ -86,7 +87,9 @@ flowchart TB
 
 Regras que o grafo já segue e que valem manter:
 
-1. **Apps e serviços não importam uns aos outros.** Código compartilhado vai para `packages/`.
+1. **Apps e serviços não importam uns aos outros.** Código compartilhado vai para `packages/`. A exceção é
+   `tests/integration`, que importa a API e o ingestor só em `devDependencies`: nenhum app, serviço ou pacote depende
+   dele, então não entra em imagem nenhuma e uma mudança no ingestor não reconstrói a API (#563).
 2. **`packages/` não importa `apps/` nem `services/`.**
 3. **Toda chamada à api-sports passa pelo `@galaxie/apisports-client`** (CONTRIBUTING, regra 1).
 4. **`contracts`, `net-guard`, `geo`, `runtime-config` e `widgets` não dependem de nenhum outro pacote do repo.** São os
