@@ -15,8 +15,14 @@ import {
   type ApiSportsOtherSport,
   type EnvelopeLike,
 } from '@galaxie/providers';
+import {
+  addStats,
+  emptyStats,
+  upsertBatch,
+  type UpsertOptions,
+  type UpsertStats,
+} from '@galaxie/core-writer';
 import type { AfterFetch } from '../jobs/runtime/runner.js';
-import { addStats, emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
 
 export interface NormalizeAfterFetchOptions extends UpsertOptions {
   /** Endpoints normalizados (padrão: todos os do futebol que alimentam o core). */

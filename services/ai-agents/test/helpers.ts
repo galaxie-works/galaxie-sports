@@ -12,7 +12,7 @@ import {
   sport,
   type Database,
 } from '@galaxie/db';
-import { upsertBatch } from '@galaxie/ingestor';
+import { upsertBatch } from '@galaxie/core-writer';
 import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
 
 /** Banco descartável por arquivo de teste, criado a partir de DATABASE_URL (ver packages/db/test). */

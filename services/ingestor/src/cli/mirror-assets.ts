@@ -27,7 +27,7 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq, sql } from 'drizzle-orm';
-import { publicAssetUrl } from '@galaxie/apisports-client';
+import { coachPhotoUrl, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
@@ -35,9 +35,7 @@ import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { relinkRecoveredLogos } from '../assets/relink-logos.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
 import {
-  coachPhotoUrl,
   PLACEHOLDER_PHOTO_SHA256,
-  playerPhotoUrl,
   previewPlayerPhotos,
   registerPlayerPhotos,
   type PhotoRegistrationPreview,

@@ -1,17 +1,13 @@
 /** Workers de ingestão (bootstrap, daily sync, live poller, asset mirror) e normalização raw → core. */
 export const INGESTOR_JOBS = ['bootstrap', 'daily-sync', 'live-poller', 'asset-mirror', 'normalize'] as const;
 
-export * from './normalize/upsert-core.js';
-export * from './normalize/event-state.js';
 export * from './normalize/raw-runner.js';
 export * from './normalize/ingest.js';
 export * from './normalize/importance.js';
 export * from './normalize/name-history.js';
 export * from './provisional/config.js';
-export * from './provisional/match.js';
 export * from './provisional/sync.js';
 export * from './ops/change-feed-retention.js';
-export { uuidv7 } from './normalize/uuid.js';
 
 export * from './context.js';
 export * from './jobs/runtime/cursor-store.js';
@@ -30,7 +26,6 @@ export { seedGeo, type GeoSeedStats } from './geo/seed.js';
 export * from './snapshot/raw-snapshot.js';
 export { loadMediaDenylist, runAssetMirror, type MirrorReport } from './assets/asset-mirror.js';
 export { InMemoryAssetStore, PgAssetStore, type AssetStore, type LogoCleanup } from './assets/asset-store.js';
-export { PLACEHOLDER_LOGO_SHA256 } from './assets/palette.js';
 export { imageInfo } from './assets/image-info.js';
 export { MediaFetcher, MEDIA_USER_AGENT } from './assets/media-fetcher.js';
 export {

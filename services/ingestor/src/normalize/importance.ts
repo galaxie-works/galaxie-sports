@@ -19,7 +19,9 @@ import { isKnockoutStage, type StageKind } from '@galaxie/providers';
 import { decisiveFlagsFromStakes } from '@galaxie/rules';
 import { computeEventStakes, StakesCache } from '@galaxie/rules/db';
 import {
+  chunks,
   competitionRules,
+  type Executor,
   groupTies,
   importanceFromFacts,
   maxRounds,
@@ -28,8 +30,7 @@ import {
   sameBreakdown,
   tieShape,
   totalRoundsOf,
-} from './importance-facts.js';
-import { chunks, type Executor } from './sql-helpers.js';
+} from '@galaxie/core-writer';
 
 export interface RecomputeImportanceOptions {
   /** Só eventos deste esporte. */

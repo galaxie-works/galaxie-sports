@@ -270,6 +270,30 @@ importers:
         specifier: ^2.11.0
         version: 2.11.0
 
+  packages/core-writer:
+    dependencies:
+      '@galaxie/apisports-client':
+        specifier: workspace:*
+        version: link:../apisports-client
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+      '@galaxie/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@galaxie/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@galaxie/rules':
+        specifier: workspace:*
+        version: link:../rules
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@3.4.9)
+
   packages/db:
     dependencies:
       drizzle-orm:
@@ -496,9 +520,9 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
-      '@galaxie/ingestor':
+      '@galaxie/core-writer':
         specifier: workspace:*
-        version: link:../ingestor
+        version: link:../../packages/core-writer
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -517,6 +541,9 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/core-writer':
+        specifier: workspace:*
+        version: link:../../packages/core-writer
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -575,6 +602,9 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/core-writer':
+        specifier: workspace:*
+        version: link:../../packages/core-writer
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db

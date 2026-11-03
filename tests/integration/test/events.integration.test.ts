@@ -32,12 +32,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import { audienceFor } from '@galaxie/geo';
-import {
-  normalizeFootballFromRaw,
-  PgAssetStore,
-  PLACEHOLDER_LOGO_SHA256,
-  upsertBatch,
-} from '@galaxie/ingestor';
+import { PLACEHOLDER_LOGO_SHA256, upsertBatch } from '@galaxie/core-writer';
+import { normalizeFootballFromRaw, PgAssetStore } from '@galaxie/ingestor';
 import { normalizeFixtures, normalizeSportEnvelope, type ApiFixture } from '@galaxie/providers';
 import { buildServer, createApiKey, rebuildFromCore, upsertTenant } from '@galaxie/api';
 

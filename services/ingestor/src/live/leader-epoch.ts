@@ -7,7 +7,7 @@
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { syncCursor, type Database } from '@galaxie/db';
-import type { Tx } from '../normalize/sql-helpers.js';
+import { type Tx } from '@galaxie/core-writer';
 
 export const LIVE_LEADER_EPOCH_ENDPOINT = 'live:leader_epoch';
 const LIVE_LEADER_EPOCH_KEY = 'current';

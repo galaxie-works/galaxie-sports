@@ -19,7 +19,7 @@ import {
   participant,
   providerMap,
 } from '@galaxie/db';
-import { chunks, coalesceUpdate, dedupeBy, type Executor } from '../normalize/sql-helpers.js';
+import { chunks, coalesceUpdate, dedupeBy, type Executor } from '@galaxie/core-writer';
 import type { NormalizedEquestrian } from './normalize.js';
 
 const CHUNK = 500;
