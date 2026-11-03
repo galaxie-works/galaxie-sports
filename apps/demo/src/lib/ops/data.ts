@@ -31,6 +31,7 @@ import {
 import { pool } from '@/lib/auth/db';
 
 import { readQuality } from './quality';
+import { readTasks } from './tasks';
 import { readYoutube } from './youtube';
 import type {
   CreditStatus,
@@ -473,7 +474,7 @@ async function readRequests(): Promise<JobRequestRow[]> {
 export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
   const { settings, services } = await readSettings(now);
-  const [jobs, quota, llm, credit, history, requests, quality, youtube] = await Promise.all([
+  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks] = await Promise.all([
     readJobs(),
     readQuota(dayUtc, settings),
     readLlm(now, settings),
@@ -482,6 +483,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     readRequests(),
     readQuality(),
     readYoutube(now, settings),
+    readTasks(),
   ]);
   return {
     generatedAt: now.toISOString(),
@@ -497,5 +499,6 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     requests,
     quality,
     youtube,
+    tasks,
   };
 }

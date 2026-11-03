@@ -191,6 +191,103 @@ export interface OpsSnapshot {
   quality: QualitySnapshot | null;
   /** Cota do YouTube do Conteúdo relacionado (null: migration 0039 ainda não aplicada). */
   youtube: YoutubeSnapshot | null;
+  /** Fila de tarefas (null: colunas da fila ainda não migradas). */
+  tasks: OpsTasks | null;
+}
+
+// ── Tarefas da fila (ops.job_request com `type`, @galaxie/db/queue-admin) ─────────────────────────
+
+export type TaskStateView =
+  'pendente' | 'retomada' | 'rodando' | 'concluida' | 'falha' | 'cancelada' | 'outro';
+
+export interface TaskProgressView {
+  feitos: number;
+  total: number | null;
+  lote: string | null;
+}
+
+export interface TaskPreviewView {
+  resumo: string | null;
+  contagens: Record<string, number>;
+  amostra: unknown[];
+}
+
+/** Linha da lista de tarefas (datas em ISO). */
+export interface TaskListItem {
+  id: string;
+  type: string;
+  status: string;
+  state: TaskStateView;
+  /** É a prévia (`params.previa`). */
+  previa: boolean;
+  /** Prévia concluída com plano, sem aprovação ainda. */
+  awaitingApproval: boolean;
+  /** Execução aprovada desta prévia. */
+  previaId: string | null;
+  reprocessaDe: string | null;
+  priority: number;
+  attempts: number;
+  maxAttempts: number;
+  lockedBy: string | null;
+  lockedUntil: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  finishedAt: string | null;
+  progress: TaskProgressView | null;
+  detail: string | null;
+  lastError: string | null;
+}
+
+export interface TaskRunView {
+  id: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  error: string | null;
+  resumed: boolean;
+  worker: string | null;
+}
+
+export interface TaskLinkView {
+  id: string;
+  status: string;
+  requestedBy: string;
+  requestedAt: string;
+}
+
+export interface TaskDetailView extends TaskListItem {
+  /** O tipo apaga, troca ou religa dados (reprocessar a execução volta como prévia). */
+  destrutiva: boolean;
+  /** Params do tipo, sem as chaves reservadas. */
+  params: Record<string, unknown>;
+  checkpoint: unknown;
+  preview: TaskPreviewView | null;
+  log: string[];
+  runs: TaskRunView[];
+  approvals: TaskLinkView[];
+  reprocesses: TaskLinkView[];
+}
+
+export interface TaskParamFieldView {
+  name: string;
+  kind: 'string' | 'number' | 'integer' | 'boolean' | 'enum' | 'json';
+  required: boolean;
+  description: string | null;
+  options: string[] | null;
+  default: unknown;
+}
+
+export interface TaskTypeView {
+  type: string;
+  descricao: string;
+  previa: boolean;
+  destrutiva: boolean;
+  fields: TaskParamFieldView[];
+}
+
+export interface OpsTasks {
+  items: TaskListItem[];
+  types: TaskTypeView[];
 }
 
 // ── Qualidade dos dados (job data-quality, ops.quality_*) ────────────────────────────────────────
