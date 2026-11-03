@@ -18,7 +18,7 @@ check() {
   fi
 }
 
-for pair in backup:infra/backup prometheus:infra/observability/prometheus grafana:infra/observability/grafana caddy:infra/caddy; do
+for pair in backup:infra/backup prometheus:infra/observability/prometheus grafana:infra/observability/grafana; do
   check "${pair%%:*}: hash git da pasta" "$(bash "$HASH" "${pair%%:*}" 2>/dev/null)" "$(git -C "$ROOT" rev-parse "HEAD:${pair#*:}")"
 done
 

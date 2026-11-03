@@ -43,9 +43,18 @@ export const tagValida = (tag) => typeof tag === 'string' && TAG.test(tag);
 /** A tag lida (inteira ou abreviada, como nas notas da release) é a esperada. */
 export const casa = (noAr, esperado) => esperado.startsWith(noAr);
 
-/** `in-<hash>` do ingestor nas notas de uma release deploy-* (a versão é abreviada lá), ou null. */
+/**
+ * `in-<hash>` do ingestor nas notas de uma release deploy-*, ou null. Vem do marcador no fim das notas
+ * (`<!-- galaxie-versions: api=in-… ingestor=in-… -->`, a tag inteira; release-notes-lib.mjs) e, nas notas de antes dele,
+ * da linha "SHA `abc` · `ingestor` in-abc1234" (a versão é abreviada lá).
+ */
 export function ingestorDaRelease(corpo) {
-  return /`ingestor` (in-[0-9a-f]{7,40})/.exec(corpo ?? '')?.[1] ?? null;
+  const texto = corpo ?? '';
+  return (
+    /galaxie-versions:[^>]*?\bingestor=(in-[0-9a-f]{7,40})/.exec(texto)?.[1] ??
+    /`ingestor` (in-[0-9a-f]{7,40})/.exec(texto)?.[1] ??
+    null
+  );
 }
 
 export function duracao(segundos) {
