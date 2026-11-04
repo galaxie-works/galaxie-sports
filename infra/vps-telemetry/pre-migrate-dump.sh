@@ -80,7 +80,11 @@ if type age_enabled >/dev/null 2>&1 && age_enabled; then
 fi
 tmp="$dir/$name.partial"
 started=$(date +%s)
-pg_dump --format=custom --compress=zstd:5 --no-owner --no-privileges --file="$plain" ||
+# sem os dados da API do YouTube, como no backup.sh: estes dumps ficam por contagem, sem prazo (política de 30 dias)
+pg_dump --format=custom --compress=zstd:5 --no-owner --no-privileges \
+  --exclude-table-data=enrich.related_content --exclude-table-data=enrich.youtube_channel \
+  --exclude-table-data=enrich.related_playback_block --exclude-table-data=enrich.related_playback_report \
+  --file="$plain" ||
   fail "pg_dump antes do migrate falhou"
 pg_restore --list "$plain" >/dev/null || fail "o dump gerado não é legível pelo pg_restore"
 if [ -n "$recipients" ]; then
