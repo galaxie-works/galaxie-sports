@@ -36,6 +36,7 @@ import {
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
   REQUIRED_ENTITY,
+  OFFERED_WIDGET_KINDS,
   WIDGET_KINDS,
   WIDGET_LOCALES,
   defaultsFromEntity,
@@ -176,7 +177,10 @@ export function WidgetEditor({
   const set = <K extends keyof EditorDraft>(key: K, value: EditorDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  const kinds = WIDGET_KINDS.map((k) => ({ value: k, label: kindTexts(k).name }));
+  const kinds = WIDGET_KINDS.filter((k) => k === draft.kind || OFFERED_WIDGET_KINDS.includes(k)).map((k) => ({
+    value: k,
+    label: kindTexts(k).name,
+  }));
   const marketItems = markets.map((m) => ({
     value: m,
     label: t.nav.countries[m as keyof typeof t.nav.countries] ?? m,

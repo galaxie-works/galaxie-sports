@@ -644,7 +644,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     },
   };
   for (const path of HIDDEN_PATHS) delete doc.paths?.[path];
-  doc.tags = doc.tags?.filter((tag) => tag.name !== HIDDEN_TAG);
+  if (doc.tags) doc.tags = doc.tags.filter((tag) => tag.name !== HIDDEN_TAG);
   const document = createDocument(doc);
   withoutHiddenEnumValues(document);
   return document;
