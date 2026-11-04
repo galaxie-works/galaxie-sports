@@ -21,11 +21,11 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 7 dumps diários (`BACKUP_KEEP_DAILY=7`, por contagem: com o backup parado, nada some) | serviço `backup` |
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 7 diários + 4 semanais + 6 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
-| 3 | Provedor da VPS | Snapshot diário da VPS inteira | a do provedor | provedor da VPS |
+| 3 | Provedor da VPS | Backup semanal da VPS inteira (a API da Hostinger mostrou 2 pontos em 04/11/2026; não há snapshot) | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
 ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local (por quantidade) e a do NAS. Os assets do bucket do RustFS (escudos, logos enviados no painel) têm cópia à
-parte, nos mesmos dois lugares: [Assets do S3](#assets-do-s3). O snapshot do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
+parte, nos mesmos dois lugares: [Assets do S3](#assets-do-s3). O backup do provedor recupera a VPS inteira de uma vez, mas não substitui o dump: é uma imagem do
 disco, sem conferência de que o banco nele está íntegro.
 
 ### Cópia no NAS
@@ -286,7 +286,7 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
 | Cenário | Resposta |
 |---|---|
 | Banco corrompido / `DROP` acidental | Pare API e ingestor → `restore.sh --yes latest` → confira → suba os serviços. Perda: desde o último dump |
-| VPS perdida | Primeiro, o snapshot diário do provedor da VPS (volta a VPS inteira do dia anterior). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido. Passo a passo (SSH, Docker, firewall, Traefik, stack): [bootstrap-vps.md](bootstrap-vps.md) |
+| VPS perdida | Primeiro, o backup semanal do provedor da VPS (volta a VPS inteira de até uma semana antes). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido. Passo a passo (SSH, Docker, firewall, Traefik, stack): [bootstrap-vps.md](bootstrap-vps.md) |
 | Valkey perdido | Sem restauração: cache e rate limit se reconstroem; contadores de uso do dia corrente voltam a partir do último consolidado em `api.usage_daily` (o flush usa `greatest`, nada regride) |
 | Bucket de assets perdido | Primeiro, os prefixos com cópia ([Assets do S3](#assets-do-s3)): `broadcasters`, `platforms`, `acervo` e os demais da lista voltam do bucket remoto ou do NAS. O que ficou de fora se reconstitui: `assets:mirror` rebaixa a mídia da CDN (fora da cota), `assets:commons` as fotos da Commons e `assets:acervo` reimporta o pacote; `core.asset` guarda as URLs de origem |
 | Vazamento de segredo | [SECURITY.md §Rotação de segredos](../../SECURITY.md#rotação-de-segredos) |

@@ -300,7 +300,6 @@ export async function recordPlaybackBlock(
         sport: r.sport,
         competition_id: r.competitionId,
         changed: ['related_content'],
-        data: { added: [], removed: r.removed, changed: [] },
         tags: [relatedContentTag(r.eventId), `event:${r.eventId}`],
       },
     });
