@@ -547,7 +547,7 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-thumb-badge{position:absolute;right:6px;bottom:6px;padding:1px 6px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff;font-size:.72em;font-weight:700}
 .gs-thumb-type{position:absolute;left:6px;top:6px;padding:1px 6px;border-radius:4px;background:var(--gs-primary);color:var(--gs-primary-foreground);font-size:.68em;font-weight:700}
 .gs-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:.85em;line-height:1.3}
-.gs-player{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
+.gs-player{display:block;width:100%;min-width:200px;min-height:200px;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
 .gs-player[data-vertical]{max-width:320px;aspect-ratio:9/16;margin:0 auto}
 .gs-h2h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap);text-align:center}
 .gs-stat{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}

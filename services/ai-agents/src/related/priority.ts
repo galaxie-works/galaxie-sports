@@ -23,6 +23,10 @@ export const DEFAULT_CHANNEL_ENOUGH = 4;
 export const DEFAULT_CHANNEL_REFRESH_MINUTES = 60;
 /** Revalidação (videos.list dos guardados) no máximo a cada N minutos por jogo. */
 export const DEFAULT_REVALIDATE_MINUTES = 120;
+/** Estatísticas da vitrine mais velhas que isto são lidas de novo, em qualquer jogo (política do YouTube, III.E.4). */
+export const STATS_REFRESH_HOURS = 24;
+/** Vídeos atualizados por execução: 20 unidades do balde geral a cada 3 min, no máximo. */
+export const STATS_REFRESH_MAX_VIDEOS = 1_000;
 /** Teto da reserva de buscas para os jogos que ainda vão acontecer no dia de cota (% do balde de busca). */
 export const DEFAULT_RESERVE_MAX_PERCENT = 60;
 /**

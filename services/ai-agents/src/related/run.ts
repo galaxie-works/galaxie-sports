@@ -54,6 +54,8 @@ import {
   nextMode,
   rankRelatedCandidates,
   relatedPolicyFromEnv,
+  STATS_REFRESH_HOURS,
+  STATS_REFRESH_MAX_VIDEOS,
   videoLocale,
   type RankableCandidate,
   type RelatedMode,
@@ -73,7 +75,9 @@ import {
   purgeYoutubeData,
   quotaUsage,
   saveRelatedBudget,
+  saveRefreshedStatistics,
   saveRelatedContent,
+  staleRelatedStatistics,
   type RelatedItemInput,
 } from './store.js';
 import {
@@ -166,6 +170,8 @@ export interface RelatedRunReport {
   /** Candidatos sem nada a fazer nesta execução (em dia). */
   idle: number;
   expired: number;
+  /** Atualização diária das estatísticas da vitrine (ausente em `--plan` e `--evento`). */
+  statistics?: { videos: number; gone: number; units: number; error?: string };
 }
 
 export interface RelatedCandidate extends RankableCandidate {
@@ -421,6 +427,79 @@ function quotaReason(input: { group: QueueGroup; reserve: number; free: number }
   if (input.reserve > 0 && input.free + input.reserve > 0)
     return `busca reservada para jogos de prioridade maior do dia (${input.reserve} consultas)`;
   return 'balde de busca do YouTube esgotado';
+}
+
+/**
+ * Estatísticas da vitrine em dia depois das 24 h do jogo (III.E.4: mostrar o dado mais atual). Roda depois dos
+ * jogos, só com o que sobra do balde geral; vídeo que a API não devolve mais sai da vitrine.
+ */
+async function refreshStaleStatistics(
+  db: Database,
+  yt: YoutubeClient,
+  state: QuotaState,
+  report: RelatedRunReport,
+  opts: RelatedRunOptions,
+  now: Date,
+): Promise<NonNullable<RelatedRunReport['statistics']>> {
+  const free = Math.max(0, state.api.limit - state.api.used);
+  const stale = await staleRelatedStatistics(db, {
+    before: new Date(now.getTime() - STATS_REFRESH_HOURS * 3_600_000),
+    limit: Math.min(STATS_REFRESH_MAX_VIDEOS, free * 50),
+  });
+  if (!stale.length) return { videos: 0, gone: 0, units: 0 };
+  const ids = [...new Set(stale.map((s) => s.externalId))];
+  const unitsStart = yt.units;
+  yt.unitCeiling = unitsStart + free;
+  const [run] = await db
+    .insert(relatedRun)
+    .values({
+      eventId: stale[0]!.eventId,
+      mode: 'stats',
+      quotaDay: report.quotaDay,
+      requestedBy: opts.requestedBy ?? 'cli',
+      startedAt: now,
+    })
+    .returning({ id: relatedRun.id });
+  const finish = async (status: 'done' | 'failed', error?: string) => {
+    const units = yt.units - unitsStart;
+    state.api.used += units;
+    report.quota.api.spent += units;
+    await db
+      .update(relatedRun)
+      .set({ status, finishedAt: new Date(), quotaUnits: units, apiUnits: units, error: error ?? null })
+      .where(eq(relatedRun.id, run!.id));
+    return units;
+  };
+  try {
+    const details = await yt.videos(ids);
+    await saveRefreshedStatistics(
+      db,
+      details.map((v) => ({
+        externalId: v.id,
+        statistics: { views: v.views, likes: v.likes, comments: v.comments, fetchedAt: now.toISOString() },
+      })),
+      now,
+    );
+    // resposta vazia num lote inteiro é mais provável falha da API que todos os vídeos fora do ar
+    const seen = new Set(details.map((v) => v.id));
+    const gone = details.length ? stale.filter((s) => !seen.has(s.externalId)) : [];
+    for (const eventId of new Set(gone.map((g) => g.eventId))) {
+      const core = await loadEventCore(db, eventId);
+      await saveRelatedContent(db, {
+        eventId,
+        provider: 'youtube',
+        items: [],
+        gone: gone.filter((g) => g.eventId === eventId).map((g) => g.externalId),
+        runId: run!.id,
+        ...(core ? { sport: core.sport, competitionId: core.competition?.id ?? null } : {}),
+        now,
+      });
+    }
+    return { videos: details.length, gone: gone.length, units: await finish('done') };
+  } catch (err) {
+    const error = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+    return { videos: 0, gone: 0, units: await finish('failed', error), error };
+  }
 }
 
 export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Promise<RelatedRunReport> {
@@ -1043,6 +1122,8 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
       item.reason = err instanceof Error ? err.message : String(err);
     }
   }
+
+  if (yt && !opts.eventId) report.statistics = await refreshStaleStatistics(db, yt, state, report, opts, now);
 
   if (!opts.plan) {
     const upcomingRows: RelatedUpcomingGame[] = upcoming.slice(0, 50).map((u) => ({
