@@ -127,6 +127,23 @@ describe('TaskWorker', () => {
     await w.drain();
   });
 
+  it('sem tarefa, a espera segura o processo no ar (a conexão do banco vence e nada mais segura)', async () => {
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    const { deps } = harness([]);
+    const w = new TaskWorker(
+      { workerId: 'w1', concurrency: { 'exemplo.eco': 1 }, maxTasks: 1, drainMs: 60_000, idleMinMs: 12_345 },
+      deps,
+    );
+    void w.start();
+    await vi.waitFor(() => {
+      expect(timers.mock.calls.some(([, ms]) => ms === 12_345)).toBe(true);
+    });
+    const espera = timers.mock.results[timers.mock.calls.findIndex(([, ms]) => ms === 12_345)]!;
+    expect((espera.value as NodeJS.Timeout).hasRef()).toBe(true);
+    await w.drain();
+    timers.mockRestore();
+  });
+
   it('respeita a vaga por tipo e o teto geral', async () => {
     vi.useFakeTimers();
     const queue = [
