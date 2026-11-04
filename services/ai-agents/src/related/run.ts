@@ -471,7 +471,17 @@ async function refreshStaleStatistics(
     return units;
   };
   try {
-    const details = await yt.videos(ids);
+    // lote a lote: resposta vazia é mais provável falha da API que 50 vídeos fora do ar, e não retira nenhum
+    const details: VideoDetail[] = [];
+    const missing = new Set<string>();
+    for (let i = 0; i < ids.length; i += 50) {
+      const lot = ids.slice(i, i + 50);
+      const found = await yt.videos(lot);
+      details.push(...found);
+      if (!found.length) continue;
+      const seen = new Set(found.map((v) => v.id));
+      for (const id of lot) if (!seen.has(id)) missing.add(id);
+    }
     await saveRefreshedStatistics(
       db,
       details.map((v) => ({
@@ -480,9 +490,7 @@ async function refreshStaleStatistics(
       })),
       now,
     );
-    // resposta vazia num lote inteiro é mais provável falha da API que todos os vídeos fora do ar
-    const seen = new Set(details.map((v) => v.id));
-    const gone = details.length ? stale.filter((s) => !seen.has(s.externalId)) : [];
+    const gone = stale.filter((s) => missing.has(s.externalId));
     for (const eventId of new Set(gone.map((g) => g.eventId))) {
       const core = await loadEventCore(db, eventId);
       await saveRelatedContent(db, {

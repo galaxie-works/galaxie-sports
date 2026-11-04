@@ -544,6 +544,26 @@ describe('Conteúdo relacionado (integração)', () => {
     const runs = await db.select().from(relatedRun).where(eq(relatedRun.mode, 'stats'));
     expect(runs).toHaveLength(1);
     expect(runs[0]).toMatchObject({ status: 'done', apiUnits: 1 });
+
+    // um lote vazio não retira ninguém, mesmo com outro lote respondendo normalmente
+    const lots = Array.from({ length: 60 }, (_, i) => `v-lote-${i}`);
+    for (const id of lots) await insert(id, new Date(later.getTime() - 26 * 3_600_000));
+    let calls = 0;
+    const partial = new YoutubeClient({
+      apiKey: 'test',
+      fetch: async (url) => {
+        const ids = new URL(url).searchParams.get('id')!.split(',');
+        const items =
+          calls++ === 0
+            ? []
+            : ids.map((id) => ({ id, snippet: {}, contentDetails: {}, statistics: {}, status: {} }));
+        return new Response(JSON.stringify({ items }));
+      },
+    });
+    const lotReport = await runRelatedAgent(db, { ...base, now: later, youtube: partial });
+    expect(lotReport.statistics).toMatchObject({ videos: 10, gone: 0, units: 2 });
+    for (const id of lots) expect((await current(id)).status).toBe('published');
+
     await db.delete(relatedContent).where(eq(relatedContent.channelId, 'UCstats'));
     await db.delete(relatedRun).where(eq(relatedRun.mode, 'stats'));
   });
