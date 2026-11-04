@@ -177,7 +177,9 @@ export function WidgetEditor({
   const set = <K extends keyof EditorDraft>(key: K, value: EditorDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  const kinds = WIDGET_KINDS.filter((k) => k === draft.kind || OFFERED_WIDGET_KINDS.includes(k)).map((k) => ({
+  const kinds = WIDGET_KINDS.filter(
+    (k) => k === draft.kind || (OFFERED_WIDGET_KINDS as readonly string[]).includes(k),
+  ).map((k) => ({
     value: k,
     label: kindTexts(k).name,
   }));
