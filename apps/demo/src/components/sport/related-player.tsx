@@ -121,14 +121,16 @@ function YoutubeEmbed({
   title,
   onEnded,
   onUnplayable,
+  onMutedFallback,
 }: {
   videoId: string;
   title: string;
   onEnded?: () => void;
   /** O player recusou o vídeo (código do `onError`). */
   onUnplayable?: (code: number) => void;
+  /** Tocando mudo: entrega a ação de ativar o som (null quando o som voltou). O botão fica fora do player. */
+  onMutedFallback?: (unmute: (() => void) | null) => void;
 }) {
-  const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const ended = useRef(onEnded);
@@ -205,28 +207,19 @@ function YoutubeEmbed({
     return () => clearInterval(id);
   }, [mutedFallback]);
 
-  const unmute = () => {
-    const p = playerRef.current;
-    if (!p) return;
-    p.unMute();
-    p.playVideo();
-    setMutedFallback(false);
-  };
+  useEffect(() => {
+    if (!mutedFallback) return;
+    onMutedFallback?.(() => {
+      const p = playerRef.current;
+      if (!p) return;
+      p.unMute();
+      p.playVideo();
+      setMutedFallback(false);
+    });
+    return () => onMutedFallback?.(null);
+  }, [mutedFallback, onMutedFallback]);
 
-  return (
-    <div className="relative size-full">
-      <div ref={host} className="size-full [&_iframe]:size-full" />
-      {mutedFallback ? (
-        <button
-          type="button"
-          onClick={unmute}
-          className="bg-background/90 text-foreground hover:bg-background absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg transition-colors"
-        >
-          <VolumeX className="size-3.5" aria-hidden /> {t.media.player.unmute}
-        </button>
-      ) : null}
-    </div>
-  );
+  return <div ref={host} className="size-full [&_iframe]:size-full" />;
 }
 
 // ─── estado do player (no layout: o painel sobrevive à navegação entre páginas) ──────────────────
@@ -305,8 +298,9 @@ function duration(sec: number | null): string | null {
 }
 
 /**
- * Painel lateral 9:16 que toca o vídeo no player oficial da plataforma. Vídeo vertical ocupa o quadro;
- * horizontal fica centralizado com faixa. Anterior/próximo (e as setas) percorrem a lista filtrada e o
+ * Painel lateral que toca o vídeo no player oficial da plataforma. O quadro segue a proporção do vídeo e
+ * nunca fica abaixo do mínimo do YouTube (RMF: 200×200 px; em janela baixa o painel rola em vez de encolher
+ * o player), e nada fica por cima do player. Anterior/próximo (e as setas) percorrem a lista filtrada e o
  * fim do vídeo avança sozinho. Esc fecha. Não é modal: o resto do app segue clicável.
  */
 function RelatedPlayerPanel({
@@ -339,6 +333,9 @@ function RelatedPlayerPanel({
   /** Erro do player no vídeo atual (null = tocando normalmente). */
   const [failure, setFailure] = useState<{ itemId: string; code: number } | null>(null);
   const failed = failure?.itemId === item.id ? failure.code : null;
+  /** Ativar o som quando o autoplay só saiu mudo; a troca de vídeo desmonta o embed e limpa isto. */
+  const [unmute, setUnmute] = useState<(() => void) | null>(null);
+  const onMutedFallback = useCallback((action: (() => void) | null) => setUnmute(() => action), []);
   const onUnplayable = useCallback(
     (code: number) => {
       setFailure({ itemId: item.id, code });
@@ -350,7 +347,7 @@ function RelatedPlayerPanel({
   return (
     <aside
       aria-label={tp.label}
-      className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm md:sticky md:top-0 md:z-10 md:h-svh md:w-[26rem] md:shrink-0 md:self-start md:border-l"
+      className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm md:sticky md:top-0 md:z-10 md:h-svh md:w-[26rem] md:shrink-0 xl:w-[30rem] md:self-start md:border-l"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose();
         if (e.key === 'ArrowRight') go(1);
@@ -391,23 +388,17 @@ function RelatedPlayerPanel({
         </Button>
       </header>
 
-      {/* Quadro 9:16: vídeo vertical ocupa tudo; horizontal fica centralizado com faixa. */}
+      {/* Horizontal ocupa a largura do painel (480×270 no xl, o recomendado para 16:9); vertical cabe na altura. */}
       <div className="flex justify-center bg-black">
         <div
-          className="relative flex aspect-[9/16] max-h-[calc(100dvh-13rem)] w-full max-w-[calc((100dvh-13rem)*9/16)] items-center justify-center"
+          className={cn(
+            'relative min-h-[200px] w-full min-w-[200px]',
+            vertical
+              ? 'aspect-[9/16] max-h-[calc(100dvh-13rem)] max-w-[calc((100dvh-13rem)*9/16)]'
+              : 'aspect-video',
+          )}
           data-aspect={item.aspect_ratio}
         >
-          {source?.kind === 'youtube' ? (
-            <div className={cn('w-full', vertical ? 'h-full' : 'aspect-video')}>
-              <YoutubeEmbed
-                key={source.videoId}
-                videoId={source.videoId}
-                title={item.title}
-                onEnded={hasNext ? () => go(1) : undefined}
-                onUnplayable={onUnplayable}
-              />
-            </div>
-          ) : null}
           {failed !== null ? (
             <UnplayableNotice
               key={item.id}
@@ -415,9 +406,26 @@ function RelatedPlayerPanel({
               url={item.url}
               onNext={hasNext ? () => go(1) : null}
             />
+          ) : source?.kind === 'youtube' ? (
+            <YoutubeEmbed
+              key={source.videoId}
+              videoId={source.videoId}
+              title={item.title}
+              onEnded={hasNext ? () => go(1) : undefined}
+              onUnplayable={onUnplayable}
+              onMutedFallback={onMutedFallback}
+            />
           ) : null}
         </div>
       </div>
+
+      {unmute ? (
+        <div className="flex justify-center px-4 pt-4">
+          <Button variant="outline" size="sm" onClick={unmute}>
+            <VolumeX aria-hidden /> {tp.unmute}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-2 p-4">
         <Button
@@ -457,7 +465,7 @@ function RelatedPlayerPanel({
 // ─── vídeo recusado pelo player ──────────────────────────────────────────────────────────────────
 
 /**
- * Aviso por cima do player quando o YouTube recusa o vídeo: o motivo, o link para assistir lá e a
+ * Aviso no lugar do player quando o YouTube recusa o vídeo: o motivo, o link para assistir lá e a
  * contagem de 5 s até o próximo da lista (ou o aviso de que era o último).
  */
 function UnplayableNotice({ code, url, onNext }: { code: number; url: string; onNext: (() => void) | null }) {
@@ -482,7 +490,7 @@ function UnplayableNotice({ code, url, onNext }: { code: number; url: string; on
   return (
     <div
       role="alert"
-      className="bg-background/95 text-foreground absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
+      className="bg-background text-foreground absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center"
     >
       <CircleSlash className="text-muted-foreground size-8" aria-hidden />
       <div className="flex flex-col gap-1">
