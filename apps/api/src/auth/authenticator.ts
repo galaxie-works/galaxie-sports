@@ -222,10 +222,29 @@ export class Authenticator {
 }
 
 /** Contexto da requisição a partir do registro da chave secreta. */
+/**
+ * API de vídeos fechada até decisão do dono: sem o módulo, as rotas respondem 403 e o tempo real não entrega o
+ * tópico. Só a chave secreta do próprio site passa, porque a vitrine da página do evento lê por ela.
+ */
+const RELATED_CONTENT_TENANTS = ['demo-vps', 'demo-local'];
+
+export function withoutClosedModules(
+  modules: readonly ApiModule[],
+  slug: string,
+  kind: TenantContext['keyKind'],
+) {
+  const allowed = process.env.RELATED_CONTENT_TENANTS?.split(',') ?? RELATED_CONTENT_TENANTS;
+  return kind === 'secret' && allowed.includes(slug)
+    ? [...modules]
+    : modules.filter((m) => m !== 'related_content');
+}
+
 function contextOf(record: KeyRecord, prefix: string): TenantContext {
-  const modules = record.scopes
-    ? record.tenant.modules.filter((m) => record.scopes!.includes(m))
-    : record.tenant.modules;
+  const modules = withoutClosedModules(
+    record.scopes ? record.tenant.modules.filter((m) => record.scopes!.includes(m)) : record.tenant.modules,
+    record.tenant.slug,
+    'secret',
+  );
   return {
     tenantId: record.tenant.id,
     slug: record.tenant.slug,

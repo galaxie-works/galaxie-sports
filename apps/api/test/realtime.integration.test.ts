@@ -103,6 +103,7 @@ beforeAll(async () => {
     .returning();
   ev.competition = comp!.id;
 
+  process.env.RELATED_CONTENT_TENANTS = 'tv';
   const t = await upsertTenant(db, { slug: 'tv', name: 'TV', plan: 'enterprise', rateLimitPerMinute: 1000 });
   key = (await createApiKey(db, t.id, { env: 'live' })).key;
   const c = await upsertTenant(db, {
