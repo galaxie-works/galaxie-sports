@@ -52,15 +52,15 @@ fi
 run_role backup.sh
 # o que veio da API do YouTube fica de fora: só a estrutura da tabela vai no dump (política de 30 dias)
 toc=$(run sh -c 'pg_restore --list "$(ls -1t /backups/*.dump | head -n 1)"')
-if echo "$toc" | grep -E 'TABLE DATA enrich (related_content|youtube_channel|related_playback_block|related_playback_report) '; then
+if grep -E 'TABLE DATA enrich (related_content|youtube_channel|related_playback_block|related_playback_report) ' <<<"$toc"; then
   echo "dado do YouTube entrou no dump" >&2
   exit 1
 fi
-echo "$toc" | grep -q 'TABLE enrich related_content ' || {
+grep -q 'TABLE enrich related_content ' <<<"$toc" || {
   echo "a estrutura de enrich.related_content deveria estar no dump" >&2
   exit 1
 }
-echo "$toc" | grep -q 'TABLE DATA core event ' || {
+grep -q 'TABLE DATA core event ' <<<"$toc" || {
   echo "core.event deveria estar com os dados no dump" >&2
   exit 1
 }

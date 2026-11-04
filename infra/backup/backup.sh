@@ -47,7 +47,7 @@ if age_enabled; then
     fail "BACKUP_AGE_RECIPIENTS sem BACKUP_AGE_IDENTITY: a chave do ensaio confere cada dump cifrado (docs/runbooks/exercicio-dr.md)"
 fi
 
-# shellcheck disable=SC2086 # uma opção por tabela da lista
+# shellcheck disable=SC2046,SC2086 # uma opção por tabela da lista
 set -- $(for t in ${BACKUP_EXCLUDE_TABLE_DATA-enrich.related_content enrich.youtube_channel enrich.related_playback_block enrich.related_playback_report}; do
   echo "--exclude-table-data=$t"
 done)

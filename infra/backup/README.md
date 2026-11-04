@@ -18,7 +18,8 @@ A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-back
 
 - `pg_dump --format=custom --compress=zstd:5` do banco inteiro (o schema `raw` é o ativo mais caro de reconstruir), menos
   os dados de `BACKUP_EXCLUDE_TABLE_DATA`: o que veio da API do YouTube vai só com a estrutura, porque a política manda
-  apagar em 30 dias e os dumps guardam por meses (decisão de 04/11/2026). Depois de restaurar, a coleta (`related-run`)
+  apagar em 30 dias e os dumps guardam por meses (decisão de 04/11/2026). O dump antes do migrate
+  (`infra/vps-telemetry/pre-migrate-dump.sh`) exclui as mesmas tabelas. Depois de restaurar, a coleta (`related-run`)
   preenche essas tabelas de novo, gastando cota. Validado com `pg_restore --list`, com `.sha256` ao lado. Ficam os `BACKUP_KEEP_DAILY` (7) dumps mais recentes no volume
   `backups`, contados por quantidade: com o backup parado, nada some.
 - Com `BACKUP_S3_BUCKET` definido, cada dump também vai para o bucket remoto (`BACKUP_S3_PREFIX/`). O bucket remoto guarda tudo: sem regra de ciclo de vida, nem para os dumps (decisão de 02/11/2026); a rotação é só a local, por quantidade (BACKUP_KEEP_DAILY), e a do NAS.
