@@ -50,6 +50,20 @@ if [ -n "${BACKUP_ROLE_URL:-}" ]; then
   [ "$who" = "galaxie_backup false" ] || { echo "backup deveria rodar como galaxie_backup sem superusuário: $who" >&2; exit 1; }
 fi
 run_role backup.sh
+# o que veio da API do YouTube fica de fora: só a estrutura da tabela vai no dump (política de 30 dias)
+toc=$(run sh -c 'pg_restore --list "$(ls -1t /backups/*.dump | head -n 1)"')
+if echo "$toc" | grep -E 'TABLE DATA enrich (related_content|youtube_channel|related_playback_block|related_playback_report) '; then
+  echo "dado do YouTube entrou no dump" >&2
+  exit 1
+fi
+echo "$toc" | grep -q 'TABLE enrich related_content ' || {
+  echo "a estrutura de enrich.related_content deveria estar no dump" >&2
+  exit 1
+}
+echo "$toc" | grep -q 'TABLE DATA core event ' || {
+  echo "core.event deveria estar com os dados no dump" >&2
+  exit 1
+}
 [ "$(psql_e2e "select status from ops.job_run where job = 'pg-backup' order by started_at desc limit 1")" = ok ]
 
 echo "3) perda de dados"
