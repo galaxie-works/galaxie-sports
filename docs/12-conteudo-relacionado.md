@@ -10,8 +10,6 @@ Nós sabemos. O `core` tem o evento (times, competição, fase, placar, autores 
 - cada vídeo classificado por **tipo de conteúdo** (melhores momentos, gol, pênaltis, coletiva, bastidores, reação da torcida, análise…) e por **formato** (vídeo longo × short/vertical);
 - canal, selo de **fonte oficial** (clube, competição, detentor de direitos), duração, data, miniatura e visualizações.
 
-É um metadado vendável: o cliente monta a vitrine "Reveja o jogo" no hub esportivo, no card do evento ou no pós-jogo da TV conectada, sem curadoria manual.
-
 > **Sem LLM.** Os candidatos vêm da busca da YouTube Data API; a classificação (regras de título, tags e duração) e a política de publicação são código. O Gemini saiu deste fluxo em 27/10/2026, por decisão do dono: a falta de crédito travava os vídeos e a busca não precisa de IA.
 
 ## 2. Regras de direitos
@@ -34,6 +32,8 @@ A [política de desenvolvedor dos YouTube API Services](https://developers.googl
 | Canal: título, handle, inscritos, playlist de uploads | `enrich.youtube_channel` | 30 dias depois do `fetched_at` | linha apagada; a próxima leitura busca de novo (1 unidade) |
 | Vídeo recusado pelo player (ids do vídeo e do canal) e quem relatou | `enrich.related_playback_block`, `enrich.related_playback_report` | 30 dias depois do primeiro relato | linha apagada |
 | Título do canal na regra do painel | `enrich.related_channel_rule.channel_title` | 30 dias depois da última mudança da regra | título apagado (o painel mostra o id) |
+
+**Backups (desde 04/11/2026).** As tabelas de vídeo, canal e recusas vão nos dumps só com a estrutura (`BACKUP_EXCLUDE_TABLE_DATA`, `infra/backup/backup.sh`; o mesmo no `infra/vps-telemetry/pre-migrate-dump.sh`), e o espelho do dev, que nasce do dump, fica sem elas. Ainda entram no dump: os ids de vídeo no `payload` de `event.related_content_changed` (`ops.change_feed`, 7 dias na produção) e o `channel_title` das regras do painel. Dumps anteriores a essa data saem pela rotação: os do NAS em até 6 meses, e os de antes do migrate conforme novas migrations entram.
 
 O job é `purgeYoutubeData` (`services/ai-agents/src/related/store.ts`). Ele roda no começo de cada execução do agente (`related-run`, a cada 3 min), é idempotente e não chama o YouTube. Fica de fora o que é configuração nossa: o mapa de canais (`enrich.related_channel`, ids do Wikidata e do `channels.yaml`), as regras de canal do painel (`block`/`allow` com o id do canal) e a allowlist.
 
@@ -255,62 +255,6 @@ create table enrich.related_budget (
 ```
 
 A migração também acrescenta o módulo `related_content` aos tenants do plano `enterprise` (que recebem todos os módulos).
-
-## 7. API — módulo `related_content`
-
-Módulo vendável próprio (add-on): incluído no `enterprise` e contratável por qualquer plano (`PATCH /internal/admin/tenants/{id}` com `modules`). Sem o módulo → 403 `MODULE_NOT_IN_PLAN`.
-
-`GET /v1/events/{id}/related?type=highlights,goal&format=short&limit=20`
-
-| Parâmetro | Descrição |
-|---|---|
-| `type` | Lista de tipos (`content_type`), separada por vírgula. Padrão: todos |
-| `format` | `short` ou `long`. Padrão: ambos |
-| `limit` | 1–50 (padrão 20) |
-| `locale`, `tz` | Rótulo localizado do tipo e instantes no fuso |
-
-```json
-{
-  "event_id": "01a163b8-7ca2-71e8-a92e-8dc201d5d83a",
-  "data": [
-    {
-      "id": "01a1…",
-      "provider": "youtube",
-      "external_id": "dQw4w9WgXcQ",
-      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      "embed_url": "https://www.youtube.com/embed/dQw4w9WgXcQ",
-      "title": "MELHORES MOMENTOS | PALMEIRAS X FLUMINENSE | SEMIFINAL",
-      "content_type": "highlights",
-      "content_type_label": "Melhores momentos",
-      "format": "long",
-      "aspect_ratio": "16:9",
-      "duration_seconds": 612,
-      "published_at": "2026-10-21T23:58:00-03:00",
-      "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-      "language": "pt",
-      "channel": { "id": "UC…", "title": "…", "handle": "@…", "source_tier": "official" },
-      "views": 182000,
-      "confidence": 0.92,
-      "classified_by": "llm:gpt-6-luna",
-      "last_checked_at": "2026-10-22T09:10:00-03:00"
-    }
-  ],
-  "counts": { "highlights": 2, "goal": 3, "press_conference": 1 },
-  "updated_at": "2026-10-22T09:10:00-03:00"
-}
-```
-
-- Só `status = published`, versão vigente, ordenada por `rank_score`.
-- `counts` traz o total por tipo **antes** do filtro (para a vitrine montar as abas).
-- Cache: TTL de 1 h, purgado por `event.related_content_changed` (tag `related_content:<evento>`).
-- Tempo real: tópico `event.related_content_changed` (curto: `related`) no SSE e nos webhooks, para quem tem o módulo.
-
-**Vídeo recusado pelo player** (`POST /v1/related/playback-errors`, chave secreta): o player oficial que dispara `onError` 100, 101 ou 150 avisa a API, e o vídeo sai da vitrine **de todos os clientes**, em todos os jogos (`enrich.related_playback_block`). Com 3 vídeos recusados (`RELATED_CHANNEL_BLOCK_THRESHOLD`), o canal inteiro sai, e todos os jogos com vídeo dele são avisados, não só o do vídeo relatado. O bloqueio é global porque a recusa de embed é do vídeo e do canal, e serve para o agente não gastar cota com eles (§2.1).
-
-- Registro: cada tenant que relata fica em `enrich.related_playback_report` (quantas vezes, quando), além do log da API.
-- Tempo real: `event.related_content_changed` com `removed`, `sport` e `competition_id` (os filtros de esporte e competição do SSE e dos webhooks).
-- Reverter: no painel (§2.1), "Liberar" (a regra `allow` vence) ou "Limpar recusas". Um lock por canal serializa relatos simultâneos, para o limiar do canal não passar sem aviso.
-- Demo: qualquer sessão (convidados inclusive) pode avisar. A rota `/api/related/playback-error` registra no log quem avisou, limita cada usuário a 10 avisos por hora e um por vídeo (aviso que não chegou à API, por erro de rede ou 5xx, não conta) e invalida o cache da vitrine da demo (`use cache` com a tag `galaxie:related`).
 
 ## 8. Cota e custo
 

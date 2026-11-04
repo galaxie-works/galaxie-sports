@@ -293,7 +293,6 @@ pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
-| 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
 | 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |

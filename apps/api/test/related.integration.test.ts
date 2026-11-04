@@ -50,6 +50,7 @@ let db: Database;
 let redis: Redis;
 let app: FastifyInstance;
 let key: string;
+let closedKey: string;
 let key2: string;
 let key3: string;
 let liKey: string;
@@ -155,6 +156,9 @@ beforeAll(async () => {
   ]);
 
   // a migração 0014 dá o módulo aos tenants enterprise; upsertTenant usa os módulos do plano
+  process.env.RELATED_CONTENT_TENANTS = 'ent,ent2,ent3';
+  const fora = await upsertTenant(db, { slug: 'fora', name: 'Fora', plan: 'enterprise' });
+  closedKey = (await createApiKey(db, fora.id, { env: 'test' })).key;
   const ent = await upsertTenant(db, { slug: 'ent', name: 'Ent', plan: 'enterprise' });
   key = (await createApiKey(db, ent.id, { env: 'test' })).key;
   const ent2 = await upsertTenant(db, { slug: 'ent2', name: 'Ent 2', plan: 'enterprise' });
@@ -241,6 +245,19 @@ describe('GET /v1/events/{id}/related', () => {
     expect((await get(`/v1/events/${eventId}/related?format=vertical`)).statusCode).toBe(400);
     expect((await get(`/v1/events/${eventId}/related?limit=500`)).statusCode).toBe(400);
     expect((await get(`/v1/events/00000000-0000-7000-8000-000000000000/related`)).statusCode).toBe(404);
+  });
+
+  it('API de vídeos fechada: plano com o módulo, mas fora da lista do site, recebe 403 nas duas rotas', async () => {
+    const list = await get(`/v1/events/${eventId}/related`, closedKey);
+    expect(list.statusCode).toBe(403);
+    expect(list.json()).toMatchObject({ code: 'MODULE_NOT_IN_PLAN' });
+    const report = await app.inject({
+      method: 'POST',
+      url: '/v1/related/playback-errors',
+      headers: { 'x-galaxie-key': closedKey },
+      payload: { item_id: '01a163b8-68bc-7949-b05e-ed332d0f576a', code: 150 },
+    });
+    expect(report.statusCode).toBe(403);
   });
 
   it('event.related_content_changed purga o cache', async () => {
