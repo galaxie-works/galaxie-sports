@@ -474,6 +474,80 @@ describe('Conteúdo relacionado (integração)', () => {
     await db.delete(relatedChannelRule).where(eq(relatedChannelRule.channelId, 'UCbloq'));
   });
 
+  it('estatísticas da vitrine: atualiza o que passou de 24 h sem renovar o prazo; o que saiu do ar é retirado', async () => {
+    const insert = (externalId: string, fetchedAt: Date) =>
+      db.insert(relatedContent).values({
+        eventId,
+        provider: 'youtube',
+        externalId,
+        url: `https://www.youtube.com/watch?v=${externalId}`,
+        title: 'Palmeiras x Corinthians | Melhores momentos',
+        channelId: 'UCstats',
+        channelTitle: 'Canal',
+        sourceTier: 'media',
+        contentType: 'highlights',
+        format: 'long',
+        aspectRatio: '16:9',
+        publishedAt: NOW,
+        rankScore: '1.000',
+        confidence: '0.90',
+        classifiedBy: 'rules@v1',
+        status: 'published',
+        statistics: { views: 1, likes: null, comments: null, fetchedAt: fetchedAt.toISOString() },
+        firstSeenAt: fetchedAt,
+        lastCheckedAt: fetchedAt,
+      });
+    const later = new Date(NOW.getTime() + 10 * 86_400_000);
+    const [live, gone] = ['v-stats', 'v-stats-fora'];
+    await insert(live!, new Date(later.getTime() - 25 * 3_600_000));
+    await insert(gone!, new Date(later.getTime() - 25 * 3_600_000));
+    await insert('v-stats-fresco', new Date(later.getTime() - 3_600_000));
+    const asked: string[] = [];
+    const yt = new YoutubeClient({
+      apiKey: 'test',
+      fetch: async (url) => {
+        const u = new URL(url);
+        expect(u.pathname.endsWith('/videos')).toBe(true);
+        const ids = u.searchParams.get('id')!.split(',');
+        asked.push(...ids);
+        const items = ids
+          .filter((id) => id !== gone)
+          .map((id) => ({
+            id,
+            snippet: {},
+            contentDetails: {},
+            statistics: { viewCount: '99' },
+            status: {},
+          }));
+        return new Response(JSON.stringify({ items }));
+      },
+    });
+    const report = await runRelatedAgent(db, { ...base, now: later, youtube: yt });
+    expect(asked).toContain(live);
+    expect(asked).toContain(gone);
+    expect(asked).not.toContain('v-stats-fresco');
+    expect(report.statistics).toMatchObject({ videos: asked.length - 1, gone: 1, units: 1 });
+
+    const current = async (externalId: string) =>
+      (
+        await db
+          .select()
+          .from(relatedContent)
+          .where(and(eq(relatedContent.externalId, externalId), isNull(relatedContent.supersededBy)))
+      )[0]!;
+    const fresh = await current(live!);
+    expect(fresh.statistics).toMatchObject({ views: 99, fetchedAt: later.toISOString() });
+    // a retirada de 30 dias segue contando da primeira leitura
+    expect(fresh.firstSeenAt.getTime()).toBe(later.getTime() - 25 * 3_600_000);
+    expect((await current(gone!)).status).toBe('retracted');
+    // entra no ledger da cota do dia
+    const runs = await db.select().from(relatedRun).where(eq(relatedRun.mode, 'stats'));
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ status: 'done', apiUnits: 1 });
+    await db.delete(relatedContent).where(eq(relatedContent.channelId, 'UCstats'));
+    await db.delete(relatedRun).where(eq(relatedRun.mode, 'stats'));
+  });
+
   it('retenção de 30 dias: apaga vídeos, canais e recusas; o canal no limiar fica bloqueado por regra', async () => {
     // a CazéTV de produção: 3 vídeos recusados, nenhuma regra
     const t0 = new Date(NOW.getTime() - 3_600_000);
