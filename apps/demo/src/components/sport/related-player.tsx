@@ -246,9 +246,9 @@ export function useRelatedPlayer(): PlayerApi {
 }
 
 /**
- * Provider + painel acoplado. Fica no layout do app como irmão do conteúdo: no desktop o painel ocupa
- * uma coluna à direita (o conteúdo encolhe e continua clicável — nada de overlay); no mobile ocupa a
- * tela. Trocar de página não fecha o painel nem interrompe o vídeo.
+ * Provider + painel acoplado. Fica no layout do app como irmão do conteúdo: do `lg` para cima o painel
+ * ocupa uma coluna à direita (o conteúdo encolhe e continua clicável — nada de overlay); abaixo disso ocupa
+ * a tela, porque a coluna deixaria as miniaturas abaixo do mínimo do YouTube. Trocar de página não fecha o painel nem interrompe o vídeo.
  */
 export function RelatedPlayerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PlayerState | null>(null);
@@ -347,7 +347,7 @@ function RelatedPlayerPanel({
   return (
     <aside
       aria-label={tp.label}
-      className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm md:sticky md:top-0 md:z-10 md:h-svh md:w-[26rem] md:shrink-0 xl:w-[30rem] md:self-start md:border-l"
+      className="bg-popover text-popover-foreground fixed inset-0 z-50 flex flex-col overflow-y-auto text-sm lg:sticky lg:top-0 lg:z-10 lg:h-svh lg:w-[26rem] lg:shrink-0 lg:self-start lg:border-l xl:w-[30rem]"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose();
         if (e.key === 'ArrowRight') go(1);
