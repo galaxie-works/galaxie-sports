@@ -35,13 +35,7 @@ import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  eventContextRequest,
-  eventRequest,
-  h2hRequest,
-  relatedRequest,
-  whereToWatchRequest,
-} from '@/lib/galaxie/api';
+import { eventContextRequest, eventRequest, h2hRequest, whereToWatchRequest } from '@/lib/galaxie/api';
 import type { SupportedLocale } from '@galaxie/contracts';
 
 import { goalsBehinds } from '@/lib/afl';
@@ -653,7 +647,6 @@ export async function EventContent({ params, searchParams, source }: PageContent
               title={t.event.related.title}
               icon={<Clapperboard className="size-4" aria-hidden />}
               description={t.event.related.description}
-              api={relatedRequest(id, locale, content, country)}
             >
               <RelatedContentGrid related={related} />
             </Section>
