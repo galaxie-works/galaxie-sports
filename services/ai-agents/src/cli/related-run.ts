@@ -87,7 +87,8 @@ function printReport(report: RelatedRunReport, plan: boolean): void {
   }
   console.log(
     `related: ${q.search.spent} consulta(s) e ${q.api.spent} unidade(s) do YouTube · ${quota} · ${report.idle} em dia · ` +
-      `${report.expired} linha(s) apagada(s) pela retenção de 30 dias`,
+      `${report.expired} linha(s) apagada(s) pela retenção de 30 dias · ` +
+      `${report.statistics?.videos ?? 0} vídeo(s) com estatísticas atualizadas`,
   );
   if (report.items.some((i) => i.action === 'error')) process.exitCode = 1;
 }
