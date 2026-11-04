@@ -296,7 +296,7 @@ não toca no `live`, e recriar o ingestor não corta o placar.
 - **Banco**: `DATABASE_URL` é o `DB_URL_LIVE` (papel `galaxie_live`; sem ele, o dono, como os outros) e os processos usam o
   perfil de tempos `live` (30 s de consulta, 10 s de trava). Antes de pôr o `DB_URL_LIVE` no `.env`, os papéis têm de
   estar ligados (`DB_ROLES=on`, [Papéis do banco](#papéis-do-banco)).
-- **Memória**: 640m por cópia ([Memória dos jobs](#memória-dos-jobs)).
+- **Memória**: 448m por cópia ([Memória dos jobs](#memória-dos-jobs)).
 - **Encerramento**: no SIGTERM a líder fecha o tick, publica o estado e solta a trava. O tick mais longo nessa hora é a
   chamada no ar (`APISPORTS_LIVE_TIMEOUT_MS`, 30 s) mais a gravação numa transação (perfil `live`: 30 s de consulta):
   com o encerramento pedido, o tick não abre as chamadas de detalhe (confirmação do final e destaque; até 6 × 30 s), que
@@ -545,7 +545,7 @@ Cada sessão aparece em `pg_stat_activity` com o nome do pool (`galaxie-api`, `g
 select application_name, state, count(*) from pg_stat_activity where datname is not null group by 1, 2 order by 3 desc;
 ```
 
-Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusuário; o contêiner do Postgres foi a 1,5 GB para caber o pior caso):
+Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusuário):
 
 | Pool | Antes | Depois |
 | --- | --- | --- |
@@ -554,11 +554,11 @@ Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusu
 | Ingestor: scheduler | 2 | 2 |
 | Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 5 |
 | Live: scheduler e jobs | (dentro do ingestor) | por cópia, scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) = 8, × 2 cópias; `live-reconcile` e `events-clock` 2 × (4 + 1) numa cópia por vez = 26 |
-| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_MAX_TASKS` 2 × 6 = 14 |
+| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_MAX_TASKS` 1 × 6 = 8 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
-| **Total** | **~106: passava do limite** | **97, sem folga no pior caso: CLI à mão e `psql` dependem de as fases do deploy não coincidirem** |
+| **Total** | **~106: passava do limite** | **91, sem folga no pior caso: CLI à mão e `psql` dependem de as fases do deploy não coincidirem** |
 
 O pool padrão de jobs e CLIs caiu de 10 para 4 (`DB_POOL_MAX` em `packages/db/src/client.ts`).
 
@@ -566,11 +566,10 @@ Além do pool, cada papel tem um teto de conexões no servidor (`CONNECTION LIMI
 `ROLE_CONNECTION_LIMITS` em `packages/db/src/roles.ts`): API 45, demo 60 (site e console), ingestor 55 (com o worker,
 que usa o mesmo papel, e a volta para antes do `live`), agents 25, live 45, backup 6. A soma (236) passa do
 `max_connections` de propósito, porque o teto contém um papel com vazamento e não reserva vaga. O pico da tabela acima
-(97) mais os candidatos do deploy (API, site e console, 30) dá 127 de 127 vagas no papel; na prática os pools abrem
+(91) mais os candidatos do deploy (API, site e console, 30) dá 121 de 127 vagas no papel; na prática os pools abrem
 conexão sob demanda, o candidato só roda o smoke (uma ou duas por pool) e sai antes da troca do `live` (que soma uma
-terceira cópia, 8) e da do worker (que dobra os 14 dele por até 75 s), o worker raramente tem duas tarefas de carga ao
-mesmo tempo, e o teto do papel `galaxie_demo` (60) cobre os quatro pools da demo juntos (site, console e os dois
-candidatos, 40) com folga. Com 130, o pico da tabela (97) cabe com ~30 de folga; se passar de ~120, suba o `max_connections` e o `mem_limit` do Postgres juntos (cada conexão
+terceira cópia, 8) e da do worker (que dobra os 8 dele por até 75 s), e o teto do papel `galaxie_demo` (60) cobre os quatro pools da demo juntos (site, console e os dois
+candidatos, 40) com folga. Com 130, o pico da tabela (91) cabe com ~30 de folga; se passar de ~120, suba o `max_connections` e o `mem_limit` do Postgres juntos (cada conexão
 ociosa custa ~5 MB).
 
 ### Memória dos jobs
@@ -583,25 +582,58 @@ heap (geração nova e o próprio Node):
 
 | Contêiner | Processos no pior caso | Soma |
 | --- | --- | --- |
-| `ingestor` (480m) | scheduler 64 + `SCHEDULER_MAX_JOBS` 1 × 160, + 2 × 64 | 352 MB (128 de folga) |
-| `live` (640m, cada uma das 2 cópias) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB (64 de folga) |
-| `worker` (576m, `cpus: 1.0`) | worker 64 + `WORKER_MAX_TASKS` 2 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 512 MB (64 de folga) |
-| `agents` (768m) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB (64 de folga) |
+| `ingestor` (512m, `cpus: 0.4`) | scheduler 64 + `SCHEDULER_MAX_JOBS` 1 × 160, + 2 × 64 | 352 MB (160 de folga) |
+| `live` (448m, cada uma das 2 cópias) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB se todos enchessem o heap; pico medido 237 |
+| `worker` (384m, `cpus: 0.2`) | worker 64 + `WORKER_MAX_TASKS` 1 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 288 MB (96 de folga) |
+| `agents` (448m, `cpus: 0.4`) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB se todos enchessem o heap; pico medido 314 |
 | `api` e `site` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
-| `console` (384m) | heap 224 (`command` do compose) + geração nova 3 × 16 + ~50; sem o cache do explorador e sem o seguidor do change feed | ~322 MB |
+| `console` (320m) | heap 224 (`command` do compose) + geração nova 3 × 16 + ~50; sem o cache do explorador e sem o seguidor do change feed | ~322 MB |
 
 O ao vivo saiu do ingestor para o `live` (#535) e o trabalho longo (espelho de assets, carga histórica, acervo,
-backfills) para o `worker` (#542): o ingestor caiu de 1152m para 480m, o `live` levou 640m por cópia (1280m com as duas,
-#537; a reserva fica perto do scheduler e de um `live-run` parado, ~150 MB de verdade) e o `worker` 576m. Só de heap, o
-`live` soma 320 MB (a estimativa da issue); com os 64 MB por processo da mesma conta dos outros, 576. Com
+backfills) para o `worker` (#542): o ingestor caiu de 1152m para 480m (512m desde o #533). Só de heap, o `live` soma 320 MB; com os 64 MB por
+processo da mesma conta dos outros, 576, que não cabem nos 448m: `live` e `agents` estão pelo pico medido, não pela soma dos
+heaps. Se o cgroup matar uma cópia do `live`, a reserva assume em ~1 s. Com
 `SCHEDULER_LIVE=internal` (dev, ou a volta para uma versão anterior, que traz o compose dela) o ingestor precisa dos
 1152m de antes. Com `QUEUE_MODE=enqueue` o scheduler só enfileira, e o `ingestor` ficou com um job por vez. Na troca do
-deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 1088 MB de worker no pior caso.
+deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 576 MB de worker no pior caso.
 Mudou `WORKER_MAX_TASKS` ou `WORKER_TASK_HEAP_MB` no `.env`: refaça a conta e o `mem_limit` do `worker`.
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
 mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça
 a conta. A CLI rodada à mão (`docker compose run ... node dist/cli/x.js`) fica no padrão do V8.
+
+### Limites medidos (#533)
+
+Medido com carga provocada em 04/11/2026, 2 vCPU e 7,9 GB (`free`: 7940 MiB), sem swap. Pico = o maior entre o teste e o coletor de
+02 a 04/11 (`infra/ops/vps-stats`); fim de semana de rodada cheia não entrou. O `docker stats` conta cache de disco ativo: por isso
+Postgres, Grafana e backup têm limite abaixo de pico × 1,5, e o RustFS, que é memória presa, acima do que tinha.
+
+| Serviço | Pico | Limite | Observação |
+| --- | --- | --- | --- |
+| `postgres` | 1423 | 1280m | ~400 presos (`anon` + `shmem`); o resto é cache |
+| `s3` | 973 | 1344m | 924 presos com limite de 1 g; OOM em 29/10 |
+| `valkey` | 39 | 256m | `maxmemory` 160 + fork do AOF |
+| `backup` | 255 | 160m | a leitura de 255 é cache do dump; em uso, ~80 |
+| `api` | 262 | 512m | heap 320; 503 de RSS em 30/10; ~0,4 MiB por stream SSE (conta) |
+| `site` | 386 | 512m | heap 320 |
+| `console` | 193 | 320m | heap 224 |
+| `webhooks` | 71 | 192m | heap 128; sem entrega real sob carga |
+| `maintenance` | 35 | 64m | |
+| `live` × 2 | 237 | 448m cada | sem rodada cheia de fim de semana |
+| `ingestor` | 331 | 512m | `cpus: 0.4` |
+| `worker` | 172 | 384m | `cpus: 0.2`; sem carga Ultra |
+| `agents` | 314 | 448m | `cpus: 0.4`; só os jobs de IA do horário |
+| `prometheus` | 168 | 192m | |
+| `grafana` | 482 | 288m | 215 presos; o resto é cache |
+| `node-exporter` | 16 | 64m | |
+
+Soma dos 17 contêineres: **7424 MiB**. Com a reserva de 512 para o que roda sem limite na mesma máquina (`traefik` 323, `openobserve`
+176, `coturn` e `signaling` 7): **7936 de 7940**. Fora dessa conta, só por minutos: os candidatos do deploy (1344 de limite, 565 medidos)
+e o `lineup-render` (1024, perfil `render`). A 2ª cópia da API somaria 512 de limite e ~260 reais.
+
+O pico real do host, no pior caso medido (jobs em par, SSE e HTTP juntos), foi **4110 MiB (52 %)**. Quem manda é a CPU: em repouso, média de
+75 % das 200 % e p95 de 190 %, com 13,5 % de steal; `cpus` de ingestor, worker e agents somam 1,0 para deixar uma vCPU a Postgres, API e ao
+vivo. Medição da capacidade HTTP e decisão sobre o plano: comentário no #533.
 
 ### Valkey
 

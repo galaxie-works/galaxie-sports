@@ -470,6 +470,43 @@ tests:
               summary: 'node-exporter fora do ar: sem medida de disco'
               description: 'O alvo node-exporter:9100 não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
+  - name: memória do host
+    interval: 1m
+    input_series:
+      # 10 GB de memória; 3 GB disponíveis por 20 min (70%), 1,5 GB por 20 min (85%), 0,5 GB depois (95%)
+      - series: 'node_memory_MemAvailable_bytes{job="node",instance="node-exporter:9100"}'
+        values: '3000000000x20 1500000000x20 500000000x20'
+      - series: 'node_memory_MemTotal_bytes{job="node",instance="node-exporter:9100"}'
+        values: '10000000000x60'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HostMemoryHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: HostMemoryHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'Memória do host em 85%'
+              description: 'Acima de 80% de uso real (fora o cache de disco). Sem swap: veja o uso por contêiner (docs/runbooks/on-call.md) antes de chegar aos 90%.'
+      - eval_time: 35m
+        alertname: HostMemoryCritical
+        exp_alerts: []
+      - eval_time: 50m
+        alertname: HostMemoryCritical
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: api
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'Memória do host em 95%: risco de OOM'
+              description: 'Acima de 90% de uso real, sem swap: o kernel vai matar processo, e API e ao vivo estão na lista. Veja o uso por contêiner (docs/runbooks/on-call.md).'
+
   - name: disco acabando em menos de 3 dias no ritmo atual
     # amostra por minuto: com amostras espaçadas, o lookback de 5 min deixa a série sumir e o `for` recomeça
     interval: 1m

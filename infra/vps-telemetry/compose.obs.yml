@@ -17,7 +17,7 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${TAG_PROMETHEUS:?defina TAG_PROMETHEUS}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 192m
     environment:
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
@@ -35,6 +35,7 @@ services:
     command:
       - --collector.disable-defaults
       - --collector.filesystem
+      - --collector.meminfo
       - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|etc)($$|/)
     volumes:
       - promdata:/data/promdata:ro
@@ -44,7 +45,7 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${TAG_GRAFANA:?defina TAG_GRAFANA}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 288m
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
