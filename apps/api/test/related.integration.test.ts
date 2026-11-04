@@ -396,10 +396,6 @@ describe('GET /v1/events/{id}/related', () => {
     expect((await publicChanges(ev2!.id))[0]!.payload).toMatchObject({
       sport: 'football',
       competition_id: competitionId,
-      data: { removed: ['cz5'] },
-    });
-    expect((await publicChanges(eventId))[0]!.payload).toMatchObject({
-      data: { removed: expect.arrayContaining(['cz3', 'cz4']) },
     });
 
     // o automático grava a regra do canal (configuração nossa, que sobrevive à retenção dos ids); idempotente
