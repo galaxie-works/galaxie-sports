@@ -15,7 +15,8 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
-    mem_limit: 1536m
+    # ~400 de memória presa (shared_buffers 256 e conexões); o resto é cache de disco, que ajuda a leitura fria (README › Limites medidos)
+    mem_limit: 1280m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-galaxie}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
@@ -74,7 +75,8 @@ services:
   s3:
     image: rustfs/rustfs:1.0.4
     restart: unless-stopped
-    mem_limit: 1g
+    # memória presa de 924 MiB medida no limite de 1 g, e OOM em 29/10 (#533); pico 973 × 1,4
+    mem_limit: 1344m
     environment:
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
@@ -137,7 +139,7 @@ services:
     image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${TAG_BACKUP:?defina TAG_BACKUP}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 160m
     environment:
       PGHOST: postgres
       PGPORT: '5432'

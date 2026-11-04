@@ -256,6 +256,26 @@ groups:
           summary: 'Disco {{ $labels.device }} acaba em menos de 3 dias no ritmo atual'
           description: 'O espaço livre cai rápido (tendência das últimas 12 h). Veja galaxie_db_table_bytes (qual tabela cresce), o job data-retention e os dumps em /backups.'
 
+      # Memória real do host (o que sobra além do cache de disco), do mesmo node-exporter. Sem swap: acabou, o kernel mata processo.
+      - alert: HostMemoryHigh
+        expr: 1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"} > 0.80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Memória do host em {{ $value | humanizePercentage }}'
+          description: 'Acima de 80% de uso real (fora o cache de disco). Sem swap: veja o uso por contêiner (docs/runbooks/on-call.md) antes de chegar aos 90%.'
+
+      - alert: HostMemoryCritical
+        expr: 1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"} > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          sinal: api
+        annotations:
+          summary: 'Memória do host em {{ $value | humanizePercentage }}: risco de OOM'
+          description: 'Acima de 90% de uso real, sem swap: o kernel vai matar processo, e API e ao vivo estão na lista. Veja o uso por contêiner (docs/runbooks/on-call.md).'
+
       # O banco cresceu mais de 1 GiB em 24 h: o normal é bem menos (o raw do ao vivo fica 30 dias). Uma rodada de
       # sincronização NAS → produção também dispara, por isso é só aviso.
       - alert: DatabaseGrowingFast

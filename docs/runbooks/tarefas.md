@@ -166,8 +166,8 @@ executa a fila:
   tarefa, espera de 1 a 10 s (a fila não tem NOTIFY). O filho que morre sem dizer o destino (heap estourado, código
   134) encerra a tomada em erro, e a tarefa tenta de novo com backoff.
 - **Vagas:** `WORKER_CONCURRENCY_<TIPO>` por tipo (`assets.espelhar` → `WORKER_CONCURRENCY_ASSETS_ESPELHAR`; padrão 1,
-  o espelho 2; 0 tira o tipo deste worker) e o teto `WORKER_MAX_TASKS` (padrão 2) somando os tipos. Teto de CPU
-  `cpus: 1.0`; o `mem_limit` (576m) é a conta do README da stack › Memória dos jobs: mudou o teto ou o heap, refaça.
+  o espelho 2; 0 tira o tipo deste worker) e o teto `WORKER_TASK_SLOTS` no `.env` (padrão 1; vira `WORKER_MAX_TASKS` no processo) somando os tipos. Teto de CPU
+  `cpus: 0.2`; o `mem_limit` (384m) é a conta do README da stack › Memória dos jobs: mudou o teto ou o heap, refaça.
 - **Cota:** as chamadas à api-sports da carga passam pelo Quota Governor, com a reserva do ao vivo. Cota do dia
   esgotada: a tarefa volta à fila para o próximo dia de cota, sem falhar e sem gastar tentativa.
 - **SIGTERM (`docker stop`, deploy):** o log diz `drenando`; o worker para de tomar, o lote em andamento fecha
