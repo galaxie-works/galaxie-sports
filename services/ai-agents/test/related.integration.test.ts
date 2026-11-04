@@ -649,9 +649,9 @@ describe('Conteúdo relacionado (integração)', () => {
     expect(feed.at(-1)!.payload).toMatchObject({
       sport: 'football',
       competition_id: ev!.competitionId,
-      data: { added: ['v-volta'], removed: expect.arrayContaining(['v-official']) },
     });
-    expect((feed.at(-1)!.payload as { data: { removed: string[] } }).data.removed).not.toContain('v-volta');
+    // sem ids de vídeo: a última linha de cada jogo fica no feed sem prazo, além dos 30 dias da política
+    expect(feed.at(-1)!.payload).not.toHaveProperty('data');
     // idempotente
     expect(await purgeYoutubeData(db, { now: later })).toMatchObject({
       promoted: [],

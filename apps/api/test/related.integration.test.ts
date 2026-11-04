@@ -379,8 +379,8 @@ describe('GET /v1/events/{id}/related', () => {
       event_id: eventId,
       sport: 'football',
       competition_id: competitionId,
-      data: { added: [], removed: ['cz1'], changed: [] },
     });
+    expect((await publicChanges(eventId))[0]!.payload).not.toHaveProperty('data');
     // relato repetido (de outro tenant) só soma, e fica no registro de quem relatou
     expect((await reportError({ item_id: idOf('cz1'), code: 150 }, key2)).json().removed_from_events).toBe(0);
     const reporters = await db

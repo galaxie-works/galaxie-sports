@@ -208,7 +208,6 @@ export async function saveRelatedContent(db: Database, input: SaveRelatedInput):
           sport: input.sport ?? null,
           competition_id: input.competitionId ?? null,
           changed: ['related_content'],
-          data: { added, removed, changed },
           tags: [relatedContentTag(input.eventId), `event:${input.eventId}`],
         },
       });
@@ -332,7 +331,6 @@ export async function purgeYoutubeData(
           sport: metaOf.get(eventId)?.sport ?? null,
           competition_id: metaOf.get(eventId)?.competitionId ?? null,
           changed: ['related_content'],
-          data: { added: added.get(eventId) ?? [], removed: removed.get(eventId) ?? [], changed: [] },
           tags: [relatedContentTag(eventId), `event:${eventId}`],
         },
       });
