@@ -554,7 +554,7 @@ Soma no pico (`max_connections` = 130 desde 03/11/2026, 3 reservadas ao superusu
 | Ingestor: scheduler | 2 | 2 |
 | Ingestor: jobs (pool + trava de cada um) | sem teto de jobs, 10 + 1 cada (~5 juntos no pico: ~55) | `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 5 |
 | Live: scheduler e jobs | (dentro do ingestor) | por cópia, scheduler 2 + `live-run` (4 + trava da cópia + trava `live:leader`) = 8, × 2 cópias; `live-reconcile` e `events-clock` 2 × (4 + 1) numa cópia por vez = 26 |
-| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_MAX_TASKS` 1 × 6 = 8 |
+| Worker da fila (pai + cada tarefa: `runTask` 2 + contexto do job 4) | (dentro do ingestor) | 2 + `WORKER_TASK_SLOTS` 1 × 6 = 8 |
 | Agents: scheduler | 2 | 2 |
 | Agents: jobs | sem teto, 4 + 1 cada (~5 juntos: ~25) | `AGENTS_MAX_JOBS` 3 × (4 + 1) = 15 |
 | Backup, migrate, dump antes do migrate | 2 | 3 |
@@ -584,7 +584,7 @@ heap (geração nova e o próprio Node):
 | --- | --- | --- |
 | `ingestor` (512m, `cpus: 0.4`) | scheduler 64 + `SCHEDULER_MAX_JOBS` 1 × 160, + 2 × 64 | 352 MB (160 de folga) |
 | `live` (448m, cada uma das 2 cópias) | scheduler 64 + `live-run` 128 + `live-reconcile` 64 + `events-clock` 64 (nunca esperam vaga), + 4 × 64 | 576 MB se todos enchessem o heap; pico medido 237 |
-| `worker` (384m, `cpus: 0.2`) | worker 64 + `WORKER_MAX_TASKS` 1 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 288 MB (96 de folga) |
+| `worker` (384m, `cpus: 0.2`) | worker 64 + `WORKER_TASK_SLOTS` 1 × (heap do filho `WORKER_TASK_HEAP_MB` 160 + 64) | 288 MB (96 de folga) |
 | `agents` (448m, `cpus: 0.4`) | scheduler 64 + `AGENTS_MAX_JOBS` 3 × 128, + 4 × 64 | 704 MB se todos enchessem o heap; pico medido 314 |
 | `api` e `site` (512m) | heap 320 + geração nova 3 × 16 + ~50 | ~420 MB |
 | `console` (320m) | heap 224 (`command` do compose) + geração nova 3 × 16 + ~50; sem o cache do explorador e sem o seguidor do change feed | ~322 MB |
@@ -596,7 +596,7 @@ heaps. Se o cgroup matar uma cópia do `live`, a reserva assume em ~1 s. Com
 `SCHEDULER_LIVE=internal` (dev, ou a volta para uma versão anterior, que traz o compose dela) o ingestor precisa dos
 1152m de antes. Com `QUEUE_MODE=enqueue` o scheduler só enfileira, e o `ingestor` ficou com um job por vez. Na troca do
 deploy, o worker novo sobe ao lado do antigo antes de ele drenar: por até ~75 s são 576 MB de worker no pior caso.
-Mudou `WORKER_MAX_TASKS` ou `WORKER_TASK_HEAP_MB` no `.env`: refaça a conta e o `mem_limit` do `worker`.
+Mudou `WORKER_TASK_SLOTS` ou `WORKER_TASK_HEAP_MB` no `.env`: refaça a conta e o `mem_limit` do `worker`.
 
 Com as vagas ocupadas, o job espera na fila (log `teto de jobs simultâneos atingido; job na fila`) e o cron seguinte do
 mesmo job pula. Job que morrer por heap: suba o `heapMb` dele em `services/ingestor/src/scheduler/schedule.ts` e refaça

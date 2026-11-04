@@ -470,7 +470,7 @@ services:
     restart: unless-stopped
     command: ['node', '--max-old-space-size=64', '--max-semi-space-size=8', 'dist/cli/worker.js']
     cpus: 0.2
-    # pai 64 + WORKER_MAX_TASKS 1 × (heap do filho 160 + 64) = 288 MB; pico medido 172 com o espelho de assets (README › Memória dos jobs)
+    # pai 64 + WORKER_TASK_SLOTS 1 × (heap do filho 160 + 64) = 288 MB; pico medido 172 com o espelho de assets (README › Memória dos jobs)
     mem_limit: 384m
     environment:
       <<: *node-env
@@ -480,7 +480,8 @@ services:
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
       # Bucket privado das tarefas (#587): relatório da prévia do acervo em tasks/<id>/cobertura.md
       S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
-      WORKER_MAX_TASKS: ${WORKER_MAX_TASKS:-1}
+      # variável própria no .env (como INGESTOR_MAX_JOBS): um WORKER_MAX_TASKS=2 antigo no .env não passa do mem_limit acima
+      WORKER_MAX_TASKS: ${WORKER_TASK_SLOTS:-1}
       WORKER_TASK_HEAP_MB: ${WORKER_TASK_HEAP_MB:-160}
       WORKER_DRAIN_S: ${WORKER_DRAIN_S:-60}
       WORKER_CONCURRENCY_ASSETS_ESPELHAR: ${WORKER_CONCURRENCY_ASSETS_ESPELHAR:-2}
