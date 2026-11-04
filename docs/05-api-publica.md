@@ -22,14 +22,14 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 
 **Chaves.** Formato `gs_<live|test>_<prefixo>_<segredo>_<checksum>` — prefixo de 12 caracteres hex (guardado em claro em `api.api_key.prefix` para localizar a chave), segredo de 32 bytes em base64url, guardado **só como hash scrypt com sal** (`scrypt$N$r$p$sal$hash`, via `node:crypto`), e CRC32 em 8 hex de tudo o que vem antes (erro de digitação e chave inventada → 401 sem consulta ao banco; scanners de segredos acham a chave sem falso positivo). O ambiente vale: prefixo diferente do ambiente gravado da chave → 401. A chave `gs_test_` tem o mesmo dado da produção, mas limite de 60 req/min por rota, nunca acima do `rate_limit_per_minute` do tenant (balde próprio, não consome o da produção) e uso contado à parte (`test:<rota>` em `/v1/account/usage`). Teto: 5 chaves secretas válidas por tenant e ambiente, contando as em período de graça (acima → 409 `CONFLICT`). Política completa: [politica-de-chaves.md](politica-de-chaves.md). A chave completa é exibida uma única vez, na criação. A verificação positiva fica em cache em memória por 60 s (revogação e mudança de plano valem em até 1 min). `last_used_at` é atualizado no máximo a cada 5 min.
 
-**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport` e o add-on `related_content` (vídeos relacionados, [12](12-conteudo-relacionado.md); incluído no `enterprise`, contratável à parte em qualquer plano). Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
+**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport`.md); incluído no `enterprise`, contratável à parte em qualquer plano). Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
 
 | Plano | Módulos padrão |
 |---|---|
 | `core_data` | `core_data` |
 | `fan_experience` | `core_data`, `where_to_watch`, `semantic` |
 | `live_intelligence` | + `live_intelligence`, `multisport` |
-| `enterprise` | todos (inclusive `related_content`) |
+| `enterprise` | todos |
 
 Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_data`). Chave sem o módulo → 403 `MODULE_NOT_IN_PLAN`; esporte fora de `sports` no espelho → 403 `MODULE_NOT_IN_PLAN`; país fora de `markets` (rotas por país, como onde assistir) → 403 `MARKET_NOT_IN_PLAN`.
 
@@ -582,10 +582,6 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 - **Cache**: edições e histórico 24 h; quadro 24 h (encerrada), 60 s (em andamento) ou 1 h (futura); agenda, provas e "hoje" 5 min; delegação 1 h. Tags `games:<id>`, `medal_table:<id>`, `medal`, `unit`.
 - **#78**: os torneios coletivos (futebol, basquete, vôlei, handebol…) ficam ligados à edição por `multisport.games_competition` e seus jogos são eventos comuns do `core` (listados por `/v1/events`, #31, pela competição); quando houver agenda por unidade, a ligação unidade ↔ evento canônico sai em `core_event_id`.
 
-### 3.5 Conteúdo relacionado
-
-`GET /v1/events/{id}/related?type=highlights,goal&format=short&limit=20` — módulo `related_content`. Vídeos diretos sobre o evento (link e embed oficial da plataforma, nunca link de busca), classificados por tipo (`highlights`, `goal`, `penalties`, `press_conference`, `interview`, `behind_the_scenes`, `fan_reaction`, `analysis`, `full_match`, `other`) e formato (`short` | `long`), com canal e selo `source_tier` (`official`, `rights_holder`, `media`, `creator`), duração, miniatura da plataforma e visualizações; `counts` traz o total por tipo antes dos filtros. Cache de 1 h purgado por `event.related_content_changed`. Detalhes, fontes e regras de direitos em [12](12-conteudo-relacionado.md).
-
 ### 3.6 Busca global (`apps/api/src/routes/v1/search.ts`)
 
 `GET /v1/search?q=&types=&sport=&limit=&locale=` — módulo `core_data`. Uma chamada para a caixa de busca dos clientes (a demo usa no ⌘K):
@@ -744,7 +740,7 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 | Mecanismo | Rota | Uso |
 |---|---|---|
 | **SSE** | `GET /v1/stream?events=<ids>&topics=score,status,incidents,where_to_watch` | Cards ao vivo na TV/web sem recarregar |
-| **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published`, `event.related_content_changed` — assinados com HMAC-SHA256 |
+| **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published` — assinados com HMAC-SHA256 |
 | **Polling** | `GET /v1/events/live` com `ETag` | Clientes simples |
 
 **Tópicos** (nome curto em `?topics=` → nome completo no SSE/webhook) e o módulo do plano exigido:
@@ -756,7 +752,6 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 | `incidents` | `event.incident_added` | Lance novo na timeline (gol, cartão, VAR...) | `core_data` |
 | `where_to_watch` | `where_to_watch.changed` | Opção de transmissão incluída, corrigida ou removida | `where_to_watch` |
 | `context` | `event.context_published` | Cenário/resumo de IA publicado ou revisado | `live_intelligence` |
-| `related` | `event.related_content_changed` | Vídeo relacionado publicado, reclassificado, fora do ar ou expirado | `related_content` |
 
 **Payload** (`data:` do SSE e corpo do webhook — schema `RealtimeChange` no OpenAPI), compacto: o evento, o tópico, os campos que mudaram e os novos valores. Para o estado completo, use a rota REST do evento.
 

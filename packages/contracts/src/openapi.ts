@@ -160,6 +160,25 @@ export interface OpenApiOptions {
 }
 
 /** Documento OpenAPI 3.1 da API pública, gerado a partir dos schemas Zod deste pacote. */
+/**
+ * Vídeos relacionados fora da documentação até decisão do dono: as rotas seguem no ar, só não são publicadas
+ * no /openapi.json nem na referência.
+ */
+const HIDDEN_PATHS = ['/v1/events/{id}/related', '/v1/related/playback-errors'];
+const HIDDEN_TAG = 'Conteúdo relacionado';
+const HIDDEN_ENUM_VALUES = new Set(['event.related_content_changed', 'related_content']);
+
+function withoutHiddenEnumValues(node: unknown): void {
+  if (Array.isArray(node)) {
+    node.forEach(withoutHiddenEnumValues);
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+  const obj = node as Record<string, unknown>;
+  if (Array.isArray(obj.enum)) obj.enum = obj.enum.filter((v) => !HIDDEN_ENUM_VALUES.has(String(v)));
+  Object.values(obj).forEach(withoutHiddenEnumValues);
+}
+
 export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<typeof createDocument> {
   const doc: ZodOpenApiObject = {
     openapi: '3.1.0',
@@ -624,5 +643,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       schemas: { Event, EventContext, TeamSummary, Team, Person },
     },
   };
-  return createDocument(doc);
+  for (const path of HIDDEN_PATHS) delete doc.paths?.[path];
+  doc.tags = doc.tags?.filter((tag) => tag.name !== HIDDEN_TAG);
+  const document = createDocument(doc);
+  withoutHiddenEnumValues(document);
+  return document;
 }

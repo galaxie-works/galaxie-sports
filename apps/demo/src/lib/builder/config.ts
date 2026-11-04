@@ -22,7 +22,6 @@ export const WIDGET_KINDS = [
   'where_to_watch',
   'ai_context',
   'match_stakes',
-  'related_videos',
   'head_to_head',
   'team_schedule',
 ] as const satisfies readonly WidgetKind[];
