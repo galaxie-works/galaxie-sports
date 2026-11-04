@@ -103,6 +103,14 @@ async function shutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 
+// o event loop esvaziou (nada segurando o processo: nem o laço, nem um filho, nem o banco): o Node sairia com 0 em
+// silêncio e o contêiner reiniciaria sem rastro. Registra e sai com 1 para o reinício aparecer no log e no alerta.
+process.on('beforeExit', (code) => {
+  if (stopping) return;
+  log.error({ code }, 'o event loop do worker esvaziou sem SIGTERM; saindo para o contêiner reiniciar');
+  process.exit(1);
+});
+
 // o laço só termina pela drenagem; se terminar por outro motivo, o contêiner reinicia
 void loop.then(
   () => {

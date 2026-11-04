@@ -279,6 +279,11 @@ O resto do checkpoint é livre e aparece em JSON.
   pronta há mais de 1 h. Confira `docker compose ps worker`, o `/health` e a seção Workers do painel.
 - **Worker com concessão vencida no painel**: ele parou de renovar. Veja `docker compose logs worker`; o healthcheck
   reinicia o contêiner travado, e a tarefa volta à fila do checkpoint (a tomada cortada gasta a tentativa).
+- **Worker reiniciando sem log de encerramento**: o processo saiu porque o event loop esvaziou, não por SIGTERM nem
+  OOM (`docker inspect` mostra saída 0 e `OOMKilled=false`). Desde 04/11/2026 (#618) o laço segura o processo e, se
+  acontecer de novo por outro caminho, o log traz `o event loop do worker esvaziou sem SIGTERM` e a saída é 1 (#619).
+  Antes disso, o worker saía com 0 em silêncio a cada 30 a 60 min, quando o postgres.js reciclava a conexão
+  (`max_lifetime`) entre duas tomadas.
 - **Falha**: `gs tarefa ver <id>` mostra o último erro e cada execução. Corrigida a causa, **Reprocessar** cria uma
   tarefa nova com os mesmos params.
 - **Reprocessar a execução aprovada de um tipo destrutivo** volta como **prévia**: o plano antigo pode não valer mais, e
