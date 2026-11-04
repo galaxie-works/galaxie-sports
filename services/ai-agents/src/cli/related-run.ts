@@ -90,7 +90,9 @@ function printReport(report: RelatedRunReport, plan: boolean): void {
       `${report.expired} linha(s) apagada(s) pela retenção de 30 dias · ` +
       `${report.statistics?.videos ?? 0} vídeo(s) com estatísticas atualizadas`,
   );
-  if (report.items.some((i) => i.action === 'error')) process.exitCode = 1;
+  if (report.statistics?.error)
+    console.error(`related: atualização das estatísticas falhou: ${report.statistics.error}`);
+  if (report.items.some((i) => i.action === 'error') || report.statistics?.error) process.exitCode = 1;
 }
 
 // YOUTUBE_SEARCH=off (padrão do dev, infra/nas-dev): sai sem abrir o banco, sem chamar o YouTube e sem purgar nada
