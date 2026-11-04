@@ -467,7 +467,7 @@ export const relatedChannelRule = enrich.table(
 );
 
 /** Modo de uma execução por jogo: busca completa, só os canais conhecidos ou só a revalidação. */
-export type RelatedRunMode = 'full' | 'channels' | 'revalidate';
+export type RelatedRunMode = 'full' | 'channels' | 'revalidate' | 'stats';
 
 /**
  * Execuções do agente de conteúdo relacionado, por dia de cota do YouTube (meia-noite do Pacífico). A cota tem
@@ -482,7 +482,7 @@ export const relatedRun = enrich.table(
     eventId: uuid('event_id')
       .notNull()
       .references(() => event.id, { onDelete: 'cascade' }),
-    /** full = canais + busca · channels = só os canais conhecidos · revalidate = só videos.list dos ids guardados. */
+    /** full = canais + busca · channels = só os canais conhecidos · revalidate = só videos.list dos ids guardados · stats = atualização diária da vitrine (o evento é só o primeiro do lote). */
     mode: text('mode').$type<RelatedRunMode>().notNull(),
     /** running | done | failed | skipped */
     status: text('status').notNull().default('running'),

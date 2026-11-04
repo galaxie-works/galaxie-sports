@@ -160,6 +160,7 @@ flowchart LR
 7. **Ranking**: `source_tier` (oficial 3, detentor 3, imprensa 2, criador 1) + log₁₀(visualizações) / 2 + bônus de tipo (melhores momentos e gols primeiro) − meia-vida de 3 dias desde o apito. Desempate por data e id.
 8. **Gravação e histórico** (`saveRelatedContent`): uma versão por mudança material (tipo, formato, status, título, flags); sem mudança, só renova `last_checked_at` e as estatísticas. Vídeo que sumiu do `videos.list` → versão `retracted`. Mudança visível → `event.related_content_changed` no change feed (tag `related_content:<evento>`), que purga o cache e vira SSE/webhook.
 9. **Revalidação**: entre as buscas completas (`RELATED_RESEARCH_HOURS`, padrão 12 h) o jogo não busca de novo: relê os canais oficiais a cada `RELATED_CHANNEL_REFRESH_MINUTES` e, no máximo a cada `RELATED_REVALIDATE_MINUTES`, faz um `videos.list` com os ids guardados (1 unidade) para atualizar estatísticas e retirar o que saiu do ar.
+   Depois das 24 h do jogo, cada execução também lê de novo a vitrine com estatísticas de mais de 24 h, em qualquer jogo (`mode = 'stats'`, até 1.000 vídeos por execução, só com o que sobra do balde geral). Custa 1 unidade por 50 vídeos, grava só as estatísticas e retira o vídeo que a API não devolve mais. Sem isso, o número ficaria parado por até 30 dias (III.E.4.e/f).
 10. **Retenção (30 dias, §2.1)**: o vídeo é apagado (todas as versões) 30 dias depois do `first_seen_at`, sem renovação pela revalidação; o mesmo vale para o cache de canais e as recusas do player.
 
 ## 6. Modelo de dados (`enrich`)
