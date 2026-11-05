@@ -11,6 +11,7 @@ import {
   type ExploreSnapshot,
   type SportEntry,
 } from './snapshot.js';
+import { exploreWindow } from './window.js';
 
 /** Esporte ou mercado da linha que vale para todos. */
 export const ALL = '*';
@@ -139,5 +140,14 @@ export async function exploreRefreshReason(
       from ops.change_feed
      where created_at >= ${meta.generatedAt.toISOString()}::timestamptz
        and ${SUMMARY_CHANGES}`);
-  return changed && changed.n > 0 ? `${changed.n} mudança(s) de jogo no change feed` : null;
+  if (changed && changed.n > 0) return `${changed.n} mudança(s) de jogo no change feed`;
+  // jogo novo do fornecedor não passa pelo change feed, e sem isto a home ficava até 10 min atrás da agenda
+  const window = exploreWindow(now);
+  const [added] = await db.execute<{ n: number }>(sql`
+    select count(*)::int as n
+      from core.event
+     where starts_at >= ${window.from.toISOString()}::timestamptz
+       and starts_at < ${window.to.toISOString()}::timestamptz
+       and created_at >= ${meta.generatedAt.toISOString()}::timestamptz`);
+  return added && added.n > 0 ? `${added.n} jogo(s) novo(s) na janela` : null;
 }
