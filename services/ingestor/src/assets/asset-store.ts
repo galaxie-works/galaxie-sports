@@ -17,9 +17,14 @@ import {
   type AssetPalette,
   type Database,
 } from '@galaxie/db';
-import { PLACEHOLDER_LOGO_SHA256 } from './palette.js';
-import { pendingPersonPhotoIds, PERSON_PHOTO_KINDS, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
-import { LOGO_KIND_VALUES, LOGO_KINDS, MISSING_ASSET } from './placeholder-logos.js';
+import {
+  LOGO_KIND_VALUES,
+  LOGO_KINDS,
+  MISSING_ASSET,
+  PERSON_PHOTO_KINDS,
+  PLACEHOLDER_LOGO_SHA256,
+} from '@galaxie/core-writer';
+import { pendingPersonPhotoIds, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
 
 /**
  * Estado de um asset em core.asset:
@@ -35,7 +40,18 @@ export interface MirrorAsset {
   kind: MediaAssetKind;
   /** Já tentado e ausente (404, bloqueado, genérico): só aparece na fila com `includeMissing`. */
   missing?: boolean;
+  /** Lugar do asset na fila (ordem de criação): o cursor do espelho guarda o último feito de cada tipo. */
+  position?: MirrorPosition;
 }
+
+/** Lugar na fila do espelho: `created_at` (texto do Postgres, com microssegundos) e id, nesta ordem. */
+export interface MirrorPosition {
+  createdAt: string;
+  id: string;
+}
+
+/** Último asset feito de cada tipo nesta volta pela fila (ops.sync_cursor, `mirror-cursor.ts`). */
+export type MirrorCursor = Partial<Record<MediaAssetKind, MirrorPosition>>;
 
 export interface StoredInfo {
   storageKey: string;
@@ -56,6 +72,8 @@ export interface PaletteCandidate {
 
 export interface PendingQuery {
   limit?: number | undefined;
+  /** Retoma a volta: de cada tipo, só os que vêm depois desta posição (fora o modo de fotos). */
+  after?: MirrorCursor | undefined;
   /** Inclui os marcados como ausentes (404/bloqueados) para nova tentativa. */
   includeMissing?: boolean | undefined;
   /** Só fotos de pessoas, das escaladas desde `since` para o resto (ver person-photos.ts). */
@@ -185,11 +203,17 @@ export class InMemoryAssetStore implements AssetStore {
         !r.storageKey &&
         (query.includeMissing || !r.fetchedAt) &&
         (!query.personPhotos || PERSON_PHOTO_KINDS.has(r.kind)) &&
-        (!query.pathPrefix || new URL(r.sourceUrl).pathname.startsWith(mediaPathPrefix(query.pathPrefix))),
+        (!query.pathPrefix || new URL(r.sourceUrl).pathname.startsWith(mediaPathPrefix(query.pathPrefix))) &&
+        // ids em sequência: a ordem de criação
+        (!query.after?.[r.kind] || Number(r.id) > Number(query.after[r.kind]!.id)),
     );
-    return rows
-      .slice(0, query.limit ?? rows.length)
-      .map(({ id, sourceUrl, kind, fetchedAt }) => ({ id, sourceUrl, kind, missing: !!fetchedAt }));
+    return rows.slice(0, query.limit ?? rows.length).map(({ id, sourceUrl, kind, fetchedAt }) => ({
+      id,
+      sourceUrl,
+      kind,
+      missing: !!fetchedAt,
+      position: { createdAt: id.padStart(12, '0'), id },
+    }));
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {
@@ -359,6 +383,11 @@ export class PgAssetStore implements AssetStore {
       sql`${asset.sourceUrl} ~* ${mediaUrlPattern(query.pathPrefix)}`,
     ];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
+    for (const [kind, p] of Object.entries(query.after ?? {}) as [MediaAssetKind, MirrorPosition][]) {
+      conditions.push(
+        sql`(${asset.kind}::text <> ${kind} or (${asset.createdAt}, ${asset.id}) > (${p.createdAt}::timestamptz, ${p.id}::uuid))`,
+      );
+    }
     const q = this.db
       // só URLs da CDN de mídia (filtro acima): o tipo é sempre um MediaAssetKind
       .select({
@@ -366,11 +395,14 @@ export class PgAssetStore implements AssetStore {
         sourceUrl: asset.sourceUrl,
         kind: sql<MediaAssetKind>`${asset.kind}`,
         missing: MISSING_ASSET,
+        // em texto: o Date do JS corta os microssegundos, e o cursor pularia ou repetiria o último
+        createdAt: sql<string>`${asset.createdAt}::text`,
       })
       .from(asset)
       .where(and(...conditions))
       .orderBy(asc(asset.createdAt), asc(asset.id));
-    return query.limit ? q.limit(query.limit) : q;
+    const rows = await (query.limit ? q.limit(query.limit) : q);
+    return rows.map(({ createdAt, ...r }) => ({ ...r, position: { createdAt, id: r.id } }));
   }
 
   async markStored(id: string, info: StoredInfo): Promise<void> {

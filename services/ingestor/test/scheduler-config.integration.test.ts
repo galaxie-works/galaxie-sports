@@ -3,9 +3,8 @@ import { createLogger } from '@galaxie/observability';
 import { RUNTIME_BASE_ENV } from '@galaxie/runtime-config';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { RunResult } from '../src/scheduler/runner.js';
-import { DEFAULT_JOBS, type ScheduledJob } from '../src/scheduler/schedule.js';
-import { SchedulerService } from '../src/scheduler/service.js';
+import { SchedulerService, type RunResult, type ScheduledJob } from '@galaxie/scheduler';
+import { DEFAULT_JOBS } from '../src/scheduler/schedule.js';
 import { disposableDb } from './db.js';
 
 const disposable = disposableDb();

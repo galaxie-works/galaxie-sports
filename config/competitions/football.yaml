@@ -65,7 +65,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: high
-    labels: { pt-BR: "Copa do Brasil", es: "Copa de Brasil", en: "Copa do Brasil" }
+    labels: { pt-BR: "Copa do Brasil", en: "Copa do Brasil" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/73.png"]
   - slug: conmebol-libertadores
     name: "CONMEBOL Libertadores"
@@ -690,7 +690,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "Supercopa do Brasil", es: "Supercopa de Brasil", en: "Brazilian Super Cup" }
+    labels: { pt-BR: "Supercopa do Brasil", en: "Brazilian Super Cup" }
     sources: ["https://github.com/ductd26100/avatar-remake/blob/main/src/main/java/avatar/football/League.java", "https://github.com/zkoprek/diplomski-server/blob/master/Leagues_data", "https://github.com/davidhuertabeltran/football-scores/blob/master/src/lib/league-list-clean.js", "https://media.api-sports.io/football/leagues/632.png"]
   - slug: brasileirao-feminino
     name: "Brasileiro Women"

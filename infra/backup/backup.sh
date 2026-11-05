@@ -3,6 +3,11 @@
 #   backup.sh                  # um backup agora
 # Variáveis: BACKUP_DIR (/backups), BACKUP_KEEP_DAILY (7 dumps), BACKUP_COMPRESS (zstd:5),
 #            BACKUP_S3_BUCKET / BACKUP_S3_PREFIX / BACKUP_S3_ENDPOINT + AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+#            BACKUP_EXCLUDE_TABLE_DATA: tabelas que vão só com a estrutura (padrão: o que veio da API do YouTube, que a
+#            política manda apagar em 30 dias e os dumps guardariam por meses; docs/12-conteudo-relacionado.md §2.1)
+#            BACKUP_S3_SYNC_PREFIXES / BACKUP_S3_SYNC_TASKS_BUCKET=true: com elas, depois do dump o s3-sync.sh copia
+#            esses prefixos do bucket de assets e o bucket das tarefas (RustFS) para o volume e para o bucket remoto
+#            (cabeçalho do s3-sync.sh); sem elas, nada muda
 set -eu
 # shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
@@ -42,8 +47,12 @@ if age_enabled; then
     fail "BACKUP_AGE_RECIPIENTS sem BACKUP_AGE_IDENTITY: a chave do ensaio confere cada dump cifrado (docs/runbooks/exercicio-dr.md)"
 fi
 
+# shellcheck disable=SC2046,SC2086 # uma opção por tabela da lista
+set -- $(for t in ${BACKUP_EXCLUDE_TABLE_DATA-enrich.related_content enrich.youtube_channel enrich.related_playback_block enrich.related_playback_report}; do
+  echo "--exclude-table-data=$t"
+done)
 log info "iniciando pg_dump para $file"
-pg_dump --format=custom --compress="${BACKUP_COMPRESS:-zstd:5}" --no-owner --no-privileges --file="${plain:-$tmp}" ||
+pg_dump --format=custom --compress="${BACKUP_COMPRESS:-zstd:5}" --no-owner --no-privileges "$@" --file="${plain:-$tmp}" ||
   fail "pg_dump retornou erro"
 # Um dump que o pg_restore não consegue listar não é backup.
 pg_restore --list "${plain:-$tmp}" >/dev/null || fail "arquivo gerado não é legível pelo pg_restore"
@@ -73,7 +82,7 @@ if s3_enabled; then
   fi
 fi
 
-# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota usa regra de ciclo de vida do bucket; o NAS, a
+# Retenção local: os BACKUP_KEEP_DAILY dumps mais recentes (a remota guarda tudo, sem regra de ciclo de vida: decisão de 02/11/2026; o NAS, a
 # rotação dele).
 deleted=$(prune_dumps)
 
@@ -81,3 +90,9 @@ duration=$(($(date -u +%s) - started))
 printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$file" >"$BACKUP_DIR/.last_success"
 job_finish "$run_id" ok "" "{\"file\":\"$(basename "$file")\",\"bytes\":$size,\"duration_s\":$duration,\"uploaded\":$uploaded,\"deleted_old\":$deleted}"
 log info "backup concluído: $(basename "$file") ($size bytes, ${duration}s, remota=$uploaded, removidos=$deleted)"
+
+# Os assets vêm depois do dump, que já está guardado e registrado: um RustFS fora do ar não derruba o backup do banco. A
+# falha do sync tem job próprio (s3-sync) e o backup-check.sh a acusa pelo recibo; aqui só sai com erro para o chamador ver.
+if s3_sync_enabled; then
+  s3-sync.sh || exit 1
+fi

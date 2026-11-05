@@ -3,6 +3,23 @@ import { describe, expect, it } from 'vitest';
 import { apiLoggerOptions, registerObservability } from './observability.js';
 import { buildServer } from './server.js';
 
+describe('versão da API', () => {
+  it('GET /version responde sem autenticação e /metrics traz o build_info', async () => {
+    const app = Fastify();
+    registerObservability(app, { env: { GALAXIE_IMAGE_HASH: 'in-abc', METRICS_TOKEN: 'segredo' } });
+    const res = await app.inject({ method: 'GET', url: '/version' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ service: 'api', image_hash: 'in-abc', node: process.version });
+    expect(Object.keys(res.json()).sort()).toEqual(['image_hash', 'node', 'service', 'started_at']);
+    const metrics = await app.inject({
+      method: 'GET',
+      url: '/metrics',
+      headers: { authorization: 'Bearer segredo' },
+    });
+    expect(metrics.body).toContain('build_info{service="api",image_hash="in-abc"} 1');
+  });
+});
+
 describe('logs da API', () => {
   it('são JSON com service=api e IP do cliente mascarado', async () => {
     const lines: Record<string, unknown>[] = [];

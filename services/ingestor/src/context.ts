@@ -5,7 +5,7 @@ import {
   plansFromEnv,
   PlanRules,
 } from '@galaxie/apisports-client';
-import { createDb, type Database } from '@galaxie/db';
+import { createDb, type Database, type DbProfile } from '@galaxie/db';
 import { quotaPolicyFromEnv } from '@galaxie/observability';
 import { PgCatalogSource, type CatalogSource } from './jobs/catalog-source.js';
 import { PgCursorStore } from './jobs/runtime/cursor-store.js';
@@ -23,16 +23,29 @@ export interface IngestorContext {
 }
 
 /**
- * Monta banco, Governor e cliente a partir das variáveis de ambiente (.env).
+ * Perfil de tempos do banco de um processo do ingestor: `live` dentro do serviço do ao vivo (`SCHEDULER_PROFILE=live`,
+ * que os jobs herdam do scheduler), o padrão (`job`) no resto. Ver packages/db/src/client.ts › DB_TIMEOUTS.
+ */
+export function dbProfileFromEnv(env: NodeJS.ProcessEnv = process.env): DbProfile | undefined {
+  return env.SCHEDULER_PROFILE?.trim().toLowerCase() === 'live' ? 'live' : undefined;
+}
+
+/**
+ * Monta banco, Governor e cliente a partir das variáveis de ambiente (.env). O perfil de tempos do banco é o de
+ * `options.dbProfile` ou, sem ele, o do serviço (`dbProfileFromEnv`).
  * O plano é por API: APISPORTS_PLAN é o padrão e APISPORTS_PLAN_<ESPORTE> sobrescreve uma API
  * (regras do plano, limite por minuto e política do Quota Governor).
  * Sem APISPORTS_KEY o cliente entra em modo offline: útil depois de restaurar um snapshot do raw.
  */
-export function contextFromEnv(env: NodeJS.ProcessEnv = process.env): IngestorContext {
+export function contextFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { dbProfile?: DbProfile | undefined } = {},
+): IngestorContext {
   const { APISPORTS_KEY, DATABASE_URL } = env;
   if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const planFor = plansFromEnv(env);
-  const db = createDb(DATABASE_URL);
+  const dbProfile = options.dbProfile ?? dbProfileFromEnv(env);
+  const db = createDb(DATABASE_URL, dbProfile ? { profile: dbProfile } : {});
   const liveTimeoutMs = Number(env.APISPORTS_LIVE_TIMEOUT_MS) || undefined;
   const governor = new PgQuotaGovernor(db, quotaPolicyFromEnv(env));
   const offline = !APISPORTS_KEY;

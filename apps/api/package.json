@@ -30,6 +30,7 @@
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/observability": "workspace:*",
@@ -43,8 +44,5 @@
     "postgres": "^3.4.9",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "@galaxie/ingestor": "workspace:*"
   }
 }

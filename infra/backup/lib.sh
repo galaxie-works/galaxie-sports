@@ -168,3 +168,55 @@ aws_s3() {
 s3_uri() {
   printf 's3://%s/%s' "$BACKUP_S3_BUCKET" "${BACKUP_S3_PREFIX:-postgres}"
 }
+
+# ── Cópia dos assets (bucket do RustFS da stack) ─────────────────────────────────────────────────────────────────
+# BACKUP_S3_SYNC_PREFIXES: prefixos de primeiro nível do bucket de assets (S3_BUCKET) que valem cópia, separados por
+# espaço ou vírgula (ex.: "broadcasters platforms"). Vazio = o passo não existe. s3-sync.sh espelha cada prefixo em
+# $BACKUP_S3_SYNC_DIR (volume `backups`, de onde o NAS puxa) e dali para o bucket remoto, sem apagar nada por padrão.
+: "${BACKUP_S3_SYNC_DIR:=$BACKUP_DIR/s3}"
+# Num prefixo irmão do dos dumps (o bucket remoto guarda tudo, sem regra de ciclo de vida).
+: "${BACKUP_S3_SYNC_DEST_PREFIX:=assets}"
+: "${BACKUP_S3_SYNC_DELETE:=false}"
+
+# Um prefixo por linha. Só nomes de pasta simples: letras, números, ponto, hífen e sublinhado, com barras entre níveis
+# (sem "..", sem barra no começo ou no fim), porque o nome vira caminho no volume, no NAS e no bucket remoto.
+s3_sync_prefixes() {
+  printf '%s\n' "${BACKUP_S3_SYNC_PREFIXES:-}" | tr ', \t' '\n\n\n' | sed '/^$/d'
+}
+
+# Bucket privado das tarefas (S3_TASKS_BUCKET: pacotes do acervo, relatórios, tasks/<id>/; #587): com
+# BACKUP_S3_SYNC_TASKS_BUCKET=true, o s3-sync.sh copia o bucket inteiro para s3/tasks-bucket/ do volume, ao lado dos
+# prefixos do bucket de assets, de onde o NAS puxa como mais um prefixo (tasks-bucket em NAS_S3_PREFIXES), e, com bucket
+# remoto, para <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/ dele. Por isso `tasks-bucket` não pode ser prefixo do bucket de assets.
+: "${BACKUP_S3_SYNC_TASKS_BUCKET:=false}"
+S3_SYNC_TASKS_NAME=tasks-bucket
+: "${BACKUP_S3_SYNC_TASKS_DIR:=$BACKUP_S3_SYNC_DIR/$S3_SYNC_TASKS_NAME}"
+: "${BACKUP_S3_SYNC_TASKS_DEST_PREFIX:=tasks}"
+
+s3_sync_tasks_enabled() {
+  [ "$BACKUP_S3_SYNC_TASKS_BUCKET" = true ]
+}
+
+# Ligado com prefixos do bucket de assets, com o bucket das tarefas, ou com os dois (o recibo é um só).
+s3_sync_enabled() {
+  [ -n "$(s3_sync_prefixes)" ] || s3_sync_tasks_enabled
+}
+
+s3_sync_prefix_valid() {
+  case "$1" in
+  *..* | /* | */) return 1 ;;
+  esac
+  printf '%s' "$1" | grep -q '^[A-Za-z0-9._-]\{1,\}\(/[A-Za-z0-9._-]\{1,\}\)*$'
+}
+
+# aws contra o RustFS da stack (credenciais S3_ACCESS_KEY/S3_SECRET_KEY, não as do bucket remoto).
+aws_assets() {
+  AWS_ACCESS_KEY_ID="${S3_ACCESS_KEY:-}" AWS_SECRET_ACCESS_KEY="${S3_SECRET_KEY:-}" \
+    aws --endpoint-url "${S3_ENDPOINT:?defina S3_ENDPOINT}" s3 "$@"
+}
+
+# Recibo do último sync completo (todos os prefixos e, se ligado, o bucket das tarefas, no volume e no bucket remoto):
+# backup-check.sh confere a idade.
+s3_sync_receipt() {
+  printf '%s' "$BACKUP_DIR/.s3_last_sync"
+}

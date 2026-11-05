@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   APP_SCHEMAS,
   DEMO_AUTH_SCHEMA,
+  ROLE_CONNECTION_LIMITS,
   ROLE_GRANTS,
   ROLE_SERVICES,
   applyRoles,
@@ -188,6 +189,92 @@ describe('papéis por serviço', () => {
     const drill = `${dbName}_drill`;
     await b.unsafe(`create database ${drill}`);
     await b.unsafe(`drop database ${drill} with (force)`);
+  });
+
+  it('live: grava o que o tick grava (core, raw.api_response, ops estreito) e mais nada', async () => {
+    const live = conn('live');
+    // core: o upsert do lote e o relógio dos eventos
+    await live`insert into core.sport (slug, name) values ('teste-live', '{"pt-BR":"Teste"}')`;
+    await live`update core.sport set name = '{"pt-BR":"Teste 2"}' where slug = 'teste-live'`;
+    await live`delete from core.sport where slug = 'teste-live'`;
+    // raw: o cliente grava a resposta (retention live) e, com o corpo repetido, só estende o "visto em"
+    const [resp] = await live<{ id: string }[]>`
+      insert into raw.api_response (sport, api_version, endpoint, params, request_hash, status_code, body, body_hash, retention)
+      values ('football', 'v3', '/fixtures', '{"live":"all"}', 'h', 200, '{}', 'b', 'live') returning id`;
+    await live`update raw.api_response set seen_count = seen_count + 1, last_seen_at = now() where id = ${resp!.id}`;
+    // ops: change feed (publishChange), job_run, sync_cursor (estado do ao vivo), Quota Governor
+    const [id] = await live<
+      { id: string }[]
+    >`select ops.publish_change('live', 'event', 'e1', '{"a":1}'::jsonb)::text as id`;
+    expect(Number(id!.id)).toBeGreaterThan(0);
+    const [run] = await live<{ id: string }[]>`
+      insert into ops.job_run (job, status) values ('live:run', 'running') returning id`;
+    await live`update ops.job_run set status = 'ok' where id = ${run!.id}`;
+    await live`
+      insert into ops.sync_cursor (sport, endpoint, key, cursor) values ('football', 'live:scheduler', 'state', '{}')
+      on conflict (provider, sport, endpoint, key) do update set cursor = excluded.cursor`;
+    // o scheduler do serviço: relato ao painel e "rodar agora" do live-reconcile e do events-clock
+    for (const t of ['quota_ledger', 'quota_snapshot', 'quota_budget', 'runtime_env', 'job_request'])
+      expect(
+        (
+          await owner<{ ok: boolean }[]>`
+            select has_table_privilege(${roleName('live', prefix)}, ${`ops.${t}`}, 'insert') as ok`
+        )[0]!.ok,
+      ).toBe(true);
+    // lê o que o recálculo, o cache do cliente e o createDerbyLookup precisam
+    for (const t of ['core.event', 'ops.runtime_setting', 'raw.api_response', 'semantic.derby'])
+      await live.unsafe(`select 1 from ${t} limit 1`);
+  });
+
+  it('live: INSERT em semantic, enrich, api e nas tabelas de ops fora do ao vivo é recusado', async () => {
+    const live = conn('live');
+    await denied(
+      live`insert into semantic.derby (slug, name, scope, intensity) values ('x', 'x', 'city', 1)`,
+    );
+    await denied(
+      live`insert into enrich.platform (slug, name, kind, country) values ('x', 'x', 'streaming', 'BR')`,
+    );
+    // as demais tabelas de ops e o api: sem INSERT (a escrita de ops do ao vivo é por tabela)
+    for (const t of ['ops.llm_usage', 'ops.normalize_failure', 'ops.runtime_setting', 'api.tenant']) {
+      const [p] = await owner<{ ins: boolean; upd: boolean; del: boolean }[]>`
+        select has_table_privilege(${roleName('live', prefix)}, ${t}, 'insert') as ins,
+               has_table_privilege(${roleName('live', prefix)}, ${t}, 'update') as upd,
+               has_table_privilege(${roleName('live', prefix)}, ${t}, 'delete') as del`;
+      expect(p, t).toEqual({ ins: false, upd: false, del: false });
+    }
+  });
+
+  it('CONNECTION LIMIT de cada papel vem de ROLE_CONNECTION_LIMITS', async () => {
+    const rows = await owner<{ rolname: string; rolconnlimit: number }[]>`
+      select rolname, rolconnlimit from pg_roles where rolname like ${`${prefix}%`}`;
+    expect(rows).toHaveLength(ROLE_SERVICES.length);
+    for (const r of rows) {
+      const service = ROLE_SERVICES.find((s) => roleName(s, prefix) === r.rolname)!;
+      expect(r.rolconnlimit).toBe(ROLE_CONNECTION_LIMITS[service]);
+    }
+  });
+
+  it('o limite recusa a conexão que passa dele (53300) e libera quando uma cai', async () => {
+    const tight = postgres(
+      withDb(adminUrl, dbName, { name: roleName('backup', prefix), password: passwords.backup }),
+      {
+        max: ROLE_CONNECTION_LIMITS.backup + 2,
+        onnotice: () => {},
+      },
+    );
+    try {
+      // o backup já tem 1 conexão aberta pelos outros testes (conn('backup')): abre até estourar
+      const err = await Promise.all(
+        Array.from({ length: ROLE_CONNECTION_LIMITS.backup + 2 }, () => tight`select pg_sleep(0.5)`),
+      ).then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect((err as { code?: string } | null)?.code).toBe('53300');
+    } finally {
+      await tight.end({ timeout: 5 });
+    }
+    await conn('backup')`select 1`;
   });
 
   it('tabela criada depois pelo dono já sai com o GRANT (default privileges), sequência inclusa', async () => {

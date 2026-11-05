@@ -1,3 +1,4 @@
+import { slugify } from '@galaxie/core-writer';
 import type { Database, I18nText } from '@galaxie/db';
 import type { CatalogCompetition } from './catalog-config.js';
 import {
@@ -36,15 +37,6 @@ export interface ApiLeague {
 }
 
 // ─── normalização (funções puras) ────────────────────────────────────────────────────────────────
-
-export function slugify(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
 
 /** Código do país no nosso modelo: ISO2 (ou extensão da api-sports como GB-ENG); "WORLD" para internacionais. */
 export function countryCode(c: Pick<ApiCountry, 'name' | 'code'>): string {

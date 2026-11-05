@@ -11,7 +11,7 @@ import {
   type VerifiedPublishableKey,
 } from '@galaxie/db';
 import { problems } from '../errors.js';
-import type { AuthAttempt, TenantContext } from './authenticator.js';
+import { withoutClosedModules, type AuthAttempt, type TenantContext } from './authenticator.js';
 import { ipBucket, type AuthThrottle } from './throttle.js';
 
 /** Header da chave publicável (a que vai no código do navegador). */
@@ -97,9 +97,13 @@ export class PublishableAuthenticator {
     if (!isOriginAllowed(origin, key.allowedOrigins)) throw problems.originNotAllowed(origin);
 
     // chave presa a um widget: só os módulos que aquele tipo de widget consome
-    const modules = key.widgetKind
-      ? key.tenant.modules.filter((m) => WIDGET_KIND_MODULES[key.widgetKind!].includes(m))
-      : key.tenant.modules;
+    const modules = withoutClosedModules(
+      key.widgetKind
+        ? key.tenant.modules.filter((m) => WIDGET_KIND_MODULES[key.widgetKind!].includes(m))
+        : key.tenant.modules,
+      key.tenant.slug,
+      'publishable',
+    );
     this.touch(key.keyId, now);
     return {
       tenantId: key.tenant.id,

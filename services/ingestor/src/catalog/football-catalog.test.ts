@@ -6,7 +6,6 @@ import {
   countryCode,
   mergeSameYear,
   seasonLabel,
-  slugify,
   type ApiLeague,
 } from './football-catalog.js';
 
@@ -91,10 +90,6 @@ const CATALOG: CatalogCompetition[] = [
 ];
 
 describe('normalização', () => {
-  it('slugify remove acentos e pontuação', () => {
-    expect(slugify('Paulista - A1 (São Paulo)')).toBe('paulista-a1-sao-paulo');
-  });
-
   it('códigos de país: ISO, extensões e World', () => {
     expect(countryCode({ name: 'Brazil', code: 'br' })).toBe('BR');
     expect(countryCode({ name: 'England', code: 'GB-ENG' })).toBe('GB-ENG');

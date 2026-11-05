@@ -1,6 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["tsconfig.base.json"],
+  "globalDependencies": [
+    "tsconfig.base.json",
+    "package.json",
+    "pnpm-workspace.yaml",
+    ".nvmrc",
+    ".github/workflows/ci.yml",
+    "config/**",
+    "data/**",
+    "docs/rules/**"
+  ],
   "globalEnv": ["DATABASE_URL", "REDIS_URL", "NODE_ENV"],
   "tasks": {
     "build": {

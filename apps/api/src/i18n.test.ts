@@ -18,6 +18,9 @@ describe('locale', () => {
     expect(resolveLocale(undefined, 'es-CL,es;q=0.9')).toBe('es-CL');
     expect(resolveLocale(undefined, 'fr-FR, es;q=0.8, pt;q=0.9')).toBe('pt-BR');
     expect(resolveLocale(undefined, 'es-ES')).toBe('es-AR');
+    expect(resolveLocale(undefined, 'en-US,en;q=0.9')).toBe('en');
+    expect(resolveLocale(undefined, 'en-GB')).toBe('en');
+    expect(resolveLocale('en', 'pt-BR')).toBe('en');
     expect(resolveLocale(undefined, 'de-DE')).toBe('pt-BR');
     expect(resolveLocale(undefined, undefined)).toBe('pt-BR');
     expect(parseAcceptLanguage('en;q=0, es-AR')).toEqual(['es-AR']);
@@ -51,5 +54,12 @@ describe('hintLocales', () => {
     expect(hintLocales('es-AR', 'es-AR')).toEqual(['es-AR', 'es']);
     expect(hintLocales('pt-BR', 'es-AR')).toEqual(['pt-BR', 'pt']);
     expect(hintLocales('es-CL')).toEqual(['es-CL', 'es']);
+  });
+
+  it('en não tem grito próprio: cai nos do idioma do clube (text_locale), nunca em outro mercado', () => {
+    expect(hintLocales('en', 'pt-BR')).toEqual(['en', 'pt-BR', 'pt']);
+    expect(hintLocales('en', 'es-AR')).toEqual(['en', 'es-AR', 'es']);
+    expect(hintLocales('en', null)).toEqual(['en']);
+    expect(hintLocales('en')).toEqual(['en']);
   });
 });

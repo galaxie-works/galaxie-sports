@@ -69,7 +69,7 @@ Testada em 29/10/2026 com o Traefik v3.7.16 numa stack descartável no NAS: JSON
 `gzip` para quem só aceita gzip) e ~5% do tamanho; `text/event-stream` (o SSE) passa sem compressão; o label de
 middlewares vazio deixa o router como está; o mesmo middleware declarado igual em vários contêineres não dá conflito.
 
-O middleware `gsports-compress` é declarado por labels na `api`, na `demo`, no `s3` e na `maintenance` (igual nos
+O middleware `gsports-compress` é declarado por labels na `api`, no `site`, no `console`, no `s3` e na `maintenance` (igual nos
 quatro: some só se os quatro caírem) e só comprime os tipos de texto da lista (`includedcontenttypes`). Fica fora: SSE,
 imagens já comprimidas e qualquer resposta que já venha com `Content-Encoding` (a demo, o Next.js, já comprime parte).
 Os routers `gsports-*` usam `middlewares=${EDGE_MIDDLEWARES:-}`: vazio (o padrão), nada muda.
@@ -80,12 +80,12 @@ Ligar (precisa do OK do Wagner; não reinicia o Traefik):
 cd /docker/galaxie-sports
 cp .env .env.bak-compress
 echo 'EDGE_MIDDLEWARES=gsports-compress' >> .env
-docker compose up -d api demo s3 maintenance      # recria os quatro (a demo e a API ficam ~30 s na página de manutenção)
+docker compose up -d --no-deps api site console maintenance && docker compose -f compose.dados.yml up -d --no-deps s3   # recria os cinco (site, console e API ficam ~30 s na página de manutenção)
 curl -sS -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://$API_DOMAIN/v1/sports" -H "x-galaxie-key: $KEY" | grep -i content-encoding   # br
 curl -sS -N -m 5 -o /dev/null -D - -H 'Accept-Encoding: br, gzip' "https://$API_DOMAIN/v1/stream?token=$TOKEN" | grep -ci content-encoding   # 0
 ```
 
-Voltar: tirar a linha do `.env` (ou `cp .env.bak-compress .env`) e o mesmo `docker compose up -d api demo s3 maintenance`.
+Voltar: tirar a linha do `.env` (ou `cp .env.bak-compress .env`) e os mesmos dois comandos.
 O próximo deploy já usa o `.env` como estiver.
 
 ## Nova tentativa (`gsports-retry`)

@@ -44,7 +44,7 @@ updates:
       actions:
         patterns: ['*']
 
-  # Imagens base dos Dockerfiles (API, demo, ingestor, backup, Caddy, Prometheus, Grafana). O lineup-render fica fora:
+  # Imagens base dos Dockerfiles (API, demo, ingestor, backup, Prometheus, Grafana). O lineup-render fica fora:
   # a imagem do Playwright sobe junto com o playwright-core, à mão (infra/lineup-render/versions.mjs).
   - package-ecosystem: docker
     directories:
@@ -52,7 +52,6 @@ updates:
       - /apps/demo
       - /services/ingestor
       - /infra/backup
-      - /infra/caddy
       - /infra/observability/prometheus
       - /infra/observability/grafana
     schedule:

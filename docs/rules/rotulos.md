@@ -20,6 +20,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Partido de ida de la serie |
 | es-UY | Partido de ida de la serie |
 | es-EC | Partido de ida de la serie |
+| en | First leg of the tie |
 
 ### `advances_with_draw` — ex.: `advances_with_draw`
 
@@ -33,6 +34,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Avanza con el empate |
 | es-UY | Avanza con el empate |
 | es-EC | Avanza con el empate |
+| en | Goes through with a draw |
 
 ### `advances_with_loss_by_n` — ex.: `advances_with_loss_by_2`
 
@@ -46,6 +48,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Avanza incluso perdiendo por hasta 2 goles de diferencia |
 | es-UY | Avanza incluso perdiendo por hasta 2 goles de diferencia |
 | es-EC | Avanza incluso perdiendo por hasta 2 goles de diferencia |
+| en | Goes through even losing by up to 2 goals |
 
 ### `needs_win` — ex.: `needs_win`
 
@@ -59,6 +62,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Necesita ganar para avanzar directo |
 | es-UY | Necesita ganar para avanzar directo |
 | es-EC | Necesita ganar para avanzar directo |
+| en | Must win to go through outright |
 
 ### `needs_win_by_n` — ex.: `needs_win_by_2`
 
@@ -72,6 +76,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Necesita ganar por 2 goles para avanzar directo |
 | es-UY | Necesita ganar por 2 goles para avanzar directo |
 | es-EC | Necesita ganar por 2 goles para avanzar directo |
+| en | Must win by 2 goals to go through outright |
 
 ### `win_by_n_goes_to_penalties` — ex.: `win_by_2_goes_to_penalties`
 
@@ -85,6 +90,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ganar por 2 goles lleva la definición a los penales |
 | es-UY | Ganar por 2 goles lleva la definición a los penales |
 | es-EC | Ganar por 2 goles lleva la definición a los penales |
+| en | A win by 2 goals sends the tie to penalties |
 
 ### `win_by_n_goes_to_extra_time` — ex.: `win_by_2_goes_to_extra_time`
 
@@ -98,6 +104,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ganar por 2 goles lleva el partido al tiempo suplementario |
 | es-UY | Ganar por 2 goles lleva el partido al alargue |
 | es-EC | Ganar por 2 goles lleva el partido al tiempo extra |
+| en | A win by 2 goals sends the match to extra time |
 
 ### `draw_goes_to_penalties` — ex.: `draw_goes_to_penalties`
 
@@ -111,6 +118,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | El empate lleva la definición a los penales |
 | es-UY | El empate lleva la definición a los penales |
 | es-EC | El empate lleva la definición a los penales |
+| en | A draw sends the tie to penalties |
 
 ### `draw_goes_to_extra_time` — ex.: `draw_goes_to_extra_time`
 
@@ -124,6 +132,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | El empate lleva el partido al tiempo suplementario |
 | es-UY | El empate lleva el partido al alargue |
 | es-EC | El empate lleva el partido al tiempo extra |
+| en | A draw sends the match to extra time |
 
 ### `advances_with_draw_up_to_n` — ex.: `advances_with_draw_up_to_1`
 
@@ -137,6 +146,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Avanza con empate de hasta 1 a 1 |
 | es-UY | Avanza con empate de hasta 1 a 1 |
 | es-EC | Avanza con empate de hasta 1 a 1 |
+| en | Goes through with a draw of up to 1-1 |
 
 ### `advances_with_draw_from_n` — ex.: `advances_with_draw_from_1`
 
@@ -150,6 +160,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Avanza con empate de 1 a 1 o con más goles |
 | es-UY | Avanza con empate de 1 a 1 o con más goles |
 | es-EC | Avanza con empate de 1 a 1 o con más goles |
+| en | Goes through with a 1-1 draw or any higher-scoring draw |
 
 ### `specific_draw_goes_to_penalties` — ex.: `draw_1_1_goes_to_penalties`
 
@@ -163,6 +174,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | El empate 1 a 1 lleva la definición a los penales |
 | es-UY | El empate 1 a 1 lleva la definición a los penales |
 | es-EC | El empate 1 a 1 lleva la definición a los penales |
+| en | A 1-1 draw sends the tie to penalties |
 
 ### `specific_draw_goes_to_extra_time` — ex.: `draw_1_1_goes_to_extra_time`
 
@@ -176,6 +188,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | El empate 1 a 1 lleva el partido al tiempo suplementario |
 | es-UY | El empate 1 a 1 lleva el partido al alargue |
 | es-EC | El empate 1 a 1 lleva el partido al tiempo extra |
+| en | A 1-1 draw sends the match to extra time |
 
 ### `outcome_depends_on_away_goals` — ex.: `win_by_2_depends_on_away_goals`
 
@@ -189,6 +202,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana por 2 goles, la clasificación depende de los goles de visitante |
 | es-UY | Si gana por 2 goles, la clasificación depende de los goles de visitante |
 | es-EC | Si gana por 2 goles, la clasificación depende de los goles de visitante |
+| en | With a win by 2 goals, the tie comes down to away goals |
 
 ### `away_goals_rule` — ex.: `away_goals_rule`
 
@@ -202,6 +216,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | El gol de visitante es criterio de desempate |
 | es-UY | El gol de visitante es criterio de desempate |
 | es-EC | El gol de visitante es criterio de desempate |
+| en | Away goals count as a tiebreaker |
 
 ### `extra_time_then_penalties` — ex.: `extra_time_then_penalties`
 
@@ -215,6 +230,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si hay igualdad, tiempo suplementario y luego penales |
 | es-UY | Si hay igualdad, alargue y después penales |
 | es-EC | Si hay igualdad, tiempo extra y luego penales |
+| en | If level, extra time and then penalties |
 
 ### `decides_title` — ex.: `decides_title`
 
@@ -228,6 +244,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Se define el campeón |
 | es-UY | Se define el campeón |
 | es-EC | Se define el campeón |
+| en | The title is on the line |
 
 ### `wins_title_with_draw` — ex.: `wins_title_with_draw`
 
@@ -241,6 +258,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con el empate es campeón |
 | es-UY | Con el empate es campeón |
 | es-EC | Con el empate es campeón |
+| en | A draw wins the title |
 
 ### `wins_title_with_loss_by_n` — ex.: `wins_title_with_loss_by_2`
 
@@ -254,6 +272,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
 | es-UY | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
 | es-EC | Es campeón incluso perdiendo por hasta 2 goles de diferencia |
+| en | Wins the title even losing by up to 2 goals |
 
 ### `needs_win_for_title` — ex.: `needs_win_for_title`
 
@@ -267,6 +286,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana en el tiempo reglamentario, es campeón |
 | es-UY | Si gana en el tiempo reglamentario, es campeón |
 | es-EC | Si gana en el tiempo reglamentario, es campeón |
+| en | A win in normal time wins the title |
 
 ### `needs_win_by_n_for_title` — ex.: `needs_win_by_2_for_title`
 
@@ -280,6 +300,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
 | es-UY | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
 | es-EC | Si gana por 2 goles o más en el tiempo reglamentario, es campeón |
+| en | A win by 2 goals or more in normal time wins the title |
 
 ### `wins_title_with_draw_up_to_n` — ex.: `wins_title_with_draw_up_to_1`
 
@@ -293,6 +314,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con empate de hasta 1 a 1 es campeón |
 | es-UY | Con empate de hasta 1 a 1 es campeón |
 | es-EC | Con empate de hasta 1 a 1 es campeón |
+| en | A draw of up to 1-1 wins the title |
 
 ### `wins_title_with_draw_from_n` — ex.: `wins_title_with_draw_from_1`
 
@@ -306,6 +328,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con empate de 1 a 1 o con más goles es campeón |
 | es-UY | Con empate de 1 a 1 o con más goles es campeón |
 | es-EC | Con empate de 1 a 1 o con más goles es campeón |
+| en | A 1-1 draw or any higher-scoring draw wins the title |
 
 ### `title_depends_on_away_goals` — ex.: `win_by_2_title_depends_on_away_goals`
 
@@ -319,6 +342,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana por 2 goles, el título depende de los goles de visitante |
 | es-UY | Si gana por 2 goles, el título depende de los goles de visitante |
 | es-EC | Si gana por 2 goles, el título depende de los goles de visitante |
+| en | With a win by 2 goals, the title comes down to away goals |
 
 ## Pontos corridos, grupos e fase de liga
 
@@ -334,6 +358,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ya es campeón matemáticamente |
 | es-UY | Ya es campeón matemáticamente |
 | es-EC | Ya es campeón matemáticamente |
+| en | Already champions, mathematically |
 
 ### `clinches_title_with_draw` — ex.: `clinches_title_with_draw`
 
@@ -347,6 +372,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con un empate es campeón |
 | es-UY | Con un empate es campeón |
 | es-EC | Con un empate es campeón |
+| en | A draw clinches the title |
 
 ### `clinches_title_with_win` — ex.: `clinches_title_with_win`
 
@@ -360,6 +386,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana, es campeón |
 | es-UY | Si gana, es campeón |
 | es-EC | Si gana, es campeón |
+| en | A win clinches the title |
 
 ### `can_clinch_title` — ex.: `can_clinch_title`
 
@@ -373,6 +400,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Puede ser campeón en esta fecha, según otros resultados |
 | es-UY | Puede ser campeón en esta fecha, según otros resultados |
 | es-EC | Puede ser campeón en esta fecha, según otros resultados |
+| en | Can clinch the title this matchday, depending on other results |
 
 ### `in_title_race` — ex.: `in_title_race`
 
@@ -386,6 +414,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Sigue en la pelea por el título |
 | es-UY | Sigue en la pelea por el título |
 | es-EC | Sigue en la pelea por el título |
+| en | Still in the title race |
 
 ### `qualifies_for_zone` — ex.: `qualifies_for_libertadores_group_stage`
 
@@ -399,6 +428,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Asegura al menos la fase de grupos de la Libertadores |
 | es-UY | Asegura al menos la fase de grupos de la Libertadores |
 | es-EC | Asegura al menos la fase de grupos de la Libertadores |
+| en | Secures at least the Libertadores group stage |
 
 ### `clinches_zone_with_draw` — ex.: `clinches_libertadores_group_stage_with_draw`
 
@@ -412,6 +442,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con un empate asegura la fase de grupos de la Libertadores |
 | es-UY | Con un empate asegura la fase de grupos de la Libertadores |
 | es-EC | Con un empate asegura la fase de grupos de la Libertadores |
+| en | A draw secures the Libertadores group stage |
 
 ### `clinches_zone_with_win` — ex.: `clinches_libertadores_group_stage_with_win`
 
@@ -425,6 +456,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana, asegura la fase de grupos de la Libertadores |
 | es-UY | Si gana, asegura la fase de grupos de la Libertadores |
 | es-EC | Si gana, asegura la fase de grupos de la Libertadores |
+| en | A win secures the Libertadores group stage |
 
 ### `can_clinch_zone` — ex.: `can_clinch_libertadores_group_stage`
 
@@ -438,6 +470,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Puede asegurar la fase de grupos de la Libertadores en esta fecha, según otros resultados |
 | es-UY | Puede asegurar la fase de grupos de la Libertadores en esta fecha, según otros resultados |
 | es-EC | Puede asegurar la fase de grupos de la Libertadores en esta fecha, según otros resultados |
+| en | Can secure the Libertadores group stage this matchday, depending on other results |
 
 ### `can_qualify_for_zone` — ex.: `can_qualify_for_libertadores_group_stage`
 
@@ -451,6 +484,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Todavía puede conseguir la fase de grupos de la Libertadores |
 | es-UY | Todavía puede conseguir la fase de grupos de la Libertadores |
 | es-EC | Todavía puede conseguir la fase de grupos de la Libertadores |
+| en | Can still reach the Libertadores group stage |
 
 ### `mathematically_relegated` — ex.: `mathematically_relegated`
 
@@ -464,6 +498,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ya descendió matemáticamente |
 | es-UY | Ya descendió matemáticamente |
 | es-EC | Ya descendió matemáticamente |
+| en | Already relegated, mathematically |
 
 ### `relegated_unless_wins` — ex.: `relegated_unless_wins`
 
@@ -477,6 +512,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Desciende si no gana |
 | es-UY | Desciende si no gana |
 | es-EC | Desciende si no gana |
+| en | Relegated without a win |
 
 ### `relegated_if_loses` — ex.: `relegated_if_loses`
 
@@ -490,6 +526,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Desciende si pierde |
 | es-UY | Desciende si pierde |
 | es-EC | Desciende si pierde |
+| en | Relegated with a defeat |
 
 ### `can_be_relegated` — ex.: `can_be_relegated`
 
@@ -503,6 +540,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Puede descender en esta fecha, según otros resultados |
 | es-UY | Puede descender en esta fecha, según otros resultados |
 | es-EC | Puede descender en esta fecha, según otros resultados |
+| en | Can be relegated this matchday, depending on other results |
 
 ### `at_risk_of_relegation` — ex.: `at_risk_of_relegation`
 
@@ -516,6 +554,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Todavía corre riesgo de descenso |
 | es-UY | Todavía corre riesgo de descenso |
 | es-EC | Todavía corre riesgo de descenso |
+| en | Still at risk of relegation |
 
 ### `secures_safety_with_draw` — ex.: `secures_safety_with_draw`
 
@@ -529,6 +568,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Con un empate asegura la permanencia |
 | es-UY | Con un empate asegura la permanencia |
 | es-EC | Con un empate asegura la permanencia |
+| en | A draw secures safety |
 
 ### `secures_safety_with_win` — ex.: `secures_safety_with_win`
 
@@ -542,6 +582,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Si gana, asegura la permanencia |
 | es-UY | Si gana, asegura la permanencia |
 | es-EC | Si gana, asegura la permanencia |
+| en | A win secures safety |
 
 ### `can_secure_safety` — ex.: `can_secure_safety`
 
@@ -555,6 +596,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Puede asegurar la permanencia en esta fecha, según otros resultados |
 | es-UY | Puede asegurar la permanencia en esta fecha, según otros resultados |
 | es-EC | Puede asegurar la permanencia en esta fecha, según otros resultados |
+| en | Can secure safety this matchday, depending on other results |
 
 ### `safe_from_relegation` — ex.: `safe_from_relegation`
 
@@ -568,6 +610,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ya está a salvo del descenso |
 | es-UY | Ya está a salvo del descenso |
 | es-EC | Ya está a salvo del descenso |
+| en | Already safe from relegation |
 
 ### `mathematically_eliminated` — ex.: `mathematically_eliminated`
 
@@ -581,6 +624,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Ya está eliminado matemáticamente |
 | es-UY | Ya está eliminado matemáticamente |
 | es-EC | Ya está eliminado matemáticamente |
+| en | Already eliminated, mathematically |
 
 ### `eliminated_unless_wins` — ex.: `eliminated_unless_wins`
 
@@ -594,6 +638,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Queda eliminado si no gana |
 | es-UY | Queda eliminado si no gana |
 | es-EC | Queda eliminado si no gana |
+| en | Eliminated without a win |
 
 ### `eliminated_if_loses` — ex.: `eliminated_if_loses`
 
@@ -607,6 +652,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Queda eliminado si pierde |
 | es-UY | Queda eliminado si pierde |
 | es-EC | Queda eliminado si pierde |
+| en | Eliminated with a defeat |
 
 ### `can_be_eliminated` — ex.: `can_be_eliminated`
 
@@ -620,6 +666,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Puede quedar eliminado en esta fecha, según otros resultados |
 | es-UY | Puede quedar eliminado en esta fecha, según otros resultados |
 | es-EC | Puede quedar eliminado en esta fecha, según otros resultados |
+| en | Can be eliminated this matchday, depending on other results |
 
 ### `at_risk_of_elimination` — ex.: `at_risk_of_elimination`
 
@@ -633,6 +680,7 @@ Exemplos com `n = 2` (ou `n = 1` para empates específicos) e `zone = libertador
 | es-PE | Todavía corre riesgo de eliminación |
 | es-UY | Todavía corre riesgo de eliminación |
 | es-EC | Todavía corre riesgo de eliminación |
+| en | Still at risk of elimination |
 
 ## Histórico (jogos que podem dar o título)
 
@@ -650,6 +698,7 @@ Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n 
 | es-PE | Va por el tetracampeonato |
 | es-UY | Va por el tetracampeonato |
 | es-EC | Va por el tetracampeonato |
+| en | Chasing title No. 4 |
 
 ## Resultado (pontos corridos, jogo encerrado)
 
@@ -668,6 +717,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Subió al puesto 13 |
 | es-UY | Subió al puesto 13 |
 | es-EC | Subió al puesto 13 |
+| en | Moved up to 13th place |
 
 ### `moved_down_to_n` — ex.: `moved_down_to_13`
 
@@ -681,6 +731,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Bajó al puesto 13 |
 | es-UY | Bajó al puesto 13 |
 | es-EC | Bajó al puesto 13 |
+| en | Dropped to 13th place |
 
 ### `stayed_at_n` — ex.: `stayed_at_13`
 
@@ -694,6 +745,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Sigue en el puesto 13 |
 | es-UY | Sigue en el puesto 13 |
 | es-EC | Sigue en el puesto 13 |
+| en | Stays in 13th place |
 
 ### `took_the_lead` — ex.: `took_the_lead`
 
@@ -707,6 +759,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Pasó a ser líder |
 | es-UY | Pasó a ser líder |
 | es-EC | Pasó a ser líder |
+| en | Took the lead of the table |
 
 ### `lost_the_lead` — ex.: `lost_the_lead`
 
@@ -720,6 +773,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Dejó de ser líder |
 | es-UY | Dejó de ser líder |
 | es-EC | Dejó de ser líder |
+| en | Lost the lead of the table |
 
 ### `entered_zone` — ex.: `entered_libertadores_group_stage`
 
@@ -733,6 +787,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
 | es-UY | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
 | es-EC | Ahora ocupa un lugar para la fase de grupos de la Libertadores |
+| en | Now in a spot for the Libertadores group stage |
 
 ### `left_zone` — ex.: `left_libertadores_group_stage`
 
@@ -746,6 +801,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
 | es-UY | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
 | es-EC | Ya no ocupa un lugar para la fase de grupos de la Libertadores |
+| en | No longer in a spot for the Libertadores group stage |
 
 ### `dropped_into_relegation` — ex.: `dropped_into_relegation`
 
@@ -759,6 +815,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Entró en la zona de descenso |
 | es-UY | Entró en la zona de descenso |
 | es-EC | Entró en la zona de descenso |
+| en | Dropped into the relegation zone |
 
 ### `climbed_out_of_relegation` — ex.: `climbed_out_of_relegation`
 
@@ -772,6 +829,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Salió de la zona de descenso |
 | es-UY | Salió de la zona de descenso |
 | es-EC | Salió de la zona de descenso |
+| en | Climbed out of the relegation zone |
 
 ### `dropped_into_elimination` — ex.: `dropped_into_elimination`
 
@@ -785,6 +843,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Entró en la zona de eliminación |
 | es-UY | Entró en la zona de eliminación |
 | es-EC | Entró en la zona de eliminación |
+| en | Dropped into the elimination zone |
 
 ### `climbed_out_of_elimination` — ex.: `climbed_out_of_elimination`
 
@@ -798,6 +857,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Salió de la zona de eliminación |
 | es-UY | Salió de la zona de eliminación |
 | es-EC | Salió de la zona de eliminación |
+| en | Climbed out of the elimination zone |
 
 ### `clinched_title` — ex.: `clinched_title`
 
@@ -811,6 +871,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Se aseguró el título matemáticamente |
 | es-UY | Se aseguró el título matemáticamente |
 | es-EC | Se aseguró el título matemáticamente |
+| en | Clinched the title, mathematically |
 
 ### `clinched_zone` — ex.: `clinched_libertadores_group_stage`
 
@@ -824,6 +885,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
 | es-UY | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
 | es-EC | Se aseguró al menos la fase de grupos de la Libertadores matemáticamente |
+| en | Secured at least the Libertadores group stage, mathematically |
 
 ### `clinched_safety` — ex.: `clinched_safety`
 
@@ -837,6 +899,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Se aseguró la permanencia matemáticamente |
 | es-UY | Se aseguró la permanencia matemáticamente |
 | es-EC | Se aseguró la permanencia matemáticamente |
+| en | Secured safety, mathematically |
 
 ### `relegation_confirmed` — ex.: `relegation_confirmed`
 
@@ -850,6 +913,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Se confirmó su descenso |
 | es-UY | Se confirmó su descenso |
 | es-EC | Se confirmó su descenso |
+| en | Relegation confirmed |
 
 ### `elimination_confirmed` — ex.: `elimination_confirmed`
 
@@ -863,6 +927,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Se confirmó su eliminación |
 | es-UY | Se confirmó su eliminación |
 | es-EC | Se confirmó su eliminación |
+| en | Elimination confirmed |
 
 ### `lost_title_chance` — ex.: `lost_title_chance`
 
@@ -876,6 +941,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Ya no puede ser campeón |
 | es-UY | Ya no puede ser campeón |
 | es-EC | Ya no puede ser campeón |
+| en | Can no longer win the title |
 
 ### `lost_zone_chance` — ex.: `lost_libertadores_group_stage_chance`
 
@@ -889,6 +955,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Ya no puede alcanzar la fase de grupos de la Libertadores |
 | es-UY | Ya no puede alcanzar la fase de grupos de la Libertadores |
 | es-EC | Ya no puede alcanzar la fase de grupos de la Libertadores |
+| en | Can no longer reach the Libertadores group stage |
 
 ### `points_behind_leader_n` — ex.: `points_behind_leader_2`
 
@@ -902,6 +969,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Queda a 2 puntos del líder |
 | es-UY | Queda a 2 puntos del líder |
 | es-EC | Queda a 2 puntos del líder |
+| en | 2 points behind the leaders |
 
 ### `points_ahead_at_top_n` — ex.: `points_ahead_at_top_2`
 
@@ -915,6 +983,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Es líder con 2 puntos de ventaja |
 | es-UY | Es líder con 2 puntos de ventaja |
 | es-EC | Es líder con 2 puntos de ventaja |
+| en | Top of the table by 2 points |
 
 ### `points_behind_zone_n` — ex.: `points_behind_sudamericana_2`
 
@@ -928,6 +997,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Queda a 2 puntos de un lugar para la Sudamericana |
 | es-UY | Queda a 2 puntos de un lugar para la Sudamericana |
 | es-EC | Queda a 2 puntos de un lugar para la Sudamericana |
+| en | 2 points off a spot for the Sudamericana |
 
 ### `points_above_relegation_n` — ex.: `points_above_relegation_2`
 
@@ -941,6 +1011,7 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Queda 2 puntos por encima de la zona de descenso |
 | es-UY | Queda 2 puntos por encima de la zona de descenso |
 | es-EC | Queda 2 puntos por encima de la zona de descenso |
+| en | 2 points above the relegation zone |
 
 ### `points_below_safety_n` — ex.: `points_below_safety_2`
 
@@ -954,3 +1025,4 @@ Exemplos com `n = 13` (posição), `n = 2` (pontos) e `zone = libertadores_group
 | es-PE | Queda a 2 puntos de salir de la zona de descenso |
 | es-UY | Queda a 2 puntos de salir de la zona de descenso |
 | es-EC | Queda a 2 puntos de salir de la zona de descenso |
+| en | 2 points from climbing out of the relegation zone |

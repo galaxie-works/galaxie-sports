@@ -1,9 +1,14 @@
 name: Imagens e stack de staging
 
 # Constrói e valida em todo PR. No push para a main e na fila de merge (merge_group) publica no GHCR as imagens que a
-# stack usa (o caddy fica de fora: a VPS usa o Traefik): na fila com a tag <sha> do commit que vai virar a main; no push
+# stack usa: na fila com a tag <sha> do commit que vai virar a main; no push
 # com <sha>, main e staging. Imagem cuja entrada não mudou não é reconstruída: ganha as tags novas (passo "Entrada da
 # imagem"). O deploy (deploy.yml) sobe a stack com as imagens do SHA — ver infra/vps-telemetry/README.md.
+# A entrada de api, ingestor e demo é calculada por infra/ops/image-inputs.mjs a partir do grafo do pnpm: as pastas do
+# fechamento de dependências do app (com as de dev, que o build compila), o que o Dockerfile copia de fora do grafo e os
+# arquivos da raiz. Um merge só na demo reaproveita a api e o ingestor. Mudança em config/ continua reconstruindo api e
+# ingestor, de propósito: o config/ inteiro vai dentro dessas duas imagens. Na demo só entram config/broadcasters e
+# config/broadcast-rights, as pastas que o Dockerfile dela copia.
 # Sem filtro de caminhos: todo commit da main precisa das imagens do próprio SHA, e um check obrigatório que não roda
 # (PR só de docs) trava o PR para sempre. PR que não muda a entrada das imagens só reaproveita e termina em segundos.
 on:
@@ -33,44 +38,35 @@ jobs:
       packages: write
     env:
       IMAGE: ghcr.io/galaxie-works/galaxie-sports-${{ matrix.image }}
-      # Publica no push para a main e na fila de merge; o caddy fica de fora (a VPS usa o Traefik).
-      PUBLISH: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'merge_group') && matrix.image != 'caddy' }}
+      # Publica no push para a main e na fila de merge.
+      PUBLISH: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'merge_group') }}
       # PR de fork não tem token para o GHCR: constrói sempre, sem consultar o registry
       SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     strategy:
       fail-fast: false
       matrix:
-        # inputs = o que o build lê do contexto e muda a imagem. As três do Node copiam a raiz inteira (COPY . ., menos
-        # o .dockerignore); docs, .github, infra, scripts e tests ficam de fora porque nenhum build os lê.
+        # A entrada de cada imagem (o que o build lê do contexto e muda a imagem) está em infra/ops/image-hash.sh: a pasta
+        # dela, ou, nas três do Node, que copiam a raiz inteira (COPY . ., menos o .dockerignore) mas só leem parte dela,
+        # a lista de infra/ops/image-inputs.mjs.
         include:
           - image: api
             context: .
             file: apps/api/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: ingestor
             context: .
             file: services/ingestor/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: demo
             context: .
             file: apps/demo/Dockerfile
-            inputs: apps packages services config data/knowledge package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .nvmrc .dockerignore
           - image: backup
             context: infra/backup
             file: infra/backup/Dockerfile
-            inputs: infra/backup
           - image: prometheus
             context: infra/observability/prometheus
             file: infra/observability/prometheus/Dockerfile
-            inputs: infra/observability/prometheus
           - image: grafana
             context: infra/observability/grafana
             file: infra/observability/grafana/Dockerfile
-            inputs: infra/observability/grafana
-          - image: caddy
-            context: infra/caddy
-            file: infra/caddy/Dockerfile
-            inputs: infra/caddy
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -84,25 +80,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Hash da entrada: pasta única = hash git dela (o mesmo rótulo works.galaxie.context-tree que o deploy.sh confere na
-      # VPS); várias = sha256 da listagem git delas. A imagem já publicada com a tag in-<hash> é a que um build agora
-      # daria: ganha as tags deste commit (imagetools, sem baixar camada) em vez de ser reconstruída. Na fila, a imagem
-      # do próprio SHA (publicada pelo grupo) serve também para o push na main que vem logo depois.
+      # Hash da entrada (infra/ops/image-hash.sh, a mesma fórmula do deploy-gh.sh): pasta única = hash git dela (o mesmo
+      # rótulo works.galaxie.context-tree que o deploy.sh confere na VPS); várias = sha256 da listagem git delas. A imagem
+      # já publicada com a tag in-<hash> é a que um build agora daria: ganha as tags deste commit (imagetools, sem baixar
+      # camada) em vez de ser reconstruída. Na fila, a imagem do próprio SHA (publicada pelo grupo) serve também para o
+      # push na main que vem logo depois. A lista do Node vem do grafo do pnpm (o Node já instalado no runner basta: o
+      # script não tem dependências).
       - name: Entrada da imagem
         id: input
         env:
-          INPUTS: ${{ matrix.inputs }}
           NAME: ${{ matrix.image }}
         run: |
-          read -ra paths <<< "$INPUTS"
-          if [ "${#paths[@]}" = 1 ]; then
-            hash=$(git rev-parse "HEAD:${paths[0]}")
-          else
-            hash=$(git ls-tree HEAD -- "${paths[@]}" | sha256sum | cut -c1-40)
-          fi
+          hash=$(bash infra/ops/image-hash.sh "$NAME")
           echo "hash=$hash" >> "$GITHUB_OUTPUT"
           src=""
-          if [ "$SAME_REPO" = true ] && [ "$NAME" != caddy ]; then
+          if [ "$SAME_REPO" = true ]; then
             for ref in "$IMAGE:$GITHUB_SHA" "$IMAGE:in-$hash"; do
               if docker buildx imagetools inspect "$ref" >/dev/null 2>&1; then
                 src="$ref"
@@ -144,6 +136,9 @@ jobs:
           # nos PRs as imagens do Node ficam no Docker local para as checagens de arquivos abaixo
           load: ${{ env.PUBLISH != 'true' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo') }}
           labels: works.galaxie.context-tree=${{ steps.input.outputs.hash }}
+          # as três do Node gravam o hash em GALAXIE_IMAGE_HASH (o /version e o build_info leem dali). Determinístico: a
+          # mesma entrada dá o mesmo valor, e o reaproveitamento acima continua valendo
+          build-args: ${{ matrix.context == '.' && format('IMAGE_HASH=in-{0}', steps.input.outputs.hash) || '' }}
           # Só tags do GHCR: com push ligado o Buildx envia TODAS as tags (uma sem registry iria para o Docker Hub).
           tags: ${{ steps.input.outputs.tags }}
           # A fila lê o cache da main (o GitHub só deixa ler o da própria ref e o da branch padrão) e não grava: a ref
@@ -174,6 +169,15 @@ jobs:
             if (missing.length) { console.error("faltando na imagem:", missing); process.exit(1); }
             console.log("ok:", need.length, "caminhos");'
 
+      - name: Hash da entrada dentro da imagem (GALAXIE_IMAGE_HASH)
+        if: env.PUBLISH != 'true' && steps.input.outputs.source == '' && (matrix.image == 'api' || matrix.image == 'ingestor' || matrix.image == 'demo')
+        env:
+          WANT: GALAXIE_IMAGE_HASH=in-${{ steps.input.outputs.hash }}
+        run: |
+          docker image inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$IMAGE:$GITHUB_SHA" | grep -qx "$WANT" ||
+            { echo "::error::a imagem não tem $WANT"; exit 1; }
+          echo "$WANT"
+
       # O repositório é público e as imagens vão para o GHCR: nenhum .env pode entrar (o .dockerignore exclui **/.env*,
       # menos o .env.example). Segredo só no .env da VPS, em tempo de execução.
       - name: Nenhum .env dentro da imagem
@@ -187,6 +191,36 @@ jobs:
             exit 1
           fi
           echo "nenhum .env na imagem"
+
+  # A stack de dev do NAS (Portainer, GitOps por polling; infra/nas-dev/compose.yml) acompanha a branch `nas-dev`, não a
+  # main: este job avança a branch para o SHA só depois de TODAS as imagens do commit terem saído com a tag `main`.
+  # Assim o redeploy do Portainer nunca vê um commit cujas imagens ainda não existem: o poll de 5 min caía no meio do
+  # build, puxava a imagem anterior e, sem commit novo, não tentava de novo (a migration ficava sem aplicar até o merge
+  # seguinte). Push pelo GITHUB_TOKEN não dispara workflow nenhum. Build de uma imagem falhou = a branch não anda, e o
+  # `gs dev:esquema` avisa o atraso. Runbook: docs/runbooks/ambiente-de-dev.md › Stack a partir do git.
+  nas-dev:
+    name: avança nas-dev (stack de dev do NAS)
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: nas-dev = este SHA (imagens main publicadas)
+        run: |
+          # execuções da main saem em ordem (concurrency acima), mas se a branch já estiver à frente deste SHA
+          # (commit seguinte publicado antes), não há o que fazer: avançar para trás seria voltar o dev
+          if git fetch origin nas-dev 2>/dev/null && git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::notice::nas-dev já está em $(git rev-parse --short FETCH_HEAD), à frente de $(git rev-parse --short HEAD); nada a fazer"
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/nas-dev"
+          echo "nas-dev → $(git rev-parse --short HEAD)"
 
   # Servidor do Playwright do lineup-render (infra/lineup-render). A base tem ~2 GB: só constrói quando a pasta muda.
   # No PR e na fila de merge, em relação ao 1º pai do commit (a main em que ele entra). No push para a main, em relação ao rótulo
@@ -321,41 +355,65 @@ jobs:
   stack:
     name: valida stack, alertas e scripts
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: docker compose config (VPS com Traefik)
-        run: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
+      - name: docker compose config (os três projetos da VPS)
+        run: |
+          for f in compose.yml compose.dados.yml compose.obs.yml; do
+            docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config -q
+          done
+
+      # A stack de dev do NAS é lida pelo Portainer direto do git (#552): o arquivo tem de fechar sozinho, com e sem o
+      # perfil workers, e o migrate tem de ser o da produção na tag main (o resto das regras está no vitest do ingestor)
+      - name: docker compose config (stack de dev do NAS, a partir do git)
+        run: |
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example --profile workers config -q
+          docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config --format json |
+            jq -e '.services.migrate.image == "ghcr.io/galaxie-works/galaxie-sports-api:main"
+              and .services.migrate.restart == "no"
+              and (.services.migrate.depends_on.postgres.condition == "service_healthy")' >/dev/null ||
+            { echo "::error::migrate da stack de dev fora do esperado (imagem api:main, restart no, espera o postgres)"; exit 1; }
 
       - name: docker compose config (candidatos do deploy)
         run: |
           docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example --profile candidate config --format json |
             jq -e '.services["api-candidate"].environment.REDIS_KEY_PREFIX == "gs-candidate:"
               and .services["api-candidate"].environment.USAGE_PERSIST == "off"
-              and .services["demo-candidate"].environment.GALAXIE_API_URL == "http://api-candidate:8080"
               and (.services["api-candidate"].labels | keys) == ["traefik.enable"]
-              and (.services["demo-candidate"].labels | keys) == ["traefik.enable"]
               and .services["api-candidate"].image == .services.api.image
-              and .services["demo-candidate"].image == .services.demo.image' >/dev/null ||
-            { echo "::error::api-candidate/demo-candidate fora do esperado (sem router, prefixo próprio, mesma imagem)"; exit 1; }
+              and ([.services as $s | ("site", "console") | . as $w | $s[$w + "-candidate"] as $c
+                | $c.environment.GALAXIE_API_URL == "http://api-candidate:8080"
+                  and ($c.labels | keys) == ["traefik.enable"]
+                  and $c.image == $s[$w].image
+                  and $c.mem_limit == $s[$w].mem_limit
+                  and $c.environment.APP_ROLE == $w and $s[$w].environment.APP_ROLE == $w] | all)
+              and .services.site.image == .services.console.image
+              and (.services | has("demo") | not)' >/dev/null ||
+            { echo "::error::candidatos fora do esperado (api, site e console: sem router, prefixo próprio, mesma imagem e papel)"; exit 1; }
 
       - name: docker compose config (o Traefik da VPS)
         run: docker compose -f infra/traefik/compose.yml --env-file infra/traefik/env.example config -q
+
+      - name: docker compose config (a stack de dev do NAS, com o serviço espelho)
+        run: docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
 
       # O Traefik descarta um middleware declarado diferente em dois contêineres: os gsports-* têm de ser iguais em
       # todos os serviços que os declaram (infra/traefik/README.md)
       - name: Middlewares da borda iguais em todos os serviços
         run: |
-          docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config --format json |
-            jq -e '[.services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
+          for f in compose.yml compose.dados.yml; do
+            docker compose -f "infra/vps-telemetry/$f" --env-file infra/vps-telemetry/env.example config --format json
+          done | jq -es '[.[].services[] | .labels // {} | with_entries(select(.key | startswith("traefik.http.middlewares.gsports-")))
               | select(length > 0)] | (length >= 2) and (unique | length == 1)' >/dev/null ||
             { echo "::error::traefik.http.middlewares.gsports-* difere entre os serviços (ou sumiu)"; exit 1; }
 
-      # O deploy-gh.sh baixa as imagens dos serviços com IMAGE_TAG no compose; todas precisam sair do job build acima
+      # O deploy-gh.sh baixa as imagens dos serviços com TAG_* nos composes; todas precisam sair do job build acima
       - name: Deploy pelo Actions acha as imagens publicadas (compose ⇄ docker.yml)
         run: |
-          out=$(SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --services)
+          out=$(for p in apps dados obs; do SHA=$(git rev-parse HEAD) bash infra/vps-telemetry/deploy-gh.sh --project "$p" --services; done)
           echo "$out"
           got=$(printf '%s\n' "$out" | sed -n 's/.*imagens: //p' | tr ' ' '\n' | sort | tr '\n' ' ')
           want="api backup demo grafana ingestor prometheus "
@@ -368,35 +426,54 @@ jobs:
           docker run --rm -v "$PWD/infra/observability/prometheus:/w" -w /w --entrypoint promtool \
             prom/prometheus:v3.15.1 check config prometheus.yml --syntax-only
 
-      - name: Caddyfile
-        run: |
-          docker run --rm -e API_DOMAIN=api.example.test -v "$PWD/infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
-            caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-
       - name: Painel do Grafana é JSON válido
         run: jq empty infra/observability/grafana/dashboards/*.json
 
       - name: shellcheck
         run: |
           shellcheck -S warning infra/backup/*.sh infra/observability/prometheus/entrypoint.sh infra/observability/grafana/entrypoint.sh \
-            infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
-            infra/nas-backup/nas-pull.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
-            infra/vps-telemetry/candidate.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
-            infra/vps-telemetry/live-hold.sh infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh
+            infra/vps-telemetry/deploy.sh infra/vps-telemetry/deploy-gh.sh infra/vps-telemetry/deploy-gh.test.sh \
+            infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
+            infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
+            infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh             infra/ops/mirror-prod-to-dev.sh infra/ops/mirror-prod-to-dev.test.sh \
+            infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh \
+            infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
+            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
 
+      - name: Migrate do dev pela máquina (migrate-dev.sh com docker e pnpm falsos; recusa URL que não é a do dev)
+        run: bash infra/ops/migrate-dev.test.sh
+
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh
 
-      # A troca da API e da demo no deploy (DEPLOY_CANDIDATE=on): Traefik de verdade, tráfego durante a troca e uma
-      # versão que nunca fica healthy
+      # A troca da API, dos webhooks e da demo no deploy: Traefik de verdade, tráfego durante a troca e uma versão que nunca fica
+      # healthy
       - name: Troca sem página de manutenção (rolling-swap.sh com o Traefik)
         run: bash infra/vps-telemetry/rolling-swap.test.sh
 
+      # O roteiro inteiro contra uma VPS de faz de conta (ssh falso, registry local): só o que mudou troca, volta por
+      # serviço, volta da stack inteira e SHA anterior às tags por serviço
+      - name: Deploy só do que mudou (deploy-gh.sh com o Docker)
+        run: bash infra/vps-telemetry/deploy-gh.test.sh
+
       - name: Poda das imagens antigas na VPS (prune-images.sh com o Docker)
         run: bash infra/vps-telemetry/prune-images.test.sh
+
+      - name: Cópia dos assets do S3 e recibo no verificador (s3-sync.sh com aws falso)
+        run: bash infra/backup/s3-sync.test.sh
+
+      - name: Migração de tasks/ para o bucket privado (mover-tasks-para-bucket-privado.sh com docker, aws e psql falsos)
+        run: bash infra/ops/mover-tasks-para-bucket-privado.test.sh
+
+      - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
+        run: bash infra/nas-backup/nas-pull.test.sh
+
+      - name: Espelho produção → dev (mirror-prod-to-dev.sh com psql, pg_restore, age e aws falsos)
+        run: bash infra/ops/mirror-prod-to-dev.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -404,6 +481,19 @@ jobs:
 
       - name: Notas de versão (numeração, agrupamento e CLI com gh falso)
         run: node --test infra/vps-telemetry/release-notes.test.mjs
+
+      - name: Smoke do deploy (retry de 5xx e de tempo esgotado; agenda dependente da home)
+        run: node --test infra/vps-telemetry/smoke.test.mjs
+
+      - name: Entrada das imagens (quais mudam com cada caminho; lista ⇄ Dockerfiles)
+        run: node --test infra/ops/image-inputs.test.mjs
+
+      - name: Hash da entrada (a fórmula que o docker.yml e o deploy dividem)
+        run: bash infra/ops/image-hash.test.sh
+
+      # Alerta ProducaoAtrasada (#530): a decisão com fatos de faz de conta e o "desde quando" num repositório de verdade
+      - name: Produção atrasada (decisão do alerta; hash por commit)
+        run: node --test infra/ops/producao-atrasada.test.mjs
 
       - name: Página de manutenção (rótulo de revisão bate com o conteúdo das configs)
         run: |

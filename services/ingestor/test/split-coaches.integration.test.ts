@@ -12,8 +12,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import { normalizeCoaches, type ApiCoachItem } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { splitCoachIds } from '../src/normalize/split-coaches.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { disposableDb } from './db.js';
 
 const testDb = disposableDb();

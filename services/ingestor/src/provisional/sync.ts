@@ -21,11 +21,9 @@ import {
   type EventProvisional,
 } from '@galaxie/db';
 import { expectedEnd, parseRound, preMatchStatus } from '@galaxie/providers';
+import { PROVISIONAL_MATCH_MS, PROVISIONAL_PROVIDER, type Tx, uuidv7 } from '@galaxie/core-writer';
 import { recomputeEventImportance } from '../normalize/importance.js';
-import type { Tx } from '../normalize/sql-helpers.js';
-import { uuidv7 } from '../normalize/uuid.js';
 import { provisionalKickoff, type ProvisionalFixture, type ProvisionalSide } from './config.js';
-import { PROVISIONAL_MATCH_MS, PROVISIONAL_PROVIDER } from './match.js';
 
 /** Fornecedor dos IDs citados na curadoria (times, estádios). */
 const SOURCE_PROVIDER = 'api-sports';

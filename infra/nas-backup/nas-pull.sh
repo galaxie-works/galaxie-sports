@@ -6,10 +6,14 @@
 #   1. lista os dumps do volume `backups` da VPS (chave só de leitura: rrsync -ro);
 #   2. para cada dia UTC dos últimos NAS_KEEP_DAILY, baixa o dump mais recente daquele dia se o NAS não o tem (troca o
 #      do mesmo dia mais antigo), com o .sha256, e confere o hash antes de guardar em daily/;
-#   3. rotação avô-pai-filho por hardlink: weekly/ fica com o último dump de cada semana ISO (8) e monthly/ com o
-#      último de cada mês (12); daily/ com os 14 dias mais recentes. Por contagem: com a cópia parada, nada some;
-#   4. com o dump mais recente da VPS guardado e conferido, toca o recibo .nas_last_pull na VPS (segunda chave, cujo
-#      único comando é o touch). O verificador da VPS (BACKUP_NAS_RECEIPT=true) acusa recibo com mais de 26 h.
+#   3. rotação avô-pai-filho por hardlink: weekly/ fica com o último dump de cada semana ISO (4) e monthly/ com o
+#      último de cada mês (6); daily/ com os 7 dias mais recentes. Por contagem: com a cópia parada, nada some;
+#   4. com NAS_S3_PREFIXES (os mesmos de BACKUP_S3_SYNC_PREFIXES da VPS), puxa também esses prefixos do bucket de assets,
+#      que o s3-sync.sh da VPS espelha em s3/<prefixo>/ no volume `backups`, para $NAS_DIR/s3/<prefixo>/ (rsync, só o que
+#      mudou). Sem rotação: os objetos são endereçados pelo conteúdo e nada é apagado (NAS_S3_DELETE=true espelha);
+#   5. com o dump mais recente da VPS guardado e conferido (e os prefixos copiados), toca o recibo .nas_last_pull na VPS
+#      (segunda chave, cujo único comando é o touch). O verificador da VPS (BACKUP_NAS_RECEIPT=true) acusa recibo com mais
+#      de 26 h: a cópia dos assets que falha também deixa o recibo sem tocar.
 set -eu
 
 : "${NAS_DIR:=/data}"
@@ -17,11 +21,14 @@ set -eu
 : "${VPS_USER:=root}"
 : "${VPS_PORT:=22}"
 : "${DUMP_PREFIX:=galaxie_sports_}"
-: "${NAS_KEEP_DAILY:=14}"
-: "${NAS_KEEP_WEEKLY:=8}"
-: "${NAS_KEEP_MONTHLY:=12}"
+: "${NAS_KEEP_DAILY:=7}"
+: "${NAS_KEEP_WEEKLY:=4}"
+: "${NAS_KEEP_MONTHLY:=6}"
 # Limite de banda do rsync em KiB/s (vazio = sem limite).
 : "${NAS_BWLIMIT:=}"
+# Prefixos do bucket de assets a puxar, separados por espaço ou vírgula (vazio = só os dumps) e se espelha as remoções.
+: "${NAS_S3_PREFIXES:=}"
+: "${NAS_S3_DELETE:=false}"
 
 ssh_dir="$NAS_DIR/ssh"
 ssh_base="ssh -T -p $VPS_PORT -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
@@ -119,10 +126,26 @@ keep_last "$NAS_DIR/daily" "$NAS_KEEP_DAILY"
 keep_last "$NAS_DIR/weekly" "$NAS_KEEP_WEEKLY"
 keep_last "$NAS_DIR/monthly" "$NAS_KEEP_MONTHLY"
 
-# 4. Recibo: só com o dump mais recente da VPS guardado e conferido.
+# 4. Assets: cada prefixo do bucket (espelhado pelo s3-sync.sh da VPS em s3/<prefixo>/ do volume). A chave de leitura só
+# enxerga o volume `backups`; o nome do prefixo vira caminho, então só pastas simples (como no s3-sync.sh).
+s3_objects=0
+s3_list=$(printf '%s\n' "$NAS_S3_PREFIXES" | tr ', \t' '\n\n\n' | sed '/^$/d')
+s3_delete=""
+[ "$NAS_S3_DELETE" = true ] && s3_delete="--delete"
+for p in $s3_list; do
+  case "$p" in *..* | /* | */) fail "prefixo inválido em NAS_S3_PREFIXES: $p" ;; esac
+  printf '%s' "$p" | grep -q '^[A-Za-z0-9._-]\{1,\}\(/[A-Za-z0-9._-]\{1,\}\)*$' || fail "prefixo inválido em NAS_S3_PREFIXES: $p"
+  mkdir -p "$NAS_DIR/s3/$p"
+  # shellcheck disable=SC2086 # NAS_BWLIMIT e s3_delete vazios somem de propósito
+  rsync -rt --partial ${NAS_BWLIMIT:+--bwlimit=$NAS_BWLIMIT} $s3_delete -e "$pull_ssh" \
+    "$VPS_USER@$VPS_HOST:s3/$p/" "$NAS_DIR/s3/$p/" || fail "copiar o prefixo $p do S3 (o s3-sync.sh da VPS já rodou?)"
+  s3_objects=$((s3_objects + $(find "$NAS_DIR/s3/$p" -type f | wc -l)))
+done
+
+# 5. Recibo: só com o dump mais recente da VPS guardado e conferido (e os assets copiados).
 [ -f "$NAS_DIR/daily/$newest" ] || fail "o dump mais recente ($newest) não foi guardado"
 out=$($receipt_ssh "$VPS_USER@$VPS_HOST" 2>&1) || fail "tocar o recibo na VPS: $out"
 
-summary="$copied dump(s) novo(s); daily=$(dumps_in "$NAS_DIR/daily" | wc -l) weekly=$(dumps_in "$NAS_DIR/weekly" | wc -l) monthly=$(dumps_in "$NAS_DIR/monthly" | wc -l); mais recente na VPS: $newest"
+summary="$copied dump(s) novo(s); daily=$(dumps_in "$NAS_DIR/daily" | wc -l) weekly=$(dumps_in "$NAS_DIR/weekly" | wc -l) monthly=$(dumps_in "$NAS_DIR/monthly" | wc -l); mais recente na VPS: $newest${NAS_S3_PREFIXES:+; assets: $s3_objects objeto(s)}"
 printf '%s ok: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$summary" >"$NAS_DIR/last_run.txt"
 log info "cópia do NAS OK: $summary"

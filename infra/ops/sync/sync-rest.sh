@@ -1,6 +1,6 @@
 #!/bin/bash
 # Resto da rodada, rodando no VPS (nohup): espera a cópia dos schemas sync_* terminar e segue.
-cd /docker/galaxie-sports; P="docker compose exec -T postgres"
+cd /docker/galaxie-sports; P="docker compose -f compose.dados.yml exec -T postgres"
 :
 echo "== cópia: $($P psql -U galaxie -d galaxie_sports -Atc "select count(*) from sync_core.event") jogos no sync_core"
 echo "== reaponta ids"; $P psql -U galaxie -d galaxie_sports -At -f /tmp/sync-remap.sql 2>&1 | grep -vE "^(DO|CREATE|ALTER)|already exists"

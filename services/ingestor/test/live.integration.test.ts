@@ -22,6 +22,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { ApiSportsProvider, FakeProvider, normalizeFixtures } from '@galaxie/providers';
+import { advanceEventClock, upsertBatch } from '@galaxie/core-writer';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { reconcileLive, reconcileTargets } from '../src/live/reconcile.js';
 import { LiveRunner } from '../src/live/runner.js';
@@ -33,8 +34,6 @@ import {
 } from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
 import { normalizeAfterFetch } from '../src/normalize/after-fetch.js';
-import { advanceEventClock } from '../src/normalize/event-state.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { recomputeStandings, seasonsWithNewResults } from '../src/standings/recompute.js';
 import { apiFixture, liveWorld, wednesdayNight, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';
@@ -243,7 +242,10 @@ describe('ao vivo no Postgres', () => {
   it('recálculo de tabelas: temporadas com resultado novo, idempotente; tabela do provedor mais nova prevalece', async () => {
     const pal = await eventRow(9101);
     const since = new Date(Date.now() - 3_600_000);
-    expect(await seasonsWithNewResults(db, since)).toContain(pal.seasonId);
+    // a janela de "temporada atual" conta a partir de hoje; os jogos semeados têm data fixa (21/10),
+    // então ela é alargada até eles para o teste não vencer com o calendário
+    const recentDays = Math.ceil((since.getTime() - pal.startsAt.getTime()) / 86_400_000) + 1;
+    expect(await seasonsWithNewResults(db, since, Math.max(10, recentDays))).toContain(pal.seasonId);
     const first = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
     expect(first[0]).toMatchObject({ outcome: 'written', results: 4, rows: 4 });
     const again = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });

@@ -306,7 +306,34 @@ export function ownGoalCountsForOpponent(
   return excess(flipped) < excess(asIs);
 }
 
-export function buildTimelineDto(input: TimelineInput): EventTimeline {
+/**
+ * Faixa de `sequence` dos lances que a Galaxie infere (gol que a fonte retirou da timeline vira VAR de gol
+ * anulado; ver `retracted-goals.ts` no core-writer). Eles ficam no fim da timeline gravada.
+ */
+export const INFERRED_SEQUENCE_BASE = 100_000;
+
+/**
+ * Põe cada lance inferido no lugar dele pelo relógio: logo depois do último lance do fornecedor com minuto
+ * menor ou igual. A ordem do fornecedor não muda.
+ */
+export function placeInferredIncidents<T extends Pick<RawIncident, 'sequence' | 'minute' | 'extra'>>(
+  incidents: readonly T[],
+): T[] {
+  const provider = incidents.filter((i) => i.sequence < INFERRED_SEQUENCE_BASE);
+  const inferred = incidents.filter((i) => i.sequence >= INFERRED_SEQUENCE_BASE);
+  if (!inferred.length) return [...incidents];
+  const at = (i: T) => (i.minute ?? 0) * 1000 + (i.extra ?? 0);
+  const out = [...provider];
+  for (const inf of [...inferred].sort((a, b) => at(a) - at(b) || a.sequence - b.sequence)) {
+    let pos = out.length;
+    while (pos > 0 && out[pos - 1]!.minute != null && at(out[pos - 1]!) > at(inf)) pos -= 1;
+    out.splice(pos, 0, inf);
+  }
+  return out;
+}
+
+export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
+  const input = { ...rawInput, incidents: placeInferredIncidents(rawInput.incidents) };
   const anchors = periodAnchors(input);
   const watched = watchedLive(input.stateLog);
   const endAt = finishedAt(input.stateLog);

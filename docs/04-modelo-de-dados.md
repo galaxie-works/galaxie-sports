@@ -55,7 +55,7 @@ Decisão de 28/10/2026 (lote 6 da auditoria de produção). Operação: [runbook
 | `ops.llm_usage` | 90 dias por chamada | Antes de apagar, cada dia vira linha em `ops.llm_usage_daily` (dia, dia de orçamento, faixa, agente, provedor, modelo, tier, desfecho), que fica para sempre |
 | `ops.job_run` | 90 dias | A última execução e o último sucesso de cada job ficam sempre (métricas e alerta de job falhando) |
 | `ops.quota_ledger` | 90 dias de cota | O Governor só lê o dia corrente |
-| `ops.job_request` | 30 dias depois de encerrado | Pendente e em execução ficam |
+| `ops.job_request` | 30 dias depois de encerrado | Pedidos de "rodar agora" e tarefas da fila ([contrato](../packages/db/README.md#fila-de-tarefas)). Pendente e em execução ficam, inclusive a tarefa de concessão vencida, que ainda vai ser retomada |
 | `ops.normalize_failure` | 90 dias depois de resolvida | Pendente e poison ficam |
 | `api.webhook_delivery` | entregue: 30 dias; `dead`: 90 dias | Pendente fica |
 
@@ -94,7 +94,7 @@ erDiagram
 | `core.competition` | `id`, `sport`, `country_iso2`, `type` (league/cup/tournament/multisport), `tier`, `live_priority`, `prestige` (0–10, importância) | Liga, copa, GP de F1, evento de MMA, Jogos Olímpicos |
 | `core.season` | `competition_id`, `label` ("2026", "2026/27"), `start`, `end`, `current` | |
 | `core.stage` | `season_id`, `kind` (regular, group, round_of_16, quarter, semi, final, race_weekend…), `name_i18n`, `order` | Agrupa o calendário por fase/rodada/fim de semana de corrida |
-| `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `status_source`, `clock`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale`, `source_provider` | **Entidade canônica** — ver §3 |
+| `core.event` | `id` (UUID nosso), `sport`, `stage_id`, `starts_at`, `ends_at_expected`, `status`, `status_detail`, `status_source`, `clock`, `score` (jsonb), `venue_id`, `last_valid_at`, `is_stale`, `source_provider`, `goal_watch` (jsonb, memória interna da inferência de gol anulado: nunca sai em resposta, não entra no change feed nem em `updated_at`) | **Entidade canônica** — ver §3 |
 | `core.participant` | `id`, `kind` (club, national_team, athlete, driver, constructor, fighter), `name`, `short_name`, `country_iso2`, `logo_asset_id` | Times, seleções e atletas individuais |
 | `core.event_participant` | `event_id`, `participant_id`, `side` (home/away/lane/grid), `result` | Suporta 2 lados (futebol) ou N (F1, atletismo) |
 | `core.person` | `id`, `name`, `birth_date`, `birth_place`, `birth_country`, `nationality`, `height_cm`, `weight_kg`, `photo_asset_id` | Jogadores, técnicos, pilotos, lutadores |
@@ -105,7 +105,7 @@ erDiagram
 | `core.person_sidelined` | `person_id`, `type`, `start_date`, `end_date` | Lesões e suspensões (`sidelined?players` e `sidelined?coachs`) |
 | `core.venue` | `id`, `name`, `city`, `country_iso2`, `capacity`, `surface`, `image_asset_id`, `name_seen_at`, `curated` (jsonb), `provider_former_names` (jsonb) | Estádios, circuitos, arenas. `name` é o nome do fornecedor (o do jogo mais recente vence o bloco `venue` de `/teams`, que não tem data e fica para trás numa troca de naming rights; `name_seen_at` = início do jogo em que foi visto). `curated` = nome atual, cidade, apelidos e nomes anteriores da base semântica, gravado pela reconciliação do seed — **vence o fornecedor em toda a API** (`venueDisplay` em `@galaxie/db`). `provider_former_names` = nomes anteriores derivados dos jogos (`names:derive`, abaixo) |
 | `core.participant.provider_former_names` | jsonb `[{ name, from, until }]` | Nomes anteriores do time derivados dos jogos do fornecedor (ex.: "Dinamo Moscow" → "Dynamo"); expostos em `former_names` do time |
-| `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave" |
+| `core.event_incident` | `event_id`, `minute`, `extra`, `type` (goal, card, subst, var, period…), `participant_id`, `person_id`, `detail` | Timeline e "momentos-chave". `sequence` a partir de 100000: lance inferido pela Galaxie (gol anulado sem VAR na fonte, ver [07 §2](07-ia-tempo-real-e-enriquecimento.md)) |
 | `core.standing` | `season_id`, `group`, `participant_id`, `rank`, `points`, `form`, `description`, `source` | Tabelas e grupos; `source = computed` quando calculada localmente ([docs/rules](rules/README.md)) |
 | `core.provider_map` | `entity_type`, `entity_id`, `provider`, `provider_id`, `sport` | Liga nossos IDs aos IDs da api-sports e de outras fontes. No futebol, técnico é `person/coach:<id>` e jogador é `person/<id>`: a api-sports tem espaços de ids separados para os dois |
 | `core.asset` | `id`, `kind` (team_logo, league_logo, flag, venue, player, coach…), `source_url`, `storage_key`, `sha256`, `width`, `height`, `fetched_at`, `palette` (jsonb `{ version, dominant, secondary, monochrome }`, só `team_logo` PNG) | Espelho de mídia; `palette` alimenta o `colors` do Team ([03 §7.2](03-ingestao-e-economia-de-chamadas.md#72-cores-dos-times-paleta-do-escudo)) |
@@ -125,6 +125,15 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 | Vôlei, handebol, hóquei, rúgbi, beisebol, AFL, NFL | `<sport>_game` + estatísticas disponíveis |
 
 > **Implementado nos outros 11 esportes (issue #25):** um espelho **genérico** em vez de uma tabela por esporte — `core.sport_event_detail` (`event_id`, `sport`, `provider`, `provider_event_id`, `kind` = `game`/`race`/`fight`, `summary` JSONB com o item do fornecedor, `detail` JSONB com as partes vindas de endpoints auxiliares e `detail_fetched_at`). O placar com parciais vai para `core.event.score` (`periods`, `breakdown`) e os N participantes para `core.event_participant`. As tabelas por esporte acima continuam como alvo para quando uma consulta pedir índice. Detalhes em §3.5.
+
+### 2.3 Derivados para leitura
+
+Tabelas calculadas a partir do core por um job, para a API não fazer conta pesada na requisição. Não são fonte de nada:
+apagadas, o job grava de novo e a API, enquanto isso, calcula na hora.
+
+| Tabela | Campos-chave | Observação |
+|---|---|---|
+| `core.explore_summary` | PK `sport`, `market`; `data` (jsonb), `generated_at` | Resumo da home "Explorar" (`/v1/explore/summary`, #596), por esporte e mercado (país): `('*','*')` traz a versão do formato e a janela de 7 dias; `(esporte,'*')` os números do esporte (competições, participantes, próximos, ao vivo, ids das competições em destaque); `('*',país)` liga principal e ids dos clubes em destaque; `(esporte,país)` próximos e ao vivo do país naquele esporte, o jogo de maior relevância no mercado (id, início, relevância com os códigos e pontos dos motivos, desempates) e os anunciados — só os pares com algum jogo. Sem idioma, tenant nem imagens: a API aplica o recorte de esportes do plano somando os esportes do plano e junta nomes, logos e eventos por id. O job `explore-summary` do ingestor (`@galaxie/explore`) reescreve tudo numa transação, com o mesmo `generated_at`, no minuto seguinte a uma mudança de jogo no change feed (status, importância, anunciado) e a cada 10 min. Mais de 30 min sem recálculo: a API volta à conta na requisição (aviso no log, alerta `ExploreSummaryStale`). Dezenas de linhas, sem retenção |
 
 ## 3. `core.event` — a entidade canônica
 

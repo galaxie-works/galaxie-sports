@@ -9,6 +9,7 @@ auditoria de 28/10/2026.
 |---|---|---|---|
 | Prometheus + Grafana | Na própria VPS | Banco, jobs, ao vivo, IA, backup, disco, processo da API | Push (ntfy) na hora para o crítico; resumo diário por e-mail para o resto; uma issue no GitHub por alerta |
 | Workflow de deploy | GitHub Actions | Deploy falho, cancelado ou travado (teto de 45 min) | Push (ntfy) pelo mesmo tópico |
+| Produção atrasada | GitHub Actions (`producao-atrasada.yml`, a cada 30 min) | A versão no ar atrás da main há mais de 2 h, sem deploy rodando (deploy verde sem publicar, trava presa) | Issue `alerta` e push (ntfy) |
 | Monitor externo | Better Stack (fora da VPS) | Site e API vistos da internet; a VPS inteira fora do ar. Página pública em status.galaxie.works | E-mail (e app da Better Stack) |
 
 O alertador mora na mesma VPS que vigia: se a VPS cair, ele cai junto. Por isso o monitor externo é parte do desenho,
@@ -23,7 +24,9 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
 | `api` (de fora) | Monitores da Better Stack | Site, API ou assets sem resposta para a internet |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
+| `api` | `HostMemoryCritical` | Memória real do host acima de 90% por 5 min, sem swap: o próximo passo é o kernel matar processo |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
+| `ao-vivo` | `LiveTickGap` | Há jogo em andamento (janela do plano aberta) e o último tick do `live-run`, de qualquer cópia, passou de 60 s (ou de 2 intervalos do plano, quando o plano espaça mais) por 1 min. Meio-tempo, orçamento do dia e espera depois de erro da fonte não contam. Olha o runner parado, antes de o jogo ficar atrasado: deploy do `live` que não passou o bastão aparece aqui |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
 | `ia` | `AiSpendNearDailyBudget` | Gasto do dia de orçamento em 80% ou mais do `AI_DAILY_USD_BUDGET` efetivo |
 | `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Backup atrasado, verificação ou ensaio falhando, disco acima de 85% |
@@ -40,18 +43,21 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 
 | Alerta | Quer dizer |
 |---|---|
+| `HostMemoryHigh` | Memória real do host acima de 80% por 10 min |
 | `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min; não conta enquanto há execução em andamento (o `live-run` fica no ar a janela inteira do ao vivo) |
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
 | `WebhookWorkerDown`, `WebhookDeadLetters`, `WebhookEndpointFailing`, `WebhookDeliverySlow` | Webhooks para clientes: worker parado (entrega vencida há 5 min), DLQ crescendo, endpoint com 5+ falhas seguidas, p95 acima de 30 s. O que fazer em cada um: [webhooks.md](webhooks.md#alertas) |
+| `TarefaPendenteAntiga` | Tarefa da fila pronta há mais de 1 h sem worker pegar, por tipo: worker fora do ar ou tarefa longa na frente ([contrato](../../packages/db/README.md#fila-de-tarefas)) |
+| `ExploreSummaryStale` | Resumo da home Explorar (`core.explore_summary`) sem recálculo há mais de 30 min, ou nunca gravado: a API volta a montar a home na requisição, lenta a frio. Veja o job `explore-summary` ([pacote](../../packages/explore/README.md)) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
 | `ApiRouteLatencyP99High` | Uma rota com tráfego (≥ 30 req/min) com p99 acima de 1 s por 15 min (fora `/metrics`, `/health`, `/internal`) |
 | `ApiLatencyP95High` | p95 das rotas de cliente acima de 150 ms por 10 min, só com tráfego (≥ 0,2 req/s, fora `/metrics`, `/health`, `/internal`). Com menos que isso o cache do ao vivo (10 s) nunca está quente e o p95 seria a requisição mais lenta da janela (#450) |
 | `SseProcessLimitReached` | O teto de streams SSE do processo (`SSE_MAX_CONNECTIONS`) estourou e clientes receberam 503 |
 | `AiCreditCheckStale` | A checagem de crédito não roda há 3 h (contêiner `agents` fora?) |
 | `SloBurnRateSlow` | Um SLO gasta o orçamento devagar demais: 10% dele em 1 dia ou em 3 dias ([docs/14](../14-slos-e-error-budget.md)) |
-| `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale`) |
+| `SloBurnRateFast` com `slo="ao-vivo"` | Queima rápida do SLO do ao vivo (o push do ao vivo é o `LiveEventStale` e o `LiveTickGap`) |
 | `ErrorBudgetExhausted` | O orçamento de 28 dias de um SLO acabou: vale a política de congelar features do componente |
 | `QuotaBelow20Percent`, `FootballRawStale`, `RestoreDrillStale`, `NodeExporterDown`, `MetricsCollectorDown` | Como antes |
 
@@ -80,7 +86,7 @@ precisa ser longo e aleatório, e não vai para o repositório.
 4. Recrie o Grafana e confira o log:
 
    ```bash
-   cd /docker/galaxie-sports && docker compose up -d grafana && docker compose logs grafana | grep alertas
+   cd /docker/galaxie-sports && docker compose -f compose.obs.yml up -d grafana && docker compose -f compose.obs.yml logs grafana | grep alertas
    ```
 
    Esperado: `alertas por push ligados (ntfy): crítico na hora`.
@@ -115,7 +121,7 @@ ALERT_SMTP_USER=alertas@exemplo.com
 ALERT_SMTP_PASSWORD=<senha de app do SMTP>
 ```
 
-Depois `docker compose up -d grafana` (log: `alertas por e-mail ligados`) e Alerting → Contact points →
+Depois `docker compose -f compose.obs.yml up -d grafana` (log: `alertas por e-mail ligados`) e Alerting → Contact points →
 `email-operacao` → Test.
 
 ## Issue no GitHub por alerta
@@ -167,7 +173,7 @@ Para listar as abertas: `gh issue list --label alerta --state open`.
 3. Recrie o Grafana e confira o log:
 
    ```bash
-   cd /docker/galaxie-sports && docker compose up -d grafana && docker compose logs grafana | grep alertas
+   cd /docker/galaxie-sports && docker compose -f compose.obs.yml up -d grafana && docker compose -f compose.obs.yml logs grafana | grep alertas
    ```
 
    Esperado: `alertas no GitHub ligados (galaxie-works/galaxie-sports): uma issue por alerta`.
@@ -185,9 +191,121 @@ O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão
 
 - **Do Grafana ao GitHub:** pelo túnel, Alerting → Contact points → `issue-github` → Test. Abre uma issue com o alerta
   de teste do Grafana (feche à mão: o teste não manda o `resolved`).
-- **Sem issue?** Veja o log do Grafana (`docker compose logs grafana | grep -i webhook`): 401 é token errado ou
+- **Sem issue?** Veja o log do Grafana (`docker compose -f compose.obs.yml logs grafana | grep -i webhook`): 401 é token errado ou
   vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
   input recusado. Depois, a execução em Actions → Alerta do Grafana.
+
+## Reabertura e diagnóstico automático
+
+- **Alerta que volta em até 24 h** reabre a issue fechada com a mesma fingerprint, em vez de abrir outra. Ele comenta
+  "Disparou de novo" e conta as vezes no título (`(3×)`). Antes, um alerta que oscilava (ex.: `LiveEventStale` no fim
+  de semana de 31/10) abria uma issue por ocorrência.
+- **Ao abrir ou reabrir**, o `alerta-issue.sh` dispara o workflow **Diagnóstico de alerta** (`diagnostico.yml`), que
+  comenta na issue um diagnóstico **só leitura** da produção, com estas seções:
+  - alertas disparando;
+  - contêineres e disco;
+  - a parte específica do alerta: plano do ao vivo e jogos parados, SLO por janela, execuções do job, p95 por rota e
+    consultas lentas, gasto de IA, cota, disco ou backup.
+
+**Como a ponte funciona:**
+
+- O workflow roda no ambiente `producao` com a chave `VPS_DIAG_SSH_KEY`.
+- No `authorized_keys` da VPS, essa chave só roda `/docker/galaxie-sports/diagnostico.sh`
+  (`command="…",restrict`: sem shell, sem PTY e sem túnel). O script é o `infra/vps-telemetry/diagnostico.sh`, e o
+  deploy grava a versão do SHA publicado.
+- O pedido (ex.: `JobFailingRepeatedly job=recap-run`) vai como texto, validado no workflow e no script, e só escolhe um
+  bloco de consultas fixas. O SQL roda em transação somente leitura.
+
+Rodar à mão, ou de uma sessão:
+
+```bash
+gh workflow run diagnostico.yml -f alerta="LiveEventStale sport=football" -f issue=513
+```
+
+Trocar a chave:
+
+1. Gere um par novo e ponha a pública no `authorized_keys` com a mesma linha `command=…,restrict`. O backup de antes da
+   primeira chave é `authorized_keys.bak-pre-diag-20261102`.
+2. Rode `gh secret set VPS_DIAG_SSH_KEY --env producao < chave` e apague a linha antiga.
+
+## Produção atrasada (`ProducaoAtrasada`)
+
+Entre 30/10 e 02/11/2026 os deploys terminaram verdes sem publicar e ninguém soube até olhar a VPS. Este alerta avisa
+quando a produção fica para trás da main por mais de 2 h com o deploy parado. Não é pelo Prometheus: o alertador da VPS
+cairia junto com ela. Quem vigia é o workflow **Produção atrasada** (`.github/workflows/producao-atrasada.yml`), no
+GitHub, a cada 30 min (`infra/ops/producao-atrasada.mjs`, testes em `producao-atrasada.test.mjs`).
+
+**Como decide:**
+
+1. Calcula o `in-<hash>` esperado de cada imagem (`api`, `demo`, `ingestor`) no HEAD da main, com `infra/ops/image-hash.sh`,
+   a mesma fórmula do `docker.yml` e do `deploy-gh.sh`.
+2. Lê o que roda: `GET https://api.sports.galaxie.works/version` e `GET https://sports.galaxie.works/api/version`
+   (`image_hash`). O ingestor não tem endpoint público; vale o que a release `deploy-*` mais recente diz que publicou.
+3. Compara **hash, não SHA**. Merge que só muda docs, workflow ou a pasta de outra imagem não muda o hash, então não é
+   atraso e não alerta.
+4. O relógio das 2 h começa no **primeiro commit da main que mudou a imagem depois da versão que roda**, não no HEAD.
+   Com merges em sequência, o relógio do HEAD reiniciaria a cada um e uma produção parada nunca alertaria.
+5. Há execução do `deploy.yml` em andamento (criada há menos de 100 min): nada. O atraso está sendo resolvido.
+
+**O que acontece:**
+
+| Situação | Faz |
+|---|---|
+| Atraso de mais de 2 h, sem deploy rodando | Abre (ou reabre, se fechada há menos de 24 h) a issue `Alerta: ProducaoAtrasada` com o rótulo `alerta` (diagnóstico só leitura comentado) e manda o push pelo ntfy. A issue aberta não gera push novo a cada 30 min |
+| API, demo e ingestor lidos e no hash da main | Fecha a issue sozinha |
+| Atraso de menos de 2 h, deploy rodando, ou alguma leitura falhou (`/version` fora do ar, release ilegível) | Nada: a issue aberta segue aberta até as três leituras baterem (API fora do ar é do `ApiDown`) |
+
+O push usa os secrets `ALERT_NTFY_URL` e `ALERT_NTFY_TOKEN` do ambiente `producao`, os mesmos do aviso do `deploy.yml`.
+Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, não entra no resumo diário por e-mail
+(o resumo é só dos alertas do Grafana): o registro é a issue e o push.
+
+**O que olhar quando dispara** (nesta ordem):
+
+1. **Último run do `deploy.yml`:** `gh run list --workflow deploy.yml --limit 5`. Um run verde que não publicou
+   (o passo "Deploy na VPS" diz `nada a publicar` ou o gate disse `go=false`) ou um run vermelho/cancelado diz onde
+   parou. Run vermelho: o log do passo "Deploy na VPS" e o aviso por push de quando falhou.
+2. **O CI e as imagens do HEAD:** `gh run list --branch main --limit 6`. Sem CI verde do HEAD o deploy automático não
+   sai (o gate espera `ci.yml` e `docker.yml` verdes). Com merges mais rápidos que o CI, o gate pula commit após commit.
+   Corrija a main ou dispare à mão: `gh workflow run deploy.yml`.
+3. **`DEPLOY_AUTO`:** `gh variable list`. Sem `DEPLOY_AUTO=on` o deploy automático não roda (plano B ligado).
+4. **A trava da VPS:** `ssh root@145.223.94.149 'cat /docker/galaxie-sports/.deploy.lock/owner'`. Trava de deploy morto
+   com mais de 90 min é tomada pelo próximo deploy; antes disso, o [runbook do deploy](deploy-pelo-github.md#plano-b-contingência)
+   diz como liberar. O diagnóstico automático da issue já traz a trava e a imagem de cada serviço (depois do primeiro
+   deploy que gravar o `diagnostico.sh` novo).
+5. **O que roda de fato:** `ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose ps -a --format "{{.Service}}: {{.Image}} ({{.Status}})"'`.
+   Compare com o `image_hash` do `/version`. Contêiner com tag antiga e deploy verde: o swap falhou, ver o log do passo.
+6. Publique de novo com `gh workflow run deploy.yml` (SHA já no ar precisa de `-f force=1`). A issue fecha na checagem
+   seguinte (até 30 min) quando a versão alcançar a main.
+
+**Limites conhecidos:**
+
+- O ingestor é lido da release `deploy-*`, não do processo. Ele reflete o que o último deploy publicou: um ingestor
+  trocado ou parado à mão fora do deploy não aparece, e uma release que falhou ao ser publicada (`release não publicada`
+  no passo "Notas de versão") pode dar falso atraso do ingestor. Se a release ficar ilegível de vez (formato das notas
+  mudou; hoje é o marcador `galaxie-versions` no fim das notas), a execução avisa `ingestor sem leitura` e uma issue aberta não fecha sozinha: feche à mão e ajuste
+  `ingestorDaRelease`.
+- A versão que roda é procurada nos últimos 120 commits que mexeram na imagem. Fora disso (ou com uma tag que não veio
+  do CI), o atraso é contado desde o commit mais antigo olhado e a mensagem diz "ou mais".
+- Voltar versão de propósito (`deploy.yml` com `force=1` num SHA antigo) também é "atrás da main": passadas 2 h, o alerta
+  abre. Faça um deploy da main ou feche a issue sabendo que ela reabre na checagem seguinte.
+- A lista de pastas de cada imagem é a de hoje; se mudou entre a versão que roda e o HEAD, o cálculo no passado é
+  aproximado (o hash do HEAD, que decide se há atraso, é exato).
+
+**Testar:** `gh workflow run producao-atrasada.yml -f limite_min=1` trata um atraso de 1 min como alerta (abre a issue de
+verdade, com push se o secret existir); só vale com a produção atrás da main. Sem atraso nenhum a execução termina em
+"decisão: resolved". A decisão sai também no resumo da execução. Localmente, a leitura sem efeito colateral:
+`GH_REPO=galaxie-works/galaxie-sports node infra/ops/producao-atrasada.mjs verificar` (só lê; sem `GITHUB_OUTPUT` não
+abre issue nem manda push).
+
+## Esquema do dev atrasado (`DevEsquemaAtrasado`)
+
+O Postgres de **dev** mora no NAS da LAN: o Prometheus da VPS não o enxerga e o GitHub não entra na LAN, então este
+sinal não passa pelo Grafana (não entra no resumo diário por e-mail) nem por workflow. Quem aplica as migrations no dev
+é o `migrate` da stack do git no Portainer do NAS, a cada merge na main; quem confere é o comando
+`pnpm --filter @galaxie/ingestor gs dev:esquema`, rodado da máquina de dev, que compara `drizzle.__drizzle_migrations`
+com o journal da main e sai com 1 quando o dev está atrasado há mais de 24 h. Falha do `migrate` aparece como contêiner
+com saída ≠ 0 na stack do Portainer. Estados, saída e o plano B (`infra/ops/migrate-dev.sh`):
+[ambiente de dev › Esquema do dev atrasado](ambiente-de-dev.md#esquema-do-dev-atrasado-devesquemaatrasado).
 
 ## Monitor externo e página de status (Better Stack, plano gratuito)
 
@@ -269,7 +387,7 @@ Travas contra laço:
 
 - só age num processo que já passou no healthcheck alguma vez: a migration e os jobs avulsos (`docker compose run ...
   node dist/cli/...`) usam a mesma imagem, nunca respondem ao healthcheck e não podem ser encerrados no meio;
-- espera 6 falhas seguidas (API e demo: ~1,5 min; ingestor e agents: ~3 min) e o processo ter pelo menos 2 min de vida;
+- espera 6 falhas seguidas (API e demo: ~1,5 min; live, ingestor e agents: ~3 min) e o processo ter pelo menos 2 min de vida;
 - no máximo 3 reinícios em 30 min; depois disso só fica `unhealthy` e o alerta da camada de cima avisa;
 - `SELFHEAL=off` no ambiente do serviço desliga o encerramento (fica só a marcação).
 

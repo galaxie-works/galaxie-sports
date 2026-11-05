@@ -7,6 +7,7 @@ import {
   aiSpendUsd,
   changeFeedConsumers,
   dbSizes,
+  exploreSummaryAge,
   jobStats,
   ledgerCounts,
   liveEvents,
@@ -14,6 +15,7 @@ import {
   opsState,
   plannedBudgets,
   providerSnapshots,
+  queueStats,
   rawFreshness,
   webhookStats,
   type ChangeFeedConsumerRow,
@@ -24,6 +26,7 @@ import {
   type LiveSchedulerRow,
   type FreshnessRow,
   type OpsStateRow,
+  type QueueStats,
   type WebhookStats,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
@@ -263,7 +266,19 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     onError,
   );
   const webhooks = new CollectorGroup<WebhookStats>('webhooks', () => webhookStats(db), ttl, onError);
-  const groups = [quota, jobs, freshness, live, changeFeed, webhooks, ops] as CollectorGroup<unknown>[];
+  const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl, onError);
+  const explore = new CollectorGroup<number | null>('explore', () => exploreSummaryAge(db), ttl, onError);
+  const groups = [
+    quota,
+    jobs,
+    freshness,
+    live,
+    changeFeed,
+    webhooks,
+    ops,
+    queue,
+    explore,
+  ] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
   dbGauge(
@@ -574,6 +589,16 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     (g, d) => g.set(d.overdueSeconds),
   );
 
+  // ── resumo da home Explorar pré-calculado (fonte: core.explore_summary, job explore-summary)
+  dbGauge(
+    registry,
+    explore,
+    'galaxie_explore_summary_age_seconds',
+    'Idade do resumo da home Explorar pré-calculado (s; +Inf = nunca gravado). Acima de 30 min a API calcula na requisição',
+    [],
+    (g, age) => g.set(age ?? Number.POSITIVE_INFINITY),
+  );
+
   // ── sinais de vida, agenda esperada e IA (fonte: ops.runtime_env, ops.runtime_setting, ops.runtime_check, ops.llm_usage)
   dbGauge(
     registry,
@@ -635,6 +660,60 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     [],
     (g, d) => {
       if (d.ai.dailyUsd !== null) g.set(d.ai.dailyUsd);
+    },
+  );
+
+  // ── fila de tarefas (ops.job_request com `type`) ─────────────────────────────────────────────────
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_tasks_pending',
+    'Tarefas da fila esperando worker por tipo (com as de backoff e as de concessão vencida)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) g.set({ type: t.type }, t.pending);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_tasks_running',
+    'Tarefas da fila em execução por tipo (concessão viva)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) g.set({ type: t.type }, t.running);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_oldest_pending_age_seconds',
+    'Há quanto tempo a tarefa mais antiga do tipo está pronta sem worker pegar (s; ausente = nenhuma pronta)',
+    ['type'],
+    (g, d) => {
+      for (const t of d.tasks) {
+        if (t.oldestPendingSeconds !== null) g.set({ type: t.type }, t.oldestPendingSeconds);
+      }
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_resumed_24h',
+    'Execuções que retomaram uma tarefa interrompida nas últimas 24 h, por tipo (retomada não é falha)',
+    ['type'],
+    (g, d) => {
+      for (const r of d.runs) g.set({ type: r.type }, r.resumed);
+    },
+  );
+  dbGauge(
+    registry,
+    queue,
+    'galaxie_queue_failed_24h',
+    'Tentativas de tarefa da fila que falharam nas últimas 24 h, por tipo',
+    ['type'],
+    (g, d) => {
+      for (const r of d.runs) g.set({ type: r.type }, r.failed);
     },
   );
 

@@ -160,7 +160,8 @@ export function RelatedContentGrid({ related }: { related: RelatedContent }) {
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      {/* Colunas pelo espaço real, não pela janela: com o painel aberto a miniatura segue acima dos 120×70 da RMF. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-3">
         {items.map((item, i) => (
           <VideoCard
             key={item.id}

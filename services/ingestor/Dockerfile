@@ -35,6 +35,10 @@ COPY --from=build /out-agents/dist /srv/services/ai-agents/dist
 COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
 COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
+# O hash da entrada da imagem (tag in-<hash>), passado pelo docker.yml. Nunca o SHA do commit: a imagem é reaproveitada
+# entre commits, e o mesmo conteúdo tem de dar a mesma imagem. /version e build_info leem daqui.
+ARG IMAGE_HASH=dev
+ENV GALAXIE_IMAGE_HASH=${IMAGE_HASH}
 USER node
 # Scheduler parado (batimento com mais de 2 min): depois de 6 falhas (~3 min) o processo é encerrado e o Docker
 # sobe outro (infra/healthcheck/selfheal.mjs, no máximo 3 reinícios em 30 min).
@@ -44,4 +48,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 # O scheduler só agenda (heap pequeno); cada job é um processo filho com heap próprio (SCHEDULER_JOB_HEAP_MB e o
 # heapMb do job) e o teto SCHEDULER_MAX_JOBS. A conta da memória está em infra/vps-telemetry/README.md › Memória.
 # CLI rodada à mão (docker compose run ... node dist/cli/x.js) fica no padrão do V8.
-CMD ["node", "--max-old-space-size=64", "--max-semi-space-size=8", "dist/cli/scheduler.js"]
+# A imagem traz dois schedulers, cada um com a entrada do próprio pacote: o do ingestor (padrão, e SCHEDULER_PROFILE=live
+# para o serviço `live`, só o ao vivo) e o dos agentes de IA (SCHEDULER_PROFILE=agents, o serviço `agents` da stack). Quando a stack passar o `command` dos agentes, este CMD
+# volta a ser só o do ingestor.
+CMD ["sh", "-c", "if [ \"$SCHEDULER_PROFILE\" = agents ]; then exec node --max-old-space-size=64 --max-semi-space-size=8 /srv/services/ai-agents/dist/cli/agents-scheduler.js; fi; exec node --max-old-space-size=64 --max-semi-space-size=8 dist/cli/scheduler.js"]

@@ -35,10 +35,25 @@ pnpm --filter @galaxie/api dev                        # http://localhost:8080 (A
 `security` e `usage` cuidam de chave, limite, cache em Valkey, cabeçalhos e medição por tenant; `realtime` é o SSE;
 `webhooks` é o worker; `cli` são os comandos acima.
 
+### Home "Explorar" (`/v1/explore/summary`)
+
+O resumo da home não é calculado na requisição (#596): as escolhas e as contas (um ano de jogos para os clubes em
+destaque) vêm prontas de `core.explore_summary`, gravado pelo job `explore-summary` do ingestor com o código de
+[`@galaxie/explore`](../../packages/explore/README.md). A rota lê as linhas numa consulta, aplica o recorte de esportes do
+plano e junta por id o que depende da requisição: nomes no idioma, logos (acervo do tenant), bandeiras e os eventos dos
+destaques. O candidato do deploy lê o mesmo banco, então responde pronto mesmo com o cache de respostas vazio.
+
+Sem resumo gravado (primeira subida, job parado) ou com ele mais velho que 30 min, a rota faz a mesma conta na hora,
+com o `statement_timeout` do perfil `api`, e registra o aviso `resumo do Explorar ... calculando na requisição`. A idade
+do resumo sai no `/metrics` como `galaxie_explore_summary_age_seconds` (`+Inf` sem resumo) e o alerta
+`ExploreSummaryStale` dispara acima de 30 min. A agenda (`/v1/explore/agenda`) continua contada na requisição, com a
+mesma consulta de jogos (`selectWindowEvents`); entre um recálculo e outro, home e agenda podem diferir pelos jogos que
+começaram ou mudaram de status no último minuto.
+
 ## Depende de
 
 - **Pacotes**: `db`, `contracts` (DTOs e OpenAPI), `providers`, `rules`, `knowledge`, `where-to-watch`, `geo`,
-  `runtime-config`, `observability`, `apisports-client` (só para ler o raw e o plano; a API **não** chama a api-sports).
+  `explore` (resumo da home), `runtime-config`, `observability`, `apisports-client` (só para ler o raw e o plano; a API **não** chama a api-sports).
 - **Serviços**: Postgres (`DATABASE_URL`) e Valkey (`REDIS_URL`). Os dados chegam pelo `services/ingestor`.
 - **Arquivos**: `config/plans.yaml`, `config/rules`, `config/assets/denylist.yaml`, `data/knowledge` (via
   `PLANS_CONFIG_PATH`, `RULES_DIR`, `MEDIA_DENYLIST_PATH`, `KNOWLEDGE_DIR`).

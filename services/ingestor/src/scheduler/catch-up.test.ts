@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { missedSlots } from './catch-up.js';
-import { DEFAULT_JOBS, type ScheduledJob } from './schedule.js';
+import { missedSlots, type ScheduledJob } from '@galaxie/scheduler';
+import { DEFAULT_JOBS } from './schedule.js';
 
 const job = (name: string): ScheduledJob => DEFAULT_JOBS.find((j) => j.name === name)!;
 const at = (iso: string) => new Date(iso);

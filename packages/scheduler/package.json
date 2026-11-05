@@ -1,0 +1,30 @@
+{
+  "name": "@galaxie/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Motor de agendamento compartilhado pelo ingestor e pelos agentes de IA: cron em UTC, um processo filho por job, trava entre processos, catch-up da partida, pedidos do painel e checagem do crédito da IA",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "@galaxie/observability": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
+    "croner": "^11.0.0",
+    "drizzle-orm": "^0.45.4"
+  }
+}

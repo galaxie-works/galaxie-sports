@@ -25,6 +25,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --dir src --passWithNoTests",
     "test:integration": "vitest run --dir test",
+    "scheduler": "node --env-file-if-exists=../../.env dist/cli/agents-scheduler.js",
     "context:run": "node --env-file-if-exists=../../.env dist/cli/context-run.js",
     "recap:run": "node --env-file-if-exists=../../.env dist/cli/recap-run.js",
     "curator:run": "node --env-file-if-exists=../../.env dist/cli/curator-run.js",
@@ -52,19 +53,21 @@
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/net-guard": "workspace:*",
+    "@galaxie/observability": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
+    "@galaxie/scheduler": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "ajv": "^8.20.0",
-    "croner": "^10.0.1",
+    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4",
-    "openai": "^7.45.0",
+    "openai": "^7.47.0",
     "playwright-core": "1.64.0",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@galaxie/ingestor": "workspace:*",
+    "@galaxie/core-writer": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "postgres": "^3.4.9"
   }

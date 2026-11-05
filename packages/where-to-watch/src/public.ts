@@ -29,12 +29,17 @@ export const UNKNOWN_MESSAGES: Record<string, string> = {
   'es-PE': 'Todavía no tenemos la información de transmisión.',
   'es-UY': 'Todavía no tenemos la información de transmisión.',
   'es-EC': 'Todavía no tenemos la información de transmisión.',
+  en: "We don't have the broadcast details yet.",
 };
 
 export function unknownMessage(locale: string): string {
   return (
     UNKNOWN_MESSAGES[locale] ??
-    (locale.startsWith('es') ? UNKNOWN_MESSAGES['es-AR']! : UNKNOWN_MESSAGES['pt-BR']!)
+    (locale.startsWith('es')
+      ? UNKNOWN_MESSAGES['es-AR']!
+      : locale.startsWith('en')
+        ? UNKNOWN_MESSAGES.en!
+        : UNKNOWN_MESSAGES['pt-BR']!)
   );
 }
 

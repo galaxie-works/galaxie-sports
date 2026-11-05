@@ -14,7 +14,7 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 | Autenticação | Header `x-galaxie-key: <chave do tenant>` (chaves rotacionáveis, escopos por módulo); no navegador, `x-galaxie-publishable-key` só para leitura (§1.3) |
 | Tenant | Cada cliente tem plano (Core Data, Fan Experience, Live Intelligence, Enterprise), mercados ativos e esportes contratados |
 | Rate limit | Por tenant e por rota; headers `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` |
-| Locale | `Accept-Language` ou `?locale=` (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC) |
+| Locale | `Accept-Language` ou `?locale=` (pt-BR, es-AR, es-MX, es-CO, es-CL, es-PE, es-UY, es-EC e en) |
 | Fuso | `?tz=America/Sao_Paulo` (padrão UTC) |
 | Cache | `ETag` + `Cache-Control` por tipo de recurso; `If-None-Match` retorna 304 |
 
@@ -22,20 +22,20 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 
 **Chaves.** Formato `gs_<live|test>_<prefixo>_<segredo>_<checksum>` — prefixo de 12 caracteres hex (guardado em claro em `api.api_key.prefix` para localizar a chave), segredo de 32 bytes em base64url, guardado **só como hash scrypt com sal** (`scrypt$N$r$p$sal$hash`, via `node:crypto`), e CRC32 em 8 hex de tudo o que vem antes (erro de digitação e chave inventada → 401 sem consulta ao banco; scanners de segredos acham a chave sem falso positivo). O ambiente vale: prefixo diferente do ambiente gravado da chave → 401. A chave `gs_test_` tem o mesmo dado da produção, mas limite de 60 req/min por rota, nunca acima do `rate_limit_per_minute` do tenant (balde próprio, não consome o da produção) e uso contado à parte (`test:<rota>` em `/v1/account/usage`). Teto: 5 chaves secretas válidas por tenant e ambiente, contando as em período de graça (acima → 409 `CONFLICT`). Política completa: [politica-de-chaves.md](politica-de-chaves.md). A chave completa é exibida uma única vez, na criação. A verificação positiva fica em cache em memória por 60 s (revogação e mudança de plano valem em até 1 min). `last_used_at` é atualizado no máximo a cada 5 min.
 
-**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport` e o add-on `related_content` (vídeos relacionados, [12](12-conteudo-relacionado.md); incluído no `enterprise`, contratável à parte em qualquer plano). Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
+**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport`. Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
 
 | Plano | Módulos padrão |
 |---|---|
 | `core_data` | `core_data` |
 | `fan_experience` | `core_data`, `where_to_watch`, `semantic` |
 | `live_intelligence` | + `live_intelligence`, `multisport` |
-| `enterprise` | todos (inclusive `related_content`) |
+| `enterprise` | todos |
 
 Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_data`). Chave sem o módulo → 403 `MODULE_NOT_IN_PLAN`; esporte fora de `sports` no espelho → 403 `MODULE_NOT_IN_PLAN`; país fora de `markets` (rotas por país, como onde assistir) → 403 `MARKET_NOT_IN_PLAN`.
 
 **Rate limit.** Janela fixa de 60 s por **tenant × rota** (padrão da rota, ex.: `GET /v1/competitions/:id`), com contadores no Valkey (`<prefixo>rl:<tenant>:<rota>`), compartilhados entre instâncias. Headers `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` (segundos) em toda resposta autenticada; 429 inclui `retry-after`. Se o Valkey cair, o limite é ignorado (*fail-open*) e o evento é registrado em log.
 
-**Locale.** `?locale` (um dos 8 locales; outro valor → 400) tem precedência; senão `Accept-Language` (tag exata, ou só o idioma: `es-*` → `es-AR`, `pt-*` → `pt-BR`); padrão `pt-BR`. A resposta traz `Content-Language`. Textos i18n do banco seguem a cadeia `es-XX → es → en` (`pt-BR → pt → en`); sem correspondência, cai no nome oficial. Textos livres da base semântica (fatos, mascote, origem de clássico) seguem `es-XX → es → original`, com `text_locale` na resposta ([docs/06 §3.3](06-semantica-e-conteudo.md#33-textos-livres-por-idioma)). **Fuso:** `?tz` aceita qualquer fuso IANA (inválido → 400); instantes saem em ISO 8601 com o offset do fuso (padrão UTC, sufixo `Z`).
+**Locale.** `?locale` (um dos 9 locales: os 8 mercados e `en`; outro valor → 400) tem precedência; senão `Accept-Language` (tag exata, ou só o idioma: `es-*` → `es-AR`, `pt-*` → `pt-BR`, `en-*` → `en`); padrão `pt-BR`. A resposta traz `Content-Language`. **`en`** serve nomes, fases (`stage.name`, "Semi-finals · 1st leg"), stakes, `fan_tags`, rótulos de estatística e textos fixos em inglês; o texto livre da base semântica sai no idioma do clube (gritos: `copy_hints` do `text_locale` do próprio clube, depois `rallying_cries`; fatos com `text_locale`), e nada é gerado por IA em inglês (`/v1/events/{id}/context?locale=en` vem vazio; a demo pede o contexto em espanhol). Textos i18n do banco seguem a cadeia `es-XX → es → en` (`pt-BR → pt → en`); sem correspondência, cai no nome oficial. **Nome de competição não se traduz:** competição nacional sai com o nome no idioma do próprio país em qualquer locale (Copa do Brasil, Premier League, Primera División; país sem idioma mapeado usa o rótulo `en` e, sem ele, o nome do fornecedor), e só as continentais e mundiais seguem a cadeia acima (Copa Sul-Americana em pt-BR, Copa Sudamericana em es) — regra e mapa país → idioma em `packages/geo/src/language.ts`; o apelido continua localizado. Textos livres da base semântica (fatos, mascote, origem de clássico) seguem `es-XX → es → original`, com `text_locale` na resposta ([docs/06 §3.3](06-semantica-e-conteudo.md#33-textos-livres-por-idioma)). **Fuso:** `?tz` aceita qualquer fuso IANA (inválido → 400); instantes saem em ISO 8601 com o offset do fuso (padrão UTC, sufixo `Z`).
 
 **Chave local para desenvolvimento:**
 
@@ -257,7 +257,7 @@ Um país participa de confederações e de campeonatos que outros países també
 | `GET /v1/countries/{code}` | `code`, `name`, `ioc_code`, `flag`, `confederation` e `in_navigation`. Código ISO2 ou extensão (`GB-ENG`), em qualquer caixa; fora do banco e do config/geo → 404 |
 | `GET /v1/countries/{code}/competitions` | `country` + `sports[]` (futebol primeiro; só esportes com alguma competição), cada um com `groups[]` na ordem `domestic` → `continental_clubs` → `national_teams` → `world_clubs` (grupo vazio é omitido), com `label` localizado e `competitions[]` no formato de `/v1/competitions` + `scope` e `confederations`. Domésticas: `country_code` = país e `tier ≤ max_tier` (padrão 2 = catalogadas; 3 traz todo o espelho). Ordem no grupo: tier, posição editorial (ordem do arquivo de escopo ou `featured`) e nome |
 
-Todas exigem `core_data`, aceitam `?locale`/`Accept-Language` (nomes com a cadeia `es-XX → es → en`) e ficam 24 h no cache (tags `country`, `competition`, `season`, `sport`). As contagens de eventos de `/v1/navigation` podem atrasar até o TTL (a rota não é purgada a cada evento).
+Todas exigem `core_data`, aceitam `?locale`/`Accept-Language` (nomes de país e de confederação com a cadeia `es-XX → es → en`; nome de competição nacional sempre no idioma do país dela, §1.1) e ficam 24 h no cache (tags `country`, `competition`, `season`, `sport`). As contagens de eventos de `/v1/navigation` podem atrasar até o TTL (a rota não é purgada a cada evento).
 
 ```bash
 curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competitions?sport=football&locale=pt-BR"
@@ -283,7 +283,7 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 
 #### 3.1.2 Resumo da home "Explorar" (`apps/api/src/routes/v1/explore.ts`)
 
-`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. São sete consultas em lote mais a montagem dos jogos em destaque (uma vez, para todos os países), nenhuma por esporte ou por país; a montagem fica em `apps/api/src/explore/summary.ts`, com as escolhas em funções puras e testadas.
+`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Sem pré-cálculo ou com ele velho (mais de 30 min), faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
 
 | Campo | Conteúdo |
 |---|---|
@@ -293,7 +293,7 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 | `countries[].highlight` | O próximo jogo (na janela) de maior relevância no mercado do país: `Event` completo, como em `/v1/events/{id}`, com `relevance.market` = código do país (bônus de §3.2 e docs/06 §3.2). A relevância empata muito (toda rodada da liga soma o mesmo bônus), então o desempate é: mais clubes de `top_teams` em campo, jogo da `main_competition` e, por fim, o mais cedo. `null` sem jogo do país na janela |
 | `confederations[]` | Seções (CONMEBOL, CONCACAF, UEFA) com os códigos dos países, como em `/v1/navigation` |
 
-Exige `core_data`. Os esportes do plano do tenant limitam os jogos contados e os destaques; o catálogo é o mesmo para todos. Cache de **60 s** (tags `sport`, `competition`, `country`, `asset`): de propósito sem a tag `event`, para um placar não purgar o resumo inteiro, então `upcoming` e `live` envelhecem no máximo um minuto. Em `es-AR`/`es-XX` os nomes seguem a cadeia `es-XX → es → en`; `starts_at` do destaque respeita `?tz`.
+Exige `core_data`. Os esportes do plano do tenant limitam os jogos contados e os destaques; o catálogo é o mesmo para todos. Cache de **60 s** (tags `sport`, `competition`, `country`, `asset`): de propósito sem a tag `event`, para um placar não purgar o resumo inteiro, então `upcoming` e `live` envelhecem no máximo um minuto. Em `es-AR`/`es-XX` os nomes seguem a cadeia `es-XX → es → en` (competição nacional: sempre no idioma do país dela, §1.1); `starts_at` do destaque respeita `?tz`.
 
 ```bash
 curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/explore/summary?locale=pt-BR&tz=America/Sao_Paulo"
@@ -396,7 +396,7 @@ Exemplo de evento canônico:
 }
 ```
 
-> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos); a tabela código → tag do torcedor (`fan_tags`), em [docs/rules/tags-torcedor.md](rules/tags-torcedor.md).
+> Os IDs de times acima são ilustrativos; os IDs reais vêm do `provider_map` após o bootstrap. Os códigos de `stakes` e seus textos nos 8 mercados e em `en` estão catalogados em [docs/rules](rules/README.md#catálogo-de-códigos); a tabela código → tag do torcedor (`fan_tags`), em [docs/rules/tags-torcedor.md](rules/tags-torcedor.md).
 
 Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `apps/api/src/events/builder.ts`):
 
@@ -479,6 +479,8 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 
 Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`) ou observados; `halftime`, `end_of_regulation` (intervalo `BT`), `extra_time` e `full_time` (encerramento observado vindo de um estado em andamento) só quando o Live Poller os viu (`observed`).
 
+**Gol anulado sem VAR na fonte.** Quando o fornecedor só apaga o gol, sem mandar o VAR, e o gol fica fora da timeline com o placar do lado tendo caído, a timeline ganha um lance `type: "var"`, `detail: "Goal cancelled"` com o minuto, o time e o jogador do gol. Ele leva cerca de 45 s para aparecer (o gol que a fonte apaga e devolve em seguida não vira lance) e sai se o gol voltar ou se o fornecedor mandar o VAR dele. Vem depois do último lance do mesmo minuto; o `sequence` fica fora da sequência do fornecedor (a partir de 100000).
+
 **Tempo real.** A timeline tem TTL de 10 s ao vivo e 1 h encerrada, e é purgada pelas mesmas mudanças do evento (tag `event:<id>`). Para atualizar sem polling, assine `GET /v1/stream?events=<id>&topics=score,status,incidents` (§5.1) e releia a timeline a cada mudança; a demo faz isso e mantém uma verificação completa a cada 30 s (15 s se o SSE cair).
 
 ### 3.3 Times, atletas e semântica
@@ -518,7 +520,7 @@ O nome do fornecedor segue em `provider_name` (times de evento, `TeamSummary`, `
 - **`{id}` de time** aceita o UUID do participante (`core.participant`, ligado por `semantic.team_profile.participant_id`) ou o slug do perfil (`palmeiras`). Clássico usa o slug (`choque-rei`).
 - **Piso editorial (`review_status`).** Cada item da base tem `draft`, `reviewed` ou `approved`. A API serve só itens com status ≥ ao mínimo efetivo = o maior entre o piso do servidor e `?min_review_status=` — o cliente **endurece, nunca afrouxa**. Piso do servidor: variável `SEMANTIC_MIN_REVIEW_STATUS` (padrão **`approved`**, o de produção; em desenvolvimento local use `draft`, já que toda a base ainda está em revisão). Listas filtram; detalhe abaixo do piso → 404 com `detail` explicando o motivo. Um piso por tenant fica para quando houver configuração por tenant no schema `api`.
 - **Perfil da competição** (`semantic.competition_profile`: rótulo, apelidos e `trophy_nickname`): o piso do servidor vale em toda a API que o lê — catálogo e busca de competições, navegação, `/v1/search`, evento, contexto competitivo, campanhas e tabela do time, pessoa e explorar (`apps/api/src/competitions/profile.ts`). Abaixo do piso, a competição sai com o rótulo do catálogo (`core.competition.labels`) ou o nome do fornecedor, sem apelidos nem troféu, e a busca não casa pelos apelidos dela. O status é o que o seed grava (com as decisões do painel de revisão por cima do YAML) e o que o painel atualiza na hora. Os agentes de IA (`services/ai-agents/src/context/event-core.ts`) usam o rótulo do perfil só quando ele está `approved`. O validador recusa apelido igual ao rótulo do mesmo idioma (`nickname-is-label`), que repetiria o nome em `competition.nickname`.
-- **Locale.** Nomes de time/clássico seguem `labels` com a cadeia `es-XX → es → en`; `copy_hints` usa o locale, o do próprio clube quando é o mesmo idioma e o idioma (`es-MX → es-AR do Boca → es`); o glossário, só o locale e o idioma; nunca outro idioma. Fatos (`identity`), `mascot`, `colors` e `fans` do cartão do time e `origin`/`trivia` do clássico vêm, campo a campo, da tradução do locale, depois da do idioma (`data/knowledge/i18n`, só as que atingem o piso editorial) e por fim do original do YAML; `text_locale` diz de onde veio o texto principal — diferente do pedido quando o mercado ainda não tem tradução publicada ([docs/06 §3.3](06-semantica-e-conteudo.md#33-textos-livres-por-idioma)). `/v1/copy` não tem fallback entre locales (copy é localizada pela intenção).
+- **Locale.** Nomes de time/clássico seguem `labels` com a cadeia `es-XX → es → en`; `copy_hints` usa o locale, o do próprio clube quando é o mesmo idioma e o idioma (`es-MX → es-AR do Boca → es`); o glossário, só o locale e o idioma; nunca outro idioma — exceto `en`, que não tem grito próprio e cai nos `copy_hints` do idioma do clube (`text_locale`: "Avanti, Palestra!" para o Palmeiras, "¡Dale, Bo!" para o Boca). Fatos (`identity`), `mascot`, `colors` e `fans` do cartão do time e `origin`/`trivia` do clássico vêm, campo a campo, da tradução do locale, depois da do idioma (`data/knowledge/i18n`, só as que atingem o piso editorial) e por fim do original do YAML; `text_locale` diz de onde veio o texto principal — diferente do pedido quando o mercado ainda não tem tradução publicada ([docs/06 §3.3](06-semantica-e-conteudo.md#33-textos-livres-por-idioma)). `/v1/copy` não tem fallback entre locales (copy é localizada pela intenção).
 - **`/v1/derbies`**: lista completa (`{ data }`), por intensidade e slug; `country` casa o país de qualquer um dos dois times; `team` inexistente → 404.
 - **`/v1/derbies/upcoming`**: eventos com `core.event.derby_id` entre agora e `days` dias (1–30, padrão 7), sem encerrados/cancelados/adiados; cache de agenda (5 min). Vazia enquanto não houver eventos futuros sincronizados.
 - **`/v1/derbies/{slug}`**: retrospecto **calculado só de `core.event`** (status `finished`, placar presente, os dois participantes em qualquer mando) — nunca chama o provedor. Traz vitórias e gols por time, empates, até 3 maiores goleadas (saldo → gols → mais recente), últimos 5, primeiro/último confronto e `next_event`. Pênaltis aparecem em `penalties`, mas o jogo conta como empate. Sem os dois times ligados ao `core`, `retrospect.available = false`. TTL 1 h (muda a cada clássico encerrado).
@@ -581,10 +583,6 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 - **"Hoje"**: unidades do dia com o CON e medalhas com `awarded_at` no dia (só se publicável); `medal_chances` e `where_to_watch` vêm `null` (reservados). Sem `date`, "hoje" é calculado no fuso (`tz` ou da sede).
 - **Cache**: edições e histórico 24 h; quadro 24 h (encerrada), 60 s (em andamento) ou 1 h (futura); agenda, provas e "hoje" 5 min; delegação 1 h. Tags `games:<id>`, `medal_table:<id>`, `medal`, `unit`.
 - **#78**: os torneios coletivos (futebol, basquete, vôlei, handebol…) ficam ligados à edição por `multisport.games_competition` e seus jogos são eventos comuns do `core` (listados por `/v1/events`, #31, pela competição); quando houver agenda por unidade, a ligação unidade ↔ evento canônico sai em `core_event_id`.
-
-### 3.5 Conteúdo relacionado
-
-`GET /v1/events/{id}/related?type=highlights,goal&format=short&limit=20` — módulo `related_content`. Vídeos diretos sobre o evento (link e embed oficial da plataforma, nunca link de busca), classificados por tipo (`highlights`, `goal`, `penalties`, `press_conference`, `interview`, `behind_the_scenes`, `fan_reaction`, `analysis`, `full_match`, `other`) e formato (`short` | `long`), com canal e selo `source_tier` (`official`, `rights_holder`, `media`, `creator`), duração, miniatura da plataforma e visualizações; `counts` traz o total por tipo antes dos filtros. Cache de 1 h purgado por `event.related_content_changed`. Detalhes, fontes e regras de direitos em [12](12-conteudo-relacionado.md).
 
 ### 3.6 Busca global (`apps/api/src/routes/v1/search.ts`)
 
@@ -744,7 +742,7 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 | Mecanismo | Rota | Uso |
 |---|---|---|
 | **SSE** | `GET /v1/stream?events=<ids>&topics=score,status,incidents,where_to_watch` | Cards ao vivo na TV/web sem recarregar |
-| **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published`, `event.related_content_changed` — assinados com HMAC-SHA256 |
+| **Webhooks** | Configurados por tenant | `event.status_changed`, `event.score_changed`, `event.incident_added`, `where_to_watch.changed`, `event.context_published` — assinados com HMAC-SHA256 |
 | **Polling** | `GET /v1/events/live` com `ETag` | Clientes simples |
 
 **Tópicos** (nome curto em `?topics=` → nome completo no SSE/webhook) e o módulo do plano exigido:
@@ -756,7 +754,6 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 | `incidents` | `event.incident_added` | Lance novo na timeline (gol, cartão, VAR...) | `core_data` |
 | `where_to_watch` | `where_to_watch.changed` | Opção de transmissão incluída, corrigida ou removida | `where_to_watch` |
 | `context` | `event.context_published` | Cenário/resumo de IA publicado ou revisado | `live_intelligence` |
-| `related` | `event.related_content_changed` | Vídeo relacionado publicado, reclassificado, fora do ar ou expirado | `related_content` |
 
 **Payload** (`data:` do SSE e corpo do webhook — schema `RealtimeChange` no OpenAPI), compacto: o evento, o tópico, os campos que mudaram e os novos valores. Para o estado completo, use a rota REST do evento.
 
@@ -775,7 +772,7 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 
 `data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
 
-**Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `apps/api/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
+**Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `tests/integration/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
 
 ### 5.1 SSE — `GET /v1/stream`
 
@@ -959,7 +956,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Recurso | TTL (CDN) | Invalidação ativa |
 |---|---|---|
 | Países, competições, times, venues, navegação (`/v1/navigation`, `/v1/countries/{code}/*`) | 24 h | Na sincronização diária |
-| Resumo da home (`/v1/explore/summary`) | 60 s | Não (contadores de jogos envelhecem até 1 min) |
+| Resumo da home (`/v1/explore/summary`) | 60 s | Não (lê o pré-calculado, refeito no minuto seguinte a uma mudança de jogo e a cada 10 min) |
 | Elencos, tabelas | 1 h | Ao fim de cada rodada |
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |

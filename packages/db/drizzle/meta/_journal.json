@@ -442,6 +442,34 @@
       "when": 1793304084233,
       "tag": "0063_logo_tema_escuro",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1793653975293,
+      "tag": "0064_fila_de_tarefas",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1793701999800,
+      "tag": "0065_resumo_explorar",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793705599800,
+      "tag": "0066_change_feed_sem_ids_de_video",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793865698602,
+      "tag": "0067_vigia_de_gols",
+      "breakpoints": true
     }
   ]
 }

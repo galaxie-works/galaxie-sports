@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -122,8 +123,17 @@ export const jobRun = ops.table(
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     error: text('error'),
     stats: jsonb('stats'),
+    /** Tarefa da fila (ops.job_request) que esta execução atendeu; sem FK: a retenção de cada tabela é própria. */
+    requestId: uuid('request_id'),
+    /** Execução interrompida (concessão vencida ou `release`) que esta retoma: é retomada, não falha. */
+    resumedFrom: uuid('resumed_from'),
   },
-  (t) => [index('job_run_job_started_idx').on(t.job, t.startedAt)],
+  (t) => [
+    index('job_run_job_started_idx').on(t.job, t.startedAt),
+    index('job_run_request_idx')
+      .on(t.requestId, t.startedAt)
+      .where(sql`${t.requestId} is not null`),
+  ],
 );
 
 /**
@@ -275,7 +285,10 @@ export const runtimeEnv = ops.table(
   (t) => [primaryKey({ columns: [t.service, t.key] })],
 );
 
-/** Pedidos de "rodar agora" do painel; o scheduler do perfil do job pega, executa e fecha. */
+/**
+ * Pedidos de "rodar agora" do painel (o scheduler do perfil do job pega, executa e fecha) e tarefas da fila
+ * (`type` preenchido, packages/db/src/queue.ts: um worker toma com concessão e retoma do checkpoint).
+ */
 export const jobRequest = ops.table(
   'job_request',
   {
@@ -283,15 +296,41 @@ export const jobRequest = ops.table(
     job: text('job').notNull(),
     requestedBy: text('requested_by').notNull(),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
-    /** pending | running | done | error | skipped | expired */
+    /** pending | running | done | error | skipped | expired; tarefa da fila também canceled (só pendente) */
     status: text('status').notNull().default('pending'),
     pickedAt: timestamp('picked_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     /** ops.job_run.id da execução (quando houve). */
     runId: uuid('run_id'),
     detail: text('detail'),
+    /** Tipo da tarefa da fila; nulo nos pedidos de "rodar agora". */
+    type: text('type'),
+    params: jsonb('params'),
+    /** Maior sai primeiro. */
+    priority: integer('priority').notNull().default(0),
+    /** Tentativas consumidas (conta ao tomar; `release` devolve). */
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(3),
+    /** Progresso gravado pelo worker: quem retoma recebe daqui. */
+    checkpoint: jsonb('checkpoint'),
+    lockedBy: text('locked_by'),
+    /** Fim da concessão: vencida, outro worker pega. */
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /** A partir de quando a tarefa pode ser tomada (a fila sempre preenche). */
+    runAfter: timestamp('run_after', { withTimezone: true }),
+    lastError: text('last_error'),
+    /** Chave opcional: uma só tarefa viva por (type, dedupe_key), para o scheduler não enfileirar duas vezes. */
+    dedupeKey: text('dedupe_key'),
   },
-  (t) => [index('job_request_status_idx').on(t.status, t.requestedAt)],
+  (t) => [
+    index('job_request_status_idx').on(t.status, t.requestedAt),
+    index('job_request_queue_idx')
+      .on(t.priority.desc(), t.runAfter)
+      .where(sql`${t.status} = 'pending' and ${t.type} is not null`),
+    uniqueIndex('job_request_dedupe_idx')
+      .on(t.type, t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null and ${t.status} in ('pending', 'running')`),
+  ],
 );
 
 // ─── qualidade dos dados (job `data-quality`, services/ingestor/src/quality) ───────────────────────

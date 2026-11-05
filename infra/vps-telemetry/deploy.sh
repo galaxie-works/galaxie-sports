@@ -23,10 +23,12 @@
 #      mínimo 60) é de deploy morto e é tomada, com WARN
 #   4. docker save | ssh docker load
 #   5. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada);
-#      compose.yml do SHA e IMAGE_TAG no .env, validados antes de trocar (com backup dos dois); a imagem da página de
+#      compose.yml do SHA e as tags das imagens no .env (o SHA em cada TAG_*, em IMAGE_TAG num SHA anterior a elas, e em
+#      DEPLOY_SHA), validados antes de trocar (com backup dos dois); a imagem da página de
 #      manutenção (caddy fixo do Docker Hub) é baixada antes, só se faltar
-#   6. docker compose up -d (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do registry). A
-#      página de manutenção não é recriada: enquanto demo e API sobem, o Traefik responde 503 por ela, não 404
+#   6. docker compose up -d --remove-orphans (ingestor continua com a escala atual; PULL_POLICY=missing: nada vem do
+#      registry; o serviço que saiu do compose, como a demo quando virou site e console, sai junto). A
+#      página de manutenção não é recriada: enquanto site, console e API sobem, o Traefik responde 503 por ela, não 404
 #      → o migrate tem de sair com 0. Falha aqui sem migration nova aplicada → volta compose.yml/.env anteriores e
 #      sobe de novo; com migration nova (ou sem como saber) → rollback manual. Sempre sai com 1
 #   7. pós-deploy idempotente (post-deploy.sh, o mesmo do deploy pelo GitHub Actions): seed da base semântica (falha
@@ -75,7 +77,7 @@ TREE_LABEL="works.galaxie.context-tree"
 # comandos do compose na VPS: as imagens chegam por docker load; o registry nunca é consultado
 CD="cd $DIR && export PULL_POLICY=missing"
 # migrations aplicadas no banco (o migrator do drizzle registra cada uma em drizzle.__drizzle_migrations)
-MIGRATIONS_SQL="cd $DIR && docker compose exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"'"
+MIGRATIONS_SQL="cd $DIR && docker compose -f compose.dados.yml exec -T postgres sh -c 'psql -X -q -t -A -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"select count(*) from drizzle.__drizzle_migrations\"'"
 
 # conexão morta (queda do SSH no meio do envio das imagens) vira erro em ~2 min, em vez de travar o deploy
 ssh() { command ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 "$@"; }
@@ -98,9 +100,10 @@ LOCK_ID="$(hostname 2>/dev/null || echo dev)-$$-$(date +%s)"
 # Como voltar. O comando de voltar a imagem só aparece sem migration nova aplicada (contagem igual antes e depois):
 # com schema novo, o código antigo pode quebrar, e a saída é corrigir para frente ou restaurar também o banco.
 rollback_help() {
-  local o="${OLD:0:7}"
+  local o="${OLD:0:7}" live_flag=""
+  [ "${SCALE:-1}" != 0 ] || live_flag=" --scale live=0"
   if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ && "$MIG_AFTER" = "$MIG_BEFORE" ]]; then
-    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}'"
+    echo "FAIL  voltar para ${o}: ssh $VPS '$CD && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env && docker compose up -d --remove-orphans --scale ingestor=${SCALE:-1}$live_flag'"
   else
     if [[ "$MIG_BEFORE" =~ ^[0-9]+$ && "$MIG_AFTER" =~ ^[0-9]+$ ]]; then
       echo "FAIL  $((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) já aplicada(s): não volte só a imagem para ${o} (o código antigo pode quebrar com o schema novo)"
@@ -108,7 +111,7 @@ rollback_help() {
       echo "FAIL  não deu para contar as migrations aplicadas (antes: '${MIG_BEFORE}', depois: '${MIG_AFTER}'): confira drizzle.__drizzle_migrations antes de voltar a imagem para ${o}"
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
-    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
+    [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && docker compose -f compose.dados.yml exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && docker compose ps -a && docker compose logs --tail 50 migrate api'"
 }
@@ -121,7 +124,7 @@ on_exit() {
   fi
   if [ -n "$LOCKED" ]; then
     ssh -o ConnectTimeout=20 "$VPS" \
-      "if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
+      "rm -f $DIR/.env.next; if [ \"\$(cut -d' ' -f1 $LOCK/owner 2>/dev/null)\" = '$LOCK_ID' ]; then rm -rf $LOCK; fi" ||
       echo "WARN  trava da VPS não liberada; libere com: ssh $VPS 'rm -rf $LOCK'"
   fi
   if [ -n "$WT" ]; then git -C "$ROOT" worktree remove --force "$WT" >/dev/null 2>&1 || true; fi
@@ -214,7 +217,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
   for spec in api:apps/api ingestor:services/ingestor demo:apps/demo; do
     name="${spec%%:*}"
     echo "build $name"
-    docker build -q -f "$WT/${spec#*:}/Dockerfile" -t "$REG-$name:$SHA" "$WT" >/dev/null
+    docker build -q --build-arg "IMAGE_HASH=$SHA" -f "$WT/${spec#*:}/Dockerfile" -t "$REG-$name:$SHA" "$WT" >/dev/null
   done
 fi
 
@@ -248,7 +251,7 @@ if [ "$SECONDS" -ge $((PRELOCK_MAX_MIN * 60)) ]; then
 fi
 
 # ── trava na VPS ────────────────────────────────────────────────────────────────────────────────────────────
-# Dois deploys (de máquinas diferentes) leriam o mesmo IMAGE_TAG anterior, disputariam compose.yml.new, o .env e o
+# Dois deploys (de máquinas diferentes) leriam o mesmo SHA anterior, disputariam compose.yml.new, o .env e o
 # compose up, e calculariam a mesma tag da release. mkdir é atômico; o dono fica em owner e a trava sai no fim
 # (trap EXIT, que também roda quando o deploy-safe.sh mata o deploy pelo teto de tempo). Trava mais velha que
 # LOCK_STALE_MIN é de um deploy que morreu sem liberar (máquina desligada, ssh perdido no fim): é tomada.
@@ -269,7 +272,9 @@ case "$lock" in
 esac
 LOCKED=1
 
-OLD="$(ssh "$VPS" "grep -E '^IMAGE_TAG=' $DIR/.env | cut -d= -f2")"
+# o SHA publicado: DEPLOY_SHA; antes das tags por serviço, IMAGE_TAG
+OLD="$(ssh "$VPS" "sed -n 's/^DEPLOY_SHA=//p' $DIR/.env | tail -n 1")"
+[ -n "$OLD" ] || OLD="$(ssh "$VPS" "sed -n 's/^IMAGE_TAG=//p' $DIR/.env | tail -n 1")"
 echo "na VPS: ${OLD:0:7} → ${SHA:0:7}"
 
 echo "enviando imagens"
@@ -278,7 +283,8 @@ ssh "$VPS" "$RETAG"
 
 # compose.yml e .env novos validados juntos antes de trocar: config inválido para aqui, com a stack intocada
 scp -q "$WT/infra/vps-telemetry/compose.yml" "$VPS:$DIR/compose.yml.new"
-# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente); falha do ps não pode virar 0
+# escala atual do ingestor (0 enquanto a ingestão roda em outro ambiente; o live, com a mesma chave, acompanha); falha
+# do ps não pode virar 0
 SCALE="$(ssh "$VPS" "cd $DIR && ids=\$(docker compose ps -q ingestor) && { printf '%s\n' \"\$ids\" | grep -c . ; true; }")" ||
   SCALE=""
 case "$SCALE" in
@@ -287,10 +293,19 @@ case "$SCALE" in
     exit 1
     ;;
 esac
-# página de manutenção (serviço maintenance: imagem upstream fixa, sem IMAGE_TAG): baixa a imagem só se ainda não
+# com o ingestor em 0, o live também (avaliado na VPS: só se o compose em uso tiver o serviço)
+LIVE_SCALE_REMOTE=""
+[ "$SCALE" != 0 ] || LIVE_SCALE_REMOTE="\$(grep -q '^  live:' compose.yml && echo --scale live=0)"
+# as imagens construídas aqui têm a tag do SHA: ele vai nas TAG_* de apps. Dados e obs não passam por este roteiro
+env_lines="DEPLOY_SHA=$SHA"
+for t in API DEMO INGESTOR; do env_lines+=$'\n'"TAG_$t=$SHA"; done
+# .env.next: o .env com as tags novas. Vem antes de qualquer comando no compose novo: o .env de antes das tags por serviço
+# não tem as TAG_*, e o compose novo não interpola sem elas. Vira o .env na troca (ou sai na limpeza da saída)
+ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR)=' .env; printf '%s\n' '$env_lines'; } > .env.next)"
+# página de manutenção (serviço maintenance: imagem upstream fixa, sem tag de deploy): baixa a imagem só se ainda não
 # estiver na VPS, antes de trocar qualquer coisa. O up não recria o serviço (o hash dele não muda de um deploy para o
 # outro); só quando o compose dele muda (rótulo works.galaxie.maintenance-rev), e aí em ~1 s, com demo e API no ar.
-if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new pull --policy missing --quiet maintenance"; then
+if ! ssh "$VPS" "$CD && docker compose -f compose.yml.new --env-file .env.next pull --policy missing --quiet maintenance"; then
   echo "FAIL  não deu para baixar a imagem da página de manutenção (Docker Hub fora? docker compose < 2.23?); nada foi trocado na VPS"
   exit 1
 fi
@@ -307,10 +322,9 @@ else
   echo "FAIL  dump antes do migrate não foi feito; nada foi trocado na VPS (SKIP_PRE_MIGRATE_DUMP=1 publica sem ele)"
   exit 1
 fi
-ssh "$VPS" "$CD && (umask 077 && sed 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env > .env.check) \
-  && { docker compose -f compose.yml.new --env-file .env.check config -q; ok=\$?; rm -f .env.check; [ \$ok = 0 ]; } \
+ssh "$VPS" "$CD && docker compose -f compose.yml.new --env-file .env.next config -q \
   && cp compose.yml compose.yml.bak-${OLD:0:7} && cp .env .env.bak-${OLD:0:7} \
-  && mv compose.yml.new compose.yml && sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=$SHA/' .env"
+  && mv compose.yml.new compose.yml && mv .env.next .env"
 # contagem de migrations antes do up: o rollback automático só vale se nenhuma nova foi aplicada (o código antigo
 # não foi escrito para o schema novo); sem a contagem, rollback só manual
 MIG_BEFORE="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_BEFORE=""
@@ -331,9 +345,9 @@ restore_previous() {
   elif [ "$MIG_AFTER" != "$MIG_BEFORE" ]; then
     why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f compose.yml.bak-$o && test -f .env.bak-$o \
-    && for s in api ingestor demo backup prometheus grafana; do docker image inspect $REG-\$s:$OLD >/dev/null || exit 1; done \
+    && for img in \$(docker compose -f compose.yml.bak-$o --env-file .env.bak-$o config --images); do docker image inspect \$img >/dev/null || exit 1; done \
     && cp compose.yml.bak-$o compose.yml && cp .env.bak-$o .env \
-    && docker compose up -d --remove-orphans --scale ingestor=$SCALE --quiet-pull"; then
+    && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi
   if [ -z "$why" ]; then
@@ -348,7 +362,7 @@ restore_previous() {
 
 STAGE=up
 echo "subindo a stack"
-if out="$(ssh "$VPS" "$CD && docker compose up -d --scale ingestor=$SCALE --quiet-pull 2>&1")"; then
+if out="$(ssh "$VPS" "$CD && docker compose up -d --remove-orphans --scale ingestor=$SCALE $LIVE_SCALE_REMOTE --quiet-pull 2>&1")"; then
   :
 else
   rc=$?
@@ -381,7 +395,11 @@ MIG_AFTER="$(ssh "$VPS" "$MIGRATIONS_SQL" 2>/dev/null)" || MIG_AFTER=""
 ssh "$VPS" "cd $DIR && GIT_SHA=$SHA bash -s -- all" < "$WT/infra/vps-telemetry/post-deploy.sh"
 
 echo "smoke test"
-ssh "$VPS" "cd $DIR && docker compose exec -T demo node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+# no site e no console: cada um confere o que o papel dele atende (APP_ROLE do contêiner)
+for svc in site console; do
+  echo "smoke no $svc"
+  ssh "$VPS" "cd $DIR && docker compose exec -T $svc node -" < "$WT/infra/vps-telemetry/smoke.mjs"
+done
 STAGE=finished
 
 # notas de versão: tag deploy-AAAA-MM-DD.N no commit publicado e release no GitHub com os PRs desde o deploy

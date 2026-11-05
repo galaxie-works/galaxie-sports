@@ -42,6 +42,14 @@ export const POSTGAME_HOLD_ENDPOINT = 'postgame:hold';
  * limita é o teto do dia.
  */
 export const MAX_TRIES_PER_DATE = 12;
+/**
+ * Uma data do `tempo-real` só vale a busca curta enquanto tem jogo que ainda pode estar em campo: até esta folga
+ * depois do fim previsto (acréscimos, prorrogação, atraso da fonte). Depois disso a lista quase não muda: em
+ * 05/11, a de ontem repetiu a mesma resposta das 03 h às 06 h UTC.
+ */
+export const RUNNING_GRACE_MS = 60 * 60_000;
+/** Intervalo de uma data sem jogo que ainda possa estar em campo, sempre que o do esporte for mais curto. */
+export const IDLE_INTERVAL_MIN = 15;
 /** Esporte com a cota ADHOC negada fica este tempo sem tentar (nem registrar execução). */
 export const HOLD_AFTER_QUOTA_MS = 60 * 60_000;
 
@@ -82,6 +90,8 @@ export interface PendingDay {
   /** Data UTC do apito (YYYY-MM-DD): o `date=` da lista. */
   date: string;
   pending: number;
+  /** Quantos dos pendentes ainda podem estar em campo (ver RUNNING_GRACE_MS). */
+  running: number;
 }
 
 const PRIORITY_RANK: Record<string, number> = { high: 3, medium: 2, low: 1, none: 0 };
@@ -103,6 +113,7 @@ export async function pendingDays(
   // ISO com cast: o Date cru vai como texto local (toString) e o Postgres recusa
   const since = new Date(now.getTime() - LOOKBACK_HOURS * 3_600_000).toISOString();
   const at = now.toISOString();
+  const runningAfter = new Date(now.getTime() - RUNNING_GRACE_MS).toISOString();
   const list = (xs: string[]) =>
     xs.length
       ? sql.join(
@@ -110,8 +121,9 @@ export async function pendingDays(
           sql`, `,
         )
       : sql`null`;
-  const rows = await db.execute<{ sport: string; d: string; n: number }>(sql`
-    select e.sport, to_char(e.starts_at at time zone 'UTC', 'YYYY-MM-DD') as d, count(*)::int as n
+  const rows = await db.execute<{ sport: string; d: string; n: number; running: number }>(sql`
+    select e.sport, to_char(e.starts_at at time zone 'UTC', 'YYYY-MM-DD') as d, count(*)::int as n,
+      (count(*) filter (where e.ends_at_expected > ${runningAfter}::timestamptz))::int as running
     from core.event e
     left join core.competition c on c.id = e.competition_id
     where e.starts_at >= ${since}::timestamptz and e.starts_at <= ${at}::timestamptz
@@ -124,7 +136,12 @@ export async function pendingDays(
                  when 'high' then 3 when 'medium' then 2 when 'low' then 1 else 0 end) < ${minRank})
     group by 1, 2
     order by 1, 2`);
-  return rows.map((r) => ({ sport: r.sport as ApiSport, date: r.d, pending: Number(r.n) }));
+  return rows.map((r) => ({
+    sport: r.sport as ApiSport,
+    date: r.d,
+    pending: Number(r.n),
+    running: Number(r.running),
+  }));
 }
 
 export const listCursor = (sport: string, date: string): CursorRef => ({
@@ -151,6 +168,15 @@ export const holdCursor = (sport: string): CursorRef => ({
 
 const idOf = (r: CursorRef) => `${r.sport}|${r.endpoint}|${r.key}`;
 
+/**
+ * Minutos entre buscas da lista de uma data: o do esporte, ou IDLE_INTERVAL_MIN no `tempo-real` sem jogo em campo.
+ * Intervalo 0 é o --forcar, que não espera.
+ */
+function intervalFor(cfg: PostgameSport, day: PendingDay): number {
+  if (cfg.mode !== 'tempo-real' || cfg.intervalMin === 0 || day.running > 0) return cfg.intervalMin;
+  return Math.max(cfg.intervalMin, IDLE_INTERVAL_MIN);
+}
+
 export interface DueList {
   sport: ApiSport;
   date: string;
@@ -158,7 +184,7 @@ export interface DueList {
 }
 
 /**
- * Datas na vez: a última busca da lista (esporte, data) foi há pelo menos o intervalo do esporte, o esporte não
+ * Datas na vez: a última busca da lista (esporte, data) foi há pelo menos o intervalo da data, o esporte não
  * está em espera por cota negada, a data ainda não passou de MAX_TRIES_PER_DATE buscas (só no modo fechamento) e o
  * esporte ainda tem
  * chamadas no dia. Cada esporte gasta no máximo o que sobra do teto; as datas mais antigas primeiro.
@@ -199,7 +225,7 @@ export async function dueLists(
       continue;
     }
     const last = state.get(idOf(listCursor(p.sport, p.date)))?.completedAt;
-    if (last && now.getTime() - last.getTime() < cfg.intervalMin * MIN - SLACK_MS) continue;
+    if (last && now.getTime() - last.getTime() < intervalFor(cfg, p) * MIN - SLACK_MS) continue;
     const spent = used.get(p.sport) ?? 0;
     if (spent >= maxPerDay) {
       capped.add(p.sport);

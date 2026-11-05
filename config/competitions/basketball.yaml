@@ -39,7 +39,7 @@ competitions:
     region: south-america
     seasons_strategy: split-year
     live_priority: high
-    labels: { pt-BR: "NBB (Novo Basquete Brasil)", es: "NBB (Liga de Brasil)", en: "NBB (Brazil)" }
+    labels: { pt-BR: "NBB (Novo Basquete Brasil)", en: "NBB (Brazil)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: liga-nacional-de-basquet
     name: "Liga A"
@@ -149,7 +149,7 @@ competitions:
     region: south-america
     seasons_strategy: calendar-year
     live_priority: medium
-    labels: { pt-BR: "LBF (Liga de Basquete Feminino)", es: "LBF (Liga Femenina de Brasil)", en: "LBF (Brazil women's league)" }
+    labels: { pt-BR: "LBF (Liga de Basquete Feminino)", en: "LBF (Brazil women's league)" }
     sources: ["docs/research/api-sports-outros-esportes.md"]
   - slug: super-8-brasil
     name: "Super 8"

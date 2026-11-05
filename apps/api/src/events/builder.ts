@@ -54,7 +54,7 @@ import {
   type StakeLocale,
 } from '@galaxie/rules';
 import { loadLeagueResults } from '@galaxie/rules/db';
-import { formatInstant, pickList, pickText } from '../i18n.js';
+import { competitionName, formatInstant, pickList, pickText } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
 import { aflGoalsBehinds, loadAflQuarters } from './afl.js';
@@ -231,6 +231,7 @@ export function tieLegs(sport: string, ruleLegs: number | undefined, tieSize: nu
 const LEG_NAMES: Record<string, [string, string]> = {
   pt: ['Ida', 'Volta'],
   es: ['Ida', 'Vuelta'],
+  en: ['1st leg', '2nd leg'],
 };
 
 const TITLE_FAMILIES = new Set([
@@ -852,7 +853,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         ? {
             id: r.c.id,
             slug: r.c.slug,
-            name: pickText(labels, locale, r.c.name)!,
+            name: competitionName(labels, r.c.country, r.c.name, locale),
             nickname: pickList(profile?.nicknames, locale)[0] ?? null,
             logo: assetUrl(ctx.assetsBaseUrl, r.cLogoKey, r.cLogoUrl),
             country: competitionCountry(r.c.country),

@@ -103,6 +103,183 @@ tests:
               summary: 'Evento ao vivo de football sem atualização há 12m 0s'
               description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
 
+  # Ritmo do ao vivo (#538): amostras a cada 15 s, o alerta é avaliado a cada 1 min. A idade do último tick sobe 15 s por
+  # amostra quando o runner para.
+  - name: ao vivo sem tick por mais de 60 s dispara o push depois de 1 min (sinal ao-vivo)
+    interval: 15s
+    input_series:
+      # no ritmo por 5 min, depois o runner para
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiveTickGap
+        exp_alerts: []
+      # idade de 83 s: passou de 60 s, mas ainda pendente (for: 1m)
+      - eval_time: 6m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  # Serviço live com duas cópias (#537): cada uma expõe as mesmas séries, lidas do mesmo Postgres. O alerta agrega por
+  # esporte e sai uma vez.
+  - name: duas cópias do live com as mesmas séries disparam um alerta só
+    interval: 15s
+    input_series:
+      - series: 'live_last_tick_age_seconds{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_last_tick_age_seconds{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '15x80'
+      - series: 'live_tick_planned_interval_seconds{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '1x80'
+      - series: 'live_window_open{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{service="live",instance="10.0.0.1:9464",sport="football"}'
+        values: '0x80'
+      - series: 'live_tick_paused{service="live",instance="10.0.0.2:9464",sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  - name: troca de líder ou de versão que cabe nos 60 s não alerta
+    interval: 15s
+    input_series:
+      # ticks de 15 s e uma troca de 30 s: a idade chega a 45 s (15 s do plano + 30 s) e fica ali por duas avaliações
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x11 45x8 8x30'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x50'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x50'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x50'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: LiveTickGap
+        exp_alerts: []
+
+  - name: pausa de propósito (meio-tempo, orçamento) ou sem janela aberta não dispara o buraco entre ticks
+    interval: 15s
+    input_series:
+      # meio-tempo: o runner pula 10 min de propósito e a idade passa de 9 min
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x19 1x60'
+      # outro esporte sem janela aberta (ex.: dia sem jogo): a idade só cresce
+      - series: 'live_last_tick_age_seconds{sport="basketball"}'
+        values: '3600+15x80'
+      - series: 'live_tick_planned_interval_seconds{sport="basketball"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="basketball"}'
+        values: '0x80'
+      - series: 'live_tick_paused{sport="basketball"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 19m
+        alertname: LiveTickGap
+        exp_alerts: []
+
+  - name: ao vivo com intervalo longo no plano (orçamento apertado) só alerta depois de 2 intervalos
+    interval: 15s
+    input_series:
+      # plano de um tick a cada 2 min: 150 s sem tick é normal (limite de 240 s), 263 s não
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x60'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '120x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: LiveTickGap
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 5m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
+  - name: o runner volta a ticar e o alerta resolve
+    interval: 15s
+    input_series:
+      - series: 'live_last_tick_age_seconds{sport="football"}'
+        values: '8x19 23+15x12 8x40'
+      - series: 'live_tick_planned_interval_seconds{sport="football"}'
+        values: '15x80'
+      - series: 'live_window_open{sport="football"}'
+        values: '1x80'
+      - series: 'live_tick_paused{sport="football"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: LiveTickGap
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: ao-vivo
+              sport: football
+            exp_annotations:
+              summary: 'Ao vivo de football sem tick há 2m 23s'
+              description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+      - eval_time: 9m
+        alertname: LiveTickGap
+        exp_alerts: []
+
   - name: backup sem sucesso há mais de 26 horas
     interval: 1m
     input_series:
@@ -180,7 +357,7 @@ tests:
               job_name: backup-check
             exp_annotations:
               summary: 'Verificação do backup falhou'
-              description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+              description: 'Último dump atrasado, cópia do NAS ou sync dos assets do S3 sem recibo recente. Veja ops.job_run (job backup-check, coluna error; job s3-sync para o motivo do sync) e os logs do container backup.'
       - eval_time: 2m
         alertname: RestoreDrillFailed
         exp_alerts:
@@ -293,6 +470,43 @@ tests:
               summary: 'node-exporter fora do ar: sem medida de disco'
               description: 'O alvo node-exporter:9100 não responde há 10 minutos; o alerta DiskAlmostFull fica cego.'
 
+  - name: memória do host
+    interval: 1m
+    input_series:
+      # 10 GB de memória; 3 GB disponíveis por 20 min (70%), 1,5 GB por 20 min (85%), 0,5 GB depois (95%)
+      - series: 'node_memory_MemAvailable_bytes{job="node",instance="node-exporter:9100"}'
+        values: '3000000000x20 1500000000x20 500000000x20'
+      - series: 'node_memory_MemTotal_bytes{job="node",instance="node-exporter:9100"}'
+        values: '10000000000x60'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HostMemoryHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: HostMemoryHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'Memória do host em 85%'
+              description: 'Acima de 80% de uso real (fora o cache de disco). Sem swap: veja o uso por contêiner (docs/runbooks/on-call.md) antes de chegar aos 90%.'
+      - eval_time: 35m
+        alertname: HostMemoryCritical
+        exp_alerts: []
+      - eval_time: 50m
+        alertname: HostMemoryCritical
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: api
+              job: node
+              instance: node-exporter:9100
+            exp_annotations:
+              summary: 'Memória do host em 95%: risco de OOM'
+              description: 'Acima de 90% de uso real, sem swap: o kernel vai matar processo, e API e ao vivo estão na lista. Veja o uso por contêiner (docs/runbooks/on-call.md).'
+
   - name: disco acabando em menos de 3 dias no ritmo atual
     # amostra por minuto: com amostras espaçadas, o lookback de 5 min deixa a série sumir e o `for` recomeça
     interval: 1m
@@ -366,6 +580,68 @@ tests:
             exp_annotations:
               summary: 'Fila do change feed parada para demo-cache:demo'
               description: 'A mudança pendente mais antiga tem 17m 40s. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
+
+  - name: tarefa da fila pronta há mais de 1 h sem worker dispara depois de 10 min; o tipo em dia não
+    interval: 1m
+    input_series:
+      - series: 'galaxie_queue_oldest_pending_age_seconds{type="acervo-escudos"}'
+        values: '3000+60x25'
+      - series: 'galaxie_queue_oldest_pending_age_seconds{type="espelho-assets"}'
+        values: '60x25'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: TarefaPendenteAntiga
+        exp_alerts: []
+      - eval_time: 22m
+        alertname: TarefaPendenteAntiga
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              type: acervo-escudos
+            exp_annotations:
+              summary: 'Tarefa acervo-escudos esperando worker há 1h 12m 0s'
+              description: 'Veja se o worker está no ar e atende o tipo acervo-escudos, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
+
+  - name: resumo da home Explorar com mais de 30 min dispara depois de 5 min; recalculado a tempo não
+    interval: 1m
+    input_series:
+      # parado: a idade cresce 60 s por minuto a partir de 25 min
+      - series: 'galaxie_explore_summary_age_seconds{instance="api:8080",job="galaxie-api"}'
+        values: '1500+60x20'
+      # em dia: o job refaz e a idade volta a zero
+      - series: 'galaxie_explore_summary_age_seconds{instance="api-candidato:8080",job="galaxie-api"}'
+        values: '0+60x9 0+60x10'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ExploreSummaryStale
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: ExploreSummaryStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: api:8080
+              job: galaxie-api
+            exp_annotations:
+              summary: 'Resumo da home Explorar sem recálculo há 37m 0s'
+              description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
+
+  - name: resumo da home Explorar nunca gravado (+Inf) também dispara
+    interval: 1m
+    input_series:
+      - series: 'galaxie_explore_summary_age_seconds{instance="api:8080",job="galaxie-api"}'
+        values: '+Inf +Inf +Inf +Inf +Inf +Inf +Inf +Inf +Inf +Inf'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ExploreSummaryStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: api:8080
+              job: galaxie-api
+            exp_annotations:
+              summary: 'Resumo da home Explorar sem recálculo há +Inf'
+              description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
   - name: p99 por rota acima de 1 s com tráfego dispara depois de 15 min; rota fria e /internal não
     interval: 1m
@@ -595,6 +871,9 @@ tests:
         values: '0x30'
       - series: 'galaxie_service_last_report_timestamp_seconds{component="agents"}'
         values: '0+60x30'
+      # o serviço do ao vivo relata como os outros schedulers
+      - series: 'galaxie_service_last_report_timestamp_seconds{component="live"}'
+        values: '0+60x2 120x28'
       # a API só relata na partida: fora do alerta
       - series: 'galaxie_service_last_report_timestamp_seconds{component="api"}'
         values: '0x30'
@@ -611,6 +890,12 @@ tests:
             exp_annotations:
               summary: 'Scheduler ingestor sem sinal de vida há 20m 0s'
               description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps ingestor e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
+          - exp_labels:
+              severity: warning
+              component: live
+            exp_annotations:
+              summary: 'Scheduler live sem sinal de vida há 18m 0s'
+              description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps live e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
 
   - name: crédito da IA em falha vai para o push
     interval: 1m

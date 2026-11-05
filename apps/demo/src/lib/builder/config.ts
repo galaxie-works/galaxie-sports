@@ -27,6 +27,9 @@ export const WIDGET_KINDS = [
   'team_schedule',
 ] as const satisfies readonly WidgetKind[];
 
+/** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
+export const OFFERED_WIDGET_KINDS = WIDGET_KINDS.filter((kind) => kind !== 'related_videos');
+
 export const isWidgetKind = (v: unknown): v is WidgetKind =>
   typeof v === 'string' && (WIDGET_KINDS as readonly string[]).includes(v);
 

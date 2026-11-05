@@ -15,8 +15,8 @@ import {
   type Database,
 } from '@galaxie/db';
 import { normalizeFixtures, type ApiFixture } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { upsertCatalog } from '../src/catalog/persist.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { parseProvisionalFile, type ProvisionalFixture } from '../src/provisional/config.js';
 import { syncProvisionalFixtures } from '../src/provisional/sync.js';
 import { disposableDb } from './db.js';

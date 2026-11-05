@@ -29,7 +29,7 @@ import { parseInput } from '../../util.js';
 const MODULE = { module: 'related_content' } as const;
 
 /** Rótulo do tipo de conteúdo por idioma (docs/12 §4.1). */
-export const RELATED_TYPE_LABELS: Record<'pt' | 'es', Record<RelatedContentTypeName, string>> = {
+export const RELATED_TYPE_LABELS: Record<'pt' | 'es' | 'en', Record<RelatedContentTypeName, string>> = {
   pt: {
     highlights: 'Melhores momentos',
     goal: 'Gol',
@@ -53,6 +53,18 @@ export const RELATED_TYPE_LABELS: Record<'pt' | 'es', Record<RelatedContentTypeN
     analysis: 'Análisis',
     full_match: 'Partido completo',
     other: 'Otros',
+  },
+  en: {
+    highlights: 'Highlights',
+    goal: 'Goal',
+    penalties: 'Penalties',
+    press_conference: 'Press conference',
+    interview: 'Interview',
+    behind_the_scenes: 'Behind the scenes',
+    fan_reaction: 'Fan reaction',
+    analysis: 'Analysis',
+    full_match: 'Full match',
+    other: 'Other',
   },
 };
 
@@ -87,7 +99,8 @@ export function relatedLanguageOf(country: string): 'pt' | 'es' | null {
 }
 
 export function relatedTypeLabel(type: RelatedContentTypeName, locale: SupportedLocale): string {
-  return RELATED_TYPE_LABELS[locale.startsWith('pt') ? 'pt' : 'es'][type];
+  const lang = locale.startsWith('pt') ? 'pt' : locale.startsWith('en') ? 'en' : 'es';
+  return RELATED_TYPE_LABELS[lang][type];
 }
 
 function toItem(row: RelatedContentRow, locale: SupportedLocale, tz: string): RelatedItem {

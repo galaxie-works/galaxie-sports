@@ -3,6 +3,16 @@
 # stack): uma stack descartável com o Traefik da VPS (mesma versão) e um app com healthcheck e o gsports-retry, como a
 # API e a demo. Enquanto a troca roda, um laço pede a rota pelo Traefik a cada 50 ms; qualquer resposta que não seja
 # 200 falha o teste. Depois, uma versão que nunca fica healthy: a troca tem de falhar e a versão anterior seguir no ar.
+# Depois, um worker sem HTTP (como a configuração antiga dos webhooks): com e sem healthcheck, troca com um contêiner só.
+# Depois, a drenagem do worker da fila: o antigo recebe SIGTERM, o /health dele diz `idle` quando o lote fecha e ele
+# sai sozinho; o que não drena no prazo leva SIGKILL e um aviso.
+# Depois, o site e o console no mesmo host (issue #546), com as prioridades e o PathRegexp do compose.yml: os prefixos
+# do console vão para ele e o resto para o site; com o console fora, os prefixos dele caem na manutenção e o site segue;
+# o --retire tira um serviço e a troca de um serviço sem contêiner no ar espera o healthy.
+# Por último, um serviço com duas cópias e líder (como o `live`, #537): a líder é quem segura um flock num volume
+# comum; a troca é cópia a cópia, a líder primeiro, sem ficar com menos de uma cópia healthy (nem sem líder por mais que
+# a passagem), e termina com as duas cópias na versão nova. Uma versão que nunca fica healthy deixa as duas antigas. E a
+# primeira troca para duas cópias (o live estava com uma): troca a que existe e sobe a segunda.
 #
 #   bash infra/vps-telemetry/rolling-swap.test.sh
 set -euo pipefail
@@ -46,6 +56,103 @@ services:
       - traefik.http.routers.app.entrypoints=websecure
       - traefik.http.routers.app.middlewares=gsports-retry
       - traefik.http.services.app.loadbalancer.server.port=80
+  worker:
+    image: caddy:2.11.7-alpine
+    command: ['sh', '-c', "trap 'exit 0' TERM; while :; do sleep 1 & wait $$!; done"]
+    environment:
+      APP_VERSION: ${APP_VERSION}
+    healthcheck:
+      disable: true
+  # o worker da fila de mentira: no SIGTERM, o "lote" fecha em DRAIN_MS, o /health passa a dizer idle e ele sai
+  fila:
+    image: node:24.22.1-alpine
+    command:
+      - node
+      - -e
+      - |
+        let idle = false, draining = false;
+        require('node:http').createServer((q, r) => r.end(JSON.stringify({ status: 'ok', idle }))).listen(8080);
+        process.on('SIGTERM', () => {
+          if (draining) return;
+          draining = true;
+          setTimeout(() => { idle = true; setTimeout(() => process.exit(0), 4000); }, Number(process.env.DRAIN_MS));
+        });
+        setInterval(() => {}, 1000);
+    environment:
+      APP_VERSION: ${APP_VERSION}
+      DRAIN_MS: ${DRAIN_MS:-3000}
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8080/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+  # site e console como no compose.yml da VPS (prioridades 1000, 1500 e 2000, PathRegexp com o $ escapado), em outro host
+  site: &web
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'site']
+    healthcheck: &web-health
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:80/']
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.site.rule=Host(`web.test`)
+      - traefik.http.routers.site.entrypoints=websecure
+      - traefik.http.routers.site.priority=1000
+      - traefik.http.routers.site.service=site
+      - traefik.http.services.site.loadbalancer.server.port=80
+      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console-maintenance.entrypoints=websecure
+      - traefik.http.routers.console-maintenance.priority=1500
+      - traefik.http.routers.console-maintenance.service=maintenance
+  console:
+    <<: *web
+    command: ['caddy', 'respond', '--listen', ':80', '--body', 'console']
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console.entrypoints=websecure
+      - traefik.http.routers.console.priority=2000
+      - traefik.http.routers.console.service=console
+      - traefik.http.services.console.loadbalancer.server.port=80
+  maintenance:
+    image: caddy:2.11.7-alpine
+    command: ['caddy', 'respond', '--listen', ':80', '--status', '503', '--body', 'manutencao']
+    healthcheck:
+      disable: true
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.maintenance-host.rule=Host(`maintenance.test`)
+      - traefik.http.routers.maintenance-host.entrypoints=websecure
+      - traefik.http.routers.maintenance-host.service=maintenance
+      - traefik.http.services.maintenance.loadbalancer.server.port=80
+  # duas cópias; a líder é quem pega o flock e grava o hostname (o do contêiner, como o live_leader{instance})
+  live:
+    image: busybox:1.37
+    command:
+      - sh
+      - -c
+      - "trap 'exit 0' TERM; flock /shared/lock sh -c 'hostname > /shared/leader; exec sleep 2147483647' & while :; do sleep 1 & wait $$!; done"
+    environment:
+      APP_VERSION: ${APP_VERSION}
+    volumes: [shared:/shared]
+    stop_grace_period: 5s
+    healthcheck:
+      test: ['CMD-SHELL', '${APP_HEALTHY:-true}']
+      interval: 2s
+      timeout: 2s
+      retries: 2
+      start_period: 1s
+      start_interval: 1s
+    deploy:
+      replicas: ${LIVE_REPLICAS:-2}
+volumes:
+  shared:
 YML
 
 cleanup() {
@@ -75,7 +182,8 @@ wait_body() {
 }
 
 echo "── v1 no ar"
-APP_VERSION=1 docker compose up -d --quiet-pull
+# só o app e o Traefik: worker e live sobem nas seções deles
+APP_VERSION=1 docker compose up -d --quiet-pull traefik app
 wait_body v1
 
 echo "── troca para v2 com tráfego a cada 50 ms"
@@ -111,7 +219,9 @@ n=$(APP_VERSION=2 docker compose ps -q app | grep -c .)
   echo "FAIL  $n contêineres do app depois da troca (esperado 1)"
   exit 1
 }
-APP_VERSION=2 docker compose up -d --quiet-pull 2>&1 | grep -q 'Recreate' && {
+# a saída inteira antes do grep: o grep -q fecharia o pipe e cortaria o compose no meio de uma recriação
+up_out="$(APP_VERSION=2 docker compose up -d --quiet-pull traefik app 2>&1)"
+grep -q 'Recreate' <<< "$up_out" && {
   echo "FAIL  o up -d seguinte recriou o app (a troca deixou uma configuração diferente)"
   exit 1
 }
@@ -132,3 +242,208 @@ n=$(APP_VERSION=2 docker compose ps -q app | grep -c .)
   exit 1
 }
 echo "ok  troca recusada: o contêiner novo saiu e a v2 seguiu no ar"
+
+echo "── worker sem healthcheck: troca e fica um contêiner só, com a versão nova"
+APP_VERSION=2 docker compose up -d --quiet-pull worker
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" worker
+n=$(APP_VERSION=4 docker compose ps -q worker | grep -c .)
+[ "$n" = 1 ] || {
+  echo "FAIL  $n contêineres do worker depois da troca (esperado 1)"
+  exit 1
+}
+got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSION=4 docker compose ps -q worker)" | sed -n 's/^APP_VERSION=//p')
+[ "$got" = 4 ] || {
+  echo "FAIL  o worker ficou na versão '$got', não 4"
+  exit 1
+}
+echo "ok  worker sem healthcheck trocado"
+
+echo "── worker da fila: o antigo drena (o /health diz idle quando o lote fecha) e sai sozinho; o novo fica no ar"
+export SWAP_DRAIN_SERVICES=fila
+APP_VERSION=1 docker compose up -d --quiet-pull --wait fila
+out="$(APP_VERSION=2 bash "$HERE/rolling-swap.sh" fila)"
+printf '%s\n' "$out" | sed 's/^/      /'
+check() {
+  grep -qE -- "$1" <<< "$out" || {
+    echo "FAIL  faltou na saída da troca: $1"
+    exit 1
+  }
+}
+check '^fila: drenando 1 contêiner\(es\) antigo\(s\)'
+check '^fila: [0-9a-f]{12} sem tarefa \(/health idle\) depois de [2-9] s'
+check '^ok  fila: [0-9a-f]{12} drenado em ([6-9]|1[0-9]) s \(saída 0\)'
+check '^ok  fila trocado sem manutenção'
+n=$(APP_VERSION=2 docker compose ps -q fila | grep -c .)
+[ "$n" = 1 ] || {
+  echo "FAIL  $n contêineres da fila depois da troca (esperado 1)"
+  exit 1
+}
+echo "ok  worker da fila drenado antes de sair"
+
+echo "── worker da fila que não drena no prazo: SIGKILL e aviso"
+# a v3 nunca fecha o lote; a troca seguinte (v4) tem prazo de 4 s
+APP_VERSION=3 DRAIN_MS=600000 bash "$HERE/rolling-swap.sh" fila >/dev/null
+out="$(APP_VERSION=4 SWAP_DRAIN_TIMEOUT=4 bash "$HERE/rolling-swap.sh" fila)"
+printf '%s\n' "$out" | sed 's/^/      /'
+check '^WARN  fila: [0-9a-f]{12} não drenou em 4 s \(SIGKILL\)'
+got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$(APP_VERSION=4 docker compose ps -q fila)" | sed -n 's/^APP_VERSION=//p')
+[ "$got" = 4 ] || {
+  echo "FAIL  a fila ficou na versão '$got', não 4"
+  exit 1
+}
+echo "ok  prazo da drenagem: SIGKILL, aviso e a versão nova no ar"
+
+echo "── site e console no mesmo host: prefixos do console nele, o resto no site; console fora não afeta o site"
+web() { curl -s -m 2 -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+web_status() { curl -s -m 2 -o /dev/null -w '%{http_code}' -H 'Host: web.test' "http://127.0.0.1:$PORT$1" || true; }
+# espera cada caminho responder o corpo esperado (o Traefik leva um instante para ver contêiner novo, parado ou saudável)
+expect_web() {
+  local path want got=""
+  for _ in $(seq 60); do
+    got=""
+    for pair in "$@"; do
+      path="${pair%%=*}"
+      want="${pair#*=}"
+      got="$(web "$path")"
+      [ "$got" = "$want" ] || break
+    done
+    [ "$got" = "$want" ] && return 0
+    sleep 1
+  done
+  echo "FAIL  $path respondeu '$got', não '$want'"
+  APP_VERSION=4 docker compose ps -a
+  exit 1
+}
+APP_VERSION=4 docker compose up -d --quiet-pull site console maintenance
+expect_web /=site /times/1=site /clientes=site /ajustes-antigos=site /login=site /api/auth/x=site \
+  /cliente=console /cliente/builder/novo=console /ajustes=console /api/ajustes/operacao=console /api/cliente/x=console
+echo "ok  console pelos prefixos dele (PathRegexp e prioridade), o resto no site"
+
+APP_VERSION=4 docker compose stop console >/dev/null
+expect_web /cliente/builder=manutencao /ajustes=manutencao /=site /times/1=site
+[ "$(web_status /cliente)" = 503 ] || {
+  echo "FAIL  /cliente com o console fora respondeu $(web_status /cliente), não 503"
+  exit 1
+}
+echo "ok  console fora: os prefixos dele na manutenção (503), o site segue"
+
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" --retire console
+n=$(APP_VERSION=4 docker compose ps -aq console | grep -c . || true)
+[ "$n" = 0 ] || {
+  echo "FAIL  --retire deixou $n contêiner(es) do console"
+  exit 1
+}
+APP_VERSION=4 bash "$HERE/rolling-swap.sh" console
+[ "$(docker inspect -f '{{.State.Health.Status}}' "$(APP_VERSION=4 docker compose ps -q console)")" = healthy ] || {
+  echo "FAIL  a troca de um serviço sem contêiner no ar terminou antes do healthy"
+  exit 1
+}
+expect_web /cliente=console /=site
+echo "ok  --retire tira o serviço, e a troca de um serviço sem contêiner no ar sobe e espera o healthy"
+echo "── live com duas cópias e líder: troca cópia a cópia, a líder primeiro, sem ficar sem cópia healthy"
+copies() { docker ps -q --filter label=com.docker.compose.project=rolling-swap-test --filter label=com.docker.compose.service=live "$@"; }
+leader() { docker exec "$(copies --filter status=running | head -n 1)" cat /shared/leader 2>/dev/null || true; }
+APP_VERSION=1 docker compose up -d --quiet-pull live
+for _ in $(seq 60); do
+  [ "$(copies --filter health=healthy | grep -c .)" = 2 ] && [ -n "$(leader)" ] && break
+  sleep 1
+done
+[ "$(copies --filter health=healthy | grep -c .)" = 2 ] || {
+  echo "FAIL  as duas cópias v1 não ficaram healthy"
+  exit 1
+}
+old_leader="$(leader)"
+old_leader_id=""
+for id in $(copies); do [ "$(docker inspect -f '{{.Config.Hostname}}' "$id")" = "$old_leader" ] && old_leader_id="$id"; done
+: > healthy.txt
+(while :; do
+  echo "$(copies --filter health=healthy | grep -c .) $(leader)" >> healthy.txt
+  sleep 0.2
+done) &
+LOOP=$!
+APP_VERSION=2 SWAP_LEADER_CMD='cat /shared/leader' SWAP_LEADER_TIMEOUT=20 bash "$HERE/rolling-swap.sh" live | tee swap.txt
+kill "$LOOP"
+LOOP=""
+min=$(awk '{print $1}' healthy.txt | sort -n | head -n 1)
+echo "amostras: $(grep -c . healthy.txt) · mínimo de cópias healthy durante a troca: $min"
+[ "$min" -ge 1 ] || {
+  echo "FAIL  a troca ficou com $min cópia(s) healthy"
+  exit 1
+}
+first="$(sed -n 's/^ok  live: cópia \([0-9a-f]*\) trocada.*/\1/p' swap.txt | head -n 1)"
+[ -n "$old_leader_id" ] && [ "${old_leader_id:0:12}" = "$first" ] || {
+  echo "FAIL  a primeira cópia trocada ($first) não foi a líder (${old_leader_id:0:12}, $old_leader)"
+  exit 1
+}
+grep -q "^ok  live: liderança passou de $old_leader para " swap.txt || {
+  echo "FAIL  a troca não esperou a liderança passar"
+  exit 1
+}
+n=$(copies | grep -c .)
+[ "$n" = 2 ] || {
+  echo "FAIL  $n cópias depois da troca (esperado 2)"
+  exit 1
+}
+for id in $(copies); do
+  got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$id" | sed -n 's/^APP_VERSION=//p')
+  [ "$got" = 2 ] || {
+    echo "FAIL  cópia ${id:0:12} na versão '$got', não 2"
+    exit 1
+  }
+done
+new_leader="$(leader)"
+hosts=$(for id in $(copies); do docker inspect -f '{{.Config.Hostname}}' "$id"; done)
+grep -qx "$new_leader" <<< "$hosts" || {
+  echo "FAIL  a líder depois da troca ($new_leader) não é uma das cópias novas"
+  exit 1
+}
+up_out="$(APP_VERSION=2 docker compose up -d --quiet-pull live 2>&1)"
+grep -q 'Recreate' <<< "$up_out" && {
+  echo "FAIL  o up -d seguinte recriou o live (a troca deixou uma configuração diferente)"
+  exit 1
+}
+echo "ok  duas cópias trocadas uma a uma, a líder primeiro ($old_leader → $new_leader), mínimo de $min healthy"
+
+echo "── live v3 nunca fica healthy: a troca falha e as duas v2 seguem, com líder"
+if APP_VERSION=3 APP_HEALTHY=false SWAP_HEALTH_TIMEOUT=15 SWAP_LEADER_CMD='cat /shared/leader' bash "$HERE/rolling-swap.sh" live; then
+  echo "FAIL  a troca para uma versão sem healthcheck verde passou"
+  exit 1
+fi
+n=$(copies | grep -c .)
+[ "$n" = 2 ] || {
+  echo "FAIL  $n cópias depois da troca recusada (esperado 2)"
+  exit 1
+}
+grep -qx "$(leader)" <<< "$(for id in $(copies); do docker inspect -f '{{.Config.Hostname}}' "$id"; done)" || {
+  echo "FAIL  sem líder entre as cópias v2 depois da troca recusada"
+  exit 1
+}
+echo "ok  troca do live recusada: a cópia nova saiu e as duas v2 seguiram, com líder"
+
+echo "── live de uma cópia para duas (a primeira troca com duas cópias): troca a que existe e sobe a segunda"
+APP_VERSION=2 LIVE_REPLICAS=1 docker compose up -d --quiet-pull live
+for _ in $(seq 30); do
+  [ "$(copies | grep -c .)" = 1 ] && [ "$(copies --filter health=healthy | grep -c .)" = 1 ] && break
+  sleep 1
+done
+[ "$(copies | grep -c .)" = 1 ] || {
+  echo "FAIL  o live não ficou com uma cópia ($(copies | grep -c .))"
+  exit 1
+}
+APP_VERSION=4 LIVE_REPLICAS=2 SWAP_LEADER_CMD='cat /shared/leader' SWAP_LEADER_TIMEOUT=20 bash "$HERE/rolling-swap.sh" live | tee swap.txt
+grep -q '^ok  live: 1 → 2 cópia(s), como no compose' swap.txt || {
+  echo "FAIL  a troca não subiu a segunda cópia"
+  exit 1
+}
+[ "$(copies --filter health=healthy | grep -c .)" = 2 ] || {
+  echo "FAIL  $(copies --filter health=healthy | grep -c .) cópia(s) healthy depois da troca de 1 para 2"
+  exit 1
+}
+for id in $(copies); do
+  got=$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$id" | sed -n 's/^APP_VERSION=//p')
+  [ "$got" = 4 ] || {
+    echo "FAIL  cópia ${id:0:12} na versão '$got', não 4"
+    exit 1
+  }
+done
+echo "ok  de uma cópia para duas: a que existia trocada, a segunda subiu na versão nova"

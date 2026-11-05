@@ -38,7 +38,7 @@ export const DEMO_AUTH_SCHEMA = 'demo_auth';
 /** Cursor do change feed da demo, lido pelo /metrics da API (packages/observability). */
 const DEMO_FEED_CURSOR = 'cache_feed_cursor';
 
-export type RoleService = 'api' | 'demo' | 'ingestor' | 'agents' | 'backup';
+export type RoleService = 'api' | 'demo' | 'ingestor' | 'agents' | 'live' | 'backup';
 
 export interface RoleGrants {
   /** Schemas (ou `schema.tabela`) só de leitura. */
@@ -71,6 +71,32 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     read: [...APP_SCHEMAS],
     write: ['enrich', 'semantic', 'ops', 'core.asset', 'api.tenant_channel_list'],
   },
+  // ao vivo (live-run, live-reconcile, events-clock; serviço próprio da mesma imagem do ingestor). Levantamento
+  // pelo código, não pela issue: o cliente da api-sports grava TODA resposta em raw.api_response (retention
+  // `live`, com o UPDATE de last_seen_at/seen_count quando o corpo se repete), então o raw entra na escrita.
+  // - core: upsertBatch (eventos, incidentes, participantes, detalhe, tabelas, catálogo que o lote traz),
+  //   advanceEventClock (event_state_log) e recomputeStandings (core.standing);
+  // - ops: change_feed (publishChange e os triggers do core.event), job_run, sync_cursor (estado do ao vivo e
+  //   cursores do detalhe/reconciliação) e o Quota Governor (quota_ledger, quota_snapshot, quota_budget);
+  // - leitura: core, ops (sobrescritas do painel, uso da cota), raw (cache do cliente) e semantic (os pares de
+  //   clássico do createDerbyLookup). Sem escrita em semantic, enrich, api, multisport e equestrian;
+  // - o scheduler do serviço (perfil `live`, #535): relata o env ao painel (ops.runtime_env, que também é o sinal de
+  //   vida) e atende o "rodar agora" do live-reconcile e do events-clock (ops.job_request).
+  live: {
+    read: ['core', 'ops', 'raw', 'semantic'],
+    write: [
+      'core',
+      'raw.api_response',
+      'ops.change_feed',
+      'ops.job_run',
+      'ops.job_request',
+      'ops.runtime_env',
+      'ops.sync_cursor',
+      'ops.quota_ledger',
+      'ops.quota_snapshot',
+      'ops.quota_budget',
+    ],
+  },
   // pg_dump lê tudo pelo pg_read_all_data (inclusive demo_auth e drizzle); grava o próprio ops.job_run e
   // cria/apaga o banco do ensaio de restauração (CREATEDB)
   backup: { read: [], write: ['ops.job_run'] },
@@ -84,7 +110,41 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
   demo: 'DB_URL_DEMO',
   ingestor: 'DB_URL_INGESTOR',
   agents: 'DB_URL_AGENTS',
+  live: 'DB_URL_LIVE',
   backup: 'DB_URL_BACKUP',
+};
+
+/**
+ * `CONNECTION LIMIT` de cada papel (o Postgres recusa a conexão que passa disso com 53300). É o teto do vazamento: um
+ * serviço com pool sem freio ou em laço de reconexão para no limite dele e não esgota o `max_connections` (130, 3
+ * reservadas ao superusuário) que a API também usa. A soma dos tetos passa do `max_connections` de propósito: o
+ * teto não reserva vaga, só contém um papel; o que tem de caber é o pico real (README da infra › Conexões).
+ *
+ * Conta de cada um, com `DB_POOL_MAX` (client.ts) e uma conexão de trava (advisory lock) por processo de job:
+ * - api: pool 10 × 3 (no ar, o novo durante a troca e o candidato do deploy) + worker de webhooks 5 × 2 + 5 de CLI = 45;
+ * - demo (a imagem roda como `site` e `console`, #546): site = login 5 + Builder 3 + change feed 2 = 10; console =
+ *   login 5 + Builder 3 + tarefas 2 = 10. No pior momento do deploy ficam no ar os dois e os dois candidatos (40; na
+ *   troca, um deles em duas cópias, 30; na primeira troca, a demo antiga ao lado dos dois, 30), mais folga para CLI: 60;
+ * - ingestor: scheduler 2 + `SCHEDULER_MAX_JOBS` 1 × (4 + 1) = 7 (a stack passa 1: o trabalho longo foi para o worker),
+ *   mais o ao vivo quando ele roda aqui (`SCHEDULER_LIVE=internal`: o dev e a volta para uma versão anterior ao serviço
+ *   `live`, que não refaz o teto do papel: 3 × (4 + 1) = 15) = 22; o worker da fila (#542), no mesmo papel: pai 2 +
+ *   `WORKER_MAX_TASKS` 2 × (2 do `runTask` + 4 do contexto do job) = 14, duas cópias durante a troca do deploy = 28;
+ *   mais CLI à mão: 55. Com o `live` no ar (#535) o pico aqui é 7 + 28; o teto só cai quando a volta para antes dele
+ *   deixar de ser opção;
+ * - agents: scheduler 2 + `AGENTS_MAX_JOBS` 3 × (4 + 1) = 17, mais CLI: 25;
+ * - live: 2 cópias sempre, mais a nova durante a troca (#537). Cada cópia: scheduler 2 + live-run (4 + trava da cópia
+ *   + trava `live:leader`) = 8; `live-reconcile` e `events-clock` (4 + 1 cada) rodam numa cópia por vez em todo o
+ *   banco: 3 × 8 + 10 = 34, mais as travas tentadas e soltas na hora e folga: 45;
+ * - backup: pg_dump 1, ensaio de restauração 1, psql da verificação 1: 6 com folga.
+ * O dono do banco (migrate, CLI de manutenção, sincronização) é superusuário e não tem limite.
+ */
+export const ROLE_CONNECTION_LIMITS: Record<RoleService, number> = {
+  api: 45,
+  demo: 60,
+  ingestor: 55,
+  agents: 25,
+  live: 45,
+  backup: 6,
 };
 
 export const roleName = (service: RoleService, prefix = 'galaxie_'): string => `${prefix}${service}`;
@@ -167,6 +227,7 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
         exception when duplicate_object then null;
         end $$`;
       await sql`alter role ${role(service)} nosuperuser nocreaterole noreplication nobypassrls`;
+      await sql`alter role ${role(service)} connection limit ${sql.unsafe(String(ROLE_CONNECTION_LIMITS[service]))}`;
       await sql`alter role ${role(service)} ${sql.unsafe(service === 'backup' ? 'createdb' : 'nocreatedb')}`;
     }
     await sql`grant pg_read_all_data to ${role('backup')}`;
