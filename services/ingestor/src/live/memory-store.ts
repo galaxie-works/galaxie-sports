@@ -10,6 +10,7 @@ import {
   type FailureReason,
   type NormalizedBatch,
 } from '@galaxie/providers';
+import { retractedGoals, type IncidentRow } from '@galaxie/core-writer';
 import type { EventSnapshot, IncidentSnapshot, LiveChange } from './diff.js';
 import type { LiveFailureInput, LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
@@ -26,6 +27,8 @@ interface Row {
   meta: SeedEvent & { eventId: string };
   state: EventState;
   incidents: IncidentSnapshot[];
+  /** Timeline gravada completa (com jogador e dados), como em `core.event_incident`. */
+  raw: IncidentRow[];
 }
 
 export class InMemoryLiveStore implements LiveStore {
@@ -57,6 +60,7 @@ export class InMemoryLiveStore implements LiveStore {
           isStale: false,
         },
         incidents: [],
+        raw: [],
       });
     }
     return this;
@@ -144,7 +148,11 @@ export class InMemoryLiveStore implements LiveStore {
       if (step.ignored) continue;
       r.state = step.state;
       if (e.incidents) {
-        r.incidents = e.incidents.map((i) => ({
+        // mesma regra do core: o gol que a fonte retirou fica como VAR inferido
+        const next = [...e.incidents].sort((a, b) => a.sequence - b.sequence);
+        const retracted = retractedGoals(r.raw, next);
+        r.raw = [...next, ...retracted];
+        r.incidents = r.raw.map((i) => ({
           sequence: i.sequence,
           type: i.type,
           detail: i.detail,

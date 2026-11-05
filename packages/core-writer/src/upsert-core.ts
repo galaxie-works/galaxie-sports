@@ -80,6 +80,7 @@ import {
   type ProviderScope,
   type Tx,
 } from './sql-helpers.js';
+import { retractedGoals, RETRACTED_GOAL_SEQUENCE_BASE, type IncidentRow } from './retracted-goals.js';
 import { uuidv7 } from './uuid.js';
 import { tidyParticles } from './name-case.js';
 
@@ -695,12 +696,42 @@ export async function upsertBatchInTx(
       .where(inArray(footballFixture.eventId, chunk));
     for (const r of rows) detailAt.set(r.eventId, r.at);
   }
+  // gols e lances inferidos já gravados: base para manter o gol que a fonte retirou (retracted-goals.ts)
+  const previousIncidents = new Map<string, IncidentRow[]>();
+  for (const chunk of chunks(
+    withIncidents.map((e) => e.id),
+    500,
+  )) {
+    const rows = await tx
+      .select({
+        eventId: eventIncident.eventId,
+        sequence: eventIncident.sequence,
+        minute: eventIncident.minute,
+        extra: eventIncident.extra,
+        type: eventIncident.type,
+        detail: eventIncident.detail,
+        participantId: eventIncident.participantId,
+        personId: eventIncident.personId,
+        assistPersonId: eventIncident.assistPersonId,
+        data: eventIncident.data,
+      })
+      .from(eventIncident)
+      .where(
+        and(
+          inArray(eventIncident.eventId, chunk),
+          sql`(${eventIncident.type} in ('goal', 'own_goal') or ${eventIncident.sequence} >= ${RETRACTED_GOAL_SEQUENCE_BASE})`,
+        ),
+      );
+    for (const { eventId, ...r } of rows) {
+      const list = previousIncidents.get(eventId) ?? [];
+      list.push({ ...r, data: (r.data ?? null) as Record<string, unknown> | null });
+      previousIncidents.set(eventId, list);
+    }
+  }
   for (const { id, source, stateApplied } of withIncidents) {
     const known = detailAt.get(id);
     if (!stateApplied && known && known.getTime() > batch.observedAt.getTime()) continue;
-    const rows = source.incidents!.map((i) => ({
-      id: uuidv7(),
-      eventId: id,
+    const providerRows = source.incidents!.map((i) => ({
       sequence: i.sequence,
       minute: i.minute,
       extra: i.extra,
@@ -711,6 +742,8 @@ export async function upsertBatchInTx(
       assistPersonId: personId(i.assistPersonId),
       data: i.data,
     }));
+    const retracted = retractedGoals(previousIncidents.get(id) ?? [], providerRows);
+    const rows = [...providerRows, ...retracted].map((i) => ({ id: uuidv7(), eventId: id, ...i }));
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = replaceUpdate(eventIncident, [
         'minute',
@@ -727,11 +760,19 @@ export async function upsertBatchInTx(
         .values(chunk)
         .onConflictDoUpdate({ target: [eventIncident.eventId, eventIncident.sequence], set, setWhere });
     }
-    // a timeline do provedor é a verdade: itens que sumiram (ex.: lance removido) saem
+    // a timeline do provedor é a verdade: itens que sumiram (ex.: lance removido) saem; o gol que a fonte
+    // retirou fica como VAR inferido (faixa própria de sequence)
+    const keepInferred = retracted.map((i) => i.sequence);
     await tx
       .delete(eventIncident)
-      .where(and(eq(eventIncident.eventId, id), sql`${eventIncident.sequence} >= ${rows.length}`));
-    stats.incidents += rows.length;
+      .where(
+        and(
+          eq(eventIncident.eventId, id),
+          sql`${eventIncident.sequence} >= ${providerRows.length}`,
+          ...(keepInferred.length ? [notInArray(eventIncident.sequence, keepInferred)] : []),
+        ),
+      );
+    stats.incidents += providerRows.length;
   }
 
   // ─ espelho da partida de futebol ─

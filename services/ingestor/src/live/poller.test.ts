@@ -85,6 +85,29 @@ describe('LivePoller', () => {
     expect(store.published.filter((c) => c.goal)).toHaveLength(1);
   });
 
+  it('gol que a fonte apaga sem mandar VAR fica como VAR de gol anulado e o placar volta', async () => {
+    const { provider, poller, tracked } = setup([match]);
+    const t1 = new Date(kick + 25 * MIN);
+    const t2 = new Date(kick + 27 * MIN);
+    const annulled = batchAt([match], t2);
+    const ev = annulled.events[0]!;
+    ev.incidents = ev.incidents!.filter((i) => i.type !== 'goal').map((i, sequence) => ({ ...i, sequence }));
+    if (ev.observation.kind === 'valid')
+      ev.observation.score = { ...ev.observation.score!, home: 0, away: 0 };
+    provider.willReturn('listLive', batchAt([match], t1)).willReturn('listLive', annulled);
+
+    await poller.tick({ now: t1, leagues: ['71'], tracked: await tracked(t1), finalizeBudget: 0 });
+    const r = await poller.tick({ now: t2, leagues: ['71'], tracked: await tracked(t2), finalizeBudget: 0 });
+    const change = r.changes[0]!;
+    expect(change.kinds).toEqual(expect.arrayContaining(['score', 'incident']));
+    expect(change.goal).toBe(false);
+    expect(change.score).toMatchObject({ home: 0, away: 0 });
+    expect(change.incidents).toEqual([
+      expect.objectContaining({ type: 'var', detail: 'Goal cancelled', minute: 21, sequence: 100_000 }),
+    ]);
+    expect(change.removedIncidents).toBe(1);
+  });
+
   it('falha da fonte: last-known-good (stale) sem inventar placar', async () => {
     const { store, provider, poller, tracked } = setup([match]);
     const t1 = new Date(kick + 30 * MIN);
