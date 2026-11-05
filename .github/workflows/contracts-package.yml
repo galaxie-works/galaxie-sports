@@ -3,11 +3,13 @@ name: Pacote de contratos
 # Publica o packages/contracts como pacote PRIVADO no GitHub Packages, para quem está fora do monorepo (o app Expo, em
 # galaxie-works/galaxie-sports-app). Cada mudança na main vira a versão 0.1.<número da execução>.
 #
-# O GitHub exige o escopo da organização, então o pacote sai como @galaxie-works/contracts; no monorepo ele segue
+# O GitHub exige o escopo da conta, então o pacote sai como @galaxie-works/contracts; no monorepo ele segue
 # @galaxie/contracts e com `private: true`, o que impede publicar por engano no npm público. O nome e o resto só mudam
 # aqui, na cópia do job. Instalar pede um token com read:packages. Como usar: packages/contracts/README.md.
 #
 # NUNCA marcar o pacote como público nas configurações: pacote público não volta a ser privado.
+# NUNCA colocar o campo `repository` na cópia: a 0.1.1, publicada com ele a partir desta repo pública, saiu pública.
+# O pacote foi criado privado à mão, e este job só publica nele com acesso liberado em "Manage Actions access".
 on:
   push:
     branches: [main]
@@ -34,6 +36,7 @@ jobs:
     env:
       PACKAGE_NAME: '@galaxie-works/contracts'
       PACKAGE_VERSION: 0.1.${{ github.run_number }}
+      PACKAGE_PAGE: https://github.com/users/galaxie-works/packages/npm/package/contracts
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -45,6 +48,15 @@ jobs:
           cache: pnpm
           registry-url: https://npm.pkg.github.com
           scope: '@galaxie-works'
+
+      # Sem login, a página do pacote só dá 404 se ele for privado. A conta é de usuário, sem API de organização.
+      - name: Conferir que é privado antes de publicar
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' "$PACKAGE_PAGE")
+          if [ "$status" != "404" ]; then
+            echo "::error::A página do pacote respondeu $status sem login, e só 404 prova que é privado. Nada foi publicado."
+            exit 1
+          fi
 
       - name: Build
         run: |
@@ -66,25 +78,15 @@ jobs:
             name="$PACKAGE_NAME" \
             version="$PACKAGE_VERSION" \
             'files[]=dist' \
-            repository.type=git \
-            repository.url=git+https://github.com/galaxie-works/galaxie-sports.git \
-            repository.directory=packages/contracts \
             publishConfig.registry=https://npm.pkg.github.com \
             publishConfig.access=restricted
           npm publish --ignore-scripts
           echo "Publicado: $PACKAGE_NAME@$PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
 
-      # O pacote precisa continuar privado. Se esta leitura falhar por permissão do token, fica só o aviso.
-      - name: Conferir que é privado
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Conferir que continua privado
         run: |
-          if ! visibility=$(gh api orgs/galaxie-works/packages/npm/contracts --jq .visibility); then
-            echo "::warning::Não deu para ler a visibilidade do pacote: confira em github.com/orgs/galaxie-works/packages"
-            exit 0
-          fi
-          echo "Visibilidade: $visibility"
-          if [ "$visibility" != "private" ]; then
-            echo "::error::O pacote está como $visibility, e deveria ser privado"
+          status=$(curl -s -o /dev/null -w '%{http_code}' "$PACKAGE_PAGE")
+          if [ "$status" != "404" ]; then
+            echo "::error::A página do pacote respondeu $status sem login depois de publicar: confira em $PACKAGE_PAGE e, se estiver público, desligue este workflow e apague o pacote."
             exit 1
           fi
