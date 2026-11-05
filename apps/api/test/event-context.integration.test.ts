@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   changeFeed,
@@ -255,6 +255,32 @@ describe('GET /v1/events/{id} — resumo do contexto', () => {
     const plain = await get(`/v1/events/${eventId}`, coreKey);
     expect(plain.statusCode).toBe(200);
     expect(plain.json()).not.toHaveProperty('context');
+  });
+});
+
+describe('memória interna do gol anulado', () => {
+  it('`core.event.goal_watch` não sai no detalhe, na lista nem na timeline', async () => {
+    // locale próprio: o cache do detalhe não pode ter sido preenchido antes da gravação
+    await db.execute(sql`
+      update core.event set goal_watch = ${JSON.stringify({
+        peak: { home: 3, away: 2 },
+        pending: [{ since: KICKOFF.toISOString(), side: 'home', goal: { minute: 77, personId: 'segredo' } }],
+        usedVars: [],
+        clock: { rank: 3, minute: 78, at: KICKOFF.toISOString() },
+      })}::jsonb where id = ${eventId}`);
+    const day = KICKOFF.toISOString().slice(0, 10);
+    const bodies = await Promise.all(
+      [
+        `/v1/events/${eventId}?locale=en`,
+        `/v1/events/${eventId}/timeline?locale=en`,
+        `/v1/events?date=${day}&locale=en`,
+      ].map((url) => get(url)),
+    );
+    for (const res of bodies) {
+      expect(res.statusCode).toBe(200);
+      expect(res.body).not.toMatch(/goal_?watch|peak|pending|usedVars|segredo/i);
+    }
+    expect(bodies[2]!.json().data.map((e: { id: string }) => e.id)).toContain(eventId);
   });
 });
 

@@ -479,6 +479,8 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 
 Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`) ou observados; `halftime`, `end_of_regulation` (intervalo `BT`), `extra_time` e `full_time` (encerramento observado vindo de um estado em andamento) só quando o Live Poller os viu (`observed`).
 
+**Gol anulado sem VAR na fonte.** Quando o fornecedor só apaga o gol, sem mandar o VAR, e o gol fica fora da timeline com o placar do lado tendo caído, a timeline ganha um lance `type: "var"`, `detail: "Goal cancelled"` com o minuto, o time e o jogador do gol. Ele leva cerca de 45 s para aparecer (o gol que a fonte apaga e devolve em seguida não vira lance) e sai se o gol voltar ou se o fornecedor mandar o VAR dele. Vem depois do último lance do mesmo minuto; o `sequence` fica fora da sequência do fornecedor (a partir de 100000).
+
 **Tempo real.** A timeline tem TTL de 10 s ao vivo e 1 h encerrada, e é purgada pelas mesmas mudanças do evento (tag `event:<id>`). Para atualizar sem polling, assine `GET /v1/stream?events=<id>&topics=score,status,incidents` (§5.1) e releia a timeline a cada mudança; a demo faz isso e mantém uma verificação completa a cada 30 s (15 s se o SSE cair).
 
 ### 3.3 Times, atletas e semântica

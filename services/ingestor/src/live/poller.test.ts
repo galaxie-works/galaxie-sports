@@ -85,27 +85,43 @@ describe('LivePoller', () => {
     expect(store.published.filter((c) => c.goal)).toHaveLength(1);
   });
 
-  it('gol que a fonte apaga sem mandar VAR fica como VAR de gol anulado e o placar volta', async () => {
+  it('gol que a fonte apaga sem mandar VAR vira VAR de gol anulado só depois de 45 s fora', async () => {
     const { provider, poller, tracked } = setup([match]);
+    const annulledAt = (at: Date) => {
+      const batch = batchAt([match], at);
+      const ev = batch.events[0]!;
+      ev.incidents = ev
+        .incidents!.filter((i) => i.type !== 'goal')
+        .map((i, sequence) => ({ ...i, sequence }));
+      if (ev.observation.kind === 'valid')
+        ev.observation.score = { ...ev.observation.score!, home: 0, away: 0 };
+      return batch;
+    };
     const t1 = new Date(kick + 25 * MIN);
-    const t2 = new Date(kick + 27 * MIN);
-    const annulled = batchAt([match], t2);
-    const ev = annulled.events[0]!;
-    ev.incidents = ev.incidents!.filter((i) => i.type !== 'goal').map((i, sequence) => ({ ...i, sequence }));
-    if (ev.observation.kind === 'valid')
-      ev.observation.score = { ...ev.observation.score!, home: 0, away: 0 };
-    provider.willReturn('listLive', batchAt([match], t1)).willReturn('listLive', annulled);
+    const t2 = new Date(t1.getTime() + 15_000);
+    const t3 = new Date(t2.getTime() + 30_000);
+    const t4 = new Date(t2.getTime() + 45_000);
+    provider
+      .willReturn('listLive', batchAt([match], t1))
+      .willReturn('listLive', annulledAt(t2))
+      .willReturn('listLive', annulledAt(t3))
+      .willReturn('listLive', annulledAt(t4));
 
-    await poller.tick({ now: t1, leagues: ['71'], tracked: await tracked(t1), finalizeBudget: 0 });
-    const r = await poller.tick({ now: t2, leagues: ['71'], tracked: await tracked(t2), finalizeBudget: 0 });
-    const change = r.changes[0]!;
-    expect(change.kinds).toEqual(expect.arrayContaining(['score', 'incident']));
-    expect(change.goal).toBe(false);
-    expect(change.score).toMatchObject({ home: 0, away: 0 });
-    expect(change.incidents).toEqual([
+    const tick = async (now: Date) =>
+      poller.tick({ now, leagues: ['71'], tracked: await tracked(now), finalizeBudget: 0 });
+    await tick(t1);
+    // o gol sai e o placar volta, mas nada de VAR ainda
+    const left = (await tick(t2)).changes[0]!;
+    expect(left.kinds).toEqual(expect.arrayContaining(['score', 'incident']));
+    expect(left.goal).toBe(false);
+    expect(left.score).toMatchObject({ home: 0, away: 0 });
+    expect(left.incidents).toEqual([]);
+    expect(left.removedIncidents).toBe(1);
+    expect((await tick(t3)).changes.flatMap((c) => c.incidents)).toEqual([]);
+    // 45 s fora: agora é lance
+    expect((await tick(t4)).changes.flatMap((c) => c.incidents)).toEqual([
       expect.objectContaining({ type: 'var', detail: 'Goal cancelled', minute: 21, sequence: 100_000 }),
     ]);
-    expect(change.removedIncidents).toBe(1);
   });
 
   it('falha da fonte: last-known-good (stale) sem inventar placar', async () => {

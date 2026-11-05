@@ -10,7 +10,13 @@ import {
   type FailureReason,
   type NormalizedBatch,
 } from '@galaxie/providers';
-import { retractedGoals, type IncidentRow } from '@galaxie/core-writer';
+import {
+  advanceGoalWatch,
+  isRetractedGoalRow,
+  type GoalWatch,
+  type GoalWatchSide,
+  type IncidentRow,
+} from '@galaxie/core-writer';
 import type { EventSnapshot, IncidentSnapshot, LiveChange } from './diff.js';
 import type { LiveFailureInput, LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
@@ -29,6 +35,8 @@ interface Row {
   incidents: IncidentSnapshot[];
   /** Timeline gravada completa (com jogador e dados), como em `core.event_incident`. */
   raw: IncidentRow[];
+  /** Memória do gol anulado, como em `core.event.goal_watch`. */
+  goalWatch: GoalWatch | null;
 }
 
 export class InMemoryLiveStore implements LiveStore {
@@ -61,6 +69,7 @@ export class InMemoryLiveStore implements LiveStore {
         },
         incidents: [],
         raw: [],
+        goalWatch: null,
       });
     }
     return this;
@@ -146,12 +155,31 @@ export class InMemoryLiveStore implements LiveStore {
       if (!r) continue;
       const step = applyObservation(r.state, e.observation);
       if (step.ignored) continue;
+      const priorScore = r.state.score;
       r.state = step.state;
-      if (e.incidents) {
-        // mesma regra do core: o gol que a fonte retirou fica como VAR inferido
-        const next = [...e.incidents].sort((a, b) => a.sequence - b.sequence);
-        const retracted = retractedGoals(r.raw, next);
-        r.raw = [...next, ...retracted];
+      if (e.incidents || r.goalWatch) {
+        // mesma regra do core: o gol que a fonte retirou e ficou fora vira VAR inferido
+        const next = e.incidents ? [...e.incidents].sort((a, b) => a.sequence - b.sequence) : null;
+        const sides = new Map<string, GoalWatchSide>();
+        for (const p of e.participants)
+          if (p.side === 'home' || p.side === 'away') sides.set(p.participantId, p.side);
+        const result = advanceGoalWatch({
+          watch: r.goalWatch,
+          previous: r.raw,
+          next,
+          score: r.state.score,
+          priorScore,
+          sides,
+          clock:
+            e.observation.kind === 'valid'
+              ? { code: e.observation.statusDetail, minute: e.observation.clock?.minute ?? null }
+              : null,
+          finished: r.state.status === 'finished',
+          observedAt: batch.observedAt,
+        });
+        r.goalWatch = result.watch;
+        const provider = result.replaceTimeline ? next! : r.raw.filter((i) => !isRetractedGoalRow(i));
+        r.raw = [...provider, ...result.retracted];
         r.incidents = r.raw.map((i) => ({
           sequence: i.sequence,
           type: i.type,
