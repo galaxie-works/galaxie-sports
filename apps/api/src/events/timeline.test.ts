@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimelineDto, periodOf, uuidv7Time, type RawIncident, type TimelineInput } from './timeline.js';
+import {
+  buildTimelineDto,
+  INFERRED_SEQUENCE_BASE,
+  periodOf,
+  uuidv7Time,
+  type RawIncident,
+  type TimelineInput,
+} from './timeline.js';
 import { timezoneOf, venueTimezone } from './timezone.js';
 
 const PAL = { id: 'pal', name: 'Palmeiras', side: 'home', logo: null };
@@ -608,5 +615,43 @@ describe('timezoneOf', () => {
   it('usa o primeiro país conhecido e ignora WORLD', () => {
     expect(venueTimezone([null, 'AR', 'WORLD'], 'Avellaneda')).toBe('America/Argentina/Buenos_Aires');
     expect(venueTimezone([null, null, 'WORLD'], 'X')).toBeNull();
+  });
+});
+
+describe('gol anulado inferido (a fonte apagou o gol sem mandar o VAR)', () => {
+  it('fica no minuto do gol, como VAR de gol anulado e momento-chave, sem mexer no placar', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        status: 'live',
+        statusDetail: '2H',
+        clock: { minute: 66, extra: null },
+        score: { home: 0, away: 0 },
+        incidents: [
+          inc({ type: 'card', detail: 'Yellow Card', minute: 61, team: PAL, player: person('newton') }),
+          inc({ type: 'subst', detail: 'Substitution 1', minute: 62, team: FLU, player: person('a') }),
+          inc({ type: 'subst', detail: 'Substitution 2', minute: 62, team: FLU, player: person('b') }),
+          inc({ type: 'card', detail: 'Yellow Card', minute: 70, team: PAL, player: person('x') }),
+          inc({
+            sequence: INFERRED_SEQUENCE_BASE,
+            type: 'var',
+            detail: 'Goal cancelled',
+            minute: 62,
+            team: FLU,
+            player: person('bidu', 'Matheus Bidu'),
+          }),
+        ],
+      }),
+    );
+    expect(t.incidents.map((i) => [i.clock.display, i.kind])).toEqual([
+      ["61'", 'yellow_card'],
+      ["62'", 'substitution'],
+      ["62'", 'substitution'],
+      ["62'", 'var'],
+      ["70'", 'yellow_card'],
+    ]);
+    const cancelled = t.incidents[3]!;
+    expect(cancelled).toMatchObject({ detail: 'Goal cancelled', key_moment: true, score_after: null });
+    expect(cancelled.player?.name).toBe('Matheus Bidu');
   });
 });
