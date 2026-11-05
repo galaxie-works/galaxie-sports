@@ -1,7 +1,9 @@
 import { createHmac } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { WEBHOOK_TOPIC_MODULE } from '@galaxie/db/webhooks';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { TOPIC_MODULE } from '../realtime/changes.js';
 import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
 import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
@@ -212,5 +214,11 @@ describe('validação do cadastro', () => {
       'where_to_watch.changed',
     ]);
     expect(() => parseTopics(['odds'])).toThrow(WebhookInputError);
+  });
+});
+
+describe('portal do cliente', () => {
+  it('o mapa tópico → módulo do portal é o mesmo do worker', () => {
+    expect(WEBHOOK_TOPIC_MODULE).toEqual(TOPIC_MODULE);
   });
 });

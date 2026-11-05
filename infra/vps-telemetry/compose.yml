@@ -166,6 +166,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
+      # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
     depends_on:
       api:
         condition: service_healthy

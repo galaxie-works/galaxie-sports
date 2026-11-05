@@ -102,7 +102,9 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
   servidor precisa dele para assinar) em AES-256-GCM, com a chave de cifra fora do banco: `WEBHOOK_SIGNING_SECRET`
   é a KEK (≥ 32 caracteres, ex.: `openssl rand -base64 32`; chave derivada por HKDF-SHA256). Formato gravado
   `enc:v1:<kid>:<iv>:<cifrado>:<tag>`, com o id do endpoint como dado autenticado (AAD: o cifrado copiado para outro
-  endpoint não abre) e tag de 16 bytes exigida (o Node aceitaria tag truncada); só o worker decifra, ao assinar.
+  endpoint não abre) e tag de 16 bytes exigida (o Node aceitaria tag truncada); só o worker decifra, ao assinar. A
+  demo também recebe a KEK, mas só para **cifrar** no cadastro e na rotação pelo painel do cliente
+  (`/cliente/webhooks`, `@galaxie/db/webhooks`): nenhuma tela nem ação lê um segredo gravado.
   - **Sem KEK**: `webhook create` é recusado (nunca grava texto puro); o worker registra um aviso ao subir e as
     entregas de segredos cifrados falham como tentativa com erro `WebhookSecretError` (retentativas → DLQ;
     `webhook replay` depois de corrigir). KEK errada ou ausente da lista tem o mesmo efeito.
