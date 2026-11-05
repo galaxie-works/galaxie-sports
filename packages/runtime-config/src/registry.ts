@@ -179,7 +179,10 @@ export function planKey(api: string): string {
  * fica de fora (as sessões têm pipeline próprio). No futebol, só os jogos fora do plano do ao vivo.
  */
 export const POSTGAME_APIS = APISPORTS_APIS.filter((api) => api !== 'formula-1');
-/** `fechamento`: confere a partir do fim previsto; `tempo-real`: desde o apito. Os dois no intervalo do esporte. */
+/**
+ * `fechamento`: confere a partir do fim previsto; `tempo-real`: desde o apito. Os dois no intervalo do esporte; no
+ * `tempo-real`, a data sem jogo que ainda possa estar em campo espera ao menos 15 min (postgame/plan.ts).
+ */
 export const POSTGAME_MODES = ['off', 'fechamento', 'tempo-real'] as const;
 export type PostgameMode = (typeof POSTGAME_MODES)[number];
 

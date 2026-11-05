@@ -560,7 +560,7 @@ export default defineMessages(
     postgameIntervalFor: {
       label: 'Intervalo do pós-jogo: {api}',
       description:
-        'Minutos entre uma consulta e outra da lista do dia (1 para tempo real). Cada consulta gasta 1 chamada da cota do esporte.',
+        'Minutos entre uma consulta e outra da lista do dia (1 para tempo real). No tempo real, a data sem jogo que ainda possa estar em campo é consultada a cada 15 min, se este intervalo for menor. Cada consulta gasta 1 chamada da cota do esporte.',
     },
     planFor: {
       label: 'Plano: {api}',
@@ -1625,7 +1625,7 @@ export default defineMessages(
       postgameIntervalFor: {
         label: 'Post-match interval: {api}',
         description:
-          'Minutes between checks of the day list (1 for real time). Each check spends 1 call from the sport quota.',
+          'Minutes between checks of the day list (1 for real time). In real time, a date with no game that could still be in play is checked every 15 min if this interval is shorter. Each check spends 1 call from the sport quota.',
       },
       planFor: {
         label: 'Plan: {api}',
@@ -2706,7 +2706,7 @@ export default defineMessages(
       postgameIntervalFor: {
         label: 'Intervalo del pospartido: {api}',
         description:
-          'Minutos entre una consulta y otra de la lista del día (1 para tiempo real). Cada consulta gasta 1 llamada de la cuota del deporte.',
+          'Minutos entre una consulta y otra de la lista del día (1 para tiempo real). En tiempo real, la fecha sin partido que aún pueda estar en juego se consulta cada 15 min si este intervalo es menor. Cada consulta gasta 1 llamada de la cuota del deporte.',
       },
       planFor: {
         label: 'Plan: {api}',
