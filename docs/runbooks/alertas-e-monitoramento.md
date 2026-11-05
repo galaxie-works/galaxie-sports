@@ -48,6 +48,7 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
+| `WebhookWorkerDown`, `WebhookDeadLetters`, `WebhookEndpointFailing`, `WebhookDeliverySlow` | Webhooks para clientes: worker parado (entrega vencida há 5 min), DLQ crescendo, endpoint com 5+ falhas seguidas, p95 acima de 30 s. O que fazer em cada um: [webhooks.md](webhooks.md#alertas) |
 | `TarefaPendenteAntiga` | Tarefa da fila pronta há mais de 1 h sem worker pegar, por tipo: worker fora do ar ou tarefa longa na frente ([contrato](../../packages/db/README.md#fila-de-tarefas)) |
 | `ExploreSummaryStale` | Resumo da home Explorar (`core.explore_summary`) sem recálculo há mais de 30 min, ou nunca gravado: a API volta a montar a home na requisição, lenta a frio. Veja o job `explore-summary` ([pacote](../../packages/explore/README.md)) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
@@ -406,5 +407,6 @@ docker compose exec api cat /tmp/selfheal.log
 | `galaxie_ai_credit_checked_timestamp_seconds` | Hora da última checagem |
 | `galaxie_ai_spend_usd{budget_day}` | Gasto em US$ do dia de orçamento em `ops.llm_usage` (todos os agentes) |
 | `galaxie_ai_daily_budget_usd` | Teto global efetivo (sem a série quando é `unlimited`) |
+| `galaxie_webhook_*{endpoint,tenant}`, `galaxie_webhook_overdue_seconds` | Fila, DLQ, falhas, latência e atraso do worker dos webhooks (`api.webhook_delivery`; lista em [webhooks.md](webhooks.md#alertas)) |
 
 O rótulo é `component`, não `service`: o scrape do Prometheus já põe `service="api"` em toda série da API.

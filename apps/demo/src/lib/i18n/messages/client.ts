@@ -18,6 +18,7 @@ export default defineMessages(
       builder: 'Builder',
       lineup: 'Grade e ofertas',
       channels: 'Minha lista de canais',
+      webhooks: 'Webhooks',
     },
     tenant: {
       label: 'Tenant',
@@ -249,6 +250,7 @@ export default defineMessages(
         builder: 'Builder',
         lineup: 'Lineup and offers',
         channels: 'My channel list',
+        webhooks: 'Webhooks',
       },
       tenant: {
         label: 'Tenant',
@@ -480,6 +482,7 @@ export default defineMessages(
         builder: 'Builder',
         lineup: 'Grilla y ofertas',
         channels: 'Mi lista de canales',
+        webhooks: 'Webhooks',
       },
       tenant: {
         label: 'Tenant',

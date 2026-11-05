@@ -1,12 +1,9 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+export { generateWebhookSecret } from '@galaxie/db';
 
 /** Header com a assinatura: `t=<unix segundos>,v1=<hex HMAC-SHA256(segredo, "<t>.<corpo>")>`. */
 export const SIGNATURE_HEADER = 'x-galaxie-signature';
-
-/** Segredo de assinatura de um endpoint (exibido uma única vez, na criação). */
-export function generateWebhookSecret(): string {
-  return `whsec_${randomBytes(32).toString('base64url')}`;
-}
 
 function hmac(secret: string, timestamp: number, body: string): string {
   return createHmac('sha256', secret).update(`${timestamp}.${body}`).digest('hex');
