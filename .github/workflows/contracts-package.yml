@@ -8,8 +8,9 @@ name: Pacote de contratos
 # aqui, na cópia do job. Instalar pede um token com read:packages. Como usar: packages/contracts/README.md.
 #
 # NUNCA marcar o pacote como público nas configurações: pacote público não volta a ser privado.
-# NUNCA colocar o campo `repository` na cópia: a 0.1.1, publicada com ele a partir desta repo pública, saiu pública.
-# O pacote foi criado privado à mão, e este job só publica nele com acesso liberado em "Manage Actions access".
+# NUNCA deixar este job criar o pacote: criado por workflow com o GITHUB_TOKEN, ele herda a visibilidade da repo, e foi
+# assim que a 0.1.1 saiu pública. O pacote foi criado privado à mão, sem o campo `repository`, e este job só publica
+# versões novas nele, com acesso liberado em "Manage Actions access". Se o pacote for apagado, recriar à mão.
 on:
   push:
     branches: [main]
@@ -49,9 +50,17 @@ jobs:
           registry-url: https://npm.pkg.github.com
           scope: '@galaxie-works'
 
-      # Sem login, a página do pacote só dá 404 se ele for privado. A conta é de usuário, sem API de organização.
-      - name: Conferir que é privado antes de publicar
+      # Sem login, a página só dá 404 se o pacote for privado ou não existir; com o token, o npm view prova que ele existe.
+      # A conta é de usuário, sem API de organização.
+      - name: Conferir que o pacote existe e é privado
+        working-directory: packages/contracts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if ! npm view "$PACKAGE_NAME" version; then
+            echo "::error::O job não leu $PACKAGE_NAME: confira se o pacote existe e se a repo tem acesso em Manage Actions access. Este job não pode criar o pacote. Nada foi publicado."
+            exit 1
+          fi
           status=$(curl -s -o /dev/null -w '%{http_code}' "$PACKAGE_PAGE")
           if [ "$status" != "404" ]; then
             echo "::error::A página do pacote respondeu $status sem login, e só 404 prova que é privado. Nada foi publicado."
