@@ -447,6 +447,8 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
   });
 
   it('o job grava o resumo uma vez e, sem mudança, não refaz a conta', async () => {
+    // os jogos do seed são anteriores ao relógio fixo dos testes (o `created_at` nasce com o relógio do banco)
+    await db.update(event).set({ createdAt: new Date(NOW.getTime() - 3_600_000) });
     const first = await refreshExploreSummary(db, geo, { now: NOW });
     expect(first.reason).toBe('sem resumo gravado');
     expect(first.rows).toBeGreaterThan(geo.navigationCountries.length);
@@ -483,6 +485,7 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
         competitionId: ids['brasileirao-serie-a']!,
         startsAt: hours(40),
         endsAtExpected: hours(42),
+        createdAt: new Date(NOW.getTime() - 3_600_000),
       })
       .returning();
     ids.extra = extra!.id;
@@ -495,6 +498,32 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     const again = await refreshExploreSummary(db, geo, { now: NOW });
     expect(again.reason).toMatch(/^resumo com \d+ s$/);
     expect(upcomingBr(await summary())).toBe(before + 1);
+  });
+
+  it('jogo novo na janela faz o job refazer sem esperar os 10 min; fora da janela, não', async () => {
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
+    const values = { sport: 'football', competitionId: ids['brasileirao-serie-a']! };
+    const [later] = await db
+      .insert(event)
+      .values({ ...values, startsAt: hours(24 * 30), endsAtExpected: hours(24 * 30 + 2) })
+      .returning();
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    await db.delete(event).where(eq(event.id, later!.id));
+    const [soon] = await db
+      .insert(event)
+      .values({ ...values, startsAt: hours(41), endsAtExpected: hours(43) })
+      .returning();
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
+    await db.delete(event).where(eq(event.id, soon!.id));
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
+    // já entra ao vivo: começou antes da janela, mas a conta lê os jogos em andamento
+    const [live] = await db
+      .insert(event)
+      .values({ ...values, startsAt: hours(-1), endsAtExpected: hours(1), status: 'live' })
+      .returning();
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
+    await db.delete(event).where(eq(event.id, live!.id));
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
   });
 
   it('mudança de status de jogo no change feed faz o job refazer no minuto seguinte', async () => {
