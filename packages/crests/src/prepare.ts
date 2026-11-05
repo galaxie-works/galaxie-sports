@@ -157,7 +157,8 @@ export async function prepareCrest(
         );
     }
     png = await rasterPng(input, info.contentType);
-    webp = new Uint8Array(await sharp(png).webp({ quality: 90, alphaQuality: 100, effort: 6 }).toBuffer());
+    // effort 4 (o padrão): o 6 leva ~3 s num 512 com alfa para ~1% de arquivo a menos, e o envio espera por ele
+    webp = new Uint8Array(await sharp(png).webp({ quality: 90, alphaQuality: 100, effort: 4 }).toBuffer());
     const meta = await sharp(png).metadata();
     side = { width: meta.width ?? null, height: meta.height ?? null };
   } catch (err) {
