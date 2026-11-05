@@ -463,6 +463,13 @@
       "when": 1793705599800,
       "tag": "0066_change_feed_sem_ids_de_video",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793865698602,
+      "tag": "0067_vigia_de_gols",
+      "breakpoints": true
     }
   ]
 }

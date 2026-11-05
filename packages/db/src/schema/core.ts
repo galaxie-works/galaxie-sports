@@ -732,6 +732,35 @@ export type EventProvisional = {
   mergedProviderEventId?: string | null;
 };
 
+export type GoalWatchSide = 'home' | 'away';
+
+/** Gol que saiu da timeline e ainda não virou lance (ver `retracted-goals.ts` no core-writer). */
+export type GoalWatchPending = {
+  /** Instante da resposta em que o gol saiu. */
+  since: string;
+  goal: {
+    minute: number | null;
+    extra: number | null;
+    type: string;
+    detail: string | null;
+    participantId: string | null;
+    personId: string | null;
+    assistPersonId: string | null;
+    data: Record<string, unknown> | null;
+  };
+};
+
+/** Memória da inferência de gol anulado entre uma resposta e outra do fornecedor. */
+export type GoalWatch = {
+  /** Quanto do placar de cada lado ainda pode ser retirado. */
+  peak: Record<GoalWatchSide, number>;
+  pending: GoalWatchPending[];
+  /** VARs do fornecedor que já dispensaram um lance. */
+  usedVars: { participantId: string | null; minute: number | null }[];
+  /** Relógio mais adiantado já visto (`rank`: fase do jogo). */
+  clock: { rank: number; minute: number | null; at: string } | null;
+};
+
 /**
  * Entidade primária do produto: existe mesmo que ninguém a transmita.
  * Ver docs/04-modelo-de-dados.md §3 (máquina de estados e last-known-good).
@@ -771,6 +800,11 @@ export const event = core.table(
     isProvisional: boolean('is_provisional').notNull().default(false),
     /** Dados da curadoria do jogo provisório (fica depois da junção, com `mergedAt`). */
     provisional: jsonb('provisional').$type<EventProvisional>(),
+    /**
+     * Memória interna da inferência de gol anulado: nunca sai em resposta nenhuma. Gravada sem tocar em `updated_at`
+     * e fora da lista de colunas do trigger do change feed.
+     */
+    goalWatch: jsonb('goal_watch').$type<GoalWatch>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

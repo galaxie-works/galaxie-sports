@@ -7,6 +7,7 @@
  * - Coalesce: `null` do provedor nunca apaga um valor conhecido.
  * - Transacional: o lote inteiro entra ou nada entra (advisory lock por provedor/esporte).
  */
+import { isDeepStrictEqual } from 'node:util';
 import { and, eq, inArray, notInArray, sql, type SQL } from 'drizzle-orm';
 import {
   asset,
@@ -40,6 +41,8 @@ import {
   sameState,
   type AssetKind,
   type DerbyLookup,
+  type EventScore,
+  type EventState,
   type MachineOptions,
   type NormalizedBatch,
   type NormalizedEvent,
@@ -80,7 +83,13 @@ import {
   type ProviderScope,
   type Tx,
 } from './sql-helpers.js';
-import { retractedGoals, RETRACTED_GOAL_SEQUENCE_BASE, type IncidentRow } from './retracted-goals.js';
+import {
+  advanceGoalWatch,
+  RETRACTED_GOAL_SEQUENCE_BASE,
+  type GoalWatch,
+  type GoalWatchSide,
+  type IncidentRow,
+} from './retracted-goals.js';
 import { uuidv7 } from './uuid.js';
 import { tidyParticles } from './name-case.js';
 
@@ -696,10 +705,12 @@ export async function upsertBatchInTx(
       .where(inArray(footballFixture.eventId, chunk));
     for (const r of rows) detailAt.set(r.eventId, r.at);
   }
-  // gols e lances inferidos já gravados: base para manter o gol que a fonte retirou (retracted-goals.ts)
+  // resposta sem `events` também conta se há memória do gol anulado: o placar muda nela (retracted-goals.ts)
+  const watched = canonicalEvents.filter((e) => e.source.incidents || (e.goalWatch && e.stateApplied));
+  // gols e lances inferidos já gravados: base para acompanhar o gol que a fonte retirou
   const previousIncidents = new Map<string, IncidentRow[]>();
   for (const chunk of chunks(
-    withIncidents.map((e) => e.id),
+    watched.map((e) => e.id),
     500,
   )) {
     const rows = await tx
@@ -728,22 +739,49 @@ export async function upsertBatchInTx(
       previousIncidents.set(eventId, list);
     }
   }
-  for (const { id, source, stateApplied } of withIncidents) {
+  /** Resposta cuja lista de lances não vale (lista vazia da fonte, resposta velha): o espelho também a ignora. */
+  const heldTimeline = new Set<string>();
+  for (const { id, source, stateApplied, state, goalWatch, priorScore } of watched) {
     const known = detailAt.get(id);
-    if (!stateApplied && known && known.getTime() > batch.observedAt.getTime()) continue;
-    const providerRows = source.incidents!.map((i) => ({
-      sequence: i.sequence,
-      minute: i.minute,
-      extra: i.extra,
-      type: i.type,
-      detail: i.detail,
-      participantId: participantId(i.participantId),
-      personId: personId(i.personId),
-      assistPersonId: personId(i.assistPersonId),
-      data: i.data,
-    }));
-    const retracted = retractedGoals(previousIncidents.get(id) ?? [], providerRows);
-    const rows = [...providerRows, ...retracted].map((i) => ({ id: uuidv7(), eventId: id, ...i }));
+    if (source.incidents && !stateApplied && known && known.getTime() > batch.observedAt.getTime()) continue;
+    const providerRows =
+      source.incidents?.map((i) => ({
+        sequence: i.sequence,
+        minute: i.minute,
+        extra: i.extra,
+        type: i.type,
+        detail: i.detail,
+        participantId: participantId(i.participantId),
+        personId: personId(i.personId),
+        assistPersonId: personId(i.assistPersonId),
+        data: i.data,
+      })) ?? null;
+    const sides = new Map<string, GoalWatchSide>();
+    for (const p of source.participants) {
+      const pid = participantId(p.participantId);
+      if (pid && (p.side === 'home' || p.side === 'away')) sides.set(pid, p.side);
+    }
+    const obs = source.observation;
+    const result = advanceGoalWatch({
+      watch: goalWatch,
+      previous: previousIncidents.get(id) ?? [],
+      next: providerRows,
+      score: state.score,
+      priorScore,
+      sides,
+      clock: obs.kind === 'valid' ? { code: obs.statusDetail, minute: obs.clock?.minute ?? null } : null,
+      finished: state.status === 'finished',
+      observedAt: batch.observedAt,
+    });
+    // SQL direto: o `update` do Drizzle tocaria em `updated_at`, e a memória não é mudança do evento
+    if (!isDeepStrictEqual(result.watch, goalWatch))
+      await tx.execute(
+        sql`update core.event set goal_watch = ${result.watch ? JSON.stringify(result.watch) : null}::jsonb where id = ${id}`,
+      );
+    if (source.incidents && !result.replaceTimeline) heldTimeline.add(id);
+    if (!result.replaceTimeline && !result.confirmed.length) continue;
+    const provider = result.replaceTimeline ? providerRows! : [];
+    const rows = [...provider, ...result.retracted].map((i) => ({ id: uuidv7(), eventId: id, ...i }));
     for (const chunk of chunks(rows, 500)) {
       const { set, setWhere } = replaceUpdate(eventIncident, [
         'minute',
@@ -760,19 +798,20 @@ export async function upsertBatchInTx(
         .values(chunk)
         .onConflictDoUpdate({ target: [eventIncident.eventId, eventIncident.sequence], set, setWhere });
     }
-    // a timeline do provedor é a verdade: itens que sumiram (ex.: lance removido) saem; o gol que a fonte
-    // retirou fica como VAR inferido (faixa própria de sequence)
-    const keepInferred = retracted.map((i) => i.sequence);
+    // a timeline do provedor é a verdade: itens que sumiram (ex.: lance removido) saem; o gol anulado confirmado
+    // fica como VAR inferido (faixa própria de sequence)
+    const keepInferred = result.retracted.map((i) => i.sequence);
+    const firstGone = result.replaceTimeline ? provider.length : RETRACTED_GOAL_SEQUENCE_BASE;
     await tx
       .delete(eventIncident)
       .where(
         and(
           eq(eventIncident.eventId, id),
-          sql`${eventIncident.sequence} >= ${providerRows.length}`,
+          sql`${eventIncident.sequence} >= ${firstGone}`,
           ...(keepInferred.length ? [notInArray(eventIncident.sequence, keepInferred)] : []),
         ),
       );
-    stats.incidents += providerRows.length;
+    stats.incidents += provider.length;
   }
 
   // ─ espelho da partida de futebol ─
@@ -799,14 +838,15 @@ export async function upsertBatchInTx(
         .values(
           chunk.map(({ id, source }) => {
             const m = source.footballFixture!;
+            const parts = heldTimeline.has(id) ? withoutEvents(m.detail) : m.detail;
             return {
               eventId: id,
               providerFixtureId: m.providerFixtureId,
               round: m.round,
               referee: m.referee,
               summary: m.summary,
-              detail: m.detail,
-              detailFetchedAt: m.detail ? batch.observedAt : null,
+              detail: parts,
+              detailFetchedAt: parts ? batch.observedAt : null,
             };
           }),
         )
@@ -1085,6 +1125,19 @@ interface AllowedEvent {
   canonical: boolean;
   /** A observação deste lote foi aplicada ao estado (não era mais antiga que a última). */
   stateApplied: boolean;
+  /** Estado do evento depois deste lote. */
+  state: EventState;
+  /** Placar gravado antes deste lote. */
+  priorScore: EventScore | null;
+  /** Memória do gol anulado (retracted-goals.ts) antes deste lote. */
+  goalWatch: GoalWatch | null;
+}
+
+/** As partes do detalhe sem a timeline; `null` se não sobra nada. */
+function withoutEvents(detail: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!detail) return null;
+  const { events: _events, ...rest } = detail;
+  return Object.keys(rest).length ? rest : null;
 }
 
 async function matchAcrossProviders(
@@ -1417,7 +1470,15 @@ async function upsertEvents(
       writes.push({ id: newId, ...context, ...stateColumns(step.state), sourceProvider: batch.provider });
       logs.push(...logRows(newId, step.transitions, batch.provider));
       links.push({ providerId: e.id, entityId: newId });
-      allowed.push({ id: newId, source: e, canonical: true, stateApplied: true });
+      allowed.push({
+        id: newId,
+        source: e,
+        canonical: true,
+        stateApplied: true,
+        state: step.state,
+        priorScore: null,
+        goalWatch: null,
+      });
       stats.events.inserted += 1;
       stats.events.transitions += step.transitions.length;
       continue;
@@ -1429,13 +1490,29 @@ async function upsertEvents(
     if (!canOverride(precedence, owner, batch.provider, e.observation.observedAt)) {
       // outro provedor de maior precedência e com dado fresco é o dono do estado
       stats.events.skippedByPrecedence += 1;
-      allowed.push({ id, source: e, canonical: false, stateApplied: false });
+      allowed.push({
+        id,
+        source: e,
+        canonical: false,
+        stateApplied: false,
+        state: prevState,
+        priorScore: prev.score,
+        goalWatch: prev.goalWatch,
+      });
       continue;
     }
     const step = applyObservation(prevState, e.observation, options.machine);
     if (step.ignored) stats.events.ignored[step.ignored] = (stats.events.ignored[step.ignored] ?? 0) + 1;
     // observação antiga: o estado fica, mas o detalhe (timeline, escalações) ainda pode ser o melhor conhecido
-    allowed.push({ id, source: e, canonical: true, stateApplied: step.ignored !== 'out_of_order' });
+    allowed.push({
+      id,
+      source: e,
+      canonical: true,
+      stateApplied: step.ignored !== 'out_of_order',
+      state: step.state,
+      priorScore: prev.score,
+      goalWatch: prev.goalWatch,
+    });
     if (step.ignored === 'out_of_order') continue;
 
     const nextContext = {
