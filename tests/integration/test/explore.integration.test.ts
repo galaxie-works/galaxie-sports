@@ -513,8 +513,16 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
       .insert(event)
       .values({ ...values, startsAt: hours(41), endsAtExpected: hours(43) })
       .returning();
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s) na janela');
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
     await db.delete(event).where(eq(event.id, soon!.id));
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
+    // já entra ao vivo: começou antes da janela, mas a conta lê os jogos em andamento
+    const [live] = await db
+      .insert(event)
+      .values({ ...values, startsAt: hours(-1), endsAtExpected: hours(1), status: 'live' })
+      .returning();
+    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
+    await db.delete(event).where(eq(event.id, live!.id));
     await refreshExploreSummary(db, geo, { now: NOW, force: true });
   });
 
