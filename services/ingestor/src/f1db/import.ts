@@ -24,8 +24,14 @@ import {
   type MatchReport,
   type PrecedencePolicy,
 } from '@galaxie/providers';
-import { linkIds, type Tx } from '../normalize/sql-helpers.js';
-import { addStats, emptyStats, upsertBatchInTx, type UpsertStats } from '../normalize/upsert-core.js';
+import {
+  addStats,
+  emptyStats,
+  linkIds,
+  type Tx,
+  upsertBatchInTx,
+  type UpsertStats,
+} from '@galaxie/core-writer';
 import { loadCoreF1Snapshot } from './snapshot.js';
 
 /** O F1DB nunca assume o estado de uma sessão de outra fonte, por mais antiga que seja a observação dela. */

@@ -22,22 +22,28 @@
  * Também espelha os logos da biblioteca de emissoras (core.asset kind `broadcaster_logo`, registrados
  * pela sincronização `wtw:rights` a partir de config/broadcasters/_logos.yaml).
  *
+ * Retoma de onde parou: um cursor por tipo de asset em ops.sync_cursor (`assets|mirror|kind=…`) guarda o último feito
+ * nesta volta pela fila e é gravado a cada 100 assets e no fim; o SIGTERM do deploy para de pegar asset novo e grava o
+ * cursor. A execução seguinte continua dali, e quando a fila acaba o cursor zera (a próxima recomeça do início e tenta
+ * de novo as falhas transitórias). `--do-inicio` ignora o cursor. Roda só como job do scheduler (`assets-mirror`,
+ * SCHEDULE_ASSETS_MIRROR) ou, à mão, como contêiner avulso; o deploy não religa mais nada.
+ *
  * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY, ASSETS_PUBLIC_BASE_URL.
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq, sql } from 'drizzle-orm';
-import { publicAssetUrl } from '@galaxie/apisports-client';
+import { coachPhotoUrl, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
 import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { relinkRecoveredLogos } from '../assets/relink-logos.js';
+import { mirrorCursorStore } from '../assets/mirror-cursor.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
+import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import {
-  coachPhotoUrl,
   PLACEHOLDER_PHOTO_SHA256,
-  playerPhotoUrl,
   previewPlayerPhotos,
   registerPlayerPhotos,
   type PhotoRegistrationPreview,
@@ -56,6 +62,7 @@ const { values } = parseArgs({
     concorrencia: { type: 'string', default: '3' },
     'pausa-ms': { type: 'string', default: '250' },
     caminho: { type: 'string' },
+    'do-inicio': { type: 'boolean', default: false },
     denylist: { type: 'string', default: resolve('../../config/assets/denylist.yaml') },
   },
 });
@@ -138,6 +145,15 @@ try {
   } else {
     const objects = objectStoreFromEnv();
     const [run] = await db.insert(jobRun).values({ job: 'assets:mirror', status: 'running' }).returning();
+    // SIGTERM (deploy, fim do scheduler): termina os downloads em andamento, grava o cursor e sai
+    const stop = new AbortController();
+    process.once('SIGTERM', () => stop.abort());
+    process.once('SIGINT', () => stop.abort());
+    const cursor = mirrorCursorStore(new PgCursorStore(db), {
+      pathPrefix: values.caminho,
+      includeMissing: values['retentar-ausentes'],
+    });
+    if (values['do-inicio']) await cursor.save({});
     try {
       let done = 0;
       const report = await runAssetMirror({
@@ -150,6 +166,8 @@ try {
         personPhotos,
         limit: values.limite ? Number(values.limite) : undefined,
         pathPrefix: values.caminho,
+        cursor,
+        signal: stop.signal,
         onProgress: (e) => {
           if (e.type === 'aborted') console.warn(e.reason);
           else if (++done % 100 === 0) console.log(`  ${done} processados...`);
@@ -160,14 +178,15 @@ try {
       const relinked = report.recoveredLogos.length
         ? await relinkRecoveredLogos(db, report.recoveredLogos)
         : undefined;
-      // --fotos é só fotos: os logos de emissoras ficam para a execução normal
-      const logos = personPhotos
-        ? undefined
-        : await runBroadcasterLogoMirror({
-            db,
-            objects,
-            includeMissing: values['retentar-ausentes'],
-          });
+      // --fotos é só fotos: os logos de emissoras ficam para a execução normal (e para a próxima, se veio o SIGTERM)
+      const logos =
+        personPhotos || stop.signal.aborted
+          ? undefined
+          : await runBroadcasterLogoMirror({
+              db,
+              objects,
+              includeMissing: values['retentar-ausentes'],
+            });
       for (const f of logos?.failures ?? []) console.warn(`  logo de emissora ${f.url}: ${f.reason}`);
       objects.close();
       const stats = {
@@ -189,6 +208,15 @@ try {
         `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
       );
       console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
+      if (report.cursor)
+        console.log(
+          `Cursor: ${report.cursor.retomou ? 'retomou de onde a anterior parou' : 'começou do início da fila'}` +
+            (report.cursor.interrompida
+              ? ' · interrompida (SIGTERM): a próxima continua daqui'
+              : report.cursor.fimDaVolta
+                ? ' · fila percorrida: a próxima recomeça do início'
+                : ' · a próxima continua daqui'),
+        );
       if (report.photoCleanup) console.log(`Fotos genéricas já gravadas desligadas: ${report.photoCleanup}`);
       if (relinked) {
         console.log(

@@ -1,0 +1,26 @@
+{
+  "name": "@galaxie/integration-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Testes de integração que cruzam a API e o ingestor (o ingestor semeia o core, a API serve)",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:integration": "vitest run --dir test"
+  },
+  "devDependencies": {
+    "@galaxie/api": "workspace:*",
+    "@galaxie/apisports-client": "workspace:*",
+    "@galaxie/contracts": "workspace:*",
+    "@galaxie/core-writer": "workspace:*",
+    "@galaxie/db": "workspace:*",
+    "@galaxie/geo": "workspace:*",
+    "@galaxie/ingestor": "workspace:*",
+    "@galaxie/knowledge": "workspace:*",
+    "@galaxie/providers": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7",
+    "ioredis": "^6.0.0",
+    "postgres": "^3.4.9"
+  }
+}

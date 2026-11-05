@@ -1,0 +1,1 @@
+ALTER TABLE "core"."event" ADD COLUMN "goal_watch" jsonb;

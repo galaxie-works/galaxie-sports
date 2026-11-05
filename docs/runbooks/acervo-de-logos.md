@@ -85,9 +85,19 @@ pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir> --plan
 pnpm --filter @galaxie/ingestor assets:acervo --pasta <dir>
 # desligar um acervo sem apagar (os assets ficam; reimportar religa)
 pnpm --filter @galaxie/ingestor assets:acervo --acervo <id> --desvincular [--plan]
+# o pacote no S3 (ou um .tgz local) no lugar da pasta: baixa para um diretório temporário do processo, extrai e apaga no fim
+pnpm --filter @galaxie/ingestor assets:acervo --pacote s3://galaxie-sports-tasks/tasks/<id>/<arquivo>.tgz \
+  --manifesto s3://galaxie-sports-tasks/tasks/<id>/<acervo>.yaml --plan
 ```
 
 - Opções: `--lote N` (padrão 50 logos por lote, para não pesar na memória), `--verbose` e `--manifesto <arquivo>`.
+- `--pacote` aceita `s3://<bucket>/<chave>.tgz`, um `.tgz` local ou uma pasta. O `.tgz` é entrada não confiável: a
+  extração aceita só arquivos e pastas, recusa caminho absoluto, `..` e links, e para em 2 GiB ou 100 mil arquivos.
+- O lugar do pacote e do manifesto é o **bucket privado das tarefas** (`S3_TASKS_BUCKET`, padrão `galaxie-sports-tasks`,
+  #587). O CLI ainda aceita um endereço no bucket de assets (`S3_BUCKET`), mas avisa: lá o objeto tem leitura anônima
+  por chave.
+- `--manifesto s3://…/<acervo>.yaml` lê o manifesto do S3. Se o objeto ainda não existe, parte da cópia versionada em
+  `config/assets/acervo/`. O `--mapear` grava de volta no S3 o manifesto e o relatório `<acervo>.cobertura.md`, ao lado.
 - A importação fica registrada em `ops.job_run` (`assets:acervo`).
 - Zero chamadas ao fornecedor.
 
@@ -180,29 +190,65 @@ A pasta de origem pode crescer e mudar à vontade: o fluxo inteiro é idempotent
 
 ## Produção (VPS)
 
-O contêiner do ingestor roda como `node`, com o repositório em `/srv`, o que inclui o `config` versionado em `/srv/config`. O manifesto e o relatório da produção vão para `/tmp` do contêiner, partindo da cópia versionada, para manter a curadoria (`rejected`/`manual`). Depois do deploy com a migration `0023`:
+O pacote e o manifesto da produção moram no S3 da stack, e a importação roda como **contêiner avulso**. Nada vai para o
+`/tmp` do ingestor, nada de `docker compose cp`, `chmod` ou `exec` com o terminal aberto. Em 02/11 o deploy recriou o
+ingestor no meio de uma importação feita por `exec`: o `/tmp` sumiu e tudo foi refeito do zero. O contêiner avulso não
+é do serviço `ingestor`, então o deploy não o recria. E a importação é idempotente: se cair, rodar de novo termina o que
+faltou.
+
+> **O pacote vai para o bucket privado das tarefas, `galaxie-sports-tasks`** (#587). O bucket de assets
+> (`galaxie-sports-assets`) tem leitura anônima de objetos e está publicado no Traefik: quem souber a chave baixa o
+> arquivo. O das tarefas não tem política nenhuma (o `s3-init` cria assim), fica fora do Traefik e só se lê com a chave
+> do RustFS: um `curl` anônimo devolve 403. Mesmo assim, o pacote vai para `tasks/<id aleatório>/`. Guarde o `<id>`
+> junto da revisão (OneDrive, no `.txt` do pacote). Pacotes que ficaram em `tasks/` do bucket de assets antes da #587
+> saem de lá com `infra/ops/mover-tasks-para-bucket-privado.sh` ([dados](stack-dados-e-observabilidade.md)).
 
 ```bash
 # 1. no computador com a base: gerar o pacote (ou reaproveitar o gerado no dev)
 pnpm --filter @galaxie/ingestor assets:acervo --converter "C:\Users\consa\Downloads\Escudos" \
   --pasta ../../data/assets/acervo-galaxie-proprio --acervo galaxie-proprio --nome "Acervo próprio Galaxie" \
   --autor "Wagner / Galaxie Works" --licenca "Base própria; uso de marcas de clubes sujeito a licenciamento" --revisao 2026-10-29
-tar -C data/assets -czf acervo-galaxie-proprio.tgz acervo-galaxie-proprio
-scp acervo-galaxie-proprio.tgz <vps>:/tmp/
+tar -C data/assets -czf acervo-galaxie-proprio-2026-10-29.tgz acervo-galaxie-proprio
+scp acervo-galaxie-proprio-2026-10-29.tgz <vps>:/root/acervo/
 
-# 2. na VPS, no diretório do compose (fora do repositório)
-mkdir -p /tmp/acervo && tar -C /tmp/acervo -xzf /tmp/acervo-galaxie-proprio.tgz
-docker compose cp /tmp/acervo/acervo-galaxie-proprio ingestor:/tmp/acervo-galaxie-proprio
-docker compose exec -T ingestor cp /srv/config/assets/acervo/galaxie-proprio.yaml /tmp/galaxie-proprio.yaml
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --acervo exemplo --desvincular        # tira o acervo de exemplo
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml --mapear
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml --plan
-docker compose exec -T ingestor node dist/cli/assets-acervo.js --pasta /tmp/acervo-galaxie-proprio --manifesto /tmp/galaxie-proprio.yaml
-docker compose cp ingestor:/tmp/galaxie-proprio.cobertura.md ./galaxie-proprio.cobertura.producao.md
+# 2. na VPS, em /docker/galaxie-sports: subir o pacote para o bucket privado pelo aws-cli da stack (s3-init, projeto dados)
+ID=$(cat /proc/sys/kernel/random/uuid); echo "pacote em tasks/$ID/"
+docker compose -f compose.dados.yml run --rm --no-deps -v /root/acervo:/in:ro --entrypoint aws s3-init \
+  --endpoint-url http://s3:9000 s3 cp /in/acervo-galaxie-proprio-2026-10-29.tgz "s3://galaxie-sports-tasks/tasks/$ID/acervo-galaxie-proprio.tgz"
+P="s3://galaxie-sports-tasks/tasks/$ID"
+
+# 3. mapear e prévia: rápidos, contêiner avulso com --rm (o manifesto parte do versionado e volta para o S3)
+docker compose run --rm --no-deps ingestor node dist/cli/assets-acervo.js \
+  --pacote "$P/acervo-galaxie-proprio.tgz" --manifesto "$P/galaxie-proprio.yaml" --mapear
+docker compose run --rm --no-deps ingestor node dist/cli/assets-acervo.js \
+  --pacote "$P/acervo-galaxie-proprio.tgz" --manifesto "$P/galaxie-proprio.yaml" --plan
+
+# 4. importar: contêiner avulso em segundo plano, que sobrevive ao deploy e ao fim da sessão SSH
+docker compose run -d --no-deps --name acervo-importar ingestor node dist/cli/assets-acervo.js \
+  --pacote "$P/acervo-galaxie-proprio.tgz" --manifesto "$P/galaxie-proprio.yaml"
+docker logs -f acervo-importar        # acompanhar (Ctrl+C sai só do log; o job segue)
+# no fim: o log vai para /root/logs/ e o contêiner sai
+docker logs acervo-importar > /root/logs/acervo-importar-$(date +%F).log 2>&1 && docker rm acervo-importar
+
+# 5. relatório de cobertura da produção, do S3 para a VPS
+docker compose -f compose.dados.yml run --rm --no-deps -v /root/logs:/out --entrypoint aws s3-init \
+  --endpoint-url http://s3:9000 s3 cp "$P/galaxie-proprio.cobertura.md" /out/galaxie-proprio.cobertura.producao.md
 ```
 
-- O `--mapear` da produção casa contra o banco de produção, porque os ids diferem dos do dev. Ele mantém as decisões de curadoria do manifesto versionado. Uma segunda importação não regrava nada.
-- A flag `ASSETS_CUSTOM_LOGOS` continua desligada: com ela desligada, a API fica exatamente como antes. Quem liga é a operação, no painel, quando houver licença para as marcas. Para voltar, desligue: vale em até 15 s.
+- O `--mapear` da produção casa contra o banco de produção, porque os ids diferem dos do dev. Ele mantém as decisões de
+  curadoria do manifesto versionado. Uma segunda importação não regrava nada.
+- **Regra (#551):** manifesto e relatório de cobertura são gerados **contra a produção**, nunca contra o dev, mesmo depois
+  do espelho semanal produção → dev: a CLI avisa quando o `DATABASE_URL` é o do dev
+  ([ambiente de dev › Arquivos gerados a partir de dados](ambiente-de-dev.md#arquivos-gerados-a-partir-de-dados-só-contra-a-produção)).
+- Para tirar o acervo de exemplo:
+  `docker compose run --rm --no-deps ingestor node dist/cli/assets-acervo.js --acervo exemplo --desvincular`.
+- Quando a fila (#543) e o worker (#542) estiverem no ar, a importação vira a tarefa `acervo.importar`, com prévia e
+  aprovação no painel e o mesmo pacote em `tasks/<id>/` do bucket privado ([tarefas](tarefas.md)).
+- Conferir que o pacote não sai sem chave (critério da #587): `curl -s -o /dev/null -w '%{http_code}\n'
+  http://<ip do contêiner s3>:9000/galaxie-sports-tasks/tasks/$ID/acervo-galaxie-proprio.tgz` dá `403`. Pelo domínio dos
+  assets (`https://$ASSETS_DOMAIN/galaxie-sports-tasks/…`) nem chega ao RustFS: o Traefik só roteia `/galaxie-sports-assets/`.
+- A flag `ASSETS_CUSTOM_LOGOS` continua desligada: com ela desligada, a API fica exatamente como antes. Quem liga é a
+  operação, no painel, quando houver licença para as marcas. Para voltar, desligue: vale em até 15 s.
 
 ## Acervo de exemplo
 

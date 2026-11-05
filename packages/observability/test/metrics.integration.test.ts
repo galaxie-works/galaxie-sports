@@ -6,6 +6,8 @@ import {
   closeDb,
   createDb,
   event,
+  exploreSummary,
+  jobRequest,
   jobRun,
   quotaBudget,
   quotaLedger,
@@ -331,6 +333,66 @@ describe('métricas de jobs (ops.job_run)', () => {
   });
 });
 
+describe('fila de tarefas (ops.job_request com type)', () => {
+  it('pendentes por tipo, em execução, idade da mais antiga pronta, retomadas e falhas', async () => {
+    const task = (type: string, row: Partial<typeof jobRequest.$inferInsert>) => ({
+      job: `fila:${type}`,
+      type,
+      requestedBy: 'teste',
+      requestedAt: ago(5 * HOUR),
+      ...row,
+    });
+    const soon = new Date(Date.now() + HOUR);
+    await db.insert(jobRequest).values([
+      // pronta há 2 h: é ela que conta na idade
+      task('fila-a', { status: 'pending', runAfter: new Date(Date.now() - 2 * HOUR) }),
+      task('fila-a', { status: 'pending', runAfter: new Date(Date.now() - 10 * MIN) }),
+      // em backoff: pendente, sem idade
+      task('fila-b', { status: 'pending', runAfter: soon, attempts: 1 }),
+      // concessão vencida há 30 min: ninguém está tocando, conta como pendente e a idade corre desde o vencimento
+      task('fila-c', { status: 'running', lockedBy: 'morto', lockedUntil: new Date(Date.now() - 30 * MIN) }),
+      task('fila-c', { status: 'running', lockedBy: 'vivo', lockedUntil: soon }),
+      // encerrada e pedido de "rodar agora" não contam
+      task('fila-a', { status: 'done', finishedAt: ago(HOUR) }),
+      { job: 'fila-a', requestedBy: 'teste', status: 'pending' },
+    ]);
+    const requestId = '019a4f00-0000-7000-8000-000000000002';
+    await db.insert(jobRun).values([
+      { job: 'fila-a', status: 'interrupted', requestId, startedAt: ago(2 * HOUR) },
+      { job: 'fila-a', status: 'ok', requestId, resumedFrom: requestId, startedAt: ago(HOUR) },
+      { job: 'fila-a', status: 'error', requestId, startedAt: ago(30 * MIN) },
+      // fora da janela de 24 h, e fora da fila
+      { job: 'fila-a', status: 'error', requestId, startedAt: ago(30 * HOUR) },
+      { job: 'fila-a', status: 'error', startedAt: ago(MIN) },
+    ]);
+
+    const m = await scrape();
+    const age = (type: string) => m.get('galaxie_queue_oldest_pending_age_seconds', { type });
+    expect(m.get('galaxie_queue_tasks_pending', { type: 'fila-a' })).toBe(2);
+    expect(m.get('galaxie_queue_tasks_running', { type: 'fila-a' })).toBe(0);
+    expect(age('fila-a')).toBeGreaterThan(2 * 3600 - 60);
+    expect(age('fila-a')).toBeLessThan(2 * 3600 + 60);
+    expect(m.get('galaxie_queue_tasks_pending', { type: 'fila-b' })).toBe(1);
+    expect(age('fila-b')).toBeUndefined();
+    expect(m.get('galaxie_queue_tasks_pending', { type: 'fila-c' })).toBe(1);
+    expect(m.get('galaxie_queue_tasks_running', { type: 'fila-c' })).toBe(1);
+    expect(age('fila-c')).toBeGreaterThan(30 * 60 - 60);
+    expect(age('fila-c')).toBeLessThan(30 * 60 + 60);
+    expect(m.get('galaxie_queue_resumed_24h', { type: 'fila-a' })).toBe(1);
+    expect(m.get('galaxie_queue_failed_24h', { type: 'fila-a' })).toBe(1);
+  });
+
+  it('execução interrompida não conta como falha seguida do job', async () => {
+    await db.insert(jobRun).values([
+      { job: 'fila-falhas', status: 'ok', startedAt: ago(3 * HOUR) },
+      { job: 'fila-falhas', status: 'interrupted', startedAt: ago(2 * HOUR) },
+      { job: 'fila-falhas', status: 'interrupted', startedAt: ago(HOUR) },
+    ]);
+    const m = await scrape();
+    expect(m.get('galaxie_job_consecutive_failures', { job_name: 'fila-falhas' })).toBe(0);
+  });
+});
+
 describe('frescor e ao vivo', () => {
   it('última resposta do raw por esporte, só na janela recente', async () => {
     const m = await scrape();
@@ -404,9 +466,36 @@ describe('frescor e ao vivo', () => {
     }
   });
 
+  it('idade do resumo da home Explorar: +Inf sem resumo, a idade da linha de controle com ele', async () => {
+    let m = await scrape();
+    expect(m.get('galaxie_explore_summary_age_seconds')).toBe(Number.POSITIVE_INFINITY);
+    expect(m.text).toContain('galaxie_explore_summary_age_seconds +Inf');
+    await db.insert(exploreSummary).values([
+      { sport: '*', market: '*', data: { version: 1 }, generatedAt: ago(40 * MIN) },
+      { sport: 'football', market: '*', data: {}, generatedAt: ago(40 * MIN) },
+    ]);
+    try {
+      m = await scrape();
+      const age = m.get('galaxie_explore_summary_age_seconds')!;
+      expect(age).toBeGreaterThan(40 * 60 - 5);
+      expect(age).toBeLessThan(40 * 60 + 120);
+    } finally {
+      await db.delete(exploreSummary);
+    }
+  });
+
   it('coletores reportam saúde', async () => {
     const m = await scrape();
-    for (const collector of ['quota', 'jobs', 'freshness', 'live', 'change_feed', 'ops']) {
+    for (const collector of [
+      'quota',
+      'jobs',
+      'freshness',
+      'live',
+      'change_feed',
+      'ops',
+      'queue',
+      'explore',
+    ]) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
   });
@@ -445,9 +534,9 @@ describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', 
 
   it('intervalo esperado pela agenda efetiva (banco > env relatado > padrão)', async () => {
     const m = await scrape();
-    expect(
-      m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'ingestor' }),
-    ).toBe(120);
+    expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'live-run', component: 'live' })).toBe(
+      120,
+    );
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'quota-status' })).toBe(3600);
     expect(m.get('galaxie_job_expected_interval_seconds', { job_name: 'wtw-run' })).toBeUndefined();
   });
@@ -465,7 +554,7 @@ describe('banco indisponível', () => {
     const u = new URL(testUrl);
     u.port = '1';
     // uma conexão por coletor: com max 1 as consultas fazem fila atrás do recuo de reconexão do postgres.js
-    const broken = createDb(u.toString(), { max: 8 });
+    const broken = createDb(u.toString(), { max: 12 });
     try {
       const m = await scrape(broken);
       expect(m.get('galaxie_metrics_collector_up', { collector: 'quota' })).toBe(0);

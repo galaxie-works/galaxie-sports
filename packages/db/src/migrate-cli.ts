@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { Journal } from './journal.js';
 import { applyRoles, rolePasswordsFromEnv } from './roles.js';
-import { runMigrations } from './migrate.js';
+import { migrationsFolder, runMigrations } from './migrate.js';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -21,7 +24,12 @@ await runMigrations(url, {
     },
   },
 });
-console.log('Migrations aplicadas.');
+// O recibo no log (o Portainer do dev e o deploy leem daqui): até onde vai o journal desta imagem. Conferência contra
+// o banco: `gs dev:esquema` (services/ingestor/src/dev/esquema.ts).
+const journal = JSON.parse(readFileSync(join(migrationsFolder, 'meta', '_journal.json'), 'utf8')) as Journal;
+console.log(
+  `Migrations aplicadas: esquema na ${journal.entries.at(-1)?.tag ?? 'nenhuma'} (${journal.entries.length} no journal da imagem).`,
+);
 
 // Papéis por serviço e GRANTs (roles.ts); DB_ROLES=off pula (banco sem o dono superusuário, por exemplo).
 if (process.env.DB_ROLES?.trim().toLowerCase() === 'off') {

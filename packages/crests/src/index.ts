@@ -5,7 +5,6 @@ export {
   MONOCHROME_DOMINANT,
   PALETTE_VERSION,
   paletteFromPng,
-  PLACEHOLDER_LOGO_SHA256,
   type AssetPalette,
   type DecodedImage,
 } from './palette.js';

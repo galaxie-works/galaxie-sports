@@ -1,182 +1,70 @@
 /**
- * Scheduler do ingestor (container `ingestor` do staging): roda os CLIs existentes em horários fixos (UTC),
- * um processo por execução, registrando cada uma em ops.job_run.
+ * Scheduler do ingestor (contêineres `ingestor` e `live` da stack): roda os CLIs do pacote em horários fixos (UTC), um
+ * processo por execução, registrando cada uma em ops.job_run. `SCHEDULER_PROFILE` escolhe os jobs (`jobsForProfile`):
+ * `ingestor` (padrão) ou `live` (só a faixa do ao vivo, com o `live-run` sempre no ar e `LIVE_LEADER=on`, #535). No
+ * ingestor, `SCHEDULER_LIVE=external` tira a faixa do ao vivo (ela roda no serviço `live`); o padrão `internal` a mantém.
  *
  *   node dist/cli/scheduler.js               # inicia (fica no ar; SIGTERM encerra com elegância)
  *   node dist/cli/scheduler.js --list        # mostra a agenda efetiva e as próximas execuções
  *   node dist/cli/scheduler.js --run <job>   # executa um job agora (registrado) e sai com o código dele
  *
- * Variáveis: SCHEDULER_PROFILE=ingestor|agents (conjunto de jobs; `agents` = agentes de IA)
- *            SCHEDULE_<JOB>=<cron>|off · SCHEDULER_RUN_ON_START=job1,job2 · SCHEDULER_TIMEOUT_MINUTES
- *            SCHEDULER_HEARTBEAT_FILE (padrão /tmp/galaxie-scheduler.heartbeat, usado no healthcheck)
- *            SCHEDULER_REFRESH_SECONDS (padrão 30): releitura da configuração do painel e dos pedidos
- *            SCHEDULER_MAX_JOBS: jobs simultâneos fora da faixa do ao vivo (padrão 2 no ingestor, 3 nos agents)
- *            SCHEDULER_JOB_HEAP_MB: heap de cada job sem heap próprio (padrão 160 no ingestor, 128 nos agents)
- *            SCHEDULER_CATCHUP=off desliga o catch-up da partida; SCHEDULER_CATCHUP_MAX_HOURS (padrão 24): horário
- *            perdido mais velho que isto não roda na volta (scheduler/catch-up.ts)
- *
- * O painel de Ajustes → Operação sobrescreve as flags pelo banco (ops.runtime_setting): banco > env >
- * padrão. As agendas mudadas são reprogramadas sem reinício e cada job recebe o env efetivo.
- *
- * Cada job roda em um processo por vez em todo o banco (advisory lock de sessão, solto quando o processo
- * cai): se outro scheduler já está rodando o job, a execução é pulada (o `--run` sai com código 1).
- * SCHEDULER_TIMEOUT_MINUTES não vale para o ao vivo, que tem tempo limite próprio.
+ * O motor (cron, processo filho, trava, catch-up, painel) é o `@galaxie/scheduler`, o mesmo dos agentes de IA, que
+ * têm entrada própria em `services/ai-agents` (`dist/cli/agents-scheduler.js`). Os jobs deste perfil estão em
+ * `../scheduler/schedule.ts`; as variáveis (SCHEDULE_<JOB>, SCHEDULER_*) estão em `packages/scheduler/src/cli.ts`.
  */
-import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
-import { logger, report } from '../logger.js';
-import { checkAiCredit } from '../scheduler/ai-credit.js';
-import { closeOrphans, lastJobStarts, missedSlots } from '../scheduler/catch-up.js';
-import { PgRunRecorder, runJob, runExitCode } from '../scheduler/runner.js';
-import { jobsForProfile } from '../scheduler/schedule.js';
-import { describeSchedule, SchedulerService, type SchedulerProfile } from '../scheduler/service.js';
+import { registerLiveTickMetrics } from '@galaxie/observability';
+import { runScheduler } from '@galaxie/scheduler';
+import { logger } from '../logger.js';
+import { jobsForProfile, schedulerLiveMode } from '../scheduler/schedule.js';
 
-const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
-const log = logger.child({ component: 'scheduler' });
-const profile = (process.env.SCHEDULER_PROFILE?.trim().toLowerCase() || 'ingestor') as SchedulerProfile;
-const definitions = jobsForProfile(profile);
-const arg = (flag: string) => {
-  const i = process.argv.indexOf(flag);
-  return i >= 0 ? (process.argv[i + 1] ?? '') : undefined;
-};
-
-/** Inteiro positivo do env, ou o padrão (valor inválido não pode virar "sem teto"). */
-const positiveInt = (raw: string | undefined, fallback: number): number => {
-  const n = Number(raw?.trim());
-  return Number.isInteger(n) && n > 0 ? n : fallback;
-};
-// a soma tem de caber no mem_limit do contêiner (infra/vps-telemetry/README.md › Memória dos jobs)
-const maxJobs = positiveInt(process.env.SCHEDULER_MAX_JOBS, profile === 'agents' ? 3 : 2);
-const jobHeapMb = positiveInt(process.env.SCHEDULER_JOB_HEAP_MB, profile === 'agents' ? 128 : 160);
-
-const databaseUrl = process.env.DATABASE_URL;
-const db: Database | undefined = databaseUrl
-  ? createDb(databaseUrl, { max: 2, applicationName: 'galaxie-scheduler' })
-  : undefined;
-if (!db) log.warn('DATABASE_URL não definida: as execuções não serão registradas em ops.job_run');
-const recorder = db ? new PgRunRecorder(db) : undefined;
-/** Abortado no encerramento: os jobs em andamento recebem SIGTERM (o ao vivo fecha o tick e sai). */
-const shutdownController = new AbortController();
-const bootedAt = new Date();
-/** Trava do job (advisory lock de sessão): `null` = outro processo já o roda. */
-const jobLock = databaseUrl
-  ? (name: string) =>
-      tryJobLock(databaseUrl, name, {
-        onLost: () =>
-          log.warn(
-            { job: name },
-            'conexão da trava do job caiu com o job rodando; outro processo pode iniciá-lo em paralelo',
-          ),
-      })
-  : undefined;
-
-const service = new SchedulerService({
-  profile,
-  jobs: definitions,
-  env: process.env,
-  db,
-  log,
-  refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
-  creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
-  maxJobs,
-  run: (job, { trigger, env }) =>
-    runJob(job, {
-      cwd: packageRoot,
-      env,
-      heapMb: jobHeapMb,
-      recorder,
-      logger: log,
-      trigger,
-      signal: shutdownController.signal,
-      // um processo por job em todo o banco: o `--run` no console ou um contêiner sobreposto no deploy
-      // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
-      lock: jobLock,
-    }),
-});
-
-if (process.argv.includes('--list') || arg('--run') !== undefined) {
-  // a agenda e o env efetivos já com a configuração do painel (banco > env > padrão)
-  await service.refresh();
-}
-
-if (process.argv.includes('--list')) {
-  report(`Agenda do scheduler — perfil ${profile} (UTC)`, describeSchedule(service.schedule));
-  if (db) await closeDb(db);
-  process.exit(0);
-}
-
-const manual = arg('--run');
-if (manual !== undefined) {
-  const result = await service.execute(manual, 'manual');
-  if (result.status === 'skipped')
-    console.error(`"${manual}" já está rodando em outro processo; nada feito.`);
-  if (db) await closeDb(db);
-  process.exit(runExitCode(result.status));
-}
-
-// ── modo serviço ──────────────────────────────────────────────────────────────────────────────────
-const heartbeatFile = process.env.SCHEDULER_HEARTBEAT_FILE ?? '/tmp/galaxie-scheduler.heartbeat';
-const beat = () =>
-  writeFile(heartbeatFile, new Date().toISOString()).catch((err: unknown) =>
-    log.warn({ err, file: heartbeatFile }, 'não foi possível gravar o heartbeat'),
+// Os agentes de IA já tiveram um perfil aqui (`SCHEDULER_PROFILE=agents`); hoje a entrada deles é outra. Falhar alto
+// evita subir o scheduler errado, com a agenda do ingestor, num contêiner de agentes.
+const requested = process.env.SCHEDULER_PROFILE?.trim().toLowerCase() || 'ingestor';
+if (requested !== 'ingestor' && requested !== 'live') {
+  console.error(
+    `SCHEDULER_PROFILE=${requested}: este scheduler roda os perfis ingestor e live. Os agentes de IA têm entrada própria: ` +
+      'node dist/cli/agents-scheduler.js no pacote @galaxie/ai-agents (a imagem do ingestor traz os dois; ' +
+      'o CMD escolhe pelo SCHEDULER_PROFILE).',
   );
-await beat();
-const heartbeat = setInterval(() => void beat(), 30_000);
-
-await service.start();
-
-for (const name of (process.env.SCHEDULER_RUN_ON_START ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)) {
-  try {
-    void service
-      .execute(name, 'start')
-      .catch((err: unknown) => log.error({ err, job: name }, 'falha no job de partida'));
-  } catch (err) {
-    log.error({ err, job: name }, 'falha no job de partida');
+  process.exit(2);
+}
+const profile = requested;
+let liveMode: ReturnType<typeof schedulerLiveMode>;
+try {
+  liveMode = schedulerLiveMode(process.env);
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(2);
+}
+/** Este scheduler roda a faixa do ao vivo: o serviço `live`, ou o ingestor com SCHEDULER_LIVE=internal. */
+const runsLive = profile === 'live' || liveMode === 'internal';
+if (profile === 'live') {
+  // sem a eleição, duas cópias chamariam a api-sports juntas: o live-run do perfil live não tem a trava por job
+  const leader = process.env.LIVE_LEADER?.trim();
+  if (leader && leader !== 'on') {
+    console.error(
+      `LIVE_LEADER=${leader}: o perfil live roda o live-run com líder e reserva (LIVE_LEADER=on); sem a eleição, use o ` +
+        'perfil ingestor com SCHEDULER_LIVE=internal.',
+    );
+    process.exit(2);
   }
+  // os jobs herdam o env do scheduler (e o perfil, que o contextFromEnv lê para os tempos do banco)
+  process.env.LIVE_LEADER = 'on';
 }
 
-// Volta de um reinício: fecha o `running` que o processo anterior deixou (só com a trava do job livre) e roda uma
-// vez o job cujo horário passou com o scheduler fora do ar (scheduler/catch-up.ts)
-async function recover(): Promise<void> {
-  if (!db || !jobLock) return;
-  const orphans = await closeOrphans(
-    db,
-    definitions.map((j) => j.name),
-    { bootedAt, lock: jobLock },
-  );
-  if (orphans.runs || orphans.requests || orphans.busy.length)
-    log.info(orphans, 'execuções e pedidos deixados como running pelo processo anterior');
-  if (['off', 'false', '0'].includes((process.env.SCHEDULER_CATCHUP ?? '').trim().toLowerCase())) return;
-  const maxHours = Number(process.env.SCHEDULER_CATCHUP_MAX_HOURS);
-  const missed = missedSlots(
-    service.schedule,
-    await lastJobStarts(
-      db,
-      service.schedule.map((j) => j.name),
-    ),
-    {
-      ...(Number.isFinite(maxHours) && maxHours > 0 ? { maxAgeMs: maxHours * 3_600_000 } : {}),
-    },
-  );
-  service.catchUp(missed);
-}
-void recover().catch((err: unknown) => log.warn({ err }, 'catch-up da partida não rodou'));
-
-let stopping = false;
-async function shutdown(signal: string) {
-  if (stopping) return;
-  stopping = true;
-  const running = service.stop();
-  log.info({ signal, running: running.length }, 'encerrando scheduler; aguardando jobs em andamento');
-  clearInterval(heartbeat);
-  shutdownController.abort();
-  await Promise.race([Promise.allSettled(running), new Promise((r) => setTimeout(r, 25_000))]);
-  if (db) await closeDb(db);
-  process.exit(0);
-}
-process.once('SIGTERM', () => void shutdown('SIGTERM'));
-process.once('SIGINT', () => void shutdown('SIGINT'));
+await runScheduler({
+  profile,
+  jobs: jobsForProfile(profile, process.env),
+  packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
+  log: logger.child({ component: 'scheduler' }),
+  // o live-run é um processo filho sem servidor: o ritmo dele sai daqui, lido do Postgres a cada coleta (#538). Só no
+  // scheduler que roda o ao vivo: com o serviço `live` no ar, o ingestor não repete as séries
+  metrics: runsLive
+    ? (db) => (registry) =>
+        registerLiveTickMetrics(registry, db, {
+          onCollectorError: (collector, err) =>
+            logger.warn({ err, collector }, 'não foi possível ler o ritmo do ao vivo para o /metrics'),
+        })
+    : undefined,
+});

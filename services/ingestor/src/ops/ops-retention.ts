@@ -7,7 +7,7 @@
  * | ops.llm_usage           | 90 dias por chamada; antes de apagar, o dia vira linha em llm_usage_daily  |
  * | ops.job_run             | 90 dias; a última execução e o último sucesso de cada job ficam sempre     |
  * | ops.quota_ledger        | 90 dias de cota (`day_utc`); o Governor só lê o dia corrente              |
- * | ops.job_request         | 30 dias depois de encerrado (pendente e em execução ficam)                 |
+ * | ops.job_request         | 30 dias depois de encerrado (pendente e em execução ficam, com a fila)     |
  * | ops.normalize_failure   | 90 dias depois de resolvida (pendente e poison ficam)                      |
  * | api.webhook_delivery    | entregue: 30 dias; DLQ (`dead`): 90 dias; pendente fica                    |
  *
@@ -39,7 +39,7 @@ export const OPS_RETENTION = {
   },
   jobRun: { table: 'ops.job_run', days: 90, rule: 'mantém a última execução e o último sucesso de cada job' },
   quotaLedger: { table: 'ops.quota_ledger', days: 90, rule: 'por dia de cota (day_utc)' },
-  jobRequest: { table: 'ops.job_request', days: 30, rule: 'só pedidos encerrados' },
+  jobRequest: { table: 'ops.job_request', days: 30, rule: 'só pedidos e tarefas encerrados' },
   normalizeFailure: { table: 'ops.normalize_failure', days: 90, rule: 'só falhas resolvidas' },
   webhookDelivered: { table: 'api.webhook_delivery', days: 30, rule: 'entregues' },
   webhookDead: { table: 'api.webhook_delivery', days: 90, rule: 'DLQ (dead)' },
@@ -108,6 +108,8 @@ const TARGETS: Target[] = [
     key: 'jobRequest',
     table: 'ops.job_request',
     pk: 'id',
+    // tarefa da fila viva nunca é vítima, por mais velha: pendente (mesmo em backoff), concessão viva e concessão
+    // vencida, que ainda vai ser retomada. Todas têm status pending ou running; encerrar sempre grava finished_at
     victims: (cutoff) => sql`
       select r.id from ops.job_request r
        where r.status not in ('pending', 'running')

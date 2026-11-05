@@ -122,7 +122,10 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
   }
   revalidatePath(PATH);
   revalidatePath(FEATURES_PATH);
-  const alive = await serviceAlive(def.services[0]!).catch(() => false);
+  // a flag do ao vivo vale com o serviço `live` no ar ou, com SCHEDULER_LIVE=internal, com o ingestor
+  const alive = (await Promise.all(def.services.map((s) => serviceAlive(s).catch(() => false)))).some(
+    Boolean,
+  );
   return def.services[0] === 'demo' || def.apply === 'restart' || alive
     ? { ok: true }
     : { ok: true, warning: t.feedback.serviceOffline };

@@ -4,7 +4,10 @@ import * as z from 'zod';
 /** Versão estável da API canônica. */
 export const API_VERSION = 'v1' as const;
 
-/** Locales suportados pela API (docs/05 §1). */
+/**
+ * Locales suportados pela API (docs/05 §1): os 8 mercados com conteúdo próprio e `en` — nomes, fases e
+ * rótulos fixos em inglês; texto livre (gritos, fatos) sai no idioma do clube e nada é gerado por IA em inglês.
+ */
 export const SUPPORTED_LOCALES = [
   'pt-BR',
   'es-AR',
@@ -14,6 +17,7 @@ export const SUPPORTED_LOCALES = [
   'es-PE',
   'es-UY',
   'es-EC',
+  'en',
 ] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 

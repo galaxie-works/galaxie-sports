@@ -6,6 +6,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "gs": "./dist/cli/gs.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -29,6 +32,7 @@
     "normalize:sports": "node --env-file-if-exists=../../.env dist/cli/normalize-sports.js",
     "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
     "events:importance": "node --env-file-if-exists=../../.env dist/cli/events-importance.js",
+    "explore:summary": "node --env-file-if-exists=../../.env dist/cli/explore-summary.js",
     "change-feed:prune": "node --env-file-if-exists=../../.env dist/cli/change-feed-prune.js",
     "data:retention": "node --env-file-if-exists=../../.env dist/cli/data-retention.js",
     "raw:compactar-historico": "node --env-file-if-exists=../../.env dist/cli/raw-history.js",
@@ -44,6 +48,7 @@
     "live:simulate": "node --env-file-if-exists=../../.env dist/cli/live-simulate.js",
     "standings:recompute": "node --env-file-if-exists=../../.env dist/cli/standings-recompute.js",
     "standings:limpar-grupo-vazio": "node --env-file-if-exists=../../.env dist/cli/standings-cleanup.js",
+    "stages:backfill-en": "node --env-file-if-exists=../../.env dist/cli/stages-backfill-en.js",
     "snapshot:export": "node --env-file-if-exists=../../.env dist/cli/snapshot-export.js",
     "snapshot:import": "node --env-file-if-exists=../../.env dist/cli/snapshot-import.js",
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
@@ -69,15 +74,18 @@
     "assets:commons:atribuicao": "node --env-file-if-exists=../../.env dist/cli/assets-commons-atribuicao.js",
     "assets:official-logos": "node --env-file-if-exists=../../.env dist/cli/official-logos.js",
     "assets:platform-logos": "node --env-file-if-exists=../../.env dist/cli/platform-logos.js",
-    "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js"
+    "quality:run": "node --env-file-if-exists=../../.env dist/cli/quality-run.js",
+    "gs": "node --env-file-if-exists=../../.env dist/cli/gs.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1157.0",
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
+    "@galaxie/core-writer": "workspace:*",
     "@galaxie/crests": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
     "@galaxie/net-guard": "workspace:*",
@@ -85,8 +93,8 @@
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
+    "@galaxie/scheduler": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
-    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"

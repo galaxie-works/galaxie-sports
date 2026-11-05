@@ -13,9 +13,17 @@ export {
   type DbTimeouts,
 } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { journalProblems, type Journal, type JournalEntry } from './journal.js';
+export {
+  DEV_DATABASE_HOST,
+  DEV_DATABASE_PORT,
+  devDatabaseWarning,
+  isDevDatabaseUrl,
+} from './dev-database.js';
 export {
   APP_SCHEMAS,
   DEMO_AUTH_SCHEMA,
+  ROLE_CONNECTION_LIMITS,
   ROLE_GRANTS,
   ROLE_SERVICES,
   ROLE_URL_ENV,
@@ -27,7 +35,14 @@ export {
   type RoleGrants,
   type RoleService,
 } from './roles.js';
-export { tryJobLock, type JobLock, type JobLockOptions } from './job-lock.js';
+export {
+  jobLockContender,
+  tryJobLock,
+  type JobLock,
+  type JobLockContender,
+  type JobLockContenderOptions,
+  type JobLockOptions,
+} from './job-lock.js';
 export { loadTitleRecords, titleCoverage, type TitleQuery, type TitleRecord } from './titles.js';
 export {
   publishChange,

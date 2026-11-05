@@ -17,7 +17,7 @@ import {
   normalizeTrophies,
   type ApiPlayerItem,
 } from '@galaxie/providers';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
+import { upsertBatch } from '@galaxie/core-writer';
 import { disposableDb } from './db.js';
 
 const testDb = disposableDb();

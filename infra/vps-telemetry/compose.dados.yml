@@ -1,0 +1,214 @@
+# Projeto `dados` da stack da VPS: Postgres, Valkey, object storage e backup. Quase nunca muda e nunca junto com um app: o
+# deploy automático não toca aqui. Quando e como aplicar: docs/runbooks/stack-dados-e-observabilidade.md.
+#
+# Validar: docker compose -f infra/vps-telemetry/compose.dados.yml --env-file infra/vps-telemetry/env.example config -q
+
+name: galaxie-sports-dados
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # ~400 de memória presa (shared_buffers 256 e conexões); o resto é cache de disco, que ajuda a leitura fria (README › Limites medidos)
+    mem_limit: 1280m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
+    shm_size: 256mb
+    # Ajustado ao contêiner de 1,5 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
+    # max_connections em 130 (eram os 100 do padrão): com live em duas cópias, site, console e worker a soma dos pools
+    # no pico chega a 97, as 97 vagas de antes (conta no README › Conexões). Cada conexão ociosa custa ~5 MB: 130 × 5 =
+    # 650 MB + 256 MB de shared_buffers cabem no limite de 1,5 GB mesmo no pior caso (o uso real fica em ~400 MB). Teto
+    # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
+    command:
+      - postgres
+      - -c
+      - max_connections=130
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=640MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - idle_in_transaction_session_timeout=30min
+      - -c
+      - log_min_duration_statement=5s
+      - -c
+      - log_lock_waits=on
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    # maxmemory abaixo do mem_limit (folga para o fork do AOF e a fragmentação): cheio, despeja pela LRU só chave
+    # com TTL — todas têm (cache, rate limit, uso, leases do SSE), menos o contador gs:purge-seq, que não pode sumir.
+    command:
+      ['valkey-server', '--appendonly', 'yes', '--maxmemory', '160mb', '--maxmemory-policy', 'volatile-lru']
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
+  s3:
+    image: rustfs/rustfs:1.0.4
+    restart: unless-stopped
+    # memória presa de 924 MiB medida no limite de 1 g, e OOM em 29/10 (#533); pico 973 × 1,4
+    mem_limit: 1344m
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      RUSTFS_CONSOLE_ENABLE: 'false'
+    volumes:
+      - s3data:/data
+    labels:
+      - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
+      - traefik.http.routers.gsports-assets.rule=Host(`${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}`) && PathPrefix(`/${S3_BUCKET:-galaxie-sports-assets}/`) && (Method(`GET`) || Method(`HEAD`))
+      - traefik.http.routers.gsports-assets.entrypoints=websecure
+      - traefik.http.routers.gsports-assets.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-assets.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.services.gsports-assets.loadbalancer.server.port=9000
+    logging: *logging
+
+  # Cria os dois buckets (idempotente; rodar de novo só reaplica as políticas):
+  #   - S3_BUCKET (assets): leitura anônima só de objetos (s3:GetObject, GET por chave); listar continua exigindo chave.
+  #     É o único que o Traefik publica (o router acima só casa /<S3_BUCKET>/);
+  #   - S3_TASKS_BUCKET (pacotes e relatórios das tarefas, tasks/<id>/): privado, sem política nenhuma (qualquer
+  #     política que alguém tenha posto à mão é apagada) e fora do Traefik. Só quem tem a chave do RustFS lê (#587).
+  s3-init:
+    image: amazon/aws-cli:2.39.3
+    depends_on:
+      - s3
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        set -e
+        [ "$$TASKS_BUCKET" != "$$BUCKET" ] || { echo "S3_TASKS_BUCKET não pode ser o bucket público ($$BUCKET)" >&2; exit 1; }
+        ready=0
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && { ready=1; break; }; sleep 2; done
+        [ "$$ready" = 1 ] || { echo "s3 indisponível depois de 60 s" >&2; exit 1; }
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
+        aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
+        echo "bucket $$BUCKET pronto (leitura pública de objetos, sem listagem)"
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$TASKS_BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$TASKS_BUCKET"
+        # sem política nenhuma, e conferido: apagar falhou ou sobrou política = o s3-init falha (nada de "privado" sem ser)
+        aws --endpoint-url http://s3:9000 s3api delete-bucket-policy --bucket "$$TASKS_BUCKET"
+        out=$$(aws --endpoint-url http://s3:9000 s3api get-bucket-policy --bucket "$$TASKS_BUCKET" 2>&1) && { echo "$$TASKS_BUCKET continua com política: $$out" >&2; exit 1; }
+        echo "$$out" | grep -q NoSuchBucketPolicy || { echo "não deu para conferir a política de $$TASKS_BUCKET: $$out" >&2; exit 1; }
+        echo "bucket $$TASKS_BUCKET pronto (privado: sem leitura anônima)"
+    restart: 'no'
+    logging: *logging
+
+  # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
+  # 6 h, ensaio de restauração no dia 1 de cada mês, cópia opcional para S3 externo e, com BACKUP_S3_SYNC_PREFIXES, a
+  # dos assets do RustFS (e, com BACKUP_S3_SYNC_TASKS_BUCKET=true, a do bucket das tarefas; docs/runbooks/exercicio-dr.md).
+  backup:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${TAG_BACKUP:?defina TAG_BACKUP}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    mem_limit: 160m
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      # usuário e senha saem da URL (infra/backup/lib.sh): o papel galaxie_backup (pg_read_all_data) ou, antes da
+      # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
+      DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
+      BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
+      RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
+      # na partida, só quando o último dump bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H h (always = sempre):
+      # todo deploy recria este serviço, e o dump completo disputava o disco com o pós-deploy e o smoke
+      BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_ON_START_MIN_AGE_H: ${BACKUP_ON_START_MIN_AGE_H:-20}
+      # dumps cifrados com age (docs/runbooks/exercicio-dr.md › Dumps cifrados): chaves públicas da recuperação (privada só
+      # com o Wagner) e do ensaio; a privada do ensaio decifra no ensaio mensal e no restore. Vazio = dump em claro
+      BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      # cópia dos assets do RustFS (infra/backup/s3-sync.sh): prefixos de primeiro nível do bucket que valem backup,
+      # separados por espaço ou vírgula (ex.: "broadcasters platforms"). Vazio = não copia. Vão para o volume
+      # (s3/<prefixo>/, de onde o NAS puxa) e, com BACKUP_S3_BUCKET, para <BACKUP_S3_SYNC_DEST_PREFIX>/<prefixo>/ do remoto
+      BACKUP_S3_SYNC_PREFIXES: ${BACKUP_S3_SYNC_PREFIXES:-}
+      BACKUP_S3_SYNC_DEST_PREFIX: ${BACKUP_S3_SYNC_DEST_PREFIX:-assets}
+      BACKUP_S3_SYNC_DELETE: ${BACKUP_S3_SYNC_DELETE:-false}
+      # true copia também o bucket privado das tarefas inteiro (S3_TASKS_BUCKET: pacotes do acervo, relatórios) para
+      # s3/tasks-bucket/ do volume (o NAS puxa com tasks-bucket em NAS_S3_PREFIXES) e <BACKUP_S3_SYNC_TASKS_DEST_PREFIX>/
+      # do remoto, se houver. Sem a variável no .env = não copia (o env.example já traz true)
+      BACKUP_S3_SYNC_TASKS_BUCKET: ${BACKUP_S3_SYNC_TASKS_BUCKET:-false}
+      BACKUP_S3_SYNC_TASKS_DEST_PREFIX: ${BACKUP_S3_SYNC_TASKS_DEST_PREFIX:-tasks}
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+networks:
+  # A rede da stack, a mesma dos três projetos (o nome dos serviços resolve entre eles). Sub-rede fixa 172.30.50.0/24: o
+  # Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY. Criada uma vez, fora dos projetos
+  # (migrar-para-tres-projetos.sh preparar). O nome vem de quando a stack era um projeto só: rede não se renomeia, e duas
+  # com a mesma sub-rede não coexistem.
+  default:
+    name: galaxie-sports_default
+    external: true
+
+# Volumes criados uma vez, fora dos projetos: o nome é o de sempre, de quando a stack era um projeto só.
+volumes:
+  pgdata:
+    name: galaxie-sports_pgdata
+    external: true
+  valkeydata:
+    name: galaxie-sports_valkeydata
+    external: true
+  s3data:
+    name: galaxie-sports_s3data
+    external: true
+  backups:
+    name: galaxie-sports_backups
+    external: true

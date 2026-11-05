@@ -17,7 +17,22 @@
     "list": []
   },
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "name": "Deploys (versão nova no ar)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "enable": true,
+        "iconColor": "rgba(255, 152, 48, 1)",
+        "expr": "max by (service, image_hash) (build_info{job=~\"galaxie-api|galaxie-services\"}) unless max by (service, image_hash) (build_info{job=~\"galaxie-api|galaxie-services\"} offset 1m)",
+        "step": "1m",
+        "titleFormat": "Deploy {{service}}",
+        "textFormat": "Versão in-{{image_hash}} (hash da entrada da imagem; o SHA do deploy está nas notas da versão)",
+        "tagKeys": "service,image_hash"
+      }
+    ]
   },
   "panels": [
     {
@@ -543,6 +558,487 @@
           },
           "expr": "slo:backup:ok",
           "legendFormat": "backup"
+        }
+      ]
+    },
+    {
+      "id": 111,
+      "type": "row",
+      "title": "Ritmo do ao vivo (ticks e líder)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "panels": []
+    },
+    {
+      "id": 112,
+      "type": "timeseries",
+      "title": "Intervalo entre ticks do ao vivo (s)",
+      "description": "live_tick_interval_seconds: intervalo entre os dois últimos ticks, de qualquer cópia, então atravessa a troca de líder ou de versão (as marcas laranja são os deploys). O maior dos últimos 5 min não perde o pico entre duas coletas. A linha vermelha é o limite do alerta LiveTickGap (60 s, ou 2 intervalos do plano quando o plano espaça mais). Fonte: /metrics do scheduler do ingestor, lido do Postgres.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 10,
+        "x": 0,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (sport) (live_tick_interval_seconds)",
+          "legendFormat": "último intervalo ({{sport}})"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (sport) (live_tick_interval_max_seconds)",
+          "legendFormat": "maior dos últimos 5 min ({{sport}})"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (sport) (live_tick_planned_interval_seconds) > 0",
+          "legendFormat": "intervalo do plano ({{sport}})"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "type": "timeseries",
+      "title": "Idade do último tick, com jogo em andamento (s)",
+      "description": "live_last_tick_age_seconds só nos momentos com janela de jogo aberta (live_window_open = 1) e sem pausa de propósito (live_tick_paused = 0): é o que o LiveTickGap e o SLO ao-vivo olham. Sobe até o intervalo do plano e volta a cada tick; uma troca que passa o bastão fica dentro de 15 s a mais que o intervalo. A série 'no ritmo' é o slo:ao_vivo:tick_gap_ok (1 = bom).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 10,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "no ritmo.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (sport) (live_last_tick_age_seconds) and on(sport) (max by (sport) (live_window_open) == 1) and on(sport) (max by (sport) (live_tick_paused) == 0)",
+          "legendFormat": "{{sport}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:ao_vivo:tick_gap_ok",
+          "legendFormat": "no ritmo ({{sport}})"
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "type": "table",
+      "title": "Quem lidera o ao vivo",
+      "description": "live_leader{instance}: 1 na cópia que tem a trava live:leader, 0 nas reservas. Só existe com LIVE_LEADER=on; sem líder e reserva a tabela fica vazia. O Prometheus mostra o rótulo como exported_instance porque o alvo já tem o rótulo instance.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 28
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Papel"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "líder",
+                        "color": "green",
+                        "index": 0
+                      },
+                      "0": {
+                        "text": "reserva",
+                        "color": "text",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Cópia",
+            "desc": false
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (exported_instance) (live_leader)",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "exported_instance": "Cópia",
+              "Value": "Papel"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "type": "row",
+      "title": "Versão no ar",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "panels": []
+    },
+    {
+      "id": 110,
+      "type": "table",
+      "title": "Versão no ar por serviço",
+      "description": "Hash da entrada da imagem (tag in-<hash>) que cada serviço roda e há quanto tempo o processo está no ar. O SHA do deploy está nas notas de versão (tag deploy-AAAA-MM-DD.N), ao lado destes hashes. A demo não é raspada: GET /api/version.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "No ar há"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Serviço",
+            "desc": false
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service, image_hash) (build_info)",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (time() - process_start_time_seconds{job=~\"galaxie-api|galaxie-services\"})",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "service",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Value #A": true
+            },
+            "renameByName": {
+              "service": "Serviço",
+              "image_hash": "Versão (in-<hash>)",
+              "Value #B": "No ar há"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 111,
+      "type": "timeseries",
+      "title": "Memória por serviço (RSS)",
+      "description": "Memória residente de cada processo Node, por serviço. O site e o console (a mesma imagem da demo, APP_ROLE) têm mem_limit próprio: site 512 MB, console 384 MB (infra/vps-telemetry/README.md › Memória dos jobs). Um vazamento no console aparece só na linha dele.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (process_resident_memory_bytes{job=~\"galaxie-api|galaxie-services\"})",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "type": "timeseries",
+      "title": "Heap do V8 em uso por serviço",
+      "description": "Heap em uso de cada processo Node. Teto do heap: site 320 MB, console 224 MB, API 320 MB (--max-old-space-size).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (service) (nodejs_heap_size_used_bytes{job=~\"galaxie-api|galaxie-services\"})",
+          "legendFormat": "{{service}}"
         }
       ]
     }

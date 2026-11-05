@@ -29,7 +29,7 @@ import {
   type StageMatch,
 } from '../../events/builder.js';
 import { IN_PLAY } from '../../events/queries.js';
-import { formatInstant, pickList, pickText } from '../../i18n.js';
+import { competitionName, formatInstant, pickList, pickText } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { buildCtx, localeOf, sportCheck } from './events.js';
@@ -289,7 +289,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
           competition: {
             id: c.c.id,
             slug: c.c.slug,
-            name: pickText(labels, locale, c.c.name)!,
+            name: competitionName(labels, c.c.countryCode, c.c.name, locale),
             nickname: pickList(c.nicknames, locale)[0] ?? null,
             logo: assetUrl(ctx.assetsBaseUrl, c.logoKey, c.logoUrl),
             type: c.c.type,

@@ -16,8 +16,18 @@ import {
 const docsDir = new URL('../../../../docs/rules/', import.meta.url);
 
 describe('mapa de rótulos', () => {
-  it('cobre os 8 mercados da API', () => {
-    expect(STAKE_LOCALES).toEqual(['pt-BR', 'es-AR', 'es-MX', 'es-CO', 'es-CL', 'es-PE', 'es-UY', 'es-EC']);
+  it('cobre os 8 mercados da API e o inglês', () => {
+    expect(STAKE_LOCALES).toEqual([
+      'pt-BR',
+      'es-AR',
+      'es-MX',
+      'es-CO',
+      'es-CL',
+      'es-PE',
+      'es-UY',
+      'es-EC',
+      'en',
+    ]);
     expect(Object.keys(STAKE_LABELS).sort()).toEqual([...STAKE_LOCALES].sort());
     expect(Object.keys(ZONE_LABELS).sort()).toEqual([...STAKE_LOCALES].sort());
   });
@@ -57,6 +67,8 @@ describe('mapa de rótulos', () => {
     ['pt-BR', 3, 'Precisa vencer por 3 gols para avançar direto'],
     ['es-AR', 1, 'Necesita ganar por 1 gol para avanzar directo'],
     ['es-MX', 2, 'Necesita ganar por 2 goles para avanzar directo'],
+    ['en', 1, 'Must win by 1 goal to go through outright'],
+    ['en', 2, 'Must win by 2 goals to go through outright'],
   ] as const)('plural de gols — %s n=%i', (locale, n, expected) => {
     expect(stakeText(makeStake('away', 'needs_win_by_n', { n }), locale)).toBe(expected);
   });
@@ -72,6 +84,7 @@ describe('mapa de rótulos', () => {
       'es-PE': 'El empate lleva el partido al tiempo suplementario',
       'es-UY': 'El empate lleva el partido al alargue',
       'es-EC': 'El empate lleva el partido al tiempo extra',
+      en: 'A draw sends the match to extra time',
     });
     expect(stakeText(makeStake('home', 'can_clinch_title'), 'es-MX')).toContain('jornada');
     expect(stakeText(makeStake('home', 'can_clinch_title'), 'es-CO')).toContain('fecha');
@@ -100,21 +113,22 @@ describe('mapa de rótulos', () => {
       text: { 'pt-BR': 'Avança com empate', 'es-AR': 'Avanza con el empate' },
     });
     expect(isStakeLocale('es-UY')).toBe(true);
-    expect(isStakeLocale('en')).toBe(false);
+    expect(isStakeLocale('en')).toBe(true);
+    expect(isStakeLocale('fr')).toBe(false);
   });
 });
 
 describe('final: variantes de título', () => {
   const TITLE_FAMILIES = Object.values(TITLE_VARIANT_OF);
 
-  it('nenhum rótulo de título fala em avançar ou vaga, nos 8 mercados', () => {
+  it('nenhum rótulo de título fala em avançar ou vaga, nos 8 mercados e em inglês', () => {
     for (const locale of STAKE_LOCALES) {
       for (const family of TITLE_FAMILIES) {
         for (const n of [1, 2]) {
           const params = exampleParams(family) ? { n } : undefined;
           const text = stakeText(makeStake('home', family, params), locale);
-          expect(text, `${locale} ${family}`).toMatch(/t[íi]tulo|campe[ãóo]/i);
-          expect(text, `${locale} ${family}`).not.toMatch(/avan[çcz]|vaga|clasifica/i);
+          expect(text, `${locale} ${family}`).toMatch(/t[íi]tulo|campe[ãóo]|title|champion/i);
+          expect(text, `${locale} ${family}`).not.toMatch(/avan[çcz]|vaga|clasifica|through|advance|spot/i);
         }
       }
     }

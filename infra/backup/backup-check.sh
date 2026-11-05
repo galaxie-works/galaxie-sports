@@ -4,7 +4,9 @@
 # Acusa (job_run "backup-check" com erro → alerta BackupCheckFailed) quando:
 #   - o dump mais recente em BACKUP_DIR tem mais de BACKUP_MAX_AGE_H horas (padrão 26), ou não há dump;
 #   - com BACKUP_NAS_RECEIPT=true, o recibo do NAS ($BACKUP_DIR/.nas_last_pull, que o NAS toca depois de copiar;
-#     ver docs/runbooks/exercicio-dr.md) tem mais de BACKUP_MAX_AGE_H horas, ou não existe.
+#     ver docs/runbooks/exercicio-dr.md) tem mais de BACKUP_MAX_AGE_H horas, ou não existe;
+#   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o recibo do sync do S3 ($BACKUP_DIR/.s3_last_sync,
+#     que o s3-sync.sh grava depois de copiar tudo) tem mais de BACKUP_MAX_AGE_H horas, ou não existe.
 set -eu
 # shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
@@ -35,11 +37,24 @@ if [ "$BACKUP_NAS_RECEIPT" = true ]; then
   fi
 fi
 
-stats="{\"dump\":\"$(basename "${dump:-}")\",\"dump_age_s\":$dump_age,\"nas_receipt\":$BACKUP_NAS_RECEIPT,\"nas_age_s\":$nas_age}"
+s3_age=-1
+s3_sync=false
+if s3_sync_enabled; then
+  s3_sync=true
+  receipt=$(s3_sync_receipt)
+  if [ ! -f "$receipt" ]; then
+    add "sem recibo do sync do S3 ($receipt)"
+  else
+    s3_age=$(file_age_s "$receipt")
+    [ "$s3_age" -le "$max_s" ] || add "último sync do S3 há $((s3_age / 3600)) h (máximo ${BACKUP_MAX_AGE_H} h)"
+  fi
+fi
+
+stats="{\"dump\":\"$(basename "${dump:-}")\",\"dump_age_s\":$dump_age,\"nas_receipt\":$BACKUP_NAS_RECEIPT,\"nas_age_s\":$nas_age,\"s3_sync\":$s3_sync,\"s3_age_s\":$s3_age}"
 if [ -n "$problems" ]; then
   log error "verificação do backup: $problems"
   job_finish "$run_id" error "$problems" "$stats"
   exit 1
 fi
 job_finish "$run_id" ok "" "$stats"
-log info "verificação do backup OK: $(basename "$dump") há $((dump_age / 60)) min$([ "$nas_age" -ge 0 ] && echo "; NAS há $((nas_age / 60)) min")"
+log info "verificação do backup OK: $(basename "$dump") há $((dump_age / 60)) min$([ "$nas_age" -ge 0 ] && echo "; NAS há $((nas_age / 60)) min")$([ "$s3_age" -ge 0 ] && echo "; sync do S3 há $((s3_age / 60)) min")"

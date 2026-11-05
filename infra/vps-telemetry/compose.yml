@@ -1,9 +1,17 @@
-# Stack de staging do Galaxie Sports na VPS "telemetry" (Traefik já em produção, em network_mode: host).
+# Projeto de apps da stack do Galaxie Sports na VPS "telemetry" (Traefik já em produção, em network_mode: host): o único que o
+# deploy automático conhece (deploy-gh.sh). Dados em compose.dados.yml e observabilidade em compose.obs.yml, na mesma rede.
 # Derivada da antiga stack do Portainer (aposentada em 30/10/2026): sem Caddy (o Traefik faz TLS e roteamento), sem builds (imagens do GHCR),
 # rede com sub-rede fixa (TRUST_PROXY conhecido), limites de memória e o app de demonstração.
 # Passo a passo, verificação e reverso: infra/vps-telemetry/README.md.
 #
 # Validar: docker compose -f infra/vps-telemetry/compose.yml --env-file infra/vps-telemetry/env.example config -q
+#
+# Cada imagem tem a própria tag no .env (TAG_API: api, webhooks, migrate e candidato; TAG_DEMO: site, console e candidatos;
+# TAG_INGESTOR: live, ingestor e agents; TAG_BACKUP; TAG_PROMETHEUS; TAG_GRAFANA), para um deploy trocar só o que mudou
+# (deploy-gh.sh). O SHA publicado fica em DEPLOY_SHA, que não pode entrar no env de nenhum serviço: env novo recria o
+# contêiner.
+
+name: galaxie-sports
 
 x-logging: &logging
   driver: json-file
@@ -43,115 +51,9 @@ x-node-env: &node-env
   ASSETS_PUBLIC_BASE_URL: https://${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}/${S3_BUCKET:-galaxie-sports-assets}
 
 services:
-  # ── dados ─────────────────────────────────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    mem_limit: 1g
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
-    shm_size: 256mb
-    # Ajustado ao contêiner de 1 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
-    # max_connections fica nos 100 do padrão: a soma dos pools no pico é 67 (conta no README › Conexões). Teto
-    # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
-    command:
-      - postgres
-      - -c
-      - max_connections=100
-      - -c
-      - shared_buffers=256MB
-      - -c
-      - effective_cache_size=640MB
-      - -c
-      - work_mem=8MB
-      - -c
-      - maintenance_work_mem=64MB
-      - -c
-      - idle_in_transaction_session_timeout=30min
-      - -c
-      - log_min_duration_statement=5s
-      - -c
-      - log_lock_waits=on
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    logging: *logging
-
-  valkey:
-    image: valkey/valkey:8-alpine
-    restart: unless-stopped
-    mem_limit: 256m
-    # maxmemory abaixo do mem_limit (folga para o fork do AOF e a fragmentação): cheio, despeja pela LRU só chave
-    # com TTL — todas têm (cache, rate limit, uso, leases do SSE), menos o contador gs:purge-seq, que não pode sumir.
-    command:
-      ['valkey-server', '--appendonly', 'yes', '--maxmemory', '160mb', '--maxmemory-policy', 'volatile-lru']
-    volumes:
-      - valkeydata:/data
-    healthcheck:
-      test: ['CMD', 'valkey-cli', 'ping']
-      interval: 10s
-      timeout: 3s
-      retries: 20
-    logging: *logging
-
-  # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
-  s3:
-    image: rustfs/rustfs:1.0.4
-    restart: unless-stopped
-    mem_limit: 1g
-    environment:
-      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
-      RUSTFS_CONSOLE_ENABLE: 'false'
-    volumes:
-      - s3data:/data
-    labels:
-      - traefik.enable=true
-      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
-      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
-      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
-      - traefik.http.middlewares.gsports-retry.retry.attempts=2
-      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
-      - traefik.http.routers.gsports-assets.rule=Host(`${ASSETS_DOMAIN:?defina ASSETS_DOMAIN}`) && PathPrefix(`/${S3_BUCKET:-galaxie-sports-assets}/`) && (Method(`GET`) || Method(`HEAD`))
-      - traefik.http.routers.gsports-assets.entrypoints=websecure
-      - traefik.http.routers.gsports-assets.tls.certresolver=letsencrypt
-      - traefik.http.routers.gsports-assets.middlewares=${EDGE_MIDDLEWARES:-}
-      - traefik.http.services.gsports-assets.loadbalancer.server.port=9000
-    logging: *logging
-
-  # Cria o bucket e libera leitura anônima só de objetos (s3:GetObject); listar o bucket continua exigindo chave.
-  s3-init:
-    image: amazon/aws-cli:2.38.6
-    depends_on:
-      - s3
-    environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
-      AWS_DEFAULT_REGION: us-east-1
-      BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
-    entrypoint: ['/bin/sh', '-c']
-    command:
-      - |
-        set -e
-        ready=0
-        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && { ready=1; break; }; sleep 2; done
-        [ "$$ready" = 1 ] || { echo "s3 indisponível depois de 60 s" >&2; exit 1; }
-        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
-        aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
-        echo "bucket $$BUCKET pronto (leitura pública de objetos)"
-    restart: 'no'
-    logging: *logging
-
-  # ── aplicação ─────────────────────────────────────────────────────────────────────────────────
   # Aplica as migrations (idempotente) antes de API e ingestor subirem.
   migrate:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
     environment:
@@ -163,15 +65,13 @@ services:
       DB_URL_DEMO: ${DB_URL_DEMO:-}
       DB_URL_INGESTOR: ${DB_URL_INGESTOR:-}
       DB_URL_AGENTS: ${DB_URL_AGENTS:-}
+      DB_URL_LIVE: ${DB_URL_LIVE:-}
       DB_URL_BACKUP: ${DB_URL_BACKUP:-}
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: 'no'
     logging: *logging
 
   api: &api
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
@@ -199,8 +99,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      valkey:
-        condition: service_healthy
     expose:
       - '8080'
     # /metrics e /internal não passam pelo Traefik (equivale ao bloqueio que o Caddy fazia).
@@ -219,13 +117,29 @@ services:
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
 
-  # App de demonstração (Next.js). Fala com a API pela rede interna; a chave fica só no servidor.
-  demo: &demo
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${IMAGE_TAG:?defina IMAGE_TAG}
+  # App de demonstração (Next.js), em dois serviços da mesma imagem (issue #546): `site` (público, demo, docs, exemplo,
+  # embed e registry dos widgets) e `console` (portal do cliente com o Builder e o painel de Ajustes). APP_ROLE desliga
+  # no processo as rotas do outro papel (404) e o que só o outro usa (o console não segue o change feed); a tabela das
+  # rotas é apps/demo/src/lib/app-role.ts. Um vazamento no painel derruba só o console: o site, a demo e o login seguem.
+  # Fala com a API pela rede interna; a chave fica só no servidor.
+  #
+  # Traefik, no mesmo host: o router do console casa os prefixos dele (PathRegexp igual ao CONSOLE_PATH_REGEXP do
+  # app-role.ts, conferido no teste) com prioridade 2000; o do site casa o host inteiro com prioridade 1000; o de
+  # manutenção do console (1500, declarado no site, aponta para o serviço maintenance) cobre os prefixos do console quando
+  # ele sai do ar, e o de manutenção da demo (1) o resto. Um contêiner `demo` de antes da divisão (rótulo sem prioridade:
+  # a do tamanho da regra, ~30) perde dos dois; o deploy o tira depois que eles sobem (deploy-plan.sh › SAI). Login e /api/auth ficam no site: o cookie de sessão é do host, vale nos dois.
+  # Healthcheck: o da imagem (/robots.txt, que os dois papéis atendem), com o intervalo da partida curto para a troca.
+  # Memória: README › Memória dos jobs (site 512m como a demo de antes; console 384m, heap 224).
+  site: &site
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-demo:${TAG_DEMO:?defina TAG_DEMO}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 512m
     environment: &demo-env
+      APP_ROLE: site
+      # /metrics do processo (build_info, memória) numa porta só da rede interna, para o Prometheus; sem router
+      DEMO_METRICS_PORT: '9464'
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       GALAXIE_API_URL: http://api:8080
       GALAXIE_DEMO_KEY: ${GALAXIE_DEMO_KEY:-}
       # Logos da grade em Ajustes → Grades e ofertas, lidos direto do banco: sem a base pública dos assets, a
@@ -253,57 +167,97 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
-      postgres:
-        condition: service_healthy
       api:
         condition: service_healthy
     expose:
       - '3000'
+      - '9464'
+    healthcheck:
+      interval: 15s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+      start_interval: 2s
     # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
       - traefik.enable=true
-      # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, site, console, s3 e maintenance; ligados por EDGE_MIDDLEWARES
       - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
       - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.middlewares.gsports-retry.retry.attempts=2
       - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
-      - traefik.http.routers.gsports-demo.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
-      - traefik.http.routers.gsports-demo.entrypoints=websecure
-      - traefik.http.routers.gsports-demo.tls.certresolver=letsencrypt
-      - traefik.http.routers.gsports-demo.middlewares=${EDGE_MIDDLEWARES:-}
-      - traefik.http.services.gsports-demo.loadbalancer.server.port=3000
+      - traefik.http.routers.gsports-site.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`)
+      - traefik.http.routers.gsports-site.entrypoints=websecure
+      - traefik.http.routers.gsports-site.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-site.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-site.priority=1000
+      - traefik.http.routers.gsports-site.service=gsports-site
+      - traefik.http.services.gsports-site.loadbalancer.server.port=3000
+      # console fora do ar (reinício, OOM): os prefixos dele vão para a página de manutenção (serviço maintenance), não
+      # para o 404 do site. Fica no site para o compose do maintenance não mudar; com o site também fora, o router de
+      # manutenção da demo (prioridade 1) cobre o host inteiro
+      - traefik.http.routers.gsports-console-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console-maintenance.entrypoints=websecure
+      - traefik.http.routers.gsports-console-maintenance.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-console-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-console-maintenance.priority=1500
+      - traefik.http.routers.gsports-console-maintenance.service=gsports-maintenance-site
     logging: *logging
 
+  console: &console
+    <<: *site
+    mem_limit: 320m
+    # heap menor que o do site (320): sem o cache do explorador; 224 + geração nova 3 × 16 + ~50 no limite (pico medido 193, #533)
+    command: ['node', '--max-old-space-size=224', '--max-semi-space-size=16', 'apps/demo/server.js']
+    environment: &console-env
+      <<: *demo-env
+      APP_ROLE: console
+    labels:
+      - traefik.enable=true
+      # middlewares da borda (infra/traefik/README.md): os mesmos em api, site, console, s3 e maintenance; ligados por EDGE_MIDDLEWARES
+      - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
+      - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
+      - traefik.http.middlewares.gsports-retry.retry.attempts=2
+      - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
+      - traefik.http.routers.gsports-console.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console.entrypoints=websecure
+      - traefik.http.routers.gsports-console.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-console.middlewares=${EDGE_MIDDLEWARES:-}
+      - traefik.http.routers.gsports-console.priority=2000
+      - traefik.http.routers.gsports-console.service=gsports-console
+      - traefik.http.services.gsports-console.loadbalancer.server.port=3000
+
   # Worker dos webhooks (docs/05 §5.2): enfileira a partir do ops.change_feed e entrega as notificações assinadas.
-  # Mesma imagem da API, sem porta e sem router. Na primeira subida o cursor começa do fim do change feed (não reenvia
-  # o histórico). Sem HTTP para conferir, o healthcheck da imagem (GET /health na 8080) fica desligado; uma queda do
-  # processo é coberta pelo restart. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
+  # Mesma imagem da API, sem router: a 8080 só tem /health, /version e /metrics (servidor de operação). Na primeira subida
+  # o cursor começa do fim do change feed (não reenvia o histórico). Healthcheck vem da imagem (GET /health): o deploy troca
+  # lado a lado (rolling-swap.sh); duas instâncias juntas não entregam em dobro (FOR UPDATE SKIP LOCKED), o worker fecha a
+  # entrega em andamento no SIGTERM (stop_grace_period) e o novo retoma pelo cursor. Na volta automática do deploy para uma versão sem este serviço, o `up` usa
   # --remove-orphans (deploy-gh.sh/deploy.sh), para o worker da versão recusada não seguir entregando.
   webhooks:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-api:${TAG_API:?defina TAG_API}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    mem_limit: 256m
-    command: ['node', '--max-old-space-size=160', 'dist/webhooks/worker-main.js']
+    mem_limit: 192m
+    command: ['node', '--max-old-space-size=128', 'dist/webhooks/worker-main.js']
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_API:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       # depois de `webhook seal-secrets` (SECURITY.md › Webhooks): segredo legado em texto puro deixa de assinar
       WEBHOOK_REJECT_PLAINTEXT_SECRETS: ${WEBHOOK_REJECT_PLAINTEXT_SECRETS:-}
-    healthcheck:
-      disable: true
+      # Bearer do /metrics do servidor de operação do worker (build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
     depends_on:
       migrate:
         condition: service_completed_successfully
     stop_grace_period: 20s
     logging: *logging
 
-  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe, com DEPLOY_CANDIDATE=on): a API e a demo da
-  # versão nova ao lado das que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
+  # Candidatos do deploy (perfil `candidate`; só o deploy-gh.sh os sobe): a API, o site e o console da
+  # versão nova ao lado dos que estão no ar, sem router no Traefik (nenhum tráfego de fora), para o smoke rodar ANTES
   # da troca. Mesmo env e mesmos limites dos originais (as âncoras); a API com prefixo próprio no Valkey (cache, rate
-  # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e a demo
-  # falando com ela. Sobem com --no-deps e
+  # limit, uso e relay do SSE não se misturam com os da versão no ar), sem consolidar o uso no Postgres, e site e
+  # console falando com ela. Sobem com --no-deps e
   # saem logo depois do smoke. README › Atualizar › Candidato e troca sem manutenção.
   api-candidate:
     <<: *api
@@ -317,8 +271,8 @@ services:
     depends_on: {}
     labels: [traefik.enable=false]
 
-  demo-candidate:
-    <<: *demo
+  site-candidate:
+    <<: *site
     profiles: [candidate]
     restart: 'no'
     environment:
@@ -327,13 +281,23 @@ services:
     depends_on: {}
     labels: [traefik.enable=false]
 
+  console-candidate:
+    <<: *console
+    profiles: [candidate]
+    restart: 'no'
+    environment:
+      <<: *console-env
+      GALAXIE_API_URL: http://api-candidate:8080
+    depends_on: {}
+    labels: [traefik.enable=false]
+
   # Página de manutenção: responde 503 nos hosts da demo e da API enquanto o contêiner de verdade não está no ar
-  # (recriado num deploy, reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend.
+  # (reiniciando ou ainda sem healthcheck "healthy"), em vez do 404 do Traefik sem backend. O deploy troca sem ela.
   # Os routers têm prioridade 1 (a padrão do Traefik é o tamanho da regra): só ganham quando o router da demo ou da
-  # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem IMAGE_TAG: deploy normal não recria.
+  # API some. Imagem fixa e config só neste arquivo (configs: abaixo), sem tag de deploy: deploy normal não recria.
   # Mudou o conteúdo das configs → atualize works.galaxie.maintenance-rev (o CI confere com maintenance-rev.mjs e diz
-  # o valor); é ele que faz o próximo deploy recriar o serviço. MAINTENANCE_PRIORITY=10000 no .env +
-  # `docker compose up -d maintenance` força a manutenção (README › Página de manutenção).
+  # o valor); é ele que faz o próximo deploy recriar o serviço. Forçar a manutenção, para mexer no banco:
+  # maintenance.sh up|down (README › Página de manutenção).
   # Mesmos hosts e mesma regra da API (sem /metrics e /internal) dos routers originais.
   maintenance:
     image: caddy:2.11.7-alpine
@@ -385,30 +349,88 @@ services:
       - traefik.http.services.gsports-maintenance-api.loadbalancer.server.port=8081
     logging: *logging
 
-  # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run.
-  ingestor:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+  # Ao vivo (#535): a mesma imagem do ingestor com o scheduler no perfil `live`, só com a faixa do ao vivo
+  # (live-run, live-reconcile, events-clock). Um deploy que não muda a imagem do ingestor não toca nele, e a troca do
+  # ingestor não corta mais o placar. O live-run fica no ar com líder e reserva (LIVE_LEADER=on, trava `live:leader`
+  # no Postgres); morreu, o scheduler sobe de novo. Duas cópias sempre (#537): uma lidera, a outra assume em ~1 s se a
+  # líder cair. O deploy troca uma cópia por vez, a líder primeiro (rolling-swap.sh), antes de ingestor e agents.
+  live:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    # scheduler + faixa do ao vivo (live-run, live-reconcile, events-clock) + SCHEDULER_MAX_JOBS jobs, cada um com
-    # heap fixo: a soma no pior caso é 1024 MB; os 128 MB a mais são folga para pilhas, alocador e buffers de I/O,
-    # que o cgroup também conta (README › Memória dos jobs)
-    mem_limit: 1152m
+    # o Compose (v2) sobe as cópias sem swarm; `--scale live=N` no up vale por cima. Uma cópia (dev): LIVE_REPLICAS=1
+    deploy:
+      replicas: ${LIVE_REPLICAS:-2}
+    # por cópia: pico medido 237 com 79 jogos em andamento ou começando (#533), × 1,5 = 355; 448 por não ter medido rodada cheia de fim de
+    # semana. A soma dos heaps (576 MB) não cabe e não acontece junto: README › Memória dos jobs
+    mem_limit: 448m
     environment:
       <<: *node-env
-      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # papel galaxie_live (packages/db/src/roles.ts); sem DB_URL_LIVE, o dono, como os outros
+      DATABASE_URL: ${DB_URL_LIVE:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
-      SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
+      SCHEDULER_PROFILE: live
+      LIVE_LEADER: 'on'
+      # no SIGTERM, o scheduler espera o live-run fechar o tick: a chamada no ar (APISPORTS_LIVE_TIMEOUT_MS, 30 s) e a
+      # gravação (perfil `live` do banco: 30 s de consulta), mais o estado e o job_run; detalhe novo não abre
+      # (README › Ao vivo). Abaixo do stop_grace_period
+      SCHEDULER_STOP_WAIT_SECONDS: '70'
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-*/5 * * * *}
+      SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-*/10 * * * *}
+      SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
       LIVE_FEATURED: ${LIVE_FEATURED:-off}
       LIVE_MAX_INTERVAL_MINUTES: ${LIVE_MAX_INTERVAL_MINUTES:-15}
       LIVE_IDLE_EXIT_MINUTES: ${LIVE_IDLE_EXIT_MINUTES:-15}
       LIVE_PROTECT_DAILY: ${LIVE_PROTECT_DAILY:-}
       LIVE_MIN_PRIORITY: ${LIVE_MIN_PRIORITY:-medium}
-      SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-*/10 * * * *}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # O da imagem (batimento do scheduler, como no ingestor), com a primeira checagem em 2 s: a troca espera a cópia
+    # nova ficar healthy antes de parar a antiga
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
+        ]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    # No SIGTERM a líder fecha o tick (até 70 s no pior caso: SCHEDULER_STOP_WAIT_SECONDS; o normal é 1 a 3 s), publica
+    # o estado e solta a trava; a reserva assume na tentativa seguinte. 5 s a mais para o scheduler sair antes do SIGKILL
+    stop_grace_period: 75s
+    logging: *logging
+
+  # Scheduler: roda os CLIs do ingestor em horários fixos (UTC) e registra cada execução em ops.job_run. A faixa do ao
+  # vivo roda no serviço `live` (SCHEDULER_LIVE=external).
+  ingestor:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    # scheduler + SCHEDULER_MAX_JOBS jobs, cada um com heap fixo: a soma no pior caso é 352 MB; pico medido 331 (#533) × 1,5 = 497.
+    # O ao vivo está no `live` e o trabalho longo no `worker` (QUEUE_MODE=enqueue). Teto de CPU: ingestor, worker e agents somam
+    # 1,0 das 2 vCPU, o resto fica para Postgres, API e ao vivo (README › Memória dos jobs)
+    cpus: 0.4
+    mem_limit: 512m
+    environment:
+      <<: *node-env
+      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
+      APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      # Bucket privado dos pacotes e relatórios das tarefas (tasks/<id>/, #587): o `assets:acervo --pacote` avulso
+      # (docker compose run ingestor) lê de lá; sem leitura anônima, fora do Traefik (compose.dados.yml › s3-init)
+      S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
+      # live-run, live-reconcile e events-clock rodam no serviço `live`
+      SCHEDULER_LIVE: external
+      SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-5 0 * * *}
       SCHEDULE_NORMALIZE_FOOTBALL: ${SCHEDULE_NORMALIZE_FOOTBALL:-35 0 * * *}
       SCHEDULE_NORMALIZE_SPORTS: ${SCHEDULE_NORMALIZE_SPORTS:-15 * * * *}
-      SCHEDULE_EVENTS_CLOCK: ${SCHEDULE_EVENTS_CLOCK:-* * * * *}
       SCHEDULE_ASSETS_MIRROR: ${SCHEDULE_ASSETS_MIRROR:-30 1 * * *}
       SCHEDULE_CHANGE_FEED_PRUNE: ${SCHEDULE_CHANGE_FEED_PRUNE:-45 2 * * *}
       CHANGE_FEED_RETENTION_DAYS: ${CHANGE_FEED_RETENTION_DAYS:-7}
@@ -416,8 +438,13 @@ services:
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-15 3 * * 1}
       SCHEDULER_RUN_ON_START: ${SCHEDULER_RUN_ON_START:-}
       SCHEDULER_TIMEOUT_MINUTES: ${SCHEDULER_TIMEOUT_MINUTES:-}
-      SCHEDULER_MAX_JOBS: ${SCHEDULER_MAX_JOBS:-2}
+      # 1 job fora da faixa do ao vivo: o pesado (espelho de assets e as tarefas da fila) roda no worker. Variável
+      # própria no .env (como a dos agents): um SCHEDULER_MAX_JOBS=2 antigo no .env não passa do mem_limit acima
+      SCHEDULER_MAX_JOBS: ${INGESTOR_MAX_JOBS:-1}
       SCHEDULER_JOB_HEAP_MB: ${SCHEDULER_JOB_HEAP_MB:-160}
+      # enqueue: o job com tarefa equivalente (assets-mirror → assets.espelhar) só enfileira, e o worker executa
+      # (docs/runbooks/tarefas.md › O scheduler e a fila). `run` volta a rodar no ingestor, sem worker
+      QUEUE_MODE: ${QUEUE_MODE:-enqueue}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
@@ -428,6 +455,53 @@ services:
     stop_grace_period: 40s
     logging: *logging
 
+  # Worker da fila de tarefas (#542; docs/runbooks/tarefas.md): toma as tarefas de ops.job_request (acervo, espelho de
+  # assets, carga histórica, backfills), roda cada uma num processo filho com heap fixo, renova a concessão e retoma
+  # do checkpoint o que outro worker deixou. Mesma imagem do ingestor e o papel dele no banco (escrita larga). No
+  # SIGTERM drena: para de tomar, o lote em andamento fecha (WORKER_DRAIN_S, 60 s) e o que não fechou volta à fila
+  # com o checkpoint; o stop_grace_period cobre a drenagem e o SIGKILL do filho. O deploy troca lado a lado depois do
+  # ingestor e antes da API (rolling-swap.sh drena o antigo: espera o /health dizer `idle` ou o prazo). Vagas:
+  # WORKER_CONCURRENCY_<TIPO> (padrão 1; o espelho 2; 0 tira o tipo), com o teto WORKER_MAX_TASKS somando os tipos.
+  # Chamadas à api-sports passam pelo Quota Governor, com a reserva do ao vivo (QUOTA_LIVE_RESERVE_PERCENT).
+  # /health, /version e /metrics na 8080 (sem router no Traefik).
+  worker:
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    command: ['node', '--max-old-space-size=64', '--max-semi-space-size=8', 'dist/cli/worker.js']
+    cpus: 0.2
+    # pai 64 + WORKER_TASK_SLOTS 1 × (heap do filho 160 + 64) = 288 MB; pico medido 172 com o espelho de assets (README › Memória dos jobs)
+    mem_limit: 384m
+    environment:
+      <<: *node-env
+      DATABASE_URL: ${DB_URL_INGESTOR:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do worker (worker_tasks_running, worker_task_duration_seconds, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
+      APISPORTS_KEY: ${APISPORTS_KEY:?defina APISPORTS_KEY}
+      # Bucket privado das tarefas (#587): relatório da prévia do acervo em tasks/<id>/cobertura.md
+      S3_TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
+      # variável própria no .env (como INGESTOR_MAX_JOBS): um WORKER_MAX_TASKS=2 antigo no .env não passa do mem_limit acima
+      WORKER_MAX_TASKS: ${WORKER_TASK_SLOTS:-1}
+      WORKER_TASK_HEAP_MB: ${WORKER_TASK_HEAP_MB:-160}
+      WORKER_DRAIN_S: ${WORKER_DRAIN_S:-60}
+      WORKER_CONCURRENCY_ASSETS_ESPELHAR: ${WORKER_CONCURRENCY_ASSETS_ESPELHAR:-2}
+      WORKER_CONCURRENCY_CARGA_HISTORICA: ${WORKER_CONCURRENCY_CARGA_HISTORICA:-1}
+      WORKER_CONCURRENCY_ACERVO_IMPORTAR: ${WORKER_CONCURRENCY_ACERVO_IMPORTAR:-1}
+      WORKER_CONCURRENCY_BACKFILL_NORMALIZAR: ${WORKER_CONCURRENCY_BACKFILL_NORMALIZAR:-1}
+      WORKER_CONCURRENCY_BACKFILL_TABELAS: ${WORKER_CONCURRENCY_BACKFILL_TABELAS:-1}
+      WORKER_CONCURRENCY_EXEMPLO_ECO: ${WORKER_CONCURRENCY_EXEMPLO_ECO:-1}
+    healthcheck:
+      test: ['CMD', 'node', '/usr/local/lib/galaxie/selfheal.mjs', 'http', 'http://127.0.0.1:8080/health']
+      interval: 15s
+      timeout: 6s
+      start_period: 20s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 75s
+    logging: *logging
+
   # Agentes de IA (docs/07): resumo pós-jogo, cenário pré-jogo e Onde Assistir. Mesma imagem do
   # ingestor, com o scheduler no perfil `agents`; roda mesmo com o ingestor parado. A IA liga e desliga
   # por AI_STATUS (on|off) e AI_AGENT_STATUS (agente=on|off); ligada, o gasto com o LLM tem teto diário
@@ -436,14 +510,18 @@ services:
   # todos os agentes e a ordem das fotos da F1 (ledger ops.llm_usage). Tetos: número
   # ou "unlimited"; 0 é inválido.
   agents:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${IMAGE_TAG:?defina IMAGE_TAG}
+    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-ingestor:${TAG_INGESTOR:?defina TAG_INGESTOR}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
-    # scheduler + SCHEDULER_MAX_JOBS jobs de 128 MB de heap: ~690 MB no pior caso (README › Memória dos jobs)
-    mem_limit: 768m
+    # scheduler + AGENTS_MAX_JOBS jobs de 128 MB de heap: ~690 MB se todos enchessem o heap; pico medido 314 (#533), sem job de IA provocado
+    # (README › Memória dos jobs)
+    cpus: 0.4
+    mem_limit: 448m
     environment:
       <<: *node-env
       DATABASE_URL: ${DB_URL_AGENTS:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
+      # Bearer do /metrics do servidor de operação do scheduler (porta 9464, build_info), igual ao da API
+      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
       SCHEDULER_PROFILE: agents
       SCHEDULER_MAX_JOBS: ${AGENTS_MAX_JOBS:-3}
       SCHEDULER_JOB_HEAP_MB: ${AGENTS_JOB_HEAP_MB:-128}
@@ -534,128 +612,17 @@ services:
     networks: [render]
     logging: *logging
 
-  # ── backups ───────────────────────────────────────────────────────────────────────────────────
-  # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
-  # 6 h, ensaio de restauração no dia 1 de cada mês e cópia opcional para S3 externo (docs/runbooks/exercicio-dr.md).
-  backup:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-backup:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: ${PULL_POLICY:-always}
-    restart: unless-stopped
-    mem_limit: 256m
-    environment:
-      PGHOST: postgres
-      PGPORT: '5432'
-      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
-      # usuário e senha saem da URL (infra/backup/lib.sh): o papel galaxie_backup (pg_read_all_data) ou, antes da
-      # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
-      DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
-      BACKUP_TIME: ${BACKUP_TIME:-03:30}
-      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
-      BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
-      BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
-      RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
-      # na partida, só quando o último dump bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H h (always = sempre):
-      # todo deploy recria este serviço, e o dump completo disputava o disco com o pós-deploy e o smoke
-      BACKUP_ON_START: ${BACKUP_ON_START:-true}
-      BACKUP_ON_START_MIN_AGE_H: ${BACKUP_ON_START_MIN_AGE_H:-20}
-      # dumps cifrados com age (docs/runbooks/exercicio-dr.md › Dumps cifrados): chaves públicas da recuperação (privada só
-      # com o Wagner) e do ensaio; a privada do ensaio decifra no ensaio mensal e no restore. Vazio = dump em claro
-      BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}
-      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:-}
-      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
-      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-postgres}
-      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
-      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
-      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
-      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-us-east-1}
-    volumes:
-      - backups:/backups
-    # o dump de partida (BACKUP_ON_START) segura as tabelas e faria o migrate esperar trava: só depois dele
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    logging: *logging
-
-  # ── observabilidade (privada: acesso por túnel SSH) ───────────────────────────────────────────
-  prometheus:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-prometheus:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: ${PULL_POLICY:-always}
-    restart: unless-stopped
-    mem_limit: 512m
-    environment:
-      METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN (openssl rand -hex 32)}
-      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
-    volumes:
-      - promdata:/prometheus
-    depends_on:
-      - api
-    logging: *logging
-
-  # Uso do disco para o alerta DiskAlmostFull. Sem bind mount do host nem privilégio: o volume promdata (montado só
-  # para leitura) fica no disco onde o Docker guarda os volumes (Postgres, backups, Prometheus), e o statfs dele é o
-  # desse disco. Só o coletor de sistemas de arquivos; sem porta publicada (o Prometheus raspa pela rede da stack).
-  node-exporter:
-    image: prom/node-exporter:v1.12.1
-    restart: unless-stopped
-    mem_limit: 64m
-    command:
-      - --collector.disable-defaults
-      - --collector.filesystem
-      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|etc)($$|/)
-    volumes:
-      - promdata:/data/promdata:ro
-    logging: *logging
-
-  grafana:
-    image: ${IMAGE_PREFIX:?defina IMAGE_PREFIX}-grafana:${IMAGE_TAG:?defina IMAGE_TAG}
-    pull_policy: ${PULL_POLICY:-always}
-    restart: unless-stopped
-    mem_limit: 512m
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD}
-      GF_SERVER_ROOT_URL: http://localhost:3000
-      # canais dos alertas (infra/observability/grafana/entrypoint.sh): push no celular para o crítico (ntfy),
-      # resumo diário por e-mail e uma issue no GitHub por alerta; vazios = alertas só no Grafana
-      ALERT_NTFY_URL: ${ALERT_NTFY_URL:-}
-      ALERT_NTFY_TOKEN: ${ALERT_NTFY_TOKEN:-}
-      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
-      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
-      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-}
-      ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
-      ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-}
-      ALERT_GITHUB_TOKEN: ${ALERT_GITHUB_TOKEN:-}
-      ALERT_GITHUB_REPO: ${ALERT_GITHUB_REPO:-}
-    volumes:
-      - grafanadata:/var/lib/grafana
-    depends_on:
-      - prometheus
-    healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/api/health']
-      interval: 30s
-      timeout: 5s
-      retries: 5
-    logging: *logging
-
 networks:
+  # A rede da stack, a mesma dos três projetos (o nome dos serviços resolve entre eles). Sub-rede fixa 172.30.50.0/24: o
+  # Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY. Criada uma vez, fora dos projetos
+  # (migrar-para-tres-projetos.sh preparar). O nome vem de quando a stack era um projeto só: rede não se renomeia, e duas
+  # com a mesma sub-rede não coexistem.
   default:
-    ipam:
-      config:
-        # Sub-rede fixa: o Traefik (rede do host) chega aos contêineres pelo gateway 172.30.50.1 = TRUST_PROXY.
-        - subnet: 172.30.50.0/24
+    name: galaxie-sports_default
+    external: true
   # Navegador headless (lineup-render) e agents; com saída para a internet, sem os serviços da stack.
   # O host continua alcançável pelo gateway desta rede (Traefik em network_mode: host e outras portas do host).
   render: {}
-
-volumes:
-  pgdata:
-  valkeydata:
-  s3data:
-  backups:
-  promdata:
-  grafanadata:
 
 # Página de manutenção (serviço `maintenance`). Conteúdo inline para ir junto com este arquivo no deploy (a VPS só
 # recebe o compose.yml). Aqui `$` precisaria ser `$$` (interpolação do compose): a página e o Caddyfile não usam.

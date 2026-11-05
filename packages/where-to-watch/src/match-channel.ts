@@ -669,7 +669,7 @@ interface ChannelTexts {
   notConfirmed: string;
 }
 
-export const MATCH_CHANNEL_TEXTS: Record<'pt' | 'es', ChannelTexts> = {
+export const MATCH_CHANNEL_TEXTS: Record<'pt' | 'es' | 'en', ChannelTexts> = {
   pt: {
     pre: 'Passa em {channels}',
     live: 'Ao vivo em {channels}',
@@ -685,6 +685,14 @@ export const MATCH_CHANNEL_TEXTS: Record<'pt' | 'es', ChannelTexts> = {
     toConfirm: 'Canal de este partido a confirmar',
     toConfirmHint: 'El canal del partido se conoce más cerca del encuentro.',
     notConfirmed: 'No confirmamos el canal de este partido',
+  },
+  en: {
+    pre: 'On {channels}',
+    live: 'Live on {channels}',
+    post: 'Broadcast by {channels}',
+    toConfirm: 'Channel for this match to be confirmed',
+    toConfirmHint: 'The channel is confirmed closer to kick-off.',
+    notConfirmed: 'We could not confirm the channel for this match',
   },
 };
 
@@ -707,7 +715,7 @@ export function matchChannelHeadline(
   names: string[],
   locale: string,
 ): { headline: string; hint: string | null } {
-  const t = MATCH_CHANNEL_TEXTS[locale.startsWith('es') ? 'es' : 'pt'];
+  const t = MATCH_CHANNEL_TEXTS[locale.startsWith('es') ? 'es' : locale.startsWith('en') ? 'en' : 'pt'];
   if (state === 'confirmed')
     return { headline: t[phase].replace('{channels}', joinNames(names, locale)), hint: null };
   if (state === 'not_confirmed') return { headline: t.notConfirmed, hint: null };

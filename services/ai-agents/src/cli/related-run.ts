@@ -29,7 +29,7 @@ import {
   runRelatedAgent,
   type RelatedRunReport,
 } from '../related/run.js';
-import { YoutubeClient } from '../related/youtube.js';
+import { YOUTUBE_OFF_MESSAGE, YoutubeClient, youtubeStatus } from '../related/youtube.js';
 import { dbFromEnv, intFlag } from './common.js';
 
 const { values } = parseArgs({
@@ -87,40 +87,54 @@ function printReport(report: RelatedRunReport, plan: boolean): void {
   }
   console.log(
     `related: ${q.search.spent} consulta(s) e ${q.api.spent} unidade(s) do YouTube · ${quota} · ${report.idle} em dia · ` +
-      `${report.expired} linha(s) apagada(s) pela retenção de 30 dias`,
+      `${report.expired} linha(s) apagada(s) pela retenção de 30 dias · ` +
+      `${report.statistics?.videos ?? 0} vídeo(s) com estatísticas atualizadas`,
   );
-  if (report.items.some((i) => i.action === 'error')) process.exitCode = 1;
+  if (report.statistics?.error)
+    console.error(`related: atualização das estatísticas falhou: ${report.statistics.error}`);
+  if (report.items.some((i) => i.action === 'error') || report.statistics?.error) process.exitCode = 1;
 }
 
-const db = dbFromEnv();
-try {
-  const apiKey = process.env.YOUTUBE_API_KEY?.trim();
-  if (!values.plan && !apiKey) throw new Error('YOUTUBE_API_KEY não definida no .env (veja .env.example).');
-  const wtw = loadWtwConfig();
-  const allowlist = new ChannelAllowlist({
-    entries: [...loadChannelEntries(), ...broadcasterChannelsFrom(wtw), ...(await channelEntriesFromDb(db))],
-    blocklist: wtw.blocklist,
-    creatorMinSubscribers: envInt('RELATED_CREATOR_MIN_SUBSCRIBERS', DEFAULT_CREATOR_MIN_SUBSCRIBERS),
-  });
-  const lookback = intFlag(values.horas, 'horas');
-  const tier = intFlag(values.tier, 'tier');
-  const limit = intFlag(values.limite, 'limite');
-  const report = await runRelatedAgent(db, {
-    youtube: apiKey ? new YoutubeClient({ apiKey }) : null,
-    allowlist,
-    wtw,
-    plan: values.plan,
-    force: values.forcar,
-    dailyQuota: envInt('YOUTUBE_DAILY_QUOTA', DEFAULT_YOUTUBE_DAILY_QUOTA),
-    searchDailyQuota: envInt('YOUTUBE_SEARCH_DAILY_QUOTA', DEFAULT_YOUTUBE_SEARCH_DAILY_QUOTA),
-    reservePercent: envInt('YOUTUBE_QUOTA_RESERVE_PERCENT', DEFAULT_QUOTA_RESERVE_PERCENT),
-    researchHours: envInt('RELATED_RESEARCH_HOURS', DEFAULT_RESEARCH_HOURS),
-    ...(values.evento ? { eventId: values.evento } : {}),
-    ...(lookback !== undefined ? { lookbackHours: lookback } : {}),
-    ...(tier !== undefined ? { maxTier: tier } : {}),
-    ...(limit !== undefined ? { limit } : {}),
-  });
-  printReport(report, values.plan);
-} finally {
-  await closeDb(db);
+// YOUTUBE_SEARCH=off (padrão do dev, infra/nas-dev): sai sem abrir o banco, sem chamar o YouTube e sem purgar nada
+if (!values.plan && youtubeStatus() === 'off') console.log(YOUTUBE_OFF_MESSAGE);
+else await main();
+
+async function main(): Promise<void> {
+  const db = dbFromEnv();
+  try {
+    const apiKey = process.env.YOUTUBE_API_KEY?.trim();
+    if (!values.plan && !apiKey) throw new Error('YOUTUBE_API_KEY não definida no .env (veja .env.example).');
+    const wtw = loadWtwConfig();
+    const allowlist = new ChannelAllowlist({
+      entries: [
+        ...loadChannelEntries(),
+        ...broadcasterChannelsFrom(wtw),
+        ...(await channelEntriesFromDb(db)),
+      ],
+      blocklist: wtw.blocklist,
+      creatorMinSubscribers: envInt('RELATED_CREATOR_MIN_SUBSCRIBERS', DEFAULT_CREATOR_MIN_SUBSCRIBERS),
+    });
+    const lookback = intFlag(values.horas, 'horas');
+    const tier = intFlag(values.tier, 'tier');
+    const limit = intFlag(values.limite, 'limite');
+    const report = await runRelatedAgent(db, {
+      // `--plan` nunca chama o YouTube: não cria o cliente (com YOUTUBE_SEARCH=off ele recusa nascer)
+      youtube: apiKey && !values.plan ? new YoutubeClient({ apiKey }) : null,
+      allowlist,
+      wtw,
+      plan: values.plan,
+      force: values.forcar,
+      dailyQuota: envInt('YOUTUBE_DAILY_QUOTA', DEFAULT_YOUTUBE_DAILY_QUOTA),
+      searchDailyQuota: envInt('YOUTUBE_SEARCH_DAILY_QUOTA', DEFAULT_YOUTUBE_SEARCH_DAILY_QUOTA),
+      reservePercent: envInt('YOUTUBE_QUOTA_RESERVE_PERCENT', DEFAULT_QUOTA_RESERVE_PERCENT),
+      researchHours: envInt('RELATED_RESEARCH_HOURS', DEFAULT_RESEARCH_HOURS),
+      ...(values.evento ? { eventId: values.evento } : {}),
+      ...(lookback !== undefined ? { lookbackHours: lookback } : {}),
+      ...(tier !== undefined ? { maxTier: tier } : {}),
+      ...(limit !== undefined ? { limit } : {}),
+    });
+    printReport(report, values.plan);
+  } finally {
+    await closeDb(db);
+  }
 }

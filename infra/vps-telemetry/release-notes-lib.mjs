@@ -45,7 +45,7 @@ export const AREAS = [
     ],
   ],
   ['API', ['api', 'contracts', 'webhooks', 'widgets']],
-  ['App e navegação', ['demo', 'explorar', 'nav', 'live']],
+  ['App e navegação', ['demo', 'site', 'console', 'explorar', 'nav', 'live']],
   ['Infra e qualidade', ['infra', 'ci', 'smoke', 'deps', 'docker', 'db', 'test', 'tests']],
 ];
 export const areaOf = (pr) =>
@@ -152,6 +152,85 @@ export function nextTag(names, today) {
     .map((t) => t.n);
   const n = Math.max(0, ...used) + 1;
   return { tag: `deploy-${today}.${n}`, n };
+}
+
+/**
+ * Serviços que rodam cada imagem (o deploy informa os serviços trocados; a versão é da imagem). O resto é 1 para 1. A
+ * imagem da demo roda como `site` e `console` (#546); um deploy de um SHA anterior à divisão troca o serviço `demo`, que
+ * conta como a própria imagem.
+ */
+export const IMAGE_SERVICES = {
+  api: ['api', 'webhooks', 'migrate'],
+  demo: ['site', 'console'],
+  ingestor: ['ingestor', 'agents', 'worker'],
+};
+
+const short = (tag) => tag.slice(0, 10);
+
+/** "api=in-abc demo=in-def" → [['api', 'in-abc'], ['demo', 'in-def']]. */
+export const parseVersions = (text) =>
+  (text ?? '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((pair) => pair.split('='))
+    .filter(([name, tag]) => name && tag);
+
+const MARKER_RE = /<!-- galaxie-versions: ([^>]*?) -->/;
+
+/** A linha invisível no fim das notas, com as tags inteiras: a release seguinte lê dela a tag anterior de cada imagem. */
+export const versionsMarker = (versions) => {
+  const pairs = parseVersions(versions);
+  return pairs.length ? `<!-- galaxie-versions: ${pairs.map((p) => p.join('=')).join(' ')} -->` : undefined;
+};
+
+/**
+ * As versões gravadas numa release: o marcador, ou, nas notas de antes dele, a linha "SHA `abc` · `api` in-abc (trocada)"
+ * (tags cortadas em 10 caracteres, o bastante para comparar). Sem nenhum dos dois, undefined.
+ */
+export function previousVersions(body) {
+  const marker = (body ?? '').match(MARKER_RE);
+  if (marker) return marker[1];
+  const legacy = (body ?? '').split('\n').find((line) => line.startsWith('SHA `'));
+  if (!legacy) return undefined;
+  const pairs = [...legacy.matchAll(/`([\w-]+)` ((?:in-)?[0-9a-f]+)/g)].map((m) => `${m[1]}=${m[2]}`);
+  return pairs.length ? pairs.join(' ') : undefined;
+}
+
+/**
+ * A seção "Serviços publicados": uma linha por imagem com os serviços que a rodam, a versão (tag anterior → nova
+ * quando trocou) e se o deploy a trocou ou não. `versions` = "api=in-abc demo=in-def" (a tag no ar agora);
+ * `swapped` = os serviços que o deploy trocou, separados por espaço; `previous` = as versões do deploy anterior,
+ * no formato de `versions` (sem elas, a troca sai sem a tag anterior). Serviço trocado que não roda nenhuma dessas
+ * imagens (a `maintenance`, por exemplo, que é de terceiros) ganha a própria linha. Vazio sem versões.
+ */
+export function servicesSection(versions, swapped = '', previous = '') {
+  const pairs = parseVersions(versions);
+  if (!pairs.length) return undefined;
+  const changed = new Set(swapped.split(/\s+/).filter(Boolean));
+  const before = new Map(parseVersions(previous));
+  const code = (items) => items.map((i) => `\`${i}\``).join(', ');
+  const rows = pairs.map(([name, tag]) => {
+    const services = IMAGE_SERVICES[name] ?? [name];
+    const old = before.get(name);
+    let state = 'sem troca';
+    let version = `\`${short(tag)}\``;
+    if (changed.has(name) || services.some((s) => changed.has(s))) {
+      if (!old) state = 'trocada (anterior não registrada)';
+      else if (short(old) === short(tag)) state = 'trocada (mesma versão)';
+      else {
+        state = 'trocada';
+        version = `\`${short(old)}\` → \`${short(tag)}\``;
+      }
+    }
+    return `| ${code(services)} | ${version} | ${state} |`;
+  });
+  const covered = new Set(pairs.flatMap(([name]) => [name, ...(IMAGE_SERVICES[name] ?? [])]));
+  for (const service of [...changed].filter((s) => !covered.has(s))) {
+    rows.push(`| \`${service}\` | sem imagem nossa | trocada |`);
+  }
+  return ['## Serviços publicados', '', '| Serviço | Versão | Situação |', '|---|---|---|', ...rows].join(
+    '\n',
+  );
 }
 
 /** Título padrão da release a partir do nome da tag. */

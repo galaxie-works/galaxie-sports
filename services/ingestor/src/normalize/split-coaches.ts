@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db';
-import type { Tx } from './sql-helpers.js';
+import { type Tx } from '@galaxie/core-writer';
 
 export interface SplitCoachesReport {
   /** Ids de técnico da api-sports vistos (escalações, `coachs`, elencos de técnico). */

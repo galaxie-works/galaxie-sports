@@ -31,15 +31,18 @@ SLO="$(label slo)"
 
 # sem stdin (o exec do docker compose consumiria o resto); o sql() abaixo usa o stdin de propósito
 dc() { docker compose "$@" </dev/null; }
+# Postgres e Prometheus estão nos projetos `dados` e `obs`; antes da transição, neste
+dados() { if [ -f compose.dados.yml ]; then dc -f compose.dados.yml "$@"; else dc "$@"; fi; }
+obs() { if [ -f compose.obs.yml ]; then dc -f compose.obs.yml "$@"; else dc "$@"; fi; }
 sql() {
   { echo "set default_transaction_read_only = on; set statement_timeout = '20s';"; cat; } |
-    docker compose exec -T postgres sh -c 'psql -X -q -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -' 2>&1 | head -80
+    dados exec -T postgres sh -c 'psql -X -q -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f -' 2>&1 | head -80
 }
 # PromQL instantânea: imprime "rótulos = valor" por série
 prom() {
   local q
   q="$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$1")"
-  dc exec -T prometheus wget -qO- "http://localhost:9090/api/v1/query?query=$q" 2>/dev/null |
+  obs exec -T prometheus wget -qO- "http://localhost:9090/api/v1/query?query=$q" 2>/dev/null |
     python3 -c 'import json,sys
 try:
   r=json.load(sys.stdin)["data"]["result"]
@@ -53,10 +56,10 @@ if not r: print("   (vazio)")'
 logs() { dc logs --no-log-prefix --since "$2" "$1" 2>/dev/null; }
 section() { printf '\n== %s\n' "$*"; }
 
-echo "Diagnóstico de \"$ALERT\"${REST:+ ($REST)} em $(date -u +%FT%TZ) · versão $(sed -n 's/^IMAGE_TAG=//p' .env | cut -c1-8)"
+echo "Diagnóstico de \"$ALERT\"${REST:+ ($REST)} em $(date -u +%FT%TZ) · versão $(sed -n 's/^\(DEPLOY_SHA\|IMAGE_TAG\)=//p' .env | head -n 1 | cut -c1-8)"
 
 section "Alertas disparando agora (Prometheus)"
-dc exec -T prometheus wget -qO- http://localhost:9090/api/v1/alerts 2>/dev/null |
+obs exec -T prometheus wget -qO- http://localhost:9090/api/v1/alerts 2>/dev/null |
   python3 -c 'import json,sys
 a=[x for x in json.load(sys.stdin)["data"]["alerts"] if x["state"]=="firing"]
 for x in a[:20]:
@@ -70,11 +73,20 @@ uptime | sed 's/^/   /'
 df -h / | tail -1 | sed 's/^/   disco: /'
 
 live_block() {
-  section "Plano do ao vivo (últimas linhas do dia)"
-  logs ingestor 30m | grep '"msg":"plano ao vivo do dia"' | tail -2 |
+  section "Plano do ao vivo (últimas linhas do dia; serviço live, ou o ingestor com SCHEDULER_LIVE=internal)"
+  { logs live 30m; logs ingestor 30m; } | grep '"msg":"plano ao vivo do dia"' | tail -2 |
     python3 -c 'import json,sys
 for l in sys.stdin:
   d=json.loads(l); print("  ", {k:d.get(k) for k in ("day","live_budget","daily_protected","included","relevant","window_minutes","interval_s","ticks_left")})'
+  section "Ao vivo: cópias do live-run e a líder (trava live:leader)"
+  sql <<'SQL'
+select a.application_name, a.backend_start::timestamp(0), l.pid is not null as lider
+  from pg_stat_activity a
+  left join pg_locks l on l.pid = a.pid and l.locktype = 'advisory' and l.granted
+ where a.application_name like 'galaxie-live-leader:%';
+select cursor->>'instance' as lider_do_mandato, cursor->>'epoch' as epoca, updated_at::timestamp(0) as desde
+  from ops.sync_cursor where endpoint = 'live:leader_epoch';
+SQL
   section "Ao vivo: jogos e atraso máx por cobertura"
   prom 'galaxie_live_events'
   prom 'galaxie_live_event_max_staleness_seconds'
@@ -115,8 +127,8 @@ where started_at > now() - interval '24 hours'
   and ('$j' <> '' or status not in ('ok', 'running'))
 order by started_at desc limit 15;
 SQL
-  section "Log do ingestor e dos agentes: erros na última hora"
-  for s in ingestor agents; do
+  section "Log do ingestor, do ao vivo e dos agentes: erros na última hora"
+  for s in ingestor live agents; do
     logs "$s" 60m | grep -E '"level":"(error|fatal)"' | grep -oE '"msg":"[^"]{0,120}"' | sort | uniq -c | sort -rn | head -6 | sed "s/^/   $s /"
   done
 }
@@ -166,7 +178,22 @@ from ops.quota_ledger where day_utc = current_date group by 1, 2 order by 1, 3 d
 SQL
 }
 
+# ProducaoAtrasada: por que o deploy não chegou aqui. A trava do deploy (mesma do deploy.sh e do deploy-gh.sh) e a imagem
+# que cada serviço roda de fato
+deploy_block() {
+  section "Trava do deploy na VPS"
+  if [ -d .deploy.lock ]; then
+    echo "   trava ocupada há $(( ($(date +%s) - $(stat -c %Y .deploy.lock)) / 60 )) min (mais de 90 min = deploy morto, o próximo a toma); dono (id, SHA, hora):"
+    sed 's/^/   /' .deploy.lock/owner 2>/dev/null | head -5
+  else
+    echo "   livre"
+  fi
+  section "Imagem de cada serviço no ar"
+  dc ps --format '{{.Service}}: {{.Image}} ({{.Status}})' | sed 's/^/   /'
+}
+
 case "$ALERT" in
+  ProducaoAtrasada) deploy_block ;;
   LiveEventStale | FootballRawStale) live_block; quota_block ;;
   SloBurnRateFast | SloBurnRateSlow | ErrorBudgetExhausted)
     slo_block

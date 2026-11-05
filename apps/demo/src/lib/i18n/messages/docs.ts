@@ -30,7 +30,7 @@ export default defineMessages(
       live: 'Eventos ao vivo (polling com ETag).',
     },
     start: {
-      lead: 'A Galaxie Sports API entrega metadados esportivos da América Latina e do mundo: catálogo, agenda, times, pessoas, onde assistir e contexto editorial, em 8 locales. Este guia leva da chave à primeira resposta.',
+      lead: 'A Galaxie Sports API entrega metadados esportivos da América Latina e do mundo: catálogo, agenda, times, pessoas, onde assistir e contexto editorial, em 8 mercados e em inglês. Este guia leva da chave à primeira resposta.',
       baseUrl: {
         title: 'URL base e especificação',
         body: 'Todas as rotas ficam sob <c>{apiUrl}</c>. A API canônica é versionada em <c>/v1</c> e orientada a evento: o mesmo formato serve a todos os esportes. Há também um espelho compatível (<c>{mirror}</c>) para quem já consome o formato do fornecedor de origem.',
@@ -464,7 +464,7 @@ export default defineMessages(
         live: 'Live events (polling with ETag).',
       },
       start: {
-        lead: 'The Galaxie Sports API delivers sports metadata for Latin America and the world: catalog, schedule, teams, people, where to watch and editorial context, in 8 locales. This guide takes you from your key to your first response.',
+        lead: 'The Galaxie Sports API delivers sports metadata for Latin America and the world: catalog, schedule, teams, people, where to watch and editorial context, in 8 markets plus English. This guide takes you from your key to your first response.',
         baseUrl: {
           title: 'Base URL and spec',
           body: 'Every route lives under <c>{apiUrl}</c>. The canonical API is versioned under <c>/v1</c> and event-oriented: the same shape covers every sport. There is also a compatible mirror (<c>{mirror}</c>) for teams already consuming the upstream provider format.',
@@ -894,7 +894,7 @@ export default defineMessages(
         live: 'Eventos en vivo (polling con ETag).',
       },
       start: {
-        lead: 'La API de Galaxie Sports entrega metadatos deportivos de América Latina y del mundo: catálogo, agenda, equipos, personas, dónde ver y contexto editorial, en 8 locales. Esta guía te lleva de la clave a la primera respuesta.',
+        lead: 'La API de Galaxie Sports entrega metadatos deportivos de América Latina y del mundo: catálogo, agenda, equipos, personas, dónde ver y contexto editorial, en 8 mercados y en inglés. Esta guía te lleva de la clave a la primera respuesta.',
         baseUrl: {
           title: 'URL base y especificación',
           body: 'Todas las rutas están bajo <c>{apiUrl}</c>. La API canónica está versionada en <c>/v1</c> y orientada a eventos: el mismo formato sirve para todos los deportes. También hay un espejo compatible (<c>{mirror}</c>) para quienes ya consumen el formato del proveedor de origen.',

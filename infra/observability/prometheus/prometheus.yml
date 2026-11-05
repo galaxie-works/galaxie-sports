@@ -20,6 +20,47 @@ scrape_configs:
         labels:
           service: api
 
+  # Quem não tem API: só o build_info e as métricas do processo (servidor de operação de @galaxie/observability; no site
+  # e no console, os dois serviços da imagem da demo, apps/demo/src/lib/ops/metrics.ts). O ingestor na escala 0 fica como
+  # alvo fora do ar, sem alerta: os alertas de up são do job galaxie-api.
+  # O `live` (#535) entra pelo DNS do Docker: cada cópia do serviço é um alvo (`instance` = IP:porta), e uma cópia a
+  # mais durante a troca também. Sem o serviço (SCHEDULER_LIVE=internal), o nome não resolve e não há alvo.
+  - job_name: galaxie-services
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /tmp/metrics-token
+    static_configs:
+      - targets: ['webhooks:8080']
+        labels:
+          service: webhooks
+      - targets: ['ingestor:9464']
+        labels:
+          service: ingestor
+      - targets: ['agents:9464']
+        labels:
+          service: agents
+      # worker da fila de tarefas (#542): worker_tasks_running, worker_task_duration_seconds e build_info
+      - targets: ['worker:8080']
+        labels:
+          service: worker
+      - targets: ['site:9464']
+        labels:
+          service: site
+      - targets: ['console:9464']
+        labels:
+          service: console
+    dns_sd_configs:
+      - names: ['live']
+        type: A
+        port: 9464
+        refresh_interval: 15s
+    relabel_configs:
+      - source_labels: [__meta_dns_name]
+        regex: live
+        target_label: service
+        replacement: live
+
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']

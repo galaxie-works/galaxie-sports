@@ -6,7 +6,8 @@
 #   ALERTA_PAYLOAD='{"status":"firing","fingerprint":"…",…}' infra/ops/alerta-issue.sh   # gh autenticado; GH_REPO
 #
 # O payload (template galaxie.github.payload) traz um alerta só: status (firing|resolved), fingerprint, name, detail,
-# severity, summary, startsAt, endsAt, url e labels. A fingerprint (a mesma para os mesmos rótulos) vai num marcador
+# severity, summary, startsAt, endsAt, url e labels (e, opcional, `origem`: quem emite o alerta, no lugar de "no Grafana";
+# o producao-atrasada.yml, que não passa pelo Grafana, usa). A fingerprint (a mesma para os mesmos rótulos) vai num marcador
 # escondido no corpo da issue e é a chave da deduplicação:
 #   - firing sem issue aberta, mas com uma fechada há menos de 24 h: reabre essa, comenta a nova ocorrência e conta
 #     as vezes no título ("(3×)"), em vez de abrir outra (um alerta que oscila não enche o repositório);
@@ -39,6 +40,7 @@ detail="$(field detail)"
 severity="$(field severity)"
 summary="$(field summary)"
 url="$(field url)"
+origem="$(field origem)"
 marker="<!-- alerta-grafana fingerprint=$fp -->"
 
 # hora de Brasília para quem lê; "0001-01-01…" (sem fim) vira vazio
@@ -58,7 +60,7 @@ if [ "$status" = resolved ]; then
     echo "::notice::$name resolveu sem issue aberta (fingerprint $fp): nada a fazer"
     exit 0
   fi
-  gh issue comment "$open_issue" -R "$REPO" --body "Resolvido no Grafana${until_:+ em $until_}. Fechando."
+  gh issue comment "$open_issue" -R "$REPO" --body "Resolvido ${origem:-no Grafana}${until_:+ em $until_}. Fechando."
   gh issue close "$open_issue" -R "$REPO" --reason completed
   echo "::notice::$name resolveu: issue #$open_issue fechada"
   exit 0
@@ -109,22 +111,30 @@ if [ "$severity" = critical ]; then
 fi
 
 labels_md="$(jq -r '.labels // {} | to_entries | map("| `\(.key)` | `\(.value | gsub("[|`]"; " "))` |") | .[]' <<<"$P")"
+if [ -n "$origem" ]; then
+  fonte_md="- Execução: ${url:-(sem link)}"
+  rodape="Esta issue fecha sozinha quando o alerta resolver. Fechar à mão antes disso é seguro: se ele ainda estiver
+disparando, a próxima checagem abre (ou reabre) a issue."
+else
+  fonte_md="- Regra no Grafana: ${url:-(sem link)} (túnel SSH, ver o runbook)"
+  rodape="Esta issue fecha sozinha quando o alerta resolver no Grafana. Fechar à mão antes disso é seguro: se o alerta ainda
+estiver disparando, uma issue nova abre em até 12 h."
+fi
 title="Alerta: ${detail:-${name:-sem nome}}"
 body="$(
   cat <<EOF
 $marker
-**${summary:-$name}** disparou no Grafana${since:+ em $since}.
+**${summary:-$name}** disparou ${origem:-no Grafana}${since:+ em $since}.
 
 - Gravidade: \`${severity:-sem rótulo}\`
-- Regra no Grafana: ${url:-(sem link)} (túnel SSH, ver o runbook)
+${fonte_md}
 - Runbook: [docs/runbooks/alertas-e-monitoramento.md](https://github.com/$REPO/blob/main/docs/runbooks/alertas-e-monitoramento.md)
 
 | Rótulo | Valor |
 |---|---|
 $labels_md
 
-Esta issue fecha sozinha quando o alerta resolver no Grafana. Fechar à mão antes disso é seguro: se o alerta ainda
-estiver disparando, uma issue nova abre em até 12 h.
+${rodape}
 EOF
 )"
 new="$(gh issue create -R "$REPO" --title "${title:0:240}" --label "$labels" --body "$body")"

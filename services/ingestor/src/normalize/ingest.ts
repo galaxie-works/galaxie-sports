@@ -4,8 +4,13 @@
  */
 import type { Database } from '@galaxie/db';
 import type { FailureReason, MachineOptions, ProviderResult } from '@galaxie/providers';
-import { applyProviderFailure } from './event-state.js';
-import { emptyStats, upsertBatch, type UpsertOptions, type UpsertStats } from './upsert-core.js';
+import {
+  applyProviderFailure,
+  emptyStats,
+  upsertBatch,
+  type UpsertOptions,
+  type UpsertStats,
+} from '@galaxie/core-writer';
 
 export interface IngestContext {
   provider: string;

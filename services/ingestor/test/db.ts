@@ -3,7 +3,12 @@ import postgres from 'postgres';
 import { closeDb, createDb, runMigrations, type Database } from '@galaxie/db';
 
 /** Banco descartável por arquivo de teste, criado a partir de DATABASE_URL (ver packages/db/test). */
-export function disposableDb(): { setup: () => Promise<Database>; teardown: () => Promise<void> } {
+export function disposableDb(): {
+  /** URL do banco descartável (ex.: quem precisa da própria conexão, como a trava do líder). */
+  url: string;
+  setup: () => Promise<Database>;
+  teardown: () => Promise<void>;
+} {
   const adminUrl = process.env.DATABASE_URL;
   if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
   const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
@@ -13,6 +18,7 @@ export function disposableDb(): { setup: () => Promise<Database>; teardown: () =
   let admin: postgres.Sql | undefined;
   let db: Database | undefined;
   return {
+    url: testUrl,
     setup: async () => {
       admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
       await admin.unsafe(`CREATE DATABASE ${dbName}`);

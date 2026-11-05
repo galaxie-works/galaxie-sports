@@ -19,7 +19,7 @@ Janela de todos os SLOs: 28 dias corridos.
 |---|---|---|---|---|
 | `api-disponibilidade` | Requisições à API pública sem erro do servidor, com a API no ar | 99,5% | 0,5% das requisições; com a API fora, ~3 h 22 min | rápida = push (`api`); lenta = resumo |
 | `api-latencia` | Rotas principais respondem em até 1 s (p99 ≤ 1 s) | 99% | 1% das requisições acima de 1 s | rápida = push (`api`); lenta = resumo |
-| `ao-vivo` | Jogo do plano do ao vivo atualizado dentro de 2 intervalos do poller | 99% | 1% dos minutos com jogo em andamento | rápida e lenta = resumo (o push é do `LiveEventStale`) |
+| `ao-vivo` | Jogo do plano do ao vivo atualizado dentro de 2 intervalos do poller e o `live-run` no ritmo (troca de versão de até 15 s não conta) | 99% | 1% dos minutos com jogo em andamento | rápida e lenta = resumo (o push é do `LiveEventStale` e do `LiveTickGap`) |
 | `frescor-diario` | Sync diário com sucesso há no máximo 26 h | 99% | ~6 h 43 min | só orçamento (o atraso já alerta no `JobOverdue`) |
 | `backup` | Dump com sucesso há no máximo 26 h e verificador sem falha | 99% | ~6 h 43 min | só orçamento (o push é do `BackupStale` e do `BackupCheckFailed`) |
 
@@ -95,19 +95,48 @@ as rotas que os widgets e a demo chamam em toda página de jogo, de ao vivo, de 
 ### `ao-vivo`: atraso do placar ao vivo
 
 Fração ruim = minutos com jogo do plano do ao vivo em andamento (`coverage="poller"`) em que algum jogo está mais de
-2 intervalos do poller sem atualização válida. É o mesmo limite do push `LiveEventStale`. Minuto sem jogo não conta.
+2 intervalos do poller sem atualização válida (o limite do push `LiveEventStale`) **ou** o `live-run` está fora do
+ritmo: a idade do último tick, de qualquer cópia, passa do intervalo do plano mais 15 s. Minuto sem jogo não conta.
 
 ```promql
+# slo:ao_vivo:tick_gap_ok, por esporte (1 bom, 0 ruim; sem série fora da janela ou em pausa de propósito); max by sport
+# porque cada cópia do serviço live expõe as mesmas séries
+(
+  max by (sport) (live_last_tick_age_seconds)
+  <= bool on(sport) (max by (sport) (live_tick_planned_interval_seconds) + 15)
+)
+and on(sport) (max by (sport) (live_window_open) == 1)
+and on(sport) (max by (sport) (live_tick_paused) == 0)
+
 # slo:ao_vivo:ok (1 bom, 0 ruim, sem série sem jogo)
 (
-  max(galaxie_live_event_max_staleness_seconds{coverage="poller"})
-  <= bool on() 2 * max(galaxie_live_poll_interval_seconds)
+  (
+    max(galaxie_live_event_max_staleness_seconds{coverage="poller"})
+    <= bool on() 2 * max(galaxie_live_poll_interval_seconds)
+  )
+  * on() (min(slo:ao_vivo:tick_gap_ok) or vector(1))
 )
 and on() (sum(galaxie_live_events{coverage="poller"}) > 0)
 
 # fração ruim na janela W
 1 - avg_over_time(slo:ao_vivo:ok[W])
 ```
+
+- **A troca de versão (#538):** o `live-run` tem líder e reserva (`LIVE_LEADER=on`, #536): quem assume mantém o
+  intervalo do plano (o bastão guarda o último tick) e leva ~2 s para pegar a trava. A conta aceita até 15 s a mais
+  que o intervalo do plano entre dois ticks: dentro disso a troca é o desenho funcionando e não gasta orçamento; fora,
+  gasta, e o `LiveTickGap` avisa depois de 1 min. Sem `LIVE_LEADER=on` o `live-run` só volta no próximo horário do
+  scheduler (a cada 5 min), e a troca gasta orçamento: é o custo de não ter a reserva.
+- **O que não conta:** meio-tempo, orçamento do dia esgotado e espera depois de erro da fonte (o runner publica a pausa
+  de propósito em `live_tick_paused`; quando ela acaba, a idade do tick conta desde o fim dela), e o minuto sem janela
+  aberta. Sem as séries do scheduler (o `/metrics` dele
+  fora, como no segundo da troca de contêiner), o ritmo não é medido e vale só o atraso do jogo.
+- **De onde vêm as séries:** o `live-run` é um processo filho do scheduler, sem servidor próprio. A cada tick ele grava
+  o ritmo em `ops.sync_cursor` (`live:scheduler`, chave `tick`) e o `/metrics` do scheduler do serviço `live` (#535;
+  o do ingestor com `SCHEDULER_LIVE=internal`; porta 9464, job `galaxie-services`, uma série por cópia, as mesmas) lê
+  dali a cada coleta: `live_last_tick_age_seconds`, `live_tick_interval_seconds`,
+  `live_tick_interval_max_seconds`, `live_tick_planned_interval_seconds`, `live_tick_paused`, `live_window_open` e
+  `live_leader{instance}` (no Prometheus, `exported_instance`).
 
 - **O que não mede:** o pedido era o atraso do evento na fonte até a nossa API. Isso não existe como métrica hoje.
   `galaxie_live_event_max_staleness_seconds` é o tempo desde a última atualização válida do jogo, não desde o gol.
@@ -164,12 +193,25 @@ confirma que ainda está acontecendo e faz o alerta resolver logo depois do cons
 |---|---|---|---|
 | `SloBurnRateFast` | ≥ 14,4 em 1 h e 5 min, **ou** ≥ 6 em 6 h e 30 min | 2% em 1 h ou 5% em 6 h | API: push, `sinal: api`. Ao vivo: resumo diário |
 | `SloBurnRateSlow` | ≥ 3 em 1 d e 2 h, **ou** ≥ 1 em 3 d e 6 h | 10% em 1 d ou em 3 d | resumo diário |
-| `ErrorBudgetExhausted` | orçamento de 28 dias ≤ 0 por 1 h | 100% | resumo diário; vale a política abaixo |
+| `ErrorBudgetExhausted` | orçamento de 28 dias ≤ 0 (avaliado a cada 30 s, sem hora de pendência) | 100% | resumo diário; vale a política abaixo |
 
 Na API, a queima rápida de 14,4 é 7,2% de 5xx (ou da hora fora) por uma hora; a lenta de 1 é 0,5% por três dias.
 
+**`ErrorBudgetExhausted` e a issue que reabria a cada deploy (#482).** O alerta dispara por um fato lento (a média de
+28 dias), então não tem `for` e roda num grupo de 30 s, lendo a série gravada com `last_over_time(...[10m])`. Antes ele
+tinha `for: 1h` num grupo de 5 min. A causa mais provável da reabertura (lida nas regras e no intervalo de 9 a 10 min
+entre "resolvido" e "disparou de novo" da issue; não conferida na VPS): o Prometheus reinicia a cada deploy, o alerta
+que já disparava volta como pendente (`for-grace-period` de 10 min, mais até 5 min até a primeira avaliação do grupo),
+o `ALERTS{alertstate="firing"}` que o Grafana lê some por mais que os 5 min de tolerância da consulta, a issue fecha e
+a seguinte reabre. Não é a troca de versão gastando orçamento: o SLI do ao vivo (atraso de 2 intervalos do poller)
+não enxergava uma troca de segundos. O orçamento do `ao-vivo` está de fato estourado (erro de 28 dias de 10,8% contra
+1% permitido em 03/11) e volta sozinho conforme os dias ruins saírem da janela; o alerta segue disparando até lá, mas
+sem fechar e reabrir a cada deploy. Outros alertas com `for` longo (`DiskFillingUp`, `DatabaseGrowingFast`,
+`RestoreDrillStale`) têm o mesmo atraso depois de uma reinicialização do Prometheus; vale rever se algum deles passar
+a disparar com frequência.
+
 Os alertas de queima do ao vivo, do frescor e do backup não mandam push: esses sinais já têm push próprio e mais
-rápido (`LiveEventStale`, `BackupStale`, `BackupCheckFailed`). Frescor e backup nem têm queima: com um job por dia, a
+rápido (`LiveEventStale`, `LiveTickGap`, `BackupStale`, `BackupCheckFailed`). Frescor e backup nem têm queima: com um job por dia, a
 taxa por hora não diz nada que o alerta do job não diga.
 
 ## Retenção do Prometheus

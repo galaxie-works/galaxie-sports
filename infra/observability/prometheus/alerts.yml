@@ -51,10 +51,12 @@ groups:
           summary: 'Job {{ $labels.job_name }} sem sucesso há {{ $value | humanizeDuration }}'
           description: 'Mais de 2 intervalos da agenda sem execução com sucesso. Veja o scheduler {{ $labels.component }} (Ajustes → Sistema), ops.job_run e os logs com job={{ $labels.job_name }}.'
 
-      # Os schedulers (ingestor e agents) relatam o env em ops.runtime_env a cada 30 s: 10 min sem relato = scheduler
-      # parado ou sem banco. Com jogo ao vivo, o LiveEventStale (push) dispara antes.
+      # Os schedulers (ingestor, agents e live) relatam o env em ops.runtime_env a cada 30 s: 10 min sem relato =
+      # scheduler parado ou sem banco. Com jogo ao vivo, o LiveEventStale (push) dispara antes. O live só tem série
+      # depois do primeiro relato (com SCHEDULER_LIVE=internal o ao vivo roda no ingestor); ao voltar para internal,
+      # apague as linhas dele: delete from ops.runtime_env where service = 'live'.
       - alert: SchedulerHeartbeatStale
-        expr: time() - galaxie_service_last_report_timestamp_seconds{component=~"ingestor|agents"} > 600
+        expr: time() - galaxie_service_last_report_timestamp_seconds{component=~"ingestor|agents|live"} > 600
         for: 5m
         labels:
           severity: warning
@@ -75,7 +77,8 @@ groups:
   # Política de backup e DR: docs/runbooks/exercicio-dr.md.
   - name: galaxie-backup
     rules:
-      # backup-check.sh (a cada 6 h): último dump com mais de 26 h ou, com o recibo do NAS ligado, cópia do NAS atrasada.
+      # backup-check.sh (a cada 6 h): último dump com mais de 26 h ou, com o recibo do NAS ligado, cópia do NAS atrasada e,
+      # com BACKUP_S3_SYNC_PREFIXES, sync dos assets (s3-sync.sh) sem recibo recente.
       - alert: BackupCheckFailed
         expr: galaxie_job_consecutive_failures{job_name="backup-check"} >= 1
         labels:
@@ -83,7 +86,7 @@ groups:
           sinal: backup-disco
         annotations:
           summary: 'Verificação do backup falhou'
-          description: 'Último dump atrasado ou cópia do NAS sem recibo recente. Veja ops.job_run (job backup-check, coluna error) e os logs do container backup.'
+          description: 'Último dump atrasado, cópia do NAS ou sync dos assets do S3 sem recibo recente. Veja ops.job_run (job backup-check, coluna error; job s3-sync para o motivo do sync) e os logs do container backup.'
 
       - alert: RestoreDrillFailed
         expr: galaxie_job_consecutive_failures{job_name="pg-restore-drill"} >= 1
@@ -116,7 +119,7 @@ groups:
           summary: 'Nenhum ensaio de restauração com sucesso há {{ $value | humanizeDuration }}'
           description: 'O ensaio roda no dia RESTORE_DRILL_DAY de cada mês (sem nenhum sucesso, a idade conta do início do verificador). Confira RESTORE_DRILL_DAY e os logs do container backup.'
 
-  # Conta da IA (services/ingestor/src/scheduler/ai-credit.ts, de hora em hora) e gasto do dia contra o teto global.
+  # Conta da IA (packages/scheduler/src/ai-credit.ts, de hora em hora) e gasto do dia contra o teto global.
   - name: galaxie-ai
     rules:
       - alert: AiCreditExhausted
@@ -180,6 +183,30 @@ groups:
           summary: 'Evento ao vivo de {{ $labels.sport }} sem atualização há {{ $value | humanizeDuration }}'
           description: 'Mais de 2 intervalos do live poller sem atualização válida. Verifique a cota LIVE e o worker ao vivo.'
 
+      # Ritmo do ao vivo (#538). live_last_tick_age_seconds é a idade do último tick de qualquer cópia: o /metrics do
+      # scheduler do live (#535; do ingestor com SCHEDULER_LIVE=internal) lê do Postgres o registro que o live-run grava a
+      # cada tick, e cada cópia do serviço expõe as mesmas séries (por isso o max by sport). A troca de líder ou de
+      # versão aparece como buraco entre dois ticks (com LIVE_LEADER=on a reserva assume em ~2 s; sem ele, o live-run
+      # volta no próximo horário do scheduler). O limite é 60 s ou 2 intervalos do plano, o que for maior: o plano
+      # espaça os ticks até 15 min quando o orçamento do dia aperta, e isso não é falha. Fica de fora a pausa de
+      # propósito (meio-tempo, orçamento do dia, espera depois de erro da fonte, entre janelas) e o dia sem janela
+      # aberta. O LiveEventStale olha o jogo parado; este olha o runner parado, antes que o jogo fique atrasado.
+      - alert: LiveTickGap
+        expr: >-
+          (
+            max by (sport) (live_last_tick_age_seconds)
+            > on(sport) clamp_min(2 * max by (sport) (live_tick_planned_interval_seconds), 60)
+          )
+          and on(sport) (max by (sport) (live_window_open) == 1)
+          and on(sport) (max by (sport) (live_tick_paused) == 0)
+        for: 1m
+        labels:
+          severity: critical
+          sinal: ao-vivo
+        annotations:
+          summary: 'Ao vivo de {{ $labels.sport }} sem tick há {{ $value | humanizeDuration }}'
+          description: 'Há jogo em andamento e o último tick passou de 60 s (ou 2 intervalos do plano). Veja o painel "SLOs e orçamento de erro" (ritmo do ao vivo e líder), o job live-run em ops.job_run e os logs do live (do ingestor com SCHEDULER_LIVE=internal); troca de versão que passa de 1 min aqui é deploy que não passou o bastão (LIVE_LEADER).'
+
   - name: galaxie-platform
     rules:
       - alert: ApiDown
@@ -229,6 +256,26 @@ groups:
           summary: 'Disco {{ $labels.device }} acaba em menos de 3 dias no ritmo atual'
           description: 'O espaço livre cai rápido (tendência das últimas 12 h). Veja galaxie_db_table_bytes (qual tabela cresce), o job data-retention e os dumps em /backups.'
 
+      # Memória real do host (o que sobra além do cache de disco), do mesmo node-exporter. Sem swap: acabou, o kernel mata processo.
+      - alert: HostMemoryHigh
+        expr: 1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"} > 0.80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Memória do host em {{ $value | humanizePercentage }}'
+          description: 'Acima de 80% de uso real (fora o cache de disco). Sem swap: veja o uso por contêiner (docs/runbooks/on-call.md) antes de chegar aos 90%.'
+
+      - alert: HostMemoryCritical
+        expr: 1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"} > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          sinal: api
+        annotations:
+          summary: 'Memória do host em {{ $value | humanizePercentage }}: risco de OOM'
+          description: 'Acima de 90% de uso real, sem swap: o kernel vai matar processo, e API e ao vivo estão na lista. Veja o uso por contêiner (docs/runbooks/on-call.md).'
+
       # O banco cresceu mais de 1 GiB em 24 h: o normal é bem menos (o raw do ao vivo fica 30 dias). Uma rodada de
       # sincronização NAS → produção também dispara, por isso é só aviso.
       - alert: DatabaseGrowingFast
@@ -249,6 +296,30 @@ groups:
         annotations:
           summary: 'Fila do change feed parada para {{ $labels.consumer }}'
           description: 'A mudança pendente mais antiga tem {{ $value | humanizeDuration }}. Veja se o consumidor está no ar (demo, worker de webhooks, API) e o cursor dele.'
+
+      # Tarefa da fila pronta há mais de 1 h sem worker pegar: o worker caiu, ou não atende o tipo, ou uma tarefa longa
+      # ocupa a vaga (pode ser normal numa carga grande, por isso vai para o resumo). Backoff não conta: a idade
+      # só corre depois do run_after.
+      - alert: TarefaPendenteAntiga
+        expr: galaxie_queue_oldest_pending_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tarefa {{ $labels.type }} esperando worker há {{ $value | humanizeDuration }}'
+          description: 'Veja se o worker está no ar e atende o tipo {{ $labels.type }}, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
+
+      # Resumo da home Explorar pré-calculado (#596): o job explore-summary refaz no minuto seguinte a uma mudança de
+      # status de jogo e a cada 10 min. Passou de 30 min (ou nunca gravou: +Inf), a API volta a montar a home na
+      # requisição, a consulta pesada que estoura o statement_timeout a frio com a VPS ocupada (deploy).
+      - alert: ExploreSummaryStale
+        expr: galaxie_explore_summary_age_seconds > 1800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Resumo da home Explorar sem recálculo há {{ $value | humanizeDuration }}'
+          description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0

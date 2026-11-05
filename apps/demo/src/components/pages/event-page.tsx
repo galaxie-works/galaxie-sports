@@ -35,17 +35,11 @@ import { StatusBadge } from '@/components/sport/status-badge';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  eventContextRequest,
-  eventRequest,
-  h2hRequest,
-  relatedRequest,
-  whereToWatchRequest,
-} from '@/lib/galaxie/api';
+import { eventContextRequest, eventRequest, h2hRequest, whereToWatchRequest } from '@/lib/galaxie/api';
 import type { SupportedLocale } from '@galaxie/contracts';
 
 import { goalsBehinds } from '@/lib/afl';
-import { apiLocale, contentLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
+import { apiLocale, contentLocale, contextLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
@@ -511,10 +505,13 @@ export async function EventContent({ params, searchParams, source }: PageContent
   // tags do torcedor, gritos e contexto na voz do país do mandante (um jogo no Chile sai em es-CL), com a
   // interface no idioma escolhido; em pt-BR, tudo em português
   const home = first.participants.find((p) => p.side === 'home');
-  const content = contentLocale(locale, home ? await source.getTeamCountry(home.id) : null);
+  const homeCountry = home ? await source.getTeamCountry(home.id) : null;
+  const content = contentLocale(locale, homeCountry);
+  // cenário e resumo de IA não existem em inglês: a tela em inglês os pede na voz em espanhol do mandante
+  const contextContent = contextLocale(locale, homeCountry);
   const event = content === apiLocale(locale) ? first : await source.getEvent(id, content);
   const [context, h2h, wtw, lineups, related, timeline, stats, fightCard] = await Promise.all([
-    source.getEventContext(id, content),
+    source.getEventContext(id, contextContent),
     source.getH2h(id, content),
     source.getWhereToWatch(id, country, content),
     source.getLineups(id, content),
@@ -581,7 +578,7 @@ export async function EventContent({ params, searchParams, source }: PageContent
               <Section
                 title={tx.title}
                 description={tx.description}
-                api={eventContextRequest(id, locale, content)}
+                api={eventContextRequest(id, locale, contextContent)}
               >
                 {context.data.map((c) => (
                   <Card key={c.kind} size="sm">
@@ -650,7 +647,6 @@ export async function EventContent({ params, searchParams, source }: PageContent
               title={t.event.related.title}
               icon={<Clapperboard className="size-4" aria-hidden />}
               description={t.event.related.description}
-              api={relatedRequest(id, locale, content, country)}
             >
               <RelatedContentGrid related={related} />
             </Section>

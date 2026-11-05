@@ -9,12 +9,17 @@ import {
   type Clock,
   type MediaDenylistEntry,
 } from '@galaxie/apisports-client';
-import type { AssetStore, LogoCleanup, MirrorAsset } from './asset-store.js';
-import { imageInfo, paletteFromPng, PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
+import {
+  isPlaceholderLogo,
+  LOGO_KINDS,
+  PERSON_PHOTO_KINDS,
+  PLACEHOLDER_LOGO_SHA256,
+} from '@galaxie/core-writer';
+import type { AssetStore, LogoCleanup, MirrorAsset, MirrorCursor } from './asset-store.js';
+import { imageInfo, paletteFromPng } from '@galaxie/crests';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
-import { isPlaceholderPhoto, PERSON_PHOTO_KINDS } from './person-photos.js';
-import { isPlaceholderLogo, LOGO_KINDS } from './placeholder-logos.js';
+import { isPlaceholderPhoto } from './person-photos.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
@@ -51,7 +56,25 @@ export interface AssetMirrorOptions {
   abortAfterRateLimited?: number;
   /** Só lista o que seria baixado. */
   dryRun?: boolean;
+  /**
+   * Cursor por tipo de asset (`mirror-cursor.ts`): a execução continua de onde a anterior parou, em vez de recomeçar
+   * pela cabeça da fila e repetir as mesmas falhas transitórias. Ignorado no modo de fotos (a ordem lá é por
+   * prioridade) e na prévia. Quando a volta pela fila termina, o cursor zera e a próxima recomeça do início.
+   */
+  cursor?: MirrorCursorStore | undefined;
+  /** Grava o cursor a cada N assets feitos (padrão 100): uma queda no meio perde no máximo isso. */
+  checkpointEvery?: number;
+  /** Encerramento (SIGTERM do deploy): os workers param de pegar asset novo e o cursor é gravado. */
+  signal?: AbortSignal | undefined;
+  /** Pula a limpeza do início (bloqueados, logos e fotos genéricos): a tarefa em lotes limpa só no primeiro. */
+  skipCleanup?: boolean;
   onProgress?: (event: MirrorEvent) => void;
+}
+
+/** Onde o cursor do espelho mora (ops.sync_cursor no serviço; memória nos testes). */
+export interface MirrorCursorStore {
+  load(): Promise<MirrorCursor>;
+  save(cursor: MirrorCursor): Promise<void>;
 }
 
 export type MirrorEvent =
@@ -89,6 +112,11 @@ export interface MirrorReport {
   aborted: string | null;
   failures: { url: string; reason: string }[];
   notFoundUrls: string[];
+  /**
+   * Com cursor: `retomou` = começou depois do cursor de algum tipo; `fimDaVolta` = a fila acabou nesta execução (o
+   * cursor zerou); `interrompida` = parou pelo `signal`.
+   */
+  cursor?: { retomou: boolean; fimDaVolta: boolean; interrompida: boolean };
 }
 
 /**
@@ -127,26 +155,56 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     notFoundUrls: [],
   };
 
-  if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
-  report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
-    placeholders: options.placeholderLogos,
-    dryRun: options.dryRun,
-    // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
-    denylisted: denylist.urls,
-  });
-  report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
-    placeholders: options.placeholderPhotos,
-    dryRun: options.dryRun,
-  });
+  if (!options.skipCleanup) {
+    if (!options.dryRun) report.unlinked = await options.assets.unlink(denylist.urls, new Date(clock.now()));
+    report.logoCleanup = await options.assets.cleanupLogos(new Date(clock.now()), {
+      placeholders: options.placeholderLogos,
+      dryRun: options.dryRun,
+      // a prévia pula o unlink: os logos bloqueados entram na conta dos desligados
+      denylisted: denylist.urls,
+    });
+    report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
+      placeholders: options.placeholderPhotos,
+      dryRun: options.dryRun,
+    });
+  }
 
+  const cursorStore = options.cursor && !options.personPhotos && !options.dryRun ? options.cursor : undefined;
+  const after = cursorStore ? await cursorStore.load() : undefined;
   const queue = await options.assets.pending({
     limit: options.limit,
     includeMissing: options.includeMissing,
     personPhotos: options.personPhotos,
     pathPrefix: options.pathPrefix,
+    after,
   });
   report.pending = queue.length;
   if (options.dryRun) return report;
+
+  // cursor = último de cada tipo no trecho contíguo já feito da fila (com vários workers, um item mais à frente pode
+  // terminar antes; o cursor só anda até o primeiro ainda em andamento)
+  const done: boolean[] = new Array<boolean>(queue.length).fill(false);
+  let prefix = 0;
+  const position: MirrorCursor = { ...after };
+  let sinceSave = 0;
+  let saving: Promise<void> = Promise.resolve();
+  const save = (cursor: MirrorCursor) => {
+    saving = saving.then(() => cursorStore!.save(cursor));
+    return saving;
+  };
+  const markDone = (index: number) => {
+    if (!cursorStore) return;
+    done[index] = true;
+    while (prefix < queue.length && done[prefix]) {
+      const item = queue[prefix]!;
+      if (item.position) position[item.kind] = item.position;
+      prefix += 1;
+    }
+    if (++sinceSave >= (options.checkpointEvery ?? 100)) {
+      sinceSave = 0;
+      void save({ ...position }).catch(() => {});
+    }
+  };
 
   let consecutiveRateLimited = 0;
   let next = 0;
@@ -230,8 +288,9 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   // deixaria os outros workers gravando com o CLI já fechando o banco. Erros seguidos interrompem a execução.
   let consecutiveErrors = 0;
   const worker = async (): Promise<void> => {
-    while (!report.aborted) {
-      const item = queue[next++];
+    while (!report.aborted && !options.signal?.aborted) {
+      const index = next++;
+      const item = queue[index];
       if (!item) return;
       try {
         await handle(item);
@@ -248,9 +307,27 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
           emit({ type: 'aborted', reason: report.aborted });
         }
       }
-      if (delayMs > 0) await clock.sleep(delayMs);
+      markDone(index);
+      if (delayMs > 0 && !options.signal?.aborted) await clock.sleep(delayMs);
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+  if (cursorStore) {
+    const interrupted = !!options.signal?.aborted;
+    // a fila acabou nesta volta (veio menos que o limite e tudo foi feito): a próxima recomeça do início e tenta de
+    // novo as falhas transitórias que ficaram para trás
+    const endOfRound =
+      !report.aborted &&
+      !interrupted &&
+      prefix === queue.length &&
+      (!options.limit || queue.length < options.limit);
+    await saving.catch(() => {});
+    await save(endOfRound ? {} : { ...position });
+    report.cursor = {
+      retomou: Object.keys(after ?? {}).length > 0,
+      fimDaVolta: endOfRound,
+      interrompida: interrupted,
+    };
+  }
   return report;
 }

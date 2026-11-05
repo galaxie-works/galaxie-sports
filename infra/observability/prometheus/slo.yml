@@ -146,14 +146,33 @@ groups:
         expr: >-
           1 - avg_over_time(slo:api_main_requests_fast:rate5m[3d]) / avg_over_time(slo:api_main_requests:rate5m[3d])
 
-      # Ao vivo: 1 em cada avaliação com jogo do plano do ao vivo em andamento e nenhum deles mais de 2 intervalos do
-      # poller sem atualização (o mesmo limite do LiveEventStale); 0 quando algum está; sem série quando não há jogo.
-      # As janelas contam só os minutos com jogo.
+      # Ao vivo: 1 em cada avaliação com jogo do plano do ao vivo em andamento, nenhum deles mais de 2 intervalos do
+      # poller sem atualização (o mesmo limite do LiveEventStale) e o runner no ritmo; 0 quando algum está fora; sem
+      # série quando não há jogo. As janelas contam só os minutos com jogo.
+      #
+      # No ritmo (slo:ao_vivo:tick_gap_ok, por esporte): a idade do último tick, de qualquer cópia, cabe no intervalo
+      # do plano mais 15 s. Esses 15 s são a troca de versão ou de líder (#536: a reserva assume em ~2 s e o bastão
+      # mantém o intervalo): quem troca dentro deles não gasta orçamento; buraco maior gasta, como o LiveTickGap
+      # avisa. Meio-tempo, orçamento do dia e espera depois de erro da fonte são pausa de propósito e não contam.
+      # Sem as séries do scheduler (o /metrics dele fora, como na troca de contêiner) o ritmo não é medido e vale
+      # só o atraso do jogo.
+      # Cada cópia do serviço live expõe as mesmas séries (lidas do mesmo Postgres): max by sport, uma série por esporte.
+      - record: slo:ao_vivo:tick_gap_ok
+        expr: >-
+          (
+            max by (sport) (live_last_tick_age_seconds)
+            <= bool on(sport) (max by (sport) (live_tick_planned_interval_seconds) + 15)
+          )
+          and on(sport) (max by (sport) (live_window_open) == 1)
+          and on(sport) (max by (sport) (live_tick_paused) == 0)
       - record: slo:ao_vivo:ok
         expr: >-
           (
-            max(galaxie_live_event_max_staleness_seconds{coverage="poller"})
-            <= bool on() 2 * max(galaxie_live_poll_interval_seconds)
+            (
+              max(galaxie_live_event_max_staleness_seconds{coverage="poller"})
+              <= bool on() 2 * max(galaxie_live_poll_interval_seconds)
+            )
+            * on() (min(slo:ao_vivo:tick_gap_ok) or vector(1))
           )
           and on() (sum(galaxie_live_events{coverage="poller"}) > 0)
       - record: slo:sli_error:ratio_rate5m
@@ -297,9 +316,17 @@ groups:
       - record: slo:error_budget_remaining:ratio
         expr: 1 - slo:sli_error:ratio_28d / on(slo) (1 - slo:objective:ratio)
 
+  # Alerta do orçamento (#482): fora do grupo de 5 min, sem `for` e lendo a série gravada com last_over_time. O
+  # orçamento de 28 dias é uma média lenta, então o `for: 1h` não filtrava ruído nenhum. Custava caro, ao que tudo
+  # indica: a cada deploy o Prometheus reinicia, o alerta que já disparava volta como pendente (for-grace-period de
+  # 10 min, mais até 5 min até a primeira avaliação do grupo de 5 min), o ALERTS some do Grafana por uns 10 min, a
+  # issue fecha e reabre (resolvido e disparado de novo com 9 a 10 min de diferença). Avaliado a cada 30 s e sem
+  # pendência, o buraco na reinicialização fica abaixo dos 5 min que a consulta do Grafana tolera.
+  - name: galaxie-slo-budget-alert
+    interval: 30s
+    rules:
       - alert: ErrorBudgetExhausted
-        expr: slo:error_budget_remaining:ratio <= 0
-        for: 1h
+        expr: last_over_time(slo:error_budget_remaining:ratio[10m]) <= 0
         labels:
           severity: warning
         annotations:

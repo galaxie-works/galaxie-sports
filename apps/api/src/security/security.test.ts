@@ -147,6 +147,8 @@ describe('auditoria de rotas', () => {
     // prontidão para o monitor externo: só ok/degraded/unavailable por dependência, sem dado nenhum
     'GET /health/ready',
     'GET /metrics',
+    // a versão que o deploy e o smoke conferem: só o hash da imagem e a versão do Node
+    'GET /version',
     'GET /openapi.json',
     'GET /docs',
     'OPTIONS /*',

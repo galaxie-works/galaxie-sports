@@ -8,8 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { changeFeed, derby, event, sport, type Database } from '@galaxie/db';
 import { loadKnowledge, seedSemantic } from '@galaxie/knowledge';
 import { importance, normalizeFixtures } from '@galaxie/providers';
+import { upsertBatch } from '@galaxie/core-writer';
 import { recomputeEventImportance, IMPORTANCE_TOPIC } from '../src/normalize/importance.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { apiFixture, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';
 

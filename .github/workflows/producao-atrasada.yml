@@ -1,0 +1,103 @@
+name: Produção atrasada
+
+# Alerta ProducaoAtrasada (#530): a versão que roda na produção está atrás da main há mais de 2 h, sem deploy em andamento.
+# Compara o in-<hash> de cada imagem (api, demo, ingestor) no HEAD da main com o que a produção responde em /version
+# (infra/ops/producao-atrasada.mjs). Compara hash, não SHA: merge que só muda docs ou workflow não é atraso. Atrasou:
+# issue "Alerta: ProducaoAtrasada" (rótulo `alerta`, diagnóstico só leitura) pelo infra/ops/alerta-issue.sh e push pelo
+# ntfy (secret ALERT_NTFY_URL do ambiente producao, como o deploy.yml). A produção alcançou a main: a issue fecha sozinha.
+# Roda no GitHub e não no Prometheus de propósito: o alertador da VPS cai junto com ela. Runbook:
+# docs/runbooks/alertas-e-monitoramento.md › Produção atrasada.
+#
+#   gh workflow run producao-atrasada.yml                    # checagem agora
+#   gh workflow run producao-atrasada.yml -f limite_min=1    # teste: atraso de 1 min já alerta (abre a issue de verdade)
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      limite_min:
+        description: Minutos de atraso que disparam o alerta (vazio = 120)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # uma checagem por vez (a seguinte, 30 min depois, refaz o que uma atrasada deixar para trás)
+  group: producao-atrasada
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    name: Versão no ar × main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write # abre e fecha a issue do alerta
+      actions: write # lê as execuções do deploy.yml e dispara o diagnóstico (diagnostico.yml) ao abrir ou reabrir a issue
+    outputs:
+      acao: ${{ steps.verificar.outputs.acao }}
+      novo: ${{ steps.verificar.outputs.novo }}
+      resumo: ${{ steps.verificar.outputs.resumo }}
+    steps:
+      # histórico curto e sem arquivos antigos: o git log por pasta e o hash por commit só leem árvores
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 300
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Comparar a versão no ar com a main
+        id: verificar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          LIMITE_MIN: ${{ inputs.limite_min }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node infra/ops/producao-atrasada.mjs verificar
+
+      - name: Abrir, atualizar ou fechar a issue
+        if: steps.verificar.outputs.acao != 'nada'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ALERTA_PAYLOAD: ${{ steps.verificar.outputs.payload }}
+        run: bash infra/ops/alerta-issue.sh
+
+  # Push só quando o alerta é novo (sem issue aberta): a checagem seguinte, 30 min depois, acha a issue aberta e cala. Num
+  # job à parte para o ambiente producao (e o deployment dele) só aparecer quando há o que avisar.
+  push:
+    name: Aviso por push
+    needs: verificar
+    if: needs.verificar.outputs.novo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: producao
+    permissions: {}
+    steps:
+      - name: Push no celular (ntfy)
+        env:
+          NTFY_URL: ${{ secrets.ALERT_NTFY_URL }}
+          NTFY_TOKEN: ${{ secrets.ALERT_NTFY_TOKEN }}
+          RESUMO: ${{ needs.verificar.outputs.resumo }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NTFY_URL" ]; then
+            echo "::notice::sem o secret ALERT_NTFY_URL no ambiente producao: aviso só pela issue e pelo e-mail do GitHub"
+            exit 0
+          fi
+          auth=()
+          [ -z "$NTFY_TOKEN" ] || auth=(-H "Authorization: Bearer $NTFY_TOKEN")
+          curl -fsS -m 15 "${auth[@]}" \
+            -H 'Title: Galaxie Sports: produção atrasada em relação à main [deploy]' \
+            -H 'Priority: high' -H 'Tags: hourglass_flowing_sand' -H "Click: $RUN_URL" \
+            --data-binary "A versão no ar está atrás da main há mais de 2 h e nenhum deploy está rodando. Veja o último deploy.yml e a trava da VPS.
+          $RESUMO
+          $RUN_URL" "${NTFY_URL%/}" >/dev/null ||
+            echo "::warning::push do aviso de produção atrasada não saiu"

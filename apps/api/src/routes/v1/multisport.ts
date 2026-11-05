@@ -47,7 +47,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, formatInstant, pickText, resolveLocale } from '../../i18n.js';
 import { decodeCursor, encodeCursor, parseInput, UUID_RE } from '../../util.js';
 
 const MODULE = { module: 'multisport' } as const;
@@ -96,25 +96,31 @@ export function medalQuality(
   const level = (g.medalDataQuality ?? null) as MedalDataQuality['level'];
   const coverage = g.medalCoverage == null ? null : Number(g.medalCoverage);
   const publishable = !!level && PUBLISHABLE.has(level);
-  const pt = locale.startsWith('pt');
+  const lang = locale.startsWith('pt') ? 'pt' : locale.startsWith('en') ? 'en' : 'es';
   let notice: string | null = null;
   if (level === 'partial') {
     const pct =
       coverage == null
         ? null
         : new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(coverage);
-    notice = pt
-      ? `Quadro parcial${pct ? `: cobertura de ${pct} das medalhas distribuídas` : ''}.`
-      : `Cuadro parcial${pct ? `: cobertura del ${pct} de las medallas entregadas` : ''}.`;
+    notice = {
+      pt: `Quadro parcial${pct ? `: cobertura de ${pct} das medalhas distribuídas` : ''}.`,
+      es: `Cuadro parcial${pct ? `: cobertura del ${pct} de las medallas entregadas` : ''}.`,
+      en: `Partial table${pct ? `: ${pct} of the medals awarded are covered` : ''}.`,
+    }[lang];
   } else if (!publishable) {
     notice =
       g.status === 'upcoming'
-        ? pt
-          ? 'Os Jogos ainda não começaram.'
-          : 'Los Juegos todavía no comenzaron.'
-        : pt
-          ? 'Dados de medalhas insuficientes para publicar o quadro desta edição.'
-          : 'Datos de medallas insuficientes para publicar el cuadro de esta edición.';
+        ? {
+            pt: 'Os Jogos ainda não começaram.',
+            es: 'Los Juegos todavía no comenzaron.',
+            en: 'The Games have not started yet.',
+          }[lang]
+        : {
+            pt: 'Dados de medalhas insuficientes para publicar o quadro desta edição.',
+            es: 'Datos de medallas insuficientes para publicar el cuadro de esta edición.',
+            en: 'Not enough medal data to publish the table for this edition.',
+          }[lang];
   }
   return { level, coverage, publishable, notice };
 }
@@ -324,6 +330,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
               slug: competition.slug,
               name: competition.name,
               labels: competition.labels,
+              countryCode: competition.countryCode,
             },
             s: { year: season.year, label: season.label },
           })
@@ -337,7 +344,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           competitions: comps.map((r) => ({
             id: r.c.id,
             slug: r.c.slug,
-            name: pickText(r.c.labels as I18n, locale, r.c.name)!,
+            name: competitionName(r.c.labels as I18n, r.c.countryCode, r.c.name, locale),
             sport: r.gc.sport,
             gender: r.gc.gender,
             season: r.s ? { year: r.s.year, label: r.s.label } : null,

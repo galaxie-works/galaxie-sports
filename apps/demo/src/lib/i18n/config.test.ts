@@ -4,6 +4,7 @@ import {
   apiLocale,
   apiTimeZone,
   contentLocale,
+  contextLocale,
   isTimeZone,
   negotiateLocale,
   relevanceMarket,
@@ -29,23 +30,33 @@ describe('idioma da requisição', () => {
     expect(resolveLocale(undefined, undefined)).toBe('pt-BR');
   });
 
-  it('a API recebe pt-BR ou es-AR (inglês pede espanhol)', () => {
+  it('a API recebe o idioma da tela (pt-BR, es-AR ou en)', () => {
     expect(apiLocale('pt-BR')).toBe('pt-BR');
     expect(apiLocale('es-AR')).toBe('es-AR');
-    expect(apiLocale('en')).toBe('es-AR');
+    expect(apiLocale('en')).toBe('en');
   });
 
   it('o conteúdo vem na voz do país do time, com a interface no idioma escolhido', () => {
-    // site em inglês: Boca na voz argentina, Universidad Católica na chilena
-    expect(contentLocale('en', 'AR')).toBe('es-AR');
-    expect(contentLocale('en', 'CL')).toBe('es-CL');
+    // site em espanhol: Universidad Católica na voz chilena, Boca na argentina
     expect(contentLocale('es-AR', 'MX')).toBe('es-MX');
     expect(contentLocale('es-AR', 'uy')).toBe('es-UY');
+    expect(contentLocale('es-AR', 'CL')).toBe('es-CL');
     // fora dos mercados em espanhol (ou sem país): o espanhol padrão
-    expect(contentLocale('en', 'BR')).toBe('es-AR');
+    expect(contentLocale('es-AR', 'BR')).toBe('es-AR');
     expect(contentLocale('es-AR', null)).toBe('es-AR');
-    // em português, tudo em português
+    // em português, tudo em português; em inglês, tudo em inglês (a voz do país só vale para o espanhol)
     expect(contentLocale('pt-BR', 'CL')).toBe('pt-BR');
+    expect(contentLocale('en', 'CL')).toBe('en');
+    expect(contentLocale('en', 'BR')).toBe('en');
+  });
+
+  it('o contexto de IA não existe em inglês: a tela em inglês pede a voz em espanhol do mandante', () => {
+    expect(contextLocale('en', 'CL')).toBe('es-CL');
+    expect(contextLocale('en', 'AR')).toBe('es-AR');
+    expect(contextLocale('en', 'BR')).toBe('es-AR');
+    expect(contextLocale('en', null)).toBe('es-AR');
+    expect(contextLocale('es-AR', 'MX')).toBe('es-MX');
+    expect(contextLocale('pt-BR', 'AR')).toBe('pt-BR');
   });
 
   it('o fuso da API acompanha o mercado do conteúdo', () => {

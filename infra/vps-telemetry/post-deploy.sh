@@ -8,6 +8,8 @@
 #          nem LLM), limpeza do cache de respostas da API e conta da IA. O seed roda em todo deploy, não só quando
 #          data/knowledge muda: é ele que liga os perfis aos participantes que a ingestão trouxe desde o último
 #          deploy
+#   sem-cache  o mesmo, sem a limpeza do cache: um deploy que não troca API, webhooks, ingestor nem agents não invalida
+#          as respostas guardadas
 #   seed   só o seed da base semântica (depois de voltar para a versão anterior)
 #   cache  só a limpeza do cache (depois de voltar para a versão anterior)
 #
@@ -17,6 +19,11 @@
 # consumiria o resto do script.
 set -euo pipefail
 export PULL_POLICY=missing # nada vem do registry aqui
+
+# Postgres, Valkey e backup estão no projeto `dados` (docs/runbooks/stack-em-tres-projetos.md); antes da transição, neste
+dados() {
+  if [ -f compose.dados.yml ]; then docker compose -f compose.dados.yml "$@"; else docker compose "$@"; fi
+}
 
 step="${1:-all}"
 SEED_JS=/srv/services/ingestor/node_modules/@galaxie/knowledge/dist/cli/seed-semantic.js
@@ -49,7 +56,7 @@ derived() {
 # (sh -e no contêiner), senão o cache antigo seguiria no ar sem aviso.
 cache() {
   echo "limpando o cache de respostas da API"
-  docker compose exec -T valkey sh -ec '
+  dados exec -T valkey sh -ec '
     for p in "gs:cache:*" "gs:tag:*"; do
       keys=$(valkey-cli --scan --pattern "$p")
       [ -z "$keys" ] || printf "%s\n" "$keys" | xargs -n 200 valkey-cli del >/dev/null
@@ -97,10 +104,15 @@ case "$step" in
     cache
     ai
     ;;
+  sem-cache)
+    semantic
+    derived
+    ai
+    ;;
   seed) semantic ;;
   cache) cache ;;
   *)
-    echo "uso: post-deploy.sh all|seed|cache" >&2
+    echo "uso: post-deploy.sh all|sem-cache|seed|cache" >&2
     exit 2
     ;;
 esac

@@ -115,7 +115,7 @@ A meta é copiar "tudo" e manter atualizado com **100 chamadas por dia por API**
 3. **Quota Governor** — orçamento diário por API e prioridade (bootstrap, sync diário, ao vivo, sob demanda) com reserva de segurança.
 4. **Bootstrap distribuído em dias** — a carga histórica é um plano executado em lotes diários, retomável.
 5. **Live por janela** — uma única chamada `fixtures?live=<ligas>` cobre todos os jogos ao vivo das ligas prioritárias; o intervalo se ajusta ao orçamento.
-6. **Assets fora da cota** — logos, bandeiras, estádios e fotos são extraídos das URLs presentes no raw e baixados da CDN de mídia ([`scripts/pwsh/Sync-ApiSportsAssets.ps1`](scripts/pwsh/Sync-ApiSportsAssets.ps1)).
+6. **Assets fora da cota** — logos, bandeiras, estádios e fotos são extraídos das URLs presentes no raw e espelhados do raw para o nosso bucket pelo Asset Mirror (`pnpm --filter @galaxie/ingestor assets:mirror`).
 
 > **Atenção — o free mudou.** Desde 2024 o plano gratuito limita temporadas: em 2026 só **2022–2024** são acessíveis por `season`, a janela de datas é **ontem → amanhã** e `ids`/`last`/`next` são bloqueados. A temporada atual não pode ser listada no free. A recomendação é **assinar o plano Pro por 30 dias (US$ 19)** para o bootstrap completo (~27 mil chamadas, ~4 dias) e manter o espelho no free depois. Múltiplas contas para somar cota são proibidas pelos termos — e não fazemos isso.
 
@@ -179,7 +179,6 @@ galaxie-sports/
 ├── config/                  # YAML de operação: competições, regras, emissoras, direitos, geo, planos, política de IA
 ├── data/knowledge/          # base semântica versionada (times, clássicos, copy)
 ├── infra/                   # compose local, stack da VPS, Traefik, backup, Prometheus/Grafana, scripts de operação
-├── scripts/pwsh/            # Get-ApiSportsStatus.ps1 · Sync-ApiSportsAssets.ps1
 ├── tests/load/              # cenários k6
 └── docs/                    # documentação (pt-BR), runbooks, pesquisas, postmortems
 ```
@@ -201,6 +200,8 @@ galaxie-sports/
 | [packages/crests](packages/crests/README.md) | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o envio no painel |
 | [packages/runtime-config](packages/runtime-config/README.md) | Flags da operação (banco > env > padrão) |
 | [packages/ai-ledger](packages/ai-ledger/README.md) | Orçamento diário de IA em tokens e US$ |
+| [packages/scheduler](packages/scheduler/README.md) | Motor de agendamento do ingestor e dos agentes de IA |
+| [packages/core-writer](packages/core-writer/README.md) | Grava o lote neutro dos provedores no core (`upsertBatch`) |
 | [packages/observability](packages/observability/README.md) | Logger e métricas Prometheus |
 | [packages/net-guard](packages/net-guard/README.md) | Proteção contra SSRF nas buscas de URLs de terceiros |
 | [packages/widgets](packages/widgets/README.md) | Widgets React, item de registry shadcn e embed HTML |
@@ -237,6 +238,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
 | `pnpm --filter @galaxie/ingestor normalize:sports [--esporte nba] [--tudo]` | Normaliza o raw dos outros 11 esportes no core (jogos, sessões da F1, lutas do MMA, classificação, times) — zero chamadas; incremental por esporte |
 | `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
+| `pnpm --filter @galaxie/ingestor stages:backfill-en [--aplicar] [--esporte football]` | Nome em inglês das fases já gravadas (`core.stage.name->>'en'`, recalculado do rótulo do fornecedor com `parseRound`); prévia sem `--aplicar`; idempotente, zero chamadas — rode uma vez depois do deploy do locale `en` |
 | `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
 | `pnpm --filter @galaxie/ingestor bootstrap:details --plan` | Detalhe das partidas encerradas (tier 1 → clássicos → tier 2): `fixtures?ids=` ×20 nos pagos; no free, `fixtures?id=` só de clássicos e jogos decisivos |
 | `pnpm --filter @galaxie/ingestor bootstrap:people --plan` | Elencos, técnicos, transferências, títulos, afastamentos e h2h dos clássicos; `--estatisticas-jogadores` para `players?league&season` |
@@ -266,15 +268,14 @@ Os jobs de ingestão (`bootstrap:*`, `sync:daily`) aceitam `--plan` (rede × cac
 
 Para a demo, veja [apps/demo](apps/demo/README.md). Próximos marcos no [roadmap](docs/10-roadmap-e-backlog.md).
 
-Ferramentas já disponíveis:
+Ferramentas já disponíveis (as duas falam com a api-sports pelo cliente `@galaxie/apisports-client`):
 
-```powershell
-# Cota e plano de cada uma das 12 APIs (endpoint /status)
-$env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | Format-Table
+```bash
+# Cota e plano de cada uma das 12 APIs (endpoint /status) e o uso do dia no Governor
+pnpm --filter @galaxie/ingestor quota
 
-# Espelha em disco todos os assets referenciados nas respostas brutas exportadas
-# (o worker agendado que grava no S3 e em core.asset é `pnpm --filter @galaxie/ingestor assets:mirror`)
-./scripts/pwsh/Sync-ApiSportsAssets.ps1 -SourcePath ./data/raw -Destination ./data/assets
+# Espelha os assets referenciados no raw para o bucket e preenche core.asset (--plan mostra a prévia)
+pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 ```
 
 ## Documentação
@@ -293,7 +294,6 @@ $env:APISPORTS_KEY = '<sua chave>'; ./scripts/pwsh/Get-ApiSportsStatus.ps1 | For
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
-| 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
 | 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |

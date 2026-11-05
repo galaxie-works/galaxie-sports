@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { MediaDenylist, publicAssetUrl } from '@galaxie/apisports-client';
+import { coachPhotoUrl, MediaDenylist, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import {
   apiResponse,
   asset,
@@ -24,25 +24,24 @@ import {
   type ApiPlayerItem,
   type NormalizedParticipant,
 } from '@galaxie/providers';
+import { PLACEHOLDER_LOGO_SHA256, upsertBatch } from '@galaxie/core-writer';
 import { runAssetMirror } from '../src/assets/asset-mirror.js';
 import { PgAssetStore, runRawDiscovery, type RawDiscoveryReport } from '../src/assets/asset-store.js';
 import { MediaFetcher } from '../src/assets/media-fetcher.js';
+import { mirrorCursorStore } from '../src/assets/mirror-cursor.js';
+import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { InMemoryObjectStore, objectStoreFromEnv } from '../src/assets/object-store.js';
 import {
-  coachPhotoUrl,
   pendingPersonPhotoIds,
-  playerPhotoUrl,
   previewPlayerPhotos,
   registerPlayerPhotos,
 } from '../src/assets/person-photos.js';
-import { PLACEHOLDER_LOGO_SHA256 } from '@galaxie/crests';
 import { upsertCatalog, type CatalogRows } from '../src/catalog/persist.js';
 import { runPaletteBackfill } from '../src/assets/palette-backfill.js';
 import { relinkRecoveredLogos } from '../src/assets/relink-logos.js';
 import { disposableDb } from './db.js';
 import { FakeClock, fakeMediaFetch, fakePng } from './helpers.js';
 import { encodePng } from './png.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 
 const testDb = disposableDb();
 let db: Database;
@@ -660,6 +659,65 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     expect(full).toMatchObject({ after: null, urls: first.urls + 3, added: 0 });
   });
 });
+
+describe('cursor do espelho no Postgres (ops.sync_cursor)', () => {
+  it('a execução seguinte continua depois do último feito de cada tipo; a volta completa zera o cursor', async () => {
+    const urls = [1, 2, 3].map((n) => `https://media.api-sports.io/rugby/teams/9${n}.png`);
+    const flag = 'https://media.api-sports.io/flags/xk.svg';
+    // um insert por asset: created_at em ordem (a fila anda por created_at, id)
+    for (const sourceUrl of [...urls, flag])
+      await db.insert(asset).values({ kind: mediaKind(sourceUrl), sourceUrl });
+    const assets = new PgAssetStore(db);
+    const clock = new FakeClock();
+    const png = fakePng(10, 10, 3);
+    const media = fakeMediaFetch({
+      [urls[0]!]: [{ status: 500 }],
+      [urls[1]!]: [{ status: 200, body: png, headers: { 'content-type': 'image/png' } }],
+      [urls[2]!]: [{ status: 200, body: png, headers: { 'content-type': 'image/png' } }],
+      [flag]: [
+        {
+          status: 200,
+          body: '<svg xmlns="http://www.w3.org/2000/svg"/>',
+          headers: { 'content-type': 'image/svg+xml' },
+        },
+      ],
+    });
+    const cursor = mirrorCursorStore(new PgCursorStore(db), { pathPrefix: 'rugby' });
+    const deps = {
+      assets,
+      objects: new InMemoryObjectStore(),
+      fetcher: new MediaFetcher({ fetch: media.fetch, clock, maxRetries: 0 }),
+      clock,
+      delayMs: 0,
+      concurrency: 1,
+      pathPrefix: 'rugby',
+      cursor,
+    };
+    const r1 = await runAssetMirror({ ...deps, limit: 1 });
+    expect(r1).toMatchObject({ pending: 1, failed: 1 });
+    const saved = await cursor.load();
+    // o cursor guarda o instante com a precisão do banco (o texto do Postgres tira os zeros finais dos microssegundos,
+    // então a comparação é no próprio banco, não pelo número de dígitos)
+    const [exact] = await db.execute<{ same: boolean }>(
+      sql`select created_at = ${saved.team_logo!.createdAt}::timestamptz as same from core.asset where id = ${saved.team_logo!.id}`,
+    );
+    expect(exact?.same).toBe(true);
+
+    const r2 = await runAssetMirror({ ...deps, limit: 5 });
+    // pulou o que falhou e foi até o fim: a bandeira é de outro caminho, fora deste escopo
+    expect(r2).toMatchObject({ pending: 2, stored: 2, failed: 0 });
+    expect(r2.cursor).toMatchObject({ retomou: true, fimDaVolta: true });
+    expect(await cursor.load()).toEqual({});
+
+    const r3 = await runAssetMirror({ ...deps, limit: 5 });
+    expect(r3).toMatchObject({ pending: 1, failed: 1 });
+    expect(media.calls.filter((c) => c.url === urls[0]).length).toBe(2);
+  });
+});
+
+function mediaKind(url: string) {
+  return url.includes('/flags/') ? ('flag' as const) : ('team_logo' as const);
+}
 
 describe('logo 404 que volta no --retentar-ausentes', () => {
   // pasta só deste teste na CDN, para a fila (--caminho) não pegar os assets dos outros

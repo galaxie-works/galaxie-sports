@@ -178,7 +178,7 @@ docker compose run --rm --no-deps -v galaxie-commons:/data/commons ingestor \
 docker compose run --rm --no-deps -v galaxie-commons:/data/commons ingestor \
   node dist/cli/assets-commons.js --manifesto /data/commons/f1.yaml
 # 5. limpa o cache de respostas da API (mesmo passo do deploy)
-for p in 'gs:cache:*' 'gs:tag:*'; do docker compose exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
+for p in 'gs:cache:*' 'gs:tag:*'; do docker compose -f compose.dados.yml exec -T valkey sh -c "valkey-cli --scan --pattern '$p' | xargs -r -n 200 valkey-cli del >/dev/null"; done
 # 6. traz o manifesto ordenado para o repositório (PR), para o git ficar igual à produção
 docker compose run --rm --no-deps -v galaxie-commons:/data/commons --entrypoint cat agents /data/commons/f1.yaml > /tmp/f1.yaml
 ```

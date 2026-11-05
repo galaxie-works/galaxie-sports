@@ -22,6 +22,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { ApiSportsProvider, FakeProvider, normalizeFixtures } from '@galaxie/providers';
+import { advanceEventClock, upsertBatch } from '@galaxie/core-writer';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { reconcileLive, reconcileTargets } from '../src/live/reconcile.js';
 import { LiveRunner } from '../src/live/runner.js';
@@ -33,8 +34,6 @@ import {
 } from '../src/live/state.js';
 import { PgLiveStore } from '../src/live/store.js';
 import { normalizeAfterFetch } from '../src/normalize/after-fetch.js';
-import { advanceEventClock } from '../src/normalize/event-state.js';
-import { upsertBatch } from '../src/normalize/upsert-core.js';
 import { recomputeStandings, seasonsWithNewResults } from '../src/standings/recompute.js';
 import { apiFixture, liveWorld, wednesdayNight, type WorldMatch } from '../src/testing/live-world.js';
 import { disposableDb } from './db.js';

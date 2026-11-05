@@ -228,19 +228,17 @@ function paletteOf(
   return contentType === 'image/svg+xml' ? paletteFromSvg(file) : paletteFromPng(file);
 }
 
-export async function importAcervo(options: ImportOptions): Promise<ImportReport> {
-  const { db, objects, manifest } = options;
-  const id = manifest.acervo.id;
-  const now = options.now ?? new Date();
-  const emit = options.onProgress ?? (() => {});
-  const batchSize = options.batchSize ?? 50;
-  const report: ImportReport = { linked: 0, uploaded: 0, changed: 0, detached: 0, skipped: 0, panel: 0 };
-  const wanted = manifest.logos.filter(
-    (l): l is AcervoLogo & { target_id: string } =>
-      !!l.target_id && (l.match === 'auto' || l.match === 'manual'),
-  );
+/** Logo do manifesto com vínculo (auto ou manual): o que a importação liga. */
+export type WantedLogo = AcervoLogo & { target_id: string };
 
-  // alvos que existem (o manifesto pode ter sido gerado em outro banco)
+export function wantedLogos(manifest: AcervoManifest): WantedLogo[] {
+  return manifest.logos.filter(
+    (l): l is WantedLogo => !!l.target_id && (l.match === 'auto' || l.match === 'manual'),
+  );
+}
+
+/** Alvos (`team:<id>`, `competition:<id>`) que existem neste banco: o manifesto pode ter sido gerado em outro. */
+export async function existingTargets(db: Database, wanted: readonly WantedLogo[]): Promise<Set<string>> {
   const existing = new Set<string>();
   for (const kind of ['team', 'competition'] as const) {
     const table = kind === 'team' ? participant : competition;
@@ -253,181 +251,198 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
       for (const r of rows) existing.add(`${kind}:${r.id}`);
     }
   }
+  return existing;
+}
 
+export const emptyImportReport = (): ImportReport => ({
+  linked: 0,
+  uploaded: 0,
+  changed: 0,
+  detached: 0,
+  skipped: 0,
+  panel: 0,
+});
+
+/**
+ * Um lote: grava no storage, regrava o asset e liga cada logo ao time ou à competição. Idempotente (rodar o mesmo
+ * lote de novo não regrava nada). Logo com arquivo divergente entra em `keep`: não grava e não desliga o vínculo que
+ * já existe. Soma em `report`.
+ */
+export async function importLot(
+  options: Omit<ImportOptions, 'batchSize'>,
+  logos: readonly WantedLogo[],
+  existing: ReadonlySet<string>,
+  report: ImportReport,
+  keep: Set<string>,
+): Promise<void> {
+  const { db, objects, manifest } = options;
+  const id = manifest.acervo.id;
+  const now = options.now ?? new Date();
+  const emit = options.onProgress ?? (() => {});
   // escudo enviado no painel vale sobre o do pacote: a importação não troca nem desliga
   const panel = await panelCrestTargets(db, {
-    team: wanted.filter((l) => l.kind === 'team').map((l) => l.target_id),
-    competition: wanted.filter((l) => l.kind === 'competition').map((l) => l.target_id),
+    team: logos.filter((l) => l.kind === 'team').map((l) => l.target_id),
+    competition: logos.filter((l) => l.kind === 'competition').map((l) => l.target_id),
   });
-
   const assetIdFor = new Map<string, string>(); // `${kind}:${target}` → asset.id
-  // logo com arquivo divergente: não grava, mas também não desliga o vínculo que já existe
-  const keep = new Set<string>();
-  for (let i = 0; i < wanted.length; i += batchSize) {
-    for (const logo of wanted.slice(i, i + batchSize)) {
-      if (!existing.has(`${logo.kind}:${logo.target_id}`)) {
-        report.skipped += 1;
-        emit({ type: 'skipped', key: logo.key, reason: `alvo ${logo.target_id} não existe neste banco` });
+  for (const logo of logos) {
+    if (!existing.has(`${logo.kind}:${logo.target_id}`)) {
+      report.skipped += 1;
+      emit({ type: 'skipped', key: logo.key, reason: `alvo ${logo.target_id} não existe neste banco` });
+      continue;
+    }
+    if (panel.has(`${logo.kind}:${logo.target_id}`)) {
+      report.panel += 1;
+      emit({ type: 'skipped', key: logo.key, reason: 'escudo enviado no painel (fica o do painel)' });
+      continue;
+    }
+    report.linked += 1;
+    const sourceUrl = acervoSourceUrl(id, logo.file);
+    if (options.dryRun) {
+      emit({ type: 'linked', key: logo.key, targetId: logo.target_id, uploaded: false });
+      continue;
+    }
+    const body = new Uint8Array(readFileSync(join(options.dir, logo.file)));
+    const hash = sha256(body);
+    if (hash !== logo.sha256) {
+      report.linked -= 1;
+      report.skipped += 1;
+      keep.add(`${logo.kind}:${logo.target_id}`);
+      emit({ type: 'skipped', key: logo.key, reason: 'arquivo diferente do manifesto (rode --mapear)' });
+      continue;
+    }
+    const info = imageInfo(body);
+    const unsafe = info.contentType === 'image/svg+xml' ? unsafeSvgReason(body) : null;
+    if (unsafe) {
+      report.linked -= 1;
+      report.skipped += 1;
+      keep.add(`${logo.kind}:${logo.target_id}`);
+      emit({ type: 'skipped', key: logo.key, reason: `SVG recusado: ${unsafe}` });
+      continue;
+    }
+    const storageKey = acervoStorageKey(logo.kind, logo.target_id, hash, info.contentType);
+    if (!storageKey) {
+      report.linked -= 1;
+      report.skipped += 1;
+      keep.add(`${logo.kind}:${logo.target_id}`);
+      emit({
+        type: 'skipped',
+        key: logo.key,
+        reason: `tipo não aceito (${info.contentType}): só SVG, PNG e WebP`,
+      });
+      continue;
+    }
+    const head = await objects.head(storageKey);
+    const uploaded = head?.sha256 !== hash;
+    if (uploaded) {
+      await objects.put(storageKey, body, info.contentType, hash);
+      report.uploaded += 1;
+    }
+    // os demais formatos do mesmo escudo: arquivo inválido fica de fora sem derrubar o logo
+    const variants: AssetVariants = {};
+    let pngBody: Uint8Array | null = info.contentType === 'image/png' ? body : null;
+    for (const [format, file] of Object.entries(logoFormats(logo)) as [LogoFormat, string][]) {
+      if (file === logo.file) {
+        variants[format] = {
+          storage_key: storageKey,
+          sha256: hash,
+          bytes: body.length,
+          width: info.width,
+          height: info.height,
+        };
         continue;
       }
-      if (panel.has(`${logo.kind}:${logo.target_id}`)) {
-        report.panel += 1;
-        emit({ type: 'skipped', key: logo.key, reason: 'escudo enviado no painel (fica o do painel)' });
-        continue;
-      }
-      report.linked += 1;
-      const sourceUrl = acervoSourceUrl(id, logo.file);
-      if (options.dryRun) {
-        emit({ type: 'linked', key: logo.key, targetId: logo.target_id, uploaded: false });
-        continue;
-      }
-      const body = new Uint8Array(readFileSync(join(options.dir, logo.file)));
-      const hash = sha256(body);
-      if (hash !== logo.sha256) {
-        report.linked -= 1;
-        report.skipped += 1;
-        keep.add(`${logo.kind}:${logo.target_id}`);
-        emit({ type: 'skipped', key: logo.key, reason: 'arquivo diferente do manifesto (rode --mapear)' });
-        continue;
-      }
-      const info = imageInfo(body);
-      const unsafe = info.contentType === 'image/svg+xml' ? unsafeSvgReason(body) : null;
-      if (unsafe) {
-        report.linked -= 1;
-        report.skipped += 1;
-        keep.add(`${logo.kind}:${logo.target_id}`);
-        emit({ type: 'skipped', key: logo.key, reason: `SVG recusado: ${unsafe}` });
-        continue;
-      }
-      const storageKey = acervoStorageKey(logo.kind, logo.target_id, hash, info.contentType);
-      if (!storageKey) {
-        report.linked -= 1;
-        report.skipped += 1;
-        keep.add(`${logo.kind}:${logo.target_id}`);
+      const vBody = new Uint8Array(readFileSync(join(options.dir, file)));
+      const vInfo = imageInfo(vBody);
+      const vUnsafe = vInfo.contentType === 'image/svg+xml' ? unsafeSvgReason(vBody) : null;
+      if (vInfo.contentType !== FORMAT_TYPES[format] || vUnsafe) {
         emit({
           type: 'skipped',
-          key: logo.key,
-          reason: `tipo não aceito (${info.contentType}): só SVG, PNG e WebP`,
+          key: `${logo.key}.${format}`,
+          reason: vUnsafe ? `SVG recusado: ${vUnsafe}` : `não é ${format}`,
         });
         continue;
       }
-      const head = await objects.head(storageKey);
-      const uploaded = head?.sha256 !== hash;
-      if (uploaded) {
-        await objects.put(storageKey, body, info.contentType, hash);
+      const vHash = sha256(vBody);
+      const vKey = acervoStorageKey(logo.kind, logo.target_id, vHash, vInfo.contentType)!;
+      if ((await objects.head(vKey))?.sha256 !== vHash) {
+        await objects.put(vKey, vBody, vInfo.contentType, vHash);
         report.uploaded += 1;
       }
-      // os demais formatos do mesmo escudo: arquivo inválido fica de fora sem derrubar o logo
-      const variants: AssetVariants = {};
-      let pngBody: Uint8Array | null = info.contentType === 'image/png' ? body : null;
-      for (const [format, file] of Object.entries(logoFormats(logo)) as [LogoFormat, string][]) {
-        if (file === logo.file) {
-          variants[format] = {
-            storage_key: storageKey,
-            sha256: hash,
-            bytes: body.length,
-            width: info.width,
-            height: info.height,
-          };
-          continue;
-        }
-        const vBody = new Uint8Array(readFileSync(join(options.dir, file)));
-        const vInfo = imageInfo(vBody);
-        const vUnsafe = vInfo.contentType === 'image/svg+xml' ? unsafeSvgReason(vBody) : null;
-        if (vInfo.contentType !== FORMAT_TYPES[format] || vUnsafe) {
-          emit({
-            type: 'skipped',
-            key: `${logo.key}.${format}`,
-            reason: vUnsafe ? `SVG recusado: ${vUnsafe}` : `não é ${format}`,
-          });
-          continue;
-        }
-        const vHash = sha256(vBody);
-        const vKey = acervoStorageKey(logo.kind, logo.target_id, vHash, vInfo.contentType)!;
-        if ((await objects.head(vKey))?.sha256 !== vHash) {
-          await objects.put(vKey, vBody, vInfo.contentType, vHash);
-          report.uploaded += 1;
-        }
-        variants[format] = {
-          storage_key: vKey,
-          sha256: vHash,
-          bytes: vBody.length,
-          width: vInfo.width,
-          height: vInfo.height,
-        };
-        if (format === 'png') pngBody = vBody;
-      }
-      // tamanhos fixos (64/128/256) do PNG em PNG e WebP: falha aqui não derruba o logo
-      if (pngBody) {
-        try {
-          for (const sized of await sizedLogos(pngBody)) {
-            const sHash = sha256(sized.body);
-            const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;
-            if ((await objects.head(sKey))?.sha256 !== sHash) {
-              await objects.put(sKey, sized.body, sized.contentType, sHash);
-              report.uploaded += 1;
-            }
-            const bySize = ((variants.sizes ??= {})[`${sized.size}`] ??= {});
-            bySize[sized.format] = {
-              storage_key: sKey,
-              sha256: sHash,
-              bytes: sized.body.length,
-              width: sized.size,
-              height: sized.size,
-            };
-          }
-        } catch (err) {
-          emit({ type: 'skipped', key: `${logo.key}.sizes`, reason: `tamanhos não gerados: ${String(err)}` });
-        }
-      }
-      const paletteBody = logo.palette_file
-        ? new Uint8Array(readFileSync(join(options.dir, logo.palette_file)))
-        : undefined;
-      const values = {
-        kind: logo.kind === 'team' ? ('team_logo' as const) : ('league_logo' as const),
-        sourceUrl,
-        storageKey,
-        sha256: hash,
-        width: info.width,
-        height: info.height,
-        bytes: body.length,
-        fetchedAt: now,
-        palette: paletteOf(body, info.contentType, paletteBody),
-        origin: 'acervo' as const,
-        acervo: id,
-        variants,
+      variants[format] = {
+        storage_key: vKey,
+        sha256: vHash,
+        bytes: vBody.length,
+        width: vInfo.width,
+        height: vInfo.height,
       };
-      const { sourceUrl: _url, ...updatable } = values;
-      // a regravação de um asset já ligado e o aviso aos times que o usam saem juntos: se um item seguinte
-      // falhar, o que já foi gravado já foi publicado
-      const row = await db.transaction(async (tx) => {
-        const [upserted] = await tx
-          .insert(asset)
-          .values(values)
-          .onConflictDoUpdate({
-            target: asset.sourceUrl,
-            set: updatable,
-            // só regrava quando algo mudou: rodar de novo não toca o banco
-            setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null or ${asset.variants} is distinct from ${JSON.stringify(variants)}::jsonb`,
-          })
-          .returning({ id: asset.id });
-        if (upserted) await publishTeamLogoChanges(tx, await teamsUsing(tx, [upserted.id]));
-        return upserted;
-      });
-      const assetId =
-        row?.id ??
-        (await db.select({ id: asset.id }).from(asset).where(eq(asset.sourceUrl, sourceUrl)))[0]!.id;
-      assetIdFor.set(`${logo.kind}:${logo.target_id}`, assetId);
-      emit({ type: 'linked', key: logo.key, targetId: logo.target_id, uploaded });
+      if (format === 'png') pngBody = vBody;
     }
+    // tamanhos fixos (64/128/256) do PNG em PNG e WebP: falha aqui não derruba o logo
+    if (pngBody) {
+      try {
+        for (const sized of await sizedLogos(pngBody)) {
+          const sHash = sha256(sized.body);
+          const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;
+          if ((await objects.head(sKey))?.sha256 !== sHash) {
+            await objects.put(sKey, sized.body, sized.contentType, sHash);
+            report.uploaded += 1;
+          }
+          const bySize = ((variants.sizes ??= {})[`${sized.size}`] ??= {});
+          bySize[sized.format] = {
+            storage_key: sKey,
+            sha256: sHash,
+            bytes: sized.body.length,
+            width: sized.size,
+            height: sized.size,
+          };
+        }
+      } catch (err) {
+        emit({ type: 'skipped', key: `${logo.key}.sizes`, reason: `tamanhos não gerados: ${String(err)}` });
+      }
+    }
+    const paletteBody = logo.palette_file
+      ? new Uint8Array(readFileSync(join(options.dir, logo.palette_file)))
+      : undefined;
+    const values = {
+      kind: logo.kind === 'team' ? ('team_logo' as const) : ('league_logo' as const),
+      sourceUrl,
+      storageKey,
+      sha256: hash,
+      width: info.width,
+      height: info.height,
+      bytes: body.length,
+      fetchedAt: now,
+      palette: paletteOf(body, info.contentType, paletteBody),
+      origin: 'acervo' as const,
+      acervo: id,
+      variants,
+    };
+    const { sourceUrl: _url, ...updatable } = values;
+    // a regravação de um asset já ligado e o aviso aos times que o usam saem juntos: se um item seguinte
+    // falhar, o que já foi gravado já foi publicado
+    const row = await db.transaction(async (tx) => {
+      const [upserted] = await tx
+        .insert(asset)
+        .values(values)
+        .onConflictDoUpdate({
+          target: asset.sourceUrl,
+          set: updatable,
+          // só regrava quando algo mudou: rodar de novo não toca o banco
+          setWhere: sql`${asset.sha256} is distinct from ${hash} or ${asset.storageKey} is distinct from ${storageKey} or ${asset.palette} is null or ${asset.variants} is distinct from ${JSON.stringify(variants)}::jsonb`,
+        })
+        .returning({ id: asset.id });
+      if (upserted) await publishTeamLogoChanges(tx, await teamsUsing(tx, [upserted.id]));
+      return upserted;
+    });
+    const assetId =
+      row?.id ?? (await db.select({ id: asset.id }).from(asset).where(eq(asset.sourceUrl, sourceUrl)))[0]!.id;
+    assetIdFor.set(`${logo.kind}:${logo.target_id}`, assetId);
+    emit({ type: 'linked', key: logo.key, targetId: logo.target_id, uploaded });
   }
-  if (options.dryRun) {
-    report.detached = (await linkedToAcervo(db, id)).filter((r) => !wanted.some((l) => matches(l, r))).length;
-    return report;
-  }
-
+  if (options.dryRun || !assetIdFor.size) return;
   await db.transaction(async (tx) => {
-    // times ligados ou desligados: purgados do cache da API pelo change feed (os regravados já foram)
+    // times ligados: purgados do cache da API pelo change feed (os regravados já foram)
     const teams: string[] = [];
     for (const [ref, assetId] of assetIdFor) {
       const [kind, targetId] = ref.split(':') as ['team' | 'competition', string];
@@ -447,20 +462,89 @@ export async function importAcervo(options: ImportOptions): Promise<ImportReport
       report.changed += updated.length;
       if (kind === 'team') teams.push(...updated.map((u) => u.id));
     }
-    // quem aponta para um asset deste acervo e não está mais no manifesto perde o vínculo
-    for (const r of await linkedToAcervo(tx, id)) {
-      const ref = `${r.kind}:${r.targetId}`;
-      if (assetIdFor.get(ref) === r.assetId || keep.has(ref)) continue;
+    await publishTeamLogoChanges(tx, teams);
+  });
+}
+
+/**
+ * Depois de todos os lotes: quem aponta para um asset deste acervo que não é o do manifesto perde o vínculo (saiu do
+ * manifesto ou mudou de logo), salvo os de `keep` (arquivo divergente). Na prévia só conta. Devolve quantos.
+ */
+export async function detachRemoved(
+  db: Database,
+  id: string,
+  wanted: readonly WantedLogo[],
+  keep: ReadonlySet<string> = new Set(),
+  dryRun = false,
+): Promise<number> {
+  const stale = (await linkedToAcervo(db, id)).filter(
+    (r) => !wanted.some((l) => matches(l, r)) && !keep.has(`${r.kind}:${r.targetId}`),
+  );
+  if (dryRun || !stale.length) return stale.length;
+  await db.transaction(async (tx) => {
+    for (const r of stale) {
       const table = r.kind === 'team' ? participant : competition;
       await tx
         .update(table)
         .set({ customLogoAssetId: null, updatedAt: sql`now()` })
         .where(and(eq(table.id, r.targetId), eq(table.customLogoAssetId, r.assetId)));
-      report.detached += 1;
-      if (r.kind === 'team') teams.push(r.targetId);
     }
-    await publishTeamLogoChanges(tx, teams);
+    await publishTeamLogoChanges(
+      tx,
+      stale.filter((r) => r.kind === 'team').map((r) => r.targetId),
+    );
   });
+  return stale.length;
+}
+
+export interface AcervoLot {
+  /** Estável entre tentativas: país, número e um resumo das chaves (manifesto que mudou refaz o lote). */
+  id: string;
+  /** Para o progresso: "BR (1/2)". */
+  label: string;
+  logos: WantedLogo[];
+}
+
+/** Lotes por país, cada um com até `size` escudos, na ordem do país e da chave. */
+export function acervoLots(wanted: readonly WantedLogo[], size = 100): AcervoLot[] {
+  const byCountry = new Map<string, WantedLogo[]>();
+  for (const l of [...wanted].sort(
+    (a, b) => a.country.localeCompare(b.country) || a.key.localeCompare(b.key),
+  )) {
+    const list = byCountry.get(l.country) ?? [];
+    list.push(l);
+    byCountry.set(l.country, list);
+  }
+  const lots: AcervoLot[] = [];
+  for (const [country, logos] of byCountry) {
+    const parts = Math.ceil(logos.length / size);
+    for (let i = 0; i < parts; i++) {
+      const chunk = logos.slice(i * size, (i + 1) * size);
+      const digest = createHash('sha256')
+        .update(chunk.map((l) => `${l.key}:${l.sha256}:${l.target_id}`).join('\n'))
+        .digest('hex')
+        .slice(0, 8);
+      lots.push({
+        id: `${country}#${i + 1}:${digest}`,
+        label: parts > 1 ? `${country} (${i + 1}/${parts})` : country,
+        logos: chunk,
+      });
+    }
+  }
+  return lots;
+}
+
+export async function importAcervo(options: ImportOptions): Promise<ImportReport> {
+  const { db, manifest } = options;
+  const batchSize = options.batchSize ?? 50;
+  const report = emptyImportReport();
+  const wanted = wantedLogos(manifest);
+  const existing = await existingTargets(db, wanted);
+  // logo com arquivo divergente: não grava, mas também não desliga o vínculo que já existe
+  const keep = new Set<string>();
+  for (let i = 0; i < wanted.length; i += batchSize)
+    await importLot(options, wanted.slice(i, i + batchSize), existing, report, keep);
+  report.detached = await detachRemoved(db, manifest.acervo.id, wanted, keep, options.dryRun);
   return report;
 }
 

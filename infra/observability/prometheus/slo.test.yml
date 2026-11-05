@@ -155,6 +155,108 @@ tests:
         eval_time: 35m
         exp_samples: []
 
+  # Ritmo do ao vivo no SLO (#538): amostras a cada 15 s; as regras gravam a cada 1 min (evaluation_interval).
+  - name: troca de versão dentro de 15 s a mais que o intervalo do plano não gasta orçamento; buraco maior gasta
+    interval: 15s
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{job="galaxie-api"}'
+        values: '300x60'
+      - series: 'galaxie_live_events{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '2x60'
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '20x60'
+      # plano de 15 s por tick; a idade do último tick chega a 30 s em 3 min (a troca: 15 s do plano + 15 s) e a 31 s
+      # em 4 min (1 s a mais que a troca tolerada)
+      - series: 'live_last_tick_age_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '8x11 30 8x2 31 8x40'
+      - series: 'live_tick_planned_interval_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '15x60'
+      - series: 'live_window_open{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '1x60'
+      - series: 'live_tick_paused{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '0x60'
+    promql_expr_test:
+      - expr: slo:ao_vivo:ok
+        eval_time: 1m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+      - expr: slo:ao_vivo:ok
+        eval_time: 3m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+      - expr: slo:ao_vivo:ok
+        eval_time: 4m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 0
+      - expr: slo:ao_vivo:ok
+        eval_time: 5m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+
+  - name: pausa de propósito, janela fechada ou scheduler sem métricas não contam como buraco entre ticks
+    interval: 15s
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{job="galaxie-api"}'
+        values: '300x60'
+      - series: 'galaxie_live_events{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '2x60'
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '20x60'
+      # meio-tempo (3 min): 10 min sem tick de propósito; depois a janela fecha (4 min) com o último tick velho
+      - series: 'live_last_tick_age_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '8x11 600x4 3600x44'
+      - series: 'live_tick_planned_interval_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '15x60'
+      - series: 'live_window_open{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '1x15 0x44'
+      - series: 'live_tick_paused{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '0x11 1x4 0x44'
+    promql_expr_test:
+      - expr: slo:ao_vivo:ok
+        eval_time: 3m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+      - expr: slo:ao_vivo:ok
+        eval_time: 6m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 1
+
+  - name: buraco entre ticks sem jogo atrasado ainda queima o orçamento (resumo diário)
+    interval: 15s
+    input_series:
+      - series: 'galaxie_live_poll_interval_seconds{job="galaxie-api"}'
+        values: '300x600'
+      - series: 'galaxie_live_events{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '2x600'
+      - series: 'galaxie_live_event_max_staleness_seconds{job="galaxie-api",sport="football",coverage="poller"}'
+        values: '20x600'
+      # o runner parou: a idade só cresce e o jogo ainda não passou dos 10 min do LiveEventStale
+      - series: 'live_last_tick_age_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '8 23+15x600'
+      - series: 'live_tick_planned_interval_seconds{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '15x600'
+      - series: 'live_window_open{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '1x600'
+      - series: 'live_tick_paused{job="galaxie-services",service="ingestor",sport="football"}'
+        values: '0x600'
+    promql_expr_test:
+      - expr: slo:ao_vivo:ok
+        eval_time: 2m
+        exp_samples:
+          - labels: 'slo:ao_vivo:ok'
+            value: 0
+      - expr: round(slo:sli_error:ratio_rate1h{slo="ao-vivo"}, 0.01)
+        eval_time: 60m
+        exp_samples:
+          - labels: '{slo="ao-vivo"}'
+            value: 1
+
   - name: backup bom só com dump recente e verificador sem falha
     interval: 1m
     input_series:
@@ -184,6 +286,17 @@ tests:
       - eval_time: 26h
         alertname: ErrorBudgetExhausted
         exp_alerts: []
+      # sem `for` (#482): dispara na primeira avaliação com o orçamento acabado, sem hora de pendência que a
+      # reinicialização do Prometheus num deploy reabriria
+      - eval_time: 26h40m
+        alertname: ErrorBudgetExhausted
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              slo: frescor-diario
+            exp_annotations:
+              summary: 'Orçamento de erro do SLO frescor-diario acabou'
+              description: 'O erro dos últimos 28 dias passou do permitido pelo SLO. Vale a política de docs/14-slos-e-error-budget.md: segurar features do componente e priorizar confiabilidade até o orçamento voltar.'
       - eval_time: 30h
         alertname: ErrorBudgetExhausted
         exp_alerts:

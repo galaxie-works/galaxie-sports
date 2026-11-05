@@ -62,6 +62,35 @@ export class YoutubeError extends Error {
   }
 }
 
+/** Chave geral do YouTube: `on` (padrão) ou `off` = nenhuma chamada à Data API (busca nem leitura de canais). */
+export type YoutubeStatus = 'on' | 'off';
+
+/**
+ * YOUTUBE_SEARCH: ligado ou desligado, literal como o AI_STATUS. A chave do YouTube e o balde de 100 buscas por dia
+ * são os mesmos do dev e da produção; o dev sobe com `off` (infra/nas-dev) e quem testa liga pontualmente. Vazio =
+ * `on` (a produção não muda). Valor desconhecido falha em vez de ligar por engano.
+ */
+export function youtubeStatus(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): YoutubeStatus {
+  const raw = env.YOUTUBE_SEARCH?.trim().toLowerCase();
+  if (!raw || raw === 'on') return 'on';
+  if (raw === 'off') return 'off';
+  throw new Error(`YOUTUBE_SEARCH inválido: "${env.YOUTUBE_SEARCH}" (use on ou off).`);
+}
+
+/** Aviso dos CLIs que saem sem chamar o YouTube com `YOUTUBE_SEARCH=off`. */
+export const YOUTUBE_OFF_MESSAGE =
+  'YouTube desligado (YOUTUBE_SEARCH=off): nenhuma chamada à Data API e nada gravado. Para testar, rode com YOUTUBE_SEARCH=on.';
+
+/** Cliente criado com o YouTube desligado: nada sai para a Data API. */
+export class YoutubeDisabledError extends Error {
+  constructor() {
+    super(YOUTUBE_OFF_MESSAGE);
+    this.name = 'YoutubeDisabledError';
+  }
+}
+
 export interface SearchParams {
   q: string;
   publishedAfter: Date;
@@ -184,6 +213,8 @@ export interface YoutubeClientOptions {
   apiKey: string;
   fetch?: FetchLike;
   baseUrl?: string;
+  /** Ambiente que diz se o YouTube está ligado (YOUTUBE_SEARCH); padrão `process.env`. */
+  env?: Readonly<Record<string, string | undefined>>;
   /** Chamado a cada requisição com o custo e o balde (ledger de cota). */
   onUnits?: (units: number, method: YoutubeMethod, bucket: QuotaBucket) => void;
 }
@@ -202,6 +233,8 @@ export class YoutubeClient {
   unitCeiling = Number.POSITIVE_INFINITY;
 
   constructor(private readonly options: YoutubeClientOptions) {
+    // trava de último recurso: quem chega aqui com o YouTube desligado não consegue chamar a Data API
+    if (youtubeStatus(options.env ?? process.env) === 'off') throw new YoutubeDisabledError();
     if (!options.apiKey) throw new Error('YOUTUBE_API_KEY não definida (veja .env.example).');
     this.fetchFn = options.fetch ?? ((url, init) => fetch(url, init));
     this.baseUrl = options.baseUrl ?? YOUTUBE_API_BASE;
