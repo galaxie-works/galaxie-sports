@@ -301,7 +301,8 @@ groups:
       # Entrega vencida há mais de 5 min sem o worker pegar: worker parado (contêiner fora, banco recusando) ou travado.
       # Com o worker no ar a reivindicação é a cada segundo e o atraso fica perto de 0.
       - alert: WebhookWorkerDown
-        expr: galaxie_webhook_overdue_seconds > 300
+        # pausa no painel (Ajustes → Webhooks): o atraso é de propósito, não é worker parado
+        expr: galaxie_webhook_overdue_seconds > 300 unless on () galaxie_webhook_delivery_paused == 1
         for: 5m
         labels:
           # warning pela regra dos 5 sinais (cabeçalho); a issue no GitHub sai na hora. Candidato a 6º sinal do push

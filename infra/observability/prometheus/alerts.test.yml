@@ -987,6 +987,18 @@ tests:
               summary: 'Worker de webhooks parado: entregas vencidas há 11m 0s'
               description: 'Nenhuma entrega sai para os clientes. Veja docker compose ps webhooks e os logs do worker (docs/runbooks/webhooks.md › Worker parado).'
 
+  - name: entregas pausadas no painel não contam como worker parado
+    interval: 1m
+    input_series:
+      - series: 'galaxie_webhook_overdue_seconds'
+        values: '0 1 0 60 120 180 240 300 360 420 480 540 600 660'
+      - series: 'galaxie_webhook_delivery_paused'
+        values: '1x13'
+    alert_rule_test:
+      - eval_time: 13m
+        alertname: WebhookWorkerDown
+        exp_alerts: []
+
   - name: DLQ que cresce dispara; DLQ parada ou esvaziada pelo replay não
     interval: 1m
     input_series:

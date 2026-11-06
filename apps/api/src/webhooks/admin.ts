@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   PLANS_WITHOUT_REALTIME,
   REALTIME_TOPICS,
+  sealWebhookSecrets as sealSecrets,
   tenant,
   webhookDelivery,
   webhookEndpoint,
@@ -10,7 +11,7 @@ import {
   type WebhookFilters,
 } from '@galaxie/db';
 import { resolveTopic } from '@galaxie/contracts';
-import { WEBHOOK_KEK_ENV, WebhookSecretBox } from './secret-box.js';
+import { WEBHOOK_KEK_ENV, type WebhookSecretBox } from './secret-box.js';
 import { generateWebhookSecret } from './signature.js';
 import { isBlockedAddress } from './transport.js';
 
@@ -100,38 +101,10 @@ export async function createWebhookEndpoint(
   return { id: row!.id, tenantId: t.id, secret, topics };
 }
 
-/**
- * Migração dos segredos: cifra os legados em texto puro e recifra os que usam uma KEK antiga (rotação).
- * Idempotente e segura com o worker no ar: cada linha só é trocada se o valor lido não mudou, e o worker
- * lê os dois formatos.
- */
-export async function sealWebhookSecrets(
-  db: Database,
-  secrets: WebhookSecretBox,
-): Promise<{ sealed: number; total: number; failed: { id: string; error: string }[] }> {
+/** Migração dos segredos (a mesma do botão em Ajustes → Webhooks): veja `sealWebhookSecrets` em @galaxie/db. */
+export async function sealWebhookSecrets(db: Database, secrets: WebhookSecretBox) {
   if (!secrets.configured) throw new WebhookInputError(`${WEBHOOK_KEK_ENV} não definida.`);
-  const rows = await db
-    .select({ id: webhookEndpoint.id, secret: webhookEndpoint.secret })
-    .from(webhookEndpoint);
-  let sealed = 0;
-  // uma linha que não abre (KEK antiga ausente, dado corrompido) não impede as outras: vai para `failed`
-  const failed: { id: string; error: string }[] = [];
-  for (const r of rows) {
-    if (!secrets.needsSeal(r.secret)) continue;
-    try {
-      // legado é lido direto (mesmo com WEBHOOK_REJECT_PLAINTEXT_SECRETS ligado, a migração precisa dele)
-      const plain = WebhookSecretBox.isSealed(r.secret) ? secrets.open(r.secret, r.id) : r.secret;
-      const updated = await db
-        .update(webhookEndpoint)
-        .set({ secret: secrets.seal(plain, r.id), updatedAt: new Date() })
-        .where(and(eq(webhookEndpoint.id, r.id), eq(webhookEndpoint.secret, r.secret)))
-        .returning({ id: webhookEndpoint.id });
-      sealed += updated.length;
-    } catch (err) {
-      failed.push({ id: r.id, error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-  return { sealed, total: rows.length, failed };
+  return sealSecrets(db, secrets);
 }
 
 export async function listWebhookEndpoints(db: Database, tenantSlug?: string) {

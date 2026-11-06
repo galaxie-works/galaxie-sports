@@ -13,22 +13,41 @@ wh list
 ```
 
 `wh` usa a imagem e o ambiente do próprio worker: a KEK (`WEBHOOK_SIGNING_SECRET`) e o `DATABASE_URL` vêm do
-`.env`. O script `webhooks/ligar-webhooks.sh` da pasta do projeto faz a primeira ligação (KEK, cifra e teste).
+`.env`. O script [`infra/vps-telemetry/ligar-webhooks.sh`](../../infra/vps-telemetry/ligar-webhooks.sh) faz a primeira
+ligação (KEK, cifra e teste): copie-o para `/docker/galaxie-sports` e o `rolling-swap.sh` para `/tmp` na VPS.
 
 ## Ligar na produção (uma vez)
 
 1. Gere a KEK e guarde-a no cofre de senhas **antes** de pôr no `.env` (sem ela os segredos cifrados não abrem, e
    ela não vai para o repositório nem para o backup do banco):
    `openssl rand -base64 32`.
-2. `WEBHOOK_SIGNING_SECRET=<kek>` no `.env` e `docker compose up -d --no-deps webhooks demo`. O log do worker deixa
+2. `WEBHOOK_SIGNING_SECRET=<kek>` no `.env` e troque lado a lado `api webhooks site console` (`rolling-swap.sh`). O log do worker deixa
    de mostrar o aviso `WEBHOOK_SIGNING_SECRET não definida`.
-3. `wh seal-secrets` (idempotente): cifra os endpoints legados em texto puro, se houver.
-4. Depois de `seal-secrets` sem falhas: `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true` no `.env` e suba o worker de novo.
+3. **Cifrar segredos antigos** em Ajustes → Webhooks (ou `wh seal-secrets`, idempotente): cifra os endpoints
+   legados em texto puro, se houver.
+4. Com **Segredos sem cifra** em "Nenhum", ligue **Recusar segredo sem cifra** em Ajustes → Webhooks (o painel não
+   deixa ligar antes). O worker aplica em até 15 s, sem reiniciar. `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true` no `.env`
+   ainda vale como padrão quando o painel não gravou nada.
 5. Teste com um receptor seu (ex.: um endpoint de teste do webhook.site) num tenant de teste:
    `wh create --tenant <slug> --url https://... --topics score,status`, depois **Enviar teste** no portal
    (`/cliente/webhooks`) ou espere um gol. `wh list` mostra pendentes e DLQ.
 
-A demo também recebe a KEK: é ela que cadastra e rotaciona o segredo no portal do cliente.
+A demo também recebe a KEK: é ela que cadastra e rotaciona o segredo no portal do cliente e cifra os legados pelo
+painel.
+
+## Ajustes → Webhooks (painel de admin)
+
+- **Situação:** chave de cifra no worker (o worker relata em `ops.runtime_env`, serviço `webhooks`, a cada 15 s;
+  é também o sinal de vida dele no painel) e no painel, worker no ar, webhooks cadastrados, fila, DLQ e segredos
+  sem cifra.
+- **Entregas ligadas:** a pausa geral. Desligada, o worker segue enfileirando, mas não envia nada; as entregas ficam
+  `pending`, sem gastar tentativa nem ir para a DLQ, e saem quando religar. Use num incidente (ex.: payload errado
+  saindo para os clientes). Com a pausa, `galaxie_webhook_delivery_paused` = 1 e o `WebhookWorkerDown` não dispara.
+- **Recusar segredo sem cifra** e **Cifrar segredos antigos:** os passos 3 e 4 acima.
+- A KEK nunca é criada nem trocada pelo painel: gravada no banco, ela ficaria ao lado dos segredos que protege.
+
+Os controles ficam em `ops.runtime_setting` (`WEBHOOK_DELIVERY`, `WEBHOOK_REJECT_PLAINTEXT_SECRETS`), com histórico
+em `ops.runtime_setting_log`.
 
 ## Cadastrar para um cliente
 
@@ -46,7 +65,7 @@ aberto.
 
 | Alerta | Quer dizer | O que fazer |
 |---|---|---|
-| `WebhookWorkerDown` | Entrega vencida há mais de 5 min sem o worker pegar | [Worker parado](#worker-parado) |
+| `WebhookWorkerDown` | Entrega vencida há mais de 5 min sem o worker pegar (fora da pausa do painel) | [Worker parado](#worker-parado) |
 | `WebhookDeadLetters` | A DLQ de um endpoint cresceu na última hora | [DLQ](#dlq) |
 | `WebhookEndpointFailing` | Endpoint ativo com 5+ falhas desde o último sucesso, há 15 min | [Endpoint falhando](#endpoint-falhando) |
 | `WebhookDeliverySlow` | p95 da mudança à entrega acima de 30 s por 15 min (meta 5 s) | [Lento](#lento) |
@@ -55,7 +74,7 @@ aberto.
 Métricas (no `/metrics` da API, com rótulos `endpoint` e `tenant`): `galaxie_webhook_pending`,
 `galaxie_webhook_dead`, `galaxie_webhook_delivered_last_hour`, `galaxie_webhook_failing_deliveries_last_hour`,
 `galaxie_webhook_consecutive_failures`, `galaxie_webhook_delivery_latency_p95_seconds`,
-`galaxie_webhook_endpoint_active` e, sem rótulo, `galaxie_webhook_overdue_seconds`.
+`galaxie_webhook_endpoint_active` e, sem rótulo, `galaxie_webhook_overdue_seconds` e `galaxie_webhook_delivery_paused`.
 
 ### Worker parado
 

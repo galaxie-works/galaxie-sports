@@ -7,6 +7,9 @@ import {
   webhookDelivery,
   webhookEndpoint,
   PLANS_WITHOUT_REALTIME,
+  readWebhookControls,
+  reportWebhookWorker,
+  WEBHOOK_CONTROLS_REFRESH_MS,
   type ApiPlan,
   type Database,
 } from '@galaxie/db';
@@ -54,6 +57,13 @@ export interface WebhookWorkerOptions {
    * false: destino que resolve para IP privado, link-local (metadata) ou reservado falha a tentativa.
    */
   allowPrivateTargets?: boolean;
+  /**
+   * Relê os controles de Ajustes → Webhooks (pausa geral e recusa de texto puro) e relata o estado em
+   * ops.runtime_env, neste intervalo. Padrão 15 s; `false` desliga (testes que não querem o painel).
+   */
+  controlsRefreshMs?: number | false;
+  /** Env para o padrão da recusa de texto puro quando o painel não grava nada (padrão: process.env). */
+  env?: NodeJS.ProcessEnv;
   /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
   post?: typeof postWebhook;
   logger?: Logger;
@@ -102,6 +112,9 @@ export function retryDelayMs(attempt: number, baseMs: number, maxMs: number, ran
 export class WebhookWorker {
   private cursor: GapCursor | undefined;
   private timer: NodeJS.Timeout | undefined;
+  private controlsTimer: NodeJS.Timeout | undefined;
+  /** Pausa geral (Ajustes → Webhooks): enfileira, mas não entrega. */
+  private paused = false;
   private unlisten: (() => Promise<void>) | undefined;
   private running: Promise<void> | undefined;
   private pending = false;
@@ -137,13 +150,53 @@ export class WebhookWorker {
       const sub = await this.db.$client.listen(CHANGE_FEED_CHANNEL, () => void this.tick());
       this.unlisten = () => sub.unlisten();
     }
+    const refreshMs = this.options.controlsRefreshMs ?? WEBHOOK_CONTROLS_REFRESH_MS;
+    if (refreshMs !== false) {
+      await this.refreshControls();
+      this.controlsTimer = setInterval(() => void this.refreshControls(), refreshMs);
+    }
     this.timer = setInterval(() => void this.tick(), this.options.pollIntervalMs ?? 1_000);
     await this.tick();
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** Aplica os controles do painel e relata o que vale aqui (também é o sinal de vida do worker no painel). */
+  async refreshControls(): Promise<void> {
+    try {
+      const controls = await readWebhookControls(this.db, this.options.env ?? process.env);
+      const paused = !controls.deliveryEnabled;
+      if (paused !== this.paused)
+        this.options.logger?.info(
+          { paused },
+          paused ? 'webhooks: entregas pausadas no painel' : 'webhooks: entregas religadas',
+        );
+      if (controls.rejectPlaintext !== this.secrets.rejectsPlaintext)
+        this.options.logger?.info(
+          { rejectPlaintext: controls.rejectPlaintext },
+          'webhooks: recusa de segredo em texto puro mudou',
+        );
+      this.paused = paused;
+      this.secrets.setRejectPlaintext(controls.rejectPlaintext);
+      await reportWebhookWorker(this.db, {
+        kekConfigured: this.secrets.configured,
+        rejectPlaintext: controls.rejectPlaintext,
+        deliveryEnabled: controls.deliveryEnabled,
+      });
+    } catch (err) {
+      this.options.logger?.warn(
+        { err },
+        'webhooks: falha ao ler os controles do painel (seguindo com os anteriores)',
+      );
+    }
   }
 
   async stop(): Promise<void> {
     this.stopped = true;
     if (this.timer) clearInterval(this.timer);
+    if (this.controlsTimer) clearInterval(this.controlsTimer);
     await this.unlisten?.().catch(() => {});
     await this.running;
   }
@@ -174,9 +227,12 @@ export class WebhookWorker {
 
   private async cycle(): Promise<void> {
     await this.enqueue();
+    // pausa: as entregas ficam na fila (pending) e saem quando religar; nenhuma tentativa conta nem vai à DLQ
+    if (this.paused) return;
     for (;;) {
       const stats = await this.deliverDue();
-      if (stats.delivered + stats.failed + stats.dead < this.batchSize || this.stopped) return;
+      // a pausa pode chegar no meio de um backlog grande: só o lote já reivindicado termina
+      if (stats.delivered + stats.failed + stats.dead < this.batchSize || this.stopped || this.paused) return;
     }
   }
 

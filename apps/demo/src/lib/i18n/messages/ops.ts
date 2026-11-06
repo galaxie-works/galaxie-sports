@@ -28,6 +28,7 @@ export default defineMessages(
       review: 'Revisão',
       lineup: 'Grades e ofertas',
       crests: 'Escudos',
+      webhooks: 'Webhooks',
       label: 'Seções dos ajustes',
     },
     tabs: {
@@ -1119,6 +1120,7 @@ export default defineMessages(
         review: 'Review',
         lineup: 'Lineups and offers',
         crests: 'Crests',
+        webhooks: 'Webhooks',
         label: 'Settings sections',
       },
       tabs: {
@@ -2189,6 +2191,7 @@ export default defineMessages(
         review: 'Revisión',
         lineup: 'Grillas y ofertas',
         crests: 'Escudos',
+        webhooks: 'Webhooks',
         label: 'Secciones de ajustes',
       },
       tabs: {

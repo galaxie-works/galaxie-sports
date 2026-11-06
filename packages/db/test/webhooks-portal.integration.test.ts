@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -17,11 +17,17 @@ import {
   listTenantWebhookDeliveries,
   listTenantWebhooks,
   MAX_WEBHOOKS_PER_TENANT,
+  readWebhookControls,
   replayTenantWebhookDead,
   rotateTenantWebhookSecret,
+  sealWebhookSecrets,
+  setWebhookDelivery,
+  setWebhookRejectPlaintext,
+  webhookAdminOverview,
   sendTenantWebhookTest,
   setTenantWebhookActive,
   WEBHOOK_TEST_TOPIC,
+  WebhookControlError,
   WebhookPortalError,
   WebhookSecretBox,
 } from '../src/webhooks.js';
@@ -151,5 +157,48 @@ describe('webhooks no portal do cliente', () => {
     expect(await db.select().from(webhookDelivery).where(eq(webhookDelivery.endpointId, mine!.id))).toEqual(
       [],
     );
+  });
+});
+
+describe('controle da operação (Ajustes → Webhooks)', () => {
+  it('não recusa texto puro com legado no banco; cifrar libera; histórico e padrão do env', async () => {
+    const [legacy] = await db
+      .insert(webhookEndpoint)
+      .values({ tenantId: tenantB, url: 'https://legado.example/hook', secret: 'whsec_legado' })
+      .returning({ id: webhookEndpoint.id });
+    let o = await webhookAdminOverview(db);
+    expect(o.plaintextSecrets).toBe(1);
+    expect(o.worker).toMatchObject({ alive: false, kekConfigured: null, reportedAt: null });
+    expect(o.controls).toEqual({ deliveryEnabled: true, rejectPlaintext: false });
+
+    const err = await setWebhookRejectPlaintext(db, true, 'teste').catch((e) => e);
+    expect(err).toBeInstanceOf(WebhookControlError);
+    expect(err.code).toBe('plaintext_left');
+
+    await expect(sealWebhookSecrets(db, new WebhookSecretBox([]))).rejects.toMatchObject({ code: 'no_kek' });
+    expect(await sealWebhookSecrets(db, box)).toMatchObject({ sealed: 1, failed: [] });
+    const [row] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
+    expect(box.open(row!.secret, legacy!.id)).toBe('whsec_legado');
+
+    await setWebhookRejectPlaintext(db, true, 'teste');
+    await setWebhookDelivery(db, false, 'teste');
+    o = await webhookAdminOverview(db);
+    expect(o.plaintextSecrets).toBe(0);
+    expect(o.controls).toEqual({ deliveryEnabled: false, rejectPlaintext: true });
+
+    // o painel desligou explicitamente: vale mesmo com o env do worker pedindo recusa
+    await setWebhookRejectPlaintext(db, false, 'teste');
+    await setWebhookDelivery(db, true, 'teste');
+    expect(await readWebhookControls(db, { WEBHOOK_REJECT_PLAINTEXT_SECRETS: 'true' })).toEqual({
+      deliveryEnabled: true,
+      rejectPlaintext: false,
+    });
+    const log = await db.execute<{ key: string; n: number }>(
+      sql`select key, count(*)::int as n from ops.runtime_setting_log group by key order by key`,
+    );
+    expect([...log]).toEqual([
+      { key: 'WEBHOOK_DELIVERY', n: 2 },
+      { key: 'WEBHOOK_REJECT_PLAINTEXT_SECRETS', n: 2 },
+    ]);
   });
 });
