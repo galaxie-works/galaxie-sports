@@ -6,7 +6,9 @@ import {
   autoGroupLabel,
   autoGroupRank,
   currentPhaseKey,
+  defaultGroupLabel,
   knockoutSeed,
+  providerGroupLabel,
   standingsGroupLabel,
   standingsGroupPriority,
   unknownRoundPhase,
@@ -279,5 +281,42 @@ describe('grupos reservados do recálculo sem regulamento', () => {
       'unnamed:10',
       'annual',
     ]);
+  });
+});
+
+describe('nome exibido do grupo do fornecedor sem regulamento', () => {
+  it('nomes genéricos em inglês no idioma pedido', () => {
+    expect(providerGroupLabel('Group A', 'pt-BR')).toBe('Grupo A');
+    expect(providerGroupLabel('Group 2', 'es-AR')).toBe('Grupo 2');
+    expect(providerGroupLabel('Group H', 'en')).toBe('Group H');
+    expect(providerGroupLabel('Regular Season', 'pt-BR')).toBe('Fase regular');
+    expect(providerGroupLabel('Championship Round', 'pt-BR')).toBe('Disputa pelo título');
+    expect(providerGroupLabel('Relegation Group', 'es')).toBe('Ronda por la permanencia');
+    expect(providerGroupLabel('Eastern Conference', 'pt-BR')).toBe('Conferência Leste');
+    expect(providerGroupLabel('Ranking of third-placed teams', 'pt-BR')).toBe('Melhores terceiros');
+  });
+
+  it('nome do torneio na frente fica; só a parte genérica é traduzida', () => {
+    expect(providerGroupLabel('Apertura - Group A', 'pt-BR')).toBe('Apertura · Grupo A');
+    expect(providerGroupLabel('Primera B: Tabla Anual', 'pt-BR')).toBe('Primera B · Tabela anual');
+    expect(providerGroupLabel('Jupiler Pro League: Championship Round', 'en')).toBe(
+      'Jupiler Pro League · Championship round',
+    );
+    expect(providerGroupLabel('Regular Season - Group B', 'es')).toBe('Fase regular · Grupo B');
+  });
+
+  it('nome próprio sem nada genérico fica sem (vale o do fornecedor)', () => {
+    expect(providerGroupLabel('Serie A', 'pt-BR')).toBeNull();
+    expect(providerGroupLabel('Apertura', 'pt-BR')).toBeNull();
+    expect(providerGroupLabel('Liga Profesional Argentina - Clausura', 'es')).toBeNull();
+    expect(providerGroupLabel('', 'pt-BR')).toBeNull();
+    expect(providerGroupLabel('drivers', 'pt-BR')).toBeNull();
+  });
+
+  it('o reservado do recálculo vem antes do do fornecedor', () => {
+    expect(defaultGroupLabel('annual', 'es')).toBe('Tabla anual');
+    expect(defaultGroupLabel('unnamed:2', 'pt-BR')).toBe('Grupo sem nome 2');
+    expect(defaultGroupLabel('Group C', 'pt-BR')).toBe('Grupo C');
+    expect(defaultGroupLabel('Brasileirão', 'pt-BR')).toBeNull();
   });
 });

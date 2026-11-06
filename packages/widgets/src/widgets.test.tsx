@@ -265,6 +265,41 @@ describe('StandingsTable', () => {
     });
     expect(await screen.findByText('A tabela ainda não está disponível.')).toBeTruthy();
   });
+
+  it('título de cada tabela pelo nome exibido da API, não pela chave do fornecedor', async () => {
+    const row = createPreviewFixtures().standings.groups[0]!.rows[0]!;
+    const body = {
+      competition_id: 'arg',
+      season: { year: 2026, label: '2026' },
+      groups: [
+        { name: 'Apertura - Group A', display_name: 'Apertura · Zona A', rows: [row] },
+        { name: 'annual', display_name: 'Tabela anual', rows: [row] },
+        { name: 'Liga X', display_name: null, rows: [row] },
+      ],
+      updated_at: null,
+    };
+    const { container } = setup(<StandingsTable competitionId="arg" />, {
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(body)),
+    });
+    await screen.findByText('Apertura · Zona A');
+    const titles = [...container.querySelectorAll('.gs-group-title')].map((e) => e.textContent);
+    expect(titles).toEqual(['Apertura · Zona A', 'Tabela anual', 'Liga X']);
+  });
+
+  it('tabela única sem nome exibido não repete o nome da liga', async () => {
+    const row = createPreviewFixtures().standings.groups[0]!.rows[0]!;
+    const body = {
+      competition_id: 'x',
+      season: { year: 2026, label: '2026' },
+      groups: [{ name: 'Serie A', display_name: null, rows: [row] }],
+      updated_at: null,
+    };
+    const { container } = setup(<StandingsTable competitionId="x" />, {
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(body)),
+    });
+    expect(await screen.findByText('Aurora')).toBeTruthy();
+    expect(container.querySelector('.gs-group-title')).toBeNull();
+  });
 });
 
 describe('WhereToWatch', () => {

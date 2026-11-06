@@ -230,7 +230,7 @@ export const Standings = z
           .meta({ description: 'Grupo como o fornecedor o nomeia (null em liga de grupo único).' }),
         display_name: z.string().nullable().meta({
           description:
-            'Nome da tabela no idioma pedido, pelo regulamento da competição (ex.: "Apertura · Zona A", "Tabla anual"). Null quando a competição não tem regulamento de tabelas.',
+            'Nome da tabela no idioma pedido, para exibir: pelo regulamento da competição (ex.: "Apertura · Zona A", "Tabla anual"); sem regulamento, o nome genérico do fornecedor traduzido ("Group A" → "Grupo A", "Championship Round" → "Disputa pelo título"). Null quando o nome do fornecedor é um nome próprio (ex.: o da liga) e vale como está.',
           example: 'Apertura · Zona A',
         }),
         table: StandingsTableKind.nullable().meta({
