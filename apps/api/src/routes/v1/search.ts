@@ -445,6 +445,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
                       and ${inList(sql`a.participant_id`, [...first.keys()])}
                       and ${inList(sql`b.participant_id`, [...second.keys()])})
          and event.status <> 'cancelled'
+         and not (event.status = 'scheduled' and event.starts_at < ${soon})
          and ((${inPlay}) or event.starts_at < ${matchupUntil}::timestamptz)`
       : sql`exists (select 1 from core.event_participant ep
                      where ep.event_id = event.id and ${inList(sql`ep.participant_id`, [...first.keys()])})
@@ -584,11 +585,8 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
             ? pair[0].flatMap((h, i) => [h, pair[1][i]]).concat(pair[1].slice(pair[0].length))
             : [];
           const ranked = [
-            ...eventHits
-              .map((h, i) => ({ h, i }))
-              .sort((x, y) => x.h.rank - y.h.rank || x.i - y.i)
-              .map((x) => x.h)
-              .slice(0, query.limit),
+            // os jogos na ordem do banco (ao vivo, próximos, já disputados), sem reordenar pelo nome
+            ...eventHits.slice(0, query.limit),
             ...teamHits.filter((h): h is Hit => !!h).slice(0, query.limit),
           ];
           // nada dos dois lados: o termo segue como busca comum (um nome com " x " no meio, por exemplo)

@@ -141,6 +141,8 @@ async function seed() {
       { ...game(lib!.id, -1, 'live'), lastValidAt: NOW },
       game(serieA!.id, -200, 'finished'),
       game(serieA!.id, 24 * 30, 'scheduled'),
+      // ficou "agendado" depois de passar a hora: não entra no confronto
+      game(serieA!.id, -100, 'scheduled'),
     ])
     .returning();
   await db.insert(eventParticipant).values([
@@ -152,6 +154,8 @@ async function seed() {
     { eventId: games[2]!.id, participantId: ids.Goias!, side: 'away' },
     { eventId: games[3]!.id, participantId: ids.Palmeiras!, side: 'home' },
     { eventId: games[3]!.id, participantId: ids.Goias!, side: 'away' },
+    { eventId: games[4]!.id, participantId: ids.Palmeiras!, side: 'home' },
+    { eventId: games[4]!.id, participantId: ids.Goias!, side: 'away' },
   ]);
   ids.live = games[1]!.id;
   ids.next = games[0]!.id;
