@@ -42,6 +42,22 @@ describe('abas de esporte do catálogo', () => {
       'athlete_profile',
     ]);
     expect(tabs.find((t) => t.family.id === 'lutas')?.kinds).toContain('fight_card');
+    // Hipismo e Olimpíadas e Pan: abas do catálogo fora do menu de esportes, no fim
+    expect(tabs.find((t) => t.family.id === 'hipismo')?.kinds).toEqual([
+      'equestrian_results',
+      'equestrian_ranking',
+      'equestrian_calendar',
+      'rider_profile',
+      'horse_profile',
+    ]);
+    expect(tabs.at(-1)?.family.id).toBe('multiesporte');
+    expect(tabs.at(-1)?.kinds).toEqual([
+      'medal_table',
+      'country_today',
+      'games_schedule',
+      'country_athletes',
+      'medal_history',
+    ]);
   });
 
   it('só as famílias com esporte do plano', () => {

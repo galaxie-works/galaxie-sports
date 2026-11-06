@@ -12,6 +12,16 @@ import {
   TeamSchedule,
   AthleteProfile,
   FightCard,
+  EquestrianResults,
+  EquestrianRanking,
+  EquestrianCalendar,
+  RiderProfile,
+  HorseProfile,
+  MedalTable,
+  CountryToday,
+  GamesSchedule,
+  CountryAthletes,
+  MedalHistory,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -214,6 +224,26 @@ function PreviewWidget({
         return <AthleteProfile {...o} teamId={sport === 'mma' ? PREVIEW_IDS.fighter : PREVIEW_IDS.driver} />;
       case 'fight_card':
         return <FightCard {...o} {...WIDGET_CATALOG.fight_card.exampleProps} />;
+      case 'equestrian_results':
+        return <EquestrianResults {...o} />;
+      case 'equestrian_ranking':
+        return <EquestrianRanking {...o} />;
+      case 'equestrian_calendar':
+        return <EquestrianCalendar {...o} />;
+      case 'rider_profile':
+        return <RiderProfile {...o} />;
+      case 'horse_profile':
+        return <HorseProfile {...o} />;
+      case 'medal_table':
+        return <MedalTable {...o} />;
+      case 'country_today':
+        return <CountryToday {...o} />;
+      case 'games_schedule':
+        return <GamesSchedule {...o} />;
+      case 'country_athletes':
+        return <CountryAthletes {...o} />;
+      case 'medal_history':
+        return <MedalHistory {...o} />;
     }
   }
   switch (kind) {
@@ -249,6 +279,46 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    // hipismo e Jogos não têm entidade: a escolha fica nas opções
+    case 'equestrian_results':
+    case 'equestrian_ranking':
+    case 'equestrian_calendar':
+    case 'rider_profile':
+    case 'horse_profile':
+    case 'medal_table':
+    case 'country_today':
+    case 'games_schedule':
+    case 'country_athletes':
+    case 'medal_history':
+      return <StandalonePreview kind={kind} o={o} />;
+  }
+}
+
+/** Prévia dos tipos sem entidade (hipismo e Jogos), com a escolha nas opções. */
+function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, unknown> }) {
+  switch (kind) {
+    case 'equestrian_results':
+      return <EquestrianResults {...o} />;
+    case 'equestrian_ranking':
+      return <EquestrianRanking {...o} />;
+    case 'equestrian_calendar':
+      return <EquestrianCalendar {...o} />;
+    case 'rider_profile':
+      return <RiderProfile {...o} />;
+    case 'horse_profile':
+      return <HorseProfile {...o} />;
+    case 'medal_table':
+      return <MedalTable {...o} />;
+    case 'country_today':
+      return <CountryToday {...o} />;
+    case 'games_schedule':
+      return <GamesSchedule {...o} />;
+    case 'country_athletes':
+      return <CountryAthletes {...o} />;
+    case 'medal_history':
+      return <MedalHistory {...o} />;
+    default:
+      return null;
   }
 }
 
@@ -328,8 +398,9 @@ export function WidgetEditor({
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
-  // lista de jogos funciona sem recorte; os outros tipos, sem entidade, mostram os dados de exemplo
-  const realData = Boolean(draft.entity) || draft.kind === 'live_list';
+  // lista de jogos, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem entidade, mostram
+  // os dados de exemplo
+  const realData = Boolean(draft.entity) || draft.kind === 'live_list' || entityTypes.length === 0;
 
   function save() {
     startTransition(async () => {
@@ -526,20 +597,22 @@ export function WidgetEditor({
                     <FieldDescription>{e.sportHint}</FieldDescription>
                   </Field>
                 ) : null}
-                <Field className="sm:col-span-2">
-                  <FieldLabel>{e.entity}</FieldLabel>
-                  <EntityPicker
-                    types={entityTypes}
-                    sport={searchSport(draft.kind, draft.sport)}
-                    value={draft.entity}
-                    onChange={(v) => set('entity', v)}
-                  />
-                  <FieldDescription>
-                    {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                      types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                    })}
-                  </FieldDescription>
-                </Field>
+                {entityTypes.length ? (
+                  <Field className="sm:col-span-2">
+                    <FieldLabel>{e.entity}</FieldLabel>
+                    <EntityPicker
+                      types={entityTypes}
+                      sport={searchSport(draft.kind, draft.sport)}
+                      value={draft.entity}
+                      onChange={(v) => set('entity', v)}
+                    />
+                    <FieldDescription>
+                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
+                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                      })}
+                    </FieldDescription>
+                  </Field>
+                ) : null}
               </FieldGroup>
             </FramePanel>
           </Frame>

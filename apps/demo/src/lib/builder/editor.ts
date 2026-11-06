@@ -9,6 +9,7 @@ import {
   parseLiveListOptions,
   parseStandingsOptions,
   parseWidgetOptions,
+  type LookupSource,
 } from '@galaxie/widgets';
 
 import type { EditorDraft } from '@/components/client/widget-editor';
@@ -111,6 +112,25 @@ export function newDraft(
   };
 }
 
+const LOOKUP_PATH: Record<LookupSource, string> = {
+  eq_competition: '/v1/equestrian/competitions',
+  eq_athlete: '/v1/equestrian/athletes',
+  eq_horse: '/v1/equestrian/horses',
+  games: '/v1/multisport/games',
+};
+
+/** Nome da prova, do cavaleiro, do cavalo ou da edição escolhida nas opções; sem resposta, o id. */
+async function lookupLabel(source: LookupSource, id: string, locale: Locale): Promise<string> {
+  try {
+    const data = await galaxieGet<{ name?: string }>(`${LOOKUP_PATH[source]}/${encodeURIComponent(id)}`, {
+      locale: apiLocale(locale),
+    });
+    return data.name ?? id;
+  } catch {
+    return id;
+  }
+}
+
 /** Nome e escudo das entidades guardadas nas opções (time a destacar, campeonato do filtro). */
 async function optionEntitiesOf(
   kind: WidgetKind,
@@ -123,6 +143,9 @@ async function optionEntitiesOf(
     if ((spec.type === 'team' || spec.type === 'competition') && typeof id === 'string') {
       const entity = await resolveEntity(spec.type, id, locale);
       if (entity) out[spec.key] = entity;
+    }
+    if (spec.type === 'lookup' && typeof id === 'string') {
+      out[spec.key] = { type: 'lookup', id, label: await lookupLabel(spec.source, id, locale) };
     }
   }
   return out;

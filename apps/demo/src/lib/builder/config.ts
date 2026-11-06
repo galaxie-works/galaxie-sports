@@ -38,6 +38,16 @@ export const WIDGET_KINDS = [
   'season_calendar',
   'athlete_profile',
   'fight_card',
+  'equestrian_results',
+  'equestrian_ranking',
+  'equestrian_calendar',
+  'rider_profile',
+  'horse_profile',
+  'medal_table',
+  'country_today',
+  'games_schedule',
+  'country_athletes',
+  'medal_history',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -75,6 +85,16 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   season_calendar: ['competition'],
   athlete_profile: ['team'],
   fight_card: ['event'],
+  equestrian_results: [],
+  equestrian_ranking: [],
+  equestrian_calendar: [],
+  rider_profile: [],
+  horse_profile: [],
+  medal_table: [],
+  country_today: [],
+  games_schedule: [],
+  country_athletes: [],
+  medal_history: [],
 };
 
 /**
@@ -97,6 +117,16 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   season_calendar: 'competition',
   athlete_profile: 'team',
   fight_card: 'event',
+  equestrian_results: null,
+  equestrian_ranking: null,
+  equestrian_calendar: null,
+  rider_profile: null,
+  horse_profile: null,
+  medal_table: null,
+  country_today: null,
+  games_schedule: null,
+  country_athletes: null,
+  medal_history: null,
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -399,6 +429,16 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   season_calendar: 'GalaxieSeasonCalendar',
   athlete_profile: 'GalaxieAthleteProfile',
   fight_card: 'GalaxieFightCard',
+  equestrian_results: 'GalaxieEquestrianResults',
+  equestrian_ranking: 'GalaxieEquestrianRanking',
+  equestrian_calendar: 'GalaxieEquestrianCalendar',
+  rider_profile: 'GalaxieRiderProfile',
+  horse_profile: 'GalaxieHorseProfile',
+  medal_table: 'GalaxieMedalTable',
+  country_today: 'GalaxieCountryToday',
+  games_schedule: 'GalaxieGamesSchedule',
+  country_athletes: 'GalaxieCountryAthletes',
+  medal_history: 'GalaxieMedalHistory',
 };
 
 /**

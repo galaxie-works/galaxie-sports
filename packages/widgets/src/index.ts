@@ -80,14 +80,26 @@ export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
 export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
 export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
 export { FightCard, type FightCardProps } from './widgets/fight-card.js';
+export { EquestrianResults, type EquestrianResultsProps } from './widgets/equestrian-results.js';
+export { EquestrianRanking, type EquestrianRankingProps } from './widgets/equestrian-ranking.js';
+export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
+export { RiderProfile, type RiderProfileProps } from './widgets/rider-profile.js';
+export { HorseProfile, type HorseProfileProps } from './widgets/horse-profile.js';
+export { MedalTable, type MedalTableProps } from './widgets/medal-table.js';
+export { CountryToday, type CountryTodayProps } from './widgets/country-today.js';
+export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
+export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
+export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {
+  GAMES_NOCS,
   VIDEO_TYPES,
   WIDGET_OPTIONS,
   widgetOptionsFor,
   optionProps,
   parseWidgetOptions,
+  type LookupSource,
   type WidgetOptionSpec,
   type WidgetOptions,
 } from './options.js';

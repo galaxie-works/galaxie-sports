@@ -1,21 +1,31 @@
 'use client';
 
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarDays,
   CalendarRange,
   Clapperboard,
+  ClipboardList,
+  Dna,
   Flag,
+  History,
+  ListChecks,
   ListOrdered,
+  Medal,
   Plus,
   Radio,
   Sparkles,
+  Sun,
   Swords,
   Table2,
   Timer,
+  TrendingUp,
   Trophy,
   Tv,
+  UserCheck,
   UserRound,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -46,12 +56,11 @@ import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WIDGET_CATALOG } from '@galaxie/widgets';
 
 import { OFFERED_WIDGET_KINDS, toWidgetLocale } from '@/lib/builder/config';
-import { CATALOG_TAB_PARAM, catalogTabs, pickTab } from '@/lib/builder/sports';
+import { CATALOG_TAB_PARAM, catalogTabs, pickTab, type CatalogFamilyId } from '@/lib/builder/sports';
 import type { WidgetEntityType, WidgetKind } from '@/lib/builder/types';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { FAMILIES } from '@/lib/navigation';
-import type { FamilyId } from '@/lib/sport-families';
+import { EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV } from '@/lib/navigation';
 
 export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
@@ -68,6 +77,16 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   season_calendar: CalendarClock,
   athlete_profile: UserRound,
   fight_card: ListOrdered,
+  equestrian_results: ClipboardList,
+  equestrian_ranking: TrendingUp,
+  equestrian_calendar: CalendarCheck,
+  rider_profile: UserCheck,
+  horse_profile: Dna,
+  medal_table: Medal,
+  country_today: Sun,
+  games_schedule: ListChecks,
+  country_athletes: Users,
+  medal_history: History,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */
@@ -88,12 +107,13 @@ export interface WidgetRow {
   updatedAt: string;
   entity: { type: WidgetEntityType; id: string } | null;
   /** Família do esporte do widget (null = todos os esportes). */
-  family: FamilyId | null;
+  family: CatalogFamilyId | null;
 }
 
 /** Ícone animado da família (o mesmo do menu). */
-function FamilyIcon({ id, className }: { id: FamilyId; className?: string }) {
-  const nav = FAMILIES.find((f) => f.id === id);
+function FamilyIcon({ id, className }: { id: CatalogFamilyId; className?: string }) {
+  if (id === 'multiesporte') return <MULTISPORT_NAV.icon className={className} aria-hidden />;
+  const nav = id === 'hipismo' ? EQUESTRIAN_NAV : FAMILIES.find((f) => f.id === id);
   if (!nav) return null;
   const Icon = nav.icon;
   return (
@@ -104,7 +124,7 @@ function FamilyIcon({ id, className }: { id: FamilyId; className?: string }) {
 }
 
 /** Cartão de um tipo de widget no catálogo, com o link de criar já na aba (esporte) de onde veio. */
-function KindCard({ kind, family }: { kind: WidgetKind; family: FamilyId }) {
+function KindCard({ kind, family }: { kind: WidgetKind; family: CatalogFamilyId }) {
   const { t } = useI18n();
   const kindTexts = useKindTexts();
   const Icon = KIND_ICONS[kind];

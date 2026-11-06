@@ -20,6 +20,16 @@ export const WIDGET_KINDS = [
   'season_calendar',
   'athlete_profile',
   'fight_card',
+  'equestrian_results',
+  'equestrian_ranking',
+  'equestrian_calendar',
+  'rider_profile',
+  'horse_profile',
+  'medal_table',
+  'country_today',
+  'games_schedule',
+  'country_athletes',
+  'medal_history',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -302,6 +312,194 @@ export interface GsCompetition {
   seasons?:
     | { year: number; label: string; start_date: string | null; end_date: string | null; current: boolean }[]
     | undefined;
+}
+
+// ─── hipismo (`/v1/equestrian/*`) ───────────────────────────────────────────────────────────────
+
+export interface GsEqCountry {
+  code: string;
+  iso2: string | null;
+  name: string | null;
+  flag_url: string | null;
+}
+
+export interface GsEqAthleteRef {
+  id: string;
+  name: string;
+  country: GsEqCountry | null;
+}
+
+export interface GsEqHorseRef {
+  id: string;
+  name: string;
+  breed: string | null;
+  born_year: number | null;
+  age: number | null;
+}
+
+export interface GsEqCompetition {
+  id: string;
+  name: string;
+  level: string | null;
+  date: string | null;
+  venue: string | null;
+  country: GsEqCountry | null;
+  height_cm: number | null;
+  is_grand_prix: boolean;
+  show?: { start: string | null; end: string | null } | null | undefined;
+}
+
+export interface GsEqResult {
+  id: string;
+  date: string | null;
+  competition: GsEqCompetition | null;
+  athlete: GsEqAthleteRef | null;
+  athlete_name_as_published: string;
+  horse: GsEqHorseRef | null;
+  horse_name_as_published: string | null;
+  country: GsEqCountry | null;
+  position: number | null;
+  position_raw: string | null;
+  status: string;
+  score: {
+    raw: string | null;
+    penalties: number | null;
+    time_seconds: number | null;
+  };
+  prize: { amount: number | null; currency: string | null; raw: string | null } | null;
+}
+
+export interface GsEqCompetitionDetail extends GsEqCompetition {
+  standings: GsEqResult[];
+}
+
+export interface GsEqRanking {
+  id: string;
+  ranking: string;
+  athlete: GsEqAthleteRef | null;
+  horse: GsEqHorseRef | null;
+  horse_name_as_published: string | null;
+  rank: number | null;
+  points: number | null;
+  edition: string | null;
+}
+
+export interface GsEqAthlete extends GsEqAthleteRef {
+  stats: { results: number; classified: number; wins: number; podiums: number; last_result: string | null };
+  horses: (GsEqHorseRef & { results: number; best_position: number | null })[];
+  rankings: GsEqRanking[];
+}
+
+export interface GsEqHorse extends GsEqHorseRef {
+  gender: string | null;
+  color: string | null;
+  studbook: string | null;
+  sire: string | null;
+  dam: string | null;
+  dam_sire: string | null;
+  riders: (GsEqAthleteRef & { results: number })[];
+  stats: { results: number; wins: number; podiums: number };
+}
+
+export interface GsEqOverview {
+  highlights: GsEqAthleteRef[];
+  recent_competitions: GsEqCompetition[];
+}
+
+export interface GsPage<T> {
+  data: T[];
+  next_cursor?: string | null | undefined;
+}
+
+// ─── Olimpíadas e Pan (`/v1/multisport/*`) ──────────────────────────────────────────────────────
+
+export interface GsGames {
+  slug: string;
+  type: string;
+  season: string;
+  year: number;
+  name: string;
+  host_city: string;
+  start_date: string;
+  end_date: string;
+  tz: string;
+  status: 'completed' | 'in_progress' | 'upcoming';
+}
+
+export interface GsNoc {
+  code: string;
+  name: string;
+  iso2: string | null;
+}
+
+export interface GsMedalCounts {
+  gold: number;
+  silver: number;
+  bronze: number;
+  total: number;
+}
+
+export interface GsMedalQuality {
+  level: string | null;
+  publishable?: boolean | undefined;
+}
+
+export interface GsMedalTable {
+  games: GsGames;
+  data_quality: GsMedalQuality;
+  data: (GsMedalCounts & { rank: number; noc: GsNoc })[];
+}
+
+export interface GsScheduleUnit {
+  id: string;
+  name: string | null;
+  starts_at: string | null;
+  status: 'scheduled' | 'live' | 'finished' | 'delayed' | 'cancelled';
+  venue: string | null;
+  is_medal_unit: boolean;
+  phase: { code: string; name: string };
+  event: {
+    id: string;
+    name: string;
+    discipline: { code: string; name: string; sport: { code: string; name: string } } | null;
+  };
+}
+
+export interface GsGamesMedal {
+  medal: 'G' | 'S' | 'B';
+  participant: { id: string; name: string };
+  event?: { id: string; name: string } | undefined;
+  revoked: boolean;
+}
+
+export interface GsNocToday {
+  games: GsGames;
+  noc: GsNoc;
+  date: string;
+  units: GsScheduleUnit[];
+  medals: GsGamesMedal[];
+}
+
+export interface GsDelegation {
+  games: GsGames;
+  noc: GsNoc;
+  data: {
+    person_id: string;
+    name: string;
+    medals: GsMedalCounts;
+    events: { id: string; name: string; medal: 'G' | 'S' | 'B' | null }[];
+  }[];
+}
+
+export interface GsMedalHistory {
+  nocs: GsNoc[];
+  data: (GsMedalCounts & {
+    games: { slug: string; type: string; season: string; year: number; name: string };
+    noc: string;
+    rank_by_gold: number;
+  })[];
+  totals: (GsMedalCounts & { noc: string })[];
+  withheld: { slug: string; name: string }[];
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1125,6 +1323,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-form{display:inline-flex;gap:2px}
 .gs-form .gs-result{min-width:16px;height:16px;font-size:.65em}
 .gs-highlight td{background:color-mix(in srgb,var(--gs-primary) 12%,transparent)}
+.gs-flag{font-size:1.1em;line-height:1}
+.gs-medal{display:inline-grid;place-items:center;width:1.4em;height:1.4em;border-radius:999px;font-size:.75em;font-weight:800;color:#1a1a1a}
+.gs-medal[data-medal=G]{background:#e6c24a}
+.gs-medal[data-medal=S]{background:#c4c8cf}
+.gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 `;
@@ -1334,6 +1537,61 @@ export interface WidgetTexts {
     draw: string;
     /** "vs. {name}". */
     versus: string;
+  };
+  /** Hipismo: resultados, ranking, calendário e perfis do cavaleiro e do cavalo. */
+  equestrian: {
+    results: string;
+    ranking: string;
+    calendar: string;
+    rider: string;
+    horse: string;
+    combination: string;
+    faults: string;
+    time: string;
+    prize: string;
+    points: string;
+    starts: string;
+    wins: string;
+    podiums: string;
+    horses: string;
+    riders: string;
+    recent: string;
+    pedigree: string;
+    sire: string;
+    dam: string;
+    damSire: string;
+    /** "{age} anos". */
+    age: string;
+    gender: Record<'mare' | 'stallion' | 'gelding' | 'male', string>;
+    grandPrix: string;
+    empty: string;
+    emptyCalendar: string;
+    emptyRanking: string;
+  };
+  /** Olimpíadas e Pan: quadro de medalhas, o dia do país, programação, atletas e histórico. */
+  olympics: {
+    medals: string;
+    /** "{country} hoje". */
+    today: string;
+    schedule: string;
+    /** "Atletas · {country}". */
+    athletes: string;
+    history: string;
+    edition: string;
+    country: string;
+    gold: string;
+    silver: string;
+    bronze: string;
+    total: string;
+    medalEvent: string;
+    medalsToday: string;
+    /** "Nenhuma prova de {country} neste dia." */
+    noUnits: string;
+    emptySchedule: string;
+    noAthletes: string;
+    withheld: string;
+    /** "Soma de {n} edições". */
+    totals: string;
   };
 }
 
@@ -1577,6 +1835,54 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       draw: 'E',
       versus: 'vs. {name}',
     },
+    equestrian: {
+      results: 'Resultados',
+      ranking: 'Ranking',
+      calendar: 'Calendário de provas',
+      rider: 'Cavaleiro',
+      horse: 'Cavalo',
+      combination: 'Conjunto',
+      faults: 'Faltas',
+      time: 'Tempo',
+      prize: 'Prêmio',
+      points: 'Pts',
+      starts: 'Provas',
+      wins: 'Vitórias',
+      podiums: 'Pódios',
+      horses: 'Cavalos',
+      riders: 'Cavaleiros',
+      recent: 'Últimos resultados',
+      pedigree: 'Pedigree',
+      sire: 'Pai',
+      dam: 'Mãe',
+      damSire: 'Avô materno',
+      age: '{age} anos',
+      gender: { mare: 'Égua', stallion: 'Garanhão', gelding: 'Castrado', male: 'Macho' },
+      grandPrix: 'GP',
+      empty: 'Sem resultados nesta prova.',
+      emptyCalendar: 'Nenhuma prova no período.',
+      emptyRanking: 'Ranking indisponível.',
+    },
+    olympics: {
+      medals: 'Quadro de medalhas',
+      today: '{country} hoje',
+      schedule: 'Programação',
+      athletes: 'Atletas · {country}',
+      history: 'Histórico de medalhas',
+      edition: 'Edição',
+      country: 'País',
+      gold: 'Ouro',
+      silver: 'Prata',
+      bronze: 'Bronze',
+      total: 'Total',
+      medalEvent: 'Vale medalha',
+      medalsToday: 'Medalhas do dia',
+      noUnits: 'Nenhuma prova de {country} neste dia.',
+      emptySchedule: 'Nenhuma prova neste dia.',
+      noAthletes: 'Nenhum atleta encontrado.',
+      withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
+      totals: 'Soma de {n} edições',
+    },
   },
   es: {
     status: {
@@ -1817,6 +2123,54 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       draw: 'E',
       versus: 'vs. {name}',
     },
+    equestrian: {
+      results: 'Resultados',
+      ranking: 'Ranking',
+      calendar: 'Calendario de pruebas',
+      rider: 'Jinete',
+      horse: 'Caballo',
+      combination: 'Binomio',
+      faults: 'Faltas',
+      time: 'Tiempo',
+      prize: 'Premio',
+      points: 'Pts',
+      starts: 'Pruebas',
+      wins: 'Victorias',
+      podiums: 'Podios',
+      horses: 'Caballos',
+      riders: 'Jinetes',
+      recent: 'Últimos resultados',
+      pedigree: 'Pedigrí',
+      sire: 'Padre',
+      dam: 'Madre',
+      damSire: 'Abuelo materno',
+      age: '{age} años',
+      gender: { mare: 'Yegua', stallion: 'Semental', gelding: 'Castrado', male: 'Macho' },
+      grandPrix: 'GP',
+      empty: 'Sin resultados en esta prueba.',
+      emptyCalendar: 'Ninguna prueba en el período.',
+      emptyRanking: 'Ranking no disponible.',
+    },
+    olympics: {
+      medals: 'Medallero',
+      today: '{country} hoy',
+      schedule: 'Programación',
+      athletes: 'Atletas · {country}',
+      history: 'Historial de medallas',
+      edition: 'Edición',
+      country: 'País',
+      gold: 'Oro',
+      silver: 'Plata',
+      bronze: 'Bronce',
+      total: 'Total',
+      medalEvent: 'Por medalla',
+      medalsToday: 'Medallas del día',
+      noUnits: 'Ninguna prueba de {country} este día.',
+      emptySchedule: 'Ninguna prueba este día.',
+      noAthletes: 'Ningún atleta encontrado.',
+      withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
+      totals: 'Suma de {n} ediciones',
+    },
   },
   en: {
     status: {
@@ -2043,6 +2397,54 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       loss: 'L',
       draw: 'D',
       versus: 'vs. {name}',
+    },
+    equestrian: {
+      results: 'Results',
+      ranking: 'Ranking',
+      calendar: 'Competition calendar',
+      rider: 'Rider',
+      horse: 'Horse',
+      combination: 'Combination',
+      faults: 'Faults',
+      time: 'Time',
+      prize: 'Prize',
+      points: 'Pts',
+      starts: 'Starts',
+      wins: 'Wins',
+      podiums: 'Podiums',
+      horses: 'Horses',
+      riders: 'Riders',
+      recent: 'Latest results',
+      pedigree: 'Pedigree',
+      sire: 'Sire',
+      dam: 'Dam',
+      damSire: 'Dam sire',
+      age: '{age} years old',
+      gender: { mare: 'Mare', stallion: 'Stallion', gelding: 'Gelding', male: 'Male' },
+      grandPrix: 'GP',
+      empty: 'No results for this competition.',
+      emptyCalendar: 'No competitions in this period.',
+      emptyRanking: 'Ranking unavailable.',
+    },
+    olympics: {
+      medals: 'Medal table',
+      today: '{country} today',
+      schedule: 'Schedule',
+      athletes: 'Athletes · {country}',
+      history: 'Medal history',
+      edition: 'Games',
+      country: 'Country',
+      gold: 'Gold',
+      silver: 'Silver',
+      bronze: 'Bronze',
+      total: 'Total',
+      medalEvent: 'Medal event',
+      medalsToday: 'Medals today',
+      noUnits: 'No {country} events on this day.',
+      emptySchedule: 'No events on this day.',
+      noAthletes: 'No athletes found.',
+      withheld: 'Medal table under review: this edition is not complete yet.',
+      totals: 'Total of {n} Games',
     },
   },
 };
@@ -2394,6 +2796,37 @@ export function eventIcs(event: GsEvent, now: Date = new Date()): string {
     'END:VCALENDAR',
     '',
   ].join('\r\n');
+}
+
+/** Bandeira em emoji a partir do código ISO de 2 letras (sem código: vazio). */
+export function flagEmoji(iso2: string | null | undefined): string {
+  if (!iso2 || !/^[a-z]{2}$/i.test(iso2)) return '';
+  return String.fromCodePoint(...[...iso2.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)));
+}
+
+/**
+ * Edição dos Jogos que o widget mostra quando não há uma escolhida: a que está em andamento; senão a
+ * última encerrada; senão a próxima.
+ */
+export function pickCurrentGames<T extends Pick<GsGames, 'status' | 'start_date'>>(
+  list: readonly T[],
+): T | null {
+  const byStart = [...list].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  return (
+    byStart.find((g) => g.status === 'in_progress') ??
+    byStart.filter((g) => g.status === 'completed').pop() ??
+    byStart.find((g) => g.status === 'upcoming') ??
+    null
+  );
+}
+
+/** Faltas e tempo de um conjunto no hipismo ("4 · 72.31s"); sem decomposição, o placar bruto. */
+export function eqScoreText(score: GsEqResult['score']): string {
+  const parts = [
+    score.penalties != null ? String(score.penalties) : null,
+    score.time_seconds != null ? `${score.time_seconds.toFixed(2)}s` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : (score.raw ?? '–');
 }
 
 /** Hora do jogo no fuso do estádio, quando o fuso é conhecido e difere do de quem vê; senão null. */

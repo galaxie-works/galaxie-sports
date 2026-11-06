@@ -28,6 +28,16 @@ const WIDGETS = {
   season_calendar: { file: 'src/widgets/season-calendar.tsx', component: 'SeasonCalendar' },
   athlete_profile: { file: 'src/widgets/athlete-profile.tsx', component: 'AthleteProfile' },
   fight_card: { file: 'src/widgets/fight-card.tsx', component: 'FightCard' },
+  equestrian_results: { file: 'src/widgets/equestrian-results.tsx', component: 'EquestrianResults' },
+  equestrian_ranking: { file: 'src/widgets/equestrian-ranking.tsx', component: 'EquestrianRanking' },
+  equestrian_calendar: { file: 'src/widgets/equestrian-calendar.tsx', component: 'EquestrianCalendar' },
+  rider_profile: { file: 'src/widgets/rider-profile.tsx', component: 'RiderProfile' },
+  horse_profile: { file: 'src/widgets/horse-profile.tsx', component: 'HorseProfile' },
+  medal_table: { file: 'src/widgets/medal-table.tsx', component: 'MedalTable' },
+  country_today: { file: 'src/widgets/country-today.tsx', component: 'CountryToday' },
+  games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
+  country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
+  medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;
@@ -50,14 +60,16 @@ function splitImports(source, file) {
     imports.push({ from, specifiers });
     return '';
   });
-  if (/^import\s/m.test(body)) fail(`${file}: use só imports nomeados de uma linha por origem (import { … } from '…').`);
+  if (/^import\s/m.test(body))
+    fail(`${file}: use só imports nomeados de uma linha por origem (import { … } from '…').`);
   return { imports, body: body.trim() };
 }
 
 // ─── núcleo ──────────────────────────────────────────────────────────────────────────────────────
 
 const model = splitImports(read('src/core/model.ts'), 'src/core/model.ts');
-if (model.imports.length > 0) fail('src/core/model.ts não pode importar nada (vai embutido no galaxie-core).');
+if (model.imports.length > 0)
+  fail('src/core/model.ts não pode importar nada (vai embutido no galaxie-core).');
 
 const react = splitImports(read('src/core/react.tsx'), 'src/core/react.tsx');
 const reactSpecifiers = [];

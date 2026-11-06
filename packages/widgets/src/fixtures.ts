@@ -19,6 +19,7 @@ import type {
   GsWhereToWatch,
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
+import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 
 export const PREVIEW_IDS = {
@@ -36,6 +37,11 @@ export const PREVIEW_IDS = {
   fightEvent: RACING_IDS.fightEvent,
   fightCompetition: RACING_IDS.fightCompetition,
   fighter: RACING_IDS.fighter,
+  /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */
+  eqCompetition: OLYMPIC_IDS.eqCompetition,
+  eqAthlete: OLYMPIC_IDS.eqAthlete,
+  eqHorse: OLYMPIC_IDS.eqHorse,
+  games: OLYMPIC_IDS.games,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -732,6 +738,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const url = new URL(raw, 'http://preview.local');
     const path = url.pathname.replace(/\/+$/, '');
     const now = options.now ?? new Date();
+    const olympic = olympicPreviewBody(url, now);
+    if (olympic !== null) return json(olympic);
     const f = createPreviewFixtures(now, options.sport);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);

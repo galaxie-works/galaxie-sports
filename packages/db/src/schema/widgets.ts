@@ -21,6 +21,16 @@ export const WIDGET_KINDS = [
   'season_calendar',
   'athlete_profile',
   'fight_card',
+  'equestrian_results',
+  'equestrian_ranking',
+  'equestrian_calendar',
+  'rider_profile',
+  'horse_profile',
+  'medal_table',
+  'country_today',
+  'games_schedule',
+  'country_athletes',
+  'medal_history',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

@@ -26,7 +26,14 @@ export type WidgetOptionSpec =
   | (OptionBase & { type: 'enum'; default: string; values: readonly { value: string; label: Label }[] })
   | (OptionBase & { type: 'multi'; values: readonly { value: string; label: Label }[] })
   | (OptionBase & { type: 'season' })
-  | (OptionBase & { type: 'team' | 'competition' });
+  | (OptionBase & { type: 'team' | 'competition' })
+  | (OptionBase & { type: 'lookup'; source: LookupSource });
+
+/**
+ * Escolha por busca nas rotas próprias (fora do catálogo de times e campeonatos): a prova, o cavaleiro e o
+ * cavalo do hipismo e a edição dos Jogos. O Builder lista pela API; o valor salvo é o id (ou o slug).
+ */
+export type LookupSource = 'eq_competition' | 'eq_athlete' | 'eq_horse' | 'games';
 
 export type WidgetOptions = Record<string, string | number | boolean>;
 
@@ -69,6 +76,56 @@ export const VIDEO_TYPES = [
   { value: 'penalties', label: l('Pênaltis', 'Penales', 'Penalties') },
   { value: 'fan_reaction', label: l('Reação da torcida', 'Reacción de la hinchada', 'Fan reactions') },
 ] as const;
+
+/** Países (código do COI) que os widgets dos Jogos oferecem: a América Latina primeiro, depois os mercados. */
+export const GAMES_NOCS = [
+  { value: 'BRA', label: l('Brasil', 'Brasil', 'Brazil') },
+  { value: 'ARG', label: l('Argentina', 'Argentina', 'Argentina') },
+  { value: 'MEX', label: l('México', 'México', 'Mexico') },
+  { value: 'COL', label: l('Colômbia', 'Colombia', 'Colombia') },
+  { value: 'CHI', label: l('Chile', 'Chile', 'Chile') },
+  { value: 'PER', label: l('Peru', 'Perú', 'Peru') },
+  { value: 'URU', label: l('Uruguai', 'Uruguay', 'Uruguay') },
+  { value: 'PAR', label: l('Paraguai', 'Paraguay', 'Paraguay') },
+  { value: 'ECU', label: l('Equador', 'Ecuador', 'Ecuador') },
+  { value: 'VEN', label: l('Venezuela', 'Venezuela', 'Venezuela') },
+  { value: 'CUB', label: l('Cuba', 'Cuba', 'Cuba') },
+  { value: 'DOM', label: l('República Dominicana', 'República Dominicana', 'Dominican Republic') },
+  { value: 'PUR', label: l('Porto Rico', 'Puerto Rico', 'Puerto Rico') },
+  { value: 'USA', label: l('Estados Unidos', 'Estados Unidos', 'United States') },
+  { value: 'CAN', label: l('Canadá', 'Canadá', 'Canada') },
+  { value: 'ESP', label: l('Espanha', 'España', 'Spain') },
+  { value: 'POR', label: l('Portugal', 'Portugal', 'Portugal') },
+] as const;
+
+const games = (): WidgetOptionSpec => ({
+  key: 'games',
+  type: 'lookup',
+  source: 'games',
+  label: l('Edição dos Jogos', 'Edición de los Juegos', 'Games edition'),
+  hint: l(
+    'Vazio = a edição em andamento ou a última.',
+    'Vacío = la edición en curso o la última.',
+    'Empty = the Games in progress or the latest.',
+  ),
+});
+const noc = (key = 'noc', label = l('País', 'País', 'Country')): WidgetOptionSpec => ({
+  key,
+  type: 'enum',
+  default: 'BRA',
+  values: GAMES_NOCS,
+  label,
+});
+const count = (key: string, label: Label, def: number, max: number, hint?: Label): WidgetOptionSpec => ({
+  key,
+  type: 'number',
+  default: def,
+  min: 0,
+  max,
+  label,
+  ...(hint ? { hint } : {}),
+});
+const ALL = l('0 = todos.', '0 = todos.', '0 = all.');
 
 export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
   match_card: [
@@ -464,10 +521,159 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showWeightClass', l('Categoria de peso', 'Categoría de peso', 'Weight class'), true),
     bool('showResults', l('Resultado das lutas', 'Resultado de las peleas', 'Bout results'), true),
   ],
+  equestrian_results: [
+    {
+      key: 'competitionId',
+      type: 'lookup',
+      source: 'eq_competition',
+      label: l('Prova', 'Prueba', 'Competition'),
+      hint: l(
+        'Vazio = a última prova com classificação completa.',
+        'Vacío = la última prueba con clasificación completa.',
+        'Empty = the latest competition with full standings.',
+      ),
+    },
+    count('limit', l('Conjuntos listados', 'Binomios listados', 'Combinations listed'), 10, 60, ALL),
+    bool('showHorse', l('Cavalo', 'Caballo', 'Horse'), true),
+    bool('showScore', l('Faltas e tempo', 'Faltas y tiempo', 'Faults and time'), true),
+    bool('showPrize', l('Prêmio', 'Premio', 'Prize money'), false),
+  ],
+  equestrian_ranking: [
+    count('limit', l('Conjuntos por ranking', 'Binomios por ranking', 'Riders per ranking'), 10, 50, ALL),
+    bool('showHorse', l('Cavalo', 'Caballo', 'Horse'), true),
+    bool('showPoints', l('Pontos', 'Puntos', 'Points'), true),
+  ],
+  equestrian_calendar: [
+    {
+      key: 'range',
+      type: 'enum',
+      default: 'upcoming',
+      label: l('Provas', 'Pruebas', 'Competitions'),
+      values: [
+        { value: 'upcoming', label: l('Próximas', 'Próximas', 'Upcoming') },
+        { value: 'recent', label: l('Últimas', 'Últimas', 'Latest') },
+      ],
+    },
+    count('limit', l('Provas listadas', 'Pruebas listadas', 'Competitions listed'), 8, 30),
+    bool('grandPrixOnly', l('Só Grandes Prêmios', 'Solo Grandes Premios', 'Grands Prix only'), false),
+    bool('showVenue', l('Local', 'Lugar', 'Venue'), true),
+  ],
+  rider_profile: [
+    {
+      key: 'athleteId',
+      type: 'lookup',
+      source: 'eq_athlete',
+      label: l('Cavaleiro', 'Jinete', 'Rider'),
+      hint: l(
+        'Vazio = o destaque do momento.',
+        'Vacío = el destacado del momento.',
+        'Empty = the current highlight.',
+      ),
+    },
+    count('horses', l('Cavalos listados', 'Caballos listados', 'Horses listed'), 3, 10),
+    count('recent', l('Últimos resultados', 'Últimos resultados', 'Latest results'), 5, 10),
+    bool('showRankings', l('Ranking', 'Ranking', 'Ranking'), true),
+  ],
+  horse_profile: [
+    {
+      key: 'horseId',
+      type: 'lookup',
+      source: 'eq_horse',
+      label: l('Cavalo', 'Caballo', 'Horse'),
+      hint: l(
+        'Vazio = o cavalo com mais provas na base.',
+        'Vacío = el caballo con más pruebas en la base.',
+        'Empty = the horse with the most starts.',
+      ),
+    },
+    count('recent', l('Últimos resultados', 'Últimos resultados', 'Latest results'), 5, 10),
+    bool('showPedigree', l('Pedigree', 'Pedigrí', 'Pedigree'), true),
+    bool('showRiders', l('Cavaleiros', 'Jinetes', 'Riders'), true),
+  ],
+  medal_table: [
+    games(),
+    {
+      key: 'sort',
+      type: 'enum',
+      default: 'gold',
+      label: l('Ordem', 'Orden', 'Order'),
+      values: [
+        { value: 'gold', label: l('Por ouros', 'Por oros', 'By golds') },
+        { value: 'total', label: l('Pelo total', 'Por total', 'By total') },
+      ],
+    },
+    {
+      key: 'region',
+      type: 'enum',
+      default: 'all',
+      label: l('Países', 'Países', 'Countries'),
+      values: [
+        { value: 'all', label: l('Todos', 'Todos', 'All') },
+        { value: 'latam', label: l('América Latina', 'América Latina', 'Latin America') },
+      ],
+    },
+    count('limit', l('Países listados', 'Países listados', 'Countries listed'), 10, 100, ALL),
+    noc('highlight', l('País em destaque', 'País destacado', 'Highlighted country')),
+  ],
+  country_today: [
+    games(),
+    noc(),
+    bool('showMedals', l('Medalhas do dia', 'Medallas del día', 'Medals of the day'), true),
+    bool(
+      'medalOnly',
+      l('Só provas que valem medalha', 'Solo pruebas por medalla', 'Medal events only'),
+      false,
+    ),
+  ],
+  games_schedule: [
+    games(),
+    count('limit', l('Provas listadas', 'Pruebas listadas', 'Events listed'), 20, 100),
+    bool(
+      'medalOnly',
+      l('Só provas que valem medalha', 'Solo pruebas por medalla', 'Medal events only'),
+      false,
+    ),
+    bool('showVenue', l('Local', 'Lugar', 'Venue'), true),
+  ],
+  country_athletes: [
+    games(),
+    noc(),
+    count('limit', l('Atletas listados', 'Atletas listados', 'Athletes listed'), 20, 200, ALL),
+    bool('medalistsOnly', l('Só medalhistas', 'Solo medallistas', 'Medallists only'), false),
+  ],
+  medal_history: [
+    noc(),
+    {
+      key: 'type',
+      type: 'enum',
+      default: 'OG,PAN',
+      label: l('Jogos', 'Juegos', 'Games'),
+      values: [
+        {
+          value: 'OG,PAN',
+          label: l('Olimpíadas e Pan', 'Juegos Olímpicos y Panamericanos', 'Olympics and Pan Am'),
+        },
+        { value: 'OG', label: l('Olimpíadas', 'Juegos Olímpicos', 'Olympics') },
+        { value: 'PAN', label: l('Pan-Americanos', 'Panamericanos', 'Pan American Games') },
+      ],
+    },
+    {
+      key: 'season',
+      type: 'enum',
+      default: 'summer',
+      label: l('Temporada', 'Temporada', 'Season'),
+      values: [
+        { value: 'summer', label: l('Verão', 'Verano', 'Summer') },
+        { value: 'winter', label: l('Inverno', 'Invierno', 'Winter') },
+      ],
+    },
+    count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,119}$/;
+const GAMES_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** Um valor de opção vindo de fora (banco, JSON do embed, formulário) → o valor limpo ou undefined. */
 function parseValue(spec: WidgetOptionSpec, raw: unknown): string | number | boolean | undefined {
@@ -496,6 +702,10 @@ function parseValue(spec: WidgetOptionSpec, raw: unknown): string | number | boo
       return typeof raw === 'string' && UUID.test(raw) ? raw.toLowerCase() : undefined;
     case 'competition':
       return typeof raw === 'string' && (UUID.test(raw) || SLUG.test(raw)) ? raw : undefined;
+    case 'lookup':
+      if (typeof raw !== 'string') return undefined;
+      if (spec.source === 'games') return GAMES_SLUG.test(raw) ? raw : undefined;
+      return UUID.test(raw) ? raw.toLowerCase() : undefined;
   }
 }
 

@@ -23,6 +23,16 @@ import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
 import { FightCard } from '../widgets/fight-card.js';
+import { EquestrianResults } from '../widgets/equestrian-results.js';
+import { EquestrianRanking } from '../widgets/equestrian-ranking.js';
+import { EquestrianCalendar } from '../widgets/equestrian-calendar.js';
+import { RiderProfile } from '../widgets/rider-profile.js';
+import { HorseProfile } from '../widgets/horse-profile.js';
+import { MedalTable } from '../widgets/medal-table.js';
+import { CountryToday } from '../widgets/country-today.js';
+import { GamesSchedule } from '../widgets/games-schedule.js';
+import { CountryAthletes } from '../widgets/country-athletes.js';
+import { MedalHistory } from '../widgets/medal-history.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -145,6 +155,26 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <AthleteProfile {...o} teamId={teamId ?? ''} />;
     case 'fight_card':
       return <FightCard {...o} eventId={eventId ?? ''} />;
+    case 'equestrian_results':
+      return <EquestrianResults {...o} />;
+    case 'equestrian_ranking':
+      return <EquestrianRanking {...o} />;
+    case 'equestrian_calendar':
+      return <EquestrianCalendar {...o} />;
+    case 'rider_profile':
+      return <RiderProfile {...o} />;
+    case 'horse_profile':
+      return <HorseProfile {...o} />;
+    case 'medal_table':
+      return <MedalTable {...o} />;
+    case 'country_today':
+      return <CountryToday {...o} />;
+    case 'games_schedule':
+      return <GamesSchedule {...o} />;
+    case 'country_athletes':
+      return <CountryAthletes {...o} />;
+    case 'medal_history':
+      return <MedalHistory {...o} />;
   }
 }
 
