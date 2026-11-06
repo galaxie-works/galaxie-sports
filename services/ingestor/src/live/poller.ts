@@ -217,7 +217,19 @@ export class LivePoller {
       if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
       const attempts = state.attempts + 1;
       const wait = FINALIZE_BACKOFF_MS[Math.min(attempts, FINALIZE_BACKOFF_MS.length - 1)]!;
-      this.finalizeAttempts.set(id, { attempts, nextAt: input.now.getTime() + wait });
+      const backoff = { attempts, nextAt: input.now.getTime() + wait };
+      // o marcado conserva a marca até o detalhe dizer outra coisa: um erro ou uma resposta vazia não o tiram da
+      // conferência de 5 em 5 min (fora de `inPlay`, ele só volta por `waiting`)
+      this.finalizeAttempts.set(
+        id,
+        state.notStarted
+          ? {
+              attempts: state.attempts,
+              nextAt: input.now.getTime() + NOT_STARTED_RECHECK_MS,
+              notStarted: true,
+            }
+          : backoff,
+      );
       budget -= 1;
       if (fence?.aborted) throw new TickFencedError();
       const detail = await this.provider.getEventDetail(sport, id, this.callOptions());
@@ -234,6 +246,8 @@ export class LivePoller {
           nextAt: input.now.getTime() + NOT_STARTED_RECHECK_MS,
           notStarted: true,
         });
+      // a fonte começou o jogo marcado (ou deu outro desfecho): daqui em diante, a confirmação normal
+      else if (status && state.notStarted) this.finalizeAttempts.set(id, backoff);
     }
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite

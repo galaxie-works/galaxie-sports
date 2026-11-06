@@ -245,6 +245,40 @@ describe('LivePoller', () => {
     expect(poller.exportFinalizeAttempts(at(150))['9101']).toMatchObject({ attempts: 0, notStarted: true });
   });
 
+  it('erro no detalhe do jogo marcado como NS não tira a marca: ele segue conferido em 5 min', async () => {
+    const late: WorldMatch = { ...match, delayMin: 180 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    const details = () => provider.calls.filter((c) => c.method === 'getEventDetail').length;
+    const tick = async (min: number) => {
+      store.advanceClock(at(min));
+      provider.willReturn('listLive', batchAt([], at(min)));
+      return poller.tick({
+        now: at(min),
+        leagues: ['71'],
+        tracked: await tracked(at(min)),
+        finalizeBudget: 1,
+      });
+    };
+    provider.willReturn('getEventDetail', batchAt([late], at(2), true));
+    await tick(2);
+    expect(store.state('9101')!.status).toBe('starting');
+
+    // a conferência de 5 min falha
+    provider.willFail('getEventDetail', { kind: 'http_error', message: 'HTTP 503', retryable: true }, at(7));
+    await tick(7);
+    expect(details()).toBe(2);
+    expect(poller.exportFinalizeAttempts(at(7))['9101']).toEqual({
+      attempts: 0,
+      nextAt: at(12).getTime(),
+      notStarted: true,
+    });
+    // e a próxima sai na hora marcada, com o jogo ainda em `starting`
+    provider.willReturn('getEventDetail', batchAt([late], at(12), true));
+    await tick(12);
+    expect(details()).toBe(3);
+  });
+
   it('jogo que a fonte já deu em campo e volta a NS no detalhe segue o backoff normal', async () => {
     const { store, provider, poller, tracked } = setup([match]);
     const at = (min: number) => new Date(kick + min * MIN);
