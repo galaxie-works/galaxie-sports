@@ -9,17 +9,20 @@ import {
   type Clock,
   type MediaDenylistEntry,
 } from '@galaxie/apisports-client';
+import { isPlaceholderLogo, LOGO_KINDS, PLACEHOLDER_LOGO_SHA256 } from '@galaxie/core-writer';
 import {
-  isPlaceholderLogo,
-  LOGO_KINDS,
-  PERSON_PHOTO_KINDS,
-  PLACEHOLDER_LOGO_SHA256,
-} from '@galaxie/core-writer';
-import type { AssetStore, LogoCleanup, MirrorAsset, MirrorCursor } from './asset-store.js';
+  detachFor,
+  type AssetStore,
+  type ImageCleanup,
+  type LogoCleanup,
+  type MirrorAsset,
+  type MirrorCursor,
+} from './asset-store.js';
 import { imageInfo, paletteFromPng } from '@galaxie/crests';
 import { MediaFetcher, type MediaSource } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
-import { isPlaceholderPhoto } from './person-photos.js';
+import { isPlaceholderPhoto, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
+import { isPlaceholderImage } from './placeholder-images.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */
 export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
@@ -97,10 +100,14 @@ export interface MirrorReport {
   placeholders: number;
   /** Logos de time e competição que vieram como imagem genérica: viram "sem logo" e não vão para o storage. */
   placeholderLogos: number;
+  /** Estádio, circuito, bandeira, lutador ou piloto que veio como imagem genérica: vira "sem imagem". */
+  placeholderImages: number;
   /** Limpeza do início da execução: logos genéricos já gravados e entidades presas a logos ausentes. */
   logoCleanup: LogoCleanup;
   /** Fotos genéricas que já estavam no storage (hash catalogado depois) e viraram "sem foto". */
   photoCleanup: number;
+  /** Imagens genéricas dos outros kinds já gravadas e entidades ainda ligadas a qualquer asset ausente. */
+  imageCleanup: ImageCleanup;
   failed: number;
   /** Das falhas, as por erro inesperado (storage, banco): a execução termina, mas o job fica com erro. */
   errors: number;
@@ -138,6 +145,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
   const delayMs = options.delayMs ?? 250;
   const abortAfter = options.abortAfterRateLimited ?? 5;
   const emit = options.onProgress ?? (() => {});
+  const placeholderImages = new Set([
+    ...(options.placeholderPhotos ?? PLACEHOLDER_PHOTO_SHA256),
+    ...(options.placeholderLogos ?? PLACEHOLDER_LOGO_SHA256),
+  ]);
 
   const report: MirrorReport = {
     pending: 0,
@@ -146,8 +157,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     denied: 0,
     placeholders: 0,
     placeholderLogos: 0,
+    placeholderImages: 0,
     logoCleanup: { placeholders: 0, participants: 0, competitions: 0 },
     photoCleanup: 0,
+    imageCleanup: { placeholders: 0, venues: 0, countries: 0, people: 0, participants: 0, competitions: 0 },
     failed: 0,
     errors: 0,
     recoveredLogos: [],
@@ -168,6 +181,10 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     });
     report.photoCleanup = await options.assets.cleanupPhotos(new Date(clock.now()), {
       placeholders: options.placeholderPhotos,
+      dryRun: options.dryRun,
+    });
+    report.imageCleanup = await options.assets.cleanupImages(new Date(clock.now()), {
+      placeholders: placeholderImages,
       dryRun: options.dryRun,
     });
   }
@@ -224,10 +241,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     }
     if (denylist.has(url)) {
       // como no 404: a entidade fica sem imagem na hora, sem esperar a limpeza da próxima execução
-      await options.assets.markMissing(item.id, new Date(clock.now()), {
-        detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
-        detachLogos: LOGO_KINDS.has(item.kind),
-      });
+      await options.assets.markMissing(item.id, new Date(clock.now()), detachFor(item.kind));
       report.denied += 1;
       emit({ type: 'denied', asset: item, reason: denylist.reason(url) ?? '' });
       return;
@@ -246,6 +260,12 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       if (isPlaceholderLogo(item.kind, sha256, options.placeholderLogos)) {
         await options.assets.markMissing(item.id, new Date(clock.now()), { detachLogos: true });
         report.placeholderLogos += 1;
+        emit({ type: 'placeholder', asset: item, sha256 });
+        return;
+      }
+      if (isPlaceholderImage(item.kind, sha256, placeholderImages)) {
+        await options.assets.markMissing(item.id, new Date(clock.now()), detachFor(item.kind));
+        report.placeholderImages += 1;
         emit({ type: 'placeholder', asset: item, sha256 });
         return;
       }
@@ -269,10 +289,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
       emit({ type: 'stored', asset: item, storageKey: key, bytes: res.body.length });
     } else if (res.status === 'not_found') {
       consecutiveRateLimited = 0;
-      await options.assets.markMissing(item.id, new Date(clock.now()), {
-        detachPeople: PERSON_PHOTO_KINDS.has(item.kind),
-        detachLogos: LOGO_KINDS.has(item.kind),
-      });
+      await options.assets.markMissing(item.id, new Date(clock.now()), detachFor(item.kind));
       report.notFound += 1;
       report.notFoundUrls.push(url);
       emit({ type: 'not_found', asset: item, httpStatus: res.httpStatus });
