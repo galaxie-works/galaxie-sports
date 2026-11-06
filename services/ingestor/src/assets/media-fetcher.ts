@@ -91,7 +91,16 @@ export class MediaFetcher implements MediaSource {
       }
 
       if (response.ok) {
-        const body = new Uint8Array(await response.arrayBuffer());
+        let body: Uint8Array;
+        try {
+          body = new Uint8Array(await response.arrayBuffer());
+        } catch (err) {
+          // conexão caiu no meio do corpo: como erro de rede, tenta de novo
+          lastReason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+          rateLimited = false;
+          if (attempt <= this.maxRetries) await this.clock.sleep(this.backoff(attempt, null));
+          continue;
+        }
         return {
           status: 'ok',
           body,

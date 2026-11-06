@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -122,6 +122,32 @@ describe('downloadToLocal', () => {
     expect(report.failed).toBe(2);
     expect(report.aborted).toMatch(/429/);
     expect(await readLocalManifest(dir)).toEqual([]);
+  });
+});
+
+describe('downloadToLocal com erro de disco', () => {
+  it('conta o item como falha e segue com os outros', async () => {
+    const png = fakePng(10, 10, 3);
+    const clock = new FakeClock();
+    // um diretório no lugar do arquivo: o rename falha só para esse item
+    await mkdir(join(dir, 'team_logo', 'football', 'teams', '121.png'), { recursive: true });
+    const media = fakeMediaFetch({
+      [TEAM]: [{ status: 200, body: png }],
+      [PLAYER]: [{ status: 200, body: png }],
+    });
+    const report = await downloadToLocal({
+      items: [
+        { id: '1', kind: 'team_logo', url: TEAM },
+        { id: '2', kind: 'player', url: PLAYER },
+      ],
+      dir,
+      fetcher: new MediaFetcher({ fetch: media.fetch, clock }),
+      clock,
+      concurrency: 1,
+      delayMs: 0,
+    });
+    expect(report).toMatchObject({ ok: 1, failed: 1 });
+    expect((await readLocalManifest(dir)).map((e) => e.id)).toEqual(['2']);
   });
 });
 

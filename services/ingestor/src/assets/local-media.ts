@@ -171,48 +171,59 @@ export async function downloadToLocal(options: LocalDownloadOptions): Promise<Lo
     while (!report.aborted && !options.signal?.aborted) {
       const item = queue[next++];
       if (!item) return;
-      const res = await options.fetcher.get(item.normalized);
-      if (res.status === 'ok') {
-        consecutiveRateLimited = 0;
-        const target = join(options.dir, ...item.file.split('/'));
-        await mkdir(dirname(target), { recursive: true });
-        await writeFile(`${target}.part`, res.body);
-        await rename(`${target}.part`, target);
-        await append({
-          id: item.id,
-          kind: item.kind,
-          url: item.normalized,
-          status: 'ok',
-          file: item.file,
-          contentType: res.contentType ?? null,
-          bytes: res.body.length,
-          sha256: createHash('sha256').update(res.body).digest('hex'),
-        });
-        report.ok += 1;
-        report.bytes += res.body.length;
-        emit({ type: 'ok', item, bytes: res.body.length });
-      } else if (res.status === 'not_found') {
-        consecutiveRateLimited = 0;
-        await append({
-          id: item.id,
-          kind: item.kind,
-          url: item.normalized,
-          status: 'not_found',
-          httpStatus: res.httpStatus,
-        });
-        report.notFound += 1;
-        emit({ type: 'not_found', item });
-      } else {
-        consecutiveRateLimited = res.rateLimited ? consecutiveRateLimited + 1 : 0;
+      try {
+        await handle(item);
+      } catch (err) {
+        // erro de disco ou inesperado: o item fica fora do manifest e volta na próxima execução
+        const reason = err instanceof Error ? err.message : String(err);
         report.failed += 1;
-        report.failures.push({ url: item.normalized, reason: res.reason });
-        emit({ type: 'failed', item, reason: res.reason });
-        if (consecutiveRateLimited >= abortAfter && !report.aborted) {
-          report.aborted = `A CDN de mídia respondeu 429 em ${consecutiveRateLimited} itens seguidos; download interrompido — rode de novo mais tarde (retoma pelo manifest).`;
-          emit({ type: 'aborted', reason: report.aborted });
-        }
+        report.failures.push({ url: item.normalized, reason });
+        emit({ type: 'failed', item, reason });
       }
       if (delayMs > 0 && !options.signal?.aborted) await clock.sleep(delayMs);
+    }
+  };
+  const handle = async (item: (typeof queue)[number]): Promise<void> => {
+    const res = await options.fetcher.get(item.normalized);
+    if (res.status === 'ok') {
+      consecutiveRateLimited = 0;
+      const target = join(options.dir, ...item.file.split('/'));
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(`${target}.part`, res.body);
+      await rename(`${target}.part`, target);
+      await append({
+        id: item.id,
+        kind: item.kind,
+        url: item.normalized,
+        status: 'ok',
+        file: item.file,
+        contentType: res.contentType ?? null,
+        bytes: res.body.length,
+        sha256: createHash('sha256').update(res.body).digest('hex'),
+      });
+      report.ok += 1;
+      report.bytes += res.body.length;
+      emit({ type: 'ok', item, bytes: res.body.length });
+    } else if (res.status === 'not_found') {
+      consecutiveRateLimited = 0;
+      await append({
+        id: item.id,
+        kind: item.kind,
+        url: item.normalized,
+        status: 'not_found',
+        httpStatus: res.httpStatus,
+      });
+      report.notFound += 1;
+      emit({ type: 'not_found', item });
+    } else {
+      consecutiveRateLimited = res.rateLimited ? consecutiveRateLimited + 1 : 0;
+      report.failed += 1;
+      report.failures.push({ url: item.normalized, reason: res.reason });
+      emit({ type: 'failed', item, reason: res.reason });
+      if (consecutiveRateLimited >= abortAfter && !report.aborted) {
+        report.aborted = `A CDN de mídia respondeu 429 em ${consecutiveRateLimited} itens seguidos; download interrompido — rode de novo mais tarde (retoma pelo manifest).`;
+        emit({ type: 'aborted', reason: report.aborted });
+      }
     }
   };
   try {
