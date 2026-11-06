@@ -11,6 +11,7 @@ import {
   REGISTRY_CORE_NAME,
   parseLiveListOptions,
   parseStandingsOptions,
+  parseWidgetOptions,
   toRegistryName,
 } from '@galaxie/widgets/registry';
 
@@ -227,6 +228,8 @@ export function parseWidgetInput(
         ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
         // modo, agrupamento, atualização e dados extras: só na lista de jogos, e só chaves conhecidas
         ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),
+        // opções de conteúdo: só as do tipo, válidas e diferentes do padrão
+        ...optional('options', parseWidgetOptions(r.kind, c.options)),
       },
     },
   };

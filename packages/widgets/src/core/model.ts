@@ -162,16 +162,81 @@ export interface GsStake {
 export interface GsEvent {
   id: string;
   sport: string;
-  competition: { id: string; slug: string; name: string; logo: string | null } | null;
+  competition: {
+    id: string;
+    slug: string;
+    name: string;
+    logo: string | null;
+    nickname?: string | null | undefined;
+    country?: { code: string; name: string; flag: string | null } | null | undefined;
+  } | null;
   stage: { name: string | null } | null;
   starts_at: string;
   status: GsEventStatus;
   clock: { minute: number | null; extra: number | null; period: string | null } | null;
   participants: GsParticipant[];
-  score: GsSidePair & { penalty: GsSidePair | null };
-  venue: { name: string; city: string | null } | null;
+  score: GsSidePair & {
+    penalty: GsSidePair | null;
+    halftime?: GsSidePair | null | undefined;
+    aggregate?: GsSidePair | null | undefined;
+    periods?: { code: string; home: number | null; away: number | null }[] | null | undefined;
+  };
+  venue: { name: string; city: string | null; timezone?: string | null | undefined } | null;
+  referee?: { name: string } | null | undefined;
   derby?: { slug: string; name: string; intensity: number } | null | undefined;
   stakes?: GsStake[] | undefined;
+}
+
+/** Lance do minuto a minuto (`/v1/events/{id}/timeline`), só o que os widgets usam. */
+export interface GsTimelineIncident {
+  sequence: number;
+  kind: string;
+  minute: number | null;
+  extra: number | null;
+  player: { name: string } | null;
+  team: { id: string | null; side: string | null } | null;
+  scoring_team?: { id: string | null; side: string | null } | null | undefined;
+}
+
+export interface GsTimeline {
+  event_id: string;
+  incidents: GsTimelineIncident[];
+}
+
+/** Estatísticas do jogo (`/v1/events/{id}/stats`): por time, com o código estável. */
+export interface GsEventStats {
+  event_id: string;
+  available: boolean;
+  teams: {
+    team: { id: string | null; side: string | null };
+    statistics: { code: string | null; value: number | string | null }[];
+  }[];
+}
+
+/** Escalações (`/v1/events/{id}/lineups`): só a formação. */
+export interface GsLineups {
+  event_id: string;
+  available: boolean;
+  lineups: { team: { id: string | null; side?: string | null }; formation: string | null }[];
+}
+
+/** Situação do campeonato (`/v1/competitions/{id}/context`), só líder e jogos decisivos. */
+export interface GsCompetitionContext {
+  groups: {
+    name: string | null;
+    leader: {
+      rank: number;
+      points: number;
+      participant: { id: string; name: string; short_name: string | null; logo: string | null };
+    } | null;
+  }[];
+  decisive_events?: GsEvent[] | undefined;
+}
+
+/** Card do time (`/v1/teams/{id}/overview`): posição e forma. */
+export interface GsTeamOverview {
+  standings: { competition: { id: string; name: string }; rank: number | null }[];
+  form: { event_id: string; result: 'W' | 'D' | 'L'; score: string }[];
 }
 
 /** Cenário pré-jogo e resumo pós-jogo de IA (`/v1/events/{id}/context`). */
@@ -244,6 +309,8 @@ export interface GsStandingRow {
   drawn: number;
   lost: number;
   goal_diff: number;
+  goals_for?: number | undefined;
+  goals_against?: number | undefined;
   form: string | null;
   description: string | null;
 }
@@ -256,6 +323,8 @@ export interface GsStandings {
     name: string | null;
     /** Nome exibido no idioma pedido ("Apertura · Zona A", "Tabela anual", "Grupo A"). */
     display_name?: string | null;
+    /** Papel da tabela pelo regulamento: `phase`, `annual`, `relegation_average`, `other` ou null. */
+    table?: string | null | undefined;
     rows: GsStandingRow[];
   }[];
   updated_at: string | null;
@@ -790,6 +859,19 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-fixture-date{flex:none;width:6.5em;font-size:.8em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
 .gs-result{display:inline-grid;place-items:center;flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;font-size:.75em;font-weight:800;color:#fff;background:var(--gs-muted-foreground)}
 .gs-result[data-r=W]{background:#16a34a}.gs-result[data-r=L]{background:var(--gs-live)}
+.gs-extras{display:flex;flex-direction:column;gap:6px;font-size:.85em}
+.gs-incidents{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin:0;padding:0;list-style:none;font-size:.85em}
+.gs-incidents li{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-incidents [data-side=away]{grid-column:2;text-align:right}.gs-incidents [data-side=home]{grid-column:1}
+.gs-card-red{display:inline-block;width:8px;height:11px;margin-right:4px;border-radius:2px;background:#dc2626;vertical-align:-1px}
+.gs-statrow{display:grid;grid-template-columns:3em 1fr 3em;align-items:center;gap:8px;font-size:.85em;font-variant-numeric:tabular-nums}
+.gs-statrow>span:first-child{text-align:left}.gs-statrow>span:last-child{text-align:right}
+.gs-statrow>span:nth-child(2){text-align:center;color:var(--gs-muted-foreground)}
+.gs-form{display:inline-flex;gap:2px}
+.gs-form .gs-result{min-width:16px;height:16px;font-size:.65em}
+.gs-highlight td{background:color-mix(in srgb,var(--gs-primary) 12%,transparent)}
+.gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
+.gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -884,6 +966,36 @@ export interface WidgetTexts {
     home: string;
     away: string;
     result: { W: string; D: string; L: string };
+  };
+  /** Campos opcionais ligados no Builder (placar, tabela, agenda…). */
+  extra: {
+    referee: string;
+    /** "1º T {home}–{away}". */
+    halftime: string;
+    /** "Agregado {home}–{away}". */
+    aggregate: string;
+    /** "Hora local: {time}". */
+    venueTime: string;
+    addToCalendar: string;
+    /** Rótulo curto do botão nas linhas de jogo (o completo fica no aria-label). */
+    calendarShort: string;
+    ownGoal: string;
+    penalty: string;
+    possession: string;
+    shots: string;
+    onTarget: string;
+    formation: string;
+    goalsFor: string;
+    goalsAgainst: string;
+    form: string;
+    percentage: string;
+    leader: string;
+    decisive: string;
+    /** "{rank}º · {competition}". */
+    position: string;
+    /** "Escrito às {time}". */
+    writtenAt: string;
+    intensity: string;
   };
 }
 
@@ -1020,6 +1132,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       away: 'Fora',
       result: { W: 'V', D: 'E', L: 'D' },
     },
+    extra: {
+      referee: 'Árbitro',
+      halftime: '1º T {home}–{away}',
+      aggregate: 'Agregado {home}–{away}',
+      venueTime: 'Hora local: {time}',
+      addToCalendar: 'Adicionar ao calendário',
+      calendarShort: '+ Calendário',
+      ownGoal: 'contra',
+      penalty: 'pên.',
+      possession: 'Posse',
+      shots: 'Finalizações',
+      onTarget: 'No alvo',
+      formation: 'Formação',
+      goalsFor: 'GP',
+      goalsAgainst: 'GC',
+      form: 'Forma',
+      percentage: '%',
+      leader: 'Líder',
+      decisive: 'Jogos decisivos',
+      position: '{rank}º · {competition}',
+      writtenAt: 'Escrito às {time}',
+      intensity: 'Intensidade',
+    },
   },
   es: {
     status: {
@@ -1153,6 +1288,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       away: 'Visitante',
       result: { W: 'G', D: 'E', L: 'P' },
     },
+    extra: {
+      referee: 'Árbitro',
+      halftime: '1T {home}–{away}',
+      aggregate: 'Global {home}–{away}',
+      venueTime: 'Hora local: {time}',
+      addToCalendar: 'Añadir al calendario',
+      calendarShort: '+ Calendario',
+      ownGoal: 'en contra',
+      penalty: 'pen.',
+      possession: 'Posesión',
+      shots: 'Remates',
+      onTarget: 'Al arco',
+      formation: 'Formación',
+      goalsFor: 'GF',
+      goalsAgainst: 'GC',
+      form: 'Racha',
+      percentage: '%',
+      leader: 'Líder',
+      decisive: 'Partidos decisivos',
+      position: '{rank}º · {competition}',
+      writtenAt: 'Escrito a las {time}',
+      intensity: 'Intensidad',
+    },
   },
   en: {
     status: {
@@ -1285,6 +1443,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       home: 'Home',
       away: 'Away',
       result: { W: 'W', D: 'D', L: 'L' },
+    },
+    extra: {
+      referee: 'Referee',
+      halftime: 'HT {home}–{away}',
+      aggregate: 'Agg. {home}–{away}',
+      venueTime: 'Local time: {time}',
+      addToCalendar: 'Add to calendar',
+      calendarShort: '+ Calendar',
+      ownGoal: 'og',
+      penalty: 'pen.',
+      possession: 'Possession',
+      shots: 'Shots',
+      onTarget: 'On target',
+      formation: 'Formation',
+      goalsFor: 'GF',
+      goalsAgainst: 'GA',
+      form: 'Form',
+      percentage: '%',
+      leader: 'Leader',
+      decisive: 'Decisive games',
+      position: '#{rank} · {competition}',
+      writtenAt: 'Written at {time}',
+      intensity: 'Intensity',
     },
   },
 };
@@ -1420,6 +1601,61 @@ export function localized(text: GsLocalizedText | null | undefined, locale?: str
 }
 
 /** Troca `{chave}` no modelo de texto. */
+/** Escapa texto para uma linha de iCalendar (RFC 5545 §3.3.11). */
+const icsText = (v: string) => v.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n');
+const icsDate = (d: Date) =>
+  d
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
+
+/**
+ * Arquivo de calendário de um jogo (VCALENDAR com um VEVENT, horários em UTC), montado no navegador: o
+ * `.ics` da API pede a chave no header, e um link de download não manda header. Duração estimada: 2 horas.
+ */
+export function eventIcs(event: GsEvent, now: Date = new Date()): string {
+  const start = new Date(event.starts_at);
+  const end = new Date(start.getTime() + 2 * 3_600_000);
+  const names = event.participants.map((p) => p.name).join(' x ');
+  const summary = event.competition ? `${names} (${event.competition.name})` : names;
+  const location = event.venue ? [event.venue.name, event.venue.city].filter(Boolean).join(', ') : '';
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Galaxie Sports//Widgets//PT',
+    'BEGIN:VEVENT',
+    `UID:${event.id}@galaxie.sports`,
+    `DTSTAMP:${icsDate(now)}`,
+    `DTSTART:${icsDate(start)}`,
+    `DTEND:${icsDate(end)}`,
+    `SUMMARY:${icsText(summary)}`,
+    ...(location ? [`LOCATION:${icsText(location)}`] : []),
+    'END:VEVENT',
+    'END:VCALENDAR',
+    '',
+  ].join('\r\n');
+}
+
+/** Hora do jogo no fuso do estádio, quando o fuso é conhecido e difere do de quem vê; senão null. */
+export function venueTimeText(
+  event: Pick<GsEvent, 'starts_at' | 'venue'>,
+  locale: string,
+  viewerZone: string | undefined,
+): string | null {
+  const zone = event.venue?.timezone;
+  if (!zone) return null;
+  const d = new Date(event.starts_at);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const f = (timeZone: string | undefined) =>
+      new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone }).format(d);
+    const there = f(zone);
+    return there === f(viewerZone) ? null : there;
+  } catch {
+    return null;
+  }
+}
+
 export function fillText(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }

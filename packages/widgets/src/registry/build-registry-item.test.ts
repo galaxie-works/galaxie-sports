@@ -154,6 +154,20 @@ describe('buildRegistryItem', () => {
     expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
   });
 
+  it('as opções de conteúdo salvas viram props padrão do componente', () => {
+    const item = buildRegistryItem({
+      ...base,
+      kind: 'match_card',
+      name: 'Placar',
+      defaults: { eventId: 'e1' },
+      options: { showGoals: true, showVenue: true, inventada: true },
+    });
+    expect(item.files[1]!.content).toContain(
+      'const GALAXIE_DEFAULTS: Partial<MatchCardProps> = {"showGoals":true,"eventId":"e1"};',
+    );
+    expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
+  });
+
   it('normaliza o nome para kebab-case seguro', () => {
     expect(toRegistryName('Operadora Exemplo · Placar!')).toBe('operadora-exemplo-placar');
     expect(toRegistryName('../../etc/passwd')).toBe('etc-passwd');

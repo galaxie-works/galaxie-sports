@@ -191,6 +191,15 @@ export default defineMessages(
           showVenue: { label: 'Estádio', hint: 'O palco da partida.' },
         },
       },
+      options: {
+        title: 'Opções do widget',
+        description:
+          'O que o widget mostra e quanto. Os campos novos começam como antes; ligue o que fizer sentido para o seu público.',
+        fields: 'Campos',
+        extra: 'Busca dados a mais da API.',
+        all: 'Todos',
+        none: 'Nenhum filtro',
+      },
       zones: {
         title: 'Zonas da tabela',
         description:
@@ -469,6 +478,15 @@ export default defineMessages(
             },
             showVenue: { label: 'Stadium', hint: 'Where the match is played.' },
           },
+        },
+        options: {
+          title: 'Widget options',
+          description:
+            'What the widget shows and how much. New fields start as before; turn on what fits your audience.',
+          fields: 'Fields',
+          extra: 'Fetches extra data from the API.',
+          all: 'All',
+          none: 'No filter',
         },
         zones: {
           title: 'Table zones',
@@ -753,6 +771,15 @@ export default defineMessages(
             },
             showVenue: { label: 'Estadio', hint: 'El escenario del partido.' },
           },
+        },
+        options: {
+          title: 'Opciones del widget',
+          description:
+            'Qué muestra el widget y cuánto. Los campos nuevos empiezan como antes; activa lo que tenga sentido para tu público.',
+          fields: 'Campos',
+          extra: 'Busca datos adicionales de la API.',
+          all: 'Todos',
+          none: 'Sin filtro',
         },
         zones: {
           title: 'Zonas de la tabla',

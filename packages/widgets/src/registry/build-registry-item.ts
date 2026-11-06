@@ -11,6 +11,7 @@ import {
   type WidgetLocale,
   type WidgetTheme,
 } from '../core/model.js';
+import { optionProps, type WidgetOptions } from '../options.js';
 import { CORE_FILE, CORE_VERSION, WIDGET_FILES } from './sources.generated.js';
 
 export const REGISTRY_ITEM_SCHEMA_URL = 'https://ui.shadcn.com/schema/registry-item.json';
@@ -38,6 +39,8 @@ export interface BuildRegistryItemInput {
   standings?: StandingsOptions | undefined;
   /** Modo, agrupamento, atualização e dados extras (só na lista de jogos). */
   liveList?: LiveListOptions | undefined;
+  /** Opções de conteúdo do tipo (`WIDGET_OPTIONS`), salvas no Builder. */
+  options?: WidgetOptions | undefined;
   /** Título legível (padrão: `name`). */
   title?: string | undefined;
   description?: string | undefined;
@@ -185,7 +188,10 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
   const fileTarget = `${TARGET_DIR}/${name}.tsx`;
   const component = catalog.registryComponent;
   const props = widget.propsType;
-  const defaults = defaultProps(kind, input.defaults ?? {}, market, input.standings, input.liveList);
+  const defaults = {
+    ...optionProps(kind, input.options),
+    ...defaultProps(kind, input.defaults ?? {}, market, input.standings, input.liveList),
+  };
   const cleanTheme: WidgetTheme = {
     primary: theme.primary,
     background: theme.background,

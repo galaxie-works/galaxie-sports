@@ -716,6 +716,41 @@ export function createPreviewFetch(options: { now?: Date } = {}): typeof fetch {
     if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });
+    // detalhes do jogo (minuto a minuto, estatísticas, escalações) montados a partir do placar de exemplo
+    const detail = /\/v1\/events\/([^/]+)\/(timeline|stats|lineups)$/.exec(path);
+    if (detail) {
+      const found = f.events.find((e) => e.id === decodeURIComponent(detail[1]!));
+      if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
+      return json(sampleDetail(found, detail[2] as 'timeline' | 'stats' | 'lineups'));
+    }
+    if (/\/v1\/competitions\/[^/]+\/context$/.test(path)) {
+      const leader = f.standings.groups[0]?.rows[0];
+      return json({
+        groups: [
+          {
+            name: null,
+            leader: leader
+              ? { rank: 1, points: leader.points, played: leader.played, participant: leader.participant }
+              : null,
+          },
+        ],
+        decisive_events: f.events.filter((e) => e.status === 'scheduled').slice(0, 2),
+      });
+    }
+    if (/\/v1\/teams\/[^/]+\/overview$/.test(path)) {
+      const row = f.standings.groups[0]?.rows.find((r) => r.participant.id === PREVIEW_IDS.team);
+      return json({
+        standings: row ? [{ competition: { id: COMPETITION_ID, name: 'Liga Exemplo' }, rank: row.rank }] : [],
+        form: f.teamEvents
+          .filter((e) => e.status === 'finished')
+          .slice(-5)
+          .reverse()
+          .map((e) => {
+            const r = teamResultOf(e, PREVIEW_IDS.team);
+            return { event_id: e.id, result: r, score: `${e.score.home}-${e.score.away}` };
+          }),
+      });
+    }
     const event = /\/v1\/events\/([^/]+)$/.exec(path);
     if (event) {
       const found = f.events.find((e) => e.id === decodeURIComponent(event[1]!));
@@ -726,4 +761,56 @@ export function createPreviewFetch(options: { now?: Date } = {}): typeof fetch {
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);
   };
+}
+
+function teamResultOf(e: GsEvent, teamId: string): 'W' | 'D' | 'L' {
+  const me = e.participants.find((p) => p.id === teamId);
+  const mine = me?.side === 'away' ? e.score.away : e.score.home;
+  const theirs = me?.side === 'away' ? e.score.home : e.score.away;
+  return (mine ?? 0) > (theirs ?? 0) ? 'W' : mine === theirs ? 'D' : 'L';
+}
+
+/** Gols nos minutos de exemplo, um "camisa 9" por time, posse e finalizações coerentes com o placar. */
+function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
+  const sides = ['home', 'away'] as const;
+  const teamOf = (side: 'home' | 'away') => {
+    const p = e.participants.find((x) => x.side === side);
+    return { id: p?.id ?? null, name: p?.name ?? null, side, logo: p?.logo ?? null };
+  };
+  if (kind === 'lineups') {
+    return {
+      event_id: e.id,
+      available: true,
+      lineups: sides.map((side, i) => ({ team: teamOf(side), formation: i ? '4-4-2' : '4-3-3' })),
+    };
+  }
+  if (kind === 'stats') {
+    const goals = [e.score.home ?? 0, e.score.away ?? 0];
+    return {
+      event_id: e.id,
+      available: e.status !== 'scheduled',
+      teams: sides.map((side, i) => ({
+        team: teamOf(side),
+        statistics: [
+          { type: 'Ball Possession', code: 'possession_pct', value: i ? '46%' : '54%' },
+          { type: 'Total Shots', code: 'shots_total', value: 8 + goals[i]! * 2 },
+          { type: 'Shots on Goal', code: 'shots_on_goal', value: 2 + goals[i]! },
+        ],
+      })),
+      players: [],
+    };
+  }
+  const minutes = [12, 38, 57, 71, 84];
+  const incidents = sides.flatMap((side, i) =>
+    Array.from({ length: (i ? e.score.away : e.score.home) ?? 0 }, (_, n) => ({
+      sequence: i * 10 + n,
+      kind: 'goal',
+      minute: minutes[(n * 2 + i) % minutes.length]!,
+      extra: null,
+      player: { name: `${teamOf(side).name ?? ''} 9`.trim() },
+      team: teamOf(side),
+      scoring_team: teamOf(side),
+    })),
+  );
+  return { event_id: e.id, incidents: incidents.sort((a, b) => a.minute - b.minute) };
 }
