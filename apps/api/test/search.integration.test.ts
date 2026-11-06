@@ -251,6 +251,36 @@ describe('GET /v1/search', () => {
     expect(body.data[1]!.event).toMatchObject({ live: false, starts_at: hours(48).toISOString() });
   });
 
+  it('"time x time": os jogos entre os dois, próximos (além dos 14 dias) e já disputados', async () => {
+    const { body } = await search('q=Palmeiras x Goiás&types=event&locale=pt-BR');
+    expect(body.data.map((r) => [r.name, r.event!.status, r.event!.starts_at])).toEqual([
+      ['Palmeiras x Goiás', 'scheduled', hours(24 * 30).toISOString()],
+      ['Palmeiras x Goiás', 'finished', hours(-200).toISOString()],
+    ]);
+    // a ordem dos lados e o separador não importam; apelido vale
+    for (const q of ['goias vs palmeiras', 'verdao - goias', 'Goiás × Verdão']) {
+      const other = await search(`q=${encodeURIComponent(q)}&types=event&locale=pt-BR`);
+      expect(other.body.data.map((r) => r.event!.starts_at)).toEqual([
+        hours(24 * 30).toISOString(),
+        hours(-200).toISOString(),
+      ]);
+    }
+  });
+
+  it('"time x time": ao vivo primeiro; com times, um de cada lado depois dos jogos', async () => {
+    const live = await search('q=palmeiras x boca&types=event&locale=pt-BR');
+    expect(live.body.data.map((r) => r.id)).toEqual([ids.live]);
+    const mixed = await search('q=palmeiras x sao paulo&types=event,team&locale=pt-BR');
+    expect(mixed.body.data.map((r) => [r.type, r.name])).toEqual([
+      ['event', 'Palmeiras x São Paulo'],
+      ['team', 'Palmeiras'],
+      ['team', 'São Paulo'],
+    ]);
+    // sem jogo entre os dois: nenhum jogo (e não os jogos de cada um)
+    const none = await search('q=goias x boca&types=event&locale=pt-BR');
+    expect(none.body.data).toEqual([]);
+  });
+
   it('lista única: casamento exato antes do começo de palavra, de qualquer tipo', async () => {
     // a pessoa "Boca" casa por inteiro e passa na frente do time e do jogo (começo de palavra)
     const { body } = await search('q=boca&locale=pt-BR');
