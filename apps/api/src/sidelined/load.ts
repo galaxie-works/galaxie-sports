@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { EventSidelined, SidelinedPlayer, TeamSidelined } from '@galaxie/contracts';
 import {
   asset,
@@ -58,16 +58,6 @@ interface ApiInjury {
 }
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
-const addDays = (d: string, n: number) => {
-  const x = new Date(`${d}T00:00:00Z`);
-  x.setUTCDate(x.getUTCDate() + n);
-  return day(x);
-};
-const inList = (col: SQL, values: string[]) =>
-  sql`${col} in (${sql.join(
-    values.map((v) => sql`${v}`),
-    sql`, `,
-  )})`;
 
 /** Times com nome de exibição e logo. */
 async function teamRefs(c: SidelinedContext, ids: string[]): Promise<Map<string, Omit<TeamRef, 'side'>>> {
@@ -158,23 +148,30 @@ async function fixtureInjuries(
   eventDay: string,
   league: { id: string; season: string } | null,
 ): Promise<{ found: boolean; items: ApiInjury[] }> {
-  const days = [addDays(eventDay, -1), eventDay, addDays(eventDay, 1)];
   const leagueCond = league
     ? sql`or (r.params->>'league' = ${league.id} and r.params->>'season' = ${league.season})`
     : sql``;
-  const rows = await db.execute<{ item: ApiInjury; seen: string }>(sql`
-    select x as item, latest.seen
-      from (select distinct on (r.request_hash) r.body, coalesce(r.last_seen_at, r.fetched_at) as seen
+  // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
+  // liga na temporada. Vale só a resposta mais recente entre elas, inteira: a lista refeita tira quem voltou
+  // (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
+  // resposta vazia também vale: a lista saiu e não tem ninguém.
+  const [snap] = await db.execute<{ id: number }>(sql`
+    select latest.id
+      from (select distinct on (r.request_hash) r.id, r.body, coalesce(r.last_seen_at, r.fetched_at) as seen
               from raw.api_response r
              where r.provider = ${PROVIDER} and r.sport = 'football' and r.endpoint = '/injuries'
-               and (r.params->>'fixture' = ${String(fixturePid)} or ${inList(sql`r.params->>'date'`, days)}
+               and (r.params->>'fixture' = ${String(fixturePid)} or r.params->>'date' = ${eventDay}
                     ${leagueCond})
              order by r.request_hash, r.fetched_at desc) latest
-      cross join lateral jsonb_array_elements(case when jsonb_typeof(latest.body->'response') = 'array'
-                                                   then latest.body->'response' else '[]'::jsonb end) x
-     where (x->'fixture'->>'id') = ${String(fixturePid)}
-     order by latest.seen desc`);
-  // a mais recente vence: a lista do dia é refeita a cada sync e pode tirar quem voltou
+     where jsonb_typeof(latest.body->'response') = 'array'
+     order by latest.seen desc
+     limit 1`);
+  if (!snap) return { found: false, items: [] };
+  const rows = await db.execute<{ item: ApiInjury }>(sql`
+    select x as item
+      from raw.api_response r
+      cross join lateral jsonb_array_elements(r.body->'response') x
+     where r.id = ${snap.id} and (x->'fixture'->>'id') = ${String(fixturePid)}`);
   const seen = new Set<string>();
   const items: ApiInjury[] = [];
   for (const r of rows) {
@@ -183,7 +180,7 @@ async function fixtureInjuries(
     seen.add(k);
     items.push(r.item);
   }
-  return { found: rows.length > 0, items };
+  return { found: true, items };
 }
 
 /** Afastamentos do histórico em aberto na data, dos jogadores do elenco atual; e se há histórico para eles. */

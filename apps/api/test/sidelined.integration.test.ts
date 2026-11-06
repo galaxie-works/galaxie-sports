@@ -195,12 +195,57 @@ async function seed() {
     providerFixtureId: FIXTURE,
     summary: { fixture: { id: FIXTURE }, league: { id: 71, season: 2026 } },
   });
+  const [cometa] = await db
+    .insert(participant)
+    .values({ sport: 'football', kind: 'club', name: 'Cometa', countryCode: 'BR' })
+    .returning();
+  const [ev2] = await db
+    .insert(event)
+    .values({
+      sport: 'football',
+      competitionId: comp!.id,
+      seasonId: s!.id,
+      startsAt: new Date('2026-11-20T19:00:00Z'),
+      endsAtExpected: new Date('2026-11-20T21:00:00Z'),
+      status: 'scheduled',
+    })
+    .returning();
+  ids.event2 = ev2!.id;
+  await db.insert(eventParticipant).values([
+    { eventId: ev2!.id, participantId: boreal!.id, side: 'home' },
+    { eventId: ev2!.id, participantId: cometa!.id, side: 'away' },
+  ]);
+  await db
+    .insert(footballFixture)
+    .values({ eventId: ev2!.id, providerFixtureId: 9002, summary: { fixture: { id: 9002 } } });
+  // o terceiro jogo não tem lista nenhuma
+  const [ev3] = await db
+    .insert(event)
+    .values({
+      sport: 'football',
+      startsAt: new Date('2026-11-21T19:00:00Z'),
+      endsAtExpected: new Date('2026-11-21T21:00:00Z'),
+      status: 'scheduled',
+    })
+    .returning();
+  ids.event3 = ev3!.id;
+  await db.insert(eventParticipant).values([
+    { eventId: ev3!.id, participantId: boreal!.id, side: 'home' },
+    { eventId: ev3!.id, participantId: cometa!.id, side: 'away' },
+  ]);
+  await db
+    .insert(footballFixture)
+    .values({ eventId: ev3!.id, providerFixtureId: 9003, summary: { fixture: { id: 9003 } } });
+  // lista do jogo 9002 publicada e vazia
+  await insertRaw({ fixture: '9002' }, [], new Date('2026-11-06T06:00:00Z'));
   // a lista da temporada (mais antiga) e a do dia (mais nova, sem o Davi como dúvida → agora fora)
   await insertRaw(
     { league: '71', season: '2026' },
     [
       injury(101, 'A. Atacante', 1, 'Missing Fixture', 'Hamstring Injury'),
       injury(201, 'D. Goleiro', 2, 'Questionable', 'Knock'),
+      // Caio estava na lista antiga e saiu da nova: voltou, não pode aparecer
+      injury(103, 'C. Meia', 1, 'Missing Fixture', 'Thigh Injury'),
       { ...injury(999, 'Outro Jogo', 2, 'Missing Fixture', 'Illness'), fixture: { id: 1234 } },
     ],
     new Date('2026-11-01T06:00:00Z'),
@@ -293,6 +338,19 @@ describe('GET /v1/events/{id}/sidelined', () => {
   it('o motivo sai no idioma pedido', async () => {
     const body = await get<EventSidelined>(`/v1/events/${ids.event}/sidelined?locale=es-AR`);
     expect(body.teams[1]!.players[0]!.reason_label).toBe('Tarjetas amarillas');
+  });
+});
+
+describe('disponibilidade', () => {
+  it('lista publicada e vazia: disponível, sem ninguém (times sem histórico)', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.event2}/sidelined`);
+    expect(body.available).toBe(true);
+    expect(body.teams.flatMap((t) => t.players)).toEqual([]);
+  });
+
+  it('sem lista e sem histórico: indisponível', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.event3}/sidelined`);
+    expect(body.available).toBe(false);
   });
 });
 
