@@ -4,8 +4,10 @@
  *   pnpm --filter @galaxie/ingestor sync:daily --plan
  *   pnpm --filter @galaxie/ingestor sync:daily
  * Passos: fixtures?date= D-1/D0/D+1 · injuries?date= D0 · /leagues · /status (reconciliação, sem cota)
- *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1.
- * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --dias-atras 3 · --lesoes-amanha
+ *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1
+ *         · relista da temporada atual (fixtures?league&season, tier 1 a cada 2 dias, os demais a cada 7).
+ * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --listas-temporada N (pagos 300, free 0)
+ *         · --dias-atras 3 · --lesoes-amanha
  *         · --outros-esportes (games/races/fights?date= nas outras 11 APIs) · --max-chamadas N · --forcar
  *         · --sem-normalizar (só grava o raw) · --sem-tabelas (não recalcula as classificações)
  * Cada resposta vai direto ao core (agenda, placares, detalhe dos encerrados); no fim, as tabelas das
@@ -15,11 +17,23 @@ import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
-import { checkProviderStatus, dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
+import {
+  checkProviderStatus,
+  dailyJob,
+  OTHER_SPORTS_SCHEDULE,
+  reopenSeasonLists,
+  startOfUtcDay,
+  trackSeasonLists,
+} from '../jobs/daily-job.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
-import { needsAttention, recomputeStandings } from '../standings/recompute.js';
+import {
+  footballSeasonIds,
+  needsAttention,
+  recomputeStandings,
+  seasonsWithNewResults,
+} from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
@@ -29,6 +43,7 @@ await runCli(async () => {
   const { values } = parseCli({
     'max-detalhes': { type: 'string' },
     rodizio: { type: 'string' },
+    'listas-temporada': { type: 'string' },
     'dias-atras': { type: 'string' },
     'lesoes-amanha': { type: 'boolean', default: false },
     'outros-esportes': { type: 'boolean', default: false },
@@ -59,6 +74,8 @@ await runCli(async () => {
     const spec = dailyJob(ctx.catalog, ctx.raw, ctx.cursors, ctx.plan, ctx.now, derbyKeys, {
       maxDetails: intOption(values['max-detalhes'], 'max-detalhes'),
       rotation: intOption(values.rodizio, 'rodizio'),
+      seasonLists: intOption(values['listas-temporada'], 'listas-temporada'),
+      force: values.forcar,
       backlogDays: intOption(values['dias-atras'], 'dias-atras'),
       injuriesTomorrow: values['lesoes-amanha'],
       otherSports: values['outros-esportes'],
@@ -72,12 +89,15 @@ await runCli(async () => {
               'falha ao normalizar resposta; o normalize:football tenta de novo',
             ),
         });
+    // temporadas relistadas: a tabela é recalculada mesmo sem jogo recente (a relista traz os antigos)
+    const lists = trackSeasonLists(normalize);
     const report = await planOrRun(
       ctx,
       spec,
       { ...values, 'sem-live': false },
-      normalize ? { afterFetch: normalize.afterFetch } : {},
+      { afterFetch: lists.afterFetch },
     );
+    await reopenSeasonLists(ctx.cursors, lists.failed());
     if (report && normalize) {
       const n = normalize.report();
       console.log(
@@ -88,7 +108,11 @@ await runCli(async () => {
       // tabelas da temporada atual: recalculadas a partir dos resultados novos (D-1…D-N)
       const days = (intOption(values['dias-atras'], 'dias-atras') ?? 3) + 1;
       const since = new Date(startOfUtcDay(ctx.now()).getTime() - days * 86_400_000);
-      const tables = await recomputeStandings(ctx.db, { since, rulesDir });
+      const seasonIds = [
+        ...(await seasonsWithNewResults(ctx.db, since)),
+        ...(await footballSeasonIds(ctx.db, lists.normalized())),
+      ];
+      const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
       const written = tables.filter((t) => t.outcome === 'written');
       console.log(
         `Tabelas: ${written.length} recalculada(s) de ${tables.length} temporada(s) com resultado novo` +

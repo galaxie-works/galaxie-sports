@@ -9,6 +9,7 @@ import {
   event,
   eventParticipant,
   participant,
+  providerMap,
   season,
   sport,
   stage,
@@ -16,7 +17,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { recomputeNbaStandings } from '../src/standings/nba.js';
-import { recomputeSeasonStandings } from '../src/standings/recompute.js';
+import { footballSeasonIds, recomputeSeasonStandings } from '../src/standings/recompute.js';
 import { disposableDb } from './db.js';
 
 const disposable = disposableDb();
@@ -412,5 +413,26 @@ describe('recálculo da NBA', () => {
       .from(standing)
       .where(and(eq(standing.seasonId, s.seasonId), eq(standing.participantId, s.team('BOS'))));
     expect(bos!.group).toBe('Eastern Conference');
+  });
+});
+
+describe('temporadas relistadas pelo sync diário', () => {
+  it('footballSeasonIds: liga da api-sports e ano viram o id da temporada; par desconhecido fica de fora', async () => {
+    const { competitionId, seasonId } = await seedSeason('football', 'relista-948', ['R1', 'R2']);
+    await db.insert(providerMap).values({
+      entityType: 'competition',
+      entityId: competitionId,
+      provider: 'api-sports',
+      sport: 'football',
+      providerId: '948',
+    });
+    expect(
+      await footballSeasonIds(db, [
+        { league: '948', year: 2026 },
+        { league: '948', year: 2025 },
+        { league: '99999', year: 2026 },
+      ]),
+    ).toEqual([seasonId]);
+    expect(await footballSeasonIds(db, [])).toEqual([]);
   });
 });

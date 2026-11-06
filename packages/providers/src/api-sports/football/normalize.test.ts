@@ -316,6 +316,31 @@ describe('outros endpoints', () => {
     ]);
   });
 
+  it('standings com points: null (time sem ponto, Luxemburgo 2026): vale 3 por vitória e 1 por empate', () => {
+    const real = loadFootballFixture<{ response: ApiStandingsItem[] }>('standings-71-2024.json').response[0]!;
+    const row = real.league.standings[0]![0]!;
+    const zerado = {
+      ...row,
+      rank: 16,
+      points: null,
+      all: { ...row.all, played: 12, win: 0, draw: 0, lose: 12 },
+    };
+    const semNumero = {
+      ...row,
+      rank: 15,
+      points: null,
+      all: { ...row.all, played: 12, win: 2, draw: 3, lose: 7 },
+    };
+    const b = normalizeStandings(
+      [{ league: { ...real.league, id: 261, season: 2026, standings: [[zerado, semNumero]] } }],
+      FETCHED,
+    );
+    expect(b.standings.map((s) => [s.rank, s.points])).toEqual([
+      [16, 0],
+      [15, 9],
+    ]);
+  });
+
   it('leagues: competições com tipo e temporadas', () => {
     const b = normalizeLeagues(
       [

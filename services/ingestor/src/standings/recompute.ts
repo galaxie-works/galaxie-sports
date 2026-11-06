@@ -8,7 +8,16 @@
  * a do provedor prevalece. Mais velha: a calculada a substitui, com os mesmos nomes de grupo.
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
-import { competition, event, publishChange, season, stage, standing, type Database } from '@galaxie/db';
+import {
+  competition,
+  event,
+  providerMap,
+  publishChange,
+  season,
+  stage,
+  standing,
+  type Database,
+} from '@galaxie/db';
 import {
   computeStandings,
   standingsTableOf,
@@ -103,6 +112,32 @@ export async function seasonsWithNewResults(db: Database, since: Date, recentDay
       ),
     );
   return rows.map((r) => r.seasonId!).sort();
+}
+
+/** IDs das temporadas de futebol pelo par (liga da api-sports, ano), ex.: as relistadas pelo sync diário. */
+export async function footballSeasonIds(
+  db: Database,
+  pairs: readonly { league: string; year: number }[],
+): Promise<string[]> {
+  if (!pairs.length) return [];
+  const rows = await db
+    .select({ id: season.id, league: providerMap.providerId, year: season.year })
+    .from(season)
+    .innerJoin(
+      providerMap,
+      and(
+        eq(providerMap.entityId, season.competitionId),
+        eq(providerMap.entityType, 'competition'),
+        eq(providerMap.provider, 'api-sports'),
+        eq(providerMap.sport, 'football'),
+      ),
+    )
+    .where(inArray(providerMap.providerId, [...new Set(pairs.map((p) => p.league))]));
+  const wanted = new Set(pairs.map((p) => `${p.league}|${p.year}`));
+  return rows
+    .filter((r) => wanted.has(`${r.league}|${r.year}`))
+    .map((r) => r.id)
+    .sort();
 }
 
 /** Recalcula e grava a tabela de uma temporada. */
