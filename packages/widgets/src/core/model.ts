@@ -69,6 +69,33 @@ export interface StandingsOptions {
   zoneColors?: StandingsZoneColors | undefined;
 }
 
+/** Dados extras que cada linha da lista de jogos pode mostrar (liga/desliga no Builder). */
+export const LIVE_LIST_FIELDS = ['showCompetitionLogo', 'showRound', 'showVenue', 'showCity'] as const;
+export type LiveListField = (typeof LIVE_LIST_FIELDS)[number];
+
+/** Padrão de cada dado extra: o logo do campeonato já aparecia; rodada, estádio e cidade entram ao ligar. */
+export const LIVE_LIST_FIELD_DEFAULTS: Record<LiveListField, boolean> = {
+  showCompetitionLogo: true,
+  showRound: false,
+  showVenue: false,
+  showCity: false,
+};
+
+/** Limites do número de jogos da lista. */
+export const LIVE_LIST_LIMIT = { min: 1, max: 200, default: 30 } as const;
+
+/** Opções da lista de jogos salvas no Builder (mesmos nomes das props do `LiveList`). */
+export interface LiveListOptions extends Partial<Record<LiveListField, boolean | undefined>> {
+  /** Só os jogos ao vivo agora (padrão: todos os jogos do dia). */
+  liveOnly?: boolean | undefined;
+  /** Agrupa os jogos por campeonato (padrão: sim). */
+  groupByCompetition?: boolean | undefined;
+  /** Atualiza sozinho enquanto há jogo rolando (padrão: sim). */
+  autoRefresh?: boolean | undefined;
+  /** Máximo de jogos (padrão 30). */
+  limit?: number | undefined;
+}
+
 /** Configuração salva do widget (mesmo formato do banco: locale e market obrigatórios). */
 export interface WidgetConfig {
   theme: WidgetTheme;
@@ -78,6 +105,8 @@ export interface WidgetConfig {
   defaults: WidgetDefaults;
   /** Só na tabela de classificação. */
   standings?: StandingsOptions | undefined;
+  /** Só na lista de jogos. */
+  liveList?: LiveListOptions | undefined;
 }
 
 // ─── respostas da API pública (o recorte que os widgets leem; ver @galaxie/contracts) ─────────────
@@ -345,6 +374,26 @@ export function parseStandingsOptions(raw: unknown): StandingsOptions | undefine
     }
     if (Object.keys(colors).length) out.zoneColors = colors;
   }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Opções da lista de jogos vindas de fora (banco, navegador, JSON do embed): só booleanos nas chaves
+ * conhecidas e `limit` inteiro dentro dos limites. Nada aproveitável → undefined.
+ */
+export function parseLiveListOptions(raw: unknown): LiveListOptions | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: LiveListOptions = {};
+  for (const key of ['liveOnly', 'groupByCompetition', 'autoRefresh', ...LIVE_LIST_FIELDS] as const)
+    if (typeof r[key] === 'boolean') out[key] = r[key];
+  if (
+    typeof r.limit === 'number' &&
+    Number.isInteger(r.limit) &&
+    r.limit >= LIVE_LIST_LIMIT.min &&
+    r.limit <= LIVE_LIST_LIMIT.max
+  )
+    out.limit = r.limit;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -651,6 +700,9 @@ export const WIDGET_CSS = `
 .gs-row-teams{display:flex;flex-direction:column;gap:4px;min-width:0}
 .gs-line{display:flex;align-items:center;gap:8px;min-width:0}
 .gs-line[data-lost]{color:var(--gs-muted-foreground)}
+.gs-row-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-width:0;font-size:.75em;color:var(--gs-muted-foreground)}
+.gs-row-meta>span{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.gs-row-meta>span+span::before{content:'·';margin-right:2px}
 .gs-line-score{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
 .gs-scroll{overflow-x:auto;margin:0 calc(var(--gs-pad)*-1);padding:0 var(--gs-pad)}
 .gs-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}

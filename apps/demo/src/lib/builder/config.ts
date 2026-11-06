@@ -7,7 +7,12 @@
  * módulo vai para o navegador e para rotas do servidor.
  */
 import type { WidgetLocale as PackageLocale } from '@galaxie/widgets';
-import { REGISTRY_CORE_NAME, parseStandingsOptions, toRegistryName } from '@galaxie/widgets/registry';
+import {
+  REGISTRY_CORE_NAME,
+  parseLiveListOptions,
+  parseStandingsOptions,
+  toRegistryName,
+} from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
 import { SITE_URL } from '@/lib/site';
@@ -220,6 +225,8 @@ export function parseWidgetInput(
         defaults,
         // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`)
         ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
+        // modo, agrupamento, atualização e dados extras: só na lista de jogos, e só chaves conhecidas
+        ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),
       },
     },
   };

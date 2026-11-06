@@ -13,7 +13,9 @@ import {
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
+  parseLiveListOptions,
   parseStandingsOptions,
+  type LiveListOptions,
   type StandingsOptions,
 } from '@galaxie/widgets';
 import { ArrowLeft, Info, Save, TriangleAlert } from 'lucide-react';
@@ -54,6 +56,7 @@ import { fill, rich } from '@/lib/i18n/text';
 
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
+import { LiveListOptionsEditor } from './live-list-options-editor';
 import { StandingsZonesEditor } from './standings-zones-editor';
 import { ThemeEditor } from './theme-editor';
 import { KIND_ICONS, useKindTexts } from './widgets-panel';
@@ -67,7 +70,13 @@ export interface EditorDraft {
   entity: EntityValue | null;
   /** Legenda e cores das zonas (só vale na tabela de classificação). */
   standings: StandingsOptions;
+  /** Modo, agrupamento, atualização e dados extras (só vale na lista de jogos). */
+  liveList: LiveListOptions;
 }
+
+/** Opções da lista de jogos que vão para o banco (nenhuma nos outros tipos). */
+const liveListOf = (d: EditorDraft) =>
+  d.kind === 'live_list' ? parseLiveListOptions(d.liveList) : undefined;
 
 /** Opções da tabela que vão para o banco (nenhuma nos outros tipos). */
 const standingsOf = (d: EditorDraft) =>
@@ -88,6 +97,7 @@ const snapshot = (d: EditorDraft) =>
     market: d.market,
     defaults: defaultsFromEntity(d.entity),
     standings: standingsOf(d),
+    liveList: liveListOf(d),
   });
 
 /**
@@ -109,11 +119,13 @@ function PreviewWidget({
   entity,
   market,
   standings,
+  liveList,
 }: {
   kind: WidgetKind;
   entity: EntityValue | null;
   market: string;
   standings: StandingsOptions;
+  liveList: LiveListOptions;
 }) {
   const zones = { showLegend: standings.showLegend, zoneColors: standings.zoneColors };
   if (!entity) {
@@ -125,7 +137,7 @@ function PreviewWidget({
       case 'standings':
         return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...zones} />;
       case 'live_list':
-        return <LiveList />;
+        return <LiveList {...liveList} />;
       case 'ai_context':
         return <AiContext {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -146,7 +158,7 @@ function PreviewWidget({
     case 'standings':
       return <StandingsTable competitionId={entity.id} season="current" {...zones} />;
     case 'live_list':
-      return <LiveList competitionId={entity.id} />;
+      return <LiveList {...liveList} competitionId={entity.id} />;
     case 'ai_context':
       return <AiContext eventId={entity.id} />;
     case 'match_stakes':
@@ -207,6 +219,7 @@ export function WidgetEditor({
     market: draft.market,
     defaults: defaultsFromEntity(draft.entity),
     ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
+    ...(liveListOf(draft) ? { liveList: liveListOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
   // lista de jogos funciona sem recorte; os outros tipos, sem entidade, mostram os dados de exemplo
@@ -385,6 +398,21 @@ export function WidgetEditor({
               </FramePanel>
             </Frame>
           ) : null}
+
+          {draft.kind === 'live_list' ? (
+            <Frame>
+              <FramePanel className="flex flex-col gap-4">
+                <FrameHeader className="p-0">
+                  <FrameTitle>{e.liveList.title}</FrameTitle>
+                  <FrameDescription>{e.liveList.description}</FrameDescription>
+                </FrameHeader>
+                <LiveListOptionsEditor
+                  value={draft.liveList}
+                  onChange={(liveList) => set('liveList', liveList)}
+                />
+              </FramePanel>
+            </Frame>
+          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-18 lg:self-start">
@@ -415,6 +443,7 @@ export function WidgetEditor({
                     entity={draft.entity}
                     market={draft.market}
                     standings={draft.standings}
+                    liveList={draft.liveList}
                   />
                 </GalaxieWidgetProvider>
               </div>

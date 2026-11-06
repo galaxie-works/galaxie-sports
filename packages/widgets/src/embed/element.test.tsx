@@ -143,4 +143,13 @@ describe('parseEmbedConfig', () => {
     });
     expect(parsed?.standings).toEqual({ showLegend: false, zoneColors: { relegation: '#aa0000' } });
   });
+
+  it('lê as opções da lista de jogos e descarta o que não conhece', () => {
+    const parsed = parseEmbedConfig({
+      ...config(),
+      kind: 'live_list',
+      liveList: { liveOnly: true, showVenue: true, showCity: 'sim', limit: 5000, outra: true },
+    });
+    expect(parsed?.liveList).toEqual({ liveOnly: true, showVenue: true });
+  });
 });

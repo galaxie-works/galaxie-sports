@@ -23,7 +23,7 @@ export async function GET(_request: Request, ctx: RouteContext<'/e/[id]'>) {
       { error: 'not_found' },
       { status: 404, headers: { ...HEADERS, 'cache-control': 'no-store' } },
     );
-  const { theme, locale, market, defaults, standings } = widget.config;
+  const { theme, locale, market, defaults, standings, liveList } = widget.config;
   return Response.json(
     {
       id: widget.id,
@@ -34,6 +34,7 @@ export async function GET(_request: Request, ctx: RouteContext<'/e/[id]'>) {
       market,
       defaults: defaults ?? {},
       ...(widget.kind === 'standings' && standings ? { standings } : {}),
+      ...(widget.kind === 'live_list' && liveList ? { liveList } : {}),
       apiBaseUrl: PUBLIC_API_URL,
     },
     { headers: { ...HEADERS, 'cache-control': 'public, max-age=60, stale-while-revalidate=300' } },

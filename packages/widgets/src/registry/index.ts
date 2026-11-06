@@ -12,3 +12,4 @@ export {
 export { CORE_VERSION } from './sources.generated.js';
 // validação das opções da tabela (sem React), para o Builder conferir o que chega do navegador
 export { parseStandingsOptions, type StandingsOptions } from '../core/model.js';
+export { parseLiveListOptions, type LiveListOptions } from '../core/model.js';

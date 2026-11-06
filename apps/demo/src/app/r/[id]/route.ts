@@ -25,7 +25,7 @@ export async function GET(_request: Request, ctx: RouteContext<'/r/[id]'>) {
   if (!id) return problem(404, 'not_found');
   const widget = await getWidget(builderDb(), id);
   if (!widget || widget.archivedAt) return problem(404, 'not_found');
-  const { theme, locale, market, defaults, standings } = widget.config;
+  const { theme, locale, market, defaults, standings, liveList } = widget.config;
   try {
     const item = buildRegistryItem({
       kind: widget.kind,
@@ -36,6 +36,7 @@ export async function GET(_request: Request, ctx: RouteContext<'/r/[id]'>) {
       market,
       defaults,
       standings,
+      liveList,
     });
     return Response.json(item, {
       headers: { ...HEADERS, 'cache-control': 'public, max-age=60, stale-while-revalidate=300' },
