@@ -5,6 +5,7 @@ import { whereToWatchRoutes } from './where-to-watch.js';
 import { broadcasterRoutes } from './broadcasters.js';
 import { platformRoutes } from './platforms.js';
 import { channelListRoutes } from './channel-list.js';
+import { channelGuideRoutes } from './channel-guide.js';
 import { contextRoutes } from './context.js';
 import { eventContextRoutes } from './event-context.js';
 import { eventRoutes } from './events.js';
@@ -34,6 +35,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await platformRoutes(app, ctx);
   // lista de canais do cliente `/v1/channel-list` (casamento com os direitos) — módulo where_to_watch
   await channelListRoutes(app, ctx);
+  // grade de esportes nos canais do cliente `/v1/widgets/{id}/channel-guide` (#834) — módulo where_to_watch
+  await channelGuideRoutes(app, ctx);
   await contextRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);

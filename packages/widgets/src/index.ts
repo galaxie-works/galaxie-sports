@@ -90,15 +90,19 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { ChannelGuide, type ChannelGuideProps } from './widgets/channel-guide.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {
+  CHANNEL_GUIDE_MAX_CHANNELS,
   GAMES_NOCS,
   VIDEO_TYPES,
   WIDGET_OPTIONS,
   widgetOptionsFor,
   optionProps,
+  parseChannelNames,
   parseWidgetOptions,
+  publicWidgetOptions,
   type LookupSource,
   type WidgetOptionSpec,
   type WidgetOptions,
@@ -113,6 +117,7 @@ export {
   type WidgetCatalogEntry,
   type WidgetPropsByKind,
 } from './catalog.js';
+export { PREVIEW_CHANNELS } from './fixtures-channel-guide.js';
 export { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures, type PreviewFixtures } from './fixtures.js';
 export {
   PUBLISHABLE_KEY_ENV,

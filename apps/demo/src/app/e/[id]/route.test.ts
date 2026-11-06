@@ -57,6 +57,27 @@ describe('rota pública /e/[id].json (embed HTML)', () => {
     expect(JSON.stringify(body)).not.toMatch(/tenant|createdBy|u1|gs_pk_/);
   });
 
+  it('grade nos canais: as opções saem, os canais escolhidos da lista do cliente não', async () => {
+    getWidget.mockResolvedValue(
+      widget({
+        kind: 'channel_guide',
+        config: {
+          ...widget().config,
+          defaults: { sport: 'football' },
+          options: { groupBy: 'channel', channels: 'Globo SP HD\nSporTV HD' },
+        },
+      }),
+    );
+    const body = await (await call(`${ID}.json`)).json();
+    expect(body).toMatchObject({
+      kind: 'channel_guide',
+      defaults: { sport: 'football' },
+      options: { groupBy: 'channel' },
+    });
+    expect(body.options).not.toHaveProperty('channels');
+    expect(JSON.stringify(body)).not.toMatch(/SporTV|Globo/);
+  });
+
   it('widget arquivado, inexistente ou id fora do formato: 404', async () => {
     getWidget.mockResolvedValue(widget({ archivedAt: new Date() }));
     expect((await call(`${ID}.json`)).status).toBe(404);

@@ -30,6 +30,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'channel_guide',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -698,6 +699,18 @@ export interface GsHeadToHead {
     as_of: string;
   } | null;
   events: GsEvent[];
+}
+
+/** Grade nos canais do cliente (`/v1/widgets/{id}/channel-guide`), só o que o widget usa. */
+export interface GsChannelGuide {
+  widget_id: string;
+  date: string;
+  country: string;
+  /** `no_channel_list` = o tenant ainda não confirmou a lista de canais. */
+  status: 'ok' | 'no_channel_list';
+  /** Canais com algum jogo no dia, em ordem alfabética. */
+  channels: string[];
+  entries: { event: GsEvent; channels: string[] }[];
 }
 
 export interface GsEventList {
@@ -1593,6 +1606,18 @@ export interface WidgetTexts {
     /** "Soma de {n} edições". */
     totals: string;
   };
+  /** Grade de esportes nos canais do cliente (operadoras e streamings). */
+  channelGuide: {
+    /** Título de hoje ("Hoje nos seus canais"). */
+    today: string;
+    tomorrow: string;
+    /** Título de outro dia: "{date} nos seus canais". */
+    day: string;
+    empty: string;
+    noList: string;
+    /** Rótulo da lista de canais de um jogo (leitor de tela). */
+    channels: string;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -1883,6 +1908,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    channelGuide: {
+      today: 'Hoje nos seus canais',
+      tomorrow: 'Amanhã nos seus canais',
+      day: '{date} nos seus canais',
+      empty: 'Nenhum jogo nos seus canais neste dia.',
+      noList: 'A grade aparece assim que a lista de canais for confirmada.',
+      channels: 'Canais',
+    },
   },
   es: {
     status: {
@@ -2171,6 +2204,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    channelGuide: {
+      today: 'Hoy en tus canales',
+      tomorrow: 'Mañana en tus canales',
+      day: '{date} en tus canales',
+      empty: 'Ningún partido en tus canales este día.',
+      noList: 'La grilla aparece cuando se confirme la lista de canales.',
+      channels: 'Canales',
+    },
   },
   en: {
     status: {
@@ -2445,6 +2486,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    channelGuide: {
+      today: 'Today on your channels',
+      tomorrow: 'Tomorrow on your channels',
+      day: '{date} on your channels',
+      empty: 'No games on your channels on this day.',
+      noList: 'The guide shows up once the channel list is confirmed.',
+      channels: 'Channels',
     },
   },
 };

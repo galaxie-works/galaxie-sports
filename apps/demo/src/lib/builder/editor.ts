@@ -13,6 +13,8 @@ import {
 } from '@galaxie/widgets';
 
 import type { EditorDraft } from '@/components/client/widget-editor';
+import { compareAlpha } from '@/lib/alphabetical';
+import { channelListDb, getConfirmedChannelList } from '@/lib/channel-list/store';
 import type { TenantInfo } from '@/lib/client/tenants';
 import { galaxieGet } from '@/lib/galaxie/server';
 import { apiLocale, type Locale } from '@/lib/i18n/config';
@@ -38,6 +40,25 @@ export async function brandThemeItems(tenantId: string): Promise<BrandThemeItem[
     theme: x.theme,
     widgetCount: x.widgetCount,
   }));
+}
+
+/**
+ * Canais que a grade nos canais (`channel_guide`) oferece no editor: os da lista confirmada do tenant que
+ * levam alguma emissora (os outros nunca aparecem na grade), sem repetir, em ordem alfabética. Sem lista
+ * confirmada, nenhum (o editor avisa e a grade usa todos quando a lista chegar).
+ */
+export async function guideChannelChoices(tenantId: string): Promise<string[]> {
+  const list = await getConfirmedChannelList(channelListDb(), tenantId).catch(() => null);
+  if (!list) return [];
+  const names = new Set<string>();
+  for (const m of list.matches) {
+    if (m.match === 'sem_canal_na_lista') continue;
+    for (const i of m.channels) {
+      const name = list.channels[i]?.name.trim();
+      if (name) names.add(name);
+    }
+  }
+  return [...names].sort(compareAlpha);
 }
 
 const PATH: Record<WidgetEntityType, string> = {

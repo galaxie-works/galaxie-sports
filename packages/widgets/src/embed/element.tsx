@@ -33,6 +33,7 @@ import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
+import { ChannelGuide } from '../widgets/channel-guide.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -175,6 +176,9 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'channel_guide':
+      // a grade sai da rota presa a este widget (a lista de canais fica na API)
+      return <ChannelGuide {...o} widgetId={config.id} sport={sport} />;
   }
 }
 

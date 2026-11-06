@@ -41,6 +41,8 @@ export interface BuildRegistryItemInput {
   liveList?: LiveListOptions | undefined;
   /** Opções de conteúdo do tipo (`WIDGET_OPTIONS`), salvas no Builder. */
   options?: WidgetOptions | undefined;
+  /** Id do widget salvo (a grade nos canais lê a rota presa a ele). */
+  widgetId?: string | undefined;
   /** Título legível (padrão: `name`). */
   title?: string | undefined;
   description?: string | undefined;
@@ -152,6 +154,8 @@ function defaultProps(
     case 'country_athletes':
     case 'medal_history':
       return {};
+    case 'channel_guide':
+      return pick(['sport']);
   }
 }
 
@@ -209,6 +213,7 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
   const defaults = {
     ...optionProps(kind, input.options),
     ...defaultProps(kind, input.defaults ?? {}, market, input.standings, input.liveList),
+    ...(kind === 'channel_guide' && input.widgetId ? { widgetId: input.widgetId } : {}),
   };
   const cleanTheme: WidgetTheme = {
     primary: theme.primary,
