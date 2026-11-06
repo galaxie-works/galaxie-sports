@@ -158,12 +158,25 @@ export async function planOrRun(
   return report;
 }
 
+/**
+ * Mensagem do erro com as causas encadeadas. O drizzle embrulha o erro do Postgres ("Failed query: …") e o motivo
+ * (`permission denied for table …`, timeout) só aparece no `cause`.
+ */
+export function errorMessage(err: unknown): string {
+  const parts: string[] = [];
+  for (let e: unknown = err, depth = 0; e !== undefined && e !== null && depth < 5; depth++) {
+    parts.push(e instanceof Error ? e.message : String(e));
+    e = e instanceof Error ? e.cause : undefined;
+  }
+  return parts.join('\nCausa: ');
+}
+
 /** Executa a CLI imprimindo erros em português e com código de saída ≠ 0. */
 export async function runCli(main: () => Promise<void>): Promise<void> {
   try {
     await main();
   } catch (err) {
-    console.error(`Erro: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`Erro: ${errorMessage(err)}`);
     process.exitCode = 1;
   }
 }

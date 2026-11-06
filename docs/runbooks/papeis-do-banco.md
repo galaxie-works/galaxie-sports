@@ -4,16 +4,20 @@ O `POSTGRES_USER` é o dono do banco: só o `migrate` e a manutenção à mão e
 
 ## Matriz
 
-Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela (e às sequências dela).
+Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela (e às sequências dela). Poda (`prune` em `ROLE_GRANTS`) é só `SELECT` e `DELETE` numa tabela de outro serviço, sem `INSERT`, `UPDATE` nem sequência.
 
 | Papel | Lê | Escreve | Conexões (teto) |
 | --- | --- | --- | --- |
 | `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops` | 45 |
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`; é dono do `demo_auth` | 60 |
-| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 55 |
+| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian`; poda (só `SELECT` e `DELETE`) em `api.webhook_delivery` | 55 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
 | `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_ledger`, `ops.quota_snapshot`, `ops.quota_budget` | 45 |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o ensaio de restauração | 6 |
+
+### Por que o `galaxie_ingestor` poda `api.webhook_delivery`
+
+O job `data-retention` (agendado no ingestor) apaga as entregas de webhook antigas: entregues com mais de 30 dias e DLQ com mais de 90 (`services/ingestor/src/ops/ops-retention.ts`). É o único acesso de escrita do ingestor em `api`, e só como poda: sem `INSERT` nem `UPDATE`, o ingestor não consegue criar nem alterar uma entrega, que o worker de webhooks assina e envia ao cliente. O teste `data-retention com o papel do ingestor` roda a retenção inteira com o papel: tabela nova na retenção que fique fora da matriz quebra o teste. Sem esse GRANT o job inteiro falha com `permission denied for table webhook_delivery` e nada mais é podado (foi o que aconteceu de 04 a 06/11/2026, com `JobOverdue` e `JobFailingRepeatedly` do `data-retention`).
 
 ### Por que o `galaxie_live` escreve em `raw.api_response`
 
