@@ -15,6 +15,7 @@ const read = (path) => readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g
 /** kind → arquivo e componente. */
 const WIDGETS = {
   match_card: { file: 'src/widgets/match-card.tsx', component: 'MatchCard' },
+  match_timeline: { file: 'src/widgets/match-timeline.tsx', component: 'MatchTimeline' },
   live_list: { file: 'src/widgets/live-list.tsx', component: 'LiveList' },
   standings: { file: 'src/widgets/standings-table.tsx', component: 'StandingsTable' },
   where_to_watch: { file: 'src/widgets/where-to-watch.tsx', component: 'WhereToWatch' },
@@ -39,6 +40,7 @@ const WIDGETS = {
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
   competition_leaders: { file: 'src/widgets/competition-leaders.tsx', component: 'CompetitionLeaders' },
+  team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;
