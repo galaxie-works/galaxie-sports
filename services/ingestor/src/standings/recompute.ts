@@ -19,7 +19,13 @@ import {
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
 import { computeTablesByRule, crossGroupTables, type TableRow } from './phases.js';
-import { components, planPhases, UNNAMED_GROUP_PREFIX, type TableSet } from './phases-auto.js';
+import {
+  components,
+  joinNamedGroups,
+  planPhases,
+  UNNAMED_GROUP_PREFIX,
+  type TableSet,
+} from './phases-auto.js';
 import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
@@ -246,12 +252,16 @@ export async function recomputeSeasonStandings(
       });
     groupOfTeam.set(team, named[0] ?? '');
   }
+  // time que jogou e ainda não tem linha na tabela (promovido, tabela do fornecedor de antes da entrada dele)
+  // conta como sem grupo; sem isso, com vários grupos, os jogos dele ficavam de fora e ele sumia da tabela
+  for (const m of all) for (const t of [m.homeId, m.awayId]) if (!groupOfTeam.has(t)) groupOfTeam.set(t, '');
   // o fornecedor mandou só parte dos grupos (Série D 2026: 8 de 16): os times sem grupo ganham os grupos
   // deduzidos dos jogos entre eles
   const loose = [...groupOfTeam].filter(([, g]) => g === '').map(([t]) => t);
   if (loose.length && loose.length < groupOfTeam.size) {
     // ao lado de grupos com nome, mesmo um grupo deduzido só ganha nome (sem nome, viraria uma 2ª tabela)
-    components(loose, all).forEach((part, i) =>
+    // quem joga contra um grupo com nome entra nele; só o resto vira grupo deduzido
+    components(joinNamedGroups(loose, groupOfTeam, all), all).forEach((part, i) =>
       part.forEach((t) => groupOfTeam.set(t, `${UNNAMED_GROUP_PREFIX}${i + 1}`)),
     );
   }

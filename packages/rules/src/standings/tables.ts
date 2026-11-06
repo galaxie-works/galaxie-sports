@@ -97,8 +97,15 @@ const PROVIDER_GROUP_NAMES: readonly [RegExp, TableName][] = [
     /^western conference$/i,
     { 'pt-BR': 'Conferência Oeste', es: 'Conferencia Oeste', en: 'Western Conference' },
   ],
-  [/^(north|northern)$/i, { 'pt-BR': 'Norte', es: 'Norte', en: 'North' }],
-  [/^(south|southern)$/i, { 'pt-BR': 'Sul', es: 'Sur', en: 'South' }],
+  [
+    /^placement (round|group|play-?offs?)$/i,
+    { 'pt-BR': 'Disputa de posições', es: 'Ronda de ubicación', en: 'Placement round' },
+  ],
+  [/^(1st|first) (phase|stage)$/i, AUTO_GROUP_NAMES.first_phase],
+  [/^(2nd|second) (phase|stage)$/i, { 'pt-BR': '2ª fase', es: 'Segunda fase', en: 'Second phase' }],
+  [/^(3rd|third) (phase|stage)$/i, { 'pt-BR': '3ª fase', es: 'Tercera fase', en: 'Third phase' }],
+  [/^(group )?(north|northern)( group)?$/i, { 'pt-BR': 'Norte', es: 'Norte', en: 'North' }],
+  [/^(group )?(south|southern)( group)?$/i, { 'pt-BR': 'Sul', es: 'Sur', en: 'South' }],
   [/^(tabla anual|annual table|aggregate table)$/i, AUTO_GROUP_NAMES.annual],
   [/^promedios?$/i, { 'pt-BR': 'Promedios', es: 'Promedios', en: 'Relegation averages' }],
 ];

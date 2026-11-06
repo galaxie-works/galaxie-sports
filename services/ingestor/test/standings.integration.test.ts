@@ -374,6 +374,40 @@ describe('recálculo da tabela com fases', () => {
       'unnamed:1',
     ]);
   });
+
+  it('time sem linha que joga contra um grupo com nome entra nele (não some nem vira grupo sozinho)', async () => {
+    const s = await seedSeason('football', 'liga-norte-sul', ['N1', 'N2', 'S1', 'S2', 'NOVO']);
+    await db.insert(standing).values(
+      [
+        ['North', 'N1'],
+        ['North', 'N2'],
+        ['South', 'S1'],
+        ['South', 'S2'],
+      ].map(([group, team], i) => ({
+        seasonId: s.seasonId,
+        group: group!,
+        participantId: s.team(team!),
+        rank: i + 1,
+        points: 0,
+        source: 'computed',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    await finished('football', s.seasonId, s.team('N1'), s.team('N2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('S1'), s.team('S2'), [1, 0]);
+    // promovido sem linha na tabela do fornecedor: antes, com dois grupos, os jogos dele ficavam de fora
+    await finished('football', s.seasonId, s.team('NOVO'), s.team('N1'), [2, 0]);
+    await finished('football', s.seasonId, s.team('N2'), s.team('NOVO'), [0, 1]);
+
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+      rows: 5,
+    });
+    const table = await tableOf(s.seasonId);
+    const novo = table.find((r) => r.participantId === s.team('NOVO'));
+    expect(novo).toMatchObject({ group: 'North', played: 2 });
+    expect(table.some((r) => r.group.startsWith('unnamed:'))).toBe(false);
+  });
 });
 
 describe('recálculo da NBA', () => {

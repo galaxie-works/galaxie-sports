@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchResult } from '@galaxie/rules';
-import { ANNUAL_GROUP, FIRST_PHASE_GROUP, phaseOfRound, planPhases } from './phases-auto.js';
+import {
+  ANNUAL_GROUP,
+  components,
+  FIRST_PHASE_GROUP,
+  joinNamedGroups,
+  phaseOfRound,
+  planPhases,
+} from './phases-auto.js';
 
 let day = 0;
 function game(
@@ -217,5 +224,45 @@ describe('planPhases', () => {
       groupsOf({ 'Apertura - Group A': ['A', 'B'], 'Apertura - Group B': ['B', 'C'] }),
     );
     expect(plan).toMatchObject({ kind: 'error', detail: expect.stringContaining('Apertura') });
+  });
+});
+
+describe('time sem grupo do fornecedor ao lado de grupos com nome', () => {
+  it('entra no grupo contra o qual joga (2/3 dos jogos); o resto vira grupo deduzido', () => {
+    // Norte: A B C, com X (promovido, sem linha) jogando contra eles; Sul: D E F, com Y idem; P e Q só entre si
+    const games = [
+      ...roundRobin(['A', 'B', 'C'], 'Regular Season'),
+      ...roundRobin(['D', 'E', 'F'], 'Regular Season'),
+      game('X', 'A', 'Regular Season - 9'),
+      game('B', 'X', 'Regular Season - 10'),
+      game('X', 'D', 'Regular Season - 11'), // interzonal: 2 de 3 jogos ainda são contra o Norte
+      game('Y', 'E', 'Regular Season - 9'),
+      game('F', 'Y', 'Regular Season - 10'),
+      game('Y', 'X', 'Regular Season - 12'), // X entra antes; Y continua com 2 de 3 contra o Sul
+      game('P', 'Q', 'Regular Season - 9'),
+    ];
+    const groupOf = new Map([
+      ['A', 'North'],
+      ['B', 'North'],
+      ['C', 'North'],
+      ['D', 'South'],
+      ['E', 'South'],
+      ['F', 'South'],
+    ]);
+    const rest = joinNamedGroups(['P', 'Q', 'X', 'Y'], groupOf, games);
+    expect(groupOf.get('X')).toBe('North');
+    expect(groupOf.get('Y')).toBe('South');
+    expect(rest.sort()).toEqual(['P', 'Q']);
+    expect(components(rest, games)).toEqual([['P', 'Q']]);
+  });
+
+  it('dividido entre dois grupos, sem maioria de 2/3, fica sem grupo', () => {
+    const games = [game('X', 'A', 'R - 1'), game('X', 'D', 'R - 2')];
+    const groupOf = new Map([
+      ['A', 'North'],
+      ['D', 'South'],
+    ]);
+    expect(joinNamedGroups(['X'], groupOf, games)).toEqual(['X']);
+    expect(groupOf.has('X')).toBe(false);
   });
 });

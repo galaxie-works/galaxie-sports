@@ -298,6 +298,11 @@ describe('nome exibido do grupo do fornecedor sem regulamento', () => {
     expect(providerGroupLabel('League Stage', 'pt-BR')).toBe('Fase de liga');
     expect(providerGroupLabel('Zone B', 'pt-BR')).toBe('Zona B');
     expect(providerGroupLabel('Apertura - Zone A', 'en')).toBe('Apertura · Zone A');
+    expect(providerGroupLabel('Liga Pro: Placement Group', 'pt-BR')).toBe('Liga Pro · Disputa de posições');
+    expect(providerGroupLabel('Second stage - Group A', 'pt-BR')).toBe('2ª fase · Grupo A');
+    expect(providerGroupLabel('1st Phase', 'es')).toBe('Primera fase');
+    expect(providerGroupLabel('Group North', 'pt-BR')).toBe('Norte');
+    expect(providerGroupLabel('2. Lig Red Group', 'pt-BR')).toBeNull();
   });
 
   it('nome do torneio na frente fica; só a parte genérica é traduzida', () => {
