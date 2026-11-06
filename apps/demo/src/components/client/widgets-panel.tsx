@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Activity,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -65,6 +66,7 @@ import { EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV } from '@/lib/navigation';
 
 export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
+  match_timeline: Activity,
   live_list: Radio,
   standings: Table2,
   where_to_watch: Tv,

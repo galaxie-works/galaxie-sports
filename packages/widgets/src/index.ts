@@ -80,6 +80,7 @@ export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
 export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
 export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
 export { FightCard, type FightCardProps } from './widgets/fight-card.js';
+export { MatchTimeline, type MatchTimelineProps } from './widgets/match-timeline.js';
 export { EquestrianResults, type EquestrianResultsProps } from './widgets/equestrian-results.js';
 export { EquestrianRanking, type EquestrianRankingProps } from './widgets/equestrian-ranking.js';
 export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
