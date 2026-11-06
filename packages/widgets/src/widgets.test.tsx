@@ -275,6 +275,25 @@ describe('StandingsTable', () => {
     ]);
   });
 
+  it('texto livre do fornecedor: a cor sai da regra, o nome fica como veio', async () => {
+    const fx = createPreviewFixtures().standings;
+    const rows = fx.groups[0]!.rows.map((r, i) => ({
+      ...r,
+      description: i === 0 ? 'Promotion - Paulista (Play Offs: Quarter-finals)' : null,
+    }));
+    const { container } = setup(<StandingsTable competitionId="x" />, {
+      fetchImpl: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(jsonResponse({ ...fx, groups: [{ ...fx.groups[0]!, rows }] })),
+    });
+    await screen.findByText('Aurora');
+    const zone = container.querySelector<HTMLElement>('[data-zone]')!;
+    expect(zone.title).toBe('Promotion - Paulista (Play Offs: Quarter-finals)');
+    expect(container.querySelector('.gs-legend')!.textContent).toBe(
+      'Promotion - Paulista (Play Offs: Quarter-finals)',
+    );
+  });
+
   it('esconde a legenda com showLegend={false}', async () => {
     const { container } = setup(
       <StandingsTable competitionId={PREVIEW_IDS.competition} showLegend={false} />,

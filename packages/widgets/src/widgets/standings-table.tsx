@@ -3,12 +3,7 @@
 import type { CSSProperties } from 'react';
 
 import type { GsStandingRow, GsStandings, StandingsZoneColors, WidgetTexts } from '../core/model.js';
-import {
-  standingsZoneCode,
-  standingsZoneColor,
-  standingsZoneLabel,
-  standingsZoneTone,
-} from '../core/model.js';
+import { standingsZoneColor, standingsZoneLabel, standingsZoneTone } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -74,18 +69,15 @@ export function StandingsTable({
   const groups = query.data.groups.filter((g) => g.rows.length > 0);
   const c = texts.columns;
   const shown = (rows: GsStandingRow[]) => (limit ? rows.slice(0, limit) : rows);
-  // legenda: uma entrada por zona (pelo código), na ordem em que aparece na tabela
-  const legend = new Map<string, { label: string; color: string }>();
+  // legenda: uma entrada por zona (pelo nome exibido), na ordem em que aparece na tabela
+  const legend = new Map<string, string>();
   if (showLegend) {
     for (const group of groups) {
       for (const row of shown(group.rows)) {
         if (!row.description?.trim()) continue;
-        const code = standingsZoneCode(row.description);
-        if (legend.has(code)) continue;
-        legend.set(code, {
-          label: standingsZoneLabel(row.description, texts.zones),
-          color: standingsZoneColor(standingsZoneTone(row.description), zoneColors),
-        });
+        const label = standingsZoneLabel(row.description, texts.zones);
+        if (legend.has(label)) continue;
+        legend.set(label, standingsZoneColor(standingsZoneTone(row.description), zoneColors));
       }
     }
   }
@@ -132,8 +124,8 @@ export function StandingsTable({
       )}
       {legend.size > 0 ? (
         <ul className="gs-legend">
-          {[...legend].map(([code, { label, color }]) => (
-            <li key={code}>
+          {[...legend].map(([label, color]) => (
+            <li key={label}>
               <span className="gs-legend-dot" style={zoneStyle(color)} />
               {label}
             </li>

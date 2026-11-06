@@ -311,12 +311,16 @@ export function parseStandingsOptions(raw: unknown): StandingsOptions | undefine
   return Object.keys(out).length ? out : undefined;
 }
 
-/** Nome da zona na legenda: o do dicionário pelo código; o resto vira texto ("knockout_round" → "Knockout round"). */
+/**
+ * Nome da zona na legenda: o do dicionário quando a tabela traz o código da regra; o texto livre do
+ * fornecedor fica como veio ("Promotion - Paulista (Play Offs)" não vira "Libertadores": a redução a código
+ * só escolhe a cor). Código sem nome no dicionário vira texto ("knockout_round" → "Knockout round").
+ */
 export function standingsZoneLabel(description: string, labels: Record<string, string>): string {
-  const code = standingsZoneCode(description);
-  const label = labels[code];
+  const text = description.trim();
+  const label = labels[text.toLowerCase()];
   if (label) return label;
-  const words = code.replace(/_/g, ' ');
+  const words = text.replace(/_/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
