@@ -2,7 +2,9 @@ import { WIDGET_CATALOG } from '../catalog.js';
 import {
   WIDGET_KINDS,
   WIDGET_LOCALES,
+  parseLiveListOptions,
   parseStandingsOptions,
+  type LiveListOptions,
   type StandingsOptions,
   type WidgetDefaults,
   type WidgetKind,
@@ -34,6 +36,8 @@ export interface BuildRegistryItemInput {
   defaults?: WidgetDefaults | undefined;
   /** Legenda e cores das zonas (só na tabela de classificação). */
   standings?: StandingsOptions | undefined;
+  /** Modo, agrupamento, atualização e dados extras (só na lista de jogos). */
+  liveList?: LiveListOptions | undefined;
   /** Título legível (padrão: `name`). */
   title?: string | undefined;
   description?: string | undefined;
@@ -107,6 +111,7 @@ function defaultProps(
   defaults: WidgetDefaults,
   market: string | undefined,
   standings: StandingsOptions | undefined,
+  liveList: LiveListOptions | undefined,
 ) {
   const pick = (keys: (keyof WidgetDefaults)[]) =>
     Object.fromEntries(keys.filter((k) => defaults[k]).map((k) => [k, defaults[k]]));
@@ -114,7 +119,7 @@ function defaultProps(
     case 'match_card':
       return pick(['eventId']);
     case 'live_list':
-      return pick(['competitionId', 'sport']);
+      return { ...pick(['competitionId', 'sport']), ...parseLiveListOptions(liveList) };
     case 'standings':
       return { ...pick(['competitionId']), ...parseStandingsOptions(standings) };
     case 'where_to_watch':
@@ -180,7 +185,7 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
   const fileTarget = `${TARGET_DIR}/${name}.tsx`;
   const component = catalog.registryComponent;
   const props = widget.propsType;
-  const defaults = defaultProps(kind, input.defaults ?? {}, market, input.standings);
+  const defaults = defaultProps(kind, input.defaults ?? {}, market, input.standings, input.liveList);
   const cleanTheme: WidgetTheme = {
     primary: theme.primary,
     background: theme.background,

@@ -2,7 +2,12 @@
  * Rascunho inicial do Builder (só no servidor): widget novo com os padrões do tenant, ou o widget salvo
  * com o rótulo da entidade padrão resolvido na API (o banco guarda só o id em `defaults`).
  */
-import { DEFAULT_THEMES, WIDGET_CATALOG, parseStandingsOptions } from '@galaxie/widgets';
+import {
+  DEFAULT_THEMES,
+  WIDGET_CATALOG,
+  parseLiveListOptions,
+  parseStandingsOptions,
+} from '@galaxie/widgets';
 
 import type { EditorDraft } from '@/components/client/widget-editor';
 import type { TenantInfo } from '@/lib/client/tenants';
@@ -61,6 +66,7 @@ export function newDraft(kindParam: string | undefined, tenant: TenantInfo, loca
     market: marketsFor(tenant.markets)[0]!,
     entity: null,
     standings: {},
+    liveList: {},
   };
 }
 
@@ -74,5 +80,6 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
     market: widget.config.market,
     entity: entity ? await resolveEntity(entity.type, entity.id, locale) : null,
     standings: parseStandingsOptions(widget.config.standings) ?? {},
+    liveList: parseLiveListOptions(widget.config.liveList) ?? {},
   };
 }

@@ -140,6 +140,20 @@ describe('buildRegistryItem', () => {
     expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
   });
 
+  it('a lista de jogos leva o modo, o agrupamento e os dados extras salvos', () => {
+    const item = buildRegistryItem({
+      ...base,
+      kind: 'live_list',
+      name: 'Jogos',
+      defaults: { competitionId: 'brasileirao' },
+      liveList: { liveOnly: true, showRound: true, limit: 10, groupByCompetition: 'nao' as never },
+    });
+    expect(item.files[1]!.content).toContain(
+      'const GALAXIE_DEFAULTS: Partial<LiveListProps> = {"competitionId":"brasileirao","liveOnly":true,"showRound":true,"limit":10};',
+    );
+    expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
+  });
+
   it('normaliza o nome para kebab-case seguro', () => {
     expect(toRegistryName('Operadora Exemplo · Placar!')).toBe('operadora-exemplo-placar');
     expect(toRegistryName('../../etc/passwd')).toBe('etc-passwd');
