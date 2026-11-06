@@ -140,6 +140,8 @@ function defaultProps(
       return pick(['teamId']);
     case 'season_calendar':
       return pick(['competitionId']);
+    case 'player_profile':
+      return pick(['personId']);
     // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':

@@ -31,6 +31,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'player_profile',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -54,6 +55,8 @@ export interface WidgetDefaults {
   competitionId?: string;
   teamId?: string;
   eventId?: string;
+  /** Jogador ou técnico (ficha do jogador). */
+  personId?: string;
   sport?: string;
 }
 

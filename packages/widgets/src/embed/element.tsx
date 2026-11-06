@@ -33,6 +33,7 @@ import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
+import { PlayerProfile } from '../widgets/player-profile.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -75,6 +76,7 @@ export const EMBED_ATTRIBUTES = [
   'event-id',
   'competition-id',
   'team-id',
+  'person-id',
 ] as const;
 
 export interface EmbedOverrides {
@@ -83,6 +85,7 @@ export interface EmbedOverrides {
   eventId?: string | null;
   competitionId?: string | null;
   teamId?: string | null;
+  personId?: string | null;
 }
 
 const isLocale = (v: unknown): v is WidgetLocale => (WIDGET_LOCALES as readonly unknown[]).includes(v);
@@ -96,7 +99,8 @@ export function resolveEmbed(config: EmbedConfig, overrides: EmbedOverrides = {}
   const eventId = overrides.eventId || config.defaults.eventId;
   const competitionId = overrides.competitionId || config.defaults.competitionId;
   const teamId = overrides.teamId || config.defaults.teamId;
-  return { locale, market, eventId, competitionId, teamId, sport: config.defaults.sport };
+  const personId = overrides.personId || config.defaults.personId;
+  return { locale, market, eventId, competitionId, teamId, personId, sport: config.defaults.sport };
 }
 
 /** Lê e confere a resposta de `/e/<id>.json` (vem da rede: nada de confiar no formato). */
@@ -116,7 +120,7 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
-  const { eventId, competitionId, teamId, market, sport } = resolveEmbed(config, overrides);
+  const { eventId, competitionId, teamId, personId, market, sport } = resolveEmbed(config, overrides);
   const o = optionProps(config.kind, config.options);
   switch (config.kind) {
     case 'match_card':
@@ -175,6 +179,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={personId ?? ''} />;
   }
 }
 
@@ -269,6 +275,7 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
         eventId: this.getAttribute('event-id'),
         competitionId: this.getAttribute('competition-id'),
         teamId: this.getAttribute('team-id'),
+        personId: this.getAttribute('person-id'),
       };
       const { locale, market } = resolveEmbed(config, overrides);
       this.root.render(

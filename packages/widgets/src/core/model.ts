@@ -30,6 +30,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'player_profile',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -57,6 +58,8 @@ export interface WidgetDefaults {
   competitionId?: string | undefined;
   teamId?: string | undefined;
   eventId?: string | undefined;
+  /** Jogador ou técnico (`/v1/people/{id}`), na ficha do jogador. */
+  personId?: string | undefined;
   sport?: string | undefined;
 }
 
@@ -500,6 +503,55 @@ export interface GsMedalHistory {
   })[];
   totals: (GsMedalCounts & { noc: string })[];
   withheld: { slug: string; name: string }[];
+}
+
+/** Ficha da pessoa (`/v1/people/{id}/overview`), só o que a ficha do jogador usa. */
+export interface GsPersonNumbers {
+  appearances: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+  rating: number | null;
+}
+
+export interface GsTransferTeam {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+
+export interface GsPersonOverview {
+  person: {
+    id: string;
+    name: string;
+    birth_date: string | null;
+    age: number | null;
+    nationality: string | null;
+    height_cm: number | null;
+    photo: string | null;
+  };
+  /** País da nacionalidade (código ISO2, para a bandeira). */
+  nationality_ref: { code: string; name: string } | null;
+  role: string | null;
+  position: string | null;
+  number: number | null;
+  current_team: { id: string; name: string; logo: string | null } | null;
+  season: number | null;
+  seasons: { year: number; appearances: number; goals: number }[];
+  totals: GsPersonNumbers | null;
+  career: {
+    team: { id: string; name: string; logo: string | null };
+    from: number;
+    to: number;
+    appearances: number;
+    goals: number;
+    current: boolean;
+  }[];
+  transfers: { date: string | null; type: string | null; from: GsTransferTeam; to: GsTransferTeam }[];
+  trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1593,6 +1645,36 @@ export interface WidgetTexts {
     /** "Soma de {n} edições". */
     totals: string;
   };
+  /** Ficha do jogador (futebol): números da temporada, clubes, temporadas, títulos e transferências. */
+  player: {
+    /** "Temporada {year}". */
+    season: string;
+    appearances: string;
+    goals: string;
+    assists: string;
+    minutes: string;
+    yellow: string;
+    red: string;
+    rating: string;
+    clubs: string;
+    seasons: string;
+    trophies: string;
+    transfers: string;
+    current: string;
+    coach: string;
+    /** "{age} anos". */
+    age: string;
+    /** "{n} jogos · {g} gols" na linha do clube e da temporada. */
+    appsGoals: string;
+    /** "{n} jogos" (técnico: sem gols). */
+    apps: string;
+    /** "e mais {count}". */
+    more: string;
+    empty: string;
+    positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
+    places: Record<string, string>;
+    transferTypes: Record<string, string>;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -1883,6 +1965,40 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Jogos',
+      goals: 'Gols',
+      assists: 'Assistências',
+      minutes: 'Minutos',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferências',
+      current: 'Atual',
+      coach: 'Técnico',
+      age: '{age} anos',
+      appsGoals: '{n} jogos · {g} gols',
+      apps: '{n} jogos',
+      more: 'e mais {count}',
+      empty: 'Sem jogos nesta temporada.',
+      positions: {
+        Goalkeeper: 'Goleiro',
+        Defender: 'Defensor',
+        Midfielder: 'Meio-campista',
+        Attacker: 'Atacante',
+      },
+      places: { Winner: 'Campeão', '2nd Place': 'Vice', '3rd Place': '3º lugar', '4th Place': '4º lugar' },
+      transferTypes: {
+        Loan: 'Empréstimo',
+        Free: 'Sem custo',
+        'Back from Loan': 'Fim de empréstimo',
+        Transfer: 'Transferência',
+      },
+    },
   },
   es: {
     status: {
@@ -2171,6 +2287,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Partidos',
+      goals: 'Goles',
+      assists: 'Asistencias',
+      minutes: 'Minutos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferencias',
+      current: 'Actual',
+      coach: 'Entrenador',
+      age: '{age} años',
+      appsGoals: '{n} partidos · {g} goles',
+      apps: '{n} partidos',
+      more: 'y {count} más',
+      empty: 'Sin partidos en esta temporada.',
+      positions: {
+        Goalkeeper: 'Arquero',
+        Defender: 'Defensor',
+        Midfielder: 'Mediocampista',
+        Attacker: 'Delantero',
+      },
+      places: {
+        Winner: 'Campeón',
+        '2nd Place': 'Subcampeón',
+        '3rd Place': 'Tercer puesto',
+        '4th Place': 'Cuarto puesto',
+      },
+      transferTypes: {
+        Loan: 'Préstamo',
+        Free: 'Libre',
+        'Back from Loan': 'Fin de préstamo',
+        Transfer: 'Transferencia',
+      },
+    },
   },
   en: {
     status: {
@@ -2445,6 +2600,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    player: {
+      season: '{year} season',
+      appearances: 'Apps',
+      goals: 'Goals',
+      assists: 'Assists',
+      minutes: 'Minutes',
+      yellow: 'Yellow cards',
+      red: 'Red cards',
+      rating: 'Rating',
+      clubs: 'Clubs',
+      seasons: 'By season',
+      trophies: 'Trophies',
+      transfers: 'Transfers',
+      current: 'Current',
+      coach: 'Head coach',
+      age: '{age} years old',
+      appsGoals: '{n} apps · {g} goals',
+      apps: '{n} apps',
+      more: 'and {count} more',
+      empty: 'No matches this season.',
+      positions: {
+        Goalkeeper: 'Goalkeeper',
+        Defender: 'Defender',
+        Midfielder: 'Midfielder',
+        Attacker: 'Forward',
+      },
+      places: {
+        Winner: 'Winner',
+        '2nd Place': 'Runner-up',
+        '3rd Place': 'Third place',
+        '4th Place': 'Fourth place',
+      },
+      transferTypes: {
+        Loan: 'Loan',
+        Free: 'Free transfer',
+        'Back from Loan': 'Loan return',
+        Transfer: 'Transfer',
+      },
     },
   },
 };
