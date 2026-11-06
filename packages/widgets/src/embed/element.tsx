@@ -23,6 +23,7 @@ import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
 import { FightCard } from '../widgets/fight-card.js';
+import { MatchTimeline } from '../widgets/match-timeline.js';
 import { EquestrianResults } from '../widgets/equestrian-results.js';
 import { EquestrianRanking } from '../widgets/equestrian-ranking.js';
 import { EquestrianCalendar } from '../widgets/equestrian-calendar.js';
@@ -155,6 +156,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <AthleteProfile {...o} teamId={teamId ?? ''} />;
     case 'fight_card':
       return <FightCard {...o} eventId={eventId ?? ''} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={eventId ?? ''} />;
     case 'equestrian_results':
       return <EquestrianResults {...o} />;
     case 'equestrian_ranking':

@@ -8,6 +8,7 @@ import { ops } from './ops.js';
 /** Tipos de widget que o Builder monta e o pacote de widgets renderiza. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
   'standings',
   'where_to_watch',

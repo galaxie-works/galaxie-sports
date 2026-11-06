@@ -7,6 +7,7 @@ import {
   LiveList,
   MatchCard,
   MatchStakes,
+  MatchTimeline,
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
@@ -186,6 +187,8 @@ function PreviewWidget({
             }
           />
         );
+      case 'match_timeline':
+        return <MatchTimeline {...o} {...WIDGET_CATALOG.match_timeline.exampleProps} />;
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
@@ -249,6 +252,8 @@ function PreviewWidget({
   switch (kind) {
     case 'match_card':
       return <MatchCard {...o} eventId={entity.id} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={entity.id} />;
     case 'where_to_watch':
       return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':

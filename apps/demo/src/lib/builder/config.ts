@@ -25,6 +25,7 @@ import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, Widget
 /** Os mesmos de `@galaxie/db` (`WIDGET_KINDS`); o `satisfies` acusa se um tipo sumir de lá. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
   'standings',
   'where_to_watch',
@@ -72,6 +73,7 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
  */
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
+  match_timeline: ['event'],
   live_list: ['competition', 'team'],
   standings: ['competition'],
   where_to_watch: ['event'],
@@ -104,6 +106,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
+  match_timeline: 'event',
   live_list: null,
   standings: 'competition',
   where_to_watch: 'event',
@@ -416,6 +419,7 @@ export function parseRegistryParam(param: string): string | null {
 /** Componente que o arquivo instalado exporta (o `registryComponent` do catálogo de `@galaxie/widgets`). */
 export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
+  match_timeline: 'GalaxieMatchTimeline',
   live_list: 'GalaxieLiveList',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',

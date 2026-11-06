@@ -29,6 +29,7 @@ export type Widget = typeof widget.$inferSelect;
 /** Módulos que cada tipo de widget consome. Uma chave presa a um widget só alcança estes módulos. */
 export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   match_card: ['core_data', 'where_to_watch'],
+  match_timeline: ['core_data'],
   live_list: ['core_data'],
   standings: ['core_data'],
   where_to_watch: ['core_data', 'where_to_watch'],
