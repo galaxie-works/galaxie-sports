@@ -232,13 +232,30 @@ describe('LivePoller', () => {
       nextAt: at(7).getTime(),
       notStarted: true,
     });
-    // a resposta NS devolve o jogo a `starting`; o relógio o põe em andamento de novo e o poller volta a conferir.
-    // Duas horas e meia de tick a tick (15 s), bem mais que o backoff inteiro da confirmação (~68 min)
-    for (let s = 2 * 60 + 15; s <= 150 * 60; s += 15) await tick(s / 60);
-    expect(detailAt.length).toBeGreaterThan(7); // o backoff desistia na 7ª
-    for (let i = 1; i < detailAt.length; i++)
-      expect(detailAt[i]! - detailAt[i - 1]!).toBeGreaterThanOrEqual(5);
+    // a resposta NS devolve o jogo a `starting`; marcado, ele segue conferido de 5 em 5 min, e a conferência mantém o
+    // dado fresco: o relógio não o põe em andamento de novo e o status não oscila no change feed. Duas horas e meia de
+    // tick a tick (15 s), bem mais que o backoff inteiro da confirmação (~68 min)
+    const statuses = new Set<string>();
+    for (let s = 2 * 60 + 15; s <= 150 * 60; s += 15) {
+      await tick(s / 60);
+      statuses.add(store.state('9101')!.status);
+    }
+    expect(detailAt).toEqual(Array.from({ length: 30 }, (_, i) => 2 + 5 * i)); // o backoff desistia na 7ª
+    expect([...statuses]).toEqual(['starting']);
     expect(poller.exportFinalizeAttempts(at(150))['9101']).toMatchObject({ attempts: 0, notStarted: true });
+  });
+
+  it('jogo que a fonte já deu em campo e volta a NS no detalhe segue o backoff normal', async () => {
+    const { store, provider, poller, tracked } = setup([match]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    provider.willReturn('listLive', batchAt([match], at(20)));
+    await poller.tick({ now: at(20), leagues: ['71'], tracked: await tracked(at(20)), finalizeBudget: 1 });
+    // sumiu do live e o detalhe, por um soluço da fonte, diz NS
+    const ns = batchAt([{ ...match, delayMin: 180 }], at(21), true);
+    provider.willReturn('listLive', batchAt([], at(21))).willReturn('getEventDetail', ns);
+    await poller.tick({ now: at(21), leagues: ['71'], tracked: await tracked(at(21)), finalizeBudget: 1 });
+    expect(store.state('9101')!.status).toBe('live');
+    expect(poller.exportFinalizeAttempts(at(21))['9101']).toEqual({ attempts: 1, nextAt: at(22).getTime() });
   });
 
   it('a confirmação de quem acabou vem antes de quem a fonte ainda não começou', async () => {
@@ -252,8 +269,8 @@ describe('LivePoller', () => {
     await poller.tick({ now: at(95), leagues: ['71'], tracked: await tracked(at(95)), finalizeBudget: 1 });
     expect(poller.exportFinalizeAttempts(at(95))['9102']).toMatchObject({ notStarted: true });
 
-    // 16 min depois o relógio pôs o atrasado em andamento de novo e os dois estão fora do live, com orçamento para um
-    // só: vai para o que acabou
+    // o atrasado (marcado, em `starting`) e Palmeiras x Corinthians (acabou) fora do live, com orçamento para um só:
+    // vai para o que acabou
     store.advanceClock(at(111));
     provider
       .willReturn('listLive', batchAt([], at(111)))

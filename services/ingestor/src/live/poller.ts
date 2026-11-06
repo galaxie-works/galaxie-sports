@@ -181,13 +181,25 @@ export class LivePoller {
     // começou de fato: quando sair do live, a confirmação do resultado começa do zero
     for (const id of batchIds)
       if (this.finalizeAttempts.get(id)?.notStarted) this.finalizeAttempts.delete(id);
-    const notStarted = (id: string) => (this.finalizeAttempts.get(id)?.notStarted ? 1 : 0);
+    const marked = (id: string) => this.finalizeAttempts.get(id)?.notStarted === true;
+    // Em andamento só pelo relógio (a fonte nunca confirmou), ou já marcado como não iniciado: a resposta NS isenta a
+    // tentativa. Jogo que a fonte já deu como em campo e "volta" a NS segue o backoff normal (a máquina de estados
+    // recusa essa volta sem mudança de horário, e a isenção o conferiria a cada 5 min até sair do plano).
+    const clockStarted = new Set(
+      inPlay.filter((c) => c.statusSource === 'temporal').map((c) => c.providerEventId!),
+    );
+    // A resposta NS devolve o jogo a `starting` (fora de `inPlay`): marcado, ele continua conferido em
+    // `NOT_STARTED_RECHECK_MS`, senão só voltaria quando o relógio o pusesse em andamento de novo, depois do limite do
+    // `LiveEventStale`, e o status ficaria oscilando entre `live` e `starting` no change feed.
+    const waiting = input.tracked.filter(
+      (c) => c.providerEventId && isPreMatch(c.status) && marked(c.providerEventId),
+    );
     // os que acabaram primeiro: o orçamento de confirmação não fica com quem a fonte ainda nem começou
-    const vanished = inPlay
+    const vanished = [...inPlay, ...waiting]
       .filter((c) => c.providerCompetitionId && leagues.has(c.providerCompetitionId))
       .map((c) => c.providerEventId!)
       .filter((id) => !returned.has(id))
-      .sort((a, b) => notStarted(a) - notStarted(b));
+      .sort((a, b) => Number(marked(a)) - Number(marked(b)));
     const featuredId =
       input.featured?.providerEventId && !vanished.includes(input.featured.providerEventId)
         ? input.featured.providerEventId
@@ -215,7 +227,7 @@ export class LivePoller {
       const ev = detail.batch.events.find((e) => e.id === id);
       const status = ev?.observation.status;
       if (status === 'finished') confirmed.push({ id, at: detail.fetchedAt });
-      else if (status && isPreMatch(status))
+      else if (status && isPreMatch(status) && (clockStarted.has(id) || state.notStarted))
         // a tentativa não conta: o backoff é para o jogo que acabou e demora a virar FT
         this.finalizeAttempts.set(id, {
           attempts: state.attempts,
