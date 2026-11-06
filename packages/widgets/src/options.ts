@@ -669,6 +669,25 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  champions_gallery: [
+    count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 200, ALL),
+    bool('showRanking', l('Ranking de títulos', 'Ranking de títulos', 'Titles ranking'), true, {
+      hint: l(
+        'Só aparece quando a lista de campeões está completa.',
+        'Solo aparece cuando la lista de campeones está completa.',
+        'Only shown when the list of champions is complete.',
+      ),
+    }),
+    count('rankingLimit', l('Times no ranking', 'Equipos en el ranking', 'Teams in the ranking'), 5, 50, ALL),
+    bool(
+      'showRunnerUp',
+      l('Vice de cada edição', 'Subcampeón de cada edición', 'Runner-up of each edition'),
+      false,
+      {
+        extraCall: true,
+      },
+    ),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

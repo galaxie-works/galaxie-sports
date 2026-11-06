@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  champions_gallery: ChampionsGalleryProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'ChampionsGallery';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  champions_gallery: {
+    kind: 'champions_gallery',
+    component: 'ChampionsGallery',
+    registryComponent: 'GalaxieChampionsGallery',
+    name: { 'pt-BR': 'Galeria de campeões', es: 'Galería de campeones', en: 'Roll of honour' },
+    description: {
+      'pt-BR':
+        'Quem ganhou cada edição do campeonato, ano a ano, com o escudo, o vice e o ranking de quem tem mais títulos.',
+      es: 'Quién ganó cada edición del torneo, año a año, con el escudo, el subcampeón y el ranking de más títulos.',
+      en: 'Who won each edition of the competition, year by year, with the crest, the runner-up and the most titles.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['limit', 'showRanking', 'rankingLimit', 'showRunnerUp'],
+    exampleProps: { competitionId: PREVIEW_IDS.competition },
+    polling: false,
+    sports: [...TEAM_SPORTS, 'formula-1'],
   },
 };
 

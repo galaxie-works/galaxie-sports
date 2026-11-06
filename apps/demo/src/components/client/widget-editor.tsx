@@ -22,6 +22,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  ChampionsGallery,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'champions_gallery':
+        return <ChampionsGallery {...o} {...WIDGET_CATALOG.champions_gallery.exampleProps} />;
     }
   }
   switch (kind) {
@@ -275,6 +278,8 @@ function PreviewWidget({
       return <RaceWeekend {...o} eventId={entity.id} />;
     case 'season_calendar':
       return <SeasonCalendar {...o} competitionId={entity.id} />;
+    case 'champions_gallery':
+      return <ChampionsGallery {...o} competitionId={entity.id} />;
     case 'athlete_profile':
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':

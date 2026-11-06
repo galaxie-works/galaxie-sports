@@ -30,6 +30,7 @@ describe('OpenAPI', () => {
         '/v1/competitions/{id}/seasons/{season}/standings',
         '/v1/venues/{id}',
         '/v1/competitions/{id}/context',
+        '/v1/competitions/{id}/champions',
         '/v1/events',
         '/v1/events/live',
         '/v1/events/{id}',
