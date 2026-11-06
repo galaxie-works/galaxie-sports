@@ -25,25 +25,25 @@ import {
   type AssetVariants,
   type Database,
 } from '@galaxie/db';
+import { PANEL_ACERVO, panelCrestTargets } from '@galaxie/db/crests';
 import { publishTeamLogoChanges, teamsUsing } from '../asset-store.js';
-import { imageInfo } from '../image-info.js';
+import {
+  crestStorageKey,
+  imageInfo,
+  paletteFromPng,
+  paletteFromSvg,
+  sizedLogos,
+  unsafeSvgReason,
+  type AssetPalette,
+} from '@galaxie/crests';
 import type { ObjectStore } from '../object-store.js';
-import { paletteFromPng, type AssetPalette } from '../palette.js';
 import { LOGO_FORMATS, type AcervoLogo, type AcervoManifest, type LogoFormat } from './manifest.js';
-import { sizedLogos } from './sizes.js';
 import type { MatchTarget } from './match.js';
 import type { CountryRow } from './plan.js';
-import { paletteFromSvg } from './svg-palette.js';
-import { unsafeSvgReason } from './svg-safety.js';
 
 /** Rastro interno no asset (nunca publicado): o acervo e o arquivo do pacote, único por arquivo. */
 export const acervoSourceUrl = (id: string, file: string) => `acervo://${id}/${file}`;
 
-const EXTENSIONS: Record<string, string> = {
-  'image/svg+xml': 'svg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-};
 const FORMAT_TYPES: Record<LogoFormat, string> = {
   svg: 'image/svg+xml',
   png: 'image/png',
@@ -63,19 +63,15 @@ export function logoFormats(logo: AcervoLogo): Partial<Record<LogoFormat, string
 
 /**
  * Chave publicada no storage (e na URL que a API devolve): só a nossa nomenclatura — tipo, id do nosso
- * time ou competição e o começo do sha256, que troca a URL quando o logo muda (o CDN guarda por uma
- * semana). Nunca leva o nome do acervo nem o do arquivo do pacote. null para tipo não aceito.
+ * time ou competição e o começo do sha256 (`crestStorageKey`, a mesma do escudo enviado no painel).
+ * null para tipo não aceito.
  */
-export function acervoStorageKey(
+export const acervoStorageKey = (
   kind: AcervoLogo['kind'],
   targetId: string,
   sha256: string,
   contentType: string,
-): string | null {
-  const ext = EXTENSIONS[contentType];
-  if (!ext) return null;
-  return `acervo/football/${kind === 'team' ? 'teams' : 'leagues'}/${targetId}.${sha256.slice(0, 12)}.${ext}`;
-}
+): string | null => crestStorageKey(kind, targetId, sha256, contentType);
 
 /**
  * Times (clubes e seleções) e competições do futebol, com nomes e apelidos da base semântica, as
@@ -214,6 +210,11 @@ export interface ImportReport {
   detached: number;
   /** Logos com vínculo cujo alvo não existe mais no banco, ou com arquivo divergente do manifesto. */
   skipped: number;
+  /**
+   * Times e competições com escudo enviado no painel (Ajustes → Escudos): ficam com o do painel, que é a
+   * decisão mais recente. Para voltar ao do pacote, Voltar no painel.
+   */
+  panel: number;
 }
 
 const sha256 = (buf: Uint8Array) => createHash('sha256').update(buf).digest('hex');
@@ -259,6 +260,7 @@ export const emptyImportReport = (): ImportReport => ({
   changed: 0,
   detached: 0,
   skipped: 0,
+  panel: 0,
 });
 
 /**
@@ -277,11 +279,21 @@ export async function importLot(
   const id = manifest.acervo.id;
   const now = options.now ?? new Date();
   const emit = options.onProgress ?? (() => {});
+  // escudo enviado no painel vale sobre o do pacote: a importação não troca nem desliga
+  const panel = await panelCrestTargets(db, {
+    team: logos.filter((l) => l.kind === 'team').map((l) => l.target_id),
+    competition: logos.filter((l) => l.kind === 'competition').map((l) => l.target_id),
+  });
   const assetIdFor = new Map<string, string>(); // `${kind}:${target}` → asset.id
   for (const logo of logos) {
     if (!existing.has(`${logo.kind}:${logo.target_id}`)) {
       report.skipped += 1;
       emit({ type: 'skipped', key: logo.key, reason: `alvo ${logo.target_id} não existe neste banco` });
+      continue;
+    }
+    if (panel.has(`${logo.kind}:${logo.target_id}`)) {
+      report.panel += 1;
+      emit({ type: 'skipped', key: logo.key, reason: 'escudo enviado no painel (fica o do painel)' });
       continue;
     }
     report.linked += 1;
@@ -438,7 +450,14 @@ export async function importLot(
       const updated = await tx
         .update(table)
         .set({ customLogoAssetId: assetId, updatedAt: sql`now()` })
-        .where(and(eq(table.id, targetId), sql`${table.customLogoAssetId} is distinct from ${assetId}`))
+        .where(
+          and(
+            eq(table.id, targetId),
+            sql`${table.customLogoAssetId} is distinct from ${assetId}`,
+            // enviado no painel durante a importação: fica o do painel
+            sql`not exists (select 1 from ${asset} where ${asset.id} = ${table.customLogoAssetId} and ${asset.acervo} = ${PANEL_ACERVO})`,
+          ),
+        )
         .returning({ id: table.id });
       report.changed += updated.length;
       if (kind === 'team') teams.push(...updated.map((u) => u.id));

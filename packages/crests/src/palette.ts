@@ -4,7 +4,7 @@
  * (cor predominante, secundária e o gradiente sugerido) — nenhuma chamada externa.
  */
 import { inflateSync } from 'node:zlib';
-import type { AssetPalette } from '@galaxie/db';
+import type { AssetPalette } from '@galaxie/db/schema';
 
 export type { AssetPalette };
 

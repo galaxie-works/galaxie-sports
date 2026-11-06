@@ -31,6 +31,7 @@ e do que depende.
 | [`packages/knowledge`](../packages/knowledge/README.md) | lib | `@galaxie/knowledge` | Base semântica: validação, seed, clássicos, copy | — |
 | [`packages/where-to-watch`](../packages/where-to-watch/README.md) | lib | `@galaxie/where-to-watch` | Emissoras, direitos e validador do onde assistir | — |
 | [`packages/geo`](../packages/geo/README.md) | lib | `@galaxie/geo` | Confederações, países e escopo das competições | — |
+| [`packages/crests`](../packages/crests/README.md) | lib | `@galaxie/crests` | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o preparo do envio no painel | — |
 | [`packages/runtime-config`](../packages/runtime-config/README.md) | lib | `@galaxie/runtime-config` | Flags da operação (banco > env > padrão) | — |
 | [`packages/ai-ledger`](../packages/ai-ledger/README.md) | lib | `@galaxie/ai-ledger` | Orçamento diário de IA em tokens e US$ | — |
 | [`packages/scheduler`](../packages/scheduler/README.md) | lib | `@galaxie/scheduler` | Motor de agendamento do ingestor e dos agentes (cron em UTC, um processo por job, trava, catch-up) | — |
@@ -70,6 +71,7 @@ flowchart TB
   subgraph domínio
     packages_ai_ledger[ai-ledger]
     packages_core_writer[core-writer]
+    packages_crests[crests]
     packages_explore[explore]
     packages_geo[geo]
     packages_knowledge[knowledge]
@@ -94,10 +96,11 @@ flowchart TB
   end
 
   apps_api --> packages_apisports_client & packages_contracts & packages_db & packages_explore & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
-  apps_demo --> packages_contracts & packages_db & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
+  apps_demo --> packages_contracts & packages_crests & packages_db & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
   packages_ai_ledger --> packages_db & packages_runtime_config
   packages_apisports_client --> packages_db
   packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules
+  packages_crests --> packages_db
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
   packages_knowledge --> packages_db
   packages_observability --> packages_apisports_client & packages_db & packages_runtime_config
@@ -107,12 +110,12 @@ flowchart TB
   packages_where_to_watch --> packages_db
   packages_widgets --> packages_contracts
   services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
-  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_db & packages_explore & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
+  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_crests & packages_db & packages_explore & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
 ```
 <!-- deps-map:end -->
 
 As camadas vêm de `scripts/deps/rules.mjs`: **app** (`apps/*`), **serviço** (`services/*`), **domínio**
-(`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`, `core-writer`), **base** (`db`, `contracts`, `observability`,
+(`providers`, `rules`, `knowledge`, `where-to-watch`, `geo`, `ai-ledger`, `core-writer`, `explore`, `crests`), **base** (`db`, `contracts`, `observability`,
 `runtime-config`, `net-guard`, `apisports-client`, `scheduler`) **interface** (`widgets`) e **testes** (`tests/integration`, a folha do grafo que cruza API e ingestor, #563). Pacote novo em `packages/`
 precisa entrar numa delas, senão o `lint:deps` reprova.
 

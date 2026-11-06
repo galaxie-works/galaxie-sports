@@ -16,10 +16,9 @@ import {
   PLACEHOLDER_LOGO_SHA256,
 } from '@galaxie/core-writer';
 import type { AssetStore, LogoCleanup, MirrorAsset, MirrorCursor } from './asset-store.js';
-import { imageInfo } from './image-info.js';
+import { imageInfo, paletteFromPng } from '@galaxie/crests';
 import { MediaFetcher } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
-import { paletteFromPng } from './palette.js';
 import { isPlaceholderPhoto } from './person-photos.js';
 
 /** Lê config/assets/denylist.yaml (`denylist: [{ url, reason }]`). */

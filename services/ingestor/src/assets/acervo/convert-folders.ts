@@ -36,7 +36,7 @@ import { normalizeName } from '@galaxie/knowledge';
 import { stringify } from 'yaml';
 import type { AcervoInfo } from './manifest.js';
 import type { AcervoGroup } from './scan.js';
-import { unsafeSvgReason } from './svg-safety.js';
+import { unsafeSvgReason } from '@galaxie/crests';
 
 /** Teto por arquivo: escudo não passa disso; acima é lixo ou ataque. */
 const MAX_BYTES = 5 * 1024 * 1024;

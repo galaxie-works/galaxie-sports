@@ -226,7 +226,7 @@ try {
           .set({ status: 'ok', finishedAt: new Date(), stats: { acervo: id, ...report } })
           .where(eq(jobRun.id, run.id));
       console.log(
-        `${values.plan ? 'Prévia — ' : ''}acervo ${id}: ${report.linked} ligados · ${report.uploaded} gravados no storage · ${report.changed} vínculos novos · ${report.detached} desligados · ${report.skipped} ignorados`,
+        `${values.plan ? 'Prévia — ' : ''}acervo ${id}: ${report.linked} ligados · ${report.uploaded} gravados no storage · ${report.changed} vínculos novos · ${report.detached} desligados · ${report.skipped} ignorados${report.panel ? ` · ${report.panel} mantidos do painel` : ''}`,
       );
     } catch (err) {
       if (run)

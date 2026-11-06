@@ -119,12 +119,13 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
           previa: {
             resumo:
               `Acervo ${info.id} (revisão ${info.revision ?? '—'}): ${report.linked} escudos ligados, ` +
-              `${report.detached} desligados e ${report.skipped} ignorados, em ${lots.length} lote(s) por país. ` +
+              `${report.detached} desligados, ${report.panel} mantidos do painel e ${report.skipped} ignorados, em ${lots.length} lote(s) por país. ` +
               `Relatório de cobertura: ${formatS3Uri(uri)}.`,
             contagens: {
               ligados: report.linked,
               desligados: report.detached,
               ignorados: report.skipped,
+              mantidosDoPainel: report.panel,
               lotes: lots.length,
               escudosNoManifesto: manifest.logos.length,
             },
@@ -183,7 +184,8 @@ export function acervoImportar(deps?: AcervoTaskDeps): TaskHandler {
         return {
           detail:
             `acervo ${info.id}: ${totais.linked ?? 0} ligados · ${totais.uploaded ?? 0} gravados no storage · ` +
-            `${totais.changed ?? 0} vínculos novos · ${detached} desligados · ${totais.skipped ?? 0} ignorados`,
+            `${totais.changed ?? 0} vínculos novos · ${detached} desligados · ${totais.panel ?? 0} mantidos do painel · ` +
+            `${totais.skipped ?? 0} ignorados`,
           stats: { acervo: info.id, ...totais },
         };
       } finally {

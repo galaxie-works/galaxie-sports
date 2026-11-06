@@ -432,7 +432,7 @@ que cada serviço lê e escreve estão em `packages/db/src/roles.ts` e no
 | papel | lê | escreve |
 | --- | --- | --- |
 | `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` (o `/metrics`) | `api`, `enrich`, `ops` |
-| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api` e `core.asset`; é dono do `demo_auth` |
+| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`, `core.participant` e `core.competition` (escudo enviado em Ajustes → Escudos); é dono do `demo_auth` |
 | `galaxie_ingestor` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset` e `api.tenant_channel_list` |
 | `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response` e, em `ops`, só `change_feed`, `job_run`, `sync_cursor` e as tabelas da cota |
