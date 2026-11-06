@@ -21,6 +21,7 @@ import type {
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { BRACKET_IDS, createBracketFixture } from './fixtures-bracket.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -42,6 +43,8 @@ export const PREVIEW_IDS = {
   eqAthlete: OLYMPIC_IDS.eqAthlete,
   eqHorse: OLYMPIC_IDS.eqHorse,
   games: OLYMPIC_IDS.games,
+  /** Chaveamento: a copa de exemplo (#829). */
+  cupCompetition: BRACKET_IDS.competition,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -842,6 +845,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
         ? json(found)
         : json({ type: 'about:blank', title: 'Evento não encontrado', status: 404, code: 'NOT_FOUND' }, 404);
     }
+    if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/bracket$/.test(path))
+      return json(createBracketFixture(now, options.sport));
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);
   };

@@ -30,6 +30,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'bracket',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -743,6 +744,70 @@ export interface GsStandings {
   updated_at: string | null;
 }
 
+/** Chaveamento do mata-mata (`/v1/competitions/{id}/seasons/{season}/bracket`, #829). */
+export interface GsBracketPair {
+  home: number | null;
+  away: number | null;
+}
+
+export interface GsBracketTeam {
+  id: string;
+  name: string;
+  short_name: string | null;
+  logo: string | null;
+}
+
+export interface GsBracketTie {
+  id: string;
+  /** Mandante da ida (ou do jogo 1); null enquanto não definido. */
+  home: GsBracketTeam | null;
+  away: GsBracketTeam | null;
+  format: 'single' | 'two_legs' | 'series';
+  legs: {
+    event_id: string;
+    leg: number;
+    starts_at: string;
+    status: GsEventStatus;
+    home_id: string | null;
+    score: GsBracketPair;
+    penalty: GsBracketPair | null;
+  }[];
+  aggregate: GsBracketPair | null;
+  wins: GsBracketPair | null;
+  penalties: GsBracketPair | null;
+  winner_id: string | null;
+  status: 'scheduled' | 'in_progress' | 'decided';
+}
+
+export interface GsBracketRound {
+  stage_id: string;
+  kind: string;
+  name: string;
+  ties: GsBracketTie[];
+}
+
+export interface GsBracket {
+  competition_id: string;
+  sport: string;
+  season: { year: number; label: string };
+  rounds: GsBracketRound[];
+  updated_at: string | null;
+}
+
+/** Fases que o widget de chaveamento oferece como "a partir de", na ordem do torneio. */
+export const BRACKET_PHASES = [
+  'playoff',
+  'knockout_round',
+  'round_of_128',
+  'round_of_64',
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'third_place',
+  'final',
+] as const;
+
 /** Cor padrão de cada faixa; `null` = a cor primária do tema. */
 export const DEFAULT_ZONE_COLORS: Record<StandingsZoneTone, string | null> = {
   direct: null,
@@ -1330,6 +1395,22 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-bracket{display:flex;align-items:stretch;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 calc(var(--gs-pad)*-1);padding:0 var(--gs-pad) 4px;-webkit-overflow-scrolling:touch}
+.gs-bracket-round{display:flex;flex-direction:column;gap:6px;flex:0 0 min(210px,82%);min-width:0;scroll-snap-align:start}
+.gs-bracket-ties{display:flex;flex-direction:column;justify-content:space-around;gap:8px;flex:1;margin:0;padding:0;list-style:none}
+.gs-tie{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.6);background:var(--gs-background);min-width:0}
+.gs-tie[data-highlight]{border-color:color-mix(in srgb,var(--gs-primary) 60%,transparent);box-shadow:inset 3px 0 0 var(--gs-primary)}
+.gs-tie[data-live]{border-color:color-mix(in srgb,var(--gs-live) 55%,transparent)}
+.gs-tie-line{display:flex;align-items:center;gap:6px;min-width:0;font-size:.88em;font-weight:600}
+.gs-tie-line[data-lost]{color:var(--gs-muted-foreground);font-weight:500}
+.gs-tie-line[data-won]{font-weight:800}
+.gs-tie-score{display:flex;align-items:baseline;gap:6px;margin-left:auto;flex:none;font-variant-numeric:tabular-nums}
+.gs-tie-score small{font-size:.78em;font-weight:500;color:var(--gs-muted-foreground)}
+.gs-tie-score strong{min-width:1.2em;text-align:right}
+.gs-tie-meta{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:.72em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
+.gs-bracket-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.gs-seg[data-gs-rounds]{max-width:100%;overflow-x:auto;border-radius:calc(var(--gs-radius)*.75)}
+.gs-seg[data-gs-rounds] button{white-space:nowrap}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1592,6 +1673,25 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Chaveamento do mata-mata. */
+  bracket: {
+    title: string;
+    empty: string;
+    /** Rótulo da escolha de fase no modo fase por fase. */
+    rounds: string;
+    aggregate: string;
+    /** "Ida", "Volta" (ida e volta) e "Jogo {n}" (série). */
+    firstLeg: string;
+    secondLeg: string;
+    game: string;
+    /** Vitórias na série ("Série 3–1"). */
+    series: string;
+    /** Abreviação dos pênaltis, depois do número ("(4 pên.)"). */
+    penaltiesShort: string;
+    tbd: string;
+    /** Quem avançou (leitor de tela). */
+    advanced: string;
   };
 }
 
@@ -1883,6 +1983,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    bracket: {
+      title: 'Chaveamento',
+      empty: 'Sem mata-mata nesta temporada (ainda).',
+      rounds: 'Fases',
+      aggregate: 'Agregado',
+      firstLeg: 'Ida',
+      secondLeg: 'Volta',
+      game: 'Jogo {n}',
+      series: 'Série',
+      penaltiesShort: 'pên.',
+      tbd: 'A definir',
+      advanced: 'classificado',
+    },
   },
   es: {
     status: {
@@ -2171,6 +2284,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    bracket: {
+      title: 'Llaves',
+      empty: 'Sin eliminatorias en esta temporada (todavía).',
+      rounds: 'Fases',
+      aggregate: 'Global',
+      firstLeg: 'Ida',
+      secondLeg: 'Vuelta',
+      game: 'Partido {n}',
+      series: 'Serie',
+      penaltiesShort: 'pen.',
+      tbd: 'Por definir',
+      advanced: 'clasificado',
+    },
   },
   en: {
     status: {
@@ -2445,6 +2571,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    bracket: {
+      title: 'Bracket',
+      empty: 'No knockout rounds this season (yet).',
+      rounds: 'Rounds',
+      aggregate: 'Aggregate',
+      firstLeg: '1st leg',
+      secondLeg: '2nd leg',
+      game: 'Game {n}',
+      series: 'Series',
+      penaltiesShort: 'pens',
+      tbd: 'TBD',
+      advanced: 'advanced',
     },
   },
 };

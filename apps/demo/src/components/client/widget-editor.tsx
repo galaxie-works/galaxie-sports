@@ -22,6 +22,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  Bracket,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'bracket':
+        return <Bracket {...WIDGET_CATALOG.bracket.exampleProps} {...o} />;
     }
   }
   switch (kind) {
@@ -279,6 +282,8 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'bracket':
+      return <Bracket season="current" {...o} competitionId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

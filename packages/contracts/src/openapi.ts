@@ -22,6 +22,7 @@ import { accountPaths } from './account.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
+import { Bracket, BracketParams } from './bracket.js';
 import {
   Event,
   EventLineups,
@@ -263,6 +264,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Catálogo',
           Standings,
           { path: StandingsParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/competitions/{id}/seasons/{season}/bracket': {
+        get: getOp(
+          'Chaveamento do mata-mata da temporada',
+          'Catálogo',
+          Bracket,
+          { path: BracketParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
       },

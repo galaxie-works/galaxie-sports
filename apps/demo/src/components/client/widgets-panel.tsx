@@ -13,6 +13,7 @@ import {
   ListChecks,
   ListOrdered,
   Medal,
+  Network,
   Plus,
   Radio,
   Sparkles,
@@ -87,6 +88,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  bracket: Network,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

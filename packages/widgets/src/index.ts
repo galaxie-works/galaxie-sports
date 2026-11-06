@@ -34,6 +34,8 @@ export {
   type GsHeadToHead,
   type GsRelated,
   type GsStandings,
+  type GsBracket,
+  BRACKET_PHASES,
   type GsWhereToWatch,
   type LiveListDay,
   type LiveListField,
@@ -90,6 +92,7 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { Bracket, type BracketPhase, type BracketProps } from './widgets/bracket.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

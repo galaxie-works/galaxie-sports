@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { BracketProps } from './widgets/bracket.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  bracket: BracketProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'Bracket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,32 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  bracket: {
+    kind: 'bracket',
+    component: 'Bracket',
+    registryComponent: 'GalaxieBracket',
+    name: { 'pt-BR': 'Chaveamento do mata-mata', es: 'Llaves de eliminación', en: 'Knockout bracket' },
+    description: {
+      'pt-BR':
+        'As chaves do mata-mata (oitavas, quartas, semifinal e final) com placares, ida e volta, agregado e pênaltis. Nos playoffs de basquete, beisebol, hóquei e vôlei, a série com as vitórias.',
+      es: 'Las llaves de eliminación (octavos, cuartos, semifinal y final) con marcadores, ida y vuelta, global y penales. En los playoffs de básquet, béisbol, hockey y vóley, la serie con las victorias.',
+      en: 'The knockout bracket (round of 16, quarter-finals, semi-finals and final) with scores, two legs, aggregate and penalties. In basketball, baseball, hockey and volleyball playoffs, each series with its wins.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: [
+      'season',
+      'from',
+      'showAggregate',
+      'showLegs',
+      'showDates',
+      'showThirdPlace',
+      'layout',
+      'highlightTeamId',
+    ],
+    exampleProps: { competitionId: PREVIEW_IDS.cupCompetition, season: 'current' },
+    polling: true,
+    sports: TEAM_SPORTS,
   },
 };
 
