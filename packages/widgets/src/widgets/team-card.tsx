@@ -57,10 +57,8 @@ export function TeamCard({
   const query = useGalaxieQuery<GsTeamOverview>(
     teamId ? `/v1/teams/${encodeURIComponent(teamId)}/overview` : null,
     {},
-    (o) =>
-      o.live_event || (o.next_event && LIVE_STATUSES.has(o.next_event.status))
-        ? LIVE_REFRESH_MS
-        : CARD_REFRESH_MS,
+    // 30 s só com jogo começando ou em andamento e com um bloco que muda com ele (próximo jogo ou forma)
+    (o) => ((showNext || showForm) && hasActiveMatch(o) ? LIVE_REFRESH_MS : CARD_REFRESH_MS),
   );
 
   const o = query.data;
@@ -158,6 +156,12 @@ export function TeamCard({
       ) : null}
     </WidgetFrame>
   );
+}
+
+/** Jogo ao vivo, ou o próximo já começando (`starting` vem em `next_event`) ou em andamento. */
+export function hasActiveMatch(o: GsTeamOverview): boolean {
+  const next = o.next_event;
+  return !!o.live_event || (!!next && (LIVE_STATUSES.has(next.status) || next.status === 'starting'));
 }
 
 /**

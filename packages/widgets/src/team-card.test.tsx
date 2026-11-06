@@ -8,7 +8,7 @@ import { GalaxieWidgetProvider } from './core/react.js';
 import { EMBED_TAG, defineGalaxieWidgetElement, type EmbedConfig } from './embed/element.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { parseWidgetOptions, widgetOptionsFor } from './options.js';
-import { TeamCard, pickCompetitions } from './widgets/team-card.js';
+import { TeamCard, hasActiveMatch, pickCompetitions } from './widgets/team-card.js';
 
 afterEach(() => {
   cleanup();
@@ -124,6 +124,25 @@ describe('TeamCard', () => {
       await vi.advanceTimersByTimeAsync(30_000);
     });
     await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+  });
+
+  it('sem próximo jogo nem forma, não faz polling de 30 s durante o jogo', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchImpl } = setup(<TeamCard teamId={PREVIEW_IDS.team} showNext={false} showForm={false} />);
+    await screen.findByRole('heading', { name: 'Clube Aurora' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('jogo começando conta como ativo (atualização rápida)', () => {
+    const base = { standings: [], form: [], live_event: null };
+    const next = (status: string) => ({ ...base, next_event: { status } as never });
+    expect(hasActiveMatch(next('starting'))).toBe(true);
+    expect(hasActiveMatch(next('live'))).toBe(true);
+    expect(hasActiveMatch(next('scheduled'))).toBe(false);
+    expect(hasActiveMatch({ ...base, next_event: null })).toBe(false);
   });
 
   it.each([
