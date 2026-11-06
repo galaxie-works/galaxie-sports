@@ -1,6 +1,7 @@
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '@galaxie/contracts';
 import { competitionName } from '@galaxie/geo';
 import { fallbackChain } from '@galaxie/knowledge';
+import { zoneKey } from './time.js';
 
 export { fallbackChain };
 /**
@@ -94,11 +95,13 @@ export function pickList(value: unknown, locale: string): string[] {
   return [];
 }
 
-/** Instante em ISO 8601 com o offset do fuso pedido (UTC → sufixo Z). */
-export function formatInstant(date: Date, tz = 'UTC'): string {
-  if (tz === 'UTC' || tz === 'Etc/UTC') return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', {
+// um formatador por fuso: criar um por data serializada custa tempo e memória fora do heap do V8
+const instantFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function instantFormatter(tz: string): Intl.DateTimeFormat {
+  let f = instantFormatters.get(zoneKey(tz));
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       hourCycle: 'h23',
       year: 'numeric',
@@ -108,7 +111,17 @@ export function formatInstant(date: Date, tz = 'UTC'): string {
       minute: '2-digit',
       second: '2-digit',
       timeZoneName: 'longOffset',
-    })
+    });
+    instantFormatters.set(zoneKey(tz), f);
+  }
+  return f;
+}
+
+/** Instante em ISO 8601 com o offset do fuso pedido (UTC → sufixo Z). */
+export function formatInstant(date: Date, tz = 'UTC'): string {
+  if (tz === 'UTC' || tz === 'Etc/UTC') return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const parts = Object.fromEntries(
+    instantFormatter(tz)
       .formatToParts(date)
       .map((p) => [p.type, p.value]),
   );

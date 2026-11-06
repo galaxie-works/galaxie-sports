@@ -10,6 +10,7 @@ import { event } from '@galaxie/db';
 import { buildEvents, type BuildContext } from '../events/builder.js';
 import { applyRelevance, inMarket } from '../events/relevance.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
+import { zoneKey } from '../time.js';
 import { UUID_RE } from '../util.js';
 import { exploreWindow, involves, isUpcoming, selectWindowEvents, type WindowEvent } from './summary.js';
 
@@ -27,14 +28,19 @@ export const AGENDA_COMPETITIONS = 60;
 
 const offCatalog = new Set<string>(OFF_CATALOG_SPORTS);
 
+// um formatador por fuso: criar um `Intl.DateTimeFormat` por jogo custava ~0,3 ms e memória fora do heap do V8
+// (com 4,7 mil jogos na janela, a agenda passava dos 512 MB do contêiner e a API caía por OOM). Chave em
+// minúsculas (`zoneKey`): grafias do mesmo fuso dividem o formatador
+const dayFormatters = new Map<string, Intl.DateTimeFormat>();
+
 /** Dia civil do instante no fuso (`2026-10-25`). */
 export function dayKey(d: Date, tz: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d);
+  let f = dayFormatters.get(zoneKey(tz));
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    dayFormatters.set(zoneKey(tz), f);
+  }
+  return f.format(d);
 }
 
 /** Todos os dias civis que a janela toca no fuso, em ordem. */
@@ -82,7 +88,10 @@ export function agendaCounts(
   );
 
   const perDay = new Map<string, number>();
-  for (const e of matching) perDay.set(dayKey(e.startsAt, tz), (perDay.get(dayKey(e.startsAt, tz)) ?? 0) + 1);
+  for (const e of matching) {
+    const key = dayKey(e.startsAt, tz);
+    perDay.set(key, (perDay.get(key) ?? 0) + 1);
+  }
 
   const forSports = base.filter((e) => byCountry(filters)(e) && byCompetition(filters)(e));
   const sportCount = new Map<string, number>();

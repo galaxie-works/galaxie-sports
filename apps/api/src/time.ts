@@ -1,10 +1,20 @@
 /** Utilidades de fuso IANA para os filtros por dia civil (`?date=`, `?from=`, `?to=` com `?tz=`). */
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Chave dos caches de `Intl.DateTimeFormat` por fuso. O `tz` chega com a grafia do cliente e o Intl aceita o nome
+ * sem diferenciar maiúsculas: pela grafia, variações da mesma zona encheriam o cache de memória do ICU (que não
+ * volta ao esvaziar o mapa). Em minúsculas, o cache fica limitado aos nomes válidos (algumas centenas); um fuso
+ * inválido falha no construtor e não entra, e o `LocaleQuery` recusa offsets fixos (`+01:00`), que o Intl aceita
+ * em milhares de grafias.
+ */
+export const zoneKey = (tz: string): string => tz.toLowerCase();
+
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(tz: string): Intl.DateTimeFormat {
-  let f = formatters.get(tz);
+  let f = formatters.get(zoneKey(tz));
   if (!f) {
     f = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
@@ -16,7 +26,7 @@ function formatter(tz: string): Intl.DateTimeFormat {
       minute: '2-digit',
       second: '2-digit',
     });
-    formatters.set(tz, f);
+    formatters.set(zoneKey(tz), f);
   }
   return f;
 }
