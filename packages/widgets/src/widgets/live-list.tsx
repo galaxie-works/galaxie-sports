@@ -5,13 +5,20 @@ import {
   LIVE_LIST_LIMIT,
   LIVE_STATUSES,
   STARTED_STATUSES,
+  apiLocale,
+  eventLinkFor,
+  isEventLinkTemplate,
   isoDate,
+  localized,
   localTimeZone,
   sidesOf,
   type GsEvent,
   type GsEventList,
   type GsParticipant,
+  type LiveListDay,
+  type LiveListMode,
   type LiveListOptions,
+  type WidgetTexts,
 } from '../core/model.js';
 import {
   Crest,
@@ -28,14 +35,23 @@ import {
 export interface LiveListProps extends LiveListOptions {
   /** UUID ou slug da competição; sem ela, todas as competições do plano. */
   competitionId?: string | undefined;
+  /** UUID do time: só os jogos dele. */
+  teamId?: string | undefined;
   /** Esporte (ex.: football). */
   sport?: string | undefined;
-  /** Dia AAAA-MM-DD; `live` = só os jogos ao vivo agora. Padrão: hoje no fuso do navegador. */
+  /** Dia AAAA-MM-DD; `live` = só os jogos ao vivo agora. Tem precedência sobre `day`. */
   date?: string | undefined;
+  /** @deprecated use `mode="live"`. */
+  liveOnly?: boolean | undefined;
 }
 
 const LIVE_REFRESH_MS = 30_000;
 const DAY_REFRESH_MS = 120_000;
+const IN_PLAY = 'starting,live,break';
+const STATUS_BY_MODE: Partial<Record<LiveListMode, string>> = {
+  upcoming: 'scheduled,starting',
+  finished: 'finished',
+};
 
 interface Group {
   key: string;
@@ -44,38 +60,85 @@ interface Group {
   events: GsEvent[];
 }
 
+const relevanceOf = (e: GsEvent) => e.relevance?.score ?? e.importance ?? 0;
+
 /**
- * Jogos do dia (ou só os ao vivo), agrupados por campeonato ou numa lista só, com polling enquanto houver
- * bola rolando. Cada linha pode mostrar rodada, estádio e cidade; o logo do campeonato vai no cabeçalho do
- * grupo (ou na linha, sem agrupar).
+ * Jogos de um dia (ou só os ao vivo, os próximos ou os encerrados), agrupados por campeonato ou numa lista
+ * só, com polling enquanto houver bola rolando. Recortes: campeonato, time, país e relevância no país. Cada
+ * linha pode mostrar rodada, estádio, cidade, árbitro, selo de clássico, o que está em jogo e o link do
+ * jogo no site do cliente.
  */
 export function LiveList({
   competitionId,
+  teamId,
   sport,
   date,
   limit = LIVE_LIST_LIMIT.default,
   liveOnly: liveOnlyProp,
+  mode: modeProp,
+  day: dayProp = 'today',
+  order = 'time',
+  minRelevance,
+  country,
+  teamName = 'full',
+  eventLink,
+  eventLinkNewTab = false,
   groupByCompetition = true,
   autoRefresh = true,
   showCompetitionLogo = LIVE_LIST_FIELD_DEFAULTS.showCompetitionLogo,
   showRound = LIVE_LIST_FIELD_DEFAULTS.showRound,
   showVenue = LIVE_LIST_FIELD_DEFAULTS.showVenue,
   showCity = LIVE_LIST_FIELD_DEFAULTS.showCity,
+  showDerby = LIVE_LIST_FIELD_DEFAULTS.showDerby,
+  showStakes = LIVE_LIST_FIELD_DEFAULTS.showStakes,
+  showReferee = LIVE_LIST_FIELD_DEFAULTS.showReferee,
+  showPenalties = LIVE_LIST_FIELD_DEFAULTS.showPenalties,
 }: LiveListProps) {
-  const { texts, timeZone } = useGalaxieWidget();
+  const { texts, timeZone, locale, market } = useGalaxieWidget();
   const fmt = useFormatters();
-  const liveOnly = liveOnlyProp === true || date === 'live';
-  const today = isoDate(new Date(), timeZone ?? localTimeZone());
-  const day = liveOnly ? undefined : date && date !== 'live' ? date : today;
+  const mode: LiveListMode = date === 'live' || liveOnlyProp === true ? 'live' : (modeProp ?? 'all');
+  const liveOnly = mode === 'live';
+  const tz = timeZone ?? localTimeZone();
+  const today = isoDate(new Date(), tz);
+  const shift = dayProp === 'tomorrow' ? 1 : dayProp === 'yesterday' ? -1 : 0;
+  const day = liveOnly ? undefined : date && date !== 'live' ? date : addDays(today, shift);
+  // ao vivo com time: a rota /live corta antes de filtrar por time, então o recorte vai para /v1/events
+  // (jogos em andamento de ontem para hoje, para pegar quem virou a meia-noite)
+  const liveByTeam = liveOnly && Boolean(teamId);
   const max = Math.min(
     Math.max(Math.trunc(limit) || LIVE_LIST_LIMIT.default, LIVE_LIST_LIMIT.min),
     LIVE_LIST_LIMIT.max,
   );
+  const byRelevance = order === 'relevance';
+  const link = isEventLinkTemplate(eventLink) ? eventLink : null;
   const query = useGalaxieQuery<GsEventList>(
-    liveOnly ? '/v1/events/live' : '/v1/events',
-    liveOnly
-      ? { competition: competitionId, sport }
-      : { competition: competitionId, sport, date: day, limit: max },
+    liveOnly && !liveByTeam ? '/v1/events/live' : '/v1/events',
+    liveByTeam
+      ? {
+          competition: competitionId,
+          team: teamId,
+          sport,
+          country,
+          market,
+          from: addDays(today, -1),
+          to: today,
+          status: IN_PLAY,
+          limit: LIVE_LIST_LIMIT.max,
+        }
+      : liveOnly
+        ? { competition: competitionId, sport, country, market }
+        : {
+            competition: competitionId,
+            team: teamId,
+            sport,
+            country,
+            market,
+            date: day,
+            status: STATUS_BY_MODE[mode],
+            order: byRelevance ? 'relevance' : undefined,
+            relevance_min: minRelevance || undefined,
+            limit: max,
+          },
     (list) =>
       !autoRefresh
         ? null
@@ -85,7 +148,18 @@ export function LiveList({
             ? DAY_REFRESH_MS
             : null,
   );
-  const title = liveOnly ? texts.liveNow : texts.todayGames;
+  // rótulo de dia vizinho só quando é exatamente ontem ou amanhã; outra data tem título neutro
+  const title = titleFor(
+    texts,
+    mode,
+    day === undefined || day === today
+      ? 'today'
+      : day === addDays(today, 1)
+        ? 'tomorrow'
+        : day === addDays(today, -1)
+          ? 'yesterday'
+          : 'other',
+  );
 
   if (!query.data) {
     return (
@@ -100,7 +174,13 @@ export function LiveList({
     );
   }
 
-  const events = query.data.data.slice(0, max);
+  let events = query.data.data;
+  if (liveOnly) {
+    // a rota ao vivo não filtra por relevância: o recorte é feito aqui
+    if (minRelevance) events = events.filter((e) => relevanceOf(e) >= minRelevance);
+    if (byRelevance) events = [...events].sort((a, b) => relevanceOf(b) - relevanceOf(a));
+  }
+  events = events.slice(0, max);
   const single = Boolean(competitionId);
   const groups: Group[] = [];
   if (groupByCompetition) {
@@ -125,6 +205,20 @@ export function LiveList({
     const competition = single ? events[0]?.competition : null;
     groups.push({ key: 'all', name: competition?.name ?? '', logo: competition?.logo ?? null, events });
   }
+  const lang = apiLocale(locale, market);
+  const row = {
+    competitionLogo: showCompetitionLogo,
+    venue: showVenue,
+    city: showCity,
+    derby: showDerby,
+    stakes: showStakes,
+    referee: showReferee,
+    penalties: showPenalties,
+    shortNames: teamName === 'short',
+    link,
+    newTab: eventLinkNewTab,
+    lang,
+  };
 
   return (
     <WidgetFrame kind="live_list">
@@ -157,10 +251,9 @@ export function LiveList({
                     event={event}
                     time={fmt.time(event.starts_at)}
                     competition={!groupByCompetition && !single}
-                    competitionLogo={showCompetitionLogo}
                     round={showRound && !(header && sharedRound)}
-                    venue={showVenue}
-                    city={showCity}
+                    refereeLabel={texts.referee}
+                    {...row}
                   />
                 ))}
               </ul>
@@ -172,6 +265,34 @@ export function LiveList({
   );
 }
 
+/** Dia civil AAAA-MM-DD somado de `n` dias pelo calendário (sem passar por instantes: horário de verão). */
+function addDays(isoDay: string, n: number): string {
+  const [y, m, d] = isoDay.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+function titleFor(texts: WidgetTexts, mode: LiveListMode, day: LiveListDay | 'other'): string {
+  if (mode === 'live') return texts.liveNow;
+  if (day === 'other') return mode === 'finished' ? texts.results : texts.games;
+  if (mode === 'finished') return day === 'yesterday' ? texts.yesterdayResults : texts.todayResults;
+  if (day === 'tomorrow') return texts.tomorrowGames;
+  if (day === 'yesterday') return texts.yesterdayGames;
+  return mode === 'upcoming' ? texts.upcomingGames : texts.todayGames;
+}
+
+/** O que está em jogo para cada lado: a tag mais forte do torcedor ou, sem ela, o stake saliente. */
+function stakeTags(event: GsEvent, lang: string | undefined): { key: string; text: string }[] {
+  const out: { key: string; text: string }[] = [];
+  const stakes = event.stakes ?? [];
+  for (const p of event.participants) {
+    const tag = [...(p.fan_tags ?? [])].sort((a, b) => a.priority - b.priority)[0];
+    const stake = stakes.find((s) => s.salient && s.phase === 'pre_match' && s.team_id === p.id);
+    const text = tag ? localized(tag.text, lang) : stake ? localized(stake.text, lang) : '';
+    if (text) out.push({ key: p.id, text: `${p.short_name || p.name}: ${text}` });
+  }
+  return out;
+}
+
 function EventRow({
   event,
   time,
@@ -180,6 +301,15 @@ function EventRow({
   round,
   venue,
   city,
+  derby,
+  stakes,
+  referee,
+  refereeLabel,
+  penalties,
+  shortNames,
+  link,
+  newTab,
+  lang,
 }: {
   event: GsEvent;
   time: string;
@@ -189,6 +319,15 @@ function EventRow({
   round: boolean;
   venue: boolean;
   city: boolean;
+  derby: boolean;
+  stakes: boolean;
+  referee: boolean;
+  refereeLabel: string;
+  penalties: boolean;
+  shortNames: boolean;
+  link: string | null;
+  newTab: boolean;
+  lang: string | undefined;
 }) {
   const { home, away } = sidesOf(event);
   const started = STARTED_STATUSES.has(event.status);
@@ -198,15 +337,20 @@ function EventRow({
     .join(', ');
   const comp = competition ? event.competition : null;
   const stage = round ? event.stage?.name : null;
-  return (
-    <li className="gs-row" data-gs-event={event.id}>
+  const ref = referee ? event.referee?.name : null;
+  const derbyName = derby ? event.derby?.name : null;
+  const tags = stakes ? stakeTags(event, lang) : [];
+  const pen =
+    penalties && event.score.penalty && event.score.penalty.home !== null ? event.score.penalty : null;
+  const content = (
+    <>
       <div className="gs-row-status">
         {showBadge ? <StatusBadge event={event} /> : <time dateTime={event.starts_at}>{time}</time>}
       </div>
       <div className="gs-row-teams">
-        <Line p={home} goals={started ? event.score.home : null} />
-        <Line p={away} goals={started ? event.score.away : null} />
-        {comp || stage || place ? (
+        <Line p={home} short={shortNames} goals={started ? event.score.home : null} pen={pen?.home} />
+        <Line p={away} short={shortNames} goals={started ? event.score.away : null} pen={pen?.away} />
+        {comp || stage || place || ref ? (
           <div className="gs-row-meta">
             {comp ? (
               <span data-gs-meta="competition">
@@ -216,20 +360,70 @@ function EventRow({
             ) : null}
             {stage ? <span data-gs-meta="round">{stage}</span> : null}
             {place ? <span data-gs-meta="venue">{place}</span> : null}
+            {ref ? <span data-gs-meta="referee">{`${refereeLabel}: ${ref}`}</span> : null}
+          </div>
+        ) : null}
+        {derbyName || tags.length ? (
+          <div className="gs-row-tags">
+            {derbyName ? (
+              <span className="gs-row-tag" data-tag="derby">
+                {derbyName}
+              </span>
+            ) : null}
+            {tags.map((t) => (
+              <span key={t.key} className="gs-row-tag" data-tag="stake">
+                {t.text}
+              </span>
+            ))}
           </div>
         ) : null}
       </div>
+    </>
+  );
+  if (!link)
+    return (
+      <li className="gs-row" data-gs-event={event.id}>
+        {content}
+      </li>
+    );
+  return (
+    <li className="gs-row" data-gs-event={event.id} data-linked="">
+      <a
+        className="gs-row-link"
+        href={eventLinkFor(link, event.id)}
+        {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      >
+        {content}
+      </a>
     </li>
   );
 }
 
-function Line({ p, goals }: { p: GsParticipant | undefined; goals: number | null }) {
+function Line({
+  p,
+  short,
+  goals,
+  pen,
+}: {
+  p: GsParticipant | undefined;
+  short: boolean;
+  goals: number | null;
+  pen: number | null | undefined;
+}) {
   if (!p) return null;
+  const name = short ? p.short_name || p.name : p.name;
   return (
     <div className="gs-line" data-lost={p.winner === false || undefined}>
       <Crest src={p.logo} name={p.name} size="sm" />
-      <span className="gs-truncate">{p.name}</span>
-      {goals !== null ? <span className="gs-line-score">{goals}</span> : null}
+      <span className="gs-truncate" title={name === p.name ? undefined : p.name}>
+        {name}
+      </span>
+      {goals !== null ? (
+        <span className="gs-line-score">
+          {goals}
+          {pen !== null && pen !== undefined ? <span className="gs-line-pen">({pen})</span> : null}
+        </span>
+      ) : null}
     </div>
   );
 }

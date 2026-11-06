@@ -100,7 +100,7 @@ describe('widget salvo', () => {
       { ...base, kind: 'live_list', config: { ...base.config, defaults: {}, liveList } },
       opts,
     );
-    expect(games.ok && games.value.config.liveList).toEqual({ liveOnly: true, showVenue: true });
+    expect(games.ok && games.value.config.liveList).toEqual({ mode: 'live', showVenue: true });
     const card = parseWidgetInput({ ...base, config: { ...base.config, liveList } }, opts);
     expect(card.ok && 'liveList' in card.value.config).toBe(false);
   });

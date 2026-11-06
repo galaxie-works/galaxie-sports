@@ -55,7 +55,7 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
  */
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
-  live_list: ['competition'],
+  live_list: ['competition', 'team'],
   standings: ['competition'],
   where_to_watch: ['event'],
   ai_context: ['event'],

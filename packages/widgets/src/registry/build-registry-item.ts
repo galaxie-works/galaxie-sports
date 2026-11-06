@@ -122,7 +122,7 @@ function defaultProps(
     case 'match_card':
       return pick(['eventId']);
     case 'live_list':
-      return { ...pick(['competitionId', 'sport']), ...parseLiveListOptions(liveList) };
+      return { ...pick(['competitionId', 'teamId', 'sport']), ...parseLiveListOptions(liveList) };
     case 'standings':
       return { ...pick(['competitionId']), ...parseStandingsOptions(standings) };
     case 'where_to_watch':

@@ -119,7 +119,7 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
         />
       );
     case 'live_list':
-      return <LiveList {...config.liveList} competitionId={competitionId} sport={sport} />;
+      return <LiveList {...config.liveList} competitionId={competitionId} teamId={teamId} sport={sport} />;
     case 'ai_context':
       return <AiContext {...o} eventId={eventId ?? ''} />;
     case 'match_stakes':
