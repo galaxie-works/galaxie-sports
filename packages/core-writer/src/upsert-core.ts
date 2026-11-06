@@ -1109,6 +1109,35 @@ async function upsertPersonProfiles(
 
 // ─── eventos ─────────────────────────────────────────────────────────────────────────────────────
 
+/** Chave de casamento do estádio por nome: nome e cidade sem caixa nem espaços nas pontas. */
+export function venueNameKey(ref: { name: string; city: string | null }): string {
+  return `${ref.name.trim().toLowerCase()}|${(ref.city ?? '').trim().toLowerCase()}`;
+}
+
+/**
+ * Estádios já conhecidos pelo nome e cidade (o jogo da api-sports sem `venue.id`): só o casamento único vale —
+ * dois estádios com o mesmo nome na mesma cidade ficam sem ligação.
+ */
+export async function venuesByName(
+  tx: Tx | Database,
+  refs: readonly { name: string; city: string | null }[],
+): Promise<Map<string, string>> {
+  const names = [...new Set(refs.map((r) => r.name.trim().toLowerCase()))];
+  const out = new Map<string, string>();
+  if (!names.length) return out;
+  const rows = await tx
+    .select({ id: venue.id, name: venue.name, city: venue.city })
+    .from(venue)
+    .where(inArray(sql`lower(${venue.name})`, names));
+  const seen = new Map<string, string | null>();
+  for (const r of rows) {
+    const key = venueNameKey({ name: r.name, city: r.city });
+    seen.set(key, seen.has(key) ? null : r.id);
+  }
+  for (const [key, id] of seen) if (id) out.set(key, id);
+  return out;
+}
+
 interface EventRefs {
   competitionIds: Map<string, string>;
   seasonId: (ref: SeasonRef | null) => string | null;
@@ -1295,6 +1324,13 @@ async function upsertEvents(
     'event',
     events.map((e) => e.id),
   );
+  const venuesNamed = await venuesByName(
+    tx,
+    events.flatMap((e) => (!e.venueId && e.venueByName ? [e.venueByName] : [])),
+  );
+  const eventVenueId = (e: NormalizedEvent) =>
+    refs.venueId(e.venueId) ??
+    (e.venueByName ? (venuesNamed.get(venueNameKey(e.venueByName)) ?? null) : null);
 
   const unmapped = events.filter((e) => !mapped.has(e.id));
   const matched = await matchAcrossProviders(
@@ -1458,7 +1494,7 @@ async function upsertEvents(
       competitionId,
       seasonId,
       stageId: stageRef?.id ?? null,
-      venueId: refs.venueId(e.venueId),
+      venueId: eventVenueId(e),
       importance: keepPrev && prev ? prev.importance : scored.score,
       importanceBreakdown: keepPrev ? null : scored.breakdown,
       derbyId: derby?.derbyId ?? null,

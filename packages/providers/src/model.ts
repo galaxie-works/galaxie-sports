@@ -190,6 +190,11 @@ export interface NormalizedEvent {
   season: SeasonRef | null;
   stageLabel: string | null;
   venueId: string | null;
+  /**
+   * Estádio sem id do fornecedor (a api-sports manda `venue.id` nulo com nome e cidade em boa parte dos jogos):
+   * o core liga ao estádio já conhecido com o mesmo nome e cidade, quando há um só.
+   */
+  venueByName?: { name: string; city: string | null };
   /** Estado, placar, relógio e horários observados. */
   observation: ValidObservation;
   participants: NormalizedEventParticipant[];

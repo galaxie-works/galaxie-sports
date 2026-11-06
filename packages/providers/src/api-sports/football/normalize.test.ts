@@ -96,6 +96,25 @@ describe('normalizeFixtures — lista de uma temporada', () => {
     expect(batch.events.find((x) => x.id === '1180358')!.venueId).toBeNull();
     expect(batch.venues.map((v) => v.id).sort()).toEqual(['234', '244', '281']);
   });
+
+  it('jogo sem id de estádio mas com nome: leva nome e cidade para o core ligar (com id, não leva)', () => {
+    const [f] = fixtures('fixtures-league-71-2024.json');
+    const semId = {
+      ...f!,
+      fixture: {
+        ...f!.fixture,
+        id: 77,
+        venue: { id: null, name: 'Estadio Presidente Peron', city: 'Avellaneda' },
+      },
+    };
+    const b = normalizeFixtures([semId, f!], FETCHED);
+    expect(b.events[0]).toMatchObject({
+      venueId: null,
+      venueByName: { name: 'Estadio Presidente Peron', city: 'Avellaneda' },
+    });
+    expect(b.events[1]!.venueId).not.toBeNull();
+    expect(b.events[1]!.venueByName).toBeUndefined();
+  });
 });
 
 describe('normalizeFixtures — agenda do dia (todos os status)', () => {
