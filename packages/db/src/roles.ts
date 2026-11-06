@@ -62,10 +62,11 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     write: ['ops', 'semantic', 'enrich', 'api', 'core.asset', 'core.participant', 'core.competition'],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
-  // piso da poda do change feed (change-feed-prune)
+  // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
+  // ops-retention.ts): sem o DELETE o job inteiro falha em 42501
   ingestor: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian', 'api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
   agents: {

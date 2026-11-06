@@ -145,6 +145,23 @@ describe('papéis por serviço', () => {
     await denied(conn('demo')`insert into core.sport (slug, name) values ('x', '{}')`);
   });
 
+  it('ingestor: a retenção (data-retention) poda as entregas de webhook e não escreve no resto de api', async () => {
+    const ing = conn('ingestor');
+    // os mesmos DELETE de ops-retention.ts (entregues e DLQ); sem linhas basta, a permissão é checada antes
+    await ing`
+      delete from api.webhook_delivery where id in (
+        select w.id from api.webhook_delivery w
+         where w.status = 'delivered' and coalesce(w.delivered_at, w.created_at) < now() - interval '30 days'
+         limit 5000)`;
+    await ing`
+      delete from api.webhook_delivery where id in (
+        select w.id from api.webhook_delivery w
+         where w.status = 'dead' and coalesce(w.last_attempt_at, w.created_at) < now() - interval '90 days'
+         limit 5000)`;
+    await denied(ing`delete from api.webhook_endpoint`);
+    await denied(ing`delete from api.api_key`);
+  });
+
   it('agents e demo: grade (enrich.platform) dispara o change feed sem erro de permissão', async () => {
     for (const s of ['agents', 'demo'] as const) {
       const slug = `br-teste-${s}`;
