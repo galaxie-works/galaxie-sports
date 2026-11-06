@@ -6,7 +6,7 @@
  * sha256 da chave; o texto puro aparece uma única vez, no retorno de `createPublishableKey`.
  */
 import { createHash, randomBytes } from 'node:crypto';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { recordKeyEvent } from './key-events.js';
 import {
@@ -14,10 +14,12 @@ import {
   tenant,
   widget,
   WIDGET_KINDS,
+  widgetTheme,
   type ApiModule,
   type ApiPlan,
   type WidgetConfig,
   type WidgetKind,
+  type WidgetTheme,
 } from './schema/index.js';
 
 export type { WidgetConfig, WidgetDefaults, WidgetKind, WidgetTheme } from './schema/index.js';
@@ -79,6 +81,8 @@ export async function saveWidget(db: Database, input: SaveWidgetInput): Promise<
   const name = input.name.trim();
   if (!name) throw new Error('Nome do widget obrigatório.');
 
+  const config = await withBrandTheme(db, input.tenantId, input.config);
+
   if (!input.id) {
     const [created] = await db
       .insert(widget)
@@ -86,7 +90,7 @@ export async function saveWidget(db: Database, input: SaveWidgetInput): Promise<
         tenantId: input.tenantId,
         kind: input.kind,
         name,
-        config: input.config,
+        config,
         createdBy: input.createdBy,
       })
       .returning();
@@ -99,7 +103,7 @@ export async function saveWidget(db: Database, input: SaveWidgetInput): Promise<
         .set({
           kind: input.kind,
           name,
-          config: input.config,
+          config,
           version: sql`${widget.version} + 1`,
           updatedAt: new Date(),
         })
@@ -147,6 +151,236 @@ export async function archiveWidget(db: Database, tenantId: string, id: string):
         detail: { widgetId: id, reason: 'widget arquivado' },
       });
     return true;
+  });
+}
+
+// ─── temas da marca ─────────────────────────────────────────────────────────────────────────────
+
+export type WidgetBrandTheme = typeof widgetTheme.$inferSelect;
+
+/** Tema da marca com quantos widgets ativos o seguem. */
+export interface WidgetBrandThemeSummary extends WidgetBrandTheme {
+  widgetCount: number;
+}
+
+/** Máximo de temas da marca por tenant. */
+export const MAX_WIDGET_THEMES_PER_TENANT = 50;
+
+/** O widget aponta para um tema da marca que não existe (apagado ou de outro tenant). */
+export class BrandThemeNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Tema da marca ${id} não encontrado para este tenant.`);
+    this.name = 'BrandThemeNotFoundError';
+  }
+}
+
+/** Já existe um tema da marca com este nome no tenant. */
+export class BrandThemeNameTakenError extends Error {
+  constructor(name: string) {
+    super(`Já existe um tema da marca chamado "${name}".`);
+    this.name = 'BrandThemeNameTakenError';
+  }
+}
+
+/** O tenant chegou ao limite de temas da marca. */
+export class BrandThemeLimitError extends Error {
+  constructor() {
+    super(`Limite de ${MAX_WIDGET_THEMES_PER_TENANT} temas da marca por tenant.`);
+    this.name = 'BrandThemeLimitError';
+  }
+}
+
+/** Tema efetivo: o da marca com os ajustes do widget por cima (só as chaves conhecidas). */
+export function applyThemeOverrides(base: WidgetTheme, overrides?: Partial<WidgetTheme> | null): WidgetTheme {
+  const out = { ...base };
+  if (!overrides) return out;
+  for (const key of Object.keys(base) as (keyof WidgetTheme)[]) {
+    const v = overrides[key];
+    if (v !== undefined) (out as Record<string, unknown>)[key] = v;
+  }
+  return out;
+}
+
+/** Só os ajustes (chaves conhecidas) que diferem do tema da marca. */
+function overridesAgainst(base: WidgetTheme, overrides?: Partial<WidgetTheme> | null): Partial<WidgetTheme> {
+  const out: Partial<WidgetTheme> = {};
+  for (const key of Object.keys(base) as (keyof WidgetTheme)[]) {
+    const v = overrides?.[key];
+    if (v !== undefined && v !== base[key]) (out as Record<string, unknown>)[key] = v;
+  }
+  return out;
+}
+
+/**
+ * Com `brandThemeId`, recalcula o tema efetivo a partir do tema da marca (o banco manda, não o navegador)
+ * e guarda só os ajustes que diferem dele. Lança `BrandThemeNotFoundError` se o tema não é do tenant.
+ */
+async function withBrandTheme(db: Database, tenantId: string, config: WidgetConfig): Promise<WidgetConfig> {
+  const { brandThemeId, themeOverrides, ...rest } = config;
+  if (!brandThemeId) return rest;
+  const brand = await getWidgetTheme(db, tenantId, brandThemeId);
+  if (!brand) throw new BrandThemeNotFoundError(brandThemeId);
+  const overrides = overridesAgainst(brand.theme, themeOverrides);
+  return {
+    ...rest,
+    theme: applyThemeOverrides(brand.theme, overrides),
+    brandThemeId: brand.id,
+    ...(Object.keys(overrides).length ? { themeOverrides: overrides } : {}),
+  };
+}
+
+/** Temas da marca do tenant, por nome, com a contagem de widgets ativos que seguem cada um. */
+export async function listWidgetThemes(db: Database, tenantId: string): Promise<WidgetBrandThemeSummary[]> {
+  const themes = await db
+    .select()
+    .from(widgetTheme)
+    .where(eq(widgetTheme.tenantId, tenantId))
+    .orderBy(asc(widgetTheme.name));
+  if (!themes.length) return [];
+  const counts = await db
+    .select({ id: sql<string>`${widget.config}->>'brandThemeId'`, n: sql<number>`count(*)::int` })
+    .from(widget)
+    .where(
+      and(eq(widget.tenantId, tenantId), isNull(widget.archivedAt), sql`${widget.config} ? 'brandThemeId'`),
+    )
+    .groupBy(sql`${widget.config}->>'brandThemeId'`);
+  const byId = new Map(counts.map((c) => [c.id, c.n]));
+  return themes.map((t) => ({ ...t, widgetCount: byId.get(t.id) ?? 0 }));
+}
+
+/** Tema da marca do tenant, ou null. */
+export async function getWidgetTheme(
+  db: Database,
+  tenantId: string,
+  id: string,
+): Promise<WidgetBrandTheme | null> {
+  if (!UUID_RE.test(id)) return null;
+  const [row] = await db
+    .select()
+    .from(widgetTheme)
+    .where(and(eq(widgetTheme.id, id), eq(widgetTheme.tenantId, tenantId)))
+    .limit(1);
+  return row ?? null;
+}
+
+export interface SaveWidgetThemeInput {
+  tenantId: string;
+  /** Ausente = cria; presente = atualiza. */
+  id?: string;
+  name: string;
+  theme: WidgetTheme;
+  createdBy: string;
+}
+
+export interface SaveWidgetThemeResult {
+  theme: WidgetBrandTheme;
+  /** Widgets regravados com o tema novo (sobem uma versão). */
+  widgetsUpdated: number;
+}
+
+const isUniqueViolation = (err: unknown) =>
+  typeof err === 'object' &&
+  err !== null &&
+  ((err as { code?: string }).code === '23505' ||
+    (err as { cause?: { code?: string } }).cause?.code === '23505');
+
+/**
+ * Cria ou atualiza um tema da marca. Na atualização, na mesma transação, regrava o tema efetivo de todos
+ * os widgets do tenant ligados a ele (tema da marca + ajustes de cada widget) e sobe a versão deles: o
+ * embed, o registry e a prévia passam a desenhar o tema novo sem que a operadora salve widget por widget.
+ */
+export async function saveWidgetTheme(
+  db: Database,
+  input: SaveWidgetThemeInput,
+): Promise<SaveWidgetThemeResult> {
+  const name = input.name.trim().replace(/\s+/g, ' ');
+  if (!name) throw new Error('Nome do tema obrigatório.');
+  try {
+    return await db.transaction(async (tx) => {
+      if (!input.id) {
+        // trava o tenant antes de contar: dois "criar" ao mesmo tempo não passam do limite
+        await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, input.tenantId)).for('update');
+        const [{ n } = { n: 0 }] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(widgetTheme)
+          .where(eq(widgetTheme.tenantId, input.tenantId));
+        if (n >= MAX_WIDGET_THEMES_PER_TENANT) throw new BrandThemeLimitError();
+        const [created] = await tx
+          .insert(widgetTheme)
+          .values({ tenantId: input.tenantId, name, theme: input.theme, createdBy: input.createdBy })
+          .returning();
+        return { theme: created!, widgetsUpdated: 0 };
+      }
+      const [updated] = UUID_RE.test(input.id)
+        ? await tx
+            .update(widgetTheme)
+            .set({ name, theme: input.theme, updatedAt: new Date() })
+            .where(and(eq(widgetTheme.id, input.id), eq(widgetTheme.tenantId, input.tenantId)))
+            .returning()
+        : [];
+      if (!updated) throw new BrandThemeNotFoundError(input.id);
+      const linked = await tx
+        .select({ id: widget.id, config: widget.config })
+        .from(widget)
+        .where(
+          and(eq(widget.tenantId, input.tenantId), sql`${widget.config}->>'brandThemeId' = ${updated.id}`),
+        );
+      let widgetsUpdated = 0;
+      for (const w of linked) {
+        // ajuste que ficou igual ao tema novo deixa de ser ajuste (senão a chave para de seguir o tema)
+        const overrides = overridesAgainst(updated.theme, w.config.themeOverrides);
+        const theme = applyThemeOverrides(updated.theme, overrides);
+        const { themeOverrides: _old, ...rest } = w.config;
+        const config: WidgetConfig = {
+          ...rest,
+          theme,
+          ...(Object.keys(overrides).length ? { themeOverrides: overrides } : {}),
+        };
+        if (JSON.stringify(config) === JSON.stringify(w.config)) continue;
+        const visual = JSON.stringify(theme) !== JSON.stringify(w.config.theme);
+        await tx
+          .update(widget)
+          .set({
+            config,
+            // só o que muda o desenho sobe versão (o embed e o registry usam a versão)
+            ...(visual ? { version: sql`${widget.version} + 1`, updatedAt: new Date() } : {}),
+          })
+          .where(eq(widget.id, w.id));
+        if (visual) widgetsUpdated += 1;
+      }
+      return { theme: updated, widgetsUpdated };
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new BrandThemeNameTakenError(name);
+    throw err;
+  }
+}
+
+/**
+ * Apaga o tema da marca. Os widgets ligados a ele ficam com o visual que tinham (o tema efetivo já está
+ * gravado neles) e passam a ter tema próprio. Devolve quantos widgets foram desligados, ou null se o tema
+ * não existe no tenant.
+ */
+export async function deleteWidgetTheme(db: Database, tenantId: string, id: string): Promise<number | null> {
+  if (!UUID_RE.test(id)) return null;
+  return db.transaction(async (tx) => {
+    const [removed] = await tx
+      .delete(widgetTheme)
+      .where(and(eq(widgetTheme.id, id), eq(widgetTheme.tenantId, tenantId)))
+      .returning({ id: widgetTheme.id });
+    if (!removed) return null;
+    const linked = await tx
+      .select({ id: widget.id, config: widget.config })
+      .from(widget)
+      .where(and(eq(widget.tenantId, tenantId), sql`${widget.config}->>'brandThemeId' = ${id}`));
+    for (const w of linked) {
+      const { brandThemeId: _b, themeOverrides: _o, ...config } = w.config;
+      await tx
+        .update(widget)
+        .set({ config, version: sql`${widget.version} + 1`, updatedAt: new Date() })
+        .where(eq(widget.id, w.id));
+    }
+    return linked.length;
   });
 }
 

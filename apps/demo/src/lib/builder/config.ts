@@ -173,7 +173,41 @@ export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string 
 /** Ids da API: UUID; competições também aceitam slug. */
 const ENTITY_ID = /^[0-9a-z][0-9a-z-]{0,119}$/i;
 
-export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity' | 'entityRequired';
+export type WidgetInputError =
+  'kind' | 'name' | 'theme' | 'brandTheme' | 'locale' | 'market' | 'entity' | 'entityRequired';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Chaves do tema em que o widget difere do tema da marca (os ajustes só dele). */
+export function themeOverridesOf(theme: WidgetTheme, base: WidgetTheme): Partial<WidgetTheme> {
+  const out: Partial<WidgetTheme> = {};
+  for (const key of Object.keys(base) as (keyof WidgetTheme)[])
+    if (theme[key] !== base[key]) (out as Record<string, unknown>)[key] = theme[key];
+  return out;
+}
+
+/**
+ * Ajustes de um widget ligado a tema da marca: só chaves do tema, cada valor válido pelas regras de
+ * `parseTheme` (conferido sobre o tema do widget). Ausente = sem ajustes; null se algum é inválido.
+ */
+export function parseThemeOverrides(raw: unknown, theme: WidgetTheme): Partial<WidgetTheme> | null {
+  if (raw === undefined || raw === null) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Partial<WidgetTheme> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(key in theme)) return null;
+    const parsed = parseTheme({ ...theme, [key]: value });
+    if (!parsed) return null;
+    (out as Record<string, unknown>)[key] = parsed[key as keyof WidgetTheme];
+  }
+  return out;
+}
+
+/** Nome de um tema da marca: sem espaços sobrando, 1 a 80 caracteres; null se inválido. */
+export function parseBrandThemeName(raw: unknown): string | null {
+  const name = typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
+  return name && name.length <= NAME_MAX ? name : null;
+}
 
 export interface WidgetInput {
   kind: WidgetKind;
@@ -198,6 +232,13 @@ export function parseWidgetInput(
   const c = (r.config ?? {}) as Record<string, unknown>;
   const theme = parseTheme(c.theme);
   if (!theme) return { ok: false, error: 'theme' };
+  // tema da marca: o banco recalcula o tema a partir dele e guarda só o que este widget muda
+  const brandThemeId = c.brandThemeId ?? null;
+  if (brandThemeId !== null && (typeof brandThemeId !== 'string' || !UUID.test(brandThemeId)))
+    return { ok: false, error: 'brandTheme' };
+  // só os ajustes que a pessoa fez neste widget (com um tema velho no editor, o resto segue o tema novo)
+  const themeOverrides = brandThemeId ? parseThemeOverrides(c.themeOverrides, theme) : null;
+  if (brandThemeId && !themeOverrides) return { ok: false, error: 'theme' };
   if (!isWidgetLocale(c.locale)) return { ok: false, error: 'locale' };
   if (typeof c.market !== 'string' || !/^[A-Za-z]{2}$/.test(c.market)) return { ok: false, error: 'market' };
   const market = c.market.toUpperCase();
@@ -221,6 +262,7 @@ export function parseWidgetInput(
       name,
       config: {
         theme,
+        ...(brandThemeId ? { brandThemeId, themeOverrides: themeOverrides! } : {}),
         locale: c.locale,
         market,
         defaults,

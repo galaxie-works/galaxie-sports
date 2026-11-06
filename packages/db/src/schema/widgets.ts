@@ -44,7 +44,15 @@ export interface WidgetDefaults {
 
 /** Configuração salva do widget (`ops.widget.config`). */
 export interface WidgetConfig {
+  /**
+   * Tema efetivo do widget, o que o embed, o registry e a prévia desenham. Com `brandThemeId`, é o tema da
+   * marca com `themeOverrides` por cima, regravado a cada mudança no tema da marca (`saveWidgetTheme`).
+   */
   theme: WidgetTheme;
+  /** Tema da marca do tenant (`ops.widget_theme`) que este widget segue. Ausente = tema só do widget. */
+  brandThemeId?: string;
+  /** Ajustes só deste widget por cima do tema da marca (só as chaves que diferem). */
+  themeOverrides?: Partial<WidgetTheme>;
   /** Locale BCP 47 (`pt-BR`, `es-AR`...). */
   locale: string;
   /** País ISO2 do mercado (`BR`, `AR`...). */
@@ -89,6 +97,26 @@ export const widget = ops.table(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
   },
   (t) => [index('widget_tenant_idx').on(t.tenantId, t.archivedAt)],
+);
+
+/**
+ * Tema da marca: a identidade visual que a operadora cria uma vez no Builder e aplica em vários widgets
+ * (`config.brandThemeId`). Mudar o tema regrava o tema efetivo de todos os widgets ligados a ele.
+ */
+export const widgetTheme = ops.table(
+  'widget_theme',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    theme: jsonb('theme').$type<WidgetTheme>().notNull(),
+    createdBy: text('created_by'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex('widget_theme_tenant_name_uq').on(t.tenantId, t.name)],
 );
 
 /**

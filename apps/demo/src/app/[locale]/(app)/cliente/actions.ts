@@ -8,10 +8,23 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-import { ENTITY_TYPES, MAX_ORIGINS, NAME_MAX, parseOrigins, parseWidgetInput } from '@/lib/builder/config';
+import {
+  ENTITY_TYPES,
+  MAX_ORIGINS,
+  NAME_MAX,
+  parseBrandThemeName,
+  parseOrigins,
+  parseTheme,
+  parseWidgetInput,
+} from '@/lib/builder/config';
 import {
   archiveWidget,
+  BrandThemeLimitError,
+  BrandThemeNameTakenError,
+  BrandThemeNotFoundError,
   builderDb,
+  deleteWidgetTheme,
+  saveWidgetTheme,
   createPublishableKey,
   getWidget,
   normalizeAllowedOrigin,
@@ -21,7 +34,7 @@ import {
   saveWidget,
   type PublishableKeyEnv,
 } from '@/lib/builder/store';
-import type { Widget, WidgetKind } from '@/lib/builder/types';
+import type { BrandThemeItem, Widget, WidgetKind } from '@/lib/builder/types';
 import { readClientContext, TENANT_COOKIE } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
 import { COOKIE_MAX_AGE } from '@/lib/i18n/config';
@@ -163,7 +176,8 @@ export async function saveWidgetAction(input: {
     });
     revalidateClient();
     return { ok: true, widget };
-  } catch {
+  } catch (err) {
+    if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.widget.brandTheme };
     return { ok: false, error: t.errors.widgetNotFound };
   }
 }
@@ -176,4 +190,65 @@ export async function archiveWidgetAction(id: string): Promise<ClientActionResul
     return { ok: false, error: t.errors.widgetNotFound };
   revalidateClient();
   return { ok: true };
+}
+
+// ─── temas da marca ──────────────────────────────────────────────────────────────────────────────
+
+export interface SaveBrandThemeResult extends ClientActionResult {
+  theme?: BrandThemeItem;
+  /** Widgets que mudaram junto com o tema. */
+  widgetsUpdated?: number;
+}
+
+/** Cria (`id` null) ou atualiza um tema da marca; na atualização, os widgets ligados mudam juntos. */
+export async function saveBrandThemeAction(input: {
+  id: string | null;
+  name: unknown;
+  theme: unknown;
+}): Promise<SaveBrandThemeResult> {
+  const t = await texts();
+  const r = await tenantOrError();
+  if ('error' in r) return { ok: false, error: r.error };
+  const name = parseBrandThemeName(input.name);
+  if (!name) return { ok: false, error: t.errors.brandThemes.name };
+  const theme = parseTheme(input.theme);
+  if (!theme) return { ok: false, error: t.errors.widget.theme };
+  if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.brandThemes.notFound };
+  try {
+    const saved = await saveWidgetTheme(builderDb(), {
+      tenantId: r.tenant.id,
+      ...(input.id ? { id: input.id } : {}),
+      name,
+      theme,
+      createdBy: r.ctx.userId,
+    });
+    revalidateClient();
+    return {
+      ok: true,
+      theme: { id: saved.theme.id, name: saved.theme.name, theme: saved.theme.theme, widgetCount: 0 },
+      widgetsUpdated: saved.widgetsUpdated,
+    };
+  } catch (err) {
+    if (err instanceof BrandThemeNameTakenError)
+      return { ok: false, error: fill(t.errors.brandThemes.nameTaken, { name }) };
+    if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.brandThemes.notFound };
+    if (err instanceof BrandThemeLimitError) return { ok: false, error: t.errors.brandThemes.limit };
+    console.error('[cliente] falha ao salvar tema da marca', err);
+    return { ok: false, error: t.errors.generic };
+  }
+}
+
+export interface DeleteBrandThemeResult extends ClientActionResult {
+  /** Widgets que deixaram de seguir o tema (ficam com o visual que tinham). */
+  widgetsUnlinked?: number;
+}
+
+export async function deleteBrandThemeAction(id: string): Promise<DeleteBrandThemeResult> {
+  const t = await texts();
+  const r = await tenantOrError();
+  if ('error' in r) return { ok: false, error: r.error };
+  const unlinked = isUuid(id) ? await deleteWidgetTheme(builderDb(), r.tenant.id, id) : null;
+  if (unlinked === null) return { ok: false, error: t.errors.brandThemes.notFound };
+  revalidateClient();
+  return { ok: true, widgetsUnlinked: unlinked };
 }

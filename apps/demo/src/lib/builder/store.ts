@@ -7,6 +7,13 @@ import { createDb, type Database } from '@galaxie/db/client';
 
 export {
   archiveWidget,
+  BrandThemeLimitError,
+  BrandThemeNameTakenError,
+  BrandThemeNotFoundError,
+  deleteWidgetTheme,
+  getWidgetTheme,
+  listWidgetThemes,
+  saveWidgetTheme,
   createPublishableKey,
   getWidget,
   listPublishableKeys,

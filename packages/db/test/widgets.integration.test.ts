@@ -4,7 +4,13 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   archiveWidget,
+  BrandThemeNameTakenError,
+  BrandThemeNotFoundError,
   closeDb,
+  deleteWidgetTheme,
+  getWidgetTheme,
+  listWidgetThemes,
+  saveWidgetTheme,
   createDb,
   createPublishableKey,
   getWidget,
@@ -341,5 +347,109 @@ describe('chaves publicáveis', () => {
     expect(await verifyPublishableKey(db, created.key)).not.toBeNull();
     await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantB));
     expect(await verifyPublishableKey(db, created.key)).toBeNull();
+  });
+});
+
+describe('temas da marca', () => {
+  const brand = { ...config.theme, primary: '#e30613', fontFamily: 'Roboto, sans-serif', radius: 8 };
+
+  it('widget ligado ao tema segue o tema, guarda só os ajustes e muda junto quando o tema muda', async () => {
+    const { theme } = await saveWidgetTheme(db, {
+      tenantId: tenantA,
+      name: ' SKY+  claro ',
+      theme: brand,
+      createdBy: 'teste',
+    });
+    expect(theme.name).toBe('SKY+ claro');
+
+    // o tema efetivo vem do banco, não do navegador; ajuste igual ao tema não vira ajuste
+    const w = await saveWidget(db, {
+      tenantId: tenantA,
+      kind: 'standings',
+      name: 'Tabela com tema',
+      config: {
+        ...config,
+        theme: config.theme,
+        brandThemeId: theme.id,
+        themeOverrides: { radius: 0, primary: '#e30613' },
+      },
+      createdBy: 'teste',
+    });
+    expect(w.config.brandThemeId).toBe(theme.id);
+    expect(w.config.themeOverrides).toEqual({ radius: 0 });
+    expect(w.config.theme).toEqual({ ...brand, radius: 0 });
+
+    const solo = await saveWidget(db, {
+      tenantId: tenantA,
+      kind: 'match_card',
+      name: 'Sem tema',
+      config,
+      createdBy: 'teste',
+    });
+
+    expect((await listWidgetThemes(db, tenantA)).map((t) => [t.name, t.widgetCount])).toEqual([
+      ['SKY+ claro', 1],
+    ]);
+    expect(await listWidgetThemes(db, tenantB)).toEqual([]);
+
+    const updated = await saveWidgetTheme(db, {
+      tenantId: tenantA,
+      id: theme.id,
+      name: 'SKY+ claro',
+      theme: { ...brand, primary: '#0057b8', mode: 'dark' },
+      createdBy: 'teste',
+    });
+    expect(updated.widgetsUpdated).toBe(1);
+    const after = await getWidget(db, w.id);
+    expect(after?.version).toBe(2);
+    expect(after?.config.theme).toEqual({ ...brand, primary: '#0057b8', mode: 'dark', radius: 0 });
+    expect((await getWidget(db, solo.id))?.version).toBe(1);
+
+    // o tema passa a ter raio 0: o ajuste igual ao tema some e o raio volta a seguir o tema
+    await saveWidgetTheme(db, {
+      tenantId: tenantA,
+      id: theme.id,
+      name: 'SKY+ claro',
+      theme: { ...brand, primary: '#0057b8', mode: 'dark', radius: 0 },
+      createdBy: 'teste',
+    });
+    const normalized = await getWidget(db, w.id);
+    expect(normalized?.config.themeOverrides).toBeUndefined();
+    expect(normalized?.version).toBe(2);
+
+    // apagar o tema desliga o widget sem mudar o visual
+    expect(await deleteWidgetTheme(db, tenantB, theme.id)).toBeNull();
+    expect(await deleteWidgetTheme(db, tenantA, theme.id)).toBe(1);
+    const unlinked = await getWidget(db, w.id);
+    expect(unlinked?.config.brandThemeId).toBeUndefined();
+    expect(unlinked?.config.themeOverrides).toBeUndefined();
+    expect(unlinked?.config.theme).toEqual(after?.config.theme);
+    expect(await getWidgetTheme(db, tenantA, theme.id)).toBeNull();
+  });
+
+  it('nome repetido, tema de outro tenant e tema inexistente são recusados', async () => {
+    const { theme } = await saveWidgetTheme(db, {
+      tenantId: tenantA,
+      name: 'Único',
+      theme: brand,
+      createdBy: 'teste',
+    });
+    await expect(
+      saveWidgetTheme(db, { tenantId: tenantA, name: 'Único', theme: brand, createdBy: 'teste' }),
+    ).rejects.toBeInstanceOf(BrandThemeNameTakenError);
+    // o mesmo nome em outro tenant pode
+    await saveWidgetTheme(db, { tenantId: tenantB, name: 'Único', theme: brand, createdBy: 'teste' });
+    await expect(
+      saveWidget(db, {
+        tenantId: tenantB,
+        kind: 'match_card',
+        name: 'x',
+        config: { ...config, brandThemeId: theme.id },
+        createdBy: 'x',
+      }),
+    ).rejects.toBeInstanceOf(BrandThemeNotFoundError);
+    await expect(
+      saveWidgetTheme(db, { tenantId: tenantB, id: theme.id, name: 'x', theme: brand, createdBy: 'x' }),
+    ).rejects.toBeInstanceOf(BrandThemeNotFoundError);
   });
 });

@@ -12,8 +12,10 @@ import {
   installCommand,
   parseOrigins,
   parseRegistryParam,
+  parseBrandThemeName,
   parseTheme,
   parseWidgetInput,
+  themeOverridesOf,
   usageSnippet,
 } from './config';
 
@@ -35,6 +37,48 @@ describe('tema do widget', () => {
     expect(parseTheme({ ...DEFAULT_THEMES.dark, radius: 99 })).toBeNull();
     expect(parseTheme({ ...DEFAULT_THEMES.dark, fontFamily: 'Inter; } body { display: none' })).toBeNull();
     expect(parseTheme({ ...DEFAULT_THEMES.dark, mode: 'sepia' })).toBeNull();
+  });
+});
+
+describe('tema da marca', () => {
+  it('ajustes do widget são só as chaves que diferem do tema da marca', () => {
+    expect(themeOverridesOf(DEFAULT_THEMES.dark, DEFAULT_THEMES.dark)).toEqual({});
+    expect(
+      themeOverridesOf({ ...DEFAULT_THEMES.dark, radius: 0, primary: '#e30613' }, DEFAULT_THEMES.dark),
+    ).toEqual({ radius: 0, primary: '#e30613' });
+  });
+
+  it('nome do tema: espaços normalizados, 1 a 80 caracteres', () => {
+    expect(parseBrandThemeName('  SKY+   escuro ')).toBe('SKY+ escuro');
+    expect(parseBrandThemeName('   ')).toBeNull();
+    expect(parseBrandThemeName('x'.repeat(81))).toBeNull();
+    expect(parseBrandThemeName(42)).toBeNull();
+  });
+
+  it('widget ligado ao tema leva o id e só os ajustes válidos', () => {
+    const r = parseWidgetInput(
+      {
+        ...base,
+        config: { ...base.config, brandThemeId: ID, themeOverrides: { radius: 0, primary: '#E30613' } },
+      },
+      opts,
+    );
+    expect(r.ok && r.value.config).toMatchObject({
+      theme: DEFAULT_THEMES.dark,
+      brandThemeId: ID,
+      themeOverrides: { radius: 0, primary: '#e30613' },
+    });
+    for (const themeOverrides of [{ radius: 99 }, { logo: 'x' }, [1]])
+      expect(
+        parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: ID, themeOverrides } }, opts),
+      ).toEqual({ ok: false, error: 'theme' });
+    expect(parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: 'x' } }, opts)).toEqual({
+      ok: false,
+      error: 'brandTheme',
+    });
+    // sem tema da marca, nada de id nem ajustes
+    const solo = parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: null } }, opts);
+    expect(solo.ok && 'brandThemeId' in solo.value.config).toBe(false);
   });
 });
 
