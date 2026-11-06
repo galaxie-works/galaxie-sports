@@ -11,6 +11,11 @@ export type MediaFetchResult =
 
 export type MediaFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
+/** De onde o mirror tira os bytes de uma URL de mídia: a CDN (`MediaFetcher`) ou o pacote local (`LocalMediaSource`). */
+export interface MediaSource {
+  get(url: string): Promise<MediaFetchResult>;
+}
+
 export interface MediaFetcherOptions {
   /**
    * Padrão: `guardedFetch` — a URL vem do fornecedor e cada redirecionamento da CDN é seguido com o DNS
@@ -32,7 +37,7 @@ export interface MediaFetcherOptions {
  * 429 e 5xx repetem com backoff exponencial (respeitando Retry-After) e, no 429, pausam
  * TODOS os downloads em andamento — evita rajadas de 429 quando a CDN começa a limitar.
  */
-export class MediaFetcher {
+export class MediaFetcher implements MediaSource {
   private readonly fetchFn: MediaFetch;
   private readonly clock: Clock;
   private readonly maxRetries: number;
@@ -86,7 +91,16 @@ export class MediaFetcher {
       }
 
       if (response.ok) {
-        const body = new Uint8Array(await response.arrayBuffer());
+        let body: Uint8Array;
+        try {
+          body = new Uint8Array(await response.arrayBuffer());
+        } catch (err) {
+          // conexão caiu no meio do corpo: como erro de rede, tenta de novo
+          lastReason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+          rateLimited = false;
+          if (attempt <= this.maxRetries) await this.clock.sleep(this.backoff(attempt, null));
+          continue;
+        }
         return {
           status: 'ok',
           body,

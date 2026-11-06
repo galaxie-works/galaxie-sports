@@ -61,4 +61,21 @@ describe('MediaFetcher', () => {
     const res = await new MediaFetcher({ fetch, clock: new FakeClock() }).get(URL_A);
     expect(res).toMatchObject({ status: 'ok', attempts: 2 });
   });
+
+  it('conexão que cai no meio do corpo repete como erro de rede', async () => {
+    const png = fakePng(10, 10);
+    let calls = 0;
+    const fetch = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        const body = new ReadableStream<Uint8Array>({
+          pull: (c) => c.error(new TypeError('terminated')),
+        });
+        return new Response(body, { status: 200 });
+      }
+      return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } });
+    }) as typeof globalThis.fetch;
+    const res = await new MediaFetcher({ fetch, clock: new FakeClock() }).get(URL_A);
+    expect(res).toMatchObject({ status: 'ok', attempts: 2 });
+  });
 });

@@ -17,7 +17,7 @@ import {
 } from '@galaxie/core-writer';
 import type { AssetStore, LogoCleanup, MirrorAsset, MirrorCursor } from './asset-store.js';
 import { imageInfo, paletteFromPng } from '@galaxie/crests';
-import { MediaFetcher } from './media-fetcher.js';
+import { MediaFetcher, type MediaSource } from './media-fetcher.js';
 import type { ObjectStore } from './object-store.js';
 import { isPlaceholderPhoto } from './person-photos.js';
 
@@ -30,7 +30,8 @@ export async function loadMediaDenylist(path: string): Promise<MediaDenylist> {
 export interface AssetMirrorOptions {
   assets: AssetStore;
   objects: ObjectStore;
-  fetcher?: MediaFetcher;
+  /** Padrão: a CDN de mídia. Com `--origem-local`, o pacote baixado na máquina local (`LocalMediaSource`). */
+  fetcher?: MediaSource | undefined;
   denylist?: MediaDenylist;
   clock?: Clock;
   /** Downloads simultâneos. Padrão 3 — a CDN limita por segundo/minuto. */
@@ -49,6 +50,8 @@ export interface AssetMirrorOptions {
   placeholderLogos?: ReadonlySet<string>;
   /** Só a mídia sob este caminho da CDN (ex.: `/volley/`). */
   pathPrefix?: string | undefined;
+  /** Só estes assets (os do pacote local, `--origem-local`). */
+  ids?: readonly string[] | undefined;
   /**
    * Interrompe a execução depois de N assets seguidos que esgotaram as tentativas por 429 (ou que falharam
    * com erro inesperado, como storage ou banco fora do ar). Padrão 5.
@@ -176,6 +179,7 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     includeMissing: options.includeMissing,
     personPhotos: options.personPhotos,
     pathPrefix: options.pathPrefix,
+    ids: options.ids,
     after,
   });
   report.pending = queue.length;
