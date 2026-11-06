@@ -180,6 +180,21 @@ export function currentPhaseKey(
   return current ?? phases.find((p) => byPhase.has(p.key))?.key ?? null;
 }
 
+/**
+ * A tabela é da fase em andamento: a própria, ou uma fase paralela com as mesmas rodadas (Leagues Cup: as
+ * tabelas da MLS e da Liga MX correm juntas, e `currentPhaseKey` só guarda a última delas).
+ */
+export function isCurrentPhase(
+  rules: Pick<CompetitionRules, 'tables'>,
+  table: StandingsTableRule,
+  currentPhase: string | null,
+): boolean {
+  if (table.kind !== 'phase' || currentPhase === null) return false;
+  if (table.key === currentPhase) return true;
+  const current = rules.tables.find((t) => t.key === currentPhase);
+  return !!current?.rounds && !!table.rounds && current.rounds.source === table.rounds.source;
+}
+
 /** Prioridade da linha de um time para "a posição dele na competição" (menor = mais importante). */
 export function standingsGroupPriority(
   rules: Pick<CompetitionRules, 'tables'>,
@@ -188,7 +203,7 @@ export function standingsGroupPriority(
 ): number {
   const t = standingsTableOf(rules, group);
   if (!t) return 3;
-  if (t.kind === 'phase') return t.key === currentPhase ? 0 : 1;
+  if (t.kind === 'phase') return isCurrentPhase(rules, t, currentPhase) ? 0 : 1;
   if (t.kind === 'annual') return 2;
   if (t.kind === 'other') return 4;
   return 5;

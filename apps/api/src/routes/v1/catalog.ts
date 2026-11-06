@@ -58,6 +58,7 @@ import {
   defaultGroupLabel,
   autoGroupRank,
   currentPhaseKey,
+  isCurrentPhase,
   standingsGroupLabel,
   standingsTableOf,
 } from '@galaxie/rules';
@@ -369,7 +370,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
                 : defaultGroupLabel(r.st.group, locale),
               table: t?.kind ?? null,
               table_key: t?.key ?? null,
-              current: tables ? t?.kind === 'phase' && t.key === currentPhase : null,
+              current: tables ? !!t && isCurrentPhase(tables, t, currentPhase) : null,
               source: null,
               rows: [],
             };

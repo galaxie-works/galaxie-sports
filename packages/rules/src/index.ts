@@ -41,6 +41,7 @@ export {
   autoGroupLabel,
   autoGroupRank,
   currentPhaseKey,
+  isCurrentPhase,
   defaultGroupLabel,
   knockoutSeed,
   providerGroupLabel,
