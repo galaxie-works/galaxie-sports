@@ -79,13 +79,13 @@ describe('Sidelined', () => {
   });
 
   it('lista ainda não publicada: avisa em vez de dizer "nenhum desfalque"', async () => {
-    const fetchImpl = vi.fn(async () => json({ event_id: 'x', available: false, teams: [] }));
-    setup(<Sidelined eventId="x" />, { fetchImpl: fetchImpl as unknown as typeof fetch, locale: 'es' });
+    const fetchImpl = vi.fn<typeof fetch>(async () => json({ event_id: 'x', available: false, teams: [] }));
+    setup(<Sidelined eventId="x" />, { fetchImpl, locale: 'es' });
     expect(await screen.findByText('La lista de bajas todavía no salió.')).toBeTruthy();
   });
 
   it('time sem desfalques e sem entidade escolhida', async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
       json({
         team: { id: 't', name: 'Aurora', side: null, logo: null },
         as_of: '2026-11-06',
@@ -93,7 +93,7 @@ describe('Sidelined', () => {
         players: [],
       }),
     );
-    setup(<Sidelined teamId="t" />, { fetchImpl: fetchImpl as unknown as typeof fetch, locale: 'en' });
+    setup(<Sidelined teamId="t" />, { fetchImpl, locale: 'en' });
     expect(await screen.findByText('No absences reported.')).toBeTruthy();
     cleanup();
     setup(<Sidelined />);
