@@ -115,6 +115,25 @@ describe('Escalações', () => {
     expect(await screen.findByText('Atlético Serra x União Litoral')).toBeTruthy();
   });
 
+  it('um time divulgado: o visitante escolhido continua pendente, os dois mostram o que saiu', async () => {
+    const base = createPreviewFetch();
+    const onlyHome: typeof fetch = async (input, init) => {
+      const res = await base(input, init);
+      if (!String(input).includes('/lineups')) return res;
+      const body = await res.json();
+      body.lineups[1].start_xi = [];
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+    };
+    setup(<Lineups eventId={PREVIEW_IDS.liveEvent} team="away" />, 'pt-BR', onlyHome);
+    expect(await screen.findByText('Escalação ainda não divulgada.')).toBeTruthy();
+    expect(screen.queryByText('Rafael Lima')).toBeNull();
+    cleanup();
+    const { container } = setup(<Lineups eventId={PREVIEW_IDS.liveEvent} view="list" />, 'pt-BR', onlyHome);
+    await screen.findByText('Titulares');
+    expect(container.querySelectorAll('.gs-lu-team-head')).toHaveLength(1);
+    expect(screen.getByText('Rafael Lima')).toBeTruthy();
+  });
+
   it('textos em espanhol e inglês', async () => {
     setup(<Lineups eventId={PREVIEW_IDS.scheduledEvent} />, 'es');
     expect(await screen.findByText('Alineación aún no confirmada.')).toBeTruthy();

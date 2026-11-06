@@ -149,10 +149,11 @@ export function Lineups({
   const query = useGalaxieQuery<GsEventLineups>(
     eventId ? `/v1/events/${enc(eventId)}/lineups` : null,
     {},
-    (data) => (isAnnounced(data) ? null : PENDING_REFRESH_MS),
+    (data) => (isComplete(data, team) ? null : PENDING_REFRESH_MS),
   );
   const data = query.data;
-  const announced = data ? isAnnounced(data) : false;
+  const shown = data ? pickTeams(data, team) : [];
+  const announced = shown.length > 0;
   // antes da divulgação a resposta não traz os times: o jogo dá os nomes e o horário
   const event = useGalaxieQuery<GsEvent>(data && !announced ? `/v1/events/${enc(eventId)}` : null);
 
@@ -185,7 +186,6 @@ export function Lineups({
     );
   }
 
-  const shown = pickTeams(data.lineups, team);
   const pitch = view === 'pitch' && shown.every(hasGrid);
   return (
     <WidgetFrame kind="lineups">
@@ -220,18 +220,27 @@ export function Lineups({
   );
 }
 
-/** Divulgada = pelo menos um time com titulares. */
-function isAnnounced(data: GsEventLineups): boolean {
-  return data.available && data.lineups.some((l) => l.start_xi.length > 0);
+type TeamChoice = 'both' | 'home' | 'away';
+
+/** A escalação de um lado: pelo `side` da API; sem lado conhecido, a ordem (mandante primeiro). */
+function sideLineup(lineups: GsTeamLineup[], side: 'home' | 'away'): GsTeamLineup | undefined {
+  return lineups.find((l) => l.team.side === side) ?? lineups[side === 'home' ? 0 : 1];
 }
 
-/** Os dois times (mandante primeiro) ou só um lado; sem lado conhecido, a ordem da API. */
-function pickTeams(lineups: GsTeamLineup[], team: 'both' | 'home' | 'away'): GsTeamLineup[] {
-  const withXi = lineups.filter((l) => l.start_xi.length > 0);
-  if (team === 'both') return withXi;
-  const index = team === 'home' ? 0 : 1;
-  const bySide = withXi.find((l) => l.team.side === team) ?? lineups[index];
-  return bySide && bySide.start_xi.length ? [bySide] : withXi.slice(0, 1);
+/**
+ * Times já divulgados entre os pedidos: os dois (o que já saiu aparece enquanto o outro não sai) ou só o
+ * lado escolhido, nunca o outro no lugar dele.
+ */
+function pickTeams(data: GsEventLineups, team: TeamChoice): GsTeamLineup[] {
+  if (!data.available) return [];
+  const picked = team === 'both' ? data.lineups : [sideLineup(data.lineups, team)];
+  return picked.filter((l): l is GsTeamLineup => !!l && l.start_xi.length > 0);
+}
+
+/** Todos os times pedidos já divulgados: aí para de consultar. */
+function isComplete(data: GsEventLineups, team: TeamChoice): boolean {
+  const shown = pickTeams(data, team);
+  return team === 'both' ? shown.length >= 2 : shown.length === 1;
 }
 
 const GRID_RE = /^(\d+):(\d+)$/;
