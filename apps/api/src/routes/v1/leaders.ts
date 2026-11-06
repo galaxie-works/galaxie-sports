@@ -75,9 +75,6 @@ function valueSql(category: LeaderCategory) {
   return sql`${sum(personSeasonStat.yellowCards)} + ${sum(personSeasonStat.redCards)}`;
 }
 
-/** Linhas lidas a mais que o `limit`, para os desempates por jogos e minutos ficarem certos no corte. */
-const SLACK = 20;
-
 /** Artilharia e líderes por campeonato e temporada (#828), a partir de `core.person_season_stat`. */
 export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/v1/competitions/:id/seasons/:season/leaders', { config: MODULE }, async (request, reply) => {
@@ -132,8 +129,15 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(eq(personSeasonStat.seasonId, s.id))
           .groupBy(personSeasonStat.personId)
           .having(sql`${value} > 0`)
-          .orderBy(sql`${value} desc`)
-          .limit(query.limit + SLACK);
+          // a mesma ordem de `rankLeaders`, com todos os desempates, antes do corte
+          .orderBy(
+            sql`${value} desc`,
+            ...(query.category === 'cards' ? [sql`coalesce(sum(${personSeasonStat.redCards}), 0) desc`] : []),
+            sql`coalesce(sum(${personSeasonStat.appearances}), 0) asc`,
+            sql`coalesce(sum(${personSeasonStat.minutes}), 0) asc`,
+            sql`${personSeasonStat.personId}::text asc`,
+          )
+          .limit(query.limit);
 
         const ranked = rankLeaders(totals, query.category, query.limit);
         const personIds = ranked.map((r) => r.personId);
