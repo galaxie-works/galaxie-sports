@@ -39,8 +39,9 @@ export async function StandingsTable({
   const byPct = runs || (sport != null && PCT_SPORTS.has(sport));
   const rugby = sport === 'rugby';
   const afl = sport === 'afl';
-  // hóquei: V · VP · DP · D quando o fornecedor separa a prorrogação; empate só em amistoso e torneio curto
-  const ot = sport === 'hockey' ? hockeySplit(rows) : null;
+  // hóquei: V · VP · DP · D quando o fornecedor separa a prorrogação; empate só em amistoso e torneio curto.
+  // Futebol com pênaltis valendo ponto (Leagues Cup, tabela calculada): a mesma divisão
+  const ot = sport === 'hockey' || sport === 'football' ? hockeySplit(rows) : null;
   const t = sets
     ? { ...standings, ...standings.sets }
     : byPoints
@@ -56,7 +57,8 @@ export async function StandingsTable({
               : ot
                 ? { ...standings, ...standings.hockey }
                 : standings;
-  const noDraws = sets || byPoints || runs || (sport === 'hockey' && rows.every((r) => r.drawn === 0));
+  const noDraws =
+    sets || byPoints || runs || ((sport === 'hockey' || ot != null) && rows.every((r) => r.drawn === 0));
   const bonus = rugby ? rugbyBonusPoints(rows) : null;
   const zones = [...new Map(rows.filter((r) => r.description).map((r) => [r.description!, r])).keys()];
 

@@ -281,6 +281,58 @@ describe('ajustes de pontos, grupos e zonas', () => {
   });
 });
 
+describe('empate decidido nos pênaltis (Leagues Cup)', () => {
+  const shootout = { win: 3, draw: 1, loss: 0, shootout: { win: 2, loss: 1 } };
+  const pens = (m: MatchResult, home: number, away: number): MatchResult => ({
+    ...m,
+    penalties: { home, away },
+  });
+
+  it('vale 2 para quem vence a disputa e 1 para quem perde; a forma marca W/L', () => {
+    const r = rulesFrom({ standings: { points: shootout, tie_breakers: ['wins', 'goal_difference'] } });
+    const t = computeTable({
+      rules: r,
+      matches: [pens(match('A', 'B', 1, 1), 4, 3), pens(match('B', 'C', 0, 0), 2, 4), match('C', 'A', 2, 0)],
+    });
+    expect(t.map((x) => [x.teamId, x.points, x.drawn, x.shootoutWon ?? 0, x.shootoutLost ?? 0])).toEqual([
+      ['C', 5, 1, 1, 0],
+      // empatados em 2: nenhuma vitória no tempo normal, o saldo separa (B 0, A -2)
+      ['B', 2, 2, 0, 2],
+      ['A', 2, 1, 1, 0],
+    ]);
+    expect(formString(t.find((x) => x.teamId === 'B')!)).toBe('LL');
+  });
+
+  it('o desempate por vitórias só conta as do tempo normal', () => {
+    const r = rulesFrom({ standings: { points: shootout, tie_breakers: ['wins', 'drawing_of_lots'] } });
+    // A: duas vitórias nos pênaltis (2 + 2); B: vitória no tempo normal e derrota nos pênaltis (3 + 1)
+    const t = computeTable({
+      rules: r,
+      matches: [
+        pens(match('A', 'C', 0, 0), 5, 4),
+        pens(match('A', 'D', 1, 1), 3, 1),
+        match('B', 'C', 1, 0),
+        pens(match('B', 'D', 2, 2), 2, 4),
+      ],
+    });
+    const a = t.find((x) => x.teamId === 'A')!;
+    const b = t.find((x) => x.teamId === 'B')!;
+    expect([a.points, b.points]).toEqual([4, 4]);
+    expect(order(t).slice(0, 2)).toEqual(['B', 'A']);
+    expect(b.decidedBy).toBeNull();
+  });
+
+  it('sem `shootout` no regulamento, a disputa de pênaltis não muda o empate', () => {
+    const r = rulesFrom({ standings: { points: { win: 3, draw: 1, loss: 0 } } });
+    const t = computeTable({ rules: r, matches: [pens(match('A', 'B', 1, 1), 4, 3)] });
+    expect(t.map((x) => [x.teamId, x.points, x.shootoutWon ?? 0])).toEqual([
+      ['A', 1, 0],
+      ['B', 1, 0],
+    ]);
+    expect(formString(t[0]!)).toBe('D');
+  });
+});
+
 describe('propriedades (ligas aleatórias)', () => {
   const SLUGS = [
     'brasileirao-serie-a',

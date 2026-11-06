@@ -7,6 +7,7 @@ import {
   asset,
   changeFeed,
   competition,
+  country,
   event,
   eventIncident,
   footballFixture,
@@ -15,6 +16,7 @@ import {
   providerMap,
   roster,
   sport,
+  venue,
   type Database,
 } from '@galaxie/db';
 import {
@@ -727,6 +729,107 @@ describe('cursor do espelho no Postgres (ops.sync_cursor)', () => {
 function mediaKind(url: string) {
   return url.includes('/flags/') ? ('flag' as const) : ('team_logo' as const);
 }
+
+describe('estádios, circuitos, bandeiras e lutadores com imagem genérica ou ausente', () => {
+  const GENERIC_CIRCUIT = 'https://media.api-sports.io/formula-1/circuits/880001.png';
+  const REAL_CIRCUIT = 'https://media.api-sports.io/formula-1/circuits/880002.png';
+  const GONE_FLAG = 'https://media.api-sports.io/flags/zz.svg';
+  const FIGHTER = 'https://media.api-sports.io/mma/fighters/880003.png';
+  const catalog: CatalogRows = {
+    countries: [{ code: 'ZZ', name: { en: 'Zedland' }, flagUrl: GONE_FLAG }],
+    competitions: [],
+    venues: [
+      {
+        providerId: '880001',
+        name: 'Circuito Genérico',
+        city: null,
+        countryName: 'Zedland',
+        capacity: null,
+        imageUrl: GENERIC_CIRCUIT,
+      },
+      {
+        providerId: '880002',
+        name: 'Circuito de Verdade',
+        city: null,
+        countryName: 'Zedland',
+        capacity: null,
+        imageUrl: REAL_CIRCUIT,
+      },
+    ],
+  };
+  const assetOf = async (url: string) => (await db.select().from(asset).where(eq(asset.sourceUrl, url)))[0]!;
+  const venueOf = async (name: string) => (await db.select().from(venue).where(eq(venue.name, name)))[0]!;
+  const flagOf = async () =>
+    (await db.select({ flag: country.flagAssetId }).from(country).where(eq(country.code, 'ZZ')))[0]!.flag;
+
+  it('a limpeza desliga estádio, país e lutador da imagem genérica ou ausente; o catálogo não religa', async () => {
+    await db
+      .insert(sport)
+      .values({ slug: 'football', name: { 'pt-BR': 'Futebol' } })
+      .onConflictDoNothing();
+    await upsertCatalog(db, 'football', catalog);
+    const store = new PgAssetStore(db);
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    // estado deixado pelo espelho antigo: estádio genérico no storage, bandeira 404 e lutador 404 ainda ligados
+    const markStored = (url: string, sha256: string) =>
+      db
+        .update(asset)
+        .set({ storageKey: `api-sports${new URL(url).pathname}`, sha256, bytes: 1, fetchedAt: new Date(0) })
+        .where(eq(asset.sourceUrl, url));
+    await markStored(GENERIC_CIRCUIT, notAvailable!);
+    await markStored(REAL_CIRCUIT, 'foto-de-verdade');
+    await store.markMissing((await assetOf(GONE_FLAG)).id, new Date(0));
+    const [fighterAsset] = await db.insert(asset).values({ kind: 'fighter', sourceUrl: FIGHTER }).returning();
+    await store.markMissing(fighterAsset!.id, new Date(0));
+    const [fighter] = await db
+      .insert(participant)
+      .values({ sport: 'football', kind: 'club', name: 'Lutador sem foto', logoAssetId: fighterAsset!.id })
+      .returning();
+    expect((await venueOf('Circuito Genérico')).imageAssetId).toBe((await assetOf(GENERIC_CIRCUIT)).id);
+    expect(await flagOf()).toBe((await assetOf(GONE_FLAG)).id);
+
+    const at = new Date('2026-11-06T12:00:00Z');
+    const preview = await store.cleanupImages(at, { dryRun: true });
+    expect(preview).toMatchObject({ placeholders: 1, venues: 1, countries: 1, participants: 1 });
+    expect((await assetOf(GENERIC_CIRCUIT)).storageKey).not.toBeNull();
+    expect((await venueOf('Circuito Genérico')).imageAssetId).not.toBeNull();
+
+    expect(await store.cleanupImages(at)).toEqual(preview);
+    expect(await assetOf(GENERIC_CIRCUIT)).toMatchObject({ storageKey: null, sha256: null, fetchedAt: at });
+    const generic = await venueOf('Circuito Genérico');
+    expect(generic.imageAssetId).toBeNull();
+    expect((await venueOf('Circuito de Verdade')).imageAssetId).toBe((await assetOf(REAL_CIRCUIT)).id);
+    expect(await flagOf()).toBeNull();
+    expect(
+      (await db.select().from(participant).where(eq(participant.id, fighter!.id)))[0]!.logoAssetId,
+    ).toBeNull();
+    // a API purga o estádio pelo change feed
+    const feed = await db
+      .select({ entityType: changeFeed.entityType })
+      .from(changeFeed)
+      .where(eq(changeFeed.entityId, generic.id));
+    expect(feed).toContainEqual({ entityType: 'venue' });
+    // e o país pela bandeira (country:ZZ)
+    const countryFeed = await db
+      .select({ entityType: changeFeed.entityType })
+      .from(changeFeed)
+      .where(eq(changeFeed.entityId, 'ZZ'));
+    expect(countryFeed).toContainEqual({ entityType: 'country' });
+    // idempotente
+    expect(await store.cleanupImages(at)).toMatchObject({
+      placeholders: 0,
+      venues: 0,
+      countries: 0,
+      participants: 0,
+    });
+
+    // o catálogo não religa as imagens ausentes, mas segue ligando as outras
+    await upsertCatalog(db, 'football', catalog);
+    expect((await venueOf('Circuito Genérico')).imageAssetId).toBeNull();
+    expect((await venueOf('Circuito de Verdade')).imageAssetId).toBe((await assetOf(REAL_CIRCUIT)).id);
+    expect(await flagOf()).toBeNull();
+  });
+});
 
 describe('logo 404 que volta no --retentar-ausentes', () => {
   // pasta só deste teste na CDN, para a fila (--caminho) não pegar os assets dos outros

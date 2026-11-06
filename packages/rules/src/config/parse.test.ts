@@ -161,3 +161,39 @@ describe('deepMerge', () => {
     expect(deepMerge(base, patch)).toEqual(expected);
   });
 });
+
+describe('Leagues Cup: pênaltis e tabelas pelo país', () => {
+  const table = (extra: Record<string, unknown>) => ({
+    key: 'mls',
+    name: { 'pt-BR': 'MLS' },
+    groups: '^mls$',
+    rounds: '^group stage',
+    ...extra,
+  });
+
+  it('lê os pontos da disputa de pênaltis', () => {
+    const r = parseCompetitionRules({
+      slug: 'x',
+      standings: { points: { win: 3, draw: 1, loss: 0, shootout: { win: 2, loss: 1 } } },
+    });
+    expect(r.standings.points).toEqual({ win: 3, draw: 1, loss: 0, shootout: { win: 2, loss: 1 } });
+    expect(() =>
+      parseCompetitionRules({ slug: 'x', standings: { points: { shootout: { win: 2 } } } }),
+    ).toThrow(RulesConfigError);
+  });
+
+  it('countries pede códigos de país e group_name', () => {
+    const r = parseCompetitionRules({
+      slug: 'x',
+      tables: [table({ group_name: 'MLS', countries: ['US', 'CA'] })],
+    });
+    expect(r.tables[0]?.countries).toEqual(['US', 'CA']);
+    expect(parseCompetitionRules({ slug: 'x', tables: [table({})] }).tables[0]?.countries).toBeNull();
+    expect(() => parseCompetitionRules({ slug: 'x', tables: [table({ countries: ['US'] })] })).toThrow(
+      /group_name/,
+    );
+    expect(() =>
+      parseCompetitionRules({ slug: 'x', tables: [table({ group_name: 'MLS', countries: ['usa'] })] }),
+    ).toThrow(RulesConfigError);
+  });
+});

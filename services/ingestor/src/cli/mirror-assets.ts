@@ -7,7 +7,7 @@
  *   pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw     # antes, registra as URLs de mídia do raw
  *                                                                     # novo desde a última descoberta (--raw-completo: todo)
  *   pnpm --filter @galaxie/ingestor assets:mirror --fotos             # só fotos de pessoas, escalados recentes primeiro
- *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza dos logos genéricos (com --plan: prévia)
+ *   pnpm --filter @galaxie/ingestor assets:mirror --so-limpeza        # só a limpeza das imagens genéricas e ausentes (com --plan: prévia)
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
  *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
@@ -40,7 +40,13 @@ import { eq, sql } from 'drizzle-orm';
 import { coachPhotoUrl, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
 import { closeDb, createDb, jobRun } from '@galaxie/db';
 import { loadMediaDenylist, runAssetMirror } from '../assets/asset-mirror.js';
-import { mediaPathPrefix, PgAssetStore, runRawDiscovery, type LogoCleanup } from '../assets/asset-store.js';
+import {
+  mediaPathPrefix,
+  PgAssetStore,
+  runRawDiscovery,
+  type ImageCleanup,
+  type LogoCleanup,
+} from '../assets/asset-store.js';
 import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { relinkRecoveredLogos } from '../assets/relink-logos.js';
 import { mirrorCursorStore } from '../assets/mirror-cursor.js';
@@ -114,6 +120,8 @@ try {
   if (values['so-limpeza']) {
     const cleanup = await assets.cleanupLogos(new Date(), { dryRun: values.plan });
     console.log(logoCleanupLine(cleanup, values.plan ? 'a limpar' : 'limpos'));
+    const images = await assets.cleanupImages(new Date(), { dryRun: values.plan });
+    console.log(imageCleanupLine(images, values.plan ? 'a limpar' : 'limpas'));
   } else if (values.plan) {
     const report = await runAssetMirror({
       assets,
@@ -138,6 +146,7 @@ try {
     console.log(`A baixar nesta execução: ${pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
     if (report.photoCleanup) console.log(`Fotos genéricas já gravadas a desligar: ${report.photoCleanup}`);
+    console.log(imageCleanupLine(report.imageCleanup, 'a limpar'));
     // como na execução: --fotos e --origem-local não espelham os logos de emissoras
     if (!personPhotos && !localDir) {
       const logos = await runBroadcasterLogoMirror({
@@ -223,7 +232,7 @@ try {
         .set({ status: error ? 'error' : 'ok', finishedAt: new Date(), stats, error })
         .where(eq(jobRun.id, run!.id));
       console.log(
-        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
+        `Espelhados: ${report.stored} (${(report.bytes / 1024).toFixed(0)} KiB) · 404: ${report.notFound} · bloqueados: ${report.denied} · fotos genéricas: ${report.placeholders} · logos genéricos: ${report.placeholderLogos} · outras imagens genéricas: ${report.placeholderImages} · desvinculados: ${report.unlinked} · falhas: ${report.failed}`,
       );
       console.log(logoCleanupLine(report.logoCleanup, 'limpos'));
       if (report.cursor)
@@ -236,6 +245,7 @@ try {
                 : ' · a próxima continua daqui'),
         );
       if (report.photoCleanup) console.log(`Fotos genéricas já gravadas desligadas: ${report.photoCleanup}`);
+      console.log(imageCleanupLine(report.imageCleanup, 'limpas'));
       if (relinked) {
         console.log(
           `Logos que voltaram: ${report.recoveredLogos.length} · times religados: ${relinked.participants} · competições religadas: ${relinked.competitions}`,
@@ -277,6 +287,14 @@ function newPhotosUnder(preview: PhotoRegistrationPreview | undefined, path: str
   return (
     (under(playerPhotoUrl('0')) ? preview.registeredByKind.player : 0) +
     (under(coachPhotoUrl('0')) ? preview.registeredByKind.coach : 0)
+  );
+}
+
+function imageCleanupLine(c: ImageCleanup, verb: string): string {
+  return (
+    `Imagens genéricas de estádio, circuito, bandeira, lutador e piloto já gravadas ${verb}: ${c.placeholders}` +
+    ` · desligados de imagem ausente: estádios ${c.venues} · países ${c.countries} · pessoas ${c.people}` +
+    ` · times ${c.participants} · competições ${c.competitions}`
   );
 }
 

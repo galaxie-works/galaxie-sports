@@ -101,6 +101,7 @@ const COUNTED = [
   'denied',
   'placeholders',
   'placeholderLogos',
+  'placeholderImages',
   'failed',
   'errors',
 ] as const;
@@ -128,6 +129,8 @@ export function assetsEspelhar(
               logosGenericosALimpar: r.logoCleanup.placeholders,
               timesSemLogo: r.logoCleanup.participants,
               competicoesSemLogo: r.logoCleanup.competitions,
+              imagensGenericasALimpar: r.imageCleanup.placeholders,
+              estadiosSemImagem: r.imageCleanup.venues,
             },
             amostra: [],
           },
@@ -160,7 +163,14 @@ export function assetsEspelhar(
           cursor,
           signal: ctx.signal,
         });
-        const handled = r.stored + r.notFound + r.denied + r.placeholders + r.placeholderLogos + r.failed;
+        const handled =
+          r.stored +
+          r.notFound +
+          r.denied +
+          r.placeholders +
+          r.placeholderLogos +
+          r.placeholderImages +
+          r.failed;
         feitos += r.cursor?.interrompida ? handled : r.pending;
         for (const k of COUNTED) totais[k] = (totais[k] ?? 0) + r[k];
         recovered.push(...r.recoveredLogos);

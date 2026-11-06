@@ -48,17 +48,19 @@ import {
   WIDGET_KINDS,
   WIDGET_LOCALES,
   defaultsFromEntity,
+  themeOverridesOf,
   embedSnippet,
   installCommand,
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
 import { searchSport, sportChoices } from '@/lib/builder/sports';
-import type { WidgetKind, WidgetTheme } from '@/lib/builder/types';
+import type { BrandThemeItem, WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, rich } from '@/lib/i18n/text';
 
+import { BrandThemePicker } from './brand-theme-picker';
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
 import { LiveListOptionsEditor } from './live-list-options-editor';
@@ -75,7 +77,10 @@ export interface EditorDraft {
   kind: WidgetKind;
   /** Esporte do widget nos tipos de todos os esportes (Jogos do dia); null = todos. */
   sport: string | null;
+  /** Tema efetivo (o da marca com os ajustes deste widget, ou o tema só dele). */
   theme: WidgetTheme;
+  /** Tema da marca que o widget segue; null = tema só deste widget. */
+  brandThemeId: string | null;
   locale: WidgetLocale;
   market: string;
   entity: EntityValue | null;
@@ -111,6 +116,7 @@ const snapshot = (d: EditorDraft) =>
     name: d.name.trim(),
     kind: d.kind,
     theme: d.theme,
+    brandThemeId: d.brandThemeId,
     locale: d.locale,
     market: d.market,
     defaults: defaultsFromEntity(d.entity, { kind: d.kind, sport: d.sport }),
@@ -210,6 +216,7 @@ export function WidgetEditor({
   saved: savedInitial,
   markets,
   sports = [],
+  brandThemes: brandThemesInitial = [],
 }: {
   initial: EditorDraft;
   saved: SavedInfo | null;
@@ -217,12 +224,20 @@ export function WidgetEditor({
   markets: string[];
   /** Esportes que o plano permite (vazio = todos). */
   sports?: string[];
+  /** Temas da marca do tenant. */
+  brandThemes?: BrandThemeItem[];
 }) {
   const router = useRouter();
   const { t } = useI18n();
   const e = t.client.editor;
   const b = t.client.builder;
   const [draft, setDraft] = useState(initial);
+  const [brandThemes, setBrandThemes] = useState(brandThemesInitial);
+  /** Só o que este widget muda em relação ao tema da marca (o banco aplica sobre o tema atual). */
+  const overridesOf = (d: EditorDraft) => {
+    const brand = brandThemes.find((x) => x.id === d.brandThemeId);
+    return brand ? themeOverridesOf(d.theme, brand.theme) : {};
+  };
   const [saved, setSaved] = useState(savedInitial);
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
   const [pending, startTransition] = useTransition();
@@ -255,6 +270,7 @@ export function WidgetEditor({
   ];
   const config = {
     theme: draft.theme,
+    ...(draft.brandThemeId ? { brandThemeId: draft.brandThemeId, themeOverrides: overridesOf(draft) } : {}),
     locale: draft.locale,
     market: draft.market,
     defaults: defaultsFromEntity(draft.entity, { kind: draft.kind, sport: draft.sport }),
@@ -366,6 +382,17 @@ export function WidgetEditor({
           <Frame>
             <FramePanel className="flex flex-col gap-4">
               <FrameTitle>{e.theme}</FrameTitle>
+              <BrandThemePicker
+                themes={brandThemes}
+                value={draft.brandThemeId}
+                theme={draft.theme}
+                onChange={(brandThemeId, theme) => setDraft((d) => ({ ...d, brandThemeId, theme }))}
+                onCreated={(item) =>
+                  setBrandThemes((list) =>
+                    [...list, item].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+                  )
+                }
+              />
               <ThemeEditor value={draft.theme} onChange={(theme) => set('theme', theme)} />
             </FramePanel>
           </Frame>

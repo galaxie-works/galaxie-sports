@@ -7,6 +7,7 @@ import {
   autoGroupRank,
   currentPhaseKey,
   defaultGroupLabel,
+  isCurrentPhase,
   knockoutSeed,
   providerGroupLabel,
   standingsGroupLabel,
@@ -160,6 +161,18 @@ describe('nome exibido, fase em andamento e prioridade', () => {
     expect(standingsGroupLabel(rules.tables[2]!, 'Tabla Anual', 'pt-BR')).toBe('Tabela anual');
   });
 
+  it('Leagues Cup: as tabelas da MLS e da Liga MX correm juntas e as duas são da fase em andamento', async () => {
+    const rules = await loadCompetitionRules('leagues-cup', { season: 2026 });
+    const g = (group: string, played: number) => ({ group, played });
+    const current = currentPhaseKey(rules, [g('MLS', 2), g('Liga MX', 2)]);
+    const [mls, ligaMx] = rules.tables;
+    expect(isCurrentPhase(rules, mls!, current)).toBe(true);
+    expect(isCurrentPhase(rules, ligaMx!, current)).toBe(true);
+    expect(standingsGroupPriority(rules, 'MLS', current)).toBe(0);
+    expect(standingsGroupPriority(rules, 'Liga MX', current)).toBe(0);
+    expect(standingsGroupLabel(mls!, 'MLS', 'pt-BR')).toBe('Tabela da MLS');
+  });
+
   it('a fase em andamento é a última com jogo; antes de qualquer jogo, a primeira com grupo', async () => {
     const rules = await loadCompetitionRules('argentina-liga-profesional', { season: 2026 });
     const g = (group: string, played: number) => ({ group, played });
@@ -169,6 +182,9 @@ describe('nome exibido, fase em andamento e prioridade', () => {
     expect(currentPhaseKey(rules, [g('Apertura - Group A', 3), g('Clausura - Group A', 0)])).toBe('apertura');
     expect(currentPhaseKey(rules, [g('Clausura - Group A', 0)])).toBe('clausura');
     expect(currentPhaseKey(rules, [g('Promedios', 30)])).toBeNull();
+    // fases em sequência (rodadas diferentes): só a em andamento
+    expect(isCurrentPhase(rules, rules.tables[0]!, 'clausura')).toBe(false);
+    expect(isCurrentPhase(rules, rules.tables[1]!, 'clausura')).toBe(true);
     const p = (group: string) => standingsGroupPriority(rules, group, 'clausura');
     expect(
       ['Promedios', 'Tabla Anual', 'Apertura - Group A', 'Clausura - Group A', 'Desconhecido'].sort(

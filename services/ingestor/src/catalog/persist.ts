@@ -11,7 +11,7 @@ import {
   type Database,
   type I18nText,
 } from '@galaxie/db';
-import { LOGO_KINDS, MISSING_ASSET } from '@galaxie/core-writer';
+import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '@galaxie/core-writer';
 import { canonicalCountryName } from './countries.js';
 
 // ─── formato intermediário (comum aos 12 esportes) ───────────────────────────────────────────────
@@ -195,8 +195,9 @@ export async function upsertCatalog(
         .select({ id: asset.id, url: asset.sourceUrl, kind: asset.kind, missing: MISSING_ASSET })
         .from(asset)
         .where(inArray(asset.sourceUrl, chunk));
-      // logo já sabidamente 404 ou genérico não é religado: o time ou a competição continua sem logo
-      for (const f of found) if (!(f.missing && LOGO_KINDS.has(f.kind))) assetIds.set(f.url, f.id);
+      // imagem já sabidamente 404 ou genérica não é religada: a entidade continua sem imagem
+      for (const f of found)
+        if (!(f.missing && DETACHED_WHEN_MISSING_KINDS.has(f.kind))) assetIds.set(f.url, f.id);
     }
     const assetId = (url: string | null) => (url ? (assetIds.get(url) ?? null) : null);
 

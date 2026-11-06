@@ -21,6 +21,8 @@ export interface MatchResult {
   /** Campo neutro: os gols não contam como "gols fora". */
   neutral?: boolean;
   cards?: { home?: CardCount; away?: CardCount };
+  /** Disputa de pênaltis depois do empate (Leagues Cup); só conta com `points.shootout` no regulamento. */
+  penalties?: { home: number; away: number };
 }
 
 export type FormLetter = 'W' | 'D' | 'L';
@@ -33,6 +35,10 @@ export interface TeamRecord {
   won: number;
   drawn: number;
   lost: number;
+  /** Dos empates (`drawn`), quantos o time venceu nos pênaltis (só com `points.shootout`). */
+  shootoutWon?: number;
+  /** Dos empates (`drawn`), quantos o time perdeu nos pênaltis (só com `points.shootout`). */
+  shootoutLost?: number;
   goalsFor: number;
   goalsAgainst: number;
   awayGoalsFor: number;
