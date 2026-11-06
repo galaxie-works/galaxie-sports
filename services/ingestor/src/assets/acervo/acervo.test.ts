@@ -8,7 +8,7 @@ import { matchLogo, scoreTarget, type MatchTarget } from './match.js';
 import { planManifest, resolveCountry, type CountryRow } from './plan.js';
 import { coverage, renderReport } from './report.js';
 import { nameFromSlug, scanAcervo } from './scan.js';
-import { paletteFromSvg, parseColor } from './svg-palette.js';
+import { paletteFromSvg, parseColor } from '@galaxie/crests';
 
 const EXEMPLO = fileURLToPath(new URL('../../../test/fixtures/acervo-exemplo', import.meta.url));
 

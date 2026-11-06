@@ -27,6 +27,7 @@ export default defineMessages(
       features: 'Esportes e features',
       review: 'Revisão',
       lineup: 'Grades e ofertas',
+      crests: 'Escudos',
       label: 'Seções dos ajustes',
     },
     tabs: {
@@ -1117,6 +1118,7 @@ export default defineMessages(
         features: 'Sports and features',
         review: 'Review',
         lineup: 'Lineups and offers',
+        crests: 'Crests',
         label: 'Settings sections',
       },
       tabs: {
@@ -2186,6 +2188,7 @@ export default defineMessages(
         features: 'Deportes y features',
         review: 'Revisión',
         lineup: 'Grillas y ofertas',
+        crests: 'Escudos',
         label: 'Secciones de ajustes',
       },
       tabs: {

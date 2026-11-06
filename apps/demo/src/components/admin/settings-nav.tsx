@@ -1,6 +1,6 @@
 'use client';
 
-import { ListChecks, SlidersHorizontal, Trophy, Tv, Users } from 'lucide-react';
+import { ListChecks, Shield, SlidersHorizontal, Trophy, Tv, Users } from 'lucide-react';
 import Link from 'next/link';
 
 import { useI18n } from '@/lib/i18n/client';
@@ -13,12 +13,13 @@ const ITEMS = [
   { id: 'features', href: '/ajustes/esportes', icon: Trophy },
   { id: 'review', href: '/ajustes/revisao', icon: ListChecks },
   { id: 'lineup', href: '/ajustes/grades', icon: Tv },
+  { id: 'crests', href: '/ajustes/escudos', icon: Shield },
 ] as const;
 
 /**
  * Abas das áreas de Ajustes (só admin): usuários e convites, o Sistema (saúde, jobs, IA, fornecedor), Esportes
  * e features (plano por esporte, vídeos relacionados com o controle dos canais, onde assistir), a revisão
- * semântica e as grades e ofertas das operadoras.
+ * semântica, as grades e ofertas das operadoras e os escudos de times e competições.
  */
 export function SettingsNav({ active }: { active: (typeof ITEMS)[number]['id'] }) {
   const { t } = useI18n();

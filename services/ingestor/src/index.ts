@@ -27,7 +27,7 @@ export { refreshExploreSummary, type ExploreRefreshResult } from './explore/refr
 export * from './snapshot/raw-snapshot.js';
 export { loadMediaDenylist, runAssetMirror, type MirrorReport } from './assets/asset-mirror.js';
 export { InMemoryAssetStore, PgAssetStore, type AssetStore, type LogoCleanup } from './assets/asset-store.js';
-export { imageInfo } from './assets/image-info.js';
+export { imageInfo } from '@galaxie/crests';
 export { MediaFetcher, MEDIA_USER_AGENT } from './assets/media-fetcher.js';
 export {
   InMemoryObjectStore,

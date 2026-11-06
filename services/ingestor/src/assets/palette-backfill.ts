@@ -1,6 +1,6 @@
 import type { AssetStore } from './asset-store.js';
 import type { ObjectStore } from './object-store.js';
-import { paletteFromPng, type AssetPalette } from './palette.js';
+import { paletteFromPng, type AssetPalette } from '@galaxie/crests';
 
 /** Paletas gravadas por transação. */
 const SAVE_BATCH = 500;

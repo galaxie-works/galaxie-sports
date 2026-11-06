@@ -1,6 +1,6 @@
 import { deflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { encodePng, solidRgba } from '../../test/png.js';
+import { encodePng, solidRgba } from './test-helpers.js';
 import { computePalette, decodePng, MONOCHROME_DOMINANT, paletteFromPng } from './palette.js';
 
 const RGBA_2x2 = [

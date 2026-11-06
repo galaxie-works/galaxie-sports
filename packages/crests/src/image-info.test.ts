@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fakePng } from '../../test/helpers.js';
+import { fakePng } from './test-helpers.js';
 import { imageInfo } from './image-info.js';
 
 describe('imageInfo', () => {
