@@ -20,6 +20,7 @@ import type {
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { transfersPreviewBody } from './fixtures-transfers.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 
 export const PREVIEW_IDS = {
@@ -740,6 +741,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const now = options.now ?? new Date();
     const olympic = olympicPreviewBody(url, now);
     if (olympic !== null) return json(olympic);
+    const transfers = transfersPreviewBody(url, now);
+    if (transfers !== null) return json(transfers);
     const f = createPreviewFixtures(now, options.sport);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);

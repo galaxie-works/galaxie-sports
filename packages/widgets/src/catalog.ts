@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { TransferMarketProps } from './widgets/transfer-market.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  transfer_market: TransferMarketProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'TransferMarket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,33 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  transfer_market: {
+    kind: 'transfer_market',
+    component: 'TransferMarket',
+    registryComponent: 'GalaxieTransferMarket',
+    name: { 'pt-BR': 'Vai e vem do mercado', es: 'Altas y bajas del mercado', en: 'Transfer market' },
+    description: {
+      'pt-BR':
+        'Contratações e saídas recentes de um time ou de um campeonato, com data, clube de origem ou destino e tipo.',
+      es: 'Fichajes y salidas recientes de un equipo o de una competición, con fecha, club de origen o destino y tipo.',
+      en: 'Recent signings and departures for a team or a competition, with date, origin or destination club and type.',
+    },
+    requiredProps: [],
+    optionalProps: [
+      'teamId',
+      'competitionId',
+      'direction',
+      'days',
+      'limit',
+      'groupByDirection',
+      'showType',
+      'showPhoto',
+      'showDate',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
   },
 };
 

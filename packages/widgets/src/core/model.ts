@@ -30,6 +30,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'transfer_market',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -503,6 +504,29 @@ export interface GsMedalHistory {
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
+/** Vai e vem do mercado (`/v1/teams|competitions/{id}/transfers`, #832). */
+export type GsTransferKind = 'loan' | 'loan_return' | 'free' | 'fee' | 'transfer';
+export interface GsTransferClub {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+export interface GsTransfer {
+  person: { id: string; name: string; photo: string | null };
+  date: string | null;
+  direction: 'in' | 'out';
+  kind: GsTransferKind | null;
+  fee: string | null;
+  type: string | null;
+  from: GsTransferClub;
+  to: GsTransferClub;
+}
+export interface GsTransferList {
+  scope: { type: 'team' | 'competition'; id: string; name: string; logo: string | null };
+  since: string;
+  data: GsTransfer[];
+}
+
 export interface GsTeam {
   id: string;
   sport: string;
@@ -1330,6 +1354,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-transfer-dir{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;font-size:.8em;font-weight:800;color:#fff;background:#16a34a}
+.gs-transfer-dir[data-dir=out]{background:var(--gs-live)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1592,6 +1618,24 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Vai e vem do mercado: contratações e saídas de um time ou de um campeonato. */
+  transfers: {
+    title: string;
+    /** "Mercado · {name}". */
+    titleOf: string;
+    arrivals: string;
+    departures: string;
+    /** Rótulo curto de quem chegou e de quem saiu (o completo vai no aria-label). */
+    in: string;
+    out: string;
+    /** "de {club}" / "para {club}". */
+    from: string;
+    to: string;
+    kind: Record<'loan' | 'loan_return' | 'free' | 'fee' | 'transfer', string>;
+    empty: string;
+    /** Sem time nem campeonato escolhido. */
+    pick: string;
   };
 }
 
@@ -1883,6 +1927,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    transfers: {
+      title: 'Vai e vem do mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Chegadas',
+      departures: 'Saídas',
+      in: 'Chegou',
+      out: 'Saiu',
+      from: 'de {club}',
+      to: 'para {club}',
+      kind: {
+        loan: 'Empréstimo',
+        loan_return: 'Volta de empréstimo',
+        free: 'Sem custo',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Nenhuma transferência no período.',
+      pick: 'Escolha um time ou um campeonato.',
+    },
   },
   es: {
     status: {
@@ -2171,6 +2234,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    transfers: {
+      title: 'Altas y bajas del mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Llegadas',
+      departures: 'Salidas',
+      in: 'Llegó',
+      out: 'Salió',
+      from: 'de {club}',
+      to: 'a {club}',
+      kind: {
+        loan: 'Préstamo',
+        loan_return: 'Vuelta de préstamo',
+        free: 'Libre',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Ningún fichaje en el período.',
+      pick: 'Elige un equipo o una competición.',
+    },
   },
   en: {
     status: {
@@ -2445,6 +2527,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    transfers: {
+      title: 'Transfer market',
+      titleOf: 'Transfers · {name}',
+      arrivals: 'Arrivals',
+      departures: 'Departures',
+      in: 'In',
+      out: 'Out',
+      from: 'from {club}',
+      to: 'to {club}',
+      kind: {
+        loan: 'Loan',
+        loan_return: 'Loan return',
+        free: 'Free',
+        fee: 'Fee',
+        transfer: 'Permanent',
+      },
+      empty: 'No transfers in this period.',
+      pick: 'Choose a team or a competition.',
     },
   },
 };

@@ -90,6 +90,11 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export {
+  TransferMarket,
+  type TransferMarketDirection,
+  type TransferMarketProps,
+} from './widgets/transfer-market.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

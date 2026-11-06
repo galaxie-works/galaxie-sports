@@ -10,6 +10,7 @@ import {
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
+  TransferMarket,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -60,6 +61,7 @@ import {
   ENTITY_TYPES,
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
+  ENTITY_REQUIRED_ANY,
   REQUIRED_ENTITY,
   OFFERED_WIDGET_KINDS,
   WIDGET_KINDS,
@@ -244,6 +246,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'transfer_market':
+        return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
     }
   }
   switch (kind) {
@@ -279,6 +283,12 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'transfer_market':
+      return entity.type === 'team' ? (
+        <TransferMarket {...o} teamId={entity.id} />
+      ) : (
+        <TransferMarket {...o} competitionId={entity.id} />
+      );
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -607,9 +617,14 @@ export function WidgetEditor({
                       onChange={(v) => set('entity', v)}
                     />
                     <FieldDescription>
-                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                      })}
+                      {fill(
+                        REQUIRED_ENTITY[draft.kind] || ENTITY_REQUIRED_ANY.has(draft.kind)
+                          ? e.entityHintRequired
+                          : e.entityHint,
+                        {
+                          types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                        },
+                      )}
                     </FieldDescription>
                   </Field>
                 ) : null}
