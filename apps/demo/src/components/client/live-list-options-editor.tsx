@@ -182,7 +182,7 @@ export function LiveListOptionsEditor({
           <Input
             id="live-list-link"
             inputMode="url"
-            placeholder="https://seusite.com/jogo/{eventId}"
+            placeholder={l.linkPlaceholder}
             value={link}
             aria-invalid={linkInvalid || undefined}
             onChange={(ev) => set('eventLink', ev.target.value.trim() || undefined)}

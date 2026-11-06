@@ -234,6 +234,7 @@ export default defineMessages(
         },
         linkTitle: 'Link para o seu site',
         link: 'Página do jogo',
+        linkPlaceholder: 'https://seusite.com/jogo/{eventId}',
         linkHint:
           'Cada jogo leva o público para a página dele no seu site. Use {eventId} onde entra o código do jogo.',
         linkInvalid: 'Use um endereço https:// com {eventId}.',
@@ -562,6 +563,7 @@ export default defineMessages(
           },
           linkTitle: 'Link to your site',
           link: 'Match page',
+          linkPlaceholder: 'https://yoursite.com/match/{eventId}',
           linkHint: 'Each game takes fans to its page on your site. Use {eventId} where the match code goes.',
           linkInvalid: 'Use an https:// address with {eventId}.',
           linkNewTab: 'Open in a new tab',
@@ -900,6 +902,7 @@ export default defineMessages(
           },
           linkTitle: 'Link a tu sitio',
           link: 'Página del partido',
+          linkPlaceholder: 'https://tusitio.com/partido/{eventId}',
           linkHint:
             'Cada partido lleva al público a su página en tu sitio. Usa {eventId} donde va el código del partido.',
           linkInvalid: 'Usa una dirección https:// con {eventId}.',
