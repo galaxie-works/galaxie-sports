@@ -29,6 +29,7 @@ import { EquestrianCalendar } from '../widgets/equestrian-calendar.js';
 import { RiderProfile } from '../widgets/rider-profile.js';
 import { HorseProfile } from '../widgets/horse-profile.js';
 import { MedalTable } from '../widgets/medal-table.js';
+import { MatchStats } from '../widgets/match-stats.js';
 import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
@@ -175,6 +176,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'match_stats':
+      return <MatchStats {...o} eventId={eventId ?? ''} />;
   }
 }
 
