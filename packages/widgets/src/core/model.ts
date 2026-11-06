@@ -904,6 +904,8 @@ export interface WidgetTexts {
   emptyWatch: string;
   liveNow: string;
   todayGames: string;
+  games: string;
+  results: string;
   tomorrowGames: string;
   yesterdayGames: string;
   upcomingGames: string;
@@ -1015,6 +1017,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Transmissão ainda não confirmada.',
     liveNow: 'Ao vivo agora',
     todayGames: 'Jogos do dia',
+    games: 'Jogos',
+    results: 'Resultados',
     tomorrowGames: 'Jogos de amanhã',
     yesterdayGames: 'Jogos de ontem',
     upcomingGames: 'Próximos jogos',
@@ -1155,6 +1159,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Transmisión aún no confirmada.',
     liveNow: 'En vivo ahora',
     todayGames: 'Partidos del día',
+    games: 'Partidos',
+    results: 'Resultados',
     tomorrowGames: 'Partidos de mañana',
     yesterdayGames: 'Partidos de ayer',
     upcomingGames: 'Próximos partidos',
@@ -1295,6 +1301,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Broadcast not confirmed yet.',
     liveNow: 'Live now',
     todayGames: "Today's games",
+    games: 'Games',
+    results: 'Results',
     tomorrowGames: "Tomorrow's games",
     yesterdayGames: "Yesterday's games",
     upcomingGames: 'Upcoming games',

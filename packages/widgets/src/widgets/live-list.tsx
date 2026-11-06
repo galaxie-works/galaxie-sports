@@ -47,7 +47,7 @@ export interface LiveListProps extends LiveListOptions {
 
 const LIVE_REFRESH_MS = 30_000;
 const DAY_REFRESH_MS = 120_000;
-const DAY_MS = 86_400_000;
+const IN_PLAY = 'starting,live,break';
 const STATUS_BY_MODE: Partial<Record<LiveListMode, string>> = {
   upcoming: 'scheduled,starting',
   finished: 'finished',
@@ -99,14 +99,12 @@ export function LiveList({
   const mode: LiveListMode = date === 'live' || liveOnlyProp === true ? 'live' : (modeProp ?? 'all');
   const liveOnly = mode === 'live';
   const tz = timeZone ?? localTimeZone();
-  const now = Date.now();
-  const today = isoDate(new Date(now), tz);
+  const today = isoDate(new Date(), tz);
   const shift = dayProp === 'tomorrow' ? 1 : dayProp === 'yesterday' ? -1 : 0;
-  const day = liveOnly
-    ? undefined
-    : date && date !== 'live'
-      ? date
-      : isoDate(new Date(now + shift * DAY_MS), tz);
+  const day = liveOnly ? undefined : date && date !== 'live' ? date : addDays(today, shift);
+  // ao vivo com time: a rota /live corta antes de filtrar por time, então o recorte vai para /v1/events
+  // (jogos em andamento de ontem para hoje, para pegar quem virou a meia-noite)
+  const liveByTeam = liveOnly && Boolean(teamId);
   const max = Math.min(
     Math.max(Math.trunc(limit) || LIVE_LIST_LIMIT.default, LIVE_LIST_LIMIT.min),
     LIVE_LIST_LIMIT.max,
@@ -114,21 +112,33 @@ export function LiveList({
   const byRelevance = order === 'relevance';
   const link = isEventLinkTemplate(eventLink) ? eventLink : null;
   const query = useGalaxieQuery<GsEventList>(
-    liveOnly ? '/v1/events/live' : '/v1/events',
-    liveOnly
-      ? { competition: competitionId, sport, country, market }
-      : {
+    liveOnly && !liveByTeam ? '/v1/events/live' : '/v1/events',
+    liveByTeam
+      ? {
           competition: competitionId,
           team: teamId,
           sport,
           country,
           market,
-          date: day,
-          status: STATUS_BY_MODE[mode],
-          order: byRelevance ? 'relevance' : undefined,
-          relevance_min: minRelevance || undefined,
-          limit: max,
-        },
+          from: addDays(today, -1),
+          to: today,
+          status: IN_PLAY,
+          limit: LIVE_LIST_LIMIT.max,
+        }
+      : liveOnly
+        ? { competition: competitionId, sport, country, market }
+        : {
+            competition: competitionId,
+            team: teamId,
+            sport,
+            country,
+            market,
+            date: day,
+            status: STATUS_BY_MODE[mode],
+            order: byRelevance ? 'relevance' : undefined,
+            relevance_min: minRelevance || undefined,
+            limit: max,
+          },
     (list) =>
       !autoRefresh
         ? null
@@ -138,10 +148,17 @@ export function LiveList({
             ? DAY_REFRESH_MS
             : null,
   );
+  // rótulo de dia vizinho só quando é exatamente ontem ou amanhã; outra data tem título neutro
   const title = titleFor(
     texts,
     mode,
-    day === today ? 'today' : day && day > today ? 'tomorrow' : 'yesterday',
+    day === undefined || day === today
+      ? 'today'
+      : day === addDays(today, 1)
+        ? 'tomorrow'
+        : day === addDays(today, -1)
+          ? 'yesterday'
+          : 'other',
   );
 
   if (!query.data) {
@@ -159,8 +176,7 @@ export function LiveList({
 
   let events = query.data.data;
   if (liveOnly) {
-    // a rota ao vivo não filtra por time nem por relevância: o recorte é feito aqui
-    if (teamId) events = events.filter((e) => e.participants.some((p) => p.id === teamId));
+    // a rota ao vivo não filtra por relevância: o recorte é feito aqui
     if (minRelevance) events = events.filter((e) => relevanceOf(e) >= minRelevance);
     if (byRelevance) events = [...events].sort((a, b) => relevanceOf(b) - relevanceOf(a));
   }
@@ -249,8 +265,15 @@ export function LiveList({
   );
 }
 
-function titleFor(texts: WidgetTexts, mode: LiveListMode, day: LiveListDay): string {
+/** Dia civil AAAA-MM-DD somado de `n` dias pelo calendário (sem passar por instantes: horário de verão). */
+function addDays(isoDay: string, n: number): string {
+  const [y, m, d] = isoDay.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+function titleFor(texts: WidgetTexts, mode: LiveListMode, day: LiveListDay | 'other'): string {
   if (mode === 'live') return texts.liveNow;
+  if (day === 'other') return mode === 'finished' ? texts.results : texts.games;
   if (mode === 'finished') return day === 'yesterday' ? texts.yesterdayResults : texts.todayResults;
   if (day === 'tomorrow') return texts.tomorrowGames;
   if (day === 'yesterday') return texts.yesterdayGames;

@@ -351,6 +351,23 @@ describe('LiveList', () => {
     expect(container.querySelectorAll('[data-gs-event]')).toHaveLength(0);
   });
 
+  it('data explícita fora de ontem/amanhã tem título neutro', async () => {
+    setup(<LiveList sport="football" date="2020-01-15" />);
+    expect(await screen.findByText('Jogos')).toBeTruthy();
+    cleanup();
+    setup(<LiveList sport="football" date="2020-01-15" mode="finished" />);
+    expect(await screen.findByText('Resultados')).toBeTruthy();
+  });
+
+  it('ao vivo com time consulta /v1/events já recortado pelo time', async () => {
+    const { fetchImpl } = setup(<LiveList mode="live" teamId="time-1" />);
+    await screen.findByText('Ao vivo agora');
+    const url = String(vi.mocked(fetchImpl).mock.calls[0]![0]);
+    expect(url).toMatch(/\/v1\/events\?.*team=time-1/);
+    expect(url).toMatch(/status=starting%2Clive%2Cbreak/);
+    expect(url).toMatch(/from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}/);
+  });
+
   it('mostra o vazio quando não há jogo', async () => {
     setup(<LiveList date="live" />, {
       fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: [] })),
