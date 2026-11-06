@@ -18,7 +18,13 @@ import {
   webhookEndpoint,
   type Database,
 } from '@galaxie/db';
-import { createTenantWebhook, rotateTenantWebhookSecret, sendTenantWebhookTest } from '@galaxie/db/webhooks';
+import {
+  createTenantWebhook,
+  rotateTenantWebhookSecret,
+  sendTenantWebhookTest,
+  setWebhookDelivery,
+  webhookAdminOverview,
+} from '@galaxie/db/webhooks';
 import { upsertTenant } from '../src/auth/admin.js';
 import {
   createWebhookEndpoint,
@@ -202,6 +208,34 @@ describe('webhooks assinados', () => {
     expect(hit!.headers['x-galaxie-event']).toBe('webhook.test');
     expect(JSON.parse(hit!.body)).toMatchObject({ topic: 'webhook.test', test: true });
     // sem filtro, ele receberia as mudanças dos testes seguintes
+    await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+  });
+
+  it('pausa do painel: entrega fica na fila sem tentativa, o worker relata e religar entrega', async () => {
+    const [t] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const ep = await createTenantWebhook(
+      db,
+      t!.id,
+      { url: `${base}/paused`, topics: [], filters: {}, description: 'pausa' },
+      secrets,
+    );
+    await setWebhookDelivery(db, false, 'teste');
+    await worker.refreshControls();
+    expect(worker.isPaused).toBe(true);
+    const overview = await webhookAdminOverview(db);
+    expect(overview.controls.deliveryEnabled).toBe(false);
+    expect(overview.worker).toMatchObject({ alive: true, kekConfigured: true, deliveryEnabled: false });
+
+    const id = await sendTenantWebhookTest(db, t!.id, ep.id);
+    await new Promise((r) => setTimeout(r, 600));
+    expect(hits('/paused')).toHaveLength(0);
+    const [d] = await db.select().from(webhookDelivery).where(eq(webhookDelivery.id, id!));
+    expect(d).toMatchObject({ status: 'pending', attempts: 0 });
+
+    await setWebhookDelivery(db, true, 'teste');
+    await worker.refreshControls();
+    expect(worker.isPaused).toBe(false);
+    await expect.poll(() => hits('/paused').length, { timeout: 5_000 }).toBe(1);
     await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
   });
 

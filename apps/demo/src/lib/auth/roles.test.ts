@@ -32,6 +32,7 @@ describe('papéis da demo', () => {
       '/ajustes/usuarios',
       '/ajustes/usuarios/1',
       '/ajustes/grades',
+      '/ajustes/webhooks',
       '/api/ajustes/operacao',
     ])
       expect(routeAccess(path, 'client')).toBe('deny');

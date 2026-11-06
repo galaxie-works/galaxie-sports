@@ -413,6 +413,8 @@ export interface WebhookStats {
    * segundo e empurra o `next_retry_at` para frente: com ele no ar, fica perto de 0.
    */
   overdueSeconds: number;
+  /** Entregas pausadas em Ajustes → Webhooks (ops.runtime_setting WEBHOOK_DELIVERY=off): o atraso é de propósito. */
+  paused: boolean;
 }
 
 /** Estado dos webhooks para clientes (api.webhook_endpoint × api.webhook_delivery). */
@@ -452,6 +454,8 @@ export async function webhookStats(db: Database): Promise<WebhookStats> {
   const [overdue] = await db.execute<{ s: number | string | null }>(sql`
     select extract(epoch from now() - min(next_retry_at))::float8 as s
       from api.webhook_delivery where status = 'pending' and next_retry_at <= now()`);
+  const [paused] = await db.execute<{ off: boolean }>(sql`
+    select exists (select 1 from ops.runtime_setting where key = 'WEBHOOK_DELIVERY' and value = 'off') as off`);
   return {
     endpoints: rows.map((r) => ({
       endpoint: r.endpoint,
@@ -465,6 +469,7 @@ export async function webhookStats(db: Database): Promise<WebhookStats> {
       latencyP95Seconds: r.p95 == null ? null : Number(r.p95),
     })),
     overdueSeconds: Math.max(0, Number(overdue?.s ?? 0)),
+    paused: Boolean(paused?.off),
   };
 }
 

@@ -588,6 +588,14 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     [],
     (g, d) => g.set(d.overdueSeconds),
   );
+  dbGauge(
+    registry,
+    webhooks,
+    'galaxie_webhook_delivery_paused',
+    'Entregas pausadas em Ajustes → Webhooks (1): a fila cresce de propósito e o WebhookWorkerDown não dispara',
+    [],
+    (g, d) => g.set(d.paused ? 1 : 0),
+  );
 
   // ── resumo da home Explorar pré-calculado (fonte: core.explore_summary, job explore-summary)
   dbGauge(
