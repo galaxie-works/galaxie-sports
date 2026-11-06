@@ -15,7 +15,7 @@ aponta para um commit, um PR, uma release, uma execução do Actions ou um log. 
 | 2026-10-25 | [Carrossel "Legendary" da F1 vazio na produção](2026-10-25-carrossel-lendas-vazio.md) | SEV3 | resolvido | #296, #327 |
 | 2026-10-26 | [Deploy das tabelas LATAM tirou as stakes do Brasileirão e foi desfeito sozinho](2026-10-26-deploy-tabelas-desfeito.md) | SEV3 | resolvido | #394, #393 |
 | 2026-10-27 | [Conta do Gemini sem crédito e agentes de IA no texto determinístico](2026-10-27-ia-sem-credito.md) | SEV2 | **aberto** | #395, #385, #386, #403 |
-| 2026-10-31 | [Placar ao vivo parado de 10 a 40 min em jogos do plano](2026-10-31-ao-vivo-parado.md) | SEV2 | mitigado | painel (01/11), #514, #524, #583, #589, #590, #646 |
+| 2026-10-31 | [Jogos do plano do ao vivo de 10 a 40 min sem atualização](2026-10-31-ao-vivo-parado.md) | SEV2 | mitigado | painel (01/11), #514, #524, #583, #589, #590, #646 |
 
 ## Levantados e deixados de fora (25 a 27/10)
 

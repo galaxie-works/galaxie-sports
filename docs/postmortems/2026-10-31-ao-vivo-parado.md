@@ -1,4 +1,4 @@
-# 2026-10-31: placar ao vivo parado de 10 a 40 min em jogos do plano
+# 2026-10-31: jogos do plano do ao vivo de 10 a 40 min sem atualização
 
 > Postmortem sem culpados: descreve o sistema e as decisões que ele permitiu, não quem apertou o botão.
 > Toda afirmação aponta para a fonte (commit, PR, release, issue, consulta ao Prometheus ou ao banco). O que é
@@ -6,7 +6,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **mitigado**: o SLI voltou ao normal em 02/11, mas a causa do atraso por jogo não foi confirmada e o `ErrorBudgetExhausted` ([#482](https://github.com/galaxie-works/galaxie-sports/issues/482)) segue disparando até os dias ruins saírem da janela |
+| Estado | **mitigado**: o SLI voltou ao normal em 02/11 com um plano menor, mas o mecanismo (jogo que o fornecedor ainda dá como não iniciado tratado como "saiu do ao vivo") segue no código, e o `ErrorBudgetExhausted` ([#482](https://github.com/galaxie-works/galaxie-sports/issues/482)) segue disparando até os dias ruins saírem da janela |
 | Severidade | SEV2: o ao vivo ficou degradado em parte dos jogos; a API e os outros jogos seguiram respondendo |
 | Início / fim (UTC) | 2026-10-31 15:11 → 2026-11-02 18:55 (o grosso em 31/10 e 01/11; um ensaio menor em 30/10, 15:18 a 16:55) |
 | Duração do impacto | 7 h 52 min de minutos ruins no SLI (944 amostras de 30 s): 3 h 40 min em 31/10, 4 h 06 min em 01/11, 5 min em 02/11 |
@@ -16,31 +16,36 @@
 
 ## Resumo
 
-No fim de semana de 31/10 e 01/11, jogos de futebol acompanhados pelo ao vivo ficaram de 10 a 40 min sem atualização
-válida, em ondas, nas tardes e noites com mais jogos no plano. O placar e o minuto desses jogos ficaram parados na API,
-nos widgets e na demo durante esses trechos. O SLI do `ao-vivo` marca o minuto como ruim quando **algum** jogo do plano
-passa de 10 min sem atualização: foram 7 h 52 min de minutos ruins, cerca de duas vezes o orçamento de 28 dias inteiro
-(estimativa abaixo). O orçamento medido pela regra chegou a −13,15 (gasto de 14 vezes o permitido), porque a janela
-ainda tinha só 3 dias de dados.
+No fim de semana de 31/10 e 01/11, o SLI do `ao-vivo` marcou 7 h 52 min de minutos ruins, cerca de duas vezes o
+orçamento de 28 dias inteiro (estimativa abaixo). O SLI marca o minuto como ruim quando **algum** jogo do plano do ao
+vivo passa de 10 min sem atualização válida. O orçamento medido pela regra chegou a −13,15 (gasto de 14 vezes o
+permitido), porque a janela ainda tinha só 3 dias de dados.
 
-O processo do ao vivo não parou: o `live-run` rodou o dia inteiro com um tick a cada ~15 s. O que falhou foi a
-atualização de parte dos jogos dentro desses ticks. A causa disso **não está confirmada**. A hipótese levantada durante a
-operação (o ao vivo sem vez para rodar atrás dos jobs de pós-jogo) não se sustenta nos dados do processo, e nenhum PR
-a descreve. Ver [Causa raiz](#causa-raiz).
+O processo do ao vivo não parou: o `live-run` rodou o dia inteiro com um tick a cada ~15 s, e os jogos que estavam em
+campo voltaram em todo tick, com duas exceções. Os jogos que pararam eram jogos que o fornecedor **nunca trouxe** no
+`fixtures?live=`: na consulta de detalhe ele os dava como não iniciados (`NS`). O relógio do nosso lado os tinha posto
+em andamento no horário do apito. O poller tratou cada um como jogo que saiu do ao vivo e buscou o detalhe com a espera
+da confirmação de resultado (0, 1, 2, 5, 10, 20 e 30 min, até 7 vezes). Os intervalos de 20 e 30 min entre essas buscas
+passam do limite de 10 min e viraram os trechos ruins. Ver [Causa raiz](#causa-raiz). A hipótese levantada durante a
+operação, de o ao vivo ficar sem vez para rodar atrás dos jobs de pós-jogo, está descartada pelos dados.
 
 A mitigação foi um ajuste no painel em 01/11 às 23:36 UTC: `LIVE_MIN_PRIORITY` foi de `low` (o valor do `.env`) para
-`medium`, o que tira as ligas de prioridade baixa do plano do ao vivo, e o futebol dessas ligas passou para o pós-jogo
-em `tempo-real` a cada 2 min. Desde então o plano teve de 10 a 22 jogos no pico do dia, contra 47 e 35 no fim de
-semana, e o SLI ficou entre 0 e 10 amostras ruins por dia. Em seguida, o ao vivo saiu do ingestor para um serviço
-próprio com líder e reserva (#555: #570, #589, #590), e a regra do `ErrorBudgetExhausted` deixou de fechar e reabrir a
-issue a cada deploy (#583). Nada disso foi testado ainda num fim de semana com o plano cheio.
+`medium`, o que tira do plano do ao vivo as ligas de prioridade baixa, onde estavam 8 dos 13 jogos que responderam
+`NS`. O futebol dessas ligas passou para o pós-jogo em `tempo-real` a cada 2 min. Desde então o plano teve de 10 a 22
+jogos no pico do dia, contra 47 e 35 no fim de semana, e o SLI ficou entre 0 e 10 amostras ruins por dia. Em seguida, o
+ao vivo saiu do ingestor para um serviço próprio com líder e reserva (#555: #570, #589, #590), e a regra do
+`ErrorBudgetExhausted` deixou de fechar e reabrir a issue a cada deploy (#583). Nenhuma dessas mudanças tira o
+mecanismo do poller, e as ligas `medium` também tiveram jogos assim.
 
 ## Impacto
 
-- **Quem sentiu:** quem acompanhava, pela API, pelos widgets ou pela demo, um jogo do plano do ao vivo que caiu num
-  trecho parado. Não há medida de quantos jogos nem de quantas requisições serviram placar velho: o SLI guarda só o
-  pior jogo de cada minuto.
-- **Quanto:** placar e minuto parados por até 2.376 s (39,6 min) no pior jogo, entre 31/10 23:00 e 01/11 01:00 UTC. Os
+- **Quem sentiu:** quem abriu, pela API, pelos widgets ou pela demo, um dos 13 jogos do plano (7 em 31/10, 6 em
+  01/11) que o fornecedor ainda dava como não iniciados: ele aparecia em andamento pelo relógio, sem placar do
+  fornecedor. Hoje 12 deles estão como `finished` (os 3 conferidos, pelo relógio: `status_source = temporal`) e 1 como
+  adiado (consulta ao `raw.api_response` e ao `core.event`, só leitura). Os jogos que estavam em campo tiveram o placar em dia, com duas
+  exceções em 31/10: um sumiu da lista por 101 min (15:43 a 17:25) e outro por 19 min (21:53 a 22:12). Não há medida de
+  quantas requisições serviram esses jogos.
+- **Quanto:** o pior jogo do plano ficou até 2.376 s (39,6 min) sem atualização, entre 31/10 23:00 e 01/11 01:00 UTC. Os
   trechos ruins duraram 10, 20 ou 30 min (múltiplos de 10 min), com picos de atraso de ~1.775 s nas noites de 31/10 e
   01/11 (consulta `max_over_time(max(galaxie_live_event_max_staleness_seconds{coverage="poller"})[1h:30s])`).
 - **Fora do impacto:** os jogos fora do plano (cobertura `clock`, fechados pelo pós-jogo e pela agenda) não entram no
@@ -121,32 +126,59 @@ alertas escrevem a hora de Brasília.
 1. **O processo do ao vivo rodou o tempo todo.** Em `ops.job_run`, o `live:run` de 31/10 foi de 10:40 a 05:21 do dia
    seguinte com 4.412 ticks, e o de 01/11, de 10:40 a 04:55 com 4.280 ticks: ~15,2 s e ~15,4 s por tick, o intervalo
    planejado (`galaxie_live_scheduler_interval_seconds` = 15). Um erro de tick em cada um.
-2. **Os jobs de pós-jogo não seguravam o ao vivo no scheduler.** Desde o [#400](https://github.com/galaxie-works/galaxie-sports/pull/400)
+2. **Os jobs de pós-jogo não seguravam o ao vivo.** Desde o [#400](https://github.com/galaxie-works/galaxie-sports/pull/400)
    (28/10), a faixa do ao vivo não espera o teto de jobs simultâneos (`live: true` em `schedule.ts`, conferido no
    commit `83e493c1`, a versão que rodava). O `postgame-close` rodou 60 vezes por hora, com 4 a 6 s cada.
-3. **Parte dos jogos do plano ficava sem atualização válida** (`core.event.last_valid_at`) apesar dos ticks. O SLI
-   (`galaxie_live_event_max_staleness_seconds{coverage="poller"}`) só olha o pior jogo, então não diz quantos.
-4. **Os trechos ruins têm 10, 20 ou 30 min**, terminam em horários parecidos (xx:04–05, xx:34–35, xx:55) e, nos
-   momentos mais leves, aparecem como 1 min ruim a cada ~11 min.
-5. **O incidente acompanhou o tamanho do plano.** Pico de jogos no plano por dia: 47 (31/10), 35 (01/11), 12 (02/11),
+3. **Os jogos em campo voltavam no tick.** Dos 132 jogos que apareceram no `fixtures?live=` entre 31/10 14:00 e 01/11
+   03:00, só 2 tiveram buraco de mais de 2 min na lista (os dois citados em Impacto).
+4. **Os jogos que pararam nunca entraram na lista e respondiam `NS`.** No detalhe (`fixtures?id=`) pedido pelo
+   `live:run`, 13 jogos do plano das duas datas responderam `NS`, a primeira vez no minuto do apito e, em 12 deles, 7
+   vezes até ~94 min depois. A última resposta de cada um bate com o fim de um trecho ruim: 16:35:15 (trecho até 16:35),
+   19:34:12 (até 19:34), 21:49:10 (até 21:49) e 01:28:14 (até 01:28) na noite de 31/10; 12:34:20 (até 12:34), 19:03:08
+   (até 19:04), 19:34:11 (até 19:34) e 21:34:23 (até 21:34:30) em 01/11.
+5. **Ligas de prioridade baixa e média.** Dos 13 jogos, 8 eram de ligas `low` e 5 de ligas `medium`.
+6. **O incidente acompanhou o tamanho do plano.** Pico de jogos no plano por dia: 47 (31/10), 35 (01/11), 12 (02/11),
    11 (03/11), 10 (04/11), 22 (05/11). O `.env` da VPS tem hoje `LIVE_MIN_PRIORITY=low`, e o log do painel mostra que
    não havia sobrescrita antes de 01/11 23:36 (`old_value` vazio): o ao vivo seguia o `low` do `.env` (supondo que essa
    chave do `.env` não mudou desde então). O ajuste para `medium` tirou do plano as ligas de prioridade baixa.
 
-### Hipóteses (não confirmadas)
+### O mecanismo (código em `83e493c1`, igual na `main` hoje)
+
+- O `events-clock` põe o jogo em andamento pelo horário (`status_source = temporal`), e o Live Scheduler o mantém no
+  plano.
+- No tick, o `LivePoller` chama de `vanished` todo jogo em andamento do plano, de liga pedida no tick, que não veio no
+  `fixtures?live=`, e busca o detalhe dele na hora, dentro do orçamento reservado para confirmar resultados
+  ([`live/poller.ts`](../../services/ingestor/src/live/poller.ts), `const vanished`). O espaçamento entre essas buscas
+  é o da confirmação de resultado, `FINALIZE_BACKOFF_MS` = 0, 1, 2, 5, 10, 20 e 30 min, com até 7 tentativas. Foi feito
+  para o jogo que acabou e demora a virar FT, não para o que ainda não começou.
+- Cada resposta `NS` conta como atualização: os trechos ruins terminam no instante da última resposta (fato 4). Isso é
+  inferência pelo encaixe dos horários; o caminho exato no `core-writer` não foi relido. Entre a 5ª e a 6ª busca (20
+  min) e entre a 6ª e a 7ª (30 min), o jogo passa do limite de 10 min, e o minuto conta como ruim: daí os trechos de 10
+  e 20 min. Depois da 7ª, só sobram o `live-reconcile`, que só busca jogo parado há 30 min ou mais
+  ([`live/reconcile.ts`](../../services/ingestor/src/live/reconcile.ts), `DEFAULT_STALE_MINUTES`), e o relógio, que
+  fecha o jogo.
+- Não foi reconstruída a sequência exata das buscas de cada jogo: o `raw` guarda uma linha por resposta diferente (com
+  `seen_count` e `last_seen_at`), e as respostas `NS` de um jogo eram idênticas. A soma das esperas dá ~68 min, e a
+  última resposta veio ~94 min depois da primeira; a diferença não foi explicada (a reconciliação pode ter feito uma
+  das chamadas). Também ficam sem dono alguns trechos de 10 min que não batem com nenhum jogo da lista do fato 4.
+- Os blocos de 1 min a cada ~11 min (31/10 18:11, 19:10 e 21:11; 01/11 20:41 e 21:40) batem com jogos de ligas
+  `medium` que só entraram no `fixtures?live=` 10 a 11 min depois do apito.
+
+### Hipóteses descartadas
 
 - **"O ao vivo ficava sem vez para rodar atrás dos jobs de pós-jogo."** Foi a leitura durante a operação, e o ajuste do
   painel mexeu nas duas coisas juntas (prioridade do ao vivo e pós-jogo do futebol). Nenhum PR descreve esse mecanismo,
-  e os fatos 1 e 2 mostram o processo do ao vivo no ritmo e o pós-jogo leve. Fica como hipótese descartada no nível do
-  processo; disputa de CPU ou de banco dentro do contêiner do ingestor não foi medida e não está descartada.
-- **Jogos que não voltavam no tick e só eram atualizados pela reconciliação.** Cada tick é uma chamada
-  `fixtures?live=<ligas>` ([`live/schedule.ts`](../../services/ingestor/src/live/schedule.ts)). Se a resposta deixava de
-  trazer alguns jogos, eles só seriam atualizados pelo `live-reconcile`, que roda a cada 10 min e busca o detalhe dos
-  jogos parados. Isso explicaria os trechos em múltiplos de 10 min (fato 4) e a relação com o tamanho do plano (fato
-  5). Não foi conferido: falta cruzar as respostas guardadas no `raw` de 31/10 e 01/11 com os jogos que pararam.
+  e os fatos 1 a 4 mostram o processo no ritmo, o pós-jogo leve, os jogos em campo em dia e os jogos parados fora da
+  lista do fornecedor. O ajuste deu certo, pelo que os dados indicam, porque tirou do plano as ligas de 8 dos 13 jogos.
+- **"Jogo omitido do `fixtures?live=` só atualiza pela reconciliação, em blocos de 10 min"** (versão anterior deste
+  documento). Errada nos dois pontos: o poller busca o detalhe do jogo omitido na hora, e a reconciliação só pega jogo
+  parado há 30 min ou mais. Apontado na revisão do PR.
 
 ### Fatores que contribuíram (fato)
 
+- **O plano conta jogo que o fornecedor não começou.** O relógio põe o jogo em andamento no apito, e o SLI e o
+  `LiveEventStale` contam esse jogo como parado mesmo com o fornecedor dando `NS`. O `raw` não diz por que a fonte não
+  o começou: atraso, adiamento ou liga sem ao vivo na fonte são as possibilidades.
 - **Configuração em dois lugares.** `LIVE_MIN_PRIORITY=low` no `.env` contra `medium` no painel e no padrão do registro
   (`packages/runtime-config/src/registry.ts`). Se a sobrescrita do painel for apagada, o plano grande volta.
 - **Deploys travados de 30/10 a 02/11.** A espera por jogo ao vivo reiniciava a cada merge; a produção ficou em
@@ -171,21 +203,23 @@ alertas escrevem a hora de Brasília.
   consulta, e a issue fecha e reabre. É hipótese lida nas regras e nos horários, não conferida na VPS. A última
   reabertura foi em 03/11 08:57; depois dela houve mais 10 deploys no dia e a issue não reabriu, o que é coerente
   com o #583 (o projeto obs, que leva as regras, foi publicado por volta das 08:40, pela nota de handover).
-- **O que faltou:** uma métrica por jogo (quantos jogos parados, quais ligas) e o atraso do placar desde a fonte
-  (`galaxie_live_score_lag_seconds`, proposta de docs/14). O SLI diz que algum jogo parou, não quantos nem por quê.
+- **O que faltou:** uma métrica por jogo (quantos jogos parados, quais ligas, e se o fornecedor já os começou) e o
+  atraso do placar desde a fonte (`galaxie_live_score_lag_seconds`, proposta de docs/14). O SLI diz que algum jogo
+  parou, não quantos nem por quê, e não separa o jogo em campo sem atualização do jogo que a fonte ainda não começou.
 
 ## Mitigação e correção
 
 - **Mitigação (01/11 23:36 UTC, painel, sem PR):** `LIVE_MIN_PRIORITY=medium`, com o futebol abaixo disso no pós-jogo
-  `tempo-real` a cada 2 min. Efeito medido: plano menor e SLI quase limpo desde 02/11 (tabela acima). Efeito
+  `tempo-real` a cada 2 min. Efeito medido: plano menor e SLI quase limpo desde 02/11 (tabela acima). Funcionou porque 8 dos 13 jogos `NS` eram
+  de ligas `low` (fato 5); as `medium` seguem expostas. Efeito
   colateral: o teto diário do pós-jogo passou a acabar de madrugada a partir de 02/11, e as ligas baixas ficavam sem
   placar até a agenda D-1. Corrigido em 05/11 pelo painel e pelo [#646](https://github.com/galaxie-works/galaxie-sports/pull/646).
 - **Correção estrutural (03/11):** ao vivo fora do ingestor, num serviço `live` com líder e reserva e troca cópia a
   cópia ([#555](https://github.com/galaxie-works/galaxie-sports/issues/555): [#570](https://github.com/galaxie-works/galaxie-sports/pull/570),
   [#589](https://github.com/galaxie-works/galaxie-sports/pull/589), [#590](https://github.com/galaxie-works/galaxie-sports/pull/590)).
-  Os PRs dizem que o objetivo é o deploy não cortar o placar; eles não afirmam corrigir o atraso por jogo deste
-  incidente. Se houvesse disputa de recursos com os outros jobs do ingestor (hipótese não medida), o serviço próprio
-  também a tiraria do caminho.
+  Os PRs dizem que o objetivo é o deploy não cortar o placar. Eles não mexem no tratamento do jogo `NS` e não
+  corrigem este incidente.
+- **Correção da causa:** ainda não existe. Está nas ações propostas.
 - **Detecção (02 e 03/11):** a mesma issue reabre com diagnóstico ([#514](https://github.com/galaxie-works/galaxie-sports/pull/514));
   `LiveTickGap` e o ritmo do tick no SLI; `ErrorBudgetExhausted` sem `for`, num grupo de 30 s ([#583](https://github.com/galaxie-works/galaxie-sports/pull/583)).
 - **Deploy (02/11):** sem espera por jogo ao vivo ([#524](https://github.com/galaxie-works/galaxie-sports/pull/524)).
@@ -204,12 +238,14 @@ dias bons (seriam ~60 dias de dados limpos), então ele resolve quando 31/10 e 0
   o fim fica entre as duas datas.
 
 Pela política de docs/14, com o orçamento abaixo de zero ficam congeladas as features do componente `ao-vivo` até o
-orçamento voltar a ser positivo **e** a correção da causa principal estar no ar. Como a causa não está confirmada e o
-orçamento só volta com a janela, a saída antes de 17/11 ou 30/11 depende de exceção do dono.
+orçamento voltar a ser positivo **e** a correção da causa principal estar no ar. Como a correção do poller ainda não
+existe e o orçamento só volta com a janela, a saída antes de 17/11 ou 30/11 depende de exceção do dono.
 
 ## O que deu certo
 
-- O processo do ao vivo seguiu no ritmo planejado o fim de semana inteiro, e o resto da API não foi afetado.
+- O processo do ao vivo seguiu no ritmo planejado o fim de semana inteiro, os jogos em campo ficaram em dia (com duas
+  exceções), e o resto da API não foi afetado.
+- O `raw.api_response` guardou as respostas do fornecedor e permitiu achar o mecanismo dias depois, só com leitura.
 - O `LiveEventStale` disparou 2 min depois do primeiro trecho longo, e o SLI separou bem o minuto ruim do bom.
 - O painel permitiu mitigar sem deploy, num momento em que deploy nenhum chegava à produção, e cada mudança ficou
   registrada em `ops.runtime_setting_log` com hora e valor anterior.
@@ -225,8 +261,9 @@ orçamento só volta com a janela, a saída antes de 17/11 ou 30/11 depende de e
 - Os deploys estavam travados pela espera por jogo ao vivo, e o deploy "verde" não dizia isso.
 - A issue do orçamento fechou e reabriu 19 vezes por causa da regra, não do ao vivo, o que tirou crédito do alerta.
 - A mitigação levou o pós-jogo a gastar o teto do dia de madrugada, e isso só foi visto em 05/11.
-- A causa do atraso por jogo não foi confirmada antes de mudar o sistema, e a correção estrutural mira outro problema
-  (o deploy cortando o placar).
+- A causa foi atribuída ao pós-jogo sem olhar o `raw`, e a correção estrutural da semana mira outro problema (o
+  deploy cortando o placar). O mecanismo do poller segue no código.
+- O SLI e o alerta mediram como "parado" o jogo que a fonte ainda não tinha começado.
 
 ## Ações
 
@@ -242,11 +279,13 @@ Nenhuma issue nova foi aberta por este postmortem. As marcadas "proposta" espera
 | `LiveTickGap`, ritmo do tick no SLI e `ErrorBudgetExhausted` sem `for` | detecta | feito | [#583](https://github.com/galaxie-works/galaxie-sports/pull/583) |
 | Retenção do Prometheus em 35 dias, para a janela de 28 dias valer inteira | detecta | aberto | [#654](https://github.com/galaxie-works/galaxie-sports/pull/654) |
 | Fechar a #482 quando o alerta resolver (~17/11, ou ~30/11 com o #654) | — | aberto | [#482](https://github.com/galaxie-works/galaxie-sports/issues/482) |
-| Confirmar a causa: cruzar o `raw` das respostas `fixtures?live=` de 31/10 e 01/11 com os jogos que pararam e com as execuções do `live-reconcile` | corrige | proposta | issue a abrir |
+| Poller: jogo do plano que nunca apareceu no `fixtures?live=` e responde `NS` no detalhe não usa a espera da confirmação de resultado; segue conferido num ritmo próprio, curto, até começar, ser adiado ou sair do plano | corrige | proposta | issue a abrir |
+| SLI e `LiveEventStale`: separar o jogo que o fornecedor ainda dá como não iniciado do jogo em campo sem atualização, e decidir com o dono qual dos dois gasta orçamento | corrige | proposta (dono) | issue a abrir |
+| Conferir no `core-writer` que a resposta `NS` de um jogo posto em andamento pelo relógio grava `last_valid_at` (a inferência do fato 4) e decidir se deve | corrige | proposta | issue a abrir |
 | Alinhar o `.env` da VPS (`LIVE_MIN_PRIORITY=low`) com o painel, ou registrar por que o painel manda | previne | proposta | issue a abrir |
 | Medir num fim de semana com o plano cheio (o primeiro desde o serviço `live`): amostras ruins, jogos no plano, `live_tick_interval_max_seconds` | detecta | proposta | issue a abrir |
 | Métrica por jogo: quantos jogos do plano estão parados e de quais ligas; histograma do atraso do placar (`galaxie_live_score_lag_seconds`, docs/14) | detecta | proposta | issue a abrir |
-| Runbook do sinal `ao-vivo`: passo para "`live-run` no ritmo, jogo parado" (diagnóstico da issue, tamanho do plano, reduzir pelo painel) | mitiga | proposta | issue a abrir |
+| Runbook do sinal `ao-vivo`: passo para "`live-run` no ritmo, jogo parado" (diagnóstico da issue, se o jogo está no `fixtures?live=`, reduzir o plano pelo painel) | mitiga | proposta | issue a abrir |
 | Rever os outros alertas com `for` longo (`DiskFillingUp`, `DatabaseGrowingFast`, `RestoreDrillStale`), que reabrem do mesmo jeito depois de reiniciar o Prometheus | detecta | proposta | issue a abrir |
 | Decidir a exceção da política de orçamento para o componente `ao-vivo` até a janela limpar | — | proposta (dono) | docs/14 |
 
