@@ -10,6 +10,7 @@ import {
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
+  TeamSquad,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'team_squad':
+        return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
     }
   }
   switch (kind) {
@@ -277,6 +280,8 @@ function PreviewWidget({
       return <SeasonCalendar {...o} competitionId={entity.id} />;
     case 'athlete_profile':
       return <AthleteProfile {...o} teamId={entity.id} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções

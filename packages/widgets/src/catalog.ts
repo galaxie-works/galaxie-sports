@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { TeamSquadProps } from './widgets/team-squad.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  team_squad: TeamSquadProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'TeamSquad';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,30 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  team_squad: {
+    kind: 'team_squad',
+    component: 'TeamSquad',
+    registryComponent: 'GalaxieTeamSquad',
+    name: { 'pt-BR': 'Elenco do time', es: 'Plantel del equipo', en: 'Team squad' },
+    description: {
+      'pt-BR': 'Os jogadores do clube por posição, com foto, número, idade e nacionalidade, e os técnicos.',
+      es: 'Los jugadores del club por posición, con foto, número, edad y nacionalidad, y los entrenadores.',
+      en: "A club's players by position, with photo, shirt number, age and nationality, plus the coaches.",
+    },
+    requiredProps: ['teamId'],
+    optionalProps: [
+      'season',
+      'showPhotos',
+      'groupByPosition',
+      'showNumber',
+      'showAge',
+      'showNationality',
+      'showCoaches',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
   },
 };
 
