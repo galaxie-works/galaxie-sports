@@ -64,7 +64,7 @@ describe('estádio por nome e cidade', () => {
     expect([...found.keys()].sort()).toEqual(
       [
         venueNameKey({ name: 'Estadio Atanasio Girardot', city: 'Medellín' }),
-        venueNameKey({ name: 'Estadio El Campín', city: 'Bogota' }),
+        venueNameKey({ name: 'ESTADIO EL CAMPÍN', city: 'bogota' }),
       ].sort(),
     );
   });

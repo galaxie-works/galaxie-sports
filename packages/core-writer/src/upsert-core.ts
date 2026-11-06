@@ -1116,25 +1116,29 @@ export function venueNameKey(ref: { name: string; city: string | null }): string
 
 /**
  * Estádios já conhecidos pelo nome e cidade (o jogo da api-sports sem `venue.id`): só o casamento único vale —
- * dois estádios com o mesmo nome na mesma cidade ficam sem ligação.
+ * dois estádios com o mesmo nome na mesma cidade ficam sem ligação. A comparação é toda no Postgres
+ * (`lower(trim(...))` dos dois lados, como no backfill `venues-by-name`): minúscula do JS e do banco divergem em
+ * letras como `İ`. A chave do mapa é a `venueNameKey` da referência pedida.
  */
 export async function venuesByName(
   tx: Tx | Database,
   refs: readonly { name: string; city: string | null }[],
 ): Promise<Map<string, string>> {
-  const names = [...new Set(refs.map((r) => r.name.trim().toLowerCase()))];
+  const wanted = [...new Map(refs.map((r) => [venueNameKey(r), r] as const)).values()];
   const out = new Map<string, string>();
-  if (!names.length) return out;
-  const rows = await tx
-    .select({ id: venue.id, name: venue.name, city: venue.city })
-    .from(venue)
-    .where(inArray(sql`lower(trim(${venue.name}))`, names));
-  const seen = new Map<string, string | null>();
-  for (const r of rows) {
-    const key = venueNameKey({ name: r.name, city: r.city });
-    seen.set(key, seen.has(key) ? null : r.id);
-  }
-  for (const [key, id] of seen) if (id) out.set(key, id);
+  if (!wanted.length) return out;
+  const values = sql.join(
+    wanted.map((r, i) => sql`(${i}::int, ${r.name}::text, ${r.city}::text)`),
+    sql`, `,
+  );
+  const rows = await tx.execute<{ i: number; id: string; n: number }>(sql`
+    select r.i, min(${venue.id}::text) as id, count(*)::int as n
+      from (values ${values}) as r(i, name, city)
+      join ${venue}
+        on lower(trim(${venue.name})) = lower(trim(r.name))
+       and lower(trim(coalesce(${venue.city}, ''))) = lower(trim(coalesce(r.city, '')))
+     group by r.i`);
+  for (const row of rows) if (row.n === 1) out.set(venueNameKey(wanted[row.i]!), row.id);
   return out;
 }
 
