@@ -9,6 +9,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   competition,
+  country,
   event,
   eventParticipant,
   participant,
@@ -678,5 +679,76 @@ describe('limpeza do resíduo no grupo sem nome', () => {
     expect((await w.table()).filter((r) => r.group === '')).toHaveLength(0);
     expect(await single.table()).toHaveLength(2);
     expect(await cleanupEmptyGroupResidue(db, { apply: true })).toEqual([]);
+  });
+});
+
+describe('Leagues Cup (2026): uma tabela por liga, pelo país do clube, com pênaltis valendo 2/1', () => {
+  let w: World;
+  const MLS = ['M1', 'M2', 'M3'];
+  const MX = ['X1', 'X2', 'X3'];
+  beforeAll(async () => {
+    w = await world('leagues-cup', 2026, [...MLS, ...MX]);
+    await db
+      .insert(country)
+      .values([
+        { code: 'US', name: { 'pt-BR': 'Estados Unidos' } },
+        { code: 'CA', name: { 'pt-BR': 'Canadá' } },
+        { code: 'MX', name: { 'pt-BR': 'México' } },
+      ])
+      .onConflictDoNothing();
+    for (const [team, code] of [
+      ['M1', 'US'],
+      ['M2', 'US'],
+      ['M3', 'CA'],
+      ['X1', 'MX'],
+      ['X2', 'MX'],
+      ['X3', 'MX'],
+    ] as const)
+      await db
+        .update(participant)
+        .set({ countryCode: code })
+        .where(eq(participant.id, w.team(team)));
+    const shootout = async (game: Promise<{ eventId: string }>, home: number, away: number) => {
+      const { eventId } = await game;
+      const [e] = await db.select({ score: event.score }).from(event).where(eq(event.id, eventId));
+      await db
+        .update(event)
+        .set({ score: { ...e!.score!, penalty: { home, away } } })
+        .where(eq(event.id, eventId));
+    };
+    await w.play('Group Stage', 'M1', 'X1', [2, 0], 'group');
+    await shootout(w.play('Group Stage', 'X2', 'M2', [1, 1], 'group'), 4, 3);
+    await shootout(w.play('Group Stage', 'M3', 'X3', [0, 0], 'group'), 2, 4);
+    await w.play('Group Stage', 'M1', 'X2', [0, 1], 'group');
+    await w.play('Group Stage', 'M2', 'X3', [3, 1], 'group');
+    await shootout(w.play('Group Stage', 'M3', 'X1', [1, 1], 'group'), 5, 4);
+    // mata-mata: fora da tabela
+    await w.play('Quarter-finals', 'M2', 'X2', [4, 0], 'quarter_final');
+  });
+
+  it('cada time só na tabela da sua liga, com os jogos contra a outra; pênaltis à parte em ot_won/ot_lost', async () => {
+    const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
+    expect(report.outcome).toBe('written');
+    expect(report.skipped).toBeUndefined();
+    const rows = await db
+      .select()
+      .from(standing)
+      .where(eq(standing.seasonId, w.seasonId))
+      .orderBy(asc(standing.group), asc(standing.rank));
+    const name = (id: string) => [...MLS, ...MX].find((t) => w.team(t) === id);
+    expect(
+      rows.map((r) => [r.group, name(r.participantId), r.points, r.won, r.drawn, r.lost, r.otWon, r.otLost]),
+    ).toEqual([
+      // Liga MX: X2 venceu M2 nos pênaltis (2) e M1 no tempo normal (3)
+      ['Liga MX', 'X2', 5, 2, 0, 0, 1, 0],
+      ['Liga MX', 'X3', 2, 1, 0, 1, 1, 0],
+      ['Liga MX', 'X1', 1, 0, 0, 2, 0, 1],
+      // MLS: M1 e M3 com 3; M1 tem uma vitória no tempo normal, M3 nenhuma
+      ['MLS', 'M2', 4, 1, 0, 1, 0, 1],
+      ['MLS', 'M1', 3, 1, 0, 1, 0, 0],
+      ['MLS', 'M3', 3, 1, 0, 1, 1, 1],
+    ]);
+    expect(rows.every((r) => r.played === 2 && r.source === 'computed')).toBe(true);
+    expect(rows.find((r) => name(r.participantId) === 'M2')?.description).toBe('quarter_finals');
   });
 });

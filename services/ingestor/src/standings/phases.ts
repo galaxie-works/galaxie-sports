@@ -4,8 +4,8 @@
  * Ligas latino-americanas têm várias tabelas por temporada; sem o regulamento, um time em dois grupos
  * (fase e anual, Apertura e Clausura) deixaria a tabela parada.
  */
-import { and, eq } from 'drizzle-orm';
-import { event, stage, type Database } from '@galaxie/db';
+import { and, eq, inArray } from 'drizzle-orm';
+import { event, participant, stage, type Database } from '@galaxie/db';
 import {
   accumulate,
   computeStandings,
@@ -148,6 +148,15 @@ export async function computeTablesByRule(
   const kindOf = new Map(labels.map((l) => [l.id, l.kind]));
   const resultAt = new Map(labels.map((l) => [l.id, l.updatedAt.getTime()]));
   const inRounds = (re: RegExp) => results.filter((m) => re.test(labelOf.get(m.id!) ?? ''));
+  // tabelas montadas pelo país do clube (Leagues Cup): o país de cada time da temporada
+  const countryOf = new Map<string, string | null>();
+  const teamIds = [...new Set(results.flatMap((m) => [m.homeId, m.awayId]))];
+  if (rules.tables.some((t) => t.countries) && teamIds.length)
+    for (const p of await db
+      .select({ id: participant.id, country: participant.countryCode })
+      .from(participant)
+      .where(inArray(participant.id, teamIds)))
+      countryOf.set(p.id, p.country);
 
   const rowsOf = new Map<string, TableRow[]>();
   const unclassified = new Set<string>();
@@ -217,7 +226,18 @@ export async function computeTablesByRule(
     const tableRules = rulesFor(rules, t);
     let computed: StandingsTable[];
     try {
-      if (named.length > 1) {
+      if (t.countries) {
+        // os times do país da tabela, cada um com todos os seus jogos (contra a outra liga)
+        const countries = new Set(t.countries);
+        const members = [...new Set(matches.flatMap((m) => [m.homeId, m.awayId]))].filter((id) =>
+          countries.has(countryOf.get(id) ?? ''),
+        );
+        if (!members.length) {
+          skipped.push({ table: t.key, reason: `nenhum time de ${t.countries.join(', ')} nos jogos` });
+          continue;
+        }
+        computed = crossGroupTables(tableRules, matches, new Map(members.map((id) => [id, t.groupName!])));
+      } else if (named.length > 1) {
         if (t.kind === 'annual') {
           skipped.push({
             table: t.key,

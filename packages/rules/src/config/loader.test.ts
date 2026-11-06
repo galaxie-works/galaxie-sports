@@ -150,6 +150,21 @@ describe('regulamentos específicos', () => {
     expect(knockoutStageRules(r, 'first_round')).toMatchObject({ legs: 1, drawAdvantage: 'away' });
     expect(knockoutStageRules(r, 'final')).toMatchObject({ legs: 2, decidesTitle: true });
   });
+
+  it('Leagues Cup: pênaltis valem 2/1; desde 2025 uma tabela por liga; até 2024 grupos de 3', async () => {
+    const r = await loadCompetitionRules('leagues-cup', { season: 2026 });
+    expect(r.standings.points.shootout).toEqual({ win: 2, loss: 1 });
+    expect(r.standings.tieBreakers[0]!.criterion).toBe('wins');
+    expect(r.tables.map((t) => [t.key, t.groupName, t.countries])).toEqual([
+      ['mls', 'MLS', ['US', 'CA']],
+      ['liga_mx', 'Liga MX', ['MX']],
+    ]);
+    expect(r.tables[0]!.rounds!.test('group stage - 2')).toBe(true);
+    const old = await loadCompetitionRules('leagues-cup', { season: 2024 });
+    expect(old.tables).toEqual([]);
+    expect(old.league).toMatchObject({ teams: 3, matchesPerTeam: 2 });
+    expect(old.standings.points.shootout).toEqual({ win: 2, loss: 1 });
+  });
 });
 
 describe('loadCompetitionRules — fallback', () => {

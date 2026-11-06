@@ -101,6 +101,22 @@ function parseStandings(slug: string, raw: unknown): StandingsRules {
       win: int(slug, 'standings.points.win', points.win, 3),
       draw: int(slug, 'standings.points.draw', points.draw, 1),
       loss: int(slug, 'standings.points.loss', points.loss, 0),
+      ...(points.shootout === undefined || points.shootout === null
+        ? {}
+        : {
+            shootout: {
+              win: int(
+                slug,
+                'standings.points.shootout.win',
+                isObject(points.shootout) ? points.shootout.win : undefined,
+              ),
+              loss: int(
+                slug,
+                'standings.points.shootout.loss',
+                isObject(points.shootout) ? points.shootout.loss : undefined,
+              ),
+            },
+          }),
     },
     tieBreakers,
     h2hReapply: bool(slug, 'standings.h2h_reapply', s.h2h_reapply, true),
@@ -252,6 +268,17 @@ function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsT
     const groupName = t.group_name === undefined || t.group_name === null ? null : t.group_name;
     if (groupName !== null && (typeof groupName !== 'string' || !groupName))
       fail(slug, `tabela ${key}.group_name deve ser texto`);
+    let countries: string[] | null = null;
+    if (t.countries !== undefined && t.countries !== null) {
+      if (
+        !Array.isArray(t.countries) ||
+        !t.countries.length ||
+        !t.countries.every((c) => typeof c === 'string' && /^[A-Z]{2}$/.test(c))
+      )
+        fail(slug, `tabela ${key}.countries deve ser uma lista de códigos de país (US, MX…)`);
+      if (groupName === null) fail(slug, `tabela ${key}: countries precisa de group_name`);
+      countries = t.countries as string[];
+    }
     return {
       key,
       kind: kind as StandingsTableKind,
@@ -268,6 +295,7 @@ function parseTables(slug: string, raw: unknown, leagueRaw: unknown): StandingsT
       rounds,
       groupName,
       crossGroupMatches: bool(slug, `tabela ${key}.cross_group_matches`, t.cross_group_matches, false),
+      countries,
       computed,
       league: t.league === undefined ? null : parseLeague(slug, deepMerge(leagueRaw ?? {}, t.league)),
     };

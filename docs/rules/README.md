@@ -101,6 +101,7 @@ O `id` da zona vira parte do código (`qualifies_for_sudamericana`) e tem rótul
 | `conmebol-libertadores` | saldo, gols pró, gols fora, vermelhos, amarelos | Grupos de 4; mata-mata sem gol fora desde 2022 e sem prorrogação; final única (2019+) |
 | `conmebol-sudamericana` | idem Libertadores | 2º do grupo vai aos playoffs |
 | `uefa-champions-league` | saldo, gols pró, gols fora, vitórias, vitórias fora, adversários (pontos, saldo, gols), fair play | Fase de liga de 36 (2024+); até 2023 grupos com confronto direto; até 2020 gol fora (inclusive na prorrogação) |
+| `leagues-cup` | vitórias no tempo normal, saldo, gols pró, menos gols sofridos, fair play | Sem tabela no fornecedor: calculada. Pênaltis valem 2/1 (`points.shootout`). Desde 2025 `tables`: MLS e Liga MX pelo país do clube (`countries`), 4 primeiros às quartas; até 2024 grupos de 3 deduzidos dos jogos |
 | `copa-do-brasil` | — | 1ª fase: visitante avança com empate; 2ª fase: jogo único com pênaltis; depois ida e volta sem prorrogação |
 | `default` | saldo, gols pró, vitórias | Genérico |
 
@@ -119,6 +120,8 @@ tables:
     rounds: '^apertura - \d+$'       # rodadas (core.stage.provider_label) do recálculo; sem: só do fornecedor
     group_name: Apertura             # grupo gravado quando o fornecedor ainda não mandou a tabela (tabela única)
     cross_group_matches: true        # jogo entre zonas conta para os dois (fecha interzonal)
+    # countries: [US, CA]            # times pelo país do clube, sem os grupos do fornecedor (Leagues Cup);
+    #                                # pede group_name, e cada time soma os seus jogos contra a outra tabela
     league: { teams: 15, zones: [...] }  # matemática própria, por cima do `league` da competição
   - key: annual
     kind: annual                     # sem rounds: soma as rodadas de todas as fases
@@ -133,6 +136,8 @@ tables:
 - **Tabela do fornecedor mais nova**: vale por tabela, não pela temporada. A tabela cujas linhas do fornecedor são mais novas que o último resultado das suas rodadas fica como veio (`fresh` no relatório); as demais são recalculadas (a anual que o fornecedor não manda, por exemplo). Só com todas frescas o resultado é `provider_fresh`.
 - **Grupo renomeado**: o grupo com nome cujos times estão todos num grupo de linhas mais novas da mesma tabela é o nome antigo da mesma tabela e é apagado, de qualquer origem (`superseded` no relatório). Grupos da mesma idade (as zonas de uma carga, uma geral ao lado das zonas) não contam.
 - **Jogos entre grupos** (`cross_group_matches`): nos stakes de um jogo encerrado da zona, a tabela de antes desfaz também os interzonais posteriores, só do lado da zona; e a rodada com interzonal fica "desconhecida" no "nesta rodada" (todos podem pontuar), que é o limite seguro.
+- **Tabela pelo país** (`countries`): os times da tabela são os clubes daquele país (`core.participant.country_code`) que jogaram as rodadas dela; cada um soma todos os seus jogos, todos contra a outra tabela, e a tabela grava no grupo `group_name`. Vale mesmo sem nenhuma tabela do fornecedor.
+- **Pênaltis que valem ponto** (`standings.points.shootout: { win, loss }`): o empate decidido nos pênaltis dá `shootout.win` a quem vence a disputa e `shootout.loss` a quem perde, no lugar de `draw`; o critério `wins` continua contando só as vitórias no tempo normal. Na gravação, a tabela fica como a do hóquei: a disputa entra em `won`/`lost` e à parte em `ot_won`/`ot_lost`.
 - **Rodada desconhecida**: jogo de fase de grupos (`core.stage.kind = group`/`league_phase`) com rótulo que nenhuma fase reconhece só conta numa fase quando ela é inequívoca (`unknownRoundPhase`): entre as tabelas de fase e as auxiliares (`other`), uma única tem um grupo com os dois times, ela é uma fase e esse grupo separa times (não é a tabela inteira). Assim um quadrangular da Colômbia ("Group A - 1") não entra na tabela única do Apertura, e as mesmas zonas no Apertura e no Clausura (Argentina) não decidem a fase. Os stakes seguem a mesma regra; sem fase inequívoca, ficam vazios com o motivo. A rodada vai para `unmatchedRounds` nos dois casos. Rodada `regular` desconhecida fica fora (pode ser mata-mata rotulado como rodada, ex.: Liguilla).
 - **Visível**: tabela sem recálculo (`skipped`), grupo que o regulamento não reconhece (`unclassified`) e rodada desconhecida (`unmatchedRounds`) saem em `warn` no `sync:daily` e no ao vivo (`needsAttention`), e no `standings:recompute`.
 - **Sem `tables`**: comportamento anterior (tabela única ou grupos do fornecedor; time em dois grupos → `no_groups`, em `warn`).
