@@ -708,6 +708,11 @@ describe('TeamSchedule', () => {
 
   it('com jogo ao vivo atualiza a cada 30 s', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // meio-dia em São Paulo: perto da meia-noite local, os 30 s viram o dia, a janela `from`/`to` muda e a
+    // consulta é refeita por isso (3 chamadas em vez de 2)
+    const noon = new Date();
+    noon.setUTCHours(15, 0, 0, 0);
+    vi.setSystemTime(noon);
     const { fetchImpl } = setup(<TeamSchedule teamId={PREVIEW_IDS.team} />);
     await screen.findByText('Próximos jogos');
     await act(async () => {
