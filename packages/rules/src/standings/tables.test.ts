@@ -294,6 +294,10 @@ describe('nome exibido do grupo do fornecedor sem regulamento', () => {
     expect(providerGroupLabel('Relegation Group', 'es')).toBe('Ronda por la permanencia');
     expect(providerGroupLabel('Eastern Conference', 'pt-BR')).toBe('Conferência Leste');
     expect(providerGroupLabel('Ranking of third-placed teams', 'pt-BR')).toBe('Melhores terceiros');
+    expect(providerGroupLabel('Group Stage', 'pt-BR')).toBe('Fase de grupos');
+    expect(providerGroupLabel('League Stage', 'pt-BR')).toBe('Fase de liga');
+    expect(providerGroupLabel('Zone B', 'pt-BR')).toBe('Zona B');
+    expect(providerGroupLabel('Apertura - Zone A', 'en')).toBe('Apertura · Zone A');
   });
 
   it('nome do torneio na frente fica; só a parte genérica é traduzida', () => {

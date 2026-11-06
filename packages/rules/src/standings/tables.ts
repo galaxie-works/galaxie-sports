@@ -67,7 +67,8 @@ export function autoGroupRank(group: string): number {
  */
 const PROVIDER_GROUP_NAMES: readonly [RegExp, TableName][] = [
   [/^regular season$/i, { 'pt-BR': 'Fase regular', es: 'Fase regular', en: 'Regular season' }],
-  [/^(league|group) (stage|phase)$/i, { 'pt-BR': 'Fase de liga', es: 'Fase de liga', en: 'League phase' }],
+  [/^league (stage|phase)$/i, { 'pt-BR': 'Fase de liga', es: 'Fase de liga', en: 'League phase' }],
+  [/^group (stage|phase)$/i, { 'pt-BR': 'Fase de grupos', es: 'Fase de grupos', en: 'Group stage' }],
   [
     /^championship (round|group|play-?offs?)$/i,
     { 'pt-BR': 'Disputa pelo título', es: 'Ronda por el título', en: 'Championship round' },
@@ -102,11 +103,14 @@ const PROVIDER_GROUP_NAMES: readonly [RegExp, TableName][] = [
   [/^promedios?$/i, { 'pt-BR': 'Promedios', es: 'Promedios', en: 'Relegation averages' }],
 ];
 
-/** "Group A", "Grupo 2", "Zone B" → "Grupo A" / "Grupo 2" / "Zona B" no idioma pedido. */
+const ZONE: TableName = { 'pt-BR': 'Zona', es: 'Zona', en: 'Zone' };
+
+/** "Group A", "Grupo 2", "Zone B" → "Grupo A" / "Grupo 2" / "Zona B" no idioma pedido (zona continua zona). */
 function subgroupName(part: string, lang: Lang): string | null {
-  const m = /^(?:group|grupo|zone|zona)\s+([a-z0-9]{1,3})$/i.exec(part);
+  const m = /^(group|grupo|zone|zona)\s+([a-z0-9]{1,3})$/i.exec(part);
   if (!m) return null;
-  return `${pick(SUBGROUP, lang)} ${m[1]!.toUpperCase()}`;
+  const label = /^zon/i.test(m[1]!) ? ZONE : SUBGROUP;
+  return `${pick(label, lang)} ${m[2]!.toUpperCase()}`;
 }
 
 function genericName(part: string, lang: Lang): string | null {
