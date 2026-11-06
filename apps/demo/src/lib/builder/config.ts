@@ -33,6 +33,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -80,6 +81,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   related_videos: ['event'],
   head_to_head: ['event'],
   team_schedule: ['team'],
+  team_card: ['team'],
   race_result: ['event'],
   race_weekend: ['event'],
   season_calendar: ['competition'],
@@ -99,7 +101,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
 
 /**
  * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` nos widgets de
- * um jogo, `competitionId` na tabela e `teamId` na agenda do time). O widget salvo grava a entidade no arquivo instalado e o
+ * um jogo, `competitionId` na tabela e `teamId` na agenda e no cartão do time). O widget salvo grava a entidade no arquivo instalado e o
  * snippet de uso vai sem props: sem ela, o componente instalado só mostraria erro.
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
@@ -112,6 +114,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   related_videos: 'event',
   head_to_head: 'event',
   team_schedule: 'team',
+  team_card: 'team',
   race_result: 'event',
   race_weekend: 'event',
   season_calendar: 'competition',
@@ -424,6 +427,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   related_videos: 'GalaxieRelatedVideos',
   head_to_head: 'GalaxieHeadToHead',
   team_schedule: 'GalaxieTeamSchedule',
+  team_card: 'GalaxieTeamCard',
   race_result: 'GalaxieRaceResult',
   race_weekend: 'GalaxieRaceWeekend',
   season_calendar: 'GalaxieSeasonCalendar',

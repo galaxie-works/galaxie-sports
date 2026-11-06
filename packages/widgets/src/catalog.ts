@@ -8,6 +8,7 @@ import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
 import type { TeamScheduleProps } from './widgets/team-schedule.js';
+import type { TeamCardProps } from './widgets/team-card.js';
 import type { AthleteProfileProps } from './widgets/athlete-profile.js';
 import type { FightCardProps } from './widgets/fight-card.js';
 import type { RaceResultProps } from './widgets/race-result.js';
@@ -35,6 +36,7 @@ export interface WidgetPropsByKind {
   related_videos: RelatedVideosProps;
   head_to_head: HeadToHeadProps;
   team_schedule: TeamScheduleProps;
+  team_card: TeamCardProps;
   race_result: RaceResultProps;
   race_weekend: RaceWeekendProps;
   season_calendar: SeasonCalendarProps;
@@ -65,6 +67,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'RelatedVideos'
     | 'HeadToHead'
     | 'TeamSchedule'
+    | 'TeamCard'
     | 'RaceResult'
     | 'RaceWeekend'
     | 'SeasonCalendar'
@@ -328,6 +331,22 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStanding',
       'showCalendar',
     ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: true,
+    sports: TEAM_SPORTS,
+  },
+  team_card: {
+    kind: 'team_card',
+    component: 'TeamCard',
+    registryComponent: 'GalaxieTeamCard',
+    name: { 'pt-BR': 'Cartão do time', es: 'Ficha del equipo', en: 'Team card' },
+    description: {
+      'pt-BR': 'Escudo, forma recente (V/E/D), o próximo jogo e os campeonatos que o time disputa.',
+      es: 'Escudo, forma reciente (G/E/P), el próximo partido y las competiciones que disputa el equipo.',
+      en: 'Crest, recent form (W/D/L), the next match and the competitions the team is playing in.',
+    },
+    requiredProps: ['teamId'],
+    optionalProps: ['showForm', 'formCount', 'showNext', 'showCompetitions', 'competitionsLimit'],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
     sports: TEAM_SPORTS,

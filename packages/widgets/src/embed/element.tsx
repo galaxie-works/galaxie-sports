@@ -42,6 +42,7 @@ import { RaceWeekend } from '../widgets/race-weekend.js';
 import { RelatedVideos } from '../widgets/related-videos.js';
 import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
+import { TeamCard } from '../widgets/team-card.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
@@ -145,6 +146,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <HeadToHead {...o} eventId={eventId ?? ''} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={teamId ?? ''} />;
+    case 'team_card':
+      return <TeamCard {...o} teamId={teamId ?? ''} />;
     case 'race_result':
       return <RaceResult {...o} eventId={eventId ?? ''} />;
     case 'race_weekend':

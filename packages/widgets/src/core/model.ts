@@ -15,6 +15,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -641,6 +642,24 @@ export interface GsCompetitionContext {
 export interface GsTeamOverview {
   standings: { competition: { id: string; name: string }; rank: number | null }[];
   form: { event_id: string; result: 'W' | 'D' | 'L'; score: string }[];
+  /** O time (escudo, país, estádio): o cartão do time usa; a agenda só lê a posição e a forma. */
+  team?: GsTeamOverviewTeam | undefined;
+  /** Campanha em cada competição da temporada atual (em disputa primeiro). */
+  competitions?: GsTeamCompetition[] | undefined;
+  live_event?: GsEvent | null | undefined;
+  next_event?: GsEvent | null | undefined;
+}
+
+export interface GsTeamOverviewTeam extends GsTeam {
+  founded?: number | null | undefined;
+  venue?: { name: string; city: string | null } | null | undefined;
+}
+
+/** Competição que o time disputa, com a situação da campanha (`/v1/teams/{id}/overview`). */
+export interface GsTeamCompetition {
+  competition: { id: string; slug: string; name: string; logo: string | null };
+  season: { year: number; label: string };
+  campaign: { status: string; label: GsLocalizedText; ongoing: boolean; rank: number | null };
 }
 
 /** Cenário pré-jogo e resumo pós-jogo de IA (`/v1/events/{id}/context`). */
@@ -1434,6 +1453,15 @@ export interface WidgetTexts {
     away: string;
     result: { W: string; D: string; L: string };
   };
+  /** Cartão do time: escudo, forma recente, próximo jogo e campeonatos. */
+  teamCard: {
+    title: string;
+    form: string;
+    next: string;
+    live: string;
+    competitions: string;
+    noNext: string;
+  };
   /** Campos opcionais ligados no Builder (placar, tabela, agenda…). */
   extra: {
     referee: string;
@@ -1739,6 +1767,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       away: 'Fora',
       result: { W: 'V', D: 'E', L: 'D' },
     },
+    teamCard: {
+      title: 'Cartão do time',
+      form: 'Forma recente',
+      next: 'Próximo jogo',
+      live: 'Ao vivo',
+      competitions: 'Campeonatos',
+      noNext: 'Nenhum jogo marcado.',
+    },
     extra: {
       referee: 'Árbitro',
       halftime: '1º T {home}–{away}',
@@ -2027,6 +2063,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       away: 'Visitante',
       result: { W: 'G', D: 'E', L: 'P' },
     },
+    teamCard: {
+      title: 'Ficha del equipo',
+      form: 'Forma reciente',
+      next: 'Próximo partido',
+      live: 'En vivo',
+      competitions: 'Competiciones',
+      noNext: 'Ningún partido programado.',
+    },
     extra: {
       referee: 'Árbitro',
       halftime: '1T {home}–{away}',
@@ -2314,6 +2358,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       home: 'Home',
       away: 'Away',
       result: { W: 'W', D: 'D', L: 'L' },
+    },
+    teamCard: {
+      title: 'Team card',
+      form: 'Recent form',
+      next: 'Next match',
+      live: 'Live',
+      competitions: 'Competitions',
+      noNext: 'No match scheduled.',
     },
     extra: {
       referee: 'Referee',
