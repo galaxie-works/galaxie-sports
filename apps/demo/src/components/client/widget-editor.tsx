@@ -22,6 +22,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  Sidelined,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'sidelined':
+        return <Sidelined {...o} {...WIDGET_CATALOG.sidelined.exampleProps} />;
     }
   }
   switch (kind) {
@@ -279,6 +282,12 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'sidelined':
+      return entity.type === 'team' ? (
+        <Sidelined {...o} teamId={entity.id} />
+      ) : (
+        <Sidelined {...o} eventId={entity.id} />
+      );
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Trophy,
   Tv,
+  UserMinus,
   UserCheck,
   UserRound,
   Users,
@@ -87,6 +88,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  sidelined: UserMinus,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

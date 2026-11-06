@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { SidelinedProps } from './widgets/sidelined.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  sidelined: SidelinedProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'Sidelined';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  sidelined: {
+    kind: 'sidelined',
+    component: 'Sidelined',
+    registryComponent: 'GalaxieSidelined',
+    name: { 'pt-BR': 'Desfalques', es: 'Bajas', en: 'Absences' },
+    description: {
+      'pt-BR':
+        'Lesionados, suspensos e dúvidas de cada time antes do jogo, com o motivo e a previsão de volta.',
+      es: 'Lesionados, sancionados y dudas de cada equipo antes del partido, con el motivo y la vuelta prevista.',
+      en: 'Injured, suspended and doubtful players for each team before the match, with the reason and return date.',
+    },
+    requiredProps: [],
+    optionalProps: ['eventId', 'teamId', 'showReason', 'showReturn', 'showPhoto', 'showDoubtful', 'limit'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: FOOTBALL_ONLY,
   },
 };
 

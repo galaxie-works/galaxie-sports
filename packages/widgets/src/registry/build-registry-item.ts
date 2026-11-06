@@ -140,6 +140,9 @@ function defaultProps(
       return pick(['teamId']);
     case 'season_calendar':
       return pick(['competitionId']);
+    // por jogo ou por time: a entidade salva no Builder (o jogo, se houver, vence)
+    case 'sidelined':
+      return defaults.eventId ? pick(['eventId']) : pick(['teamId']);
     // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':
