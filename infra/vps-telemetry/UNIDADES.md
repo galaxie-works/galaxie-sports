@@ -111,7 +111,9 @@ docker compose -f compose.dados.yml exec backup ls -la /backups    # o dump do d
 ## Observabilidade
 
 **O que roda.** Prometheus (alertas, SLOs e testes de regra), Grafana (painéis de cota e SLO, alertas que viram issues) e
-o node-exporter, em [`compose.obs.yml`](compose.obs.yml). O Grafana não tem rota pública: acesso por túnel SSH.
+o node-exporter, em [`compose.obs.yml`](compose.obs.yml). O Grafana não tem rota pública: acesso por túnel SSH. O
+Prometheus guarda 35 dias no volume `promdata`, com teto de 2 GB
+([retenção](../../docs/14-slos-e-error-budget.md#retenção-do-prometheus)).
 
 **Smoke.**
 

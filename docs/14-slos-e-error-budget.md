@@ -205,10 +205,10 @@ que já disparava volta como pendente (`for-grace-period` de 10 min, mais até 5
 o `ALERTS{alertstate="firing"}` que o Grafana lê some por mais que os 5 min de tolerância da consulta, a issue fecha e
 a seguinte reabre. Não é a troca de versão gastando orçamento: o SLI do ao vivo (atraso de 2 intervalos do poller)
 não enxergava uma troca de segundos. O orçamento do `ao-vivo` está de fato estourado (erro de 28 dias de 10,8% contra
-1% permitido em 03/11) e volta sozinho conforme os dias ruins saírem da janela; o alerta segue disparando até lá, mas
-sem fechar e reabrir a cada deploy. Outros alertas com `for` longo (`DiskFillingUp`, `DatabaseGrowingFast`,
-`RestoreDrillStale`) têm o mesmo atraso depois de uma reinicialização do Prometheus; vale rever se algum deles passar
-a disparar com frequência.
+1% permitido em 03/11) e volta sozinho conforme os dias ruins saírem da janela (por volta de 30/11; veja Retenção do
+Prometheus); o alerta segue disparando até lá, mas sem fechar e reabrir a cada deploy. Outros alertas com `for` longo
+(`DiskFillingUp`, `DatabaseGrowingFast`, `RestoreDrillStale`) têm o mesmo atraso depois de uma reinicialização do
+Prometheus; vale rever se algum deles passar a disparar com frequência.
 
 Os alertas de queima do ao vivo, do frescor e do backup não mandam push: esses sinais já têm push próprio e mais
 rápido (`LiveEventStale`, `LiveTickGap`, `BackupStale`, `BackupCheckFailed`). Frescor e backup nem têm queima: com um job por dia, a
@@ -216,12 +216,32 @@ taxa por hora não diz nada que o alerta do job não diga.
 
 ## Retenção do Prometheus
 
-O Prometheus guarda 15 dias por padrão (`PROMETHEUS_RETENTION` no compose da VPS). Com isso, o "28 dias" das regras
-vê no máximo 15. Para a janela valer de verdade, é preciso `PROMETHEUS_RETENTION=35d` no `.env` da VPS e recriar o
-Prometheus. **Pendente de OK do dono**, porque aumenta o disco do volume `promdata`. Antes, medir o tamanho atual
-(`docker system df -v | grep promdata`) e projetar ×2,3.
+O Prometheus guarda **35 dias**, com teto de **2 GB** no disco (`--storage.tsdb.retention.time` e
+`--storage.tsdb.retention.size`, fixos no `compose.obs.yml` e com o mesmo padrão no `entrypoint.sh` da imagem).
+**Aprovado pelo dono em 06/11/2026.** Antes eram 15 dias, e o "28 dias" das regras via no máximo 15: o painel e o
+`ErrorBudgetExhausted` mostravam o orçamento dos dias disponíveis, mais severo que o de 28 dias.
 
-Até lá, o painel e o `ErrorBudgetExhausted` mostram o orçamento dos dias disponíveis, mais severo que o de 28 dias.
+Os valores ficam no compose, e não no `.env` da VPS, porque o deploy só troca as tags do `.env`: a linha
+`PROMETHEUS_RETENTION=15d` que o `.env` da produção ainda tem não vale mais e pode sair quando for conveniente. A
+mudança entra no ar com o deploy do projeto `obs`, que é à mão (`gh workflow run deploy.yml -f project=obs`).
+
+**Disco, medido em 06/11/2026** (volume `promdata`, com 15 dias e amostra mais antiga de 22/10 13:35 UTC): 121 MB no
+volume, dos quais 111 MB em blocos (`prometheus_tsdb_storage_blocks_bytes`), 13 MB de WAL e 2 MB do head. O ritmo
+dobrou desde 03/11 (de cerca de 6 para cerca de 12 MB por dia, com as séries novas). Com 35 dias: cerca de 290 MB na
+proporção direta e cerca de 450 MB no ritmo de agora; com folga para crescer, até 1 GB. O disco da VPS tem 96 GB, com
+50 GB livres (49% em uso). O teto de 2 GB fica bem acima disso (cerca de 4 vezes a estimativa) e é só proteção:
+uma explosão de séries para em 2 GB, e não come o espaço do Postgres e dos dumps, que ficam no mesmo disco. Se o teto
+for atingido, o Prometheus apaga os blocos mais antigos antes dos 35 dias e a janela dos SLOs encolhe:
+`prometheus_tsdb_size_retentions_total` sobe e `prometheus_tsdb_lowest_timestamp_seconds` mostra o dia mais antigo.
+
+**A janela só fica completa com o tempo.** Aumentar a retenção não traz de volta o que os 15 dias já apagaram: a
+janela de 28 dias fecha 28 dias depois da amostra mais antiga que sobrar no deploy (publicado em 06/11, isso é por
+volta de 19/11; cada dia de atraso no deploy empurra essa data um dia).
+
+**Consequência no `ao-vivo`.** O `ErrorBudgetExhausted` do `ao-vivo`, que com 15 dias resolveria por volta de 17/11,
+passa a durar até as amostras ruins de 31/10 a 02/11 saírem da janela de 28 dias, por volta de 30/11. É o
+comportamento certo, já que o orçamento de 28 dias de fato acabou, e vale a política abaixo até lá (exceção, se
+houver, é do dono).
 
 ## Política do orçamento de erro
 
