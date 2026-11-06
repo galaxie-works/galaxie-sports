@@ -7,7 +7,9 @@ import {
   buildScheduleRequests,
   buildSeasonListRequests,
   checkProviderStatus,
+  reopenSeasonLists,
   seasonListPair,
+  trackSeasonLists,
   dailyJob,
 } from './daily-job.js';
 import { InMemoryCursorStore } from './runtime/cursor-store.js';
@@ -248,6 +250,29 @@ describe('buildSeasonListRequests', () => {
     expect(
       seasonListPair(plannedRequest('squads', 'football', '/players/squads', { team: 121 })),
     ).toBeUndefined();
+  });
+
+  it('relista que não normalizou: fora do recálculo e com o cursor reaberto para a próxima execução', async () => {
+    const cursors = new InMemoryCursorStore();
+    const comps = [comp(71, 1, '2026-01-15', '2026-12-15'), comp(948, 3, '2026-09-12', '2027-05-23')];
+    const items = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
+    let errors = 0;
+    const lists = trackSeasonLists({
+      afterFetch: async (_env, req) => {
+        if (req.params.league === '948') errors += 1;
+      },
+      report: () => ({ errors }),
+    });
+    for (const item of items) {
+      await lists.afterFetch({} as never, { ...item, source: 'network', requestHash: 'h', fetchedAt: now });
+      await cursors.complete(item.cursors, {}, now); // o runner conclui depois do gancho
+    }
+    expect(lists.normalized()).toEqual([{ league: '71', year: 2026 }]);
+    expect(lists.failed()).toEqual([cursor(948)]);
+
+    await reopenSeasonLists(cursors, lists.failed());
+    const next = await buildSeasonListRequests(comps, cursors, PRO_PLAN, new Date(now.getTime() + DAY), 10);
+    expect(next.map((p) => p.params.league)).toEqual(['948']);
   });
 
   it('free: a temporada atual não é acessível por season, nada entra', async () => {

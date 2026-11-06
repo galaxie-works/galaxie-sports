@@ -10,9 +10,9 @@ import {
   TEAM_ENDPOINTS,
   teamTargets,
 } from './people-job.js';
-import { cursorId, type CursorStore } from './runtime/cursor-store.js';
+import { cursorId, type CursorRef, type CursorStore } from './runtime/cursor-store.js';
 import type { RawSource } from './runtime/raw-source.js';
-import { plannedRequest, type JobSpec, type PlannedRequest } from './runtime/runner.js';
+import { plannedRequest, type AfterFetch, type JobSpec, type PlannedRequest } from './runtime/runner.js';
 import { seasonAccessible } from './seasons-job.js';
 
 const DAY_MS = 86_400_000;
@@ -193,6 +193,34 @@ export const SEASON_LIST_STEP = 'temporada-atual';
 export function seasonListPair(item: PlannedRequest): { league: string; year: number } | undefined {
   if (item.step !== SEASON_LIST_STEP || !item.params.league || !item.params.season) return undefined;
   return { league: String(item.params.league), year: Number(item.params.season) };
+}
+
+/**
+ * Acompanha as relistas da temporada atual em volta da normalização do sync: as normalizadas entram no recálculo
+ * da tabela; a que falhou não (o core ainda é o antigo) e tem o cursor reaberto no fim (`reopenSeasonLists`),
+ * para voltar na próxima execução e ser normalizada e recalculada de novo, em vez de esperar o período do tier.
+ */
+export function trackSeasonLists(normalize?: { afterFetch: AfterFetch; report: () => { errors: number } }): {
+  afterFetch: AfterFetch;
+  normalized: () => { league: string; year: number }[];
+  failed: () => CursorRef[];
+} {
+  const normalized: { league: string; year: number }[] = [];
+  const failed: CursorRef[] = [];
+  const afterFetch: AfterFetch = async (envelope, request) => {
+    const before = normalize?.report().errors ?? 0;
+    await normalize?.afterFetch(envelope, request);
+    const pair = seasonListPair(request);
+    if (!pair || !normalize) return;
+    if (normalize.report().errors > before) failed.push(...request.cursors);
+    else normalized.push(pair);
+  };
+  return { afterFetch, normalized: () => normalized, failed: () => failed };
+}
+
+/** Reabre os cursores das relistas que não normalizaram: concluídos "na época zero", vencem na hora. */
+export async function reopenSeasonLists(cursors: CursorStore, refs: CursorRef[]): Promise<void> {
+  if (refs.length) await cursors.complete(refs, { normalizeError: true }, new Date(0));
 }
 
 /**

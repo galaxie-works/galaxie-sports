@@ -21,10 +21,10 @@ import {
   checkProviderStatus,
   dailyJob,
   OTHER_SPORTS_SCHEDULE,
-  seasonListPair,
+  reopenSeasonLists,
   startOfUtcDay,
+  trackSeasonLists,
 } from '../jobs/daily-job.js';
-import type { AfterFetch } from '../jobs/runtime/runner.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
@@ -89,13 +89,14 @@ await runCli(async () => {
             ),
         });
     // temporadas relistadas: a tabela é recalculada mesmo sem jogo recente (a relista traz os antigos)
-    const relisted: { league: string; year: number }[] = [];
-    const afterFetch: AfterFetch = async (envelope, request) => {
-      const pair = seasonListPair(request);
-      if (pair) relisted.push(pair);
-      await normalize?.afterFetch(envelope, request);
-    };
-    const report = await planOrRun(ctx, spec, { ...values, 'sem-live': false }, { afterFetch });
+    const lists = trackSeasonLists(normalize);
+    const report = await planOrRun(
+      ctx,
+      spec,
+      { ...values, 'sem-live': false },
+      { afterFetch: lists.afterFetch },
+    );
+    await reopenSeasonLists(ctx.cursors, lists.failed());
     if (report && normalize) {
       const n = normalize.report();
       console.log(
@@ -108,7 +109,7 @@ await runCli(async () => {
       const since = new Date(startOfUtcDay(ctx.now()).getTime() - days * 86_400_000);
       const seasonIds = [
         ...(await seasonsWithNewResults(ctx.db, since)),
-        ...(normalize ? await footballSeasonIds(ctx.db, relisted) : []),
+        ...(await footballSeasonIds(ctx.db, lists.normalized())),
       ];
       const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
       const written = tables.filter((t) => t.outcome === 'written');
