@@ -17,11 +17,23 @@ import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
-import { checkProviderStatus, dailyJob, OTHER_SPORTS_SCHEDULE, startOfUtcDay } from '../jobs/daily-job.js';
+import {
+  checkProviderStatus,
+  dailyJob,
+  OTHER_SPORTS_SCHEDULE,
+  seasonListPair,
+  startOfUtcDay,
+} from '../jobs/daily-job.js';
+import type { AfterFetch } from '../jobs/runtime/runner.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
-import { needsAttention, recomputeStandings } from '../standings/recompute.js';
+import {
+  footballSeasonIds,
+  needsAttention,
+  recomputeStandings,
+  seasonsWithNewResults,
+} from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
@@ -76,12 +88,14 @@ await runCli(async () => {
               'falha ao normalizar resposta; o normalize:football tenta de novo',
             ),
         });
-    const report = await planOrRun(
-      ctx,
-      spec,
-      { ...values, 'sem-live': false },
-      normalize ? { afterFetch: normalize.afterFetch } : {},
-    );
+    // temporadas relistadas: a tabela é recalculada mesmo sem jogo recente (a relista traz os antigos)
+    const relisted: { league: string; year: number }[] = [];
+    const afterFetch: AfterFetch = async (envelope, request) => {
+      const pair = seasonListPair(request);
+      if (pair) relisted.push(pair);
+      await normalize?.afterFetch(envelope, request);
+    };
+    const report = await planOrRun(ctx, spec, { ...values, 'sem-live': false }, { afterFetch });
     if (report && normalize) {
       const n = normalize.report();
       console.log(
@@ -92,7 +106,11 @@ await runCli(async () => {
       // tabelas da temporada atual: recalculadas a partir dos resultados novos (D-1…D-N)
       const days = (intOption(values['dias-atras'], 'dias-atras') ?? 3) + 1;
       const since = new Date(startOfUtcDay(ctx.now()).getTime() - days * 86_400_000);
-      const tables = await recomputeStandings(ctx.db, { since, rulesDir });
+      const seasonIds = [
+        ...(await seasonsWithNewResults(ctx.db, since)),
+        ...(normalize ? await footballSeasonIds(ctx.db, relisted) : []),
+      ];
+      const tables = await recomputeStandings(ctx.db, { seasonIds, rulesDir });
       const written = tables.filter((t) => t.outcome === 'written');
       console.log(
         `Tabelas: ${written.length} recalculada(s) de ${tables.length} temporada(s) com resultado novo` +

@@ -7,6 +7,7 @@ import {
   buildScheduleRequests,
   buildSeasonListRequests,
   checkProviderStatus,
+  seasonListPair,
   dailyJob,
 } from './daily-job.js';
 import { InMemoryCursorStore } from './runtime/cursor-store.js';
@@ -230,6 +231,23 @@ describe('buildSeasonListRequests', () => {
     expect(
       (await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 2)).map((p) => p.params.league),
     ).toEqual(['500', '948']);
+  });
+
+  it('próxima edição com calendário antes de virar current: entra pela janela; a encerrada não', async () => {
+    const virada: CompetitionInfo = {
+      ...comp(103, 3, '2025-08-01', '2026-10-01'),
+      seasons: [
+        { year: 2025, current: true, startDate: '2025-08-01', endDate: '2026-10-01', coverage: null },
+        { year: 2026, current: false, startDate: '2026-10-30', endDate: '2027-05-30', coverage: null },
+        { year: 2027, current: false, startDate: null, endDate: null, coverage: null },
+      ],
+    };
+    const picked = await buildSeasonListRequests([virada], new InMemoryCursorStore(), PRO_PLAN, now, 10);
+    expect(picked.map((p) => `${p.params.league}/${p.params.season}`)).toEqual(['103/2026']);
+    expect(seasonListPair(picked[0]!)).toEqual({ league: '103', year: 2026 });
+    expect(
+      seasonListPair(plannedRequest('squads', 'football', '/players/squads', { team: 121 })),
+    ).toBeUndefined();
   });
 
   it('free: a temporada atual não é acessível por season, nada entra', async () => {

@@ -184,8 +184,20 @@ export async function buildRotationRequests(
     .map((a) => a.item);
 }
 
+export const SEASON_LIST_STEP = 'temporada-atual';
+
 /**
- * Relista da temporada atual: `fixtures?league&season` das temporadas em jogo, no mesmo cursor do
+ * Liga e ano de uma relista da temporada atual (o sync recalcula a tabela dessas temporadas: o recálculo por
+ * resultado novo só olha jogos dos últimos dias, e a relista traz justamente os antigos que faltavam).
+ */
+export function seasonListPair(item: PlannedRequest): { league: string; year: number } | undefined {
+  if (item.step !== SEASON_LIST_STEP || !item.params.league || !item.params.season) return undefined;
+  return { league: String(item.params.league), year: Number(item.params.season) };
+}
+
+/**
+ * Relista da temporada atual: `fixtures?league&season` das temporadas em jogo (a atual e a próxima edição que
+ * começa em até 14 dias, mesmo antes de virar `current`), no mesmo cursor do
  * bootstrap:seasons. Sem isso a temporada só recebe `fixtures?date=` D-1/D0/D+1 do sync: a que começou depois do
  * bootstrap (ou de tier fora dele) fica só com as rodadas desde que o sync passou a rodar, a tabela calculada sai
  * com 1 a 3 jogos por time, e jogo marcado depois do bootstrap (remarcação, chave de copa) só aparece na véspera.
@@ -202,14 +214,17 @@ export async function buildSeasonListRequests(
   const endedAfter = utcDate(now, -SEASON_LIST_AFTER_END_DAYS);
   const period = new Map<PlannedRequest, number>();
   for (const c of [...comps].sort(compareCompetitions)) {
-    const s = c.seasons.find((x) => x.current);
-    if (!s || !seasonAccessible(s.year, limits)) continue;
-    if ((s.startDate && s.startDate > startsBy) || (s.endDate && s.endDate < endedAfter)) continue;
-    const item = plannedRequest('temporada-atual', 'football', '/fixtures', {
-      league: c.leagueId,
-      season: s.year,
-    });
-    period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
+    for (const s of c.seasons) {
+      // a próxima edição sai no /leagues com calendário antes de virar `current`: vale pela janela de datas
+      if (!s.current && !s.startDate) continue;
+      if (!seasonAccessible(s.year, limits)) continue;
+      if ((s.startDate && s.startDate > startsBy) || (s.endDate && s.endDate < endedAfter)) continue;
+      const item = plannedRequest(SEASON_LIST_STEP, 'football', '/fixtures', {
+        league: c.leagueId,
+        season: s.year,
+      });
+      period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
+    }
   }
   return buildRotationRequests([...period.keys()], cursors, now, limit, (i) => period.get(i)!);
 }
