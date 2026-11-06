@@ -129,13 +129,10 @@ export const Champions = z
           .int()
           .nullable()
           .meta({ description: 'Último ano com a lista completa.' }),
-        unidentified: z
-          .number()
-          .int()
-          .meta({
-            description:
-              'Edições cujo campeão ainda não está ligado a um time da base (não contam no ranking).',
-          }),
+        unidentified: z.number().int().meta({
+          description:
+            'Edições cujo campeão ainda não está ligado a um time da base (não contam no ranking).',
+        }),
       })
       .nullable(),
   })
