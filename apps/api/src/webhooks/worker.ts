@@ -231,7 +231,8 @@ export class WebhookWorker {
     if (this.paused) return;
     for (;;) {
       const stats = await this.deliverDue();
-      if (stats.delivered + stats.failed + stats.dead < this.batchSize || this.stopped) return;
+      // a pausa pode chegar no meio de um backlog grande: só o lote já reivindicado termina
+      if (stats.delivered + stats.failed + stats.dead < this.batchSize || this.stopped || this.paused) return;
     }
   }
 

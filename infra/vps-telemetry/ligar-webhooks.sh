@@ -81,14 +81,20 @@ if docker compose config 2>/dev/null | awk '/^  site:/{d=1} d&&/^  [a-z]/&&!/^  
 fi
 svcs="api webhooks"; [ -n "$painel" ] && svcs="api webhooks site console"
 [ -f /tmp/rolling-swap.sh ] || { echo "falta /tmp/rolling-swap.sh: copie infra/vps-telemetry/rolling-swap.sh da repo para /tmp"; exit 1; }
-bash /tmp/rolling-swap.sh $svcs >/tmp/rolling-swap-webhooks.log 2>&1 && ok "trocados lado a lado: $svcs" || fail "rolling-swap de $svcs (veja /tmp/rolling-swap-webhooks.log)"
+if bash /tmp/rolling-swap.sh $svcs >/tmp/rolling-swap-webhooks.log 2>&1; then ok "trocados lado a lado: $svcs"
+else
+  # sem a troca, o worker no ar pode não ter a KEK: cifrar agora deixaria as entregas falhando até a DLQ
+  fail "rolling-swap de $svcs (veja /tmp/rolling-swap-webhooks.log). Parei antes de cifrar os segredos."; exit 1
+fi
 sleep 8
 if [ "$(docker compose exec -T webhooks sh -c 'printf %s "${WEBHOOK_SIGNING_SECRET:-}" | wc -c')" -ge 32 ] 2>/dev/null; then
   ok "o worker enxerga a KEK"
 else
-  fail "o worker NÃO enxerga a KEK: confira se o compose.yml no ar repassa WEBHOOK_SIGNING_SECRET ao serviço webhooks"
+  fail "o worker NÃO enxerga a KEK: confira se o compose.yml no ar repassa WEBHOOK_SIGNING_SECRET ao serviço webhooks. Parei antes de cifrar os segredos."
+  exit 1
 fi
-if docker compose logs --since 10m webhooks 2>&1 | grep -q 'não definida'; then fail "o log ainda avisa que a KEK não está definida"
+if docker compose logs --since 10m webhooks 2>&1 | grep -q 'não definida'; then
+  fail "o log ainda avisa que a KEK não está definida. Parei antes de cifrar os segredos."; exit 1
 else ok "sem o aviso de KEK ausente no log"; fi
 docker compose logs --since 10m webhooks 2>&1 | grep -q 'worker iniciado' && ok "worker iniciado" || warn "não vi 'worker iniciado' no log dos últimos 10 min"
 if [ -n "$painel" ]; then ok "demo com a KEK: o cadastro em /cliente/webhooks fica liberado"
