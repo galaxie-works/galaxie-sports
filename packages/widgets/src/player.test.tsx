@@ -92,6 +92,12 @@ describe('Ficha do jogador', () => {
     expect(container.querySelector('[aria-current="true"]')?.textContent).toContain('2024');
   });
 
+  it('temporada sem jogos: mantém o ano pedido e avisa que não há jogos', async () => {
+    setup(<PlayerProfile personId={PREVIEW_IDS.person} season={2010} />);
+    expect(await screen.findByText('Temporada 2010')).toBeTruthy();
+    expect(screen.getByText('Sem jogos nesta temporada.')).toBeTruthy();
+  });
+
   it('técnico: só os jogos comandados, sem gols', async () => {
     const coach = { ...createPlayerFixture(NOW), role: 'coach', position: null, number: null };
     const fetchImpl: typeof fetch = async () => Response.json(coach);

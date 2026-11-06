@@ -19,7 +19,8 @@ export function createPlayerFixture(now: Date, season?: number): GsPersonOvervie
     { year: year - 2, appearances: 28, goals: 9 },
     { year: year - 3, appearances: 19, goals: 6 },
   ];
-  const picked = seasons.find((s) => s.year === season) ?? seasons[0]!;
+  // como a API: o ano pedido fica, mesmo sem jogos (totals null); sem pedido, o mais recente
+  const picked = season ? seasons.find((s) => s.year === season) : seasons[0];
   return {
     person: {
       id: PLAYER_IDS.person,
@@ -35,18 +36,20 @@ export function createPlayerFixture(now: Date, season?: number): GsPersonOvervie
     position: 'Attacker',
     number: 9,
     current_team: AURORA,
-    season: picked.year,
+    season: picked?.year ?? season ?? null,
     seasons,
-    totals: {
-      appearances: picked.appearances,
-      starts: picked.appearances - 3,
-      minutes: picked.appearances * 78,
-      goals: picked.goals,
-      assists: Math.round(picked.goals / 2),
-      yellow_cards: 4,
-      red_cards: picked.year === year ? 0 : 1,
-      rating: 7.24,
-    },
+    totals: !picked
+      ? null
+      : {
+          appearances: picked.appearances,
+          starts: picked.appearances - 3,
+          minutes: picked.appearances * 78,
+          goals: picked.goals,
+          assists: Math.round(picked.goals / 2),
+          yellow_cards: 4,
+          red_cards: picked.year === year ? 0 : 1,
+          rating: 7.24,
+        },
     career: [
       { team: AURORA, from: year - 1, to: year, appearances: 55, goals: 31, current: true },
       { team: SERRA, from: year - 3, to: year - 2, appearances: 47, goals: 15, current: false },
