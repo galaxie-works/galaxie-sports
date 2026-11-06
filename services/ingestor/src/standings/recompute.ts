@@ -28,7 +28,13 @@ import {
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
 import { computeTablesByRule, crossGroupTables, type TableRow } from './phases.js';
-import { components, planPhases, UNNAMED_GROUP_PREFIX, type TableSet } from './phases-auto.js';
+import {
+  components,
+  joinNamedGroups,
+  planPhases,
+  UNNAMED_GROUP_PREFIX,
+  type TableSet,
+} from './phases-auto.js';
 import { regularSeasonCutoff, winPctTables } from './win-pct.js';
 
 /** Fases que entram na tabela (pontos corridos, fase de liga, grupos). */
@@ -43,6 +49,7 @@ export type StandingsOutcome =
   | 'knockout'
   | 'no_results'
   | 'no_groups'
+  | 'partial'
   | 'not_football'
   | 'rules_error'
   | 'invalid_input';
@@ -154,6 +161,7 @@ export async function recomputeSeasonStandings(
       type: competition.type,
       countryCode: competition.countryCode,
       competitionId: competition.id,
+      tier: competition.tier,
     })
     .from(season)
     .innerJoin(competition, eq(competition.id, season.competitionId))
@@ -265,6 +273,8 @@ export async function recomputeSeasonStandings(
     return writeTables(db, seasonId, info.competitionId, tables, options, report, {
       results,
       dropEmpty: true,
+      maxRound:
+        info.tier >= PARTIAL_MIN_TIER ? maxRoundNumber(all.map((m) => labels.get(m.id!)?.label)) : null,
     });
   }
 
@@ -281,12 +291,16 @@ export async function recomputeSeasonStandings(
       });
     groupOfTeam.set(team, named[0] ?? '');
   }
+  // time que jogou e ainda não tem linha na tabela (promovido, tabela do fornecedor de antes da entrada dele)
+  // conta como sem grupo; sem isso, com vários grupos, os jogos dele ficavam de fora e ele sumia da tabela
+  for (const m of all) for (const t of [m.homeId, m.awayId]) if (!groupOfTeam.has(t)) groupOfTeam.set(t, '');
   // o fornecedor mandou só parte dos grupos (Série D 2026: 8 de 16): os times sem grupo ganham os grupos
   // deduzidos dos jogos entre eles
   const loose = [...groupOfTeam].filter(([, g]) => g === '').map(([t]) => t);
   if (loose.length && loose.length < groupOfTeam.size) {
     // ao lado de grupos com nome, mesmo um grupo deduzido só ganha nome (sem nome, viraria uma 2ª tabela)
-    components(loose, all).forEach((part, i) =>
+    // quem joga contra um grupo com nome entra nele; só o resto vira grupo deduzido
+    components(joinNamedGroups(loose, groupOfTeam, all), all).forEach((part, i) =>
       part.forEach((t) => groupOfTeam.set(t, `${UNNAMED_GROUP_PREFIX}${i + 1}`)),
     );
   }
@@ -317,6 +331,8 @@ export async function recomputeSeasonStandings(
   return writeTables(db, seasonId, info.competitionId, tables, options, report, {
     results: set.matches.length,
     dropEmpty: false,
+    maxRound:
+      info.tier >= PARTIAL_MIN_TIER ? maxRoundNumber(set.matches.map((m) => labels.get(m.id!)?.label)) : null,
   });
 }
 
@@ -337,8 +353,23 @@ async function writeTables(
   tables: readonly StandingsTable[],
   options: RecomputeOptions,
   report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
-  extra: { results: number; dropEmpty: boolean },
+  extra: { results: number; dropEmpty: boolean; maxRound?: number | null },
 ): Promise<SeasonStandingsReport> {
+  // o banco só tem as últimas rodadas da temporada (liga sem carga histórica): a tabela sairia com 1 ou 2 jogos
+  // por time e sem quem não jogou nessas rodadas. Não publica; a calculada que houver sai também
+  const maxPlayed = Math.max(0, ...tables.flatMap((t) => t.rows.map((r) => r.played)));
+  if (isPartialSeason(extra.maxRound ?? null, maxPlayed)) {
+    const removed = await db
+      .delete(standing)
+      .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'computed')))
+      .returning({ id: standing.participantId });
+    if (options.publish !== false && removed.length > 0)
+      await publishStandings(db, seasonId, competitionId, 0, []);
+    return report('partial', {
+      results: extra.results,
+      detail: `só parte da temporada no banco: rodada ${extra.maxRound}, no máximo ${maxPlayed} jogos por time`,
+    });
+  }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, tables, extra.dropEmpty);
   if (options.publish !== false && rows > 0) {
@@ -355,6 +386,26 @@ async function writeTables(
     });
   }
   return report('written', { results: extra.results, rows });
+}
+
+/** Tabela com bem menos jogos que a rodada numerada pelo fornecedor (a partir da rodada 5): parcial. */
+const PARTIAL_PLAYED_SHARE = 0.6;
+const PARTIAL_MIN_ROUND = 5;
+/** Só no tier 3: tier 1 e 2 têm a carga histórica completa (#417), e lá a tabela vale mesmo com poucos jogos no banco. */
+const PARTIAL_MIN_TIER = 3;
+
+export function isPartialSeason(maxRound: number | null, maxPlayed: number): boolean {
+  return maxRound !== null && maxRound >= PARTIAL_MIN_ROUND && maxPlayed < PARTIAL_PLAYED_SHARE * maxRound;
+}
+
+/** Maior número de rodada ("Regular Season - 35" → 35) entre os jogos usados; null sem rodada numerada. */
+export function maxRoundNumber(labels: Iterable<string | null | undefined>): number | null {
+  let max: number | null = null;
+  for (const l of labels) {
+    const n = /\s-\s(\d+)$/.exec(l?.trim() ?? '')?.[1];
+    if (n !== undefined) max = Math.max(max ?? 0, Number(n));
+  }
+  return max;
 }
 
 /** Rótulo de cada rodada da temporada no fornecedor ("Apertura - 7") e o tipo do estágio, por evento. */

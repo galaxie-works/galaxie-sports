@@ -61,6 +61,99 @@ export function autoGroupRank(group: string): number {
   return n ? 1000 + Number(n) : 1;
 }
 
+/**
+ * Nomes genéricos que a api-sports manda em inglês no `group` do `/standings`, em qualquer liga. O nome
+ * próprio do torneio ("Apertura", "Serie A", "Primera B") não está aqui: fica como veio.
+ */
+const PROVIDER_GROUP_NAMES: readonly [RegExp, TableName][] = [
+  [/^regular season$/i, { 'pt-BR': 'Fase regular', es: 'Fase regular', en: 'Regular season' }],
+  [/^league (stage|phase)$/i, { 'pt-BR': 'Fase de liga', es: 'Fase de liga', en: 'League phase' }],
+  [/^group (stage|phase)$/i, { 'pt-BR': 'Fase de grupos', es: 'Fase de grupos', en: 'Group stage' }],
+  [
+    /^championship (round|group|play-?offs?)$/i,
+    { 'pt-BR': 'Disputa pelo título', es: 'Ronda por el título', en: 'Championship round' },
+  ],
+  [
+    /^relegation (round|group|play-?offs?)$/i,
+    { 'pt-BR': 'Disputa contra o rebaixamento', es: 'Ronda por la permanencia', en: 'Relegation round' },
+  ],
+  [
+    /^promotion (round|group|play-?offs?)$/i,
+    { 'pt-BR': 'Disputa pelo acesso', es: 'Ronda por el ascenso', en: 'Promotion round' },
+  ],
+  [
+    /^(europa|conference) league play-?offs?$/i,
+    { 'pt-BR': 'Playoff por vaga europeia', es: 'Playoff por cupo europeo', en: 'European play-offs' },
+  ],
+  [
+    /^(ranking of )?(best )?third[- ]placed teams$/i,
+    { 'pt-BR': 'Melhores terceiros', es: 'Mejores terceros', en: 'Best third-placed teams' },
+  ],
+  [
+    /^eastern conference$/i,
+    { 'pt-BR': 'Conferência Leste', es: 'Conferencia Este', en: 'Eastern Conference' },
+  ],
+  [
+    /^western conference$/i,
+    { 'pt-BR': 'Conferência Oeste', es: 'Conferencia Oeste', en: 'Western Conference' },
+  ],
+  [
+    /^placement (round|group|play-?offs?)$/i,
+    { 'pt-BR': 'Disputa de posições', es: 'Ronda de ubicación', en: 'Placement round' },
+  ],
+  [/^(1st|first) (phase|stage)$/i, AUTO_GROUP_NAMES.first_phase],
+  [/^(2nd|second) (phase|stage)$/i, { 'pt-BR': '2ª fase', es: 'Segunda fase', en: 'Second phase' }],
+  [/^(3rd|third) (phase|stage)$/i, { 'pt-BR': '3ª fase', es: 'Tercera fase', en: 'Third phase' }],
+  [/^(group )?(north|northern)( group)?$/i, { 'pt-BR': 'Norte', es: 'Norte', en: 'North' }],
+  [/^(group )?(south|southern)( group)?$/i, { 'pt-BR': 'Sul', es: 'Sur', en: 'South' }],
+  [/^(tabla anual|annual table|aggregate table)$/i, AUTO_GROUP_NAMES.annual],
+  [/^promedios?$/i, { 'pt-BR': 'Promedios', es: 'Promedios', en: 'Relegation averages' }],
+];
+
+const ZONE: TableName = { 'pt-BR': 'Zona', es: 'Zona', en: 'Zone' };
+
+/** "Group A", "Grupo 2", "Zone B" → "Grupo A" / "Grupo 2" / "Zona B" no idioma pedido (zona continua zona). */
+function subgroupName(part: string, lang: Lang): string | null {
+  const m = /^(group|grupo|zone|zona)\s+([a-z0-9]{1,3})$/i.exec(part);
+  if (!m) return null;
+  const label = /^zon/i.test(m[1]!) ? ZONE : SUBGROUP;
+  return `${pick(label, lang)} ${m[2]!.toUpperCase()}`;
+}
+
+function genericName(part: string, lang: Lang): string | null {
+  const sub = subgroupName(part, lang);
+  if (sub) return sub;
+  const hit = PROVIDER_GROUP_NAMES.find(([re]) => re.test(part));
+  return hit ? pick(hit[1], lang) : null;
+}
+
+/**
+ * Nome exibido de um grupo do fornecedor numa competição sem `tables:` no regulamento (Libertadores, ligas
+ * europeias com fase de campeonato, ligas de outros países ainda sem regulamento curado): os nomes
+ * genéricos em inglês no idioma pedido ("Group A" → "Grupo A", "Championship Round" → "Disputa pelo
+ * título"), com o nome do torneio na frente mantido ("Apertura - Group A" → "Apertura · Grupo A",
+ * "Primera B: Tabla Anual" → "Primera B · Tabela anual"). Null quando não há nada genérico a traduzir
+ * (o nome próprio do fornecedor vale como está).
+ */
+export function providerGroupLabel(group: string, locale: string): string | null {
+  const lang = langOf(locale);
+  const name = group.trim();
+  if (!name) return null;
+  const whole = genericName(name, lang);
+  if (whole) return whole;
+  const m = /^(.*\S)\s*(?:\s-\s|:)\s*(\S.*)$/.exec(name);
+  if (!m) return null;
+  const head = m[1]!.trim();
+  const tail = genericName(m[2]!.trim(), lang);
+  if (!tail) return null;
+  return `${genericName(head, lang) ?? head} · ${tail}`;
+}
+
+/** Nome exibido de um grupo sem tabela no regulamento: o reservado do recálculo, ou o do fornecedor traduzido. */
+export function defaultGroupLabel(group: string, locale: string): string | null {
+  return autoGroupLabel(group, locale) ?? providerGroupLabel(group, locale);
+}
+
 export interface GroupActivity {
   group: string;
   /** Maior número de jogos de um time no grupo. */

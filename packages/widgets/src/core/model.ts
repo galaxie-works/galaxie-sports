@@ -196,7 +196,13 @@ export interface GsStandingRow {
 export interface GsStandings {
   competition_id: string;
   season: { year: number; label: string };
-  groups: { name: string | null; rows: GsStandingRow[] }[];
+  groups: {
+    /** Nome do grupo no fornecedor ("Apertura - Group A", "annual"): chave, não texto para exibir. */
+    name: string | null;
+    /** Nome exibido no idioma pedido ("Apertura · Zona A", "Tabela anual", "Grupo A"). */
+    display_name?: string | null;
+    rows: GsStandingRow[];
+  }[];
   updated_at: string | null;
 }
 
