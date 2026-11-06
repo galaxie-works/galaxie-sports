@@ -6,7 +6,8 @@ const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
  * Chave dos caches de `Intl.DateTimeFormat` por fuso. O `tz` chega com a grafia do cliente e o Intl aceita o nome
  * sem diferenciar maiúsculas: pela grafia, variações da mesma zona encheriam o cache de memória do ICU (que não
  * volta ao esvaziar o mapa). Em minúsculas, o cache fica limitado aos nomes válidos (algumas centenas); um fuso
- * inválido falha no construtor e não entra.
+ * inválido falha no construtor e não entra, e o `LocaleQuery` recusa offsets fixos (`+01:00`), que o Intl aceita
+ * em milhares de grafias.
  */
 export const zoneKey = (tz: string): string => tz.toLowerCase();
 

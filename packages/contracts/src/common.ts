@@ -61,7 +61,12 @@ export const Problem = z
   .meta({ id: 'Problem', description: 'Erro RFC 9457 (application/problem+json)' });
 export type Problem = z.infer<typeof Problem>;
 
+/**
+ * Nome IANA aceito pelo Intl. Offsets fixos (`+01`, `+0100`, `-03:00`) ficam de fora: não são nomes IANA e o Intl
+ * aceita milhares de grafias deles. A API guarda um formatador por fuso, e cada um retém memória do ICU.
+ */
 const isTimeZone = (tz: string) => {
+  if (/^[+-]/.test(tz)) return false;
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz });
     return true;
