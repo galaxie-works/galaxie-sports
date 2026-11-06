@@ -2,6 +2,7 @@
 
 import {
   LIVE_STATUSES,
+  eventRefreshMs,
   fillText,
   sidesOf,
   type GsEvent,
@@ -123,8 +124,9 @@ function DerbyRow({
   const fmt = useFormatters();
   const t = texts.derbies;
   const id = encodeURIComponent(item.event_id);
-  // o jogo completo traz os escudos e o estado (pode ter começado depois da lista)
-  const event = useGalaxieQuery<GsEvent>(`/v1/events/${id}`, {}, () => DETAIL_REFRESH_MS);
+  // o jogo completo traz os escudos e o estado: perto do horário ele é relido, para o selo ao vivo aparecer
+  // mesmo depois de o jogo sair da lista (que só traz o que ainda não começou)
+  const event = useGalaxieQuery<GsEvent>(`/v1/events/${id}`, {}, (ev) => eventRefreshMs(ev));
   const e = event.data;
   const sides = e ? sidesOf(e) : null;
   const named = (side: 'home' | 'away') => item.participants.find((p) => p.side === side);
