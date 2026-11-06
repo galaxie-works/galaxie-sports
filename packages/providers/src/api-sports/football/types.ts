@@ -215,7 +215,7 @@ export type ApiSidelinedItem = { id: number; sidelined: ApiSidelinedEntry[] } | 
 export interface ApiStandingRow {
   rank: number;
   team: ApiTeamRef;
-  points: number;
+  points: number | null;
   goalsDiff: number;
   group: string | null;
   form: string | null;

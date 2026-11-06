@@ -4,8 +4,10 @@
  *   pnpm --filter @galaxie/ingestor sync:daily --plan
  *   pnpm --filter @galaxie/ingestor sync:daily
  * Passos: fixtures?date= D-1/D0/D+1 · injuries?date= D0 · /leagues · /status (reconciliação, sem cota)
- *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1.
- * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --dias-atras 3 · --lesoes-amanha
+ *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1
+ *         · relista da temporada atual (fixtures?league&season, tier 1 a cada 2 dias, os demais a cada 7).
+ * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --listas-temporada N (pagos 300, free 0)
+ *         · --dias-atras 3 · --lesoes-amanha
  *         · --outros-esportes (games/races/fights?date= nas outras 11 APIs) · --max-chamadas N · --forcar
  *         · --sem-normalizar (só grava o raw) · --sem-tabelas (não recalcula as classificações)
  * Cada resposta vai direto ao core (agenda, placares, detalhe dos encerrados); no fim, as tabelas das
@@ -29,6 +31,7 @@ await runCli(async () => {
   const { values } = parseCli({
     'max-detalhes': { type: 'string' },
     rodizio: { type: 'string' },
+    'listas-temporada': { type: 'string' },
     'dias-atras': { type: 'string' },
     'lesoes-amanha': { type: 'boolean', default: false },
     'outros-esportes': { type: 'boolean', default: false },
@@ -59,6 +62,7 @@ await runCli(async () => {
     const spec = dailyJob(ctx.catalog, ctx.raw, ctx.cursors, ctx.plan, ctx.now, derbyKeys, {
       maxDetails: intOption(values['max-detalhes'], 'max-detalhes'),
       rotation: intOption(values.rodizio, 'rodizio'),
+      seasonLists: intOption(values['listas-temporada'], 'listas-temporada'),
       backlogDays: intOption(values['dias-atras'], 'dias-atras'),
       injuriesTomorrow: values['lesoes-amanha'],
       otherSports: values['outros-esportes'],

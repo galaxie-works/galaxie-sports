@@ -1,6 +1,6 @@
-import type { ApiSport, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
+import type { ApiSport, PlanLimits, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
-import type { CatalogSource } from './catalog-source.js';
+import { compareCompetitions, type CatalogSource, type CompetitionInfo } from './catalog-source.js';
 import { buildDetailRequests, selectDetailFixtures, splitDone } from './details-job.js';
 import { collectFixtures, dateList } from './fixtures.js';
 import {
@@ -13,6 +13,7 @@ import {
 import { cursorId, type CursorStore } from './runtime/cursor-store.js';
 import type { RawSource } from './runtime/raw-source.js';
 import { plannedRequest, type JobSpec, type PlannedRequest } from './runtime/runner.js';
+import { seasonAccessible } from './seasons-job.js';
 
 const DAY_MS = 86_400_000;
 /** Jogo que começou há mais que isto já acabou (futebol: ~2 h, com prorrogação e pênaltis ~2h40). */
@@ -42,6 +43,16 @@ export const ROTATION_PERIOD_DAYS: Record<string, number> = {
   '/sidelined': 30,
 };
 
+/**
+ * Período da relista da temporada atual (`fixtures?league&season`) por tier: tier 1 a cada 2 dias (remarcação e
+ * chaveamento de copa aparecem antes da véspera), os demais a cada 7.
+ */
+export const SEASON_LIST_PERIOD_DAYS: Record<number, number> = { 1: 2 };
+const SEASON_LIST_DEFAULT_PERIOD_DAYS = 7;
+/** Temporada em jogo: começa em até 14 dias (o calendário já sai) e não terminou há mais de 7. */
+const SEASON_LIST_AHEAD_DAYS = 14;
+const SEASON_LIST_AFTER_END_DAYS = 7;
+
 export interface DailyOptions {
   /** Máximo de partidas detalhadas por dia (padrão: 35 no free, 400 nos pagos). */
   maxDetails?: number | undefined;
@@ -54,6 +65,10 @@ export interface DailyOptions {
   /** Agenda das outras 11 APIs (games/races/fights?date=). */
   otherSports?: boolean | undefined;
   maxTier?: number | undefined;
+  /** Relistas da temporada atual por dia (padrão: 0 no free, que não alcança a temporada atual; 300 nos pagos). */
+  seasonLists?: number | undefined;
+  /** Maior tier com a temporada atual relistada (padrão 3: todo o catálogo). */
+  seasonListTier?: number | undefined;
 }
 
 export function utcDate(d: Date, offsetDays = 0): string {
@@ -145,13 +160,14 @@ export async function buildRotationRequests(
   cursors: CursorStore,
   now: Date,
   limit: number,
+  periodDays: (item: PlannedRequest) => number = (item) => ROTATION_PERIOD_DAYS[item.endpoint] ?? 30,
 ): Promise<PlannedRequest[]> {
   const states = await cursors.load(candidates.flatMap((c) => c.cursors));
   const today = startOfUtcDay(now).getTime();
   const aged: { item: PlannedRequest; age: number }[] = [];
   let renewedToday = 0;
   for (const item of candidates) {
-    const period = (ROTATION_PERIOD_DAYS[item.endpoint] ?? 30) * DAY_MS;
+    const period = periodDays(item) * DAY_MS;
     const staleBefore = new Date(now.getTime() - period);
     const times = item.cursors.map((c) => states.get(cursorId(c))?.completedAt?.getTime() ?? -Infinity);
     const age = Math.min(...times);
@@ -166,6 +182,36 @@ export async function buildRotationRequests(
     .sort((a, b) => a.age - b.age || a.i - b.i)
     .slice(0, limit)
     .map((a) => a.item);
+}
+
+/**
+ * Relista da temporada atual: `fixtures?league&season` das temporadas em jogo, no mesmo cursor do
+ * bootstrap:seasons. Sem isso a temporada só recebe `fixtures?date=` D-1/D0/D+1 do sync: a que começou depois do
+ * bootstrap (ou de tier fora dele) fica só com as rodadas desde que o sync passou a rodar, a tabela calculada sai
+ * com 1 a 3 jogos por time, e jogo marcado depois do bootstrap (remarcação, chave de copa) só aparece na véspera.
+ * Rodízio por cursor: nunca listada primeiro (na ordem do catálogo), depois a mais velha que o período do tier.
+ */
+export async function buildSeasonListRequests(
+  comps: CompetitionInfo[],
+  cursors: CursorStore,
+  limits: PlanLimits,
+  now: Date,
+  limit: number,
+): Promise<PlannedRequest[]> {
+  const startsBy = utcDate(now, SEASON_LIST_AHEAD_DAYS);
+  const endedAfter = utcDate(now, -SEASON_LIST_AFTER_END_DAYS);
+  const period = new Map<PlannedRequest, number>();
+  for (const c of [...comps].sort(compareCompetitions)) {
+    const s = c.seasons.find((x) => x.current);
+    if (!s || !seasonAccessible(s.year, limits)) continue;
+    if ((s.startDate && s.startDate > startsBy) || (s.endDate && s.endDate < endedAfter)) continue;
+    const item = plannedRequest('temporada-atual', 'football', '/fixtures', {
+      league: c.leagueId,
+      season: s.year,
+    });
+    period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
+  }
+  return buildRotationRequests([...period.keys()], cursors, now, limit, (i) => period.get(i)!);
 }
 
 export type StatusCheck =
@@ -255,6 +301,17 @@ export function dailyJob(
           }
           return buildRotationRequests(candidates, cursors, now(), opts.rotation ?? (isPaid(plan) ? 200 : 5));
         },
+      },
+      {
+        name: 'temporada atual',
+        build: async () =>
+          buildSeasonListRequests(
+            await catalog.competitions(opts.seasonListTier ?? 3),
+            cursors,
+            plan.current,
+            now(),
+            opts.seasonLists ?? (isPaid(plan) ? 300 : 0),
+          ),
       },
     ],
   };
