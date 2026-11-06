@@ -1,14 +1,23 @@
 /** Retenção do raw e das tabelas de operação (job `data-retention`) e compactação do histórico do raw. */
+import { randomBytes } from 'node:crypto';
 import { asc } from 'drizzle-orm';
+import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   apiResponse,
+  applyRoles,
+  closeDb,
+  createDb,
   jobRequest,
   jobRun,
   llmUsage,
   llmUsageDaily,
   normalizeFailure,
   quotaLedger,
+  roleName,
+  tenant,
+  webhookDelivery,
+  webhookEndpoint,
   type Database,
 } from '@galaxie/db';
 import { compactRawHistory, pruneRawLive } from '../src/ops/raw-retention.js';
@@ -62,8 +71,20 @@ beforeAll(async () => {
   db = await disposable.setup();
 });
 
+const rolePrefix = `t${randomBytes(4).toString('hex')}_`;
+
 afterAll(async () => {
   await disposable.teardown();
+  // os papéis são do cluster: saem depois do banco descartável (o único onde têm GRANTs)
+  const cluster = postgres(process.env.DATABASE_URL!, { max: 1, onnotice: () => {} });
+  try {
+    const roles = await cluster<
+      { rolname: string }[]
+    >`select rolname from pg_roles where rolname like ${`${rolePrefix}%`}`;
+    for (const r of roles) await cluster.unsafe(`drop role if exists "${r.rolname}"`);
+  } finally {
+    await cluster.end({ timeout: 5 });
+  }
 });
 
 describe('pruneRawLive', () => {
@@ -309,5 +330,72 @@ describe('pruneOpsTables', () => {
     const again = await pruneOpsTables(db, { now: NOW, pauseMs: 0 });
     expect(again.rows.every((r) => r.deleted === 0)).toBe(true);
     expect(await db.select().from(llmUsageDaily)).toHaveLength(4);
+  });
+});
+
+describe('data-retention com o papel do ingestor', () => {
+  // O job roda no scheduler do ingestor com o papel galaxie_ingestor: toda tabela que a retenção poda precisa estar
+  // na matriz de roles.ts (write ou prune), senão o job inteiro para em 42501 (como em 04/11 com a webhook_delivery).
+  it('poda raw, ops e as entregas de webhook sem erro de permissão', async () => {
+    const password = randomBytes(18).toString('hex');
+    await applyRoles(disposable.url, { prefix: rolePrefix, passwords: { ingestor: password } });
+    const url = new URL(disposable.url);
+    url.username = roleName('ingestor', rolePrefix);
+    url.password = password;
+    const ingDb = createDb(url.toString(), { max: 2 });
+
+    // uma linha velha em cada caminho que só apaga quando há o que apagar (o ledger de IA, por dia)
+    await db.insert(llmUsage).values({
+      dayUtc: '2026-08-01',
+      agent: 'wtw',
+      purpose: 'wtw:x',
+      provider: 'gemini',
+      model: 'm',
+      tier: 'fast',
+      costUsd: '0.010000',
+      outcome: 'ok',
+    });
+    const [t] = await db
+      .insert(tenant)
+      .values({ slug: 'retencao-papel', name: 'Teste', plan: 'core_data', modules: ['core_data'] })
+      .returning({ id: tenant.id });
+    const [ep] = await db
+      .insert(webhookEndpoint)
+      .values({ tenantId: t!.id, url: 'https://exemplo.test/hook', secret: 'segredo' })
+      .returning({ id: webhookEndpoint.id });
+    await db.insert(webhookDelivery).values([
+      {
+        endpointId: ep!.id,
+        changeId: 1,
+        topic: 'event.updated',
+        payload: {},
+        status: 'delivered',
+        deliveredAt: daysAgo(40),
+        createdAt: daysAgo(40),
+      },
+      {
+        endpointId: ep!.id,
+        changeId: 2,
+        topic: 'event.updated',
+        payload: {},
+        status: 'dead',
+        lastAttemptAt: daysAgo(100),
+        createdAt: daysAgo(100),
+      },
+      { endpointId: ep!.id, changeId: 3, topic: 'event.updated', payload: {}, status: 'pending' },
+    ]);
+    await raw('papel-live', daysAgo(40), { retention: 'live', body: 'p1' });
+    await raw('papel-live', daysAgo(35), { retention: 'live', body: 'p2' });
+
+    try {
+      const rawReport = await pruneRawLive(ingDb, { retentionDays: 30, now: NOW });
+      expect(rawReport.deleted).toBeGreaterThan(0);
+      const ops = await pruneOpsTables(ingDb, { now: NOW, pauseMs: 0 });
+      const byKey = Object.fromEntries(ops.rows.map((r) => [r.key, r.deleted]));
+      expect(byKey).toMatchObject({ llmUsage: 1, webhookDelivered: 1, webhookDead: 1 });
+      expect((await db.select().from(webhookDelivery)).map((d) => d.status)).toEqual(['pending']);
+    } finally {
+      await closeDb(ingDb);
+    }
   });
 });

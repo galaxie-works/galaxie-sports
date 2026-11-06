@@ -106,7 +106,7 @@ describe('papéis por serviço', () => {
     expect(tables.length).toBeGreaterThan(50);
     for (const service of ROLE_SERVICES) {
       if (service === 'backup') continue; // pg_read_all_data: conferido no teste do backup
-      const { read, write } = ROLE_GRANTS[service];
+      const { read, write, prune = [] } = ROLE_GRANTS[service];
       const role = roleName(service, prefix);
       const covers = (scopes: readonly string[], t: { schema: string; name: string }) =>
         scopes.includes(t.schema) || scopes.includes(`${t.schema}.${t.name}`);
@@ -119,8 +119,9 @@ describe('papéis por serviço', () => {
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'delete') as del,
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'truncate') as trunc`;
         const w = covers(write, t);
-        const r = w || covers(read, t);
-        if (p!.sel !== r || p!.ins !== w || p!.upd !== w || p!.del !== w || p!.trunc)
+        const d = w || prune.includes(`${t.schema}.${t.name}`);
+        const r = d || covers(read, t);
+        if (p!.sel !== r || p!.ins !== w || p!.upd !== w || p!.del !== d || p!.trunc)
           wrong.push(`${service} ${t.schema}.${t.name}: ${JSON.stringify(p)}`);
       }
       expect(wrong).toEqual([]);
@@ -145,21 +146,27 @@ describe('papéis por serviço', () => {
     await denied(conn('demo')`insert into core.sport (slug, name) values ('x', '{}')`);
   });
 
-  it('ingestor: a retenção (data-retention) poda as entregas de webhook e não escreve no resto de api', async () => {
+  it('ingestor: poda api.webhook_delivery (data-retention) sem inserir, atualizar nem tocar a sequência', async () => {
     const ing = conn('ingestor');
-    // os mesmos DELETE de ops-retention.ts (entregues e DLQ); sem linhas basta, a permissão é checada antes
-    await ing`
-      delete from api.webhook_delivery where id in (
-        select w.id from api.webhook_delivery w
-         where w.status = 'delivered' and coalesce(w.delivered_at, w.created_at) < now() - interval '30 days'
-         limit 5000)`;
-    await ing`
-      delete from api.webhook_delivery where id in (
-        select w.id from api.webhook_delivery w
-         where w.status = 'dead' and coalesce(w.last_attempt_at, w.created_at) < now() - interval '90 days'
-         limit 5000)`;
+    const [t] = await owner<{ id: string }[]>`
+      insert into api.tenant (slug, name, plan, modules) values ('teste-poda', 'Teste', 'core_data', '{core_data}')
+      returning id`;
+    const [ep] = await owner<{ id: string }[]>`
+      insert into api.webhook_endpoint (tenant_id, url, secret)
+      values (${t!.id}, 'https://exemplo.test/hook', 'segredo') returning id`;
+    const [d] = await owner<{ id: string }[]>`
+      insert into api.webhook_delivery (endpoint_id, change_id, topic, payload, status, delivered_at, created_at)
+      values (${ep!.id}, 1, 'event.updated', '{}', 'delivered', now() - interval '40 days', now() - interval '40 days')
+      returning id`;
+    expect(await ing`select id from api.webhook_delivery where id = ${d!.id}`).toHaveLength(1);
+    await denied(ing`update api.webhook_delivery set payload = '{"forjado":true}' where id = ${d!.id}`);
+    await denied(
+      ing`insert into api.webhook_delivery (endpoint_id, change_id, topic, payload) values (${ep!.id}, 2, 'x', '{}')`,
+    );
+    await denied(ing`select nextval('api.webhook_delivery_id_seq')`);
+    expect(await ing`delete from api.webhook_delivery where id = ${d!.id} returning 1`).toHaveLength(1);
     await denied(ing`delete from api.webhook_endpoint`);
-    await denied(ing`delete from api.api_key`);
+    await owner`delete from api.tenant where slug = 'teste-poda'`;
   });
 
   it('agents e demo: grade (enrich.platform) dispara o change feed sem erro de permissão', async () => {
