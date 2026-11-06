@@ -9,6 +9,9 @@ import {
   type WidgetOptions,
 } from '@galaxie/widgets';
 
+import { ArrowDown, ArrowUp } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -17,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { compareAlpha, sortByLabel } from '@/lib/alphabetical';
 import { toWidgetLocale } from '@/lib/builder/config';
 import { useI18n } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/text';
 
 import { EntityPicker, type EntityValue } from './entity-picker';
 import { LookupPicker, type LookupValue } from './lookup-picker';
@@ -139,7 +143,7 @@ function Choice({
   hint: string | undefined;
   value: string | number | boolean | undefined;
   entity: EntityValue | LookupValue | null;
-  texts: { all: string; none: string };
+  texts: { all: string; none: string; order: string; moveUp: string; moveDown: string };
   locale: 'pt-BR' | 'es' | 'en';
   onChange: (v: string | number | undefined, entity?: EntityValue | LookupValue | null) => void;
 }) {
@@ -210,16 +214,24 @@ function Choice({
       );
     }
     case 'multi': {
-      const picked = new Set(typeof value === 'string' && value ? value.split(',') : []);
+      // na escolha com ordem (estatísticas do jogo), a lista guarda a ordem em que o cliente arrumou
+      const order = typeof value === 'string' && value ? value.split(',') : [];
+      const picked = new Set(order);
       const items = [...spec.values]
         .map((v) => ({ value: v.value, label: v.label[locale] }))
         .sort((a, b) => compareAlpha(a.label, b.label));
-      const toggle = (v: string, on: boolean) => {
-        const next = new Set(picked);
-        if (on) next.add(v);
-        else next.delete(v);
-        onChange(next.size ? [...next].sort().join(',') : undefined);
+      const save = (next: string[]) =>
+        onChange(next.length ? (spec.ordered ? next : [...next].sort()).join(',') : undefined);
+      const toggle = (v: string, on: boolean) =>
+        save(on ? [...order.filter((x) => x !== v), v] : order.filter((x) => x !== v));
+      const move = (i: number, by: -1 | 1) => {
+        const next = [...order];
+        const j = i + by;
+        if (j < 0 || j >= next.length) return;
+        [next[i], next[j]] = [next[j]!, next[i]!];
+        save(next);
       };
+      const labelOf = (v: string) => items.find((x) => x.value === v)?.label ?? v;
       return (
         <Field className="sm:col-span-2">
           <FieldLabel>{label}</FieldLabel>
@@ -234,7 +246,40 @@ function Choice({
               </label>
             ))}
           </div>
-          <FieldDescription>{picked.size ? null : texts.all}</FieldDescription>
+          {spec.ordered && order.length > 1 ? (
+            <div className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-xs font-medium">{texts.order}</span>
+              <ol className="flex flex-col gap-1">
+                {order.map((v, i) => (
+                  <li key={v} className="flex items-center gap-2 rounded-md border px-2 py-1 text-sm">
+                    <span className="text-muted-foreground w-5 text-right tabular-nums">{i + 1}</span>
+                    <span className="flex-1 truncate">{labelOf(v)}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={i === 0}
+                      aria-label={fill(texts.moveUp, { item: labelOf(v) })}
+                      onClick={() => move(i, -1)}
+                    >
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={i === order.length - 1}
+                      aria-label={fill(texts.moveDown, { item: labelOf(v) })}
+                      onClick={() => move(i, 1)}
+                    >
+                      <ArrowDown />
+                    </Button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+          <FieldDescription>{hint ?? (picked.size ? null : texts.all)}</FieldDescription>
         </Field>
       );
     }

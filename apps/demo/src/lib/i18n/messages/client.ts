@@ -312,6 +312,9 @@ export default defineMessages(
         extra: 'Busca dados a mais da API.',
         all: 'Todos',
         none: 'Nenhum filtro',
+        order: 'Ordem no widget',
+        moveUp: 'Subir {item}',
+        moveDown: 'Descer {item}',
       },
       zones: {
         title: 'Zonas da tabela',
@@ -724,6 +727,9 @@ export default defineMessages(
           extra: 'Fetches extra data from the API.',
           all: 'All',
           none: 'No filter',
+          order: 'Order in the widget',
+          moveUp: 'Move {item} up',
+          moveDown: 'Move {item} down',
         },
         zones: {
           title: 'Table zones',
@@ -1142,6 +1148,9 @@ export default defineMessages(
           extra: 'Busca datos adicionales de la API.',
           all: 'Todos',
           none: 'Sin filtro',
+          order: 'Orden en el widget',
+          moveUp: 'Subir {item}',
+          moveDown: 'Bajar {item}',
         },
         zones: {
           title: 'Zonas de la tabla',

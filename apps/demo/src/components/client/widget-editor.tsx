@@ -7,6 +7,7 @@ import {
   LiveList,
   MatchCard,
   MatchStakes,
+  MatchStats,
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'match_stats':
+        return <MatchStats {...o} {...WIDGET_CATALOG.match_stats.exampleProps} />;
     }
   }
   switch (kind) {
@@ -279,6 +282,8 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'match_stats':
+      return <MatchStats {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

@@ -24,7 +24,12 @@ export type WidgetOptionSpec =
   | (OptionBase & { type: 'boolean'; default: boolean })
   | (OptionBase & { type: 'number'; default: number; min: number; max: number })
   | (OptionBase & { type: 'enum'; default: string; values: readonly { value: string; label: Label }[] })
-  | (OptionBase & { type: 'multi'; values: readonly { value: string; label: Label }[] })
+  | (OptionBase & {
+      type: 'multi';
+      values: readonly { value: string; label: Label }[];
+      /** A ordem da escolha conta (o widget mostra nessa ordem): o Builder deixa reordenar e o valor não é ordenado. */
+      ordered?: boolean;
+    })
   | (OptionBase & { type: 'season' })
   | (OptionBase & { type: 'team' | 'competition' })
   | (OptionBase & { type: 'lookup'; source: LookupSource });
@@ -75,6 +80,35 @@ export const VIDEO_TYPES = [
   { value: 'other', label: l('Outros', 'Otros', 'Other') },
   { value: 'penalties', label: l('Pênaltis', 'Penales', 'Penalties') },
   { value: 'fan_reaction', label: l('Reação da torcida', 'Reacción de la hinchada', 'Fan reactions') },
+] as const;
+
+/** Estatísticas do jogo com código estável na API (`TEAM_STATISTIC_CODES`), para escolher no Builder. */
+export const MATCH_STAT_CHOICES = [
+  { value: 'possession_pct', label: l('Posse de bola', 'Posesión', 'Possession') },
+  { value: 'shots_total', label: l('Finalizações', 'Remates', 'Total shots') },
+  { value: 'shots_on_goal', label: l('Finalizações no gol', 'Remates al arco', 'Shots on target') },
+  { value: 'shots_off_goal', label: l('Finalizações para fora', 'Remates afuera', 'Shots off target') },
+  { value: 'shots_blocked', label: l('Finalizações bloqueadas', 'Remates bloqueados', 'Blocked shots') },
+  {
+    value: 'shots_inside_box',
+    label: l('Finalizações dentro da área', 'Remates dentro del área', 'Shots inside the box'),
+  },
+  {
+    value: 'shots_outside_box',
+    label: l('Finalizações de fora da área', 'Remates fuera del área', 'Shots outside the box'),
+  },
+  { value: 'xg', label: l('Gols esperados (xG)', 'Goles esperados (xG)', 'Expected goals (xG)') },
+  { value: 'goals_prevented', label: l('Gols evitados', 'Goles evitados', 'Goals prevented') },
+  { value: 'passes_total', label: l('Passes', 'Pases', 'Passes') },
+  { value: 'passes_accurate', label: l('Passes certos', 'Pases precisos', 'Accurate passes') },
+  { value: 'pass_accuracy_pct', label: l('Precisão dos passes', 'Precisión de pases', 'Pass accuracy') },
+  { value: 'corners', label: l('Escanteios', 'Córners', 'Corners') },
+  { value: 'free_kicks', label: l('Tiros livres', 'Tiros libres', 'Free kicks') },
+  { value: 'fouls', label: l('Faltas', 'Faltas', 'Fouls') },
+  { value: 'offsides', label: l('Impedimentos', 'Fueras de juego', 'Offsides') },
+  { value: 'yellow_cards', label: l('Cartões amarelos', 'Tarjetas amarillas', 'Yellow cards') },
+  { value: 'red_cards', label: l('Cartões vermelhos', 'Tarjetas rojas', 'Red cards') },
+  { value: 'saves', label: l('Defesas do goleiro', 'Atajadas', 'Goalkeeper saves') },
 ] as const;
 
 /** Países (código do COI) que os widgets dos Jogos oferecem: a América Latina primeiro, depois os mercados. */
@@ -641,6 +675,46 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     count('limit', l('Atletas listados', 'Atletas listados', 'Athletes listed'), 20, 200, ALL),
     bool('medalistsOnly', l('Só medalhistas', 'Solo medallistas', 'Medallists only'), false),
   ],
+  match_stats: [
+    {
+      key: 'stats',
+      type: 'multi',
+      ordered: true,
+      values: MATCH_STAT_CHOICES,
+      label: l('Estatísticas e ordem', 'Estadísticas y orden', 'Stats and order'),
+      hint: l(
+        'Nenhuma marcada = a ordem padrão, com tudo o que o jogo tiver.',
+        'Ninguna marcada = el orden estándar, con todo lo que tenga el partido.',
+        'None ticked = the default order, with everything the match has.',
+      ),
+      ...FOOTBALL,
+    },
+    count(
+      'limit',
+      l('Estatísticas listadas', 'Estadísticas listadas', 'Stats listed'),
+      8,
+      20,
+      l('0 = todas.', '0 = todas.', '0 = all.'),
+    ),
+    bool(
+      'showTeams',
+      l('Escudos e nomes dos times', 'Escudos y nombres de los equipos', 'Team crests and names'),
+      true,
+    ),
+    bool('showBars', l('Barras de proporção', 'Barras de proporción', 'Proportion bars'), true),
+    bool(
+      'highlightBest',
+      l('Destaque no melhor valor', 'Destacar el mejor valor', 'Highlight the best value'),
+      true,
+      {
+        hint: l(
+          'Em faltas, impedimentos e cartões, o menor.',
+          'En faltas, fueras de juego y tarjetas, el menor.',
+          'For fouls, offsides and cards, the lower one.',
+        ),
+      },
+    ),
+  ],
   medal_history: [
     noc(),
     {
@@ -691,7 +765,8 @@ function parseValue(spec: WidgetOptionSpec, raw: unknown): string | number | boo
       const picked = [...new Set(raw.split(',').map((s) => s.trim()))].filter((s) =>
         spec.values.some((v) => v.value === s),
       );
-      return picked.length ? picked.sort().join(',') : undefined;
+      if (!picked.length) return undefined;
+      return (spec.ordered ? picked : picked.sort()).join(',');
     }
     case 'season': {
       const n =
