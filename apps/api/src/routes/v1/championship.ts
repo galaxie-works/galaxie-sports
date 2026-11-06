@@ -23,6 +23,7 @@ import {
   loadLeaderRows,
   loadTitleCoverage,
   rankLeaders,
+  titleCutoffYear,
   titleRanking,
 } from '../../competitions/championship.js';
 
@@ -143,7 +144,7 @@ export async function championshipRoutes(app: FastifyInstance, ctx: AppContext):
           customLogos: ctx.logos.enabled(),
         });
         const coverage = rows.length ? await loadTitleCoverage(db, c.id) : null;
-        const ranking = titleRanking(rows, coverage);
+        const ranking = coverage ? titleRanking(rows, coverage, await titleCutoffYear(db, c.id)) : null;
         const names = await loadTeamNames(
           db,
           rows.flatMap((r) => [r.champion_id, r.runner_id].filter((id): id is string => !!id)),

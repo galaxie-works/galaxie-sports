@@ -65,6 +65,7 @@ async function seed() {
       { sport: 'football', slug: 'liga-teste', name: 'Liga Teste', type: 'league' },
       { sport: 'football', slug: 'copa-teste', name: 'Copa Teste', type: 'cup' },
       { sport: 'football', slug: 'liga-lacunas', name: 'Liga Lacunas', type: 'league' },
+      { sport: 'football', slug: 'liga-dois-torneios', name: 'Liga Dois Torneios', type: 'league' },
     ])
     .returning();
   for (const c of comps) ids[c.slug] = c.id;
@@ -144,6 +145,9 @@ async function seed() {
     title('copa-teste', 'Gama', 2025, 'QC2025'),
     title('liga-lacunas', null, 2025, 'QL2025'),
     title('liga-lacunas', 'Beta', 2022, 'QL2022'),
+    // Apertura e Clausura no mesmo ano: duas edições, cada uma uma vez
+    title('liga-dois-torneios', 'Alfa', 2024, 'QA2024'),
+    title('liga-dois-torneios', 'Beta', 2024, 'QC2024'),
   ]);
   await db.insert(competitionTitleCoverage).values([
     {
@@ -300,5 +304,11 @@ describe('GET /v1/competitions/{id}/champions', () => {
     expect(body.ranking).toBeNull();
     expect(body.data.map((e) => e.champion?.name ?? null)).toEqual([null, 'Beta']);
     expect(body.coverage?.unidentified).toBe(1);
+  });
+
+  it('duas edições no mesmo ano (Apertura e Clausura) saem uma vez cada', async () => {
+    const body = await get<Champions>('/v1/competitions/liga-dois-torneios/champions');
+    expect(body.editions).toBe(2);
+    expect(body.data.map((e) => e.champion?.name).sort()).toEqual(['Alfa', 'Beta']);
   });
 });

@@ -75,16 +75,28 @@ describe('titleRanking', () => {
   ];
 
   it('conta os títulos ligados; empate: o mais recente primeiro', () => {
-    expect(titleRanking(rows, { first_year: 2020, latest_year: 2025, complete_through: 2025 })).toEqual([
-      { teamId: 'b', titles: 2, last: '2025', lastYear: 2025 },
-      { teamId: 'a', titles: 2, last: '2024', lastYear: 2024 },
-      { teamId: 'c', titles: 1, last: '2020', lastYear: 2020 },
-    ]);
+    expect(titleRanking(rows, { first_year: 2020, latest_year: 2025, complete_through: 2025 }, 2025)).toEqual(
+      [
+        { teamId: 'b', titles: 2, last: '2025', lastYear: 2025 },
+        { teamId: 'a', titles: 2, last: '2024', lastYear: 2024 },
+        { teamId: 'c', titles: 1, last: '2020', lastYear: 2020 },
+      ],
+    );
   });
 
   it('lista incompleta ou sem cobertura: sem ranking', () => {
-    expect(titleRanking(rows, { first_year: 2020, latest_year: 2025, complete_through: 2023 })).toBeNull();
-    expect(titleRanking(rows, { first_year: null, latest_year: null, complete_through: null })).toBeNull();
-    expect(titleRanking(rows, null)).toBeNull();
+    expect(
+      titleRanking(rows, { first_year: 2020, latest_year: 2025, complete_through: 2023 }, 2025),
+    ).toBeNull();
+    expect(
+      titleRanking(rows, { first_year: null, latest_year: null, complete_through: null }, 2025),
+    ).toBeNull();
+    expect(titleRanking(rows, null, 2025)).toBeNull();
+  });
+
+  it('fonte que parou de atualizar (completa até um ano antigo): sem ranking', () => {
+    expect(
+      titleRanking(rows, { first_year: 2020, latest_year: 2025, complete_through: 2025 }, 2026),
+    ).toBeNull();
   });
 });

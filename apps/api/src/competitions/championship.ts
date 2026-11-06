@@ -140,6 +140,7 @@ export async function leadersUpdatedAt(db: Database, seasonId: string): Promise<
 // ─── campeões ────────────────────────────────────────────────────────────────────────────────────
 
 export interface ChampionDbRow {
+  edition_qid: string;
   season_year: number;
   season_label: string;
   decided_on: string;
@@ -167,14 +168,14 @@ export async function loadChampionRows(
   const league = q.competitionType === 'league';
   const rows = await db.execute<ChampionDbRow & Record<string, unknown>>(sql`
     with ed as (
-      select distinct on (t.edition_qid) t.season_year, t.season_label, t.decided_on::text as decided_on,
-             t.participant_id
+      select distinct on (t.edition_qid) t.edition_qid, t.season_year, t.season_label,
+             t.decided_on::text as decided_on, t.participant_id
         from core.competition_title t
        where t.competition_id = ${q.competitionId}::uuid
        order by t.edition_qid, (t.participant_id is null), t.decided_on
     ),
     runner as (
-      select ed.season_year,
+      select ed.edition_qid,
              ${
                league
                  ? sql`(select b.participant_id
@@ -208,7 +209,8 @@ export async function loadChampionRows(
       from ed
       left join core.participant c on c.id = ed.participant_id
       left join core.asset cl on cl.id = ${logoIdSql('c', q.customLogos)}
-      left join runner on runner.season_year = ed.season_year
+      -- por edição, não por ano: Apertura e Clausura do mesmo ano são duas edições
+      left join runner on runner.edition_qid = ed.edition_qid
       left join core.participant r on r.id = runner.participant_id
       left join core.asset rl on rl.id = ${logoIdSql('r', q.customLogos)}
      order by ed.season_year desc, ed.decided_on desc`);
@@ -231,6 +233,26 @@ export async function loadTitleCoverage(
   return row ?? null;
 }
 
+/**
+ * Último ano que a lista de campeões precisa cobrir: a temporada anterior à atual do core (a atual ainda está
+ * em disputa) ou, sem temporada atual, o ano passado. Mesma régua de `titleCoverage` em `@galaxie/db`: pega a
+ * fonte que parou de atualizar, quando `latest_year` e `complete_through` param juntos num ano antigo.
+ */
+export async function titleCutoffYear(
+  db: Database,
+  competitionId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  const [row] = await db.execute<{ year: number | null } & Record<string, unknown>>(sql`
+    select max(s.year)::int as year
+      from core.season s
+     where s.competition_id = ${competitionId}::uuid
+       and s.year < (select c.year from core.season c
+                      where c.competition_id = ${competitionId}::uuid and c.current
+                      order by c.year desc limit 1)`);
+  return row?.year ?? now.getUTCFullYear() - 1;
+}
+
 export interface TitleTally {
   teamId: string;
   titles: number;
@@ -241,15 +263,18 @@ export interface TitleTally {
 
 /**
  * Títulos por time, do maior para o menor (empate: o título mais recente primeiro, depois o nome pt-BR). Só
- * quando a lista está completa até a edição mais recente (`complete_through >= latest_year`); senão, null: a
- * contagem de uma lista com ano faltando seria um palpite (mesma regra de `@galaxie/db` `loadTitleRecords`).
+ * quando a lista está completa até a edição mais recente (`complete_through >= latest_year`) e até o ano de
+ * corte (`titleCutoffYear`: a temporada anterior à atual); senão, null: a contagem de uma lista com ano
+ * faltando, ou que parou de ser atualizada, seria um palpite (mesma regra de `@galaxie/db` `loadTitleRecords`).
  */
 export function titleRanking(
   rows: readonly Pick<ChampionDbRow, 'season_year' | 'season_label' | 'champion_id' | 'champion_name'>[],
   coverage: TitleCoverageRow | null,
+  cutoffYear: number,
 ): TitleTally[] | null {
   if (!coverage || coverage.complete_through === null || coverage.latest_year === null) return null;
   if (coverage.complete_through < coverage.latest_year) return null;
+  if (coverage.complete_through < cutoffYear) return null;
   const by = new Map<string, TitleTally & { name: string }>();
   for (const r of rows) {
     if (!r.champion_id) continue;
