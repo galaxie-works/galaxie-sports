@@ -206,6 +206,90 @@ describe('LivePoller', () => {
     expect(finishedIds).toEqual(['9101']);
   });
 
+  it('jogo que o relógio começou e a fonte dá como NS: conferido de novo em 5 min, sem gastar tentativa', async () => {
+    // a fonte atrasou o jogo: nunca vem no live e o detalhe responde NS (postmortem de 31/10)
+    const late: WorldMatch = { ...match, delayMin: 180 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    const detailAt: number[] = [];
+    let now = at(0);
+    const detail = provider.getEventDetail.bind(provider);
+    provider.getEventDetail = async (...args) => {
+      detailAt.push((now.getTime() - kick) / MIN);
+      provider.willReturn('getEventDetail', batchAt([late], now, true));
+      return detail(...args);
+    };
+    const tick = async (min: number) => {
+      now = at(min);
+      store.advanceClock(now);
+      provider.willReturn('listLive', batchAt([], now));
+      return poller.tick({ now, leagues: ['71'], tracked: await tracked(now), finalizeBudget: 2 });
+    };
+
+    expect((await tick(2)).vanished).toEqual(['9101']);
+    expect(poller.exportFinalizeAttempts(at(2))['9101']).toEqual({
+      attempts: 0,
+      nextAt: at(7).getTime(),
+      notStarted: true,
+    });
+    // a resposta NS devolve o jogo a `starting`; o relógio o põe em andamento de novo e o poller volta a conferir.
+    // Duas horas e meia de tick a tick (15 s), bem mais que o backoff inteiro da confirmação (~68 min)
+    for (let s = 2 * 60 + 15; s <= 150 * 60; s += 15) await tick(s / 60);
+    expect(detailAt.length).toBeGreaterThan(7); // o backoff desistia na 7ª
+    for (let i = 1; i < detailAt.length; i++)
+      expect(detailAt[i]! - detailAt[i - 1]!).toBeGreaterThanOrEqual(5);
+    expect(poller.exportFinalizeAttempts(at(150))['9101']).toMatchObject({ attempts: 0, notStarted: true });
+  });
+
+  it('a confirmação de quem acabou vem antes de quem a fonte ainda não começou', async () => {
+    const late: WorldMatch = { ...wednesdayNight()[4]!, delayMin: 300 }; // Bahia x Fortaleza, atrasado
+    const { store, provider, poller, tracked, finishedIds } = setup([match, late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    provider.willReturn('listLive', batchAt([match], at(95)));
+    store.advanceClock(at(95));
+    // o atrasado nunca veio no live e responde NS; Palmeiras x Corinthians ainda em campo
+    provider.willReturn('getEventDetail', batchAt([late], at(95), true));
+    await poller.tick({ now: at(95), leagues: ['71'], tracked: await tracked(at(95)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(95))['9102']).toMatchObject({ notStarted: true });
+
+    // 16 min depois o relógio pôs o atrasado em andamento de novo e os dois estão fora do live, com orçamento para um
+    // só: vai para o que acabou
+    store.advanceClock(at(111));
+    provider
+      .willReturn('listLive', batchAt([], at(111)))
+      .willReturn('getEventDetail', batchAt([match], at(111), true));
+    const r = await poller.tick({
+      now: at(111),
+      leagues: ['71'],
+      tracked: await tracked(at(111)),
+      finalizeBudget: 1,
+    });
+    expect(r.vanished).toEqual(['9101', '9102']);
+    expect(r.finalized).toEqual(['9101']);
+    expect(provider.calls.at(-1)).toMatchObject({
+      method: 'getEventDetail',
+      args: ['football', '9101', expect.anything()],
+    });
+    expect(finishedIds).toEqual(['9101']);
+  });
+
+  it('o atrasado que entra no live perde a marca: ao sair, a confirmação do resultado começa do zero', async () => {
+    const late: WorldMatch = { ...match, delayMin: 10 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    store.advanceClock(at(2));
+    provider
+      .willReturn('listLive', batchAt([], at(2)))
+      .willReturn('getEventDetail', batchAt([late], at(2), true));
+    await poller.tick({ now: at(2), leagues: ['71'], tracked: await tracked(at(2)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(2))['9101']).toMatchObject({ notStarted: true });
+
+    // a fonte apita 10 min depois: o jogo vem no live
+    provider.willReturn('listLive', batchAt([late], at(12)));
+    await poller.tick({ now: at(12), leagues: ['71'], tracked: await tracked(at(12)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(12))).toEqual({});
+  });
+
   it('sem orçamento de confirmação, o jogo que sumiu fica para o próximo tick', async () => {
     const { provider, poller, tracked } = setup([match]);
     const t1 = new Date(kick + 100 * MIN);
