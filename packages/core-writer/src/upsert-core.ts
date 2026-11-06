@@ -1109,6 +1109,39 @@ async function upsertPersonProfiles(
 
 // ─── eventos ─────────────────────────────────────────────────────────────────────────────────────
 
+/** Chave de casamento do estádio por nome: nome e cidade sem caixa nem espaços nas pontas. */
+export function venueNameKey(ref: { name: string; city: string | null }): string {
+  return `${ref.name.trim().toLowerCase()}|${(ref.city ?? '').trim().toLowerCase()}`;
+}
+
+/**
+ * Estádios já conhecidos pelo nome e cidade (o jogo da api-sports sem `venue.id`): só o casamento único vale —
+ * dois estádios com o mesmo nome na mesma cidade ficam sem ligação. A comparação é toda no Postgres
+ * (`lower(trim(...))` dos dois lados, como no backfill `venues-by-name`): minúscula do JS e do banco divergem em
+ * letras como `İ`. A chave do mapa é a `venueNameKey` da referência pedida.
+ */
+export async function venuesByName(
+  tx: Tx | Database,
+  refs: readonly { name: string; city: string | null }[],
+): Promise<Map<string, string>> {
+  const wanted = [...new Map(refs.map((r) => [venueNameKey(r), r] as const)).values()];
+  const out = new Map<string, string>();
+  if (!wanted.length) return out;
+  const values = sql.join(
+    wanted.map((r, i) => sql`(${i}::int, ${r.name}::text, ${r.city}::text)`),
+    sql`, `,
+  );
+  const rows = await tx.execute<{ i: number; id: string; n: number }>(sql`
+    select r.i, min(${venue.id}::text) as id, count(*)::int as n
+      from (values ${values}) as r(i, name, city)
+      join ${venue}
+        on lower(trim(${venue.name})) = lower(trim(r.name))
+       and lower(trim(coalesce(${venue.city}, ''))) = lower(trim(coalesce(r.city, '')))
+     group by r.i`);
+  for (const row of rows) if (row.n === 1) out.set(venueNameKey(wanted[row.i]!), row.id);
+  return out;
+}
+
 interface EventRefs {
   competitionIds: Map<string, string>;
   seasonId: (ref: SeasonRef | null) => string | null;
@@ -1295,6 +1328,13 @@ async function upsertEvents(
     'event',
     events.map((e) => e.id),
   );
+  const venuesNamed = await venuesByName(
+    tx,
+    events.flatMap((e) => (!e.venueId && e.venueByName ? [e.venueByName] : [])),
+  );
+  const eventVenueId = (e: NormalizedEvent) =>
+    refs.venueId(e.venueId) ??
+    (e.venueByName ? (venuesNamed.get(venueNameKey(e.venueByName)) ?? null) : null);
 
   const unmapped = events.filter((e) => !mapped.has(e.id));
   const matched = await matchAcrossProviders(
@@ -1458,7 +1498,7 @@ async function upsertEvents(
       competitionId,
       seasonId,
       stageId: stageRef?.id ?? null,
-      venueId: refs.venueId(e.venueId),
+      venueId: eventVenueId(e),
       importance: keepPrev && prev ? prev.importance : scored.score,
       importanceBreakdown: keepPrev ? null : scored.breakdown,
       derbyId: derby?.derbyId ?? null,

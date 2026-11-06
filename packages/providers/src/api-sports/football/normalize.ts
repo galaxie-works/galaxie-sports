@@ -307,6 +307,7 @@ function addFixture(c: Collector, f: ApiFixture, observedAt: Date): NormalizedEv
     season,
     stageLabel,
     venueId,
+    ...(!venueId && v?.name ? { venueByName: { name: v.name, city: v.city ?? null } } : {}),
     observation: fixtureObservation(f, observedAt),
     participants,
     footballFixture: {
