@@ -32,10 +32,11 @@ import {
 import { runFootballCatalogJob } from '../src/bootstrap/football-catalog-job.js';
 import { PgCatalogSource } from '../src/jobs/catalog-source.js';
 import { dailyJob } from '../src/jobs/daily-job.js';
-import { detailsJob } from '../src/jobs/details-job.js';
+import { DATE_LISTS, detailsJob } from '../src/jobs/details-job.js';
+import { collectFixtures, H2H_LISTS, SEASON_LISTS, type FixtureRef } from '../src/jobs/fixtures.js';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../src/jobs/runtime/job-run-store.js';
-import { PgRawSource } from '../src/jobs/runtime/raw-source.js';
+import { PgRawSource, type RawSource } from '../src/jobs/runtime/raw-source.js';
 import { planJob, runJob, type RunDeps } from '../src/jobs/runtime/runner.js';
 import { seasonsJob } from '../src/jobs/seasons-job.js';
 import { exportRawSnapshot, importRawSnapshot } from '../src/snapshot/raw-snapshot.js';
@@ -200,6 +201,16 @@ describe('jobs de ingestão contra o Postgres', () => {
       .from(syncCursor)
       .where(and(eq(syncCursor.endpoint, '/fixtures'), like(syncCursor.key, 'id=%')));
     expect(detailed!.n).toBe(96);
+  });
+
+  it('o resumo das partidas feito no Postgres bate com o lido do corpo inteiro', async () => {
+    const pgRaw = new PgRawSource(db, 7);
+    const viaBody: RawSource = { latest: (q) => pgRaw.latest(q), lastFetched: (h) => pgRaw.lastFetched(h) };
+    const lists = [SEASON_LISTS, H2H_LISTS, DATE_LISTS];
+    const byId = (refs: FixtureRef[]) => [...refs].sort((a, b) => a.id - b.id);
+    const fromDb = byId(await collectFixtures(pgRaw, lists));
+    expect(fromDb.length).toBeGreaterThan(96);
+    expect(fromDb).toEqual(byId(await collectFixtures(viaBody, lists)));
   });
 
   it('sync:daily é seguro para reexecutar no mesmo dia', async () => {

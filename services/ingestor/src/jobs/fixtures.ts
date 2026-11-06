@@ -75,6 +75,13 @@ export function apiFixtures(response: unknown): ApiFixture[] {
 export async function collectFixtures(raw: RawSource, queries: RawQuery[]): Promise<FixtureRef[]> {
   const byId = new Map<number, FixtureRef>();
   for (const q of queries) {
+    if (raw.fixtureRows) {
+      for await (const row of raw.fixtureRows(q)) {
+        const prev = byId.get(row.id);
+        if (!prev || prev.fetchedAt <= row.fetchedAt) byId.set(row.id, row);
+      }
+      continue;
+    }
     for await (const entry of raw.latest(q)) {
       for (const f of apiFixtures(entry.response)) {
         const prev = byId.get(f.fixture.id);
