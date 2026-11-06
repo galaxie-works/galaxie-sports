@@ -54,6 +54,8 @@
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
     "mma": "node --env-file-if-exists=../../.env dist/cli/mma.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
+    "assets:pendentes": "node --env-file-if-exists=../../.env dist/cli/assets-pendentes.js",
+    "assets:baixar-local": "node dist/cli/assets-baixar-local.js",
     "assets:fotos-wikidata": "node --env-file-if-exists=../../.env dist/cli/wikimedia-photos.js",
     "pessoas:wikidata-por-time": "node --env-file-if-exists=../../.env dist/cli/wikidata-teams.js",
     "canais:wikidata": "node --env-file-if-exists=../../.env dist/cli/wikidata-channels.js",

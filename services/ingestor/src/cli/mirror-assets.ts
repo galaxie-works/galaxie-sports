@@ -11,6 +11,10 @@
  *   opções: --limite N · --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --retentar-ausentes
  *           --desde-dias N (com --fotos: janela dos "escalados recentes", padrão 365)
  *           --caminho volley    só a mídia de um esporte (pasta na CDN: football, basketball, volley...)
+ *   pnpm --filter @galaxie/ingestor assets:mirror --origem-local /assets
+ *           lê os bytes do pacote baixado na máquina local (`assets:pendentes` → `assets:baixar-local` → rsync/scp) em
+ *           vez da CDN: só os assets do manifest entram na fila, sem cursor e sem logos de emissoras; o resto da regra
+ *           (genéricos, 404, bloqueio, dimensões, paleta, core.asset) é a mesma. Padrão aqui: concorrência 8, pausa 0.
  * Com `--retentar-ausentes`, os logos de time e competição que voltam (antes 404 ou bloqueados) religam na hora
  * as entidades que os perderam, pelo par id ↔ logo que o fornecedor já devolveu (raw; sem chamada à API).
  * `--fotos` antes liga cada jogador sem foto à URL `football/players/{id}.png` (sai do id, sem cota) e, no fim,
@@ -41,6 +45,7 @@ import { runBroadcasterLogoMirror } from '../assets/broadcaster-logos.js';
 import { relinkRecoveredLogos } from '../assets/relink-logos.js';
 import { mirrorCursorStore } from '../assets/mirror-cursor.js';
 import { objectStoreFromEnv } from '../assets/object-store.js';
+import { LocalMediaSource } from '../assets/local-media.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import {
   PLACEHOLDER_PHOTO_SHA256,
@@ -59,8 +64,9 @@ const { values } = parseArgs({
     'so-limpeza': { type: 'boolean', default: false },
     'desde-dias': { type: 'string', default: '365' },
     limite: { type: 'string' },
-    concorrencia: { type: 'string', default: '3' },
-    'pausa-ms': { type: 'string', default: '250' },
+    concorrencia: { type: 'string' },
+    'pausa-ms': { type: 'string' },
+    'origem-local': { type: 'string' },
     caminho: { type: 'string' },
     'do-inicio': { type: 'boolean', default: false },
     denylist: { type: 'string', default: resolve('../../config/assets/denylist.yaml') },
@@ -73,6 +79,9 @@ if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
 const db = createDb(DATABASE_URL);
 const assets = new PgAssetStore(db);
 const denylist = await loadMediaDenylist(values.denylist);
+const localDir = values['origem-local'];
+if (localDir && values.fotos)
+  throw new Error('--origem-local e --fotos não combinam: o pacote local já é a fila.');
 const personPhotos = values.fotos
   ? { since: new Date(Date.now() - Number(values['desde-dias']) * 86_400_000) }
   : undefined;
@@ -120,6 +129,7 @@ try {
       personPhotos,
       limit: values.limite ? Number(values.limite) : undefined,
       pathPrefix: values.caminho,
+      ids: localDir ? (await LocalMediaSource.open(localDir)).ids() : undefined,
     });
     // os assets que o registro pelo id criaria ainda não existem: entram os que caem no --caminho
     const limit = values.limite ? Number(values.limite) : Infinity;
@@ -144,24 +154,31 @@ try {
     }
   } else {
     const objects = objectStoreFromEnv();
+    const local = localDir ? await LocalMediaSource.open(localDir) : undefined;
+    if (local) console.log(`Pacote local ${localDir}: ${local.size} URLs resolvidas (baixadas ou 404).`);
     const [run] = await db.insert(jobRun).values({ job: 'assets:mirror', status: 'running' }).returning();
     // SIGTERM (deploy, fim do scheduler): termina os downloads em andamento, grava o cursor e sai
     const stop = new AbortController();
     process.once('SIGTERM', () => stop.abort());
     process.once('SIGINT', () => stop.abort());
-    const cursor = mirrorCursorStore(new PgCursorStore(db), {
-      pathPrefix: values.caminho,
-      includeMissing: values['retentar-ausentes'],
-    });
-    if (values['do-inicio']) await cursor.save({});
+    // o pacote local é um conjunto fechado: sem cursor (o do job agendado fica intacto)
+    const cursor = local
+      ? undefined
+      : mirrorCursorStore(new PgCursorStore(db), {
+          pathPrefix: values.caminho,
+          includeMissing: values['retentar-ausentes'],
+        });
+    if (values['do-inicio']) await cursor?.save({});
     try {
       let done = 0;
       const report = await runAssetMirror({
         assets,
         objects,
         denylist,
-        concurrency: Number(values.concorrencia),
-        delayMs: Number(values['pausa-ms']),
+        fetcher: local,
+        ids: local?.ids(),
+        concurrency: Number(values.concorrencia ?? (local ? 8 : 3)),
+        delayMs: Number(values['pausa-ms'] ?? (local ? 0 : 250)),
         includeMissing: values['retentar-ausentes'],
         personPhotos,
         limit: values.limite ? Number(values.limite) : undefined,
@@ -180,7 +197,7 @@ try {
         : undefined;
       // --fotos é só fotos: os logos de emissoras ficam para a execução normal (e para a próxima, se veio o SIGTERM)
       const logos =
-        personPhotos || stop.signal.aborted
+        personPhotos || local || stop.signal.aborted
           ? undefined
           : await runBroadcasterLogoMirror({
               db,
