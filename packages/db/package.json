@@ -23,6 +23,10 @@
       "types": "./dist/widgets.d.ts",
       "default": "./dist/widgets.js"
     },
+    "./webhooks": {
+      "types": "./dist/webhooks.d.ts",
+      "default": "./dist/webhooks.js"
+    },
     "./lineups": {
       "types": "./dist/lineups.d.ts",
       "default": "./dist/lineups.js"

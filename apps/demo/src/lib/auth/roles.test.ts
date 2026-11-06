@@ -44,6 +44,7 @@ describe('papéis da demo', () => {
       '/cliente/builder/novo',
       '/cliente/grade',
       '/cliente/canais',
+      '/cliente/webhooks',
       '/api/cliente/x',
     ]) {
       expect(routeAccess(path, 'client')).toBe('allow');
