@@ -48,7 +48,7 @@ backup_env() {
   cp -p .env ".env.bak-webhooks-$(date +%Y%m%d-%H%M%S)" && BACKUP_DONE=1 && ok "backup do .env feito"
 }
 
-h "agora: $(date -u +%FT%TZ)  versão no ar: $(envval IMAGE_TAG | cut -c1-8)"
+h "agora: $(date -u +%FT%TZ)  api no ar: $(envval TAG_API | cut -c1-8)  painel no ar: $(envval TAG_DEMO | cut -c1-8)"
 
 # ── 1. KEK ───────────────────────────────────────────────────────────────────────────────────────────────────
 h "1. chave de cifra (WEBHOOK_SIGNING_SECRET)"
