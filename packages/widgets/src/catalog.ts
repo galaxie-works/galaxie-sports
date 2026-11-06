@@ -24,6 +24,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { CountdownProps } from './widgets/countdown.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +51,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  countdown: CountdownProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +81,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'Countdown';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +583,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  countdown: {
+    kind: 'countdown',
+    component: 'Countdown',
+    registryComponent: 'GalaxieCountdown',
+    name: { 'pt-BR': 'Contagem regressiva', es: 'Cuenta regresiva', en: 'Countdown' },
+    description: {
+      'pt-BR':
+        'Tempo até o jogo começar, com escudos, campeonato e onde assistir. Na hora do jogo, vira o placar ao vivo.',
+      es: 'Tiempo hasta que empiece el partido, con escudos, competición y dónde verlo. Al empezar, pasa a ser el marcador en vivo.',
+      en: 'Time left until kick-off, with crests, competition and where to watch. Once the match starts, it turns into the live score.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showWatch', 'showSeconds', 'onStart'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: true,
+    // um lado contra o outro: os coletivos e a luta (na F1 não há mandante e visitante)
+    sports: [...TEAM_SPORTS, 'mma'],
   },
 };
 

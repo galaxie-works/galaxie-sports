@@ -35,6 +35,7 @@ export const PREVIEW_IDS = {
   driver: RACING_IDS.driver,
   /** MMA: a luta principal do card de exemplo, a liga e o lutador. */
   fightEvent: RACING_IDS.fightEvent,
+  nextFightEvent: RACING_IDS.nextFightEvent,
   fightCompetition: RACING_IDS.fightCompetition,
   fighter: RACING_IDS.fighter,
   /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */

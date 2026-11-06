@@ -22,6 +22,7 @@ import { GalaxieWidgetProvider } from '../core/react.js';
 import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
+import { Countdown } from '../widgets/countdown.js';
 import { FightCard } from '../widgets/fight-card.js';
 import { EquestrianResults } from '../widgets/equestrian-results.js';
 import { EquestrianRanking } from '../widgets/equestrian-ranking.js';
@@ -175,6 +176,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'countdown':
+      return <Countdown {...o} eventId={eventId ?? ''} />;
   }
 }
 

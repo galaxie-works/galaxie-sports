@@ -669,6 +669,23 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  countdown: [
+    bool('showWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
+    bool('showSeconds', l('Segundos', 'Segundos', 'Seconds'), true),
+    {
+      key: 'onStart',
+      type: 'enum',
+      default: 'score',
+      label: l('Quando o jogo começar', 'Cuando empiece el partido', 'When the match starts'),
+      values: [
+        {
+          value: 'score',
+          label: l('Virar o placar ao vivo', 'Mostrar el marcador en vivo', 'Show the live score'),
+        },
+        { value: 'hide', label: l('Esconder o widget', 'Ocultar el widget', 'Hide the widget') },
+      ],
+    },
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
