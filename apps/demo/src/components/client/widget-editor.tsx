@@ -52,11 +52,12 @@ import {
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
-import type { WidgetKind, WidgetTheme } from '@/lib/builder/types';
+import type { BrandThemeItem, WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, rich } from '@/lib/i18n/text';
 
+import { BrandThemePicker } from './brand-theme-picker';
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
 import { LiveListOptionsEditor } from './live-list-options-editor';
@@ -68,7 +69,10 @@ import { KIND_ICONS, useKindTexts } from './widgets-panel';
 export interface EditorDraft {
   name: string;
   kind: WidgetKind;
+  /** Tema efetivo (o da marca com os ajustes deste widget, ou o tema só dele). */
   theme: WidgetTheme;
+  /** Tema da marca que o widget segue; null = tema só deste widget. */
+  brandThemeId: string | null;
   locale: WidgetLocale;
   market: string;
   entity: EntityValue | null;
@@ -104,6 +108,7 @@ const snapshot = (d: EditorDraft) =>
     name: d.name.trim(),
     kind: d.kind,
     theme: d.theme,
+    brandThemeId: d.brandThemeId,
     locale: d.locale,
     market: d.market,
     defaults: defaultsFromEntity(d.entity),
@@ -200,17 +205,21 @@ export function WidgetEditor({
   initial,
   saved: savedInitial,
   markets,
+  brandThemes: brandThemesInitial = [],
 }: {
   initial: EditorDraft;
   saved: SavedInfo | null;
   /** Mercados que o plano permite. */
   markets: string[];
+  /** Temas da marca do tenant. */
+  brandThemes?: BrandThemeItem[];
 }) {
   const router = useRouter();
   const { t } = useI18n();
   const e = t.client.editor;
   const b = t.client.builder;
   const [draft, setDraft] = useState(initial);
+  const [brandThemes, setBrandThemes] = useState(brandThemesInitial);
   const [saved, setSaved] = useState(savedInitial);
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
   const [pending, startTransition] = useTransition();
@@ -234,6 +243,7 @@ export function WidgetEditor({
   const localeItems = WIDGET_LOCALES.map((l) => ({ value: l, label: l }));
   const config = {
     theme: draft.theme,
+    ...(draft.brandThemeId ? { brandThemeId: draft.brandThemeId } : {}),
     locale: draft.locale,
     market: draft.market,
     defaults: defaultsFromEntity(draft.entity),
@@ -343,6 +353,17 @@ export function WidgetEditor({
           <Frame>
             <FramePanel className="flex flex-col gap-4">
               <FrameTitle>{e.theme}</FrameTitle>
+              <BrandThemePicker
+                themes={brandThemes}
+                value={draft.brandThemeId}
+                theme={draft.theme}
+                onChange={(brandThemeId, theme) => setDraft((d) => ({ ...d, brandThemeId, theme }))}
+                onCreated={(item) =>
+                  setBrandThemes((list) =>
+                    [...list, item].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+                  )
+                }
+              />
               <ThemeEditor value={draft.theme} onChange={(theme) => set('theme', theme)} />
             </FramePanel>
           </Frame>

@@ -24,7 +24,18 @@ import {
   toWidgetLocale,
   WIDGET_KINDS,
 } from './config';
-import type { Widget, WidgetEntityType, WidgetKind } from './types';
+import { builderDb, listWidgetThemes } from './store';
+import type { BrandThemeItem, Widget, WidgetEntityType, WidgetKind } from './types';
+
+/** Temas da marca do tenant como vão para o navegador (por nome). */
+export async function brandThemeItems(tenantId: string): Promise<BrandThemeItem[]> {
+  return (await listWidgetThemes(builderDb(), tenantId)).map((x) => ({
+    id: x.id,
+    name: x.name,
+    theme: x.theme,
+    widgetCount: x.widgetCount,
+  }));
+}
 
 const PATH: Record<WidgetEntityType, string> = {
   competition: '/v1/competitions',
@@ -58,12 +69,26 @@ async function resolveEntity(
   }
 }
 
-export function newDraft(kindParam: string | undefined, tenant: TenantInfo, locale: Locale): EditorDraft {
+/**
+ * Widget novo: com `?tema=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao
+ * único tema da marca do tenant, quando há um só; senão, o tema escuro pronto.
+ */
+export function newDraft(
+  kindParam: string | undefined,
+  tenant: TenantInfo,
+  locale: Locale,
+  brandThemes: BrandThemeItem[] = [],
+  brandThemeParam?: string,
+): EditorDraft {
   const kind: WidgetKind = isWidgetKind(kindParam) ? kindParam : WIDGET_KINDS[0];
+  const brand =
+    brandThemes.find((x) => x.id === brandThemeParam) ??
+    (brandThemes.length === 1 ? brandThemes[0] : undefined);
   return {
     name: WIDGET_CATALOG[kind].name[toWidgetLocale(locale)],
     kind,
-    theme: { ...DEFAULT_THEMES.dark },
+    theme: brand ? { ...brand.theme } : { ...DEFAULT_THEMES.dark },
+    brandThemeId: brand?.id ?? null,
     locale: toWidgetLocale(locale),
     market: marketsFor(tenant.markets)[0]!,
     entity: null,
@@ -98,6 +123,7 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
     name: widget.name,
     kind: widget.kind,
     theme: widget.config.theme,
+    brandThemeId: widget.config.brandThemeId ?? null,
     locale: isWidgetLocale(widget.config.locale) ? widget.config.locale : toWidgetLocale(locale),
     market: widget.config.market,
     entity: entity ? await resolveEntity(entity.type, entity.id, locale) : null,

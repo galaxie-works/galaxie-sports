@@ -6,7 +6,7 @@ import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { marketsFor } from '@/lib/builder/config';
-import { newDraft } from '@/lib/builder/editor';
+import { brandThemeItems, newDraft } from '@/lib/builder/editor';
 import { getI18n, getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,16 +19,26 @@ async function NewWidget({
 }: {
   searchParams: PageProps<'/[locale]/cliente/builder/novo'>['searchParams'];
 }) {
-  const [{ tipo }, { locale }] = await Promise.all([searchParams, getI18n()]);
+  const [{ tipo, tema }, { locale }] = await Promise.all([searchParams, getI18n()]);
   return (
     <ClientArea section="builder">
-      {({ tenant }) => (
-        <WidgetEditor
-          initial={newDraft(typeof tipo === 'string' ? tipo : undefined, tenant, locale)}
-          saved={null}
-          markets={marketsFor(tenant.markets)}
-        />
-      )}
+      {async ({ tenant }) => {
+        const brandThemes = await brandThemeItems(tenant.id);
+        return (
+          <WidgetEditor
+            initial={newDraft(
+              typeof tipo === 'string' ? tipo : undefined,
+              tenant,
+              locale,
+              brandThemes,
+              typeof tema === 'string' ? tema : undefined,
+            )}
+            saved={null}
+            markets={marketsFor(tenant.markets)}
+            brandThemes={brandThemes}
+          />
+        );
+      }}
     </ClientArea>
   );
 }
