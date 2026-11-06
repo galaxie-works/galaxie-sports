@@ -94,6 +94,17 @@ describe('widget salvo', () => {
     expect(card.ok && 'standings' in card.value.config).toBe(false);
   });
 
+  it('lista de jogos guarda modo, agrupamento e dados extras válidos; os outros tipos descartam', () => {
+    const liveList = { liveOnly: true, showVenue: true, showCity: 'sim', limit: 0, outra: 1 };
+    const games = parseWidgetInput(
+      { ...base, kind: 'live_list', config: { ...base.config, defaults: {}, liveList } },
+      opts,
+    );
+    expect(games.ok && games.value.config.liveList).toEqual({ liveOnly: true, showVenue: true });
+    const card = parseWidgetInput({ ...base, config: { ...base.config, liveList } }, opts);
+    expect(card.ok && 'liveList' in card.value.config).toBe(false);
+  });
+
   it('placar, tabela e onde assistir exigem a entidade padrão; a lista ao vivo, não', () => {
     const none = { ...base.config, defaults: {} };
     for (const kind of ['match_card', 'standings', 'where_to_watch'])

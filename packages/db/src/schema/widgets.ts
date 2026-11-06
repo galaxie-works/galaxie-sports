@@ -52,6 +52,20 @@ export interface WidgetConfig {
   defaults: WidgetDefaults;
   /** Só na tabela de classificação: legenda e cor de cada faixa (`direct`, `relegation`… → `#rrggbb`). */
   standings?: { showLegend?: boolean; zoneColors?: Record<string, string> };
+  /**
+   * Só na lista de jogos: só ao vivo, agrupar por campeonato, atualização automática, máximo de jogos e os
+   * dados extras de cada linha (logo do campeonato, rodada, estádio, cidade).
+   */
+  liveList?: {
+    liveOnly?: boolean;
+    groupByCompetition?: boolean;
+    autoRefresh?: boolean;
+    limit?: number;
+    showCompetitionLogo?: boolean;
+    showRound?: boolean;
+    showVenue?: boolean;
+    showCity?: boolean;
+  };
 }
 
 /** Widget montado pela operadora no Builder. Salvar de novo incrementa `version`. */

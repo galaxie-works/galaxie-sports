@@ -16,8 +16,8 @@
 import { createRoot, type Root } from 'react-dom/client';
 
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
-import { WIDGET_KINDS, WIDGET_LOCALES, parseStandingsOptions } from '../core/model.js';
-import type { StandingsOptions } from '../core/model.js';
+import { WIDGET_KINDS, WIDGET_LOCALES, parseLiveListOptions, parseStandingsOptions } from '../core/model.js';
+import type { LiveListOptions, StandingsOptions } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
@@ -42,6 +42,8 @@ export interface EmbedConfig {
   defaults: WidgetDefaults;
   /** Legenda e cores das zonas (só na tabela de classificação). */
   standings?: StandingsOptions | undefined;
+  /** Modo, agrupamento, atualização e dados extras (só na lista de jogos). */
+  liveList?: LiveListOptions | undefined;
   /** Base da API pública que o widget chama. */
   apiBaseUrl: string;
 }
@@ -90,6 +92,7 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
     ...c,
     defaults: c.defaults && typeof c.defaults === 'object' ? c.defaults : {},
     standings: parseStandingsOptions(c.standings),
+    liveList: parseLiveListOptions(c.liveList),
   } as EmbedConfig;
 }
 
@@ -110,7 +113,7 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
         />
       );
     case 'live_list':
-      return <LiveList competitionId={competitionId} sport={sport} />;
+      return <LiveList {...config.liveList} competitionId={competitionId} sport={sport} />;
     case 'ai_context':
       return <AiContext eventId={eventId ?? ''} />;
     case 'match_stakes':

@@ -232,6 +232,64 @@ describe('LiveList', () => {
     expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toMatch(/\/v1\/events\/live\?locale=es-AR/);
   });
 
+  it('liga rodada, estádio e cidade; a rodada comum do grupo sobe para o cabeçalho', async () => {
+    const { container } = setup(<LiveList sport="football" showRound showVenue showCity />);
+    await screen.findByText('Clube Aurora');
+    expect(screen.getByText('Liga Exemplo · Rodada 12')).toBeTruthy();
+    expect(container.querySelectorAll('[data-gs-meta="round"]')).toHaveLength(0);
+    const places = container.querySelectorAll('[data-gs-meta="venue"]');
+    expect(places).toHaveLength(3);
+    expect(places[0]!.textContent).toBe('Arena Exemplo, São Paulo');
+  });
+
+  it('só o estádio, sem a cidade; padrão continua sem dados extras', async () => {
+    const venue = setup(<LiveList sport="football" showVenue />);
+    await screen.findByText('Clube Aurora');
+    expect(venue.container.querySelector('[data-gs-meta="venue"]')!.textContent).toBe('Arena Exemplo');
+    cleanup();
+    const plain = setup(<LiveList sport="football" />);
+    await screen.findByText('Clube Aurora');
+    expect(plain.container.querySelector('.gs-row-meta')).toBeNull();
+  });
+
+  it('sem agrupar, cada linha leva o campeonato e a rodada', async () => {
+    const { container } = setup(<LiveList sport="football" groupByCompetition={false} showRound />);
+    await screen.findByText('Clube Aurora');
+    expect(container.querySelector('.gs-group-title')).toBeNull();
+    expect(container.querySelectorAll('[data-gs-meta="competition"]')).toHaveLength(3);
+    expect(container.querySelectorAll('[data-gs-meta="round"]')).toHaveLength(3);
+  });
+
+  it('um campeonato só mostra o cabeçalho com o logo; sem o logo, some', async () => {
+    const one = setup(<LiveList competitionId={PREVIEW_IDS.competition} />);
+    await screen.findByText('Clube Aurora');
+    expect(one.container.querySelector('.gs-group-title')).toBeTruthy();
+    cleanup();
+    const none = setup(<LiveList competitionId={PREVIEW_IDS.competition} showCompetitionLogo={false} />);
+    await screen.findByText('Clube Aurora');
+    expect(none.container.querySelector('.gs-group-title')).toBeNull();
+  });
+
+  it('um campeonato só e sem agrupar: o logo segue no cabeçalho', async () => {
+    const { container } = setup(
+      <LiveList competitionId={PREVIEW_IDS.competition} groupByCompetition={false} />,
+    );
+    await screen.findByText('Clube Aurora');
+    expect(container.querySelector('.gs-group-title')!.textContent).toBe('LELiga Exemplo');
+    expect(container.querySelector('[data-gs-meta="competition"]')).toBeNull();
+  });
+
+  it('liveOnly busca só os ao vivo e limit corta a lista', async () => {
+    const live = setup(<LiveList liveOnly />);
+    await screen.findByText('Ao vivo agora');
+    expect(String(vi.mocked(live.fetchImpl).mock.calls[0]![0])).toMatch(/\/v1\/events\/live\?/);
+    cleanup();
+    const short = setup(<LiveList sport="football" limit={2} />);
+    await screen.findByText('Clube Aurora');
+    expect(short.container.querySelectorAll('[data-gs-event]')).toHaveLength(2);
+    expect(String(vi.mocked(short.fetchImpl).mock.calls[0]![0])).toMatch(/limit=2/);
+  });
+
   it('mostra o vazio quando não há jogo', async () => {
     setup(<LiveList date="live" />, {
       fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: [] })),
