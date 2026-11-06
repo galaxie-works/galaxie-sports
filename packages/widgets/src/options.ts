@@ -669,6 +669,36 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  lineups: [
+    {
+      key: 'view',
+      type: 'enum',
+      default: 'pitch',
+      label: l('Formato', 'Formato', 'Layout'),
+      hint: l(
+        'Sem a posição de cada jogador no campo, a escalação aparece em lista.',
+        'Sin la posición de cada jugador en la cancha, la alineación se muestra en lista.',
+        'Without each player’s position on the pitch, the lineup is shown as a list.',
+      ),
+      values: [
+        { value: 'pitch', label: l('Campo', 'Cancha', 'Pitch') },
+        { value: 'list', label: l('Lista', 'Lista', 'List') },
+      ],
+    },
+    {
+      key: 'team',
+      type: 'enum',
+      default: 'both',
+      label: l('Times', 'Equipos', 'Teams'),
+      values: [
+        { value: 'both', label: l('Os dois times', 'Los dos equipos', 'Both teams') },
+        { value: 'home', label: l('Só o mandante', 'Solo el local', 'Home team only') },
+        { value: 'away', label: l('Só o visitante', 'Solo el visitante', 'Away team only') },
+      ],
+    },
+    bool('showSubstitutes', l('Reservas', 'Suplentes', 'Substitutes'), true),
+    bool('showCoach', l('Técnico', 'Entrenador', 'Head coach'), true),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
