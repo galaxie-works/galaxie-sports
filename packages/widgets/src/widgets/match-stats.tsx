@@ -1,6 +1,13 @@
 'use client';
 
-import { eventRefreshMs, intlLocale, sidesOf, type GsEvent, type GsEventStats } from '../core/model.js';
+import {
+  eventRefreshMs,
+  intlLocale,
+  sidesOf,
+  STARTED_STATUSES,
+  type GsEvent,
+  type GsEventStats,
+} from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -150,7 +157,7 @@ export function MatchStats({
   const event = useGalaxieQuery<GsEvent>(eventId ? `/v1/events/${enc(eventId)}` : null, {}, (e) =>
     eventRefreshMs(e),
   );
-  const started = event.data ? event.data.status !== 'scheduled' : false;
+  const started = event.data ? STARTED_STATUSES.has(event.data.status) : false;
   const query = useGalaxieQuery<GsEventStats>(started ? `/v1/events/${enc(eventId)}/stats` : null, {}, () =>
     event.data ? eventRefreshMs(event.data) : null,
   );
