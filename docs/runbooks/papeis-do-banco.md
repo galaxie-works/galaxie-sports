@@ -31,7 +31,7 @@ O papel não escreve em `semantic`, `enrich`, `api`, `multisport` nem `equestria
 
 ## Limite de conexões
 
-`applyRoles` roda `ALTER ROLE … CONNECTION LIMIT n` com `ROLE_CONNECTION_LIMITS`. Passou do teto, o Postgres recusa a conexão (SQLSTATE 53300, `too many connections for role`). A conta de cada teto está no comentário do mapa: pool do perfil (`DB_POOL_MAX`) × cópias que coexistem num deploy (a no ar, a nova e o candidato) + uma conexão de trava por processo de job + folga para CLI.
+`applyRoles` roda `ALTER ROLE … CONNECTION LIMIT n` com `ROLE_CONNECTION_LIMITS`. Passou do teto, o Postgres recusa a conexão (SQLSTATE 53300, `too many connections for role`). No serviço (postgres.js 4) a recusa não vira erro na hora: o pool que já tem conexão aberta põe a consulta na fila de uma delas, e o que não tem nenhuma tenta de novo até o `connect_timeout` (30 s) antes de rejeitar com o 53300. Teto batido aparece como consulta lenta e o 53300 no log do Postgres; `pg_dump` e `psql` do backup falham na hora. A conta de cada teto está no comentário do mapa: pool do perfil (`DB_POOL_MAX`) × cópias que coexistem num deploy (a no ar, a nova e o candidato) + uma conexão de trava por processo de job + folga para CLI.
 
 O da demo vale para os dois serviços da imagem dela, `site` e `console` (#546): os dois e os dois candidatos do deploy somam 40 no pior momento, e o teto é 60 com a folga.
 
