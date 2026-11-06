@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import sport from './i18n/messages/sport';
@@ -64,29 +67,56 @@ describe('zoneLabel', () => {
     expect(zoneLabel('relegation', sport.en.standings.zones)).toBe('Relegation');
   });
 
-  it('cobre nos três idiomas todos os códigos de zona das regras', () => {
-    const codes = [
-      'champions_league',
-      'champions_league_qualifying',
-      'conference_league',
-      'elimination',
-      'europa_league',
-      'europa_league_knockout_playoff',
-      'knockout_playoff',
-      'libertadores_group_stage',
-      'libertadores_qualifying',
-      'relegation',
-      'relegation_playoff',
-      'round_of_16',
-      'sudamericana',
-      'sudamericana_knockout_playoff',
-    ];
-    for (const locale of ['pt-BR', 'en', 'es-AR'] as const)
-      for (const code of codes) expect(sport[locale].standings.zones[code], `${locale} ${code}`).toBeTruthy();
+  it('cobre nos três idiomas e numa cor todos os códigos de zona das regras (config/rules)', () => {
+    const dir = join(__dirname, '../../../../config/rules');
+    const codes = new Set<string>();
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.yaml')))
+      for (const m of readFileSync(join(dir, file), 'utf8').matchAll(/\bid:\s*([a-z0-9_]+)\s*,\s*kind:/g))
+        codes.add(m[1]!);
+    expect(codes.size).toBeGreaterThan(10);
+    for (const code of codes) {
+      expect(zoneClass(code), code).not.toBe('bg-muted-foreground');
+      for (const locale of ['pt-BR', 'en', 'es-AR'] as const)
+        expect(sport[locale].standings.zones[code], `${locale} ${code}`).toBeTruthy();
+    }
   });
 
-  it('código desconhecido vira texto, nunca snake_case; texto do fornecedor passa igual', () => {
+  it('código desconhecido vira texto, nunca snake_case; texto do fornecedor fica com o destino', () => {
     expect(zoneLabel('knockout_round_playoff', pt)).toBe('Knockout round playoff');
-    expect(zoneLabel('Promotion - CONMEBOL Libertadores', pt)).toBe('Promotion - CONMEBOL Libertadores');
+    expect(zoneLabel('Promotion - CONMEBOL Libertadores', pt)).toBe('CONMEBOL Libertadores');
+    expect(zoneLabel('Promotion - Champions League (League phase: )', pt)).toBe(
+      'Champions League (League phase)',
+    );
+    expect(zoneLabel('Promotion - Paulista (Play Offs: Quarter-finals)', pt)).toBe(
+      'Paulista (Play Offs: Quarter-finals)',
+    );
+    expect(zoneLabel('Relegation - Championship', pt)).toBe('Rebaixamento');
+    expect(zoneLabel('Bundesliga (Relegation: )', es)).toBe('Repechaje por el descenso');
+  });
+});
+
+describe('zonas de qualquer campeonato (texto da api-sports)', () => {
+  it.each([
+    ['Promotion - Champions League (League phase: )', 'bg-primary'],
+    ['Promotion - Champions League (Qualification: )', 'bg-sky-400'],
+    ['Promotion - Europa League (League phase: )', 'bg-orange-500'],
+    ['Promotion - Conference League (Qualification: )', 'bg-success'],
+    ['Relegation - 2. Bundesliga', 'bg-destructive'],
+    ['Bundesliga (Relegation: )', 'bg-warning'],
+    ['Relegation Round', 'bg-warning'],
+    ['Promotion - Copa Libertadores (Qualification: )', 'bg-sky-400'],
+    ['Promotion - Copa Sudamericana (Group Stage: )', 'bg-orange-500'],
+    ['Promotion - CONCACAF Champions Cup', 'bg-primary'],
+    ['Promotion - CAF Confederation Cup', 'bg-orange-500'],
+    ['Promotion - AFC Champions League Two', 'bg-orange-500'],
+    ['Promotion - Premier League', 'bg-primary'],
+    ['Promotion - Championship (Play Offs: )', 'bg-sky-400'],
+    ['Relegation - Championship', 'bg-destructive'],
+    ['Promotion - Paulista (Play Offs: Quarter-finals)', 'bg-primary'],
+    ['Liguilla', 'bg-primary'],
+    ['Play-in', 'bg-sky-400'],
+    ['Championship Round', 'bg-primary'],
+  ])('%s', (description, tone) => {
+    expect(zoneClass(description)).toBe(tone);
   });
 });

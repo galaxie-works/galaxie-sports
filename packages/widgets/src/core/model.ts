@@ -236,17 +236,21 @@ export const DEFAULT_ZONE_COLORS: Record<StandingsZoneTone, string | null> = {
   relegation: '#ef4444',
 };
 
-/** Código da regra (`config/rules`) → faixa. */
+/** Código da zona nas regras (`config/rules/*.yaml`, `zones[].id`) → faixa. */
 const ZONE_TONE_BY_CODE: Record<string, StandingsZoneTone> = {
   libertadores: 'direct',
   libertadores_group_stage: 'direct',
   champions_league: 'direct',
   round_of_16: 'direct',
   promotion: 'direct',
+  playoffs: 'direct',
+  liguilla: 'direct',
+  quadrangulars: 'direct',
   libertadores_qualifying: 'qualifying',
   champions_league_qualifying: 'qualifying',
   knockout_playoff: 'qualifying',
   playoff: 'qualifying',
+  play_in: 'qualifying',
   sudamericana: 'second',
   sudamericana_knockout_playoff: 'second',
   europa_league: 'second',
@@ -257,26 +261,53 @@ const ZONE_TONE_BY_CODE: Record<string, StandingsZoneTone> = {
   elimination: 'relegation',
 };
 
-/**
- * Código da zona: a tabela calculada já traz o id da regra (`libertadores_group_stage`); a do fornecedor
- * traz texto livre ("Promotion - CONMEBOL Libertadores"), reduzido ao código mais próximo. Texto que não
- * casa com nada volta como veio (aparece na legenda, na cor neutra).
- */
-export function standingsZoneCode(description: string): string {
-  const d = description.trim().toLowerCase();
-  if (/^[a-z0-9_]+$/.test(d) && ZONE_TONE_BY_CODE[d]) return d;
-  if (/relegation|rebaix|descenso/.test(d)) return /play/.test(d) ? 'relegation_playoff' : 'relegation';
-  if (/sudamericana|sul-americana/.test(d)) return 'sudamericana';
-  if (d.includes('europa')) return 'europa_league';
-  if (d.includes('conference')) return 'conference_league';
-  if (/libertadores|champions/.test(d) && /qualif|prelim/.test(d)) return 'libertadores_qualifying';
-  if (/libertadores|champions|promotion/.test(d)) return 'libertadores';
-  return description.trim();
-}
+/** Copa continental principal de cada confederação (e o Mundial de Clubes). */
+const FIRST_CUP =
+  /libertadores|\bchampions\b|club world cup|mundial de clubes|concacaf champions|afc champions league elite|ofc champions/;
+/** Segunda copa: Sul-Americana, Europa League, Copa da Confederação da CAF, AFC Champions League Two… */
+const SECOND_CUP =
+  /sudamericana|sul-americana|europa league|uefa cup|confederation cup|afc cup|champions league two|leagues cup|concacaf league/;
+/** Fase prévia / preliminar de uma copa (não a fase principal). */
+const QUALIFYING =
+  /qualif|prelim|clasificatoria|pre-?libertadores|pré-?libertadores|knockout round play|knockout play-?off|repechaje|repescagem|play[\s-]?in/;
 
-/** Faixa de uma zona (null = zona desconhecida, em cor neutra). */
-export const standingsZoneTone = (description: string): StandingsZoneTone | null =>
-  ZONE_TONE_BY_CODE[standingsZoneCode(description)] ?? null;
+/**
+ * Faixa de uma zona, para qualquer campeonato. A tabela calculada traz o id da regra
+ * (`libertadores_group_stage`); a do fornecedor traz texto livre, em geral no formato da api-sports:
+ * "Promotion - Champions League (League phase: )", "Promotion - Copa Sudamericana (Group Stage: )",
+ * "Promotion - Championship (Play Offs: )", "Relegation - 2. Bundesliga", "Bundesliga (Relegation: )",
+ * "Liguilla", "Championship Round"… Ordem: queda, terceira e segunda copa, copa principal, acesso e
+ * mata-mata da própria competição. Nada reconhecido → null (cor neutra).
+ */
+export function standingsZoneTone(description: string): StandingsZoneTone | null {
+  const d = description.trim().toLowerCase();
+  if (!d) return null;
+  if (Object.hasOwn(ZONE_TONE_BY_CODE, d)) return ZONE_TONE_BY_CODE[d]!;
+  if (/relegat|rebaix|descenso|descend|abstieg|retroced|eliminat|eliminad/.test(d)) {
+    // "Relegation - Championship", "Descenso": cai; "Relegation Round", "Bundesliga (Relegation: )",
+    // "Promotion - Relegation", "Relegation Play-off": ainda disputa
+    const falls =
+      /^(relegation|rebaixamento|rebaixado|descenso|descendido|eliminated|eliminado)\b/.test(d) &&
+      !/play|round|ronda|liguilla|promotion|torneo|quadrangular|cuadrangular|repechaje/.test(d);
+    return falls ? 'relegation' : 'relegationPlayoff';
+  }
+  if (/conference/.test(d)) return 'third';
+  if (SECOND_CUP.test(d)) return 'second';
+  if (FIRST_CUP.test(d)) return QUALIFYING.test(d) ? 'qualifying' : 'direct';
+  if (QUALIFYING.test(d)) return 'qualifying';
+  if (/^(promotion|ascenso|acesso|classifica|clasifica)/.test(d)) {
+    // acesso pelo playoff ("Promotion - Championship (Play Offs: )") vs. mata-mata com fase dita
+    // ("Promotion - Paulista (Play Offs: Quarter-finals)", que é vaga direta nas quartas)
+    return /\(play ?-?offs?:\s*\)|playoff\)?$|play ?offs?\)?$/.test(d) ? 'qualifying' : 'direct';
+  }
+  if (
+    /play ?-?offs?|liguilla|quadrangular|cuadrangular|championship round|championship group|final series|final round|next round|knockout|mata-mata|round of \d|1\/\d+-finals|quarter|semi-?final|octavos|cuartos|title|campe[aã]o|campeón/.test(
+      d,
+    )
+  )
+    return 'direct';
+  return null;
+}
 
 const ZONE_HEX = /^#[0-9a-f]{6}$/i;
 
@@ -312,15 +343,26 @@ export function parseStandingsOptions(raw: unknown): StandingsOptions | undefine
 }
 
 /**
- * Nome da zona na legenda: o do dicionário quando a tabela traz o código da regra; o texto livre do
- * fornecedor fica como veio ("Promotion - Paulista (Play Offs)" não vira "Libertadores": a redução a código
- * só escolhe a cor). Código sem nome no dicionário vira texto ("knockout_round" → "Knockout round").
+ * Nome da zona na legenda, no idioma do widget sempre que dá: o código da regra pelo dicionário; texto do
+ * fornecedor que só diz a queda ("Relegation - Serie B") vira "Rebaixamento"; "Promotion - X (Fase: )" vira
+ * "X (Fase)", sem tirar o destino (um acesso ao Paulista não vira "Libertadores"). O resto fica como veio.
  */
 export function standingsZoneLabel(description: string, labels: Record<string, string>): string {
   const text = description.trim();
-  const label = labels[text.toLowerCase()];
-  if (label) return label;
-  const words = text.replace(/_/g, ' ');
+  const lower = text.toLowerCase();
+  const byCode = Object.hasOwn(labels, lower) ? labels[lower] : undefined;
+  if (byCode) return byCode;
+  const tone = standingsZoneTone(text);
+  if (tone === 'relegation' && labels.relegation && /^(relegation|descenso)\b/.test(lower))
+    return labels.relegation;
+  if (tone === 'relegationPlayoff' && labels.relegation_playoff && /relegation/.test(lower))
+    return labels.relegation_playoff;
+  const promoted = /^promotion\s*-\s*(.+)$/i.exec(text);
+  const core = (promoted ? promoted[1]! : text)
+    .replace(/\(([^():]+):\s*\)/g, '($1)')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const words = core.replace(/_/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -839,6 +881,10 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       relegation_playoff: 'Playoff contra o rebaixamento',
       relegation: 'Rebaixamento',
       elimination: 'Eliminação',
+      playoffs: 'Playoffs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Quadrangulares',
+      play_in: 'Play-in',
     },
     media: {
       free_tv: 'TV aberta',
@@ -968,6 +1014,10 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       relegation_playoff: 'Repechaje por el descenso',
       relegation: 'Descenso',
       elimination: 'Eliminación',
+      playoffs: 'Playoffs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Cuadrangulares',
+      play_in: 'Play-in',
     },
     media: {
       free_tv: 'TV abierta',
@@ -1097,6 +1147,10 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       relegation_playoff: 'Relegation play-off',
       relegation: 'Relegation',
       elimination: 'Elimination',
+      playoffs: 'Play-offs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Quadrangulars',
+      play_in: 'Play-in',
     },
     media: {
       free_tv: 'Free-to-air TV',

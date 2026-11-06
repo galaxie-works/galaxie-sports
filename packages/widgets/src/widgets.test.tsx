@@ -275,7 +275,7 @@ describe('StandingsTable', () => {
     ]);
   });
 
-  it('texto livre do fornecedor: a cor sai da regra, o nome fica como veio', async () => {
+  it('texto livre do fornecedor: cor pela faixa, nome com o destino (sem virar Libertadores)', async () => {
     const fx = createPreviewFixtures().standings;
     const rows = fx.groups[0]!.rows.map((r, i) => ({
       ...r,
@@ -288,10 +288,9 @@ describe('StandingsTable', () => {
     });
     await screen.findByText('Aurora');
     const zone = container.querySelector<HTMLElement>('[data-zone]')!;
-    expect(zone.title).toBe('Promotion - Paulista (Play Offs: Quarter-finals)');
-    expect(container.querySelector('.gs-legend')!.textContent).toBe(
-      'Promotion - Paulista (Play Offs: Quarter-finals)',
-    );
+    expect(zone.title).toBe('Paulista (Play Offs: Quarter-finals)');
+    expect(zone.style.getPropertyValue('--gs-zone')).toBe('var(--gs-primary)');
+    expect(container.querySelector('.gs-legend')!.textContent).toBe('Paulista (Play Offs: Quarter-finals)');
   });
 
   it('esconde a legenda com showLegend={false}', async () => {

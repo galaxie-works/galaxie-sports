@@ -15,6 +15,8 @@ export {
   parseStandingsOptions,
   readableOn,
   standingsZoneColor,
+  standingsZoneLabel,
+  standingsZoneTone,
   textsFor,
   themeToCssVars,
   type GsCssVars,
