@@ -26,12 +26,17 @@ beforeAll(async () => {
     { name: 'Estadio Municipal', city: 'Lima' },
     { name: 'Estadio Municipal', city: 'Lima' },
     { name: 'Estadio El Campín', city: 'Bogota' },
+    { name: '  Estadio Atanasio Girardot ', city: 'Medellín' },
   ]);
 }, 60_000);
 afterAll(() => testDb.teardown());
 
 let seq = 0;
-async function fixtureWithVenue(name: string | null, city: string | null): Promise<string> {
+async function fixtureWithVenue(
+  name: string | null,
+  city: string | null,
+  providerId: number | null = null,
+): Promise<string> {
   const startsAt = new Date('2026-09-01T20:00:00Z');
   const [e] = await db
     .insert(event)
@@ -40,7 +45,7 @@ async function fixtureWithVenue(name: string | null, city: string | null): Promi
   await db.insert(footballFixture).values({
     eventId: e!.id,
     providerFixtureId: 800_000 + ++seq,
-    summary: { fixture: { venue: { id: null, name, city } } },
+    summary: { fixture: { venue: { id: providerId, name, city } } },
   });
   return e!.id;
 }
@@ -54,8 +59,14 @@ describe('estádio por nome e cidade', () => {
       { name: 'ESTADIO EL CAMPÍN', city: 'bogota' },
       { name: 'Estadio Municipal', city: 'Lima' },
       { name: 'Estadio El Campín', city: 'Medellín' },
+      { name: 'Estadio Atanasio Girardot', city: 'Medellín' },
     ]);
-    expect([...found.keys()]).toEqual([venueNameKey({ name: 'Estadio El Campín', city: 'Bogota' })]);
+    expect([...found.keys()].sort()).toEqual(
+      [
+        venueNameKey({ name: 'Estadio Atanasio Girardot', city: 'Medellín' }),
+        venueNameKey({ name: 'Estadio El Campín', city: 'Bogota' }),
+      ].sort(),
+    );
   });
 
   it('linkEventVenuesByName: liga o jogo antigo sem estádio; ambíguo e sem nome ficam; plano não grava', async () => {
@@ -63,6 +74,8 @@ describe('estádio por nome e cidade', () => {
     const ambiguo = await fixtureWithVenue('Estadio Municipal', 'Lima');
     const semNome = await fixtureWithVenue(null, 'Lima');
     const acento = await fixtureWithVenue('Estadio Presidente Perón', 'Avellaneda');
+    // com id do fornecedor (sem mapa aqui) a ligação é pelo provider_map, nunca pelo nome
+    const comId = await fixtureWithVenue('Estadio El Campín', 'Bogota', 4321);
 
     expect(await linkEventVenuesByName(db, { dryRun: true })).toEqual({ candidates: 3, linked: 2 });
     expect(await venueOf(campin)).toBeNull();
@@ -72,6 +85,7 @@ describe('estádio por nome e cidade', () => {
     expect(await venueOf(acento)).toBe(peron);
     expect(await venueOf(ambiguo)).toBeNull();
     expect(await venueOf(semNome)).toBeNull();
+    expect(await venueOf(comId)).toBeNull();
 
     // idempotente
     expect(await linkEventVenuesByName(db)).toEqual({ candidates: 1, linked: 0 });

@@ -10,7 +10,7 @@ export interface VenuesByNameResult {
 
 /**
  * Liga ao estádio os jogos de futebol já gravados sem `venue_id` em que a api-sports mandou `venue.id` nulo com
- * nome e cidade: mesma regra do upsert (`venuesByName`) — nome e cidade sem caixa, só o casamento único.
+ * nome e cidade (só esses: com id do fornecedor, a ligação é pelo `provider_map`): mesma regra do upsert (`venuesByName`) — nome e cidade sem caixa, só o casamento único.
  * Idempotente; `dryRun` só conta.
  */
 export async function linkEventVenuesByName(
@@ -25,6 +25,7 @@ export async function linkEventVenuesByName(
         from core.event e
         join core.football_fixture ff on ff.event_id = e.id
        where e.venue_id is null
+         and ff.summary->'fixture'->'venue'->>'id' is null
          and nullif(trim(ff.summary->'fixture'->'venue'->>'name'), '') is not null
     ), v as (
       select lower(trim(name)) as n, lower(trim(coalesce(city, ''))) as c, (array_agg(id))[1] as id, count(*) as k

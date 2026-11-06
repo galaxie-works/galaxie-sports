@@ -1128,7 +1128,7 @@ export async function venuesByName(
   const rows = await tx
     .select({ id: venue.id, name: venue.name, city: venue.city })
     .from(venue)
-    .where(inArray(sql`lower(${venue.name})`, names));
+    .where(inArray(sql`lower(trim(${venue.name}))`, names));
   const seen = new Map<string, string | null>();
   for (const r of rows) {
     const key = venueNameKey({ name: r.name, city: r.city });
