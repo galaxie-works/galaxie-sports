@@ -9,7 +9,7 @@ import { matchLogo, shareWordStart, type MatchTarget } from './match.js';
 import { planManifest, resolveCountry, type CountryRow } from './plan.js';
 import { coverageByGroup, renderReport } from './report.js';
 import { scanAcervo } from './scan.js';
-import { unsafeSvgReason } from './svg-safety.js';
+import { unsafeSvgReason } from '@galaxie/crests';
 
 const INFO = {
   id: 'galaxie-proprio',

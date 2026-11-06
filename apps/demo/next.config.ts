@@ -57,8 +57,9 @@ const nextConfig: NextConfig = {
     ];
   },
   cacheComponents: true,
-  // a lista de canais do portal (/cliente/canais) chega por server action: até 2 MB de nomes
-  experimental: { serverActions: { bodySizeLimit: '3mb' } },
+  // por server action chegam a lista de canais do portal (/cliente/canais, até 2 MB de nomes) e o escudo
+  // enviado em Ajustes → Escudos (até 5 MB, o teto do acervo)
+  experimental: { serverActions: { bodySizeLimit: '6mb' } },
   partialPrefetching: true,
   turbopack: {
     rules: {

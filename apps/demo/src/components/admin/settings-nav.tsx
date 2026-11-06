@@ -1,6 +1,6 @@
 'use client';
 
-import { ListChecks, SlidersHorizontal, Trophy, Tv, Users, Webhook } from 'lucide-react';
+import { ListChecks, Shield, SlidersHorizontal, Trophy, Tv, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 
 import { useI18n } from '@/lib/i18n/client';
@@ -13,13 +13,15 @@ const ITEMS = [
   { id: 'features', href: '/ajustes/esportes', icon: Trophy },
   { id: 'review', href: '/ajustes/revisao', icon: ListChecks },
   { id: 'lineup', href: '/ajustes/grades', icon: Tv },
+  { id: 'crests', href: '/ajustes/escudos', icon: Shield },
   { id: 'webhooks', href: '/ajustes/webhooks', icon: Webhook },
 ] as const;
 
 /**
  * Abas das áreas de Ajustes (só admin): usuários e convites, o Sistema (saúde, jobs, IA, fornecedor), Esportes
  * e features (plano por esporte, vídeos relacionados com o controle dos canais, onde assistir), a revisão
- * semântica, as grades e ofertas das operadoras e o controle dos webhooks para clientes.
+ * semântica, as grades e ofertas das operadoras, os escudos de times e competições e o controle dos webhooks para
+ * clientes.
  */
 export function SettingsNav({ active }: { active: (typeof ITEMS)[number]['id'] }) {
   const { t } = useI18n();
