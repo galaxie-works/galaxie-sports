@@ -34,10 +34,10 @@ afterAll(async () => {
   await disposable.teardown();
 });
 
-async function seedSeason(sportSlug: string, slug: string, teams: readonly string[]) {
+async function seedSeason(sportSlug: string, slug: string, teams: readonly string[], tier = 3) {
   const [comp] = await db
     .insert(competition)
-    .values({ sport: sportSlug, slug, name: slug, type: 'league' })
+    .values({ sport: sportSlug, slug, name: slug, type: 'league', tier })
     .returning();
   const [s] = await db
     .insert(season)
@@ -407,6 +407,54 @@ describe('recálculo da tabela com fases', () => {
     const novo = table.find((r) => r.participantId === s.team('NOVO'));
     expect(novo).toMatchObject({ group: 'North', played: 2 });
     expect(table.some((r) => r.group.startsWith('unnamed:'))).toBe(false);
+  });
+});
+
+describe('temporada com só as últimas rodadas no banco', () => {
+  it('não publica a tabela parcial e tira a calculada que havia', async () => {
+    const s = await seedSeason('football', 'liga-sem-historico', ['A', 'B', 'C', 'D']);
+    const [st] = await db
+      .insert(stage)
+      .values({
+        seasonId: s.seasonId,
+        kind: 'regular',
+        name: { en: 'Regular Season - 30' },
+        providerLabel: 'Regular Season - 30',
+      })
+      .returning();
+    await db.insert(standing).values({
+      seasonId: s.seasonId,
+      group: '',
+      participantId: s.team('A'),
+      rank: 1,
+      points: 3,
+      played: 1,
+      source: 'computed',
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    await finished('football', s.seasonId, s.team('A'), s.team('B'), [1, 0], st!.id);
+    await finished('football', s.seasonId, s.team('C'), s.team('D'), [2, 2], st!.id);
+
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'partial',
+    });
+    expect(await tableOf(s.seasonId)).toEqual([]);
+
+    // tier 1 e 2 têm a carga histórica: lá a tabela sai mesmo com poucos jogos no banco
+    const t1 = await seedSeason('football', 'liga-tier-1', ['E', 'F'], 1);
+    const [st1] = await db
+      .insert(stage)
+      .values({
+        seasonId: t1.seasonId,
+        kind: 'regular',
+        name: { en: 'Regular Season - 30' },
+        providerLabel: 'Regular Season - 30',
+      })
+      .returning();
+    await finished('football', t1.seasonId, t1.team('E'), t1.team('F'), [1, 0], st1!.id);
+    expect(await recomputeSeasonStandings(db, t1.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
   });
 });
 

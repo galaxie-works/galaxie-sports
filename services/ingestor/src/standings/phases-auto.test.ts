@@ -8,6 +8,7 @@ import {
   phaseOfRound,
   planPhases,
 } from './phases-auto.js';
+import { isPartialSeason, maxRoundNumber } from './recompute.js';
 
 let day = 0;
 function game(
@@ -264,5 +265,16 @@ describe('time sem grupo do fornecedor ao lado de grupos com nome', () => {
     ]);
     expect(joinNamedGroups(['X'], groupOf, games)).toEqual(['X']);
     expect(groupOf.has('X')).toBe(false);
+  });
+});
+
+describe('temporada parcial no banco', () => {
+  it('rodada numerada bem à frente dos jogos da tabela', () => {
+    expect(maxRoundNumber(['Regular Season - 32', 'Regular Season - 35', null, 'Final'])).toBe(35);
+    expect(maxRoundNumber(['Regular Season', 'Final'])).toBeNull();
+    expect(isPartialSeason(35, 2)).toBe(true);
+    expect(isPartialSeason(35, 30)).toBe(false);
+    expect(isPartialSeason(4, 1)).toBe(false); // começo de temporada
+    expect(isPartialSeason(null, 1)).toBe(false);
   });
 });
