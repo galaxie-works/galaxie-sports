@@ -75,6 +75,18 @@ export const SideGoalsBehinds = z.object({ home: GoalsBehinds, away: GoalsBehind
 });
 export type SideGoalsBehinds = z.infer<typeof SideGoalsBehinds>;
 
+const HitsErrors = z.object({
+  hits: z.number().int().nullable().meta({ description: 'Rebatidas válidas (H).' }),
+  errors: z.number().int().nullable().meta({ description: 'Erros da defesa (E).' }),
+});
+
+/** Beisebol: rebatidas e erros de cada time (o R/H/E do placar; R são as corridas, `home`/`away`). */
+export const SideHitsErrors = z.object({ home: HitsErrors, away: HitsErrors }).meta({
+  id: 'SideHitsErrors',
+  example: { home: { hits: 9, errors: 1 }, away: { hits: 6, errors: 0 } },
+});
+export type SideHitsErrors = z.infer<typeof SideHitsErrors>;
+
 /** Parcial de um período do jogo (set, quarto, tempo, período, entrada). */
 export const ScorePeriod = SidePair.extend({
   code: z.string().meta({
@@ -538,6 +550,10 @@ export const Event = z
         description:
           'Futebol australiano (AFL): gols e behinds do placar final (`home`/`away` são os pontos). Na AFL, ' +
           '`periods` traz os pontos de cada quarto (`q1`–`q4`), não o placar acumulado. Ausente nos outros esportes.',
+      }),
+      hits_errors: SideHitsErrors.optional().meta({
+        description:
+          'Beisebol: rebatidas (H) e erros (E) de cada time, com as corridas (`home`/`away`) formam o R/H/E. Ausente nos outros esportes.',
       }),
     }),
     venue: z

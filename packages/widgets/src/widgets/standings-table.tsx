@@ -11,6 +11,7 @@ import type {
   WidgetTexts,
 } from '../core/model.js';
 import {
+  gamesBehind,
   sportProfile,
   standingPercentage,
   standingsZoneColor,
@@ -64,6 +65,8 @@ export interface StandingsTableProps {
 /** Colunas ligadas (as opcionais e as que dependem do esporte). */
 interface Columns {
   points: boolean;
+  /** Beisebol: jogos atrás do líder. */
+  gamesBehind: boolean;
   drawn: boolean;
   otLosses: boolean;
   goalsFor: boolean;
@@ -136,6 +139,7 @@ export function StandingsTable({
   const hasScores = rowsAll.some((r) => (r.goals_for ?? 0) > 0 || (r.goals_against ?? 0) > 0);
   const cols: Columns = {
     points: profile.points,
+    gamesBehind: profile.sport === 'baseball',
     // empate só aparece onde existe (no futebol americano, só se houve)
     drawn: profile.draws && (profile.sport === 'football' || rowsAll.some((r) => r.drawn > 0)),
     otLosses: profile.overtimeLosses && rowsAll.some((r) => r.ot_lost != null),
@@ -202,6 +206,7 @@ export function StandingsTable({
                     {cols.goalsAgainst ? <th scope="col">{u.against}</th> : null}
                     {cols.goalDiff ? <th scope="col">{u.diff}</th> : null}
                     {cols.percentage ? <th scope="col">{pctLabel}</th> : null}
+                    {cols.gamesBehind ? <th scope="col">{texts.sport.gamesBehind}</th> : null}
                     {cols.form ? <th scope="col">{x.form}</th> : null}
                   </tr>
                 </thead>
@@ -214,6 +219,7 @@ export function StandingsTable({
                       zoneColors={zoneColors}
                       cols={cols}
                       profile={profile}
+                      leader={group.rows[0]}
                       highlight={!!highlightTeamId && row.participant.id === highlightTeamId}
                     />
                   ))}
@@ -252,6 +258,7 @@ function Row({
   zoneColors,
   cols,
   profile,
+  leader,
   highlight,
 }: {
   row: GsStandingRow;
@@ -259,6 +266,7 @@ function Row({
   zoneColors: StandingsZoneColors | undefined;
   cols: Columns;
   profile: SportProfile;
+  leader: GsStandingRow | undefined;
   highlight: boolean;
 }) {
   const zone = row.description?.trim() ? row.description : null;
@@ -292,6 +300,7 @@ function Row({
       {cols.goalsAgainst ? <td>{row.goals_against ?? '–'}</td> : null}
       {cols.goalDiff ? <td>{row.goal_diff > 0 ? `+${row.goal_diff}` : row.goal_diff}</td> : null}
       {cols.percentage ? <td>{standingPercentage(row, profile) ?? '–'}</td> : null}
+      {cols.gamesBehind ? <td>{gamesBehind(row, leader)}</td> : null}
       {cols.form ? (
         <td>
           <span className="gs-form">

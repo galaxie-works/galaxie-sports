@@ -57,7 +57,7 @@ import { loadLeagueResults } from '@galaxie/rules/db';
 import { competitionName, formatInstant, pickList, pickText } from '../i18n.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
-import { aflGoalsBehinds, loadAflQuarters } from './afl.js';
+import { aflGoalsBehinds, baseballHitsErrors, loadAflQuarters } from './afl.js';
 import { pickCheer } from './cheer.js';
 import { loadFights } from './fight.js';
 import { loadRaceSessions, loadRaceTeams, raceResult } from './race.js';
@@ -597,6 +597,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     if (!r) continue;
     const e = r.e;
     const goalsBehinds = e.sport === 'afl' ? aflGoalsBehinds(e.score) : null;
+    const hitsErrors = e.sport === 'baseball' ? baseballHitsErrors(e.score) : null;
     const homeId = sideId(id, 'home');
     const awayId = sideId(id, 'away');
     const rules = rulesOf(r);
@@ -889,6 +890,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
         aggregate: aggregate ?? pair(e.score?.aggregate),
         periods: aflQuarters.get(id) ?? scorePeriods(e.score?.periods),
         ...(goalsBehinds ? { goals_behinds: goalsBehinds } : {}),
+        ...(hitsErrors ? { hits_errors: hitsErrors } : {}),
       },
       // nome curado da base semântica vence o do fornecedor (naming rights); o fuso usa a cidade do core
       venue: r.v?.id

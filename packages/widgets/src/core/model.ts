@@ -258,6 +258,13 @@ export interface GsEvent {
       | undefined;
     /** AFL: gols e behinds do placar final. */
     goals_behinds?: GsGoalsBehinds | undefined;
+    /** Beisebol: rebatidas e erros (o H e o E do R/H/E). */
+    hits_errors?:
+      | {
+          home: { hits: number | null; errors: number | null };
+          away: { hits: number | null; errors: number | null };
+        }
+      | undefined;
   };
   venue: { name: string; city: string | null; timezone?: string | null | undefined } | null;
   /** Importância do jogo (0–100). */
@@ -1138,6 +1145,10 @@ export interface WidgetTexts {
     winPct: string;
     /** Percentual da AFL (pontos pró ÷ contra × 100). */
     ratio: string;
+    /** Beisebol: corridas, rebatidas e erros (R/H/E) no placar por entradas. */
+    rhe: { r: string; h: string; e: string };
+    /** Beisebol: jogos atrás do líder (GB). */
+    gamesBehind: string;
   };
 }
 
@@ -1328,6 +1339,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       otLosses: 'DP',
       winPct: '%V',
       ratio: '%',
+      rhe: { r: 'C', h: 'H', e: 'E' },
+      gamesBehind: 'JA',
     },
   },
   es: {
@@ -1516,6 +1529,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       otLosses: 'PP',
       winPct: '%G',
       ratio: '%',
+      rhe: { r: 'C', h: 'H', e: 'E' },
+      gamesBehind: 'JD',
     },
   },
   en: {
@@ -1695,6 +1710,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       otLosses: 'OTL',
       winPct: 'PCT',
       ratio: '%',
+      rhe: { r: 'R', h: 'H', e: 'E' },
+      gamesBehind: 'GB',
     },
   },
 };
@@ -1885,6 +1902,19 @@ export function standingPercentage(
       ? (row.won + row.drawn / 2) / row.played
       : row.points / (row.played * profile.pointsPerWin);
   return String(Math.round(share * 100));
+}
+
+/**
+ * Jogos atrás do líder do grupo (beisebol, "GB"): ((V do líder − V) + (D − D do líder)) ÷ 2. O líder e
+ * quem está empatado com ele: "–".
+ */
+export function gamesBehind(
+  row: Pick<GsStandingRow, 'won' | 'lost'>,
+  leader: Pick<GsStandingRow, 'won' | 'lost'> | undefined,
+): string {
+  if (!leader) return '–';
+  const gb = (leader.won - row.won + (row.lost - leader.lost)) / 2;
+  return gb <= 0 ? '–' : gb % 1 ? gb.toFixed(1) : String(gb);
 }
 
 /**

@@ -143,6 +143,8 @@ export function MatchCard({
       : [];
   // AFL: "12.14 (86)" embaixo do placar
   const afl = event.sport === 'afl' && score.goals_behinds ? score.goals_behinds : undefined;
+  // beisebol: rebatidas e erros ao lado das corridas (R/H/E)
+  const rhe = event.sport === 'baseball' && score.hits_errors ? score.hits_errors : undefined;
   const competition = event.competition;
   const title = [
     showCompetition ? competition?.name : null,
@@ -238,7 +240,9 @@ export function MatchCard({
                         {periodLabel(p.code, texts)}
                       </th>
                     ))}
-                    <th scope="col">{texts.sport.total}</th>
+                    <th scope="col">{rhe ? texts.sport.rhe.r : texts.sport.total}</th>
+                    {rhe ? <th scope="col">{texts.sport.rhe.h}</th> : null}
+                    {rhe ? <th scope="col">{texts.sport.rhe.e}</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -250,9 +254,20 @@ export function MatchCard({
                           <span className="gs-truncate">{team?.short_name ?? team?.name}</span>
                         </th>
                         {periods.map((p) => (
-                          <td key={p.code}>{p[side] ?? '–'}</td>
+                          <td key={p.code}>
+                            {/* AFL: gols.behinds do quarto, com os pontos no título */}
+                            {p.goals_behinds ? (
+                              <span title={String(p[side] ?? '')}>
+                                {aflScoreText(p.goals_behinds, side, null) ?? p[side] ?? '–'}
+                              </span>
+                            ) : (
+                              (p[side] ?? '–')
+                            )}
+                          </td>
                         ))}
                         <td className="gs-strong">{score[side] ?? '–'}</td>
+                        {rhe ? <td>{rhe[side].hits ?? '–'}</td> : null}
+                        {rhe ? <td>{rhe[side].errors ?? '–'}</td> : null}
                       </tr>
                     );
                   })}

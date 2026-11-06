@@ -219,7 +219,12 @@ export function sportifyEvent<E extends GsEvent>(event: E, sport: string, varian
   // ao vivo: as parciais já disputadas e a em andamento
   const played = live ? rows.slice(0, Math.max(1, Math.ceil(rows.length * 0.6))) : rows;
   const [home, away] = totals(sport, played);
-  const periods = played.map(([x, y], i) => ({ code: sample.codes[i]!, home: x, away: y }));
+  const periods = played.map(([x, y], i) => ({
+    code: sample.codes[i]!,
+    home: x,
+    away: y,
+    ...(sport === 'afl' ? { goals_behinds: { home: goalsBehinds(x), away: goalsBehinds(y) } } : {}),
+  }));
   return {
     ...base,
     clock: live
@@ -236,6 +241,14 @@ export function sportifyEvent<E extends GsEvent>(event: E, sport: string, varian
       penalty: null,
       halftime: null,
       periods,
+      ...(sport === 'baseball'
+        ? {
+            hits_errors: {
+              home: { hits: home + 4, errors: away > home ? 1 : 0 },
+              away: { hits: away + 3, errors: home > away ? 1 : 0 },
+            },
+          }
+        : {}),
       ...(sport === 'afl'
         ? {
             goals_behinds: { home: goalsBehinds(home), away: goalsBehinds(away) },

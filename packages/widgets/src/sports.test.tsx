@@ -117,6 +117,17 @@ describe('tabela nos outros esportes', () => {
     expect(headers(a.container)).toEqual(['#', 'Time', 'P', 'J', 'V', 'E', 'D', 'SP', '%']);
   });
 
+  it('beisebol: jogos atrás do líder', async () => {
+    const { container } = setup(<StandingsTable competitionId={PREVIEW_IDS.competition} />, 'baseball');
+    await screen.findByText('Aurora');
+    expect(headers(container)).toEqual(['#', 'Time', 'J', 'V', 'D', 'SC', '%V', 'JA']);
+    const gb = [...container.querySelectorAll('.gs-group tbody tr')].map(
+      (tr) => tr.lastElementChild!.textContent,
+    );
+    expect(gb[0]).toBe('–');
+    expect(gb[gb.length - 1]).toBe('7');
+  });
+
   it('todos os esportes coletivos têm tabela de exemplo coerente (jogos = V + E + D)', () => {
     for (const sport of TEAM_SPORTS) {
       const rows = createPreviewFixtures(new Date(), sport).standings.groups[0]!.rows;
@@ -151,6 +162,13 @@ describe('placar nos outros esportes', () => {
   it('AFL: gols e behinds embaixo do placar', async () => {
     setup(<MatchCard eventId={PREVIEW_IDS.finishedEvent} />, 'afl');
     expect(await screen.findByText(/^\d+\.\d+ – \d+\.\d+$/)).toBeTruthy();
+  });
+
+  it('beisebol: entradas e o R/H/E', async () => {
+    const { container } = setup(<MatchCard eventId={PREVIEW_IDS.finishedEvent} />, 'baseball');
+    await screen.findByText('Planalto', { selector: '.gs-team span' });
+    const head = [...container.querySelectorAll('[data-gs-periods] thead th')].map((th) => th.textContent);
+    expect(head.slice(1)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', 'H', 'E']);
   });
 
   it('as parciais podem ser desligadas', async () => {
