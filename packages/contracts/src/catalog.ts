@@ -221,6 +221,10 @@ export const StandingsTableKind = z.enum(STANDINGS_TABLE_KINDS).meta({
 export const Standings = z
   .object({
     competition_id: z.uuid(),
+    sport: z.string().meta({
+      description: 'Esporte da competição, para escolher as colunas (vitórias, sets, saldo de pontos…).',
+      example: 'football',
+    }),
     season: SeasonRef,
     groups: z.array(
       z.object({

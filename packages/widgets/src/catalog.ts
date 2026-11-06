@@ -1,4 +1,4 @@
-import type { WidgetKind, WidgetLocale } from './core/model.js';
+import { TEAM_SPORTS, type WidgetKind, type WidgetLocale } from './core/model.js';
 import { PREVIEW_IDS } from './fixtures.js';
 import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
@@ -8,7 +8,22 @@ import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
 import type { TeamScheduleProps } from './widgets/team-schedule.js';
+import type { AthleteProfileProps } from './widgets/athlete-profile.js';
+import type { FightCardProps } from './widgets/fight-card.js';
+import type { RaceResultProps } from './widgets/race-result.js';
+import type { RaceWeekendProps } from './widgets/race-weekend.js';
+import type { SeasonCalendarProps } from './widgets/season-calendar.js';
 import type { WhereToWatchProps } from './widgets/where-to-watch.js';
+import type { EquestrianResultsProps } from './widgets/equestrian-results.js';
+import type { EquestrianRankingProps } from './widgets/equestrian-ranking.js';
+import type { EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
+import type { RiderProfileProps } from './widgets/rider-profile.js';
+import type { HorseProfileProps } from './widgets/horse-profile.js';
+import type { MedalTableProps } from './widgets/medal-table.js';
+import type { CountryTodayProps } from './widgets/country-today.js';
+import type { GamesScheduleProps } from './widgets/games-schedule.js';
+import type { CountryAthletesProps } from './widgets/country-athletes.js';
+import type { MedalHistoryProps } from './widgets/medal-history.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -20,6 +35,21 @@ export interface WidgetPropsByKind {
   related_videos: RelatedVideosProps;
   head_to_head: HeadToHeadProps;
   team_schedule: TeamScheduleProps;
+  race_result: RaceResultProps;
+  race_weekend: RaceWeekendProps;
+  season_calendar: SeasonCalendarProps;
+  athlete_profile: AthleteProfileProps;
+  fight_card: FightCardProps;
+  equestrian_results: EquestrianResultsProps;
+  equestrian_ranking: EquestrianRankingProps;
+  equestrian_calendar: EquestrianCalendarProps;
+  rider_profile: RiderProfileProps;
+  horse_profile: HorseProfileProps;
+  medal_table: MedalTableProps;
+  country_today: CountryTodayProps;
+  games_schedule: GamesScheduleProps;
+  country_athletes: CountryAthletesProps;
+  medal_history: MedalHistoryProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -34,7 +64,22 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'MatchStakes'
     | 'RelatedVideos'
     | 'HeadToHead'
-    | 'TeamSchedule';
+    | 'TeamSchedule'
+    | 'RaceResult'
+    | 'RaceWeekend'
+    | 'SeasonCalendar'
+    | 'AthleteProfile'
+    | 'FightCard'
+    | 'EquestrianResults'
+    | 'EquestrianRanking'
+    | 'EquestrianCalendar'
+    | 'RiderProfile'
+    | 'HorseProfile'
+    | 'MedalTable'
+    | 'CountryToday'
+    | 'GamesSchedule'
+    | 'CountryAthletes'
+    | 'MedalHistory';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -45,7 +90,26 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   exampleProps: WidgetPropsByKind[K];
   /** Atualiza sozinho enquanto há jogo ao vivo. */
   polling: boolean;
+  /**
+   * Esportes da API em que o tipo vale (`football`, `basketball`, `formula-1`...). Lista vazia = todos.
+   * O catálogo do Builder mostra o tipo só na aba dos esportes dele (épico #731): cada esporte entra
+   * aqui quando o widget estiver adaptado a ele (placar, termos e colunas). Placar, tabela, confronto,
+   * agenda e onde assistir valem para os esportes coletivos (`TEAM_SPORTS`, com o perfil de cada um).
+   */
+  sports: readonly string[];
 }
+
+/** Corridas e lutas: os tipos novos do épico #731 (F1 #737, MMA #738). */
+const F1_ONLY = ['formula-1'] as const;
+const MMA_ONLY = ['mma'] as const;
+/** Hipismo e Olimpíadas/Pan: fora do espelho da api-sports, com rotas próprias (#732 e seguintes). */
+const EQUESTRIAN_ONLY = ['equestrian'] as const;
+const MULTISPORT_ONLY = ['multisport'] as const;
+/** Placar, onde assistir: os coletivos, a sessão da F1 (onde assistir) e a luta de MMA. */
+const EVENT_SPORTS = [...TEAM_SPORTS, 'formula-1', 'mma'] as const;
+
+/** Tipos ainda só do futebol (IA, "o que está em jogo" e vídeos dependem de dados que só o futebol tem). */
+const FOOTBALL_ONLY = ['football'] as const;
 
 export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
   match_card: {
@@ -79,6 +143,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
+    sports: [...TEAM_SPORTS, 'mma'],
   },
   live_list: {
     kind: 'live_list',
@@ -118,6 +183,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { sport: 'football' },
     polling: true,
+    sports: [],
   },
   standings: {
     kind: 'standings',
@@ -143,9 +209,11 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showPercentage',
       'highlightTeamId',
       'showDecisive',
+      'raceTable',
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
+    sports: [...TEAM_SPORTS, 'formula-1'],
   },
   where_to_watch: {
     kind: 'where_to_watch',
@@ -162,6 +230,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['region', 'showAddonPrices', 'showWatchLinks', 'showCalendar'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent, market: 'BR' },
     polling: false,
+    sports: EVENT_SPORTS,
   },
   ai_context: {
     kind: 'ai_context',
@@ -178,6 +247,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['show', 'showHeader', 'showGeneratedAt'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   match_stakes: {
     kind: 'match_stakes',
@@ -201,6 +271,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: true,
+    sports: FOOTBALL_ONLY,
   },
   related_videos: {
     kind: 'related_videos',
@@ -217,6 +288,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'format', 'types', 'showDuration', 'showChannel', 'showDate'],
     exampleProps: { eventId: PREVIEW_IDS.finishedEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   head_to_head: {
     kind: 'head_to_head',
@@ -232,6 +304,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'showBar', 'showMeetingCompetition', 'showDerbyName'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
+    sports: TEAM_SPORTS,
   },
   team_schedule: {
     kind: 'team_schedule',
@@ -257,5 +330,270 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
+    sports: TEAM_SPORTS,
+  },
+  race_result: {
+    kind: 'race_result',
+    component: 'RaceResult',
+    registryComponent: 'GalaxieRaceResult',
+    name: { 'pt-BR': 'Resultado da corrida', es: 'Resultado de la carrera', en: 'Race result' },
+    description: {
+      'pt-BR': 'Chegada de uma sessão da F1: posição, piloto, equipe, tempo, largada e volta mais rápida.',
+      es: 'Clasificación de una sesión de F1: posición, piloto, equipo, tiempo, salida y vuelta rápida.',
+      en: 'Classification of an F1 session: position, driver, team, time, grid and fastest lap.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['limit', 'showTeam', 'showGrid', 'showPits', 'showFastestLap'],
+    exampleProps: { eventId: PREVIEW_IDS.raceEvent },
+    polling: true,
+    sports: F1_ONLY,
+  },
+  race_weekend: {
+    kind: 'race_weekend',
+    component: 'RaceWeekend',
+    registryComponent: 'GalaxieRaceWeekend',
+    name: { 'pt-BR': 'Fim de semana do GP', es: 'Fin de semana del GP', en: 'Grand Prix weekend' },
+    description: {
+      'pt-BR':
+        'Treinos, classificação, sprint e corrida do GP, no horário do leitor, com o vencedor de cada.',
+      es: 'Prácticas, clasificación, sprint y carrera del GP, en el horario del lector, con el ganador de cada una.',
+      en: "Practice, qualifying, sprint and race sessions in the reader's time, with each session winner.",
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showWinners', 'showVenue', 'showCalendar'],
+    exampleProps: { eventId: PREVIEW_IDS.raceEvent },
+    polling: true,
+    sports: F1_ONLY,
+  },
+  season_calendar: {
+    kind: 'season_calendar',
+    component: 'SeasonCalendar',
+    registryComponent: 'GalaxieSeasonCalendar',
+    name: { 'pt-BR': 'Calendário', es: 'Calendario', en: 'Calendar' },
+    description: {
+      'pt-BR':
+        'Os GPs da temporada da F1 com os vencedores, ou os próximos eventos de MMA com a luta principal.',
+      es: 'Los GP de la temporada de F1 con los ganadores, o los próximos eventos de MMA con la pelea estelar.',
+      en: 'The F1 season with each Grand Prix winner, or upcoming MMA events with their main event.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['range', 'limit', 'showWinners', 'showVenue'],
+    exampleProps: { competitionId: PREVIEW_IDS.raceCompetition },
+    polling: true,
+    sports: [...F1_ONLY, ...MMA_ONLY],
+  },
+  athlete_profile: {
+    kind: 'athlete_profile',
+    component: 'AthleteProfile',
+    registryComponent: 'GalaxieAthleteProfile',
+    name: { 'pt-BR': 'Perfil do atleta', es: 'Perfil del atleta', en: 'Athlete profile' },
+    description: {
+      'pt-BR':
+        'Piloto da F1 com a temporada e a carreira, ou lutador de MMA com o cartel e as últimas lutas.',
+      es: 'Piloto de F1 con la temporada y la carrera, o peleador de MMA con su récord y sus últimas peleas.',
+      en: 'An F1 driver with season and career numbers, or an MMA fighter with record and recent fights.',
+    },
+    requiredProps: ['teamId'],
+    optionalProps: ['showCareer', 'showCurrent', 'recent'],
+    exampleProps: { teamId: PREVIEW_IDS.driver },
+    polling: false,
+    sports: [...F1_ONLY, ...MMA_ONLY],
+  },
+  fight_card: {
+    kind: 'fight_card',
+    component: 'FightCard',
+    registryComponent: 'GalaxieFightCard',
+    name: { 'pt-BR': 'Card do evento', es: 'Cartelera', en: 'Fight card' },
+    description: {
+      'pt-BR': 'As lutas de um evento de MMA, do card principal às preliminares, com o desfecho de cada uma.',
+      es: 'Las peleas de un evento de MMA, de la cartelera principal a las preliminares, con cada resultado.',
+      en: 'Every bout of an MMA event, from the main card to the prelims, with each result.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showPrelims', 'showWeightClass', 'showResults'],
+    exampleProps: { eventId: PREVIEW_IDS.fightEvent },
+    polling: true,
+    sports: MMA_ONLY,
+  },
+  equestrian_results: {
+    kind: 'equestrian_results',
+    component: 'EquestrianResults',
+    registryComponent: 'GalaxieEquestrianResults',
+    name: { 'pt-BR': 'Resultado da prova', es: 'Resultado de la prueba', en: 'Competition result' },
+    description: {
+      'pt-BR':
+        'Classificação de uma prova de salto: cavaleiro, cavalo, faltas e tempo, como a federação publicou.',
+      es: 'Clasificación de una prueba de salto: jinete, caballo, faltas y tiempo, como lo publicó la federación.',
+      en: 'Show jumping standings: rider, horse, faults and time, as published by the federation.',
+    },
+    requiredProps: [],
+    optionalProps: ['competitionId', 'limit', 'showHorse', 'showScore', 'showPrize'],
+    exampleProps: { competitionId: PREVIEW_IDS.eqCompetition },
+    polling: false,
+    sports: EQUESTRIAN_ONLY,
+  },
+  equestrian_ranking: {
+    kind: 'equestrian_ranking',
+    component: 'EquestrianRanking',
+    registryComponent: 'GalaxieEquestrianRanking',
+    name: { 'pt-BR': 'Ranking do hipismo', es: 'Ranking de hípica', en: 'Equestrian ranking' },
+    description: {
+      'pt-BR': 'Os cavaleiros nos rankings observados, com a bandeira, o cavalo e os pontos.',
+      es: 'Los jinetes en los rankings observados, con la bandera, el caballo y los puntos.',
+      en: 'Riders in the observed rankings, with flag, horse and points.',
+    },
+    requiredProps: [],
+    optionalProps: ['limit', 'showHorse', 'showPoints'],
+    exampleProps: {},
+    polling: false,
+    sports: EQUESTRIAN_ONLY,
+  },
+  equestrian_calendar: {
+    kind: 'equestrian_calendar',
+    component: 'EquestrianCalendar',
+    registryComponent: 'GalaxieEquestrianCalendar',
+    name: { 'pt-BR': 'Calendário de provas', es: 'Calendario de pruebas', en: 'Competition calendar' },
+    description: {
+      'pt-BR': 'As próximas provas de salto com o nível (CSI5*, CSIO) e o local, ou as últimas disputadas.',
+      es: 'Las próximas pruebas de salto con el nivel (CSI5*, CSIO) y el lugar, o las últimas disputadas.',
+      en: 'Upcoming show jumping competitions with level (CSI5*, CSIO) and venue, or the latest ones.',
+    },
+    requiredProps: [],
+    optionalProps: ['range', 'limit', 'grandPrixOnly', 'showVenue'],
+    exampleProps: {},
+    polling: false,
+    sports: EQUESTRIAN_ONLY,
+  },
+  rider_profile: {
+    kind: 'rider_profile',
+    component: 'RiderProfile',
+    registryComponent: 'GalaxieRiderProfile',
+    name: { 'pt-BR': 'Perfil do cavaleiro', es: 'Perfil del jinete', en: 'Rider profile' },
+    description: {
+      'pt-BR':
+        'Cavaleiro com o país, provas, vitórias e pódios, os cavalos, o ranking e os últimos resultados.',
+      es: 'Jinete con el país, pruebas, victorias y podios, los caballos, el ranking y los últimos resultados.',
+      en: 'A rider with country, starts, wins and podiums, horses, ranking and latest results.',
+    },
+    requiredProps: [],
+    optionalProps: ['athleteId', 'horses', 'recent', 'showRankings'],
+    exampleProps: { athleteId: PREVIEW_IDS.eqAthlete },
+    polling: false,
+    sports: EQUESTRIAN_ONLY,
+  },
+  horse_profile: {
+    kind: 'horse_profile',
+    component: 'HorseProfile',
+    registryComponent: 'GalaxieHorseProfile',
+    name: { 'pt-BR': 'Perfil do cavalo', es: 'Perfil del caballo', en: 'Horse profile' },
+    description: {
+      'pt-BR': 'Cavalo com raça, idade e pelagem, o pedigree, quem o monta e os últimos resultados.',
+      es: 'Caballo con raza, edad y pelaje, el pedigrí, quién lo monta y los últimos resultados.',
+      en: 'A horse with breed, age and coat, pedigree, riders and latest results.',
+    },
+    requiredProps: [],
+    optionalProps: ['horseId', 'showPedigree', 'showRiders', 'recent'],
+    exampleProps: { horseId: PREVIEW_IDS.eqHorse },
+    polling: false,
+    sports: EQUESTRIAN_ONLY,
+  },
+  medal_table: {
+    kind: 'medal_table',
+    component: 'MedalTable',
+    registryComponent: 'GalaxieMedalTable',
+    name: { 'pt-BR': 'Quadro de medalhas', es: 'Medallero', en: 'Medal table' },
+    description: {
+      'pt-BR':
+        'O quadro de medalhas da Olimpíada ou do Pan, por ouros ou pelo total, com o país em destaque.',
+      es: 'El medallero de los Juegos Olímpicos o Panamericanos, por oros o total, con el país destacado.',
+      en: 'The Olympic or Pan American medal table, by golds or total, with a highlighted country.',
+    },
+    requiredProps: [],
+    optionalProps: ['games', 'sort', 'region', 'limit', 'highlight'],
+    exampleProps: { games: PREVIEW_IDS.games },
+    polling: true,
+    sports: MULTISPORT_ONLY,
+  },
+  country_today: {
+    kind: 'country_today',
+    component: 'CountryToday',
+    registryComponent: 'GalaxieCountryToday',
+    name: { 'pt-BR': 'País hoje nos Jogos', es: 'País hoy en los Juegos', en: 'Country today at the Games' },
+    description: {
+      'pt-BR':
+        '"Brasil hoje": as provas do país no dia, no horário do leitor, as que valem medalha e as medalhas do dia.',
+      es: '"Brasil hoy": las pruebas del país en el día, en el horario del lector, las que dan medalla y las medallas del día.',
+      en: '"Brazil today": the country’s events of the day in local time, medal events and the medals won.',
+    },
+    requiredProps: [],
+    optionalProps: ['games', 'noc', 'showMedals', 'medalOnly'],
+    exampleProps: { games: PREVIEW_IDS.games, noc: 'BRA' },
+    polling: true,
+    sports: MULTISPORT_ONLY,
+  },
+  games_schedule: {
+    kind: 'games_schedule',
+    component: 'GamesSchedule',
+    registryComponent: 'GalaxieGamesSchedule',
+    name: { 'pt-BR': 'Programação dos Jogos', es: 'Programación de los Juegos', en: 'Games schedule' },
+    description: {
+      'pt-BR':
+        'As provas do dia em todas as modalidades, com fase, local, a ao vivo em destaque e as que valem medalha.',
+      es: 'Las pruebas del día en todos los deportes, con fase, lugar, la en vivo destacada y las que dan medalla.',
+      en: 'The day’s events across all sports, with phase, venue, live events and medal events.',
+    },
+    requiredProps: [],
+    optionalProps: ['games', 'medalOnly', 'limit', 'showVenue'],
+    exampleProps: { games: PREVIEW_IDS.games },
+    polling: true,
+    sports: MULTISPORT_ONLY,
+  },
+  country_athletes: {
+    kind: 'country_athletes',
+    component: 'CountryAthletes',
+    registryComponent: 'GalaxieCountryAthletes',
+    name: { 'pt-BR': 'Atletas do país', es: 'Atletas del país', en: 'Country athletes' },
+    description: {
+      'pt-BR':
+        'Os atletas do país na edição, os medalhistas primeiro, com as medalhas e as provas de cada um.',
+      es: 'Los atletas del país en la edición, los medallistas primero, con las medallas y las pruebas de cada uno.',
+      en: 'The country’s athletes at the Games, medallists first, with each one’s medals and events.',
+    },
+    requiredProps: [],
+    optionalProps: ['games', 'noc', 'medalistsOnly', 'limit'],
+    exampleProps: { games: PREVIEW_IDS.games, noc: 'BRA' },
+    polling: false,
+    sports: MULTISPORT_ONLY,
+  },
+  medal_history: {
+    kind: 'medal_history',
+    component: 'MedalHistory',
+    registryComponent: 'GalaxieMedalHistory',
+    name: { 'pt-BR': 'Histórico de medalhas', es: 'Historial de medallas', en: 'Medal history' },
+    description: {
+      'pt-BR': 'As medalhas do país em cada Olimpíada e Pan, da mais recente para trás, com a soma de todas.',
+      es: 'Las medallas del país en cada Juego Olímpico y Panamericano, del más reciente hacia atrás, con la suma.',
+      en: 'The country’s medals at each Olympic and Pan American Games, most recent first, with the total.',
+    },
+    requiredProps: [],
+    optionalProps: ['noc', 'type', 'season', 'limit'],
+    exampleProps: { noc: 'BRA' },
+    polling: false,
+    sports: MULTISPORT_ONLY,
   },
 };
+
+/** O tipo vale para o esporte (lista vazia no catálogo = todos os esportes). */
+export function widgetKindSupportsSport(kind: WidgetKind, sport: string): boolean {
+  const sports = WIDGET_CATALOG[kind].sports;
+  return sports.length === 0 || sports.includes(sport);
+}
+
+/**
+ * O tipo vale para mais de um esporte: o Builder pergunta o esporte (filtra a busca e a prévia) e o grava
+ * no widget. Nos de um esporte só, ele é implícito.
+ */
+export const widgetKindIsMultiSport = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length !== 1;
+
+/** O tipo vale para todos os esportes (o widget pode mostrar todos de uma vez: "Todos os esportes"). */
+export const widgetKindIsAllSports = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length === 0;

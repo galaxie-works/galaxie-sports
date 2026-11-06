@@ -3,11 +3,14 @@
 import {
   LIVE_STATUSES,
   STARTED_STATUSES,
+  aflScoreText,
   eventRefreshMs,
   fillText,
   intlLocale,
   localTimeZone,
+  periodLabel,
   sidesOf,
+  sportProfile,
   venueTimeText,
   type GsEvent,
   type GsEventStats,
@@ -48,7 +51,7 @@ export interface MatchCardProps {
   showHalftime?: boolean | undefined;
   /** Placar agregado no jogo de volta (padrão: não). */
   showAggregate?: boolean | undefined;
-  /** Parciais por set ou quarto nos outros esportes (padrão: não). */
+  /** Parciais por set, quarto, tempo ou entrada nos outros esportes (padrão: sim fora do futebol). */
   showPeriods?: boolean | undefined;
   /** Hora local do jogo quando o estádio está em outro fuso (padrão: não). */
   venueTime?: boolean | undefined;
@@ -84,7 +87,7 @@ export function MatchCard({
   showReferee = false,
   showHalftime = false,
   showAggregate = false,
-  showPeriods = false,
+  showPeriods,
   venueTime = false,
   showGoals = false,
   showRedCards = false,
@@ -133,14 +136,26 @@ export function MatchCard({
   const penalty = score.penalty && score.penalty.home !== null ? score.penalty : null;
   const ht = showHalftime && started && score.halftime?.home != null ? score.halftime : null;
   const agg = showAggregate && score.aggregate?.home != null ? score.aggregate : null;
-  const periods = showPeriods && started ? (score.periods ?? []).filter((p) => p.home !== null) : [];
+  const profile = sportProfile(event.sport);
+  const periods =
+    (showPeriods ?? profile.periods) && started
+      ? (score.periods ?? []).filter((p) => p.home !== null || p.away !== null)
+      : [];
+  // AFL: "12.14 (86)" embaixo do placar
+  const afl = event.sport === 'afl' && score.goals_behinds ? score.goals_behinds : undefined;
+  // beisebol: rebatidas e erros ao lado das corridas (R/H/E)
+  const rhe = event.sport === 'baseball' && score.hits_errors ? score.hits_errors : undefined;
+  // MMA: sem placar; o desfecho (método, round e tempo) fica no meio, e a categoria no topo
+  const fightResult = event.fight?.result && event.status === 'finished' ? event.fight.result : null;
   const competition = event.competition;
   const title = [
-    showCompetition ? competition?.name : null,
+    // MMA: o card ("UFC 300: …") já diz a organização
+    showCompetition ? (event.fight?.card?.name ?? competition?.name) : null,
+    event.fight?.weight_class?.name ?? null,
     showCountry && competition?.country && competition.country.code !== 'WORLD'
       ? competition.country.name
       : null,
-    showRound ? event.stage?.name : null,
+    showRound && !event.fight ? event.stage?.name : null,
   ].filter(Boolean);
   const place = [showVenue ? event.venue?.name : null, showCity ? event.venue?.city : null].filter(Boolean);
   const localTime = venueTime
@@ -171,7 +186,11 @@ export function MatchCard({
         <StatusBadge event={event} />
       </header>
       <div className="gs-match">
-        <div className="gs-team" data-lost={home?.winner === false || undefined}>
+        <div
+          className="gs-team"
+          data-lost={home?.winner === false || undefined}
+          data-won={(event.fight && home?.winner === true) || undefined}
+        >
           <Crest src={home?.logo} name={home?.name ?? '?'} />
           <span>{home?.short_name ?? home?.name}</span>
           {formations[0] ? <span className="gs-meta">{formations[0]}</span> : null}
@@ -181,6 +200,11 @@ export function MatchCard({
             <span>
               {score.home ?? 0} – {score.away ?? 0}
             </span>
+            {afl ? (
+              <small>
+                {aflScoreText(afl, 'home', null)} – {aflScoreText(afl, 'away', null)}
+              </small>
+            ) : null}
             {penalty ? (
               <small>
                 ({penalty.home} – {penalty.away} {texts.penalties})
@@ -193,6 +217,23 @@ export function MatchCard({
               <small>{fillText(texts.extra.aggregate, { home: agg.home ?? 0, away: agg.away ?? 0 })}</small>
             ) : null}
           </div>
+        ) : fightResult ? (
+          <span className="gs-versus" data-gs-fight="">
+            <strong>{fightResult.method_name}</strong>
+            <small className="gs-meta">
+              {[
+                fightResult.detail,
+                fightResult.round
+                  ? fillText(texts.fights.roundTime, {
+                      round: fightResult.round,
+                      time: fightResult.time ?? '',
+                    }).replace(/ · $/, '')
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </span>
         ) : (
           <span className="gs-versus">
             {texts.versus}
@@ -203,7 +244,11 @@ export function MatchCard({
             ) : null}
           </span>
         )}
-        <div className="gs-team" data-lost={away?.winner === false || undefined}>
+        <div
+          className="gs-team"
+          data-lost={away?.winner === false || undefined}
+          data-won={(event.fight && away?.winner === true) || undefined}
+        >
           <Crest src={away?.logo} name={away?.name ?? '?'} />
           <span>{away?.short_name ?? away?.name}</span>
           {formations[1] ? <span className="gs-meta">{formations[1]}</span> : null}
@@ -212,8 +257,51 @@ export function MatchCard({
       {periods.length || incidents.length || statRows.length ? (
         <div className="gs-extras">
           {periods.length ? (
-            <div className="gs-meta" data-gs-periods="">
-              {periods.map((p) => `${p.home ?? 0}–${p.away ?? 0}`).join(' · ')}
+            <div className="gs-scroll">
+              <table className="gs-table gs-linescore" data-gs-periods="">
+                <thead>
+                  <tr>
+                    <th className="gs-left" scope="col">
+                      <span className="gs-sr-only">{texts.columns.team}</span>
+                    </th>
+                    {periods.map((p) => (
+                      <th key={p.code} scope="col">
+                        {periodLabel(p.code, texts)}
+                      </th>
+                    ))}
+                    <th scope="col">{rhe ? texts.sport.rhe.r : texts.sport.total}</th>
+                    {rhe ? <th scope="col">{texts.sport.rhe.h}</th> : null}
+                    {rhe ? <th scope="col">{texts.sport.rhe.e}</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(['home', 'away'] as const).map((side) => {
+                    const team = side === 'home' ? home : away;
+                    return (
+                      <tr key={side}>
+                        <th className="gs-left" scope="row">
+                          <span className="gs-truncate">{team?.short_name ?? team?.name}</span>
+                        </th>
+                        {periods.map((p) => (
+                          <td key={p.code}>
+                            {/* AFL: gols.behinds do quarto, com os pontos no título */}
+                            {p.goals_behinds ? (
+                              <span title={String(p[side] ?? '')}>
+                                {aflScoreText(p.goals_behinds, side, null) ?? p[side] ?? '–'}
+                              </span>
+                            ) : (
+                              (p[side] ?? '–')
+                            )}
+                          </td>
+                        ))}
+                        <td className="gs-strong">{score[side] ?? '–'}</td>
+                        {rhe ? <td>{rhe[side].hits ?? '–'}</td> : null}
+                        {rhe ? <td>{rhe[side].errors ?? '–'}</td> : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : null}
           {incidents.length ? (

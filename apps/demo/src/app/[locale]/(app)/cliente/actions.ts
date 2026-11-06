@@ -163,7 +163,11 @@ export async function saveWidgetAction(input: {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
-  const parsed = parseWidgetInput(input, { markets: r.tenant.markets, entityTypes: entityTypesOf });
+  const parsed = parseWidgetInput(input, {
+    markets: r.tenant.markets,
+    entityTypes: entityTypesOf,
+    sports: r.tenant.sports,
+  });
   if (!parsed.ok) return { ok: false, error: t.errors.widget[parsed.error] };
   if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.widgetNotFound };
   try {

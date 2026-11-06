@@ -14,4 +14,12 @@ export { CORE_VERSION } from './sources.generated.js';
 export { parseStandingsOptions, type StandingsOptions } from '../core/model.js';
 export { parseLiveListOptions, type LiveListOptions } from '../core/model.js';
 // opções de conteúdo de cada widget (sem React), para o Builder e as rotas /e e /r
-export { WIDGET_OPTIONS, optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
+export {
+  WIDGET_OPTIONS,
+  optionProps,
+  parseWidgetOptions,
+  widgetOptionsFor,
+  type WidgetOptions,
+} from '../options.js';
+// esportes de cada tipo (sem React), para o Builder conferir o esporte que chega do navegador
+export { widgetKindIsAllSports, widgetKindIsMultiSport, widgetKindSupportsSport } from '../catalog.js';

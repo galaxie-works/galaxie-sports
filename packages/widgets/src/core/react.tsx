@@ -18,9 +18,11 @@ import {
   PUBLISHABLE_KEY_HEADER,
   WIDGET_CSS,
   apiLocale,
-  clockText,
+  liveClockText,
   eventIcs,
+  flagEmoji,
   initials,
+  pickCurrentGames,
   intlLocale,
   sidesOf,
   localTimeZone,
@@ -28,6 +30,7 @@ import {
   themeToCssVars,
   type GsCompetitionContext,
   type GsEvent,
+  type GsGames,
   type WidgetKind,
   type WidgetLocale,
   type WidgetTexts,
@@ -337,7 +340,7 @@ export function Crest({
 }: {
   src: string | null | undefined;
   name: string;
-  size?: 'md' | 'sm' | 'xs';
+  size?: 'lg' | 'md' | 'sm' | 'xs';
   className?: string;
 }) {
   const [broken, setBroken] = useState(false);
@@ -362,11 +365,16 @@ export function Crest({
 }
 
 /** Estado do jogo: minuto ao vivo pulsando, intervalo, encerrado, adiado… */
-export function StatusBadge({ event }: { event: Pick<GsEvent, 'status' | 'clock'> }) {
+export function StatusBadge({
+  event,
+}: {
+  event: Pick<GsEvent, 'status' | 'clock'> & { sport?: string | undefined };
+}) {
   const { texts } = useGalaxieWidget();
   const label = texts.status[event.status] ?? event.status;
   if (LIVE_STATUSES.has(event.status) || event.status === 'starting') {
-    const minute = event.status === 'live' ? clockText(event.clock) : null;
+    // futebol: o minuto; outros esportes: a parcial em andamento ("3Q", "S4")
+    const minute = event.status === 'live' ? liveClockText(event, texts) : null;
     return (
       <span className="gs-badge" data-tone="live">
         <span className="gs-dot" aria-hidden="true" />
@@ -432,6 +440,76 @@ export function ErrorState({ error, onRetry }: { error: GalaxieWidgetError | nul
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return <div className="gs-state">{children}</div>;
+}
+
+/** Números em destaque (perfil do atleta, do cavalo): o valor grande e o rótulo embaixo; null não aparece. */
+export function StatGrid({ items }: { items: [string, string | number | null | undefined][] }) {
+  const shown = items.filter(([, v]) => v !== null && v !== undefined);
+  return shown.length ? (
+    <div className="gs-stats">
+      {shown.map(([label, value]) => (
+        <div key={label} className="gs-stat">
+          <strong>{value}</strong>
+          <span className="gs-muted gs-small">{label}</span>
+        </div>
+      ))}
+    </div>
+  ) : null;
+}
+
+/** Bandeira do país: a imagem da fonte quando há; senão o emoji pelo código ISO; senão o código. */
+export function Flag({
+  url,
+  iso2,
+  code,
+  name,
+}: {
+  url?: string | null | undefined;
+  iso2?: string | null | undefined;
+  code?: string | null | undefined;
+  name?: string | null | undefined;
+}) {
+  const label = name ?? code ?? '';
+  if (url) return <Crest src={url} name={label} size="xs" />;
+  const emoji = flagEmoji(iso2);
+  if (emoji)
+    return (
+      <span className="gs-flag" role="img" aria-label={label}>
+        {emoji}
+      </span>
+    );
+  return code ? <span className="gs-muted gs-small">{code}</span> : null;
+}
+
+/** Medalha (ouro, prata, bronze) em um círculo na cor dela. */
+export function MedalDot({ medal, label }: { medal: 'G' | 'S' | 'B'; label: string }) {
+  return (
+    <span className="gs-medal" data-medal={medal} role="img" aria-label={label} title={label}>
+      {medal === 'G' ? '1' : medal === 'S' ? '2' : '3'}
+    </span>
+  );
+}
+
+const GAMES_REFRESH_MS = 6 * 60 * 60_000;
+
+/**
+ * Edição dos Jogos do widget: a escolhida (`slug`) ou, sem ela, a atual pela lista (`pickCurrentGames`).
+ * Devolve o slug quando há, mais o estado da lista para o carregando/erro.
+ */
+export function useGamesSlug(slug: string | null | undefined): {
+  slug: string | null;
+  loading: boolean;
+  error: GalaxieWidgetError | null;
+  retry: () => void;
+} {
+  const list = useGalaxieQuery<{ data: GsGames[] }>(
+    slug ? null : '/v1/multisport/games',
+    {},
+    () => GAMES_REFRESH_MS,
+  );
+  if (slug) return { slug, loading: false, error: null, retry: list.retry };
+  const current = list.data ? pickCurrentGames(list.data.data) : null;
+  return { slug: current?.slug ?? null, loading: list.loading, error: list.error, retry: list.retry };
 }
 
 /**

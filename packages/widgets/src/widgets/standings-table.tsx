@@ -6,10 +6,19 @@ import type {
   GsCompetitionContext,
   GsStandingRow,
   GsStandings,
+  SportProfile,
   StandingsZoneColors,
   WidgetTexts,
 } from '../core/model.js';
-import { standingsZoneColor, standingsZoneLabel, standingsZoneTone } from '../core/model.js';
+import {
+  gamesBehind,
+  sportProfile,
+  standingPercentage,
+  standingsZoneColor,
+  standingsZoneLabel,
+  standingsZoneTone,
+  unitLabels,
+} from '../core/model.js';
 import {
   CompetitionSituation,
   Crest,
@@ -34,24 +43,34 @@ export interface StandingsTableProps {
   zoneColors?: StandingsZoneColors | undefined;
   /** Qual tabela mostrar quando a temporada tem várias: `all` (padrão), `phase`, `annual`, `relegation_average`. */
   table?: 'all' | 'phase' | 'annual' | 'relegation_average' | undefined;
-  /** Coluna de gols pró (padrão: não). */
+  /** Coluna de gols (pontos, corridas, sets) pró (padrão: não). */
   showGoalsFor?: boolean | undefined;
-  /** Coluna de gols contra (padrão: não). */
+  /** Coluna de gols (pontos, corridas, sets) contra (padrão: não). */
   showGoalsAgainst?: boolean | undefined;
-  /** Coluna de saldo de gols (padrão: sim). */
+  /** Coluna de saldo (padrão: sim). */
   showGoalDiff?: boolean | undefined;
   /** Forma recente, os últimos 5 jogos (padrão: não). */
   showForm?: boolean | undefined;
-  /** Aproveitamento em % dos pontos disputados (padrão: não). */
+  /**
+   * Aproveitamento: % dos pontos disputados; % de vitórias no basquete, beisebol e futebol americano; o
+   * percentual pró ÷ contra na AFL. Padrão: não. Onde a tabela é por vitórias e na AFL, sempre aparece.
+   */
   showPercentage?: boolean | undefined;
   /** UUID de um time para destacar a linha (o clube do portal, por exemplo). */
   highlightTeamId?: string | undefined;
   /** Líder e próximos jogos decisivos embaixo da tabela (padrão: não). */
   showDecisive?: boolean | undefined;
+  /** F1: campeonato de pilotos, de construtores ou os dois (padrão). */
+  raceTable?: 'drivers' | 'constructors' | 'all' | undefined;
 }
 
-/** Colunas opcionais ligadas. */
+/** Colunas ligadas (as opcionais e as que dependem do esporte). */
 interface Columns {
+  points: boolean;
+  /** Beisebol: jogos atrás do líder. */
+  gamesBehind: boolean;
+  drawn: boolean;
+  otLosses: boolean;
   goalsFor: boolean;
   goalsAgainst: boolean;
   goalDiff: boolean;
@@ -80,9 +99,10 @@ export function StandingsTable({
   showGoalsAgainst = false,
   showGoalDiff = true,
   showForm = false,
-  showPercentage = false,
+  showPercentage,
   highlightTeamId,
   showDecisive = false,
+  raceTable = 'all',
 }: StandingsTableProps) {
   const { texts } = useGalaxieWidget();
   const query = useGalaxieQuery<GsStandings>(
@@ -97,14 +117,6 @@ export function StandingsTable({
     {},
     () => STANDINGS_REFRESH_MS,
   );
-  const cols: Columns = {
-    goalsFor: showGoalsFor,
-    goalsAgainst: showGoalsAgainst,
-    goalDiff: showGoalDiff,
-    form: showForm,
-    percentage: showPercentage,
-  };
-  const x = texts.extra;
 
   if (!query.data) {
     return (
@@ -119,11 +131,48 @@ export function StandingsTable({
     );
   }
 
+  if (query.data.sport === 'formula-1') {
+    return (
+      <RaceStandings
+        data={query.data}
+        table={raceTable}
+        limit={limit}
+        highlightTeamId={highlightTeamId}
+        texts={texts}
+      />
+    );
+  }
+
   const all = query.data.groups.filter((g) => g.rows.length > 0);
   // a tabela escolhida; sem nenhuma desse papel (campeonato sem regulamento de tabelas), todas
   const picked = table === 'all' ? all : all.filter((g) => g.table === table);
   const groups = picked.length ? picked : all;
   const c = texts.columns;
+  const profile = sportProfile(query.data.sport);
+  const rowsAll = groups.flatMap((g) => g.rows);
+  // pró e contra zerados em todas as linhas (a NBA não manda): sem saldo nem percentual pró ÷ contra
+  const hasScores = rowsAll.some((r) => (r.goals_for ?? 0) > 0 || (r.goals_against ?? 0) > 0);
+  const cols: Columns = {
+    points: profile.points,
+    gamesBehind: profile.sport === 'baseball',
+    // empate só aparece onde existe (no futebol americano, só se houve)
+    drawn: profile.draws && (profile.sport === 'football' || rowsAll.some((r) => r.drawn > 0)),
+    otLosses: profile.overtimeLosses && rowsAll.some((r) => r.ot_lost != null),
+    goalsFor: showGoalsFor && hasScores,
+    goalsAgainst: showGoalsAgainst && hasScores,
+    goalDiff: showGoalDiff && (hasScores || profile.sport === 'football'),
+    form: showForm,
+    // tabela por vitórias e AFL: o % é a coluna que ordena, sempre visível; nos outros, opcional
+    percentage: profile.percentage === 'ratio' ? hasScores : !profile.points || (showPercentage ?? false),
+  };
+  const u = unitLabels(profile.unit, texts);
+  const x = texts.extra;
+  const pctLabel =
+    profile.percentage === 'wins'
+      ? texts.sport.winPct
+      : profile.percentage === 'ratio'
+        ? texts.sport.ratio
+        : x.percentage;
   const shown = (rows: GsStandingRow[]) => (limit ? rows.slice(0, limit) : rows);
   // legenda: uma entrada por zona (pelo nome exibido), na ordem em que aparece na tabela
   const legend = new Map<string, string>();
@@ -162,15 +211,17 @@ export function StandingsTable({
                     <th className="gs-left" scope="col">
                       {c.team}
                     </th>
-                    <th scope="col">{c.points}</th>
+                    {cols.points ? <th scope="col">{c.points}</th> : null}
                     <th scope="col">{c.played}</th>
                     <th scope="col">{c.won}</th>
-                    <th scope="col">{c.drawn}</th>
+                    {cols.drawn ? <th scope="col">{c.drawn}</th> : null}
                     <th scope="col">{c.lost}</th>
-                    {cols.goalsFor ? <th scope="col">{x.goalsFor}</th> : null}
-                    {cols.goalsAgainst ? <th scope="col">{x.goalsAgainst}</th> : null}
-                    {cols.goalDiff ? <th scope="col">{c.goalDiff}</th> : null}
-                    {cols.percentage ? <th scope="col">{x.percentage}</th> : null}
+                    {cols.otLosses ? <th scope="col">{texts.sport.otLosses}</th> : null}
+                    {cols.goalsFor ? <th scope="col">{u.for}</th> : null}
+                    {cols.goalsAgainst ? <th scope="col">{u.against}</th> : null}
+                    {cols.goalDiff ? <th scope="col">{u.diff}</th> : null}
+                    {cols.percentage ? <th scope="col">{pctLabel}</th> : null}
+                    {cols.gamesBehind ? <th scope="col">{texts.sport.gamesBehind}</th> : null}
                     {cols.form ? <th scope="col">{x.form}</th> : null}
                   </tr>
                 </thead>
@@ -182,6 +233,8 @@ export function StandingsTable({
                       texts={texts}
                       zoneColors={zoneColors}
                       cols={cols}
+                      profile={profile}
+                      leader={group.rows[0]}
                       highlight={!!highlightTeamId && row.participant.id === highlightTeamId}
                     />
                   ))}
@@ -219,12 +272,16 @@ function Row({
   texts,
   zoneColors,
   cols,
+  profile,
+  leader,
   highlight,
 }: {
   row: GsStandingRow;
   texts: WidgetTexts;
   zoneColors: StandingsZoneColors | undefined;
   cols: Columns;
+  profile: SportProfile;
+  leader: GsStandingRow | undefined;
   highlight: boolean;
 }) {
   const zone = row.description?.trim() ? row.description : null;
@@ -248,17 +305,17 @@ function Row({
           <span className="gs-truncate">{row.participant.short_name ?? row.participant.name}</span>
         </div>
       </td>
-      <td className="gs-strong">{row.points}</td>
+      {cols.points ? <td className="gs-strong">{row.points}</td> : null}
       <td>{row.played}</td>
-      <td>{row.won}</td>
-      <td>{row.drawn}</td>
+      <td className={cols.points ? undefined : 'gs-strong'}>{row.won}</td>
+      {cols.drawn ? <td>{row.drawn}</td> : null}
       <td>{row.lost}</td>
+      {cols.otLosses ? <td>{row.ot_lost ?? '–'}</td> : null}
       {cols.goalsFor ? <td>{row.goals_for ?? '–'}</td> : null}
       {cols.goalsAgainst ? <td>{row.goals_against ?? '–'}</td> : null}
       {cols.goalDiff ? <td>{row.goal_diff > 0 ? `+${row.goal_diff}` : row.goal_diff}</td> : null}
-      {cols.percentage ? (
-        <td>{row.played > 0 ? Math.round((row.points / (row.played * 3)) * 100) : '–'}</td>
-      ) : null}
+      {cols.percentage ? <td>{standingPercentage(row, profile) ?? '–'}</td> : null}
+      {cols.gamesBehind ? <td>{gamesBehind(row, leader)}</td> : null}
       {cols.form ? (
         <td>
           <span className="gs-form">
@@ -271,5 +328,101 @@ function Row({
         </td>
       ) : null}
     </tr>
+  );
+}
+
+/**
+ * F1: campeonato de pilotos (com o retrato e a equipe da temporada, na cor da pintura) e de construtores:
+ * posição, pontos, vitórias e pódios.
+ */
+function RaceStandings({
+  data,
+  table,
+  limit,
+  highlightTeamId,
+  texts,
+}: {
+  data: GsStandings;
+  table: 'drivers' | 'constructors' | 'all';
+  limit: number | undefined;
+  highlightTeamId: string | undefined;
+  texts: WidgetTexts;
+}) {
+  const t = texts.racing;
+  const groups = data.groups.filter((g) => g.rows.length && (table === 'all' || g.name === table));
+  const title = (name: string | null) =>
+    name === 'drivers' ? t.drivers : name === 'constructors' ? t.constructors : (name ?? texts.standings);
+  return (
+    <WidgetFrame kind="standings">
+      <header className="gs-header">
+        <h3 className="gs-title">{texts.standings}</h3>
+        <span className="gs-spacer" />
+        <span>{data.season.label}</span>
+      </header>
+      {groups.length === 0 ? (
+        <EmptyState>{texts.emptyStandings}</EmptyState>
+      ) : (
+        groups.map((g, i) => {
+          const podiums = g.rows.some((r) => r.podiums != null);
+          return (
+            <div key={g.name ?? i} className="gs-group">
+              <div className="gs-group-title">{title(g.name)}</div>
+              <div className="gs-scroll">
+                <table className="gs-table" data-gs-race-standings={g.name ?? ''}>
+                  <thead>
+                    <tr>
+                      <th className="gs-left" scope="col">
+                        #
+                      </th>
+                      <th className="gs-left" scope="col">
+                        {g.name === 'constructors' ? t.team : t.driver}
+                      </th>
+                      <th scope="col">{t.points}</th>
+                      <th scope="col">{t.wins}</th>
+                      {podiums ? <th scope="col">{t.podiums}</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(limit ? g.rows.slice(0, limit) : g.rows).map((row) => {
+                      const color = row.season_team?.livery?.primary;
+                      return (
+                        <tr
+                          key={row.participant.id}
+                          className={highlightTeamId === row.participant.id ? 'gs-highlight' : undefined}
+                        >
+                          <td
+                            className="gs-left gs-rank"
+                            data-zone={color ? '' : undefined}
+                            style={color ? zoneStyle(color) : undefined}
+                          >
+                            {row.rank}
+                          </td>
+                          <td className="gs-left">
+                            <div className="gs-line">
+                              <Crest
+                                src={row.photo?.url ?? row.participant.logo}
+                                name={row.participant.name}
+                                size="sm"
+                              />
+                              <span className="gs-truncate">{row.participant.name}</span>
+                              {g.name !== 'constructors' && row.season_team ? (
+                                <span className="gs-truncate gs-muted gs-small">{row.season_team.name}</span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="gs-strong">{row.points}</td>
+                          <td>{row.won}</td>
+                          {podiums ? <td>{row.podiums ?? '–'}</td> : null}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </WidgetFrame>
   );
 }

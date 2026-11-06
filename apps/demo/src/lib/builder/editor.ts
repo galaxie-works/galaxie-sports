@@ -9,6 +9,7 @@ import {
   parseLiveListOptions,
   parseStandingsOptions,
   parseWidgetOptions,
+  type LookupSource,
 } from '@galaxie/widgets';
 
 import type { EditorDraft } from '@/components/client/widget-editor';
@@ -19,11 +20,13 @@ import { apiLocale, type Locale } from '@/lib/i18n/config';
 import {
   entityFromDefaults,
   isWidgetKind,
+  sportOf,
   isWidgetLocale,
   marketsFor,
   toWidgetLocale,
   WIDGET_KINDS,
 } from './config';
+import { defaultSport, sportChoices, sportForNewWidget } from './sports';
 import { builderDb, listWidgetThemes } from './store';
 import type { BrandThemeItem, Widget, WidgetEntityType, WidgetKind } from './types';
 
@@ -70,8 +73,9 @@ async function resolveEntity(
 }
 
 /**
- * Widget novo: com `?tema=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao
- * único tema da marca do tenant, quando há um só; senão, o tema escuro pronto.
+ * Widget novo do catálogo: o tipo (`?tipo=`) e a aba de onde veio (`?esporte=`, que dá o esporte). Com
+ * `?tema=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao único tema da
+ * marca do tenant, quando há um só; senão, o tema escuro pronto.
  */
 export function newDraft(
   kindParam: string | undefined,
@@ -79,14 +83,23 @@ export function newDraft(
   locale: Locale,
   brandThemes: BrandThemeItem[] = [],
   brandThemeParam?: string,
+  familyParam?: string,
 ): EditorDraft {
   const kind: WidgetKind = isWidgetKind(kindParam) ? kindParam : WIDGET_KINDS[0];
+  const sport = sportForNewWidget(kind, familyParam);
   const brand =
     brandThemes.find((x) => x.id === brandThemeParam) ??
     (brandThemes.length === 1 ? brandThemes[0] : undefined);
   return {
     name: WIDGET_CATALOG[kind].name[toWidgetLocale(locale)],
     kind,
+    // esporte fora do plano: o primeiro do plano que o tipo aceita (nos de todos os esportes, todos)
+    sport:
+      sport && (!tenant.sports.length || tenant.sports.includes(sport))
+        ? sport
+        : defaultSport(kind) && sportChoices(tenant.sports, kind)[0]
+          ? sportChoices(tenant.sports, kind)[0]!.sport
+          : null,
     theme: brand ? { ...brand.theme } : { ...DEFAULT_THEMES.dark },
     brandThemeId: brand?.id ?? null,
     locale: toWidgetLocale(locale),
@@ -97,6 +110,25 @@ export function newDraft(
     options: {},
     optionEntities: {},
   };
+}
+
+const LOOKUP_PATH: Record<LookupSource, string> = {
+  eq_competition: '/v1/equestrian/competitions',
+  eq_athlete: '/v1/equestrian/athletes',
+  eq_horse: '/v1/equestrian/horses',
+  games: '/v1/multisport/games',
+};
+
+/** Nome da prova, do cavaleiro, do cavalo ou da edição escolhida nas opções; sem resposta, o id. */
+async function lookupLabel(source: LookupSource, id: string, locale: Locale): Promise<string> {
+  try {
+    const data = await galaxieGet<{ name?: string }>(`${LOOKUP_PATH[source]}/${encodeURIComponent(id)}`, {
+      locale: apiLocale(locale),
+    });
+    return data.name ?? id;
+  } catch {
+    return id;
+  }
 }
 
 /** Nome e escudo das entidades guardadas nas opções (time a destacar, campeonato do filtro). */
@@ -112,6 +144,9 @@ async function optionEntitiesOf(
       const entity = await resolveEntity(spec.type, id, locale);
       if (entity) out[spec.key] = entity;
     }
+    if (spec.type === 'lookup' && typeof id === 'string') {
+      out[spec.key] = { type: 'lookup', id, label: await lookupLabel(spec.source, id, locale) };
+    }
   }
   return out;
 }
@@ -122,6 +157,8 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
   return {
     name: widget.name,
     kind: widget.kind,
+    // widget salvo antes do esporte (os de futebol): o padrão do tipo
+    sport: sportOf(widget.kind, widget.config.defaults?.sport) ?? defaultSport(widget.kind),
     theme: widget.config.theme,
     brandThemeId: widget.config.brandThemeId ?? null,
     locale: isWidgetLocale(widget.config.locale) ? widget.config.locale : toWidgetLocale(locale),

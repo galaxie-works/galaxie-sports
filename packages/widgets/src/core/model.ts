@@ -15,6 +15,21 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'race_result',
+  'race_weekend',
+  'season_calendar',
+  'athlete_profile',
+  'fight_card',
+  'equestrian_results',
+  'equestrian_ranking',
+  'equestrian_calendar',
+  'rider_profile',
+  'horse_profile',
+  'medal_table',
+  'country_today',
+  'games_schedule',
+  'country_athletes',
+  'medal_history',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -200,6 +215,302 @@ export interface GsParticipant {
   fan_tags?: GsFanTag[] | undefined;
   /** Grito curto da torcida no mercado da resposta. */
   cheer?: { text: string } | null | undefined;
+  /** Corridas (F1, lado `grid`): posição final na sessão. */
+  position?: number | null | undefined;
+  /** Corridas (F1): tempo, diferença, voltas, largada, paradas e a equipe. */
+  result?: GsParticipantResult | null | undefined;
+  /** Corridas (F1): retrato do piloto. */
+  photo?: { url: string | null } | null | undefined;
+}
+
+export interface GsParticipantResult {
+  time: string | null;
+  gap: string | null;
+  laps: number | null;
+  grid: number | null;
+  pits: number | null;
+  team: { id: string | null; name: string; logo: string | null } | null;
+}
+
+/** Sessão do fim de semana de corrida (F1): o GP é a fase (`stage`), a sessão é o evento. */
+export interface GsSession {
+  type: 'practice' | 'qualifying' | 'sprint_qualifying' | 'sprint' | 'race';
+  number: number | null;
+  /** Nome no idioma da resposta ("Corrida", "Treino livre 2"). */
+  name: string;
+  laps: number | null;
+  distance: string | null;
+  fastest_lap: { participant_id: string | null; time: string | null } | null;
+}
+
+/** Luta de MMA: card, segmento, categoria e desfecho. */
+export interface GsFight {
+  card: { id: string; name: string } | null;
+  segment: 'main_card' | 'prelims' | 'early_prelims';
+  main_event: boolean;
+  weight_class: { code: string; name: string } | null;
+  result: {
+    method: string;
+    method_name: string;
+    detail: string | null;
+    round: number | null;
+    time: string | null;
+    scorecards: string[];
+  } | null;
+}
+
+/** Card de MMA (`/v1/events/{id}/card`): a noite de lutas. */
+export interface GsFightCard {
+  card: { id: string; name: string; starts_at: string; ends_at: string };
+  fights: GsEvent[];
+}
+
+/** Carreira na F1 (`/v1/teams/{id}/career`), só o que o perfil usa. */
+export interface GsRaceCareer {
+  participant_id: string;
+  kind: 'driver' | 'constructor';
+  profile: {
+    first_name: string;
+    last_name: string;
+    number: number | null;
+    birth_date: string | null;
+    birth_country: { code: string; name: string; flag: string | null } | null;
+  } | null;
+  current_season: number | null;
+  totals: {
+    seasons: number;
+    races: number;
+    wins: number;
+    poles: number;
+    podiums: number;
+    fastest_laps: number;
+    points: number | null;
+  };
+  titles: number[];
+  best_finish: number | null;
+  teams: { id: string; name: string; logo: string | null; from: number; to: number }[];
+  seasons: {
+    year: number;
+    position: number | null;
+    final: boolean;
+    points: number | null;
+    races: number;
+    wins: number;
+    podiums: number;
+    poles: number;
+  }[];
+  portrait: { url: string | null } | null;
+}
+
+/** Competição (`/v1/competitions/{id}`), só o que os widgets usam. */
+export interface GsCompetition {
+  id: string;
+  slug: string;
+  sport: string;
+  name: string;
+  logo: string | null;
+  seasons?:
+    | { year: number; label: string; start_date: string | null; end_date: string | null; current: boolean }[]
+    | undefined;
+}
+
+// ─── hipismo (`/v1/equestrian/*`) ───────────────────────────────────────────────────────────────
+
+export interface GsEqCountry {
+  code: string;
+  iso2: string | null;
+  name: string | null;
+  flag_url: string | null;
+}
+
+export interface GsEqAthleteRef {
+  id: string;
+  name: string;
+  country: GsEqCountry | null;
+}
+
+export interface GsEqHorseRef {
+  id: string;
+  name: string;
+  breed: string | null;
+  born_year: number | null;
+  age: number | null;
+}
+
+export interface GsEqCompetition {
+  id: string;
+  name: string;
+  level: string | null;
+  date: string | null;
+  venue: string | null;
+  country: GsEqCountry | null;
+  height_cm: number | null;
+  is_grand_prix: boolean;
+  show?: { start: string | null; end: string | null } | null | undefined;
+}
+
+export interface GsEqResult {
+  id: string;
+  date: string | null;
+  competition: GsEqCompetition | null;
+  athlete: GsEqAthleteRef | null;
+  athlete_name_as_published: string;
+  horse: GsEqHorseRef | null;
+  horse_name_as_published: string | null;
+  country: GsEqCountry | null;
+  position: number | null;
+  position_raw: string | null;
+  status: string;
+  score: {
+    raw: string | null;
+    penalties: number | null;
+    time_seconds: number | null;
+  };
+  prize: { amount: number | null; currency: string | null; raw: string | null } | null;
+}
+
+export interface GsEqCompetitionDetail extends GsEqCompetition {
+  standings: GsEqResult[];
+}
+
+export interface GsEqRanking {
+  id: string;
+  ranking: string;
+  athlete: GsEqAthleteRef | null;
+  horse: GsEqHorseRef | null;
+  horse_name_as_published: string | null;
+  rank: number | null;
+  points: number | null;
+  edition: string | null;
+}
+
+export interface GsEqAthlete extends GsEqAthleteRef {
+  stats: { results: number; classified: number; wins: number; podiums: number; last_result: string | null };
+  horses: (GsEqHorseRef & { results: number; best_position: number | null })[];
+  rankings: GsEqRanking[];
+}
+
+export interface GsEqHorse extends GsEqHorseRef {
+  gender: string | null;
+  color: string | null;
+  studbook: string | null;
+  sire: string | null;
+  dam: string | null;
+  dam_sire: string | null;
+  riders: (GsEqAthleteRef & { results: number })[];
+  stats: { results: number; wins: number; podiums: number };
+}
+
+export interface GsEqOverview {
+  highlights: GsEqAthleteRef[];
+  recent_competitions: GsEqCompetition[];
+}
+
+export interface GsPage<T> {
+  data: T[];
+  next_cursor?: string | null | undefined;
+}
+
+// ─── Olimpíadas e Pan (`/v1/multisport/*`) ──────────────────────────────────────────────────────
+
+export interface GsGames {
+  slug: string;
+  type: string;
+  season: string;
+  year: number;
+  name: string;
+  host_city: string;
+  start_date: string;
+  end_date: string;
+  tz: string;
+  status: 'completed' | 'in_progress' | 'upcoming';
+}
+
+export interface GsNoc {
+  code: string;
+  name: string;
+  iso2: string | null;
+}
+
+export interface GsMedalCounts {
+  gold: number;
+  silver: number;
+  bronze: number;
+  total: number;
+}
+
+export interface GsMedalQuality {
+  level: string | null;
+  publishable?: boolean | undefined;
+}
+
+export interface GsMedalTable {
+  games: GsGames;
+  data_quality: GsMedalQuality;
+  data: (GsMedalCounts & { rank: number; noc: GsNoc })[];
+}
+
+export interface GsScheduleUnit {
+  id: string;
+  name: string | null;
+  starts_at: string | null;
+  status: 'scheduled' | 'live' | 'finished' | 'delayed' | 'cancelled';
+  venue: string | null;
+  is_medal_unit: boolean;
+  phase: { code: string; name: string };
+  event: {
+    id: string;
+    name: string;
+    discipline: { code: string; name: string; sport: { code: string; name: string } } | null;
+  };
+}
+
+export interface GsGamesMedal {
+  medal: 'G' | 'S' | 'B';
+  participant: { id: string; name: string };
+  event?: { id: string; name: string } | undefined;
+  revoked: boolean;
+}
+
+export interface GsNocToday {
+  games: GsGames;
+  noc: GsNoc;
+  date: string;
+  units: GsScheduleUnit[];
+  medals: GsGamesMedal[];
+}
+
+export interface GsDelegation {
+  games: GsGames;
+  noc: GsNoc;
+  data: {
+    person_id: string;
+    name: string;
+    medals: GsMedalCounts;
+    events: { id: string; name: string; medal: 'G' | 'S' | 'B' | null }[];
+  }[];
+}
+
+export interface GsMedalHistory {
+  nocs: GsNoc[];
+  data: (GsMedalCounts & {
+    games: { slug: string; type: string; season: string; year: number; name: string };
+    noc: string;
+    rank_by_gold: number;
+  })[];
+  totals: (GsMedalCounts & { noc: string })[];
+  withheld: { slug: string; name: string }[];
+}
+
+/** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
+export interface GsTeam {
+  id: string;
+  sport: string;
+  kind: string;
+  name: string;
+  short_name: string | null;
+  logo: string | null;
+  country_ref?: { code: string; name: string; flag: string | null } | null | undefined;
 }
 
 /** Rótulo no locale da resposta (`{ "pt-BR": "…" }`). */
@@ -219,6 +530,12 @@ export interface GsStake {
   text: GsLocalizedText;
   phase: 'pre_match' | 'result';
   salient: boolean;
+}
+
+/** AFL: gols (6 pontos) e behinds (1 ponto) de cada lado. */
+export interface GsGoalsBehinds {
+  home: { goals: number | null; behinds: number | null };
+  away: { goals: number | null; behinds: number | null };
 }
 
 export interface GsEvent {
@@ -241,7 +558,24 @@ export interface GsEvent {
     penalty: GsSidePair | null;
     halftime?: GsSidePair | null | undefined;
     aggregate?: GsSidePair | null | undefined;
-    periods?: { code: string; home: number | null; away: number | null }[] | null | undefined;
+    periods?:
+      | {
+          code: string;
+          home: number | null;
+          away: number | null;
+          goals_behinds?: GsGoalsBehinds | undefined;
+        }[]
+      | null
+      | undefined;
+    /** AFL: gols e behinds do placar final. */
+    goals_behinds?: GsGoalsBehinds | undefined;
+    /** Beisebol: rebatidas e erros (o H e o E do R/H/E). */
+    hits_errors?:
+      | {
+          home: { hits: number | null; errors: number | null };
+          away: { hits: number | null; errors: number | null };
+        }
+      | undefined;
   };
   venue: { name: string; city: string | null; timezone?: string | null | undefined } | null;
   /** Importância do jogo (0–100). */
@@ -251,6 +585,10 @@ export interface GsEvent {
   referee?: { name: string; country?: string | null | undefined } | null | undefined;
   derby?: { slug: string; name: string; intensity: number } | null | undefined;
   stakes?: GsStake[] | undefined;
+  /** F1: a sessão do fim de semana. */
+  session?: GsSession | null | undefined;
+  /** MMA: card, categoria e desfecho da luta. */
+  fight?: GsFight | null | undefined;
 }
 
 /** Lance do minuto a minuto (`/v1/events/{id}/timeline`), só o que os widgets usam. */
@@ -377,12 +715,21 @@ export interface GsStandingRow {
   goal_diff: number;
   goals_for?: number | undefined;
   goals_against?: number | undefined;
+  /** Hóquei: das vitórias/derrotas, as na prorrogação ou nos pênaltis. */
+  ot_won?: number | null | undefined;
+  ot_lost?: number | null | undefined;
+  /** Corridas (F1): retrato do piloto, equipe da temporada e pódios. */
+  photo?: { url: string | null } | null | undefined;
+  season_team?: { id: string | null; name: string; livery: { primary: string } | null } | null | undefined;
+  podiums?: number | null | undefined;
   form: string | null;
   description: string | null;
 }
 
 export interface GsStandings {
   competition_id: string;
+  /** Esporte da competição (ausente em respostas antigas = futebol). */
+  sport?: string | undefined;
   season: { year: number; label: string };
   groups: {
     /** Nome do grupo no fornecedor ("Apertura - Group A", "annual"): chave, não texto para exibir. */
@@ -829,11 +1176,16 @@ export const WIDGET_CSS = `
 .gs-crest{flex:none;width:var(--gs-crest);height:var(--gs-crest);object-fit:contain}
 .gs-crest[data-size=sm]{width:20px;height:20px}
 .gs-crest[data-size=xs]{width:16px;height:16px}
+.gs-crest[data-size=lg]{width:56px;height:56px;border-radius:calc(var(--gs-radius)/1.5)}
+.gs-profile{display:flex;align-items:center;gap:var(--gs-gap)}
+.gs-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:var(--gs-gap)}
+.gs-list>[data-next],.gs-list>[data-live]{box-shadow:inset 3px 0 0 var(--gs-primary)}
 .gs-initials{display:inline-grid;place-items:center;border-radius:calc(var(--gs-radius)/2);background:color-mix(in srgb,var(--gs-foreground) 9%,transparent);color:var(--gs-muted-foreground);font-weight:700;font-size:.8em;letter-spacing:.02em}
 .gs-initials[data-size=sm],.gs-initials[data-size=xs]{font-size:8px}
 .gs-match{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap)}
 .gs-team{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center;font-weight:600}
 .gs-team[data-lost]{color:var(--gs-muted-foreground)}
+.gs-team[data-won]{font-weight:800}
 .gs-score{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:1.9em;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
 .gs-score[data-live]{color:var(--gs-primary)}
 .gs-score small{font-size:.38em;font-weight:600;color:var(--gs-muted-foreground)}
@@ -874,6 +1226,8 @@ export const WIDGET_CSS = `
 .gs-table tr:last-child td{border-bottom:0}
 .gs-table .gs-left{text-align:left}
 .gs-table .gs-strong{font-weight:800}
+.gs-linescore th[scope=row]{font-size:1em;font-weight:600;color:var(--gs-foreground);border-bottom:1px solid var(--gs-border);max-width:9em}
+.gs-linescore tr:last-child th{border-bottom:0}
 .gs-rank{width:28px;color:var(--gs-muted-foreground)}
 .gs-rank[data-zone]{box-shadow:inset 3px 0 0 var(--gs-zone,var(--gs-primary));color:var(--gs-foreground);font-weight:700}
 .gs-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;padding:0;list-style:none;font-size:.75em;color:var(--gs-muted-foreground)}
@@ -940,6 +1294,7 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-player{display:block;width:100%;min-width:200px;min-height:200px;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
 .gs-player[data-vertical]{max-width:320px;aspect-ratio:9/16;margin:0 auto}
 .gs-h2h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap);text-align:center}
+.gs-h2h[data-no-draws]{grid-template-columns:1fr 1fr}
 .gs-stat{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
 .gs-stat strong{font-size:1.6em;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
 .gs-bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:color-mix(in srgb,var(--gs-foreground) 8%,transparent)}
@@ -950,6 +1305,10 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-meeting{display:flex;flex:1;align-items:center;justify-content:center;gap:6px;min-width:0}
 .gs-meeting strong{flex:none;font-variant-numeric:tabular-nums}
 .gs-meeting [data-lost]{color:var(--gs-muted-foreground)}
+.gs-meeting [data-won]{font-weight:800}
+.gs-bout{display:flex;flex-direction:column;gap:2px;padding:calc(var(--gs-gap)*.5) 0;border-bottom:1px solid var(--gs-border)}
+.gs-bout:last-child{border-bottom:0}
+.gs-bout>.gs-meta{text-align:center}
 .gs-fixture-date{flex:none;width:6.5em;font-size:.8em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
 .gs-result{display:inline-grid;place-items:center;flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;font-size:.75em;font-weight:800;color:#fff;background:var(--gs-muted-foreground)}
 .gs-result[data-r=W]{background:#16a34a}.gs-result[data-r=L]{background:var(--gs-live)}
@@ -964,6 +1323,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-form{display:inline-flex;gap:2px}
 .gs-form .gs-result{min-width:16px;height:16px;font-size:.65em}
 .gs-highlight td{background:color-mix(in srgb,var(--gs-primary) 12%,transparent)}
+.gs-flag{font-size:1.1em;line-height:1}
+.gs-medal{display:inline-grid;place-items:center;width:1.4em;height:1.4em;border-radius:999px;font-size:.75em;font-weight:800;color:#1a1a1a}
+.gs-medal[data-medal=G]{background:#e6c24a}
+.gs-medal[data-medal=S]{background:#c4c8cf}
+.gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 `;
@@ -1099,6 +1463,135 @@ export interface WidgetTexts {
     /** "Escrito às {time}". */
     writtenAt: string;
     intensity: string;
+  };
+  /** Termos dos outros esportes (épico #731): parciais, colunas da tabela por unidade do placar. */
+  sport: {
+    /** Rótulo curto de cada parcial; `{n}` = número. q: quarto; s: set; h: tempo; p: período; i: entrada. */
+    period: { q: string; s: string; h: string; p: string; i: string; ot: string; so: string; extra: string };
+    /** Coluna do total na tabela de parciais. */
+    total: string;
+    /** Pró, contra e saldo pela unidade do placar (os gols usam `extra.goalsFor` e `columns.goalDiff`). */
+    units: Record<'points' | 'runs' | 'sets', { for: string; against: string; diff: string }>;
+    /** Derrotas na prorrogação ou nos pênaltis (hóquei). */
+    otLosses: string;
+    /** Aproveitamento por vitórias (basquete, beisebol, futebol americano). */
+    winPct: string;
+    /** Percentual da AFL (pontos pró ÷ contra × 100). */
+    ratio: string;
+    /** Beisebol: corridas, rebatidas e erros (R/H/E) no placar por entradas. */
+    rhe: { r: string; h: string; e: string };
+    /** Beisebol: jogos atrás do líder (GB). */
+    gamesBehind: string;
+  };
+  /** Corridas (F1): resultado, fim de semana, classificação, calendário e perfil do piloto. */
+  racing: {
+    result: string;
+    weekend: string;
+    calendar: string;
+    position: string;
+    driver: string;
+    team: string;
+    time: string;
+    grid: string;
+    laps: string;
+    pits: string;
+    fastestLap: string;
+    points: string;
+    wins: string;
+    podiums: string;
+    poles: string;
+    races: string;
+    titles: string;
+    drivers: string;
+    constructors: string;
+    empty: string;
+    emptyCalendar: string;
+    /** "Venceu: {name}". */
+    winner: string;
+    /** "{n}º no campeonato". */
+    championship: string;
+    /** "Temporada {year}". */
+    season: string;
+    career: string;
+    bestFinish: string;
+    next: string;
+  };
+  /** MMA: card do evento, resultado da luta, calendário e perfil do lutador. */
+  fights: {
+    card: string;
+    mainEvent: string;
+    segments: Record<'main_card' | 'prelims' | 'early_prelims', string>;
+    /** "R{round} · {time}". */
+    roundTime: string;
+    /** "Cartões: {cards}". */
+    scorecards: string;
+    record: string;
+    lastFights: string;
+    upcoming: string;
+    empty: string;
+    emptyCalendar: string;
+    /** "{w}-{l}-{d}" vitórias, derrotas, empates. */
+    recordValue: string;
+    win: string;
+    loss: string;
+    draw: string;
+    /** "vs. {name}". */
+    versus: string;
+  };
+  /** Hipismo: resultados, ranking, calendário e perfis do cavaleiro e do cavalo. */
+  equestrian: {
+    results: string;
+    ranking: string;
+    calendar: string;
+    rider: string;
+    horse: string;
+    combination: string;
+    faults: string;
+    time: string;
+    prize: string;
+    points: string;
+    starts: string;
+    wins: string;
+    podiums: string;
+    horses: string;
+    riders: string;
+    recent: string;
+    pedigree: string;
+    sire: string;
+    dam: string;
+    damSire: string;
+    /** "{age} anos". */
+    age: string;
+    gender: Record<'mare' | 'stallion' | 'gelding' | 'male', string>;
+    grandPrix: string;
+    empty: string;
+    emptyCalendar: string;
+    emptyRanking: string;
+  };
+  /** Olimpíadas e Pan: quadro de medalhas, o dia do país, programação, atletas e histórico. */
+  olympics: {
+    medals: string;
+    /** "{country} hoje". */
+    today: string;
+    schedule: string;
+    /** "Atletas · {country}". */
+    athletes: string;
+    history: string;
+    edition: string;
+    country: string;
+    gold: string;
+    silver: string;
+    bronze: string;
+    total: string;
+    medalEvent: string;
+    medalsToday: string;
+    /** "Nenhuma prova de {country} neste dia." */
+    noUnits: string;
+    emptySchedule: string;
+    noAthletes: string;
+    withheld: string;
+    /** "Soma de {n} edições". */
+    totals: string;
   };
 }
 
@@ -1269,6 +1762,127 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       writtenAt: 'Escrito às {time}',
       intensity: 'Intensidade',
     },
+    sport: {
+      period: {
+        q: '{n}Q',
+        s: '{n}S',
+        h: '{n}T',
+        p: '{n}P',
+        i: '{n}',
+        ot: 'Prorr.',
+        so: 'Pên.',
+        extra: 'Extra',
+      },
+      total: 'Total',
+      units: {
+        points: { for: 'PP', against: 'PC', diff: 'SP' },
+        runs: { for: 'CP', against: 'CC', diff: 'SC' },
+        sets: { for: 'SV', against: 'SP', diff: 'SS' },
+      },
+      otLosses: 'DP',
+      winPct: '%V',
+      ratio: '%',
+      rhe: { r: 'C', h: 'H', e: 'E' },
+      gamesBehind: 'JA',
+    },
+    racing: {
+      result: 'Resultado',
+      weekend: 'Fim de semana do GP',
+      calendar: 'Calendário',
+      position: 'Pos.',
+      driver: 'Piloto',
+      team: 'Equipe',
+      time: 'Tempo',
+      grid: 'Larg.',
+      laps: 'Voltas',
+      pits: 'Paradas',
+      fastestLap: 'Volta mais rápida',
+      points: 'Pts',
+      wins: 'Vitórias',
+      podiums: 'Pódios',
+      poles: 'Poles',
+      races: 'Corridas',
+      titles: 'Títulos',
+      drivers: 'Pilotos',
+      constructors: 'Construtores',
+      empty: 'O resultado sai quando a sessão terminar.',
+      emptyCalendar: 'Sem provas nesta temporada.',
+      winner: 'Venceu: {name}',
+      championship: '{n}º no campeonato',
+      season: 'Temporada {year}',
+      career: 'Carreira',
+      bestFinish: 'Melhor resultado',
+      next: 'Próxima',
+    },
+    fights: {
+      card: 'Card do evento',
+      mainEvent: 'Luta principal',
+      segments: {
+        main_card: 'Card principal',
+        prelims: 'Preliminares',
+        early_prelims: 'Preliminares iniciais',
+      },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Juízes: {cards}',
+      record: 'Cartel',
+      lastFights: 'Últimas lutas',
+      upcoming: 'Próximos eventos',
+      empty: 'O card ainda não foi divulgado.',
+      emptyCalendar: 'Sem eventos marcados.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'V',
+      loss: 'D',
+      draw: 'E',
+      versus: 'vs. {name}',
+    },
+    equestrian: {
+      results: 'Resultados',
+      ranking: 'Ranking',
+      calendar: 'Calendário de provas',
+      rider: 'Cavaleiro',
+      horse: 'Cavalo',
+      combination: 'Conjunto',
+      faults: 'Faltas',
+      time: 'Tempo',
+      prize: 'Prêmio',
+      points: 'Pts',
+      starts: 'Provas',
+      wins: 'Vitórias',
+      podiums: 'Pódios',
+      horses: 'Cavalos',
+      riders: 'Cavaleiros',
+      recent: 'Últimos resultados',
+      pedigree: 'Pedigree',
+      sire: 'Pai',
+      dam: 'Mãe',
+      damSire: 'Avô materno',
+      age: '{age} anos',
+      gender: { mare: 'Égua', stallion: 'Garanhão', gelding: 'Castrado', male: 'Macho' },
+      grandPrix: 'GP',
+      empty: 'Sem resultados nesta prova.',
+      emptyCalendar: 'Nenhuma prova no período.',
+      emptyRanking: 'Ranking indisponível.',
+    },
+    olympics: {
+      medals: 'Quadro de medalhas',
+      today: '{country} hoje',
+      schedule: 'Programação',
+      athletes: 'Atletas · {country}',
+      history: 'Histórico de medalhas',
+      edition: 'Edição',
+      country: 'País',
+      gold: 'Ouro',
+      silver: 'Prata',
+      bronze: 'Bronze',
+      total: 'Total',
+      medalEvent: 'Vale medalha',
+      medalsToday: 'Medalhas do dia',
+      noUnits: 'Nenhuma prova de {country} neste dia.',
+      emptySchedule: 'Nenhuma prova neste dia.',
+      noAthletes: 'Nenhum atleta encontrado.',
+      withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
+      totals: 'Soma de {n} edições',
+    },
   },
   es: {
     status: {
@@ -1435,6 +2049,127 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       position: '{rank}º · {competition}',
       writtenAt: 'Escrito a las {time}',
       intensity: 'Intensidad',
+    },
+    sport: {
+      period: {
+        q: 'C{n}',
+        s: 'S{n}',
+        h: '{n}T',
+        p: 'P{n}',
+        i: '{n}',
+        ot: 'Prór.',
+        so: 'Pen.',
+        extra: 'Extra',
+      },
+      total: 'Total',
+      units: {
+        points: { for: 'PF', against: 'PC', diff: 'DIF' },
+        runs: { for: 'CA', against: 'CR', diff: 'DIF' },
+        sets: { for: 'SG', against: 'SP', diff: 'DIF' },
+      },
+      otLosses: 'PP',
+      winPct: '%G',
+      ratio: '%',
+      rhe: { r: 'C', h: 'H', e: 'E' },
+      gamesBehind: 'JD',
+    },
+    racing: {
+      result: 'Resultado',
+      weekend: 'Fin de semana del GP',
+      calendar: 'Calendario',
+      position: 'Pos.',
+      driver: 'Piloto',
+      team: 'Equipo',
+      time: 'Tiempo',
+      grid: 'Sal.',
+      laps: 'Vueltas',
+      pits: 'Paradas',
+      fastestLap: 'Vuelta rápida',
+      points: 'Pts',
+      wins: 'Victorias',
+      podiums: 'Podios',
+      poles: 'Poles',
+      races: 'Carreras',
+      titles: 'Títulos',
+      drivers: 'Pilotos',
+      constructors: 'Constructores',
+      empty: 'El resultado sale cuando termine la sesión.',
+      emptyCalendar: 'Sin carreras en esta temporada.',
+      winner: 'Ganó: {name}',
+      championship: '{n}º en el campeonato',
+      season: 'Temporada {year}',
+      career: 'Carrera',
+      bestFinish: 'Mejor resultado',
+      next: 'Próxima',
+    },
+    fights: {
+      card: 'Cartelera',
+      mainEvent: 'Pelea estelar',
+      segments: {
+        main_card: 'Cartelera principal',
+        prelims: 'Preliminares',
+        early_prelims: 'Preliminares iniciales',
+      },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Jueces: {cards}',
+      record: 'Récord',
+      lastFights: 'Últimas peleas',
+      upcoming: 'Próximos eventos',
+      empty: 'La cartelera aún no fue anunciada.',
+      emptyCalendar: 'Sin eventos programados.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'G',
+      loss: 'P',
+      draw: 'E',
+      versus: 'vs. {name}',
+    },
+    equestrian: {
+      results: 'Resultados',
+      ranking: 'Ranking',
+      calendar: 'Calendario de pruebas',
+      rider: 'Jinete',
+      horse: 'Caballo',
+      combination: 'Binomio',
+      faults: 'Faltas',
+      time: 'Tiempo',
+      prize: 'Premio',
+      points: 'Pts',
+      starts: 'Pruebas',
+      wins: 'Victorias',
+      podiums: 'Podios',
+      horses: 'Caballos',
+      riders: 'Jinetes',
+      recent: 'Últimos resultados',
+      pedigree: 'Pedigrí',
+      sire: 'Padre',
+      dam: 'Madre',
+      damSire: 'Abuelo materno',
+      age: '{age} años',
+      gender: { mare: 'Yegua', stallion: 'Semental', gelding: 'Castrado', male: 'Macho' },
+      grandPrix: 'GP',
+      empty: 'Sin resultados en esta prueba.',
+      emptyCalendar: 'Ninguna prueba en el período.',
+      emptyRanking: 'Ranking no disponible.',
+    },
+    olympics: {
+      medals: 'Medallero',
+      today: '{country} hoy',
+      schedule: 'Programación',
+      athletes: 'Atletas · {country}',
+      history: 'Historial de medallas',
+      edition: 'Edición',
+      country: 'País',
+      gold: 'Oro',
+      silver: 'Plata',
+      bronze: 'Bronce',
+      total: 'Total',
+      medalEvent: 'Por medalla',
+      medalsToday: 'Medallas del día',
+      noUnits: 'Ninguna prueba de {country} este día.',
+      emptySchedule: 'Ninguna prueba este día.',
+      noAthletes: 'Ningún atleta encontrado.',
+      withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
+      totals: 'Suma de {n} ediciones',
     },
   },
   en: {
@@ -1603,6 +2338,114 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       writtenAt: 'Written at {time}',
       intensity: 'Intensity',
     },
+    sport: {
+      period: { q: 'Q{n}', s: 'S{n}', h: 'H{n}', p: 'P{n}', i: '{n}', ot: 'OT', so: 'SO', extra: 'Extra' },
+      total: 'T',
+      units: {
+        points: { for: 'PF', against: 'PA', diff: 'DIFF' },
+        runs: { for: 'RS', against: 'RA', diff: 'DIFF' },
+        sets: { for: 'SW', against: 'SL', diff: 'DIFF' },
+      },
+      otLosses: 'OTL',
+      winPct: 'PCT',
+      ratio: '%',
+      rhe: { r: 'R', h: 'H', e: 'E' },
+      gamesBehind: 'GB',
+    },
+    racing: {
+      result: 'Result',
+      weekend: 'Grand Prix weekend',
+      calendar: 'Calendar',
+      position: 'Pos',
+      driver: 'Driver',
+      team: 'Team',
+      time: 'Time',
+      grid: 'Grid',
+      laps: 'Laps',
+      pits: 'Stops',
+      fastestLap: 'Fastest lap',
+      points: 'Pts',
+      wins: 'Wins',
+      podiums: 'Podiums',
+      poles: 'Poles',
+      races: 'Races',
+      titles: 'Titles',
+      drivers: 'Drivers',
+      constructors: 'Constructors',
+      empty: 'Results appear when the session ends.',
+      emptyCalendar: 'No races this season.',
+      winner: 'Won by {name}',
+      championship: 'P{n} in the championship',
+      season: '{year} season',
+      career: 'Career',
+      bestFinish: 'Best finish',
+      next: 'Next',
+    },
+    fights: {
+      card: 'Fight card',
+      mainEvent: 'Main event',
+      segments: { main_card: 'Main card', prelims: 'Prelims', early_prelims: 'Early prelims' },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Judges: {cards}',
+      record: 'Record',
+      lastFights: 'Recent fights',
+      upcoming: 'Upcoming events',
+      empty: 'The card has not been announced yet.',
+      emptyCalendar: 'No events scheduled.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'W',
+      loss: 'L',
+      draw: 'D',
+      versus: 'vs. {name}',
+    },
+    equestrian: {
+      results: 'Results',
+      ranking: 'Ranking',
+      calendar: 'Competition calendar',
+      rider: 'Rider',
+      horse: 'Horse',
+      combination: 'Combination',
+      faults: 'Faults',
+      time: 'Time',
+      prize: 'Prize',
+      points: 'Pts',
+      starts: 'Starts',
+      wins: 'Wins',
+      podiums: 'Podiums',
+      horses: 'Horses',
+      riders: 'Riders',
+      recent: 'Latest results',
+      pedigree: 'Pedigree',
+      sire: 'Sire',
+      dam: 'Dam',
+      damSire: 'Dam sire',
+      age: '{age} years old',
+      gender: { mare: 'Mare', stallion: 'Stallion', gelding: 'Gelding', male: 'Male' },
+      grandPrix: 'GP',
+      empty: 'No results for this competition.',
+      emptyCalendar: 'No competitions in this period.',
+      emptyRanking: 'Ranking unavailable.',
+    },
+    olympics: {
+      medals: 'Medal table',
+      today: '{country} today',
+      schedule: 'Schedule',
+      athletes: 'Athletes · {country}',
+      history: 'Medal history',
+      edition: 'Games',
+      country: 'Country',
+      gold: 'Gold',
+      silver: 'Silver',
+      bronze: 'Bronze',
+      total: 'Total',
+      medalEvent: 'Medal event',
+      medalsToday: 'Medals today',
+      noUnits: 'No {country} events on this day.',
+      emptySchedule: 'No events on this day.',
+      noAthletes: 'No athletes found.',
+      withheld: 'Medal table under review: this edition is not complete yet.',
+      totals: 'Total of {n} Games',
+    },
   },
 };
 
@@ -1678,6 +2521,189 @@ export function sidesOf(event: Pick<GsEvent, 'participants'>): {
 export function clockText(clock: GsEvent['clock']): string | null {
   if (!clock?.minute) return null;
   return clock.extra ? `${clock.minute}+${clock.extra}'` : `${clock.minute}'`;
+}
+
+// ─── esportes (épico #731) ───────────────────────────────────────────────────────────────────────
+
+/** Unidade do placar: muda os rótulos de pró, contra e saldo na tabela. */
+export type SportScoreUnit = 'goals' | 'points' | 'runs' | 'sets';
+
+/**
+ * Como cada esporte conta: se há empate, se a tabela tem coluna de pontos (no basquete, beisebol e
+ * futebol americano a classificação é por vitórias), quanto vale a vitória (para o aproveitamento), se há
+ * derrota na prorrogação à parte (hóquei) e se o placar mostra as parciais por padrão.
+ */
+export interface SportProfile {
+  sport: string;
+  draws: boolean;
+  /** Coluna de pontos na tabela. */
+  points: boolean;
+  /** Aproveitamento: % dos pontos (`points`, com `pointsPerWin`), % de vitórias (`wins`) ou pró ÷ contra (`ratio`, AFL). */
+  percentage: 'points' | 'wins' | 'ratio';
+  pointsPerWin: number;
+  overtimeLosses: boolean;
+  unit: SportScoreUnit;
+  /** Parciais (sets, quartos, entradas) no placar por padrão. */
+  periods: boolean;
+}
+
+const FOOTBALL_PROFILE: SportProfile = {
+  sport: 'football',
+  draws: true,
+  points: true,
+  percentage: 'points',
+  pointsPerWin: 3,
+  overtimeLosses: false,
+  unit: 'goals',
+  periods: false,
+};
+
+const SPORT_PROFILES: Record<string, Omit<SportProfile, 'sport'>> = {
+  football: FOOTBALL_PROFILE,
+  basketball: {
+    ...FOOTBALL_PROFILE,
+    draws: false,
+    points: false,
+    percentage: 'wins',
+    unit: 'points',
+    periods: true,
+  },
+  nba: {
+    ...FOOTBALL_PROFILE,
+    draws: false,
+    points: false,
+    percentage: 'wins',
+    unit: 'points',
+    periods: true,
+  },
+  baseball: {
+    ...FOOTBALL_PROFILE,
+    draws: false,
+    points: false,
+    percentage: 'wins',
+    unit: 'runs',
+    periods: true,
+  },
+  'american-football': {
+    ...FOOTBALL_PROFILE,
+    points: false,
+    percentage: 'wins',
+    unit: 'points',
+    periods: true,
+  },
+  volleyball: { ...FOOTBALL_PROFILE, draws: false, percentage: 'wins', unit: 'sets', periods: true },
+  hockey: { ...FOOTBALL_PROFILE, draws: false, pointsPerWin: 2, overtimeLosses: true, periods: true },
+  handball: { ...FOOTBALL_PROFILE, pointsPerWin: 2, periods: true },
+  rugby: { ...FOOTBALL_PROFILE, percentage: 'wins', unit: 'points', periods: true },
+  afl: { ...FOOTBALL_PROFILE, percentage: 'ratio', pointsPerWin: 4, unit: 'points', periods: true },
+};
+
+/** Esportes coletivos de placar (casa × fora) que os widgets de jogo e tabela atendem. */
+export const TEAM_SPORTS = Object.keys(SPORT_PROFILES);
+
+/** Perfil do esporte; desconhecido ou ausente = futebol (o comportamento de antes). */
+export function sportProfile(sport: string | null | undefined): SportProfile {
+  const known = sport ? SPORT_PROFILES[sport] : undefined;
+  return known ? { ...known, sport: sport! } : FOOTBALL_PROFILE;
+}
+
+/** Rótulos de pró, contra e saldo da tabela na unidade do esporte. */
+export function unitLabels(
+  unit: SportScoreUnit,
+  texts: WidgetTexts,
+): { for: string; against: string; diff: string } {
+  if (unit === 'goals')
+    return { for: texts.extra.goalsFor, against: texts.extra.goalsAgainst, diff: texts.columns.goalDiff };
+  return texts.sport.units[unit];
+}
+
+/**
+ * Aproveitamento da linha da tabela, já formatado: % dos pontos disputados, % de vitórias (empate vale
+ * meia, como na NFL) ou, na AFL, pontos pró ÷ contra × 100 com uma casa. null sem jogos.
+ */
+export function standingPercentage(
+  row: Pick<GsStandingRow, 'points' | 'played' | 'won' | 'drawn' | 'goals_for' | 'goals_against'>,
+  profile: SportProfile,
+): string | null {
+  if (profile.percentage === 'ratio') {
+    const against = row.goals_against ?? 0;
+    return against > 0 ? (((row.goals_for ?? 0) / against) * 100).toFixed(1) : null;
+  }
+  if (row.played <= 0) return null;
+  const share =
+    profile.percentage === 'wins'
+      ? (row.won + row.drawn / 2) / row.played
+      : row.points / (row.played * profile.pointsPerWin);
+  return String(Math.round(share * 100));
+}
+
+/**
+ * Jogos atrás do líder do grupo (beisebol, "GB"): ((V do líder − V) + (D − D do líder)) ÷ 2. O líder e
+ * quem está empatado com ele: "–".
+ */
+export function gamesBehind(
+  row: Pick<GsStandingRow, 'won' | 'lost'>,
+  leader: Pick<GsStandingRow, 'won' | 'lost'> | undefined,
+): string {
+  if (!leader) return '–';
+  const gb = (leader.won - row.won + (row.lost - leader.lost)) / 2;
+  return gb <= 0 ? '–' : gb % 1 ? gb.toFixed(1) : String(gb);
+}
+
+/**
+ * Código de parcial da API (`q1`, `s2`, `h1`, `p3`, `i7`, `ot`, `ot2`, `so`, `extra`) a partir do período
+ * do relógio do fornecedor (`Q3`, `S2`, `1H`, `P1`, `IN5`, `OT`); null quando não é um período de jogo
+ * (intervalo, encerrado) ou é o do futebol (`first_half`…), que tem minuto.
+ */
+export function periodCodeOf(raw: string | null | undefined): string | null {
+  const p = (raw ?? '').trim().toUpperCase();
+  let m = /^(Q|S|P)(\d)$/.exec(p);
+  if (m) return `${m[1]!.toLowerCase()}${m[2]}`;
+  m = /^IN(\d{1,2})$/.exec(p);
+  if (m) return `i${Number(m[1])}`;
+  m = /^([12])H$/.exec(p);
+  if (m) return `h${m[1]}`;
+  m = /^OT(\d)?$/.exec(p);
+  if (m) return m[1] && m[1] !== '1' ? `ot${m[1]}` : 'ot';
+  if (p === 'PT' || p === 'SO' || p === 'AP') return 'so';
+  return null;
+}
+
+/** Rótulo curto de uma parcial ("2Q", "S3", "1T", "P1", "7", "Prorr."); código desconhecido sai como veio. */
+export function periodLabel(code: string, texts: WidgetTexts): string {
+  const t = texts.sport.period;
+  const m = /^([qshpi])(\d{1,2})$/.exec(code);
+  if (m) return fillText(t[m[1] as 'q' | 's' | 'h' | 'p' | 'i'], { n: Number(m[2]) });
+  const ot = /^ot(\d)?$/.exec(code);
+  if (ot) return ot[1] && ot[1] !== '1' ? `${t.ot} ${ot[1]}` : t.ot;
+  if (code === 'so') return t.so;
+  if (code === 'extra') return t.extra;
+  return code.toUpperCase();
+}
+
+/**
+ * Relógio ao vivo no selo: o minuto no futebol (`67'`); nos outros esportes, a parcial em andamento e o
+ * minuto quando o fornecedor manda ("3Q", "P2 12'", "S4"). null sem relógio.
+ */
+export function liveClockText(
+  event: Pick<GsEvent, 'clock'> & { sport?: string | undefined },
+  texts: WidgetTexts,
+): string | null {
+  if (!event.sport || event.sport === 'football') return clockText(event.clock);
+  const code = periodCodeOf(event.clock?.period);
+  const minute = event.clock?.minute ? `${event.clock.minute}'` : null;
+  return [code ? periodLabel(code, texts) : null, minute].filter(Boolean).join(' ') || null;
+}
+
+/** Placar da AFL "12.14 (86)": gols.behinds (pontos); null sem gols e behinds. */
+export function aflScoreText(
+  gb: GsGoalsBehinds | undefined,
+  side: 'home' | 'away',
+  points: number | null,
+): string | null {
+  const g = gb?.[side];
+  if (!g || g.goals === null || g.behinds === null) return null;
+  return `${g.goals}.${g.behinds}${points !== null ? ` (${points})` : ''}`;
 }
 
 export function initials(name: string): string {
@@ -1770,6 +2796,37 @@ export function eventIcs(event: GsEvent, now: Date = new Date()): string {
     'END:VCALENDAR',
     '',
   ].join('\r\n');
+}
+
+/** Bandeira em emoji a partir do código ISO de 2 letras (sem código: vazio). */
+export function flagEmoji(iso2: string | null | undefined): string {
+  if (!iso2 || !/^[a-z]{2}$/i.test(iso2)) return '';
+  return String.fromCodePoint(...[...iso2.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)));
+}
+
+/**
+ * Edição dos Jogos que o widget mostra quando não há uma escolhida: a que está em andamento; senão a
+ * última encerrada; senão a próxima.
+ */
+export function pickCurrentGames<T extends Pick<GsGames, 'status' | 'start_date'>>(
+  list: readonly T[],
+): T | null {
+  const byStart = [...list].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  return (
+    byStart.find((g) => g.status === 'in_progress') ??
+    byStart.filter((g) => g.status === 'completed').pop() ??
+    byStart.find((g) => g.status === 'upcoming') ??
+    null
+  );
+}
+
+/** Faltas e tempo de um conjunto no hipismo ("4 · 72.31s"); sem decomposição, o placar bruto. */
+export function eqScoreText(score: GsEqResult['score']): string {
+  const parts = [
+    score.penalties != null ? String(score.penalties) : null,
+    score.time_seconds != null ? `${score.time_seconds.toFixed(2)}s` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : (score.raw ?? '–');
 }
 
 /** Hora do jogo no fuso do estádio, quando o fuso é conhecido e difere do de quem vê; senão null. */

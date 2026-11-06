@@ -18,6 +18,9 @@ import type {
   GsStandings,
   GsWhereToWatch,
 } from './core/model.js';
+import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
+import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -26,6 +29,19 @@ export const PREVIEW_IDS = {
   competition: 'liga-exemplo',
   /** Clube Aurora (a agenda do time). */
   team: '0199a5c0-0000-7000-8000-0000000000a1',
+  /** F1: a corrida do GP de exemplo, o campeonato e o piloto. */
+  raceEvent: RACING_IDS.raceEvent,
+  raceCompetition: RACING_IDS.raceCompetition,
+  driver: RACING_IDS.driver,
+  /** MMA: a luta principal do card de exemplo, a liga e o lutador. */
+  fightEvent: RACING_IDS.fightEvent,
+  fightCompetition: RACING_IDS.fightCompetition,
+  fighter: RACING_IDS.fighter,
+  /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */
+  eqCompetition: OLYMPIC_IDS.eqCompetition,
+  eqAthlete: OLYMPIC_IDS.eqAthlete,
+  eqHorse: OLYMPIC_IDS.eqHorse,
+  games: OLYMPIC_IDS.games,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -216,7 +232,27 @@ const platform = (
  * Três jogos (ao vivo, mais tarde e encerrado), a tabela e o onde assistir (com a grade: TV aberta,
  * canal pago e as plataformas com o plano), relativos a `now`.
  */
-export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
+export function createPreviewFixtures(now: Date = new Date(), sport = 'football'): PreviewFixtures {
+  const f = footballFixtures(now);
+  if (sport === 'football') return f;
+  // outros esportes coletivos: o mesmo roteiro com placar, parciais e tabela do esporte
+  const events = f.events.map((e, i) => sportifyEvent(e, sport, i));
+  const live = events[0]!;
+  return {
+    ...f,
+    events,
+    standings: sportifyStandings(f.standings, sport),
+    h2h: {
+      ...f.h2h,
+      summary: sportifyH2hSummary(f.h2h.summary, sport),
+      all_time: f.h2h.all_time ? sportifyH2hSummary(f.h2h.all_time, sport) : null,
+      events: f.h2h.events.map((e, i) => sportifyEvent(e, sport, i)),
+    },
+    teamEvents: f.teamEvents.map((e, i) => (e.id === live.id ? live : sportifyEvent(e, sport, i))),
+  };
+}
+
+function footballFixtures(now: Date): PreviewFixtures {
   const minutes = (m: number) => new Date(now.getTime() + m * 60_000);
   const events: Event[] = [
     makeEvent({
@@ -272,6 +308,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
 
   const standings: Standings = {
     competition_id: COMPETITION_ID,
+    sport: 'football',
     season: { year: now.getUTCFullYear(), label: String(now.getUTCFullYear()) },
     groups: [
       {
@@ -695,11 +732,58 @@ const json = (body: unknown, status = 200) =>
  * `fetch` que responde como a API pública com os dados de exemplo — para o preview do Builder sem chave
  * e para os testes. Passe em `<GalaxieWidgetProvider fetch={createPreviewFetch()}>`.
  */
-export function createPreviewFetch(options: { now?: Date } = {}): typeof fetch {
+export function createPreviewFetch(options: { now?: Date; sport?: string } = {}): typeof fetch {
   return async (input) => {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const path = new URL(raw, 'http://preview.local').pathname.replace(/\/+$/, '');
-    const f = createPreviewFixtures(options.now ?? new Date());
+    const url = new URL(raw, 'http://preview.local');
+    const path = url.pathname.replace(/\/+$/, '');
+    const now = options.now ?? new Date();
+    const olympic = olympicPreviewBody(url, now);
+    if (olympic !== null) return json(olympic);
+    const f = createPreviewFixtures(now, options.sport);
+    const racing = createRacingFixtures(now);
+    const fights = createFightFixtures(now);
+    const id = (re: RegExp) => {
+      const m = re.exec(path);
+      return m ? decodeURIComponent(m[1]!) : null;
+    };
+    // F1 e MMA: competição, eventos, card, atleta e carreira de exemplo
+    const competitionParam = url.searchParams.get('competition');
+    const competitionId = id(/\/v1\/competitions\/([^/]+)(?:\/|$)/) ?? competitionParam;
+    const isRace = competitionId === racing.competition.id || competitionId === racing.competition.slug;
+    const isFight = competitionId === fights.competition.id || competitionId === fights.competition.slug;
+    if (/\/v1\/competitions\/[^/]+$/.test(path) && (isRace || isFight))
+      return json(isRace ? racing.competition : fights.competition);
+    if (path.endsWith('/v1/events') && (isRace || isFight)) {
+      const from = Date.parse(url.searchParams.get('from') ?? '') || -Infinity;
+      const to = Date.parse(url.searchParams.get('to') ?? '') + 86_400_000 || Infinity;
+      const list = (isRace ? racing.events : fights.events).filter((e) => {
+        const at = Date.parse(e.starts_at);
+        return at >= from && at <= to;
+      });
+      return json({ data: list, next_cursor: null });
+    }
+    if (isRace && /\/standings$/.test(path)) return json(racing.standings);
+    const card = id(/\/v1\/events\/([^/]+)\/card$/);
+    if (card) {
+      return fights.card.fights.some((e) => e.id === card)
+        ? json(fights.card)
+        : json({ type: 'about:blank', title: 'Card não encontrado', status: 404, code: 'NOT_FOUND' }, 404);
+    }
+    const eventId = id(/\/v1\/events\/([^/]+)$/);
+    const special = eventId
+      ? [...racing.events, ...fights.events, ...fights.fighterEvents].find((e) => e.id === eventId)
+      : undefined;
+    if (special) return json(special);
+    const teamId = id(/\/v1\/teams\/([^/]+)(?:\/|$)/);
+    if (teamId === racing.driver.id) {
+      if (path.endsWith('/career')) return json(racing.career);
+      if (path.endsWith(teamId)) return json(racing.driver);
+    }
+    if (teamId === fights.fighter.id) {
+      if (path.endsWith('/events')) return json({ data: fights.fighterEvents, next_cursor: null });
+      if (path.endsWith(teamId)) return json(fights.fighter);
+    }
     if (path.endsWith('/v1/events/live')) {
       return json({ data: f.events.filter((e) => e.status === 'live' || e.status === 'break') });
     }

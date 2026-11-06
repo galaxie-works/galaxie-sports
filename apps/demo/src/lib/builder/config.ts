@@ -13,6 +13,8 @@ import {
   parseStandingsOptions,
   parseWidgetOptions,
   toRegistryName,
+  widgetKindIsMultiSport,
+  widgetKindSupportsSport,
 } from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
@@ -31,6 +33,21 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'race_result',
+  'race_weekend',
+  'season_calendar',
+  'athlete_profile',
+  'fight_card',
+  'equestrian_results',
+  'equestrian_ranking',
+  'equestrian_calendar',
+  'rider_profile',
+  'horse_profile',
+  'medal_table',
+  'country_today',
+  'games_schedule',
+  'country_athletes',
+  'medal_history',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -63,6 +80,21 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   related_videos: ['event'],
   head_to_head: ['event'],
   team_schedule: ['team'],
+  race_result: ['event'],
+  race_weekend: ['event'],
+  season_calendar: ['competition'],
+  athlete_profile: ['team'],
+  fight_card: ['event'],
+  equestrian_results: [],
+  equestrian_ranking: [],
+  equestrian_calendar: [],
+  rider_profile: [],
+  horse_profile: [],
+  medal_table: [],
+  country_today: [],
+  games_schedule: [],
+  country_athletes: [],
+  medal_history: [],
 };
 
 /**
@@ -80,6 +112,21 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   related_videos: 'event',
   head_to_head: 'event',
   team_schedule: 'team',
+  race_result: 'event',
+  race_weekend: 'event',
+  season_calendar: 'competition',
+  athlete_profile: 'team',
+  fight_card: 'event',
+  equestrian_results: null,
+  equestrian_ranking: null,
+  equestrian_calendar: null,
+  rider_profile: null,
+  horse_profile: null,
+  medal_table: null,
+  country_today: null,
+  games_schedule: null,
+  country_athletes: null,
+  medal_history: null,
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -164,9 +211,34 @@ export function entityFromDefaults(
   return null;
 }
 
-export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string } | null): WidgetDefaults {
-  return entity ? { [DEFAULT_KEY[entity.type]]: entity.id } : {};
+/**
+ * Recorte padrão gravado no widget: a entidade e, nos tipos de vários esportes (Jogos do dia, placar,
+ * tabela...), o esporte escolhido. Nos tipos de um esporte só, o esporte é implícito e não é gravado.
+ */
+export function defaultsFromEntity(
+  entity: { type: WidgetEntityType; id: string } | null,
+  sport?: { kind: WidgetKind; sport: string | null },
+): WidgetDefaults {
+  return {
+    ...(entity ? { [DEFAULT_KEY[entity.type]]: entity.id } : {}),
+    ...(sport?.sport && widgetKindIsMultiSport(sport.kind) ? { sport: sport.sport } : {}),
+  };
 }
+
+/** Esporte da API: o mesmo formato de `@galaxie/contracts` (`football`, `formula-1`, `american-football`). */
+const SPORT = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+/** Esporte válido gravado no widget (ou null: todos os esportes). */
+export function sportOf(kind: WidgetKind, raw: unknown): string | null {
+  return typeof raw === 'string' &&
+    SPORT.test(raw) &&
+    widgetKindIsMultiSport(kind) &&
+    widgetKindSupportsSport(kind, raw)
+    ? raw
+    : null;
+}
+
+export { widgetKindSupportsSport };
 
 // ─── validação do que chega do navegador ─────────────────────────────────────────────────────────
 
@@ -174,7 +246,7 @@ export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string 
 const ENTITY_ID = /^[0-9a-z][0-9a-z-]{0,119}$/i;
 
 export type WidgetInputError =
-  'kind' | 'name' | 'theme' | 'brandTheme' | 'locale' | 'market' | 'entity' | 'entityRequired';
+  'kind' | 'name' | 'theme' | 'brandTheme' | 'locale' | 'market' | 'entity' | 'entityRequired' | 'sport';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -217,11 +289,16 @@ export interface WidgetInput {
 
 /**
  * Valida o que o navegador mandou para salvar. `markets` = mercados do plano (vazio = qualquer país);
- * `entityTypes` = entidades que o tipo de widget aceita (do catálogo).
+ * `entityTypes` = entidades que o tipo de widget aceita (do catálogo); `sports` = esportes do plano.
  */
 export function parseWidgetInput(
   raw: unknown,
-  opts: { markets: string[]; entityTypes: (kind: WidgetKind) => readonly WidgetEntityType[] },
+  opts: {
+    markets: string[];
+    entityTypes: (kind: WidgetKind) => readonly WidgetEntityType[];
+    /** Esportes do plano (vazio = todos). */
+    sports?: string[];
+  },
 ): { ok: true; value: WidgetInput } | { ok: false; error: WidgetInputError } {
   const r = (raw ?? {}) as Record<string, unknown>;
   if (!isWidgetKind(r.kind)) return { ok: false, error: 'kind' };
@@ -255,6 +332,12 @@ export function parseWidgetInput(
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
   } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
+  // esporte: só nos tipos de todos os esportes, e no formato da API (`sports` do plano a API confere)
+  if (d.sport !== undefined && d.sport !== null) {
+    const sport = sportOf(r.kind, d.sport);
+    if (!sport || (opts.sports?.length && !opts.sports.includes(sport))) return { ok: false, error: 'sport' };
+    defaults = { ...defaults, sport };
+  }
   return {
     ok: true,
     value: {
@@ -341,6 +424,21 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   related_videos: 'GalaxieRelatedVideos',
   head_to_head: 'GalaxieHeadToHead',
   team_schedule: 'GalaxieTeamSchedule',
+  race_result: 'GalaxieRaceResult',
+  race_weekend: 'GalaxieRaceWeekend',
+  season_calendar: 'GalaxieSeasonCalendar',
+  athlete_profile: 'GalaxieAthleteProfile',
+  fight_card: 'GalaxieFightCard',
+  equestrian_results: 'GalaxieEquestrianResults',
+  equestrian_ranking: 'GalaxieEquestrianRanking',
+  equestrian_calendar: 'GalaxieEquestrianCalendar',
+  rider_profile: 'GalaxieRiderProfile',
+  horse_profile: 'GalaxieHorseProfile',
+  medal_table: 'GalaxieMedalTable',
+  country_today: 'GalaxieCountryToday',
+  games_schedule: 'GalaxieGamesSchedule',
+  country_athletes: 'GalaxieCountryAthletes',
+  medal_history: 'GalaxieMedalHistory',
 };
 
 /**

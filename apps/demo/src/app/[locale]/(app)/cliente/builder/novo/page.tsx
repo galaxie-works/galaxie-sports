@@ -19,7 +19,7 @@ async function NewWidget({
 }: {
   searchParams: PageProps<'/[locale]/cliente/builder/novo'>['searchParams'];
 }) {
-  const [{ tipo, tema }, { locale }] = await Promise.all([searchParams, getI18n()]);
+  const [{ tipo, tema, esporte }, { locale }] = await Promise.all([searchParams, getI18n()]);
   return (
     <ClientArea section="builder">
       {async ({ tenant }) => {
@@ -32,9 +32,11 @@ async function NewWidget({
               locale,
               brandThemes,
               typeof tema === 'string' ? tema : undefined,
+              typeof esporte === 'string' ? esporte : undefined,
             )}
             saved={null}
             markets={marketsFor(tenant.markets)}
+            sports={tenant.sports}
             brandThemes={brandThemes}
           />
         );

@@ -53,6 +53,10 @@ export {
   type WidgetMode,
   type WidgetTexts,
   type WidgetTheme,
+  TEAM_SPORTS,
+  sportProfile,
+  type SportProfile,
+  type SportScoreUnit,
 } from './core/model.js';
 
 // componentes (client components)
@@ -71,19 +75,44 @@ export { MatchStakes, type MatchStakesProps } from './widgets/match-stakes.js';
 export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos.js';
 export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
 export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
+export { RaceResult, type RaceResultProps } from './widgets/race-result.js';
+export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
+export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
+export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
+export { FightCard, type FightCardProps } from './widgets/fight-card.js';
+export { EquestrianResults, type EquestrianResultsProps } from './widgets/equestrian-results.js';
+export { EquestrianRanking, type EquestrianRankingProps } from './widgets/equestrian-ranking.js';
+export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
+export { RiderProfile, type RiderProfileProps } from './widgets/rider-profile.js';
+export { HorseProfile, type HorseProfileProps } from './widgets/horse-profile.js';
+export { MedalTable, type MedalTableProps } from './widgets/medal-table.js';
+export { CountryToday, type CountryTodayProps } from './widgets/country-today.js';
+export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
+export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
+export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {
+  GAMES_NOCS,
   VIDEO_TYPES,
   WIDGET_OPTIONS,
+  widgetOptionsFor,
   optionProps,
   parseWidgetOptions,
+  type LookupSource,
   type WidgetOptionSpec,
   type WidgetOptions,
 } from './options.js';
 
 // catálogo, preview e registry
-export { WIDGET_CATALOG, type WidgetCatalogEntry, type WidgetPropsByKind } from './catalog.js';
+export {
+  WIDGET_CATALOG,
+  widgetKindIsAllSports,
+  widgetKindIsMultiSport,
+  widgetKindSupportsSport,
+  type WidgetCatalogEntry,
+  type WidgetPropsByKind,
+} from './catalog.js';
 export { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures, type PreviewFixtures } from './fixtures.js';
 export {
   PUBLISHABLE_KEY_ENV,

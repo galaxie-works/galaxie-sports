@@ -1,6 +1,6 @@
 'use client';
 
-import { fillText, sidesOf, type GsEvent, type GsHeadToHead } from '../core/model.js';
+import { fillText, sidesOf, sportProfile, type GsEvent, type GsHeadToHead } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -79,6 +79,8 @@ export function HeadToHead({
       ? fillText(t.since, { n: h2h.summary.played, year: h2h.summary.since })
       : fillText(t.played, { n: h2h.summary.played });
   const events = h2h.events.slice(0, max);
+  // esporte sem empate (basquete, vôlei, beisebol, hóquei): sem a coluna nem a faixa de empates
+  const showDraws = draws > 0 || sportProfile(h2h.events[0]?.sport).draws;
 
   return (
     <WidgetFrame kind="head_to_head">
@@ -91,16 +93,18 @@ export function HeadToHead({
         <EmptyState>{t.empty}</EmptyState>
       ) : (
         <>
-          <div className="gs-h2h">
+          <div className="gs-h2h" data-no-draws={showDraws ? undefined : ''}>
             <div className="gs-stat">
               <Crest src={a.logo} name={a.name} size="sm" />
               <strong>{winsA}</strong>
               <span className="gs-muted gs-small gs-truncate">{a.name}</span>
             </div>
-            <div className="gs-stat">
-              <span className="gs-muted gs-small">{t.draws}</span>
-              <strong>{draws}</strong>
-            </div>
+            {showDraws ? (
+              <div className="gs-stat">
+                <span className="gs-muted gs-small">{t.draws}</span>
+                <strong>{draws}</strong>
+              </div>
+            ) : null}
             <div className="gs-stat">
               <Crest src={b.logo} name={b.name} size="sm" />
               <strong>{winsB}</strong>
@@ -111,10 +115,14 @@ export function HeadToHead({
             <div
               className="gs-bar"
               role="img"
-              aria-label={`${a.name} ${winsA} · ${t.draws} ${draws} · ${b.name} ${winsB}`}
+              aria-label={
+                showDraws
+                  ? `${a.name} ${winsA} · ${t.draws} ${draws} · ${b.name} ${winsB}`
+                  : `${a.name} ${winsA} · ${b.name} ${winsB}`
+              }
             >
               <span data-part="home" style={{ width: pct(winsA) }} />
-              <span data-part="draw" style={{ width: pct(draws) }} />
+              {showDraws ? <span data-part="draw" style={{ width: pct(draws) }} /> : null}
               <span data-part="away" style={{ width: pct(winsB) }} />
             </div>
           ) : null}

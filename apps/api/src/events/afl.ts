@@ -2,7 +2,7 @@
  * Futebol australiano (AFL): o placar por quarto vem de `games/quarters` (um complemento por jogo, guardado em
  * `core.sport_event_detail.detail.quarters`) e os gols/behinds do placar final, de `core.event.score.breakdown`.
  */
-import type { ScorePeriod, SideGoalsBehinds } from '@galaxie/contracts';
+import type { ScorePeriod, SideGoalsBehinds, SideHitsErrors } from '@galaxie/contracts';
 import { sportEventDetail, type Database, type EventScore } from '@galaxie/db';
 import { aflQuarters } from '@galaxie/providers';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -46,4 +46,13 @@ export function aflGoalsBehinds(score: EventScore | null | undefined): SideGoals
   const side = (s: Record<string, number | null>) => ({ goals: s.goals ?? null, behinds: s.behinds ?? null });
   const out = { home: side(b.home), away: side(b.away) };
   return out.home.goals == null && out.away.goals == null ? null : out;
+}
+
+/** Beisebol: rebatidas e erros do placar (`score.breakdown` gravado pela normalização do beisebol). */
+export function baseballHitsErrors(score: EventScore | null | undefined): SideHitsErrors | null {
+  const b = score?.breakdown;
+  if (!b) return null;
+  const side = (s: Record<string, number | null>) => ({ hits: s.hits ?? null, errors: s.errors ?? null });
+  const out = { home: side(b.home), away: side(b.away) };
+  return out.home.hits == null && out.away.hits == null ? null : out;
 }

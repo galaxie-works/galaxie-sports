@@ -1,6 +1,13 @@
 'use client';
 
-import { WIDGET_OPTIONS, type WidgetKind, type WidgetOptionSpec, type WidgetOptions } from '@galaxie/widgets';
+import {
+  WIDGET_OPTIONS,
+  sportProfile,
+  widgetOptionsFor,
+  type WidgetKind,
+  type WidgetOptionSpec,
+  type WidgetOptions,
+} from '@galaxie/widgets';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
@@ -12,9 +19,10 @@ import { toWidgetLocale } from '@/lib/builder/config';
 import { useI18n } from '@/lib/i18n/client';
 
 import { EntityPicker, type EntityValue } from './entity-picker';
+import { LookupPicker, type LookupValue } from './lookup-picker';
 
 /** Rótulo da entidade escolhida numa opção (time a destacar, campeonato do filtro), só para exibir. */
-export type OptionEntities = Record<string, EntityValue>;
+export type OptionEntities = Record<string, EntityValue | LookupValue>;
 
 /** Há opções para este tipo de widget? */
 export const hasWidgetOptions = (kind: WidgetKind) => (WIDGET_OPTIONS[kind] ?? []).length > 0;
@@ -22,15 +30,19 @@ export const hasWidgetOptions = (kind: WidgetKind) => (WIDGET_OPTIONS[kind] ?? [
 /**
  * Opções de conteúdo do widget, desenhadas a partir de `WIDGET_OPTIONS`: primeiro as escolhas (quantidade,
  * temporada, filtros), depois os campos liga/desliga em ordem alfabética. Valor igual ao padrão sai do
- * rascunho, para o widget salvo ficar como era.
+ * rascunho, para o widget salvo ficar como era. Com `sport`, só as opções que valem para ele (gols e
+ * cartões só no futebol, parciais só nos outros), com o rótulo na unidade do placar.
  */
 export function WidgetOptionsEditor({
   kind,
+  sport,
   value,
   entities,
   onChange,
 }: {
   kind: WidgetKind;
+  /** Esporte do widget (null = todos os esportes ou não se aplica). */
+  sport?: string | null;
   value: WidgetOptions;
   entities: OptionEntities;
   onChange: (next: WidgetOptions, entities: OptionEntities) => void;
@@ -38,14 +50,20 @@ export function WidgetOptionsEditor({
   const { t, locale } = useI18n();
   const o = t.client.editor.options;
   const wl = toWidgetLocale(locale);
-  const specs = WIDGET_OPTIONS[kind] ?? [];
+  const specs = sport
+    ? widgetOptionsFor(kind, sport, sportProfile(sport).unit)
+    : (WIDGET_OPTIONS[kind] ?? []);
   const label = (s: WidgetOptionSpec) => s.label[wl];
   const choices = specs.filter((s) => s.type !== 'boolean');
   const toggles = sortByLabel(
     specs.filter((s) => s.type === 'boolean').map((spec) => ({ spec, label: label(spec) })),
   );
 
-  const put = (key: string, v: string | number | boolean | undefined, entity?: EntityValue | null) => {
+  const put = (
+    key: string,
+    v: string | number | boolean | undefined,
+    entity?: EntityValue | LookupValue | null,
+  ) => {
     const next = { ...value };
     const spec = specs.find((s) => s.key === key);
     if (v === undefined || v === '' || (spec && 'default' in spec && spec.default === v)) delete next[key];
@@ -120,10 +138,10 @@ function Choice({
   label: string;
   hint: string | undefined;
   value: string | number | boolean | undefined;
-  entity: EntityValue | null;
+  entity: EntityValue | LookupValue | null;
   texts: { all: string; none: string };
   locale: 'pt-BR' | 'es' | 'en';
-  onChange: (v: string | number | undefined, entity?: EntityValue | null) => void;
+  onChange: (v: string | number | undefined, entity?: EntityValue | LookupValue | null) => void;
 }) {
   const id = `opt-${spec.key}`;
   const description = hint ? <FieldDescription>{hint}</FieldDescription> : null;
@@ -228,7 +246,26 @@ function Choice({
           <EntityPicker
             types={[spec.type]}
             value={
-              entity ?? (typeof value === 'string' ? { type: spec.type, id: value, label: value } : null)
+              (entity?.type === 'lookup' ? null : entity) ??
+              (typeof value === 'string' ? { type: spec.type, id: value, label: value } : null)
+            }
+            onChange={(v) => onChange(v?.id, v)}
+          />
+          <FieldDescription>{hint ?? (value ? null : texts.none)}</FieldDescription>
+        </Field>
+      );
+    case 'lookup':
+      return (
+        <Field className="sm:col-span-2">
+          <FieldLabel>{label}</FieldLabel>
+          <LookupPicker
+            source={spec.source}
+            value={
+              entity?.type === 'lookup'
+                ? entity
+                : typeof value === 'string'
+                  ? { type: 'lookup', id: value, label: value }
+                  : null
             }
             onChange={(v) => onChange(v?.id, v)}
           />

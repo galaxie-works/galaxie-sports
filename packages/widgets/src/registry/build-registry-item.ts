@@ -131,9 +131,27 @@ function defaultProps(
     case 'match_stakes':
     case 'related_videos':
     case 'head_to_head':
+    case 'race_result':
+    case 'race_weekend':
+    case 'fight_card':
       return pick(['eventId']);
     case 'team_schedule':
+    case 'athlete_profile':
       return pick(['teamId']);
+    case 'season_calendar':
+      return pick(['competitionId']);
+    // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
+    case 'equestrian_results':
+    case 'equestrian_ranking':
+    case 'equestrian_calendar':
+    case 'rider_profile':
+    case 'horse_profile':
+    case 'medal_table':
+    case 'country_today':
+    case 'games_schedule':
+    case 'country_athletes':
+    case 'medal_history':
+      return {};
   }
 }
 

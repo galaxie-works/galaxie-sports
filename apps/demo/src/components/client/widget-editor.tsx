@@ -10,6 +10,22 @@ import {
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
+  AthleteProfile,
+  FightCard,
+  EquestrianResults,
+  EquestrianRanking,
+  EquestrianCalendar,
+  RiderProfile,
+  HorseProfile,
+  MedalTable,
+  CountryToday,
+  GamesSchedule,
+  CountryAthletes,
+  MedalHistory,
+  PREVIEW_IDS,
+  RaceResult,
+  RaceWeekend,
+  SeasonCalendar,
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
@@ -17,6 +33,8 @@ import {
   parseLiveListOptions,
   parseStandingsOptions,
   parseWidgetOptions,
+  widgetKindIsAllSports,
+  widgetKindIsMultiSport,
   type LiveListOptions,
   type StandingsOptions,
   type WidgetOptions,
@@ -53,6 +71,7 @@ import {
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
+import { searchSport, sportChoices, sportOnKindChange } from '@/lib/builder/sports';
 import type { BrandThemeItem, WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -67,9 +86,14 @@ import { ThemeEditor } from './theme-editor';
 import { WidgetOptionsEditor, hasWidgetOptions, type OptionEntities } from './widget-options-editor';
 import { KIND_ICONS, useKindTexts } from './widgets-panel';
 
+/** Valor do seletor de esporte para "todos os esportes" (o widget não grava esporte). */
+const ALL_SPORTS = 'all';
+
 export interface EditorDraft {
   name: string;
   kind: WidgetKind;
+  /** Esporte do widget nos tipos de vários esportes (Jogos do dia, placar, tabela...); null = todos. */
+  sport: string | null;
   /** Tema efetivo (o da marca com os ajustes deste widget, ou o tema só dele). */
   theme: WidgetTheme;
   /** Tema da marca que o widget segue; null = tema só deste widget. */
@@ -112,7 +136,7 @@ const snapshot = (d: EditorDraft) =>
     brandThemeId: d.brandThemeId,
     locale: d.locale,
     market: d.market,
-    defaults: defaultsFromEntity(d.entity),
+    defaults: defaultsFromEntity(d.entity, { kind: d.kind, sport: d.sport }),
     standings: standingsOf(d),
     liveList: liveListOf(d),
     options: optionsOf(d),
@@ -134,6 +158,7 @@ const screenLocale = (l: WidgetLocale): Locale => (l === 'es' ? 'es-AR' : l);
  */
 function PreviewWidget({
   kind,
+  sport,
   entity,
   market,
   standings,
@@ -141,6 +166,7 @@ function PreviewWidget({
   options,
 }: {
   kind: WidgetKind;
+  sport: string | null;
   entity: EntityValue | null;
   market: string;
   standings: StandingsOptions;
@@ -152,13 +178,27 @@ function PreviewWidget({
   if (!entity) {
     switch (kind) {
       case 'match_card':
-        return <MatchCard {...o} {...WIDGET_CATALOG.match_card.exampleProps} />;
+        return (
+          <MatchCard
+            {...o}
+            eventId={
+              sport === 'mma' ? PREVIEW_IDS.fightEvent : WIDGET_CATALOG.match_card.exampleProps.eventId
+            }
+          />
+        );
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
-        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...o} {...zones} />;
+        return (
+          <StandingsTable
+            {...WIDGET_CATALOG.standings.exampleProps}
+            {...(sport === 'formula-1' ? { competitionId: PREVIEW_IDS.raceCompetition } : {})}
+            {...o}
+            {...zones}
+          />
+        );
       case 'live_list':
-        return <LiveList {...liveList} />;
+        return <LiveList {...liveList} sport={sport ?? undefined} />;
       case 'ai_context':
         return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -169,6 +209,41 @@ function PreviewWidget({
         return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
         return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+      case 'race_result':
+        return <RaceResult {...o} {...WIDGET_CATALOG.race_result.exampleProps} />;
+      case 'race_weekend':
+        return <RaceWeekend {...o} {...WIDGET_CATALOG.race_weekend.exampleProps} />;
+      case 'season_calendar':
+        return (
+          <SeasonCalendar
+            {...o}
+            competitionId={sport === 'mma' ? PREVIEW_IDS.fightCompetition : PREVIEW_IDS.raceCompetition}
+          />
+        );
+      case 'athlete_profile':
+        return <AthleteProfile {...o} teamId={sport === 'mma' ? PREVIEW_IDS.fighter : PREVIEW_IDS.driver} />;
+      case 'fight_card':
+        return <FightCard {...o} {...WIDGET_CATALOG.fight_card.exampleProps} />;
+      case 'equestrian_results':
+        return <EquestrianResults {...o} />;
+      case 'equestrian_ranking':
+        return <EquestrianRanking {...o} />;
+      case 'equestrian_calendar':
+        return <EquestrianCalendar {...o} />;
+      case 'rider_profile':
+        return <RiderProfile {...o} />;
+      case 'horse_profile':
+        return <HorseProfile {...o} />;
+      case 'medal_table':
+        return <MedalTable {...o} />;
+      case 'country_today':
+        return <CountryToday {...o} />;
+      case 'games_schedule':
+        return <GamesSchedule {...o} />;
+      case 'country_athletes':
+        return <CountryAthletes {...o} />;
+      case 'medal_history':
+        return <MedalHistory {...o} />;
     }
   }
   switch (kind) {
@@ -180,9 +255,9 @@ function PreviewWidget({
       return <StandingsTable season="current" {...o} competitionId={entity.id} {...zones} />;
     case 'live_list':
       return entity.type === 'team' ? (
-        <LiveList {...liveList} teamId={entity.id} />
+        <LiveList {...liveList} teamId={entity.id} sport={sport ?? undefined} />
       ) : (
-        <LiveList {...liveList} competitionId={entity.id} />
+        <LiveList {...liveList} competitionId={entity.id} sport={sport ?? undefined} />
       );
     case 'ai_context':
       return <AiContext {...o} eventId={entity.id} />;
@@ -194,6 +269,56 @@ function PreviewWidget({
       return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={entity.id} />;
+    case 'race_result':
+      return <RaceResult {...o} eventId={entity.id} />;
+    case 'race_weekend':
+      return <RaceWeekend {...o} eventId={entity.id} />;
+    case 'season_calendar':
+      return <SeasonCalendar {...o} competitionId={entity.id} />;
+    case 'athlete_profile':
+      return <AthleteProfile {...o} teamId={entity.id} />;
+    case 'fight_card':
+      return <FightCard {...o} eventId={entity.id} />;
+    // hipismo e Jogos não têm entidade: a escolha fica nas opções
+    case 'equestrian_results':
+    case 'equestrian_ranking':
+    case 'equestrian_calendar':
+    case 'rider_profile':
+    case 'horse_profile':
+    case 'medal_table':
+    case 'country_today':
+    case 'games_schedule':
+    case 'country_athletes':
+    case 'medal_history':
+      return <StandalonePreview kind={kind} o={o} />;
+  }
+}
+
+/** Prévia dos tipos sem entidade (hipismo e Jogos), com a escolha nas opções. */
+function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, unknown> }) {
+  switch (kind) {
+    case 'equestrian_results':
+      return <EquestrianResults {...o} />;
+    case 'equestrian_ranking':
+      return <EquestrianRanking {...o} />;
+    case 'equestrian_calendar':
+      return <EquestrianCalendar {...o} />;
+    case 'rider_profile':
+      return <RiderProfile {...o} />;
+    case 'horse_profile':
+      return <HorseProfile {...o} />;
+    case 'medal_table':
+      return <MedalTable {...o} />;
+    case 'country_today':
+      return <CountryToday {...o} />;
+    case 'games_schedule':
+      return <GamesSchedule {...o} />;
+    case 'country_athletes':
+      return <CountryAthletes {...o} />;
+    case 'medal_history':
+      return <MedalHistory {...o} />;
+    default:
+      return null;
   }
 }
 
@@ -206,12 +331,15 @@ export function WidgetEditor({
   initial,
   saved: savedInitial,
   markets,
+  sports = [],
   brandThemes: brandThemesInitial = [],
 }: {
   initial: EditorDraft;
   saved: SavedInfo | null;
   /** Mercados que o plano permite. */
   markets: string[];
+  /** Esportes que o plano permite (vazio = todos). */
+  sports?: string[];
   /** Temas da marca do tenant. */
   brandThemes?: BrandThemeItem[];
 }) {
@@ -230,7 +358,9 @@ export function WidgetEditor({
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
   const [pending, startTransition] = useTransition();
   const kindTexts = useKindTexts();
-  const sampleFetch = useMemo(() => createPreviewFetch(), []);
+  // dados de exemplo no jeito do esporte escolhido (placar com sets no vôlei, tabela por vitórias...)
+  const previewSport = searchSport(draft.kind, draft.sport) ?? 'football';
+  const sampleFetch = useMemo(() => createPreviewFetch({ sport: previewSport }), [previewSport]);
   const entityTypes = ENTITY_TYPES[draft.kind];
   const dirty = savedSnapshot !== snapshot(draft);
   const set = <K extends keyof EditorDraft>(key: K, value: EditorDraft[K]) =>
@@ -247,19 +377,30 @@ export function WidgetEditor({
     label: t.nav.countries[m as keyof typeof t.nav.countries] ?? m,
   }));
   const localeItems = WIDGET_LOCALES.map((l) => ({ value: l, label: l }));
+  // esporte: nos tipos de vários esportes ("Todos os esportes" só nos que valem para todos); nos de um
+  // esporte só, ele é implícito
+  const multiSport = widgetKindIsMultiSport(draft.kind);
+  const sportItems = [
+    ...(widgetKindIsAllSports(draft.kind) ? [{ value: ALL_SPORTS, label: e.sportAll }] : []),
+    ...sportChoices(sports, draft.kind).map(({ sport }) => ({
+      value: sport,
+      label: t.nav.sports[sport as keyof typeof t.nav.sports] ?? sport,
+    })),
+  ];
   const config = {
     theme: draft.theme,
     ...(draft.brandThemeId ? { brandThemeId: draft.brandThemeId, themeOverrides: overridesOf(draft) } : {}),
     locale: draft.locale,
     market: draft.market,
-    defaults: defaultsFromEntity(draft.entity),
+    defaults: defaultsFromEntity(draft.entity, { kind: draft.kind, sport: draft.sport }),
     ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
     ...(liveListOf(draft) ? { liveList: liveListOf(draft) } : {}),
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
-  // lista de jogos funciona sem recorte; os outros tipos, sem entidade, mostram os dados de exemplo
-  const realData = Boolean(draft.entity) || draft.kind === 'live_list';
+  // lista de jogos, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem entidade, mostram
+  // os dados de exemplo
+  const realData = Boolean(draft.entity) || draft.kind === 'live_list' || entityTypes.length === 0;
 
   function save() {
     startTransition(async () => {
@@ -325,14 +466,22 @@ export function WidgetEditor({
                     onValueChange={(v) => {
                       const kind = v as WidgetKind;
                       const types = ENTITY_TYPES[kind];
-                      setDraft((d) => ({
-                        ...d,
-                        kind,
-                        // a entidade escolhida só fica se o novo tipo aceitar
-                        entity: d.entity && types.includes(d.entity.type) ? d.entity : null,
-                        // as opções são de cada tipo: as que o novo tipo não conhece saem
-                        options: parseWidgetOptions(kind, d.options) ?? {},
-                      }));
+                      setDraft((d) => {
+                        // o esporte fica se o novo tipo aceitar; senão, o da mesma família que ele aceita
+                        const sport = sportOnKindChange(kind, d.sport);
+                        return {
+                          ...d,
+                          kind,
+                          sport,
+                          // a entidade escolhida só fica se o novo tipo aceitar (e o esporte não mudou)
+                          entity:
+                            d.entity && types.includes(d.entity.type) && (sport === d.sport || !d.sport)
+                              ? d.entity
+                              : null,
+                          // as opções são de cada tipo: as que o novo tipo não conhece saem
+                          options: parseWidgetOptions(kind, d.options) ?? {},
+                        };
+                      });
                     }}
                   >
                     <SelectTrigger id="widget-kind" className="w-full">
@@ -419,15 +568,51 @@ export function WidgetEditor({
                   </Select>
                   <FieldDescription>{e.marketHint}</FieldDescription>
                 </Field>
-                <Field className="sm:col-span-2">
-                  <FieldLabel>{e.entity}</FieldLabel>
-                  <EntityPicker types={entityTypes} value={draft.entity} onChange={(v) => set('entity', v)} />
-                  <FieldDescription>
-                    {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                      types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                    })}
-                  </FieldDescription>
-                </Field>
+                {multiSport ? (
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor="widget-sport">{e.sport}</FieldLabel>
+                    <Select
+                      items={sportItems}
+                      value={draft.sport ?? ALL_SPORTS}
+                      onValueChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          sport: !v || v === ALL_SPORTS ? null : String(v),
+                          // campeonato ou time de outro esporte sai junto
+                          entity: v && v !== ALL_SPORTS && d.sport !== v ? null : d.entity,
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="widget-sport" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sportItems.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>{e.sportHint}</FieldDescription>
+                  </Field>
+                ) : null}
+                {entityTypes.length ? (
+                  <Field className="sm:col-span-2">
+                    <FieldLabel>{e.entity}</FieldLabel>
+                    <EntityPicker
+                      types={entityTypes}
+                      sport={searchSport(draft.kind, draft.sport)}
+                      value={draft.entity}
+                      onChange={(v) => set('entity', v)}
+                    />
+                    <FieldDescription>
+                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
+                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                      })}
+                    </FieldDescription>
+                  </Field>
+                ) : null}
               </FieldGroup>
             </FramePanel>
           </Frame>
@@ -441,6 +626,7 @@ export function WidgetEditor({
                 </FrameHeader>
                 <WidgetOptionsEditor
                   kind={draft.kind}
+                  sport={searchSport(draft.kind, draft.sport)}
                   value={draft.options}
                   entities={draft.optionEntities}
                   onChange={(options, optionEntities) => setDraft((d) => ({ ...d, options, optionEntities }))}
@@ -496,7 +682,7 @@ export function WidgetEditor({
                 style={{ background: draft.theme.background, borderColor: draft.theme.border }}
               >
                 <GalaxieWidgetProvider
-                  key={realData ? 'real' : 'exemplo'}
+                  key={realData ? 'real' : `exemplo-${previewSport}`}
                   baseUrl="/api/galaxie"
                   publishableKey=""
                   fetch={realData ? proxyFetch : sampleFetch}
@@ -506,6 +692,7 @@ export function WidgetEditor({
                 >
                   <PreviewWidget
                     kind={draft.kind}
+                    sport={draft.sport}
                     entity={draft.entity}
                     market={draft.market}
                     standings={draft.standings}
