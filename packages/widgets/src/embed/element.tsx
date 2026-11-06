@@ -16,7 +16,8 @@
 import { createRoot, type Root } from 'react-dom/client';
 
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
-import { WIDGET_KINDS, WIDGET_LOCALES } from '../core/model.js';
+import { WIDGET_KINDS, WIDGET_LOCALES, parseStandingsOptions } from '../core/model.js';
+import type { StandingsOptions } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
@@ -39,6 +40,8 @@ export interface EmbedConfig {
   locale: WidgetLocale;
   market: string;
   defaults: WidgetDefaults;
+  /** Legenda e cores das zonas (só na tabela de classificação). */
+  standings?: StandingsOptions | undefined;
   /** Base da API pública que o widget chama. */
   apiBaseUrl: string;
 }
@@ -83,7 +86,11 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
   if (typeof c.id !== 'string' || !(WIDGET_KINDS as readonly unknown[]).includes(c.kind)) return null;
   if (!c.theme || typeof c.theme !== 'object' || !isLocale(c.locale)) return null;
   if (typeof c.market !== 'string' || typeof c.apiBaseUrl !== 'string') return null;
-  return { ...c, defaults: c.defaults && typeof c.defaults === 'object' ? c.defaults : {} } as EmbedConfig;
+  return {
+    ...c,
+    defaults: c.defaults && typeof c.defaults === 'object' ? c.defaults : {},
+    standings: parseStandingsOptions(c.standings),
+  } as EmbedConfig;
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
@@ -94,7 +101,14 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
     case 'where_to_watch':
       return <WhereToWatch eventId={eventId ?? ''} market={market} />;
     case 'standings':
-      return <StandingsTable competitionId={competitionId ?? ''} season="current" />;
+      return (
+        <StandingsTable
+          competitionId={competitionId ?? ''}
+          season="current"
+          showLegend={config.standings?.showLegend}
+          zoneColors={config.standings?.zoneColors}
+        />
+      );
     case 'live_list':
       return <LiveList competitionId={competitionId} sport={sport} />;
     case 'ai_context':

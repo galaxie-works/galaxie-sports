@@ -126,6 +126,20 @@ describe('buildRegistryItem', () => {
     );
   });
 
+  it('a tabela leva a legenda e as cores das zonas salvas', () => {
+    const item = buildRegistryItem({
+      ...base,
+      kind: 'standings',
+      name: 'Tabela',
+      defaults: { competitionId: 'brasileirao' },
+      standings: { showLegend: false, zoneColors: { relegation: '#ff0000', direct: 'url(x)' } },
+    });
+    expect(item.files[1]!.content).toContain(
+      'const GALAXIE_DEFAULTS: Partial<StandingsTableProps> = {"competitionId":"brasileirao","showLegend":false,"zoneColors":{"relegation":"#ff0000"}};',
+    );
+    expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
+  });
+
   it('normaliza o nome para kebab-case seguro', () => {
     expect(toRegistryName('Operadora Exemplo · Placar!')).toBe('operadora-exemplo-placar');
     expect(toRegistryName('../../etc/passwd')).toBe('etc-passwd');

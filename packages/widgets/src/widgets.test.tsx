@@ -247,10 +247,41 @@ describe('StandingsTable', () => {
     const rows = container.querySelectorAll('tbody tr');
     expect(rows).toHaveLength(6);
     expect(within(rows[0] as HTMLElement).getByText('26')).toBeTruthy(); // 8V 2E = 26 pontos
-    expect(container.querySelectorAll('[data-zone]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-zone]')).toHaveLength(4);
     expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toContain(
       `/v1/competitions/${PREVIEW_IDS.competition}/seasons/current/standings`,
     );
+  });
+
+  it('pinta cada zona na sua cor e lista a legenda', async () => {
+    const { container } = setup(
+      <StandingsTable competitionId={PREVIEW_IDS.competition} zoneColors={{ relegation: '#123456' }} />,
+    );
+    await screen.findByText('Aurora');
+    const zones = [...container.querySelectorAll<HTMLElement>('[data-zone]')];
+    expect(zones.map((z) => z.style.getPropertyValue('--gs-zone'))).toEqual([
+      'var(--gs-primary)',
+      '#38bdf8',
+      '#f97316',
+      '#123456',
+    ]);
+    expect(zones[3]!.title).toBe('Rebaixamento');
+    const legend = container.querySelector('.gs-legend')!;
+    expect([...legend.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+      'Libertadores',
+      'Libertadores (pré-Libertadores)',
+      'Sul-Americana',
+      'Rebaixamento',
+    ]);
+  });
+
+  it('esconde a legenda com showLegend={false}', async () => {
+    const { container } = setup(
+      <StandingsTable competitionId={PREVIEW_IDS.competition} showLegend={false} />,
+    );
+    await screen.findByText('Aurora');
+    expect(container.querySelector('.gs-legend')).toBeNull();
+    expect(container.querySelectorAll('[data-zone]')).toHaveLength(4);
   });
 
   it('mostra o vazio sem linhas', async () => {

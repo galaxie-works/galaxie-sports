@@ -13,6 +13,8 @@ import {
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
+  parseStandingsOptions,
+  type StandingsOptions,
 } from '@galaxie/widgets';
 import { ArrowLeft, Info, Save, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
@@ -52,6 +54,7 @@ import { fill, rich } from '@/lib/i18n/text';
 
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
+import { StandingsZonesEditor } from './standings-zones-editor';
 import { ThemeEditor } from './theme-editor';
 import { KIND_ICONS, useKindTexts } from './widgets-panel';
 
@@ -62,7 +65,13 @@ export interface EditorDraft {
   locale: WidgetLocale;
   market: string;
   entity: EntityValue | null;
+  /** Legenda e cores das zonas (só vale na tabela de classificação). */
+  standings: StandingsOptions;
 }
+
+/** Opções da tabela que vão para o banco (nenhuma nos outros tipos). */
+const standingsOf = (d: EditorDraft) =>
+  d.kind === 'standings' ? parseStandingsOptions(d.standings) : undefined;
 
 export interface SavedInfo {
   id: string;
@@ -78,6 +87,7 @@ const snapshot = (d: EditorDraft) =>
     locale: d.locale,
     market: d.market,
     defaults: defaultsFromEntity(d.entity),
+    standings: standingsOf(d),
   });
 
 /**
@@ -98,11 +108,14 @@ function PreviewWidget({
   kind,
   entity,
   market,
+  standings,
 }: {
   kind: WidgetKind;
   entity: EntityValue | null;
   market: string;
+  standings: StandingsOptions;
 }) {
+  const zones = { showLegend: standings.showLegend, zoneColors: standings.zoneColors };
   if (!entity) {
     switch (kind) {
       case 'match_card':
@@ -110,7 +123,7 @@ function PreviewWidget({
       case 'where_to_watch':
         return <WhereToWatch {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
-        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} />;
+        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...zones} />;
       case 'live_list':
         return <LiveList />;
       case 'ai_context':
@@ -131,7 +144,7 @@ function PreviewWidget({
     case 'where_to_watch':
       return <WhereToWatch eventId={entity.id} market={market} />;
     case 'standings':
-      return <StandingsTable competitionId={entity.id} season="current" />;
+      return <StandingsTable competitionId={entity.id} season="current" {...zones} />;
     case 'live_list':
       return <LiveList competitionId={entity.id} />;
     case 'ai_context':
@@ -193,6 +206,7 @@ export function WidgetEditor({
     locale: draft.locale,
     market: draft.market,
     defaults: defaultsFromEntity(draft.entity),
+    ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
   // lista de jogos funciona sem recorte; os outros tipos, sem entidade, mostram os dados de exemplo
@@ -355,6 +369,22 @@ export function WidgetEditor({
               </FieldGroup>
             </FramePanel>
           </Frame>
+
+          {draft.kind === 'standings' ? (
+            <Frame>
+              <FramePanel className="flex flex-col gap-4">
+                <FrameHeader className="p-0">
+                  <FrameTitle>{e.zones.title}</FrameTitle>
+                  <FrameDescription>{e.zones.description}</FrameDescription>
+                </FrameHeader>
+                <StandingsZonesEditor
+                  value={draft.standings}
+                  primary={draft.theme.primary}
+                  onChange={(standings) => set('standings', standings)}
+                />
+              </FramePanel>
+            </Frame>
+          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-18 lg:self-start">
@@ -380,7 +410,12 @@ export function WidgetEditor({
                   locale={draft.locale}
                   market={draft.market}
                 >
-                  <PreviewWidget kind={draft.kind} entity={draft.entity} market={draft.market} />
+                  <PreviewWidget
+                    kind={draft.kind}
+                    entity={draft.entity}
+                    market={draft.market}
+                    standings={draft.standings}
+                  />
                 </GalaxieWidgetProvider>
               </div>
             </FramePanel>

@@ -73,6 +73,27 @@ describe('widget salvo', () => {
     expect(parseWidgetInput(standings, opts).ok).toBe(true);
   });
 
+  it('tabela guarda legenda e cores das zonas válidas; os outros tipos descartam', () => {
+    const standings = {
+      showLegend: false,
+      zoneColors: { relegation: '#FF0000', second: 'orange', inventada: '#000000' },
+    };
+    const table = parseWidgetInput(
+      {
+        ...base,
+        kind: 'standings',
+        config: { ...base.config, defaults: { competitionId: 'brasileirao' }, standings },
+      },
+      opts,
+    );
+    expect(table.ok && table.value.config.standings).toEqual({
+      showLegend: false,
+      zoneColors: { relegation: '#ff0000' },
+    });
+    const card = parseWidgetInput({ ...base, config: { ...base.config, standings } }, opts);
+    expect(card.ok && 'standings' in card.value.config).toBe(false);
+  });
+
   it('placar, tabela e onde assistir exigem a entidade padrão; a lista ao vivo, não', () => {
     const none = { ...base.config, defaults: {} };
     for (const kind of ['match_card', 'standings', 'where_to_watch'])

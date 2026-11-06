@@ -131,4 +131,16 @@ describe('parseEmbedConfig', () => {
     expect(parseEmbedConfig(null)).toBeNull();
     expect(parseEmbedConfig({ ...config(), defaults: undefined })?.defaults).toEqual({});
   });
+
+  it('opções da tabela: só faixas conhecidas com #rrggbb', () => {
+    const parsed = parseEmbedConfig({
+      ...config(),
+      kind: 'standings',
+      standings: {
+        showLegend: false,
+        zoneColors: { relegation: '#AA0000', direct: 'red;}', outra: '#000000' },
+      },
+    });
+    expect(parsed?.standings).toEqual({ showLegend: false, zoneColors: { relegation: '#aa0000' } });
+  });
 });

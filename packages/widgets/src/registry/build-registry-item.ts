@@ -2,6 +2,8 @@ import { WIDGET_CATALOG } from '../catalog.js';
 import {
   WIDGET_KINDS,
   WIDGET_LOCALES,
+  parseStandingsOptions,
+  type StandingsOptions,
   type WidgetDefaults,
   type WidgetKind,
   type WidgetLocale,
@@ -30,6 +32,8 @@ export interface BuildRegistryItemInput {
   market?: string | undefined;
   /** Props padrão do widget (o evento, a competição…), salvas no Builder. */
   defaults?: WidgetDefaults | undefined;
+  /** Legenda e cores das zonas (só na tabela de classificação). */
+  standings?: StandingsOptions | undefined;
   /** Título legível (padrão: `name`). */
   title?: string | undefined;
   description?: string | undefined;
@@ -98,7 +102,12 @@ function assertTheme(theme: WidgetTheme): void {
 const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
 /** Props padrão aceitas por cada widget, a partir de `defaults` do Builder. */
-function defaultProps(kind: WidgetKind, defaults: WidgetDefaults, market: string | undefined) {
+function defaultProps(
+  kind: WidgetKind,
+  defaults: WidgetDefaults,
+  market: string | undefined,
+  standings: StandingsOptions | undefined,
+) {
   const pick = (keys: (keyof WidgetDefaults)[]) =>
     Object.fromEntries(keys.filter((k) => defaults[k]).map((k) => [k, defaults[k]]));
   switch (kind) {
@@ -107,7 +116,7 @@ function defaultProps(kind: WidgetKind, defaults: WidgetDefaults, market: string
     case 'live_list':
       return pick(['competitionId', 'sport']);
     case 'standings':
-      return pick(['competitionId']);
+      return { ...pick(['competitionId']), ...parseStandingsOptions(standings) };
     case 'where_to_watch':
       return { ...pick(['eventId']), ...(market ? { market } : {}) };
     case 'ai_context':
@@ -171,7 +180,7 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
   const fileTarget = `${TARGET_DIR}/${name}.tsx`;
   const component = catalog.registryComponent;
   const props = widget.propsType;
-  const defaults = defaultProps(kind, input.defaults ?? {}, market);
+  const defaults = defaultProps(kind, input.defaults ?? {}, market, input.standings);
   const cleanTheme: WidgetTheme = {
     primary: theme.primary,
     background: theme.background,

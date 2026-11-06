@@ -25,7 +25,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const PRESSED = 'data-[pressed]:border-primary/60 data-[pressed]:bg-primary/15 data-[pressed]:text-primary';
 
 /** Seletor de cor nativo + campo hexadecimal (o campo só aplica quando a cor é válida). */
-function ColorField({
+export function ColorField({
   id,
   label,
   value,
