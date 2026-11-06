@@ -80,6 +80,16 @@ describe('agenda dos próximos dias', () => {
     expect(agendaCounts(events, window, { competition: 'nbb' }, 'UTC', []).total).toBe(1);
   });
 
+  it('dia civil com o fuso em várias grafias (o cache de formatadores tem teto e segue certo depois de esvaziar)', () => {
+    const at = new Date('2026-10-25T02:00:00Z');
+    const zone = 'america/sao_paulo';
+    for (let i = 0; i < 200; i++) {
+      // grafias distintas da mesma zona: cada bit de `i` liga a maiúscula de uma letra
+      const tz = [...zone].map((ch, j) => ((i >> j) & 1 ? ch.toUpperCase() : ch)).join('');
+      expect(dayKey(at, tz)).toBe('2026-10-24');
+    }
+  });
+
   it('dia civil e dias da janela no fuso', () => {
     expect(dayKey(new Date('2026-10-25T02:00:00Z'), 'America/Sao_Paulo')).toBe('2026-10-24');
     expect(windowDays(window, 'UTC')).toEqual([

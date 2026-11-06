@@ -1,6 +1,7 @@
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '@galaxie/contracts';
 import { competitionName } from '@galaxie/geo';
 import { fallbackChain } from '@galaxie/knowledge';
+import { FORMATTER_CACHE_MAX } from './time.js';
 
 export { fallbackChain };
 /**
@@ -111,6 +112,7 @@ function instantFormatter(tz: string): Intl.DateTimeFormat {
       second: '2-digit',
       timeZoneName: 'longOffset',
     });
+    if (instantFormatters.size >= FORMATTER_CACHE_MAX) instantFormatters.clear();
     instantFormatters.set(tz, f);
   }
   return f;

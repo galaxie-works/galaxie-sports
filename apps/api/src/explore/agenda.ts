@@ -10,6 +10,7 @@ import { event } from '@galaxie/db';
 import { buildEvents, type BuildContext } from '../events/builder.js';
 import { applyRelevance, inMarket } from '../events/relevance.js';
 import { OFF_CATALOG_SPORTS } from '../off-catalog.js';
+import { FORMATTER_CACHE_MAX } from '../time.js';
 import { UUID_RE } from '../util.js';
 import { exploreWindow, involves, isUpcoming, selectWindowEvents, type WindowEvent } from './summary.js';
 
@@ -28,7 +29,8 @@ export const AGENDA_COMPETITIONS = 60;
 const offCatalog = new Set<string>(OFF_CATALOG_SPORTS);
 
 // um formatador por fuso: criar um `Intl.DateTimeFormat` por jogo custava ~0,3 ms e memória fora do heap do V8
-// (com 4,7 mil jogos na janela, a agenda passava dos 512 MB do contêiner e a API caía por OOM)
+// (com 4,7 mil jogos na janela, a agenda passava dos 512 MB do contêiner e a API caía por OOM). O `tz` chega
+// com a grafia do cliente (o Intl aceita o nome sem diferenciar maiúsculas): o cache tem teto
 const dayFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /** Dia civil do instante no fuso (`2026-10-25`). */
@@ -36,6 +38,7 @@ export function dayKey(d: Date, tz: string): string {
   let f = dayFormatters.get(tz);
   if (!f) {
     f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    if (dayFormatters.size >= FORMATTER_CACHE_MAX) dayFormatters.clear();
     dayFormatters.set(tz, f);
   }
   return f.format(d);

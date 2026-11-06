@@ -1,6 +1,13 @@
 /** Utilidades de fuso IANA para os filtros por dia civil (`?date=`, `?from=`, `?to=` com `?tz=`). */
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Teto dos caches de `Intl.DateTimeFormat` por fuso. O `tz` chega com a grafia do cliente e o Intl aceita o nome
+ * sem diferenciar maiúsculas: sem teto, variações da mesma zona encheriam o cache de memória do ICU.
+ */
+export const FORMATTER_CACHE_MAX = 64;
+
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(tz: string): Intl.DateTimeFormat {
@@ -16,6 +23,7 @@ function formatter(tz: string): Intl.DateTimeFormat {
       minute: '2-digit',
       second: '2-digit',
     });
+    if (formatters.size >= FORMATTER_CACHE_MAX) formatters.clear();
     formatters.set(tz, f);
   }
   return f;
