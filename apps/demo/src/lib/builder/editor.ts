@@ -19,11 +19,13 @@ import { apiLocale, type Locale } from '@/lib/i18n/config';
 import {
   entityFromDefaults,
   isWidgetKind,
+  sportOf,
   isWidgetLocale,
   marketsFor,
   toWidgetLocale,
   WIDGET_KINDS,
 } from './config';
+import { sportForNewWidget } from './sports';
 import type { Widget, WidgetEntityType, WidgetKind } from './types';
 
 const PATH: Record<WidgetEntityType, string> = {
@@ -58,11 +60,19 @@ async function resolveEntity(
   }
 }
 
-export function newDraft(kindParam: string | undefined, tenant: TenantInfo, locale: Locale): EditorDraft {
+/** Widget novo do catálogo: o tipo (`?tipo=`) e a aba de onde veio (`?esporte=`, que dá o esporte). */
+export function newDraft(
+  kindParam: string | undefined,
+  tenant: TenantInfo,
+  locale: Locale,
+  familyParam?: string,
+): EditorDraft {
   const kind: WidgetKind = isWidgetKind(kindParam) ? kindParam : WIDGET_KINDS[0];
+  const sport = sportForNewWidget(kind, familyParam);
   return {
     name: WIDGET_CATALOG[kind].name[toWidgetLocale(locale)],
     kind,
+    sport: sport && (!tenant.sports.length || tenant.sports.includes(sport)) ? sport : null,
     theme: { ...DEFAULT_THEMES.dark },
     locale: toWidgetLocale(locale),
     market: marketsFor(tenant.markets)[0]!,
@@ -97,6 +107,7 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
   return {
     name: widget.name,
     kind: widget.kind,
+    sport: sportOf(widget.kind, widget.config.defaults?.sport),
     theme: widget.config.theme,
     locale: isWidgetLocale(widget.config.locale) ? widget.config.locale : toWidgetLocale(locale),
     market: widget.config.market,

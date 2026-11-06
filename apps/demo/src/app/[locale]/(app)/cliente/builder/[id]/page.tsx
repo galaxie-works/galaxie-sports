@@ -44,6 +44,7 @@ async function Editor({ params }: { params: Params }) {
               initial={await draftOf(widget, locale)}
               saved={{ id: widget.id, version: widget.version }}
               markets={marketsFor(tenant.markets)}
+              sports={tenant.sports}
             />
           )}
         </ClientArea>

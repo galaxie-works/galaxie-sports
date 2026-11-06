@@ -19,14 +19,20 @@ async function NewWidget({
 }: {
   searchParams: PageProps<'/[locale]/cliente/builder/novo'>['searchParams'];
 }) {
-  const [{ tipo }, { locale }] = await Promise.all([searchParams, getI18n()]);
+  const [{ tipo, esporte }, { locale }] = await Promise.all([searchParams, getI18n()]);
   return (
     <ClientArea section="builder">
       {({ tenant }) => (
         <WidgetEditor
-          initial={newDraft(typeof tipo === 'string' ? tipo : undefined, tenant, locale)}
+          initial={newDraft(
+            typeof tipo === 'string' ? tipo : undefined,
+            tenant,
+            locale,
+            typeof esporte === 'string' ? esporte : undefined,
+          )}
           saved={null}
           markets={marketsFor(tenant.markets)}
+          sports={tenant.sports}
         />
       )}
     </ClientArea>

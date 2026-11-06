@@ -83,7 +83,13 @@ export {
 } from './options.js';
 
 // catálogo, preview e registry
-export { WIDGET_CATALOG, type WidgetCatalogEntry, type WidgetPropsByKind } from './catalog.js';
+export {
+  WIDGET_CATALOG,
+  widgetKindIsMultiSport,
+  widgetKindSupportsSport,
+  type WidgetCatalogEntry,
+  type WidgetPropsByKind,
+} from './catalog.js';
 export { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures, type PreviewFixtures } from './fixtures.js';
 export {
   PUBLISHABLE_KEY_ENV,

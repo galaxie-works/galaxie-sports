@@ -13,6 +13,8 @@ import {
   parseStandingsOptions,
   parseWidgetOptions,
   toRegistryName,
+  widgetKindIsMultiSport,
+  widgetKindSupportsSport,
 } from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
@@ -164,16 +166,37 @@ export function entityFromDefaults(
   return null;
 }
 
-export function defaultsFromEntity(entity: { type: WidgetEntityType; id: string } | null): WidgetDefaults {
-  return entity ? { [DEFAULT_KEY[entity.type]]: entity.id } : {};
+/**
+ * Recorte padrão gravado no widget: a entidade e, nos tipos que valem para todos os esportes (Jogos do
+ * dia), o esporte escolhido. Nos tipos de um esporte só, o esporte vem da entidade e não é gravado.
+ */
+export function defaultsFromEntity(
+  entity: { type: WidgetEntityType; id: string } | null,
+  sport?: { kind: WidgetKind; sport: string | null },
+): WidgetDefaults {
+  return {
+    ...(entity ? { [DEFAULT_KEY[entity.type]]: entity.id } : {}),
+    ...(sport?.sport && widgetKindIsMultiSport(sport.kind) ? { sport: sport.sport } : {}),
+  };
 }
+
+/** Esporte da API: o mesmo formato de `@galaxie/contracts` (`football`, `formula-1`, `american-football`). */
+const SPORT = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+/** Esporte válido gravado no widget (ou null: todos os esportes). */
+export function sportOf(kind: WidgetKind, raw: unknown): string | null {
+  return typeof raw === 'string' && SPORT.test(raw) && widgetKindIsMultiSport(kind) ? raw : null;
+}
+
+export { widgetKindSupportsSport };
 
 // ─── validação do que chega do navegador ─────────────────────────────────────────────────────────
 
 /** Ids da API: UUID; competições também aceitam slug. */
 const ENTITY_ID = /^[0-9a-z][0-9a-z-]{0,119}$/i;
 
-export type WidgetInputError = 'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity' | 'entityRequired';
+export type WidgetInputError =
+  'kind' | 'name' | 'theme' | 'locale' | 'market' | 'entity' | 'entityRequired' | 'sport';
 
 export interface WidgetInput {
   kind: WidgetKind;
@@ -183,11 +206,16 @@ export interface WidgetInput {
 
 /**
  * Valida o que o navegador mandou para salvar. `markets` = mercados do plano (vazio = qualquer país);
- * `entityTypes` = entidades que o tipo de widget aceita (do catálogo).
+ * `entityTypes` = entidades que o tipo de widget aceita (do catálogo); `sports` = esportes do plano.
  */
 export function parseWidgetInput(
   raw: unknown,
-  opts: { markets: string[]; entityTypes: (kind: WidgetKind) => readonly WidgetEntityType[] },
+  opts: {
+    markets: string[];
+    entityTypes: (kind: WidgetKind) => readonly WidgetEntityType[];
+    /** Esportes do plano (vazio = todos). */
+    sports?: string[];
+  },
 ): { ok: true; value: WidgetInput } | { ok: false; error: WidgetInputError } {
   const r = (raw ?? {}) as Record<string, unknown>;
   if (!isWidgetKind(r.kind)) return { ok: false, error: 'kind' };
@@ -214,6 +242,12 @@ export function parseWidgetInput(
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
   } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
+  // esporte: só nos tipos de todos os esportes, e no formato da API (`sports` do plano a API confere)
+  if (d.sport !== undefined && d.sport !== null) {
+    const sport = sportOf(r.kind, d.sport);
+    if (!sport || (opts.sports?.length && !opts.sports.includes(sport))) return { ok: false, error: 'sport' };
+    defaults = { ...defaults, sport };
+  }
   return {
     ok: true,
     value: {

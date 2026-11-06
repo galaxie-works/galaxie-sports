@@ -45,7 +45,16 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   exampleProps: WidgetPropsByKind[K];
   /** Atualiza sozinho enquanto há jogo ao vivo. */
   polling: boolean;
+  /**
+   * Esportes da API em que o tipo vale (`football`, `basketball`, `formula-1`...). Lista vazia = todos.
+   * O catálogo do Builder mostra o tipo só na aba dos esportes dele (épico #731): cada esporte entra
+   * aqui quando o widget estiver adaptado a ele (placar, termos e colunas).
+   */
+  sports: readonly string[];
 }
+
+/** Tipos ainda só do futebol (os textos e as colunas falam de gols, empates e cartões). */
+const FOOTBALL_ONLY = ['football'] as const;
 
 export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
   match_card: {
@@ -79,6 +88,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
+    sports: FOOTBALL_ONLY,
   },
   live_list: {
     kind: 'live_list',
@@ -118,6 +128,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { sport: 'football' },
     polling: true,
+    sports: [],
   },
   standings: {
     kind: 'standings',
@@ -146,6 +157,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   where_to_watch: {
     kind: 'where_to_watch',
@@ -162,6 +174,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['region', 'showAddonPrices', 'showWatchLinks', 'showCalendar'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent, market: 'BR' },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   ai_context: {
     kind: 'ai_context',
@@ -178,6 +191,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['show', 'showHeader', 'showGeneratedAt'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   match_stakes: {
     kind: 'match_stakes',
@@ -201,6 +215,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: true,
+    sports: FOOTBALL_ONLY,
   },
   related_videos: {
     kind: 'related_videos',
@@ -217,6 +232,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'format', 'types', 'showDuration', 'showChannel', 'showDate'],
     exampleProps: { eventId: PREVIEW_IDS.finishedEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   head_to_head: {
     kind: 'head_to_head',
@@ -232,6 +248,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'showBar', 'showMeetingCompetition', 'showDerbyName'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
   },
   team_schedule: {
     kind: 'team_schedule',
@@ -257,5 +274,15 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
+    sports: FOOTBALL_ONLY,
   },
 };
+
+/** O tipo vale para o esporte (lista vazia no catálogo = todos os esportes). */
+export function widgetKindSupportsSport(kind: WidgetKind, sport: string): boolean {
+  const sports = WIDGET_CATALOG[kind].sports;
+  return sports.length === 0 || sports.includes(sport);
+}
+
+/** O tipo vale para todos os esportes (o widget pode filtrar um ou mostrar todos). */
+export const widgetKindIsMultiSport = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length === 0;

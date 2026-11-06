@@ -43,10 +43,13 @@ function eventDay(startsAt: string, locale: string): string {
  */
 export function EntityPicker({
   types,
+  sport = null,
   value,
   onChange,
 }: {
   types: readonly WidgetEntityType[];
+  /** Só times, campeonatos e jogos deste esporte (null = todos). */
+  sport?: string | null;
   value: EntityValue | null;
   onChange: (next: EntityValue | null) => void;
 }) {
@@ -61,7 +64,7 @@ export function EntityPicker({
   }, [term]);
 
   const search = useQuery({
-    queryKey: ['builder-entidade', locale, types.join(','), debounced],
+    queryKey: ['builder-entidade', locale, types.join(','), sport, debounced],
     enabled: debounced.length >= MIN_CHARS,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
@@ -72,6 +75,7 @@ export function EntityPicker({
         limit: '8',
         types: types.join(','),
         locale: apiLocale(locale),
+        ...(sport ? { sport } : {}),
       });
       const res = await fetch(`/api/galaxie/v1/search?${qs}`, { signal });
       if (!res.ok) throw new Error(`search ${res.status}`);

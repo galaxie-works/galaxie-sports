@@ -6,6 +6,7 @@ import { ClientArea } from '@/components/client/client-area';
 import { WidgetsPanel } from '@/components/client/widgets-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { entityFromDefaults } from '@/lib/builder/config';
+import { CATALOG_TAB_PARAM, widgetFamily } from '@/lib/builder/sports';
 import { builderDb, listWidgets } from '@/lib/builder/store';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
@@ -14,8 +15,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.client.meta.builder };
 }
 
-async function Widgets() {
-  const timeZone = await getTimeZone();
+async function Widgets({
+  searchParams,
+}: {
+  searchParams: PageProps<'/[locale]/cliente/builder'>['searchParams'];
+}) {
+  const [timeZone, params] = await Promise.all([getTimeZone(), searchParams]);
+  const tab = params[CATALOG_TAB_PARAM];
   return (
     <ClientArea section="builder">
       {async ({ tenant }) => {
@@ -23,6 +29,8 @@ async function Widgets() {
         return (
           <WidgetsPanel
             timeZone={timeZone}
+            sports={tenant.sports}
+            tab={typeof tab === 'string' ? tab : undefined}
             widgets={widgets.map((w) => ({
               id: w.id,
               kind: w.kind,
@@ -30,6 +38,7 @@ async function Widgets() {
               version: w.version,
               updatedAt: w.updatedAt.toISOString(),
               entity: entityFromDefaults(w.config.defaults),
+              family: widgetFamily(w.kind, w.config.defaults)?.id ?? null,
             }))}
           />
         );
@@ -38,7 +47,7 @@ async function Widgets() {
   );
 }
 
-export default async function ClientBuilderPage() {
+export default async function ClientBuilderPage({ searchParams }: PageProps<'/[locale]/cliente/builder'>) {
   const t = await getT();
   return (
     <>
@@ -49,7 +58,7 @@ export default async function ClientBuilderPage() {
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-          <Widgets />
+          <Widgets searchParams={searchParams} />
         </Suspense>
       </div>
     </>

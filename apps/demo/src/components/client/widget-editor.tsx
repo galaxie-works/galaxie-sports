@@ -17,6 +17,7 @@ import {
   parseLiveListOptions,
   parseStandingsOptions,
   parseWidgetOptions,
+  widgetKindIsMultiSport,
   type LiveListOptions,
   type StandingsOptions,
   type WidgetOptions,
@@ -52,6 +53,7 @@ import {
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
+import { sportChoices } from '@/lib/builder/sports';
 import type { WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -65,9 +67,14 @@ import { ThemeEditor } from './theme-editor';
 import { WidgetOptionsEditor, hasWidgetOptions, type OptionEntities } from './widget-options-editor';
 import { KIND_ICONS, useKindTexts } from './widgets-panel';
 
+/** Valor do seletor de esporte para "todos os esportes" (o widget não grava esporte). */
+const ALL_SPORTS = 'all';
+
 export interface EditorDraft {
   name: string;
   kind: WidgetKind;
+  /** Esporte do widget nos tipos de todos os esportes (Jogos do dia); null = todos. */
+  sport: string | null;
   theme: WidgetTheme;
   locale: WidgetLocale;
   market: string;
@@ -106,7 +113,7 @@ const snapshot = (d: EditorDraft) =>
     theme: d.theme,
     locale: d.locale,
     market: d.market,
-    defaults: defaultsFromEntity(d.entity),
+    defaults: defaultsFromEntity(d.entity, { kind: d.kind, sport: d.sport }),
     standings: standingsOf(d),
     liveList: liveListOf(d),
     options: optionsOf(d),
@@ -128,6 +135,7 @@ const screenLocale = (l: WidgetLocale): Locale => (l === 'es' ? 'es-AR' : l);
  */
 function PreviewWidget({
   kind,
+  sport,
   entity,
   market,
   standings,
@@ -135,6 +143,7 @@ function PreviewWidget({
   options,
 }: {
   kind: WidgetKind;
+  sport: string | null;
   entity: EntityValue | null;
   market: string;
   standings: StandingsOptions;
@@ -152,7 +161,7 @@ function PreviewWidget({
       case 'standings':
         return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...o} {...zones} />;
       case 'live_list':
-        return <LiveList {...liveList} />;
+        return <LiveList {...liveList} sport={sport ?? undefined} />;
       case 'ai_context':
         return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -174,9 +183,9 @@ function PreviewWidget({
       return <StandingsTable season="current" {...o} competitionId={entity.id} {...zones} />;
     case 'live_list':
       return entity.type === 'team' ? (
-        <LiveList {...liveList} teamId={entity.id} />
+        <LiveList {...liveList} teamId={entity.id} sport={sport ?? undefined} />
       ) : (
-        <LiveList {...liveList} competitionId={entity.id} />
+        <LiveList {...liveList} competitionId={entity.id} sport={sport ?? undefined} />
       );
     case 'ai_context':
       return <AiContext {...o} eventId={entity.id} />;
@@ -200,11 +209,14 @@ export function WidgetEditor({
   initial,
   saved: savedInitial,
   markets,
+  sports = [],
 }: {
   initial: EditorDraft;
   saved: SavedInfo | null;
   /** Mercados que o plano permite. */
   markets: string[];
+  /** Esportes que o plano permite (vazio = todos). */
+  sports?: string[];
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -232,11 +244,17 @@ export function WidgetEditor({
     label: t.nav.countries[m as keyof typeof t.nav.countries] ?? m,
   }));
   const localeItems = WIDGET_LOCALES.map((l) => ({ value: l, label: l }));
+  // esporte: só nos tipos de todos os esportes; os outros seguem o esporte da entidade
+  const multiSport = widgetKindIsMultiSport(draft.kind);
+  const sportItems = [
+    { value: ALL_SPORTS, label: e.sportAll },
+    ...sportChoices(sports).map(({ family, sport }) => ({ value: sport, label: t.nav.families[family.id] })),
+  ];
   const config = {
     theme: draft.theme,
     locale: draft.locale,
     market: draft.market,
-    defaults: defaultsFromEntity(draft.entity),
+    defaults: defaultsFromEntity(draft.entity, { kind: draft.kind, sport: draft.sport }),
     ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
     ...(liveListOf(draft) ? { liveList: liveListOf(draft) } : {}),
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
@@ -312,6 +330,8 @@ export function WidgetEditor({
                       setDraft((d) => ({
                         ...d,
                         kind,
+                        // o esporte só fica nos tipos de todos os esportes
+                        sport: widgetKindIsMultiSport(kind) ? d.sport : null,
                         // a entidade escolhida só fica se o novo tipo aceitar
                         entity: d.entity && types.includes(d.entity.type) ? d.entity : null,
                         // as opções são de cada tipo: as que o novo tipo não conhece saem
@@ -392,9 +412,43 @@ export function WidgetEditor({
                   </Select>
                   <FieldDescription>{e.marketHint}</FieldDescription>
                 </Field>
+                {multiSport ? (
+                  <Field className="sm:col-span-2">
+                    <FieldLabel htmlFor="widget-sport">{e.sport}</FieldLabel>
+                    <Select
+                      items={sportItems}
+                      value={draft.sport ?? ALL_SPORTS}
+                      onValueChange={(v) =>
+                        setDraft((d) => ({
+                          ...d,
+                          sport: !v || v === ALL_SPORTS ? null : String(v),
+                          // campeonato ou time de outro esporte sai junto
+                          entity: v && v !== ALL_SPORTS && d.sport !== v ? null : d.entity,
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="widget-sport" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sportItems.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>{e.sportHint}</FieldDescription>
+                  </Field>
+                ) : null}
                 <Field className="sm:col-span-2">
                   <FieldLabel>{e.entity}</FieldLabel>
-                  <EntityPicker types={entityTypes} value={draft.entity} onChange={(v) => set('entity', v)} />
+                  <EntityPicker
+                    types={entityTypes}
+                    sport={multiSport ? draft.sport : null}
+                    value={draft.entity}
+                    onChange={(v) => set('entity', v)}
+                  />
                   <FieldDescription>
                     {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
                       types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
@@ -479,6 +533,7 @@ export function WidgetEditor({
                 >
                   <PreviewWidget
                     kind={draft.kind}
+                    sport={draft.sport}
                     entity={draft.entity}
                     market={draft.market}
                     standings={draft.standings}

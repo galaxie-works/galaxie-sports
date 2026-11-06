@@ -34,13 +34,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
+import { UrlTabs } from '@/components/sport/url-tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { WIDGET_CATALOG } from '@galaxie/widgets';
 
 import { OFFERED_WIDGET_KINDS, toWidgetLocale } from '@/lib/builder/config';
+import { CATALOG_TAB_PARAM, catalogTabs, pickTab } from '@/lib/builder/sports';
 import type { WidgetEntityType, WidgetKind } from '@/lib/builder/types';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
+import { FAMILIES } from '@/lib/navigation';
+import type { FamilyId } from '@/lib/sport-families';
 
 export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
@@ -71,6 +77,48 @@ export interface WidgetRow {
   version: number;
   updatedAt: string;
   entity: { type: WidgetEntityType; id: string } | null;
+  /** Família do esporte do widget (null = todos os esportes). */
+  family: FamilyId | null;
+}
+
+/** Ícone animado da família (o mesmo do menu). */
+function FamilyIcon({ id, className }: { id: FamilyId; className?: string }) {
+  const nav = FAMILIES.find((f) => f.id === id);
+  if (!nav) return null;
+  const Icon = nav.icon;
+  return (
+    <AnimatedSportIcon slug={nav.slug} className={className}>
+      <Icon aria-hidden />
+    </AnimatedSportIcon>
+  );
+}
+
+/** Cartão de um tipo de widget no catálogo, com o link de criar já na aba (esporte) de onde veio. */
+function KindCard({ kind, family }: { kind: WidgetKind; family: FamilyId }) {
+  const { t } = useI18n();
+  const kindTexts = useKindTexts();
+  const Icon = KIND_ICONS[kind];
+  const texts = kindTexts(kind);
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-4">
+      <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-md">
+        <Icon className="size-5" aria-hidden />
+      </div>
+      <div className="flex flex-1 flex-col gap-1">
+        <span className="font-medium">{texts.name}</span>
+        <span className="text-muted-foreground text-sm">{texts.description}</span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        nativeButton={false}
+        render={<Link href={`/cliente/builder/novo?tipo=${kind}&${CATALOG_TAB_PARAM}=${family}`} />}
+      >
+        <Plus />
+        {t.client.builder.create}
+      </Button>
+    </div>
+  );
 }
 
 function ArchiveButton({ row }: { row: WidgetRow }) {
@@ -111,11 +159,25 @@ function ArchiveButton({ row }: { row: WidgetRow }) {
 }
 
 /** Builder: o catálogo (para começar um widget) e os widgets salvos do tenant (editar e arquivar). */
-export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; timeZone: string }) {
+export function WidgetsPanel({
+  widgets,
+  timeZone,
+  sports,
+  tab: tabParam,
+}: {
+  widgets: WidgetRow[];
+  timeZone: string;
+  /** Esportes do plano (vazio = todos): as abas são só das famílias liberadas. */
+  sports: string[];
+  /** Aba pedida na URL (`?esporte=`). */
+  tab?: string | undefined;
+}) {
   const { t } = useI18n();
   const f = useFormatters(timeZone);
   const kindTexts = useKindTexts();
   const b = t.client.builder;
+  const tabs = catalogTabs(OFFERED_WIDGET_KINDS, sports);
+  const active = pickTab(tabs, tabParam);
   return (
     <div className="flex flex-col gap-4">
       <Frame>
@@ -124,32 +186,31 @@ export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; time
             <FrameTitle>{b.catalog}</FrameTitle>
             <FrameDescription>{b.description}</FrameDescription>
           </FrameHeader>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {OFFERED_WIDGET_KINDS.map((kind) => {
-              const Icon = KIND_ICONS[kind];
-              const texts = kindTexts(kind);
-              return (
-                <div key={kind} className="flex flex-col gap-3 rounded-lg border p-4">
-                  <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-md">
-                    <Icon className="size-5" aria-hidden />
+          {active ? (
+            <UrlTabs param={CATALOG_TAB_PARAM} value={active.family.id} className="gap-4">
+              {/* rola só na horizontal e sem barra visível (o mesmo das abas do jogo) */}
+              <TabsList
+                aria-label={b.sportTabs}
+                className="max-w-full justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {tabs.map(({ family }) => (
+                  <TabsTrigger key={family.id} value={family.id}>
+                    <FamilyIcon id={family.id} className="size-4" />
+                    {t.nav.families[family.id]}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {tabs.map(({ family, kinds }) => (
+                <TabsContent key={family.id} value={family.id}>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {kinds.map((kind) => (
+                      <KindCard key={kind} kind={kind} family={family.id} />
+                    ))}
                   </div>
-                  <div className="flex flex-1 flex-col gap-1">
-                    <span className="font-medium">{texts.name}</span>
-                    <span className="text-muted-foreground text-sm">{texts.description}</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    nativeButton={false}
-                    render={<Link href={`/cliente/builder/novo?tipo=${kind}`} />}
-                  >
-                    <Plus />
-                    {b.create}
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+                </TabsContent>
+              ))}
+            </UrlTabs>
+          ) : null}
         </FramePanel>
       </Frame>
 
@@ -165,6 +226,7 @@ export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; time
                 <TableRow>
                   <TableHead className="pl-4">{b.columns.name}</TableHead>
                   <TableHead>{b.columns.kind}</TableHead>
+                  <TableHead>{b.columns.sport}</TableHead>
                   <TableHead>{b.columns.entity}</TableHead>
                   <TableHead>{b.columns.version}</TableHead>
                   <TableHead>{b.columns.updated}</TableHead>
@@ -186,6 +248,16 @@ export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; time
                           <Icon className="text-muted-foreground size-4" aria-hidden />
                           {kindTexts(w.kind).name}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {w.family ? (
+                          <span className="flex items-center gap-1.5">
+                            <FamilyIcon id={w.family} className="text-muted-foreground size-4" />
+                            {t.nav.families[w.family]}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">{b.allSports}</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {w.entity ? b.entityTypes[w.entity.type] : b.noEntity}

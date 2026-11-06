@@ -129,6 +129,29 @@ describe('widget salvo', () => {
     expect(live.ok && live.value.config.defaults).toEqual({});
   });
 
+  it('esporte: grava só nos Jogos do dia, no formato da API e dentro do plano', () => {
+    const none = { ...base.config, defaults: { sport: 'basketball' } };
+    const live = parseWidgetInput({ ...base, kind: 'live_list', config: none }, opts);
+    expect(live.ok && live.value.config.defaults).toEqual({ sport: 'basketball' });
+    // placar é só de futebol: o esporte vem do jogo
+    expect(
+      parseWidgetInput(
+        { ...base, config: { ...base.config, defaults: { ...base.config.defaults, sport: 'basketball' } } },
+        opts,
+      ),
+    ).toEqual({ ok: false, error: 'sport' });
+    const bad = { ...base.config, defaults: { sport: 'Basket Ball' } };
+    expect(parseWidgetInput({ ...base, kind: 'live_list', config: bad }, opts)).toEqual({
+      ok: false,
+      error: 'sport',
+    });
+    const plan = { ...opts, sports: ['football'] };
+    expect(parseWidgetInput({ ...base, kind: 'live_list', config: none }, plan)).toEqual({
+      ok: false,
+      error: 'sport',
+    });
+  });
+
   it('recusa tipo, nome e idioma desconhecidos', () => {
     expect(parseWidgetInput({ ...base, kind: 'banner' }, opts)).toEqual({ ok: false, error: 'kind' });
     expect(parseWidgetInput({ ...base, name: ' ' }, opts)).toEqual({ ok: false, error: 'name' });
