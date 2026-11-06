@@ -308,9 +308,14 @@ export class InMemoryAssetStore implements AssetStore {
       (r) => isOtherImageKind(r.kind) && r.storageKey && placeholders.has(r.sha256 ?? ''),
     );
     if (!options.dryRun) for (const r of generic) await this.markMissing(r.id, at, detachFor(r.kind));
+    const denylisted = new Set(options.dryRun ? options.denylisted : []);
     // sem tabelas de entidades na memória: conta como estádios os ausentes dos outros kinds
     const missing = this.rows.filter(
-      (r) => isOtherImageKind(r.kind) && ((!r.storageKey && r.fetchedAt) || generic.includes(r)),
+      (r) =>
+        isOtherImageKind(r.kind) &&
+        ((!r.storageKey && r.fetchedAt) ||
+          generic.includes(r) ||
+          (r.storageKey && denylisted.has(normalizeMediaUrl(r.sourceUrl) ?? ''))),
     );
     if (!options.dryRun) for (const r of missing) this.detachedImages.add(r.id);
     return {
@@ -446,6 +451,18 @@ export async function publishVenueImageChanges(db: Executor, venueIds: Iterable<
   }
 }
 
+/** Publica no change feed que a bandeira destes países mudou: o consumidor da API purga `country:<código>`. */
+export async function publishCountryFlagChanges(db: Executor, codes: Iterable<string>): Promise<void> {
+  for (const code of new Set(codes)) {
+    await publishChange(db, {
+      topic: 'catalog',
+      entityType: 'country',
+      entityId: code,
+      payload: { reason: 'flag' },
+    });
+  }
+}
+
 export class PgAssetStore implements AssetStore {
   constructor(private readonly db: Database) {}
 
@@ -562,7 +579,15 @@ export class PgAssetStore implements AssetStore {
           tx,
           venues.map((v) => v.id),
         );
-        await tx.update(country).set({ flagAssetId: null }).where(eq(country.flagAssetId, id));
+        const countries = await tx
+          .update(country)
+          .set({ flagAssetId: null })
+          .where(eq(country.flagAssetId, id))
+          .returning({ code: country.code });
+        await publishCountryFlagChanges(
+          tx,
+          countries.map((c) => c.code),
+        );
       }
     });
   }
@@ -609,12 +634,25 @@ export class PgAssetStore implements AssetStore {
       isNotNull(asset.storageKey),
       inArray(asset.sha256, placeholders),
     );
-    // no dry run os genéricos ainda estão no storage: contam como ausentes para a prévia dos desligados
-    const missing = (dryRun: boolean) =>
+    // logos de time e competição ficam com a cleanupLogos (a prévia não conta duas vezes)
+    const notLogo = notInArray(asset.kind, [...LOGO_KIND_VALUES]);
+    // no dry run os genéricos e os bloqueados (o unlink foi pulado) ainda estão no storage: contam como
+    // ausentes para a prévia dos desligados
+    const denied = options.dryRun
+      ? await this.idsByMediaUrl(options.denylisted ?? [], and(notLogo, isNotNull(asset.storageKey)))
+      : [];
+    const missing = (dryRun: boolean, where?: SQL) =>
       this.db
         .select({ id: asset.id })
         .from(asset)
-        .where(dryRun ? or(MISSING_ASSET, generic) : MISSING_ASSET);
+        .where(
+          and(
+            where,
+            dryRun
+              ? or(MISSING_ASSET, generic, denied.length ? inArray(asset.id, denied) : undefined)
+              : MISSING_ASSET,
+          ),
+        );
     if (options.dryRun) {
       const [row] = await this.db.execute<{ [K in keyof ImageCleanup]: number }>(sql`
         select
@@ -622,8 +660,8 @@ export class PgAssetStore implements AssetStore {
           (select count(*)::int from ${venue} where ${venue.imageAssetId} in (${missing(true)})) as venues,
           (select count(*)::int from ${country} where ${country.flagAssetId} in (${missing(true)})) as countries,
           (select count(*)::int from ${person} where ${person.photoAssetId} in (${missing(true)})) as people,
-          (select count(*)::int from ${participant} where ${participant.logoAssetId} in (${missing(true)})) as participants,
-          (select count(*)::int from ${competition} where ${competition.logoAssetId} in (${missing(true)})) as competitions
+          (select count(*)::int from ${participant} where ${participant.logoAssetId} in (${missing(true, notLogo)})) as participants,
+          (select count(*)::int from ${competition} where ${competition.logoAssetId} in (${missing(true, notLogo)})) as competitions
       `);
       return row ?? { placeholders: 0, venues: 0, countries: 0, people: 0, participants: 0, competitions: 0 };
     }
@@ -651,16 +689,20 @@ export class PgAssetStore implements AssetStore {
       const parts = await tx
         .update(participant)
         .set({ logoAssetId: null, updatedAt: sql`now()` })
-        .where(inArray(participant.logoAssetId, missing(false)))
+        .where(inArray(participant.logoAssetId, missing(false, notLogo)))
         .returning({ id: participant.id });
       const comps = await tx
         .update(competition)
         .set({ logoAssetId: null, updatedAt: sql`now()` })
-        .where(inArray(competition.logoAssetId, missing(false)))
+        .where(inArray(competition.logoAssetId, missing(false, notLogo)))
         .returning({ id: competition.id });
       await publishVenueImageChanges(
         tx,
         venues.map((v) => v.id),
+      );
+      await publishCountryFlagChanges(
+        tx,
+        countries.map((c) => c.code),
       );
       await publishTeamLogoChanges(
         tx,

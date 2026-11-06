@@ -186,6 +186,8 @@ export async function runAssetMirror(options: AssetMirrorOptions): Promise<Mirro
     report.imageCleanup = await options.assets.cleanupImages(new Date(clock.now()), {
       placeholders: placeholderImages,
       dryRun: options.dryRun,
+      // a prévia pula o unlink: estádios, bandeiras e lutadores bloqueados entram na conta dos desligados
+      denylisted: denylist.urls,
     });
   }
 

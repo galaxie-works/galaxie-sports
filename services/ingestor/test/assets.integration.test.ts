@@ -809,6 +809,12 @@ describe('estádios, circuitos, bandeiras e lutadores com imagem genérica ou au
       .from(changeFeed)
       .where(eq(changeFeed.entityId, generic.id));
     expect(feed).toContainEqual({ entityType: 'venue' });
+    // e o país pela bandeira (country:ZZ)
+    const countryFeed = await db
+      .select({ entityType: changeFeed.entityType })
+      .from(changeFeed)
+      .where(eq(changeFeed.entityId, 'ZZ'));
+    expect(countryFeed).toContainEqual({ entityType: 'country' });
     // idempotente
     expect(await store.cleanupImages(at)).toMatchObject({
       placeholders: 0,

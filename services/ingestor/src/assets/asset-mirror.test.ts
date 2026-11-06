@@ -595,6 +595,28 @@ describe('estádios e outras imagens genéricas', () => {
     expect((await runAssetMirror({ assets, objects, fetcher, clock })).imageCleanup.placeholders).toBe(0);
   });
 
+  it('--plan conta o estádio espelhado que entrou na lista de bloqueio (o unlink da execução real)', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [STADIUM, NO_STADIUM]);
+    const stored = { sha256: 'foto', bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(STADIUM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/venues/556.png',
+    });
+    await assets.markStored(assets.byUrl(NO_STADIUM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/venues/22570.png',
+    });
+    const denylist = new MediaDenylist([{ url: STADIUM, reason: 'foto de outro estádio' }]);
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, denylist, dryRun: true });
+    expect(plan.imageCleanup).toMatchObject({ placeholders: 0, venues: 1 });
+    expect(assets.byUrl(STADIUM)!.storageKey).not.toBeNull();
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, denylist });
+    expect(report).toMatchObject({ unlinked: 1, imageCleanup: plan.imageCleanup });
+    expect([...assets.detachedImages]).toEqual([assets.byUrl(STADIUM)!.id]);
+  });
+
   it('as duas listas valem para os outros kinds, e só para eles', () => {
     const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
     const [silhouette] = PLACEHOLDER_PHOTO_SHA256;
