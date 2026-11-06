@@ -4,13 +4,13 @@
 # Desde 2025 (Phase One): 18 clubes da MLS e 18 da Liga MX, 3 jogos cada, sempre contra a outra liga. Duas
 # tabelas de 18, uma por liga; os 4 primeiros de cada vão às quartas. Times pelo país do clube (MLS: US e CA;
 # Liga MX: MX). Rodadas "Group Stage" (2026) e "Group Stage - N" (2025).
-# 2023 e 2024: grupos de 3 (turno único, 2 jogos), 1º e 2º às 16-avos; os grupos saem de quem jogou contra
-# quem, já que o fornecedor não manda tabela.
+# 2023 e 2024: grupos de 3 por região (East 1, West 2…), 1º e 2º às 16-avos. Sem a tabela do fornecedor, não
+# há como saber o nome de cada grupo, e o recálculo genérico juntaria os 15 grupos numa tabela só: nessas
+# temporadas a competição fica como copa (sem tabela).
 #
 # Não há empate: empatou no tempo normal, vai aos pênaltis. Vitória no tempo normal 3, nos pênaltis 2,
 # derrota nos pênaltis 1, derrota 0.
 # Desempate (Phase One): vitórias no tempo normal, saldo, gols pró, menos gols sofridos, fair play, sorteio.
-# A CONFERIR: a ordem do desempate de 2023 e 2024 (grupos de 3) segue a da Phase One.
 # Mata-mata: jogo único, sem prorrogação, empate direto aos pênaltis.
 # Revise a cada temporada.
 slug: leagues-cup
@@ -59,12 +59,7 @@ tables:
 
 overrides:
   - seasons: { to: 2024 }
-    league:
-      teams: 3
-      matches_per_team: 2
-      zones:
-        - { id: round_of_32, kind: qualification, from: 1, to: 2 }
-        - { id: elimination, kind: elimination, from: 3, to: 3 }
+    format: cup
     tables: []
 
 sources:

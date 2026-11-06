@@ -684,8 +684,8 @@ describe('limpeza do resíduo no grupo sem nome', () => {
 
 describe('Leagues Cup (2026): uma tabela por liga, pelo país do clube, com pênaltis valendo 2/1', () => {
   let w: World;
-  const MLS = ['M1', 'M2', 'M3'];
-  const MX = ['X1', 'X2', 'X3'];
+  const MLS = ['M1', 'M2', 'M3', 'M4'];
+  const MX = ['X1', 'X2', 'X3', 'X4'];
   beforeAll(async () => {
     w = await world('leagues-cup', 2026, [...MLS, ...MX]);
     await db
@@ -703,6 +703,8 @@ describe('Leagues Cup (2026): uma tabela por liga, pelo país do clube, com pên
       ['X1', 'MX'],
       ['X2', 'MX'],
       ['X3', 'MX'],
+      ['M4', 'US'],
+      ['X4', 'MX'],
     ] as const)
       await db
         .update(participant)
@@ -722,6 +724,8 @@ describe('Leagues Cup (2026): uma tabela por liga, pelo país do clube, com pên
     await w.play('Group Stage', 'M1', 'X2', [0, 1], 'group');
     await w.play('Group Stage', 'M2', 'X3', [3, 1], 'group');
     await shootout(w.play('Group Stage', 'M3', 'X1', [1, 1], 'group'), 5, 4);
+    // ainda por jogar: os dois entram zerados
+    await w.play('Group Stage', 'M4', 'X4', null, 'group');
     // mata-mata: fora da tabela
     await w.play('Quarter-finals', 'M2', 'X2', [4, 0], 'quarter_final');
   });
@@ -743,12 +747,16 @@ describe('Leagues Cup (2026): uma tabela por liga, pelo país do clube, com pên
       ['Liga MX', 'X2', 5, 2, 0, 0, 1, 0],
       ['Liga MX', 'X3', 2, 1, 0, 1, 1, 0],
       ['Liga MX', 'X1', 1, 0, 0, 2, 0, 1],
+      ['Liga MX', 'X4', 0, 0, 0, 0, 0, 0],
       // MLS: M1 e M3 com 3; M1 tem uma vitória no tempo normal, M3 nenhuma
       ['MLS', 'M2', 4, 1, 0, 1, 0, 1],
       ['MLS', 'M1', 3, 1, 0, 1, 0, 0],
       ['MLS', 'M3', 3, 1, 0, 1, 1, 1],
+      ['MLS', 'M4', 0, 0, 0, 0, 0, 0],
     ]);
-    expect(rows.every((r) => r.played === 2 && r.source === 'computed')).toBe(true);
+    const unplayed = new Set([w.team('M4'), w.team('X4')]);
+    expect(rows.every((r) => r.played === (unplayed.has(r.participantId) ? 0 : 2))).toBe(true);
+    expect(rows.every((r) => r.source === 'computed')).toBe(true);
     expect(rows.find((r) => name(r.participantId) === 'M2')?.description).toBe('quarter_finals');
   });
 });
