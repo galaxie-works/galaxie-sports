@@ -13,6 +13,7 @@ import { MediaFetcher } from './media-fetcher.js';
 import { InMemoryObjectStore } from './object-store.js';
 import { runPaletteBackfill } from './palette-backfill.js';
 import { isPlaceholderPhoto, PLACEHOLDER_PHOTO_SHA256 } from './person-photos.js';
+import { isPlaceholderImage } from './placeholder-images.js';
 
 const BR = 'https://media.api-sports.io/flags/br.svg';
 const TEAM = 'https://media.api-sports.io/football/teams/121.png';
@@ -508,5 +509,125 @@ describe('logos genéricos', () => {
     expect(isPlaceholderLogo('player', notAvailable!)).toBe(false);
     expect(isPlaceholderLogo('venue', notAvailable!)).toBe(false);
     expect(isPlaceholderLogo('team_logo', 'outro')).toBe(false);
+  });
+});
+
+describe('estádios e outras imagens genéricas', () => {
+  const STADIUM = 'https://media.api-sports.io/football/venues/556.png';
+  const NO_STADIUM = 'https://media.api-sports.io/football/venues/22570.png';
+  const GONE_STADIUM = 'https://media.api-sports.io/football/venues/99999.png';
+  const FIGHTER = 'https://media.api-sports.io/mma/fighters/7.png';
+
+  it('estádio ou lutador com imagem genérica (de qualquer lista) vira "sem imagem" e a entidade perde o vínculo', async () => {
+    const real = fakePng(150, 100, 60);
+    const notAvailable = fakePng(150, 150, 70);
+    const silhouette = fakePng(150, 150, 80);
+    const { clock, assets, objects, fetcher } = setup(
+      {
+        [STADIUM]: [{ status: 200, body: real, headers: { 'content-type': 'image/png' } }],
+        [NO_STADIUM]: [{ status: 200, body: notAvailable, headers: { 'content-type': 'image/png' } }],
+        [GONE_STADIUM]: [{ status: 404 }],
+        [FIGHTER]: [{ status: 200, body: silhouette, headers: { 'content-type': 'image/png' } }],
+      },
+      [STADIUM, NO_STADIUM, GONE_STADIUM, FIGHTER],
+    );
+    const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
+    const placeholderLogos = new Set([sha(notAvailable)]);
+    const placeholderPhotos = new Set([sha(silhouette)]);
+
+    const report = await runAssetMirror({
+      assets,
+      objects,
+      fetcher,
+      clock,
+      placeholderLogos,
+      placeholderPhotos,
+    });
+    expect(report).toMatchObject({
+      pending: 4,
+      stored: 1,
+      placeholderImages: 2,
+      placeholderLogos: 0,
+      placeholders: 0,
+      notFound: 1,
+    });
+    expect(assets.byUrl(STADIUM)).toMatchObject({ storageKey: 'api-sports/football/venues/556.png' });
+    for (const url of [NO_STADIUM, FIGHTER]) {
+      expect(assets.byUrl(url)).toMatchObject({ storageKey: null, sha256: null });
+      expect(assets.byUrl(url)!.fetchedAt).toBeInstanceOf(Date);
+    }
+    expect(await objects.head('api-sports/football/venues/22570.png')).toBeUndefined();
+    // genérico e 404 desligam estádio, país, lutador (time) e pessoa que usem o asset
+    const missing = [NO_STADIUM, GONE_STADIUM, FIGHTER].map((u) => assets.byUrl(u)!.id).sort();
+    expect([...assets.detachedImages].sort()).toEqual(missing);
+    expect([...assets.detachedLogos].sort()).toEqual(missing);
+    expect((await runAssetMirror({ assets, objects, fetcher, clock, placeholderLogos })).pending).toBe(0);
+  });
+
+  it('a limpeza do início marca como ausentes os estádios genéricos gravados antes; --plan só conta', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [STADIUM, NO_STADIUM, GONE_STADIUM]);
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    const stored = { bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(STADIUM)!.id, {
+      ...stored,
+      sha256: 'foto-do-estadio',
+      storageKey: 'api-sports/football/venues/556.png',
+    });
+    await assets.markStored(assets.byUrl(NO_STADIUM)!.id, {
+      ...stored,
+      sha256: notAvailable!,
+      storageKey: 'api-sports/football/venues/22570.png',
+    });
+    await assets.markMissing(assets.byUrl(GONE_STADIUM)!.id, new Date(0));
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, dryRun: true });
+    expect(plan.imageCleanup).toMatchObject({ placeholders: 1, venues: 2 });
+    expect(assets.byUrl(NO_STADIUM)!.storageKey).not.toBeNull();
+    expect(assets.detachedImages.size).toBe(0);
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock });
+    expect(report.imageCleanup).toEqual(plan.imageCleanup);
+    expect(assets.byUrl(NO_STADIUM)).toMatchObject({ storageKey: null, sha256: null });
+    expect([...assets.detachedImages].sort()).toEqual(
+      [assets.byUrl(NO_STADIUM)!.id, assets.byUrl(GONE_STADIUM)!.id].sort(),
+    );
+    expect(assets.byUrl(STADIUM)!.storageKey).toBe('api-sports/football/venues/556.png');
+    expect((await runAssetMirror({ assets, objects, fetcher, clock })).imageCleanup.placeholders).toBe(0);
+  });
+
+  it('--plan conta o estádio espelhado que entrou na lista de bloqueio (o unlink da execução real)', async () => {
+    const { clock, assets, objects, fetcher } = setup({}, [STADIUM, NO_STADIUM]);
+    const stored = { sha256: 'foto', bytes: 1, width: 2, height: 2, fetchedAt: new Date(0) };
+    await assets.markStored(assets.byUrl(STADIUM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/venues/556.png',
+    });
+    await assets.markStored(assets.byUrl(NO_STADIUM)!.id, {
+      ...stored,
+      storageKey: 'api-sports/football/venues/22570.png',
+    });
+    const denylist = new MediaDenylist([{ url: STADIUM, reason: 'foto de outro estádio' }]);
+
+    const plan = await runAssetMirror({ assets, objects, fetcher, clock, denylist, dryRun: true });
+    expect(plan.imageCleanup).toMatchObject({ placeholders: 0, venues: 1 });
+    expect(assets.byUrl(STADIUM)!.storageKey).not.toBeNull();
+
+    const report = await runAssetMirror({ assets, objects, fetcher, clock, denylist });
+    expect(report).toMatchObject({ unlinked: 1, imageCleanup: plan.imageCleanup });
+    expect([...assets.detachedImages]).toEqual([assets.byUrl(STADIUM)!.id]);
+  });
+
+  it('as duas listas valem para os outros kinds, e só para eles', () => {
+    const [notAvailable] = PLACEHOLDER_LOGO_SHA256;
+    const [silhouette] = PLACEHOLDER_PHOTO_SHA256;
+    for (const kind of ['venue', 'circuit', 'flag', 'fighter', 'driver']) {
+      expect(isPlaceholderImage(kind, notAvailable!)).toBe(true);
+      expect(isPlaceholderImage(kind, silhouette!)).toBe(true);
+      expect(isPlaceholderImage(kind, 'outro')).toBe(false);
+    }
+    // pessoas e logos seguem com a lista própria
+    expect(isPlaceholderImage('player', notAvailable!)).toBe(false);
+    expect(isPlaceholderImage('team_logo', silhouette!)).toBe(false);
+    expect(isPlaceholderImage('broadcaster_logo', notAvailable!)).toBe(false);
   });
 });

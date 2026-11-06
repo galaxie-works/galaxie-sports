@@ -24,11 +24,17 @@ export const LOGO_KINDS: ReadonlySet<string> = new Set(LOGO_KIND_VALUES);
 
 /**
  * Kinds cujo asset ausente (404, bloqueado ou imagem genérica) deixa a entidade sem imagem: a normalização
- * não religa e a API não cai na URL de origem, que é o próprio placeholder ou um 404.
+ * não religa e a API não cai na URL de origem, que é o próprio placeholder ou um 404. Vale para todos os kinds
+ * da CDN de mídia: estádio, circuito, bandeira, lutador e piloto também recebem as imagens genéricas.
  */
-export const DETACHED_WHEN_MISSING_KINDS: ReadonlySet<string> = new Set([
-  ...PERSON_PHOTO_KINDS,
-  ...LOGO_KINDS,
+export const DETACHED_WHEN_MISSING_KINDS: ReadonlySet<string> = new Set<MediaAssetKind>([
+  ...(PERSON_PHOTO_KINDS as ReadonlySet<MediaAssetKind>),
+  ...LOGO_KIND_VALUES,
+  'venue',
+  'circuit',
+  'flag',
+  'fighter',
+  'driver',
 ]);
 
 /** Asset já tentado pelo Asset Mirror e sem arquivo (404, bloqueado ou imagem genérica). */
