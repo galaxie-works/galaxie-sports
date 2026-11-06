@@ -151,6 +151,8 @@ function defaultProps(
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    // clássicos: país, janela e quantidade vêm das opções
+    case 'upcoming_derbies':
       return {};
   }
 }

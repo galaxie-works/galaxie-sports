@@ -38,6 +38,7 @@ const WIDGETS = {
   games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
+  upcoming_derbies: { file: 'src/widgets/upcoming-derbies.tsx', component: 'UpcomingDerbies' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

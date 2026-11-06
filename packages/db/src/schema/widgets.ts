@@ -31,6 +31,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

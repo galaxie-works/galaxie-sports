@@ -98,6 +98,32 @@ export const GAMES_NOCS = [
   { value: 'POR', label: l('Portugal', 'Portugal', 'Portugal') },
 ] as const;
 
+/**
+ * Países do filtro dos clássicos (código da base semântica: ISO2, Inglaterra = GB-ENG). Todos primeiro,
+ * depois em ordem alfabética pt-BR.
+ */
+export const DERBY_COUNTRIES = [
+  { value: 'all', label: l('Todos', 'Todos', 'All') },
+  { value: 'DE', label: l('Alemanha', 'Alemania', 'Germany') },
+  { value: 'AR', label: l('Argentina', 'Argentina', 'Argentina') },
+  { value: 'BO', label: l('Bolívia', 'Bolivia', 'Bolivia') },
+  { value: 'BR', label: l('Brasil', 'Brasil', 'Brazil') },
+  { value: 'CL', label: l('Chile', 'Chile', 'Chile') },
+  { value: 'CO', label: l('Colômbia', 'Colombia', 'Colombia') },
+  { value: 'EC', label: l('Equador', 'Ecuador', 'Ecuador') },
+  { value: 'ES', label: l('Espanha', 'España', 'Spain') },
+  { value: 'FR', label: l('França', 'Francia', 'France') },
+  { value: 'GB-ENG', label: l('Inglaterra', 'Inglaterra', 'England') },
+  { value: 'IT', label: l('Itália', 'Italia', 'Italy') },
+  { value: 'MX', label: l('México', 'México', 'Mexico') },
+  { value: 'NL', label: l('Países Baixos', 'Países Bajos', 'Netherlands') },
+  { value: 'PY', label: l('Paraguai', 'Paraguay', 'Paraguay') },
+  { value: 'PE', label: l('Peru', 'Perú', 'Peru') },
+  { value: 'PT', label: l('Portugal', 'Portugal', 'Portugal') },
+  { value: 'UY', label: l('Uruguai', 'Uruguay', 'Uruguay') },
+  { value: 'VE', label: l('Venezuela', 'Venezuela', 'Venezuela') },
+] as const;
+
 const games = (): WidgetOptionSpec => ({
   key: 'games',
   type: 'lookup',
@@ -668,6 +694,41 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ],
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
+  ],
+  upcoming_derbies: [
+    {
+      key: 'country',
+      type: 'enum',
+      default: 'all',
+      label: l('País', 'País', 'Country'),
+      hint: l(
+        'Clássicos com um time do país.',
+        'Clásicos con un equipo del país.',
+        'Derbies with a team from the country.',
+      ),
+      values: DERBY_COUNTRIES,
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 5,
+      min: 1,
+      max: 20,
+      label: l('Clássicos listados', 'Clásicos listados', 'Derbies listed'),
+    },
+    {
+      key: 'days',
+      type: 'number',
+      default: 7,
+      min: 1,
+      max: 30,
+      label: l('Dias à frente', 'Días hacia adelante', 'Days ahead'),
+    },
+    bool('showCompetition', L.competition, true),
+    bool('showHistory', l('Retrospecto do confronto', 'Historial del duelo', 'Head-to-head record'), true, {
+      extraCall: true,
+    }),
+    bool('showWhereToWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
   ],
 };
 

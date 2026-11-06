@@ -22,6 +22,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  UpcomingDerbies,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -244,6 +245,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'upcoming_derbies':
+        return <UpcomingDerbies {...o} />;
     }
   }
   switch (kind) {
@@ -290,11 +293,12 @@ function PreviewWidget({
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'upcoming_derbies':
       return <StandalonePreview kind={kind} o={o} />;
   }
 }
 
-/** Prévia dos tipos sem entidade (hipismo e Jogos), com a escolha nas opções. */
+/** Prévia dos tipos sem entidade (hipismo, Jogos e clássicos), com a escolha nas opções. */
 function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, unknown> }) {
   switch (kind) {
     case 'equestrian_results':
@@ -317,6 +321,8 @@ function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, un
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'upcoming_derbies':
+      return <UpcomingDerbies {...o} />;
     default:
       return null;
   }
