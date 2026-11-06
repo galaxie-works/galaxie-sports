@@ -150,6 +150,7 @@ describe('parseEmbedConfig', () => {
       kind: 'live_list',
       liveList: { liveOnly: true, showVenue: true, showCity: 'sim', limit: 5000, outra: true },
     });
-    expect(parsed?.liveList).toEqual({ liveOnly: true, showVenue: true });
+    // liveOnly antigo vira o modo ao vivo
+    expect(parsed?.liveList).toEqual({ mode: 'live', showVenue: true });
   });
 });

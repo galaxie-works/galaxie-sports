@@ -220,7 +220,7 @@ describe('LiveList', () => {
     expect(screen.getByText('Liga Exemplo')).toBeTruthy();
     expect(container.querySelectorAll('[data-gs-event]')).toHaveLength(3);
     expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toMatch(
-      /\/v1\/events\?.*sport=football&date=\d{4}-\d{2}-\d{2}&limit=30/,
+      /\/v1\/events\?.*sport=football&market=BR&date=\d{4}-\d{2}-\d{2}&limit=30/,
     );
   });
 
@@ -288,6 +288,67 @@ describe('LiveList', () => {
     await screen.findByText('Clube Aurora');
     expect(short.container.querySelectorAll('[data-gs-event]')).toHaveLength(2);
     expect(String(vi.mocked(short.fetchImpl).mock.calls[0]![0])).toMatch(/limit=2/);
+  });
+
+  it('dia, modo, ordem por relevância e país vão para a consulta; o título acompanha', async () => {
+    const tomorrow = setup(
+      <LiveList sport="football" day="tomorrow" order="relevance" minRelevance={50} country="ar" />,
+    );
+    expect(await screen.findByText('Jogos de amanhã')).toBeTruthy();
+    const url = String(vi.mocked(tomorrow.fetchImpl).mock.calls[0]![0]);
+    expect(url).toMatch(/country=ar/);
+    expect(url).toMatch(/order=relevance&relevance_min=50/);
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    expect(url).not.toContain(`date=${today}`);
+    cleanup();
+    const results = setup(<LiveList sport="football" day="yesterday" mode="finished" />);
+    expect(await screen.findByText('Resultados de ontem')).toBeTruthy();
+    expect(String(vi.mocked(results.fetchImpl).mock.calls[0]![0])).toMatch(/status=finished/);
+    cleanup();
+    const upcoming = setup(<LiveList sport="football" mode="upcoming" teamId="time-1" />);
+    expect(await screen.findByText('Próximos jogos')).toBeTruthy();
+    expect(String(vi.mocked(upcoming.fetchImpl).mock.calls[0]![0])).toMatch(
+      /team=time-1.*status=scheduled%2Cstarting/,
+    );
+  });
+
+  it('selo de clássico, o que está em jogo, árbitro, pênaltis e nome curto', async () => {
+    const { container } = setup(
+      <LiveList sport="football" showDerby showStakes showReferee teamName="short" />,
+    );
+    await screen.findByText('Clássico da Serra');
+    expect(container.querySelector('[data-tag="derby"]')!.textContent).toBe('Clássico da Serra');
+    const tags = [...container.querySelectorAll('[data-tag="stake"]')].map((t) => t.textContent);
+    expect(tags).toHaveLength(2);
+    expect(tags[0]).toContain('Na briga pelo título');
+    expect(container.querySelector('.gs-line-pen')!.textContent).toBe('(4)');
+    expect(screen.queryByText('Clube Aurora')).toBeNull();
+  });
+
+  it('pênaltis podem ser desligados', async () => {
+    const { container } = setup(<LiveList sport="football" showPenalties={false} />);
+    await screen.findByText('Clube Aurora');
+    expect(container.querySelector('.gs-line-pen')).toBeNull();
+  });
+
+  it('cada jogo vira link com o modelo https; modelo inválido é ignorado', async () => {
+    const linked = setup(
+      <LiveList sport="football" eventLink="https://portal.exemplo/jogo/{eventId}" eventLinkNewTab />,
+    );
+    await screen.findByText('Clube Aurora');
+    const a = linked.container.querySelector<HTMLAnchorElement>('a.gs-row-link')!;
+    expect(a.getAttribute('href')).toBe(`https://portal.exemplo/jogo/${PREVIEW_IDS.liveEvent}`);
+    expect(a.getAttribute('target')).toBe('_blank');
+    cleanup();
+    const bad = setup(<LiveList sport="football" eventLink="javascript:alert({eventId})" />);
+    await screen.findByText('Clube Aurora');
+    expect(bad.container.querySelector('a')).toBeNull();
+  });
+
+  it('ao vivo filtra por time e relevância no próprio widget', async () => {
+    const { container } = setup(<LiveList mode="live" minRelevance={99} />);
+    expect(await screen.findByText('Nenhum jogo ao vivo agora.')).toBeTruthy();
+    expect(container.querySelectorAll('[data-gs-event]')).toHaveLength(0);
   });
 
   it('mostra o vazio quando não há jogo', async () => {

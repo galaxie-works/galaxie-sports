@@ -70,7 +70,16 @@ export interface StandingsOptions {
 }
 
 /** Dados extras que cada linha da lista de jogos pode mostrar (liga/desliga no Builder). */
-export const LIVE_LIST_FIELDS = ['showCompetitionLogo', 'showRound', 'showVenue', 'showCity'] as const;
+export const LIVE_LIST_FIELDS = [
+  'showCompetitionLogo',
+  'showRound',
+  'showVenue',
+  'showCity',
+  'showDerby',
+  'showStakes',
+  'showReferee',
+  'showPenalties',
+] as const;
 export type LiveListField = (typeof LIVE_LIST_FIELDS)[number];
 
 /** Padrão de cada dado extra: o logo do campeonato já aparecia; rodada, estádio e cidade entram ao ligar. */
@@ -79,15 +88,68 @@ export const LIVE_LIST_FIELD_DEFAULTS: Record<LiveListField, boolean> = {
   showRound: false,
   showVenue: false,
   showCity: false,
+  showDerby: false,
+  showStakes: false,
+  showReferee: false,
+  showPenalties: true,
 };
+
+/** Quais jogos entram: todos do dia, só ao vivo, só os que ainda vão começar ou só os encerrados. */
+export const LIVE_LIST_MODES = ['all', 'live', 'upcoming', 'finished'] as const;
+export type LiveListMode = (typeof LIVE_LIST_MODES)[number];
+
+/** Dia da lista, no fuso do widget. */
+export const LIVE_LIST_DAYS = ['yesterday', 'today', 'tomorrow'] as const;
+export type LiveListDay = (typeof LIVE_LIST_DAYS)[number];
+
+/** Ordem: horário (padrão) ou relevância no país do widget (importância do jogo + interesse do mercado). */
+export const LIVE_LIST_ORDERS = ['time', 'relevance'] as const;
+export type LiveListOrder = (typeof LIVE_LIST_ORDERS)[number];
+
+/** Nome dos times: completo ou curto (cai no completo quando não há curto). */
+export const LIVE_LIST_TEAM_NAMES = ['full', 'short'] as const;
+export type LiveListTeamName = (typeof LIVE_LIST_TEAM_NAMES)[number];
+
+/** Endereço modelo do link de cada jogo: só https, com `{eventId}`. */
+const EVENT_LINK_MAX = 300;
+export function isEventLinkTemplate(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > EVENT_LINK_MAX || !value.includes('{eventId}'))
+    return false;
+  if (/[\s"'<>`]/.test(value)) return false;
+  try {
+    const url = new URL(value.replaceAll('{eventId}', 'x'));
+    return url.protocol === 'https:' && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Link de um jogo a partir do modelo salvo (o id vai codificado). */
+export function eventLinkFor(template: string, eventId: string): string {
+  return template.replaceAll('{eventId}', encodeURIComponent(eventId));
+}
 
 /** Limites do número de jogos da lista. */
 export const LIVE_LIST_LIMIT = { min: 1, max: 200, default: 30 } as const;
 
 /** Opções da lista de jogos salvas no Builder (mesmos nomes das props do `LiveList`). */
 export interface LiveListOptions extends Partial<Record<LiveListField, boolean | undefined>> {
-  /** Só os jogos ao vivo agora (padrão: todos os jogos do dia). */
-  liveOnly?: boolean | undefined;
+  /** Quais jogos entram (padrão: todos). */
+  mode?: LiveListMode | undefined;
+  /** Dia da lista (padrão: hoje; não vale no modo ao vivo). */
+  day?: LiveListDay | undefined;
+  /** Ordem dos jogos (padrão: horário). */
+  order?: LiveListOrder | undefined;
+  /** Só jogos com relevância no país a partir deste valor (0–100; padrão: todos). */
+  minRelevance?: number | undefined;
+  /** Só competições deste país (ISO2). */
+  country?: string | undefined;
+  /** Nome dos times (padrão: completo). */
+  teamName?: LiveListTeamName | undefined;
+  /** Link de cada jogo no site do cliente (`https://…{eventId}…`). */
+  eventLink?: string | undefined;
+  /** Abre o link do jogo em outra aba. */
+  eventLinkNewTab?: boolean | undefined;
   /** Agrupa os jogos por campeonato (padrão: sim). */
   groupByCompetition?: boolean | undefined;
   /** Atualiza sozinho enquanto há jogo rolando (padrão: sim). */
@@ -170,6 +232,11 @@ export interface GsEvent {
   participants: GsParticipant[];
   score: GsSidePair & { penalty: GsSidePair | null };
   venue: { name: string; city: string | null } | null;
+  /** Importância do jogo (0–100). */
+  importance?: number | undefined;
+  /** Relevância no mercado pedido (`market`). */
+  relevance?: { market: string; score: number } | null | undefined;
+  referee?: { name: string; country: string | null } | null | undefined;
   derby?: { slug: string; name: string; intensity: number } | null | undefined;
   stakes?: GsStake[] | undefined;
 }
@@ -385,8 +452,27 @@ export function parseLiveListOptions(raw: unknown): LiveListOptions | undefined 
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
   const out: LiveListOptions = {};
-  for (const key of ['liveOnly', 'groupByCompetition', 'autoRefresh', ...LIVE_LIST_FIELDS] as const)
+  for (const key of ['groupByCompetition', 'autoRefresh', 'eventLinkNewTab', ...LIVE_LIST_FIELDS] as const)
     if (typeof r[key] === 'boolean') out[key] = r[key];
+  const pick = <T extends string>(values: readonly T[], v: unknown) =>
+    (values as readonly unknown[]).includes(v) ? (v as T) : undefined;
+  const mode = pick(LIVE_LIST_MODES, r.mode) ?? (r.liveOnly === true ? 'live' : undefined);
+  if (mode) out.mode = mode;
+  const day = pick(LIVE_LIST_DAYS, r.day);
+  if (day) out.day = day;
+  const order = pick(LIVE_LIST_ORDERS, r.order);
+  if (order) out.order = order;
+  const teamName = pick(LIVE_LIST_TEAM_NAMES, r.teamName);
+  if (teamName) out.teamName = teamName;
+  if (
+    typeof r.minRelevance === 'number' &&
+    Number.isInteger(r.minRelevance) &&
+    r.minRelevance >= 0 &&
+    r.minRelevance <= 100
+  )
+    out.minRelevance = r.minRelevance;
+  if (typeof r.country === 'string' && /^[A-Za-z]{2}$/.test(r.country)) out.country = r.country.toUpperCase();
+  if (isEventLinkTemplate(r.eventLink)) out.eventLink = r.eventLink;
   if (
     typeof r.limit === 'number' &&
     Number.isInteger(r.limit) &&
@@ -703,6 +789,13 @@ export const WIDGET_CSS = `
 .gs-row-meta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-width:0;font-size:.75em;color:var(--gs-muted-foreground)}
 .gs-row-meta>span{display:inline-flex;align-items:center;gap:4px;min-width:0}
 .gs-row-meta>span+span::before{content:'·';margin-right:2px}
+.gs-row-tags{display:flex;flex-wrap:wrap;gap:4px}
+.gs-row-tag{padding:1px 7px;border:1px solid var(--gs-border);border-radius:999px;font-size:.72em;color:var(--gs-muted-foreground)}
+.gs-row-tag[data-tag=derby]{border-color:color-mix(in srgb,var(--gs-primary) 60%,transparent);color:var(--gs-primary);font-weight:700}
+.gs-row[data-linked]{display:block;padding:0}
+.gs-row-link{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:var(--gs-gap);padding:calc(var(--gs-gap)*.7) 0;color:inherit;text-decoration:none;border-radius:calc(var(--gs-radius)/2);transition:background-color .15s}
+.gs-row-link:hover,.gs-row-link:focus-visible{background:color-mix(in srgb,var(--gs-foreground) 5%,transparent)}
+.gs-line-pen{font-size:.75em;font-weight:600;color:var(--gs-muted-foreground);margin-left:3px}
 .gs-line-score{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
 .gs-scroll{overflow-x:auto;margin:0 calc(var(--gs-pad)*-1);padding:0 var(--gs-pad)}
 .gs-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
@@ -811,6 +904,13 @@ export interface WidgetTexts {
   emptyWatch: string;
   liveNow: string;
   todayGames: string;
+  tomorrowGames: string;
+  yesterdayGames: string;
+  upcomingGames: string;
+  todayResults: string;
+  yesterdayResults: string;
+  referee: string;
+  derby: string;
   standings: string;
   whereToWatch: string;
   toConfirm: string;
@@ -915,6 +1015,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Transmissão ainda não confirmada.',
     liveNow: 'Ao vivo agora',
     todayGames: 'Jogos do dia',
+    tomorrowGames: 'Jogos de amanhã',
+    yesterdayGames: 'Jogos de ontem',
+    upcomingGames: 'Próximos jogos',
+    todayResults: 'Resultados do dia',
+    yesterdayResults: 'Resultados de ontem',
+    referee: 'Árbitro',
+    derby: 'Clássico',
     standings: 'Classificação',
     whereToWatch: 'Onde assistir',
     toConfirm: 'Canal a confirmar',
@@ -1048,6 +1155,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Transmisión aún no confirmada.',
     liveNow: 'En vivo ahora',
     todayGames: 'Partidos del día',
+    tomorrowGames: 'Partidos de mañana',
+    yesterdayGames: 'Partidos de ayer',
+    upcomingGames: 'Próximos partidos',
+    todayResults: 'Resultados del día',
+    yesterdayResults: 'Resultados de ayer',
+    referee: 'Árbitro',
+    derby: 'Clásico',
     standings: 'Posiciones',
     whereToWatch: 'Dónde ver',
     toConfirm: 'Canal por confirmar',
@@ -1181,6 +1295,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     emptyWatch: 'Broadcast not confirmed yet.',
     liveNow: 'Live now',
     todayGames: "Today's games",
+    tomorrowGames: "Tomorrow's games",
+    yesterdayGames: "Yesterday's games",
+    upcomingGames: 'Upcoming games',
+    todayResults: "Today's results",
+    yesterdayResults: "Yesterday's results",
+    referee: 'Referee',
+    derby: 'Derby',
     standings: 'Standings',
     whereToWatch: 'Where to watch',
     toConfirm: 'Channel to be confirmed',

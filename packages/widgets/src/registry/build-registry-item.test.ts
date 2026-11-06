@@ -146,10 +146,10 @@ describe('buildRegistryItem', () => {
       kind: 'live_list',
       name: 'Jogos',
       defaults: { competitionId: 'brasileirao' },
-      liveList: { liveOnly: true, showRound: true, limit: 10, groupByCompetition: 'nao' as never },
+      liveList: { mode: 'live', showRound: true, limit: 10, groupByCompetition: 'nao' as never },
     });
     expect(item.files[1]!.content).toContain(
-      'const GALAXIE_DEFAULTS: Partial<LiveListProps> = {"competitionId":"brasileirao","liveOnly":true,"showRound":true,"limit":10};',
+      'const GALAXIE_DEFAULTS: Partial<LiveListProps> = {"competitionId":"brasileirao","showRound":true,"mode":"live","limit":10};',
     );
     expect(syntaxErrors(item.files[1]!.content)).toEqual([]);
   });

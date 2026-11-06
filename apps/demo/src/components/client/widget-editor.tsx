@@ -158,7 +158,11 @@ function PreviewWidget({
     case 'standings':
       return <StandingsTable competitionId={entity.id} season="current" {...zones} />;
     case 'live_list':
-      return <LiveList {...liveList} competitionId={entity.id} />;
+      return entity.type === 'team' ? (
+        <LiveList {...liveList} teamId={entity.id} />
+      ) : (
+        <LiveList {...liveList} competitionId={entity.id} />
+      );
     case 'ai_context':
       return <AiContext eventId={entity.id} />;
     case 'match_stakes':
