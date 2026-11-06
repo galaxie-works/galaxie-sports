@@ -143,6 +143,25 @@ describe('Countdown', () => {
     expect(screen.getByText('hrs')).toBeTruthy();
   });
 
+  it('MMA encerrado: o método no meio, nunca "0 – 0"', async () => {
+    const { container } = setup(<Countdown eventId={PREVIEW_IDS.fightEvent} />);
+    await vi.waitFor(() => expect(container.querySelector('[data-gs-fight]')).toBeTruthy());
+    expect(container.querySelector('.gs-score')).toBeNull();
+  });
+
+  it('onde assistir é reconsultado enquanto a contagem está na tela', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchImpl } = setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />);
+    await screen.findByText('Onde assistir');
+    const watchCalls = () =>
+      fetchImpl.mock.calls.filter(([url]) => String(url).includes('/where-to-watch')).length;
+    expect(watchCalls()).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 1000);
+    });
+    expect(watchCalls()).toBe(2);
+  });
+
   it('MMA: conta até a próxima luta', async () => {
     const { container } = setup(<Countdown eventId={PREVIEW_IDS.nextFightEvent} />);
     await vi.waitFor(() => expect(container.querySelector('.gs-countdown-unit[data-unit=d]')).toBeTruthy());

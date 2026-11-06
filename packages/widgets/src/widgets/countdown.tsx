@@ -34,6 +34,8 @@ export interface CountdownProps {
 }
 
 const enc = encodeURIComponent;
+/** Onde assistir muda devagar: de 5 em 5 minutos basta para pegar o canal confirmado. */
+const WATCH_REFRESH_MS = 5 * 60_000;
 
 /**
  * Contagem regressiva para o jogo: dias, horas, minutos e segundos até o início, com os escudos, o
@@ -56,6 +58,8 @@ export function Countdown({
   const watch = useGalaxieQuery<GsWhereToWatch>(
     event && waiting && showWatch && market ? `/v1/events/${enc(event.id)}/where-to-watch` : null,
     { country: market },
+    // o canal sai mais perto do jogo ("a confirmar" vira o canal): reconsulta enquanto a contagem está na tela
+    () => WATCH_REFRESH_MS,
   );
 
   // relógio local: de segundo em segundo, ou na virada de cada minuto sem os segundos
@@ -86,6 +90,9 @@ export function Countdown({
   const { home, away } = sidesOf(event);
   const { score } = event;
   const live = LIVE_STATUSES.has(event.status);
+  // MMA: sem placar (home/away nulos); depois da luta, o método no meio, como no placar do jogo
+  const hasScore = score.home !== null || score.away !== null;
+  const fightResult = event.fight?.result && event.status === 'finished' ? event.fight.result : null;
   const competition = event.competition;
   const title = event.fight?.card?.name ?? competition?.name ?? '';
   const parts =
@@ -114,20 +121,32 @@ export function Countdown({
         {waiting ? <span>{fmt.dateTime(event.starts_at)}</span> : <StatusBadge event={event} />}
       </header>
       <div className="gs-match">
-        <div className="gs-team" data-lost={(started && home?.winner === false) || undefined}>
+        <div
+          className="gs-team"
+          data-lost={(started && home?.winner === false) || undefined}
+          data-won={(event.fight && home?.winner === true) || undefined}
+        >
           <Crest src={home?.logo} name={home?.name ?? '?'} />
           <span>{home?.short_name ?? home?.name}</span>
         </div>
-        {started ? (
+        {started && hasScore ? (
           <div className="gs-score" data-live={live || undefined} aria-live={live ? 'polite' : undefined}>
             <span>
               {score.home ?? 0} – {score.away ?? 0}
             </span>
           </div>
+        ) : fightResult ? (
+          <span className="gs-versus" data-gs-fight="">
+            <strong>{fightResult.method_name}</strong>
+          </span>
         ) : (
           <span className="gs-versus">{texts.versus}</span>
         )}
-        <div className="gs-team" data-lost={(started && away?.winner === false) || undefined}>
+        <div
+          className="gs-team"
+          data-lost={(started && away?.winner === false) || undefined}
+          data-won={(event.fight && away?.winner === true) || undefined}
+        >
           <Crest src={away?.logo} name={away?.name ?? '?'} />
           <span>{away?.short_name ?? away?.name}</span>
         </div>
