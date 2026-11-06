@@ -25,6 +25,7 @@ import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, Widget
 /** Os mesmos de `@galaxie/db` (`WIDGET_KINDS`); o `satisfies` acusa se um tipo sumir de lá. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
   'standings',
   'where_to_watch',
@@ -48,6 +49,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'team_squad',
   'player_profile',
 ] as const satisfies readonly WidgetKind[];
 
@@ -73,6 +75,7 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
  */
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
+  match_timeline: ['event'],
   live_list: ['competition', 'team'],
   standings: ['competition'],
   where_to_watch: ['event'],
@@ -96,6 +99,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  team_squad: ['team'],
   player_profile: ['person'],
 };
 
@@ -106,6 +110,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
+  match_timeline: 'event',
   live_list: null,
   standings: 'competition',
   where_to_watch: 'event',
@@ -129,6 +134,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  team_squad: 'team',
   player_profile: 'person',
 };
 
@@ -421,6 +427,7 @@ export function parseRegistryParam(param: string): string | null {
 /** Componente que o arquivo instalado exporta (o `registryComponent` do catálogo de `@galaxie/widgets`). */
 export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
+  match_timeline: 'GalaxieMatchTimeline',
   live_list: 'GalaxieLiveList',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
@@ -444,6 +451,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
 };
 
