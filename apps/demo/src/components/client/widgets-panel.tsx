@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Dna,
   Flag,
+  GalleryHorizontalEnd,
   History,
   ListChecks,
   ListOrdered,
@@ -65,6 +66,7 @@ import { EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV } from '@/lib/navigation';
 export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
   live_list: Radio,
+  score_ticker: GalleryHorizontalEnd,
   standings: Table2,
   where_to_watch: Tv,
   ai_context: Sparkles,

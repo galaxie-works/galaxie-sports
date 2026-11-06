@@ -3,6 +3,7 @@ import { PREVIEW_IDS } from './fixtures.js';
 import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
 import type { LiveListProps } from './widgets/live-list.js';
+import type { ScoreTickerProps } from './widgets/score-ticker.js';
 import type { MatchCardProps } from './widgets/match-card.js';
 import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
@@ -28,6 +29,7 @@ import type { MedalHistoryProps } from './widgets/medal-history.js';
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
   live_list: LiveListProps;
+  score_ticker: ScoreTickerProps;
   standings: StandingsTableProps;
   where_to_watch: WhereToWatchProps;
   ai_context: AiContextProps;
@@ -58,6 +60,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   component:
     | 'MatchCard'
     | 'LiveList'
+    | 'ScoreTicker'
     | 'StandingsTable'
     | 'WhereToWatch'
     | 'AiContext'
@@ -180,6 +183,33 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStakes',
       'showReferee',
       'showPenalties',
+    ],
+    exampleProps: { sport: 'football' },
+    polling: true,
+    sports: [],
+  },
+  score_ticker: {
+    kind: 'score_ticker',
+    component: 'ScoreTicker',
+    registryComponent: 'GalaxieScoreTicker',
+    name: { 'pt-BR': 'Faixa de placares', es: 'Cintillo de marcadores', en: 'Score ticker' },
+    description: {
+      'pt-BR': 'Placares ao vivo correndo numa faixa na parte de baixo da tela, para emissoras e apps de TV.',
+      es: 'Marcadores en vivo corriendo en un cintillo en la parte inferior de la pantalla, para canales y apps de TV.',
+      en: 'Live scores scrolling in a strip along the bottom of the screen, for broadcasters and TV apps.',
+    },
+    requiredProps: [],
+    optionalProps: [
+      'competitionId',
+      'sport',
+      'mode',
+      'speed',
+      'transparent',
+      'showLabel',
+      'showCompetition',
+      'showCrests',
+      'teamName',
+      'limit',
     ],
     exampleProps: { sport: 'football' },
     polling: true,

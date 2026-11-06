@@ -8,6 +8,7 @@
 export const WIDGET_KINDS = [
   'match_card',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -1198,6 +1199,30 @@ export const WIDGET_CSS = `
 .gs-badge[data-tone=primary]{color:var(--gs-primary-foreground);background:var(--gs-primary);border-color:transparent}
 .gs-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:gs-pulse 1.4s ease-in-out infinite}
 @keyframes gs-pulse{50%{opacity:.3}}
+.gs-card[data-gs-widget=score_ticker]{padding:0;background:none;border:0;container-type:inline-size}
+.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;font-size:clamp(16px,2cqw,44px);line-height:1.25;font-weight:600}
+.gs-ticker[data-transparent]{background:transparent;border-color:transparent;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.gs-ticker-label{flex:none;display:flex;align-items:center;gap:.4em;padding:.45em .7em;background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-shadow:none}
+.gs-ticker-label .gs-dot{width:.4em;height:.4em}
+.gs-ticker-viewport{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center}
+.gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
+.gs-ticker-track{display:flex;width:max-content}
+.gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
+.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+@keyframes gs-ticker{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
+.gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
+.gs-ticker-group{display:flex;align-items:center;gap:1.2em}
+.gs-ticker-competition{display:inline-flex;align-items:center;gap:.35em;padding:.1em .45em;border-radius:calc(var(--gs-radius)/2);background:color-mix(in srgb,var(--gs-foreground) 10%,transparent);color:var(--gs-muted-foreground);font-size:.72em;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.gs-ticker-item{display:inline-flex;align-items:center;gap:.45em;font-variant-numeric:tabular-nums}
+.gs-ticker-status{font-size:.72em;font-weight:800;color:var(--gs-muted-foreground)}
+.gs-ticker-item[data-live] .gs-ticker-status{color:var(--gs-live)}
+.gs-ticker-team{display:inline-flex;align-items:center;gap:.35em}
+.gs-ticker-team[data-lost]{color:var(--gs-muted-foreground)}
+.gs-ticker-score{font-weight:800}
+.gs-ticker-item[data-live] .gs-ticker-score{color:var(--gs-primary)}
+.gs-ticker .gs-crest{width:1.15em;height:1.15em}
+.gs-ticker .gs-initials{font-size:.45em;width:2.55em;height:2.55em}
 .gs-list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-group{display:flex;flex-direction:column;gap:4px}
 .gs-group+.gs-group{margin-top:var(--gs-gap)}

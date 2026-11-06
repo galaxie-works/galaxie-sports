@@ -16,6 +16,7 @@ const read = (path) => readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g
 const WIDGETS = {
   match_card: { file: 'src/widgets/match-card.tsx', component: 'MatchCard' },
   live_list: { file: 'src/widgets/live-list.tsx', component: 'LiveList' },
+  score_ticker: { file: 'src/widgets/score-ticker.tsx', component: 'ScoreTicker' },
   standings: { file: 'src/widgets/standings-table.tsx', component: 'StandingsTable' },
   where_to_watch: { file: 'src/widgets/where-to-watch.tsx', component: 'WhereToWatch' },
   ai_context: { file: 'src/widgets/ai-context.tsx', component: 'AiContext' },

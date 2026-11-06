@@ -26,6 +26,7 @@ import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, Widget
 export const WIDGET_KINDS = [
   'match_card',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -73,6 +74,7 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
   live_list: ['competition', 'team'],
+  score_ticker: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
   ai_context: ['event'],
@@ -105,6 +107,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
   live_list: null,
+  score_ticker: null,
   standings: 'competition',
   where_to_watch: 'event',
   ai_context: 'event',
@@ -417,6 +420,7 @@ export function parseRegistryParam(param: string): string | null {
 export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
   live_list: 'GalaxieLiveList',
+  score_ticker: 'GalaxieScoreTicker',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
   ai_context: 'GalaxieAiContext',

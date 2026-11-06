@@ -40,6 +40,7 @@ import { MatchStakes } from '../widgets/match-stakes.js';
 import { RaceResult } from '../widgets/race-result.js';
 import { RaceWeekend } from '../widgets/race-weekend.js';
 import { RelatedVideos } from '../widgets/related-videos.js';
+import { ScoreTicker } from '../widgets/score-ticker.js';
 import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
@@ -135,6 +136,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       );
     case 'live_list':
       return <LiveList {...config.liveList} competitionId={competitionId} teamId={teamId} sport={sport} />;
+    case 'score_ticker':
+      return <ScoreTicker {...o} competitionId={competitionId} sport={sport} />;
     case 'ai_context':
       return <AiContext {...o} eventId={eventId ?? ''} />;
     case 'match_stakes':
