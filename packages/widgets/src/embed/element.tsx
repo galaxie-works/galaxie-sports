@@ -33,6 +33,9 @@ import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
+import { DerbyWeek } from '../widgets/derby-week.js';
+import { CompetitionLeaders } from '../widgets/competition-leaders.js';
+import { Champions } from '../widgets/champions.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -175,6 +178,12 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'derby_week':
+      return <DerbyWeek {...o} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={competitionId ?? ''} />;
+    case 'champions':
+      return <Champions {...o} competitionId={competitionId ?? ''} />;
   }
 }
 

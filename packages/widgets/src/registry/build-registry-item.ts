@@ -139,7 +139,12 @@ function defaultProps(
     case 'athlete_profile':
       return pick(['teamId']);
     case 'season_calendar':
+    case 'competition_leaders':
+    case 'champions':
       return pick(['competitionId']);
+    // clássicos da semana: o país e a janela vêm das opções
+    case 'derby_week':
+      return {};
     // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':

@@ -7,8 +7,11 @@ import {
   CalendarRange,
   Clapperboard,
   ClipboardList,
+  Crown,
   Dna,
   Flag,
+  Flame,
+  Goal,
   History,
   ListChecks,
   ListOrdered,
@@ -87,6 +90,9 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  derby_week: Flame,
+  competition_leaders: Goal,
+  champions: Crown,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

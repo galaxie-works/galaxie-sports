@@ -90,9 +90,13 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { DerbyWeek, type DerbyWeekProps } from './widgets/derby-week.js';
+export { CompetitionLeaders, type CompetitionLeadersProps } from './widgets/competition-leaders.js';
+export { Champions, type ChampionsProps } from './widgets/champions.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {
+  DERBY_COUNTRIES,
   GAMES_NOCS,
   VIDEO_TYPES,
   WIDGET_OPTIONS,

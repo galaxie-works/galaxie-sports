@@ -22,6 +22,9 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  DerbyWeek,
+  CompetitionLeaders,
+  Champions,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -244,6 +247,12 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'derby_week':
+        return <DerbyWeek {...o} />;
+      case 'competition_leaders':
+        return <CompetitionLeaders {...o} {...WIDGET_CATALOG.competition_leaders.exampleProps} />;
+      case 'champions':
+        return <Champions {...o} {...WIDGET_CATALOG.champions.exampleProps} />;
     }
   }
   switch (kind) {
@@ -279,6 +288,10 @@ function PreviewWidget({
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={entity.id} />;
+    case 'champions':
+      return <Champions {...o} competitionId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -290,6 +303,7 @@ function PreviewWidget({
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'derby_week':
       return <StandalonePreview kind={kind} o={o} />;
   }
 }
@@ -317,6 +331,8 @@ function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, un
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'derby_week':
+      return <DerbyWeek {...o} />;
     default:
       return null;
   }

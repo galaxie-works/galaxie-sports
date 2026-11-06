@@ -98,6 +98,32 @@ export const GAMES_NOCS = [
   { value: 'POR', label: l('Portugal', 'Portugal', 'Portugal') },
 ] as const;
 
+/**
+ * Países com clássicos na base semântica (o filtro é o país de um dos times; Inglaterra = `GB-ENG`), em ordem
+ * alfabética pt-BR.
+ */
+export const DERBY_COUNTRIES = [
+  { value: 'DE', label: l('Alemanha', 'Alemania', 'Germany') },
+  { value: 'AR', label: l('Argentina', 'Argentina', 'Argentina') },
+  { value: 'BO', label: l('Bolívia', 'Bolivia', 'Bolivia') },
+  { value: 'BR', label: l('Brasil', 'Brasil', 'Brazil') },
+  { value: 'CL', label: l('Chile', 'Chile', 'Chile') },
+  { value: 'CO', label: l('Colômbia', 'Colombia', 'Colombia') },
+  { value: 'EC', label: l('Equador', 'Ecuador', 'Ecuador') },
+  { value: 'ES', label: l('Espanha', 'España', 'Spain') },
+  { value: 'US', label: l('Estados Unidos', 'Estados Unidos', 'United States') },
+  { value: 'FR', label: l('França', 'Francia', 'France') },
+  { value: 'NL', label: l('Holanda', 'Países Bajos', 'Netherlands') },
+  { value: 'GB-ENG', label: l('Inglaterra', 'Inglaterra', 'England') },
+  { value: 'IT', label: l('Itália', 'Italia', 'Italy') },
+  { value: 'MX', label: l('México', 'México', 'Mexico') },
+  { value: 'PY', label: l('Paraguai', 'Paraguay', 'Paraguay') },
+  { value: 'PE', label: l('Peru', 'Perú', 'Peru') },
+  { value: 'PT', label: l('Portugal', 'Portugal', 'Portugal') },
+  { value: 'UY', label: l('Uruguai', 'Uruguay', 'Uruguay') },
+  { value: 'VE', label: l('Venezuela', 'Venezuela', 'Venezuela') },
+] as const;
+
 const games = (): WidgetOptionSpec => ({
   key: 'games',
   type: 'lookup',
@@ -668,6 +694,83 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ],
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
+  ],
+  derby_week: [
+    {
+      key: 'country',
+      type: 'enum',
+      default: 'all',
+      label: l('País', 'País', 'Country'),
+      hint: l(
+        'Clássicos com um time do país.',
+        'Clásicos con un equipo del país.',
+        'Derbies with a team from the country.',
+      ),
+      values: [{ value: 'all', label: l('Todos', 'Todos', 'All') }, ...DERBY_COUNTRIES],
+    },
+    {
+      key: 'days',
+      type: 'number',
+      default: 7,
+      min: 1,
+      max: 30,
+      label: l('Dias à frente', 'Días hacia adelante', 'Days ahead'),
+    },
+    count('limit', l('Clássicos listados', 'Clásicos listados', 'Derbies listed'), 5, 30, ALL),
+    bool(
+      'showHistory',
+      l('Histórico do confronto', 'Historial del enfrentamiento', 'All-time record'),
+      true,
+      {
+        extraCall: true,
+      },
+    ),
+    bool('showWhereToWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, {
+      extraCall: true,
+      hint: l(
+        'Canais no mercado do widget (precisa do módulo onde assistir).',
+        'Canales en el mercado del widget (requiere el módulo dónde ver).',
+        "Channels in the widget's market (needs the where-to-watch module).",
+      ),
+    }),
+  ],
+  competition_leaders: [
+    {
+      key: 'category',
+      type: 'enum',
+      default: 'goals',
+      label: l('Categoria', 'Categoría', 'Category'),
+      values: [
+        { value: 'goals', label: l('Artilharia', 'Goleadores', 'Top scorers') },
+        { value: 'assists', label: l('Assistências', 'Asistencias', 'Assists') },
+        { value: 'cards', label: l('Cartões', 'Tarjetas', 'Cards') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 10,
+      min: 1,
+      max: 50,
+      label: l('Jogadores listados', 'Jugadores listados', 'Players listed'),
+    },
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l('Vazio = temporada atual.', 'Vacío = temporada actual.', 'Empty = current season.'),
+    },
+  ],
+  champions: [
+    count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 100, ALL),
+    bool('showRanking', l('Ranking de títulos', 'Ranking de títulos', 'Most titles'), true, {
+      hint: l(
+        'Some quando a lista de campeões tem edições faltando.',
+        'Se oculta cuando a la lista de campeones le faltan ediciones.',
+        'Hidden when the list of champions has missing seasons.',
+      ),
+    }),
+    bool('showRunnerUp', l('Vice', 'Subcampeón', 'Runner-up'), false),
   ],
 };
 

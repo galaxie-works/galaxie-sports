@@ -24,6 +24,9 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { DerbyWeekProps } from './widgets/derby-week.js';
+import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
+import type { ChampionsProps } from './widgets/champions.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -50,6 +53,9 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  derby_week: DerbyWeekProps;
+  competition_leaders: CompetitionLeadersProps;
+  champions: ChampionsProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -79,7 +85,10 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'DerbyWeek'
+    | 'CompetitionLeaders'
+    | 'Champions';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -580,6 +589,56 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  derby_week: {
+    kind: 'derby_week',
+    component: 'DerbyWeek',
+    registryComponent: 'GalaxieDerbyWeek',
+    name: { 'pt-BR': 'Clássicos da semana', es: 'Clásicos de la semana', en: 'Derbies this week' },
+    description: {
+      'pt-BR': 'Os grandes clássicos dos próximos dias, com data, onde assistir e o histórico do confronto.',
+      es: 'Los grandes clásicos de los próximos días, con fecha, dónde verlos y el historial del enfrentamiento.',
+      en: 'The big derbies of the coming days, with date, where to watch and the all-time record.',
+    },
+    requiredProps: [],
+    optionalProps: ['country', 'days', 'limit', 'showHistory', 'showWhereToWatch'],
+    exampleProps: {},
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  competition_leaders: {
+    kind: 'competition_leaders',
+    component: 'CompetitionLeaders',
+    registryComponent: 'GalaxieCompetitionLeaders',
+    name: { 'pt-BR': 'Artilharia e líderes', es: 'Goleadores y líderes', en: 'Top scorers and leaders' },
+    description: {
+      'pt-BR': 'Artilheiros, líderes de assistências e de cartões de um campeonato, com o escudo do time.',
+      es: 'Goleadores, líderes de asistencias y de tarjetas de una competición, con el escudo del equipo.',
+      en: 'Top scorers, assist leaders and most-booked players of a competition, with the club crest.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['category', 'limit', 'season'],
+    exampleProps: { competitionId: PREVIEW_IDS.competition },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  champions: {
+    kind: 'champions',
+    component: 'Champions',
+    registryComponent: 'GalaxieChampions',
+    name: { 'pt-BR': 'Galeria de campeões', es: 'Galería de campeones', en: 'Champions gallery' },
+    description: {
+      'pt-BR':
+        'Quem ganhou cada edição do campeonato, ano a ano, com o escudo e o ranking de quem tem mais títulos.',
+      es: 'Quién ganó cada edición de la competición, año a año, con el escudo y el ranking de más títulos.',
+      en: 'Who won each edition of the competition, year by year, with the crest and the most-titles ranking.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['limit', 'showRanking', 'showRunnerUp'],
+    exampleProps: { competitionId: PREVIEW_IDS.competition },
+    polling: false,
+    // todos os esportes com campeonato (os coletivos, a F1 e o MMA); sem campeões guardados, estado vazio
+    sports: EVENT_SPORTS,
   },
 };
 

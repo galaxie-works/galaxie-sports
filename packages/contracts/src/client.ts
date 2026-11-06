@@ -8,6 +8,7 @@ import type {
   Standings,
   Venue,
 } from './catalog.js';
+import type { Champions, ChampionsQuery, Leaders, LeadersQuery } from './championship.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { CompetitionContext } from './context.js';
 import type { EventContext } from './event-context.js';
@@ -177,6 +178,12 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<CountryCompetitions>(`/v1/countries/${seg(code)}/competitions`, query as Query & LocaleOpts),
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
+    /** Artilharia, assistências ou cartões da temporada. */
+    leaders: (id: string, season: number | 'current', query: Q<LeadersQuery> = {}) =>
+      v1<Leaders>(`/v1/competitions/${seg(id)}/seasons/${season}/leaders`, toQuery(query)),
+    /** Campeões por edição e ranking de títulos. */
+    champions: (id: string, query: Q<ChampionsQuery> = {}) =>
+      v1<Champions>(`/v1/competitions/${seg(id)}/champions`, toQuery(query)),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
     /** Onde assistir um evento num país (`region` = UF/praça, opcional). */
     whereToWatch: (eventId: string, country: string, opts: LocaleOpts & { region?: string } = {}) =>

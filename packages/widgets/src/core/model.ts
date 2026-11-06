@@ -30,6 +30,9 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'derby_week',
+  'competition_leaders',
+  'champions',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -500,6 +503,91 @@ export interface GsMedalHistory {
   })[];
   totals: (GsMedalCounts & { noc: string })[];
   withheld: { slug: string; name: string }[];
+}
+
+// ─── campeonato: clássicos, artilharia e campeões (épico #820) ───────────────────────────────────
+
+/** Time numa lista do campeonato (artilharia, campeões), o `ParticipantRef` da API. */
+export interface GsTeamRef {
+  id: string;
+  name: string;
+  short_name: string | null;
+  logo: string | null;
+}
+
+export type GsLeaderCategory = 'assists' | 'cards' | 'goals';
+
+/** Artilharia e líderes da temporada (`/v1/competitions/{id}/seasons/{season}/leaders`). */
+export interface GsLeaders {
+  competition_id: string;
+  sport: string;
+  season: { year: number; label: string };
+  category: GsLeaderCategory;
+  data: {
+    rank: number;
+    person: { id: string; name: string; photo: string | null; nationality: string | null };
+    team: GsTeamRef | null;
+    teams: number;
+    appearances: number;
+    minutes: number;
+    goals: number;
+    assists: number;
+    yellow_cards: number;
+    red_cards: number;
+  }[];
+  updated_at: string | null;
+}
+
+/** Galeria de campeões (`/v1/competitions/{id}/champions`). */
+export interface GsChampions {
+  competition_id: string;
+  sport: string;
+  data: {
+    season_year: number;
+    season_label: string;
+    decided_on: string;
+    champion: GsTeamRef | null;
+    runner_up: GsTeamRef | null;
+  }[];
+  editions: number;
+  /** null: a lista de campeões tem edições faltando (sem contagem de títulos). */
+  ranking: { team: GsTeamRef; titles: number; last: string }[] | null;
+  coverage: { first_year: number | null; complete_through: number | null; unidentified: number } | null;
+}
+
+/** Clássico dos próximos dias (`/v1/derbies/upcoming`). */
+export interface GsUpcomingDerby {
+  event_id: string;
+  starts_at: string;
+  status: GsEventStatus;
+  competition: { id: string; slug: string; name: string } | null;
+  participants: { side: string; id: string; name: string; slug: string | null }[];
+  derby: {
+    slug: string;
+    name: string;
+    intensity: number;
+    teams: { slug: string; participant_id: string | null; name: string; country: string }[];
+  };
+}
+
+/** Retrospecto de um clássico (`/v1/derbies/{slug}`), só o que o widget usa. */
+export interface GsDerbyRecord {
+  slug: string;
+  /** Histórico geral publicado (fonte externa); null sem fonte aprovada. */
+  all_time: {
+    matches: number;
+    draws: number;
+    teams: { slug: string; wins: number }[];
+    basis: 'all' | 'official';
+  } | null;
+  /** Só os jogos da base Galaxie. */
+  retrospect: {
+    available: boolean;
+    since: number | null;
+    matches: number;
+    draws: number;
+    teams: { slug: string; wins: number }[];
+  };
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1330,6 +1418,15 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-derby{display:flex;flex-direction:column;gap:6px;padding:calc(var(--gs-gap)*.8) 0;border-top:1px solid var(--gs-border);min-width:0}
+.gs-derby:first-child{border-top:0}
+.gs-derby-teams{display:flex;align-items:center;gap:var(--gs-gap);min-width:0;font-weight:600}
+.gs-derby-teams [data-away]{justify-content:flex-end;text-align:right}
+.gs-derby-history{margin:0;overflow-wrap:break-word}
+.gs-person{display:flex;align-items:center;gap:8px;min-width:0}
+.gs-person-photo{flex:none;width:28px;height:28px;border-radius:999px;object-fit:cover;background:color-mix(in srgb,var(--gs-foreground) 8%,transparent)}
+.gs-person-text{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.gs-champion{display:flex;align-items:center;gap:6px;min-width:0}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1592,6 +1689,38 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Campeonato: clássicos da semana, artilharia e galeria de campeões. */
+  championship: {
+    derbies: string;
+    emptyDerbies: string;
+    /** "{n} jogos". */
+    matches: string;
+    wins: string;
+    draws: string;
+    /** "Na base desde {year}". */
+    since: string;
+    allTime: string;
+    watch: string;
+    leaders: Record<GsLeaderCategory, string>;
+    player: string;
+    /** Abreviações das colunas (J, G, A, CA, CV) e o nome inteiro (título da coluna). */
+    short: { appearances: string; goals: string; assists: string; yellow: string; red: string };
+    full: { appearances: string; goals: string; assists: string; yellow: string; red: string };
+    emptyLeaders: string;
+    champions: string;
+    edition: string;
+    champion: string;
+    runnerUp: string;
+    titles: string;
+    mostTitles: string;
+    /** Campeão de edição ainda não ligado a um time da base. */
+    unidentified: string;
+    emptyChampions: string;
+    noRanking: string;
+    pickCompetition: string;
+    /** "Atualizado em {date}". */
+    updatedAt: string;
   };
 }
 
@@ -1883,6 +2012,38 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    championship: {
+      derbies: 'Clássicos da semana',
+      emptyDerbies: 'Nenhum clássico nos próximos dias.',
+      matches: '{n} jogos',
+      wins: 'Vitórias',
+      draws: 'Empates',
+      since: 'Na base desde {year}',
+      allTime: 'Histórico',
+      watch: 'Onde assistir',
+      leaders: { goals: 'Artilharia', assists: 'Assistências', cards: 'Cartões' },
+      player: 'Jogador',
+      short: { appearances: 'J', goals: 'G', assists: 'A', yellow: 'CA', red: 'CV' },
+      full: {
+        appearances: 'Jogos',
+        goals: 'Gols',
+        assists: 'Assistências',
+        yellow: 'Cartões amarelos',
+        red: 'Cartões vermelhos',
+      },
+      emptyLeaders: 'Sem estatísticas de jogador nesta temporada.',
+      champions: 'Galeria de campeões',
+      edition: 'Edição',
+      champion: 'Campeão',
+      runnerUp: 'Vice',
+      titles: 'Títulos',
+      mostTitles: 'Mais títulos',
+      unidentified: 'A confirmar',
+      emptyChampions: 'Sem campeões registrados para este campeonato.',
+      noRanking: 'Ranking de títulos indisponível: a lista de campeões ainda tem edições faltando.',
+      pickCompetition: 'Escolha um campeonato.',
+      updatedAt: 'Atualizado em {date}',
+    },
   },
   es: {
     status: {
@@ -2171,6 +2332,38 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    championship: {
+      derbies: 'Clásicos de la semana',
+      emptyDerbies: 'Ningún clásico en los próximos días.',
+      matches: '{n} partidos',
+      wins: 'Victorias',
+      draws: 'Empates',
+      since: 'En la base desde {year}',
+      allTime: 'Historial',
+      watch: 'Dónde ver',
+      leaders: { goals: 'Goleadores', assists: 'Asistencias', cards: 'Tarjetas' },
+      player: 'Jugador',
+      short: { appearances: 'PJ', goals: 'G', assists: 'A', yellow: 'TA', red: 'TR' },
+      full: {
+        appearances: 'Partidos',
+        goals: 'Goles',
+        assists: 'Asistencias',
+        yellow: 'Tarjetas amarillas',
+        red: 'Tarjetas rojas',
+      },
+      emptyLeaders: 'Sin estadísticas de jugadores en esta temporada.',
+      champions: 'Galería de campeones',
+      edition: 'Edición',
+      champion: 'Campeón',
+      runnerUp: 'Subcampeón',
+      titles: 'Títulos',
+      mostTitles: 'Más títulos',
+      unidentified: 'A confirmar',
+      emptyChampions: 'Sin campeones registrados para esta competición.',
+      noRanking: 'Ranking de títulos no disponible: a la lista de campeones todavía le faltan ediciones.',
+      pickCompetition: 'Elige una competición.',
+      updatedAt: 'Actualizado el {date}',
+    },
   },
   en: {
     status: {
@@ -2445,6 +2638,38 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    championship: {
+      derbies: 'Derbies this week',
+      emptyDerbies: 'No derbies in the coming days.',
+      matches: '{n} matches',
+      wins: 'Wins',
+      draws: 'Draws',
+      since: 'In our database since {year}',
+      allTime: 'All-time record',
+      watch: 'Where to watch',
+      leaders: { goals: 'Top scorers', assists: 'Assists', cards: 'Cards' },
+      player: 'Player',
+      short: { appearances: 'MP', goals: 'G', assists: 'A', yellow: 'YC', red: 'RC' },
+      full: {
+        appearances: 'Matches',
+        goals: 'Goals',
+        assists: 'Assists',
+        yellow: 'Yellow cards',
+        red: 'Red cards',
+      },
+      emptyLeaders: 'No player stats for this season.',
+      champions: 'Champions',
+      edition: 'Season',
+      champion: 'Champion',
+      runnerUp: 'Runner-up',
+      titles: 'Titles',
+      mostTitles: 'Most titles',
+      unidentified: 'To be confirmed',
+      emptyChampions: 'No champions on record for this competition.',
+      noRanking: 'Title count unavailable: the list of champions still has missing seasons.',
+      pickCompetition: 'Pick a competition.',
+      updatedAt: 'Updated {date}',
     },
   },
 };

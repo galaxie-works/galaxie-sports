@@ -52,6 +52,10 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   games_schedule: ['core_data', 'multisport'],
   country_athletes: ['core_data', 'multisport'],
   medal_history: ['core_data', 'multisport'],
+  // clássicos: a lista e o retrospecto são da camada semântica; os canais, do onde assistir
+  derby_week: ['core_data', 'semantic', 'where_to_watch'],
+  competition_leaders: ['core_data'],
+  champions: ['core_data'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {

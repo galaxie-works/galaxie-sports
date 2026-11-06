@@ -20,6 +20,7 @@ import type {
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { championshipPreviewBody } from './fixtures-championship.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 
 export const PREVIEW_IDS = {
@@ -741,6 +742,9 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const olympic = olympicPreviewBody(url, now);
     if (olympic !== null) return json(olympic);
     const f = createPreviewFixtures(now, options.sport);
+    // campeonato (#820): artilharia, campeões e clássicos da semana sobre a liga de exemplo
+    const championship = championshipPreviewBody(url, f);
+    if (championship !== null) return json(championship);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
     const id = (re: RegExp) => {
