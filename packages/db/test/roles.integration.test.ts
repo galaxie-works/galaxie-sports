@@ -255,24 +255,38 @@ describe('papéis por serviço', () => {
   });
 
   it('o limite recusa a conexão que passa dele (53300) e libera quando uma cai', async () => {
-    const tight = postgres(
-      withDb(adminUrl, dbName, { name: roleName('backup', prefix), password: passwords.backup }),
-      {
-        max: ROLE_CONNECTION_LIMITS.backup + 2,
-        onnotice: () => {},
-      },
-    );
+    // Uma conexão por pool (max 1): no postgres.js 4 um pool que já tem conexão aberta não falha com o 53300, põe a
+    // consulta na fila de uma das abertas; o pool sem nenhuma tenta de novo (backoff) até o connect_timeout e só
+    // então rejeita com o 53300.
+    const url = withDb(adminUrl, dbName, { name: roleName('backup', prefix), password: passwords.backup });
+    const open = (connectTimeout: number) =>
+      postgres(url, { max: 1, connect_timeout: connectTimeout, onnotice: () => {} });
+    const limit = ROLE_CONNECTION_LIMITS.backup;
+    // o backup pode já ter conexão aberta pelos outros testes (conn('backup')): conta antes de encher
+    const [before] = await admin<{ n: number }[]>`
+      select count(*)::int as n from pg_stat_activity where usename = ${roleName('backup', prefix)}`;
+    const held: postgres.Sql[] = [];
     try {
-      // o backup já tem 1 conexão aberta pelos outros testes (conn('backup')): abre até estourar
-      const err = await Promise.all(
-        Array.from({ length: ROLE_CONNECTION_LIMITS.backup + 2 }, () => tight`select pg_sleep(0.5)`),
-      ).then(
-        () => null,
-        (e: unknown) => e,
-      );
-      expect((err as { code?: string } | null)?.code).toBe('53300');
+      let refused: unknown = null;
+      for (let i = 0; i <= limit && !refused; i++) {
+        const c = open(2);
+        held.push(c);
+        refused = await c`select 1`.then(
+          () => null,
+          (e: unknown) => e,
+        );
+      }
+      expect((refused as { code?: string } | null)?.code).toBe('53300');
+      // entraram exatamente as que cabiam no CONNECTION LIMIT; a última foi a recusada
+      expect(held.length - 1).toBe(limit - before!.n);
+      await held.pop()!.end({ timeout: 5 });
+      // uma cai e a vaga volta: a próxima conexão entra
+      await held.shift()!.end({ timeout: 5 });
+      const next = open(10);
+      held.push(next);
+      await next`select 1`;
     } finally {
-      await tight.end({ timeout: 5 });
+      await Promise.all(held.map((c) => c.end({ timeout: 5 })));
     }
     await conn('backup')`select 1`;
   });
