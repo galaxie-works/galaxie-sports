@@ -186,6 +186,23 @@ export function themeOverridesOf(theme: WidgetTheme, base: WidgetTheme): Partial
   return out;
 }
 
+/**
+ * Ajustes de um widget ligado a tema da marca: só chaves do tema, cada valor válido pelas regras de
+ * `parseTheme` (conferido sobre o tema do widget). Ausente = sem ajustes; null se algum é inválido.
+ */
+export function parseThemeOverrides(raw: unknown, theme: WidgetTheme): Partial<WidgetTheme> | null {
+  if (raw === undefined || raw === null) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Partial<WidgetTheme> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(key in theme)) return null;
+    const parsed = parseTheme({ ...theme, [key]: value });
+    if (!parsed) return null;
+    (out as Record<string, unknown>)[key] = parsed[key as keyof WidgetTheme];
+  }
+  return out;
+}
+
 /** Nome de um tema da marca: sem espaços sobrando, 1 a 80 caracteres; null se inválido. */
 export function parseBrandThemeName(raw: unknown): string | null {
   const name = typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
@@ -219,6 +236,9 @@ export function parseWidgetInput(
   const brandThemeId = c.brandThemeId ?? null;
   if (brandThemeId !== null && (typeof brandThemeId !== 'string' || !UUID.test(brandThemeId)))
     return { ok: false, error: 'brandTheme' };
+  // só os ajustes que a pessoa fez neste widget (com um tema velho no editor, o resto segue o tema novo)
+  const themeOverrides = brandThemeId ? parseThemeOverrides(c.themeOverrides, theme) : null;
+  if (brandThemeId && !themeOverrides) return { ok: false, error: 'theme' };
   if (!isWidgetLocale(c.locale)) return { ok: false, error: 'locale' };
   if (typeof c.market !== 'string' || !/^[A-Za-z]{2}$/.test(c.market)) return { ok: false, error: 'market' };
   const market = c.market.toUpperCase();
@@ -242,7 +262,7 @@ export function parseWidgetInput(
       name,
       config: {
         theme,
-        ...(brandThemeId ? { brandThemeId, themeOverrides: theme } : {}),
+        ...(brandThemeId ? { brandThemeId, themeOverrides: themeOverrides! } : {}),
         locale: c.locale,
         market,
         defaults,

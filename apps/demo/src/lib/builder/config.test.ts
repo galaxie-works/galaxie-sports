@@ -55,13 +55,23 @@ describe('tema da marca', () => {
     expect(parseBrandThemeName(42)).toBeNull();
   });
 
-  it('widget ligado ao tema leva o id e o tema inteiro como ajuste (o banco tira o que é igual)', () => {
-    const r = parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: ID } }, opts);
+  it('widget ligado ao tema leva o id e só os ajustes válidos', () => {
+    const r = parseWidgetInput(
+      {
+        ...base,
+        config: { ...base.config, brandThemeId: ID, themeOverrides: { radius: 0, primary: '#E30613' } },
+      },
+      opts,
+    );
     expect(r.ok && r.value.config).toMatchObject({
       theme: DEFAULT_THEMES.dark,
       brandThemeId: ID,
-      themeOverrides: DEFAULT_THEMES.dark,
+      themeOverrides: { radius: 0, primary: '#e30613' },
     });
+    for (const themeOverrides of [{ radius: 99 }, { logo: 'x' }, [1]])
+      expect(
+        parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: ID, themeOverrides } }, opts),
+      ).toEqual({ ok: false, error: 'theme' });
     expect(parseWidgetInput({ ...base, config: { ...base.config, brandThemeId: 'x' } }, opts)).toEqual({
       ok: false,
       error: 'brandTheme',

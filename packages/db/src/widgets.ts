@@ -201,6 +201,16 @@ export function applyThemeOverrides(base: WidgetTheme, overrides?: Partial<Widge
   return out;
 }
 
+/** Só os ajustes (chaves conhecidas) que diferem do tema da marca. */
+function overridesAgainst(base: WidgetTheme, overrides?: Partial<WidgetTheme> | null): Partial<WidgetTheme> {
+  const out: Partial<WidgetTheme> = {};
+  for (const key of Object.keys(base) as (keyof WidgetTheme)[]) {
+    const v = overrides?.[key];
+    if (v !== undefined && v !== base[key]) (out as Record<string, unknown>)[key] = v;
+  }
+  return out;
+}
+
 /**
  * Com `brandThemeId`, recalcula o tema efetivo a partir do tema da marca (o banco manda, não o navegador)
  * e guarda só os ajustes que diferem dele. Lança `BrandThemeNotFoundError` se o tema não é do tenant.
@@ -210,11 +220,7 @@ async function withBrandTheme(db: Database, tenantId: string, config: WidgetConf
   if (!brandThemeId) return rest;
   const brand = await getWidgetTheme(db, tenantId, brandThemeId);
   if (!brand) throw new BrandThemeNotFoundError(brandThemeId);
-  const overrides: Partial<WidgetTheme> = {};
-  for (const key of Object.keys(brand.theme) as (keyof WidgetTheme)[]) {
-    const v = themeOverrides?.[key];
-    if (v !== undefined && v !== brand.theme[key]) (overrides as Record<string, unknown>)[key] = v;
-  }
+  const overrides = overridesAgainst(brand.theme, themeOverrides);
   return {
     ...rest,
     theme: applyThemeOverrides(brand.theme, overrides),
@@ -292,6 +298,8 @@ export async function saveWidgetTheme(
   try {
     return await db.transaction(async (tx) => {
       if (!input.id) {
+        // trava o tenant antes de contar: dois "criar" ao mesmo tempo não passam do limite
+        await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, input.tenantId)).for('update');
         const [{ n } = { n: 0 }] = await tx
           .select({ n: sql<number>`count(*)::int` })
           .from(widgetTheme)
@@ -319,13 +327,26 @@ export async function saveWidgetTheme(
         );
       let widgetsUpdated = 0;
       for (const w of linked) {
-        const theme = applyThemeOverrides(updated.theme, w.config.themeOverrides);
-        if (JSON.stringify(theme) === JSON.stringify(w.config.theme)) continue;
+        // ajuste que ficou igual ao tema novo deixa de ser ajuste (senão a chave para de seguir o tema)
+        const overrides = overridesAgainst(updated.theme, w.config.themeOverrides);
+        const theme = applyThemeOverrides(updated.theme, overrides);
+        const { themeOverrides: _old, ...rest } = w.config;
+        const config: WidgetConfig = {
+          ...rest,
+          theme,
+          ...(Object.keys(overrides).length ? { themeOverrides: overrides } : {}),
+        };
+        if (JSON.stringify(config) === JSON.stringify(w.config)) continue;
+        const visual = JSON.stringify(theme) !== JSON.stringify(w.config.theme);
         await tx
           .update(widget)
-          .set({ config: { ...w.config, theme }, version: sql`${widget.version} + 1`, updatedAt: new Date() })
+          .set({
+            config,
+            // só o que muda o desenho sobe versão (o embed e o registry usam a versão)
+            ...(visual ? { version: sql`${widget.version} + 1`, updatedAt: new Date() } : {}),
+          })
           .where(eq(widget.id, w.id));
-        widgetsUpdated += 1;
+        if (visual) widgetsUpdated += 1;
       }
       return { theme: updated, widgetsUpdated };
     });

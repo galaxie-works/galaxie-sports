@@ -47,6 +47,7 @@ import {
   WIDGET_KINDS,
   WIDGET_LOCALES,
   defaultsFromEntity,
+  themeOverridesOf,
   embedSnippet,
   installCommand,
   usageSnippet,
@@ -220,6 +221,11 @@ export function WidgetEditor({
   const b = t.client.builder;
   const [draft, setDraft] = useState(initial);
   const [brandThemes, setBrandThemes] = useState(brandThemesInitial);
+  /** Só o que este widget muda em relação ao tema da marca (o banco aplica sobre o tema atual). */
+  const overridesOf = (d: EditorDraft) => {
+    const brand = brandThemes.find((x) => x.id === d.brandThemeId);
+    return brand ? themeOverridesOf(d.theme, brand.theme) : {};
+  };
   const [saved, setSaved] = useState(savedInitial);
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
   const [pending, startTransition] = useTransition();
@@ -243,7 +249,7 @@ export function WidgetEditor({
   const localeItems = WIDGET_LOCALES.map((l) => ({ value: l, label: l }));
   const config = {
     theme: draft.theme,
-    ...(draft.brandThemeId ? { brandThemeId: draft.brandThemeId } : {}),
+    ...(draft.brandThemeId ? { brandThemeId: draft.brandThemeId, themeOverrides: overridesOf(draft) } : {}),
     locale: draft.locale,
     market: draft.market,
     defaults: defaultsFromEntity(draft.entity),

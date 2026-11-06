@@ -405,6 +405,18 @@ describe('temas da marca', () => {
     expect(after?.config.theme).toEqual({ ...brand, primary: '#0057b8', mode: 'dark', radius: 0 });
     expect((await getWidget(db, solo.id))?.version).toBe(1);
 
+    // o tema passa a ter raio 0: o ajuste igual ao tema some e o raio volta a seguir o tema
+    await saveWidgetTheme(db, {
+      tenantId: tenantA,
+      id: theme.id,
+      name: 'SKY+ claro',
+      theme: { ...brand, primary: '#0057b8', mode: 'dark', radius: 0 },
+      createdBy: 'teste',
+    });
+    const normalized = await getWidget(db, w.id);
+    expect(normalized?.config.themeOverrides).toBeUndefined();
+    expect(normalized?.version).toBe(2);
+
     // apagar o tema desliga o widget sem mudar o visual
     expect(await deleteWidgetTheme(db, tenantB, theme.id)).toBeNull();
     expect(await deleteWidgetTheme(db, tenantA, theme.id)).toBe(1);
