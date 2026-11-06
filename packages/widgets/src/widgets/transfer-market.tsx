@@ -21,9 +21,9 @@ export interface TransferMarketProps {
   competitionId?: string | undefined;
   /** Entradas, saídas ou as duas (padrão). */
   direction?: TransferMarketDirection | undefined;
-  /** Período: os últimos N dias (padrão 180). */
+  /** Período: os últimos N dias (padrão 180; 1 a 3650). */
   days?: number | undefined;
-  /** Quantas transferências (padrão 10). */
+  /** Quantas transferências (padrão 10; 1 a 100). */
   limit?: number | undefined;
   /** Chegadas e saídas em blocos separados (padrão: sim; só com as duas direções). */
   groupByDirection?: boolean | undefined;
@@ -36,6 +36,10 @@ export interface TransferMarketProps {
 }
 
 const REFRESH_MS = 60 * 60_000;
+
+/** Inteiro na faixa que a API aceita (`days` 1–3650, `limit` 1–100); valor inválido vira o padrão. */
+const clamp = (n: number, min: number, max: number, fallback: number) =>
+  Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 
 /** Vai e vem do mercado: quem chegou e quem saiu de um time (ou dos times de um campeonato), com data e clube. */
 export function TransferMarket({
@@ -58,7 +62,7 @@ export function TransferMarket({
       : null;
   const query = useGalaxieQuery<GsTransferList>(
     path,
-    { direction, days: Math.max(1, days), limit: Math.max(1, limit) },
+    { direction, days: clamp(days, 1, 3650, 180), limit: clamp(limit, 1, 100, 10) },
     () => REFRESH_MS,
   );
   // a data vem sem hora (AAAA-MM-DD): formatada em UTC para não andar um dia para trás no fuso do leitor

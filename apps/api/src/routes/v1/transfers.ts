@@ -66,7 +66,8 @@ export async function transferRoutes(app: FastifyInstance, ctx: AppContext): Pro
         });
         return {
           body: r.body,
-          tags: ['roster', `competition:${r.competitionId}`],
+          // o corpo traz nome e escudo dos clubes do campeonato: a troca de um deles purga a resposta
+          tags: ['roster', `competition:${r.competitionId}`, ...r.teamIds.map((t) => `participant:${t}`)],
           meta: { sport: r.sport },
         };
       },

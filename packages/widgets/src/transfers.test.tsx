@@ -94,6 +94,14 @@ describe('vai e vem do mercado', () => {
     expect(viana.textContent).toContain('Estrela do Sul→Clube Aurora');
   });
 
+  it('limita período e quantidade à faixa da API', async () => {
+    const calls: string[] = [];
+    setup(<TransferMarket teamId={PREVIEW_IDS.team} days={99999} limit={2.6} />, 'pt-BR', calls);
+    expect(await screen.findByText('Mercado · Clube Aurora')).toBeTruthy();
+    expect(calls[0]).toContain('days=3650');
+    expect(calls[0]).toContain('limit=3');
+  });
+
   it('sem time nem campeonato pede a escolha, sem chamar a API', () => {
     const calls: string[] = [];
     setup(<TransferMarket />, 'pt-BR', calls);
