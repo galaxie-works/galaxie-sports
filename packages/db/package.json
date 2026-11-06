@@ -31,6 +31,10 @@
       "types": "./dist/lineups.d.ts",
       "default": "./dist/lineups.js"
     },
+    "./crests": {
+      "types": "./dist/crests.d.ts",
+      "default": "./dist/crests.js"
+    },
     "./channel-lists": {
       "types": "./dist/channel-lists.d.ts",
       "default": "./dist/channel-lists.js"
@@ -71,7 +75,7 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
-    "postgres": "^3.4.9",
+    "postgres": "^4.0.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

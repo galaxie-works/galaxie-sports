@@ -55,7 +55,7 @@ import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
 import { enrichRaceStandings } from '../../events/race-standings.js';
 import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import {
-  autoGroupLabel,
+  defaultGroupLabel,
   autoGroupRank,
   currentPhaseKey,
   standingsGroupLabel,
@@ -362,10 +362,11 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
             const t = tables ? standingsTableOf(tables, r.st.group) : null;
             g = {
               name: r.st.group || null,
-              // sem regulamento: os grupos reservados do recálculo por fases (Tabela anual, 1ª fase...)
+              // sem regulamento: os grupos reservados do recálculo por fases (Tabela anual, 1ª fase...) ou
+              // o nome genérico do fornecedor traduzido ("Group A" → "Grupo A")
               display_name: t
                 ? standingsGroupLabel(t, r.st.group, locale)
-                : autoGroupLabel(r.st.group, locale),
+                : defaultGroupLabel(r.st.group, locale),
               table: t?.kind ?? null,
               table_key: t?.key ?? null,
               current: tables ? t?.kind === 'phase' && t.key === currentPhase : null,

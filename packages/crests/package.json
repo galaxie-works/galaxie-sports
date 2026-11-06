@@ -1,0 +1,27 @@
+{
+  "name": "@galaxie/crests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Escudos e logos de times e competições: tipo e tamanho da imagem, paleta, SVG seguro, tamanhos fixos e o preparo de um escudo enviado no painel",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "sharp": "0.35.5"
+  }
+}

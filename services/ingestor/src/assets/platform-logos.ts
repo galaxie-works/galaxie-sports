@@ -19,7 +19,7 @@ import { asset, assetCredit, broadcaster, platform, type Database } from '@galax
 import { WIKIDATA_API, type WikimediaClient } from './commons/client.js';
 import { commonsSourceUrl } from './commons/import.js';
 import { readLicense } from './commons/license.js';
-import { imageInfo } from './image-info.js';
+import { imageInfo } from '@galaxie/crests';
 import type { ObjectStore } from './object-store.js';
 
 /** Prefixo das chaves dos logos de plataformas no bucket. */

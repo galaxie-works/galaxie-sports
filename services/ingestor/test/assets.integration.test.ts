@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { coachPhotoUrl, MediaDenylist, playerPhotoUrl, publicAssetUrl } from '@galaxie/apisports-client';
@@ -553,6 +553,15 @@ describe('auditoria do espelho (change feed, prévias, filtros)', () => {
     ).toEqual([volley]);
     const filtered = await store.pending({ personPhotos: { since }, pathPrefix: 'volley' });
     expect(filtered.every((a) => a.sourceUrl.includes('/volley/'))).toBe(true);
+  });
+
+  it('--origem-local limita a fila aos ids do pacote (num parâmetro só)', async () => {
+    const store = new PgAssetStore(db);
+    const a = await newAsset('https://media.api-sports.io/handball/teams/11.png', 'team_logo');
+    await newAsset('https://media.api-sports.io/handball/teams/12.png', 'team_logo');
+    const ids = [a, ...Array.from({ length: 70_000 }, () => randomUUID())];
+    expect((await store.pending({ ids })).map((r) => r.id)).toEqual([a]);
+    expect(await store.pending({ ids: [] })).toEqual([]);
   });
 
   it('elenco atual sem temporada é prioridade 1; --plan conta o registro pelo id sem gravar', async () => {

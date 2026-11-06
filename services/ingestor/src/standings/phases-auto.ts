@@ -155,7 +155,7 @@ export function planPhases(
     // fase com time de grupo do fornecedor que não fechou: os grupos dela não são confiáveis para deduzir
     const doubtful = stranded.some((t) => teamsOf.get(phase)!.has(t));
     const loose = doubtful ? [] : [...teamsOf.get(phase)!].filter((t) => !groupOf.has(t));
-    for (const component of components(loose, matches)) {
+    for (const component of components(joinNamedGroups(loose, groupOf, matches), matches)) {
       const name = `${UNNAMED_GROUP_PREFIX}${++unnamed}`;
       for (const t of component) groupOf.set(t, name);
     }
@@ -184,6 +184,44 @@ function teamsIn(matches: readonly MatchResult[]): Set<string> {
   const out = new Set<string>();
   for (const m of matches) out.add(m.homeId).add(m.awayId);
   return out;
+}
+
+/** Time sem grupo entra no grupo com nome que tem pelo menos esta fração dos seus jogos contra times com grupo. */
+const JOIN_GROUP_SHARE = 2 / 3;
+
+/**
+ * Times sem grupo do fornecedor que jogam contra times de um grupo com nome (o fornecedor mandou o grupo
+ * sem eles, ex.: promovido que entrou depois da tabela): entram nesse grupo quando ele concentra a maioria
+ * (2/3) dos jogos deles contra times com grupo; repete até estabilizar, porque um time recém-colocado pode
+ * puxar outro. Sem isso, cada um virava um grupo deduzido sozinho (`unnamed:N`) com um ou dois jogos.
+ * Altera `groupOf` e devolve os times que continuam sem grupo.
+ */
+export function joinNamedGroups(
+  loose: readonly string[],
+  groupOf: Map<string, string>,
+  matches: readonly MatchResult[],
+): string[] {
+  let pending = [...loose];
+  for (;;) {
+    const placed: [string, string][] = [];
+    for (const team of pending) {
+      const count = new Map<string, number>();
+      let total = 0;
+      for (const m of matches) {
+        const other = m.homeId === team ? m.awayId : m.awayId === team ? m.homeId : null;
+        const g = other === null ? undefined : groupOf.get(other);
+        if (g === undefined || g === '' || g.startsWith(UNNAMED_GROUP_PREFIX)) continue;
+        count.set(g, (count.get(g) ?? 0) + 1);
+        total += 1;
+      }
+      const best = [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+      if (best && best[1] >= JOIN_GROUP_SHARE * total) placed.push([team, best[0]]);
+    }
+    if (!placed.length) return pending;
+    for (const [team, g] of placed) groupOf.set(team, g);
+    const done = new Set(placed.map(([t]) => t));
+    pending = pending.filter((t) => !done.has(t));
+  }
 }
 
 /** Componentes conexos do grafo de jogos entre `teams`, em ordem estável (pelo menor id). */

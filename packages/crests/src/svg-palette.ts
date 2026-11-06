@@ -4,7 +4,7 @@
  * quando a área não é calculável) e entrega o resultado ao mesmo `computePalette` dos PNG, como se
  * fossem pixels. Quando o acervo traz o PNG junto do SVG, a paleta sai do PNG (mais fiel).
  */
-import { computePalette, type AssetPalette } from '../palette.js';
+import { computePalette, type AssetPalette } from './palette.js';
 
 const NAMED: Record<string, string> = {
   black: '#000000',

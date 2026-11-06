@@ -425,6 +425,8 @@ export const lineupPage = enrich.table(
 /** Entidade que recebe logo enviado no painel: plataforma da grade ou entrada da biblioteca de emissoras. */
 export const LOGO_UPLOAD_TARGETS = ['platform', 'broadcaster'] as const;
 export type LogoUploadTarget = (typeof LOGO_UPLOAD_TARGETS)[number];
+/** Envios de escudo de time e de competição (Ajustes → Escudos, `@galaxie/db/crests`) usam a mesma tabela. */
+export type CrestLogoUploadTarget = 'team' | 'competition';
 
 /** Variante do logo enviado: `light` (fundo claro, o `logo` da API) ou `dark` (tema escuro, o `logo_dark`). */
 export const LOGO_VARIANTS = ['light', 'dark'] as const;
@@ -439,8 +441,8 @@ export const logoUpload = enrich.table(
   'logo_upload',
   {
     id: pkUuidV7(),
-    targetType: text('target_type').$type<LogoUploadTarget>().notNull(),
-    /** uuid da plataforma ou id da biblioteca de emissoras. */
+    targetType: text('target_type').$type<LogoUploadTarget | CrestLogoUploadTarget>().notNull(),
+    /** uuid da plataforma, id da biblioteca de emissoras, do time ou da competição. */
     targetId: text('target_id').notNull(),
     /** Qual logo o envio trocou: o claro (`custom_logo_asset_id`) ou o do tema escuro. */
     variant: text('variant').$type<LogoVariant>().notNull().default('light'),

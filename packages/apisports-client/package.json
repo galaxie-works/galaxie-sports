@@ -23,6 +23,6 @@
     "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
-    "postgres": "^3.4.9"
+    "postgres": "^4.0.0"
   }
 }

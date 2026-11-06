@@ -307,6 +307,7 @@ function addFixture(c: Collector, f: ApiFixture, observedAt: Date): NormalizedEv
     season,
     stageLabel,
     venueId,
+    ...(!venueId && v?.name ? { venueByName: { name: v.name, city: v.city ?? null } } : {}),
     observation: fixtureObservation(f, observedAt),
     participants,
     footballFixture: {
@@ -614,15 +615,19 @@ export function normalizeStandings(items: ApiStandingsItem[], observedAt: Date):
       for (const row of group) {
         const participantId = c.team(row.team);
         if (!participantId) continue;
+        const won = row.all?.win ?? 0;
+        const drawn = row.all?.draw ?? 0;
         c.batch.standings.push({
           season,
           group: row.group ?? '',
           participantId,
           rank: row.rank,
-          points: row.points,
+          // o fornecedor manda `points: null` em time sem ponto (Luxemburgo e 2. Lig 2026, 12 derrotas em 12): a
+          // linha inteira caía no NOT NULL e a tabela da liga não entrava; sem o número, vale 3 por vitória e 1 por empate
+          points: row.points ?? won * 3 + drawn,
           played: row.all?.played ?? 0,
-          won: row.all?.win ?? 0,
-          drawn: row.all?.draw ?? 0,
+          won,
+          drawn,
           lost: row.all?.lose ?? 0,
           goalsFor: row.all?.goals?.for ?? 0,
           goalsAgainst: row.all?.goals?.against ?? 0,

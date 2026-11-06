@@ -64,7 +64,7 @@ export const TeamStanding = z
     group: z.string().nullable(),
     group_display_name: z.string().nullable().optional().meta({
       description:
-        'Nome da tabela no idioma pedido, pelo regulamento (ex.: "Clausura · Zona A"). Com várias tabelas na temporada (fase, anual, promedios), a posição é a da fase em andamento.',
+        'Nome da tabela no idioma pedido, pelo regulamento (ex.: "Clausura · Zona A") ou, sem ele, o nome genérico do fornecedor traduzido ("Grupo A"). Com várias tabelas na temporada (fase, anual, promedios), a posição é a da fase em andamento.',
     }),
     rank: z.number().int(),
     points: z.number().int(),

@@ -5,7 +5,9 @@
  *
  * - leitura: USAGE no schema e SELECT em todas as tabelas e sequências;
  * - escrita: também INSERT, UPDATE e DELETE nas tabelas e USAGE nas sequências (sem TRUNCATE nem DDL);
- * - escrita só em algumas tabelas de um schema (`schema.tabela`), com as sequências delas.
+ * - escrita só em algumas tabelas de um schema (`schema.tabela`), com as sequências delas;
+ * - poda (`prune`, só `schema.tabela`): SELECT e DELETE, sem INSERT/UPDATE nem sequência (retenção de tabela
+ *   que é de outro serviço).
  *
  * `applyRoles` roda no `migrate`, depois das migrations, e é idempotente: cria o que falta, revoga e
  * concede de novo a matriz inteira numa transação (tabela nova de migration já sai com o GRANT) e grava os
@@ -45,6 +47,8 @@ export interface RoleGrants {
   read: readonly string[];
   /** Schemas (ou `schema.tabela`) com INSERT/UPDATE/DELETE. */
   write: readonly string[];
+  /** Tabelas (`schema.tabela`) só para podar: SELECT e DELETE, sem INSERT/UPDATE nem sequência. */
+  prune?: readonly string[];
 }
 
 /**
@@ -55,16 +59,19 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // API pública e /internal: chaves, uso, webhooks, onde assistir pelo admin, erros de reprodução e
   // runtime_env/publishable_key/change_feed em ops
   api: { read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`], write: ['api', 'enrich', 'ops'] },
-  // demo (painel de Ajustes): revisão semântica, grades e logos, vídeos, operação, widgets e chaves
+  // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
+  // operação, widgets e chaves
   demo: {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
-    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset'],
+    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset', 'core.participant', 'core.competition'],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
-  // piso da poda do change feed (change-feed-prune)
+  // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
+  // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
   ingestor: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
     write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
   agents: {
@@ -115,7 +122,8 @@ export const ROLE_URL_ENV: Record<RoleService, string> = {
 };
 
 /**
- * `CONNECTION LIMIT` de cada papel (o Postgres recusa a conexão que passa disso com 53300). É o teto do vazamento: um
+ * `CONNECTION LIMIT` de cada papel (o Postgres recusa a conexão que passa disso com 53300; o postgres.js 4 não rejeita
+ * na hora: enfileira nas conexões já abertas ou, sem nenhuma, tenta de novo até o `connect_timeout`). É o teto do vazamento: um
  * serviço com pool sem freio ou em laço de reconexão para no limite dele e não esgota o `max_connections` (130, 3
  * reservadas ao superusuário) que a API também usa. A soma dos tetos passa do `max_connections` de propósito: o
  * teto não reserva vaga, só contém um papel; o que tem de caber é o pico real (README da infra › Conexões).
@@ -279,8 +287,8 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           await tx`revoke all on schema ${tx(DEMO_AUTH_SCHEMA)} from ${r}`;
         }
 
-        const { read, write } = ROLE_GRANTS[service];
-        const schemas = new Set([...read, ...write].map((s) => splitScope(s).schema));
+        const { read, write, prune = [] } = ROLE_GRANTS[service];
+        const schemas = new Set([...read, ...write, ...prune].map((s) => splitScope(s).schema));
         for (const schema of schemas) {
           if (!existing.has(schema) && schema !== DEMO_AUTH_SCHEMA) continue;
           await tx`grant usage on schema ${tx(schema)} to ${r}`;
@@ -317,6 +325,14 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           await tx`grant usage, select on all sequences in schema ${tx(schema)} to ${r}`;
           await tx`alter default privileges in schema ${tx(schema)} grant select, insert, update, delete on tables to ${r}`;
           await tx`alter default privileges in schema ${tx(schema)} grant usage, select on sequences to ${r}`;
+        }
+        for (const scope of prune) {
+          const { schema, table } = splitScope(scope);
+          if (!table) throw new Error(`prune de ${service} precisa de schema.tabela: ${scope}`);
+          if (!existing.has(schema)) continue;
+          const exists = await tx<{ ok: boolean }[]>`select to_regclass(${scope}) is not null as ok`;
+          if (!exists[0]!.ok) continue;
+          await tx`grant select, delete on ${tx(schema)}.${tx(table)} to ${r}`;
         }
       }
       // tabela que a demo criar depois no demo_auth: o cursor do change feed já foi criado acima

@@ -4,7 +4,7 @@
  * logo é encaixado num quadrado do tamanho pedido sem cortar nem distorcer (sobra transparente).
  */
 import sharp from 'sharp';
-import { ASSET_SIZES, type AssetRasterFormat, type AssetSize } from '@galaxie/db';
+import { ASSET_SIZES, type AssetRasterFormat, type AssetSize } from '@galaxie/db/schema';
 
 export interface SizedLogo {
   size: AssetSize;

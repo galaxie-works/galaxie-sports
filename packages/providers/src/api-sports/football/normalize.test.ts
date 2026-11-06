@@ -96,6 +96,25 @@ describe('normalizeFixtures — lista de uma temporada', () => {
     expect(batch.events.find((x) => x.id === '1180358')!.venueId).toBeNull();
     expect(batch.venues.map((v) => v.id).sort()).toEqual(['234', '244', '281']);
   });
+
+  it('jogo sem id de estádio mas com nome: leva nome e cidade para o core ligar (com id, não leva)', () => {
+    const [f] = fixtures('fixtures-league-71-2024.json');
+    const semId = {
+      ...f!,
+      fixture: {
+        ...f!.fixture,
+        id: 77,
+        venue: { id: null, name: 'Estadio Presidente Peron', city: 'Avellaneda' },
+      },
+    };
+    const b = normalizeFixtures([semId, f!], FETCHED);
+    expect(b.events[0]).toMatchObject({
+      venueId: null,
+      venueByName: { name: 'Estadio Presidente Peron', city: 'Avellaneda' },
+    });
+    expect(b.events[1]!.venueId).not.toBeNull();
+    expect(b.events[1]!.venueByName).toBeUndefined();
+  });
 });
 
 describe('normalizeFixtures — agenda do dia (todos os status)', () => {
@@ -313,6 +332,31 @@ describe('outros endpoints', () => {
       'Clausura - Group A',
       'Tabla Anual',
       'Promedios',
+    ]);
+  });
+
+  it('standings com points: null (time sem ponto, Luxemburgo 2026): vale 3 por vitória e 1 por empate', () => {
+    const real = loadFootballFixture<{ response: ApiStandingsItem[] }>('standings-71-2024.json').response[0]!;
+    const row = real.league.standings[0]![0]!;
+    const zerado = {
+      ...row,
+      rank: 16,
+      points: null,
+      all: { ...row.all, played: 12, win: 0, draw: 0, lose: 12 },
+    };
+    const semNumero = {
+      ...row,
+      rank: 15,
+      points: null,
+      all: { ...row.all, played: 12, win: 2, draw: 3, lose: 7 },
+    };
+    const b = normalizeStandings(
+      [{ league: { ...real.league, id: 261, season: 2026, standings: [[zerado, semNumero]] } }],
+      FETCHED,
+    );
+    expect(b.standings.map((s) => [s.rank, s.points])).toEqual([
+      [16, 0],
+      [15, 9],
     ]);
   });
 

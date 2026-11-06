@@ -20,6 +20,7 @@ import {
 import { generateWebhookSecret, type WebhookSecretBox } from './webhook-secret-box.js';
 
 export { WEBHOOK_KEK_ENV, WebhookSecretBox, WebhookSecretError } from './webhook-secret-box.js';
+export * from './webhooks-admin.js';
 export {
   PLANS_WITHOUT_REALTIME,
   REALTIME_TOPICS,

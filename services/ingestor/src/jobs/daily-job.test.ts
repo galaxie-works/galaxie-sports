@@ -1,7 +1,18 @@
-import { PRO_PLAN } from '@galaxie/apisports-client';
+import { FREE_PLAN, PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
-import { harness, NOW } from '../testing/fake-api.js';
-import { buildRotationRequests, buildScheduleRequests, checkProviderStatus, dailyJob } from './daily-job.js';
+import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
+import type { CompetitionInfo } from './catalog-source.js';
+import {
+  buildRotationRequests,
+  buildScheduleRequests,
+  buildSeasonListRequests,
+  checkProviderStatus,
+  reopenSeasonLists,
+  seasonListPair,
+  trackSeasonLists,
+  dailyJob,
+} from './daily-job.js';
+import { InMemoryCursorStore } from './runtime/cursor-store.js';
 import { planJob, plannedRequest, runJob } from './runtime/runner.js';
 import { seasonsJob } from './seasons-job.js';
 
@@ -174,5 +185,143 @@ describe('checkProviderStatus', () => {
       ['afl', false],
       ['nba', true],
     ]);
+  });
+});
+
+describe('buildSeasonListRequests', () => {
+  const now = new Date(NOW);
+  const cursor = (league: number) => ({
+    sport: 'football' as const,
+    endpoint: '/fixtures',
+    key: `league=${league}&season=2026`,
+  });
+  const comp = (leagueId: number, tier: number, start: string, end: string): CompetitionInfo => ({
+    ...fakeCatalog()[0]!,
+    leagueId,
+    slug: `liga-${leagueId}`,
+    tier,
+    seasons: [
+      { year: 2025, current: false, startDate: '2025-01-15', endDate: '2025-12-15', coverage: null },
+      { year: 2026, current: true, startDate: start, endDate: end, coverage: null },
+    ],
+  });
+
+  it('temporada atual em jogo: nunca listada primeiro, depois a vencida pelo período do tier', async () => {
+    const cursors = new InMemoryCursorStore();
+    const comps = [
+      comp(71, 1, '2026-01-15', '2026-12-15'),
+      comp(72, 2, '2026-01-15', '2026-12-15'),
+      comp(948, 3, '2026-09-12', '2027-05-23'), // tier 3 que só tinha o fixtures?date= do sync
+      comp(500, 3, '2026-11-01', '2027-05-01'), // começa em 11 dias: o calendário já entra
+      comp(501, 3, '2026-12-01', '2027-05-01'), // começa em 41 dias: ainda não
+      comp(502, 3, '2026-02-01', '2026-10-01'), // acabou há 20 dias
+    ];
+    // tier 1 listada há 3 dias (período 2: vencida); tier 2 há 3 dias (período 7: em dia)
+    await cursors.complete([cursor(71)], {}, new Date(now.getTime() - 3 * DAY));
+    await cursors.complete([cursor(72)], {}, new Date(now.getTime() - 3 * DAY));
+    const picked = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
+    expect(picked.map((p) => p.params.league)).toEqual(['500', '948', '71']); // catálogo: tier, prioridade, slug
+    expect(picked.every((p) => p.endpoint === '/fixtures' && p.params.season === '2026')).toBe(true);
+    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(
+      now.getTime() - 2 * DAY,
+    );
+    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(
+      now.getTime() - 7 * DAY,
+    );
+
+    // --forcar: ignora o período (a tier 2 listada há 3 dias entra), ainda no limite do dia
+    const forced = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10, true);
+    expect(forced.map((p) => p.params.league)).toEqual(['71', '72', '500', '948']);
+    expect(
+      (await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 1, true)).map((p) => p.params.league),
+    ).toEqual(['71']);
+
+    // limite do dia: só as nunca listadas cabem
+    expect(
+      (await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 2)).map((p) => p.params.league),
+    ).toEqual(['500', '948']);
+  });
+
+  it('próxima edição com calendário antes de virar current: entra pela janela; a encerrada não', async () => {
+    const virada: CompetitionInfo = {
+      ...comp(103, 3, '2025-08-01', '2026-10-01'),
+      seasons: [
+        { year: 2025, current: true, startDate: '2025-08-01', endDate: '2026-10-01', coverage: null },
+        { year: 2026, current: false, startDate: '2026-10-30', endDate: '2027-05-30', coverage: null },
+        { year: 2027, current: false, startDate: null, endDate: null, coverage: null },
+      ],
+    };
+    const picked = await buildSeasonListRequests([virada], new InMemoryCursorStore(), PRO_PLAN, now, 10);
+    expect(picked.map((p) => `${p.params.league}/${p.params.season}`)).toEqual(['103/2026']);
+    expect(seasonListPair(picked[0]!)).toEqual({ league: '103', year: 2026 });
+    expect(
+      seasonListPair(plannedRequest('squads', 'football', '/players/squads', { team: 121 })),
+    ).toBeUndefined();
+  });
+
+  it('relista que não normalizou: fora do recálculo e com o cursor reaberto para a próxima execução', async () => {
+    const cursors = new InMemoryCursorStore();
+    const comps = [comp(71, 1, '2026-01-15', '2026-12-15'), comp(948, 3, '2026-09-12', '2027-05-23')];
+    const items = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
+    let errors = 0;
+    const lists = trackSeasonLists({
+      afterFetch: async (_env, req) => {
+        if (req.params.league === '948') errors += 1;
+      },
+      report: () => ({ errors }),
+    });
+    for (const item of items) {
+      await lists.afterFetch({} as never, { ...item, source: 'network', requestHash: 'h', fetchedAt: now });
+      await cursors.complete(item.cursors, {}, now); // o runner conclui depois do gancho
+    }
+    expect(lists.normalized()).toEqual([{ league: '71', year: 2026 }]);
+    expect(lists.failed()).toEqual([cursor(948)]);
+
+    // sem normalização (--sem-normalizar): nenhuma entra no recálculo, todas voltam
+    const semNormalizar = trackSeasonLists();
+    for (const item of items)
+      await semNormalizar.afterFetch({} as never, {
+        ...item,
+        source: 'network',
+        requestHash: 'h',
+        fetchedAt: now,
+      });
+    expect(semNormalizar.normalized()).toEqual([]);
+    expect(semNormalizar.failed()).toEqual([cursor(71), cursor(948)]);
+
+    await reopenSeasonLists(cursors, lists.failed());
+    const next = await buildSeasonListRequests(comps, cursors, PRO_PLAN, new Date(now.getTime() + DAY), 10);
+    expect(next.map((p) => p.params.league)).toEqual(['948']);
+  });
+
+  it('free: a temporada atual não é acessível por season, nada entra', async () => {
+    const comps = [comp(71, 1, '2026-01-15', '2026-12-15')];
+    expect(await buildSeasonListRequests(comps, new InMemoryCursorStore(), FREE_PLAN, now, 10)).toEqual([]);
+  });
+});
+
+describe('dailyJob: relista da temporada atual', () => {
+  const derbyKeys = async () => new Set<string>();
+
+  it('pago: lista a temporada atual do catálogo uma vez e não repete no mesmo dia', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
+    const r1 = await runJob(job(), h.deps);
+    expect(r1.status).toBe('ok');
+    const lists = h.api.calls.filter((u) => u.pathname.endsWith('/fixtures') && u.searchParams.has('league'));
+    expect(lists.map((u) => u.searchParams.get('league')).sort()).toEqual(['13', '71', '72']);
+    expect(r1.phases[3]!.steps['temporada-atual']!.network).toBe(3);
+
+    const rerun = await planJob(job(), h.deps);
+    expect(rerun.phases[3]!.steps).toEqual({});
+  });
+
+  it('free: a fase não pede nada', async () => {
+    const h = harness();
+    const plan = await planJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys),
+      h.deps,
+    );
+    expect(plan.phases[3]!.steps).toEqual({});
   });
 });

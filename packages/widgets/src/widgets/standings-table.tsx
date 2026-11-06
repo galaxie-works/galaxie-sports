@@ -93,7 +93,9 @@ export function StandingsTable({
       ) : (
         groups.map((group, i) => (
           <div key={group.name ?? i} className="gs-group">
-            {group.name ? <div className="gs-group-title">{group.name}</div> : null}
+            {groupTitle(group, groups.length) ? (
+              <div className="gs-group-title">{groupTitle(group, groups.length)}</div>
+            ) : null}
             <div className="gs-scroll">
               <table className="gs-table">
                 <thead>
@@ -134,6 +136,14 @@ export function StandingsTable({
       ) : null}
     </WidgetFrame>
   );
+}
+
+/**
+ * Título do bloco: o nome exibido da API ("Apertura · Zona A", "Tabela anual", "Grupo A"); sem ele, o nome
+ * do fornecedor só quando há mais de um grupo (numa tabela única, o nome da liga repetiria o cabeçalho).
+ */
+function groupTitle(group: GsStandings['groups'][number], count: number): string | null {
+  return group.display_name ?? (count > 1 ? group.name : null);
 }
 
 function Row({

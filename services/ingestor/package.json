@@ -37,6 +37,7 @@
     "data:retention": "node --env-file-if-exists=../../.env dist/cli/data-retention.js",
     "raw:compactar-historico": "node --env-file-if-exists=../../.env dist/cli/raw-history.js",
     "fixture-people": "node --env-file-if-exists=../../.env dist/cli/fixture-people.js",
+    "venues-by-name": "node --env-file-if-exists=../../.env dist/cli/venues-by-name.js",
     "bootstrap:seasons": "node --env-file-if-exists=../../.env dist/cli/bootstrap-seasons.js",
     "bootstrap:details": "node --env-file-if-exists=../../.env dist/cli/bootstrap-details.js",
     "bootstrap:people": "node --env-file-if-exists=../../.env dist/cli/bootstrap-people.js",
@@ -54,6 +55,8 @@
     "bootstrap:sports": "node --env-file-if-exists=../../.env dist/cli/bootstrap-sports.js",
     "mma": "node --env-file-if-exists=../../.env dist/cli/mma.js",
     "assets:mirror": "node --env-file-if-exists=../../.env dist/cli/mirror-assets.js",
+    "assets:pendentes": "node --env-file-if-exists=../../.env dist/cli/assets-pendentes.js",
+    "assets:baixar-local": "node dist/cli/assets-baixar-local.js",
     "assets:fotos-wikidata": "node --env-file-if-exists=../../.env dist/cli/wikimedia-photos.js",
     "pessoas:wikidata-por-time": "node --env-file-if-exists=../../.env dist/cli/wikidata-teams.js",
     "canais:wikidata": "node --env-file-if-exists=../../.env dist/cli/wikidata-channels.js",
@@ -83,6 +86,7 @@
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
     "@galaxie/core-writer": "workspace:*",
+    "@galaxie/crests": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
@@ -95,11 +99,10 @@
     "@galaxie/scheduler": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "drizzle-orm": "^0.45.4",
-    "sharp": "0.35.5",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "postgres": "^3.4.9"
+    "postgres": "^4.0.0"
   }
 }

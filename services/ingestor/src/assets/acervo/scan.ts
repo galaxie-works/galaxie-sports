@@ -16,9 +16,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, posix, relative, sep } from 'node:path';
 import { parse } from 'yaml';
-import { imageInfo } from '../image-info.js';
+import { imageInfo, unsafeSvgReason } from '@galaxie/crests';
 import { validateAcervoInfo, type AcervoInfo, type AcervoKind, type LogoFormat } from './manifest.js';
-import { unsafeSvgReason } from './svg-safety.js';
 
 export interface ScannedLogo {
   key: string;

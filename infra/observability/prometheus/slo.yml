@@ -281,8 +281,8 @@ groups:
           summary: 'SLO {{ $labels.slo }} queimando o orçamento de erro devagar'
           description: 'Erro de 1x a 3x o permitido pelo SLO no último dia ou nos últimos 3 dias: nesse ritmo o orçamento de 28 dias acaba antes da hora. Veja o painel "SLOs e orçamento de erro".'
 
-  # Orçamento de 28 dias, a cada 5 min (as consultas olham 28 dias para trás). Com a retenção do Prometheus menor que
-  # 28 dias (PROMETHEUS_RETENTION, padrão 15d), a janela real é a retenção.
+  # Orçamento de 28 dias, a cada 5 min (as consultas olham 28 dias para trás). A retenção do Prometheus é de 35 dias
+  # (compose.obs.yml); com menos de 28 dias guardados, a janela real é o que houver.
   - name: galaxie-slo-budget
     interval: 5m
     rules:

@@ -9,6 +9,7 @@ import {
   loadCountries,
   loadTargets,
 } from '../src/assets/acervo/import.js';
+import { PANEL_ACERVO, revertPanelCrest, setPanelCrest } from '@galaxie/db/crests';
 import type { AcervoManifest } from '../src/assets/acervo/manifest.js';
 import { planManifest } from '../src/assets/acervo/plan.js';
 import { scanAcervo } from '../src/assets/acervo/scan.js';
@@ -273,5 +274,42 @@ describe('assets:acervo (importação idempotente)', () => {
         )[0]!.c,
       ).toBeNull();
     expect((await db.select({ id: asset.id }).from(asset).where(eq(asset.acervo, 'exemplo'))).length).toBe(8);
+  });
+
+  it('escudo enviado no painel vale sobre o do pacote até alguém voltar', async () => {
+    const boca = ids.get('Boca Juniors')!;
+    const panel = await setPanelCrest(
+      db,
+      { type: 'team', id: boca },
+      {
+        storageKey: `acervo/football/teams/${boca}.${'c'.repeat(12)}.svg`,
+        sha256: 'c'.repeat(64),
+        width: 100,
+        height: 100,
+        bytes: 10,
+        palette: null,
+        variants: {},
+      },
+      'admin@exemplo.test',
+    );
+    const current = await manifestFor(manifest);
+    const plan = await importAcervo({ db, objects, manifest: current, dir: EXEMPLO, dryRun: true });
+    expect(plan).toMatchObject({ panel: 1, detached: 0 });
+    const report = await importAcervo({ db, objects, manifest: current, dir: EXEMPLO });
+    expect(report).toMatchObject({ panel: 1, detached: 0 });
+    expect((await customLogo('Boca Juniors')).custom).toBe(panel.assetId);
+    const [row] = await db.select({ acervo: asset.acervo }).from(asset).where(eq(asset.id, panel.assetId));
+    expect(row?.acervo).toBe(PANEL_ACERVO);
+    // desvincular o pacote não mexe no do painel
+    await detachAcervo(db, 'exemplo');
+    expect((await customLogo('Boca Juniors')).custom).toBe(panel.assetId);
+    // Voltar no painel: a próxima importação liga o do pacote
+    expect(await revertPanelCrest(db, { type: 'team', id: boca }, 'admin@exemplo.test')).toBe(true);
+    const again = await importAcervo({ db, objects, manifest: current, dir: EXEMPLO });
+    expect(again.panel).toBe(0);
+    const custom = (await customLogo('Boca Juniors')).custom!;
+    expect(
+      (await db.select({ acervo: asset.acervo }).from(asset).where(eq(asset.id, custom)))[0]?.acervo,
+    ).toBe('exemplo');
   });
 });

@@ -106,7 +106,7 @@ describe('papéis por serviço', () => {
     expect(tables.length).toBeGreaterThan(50);
     for (const service of ROLE_SERVICES) {
       if (service === 'backup') continue; // pg_read_all_data: conferido no teste do backup
-      const { read, write } = ROLE_GRANTS[service];
+      const { read, write, prune = [] } = ROLE_GRANTS[service];
       const role = roleName(service, prefix);
       const covers = (scopes: readonly string[], t: { schema: string; name: string }) =>
         scopes.includes(t.schema) || scopes.includes(`${t.schema}.${t.name}`);
@@ -119,8 +119,9 @@ describe('papéis por serviço', () => {
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'delete') as del,
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'truncate') as trunc`;
         const w = covers(write, t);
-        const r = w || covers(read, t);
-        if (p!.sel !== r || p!.ins !== w || p!.upd !== w || p!.del !== w || p!.trunc)
+        const d = w || prune.includes(`${t.schema}.${t.name}`);
+        const r = d || covers(read, t);
+        if (p!.sel !== r || p!.ins !== w || p!.upd !== w || p!.del !== d || p!.trunc)
           wrong.push(`${service} ${t.schema}.${t.name}: ${JSON.stringify(p)}`);
       }
       expect(wrong).toEqual([]);
@@ -143,6 +144,29 @@ describe('papéis por serviço', () => {
     await ing`delete from core.sport where slug = 'teste-papel'`;
     await denied(conn('agents')`insert into core.sport (slug, name) values ('x', '{}')`);
     await denied(conn('demo')`insert into core.sport (slug, name) values ('x', '{}')`);
+  });
+
+  it('ingestor: poda api.webhook_delivery (data-retention) sem inserir, atualizar nem tocar a sequência', async () => {
+    const ing = conn('ingestor');
+    const [t] = await owner<{ id: string }[]>`
+      insert into api.tenant (slug, name, plan, modules) values ('teste-poda', 'Teste', 'core_data', '{core_data}')
+      returning id`;
+    const [ep] = await owner<{ id: string }[]>`
+      insert into api.webhook_endpoint (tenant_id, url, secret)
+      values (${t!.id}, 'https://exemplo.test/hook', 'segredo') returning id`;
+    const [d] = await owner<{ id: string }[]>`
+      insert into api.webhook_delivery (endpoint_id, change_id, topic, payload, status, delivered_at, created_at)
+      values (${ep!.id}, 1, 'event.updated', '{}', 'delivered', now() - interval '40 days', now() - interval '40 days')
+      returning id`;
+    expect(await ing`select id from api.webhook_delivery where id = ${d!.id}`).toHaveLength(1);
+    await denied(ing`update api.webhook_delivery set payload = '{"forjado":true}' where id = ${d!.id}`);
+    await denied(
+      ing`insert into api.webhook_delivery (endpoint_id, change_id, topic, payload) values (${ep!.id}, 2, 'x', '{}')`,
+    );
+    await denied(ing`select nextval('api.webhook_delivery_id_seq')`);
+    expect(await ing`delete from api.webhook_delivery where id = ${d!.id} returning 1`).toHaveLength(1);
+    await denied(ing`delete from api.webhook_endpoint`);
+    await owner`delete from api.tenant where slug = 'teste-poda'`;
   });
 
   it('agents e demo: grade (enrich.platform) dispara o change feed sem erro de permissão', async () => {
@@ -255,24 +279,38 @@ describe('papéis por serviço', () => {
   });
 
   it('o limite recusa a conexão que passa dele (53300) e libera quando uma cai', async () => {
-    const tight = postgres(
-      withDb(adminUrl, dbName, { name: roleName('backup', prefix), password: passwords.backup }),
-      {
-        max: ROLE_CONNECTION_LIMITS.backup + 2,
-        onnotice: () => {},
-      },
-    );
+    // Uma conexão por pool (max 1): no postgres.js 4 um pool que já tem conexão aberta não falha com o 53300, põe a
+    // consulta na fila de uma das abertas; o pool sem nenhuma tenta de novo (backoff) até o connect_timeout e só
+    // então rejeita com o 53300.
+    const url = withDb(adminUrl, dbName, { name: roleName('backup', prefix), password: passwords.backup });
+    const open = (connectTimeout: number) =>
+      postgres(url, { max: 1, connect_timeout: connectTimeout, onnotice: () => {} });
+    const limit = ROLE_CONNECTION_LIMITS.backup;
+    // o backup pode já ter conexão aberta pelos outros testes (conn('backup')): conta antes de encher
+    const [before] = await admin<{ n: number }[]>`
+      select count(*)::int as n from pg_stat_activity where usename = ${roleName('backup', prefix)}`;
+    const held: postgres.Sql[] = [];
     try {
-      // o backup já tem 1 conexão aberta pelos outros testes (conn('backup')): abre até estourar
-      const err = await Promise.all(
-        Array.from({ length: ROLE_CONNECTION_LIMITS.backup + 2 }, () => tight`select pg_sleep(0.5)`),
-      ).then(
-        () => null,
-        (e: unknown) => e,
-      );
-      expect((err as { code?: string } | null)?.code).toBe('53300');
+      let refused: unknown = null;
+      for (let i = 0; i <= limit && !refused; i++) {
+        const c = open(2);
+        held.push(c);
+        refused = await c`select 1`.then(
+          () => null,
+          (e: unknown) => e,
+        );
+      }
+      expect((refused as { code?: string } | null)?.code).toBe('53300');
+      // entraram exatamente as que cabiam no CONNECTION LIMIT; a última foi a recusada
+      expect(held.length - 1).toBe(limit - before!.n);
+      await held.pop()!.end({ timeout: 5 });
+      // uma cai e a vaga volta: a próxima conexão entra
+      await held.shift()!.end({ timeout: 5 });
+      const next = open(10);
+      held.push(next);
+      await next`select 1`;
     } finally {
-      await tight.end({ timeout: 5 });
+      await Promise.all(held.map((c) => c.end({ timeout: 5 })));
     }
     await conn('backup')`select 1`;
   });

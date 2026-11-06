@@ -80,6 +80,8 @@ export interface PendingQuery {
   personPhotos?: { since: Date } | undefined;
   /** Só URLs cujo caminho começa assim (ex.: `/volley/` = mídia da API de vôlei). */
   pathPrefix?: string | undefined;
+  /** Só estes assets (os resolvidos no pacote local do `--origem-local`). Fora do modo de fotos. */
+  ids?: readonly string[] | undefined;
 }
 
 /** `/volley` ou `volley/` → `/volley/`. */
@@ -204,6 +206,7 @@ export class InMemoryAssetStore implements AssetStore {
         (query.includeMissing || !r.fetchedAt) &&
         (!query.personPhotos || PERSON_PHOTO_KINDS.has(r.kind)) &&
         (!query.pathPrefix || new URL(r.sourceUrl).pathname.startsWith(mediaPathPrefix(query.pathPrefix))) &&
+        (!query.ids || query.ids.includes(r.id)) &&
         // ids em sequência: a ordem de criação
         (!query.after?.[r.kind] || Number(r.id) > Number(query.after[r.kind]!.id)),
     );
@@ -383,6 +386,9 @@ export class PgAssetStore implements AssetStore {
       sql`${asset.sourceUrl} ~* ${mediaUrlPattern(query.pathPrefix)}`,
     ];
     if (!query.includeMissing) conditions.push(isNull(asset.fetchedAt));
+    // um parâmetro só (texto): centenas de milhares de ids passariam do limite de parâmetros do Postgres
+    if (query.ids)
+      conditions.push(sql`${asset.id} = any(string_to_array(${query.ids.join(',')}, ',')::uuid[])`);
     for (const [kind, p] of Object.entries(query.after ?? {}) as [MediaAssetKind, MirrorPosition][]) {
       conditions.push(
         sql`(${asset.kind}::text <> ${kind} or (${asset.createdAt}, ${asset.id}) > (${p.createdAt}::timestamptz, ${p.id}::uuid))`,

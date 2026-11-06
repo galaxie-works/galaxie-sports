@@ -47,6 +47,7 @@ import { loadLiveries, type LiveryEntry } from '@galaxie/knowledge';
 import { coachPersonId } from '@galaxie/providers';
 import {
   currentPhaseKey,
+  defaultGroupLabel,
   standingsGroupLabel,
   standingsGroupPriority,
   standingsTableOf,
@@ -418,7 +419,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           const rules =
             team.sport === 'football' ? await ctx.rules.get(first.c.slug, first.season.year) : null;
           if (!rules?.tables.length) {
-            chosen.set(competitionId, { row: first, label: null });
+            chosen.set(competitionId, { row: first, label: defaultGroupLabel(first.s.group, locale) });
             continue;
           }
           const phase = currentPhaseKey(
@@ -435,7 +436,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           const table = standingsTableOf(rules, best.s.group);
           chosen.set(competitionId, {
             row: best,
-            label: table ? standingsGroupLabel(table, best.s.group, locale) : null,
+            label: table
+              ? standingsGroupLabel(table, best.s.group, locale)
+              : defaultGroupLabel(best.s.group, locale),
           });
         }
         const standings: TeamOverview['standings'] = [];

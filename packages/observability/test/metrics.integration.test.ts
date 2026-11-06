@@ -530,12 +530,24 @@ describe('frescor e ao vivo', () => {
       const overdue = m.get('galaxie_webhook_overdue_seconds')!;
       expect(overdue).toBeGreaterThan(15 * 60 - 5);
       expect(overdue).toBeLessThan(15 * 60 + 120);
+      expect(m.get('galaxie_webhook_delivery_paused')).toBe(0);
     } finally {
       await db.delete(tenant).where(sql`${tenant.id} = ${t!.id}`);
     }
     const m = await scrape();
     expect(m.get('galaxie_webhook_overdue_seconds')).toBe(0);
     expect(m.series('galaxie_webhook_pending')).toHaveLength(0);
+  });
+
+  it('webhooks: pausa do painel vira galaxie_webhook_delivery_paused', async () => {
+    await db.execute(sql`insert into ops.runtime_setting (key, value, value_type, updated_by)
+                         values ('WEBHOOK_DELIVERY', 'off', 'enum', 'teste')`);
+    try {
+      const m = await scrape();
+      expect(m.get('galaxie_webhook_delivery_paused')).toBe(1);
+    } finally {
+      await db.execute(sql`delete from ops.runtime_setting where key = 'WEBHOOK_DELIVERY'`);
+    }
   });
 
   it('idade do resumo da home Explorar: +Inf sem resumo, a idade da linha de controle com ele', async () => {

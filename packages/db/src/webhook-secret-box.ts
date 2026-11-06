@@ -51,7 +51,7 @@ function deriveKek(raw: string): Kek {
  */
 export class WebhookSecretBox {
   private readonly keks: Kek[];
-  private readonly rejectPlaintext: boolean;
+  private rejectPlaintext: boolean;
 
   constructor(rawKeys: readonly string[], options: { rejectPlaintext?: boolean } = {}) {
     this.rejectPlaintext = options.rejectPlaintext ?? false;
@@ -72,6 +72,15 @@ export class WebhookSecretBox {
         .filter(Boolean),
       { rejectPlaintext: env[WEBHOOK_REJECT_PLAINTEXT_ENV] === 'true' },
     );
+  }
+
+  /** Liga ou desliga a recusa de segredos em texto puro em tempo de execução (Ajustes → Webhooks). */
+  setRejectPlaintext(reject: boolean): void {
+    this.rejectPlaintext = reject;
+  }
+
+  get rejectsPlaintext(): boolean {
+    return this.rejectPlaintext;
   }
 
   get configured(): boolean {

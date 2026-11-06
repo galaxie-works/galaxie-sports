@@ -9,6 +9,7 @@ import channels from './messages/channels';
 import client from './messages/client';
 import code from './messages/code';
 import common from './messages/common';
+import crests from './messages/crests';
 import docs from './messages/docs';
 import docsUi from './messages/docs-ui';
 import email from './messages/email';
@@ -31,6 +32,7 @@ import site from './messages/site';
 import sport from './messages/sport';
 import team from './messages/team';
 import webhooks from './messages/webhooks';
+import webhooksAdmin from './messages/webhooks-admin';
 
 export const NAMESPACES = {
   admin,
@@ -39,6 +41,7 @@ export const NAMESPACES = {
   client,
   code,
   common,
+  crests,
   docs,
   docsUi,
   email,
@@ -61,6 +64,7 @@ export const NAMESPACES = {
   sport,
   team,
   webhooks,
+  webhooksAdmin,
 };
 
 type Namespaces = typeof NAMESPACES;
@@ -87,6 +91,7 @@ export const CLIENT_NAMESPACES = [
   'client',
   'code',
   'common',
+  'crests',
   'docsUi',
   'lineup',
   'live',
@@ -99,6 +104,7 @@ export const CLIENT_NAMESPACES = [
   'shell',
   'sport',
   'webhooks',
+  'webhooksAdmin',
 ] as const;
 type ClientNamespace = (typeof CLIENT_NAMESPACES)[number];
 export type ClientDictionary = Pick<Dictionary, ClientNamespace>;
