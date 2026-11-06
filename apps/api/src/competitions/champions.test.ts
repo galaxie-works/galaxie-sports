@@ -26,6 +26,9 @@ describe('rankingComplete', () => {
     expect(rankingComplete(eds, null)).toBe(false);
     expect(rankingComplete([], { firstYear: 1959, completeThrough: 2023 })).toBe(false);
   });
+  it('não vale com um vencedor fora do catálogo (a contagem ficaria menor)', () => {
+    expect(rankingComplete([...eds, t(1990, null)], { firstYear: 1959, completeThrough: 2023 })).toBe(false);
+  });
 });
 
 describe('rankChampions', () => {

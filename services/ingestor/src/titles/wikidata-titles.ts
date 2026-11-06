@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { Database } from '@galaxie/db';
+import { publishChange, type Database } from '@galaxie/db';
 import { suspiciousDrop } from '../multisport/wikidata/drop-guard.js';
 import type { SparqlBinding, SparqlClient } from '../multisport/wikidata/sparql-client.js';
 
@@ -760,6 +760,14 @@ export async function saveTitles(
           issues = excluded.issues, checked_at = now()
       `);
     }
+    // purga o cache das respostas que leem os títulos (galeria de campeões, `competition:<id>`); o NOTIFY sai no commit
+    for (const id of competitionIds)
+      await publishChange(tx, {
+        topic: 'catalog',
+        entityType: 'competition',
+        entityId: id,
+        payload: { reason: 'competition_title', tags: ['competition_title'] },
+      });
     return { titles: rows.filter((r) => kept.has(r.competitionId)).length, links, relinked, skipped };
   });
 }

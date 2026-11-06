@@ -68,10 +68,12 @@ export function editionsOf(rows: readonly TitleRow[]): TitleRow[] {
 
 /**
  * A contagem de títulos é confiável? A cobertura gravada pelo importador precisa ir sem lacuna até a
- * temporada da última edição conhecida.
+ * temporada da última edição conhecida, e todo vencedor precisa estar ligado a um time do catálogo (um
+ * vencedor sem time some da contagem e mudaria totais e posições).
  */
 export function rankingComplete(editions: readonly TitleRow[], coverage: TitleCoverage | null): boolean {
   if (!editions.length || coverage?.completeThrough == null) return false;
+  if (editions.some((e) => !e.participantId)) return false;
   const latest = Math.max(...editions.map((e) => e.seasonYear));
   return coverage.completeThrough >= latest;
 }

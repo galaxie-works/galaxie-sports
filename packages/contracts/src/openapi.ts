@@ -279,7 +279,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           description:
             'Campeão de cada edição, da mais recente para trás, a partir da lista de campeões importada e ' +
             'conferida (Wikidata, com correções curadas). `ranking` traz quem tem mais títulos e só vem quando a ' +
-            'lista está completa, sem ano faltando. Com `runner_up=true`, o vice de cada edição sai da final da ' +
+            'lista está completa, sem ano faltando e com todo campeão no catálogo. Com `runner_up=true`, o vice de cada edição sai da final da ' +
             'temporada ou do 2º lugar da tabela única, quando o banco tem a temporada e o campeão bate com ela. ' +
             'Competição sem lista de campeões devolve 200 com as listas vazias. Cache de 24 h.',
         },
