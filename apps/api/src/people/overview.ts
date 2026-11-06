@@ -11,7 +11,7 @@ import {
 } from '@galaxie/db';
 import { buildEvents } from '../events/builder.js';
 import type { BuildContext } from '../events/builder.js';
-import { pickText } from '../i18n.js';
+import { competitionName } from '../i18n.js';
 import { teamColors } from '../teams/colors.js';
 import { competitionLogoId, teamLogoId } from '../assets/custom-logos.js';
 import { assetUrl } from '../util.js';
@@ -104,6 +104,7 @@ async function competitionRefs(
       slug: competition.slug,
       name: competition.name,
       labels: competition.labels,
+      countryCode: competition.countryCode,
       tier: competition.tier,
       profileLabels: competitionProfile.labels,
       logoKey: asset.storageKey,
@@ -121,7 +122,7 @@ async function competitionRefs(
       ref: {
         id: r.id,
         slug: r.slug,
-        name: pickText(labels, locale, r.name)!,
+        name: competitionName(labels, r.countryCode, r.name, locale),
         logo: assetUrl(assetsBaseUrl, r.logoKey, r.logoUrl),
       },
       tier: r.tier,

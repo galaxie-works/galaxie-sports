@@ -2,8 +2,9 @@
  * Gravação e leitura do resumo pré-calculado em `core.explore_summary` (uma linha por esporte e mercado; ver o
  * comentário da tabela em `@galaxie/db`). Quem grava é o job `explore-summary` do ingestor; quem lê é a API.
  */
-import { and, eq, sql } from 'drizzle-orm';
-import { exploreSummary, type Database } from '@galaxie/db';
+import { and, count, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
+import { event, exploreSummary, type Database } from '@galaxie/db';
+import { IN_PLAY } from './live.js';
 import {
   EXPLORE_SNAPSHOT_VERSION,
   type CountryEntry,
@@ -11,6 +12,7 @@ import {
   type ExploreSnapshot,
   type SportEntry,
 } from './snapshot.js';
+import { exploreWindow } from './window.js';
 
 /** Esporte ou mercado da linha que vale para todos. */
 export const ALL = '*';
@@ -139,5 +141,21 @@ export async function exploreRefreshReason(
       from ops.change_feed
      where created_at >= ${meta.generatedAt.toISOString()}::timestamptz
        and ${SUMMARY_CHANGES}`);
-  return changed && changed.n > 0 ? `${changed.n} mudança(s) de jogo no change feed` : null;
+  if (changed && changed.n > 0) return `${changed.n} mudança(s) de jogo no change feed`;
+  // jogo novo do fornecedor não passa pelo change feed, e sem isto a home ficava até 10 min atrás da agenda. Os mesmos
+  // jogos que a conta lê: da janela ou em andamento. A inserção que comita depois da conta também entra pelo `refreshMs`
+  const window = exploreWindow(now);
+  const [added] = await db
+    .select({ n: count() })
+    .from(event)
+    .where(
+      and(
+        or(
+          and(gte(event.startsAt, window.from), lt(event.startsAt, window.to)),
+          inArray(event.status, IN_PLAY),
+        ),
+        gte(event.createdAt, meta.generatedAt),
+      ),
+    );
+  return added && added.n > 0 ? `${added.n} jogo(s) novo(s)` : null;
 }

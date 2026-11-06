@@ -37,7 +37,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { WIDGET_CATALOG } from '@galaxie/widgets';
 
-import { WIDGET_KINDS, toWidgetLocale } from '@/lib/builder/config';
+import { OFFERED_WIDGET_KINDS, toWidgetLocale } from '@/lib/builder/config';
 import type { WidgetEntityType, WidgetKind } from '@/lib/builder/types';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
@@ -125,7 +125,7 @@ export function WidgetsPanel({ widgets, timeZone }: { widgets: WidgetRow[]; time
             <FrameDescription>{b.description}</FrameDescription>
           </FrameHeader>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {WIDGET_KINDS.map((kind) => {
+            {OFFERED_WIDGET_KINDS.map((kind) => {
               const Icon = KIND_ICONS[kind];
               const texts = kindTexts(kind);
               return (

@@ -32,7 +32,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { eq } from 'drizzle-orm';
-import { closeDb, createDb, jobRun } from '@galaxie/db';
+import { closeDb, createDb, devDatabaseWarning, jobRun } from '@galaxie/db';
 import { convertCountries, isCountryLayout } from '../assets/acervo/convert-countries.js';
 import { convertFolders } from '../assets/acervo/convert-folders.js';
 import {
@@ -106,6 +106,11 @@ if (values.converter) {
 
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
+// manifesto e relatório de cobertura são gerados contra a produção, nunca contra o dev (#551): no dev, avisa e segue
+if (values.mapear) {
+  const aviso = devDatabaseWarning(DATABASE_URL, 'o manifesto do acervo (e o relatório de cobertura)');
+  if (aviso) console.warn(aviso);
+}
 
 const MANIFEST_DIR = resolve('../../config/assets/acervo');
 if (values.pasta && values.pacote) throw new Error('Use --pasta ou --pacote, não os dois.');

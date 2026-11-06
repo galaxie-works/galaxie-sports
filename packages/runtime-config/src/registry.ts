@@ -179,7 +179,10 @@ export function planKey(api: string): string {
  * fica de fora (as sessões têm pipeline próprio). No futebol, só os jogos fora do plano do ao vivo.
  */
 export const POSTGAME_APIS = APISPORTS_APIS.filter((api) => api !== 'formula-1');
-/** `fechamento`: confere a partir do fim previsto; `tempo-real`: desde o apito. Os dois no intervalo do esporte. */
+/**
+ * `fechamento`: confere a partir do fim previsto; `tempo-real`: desde o apito. Os dois no intervalo do esporte; no
+ * `tempo-real`, a data sem jogo que ainda possa estar em campo espera ao menos 15 min (postgame/plan.ts).
+ */
 export const POSTGAME_MODES = ['off', 'fechamento', 'tempo-real'] as const;
 export type PostgameMode = (typeof POSTGAME_MODES)[number];
 
@@ -703,7 +706,8 @@ export const SETTINGS: readonly SettingDef[] = [
   secret('QUALITY_API_KEY', 'credentials', ['ingestor']),
   secret('S3_SECRET_KEY', 'credentials', ['ingestor']),
   secret('METRICS_TOKEN', 'credentials', ['api']),
-  secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['api']),
+  // KEK dos webhooks: o worker não relata ao painel; a demo (cadastro no painel do cliente) relata se está definida
+  secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['demo']),
   secret('ADMIN_KEY_HASHES', 'credentials', ['api']),
   secret('GALAXIE_DEMO_KEY', 'credentials', ['demo']),
   secret('BETTER_AUTH_SECRET', 'credentials', ['demo']),

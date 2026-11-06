@@ -30,7 +30,7 @@ export default defineMessages(
       live: 'Eventos ao vivo (polling com ETag).',
     },
     start: {
-      lead: 'A Galaxie Sports API entrega metadados esportivos da América Latina e do mundo: catálogo, agenda, times, pessoas, onde assistir e contexto editorial, em 8 locales. Este guia leva da chave à primeira resposta.',
+      lead: 'A Galaxie Sports API entrega metadados esportivos da América Latina e do mundo: catálogo, agenda, times, pessoas, onde assistir e contexto editorial, em 8 mercados e em inglês. Este guia leva da chave à primeira resposta.',
       baseUrl: {
         title: 'URL base e especificação',
         body: 'Todas as rotas ficam sob <c>{apiUrl}</c>. A API canônica é versionada em <c>/v1</c> e orientada a evento: o mesmo formato serve a todos os esportes. Há também um espelho compatível (<c>{mirror}</c>) para quem já consome o formato do fornecedor de origem.',
@@ -369,7 +369,7 @@ export default defineMessages(
       },
       webhooks: {
         title: 'Webhooks',
-        body: 'A Galaxie faz um <c>POST</c> com o <c>RealtimeChange</c> no corpo para a URL HTTPS que você cadastrar no onboarding, com os mesmos filtros do SSE (tópicos, eventos, competições, esportes). O segredo de assinatura (<c>whsec_…</c>) é entregue uma única vez.',
+        body: 'A Galaxie faz um <c>POST</c> com o <c>RealtimeChange</c> no corpo para a URL HTTPS que você cadastrar no painel do cliente (<c>/cliente/webhooks</c>), com os mesmos filtros do SSE (tópicos, eventos, competições, esportes). O segredo de assinatura (<c>whsec_…</c>) aparece uma única vez, no cadastro ou quando você gera um novo. O botão Enviar teste manda uma entrega assinada com o tópico <c>webhook.test</c>.',
         headHeader: 'Header',
         headValue: 'Valor',
         signature: 't=<unix segundos>,v1=<hex de HMAC-SHA256(segredo, "<t>.<corpo bruto>")>',
@@ -464,7 +464,7 @@ export default defineMessages(
         live: 'Live events (polling with ETag).',
       },
       start: {
-        lead: 'The Galaxie Sports API delivers sports metadata for Latin America and the world: catalog, schedule, teams, people, where to watch and editorial context, in 8 locales. This guide takes you from your key to your first response.',
+        lead: 'The Galaxie Sports API delivers sports metadata for Latin America and the world: catalog, schedule, teams, people, where to watch and editorial context, in 8 markets plus English. This guide takes you from your key to your first response.',
         baseUrl: {
           title: 'Base URL and spec',
           body: 'Every route lives under <c>{apiUrl}</c>. The canonical API is versioned under <c>/v1</c> and event-oriented: the same shape covers every sport. There is also a compatible mirror (<c>{mirror}</c>) for teams already consuming the upstream provider format.',
@@ -799,7 +799,7 @@ export default defineMessages(
         },
         webhooks: {
           title: 'Webhooks',
-          body: 'Galaxie sends a <c>POST</c> with the <c>RealtimeChange</c> in the body to the HTTPS URL you register during onboarding, with the same filters as SSE (topics, events, competitions, sports). The signing secret (<c>whsec_…</c>) is delivered only once.',
+          body: 'Galaxie sends a <c>POST</c> with the <c>RealtimeChange</c> in the body to the HTTPS URL you register in the client panel (<c>/cliente/webhooks</c>), with the same filters as SSE (topics, events, competitions, sports). The signing secret (<c>whsec_…</c>) is shown only once, when you register or generate a new one. The Send test button delivers a signed request with the <c>webhook.test</c> topic.',
           headHeader: 'Header',
           headValue: 'Value',
           signature: 't=<unix seconds>,v1=<hex of HMAC-SHA256(secret, "<t>.<raw body>")>',
@@ -894,7 +894,7 @@ export default defineMessages(
         live: 'Eventos en vivo (polling con ETag).',
       },
       start: {
-        lead: 'La API de Galaxie Sports entrega metadatos deportivos de América Latina y del mundo: catálogo, agenda, equipos, personas, dónde ver y contexto editorial, en 8 locales. Esta guía te lleva de la clave a la primera respuesta.',
+        lead: 'La API de Galaxie Sports entrega metadatos deportivos de América Latina y del mundo: catálogo, agenda, equipos, personas, dónde ver y contexto editorial, en 8 mercados y en inglés. Esta guía te lleva de la clave a la primera respuesta.',
         baseUrl: {
           title: 'URL base y especificación',
           body: 'Todas las rutas están bajo <c>{apiUrl}</c>. La API canónica está versionada en <c>/v1</c> y orientada a eventos: el mismo formato sirve para todos los deportes. También hay un espejo compatible (<c>{mirror}</c>) para quienes ya consumen el formato del proveedor de origen.',
@@ -1238,7 +1238,7 @@ export default defineMessages(
         },
         webhooks: {
           title: 'Webhooks',
-          body: 'Galaxie hace un <c>POST</c> con el <c>RealtimeChange</c> en el cuerpo a la URL HTTPS que registres en el onboarding, con los mismos filtros del SSE (tópicos, eventos, competencias, deportes). El secreto de firma (<c>whsec_…</c>) se entrega una sola vez.',
+          body: 'Galaxie hace un <c>POST</c> con el <c>RealtimeChange</c> en el cuerpo a la URL HTTPS que registres en el panel del cliente (<c>/cliente/webhooks</c>), con los mismos filtros del SSE (tópicos, eventos, competencias, deportes). El secreto de firma (<c>whsec_…</c>) se muestra una sola vez, al registrar o al generar uno nuevo. El botón Enviar prueba manda una entrega firmada con el tópico <c>webhook.test</c>.',
           headHeader: 'Header',
           headValue: 'Valor',
           signature: 't=<segundos unix>,v1=<hex de HMAC-SHA256(secreto, "<t>.<cuerpo crudo>")>',

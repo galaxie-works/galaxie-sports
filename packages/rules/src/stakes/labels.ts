@@ -2,7 +2,8 @@ import type { Stake, StakeFamily, StakeSide } from './codes.js';
 import { titleOrdinal } from './titles.js';
 
 /**
- * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API.
+ * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API e para `en` (catálogo fixo,
+ * tradução humana, sem LLM).
  * Placeholders: `{n}` (número; nas famílias de resultado, posição ou pontos), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
  * `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
  * Variantes por número: `zero` (n = 0), `one` (n = 1), `other`.
@@ -16,6 +17,7 @@ export const STAKE_LOCALES = [
   'es-PE',
   'es-UY',
   'es-EC',
+  'en',
 ] as const;
 export type StakeLocale = (typeof STAKE_LOCALES)[number];
 
@@ -242,6 +244,115 @@ const ES_AR: Record<StakeFamily, LabelTemplate> = {
   },
 };
 
+/** Inglês: um só catálogo (sem variantes regionais). */
+const EN: Record<StakeFamily, LabelTemplate> = {
+  first_leg: 'First leg of the tie',
+  advances_with_draw: 'Goes through with a draw',
+  advances_with_loss_by_n: 'Goes through even losing by up to {goals}',
+  needs_win: 'Must win to go through outright',
+  needs_win_by_n: 'Must win by {goals} to go through outright',
+  win_by_n_goes_to_penalties: 'A win by {goals} sends the tie to penalties',
+  win_by_n_goes_to_extra_time: 'A win by {goals} sends the match to extra time',
+  draw_goes_to_penalties: 'A draw sends the tie to penalties',
+  draw_goes_to_extra_time: 'A draw sends the match to extra time',
+  advances_with_draw_up_to_n: {
+    zero: 'Goes through with a goalless draw',
+    other: 'Goes through with a draw of up to {n}-{n}',
+  },
+  advances_with_draw_from_n: 'Goes through with a {n}-{n} draw or any higher-scoring draw',
+  specific_draw_goes_to_penalties: {
+    zero: 'A goalless draw sends the tie to penalties',
+    other: 'A {n}-{n} draw sends the tie to penalties',
+  },
+  specific_draw_goes_to_extra_time: {
+    zero: 'A goalless draw sends the match to extra time',
+    other: 'A {n}-{n} draw sends the match to extra time',
+  },
+  outcome_depends_on_away_goals: 'With a win by {goals}, the tie comes down to away goals',
+  away_goals_rule: 'Away goals count as a tiebreaker',
+  extra_time_then_penalties: 'If level, extra time and then penalties',
+  decides_title: 'The title is on the line',
+  wins_title_with_draw: 'A draw wins the title',
+  wins_title_with_loss_by_n: 'Wins the title even losing by up to {goals}',
+  needs_win_for_title: 'A win in normal time wins the title',
+  needs_win_by_n_for_title: 'A win by {goals} or more in normal time wins the title',
+  wins_title_with_draw_up_to_n: {
+    zero: 'A goalless draw wins the title',
+    other: 'A draw of up to {n}-{n} wins the title',
+  },
+  wins_title_with_draw_from_n: 'A {n}-{n} draw or any higher-scoring draw wins the title',
+  title_depends_on_away_goals: 'With a win by {goals}, the title comes down to away goals',
+  mathematically_champion: 'Already champions, mathematically',
+  clinches_title_with_draw: 'A draw clinches the title',
+  clinches_title_with_win: 'A win clinches the title',
+  can_clinch_title: 'Can clinch the title this matchday, depending on other results',
+  in_title_race: 'Still in the title race',
+  qualifies_for_zone: 'Secures at least {zone}',
+  clinches_zone_with_draw: 'A draw secures {zone}',
+  clinches_zone_with_win: 'A win secures {zone}',
+  can_clinch_zone: 'Can secure {zone} this matchday, depending on other results',
+  can_qualify_for_zone: 'Can still reach {zone}',
+  mathematically_relegated: 'Already relegated, mathematically',
+  relegated_unless_wins: 'Relegated without a win',
+  relegated_if_loses: 'Relegated with a defeat',
+  can_be_relegated: 'Can be relegated this matchday, depending on other results',
+  at_risk_of_relegation: 'Still at risk of relegation',
+  secures_safety_with_draw: 'A draw secures safety',
+  secures_safety_with_win: 'A win secures safety',
+  can_secure_safety: 'Can secure safety this matchday, depending on other results',
+  safe_from_relegation: 'Already safe from relegation',
+  mathematically_eliminated: 'Already eliminated, mathematically',
+  eliminated_unless_wins: 'Eliminated without a win',
+  eliminated_if_loses: 'Eliminated with a defeat',
+  can_be_eliminated: 'Can be eliminated this matchday, depending on other results',
+  at_risk_of_elimination: 'Still at risk of elimination',
+  seeks_title_n: { zero: 'Chasing a first title', one: 'Chasing a first title', other: 'Chasing {nth}' },
+  // result (match over): what the score changed in the table
+  moved_up_to_n: 'Moved up to {n}th place',
+  moved_down_to_n: 'Dropped to {n}th place',
+  stayed_at_n: 'Stays in {n}th place',
+  took_the_lead: 'Took the lead of the table',
+  lost_the_lead: 'Lost the lead of the table',
+  entered_zone: 'Now in a spot for {zone}',
+  left_zone: 'No longer in a spot for {zone}',
+  dropped_into_relegation: 'Dropped into the relegation zone',
+  climbed_out_of_relegation: 'Climbed out of the relegation zone',
+  dropped_into_elimination: 'Dropped into the elimination zone',
+  climbed_out_of_elimination: 'Climbed out of the elimination zone',
+  clinched_title: 'Clinched the title, mathematically',
+  clinched_zone: 'Secured at least {zone}, mathematically',
+  clinched_safety: 'Secured safety, mathematically',
+  relegation_confirmed: 'Relegation confirmed',
+  elimination_confirmed: 'Elimination confirmed',
+  lost_title_chance: 'Can no longer win the title',
+  lost_zone_chance: 'Can no longer reach {zone}',
+  points_behind_leader_n: {
+    zero: 'Level on points with the leaders',
+    one: '1 point behind the leaders',
+    other: '{n} points behind the leaders',
+  },
+  points_ahead_at_top_n: {
+    zero: 'Top of the table, level on points with second place',
+    one: 'Top of the table by 1 point',
+    other: 'Top of the table by {n} points',
+  },
+  points_behind_zone_n: {
+    zero: 'Level on points with the last spot for {zone}',
+    one: '1 point off a spot for {zone}',
+    other: '{n} points off a spot for {zone}',
+  },
+  points_above_relegation_n: {
+    zero: 'Out of the relegation zone only on tiebreakers',
+    one: '1 point above the relegation zone',
+    other: '{n} points above the relegation zone',
+  },
+  points_below_safety_n: {
+    zero: 'In the relegation zone, level on points with the first safe team',
+    one: '1 point from climbing out of the relegation zone',
+    other: '{n} points from climbing out of the relegation zone',
+  },
+};
+
 /** Prorrogação: alargue (AR, UY, CL), tiempos extra (MX), tiempo extra (CO, EC), tiempo suplementario (PE). */
 function extraTime(word: string): Partial<Record<StakeFamily, LabelTemplate>> {
   return {
@@ -299,6 +410,7 @@ export const STAKE_LABELS: Record<StakeLocale, Record<StakeFamily, LabelTemplate
     ...extraTime('al tiempo extra'),
     extra_time_then_penalties: 'Si hay igualdad, tiempo extra y luego penales',
   }),
+  en: EN,
 };
 
 /** Nomes das zonas com artigo, para compor `{zone}`. Zona desconhecida usa o id. */
@@ -336,6 +448,23 @@ const ZONE_ES: Record<string, string> = {
   playoff: 'los playoffs',
 };
 
+const ZONE_EN: Record<string, string> = {
+  libertadores: 'the Libertadores',
+  libertadores_group_stage: 'the Libertadores group stage',
+  libertadores_qualifying: 'the Libertadores qualifying rounds',
+  sudamericana: 'the Sudamericana',
+  sudamericana_knockout_playoff: 'the Sudamericana play-offs',
+  round_of_16: 'the round of 16',
+  knockout_playoff: 'the knockout play-offs',
+  champions_league: 'the Champions League',
+  champions_league_qualifying: 'the Champions League qualifying rounds',
+  europa_league: 'the Europa League',
+  europa_league_knockout_playoff: 'the Europa League play-offs',
+  conference_league: 'the Conference League',
+  promotion: 'promotion',
+  playoff: 'the play-offs',
+};
+
 export const ZONE_LABELS: Record<StakeLocale, Record<string, string>> = {
   'pt-BR': ZONE_PT,
   'es-AR': ZONE_ES,
@@ -345,7 +474,12 @@ export const ZONE_LABELS: Record<StakeLocale, Record<string, string>> = {
   'es-PE': ZONE_ES,
   'es-UY': ZONE_ES,
   'es-EC': ZONE_ES,
+  en: ZONE_EN,
 };
+
+/** Idioma do locale, para plural de gols e ordinal do título. */
+const langOf = (locale: StakeLocale): 'pt' | 'es' | 'en' =>
+  locale === 'pt-BR' ? 'pt' : locale === 'en' ? 'en' : 'es';
 
 function pickTemplate(t: LabelTemplate, n: number | undefined): string {
   if (typeof t === 'string') return t;
@@ -355,8 +489,9 @@ function pickTemplate(t: LabelTemplate, n: number | undefined): string {
 }
 
 function goals(locale: StakeLocale, n: number): string {
-  const pt = locale === 'pt-BR';
-  return `${n} ${n === 1 ? 'gol' : pt ? 'gols' : 'goles'}`;
+  const lang = langOf(locale);
+  if (lang === 'en') return `${n} ${n === 1 ? 'goal' : 'goals'}`;
+  return `${n} ${n === 1 ? 'gol' : lang === 'pt' ? 'gols' : 'goles'}`;
 }
 
 export function zoneLabel(zone: string, locale: StakeLocale): string {
@@ -370,7 +505,7 @@ export function stakeText(stake: Pick<Stake, 'family' | 'params'>, locale: Stake
     const n = stake.params?.n;
     if (key === 'zone') return stake.params?.zone ? zoneLabel(stake.params.zone, locale) : '';
     if (n === undefined) return '';
-    if (key === 'nth') return titleOrdinal(n, locale === 'pt-BR' ? 'pt' : 'es');
+    if (key === 'nth') return titleOrdinal(n, langOf(locale));
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

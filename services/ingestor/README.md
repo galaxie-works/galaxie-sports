@@ -27,7 +27,7 @@ A lista completa, com o que cada um faz, está na tabela "Como rodar" do [README
 |---|---|
 | Cota e raw | `quota`, `raw:import`, `raw:compactar-historico`, `snapshot:export`, `snapshot:import`, `data:retention`, `change-feed:prune` |
 | Bootstrap e sync (api-sports) | `bootstrap:catalog`, `bootstrap:seasons`, `bootstrap:details`, `bootstrap:people`, `bootstrap:perfis`, `bootstrap:sports`, `sync:daily`, `mma`, `fixture-people` |
-| Normalização raw → core | `normalize:football`, `normalize:sports`, `names:derive`, `standings:recompute`, `standings:limpar-grupo-vazio`, `pessoas:separar-tecnicos` |
+| Normalização raw → core | `normalize:football`, `normalize:sports`, `names:derive`, `standings:recompute`, `standings:limpar-grupo-vazio`, `stages:backfill-en`, `pessoas:separar-tecnicos` |
 | Evento e ao vivo | `events:clock`, `events:importance`, `live:run`, `live:reconcile`, `live:simulate`, `postgame:close`, `provisional:sync` |
 | Assets e imagens | `assets:mirror`, `assets:palette`, `assets:acervo`, `assets:commons*`, `assets:competition-logos`, `assets:official-logos`, `assets:platform-logos`, `assets:fotos-wikidata` |
 | Fontes abertas | `multisport:seed`, `multisport:wikidata`, `multisport:qa`, `titulos:wikidata`, `pessoas:wikidata-por-time`, `canais:wikidata`, `f1db:import`, `f1:biografia`, `equestrian:import`, `geo:seed` |

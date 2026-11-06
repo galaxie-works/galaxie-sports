@@ -13,6 +13,13 @@ export {
   type DbTimeouts,
 } from './client.js';
 export { runMigrations, migrationsFolder } from './migrate.js';
+export { journalProblems, type Journal, type JournalEntry } from './journal.js';
+export {
+  DEV_DATABASE_HOST,
+  DEV_DATABASE_PORT,
+  devDatabaseWarning,
+  isDevDatabaseUrl,
+} from './dev-database.js';
 export {
   APP_SCHEMAS,
   DEMO_AUTH_SCHEMA,
@@ -219,3 +226,10 @@ export {
   type SaveChannelListInput,
   type TenantChannelList,
 } from './channel-lists.js';
+export {
+  generateWebhookSecret,
+  WEBHOOK_KEK_ENV,
+  WEBHOOK_REJECT_PLAINTEXT_ENV,
+  WebhookSecretBox,
+  WebhookSecretError,
+} from './webhook-secret-box.js';

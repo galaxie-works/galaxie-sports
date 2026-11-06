@@ -4,6 +4,7 @@ import {
   capCursor,
   dueLists,
   holdSport,
+  IDLE_INTERVAL_MIN,
   MAX_TRIES_PER_DATE,
   recordTries,
   triesCursor,
@@ -50,9 +51,9 @@ describe('fechamento pós-jogo: configuração', () => {
 describe('fechamento pós-jogo: quem está na vez', () => {
   const sports = postgameSports({ POSTGAME_NBA: 'tempo-real', POSTGAME_NBA_MIN: '2' });
   const pending: PendingDay[] = [
-    { sport: 'volleyball', date: '2026-10-29', pending: 1 },
-    { sport: 'nba', date: '2026-10-29', pending: 2 },
-    { sport: 'nba', date: '2026-10-30', pending: 1 },
+    { sport: 'volleyball', date: '2026-10-29', pending: 1, running: 1 },
+    { sport: 'nba', date: '2026-10-29', pending: 2, running: 2 },
+    { sport: 'nba', date: '2026-10-30', pending: 1, running: 1 },
   ];
 
   it('sem busca anterior, toda data pendente está na vez', async () => {
@@ -72,6 +73,41 @@ describe('fechamento pós-jogo: quem está na vez', () => {
     const { due } = await dueLists(cursors, sports, pending, NOW, 40);
     // vôlei buscou há 10 min (intervalo 15): fora; NBA há 1m55s (intervalo 2): dentro da folga
     expect(due.map((d) => `${d.sport} ${d.date}`)).toEqual(['nba 2026-10-29', 'nba 2026-10-30']);
+  });
+
+  it('tempo real: data sem jogo em campo espera o intervalo longo; com jogo em campo, o curto', async () => {
+    const cursors = new InMemoryCursorStore();
+    const idle: PendingDay = { sport: 'nba', date: '2026-10-29', pending: 2, running: 0 };
+    const active: PendingDay = { sport: 'nba', date: '2026-10-30', pending: 3, running: 1 };
+    const ago = (min: number) => new Date(NOW.getTime() - min * MIN);
+    await cursors.complete([listCursor('nba', idle.date)], {}, ago(5));
+    await cursors.complete([listCursor('nba', active.date)], {}, ago(5));
+    const { due } = await dueLists(cursors, sports, [idle, active], NOW, 40);
+    expect(due.map((d) => d.date)).toEqual([active.date]);
+
+    await cursors.complete([listCursor('nba', idle.date)], {}, ago(IDLE_INTERVAL_MIN));
+    const later = await dueLists(cursors, sports, [idle], NOW, 40);
+    expect(later.due.map((d) => d.date)).toEqual([idle.date]);
+  });
+
+  it('o intervalo longo não encurta o do esporte nem segura o --forcar', async () => {
+    const cursors = new InMemoryCursorStore();
+    const idle: PendingDay = { sport: 'nba', date: '2026-10-29', pending: 2, running: 0 };
+    await cursors.complete([listCursor('nba', idle.date)], {}, new Date(NOW.getTime() - 20 * MIN));
+    const slow = postgameSports({ POSTGAME_NBA: 'tempo-real', POSTGAME_NBA_MIN: '30' });
+    expect((await dueLists(cursors, slow, [idle], NOW, 40)).due).toEqual([]);
+
+    await cursors.complete([listCursor('nba', idle.date)], {}, new Date(NOW.getTime() - MIN));
+    const forced = sports.map((s) => ({ ...s, intervalMin: 0 }));
+    expect((await dueLists(cursors, forced, [idle], NOW, 40)).due.map((d) => d.date)).toEqual([idle.date]);
+  });
+
+  it('modo fechamento não muda: data sem jogo em campo segue no intervalo do esporte', async () => {
+    const cursors = new InMemoryCursorStore();
+    const idle: PendingDay = { sport: 'volleyball', date: '2026-10-29', pending: 1, running: 0 };
+    await cursors.complete([listCursor('volleyball', idle.date)], {}, new Date(NOW.getTime() - 5 * MIN));
+    const quick = postgameSports({ POSTGAME_VOLLEYBALL_MIN: '5' });
+    expect((await dueLists(cursors, quick, [idle], NOW, 40)).due.map((d) => d.date)).toEqual([idle.date]);
   });
 
   it('teto de chamadas por esporte e dia UTC', async () => {

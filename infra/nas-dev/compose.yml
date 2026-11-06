@@ -1,26 +1,38 @@
-# Stack `galaxie-sports-dev` do NAS (Portainer do NAS, ambiente local, stack id 10): a infra de DESENVOLVIMENTO.
-# Fonte de verdade da stack: o arquivo do Portainer é uma cópia deste (docs/runbooks/ambiente-de-dev.md › Aplicar a
-# stack). Só LAN. Nada de segredo aqui: as senhas vêm do ambiente da stack (infra/nas-dev/env.example).
+# Stack `galaxie-sports-dev` do NAS (Portainer do NAS, ambiente local): a infra de DESENVOLVIMENTO.
+# Stack A PARTIR DO GIT no Portainer (docs/runbooks/ambiente-de-dev.md › Stack a partir do git): o Portainer lê este
+# arquivo da branch `nas-dev`, confere a branch a cada 5 min e, a cada commit novo, puxa as imagens de novo e
+# redeploya. A `nas-dev` é a main com atraso: o docker.yml (job nas-dev) a avança para cada commit da main só depois de
+# publicar TODAS as imagens dele com a tag `main`, para o redeploy nunca puxar uma imagem anterior ao commit. Por isso
+# este arquivo não depende de nada ao lado: só dele e das variáveis da stack. Variável sem segredo tem padrão; segredo
+# é `${VAR:?}` (a stack não sobe sem ele). Só LAN. Nada de segredo aqui: as senhas vêm do ambiente da stack
+# (infra/nas-dev/env.example).
 #
 # Dev e produção dividem a conta da api-sports, a chave do YouTube (100 buscas/dia) e o crédito de IA. Por isso:
 # - postgres, valkey e s3 sobem sempre (o dev precisa deles);
+# - migrate roda a cada atualização da stack, ou seja, a cada merge na main (#550): aplica as migrations no Postgres do
+#   dev com a mesma imagem e o mesmo comando do migrate da produção, na tag `main`, e encerra;
 # - ingestor e agents ficam no perfil `workers`, que NÃO sobe sozinho (COMPOSE_PROFILES=workers para ligar). Quando
 #   sobem, nascem com tudo desligado: todo SCHEDULE_* em `off`, AI_STATUS=off, YOUTUBE_SEARCH=off, sem APISPORTS_KEY
 #   (o ingestor lê só do raw espelhado) e com um orçamento pequeno declarado para cada serviço que gasta cota.
 # - nenhum serviço recebe APP_ENV: sem ele o Quota Governor trata o ambiente como dev e segura a reserva de pelo menos
 #   70 % da conta (a produção usa APP_ENV=staging; nunca copie essa linha para cá).
+# - toda imagem do GHCR fica na tag `main` (IMAGE_TAG): a stack de dev sobe sempre o que acabou de entrar na main.
 # Teste que trava estas regras: services/ingestor/src/scheduler/nas-dev-compose.test.ts.
+# Validar: docker compose -f infra/nas-dev/compose.yml --env-file infra/nas-dev/env.example config -q
 
-# Ambiente comum dos workers. DATABASE_URL usa o dono do banco: o dev não tem papéis por serviço (DB_ROLES).
+# URL do dono do banco: o dev não tem papéis por serviço (DB_ROLES=off no migrate).
+x-database-url: &database-url postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}
+
+# Ambiente comum dos workers.
 x-worker-env: &worker-env
   NODE_ENV: production
   LOG_LEVEL: ${LOG_LEVEL:-info}
-  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  DATABASE_URL: *database-url
   REDIS_URL: redis://valkey:6379
   S3_ENDPOINT: http://s3:9000
   S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
-  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-  S3_SECRET_KEY: ${S3_SECRET_KEY}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
   ASSETS_PUBLIC_BASE_URL: ${ASSETS_PUBLIC_BASE_URL:-http://192.168.1.34:9000/galaxie-sports-assets}
   # IA: desligada por padrão. Ligada, cada agente tem um teto diário em US$ pequeno (a lista mescla sobre os padrões do
   # código, então cobre todos os agentes) e o dia todo tem teto em tokens e em US$ (o mínimo aceito é 0,5).
@@ -47,9 +59,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-galaxie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     command:
       [
         'postgres',
@@ -71,6 +83,29 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # ── migrate: as migrations da main no Postgres do dev, a cada atualização da stack (#550) ──────────────────────────
+  # A mesma imagem (api) e o mesmo comando do `migrate` da produção (infra/vps-telemetry/compose.yml), na tag `main`.
+  # O Portainer redeploya a stack a cada commit novo na main e puxa a imagem de novo: este contêiner aplica as migrations
+  # pendentes (idempotente; nada a aplicar = sai em 0) e encerra. Falhou = contêiner `migrate` com saída ≠ 0 na lista da
+  # stack no Portainer, e o log diz qual migration. Imagem privada do GHCR: precisa do registro ghcr.io no Portainer.
+  # Conferência pela máquina de dev: `pnpm --filter @galaxie/ingestor gs dev:esquema`; plano B: infra/ops/migrate-dev.sh.
+  migrate:
+    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-api:${IMAGE_TAG:-main}
+    pull_policy: always
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['node', 'node_modules/@galaxie/db/dist/migrate-cli.js']
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: *database-url
+      # sem papéis por serviço no dev: tudo roda com o dono do banco (docs/runbooks/papeis-do-banco.md é só produção)
+      DB_ROLES: 'off'
+    logging: *logging
+
   valkey:
     image: valkey/valkey:8-alpine
     restart: unless-stopped
@@ -82,8 +117,8 @@ services:
     image: rustfs/rustfs:1.0.2
     restart: unless-stopped
     environment:
-      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY}
-      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY}
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
       RUSTFS_CONSOLE_ENABLE: 'true'
     ports: ['9000:9000', '9001:9001']
     volumes: ['s3data:/data']
@@ -94,8 +129,8 @@ services:
     depends_on:
       - s3
     environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
       AWS_DEFAULT_REGION: us-east-1
       BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
       TASKS_BUCKET: ${S3_TASKS_BUCKET:-galaxie-sports-tasks}
@@ -121,14 +156,15 @@ services:
 
   # ── workers (perfil `workers`: não sobem sem COMPOSE_PROFILES=workers) ─────────────────────────────────────────────
   # As imagens são as do GHCR, privadas: o Portainer do NAS precisa de um registro ghcr.io com token read:packages.
-  # O banco de dev é migrado pela máquina de dev (pnpm db:migrate); estes serviços não migram.
+  # Estes serviços não migram o banco: o `migrate` acima aplica as migrations da mesma tag (IMAGE_TAG, padrão `main`)
+  # antes de qualquer worker subir.
 
   # Ingestor: scheduler + ao vivo. Sem APISPORTS_KEY ele roda em modo offline (só lê o raw espelhado, nunca chama o
   # fornecedor: o que não está no raw conta como "bloqueado" no relatório do job, sem gastar cota). Os jobs que precisam
   # da chave (quota-status, live-run, live-reconcile) falham com mensagem clara se alguém os ligar sem ela.
   ingestor:
     profiles: ['workers']
-    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-staging}
+    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-main}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 1152m
@@ -181,6 +217,9 @@ services:
       SCHEDULE_QUOTA_STATUS: ${SCHEDULE_QUOTA_STATUS:-off}
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-off}
       SCHEDULE_BOOTSTRAP_CATALOG: ${SCHEDULE_BOOTSTRAP_CATALOG:-off}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     stop_grace_period: 40s
     logging: *logging
 
@@ -188,7 +227,7 @@ services:
   # (nenhuma chamada ao LLM mesmo se alguém ligar um job) e YOUTUBE_SEARCH=off (nenhuma chamada ao YouTube).
   agents:
     profiles: ['workers']
-    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-staging}
+    image: ${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}-ingestor:${IMAGE_TAG:-main}
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     mem_limit: 768m
@@ -220,7 +259,80 @@ services:
       SCHEDULE_LINEUPS_REVISIT: ${SCHEDULE_LINEUPS_REVISIT:-off}
       SCHEDULE_LINEUPS_PAGES: ${SCHEDULE_LINEUPS_PAGES:-off}
       SCHEDULE_CHANNEL_LISTS: ${SCHEDULE_CHANNEL_LISTS:-off}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     stop_grace_period: 40s
+    logging: *logging
+
+  # ── espelho semanal produção → dev (#551) ──────────────────────────────────────────────────────────────────────
+  # O dump diário mais recente que a stack galaxie-sports-backup-nas guardou (NAS_BACKUP_PATH, só leitura aqui) vira o
+  # banco de dev pelo infra/ops/mirror-prod-to-dev.sh: decifrado com a chave privada do ensaio (a mesma do backup da
+  # VPS), restaurado num banco temporário, sem sessões, códigos de login, chaves e webhooks, com usuários fictícios
+  # (as contas de teste e as chaves do dev voltam), conferido e só então trocado pelo nome; os prefixos públicos do
+  # bucket de assets (ESPELHO_S3_PREFIXES, do que o nas-pull.sh guardou) vão para o RustFS do dev. Produção intacta:
+  # nada aqui alcança a VPS. Script, SQL, recibo (last_run.txt) e dumps do dev de antes de cada troca ficam em
+  # NAS_DEV_PATH. Runbook: docs/runbooks/ambiente-de-dev.md › Espelho semanal produção → dev.
+  espelho:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    depends_on:
+      - postgres
+      - s3
+      - valkey
+    environment:
+      TZ: UTC
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGUSER: ${POSTGRES_USER:-galaxie}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      # chave PRIVADA do ensaio (AGE-SECRET-KEY-1…), a mesma BACKUP_AGE_IDENTITY do .env da VPS; obrigatória
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:?defina BACKUP_AGE_IDENTITY (chave privada do ensaio; docs/runbooks/ambiente-de-dev.md)}
+      # toda segunda às 06:30 UTC, depois da cópia das 05:15 do nas-pull.sh; a partida não espelha (ESPELHO_ON_START=true
+      # ou `plan` para uma prévia na partida)
+      ESPELHO_CRON: ${ESPELHO_CRON:-30 6 * * 1}
+      ESPELHO_ON_START: ${ESPELHO_ON_START:-false}
+      # prefixos públicos do bucket de assets (escudos, logos: os de NAS_S3_PREFIXES menos tasks-bucket, que é recusado);
+      # vazio = só o banco
+      ESPELHO_S3_PREFIXES: ${ESPELHO_S3_PREFIXES:-}
+      ESPELHO_S3_DELETE: ${ESPELHO_S3_DELETE:-false}
+      ESPELHO_TEST_EMAIL_SUFFIX: ${ESPELHO_TEST_EMAIL_SUFFIX:-@galaxie.test}
+      ESPELHO_KEEP_DEV_DUMPS: ${ESPELHO_KEEP_DEV_DUMPS:-3}
+      RESTORE_JOBS: ${ESPELHO_RESTORE_JOBS:-2}
+      # depois da troca, o cache de respostas da API do dev (Valkey) é esvaziado; off = não mexe
+      ESPELHO_VALKEY_HOST: ${ESPELHO_VALKEY_HOST:-valkey}
+      S3_ENDPOINT: http://s3:9000
+      S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+    volumes:
+      # a pasta da stack galaxie-sports-backup-nas (só leitura) e a pasta desta stack no NAS
+      - ${NAS_BACKUP_PATH:-/volume1/Docker/galaxie-sports-backups}:/backups:ro
+      - ${NAS_DEV_PATH:-/volume1/Docker/galaxie-sports-dev}:/data
+    # O script e a SQL vêm da pasta do NAS (cópias de infra/ops/mirror-prod-to-dev.sh e .sql em NAS_DEV_PATH, como o
+    # nas-pull.sh na pasta da stack de backup): nada ao lado deste arquivo, então a stack a partir do git continua só
+    # dele e das variáveis. A saída do crond vai para o log do container.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        # --no-scripts: no Docker do NAS (kernel 6.6.0.x do ADM) o apk 3 não consegue rodar os scripts de pacote (pre/post-install
+        # do redis, trigger do busybox: "killed by signal 9", com ou sem limite de memória, seccomp ou privilégio) e sai em 2,
+        # derrubando o container. Nenhum desses scripts faz falta aqui (usuário redis, symlinks do busybox); o que importa
+        # é conferido logo abaixo.
+        apk add --no-cache -q --no-scripts age aws-cli redis
+        for t in age aws redis-cli; do command -v "$$t" >/dev/null || { echo "$$t não instalado" >&2; exit 1; }; done
+        # o crond não repassa o ambiente do container para os jobs
+        export -p > /etc/espelho.env
+        echo "$$ESPELHO_CRON . /etc/espelho.env; /bin/sh /data/mirror-prod-to-dev.sh >/proc/1/fd/1 2>&1" | crontab -
+        case "$$ESPELHO_ON_START" in
+          true) /bin/sh /data/mirror-prod-to-dev.sh || true ;;
+          plan) /bin/sh /data/mirror-prod-to-dev.sh --plan || true ;;
+        esac
+        exec crond -f -l 8
     logging: *logging
 
 volumes:

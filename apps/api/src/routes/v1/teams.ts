@@ -58,7 +58,7 @@ import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
 import { constructorEvents, constructorProviderIds } from '../../events/race.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
-import { pickText } from '../../i18n.js';
+import { competitionName, pickText } from '../../i18n.js';
 import { teamColors } from '../../teams/colors.js';
 import { loadRaceCareer } from '../../teams/career.js';
 import { loadDriverTraits } from '../../teams/traits.js';
@@ -391,6 +391,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
               slug: competition.slug,
               name: competition.name,
               labels: competition.labels,
+              countryCode: competition.countryCode,
               tier: competition.tier,
             },
             profileLabels: competitionProfile.labels,
@@ -444,7 +445,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
             competition: {
               id: r.c.id,
               slug: r.c.slug,
-              name: pickText(labels, locale, r.c.name)!,
+              name: competitionName(labels, r.c.countryCode, r.c.name, locale),
               logo: assetUrl(ctx.assetsBaseUrl, r.logoKey, r.logoUrl),
             },
             season: { year: r.season.year, label: r.season.label },

@@ -24,6 +24,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | `api` | `ApiDown` | O Prometheus não raspa a API há 2 min |
 | `api` (de fora) | Monitores da Better Stack | Site, API ou assets sem resposta para a internet |
 | `api` (SLO) | `SloBurnRateFast` com `slo` `api-disponibilidade` ou `api-latencia` | A API gasta o orçamento de erro rápido demais: 2% dele em 1 h ou 5% em 6 h ([docs/14](../14-slos-e-error-budget.md)) |
+| `api` | `HostMemoryCritical` | Memória real do host acima de 90% por 5 min, sem swap: o próximo passo é o kernel matar processo |
 | `ao-vivo` | `LiveEventStale` | Jogo do plano do ao vivo (`coverage="poller"`) sem atualização há mais de 2 intervalos do poller, contados no máximo desde o apito. Jogo fora do catálogo ou de esporte sem ao vivo (`coverage="clock"`) não alerta: o relógio o põe em andamento pelo horário e a fonte só confirma na reconciliação ou na agenda D-1 |
 | `ao-vivo` | `LiveTickGap` | Há jogo em andamento (janela do plano aberta) e o último tick do `live-run`, de qualquer cópia, passou de 60 s (ou de 2 intervalos do plano, quando o plano espaça mais) por 1 min. Meio-tempo, orçamento do dia e espera depois de erro da fonte não contam. Olha o runner parado, antes de o jogo ficar atrasado: deploy do `live` que não passou o bastão aparece aqui |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
@@ -42,10 +43,12 @@ disparando naquela hora. O que disparou e resolveu de madrugada fica no históri
 
 | Alerta | Quer dizer |
 |---|---|
+| `HostMemoryHigh` | Memória real do host acima de 80% por 10 min |
 | `JobOverdue` | Job sem sucesso há mais de 2 intervalos da agenda efetiva (painel > env > padrão), com piso de 30 min; não conta enquanto há execução em andamento (o `live-run` fica no ar a janela inteira do ao vivo) |
 | `SchedulerHeartbeatStale` | O scheduler do ingestor ou dos agentes não relata em `ops.runtime_env` há 10 min |
 | `JobFailingRepeatedly` | Job com 3 falhas seguidas (saiu do push: o que importa nele já tem sinal próprio) |
 | `ChangeFeedStalled` | Cache da demo, webhooks ou purge do cache da API (`api:cache-purge`) atrasados mais de 10 min (saiu do push pelo mesmo motivo) |
+| `WebhookWorkerDown`, `WebhookDeadLetters`, `WebhookEndpointFailing`, `WebhookDeliverySlow` | Webhooks para clientes: worker parado (entrega vencida há 5 min), DLQ crescendo, endpoint com 5+ falhas seguidas, p95 acima de 30 s. O que fazer em cada um: [webhooks.md](webhooks.md#alertas) |
 | `TarefaPendenteAntiga` | Tarefa da fila pronta há mais de 1 h sem worker pegar, por tipo: worker fora do ar ou tarefa longa na frente ([contrato](../../packages/db/README.md#fila-de-tarefas)) |
 | `ExploreSummaryStale` | Resumo da home Explorar (`core.explore_summary`) sem recálculo há mais de 30 min, ou nunca gravado: a API volta a montar a home na requisição, lenta a frio. Veja o job `explore-summary` ([pacote](../../packages/explore/README.md)) |
 | `ChangeFeedGapAbandoned` | O SSE ou o purge do cache desistiu de um id do change feed (90 s e releitura sem ele): mudança pode ter faltado. Ids no log da API |
@@ -294,6 +297,16 @@ verdade, com push se o secret existir); só vale com a produção atrás da main
 `GH_REPO=galaxie-works/galaxie-sports node infra/ops/producao-atrasada.mjs verificar` (só lê; sem `GITHUB_OUTPUT` não
 abre issue nem manda push).
 
+## Esquema do dev atrasado (`DevEsquemaAtrasado`)
+
+O Postgres de **dev** mora no NAS da LAN: o Prometheus da VPS não o enxerga e o GitHub não entra na LAN, então este
+sinal não passa pelo Grafana (não entra no resumo diário por e-mail) nem por workflow. Quem aplica as migrations no dev
+é o `migrate` da stack do git no Portainer do NAS, a cada merge na main; quem confere é o comando
+`pnpm --filter @galaxie/ingestor gs dev:esquema`, rodado da máquina de dev, que compara `drizzle.__drizzle_migrations`
+com o journal da main e sai com 1 quando o dev está atrasado há mais de 24 h. Falha do `migrate` aparece como contêiner
+com saída ≠ 0 na stack do Portainer. Estados, saída e o plano B (`infra/ops/migrate-dev.sh`):
+[ambiente de dev › Esquema do dev atrasado](ambiente-de-dev.md#esquema-do-dev-atrasado-devesquemaatrasado).
+
 ## Monitor externo e página de status (Better Stack, plano gratuito)
 
 Ligado em 29/10/2026 ([#430](https://github.com/galaxie-works/galaxie-sports/issues/430)). A conta é do dono, em
@@ -394,5 +407,6 @@ docker compose exec api cat /tmp/selfheal.log
 | `galaxie_ai_credit_checked_timestamp_seconds` | Hora da última checagem |
 | `galaxie_ai_spend_usd{budget_day}` | Gasto em US$ do dia de orçamento em `ops.llm_usage` (todos os agentes) |
 | `galaxie_ai_daily_budget_usd` | Teto global efetivo (sem a série quando é `unlimited`) |
+| `galaxie_webhook_*{endpoint,tenant}`, `galaxie_webhook_overdue_seconds` | Fila, DLQ, falhas, latência e atraso do worker dos webhooks (`api.webhook_delivery`; lista em [webhooks.md](webhooks.md#alertas)) |
 
 O rótulo é `component`, não `service`: o scrape do Prometheus já põe `service="api"` em toda série da API.

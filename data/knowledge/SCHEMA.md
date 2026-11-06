@@ -240,6 +240,8 @@ competitions:
     review_status: draft                         # opcional (padrão draft)
 ```
 
+`labels` de competição **nacional** (com país) só serve no idioma do próprio país: a API mostra Copa do Brasil e Premier League em todo locale, sem traduzir (não cadastre "Copa de Brasil"); as continentais e mundiais trazem o rótulo oficial da entidade em `pt-BR`, `es` e `en` (docs/05 §1.1). Os apelidos seguem por locale.
+
 ## `copy/<locale>.yaml`
 
 Microcopy localizada **pela intenção** (docs/06 §4), um arquivo por mercado: `pt-BR`, `es-AR`, `es-MX`, `es-CO`, `es-CL`, `es-PE`, `es-UY`, `es-EC`.

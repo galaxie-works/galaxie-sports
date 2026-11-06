@@ -1,6 +1,6 @@
 'use client';
 
-import { Blocks, KeyRound, LayoutDashboard, ListVideo, Tv } from 'lucide-react';
+import { Blocks, KeyRound, LayoutDashboard, ListVideo, Tv, Webhook } from 'lucide-react';
 import Link from 'next/link';
 
 import { useI18n } from '@/lib/i18n/client';
@@ -13,6 +13,7 @@ export const CLIENT_NAV = [
   { id: 'builder', href: '/cliente/builder', icon: Blocks },
   { id: 'lineup', href: '/cliente/grade', icon: Tv },
   { id: 'channels', href: '/cliente/canais', icon: ListVideo },
+  { id: 'webhooks', href: '/cliente/webhooks', icon: Webhook },
 ] as const;
 
 export type ClientSection = (typeof CLIENT_NAV)[number]['id'];

@@ -1,8 +1,8 @@
 /**
  * Job `explore-summary` (#596): recalcula o resumo da home "Explorar" (`@galaxie/explore`) e grava em
  * `core.explore_summary`, para a API responder sem a consulta pesada (um ano de jogos) no caminho da requisição.
- * Roda a cada minuto e só recalcula quando precisa (`exploreRefreshReason`): sem resumo, resumo com 10 min, ou jogo
- * que mudou de status desde a última conta.
+ * Roda a cada minuto e só recalcula quando precisa (`exploreRefreshReason`): sem resumo, resumo com 10 min, jogo que
+ * mudou de status ou jogo novo na janela desde a última conta.
  */
 import type { Database } from '@galaxie/db';
 import { computeExploreSnapshot, exploreRefreshReason, saveExploreSnapshot } from '@galaxie/explore';

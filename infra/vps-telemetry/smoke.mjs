@@ -400,7 +400,13 @@ await check('Agenda conta os mesmos jogos que a home', async () => {
     return warn(
       `não conferida: depende de "${HOME_CHECK}" (resumo: status ${summary.status}); agenda com ${total} jogos`,
     );
-  // os dois caches (60 s) podem estar alguns jogos defasados entre si; diferença grande é consulta divergente
+  // os dois caches (60 s) podem estar alguns jogos defasados entre si; diferença grande é consulta divergente. O
+  // agendador fica parado durante a troca do deploy: com resumo velho, a diferença é atraso, não conta divergente
+  const summaryAge = (Date.now() - Date.parse(summary.body?.generated_at ?? '')) / 1000;
+  if (summaryAge > 120 && home !== total)
+    return warn(
+      `home ${home} × agenda ${total}: resumo com ${Math.round(summaryAge)} s (agendador na troca?)`,
+    );
   if (Math.abs(home - total) > Math.max(3, home * 0.02))
     return fail(`home ${home} × agenda ${total} jogos nos próximos 7 dias`);
   if (home !== total) return warn(`home ${home} × agenda ${total} (caches de 60 s fora de fase)`);

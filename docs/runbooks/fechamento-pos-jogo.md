@@ -32,6 +32,11 @@ tem pipeline próprio e fica de fora. As mudanças valem na próxima execução,
 - Cada consulta gasta 1 chamada da API do esporte, na fatia ADHOC do Governor, que respeita a reserva do ao vivo.
 - Nos planos free (100/dia), a agenda diária usa 3. Com o teto padrão de 40, sobra folga.
 - `tempo-real` com 1 min durante um jogo de 2 h gasta umas 120 chamadas: só caberia num plano pago.
+- No `tempo-real`, a data só fica no intervalo curto enquanto tem jogo que ainda pode estar em campo, até 1 h depois
+  do fim previsto. Sem nenhum, a lista da data é buscada a cada 15 min, ou no intervalo do esporte se ele for maior.
+- Ao escolher o teto do `tempo-real`, conte duas datas pendentes ao mesmo tempo (ontem e hoje): com 2 min, o pior caso
+  seria 1.440 chamadas por dia. Por isso a produção usa 1.500. Com 400, o teto acabava de madrugada (06:49 UTC em
+  05/11) e as ligas baixas ficavam sem placar até a agenda D-1.
 - No teto do dia, o esporte para e o resto fica para a agenda D-1. O log avisa (`teto de chamadas do dia atingido`).
 - Cada esporte roda na sua execução: a cota negada de um não segura os outros. O esporte negado fica 1 h em espera
   (`postgame:hold`), sem chamar nem registrar execução.

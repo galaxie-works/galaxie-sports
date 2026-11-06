@@ -18,8 +18,8 @@ import type { ApiRequest } from './request';
 import { API_URL } from './server';
 
 /**
- * `locale` e `tz` da API para o idioma da demo (a API não fala inglês: `en` pede `es-AR`). Cada fetcher
- * recebe o idioma, que entra na chave do cache.
+ * `locale` e `tz` da API para o idioma da demo (`en` incluído; só o contexto de IA pede espanhol,
+ * `contextLocale`). Cada fetcher recebe o idioma, que entra na chave do cache.
  */
 export const localeQuery = (locale: ContentLocale) => ({
   locale: apiLocale(locale),

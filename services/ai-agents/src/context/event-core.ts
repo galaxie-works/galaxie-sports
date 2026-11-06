@@ -15,6 +15,7 @@ import {
   type EventScore,
   type I18nText,
 } from '@galaxie/db';
+import { competitionName as competitionLabel } from '@galaxie/geo';
 import { languageOf, type AgentLocale } from '../guardrails/index.js';
 
 /** Piso editorial do perfil da competição (`semantic.competition_profile`) no texto dos agentes. */
@@ -48,6 +49,8 @@ export interface EventCore {
     name: string;
     tier: number;
     labels: Partial<Record<string, string>>;
+    /** País da competição (`WORLD` para as internacionais): decide o idioma do nome. */
+    countryCode?: string | null;
   } | null;
   season: { id: string; year: number; label: string } | null;
   stage: { id: string; kind: string; name: I18nText; providerLabel: string | null } | null;
@@ -68,9 +71,14 @@ export function teamName(team: TeamRef, locale: AgentLocale): string {
   return labelFor(team.labels, locale) ?? team.name;
 }
 
+/**
+ * Nome da competição no texto dos agentes: a mesma regra da API (packages/geo) — nacional no idioma do
+ * próprio país, continental e mundial pelo rótulo da entidade no locale.
+ */
 export function competitionName(core: EventCore, locale: AgentLocale): string | null {
   if (!core.competition) return null;
-  return labelFor(core.competition.labels, locale) ?? core.competition.name;
+  const c = core.competition;
+  return competitionLabel(c.labels, c.countryCode ?? null, c.name, locale);
 }
 
 export function stageName(core: EventCore, locale: AgentLocale): string | null {
@@ -112,6 +120,7 @@ export async function loadEventCore(db: Database, eventId: string): Promise<Even
       competitionSlug: competition.slug,
       competitionName: competition.name,
       competitionTier: competition.tier,
+      competitionCountry: competition.countryCode,
       competitionLabels: competition.labels,
       profileLabels: competitionProfile.labels,
       seasonId: season.id,
@@ -193,6 +202,7 @@ export async function loadEventCore(db: Database, eventId: string): Promise<Even
           slug: row.competitionSlug!,
           name: row.competitionName!,
           tier: row.competitionTier ?? 3,
+          countryCode: row.competitionCountry ?? null,
           labels: { ...((row.profileLabels ?? {}) as object), ...((row.competitionLabels ?? {}) as object) },
         }
       : null,

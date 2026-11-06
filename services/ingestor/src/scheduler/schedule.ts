@@ -95,7 +95,7 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
   {
     name: 'explore-summary',
     description:
-      'Resumo da home Explorar pré-calculado (core.explore_summary): recalcula quando um jogo muda de status e a cada 10 min; sem mudança, confere e sai (sem chamadas ao fornecedor)',
+      'Resumo da home Explorar pré-calculado (core.explore_summary): recalcula quando um jogo muda de status, quando entra jogo novo na janela e a cada 10 min; sem mudança, confere e sai (sem chamadas ao fornecedor)',
     cron: '* * * * *',
     script: 'dist/cli/explore-summary.js',
     args: [],

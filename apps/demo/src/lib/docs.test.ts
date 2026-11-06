@@ -128,6 +128,11 @@ describe('seções dos guias', () => {
 });
 
 describe('referência (OpenAPI → árvore e busca)', () => {
+  it('vídeos relacionados ficam fora do documento publicado até decisão do dono', () => {
+    const published = JSON.stringify(buildOpenApiDocument());
+    expect(published).not.toMatch(/related|relacionad/i);
+  });
+
   const tags = apiReferenceTags(getDictionary('pt-BR'));
 
   it('cobre todas as operações do documento, cada uma com âncora única', () => {

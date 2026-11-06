@@ -218,7 +218,8 @@ describe('carga.historica com provedor falso', () => {
       prepareDay: async () => {},
       close: async () => {},
     });
-    const now = new Date('2026-11-03T18:00:00Z');
+    // data longe no futuro: o takeNext abaixo compara o runAfter com o relógio real (com 2026 fixo, o teste quebrou em 04/11/2026 00:30 UTC)
+    const now = new Date('2099-11-03T18:00:00Z');
     const handlers = { 'carga.historica': cargaHistorica(deps, () => now) };
     const { id } = await requestTask(db, {
       type: 'carga.historica',
@@ -229,7 +230,7 @@ describe('carga.historica com provedor falso', () => {
     expect(await runTask(db, task!, { handlers })).toBe('deferred');
     const row = await getTask(db, id);
     expect(row.status).toBe('pending');
-    expect(row.runAfter).toEqual(new Date('2026-11-04T00:30:00Z'));
+    expect(row.runAfter).toEqual(new Date('2099-11-04T00:30:00Z'));
     expect(row.attempts).toBe(0);
     expect(row.lastError).toBeNull();
     expect(row.runs.map((r) => r.status)).toEqual(['ok']);

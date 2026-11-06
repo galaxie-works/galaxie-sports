@@ -56,7 +56,14 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext, type ReviewStatus } from '../../context.js';
 import { ProblemError, problems } from '../../errors.js';
-import { formatInstant, hintLocales, pickList, pickText, resolveLocale } from '../../i18n.js';
+import {
+  competitionName,
+  formatInstant,
+  hintLocales,
+  pickList,
+  pickText,
+  resolveLocale,
+} from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { curatedTeamName, loadTeamNames, type TeamNameOptions } from '../../teams/display-name.js';
@@ -305,6 +312,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
               slug: competition.slug,
               name: competition.name,
               labels: competition.labels,
+              countryCode: competition.countryCode,
             },
           })
           .from(event)
@@ -649,13 +657,19 @@ function derbySummary(d: LoadedDerby, locale: string): DerbySummary {
 }
 
 function competitionRef(
-  c: { id: string | null; slug: string | null; name: string | null; labels: unknown },
+  c: {
+    id: string | null;
+    slug: string | null;
+    name: string | null;
+    labels: unknown;
+    countryCode: string | null;
+  },
   locale: string,
 ) {
   return {
     id: c.id!,
     slug: c.slug!,
-    name: pickText(c.labels as Record<string, string> | null, locale, c.name!)!,
+    name: competitionName(c.labels as Record<string, string> | null, c.countryCode, c.name!, locale),
   };
 }
 
@@ -707,7 +721,13 @@ function selectPair(db: Database) {
       e: event,
       homeId: home.participantId,
       awayId: away.participantId,
-      c: { id: competition.id, slug: competition.slug, name: competition.name, labels: competition.labels },
+      c: {
+        id: competition.id,
+        slug: competition.slug,
+        name: competition.name,
+        labels: competition.labels,
+        countryCode: competition.countryCode,
+      },
     })
     .from(event)
     .innerJoin(home, and(eq(home.eventId, event.id), eq(home.side, 'home')))

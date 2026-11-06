@@ -166,8 +166,8 @@ executa a fila:
   tarefa, espera de 1 a 10 s (a fila não tem NOTIFY). O filho que morre sem dizer o destino (heap estourado, código
   134) encerra a tomada em erro, e a tarefa tenta de novo com backoff.
 - **Vagas:** `WORKER_CONCURRENCY_<TIPO>` por tipo (`assets.espelhar` → `WORKER_CONCURRENCY_ASSETS_ESPELHAR`; padrão 1,
-  o espelho 2; 0 tira o tipo deste worker) e o teto `WORKER_MAX_TASKS` (padrão 2) somando os tipos. Teto de CPU
-  `cpus: 1.0`; o `mem_limit` (576m) é a conta do README da stack › Memória dos jobs: mudou o teto ou o heap, refaça.
+  o espelho 2; 0 tira o tipo deste worker) e o teto `WORKER_TASK_SLOTS` no `.env` (padrão 1; vira `WORKER_MAX_TASKS` no processo) somando os tipos. Teto de CPU
+  `cpus: 0.2`; o `mem_limit` (384m) é a conta do README da stack › Memória dos jobs: mudou o teto ou o heap, refaça.
 - **Cota:** as chamadas à api-sports da carga passam pelo Quota Governor, com a reserva do ao vivo. Cota do dia
   esgotada: a tarefa volta à fila para o próximo dia de cota, sem falhar e sem gastar tentativa.
 - **SIGTERM (`docker stop`, deploy):** o log diz `drenando`; o worker para de tomar, o lote em andamento fecha
@@ -279,6 +279,11 @@ O resto do checkpoint é livre e aparece em JSON.
   pronta há mais de 1 h. Confira `docker compose ps worker`, o `/health` e a seção Workers do painel.
 - **Worker com concessão vencida no painel**: ele parou de renovar. Veja `docker compose logs worker`; o healthcheck
   reinicia o contêiner travado, e a tarefa volta à fila do checkpoint (a tomada cortada gasta a tentativa).
+- **Worker reiniciando sem log de encerramento**: o processo saiu porque o event loop esvaziou, não por SIGTERM nem
+  OOM (`docker inspect` mostra saída 0 e `OOMKilled=false`). Desde 04/11/2026 (#618) o laço segura o processo e, se
+  acontecer de novo por outro caminho, o log traz `o event loop do worker esvaziou sem SIGTERM` e a saída é 1 (#619).
+  Antes disso, o worker saía com 0 em silêncio a cada 30 a 60 min, quando o postgres.js reciclava a conexão
+  (`max_lifetime`) entre duas tomadas.
 - **Falha**: `gs tarefa ver <id>` mostra o último erro e cada execução. Corrigida a causa, **Reprocessar** cria uma
   tarefa nova com os mesmos params.
 - **Reprocessar a execução aprovada de um tipo destrutivo** volta como **prévia**: o plano antigo pode não valer mais, e

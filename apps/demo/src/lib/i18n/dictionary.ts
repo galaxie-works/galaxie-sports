@@ -30,6 +30,7 @@ import shell from './messages/shell';
 import site from './messages/site';
 import sport from './messages/sport';
 import team from './messages/team';
+import webhooks from './messages/webhooks';
 
 export const NAMESPACES = {
   admin,
@@ -59,6 +60,7 @@ export const NAMESPACES = {
   site,
   sport,
   team,
+  webhooks,
 };
 
 type Namespaces = typeof NAMESPACES;
@@ -96,6 +98,7 @@ export const CLIENT_NAMESPACES = [
   'search',
   'shell',
   'sport',
+  'webhooks',
 ] as const;
 type ClientNamespace = (typeof CLIENT_NAMESPACES)[number];
 export type ClientDictionary = Pick<Dictionary, ClientNamespace>;

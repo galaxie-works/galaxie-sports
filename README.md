@@ -237,6 +237,7 @@ pnpm --filter @galaxie/api dev  # API em http://localhost:8080 — referência i
 | `pnpm --filter @galaxie/ingestor normalize:football [--tudo]` | Normaliza o raw do futebol no core (eventos, times, pessoas, elencos, classificação) — zero chamadas; incremental por padrão |
 | `pnpm --filter @galaxie/ingestor normalize:sports [--esporte nba] [--tudo]` | Normaliza o raw dos outros 11 esportes no core (jogos, sessões da F1, lutas do MMA, classificação, times) — zero chamadas; incremental por esporte |
 | `pnpm --filter @galaxie/ingestor events:clock` | Avança o relógio dos eventos (T-10, fallback temporal sem fonte) |
+| `pnpm --filter @galaxie/ingestor stages:backfill-en [--aplicar] [--esporte football]` | Nome em inglês das fases já gravadas (`core.stage.name->>'en'`, recalculado do rótulo do fornecedor com `parseRound`); prévia sem `--aplicar`; idempotente, zero chamadas — rode uma vez depois do deploy do locale `en` |
 | `pnpm --filter @galaxie/ingestor bootstrap:seasons --plan` | Temporadas por competição: fixtures, teams, rounds, standings, injuries, rankings e venues (só o que o `coverage` permite); `--h2h-temporada-atual` reconstrói a temporada atual no free |
 | `pnpm --filter @galaxie/ingestor bootstrap:details --plan` | Detalhe das partidas encerradas (tier 1 → clássicos → tier 2): `fixtures?ids=` ×20 nos pagos; no free, `fixtures?id=` só de clássicos e jogos decisivos |
 | `pnpm --filter @galaxie/ingestor bootstrap:people --plan` | Elencos, técnicos, transferências, títulos, afastamentos e h2h dos clássicos; `--estatisticas-jogadores` para `players?league&season` |
@@ -292,7 +293,6 @@ pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 | 10 | [Roadmap e backlog](docs/10-roadmap-e-backlog.md) | Fases, marcos e issues |
 | — | [Como contribuir](CONTRIBUTING.md) | Convenções de código, testes, migrations e PRs |
 | 11 | [Segurança, licenciamento e compliance](docs/11-seguranca-licenciamento-e-compliance.md) | Licenças de dados, IA, LGPD, segurança |
-| 12 | [Conteúdo relacionado](docs/12-conteudo-relacionado.md) | Vídeos diretos por evento, por tipo e formato (YouTube) |
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
 | 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |

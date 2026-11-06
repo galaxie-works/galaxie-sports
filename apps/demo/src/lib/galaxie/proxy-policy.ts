@@ -39,6 +39,8 @@ export function isProxyPathAllowed(path: readonly string[]): boolean {
   if (path[0] !== 'v1' || path.length < 2) return false;
   if (path.some((p) => p === '' || p === '.' || p === '..' || p.includes('/') || p.includes('\\')))
     return false;
+  // vídeos relacionados: a vitrine lê no servidor; o navegador não alcança a rota pela chave da demo
+  if (path[1] === 'events' && path[3] === 'related') return false;
   return PROXY_RESOURCES.has(path[1]!);
 }
 

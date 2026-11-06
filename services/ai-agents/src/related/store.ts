@@ -208,7 +208,6 @@ export async function saveRelatedContent(db: Database, input: SaveRelatedInput):
           sport: input.sport ?? null,
           competition_id: input.competitionId ?? null,
           changed: ['related_content'],
-          data: { added, removed, changed },
           tags: [relatedContentTag(input.eventId), `event:${input.eventId}`],
         },
       });
@@ -332,7 +331,6 @@ export async function purgeYoutubeData(
           sport: metaOf.get(eventId)?.sport ?? null,
           competition_id: metaOf.get(eventId)?.competitionId ?? null,
           changed: ['related_content'],
-          data: { added: added.get(eventId) ?? [], removed: removed.get(eventId) ?? [], changed: [] },
           tags: [relatedContentTag(eventId), `event:${eventId}`],
         },
       });
@@ -365,6 +363,51 @@ export async function quotaUsage(
 
 /** Rótulo de `queries` dos vídeos achados num canal conhecido (`channel:club`, `channel:competition`…). */
 export const CHANNEL_QUERY_PREFIX = 'channel:';
+
+/**
+ * Vídeos da vitrine com estatísticas lidas antes de `before`, os mais velhos primeiro. O prazo de 30 dias
+ * continua contando do `first_seen_at`: atualizar não adia a retirada (§2.1).
+ */
+export async function staleRelatedStatistics(
+  db: Database,
+  input: { before: Date; limit: number },
+): Promise<{ eventId: string; externalId: string }[]> {
+  const readAt = sql`coalesce((${relatedContent.statistics}->>'fetchedAt')::timestamptz, ${relatedContent.lastCheckedAt})`;
+  return db
+    .select({ eventId: relatedContent.eventId, externalId: relatedContent.externalId })
+    .from(relatedContent)
+    .where(
+      and(
+        eq(relatedContent.provider, 'youtube'),
+        eq(relatedContent.status, 'published'),
+        isNull(relatedContent.supersededBy),
+        sql`${readAt} < ${input.before.toISOString()}::timestamptz`,
+      ),
+    )
+    .orderBy(readAt)
+    .limit(input.limit);
+}
+
+/** Grava as estatísticas novas em todos os jogos do vídeo, sem versão nova (não é mudança material). */
+export async function saveRefreshedStatistics(
+  db: Database,
+  rows: readonly { externalId: string; statistics: RelatedStatistics }[],
+  now: Date,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    for (const row of rows)
+      await tx
+        .update(relatedContent)
+        .set({ statistics: row.statistics, lastCheckedAt: now })
+        .where(
+          and(
+            eq(relatedContent.provider, 'youtube'),
+            eq(relatedContent.externalId, row.externalId),
+            isNull(relatedContent.supersededBy),
+          ),
+        );
+  });
+}
 
 /**
  * Rendimento por competição desde `since` (prioridade e painel): jogos com busca completa, consultas, unidades

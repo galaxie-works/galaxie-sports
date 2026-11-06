@@ -107,12 +107,14 @@ interface Slot {
   done: Promise<void>;
 }
 
-/** Espera `ms` ou até `wake` ser chamado; o timer não segura o processo no ar. */
+/**
+ * Espera `ms` ou até `wake` ser chamado. O timer segura o processo no ar de propósito: sem tarefa, é a única coisa que
+ * segura (o /health tem `unref` e a conexão do banco vence em 30 a 60 min). Sem ele, o Node sai com código 0 e sem log.
+ */
 function interruptibleSleep(ms: number): { promise: Promise<void>; wake: () => void } {
   let wake = () => {};
   const promise = new Promise<void>((resolve) => {
     const t = setTimeout(resolve, ms);
-    t.unref?.();
     wake = () => {
       clearTimeout(t);
       resolve();
