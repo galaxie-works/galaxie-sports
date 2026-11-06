@@ -120,7 +120,11 @@ export function LiveList({
       }
       group.events.push(event);
     }
-  } else groups.push({ key: 'all', name: '', logo: null, events });
+  } else {
+    // um campeonato só: o nome e o logo ficam no cabeçalho, mesmo sem agrupar
+    const competition = single ? events[0]?.competition : null;
+    groups.push({ key: 'all', name: competition?.name ?? '', logo: competition?.logo ?? null, events });
+  }
 
   return (
     <WidgetFrame kind="live_list">
@@ -131,12 +135,11 @@ export function LiveList({
         groups.map((group) => {
           // a rodada igual para o grupo todo sobe para o cabeçalho, em vez de repetir em cada linha
           const rounds = new Set(group.events.map((e) => e.stage?.name ?? ''));
-          const sharedRound = groupByCompetition && rounds.size === 1 ? [...rounds][0] || null : null;
-          // um campeonato só: o cabeçalho aparece para levar o logo (ou a rodada comum)
-          const header =
-            groupByCompetition &&
-            group.name &&
-            (!single || showCompetitionLogo || (showRound && sharedRound));
+          const sharedRound = rounds.size === 1 ? [...rounds][0] || null : null;
+          // vários campeonatos: cabeçalho por grupo; um só: o cabeçalho aparece para levar o logo (ou a rodada)
+          const header = Boolean(
+            group.name && (single ? showCompetitionLogo || (showRound && sharedRound) : groupByCompetition),
+          );
           return (
             <div key={group.key} className="gs-group">
               {header ? (

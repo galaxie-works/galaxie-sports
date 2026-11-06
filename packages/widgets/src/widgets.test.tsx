@@ -270,6 +270,15 @@ describe('LiveList', () => {
     expect(none.container.querySelector('.gs-group-title')).toBeNull();
   });
 
+  it('um campeonato só e sem agrupar: o logo segue no cabeçalho', async () => {
+    const { container } = setup(
+      <LiveList competitionId={PREVIEW_IDS.competition} groupByCompetition={false} />,
+    );
+    await screen.findByText('Clube Aurora');
+    expect(container.querySelector('.gs-group-title')!.textContent).toBe('LELiga Exemplo');
+    expect(container.querySelector('[data-gs-meta="competition"]')).toBeNull();
+  });
+
   it('liveOnly busca só os ao vivo e limit corta a lista', async () => {
     const live = setup(<LiveList liveOnly />);
     await screen.findByText('Ao vivo agora');
