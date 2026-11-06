@@ -26,6 +26,7 @@ import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { Broadcaster, Platform, PlatformLineup, WhereToWatch } from './where-to-watch.js';
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { SearchQuery, SearchResponse } from './search.js';
+import type { CompetitionLeaders, LeaderCategory } from './leaders.js';
 import type {
   Person,
   PersonOverview,
@@ -177,6 +178,16 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<CountryCompetitions>(`/v1/countries/${seg(code)}/competitions`, query as Query & LocaleOpts),
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
+    /** Artilharia e líderes (assistências, cartões) da temporada. */
+    leaders: (
+      id: string,
+      season: number | 'current',
+      query: LocaleOpts & { category?: LeaderCategory; limit?: number } = {},
+    ) =>
+      v1<CompetitionLeaders>(
+        `/v1/competitions/${seg(id)}/seasons/${season}/leaders`,
+        query as Query & LocaleOpts,
+      ),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
     /** Onde assistir um evento num país (`region` = UF/praça, opcional). */
     whereToWatch: (eventId: string, country: string, opts: LocaleOpts & { region?: string } = {}) =>

@@ -21,6 +21,8 @@ import type {
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { previewLeaders } from './fixtures-leaders.js';
+import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -841,6 +843,13 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
       return found
         ? json(found)
         : json({ type: 'about:blank', title: 'Evento não encontrado', status: 404, code: 'NOT_FOUND' }, 404);
+    }
+    if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/leaders$/.test(path)) {
+      const raw = url.searchParams.get('category') ?? 'goals';
+      const category = (LEADER_CATEGORIES as readonly string[]).includes(raw)
+        ? (raw as GsLeaderCategory)
+        : 'goals';
+      return json(previewLeaders(f.standings, category, Number(url.searchParams.get('limit')) || 10));
     }
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);

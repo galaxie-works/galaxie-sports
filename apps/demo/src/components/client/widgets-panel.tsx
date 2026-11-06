@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Dna,
   Flag,
+  Goal,
   History,
   ListChecks,
   ListOrdered,
@@ -87,6 +88,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  competition_leaders: Goal,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

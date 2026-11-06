@@ -34,6 +34,10 @@ export {
   type GsHeadToHead,
   type GsRelated,
   type GsStandings,
+  type GsCompetitionLeaders,
+  type GsLeaderCategory,
+  type GsLeaderRow,
+  LEADER_CATEGORIES,
   type GsWhereToWatch,
   type LiveListDay,
   type LiveListField,
@@ -90,6 +94,7 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { CompetitionLeaders, type CompetitionLeadersProps } from './widgets/competition-leaders.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

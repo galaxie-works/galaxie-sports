@@ -669,6 +669,46 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  competition_leaders: [
+    {
+      key: 'category',
+      type: 'enum',
+      default: 'goals',
+      label: l('Categoria', 'Categoría', 'Category'),
+      values: [
+        { value: 'assists', label: l('Assistências', 'Asistencias', 'Assists') },
+        { value: 'cards', label: l('Cartões', 'Tarjetas', 'Cards') },
+        { value: 'goals', label: l('Gols (artilharia)', 'Goles (goleadores)', 'Goals (top scorers)') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 10,
+      min: 1,
+      max: 50,
+      label: l('Jogadores listados', 'Jugadores listados', 'Players listed'),
+    },
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l('Vazio = temporada atual.', 'Vacío = temporada actual.', 'Empty = current season.'),
+    },
+    bool('showPhoto', l('Foto do jogador', 'Foto del jugador', 'Player photo'), true),
+    bool('showTeam', l('Escudo e nome do time', 'Escudo y nombre del equipo', 'Team crest and name'), true),
+    bool('showAppearances', l('Jogos disputados', 'Partidos jugados', 'Games played'), true),
+    {
+      key: 'highlightTeamId',
+      type: 'team',
+      label: l('Time em destaque', 'Equipo destacado', 'Highlighted team'),
+      hint: l(
+        'Destaca os jogadores do clube do portal.',
+        'Destaca a los jugadores del club del portal.',
+        "Highlights the portal club's players.",
+      ),
+    },
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
