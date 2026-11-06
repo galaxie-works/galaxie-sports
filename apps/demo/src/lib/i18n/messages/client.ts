@@ -241,6 +241,15 @@ export default defineMessages(
         linkNewTab: 'Abrir em outra aba',
         linkNewTabHint: 'O widget continua aberto na página atual.',
       },
+      options: {
+        title: 'Opções do widget',
+        description:
+          'O que o widget mostra e quanto. Os campos novos começam como antes; ligue o que fizer sentido para o seu público.',
+        fields: 'Campos',
+        extra: 'Busca dados a mais da API.',
+        all: 'Todos',
+        none: 'Nenhum filtro',
+      },
       zones: {
         title: 'Zonas da tabela',
         description:
@@ -261,7 +270,7 @@ export default defineMessages(
       entityHint: 'Aceita: {types}.',
       entityHintRequired: 'Obrigatória. Aceita: {types}.',
       entityPlaceholder: 'Buscar…',
-      entitySearch: 'Buscar competição, time ou jogo',
+      entitySearch: 'Buscar competição, time ou jogo (time x time)',
       entityEmpty: 'Nada encontrado.',
       entityMin: 'Digite ao menos 2 letras.',
       entityClear: 'Tirar o padrão',
@@ -569,6 +578,15 @@ export default defineMessages(
           linkNewTab: 'Open in a new tab',
           linkNewTabHint: 'The widget stays open on the current page.',
         },
+        options: {
+          title: 'Widget options',
+          description:
+            'What the widget shows and how much. New fields start as before; turn on what fits your audience.',
+          fields: 'Fields',
+          extra: 'Fetches extra data from the API.',
+          all: 'All',
+          none: 'No filter',
+        },
         zones: {
           title: 'Table zones',
           description:
@@ -589,7 +607,7 @@ export default defineMessages(
         entityHint: 'Accepts: {types}.',
         entityHintRequired: 'Required. Accepts: {types}.',
         entityPlaceholder: 'Search…',
-        entitySearch: 'Search for a competition, team or match',
+        entitySearch: 'Search for a competition, team or match (team vs team)',
         entityEmpty: 'Nothing found.',
         entityMin: 'Type at least 2 letters.',
         entityClear: 'Remove default',
@@ -909,6 +927,15 @@ export default defineMessages(
           linkNewTab: 'Abrir en otra pestaña',
           linkNewTabHint: 'El widget sigue abierto en la página actual.',
         },
+        options: {
+          title: 'Opciones del widget',
+          description:
+            'Qué muestra el widget y cuánto. Los campos nuevos empiezan como antes; activa lo que tenga sentido para tu público.',
+          fields: 'Campos',
+          extra: 'Busca datos adicionales de la API.',
+          all: 'Todos',
+          none: 'Sin filtro',
+        },
         zones: {
           title: 'Zonas de la tabla',
           description:
@@ -929,7 +956,7 @@ export default defineMessages(
         entityHint: 'Acepta: {types}.',
         entityHintRequired: 'Obligatoria. Acepta: {types}.',
         entityPlaceholder: 'Buscar…',
-        entitySearch: 'Buscar competición, equipo o partido',
+        entitySearch: 'Buscar competición, equipo o partido (equipo vs equipo)',
         entityEmpty: 'No se encontró nada.',
         entityMin: 'Escribí al menos 2 letras.',
         entityClear: 'Quitar el valor por defecto',

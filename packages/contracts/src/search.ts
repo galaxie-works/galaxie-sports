@@ -57,11 +57,18 @@ const typeList = z
   });
 
 export const SearchQuery = LocaleQuery.extend({
-  q: z.string().trim().min(2).max(80).meta({
-    description:
-      'Termo (≥ 2 caracteres), sem diferença de caixa nem de acento: nome, apelido, sigla ou nome anterior.',
-    example: 'verdao',
-  }),
+  q: z
+    .string()
+    .trim()
+    .min(2)
+    .max(80)
+    .meta({
+      description:
+        'Termo (≥ 2 caracteres), sem diferença de caixa nem de acento: nome, apelido, sigla ou nome anterior. ' +
+        'Um confronto ("Palmeiras x Corinthians", "vs", "-" com espaços) traz os jogos entre os dois times: ao ' +
+        'vivo, os próximos (até um ano) e os já disputados, e um time de cada lado.',
+      example: 'verdao',
+    }),
   types: typeList.optional(),
   sport: z.string().max(40).optional().meta({ description: 'Só times, competições e jogos deste esporte.' }),
   limit: z.coerce

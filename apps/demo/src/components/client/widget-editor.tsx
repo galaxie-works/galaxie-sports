@@ -13,10 +13,13 @@ import {
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
+  optionProps,
   parseLiveListOptions,
   parseStandingsOptions,
+  parseWidgetOptions,
   type LiveListOptions,
   type StandingsOptions,
+  type WidgetOptions,
 } from '@galaxie/widgets';
 import { ArrowLeft, Info, Save, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
@@ -59,6 +62,7 @@ import { EntityPicker, type EntityValue } from './entity-picker';
 import { LiveListOptionsEditor } from './live-list-options-editor';
 import { StandingsZonesEditor } from './standings-zones-editor';
 import { ThemeEditor } from './theme-editor';
+import { WidgetOptionsEditor, hasWidgetOptions, type OptionEntities } from './widget-options-editor';
 import { KIND_ICONS, useKindTexts } from './widgets-panel';
 
 export interface EditorDraft {
@@ -72,11 +76,18 @@ export interface EditorDraft {
   standings: StandingsOptions;
   /** Modo, agrupamento, atualização e dados extras (só vale na lista de jogos). */
   liveList: LiveListOptions;
+  /** Opções de conteúdo do tipo (`WIDGET_OPTIONS`): campos liga/desliga, quantidades, filtros. */
+  options: WidgetOptions;
+  /** Nome e escudo das entidades escolhidas nas opções (só para exibir; o banco guarda o id). */
+  optionEntities: OptionEntities;
 }
 
 /** Opções da lista de jogos que vão para o banco (nenhuma nos outros tipos). */
 const liveListOf = (d: EditorDraft) =>
   d.kind === 'live_list' ? parseLiveListOptions(d.liveList) : undefined;
+
+/** Opções de conteúdo que vão para o banco (só as do tipo, válidas e diferentes do padrão). */
+const optionsOf = (d: EditorDraft) => parseWidgetOptions(d.kind, d.options);
 
 /** Opções da tabela que vão para o banco (nenhuma nos outros tipos). */
 const standingsOf = (d: EditorDraft) =>
@@ -98,6 +109,7 @@ const snapshot = (d: EditorDraft) =>
     defaults: defaultsFromEntity(d.entity),
     standings: standingsOf(d),
     liveList: liveListOf(d),
+    options: optionsOf(d),
   });
 
 /**
@@ -120,43 +132,46 @@ function PreviewWidget({
   market,
   standings,
   liveList,
+  options,
 }: {
   kind: WidgetKind;
   entity: EntityValue | null;
   market: string;
   standings: StandingsOptions;
   liveList: LiveListOptions;
+  options: WidgetOptions;
 }) {
   const zones = { showLegend: standings.showLegend, zoneColors: standings.zoneColors };
+  const o = optionProps(kind, options);
   if (!entity) {
     switch (kind) {
       case 'match_card':
-        return <MatchCard {...WIDGET_CATALOG.match_card.exampleProps} />;
+        return <MatchCard {...o} {...WIDGET_CATALOG.match_card.exampleProps} />;
       case 'where_to_watch':
-        return <WhereToWatch {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
+        return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
-        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...zones} />;
+        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...o} {...zones} />;
       case 'live_list':
         return <LiveList {...liveList} />;
       case 'ai_context':
-        return <AiContext {...WIDGET_CATALOG.ai_context.exampleProps} />;
+        return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
-        return <MatchStakes {...WIDGET_CATALOG.match_stakes.exampleProps} />;
+        return <MatchStakes {...o} {...WIDGET_CATALOG.match_stakes.exampleProps} />;
       case 'related_videos':
-        return <RelatedVideos {...WIDGET_CATALOG.related_videos.exampleProps} />;
+        return <RelatedVideos {...o} {...WIDGET_CATALOG.related_videos.exampleProps} />;
       case 'head_to_head':
-        return <HeadToHead {...WIDGET_CATALOG.head_to_head.exampleProps} />;
+        return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
-        return <TeamSchedule {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+        return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
     }
   }
   switch (kind) {
     case 'match_card':
-      return <MatchCard eventId={entity.id} />;
+      return <MatchCard {...o} eventId={entity.id} />;
     case 'where_to_watch':
-      return <WhereToWatch eventId={entity.id} market={market} />;
+      return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':
-      return <StandingsTable competitionId={entity.id} season="current" {...zones} />;
+      return <StandingsTable season="current" {...o} competitionId={entity.id} {...zones} />;
     case 'live_list':
       return entity.type === 'team' ? (
         <LiveList {...liveList} teamId={entity.id} />
@@ -164,15 +179,15 @@ function PreviewWidget({
         <LiveList {...liveList} competitionId={entity.id} />
       );
     case 'ai_context':
-      return <AiContext eventId={entity.id} />;
+      return <AiContext {...o} eventId={entity.id} />;
     case 'match_stakes':
-      return <MatchStakes eventId={entity.id} />;
+      return <MatchStakes {...o} eventId={entity.id} />;
     case 'related_videos':
-      return <RelatedVideos eventId={entity.id} />;
+      return <RelatedVideos {...o} eventId={entity.id} />;
     case 'head_to_head':
-      return <HeadToHead eventId={entity.id} />;
+      return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
-      return <TeamSchedule teamId={entity.id} />;
+      return <TeamSchedule {...o} teamId={entity.id} />;
   }
 }
 
@@ -224,6 +239,7 @@ export function WidgetEditor({
     defaults: defaultsFromEntity(draft.entity),
     ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
     ...(liveListOf(draft) ? { liveList: liveListOf(draft) } : {}),
+    ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
   // lista de jogos funciona sem recorte; os outros tipos, sem entidade, mostram os dados de exemplo
@@ -298,6 +314,8 @@ export function WidgetEditor({
                         kind,
                         // a entidade escolhida só fica se o novo tipo aceitar
                         entity: d.entity && types.includes(d.entity.type) ? d.entity : null,
+                        // as opções são de cada tipo: as que o novo tipo não conhece saem
+                        options: parseWidgetOptions(kind, d.options) ?? {},
                       }));
                     }}
                   >
@@ -387,6 +405,23 @@ export function WidgetEditor({
             </FramePanel>
           </Frame>
 
+          {hasWidgetOptions(draft.kind) ? (
+            <Frame>
+              <FramePanel className="flex flex-col gap-4">
+                <FrameHeader className="p-0">
+                  <FrameTitle>{e.options.title}</FrameTitle>
+                  <FrameDescription>{e.options.description}</FrameDescription>
+                </FrameHeader>
+                <WidgetOptionsEditor
+                  kind={draft.kind}
+                  value={draft.options}
+                  entities={draft.optionEntities}
+                  onChange={(options, optionEntities) => setDraft((d) => ({ ...d, options, optionEntities }))}
+                />
+              </FramePanel>
+            </Frame>
+          ) : null}
+
           {draft.kind === 'standings' ? (
             <Frame>
               <FramePanel className="flex flex-col gap-4">
@@ -448,6 +483,7 @@ export function WidgetEditor({
                     market={draft.market}
                     standings={draft.standings}
                     liveList={draft.liveList}
+                    options={draft.options}
                   />
                 </GalaxieWidgetProvider>
               </div>

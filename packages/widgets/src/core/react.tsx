@@ -19,11 +19,14 @@ import {
   WIDGET_CSS,
   apiLocale,
   clockText,
+  eventIcs,
   initials,
   intlLocale,
+  sidesOf,
   localTimeZone,
   textsFor,
   themeToCssVars,
+  type GsCompetitionContext,
   type GsEvent,
   type WidgetKind,
   type WidgetLocale,
@@ -429,4 +432,80 @@ export function ErrorState({ error, onRetry }: { error: GalaxieWidgetError | nul
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return <div className="gs-state">{children}</div>;
+}
+
+/**
+ * Botão "adicionar ao calendário": baixa um `.ics` do jogo montado no navegador (Google Agenda, Outlook e o
+ * calendário do celular abrem o arquivo). Só para jogo que ainda não começou.
+ */
+export function CalendarButton({ event, compact = false }: { event: GsEvent; compact?: boolean }) {
+  const { texts } = useGalaxieWidget();
+  if (event.status !== 'scheduled') return null;
+  const download = () => {
+    if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') return;
+    const url = URL.createObjectURL(new Blob([eventIcs(event)], { type: 'text/calendar;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${event.id}.ics`;
+    a.rel = 'noopener';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  };
+  return (
+    <button
+      type="button"
+      className="gs-button"
+      data-gs-calendar={compact ? 'compact' : ''}
+      aria-label={texts.extra.addToCalendar}
+      title={texts.extra.addToCalendar}
+      onClick={download}
+    >
+      {compact ? texts.extra.calendarShort : texts.extra.addToCalendar}
+    </button>
+  );
+}
+
+/** Líder (de cada grupo, quando há mais de um) e os próximos jogos decisivos. */
+export function CompetitionSituation({ context, max = 3 }: { context: GsCompetitionContext; max?: number }) {
+  const { texts } = useGalaxieWidget();
+  const fmt = useFormatters();
+  const day = fmt.dayMonth;
+  const leaders = context.groups.filter((g) => g.leader);
+  const games = (context.decisive_events ?? []).slice(0, max);
+  if (!leaders.length && !games.length) return null;
+  return (
+    <div className="gs-group" data-gs-decisive="">
+      {leaders.map((g, i) => (
+        <div key={g.name ?? i} className="gs-line gs-small">
+          <span className="gs-muted">
+            {leaders.length > 1 && g.name ? `${texts.extra.leader} · ${g.name}` : texts.extra.leader}
+          </span>
+          <Crest src={g.leader!.participant.logo} name={g.leader!.participant.name} size="xs" />
+          <span className="gs-truncate">
+            {g.leader!.participant.short_name ?? g.leader!.participant.name}
+          </span>
+        </div>
+      ))}
+      {games.length ? (
+        <>
+          <div className="gs-group-title">{texts.extra.decisive}</div>
+          <ul className="gs-list">
+            {games.map((e) => {
+              const { home, away } = sidesOf(e);
+              return (
+                <li key={e.id} className="gs-fixture">
+                  <time className="gs-fixture-date" dateTime={e.starts_at}>
+                    {day(e.starts_at)}
+                  </time>
+                  <span className="gs-truncate">
+                    {`${home?.short_name ?? home?.name ?? '?'} ${texts.versus} ${away?.short_name ?? away?.name ?? '?'}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
 }

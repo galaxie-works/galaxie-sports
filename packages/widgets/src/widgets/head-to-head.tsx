@@ -17,6 +17,12 @@ export interface HeadToHeadProps {
   eventId: string;
   /** Quantos confrontos recentes listar (padrão 5). */
   limit?: number | undefined;
+  /** Barra de vitórias e empates (padrão: sim). */
+  showBar?: boolean | undefined;
+  /** Campeonato e rodada de cada confronto listado (padrão: não). */
+  showMeetingCompetition?: boolean | undefined;
+  /** Nome do clássico no topo (padrão: sim). */
+  showDerbyName?: boolean | undefined;
 }
 
 /** O retrospecto muda só quando um confronto termina: 30 minutos. */
@@ -26,7 +32,13 @@ const H2H_REFRESH_MS = 30 * 60_000;
  * Confronto direto entre os dois times do jogo: vitórias de cada lado e empates (o histórico geral, quando
  * é um clássico com número curado) e os últimos jogos entre eles.
  */
-export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
+export function HeadToHead({
+  eventId,
+  limit = 5,
+  showBar = true,
+  showMeetingCompetition = false,
+  showDerbyName = true,
+}: HeadToHeadProps) {
   const { texts } = useGalaxieWidget();
   const fmt = useFormatters();
   const t = texts.h2h;
@@ -73,7 +85,7 @@ export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
       <header className="gs-header">
         <h3 className="gs-title">{t.title}</h3>
         <span className="gs-spacer" />
-        {all?.derby ? <span className="gs-tag">{all.derby.name}</span> : null}
+        {showDerbyName && all?.derby ? <span className="gs-tag">{all.derby.name}</span> : null}
       </header>
       {!a || !b || total === 0 ? (
         <EmptyState>{t.empty}</EmptyState>
@@ -95,15 +107,17 @@ export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
               <span className="gs-muted gs-small gs-truncate">{b.name}</span>
             </div>
           </div>
-          <div
-            className="gs-bar"
-            role="img"
-            aria-label={`${a.name} ${winsA} · ${t.draws} ${draws} · ${b.name} ${winsB}`}
-          >
-            <span data-part="home" style={{ width: pct(winsA) }} />
-            <span data-part="draw" style={{ width: pct(draws) }} />
-            <span data-part="away" style={{ width: pct(winsB) }} />
-          </div>
+          {showBar ? (
+            <div
+              className="gs-bar"
+              role="img"
+              aria-label={`${a.name} ${winsA} · ${t.draws} ${draws} · ${b.name} ${winsB}`}
+            >
+              <span data-part="home" style={{ width: pct(winsA) }} />
+              <span data-part="draw" style={{ width: pct(draws) }} />
+              <span data-part="away" style={{ width: pct(winsB) }} />
+            </div>
+          ) : null}
           <span className="gs-muted gs-small">{caption}</span>
         </>
       )}
@@ -112,7 +126,12 @@ export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
           <div className="gs-group-title">{t.recent}</div>
           <ul className="gs-list">
             {events.map((e) => (
-              <Meeting key={e.id} event={e} date={fmt.date(e.starts_at)} />
+              <Meeting
+                key={e.id}
+                event={e}
+                date={fmt.date(e.starts_at)}
+                showCompetition={showMeetingCompetition}
+              />
             ))}
           </ul>
         </div>
@@ -121,7 +140,15 @@ export function HeadToHead({ eventId, limit = 5 }: HeadToHeadProps) {
   );
 }
 
-function Meeting({ event, date }: { event: GsEvent; date: string }) {
+function Meeting({
+  event,
+  date,
+  showCompetition,
+}: {
+  event: GsEvent;
+  date: string;
+  showCompetition: boolean;
+}) {
   const { texts } = useGalaxieWidget();
   const versus = texts.versus;
   const { home, away } = sidesOf(event);
@@ -130,6 +157,14 @@ function Meeting({ event, date }: { event: GsEvent; date: string }) {
     <li className="gs-fixture" data-gs-event={event.id}>
       <time className="gs-fixture-date" dateTime={event.starts_at}>
         {date}
+        {showCompetition && event.competition ? (
+          <span className="gs-line gs-meta" data-gs-meta="competition">
+            <Crest src={event.competition.logo} name={event.competition.name} size="xs" />
+            <span className="gs-truncate">
+              {[event.competition.name, event.stage?.name].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+        ) : null}
       </time>
       <span className="gs-meeting">
         <Crest src={home.logo} name={home.name} size="xs" />

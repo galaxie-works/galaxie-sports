@@ -72,6 +72,16 @@ export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos
 export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
 export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
 
+// opções de conteúdo de cada widget (Builder, embed e registry)
+export {
+  VIDEO_TYPES,
+  WIDGET_OPTIONS,
+  optionProps,
+  parseWidgetOptions,
+  type WidgetOptionSpec,
+  type WidgetOptions,
+} from './options.js';
+
 // catálogo, preview e registry
 export { WIDGET_CATALOG, type WidgetCatalogEntry, type WidgetPropsByKind } from './catalog.js';
 export { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures, type PreviewFixtures } from './fixtures.js';

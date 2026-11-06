@@ -85,3 +85,21 @@ export function stringsOf(value: unknown): string[] {
 
 /** `like` de um termo já dobrado: escapa os curingas. */
 export const likeTerm = (term: string) => term.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/**
+ * Separadores de confronto entre dois nomes: "x", "vs", "vs.", "versus", "contra", "v", "×" e o traço
+ * com espaços ("Palmeiras - Corinthians"). O traço sem espaço fica de fora: faz parte de nomes
+ * ("Atlético-MG", "Paris Saint-Germain").
+ */
+const MATCHUP_SEPARATOR = /\s+(?:x|vs\.?|versus|contra|v|×)\s+|\s+[-–—]\s+|\s*×\s*/iu;
+
+/**
+ * Termo de confronto ("time x time"): os dois lados já dobrados (sem acento, minúsculas), cada um com
+ * pelo menos 2 caracteres; null quando o termo não é um confronto.
+ */
+export function splitMatchup(term: string): [string, string] | null {
+  const parts = term.split(MATCHUP_SEPARATOR);
+  if (parts.length !== 2) return null;
+  const [a, b] = parts.map((p) => fold(p).trim()) as [string, string];
+  return a.length >= 2 && b.length >= 2 ? [a, b] : null;
+}

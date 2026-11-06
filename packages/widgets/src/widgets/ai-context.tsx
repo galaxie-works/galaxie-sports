@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { STARTED_STATUSES, sidesOf, type GsEvent, type GsEventContext } from '../core/model.js';
+import { STARTED_STATUSES, fillText, sidesOf, type GsEvent, type GsEventContext } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -10,6 +10,7 @@ import {
   LoadingState,
   StatusBadge,
   WidgetFrame,
+  useFormatters,
   useGalaxieQuery,
   useGalaxieWidget,
 } from '../core/react.js';
@@ -22,14 +23,24 @@ export interface AiContextProps {
    * e saiu, senão o cenário; com os dois prontos, o torcedor alterna entre eles.
    */
   show?: 'auto' | 'scenario' | 'recap' | undefined;
+  /** Linha com os escudos e o status do jogo (padrão: sim). */
+  showHeader?: boolean | undefined;
+  /** Hora em que o texto foi escrito (padrão: não). */
+  showGeneratedAt?: boolean | undefined;
 }
 
 /** O texto muda poucas vezes por jogo (cenário de véspera, resumo depois do apito): 5 minutos. */
 const CONTEXT_REFRESH_MS = 5 * 60_000;
 
 /** Contexto de IA do jogo: o cenário antes da partida e o resumo depois, no idioma do widget. */
-export function AiContext({ eventId, show = 'auto' }: AiContextProps) {
+export function AiContext({
+  eventId,
+  show = 'auto',
+  showHeader = true,
+  showGeneratedAt = false,
+}: AiContextProps) {
   const { texts } = useGalaxieWidget();
+  const fmt = useFormatters();
   const t = texts.context;
   const path = eventId ? `/v1/events/${encodeURIComponent(eventId)}` : null;
   const event = useGalaxieQuery<GsEvent>(path, {}, () => CONTEXT_REFRESH_MS);
@@ -75,7 +86,7 @@ export function AiContext({ eventId, show = 'auto' }: AiContextProps) {
           <span className="gs-badge">{t[current.kind]}</span>
         ) : null}
       </header>
-      {home && away && event.data ? (
+      {showHeader && home && away && event.data ? (
         <div className="gs-line">
           <Crest src={home.logo} name={home.name} size="sm" />
           <span className="gs-truncate">
@@ -91,7 +102,18 @@ export function AiContext({ eventId, show = 'auto' }: AiContextProps) {
           <p className="gs-prose" aria-live="polite">
             {current.text}
           </p>
-          {current.origin === 'llm' ? <span className="gs-muted gs-small">{t.aiNote}</span> : null}
+          {current.origin === 'llm' || showGeneratedAt ? (
+            <span className="gs-muted gs-small">
+              {[
+                current.origin === 'llm' ? t.aiNote : null,
+                showGeneratedAt && current.generated_at
+                  ? fillText(texts.extra.writtenAt, { time: fmt.dateTime(current.generated_at) })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          ) : null}
         </>
       ) : (
         <EmptyState>{t.empty}</EmptyState>

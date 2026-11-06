@@ -30,6 +30,13 @@ export interface EntityValue {
 
 const MIN_CHARS = 2;
 
+/** Dia do jogo no resultado: com "time x time" vêm vários jogos entre os mesmos times (passados e futuros). */
+function eventDay(startsAt: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+    new Date(startsAt),
+  );
+}
+
 /**
  * Escolha da entidade padrão do widget com a mesma busca da paleta (⌘K): `/v1/search` pelo proxy da demo,
  * só nos tipos que o widget aceita.
@@ -129,6 +136,7 @@ export function EntityPicker({
                         <span className="text-muted-foreground truncate text-xs">
                           {t.client.builder.entityTypes[r.type]}
                           {r.detail ? ` · ${r.detail}` : ''}
+                          {r.event ? ` · ${eventDay(r.event.starts_at, locale)}` : ''}
                         </span>
                       </span>
                     </CommandItem>

@@ -5,6 +5,7 @@ import {
   type GsAvailability,
   type GsAvailabilityLogo,
   type GsBroadcastMedium,
+  type GsEvent,
   type GsMatchChannel,
   type GsPlatformAvailability,
   type GsWatchOption,
@@ -13,6 +14,7 @@ import {
   intlLocale,
 } from '../core/model.js';
 import {
+  CalendarButton,
   Crest,
   EmptyState,
   ErrorState,
@@ -29,6 +31,35 @@ export interface WhereToWatchProps {
   market: string;
   /** UF/praça da TV aberta regional (ex.: SP). */
   region?: string | undefined;
+  /** Preço dos complementos ("a partir de R$ 29,90") (padrão: sim). */
+  showAddonPrices?: boolean | undefined;
+  /** Link "assistir" das emissoras e streamings (padrão: sim). */
+  showWatchLinks?: boolean | undefined;
+  /** Botão "adicionar ao calendário" antes do jogo (padrão: não). */
+  showCalendar?: boolean | undefined;
+}
+
+/** Sem link "assistir": as opções e os cartões ficam sem `watch_url`. */
+function withoutLinks(data: GsWhereToWatch): GsWhereToWatch {
+  return { ...data, options: data.options.map((o) => ({ ...o, watch_url: null })) };
+}
+
+/** Sem preço: os complementos ficam sem `price_from` (nem "grátis"). */
+function withoutPrices(data: GsWhereToWatch): GsWhereToWatch {
+  const a = data.availability;
+  if (!a) return data;
+  const strip = (p: GsPlatformAvailability): GsPlatformAvailability => ({
+    ...p,
+    addons: p.addons?.map((x) => ({ ...x, price_from: null })),
+  });
+  return {
+    ...data,
+    availability: {
+      ...a,
+      platforms: a.platforms.map(strip),
+      your_operator: a.your_operator ? strip(a.your_operator) : null,
+    },
+  };
 }
 
 type LogoPair = { logo: string | null; logo_dark: string | null };
@@ -39,12 +70,23 @@ type LogoPair = { logo: string | null; logo_dark: string | null };
  * inclusos); com o canal a confirmar, os detentores dos direitos e um aviso. Sem o bloco (resposta
  * antiga): as opções por mídia, com o logo das emissoras e o link quando houver.
  */
-export function WhereToWatch({ eventId, market, region }: WhereToWatchProps) {
+export function WhereToWatch({
+  eventId,
+  market,
+  region,
+  showAddonPrices = true,
+  showWatchLinks = true,
+  showCalendar = false,
+}: WhereToWatchProps) {
   const { texts, theme } = useGalaxieWidget();
   const query = useGalaxieQuery<GsWhereToWatch>(
     eventId && market ? `/v1/events/${encodeURIComponent(eventId)}/where-to-watch` : null,
     { country: market.toUpperCase(), region },
   );
+  const event = useGalaxieQuery<GsEvent>(
+    eventId && showCalendar ? `/v1/events/${encodeURIComponent(eventId)}` : null,
+  );
+  const calendar = showCalendar && event.data ? <CalendarButton event={event.data} /> : null;
 
   if (!query.data) {
     return (
@@ -59,16 +101,20 @@ export function WhereToWatch({ eventId, market, region }: WhereToWatchProps) {
     );
   }
 
-  const { options, to_confirm: toConfirm, message, availability } = query.data;
+  let data = query.data;
+  if (!showWatchLinks) data = withoutLinks(data);
+  if (!showAddonPrices) data = withoutPrices(data);
+  const { options, to_confirm: toConfirm, message, availability } = data;
   const dark = theme.mode === 'dark';
   const logoOf = (o: LogoPair) => (dark ? (o.logo_dark ?? o.logo) : o.logo);
-  const groups = availability ? groupsOf(query.data, availability) : null;
+  const groups = availability ? groupsOf(data, availability) : null;
 
   if (groups && groups.count > 0) {
     return (
       <WidgetFrame kind="where_to_watch">
         <h3 className="gs-title">{texts.whereToWatch}</h3>
         <Groups groups={groups} logoOf={logoOf} />
+        {calendar}
       </WidgetFrame>
     );
   }
@@ -103,6 +149,7 @@ export function WhereToWatch({ eventId, market, region }: WhereToWatchProps) {
           </ul>
         </div>
       ) : null}
+      {calendar}
     </WidgetFrame>
   );
 }
