@@ -253,7 +253,14 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
         { value: 'full', label: l('Completo', 'Completo', 'Full') },
       ],
     },
-    count('limit', l('Máximo de jogos', 'Máximo de partidos', 'Maximum games'), 40, 100),
+    {
+      key: 'limit',
+      type: 'number',
+      default: 40,
+      min: 1,
+      max: 100,
+      label: l('Máximo de jogos', 'Máximo de partidos', 'Maximum games'),
+    },
   ],
   standings: [
     {

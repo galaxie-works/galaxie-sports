@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WIDGET_CATALOG, widgetKindIsAllSports } from './catalog.js';
-import { DEFAULT_THEMES, WIDGET_CSS, type WidgetLocale } from './core/model.js';
+import { DEFAULT_THEMES, WIDGET_CSS, type GsEvent, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
-import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
+import { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures } from './fixtures.js';
 import { WIDGET_OPTIONS, optionProps, parseWidgetOptions } from './options.js';
 import { ScoreTicker } from './widgets/score-ticker.js';
 
@@ -59,7 +59,10 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatch(/67'.*2 – 1/);
     expect(rows[1]).toMatch(/Encerrado.*0 – 0/);
-    expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toMatch(
+    const urls = vi.mocked(fetchImpl).mock.calls.map((c) => String(c[0]));
+    // os ao vivo vêm da rota própria (o teto do dia não os corta); o dia vem do /v1/events
+    expect(urls.some((u) => /\/v1\/events\/live\?.*sport=football/.test(u))).toBe(true);
+    expect(urls.find((u) => /\/v1\/events\?/.test(u))).toMatch(
       /\/v1\/events\?.*sport=football&market=BR&date=\d{4}-\d{2}-\d{2}&status=starting%2Clive%2Cbreak%2Cfinished&limit=100/,
     );
     // o perdedor fica apagado
@@ -72,7 +75,34 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(screen.getByText('En vivo ahora')).toBeTruthy();
     expect(container.querySelector('.gs-ticker-label .gs-dot')).toBeTruthy();
     expect(items(container)).toHaveLength(1);
-    expect(String(vi.mocked(fetchImpl).mock.calls[0]![0])).toMatch(/\/v1\/events\/live\?locale=es-AR/);
+    const urls = vi.mocked(fetchImpl).mock.calls.map((c) => String(c[0]));
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/\/v1\/events\/live\?locale=es-AR/);
+  });
+
+  it('ao vivo de todos os campeonatos antes dos encerrados, mesmo vindo depois no dia', async () => {
+    const base = createPreviewFixtures(new Date()).events;
+    const [live, , finished] = base as [GsEvent, GsEvent, GsEvent];
+    const otherComp = { ...live.competition!, id: 'outra', name: 'Copa Outra' };
+    const lateLive: GsEvent = {
+      ...live,
+      id: 'late-live',
+      competition: otherComp,
+      starts_at: '2099-01-01T00:00:00Z',
+    };
+    const body = (data: GsEvent[]) =>
+      new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/v1/events/live') ? body([live, lateLive]) : body([finished, live]),
+    ) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    await screen.findByText('Copa Outra');
+    const order = [...container.querySelectorAll('.gs-ticker-items:not([aria-hidden]) [data-gs-event]')].map(
+      (el) => el.getAttribute('data-gs-event'),
+    );
+    expect(order).toEqual([live.id, 'late-live', finished.id]);
+    // o campeonato do encerrado reaparece depois do ao vivo da outra copa
+    expect(screen.getAllByText('Liga Exemplo')).toHaveLength(2);
   });
 
   it('"todos do dia" inclui os próximos com o horário no lugar do placar', async () => {
@@ -120,7 +150,7 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
 
   it('atualiza a cada 20 s enquanto há jogo ao vivo', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { fetchImpl } = setup(<ScoreTicker />);
+    const { fetchImpl } = setup(<ScoreTicker mode="live" />);
     await screen.findByText('2 – 1');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -154,10 +184,11 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
         speed: 'turbo',
         transparent: true,
         showLabel: true,
-        limit: 500,
+        limit: 0,
         extra: 1,
       }),
-    ).toEqual({ mode: 'live', transparent: true, limit: 100 });
+    ).toEqual({ mode: 'live', transparent: true, limit: 1 });
+    expect(parseWidgetOptions('score_ticker', { limit: 500 })).toEqual({ limit: 100 });
     expect(optionProps('score_ticker', { speed: 'fast' })).toEqual({ speed: 'fast' });
   });
 });

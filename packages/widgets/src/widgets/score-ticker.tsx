@@ -56,6 +56,7 @@ const stageOf = (e: GsEvent) =>
 
 interface Group {
   key: string;
+  id: string;
   name: string;
   logo: string | null;
   events: GsEvent[];
@@ -87,48 +88,72 @@ export function ScoreTicker({
   );
   const liveOnly = mode === 'live';
   const today = isoDate(new Date(), timeZone ?? localTimeZone());
-  const query = useGalaxieQuery<GsEventList>(
-    liveOnly ? '/v1/events/live' : '/v1/events',
-    liveOnly
-      ? { competition: competitionId, sport, market }
-      : {
-          competition: competitionId,
-          sport,
-          market,
-          date: today,
-          status: mode === 'today' ? TODAY_STATUSES : undefined,
-          limit: SCORE_TICKER_LIMIT.max,
-        },
-    (list) =>
-      list.data.some((e) => LIVE_STATUSES.has(e.status) || e.status === 'starting')
-        ? LIVE_REFRESH_MS
-        : IDLE_REFRESH_MS,
+  const inPlay = (list: GsEventList) =>
+    list.data.some((e) => LIVE_STATUSES.has(e.status) || e.status === 'starting')
+      ? LIVE_REFRESH_MS
+      : IDLE_REFRESH_MS;
+  // os ao vivo vêm sempre da rota própria: no /v1/events do dia o teto de 100 corta pelo horário, e um
+  // jogo ao vivo mais tarde num dia cheio ficaria de fora
+  const live = useGalaxieQuery<GsEventList>(
+    '/v1/events/live',
+    { competition: competitionId, sport, market },
+    inPlay,
   );
+  const day = useGalaxieQuery<GsEventList>(
+    liveOnly ? null : '/v1/events',
+    {
+      competition: competitionId,
+      sport,
+      market,
+      date: today,
+      status: mode === 'today' ? TODAY_STATUSES : undefined,
+      limit: SCORE_TICKER_LIMIT.max,
+    },
+    inPlay,
+  );
+  const ready = live.data && (liveOnly || day.data);
 
-  const events = (query.data?.data ?? [])
+  const seen = new Set<string>();
+  const sorted = [...(live.data?.data ?? []), ...(day.data?.data ?? [])]
+    .filter((e) => !seen.has(e.id) && Boolean(seen.add(e.id)))
     .filter((e) => (liveOnly ? stageOf(e) === 0 : mode === 'today' ? stageOf(e) < 2 : true))
     .map((e, i) => ({ e, i }))
     .sort((a, b) => stageOf(a.e) - stageOf(b.e) || a.e.starts_at.localeCompare(b.e.starts_at) || a.i - b.i)
+    .map(({ e }) => e);
+  // dentro de cada estágio (ao vivo, encerrados, próximos), os jogos do mesmo campeonato ficam juntos, na
+  // ordem em que o campeonato aparece; o ao vivo de qualquer campeonato continua antes dos encerrados
+  const firstAt = new Map<string, number>();
+  sorted.forEach((e, i) => {
+    const key = `${stageOf(e)}:${e.competition?.id ?? 'other'}`;
+    if (!firstAt.has(key)) firstAt.set(key, i);
+  });
+  const events = sorted
+    .map((e, i) => ({ e, i, g: firstAt.get(`${stageOf(e)}:${e.competition?.id ?? 'other'}`)! }))
+    .sort((a, b) => a.g - b.g || a.i - b.i)
     .map(({ e }) => e)
     .slice(0, max);
 
+  // grupos consecutivos: o mesmo campeonato pode reaparecer (ao vivo e depois encerrados)
   const single = Boolean(competitionId);
   const groups: Group[] = [];
-  const byKey = new Map<string, Group>();
   for (const event of events) {
-    const key = event.competition?.id ?? 'other';
-    let group = byKey.get(key);
-    if (!group) {
-      group = { key, name: event.competition?.name ?? '', logo: event.competition?.logo ?? null, events: [] };
-      byKey.set(key, group);
-      groups.push(group);
-    }
-    group.events.push(event);
+    const id = event.competition?.id ?? 'other';
+    const last = groups.at(-1);
+    if (last && last.id === id) last.events.push(event);
+    else
+      groups.push({
+        key: `${groups.length}:${id}`,
+        id,
+        name: event.competition?.name ?? '',
+        logo: event.competition?.logo ?? null,
+        events: [event],
+      });
   }
 
   const label = liveOnly ? texts.liveNow : texts.todayGames;
-  const empty = !query.data
-    ? query.loading
+  const loading = live.loading || day.loading;
+  const empty = !ready
+    ? loading
       ? texts.loading
       : texts.error
     : events.length === 0
@@ -138,7 +163,7 @@ export function ScoreTicker({
       : null;
 
   return (
-    <WidgetFrame kind="score_ticker" busy={query.loading}>
+    <WidgetFrame kind="score_ticker" busy={loading}>
       <div className="gs-ticker" data-transparent={transparent || undefined}>
         {showLabel ? (
           <div className="gs-ticker-label">
@@ -149,7 +174,7 @@ export function ScoreTicker({
           </div>
         ) : null}
         {empty ? (
-          <div className="gs-ticker-empty" role={query.data ? undefined : 'status'}>
+          <div className="gs-ticker-empty" role={ready ? undefined : 'status'}>
             {empty}
           </div>
         ) : (
