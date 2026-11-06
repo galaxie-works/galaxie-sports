@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, type SupportedLocale } from '@galaxie/contracts';
 import { competitionName } from '@galaxie/geo';
 import { fallbackChain } from '@galaxie/knowledge';
-import { FORMATTER_CACHE_MAX } from './time.js';
+import { zoneKey } from './time.js';
 
 export { fallbackChain };
 /**
@@ -99,7 +99,7 @@ export function pickList(value: unknown, locale: string): string[] {
 const instantFormatters = new Map<string, Intl.DateTimeFormat>();
 
 function instantFormatter(tz: string): Intl.DateTimeFormat {
-  let f = instantFormatters.get(tz);
+  let f = instantFormatters.get(zoneKey(tz));
   if (!f) {
     f = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
@@ -112,8 +112,7 @@ function instantFormatter(tz: string): Intl.DateTimeFormat {
       second: '2-digit',
       timeZoneName: 'longOffset',
     });
-    if (instantFormatters.size >= FORMATTER_CACHE_MAX) instantFormatters.clear();
-    instantFormatters.set(tz, f);
+    instantFormatters.set(zoneKey(tz), f);
   }
   return f;
 }

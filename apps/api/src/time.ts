@@ -3,15 +3,17 @@
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
- * Teto dos caches de `Intl.DateTimeFormat` por fuso. O `tz` chega com a grafia do cliente e o Intl aceita o nome
- * sem diferenciar maiúsculas: sem teto, variações da mesma zona encheriam o cache de memória do ICU.
+ * Chave dos caches de `Intl.DateTimeFormat` por fuso. O `tz` chega com a grafia do cliente e o Intl aceita o nome
+ * sem diferenciar maiúsculas: pela grafia, variações da mesma zona encheriam o cache de memória do ICU (que não
+ * volta ao esvaziar o mapa). Em minúsculas, o cache fica limitado aos nomes válidos (algumas centenas); um fuso
+ * inválido falha no construtor e não entra.
  */
-export const FORMATTER_CACHE_MAX = 64;
+export const zoneKey = (tz: string): string => tz.toLowerCase();
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(tz: string): Intl.DateTimeFormat {
-  let f = formatters.get(tz);
+  let f = formatters.get(zoneKey(tz));
   if (!f) {
     f = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
@@ -23,8 +25,7 @@ function formatter(tz: string): Intl.DateTimeFormat {
       minute: '2-digit',
       second: '2-digit',
     });
-    if (formatters.size >= FORMATTER_CACHE_MAX) formatters.clear();
-    formatters.set(tz, f);
+    formatters.set(zoneKey(tz), f);
   }
   return f;
 }

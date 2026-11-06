@@ -80,7 +80,7 @@ describe('agenda dos próximos dias', () => {
     expect(agendaCounts(events, window, { competition: 'nbb' }, 'UTC', []).total).toBe(1);
   });
 
-  it('dia civil com o fuso em várias grafias (o cache de formatadores tem teto e segue certo depois de esvaziar)', () => {
+  it('dia civil com o fuso em várias grafias (todas dividem o mesmo formatador)', () => {
     const at = new Date('2026-10-25T02:00:00Z');
     const zone = 'america/sao_paulo';
     for (let i = 0; i < 200; i++) {
