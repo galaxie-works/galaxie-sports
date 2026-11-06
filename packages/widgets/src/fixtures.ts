@@ -21,6 +21,7 @@ import type {
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { previewSquad } from './fixtures-squad.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -779,6 +780,24 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (teamId === racing.driver.id) {
       if (path.endsWith('/career')) return json(racing.career);
       if (path.endsWith(teamId)) return json(racing.driver);
+    }
+    // elenco do time (#825): o Clube Aurora com o elenco de exemplo
+    if (teamId === PREVIEW_IDS.team) {
+      if (path.endsWith('/squad')) {
+        const season = Number(url.searchParams.get('season'));
+        return json(previewSquad(teamId, Number.isInteger(season) && season > 0 ? season : null));
+      }
+      if (path.endsWith(teamId)) {
+        const t = TEAMS.aurora;
+        return json({
+          id: t.id,
+          sport: 'football',
+          kind: 'team',
+          name: t.name,
+          short_name: t.short,
+          logo: shield(t.color),
+        });
+      }
     }
     if (teamId === fights.fighter.id) {
       if (path.endsWith('/events')) return json({ data: fights.fighterEvents, next_cursor: null });

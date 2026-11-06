@@ -669,6 +669,24 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  team_squad: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = elenco atual. Com o ano, entram também os que jogaram naquela temporada.',
+        'Vacío = plantel actual. Con el año, entran también los que jugaron esa temporada.',
+        'Empty = current squad. With a year, players who played that season are included too.',
+      ),
+    },
+    bool('showPhotos', l('Foto dos jogadores', 'Foto de los jugadores', 'Player photos'), true),
+    bool('groupByPosition', l('Agrupar por posição', 'Agrupar por posición', 'Group by position'), true),
+    bool('showNumber', l('Número da camisa', 'Número de camiseta', 'Shirt number'), true),
+    bool('showAge', l('Idade', 'Edad', 'Age'), true),
+    bool('showNationality', l('Nacionalidade', 'Nacionalidad', 'Nationality'), true),
+    bool('showCoaches', l('Técnicos', 'Entrenadores', 'Coaches'), true),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

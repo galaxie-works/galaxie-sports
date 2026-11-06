@@ -43,6 +43,7 @@ import { RelatedVideos } from '../widgets/related-videos.js';
 import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
+import { TeamSquad } from '../widgets/team-squad.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
 export const EMBED_TAG = 'galaxie-widget';
@@ -175,6 +176,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={teamId ?? ''} />;
   }
 }
 

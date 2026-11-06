@@ -137,6 +137,7 @@ function defaultProps(
       return pick(['eventId']);
     case 'team_schedule':
     case 'athlete_profile':
+    case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
       return pick(['competitionId']);

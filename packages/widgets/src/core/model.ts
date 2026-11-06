@@ -30,6 +30,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'team_squad',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -511,6 +512,31 @@ export interface GsTeam {
   short_name: string | null;
   logo: string | null;
   country_ref?: { code: string; name: string; flag: string | null } | null | undefined;
+}
+
+/** Posições do futebol na ordem do elenco (chave do fornecedor, em inglês). */
+export const SQUAD_POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker'] as const;
+
+/** Pessoa do elenco (`/v1/teams/{id}/squad`), só o que o widget usa. */
+export interface GsSquadMember {
+  person: {
+    id: string;
+    name: string;
+    photo: string | null;
+    nationality: string | null;
+    nationality_ref: { code: string; name: string } | null;
+    age: number | null;
+  };
+  number: number | null;
+  position: string | null;
+}
+
+/** Elenco do time (`/v1/teams/{id}/squad`). */
+export interface GsSquad {
+  team_id: string;
+  season: number | null;
+  players: GsSquadMember[];
+  coaches: GsSquadMember[];
 }
 
 /** Rótulo no locale da resposta (`{ "pt-BR": "…" }`). */
@@ -1329,6 +1355,9 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-medal[data-medal=S]{background:#c4c8cf}
 .gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
+.gs-shirt{flex:none;width:1.6em;text-align:right;font-size:.8em;font-weight:700;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
+.gs-crest.gs-photo{border-radius:999px;object-fit:cover}
+[data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 `;
 
@@ -1592,6 +1621,19 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Elenco do time (#825): grupos por posição e os técnicos. "{age} anos", "{n} jogadores". */
+  squad: {
+    title: string;
+    /** Pela posição do fornecedor (`SQUAD_POSITIONS`). */
+    positions: Record<string, string>;
+    others: string;
+    coaches: string;
+    age: string;
+    players: string;
+    season: string;
+    number: string;
+    empty: string;
   };
 }
 
@@ -1883,6 +1925,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    squad: {
+      title: 'Elenco',
+      positions: {
+        Goalkeeper: 'Goleiros',
+        Defender: 'Defensores',
+        Midfielder: 'Meio-campistas',
+        Attacker: 'Atacantes',
+      },
+      others: 'Outros',
+      coaches: 'Técnicos',
+      age: '{age} anos',
+      players: '{n} jogadores',
+      season: 'Temporada {year}',
+      number: 'Camisa {number}',
+      empty: 'Elenco indisponível.',
+    },
   },
   es: {
     status: {
@@ -2171,6 +2229,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    squad: {
+      title: 'Plantel',
+      positions: {
+        Goalkeeper: 'Arqueros',
+        Defender: 'Defensores',
+        Midfielder: 'Mediocampistas',
+        Attacker: 'Delanteros',
+      },
+      others: 'Otros',
+      coaches: 'Entrenadores',
+      age: '{age} años',
+      players: '{n} jugadores',
+      season: 'Temporada {year}',
+      number: 'Camiseta {number}',
+      empty: 'Plantel no disponible.',
+    },
   },
   en: {
     status: {
@@ -2445,6 +2519,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    squad: {
+      title: 'Squad',
+      positions: {
+        Goalkeeper: 'Goalkeepers',
+        Defender: 'Defenders',
+        Midfielder: 'Midfielders',
+        Attacker: 'Forwards',
+      },
+      others: 'Others',
+      coaches: 'Coaches',
+      age: 'Age {age}',
+      players: '{n} players',
+      season: '{year} season',
+      number: 'Shirt {number}',
+      empty: 'Squad not available.',
     },
   },
 };
