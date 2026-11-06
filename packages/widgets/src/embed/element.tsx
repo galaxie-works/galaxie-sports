@@ -19,6 +19,7 @@ import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../c
 import { WIDGET_KINDS, WIDGET_LOCALES, parseLiveListOptions, parseStandingsOptions } from '../core/model.js';
 import type { LiveListOptions, StandingsOptions } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
+import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
@@ -44,6 +45,8 @@ export interface EmbedConfig {
   standings?: StandingsOptions | undefined;
   /** Modo, agrupamento, atualização e dados extras (só na lista de jogos). */
   liveList?: LiveListOptions | undefined;
+  /** Opções de conteúdo do tipo (`WIDGET_OPTIONS`): campos liga/desliga, quantidades, filtros. */
+  options?: WidgetOptions | undefined;
   /** Base da API pública que o widget chama. */
   apiBaseUrl: string;
 }
@@ -93,21 +96,24 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
     defaults: c.defaults && typeof c.defaults === 'object' ? c.defaults : {},
     standings: parseStandingsOptions(c.standings),
     liveList: parseLiveListOptions(c.liveList),
+    options: parseWidgetOptions(c.kind as WidgetKind, c.options),
   } as EmbedConfig;
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
   const { eventId, competitionId, teamId, market, sport } = resolveEmbed(config, overrides);
+  const o = optionProps(config.kind, config.options);
   switch (config.kind) {
     case 'match_card':
-      return <MatchCard eventId={eventId ?? ''} />;
+      return <MatchCard {...o} eventId={eventId ?? ''} />;
     case 'where_to_watch':
-      return <WhereToWatch eventId={eventId ?? ''} market={market} />;
+      return <WhereToWatch {...o} eventId={eventId ?? ''} market={market} />;
     case 'standings':
       return (
         <StandingsTable
-          competitionId={competitionId ?? ''}
           season="current"
+          {...o}
+          competitionId={competitionId ?? ''}
           showLegend={config.standings?.showLegend}
           zoneColors={config.standings?.zoneColors}
         />
@@ -115,15 +121,15 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
     case 'live_list':
       return <LiveList {...config.liveList} competitionId={competitionId} sport={sport} />;
     case 'ai_context':
-      return <AiContext eventId={eventId ?? ''} />;
+      return <AiContext {...o} eventId={eventId ?? ''} />;
     case 'match_stakes':
-      return <MatchStakes eventId={eventId ?? ''} />;
+      return <MatchStakes {...o} eventId={eventId ?? ''} />;
     case 'related_videos':
-      return <RelatedVideos eventId={eventId ?? ''} />;
+      return <RelatedVideos {...o} eventId={eventId ?? ''} />;
     case 'head_to_head':
-      return <HeadToHead eventId={eventId ?? ''} />;
+      return <HeadToHead {...o} eventId={eventId ?? ''} />;
     case 'team_schedule':
-      return <TeamSchedule teamId={teamId ?? ''} />;
+      return <TeamSchedule {...o} teamId={teamId ?? ''} />;
   }
 }
 

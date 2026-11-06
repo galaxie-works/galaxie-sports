@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accentPattern, bestMatch, fold, matchOf, stringsOf } from './match.js';
+import { accentPattern, bestMatch, fold, matchOf, splitMatchup, stringsOf } from './match.js';
 
 describe('busca — casamento', () => {
   it('dobra caixa, acento e espaços', () => {
@@ -40,5 +40,26 @@ describe('busca — casamento', () => {
       'Brasileirão',
       'Brasileirao',
     ]);
+  });
+});
+
+describe('busca — confronto "time x time"', () => {
+  it('separa os dois lados pelos separadores comuns, sem acento', () => {
+    expect(splitMatchup('Palmeiras x Corinthians')).toEqual(['palmeiras', 'corinthians']);
+    expect(splitMatchup('São Paulo vs Grêmio')).toEqual(['sao paulo', 'gremio']);
+    expect(splitMatchup('Real Madrid vs. Barcelona')).toEqual(['real madrid', 'barcelona']);
+    expect(splitMatchup('Boca Juniors - River Plate')).toEqual(['boca juniors', 'river plate']);
+    expect(splitMatchup('flamengo×vasco')).toEqual(['flamengo', 'vasco']);
+    expect(splitMatchup('Inter contra Grêmio')).toEqual(['inter', 'gremio']);
+    expect(splitMatchup('  verdao  X  timao ')).toEqual(['verdao', 'timao']);
+  });
+
+  it('nome com traço sem espaço, um lado curto ou termo comum não é confronto', () => {
+    expect(splitMatchup('Atlético-MG')).toBeNull();
+    expect(splitMatchup('Paris Saint-Germain')).toBeNull();
+    expect(splitMatchup('palmeiras')).toBeNull();
+    expect(splitMatchup('a x b')).toBeNull();
+    expect(splitMatchup('x vasco')).toBeNull();
+    expect(splitMatchup('a x b x c')).toBeNull();
   });
 });

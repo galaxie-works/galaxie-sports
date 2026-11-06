@@ -837,3 +837,110 @@ describe('TeamSchedule', () => {
     expect([...container.querySelectorAll('.gs-result')].map((n) => n.textContent)).toEqual(letters);
   });
 });
+
+describe('opções de conteúdo (Builder)', () => {
+  it('Placar: esconde estádio e rodada, mostra gols, estatísticas, formação e o botão de calendário', async () => {
+    const { container, fetchImpl } = setup(
+      <MatchCard
+        eventId={PREVIEW_IDS.liveEvent}
+        showRound={false}
+        showVenue={false}
+        showGoals
+        showStats
+        showFormation
+      />,
+    );
+    expect(await screen.findByText('2 – 1')).toBeTruthy();
+    expect(screen.queryByText(/Rodada 12/)).toBeNull();
+    expect(screen.getByText('Liga Exemplo')).toBeTruthy();
+    expect(screen.queryByText(/Arena Exemplo/)).toBeNull();
+    expect(screen.getByText('São Paulo')).toBeTruthy();
+    await waitFor(() => expect(container.querySelectorAll('.gs-incidents li')).toHaveLength(3));
+    expect(container.querySelectorAll('.gs-incidents [data-side=home]')).toHaveLength(2);
+    expect(await screen.findByText('Posse')).toBeTruthy();
+    expect(screen.getByText('54%')).toBeTruthy();
+    expect(await screen.findByText('4-3-3')).toBeTruthy();
+    const paths = vi.mocked(fetchImpl).mock.calls.map(([u]) => new URL(String(u)).pathname);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        `/v1/events/${PREVIEW_IDS.liveEvent}/timeline`,
+        `/v1/events/${PREVIEW_IDS.liveEvent}/stats`,
+        `/v1/events/${PREVIEW_IDS.liveEvent}/lineups`,
+      ]),
+    );
+  });
+
+  it('Placar: sem as opções, nenhuma chamada a mais', async () => {
+    const { fetchImpl } = setup(<MatchCard eventId={PREVIEW_IDS.liveEvent} />);
+    expect(await screen.findByText('2 – 1')).toBeTruthy();
+    expect(vi.mocked(fetchImpl).mock.calls).toHaveLength(1);
+  });
+
+  it('Placar: calendário só antes do jogo', async () => {
+    setup(<MatchCard eventId={PREVIEW_IDS.scheduledEvent} showCalendar />);
+    expect(await screen.findByRole('button', { name: 'Adicionar ao calendário' })).toBeTruthy();
+  });
+
+  it('Tabela: colunas extras, só as N primeiras, time destacado e o líder embaixo', async () => {
+    const f = createPreviewFixtures();
+    const top = f.standings.groups[0]!.rows[0]!;
+    const { container } = setup(
+      <StandingsTable
+        competitionId={PREVIEW_IDS.competition}
+        limit={3}
+        showGoalsFor
+        showGoalsAgainst
+        showGoalDiff={false}
+        showForm
+        showPercentage
+        highlightTeamId={top.participant.id}
+        showDecisive
+      />,
+    );
+    await waitFor(() => expect(container.querySelectorAll('tbody tr')).toHaveLength(3));
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(3);
+    const head = [...container.querySelectorAll('thead th')].map((th) => th.textContent);
+    expect(head).toEqual(expect.arrayContaining(['GP', 'GC', '%', 'Forma']));
+    expect(head).not.toContain('SG');
+    expect(container.querySelector('tbody tr')!.className).toBe('gs-highlight');
+    expect(container.querySelectorAll('tbody tr:first-child .gs-form .gs-result')).toHaveLength(5);
+    expect(await screen.findByText('Líder')).toBeTruthy();
+  });
+
+  it('O que está em jogo: sem tags e sem grito, com a intensidade do clássico', async () => {
+    const { container } = setup(
+      <MatchStakes
+        eventId={PREVIEW_IDS.scheduledEvent}
+        showFanTags={false}
+        showCheer={false}
+        showDerbyIntensity
+      />,
+    );
+    expect(await screen.findByText(/Com vitória, assume a liderança/)).toBeTruthy();
+    expect(screen.queryByText('Na briga pelo título')).toBeNull();
+    expect(screen.queryByText('Vamos, Serra!')).toBeNull();
+    expect(container.querySelector('[data-gs-intensity="4"]')).toBeTruthy();
+  });
+
+  it('Agenda: quantidades, rodada e estádio por jogo, posição e forma no cabeçalho', async () => {
+    const { container, fetchImpl } = setup(
+      <TeamSchedule teamId={PREVIEW_IDS.team} next={1} recent={2} showRound showVenue showStanding />,
+    );
+    await waitFor(() => expect(container.querySelectorAll('.gs-fixture')).toHaveLength(3));
+    expect(container.textContent).toContain('Rodada 12 · Arena Exemplo');
+    await waitFor(() => expect(container.querySelector('.gs-header .gs-form')).toBeTruthy());
+    expect(
+      vi
+        .mocked(fetchImpl)
+        .mock.calls.some(([u]) => String(u).includes(`/v1/teams/${PREVIEW_IDS.team}/overview`)),
+    ).toBe(true);
+  });
+
+  it('Confronto: sem a barra e com o campeonato de cada jogo', async () => {
+    const { container } = setup(
+      <HeadToHead eventId={PREVIEW_IDS.scheduledEvent} showBar={false} showMeetingCompetition />,
+    );
+    await waitFor(() => expect(container.querySelector('[data-gs-meta=competition]')).toBeTruthy());
+    expect(container.querySelector('.gs-bar')).toBeNull();
+  });
+});

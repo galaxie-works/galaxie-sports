@@ -132,6 +132,14 @@ describe('parseEmbedConfig', () => {
     expect(parseEmbedConfig({ ...config(), defaults: undefined })?.defaults).toEqual({});
   });
 
+  it('opções de conteúdo: só as do tipo, válidas', () => {
+    const parsed = parseEmbedConfig({
+      ...config(),
+      options: { showGoals: true, showVenue: true, showReferee: 'x', limit: 3 },
+    });
+    expect(parsed?.options).toEqual({ showGoals: true });
+  });
+
   it('opções da tabela: só faixas conhecidas com #rrggbb', () => {
     const parsed = parseEmbedConfig({
       ...config(),

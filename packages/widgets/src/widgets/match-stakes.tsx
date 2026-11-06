@@ -5,11 +5,13 @@ import {
   eventRefreshMs,
   localized,
   sidesOf,
+  type GsCompetitionContext,
   type GsEvent,
   type GsParticipant,
   type GsStake,
 } from '../core/model.js';
 import {
+  CompetitionSituation,
   Crest,
   EmptyState,
   ErrorState,
@@ -23,19 +25,50 @@ import {
 export interface MatchStakesProps {
   /** Id do evento na API Galaxie. */
   eventId: string;
+  /** `salient` (padrão): os 3 principais de cada time; `all`: todos. */
+  stakes?: 'salient' | 'all' | undefined;
+  /** Tags da torcida ("Na briga pelo título") (padrão: sim). */
+  showFanTags?: boolean | undefined;
+  /** Grito da arquibancada (padrão: sim). */
+  showCheer?: boolean | undefined;
+  /** Intensidade do clássico, de 1 a 5 (padrão: não). */
+  showDerbyIntensity?: boolean | undefined;
+  /** Depois do jogo, o que o resultado mudou (padrão: sim); desligado, o que estava em jogo. */
+  showResultStakes?: boolean | undefined;
+  /** Líder e próximos jogos decisivos do campeonato (padrão: não). */
+  showCompetitionContext?: boolean | undefined;
 }
+
+/** A situação do campeonato muda com a rodada: 10 minutos. */
+const CONTEXT_REFRESH_MS = 10 * 60_000;
 
 /**
  * O que está em jogo, do ponto de vista de cada torcida: o que o time precisa (motor de regras), as tags
  * do torcedor ("Na briga pelo título") e o grito da torcida. Jogo encerrado mostra o que o resultado mudou.
  */
-export function MatchStakes({ eventId }: MatchStakesProps) {
+export function MatchStakes({
+  eventId,
+  stakes: list = 'salient',
+  showFanTags = true,
+  showCheer = true,
+  showDerbyIntensity = false,
+  showResultStakes = true,
+  showCompetitionContext = false,
+}: MatchStakesProps) {
   const { texts, locale, market } = useGalaxieWidget();
   const t = texts.stakes;
   const query = useGalaxieQuery<GsEvent>(
     eventId ? `/v1/events/${encodeURIComponent(eventId)}` : null,
-    { market },
+    { market, stakes: list === 'all' ? 'all' : undefined },
     (event) => eventRefreshMs(event),
+  );
+  const competitionId = query.data?.competition?.id;
+  const context = useGalaxieQuery<GsCompetitionContext>(
+    competitionId && showCompetitionContext
+      ? `/v1/competitions/${encodeURIComponent(competitionId)}/context`
+      : null,
+    {},
+    () => CONTEXT_REFRESH_MS,
   );
 
   if (!query.data) {
@@ -55,14 +88,18 @@ export function MatchStakes({ eventId }: MatchStakesProps) {
   const { home, away } = sidesOf(event);
   const stakes = event.stakes ?? [];
   // encerrado: o que o placar mudou, quando a API traz; senão, o que estava em jogo
-  const phase = stakes.some((s) => s.phase === 'result') ? 'result' : 'pre_match';
+  const phase = showResultStakes && stakes.some((s) => s.phase === 'result') ? 'result' : 'pre_match';
+  const all = list === 'all';
   const lang = apiLocale(locale, market);
   const sides = [
     { side: 'home' as const, p: home },
     { side: 'away' as const, p: away },
   ].filter((s): s is { side: 'home' | 'away'; p: GsParticipant } => Boolean(s.p));
   const hasContent = sides.some(
-    ({ side, p }) => (p.fan_tags?.length ?? 0) > 0 || p.cheer || stakesOf(stakes, side, phase).length > 0,
+    ({ side, p }) =>
+      (showFanTags && (p.fan_tags?.length ?? 0) > 0) ||
+      (showCheer && p.cheer) ||
+      stakesOf(stakes, side, phase, all).length > 0,
   );
 
   return (
@@ -75,19 +112,25 @@ export function MatchStakes({ eventId }: MatchStakesProps) {
       {event.derby ? (
         <div className="gs-chips">
           <span className="gs-tag">{`${t.derby} · ${event.derby.name}`}</span>
+          {showDerbyIntensity ? (
+            <span
+              className="gs-tag"
+              data-gs-intensity={event.derby.intensity}
+            >{`${texts.extra.intensity} ${'●'.repeat(event.derby.intensity)}${'○'.repeat(Math.max(0, 5 - event.derby.intensity))}`}</span>
+          ) : null}
         </div>
       ) : null}
       {hasContent ? (
         <div className="gs-sides">
           {sides.map(({ side, p }) => {
-            const lines = stakesOf(stakes, side, phase);
+            const lines = stakesOf(stakes, side, phase, all);
             return (
               <section key={p.id} className="gs-side" data-gs-side={side}>
                 <div className="gs-side-head">
                   <Crest src={p.logo} name={p.name} size="sm" />
                   <span className="gs-truncate">{p.short_name ?? p.name}</span>
                 </div>
-                {p.fan_tags?.length ? (
+                {showFanTags && p.fan_tags?.length ? (
                   <div className="gs-chips">
                     {p.fan_tags.map((tag) => (
                       <span key={tag.code} className="gs-tag">
@@ -103,7 +146,7 @@ export function MatchStakes({ eventId }: MatchStakesProps) {
                     ))}
                   </ul>
                 ) : null}
-                {p.cheer ? (
+                {showCheer && p.cheer ? (
                   <blockquote className="gs-cheer" aria-label={t.cheer}>
                     {p.cheer.text}
                   </blockquote>
@@ -115,10 +158,18 @@ export function MatchStakes({ eventId }: MatchStakesProps) {
       ) : (
         <EmptyState>{t.empty}</EmptyState>
       )}
+      {showCompetitionContext && context.data ? <CompetitionSituation context={context.data} /> : null}
     </WidgetFrame>
   );
 }
 
-function stakesOf(stakes: GsStake[], side: 'home' | 'away', phase: GsStake['phase']): GsStake[] {
-  return stakes.filter((s) => s.phase === phase && s.salient && (s.team === side || s.team === 'both'));
+function stakesOf(
+  stakes: GsStake[],
+  side: 'home' | 'away',
+  phase: GsStake['phase'],
+  all: boolean,
+): GsStake[] {
+  return stakes.filter(
+    (s) => s.phase === phase && (all || s.salient) && (s.team === side || s.team === 'both'),
+  );
 }

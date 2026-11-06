@@ -66,6 +66,8 @@ export interface WidgetConfig {
     showVenue?: boolean;
     showCity?: boolean;
   };
+  /** Opções de conteúdo do tipo (`WIDGET_OPTIONS` de @galaxie/widgets): campos liga/desliga, quantidades, filtros. */
+  options?: Record<string, string | number | boolean>;
 }
 
 /** Widget montado pela operadora no Builder. Salvar de novo incrementa `version`. */

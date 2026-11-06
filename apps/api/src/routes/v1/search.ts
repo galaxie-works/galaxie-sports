@@ -21,6 +21,7 @@ import {
   foldSql,
   likeTerm,
   matchRank,
+  splitMatchup,
   stringsOf,
 } from '../../search/match.js';
 import { logoIdSql } from '../../assets/custom-logos.js';
@@ -40,6 +41,8 @@ const EVENT_TEAMS = 8;
 const UPCOMING_DAYS = 14;
 /** Jogo provisório (anunciado, ainda sem o fornecedor) entra na busca com mais antecedência. */
 const PROVISIONAL_DAYS = 90;
+/** Confronto ("time x time"): os próximos jogos entre os dois até um ano à frente (e todos os já disputados). */
+const MATCHUP_AHEAD_DAYS = 365;
 
 type Text = Record<string, string> | null;
 interface Hit {
@@ -409,12 +412,53 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
   }
 
   // ─── jogos: ao vivo e próximos dos times encontrados ───────────────────────────────────────
-  async function events(db: Database, teamHits: Hit[], locale: string, sports: string[] | null, now: Date) {
-    const teamsById = new Map(teamHits.slice(0, EVENT_TEAMS).map((h) => [h.result.id, h]));
-    if (!teamsById.size) return [];
-    const ids = [...teamsById.keys()];
+  /**
+   * Jogos da busca. Um termo comum (`teams`): ao vivo e os próximos 14 dias dos times encontrados. Um
+   * confronto ("time x time", `matchup`): os jogos entre um time de cada lado, ao vivo, os próximos (até um
+   * ano) e os já disputados (do mais recente para trás), para achar qualquer jogo entre os dois.
+   */
+  async function events(
+    db: Database,
+    scope: { teams: Hit[] } | { matchup: [Hit[], Hit[]] },
+    locale: string,
+    sports: string[] | null,
+    now: Date,
+  ) {
+    const sides =
+      'matchup' in scope
+        ? scope.matchup.map((hits) => new Map(hits.slice(0, EVENT_TEAMS).map((h) => [h.result.id, h])))
+        : [new Map(scope.teams.slice(0, EVENT_TEAMS).map((h) => [h.result.id, h]))];
+    if (sides.some((side) => !side.size)) return [];
+    const inPlay = sql`event.status in (${sql.join(
+      IN_PLAY.map((s) => sql`${s}`),
+      sql`, `,
+    )}) and ${actuallyLiveCond(now)}`;
     const until = new Date(now.getTime() + UPCOMING_DAYS * 86_400_000).toISOString();
     const provisionalUntil = new Date(now.getTime() + PROVISIONAL_DAYS * 86_400_000).toISOString();
+    const matchupUntil = new Date(now.getTime() + MATCHUP_AHEAD_DAYS * 86_400_000).toISOString();
+    const soon = sql`${now.toISOString()}::timestamptz - interval '3 hours'`;
+    const [first, second] = sides as [Map<string, Hit>, Map<string, Hit> | undefined];
+    const filter = second
+      ? sql`exists (select 1 from core.event_participant a join core.event_participant b
+                     on b.event_id = a.event_id and b.participant_id <> a.participant_id
+                    where a.event_id = event.id
+                      and ${inList(sql`a.participant_id`, [...first.keys()])}
+                      and ${inList(sql`b.participant_id`, [...second.keys()])})
+         and event.status <> 'cancelled'
+         and not (event.status = 'scheduled' and event.starts_at < ${soon})
+         and ((${inPlay}) or event.starts_at < ${matchupUntil}::timestamptz)`
+      : sql`exists (select 1 from core.event_participant ep
+                     where ep.event_id = event.id and ${inList(sql`ep.participant_id`, [...first.keys()])})
+         and ((${inPlay})
+              or (event.status = 'scheduled' and event.starts_at >= ${soon}
+                  and event.starts_at < (case when event.is_provisional then ${provisionalUntil}::timestamptz
+                                              else ${until}::timestamptz end)))`;
+    // confronto: ao vivo, depois os próximos (crescente) e por fim os já disputados (do mais recente)
+    const order = second
+      ? sql`live desc, (event.starts_at < ${soon} and event.status <> 'scheduled'),
+            case when event.starts_at >= ${soon} or event.status = 'scheduled' then event.starts_at end,
+            event.starts_at desc, event.id`
+      : sql`live desc, event.starts_at, event.id`;
     const rows = await db.execute<{
       id: string;
       sport: string;
@@ -427,25 +471,14 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
       competition_country: string | null;
     }>(sql`
       select event.id, event.sport, event.starts_at, event.status,
-             (event.status in (${sql.join(
-               IN_PLAY.map((s) => sql`${s}`),
-               sql`, `,
-             )}) and ${actuallyLiveCond(now)}) as live,
+             (${inPlay}) as live,
              event.is_provisional,
              c.name as competition, c.labels as competition_labels, c.country_code as competition_country
         from core.event
         left join core.competition c on c.id = event.competition_id
-       where exists (select 1 from core.event_participant ep
-                      where ep.event_id = event.id and ${inList(sql`ep.participant_id`, ids)})
+       where ${filter}
          ${sports ? sql`and ${inList(sql`event.sport`, sports)}` : sql``}
-         and ((event.status in (${sql.join(
-           IN_PLAY.map((s) => sql`${s}`),
-           sql`, `,
-         )}) and ${actuallyLiveCond(now)})
-              or (event.status = 'scheduled' and event.starts_at >= ${now.toISOString()}::timestamptz - interval '3 hours'
-                  and event.starts_at < (case when event.is_provisional then ${provisionalUntil}::timestamptz
-                                              else ${until}::timestamptz end)))
-       order by live desc, event.starts_at, event.id
+       order by ${order}
        limit ${CANDIDATES}`);
     if (!rows.length) return [];
     const parts = await db.execute<{
@@ -478,12 +511,16 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
     const hits: Hit[] = [];
     for (const r of rows) {
       const ps = byEvent.get(r.id) ?? [];
-      // O jogo herda o casamento do melhor time dele que a busca encontrou.
-      const team = ps
-        .map((p) => teamsById.get(p.id))
-        .filter((h): h is Hit => !!h)
-        .sort((a, b) => a.rank - b.rank)[0];
-      if (!team) continue;
+      // O jogo herda o casamento do melhor time dele que a busca encontrou; no confronto, o do lado que
+      // casou pior (os dois lados precisam casar).
+      const best = (side: Map<string, Hit>) =>
+        ps
+          .map((p) => side.get(p.id))
+          .filter((h): h is Hit => !!h)
+          .sort((a, b) => a.rank - b.rank)[0];
+      const picks = sides.map(best);
+      if (picks.some((h) => !h)) continue;
+      const team = (picks as Hit[]).sort((a, b) => b.rank - a.rank)[0]!;
       const competition = r.competition
         ? competitionName(r.competition_labels, r.competition_country, r.competition, locale)
         : null;
@@ -535,6 +572,29 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
       load: async () => {
         const db = requireDb(ctx);
         const want = (t: SearchType) => types.includes(t);
+        // "time x time": os times de cada lado e os jogos entre eles (o termo inteiro não casa com nada)
+        const matchup = splitMatchup(query.q);
+        if (matchup) {
+          const [a, b] = await Promise.all(matchup.map((side) => teams(db, side, locale, sports, ctx.now())));
+          const pair = [a!, b!] as [Hit[], Hit[]];
+          const eventHits = want('event')
+            ? await events(db, { matchup: pair }, locale, sports, ctx.now())
+            : [];
+          // os times: o melhor de cada lado primeiro, alternando
+          const teamHits = want('team')
+            ? pair[0].flatMap((h, i) => [h, pair[1][i]]).concat(pair[1].slice(pair[0].length))
+            : [];
+          const ranked = [
+            // os jogos na ordem do banco (ao vivo, próximos, já disputados), sem reordenar pelo nome
+            ...eventHits.slice(0, query.limit),
+            ...teamHits.filter((h): h is Hit => !!h).slice(0, query.limit),
+          ];
+          // nada dos dois lados: o termo segue como busca comum (um nome com " x " no meio, por exemplo)
+          if (ranked.length) {
+            const body: SearchResponse = { q: query.q, data: ranked.map((h) => h.result) };
+            return { body, tags: ['participant', 'team_profile', 'event'] };
+          }
+        }
         const [teamHits, competitionHits, personHits, venueHits, countryHits] = await Promise.all([
           want('team') || want('event') ? teams(db, term, locale, sports, ctx.now()) : [],
           want('competition') ? competitions(db, term, locale, sports) : [],
@@ -542,7 +602,9 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
           want('venue') && !query.sport ? venues(db, term) : [],
           want('country') && !query.sport ? countries(db, term, locale) : [],
         ]);
-        const eventHits = want('event') ? await events(db, teamHits, locale, sports, ctx.now()) : [];
+        const eventHits = want('event')
+          ? await events(db, { teams: teamHits }, locale, sports, ctx.now())
+          : [];
         const byType: Record<SearchType, Hit[]> = {
           team: want('team') ? teamHits : [],
           competition: competitionHits,

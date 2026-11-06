@@ -5,6 +5,8 @@
  * (`/r/<id>.json`): não há segredo aqui, o id é opaco e a chave publicável fica no atributo `key` da página,
  * presa às origens permitidas. Widget arquivado ou inexistente = 404.
  */
+import { parseWidgetOptions } from '@galaxie/widgets/registry';
+
 import { isWidgetLocale, parseRegistryParam } from '@/lib/builder/config';
 import { builderDb, getWidget } from '@/lib/builder/store';
 import { PUBLIC_API_URL } from '@/lib/galaxie/request';
@@ -23,7 +25,8 @@ export async function GET(_request: Request, ctx: RouteContext<'/e/[id]'>) {
       { error: 'not_found' },
       { status: 404, headers: { ...HEADERS, 'cache-control': 'no-store' } },
     );
-  const { theme, locale, market, defaults, standings, liveList } = widget.config;
+  const { theme, locale, market, defaults, standings, liveList, options } = widget.config;
+  const content = parseWidgetOptions(widget.kind, options);
   return Response.json(
     {
       id: widget.id,
@@ -35,6 +38,7 @@ export async function GET(_request: Request, ctx: RouteContext<'/e/[id]'>) {
       defaults: defaults ?? {},
       ...(widget.kind === 'standings' && standings ? { standings } : {}),
       ...(widget.kind === 'live_list' && liveList ? { liveList } : {}),
+      ...(content ? { options: content } : {}),
       apiBaseUrl: PUBLIC_API_URL,
     },
     { headers: { ...HEADERS, 'cache-control': 'public, max-age=60, stale-while-revalidate=300' } },

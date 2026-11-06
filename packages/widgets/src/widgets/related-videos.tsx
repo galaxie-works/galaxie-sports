@@ -16,6 +16,7 @@ import {
   ErrorState,
   LoadingState,
   WidgetFrame,
+  useFormatters,
   useGalaxieQuery,
   useGalaxieWidget,
 } from '../core/react.js';
@@ -29,6 +30,12 @@ export interface RelatedVideosProps {
   format?: 'short' | 'long' | undefined;
   /** Tipos separados por vírgula (ex.: `highlights,goal`). Padrão: todos. */
   types?: string | undefined;
+  /** Duração no canto da miniatura (padrão: sim). */
+  showDuration?: boolean | undefined;
+  /** Nome do canal embaixo do título (padrão: sim). */
+  showChannel?: boolean | undefined;
+  /** Data de publicação (padrão: não). */
+  showDate?: boolean | undefined;
 }
 
 /** Vídeos novos chegam nas horas depois do jogo: 10 minutos. */
@@ -38,8 +45,17 @@ const VIDEOS_REFRESH_MS = 10 * 60_000;
  * Vídeos do jogo (melhores momentos, gols, entrevistas, reações) de canais oficiais, de detentores de
  * direitos e da imprensa, no idioma do país. O vídeo toca ali mesmo, no player oficial.
  */
-export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVideosProps) {
+export function RelatedVideos({
+  eventId,
+  limit = 6,
+  format,
+  types,
+  showDuration = true,
+  showChannel = true,
+  showDate = false,
+}: RelatedVideosProps) {
   const { texts, market } = useGalaxieWidget();
+  const fmt = useFormatters();
   const t = texts.videos;
   const max = Math.min(Math.max(Math.round(limit) || 6, 1), 24);
   const query = useGalaxieQuery<GsRelated>(
@@ -98,6 +114,10 @@ export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVide
               key={item.id}
               item={item}
               label={fillText(t.play, { title: item.title })}
+              showDuration={showDuration}
+              meta={[showChannel ? item.channel.title : null, showDate ? fmt.date(item.published_at) : null]
+                .filter(Boolean)
+                .join(' · ')}
               onPlay={() => setPlaying({ eventId, id: item.id })}
             />
           ))}
@@ -107,8 +127,20 @@ export function RelatedVideos({ eventId, limit = 6, format, types }: RelatedVide
   );
 }
 
-function VideoTile({ item, label, onPlay }: { item: GsRelatedItem; label: string; onPlay: () => void }) {
-  const duration = durationText(item.duration_seconds);
+function VideoTile({
+  item,
+  label,
+  onPlay,
+  showDuration,
+  meta,
+}: {
+  item: GsRelatedItem;
+  label: string;
+  onPlay: () => void;
+  showDuration: boolean;
+  meta: string;
+}) {
+  const duration = showDuration ? durationText(item.duration_seconds) : null;
   const thumb = safeImage(item.thumbnail_url);
   const inner = (
     <>
@@ -134,7 +166,7 @@ function VideoTile({ item, label, onPlay }: { item: GsRelatedItem; label: string
       <span className="gs-clamp" title={item.title}>
         {item.title}
       </span>
-      <span className="gs-muted gs-small gs-truncate">{item.channel.title}</span>
+      {meta ? <span className="gs-muted gs-small gs-truncate">{meta}</span> : null}
     </li>
   );
 }

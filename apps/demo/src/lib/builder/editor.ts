@@ -5,8 +5,10 @@
 import {
   DEFAULT_THEMES,
   WIDGET_CATALOG,
+  WIDGET_OPTIONS,
   parseLiveListOptions,
   parseStandingsOptions,
+  parseWidgetOptions,
 } from '@galaxie/widgets';
 
 import type { EditorDraft } from '@/components/client/widget-editor';
@@ -67,11 +69,31 @@ export function newDraft(kindParam: string | undefined, tenant: TenantInfo, loca
     entity: null,
     standings: {},
     liveList: {},
+    options: {},
+    optionEntities: {},
   };
+}
+
+/** Nome e escudo das entidades guardadas nas opções (time a destacar, campeonato do filtro). */
+async function optionEntitiesOf(
+  kind: WidgetKind,
+  options: Record<string, unknown>,
+  locale: Locale,
+): Promise<EditorDraft['optionEntities']> {
+  const out: EditorDraft['optionEntities'] = {};
+  for (const spec of WIDGET_OPTIONS[kind] ?? []) {
+    const id = options[spec.key];
+    if ((spec.type === 'team' || spec.type === 'competition') && typeof id === 'string') {
+      const entity = await resolveEntity(spec.type, id, locale);
+      if (entity) out[spec.key] = entity;
+    }
+  }
+  return out;
 }
 
 export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDraft> {
   const entity = entityFromDefaults(widget.config.defaults);
+  const options = parseWidgetOptions(widget.kind, widget.config.options) ?? {};
   return {
     name: widget.name,
     kind: widget.kind,
@@ -81,5 +103,7 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
     entity: entity ? await resolveEntity(entity.type, entity.id, locale) : null,
     standings: parseStandingsOptions(widget.config.standings) ?? {},
     liveList: parseLiveListOptions(widget.config.liveList) ?? {},
+    options,
+    optionEntities: await optionEntitiesOf(widget.kind, options, locale),
   };
 }

@@ -105,6 +105,19 @@ describe('widget salvo', () => {
     expect(card.ok && 'liveList' in card.value.config).toBe(false);
   });
 
+  it('opções de conteúdo: guarda só as do tipo, válidas e diferentes do padrão', () => {
+    const card = parseWidgetInput(
+      { ...base, config: { ...base.config, options: { showGoals: true, showVenue: true, limit: 3 } } },
+      opts,
+    );
+    expect(card.ok && card.value.config.options).toEqual({ showGoals: true });
+    const plain = parseWidgetInput(
+      { ...base, config: { ...base.config, options: { showVenue: true } } },
+      opts,
+    );
+    expect(plain.ok && 'options' in plain.value.config).toBe(false);
+  });
+
   it('placar, tabela e onde assistir exigem a entidade padrão; a lista ao vivo, não', () => {
     const none = { ...base.config, defaults: {} };
     for (const kind of ['match_card', 'standings', 'where_to_watch'])
