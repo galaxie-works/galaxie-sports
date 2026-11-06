@@ -9,6 +9,7 @@
  */
 import {
   isInPlay,
+  isPreMatch,
   type NormalizedBatch,
   type ProviderResult,
   type SportsDataProvider,
@@ -83,10 +84,20 @@ export function spent(result: ProviderResult): number {
  */
 export const FINALIZE_BACKOFF_MS = [0, 60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 20 * 60_000, 30 * 60_000];
 
+/**
+ * Jogo que o relógio pôs em andamento e a fonte ainda dá como não iniciado (`NS` no detalhe, fora do `live`): não
+ * acabou, então não entra no backoff da confirmação, que chega a 20 e 30 min entre buscas e deixava o placar parado
+ * (docs/postmortems/2026-10-31-ao-vivo-parado.md). Volta a ser conferido neste ritmo, sem gastar tentativa, até entrar
+ * no `live`, ser adiado ou sair do plano. Abaixo dos 10 min do `LiveEventStale`.
+ */
+export const NOT_STARTED_RECHECK_MS = 5 * 60_000;
+
 /** Tentativas de confirmar o resultado de um jogo (entram no bastão entre líder e reserva). */
 export interface FinalizeAttempt {
   attempts: number;
   nextAt: number;
+  /** O último detalhe dizia que o jogo não começou: conferido em `NOT_STARTED_RECHECK_MS`, depois dos que acabaram. */
+  notStarted?: boolean;
 }
 
 /** Depois disto a tentativa já não decide nada: o backoff inteiro cabe com folga e o jogo saiu do plano. */
@@ -167,10 +178,28 @@ export class LivePoller {
 
     const batchIds = result.batch.events.map((e) => e.id);
     const returned = new Set(batchIds);
-    const vanished = inPlay
+    // começou de fato: quando sair do live, a confirmação do resultado começa do zero
+    for (const id of batchIds)
+      if (this.finalizeAttempts.get(id)?.notStarted) this.finalizeAttempts.delete(id);
+    const marked = (id: string) => this.finalizeAttempts.get(id)?.notStarted === true;
+    // Em andamento só pelo relógio (a fonte nunca confirmou), ou já marcado como não iniciado: a resposta NS isenta a
+    // tentativa. Jogo que a fonte já deu como em campo e "volta" a NS segue o backoff normal (a máquina de estados
+    // recusa essa volta sem mudança de horário, e a isenção o conferiria a cada 5 min até sair do plano).
+    const clockStarted = new Set(
+      inPlay.filter((c) => c.statusSource === 'temporal').map((c) => c.providerEventId!),
+    );
+    // A resposta NS devolve o jogo a `starting` (fora de `inPlay`): marcado, ele continua conferido em
+    // `NOT_STARTED_RECHECK_MS`, senão só voltaria quando o relógio o pusesse em andamento de novo, depois do limite do
+    // `LiveEventStale`, e o status ficaria oscilando entre `live` e `starting` no change feed.
+    const waiting = input.tracked.filter(
+      (c) => c.providerEventId && isPreMatch(c.status) && marked(c.providerEventId),
+    );
+    // os que acabaram primeiro: o orçamento de confirmação não fica com quem a fonte ainda nem começou
+    const vanished = [...inPlay, ...waiting]
       .filter((c) => c.providerCompetitionId && leagues.has(c.providerCompetitionId))
       .map((c) => c.providerEventId!)
-      .filter((id) => !returned.has(id));
+      .filter((id) => !returned.has(id))
+      .sort((a, b) => Number(marked(a)) - Number(marked(b)));
     const featuredId =
       input.featured?.providerEventId && !vanished.includes(input.featured.providerEventId)
         ? input.featured.providerEventId
@@ -188,7 +217,19 @@ export class LivePoller {
       if (state.attempts >= maxAttempts || input.now.getTime() < state.nextAt) continue;
       const attempts = state.attempts + 1;
       const wait = FINALIZE_BACKOFF_MS[Math.min(attempts, FINALIZE_BACKOFF_MS.length - 1)]!;
-      this.finalizeAttempts.set(id, { attempts, nextAt: input.now.getTime() + wait });
+      const backoff = { attempts, nextAt: input.now.getTime() + wait };
+      // o marcado conserva a marca até o detalhe dizer outra coisa: um erro ou uma resposta vazia não o tiram da
+      // conferência de 5 em 5 min (fora de `inPlay`, ele só volta por `waiting`)
+      this.finalizeAttempts.set(
+        id,
+        state.notStarted
+          ? {
+              attempts: state.attempts,
+              nextAt: input.now.getTime() + NOT_STARTED_RECHECK_MS,
+              notStarted: true,
+            }
+          : backoff,
+      );
       budget -= 1;
       if (fence?.aborted) throw new TickFencedError();
       const detail = await this.provider.getEventDetail(sport, id, this.callOptions());
@@ -196,7 +237,17 @@ export class LivePoller {
       if (detail.status !== 'ok') continue;
       details.push(detail.batch);
       const ev = detail.batch.events.find((e) => e.id === id);
-      if (ev?.observation.status === 'finished') confirmed.push({ id, at: detail.fetchedAt });
+      const status = ev?.observation.status;
+      if (status === 'finished') confirmed.push({ id, at: detail.fetchedAt });
+      else if (status && isPreMatch(status) && (clockStarted.has(id) || state.notStarted))
+        // a tentativa não conta: o backoff é para o jogo que acabou e demora a virar FT
+        this.finalizeAttempts.set(id, {
+          attempts: state.attempts,
+          nextAt: input.now.getTime() + NOT_STARTED_RECHECK_MS,
+          notStarted: true,
+        });
+      // a fonte começou o jogo marcado (ou deu outro desfecho): daqui em diante, a confirmação normal
+      else if (status && state.notStarted) this.finalizeAttempts.set(id, backoff);
     }
 
     // detalhe ao vivo do jogo em destaque (escalações, estatísticas) — só quando o plano permite

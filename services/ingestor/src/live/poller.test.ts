@@ -206,6 +206,141 @@ describe('LivePoller', () => {
     expect(finishedIds).toEqual(['9101']);
   });
 
+  it('jogo que o relógio começou e a fonte dá como NS: conferido de novo em 5 min, sem gastar tentativa', async () => {
+    // a fonte atrasou o jogo: nunca vem no live e o detalhe responde NS (postmortem de 31/10)
+    const late: WorldMatch = { ...match, delayMin: 180 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    const detailAt: number[] = [];
+    let now = at(0);
+    const detail = provider.getEventDetail.bind(provider);
+    provider.getEventDetail = async (...args) => {
+      detailAt.push((now.getTime() - kick) / MIN);
+      provider.willReturn('getEventDetail', batchAt([late], now, true));
+      return detail(...args);
+    };
+    const tick = async (min: number) => {
+      now = at(min);
+      store.advanceClock(now);
+      provider.willReturn('listLive', batchAt([], now));
+      return poller.tick({ now, leagues: ['71'], tracked: await tracked(now), finalizeBudget: 2 });
+    };
+
+    expect((await tick(2)).vanished).toEqual(['9101']);
+    expect(poller.exportFinalizeAttempts(at(2))['9101']).toEqual({
+      attempts: 0,
+      nextAt: at(7).getTime(),
+      notStarted: true,
+    });
+    // a resposta NS devolve o jogo a `starting`; marcado, ele segue conferido de 5 em 5 min, e a conferência mantém o
+    // dado fresco: o relógio não o põe em andamento de novo e o status não oscila no change feed. Duas horas e meia de
+    // tick a tick (15 s), bem mais que o backoff inteiro da confirmação (~68 min)
+    const statuses = new Set<string>();
+    for (let s = 2 * 60 + 15; s <= 150 * 60; s += 15) {
+      await tick(s / 60);
+      statuses.add(store.state('9101')!.status);
+    }
+    expect(detailAt).toEqual(Array.from({ length: 30 }, (_, i) => 2 + 5 * i)); // o backoff desistia na 7ª
+    expect([...statuses]).toEqual(['starting']);
+    expect(poller.exportFinalizeAttempts(at(150))['9101']).toMatchObject({ attempts: 0, notStarted: true });
+  });
+
+  it('erro no detalhe do jogo marcado como NS não tira a marca: ele segue conferido em 5 min', async () => {
+    const late: WorldMatch = { ...match, delayMin: 180 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    const details = () => provider.calls.filter((c) => c.method === 'getEventDetail').length;
+    const tick = async (min: number) => {
+      store.advanceClock(at(min));
+      provider.willReturn('listLive', batchAt([], at(min)));
+      return poller.tick({
+        now: at(min),
+        leagues: ['71'],
+        tracked: await tracked(at(min)),
+        finalizeBudget: 1,
+      });
+    };
+    provider.willReturn('getEventDetail', batchAt([late], at(2), true));
+    await tick(2);
+    expect(store.state('9101')!.status).toBe('starting');
+
+    // a conferência de 5 min falha
+    provider.willFail('getEventDetail', { kind: 'http_error', message: 'HTTP 503', retryable: true }, at(7));
+    await tick(7);
+    expect(details()).toBe(2);
+    expect(poller.exportFinalizeAttempts(at(7))['9101']).toEqual({
+      attempts: 0,
+      nextAt: at(12).getTime(),
+      notStarted: true,
+    });
+    // e a próxima sai na hora marcada, com o jogo ainda em `starting`
+    provider.willReturn('getEventDetail', batchAt([late], at(12), true));
+    await tick(12);
+    expect(details()).toBe(3);
+  });
+
+  it('jogo que a fonte já deu em campo e volta a NS no detalhe segue o backoff normal', async () => {
+    const { store, provider, poller, tracked } = setup([match]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    provider.willReturn('listLive', batchAt([match], at(20)));
+    await poller.tick({ now: at(20), leagues: ['71'], tracked: await tracked(at(20)), finalizeBudget: 1 });
+    // sumiu do live e o detalhe, por um soluço da fonte, diz NS
+    const ns = batchAt([{ ...match, delayMin: 180 }], at(21), true);
+    provider.willReturn('listLive', batchAt([], at(21))).willReturn('getEventDetail', ns);
+    await poller.tick({ now: at(21), leagues: ['71'], tracked: await tracked(at(21)), finalizeBudget: 1 });
+    expect(store.state('9101')!.status).toBe('live');
+    expect(poller.exportFinalizeAttempts(at(21))['9101']).toEqual({ attempts: 1, nextAt: at(22).getTime() });
+  });
+
+  it('a confirmação de quem acabou vem antes de quem a fonte ainda não começou', async () => {
+    const late: WorldMatch = { ...wednesdayNight()[4]!, delayMin: 300 }; // Bahia x Fortaleza, atrasado
+    const { store, provider, poller, tracked, finishedIds } = setup([match, late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    provider.willReturn('listLive', batchAt([match], at(95)));
+    store.advanceClock(at(95));
+    // o atrasado nunca veio no live e responde NS; Palmeiras x Corinthians ainda em campo
+    provider.willReturn('getEventDetail', batchAt([late], at(95), true));
+    await poller.tick({ now: at(95), leagues: ['71'], tracked: await tracked(at(95)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(95))['9102']).toMatchObject({ notStarted: true });
+
+    // o atrasado (marcado, em `starting`) e Palmeiras x Corinthians (acabou) fora do live, com orçamento para um só:
+    // vai para o que acabou
+    store.advanceClock(at(111));
+    provider
+      .willReturn('listLive', batchAt([], at(111)))
+      .willReturn('getEventDetail', batchAt([match], at(111), true));
+    const r = await poller.tick({
+      now: at(111),
+      leagues: ['71'],
+      tracked: await tracked(at(111)),
+      finalizeBudget: 1,
+    });
+    expect(r.vanished).toEqual(['9101', '9102']);
+    expect(r.finalized).toEqual(['9101']);
+    expect(provider.calls.at(-1)).toMatchObject({
+      method: 'getEventDetail',
+      args: ['football', '9101', expect.anything()],
+    });
+    expect(finishedIds).toEqual(['9101']);
+  });
+
+  it('o atrasado que entra no live perde a marca: ao sair, a confirmação do resultado começa do zero', async () => {
+    const late: WorldMatch = { ...match, delayMin: 10 };
+    const { store, provider, poller, tracked } = setup([late]);
+    const at = (min: number) => new Date(kick + min * MIN);
+    store.advanceClock(at(2));
+    provider
+      .willReturn('listLive', batchAt([], at(2)))
+      .willReturn('getEventDetail', batchAt([late], at(2), true));
+    await poller.tick({ now: at(2), leagues: ['71'], tracked: await tracked(at(2)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(2))['9101']).toMatchObject({ notStarted: true });
+
+    // a fonte apita 10 min depois: o jogo vem no live
+    provider.willReturn('listLive', batchAt([late], at(12)));
+    await poller.tick({ now: at(12), leagues: ['71'], tracked: await tracked(at(12)), finalizeBudget: 1 });
+    expect(poller.exportFinalizeAttempts(at(12))).toEqual({});
+  });
+
   it('sem orçamento de confirmação, o jogo que sumiu fica para o próximo tick', async () => {
     const { provider, poller, tracked } = setup([match]);
     const t1 = new Date(kick + 100 * MIN);
