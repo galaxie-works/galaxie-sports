@@ -197,7 +197,8 @@ export function seasonListPair(item: PlannedRequest): { league: string; year: nu
 
 /**
  * Acompanha as relistas da temporada atual em volta da normalização do sync: as normalizadas entram no recálculo
- * da tabela; a que falhou não (o core ainda é o antigo) e tem o cursor reaberto no fim (`reopenSeasonLists`),
+ * da tabela; a que falhou ou não foi normalizada (`--sem-normalizar`) não (o core ainda é o antigo) e tem o
+ * cursor reaberto no fim (`reopenSeasonLists`),
  * para voltar na próxima execução e ser normalizada e recalculada de novo, em vez de esperar o período do tier.
  */
 export function trackSeasonLists(normalize?: { afterFetch: AfterFetch; report: () => { errors: number } }): {
@@ -211,8 +212,9 @@ export function trackSeasonLists(normalize?: { afterFetch: AfterFetch; report: (
     const before = normalize?.report().errors ?? 0;
     await normalize?.afterFetch(envelope, request);
     const pair = seasonListPair(request);
-    if (!pair || !normalize) return;
-    if (normalize.report().errors > before) failed.push(...request.cursors);
+    if (!pair) return;
+    // sem normalização (`--sem-normalizar`) o core também não recebeu a lista: volta na próxima execução
+    if (!normalize || normalize.report().errors > before) failed.push(...request.cursors);
     else normalized.push(pair);
   };
   return { afterFetch, normalized: () => normalized, failed: () => failed };

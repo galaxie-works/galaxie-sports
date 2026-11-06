@@ -270,6 +270,18 @@ describe('buildSeasonListRequests', () => {
     expect(lists.normalized()).toEqual([{ league: '71', year: 2026 }]);
     expect(lists.failed()).toEqual([cursor(948)]);
 
+    // sem normalização (--sem-normalizar): nenhuma entra no recálculo, todas voltam
+    const semNormalizar = trackSeasonLists();
+    for (const item of items)
+      await semNormalizar.afterFetch({} as never, {
+        ...item,
+        source: 'network',
+        requestHash: 'h',
+        fetchedAt: now,
+      });
+    expect(semNormalizar.normalized()).toEqual([]);
+    expect(semNormalizar.failed()).toEqual([cursor(71), cursor(948)]);
+
     await reopenSeasonLists(cursors, lists.failed());
     const next = await buildSeasonListRequests(comps, cursors, PRO_PLAN, new Date(now.getTime() + DAY), 10);
     expect(next.map((p) => p.params.league)).toEqual(['948']);
