@@ -23,17 +23,58 @@ const list = new ConfirmedChannels(
     { idx: 4, name: 'ESPN HD', group: 'Esportes' },
   ],
   [
-    { country: 'BR', broadcasterId: 'globo', name: 'Globo', access: 'free', match: 'exato', channels: [0, 1], origin: 'code', note: null },
-    { country: 'BR', broadcasterId: 'sportv', name: 'SporTV', access: 'pay', match: 'exato', channels: [2, 3], origin: 'code', note: null },
-    { country: 'BR', broadcasterId: 'espn', name: 'ESPN', access: 'pay', match: 'exato', channels: [4], origin: 'code', note: null },
-    { country: 'BR', broadcasterId: 'premiere', name: 'Premiere', access: 'pay', match: 'sem_canal_na_lista', channels: [], origin: 'code', note: null },
+    {
+      country: 'BR',
+      broadcasterId: 'globo',
+      name: 'Globo',
+      access: 'free',
+      match: 'exato',
+      channels: [0, 1],
+      origin: 'code',
+      note: null,
+    },
+    {
+      country: 'BR',
+      broadcasterId: 'sportv',
+      name: 'SporTV',
+      access: 'pay',
+      match: 'exato',
+      channels: [2, 3],
+      origin: 'code',
+      note: null,
+    },
+    {
+      country: 'BR',
+      broadcasterId: 'espn',
+      name: 'ESPN',
+      access: 'pay',
+      match: 'exato',
+      channels: [4],
+      origin: 'code',
+      note: null,
+    },
+    {
+      country: 'BR',
+      broadcasterId: 'premiere',
+      name: 'Premiere',
+      access: 'pay',
+      match: 'sem_canal_na_lista',
+      channels: [],
+      origin: 'code',
+      note: null,
+    },
   ] as never,
 );
 
-const opt = (eventId: string, broadcasterId: string, extra: Partial<GuideOptionRow> = {}): GuideOptionRow => ({
+const opt = (
+  eventId: string,
+  broadcasterId: string,
+  extra: Partial<GuideOptionRow> = {},
+): GuideOptionRow => ({
   eventId,
   broadcasterId,
   channelName: null,
+  region: null,
   status: 'confirmed',
   producedBy: 'agent:wtw@v1',
   ...extra,
@@ -73,6 +114,22 @@ describe('grade nos canais do cliente', () => {
     );
     expect(byEvent.get(E2)).toEqual(['ESPN HD']);
     expect(byEvent.has(E3)).toBe(false);
+  });
+
+  it('o canal confirmado do jogo afina a opção genérica da mesma emissora (a editorial vence)', () => {
+    const byEvent = guideChannelsByEvent(
+      'BR',
+      [opt(E1, 'sportv'), opt(E2, 'sportv', { producedBy: 'editorial:ana' })],
+      [
+        { eventId: E1, broadcasterId: 'sportv', channelName: 'SporTV 2' },
+        { eventId: E2, broadcasterId: 'sportv', channelName: 'SporTV 2' },
+      ],
+      list,
+      null,
+    );
+    expect(byEvent.get(E1)).toEqual(['SporTV 2 HD']);
+    // a escolha da editoria (a emissora inteira) não é afinada pelo canal do jogo
+    expect(byEvent.get(E2)).toEqual(['SporTV 2 HD', 'SporTV HD']);
   });
 
   it('com canais escolhidos no widget, só eles; jogo sem nenhum deles sai da grade', () => {

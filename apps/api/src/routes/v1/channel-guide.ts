@@ -110,6 +110,7 @@ export async function channelGuideRoutes(app: FastifyInstance, ctx: AppContext):
               eventId: broadcastOption.eventId,
               broadcasterId: broadcastOption.broadcasterId,
               channelName: broadcastOption.channelName,
+              region: broadcastOption.region,
               status: broadcastOption.status,
               producedBy: broadcastOption.producedBy,
             })

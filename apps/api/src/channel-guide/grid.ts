@@ -11,6 +11,8 @@ export interface GuideOptionRow {
   eventId: string;
   broadcasterId: string | null;
   channelName: string | null;
+  /** UF/praça da opção regional; null = nacional. */
+  region: string | null;
   status: string;
   producedBy: string;
 }
@@ -69,14 +71,27 @@ export function guideChannelsByEvent(
   list: GuideChannelList,
   only: ReadonlySet<string> | null,
 ): Map<string, string[]> {
+  const key = (eventId: string, broadcasterId: string | null) => `${eventId}:${broadcasterId}`;
   const removed = new Set(
     options
       .filter((r) => isEditorial(r) && (r.status === 'retracted' || r.status === 'omitted'))
-      .map((r) => `${r.eventId}:${r.broadcasterId}`),
+      .map((r) => key(r.eventId, r.broadcasterId)),
   );
+  const matchOf = new Map(matches.map((m) => [key(m.eventId, m.broadcasterId), m]));
+  const confirmed = options.filter((r) => r.status === 'confirmed' && r.broadcasterId);
+  const published = new Set(confirmed.map((r) => key(r.eventId, r.broadcasterId)));
+  // como no onde assistir: a opção nacional (não editorial) leva o canal confirmado do jogo ("SporTV" vira
+  // "SporTV 2"); o canal do jogo só entra sozinho quando a emissora não tem opção publicada nem foi retirada
   const sources = [
-    ...options.filter((r) => r.status === 'confirmed' && r.broadcasterId),
-    ...matches.filter((m) => !removed.has(`${m.eventId}:${m.broadcasterId}`)),
+    ...confirmed.map((r) => {
+      const m = matchOf.get(key(r.eventId, r.broadcasterId));
+      return r.region === null && !isEditorial(r) && m?.channelName
+        ? { ...r, channelName: m.channelName }
+        : r;
+    }),
+    ...matches.filter(
+      (m) => !published.has(key(m.eventId, m.broadcasterId)) && !removed.has(key(m.eventId, m.broadcasterId)),
+    ),
   ];
   const byEvent = new Map<string, Set<string>>();
   for (const s of sources) {
