@@ -44,6 +44,8 @@ const bool = (key: string, label: Label, def: boolean, extra?: Partial<OptionBas
 const FOOTBALL = { sports: ['football'] } as const;
 /** Esportes coletivos com parciais (sets, quartos, tempos, períodos, entradas). */
 const WITH_PERIODS = { sports: TEAM_SPORTS.filter((s) => s !== 'football') } as const;
+/** Esportes coletivos (as colunas de gols/pontos da tabela não existem na F1). */
+const TEAM = { sports: TEAM_SPORTS } as const;
 
 // rótulos que se repetem entre widgets
 const L = {
@@ -173,6 +175,7 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ...FOOTBALL,
     },
     bool('showGoalsFor', l('Gols pró', 'Goles a favor', 'Goals for'), false, {
+      ...TEAM,
       unitLabel: {
         points: l('Pontos pró', 'Puntos a favor', 'Points for'),
         runs: l('Corridas pró', 'Carreras a favor', 'Runs scored'),
@@ -180,6 +183,7 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       },
     }),
     bool('showGoalsAgainst', l('Gols contra', 'Goles en contra', 'Goals against'), false, {
+      ...TEAM,
       unitLabel: {
         points: l('Pontos contra', 'Puntos en contra', 'Points against'),
         runs: l('Corridas contra', 'Carreras en contra', 'Runs allowed'),
@@ -187,13 +191,14 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       },
     }),
     bool('showGoalDiff', l('Saldo de gols', 'Diferencia de goles', 'Goal difference'), true, {
+      ...TEAM,
       unitLabel: {
         points: l('Saldo de pontos', 'Diferencia de puntos', 'Point difference'),
         runs: l('Saldo de corridas', 'Diferencia de carreras', 'Run difference'),
         sets: l('Saldo de sets', 'Diferencia de sets', 'Set difference'),
       },
     }),
-    bool('showForm', l('Forma (últimos 5)', 'Racha (últimos 5)', 'Form (last 5)'), false),
+    bool('showForm', l('Forma (últimos 5)', 'Racha (últimos 5)', 'Form (last 5)'), false, TEAM),
     // onde a tabela é por vitórias (basquete, beisebol, futebol americano) e na AFL, o % sempre aparece
     bool('showPercentage', l('Aproveitamento (%)', 'Rendimiento (%)', 'Points percentage'), false, {
       sports: ['football', 'volleyball', 'hockey', 'handball', 'rugby'],
@@ -211,8 +216,23 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
         'Leader and upcoming decisive games',
       ),
       false,
-      { extraCall: true },
+      { extraCall: true, ...TEAM },
     ),
+    {
+      key: 'raceTable',
+      type: 'enum',
+      default: 'all',
+      label: l('Campeonato', 'Campeonato', 'Championship'),
+      values: [
+        { value: 'drivers', label: l('Só pilotos', 'Solo pilotos', 'Drivers only') },
+        { value: 'constructors', label: l('Só construtores', 'Solo constructores', 'Constructors only') },
+        {
+          value: 'all',
+          label: l('Pilotos e construtores', 'Pilotos y constructores', 'Drivers and constructors'),
+        },
+      ],
+      sports: ['formula-1'],
+    },
   ],
   where_to_watch: [
     bool('showAddonPrices', l('Preço dos complementos', 'Precio de los complementos', 'Add-on prices'), true),
@@ -362,6 +382,87 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       { extraCall: true },
     ),
     bool('showCalendar', L.calendar, false),
+  ],
+  race_result: [
+    {
+      key: 'limit',
+      type: 'number',
+      default: 0,
+      min: 0,
+      max: 30,
+      label: l('Pilotos listados', 'Pilotos listados', 'Drivers listed'),
+      hint: l('0 = todos.', '0 = todos.', '0 = all.'),
+    },
+    bool('showTeam', l('Equipe', 'Equipo', 'Team'), true),
+    bool('showGrid', l('Posição de largada', 'Posición de salida', 'Grid position'), true),
+    bool('showPits', l('Paradas nos boxes', 'Paradas en boxes', 'Pit stops'), false),
+    bool('showFastestLap', l('Volta mais rápida', 'Vuelta rápida', 'Fastest lap'), true),
+  ],
+  race_weekend: [
+    bool('showWinners', l('Vencedor de cada sessão', 'Ganador de cada sesión', 'Session winners'), true),
+    bool('showVenue', l('Circuito', 'Circuito', 'Circuit'), true),
+    bool('showCalendar', L.calendar, false),
+  ],
+  season_calendar: [
+    {
+      key: 'range',
+      type: 'enum',
+      default: 'auto',
+      label: l('Período', 'Período', 'Range'),
+      values: [
+        {
+          value: 'auto',
+          label: l(
+            'Automático (temporada na F1, próximos no MMA)',
+            'Automático (temporada en F1, próximos en MMA)',
+            'Automatic',
+          ),
+        },
+        { value: 'season', label: l('A temporada inteira', 'La temporada entera', 'Whole season') },
+        { value: 'upcoming', label: l('Só os próximos', 'Solo los próximos', 'Upcoming only') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 0,
+      min: 0,
+      max: 40,
+      label: l('Etapas listadas', 'Etapas listadas', 'Rounds listed'),
+      hint: l('0 = todas.', '0 = todas.', '0 = all.'),
+    },
+    bool('showWinners', l('Vencedores', 'Ganadores', 'Winners'), true),
+    bool('showVenue', l('Local', 'Lugar', 'Venue'), true),
+  ],
+  athlete_profile: [
+    bool(
+      'showCareer',
+      l('Números da carreira ou cartel', 'Números de la carrera o récord', 'Career or record'),
+      true,
+    ),
+    bool(
+      'showCurrent',
+      l(
+        'Temporada atual (F1) ou próxima luta (MMA)',
+        'Temporada actual (F1) o próxima pelea (MMA)',
+        'Current season or next fight',
+      ),
+      true,
+    ),
+    {
+      key: 'recent',
+      type: 'number',
+      default: 5,
+      min: 0,
+      max: 10,
+      label: l('Últimas lutas (MMA)', 'Últimas peleas (MMA)', 'Recent fights (MMA)'),
+      sports: ['mma'],
+    },
+  ],
+  fight_card: [
+    bool('showPrelims', l('Preliminares', 'Preliminares', 'Prelims'), true),
+    bool('showWeightClass', l('Categoria de peso', 'Categoría de peso', 'Weight class'), true),
+    bool('showResults', l('Resultado das lutas', 'Resultado de las peleas', 'Bout results'), true),
   ],
 };
 

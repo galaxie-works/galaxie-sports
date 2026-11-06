@@ -337,7 +337,7 @@ export function Crest({
 }: {
   src: string | null | undefined;
   name: string;
-  size?: 'md' | 'sm' | 'xs';
+  size?: 'lg' | 'md' | 'sm' | 'xs';
   className?: string;
 }) {
   const [broken, setBroken] = useState(false);

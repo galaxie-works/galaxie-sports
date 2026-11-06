@@ -8,6 +8,11 @@ import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
 import type { TeamScheduleProps } from './widgets/team-schedule.js';
+import type { AthleteProfileProps } from './widgets/athlete-profile.js';
+import type { FightCardProps } from './widgets/fight-card.js';
+import type { RaceResultProps } from './widgets/race-result.js';
+import type { RaceWeekendProps } from './widgets/race-weekend.js';
+import type { SeasonCalendarProps } from './widgets/season-calendar.js';
 import type { WhereToWatchProps } from './widgets/where-to-watch.js';
 
 export interface WidgetPropsByKind {
@@ -20,6 +25,11 @@ export interface WidgetPropsByKind {
   related_videos: RelatedVideosProps;
   head_to_head: HeadToHeadProps;
   team_schedule: TeamScheduleProps;
+  race_result: RaceResultProps;
+  race_weekend: RaceWeekendProps;
+  season_calendar: SeasonCalendarProps;
+  athlete_profile: AthleteProfileProps;
+  fight_card: FightCardProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -34,7 +44,12 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'MatchStakes'
     | 'RelatedVideos'
     | 'HeadToHead'
-    | 'TeamSchedule';
+    | 'TeamSchedule'
+    | 'RaceResult'
+    | 'RaceWeekend'
+    | 'SeasonCalendar'
+    | 'AthleteProfile'
+    | 'FightCard';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -53,6 +68,12 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
    */
   sports: readonly string[];
 }
+
+/** Corridas e lutas: os tipos novos do épico #731 (F1 #737, MMA #738). */
+const F1_ONLY = ['formula-1'] as const;
+const MMA_ONLY = ['mma'] as const;
+/** Placar, onde assistir: os coletivos, a sessão da F1 (onde assistir) e a luta de MMA. */
+const EVENT_SPORTS = [...TEAM_SPORTS, 'formula-1', 'mma'] as const;
 
 /** Tipos ainda só do futebol (IA, "o que está em jogo" e vídeos dependem de dados que só o futebol tem). */
 const FOOTBALL_ONLY = ['football'] as const;
@@ -89,7 +110,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
-    sports: TEAM_SPORTS,
+    sports: [...TEAM_SPORTS, 'mma'],
   },
   live_list: {
     kind: 'live_list',
@@ -155,10 +176,11 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showPercentage',
       'highlightTeamId',
       'showDecisive',
+      'raceTable',
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
-    sports: TEAM_SPORTS,
+    sports: [...TEAM_SPORTS, 'formula-1'],
   },
   where_to_watch: {
     kind: 'where_to_watch',
@@ -175,7 +197,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['region', 'showAddonPrices', 'showWatchLinks', 'showCalendar'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent, market: 'BR' },
     polling: false,
-    sports: TEAM_SPORTS,
+    sports: EVENT_SPORTS,
   },
   ai_context: {
     kind: 'ai_context',
@@ -276,6 +298,89 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
     sports: TEAM_SPORTS,
+  },
+  race_result: {
+    kind: 'race_result',
+    component: 'RaceResult',
+    registryComponent: 'GalaxieRaceResult',
+    name: { 'pt-BR': 'Resultado da corrida', es: 'Resultado de la carrera', en: 'Race result' },
+    description: {
+      'pt-BR': 'Chegada de uma sessão da F1: posição, piloto, equipe, tempo, largada e volta mais rápida.',
+      es: 'Clasificación de una sesión de F1: posición, piloto, equipo, tiempo, salida y vuelta rápida.',
+      en: 'Classification of an F1 session: position, driver, team, time, grid and fastest lap.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['limit', 'showTeam', 'showGrid', 'showPits', 'showFastestLap'],
+    exampleProps: { eventId: PREVIEW_IDS.raceEvent },
+    polling: true,
+    sports: F1_ONLY,
+  },
+  race_weekend: {
+    kind: 'race_weekend',
+    component: 'RaceWeekend',
+    registryComponent: 'GalaxieRaceWeekend',
+    name: { 'pt-BR': 'Fim de semana do GP', es: 'Fin de semana del GP', en: 'Grand Prix weekend' },
+    description: {
+      'pt-BR':
+        'Treinos, classificação, sprint e corrida do GP, no horário do leitor, com o vencedor de cada.',
+      es: 'Prácticas, clasificación, sprint y carrera del GP, en el horario del lector, con el ganador de cada una.',
+      en: "Practice, qualifying, sprint and race sessions in the reader's time, with each session winner.",
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showWinners', 'showVenue', 'showCalendar'],
+    exampleProps: { eventId: PREVIEW_IDS.raceEvent },
+    polling: true,
+    sports: F1_ONLY,
+  },
+  season_calendar: {
+    kind: 'season_calendar',
+    component: 'SeasonCalendar',
+    registryComponent: 'GalaxieSeasonCalendar',
+    name: { 'pt-BR': 'Calendário', es: 'Calendario', en: 'Calendar' },
+    description: {
+      'pt-BR':
+        'Os GPs da temporada da F1 com os vencedores, ou os próximos eventos de MMA com a luta principal.',
+      es: 'Los GP de la temporada de F1 con los ganadores, o los próximos eventos de MMA con la pelea estelar.',
+      en: 'The F1 season with each Grand Prix winner, or upcoming MMA events with their main event.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['range', 'limit', 'showWinners', 'showVenue'],
+    exampleProps: { competitionId: PREVIEW_IDS.raceCompetition },
+    polling: true,
+    sports: [...F1_ONLY, ...MMA_ONLY],
+  },
+  athlete_profile: {
+    kind: 'athlete_profile',
+    component: 'AthleteProfile',
+    registryComponent: 'GalaxieAthleteProfile',
+    name: { 'pt-BR': 'Perfil do atleta', es: 'Perfil del atleta', en: 'Athlete profile' },
+    description: {
+      'pt-BR':
+        'Piloto da F1 com a temporada e a carreira, ou lutador de MMA com o cartel e as últimas lutas.',
+      es: 'Piloto de F1 con la temporada y la carrera, o peleador de MMA con su récord y sus últimas peleas.',
+      en: 'An F1 driver with season and career numbers, or an MMA fighter with record and recent fights.',
+    },
+    requiredProps: ['teamId'],
+    optionalProps: ['showCareer', 'showCurrent', 'recent'],
+    exampleProps: { teamId: PREVIEW_IDS.driver },
+    polling: false,
+    sports: [...F1_ONLY, ...MMA_ONLY],
+  },
+  fight_card: {
+    kind: 'fight_card',
+    component: 'FightCard',
+    registryComponent: 'GalaxieFightCard',
+    name: { 'pt-BR': 'Card do evento', es: 'Cartelera', en: 'Fight card' },
+    description: {
+      'pt-BR': 'As lutas de um evento de MMA, do card principal às preliminares, com o desfecho de cada uma.',
+      es: 'Las peleas de un evento de MMA, de la cartelera principal a las preliminares, con cada resultado.',
+      en: 'Every bout of an MMA event, from the main card to the prelims, with each result.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showPrelims', 'showWeightClass', 'showResults'],
+    exampleProps: { eventId: PREVIEW_IDS.fightEvent },
+    polling: true,
+    sports: MMA_ONLY,
   },
 };
 

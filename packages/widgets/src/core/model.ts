@@ -15,6 +15,11 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'race_result',
+  'race_weekend',
+  'season_calendar',
+  'athlete_profile',
+  'fight_card',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -200,6 +205,114 @@ export interface GsParticipant {
   fan_tags?: GsFanTag[] | undefined;
   /** Grito curto da torcida no mercado da resposta. */
   cheer?: { text: string } | null | undefined;
+  /** Corridas (F1, lado `grid`): posição final na sessão. */
+  position?: number | null | undefined;
+  /** Corridas (F1): tempo, diferença, voltas, largada, paradas e a equipe. */
+  result?: GsParticipantResult | null | undefined;
+  /** Corridas (F1): retrato do piloto. */
+  photo?: { url: string | null } | null | undefined;
+}
+
+export interface GsParticipantResult {
+  time: string | null;
+  gap: string | null;
+  laps: number | null;
+  grid: number | null;
+  pits: number | null;
+  team: { id: string | null; name: string; logo: string | null } | null;
+}
+
+/** Sessão do fim de semana de corrida (F1): o GP é a fase (`stage`), a sessão é o evento. */
+export interface GsSession {
+  type: 'practice' | 'qualifying' | 'sprint_qualifying' | 'sprint' | 'race';
+  number: number | null;
+  /** Nome no idioma da resposta ("Corrida", "Treino livre 2"). */
+  name: string;
+  laps: number | null;
+  distance: string | null;
+  fastest_lap: { participant_id: string | null; time: string | null } | null;
+}
+
+/** Luta de MMA: card, segmento, categoria e desfecho. */
+export interface GsFight {
+  card: { id: string; name: string } | null;
+  segment: 'main_card' | 'prelims' | 'early_prelims';
+  main_event: boolean;
+  weight_class: { code: string; name: string } | null;
+  result: {
+    method: string;
+    method_name: string;
+    detail: string | null;
+    round: number | null;
+    time: string | null;
+    scorecards: string[];
+  } | null;
+}
+
+/** Card de MMA (`/v1/events/{id}/card`): a noite de lutas. */
+export interface GsFightCard {
+  card: { id: string; name: string; starts_at: string; ends_at: string };
+  fights: GsEvent[];
+}
+
+/** Carreira na F1 (`/v1/teams/{id}/career`), só o que o perfil usa. */
+export interface GsRaceCareer {
+  participant_id: string;
+  kind: 'driver' | 'constructor';
+  profile: {
+    first_name: string;
+    last_name: string;
+    number: number | null;
+    birth_date: string | null;
+    birth_country: { code: string; name: string; flag: string | null } | null;
+  } | null;
+  current_season: number | null;
+  totals: {
+    seasons: number;
+    races: number;
+    wins: number;
+    poles: number;
+    podiums: number;
+    fastest_laps: number;
+    points: number | null;
+  };
+  titles: number[];
+  best_finish: number | null;
+  teams: { id: string; name: string; logo: string | null; from: number; to: number }[];
+  seasons: {
+    year: number;
+    position: number | null;
+    final: boolean;
+    points: number | null;
+    races: number;
+    wins: number;
+    podiums: number;
+    poles: number;
+  }[];
+  portrait: { url: string | null } | null;
+}
+
+/** Competição (`/v1/competitions/{id}`), só o que os widgets usam. */
+export interface GsCompetition {
+  id: string;
+  slug: string;
+  sport: string;
+  name: string;
+  logo: string | null;
+  seasons?:
+    | { year: number; label: string; start_date: string | null; end_date: string | null; current: boolean }[]
+    | undefined;
+}
+
+/** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
+export interface GsTeam {
+  id: string;
+  sport: string;
+  kind: string;
+  name: string;
+  short_name: string | null;
+  logo: string | null;
+  country_ref?: { code: string; name: string; flag: string | null } | null | undefined;
 }
 
 /** Rótulo no locale da resposta (`{ "pt-BR": "…" }`). */
@@ -274,6 +387,10 @@ export interface GsEvent {
   referee?: { name: string; country?: string | null | undefined } | null | undefined;
   derby?: { slug: string; name: string; intensity: number } | null | undefined;
   stakes?: GsStake[] | undefined;
+  /** F1: a sessão do fim de semana. */
+  session?: GsSession | null | undefined;
+  /** MMA: card, categoria e desfecho da luta. */
+  fight?: GsFight | null | undefined;
 }
 
 /** Lance do minuto a minuto (`/v1/events/{id}/timeline`), só o que os widgets usam. */
@@ -403,6 +520,10 @@ export interface GsStandingRow {
   /** Hóquei: das vitórias/derrotas, as na prorrogação ou nos pênaltis. */
   ot_won?: number | null | undefined;
   ot_lost?: number | null | undefined;
+  /** Corridas (F1): retrato do piloto, equipe da temporada e pódios. */
+  photo?: { url: string | null } | null | undefined;
+  season_team?: { id: string | null; name: string; livery: { primary: string } | null } | null | undefined;
+  podiums?: number | null | undefined;
   form: string | null;
   description: string | null;
 }
@@ -857,11 +978,16 @@ export const WIDGET_CSS = `
 .gs-crest{flex:none;width:var(--gs-crest);height:var(--gs-crest);object-fit:contain}
 .gs-crest[data-size=sm]{width:20px;height:20px}
 .gs-crest[data-size=xs]{width:16px;height:16px}
+.gs-crest[data-size=lg]{width:56px;height:56px;border-radius:calc(var(--gs-radius)/1.5)}
+.gs-profile{display:flex;align-items:center;gap:var(--gs-gap)}
+.gs-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:var(--gs-gap)}
+.gs-list>[data-next],.gs-list>[data-live]{box-shadow:inset 3px 0 0 var(--gs-primary)}
 .gs-initials{display:inline-grid;place-items:center;border-radius:calc(var(--gs-radius)/2);background:color-mix(in srgb,var(--gs-foreground) 9%,transparent);color:var(--gs-muted-foreground);font-weight:700;font-size:.8em;letter-spacing:.02em}
 .gs-initials[data-size=sm],.gs-initials[data-size=xs]{font-size:8px}
 .gs-match{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap)}
 .gs-team{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center;font-weight:600}
 .gs-team[data-lost]{color:var(--gs-muted-foreground)}
+.gs-team[data-won]{font-weight:800}
 .gs-score{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:1.9em;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
 .gs-score[data-live]{color:var(--gs-primary)}
 .gs-score small{font-size:.38em;font-weight:600;color:var(--gs-muted-foreground)}
@@ -981,6 +1107,10 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-meeting{display:flex;flex:1;align-items:center;justify-content:center;gap:6px;min-width:0}
 .gs-meeting strong{flex:none;font-variant-numeric:tabular-nums}
 .gs-meeting [data-lost]{color:var(--gs-muted-foreground)}
+.gs-meeting [data-won]{font-weight:800}
+.gs-bout{display:flex;flex-direction:column;gap:2px;padding:calc(var(--gs-gap)*.5) 0;border-bottom:1px solid var(--gs-border)}
+.gs-bout:last-child{border-bottom:0}
+.gs-bout>.gs-meta{text-align:center}
 .gs-fixture-date{flex:none;width:6.5em;font-size:.8em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
 .gs-result{display:inline-grid;place-items:center;flex:none;min-width:22px;height:22px;padding:0 4px;border-radius:6px;font-size:.75em;font-weight:800;color:#fff;background:var(--gs-muted-foreground)}
 .gs-result[data-r=W]{background:#16a34a}.gs-result[data-r=L]{background:var(--gs-live)}
@@ -1149,6 +1279,61 @@ export interface WidgetTexts {
     rhe: { r: string; h: string; e: string };
     /** Beisebol: jogos atrás do líder (GB). */
     gamesBehind: string;
+  };
+  /** Corridas (F1): resultado, fim de semana, classificação, calendário e perfil do piloto. */
+  racing: {
+    result: string;
+    weekend: string;
+    calendar: string;
+    position: string;
+    driver: string;
+    team: string;
+    time: string;
+    grid: string;
+    laps: string;
+    pits: string;
+    fastestLap: string;
+    points: string;
+    wins: string;
+    podiums: string;
+    poles: string;
+    races: string;
+    titles: string;
+    drivers: string;
+    constructors: string;
+    empty: string;
+    emptyCalendar: string;
+    /** "Venceu: {name}". */
+    winner: string;
+    /** "{n}º no campeonato". */
+    championship: string;
+    /** "Temporada {year}". */
+    season: string;
+    career: string;
+    bestFinish: string;
+    next: string;
+  };
+  /** MMA: card do evento, resultado da luta, calendário e perfil do lutador. */
+  fights: {
+    card: string;
+    mainEvent: string;
+    segments: Record<'main_card' | 'prelims' | 'early_prelims', string>;
+    /** "R{round} · {time}". */
+    roundTime: string;
+    /** "Cartões: {cards}". */
+    scorecards: string;
+    record: string;
+    lastFights: string;
+    upcoming: string;
+    empty: string;
+    emptyCalendar: string;
+    /** "{w}-{l}-{d}" vitórias, derrotas, empates. */
+    recordValue: string;
+    win: string;
+    loss: string;
+    draw: string;
+    /** "vs. {name}". */
+    versus: string;
   };
 }
 
@@ -1342,6 +1527,56 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       rhe: { r: 'C', h: 'H', e: 'E' },
       gamesBehind: 'JA',
     },
+    racing: {
+      result: 'Resultado',
+      weekend: 'Fim de semana do GP',
+      calendar: 'Calendário',
+      position: 'Pos.',
+      driver: 'Piloto',
+      team: 'Equipe',
+      time: 'Tempo',
+      grid: 'Larg.',
+      laps: 'Voltas',
+      pits: 'Paradas',
+      fastestLap: 'Volta mais rápida',
+      points: 'Pts',
+      wins: 'Vitórias',
+      podiums: 'Pódios',
+      poles: 'Poles',
+      races: 'Corridas',
+      titles: 'Títulos',
+      drivers: 'Pilotos',
+      constructors: 'Construtores',
+      empty: 'O resultado sai quando a sessão terminar.',
+      emptyCalendar: 'Sem provas nesta temporada.',
+      winner: 'Venceu: {name}',
+      championship: '{n}º no campeonato',
+      season: 'Temporada {year}',
+      career: 'Carreira',
+      bestFinish: 'Melhor resultado',
+      next: 'Próxima',
+    },
+    fights: {
+      card: 'Card do evento',
+      mainEvent: 'Luta principal',
+      segments: {
+        main_card: 'Card principal',
+        prelims: 'Preliminares',
+        early_prelims: 'Preliminares iniciais',
+      },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Juízes: {cards}',
+      record: 'Cartel',
+      lastFights: 'Últimas lutas',
+      upcoming: 'Próximos eventos',
+      empty: 'O card ainda não foi divulgado.',
+      emptyCalendar: 'Sem eventos marcados.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'V',
+      loss: 'D',
+      draw: 'E',
+      versus: 'vs. {name}',
+    },
   },
   es: {
     status: {
@@ -1532,6 +1767,56 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       rhe: { r: 'C', h: 'H', e: 'E' },
       gamesBehind: 'JD',
     },
+    racing: {
+      result: 'Resultado',
+      weekend: 'Fin de semana del GP',
+      calendar: 'Calendario',
+      position: 'Pos.',
+      driver: 'Piloto',
+      team: 'Equipo',
+      time: 'Tiempo',
+      grid: 'Sal.',
+      laps: 'Vueltas',
+      pits: 'Paradas',
+      fastestLap: 'Vuelta rápida',
+      points: 'Pts',
+      wins: 'Victorias',
+      podiums: 'Podios',
+      poles: 'Poles',
+      races: 'Carreras',
+      titles: 'Títulos',
+      drivers: 'Pilotos',
+      constructors: 'Constructores',
+      empty: 'El resultado sale cuando termine la sesión.',
+      emptyCalendar: 'Sin carreras en esta temporada.',
+      winner: 'Ganó: {name}',
+      championship: '{n}º en el campeonato',
+      season: 'Temporada {year}',
+      career: 'Carrera',
+      bestFinish: 'Mejor resultado',
+      next: 'Próxima',
+    },
+    fights: {
+      card: 'Cartelera',
+      mainEvent: 'Pelea estelar',
+      segments: {
+        main_card: 'Cartelera principal',
+        prelims: 'Preliminares',
+        early_prelims: 'Preliminares iniciales',
+      },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Jueces: {cards}',
+      record: 'Récord',
+      lastFights: 'Últimas peleas',
+      upcoming: 'Próximos eventos',
+      empty: 'La cartelera aún no fue anunciada.',
+      emptyCalendar: 'Sin eventos programados.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'G',
+      loss: 'P',
+      draw: 'E',
+      versus: 'vs. {name}',
+    },
   },
   en: {
     status: {
@@ -1712,6 +1997,52 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       ratio: '%',
       rhe: { r: 'R', h: 'H', e: 'E' },
       gamesBehind: 'GB',
+    },
+    racing: {
+      result: 'Result',
+      weekend: 'Grand Prix weekend',
+      calendar: 'Calendar',
+      position: 'Pos',
+      driver: 'Driver',
+      team: 'Team',
+      time: 'Time',
+      grid: 'Grid',
+      laps: 'Laps',
+      pits: 'Stops',
+      fastestLap: 'Fastest lap',
+      points: 'Pts',
+      wins: 'Wins',
+      podiums: 'Podiums',
+      poles: 'Poles',
+      races: 'Races',
+      titles: 'Titles',
+      drivers: 'Drivers',
+      constructors: 'Constructors',
+      empty: 'Results appear when the session ends.',
+      emptyCalendar: 'No races this season.',
+      winner: 'Won by {name}',
+      championship: 'P{n} in the championship',
+      season: '{year} season',
+      career: 'Career',
+      bestFinish: 'Best finish',
+      next: 'Next',
+    },
+    fights: {
+      card: 'Fight card',
+      mainEvent: 'Main event',
+      segments: { main_card: 'Main card', prelims: 'Prelims', early_prelims: 'Early prelims' },
+      roundTime: 'R{round} · {time}',
+      scorecards: 'Judges: {cards}',
+      record: 'Record',
+      lastFights: 'Recent fights',
+      upcoming: 'Upcoming events',
+      empty: 'The card has not been announced yet.',
+      emptyCalendar: 'No events scheduled.',
+      recordValue: '{w}-{l}-{d}',
+      win: 'W',
+      loss: 'L',
+      draw: 'D',
+      versus: 'vs. {name}',
     },
   },
 };

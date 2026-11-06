@@ -1,16 +1,21 @@
 'use client';
 
 import {
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   Clapperboard,
   Flag,
+  ListOrdered,
   Plus,
   Radio,
   Sparkles,
   Swords,
   Table2,
+  Timer,
+  Trophy,
   Tv,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -58,6 +63,11 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   related_videos: Clapperboard,
   head_to_head: Swords,
   team_schedule: CalendarRange,
+  race_result: Trophy,
+  race_weekend: Timer,
+  season_calendar: CalendarClock,
+  athlete_profile: UserRound,
+  fight_card: ListOrdered,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

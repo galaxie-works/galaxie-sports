@@ -33,6 +33,11 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'race_result',
+  'race_weekend',
+  'season_calendar',
+  'athlete_profile',
+  'fight_card',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -65,6 +70,11 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   related_videos: ['event'],
   head_to_head: ['event'],
   team_schedule: ['team'],
+  race_result: ['event'],
+  race_weekend: ['event'],
+  season_calendar: ['competition'],
+  athlete_profile: ['team'],
+  fight_card: ['event'],
 };
 
 /**
@@ -82,6 +92,11 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   related_videos: 'event',
   head_to_head: 'event',
   team_schedule: 'team',
+  race_result: 'event',
+  race_weekend: 'event',
+  season_calendar: 'competition',
+  athlete_profile: 'team',
+  fight_card: 'event',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -379,6 +394,11 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   related_videos: 'GalaxieRelatedVideos',
   head_to_head: 'GalaxieHeadToHead',
   team_schedule: 'GalaxieTeamSchedule',
+  race_result: 'GalaxieRaceResult',
+  race_weekend: 'GalaxieRaceWeekend',
+  season_calendar: 'GalaxieSeasonCalendar',
+  athlete_profile: 'GalaxieAthleteProfile',
+  fight_card: 'GalaxieFightCard',
 };
 
 /**

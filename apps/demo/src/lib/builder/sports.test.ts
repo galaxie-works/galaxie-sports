@@ -1,3 +1,4 @@
+import { WIDGET_CATALOG } from '@galaxie/widgets';
 import { describe, expect, it } from 'vitest';
 
 import { OFFERED_WIDGET_KINDS } from './config';
@@ -16,13 +17,31 @@ describe('abas de esporte do catálogo', () => {
   it('Futebol primeiro, com todos os tipos; nos outros esportes, só os tipos já prontos para eles', () => {
     const tabs = catalogTabs(OFFERED_WIDGET_KINDS, []);
     expect(tabs[0]?.family.id).toBe('futebol');
-    expect(tabs[0]?.kinds).toEqual(OFFERED_WIDGET_KINDS);
+    expect(tabs[0]?.kinds).toEqual(
+      OFFERED_WIDGET_KINDS.filter(
+        (k) => WIDGET_CATALOG[k].sports.length === 0 || WIDGET_CATALOG[k].sports.includes('football'),
+      ),
+    );
     const basquete = tabs.find((t) => t.family.id === 'basquete');
     // IA, "o que está em jogo" e vídeos ainda são só do futebol
-    expect(basquete?.kinds).toEqual(
-      OFFERED_WIDGET_KINDS.filter((k) => !['ai_context', 'match_stakes', 'related_videos'].includes(k)),
-    );
-    expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual(['live_list']);
+    expect(basquete?.kinds).toEqual([
+      'match_card',
+      'live_list',
+      'standings',
+      'where_to_watch',
+      'head_to_head',
+      'team_schedule',
+    ]);
+    expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([
+      'live_list',
+      'standings',
+      'where_to_watch',
+      'race_result',
+      'race_weekend',
+      'season_calendar',
+      'athlete_profile',
+    ]);
+    expect(tabs.find((t) => t.family.id === 'lutas')?.kinds).toContain('fight_card');
   });
 
   it('só as famílias com esporte do plano', () => {
@@ -33,6 +52,7 @@ describe('abas de esporte do catálogo', () => {
   it('aba sem tipo de widget pronto não aparece', () => {
     expect(catalogTabs(['ai_context'], [])).toHaveLength(1);
     expect(catalogTabs(['match_card'], []).map((t) => t.family.id)).not.toContain('automobilismo');
+    expect(catalogTabs(['fight_card'], []).map((t) => t.family.id)).toEqual(['lutas']);
   });
 
   it('aba da URL, ou a primeira quando não existe', () => {
@@ -57,7 +77,8 @@ describe('esporte do widget', () => {
     expect(sportOnKindChange('standings', 'nba')).toBe('nba');
     expect(sportOnKindChange('live_list', null)).toBeNull();
     expect(sportOnKindChange('standings', null)).toBe('football');
-    expect(sportOnKindChange('standings', 'formula-1')).toBe('football');
+    expect(sportOnKindChange('standings', 'mma')).toBe('football');
+    expect(sportOnKindChange('athlete_profile', 'formula-1')).toBe('formula-1');
     expect(sportOnKindChange('ai_context', 'nba')).toBeNull();
     expect(defaultSport('live_list')).toBeNull();
   });
@@ -92,6 +113,7 @@ describe('esporte do widget', () => {
   it('seletor do tipo: só os esportes que ele aceita', () => {
     const sports = sportChoices([], 'standings').map((c) => c.sport);
     expect(sports).toContain('afl');
-    expect(sports).not.toContain('formula-1');
+    expect(sports).toContain('formula-1');
+    expect(sports).not.toContain('mma');
   });
 });

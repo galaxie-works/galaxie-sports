@@ -10,6 +10,12 @@ import {
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
+  AthleteProfile,
+  FightCard,
+  PREVIEW_IDS,
+  RaceResult,
+  RaceWeekend,
+  SeasonCalendar,
   WIDGET_CATALOG,
   WhereToWatch,
   createPreviewFetch,
@@ -162,11 +168,25 @@ function PreviewWidget({
   if (!entity) {
     switch (kind) {
       case 'match_card':
-        return <MatchCard {...o} {...WIDGET_CATALOG.match_card.exampleProps} />;
+        return (
+          <MatchCard
+            {...o}
+            eventId={
+              sport === 'mma' ? PREVIEW_IDS.fightEvent : WIDGET_CATALOG.match_card.exampleProps.eventId
+            }
+          />
+        );
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
-        return <StandingsTable {...WIDGET_CATALOG.standings.exampleProps} {...o} {...zones} />;
+        return (
+          <StandingsTable
+            {...WIDGET_CATALOG.standings.exampleProps}
+            {...(sport === 'formula-1' ? { competitionId: PREVIEW_IDS.raceCompetition } : {})}
+            {...o}
+            {...zones}
+          />
+        );
       case 'live_list':
         return <LiveList {...liveList} sport={sport ?? undefined} />;
       case 'ai_context':
@@ -179,6 +199,21 @@ function PreviewWidget({
         return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
         return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+      case 'race_result':
+        return <RaceResult {...o} {...WIDGET_CATALOG.race_result.exampleProps} />;
+      case 'race_weekend':
+        return <RaceWeekend {...o} {...WIDGET_CATALOG.race_weekend.exampleProps} />;
+      case 'season_calendar':
+        return (
+          <SeasonCalendar
+            {...o}
+            competitionId={sport === 'mma' ? PREVIEW_IDS.fightCompetition : PREVIEW_IDS.raceCompetition}
+          />
+        );
+      case 'athlete_profile':
+        return <AthleteProfile {...o} teamId={sport === 'mma' ? PREVIEW_IDS.fighter : PREVIEW_IDS.driver} />;
+      case 'fight_card':
+        return <FightCard {...o} {...WIDGET_CATALOG.fight_card.exampleProps} />;
     }
   }
   switch (kind) {
@@ -204,6 +239,16 @@ function PreviewWidget({
       return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={entity.id} />;
+    case 'race_result':
+      return <RaceResult {...o} eventId={entity.id} />;
+    case 'race_weekend':
+      return <RaceWeekend {...o} eventId={entity.id} />;
+    case 'season_calendar':
+      return <SeasonCalendar {...o} competitionId={entity.id} />;
+    case 'athlete_profile':
+      return <AthleteProfile {...o} teamId={entity.id} />;
+    case 'fight_card':
+      return <FightCard {...o} eventId={entity.id} />;
   }
 }
 

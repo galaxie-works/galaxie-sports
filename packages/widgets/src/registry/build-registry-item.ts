@@ -131,9 +131,15 @@ function defaultProps(
     case 'match_stakes':
     case 'related_videos':
     case 'head_to_head':
+    case 'race_result':
+    case 'race_weekend':
+    case 'fight_card':
       return pick(['eventId']);
     case 'team_schedule':
+    case 'athlete_profile':
       return pick(['teamId']);
+    case 'season_calendar':
+      return pick(['competitionId']);
   }
 }
 

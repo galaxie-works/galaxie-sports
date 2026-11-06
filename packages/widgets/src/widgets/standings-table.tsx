@@ -60,6 +60,8 @@ export interface StandingsTableProps {
   highlightTeamId?: string | undefined;
   /** Líder e próximos jogos decisivos embaixo da tabela (padrão: não). */
   showDecisive?: boolean | undefined;
+  /** F1: campeonato de pilotos, de construtores ou os dois (padrão). */
+  raceTable?: 'drivers' | 'constructors' | 'all' | undefined;
 }
 
 /** Colunas ligadas (as opcionais e as que dependem do esporte). */
@@ -100,6 +102,7 @@ export function StandingsTable({
   showPercentage,
   highlightTeamId,
   showDecisive = false,
+  raceTable = 'all',
 }: StandingsTableProps) {
   const { texts } = useGalaxieWidget();
   const query = useGalaxieQuery<GsStandings>(
@@ -125,6 +128,18 @@ export function StandingsTable({
           <ErrorState error={query.error} onRetry={query.retry} />
         )}
       </WidgetFrame>
+    );
+  }
+
+  if (query.data.sport === 'formula-1') {
+    return (
+      <RaceStandings
+        data={query.data}
+        table={raceTable}
+        limit={limit}
+        highlightTeamId={highlightTeamId}
+        texts={texts}
+      />
     );
   }
 
@@ -313,5 +328,101 @@ function Row({
         </td>
       ) : null}
     </tr>
+  );
+}
+
+/**
+ * F1: campeonato de pilotos (com o retrato e a equipe da temporada, na cor da pintura) e de construtores:
+ * posição, pontos, vitórias e pódios.
+ */
+function RaceStandings({
+  data,
+  table,
+  limit,
+  highlightTeamId,
+  texts,
+}: {
+  data: GsStandings;
+  table: 'drivers' | 'constructors' | 'all';
+  limit: number | undefined;
+  highlightTeamId: string | undefined;
+  texts: WidgetTexts;
+}) {
+  const t = texts.racing;
+  const groups = data.groups.filter((g) => g.rows.length && (table === 'all' || g.name === table));
+  const title = (name: string | null) =>
+    name === 'drivers' ? t.drivers : name === 'constructors' ? t.constructors : (name ?? texts.standings);
+  return (
+    <WidgetFrame kind="standings">
+      <header className="gs-header">
+        <h3 className="gs-title">{texts.standings}</h3>
+        <span className="gs-spacer" />
+        <span>{data.season.label}</span>
+      </header>
+      {groups.length === 0 ? (
+        <EmptyState>{texts.emptyStandings}</EmptyState>
+      ) : (
+        groups.map((g, i) => {
+          const podiums = g.rows.some((r) => r.podiums != null);
+          return (
+            <div key={g.name ?? i} className="gs-group">
+              <div className="gs-group-title">{title(g.name)}</div>
+              <div className="gs-scroll">
+                <table className="gs-table" data-gs-race-standings={g.name ?? ''}>
+                  <thead>
+                    <tr>
+                      <th className="gs-left" scope="col">
+                        #
+                      </th>
+                      <th className="gs-left" scope="col">
+                        {g.name === 'constructors' ? t.team : t.driver}
+                      </th>
+                      <th scope="col">{t.points}</th>
+                      <th scope="col">{t.wins}</th>
+                      {podiums ? <th scope="col">{t.podiums}</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(limit ? g.rows.slice(0, limit) : g.rows).map((row) => {
+                      const color = row.season_team?.livery?.primary;
+                      return (
+                        <tr
+                          key={row.participant.id}
+                          className={highlightTeamId === row.participant.id ? 'gs-highlight' : undefined}
+                        >
+                          <td
+                            className="gs-left gs-rank"
+                            data-zone={color ? '' : undefined}
+                            style={color ? zoneStyle(color) : undefined}
+                          >
+                            {row.rank}
+                          </td>
+                          <td className="gs-left">
+                            <div className="gs-line">
+                              <Crest
+                                src={row.photo?.url ?? row.participant.logo}
+                                name={row.participant.name}
+                                size="sm"
+                              />
+                              <span className="gs-truncate">{row.participant.name}</span>
+                              {g.name !== 'constructors' && row.season_team ? (
+                                <span className="gs-truncate gs-muted gs-small">{row.season_team.name}</span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="gs-strong">{row.points}</td>
+                          <td>{row.won}</td>
+                          {podiums ? <td>{row.podiums ?? '–'}</td> : null}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </WidgetFrame>
   );
 }

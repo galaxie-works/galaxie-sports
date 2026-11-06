@@ -145,13 +145,17 @@ export function MatchCard({
   const afl = event.sport === 'afl' && score.goals_behinds ? score.goals_behinds : undefined;
   // beisebol: rebatidas e erros ao lado das corridas (R/H/E)
   const rhe = event.sport === 'baseball' && score.hits_errors ? score.hits_errors : undefined;
+  // MMA: sem placar; o desfecho (método, round e tempo) fica no meio, e a categoria no topo
+  const fightResult = event.fight?.result && event.status === 'finished' ? event.fight.result : null;
   const competition = event.competition;
   const title = [
-    showCompetition ? competition?.name : null,
+    // MMA: o card ("UFC 300: …") já diz a organização
+    showCompetition ? (event.fight?.card?.name ?? competition?.name) : null,
+    event.fight?.weight_class?.name ?? null,
     showCountry && competition?.country && competition.country.code !== 'WORLD'
       ? competition.country.name
       : null,
-    showRound ? event.stage?.name : null,
+    showRound && !event.fight ? event.stage?.name : null,
   ].filter(Boolean);
   const place = [showVenue ? event.venue?.name : null, showCity ? event.venue?.city : null].filter(Boolean);
   const localTime = venueTime
@@ -182,7 +186,11 @@ export function MatchCard({
         <StatusBadge event={event} />
       </header>
       <div className="gs-match">
-        <div className="gs-team" data-lost={home?.winner === false || undefined}>
+        <div
+          className="gs-team"
+          data-lost={home?.winner === false || undefined}
+          data-won={(event.fight && home?.winner === true) || undefined}
+        >
           <Crest src={home?.logo} name={home?.name ?? '?'} />
           <span>{home?.short_name ?? home?.name}</span>
           {formations[0] ? <span className="gs-meta">{formations[0]}</span> : null}
@@ -209,6 +217,23 @@ export function MatchCard({
               <small>{fillText(texts.extra.aggregate, { home: agg.home ?? 0, away: agg.away ?? 0 })}</small>
             ) : null}
           </div>
+        ) : fightResult ? (
+          <span className="gs-versus" data-gs-fight="">
+            <strong>{fightResult.method_name}</strong>
+            <small className="gs-meta">
+              {[
+                fightResult.detail,
+                fightResult.round
+                  ? fillText(texts.fights.roundTime, {
+                      round: fightResult.round,
+                      time: fightResult.time ?? '',
+                    }).replace(/ · $/, '')
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </small>
+          </span>
         ) : (
           <span className="gs-versus">
             {texts.versus}
@@ -219,7 +244,11 @@ export function MatchCard({
             ) : null}
           </span>
         )}
-        <div className="gs-team" data-lost={away?.winner === false || undefined}>
+        <div
+          className="gs-team"
+          data-lost={away?.winner === false || undefined}
+          data-won={(event.fight && away?.winner === true) || undefined}
+        >
           <Crest src={away?.logo} name={away?.name ?? '?'} />
           <span>{away?.short_name ?? away?.name}</span>
           {formations[1] ? <span className="gs-meta">{formations[1]}</span> : null}

@@ -75,6 +75,11 @@ export { MatchStakes, type MatchStakesProps } from './widgets/match-stakes.js';
 export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos.js';
 export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
 export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
+export { RaceResult, type RaceResultProps } from './widgets/race-result.js';
+export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
+export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
+export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
+export { FightCard, type FightCardProps } from './widgets/fight-card.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {
