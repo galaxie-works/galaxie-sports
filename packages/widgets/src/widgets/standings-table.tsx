@@ -1,6 +1,9 @@
 'use client';
 
-import type { GsStandingRow, GsStandings } from '../core/model.js';
+import type { CSSProperties } from 'react';
+
+import type { GsStandingRow, GsStandings, StandingsZoneColors, WidgetTexts } from '../core/model.js';
+import { standingsZoneColor, standingsZoneLabel, standingsZoneTone } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -18,13 +21,29 @@ export interface StandingsTableProps {
   season?: number | 'current' | undefined;
   /** Mostra só as primeiras N linhas de cada grupo. */
   limit?: number | undefined;
+  /** Legenda das zonas (Libertadores, rebaixamento…) embaixo da tabela. Padrão: true. */
+  showLegend?: boolean | undefined;
+  /** Cor de cada faixa (`#rrggbb`); o que faltar usa a padrão (vaga direta = cor primária do tema). */
+  zoneColors?: StandingsZoneColors | undefined;
 }
 
 /** A tabela muda pouco: atualiza a cada 10 minutos. */
 const STANDINGS_REFRESH_MS = 10 * 60_000;
 
-/** Classificação da competição (um bloco por grupo), com a zona de classificação marcada na cor primária. */
-export function StandingsTable({ competitionId, season, limit }: StandingsTableProps) {
+/** Cor da faixa na variável `--gs-zone` (a borda do # e o ponto da legenda leem dela). */
+const zoneStyle = (color: string) => ({ '--gs-zone': color }) as CSSProperties;
+
+/**
+ * Classificação da competição (um bloco por grupo), com cada zona numa cor (vaga direta, fase prévia,
+ * segunda e terceira copa, playoff e rebaixamento) e a legenda embaixo.
+ */
+export function StandingsTable({
+  competitionId,
+  season,
+  limit,
+  showLegend = true,
+  zoneColors,
+}: StandingsTableProps) {
   const { texts } = useGalaxieWidget();
   const query = useGalaxieQuery<GsStandings>(
     competitionId
@@ -49,6 +68,19 @@ export function StandingsTable({ competitionId, season, limit }: StandingsTableP
 
   const groups = query.data.groups.filter((g) => g.rows.length > 0);
   const c = texts.columns;
+  const shown = (rows: GsStandingRow[]) => (limit ? rows.slice(0, limit) : rows);
+  // legenda: uma entrada por zona (pelo nome exibido), na ordem em que aparece na tabela
+  const legend = new Map<string, string>();
+  if (showLegend) {
+    for (const group of groups) {
+      for (const row of shown(group.rows)) {
+        if (!row.description?.trim()) continue;
+        const label = standingsZoneLabel(row.description, texts.zones);
+        if (legend.has(label)) continue;
+        legend.set(label, standingsZoneColor(standingsZoneTone(row.description), zoneColors));
+      }
+    }
+  }
   return (
     <WidgetFrame kind="standings">
       <header className="gs-header">
@@ -83,8 +115,8 @@ export function StandingsTable({ competitionId, season, limit }: StandingsTableP
                   </tr>
                 </thead>
                 <tbody>
-                  {(limit ? group.rows.slice(0, limit) : group.rows).map((row) => (
-                    <Row key={row.participant.id} row={row} />
+                  {shown(group.rows).map((row) => (
+                    <Row key={row.participant.id} row={row} texts={texts} zoneColors={zoneColors} />
                   ))}
                 </tbody>
               </table>
@@ -92,6 +124,16 @@ export function StandingsTable({ competitionId, season, limit }: StandingsTableP
           </div>
         ))
       )}
+      {legend.size > 0 ? (
+        <ul className="gs-legend">
+          {[...legend].map(([label, color]) => (
+            <li key={label}>
+              <span className="gs-legend-dot" style={zoneStyle(color)} />
+              {label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </WidgetFrame>
   );
 }
@@ -104,13 +146,23 @@ function groupTitle(group: GsStandings['groups'][number], count: number): string
   return group.display_name ?? (count > 1 ? group.name : null);
 }
 
-function Row({ row }: { row: GsStandingRow }) {
+function Row({
+  row,
+  texts,
+  zoneColors,
+}: {
+  row: GsStandingRow;
+  texts: WidgetTexts;
+  zoneColors: StandingsZoneColors | undefined;
+}) {
+  const zone = row.description?.trim() ? row.description : null;
   return (
     <tr>
       <td
         className="gs-left gs-rank"
-        data-zone={row.description ? '' : undefined}
-        title={row.description ?? undefined}
+        data-zone={zone ? '' : undefined}
+        style={zone ? zoneStyle(standingsZoneColor(standingsZoneTone(zone), zoneColors)) : undefined}
+        title={zone ? standingsZoneLabel(zone, texts.zones) : undefined}
       >
         {row.rank}
       </td>

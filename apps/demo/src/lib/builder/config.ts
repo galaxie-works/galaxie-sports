@@ -7,7 +7,7 @@
  * módulo vai para o navegador e para rotas do servidor.
  */
 import type { WidgetLocale as PackageLocale } from '@galaxie/widgets';
-import { REGISTRY_CORE_NAME, toRegistryName } from '@galaxie/widgets/registry';
+import { REGISTRY_CORE_NAME, parseStandingsOptions, toRegistryName } from '@galaxie/widgets/registry';
 
 import type { Locale } from '@/lib/i18n/config';
 import { SITE_URL } from '@/lib/site';
@@ -210,9 +210,23 @@ export function parseWidgetInput(
   } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
   return {
     ok: true,
-    value: { kind: r.kind, name, config: { theme, locale: c.locale, market, defaults } },
+    value: {
+      kind: r.kind,
+      name,
+      config: {
+        theme,
+        locale: c.locale,
+        market,
+        defaults,
+        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`)
+        ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
+      },
+    },
   };
 }
+
+const optional = <K extends string, V>(key: K, value: V | undefined) =>
+  (value === undefined ? {} : { [key]: value }) as Partial<Record<K, V>>;
 
 /**
  * Domínios de uma chave publicável, um por linha (ou separados por vírgula/espaço). Sem esquema vira

@@ -45,6 +45,30 @@ export interface WidgetDefaults {
   sport?: string | undefined;
 }
 
+/**
+ * Faixas da tabela, uma cor por degrau: vaga direta (Libertadores, Champions, acesso), vaga pela fase
+ * prévia, segunda copa continental (Sul-Americana, Europa League), terceira (Conference League), playoff
+ * contra a queda e queda. As mesmas da tabela da demo.
+ */
+export const STANDINGS_ZONE_TONES = [
+  'direct',
+  'qualifying',
+  'second',
+  'third',
+  'relegationPlayoff',
+  'relegation',
+] as const;
+export type StandingsZoneTone = (typeof STANDINGS_ZONE_TONES)[number];
+/** Cor de cada faixa (`#rrggbb`); o que faltar usa `DEFAULT_ZONE_COLORS`. */
+export type StandingsZoneColors = Partial<Record<StandingsZoneTone, string>>;
+
+/** Opções da tabela salvas no Builder. */
+export interface StandingsOptions {
+  /** Legenda das zonas embaixo da tabela (padrão: sim). */
+  showLegend?: boolean | undefined;
+  zoneColors?: StandingsZoneColors | undefined;
+}
+
 /** Configuração salva do widget (mesmo formato do banco: locale e market obrigatórios). */
 export interface WidgetConfig {
   theme: WidgetTheme;
@@ -52,6 +76,8 @@ export interface WidgetConfig {
   /** País ISO2 (onde assistir, relevância e variante do espanhol). */
   market: string;
   defaults: WidgetDefaults;
+  /** Só na tabela de classificação. */
+  standings?: StandingsOptions | undefined;
 }
 
 // ─── respostas da API pública (o recorte que os widgets leem; ver @galaxie/contracts) ─────────────
@@ -204,6 +230,146 @@ export interface GsStandings {
     rows: GsStandingRow[];
   }[];
   updated_at: string | null;
+}
+
+/** Cor padrão de cada faixa; `null` = a cor primária do tema. */
+export const DEFAULT_ZONE_COLORS: Record<StandingsZoneTone, string | null> = {
+  direct: null,
+  qualifying: '#38bdf8',
+  second: '#f97316',
+  third: '#22c55e',
+  relegationPlayoff: '#eab308',
+  relegation: '#ef4444',
+};
+
+/** Código da zona nas regras (`config/rules/*.yaml`, `zones[].id`) → faixa. */
+const ZONE_TONE_BY_CODE: Record<string, StandingsZoneTone> = {
+  libertadores: 'direct',
+  libertadores_group_stage: 'direct',
+  champions_league: 'direct',
+  round_of_16: 'direct',
+  promotion: 'direct',
+  playoffs: 'direct',
+  liguilla: 'direct',
+  quadrangulars: 'direct',
+  libertadores_qualifying: 'qualifying',
+  champions_league_qualifying: 'qualifying',
+  knockout_playoff: 'qualifying',
+  playoff: 'qualifying',
+  play_in: 'qualifying',
+  sudamericana: 'second',
+  sudamericana_knockout_playoff: 'second',
+  europa_league: 'second',
+  europa_league_knockout_playoff: 'second',
+  conference_league: 'third',
+  relegation_playoff: 'relegationPlayoff',
+  relegation: 'relegation',
+  elimination: 'relegation',
+};
+
+/** Copa continental principal de cada confederação (e o Mundial de Clubes). */
+const FIRST_CUP =
+  /libertadores|\bchampions\b|club world cup|mundial de clubes|concacaf champions|afc champions league elite|ofc champions/;
+/** Segunda copa: Sul-Americana, Europa League, Copa da Confederação da CAF, AFC Champions League Two… */
+const SECOND_CUP =
+  /sudamericana|sul-americana|europa league|uefa cup|confederation cup|afc cup|champions league two|leagues cup|concacaf league/;
+/** Fase prévia / preliminar de uma copa (não a fase principal). */
+const QUALIFYING =
+  /qualif|prelim|clasificatoria|pre-?libertadores|pré-?libertadores|knockout round play|knockout play-?off|repechaje|repescagem|play[\s-]?in/;
+
+/**
+ * Faixa de uma zona, para qualquer campeonato. A tabela calculada traz o id da regra
+ * (`libertadores_group_stage`); a do fornecedor traz texto livre, em geral no formato da api-sports:
+ * "Promotion - Champions League (League phase: )", "Promotion - Copa Sudamericana (Group Stage: )",
+ * "Promotion - Championship (Play Offs: )", "Relegation - 2. Bundesliga", "Bundesliga (Relegation: )",
+ * "Liguilla", "Championship Round"… Ordem: queda, terceira e segunda copa, copa principal, acesso e
+ * mata-mata da própria competição. Nada reconhecido → null (cor neutra).
+ */
+export function standingsZoneTone(description: string): StandingsZoneTone | null {
+  const d = description.trim().toLowerCase();
+  if (!d) return null;
+  if (Object.hasOwn(ZONE_TONE_BY_CODE, d)) return ZONE_TONE_BY_CODE[d]!;
+  if (/relegat|rebaix|descenso|descend|abstieg|retroced|eliminat|eliminad/.test(d)) {
+    // "Relegation - Championship", "Descenso": cai; "Relegation Round", "Bundesliga (Relegation: )",
+    // "Promotion - Relegation", "Relegation Play-off": ainda disputa
+    const falls =
+      /^(relegation|rebaixamento|rebaixado|descenso|descendido|eliminated|eliminado)\b/.test(d) &&
+      !/play|round|ronda|liguilla|promotion|torneo|quadrangular|cuadrangular|repechaje/.test(d);
+    return falls ? 'relegation' : 'relegationPlayoff';
+  }
+  if (/conference/.test(d)) return 'third';
+  if (SECOND_CUP.test(d)) return 'second';
+  if (FIRST_CUP.test(d)) return QUALIFYING.test(d) ? 'qualifying' : 'direct';
+  if (QUALIFYING.test(d)) return 'qualifying';
+  if (/^(promotion|ascenso|acesso|classifica|clasifica)/.test(d)) {
+    // acesso pelo playoff ("Promotion - Championship (Play Offs: )") vs. mata-mata com fase dita
+    // ("Promotion - Paulista (Play Offs: Quarter-finals)", que é vaga direta nas quartas)
+    return /\(play ?-?offs?:\s*\)|playoff\)?$|play ?offs?\)?$/.test(d) ? 'qualifying' : 'direct';
+  }
+  if (
+    /play ?-?offs?|liguilla|quadrangular|cuadrangular|championship round|championship group|final series|final round|next round|knockout|mata-mata|round of \d|1\/\d+-finals|quarter|semi-?final|octavos|cuartos|title|campe[aã]o|campeón/.test(
+      d,
+    )
+  )
+    return 'direct';
+  return null;
+}
+
+const ZONE_HEX = /^#[0-9a-f]{6}$/i;
+
+/** Cor CSS da faixa: a escolhida no Builder (só `#rrggbb`), senão a padrão; zona desconhecida fica neutra. */
+export function standingsZoneColor(
+  tone: StandingsZoneTone | null,
+  colors?: StandingsZoneColors | undefined,
+): string {
+  if (!tone) return 'var(--gs-muted-foreground)';
+  const custom = colors?.[tone];
+  if (custom && ZONE_HEX.test(custom)) return custom;
+  return DEFAULT_ZONE_COLORS[tone] ?? 'var(--gs-primary)';
+}
+
+/**
+ * Opções da tabela vindas de fora (banco, navegador, JSON do embed): só faixas conhecidas com `#rrggbb`
+ * (minúsculo) e `showLegend` booleano. Nada aproveitável → undefined.
+ */
+export function parseStandingsOptions(raw: unknown): StandingsOptions | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: StandingsOptions = {};
+  if (typeof r.showLegend === 'boolean') out.showLegend = r.showLegend;
+  if (r.zoneColors && typeof r.zoneColors === 'object') {
+    const colors: StandingsZoneColors = {};
+    for (const tone of STANDINGS_ZONE_TONES) {
+      const value = (r.zoneColors as Record<string, unknown>)[tone];
+      if (typeof value === 'string' && ZONE_HEX.test(value)) colors[tone] = value.toLowerCase();
+    }
+    if (Object.keys(colors).length) out.zoneColors = colors;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Nome da zona na legenda, no idioma do widget sempre que dá: o código da regra pelo dicionário; texto do
+ * fornecedor que só diz a queda ("Relegation - Serie B") vira "Rebaixamento"; "Promotion - X (Fase: )" vira
+ * "X (Fase)", sem tirar o destino (um acesso ao Paulista não vira "Libertadores"). O resto fica como veio.
+ */
+export function standingsZoneLabel(description: string, labels: Record<string, string>): string {
+  const text = description.trim();
+  const lower = text.toLowerCase();
+  const byCode = Object.hasOwn(labels, lower) ? labels[lower] : undefined;
+  if (byCode) return byCode;
+  const tone = standingsZoneTone(text);
+  if (tone === 'relegation' && labels.relegation && /^(relegation|descenso)\b/.test(lower))
+    return labels.relegation;
+  if (tone === 'relegationPlayoff' && labels.relegation_playoff && /relegation/.test(lower))
+    return labels.relegation_playoff;
+  const promoted = /^promotion\s*-\s*(.+)$/i.exec(text);
+  const core = (promoted ? promoted[1]! : text)
+    .replace(/\(([^():]+):\s*\)/g, '($1)')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const words = core.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export const BROADCAST_MEDIA = [
@@ -494,7 +660,10 @@ export const WIDGET_CSS = `
 .gs-table .gs-left{text-align:left}
 .gs-table .gs-strong{font-weight:800}
 .gs-rank{width:28px;color:var(--gs-muted-foreground)}
-.gs-rank[data-zone]{box-shadow:inset 3px 0 0 var(--gs-primary);color:var(--gs-foreground);font-weight:700}
+.gs-rank[data-zone]{box-shadow:inset 3px 0 0 var(--gs-zone,var(--gs-primary));color:var(--gs-foreground);font-weight:700}
+.gs-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;padding:0;list-style:none;font-size:.75em;color:var(--gs-muted-foreground)}
+.gs-legend li{display:flex;align-items:center;gap:6px}
+.gs-legend-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--gs-zone,var(--gs-primary))}
 .gs-form{display:inline-flex;gap:2px}
 .gs-form span{width:6px;height:6px;border-radius:50%;background:var(--gs-muted-foreground)}
 .gs-form span[data-r=W]{background:#16a34a}.gs-form span[data-r=L]{background:var(--gs-live)}
@@ -604,6 +773,8 @@ export interface WidgetTexts {
     lost: string;
     goalDiff: string;
   };
+  /** Legenda da tabela pelo código da regra (`config/rules`); código desconhecido vira texto. */
+  zones: Record<string, string>;
   media: Record<GsBroadcastMedium, string>;
   access: Record<GsAccessModel, string>;
   /** Onde assistir agrupado (bloco `availability`). */
@@ -698,6 +869,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     watch: 'Assistir',
     updated: 'Atualizado',
     columns: { team: 'Time', points: 'P', played: 'J', won: 'V', drawn: 'E', lost: 'D', goalDiff: 'SG' },
+    zones: {
+      libertadores: 'Libertadores',
+      libertadores_group_stage: 'Libertadores (fase de grupos)',
+      libertadores_qualifying: 'Libertadores (pré-Libertadores)',
+      sudamericana: 'Sul-Americana',
+      sudamericana_knockout_playoff: 'Sul-Americana (playoffs)',
+      champions_league: 'Champions League',
+      champions_league_qualifying: 'Champions League (preliminares)',
+      europa_league: 'Europa League',
+      europa_league_knockout_playoff: 'Europa League (playoffs)',
+      conference_league: 'Conference League',
+      round_of_16: 'Oitavas de final',
+      knockout_playoff: 'Playoffs do mata-mata',
+      playoff: 'Playoffs',
+      promotion: 'Acesso',
+      relegation_playoff: 'Playoff contra o rebaixamento',
+      relegation: 'Rebaixamento',
+      elimination: 'Eliminação',
+      playoffs: 'Playoffs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Quadrangulares',
+      play_in: 'Play-in',
+    },
     media: {
       free_tv: 'TV aberta',
       pay_tv: 'TV por assinatura',
@@ -808,6 +1002,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     watch: 'Ver',
     updated: 'Actualizado',
     columns: { team: 'Equipo', points: 'Pts', played: 'PJ', won: 'G', drawn: 'E', lost: 'P', goalDiff: 'DG' },
+    zones: {
+      libertadores: 'Libertadores',
+      libertadores_group_stage: 'Libertadores (fase de grupos)',
+      libertadores_qualifying: 'Libertadores (fase previa)',
+      sudamericana: 'Sudamericana',
+      sudamericana_knockout_playoff: 'Sudamericana (repechaje)',
+      champions_league: 'Champions League',
+      champions_league_qualifying: 'Champions League (fase previa)',
+      europa_league: 'Europa League',
+      europa_league_knockout_playoff: 'Europa League (repechaje)',
+      conference_league: 'Conference League',
+      round_of_16: 'Octavos de final',
+      knockout_playoff: 'Repechaje de eliminación directa',
+      playoff: 'Playoffs',
+      promotion: 'Ascenso',
+      relegation_playoff: 'Repechaje por el descenso',
+      relegation: 'Descenso',
+      elimination: 'Eliminación',
+      playoffs: 'Playoffs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Cuadrangulares',
+      play_in: 'Play-in',
+    },
     media: {
       free_tv: 'TV abierta',
       pay_tv: 'TV paga',
@@ -918,6 +1135,29 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     watch: 'Watch',
     updated: 'Updated',
     columns: { team: 'Team', points: 'Pts', played: 'P', won: 'W', drawn: 'D', lost: 'L', goalDiff: 'GD' },
+    zones: {
+      libertadores: 'Libertadores',
+      libertadores_group_stage: 'Libertadores (group stage)',
+      libertadores_qualifying: 'Libertadores (qualifying)',
+      sudamericana: 'Sudamericana',
+      sudamericana_knockout_playoff: 'Sudamericana (play-offs)',
+      champions_league: 'Champions League',
+      champions_league_qualifying: 'Champions League (qualifying)',
+      europa_league: 'Europa League',
+      europa_league_knockout_playoff: 'Europa League (play-offs)',
+      conference_league: 'Conference League',
+      round_of_16: 'Round of 16',
+      knockout_playoff: 'Knockout play-offs',
+      playoff: 'Play-offs',
+      promotion: 'Promotion',
+      relegation_playoff: 'Relegation play-off',
+      relegation: 'Relegation',
+      elimination: 'Elimination',
+      playoffs: 'Play-offs',
+      liguilla: 'Liguilla',
+      quadrangulars: 'Quadrangulars',
+      play_in: 'Play-in',
+    },
     media: {
       free_tv: 'Free-to-air TV',
       pay_tv: 'Pay TV',

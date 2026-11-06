@@ -153,6 +153,14 @@ function makeEvent(e: {
   };
 }
 
+/** Zonas da tabela de exemplo (códigos das regras), para o preview mostrar as cores e a legenda. */
+const SAMPLE_ZONES: Record<number, string> = {
+  1: 'libertadores',
+  2: 'libertadores_qualifying',
+  3: 'sudamericana',
+  6: 'relegation',
+};
+
 function standingRow(rank: number, key: TeamKey, s: [number, number, number, number, number]) {
   const t = TEAMS[key];
   const [won, drawn, lost, gf, ga] = s;
@@ -170,7 +178,7 @@ function standingRow(rank: number, key: TeamKey, s: [number, number, number, num
     goals_against: ga,
     goal_diff: gf - ga,
     form: 'WDWLW',
-    description: rank <= 2 ? 'Classificação para a fase final' : null,
+    description: SAMPLE_ZONES[rank] ?? null,
   } satisfies Standings['groups'][number]['rows'][number];
 }
 

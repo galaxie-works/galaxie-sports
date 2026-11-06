@@ -50,6 +50,8 @@ export interface WidgetConfig {
   /** País ISO2 do mercado (`BR`, `AR`...). */
   market: string;
   defaults: WidgetDefaults;
+  /** Só na tabela de classificação: legenda e cor de cada faixa (`direct`, `relegation`… → `#rrggbb`). */
+  standings?: { showLegend?: boolean; zoneColors?: Record<string, string> };
 }
 
 /** Widget montado pela operadora no Builder. Salvar de novo incrementa `version`. */
