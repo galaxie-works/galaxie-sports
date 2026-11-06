@@ -37,6 +37,11 @@ export interface PointsRule {
   win: number;
   draw: number;
   loss: number;
+  /**
+   * Empate decidido nos pênaltis (Leagues Cup: 2 para quem vence, 1 para quem perde) no lugar de `draw`.
+   * Ausente: o empate vale `draw` mesmo com disputa de pênaltis.
+   */
+  shootout?: { win: number; loss: number } | undefined;
 }
 
 export interface StandingsRules {
@@ -155,6 +160,12 @@ export interface StandingsTableRule {
    * falso: só jogos dentro do grupo entram.
    */
   crossGroupMatches: boolean;
+  /**
+   * Times da tabela pelo país do clube (`core.participant.country_code`), sem depender dos grupos do
+   * fornecedor: Leagues Cup, uma tabela da MLS (US, CA) e outra da Liga MX (MX), com jogos só entre as duas
+   * ligas. Grava no grupo `group_name`; cada time soma os seus jogos, todos contra a outra tabela.
+   */
+  countries: string[] | null;
   /** O recálculo grava esta tabela (falso: só a do fornecedor é guardada e exposta, ex.: promedios). */
   computed: boolean;
   /** Matemática própria da tabela (times, jogos, zonas); ausente: a de `league`. */

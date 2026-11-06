@@ -24,24 +24,29 @@ export async function writeComputedStandings(
   tables: readonly StandingsTable[],
   options: WriteStandingsOptions = {},
 ): Promise<number> {
-  const values = tables.flatMap((t) =>
-    t.rows.map((r) => ({
+  const values = tables.flatMap((t) => {
+    // pênaltis no lugar do empate (Leagues Cup): grava como o hóquei, a vitória e a derrota na disputa
+    // dentro de `won`/`lost` e à parte em `ot_won`/`ot_lost` (o contrato da API); o empate fica zerado
+    const shootout = t.rows.some((r) => (r.shootoutWon ?? 0) + (r.shootoutLost ?? 0) > 0);
+    return t.rows.map(({ shootoutWon: sw = 0, shootoutLost: sl = 0, ...r }) => ({
       seasonId,
       group: t.group,
       participantId: r.teamId,
       rank: r.rank,
       points: r.points,
       played: r.played,
-      won: r.won,
-      drawn: r.drawn,
-      lost: r.lost,
+      won: shootout ? r.won + sw : r.won,
+      drawn: shootout ? r.drawn - sw - sl : r.drawn,
+      lost: shootout ? r.lost + sl : r.lost,
+      otWon: shootout ? sw : null,
+      otLost: shootout ? sl : null,
       goalsFor: r.goalsFor,
       goalsAgainst: r.goalsAgainst,
       form: formString(r) || null,
       description: r.zone,
       source: 'computed',
-    })),
-  );
+    }));
+  });
   if (values.length === 0) return 0;
   const excluded = (column: string) => sql.raw(`excluded."${column}"`);
   const config = {
@@ -53,6 +58,8 @@ export async function writeComputedStandings(
       won: excluded('won'),
       drawn: excluded('drawn'),
       lost: excluded('lost'),
+      otWon: excluded('ot_won'),
+      otLost: excluded('ot_lost'),
       goalsFor: excluded('goals_for'),
       goalsAgainst: excluded('goals_against'),
       form: excluded('form'),
@@ -164,6 +171,9 @@ export async function loadSeasonResults(
       awayGoals: r.score.away,
       playedAt: r.startsAt.toISOString(),
     };
+    const pen = r.score.penalty;
+    if (typeof pen?.home === 'number' && typeof pen.away === 'number')
+      m.penalties = { home: pen.home, away: pen.away };
     const group = options.groupOf?.(r.homeId);
     if (group !== undefined) m.group = group;
     if (options.includeCards) {

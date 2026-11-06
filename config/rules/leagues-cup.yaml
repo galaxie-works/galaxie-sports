@@ -1,0 +1,67 @@
+# Leagues Cup (MLS × Liga MX). A api-sports não tem a tabela (`standings: false` na cobertura de todas as
+# temporadas; /standings da 2026 volta vazio), então ela é calculada aqui a partir dos jogos.
+#
+# Desde 2025 (Phase One): 18 clubes da MLS e 18 da Liga MX, 3 jogos cada, sempre contra a outra liga. Duas
+# tabelas de 18, uma por liga; os 4 primeiros de cada vão às quartas. Times pelo país do clube (MLS: US e CA;
+# Liga MX: MX). Rodadas "Group Stage" (2026) e "Group Stage - N" (2025).
+# 2023 e 2024: grupos de 3 por região (East 1, West 2…), 1º e 2º às 16-avos. Sem a tabela do fornecedor, não
+# há como saber o nome de cada grupo, e o recálculo genérico juntaria os 15 grupos numa tabela só: nessas
+# temporadas a competição fica como copa (sem tabela).
+#
+# Não há empate: empatou no tempo normal, vai aos pênaltis. Vitória no tempo normal 3, nos pênaltis 2,
+# derrota nos pênaltis 1, derrota 0.
+# Desempate (Phase One): vitórias no tempo normal, saldo, gols pró, menos gols sofridos, fair play, sorteio.
+# Mata-mata: jogo único, sem prorrogação, empate direto aos pênaltis.
+# Revise a cada temporada.
+slug: leagues-cup
+name: Leagues Cup
+format: groups_and_knockout
+
+standings:
+  points: { win: 3, draw: 1, loss: 0, shootout: { win: 2, loss: 1 } }
+  tie_breakers:
+    - wins
+    - goal_difference
+    - goals_for
+    - fewest_goals_against
+    - fair_play
+    - drawing_of_lots
+
+league:
+  teams: 18
+  matches_per_team: 3
+  meetings_per_pair: 1
+  title: false
+  zones:
+    - { id: quarter_finals, kind: qualification, from: 1, to: 4 }
+    - { id: elimination, kind: elimination, from: 5, to: 18 }
+
+knockout:
+  default: { legs: 1, away_goals: false, extra_time: false, penalties: true, neutral_venue: false }
+  stages:
+    final: { legs: 1, extra_time: false, penalties: true, decides_title: true }
+
+tables:
+  - key: mls
+    kind: phase
+    name: { pt-BR: Tabela da MLS, es: Tabla de la MLS, en: MLS table }
+    groups: '^mls$'
+    rounds: '^group stage( - \d+)?$'
+    group_name: MLS
+    countries: [US, CA]
+  - key: liga_mx
+    kind: phase
+    name: { pt-BR: Tabela da Liga MX, es: Tabla de la Liga MX, en: Liga MX table }
+    groups: '^liga mx$'
+    rounds: '^group stage( - \d+)?$'
+    group_name: Liga MX
+    countries: [MX]
+
+overrides:
+  - seasons: { to: 2024 }
+    format: cup
+    tables: []
+
+sources:
+  - https://www.mlssoccer.com/news/leagues-cup-2025-phase-one-tiebreaker-scenarios
+  - https://en.wikipedia.org/wiki/2025_Leagues_Cup

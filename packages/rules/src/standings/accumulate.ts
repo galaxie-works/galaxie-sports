@@ -24,8 +24,20 @@ export function emptyRecord(teamId: TeamId, group = ''): TeamRecord {
   };
 }
 
-export function basePoints(r: Pick<TeamRecord, 'won' | 'drawn' | 'lost'>, points: PointsRule): number {
-  return r.won * points.win + r.drawn * points.draw + r.lost * points.loss;
+export function basePoints(
+  r: Pick<TeamRecord, 'won' | 'drawn' | 'lost' | 'shootoutWon' | 'shootoutLost'>,
+  points: PointsRule,
+): number {
+  const regulation = r.won * points.win + r.lost * points.loss;
+  if (!points.shootout) return regulation + r.drawn * points.draw;
+  const won = r.shootoutWon ?? 0;
+  const lost = r.shootoutLost ?? 0;
+  return (
+    regulation +
+    (r.drawn - won - lost) * points.draw +
+    won * points.shootout.win +
+    lost * points.shootout.loss
+  );
 }
 
 export function totalPoints(r: TeamRecord, points: PointsRule): number {
@@ -89,8 +101,11 @@ export function validateMatch(m: MatchResult): void {
   nonNegativeInt(m.awayGoals, 'awayGoals', who);
 }
 
-/** Aplica um resultado aos totais (muta `records`). */
-export function applyMatch(records: Map<TeamId, TeamRecord>, m: MatchResult): void {
+/**
+ * Aplica um resultado aos totais (muta `records`). Com `points.shootout`, o empate decidido nos pênaltis
+ * continua empate (`drawn`), com a vitória ou a derrota na disputa contada à parte e na forma (W/L).
+ */
+export function applyMatch(records: Map<TeamId, TeamRecord>, m: MatchResult, points?: PointsRule): void {
   validateMatch(m);
   const group = m.group ?? '';
   const home = ensure(records, m.homeId, group);
@@ -116,8 +131,17 @@ export function applyMatch(records: Map<TeamId, TeamRecord>, m: MatchResult): vo
   } else {
     home.drawn++;
     away.drawn++;
-    home.form.push('D');
-    away.form.push('D');
+    const pen = points?.shootout ? m.penalties : undefined;
+    if (pen && pen.home !== pen.away) {
+      const [winner, loser] = pen.home > pen.away ? [home, away] : [away, home];
+      winner.shootoutWon = (winner.shootoutWon ?? 0) + 1;
+      loser.shootoutLost = (loser.shootoutLost ?? 0) + 1;
+      winner.form.push('W');
+      loser.form.push('L');
+    } else {
+      home.form.push('D');
+      away.form.push('D');
+    }
   }
   home.yellowCards += m.cards?.home?.yellow ?? 0;
   home.redCards += m.cards?.home?.red ?? 0;
@@ -161,7 +185,7 @@ export function accumulate(input: AccumulateInput): Map<TeamId, TeamRecord> {
       if (ids.has(m.id)) throw new StandingsInputError(`Partida ${m.id} aplicada duas vezes.`);
       ids.add(m.id);
     }
-    applyMatch(records, m);
+    applyMatch(records, m, input.points);
   }
   for (const adj of input.adjustments ?? []) {
     const r = records.get(adj.teamId);
