@@ -229,6 +229,13 @@ describe('buildSeasonListRequests', () => {
       now.getTime() - 7 * DAY,
     );
 
+    // --forcar: ignora o período (a tier 2 listada há 3 dias entra), ainda no limite do dia
+    const forced = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10, true);
+    expect(forced.map((p) => p.params.league)).toEqual(['71', '72', '500', '948']);
+    expect(
+      (await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 1, true)).map((p) => p.params.league),
+    ).toEqual(['71']);
+
     // limite do dia: só as nunca listadas cabem
     expect(
       (await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 2)).map((p) => p.params.league),

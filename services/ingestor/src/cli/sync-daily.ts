@@ -75,6 +75,7 @@ await runCli(async () => {
       maxDetails: intOption(values['max-detalhes'], 'max-detalhes'),
       rotation: intOption(values.rodizio, 'rodizio'),
       seasonLists: intOption(values['listas-temporada'], 'listas-temporada'),
+      force: values.forcar,
       backlogDays: intOption(values['dias-atras'], 'dias-atras'),
       injuriesTomorrow: values['lesoes-amanha'],
       otherSports: values['outros-esportes'],

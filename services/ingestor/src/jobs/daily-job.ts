@@ -69,6 +69,8 @@ export interface DailyOptions {
   seasonLists?: number | undefined;
   /** Maior tier com a temporada atual relistada (padrão 3: todo o catálogo). */
   seasonListTier?: number | undefined;
+  /** `--forcar`: a relista ignora o período do cursor (ex.: remarcação urgente), ainda dentro do limite do dia. */
+  force?: boolean | undefined;
 }
 
 export function utcDate(d: Date, offsetDays = 0): string {
@@ -239,6 +241,7 @@ export async function buildSeasonListRequests(
   limits: PlanLimits,
   now: Date,
   limit: number,
+  force = false,
 ): Promise<PlannedRequest[]> {
   const startsBy = utcDate(now, SEASON_LIST_AHEAD_DAYS);
   const endedAfter = utcDate(now, -SEASON_LIST_AFTER_END_DAYS);
@@ -256,6 +259,7 @@ export async function buildSeasonListRequests(
       period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
     }
   }
+  if (force) return [...period.keys()].slice(0, limit);
   return buildRotationRequests([...period.keys()], cursors, now, limit, (i) => period.get(i)!);
 }
 
@@ -356,6 +360,7 @@ export function dailyJob(
             plan.current,
             now(),
             opts.seasonLists ?? (isPaid(plan) ? 300 : 0),
+            opts.force,
           ),
       },
     ],
