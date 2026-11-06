@@ -159,8 +159,14 @@ export function buildTie(
     }
     const lead = Math.max(wins.home!, wins.away!);
     const needed = opts.expectedLegs ? Math.floor(opts.expectedLegs / 2) + 1 : null;
+    // jogos "se necessário" ainda agendados não seguram a série: 4 vitórias fecham a melhor de 7 na hora; as
+    // séries mais curtas (sem regulamento) fecham com a fase encerrada ou quando o time aparece na fase
+    // seguinte (`advanceFromNextRounds`)
+    const played = legs.filter((l) => l.status === 'finished' || started(l));
+    const playedDone = played.every((l) => l.status === 'finished');
     decided =
-      wins.home !== wins.away && (needed != null ? lead >= needed : allDone && (lead >= 4 || opts.stageDone));
+      wins.home !== wins.away &&
+      (needed != null ? lead >= needed : lead >= 4 || (playedDone && opts.stageDone));
     if (decided) winner = wins.home! > wins.away! ? home : away;
   } else {
     const totals = { home: 0, away: 0 };
@@ -309,5 +315,25 @@ export function buildBracket(input: BuildBracketInput): Round[] {
       rounds.push({ stage_id: head.id, kind, name: roundName, ties });
     }
   }
-  return alignRounds(rounds);
+  return alignRounds(advanceFromNextRounds(rounds));
+}
+
+/**
+ * Confronto ainda em aberto cujo time já joga a fase seguinte: quem avançou está decidido (série melhor de
+ * 3 ou 5 sem regulamento, ou jogos "se necessário" que o fornecedor deixou agendados).
+ */
+export function advanceFromNextRounds(rounds: Round[]): Round[] {
+  const chain = rounds.filter((r) => r.kind !== 'third_place');
+  chain.forEach((round, i) => {
+    const later = new Set(chain.slice(i + 1).flatMap((r) => r.ties.flatMap((t) => [t.home?.id, t.away?.id])));
+    for (const tie of round.ties) {
+      if (tie.status === 'decided' || !tie.home || !tie.away) continue;
+      const inHome = later.has(tie.home.id);
+      const inAway = later.has(tie.away.id);
+      if (inHome === inAway) continue;
+      tie.winner_id = inHome ? tie.home.id : tie.away.id;
+      tie.status = 'decided';
+    }
+  });
+  return rounds;
 }

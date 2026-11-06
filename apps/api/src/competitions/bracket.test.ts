@@ -103,6 +103,40 @@ describe('chaveamento do mata-mata', () => {
     expect(ongoing).toMatchObject({ wins: { home: 2, away: 1 }, winner_id: null, status: 'in_progress' });
   });
 
+  it('série fechada com jogos "se necessário" ainda agendados e série curta pela fase seguinte', () => {
+    const sweep = [
+      match('g1', 'p', 'a', 'b', 0, [100, 90]),
+      match('g2', 'p', 'a', 'b', 2, [100, 90]),
+      match('g3', 'p', 'b', 'a', 4, [80, 90]),
+      match('g4', 'p', 'b', 'a', 6, [80, 90]),
+      match('g5', 'p', 'a', 'b', 8, null),
+    ];
+    expect(buildTie('p', sweep, { ...opts, sport: 'basketball' })).toMatchObject({
+      status: 'decided',
+      winner_id: 'a',
+      wins: { home: 4, away: 0 },
+    });
+    // melhor de 5 em 3×0 com outra série da fase em andamento: decide porque o time já está na final
+    const rounds = buildBracket({
+      sport: 'volleyball',
+      stages: [stage('sf', 'semi_final', 11000), stage('f', 'final', 13000)],
+      matches: [
+        match('s1', 'sf', 'a', 'b', 0, [3, 0]),
+        match('s2', 'sf', 'a', 'b', 2, [3, 1]),
+        match('s3', 'sf', 'b', 'a', 4, [0, 3]),
+        match('t1', 'sf', 'c', 'd', 1, [3, 0]),
+        match('t2', 'sf', 'c', 'd', 3, null),
+        match('f1', 'f', 'a', 'x', 9, null),
+      ],
+      participants,
+      locale: 'pt-BR',
+      tz: 'UTC',
+    });
+    const ab = rounds[0]!.ties.find((t) => t.home?.id === 'a')!;
+    expect(ab).toMatchObject({ status: 'decided', winner_id: 'a' });
+    expect(rounds[0]!.ties.find((t) => t.home?.id === 'c')).toMatchObject({ status: 'in_progress' });
+  });
+
   it('fases em ordem e confrontos na ordem do chaveamento (vencedores 1 e 2 se cruzam)', () => {
     const stages = [
       stage('sf', 'semi_final', 11000),
