@@ -138,7 +138,8 @@ try {
     console.log(`A baixar nesta execução: ${pending} (nenhuma chamada à API de dados).`);
     console.log(logoCleanupLine(report.logoCleanup, 'a limpar'));
     if (report.photoCleanup) console.log(`Fotos genéricas já gravadas a desligar: ${report.photoCleanup}`);
-    if (!personPhotos) {
+    // como na execução: --fotos e --origem-local não espelham os logos de emissoras
+    if (!personPhotos && !localDir) {
       const logos = await runBroadcasterLogoMirror({
         db,
         objects: {

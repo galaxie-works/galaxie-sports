@@ -6,6 +6,7 @@
  *
  *   pnpm --filter @galaxie/ingestor assets:baixar-local --lista pendentes.jsonl --destino G:\galaxie-assets
  *   opções: --concorrencia N (padrão 3) · --pausa-ms N (padrão 250) · --limite N
+ *           --retentar-404   tenta de novo o que está no manifest como 404 (para listas com --retentar-ausentes)
  *
  * Depois: rsync/scp da pasta para a VPS e `assets:mirror --origem-local <pasta>` (ver mirror-assets.ts).
  */
@@ -21,6 +22,7 @@ const { values } = parseArgs({
     concorrencia: { type: 'string', default: '3' },
     'pausa-ms': { type: 'string', default: '250' },
     limite: { type: 'string' },
+    'retentar-404': { type: 'boolean', default: false },
   },
 });
 if (!values.lista || !values.destino) throw new Error('Use --lista pendentes.jsonl --destino <pasta>.');
@@ -39,6 +41,7 @@ const report = await downloadToLocal({
   concurrency: Number(values.concorrencia),
   delayMs: Number(values['pausa-ms']),
   limit: values.limite ? Number(values.limite) : undefined,
+  retryNotFound: values['retentar-404'],
   signal: stop.signal,
   onProgress: (e) => {
     if (e.type === 'aborted') console.warn(e.reason);

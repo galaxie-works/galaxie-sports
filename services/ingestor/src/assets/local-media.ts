@@ -91,6 +91,11 @@ export interface LocalDownloadOptions {
   /** Pausa de cada worker depois de cada download (ms). Padrão 250. */
   delayMs?: number;
   limit?: number | undefined;
+  /**
+   * Tenta de novo as URLs que estão no manifest como `not_found` (ex.: lista exportada com `--retentar-ausentes`); a
+   * linha nova vale sobre a antiga, no download e no `LocalMediaSource`.
+   */
+  retryNotFound?: boolean;
   /** Interrompe depois de N itens seguidos que esgotaram as tentativas por 429. Padrão 5. */
   abortAfterRateLimited?: number;
   signal?: AbortSignal | undefined;
@@ -129,7 +134,12 @@ export async function downloadToLocal(options: LocalDownloadOptions): Promise<Lo
   const emit = options.onProgress ?? (() => {});
   await mkdir(options.dir, { recursive: true });
 
-  const done = new Set((await readLocalManifest(options.dir)).map((e) => normalizeMediaUrl(e.url) ?? e.url));
+  // a última linha de cada URL é a que vale (um 404 tentado de novo com `retryNotFound` ganha linha nova)
+  const latest = new Map<string, LocalManifestEntry>();
+  for (const e of await readLocalManifest(options.dir)) latest.set(normalizeMediaUrl(e.url) ?? e.url, e);
+  const done = new Set(
+    [...latest].filter(([, e]) => e.status === 'ok' || !options.retryNotFound).map(([url]) => url),
+  );
   const seen = new Set<string>();
   const queue: (PendingListItem & { normalized: string; file: string })[] = [];
   const report: LocalDownloadReport = {

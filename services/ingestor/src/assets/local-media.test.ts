@@ -125,6 +125,35 @@ describe('downloadToLocal', () => {
   });
 });
 
+describe('downloadToLocal --retentar-404', () => {
+  it('tenta de novo o 404 do manifest e a linha nova vale para o mirror', async () => {
+    const png = fakePng(12, 12, 5);
+    const clock = new FakeClock();
+    const media = fakeMediaFetch({
+      [GONE]: [{ status: 404 }, { status: 200, body: png, headers: { 'content-type': 'image/png' } }],
+    });
+    const fetcher = new MediaFetcher({ fetch: media.fetch, clock });
+    const items = [{ id: '1', kind: 'player', url: GONE }];
+    await downloadToLocal({ items, dir, fetcher, clock, delayMs: 0 });
+    expect(await downloadToLocal({ items, dir, fetcher, clock, delayMs: 0 })).toMatchObject({
+      skipped: 1,
+      ok: 0,
+    });
+
+    const retry = await downloadToLocal({ items, dir, fetcher, clock, delayMs: 0, retryNotFound: true });
+    expect(retry).toMatchObject({ skipped: 0, ok: 1 });
+    const local = await LocalMediaSource.open(dir);
+    expect(local.ids()).toEqual(['1']);
+    expect(await local.get(GONE)).toMatchObject({ status: 'ok', contentType: 'image/png' });
+    // depois do ok, nem o --retentar-404 baixa de novo
+    expect(
+      await downloadToLocal({ items, dir, fetcher, clock, delayMs: 0, retryNotFound: true }),
+    ).toMatchObject({
+      skipped: 1,
+    });
+  });
+});
+
 describe('downloadToLocal com erro de disco', () => {
   it('conta o item como falha e segue com os outros', async () => {
     const png = fakePng(10, 10, 3);
