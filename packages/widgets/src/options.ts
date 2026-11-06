@@ -22,7 +22,6 @@ export type WidgetOptionSpec =
   | (OptionBase & { type: 'enum'; default: string; values: readonly { value: string; label: Label }[] })
   | (OptionBase & { type: 'multi'; values: readonly { value: string; label: Label }[] })
   | (OptionBase & { type: 'season' })
-  | (OptionBase & { type: 'region' })
   | (OptionBase & { type: 'team' | 'competition' });
 
 export type WidgetOptions = Record<string, string | number | boolean>;
@@ -166,12 +165,6 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     ),
   ],
   where_to_watch: [
-    {
-      key: 'region',
-      type: 'region',
-      label: l('Praça da TV aberta (UF)', 'Región de la TV abierta', 'Free-to-air TV region'),
-      hint: l('Ex.: SP, RJ. Vazio = nacional.', 'Ej.: SP. Vacío = nacional.', 'E.g. SP. Empty = national.'),
-    },
     bool('showAddonPrices', l('Preço dos complementos', 'Precio de los complementos', 'Add-on prices'), true),
     bool('showWatchLinks', l('Link "assistir"', 'Enlace "ver"', '"Watch" link'), true),
     bool('showCalendar', L.calendar, false),
@@ -348,10 +341,6 @@ function parseValue(spec: WidgetOptionSpec, raw: unknown): string | number | boo
         typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d{4}$/.test(raw) ? Number(raw) : NaN;
       return Number.isInteger(n) && n >= 1900 && n <= 2100 ? n : undefined;
     }
-    case 'region':
-      return typeof raw === 'string' && /^[A-Za-z]{2}$/.test(raw.trim())
-        ? raw.trim().toUpperCase()
-        : undefined;
     case 'team':
       return typeof raw === 'string' && UUID.test(raw) ? raw.toLowerCase() : undefined;
     case 'competition':

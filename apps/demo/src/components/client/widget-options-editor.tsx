@@ -166,22 +166,6 @@ function Choice({
           {description}
         </Field>
       );
-    case 'region':
-      return (
-        <Field>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Input
-            id={id}
-            maxLength={2}
-            value={typeof value === 'string' ? value : ''}
-            onChange={(ev) => {
-              const v = ev.target.value.replace(/[^A-Za-z]/g, '').toUpperCase();
-              onChange(v || undefined);
-            }}
-          />
-          {description}
-        </Field>
-      );
     case 'enum': {
       const items = spec.values.map((v) => ({ value: v.value, label: v.label[locale] }));
       return (
