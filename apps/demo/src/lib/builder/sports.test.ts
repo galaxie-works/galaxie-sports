@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { OFFERED_WIDGET_KINDS } from './config';
-import { catalogTabs, pickTab, sportChoices, sportForNewWidget, widgetFamily } from './sports';
+import { catalogTabs, pickTab, searchSport, sportChoices, sportForNewWidget, widgetFamily } from './sports';
 
 describe('abas de esporte do catálogo', () => {
   it('Futebol primeiro, com todos os tipos; nos outros esportes, só os tipos já prontos para eles', () => {
@@ -43,11 +43,21 @@ describe('esporte do widget', () => {
     expect(widgetFamily('standings', { competitionId: 'x' })?.id).toBe('futebol');
   });
 
-  it('seletor do editor: um esporte por família, só os do plano', () => {
+  it('seletor do editor: cada esporte da API (Basquete e NBA separados), só os do plano', () => {
     expect(sportChoices(['nba', 'volleyball'])).toEqual([
       expect.objectContaining({ sport: 'nba' }),
       expect.objectContaining({ sport: 'volleyball' }),
     ]);
-    expect(sportChoices([])[1]).toEqual(expect.objectContaining({ sport: 'basketball' }));
+    expect(
+      sportChoices([])
+        .map((c) => c.sport)
+        .slice(0, 3),
+    ).toEqual(['football', 'basketball', 'nba']);
+  });
+
+  it('busca de entidade: o esporte escolhido nos Jogos do dia, o do tipo nos outros', () => {
+    expect(searchSport('live_list', 'nba')).toBe('nba');
+    expect(searchSport('live_list', null)).toBeNull();
+    expect(searchSport('match_card', null)).toBe('football');
   });
 });

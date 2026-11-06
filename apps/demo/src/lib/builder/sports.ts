@@ -60,10 +60,19 @@ export function widgetFamily(
   return sport ? (familyOf(sport) ?? null) : null;
 }
 
-/** Esportes que o seletor do editor oferece: um por família (o primeiro), só os do plano. */
+/**
+ * Esportes que o seletor do editor oferece, na ordem do menu, só os do plano. Cada esporte da API entra
+ * separado (Basquete e NBA vêm de APIs diferentes e a API filtra pelo esporte exato).
+ */
 export function sportChoices(tenantSports: readonly string[]): { family: SportFamily; sport: string }[] {
-  return SPORT_FAMILIES.flatMap((family) => {
-    const sport = allowedSports(family, tenantSports)[0];
-    return sport ? [{ family, sport }] : [];
-  });
+  return SPORT_FAMILIES.flatMap((family) =>
+    allowedSports(family, tenantSports).map((sport) => ({ family, sport })),
+  );
+}
+
+/** Esporte da busca de entidade: o escolhido nos tipos de todos os esportes, o único do tipo nos outros. */
+export function searchSport(kind: WidgetKind, chosen: string | null): string | null {
+  const sports = WIDGET_CATALOG[kind].sports;
+  if (!sports.length) return chosen;
+  return sports.length === 1 ? sports[0]! : null;
 }

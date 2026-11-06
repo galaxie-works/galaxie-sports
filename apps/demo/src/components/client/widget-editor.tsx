@@ -53,7 +53,7 @@ import {
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
-import { sportChoices } from '@/lib/builder/sports';
+import { searchSport, sportChoices } from '@/lib/builder/sports';
 import type { WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -248,7 +248,10 @@ export function WidgetEditor({
   const multiSport = widgetKindIsMultiSport(draft.kind);
   const sportItems = [
     { value: ALL_SPORTS, label: e.sportAll },
-    ...sportChoices(sports).map(({ family, sport }) => ({ value: sport, label: t.nav.families[family.id] })),
+    ...sportChoices(sports).map(({ sport }) => ({
+      value: sport,
+      label: t.nav.sports[sport as keyof typeof t.nav.sports] ?? sport,
+    })),
   ];
   const config = {
     theme: draft.theme,
@@ -445,7 +448,7 @@ export function WidgetEditor({
                   <FieldLabel>{e.entity}</FieldLabel>
                   <EntityPicker
                     types={entityTypes}
-                    sport={multiSport ? draft.sport : null}
+                    sport={searchSport(draft.kind, draft.sport)}
                     value={draft.entity}
                     onChange={(v) => set('entity', v)}
                   />
