@@ -1,6 +1,13 @@
 'use client';
 
-import { WIDGET_OPTIONS, type WidgetKind, type WidgetOptionSpec, type WidgetOptions } from '@galaxie/widgets';
+import {
+  WIDGET_OPTIONS,
+  sportProfile,
+  widgetOptionsFor,
+  type WidgetKind,
+  type WidgetOptionSpec,
+  type WidgetOptions,
+} from '@galaxie/widgets';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
@@ -22,15 +29,19 @@ export const hasWidgetOptions = (kind: WidgetKind) => (WIDGET_OPTIONS[kind] ?? [
 /**
  * Opções de conteúdo do widget, desenhadas a partir de `WIDGET_OPTIONS`: primeiro as escolhas (quantidade,
  * temporada, filtros), depois os campos liga/desliga em ordem alfabética. Valor igual ao padrão sai do
- * rascunho, para o widget salvo ficar como era.
+ * rascunho, para o widget salvo ficar como era. Com `sport`, só as opções que valem para ele (gols e
+ * cartões só no futebol, parciais só nos outros), com o rótulo na unidade do placar.
  */
 export function WidgetOptionsEditor({
   kind,
+  sport,
   value,
   entities,
   onChange,
 }: {
   kind: WidgetKind;
+  /** Esporte do widget (null = todos os esportes ou não se aplica). */
+  sport?: string | null;
   value: WidgetOptions;
   entities: OptionEntities;
   onChange: (next: WidgetOptions, entities: OptionEntities) => void;
@@ -38,7 +49,9 @@ export function WidgetOptionsEditor({
   const { t, locale } = useI18n();
   const o = t.client.editor.options;
   const wl = toWidgetLocale(locale);
-  const specs = WIDGET_OPTIONS[kind] ?? [];
+  const specs = sport
+    ? widgetOptionsFor(kind, sport, sportProfile(sport).unit)
+    : (WIDGET_OPTIONS[kind] ?? []);
   const label = (s: WidgetOptionSpec) => s.label[wl];
   const choices = specs.filter((s) => s.type !== 'boolean');
   const toggles = sortByLabel(

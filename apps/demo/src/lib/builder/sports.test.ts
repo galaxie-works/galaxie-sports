@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { OFFERED_WIDGET_KINDS } from './config';
-import { catalogTabs, pickTab, searchSport, sportChoices, sportForNewWidget, widgetFamily } from './sports';
+import {
+  catalogTabs,
+  defaultSport,
+  pickTab,
+  searchSport,
+  sportChoices,
+  sportForNewWidget,
+  sportOnKindChange,
+  widgetFamily,
+} from './sports';
 
 describe('abas de esporte do catálogo', () => {
   it('Futebol primeiro, com todos os tipos; nos outros esportes, só os tipos já prontos para eles', () => {
@@ -9,7 +18,11 @@ describe('abas de esporte do catálogo', () => {
     expect(tabs[0]?.family.id).toBe('futebol');
     expect(tabs[0]?.kinds).toEqual(OFFERED_WIDGET_KINDS);
     const basquete = tabs.find((t) => t.family.id === 'basquete');
-    expect(basquete?.kinds).toEqual(['live_list']);
+    // IA, "o que está em jogo" e vídeos ainda são só do futebol
+    expect(basquete?.kinds).toEqual(
+      OFFERED_WIDGET_KINDS.filter((k) => !['ai_context', 'match_stakes', 'related_videos'].includes(k)),
+    );
+    expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual(['live_list']);
   });
 
   it('só as famílias com esporte do plano', () => {
@@ -18,7 +31,8 @@ describe('abas de esporte do catálogo', () => {
   });
 
   it('aba sem tipo de widget pronto não aparece', () => {
-    expect(catalogTabs(['match_card'], [])).toHaveLength(1);
+    expect(catalogTabs(['ai_context'], [])).toHaveLength(1);
+    expect(catalogTabs(['match_card'], []).map((t) => t.family.id)).not.toContain('automobilismo');
   });
 
   it('aba da URL, ou a primeira quando não existe', () => {
@@ -30,17 +44,30 @@ describe('abas de esporte do catálogo', () => {
 });
 
 describe('esporte do widget', () => {
-  it('widget novo da aba grava o primeiro esporte da família, só nos tipos de todos os esportes', () => {
+  it('widget novo da aba grava o primeiro esporte da família que o tipo aceita', () => {
     expect(sportForNewWidget('live_list', 'basquete')).toBe('basketball');
     expect(sportForNewWidget('live_list', 'futebol')).toBe('football');
     expect(sportForNewWidget('live_list', undefined)).toBeNull();
-    expect(sportForNewWidget('match_card', 'basquete')).toBeNull();
+    expect(sportForNewWidget('match_card', 'basquete')).toBe('basketball');
+    expect(sportForNewWidget('match_card', undefined)).toBe('football');
+    expect(sportForNewWidget('ai_context', 'futebol')).toBeNull();
+  });
+
+  it('trocar o tipo mantém o esporte quando o novo aceita', () => {
+    expect(sportOnKindChange('standings', 'nba')).toBe('nba');
+    expect(sportOnKindChange('live_list', null)).toBeNull();
+    expect(sportOnKindChange('standings', null)).toBe('football');
+    expect(sportOnKindChange('standings', 'formula-1')).toBe('football');
+    expect(sportOnKindChange('ai_context', 'nba')).toBeNull();
+    expect(defaultSport('live_list')).toBeNull();
   });
 
   it('coluna Esporte: o esporte gravado, o único do tipo ou todos', () => {
     expect(widgetFamily('live_list', { sport: 'nba' })?.id).toBe('basquete');
     expect(widgetFamily('live_list', {})).toBeNull();
     expect(widgetFamily('standings', { competitionId: 'x' })?.id).toBe('futebol');
+    expect(widgetFamily('standings', { sport: 'volleyball' })?.id).toBe('volei');
+    expect(widgetFamily('ai_context', {})?.id).toBe('futebol');
   });
 
   it('seletor do editor: cada esporte da API (Basquete e NBA separados), só os do plano', () => {
@@ -55,9 +82,16 @@ describe('esporte do widget', () => {
     ).toEqual(['football', 'basketball', 'nba']);
   });
 
-  it('busca de entidade: o esporte escolhido nos Jogos do dia, o do tipo nos outros', () => {
+  it('busca de entidade: o esporte escolhido nos tipos de vários esportes, o do tipo nos outros', () => {
     expect(searchSport('live_list', 'nba')).toBe('nba');
     expect(searchSport('live_list', null)).toBeNull();
-    expect(searchSport('match_card', null)).toBe('football');
+    expect(searchSport('match_card', 'volleyball')).toBe('volleyball');
+    expect(searchSport('ai_context', null)).toBe('football');
+  });
+
+  it('seletor do tipo: só os esportes que ele aceita', () => {
+    const sports = sportChoices([], 'standings').map((c) => c.sport);
+    expect(sports).toContain('afl');
+    expect(sports).not.toContain('formula-1');
   });
 });

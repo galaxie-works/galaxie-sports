@@ -3,11 +3,14 @@
 import {
   LIVE_STATUSES,
   STARTED_STATUSES,
+  aflScoreText,
   eventRefreshMs,
   fillText,
   intlLocale,
   localTimeZone,
+  periodLabel,
   sidesOf,
+  sportProfile,
   venueTimeText,
   type GsEvent,
   type GsEventStats,
@@ -48,7 +51,7 @@ export interface MatchCardProps {
   showHalftime?: boolean | undefined;
   /** Placar agregado no jogo de volta (padrão: não). */
   showAggregate?: boolean | undefined;
-  /** Parciais por set ou quarto nos outros esportes (padrão: não). */
+  /** Parciais por set, quarto, tempo ou entrada nos outros esportes (padrão: sim fora do futebol). */
   showPeriods?: boolean | undefined;
   /** Hora local do jogo quando o estádio está em outro fuso (padrão: não). */
   venueTime?: boolean | undefined;
@@ -84,7 +87,7 @@ export function MatchCard({
   showReferee = false,
   showHalftime = false,
   showAggregate = false,
-  showPeriods = false,
+  showPeriods,
   venueTime = false,
   showGoals = false,
   showRedCards = false,
@@ -133,7 +136,13 @@ export function MatchCard({
   const penalty = score.penalty && score.penalty.home !== null ? score.penalty : null;
   const ht = showHalftime && started && score.halftime?.home != null ? score.halftime : null;
   const agg = showAggregate && score.aggregate?.home != null ? score.aggregate : null;
-  const periods = showPeriods && started ? (score.periods ?? []).filter((p) => p.home !== null) : [];
+  const profile = sportProfile(event.sport);
+  const periods =
+    (showPeriods ?? profile.periods) && started
+      ? (score.periods ?? []).filter((p) => p.home !== null || p.away !== null)
+      : [];
+  // AFL: "12.14 (86)" embaixo do placar
+  const afl = event.sport === 'afl' && score.goals_behinds ? score.goals_behinds : undefined;
   const competition = event.competition;
   const title = [
     showCompetition ? competition?.name : null,
@@ -181,6 +190,11 @@ export function MatchCard({
             <span>
               {score.home ?? 0} – {score.away ?? 0}
             </span>
+            {afl ? (
+              <small>
+                {aflScoreText(afl, 'home', null)} – {aflScoreText(afl, 'away', null)}
+              </small>
+            ) : null}
             {penalty ? (
               <small>
                 ({penalty.home} – {penalty.away} {texts.penalties})
@@ -212,8 +226,38 @@ export function MatchCard({
       {periods.length || incidents.length || statRows.length ? (
         <div className="gs-extras">
           {periods.length ? (
-            <div className="gs-meta" data-gs-periods="">
-              {periods.map((p) => `${p.home ?? 0}–${p.away ?? 0}`).join(' · ')}
+            <div className="gs-scroll">
+              <table className="gs-table gs-linescore" data-gs-periods="">
+                <thead>
+                  <tr>
+                    <th className="gs-left" scope="col">
+                      <span className="gs-sr-only">{texts.columns.team}</span>
+                    </th>
+                    {periods.map((p) => (
+                      <th key={p.code} scope="col">
+                        {periodLabel(p.code, texts)}
+                      </th>
+                    ))}
+                    <th scope="col">{texts.sport.total}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(['home', 'away'] as const).map((side) => {
+                    const team = side === 'home' ? home : away;
+                    return (
+                      <tr key={side}>
+                        <th className="gs-left" scope="row">
+                          <span className="gs-truncate">{team?.short_name ?? team?.name}</span>
+                        </th>
+                        {periods.map((p) => (
+                          <td key={p.code}>{p[side] ?? '–'}</td>
+                        ))}
+                        <td className="gs-strong">{score[side] ?? '–'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : null}
           {incidents.length ? (

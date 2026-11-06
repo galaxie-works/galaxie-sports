@@ -167,8 +167,8 @@ export function entityFromDefaults(
 }
 
 /**
- * Recorte padrão gravado no widget: a entidade e, nos tipos que valem para todos os esportes (Jogos do
- * dia), o esporte escolhido. Nos tipos de um esporte só, o esporte vem da entidade e não é gravado.
+ * Recorte padrão gravado no widget: a entidade e, nos tipos de vários esportes (Jogos do dia, placar,
+ * tabela...), o esporte escolhido. Nos tipos de um esporte só, o esporte é implícito e não é gravado.
  */
 export function defaultsFromEntity(
   entity: { type: WidgetEntityType; id: string } | null,
@@ -185,7 +185,12 @@ const SPORT = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 /** Esporte válido gravado no widget (ou null: todos os esportes). */
 export function sportOf(kind: WidgetKind, raw: unknown): string | null {
-  return typeof raw === 'string' && SPORT.test(raw) && widgetKindIsMultiSport(kind) ? raw : null;
+  return typeof raw === 'string' &&
+    SPORT.test(raw) &&
+    widgetKindIsMultiSport(kind) &&
+    widgetKindSupportsSport(kind, raw)
+    ? raw
+    : null;
 }
 
 export { widgetKindSupportsSport };

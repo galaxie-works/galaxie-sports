@@ -17,6 +17,7 @@ import {
   parseLiveListOptions,
   parseStandingsOptions,
   parseWidgetOptions,
+  widgetKindIsAllSports,
   widgetKindIsMultiSport,
   type LiveListOptions,
   type StandingsOptions,
@@ -54,7 +55,7 @@ import {
   usageSnippet,
   type WidgetLocale,
 } from '@/lib/builder/config';
-import { searchSport, sportChoices } from '@/lib/builder/sports';
+import { searchSport, sportChoices, sportOnKindChange } from '@/lib/builder/sports';
 import type { BrandThemeItem, WidgetKind, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -75,7 +76,7 @@ const ALL_SPORTS = 'all';
 export interface EditorDraft {
   name: string;
   kind: WidgetKind;
-  /** Esporte do widget nos tipos de todos os esportes (Jogos do dia); null = todos. */
+  /** Esporte do widget nos tipos de vários esportes (Jogos do dia, placar, tabela...); null = todos. */
   sport: string | null;
   /** Tema efetivo (o da marca com os ajustes deste widget, ou o tema só dele). */
   theme: WidgetTheme;
@@ -242,7 +243,9 @@ export function WidgetEditor({
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
   const [pending, startTransition] = useTransition();
   const kindTexts = useKindTexts();
-  const sampleFetch = useMemo(() => createPreviewFetch(), []);
+  // dados de exemplo no jeito do esporte escolhido (placar com sets no vôlei, tabela por vitórias...)
+  const previewSport = searchSport(draft.kind, draft.sport) ?? 'football';
+  const sampleFetch = useMemo(() => createPreviewFetch({ sport: previewSport }), [previewSport]);
   const entityTypes = ENTITY_TYPES[draft.kind];
   const dirty = savedSnapshot !== snapshot(draft);
   const set = <K extends keyof EditorDraft>(key: K, value: EditorDraft[K]) =>
@@ -259,11 +262,12 @@ export function WidgetEditor({
     label: t.nav.countries[m as keyof typeof t.nav.countries] ?? m,
   }));
   const localeItems = WIDGET_LOCALES.map((l) => ({ value: l, label: l }));
-  // esporte: só nos tipos de todos os esportes; os outros seguem o esporte da entidade
+  // esporte: nos tipos de vários esportes ("Todos os esportes" só nos que valem para todos); nos de um
+  // esporte só, ele é implícito
   const multiSport = widgetKindIsMultiSport(draft.kind);
   const sportItems = [
-    { value: ALL_SPORTS, label: e.sportAll },
-    ...sportChoices(sports).map(({ sport }) => ({
+    ...(widgetKindIsAllSports(draft.kind) ? [{ value: ALL_SPORTS, label: e.sportAll }] : []),
+    ...sportChoices(sports, draft.kind).map(({ sport }) => ({
       value: sport,
       label: t.nav.sports[sport as keyof typeof t.nav.sports] ?? sport,
     })),
@@ -346,16 +350,22 @@ export function WidgetEditor({
                     onValueChange={(v) => {
                       const kind = v as WidgetKind;
                       const types = ENTITY_TYPES[kind];
-                      setDraft((d) => ({
-                        ...d,
-                        kind,
-                        // o esporte só fica nos tipos de todos os esportes
-                        sport: widgetKindIsMultiSport(kind) ? d.sport : null,
-                        // a entidade escolhida só fica se o novo tipo aceitar
-                        entity: d.entity && types.includes(d.entity.type) ? d.entity : null,
-                        // as opções são de cada tipo: as que o novo tipo não conhece saem
-                        options: parseWidgetOptions(kind, d.options) ?? {},
-                      }));
+                      setDraft((d) => {
+                        // o esporte fica se o novo tipo aceitar; senão, o da mesma família que ele aceita
+                        const sport = sportOnKindChange(kind, d.sport);
+                        return {
+                          ...d,
+                          kind,
+                          sport,
+                          // a entidade escolhida só fica se o novo tipo aceitar (e o esporte não mudou)
+                          entity:
+                            d.entity && types.includes(d.entity.type) && (sport === d.sport || !d.sport)
+                              ? d.entity
+                              : null,
+                          // as opções são de cada tipo: as que o novo tipo não conhece saem
+                          options: parseWidgetOptions(kind, d.options) ?? {},
+                        };
+                      });
                     }}
                   >
                     <SelectTrigger id="widget-kind" className="w-full">
@@ -498,6 +508,7 @@ export function WidgetEditor({
                 </FrameHeader>
                 <WidgetOptionsEditor
                   kind={draft.kind}
+                  sport={searchSport(draft.kind, draft.sport)}
                   value={draft.options}
                   entities={draft.optionEntities}
                   onChange={(options, optionEntities) => setDraft((d) => ({ ...d, options, optionEntities }))}
@@ -553,7 +564,7 @@ export function WidgetEditor({
                 style={{ background: draft.theme.background, borderColor: draft.theme.border }}
               >
                 <GalaxieWidgetProvider
-                  key={realData ? 'real' : 'exemplo'}
+                  key={realData ? 'real' : `exemplo-${previewSport}`}
                   baseUrl="/api/galaxie"
                   publishableKey=""
                   fetch={realData ? proxyFetch : sampleFetch}

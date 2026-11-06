@@ -3,7 +3,12 @@
  * (`sport-families.ts`: Futebol, Basquete com NBA, Vôlei...), e cada aba mostra os tipos de widget que
  * valem para algum esporte da família (`WIDGET_CATALOG[kind].sports`). Puro: servidor, navegador e testes.
  */
-import { WIDGET_CATALOG, widgetKindSupportsSport } from '@galaxie/widgets';
+import {
+  WIDGET_CATALOG,
+  widgetKindIsAllSports,
+  widgetKindIsMultiSport,
+  widgetKindSupportsSport,
+} from '@galaxie/widgets';
 
 import { SPORT_FAMILIES, familyBySlug, familyOf, type SportFamily } from '@/lib/sport-families';
 
@@ -37,14 +42,33 @@ export function pickTab<T extends { family: SportFamily }>(tabs: T[], param: unk
 }
 
 /**
- * Esporte de um widget novo criado da aba da família: o primeiro esporte dela (Basquete → `basketball`,
- * que já traz a NBA). Só os tipos de todos os esportes gravam o esporte; os de um esporte só tiram da
- * entidade.
+ * Esporte padrão de um tipo de vários esportes sem esporte gravado: nenhum ("Todos os esportes") nos de
+ * todos os esportes; o primeiro da lista (o futebol, de onde vieram os widgets antigos) nos outros.
+ */
+export function defaultSport(kind: WidgetKind): string | null {
+  return widgetKindIsAllSports(kind) ? null : (WIDGET_CATALOG[kind].sports[0] ?? null);
+}
+
+/**
+ * Esporte de um widget novo criado da aba da família: o primeiro esporte dela que o tipo aceita (Basquete
+ * → `basketball`, que já traz a NBA). Os tipos de um esporte só não gravam o esporte (é implícito).
  */
 export function sportForNewWidget(kind: WidgetKind, familyParam: unknown): string | null {
-  if (WIDGET_CATALOG[kind].sports.length) return null;
+  if (!widgetKindIsMultiSport(kind)) return null;
   const family = typeof familyParam === 'string' ? familyBySlug(familyParam) : undefined;
-  return family ? family.sports[0] : null;
+  return family?.sports.find((s) => widgetKindSupportsSport(kind, s)) ?? defaultSport(kind);
+}
+
+/**
+ * Esporte que fica ao trocar o tipo no editor: o atual, se o tipo novo aceita; senão o da mesma família
+ * que ele aceita, ou o padrão do tipo. Tipo de um esporte só: nenhum.
+ */
+export function sportOnKindChange(kind: WidgetKind, current: string | null): string | null {
+  if (!widgetKindIsMultiSport(kind)) return null;
+  if (current === null) return defaultSport(kind);
+  if (widgetKindSupportsSport(kind, current)) return current;
+  const family = familyOf(current);
+  return family?.sports.find((s) => widgetKindSupportsSport(kind, s)) ?? defaultSport(kind);
 }
 
 /**
@@ -55,24 +79,27 @@ export function widgetFamily(
   kind: WidgetKind,
   defaults: WidgetDefaults | null | undefined,
 ): SportFamily | null {
-  const sports = WIDGET_CATALOG[kind].sports;
-  const sport = defaults?.sport ?? (sports.length === 1 ? sports[0] : undefined);
+  const sport = defaults?.sport ?? defaultSport(kind) ?? undefined;
   return sport ? (familyOf(sport) ?? null) : null;
 }
 
 /**
- * Esportes que o seletor do editor oferece, na ordem do menu, só os do plano. Cada esporte da API entra
- * separado (Basquete e NBA vêm de APIs diferentes e a API filtra pelo esporte exato).
+ * Esportes que o seletor do editor oferece, na ordem do menu, só os do plano e, com `kind`, os que o tipo
+ * aceita. Cada esporte da API entra separado (Basquete e NBA vêm de APIs diferentes e a API filtra pelo
+ * esporte exato).
  */
-export function sportChoices(tenantSports: readonly string[]): { family: SportFamily; sport: string }[] {
+export function sportChoices(
+  tenantSports: readonly string[],
+  kind?: WidgetKind,
+): { family: SportFamily; sport: string }[] {
   return SPORT_FAMILIES.flatMap((family) =>
-    allowedSports(family, tenantSports).map((sport) => ({ family, sport })),
+    allowedSports(family, tenantSports)
+      .filter((sport) => !kind || widgetKindSupportsSport(kind, sport))
+      .map((sport) => ({ family, sport })),
   );
 }
 
-/** Esporte da busca de entidade: o escolhido nos tipos de todos os esportes, o único do tipo nos outros. */
+/** Esporte da busca de entidade e da prévia: o escolhido nos tipos de vários esportes, o único nos outros. */
 export function searchSport(kind: WidgetKind, chosen: string | null): string | null {
-  const sports = WIDGET_CATALOG[kind].sports;
-  if (!sports.length) return chosen;
-  return sports.length === 1 ? sports[0]! : null;
+  return widgetKindIsMultiSport(kind) ? chosen : (WIDGET_CATALOG[kind].sports[0] ?? null);
 }

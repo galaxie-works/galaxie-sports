@@ -6,10 +6,18 @@ import type {
   GsCompetitionContext,
   GsStandingRow,
   GsStandings,
+  SportProfile,
   StandingsZoneColors,
   WidgetTexts,
 } from '../core/model.js';
-import { standingsZoneColor, standingsZoneLabel, standingsZoneTone } from '../core/model.js';
+import {
+  sportProfile,
+  standingPercentage,
+  standingsZoneColor,
+  standingsZoneLabel,
+  standingsZoneTone,
+  unitLabels,
+} from '../core/model.js';
 import {
   CompetitionSituation,
   Crest,
@@ -34,15 +42,18 @@ export interface StandingsTableProps {
   zoneColors?: StandingsZoneColors | undefined;
   /** Qual tabela mostrar quando a temporada tem várias: `all` (padrão), `phase`, `annual`, `relegation_average`. */
   table?: 'all' | 'phase' | 'annual' | 'relegation_average' | undefined;
-  /** Coluna de gols pró (padrão: não). */
+  /** Coluna de gols (pontos, corridas, sets) pró (padrão: não). */
   showGoalsFor?: boolean | undefined;
-  /** Coluna de gols contra (padrão: não). */
+  /** Coluna de gols (pontos, corridas, sets) contra (padrão: não). */
   showGoalsAgainst?: boolean | undefined;
-  /** Coluna de saldo de gols (padrão: sim). */
+  /** Coluna de saldo (padrão: sim). */
   showGoalDiff?: boolean | undefined;
   /** Forma recente, os últimos 5 jogos (padrão: não). */
   showForm?: boolean | undefined;
-  /** Aproveitamento em % dos pontos disputados (padrão: não). */
+  /**
+   * Aproveitamento: % dos pontos disputados; % de vitórias no basquete, beisebol e futebol americano; o
+   * percentual pró ÷ contra na AFL. Padrão: não. Onde a tabela é por vitórias e na AFL, sempre aparece.
+   */
   showPercentage?: boolean | undefined;
   /** UUID de um time para destacar a linha (o clube do portal, por exemplo). */
   highlightTeamId?: string | undefined;
@@ -50,8 +61,11 @@ export interface StandingsTableProps {
   showDecisive?: boolean | undefined;
 }
 
-/** Colunas opcionais ligadas. */
+/** Colunas ligadas (as opcionais e as que dependem do esporte). */
 interface Columns {
+  points: boolean;
+  drawn: boolean;
+  otLosses: boolean;
   goalsFor: boolean;
   goalsAgainst: boolean;
   goalDiff: boolean;
@@ -80,7 +94,7 @@ export function StandingsTable({
   showGoalsAgainst = false,
   showGoalDiff = true,
   showForm = false,
-  showPercentage = false,
+  showPercentage,
   highlightTeamId,
   showDecisive = false,
 }: StandingsTableProps) {
@@ -97,14 +111,6 @@ export function StandingsTable({
     {},
     () => STANDINGS_REFRESH_MS,
   );
-  const cols: Columns = {
-    goalsFor: showGoalsFor,
-    goalsAgainst: showGoalsAgainst,
-    goalDiff: showGoalDiff,
-    form: showForm,
-    percentage: showPercentage,
-  };
-  const x = texts.extra;
 
   if (!query.data) {
     return (
@@ -124,6 +130,30 @@ export function StandingsTable({
   const picked = table === 'all' ? all : all.filter((g) => g.table === table);
   const groups = picked.length ? picked : all;
   const c = texts.columns;
+  const profile = sportProfile(query.data.sport);
+  const rowsAll = groups.flatMap((g) => g.rows);
+  // pró e contra zerados em todas as linhas (a NBA não manda): sem saldo nem percentual pró ÷ contra
+  const hasScores = rowsAll.some((r) => (r.goals_for ?? 0) > 0 || (r.goals_against ?? 0) > 0);
+  const cols: Columns = {
+    points: profile.points,
+    // empate só aparece onde existe (no futebol americano, só se houve)
+    drawn: profile.draws && (profile.sport === 'football' || rowsAll.some((r) => r.drawn > 0)),
+    otLosses: profile.overtimeLosses && rowsAll.some((r) => r.ot_lost != null),
+    goalsFor: showGoalsFor && hasScores,
+    goalsAgainst: showGoalsAgainst && hasScores,
+    goalDiff: showGoalDiff && (hasScores || profile.sport === 'football'),
+    form: showForm,
+    // tabela por vitórias e AFL: o % é a coluna que ordena, sempre visível; nos outros, opcional
+    percentage: profile.percentage === 'ratio' ? hasScores : !profile.points || (showPercentage ?? false),
+  };
+  const u = unitLabels(profile.unit, texts);
+  const x = texts.extra;
+  const pctLabel =
+    profile.percentage === 'wins'
+      ? texts.sport.winPct
+      : profile.percentage === 'ratio'
+        ? texts.sport.ratio
+        : x.percentage;
   const shown = (rows: GsStandingRow[]) => (limit ? rows.slice(0, limit) : rows);
   // legenda: uma entrada por zona (pelo nome exibido), na ordem em que aparece na tabela
   const legend = new Map<string, string>();
@@ -162,15 +192,16 @@ export function StandingsTable({
                     <th className="gs-left" scope="col">
                       {c.team}
                     </th>
-                    <th scope="col">{c.points}</th>
+                    {cols.points ? <th scope="col">{c.points}</th> : null}
                     <th scope="col">{c.played}</th>
                     <th scope="col">{c.won}</th>
-                    <th scope="col">{c.drawn}</th>
+                    {cols.drawn ? <th scope="col">{c.drawn}</th> : null}
                     <th scope="col">{c.lost}</th>
-                    {cols.goalsFor ? <th scope="col">{x.goalsFor}</th> : null}
-                    {cols.goalsAgainst ? <th scope="col">{x.goalsAgainst}</th> : null}
-                    {cols.goalDiff ? <th scope="col">{c.goalDiff}</th> : null}
-                    {cols.percentage ? <th scope="col">{x.percentage}</th> : null}
+                    {cols.otLosses ? <th scope="col">{texts.sport.otLosses}</th> : null}
+                    {cols.goalsFor ? <th scope="col">{u.for}</th> : null}
+                    {cols.goalsAgainst ? <th scope="col">{u.against}</th> : null}
+                    {cols.goalDiff ? <th scope="col">{u.diff}</th> : null}
+                    {cols.percentage ? <th scope="col">{pctLabel}</th> : null}
                     {cols.form ? <th scope="col">{x.form}</th> : null}
                   </tr>
                 </thead>
@@ -182,6 +213,7 @@ export function StandingsTable({
                       texts={texts}
                       zoneColors={zoneColors}
                       cols={cols}
+                      profile={profile}
                       highlight={!!highlightTeamId && row.participant.id === highlightTeamId}
                     />
                   ))}
@@ -219,12 +251,14 @@ function Row({
   texts,
   zoneColors,
   cols,
+  profile,
   highlight,
 }: {
   row: GsStandingRow;
   texts: WidgetTexts;
   zoneColors: StandingsZoneColors | undefined;
   cols: Columns;
+  profile: SportProfile;
   highlight: boolean;
 }) {
   const zone = row.description?.trim() ? row.description : null;
@@ -248,17 +282,16 @@ function Row({
           <span className="gs-truncate">{row.participant.short_name ?? row.participant.name}</span>
         </div>
       </td>
-      <td className="gs-strong">{row.points}</td>
+      {cols.points ? <td className="gs-strong">{row.points}</td> : null}
       <td>{row.played}</td>
-      <td>{row.won}</td>
-      <td>{row.drawn}</td>
+      <td className={cols.points ? undefined : 'gs-strong'}>{row.won}</td>
+      {cols.drawn ? <td>{row.drawn}</td> : null}
       <td>{row.lost}</td>
+      {cols.otLosses ? <td>{row.ot_lost ?? '–'}</td> : null}
       {cols.goalsFor ? <td>{row.goals_for ?? '–'}</td> : null}
       {cols.goalsAgainst ? <td>{row.goals_against ?? '–'}</td> : null}
       {cols.goalDiff ? <td>{row.goal_diff > 0 ? `+${row.goal_diff}` : row.goal_diff}</td> : null}
-      {cols.percentage ? (
-        <td>{row.played > 0 ? Math.round((row.points / (row.played * 3)) * 100) : '–'}</td>
-      ) : null}
+      {cols.percentage ? <td>{standingPercentage(row, profile) ?? '–'}</td> : null}
       {cols.form ? (
         <td>
           <span className="gs-form">

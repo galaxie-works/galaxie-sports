@@ -25,7 +25,7 @@ import {
   toWidgetLocale,
   WIDGET_KINDS,
 } from './config';
-import { sportForNewWidget } from './sports';
+import { defaultSport, sportChoices, sportForNewWidget } from './sports';
 import { builderDb, listWidgetThemes } from './store';
 import type { BrandThemeItem, Widget, WidgetEntityType, WidgetKind } from './types';
 
@@ -92,7 +92,13 @@ export function newDraft(
   return {
     name: WIDGET_CATALOG[kind].name[toWidgetLocale(locale)],
     kind,
-    sport: sport && (!tenant.sports.length || tenant.sports.includes(sport)) ? sport : null,
+    // esporte fora do plano: o primeiro do plano que o tipo aceita (nos de todos os esportes, todos)
+    sport:
+      sport && (!tenant.sports.length || tenant.sports.includes(sport))
+        ? sport
+        : defaultSport(kind) && sportChoices(tenant.sports, kind)[0]
+          ? sportChoices(tenant.sports, kind)[0]!.sport
+          : null,
     theme: brand ? { ...brand.theme } : { ...DEFAULT_THEMES.dark },
     brandThemeId: brand?.id ?? null,
     locale: toWidgetLocale(locale),
@@ -128,7 +134,8 @@ export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDra
   return {
     name: widget.name,
     kind: widget.kind,
-    sport: sportOf(widget.kind, widget.config.defaults?.sport),
+    // widget salvo antes do esporte (os de futebol): o padrão do tipo
+    sport: sportOf(widget.kind, widget.config.defaults?.sport) ?? defaultSport(widget.kind),
     theme: widget.config.theme,
     brandThemeId: widget.config.brandThemeId ?? null,
     locale: isWidgetLocale(widget.config.locale) ? widget.config.locale : toWidgetLocale(locale),

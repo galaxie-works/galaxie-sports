@@ -3,7 +3,7 @@
 // desta lista, o banco guarda `config.options` e o embed e o registry passam as props ao componente.
 // Valor ausente = o padrão do componente (o widget fica como era antes da opção existir).
 
-import type { WidgetKind, WidgetLocale } from './core/model.js';
+import { TEAM_SPORTS, type SportScoreUnit, type WidgetKind, type WidgetLocale } from './core/model.js';
 
 type Label = Record<WidgetLocale, string>;
 
@@ -14,6 +14,10 @@ interface OptionBase {
   hint?: Label;
   /** Busca uma rota a mais da API quando ligada (gols, estatísticas…). */
   extraCall?: boolean;
+  /** Esportes em que a opção faz sentido (ausente = todos): o Builder esconde nos outros. */
+  sports?: readonly string[];
+  /** Rótulo pela unidade do placar do esporte ("Pontos pró" no basquete, "Sets vencidos" no vôlei). */
+  unitLabel?: Partial<Record<SportScoreUnit, Label>>;
 }
 
 export type WidgetOptionSpec =
@@ -35,6 +39,11 @@ const bool = (key: string, label: Label, def: boolean, extra?: Partial<OptionBas
   default: def,
   ...extra,
 });
+
+/** Só no futebol (gols, cartões, posse, formação, regulamento de tabelas). */
+const FOOTBALL = { sports: ['football'] } as const;
+/** Esportes coletivos com parciais (sets, quartos, tempos, períodos, entradas). */
+const WITH_PERIODS = { sports: TEAM_SPORTS.filter((s) => s !== 'football') } as const;
 
 // rótulos que se repetem entre widgets
 const L = {
@@ -68,16 +77,27 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showVenue', L.venue, true),
     bool('showCity', l('Cidade', 'Ciudad', 'City'), true),
     bool('showReferee', l('Árbitro', 'Árbitro', 'Referee'), false),
-    bool('showHalftime', l('Placar do 1º tempo', 'Marcador del primer tiempo', 'Half-time score'), false),
+    bool(
+      'showHalftime',
+      l('Placar do 1º tempo', 'Marcador del primer tiempo', 'Half-time score'),
+      false,
+      FOOTBALL,
+    ),
     bool(
       'showAggregate',
       l('Placar agregado (jogo de volta)', 'Global (partido de vuelta)', 'Aggregate score'),
       false,
+      FOOTBALL,
     ),
     bool(
       'showPeriods',
-      l('Parciais (sets, quartos)', 'Parciales (sets, cuartos)', 'Periods (sets, quarters)'),
-      false,
+      l(
+        'Parciais (sets, quartos, entradas)',
+        'Parciales (sets, cuartos, entradas)',
+        'Line score (sets, quarters, innings)',
+      ),
+      true,
+      WITH_PERIODS,
     ),
     bool(
       'venueTime',
@@ -97,18 +117,26 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       false,
       {
         extraCall: true,
+        ...FOOTBALL,
       },
     ),
-    bool('showRedCards', l('Cartões vermelhos', 'Tarjetas rojas', 'Red cards'), false, { extraCall: true }),
+    bool('showRedCards', l('Cartões vermelhos', 'Tarjetas rojas', 'Red cards'), false, {
+      extraCall: true,
+      ...FOOTBALL,
+    }),
     bool('showStats', l('Estatísticas principais', 'Estadísticas principales', 'Key stats'), false, {
       extraCall: true,
+      ...FOOTBALL,
       hint: l(
         'Posse, finalizações e no alvo.',
         'Posesión, remates y al arco.',
         'Possession, shots and on target.',
       ),
     }),
-    bool('showFormation', l('Formação tática', 'Formación táctica', 'Formation'), false, { extraCall: true }),
+    bool('showFormation', l('Formação tática', 'Formación táctica', 'Formation'), false, {
+      extraCall: true,
+      ...FOOTBALL,
+    }),
     bool('showCalendar', L.calendar, false),
   ],
   live_list: [],
@@ -142,12 +170,34 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
         },
         { value: 'all', label: l('Todas', 'Todas', 'All') },
       ],
+      ...FOOTBALL,
     },
-    bool('showGoalsFor', l('Gols pró', 'Goles a favor', 'Goals for'), false),
-    bool('showGoalsAgainst', l('Gols contra', 'Goles en contra', 'Goals against'), false),
-    bool('showGoalDiff', l('Saldo de gols', 'Diferencia de goles', 'Goal difference'), true),
+    bool('showGoalsFor', l('Gols pró', 'Goles a favor', 'Goals for'), false, {
+      unitLabel: {
+        points: l('Pontos pró', 'Puntos a favor', 'Points for'),
+        runs: l('Corridas pró', 'Carreras a favor', 'Runs scored'),
+        sets: l('Sets vencidos', 'Sets ganados', 'Sets won'),
+      },
+    }),
+    bool('showGoalsAgainst', l('Gols contra', 'Goles en contra', 'Goals against'), false, {
+      unitLabel: {
+        points: l('Pontos contra', 'Puntos en contra', 'Points against'),
+        runs: l('Corridas contra', 'Carreras en contra', 'Runs allowed'),
+        sets: l('Sets perdidos', 'Sets perdidos', 'Sets lost'),
+      },
+    }),
+    bool('showGoalDiff', l('Saldo de gols', 'Diferencia de goles', 'Goal difference'), true, {
+      unitLabel: {
+        points: l('Saldo de pontos', 'Diferencia de puntos', 'Point difference'),
+        runs: l('Saldo de corridas', 'Diferencia de carreras', 'Run difference'),
+        sets: l('Saldo de sets', 'Diferencia de sets', 'Set difference'),
+      },
+    }),
     bool('showForm', l('Forma (últimos 5)', 'Racha (últimos 5)', 'Form (last 5)'), false),
-    bool('showPercentage', l('Aproveitamento (%)', 'Rendimiento (%)', 'Points percentage'), false),
+    // onde a tabela é por vitórias (basquete, beisebol, futebol americano) e na AFL, o % sempre aparece
+    bool('showPercentage', l('Aproveitamento (%)', 'Rendimiento (%)', 'Points percentage'), false, {
+      sports: ['football', 'volleyball', 'hockey', 'handball', 'rugby'],
+    }),
     {
       key: 'highlightTeamId',
       type: 'team',
@@ -372,4 +422,14 @@ export function optionProps(kind: WidgetKind, options: WidgetOptions | undefined
   const clean = parseWidgetOptions(kind, options) ?? {};
   if (kind === 'related_videos' && clean.format === 'both') delete clean.format;
   return clean;
+}
+
+/**
+ * Opções do tipo que valem para o esporte (sem esporte = todas), com o rótulo na unidade do placar dele.
+ * O Builder desenha só estas; as outras ficam salvas e o componente as ignora.
+ */
+export function widgetOptionsFor(kind: WidgetKind, sport: string | null | undefined, unit?: SportScoreUnit) {
+  return (WIDGET_OPTIONS[kind] ?? [])
+    .filter((spec) => !sport || !spec.sports || spec.sports.includes(sport))
+    .map((spec) => (unit && spec.unitLabel?.[unit] ? { ...spec, label: spec.unitLabel[unit]! } : spec));
 }

@@ -18,6 +18,7 @@ import type {
   GsStandings,
   GsWhereToWatch,
 } from './core/model.js';
+import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -216,7 +217,27 @@ const platform = (
  * Três jogos (ao vivo, mais tarde e encerrado), a tabela e o onde assistir (com a grade: TV aberta,
  * canal pago e as plataformas com o plano), relativos a `now`.
  */
-export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
+export function createPreviewFixtures(now: Date = new Date(), sport = 'football'): PreviewFixtures {
+  const f = footballFixtures(now);
+  if (sport === 'football') return f;
+  // outros esportes coletivos: o mesmo roteiro com placar, parciais e tabela do esporte
+  const events = f.events.map((e, i) => sportifyEvent(e, sport, i));
+  const live = events[0]!;
+  return {
+    ...f,
+    events,
+    standings: sportifyStandings(f.standings, sport),
+    h2h: {
+      ...f.h2h,
+      summary: sportifyH2hSummary(f.h2h.summary, sport),
+      all_time: f.h2h.all_time ? sportifyH2hSummary(f.h2h.all_time, sport) : null,
+      events: f.h2h.events.map((e, i) => sportifyEvent(e, sport, i)),
+    },
+    teamEvents: f.teamEvents.map((e, i) => (e.id === live.id ? live : sportifyEvent(e, sport, i))),
+  };
+}
+
+function footballFixtures(now: Date): PreviewFixtures {
   const minutes = (m: number) => new Date(now.getTime() + m * 60_000);
   const events: Event[] = [
     makeEvent({
@@ -272,6 +293,7 @@ export function createPreviewFixtures(now: Date = new Date()): PreviewFixtures {
 
   const standings: Standings = {
     competition_id: COMPETITION_ID,
+    sport: 'football',
     season: { year: now.getUTCFullYear(), label: String(now.getUTCFullYear()) },
     groups: [
       {
@@ -695,11 +717,11 @@ const json = (body: unknown, status = 200) =>
  * `fetch` que responde como a API pública com os dados de exemplo — para o preview do Builder sem chave
  * e para os testes. Passe em `<GalaxieWidgetProvider fetch={createPreviewFetch()}>`.
  */
-export function createPreviewFetch(options: { now?: Date } = {}): typeof fetch {
+export function createPreviewFetch(options: { now?: Date; sport?: string } = {}): typeof fetch {
   return async (input) => {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = new URL(raw, 'http://preview.local').pathname.replace(/\/+$/, '');
-    const f = createPreviewFixtures(options.now ?? new Date());
+    const f = createPreviewFixtures(options.now ?? new Date(), options.sport);
     if (path.endsWith('/v1/events/live')) {
       return json({ data: f.events.filter((e) => e.status === 'live' || e.status === 'break') });
     }

@@ -53,6 +53,10 @@ export {
   type WidgetMode,
   type WidgetTexts,
   type WidgetTheme,
+  TEAM_SPORTS,
+  sportProfile,
+  type SportProfile,
+  type SportScoreUnit,
 } from './core/model.js';
 
 // componentes (client components)
@@ -76,6 +80,7 @@ export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js
 export {
   VIDEO_TYPES,
   WIDGET_OPTIONS,
+  widgetOptionsFor,
   optionProps,
   parseWidgetOptions,
   type WidgetOptionSpec,
@@ -85,6 +90,7 @@ export {
 // catálogo, preview e registry
 export {
   WIDGET_CATALOG,
+  widgetKindIsAllSports,
   widgetKindIsMultiSport,
   widgetKindSupportsSport,
   type WidgetCatalogEntry,

@@ -1,4 +1,4 @@
-import type { WidgetKind, WidgetLocale } from './core/model.js';
+import { TEAM_SPORTS, type WidgetKind, type WidgetLocale } from './core/model.js';
 import { PREVIEW_IDS } from './fixtures.js';
 import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
@@ -48,12 +48,13 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   /**
    * Esportes da API em que o tipo vale (`football`, `basketball`, `formula-1`...). Lista vazia = todos.
    * O catálogo do Builder mostra o tipo só na aba dos esportes dele (épico #731): cada esporte entra
-   * aqui quando o widget estiver adaptado a ele (placar, termos e colunas).
+   * aqui quando o widget estiver adaptado a ele (placar, termos e colunas). Placar, tabela, confronto,
+   * agenda e onde assistir valem para os esportes coletivos (`TEAM_SPORTS`, com o perfil de cada um).
    */
   sports: readonly string[];
 }
 
-/** Tipos ainda só do futebol (os textos e as colunas falam de gols, empates e cartões). */
+/** Tipos ainda só do futebol (IA, "o que está em jogo" e vídeos dependem de dados que só o futebol tem). */
 const FOOTBALL_ONLY = ['football'] as const;
 
 export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
@@ -88,7 +89,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
-    sports: FOOTBALL_ONLY,
+    sports: TEAM_SPORTS,
   },
   live_list: {
     kind: 'live_list',
@@ -157,7 +158,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
-    sports: FOOTBALL_ONLY,
+    sports: TEAM_SPORTS,
   },
   where_to_watch: {
     kind: 'where_to_watch',
@@ -174,7 +175,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['region', 'showAddonPrices', 'showWatchLinks', 'showCalendar'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent, market: 'BR' },
     polling: false,
-    sports: FOOTBALL_ONLY,
+    sports: TEAM_SPORTS,
   },
   ai_context: {
     kind: 'ai_context',
@@ -248,7 +249,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'showBar', 'showMeetingCompetition', 'showDerbyName'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
-    sports: FOOTBALL_ONLY,
+    sports: TEAM_SPORTS,
   },
   team_schedule: {
     kind: 'team_schedule',
@@ -274,7 +275,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
-    sports: FOOTBALL_ONLY,
+    sports: TEAM_SPORTS,
   },
 };
 
@@ -284,5 +285,11 @@ export function widgetKindSupportsSport(kind: WidgetKind, sport: string): boolea
   return sports.length === 0 || sports.includes(sport);
 }
 
-/** O tipo vale para todos os esportes (o widget pode filtrar um ou mostrar todos). */
-export const widgetKindIsMultiSport = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length === 0;
+/**
+ * O tipo vale para mais de um esporte: o Builder pergunta o esporte (filtra a busca e a prévia) e o grava
+ * no widget. Nos de um esporte só, ele é implícito.
+ */
+export const widgetKindIsMultiSport = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length !== 1;
+
+/** O tipo vale para todos os esportes (o widget pode mostrar todos de uma vez: "Todos os esportes"). */
+export const widgetKindIsAllSports = (kind: WidgetKind): boolean => WIDGET_CATALOG[kind].sports.length === 0;

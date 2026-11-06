@@ -18,7 +18,7 @@ import {
   PUBLISHABLE_KEY_HEADER,
   WIDGET_CSS,
   apiLocale,
-  clockText,
+  liveClockText,
   eventIcs,
   initials,
   intlLocale,
@@ -362,11 +362,16 @@ export function Crest({
 }
 
 /** Estado do jogo: minuto ao vivo pulsando, intervalo, encerrado, adiado… */
-export function StatusBadge({ event }: { event: Pick<GsEvent, 'status' | 'clock'> }) {
+export function StatusBadge({
+  event,
+}: {
+  event: Pick<GsEvent, 'status' | 'clock'> & { sport?: string | undefined };
+}) {
   const { texts } = useGalaxieWidget();
   const label = texts.status[event.status] ?? event.status;
   if (LIVE_STATUSES.has(event.status) || event.status === 'starting') {
-    const minute = event.status === 'live' ? clockText(event.clock) : null;
+    // futebol: o minuto; outros esportes: a parcial em andamento ("3Q", "S4")
+    const minute = event.status === 'live' ? liveClockText(event, texts) : null;
     return (
       <span className="gs-badge" data-tone="live">
         <span className="gs-dot" aria-hidden="true" />

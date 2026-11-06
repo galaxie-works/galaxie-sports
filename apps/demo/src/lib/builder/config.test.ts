@@ -173,16 +173,21 @@ describe('widget salvo', () => {
     expect(live.ok && live.value.config.defaults).toEqual({});
   });
 
-  it('esporte: grava só nos Jogos do dia, no formato da API e dentro do plano', () => {
+  it('esporte: grava nos tipos de vários esportes, no formato da API, dentro do plano e do tipo', () => {
     const none = { ...base.config, defaults: { sport: 'basketball' } };
     const live = parseWidgetInput({ ...base, kind: 'live_list', config: none }, opts);
     expect(live.ok && live.value.config.defaults).toEqual({ sport: 'basketball' });
-    // placar é só de futebol: o esporte vem do jogo
+    // o placar vale para os esportes coletivos, não para a F1
+    const withSport = (sport: string) => ({
+      ...base,
+      config: { ...base.config, defaults: { ...base.config.defaults, sport } },
+    });
+    const card = parseWidgetInput(withSport('basketball'), opts);
+    expect(card.ok && card.value.config.defaults.sport).toBe('basketball');
+    expect(parseWidgetInput(withSport('formula-1'), opts)).toEqual({ ok: false, error: 'sport' });
+    // contexto de IA é só de futebol: o esporte é implícito
     expect(
-      parseWidgetInput(
-        { ...base, config: { ...base.config, defaults: { ...base.config.defaults, sport: 'basketball' } } },
-        opts,
-      ),
+      parseWidgetInput({ ...base, kind: 'ai_context', config: { ...withSport('football').config } }, opts),
     ).toEqual({ ok: false, error: 'sport' });
     const bad = { ...base.config, defaults: { sport: 'Basket Ball' } };
     expect(parseWidgetInput({ ...base, kind: 'live_list', config: bad }, opts)).toEqual({

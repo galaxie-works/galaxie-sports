@@ -424,6 +424,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const source = rows[0]?.st.source;
         const body: Standings = {
           competition_id: row.c.id,
+          sport: row.c.sport,
           season: { year: s.year, label: s.label },
           groups: ordered,
           source: source === 'provider' || source === 'computed' ? source : null,
