@@ -26,14 +26,14 @@ describe('opções de conteúdo dos widgets', () => {
     expect(parseWidgetOptions('match_card', null)).toBeUndefined();
   });
 
-  it('números no intervalo, listas conhecidas em ordem, ids e UF conferidos', () => {
+  it('números no intervalo, listas conhecidas em ordem, ids conferidos', () => {
     expect(parseWidgetOptions('head_to_head', { limit: 99 })).toEqual({ limit: 20 });
     expect(parseWidgetOptions('team_schedule', { next: '4', recent: -2 })).toEqual({ next: 4, recent: 0 });
     expect(
       parseWidgetOptions('related_videos', { types: 'interview,goal,xyz,goal', format: 'vertical' }),
     ).toEqual({ types: 'goal,interview' });
-    expect(parseWidgetOptions('where_to_watch', { region: 'sp' })).toEqual({ region: 'SP' });
-    expect(parseWidgetOptions('where_to_watch', { region: 'São Paulo' })).toBeUndefined();
+    // praça da TV aberta não é opção do Builder (a geolocalização é da operadora)
+    expect(parseWidgetOptions('where_to_watch', { region: 'SP' })).toBeUndefined();
     expect(
       parseWidgetOptions('standings', {
         season: '2025',
