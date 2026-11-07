@@ -218,7 +218,7 @@ async function seed() {
   await db
     .insert(footballFixture)
     .values({ eventId: ev2!.id, providerFixtureId: 9002, summary: { fixture: { id: 9002 } } });
-  // o terceiro jogo não tem lista nenhuma
+  // o terceiro jogo não tem lista: a da liga dele saiu depois, mas só com outro jogo
   const [ev3] = await db
     .insert(event)
     .values({
@@ -233,9 +233,16 @@ async function seed() {
     { eventId: ev3!.id, participantId: boreal!.id, side: 'home' },
     { eventId: ev3!.id, participantId: cometa!.id, side: 'away' },
   ]);
-  await db
-    .insert(footballFixture)
-    .values({ eventId: ev3!.id, providerFixtureId: 9003, summary: { fixture: { id: 9003 } } });
+  await db.insert(footballFixture).values({
+    eventId: ev3!.id,
+    providerFixtureId: 9003,
+    summary: { fixture: { id: 9003 }, league: { id: 72, season: 2026 } },
+  });
+  await insertRaw(
+    { league: '72', season: '2026' },
+    [{ ...injury(998, 'Outra Liga', 2, 'Missing Fixture', 'Knock'), fixture: { id: 4321 } }],
+    new Date('2026-11-06T12:00:00Z'),
+  );
   // lista do jogo 9002 publicada e vazia
   await insertRaw({ fixture: '9002' }, [], new Date('2026-11-06T06:00:00Z'));
   // a lista da temporada (mais antiga) e a do dia (mais nova, sem o Davi como dúvida → agora fora)
@@ -348,7 +355,7 @@ describe('disponibilidade', () => {
     expect(body.teams.flatMap((t) => t.players)).toEqual([]);
   });
 
-  it('sem lista e sem histórico: indisponível', async () => {
+  it('sem lista e sem histórico: indisponível (a lista da liga sem o jogo não conta como vazia)', async () => {
     const body = await get<EventSidelined>(`/v1/events/${ids.event3}/sidelined`);
     expect(body.available).toBe(false);
   });
@@ -366,6 +373,11 @@ describe('GET /v1/teams/{id}/sidelined', () => {
       ['Bruno Zagueiro', 'history'],
       ['Ana Atacante', 'match'],
     ]);
+  });
+
+  it('com histórico ou lista: disponível', async () => {
+    const body = await get<TeamSidelined>(`/v1/teams/${ids.aurora}/sidelined`);
+    expect(body.available).toBe(true);
   });
 
   it('só a lista do próprio time entra', async () => {

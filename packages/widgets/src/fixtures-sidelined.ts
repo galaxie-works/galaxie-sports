@@ -103,6 +103,7 @@ export function previewTeamSidelined(team: GsSidelinedTeam, now: Date): GsTeamSi
   return {
     team,
     as_of: now.toISOString().slice(0, 10),
+    available: true,
     next_event_id: null,
     players: players(SAMPLES[0]!, now),
   };

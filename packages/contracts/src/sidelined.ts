@@ -82,6 +82,11 @@ export const TeamSidelined = z
   .object({
     team: SidelinedTeamRef,
     as_of: z.iso.date().meta({ description: 'Data de referência (hoje, UTC).' }),
+    available: z.boolean().meta({
+      description:
+        'false quando não há lista do fornecedor para o próximo jogo nem histórico do elenco (desfalques ' +
+        'desconhecidos, não "nenhum desfalque").',
+    }),
     next_event_id: z
       .uuid()
       .nullable()

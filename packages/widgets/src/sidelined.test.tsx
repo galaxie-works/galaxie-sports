@@ -89,12 +89,25 @@ describe('Sidelined', () => {
       json({
         team: { id: 't', name: 'Aurora', side: null, logo: null },
         as_of: '2026-11-06',
+        available: true,
         next_event_id: null,
         players: [],
       }),
     );
     setup(<Sidelined teamId="t" />, { fetchImpl, locale: 'en' });
     expect(await screen.findByText('No absences reported.')).toBeTruthy();
+    cleanup();
+    const unknownImpl = vi.fn<typeof fetch>(async () =>
+      json({
+        team: { id: 't', name: 'Aurora', side: null, logo: null },
+        as_of: '2026-11-06',
+        available: false,
+        next_event_id: null,
+        players: [],
+      }),
+    );
+    setup(<Sidelined teamId="t" />, { fetchImpl: unknownImpl });
+    expect(await screen.findByText('A lista de desfalques ainda não saiu.')).toBeTruthy();
     cleanup();
     setup(<Sidelined />);
     expect(screen.getByText('Escolha um jogo ou um time.')).toBeTruthy();

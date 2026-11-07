@@ -886,6 +886,7 @@ export interface GsEventSidelined {
 export interface GsTeamSidelined {
   team: GsSidelinedTeam;
   as_of: string;
+  available: boolean;
   next_event_id: string | null;
   players: GsSidelinedPlayer[];
 }

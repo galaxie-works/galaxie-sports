@@ -154,16 +154,21 @@ async function fixtureInjuries(
   // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
   // liga na temporada. Vale só a resposta mais recente entre elas, inteira: a lista refeita tira quem voltou
   // (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
-  // resposta vazia também vale: a lista saiu e não tem ninguém.
+  // resposta vazia também vale para o jogo e para o dia: a lista saiu e não tem ninguém. A da liga não: ela traz
+  // só os jogos cuja lista já saiu, então sem nenhum item do jogo ela não diz nada sobre ele.
   const [snap] = await db.execute<{ id: number }>(sql`
     select latest.id
-      from (select distinct on (r.request_hash) r.id, r.body, coalesce(r.last_seen_at, r.fetched_at) as seen
+      from (select distinct on (r.request_hash) r.id, r.params, r.body,
+                   coalesce(r.last_seen_at, r.fetched_at) as seen
               from raw.api_response r
              where r.provider = ${PROVIDER} and r.sport = 'football' and r.endpoint = '/injuries'
                and (r.params->>'fixture' = ${String(fixturePid)} or r.params->>'date' = ${eventDay}
                     ${leagueCond})
              order by r.request_hash, r.fetched_at desc) latest
      where jsonb_typeof(latest.body->'response') = 'array'
+       and (latest.params->>'fixture' is not null or latest.params->>'date' is not null
+            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
+                        where (x->'fixture'->>'id') = ${String(fixturePid)}))
      order by latest.seen desc
      limit 1`);
   if (!snap) return { found: false, items: [] };
@@ -365,7 +370,7 @@ export async function loadTeamSidelined(
     as_of: today,
     sport: team.sport,
   };
-  if (team.sport !== 'football') return { ...base, next_event_id: null, players: [] };
+  if (team.sport !== 'football') return { ...base, available: false, next_event_id: null, players: [] };
 
   const until = new Date(c.now.getTime() + NEXT_EVENT_DAYS * 86_400_000);
   const [next] = await c.db
@@ -389,6 +394,7 @@ export async function loadTeamSidelined(
     .orderBy(event.startsAt)
     .limit(1);
   let items: ApiInjury[] = [];
+  let listed = false;
   if (next) {
     const league = (next.summary as { league?: { id?: number | null; season?: number | null } }).league;
     const teamPid = await providerIdOf(c.db, team.id);
@@ -400,8 +406,14 @@ export async function loadTeamSidelined(
         ? { id: String(league.id), season: String(league.season) }
         : null,
     );
+    listed = found.found;
     items = found.items.filter((i) => teamPid !== null && String(i.team?.id ?? '') === teamPid);
   }
   const built = await build(c, [team.id], items, today);
-  return { ...base, next_event_id: next?.id ?? null, players: built.players.get(team.id) ?? [] };
+  return {
+    ...base,
+    available: listed || built.covered,
+    next_event_id: next?.id ?? null,
+    players: built.players.get(team.id) ?? [],
+  };
 }

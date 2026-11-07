@@ -90,7 +90,7 @@ export function Sidelined({
     'teams' in query.data
       ? query.data.teams.map((g) => ({ team: g.team, players: pick(g.players) }))
       : [{ team: query.data.team, players: pick(query.data.players) }];
-  const unknown = 'available' in query.data && !query.data.available;
+  const unknown = !query.data.available;
   const byTeam = 'teams' in query.data;
 
   return (
