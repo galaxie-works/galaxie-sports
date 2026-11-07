@@ -27,7 +27,7 @@ import {
 } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
-import { computeTablesByRule, crossGroupTables, type TableRow } from './phases.js';
+import { computeTablesByRule, crossGroupTables, splitProviderGroups, type TableRow } from './phases.js';
 import {
   components,
   joinNamedGroups,
@@ -219,7 +219,10 @@ export async function recomputeSeasonStandings(
     .from(event)
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
   const latestResultAt = latest?.at ? new Date(latest.at) : null;
-  if (providerRows.length && latestResultAt) {
+  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém em dia
+  // (o fornecedor fresco em outro grupo, como promedios, não pode congelar o nosso)
+  const behind = tableRows.some((r) => r.source === 'computed');
+  if (providerRows.length && latestResultAt && !behind) {
     const providerAt = Math.max(...providerRows.map((r) => r.updatedAt.getTime()));
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
@@ -238,8 +241,13 @@ export async function recomputeSeasonStandings(
 
   // grupo deduzido num recálculo anterior (`unnamed:N`) não é do fornecedor: volta a ser deduzido a cada
   // recálculo (dois pedaços do mesmo grupo no começo da temporada se juntam quando se enfrentam)
+  // temporada que já calculamos: o grupo do fornecedor que só repete os nossos times (promedios, acumulada, fase
+  // seguinte) fica no core como reserva, intocado, e não entra na montagem: com ele, cada time teria dois grupos
+  // com nome (o recálculo parava em `no_groups`) ou a tabela da liga cairia no grupo dos promedios. Grupo com time
+  // que ainda não calculamos continua definindo o grupo dele
+  const groupRows = splitProviderGroups(tableRows).own;
   const groupsOfTeam = new Map<string, Set<string>>();
-  for (const r of tableRows) {
+  for (const r of groupRows) {
     const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
     set.add(r.group.startsWith(UNNAMED_GROUP_PREFIX) ? '' : r.group);
     groupsOfTeam.set(r.participantId, set);
@@ -588,7 +596,12 @@ async function recomputeWinPct(
     .select({ at: sql<string | null>`max(${event.updatedAt})` })
     .from(event)
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
-  if (provider?.at && latest?.at && new Date(provider.at) >= new Date(latest.at)) {
+  const [computed] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'computed')));
+  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém
+  if (provider?.at && latest?.at && !computed?.n && new Date(provider.at) >= new Date(latest.at)) {
     return report('provider_fresh');
   }
 
