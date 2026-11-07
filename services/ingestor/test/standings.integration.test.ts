@@ -909,4 +909,101 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
     ]);
     expect(after.filter((r) => r.group === 'Acumulada').every((r) => r.source === 'provider')).toBe(true);
   });
+
+  it('competição sem `tables:`: a 2ª fase do fornecedor com quase os mesmos times não entra na tabela da regular', async () => {
+    const s = await seedSeason('football', 'liga-com-segunda-fase', ['F1', 'F2', 'F3', 'F4']);
+    const ids = ['98701', '98702', '98703', '98704'] as const;
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9870',
+      },
+      ...(['F1', 'F2', 'F3', 'F4'] as const).map((t, i) => ({
+        entityType: 'participant' as const,
+        entityId: s.team(t),
+        provider: 'api-sports',
+        sport: 'football' as const,
+        providerId: ids[i]!,
+      })),
+    ]);
+    const providerRows = (g: string, teams: readonly string[], played: number) =>
+      teams.map((id, i) => ({
+        season: { competitionId: '9870', year: 2026 },
+        group: g,
+        participantId: id,
+        rank: i + 1,
+        points: 9 - i,
+        played,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        form: null,
+        description: null,
+      }));
+    const participants = ids.map((id) => ({
+      id,
+      kind: null,
+      name: id,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: null,
+      founded: null,
+      venueId: null,
+      logoUrl: null,
+    }));
+    // a fase regular chega com o rótulo do fornecedor e o recálculo a adota
+    const first = emptyBatch('api-sports', 'football', new Date());
+    first.participants = participants;
+    first.standings = providerRows('Liga C', ids, 0);
+    await upsertBatch(db, first);
+    await finished('football', s.seasonId, s.team('F1'), s.team('F2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('F3'), s.team('F4'), [2, 1]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+    const rows = async () =>
+      db
+        .select({
+          group: standing.group,
+          participantId: standing.participantId,
+          played: standing.played,
+          source: standing.source,
+        })
+        .from(standing)
+        .where(eq(standing.seasonId, s.seasonId))
+        .orderBy(asc(standing.group), asc(standing.rank));
+    const regular = (await rows()).filter((r) => r.group === 'Liga C');
+    expect(regular.map((r) => [r.played, r.source])).toEqual([
+      [1, 'computed'],
+      [1, 'computed'],
+      [1, 'computed'],
+      [1, 'computed'],
+    ]);
+
+    // a fase final do fornecedor: 3 dos 4 times (a maioria já está na nossa regular) e um jogo dela, sem rodada
+    // que separe as fases
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = participants;
+    batch.standings = providerRows('Championship Round', ['98701', '98702', '98703'], 1);
+    await upsertBatch(db, batch);
+    await finished('football', s.seasonId, s.team('F2'), s.team('F3'), [0, 0]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'no_groups',
+    });
+
+    // a regular continua com 1 jogo por time (o da fase final não entrou) e a fase final fica a do fornecedor
+    const after = await rows();
+    expect(after.filter((r) => r.group === 'Liga C')).toEqual(regular);
+    expect(after.filter((r) => r.group === 'Championship Round').map((r) => [r.played, r.source])).toEqual([
+      [1, 'provider'],
+      [1, 'provider'],
+      [1, 'provider'],
+    ]);
+  });
 });

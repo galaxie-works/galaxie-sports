@@ -33,6 +33,12 @@ const FULL_PHASE_SHARE = 0.8;
 /** Grupo sem o nome da fase: só é ligado à fase em que os times dele jogam (quase) só entre si. */
 const CLOSED_GROUP_SHARE = 0.85;
 const ANNUAL_NAME = /\b(tabla anual|annual|acumulad[ao]|aggregate|reclasificaci[oó]n)\b/i;
+/**
+ * Tabela de reserva do fornecedor: a acumulada/anual e os promedios repetem os times da liga e nunca são uma
+ * fase com jogos próprios. Os mesmos nomes que os regulamentos curados separam (`exclude`/`groups` em config/rules).
+ */
+export const RESERVE_TABLE_NAME =
+  /(promedio|tabla anual|\bannual\b|acumulad[ao]|aggregate|reclasificaci[oó]n)/i;
 const GENERIC_FIRST_PHASE = /^(regular season|1st phase|first (phase|stage)|fase regular)$/i;
 
 /** "Apertura - 7" → "Apertura"; rodada sem número (mata-mata) → null. */
