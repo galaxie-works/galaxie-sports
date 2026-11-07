@@ -4,6 +4,7 @@ import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
 import type { LiveListProps } from './widgets/live-list.js';
 import type { MatchCardProps } from './widgets/match-card.js';
+import type { MatchTimelineProps } from './widgets/match-timeline.js';
 import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
@@ -25,9 +26,11 @@ import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
+import type { PlayerProfileProps } from './widgets/player-profile.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
+  match_timeline: MatchTimelineProps;
   live_list: LiveListProps;
   standings: StandingsTableProps;
   where_to_watch: WhereToWatchProps;
@@ -52,6 +55,7 @@ export interface WidgetPropsByKind {
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
   team_squad: TeamSquadProps;
+  player_profile: PlayerProfileProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -59,6 +63,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   /** Componente React do pacote. */
   component:
     | 'MatchCard'
+    | 'MatchTimeline'
     | 'LiveList'
     | 'StandingsTable'
     | 'WhereToWatch'
@@ -82,7 +87,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'GamesSchedule'
     | 'CountryAthletes'
     | 'MedalHistory'
-    | 'TeamSquad';
+    | 'TeamSquad'
+    | 'PlayerProfile';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -147,6 +153,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
     sports: [...TEAM_SPORTS, 'mma'],
+  },
+  match_timeline: {
+    kind: 'match_timeline',
+    component: 'MatchTimeline',
+    registryComponent: 'GalaxieMatchTimeline',
+    name: { 'pt-BR': 'Lance a lance', es: 'Minuto a minuto', en: 'Play by play' },
+    description: {
+      'pt-BR':
+        'Gols, cartões, substituições, VAR e demais lances do jogo, minuto a minuto, atualizando sozinho durante a partida.',
+      es: 'Goles, tarjetas, cambios, VAR y demás jugadas del partido, minuto a minuto, actualizándose solo durante el juego.',
+      en: 'Goals, cards, substitutions, VAR and every other incident, minute by minute, updating itself during the match.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['order', 'types', 'limit', 'showMarkers', 'showAssists', 'showMatch'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
+    sports: TEAM_SPORTS,
   },
   live_list: {
     kind: 'live_list',
@@ -605,6 +628,31 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showCoaches',
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  player_profile: {
+    kind: 'player_profile',
+    component: 'PlayerProfile',
+    registryComponent: 'GalaxiePlayerProfile',
+    name: { 'pt-BR': 'Ficha do jogador', es: 'Ficha del jugador', en: 'Player profile' },
+    description: {
+      'pt-BR':
+        'Jogador com o clube atual, os números da temporada, os clubes, as temporadas, os títulos e as transferências.',
+      es: 'Jugador con el club actual, los números de la temporada, los clubes, las temporadas, los títulos y los traspasos.',
+      en: 'A player with current club, season numbers, clubs, seasons, trophies and transfers.',
+    },
+    requiredProps: ['personId'],
+    optionalProps: [
+      'season',
+      'showStats',
+      'showClubs',
+      'showSeasons',
+      'showTrophies',
+      'showTransfers',
+      'limit',
+    ],
+    exampleProps: { personId: PREVIEW_IDS.person },
     polling: false,
     sports: FOOTBALL_ONLY,
   },

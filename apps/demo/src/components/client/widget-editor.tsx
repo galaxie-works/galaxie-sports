@@ -7,6 +7,7 @@ import {
   LiveList,
   MatchCard,
   MatchStakes,
+  MatchTimeline,
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
@@ -23,6 +24,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  PlayerProfile,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -187,6 +189,8 @@ function PreviewWidget({
             }
           />
         );
+      case 'match_timeline':
+        return <MatchTimeline {...o} {...WIDGET_CATALOG.match_timeline.exampleProps} />;
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
@@ -247,11 +251,15 @@ function PreviewWidget({
         return <MedalHistory {...o} />;
       case 'team_squad':
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
+      case 'player_profile':
+        return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
     }
   }
   switch (kind) {
     case 'match_card':
       return <MatchCard {...o} eventId={entity.id} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={entity.id} />;
     case 'where_to_watch':
       return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':
@@ -284,6 +292,8 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

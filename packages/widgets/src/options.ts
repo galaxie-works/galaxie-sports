@@ -77,6 +77,17 @@ export const VIDEO_TYPES = [
   { value: 'fan_reaction', label: l('Reação da torcida', 'Reacción de la hinchada', 'Fan reactions') },
 ] as const;
 
+/** Grupos de lance do lance a lance (`match_timeline`), em ordem alfabética do rótulo em português. */
+export const TIMELINE_TYPES = [
+  { value: 'cards', label: l('Cartões', 'Tarjetas', 'Cards') },
+  { value: 'shootout', label: l('Disputa de pênaltis', 'Tanda de penales', 'Penalty shootout') },
+  { value: 'goals', label: l('Gols', 'Goles', 'Goals') },
+  { value: 'other', label: l('Outros', 'Otros', 'Other') },
+  { value: 'missed', label: l('Pênaltis perdidos', 'Penales errados', 'Missed penalties') },
+  { value: 'substitutions', label: l('Substituições', 'Cambios', 'Substitutions') },
+  { value: 'var', label: l('VAR', 'VAR', 'VAR') },
+] as const;
+
 /** Países (código do COI) que os widgets dos Jogos oferecem: a América Latina primeiro, depois os mercados. */
 export const GAMES_NOCS = [
   { value: 'BRA', label: l('Brasil', 'Brasil', 'Brazil') },
@@ -516,6 +527,40 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       sports: ['mma'],
     },
   ],
+  match_timeline: [
+    {
+      key: 'order',
+      type: 'enum',
+      default: 'newest',
+      label: l('Ordem', 'Orden', 'Order'),
+      values: [
+        { value: 'newest', label: l('Mais recente primeiro', 'Más reciente primero', 'Newest first') },
+        { value: 'oldest', label: l('Cronológica', 'Cronológico', 'Chronological') },
+      ],
+    },
+    {
+      key: 'types',
+      type: 'multi',
+      label: l('Tipos de lance', 'Tipos de jugada', 'Incident types'),
+      hint: l('Nenhum marcado = todos.', 'Ninguno marcado = todos.', 'None ticked = all.'),
+      values: TIMELINE_TYPES,
+    },
+    count('limit', l('Lances mostrados', 'Jugadas mostradas', 'Incidents shown'), 0, 100, ALL),
+    bool(
+      'showMarkers',
+      l('Início, intervalo e fim', 'Inicio, entretiempo y final', 'Kick-off, half-time and full time'),
+      true,
+    ),
+    bool('showAssists', l('Assistências', 'Asistencias', 'Assists'), true),
+    bool(
+      'showMatch',
+      l('Times e placar no topo', 'Equipos y marcador arriba', 'Teams and score on top'),
+      true,
+      {
+        extraCall: true,
+      },
+    ),
+  ],
   fight_card: [
     bool('showPrelims', l('Preliminares', 'Preliminares', 'Prelims'), true),
     bool('showWeightClass', l('Categoria de peso', 'Categoría de peso', 'Weight class'), true),
@@ -686,6 +731,24 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showAge', l('Idade', 'Edad', 'Age'), true),
     bool('showNationality', l('Nacionalidade', 'Nacionalidad', 'Nationality'), true),
     bool('showCoaches', l('Técnicos', 'Entrenadores', 'Coaches'), true),
+  ],
+  player_profile: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = a temporada mais recente com jogos.',
+        'Vacío = la temporada más reciente con partidos.',
+        'Empty = the latest season with matches.',
+      ),
+    },
+    bool('showStats', l('Números da temporada', 'Números de la temporada', 'Season numbers'), true),
+    bool('showClubs', l('Clubes', 'Clubes', 'Clubs'), true),
+    bool('showSeasons', l('Temporadas', 'Temporadas', 'Seasons'), true),
+    bool('showTrophies', l('Títulos', 'Títulos', 'Trophies'), true),
+    bool('showTransfers', l('Transferências', 'Transferencias', 'Transfers'), true),
+    count('limit', l('Itens por bloco', 'Elementos por bloque', 'Items per block'), 5, 30, ALL),
   ],
 };
 
