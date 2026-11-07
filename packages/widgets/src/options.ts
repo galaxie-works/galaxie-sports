@@ -100,6 +100,17 @@ export const VIDEO_TYPES = [
   { value: 'fan_reaction', label: l('Reação da torcida', 'Reacción de la hinchada', 'Fan reactions') },
 ] as const;
 
+/** Grupos de lance do lance a lance (`match_timeline`), em ordem alfabética do rótulo em português. */
+export const TIMELINE_TYPES = [
+  { value: 'cards', label: l('Cartões', 'Tarjetas', 'Cards') },
+  { value: 'shootout', label: l('Disputa de pênaltis', 'Tanda de penales', 'Penalty shootout') },
+  { value: 'goals', label: l('Gols', 'Goles', 'Goals') },
+  { value: 'other', label: l('Outros', 'Otros', 'Other') },
+  { value: 'missed', label: l('Pênaltis perdidos', 'Penales errados', 'Missed penalties') },
+  { value: 'substitutions', label: l('Substituições', 'Cambios', 'Substitutions') },
+  { value: 'var', label: l('VAR', 'VAR', 'VAR') },
+] as const;
+
 /** Países (código do COI) que os widgets dos Jogos oferecem: a América Latina primeiro, depois os mercados. */
 export const GAMES_NOCS = [
   { value: 'BRA', label: l('Brasil', 'Brasil', 'Brazil') },
@@ -222,6 +233,69 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showCalendar', L.calendar, false),
   ],
   live_list: [],
+  // faixa de placares para TV (#833): o esporte e o campeonato são o recorte do widget (`defaults`)
+  score_ticker: [
+    {
+      key: 'mode',
+      type: 'enum',
+      default: 'today',
+      label: l('Jogos na faixa', 'Partidos en el cintillo', 'Games in the ticker'),
+      values: [
+        { value: 'live', label: l('Só ao vivo', 'Solo en vivo', 'Live only') },
+        {
+          value: 'today',
+          label: l('Ao vivo e encerrados do dia', 'En vivo y finalizados del día', 'Live and finished today'),
+        },
+        {
+          value: 'all',
+          label: l(
+            'Todos do dia (com os próximos)',
+            'Todos del día (con los próximos)',
+            'All of today (with upcoming)',
+          ),
+        },
+      ],
+    },
+    {
+      key: 'speed',
+      type: 'enum',
+      default: 'normal',
+      label: l('Velocidade', 'Velocidad', 'Speed'),
+      values: [
+        { value: 'slow', label: l('Lenta', 'Lenta', 'Slow') },
+        { value: 'normal', label: l('Normal', 'Normal', 'Normal') },
+        { value: 'fast', label: l('Rápida', 'Rápida', 'Fast') },
+      ],
+    },
+    bool('transparent', l('Fundo transparente', 'Fondo transparente', 'Transparent background'), false, {
+      hint: l(
+        'Para sobrepor a faixa ao vídeo da emissora.',
+        'Para superponer el cintillo al video del canal.',
+        'To overlay the ticker on the broadcast video.',
+      ),
+    }),
+    bool('showLabel', l('Rótulo "Ao vivo"', 'Rótulo "En vivo"', '"Live" label'), true),
+    bool('showCompetition', L.competition, true),
+    bool('showCrests', l('Escudos', 'Escudos', 'Crests'), true),
+    {
+      key: 'teamName',
+      type: 'enum',
+      default: 'short',
+      label: l('Nome dos times', 'Nombre de los equipos', 'Team names'),
+      values: [
+        { value: 'short', label: l('Curto (sigla)', 'Corto (sigla)', 'Short (code)') },
+        { value: 'full', label: l('Completo', 'Completo', 'Full') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 40,
+      min: 1,
+      max: 100,
+      label: l('Máximo de jogos', 'Máximo de partidos', 'Maximum games'),
+    },
+  ],
   standings: [
     {
       key: 'season',
@@ -539,6 +613,40 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       sports: ['mma'],
     },
   ],
+  match_timeline: [
+    {
+      key: 'order',
+      type: 'enum',
+      default: 'newest',
+      label: l('Ordem', 'Orden', 'Order'),
+      values: [
+        { value: 'newest', label: l('Mais recente primeiro', 'Más reciente primero', 'Newest first') },
+        { value: 'oldest', label: l('Cronológica', 'Cronológico', 'Chronological') },
+      ],
+    },
+    {
+      key: 'types',
+      type: 'multi',
+      label: l('Tipos de lance', 'Tipos de jugada', 'Incident types'),
+      hint: l('Nenhum marcado = todos.', 'Ninguno marcado = todos.', 'None ticked = all.'),
+      values: TIMELINE_TYPES,
+    },
+    count('limit', l('Lances mostrados', 'Jugadas mostradas', 'Incidents shown'), 0, 100, ALL),
+    bool(
+      'showMarkers',
+      l('Início, intervalo e fim', 'Inicio, entretiempo y final', 'Kick-off, half-time and full time'),
+      true,
+    ),
+    bool('showAssists', l('Assistências', 'Asistencias', 'Assists'), true),
+    bool(
+      'showMatch',
+      l('Times e placar no topo', 'Equipos y marcador arriba', 'Teams and score on top'),
+      true,
+      {
+        extraCall: true,
+      },
+    ),
+  ],
   fight_card: [
     bool('showPrelims', l('Preliminares', 'Preliminares', 'Prelims'), true),
     bool('showWeightClass', l('Categoria de peso', 'Categoría de peso', 'Weight class'), true),
@@ -691,6 +799,59 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ],
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
+  ],
+  countdown: [
+    bool('showWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
+    bool('showSeconds', l('Segundos', 'Segundos', 'Seconds'), true),
+    {
+      key: 'onStart',
+      type: 'enum',
+      default: 'score',
+      label: l('Quando o jogo começar', 'Cuando empiece el partido', 'When the match starts'),
+      values: [
+        {
+          value: 'score',
+          label: l('Virar o placar ao vivo', 'Mostrar el marcador en vivo', 'Show the live score'),
+        },
+        { value: 'hide', label: l('Esconder o widget', 'Ocultar el widget', 'Hide the widget') },
+      ],
+    },
+  ],
+  team_squad: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = elenco atual. Com o ano, entram também os que jogaram naquela temporada.',
+        'Vacío = plantel actual. Con el año, entran también los que jugaron esa temporada.',
+        'Empty = current squad. With a year, players who played that season are included too.',
+      ),
+    },
+    bool('showPhotos', l('Foto dos jogadores', 'Foto de los jugadores', 'Player photos'), true),
+    bool('groupByPosition', l('Agrupar por posição', 'Agrupar por posición', 'Group by position'), true),
+    bool('showNumber', l('Número da camisa', 'Número de camiseta', 'Shirt number'), true),
+    bool('showAge', l('Idade', 'Edad', 'Age'), true),
+    bool('showNationality', l('Nacionalidade', 'Nacionalidad', 'Nationality'), true),
+    bool('showCoaches', l('Técnicos', 'Entrenadores', 'Coaches'), true),
+  ],
+  player_profile: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = a temporada mais recente com jogos.',
+        'Vacío = la temporada más reciente con partidos.',
+        'Empty = the latest season with matches.',
+      ),
+    },
+    bool('showStats', l('Números da temporada', 'Números de la temporada', 'Season numbers'), true),
+    bool('showClubs', l('Clubes', 'Clubes', 'Clubs'), true),
+    bool('showSeasons', l('Temporadas', 'Temporadas', 'Seasons'), true),
+    bool('showTrophies', l('Títulos', 'Títulos', 'Trophies'), true),
+    bool('showTransfers', l('Transferências', 'Transferencias', 'Transfers'), true),
+    count('limit', l('Itens por bloco', 'Elementos por bloque', 'Items per block'), 5, 30, ALL),
   ],
   channel_guide: [
     {

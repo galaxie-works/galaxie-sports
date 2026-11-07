@@ -26,15 +26,19 @@ describe('abas de esporte do catálogo', () => {
     // IA, "o que está em jogo" e vídeos ainda são só do futebol
     expect(basquete?.kinds).toEqual([
       'match_card',
+      'match_timeline',
       'live_list',
+      'score_ticker',
       'standings',
       'where_to_watch',
       'head_to_head',
       'team_schedule',
+      'countdown',
       'channel_guide',
     ]);
     expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([
       'live_list',
+      'score_ticker',
       'standings',
       'where_to_watch',
       'race_result',

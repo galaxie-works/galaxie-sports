@@ -15,7 +15,9 @@ const read = (path) => readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g
 /** kind → arquivo e componente. */
 const WIDGETS = {
   match_card: { file: 'src/widgets/match-card.tsx', component: 'MatchCard' },
+  match_timeline: { file: 'src/widgets/match-timeline.tsx', component: 'MatchTimeline' },
   live_list: { file: 'src/widgets/live-list.tsx', component: 'LiveList' },
+  score_ticker: { file: 'src/widgets/score-ticker.tsx', component: 'ScoreTicker' },
   standings: { file: 'src/widgets/standings-table.tsx', component: 'StandingsTable' },
   where_to_watch: { file: 'src/widgets/where-to-watch.tsx', component: 'WhereToWatch' },
   ai_context: { file: 'src/widgets/ai-context.tsx', component: 'AiContext' },
@@ -38,6 +40,9 @@ const WIDGETS = {
   games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
+  countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
+  team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
+  player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
   channel_guide: { file: 'src/widgets/channel-guide.tsx', component: 'ChannelGuide' },
 };
 

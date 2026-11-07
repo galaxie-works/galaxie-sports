@@ -29,7 +29,9 @@ export type Widget = typeof widget.$inferSelect;
 /** Módulos que cada tipo de widget consome. Uma chave presa a um widget só alcança estes módulos. */
 export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   match_card: ['core_data', 'where_to_watch'],
+  match_timeline: ['core_data'],
   live_list: ['core_data'],
+  score_ticker: ['core_data'],
   standings: ['core_data'],
   where_to_watch: ['core_data', 'where_to_watch'],
   ai_context: ['core_data', 'live_intelligence'],
@@ -52,6 +54,9 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   games_schedule: ['core_data', 'multisport'],
   country_athletes: ['core_data', 'multisport'],
   medal_history: ['core_data', 'multisport'],
+  countdown: ['core_data', 'where_to_watch'],
+  team_squad: ['core_data'],
+  player_profile: ['core_data'],
   channel_guide: ['core_data', 'where_to_watch'],
 };
 

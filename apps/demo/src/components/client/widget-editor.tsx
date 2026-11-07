@@ -6,11 +6,15 @@ import {
   GalaxieWidgetProvider,
   HeadToHead,
   LiveList,
+  Countdown,
   MatchCard,
   MatchStakes,
+  MatchTimeline,
   RelatedVideos,
+  ScoreTicker,
   StandingsTable,
   TeamSchedule,
+  TeamSquad,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -23,6 +27,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  PlayerProfile,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -187,6 +192,8 @@ function PreviewWidget({
             }
           />
         );
+      case 'match_timeline':
+        return <MatchTimeline {...o} {...WIDGET_CATALOG.match_timeline.exampleProps} />;
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
@@ -200,6 +207,8 @@ function PreviewWidget({
         );
       case 'live_list':
         return <LiveList {...liveList} sport={sport ?? undefined} />;
+      case 'score_ticker':
+        return <ScoreTicker {...o} sport={sport ?? undefined} />;
       case 'ai_context':
         return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -245,6 +254,19 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'countdown':
+        return (
+          <Countdown
+            {...o}
+            eventId={
+              sport === 'mma' ? PREVIEW_IDS.nextFightEvent : WIDGET_CATALOG.countdown.exampleProps.eventId
+            }
+          />
+        );
+      case 'team_squad':
+        return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
+      case 'player_profile':
+        return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'channel_guide':
         return <ChannelGuidePreview o={o} sport={sport} />;
     }
@@ -252,6 +274,8 @@ function PreviewWidget({
   switch (kind) {
     case 'match_card':
       return <MatchCard {...o} eventId={entity.id} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={entity.id} />;
     case 'where_to_watch':
       return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':
@@ -262,6 +286,8 @@ function PreviewWidget({
       ) : (
         <LiveList {...liveList} competitionId={entity.id} sport={sport ?? undefined} />
       );
+    case 'score_ticker':
+      return <ScoreTicker {...o} competitionId={entity.id} sport={sport ?? undefined} />;
     case 'ai_context':
       return <AiContext {...o} eventId={entity.id} />;
     case 'match_stakes':
@@ -280,8 +306,14 @@ function PreviewWidget({
       return <SeasonCalendar {...o} competitionId={entity.id} />;
     case 'athlete_profile':
       return <AthleteProfile {...o} teamId={entity.id} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'countdown':
+      return <Countdown {...o} eventId={entity.id} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -415,12 +447,15 @@ export function WidgetEditor({
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
-  // lista de jogos, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem entidade, mostram
-  // os dados de exemplo
-  // a grade nos canais mostra sempre o exemplo (a lista de canais do tenant não passa pelo proxy da demo)
+  // lista de jogos, faixa de placares, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem
+  // entidade, mostram os dados de exemplo; a grade nos canais mostra sempre o exemplo (a lista de canais do
+  // tenant não passa pelo proxy da demo)
   const realData =
     draft.kind !== 'channel_guide' &&
-    (Boolean(draft.entity) || draft.kind === 'live_list' || entityTypes.length === 0);
+    (Boolean(draft.entity) ||
+      draft.kind === 'live_list' ||
+      draft.kind === 'score_ticker' ||
+      entityTypes.length === 0);
 
   function save() {
     startTransition(async () => {

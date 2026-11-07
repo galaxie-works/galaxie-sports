@@ -178,7 +178,7 @@ export default defineMessages(
         'O comando de instalação deixa de funcionar (o registry responde 404). Quem já instalou continua com o componente no código.',
       archived: 'Widget arquivado',
       cancel: 'Cancelar',
-      entityTypes: { competition: 'Competição', team: 'Time', event: 'Jogo' },
+      entityTypes: { competition: 'Competição', team: 'Time', event: 'Jogo', person: 'Jogador' },
       noEntity: 'Sem padrão',
     },
     editor: {
@@ -591,7 +591,7 @@ export default defineMessages(
           'The install command stops working (the registry returns 404). Anyone who already installed it keeps the component in their code.',
         archived: 'Widget archived',
         cancel: 'Cancel',
-        entityTypes: { competition: 'Competition', team: 'Team', event: 'Match' },
+        entityTypes: { competition: 'Competition', team: 'Team', event: 'Match', person: 'Player' },
         noEntity: 'No default',
       },
       editor: {
@@ -1005,7 +1005,7 @@ export default defineMessages(
           'El comando de instalación deja de funcionar (el registry responde 404). Quien ya lo instaló sigue con el componente en el código.',
         archived: 'Widget archivado',
         cancel: 'Cancelar',
-        entityTypes: { competition: 'Competición', team: 'Equipo', event: 'Partido' },
+        entityTypes: { competition: 'Competición', team: 'Equipo', event: 'Partido', person: 'Jugador' },
         noEntity: 'Sin valor por defecto',
       },
       editor: {

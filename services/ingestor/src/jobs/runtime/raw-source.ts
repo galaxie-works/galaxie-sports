@@ -24,12 +24,31 @@ export interface RawEntry {
  * Leitura do raw pelos jobs (zero cota): os planos de chamadas dependentes (detalhe de partidas,
  * pessoas, h2h) são montados a partir do que já foi baixado.
  */
+/** Resumo de um item de `response` em /fixtures ou /fixtures/headtohead (os campos de `FixtureRef`). */
+export interface RawFixtureRow {
+  id: number;
+  status: string;
+  date: string;
+  leagueId: number;
+  season: number;
+  round: string | null;
+  homeId: number | null;
+  awayId: number | null;
+  fetchedAt: Date;
+}
+
 export interface RawSource {
   /**
    * Resposta de sucesso mais recente de cada requisição distinta que casa com a consulta; `fetchedAt` é a última
    * vez que o fornecedor a entregou (o raw não duplica corpo igual, só estende o "visto em").
    */
   latest(query: RawQuery): AsyncIterable<RawEntry>;
+  /**
+   * Opcional: as partidas das mesmas respostas de `latest`, já resumidas pela fonte, sem trazer o corpo. Uma lista
+   * de temporada ou a agenda mundial de um dia passa de MB de JSON, e montar o detalhe de todas pelo `latest`
+   * estourava o heap do contêiner (06/11/2026). Quem não implementa cai no `latest`.
+   */
+  fixtureRows?(query: RawQuery): AsyncIterable<RawFixtureRow>;
   /** Última entrega de sucesso por request hash (para o `--plan`: cache × rede). */
   lastFetched(hashes: string[]): Promise<Map<string, Date>>;
 }
@@ -95,9 +114,110 @@ export class PgRawSource implements RawSource {
   constructor(
     private readonly db: Database,
     private readonly batchSize = 50,
+    /** Linhas por lote do cursor de `fixtureRows` (cada linha é uma partida resumida, não uma resposta). */
+    private readonly fixtureBatchSize = 5000,
   ) {}
 
   async *latest(query: RawQuery): AsyncIterable<RawEntry> {
+    const { where, values } = this.filter(query);
+    const text = `select distinct on (request_hash)
+        params, body->'response' as response, body->'paging' as paging,
+        (extract(epoch from coalesce(last_seen_at, fetched_at)) * 1000)::float8 as fetched_ms
+      from raw.api_response
+      where ${where}
+      order by request_hash, fetched_at desc`;
+    const cursor = this.db.$client.unsafe(text, values as never[]).cursor(this.batchSize);
+    for await (const rows of cursor) {
+      for (const row of rows as unknown as {
+        params: Record<string, string>;
+        response: unknown;
+        paging: { current: number; total: number } | null;
+        fetched_ms: number;
+      }[]) {
+        yield {
+          params: row.params,
+          response: row.response,
+          paging: row.paging,
+          fetchedAt: new Date(row.fetched_ms),
+        };
+      }
+    }
+  }
+
+  /**
+   * As mesmas respostas de `latest`, com cada partida resumida no banco: só os campos de `FixtureRef` chegam ao
+   * Node. As guardas repetem o `isApiFixture` (id da partida e da liga numéricos, `teams` presente).
+   */
+  async *fixtureRows(query: RawQuery): AsyncIterable<RawFixtureRow> {
+    const { where, values } = this.filter(query);
+    // inteiro de até 9 dígitos (cabe no int4); decimal, texto ou número maior viram null em vez de derrubar a consulta
+    const isInt = (path: string) =>
+      `(jsonb_typeof(${path}) = 'number' and (${path})::text ~ '^-?[0-9]{1,9}$')`;
+    const int = (path: string) => `case when ${isInt(path)} then (${path})::text::int end`;
+    // a ordem de saída repete a do `latest` (por request_hash, e na ordem do array): o collectFixtures desempata
+    // fetchedAt iguais pela ordem de chegada
+    const text = `with latest as (
+        select distinct on (request_hash)
+          request_hash,
+          body->'response' as response,
+          (extract(epoch from coalesce(last_seen_at, fetched_at)) * 1000)::float8 as fetched_ms
+        from raw.api_response
+        where ${where}
+        order by request_hash, fetched_at desc
+      )
+      select ${int(`e.f->'fixture'->'id'`)} as id,
+        coalesce(e.f->'fixture'->'status'->>'short', 'NS') as status,
+        coalesce(e.f->'fixture'->>'date', '') as date,
+        ${int(`e.f->'league'->'id'`)} as league_id,
+        ${int(`e.f->'league'->'season'`)} as season,
+        e.f->'league'->>'round' as round,
+        ${int(`e.f->'teams'->'home'->'id'`)} as home_id,
+        ${int(`e.f->'teams'->'away'->'id'`)} as away_id,
+        l.fetched_ms
+      from latest l
+      cross join lateral jsonb_array_elements(
+        case when jsonb_typeof(l.response) = 'array' then l.response else '[]'::jsonb end
+      ) with ordinality as e(f, n)
+      where ${isInt(`e.f->'fixture'->'id'`)}
+        and ${isInt(`e.f->'league'->'id'`)}
+        and coalesce(jsonb_typeof(e.f->'teams'), 'null') <> 'null'
+      order by l.request_hash, e.n`;
+    // um Date por resposta, não por partida: são até 1,25 milhão de linhas e poucas mil respostas
+    const dates = new Map<number, Date>();
+    const dateOf = (ms: number) => {
+      let d = dates.get(ms);
+      if (!d) dates.set(ms, (d = new Date(ms)));
+      return d;
+    };
+    const cursor = this.db.$client.unsafe(text, values as never[]).cursor(this.fixtureBatchSize);
+    for await (const rows of cursor) {
+      for (const r of rows as unknown as {
+        id: number;
+        status: string;
+        date: string;
+        league_id: number;
+        season: number;
+        round: string | null;
+        home_id: number | null;
+        away_id: number | null;
+        fetched_ms: number;
+      }[]) {
+        yield {
+          id: r.id,
+          status: r.status,
+          date: r.date,
+          leagueId: r.league_id,
+          season: r.season,
+          round: r.round,
+          homeId: r.home_id,
+          awayId: r.away_id,
+          fetchedAt: dateOf(r.fetched_ms),
+        };
+      }
+    }
+  }
+
+  private filter(query: RawQuery): { where: string; values: unknown[] } {
     const values: unknown[] = [query.sport, query.endpoint];
     const conditions = [
       `provider = 'api-sports'`,
@@ -118,28 +238,7 @@ export class PgRawSource implements RawSource {
       values.push(JSON.stringify(query.where));
       conditions.push(`params @> $${values.length}::jsonb`);
     }
-    const text = `select distinct on (request_hash)
-        params, body->'response' as response, body->'paging' as paging,
-        (extract(epoch from coalesce(last_seen_at, fetched_at)) * 1000)::float8 as fetched_ms
-      from raw.api_response
-      where ${conditions.join(' and ')}
-      order by request_hash, fetched_at desc`;
-    const cursor = this.db.$client.unsafe(text, values as never[]).cursor(this.batchSize);
-    for await (const rows of cursor) {
-      for (const row of rows as unknown as {
-        params: Record<string, string>;
-        response: unknown;
-        paging: { current: number; total: number } | null;
-        fetched_ms: number;
-      }[]) {
-        yield {
-          params: row.params,
-          response: row.response,
-          paging: row.paging,
-          fetchedAt: new Date(row.fetched_ms),
-        };
-      }
-    }
+    return { where: conditions.join(' and '), values };
   }
 
   async lastFetched(hashes: string[]): Promise<Map<string, Date>> {

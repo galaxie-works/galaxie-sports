@@ -25,7 +25,9 @@ import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, Widget
 /** Os mesmos de `@galaxie/db` (`WIDGET_KINDS`); o `satisfies` acusa se um tipo sumir de lá. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -48,6 +50,9 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'countdown',
+  'team_squad',
+  'player_profile',
   'channel_guide',
 ] as const satisfies readonly WidgetKind[];
 
@@ -73,7 +78,9 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
  */
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
+  match_timeline: ['event'],
   live_list: ['competition', 'team'],
+  score_ticker: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
   ai_context: ['event'],
@@ -96,6 +103,9 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  countdown: ['event'],
+  team_squad: ['team'],
+  player_profile: ['person'],
   channel_guide: [],
 };
 
@@ -106,7 +116,9 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
+  match_timeline: 'event',
   live_list: null,
+  score_ticker: null,
   standings: 'competition',
   where_to_watch: 'event',
   ai_context: 'event',
@@ -129,6 +141,9 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  countdown: 'event',
+  team_squad: 'team',
+  player_profile: 'person',
   channel_guide: null,
 };
 
@@ -198,19 +213,21 @@ export function parseTheme(raw: unknown): WidgetTheme | null {
 
 // ─── entidade padrão ⇄ `defaults` ────────────────────────────────────────────────────────────────
 
-const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId'> = {
+const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId' | 'personId'> = {
   competition: 'competitionId',
   team: 'teamId',
   event: 'eventId',
+  person: 'personId',
 };
 
-/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição). */
+/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição, pessoa). */
 export function entityFromDefaults(
   defaults: WidgetDefaults | null | undefined,
 ): { type: WidgetEntityType; id: string } | null {
   if (defaults?.eventId) return { type: 'event', id: defaults.eventId };
   if (defaults?.teamId) return { type: 'team', id: defaults.teamId };
   if (defaults?.competitionId) return { type: 'competition', id: defaults.competitionId };
+  if (defaults?.personId) return { type: 'person', id: defaults.personId };
   return null;
 }
 
@@ -419,7 +436,9 @@ export function parseRegistryParam(param: string): string | null {
 /** Componente que o arquivo instalado exporta (o `registryComponent` do catálogo de `@galaxie/widgets`). */
 export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
+  match_timeline: 'GalaxieMatchTimeline',
   live_list: 'GalaxieLiveList',
+  score_ticker: 'GalaxieScoreTicker',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
   ai_context: 'GalaxieAiContext',
@@ -442,6 +461,9 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  countdown: 'GalaxieCountdown',
+  team_squad: 'GalaxieTeamSquad',
+  player_profile: 'GalaxiePlayerProfile',
   channel_guide: 'GalaxieChannelGuide',
 };
 
