@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  LIVE_STATUSES,
   eventRefreshMs,
   fillText,
   sidesOf,
@@ -41,6 +40,10 @@ export interface UpcomingDerbiesProps {
 
 /** A lista muda quando um jogo é marcado ou começa: 15 minutos. */
 const LIST_REFRESH_MS = 15 * 60_000;
+/** Com clássico em andamento, a lista é relida a cada minuto para o jogo sair logo depois do apito. */
+const LIST_LIVE_REFRESH_MS = 60_000;
+/** Estados em que o clássico já começou e ainda não terminou (a rota segue com ele na lista). */
+const IN_PLAY: ReadonlySet<string> = new Set(['starting', 'live', 'break', 'suspended']);
 /** Retrospecto e transmissões mudam pouco antes do jogo: 1 hora. */
 const DETAIL_REFRESH_MS = 60 * 60_000;
 /** Canais por clássico (o resto fica no widget "Onde assistir"). */
@@ -69,7 +72,7 @@ export function UpcomingDerbies({
   const query = useGalaxieQuery<{ data: GsUpcomingDerby[] }>(
     '/v1/derbies/upcoming',
     { days: span, country: code && code !== 'ALL' ? code : undefined },
-    () => LIST_REFRESH_MS,
+    (res) => (res.data.some((d) => IN_PLAY.has(d.status)) ? LIST_LIVE_REFRESH_MS : LIST_REFRESH_MS),
   );
   const title = span === 7 ? t.title : fillText(t.titleDays, { n: span });
 
@@ -132,7 +135,8 @@ function DerbyRow({
   const named = (side: 'home' | 'away') => item.participants.find((p) => p.side === side);
   const home = { name: sides?.home?.name ?? named('home')?.name ?? '', logo: sides?.home?.logo ?? null };
   const away = { name: sides?.away?.name ?? named('away')?.name ?? '', logo: sides?.away?.logo ?? null };
-  const live = e ? LIVE_STATUSES.has(e.status) : false;
+  // começou (ao vivo, intervalo, encerrado...): o selo do estado no lugar do horário
+  const started = e ? e.status !== 'scheduled' : false;
   const { derby } = item;
 
   return (
@@ -144,7 +148,7 @@ function DerbyRow({
         <Intensity value={derby.intensity} label={fillText(t.intensity, { n: derby.intensity })} />
       </div>
       <div className="gs-derby-match">
-        {live && e ? (
+        {started && e ? (
           <StatusBadge event={e} />
         ) : (
           <time className="gs-fixture-date" dateTime={item.starts_at}>

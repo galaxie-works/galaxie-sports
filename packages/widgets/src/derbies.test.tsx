@@ -92,20 +92,23 @@ describe('clássicos da semana', () => {
     expect(paths(spy).some((p) => p.endsWith('/h2h') || p.endsWith('/where-to-watch'))).toBe(false);
   });
 
-  it('clássico em andamento: selo ao vivo e o jogo relido no ritmo do placar, a lista não', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+  /** A rota com só o primeiro clássico, já começado, trocado pelo jogo `eventId` do exemplo. */
+  const startedFetch = (eventId: string) => {
     const preview = createPreviewFetch();
-    const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
       if (!url.pathname.endsWith('/v1/derbies/upcoming')) return preview(input, init);
       const res = await preview(input, init);
       const body = (await res.json()) as { data: { event_id: string; status: string }[] };
       // o primeiro clássico já começou: a rota segue com ele até o apito final
-      const data = body.data
-        .slice(0, 1)
-        .map((d) => ({ ...d, event_id: PREVIEW_IDS.liveEvent, status: 'live' }));
+      const data = body.data.slice(0, 1).map((d) => ({ ...d, event_id: eventId, status: 'live' }));
       return new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
     });
+  };
+
+  it('clássico em andamento: selo ao vivo, o jogo relido a cada 30 s e a lista a cada minuto', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const spy = startedFetch(PREVIEW_IDS.liveEvent);
     const { container } = setup(
       <UpcomingDerbies showHistory={false} showWhereToWatch={false} />,
       spy as unknown as typeof fetch,
@@ -117,12 +120,27 @@ describe('clássicos da semana', () => {
     const count = (suffix: string) => paths(spy).filter((p) => p.endsWith(suffix)).length;
     const events = count(`/v1/events/${PREVIEW_IDS.liveEvent}`);
     const lists = count('/v1/derbies/upcoming');
-    // ao vivo, o jogo é relido a cada 30 s; a lista só a cada 15 min
+    // ao vivo, o jogo é relido a cada 30 s; a lista, a cada minuto (para o jogo sair logo depois do apito)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(31_000);
     });
     await waitFor(() => expect(count(`/v1/events/${PREVIEW_IDS.liveEvent}`)).toBeGreaterThan(events));
     expect(count('/v1/derbies/upcoming')).toBe(lists);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    await waitFor(() => expect(count('/v1/derbies/upcoming')).toBeGreaterThan(lists));
+  });
+
+  it('depois do apito, até a lista ser relida: o selo de encerrado no lugar do horário', async () => {
+    const { container } = setup(
+      <UpcomingDerbies showHistory={false} showWhereToWatch={false} />,
+      startedFetch(PREVIEW_IDS.finishedEvent) as unknown as typeof fetch,
+    );
+    expect(await screen.findByText('Clássico da Serra')).toBeTruthy();
+    const row = container.querySelector('[data-gs-derby]')!;
+    await waitFor(() => expect(row.querySelector('.gs-badge[data-tone=done]')).toBeTruthy());
+    expect(row.querySelector('time')).toBeNull();
   });
 
   it('janela sem clássicos: aviso com os dias', async () => {

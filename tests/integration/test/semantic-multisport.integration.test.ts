@@ -551,12 +551,26 @@ describe('/v1/derbies', () => {
         derbyId: next!.derbyId,
       })
       .returning();
+    // `starting` travado há 4 h (o provedor nunca confirmou o início): fora
+    const stuckAt = new Date(Date.now() - 4 * 60 * 60_000);
+    const [stuck] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: ids.serieA!,
+        startsAt: stuckAt,
+        endsAtExpected: new Date(stuckAt.getTime() + 115 * 60_000),
+        status: 'starting',
+        derbyId: next!.derbyId,
+      })
+      .returning();
     try {
       const week = (await get('/v1/derbies/upcoming?locale=en')).json().data as { event_id: string }[];
       expect(week.map((e) => e.event_id)).toEqual([live!.id, ids.next]);
     } finally {
       await db.delete(event).where(eq(event.id, live!.id));
       await db.delete(event).where(eq(event.id, done!.id));
+      await db.delete(event).where(eq(event.id, stuck!.id));
     }
   });
 
