@@ -16,6 +16,8 @@ export const RACING_IDS = {
   driver: '0199a5c0-0000-7000-8000-0000000004d1',
   fightCompetition: '0199a5c0-0000-7000-8000-0000000005c1',
   fightEvent: '0199a5c0-0000-7000-8000-000000000501',
+  /** A luta principal do próximo card (daqui a 21 dias): a prévia da contagem regressiva no MMA. */
+  nextFightEvent: '0199a5c0-0000-7000-8000-000000000521',
   fighter: '0199a5c0-0000-7000-8000-0000000005f1',
 } as const;
 

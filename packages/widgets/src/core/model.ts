@@ -9,6 +9,7 @@ export const WIDGET_KINDS = [
   'match_card',
   'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -31,7 +32,9 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'countdown',
   'team_squad',
+  'player_profile',
   'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -60,6 +63,8 @@ export interface WidgetDefaults {
   competitionId?: string | undefined;
   teamId?: string | undefined;
   eventId?: string | undefined;
+  /** Jogador ou técnico (`/v1/people/{id}`), na ficha do jogador. */
+  personId?: string | undefined;
   sport?: string | undefined;
 }
 
@@ -503,6 +508,55 @@ export interface GsMedalHistory {
   })[];
   totals: (GsMedalCounts & { noc: string })[];
   withheld: { slug: string; name: string }[];
+}
+
+/** Ficha da pessoa (`/v1/people/{id}/overview`), só o que a ficha do jogador usa. */
+export interface GsPersonNumbers {
+  appearances: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+  rating: number | null;
+}
+
+export interface GsTransferTeam {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+
+export interface GsPersonOverview {
+  person: {
+    id: string;
+    name: string;
+    birth_date: string | null;
+    age: number | null;
+    nationality: string | null;
+    height_cm: number | null;
+    photo: string | null;
+  };
+  /** País da nacionalidade (código ISO2, para a bandeira). */
+  nationality_ref: { code: string; name: string } | null;
+  role: string | null;
+  position: string | null;
+  number: number | null;
+  current_team: { id: string; name: string; logo: string | null } | null;
+  season: number | null;
+  seasons: { year: number; appearances: number; goals: number }[];
+  totals: GsPersonNumbers | null;
+  career: {
+    team: { id: string; name: string; logo: string | null };
+    from: number;
+    to: number;
+    appearances: number;
+    goals: number;
+    current: boolean;
+  }[];
+  transfers: { date: string | null; type: string | null; from: GsTransferTeam; to: GsTransferTeam }[];
+  trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1277,6 +1331,30 @@ export const WIDGET_CSS = `
 .gs-badge[data-tone=primary]{color:var(--gs-primary-foreground);background:var(--gs-primary);border-color:transparent}
 .gs-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:gs-pulse 1.4s ease-in-out infinite}
 @keyframes gs-pulse{50%{opacity:.3}}
+.gs-card[data-gs-widget=score_ticker]{padding:0;background:none;border:0;container-type:inline-size}
+.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;font-size:clamp(16px,2cqw,44px);line-height:1.25;font-weight:600}
+.gs-ticker[data-transparent]{background:transparent;border-color:transparent;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.gs-ticker-label{flex:none;display:flex;align-items:center;gap:.4em;padding:.45em .7em;background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-shadow:none}
+.gs-ticker-label .gs-dot{width:.4em;height:.4em}
+.gs-ticker-viewport{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center}
+.gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
+.gs-ticker-track{display:flex;width:max-content}
+.gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
+.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+@keyframes gs-ticker{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
+.gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
+.gs-ticker-group{display:flex;align-items:center;gap:1.2em}
+.gs-ticker-competition{display:inline-flex;align-items:center;gap:.35em;padding:.1em .45em;border-radius:calc(var(--gs-radius)/2);background:color-mix(in srgb,var(--gs-foreground) 10%,transparent);color:var(--gs-muted-foreground);font-size:.72em;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.gs-ticker-item{display:inline-flex;align-items:center;gap:.45em;font-variant-numeric:tabular-nums}
+.gs-ticker-status{font-size:.72em;font-weight:800;color:var(--gs-muted-foreground)}
+.gs-ticker-item[data-live] .gs-ticker-status{color:var(--gs-live)}
+.gs-ticker-team{display:inline-flex;align-items:center;gap:.35em}
+.gs-ticker-team[data-lost]{color:var(--gs-muted-foreground)}
+.gs-ticker-score{font-weight:800}
+.gs-ticker-item[data-live] .gs-ticker-score{color:var(--gs-primary)}
+.gs-ticker .gs-crest{width:1.15em;height:1.15em}
+.gs-ticker .gs-initials{font-size:.45em;width:2.55em;height:2.55em}
 .gs-list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-group{display:flex;flex-direction:column;gap:4px}
 .gs-group+.gs-group{margin-top:var(--gs-gap)}
@@ -1436,6 +1514,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gs-countdown-units{display:flex;justify-content:center;gap:6px}
+.gs-countdown-unit{display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
+.gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1530,6 +1613,8 @@ export interface WidgetTexts {
     recent: string;
     empty: string;
   };
+  /** Contagem regressiva para o jogo: "Começa em", "Vai começar" e as unidades (dias, horas…). */
+  countdown: { startsIn: string; starting: string; units: { d: string; h: string; m: string; s: string } };
   /** Agenda do time: próximos jogos e últimos resultados (V/E/D). */
   schedule: {
     title: string;
@@ -1742,6 +1827,36 @@ export interface WidgetTexts {
     number: string;
     empty: string;
   };
+  /** Ficha do jogador (futebol): números da temporada, clubes, temporadas, títulos e transferências. */
+  player: {
+    /** "Temporada {year}". */
+    season: string;
+    appearances: string;
+    goals: string;
+    assists: string;
+    minutes: string;
+    yellow: string;
+    red: string;
+    rating: string;
+    clubs: string;
+    seasons: string;
+    trophies: string;
+    transfers: string;
+    current: string;
+    coach: string;
+    /** "{age} anos". */
+    age: string;
+    /** "{n} jogos · {g} gols" na linha do clube e da temporada. */
+    appsGoals: string;
+    /** "{n} jogos" (técnico: sem gols). */
+    apps: string;
+    /** "e mais {count}". */
+    more: string;
+    empty: string;
+    positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
+    places: Record<string, string>;
+    transferTypes: Record<string, string>;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -1878,6 +1993,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'Histórico geral: {n} jogos',
       recent: 'Últimos confrontos',
       empty: 'Os times ainda não se enfrentaram.',
+    },
+    countdown: {
+      startsIn: 'Começa em',
+      starting: 'Vai começar',
+      units: { d: 'dias', h: 'horas', m: 'min', s: 'seg' },
     },
     schedule: {
       title: 'Agenda',
@@ -2093,6 +2213,40 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       number: 'Camisa {number}',
       empty: 'Elenco indisponível.',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Jogos',
+      goals: 'Gols',
+      assists: 'Assistências',
+      minutes: 'Minutos',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferências',
+      current: 'Atual',
+      coach: 'Técnico',
+      age: '{age} anos',
+      appsGoals: '{n} jogos · {g} gols',
+      apps: '{n} jogos',
+      more: 'e mais {count}',
+      empty: 'Sem jogos nesta temporada.',
+      positions: {
+        Goalkeeper: 'Goleiro',
+        Defender: 'Defensor',
+        Midfielder: 'Meio-campista',
+        Attacker: 'Atacante',
+      },
+      places: { Winner: 'Campeão', '2nd Place': 'Vice', '3rd Place': '3º lugar', '4th Place': '4º lugar' },
+      transferTypes: {
+        Loan: 'Empréstimo',
+        Free: 'Sem custo',
+        'Back from Loan': 'Fim de empréstimo',
+        Transfer: 'Transferência',
+      },
+    },
   },
   es: {
     status: {
@@ -2227,6 +2381,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'Historial completo: {n} partidos',
       recent: 'Últimos enfrentamientos',
       empty: 'Los equipos todavía no se enfrentaron.',
+    },
+    countdown: {
+      startsIn: 'Empieza en',
+      starting: 'Por comenzar',
+      units: { d: 'días', h: 'horas', m: 'min', s: 'seg' },
     },
     schedule: {
       title: 'Agenda',
@@ -2442,6 +2601,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       number: 'Camiseta {number}',
       empty: 'Plantel no disponible.',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Partidos',
+      goals: 'Goles',
+      assists: 'Asistencias',
+      minutes: 'Minutos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferencias',
+      current: 'Actual',
+      coach: 'Entrenador',
+      age: '{age} años',
+      appsGoals: '{n} partidos · {g} goles',
+      apps: '{n} partidos',
+      more: 'y {count} más',
+      empty: 'Sin partidos en esta temporada.',
+      positions: {
+        Goalkeeper: 'Arquero',
+        Defender: 'Defensor',
+        Midfielder: 'Mediocampista',
+        Attacker: 'Delantero',
+      },
+      places: {
+        Winner: 'Campeón',
+        '2nd Place': 'Subcampeón',
+        '3rd Place': 'Tercer puesto',
+        '4th Place': 'Cuarto puesto',
+      },
+      transferTypes: {
+        Loan: 'Préstamo',
+        Free: 'Libre',
+        'Back from Loan': 'Fin de préstamo',
+        Transfer: 'Transferencia',
+      },
+    },
   },
   en: {
     status: {
@@ -2576,6 +2774,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'All-time: {n} matches',
       recent: 'Recent meetings',
       empty: 'These teams have not met yet.',
+    },
+    countdown: {
+      startsIn: 'Starts in',
+      starting: 'Starting soon',
+      units: { d: 'days', h: 'hrs', m: 'min', s: 'sec' },
     },
     schedule: {
       title: 'Schedule',
@@ -2777,6 +2980,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       season: '{year} season',
       number: 'Shirt {number}',
       empty: 'Squad not available.',
+    },
+    player: {
+      season: '{year} season',
+      appearances: 'Apps',
+      goals: 'Goals',
+      assists: 'Assists',
+      minutes: 'Minutes',
+      yellow: 'Yellow cards',
+      red: 'Red cards',
+      rating: 'Rating',
+      clubs: 'Clubs',
+      seasons: 'By season',
+      trophies: 'Trophies',
+      transfers: 'Transfers',
+      current: 'Current',
+      coach: 'Head coach',
+      age: '{age} years old',
+      appsGoals: '{n} apps · {g} goals',
+      apps: '{n} apps',
+      more: 'and {count} more',
+      empty: 'No matches this season.',
+      positions: {
+        Goalkeeper: 'Goalkeeper',
+        Defender: 'Defender',
+        Midfielder: 'Midfielder',
+        Attacker: 'Forward',
+      },
+      places: {
+        Winner: 'Winner',
+        '2nd Place': 'Runner-up',
+        '3rd Place': 'Third place',
+        '4th Place': 'Fourth place',
+      },
+      transferTypes: {
+        Loan: 'Loan',
+        Free: 'Free transfer',
+        'Back from Loan': 'Loan return',
+        Transfer: 'Transfer',
+      },
     },
   },
 };
@@ -3084,6 +3326,23 @@ export function eventRefreshMs(
     return Math.min(Math.max(wake, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
+}
+
+/**
+ * Partes da contagem regressiva (widget `countdown`) para `ms` até o início. Arredonda para cima, para
+ * zerar só na hora do jogo: com segundos, 1,5 s vira 2 s; sem eles, 30 s ainda é 1 min.
+ */
+export function countdownParts(
+  ms: number,
+  withSeconds = true,
+): { days: number; hours: number; minutes: number; seconds: number } {
+  const total = Math.max(0, withSeconds ? Math.ceil(ms / 1000) : Math.ceil(ms / MINUTE) * 60);
+  return {
+    days: Math.floor(total / 86_400),
+    hours: Math.floor((total % 86_400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+  };
 }
 
 // ─── textos da API e modelos ─────────────────────────────────────────────────────────────────────
