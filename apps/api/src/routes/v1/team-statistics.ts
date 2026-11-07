@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   TeamParams,
