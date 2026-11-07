@@ -188,7 +188,7 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(items(container)).toHaveLength(2);
     liveDown = false;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(40_000);
     });
     expect(
       vi.mocked(fetchImpl).mock.calls.filter((c) => String(c[0]).includes('/v1/events/live')).length,
@@ -207,6 +207,80 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     await screen.findByText('0 – 0');
     expect(items(container)).toHaveLength(1);
     expect(screen.queryByText('2 – 1')).toBeNull();
+  });
+
+  it('jogo em "começando" no dia fica na faixa (a rota ao vivo só o traz depois do apito inicial)', async () => {
+    const [live, upcoming] = createPreviewFixtures(new Date()).events as [GsEvent, GsEvent];
+    const starting: GsEvent = { ...upcoming, status: 'starting' };
+    const body = (data: GsEvent[]) =>
+      new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/v1/events/live') ? body([live]) : body([live, starting]),
+    ) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    await screen.findByText('2 – 1');
+    expect(container.querySelector(`[data-gs-event="${starting.id}"]`)).toBeTruthy();
+  });
+
+  it('apito final: o jogo some do ao vivo, o dia é buscado de novo até trazer o encerrado', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const [live] = createPreviewFixtures(new Date()).events as [GsEvent];
+    const ended: GsEvent = { ...live, status: 'finished', clock: null, score: { ...live.score, home: 3 } };
+    const body = (data: GsEvent[]) =>
+      new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
+    let phase: 'live' | 'whistle' | 'fresh' = 'live';
+    let dayCalls = 0;
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/v1/events/live')) return body(phase === 'live' ? [live] : []);
+      dayCalls += 1;
+      // o cache do dia ainda serve a cópia "ao vivo" logo depois do apito
+      return body([phase === 'fresh' ? ended : live]);
+    }) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    await screen.findByText('2 – 1');
+    phase = 'whistle';
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    // a cópia velha do dia não aparece (nada de minuto ou placar voltando)
+    expect(screen.queryByText('2 – 1')).toBeNull();
+    expect(screen.queryByText("67'")).toBeNull();
+    const before = dayCalls;
+    phase = 'fresh';
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(dayCalls).toBeGreaterThan(before);
+    expect(await screen.findByText('3 – 1')).toBeTruthy();
+    expect(items(container)[0]).toMatch(/Encerrado/);
+  });
+
+  it('dia em erro com o ao vivo ok: a faixa mostra o ao vivo', async () => {
+    const preview = createPreviewFetch();
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      /\/v1\/events\?/.test(String(input))
+        ? new Response(JSON.stringify({ title: 'Erro', status: 503 }), { status: 503 })
+        : preview(input, init),
+    ) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    await screen.findByText('2 – 1');
+    expect(items(container)).toHaveLength(1);
+  });
+
+  it('erro que não passa sozinho (chave inválida) não fica tentando de novo', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ title: 'Chave inválida', status: 401 }), { status: 401 }),
+    ) as unknown as typeof fetch;
+    setup(<ScoreTicker mode="live" />, { fetchImpl });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    const first = vi.mocked(fetchImpl).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+    });
+    expect(vi.mocked(fetchImpl).mock.calls.length).toBe(first);
   });
 
   it('letra proporcional à largura, parada com "reduzir movimento" e emenda sem salto', () => {

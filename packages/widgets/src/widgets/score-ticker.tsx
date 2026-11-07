@@ -49,6 +49,11 @@ const SPEED_EM_PER_SEC: Record<ScoreTickerSpeed, number> = { slow: 2.5, normal: 
 const LIVE_REFRESH_MS = 20_000;
 const IDLE_REFRESH_MS = 120_000;
 const RETRY_MS = 30_000;
+const RETRY_MAX_MS = 5 * 60_000;
+const STALE_RETRY_MS = 15_000;
+const STALE_MAX_TRIES = 8;
+/** Erros que podem passar sozinhos: rede (0), timeout, limite de requisições e falha do servidor. */
+const isTransient = (status: number) => status === 0 || status === 408 || status === 429 || status >= 500;
 const TODAY_STATUSES = 'starting,live,break,finished';
 
 /** Em andamento primeiro, depois encerrados, depois os próximos; dentro de cada, pelo horário. */
@@ -129,10 +134,30 @@ export function ScoreTicker({
   // mostra o que chegou: com uma das duas consultas fora, a faixa segue com a outra
   const ready = Boolean(live.data || (!liveOnly && day.data));
   const liveSet = live.data ? new Set(live.data.data.map((e) => e.id)) : null;
+  // jogo com bola rolando no dia que a rota ao vivo já não traz: terminou, e a cópia do dia está velha (o
+  // cache do /v1/events ainda pode servi-la por alguns segundos). `starting` não entra: a rota ao vivo só
+  // traz o jogo depois do apito inicial
+  const isStale = (e: GsEvent) => Boolean(liveSet) && LIVE_STATUSES.has(e.status) && !liveSet!.has(e.id);
+  const staleKey = (day.data?.data ?? [])
+    .filter(isStale)
+    .map((e) => e.id)
+    .join(',');
+  // enquanto o dia ainda trouxer a cópia velha, busca de novo a cada 15 s (no máximo 8 vezes por jogo)
+  const staleTries = useRef({ key: '', n: 0 });
+  useEffect(() => {
+    if (!staleKey || liveOnly) return;
+    const tries = staleTries.current;
+    if (tries.key !== staleKey) staleTries.current = { key: staleKey, n: 0 };
+    if (staleTries.current.n >= STALE_MAX_TRIES) return;
+    const timer = setTimeout(() => {
+      staleTries.current.n += 1;
+      dayRetry();
+    }, STALE_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [staleKey, liveOnly, dayRetry, day.data]);
 
   const seen = new Set<string>();
-  // no dia, um jogo "em andamento" que a rota ao vivo já não traz terminou: a cópia do dia está velha
-  const dayEvents = (day.data?.data ?? []).filter((e) => !liveSet || stageOf(e) !== 0 || liveSet.has(e.id));
+  const dayEvents = (day.data?.data ?? []).filter((e) => !isStale(e));
   const sorted = [...(live.data?.data ?? []), ...dayEvents]
     .filter((e) => !seen.has(e.id) && Boolean(seen.add(e.id)))
     .filter((e) => (liveOnly ? stageOf(e) === 0 : mode === 'today' ? stageOf(e) < 2 : true))
@@ -346,13 +371,41 @@ function Side({
   );
 }
 
-/** Primeira carga com erro: tenta de novo a cada 30 s (com dados na tela, o polling normal já cuida). */
-function useRetryOnError(query: { data: unknown; error: unknown; loading: boolean; retry: () => void }) {
-  const failed = !query.data && !query.loading && Boolean(query.error);
+/**
+ * Primeira carga com erro passageiro (rede, 408, 429, 5xx): tenta de novo sozinha, com espera crescente
+ * (30 s, 1 min, 2 min... até 5 min) e um pouco de sorteio, para as TVs não voltarem todas juntas. Com a aba
+ * escondida, espera ela aparecer. Chave inválida ou sem permissão não passa sozinha: fica no erro.
+ * Com dados na tela, o polling normal já cuida.
+ */
+function useRetryOnError(query: {
+  data: unknown;
+  error: { status: number } | null;
+  loading: boolean;
+  retry: () => void;
+}) {
+  const failed = !query.data && !query.loading && query.error !== null && isTransient(query.error.status);
+  const attempts = useRef(0);
+  const hasData = Boolean(query.data);
+  useEffect(() => {
+    if (hasData) attempts.current = 0;
+  }, [hasData]);
   const { retry } = query;
   useEffect(() => {
     if (!failed) return;
-    const timer = setTimeout(retry, RETRY_MS);
-    return () => clearTimeout(timer);
+    const base = Math.min(RETRY_MS * 2 ** attempts.current, RETRY_MAX_MS);
+    const delay = base * (0.75 + Math.random() * 0.5);
+    const fire = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        document.addEventListener('visibilitychange', fire, { once: true });
+        return;
+      }
+      attempts.current += 1;
+      retry();
+    };
+    const timer = setTimeout(fire, delay);
+    return () => {
+      clearTimeout(timer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', fire);
+    };
   }, [failed, retry]);
 }
