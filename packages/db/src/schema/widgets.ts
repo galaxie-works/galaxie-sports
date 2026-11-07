@@ -8,7 +8,9 @@ import { ops } from './ops.js';
 /** Tipos de widget que o Builder monta e o pacote de widgets renderiza. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -16,6 +18,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -32,6 +35,11 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'sidelined',
+  'competition_leaders',
+  'countdown',
+  'team_squad',
+  'player_profile',
+  'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -55,6 +63,8 @@ export interface WidgetDefaults {
   competitionId?: string;
   teamId?: string;
   eventId?: string;
+  /** Jogador ou técnico (ficha do jogador). */
+  personId?: string;
   sport?: string;
 }
 

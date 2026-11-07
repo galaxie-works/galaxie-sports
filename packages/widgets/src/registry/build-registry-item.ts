@@ -123,6 +123,8 @@ function defaultProps(
       return pick(['eventId']);
     case 'live_list':
       return { ...pick(['competitionId', 'teamId', 'sport']), ...parseLiveListOptions(liveList) };
+    case 'score_ticker':
+      return pick(['competitionId', 'sport']);
     case 'standings':
       return { ...pick(['competitionId']), ...parseStandingsOptions(standings) };
     case 'where_to_watch':
@@ -134,15 +136,23 @@ function defaultProps(
     case 'race_result':
     case 'race_weekend':
     case 'fight_card':
+    case 'countdown':
+    case 'match_timeline':
+    case 'lineups':
       return pick(['eventId']);
     case 'team_schedule':
+    case 'team_card':
     case 'athlete_profile':
+    case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
+    case 'competition_leaders':
       return pick(['competitionId']);
     // por jogo ou por time: a entidade salva no Builder (o jogo, se houver, vence)
     case 'sidelined':
       return defaults.eventId ? pick(['eventId']) : pick(['teamId']);
+    case 'player_profile':
+      return pick(['personId']);
     // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':

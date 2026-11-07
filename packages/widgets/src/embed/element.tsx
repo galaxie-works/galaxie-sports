@@ -22,7 +22,9 @@ import { GalaxieWidgetProvider } from '../core/react.js';
 import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
+import { Countdown } from '../widgets/countdown.js';
 import { FightCard } from '../widgets/fight-card.js';
+import { MatchTimeline } from '../widgets/match-timeline.js';
 import { EquestrianResults } from '../widgets/equestrian-results.js';
 import { EquestrianRanking } from '../widgets/equestrian-ranking.js';
 import { EquestrianCalendar } from '../widgets/equestrian-calendar.js';
@@ -34,6 +36,9 @@ import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
 import { Sidelined } from '../widgets/sidelined.js';
+import { CompetitionLeaders } from '../widgets/competition-leaders.js';
+import { PlayerProfile } from '../widgets/player-profile.js';
+import { Lineups } from '../widgets/lineups.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -41,9 +46,12 @@ import { MatchStakes } from '../widgets/match-stakes.js';
 import { RaceResult } from '../widgets/race-result.js';
 import { RaceWeekend } from '../widgets/race-weekend.js';
 import { RelatedVideos } from '../widgets/related-videos.js';
+import { ScoreTicker } from '../widgets/score-ticker.js';
 import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
+import { TeamCard } from '../widgets/team-card.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
+import { TeamSquad } from '../widgets/team-squad.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
 export const EMBED_TAG = 'galaxie-widget';
@@ -76,6 +84,7 @@ export const EMBED_ATTRIBUTES = [
   'event-id',
   'competition-id',
   'team-id',
+  'person-id',
 ] as const;
 
 export interface EmbedOverrides {
@@ -84,6 +93,7 @@ export interface EmbedOverrides {
   eventId?: string | null;
   competitionId?: string | null;
   teamId?: string | null;
+  personId?: string | null;
 }
 
 const isLocale = (v: unknown): v is WidgetLocale => (WIDGET_LOCALES as readonly unknown[]).includes(v);
@@ -97,7 +107,8 @@ export function resolveEmbed(config: EmbedConfig, overrides: EmbedOverrides = {}
   const eventId = overrides.eventId || config.defaults.eventId;
   const competitionId = overrides.competitionId || config.defaults.competitionId;
   const teamId = overrides.teamId || config.defaults.teamId;
-  return { locale, market, eventId, competitionId, teamId, sport: config.defaults.sport };
+  const personId = overrides.personId || config.defaults.personId;
+  return { locale, market, eventId, competitionId, teamId, personId, sport: config.defaults.sport };
 }
 
 /** Lê e confere a resposta de `/e/<id>.json` (vem da rede: nada de confiar no formato). */
@@ -117,7 +128,7 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
-  const { eventId, competitionId, teamId, market, sport } = resolveEmbed(config, overrides);
+  const { eventId, competitionId, teamId, personId, market, sport } = resolveEmbed(config, overrides);
   const o = optionProps(config.kind, config.options);
   switch (config.kind) {
     case 'match_card':
@@ -136,6 +147,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       );
     case 'live_list':
       return <LiveList {...config.liveList} competitionId={competitionId} teamId={teamId} sport={sport} />;
+    case 'score_ticker':
+      return <ScoreTicker {...o} competitionId={competitionId} sport={sport} />;
     case 'ai_context':
       return <AiContext {...o} eventId={eventId ?? ''} />;
     case 'match_stakes':
@@ -146,6 +159,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <HeadToHead {...o} eventId={eventId ?? ''} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={teamId ?? ''} />;
+    case 'team_card':
+      return <TeamCard {...o} teamId={teamId ?? ''} />;
     case 'race_result':
       return <RaceResult {...o} eventId={eventId ?? ''} />;
     case 'race_weekend':
@@ -156,6 +171,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <AthleteProfile {...o} teamId={teamId ?? ''} />;
     case 'fight_card':
       return <FightCard {...o} eventId={eventId ?? ''} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={eventId ?? ''} />;
     case 'equestrian_results':
       return <EquestrianResults {...o} />;
     case 'equestrian_ranking':
@@ -178,6 +195,16 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <MedalHistory {...o} />;
     case 'sidelined':
       return eventId ? <Sidelined {...o} eventId={eventId} /> : <Sidelined {...o} teamId={teamId} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={competitionId ?? ''} />;
+    case 'countdown':
+      return <Countdown {...o} eventId={eventId ?? ''} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={teamId ?? ''} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={personId ?? ''} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={eventId ?? ''} />;
   }
 }
 
@@ -272,6 +299,7 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
         eventId: this.getAttribute('event-id'),
         competitionId: this.getAttribute('competition-id'),
         teamId: this.getAttribute('team-id'),
+        personId: this.getAttribute('person-id'),
       };
       const { locale, market } = resolveEmbed(config, overrides);
       this.root.render(

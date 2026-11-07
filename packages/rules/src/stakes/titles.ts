@@ -66,6 +66,16 @@ const PREFIX: Record<number, string> = {
   10: 'deca',
 };
 
+/** Ordinal em inglês com algarismos: 2nd, 3rd, 4th, 11th, 21st. */
+export function englishOrdinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
+}
+
+/** "a 4th title", "an 8th title", "an 11th title". */
+const enArticle = (n: number) => (String(n).startsWith('8') || n === 11 || n === 18 ? 'an' : 'a');
+
 /**
  * O título de número `n`, para compor a frase: pt-BR "tetracampeonato" / "11º título"; espanhol
  * "tetracampeonato" / "título número 11". `short` dá a forma curta das tags ("tetra", "11º título").
@@ -73,7 +83,8 @@ const PREFIX: Record<number, string> = {
  */
 export function titleOrdinal(n: number, lang: 'pt' | 'es' | 'en', short = false): string {
   const prefix = PREFIX[n];
-  if (lang === 'en') return `title No. ${n}`;
+  // "Chasing a 4th title" (sem "No.", que o separador de frases dos agentes lê como fim de frase)
+  if (lang === 'en') return n <= 1 ? 'a first title' : `${enArticle(n)} ${englishOrdinal(n)} title`;
   if (n <= 1) return lang === 'pt' ? 'primeiro título' : 'primer título';
   if (prefix) return short ? prefix : `${prefix}campeonato`;
   return lang === 'pt' ? `${n}º título` : short ? `título ${n}` : `título número ${n}`;
@@ -82,9 +93,11 @@ export function titleOrdinal(n: number, lang: 'pt' | 'es' | 'en', short = false)
 /**
  * Predicado de quem acaba de ganhar o título de número `n` (resumo pós-jogo): pt-BR "é tetracampeão" /
  * "é campeão pela primeira vez" / "conquista o 11º título"; espanhol "es tetracampeón" /
- * "es campeón por primera vez" / "gana su título número 11".
+ * "es campeón por primera vez" / "gana su título número 11"; inglês "wins a 4th title".
  */
-export function championPhrase(n: number, lang: 'pt' | 'es'): string {
+export function championPhrase(n: number, lang: 'pt' | 'es' | 'en'): string {
+  if (lang === 'en')
+    return n <= 1 ? 'wins the title for the first time' : `wins ${enArticle(n)} ${englishOrdinal(n)} title`;
   const prefix = PREFIX[n];
   if (n <= 1) return lang === 'pt' ? 'é campeão pela primeira vez' : 'es campeón por primera vez';
   if (prefix) return lang === 'pt' ? `é ${prefix}campeão` : `es ${prefix}campeón`;

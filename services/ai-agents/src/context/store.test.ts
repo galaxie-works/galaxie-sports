@@ -4,7 +4,9 @@ import { BudgetExceededError } from '../llm/errors.js';
 import { FakeLlmClient } from '../testing/fake-llm.js';
 import {
   budgetFallbackExpired,
+  factsHash,
   fellBackOnLlmError,
+  localeFactsHashes,
   withoutBudgetDowngrade,
   type StoredContextContent,
 } from './store.js';
@@ -120,5 +122,41 @@ describe('determinístico por orçamento (fallbackReason budget)', () => {
     ]);
     // pt-BR fica com o texto do LLM; es-AR tem fatos novos e grava o determinístico
     expect(withoutBudgetDowngrade(texts, previous, 'h').map((t) => t.locale)).toEqual(['es-AR']);
+  });
+});
+
+describe('hash dos fatos por locale (só o que mudou é regerado)', () => {
+  const OLD = ['pt-BR', 'es-AR', 'es-MX', 'es-CO', 'es-CL', 'es-PE', 'es-UY', 'es-EC'];
+  const names = (ls: readonly string[]) =>
+    Object.fromEntries(ls.map((l) => [l, l === 'en' ? 'Team' : 'Time']));
+  const facts = (ls: readonly string[], label = 'Busca o tetra') => ({
+    score: { home: 2, away: 1 },
+    teams: { home: { names: names(ls) } },
+    stakes: [
+      { code: 'x', labels: { ...Object.fromEntries(ls.map((l) => [l, 'Va por el tetra'])), 'pt-BR': label } },
+    ],
+  });
+  const ALL = [...OLD, 'en'];
+
+  it('o hash único dos 8 mercados (antes do inglês) continua valendo para eles; o en é novo', () => {
+    const legacy = factsHash(facts(OLD), 'v1');
+    const h = localeFactsHashes(facts(ALL), 'v1');
+    for (const l of OLD) expect(h.isFresh(l, legacy), l).toBe(true);
+    expect(h.isFresh('en', legacy)).toBe(false);
+    expect(h.isFresh('en', undefined)).toBe(false);
+  });
+
+  it('mudar o rótulo de um idioma só invalida aquele locale', () => {
+    const before = localeFactsHashes(facts(ALL), 'v1');
+    const after = localeFactsHashes(facts(ALL, 'Busca o penta'), 'v1');
+    expect(after.isFresh('pt-BR', before.hashOf('pt-BR'))).toBe(false);
+    expect(after.isFresh('es-AR', before.hashOf('es-AR'))).toBe(true);
+    expect(after.isFresh('en', before.hashOf('en'))).toBe(true);
+  });
+
+  it('mudar um fato comum (placar) invalida todos', () => {
+    const before = localeFactsHashes(facts(ALL), 'v1');
+    const after = localeFactsHashes({ ...facts(ALL), score: { home: 3, away: 1 } }, 'v1');
+    for (const l of ALL) expect(after.isFresh(l, before.hashOf(l)), l).toBe(false);
   });
 });

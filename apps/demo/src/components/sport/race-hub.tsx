@@ -8,6 +8,7 @@ import { CalendarClock, Flag, MapPin, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { Badge } from '@/components/reui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -208,14 +209,14 @@ async function F1Legends() {
 /** Espaço do carrossel enquanto as lendas chegam (o hub não pula quando ele aparece). */
 function LegendsFallback() {
   return (
-    <div className="flex flex-col gap-3">
+    <LoadingStatus className="flex flex-col gap-3">
       <Skeleton className="h-4 w-40" />
       <div className="flex gap-3 overflow-hidden">
         {Array.from({ length: 4 }, (_, i) => (
           <Skeleton key={i} className="h-[25rem] w-[78vw] max-w-72 shrink-0 rounded-xl sm:w-72" />
         ))}
       </div>
-    </div>
+    </LoadingStatus>
   );
 }
 
