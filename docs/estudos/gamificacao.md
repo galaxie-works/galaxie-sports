@@ -16,7 +16,7 @@ O que recomendo:
 - **Pontos com valor honesto.** O sistema recomenda ao cliente quanto vale 1 ponto a partir do orçamento de prêmios dele, e mostra o valor em reais ou dólares para o usuário.
 - **Quatro regras de ouro jurídicas**: nada pago com resultado aleatório, nada que vire dinheiro fora do programa nada de cartas ou pontos com valor para menores de 18 anos e nenhuma conquista ou ponto ganho por compra.
 
-Sobre a piada do Livelo/Stix: dá para entender a matemática deles e usar a parte saudável (pontos que expiram, pontos + dinheiro). Mas um sistema desenhado para nunca pagar sozinho é exatamente o que o Procon, o CDC e a FTC punem. A FTC multou a dona do Genshin Impact em US$ 20 milhões em janeiro de 2025 por esconder o custo real em moeda virtual. A seção de pontos mostra o modelo que recomendo no lugar.
+Sobre a piada do Livelo/Stix: dá para entender a matemática deles e usar a parte saudável (pontos que expiram, pontos + dinheiro). Mas um sistema desenhado para nunca pagar sozinho é exatamente o que o Procon, o CDC e a FTC punem. A FTC multou a dona do Genshin Impact em US$ 20 milhões em janeiro de 2025 por enganar sobre o custo real dos pacotes pagos em moeda virtual. A seção de pontos mostra o modelo que recomendo no lugar.
 
 MVP: motor de conquistas com futebol, basquete e futebol americano em cerca de 2 semanas de desenvolvimento por agentes. O pacote completo, com cartas, pontos e marketplace, fica em cerca de 9 a 11 semanas. A consulta com advogado roda em paralelo e precisa terminar antes de ligar pontos com valor.
 
@@ -27,7 +27,7 @@ Toda conquista junta duas coisas: o que o **fã** fez (acompanhou, palpitou, seg
 | Esporte | Eventos que temos e que viram gatilho | Detalhe do dado |
 | --- | --- | --- |
 | Futebol | gols com minuto, viradas, pênaltis, cartões, VAR, escalações, notas e estatísticas de jogador, tabela, artilharia | o mais rico: evento a evento ao vivo |
-| Basquete e NBA | placar por quarto, estatísticas de jogador (pontos, rebotes, assistências), prorrogação | triple-double e buzzer-beater saem do box score |
+| Basquete e NBA | placar por quarto, estatísticas de jogador (pontos, rebotes, assistências), prorrogação | triple-double sai do box score; buzzer-beater não dá, porque a API de basquete não tem lance a lance (só placar por quarto e estatísticas agregadas) |
 | Beisebol | placar por entrada, rebatidas, home runs, erros | no-hitter e virada no 9º inning saem do placar por entrada |
 | Futebol americano (NFL e NCAA) | placar por quarto, estatísticas de jogador e de time | virada no 4º quarto, jogo decidido em field goal no fim |
 | Hóquei | gols por período, prorrogação, shootout | hat-trick e vitória no shootout |
@@ -60,7 +60,7 @@ O catálogo tem duas camadas: conquistas que servem para qualquer esporte (o mot
 | Esporte | Conquistas de momento |
 | --- | --- |
 | Futebol | Gol nos acréscimos, hat-trick do seu time, virada depois de estar perdendo por 2, defesa de pênalti, clássico vencido, VAR anulou gol contra você |
-| Basquete e NBA | Triple-double ao vivo, cesta no estouro do relógio, jogo com duas prorrogações, 50 pontos de um jogador |
+| Basquete e NBA | Triple-double ao vivo, jogo com duas prorrogações, 50 pontos de um jogador, virada no último quarto |
 | Beisebol | No-hitter acompanhado, grand slam, walk-off no 9º inning, jogo de extra innings |
 | Futebol americano | Virada no 4º quarto, field goal decisivo no fim, pick-six, temporada regular completa |
 | Hóquei | Hat-trick (o chapéu no gelo), vitória no shootout, shutout do goleiro |
@@ -158,7 +158,7 @@ A sensação de que "nunca paga nada sozinho" tem explicação, e quase toda ela
 
 ### Onde isso vira problema
 
-Um sistema montado de propósito para que o usuário nunca chegue a um prêmio só com pontos é publicidade enganosa e prática abusiva (CDC, arts. 6º, 37 e 39). O Procon age com frequência contra validade de pontos escondida e regras mudadas no meio do caminho. Nos EUA, a FTC multou a dona do Genshin Impact em US$ 20 milhões em janeiro de 2025 e exigiu que ela mostre quanto a moeda virtual vale em dinheiro de verdade ([fonte](https://www.claimsjournal.com/news/national/2025/01/22/328527.htm)). E há um risco de reputação para o Galaxie: se o cliente for multado, o motor de pontos é nosso.
+Um sistema montado de propósito para que o usuário nunca chegue a um prêmio só com pontos é publicidade enganosa e prática abusiva (CDC, arts. 6º, 37 e 39). O Procon age com frequência contra validade de pontos escondida e regras mudadas no meio do caminho. Nos EUA, a FTC multou a dona do Genshin Impact em US$ 20 milhões em janeiro de 2025 e exigiu que ela revele as chances dos pacotes e as taxas de câmbio entre as moedas virtuais ([fonte](https://www.ftc.gov/news-events/news/press-releases/2025/01/genshin-impact-game-developer-will-be-banned-selling-lootboxes-teens-under-16-without-parental); [cobertura](https://www.claimsjournal.com/news/national/2025/01/22/328527.htm)). E há um risco de reputação para o Galaxie: se o cliente for multado, o motor de pontos é nosso.
 
 ### O modelo que o sistema recomenda
 
@@ -175,7 +175,7 @@ Exemplo: orçamento de R$ 10.000 por mês, 1 milhão de pontos emitidos e 60% re
 | Primeiro prêmio | ao alcance de um usuário ativo em 2 a 4 semanas, só com pontos | quem nunca resgata nada desiste |
 | Pontos + dinheiro | permitido, mas sempre com prêmios que saem só com pontos | o cliente ganha margem sem armadilha |
 | Validade | 12 meses a partir do último uso, com aviso 30 e 7 dias antes | a quebra existe, mas avisada |
-| Valor exibido | "3.000 pontos, cerca de R$ 50" em todo prêmio | é o que a FTC exigiu no caso Genshin |
+| Valor exibido | "3.000 pontos, cerca de R$ 50" em todo prêmio | transparência que vai além do exigido: a ordem da FTC no caso Genshin trata de pacotes pagos (chances e câmbio entre moedas), mas o mesmo princípio protege o cliente |
 | Mudança de regra | aviso de 30 dias e sem efeito sobre pontos já ganhos | evita a reclamação mais comum no Procon |
 | Reserva para quebra | o simulador assume 20% de pontos não resgatados, ajustado com o histórico real | o cliente não estoura o orçamento |
 | Taxa do marketplace | 10% em pontos, destruídos | controla a inflação |
@@ -198,7 +198,7 @@ Quem não vende cartas nem pacotes está tranquilo; quem vende pacote aleatório
 | NBA Top Shot (Dapper Labs) | pacotes pagos de "Moments" e marketplace com saque | — | ação coletiva por venda de investimento sem registro; acordo de [US$ 4 milhões](https://www.coindesk.com/policy/2024/06/04/dapper-labs-agrees-to-4m-settlement-in-class-action-securities-suit/) em 2024, com mudanças nos saques | nunca prometer valorização; sem saque em dinheiro |
 | EA FC Ultimate Team | pacotes pagos com jogadores aleatórios | — | a Bélgica considerou esses pacotes jogo de azar e a EA [parou de vender](https://www.videogameschronicle.com/news/ea-stops-selling-fifa-loot-boxes-in-belgium-jan-29-2019/) lá em 2019 | pacote aleatório pago é o alvo número 1 dos reguladores |
 | Topps BUNT (Fanatics) | moedas compradas abrem pacotes; trocas entre usuários | não achei os termos publicados | cartas vendidas no eBay por até US$ 200 ([fonte](https://www.beckett.com/news/topps-bunt-players-create-real-demand-for-virtual-baseball-cards/)), mesmo sem saque oficial | o mercado por fora aparece sozinho; regra proibindo e antifraude desde o início |
-| Genshin Impact (HoYoverse) | pacotes aleatórios com moeda virtual | — | [FTC: US$ 20 milhões](https://www.claimsjournal.com/news/national/2025/01/22/328527.htm) em 2025; obrigada a mostrar o valor em dinheiro da moeda | valor do ponto sempre visível em reais ou dólares |
+| Genshin Impact (HoYoverse) | pacotes aleatórios com moeda virtual | — | [FTC: US$ 20 milhões](https://www.claimsjournal.com/news/national/2025/01/22/328527.htm) em 2025; obrigada a revelar as chances dos pacotes e o câmbio entre moedas virtuais | valor do ponto sempre visível em reais ou dólares |
 
 ### O kit jurídico que entregamos ao cliente
 
@@ -211,7 +211,7 @@ Cláusulas do modelo, com a origem de cada uma:
 3. Validade de 12 meses desde o último uso, com avisos 30 e 7 dias antes (mais generoso que os 24 meses fixos da Livelo).
 4. Mudança de regra com 30 dias de aviso e sem efeito sobre pontos e cartas já ganhos (Livelo 10.3, melhorado).
 5. Encerramento com 30 dias de aviso e janela de resgate antes de os pontos expirarem (melhora a Livelo 9.2).
-6. Valor de referência em reais ou dólares em todo prêmio (exigência da FTC no caso Genshin).
+6. Valor de referência em reais ou dólares em todo prêmio (boa prática nossa, inspirada na transparência de câmbio exigida pela FTC no caso Genshin, que tratava de pacotes pagos).
 7. Nenhuma compra necessária para participar ou ganhar, e nenhuma relação com apostas (MLB).
 8. Faixas de idade: 13+ no módulo, 18+ no marketplace e nos pontos com valor (Livelo e Steam como referência; ECA Digital e COPPA).
 9. Nos EUA: arbitragem e renúncia a ação coletiva, teto de prêmio por pessoa e lista de estados excluídos, a validar com advogado local (MLB).
@@ -228,7 +228,7 @@ Nos EUA, quem contrata e fatura é a Galaxie Works LLC, de Wyoming, e não a emp
 
 O que isso muda nas regras americanas de prêmios:
 
-- **Imposto do ganhador.** Quem paga o prêmio precisa informar à Receita americana (IRS), no formulário 1099-MISC, todo ganhador que receber US$ 600 ou mais no ano, e para isso precisa colher o formulário W-9 dele. É por isso que o MLB Beat the Streak limita os prêmios a US$ 599 por pessoa. Recomendo o mesmo teto nas promoções da própria LLC; nos programas de clientes, a obrigação é do cliente, como patrocinador.
+- **Imposto do ganhador.** Quem paga o prêmio precisa informar à Receita americana (IRS), no formulário 1099-MISC, todo ganhador que receber acima do limite anual, e para isso precisa colher o formulário W-9 dele. O limite era US$ 600 até 2025 (por isso o MLB Beat the Streak limita os prêmios a US$ 599 por pessoa) e passou a [US$ 2.000 para pagamentos a partir de 2026](https://www.irs.gov/instructions/i1099mec), com correção pela inflação a partir de 2027. O limite só decide quando informar: o prêmio é tributável para o ganhador em qualquer valor. A regra fixa do projeto é o teto de US$ 599 nas promoções da própria LLC, que agora fica bem abaixo do limite e pode ser revista; nos programas de clientes, a obrigação é do cliente, como patrocinador.
 - **Registro em estados.** Sorteios com prêmios somando mais de US$ 5.000 exigem registro prévio e garantia financeira em Nova York e na Flórida (de memória; confirmar com o advogado). Nosso desenho, com conquistas e palpites sem sorteio, não entra nisso; sorteio de cliente americano passa por essa checagem.
 - **Lei aplicável e disputas.** O regulamento das promoções da própria LLC pode adotar a lei de Wyoming, com arbitragem e renúncia a ação coletiva, como faz a MLB. Nos programas de clientes, vale a lei que o cliente escolher.
 - **Dados pessoais.** Nos programas de clientes, a LLC é prestadora de serviço (*service provider*, na lei da Califórnia) e assina com o cliente um acordo de tratamento de dados. A regra de menores de 13 anos (COPPA) continua: o módulo só é aberto para maiores de 13.
@@ -311,7 +311,7 @@ Prazos contam desenvolvimento feito por agentes Claude, uma fase por vez. O pare
 - **Jurídico:** em vez de parecer antes de tudo, o portão é a pesquisa dos termos, políticas e documentos públicos das plataformas semelhantes (benchmark acima), mantida atualizada.
 - **Arte das cartas:** gerada por IA (Magnific, com os vários estilos disponíveis). Nada pode ser ou remeter a uma entidade real: sem escudo, nome ou logo de clube, liga ou atleta. Coleções genéricas e temáticas, o que abre possibilidades quase infinitas.
 - **Cliente piloto:** em conversa, a definir.
-- **Regras fixas:** sem aposta em nenhum país; compra nunca dá conquista, ponto, carta ou prêmio; prêmio limitado a US$ 599 por pessoa nas promoções da LLC nos EUA. Escopo: Brasil, Latam, Hispam, EUA e Canadá, com regras de menores e privacidade por país.
+- **Regras fixas:** sem aposta em nenhum país; compra nunca dá conquista, ponto, carta ou prêmio; prêmio limitado a US$ 599 por pessoa nas promoções da LLC nos EUA (conservador desde 2026, quando o limite do 1099-MISC passou a US$ 2.000; pode ser revisto). Escopo: Brasil, Latam, Hispam, EUA e Canadá, com regras de menores e privacidade por país.
 
 ## Fontes
 
