@@ -110,6 +110,17 @@ describe('rotateGroups', () => {
     const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
     expect(picked.map((p) => p.params.id)).toEqual(['2', '3']);
   });
+
+  it('--forcar renova o que está em dia, dentro do orçamento', async () => {
+    const cursors = new InMemoryCursorStore();
+    const a = [cand(1), cand(2), cand(3)];
+    await cursors.complete(a[0]!.item.cursors, {}, now);
+    await cursors.complete(a[1]!.item.cursors, {}, new Date(now.getTime() - 2 * DAY));
+    const normal = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
+    expect(normal.map((p) => p.params.id)).toEqual(['3']);
+    const forced = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2, { force: true });
+    expect(forced.map((p) => p.params.id)).toEqual(['3', '2']);
+  });
 });
 
 function fakeSports(): SportMirrorSource {

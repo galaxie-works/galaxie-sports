@@ -120,6 +120,7 @@ export async function rotateGroups(
   cursors: CursorStore,
   now: Date,
   limit: number,
+  opts: { force?: boolean | undefined } = {},
 ): Promise<PlannedRequest[]> {
   const all = groups.flatMap((g) => g.candidates);
   const states = await cursors.load(all.flatMap((c) => c.item.cursors));
@@ -134,13 +135,16 @@ export async function rotateGroups(
         const st = states.get(cursorId(ref));
         return !st?.completedAt && attemptsOf(st) >= MAX_ATTEMPTS;
       });
-      if (given) return;
+      if (given && !opts.force) return;
       const staleBefore = new Date(now.getTime() - c.periodDays * DAY_MS);
       const age = Math.min(
         ...c.item.cursors.map((ref) => states.get(cursorId(ref))?.completedAt?.getTime() ?? -Infinity),
       );
-      if (age >= today) left -= 1;
-      if (age >= staleBefore.getTime()) return;
+      // --forcar: o período não vale (renova de novo o que já está em dia), só o orçamento
+      if (!opts.force) {
+        if (age >= today) left -= 1;
+        if (age >= staleBefore.getTime()) return;
+      }
       aged.push({ item: { ...c.item, staleBefore }, age, i });
     });
     if (left <= 0) continue;
@@ -555,6 +559,8 @@ export interface MirrorJobOptions {
   budget?: number | undefined;
   football?: FootballMirrorOptions | undefined;
   other?: SportMirrorOptions | undefined;
+  /** --forcar: ignora o período de cada item (o runner também ignora o cache), mantendo o orçamento. */
+  force?: boolean | undefined;
 }
 
 export interface MirrorDeps {
@@ -601,7 +607,9 @@ function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions)
             ...g,
             candidates: g.candidates.filter((c) => allowedByPlan(c, plan, now)),
           }));
-          return rotateGroups(allowed, deps.cursors, now, opts.budget ?? mirrorBudget(plan.current));
+          return rotateGroups(allowed, deps.cursors, now, opts.budget ?? mirrorBudget(plan.current), {
+            force: opts.force,
+          });
         },
       },
     ],

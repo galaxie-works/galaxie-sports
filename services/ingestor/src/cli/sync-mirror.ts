@@ -53,6 +53,7 @@ await runCli(async () => {
         sports,
         budget: intOption(values.orcamento, 'orcamento'),
         other: { maxTier: intOption(values['tier-outros'], 'tier-outros') },
+        force: values.forcar,
       },
     );
     // futebol direto ao core (times, elencos; a tabela do fornecedor só onde não calculamos); os outros esportes
