@@ -225,7 +225,7 @@ describe('GET /v1/competitions/{id}/champions', () => {
     expect(body.editions.every((e) => e.runner_up === null)).toBe(true);
     expect(body.total_editions).toBe(4);
     expect(body.ranking_complete).toBe(true);
-    expect(body.ranking.map((r) => [r.rank, r.participant.short_name, r.titles, r.seasons])).toEqual([
+    expect(body.ranking.map((r) => [r.rank, r.participant?.short_name, r.titles, r.seasons])).toEqual([
       [1, 'Aurora', 2, ['2023', '2021']],
       [2, 'Cometa', 1, ['2024']],
       [3, 'Brisa', 1, ['2022']],
