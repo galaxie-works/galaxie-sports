@@ -84,6 +84,8 @@ async function seed() {
     .values([
       { sport: 'football', slug: 'liga-stats', name: 'Liga Stats', type: 'league' as const },
       { sport: 'football', slug: 'copa-stats', name: 'Copa Stats', type: 'cup' as const },
+      // o fornecedor não mandou a contagem de jogos: vem depois das outras do mesmo ano (nulls last)
+      { sport: 'football', slug: 'amistoso-stats', name: 'Amistoso Stats', type: 'cup' as const },
     ])
     .returning();
   const seasons = await db
@@ -92,6 +94,7 @@ async function seed() {
       { competitionId: comps[0]!.id, label: '2025', year: 2025 },
       { competitionId: comps[0]!.id, label: '2026', year: 2026, current: true },
       { competitionId: comps[1]!.id, label: '2026', year: 2026, current: true },
+      { competitionId: comps[2]!.id, label: '2026', year: 2026, current: true },
     ])
     .returning();
   const teams = await db
@@ -120,6 +123,7 @@ async function seed() {
       row(seasons[0]!.id, 38, '2025-12-10T00:00:00Z'),
       row(seasons[1]!.id, 30, '2026-11-06T09:00:00Z'),
       row(seasons[2]!.id, 4, '2026-11-05T09:00:00Z'),
+      { ...row(seasons[3]!.id, 1, '2026-11-05T09:00:00Z'), played: null },
     ]);
 }
 
@@ -176,6 +180,7 @@ describe('GET /v1/teams/{id}/statistics', () => {
     expect(body.available.map((a) => [a.competition.slug, a.season.year])).toEqual([
       ['liga-stats', 2026],
       ['copa-stats', 2026],
+      ['amistoso-stats', 2026],
       ['liga-stats', 2025],
     ]);
   });

@@ -434,7 +434,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       '/v1/teams/{id}/statistics': {
         get: getOp(
-          'Estatísticas do time numa competição e temporada: jogos, vitórias, empates e derrotas em casa e fora, gols pró e contra (com média, faixa de minuto e linhas de gols), forma, sequências, maiores placares, jogos sem sofrer gol e sem marcar, pênaltis, formações e cartões por faixa de minuto. Renovadas uma vez por dia; `data` nulo quando o esporte ainda não tem o dado',
+          'Estatísticas do time numa competição e temporada: jogos, vitórias, empates e derrotas em casa e fora, gols pró e contra (com média, faixa de minuto e linhas de gols), forma, sequências, maiores placares, jogos sem sofrer gol e sem marcar, pênaltis, formações e cartões por faixa de minuto. Renovadas pelo espelho a cada 7 dias nas competições de tier 1 e a cada 14 nas demais (`updated_at` diz a coleta); `data` nulo quando o esporte ainda não tem o dado',
           'Times e pessoas',
           TeamStatistics,
           { path: TeamParams, query: TeamStatisticsQuery },

@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   TeamParams,
@@ -22,7 +22,7 @@ const MODULE = { module: 'core_data' } as const;
 
 /**
  * Estatísticas do time por competição e temporada (#893), de `core.team_season_stat` (o agregado do fornecedor,
- * renovado pelo espelho diário). Sem `competition`/`season`, a temporada mais recente e, nela, a competição em que
+ * renovado pelo espelho a cada 7 ou 14 dias). Sem `competition`/`season`, a temporada mais recente e, nela, a competição em que
  * o time mais jogou. Time sem estatísticas (esporte sem o dado, temporada não coletada) → `data: null`.
  */
 export async function teamStatisticsRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -66,8 +66,9 @@ export async function teamStatisticsRoutes(app: FastifyInstance, ctx: AppContext
           .leftJoin(competitionProfile, competitionProfileJoin(ctx.semantic?.minReviewStatus ?? 'approved'))
           .leftJoin(asset, eq(asset.id, competitionLogoId(ctx.logos.enabled())))
           .where(eq(teamSeasonStat.participantId, team.id))
-          // mais recente primeiro; no mesmo ano, a competição em que o time mais jogou
-          .orderBy(desc(season.year), desc(teamSeasonStat.played), competition.name);
+          // mais recente primeiro; no mesmo ano, a competição em que o time mais jogou (sem contagem de jogos, por
+          // último: o `desc` do Postgres poria o nulo na frente)
+          .orderBy(desc(season.year), sql`${teamSeasonStat.played} desc nulls last`, competition.name);
 
         const ref = (r: (typeof rows)[number]) => ({
           competition: {

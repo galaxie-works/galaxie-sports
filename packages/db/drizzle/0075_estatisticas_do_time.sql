@@ -1,5 +1,5 @@
 -- Estatísticas do time por temporada (#893): o agregado de `teams/statistics` da api-sports no nosso formato,
--- renovado pelo espelho diário (#855). Tabela nova, sem dados a migrar.
+-- renovado pelo espelho (#855). Tabela nova, sem dados a migrar.
 CREATE TABLE "core"."team_season_stat" (
 	"participant_id" uuid NOT NULL,
 	"season_id" uuid NOT NULL,
