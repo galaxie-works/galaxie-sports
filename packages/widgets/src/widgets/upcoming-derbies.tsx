@@ -124,8 +124,8 @@ function DerbyRow({
   const fmt = useFormatters();
   const t = texts.derbies;
   const id = encodeURIComponent(item.event_id);
-  // o jogo completo traz os escudos e o estado: perto do horário ele é relido, para o selo ao vivo aparecer
-  // mesmo depois de o jogo sair da lista (que só traz o que ainda não começou)
+  // o jogo completo traz os escudos e o estado: perto do horário e durante o jogo ele é relido no ritmo do
+  // placar (a lista segue com o clássico em andamento até o apito final), para o selo ao vivo aparecer
   const event = useGalaxieQuery<GsEvent>(`/v1/events/${id}`, {}, (ev) => eventRefreshMs(ev));
   const e = event.data;
   const sides = e ? sidesOf(e) : null;

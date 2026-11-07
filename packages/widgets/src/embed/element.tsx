@@ -35,8 +35,9 @@ import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
+import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
-import { UpcomingDerbies } from '../widgets/upcoming-derbies.js';
+import { Lineups } from '../widgets/lineups.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -50,6 +51,7 @@ import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamCard } from '../widgets/team-card.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
 import { TeamSquad } from '../widgets/team-squad.js';
+import { UpcomingDerbies } from '../widgets/upcoming-derbies.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
 export const EMBED_TAG = 'galaxie-widget';
@@ -191,12 +193,16 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={competitionId ?? ''} />;
     case 'countdown':
       return <Countdown {...o} eventId={eventId ?? ''} />;
     case 'team_squad':
       return <TeamSquad {...o} teamId={teamId ?? ''} />;
     case 'player_profile':
       return <PlayerProfile {...o} personId={personId ?? ''} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={eventId ?? ''} />;
     case 'upcoming_derbies':
       return <UpcomingDerbies {...o} />;
   }

@@ -1,7 +1,7 @@
 import { FREE_PLAN, PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
 import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
-import type { CompetitionInfo } from './catalog-source.js';
+import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
   buildScheduleRequests,
@@ -361,6 +361,49 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
     before = h.api.calls.length;
     await runJob(job(), h.deps);
     expect(pages(h, before)).toHaveLength(6);
+  });
+
+  it('período pelo dia UTC: a passada do dia D volta no dia D+3, qualquer que seja a hora de cada execução', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    // passada anterior: aberta às 00:05 do dia D e com a página 1 concluída 40 min depois
+    const page1 = (league: number) =>
+      plannedRequest('x', 'football', '/players', { league, season: 2026, page: 1 }).cursors;
+    await h.cursors.complete([...page1(71), ...page1(13)], {}, new Date('2026-10-21T00:45:00Z'));
+    const firstPages = async (iso: string) => {
+      const plan = await planJob(
+        dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(iso), derbyKeys),
+        h.deps,
+      );
+      return plan.phases[4]!.steps['estatisticas-jogadores']?.total ?? 0;
+    };
+    expect(await firstPages('2026-10-23T00:05:00Z')).toBe(0); // D+2
+    expect(await firstPages('2026-10-23T23:59:00Z')).toBe(0); // D+2, reexecutado à mão no fim do dia
+    // D+3 às 00:05: "há 3 dias" exatos (00:05 de D) cairia antes da conclusão (00:45) e empurraria para D+4
+    expect(await firstPages('2026-10-24T00:05:00Z')).toBe(2);
+  });
+
+  it('próxima edição que ainda não começou fica de fora (números zerados)', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const catalog = new StaticCatalogSource(
+      fakeCatalog().map((c) =>
+        c.leagueId === 71
+          ? {
+              ...c,
+              seasons: c.seasons.map((s) =>
+                s.year === 2026
+                  ? { ...s, current: false, startDate: '2026-10-28', endDate: '2027-05-30' }
+                  : s,
+              ),
+            }
+          : c,
+      ),
+    );
+    await runJob(
+      dailyJob(catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys),
+      h.deps,
+    );
+    expect(pages(h).some((p) => p.startsWith('71:'))).toBe(false);
+    expect(pages(h).some((p) => p.startsWith('13:'))).toBe(true);
   });
 
   it('limite do dia: a passada cortada continua no dia seguinte sem repetir a página 1', async () => {

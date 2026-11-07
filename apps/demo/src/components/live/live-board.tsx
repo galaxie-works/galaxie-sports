@@ -8,12 +8,13 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
+import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CompetitionCountry } from '@/components/sport/competition-country';
 import { Crest } from '@/components/sport/crest';
 import { EventCardView } from '@/components/sport/event-card-view';
 import { Section } from '@/components/sport/section';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useHydrated } from '@/hooks/use-hydrated';
 import {
   fetchFinished,
@@ -171,13 +172,12 @@ export function LiveCard({ event }: { event: Event }) {
   );
 }
 
+/** Cards de jogo no formato do EventCard (escudos, placar e rodapé), na mesma grade do quadro. */
 function CardsSkeleton({ count }: { count: number }) {
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className="h-44" />
-      ))}
-    </div>
+    <LoadingStatus>
+      <EventCardsSkeleton count={count} />
+    </LoadingStatus>
   );
 }
 

@@ -876,6 +876,76 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showTransfers', l('Transferências', 'Transferencias', 'Transfers'), true),
     count('limit', l('Itens por bloco', 'Elementos por bloque', 'Items per block'), 5, 30, ALL),
   ],
+  lineups: [
+    {
+      key: 'view',
+      type: 'enum',
+      default: 'pitch',
+      label: l('Formato', 'Formato', 'Layout'),
+      hint: l(
+        'Sem a posição de cada jogador no campo, a escalação aparece em lista.',
+        'Sin la posición de cada jugador en la cancha, la alineación se muestra en lista.',
+        'Without each player’s position on the pitch, the lineup is shown as a list.',
+      ),
+      values: [
+        { value: 'pitch', label: l('Campo', 'Cancha', 'Pitch') },
+        { value: 'list', label: l('Lista', 'Lista', 'List') },
+      ],
+    },
+    {
+      key: 'team',
+      type: 'enum',
+      default: 'both',
+      label: l('Times', 'Equipos', 'Teams'),
+      values: [
+        { value: 'both', label: l('Os dois times', 'Los dos equipos', 'Both teams') },
+        { value: 'home', label: l('Só o mandante', 'Solo el local', 'Home team only') },
+        { value: 'away', label: l('Só o visitante', 'Solo el visitante', 'Away team only') },
+      ],
+    },
+    bool('showSubstitutes', l('Reservas', 'Suplentes', 'Substitutes'), true),
+    bool('showCoach', l('Técnico', 'Entrenador', 'Head coach'), true),
+  ],
+  competition_leaders: [
+    {
+      key: 'category',
+      type: 'enum',
+      default: 'goals',
+      label: l('Categoria', 'Categoría', 'Category'),
+      values: [
+        { value: 'assists', label: l('Assistências', 'Asistencias', 'Assists') },
+        { value: 'cards', label: l('Cartões', 'Tarjetas', 'Cards') },
+        { value: 'goals', label: l('Gols (artilharia)', 'Goles (goleadores)', 'Goals (top scorers)') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 10,
+      min: 1,
+      max: 50,
+      label: l('Jogadores listados', 'Jugadores listados', 'Players listed'),
+    },
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l('Vazio = temporada atual.', 'Vacío = temporada actual.', 'Empty = current season.'),
+    },
+    bool('showPhoto', l('Foto do jogador', 'Foto del jugador', 'Player photo'), true),
+    bool('showTeam', l('Escudo e nome do time', 'Escudo y nombre del equipo', 'Team crest and name'), true),
+    bool('showAppearances', l('Jogos disputados', 'Partidos jugados', 'Games played'), true),
+    {
+      key: 'highlightTeamId',
+      type: 'team',
+      label: l('Time em destaque', 'Equipo destacado', 'Highlighted team'),
+      hint: l(
+        'Destaca os jogadores do clube do portal.',
+        'Destaca a los jugadores del club del portal.',
+        "Highlights the portal club's players.",
+      ),
+    },
+  ],
   upcoming_derbies: [
     {
       key: 'country',

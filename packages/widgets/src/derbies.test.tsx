@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +9,10 @@ import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { parseWidgetOptions } from './options.js';
 import { UpcomingDerbies } from './widgets/upcoming-derbies.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function setup(ui: ReactNode, fetchImpl: typeof fetch = createPreviewFetch()) {
   return render(
@@ -87,6 +90,39 @@ describe('clássicos da semana', () => {
     expect(container.querySelectorAll('[data-gs-derby]')).toHaveLength(1);
     expect(container.querySelector('[data-gs-meta=competition]')).toBeNull();
     expect(paths(spy).some((p) => p.endsWith('/h2h') || p.endsWith('/where-to-watch'))).toBe(false);
+  });
+
+  it('clássico em andamento: selo ao vivo e o jogo relido no ritmo do placar, a lista não', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const preview = createPreviewFetch();
+    const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (!url.pathname.endsWith('/v1/derbies/upcoming')) return preview(input, init);
+      const res = await preview(input, init);
+      const body = (await res.json()) as { data: { event_id: string; status: string }[] };
+      // o primeiro clássico já começou: a rota segue com ele até o apito final
+      const data = body.data
+        .slice(0, 1)
+        .map((d) => ({ ...d, event_id: PREVIEW_IDS.liveEvent, status: 'live' }));
+      return new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
+    });
+    const { container } = setup(
+      <UpcomingDerbies showHistory={false} showWhereToWatch={false} />,
+      spy as unknown as typeof fetch,
+    );
+    expect(await screen.findByText('Clássico da Serra')).toBeTruthy();
+    const row = container.querySelector('[data-gs-derby]')!;
+    await waitFor(() => expect(row.querySelector('.gs-badge[data-tone=live]')).toBeTruthy());
+    expect(row.querySelector('time')).toBeNull();
+    const count = (suffix: string) => paths(spy).filter((p) => p.endsWith(suffix)).length;
+    const events = count(`/v1/events/${PREVIEW_IDS.liveEvent}`);
+    const lists = count('/v1/derbies/upcoming');
+    // ao vivo, o jogo é relido a cada 30 s; a lista só a cada 15 min
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
+    await waitFor(() => expect(count(`/v1/events/${PREVIEW_IDS.liveEvent}`)).toBeGreaterThan(events));
+    expect(count('/v1/derbies/upcoming')).toBe(lists);
   });
 
   it('janela sem clássicos: aviso com os dias', async () => {

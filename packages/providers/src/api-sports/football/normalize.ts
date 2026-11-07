@@ -501,7 +501,11 @@ export function normalizePlayers(items: ApiPlayerItem[], observedAt: Date): Norm
         conceded: s.goals?.conceded ?? null,
         saves: s.goals?.saves ?? null,
         yellowCards: s.cards?.yellow ?? null,
-        redCards: s.cards?.red ?? null,
+        // `red` é só o vermelho direto; o segundo amarelo vem à parte em `yellowred` (conferido contra os lances)
+        redCards:
+          s.cards?.red == null && s.cards?.yellowred == null
+            ? null
+            : (s.cards?.red ?? 0) + (s.cards?.yellowred ?? 0),
         stats,
       });
     }

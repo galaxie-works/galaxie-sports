@@ -48,6 +48,12 @@ export const SCORE_TICKER_LIMIT = { min: 1, max: 100, default: 40 } as const;
 const SPEED_EM_PER_SEC: Record<ScoreTickerSpeed, number> = { slow: 2.5, normal: 4, fast: 6 };
 const LIVE_REFRESH_MS = 20_000;
 const IDLE_REFRESH_MS = 120_000;
+const RETRY_MS = 30_000;
+const RETRY_MAX_MS = 5 * 60_000;
+const STALE_RETRY_MS = 15_000;
+const STALE_MAX_TRIES = 8;
+/** Erros que podem passar sozinhos: rede (0), timeout, limite de requisições e falha do servidor. */
+const isTransient = (status: number) => status === 0 || status === 408 || status === 429 || status >= 500;
 const TODAY_STATUSES = 'starting,live,break,finished';
 
 /** Em andamento primeiro, depois encerrados, depois os próximos; dentro de cada, pelo horário. */
@@ -65,7 +71,7 @@ interface Group {
 /**
  * Faixa de placares para TV: os jogos ao vivo (e, se quiser, os encerrados e os próximos do dia) correndo
  * numa linha, agrupados por campeonato. Letra proporcional à largura (legível a 3 m numa TV 1080p), fundo
- * transparente opcional para sobrepor ao vídeo, pausa ao passar o mouse e parada com "reduzir movimento".
+ * transparente opcional para sobrepor ao vídeo, pausa com o mouse em cima ou o foco do teclado e parada com "reduzir movimento".
  * Atualiza a cada 20 s enquanto houver jogo em andamento.
  */
 export function ScoreTicker({
@@ -109,12 +115,50 @@ export function ScoreTicker({
       status: mode === 'today' ? TODAY_STATUSES : undefined,
       limit: SCORE_TICKER_LIMIT.max,
     },
-    inPlay,
+    // os ao vivo já atualizam a cada 20 s pela rota própria: o dia só precisa do ritmo calmo
+    () => IDLE_REFRESH_MS,
   );
-  const ready = live.data && (liveOnly || day.data);
+  // uma TV fica horas sem ninguém tocar: erro na primeira carga (um 429, a rede caindo) tenta de novo sozinho
+  useRetryOnError(live);
+  useRetryOnError(day);
+  // jogo que saiu do ao vivo (apito final): busca o dia de novo para trocar a cópia velha pelo encerrado
+  const liveIds = (live.data?.data ?? []).map((e) => e.id).join(',');
+  const prevLiveIds = useRef(liveIds);
+  const dayRetry = day.retry;
+  useEffect(() => {
+    const before = prevLiveIds.current.split(',').filter(Boolean);
+    prevLiveIds.current = liveIds;
+    const now = new Set(liveIds.split(','));
+    if (!liveOnly && before.some((id) => !now.has(id))) dayRetry();
+  }, [liveIds, liveOnly, dayRetry]);
+  // mostra o que chegou: com uma das duas consultas fora, a faixa segue com a outra
+  const ready = Boolean(live.data || (!liveOnly && day.data));
+  const liveSet = live.data ? new Set(live.data.data.map((e) => e.id)) : null;
+  // jogo com bola rolando no dia que a rota ao vivo já não traz: terminou, e a cópia do dia está velha (o
+  // cache do /v1/events ainda pode servi-la por alguns segundos). `starting` não entra: a rota ao vivo só
+  // traz o jogo depois do apito inicial
+  const isStale = (e: GsEvent) => Boolean(liveSet) && LIVE_STATUSES.has(e.status) && !liveSet!.has(e.id);
+  const staleKey = (day.data?.data ?? [])
+    .filter(isStale)
+    .map((e) => e.id)
+    .join(',');
+  // enquanto o dia ainda trouxer a cópia velha, busca de novo a cada 15 s (no máximo 8 vezes por jogo)
+  const staleTries = useRef({ key: '', n: 0 });
+  useEffect(() => {
+    if (!staleKey || liveOnly) return;
+    const tries = staleTries.current;
+    if (tries.key !== staleKey) staleTries.current = { key: staleKey, n: 0 };
+    if (staleTries.current.n >= STALE_MAX_TRIES) return;
+    const timer = setTimeout(() => {
+      staleTries.current.n += 1;
+      dayRetry();
+    }, STALE_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [staleKey, liveOnly, dayRetry, day.data]);
 
   const seen = new Set<string>();
-  const sorted = [...(live.data?.data ?? []), ...(day.data?.data ?? [])]
+  const dayEvents = (day.data?.data ?? []).filter((e) => !isStale(e));
+  const sorted = [...(live.data?.data ?? []), ...dayEvents]
     .filter((e) => !seen.has(e.id) && Boolean(seen.add(e.id)))
     .filter((e) => (liveOnly ? stageOf(e) === 0 : mode === 'today' ? stageOf(e) < 2 : true))
     .map((e, i) => ({ e, i }))
@@ -235,7 +279,14 @@ function Marquee({ speed, label, children }: { speed: number; label: string; chi
   }, [speed, children]);
 
   return (
-    <div ref={viewport} className="gs-ticker-viewport" role="region" aria-label={label}>
+    <div
+      ref={viewport}
+      className="gs-ticker-viewport"
+      role="region"
+      aria-label={label}
+      // rolando, a faixa entra no Tab: com o foco do teclado ela para, como com o mouse em cima
+      tabIndex={run ? 0 : undefined}
+    >
       <div
         className="gs-ticker-track"
         data-running={run ? '' : undefined}
@@ -325,4 +376,43 @@ function Side({
       {reverse ? crest : null}
     </span>
   );
+}
+
+/**
+ * Primeira carga com erro passageiro (rede, 408, 429, 5xx): tenta de novo sozinha, com espera crescente
+ * (30 s, 1 min, 2 min... até 5 min) e um pouco de sorteio, para as TVs não voltarem todas juntas. Com a aba
+ * escondida, espera ela aparecer. Chave inválida ou sem permissão não passa sozinha: fica no erro.
+ * Com dados na tela, o polling normal já cuida.
+ */
+function useRetryOnError(query: {
+  data: unknown;
+  error: { status: number } | null;
+  loading: boolean;
+  retry: () => void;
+}) {
+  const failed = !query.data && !query.loading && query.error !== null && isTransient(query.error.status);
+  const attempts = useRef(0);
+  const hasData = Boolean(query.data);
+  useEffect(() => {
+    if (hasData) attempts.current = 0;
+  }, [hasData]);
+  const { retry } = query;
+  useEffect(() => {
+    if (!failed) return;
+    const base = Math.min(RETRY_MS * 2 ** attempts.current, RETRY_MAX_MS);
+    const delay = base * (0.75 + Math.random() * 0.5);
+    const fire = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        document.addEventListener('visibilitychange', fire, { once: true });
+        return;
+      }
+      attempts.current += 1;
+      retry();
+    };
+    const timer = setTimeout(fire, delay);
+    return () => {
+      clearTimeout(timer);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', fire);
+    };
+  }, [failed, retry]);
 }

@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { SectionSkeleton, StatPairsSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { CoverageNote, Flag, NoticeBanner, SourceLink } from '@/components/equestrian/parts';
 import { ResultsTable } from '@/components/equestrian/results-table';
 import { Badge } from '@/components/reui/badge';
@@ -120,9 +122,13 @@ export default function EquestrianCompetitionPage(props: Props) {
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="p-4 md:p-6">
+          <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
             <Skeleton className="h-7 w-64" />
-          </div>
+            <StatPairsSkeleton count={4} />
+            <SectionSkeleton description={false}>
+              <TableCardSkeleton rows={8} columns={['w-6', 'flex-1', 'w-32', 'w-12', 'w-16']} />
+            </SectionSkeleton>
+          </LoadingStatus>
         </>
       }
     >

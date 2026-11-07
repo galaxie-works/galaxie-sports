@@ -524,6 +524,42 @@ describe('/v1/derbies', () => {
     expect((await get('/v1/derbies/upcoming?country=AR')).json().data).toEqual([]);
   });
 
+  it('/upcoming: o clássico em andamento segue na lista até o apito final', async () => {
+    const [next] = await db.select({ derbyId: event.derbyId }).from(event).where(eq(event.id, ids.next!));
+    const startsAt = new Date(Date.now() - 30 * 60_000);
+    const [live] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: ids.serieA!,
+        startsAt,
+        endsAtExpected: new Date(startsAt.getTime() + 115 * 60_000),
+        status: 'live',
+        score: { home: 1, away: 0 },
+        derbyId: next!.derbyId,
+      })
+      .returning();
+    const [done] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        competitionId: ids.serieA!,
+        startsAt,
+        endsAtExpected: new Date(startsAt.getTime() + 115 * 60_000),
+        status: 'finished',
+        score: { home: 2, away: 2 },
+        derbyId: next!.derbyId,
+      })
+      .returning();
+    try {
+      const week = (await get('/v1/derbies/upcoming?locale=en')).json().data as { event_id: string }[];
+      expect(week.map((e) => e.event_id)).toEqual([live!.id, ids.next]);
+    } finally {
+      await db.delete(event).where(eq(event.id, live!.id));
+      await db.delete(event).where(eq(event.id, done!.id));
+    }
+  });
+
   it('/{slug}: retrospecto calculado só do core (V/E/D, gols, goleadas, últimos 5)', async () => {
     const res = await get('/v1/derbies/derby-paulista?tz=America/Sao_Paulo');
     expect(res.statusCode).toBe(200);

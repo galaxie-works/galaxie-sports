@@ -149,16 +149,28 @@ describe('Ficha do jogador', () => {
     expect(es.container.querySelector('[data-gs-block="clubs"]')!.textContent).toContain('1 partido · 1 gol');
   });
 
-  it('limite 0 mostra todos os itens, sem "e mais"', async () => {
-    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} limit={0} />);
+  it('limite 0 mostra todos os itens, sem "e mais" (mais itens que o limite padrão de 5)', async () => {
+    const base = createPlayerFixture(NOW);
+    const club = base.career[1]!;
+    const many = {
+      ...base,
+      career: Array.from({ length: 7 }, (_, i) => ({
+        ...club,
+        team: { ...club.team, id: `${club.team.id.slice(0, -2)}${String(i).padStart(2, '0')}` },
+      })),
+    };
+    const fetchImpl: typeof fetch = async () => Response.json(many);
+    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} limit={0} />, fetchImpl);
     await screen.findByText('Rafael Tavares');
-    expect(container.querySelector('[data-gs-block="clubs"]')!.querySelectorAll('.gs-fixture')).toHaveLength(
-      3,
-    );
-    expect(
-      container.querySelector('[data-gs-block="seasons"]')!.querySelectorAll('.gs-fixture'),
-    ).toHaveLength(4);
-    expect(container.textContent).not.toContain('e mais');
+    const clubs = container.querySelector('[data-gs-block="clubs"]')!;
+    expect(clubs.querySelectorAll('.gs-fixture')).toHaveLength(7);
+    expect(clubs.textContent).not.toContain('e mais');
+    cleanup();
+    const capped = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, fetchImpl);
+    await screen.findByText('Rafael Tavares');
+    const cut = capped.container.querySelector('[data-gs-block="clubs"]')!;
+    expect(cut.querySelectorAll('.gs-fixture')).toHaveLength(5);
+    expect(cut.textContent).toContain('e mais 2');
   });
 
   it('transferências repetidas (mesma data e clubes) aparecem todas', async () => {

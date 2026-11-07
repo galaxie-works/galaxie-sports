@@ -257,6 +257,42 @@ describe('jobs de ingestão contra o Postgres', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+  it('paging da página 1 por request hash: a resposta de sucesso mais recente, sem varrer o endpoint', async () => {
+    const t0 = new Date(Date.parse(NOW) - 3 * DAY);
+    const t1 = new Date(Date.parse(NOW) - 2 * DAY);
+    const t2 = new Date(Date.parse(NOW) - DAY);
+    const players = (hash: string, total: number | null, fetchedAt: Date, statusCode = 200) => ({
+      sport: 'football',
+      apiVersion: 'v3',
+      endpoint: '/players',
+      params: { league: '71', season: '2026', page: '1' },
+      requestHash: hash,
+      statusCode,
+      body: total === null ? { response: [] } : { response: [], paging: { current: 1, total } },
+      bodyHash: `${hash}@${fetchedAt.getTime()}@${statusCode}`,
+      fetchedAt,
+    });
+    await db.insert(apiResponse).values([
+      players('sint-p1', 2, t0),
+      players('sint-p1', 5, t1), // a mais recente com sucesso vale
+      players('sint-p1', 9, t2, 500), // erro mais novo: ignorado
+      players('sint-p1-sem-paging', null, t1),
+      { ...players('sint-p1-outro-endpoint', 7, t1), endpoint: '/players/squads' },
+    ]);
+    const pgRaw = new PgRawSource(db, 7);
+    const paging = await pgRaw.latestPaging('football', '/players', [
+      'sint-p1',
+      'sint-p1-sem-paging',
+      'sint-p1-outro-endpoint',
+      'sint-p1-nunca-buscada',
+    ]);
+    expect(paging.get('sint-p1')).toEqual({ current: 1, total: 5 });
+    expect(paging.has('sint-p1-sem-paging')).toBe(true);
+    expect(paging.get('sint-p1-sem-paging')).toBeNull();
+    expect(paging.has('sint-p1-outro-endpoint')).toBe(false);
+    expect(paging.has('sint-p1-nunca-buscada')).toBe(false);
+  });
+
   // Último do describe: grava respostas sintéticas no raw, depois do snapshot (que conta as linhas do raw).
   it('o resumo das partidas feito no Postgres bate com o lido do corpo inteiro (h2h, agendas, repetidas e guardas)', async () => {
     const item = (id: unknown, status: string, extra: Record<string, unknown> = {}) => ({
@@ -313,7 +349,11 @@ describe('jobs de ingestão contra o Postgres', () => {
 
     // lote de 2 linhas: a troca de lote do cursor acontece várias vezes
     const pgRaw = new PgRawSource(db, 7, 2);
-    const viaBody: RawSource = { latest: (q) => pgRaw.latest(q), lastFetched: (h) => pgRaw.lastFetched(h) };
+    const viaBody: RawSource = {
+      latest: (q) => pgRaw.latest(q),
+      lastFetched: (h) => pgRaw.lastFetched(h),
+      latestPaging: (sport, endpoint, h) => pgRaw.latestPaging(sport, endpoint, h),
+    };
     const lists = [SEASON_LISTS, H2H_LISTS, DATE_LISTS];
     const sorted = (refs: FixtureRef[]) => [...refs].sort((a, b) => a.id - b.id);
     const fromDb = sorted(await collectFixtures(pgRaw, lists));
