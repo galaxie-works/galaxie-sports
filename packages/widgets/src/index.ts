@@ -92,6 +92,7 @@ export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
+export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

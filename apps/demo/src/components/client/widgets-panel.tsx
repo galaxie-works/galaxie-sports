@@ -11,6 +11,7 @@ import {
   Dna,
   Flag,
   History,
+  IdCard,
   ListChecks,
   ListOrdered,
   Medal,
@@ -91,6 +92,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   country_athletes: Users,
   medal_history: History,
   team_squad: Shirt,
+  player_profile: IdCard,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

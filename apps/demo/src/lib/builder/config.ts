@@ -50,6 +50,7 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'team_squad',
+  'player_profile',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -99,6 +100,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   country_athletes: [],
   medal_history: [],
   team_squad: ['team'],
+  player_profile: ['person'],
 };
 
 /**
@@ -133,6 +135,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   country_athletes: null,
   medal_history: null,
   team_squad: 'team',
+  player_profile: 'person',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -201,19 +204,21 @@ export function parseTheme(raw: unknown): WidgetTheme | null {
 
 // ─── entidade padrão ⇄ `defaults` ────────────────────────────────────────────────────────────────
 
-const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId'> = {
+const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId' | 'personId'> = {
   competition: 'competitionId',
   team: 'teamId',
   event: 'eventId',
+  person: 'personId',
 };
 
-/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição). */
+/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição, pessoa). */
 export function entityFromDefaults(
   defaults: WidgetDefaults | null | undefined,
 ): { type: WidgetEntityType; id: string } | null {
   if (defaults?.eventId) return { type: 'event', id: defaults.eventId };
   if (defaults?.teamId) return { type: 'team', id: defaults.teamId };
   if (defaults?.competitionId) return { type: 'competition', id: defaults.competitionId };
+  if (defaults?.personId) return { type: 'person', id: defaults.personId };
   return null;
 }
 
@@ -447,6 +452,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
   team_squad: 'GalaxieTeamSquad',
+  player_profile: 'GalaxiePlayerProfile',
 };
 
 /**

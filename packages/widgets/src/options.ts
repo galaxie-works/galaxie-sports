@@ -732,6 +732,24 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showNationality', l('Nacionalidade', 'Nacionalidad', 'Nationality'), true),
     bool('showCoaches', l('Técnicos', 'Entrenadores', 'Coaches'), true),
   ],
+  player_profile: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = a temporada mais recente com jogos.',
+        'Vacío = la temporada más reciente con partidos.',
+        'Empty = the latest season with matches.',
+      ),
+    },
+    bool('showStats', l('Números da temporada', 'Números de la temporada', 'Season numbers'), true),
+    bool('showClubs', l('Clubes', 'Clubes', 'Clubs'), true),
+    bool('showSeasons', l('Temporadas', 'Temporadas', 'Seasons'), true),
+    bool('showTrophies', l('Títulos', 'Títulos', 'Trophies'), true),
+    bool('showTransfers', l('Transferências', 'Transferencias', 'Transfers'), true),
+    count('limit', l('Itens por bloco', 'Elementos por bloque', 'Items per block'), 5, 30, ALL),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
