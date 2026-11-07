@@ -12,7 +12,6 @@ import {
 } from '@galaxie/contracts';
 import {
   asset,
-  bookmaker,
   eventOdds,
   eventParticipant,
   eventPrediction,
@@ -34,7 +33,7 @@ import { localeOf, sportCheck } from './events.js';
 
 /**
  * Palpite (`/v1/events/{id}/predictions`, módulo core_data) e odds pré-jogo (`/v1/events/{id}/odds`, módulo
- * add-on `odds`) do jogo, de `core.event_prediction` e `core.event_odds` (docs/05 §3.2.2). O espelho busca os dois
+ * add-on `odds`, em todos os mercados; só o consenso entre as casas, sem identificá-las) do jogo, de `core.event_prediction` e `core.event_odds` (docs/05 §3.2.2). O espelho busca os dois
  * uma vez por dia para os jogos das próximas 48 h: 1 h de cache acompanha essa cadência com folga.
  */
 const PREDICTIONS_MODULE = { module: 'core_data' } as const;
@@ -218,21 +217,15 @@ export async function marketsRoutes(app: FastifyInstance, ctx: AppContext): Prom
           sides(db, ctx, head.id, locale),
           db
             .select({
-              id: bookmaker.id,
-              name: bookmaker.name,
               markets: eventOdds.markets,
               sourceUpdatedAt: eventOdds.sourceUpdatedAt,
               observedAt: eventOdds.observedAt,
             })
             .from(eventOdds)
-            .innerJoin(bookmaker, eq(bookmaker.id, eventOdds.bookmakerId))
-            .where(eq(eventOdds.eventId, head.id))
-            .orderBy(bookmaker.name),
+            .where(eq(eventOdds.eventId, head.id)),
         ]);
         const books = rows
           .map((r) => ({
-            id: r.id,
-            name: r.name,
             markets: publicMarkets(r.markets, query.market),
             updatedAt: r.sourceUpdatedAt ?? r.observedAt,
           }))
@@ -247,12 +240,8 @@ export async function marketsRoutes(app: FastifyInstance, ctx: AppContext): Prom
           home: teams.home,
           away: teams.away,
           markets: oddsConsensus(books),
-          bookmakers: books.map((b) => ({
-            id: b.id,
-            name: b.name,
-            markets: b.markets,
-            updated_at: formatInstant(b.updatedAt, tz),
-          })),
+          // decisão do dono (07/11): as casas não são identificadas, só o consenso sai
+          bookmakers: books.length,
           updated_at: latest ? formatInstant(latest, tz) : null,
         };
         return { body, tags: [`event:${head.id}`], meta: { sport: head.sport } };

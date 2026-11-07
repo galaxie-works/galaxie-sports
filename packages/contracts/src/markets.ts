@@ -153,10 +153,6 @@ export const OddsConsensusSelection = z
   })
   .meta({ id: 'OddsConsensusSelection' });
 
-export const OddsBookmakerSelection = z
-  .object({ key: SelectionKey, line: z.number().nullable(), price: z.number() })
-  .meta({ id: 'OddsBookmakerSelection' });
-
 export const EventOdds = z
   .object({
     event_id: z.uuid(),
@@ -168,18 +164,10 @@ export const EventOdds = z
       .meta({
         description: 'Consenso de cada mercado entre as casas: odd média, maior odd e quantas casas.',
       }),
-    bookmakers: z
-      .array(
-        z.object({
-          id: z.uuid(),
-          name: z.string(),
-          markets: z.array(
-            z.object({ key: z.enum(ODDS_MARKET_KEYS), selections: z.array(OddsBookmakerSelection) }),
-          ),
-          updated_at: z.string().nullable(),
-        }),
-      )
-      .meta({ description: 'Odds de cada casa.' }),
+    bookmakers: z.number().int().meta({
+      description:
+        'Quantas casas têm odds para o jogo (nos mercados pedidos). As casas não são identificadas: só o consenso sai.',
+    }),
     updated_at: z.string().nullable().meta({
       description: 'Última atualização das odds (ISO 8601 no fuso pedido, `tz`).',
     }),

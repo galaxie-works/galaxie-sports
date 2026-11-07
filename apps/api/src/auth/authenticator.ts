@@ -225,12 +225,10 @@ export class Authenticator {
 /**
  * Módulos fechados até decisão do dono: sem eles, as rotas respondem 403 e o tempo real não entrega o tópico.
  * Só a chave secreta dos tenants listados passa (a vitrine do próprio site lê por ela).
- * - `related_content` (vídeos): `RELATED_CONTENT_TENANTS`;
- * - `odds` (odds pré-jogo; regulação diferente em cada mercado): `ODDS_TENANTS`.
+ * - `related_content` (vídeos): `RELATED_CONTENT_TENANTS`.
  */
 const CLOSED_MODULES: { module: ApiModule; env: string; tenants: readonly string[] }[] = [
   { module: 'related_content', env: 'RELATED_CONTENT_TENANTS', tenants: ['demo-vps', 'demo-local'] },
-  { module: 'odds', env: 'ODDS_TENANTS', tenants: ['demo-vps', 'demo-local'] },
 ];
 
 export function withoutClosedModules(

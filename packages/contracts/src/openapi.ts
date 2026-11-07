@@ -167,14 +167,9 @@ export interface OpenApiOptions {
  * Vídeos relacionados fora da documentação até decisão do dono: as rotas seguem no ar, só não são publicadas
  * no /openapi.json nem na referência.
  */
-const HIDDEN_PATHS = [
-  '/v1/events/{id}/related',
-  '/v1/related/playback-errors',
-  // odds: módulo `odds` fechado até o dono decidir mercados, aviso de jogo responsável e nomes das casas
-  '/v1/events/{id}/odds',
-];
+const HIDDEN_PATHS = ['/v1/events/{id}/related', '/v1/related/playback-errors'];
 const HIDDEN_TAG = 'Conteúdo relacionado';
-const HIDDEN_ENUM_VALUES = new Set(['event.related_content_changed', 'related_content', 'odds']);
+const HIDDEN_ENUM_VALUES = new Set(['event.related_content_changed', 'related_content']);
 
 function withoutHiddenEnumValues(node: unknown): void {
   if (Array.isArray(node)) {
@@ -370,7 +365,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       '/v1/events/{id}/odds': {
         get: {
           ...getOp(
-            'Odds pré-jogo: consenso por mercado e odds de cada casa',
+            'Odds pré-jogo: consenso entre as casas por mercado',
             'Eventos',
             EventOdds,
             { path: EventParams, query: OddsQuery },
@@ -378,8 +373,8 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           ),
           description:
             'Odds decimais pré-jogo por mercado (vencedor, dupla chance, gols, ambos marcam, placar exato, ' +
-            'handicap): o consenso entre as casas (média, maior odd e quantas casas) e as odds de cada casa. ' +
-            'Exige o módulo `odds`. Cache de 1 h.',
+            'handicap), em consenso entre as casas: odd média, maior odd e quantas casas oferecem cada seleção. ' +
+            'As casas não são identificadas. Exige o módulo add-on `odds`. Cache de 1 h.',
         },
       },
       '/v1/events/{id}/stats': {

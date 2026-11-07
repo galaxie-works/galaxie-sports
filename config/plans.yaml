@@ -7,7 +7,7 @@
 #   name                  nome comercial exibido
 #   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport,
 #                         related_content — add-on de vídeos relacionados, docs/12; odds — add-on de odds
-#                         pré-jogo, docs/05 §3.2.2, fechado até a decisão do dono)
+#                         pré-jogo em consenso entre as casas, docs/05 §3.2.2)
 #   markets               países ISO2 incluídos por padrão; [] = todos
 #   sports                esportes incluídos por padrão (slug); [] = todos
 #   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)

@@ -22,7 +22,7 @@ import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
 import { buildServer } from '../src/server.js';
 
-/* Palpite (core_data) e odds (add-on `odds`, fechado até a decisão do dono) de um jogo, contra o banco. */
+/* Palpite (core_data) e odds (add-on `odds`, só o consenso, sem identificar as casas) de um jogo, contra o banco. */
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -161,12 +161,11 @@ beforeAll(async () => {
   db = createDb(testUrl, { max: 5 });
   redis = new Redis(redisUrl, { maxRetriesPerRequest: 1 });
   await seed();
-  process.env.ODDS_TENANTS = 'com-odds';
-  for (const [slug, k] of [
-    ['sem-odds', 'basic'],
-    ['com-odds', 'odds'],
+  for (const [slug, k, plan] of [
+    ['sem-odds', 'basic', 'core_data'],
+    ['com-odds', 'odds', 'enterprise'],
   ] as const) {
-    const t = await upsertTenant(db, { slug, name: slug, plan: 'enterprise', rateLimitPerMinute: 5000 });
+    const t = await upsertTenant(db, { slug, name: slug, plan, rateLimitPerMinute: 5000 });
     keys[k] = (await createApiKey(db, t.id, { env: 'test', label: slug })).key;
   }
   app = buildServer({ db, redis, keyPrefix, cdnPurger: new RecordingCdnPurger() });
@@ -174,7 +173,6 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
-  delete process.env.ODDS_TENANTS;
   await app?.close();
   if (redis) {
     let cursor = '0';
@@ -237,12 +235,12 @@ describe('GET /v1/events/{id}/predictions', () => {
 });
 
 describe('GET /v1/events/{id}/odds', () => {
-  it('fechado: tenant fora de ODDS_TENANTS recebe 403, mesmo no enterprise', async () => {
+  it('sem o módulo odds: 403', async () => {
     const res = await call(`/v1/events/${eventId}/odds`, keys.basic);
     expect(res.statusCode).toBe(403);
   });
 
-  it('consenso por mercado, odds por casa e só os mercados com chave nossa', async () => {
+  it('consenso por mercado, sem identificar as casas, só os mercados com chave nossa', async () => {
     const res = await call(`/v1/events/${eventId}/odds`, keys.odds);
     expect(res.statusCode, res.body).toBe(200);
     const body = res.json<EventOdds>();
@@ -252,16 +250,18 @@ describe('GET /v1/events/{id}/odds', () => {
       { key: 'draw', line: null, average: 3.35, best: 3.4, bookmakers: 2 },
       { key: 'away', line: null, average: 4.35, best: 4.5, bookmakers: 2 },
     ]);
-    expect(body.bookmakers.map((b) => b.name)).toEqual(['Casa Dois', 'Casa Um']);
-    expect(body.bookmakers[1]!.markets.map((m) => m.key)).toEqual(['match_winner', 'goals_over_under']);
+    expect(body.bookmakers).toBe(2);
     expect(body.updated_at).toBe('2026-11-07T07:30:00Z');
     expect(res.body).not.toContain('Corners');
+    // decisão do dono: nenhuma casa pelo nome
+    expect(res.body).not.toContain('Casa Um');
+    expect(res.body).not.toContain('Casa Dois');
   });
 
   it('market filtra; mercado desconhecido é 400', async () => {
     const res = await call(`/v1/events/${eventId}/odds?market=goals_over_under`, keys.odds);
     expect(res.json<EventOdds>().markets.map((m) => m.key)).toEqual(['goals_over_under']);
-    expect(res.json<EventOdds>().bookmakers.map((b) => b.name)).toEqual(['Casa Um']);
+    expect(res.json<EventOdds>().bookmakers).toBe(1);
     const bad = await call(`/v1/events/${eventId}/odds?market=corners`, keys.odds);
     expect(bad.statusCode).toBe(400);
   });
