@@ -134,6 +134,20 @@ describe('Escalações', () => {
     expect(screen.getByText('Rafael Lima')).toBeTruthy();
   });
 
+  it('só o visitante divulgado e "só o mandante": continua pendente, sem pegar o outro pela posição', async () => {
+    const base = createPreviewFetch();
+    const onlyAway: typeof fetch = async (input, init) => {
+      const res = await base(input, init);
+      if (!String(input).includes('/lineups')) return res;
+      const body = await res.json();
+      body.lineups = [body.lineups[1]];
+      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+    };
+    setup(<Lineups eventId={PREVIEW_IDS.liveEvent} team="home" />, 'pt-BR', onlyAway);
+    expect(await screen.findByText('Escalação ainda não divulgada.')).toBeTruthy();
+    expect(screen.queryByText('Marcos Pereira')).toBeNull();
+  });
+
   it('textos em espanhol e inglês', async () => {
     setup(<Lineups eventId={PREVIEW_IDS.scheduledEvent} />, 'es');
     expect(await screen.findByText('Alineación aún no confirmada.')).toBeTruthy();

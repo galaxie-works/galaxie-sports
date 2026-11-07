@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { fillText, sidesOf, type GsEvent, type WidgetLocale } from '../core/model.js';
+import { useEffect, useRef, useState } from 'react';
+import { fillText, sidesOf, type GsEvent, type GsEventStatus, type WidgetLocale } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -103,6 +103,7 @@ const LINEUP_TEXTS: Record<WidgetLocale, LineupTexts> = {
 
 /** Escalação divulgada: a API ainda pode trazer um time sem titulares, que conta como não divulgado. */
 const PENDING_REFRESH_MS = 5 * 60_000;
+const ENDED_STATUSES: ReadonlySet<GsEventStatus> = new Set(['finished', 'cancelled', 'abandoned']);
 
 /** Estilo só deste widget (o núcleo `WIDGET_CSS` fica igual): campo, fileiras e listas por time. */
 const LINEUPS_CSS = `
@@ -146,16 +147,30 @@ export function Lineups({
   const { locale } = useGalaxieWidget();
   const t = LINEUP_TEXTS[locale] ?? LINEUP_TEXTS['pt-BR'];
   const enc = encodeURIComponent;
+  // jogo encerrado ou cancelado: o que não saiu até aqui não sai mais, então para de consultar
+  const ended = useRef(false);
   const query = useGalaxieQuery<GsEventLineups>(
     eventId ? `/v1/events/${enc(eventId)}/lineups` : null,
     {},
-    (data) => (isComplete(data, team) ? null : PENDING_REFRESH_MS),
+    (data) => (isComplete(data, team) || ended.current ? null : PENDING_REFRESH_MS),
   );
   const data = query.data;
   const shown = data ? pickTeams(data, team) : [];
   const announced = shown.length > 0;
-  // antes da divulgação a resposta não traz os times: o jogo dá os nomes e o horário
-  const event = useGalaxieQuery<GsEvent>(data && !announced ? `/v1/events/${enc(eventId)}` : null);
+  const complete = data ? isComplete(data, team) : true;
+  // enquanto falta algum time: o jogo dá os nomes, o horário e se já terminou
+  const event = useGalaxieQuery<GsEvent>(data && !complete ? `/v1/events/${enc(eventId)}` : null, {}, (e) =>
+    ENDED_STATUSES.has(e.status) ? null : PENDING_REFRESH_MS,
+  );
+  ended.current = event.data ? ENDED_STATUSES.has(event.data.status) : false;
+  // trocar o lado (prévia do Builder) volta a consultar se o time novo ainda não saiu
+  const retry = query.retry;
+  const lastTeam = useRef(team);
+  useEffect(() => {
+    if (lastTeam.current === team) return;
+    lastTeam.current = team;
+    if (!complete) retry();
+  }, [team, complete, retry]);
 
   if (!data) {
     return (
@@ -224,7 +239,12 @@ type TeamChoice = 'both' | 'home' | 'away';
 
 /** A escalação de um lado: pelo `side` da API; sem lado conhecido, a ordem (mandante primeiro). */
 function sideLineup(lineups: GsTeamLineup[], side: 'home' | 'away'): GsTeamLineup | undefined {
-  return lineups.find((l) => l.team.side === side) ?? lineups[side === 'home' ? 0 : 1];
+  const bySide = lineups.find((l) => l.team.side === side);
+  if (bySide) return bySide;
+  // com algum lado conhecido, o que sobra sem lado é o outro time só se o conhecido for o oposto
+  if (lineups.some((l) => l.team.side === 'home' || l.team.side === 'away'))
+    return lineups.find((l) => l.team.side == null);
+  return lineups.length === 2 ? lineups[side === 'home' ? 0 : 1] : undefined;
 }
 
 /**
