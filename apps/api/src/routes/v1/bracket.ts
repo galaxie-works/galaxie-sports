@@ -1,8 +1,16 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { BracketParams, LocaleQuery, type Bracket, type Event } from '@galaxie/contracts';
-import { asset, competition, event, eventParticipant, participant, season, stage } from '@galaxie/db';
-import { knockoutStageRules } from '@galaxie/rules';
+import {
+  asset,
+  competition,
+  event,
+  eventParticipant,
+  participant,
+  season,
+  stage,
+  standing,
+} from '@galaxie/db';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
@@ -10,8 +18,8 @@ import { problems } from '../../errors.js';
 import { formatInstant } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
-import { eventsTtl, rulesStageKey } from '../../events/builder.js';
-import { BRACKET_KINDS, buildBracket, type BracketMatch } from '../../competitions/bracket.js';
+import { eventsTtl } from '../../events/builder.js';
+import { BRACKET_KINDS, buildBracket, type BracketMatch, tieRulesOf } from '../../competitions/bracket.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 import { localeOf, sportCheck } from './events.js';
 
@@ -142,8 +150,17 @@ export async function bracketRoutes(app: FastifyInstance, ctx: AppContext): Prom
           ]),
         );
 
-        // partidas por confronto pelo regulamento (Copa do Brasil: jogo único nas primeiras fases)
+        // regulamento da fase (futebol): partidas por confronto (Copa do Brasil: jogo único nas primeiras fases)
+        // e os desempates sem pênaltis (vantagem do empate, gol fora, melhor campanha)
         const rules = c.sport === 'football' ? await ctx.rules.get(c.slug, s.year) : null;
+        // melhor campanha (Liguilla): a posição dos dois na tabela de referência da temporada
+        const needsSeed = stages.some((st) => tieRulesOf(rules, st)?.levelAdvantage === 'better_seed');
+        const seedRows = needsSeed
+          ? await db
+              .select({ group: standing.group, participantId: standing.participantId, rank: standing.rank })
+              .from(standing)
+              .where(eq(standing.seasonId, s.id))
+          : [];
         const rounds = buildBracket({
           sport: c.sport,
           stages: stages.map((st) => ({ ...st, name: st.name as Record<string, string> })),
@@ -151,10 +168,7 @@ export async function bracketRoutes(app: FastifyInstance, ctx: AppContext): Prom
           participants,
           locale,
           tz,
-          expectedLegs: (st) =>
-            rules?.knockout
-              ? (knockoutStageRules(rules, rulesStageKey(st.kind, st.label)).legs ?? null)
-              : null,
+          tieRules: (st) => tieRulesOf(rules, st, seedRows),
         });
 
         const updated = matches.reduce<Date | null>(

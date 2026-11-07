@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildBracket, buildTie, type BracketMatch, type BracketStage } from './bracket.js';
+import { fileURLToPath } from 'node:url';
+import { loadCompetitionRules } from '@galaxie/rules/config';
+import { buildBracket, buildTie, tieRulesOf, type BracketMatch, type BracketStage } from './bracket.js';
+
+const RULES_DIR = fileURLToPath(new URL('../../../../config/rules', import.meta.url));
 
 const T0 = Date.parse('2026-08-01T22:00:00Z');
 const day = (n: number) => new Date(T0 + n * 86_400_000);
@@ -39,7 +43,7 @@ const match = (
   winnerId: null,
   ...extra,
 });
-const opts = { sport: 'football', participants, tz: 'UTC', expectedLegs: null, stageDone: false };
+const opts = { sport: 'football', participants, tz: 'UTC', rules: null, stageDone: false };
 
 describe('chaveamento do mata-mata', () => {
   it('ida e volta: agregado do ponto de vista do mandante da ida e decisão nos pênaltis', () => {
@@ -77,7 +81,7 @@ describe('chaveamento do mata-mata', () => {
   });
 
   it('regulamento de duas partidas com só a ida no banco: não decide pela ida', () => {
-    const tie = buildTie('qf', [match('m1', 'qf', 'a', 'b', 0, [3, 0])], { ...opts, expectedLegs: 2 });
+    const tie = buildTie('qf', [match('m1', 'qf', 'a', 'b', 0, [3, 0])], { ...opts, rules: { legs: 2 } });
     expect(tie.format).toBe('two_legs');
     expect(tie.winner_id).toBeNull();
     expect(tie.status).toBe('in_progress');
@@ -212,5 +216,86 @@ describe('chaveamento do mata-mata', () => {
       tz: 'UTC',
     });
     expect(rounds).toEqual([]);
+  });
+
+  it('série sem regulamento: melhor de 5 listada inteira fecha em 3 vitórias; melhor de 3 em 2', () => {
+    const bo5 = [
+      match('g1', 'p', 'a', 'b', 0, [3, 1]),
+      match('g2', 'p', 'a', 'b', 2, [3, 0]),
+      match('g3', 'p', 'b', 'a', 4, [1, 3]),
+      match('g4', 'p', 'b', 'a', 6, null),
+      match('g5', 'p', 'a', 'b', 8, null),
+    ];
+    expect(buildTie('p', bo5, { ...opts, sport: 'volleyball' })).toMatchObject({
+      status: 'decided',
+      winner_id: 'a',
+      wins: { home: 3, away: 0 },
+    });
+    const bo3 = [
+      match('g1', 'p', 'a', 'b', 0, [80, 70]),
+      match('g2', 'p', 'b', 'a', 2, [70, 80]),
+      match('g3', 'p', 'a', 'b', 4, null),
+    ];
+    expect(buildTie('p', bo3, { ...opts, sport: 'basketball' })).toMatchObject({
+      status: 'decided',
+      winner_id: 'a',
+    });
+    // sem os jogos "se necessário" listados (par), não chuta: 2×0 numa série de tamanho desconhecido segue aberta
+    expect(buildTie('p', bo3.slice(0, 2), { ...opts, sport: 'basketball' })).toMatchObject({
+      status: 'in_progress',
+      winner_id: null,
+    });
+  });
+
+  describe('desempates do regulamento (config/rules)', () => {
+    it('Copa do Brasil, 1ª fase: jogo único, empate classifica o visitante', async () => {
+      const rules = await loadCompetitionRules('copa-do-brasil', { dir: RULES_DIR, season: 2026 });
+      const r = tieRulesOf(rules, { kind: 'knockout_round', label: '1st Round' });
+      expect(r).toMatchObject({ legs: 1, drawAdvantage: 'away' });
+      const tie = buildTie('r1', [match('m1', 'r1', 'a', 'b', 0, [1, 1])], { ...opts, rules: r });
+      expect(tie).toMatchObject({ format: 'single', status: 'decided', winner_id: 'b' });
+    });
+
+    it('Liga MX, Liguilla: agregado empatado passa o de melhor campanha na tabela do Apertura', async () => {
+      const rules = await loadCompetitionRules('liga-mx', { dir: RULES_DIR, season: 2026 });
+      const seedRows = [
+        { group: 'Apertura', participantId: 'a', rank: 6 },
+        { group: 'Apertura', participantId: 'b', rank: 3 },
+      ];
+      const r = tieRulesOf(rules, { kind: 'quarter_final', label: 'Apertura - Quarter-finals' }, seedRows);
+      expect(r?.levelAdvantage).toBe('better_seed');
+      const legs = [match('m1', 'qf', 'a', 'b', 0, [1, 0]), match('m2', 'qf', 'b', 'a', 7, [1, 0])];
+      expect(buildTie('qf', legs, { ...opts, rules: r })).toMatchObject({
+        aggregate: { home: 1, away: 1 },
+        status: 'decided',
+        winner_id: 'b',
+      });
+      // sem a tabela de referência: não inventa vencedor, o confronto fica em aberto
+      const blind = tieRulesOf(rules, { kind: 'quarter_final', label: 'Apertura - Quarter-finals' });
+      expect(buildTie('qf', legs, { ...opts, rules: blind })).toMatchObject({
+        status: 'in_progress',
+        winner_id: null,
+      });
+    });
+
+    it('Champions até 2020/21: gol fora desempata o agregado (menos na final)', async () => {
+      const rules = await loadCompetitionRules('uefa-champions-league', { dir: RULES_DIR, season: 2018 });
+      const r = tieRulesOf(rules, { kind: 'round_of_16', label: 'Round of 16' });
+      expect(r?.awayGoals).toBe(true);
+      // a×b 2×1 na ida, b×a 1×0 na volta: 2×2 no agregado, b fez 1 gol fora e a nenhum
+      const legs = [match('m1', 'r16', 'a', 'b', 0, [2, 1]), match('m2', 'r16', 'b', 'a', 7, [1, 0])];
+      expect(buildTie('r16', legs, { ...opts, rules: r })).toMatchObject({
+        aggregate: { home: 2, away: 2 },
+        winner_id: 'b',
+        status: 'decided',
+      });
+      const now = await loadCompetitionRules('uefa-champions-league', { dir: RULES_DIR, season: 2024 });
+      expect(tieRulesOf(now, { kind: 'round_of_16', label: 'Round of 16' })?.awayGoals).toBe(false);
+    });
+
+    it('empate sem critério nem vencedor marcado: não sai decidido sem vencedor', () => {
+      const legs = [match('m1', 'qf', 'a', 'b', 0, [1, 1]), match('m2', 'qf', 'b', 'a', 7, [0, 0])];
+      expect(buildTie('qf', legs, opts)).toMatchObject({ status: 'in_progress', winner_id: null });
+    });
   });
 });

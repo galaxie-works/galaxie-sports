@@ -11,6 +11,13 @@
  */
 import type { Bracket, BracketTie, Event } from '@galaxie/contracts';
 import type { EventScore } from '@galaxie/db';
+import {
+  knockoutSeed,
+  knockoutStageRules,
+  rulesStageKey,
+  type CompetitionRules,
+  type SeedRow,
+} from '@galaxie/rules';
 import { IN_PLAY } from '../events/queries.js';
 import { formatInstant, pickText } from '../i18n.js';
 
@@ -73,8 +80,46 @@ export interface BuildBracketInput {
   participants: Map<string, BracketParticipant>;
   locale: string;
   tz: string;
-  /** Partidas por confronto no regulamento (`knockoutStageRules(...).legs`), quando houver. */
-  expectedLegs?: (stage: BracketStage) => number | null;
+  /** Regulamento da fase (`knockoutStageRules`), quando houver. */
+  tieRules?: (stage: BracketStage) => TieRules | null;
+}
+
+/**
+ * O que o regulamento da fase diz sobre o confronto (futebol, de `knockoutStageRules`): partidas, desempates sem
+ * pênaltis e a posição dos dois na tabela de referência (`better_seed`).
+ */
+export interface TieRules {
+  legs: number | null;
+  /** Gol fora desempata o agregado (temporadas antigas), salvo em campo neutro. */
+  awayGoals?: boolean;
+  neutralVenue?: boolean;
+  /** Jogo único: o empate classifica este lado da partida (1ª fase da Copa do Brasil: o visitante). */
+  drawAdvantage?: 'home' | 'away' | null;
+  /** Empate no confronto: passa o de melhor campanha (Liguilla da Liga MX). */
+  levelAdvantage?: 'better_seed' | null;
+  /** Posição (menor = melhor) dos dois times na tabela de referência, para `better_seed`. */
+  seed?: (homeId: string, awayId: string) => { home: number; away: number } | undefined;
+}
+
+/**
+ * Regulamento da fase para o confronto, a partir do YAML da competição (`config/rules`). `seedRows`: as linhas
+ * de `core.standing` da temporada (só precisa delas quem tem `better_seed`).
+ */
+export function tieRulesOf(
+  rules: CompetitionRules | null,
+  stage: Pick<BracketStage, 'kind' | 'label'>,
+  seedRows: readonly SeedRow[] = [],
+): TieRules | null {
+  if (!rules?.knockout) return null;
+  const r = knockoutStageRules(rules, rulesStageKey(stage.kind, stage.label));
+  return {
+    legs: r.legs,
+    awayGoals: r.awayGoals,
+    neutralVenue: r.neutralVenue,
+    drawAdvantage: r.drawAdvantage,
+    levelAdvantage: r.levelAdvantage,
+    seed: (homeId, awayId) => knockoutSeed(rules, stage.label, seedRows, homeId, awayId),
+  };
 }
 
 type Round = Bracket['rounds'][number];
@@ -118,6 +163,43 @@ function winnerOfMatch(m: BracketMatch): string | null {
   return m.winnerId;
 }
 
+/**
+ * Quem passa no confronto encerrado: agregado (ou placar do jogo único); no empate, gol fora (se o regulamento
+ * tiver), pênaltis, vantagem do empate no jogo único, melhor campanha e, por fim, o vencedor que o fornecedor
+ * marcou. Null quando nada disso decide.
+ */
+function levelWinner(
+  legs: BracketMatch[],
+  totals: { home: number; away: number },
+  penalties: Pair | null,
+  home: string,
+  away: string,
+  format: BracketTie['format'],
+  rules: TieRules | null,
+): string | null {
+  if (totals.home !== totals.away) return totals.home > totals.away ? home : away;
+  if (format === 'two_legs' && rules?.awayGoals && !rules.neutralVenue) {
+    // gols de cada lado nas partidas em que foi visitante
+    const awayGoals = { home: 0, away: 0 };
+    for (const l of legs) {
+      const g = oriented(l, l.score, home);
+      if (!g) continue;
+      if (l.homeId === home) awayGoals.away += g.away!;
+      else awayGoals.home += g.home!;
+    }
+    if (awayGoals.home !== awayGoals.away) return awayGoals.home > awayGoals.away ? home : away;
+  }
+  if (penalties && penalties.home !== penalties.away) return penalties.home! > penalties.away! ? home : away;
+  const last = legs.at(-1)!;
+  if (format === 'single' && rules?.drawAdvantage)
+    return rules.drawAdvantage === 'home' ? last.homeId : last.awayId;
+  if (rules?.levelAdvantage === 'better_seed') {
+    const seed = rules.seed?.(home, away);
+    if (seed && seed.home !== seed.away) return seed.home < seed.away ? home : away;
+  }
+  return last.winnerId === home || last.winnerId === away ? last.winnerId : null;
+}
+
 /** Um confronto: formato, pernas, agregado ou vitórias da série, pênaltis, vencedor e situação. */
 export function buildTie(
   stageId: string,
@@ -126,18 +208,20 @@ export function buildTie(
     sport: string;
     participants: Map<string, BracketParticipant>;
     tz: string;
-    expectedLegs: number | null;
+    rules: TieRules | null;
     /** Todos os jogos da fase acabaram (fecha a série sem número de jogos conhecido). */
     stageDone: boolean;
   },
 ): BracketTie {
+  const rules = opts.rules;
+  const expectedLegs = rules?.legs ?? null;
   const first = legs[0]!;
   const home = first.homeId!;
   const away = first.awayId!;
-  const series = SERIES_SPORTS.has(opts.sport) && (legs.length > 1 || (opts.expectedLegs ?? 0) > 2);
+  const series = SERIES_SPORTS.has(opts.sport) && (legs.length > 1 || (expectedLegs ?? 0) > 2);
   const format: BracketTie['format'] = series
     ? 'series'
-    : (opts.expectedLegs ?? legs.length) >= 2
+    : (expectedLegs ?? legs.length) >= 2
       ? 'two_legs'
       : 'single';
   const allDone = legs.every((l) => l.status === 'finished');
@@ -158,15 +242,17 @@ export function buildTie(
       else if (w === away) wins.away!++;
     }
     const lead = Math.max(wins.home!, wins.away!);
-    const needed = opts.expectedLegs ? Math.floor(opts.expectedLegs / 2) + 1 : null;
-    // jogos "se necessário" ainda agendados não seguram a série: 4 vitórias fecham a melhor de 7 na hora; as
-    // séries mais curtas (sem regulamento) fecham com a fase encerrada ou quando o time aparece na fase
-    // seguinte (`advanceFromNextRounds`)
-    const played = legs.filter((l) => l.status === 'finished' || started(l));
-    const playedDone = played.every((l) => l.status === 'finished');
+    // melhor de N: pelo regulamento; sem ele, pelos jogos do par quando o fornecedor já lista a série inteira
+    // (N ímpar, com os "se necessário" agendados). Jogos "se necessário" não seguram a série: 4 vitórias fecham
+    // a melhor de 7 na hora. O resto fecha com a fase encerrada ou quando o time aparece na fase seguinte
+    // (`advanceFromNextRounds`)
+    const listed =
+      legs.length % 2 === 1 && legs.length >= 3 && legs.some((l) => !started(l)) ? legs.length : null;
+    const bestOf = expectedLegs ?? listed;
+    const needed = bestOf ? Math.floor(bestOf / 2) + 1 : null;
+    const playedDone = legs.filter(started).every((l) => l.status === 'finished');
     decided =
-      wins.home !== wins.away &&
-      (needed != null ? lead >= needed : lead >= 4 || (playedDone && opts.stageDone));
+      wins.home !== wins.away && (lead >= (needed ?? 4) || (needed == null && playedDone && opts.stageDone));
     if (decided) winner = wins.home! > wins.away! ? home : away;
   } else {
     const totals = { home: 0, away: 0 };
@@ -179,14 +265,10 @@ export function buildTie(
       totals.away += g.away!;
     }
     if (format === 'two_legs' && any) aggregate = totals;
-    const complete = legs.length >= (opts.expectedLegs ?? legs.length);
-    decided = complete && allDone && any;
-    if (decided) {
-      if (totals.home !== totals.away) winner = totals.home > totals.away ? home : away;
-      else if (penalties && penalties.home !== penalties.away)
-        winner = penalties.home! > penalties.away! ? home : away;
-      else winner = last.winnerId === home || last.winnerId === away ? last.winnerId : null;
-    }
+    const complete = legs.length >= (expectedLegs ?? legs.length);
+    if (complete && allDone && any) winner = levelWinner(legs, totals, penalties, home, away, format, rules);
+    // empate sem critério que o dado resolva: fica em aberto até o time aparecer na fase seguinte
+    decided = winner != null;
   }
 
   const ref = (id: string) =>
@@ -267,7 +349,7 @@ export function buildBracket(input: BuildBracketInput): Round[] {
       .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
     if (!matches.length) continue;
     const stageDone = matches.every((m) => m.status === 'finished');
-    const expected = input.expectedLegs?.(head) ?? null;
+    const rules = input.tieRules?.(head) ?? null;
     // confrontos: o mesmo par dentro do grupo, em ordem cronológica
     const byPair = new Map<string, BracketMatch[]>();
     for (const m of matches) {
@@ -296,7 +378,7 @@ export function buildBracket(input: BuildBracketInput): Round[] {
           sport: input.sport,
           participants: input.participants,
           tz: input.tz,
-          expectedLegs: expected,
+          rules,
           stageDone,
         }),
       );
