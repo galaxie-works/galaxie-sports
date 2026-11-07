@@ -13,6 +13,8 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
+import { PageHeader } from '@/components/app-shell/page-header';
 import {
   DetailsSkeleton,
   ScoreboardSkeleton,
@@ -20,7 +22,6 @@ import {
   TextSkeleton,
   TimelineSkeleton,
 } from '@/components/app-shell/skeletons';
-import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { awaitingResult, ProvisionalBadgeView } from '@/components/sport/event-card-view';
@@ -668,7 +669,7 @@ export function EventFallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-48" />} />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
         <ScoreboardSkeleton />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="flex flex-col gap-6 lg:col-span-2">
@@ -684,7 +685,7 @@ export function EventFallback() {
             <DetailsSkeleton rows={3} />
           </div>
         </div>
-      </div>
+      </LoadingStatus>
     </>
   );
 }

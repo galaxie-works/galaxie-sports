@@ -2,10 +2,11 @@ import { webhookAdminOverview } from '@galaxie/db/webhooks';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { FormSkeleton, FramePanelSkeleton, TableSkeleton } from '@/components/app-shell/skeletons';
 import { SettingsNav } from '@/components/admin/settings-nav';
 import { WebhooksControl } from '@/components/admin/webhooks-control';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { FormSkeleton, FramePanelSkeleton, TableSkeleton } from '@/components/app-shell/skeletons';
 import { requireAdmin } from '@/lib/auth/admin';
 import { builderDb } from '@/lib/builder/store';
 import { webhookSecrets } from '@/lib/client/webhooks';
@@ -42,14 +43,14 @@ export default async function WebhooksSettingsPage() {
         <SettingsNav active="webhooks" />
         <Suspense
           fallback={
-            <div className="grid gap-4 lg:grid-cols-2">
+            <LoadingStatus className="grid gap-4 lg:grid-cols-2">
               <FramePanelSkeleton>
                 <FormSkeleton fields={2} />
               </FramePanelSkeleton>
               <FramePanelSkeleton>
                 <TableSkeleton rows={4} />
               </FramePanelSkeleton>
-            </div>
+            </LoadingStatus>
           }
         >
           <Content />

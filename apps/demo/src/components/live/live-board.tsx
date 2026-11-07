@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
+import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CompetitionCountry } from '@/components/sport/competition-country';
 import { Crest } from '@/components/sport/crest';
 import { EventCardView } from '@/components/sport/event-card-view';
@@ -173,7 +174,11 @@ export function LiveCard({ event }: { event: Event }) {
 
 /** Cards de jogo no formato do EventCard (escudos, placar e rodapé), na mesma grade do quadro. */
 function CardsSkeleton({ count }: { count: number }) {
-  return <EventCardsSkeleton count={count} />;
+  return (
+    <LoadingStatus>
+      <EventCardsSkeleton count={count} />
+    </LoadingStatus>
+  );
 }
 
 /** Jogos por esporte e competição (o país antes da liga), na ordem de `groupLive`. */

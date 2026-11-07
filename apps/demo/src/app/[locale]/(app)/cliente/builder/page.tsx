@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { CardGridSkeleton, FramePanelSkeleton, TablePanelSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { CardGridSkeleton, FramePanelSkeleton, TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetsPanel } from '@/components/client/widgets-panel';
 import { entityFromDefaults } from '@/lib/builder/config';
@@ -59,12 +60,12 @@ export default async function ClientBuilderPage({ searchParams }: PageProps<'/[l
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         <Suspense
           fallback={
-            <div className="flex flex-col gap-4">
+            <LoadingStatus className="flex flex-col gap-4">
               <FramePanelSkeleton>
                 <CardGridSkeleton bare count={6} media={null} footer={false} />
               </FramePanelSkeleton>
               <TablePanelSkeleton rows={4} />
-            </div>
+            </LoadingStatus>
           }
         >
           <Widgets searchParams={searchParams} />

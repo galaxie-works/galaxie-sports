@@ -5,17 +5,20 @@
  * quando os dados chegam.
  *
  * - c-skeleton-1 `AvatarInfoSkeleton`: avatar/escudo + 2 linhas (cabeçalho de pessoa, time, usuário).
- * - c-skeleton-2 `MediaCardSkeleton`: card com 2 linhas de título sobre um bloco 16:9 (local, foto).
+ * - c-skeleton-2 `MediaCardSkeleton`: card com 2 linhas de título sobre um bloco 16:9 (ou só a mídia).
  * - c-skeleton-3 `TextSkeleton`: parágrafos (contexto da partida, textos editoriais).
  * - c-skeleton-4 `FormSkeleton`: rótulos sobre campos e um botão (editores e formulários).
  * - c-skeleton-5 `TableSkeleton`: cabeçalho com borda e linhas em colunas (tabelas e grades de dados).
  * - c-skeleton-6 `StatsSkeleton`: cards de métrica (rótulo, valor, legenda).
  * - c-skeleton-7 `ListSkeleton`: lista com título, botão e linhas com avatar e ação.
  * - c-skeleton-8 `CardGridSkeleton`: grade de cards com mídia, título, texto e rodapé.
- * - c-skeleton-9 `ProfileSkeleton` / `DetailsSkeleton`: perfil com estatísticas e card de detalhes.
+ * - c-skeleton-9 `DetailsSkeleton`: o card de detalhes do perfil (rótulo/valor), nas colunas laterais.
  * - c-skeleton-10 `TimelineSkeleton`: lances alternando os lados (mandante à esquerda, visitante à direita).
  *
- * Sem `Math.random`: larguras fixas, para o prerender e a hidratação darem o mesmo HTML.
+ * Sem `Math.random`: larguras fixas, para o prerender e a hidratação darem o mesmo HTML (teste em
+ * `skeletons.test.tsx`). Os blocos não têm texto: quem anuncia o carregamento é o `LoadingStatus`
+ * (`loading-status.tsx`), que envolve cada fallback e esconde os blocos dos leitores de tela. Com
+ * `prefers-reduced-motion`, o pulso para (`globals.css`).
  */
 import { Frame, FramePanel } from '@/components/reui/frame';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -23,8 +26,8 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-/** Base visual do `TILE` de `explore/sport-card` (sem o hover/foco, que o esqueleto não tem). */
-const TILE_BASE = 'tile-card flex flex-col overflow-hidden rounded-xl border';
+/** Visual do `TILE` de `explore/sport-card` sem a classe `tile-card`, que traz o hover e o foco. */
+const TILE_BASE = 'bg-card text-card-foreground flex flex-col overflow-hidden rounded-xl border';
 const range = (n: number) => Array.from({ length: n }, (_, i) => i);
 
 /* -------------------------------------------------------------------------------------------------
@@ -60,12 +63,22 @@ export function AvatarInfoSkeleton({
 
 export function MediaCardSkeleton({
   mediaClassName = 'aspect-video',
+  header = true,
   className,
 }: {
-  /** Proporção do bloco de mídia (o local usa `aspect-[21/9]`). */
+  /** Tamanho do bloco de mídia (o local usa `h-64`, a altura da foto do estádio). */
   mediaClassName?: string;
+  /** `false`: o card só com a mídia, sem as linhas de título (como a foto do local). */
+  header?: boolean;
   className?: string;
 }) {
+  if (!header) {
+    return (
+      <Card className={cn('w-full py-0', className)}>
+        <Skeleton className={cn('w-full rounded-none', mediaClassName)} />
+      </Card>
+    );
+  }
   return (
     <Card className={cn('w-full', className)}>
       <CardHeader className="gap-2">
@@ -198,12 +211,21 @@ export function StatsSkeleton({
   );
 }
 
-/** O par rótulo/valor do c-skeleton-6 sem o card em volta (números dentro de um card ou frame). */
-export function StatPairSkeleton({ className }: { className?: string }) {
+/**
+ * O par rótulo/valor do c-skeleton-6 sem o card em volta. `sm`: valor em texto (`text-sm`), como nas
+ * fichas `<dl>`; o padrão é o número grande dos cards de métrica.
+ */
+export function StatPairSkeleton({
+  size = 'default',
+  className,
+}: {
+  size?: 'default' | 'sm';
+  className?: string;
+}) {
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col', size === 'sm' ? 'gap-1' : 'gap-2', className)}>
       <Skeleton className="h-3 w-16" />
-      <Skeleton className="h-7 w-24 max-w-full" />
+      <Skeleton className={cn('max-w-full', size === 'sm' ? 'h-4 w-24' : 'h-7 w-24')} />
     </div>
   );
 }
@@ -316,35 +338,6 @@ export function CardGridSkeleton({
  * c-skeleton-9 · Profile Page
  * -----------------------------------------------------------------------------------------------*/
 
-/** Card de perfil do c-skeleton-9: avatar, nome, linha de apoio e pares de número. */
-export function ProfileSkeleton({
-  stats = 3,
-  avatarClassName = 'size-20 rounded-full',
-  className,
-}: {
-  stats?: number;
-  avatarClassName?: string;
-  className?: string;
-}) {
-  return (
-    <Card className={className}>
-      <CardHeader className="items-center justify-items-center gap-3">
-        <Skeleton className={avatarClassName} />
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-3 w-48 max-w-full" />
-      </CardHeader>
-      <CardContent className="flex flex-wrap justify-center gap-8">
-        {range(stats).map((i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <Skeleton className="h-5 w-10" />
-            <Skeleton className="h-3 w-14" />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 /** Card de detalhes do c-skeleton-9: título, separador e linhas rótulo/valor (colunas laterais). */
 export function DetailsSkeleton({ rows = 4, className }: { rows?: number; className?: string }) {
   return (
@@ -420,7 +413,7 @@ export function FramePanelSkeleton({
   className?: string;
 }) {
   return (
-    <Frame className={className} aria-busy>
+    <Frame className={className}>
       <FramePanel className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-2">
@@ -464,10 +457,7 @@ export function TablePanelSkeleton({
 /** Editor com prévia ao lado (Builder e Temas): formulário (c-skeleton-4) | prévia em card. */
 export function EditorSkeleton({ fields = 6 }: { fields?: number }) {
   return (
-    <div
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]"
-      aria-busy
-    >
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
       <FramePanelSkeleton>
         <div className="flex gap-2">
           {range(3).map((i) => (
@@ -519,7 +509,7 @@ export function EventCardsSkeleton({
   className?: string;
 }) {
   return (
-    <div className={cn('grid gap-3', className)} aria-busy>
+    <div className={cn('grid gap-3', className)}>
       {range(count).map((i) => (
         <EventCardSkeleton key={i} />
       ))}
@@ -538,7 +528,7 @@ export function EntryCardsSkeleton({
   avatarClassName?: string;
 }) {
   return (
-    <div className={cn('grid gap-3', className)} aria-busy>
+    <div className={cn('grid gap-3', className)}>
       {range(count).map((i) => (
         <Card key={i} size="sm">
           <CardHeader>
@@ -597,7 +587,7 @@ export function TableCardSkeleton({
 /** Formulário dentro de um card (c-skeleton-4 com a moldura do Card). */
 export function FormCardSkeleton({ fields = 2, className }: { fields?: number; className?: string }) {
   return (
-    <Card className={className} aria-busy>
+    <Card className={className}>
       <CardContent>
         <FormSkeleton fields={fields} />
       </CardContent>
@@ -608,7 +598,7 @@ export function FormCardSkeleton({ fields = 2, className }: { fields?: number; c
 /** Painel de operação (Ajustes → Sistema/Esportes): abas sobre a grade de painéis com tabela. */
 export function OpsPanelSkeleton() {
   return (
-    <div className="flex flex-col gap-4" aria-busy>
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         {range(4).map((i) => (
           <Skeleton key={i} className="h-8 w-24 rounded-md" />
@@ -628,7 +618,7 @@ export function OpsPanelSkeleton() {
 /** Visão geral do cliente: dados do contrato (2 colunas), uso (c-skeleton-6) e próximos passos. */
 export function TenantOverviewSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-3" aria-busy>
+    <div className="grid gap-4 lg:grid-cols-3">
       <FramePanelSkeleton className="lg:col-span-2">
         <div className="grid gap-5 sm:grid-cols-2">
           {range(4).map((i) => (
@@ -666,7 +656,7 @@ export function TenantOverviewSkeleton() {
 /** Placar do jogo: os dois lados (escudo e nome) e o placar com o status no meio. */
 export function ScoreboardSkeleton() {
   return (
-    <Card aria-busy>
+    <Card>
       <CardContent className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 py-2">
         {[0, 1].map((side) => (
           <div
@@ -701,7 +691,7 @@ export function IndexCardsSkeleton({
   className?: string;
 }) {
   return (
-    <div className={cn('grid gap-3', className)} aria-busy>
+    <div className={cn('grid gap-3', className)}>
       {range(count).map((i) => (
         <div key={i} className={cn(TILE_BASE, 'w-full gap-3 p-4', variant === 'family' && 'min-h-44 gap-4')}>
           {variant === 'country' ? (
@@ -737,8 +727,68 @@ export function StatPairsSkeleton({
   return (
     <div className={cn('grid gap-4', className)}>
       {range(count).map((i) => (
-        <StatPairSkeleton key={i} />
+        <StatPairSkeleton key={i} size="sm" />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Tela de Ajustes sem moldura: barra (filtros ou abas) sobre a tabela com borda (c-skeleton-5), como
+ * Revisão e Grades.
+ */
+export function ToolbarTableSkeleton({
+  toolbar = 'filters',
+  rows = 8,
+  columns = ['flex-1', 'w-28', 'w-24', 'w-20'],
+}: {
+  /** `filters`: campo de filtros e botões de estado; `tabs`: abas com a linha de baixo. */
+  toolbar?: 'filters' | 'tabs';
+  rows?: number;
+  columns?: readonly string[];
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {toolbar === 'tabs' ? (
+        <div className="flex gap-1 border-b pb-2">
+          {range(3).map((i) => (
+            <Skeleton key={i} className="h-6 w-24 rounded-md" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-full max-w-xl" />
+          <div className="flex flex-wrap gap-2">
+            {range(4).map((i) => (
+              <Skeleton key={i} className="h-7 w-24 rounded-md" />
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="rounded-lg border p-4">
+        <TableSkeleton rows={rows} columns={columns} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Busca com lista sem moldura (Ajustes → Escudos): campo, filtros e botão; a dica; o título da lista e
+ * as linhas do c-skeleton-7 (escudo, nome e o botão de enviar).
+ */
+export function SearchListSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Skeleton className="h-9 w-full sm:max-w-sm" />
+        <Skeleton className="h-8 w-52" />
+        <Skeleton className="h-8 w-24" />
+      </div>
+      <Skeleton className="h-3 w-80 max-w-full" />
+      <div className="flex flex-col">
+        <Skeleton className="h-4 w-32" />
+        <ListSkeleton rows={rows} header={false} avatarClassName="size-12 rounded-md" />
+      </div>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { SettingsNav } from '@/components/admin/settings-nav';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
 import { LineupAdminTabs, LineupReview, type ReviewRow } from '@/components/lineup/admin-review';
 import { LineupRequests } from '@/components/lineup/admin-requests';
 import { LineupTenants } from '@/components/lineup/admin-tenants';
@@ -103,7 +104,11 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
         <SettingsNav active="lineup" />
         <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
         <Suspense
-          fallback={<TablePanelSkeleton toolbar rows={8} columns={['flex-1', 'w-28', 'w-24', 'w-20']} />}
+          fallback={
+            <LoadingStatus>
+              <ToolbarTableSkeleton toolbar="tabs" />
+            </LoadingStatus>
+          }
         >
           <Content searchParams={searchParams} />
         </Suspense>

@@ -4,8 +4,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
-import { EntryCardsSkeleton, SectionSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { EntryCardsSkeleton, SectionSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { Flag, HistoryBadge, NoticeBanner } from '@/components/equestrian/parts';
 import { RankingsTable } from '@/components/equestrian/rankings-table';
 import { Badge } from '@/components/reui/badge';
@@ -237,7 +238,7 @@ export default async function EquestrianPage() {
       <PageHeader title={t.equestrian.title} kind="esporte" api={equestrianOverviewRequest(locale)} />
       <Suspense
         fallback={
-          <div className="flex flex-col gap-8 p-4 md:p-6">
+          <LoadingStatus className="flex flex-col gap-8 p-4 md:p-6">
             <SectionSkeleton>
               <EntryCardsSkeleton count={4} avatarClassName="size-10 rounded-full" />
             </SectionSkeleton>
@@ -247,7 +248,7 @@ export default async function EquestrianPage() {
             <SectionSkeleton>
               <TableCardSkeleton rows={8} columns={['w-6', 'flex-1', 'w-24', 'w-16']} />
             </SectionSkeleton>
-          </div>
+          </LoadingStatus>
         }
       >
         <Content />

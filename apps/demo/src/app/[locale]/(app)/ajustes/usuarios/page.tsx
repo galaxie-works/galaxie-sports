@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { SettingsNav } from '@/components/admin/settings-nav';
 import { UsersTable } from '@/components/admin/users-table';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { listDemoUsers } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { readOperatorDomains } from '@/lib/lineup/server';
@@ -31,7 +32,9 @@ export default async function UsersPage() {
         {/* Lê a sessão do admin (headers): fica fora do shell estático. */}
         <Suspense
           fallback={
-            <TablePanelSkeleton action toolbar rows={8} columns={['flex-1', 'w-40', 'w-24', 'w-20']} />
+            <LoadingStatus>
+              <TablePanelSkeleton action toolbar rows={8} columns={['flex-1', 'w-40', 'w-24', 'w-20']} />
+            </LoadingStatus>
           }
         >
           <Users />

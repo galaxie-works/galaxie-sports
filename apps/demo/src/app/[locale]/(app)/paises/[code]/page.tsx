@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { EntryCardsSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { EntryCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CountryLive } from '@/components/live/country-live';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
@@ -178,9 +179,9 @@ function Fallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
-      <div className="p-4 md:p-6">
+      <LoadingStatus className="p-4 md:p-6">
         <EntryCardsSkeleton count={8} />
-      </div>
+      </LoadingStatus>
     </>
   );
 }

@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { EditorSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { BrandThemeEditor } from '@/components/client/brand-theme-editor';
 import { ClientArea } from '@/components/client/client-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,9 +51,9 @@ export default function BrandThemePage({ params }: PageProps<'/[locale]/cliente/
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
+          <LoadingStatus className="mx-auto w-full max-w-7xl p-4 md:p-6">
             <EditorSkeleton />
-          </div>
+          </LoadingStatus>
         </>
       }
     >

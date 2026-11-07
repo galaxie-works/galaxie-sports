@@ -3,9 +3,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
-import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { AgendaFilterBar } from '@/components/sport/agenda-filter-bar';
 import { EventCard } from '@/components/sport/event-card';
 import { FilterChip } from '@/components/sport/filter-chip';
@@ -151,11 +152,11 @@ async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/ag
 
 function Fallback() {
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-6">
+    <LoadingStatus className="flex flex-col gap-4 p-4 md:p-6">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-8 w-full" />
       <EventCardsSkeleton count={6} />
-    </div>
+    </LoadingStatus>
   );
 }
 

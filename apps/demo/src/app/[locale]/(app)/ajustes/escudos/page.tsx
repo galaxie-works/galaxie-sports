@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { FramePanelSkeleton, ListSkeleton } from '@/components/app-shell/skeletons';
 import { CrestAdmin } from '@/components/admin/crest-admin';
 import { SettingsNav } from '@/components/admin/settings-nav';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { SearchListSkeleton } from '@/components/app-shell/skeletons';
 import { requireAdmin } from '@/lib/auth/admin';
 import { recentCrestUploads, searchCrests } from '@/lib/crests/server';
 import { parseCrestKind } from '@/lib/crests/types';
@@ -52,9 +53,9 @@ export default async function CrestAdminPage({ searchParams }: PageProps<'/[loca
         <p className="text-muted-foreground max-w-3xl text-sm">{t.crests.page.description}</p>
         <Suspense
           fallback={
-            <FramePanelSkeleton>
-              <ListSkeleton rows={6} avatarClassName="size-12 rounded-md" />
-            </FramePanelSkeleton>
+            <LoadingStatus>
+              <SearchListSkeleton />
+            </LoadingStatus>
           }
         >
           <Content searchParams={searchParams} />

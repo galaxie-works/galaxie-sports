@@ -5,6 +5,7 @@ import { BookOpen, Code } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { TextSkeleton } from '@/components/app-shell/skeletons';
 import { Badge } from '@/components/reui/badge';
 import { CopyButton } from '@/components/sport/copy-button';
@@ -106,7 +107,7 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
   if (isPending || !data) {
     // status e tempo da resposta sobre o bloco de código (linhas do c-skeleton-3)
     return (
-      <div className="flex flex-col gap-2" aria-busy>
+      <LoadingStatus className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <Skeleton className="h-5 w-16 rounded-full" />
           <Skeleton className="h-3 w-24" />
@@ -114,7 +115,7 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
         <div className="rounded-lg border p-4">
           <TextSkeleton paragraphs={[4, 3]} />
         </div>
-      </div>
+      </LoadingStatus>
     );
   }
 

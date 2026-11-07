@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { SettingsNav } from '@/components/admin/settings-nav';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
 import { ReviewFiltersBar } from '@/components/review/review-filter-bar';
 import { ReviewTable } from '@/components/review/review-table';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
@@ -74,7 +75,11 @@ export default async function ReviewPage({ searchParams }: PageProps<'/[locale]/
         <SettingsNav active="review" />
         <p className="text-muted-foreground max-w-3xl text-sm">{t.review.page.description}</p>
         <Suspense
-          fallback={<TablePanelSkeleton rows={8} columns={['w-6', 'flex-1', 'w-28', 'w-24', 'w-20']} />}
+          fallback={
+            <LoadingStatus>
+              <ToolbarTableSkeleton columns={['w-6', 'flex-1', 'w-28', 'w-24', 'w-20']} />
+            </LoadingStatus>
+          }
         >
           <List searchParams={searchParams} />
         </Suspense>

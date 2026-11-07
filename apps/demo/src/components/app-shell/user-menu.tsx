@@ -4,6 +4,7 @@ import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } f
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { AvatarInfoSkeleton } from '@/components/app-shell/skeletons';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -44,11 +45,13 @@ export function UserMenu() {
   // aceita no prerender e que diverge na hidratação.
   if (isPending) {
     return (
-      <AvatarInfoSkeleton
-        avatarClassName="size-8 rounded-md"
-        lines={['h-3.5 w-28', 'h-3 w-36']}
-        className="h-12 gap-2 px-2"
-      />
+      <LoadingStatus>
+        <AvatarInfoSkeleton
+          avatarClassName="size-8 rounded-md"
+          lines={['h-3.5 w-28', 'h-3 w-36']}
+          className="h-12 gap-2 px-2"
+        />
+      </LoadingStatus>
     );
   }
   if (!data) return null;

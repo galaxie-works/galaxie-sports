@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { EditorSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { marketsFor } from '@/lib/builder/config';
@@ -58,7 +59,13 @@ export default async function NewWidgetPage({ searchParams }: PageProps<'/[local
         ]}
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-6">
-        <Suspense fallback={<EditorSkeleton />}>
+        <Suspense
+          fallback={
+            <LoadingStatus>
+              <EditorSkeleton />
+            </LoadingStatus>
+          }
+        >
           <NewWidget searchParams={searchParams} />
         </Suspense>
       </div>
