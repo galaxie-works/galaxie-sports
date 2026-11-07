@@ -150,7 +150,8 @@ describe('Countdown', () => {
   });
 
   it('escala para TV: número e espaçamento multiplicados por --gs-scale', () => {
-    expect(WIDGET_CSS).toContain('.gs-countdown-unit strong{font-size:calc(var(--gs-scale,1)*1.6em)');
+    // a unidade inteira escala (número, rótulo e largura mínima em em)
+    expect(WIDGET_CSS).toContain('.gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);');
     expect(WIDGET_CSS).toContain(
       '.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}',
     );
