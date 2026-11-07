@@ -33,6 +33,7 @@ describe('scheduleFromEnv', () => {
       'live-run',
       'postgame-close',
       'live-reconcile',
+      'sync-mirror',
       'normalize-football',
       'normalize-sports',
       'events-clock',

@@ -28,6 +28,7 @@ import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { SidelinedProps } from './widgets/sidelined.js';
+import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
@@ -64,6 +65,7 @@ export interface WidgetPropsByKind {
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
   sidelined: SidelinedProps;
+  champions_gallery: ChampionsGalleryProps;
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
@@ -103,6 +105,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryAthletes'
     | 'MedalHistory'
     | 'Sidelined'
+    | 'ChampionsGallery'
     | 'Countdown'
     | 'TeamSquad'
     | 'PlayerProfile'
@@ -684,6 +687,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['eventId', 'teamId', 'showReason', 'showReturn', 'showPhoto', 'showDoubtful', 'limit'],
     exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
     polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  champions_gallery: {
+    kind: 'champions_gallery',
+    component: 'ChampionsGallery',
+    registryComponent: 'GalaxieChampionsGallery',
+    name: { 'pt-BR': 'Galeria de campeões', es: 'Galería de campeones', en: 'Roll of honour' },
+    description: {
+      'pt-BR':
+        'Quem ganhou cada edição do campeonato, ano a ano, com o escudo, o vice e o ranking de quem tem mais títulos.',
+      es: 'Quién ganó cada edición del torneo, año a año, con el escudo, el subcampeón y el ranking de más títulos.',
+      en: 'Who won each edition of the competition, year by year, with the crest, the runner-up and the most titles.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['limit', 'showRanking', 'rankingLimit', 'showRunnerUp'],
+    exampleProps: { competitionId: PREVIEW_IDS.competition },
+    polling: false,
+    // só o futebol tem lista de campeões importada (Wikidata); abrir aos outros esportes quando houver fonte
     sports: FOOTBALL_ONLY,
   },
   countdown: {

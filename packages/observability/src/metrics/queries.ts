@@ -237,6 +237,44 @@ export async function rawFreshness(
     .map((r) => ({ sport: r.sport, lastFetchedAt: new Date(r.last_fetched_at!) }));
 }
 
+export interface EndpointFreshnessRow {
+  sport: string;
+  endpoint: string;
+  /** Última busca (`last_seen_at` ou `fetched_at`); null = nenhuma resposta no raw. */
+  lastFetchedAt: Date | null;
+}
+
+/**
+ * Última busca de cada endpoint do mapa de frescor (raw-cadence.ts), uma descida no índice
+ * `api_response_endpoint_seen_idx` por endpoint. Sem janela: o endpoint de 30 dias também tem que aparecer, e o
+ * que nunca foi buscado volta com `lastFetchedAt` nulo (o alerta trata como vencido).
+ */
+export async function rawEndpointFreshness(
+  db: Database,
+  endpoints: readonly { sport: string; endpoint: string }[],
+): Promise<EndpointFreshnessRow[]> {
+  if (!endpoints.length) return [];
+  const list = sql.join(
+    endpoints.map((e) => sql`(${e.sport}, ${e.endpoint})`),
+    sql`, `,
+  );
+  const rows = await db.execute<{
+    sport: string;
+    endpoint: string;
+    last_fetched_at: string | Date | null;
+  }>(sql`
+    select v.sport, v.endpoint,
+           (select max(coalesce(r.last_seen_at, r.fetched_at)) from raw.api_response r
+             where r.provider = 'api-sports' and r.sport = v.sport and r.endpoint = v.endpoint) as last_fetched_at
+    from (values ${list}) as v(sport, endpoint)
+  `);
+  return rows.map((r) => ({
+    sport: r.sport,
+    endpoint: r.endpoint,
+    lastFetchedAt: r.last_fetched_at == null ? null : new Date(r.last_fetched_at),
+  }));
+}
+
 /**
  * Quem deveria atualizar o jogo em andamento: `poller` = está no plano publicado pelo processo do ao vivo
  * (`includedEventIds` em ops.sync_cursor); `clock` = só o relógio dos eventos o moveu pelo horário (fora do

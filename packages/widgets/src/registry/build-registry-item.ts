@@ -146,6 +146,7 @@ function defaultProps(
     case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
+    case 'champions_gallery':
     case 'competition_leaders':
       return pick(['competitionId']);
     // por jogo ou por time: a entidade salva no Builder (o jogo, se houver, vence)

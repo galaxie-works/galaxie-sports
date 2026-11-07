@@ -212,5 +212,6 @@ case "$ALERT" in
   DiskAlmostFull | DiskFillingUp | DatabaseGrowingFast) disk_block ;;
   BackupStale | BackupCheckFailed | RestoreDrillFailed | RestoreDrillStale) backup_block ;;
   QuotaBelow20Percent) quota_block ;;
+  RawEndpointOverdue) job_block; quota_block ;;
   *) job_block; api_block ;;
 esac
