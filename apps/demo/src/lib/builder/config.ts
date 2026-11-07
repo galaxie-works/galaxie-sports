@@ -172,10 +172,11 @@ export const MAX_ORIGINS = 20;
 /** Variável de ambiente da chave publicável no app da operadora (o registry pede para criá-la). */
 export { PUBLISHABLE_KEY_ENV } from '@galaxie/widgets/registry';
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa`. */
+const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const COLOR_KEYS = ['primary', 'background', 'surface', 'foreground', 'mutedForeground', 'border'] as const;
 
-/** Tema válido ou null (cores `#rrggbb`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
+/** Tema válido ou null (cores `#rrggbb` ou `#rrggbbaa`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
 export function parseTheme(raw: unknown): WidgetTheme | null {
   if (!raw || typeof raw !== 'object') return null;
   const t = raw as Record<string, unknown>;
@@ -360,7 +361,7 @@ export function parseWidgetInput(
         locale: c.locale,
         market,
         defaults,
-        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`)
+        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`/`#rrggbbaa`)
         ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
         // modo, agrupamento, atualização e dados extras: só na lista de jogos, e só chaves conhecidas
         ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),

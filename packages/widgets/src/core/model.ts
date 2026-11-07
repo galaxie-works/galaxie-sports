@@ -79,7 +79,7 @@ export const STANDINGS_ZONE_TONES = [
   'relegation',
 ] as const;
 export type StandingsZoneTone = (typeof STANDINGS_ZONE_TONES)[number];
-/** Cor de cada faixa (`#rrggbb`); o que faltar usa `DEFAULT_ZONE_COLORS`. */
+/** Cor de cada faixa (`#rrggbb` ou `#rrggbbaa`); o que faltar usa `DEFAULT_ZONE_COLORS`. */
 export type StandingsZoneColors = Partial<Record<StandingsZoneTone, string>>;
 
 /** Opções da tabela salvas no Builder. */
@@ -958,9 +958,10 @@ export function standingsZoneTone(description: string): StandingsZoneTone | null
   return null;
 }
 
-const ZONE_HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa`. */
+const ZONE_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 
-/** Cor CSS da faixa: a escolhida no Builder (só `#rrggbb`), senão a padrão; zona desconhecida fica neutra. */
+/** Cor CSS da faixa: a escolhida no Builder (`#rrggbb` ou `#rrggbbaa`), senão a padrão; zona desconhecida fica neutra. */
 export function standingsZoneColor(
   tone: StandingsZoneTone | null,
   colors?: StandingsZoneColors | undefined,
@@ -972,7 +973,7 @@ export function standingsZoneColor(
 }
 
 /**
- * Opções da tabela vindas de fora (banco, navegador, JSON do embed): só faixas conhecidas com `#rrggbb`
+ * Opções da tabela vindas de fora (banco, navegador, JSON do embed): só faixas conhecidas com `#rrggbb`/`#rrggbbaa`
  * (minúsculo) e `showLegend` booleano. Nada aproveitável → undefined.
  */
 export function parseStandingsOptions(raw: unknown): StandingsOptions | undefined {
@@ -1256,11 +1257,27 @@ function parseHex(color: string): [number, number, number] | null {
   return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
 }
 
-/** Texto legível sobre a cor primária (luminância relativa WCAG). */
-export function readableOn(color: string): string {
+/** Opacidade de um hex `#rgba`/`#rrggbbaa` (0–1); 1 para cor opaca ou outro formato. */
+function hexAlpha(color: string): number {
+  const hex = color.trim().replace(/^#/, '');
+  const a = hex.length === 4 ? hex[3]! + hex[3]! : hex.length === 8 ? hex.slice(6) : null;
+  if (!a || !/^[0-9a-f]{2}$/i.test(a)) return 1;
+  return parseInt(a, 16) / 255;
+}
+
+/**
+ * Texto legível sobre a cor primária (luminância relativa WCAG). Primária com transparência
+ * (`#rrggbbaa`) é misturada sobre `backdrop` (o fundo do widget) antes do cálculo.
+ */
+export function readableOn(color: string, backdrop?: string): string {
   const rgb = parseHex(color);
   if (!rgb) return '#ffffff';
-  const [r, g, b] = rgb.map((v) => {
+  const alpha = hexAlpha(color);
+  const under = alpha < 1 && backdrop ? parseHex(backdrop) : null;
+  const mixed = under
+    ? (rgb.map((v, i) => v * alpha + under[i]! * (1 - alpha)) as [number, number, number])
+    : rgb;
+  const [r, g, b] = mixed.map((v) => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   }) as [number, number, number];
@@ -1274,7 +1291,7 @@ export function themeToCssVars(theme: WidgetTheme): GsCssVars {
   const radius = Number.isFinite(theme.radius) ? Math.min(Math.max(theme.radius, 0), 32) : 12;
   return {
     '--gs-primary': theme.primary,
-    '--gs-primary-foreground': readableOn(theme.primary),
+    '--gs-primary-foreground': readableOn(theme.primary, theme.background),
     '--gs-background': theme.background,
     '--gs-surface': theme.surface,
     '--gs-foreground': theme.foreground,

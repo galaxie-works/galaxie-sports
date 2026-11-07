@@ -18,7 +18,8 @@ import { cn } from '@/lib/utils';
 const COLOR_KEYS = ['primary', 'background', 'surface', 'foreground', 'mutedForeground', 'border'] as const;
 type ColorKey = (typeof COLOR_KEYS)[number];
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa` (o que o tema guarda). */
+const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 
 /** Opção escolhida nos grupos de densidade e modo (o padrão do toggle some no tema escuro). */
 const PRESSED = 'data-[pressed]:border-primary/60 data-[pressed]:bg-primary/15 data-[pressed]:text-primary';
@@ -37,7 +38,7 @@ const COLOR_SWATCHES = [
 
 /**
  * Campo de cor do ReUI: digita-se o código (hex, rgb(), hsl(), oklch() ou nome CSS) e o quadradinho abre o
- * seletor completo. O valor sai sempre como hexadecimal de 6 dígitos (sem opacidade, que o tema não guarda).
+ * seletor completo, com opacidade. O valor sai como `#rrggbb` (opaco) ou `#rrggbbaa` (com transparência).
  */
 export function ColorField({
   id,
@@ -57,10 +58,14 @@ export function ColorField({
       <ColorPicker
         id={id}
         value={value}
+        alpha
         swatches={COLOR_SWATCHES}
         i18n={{ labels: t.common.colorPicker }}
         onValueChange={(next) => {
-          if (next && HEX.test(next)) onChange(next.toLowerCase());
+          if (!next || !HEX.test(next)) return;
+          const hex = next.toLowerCase();
+          // opaco volta a 6 dígitos: o mesmo valor dos temas salvos antes da transparência
+          onChange(hex.length === 9 && hex.endsWith('ff') ? hex.slice(0, 7) : hex);
         }}
       >
         <ColorPickerInput />
