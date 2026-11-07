@@ -3,7 +3,7 @@
 > Data: **2026-11-07**. Mercados: América Latina, mundo hispânico e, em breve, EUA e Canadá.
 > Épico: #989, label `Cosmos AI`. Estudos irmãos: [Comunidades](comunidades.md), Chat ao vivo, Gamificação e Shop the game.
 > Base: a Suzette, assistente de IA com carteira de créditos do Only Chefs 3 (protótipo da mesma empresa).
-> Política editorial: nenhum cliente é citado pelo nome; preços, custos e condições comerciais ficam fora deste documento.
+> Política editorial: nenhum cliente é citado pelo nome.
 
 ---
 
@@ -104,6 +104,32 @@ flowchart LR
 | Saldo zerado | Aviso com Recarregar | Todas as salas em regras + fila; o chat segue no ar |
 
 Créditos de teste vencem em 90 dias; créditos comprados não vencem enquanto o contrato estiver ativo.
+
+### Preços e custos
+
+**Do token ao crédito.** Cada uso registra tokens de entrada, entrada em cache e saída. O custo real no provedor (preço por milhão de tokens do modelo, convertido em reais a uma cotação fixa operacional) vira créditos. Créditos cobrados = maior entre (custo × multiplicador de margem ÷ valor do crédito) e o mínimo da função. O multiplicador fica em 1 por padrão; a margem está no preço do pacote. Contratos grandes podem ter multiplicador próprio e fatura mensal no lugar do pré-pago.
+
+**Valor do crédito.** Na Suzette, 1 crédito = 1/25 de uma ação média (2.000 tokens de entrada + 800 de saída), cerca de R$ 0,0003 de provedor. Na Cosmos, 1 crédito = 1/10 dessa ação, cerca de R$ 0,00075 de provedor. Os 250 créditos de teste rendem umas 25 ações ou cerca de 150 dúvidas de moderação, contra umas 10 ações na Suzette.
+
+**Pacotes em reais (Brasil e Latam), mesma tabela da Suzette:**
+
+| Pacote | Créditos | Preço | Custo de provedor | Margem bruta sobre o provedor |
+| --- | --- | --- | --- | --- |
+| Essencial | 5.000 | R$ 49 | ~R$ 3,75 | ~13× |
+| Pro | 15.000 | R$ 99 | ~R$ 11,25 | ~9× |
+| Turbo | 40.000 | R$ 199 | ~R$ 30 | ~6,6× |
+
+Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai 3,5%, antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
+
+**EUA e Canadá:** tabela própria em dólar (decidido em 07/11), com os mesmos três tamanhos de pacote. Valores a definir.
+
+**Cobrança pelo Stripe da Galaxie Works LLC, para todos os países (decidido em 07/11):**
+
+- **Pix funciona.** Uma conta do Stripe nos EUA aceita Pix de clientes no Brasil (processamento pelo parceiro EBANX) e recebe em dólar, em até 2 dias úteis.
+- **IOF de 3,5%.** Como é compra internacional, o banco do cliente cobra 3,5% de IOF. A LLC absorve esse valor (`amount_includes_iof = always`), para o preço anunciado ser o preço pago.
+- **Limites.** Cada cliente brasileiro paga até US$ 3.000 por dia e US$ 10.000 por mês a uma empresa de fora. Os pacotes cabem com folga; contratos grandes vão por fatura.
+- **Fatura do banco mostra EBANX,** não Galaxie. O recibo precisa dizer isso para evitar contestação.
+- **Sem nota fiscal brasileira.** Para cliente empresa no Brasil, pagar a LLC é importação de serviço e pode gerar impostos do lado dele. Confirmar com o contador antes de vender para portais brasileiros.
 
 ## 4. A Cosmos no app todo
 
