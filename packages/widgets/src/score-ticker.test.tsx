@@ -283,6 +283,33 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(vi.mocked(fetchImpl).mock.calls.length).toBe(first);
   });
 
+  it('rolando, a faixa entra no Tab e para com o foco do teclado, como com o mouse', async () => {
+    // jsdom não mede: a lista "não cabe" na largura e a faixa passa a rolar
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(2000);
+    const client = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(500);
+    try {
+      const { container } = setup(<ScoreTicker />);
+      await vi.waitFor(() => expect(container.querySelector('[data-running]')).toBeTruthy());
+      const viewport = container.querySelector<HTMLElement>('.gs-ticker-viewport')!;
+      expect(viewport.tabIndex).toBe(0);
+      viewport.focus();
+      expect(document.activeElement).toBe(viewport);
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
+    expect(WIDGET_CSS).toContain(
+      '.gs-ticker-viewport:hover .gs-ticker-track,.gs-ticker-viewport:focus-within .gs-ticker-track{animation-play-state:paused}',
+    );
+  });
+
+  it('cabendo na largura, a faixa não rola e não entra no Tab', async () => {
+    const { container } = setup(<ScoreTicker />);
+    await vi.waitFor(() => expect(container.querySelector('.gs-ticker-item')).toBeTruthy());
+    expect(container.querySelector('[data-running]')).toBeNull();
+    expect(container.querySelector('.gs-ticker-viewport')!.hasAttribute('tabindex')).toBe(false);
+  });
+
   it('letra proporcional à largura, parada com "reduzir movimento" e emenda sem salto', () => {
     // fallback sem var(): navegador de TV sem cqw/clamp fica com 22px (e não com a letra herdada)
     expect(WIDGET_CSS).toMatch(/\.gs-ticker\{[^}]*font-size:22px;/);

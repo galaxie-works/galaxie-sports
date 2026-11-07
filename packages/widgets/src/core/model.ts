@@ -1404,7 +1404,8 @@ export const WIDGET_CSS = `
 .gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
 .gs-ticker-track{display:flex;width:max-content}
 .gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
-.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:hover .gs-ticker-track,.gs-ticker-viewport:focus-within .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:focus-visible{outline:2px solid var(--gs-primary);outline-offset:-2px}
 @keyframes gs-ticker{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
 .gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
