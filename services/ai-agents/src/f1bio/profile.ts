@@ -26,6 +26,7 @@ import {
 import {
   checkFacts,
   detectLanguage,
+  languageOf,
   detectPromptInjection,
   FactSheetBuilder,
   findForbiddenTerms,
@@ -410,8 +411,11 @@ function textFindings(
   const prose = /\n\s*\n/.test(text) ? checkParagraphs(text) : checkProse(text);
   if (prose?.level === 'error') all('lyric_like', `cara de letra de música (${prose.reason})`);
   const lang = detectLanguage(text);
-  if (lang && lang !== (locale === 'pt-BR' ? 'pt' : 'es'))
-    all('wrong_language', `texto em ${lang === 'pt' ? 'português' : 'espanhol'}, não no idioma do arquivo`);
+  if (lang && lang !== languageOf(locale))
+    all(
+      'wrong_language',
+      `texto em ${({ pt: 'português', es: 'espanhol', en: 'inglês' } as const)[lang]}, não no idioma do arquivo`,
+    );
   // marcador de citação do passo de estruturação ("[S1]"): fica no texto, destacado para o revisor tirar
   for (const m of text.matchAll(/\[S\d+(?:\s*[,;]\s*S?\d+)*\]/g))
     out.push(
