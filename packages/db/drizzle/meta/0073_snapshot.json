@@ -1,6 +1,6 @@
 {
-  "id": "d4031879-b1c1-4527-9cec-87a78bb2f693",
-  "prevId": "7d332599-156a-4d6a-b08b-5480636f1e6f",
+  "id": "4c949baa-abc5-4dc5-b51e-871f7480746f",
+  "prevId": "bfb8558b-3e36-4f4c-b0d3-2ced676cda78",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -188,6 +188,39 @@
           "columns": [
             {
               "expression": "sport",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"last_seen_at\", \"fetched_at\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "api_response_endpoint_seen_idx": {
+          "name": "api_response_endpoint_seen_idx",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sport",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "endpoint",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

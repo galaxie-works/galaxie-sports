@@ -165,6 +165,23 @@ groups:
           summary: 'Nada novo no raw do futebol há {{ $value | humanizeDuration }}'
           description: 'Verifique o job sync-daily (ops.job_run, logs do ingestor) e a cota DAILY.'
 
+      # Mapa de frescor (docs/03 §11.1, packages/observability/src/metrics/raw-cadence.ts): cada endpoint da
+      # api-sports tem um job e um período; a última busca dele no raw mais velha que o período + 12 h quer dizer
+      # que o job parou ou que o endpoint saiu da fila (o /sidelined ficou 30 dias sem busca antes deste alerta).
+      # max/min por (sport, endpoint): a API roda em mais de uma instância durante o rolling swap.
+      - alert: RawEndpointOverdue
+        expr: >-
+          (time() - max by (sport, endpoint) (galaxie_raw_endpoint_last_fetched_timestamp_seconds))
+            > on (sport, endpoint) group_left (job_name)
+          max by (sport, endpoint, job_name) (galaxie_raw_endpoint_max_age_seconds)
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            {{ $labels.sport }} {{ $labels.endpoint }}: {{ if gt $value 1e9 }}nenhuma busca no raw{{ else }}sem busca há {{ $value | humanizeDuration }}{{ end }}
+          description: 'Quem renova é o job {{ $labels.job_name }}. Veja ops.job_run e ops.sync_cursor do endpoint, a cota DAILY (governor) e o mapa de frescor em docs/03 §11.1.'
+
   - name: galaxie-live
     rules:
       # O intervalo esperado é um placeholder (LIVE_POLL_INTERVAL_SECONDS) até o Live Scheduler publicar o intervalo dinâmico.
