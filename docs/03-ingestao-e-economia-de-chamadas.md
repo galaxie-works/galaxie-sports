@@ -484,8 +484,8 @@ que é a fonte do alerta.
 | `/fixtures/rounds?dates=true` | 7 dias | `sync:mirror` | raw |
 | `/teams?league&season` | 7 dias (demais: 14) | `sync:mirror` | `core.participant`, `core.venue` |
 | `/venues?country` | 30 dias | `sync:mirror` | raw |
-| `/predictions?fixture` | 1 dia (jogos das próximas 48 h, tier ≤ 2) | `sync:mirror` | raw (normalização: frente de palpites e odds) |
-| `/odds?fixture` | 1 dia (idem) | `sync:mirror` | raw (idem) |
+| `/predictions?fixture` | 1 dia por jogo das próximas 48 h, tier ≤ 2 (alerta: 7 dias, pela pausa de calendário) | `sync:mirror` | raw (normalização: frente de palpites e odds) |
+| `/odds?fixture` | idem | `sync:mirror` | raw (idem) |
 | `/teams/statistics?league&season&team` | 7 dias (tier 2: 14) | `sync:mirror` | raw (normalização: frente de estatísticas de time) |
 | `/fixtures/headtohead` (clássicos) | 30 dias | `sync:mirror` | `core.event` |
 | Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw |

@@ -214,7 +214,11 @@ export async function buildRotationRequests(
     const staleBefore = new Date(now.getTime() - period);
     const times = item.cursors.map((c) => states.get(cursorId(c))?.completedAt?.getTime() ?? -Infinity);
     const age = Math.min(...times);
-    if (age >= today) renewedToday += 1;
+    if (age >= today) {
+      renewedToday += 1;
+      // a vaga do ritmo vale por dia e por chave: reexecutar no mesmo dia desconta o que esta chave já renovou
+      if (shareBy) need.set(shareBy(item), (need.get(shareBy(item)) ?? 0) - 1);
+    }
     if (age >= staleBefore.getTime()) continue;
     aged.push({ item: { ...item, staleBefore }, age });
   }
@@ -225,13 +229,13 @@ export async function buildRotationRequests(
     .sort((a, b) => a.age - b.age || a.i - b.i)
     .map((a) => a.item);
   if (!shareBy) return sorted.slice(0, limit);
-  const paced = new Map([...need].map(([k, v]) => [k, Math.ceil(v)] as const));
+  const paced = new Map([...need].map(([k, v]) => [k, Math.max(0, Math.ceil(v))] as const));
   return pacedShare(sorted, shareBy, paced, limit);
 }
 
 /**
- * Cada chave leva até a sua vaga (`paced`, proporcional quando a soma passa do limite), na ordem dada; o que
- * sobrar do limite vai em revezamento (`roundRobin`) entre as chaves que ainda têm item.
+ * Cada chave leva até a sua vaga (`paced`, proporcional quando a soma passa do limite), na ordem dada e com as
+ * chaves em revezamento; o que sobrar do limite vai em revezamento (`roundRobin`) entre as chaves que ainda têm item.
  */
 export function pacedShare<T>(
   items: T[],
@@ -252,7 +256,9 @@ export function pacedShare<T>(
       first.push(item);
     } else rest.push(item);
   }
-  return [...first, ...roundRobin(rest, key, limit - first.length)];
+  // vagas em revezamento: execução cortada no meio (--max-chamadas, cota, erro do fornecedor) não deixa o último
+  // endpoint da lista sem nada
+  return [...roundRobin(first, key, first.length), ...roundRobin(rest, key, limit - first.length)];
 }
 
 /** Revezamento entre as chaves (na ordem da 1ª aparição), cada uma na ordem dada, até o limite. */

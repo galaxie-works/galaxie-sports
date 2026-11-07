@@ -63,8 +63,10 @@ export const RAW_CADENCE: readonly RawCadence[] = [
   football('/fixtures/rounds', 7, 'sync:mirror'),
   football('/teams', 7, 'sync:mirror'),
   football('/venues', 30, 'sync:mirror'),
-  football('/predictions', 1, 'sync:mirror'),
-  football('/odds', 1, 'sync:mirror'),
+  // por jogo das próximas 48 h (tier ≤ 2): numa pausa de calendário (data FIFA) o espelho não tem o que buscar; o
+  // alerta olha uma semana, não o dia do jogo
+  football('/predictions', 7, 'sync:mirror'),
+  football('/odds', 7, 'sync:mirror'),
   football('/teams/statistics', 7, 'sync:mirror'),
   football('/fixtures/headtohead', 30, 'sync:mirror'),
   // referência

@@ -198,6 +198,22 @@ describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
     );
     // vaga pelo ritmo: /trophies 6 ÷ 30 dias → 1/dia; /sidelined 6 ÷ 2 dias → 3/dia
     expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/sidelined', '/sidelined']);
+    // reexecução no mesmo dia (limite 5 − 3 já renovados = 2): a vaga do /sidelined já foi usada hoje, a do
+    // /trophies (1) não; a sobra vai em revezamento a partir do /trophies
+    await h.cursors.complete(
+      picked.filter((p) => p.endpoint === '/sidelined').flatMap((p) => p.cursors),
+      {},
+      new Date(t),
+    );
+    const again = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      5,
+      undefined,
+      (item) => item.endpoint,
+    );
+    expect(again.map((p) => p.endpoint)).toEqual(['/trophies', '/trophies']);
     // sem a fatia, a ordem da lista manda: só /trophies
     const plain = await buildRotationRequests([...trophies, ...sidelined], h.cursors, new Date(t), 4);
     expect(new Set(plain.map((p) => p.endpoint))).toEqual(new Set(['/trophies']));
@@ -218,6 +234,8 @@ describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
     ]);
     const picked = pacedShare(items, (x) => x[0]!, paced, 10);
     expect(picked.filter((x) => x.startsWith('s'))).toHaveLength(6);
+    // em revezamento: cortado depois de 5, o /sidelined (último da lista) já levou a sua
+    expect(picked.slice(0, 5).map((x) => x[0])).toEqual(['a', 'b', 'c', 'd', 's']);
     expect(picked).toHaveLength(10);
     // vaga maior que o limite: proporcional
     const tight = pacedShare(items, (x) => x[0]!, paced, 5);
