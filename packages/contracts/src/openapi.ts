@@ -53,6 +53,7 @@ import {
 } from './where-to-watch.js';
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
+import { CompetitionLeaders, LeadersQuery } from './leaders.js';
 import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -279,9 +280,25 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           description:
             'Campeão de cada edição, da mais recente para trás, a partir da lista de campeões importada e ' +
             'conferida (Wikidata, com correções curadas). `ranking` traz quem tem mais títulos e só vem quando a ' +
-            'lista está completa, sem ano faltando e com todo campeão no catálogo. Com `runner_up=true`, o vice de cada edição sai da final da ' +
-            'temporada ou do 2º lugar da tabela única, quando o banco tem a temporada e o campeão bate com ela. ' +
+            'lista está completa, sem ano faltando; o campeão sem time no catálogo (clube extinto) aparece pelo nome ' +
+            'do Wikidata. Com `runner_up=true`, o vice de cada edição sai da final da temporada ou do 2º lugar da ' +
+            'tabela única encerrada, quando o banco tem a temporada e o campeão bate com ela. ' +
             'Competição sem lista de campeões devolve 200 com as listas vazias. Cache de 24 h.',
+        },
+      },
+      '/v1/competitions/{id}/seasons/{season}/leaders': {
+        get: {
+          ...getOp(
+            'Artilharia e líderes da temporada: gols, assistências ou cartões',
+            'Catálogo',
+            CompetitionLeaders,
+            { path: StandingsParams, query: LeadersQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Soma dos números de cada jogador no campeonato e temporada (`players?league&season` do fornecedor), ' +
+            'com o time pelo qual ele mais jogou e o escudo. Por enquanto só o futebol tem esses números; nos outros ' +
+            'esportes `data` vem vazio. Cache de 1 h.',
         },
       },
       '/v1/competitions/{id}/context': {

@@ -33,6 +33,8 @@ import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
 
+import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
+
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
   match_timeline: MatchTimelineProps;
@@ -66,6 +68,7 @@ export interface WidgetPropsByKind {
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
   lineups: LineupsProps;
+  competition_leaders: CompetitionLeadersProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -103,7 +106,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'Countdown'
     | 'TeamSquad'
     | 'PlayerProfile'
-    | 'Lineups';
+    | 'Lineups'
+    | 'CompetitionLeaders';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -765,6 +769,34 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['view', 'team', 'showSubstitutes', 'showCoach'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
+    sports: FOOTBALL_ONLY,
+  },
+  competition_leaders: {
+    kind: 'competition_leaders',
+    component: 'CompetitionLeaders',
+    registryComponent: 'GalaxieCompetitionLeaders',
+    name: {
+      'pt-BR': 'Artilharia e líderes',
+      es: 'Goleadores y líderes',
+      en: 'Top scorers and leaders',
+    },
+    description: {
+      'pt-BR': 'Artilheiros, líderes de assistências ou de cartões do campeonato, com o escudo do time.',
+      es: 'Goleadores, líderes de asistencias o de tarjetas de la competición, con el escudo del equipo.',
+      en: 'Top scorers, assist leaders or most-booked players in the competition, with the team crest.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: [
+      'season',
+      'category',
+      'limit',
+      'showPhoto',
+      'showTeam',
+      'showAppearances',
+      'highlightTeamId',
+    ],
+    exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
+    polling: false,
     sports: FOOTBALL_ONLY,
   },
 };

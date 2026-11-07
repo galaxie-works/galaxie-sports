@@ -28,6 +28,7 @@ import {
   CountryAthletes,
   MedalHistory,
   ChampionsGallery,
+  CompetitionLeaders,
   PlayerProfile,
   Lineups,
   PREVIEW_IDS,
@@ -260,6 +261,8 @@ function PreviewWidget({
         return <MedalHistory {...o} />;
       case 'champions_gallery':
         return <ChampionsGallery {...o} {...WIDGET_CATALOG.champions_gallery.exampleProps} />;
+      case 'competition_leaders':
+        return <CompetitionLeaders {...WIDGET_CATALOG.competition_leaders.exampleProps} {...o} />;
       case 'countdown':
         return (
           <Countdown
@@ -320,6 +323,8 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={entity.id} />;
     case 'countdown':
       return <Countdown {...o} eventId={entity.id} />;
     case 'player_profile':

@@ -19,6 +19,7 @@ export * from './explore.js';
 export * from './racing.js';
 export * from './driver-profile.js';
 export * from './champions.js';
+export * from './leaders.js';
 export { buildOpenApiDocument, type OpenApiOptions } from './openapi.js';
 export {
   createGalaxieClient,

@@ -3,7 +3,13 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WIDGET_CATALOG, widgetKindSupportsSport } from './catalog.js';
-import { DEFAULT_THEMES, WIDGET_CSS, countdownParts, type WidgetLocale } from './core/model.js';
+import {
+  DEFAULT_THEMES,
+  WIDGET_CSS,
+  countdownParts,
+  watchRefreshMs,
+  type WidgetLocale,
+} from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { optionProps, parseWidgetOptions } from './options.js';
@@ -37,6 +43,42 @@ const units = (container: HTMLElement) =>
     u.getAttribute('data-unit'),
     u.querySelector('strong')?.textContent,
   ]);
+
+const DAY = 86_400_000;
+
+/** Fetch de prévia com campos trocados num evento (`/v1/events/:id`). */
+function withPatchedEvent(base: typeof fetch, id: string, patch: Record<string, unknown>): typeof fetch {
+  return async (input, init) => {
+    const res = await base(input, init);
+    if (!new URL(String(input)).pathname.endsWith(`/v1/events/${id}`)) return res;
+    const body = (await res.json()) as Record<string, unknown>;
+    return new Response(JSON.stringify({ ...body, ...patch }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+}
+
+describe('watchRefreshMs', () => {
+  const now = Date.parse('2026-11-07T12:00:00Z');
+  const at = (ms: number) => new Date(now + ms).toISOString();
+  it('5 min nas últimas 24 h; para depois do início', () => {
+    expect(watchRefreshMs({ status: 'scheduled', starts_at: at(3 * 3_600_000) }, false, now)).toBe(300_000);
+    expect(watchRefreshMs({ status: 'scheduled', starts_at: at(-60_000) }, false, now)).toBe(300_000);
+    expect(watchRefreshMs({ status: 'starting', starts_at: at(-60_000) }, false, now)).toBe(300_000);
+    expect(watchRefreshMs({ status: 'live', starts_at: at(-60_000) }, false, now)).toBeNull();
+  });
+  it('jogo distante: acorda na janela de 24 h, no máximo a cada 6 h (1 h "a confirmar")', () => {
+    expect(watchRefreshMs({ status: 'scheduled', starts_at: at(21 * DAY) }, false, now)).toBe(6 * 3_600_000);
+    expect(watchRefreshMs({ status: 'scheduled', starts_at: at(21 * DAY) }, true, now)).toBe(3_600_000);
+    const wake = watchRefreshMs(
+      { id: 'abc', status: 'scheduled', starts_at: at(DAY + 30 * 60_000) },
+      false,
+      now,
+    )!;
+    expect(wake).toBeLessThanOrEqual(30 * 60_000);
+    expect(wake).toBeGreaterThan(28 * 60_000 - 1);
+  });
+});
 
 describe('countdownParts', () => {
   it('arredonda para cima: zera só na hora do jogo', () => {
@@ -157,9 +199,55 @@ describe('Countdown', () => {
     );
   });
 
-  it('onde assistir é reconsultado enquanto a contagem está na tela', async () => {
+  it('jogo a 21 dias: o onde assistir não é reconsultado em 5 minutos', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { fetchImpl } = setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />);
+    const startsAt = new Date(Date.now() + 21 * DAY).toISOString();
+    const fetchImpl = vi.fn(
+      withPatchedEvent(createPreviewFetch(), PREVIEW_IDS.scheduledEvent, { starts_at: startsAt }),
+    );
+    setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />, { fetchImpl });
+    await screen.findByText('Onde assistir');
+    const watchCalls = () =>
+      fetchImpl.mock.calls.filter(([url]) => String(url).includes('/where-to-watch')).length;
+    expect(watchCalls()).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 1000);
+    });
+    expect(watchCalls()).toBe(1);
+  });
+
+  it('no máximo 4 canais na contagem', async () => {
+    const base = createPreviewFetch();
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const res = await base(input, init);
+      if (!String(input).includes('/where-to-watch')) return res;
+      const body = (await res.json()) as { options: Array<Record<string, unknown>> };
+      const first = body.options[0]!;
+      const options = Array.from({ length: 6 }, (_, i) => ({
+        ...first,
+        id: `opt-${i}`,
+        provider: `Canal ${i + 1}`,
+        provider_id: `canal_${i + 1}`,
+        channel: null,
+      }));
+      return new Response(JSON.stringify({ ...body, options }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    const { container } = setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />, { fetchImpl });
+    await screen.findByText('Onde assistir');
+    const chips = container.querySelectorAll('[data-gs-countdown-watch] .gs-chip');
+    expect(chips).toHaveLength(4);
+    expect(screen.queryByText('Canal 5')).toBeNull();
+  });
+
+  it('onde assistir é reconsultado de 5 em 5 minutos nas últimas 24 h', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const startsAt = new Date(Date.now() + 3 * 3_600_000).toISOString();
+    const fetchImpl = vi.fn(
+      withPatchedEvent(createPreviewFetch(), PREVIEW_IDS.scheduledEvent, { starts_at: startsAt }),
+    );
+    setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />, { fetchImpl });
     await screen.findByText('Onde assistir');
     const watchCalls = () =>
       fetchImpl.mock.calls.filter(([url]) => String(url).includes('/where-to-watch')).length;

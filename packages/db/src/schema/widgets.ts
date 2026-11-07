@@ -35,6 +35,7 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'champions_gallery',
+  'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',

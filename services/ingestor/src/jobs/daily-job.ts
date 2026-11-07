@@ -1,4 +1,10 @@
-import type { ApiSport, PlanLimits, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
+import {
+  requestHash,
+  type ApiSport,
+  type PlanLimits,
+  type PlanRules,
+  type ProviderStatus,
+} from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
 import {
   compareCompetitions,
@@ -323,25 +329,26 @@ async function playerStatsSeasons(
   limits: PlanLimits,
   now: Date,
 ): Promise<PlayerStatsSeason[]> {
+  const today = utcDate(now);
   const wanted = seasonsInPlay(comps, limits, now)
-    .filter((x) => covers(x.season.coverage, 'players'))
+    // a próxima edição entra na relista antes de começar, e no dia da estreia ainda não há jogo encerrado: os
+    // números viriam zerados
+    .filter(
+      (x) => covers(x.season.coverage, 'players') && (!x.season.startDate || x.season.startDate < today),
+    )
     .map((x) => ({
       league: x.competition.leagueId,
       season: x.season.year,
       period: PLAYER_STATS_PERIOD_DAYS[x.competition.tier] ?? PLAYER_STATS_DEFAULT_PERIOD_DAYS,
       pages: 1,
     }));
-  if (!wanted.length) return [];
-  const byKey = new Map<string, PlayerStatsSeason>(wanted.map((w) => [`${w.league}|${w.season}`, w]));
-  for await (const e of raw.latest({
-    sport: 'football',
-    endpoint: '/players',
-    has: ['league', 'season'],
-    where: { page: '1' },
-  })) {
-    const w = byKey.get(`${e.params.league}|${e.params.season}`);
-    if (w) w.pages = Math.max(1, e.paging?.total ?? 1);
-  }
+  // só o `paging` da página 1 de cada temporada pedida, pelo request hash (índice do raw), sem o corpo
+  const hashOf = (w: PlayerStatsSeason) => {
+    const p1 = playerStatsPage(w, 1);
+    return requestHash('api-sports', p1.sport, p1.endpoint, p1.params);
+  };
+  const paging = await raw.latestPaging('football', '/players', wanted.map(hashOf));
+  for (const w of wanted) w.pages = Math.max(1, paging.get(hashOf(w))?.total ?? 1);
   return wanted;
 }
 
@@ -392,7 +399,9 @@ export async function buildPlayerStatsFirstPages(
   const budget = limit - spentToday(seasons, states, now);
   const due: { item: PlannedRequest; age: number; i: number }[] = [];
   seasons.forEach((s, i) => {
-    const staleBefore = new Date(now.getTime() - s.period * DAY_MS);
+    // pelo dia UTC, não pela hora: a passada aberta no dia D volta no dia D + período, qualquer que seja o horário
+    // de cada execução (a de "há 3 dias" exatos cairia segundos antes da conclusão da anterior)
+    const staleBefore = new Date(startOfUtcDay(now).getTime() - (s.period - 1) * DAY_MS);
     const item = playerStatsPage(s, 1, staleBefore);
     const age = states.get(cursorId(item.cursors[0]!))?.completedAt?.getTime() ?? -Infinity;
     if (age < staleBefore.getTime()) due.push({ item, age, i });

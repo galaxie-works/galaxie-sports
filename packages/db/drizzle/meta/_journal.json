@@ -481,8 +481,15 @@
     {
       "idx": 68,
       "version": "7",
-      "when": 1794019784758,
-      "tag": "0069_campeao_nome",
+      "when": 1794023267854,
+      "tag": "0069_vermelhos_segundo_amarelo",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794027827254,
+      "tag": "0070_campeao_nome",
       "breakpoints": true
     }
   ]

@@ -36,6 +36,7 @@ import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
 import { ChampionsGallery } from '../widgets/champions-gallery.js';
+import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
@@ -194,6 +195,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <MedalHistory {...o} />;
     case 'champions_gallery':
       return <ChampionsGallery {...o} competitionId={competitionId ?? ''} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={competitionId ?? ''} />;
     case 'countdown':
       return <Countdown {...o} eventId={eventId ?? ''} />;
     case 'team_squad':

@@ -43,6 +43,23 @@ describe('checkFacts — resumo', () => {
     expect(checkFacts(text, sheet, 'es-AR')).toEqual([]);
   });
 
+  it('aprova em inglês', () => {
+    const text =
+      "Palmeiras beat Corinthians 4-1 on Rodada 30 of the Serie A. Atacante A scored twice, in the 12' and 90+4', " +
+      "after an own goal from Zagueiro B (45+2') and a penalty converted by Meia A (77'). Reserva B pulled one back in the 81'.";
+    expect(checkFacts(text, sheet, 'en')).toEqual([]);
+  });
+
+  it('inglês: barra placar final errado, número por extenso e autor de gol trocado', () => {
+    expect(checkFacts('Palmeiras won 2-0 against Corinthians.', sheet, 'en').map((x) => x.kind)).toContain(
+      'wrong_result',
+    );
+    expect(checkFacts('Atacante A scored five times.', sheet, 'en').map((x) => x.value)).toContain('five');
+    expect(checkFacts("Lateral A scored in the 12'.", sheet, 'en').map((x) => x.kind)).toContain(
+      'wrong_scorer',
+    );
+  });
+
   it('reprova autor de gol inventado (nome fora dos fatos)', () => {
     const v = checkFacts("Palmeiras 4 a 1. Gabriel Silva marcou aos 12'.", sheet, 'pt-BR');
     expect(v.map((x) => [x.kind, x.value])).toContainEqual(['unknown_name', 'Gabriel Silva']);
@@ -138,6 +155,9 @@ describe('checkFacts — desfecho do confronto', () => {
     expect(outcome('O Palmeiras foi eliminado pelo Corinthians.')).toEqual(['palmeiras']);
     expect(outcome('Corinthians se clasificó a la final.', 'es-AR')).toEqual(['corinthians']);
     expect(outcome('Palmeiras quedó eliminado ante Corinthians.', 'es-AR')).toEqual(['palmeiras']);
+    expect(outcome('Corinthians advanced to the final.', 'en')).toEqual(['corinthians']);
+    expect(outcome('Corinthians are champions of the Libertadores.', 'en')).toEqual(['corinthians']);
+    expect(outcome('Palmeiras were eliminated by Corinthians.', 'en')).toEqual(['palmeiras']);
   });
 
   it('aceita o desfecho certo, com o perdedor como objeto ou em outra oração', () => {
@@ -153,6 +173,13 @@ describe('checkFacts — desfecho do confronto', () => {
     ])
       expect(outcome(text), text).toEqual([]);
     expect(outcome('Palmeiras eliminó a Corinthians y se metió en la final.', 'es-AR')).toEqual([]);
+    for (const text of [
+      'Palmeiras advanced to the final after knocking out Corinthians.',
+      'Corinthians won 2-1 but were eliminated.',
+      'Palmeiras lost to Corinthians but still went through.',
+      'Corinthians did not qualify.',
+    ])
+      expect(outcome(text, 'en'), text).toEqual([]);
   });
 
   it('sem desfecho nos fatos, não checa', () => {
@@ -340,5 +367,27 @@ describe('splitSentences', () => {
       'Fim.',
     ]);
     expect(splitSentences('Venceu. Depois empatou! E agora?')).toHaveLength(3);
+  });
+
+  it('sigla com pontos só encerra a frase quando a seguinte abre frase', () => {
+    expect(splitSentences('Palmeiras busca o tetra; Estudiantes L.P. busca o penta.')).toHaveLength(1);
+    expect(splitSentences('Final contra o Estudiantes L.P. O jogo terminou 2 a 1.')).toEqual([
+      'Final contra o Estudiantes L.P.',
+      'O jogo terminou 2 a 1.',
+    ]);
+  });
+});
+
+describe('checkFacts — inglês comum não é barrado', () => {
+  const s = new FactSheetBuilder().name('Fluminense', 'Vitória', 'Brasileirão Série A').number(3, 34).build();
+
+  it('possessivo, dias, meses e gentílicos', () => {
+    expect(
+      checkFacts(
+        "Fluminense's win over Vitória on Sunday keeps the Brazilian side 3rd in November.",
+        s,
+        'en',
+      ),
+    ).toEqual([]);
   });
 });

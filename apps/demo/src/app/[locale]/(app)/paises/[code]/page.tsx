@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { EntryCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CountryLive } from '@/components/live/country-live';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
@@ -177,11 +179,9 @@ function Fallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
-      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:p-6 lg:grid-cols-3 xl:grid-cols-4">
-        {Array.from({ length: 8 }, (_, i) => (
-          <Skeleton key={i} className="h-20" />
-        ))}
-      </div>
+      <LoadingStatus className="p-4 md:p-6">
+        <EntryCardsSkeleton count={8} />
+      </LoadingStatus>
     </>
   );
 }
