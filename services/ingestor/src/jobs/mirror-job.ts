@@ -125,7 +125,7 @@ export async function rotateGroups(
   const all = groups.flatMap((g) => g.candidates);
   const states = await cursors.load(all.flatMap((c) => c.item.cursors));
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  let left = limit;
+  let left = limit - (opts.force ? 0 : callsSpentToday(all, states, today));
   const out: PlannedRequest[] = [];
   for (const g of groups) {
     const aged: { item: PlannedRequest; age: number; i: number }[] = [];
@@ -135,14 +135,6 @@ export async function rotateGroups(
         const st = states.get(cursorId(ref));
         return !st?.completedAt && attemptsOf(st) >= MAX_ATTEMPTS;
       };
-      // a chamada de hoje conta no orçamento, concluída ou com erro (o erro do fornecedor também gasta cota)
-      const spentToday =
-        !opts.force &&
-        orig.item.cursors.some((ref) => {
-          const st = states.get(cursorId(ref));
-          return (st?.completedAt?.getTime() ?? -Infinity) >= today || triedSince(st, today);
-        });
-      if (spentToday) left -= 1;
       const c = opts.force ? orig : withoutExhausted(orig, exhausted);
       if (!c) return;
       // corte por dia UTC, não por 24 h exatas: o renovado ontem (a qualquer hora) vence hoje no período de 1 dia;
@@ -182,6 +174,33 @@ function withoutExhausted(
   const keepIds = keep.map((ref) => ref.key.replace(/^id=/, ''));
   if (keepIds.some((id) => !ids.split('-').includes(id))) return null;
   return { ...c, item: { ...c.item, params: { ...c.item.params, ids: keepIds.join('-') }, cursors: keep } };
+}
+
+/**
+ * Chamadas ao fornecedor já feitas hoje, contadas pelos cursores e não pelos pedidos de agora: os lotes de `ids` são
+ * remontados a cada execução (a janela de jogos anda), então um pedido de hoje pode não bater com nenhum de agora.
+ * Concluída: uma por `requestHash` (cache não gasta cota). Erro: uma por endpoint e instante da tentativa (o runner
+ * registra o erro de uma chamada em todos os cursores dela de uma vez).
+ */
+function callsSpentToday(
+  candidates: MirrorCandidate[],
+  states: Map<string, { completedAt: Date | null; cursor: Record<string, unknown> | null }>,
+  today: number,
+): number {
+  const calls = new Set<string>();
+  for (const c of candidates)
+    for (const ref of c.item.cursors) {
+      const st = states.get(cursorId(ref));
+      if (!st) continue;
+      if (st.completedAt && st.completedAt.getTime() >= today) {
+        if (st.cursor?.source === 'cache') continue;
+        const hash = st.cursor?.requestHash;
+        calls.add(typeof hash === 'string' ? `ok|${hash}` : `ok|${cursorId(ref)}`);
+      } else if (triedSince(st, today)) {
+        calls.add(`erro|${ref.sport}|${ref.endpoint}|${String(st.cursor?.lastAttemptAt)}`);
+      }
+    }
+  return calls.size;
 }
 
 /** Tentativa com erro registrada a partir de `since` (ms), sem conclusão depois dela. */

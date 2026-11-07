@@ -132,6 +132,41 @@ describe('rotateGroups', () => {
     expect(picked).toHaveLength(1);
   });
 
+  it('chamadas de hoje contadas por pedido feito, não pelos lotes remontados agora', async () => {
+    const cursors = new InMemoryCursorStore();
+    const ref = (id: number) => ({ sport: 'basketball', endpoint: '/x', key: `id=${id}` });
+    // hoje: lote 1–10 (um pedido) e lote 11 (outro); o jogo 1 saiu da janela e o 2–11 virou um lote só
+    await cursors.complete(
+      Array.from({ length: 10 }, (_, i) => ref(i + 1)),
+      { requestHash: 'h1', source: 'network' },
+      now,
+    );
+    await cursors.complete([ref(11)], { requestHash: 'h2', source: 'network' }, now);
+    const refs = Array.from({ length: 10 }, (_, i) => ref(i + 2));
+    const regrouped: MirrorCandidate = {
+      item: plannedRequest(
+        'por-jogo',
+        'basketball',
+        '/x',
+        { ids: refs.map((r) => r.key.slice(3)).join('-') },
+        { cursors: refs },
+      ),
+      periodDays: 7,
+    };
+    const fresh = [cand(1), cand(2)];
+    // orçamento 3: 2 pedidos de hoje (h1 e h2) gastos; sobra 1
+    const picked = await rotateGroups([{ name: 'a', candidates: [regrouped, ...fresh] }], cursors, now, 3);
+    expect(picked).toHaveLength(1);
+    // resposta do cache não gasta cota
+    const cached = new InMemoryCursorStore();
+    await cached.complete([ref(1)], { requestHash: 'h3', source: 'cache' }, now);
+    const one: MirrorCandidate = {
+      item: plannedRequest('por-jogo', 'basketball', '/x', { ids: '1' }, { cursors: [ref(1)] }),
+      periodDays: 7,
+    };
+    expect(await rotateGroups([{ name: 'a', candidates: [one, ...fresh] }], cached, now, 2)).toHaveLength(2);
+  });
+
   it('lote de ids: o id esgotado sai do lote e o jogo novo ainda é buscado', async () => {
     const cursors = new InMemoryCursorStore();
     const refs = ['10', '11'].map((id) => ({ sport: 'basketball', endpoint: '/x', key: `id=${id}` }));
