@@ -169,6 +169,10 @@ services:
       # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
       # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # "Sugerir ou reportar algo" do cabeçalho vira issue numa repo PRIVADA só de sugestões (docs/runbooks/sugestoes-do-app.md):
+      # token próprio, só dessa repo (Issues e Contents: read and write). Vazio, ou repo pública: o formulário responde "indisponível"
+      FEEDBACK_GITHUB_TOKEN: ${FEEDBACK_GITHUB_TOKEN:-}
+      FEEDBACK_GITHUB_REPO: ${FEEDBACK_GITHUB_REPO:-}
     depends_on:
       api:
         condition: service_healthy
