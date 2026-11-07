@@ -18,7 +18,7 @@ O que recomendo:
 
 Sobre a piada do Livelo/Stix: dá para entender a matemática deles e usar a parte saudável (pontos que expiram, pontos + dinheiro). Mas um sistema desenhado para nunca pagar sozinho é exatamente o que o Procon, o CDC e a FTC punem. A FTC multou a dona do Genshin Impact em US$ 20 milhões em janeiro de 2025 por enganar sobre o custo real dos pacotes pagos em moeda virtual. A seção de pontos mostra o modelo que recomendo no lugar.
 
-MVP: motor de conquistas com futebol, basquete e futebol americano em cerca de 2 semanas de desenvolvimento por agentes. O pacote completo, com cartas, pontos e marketplace, fica em cerca de 9 a 11 semanas. A consulta com advogado roda em paralelo e precisa terminar antes de ligar pontos com valor.
+MVP: motor de conquistas com futebol, basquete e futebol americano em 2 a 3 dias de desenvolvimento por agentes Claude de fronteira, com as issues em paralelo. O pacote completo, com cartas, pontos e marketplace, fica em cerca de 2 semanas corridas. O gargalo não é escrever código: é revisão e merge, a geração e curadoria da arte e o portão jurídico, que precisa terminar antes de ligar pontos com valor.
 
 ## De onde vêm os gatilhos
 
@@ -293,14 +293,14 @@ O MVP é só a fase 1: conquistas com níveis, sem nada que tenha valor em dinhe
 
 | Fase | O que entra | Prazo (agentes) | Depende de |
 | --- | --- | --- | --- |
-| 1. Conquistas (MVP) | motor de conquistas, 5 níveis, catálogo comum + futebol, basquete e futebol americano, presença ao vivo, webhooks, widget de estante, painel | ~2 semanas | — |
-| 2. Cartas | coleções, cartas por conquista e por momento, fabricação de emblemas, álbum | ~2 semanas | fase 1 |
+| 1. Conquistas (MVP) | motor de conquistas, 5 níveis, catálogo comum + futebol, basquete e futebol americano, presença ao vivo, webhooks, widget de estante, painel | 2 a 3 dias | — |
+| 2. Cartas | coleções, cartas por conquista e por momento, fabricação de emblemas, álbum | 2 a 3 dias, mais a curadoria da arte | fase 1 |
 | Portão jurídico | revisão dos termos e do kit de regulamento antes de qualquer coisa com valor | em paralelo às fases 1 e 2 | — |
-| 3. Pontos | carteira de pontos, simulador de valor do ponto, troca por recompensas materiais (opcional por cliente) | ~2 semanas | portão jurídico |
-| 4. Marketplace | troca e venda de cartas por pontos, retenção, faixas de preço, antifraude | 2 a 3 semanas | fase 3 |
-| 5. Expansão | demais esportes, kit EUA pela LLC, relatórios | 1 a 2 semanas | — (pode antecipar com cliente americano) |
+| 3. Pontos | carteira de pontos, simulador de valor do ponto, troca por recompensas materiais (opcional por cliente) | ~2 dias | portão jurídico |
+| 4. Marketplace | troca e venda de cartas por pontos, retenção, faixas de preço, antifraude | 3 a 4 dias | fase 3 |
+| 5. Expansão | demais esportes, kit EUA pela LLC, relatórios | ~2 dias por lote de esportes | — (pode antecipar com cliente americano) |
 
-Prazos contam desenvolvimento feito por agentes Claude, uma fase por vez. O parecer jurídico corre em paralelo às fases 1 e 2 e só trava a fase 3. A fase 5 pode entrar antes se um cliente americano aparecer.
+Prazos contam desenvolvimento por agentes Claude de fronteira, com as issues de cada fase em paralelo, como no épico de widgets (#820), que fechou 9 de 15 widgets em cerca de um dia. São estimativas pelo ritmo do projeto, não promessas. O parecer jurídico corre em paralelo às fases 1 e 2 e só trava a fase 3. A fase 5 pode entrar antes se um cliente americano aparecer.
 
 ## Decisões tomadas (Wagner, 07/11/2026)
 
