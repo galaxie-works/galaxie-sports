@@ -13,6 +13,8 @@ A operadora monta o widget com a identidade dela na demo e instala no app dela c
 | `match_stakes`   | `MatchStakes`    | `GalaxieMatchStakes`    | `eventId`           | `/v1/events/{id}` (stakes, `fan_tags`, `cheer`)      |
 | `head_to_head`   | `HeadToHead`     | `GalaxieHeadToHead`     | `eventId`           | `/v1/events/{id}/h2h`                                |
 | `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
+| `team_card`      | `TeamCard`       | `GalaxieTeamCard`       | `teamId`            | `/v1/teams/{id}/overview`                            |
+| `team_squad`     | `TeamSquad`      | `GalaxieTeamSquad`      | `teamId`            | `/v1/teams/{id}/squad`, `/v1/teams/{id}`             |
 | `bracket` | `Bracket` | `GalaxieBracket` | `competitionId` | `/v1/competitions/{id}/seasons/{s}/bracket` |
 
 Sem módulo indicado, a rota é do `core_data`. Uma chave publicável presa a um widget só alcança os módulos do
@@ -64,7 +66,7 @@ lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, 
 ```html
 <script src="https://sports.galaxie.works/embed.js" async></script>
 <galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
-<!-- opcionais: event-id, competition-id, team-id, locale, market -->
+<!-- opcionais: event-id, competition-id, team-id, person-id (Ficha do jogador), locale, market -->
 ```
 
 - O widget desenha num Shadow DOM: o CSS do tema do site não entra e o do widget não sai.

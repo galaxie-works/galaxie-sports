@@ -102,7 +102,7 @@ describe('writer: LLM + validador + retry + fallback', () => {
     const res = await writeLocalizedTexts(await request(llm));
     expect(res.llmCalls).toBe(1);
     expect(res.texts.every((t) => t.origin === 'llm' && t.attempts === 1)).toBe(true);
-    expect(res.texts.map((t) => confidenceOf(t))).toEqual(Array(8).fill(0.9));
+    expect(res.texts.map((t) => confidenceOf(t))).toEqual(Array(AGENT_LOCALES.length).fill(0.9));
     expect(llm.requests[0]!.tier).toBe('standard');
     expect(llm.requests[0]!.schemaName).toBe('localized_texts');
   });

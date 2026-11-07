@@ -3,11 +3,14 @@ import { PREVIEW_IDS } from './fixtures.js';
 import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
 import type { LiveListProps } from './widgets/live-list.js';
+import type { ScoreTickerProps } from './widgets/score-ticker.js';
 import type { MatchCardProps } from './widgets/match-card.js';
+import type { MatchTimelineProps } from './widgets/match-timeline.js';
 import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
 import type { TeamScheduleProps } from './widgets/team-schedule.js';
+import type { TeamCardProps } from './widgets/team-card.js';
 import type { AthleteProfileProps } from './widgets/athlete-profile.js';
 import type { FightCardProps } from './widgets/fight-card.js';
 import type { RaceResultProps } from './widgets/race-result.js';
@@ -24,11 +27,19 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { CountdownProps } from './widgets/countdown.js';
+import type { TeamSquadProps } from './widgets/team-squad.js';
+import type { PlayerProfileProps } from './widgets/player-profile.js';
+import type { LineupsProps } from './widgets/lineups.js';
+
+import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { BracketProps } from './widgets/bracket.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
+  match_timeline: MatchTimelineProps;
   live_list: LiveListProps;
+  score_ticker: ScoreTickerProps;
   standings: StandingsTableProps;
   where_to_watch: WhereToWatchProps;
   ai_context: AiContextProps;
@@ -36,6 +47,7 @@ export interface WidgetPropsByKind {
   related_videos: RelatedVideosProps;
   head_to_head: HeadToHeadProps;
   team_schedule: TeamScheduleProps;
+  team_card: TeamCardProps;
   race_result: RaceResultProps;
   race_weekend: RaceWeekendProps;
   season_calendar: SeasonCalendarProps;
@@ -51,6 +63,11 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  countdown: CountdownProps;
+  team_squad: TeamSquadProps;
+  player_profile: PlayerProfileProps;
+  lineups: LineupsProps;
+  competition_leaders: CompetitionLeadersProps;
   bracket: BracketProps;
 }
 
@@ -59,7 +76,9 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   /** Componente React do pacote. */
   component:
     | 'MatchCard'
+    | 'MatchTimeline'
     | 'LiveList'
+    | 'ScoreTicker'
     | 'StandingsTable'
     | 'WhereToWatch'
     | 'AiContext'
@@ -67,6 +86,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'RelatedVideos'
     | 'HeadToHead'
     | 'TeamSchedule'
+    | 'TeamCard'
     | 'RaceResult'
     | 'RaceWeekend'
     | 'SeasonCalendar'
@@ -82,6 +102,11 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'GamesSchedule'
     | 'CountryAthletes'
     | 'MedalHistory'
+    | 'Countdown'
+    | 'TeamSquad'
+    | 'PlayerProfile'
+    | 'Lineups'
+    | 'CompetitionLeaders'
     | 'Bracket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
@@ -148,6 +173,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: true,
     sports: [...TEAM_SPORTS, 'mma'],
   },
+  match_timeline: {
+    kind: 'match_timeline',
+    component: 'MatchTimeline',
+    registryComponent: 'GalaxieMatchTimeline',
+    name: { 'pt-BR': 'Lance a lance', es: 'Minuto a minuto', en: 'Play by play' },
+    description: {
+      'pt-BR':
+        'Gols, cartões, substituições, VAR e demais lances do jogo, minuto a minuto, atualizando sozinho durante a partida.',
+      es: 'Goles, tarjetas, cambios, VAR y demás jugadas del partido, minuto a minuto, actualizándose solo durante el juego.',
+      en: 'Goals, cards, substitutions, VAR and every other incident, minute by minute, updating itself during the match.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['order', 'types', 'limit', 'showMarkers', 'showAssists', 'showMatch'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
+    sports: TEAM_SPORTS,
+  },
   live_list: {
     kind: 'live_list',
     component: 'LiveList',
@@ -183,6 +225,33 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStakes',
       'showReferee',
       'showPenalties',
+    ],
+    exampleProps: { sport: 'football' },
+    polling: true,
+    sports: [],
+  },
+  score_ticker: {
+    kind: 'score_ticker',
+    component: 'ScoreTicker',
+    registryComponent: 'GalaxieScoreTicker',
+    name: { 'pt-BR': 'Faixa de placares', es: 'Cintillo de marcadores', en: 'Score ticker' },
+    description: {
+      'pt-BR': 'Placares ao vivo correndo numa faixa na parte de baixo da tela, para emissoras e apps de TV.',
+      es: 'Marcadores en vivo corriendo en un cintillo en la parte inferior de la pantalla, para canales y apps de TV.',
+      en: 'Live scores scrolling in a strip along the bottom of the screen, for broadcasters and TV apps.',
+    },
+    requiredProps: [],
+    optionalProps: [
+      'competitionId',
+      'sport',
+      'mode',
+      'speed',
+      'transparent',
+      'showLabel',
+      'showCompetition',
+      'showCrests',
+      'teamName',
+      'limit',
     ],
     exampleProps: { sport: 'football' },
     polling: true,
@@ -331,6 +400,22 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStanding',
       'showCalendar',
     ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: true,
+    sports: TEAM_SPORTS,
+  },
+  team_card: {
+    kind: 'team_card',
+    component: 'TeamCard',
+    registryComponent: 'GalaxieTeamCard',
+    name: { 'pt-BR': 'Cartão do time', es: 'Ficha del equipo', en: 'Team card' },
+    description: {
+      'pt-BR': 'Escudo, forma recente (V/E/D), o próximo jogo e os campeonatos que o time disputa.',
+      es: 'Escudo, forma reciente (G/E/P), el próximo partido y las competiciones que disputa el equipo.',
+      en: 'Crest, recent form (W/D/L), the next match and the competitions the team is playing in.',
+    },
+    requiredProps: ['teamId'],
+    optionalProps: ['showForm', 'formCount', 'showNext', 'showCompetitions', 'competitionsLimit'],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
     sports: TEAM_SPORTS,
@@ -583,6 +668,118 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  countdown: {
+    kind: 'countdown',
+    component: 'Countdown',
+    registryComponent: 'GalaxieCountdown',
+    name: { 'pt-BR': 'Contagem regressiva', es: 'Cuenta regresiva', en: 'Countdown' },
+    description: {
+      'pt-BR':
+        'Tempo até o jogo começar, com escudos, campeonato e onde assistir. Na hora do jogo, vira o placar ao vivo.',
+      es: 'Tiempo hasta que empiece el partido, con escudos, competición y dónde verlo. Al empezar, pasa a ser el marcador en vivo.',
+      en: 'Time left until kick-off, with crests, competition and where to watch. Once the match starts, it turns into the live score.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showWatch', 'showSeconds', 'onStart'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: true,
+    // um lado contra o outro: os coletivos e a luta (na F1 não há mandante e visitante)
+    sports: [...TEAM_SPORTS, 'mma'],
+  },
+  team_squad: {
+    kind: 'team_squad',
+    component: 'TeamSquad',
+    registryComponent: 'GalaxieTeamSquad',
+    name: { 'pt-BR': 'Elenco do time', es: 'Plantel del equipo', en: 'Team squad' },
+    description: {
+      'pt-BR': 'Os jogadores do clube por posição, com foto, número, idade e nacionalidade, e os técnicos.',
+      es: 'Los jugadores del club por posición, con foto, número, edad y nacionalidad, y los entrenadores.',
+      en: "A club's players by position, with photo, shirt number, age and nationality, plus the coaches.",
+    },
+    requiredProps: ['teamId'],
+    optionalProps: [
+      'season',
+      'showPhotos',
+      'groupByPosition',
+      'showNumber',
+      'showAge',
+      'showNationality',
+      'showCoaches',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  player_profile: {
+    kind: 'player_profile',
+    component: 'PlayerProfile',
+    registryComponent: 'GalaxiePlayerProfile',
+    name: { 'pt-BR': 'Ficha do jogador', es: 'Ficha del jugador', en: 'Player profile' },
+    description: {
+      'pt-BR':
+        'Jogador com o clube atual, os números da temporada, os clubes, as temporadas, os títulos e as transferências.',
+      es: 'Jugador con el club actual, los números de la temporada, los clubes, las temporadas, los títulos y los traspasos.',
+      en: 'A player with current club, season numbers, clubs, seasons, trophies and transfers.',
+    },
+    requiredProps: ['personId'],
+    optionalProps: [
+      'season',
+      'showStats',
+      'showClubs',
+      'showSeasons',
+      'showTrophies',
+      'showTransfers',
+      'limit',
+    ],
+    exampleProps: { personId: PREVIEW_IDS.person },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  lineups: {
+    kind: 'lineups',
+    component: 'Lineups',
+    registryComponent: 'GalaxieLineups',
+    name: { 'pt-BR': 'Escalações', es: 'Alineaciones', en: 'Lineups' },
+    description: {
+      'pt-BR':
+        'Os dois times no desenho do campo, com titulares, reservas e técnico, assim que forem divulgados.',
+      es: 'Los dos equipos dibujados en la cancha, con titulares, suplentes y entrenador, apenas se confirman.',
+      en: 'Both teams drawn on the pitch, with starters, substitutes and head coach, as soon as they are announced.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['view', 'team', 'showSubstitutes', 'showCoach'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
+    sports: FOOTBALL_ONLY,
+  },
+  competition_leaders: {
+    kind: 'competition_leaders',
+    component: 'CompetitionLeaders',
+    registryComponent: 'GalaxieCompetitionLeaders',
+    name: {
+      'pt-BR': 'Artilharia e líderes',
+      es: 'Goleadores y líderes',
+      en: 'Top scorers and leaders',
+    },
+    description: {
+      'pt-BR': 'Artilheiros, líderes de assistências ou de cartões do campeonato, com o escudo do time.',
+      es: 'Goleadores, líderes de asistencias o de tarjetas de la competición, con el escudo del equipo.',
+      en: 'Top scorers, assist leaders or most-booked players in the competition, with the team crest.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: [
+      'season',
+      'category',
+      'limit',
+      'showPhoto',
+      'showTeam',
+      'showAppearances',
+      'highlightTeamId',
+    ],
+    exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
+    polling: false,
+    sports: FOOTBALL_ONLY,
   },
   bracket: {
     kind: 'bracket',

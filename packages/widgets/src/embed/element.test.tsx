@@ -14,6 +14,7 @@ import {
 const WIDGET = '01a16029-9283-77d0-b2e5-1d89336b2dbc';
 const SCHEDULE = '01a16029-9283-77d0-b2e5-1d89336b2dbd';
 const VIDEOS = '01a16029-9283-77d0-b2e5-1d89336b2dbe';
+const SQUAD = '01a16029-9283-77d0-b2e5-1d89336b2dbf';
 
 const config = (over: Partial<EmbedConfig> = {}): EmbedConfig => ({
   id: WIDGET,
@@ -39,6 +40,11 @@ const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
     return Response.json(
       config({ id: VIDEOS, kind: 'related_videos', defaults: { eventId: PREVIEW_IDS.finishedEvent } }),
     );
+  if (url === `https://sports.exemplo.test/e/${SQUAD}.json`)
+    return Response.json({
+      ...config({ id: SQUAD, kind: 'team_squad', defaults: { teamId: PREVIEW_IDS.team } }),
+      options: { showCoaches: false, groupByPosition: true, season: 2025 },
+    });
   if (url.includes('/e/')) return Response.json({ error: 'not_found' }, { status: 404 });
   return preview(input, init);
 });
@@ -97,6 +103,18 @@ describe('<galaxie-widget>', () => {
     const calls = fetchMock.mock.calls.map(([u]) => String(u));
     expect(calls.some((u) => u.includes(`/v1/teams/${PREVIEW_IDS.team}/events`))).toBe(true);
     expect(calls.some((u) => u.includes('time-salvo-no-builder'))).toBe(false);
+  });
+
+  it('elenco do time (#825): time salvo e opções do Builder', async () => {
+    document.body.innerHTML = `<${EMBED_TAG} widget="${SQUAD}" key="k"></${EMBED_TAG}>`;
+    const el = document.querySelector(EMBED_TAG)!;
+    await waitFor(() => expect(shadowText(el)).toContain('Goleiros'));
+    expect(shadowText(el)).toContain('Rafael Moura');
+    expect(shadowText(el)).not.toContain('Técnicos');
+    const calls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(
+      calls.some((u) => u.includes(`/v1/teams/${PREVIEW_IDS.team}/squad?`) && u.includes('season=2025')),
+    ).toBe(true);
   });
 
   it('carregar o script de novo não registra o elemento duas vezes', () => {

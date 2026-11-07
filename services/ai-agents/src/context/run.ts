@@ -17,7 +17,7 @@ import {
 import { loadLastFinalBetween } from './history.js';
 import { computeEventStakes } from './stakes.js';
 import {
-  factsHash,
+  localeFactsHashes,
   latestContents,
   latestFactsHashes,
   newRunInfo,
@@ -245,7 +245,9 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         .join(', ');
       const lastFinal = stakes.knockout?.decidesTitle ? await loadLastFinalBetween(db, core) : null;
       const facts = buildScenarioFacts(core, stakes, locales, { lastFinal });
-      const hash = factsHash(facts, SCENARIO_PROMPT_VERSION);
+      const hashes = localeFactsHashes(facts, SCENARIO_PROMPT_VERSION);
+      // só os locales cujos fatos mudaram (ou que faltam, como o `en` na chegada do inglês)
+      let pending: readonly AgentLocale[] = locales;
       if (!opts.force) {
         const llm = usesLlm(priority) ? opts.llm : null;
         const previous = await latestFactsHashes(db, id, 'scenario', {
@@ -254,7 +256,8 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
           // determinístico por orçamento: tenta de novo no mesmo dia se a faixa tiver saldo agora
           ...(llm?.hasRoom ? { hasRoom: (need) => llm.hasRoom!('context', competitionRef, need) } : {}),
         });
-        if (locales.every((l) => previous.get(l) === hash)) {
+        pending = locales.filter((l) => !hashes.isFresh(l, previous.get(l)));
+        if (!pending.length) {
           item.reason = 'fatos inalterados desde a última geração';
           continue;
         }
@@ -264,7 +267,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         continue;
       }
       const written = await writeLocalizedTexts({
-        locales,
+        locales: pending,
         system: scenarioSystemPrompt(),
         userPrompt: (ls) => scenarioUserPrompt(facts, ls),
         factsFor: (l) => scenarioFactSheet(core, facts, chosen, l),
@@ -291,7 +294,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
       ];
       // a recusa do orçamento nunca troca o texto do LLM com os mesmos fatos pelo determinístico
       const texts = written.budgetSkipped
-        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'scenario'), hash)
+        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'scenario'), hashes.isFresh)
         : written.texts;
       if (!texts.length) {
         item.reason = 'orçamento de IA recusou; fica o texto do LLM com os mesmos fatos';
@@ -304,7 +307,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
         kind: 'scenario',
         texts,
         ...(written.budgetRefusal ? { budgetRefusal: written.budgetRefusal } : {}),
-        factsHash: hash,
+        factsHash: hashes.hashOf,
         sources,
         run: newRunInfo({
           llmCalls: written.llmCalls,

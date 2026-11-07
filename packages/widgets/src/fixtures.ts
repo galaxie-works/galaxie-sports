@@ -20,7 +20,12 @@ import type {
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { previewLeaders } from './fixtures-leaders.js';
+import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
+import { previewSquad } from './fixtures-squad.js';
+import { sampleLineups } from './fixtures-lineups.js';
 import { BRACKET_IDS, createBracketFixture } from './fixtures-bracket.js';
 
 export const PREVIEW_IDS = {
@@ -36,6 +41,7 @@ export const PREVIEW_IDS = {
   driver: RACING_IDS.driver,
   /** MMA: a luta principal do card de exemplo, a liga e o lutador. */
   fightEvent: RACING_IDS.fightEvent,
+  nextFightEvent: RACING_IDS.nextFightEvent,
   fightCompetition: RACING_IDS.fightCompetition,
   fighter: RACING_IDS.fighter,
   /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */
@@ -43,6 +49,8 @@ export const PREVIEW_IDS = {
   eqAthlete: OLYMPIC_IDS.eqAthlete,
   eqHorse: OLYMPIC_IDS.eqHorse,
   games: OLYMPIC_IDS.games,
+  /** Futebol: o jogador da ficha de exemplo. */
+  person: PLAYER_IDS.person,
   /** Chaveamento: a copa de exemplo (#829). */
   cupCompetition: BRACKET_IDS.competition,
 } as const;
@@ -743,6 +751,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const now = options.now ?? new Date();
     const olympic = olympicPreviewBody(url, now);
     if (olympic !== null) return json(olympic);
+    const player = playerPreviewBody(url, now);
+    if (player !== null) return json(player);
     const f = createPreviewFixtures(now, options.sport);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
@@ -782,6 +792,24 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (teamId === racing.driver.id) {
       if (path.endsWith('/career')) return json(racing.career);
       if (path.endsWith(teamId)) return json(racing.driver);
+    }
+    // elenco do time (#825): o Clube Aurora com o elenco de exemplo
+    if (teamId === PREVIEW_IDS.team) {
+      if (path.endsWith('/squad')) {
+        const season = Number(url.searchParams.get('season'));
+        return json(previewSquad(teamId, Number.isInteger(season) && season > 0 ? season : null));
+      }
+      if (path.endsWith(teamId)) {
+        const t = TEAMS.aurora;
+        return json({
+          id: t.id,
+          sport: 'football',
+          kind: 'team',
+          name: t.name,
+          short_name: t.short,
+          logo: shield(t.color),
+        });
+      }
     }
     if (teamId === fights.fighter.id) {
       if (path.endsWith('/events')) return json({ data: fights.fighterEvents, next_cursor: null });
@@ -826,16 +854,24 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     }
     if (/\/v1\/teams\/[^/]+\/overview$/.test(path)) {
       const row = f.standings.groups[0]?.rows.find((r) => r.participant.id === PREVIEW_IDS.team);
+      const live = f.teamEvents.find((e) => e.status === 'live' || e.status === 'break') ?? null;
       return json({
+        team: previewTeam(options.sport ?? 'football'),
         standings: row ? [{ competition: { id: COMPETITION_ID, name: 'Liga Exemplo' }, rank: row.rank }] : [],
+        competitions: previewCampaigns(row?.rank ?? null, url.searchParams.get('locale') ?? 'en'),
         form: f.teamEvents
+          // do mais recente ao mais antigo, como a API (a agenda já vem nessa ordem)
           .filter((e) => e.status === 'finished')
-          .slice(-5)
-          .reverse()
+          .sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at))
+          .slice(0, 5)
           .map((e) => {
             const r = teamResultOf(e, PREVIEW_IDS.team);
-            return { event_id: e.id, result: r, score: `${e.score.home}-${e.score.away}` };
+            const away = e.participants.find((p) => p.id === PREVIEW_IDS.team)?.side === 'away';
+            const score = away ? `${e.score.away}-${e.score.home}` : `${e.score.home}-${e.score.away}`;
+            return { event_id: e.id, result: r, score };
           }),
+        live_event: live,
+        next_event: f.teamEvents.find((e) => e.status === 'scheduled') ?? null,
       });
     }
     const event = /\/v1\/events\/([^/]+)$/.exec(path);
@@ -845,11 +881,80 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
         ? json(found)
         : json({ type: 'about:blank', title: 'Evento não encontrado', status: 404, code: 'NOT_FOUND' }, 404);
     }
+    if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/leaders$/.test(path)) {
+      const raw = url.searchParams.get('category') ?? 'goals';
+      const category = (LEADER_CATEGORIES as readonly string[]).includes(raw)
+        ? (raw as GsLeaderCategory)
+        : 'goals';
+      return json(previewLeaders(f.standings, category, Number(url.searchParams.get('limit')) || 10));
+    }
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/bracket$/.test(path))
       return json(createBracketFixture(now, options.sport));
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);
   };
+}
+
+/** O Clube Aurora no formato do `team` de `/v1/teams/{id}/overview` (o que o cartão do time lê). */
+function previewTeam(sport: string) {
+  const t = TEAMS.aurora;
+  return {
+    id: t.id,
+    sport,
+    kind: 'team',
+    name: t.name,
+    short_name: t.short,
+    logo: shield(t.color),
+    country_ref: { code: 'BR', name: 'Brasil', flag: null },
+    founded: 1921,
+    venue: { name: 'Estádio Aurora', city: 'Cidade Exemplo' },
+  };
+}
+
+/** Campanhas do Clube Aurora: a liga (com a posição), uma copa em andamento e um torneio já encerrado. */
+function previewCampaigns(rank: number | null, locale: string) {
+  const lang = locale.startsWith('es') ? 1 : locale.startsWith('en') ? 2 : 0;
+  const text = (...t: [string, string, string]) => ({ [locale]: t[lang] });
+  const comp = (id: string, slug: string, name: string) => ({ id, slug, name, logo: null });
+  const year = new Date().getUTCFullYear();
+  return [
+    {
+      competition: comp(COMPETITION_ID, PREVIEW_IDS.competition, 'Liga Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'league',
+        label: rank
+          ? text(
+              `${rank}º lugar`,
+              `${rank}.º puesto`,
+              `${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'} place`,
+            )
+          : text('Em andamento', 'En curso', 'In progress'),
+        ongoing: true,
+        rank,
+      },
+    },
+    {
+      competition: comp('0199a5c0-0000-7000-8000-0000000000c2', 'copa-exemplo', 'Copa Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'in_progress',
+        label: text('Nas quartas de final', 'En cuartos de final', 'In the quarter-finals'),
+        ongoing: true,
+        rank: null,
+      },
+    },
+    {
+      competition: comp('0199a5c0-0000-7000-8000-0000000000c3', 'estadual-exemplo', 'Estadual Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'champion',
+        label: text('Campeão', 'Campeón', 'Champion'),
+        ongoing: false,
+        rank: 1,
+      },
+    },
+  ];
 }
 
 function teamResultOf(e: GsEvent, teamId: string): 'W' | 'D' | 'L' {
@@ -866,13 +971,7 @@ function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
     const p = e.participants.find((x) => x.side === side);
     return { id: p?.id ?? null, name: p?.name ?? null, side, logo: p?.logo ?? null };
   };
-  if (kind === 'lineups') {
-    return {
-      event_id: e.id,
-      available: true,
-      lineups: sides.map((side, i) => ({ team: teamOf(side), formation: i ? '4-4-2' : '4-3-3' })),
-    };
-  }
+  if (kind === 'lineups') return sampleLineups(e);
   if (kind === 'stats') {
     const goals = [e.score.home ?? 0, e.score.away ?? 0];
     return {
@@ -890,16 +989,88 @@ function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
     };
   }
   const minutes = [12, 38, 57, 71, 84];
-  const incidents = sides.flatMap((side, i) =>
-    Array.from({ length: (i ? e.score.away : e.score.home) ?? 0 }, (_, n) => ({
-      sequence: i * 10 + n,
-      kind: 'goal',
-      minute: minutes[(n * 2 + i) % minutes.length]!,
-      extra: null,
-      player: { name: `${teamOf(side).name ?? ''} 9`.trim() },
-      team: teamOf(side),
-      scoring_team: teamOf(side),
-    })),
+  const clock = (minute: number) => ({
+    period: minute > 45 ? 'second_half' : 'first_half',
+    minute,
+    extra_minute: null,
+    display: `${minute}'`,
+  });
+  const person = (side: 'home' | 'away', n: number) => ({
+    id: null,
+    name: `${teamOf(side).name ?? ''} ${n}`.trim(),
+    number: n,
+  });
+  const goals = sides.flatMap((side, i) =>
+    Array.from({ length: (i ? e.score.away : e.score.home) ?? 0 }, (_, n) => {
+      const minute = minutes[(n * 2 + i) % minutes.length]!;
+      return {
+        sequence: minute * 10 + i,
+        kind: 'goal',
+        minute,
+        extra: null,
+        player: person(side, 9),
+        assist: person(side, 10),
+        team: teamOf(side),
+        scoring_team: teamOf(side),
+        clock: clock(minute),
+        key_moment: true,
+      };
+    }),
   );
-  return { event_id: e.id, incidents: incidents.sort((a, b) => a.minute - b.minute) };
+  const started = e.status !== 'scheduled' && e.status !== 'starting';
+  // cartão, substituição e VAR de exemplo (o lance a lance mostra todos os tipos; o placar ignora estes)
+  const others = started
+    ? [
+        { minute: 23, side: 'away' as const, kind: 'yellow_card', detail: 'Yellow Card' },
+        { minute: 46, side: 'home' as const, kind: 'substitution', detail: 'Substitution 1' },
+        { minute: 61, side: 'away' as const, kind: 'var', detail: 'Penalty cancelled' },
+      ].map((x) => ({
+        sequence: x.minute * 10 + 5,
+        kind: x.kind,
+        minute: x.minute,
+        extra: null,
+        detail: x.detail,
+        player: person(x.side, x.kind === 'substitution' ? 7 : 5),
+        assist: null,
+        team: teamOf(x.side),
+        scoring_team: null,
+        clock: clock(x.minute),
+        key_moment: false,
+        ...(x.kind === 'substitution'
+          ? { player_out: person(x.side, 7), player_in: person(x.side, 17) }
+          : {}),
+      }))
+    : [];
+  const incidents = [...goals, ...others].sort((a, b) => a.minute - b.minute || a.sequence - b.sequence);
+  // placar depois de cada gol
+  const tally = { home: 0, away: 0 };
+  for (const i of incidents) {
+    if (i.kind !== 'goal') continue;
+    tally[i.team.side] += 1;
+    Object.assign(i, { score_after: { ...tally } });
+  }
+  const at = (minute: number, extra: number | null = null) => ({
+    period: minute > 45 ? 'second_half' : 'first_half',
+    minute,
+    extra_minute: extra,
+    display: null,
+  });
+  const live = e.status === 'live' || e.status === 'break';
+  const markers = !started
+    ? []
+    : [
+        { kind: 'kickoff', clock: at(0) },
+        { kind: 'halftime', clock: at(45, 2) },
+        { kind: 'second_half', clock: at(46) },
+        ...(e.status === 'finished' ? [{ kind: 'full_time', clock: at(90, 4) }] : []),
+      ];
+  return {
+    event_id: e.id,
+    status: e.status,
+    live,
+    clock: live && e.clock?.minute ? clock(e.clock.minute) : null,
+    score: { home: e.score.home, away: e.score.away },
+    incidents,
+    markers,
+  };
 }

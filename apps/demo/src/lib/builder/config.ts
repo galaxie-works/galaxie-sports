@@ -25,7 +25,9 @@ import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, Widget
 /** Os mesmos de `@galaxie/db` (`WIDGET_KINDS`); o `satisfies` acusa se um tipo sumir de lá. */
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -33,6 +35,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -48,6 +51,11 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'competition_leaders',
+  'countdown',
+  'team_squad',
+  'player_profile',
+  'lineups',
   'bracket',
 ] as const satisfies readonly WidgetKind[];
 
@@ -73,7 +81,9 @@ export const isWidgetLocale = (v: unknown): v is WidgetLocale =>
  */
 export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
+  match_timeline: ['event'],
   live_list: ['competition', 'team'],
+  score_ticker: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
   ai_context: ['event'],
@@ -81,6 +91,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   related_videos: ['event'],
   head_to_head: ['event'],
   team_schedule: ['team'],
+  team_card: ['team'],
   race_result: ['event'],
   race_weekend: ['event'],
   season_calendar: ['competition'],
@@ -96,17 +107,24 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  competition_leaders: ['competition'],
+  countdown: ['event'],
+  team_squad: ['team'],
+  player_profile: ['person'],
+  lineups: ['event'],
   bracket: ['competition'],
 };
 
 /**
  * Entidade sem a qual o componente não renderiza (`requiredProps` do catálogo: `eventId` nos widgets de
- * um jogo, `competitionId` na tabela e `teamId` na agenda do time). O widget salvo grava a entidade no arquivo instalado e o
+ * um jogo, `competitionId` na tabela e `teamId` na agenda e no cartão do time). O widget salvo grava a entidade no arquivo instalado e o
  * snippet de uso vai sem props: sem ela, o componente instalado só mostraria erro.
  */
 export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
+  match_timeline: 'event',
   live_list: null,
+  score_ticker: null,
   standings: 'competition',
   where_to_watch: 'event',
   ai_context: 'event',
@@ -114,6 +132,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   related_videos: 'event',
   head_to_head: 'event',
   team_schedule: 'team',
+  team_card: 'team',
   race_result: 'event',
   race_weekend: 'event',
   season_calendar: 'competition',
@@ -129,6 +148,11 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  competition_leaders: 'competition',
+  countdown: 'event',
+  team_squad: 'team',
+  player_profile: 'person',
+  lineups: 'event',
   bracket: 'competition',
 };
 
@@ -166,10 +190,11 @@ export const MAX_ORIGINS = 20;
 /** Variável de ambiente da chave publicável no app da operadora (o registry pede para criá-la). */
 export { PUBLISHABLE_KEY_ENV } from '@galaxie/widgets/registry';
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa`. */
+const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const COLOR_KEYS = ['primary', 'background', 'surface', 'foreground', 'mutedForeground', 'border'] as const;
 
-/** Tema válido ou null (cores `#rrggbb`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
+/** Tema válido ou null (cores `#rrggbb` ou `#rrggbbaa`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
 export function parseTheme(raw: unknown): WidgetTheme | null {
   if (!raw || typeof raw !== 'object') return null;
   const t = raw as Record<string, unknown>;
@@ -198,19 +223,21 @@ export function parseTheme(raw: unknown): WidgetTheme | null {
 
 // ─── entidade padrão ⇄ `defaults` ────────────────────────────────────────────────────────────────
 
-const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId'> = {
+const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId' | 'personId'> = {
   competition: 'competitionId',
   team: 'teamId',
   event: 'eventId',
+  person: 'personId',
 };
 
-/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição). */
+/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição, pessoa). */
 export function entityFromDefaults(
   defaults: WidgetDefaults | null | undefined,
 ): { type: WidgetEntityType; id: string } | null {
   if (defaults?.eventId) return { type: 'event', id: defaults.eventId };
   if (defaults?.teamId) return { type: 'team', id: defaults.teamId };
   if (defaults?.competitionId) return { type: 'competition', id: defaults.competitionId };
+  if (defaults?.personId) return { type: 'person', id: defaults.personId };
   return null;
 }
 
@@ -352,7 +379,7 @@ export function parseWidgetInput(
         locale: c.locale,
         market,
         defaults,
-        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`)
+        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`/`#rrggbbaa`)
         ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
         // modo, agrupamento, atualização e dados extras: só na lista de jogos, e só chaves conhecidas
         ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),
@@ -419,7 +446,9 @@ export function parseRegistryParam(param: string): string | null {
 /** Componente que o arquivo instalado exporta (o `registryComponent` do catálogo de `@galaxie/widgets`). */
 export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
+  match_timeline: 'GalaxieMatchTimeline',
   live_list: 'GalaxieLiveList',
+  score_ticker: 'GalaxieScoreTicker',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
   ai_context: 'GalaxieAiContext',
@@ -427,6 +456,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   related_videos: 'GalaxieRelatedVideos',
   head_to_head: 'GalaxieHeadToHead',
   team_schedule: 'GalaxieTeamSchedule',
+  team_card: 'GalaxieTeamCard',
   race_result: 'GalaxieRaceResult',
   race_weekend: 'GalaxieRaceWeekend',
   season_calendar: 'GalaxieSeasonCalendar',
@@ -442,6 +472,11 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  competition_leaders: 'GalaxieCompetitionLeaders',
+  countdown: 'GalaxieCountdown',
+  team_squad: 'GalaxieTeamSquad',
+  player_profile: 'GalaxiePlayerProfile',
+  lineups: 'GalaxieLineups',
   bracket: 'GalaxieBracket',
 };
 

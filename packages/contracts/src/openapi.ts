@@ -53,6 +53,7 @@ import {
 } from './where-to-watch.js';
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
+import { CompetitionLeaders, LeadersQuery } from './leaders.js';
 import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -266,6 +267,21 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: StandingsParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/competitions/{id}/seasons/{season}/leaders': {
+        get: {
+          ...getOp(
+            'Artilharia e líderes da temporada: gols, assistências ou cartões',
+            'Catálogo',
+            CompetitionLeaders,
+            { path: StandingsParams, query: LeadersQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Soma dos números de cada jogador no campeonato e temporada (`players?league&season` do fornecedor), ' +
+            'com o time pelo qual ele mais jogou e o escudo. Por enquanto só o futebol tem esses números; nos outros ' +
+            'esportes `data` vem vazio. Cache de 1 h.',
+        },
       },
       '/v1/competitions/{id}/seasons/{season}/bracket': {
         get: getOp(
