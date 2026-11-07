@@ -1845,10 +1845,10 @@ export interface WidgetTexts {
     coach: string;
     /** "{age} anos". */
     age: string;
-    /** "{n} jogos · {g} gols" na linha do clube e da temporada. */
-    appsGoals: string;
-    /** "{n} jogos" (técnico: sem gols). */
-    apps: string;
+    /** "{n} jogo(s)", com singular e plural (`pluralText`); técnico mostra só os jogos. */
+    apps: PluralText;
+    /** "{n} gol(s)", com singular e plural (`pluralText`); vem depois dos jogos na linha do clube e da temporada. */
+    goalsCount: PluralText;
     /** "e mais {count}". */
     more: string;
     empty: string;
@@ -2228,8 +2228,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       current: 'Atual',
       coach: 'Técnico',
       age: '{age} anos',
-      appsGoals: '{n} jogos · {g} gols',
-      apps: '{n} jogos',
+      apps: { one: '{n} jogo', other: '{n} jogos' },
+      goalsCount: { one: '{n} gol', other: '{n} gols' },
       more: 'e mais {count}',
       empty: 'Sem jogos nesta temporada.',
       positions: {
@@ -2616,8 +2616,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       current: 'Actual',
       coach: 'Entrenador',
       age: '{age} años',
-      appsGoals: '{n} partidos · {g} goles',
-      apps: '{n} partidos',
+      apps: { one: '{n} partido', other: '{n} partidos' },
+      goalsCount: { one: '{n} gol', other: '{n} goles' },
       more: 'y {count} más',
       empty: 'Sin partidos en esta temporada.',
       positions: {
@@ -2996,8 +2996,8 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       current: 'Current',
       coach: 'Head coach',
       age: '{age} years old',
-      appsGoals: '{n} apps · {g} goals',
-      apps: '{n} apps',
+      apps: { one: '{n} app', other: '{n} apps' },
+      goalsCount: { one: '{n} goal', other: '{n} goals' },
       more: 'and {count} more',
       empty: 'No matches this season.',
       positions: {
@@ -3441,6 +3441,27 @@ export function venueTimeText(
 
 export function fillText(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
+/** Texto com singular e plural ("1 jogo", "2 jogos"); `{n}` recebe o número. */
+export interface PluralText {
+  one: string;
+  other: string;
+}
+
+/**
+ * Escolhe a forma pelo `Intl.PluralRules` do idioma e preenche `{n}` (já formatado, quando `format` vem).
+ * Formas que o texto não tem (`few`, `many`…) caem no `other`. O zero vai sempre no plural: o CLDR do
+ * português põe o 0 em `one`, mas o uso é "0 gols", não "0 gol".
+ */
+export function pluralText(
+  text: PluralText,
+  n: number,
+  intl: string,
+  format: (n: number) => string = String,
+): string {
+  const rule = n === 0 ? 'other' : new Intl.PluralRules(intl).select(n);
+  return fillText(rule === 'one' ? text.one : text.other, { n: format(n) });
 }
 
 /** Duração do vídeo: 1:05:09, 4:32, 0:45. */
