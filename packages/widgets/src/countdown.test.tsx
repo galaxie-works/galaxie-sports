@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WIDGET_CATALOG, widgetKindSupportsSport } from './catalog.js';
-import { DEFAULT_THEMES, countdownParts, type WidgetLocale } from './core/model.js';
+import { DEFAULT_THEMES, WIDGET_CSS, countdownParts, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { optionProps, parseWidgetOptions } from './options.js';
@@ -147,6 +147,13 @@ describe('Countdown', () => {
     const { container } = setup(<Countdown eventId={PREVIEW_IDS.fightEvent} />);
     await vi.waitFor(() => expect(container.querySelector('[data-gs-fight]')).toBeTruthy());
     expect(container.querySelector('.gs-score')).toBeNull();
+  });
+
+  it('escala para TV: número e espaçamento multiplicados por --gs-scale', () => {
+    expect(WIDGET_CSS).toContain('.gs-countdown-unit strong{font-size:calc(var(--gs-scale,1)*1.6em)');
+    expect(WIDGET_CSS).toContain(
+      '.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}',
+    );
   });
 
   it('onde assistir é reconsultado enquanto a contagem está na tela', async () => {

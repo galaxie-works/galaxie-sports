@@ -160,7 +160,7 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
   });
 
   it('letra proporcional à largura, parada com "reduzir movimento" e emenda sem salto', () => {
-    expect(WIDGET_CSS).toContain('font-size:clamp(16px,2cqw,44px)');
+    expect(WIDGET_CSS).toContain('font-size:calc(var(--gs-scale,1)*clamp(16px,2cqw,44px))');
     expect(WIDGET_CSS).toMatch(
       /prefers-reduced-motion:reduce\)\{\.gs-ticker-track\[data-running\]\{animation:none/,
     );
