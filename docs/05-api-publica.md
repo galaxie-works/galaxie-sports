@@ -493,6 +493,7 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 | `GET /v1/teams/{id}/overview?season=` | Posição no torneio, forma recente (últimos 5), últimos resultados, próximo jogo + onde assistir; com `season`, o time naquele ano |
 | `GET /v1/teams/{id}/events?from=&to=` | Jogos do time |
 | `GET /v1/teams/{id}/squad?season=` | Elenco e comissão técnica |
+| `GET /v1/teams/{id}/statistics?competition=&season=` | Estatísticas do time na competição e temporada: jogos, vitórias, empates e derrotas em casa e fora, gols (média, faixa de minuto, linhas), forma, sequências, maiores placares, jogos sem sofrer gol e sem marcar, pênaltis, formações e cartões por faixa de minuto |
 | `GET /v1/teams/{id}/career` | F1: carreira do piloto ou do construtor (temporada a temporada, temporada atual com o bloco da sprint, títulos, vitórias, poles, pódios, top 10, abandonos, melhor resultado e melhor largada com a contagem, número do carro, pintura da equipe na época, nascimento, primeira e última corrida, equipes e companheiros) |
 | `GET /v1/teams/{id}/traits` | F1: traços do piloto calculados do F1DB (pistas preferidas com o critério, sábado × domingo com o rótulo, duelo com os companheiros por temporada e na carreira, abandonos, pontos por largada, sequências e o nível do perfil) |
 | `GET /v1/teams/{id}/editorial?min_review_status=` | F1: perfil editorial do piloto (bio, estilo, pontos fortes, momentos marcantes e rivalidades), cada item com a fonte; módulo `semantic` |
@@ -558,6 +559,7 @@ Convenções implementadas (`apps/api/src/routes/v1/teams.ts`):
 - `GET /v1/teams/{id}/traits` (só piloto de F1) e `GET /v1/teams/{id}/editorial`: critérios, níveis (lenda, regular, básico) e o fluxo de geração e revisão no [runbook do perfil editorial](runbooks/f1-perfil-editorial.md). O perfil editorial é lido de `data/knowledge/formula-1/editorial/<locale>.yaml` como o glossário (edições e decisões do painel por cima, tag de cache `f1_editorial`) e segue `es-XX → es → pt-BR`; `{id}` aceita o UUID do piloto ou o slug `f1-<id do F1DB>`.
 - `GET /v1/teams/{id}/photos`: acervo de fotos de licença livre ([runbook](runbooks/fotos-commons.md)). Retrato primeiro, depois o carro de destaque (`highlight_car`), ação e carros por temporada. **Exibir a foto exige o crédito** (`credit.text` ou os campos separados, com os links): é a condição das licenças CC BY e CC BY-SA.
 - `GET /v1/teams/{id}/squad?season=`: sem `season`, o elenco atual (`core.roster.season_id` nulo); com o ano, os elencos de temporadas daquele ano. `players`, `coaches`, `staff`, ordenados por posição (goleiro → atacante), número e nome; pessoa com `age` calculada.
+- `GET /v1/teams/{id}/statistics?competition=&season=` (#893): o agregado da temporada do time em `core.team_season_stat`, que o espelho diário (`sync:mirror`) busca na api-sports (`teams/statistics`) e o `afterFetch` normaliza no nosso formato (contagens, sem os percentuais em texto; placares vistos pelo time; forma do mais recente ao mais antigo). Sem filtros, a temporada mais recente e, nela, a competição em que o time mais jogou; `competition` aceita UUID ou slug. `available` lista todas as competições e temporadas com dado (para seletores). `data: null` quando não há (esporte sem o dado, hoje só o futebol tem; temporada não coletada). `updated_at` é a coleta do fornecedor; uma resposta mais antiga nunca sobrescreve a gravada. Cache de 6 h (tags `participant:<id>`, `team_season_stat`).
 - `GET /v1/people/{id}`: dados de `core.person`, foto, `age`, `teams` (elencos, atual primeiro) e `external_ids`.
 - Cache: times e pessoas 24 h, elenco 1 h, overview/jogos até 5 min (10 s se houver jogo ao vivo ou começando); tags `participant:<id>`, `person:<id>`, `roster`, `event`.
 
@@ -959,6 +961,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Países, competições, times, venues, navegação (`/v1/navigation`, `/v1/countries/{code}/*`) | 24 h | Na sincronização diária |
 | Resumo da home (`/v1/explore/summary`) | 60 s | Não (lê o pré-calculado, refeito no minuto seguinte a uma mudança de jogo e a cada 10 min) |
 | Elencos, tabelas | 1 h | Ao fim de cada rodada |
+| Estatísticas do time na temporada (`/v1/teams/{id}/statistics`) | 6 h | Não (o espelho renova no máximo uma vez por dia) |
 | Agenda do dia | 5 min | Mudança de horário/status |
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |

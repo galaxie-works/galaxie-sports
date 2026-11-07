@@ -7,6 +7,8 @@ export const CACHE_TTL = {
   catalog: 24 * 3600,
   /** Elencos e tabelas. */
   standings: 3600,
+  /** Estatísticas do time na temporada: o espelho renova uma vez por dia (no máximo), então 6 h bastam. */
+  teamStats: 6 * 3600,
   /** Agenda do dia. */
   schedule: 5 * 60,
   /** Evento ao vivo. */

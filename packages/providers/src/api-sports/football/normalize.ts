@@ -18,6 +18,7 @@ import {
 import { coachPersonId } from './person-ids.js';
 import { parseRound } from './round.js';
 import { EXTRA_TIME_CODES, mapFootballStatus } from './status.js';
+import { teamSeasonStatsValues } from './team-statistics.js';
 import type {
   ApiCoachItem,
   ApiFixture,
@@ -31,6 +32,7 @@ import type {
   ApiStandingsItem,
   ApiTeamItem,
   ApiTeamRef,
+  ApiTeamStatistics,
   ApiTransferItem,
   ApiTrophy,
   ApiTrophyItem,
@@ -608,6 +610,36 @@ export function normalizeSidelined(
   return c.done();
 }
 
+// ─── estatísticas do time na temporada ───────────────────────────────────────────────────────────
+
+/**
+ * teams/statistics?league&season&team (#893): o agregado da temporada do time no nosso formato. A competição e o
+ * time entram como referência (só preenchem lacunas); a temporada vem da resposta ou, sem ela, do parâmetro.
+ */
+export function normalizeTeamSeasonStatistics(
+  items: ApiTeamStatistics[],
+  observedAt: Date,
+  params: Record<string, string> = {},
+): NormalizedBatch {
+  const c = new Collector(observedAt);
+  for (const item of items) {
+    const league = item.league;
+    const year = league?.season ?? (Number(params.season) || null);
+    if (league?.id == null || !league.name || year == null) continue;
+    const participantId = c.team(item.team);
+    if (!participantId) continue;
+    const season = c.competition({
+      id: league.id,
+      name: league.name,
+      country: league.country ?? null,
+      logo: league.logo ?? null,
+      season: year,
+    });
+    c.batch.teamSeasonStats.push({ participantId, season, ...teamSeasonStatsValues(item) });
+  }
+  return c.done();
+}
+
 // ─── classificação ───────────────────────────────────────────────────────────────────────────────
 
 export function normalizeStandings(items: ApiStandingsItem[], observedAt: Date): NormalizedBatch {
@@ -690,6 +722,7 @@ export const NORMALIZABLE_FOOTBALL_ENDPOINTS = [
   '/transfers',
   '/trophies',
   '/sidelined',
+  '/teams/statistics',
 ] as const;
 
 export interface EnvelopeLike {
@@ -707,6 +740,13 @@ export function normalizeFootballEnvelope(
   observedAt: Date,
   params: Record<string, string> = {},
 ): { batch: NormalizedBatch; items: number } | null {
+  // teams/statistics responde um objeto (o agregado de um time), não uma lista
+  if (endpoint === '/teams/statistics') {
+    const item = envelope.response;
+    const stats = item && typeof item === 'object' && !Array.isArray(item) ? [item as ApiTeamStatistics] : [];
+    const batch = normalizeTeamSeasonStatistics(stats, observedAt, params);
+    return { batch, items: batch.teamSeasonStats.length };
+  }
   const response = Array.isArray(envelope.response) ? envelope.response : [];
   const items = response.length;
   switch (endpoint) {

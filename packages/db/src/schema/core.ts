@@ -931,6 +931,42 @@ export const standing = core.table(
   ],
 );
 
+/**
+ * Estatísticas de um time numa temporada de competição (#893): o agregado do fornecedor (api-sports
+ * `teams/statistics`) no nosso formato. As colunas são os totais; `stats` traz casa e fora, gols por faixa de
+ * minuto, sequências, maiores placares, pênaltis, formações e cartões (`TeamSeasonStatsDetail` em
+ * `@galaxie/providers`). Uma resposta mais antiga que `observed_at` nunca sobrescreve a linha.
+ */
+export const teamSeasonStat = core.table(
+  'team_season_stat',
+  {
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => participant.id),
+    seasonId: uuid('season_id')
+      .notNull()
+      .references(() => season.id),
+    played: integer('played'),
+    won: integer('won'),
+    drawn: integer('drawn'),
+    lost: integer('lost'),
+    goalsFor: integer('goals_for'),
+    goalsAgainst: integer('goals_against'),
+    cleanSheets: integer('clean_sheets'),
+    failedToScore: integer('failed_to_score'),
+    /** Resultados na temporada (W/D/L), do mais recente ao mais antigo. */
+    form: text('form'),
+    stats: jsonb('stats').$type<Record<string, unknown>>().notNull(),
+    /** Quando o fornecedor entregou estes números (coleta do raw). */
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.participantId, t.seasonId] }),
+    index('team_season_stat_season_idx').on(t.seasonId),
+  ],
+);
+
 // ─── mapeamento de provedores ────────────────────────────────────────────────────────────────────
 
 /** Liga nossos IDs aos IDs de cada provedor (api-sports, sportmonks, provedor do cliente...). */

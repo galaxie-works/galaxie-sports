@@ -53,6 +53,7 @@ import {
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from './placeholder-logos.js';
 import { slugify } from './slug.js';
+import { upsertTeamSeasonStats } from './team-season-stats.js';
 import { logger } from './logger.js';
 import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from './match.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
@@ -135,6 +136,8 @@ export interface UpsertStats {
   transfers: number;
   trophies: number;
   sidelined: number;
+  /** Estatísticas de time por temporada (teams/statistics). */
+  teamSeasonStats: number;
   assets: number;
   /** Complementos aplicados (resultados/grid da F1, desfecho do MMA) e os que não acharam o evento. */
   supplements: { applied: number; missingEvent: number };
@@ -166,6 +169,7 @@ export function emptyStats(): UpsertStats {
     transfers: 0,
     trophies: 0,
     sidelined: 0,
+    teamSeasonStats: 0,
     assets: 0,
     supplements: { applied: 0, missingEvent: 0 },
   };
@@ -200,6 +204,7 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
     transfers: a.transfers + b.transfers,
     trophies: a.trophies + b.trophies,
     sidelined: a.sidelined + b.sidelined,
+    teamSeasonStats: a.teamSeasonStats + b.teamSeasonStats,
     assets: a.assets + b.assets,
     supplements: {
       applied: a.supplements.applied + b.supplements.applied,
@@ -308,6 +313,7 @@ export async function upsertBatchInTx(
     ...batch.standings.map((s) => s.season.competitionId),
     ...batch.rosters.flatMap((r) => (r.season ? [r.season.competitionId] : [])),
     ...batch.personSeasonStats.map((r) => r.season.competitionId),
+    ...batch.teamSeasonStats.map((r) => r.season.competitionId),
     ...batch.stages.map((s) => s.season.competitionId),
   ]);
   const competitionIds = await resolveIds(tx, scope, 'competition', [...competitionRefs]);
@@ -363,6 +369,7 @@ export async function upsertBatchInTx(
   for (const s of batch.standings) addSeason(s.season);
   for (const r of batch.rosters) if (r.season) addSeason(r.season);
   for (const r of batch.personSeasonStats) addSeason(r.season);
+  for (const r of batch.teamSeasonStats) addSeason(r.season);
   for (const s of batch.stages) addSeason(s.season);
 
   const seasonIds = new Map<string, string>();
@@ -987,6 +994,7 @@ export async function upsertBatchInTx(
   stats.standings = standingRows.length;
 
   await upsertPersonProfiles(tx, batch, scope, stats, { personId, participantId, seasonId });
+  stats.teamSeasonStats = await upsertTeamSeasonStats(tx, batch, { participantId, seasonId });
 
   return stats;
 }
