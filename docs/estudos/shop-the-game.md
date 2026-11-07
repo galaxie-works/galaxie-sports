@@ -1,7 +1,7 @@
 # Estudo: Shop the game no Galaxie
 
 > Estudo de 07/11/2026. Fonte original: https://claude.ai/artifact/GYReqXurUxtJPr3h1GTHYf
-> Épico de execução: ver issues com a label **Shop de game**.
+> Épico de execução: ver issues com a label **Shop the game**.
 >
 > **Decisões tomadas depois do estudo (07/11/2026):**
 > - Modelo de afiliado, não dropshipping. O nosso código de afiliado só roda no site e no app Galaxie.
