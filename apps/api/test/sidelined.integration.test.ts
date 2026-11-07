@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { sql } from 'drizzle-orm';
 import type { EventSidelined, TeamSidelined } from '@galaxie/contracts';
 import {
   apiResponse,
@@ -60,16 +61,21 @@ const get = async <T>(url: string) => {
   return res.json<T>();
 };
 
-async function insertRaw(params: Record<string, string>, response: unknown[], fetchedAt: Date) {
-  const body = { get: 'injuries', parameters: params, errors: [], results: response.length, response };
+async function insertRaw(
+  params: Record<string, string>,
+  response: unknown[],
+  fetchedAt: Date,
+  endpoint = '/injuries',
+) {
+  const body = { get: endpoint.slice(1), parameters: params, errors: [], results: response.length, response };
   await db.insert(apiResponse).values({
     provider: 'api-sports',
     sport: 'football',
     apiVersion: 'v3',
-    endpoint: '/injuries',
+    endpoint,
     params,
     requestHash: createHash('sha256')
-      .update(`/injuries${JSON.stringify(params)}`)
+      .update(`${endpoint}${JSON.stringify(params)}`)
       .digest('hex'),
     statusCode: 200,
     results: response.length,
@@ -174,6 +180,8 @@ async function seed() {
     // Bruno: lesão aberta, sem fim, recente (só no histórico)
     { personId: bruno!.id, type: 'Knee Injury', startDate: '2026-10-30', endDate: null },
   ]);
+  // o histórico foi consultado ao fornecedor há 2 dias (fresco)
+  await insertRaw({ players: '101-102-103' }, [], new Date('2026-11-04T03:00:00Z'), '/sidelined');
   const [ev] = await db
     .insert(event)
     .values({
@@ -383,6 +391,21 @@ describe('GET /v1/teams/{id}/sidelined', () => {
   it('só a lista do próprio time entra', async () => {
     const body = await get<TeamSidelined>(`/v1/teams/${ids.boreal}/sidelined`);
     expect(body.players.map((p) => p.person.name)).toEqual(['Davi Goleiro', 'Sem Cadastro']);
+  });
+
+  it('histórico parado (sem consulta ao fornecedor há mais de 14 dias): fica de fora, vale só a lista do jogo', async () => {
+    await db.execute(
+      sql`update raw.api_response set fetched_at = '2026-09-17T03:00:00Z', last_seen_at = null where endpoint = '/sidelined'`,
+    );
+    try {
+      const body = await get<TeamSidelined>(`/v1/teams/${ids.aurora}/sidelined?locale=en`);
+      expect(body.available).toBe(true);
+      expect(body.players.map((p) => [p.person.name, p.source])).toEqual([['Ana Atacante', 'match']]);
+    } finally {
+      await db.execute(
+        sql`update raw.api_response set fetched_at = '2026-11-04T03:00:00Z' where endpoint = '/sidelined'`,
+      );
+    }
   });
 
   it('time inexistente: 404', async () => {

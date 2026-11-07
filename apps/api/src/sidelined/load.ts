@@ -33,6 +33,11 @@ import {
 const PROVIDER = 'api-sports';
 /** Janela do "próximo jogo" na rota do time. */
 const NEXT_EVENT_DAYS = 10;
+/**
+ * O histórico (`person_sidelined`) só vale se o fornecedor foi consultado há no máximo isso. Parado, ele mostraria
+ * como atual uma lesão de quem já voltou; sem ele, o widget fica com a lista do jogo ou diz que ela não saiu.
+ */
+export const HISTORY_FRESH_DAYS = 14;
 
 export interface SidelinedContext {
   db: Database;
@@ -188,16 +193,31 @@ async function fixtureInjuries(
   return { found: true, items };
 }
 
-/** Afastamentos do histórico em aberto na data, dos jogadores do elenco atual; e se há histórico para eles. */
+/** Última consulta de `sidelined` ao fornecedor está dentro de `HISTORY_FRESH_DAYS` de `now`? */
+async function historyFresh(db: Database, now: Date): Promise<boolean> {
+  const [row] = await db.execute<{ fresh: boolean }>(sql`
+    select exists (
+      select 1 from raw.api_response r
+       where r.provider = ${PROVIDER} and r.sport = 'football' and r.endpoint = '/sidelined'
+         and coalesce(r.last_seen_at, r.fetched_at) >= ${new Date(now.getTime() - HISTORY_FRESH_DAYS * 86_400_000).toISOString()}::timestamptz
+    ) as fresh`);
+  return row?.fresh === true;
+}
+
+/**
+ * Afastamentos do histórico em aberto na data, dos jogadores do elenco atual; e se há histórico para eles.
+ * Histórico parado (sem consulta recente ao fornecedor) não entra: nem os afastamentos, nem a cobertura.
+ */
 async function historyOn(
   db: Database,
   personIds: string[],
   onDay: string,
+  now: Date,
 ): Promise<{
   covered: boolean;
   rows: { personId: string; type: string; start: string | null; end: string | null }[];
 }> {
-  if (!personIds.length) return { covered: false, rows: [] };
+  if (!personIds.length || !(await historyFresh(db, now))) return { covered: false, rows: [] };
   const all = await db
     .select({
       personId: personSidelined.personId,
@@ -239,6 +259,7 @@ async function build(c: SidelinedContext, teamIds: string[], injuries: ApiInjury
     c.db,
     roster.map((r) => r.personId),
     onDay,
+    c.now,
   );
   const info = await peopleInfo(c, [
     ...new Set([...personByPid.values(), ...history.rows.map((h) => h.personId)]),
