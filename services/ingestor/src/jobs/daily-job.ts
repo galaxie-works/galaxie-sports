@@ -1,4 +1,10 @@
-import type { ApiSport, PlanLimits, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
+import {
+  requestHash,
+  type ApiSport,
+  type PlanLimits,
+  type PlanRules,
+  type ProviderStatus,
+} from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
 import {
   compareCompetitions,
@@ -297,7 +303,6 @@ export const PLAYER_STATS_STEP = 'estatisticas-jogadores';
  */
 export const PLAYER_STATS_PERIOD_DAYS: Record<number, number> = { 1: 3 };
 const PLAYER_STATS_DEFAULT_PERIOD_DAYS = 7;
-const PLAYER_STATS_MARGIN_MS = 12 * 3_600_000;
 
 interface PlayerStatsSeason {
   league: number;
@@ -326,9 +331,10 @@ async function playerStatsSeasons(
 ): Promise<PlayerStatsSeason[]> {
   const today = utcDate(now);
   const wanted = seasonsInPlay(comps, limits, now)
-    // a próxima edição entra na relista antes de começar, mas sem jogo os números viriam zerados
+    // a próxima edição entra na relista antes de começar, e no dia da estreia ainda não há jogo encerrado: os
+    // números viriam zerados
     .filter(
-      (x) => covers(x.season.coverage, 'players') && (!x.season.startDate || x.season.startDate <= today),
+      (x) => covers(x.season.coverage, 'players') && (!x.season.startDate || x.season.startDate < today),
     )
     .map((x) => ({
       league: x.competition.leagueId,
@@ -336,16 +342,13 @@ async function playerStatsSeasons(
       period: PLAYER_STATS_PERIOD_DAYS[x.competition.tier] ?? PLAYER_STATS_DEFAULT_PERIOD_DAYS,
       pages: 1,
     }));
-  // só a página 1 de cada temporada pedida (uma linha cada), não o /players inteiro do raw
-  for (const w of wanted) {
-    for await (const e of raw.latest({
-      sport: 'football',
-      endpoint: '/players',
-      where: { league: String(w.league), season: String(w.season), page: '1' },
-    })) {
-      w.pages = Math.max(1, e.paging?.total ?? 1);
-    }
-  }
+  // só o `paging` da página 1 de cada temporada pedida, pelo request hash (índice do raw), sem o corpo
+  const hashOf = (w: PlayerStatsSeason) => {
+    const p1 = playerStatsPage(w, 1);
+    return requestHash('api-sports', p1.sport, p1.endpoint, p1.params);
+  };
+  const paging = await raw.latestPaging('football', '/players', wanted.map(hashOf));
+  for (const w of wanted) w.pages = Math.max(1, paging.get(hashOf(w))?.total ?? 1);
   return wanted;
 }
 
@@ -396,8 +399,9 @@ export async function buildPlayerStatsFirstPages(
   const budget = limit - spentToday(seasons, states, now);
   const due: { item: PlannedRequest; age: number; i: number }[] = [];
   seasons.forEach((s, i) => {
-    // folga de meio dia: o sync roda à mesma hora todo dia, e "há 3 dias" cairia segundos depois da passada anterior
-    const staleBefore = new Date(now.getTime() - s.period * DAY_MS + PLAYER_STATS_MARGIN_MS);
+    // pelo dia UTC, não pela hora: a passada aberta no dia D volta no dia D + período, qualquer que seja o horário
+    // de cada execução (a de "há 3 dias" exatos cairia segundos antes da conclusão da anterior)
+    const staleBefore = new Date(startOfUtcDay(now).getTime() - (s.period - 1) * DAY_MS);
     const item = playerStatsPage(s, 1, staleBefore);
     const age = states.get(cursorId(item.cursors[0]!))?.completedAt?.getTime() ?? -Infinity;
     if (age < staleBefore.getTime()) due.push({ item, age, i });

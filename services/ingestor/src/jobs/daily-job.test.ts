@@ -363,20 +363,23 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
     expect(pages(h, before)).toHaveLength(6);
   });
 
-  it('período no limite: o sync do mesmo horário 3 dias depois renova (sem escorregar para o 4º dia)', async () => {
+  it('período pelo dia UTC: a passada do dia D volta no dia D+3, qualquer que seja a hora de cada execução', async () => {
     const h = harness({ plan: PRO_PLAN });
-    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
-    const start = h.clock.t;
-    await runJob(job(), h.deps);
-    // o relógio andou durante a primeira execução: o próximo sync sai exatamente 3 dias depois do início dela
-    h.clock.t = start + 2 * DAY + 11 * 3_600_000;
-    let before = h.api.calls.length;
-    await runJob(job(), h.deps);
-    expect(pages(h, before)).toEqual([]);
-    h.clock.t = start + 3 * DAY;
-    before = h.api.calls.length;
-    await runJob(job(), h.deps);
-    expect(pages(h, before)).toHaveLength(6);
+    // passada anterior: aberta às 00:05 do dia D e com a página 1 concluída 40 min depois
+    const page1 = (league: number) =>
+      plannedRequest('x', 'football', '/players', { league, season: 2026, page: 1 }).cursors;
+    await h.cursors.complete([...page1(71), ...page1(13)], {}, new Date('2026-10-21T00:45:00Z'));
+    const firstPages = async (iso: string) => {
+      const plan = await planJob(
+        dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(iso), derbyKeys),
+        h.deps,
+      );
+      return plan.phases[4]!.steps['estatisticas-jogadores']?.total ?? 0;
+    };
+    expect(await firstPages('2026-10-23T00:05:00Z')).toBe(0); // D+2
+    expect(await firstPages('2026-10-23T23:59:00Z')).toBe(0); // D+2, reexecutado à mão no fim do dia
+    // D+3 às 00:05: "há 3 dias" exatos (00:05 de D) cairia antes da conclusão (00:45) e empurraria para D+4
+    expect(await firstPages('2026-10-24T00:05:00Z')).toBe(2);
   });
 
   it('próxima edição que ainda não começou fica de fora (números zerados)', async () => {
