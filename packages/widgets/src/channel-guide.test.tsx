@@ -66,6 +66,8 @@ describe('grade nos canais do cliente', () => {
       ),
     );
     expect(await screen.findByText('Hoje nos seus canais')).toBeTruthy();
+    // o título sai antes da grade: espera os jogos chegarem
+    await screen.findByText('Esporte Total 1');
     const url = new URL(calls[0]!);
     expect(url.pathname).toBe(`/v1/widgets/${PREVIEW_IDS.channelGuideWidget}/channel-guide`);
     expect(url.searchParams.get('sport')).toBe('football,basketball');
