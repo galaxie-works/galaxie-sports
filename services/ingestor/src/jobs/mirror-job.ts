@@ -317,7 +317,8 @@ export interface SportMirrorSource {
   /** Times (ids do fornecedor) que jogaram ou vão jogar na temporada. */
   teams(sport: OtherSport, league: string, year: number): Promise<string[]>;
   /** Participantes (lutadores, no MMA) de jogos do intervalo. */
-  participants(sport: OtherSport, from: Date, to: Date): Promise<string[]>;
+  /** Só os de jogos das temporadas `years` (as que o plano alcança: as outras o fornecedor nem lista). */
+  participants(sport: OtherSport, from: Date, to: Date, years: readonly number[]): Promise<string[]>;
 }
 
 export type OtherSport = Exclude<ApiSport, 'football'>;
@@ -447,7 +448,6 @@ export const SPORT_MIRROR: Record<OtherSport, SportMirrorProfile> = {
     ],
     finished: [
       { endpoint: '/rankings/races', param: 'race' },
-      { endpoint: '/rankings/startinggrid', param: 'race' },
       { endpoint: '/rankings/fastestlaps', param: 'race' },
       { endpoint: '/pitstops', param: 'race' },
     ],
@@ -543,8 +543,10 @@ export async function sportGroups(
       if (SCHEDULED.has(g.status) && g.startsAt > now)
         games.push(cand('odds', sport, p.odds, { [param]: g.id }, 1));
   }
+  // lutador de temporada fora do plano fica de fora: /fighters não leva `season` e a validação não o barraria
+  const years = [...new Set(reachable.map((g) => g.year))];
   for (const pc of p.participants ?? [])
-    for (const id of await source.participants(sport, recent, ahead))
+    for (const id of await source.participants(sport, recent, ahead, years))
       games.push(cand('participantes', sport, pc.endpoint, { [pc.param]: id }, 30));
 
   return [

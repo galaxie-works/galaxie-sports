@@ -122,7 +122,9 @@ describe('PgSportMirrorSource', () => {
     expect(await source.teams('hockey', '57', 2026)).toEqual(['11', '12']);
     expect(await source.teams('hockey', '300', 2026)).toEqual(['21']);
     expect(await source.teams('hockey', '57', 2025)).toEqual([]);
-    expect(await source.participants('hockey', from, to)).toEqual(['11', '12', '21']);
+    expect(await source.participants('hockey', from, to, [2026])).toEqual(['11', '12', '21']);
+    expect(await source.participants('hockey', from, to, [2024])).toEqual([]);
+    expect(await source.participants('hockey', from, to, [])).toEqual([]);
   });
 
   it('sem a referência no raw, nenhuma temporada (o grupo de referência a busca primeiro)', async () => {

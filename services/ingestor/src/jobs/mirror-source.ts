@@ -96,10 +96,15 @@ export class PgSportMirrorSource implements SportMirrorSource {
     return rows.map((r) => r.id).filter((id) => /^\d+$/.test(id));
   }
 
-  async participants(sport: OtherSport, from: Date, to: Date): Promise<string[]> {
+  async participants(sport: OtherSport, from: Date, to: Date, years: readonly number[]): Promise<string[]> {
+    if (years.length === 0) return [];
     const rows = await this.db.execute<{ id: string }>(sql`
       select distinct pp.provider_id as id
       from core.event e
+      join core.season s on s.id = e.season_id and s.year in (${sql.join(
+        years.map((y) => sql`${y}`),
+        sql`, `,
+      )})
       join core.event_participant ep on ep.event_id = e.id
       join core.provider_map pp on pp.entity_type = 'participant' and pp.entity_id = ep.participant_id
         and pp.provider = 'api-sports' and pp.sport = e.sport

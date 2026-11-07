@@ -203,6 +203,8 @@ describe('sportGroups', () => {
     expect(urls).toContain('/rankings/drivers?season=2026-2027');
     expect(urls).toContain('/pitstops?race=100');
     expect(urls).toContain('/rankings/fastestlaps?race=111');
+    // o grid já vem em `grid` no /rankings/races: não gasta cota
+    expect(urls.some((u) => u.startsWith('/rankings/startinggrid'))).toBe(false);
   });
 
   it('free: a temporada atual e os jogos dela ficam fora; só a referência', async () => {
@@ -210,6 +212,24 @@ describe('sportGroups', () => {
     const urls = groups.flatMap((g) => g.candidates.map((c) => url(c.item)));
     expect(urls.length).toBeGreaterThan(0);
     expect(urls.every((u) => u.endsWith('?'))).toBe(true);
+  });
+
+  it('MMA free: lutador só de jogo de temporada que o plano alcança', async () => {
+    const asked: (readonly number[])[] = [];
+    const source = {
+      ...fakeSports(),
+      participants: async (_s: string, _f: Date, _t: Date, years: readonly number[]) => {
+        asked.push(years);
+        return years.length ? ['7'] : [];
+      },
+    };
+    const free = await sportGroups('mma', source, FREE_PLAN, now);
+    const freeUrls = free.flatMap((g) => g.candidates.map((c) => url(c.item)));
+    expect(freeUrls.some((u) => u.startsWith('/fighters'))).toBe(false);
+    expect(asked[0]).toEqual([]);
+    const ultra = await sportGroups('mma', source, ULTRA_PLAN, now);
+    expect(ultra.flatMap((g) => g.candidates.map((c) => url(c.item)))).toContain('/fighters?id=7');
+    expect(asked.at(-1)).toEqual([2026]);
   });
 });
 
