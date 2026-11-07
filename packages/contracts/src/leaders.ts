@@ -42,7 +42,7 @@ export const LeaderRow = z
     goals: z.number().int(),
     assists: z.number().int(),
     yellow_cards: z.number().int(),
-    red_cards: z.number().int(),
+    red_cards: z.number().int().meta({ description: 'Vermelhos: o direto mais o do segundo amarelo.' }),
   })
   .meta({ id: 'LeaderRow' });
 export type LeaderRow = z.infer<typeof LeaderRow>;

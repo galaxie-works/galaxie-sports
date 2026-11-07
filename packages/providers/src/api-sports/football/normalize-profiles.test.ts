@@ -28,7 +28,7 @@ describe('perfil completo do jogador', () => {
         captain: false,
       },
       goals: { total: 14, conceded: 0, assists: 5, saves: null },
-      cards: { yellow: 3, yellowred: 0, red: 1 },
+      cards: { yellow: 3, yellowred: 2, red: 1 },
       shots: { total: 61, on: 30 },
     };
     const b = normalizePlayers(items, FETCHED);
@@ -50,7 +50,8 @@ describe('perfil completo do jogador', () => {
       conceded: 0,
       saves: null,
       yellowCards: 3,
-      redCards: 1,
+      // vermelho direto (1) + segundo amarelo (2)
+      redCards: 3,
       stats: {
         games: {
           appearences: 30,
@@ -62,7 +63,7 @@ describe('perfil completo do jogador', () => {
           captain: false,
         },
         goals: { total: 14, conceded: 0, assists: 5, saves: null },
-        cards: { yellow: 3, yellowred: 0, red: 1 },
+        cards: { yellow: 3, yellowred: 2, red: 1 },
         shots: { total: 61, on: 30 },
       },
     });
