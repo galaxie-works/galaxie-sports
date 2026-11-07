@@ -121,7 +121,40 @@ Créditos de teste vencem em 90 dias; créditos comprados não vencem enquanto o
 
 Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai 3,5%, antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
 
-**EUA e Canadá:** tabela própria em dólar (decidido em 07/11), com os mesmos três tamanhos de pacote. Valores a definir.
+**EUA e Canadá:** tabela própria em dólar (decidido em 07/11). Proposta abaixo, a validar com o primeiro cliente.
+
+Referências de mercado (preço de lista, novembro de 2026):
+
+| Quem | Como cobra | Preço |
+| --- | --- | --- |
+| [Intercom Fin](https://www.featurebase.app/blog/fin-ai-pricing) | Por conversa resolvida pela IA | US$ 0,99 por resolução; mínimo de 50 por mês no avulso |
+| [Zendesk AI](https://www.robylon.ai/blog/zendesk-ai-pricing-per-resolution) | Por resolução automática | ~US$ 1,50 a 1,00 com contrato; US$ 2,00 no avulso (estimativa de terceiros) |
+| [Stream Moderation](https://getstream.io/moderation/pricing) | Por mensagem de texto analisada | US$ 2,00 por mil mensagens; US$ 100 grátis por mês |
+
+Proposta:
+
+| Pacote | Créditos | Preço | Por crédito | Ação média (10 créditos) | Custo de provedor | Margem bruta |
+| --- | --- | --- | --- | --- | --- | --- |
+| Starter | 5.000 | US$ 29 | US$ 0,0058 | US$ 0,06 | ~US$ 0,70 | ~40× |
+| Pro | 15.000 | US$ 69 | US$ 0,0046 | US$ 0,05 | ~US$ 2,10 | ~33× |
+| Scale | 40.000 | US$ 149 | US$ 0,0037 | US$ 0,04 | ~US$ 5,60 | ~27× |
+| Enterprise | a partir de 250 mil por mês | fatura mensal | negociado | | | multiplicador próprio |
+
+Por que esses valores:
+
+- **Cerca de 3 vezes o preço em reais.** R$ 49 dá uns US$ 9; US$ 29 segue a diferença de poder de compra que SaaS costuma aplicar entre Brasil e EUA, e o crédito rende o mesmo nos dois países. O custo de provedor em dólar usa ~R$ 5,40 por dólar; conferir com a cotação operacional.
+- **Muito abaixo de quem cobra por resultado.** Uma ação média da Cosmos sai entre US$ 0,04 e 0,06, contra US$ 0,99 a 2,00 por resolução no Fin e no Zendesk. É o argumento de venda: o cliente paga centavos por ação e vê o custo antes.
+- **Moderação mais barata que a Stream por mensagem.** Uma dúvida de moderação gasta ~1,7 crédito (~US$ 0,01), mas só a dúvida paga: regras e classificador decidem o resto de graça. Se 5% das mensagens chegam ao modelo, sai ~US$ 0,50 por mil mensagens, contra US$ 2,00 na Stream.
+- **Pacote mínimo de US$ 29** para a taxa fixa do Stripe pesar pouco (abaixo).
+- **Teste igual ao do Brasil:** 250 créditos, vencem em 90 dias.
+
+Taxas e impostos nos EUA e no Canadá:
+
+- **Stripe na conta dos EUA:** 2,9% + US$ 0,30 por cartão americano; +1,5% para cartão emitido fora dos EUA, o que inclui os canadenses; +1% se cobrar em outra moeda ([fonte](https://checkoutpage.com/blog/stripe-international-fees)). No Starter, um cartão americano custa ~US$ 1,14 (3,9%) e um canadense ~US$ 1,58 (5,4%).
+- **Cobrar o Canadá em dólar americano no começo.** Preço em dólar canadense soma +1% de conversão do nosso lado; uma tabela em CAD pode vir depois.
+- **Imposto sobre venda nos EUA:** SaaS é tributado em parte dos estados, e a obrigação de recolher começa quando as vendas num estado passam do limite dele. O Stripe Tax monitora isso e cobra 0,5% do volume onde estivermos registrados ([fonte](https://support.stripe.com/questions/understanding-stripe-tax-pay-as-you-go-pricing)). Confirmar com o contador da LLC.
+- **GST/HST no Canadá:** o regime simplificado para vendedor de fora vale para quem não tem registro de GST/HST e passa de CAD 30 mil por ano ([fonte](https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/digital-economy-gsthst/register-get-ready.html)). Nossos clientes são empresas: pedir o número de GST/HST na compra mostra que a venda é B2B. Confirmar com o contador.
+- **Quebec:** telas, recibos e termos em francês para clientes de lá (Lei 96).
 
 **Cobrança pelo Stripe da Galaxie Works LLC, para todos os países (decidido em 07/11):**
 
