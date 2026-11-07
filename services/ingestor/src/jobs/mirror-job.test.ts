@@ -116,10 +116,36 @@ describe('rotateGroups', () => {
   it('o que falhou 3 vezes sem concluir sai da fila e não ocupa o orçamento', async () => {
     const cursors = new InMemoryCursorStore();
     const a = [cand(1), cand(2), cand(3)];
-    for (let i = 0; i < 3; i++) await cursors.fail(a[0]!.item.cursors, 'erro do fornecedor', now);
-    await cursors.fail(a[1]!.item.cursors, 'erro do fornecedor', now); // 1 falha: ainda tenta
+    const before = new Date(now.getTime() - 2 * DAY);
+    for (let i = 0; i < 3; i++) await cursors.fail(a[0]!.item.cursors, 'erro do fornecedor', before);
+    await cursors.fail(a[1]!.item.cursors, 'erro do fornecedor', before); // 1 falha: ainda tenta
     const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
     expect(picked.map((p) => p.params.id)).toEqual(['2', '3']);
+  });
+
+  it('o erro de hoje também conta no orçamento (reexecutar no mesmo dia não gasta de novo)', async () => {
+    const cursors = new InMemoryCursorStore();
+    const a = [cand(1), cand(2), cand(3)];
+    await cursors.fail(a[0]!.item.cursors, 'erro do fornecedor', now);
+    const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
+    // orçamento 2: 1 já gasto hoje com erro; sobra 1 vaga (o 1, sem conclusão, é o mais velho)
+    expect(picked).toHaveLength(1);
+  });
+
+  it('lote de ids: o id esgotado sai do lote e o jogo novo ainda é buscado', async () => {
+    const cursors = new InMemoryCursorStore();
+    const refs = ['10', '11'].map((id) => ({ sport: 'basketball', endpoint: '/x', key: `id=${id}` }));
+    const batch: MirrorCandidate = {
+      item: plannedRequest('por-jogo', 'basketball', '/x', { ids: '10-11' }, { cursors: refs }),
+      periodDays: 1,
+    };
+    for (let i = 0; i < 3; i++) await cursors.fail([refs[0]!], 'erro', new Date(now.getTime() - 2 * DAY));
+    const picked = await rotateGroups([{ name: 'a', candidates: [batch] }], cursors, now, 5);
+    expect(picked.map((p) => p.params.ids)).toEqual(['11']);
+    expect(picked[0]!.cursors.map((c) => c.key)).toEqual(['id=11']);
+    // todos esgotados: o lote sai inteiro
+    for (let i = 0; i < 3; i++) await cursors.fail([refs[1]!], 'erro', new Date(now.getTime() - 2 * DAY));
+    expect(await rotateGroups([{ name: 'a', candidates: [batch] }], cursors, now, 5)).toEqual([]);
   });
 
   it('--forcar renova o que está em dia, dentro do orçamento', async () => {
@@ -205,6 +231,54 @@ describe('sportGroups', () => {
     expect(urls).toContain('/rankings/fastestlaps?race=111');
     // o grid já vem em `grid` no /rankings/races: não gasta cota
     expect(urls.some((u) => u.startsWith('/rankings/startinggrid'))).toBe(false);
+  });
+
+  it('F1: pit stop só em corrida e sprint (sessão sem tipo conhecido ainda pede)', async () => {
+    const base = fakeSports();
+    const source = {
+      ...base,
+      games: async (...args: Parameters<SportMirrorSource['games']>) =>
+        (await base.games(...args)).map((g, i) => ({
+          ...g,
+          session: ['Race', '1st Practice', 'Sprint', '2nd Qualifying'][i] ?? null,
+        })),
+    };
+    const urls = (await sportGroups('formula-1', source, ULTRA_PLAN, now)).flatMap((g) =>
+      g.candidates.map((c) => url(c.item)),
+    );
+    expect(urls).toContain('/pitstops?race=100');
+    expect(urls).not.toContain('/pitstops?race=101');
+    expect(urls).toContain('/pitstops?race=102');
+    expect(urls).not.toContain('/pitstops?race=103');
+    expect(urls).toContain('/pitstops?race=104');
+    // resultado vale para toda sessão
+    expect(urls).toContain('/rankings/races?race=101');
+  });
+
+  it('basquete: o que o coverage da temporada marca como false não gasta chamada', async () => {
+    const base = fakeSports();
+    const source = {
+      ...base,
+      seasons: async () =>
+        (await base.seasons('basketball')).map((s) => ({
+          ...s,
+          coverage: {
+            standings: false,
+            players: false,
+            odds: true,
+            games: { statistics: { teams: true, players: false } },
+          },
+        })),
+    };
+    const urls = (await sportGroups('basketball', source, ULTRA_PLAN, now)).flatMap((g) =>
+      g.candidates.map((c) => url(c.item)),
+    );
+    expect(urls.some((u) => u.startsWith('/standings?'))).toBe(false);
+    expect(urls.some((u) => u.startsWith('/players?'))).toBe(false);
+    expect(urls.some((u) => u.startsWith('/games/statistics/players'))).toBe(false);
+    expect(urls.some((u) => u.startsWith('/games/statistics/teams'))).toBe(true);
+    expect(urls).toContain('/statistics?league=12&season=2026-2027&team=1');
+    expect(urls).toContain('/odds?game=200');
   });
 
   it('free: a temporada atual e os jogos dela ficam fora; só a referência', async () => {

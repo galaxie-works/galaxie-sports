@@ -11,6 +11,7 @@ import {
   providerMap,
   season,
   sport,
+  sportEventDetail,
   type Database,
 } from '@galaxie/db';
 import { PgSportMirrorSource } from '../src/jobs/mirror-source.js';
@@ -90,6 +91,7 @@ async function game(
     { eventId: e!.id, participantId: teams[0], side: 'home' },
     { eventId: e!.id, participantId: teams[1], side: 'away' },
   ]);
+  return e!.id;
 }
 
 describe('PgSportMirrorSource', () => {
@@ -100,7 +102,16 @@ describe('PgSportMirrorSource', () => {
     const [c, d] = [await team('21'), await team('x-22')];
     await game(top, '1001', -20, [a, b], { status: 'finished', statusSource: 'provider' });
     await game(top, '1002', -10, [a, b], { status: 'finished', statusSource: 'temporal' });
-    await game(top, '1003', 10, [a, b]);
+    const g1003 = await game(top, '1003', 10, [a, b]);
+    // tipo da sessão (F1) sai do item do fornecedor guardado no detalhe
+    await db.insert(sportEventDetail).values({
+      eventId: g1003,
+      sport: 'hockey',
+      provider: 'api-sports',
+      providerEventId: '1003',
+      kind: 'game',
+      summary: { type: 'Race' },
+    });
     await game(top, '1004', 12, [a, b], { isProvisional: true });
     await game(top, 'manual-1', 14, [a, b]);
     await game(top, '1005', -24 * 10, [a, b], { status: 'finished' }); // fora da janela
@@ -116,7 +127,8 @@ describe('PgSportMirrorSource', () => {
 
     const games = await source.games('hockey', from, to, 2);
     expect(games.map((g) => g.id)).toEqual(['1001', '1003']);
-    expect(games[0]).toMatchObject({ league: '57', year: 2026, tier: 1, status: 'finished' });
+    expect(games[0]).toMatchObject({ league: '57', year: 2026, tier: 1, status: 'finished', session: null });
+    expect(games[1]!.session).toBe('Race');
     expect((await source.games('hockey', from, to, 3)).map((g) => g.id)).toEqual(['1001', '2001', '1003']);
 
     expect(await source.teams('hockey', '57', 2026)).toEqual(['11', '12']);
