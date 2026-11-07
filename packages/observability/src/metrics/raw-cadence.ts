@@ -1,7 +1,13 @@
+import { DEFAULT_MIRROR_CONFIG, type MirrorConfig } from '@galaxie/runtime-config';
+
 /**
  * Mapa de frescor do raw: cada endpoint da api-sports que usamos, o job que o renova e de quantos em quantos dias
  * ele volta. É a fonte do alerta `RawEndpointOverdue` (métricas `galaxie_raw_endpoint_*`) e da tabela "Mapa de
  * frescor" em docs/03 §11.1: os dois têm que andar juntos.
+ *
+ * Os endpoints do espelho (sync:mirror) não têm período aqui: vêm do catálogo do espelho (runtime-config, mirror.ts)
+ * com as sobrescritas do painel, os mesmos que o job usa. Endpoint desligado em todos os tiers sai do mapa (sem
+ * alerta); o período é o do tier mais frequente que estiver ligado.
  *
  * `periodDays` é o período do item mais frequente do endpoint (tier 1, temporada em jogo). Com vários itens no
  * rodízio, o endpoint é tocado ao menos nesse intervalo; a última busca dele no raw (`last_seen_at` ou
@@ -27,6 +33,22 @@ const football = (endpoint: string, periodDays: number, job: string): RawCadence
   job,
 });
 
+/** Endpoint do espelho: o período vem da configuração (`rawCadence`). */
+interface MirrorCadence {
+  sport: 'football';
+  endpoint: string;
+  job: 'sync:mirror';
+  /** Piso do alerta (dias), maior que o período do job. */
+  alertFloorDays?: number;
+}
+
+const mirror = (endpoint: string, alertFloorDays?: number): MirrorCadence => ({
+  sport: 'football',
+  endpoint,
+  job: 'sync:mirror',
+  ...(alertFloorDays ? { alertFloorDays } : {}),
+});
+
 /** Agenda diária das outras 11 APIs (sync:daily com `--outros-esportes`). */
 const OTHER_SPORTS_AGENDA: Record<string, string> = {
   afl: '/games',
@@ -42,7 +64,7 @@ const OTHER_SPORTS_AGENDA: Record<string, string> = {
   volleyball: '/games',
 };
 
-export const RAW_CADENCE: readonly RawCadence[] = [
+const CADENCE: readonly (RawCadence | MirrorCadence)[] = [
   // agenda, detalhe, ao vivo e temporada atual
   football('/fixtures', 1, 'sync:daily'),
   football('/leagues', 1, 'sync:daily'),
@@ -55,20 +77,20 @@ export const RAW_CADENCE: readonly RawCadence[] = [
   football('/trophies', 30, 'sync:daily'),
   football('/sidelined', 2, 'sync:daily'),
   // espelho (sync:mirror), temporada em jogo
-  football('/standings', 1, 'sync:mirror'),
-  football('/players/topscorers', 1, 'sync:mirror'),
-  football('/players/topassists', 1, 'sync:mirror'),
-  football('/players/topyellowcards', 3, 'sync:mirror'),
-  football('/players/topredcards', 3, 'sync:mirror'),
-  football('/fixtures/rounds', 7, 'sync:mirror'),
-  football('/teams', 7, 'sync:mirror'),
-  football('/venues', 30, 'sync:mirror'),
+  mirror('/standings'),
+  mirror('/players/topscorers'),
+  mirror('/players/topassists'),
+  mirror('/players/topyellowcards'),
+  mirror('/players/topredcards'),
+  mirror('/fixtures/rounds'),
+  mirror('/teams'),
+  mirror('/venues'),
   // por jogo das próximas 48 h (tier ≤ 2): numa pausa de calendário (data FIFA) o espelho não tem o que buscar; o
-  // alerta olha uma semana, não o dia do jogo
-  football('/predictions', 7, 'sync:mirror'),
-  football('/odds', 7, 'sync:mirror'),
-  football('/teams/statistics', 7, 'sync:mirror'),
-  football('/fixtures/headtohead', 30, 'sync:mirror'),
+  // alerta olha ao menos uma semana, não o dia do jogo
+  mirror('/predictions', 7),
+  mirror('/odds', 7),
+  mirror('/teams/statistics'),
+  mirror('/fixtures/headtohead'),
   // referência
   ...[
     '/timezone',
@@ -79,7 +101,7 @@ export const RAW_CADENCE: readonly RawCadence[] = [
     '/odds/bookmakers',
     '/odds/bets',
     '/odds/live/bets',
-  ].map((e) => football(e, 7, 'sync:mirror')),
+  ].map((e) => mirror(e)),
   ...Object.entries(OTHER_SPORTS_AGENDA).map(([sport, endpoint]) => ({
     sport,
     endpoint,
@@ -87,6 +109,34 @@ export const RAW_CADENCE: readonly RawCadence[] = [
     job: 'sync:daily',
   })),
 ];
+
+const isMirror = (c: RawCadence | MirrorCadence): c is MirrorCadence =>
+  c.job === 'sync:mirror' && !('periodDays' in c);
+
+/**
+ * Mapa com os períodos do espelho da configuração dada (a do painel, nas métricas). Sem configuração, os padrões
+ * do código.
+ */
+export function rawCadence(config: MirrorConfig = DEFAULT_MIRROR_CONFIG): RawCadence[] {
+  const out: RawCadence[] = [];
+  for (const c of CADENCE) {
+    if (!isMirror(c)) {
+      out.push(c);
+      continue;
+    }
+    const on = config
+      .api(c.sport)
+      .periods(c.endpoint)
+      .filter((p): p is number => p !== null);
+    if (!on.length) continue;
+    const periodDays = Math.max(Math.min(...on), c.alertFloorDays ?? 0);
+    out.push({ sport: c.sport, endpoint: c.endpoint, periodDays, job: c.job });
+  }
+  return out;
+}
+
+/** O mapa com os padrões do código: todos os endpoints olhados (a consulta do frescor busca todos). */
+export const RAW_CADENCE: readonly RawCadence[] = rawCadence();
 
 /** Idade máxima (s) da última busca antes do alerta. */
 export function rawCadenceMaxAgeSeconds(c: RawCadence): number {

@@ -44,6 +44,7 @@ export default defineMessages(
       history: 'Histórico',
       sports: 'Esportes',
       tasks: 'Tarefas',
+      mirror: 'Espelho',
     },
     features: {
       title: 'Esportes e features',
@@ -51,6 +52,11 @@ export default defineMessages(
         'O que cada esporte usa do fornecedor e as regras de cada feature: vídeos relacionados (com o controle dos canais) e onde assistir. Vale o mesmo do Sistema: muda sem reiniciar os contêineres.',
     },
     sections: {
+      mirror: {
+        title: 'Espelho da api-sports (sync:mirror)',
+        description:
+          'O que o espelho diário renova além da agenda: de quantos em quantos dias cada endpoint volta, a ordem dos grupos e quanto da cota ele gasta.',
+      },
       live: {
         title: 'Ao vivo',
         description: 'Como o ao vivo acompanha os jogos em andamento e quanto da cota ele usa.',
@@ -179,6 +185,9 @@ export default defineMessages(
       markets: 'Mercados não suportados: {values}.',
       format: 'Formato inválido.',
       zero: '0 não é um valor válido: para desligar a IA use AI_STATUS=off (ou AI_AGENT_STATUS para um agente); para tirar o teto, "Sem limite" (unlimited).',
+      periodZero: '0 não é um período válido: para parar de buscar, use "off" (desligado).',
+      mirrorItem: 'Endpoint fora do espelho desta API: {values}.',
+      groupOrder: 'Liste cada grupo uma vez, separados por vírgula: {values}.',
       shares: 'As faixas somam {sum}%: precisam somar 100%.',
       providerKeyMissing: 'A chave desse provedor não está configurada no contêiner dos agentes.',
       alreadyQueued: 'Já existe um pedido para este job na fila.',
@@ -569,6 +578,63 @@ export default defineMessages(
       description:
         'Minutos entre uma consulta e outra da lista do dia (1 para tempo real). No tempo real, a data sem jogo que ainda possa estar em campo é consultada a cada 15 min, se este intervalo for menor. Cada consulta gasta 1 chamada da cota do esporte.',
     },
+    mirrorPeriodsFor: {
+      label: 'Períodos do espelho: {api}',
+      description: 'Só o que difere do padrão do código, no formato endpoint=t1,t2,t3 (off = desligado).',
+    },
+    mirror: {
+      settingsTitle: 'Orçamento e prioridade',
+      settingsDescription:
+        'Quanto da cota de cada API o espelho pode gastar por dia e em que ordem os grupos recebem o orçamento.',
+      quotaProduction:
+        'Produção: {reserve}% da cota de cada API ficam para o ao vivo; o espelho divide o resto com o sync diário e as cargas.',
+      quotaDev:
+        'Dev: a conta da api-sports é a mesma da produção e o dev para em {free}% da cota ({reserve}% ficam para a produção), espelho incluído.',
+      periodsTitle: 'Períodos por endpoint',
+      periodsDescription:
+        'De quantos em quantos dias cada endpoint é renovado, por tier da competição. O job roda uma vez por dia: o mínimo é 1 dia; para parar de buscar, desligue. O alerta de frescor (RawEndpointOverdue) usa o mesmo valor.',
+      api: 'API',
+      groupNames: {
+        temporada: 'Referência e temporada atual',
+        'palpites-odds': 'Palpites e odds',
+        estatisticas: 'Estatísticas de time e clássicos',
+        tier3: 'Temporada atual tier 3',
+        elencos: 'Elencos tier 2+',
+        'por-jogo': 'Por jogo',
+        'por-time': 'Por time',
+      } as Record<string, string>,
+      columns: {
+        endpoint: 'Endpoint',
+        group: 'Grupo',
+        periods: 'Período (dias)',
+        requests: 'Pedidos',
+        perDay: 'Chamadas/dia',
+      },
+      tier: 'Tier {tier}',
+      tierLast: 'Tier {tier}+',
+      allTiers: 'Todos',
+      on: 'Ligado',
+      budget: 'Orçamento: {budget} chamadas/dia ({percent}% de {limit})',
+      budgetFree: 'Orçamento: {budget} chamadas/dia (plano free)',
+      noPlan: 'Plano desconhecido: sem cota para comparar.',
+      estimate: 'Estimativa: {calls} chamadas/dia',
+      overBudget:
+        'A estimativa passa do orçamento: o rodízio renova primeiro os grupos de cima e os itens mais velhos, e o resto atrasa.',
+      overFree: 'O orçamento passa da parte livre da cota ({free}%).',
+      inventory: 'Pedidos contados na execução de {when}.',
+      noInventory:
+        'O espelho ainda não gravou o inventário desta API: a estimativa aparece depois da próxima execução (ou de um sync:mirror --plan, que não chama o fornecedor).',
+      invalid: 'Use um número inteiro de {min} a {max} dias (0 não vale: desligue).',
+      changed: 'alterado',
+      save: 'Salvar períodos',
+      saveTitle: 'Salvar os períodos de {api}?',
+      saveBody:
+        'A estimativa passa a {calls} chamadas/dia (orçamento de {budget}). Vale na próxima execução do sync:mirror.',
+      discard: 'Descartar',
+      reset: 'Voltar ao padrão',
+      resetTitle: 'Voltar os períodos de {api} ao padrão?',
+      resetBody: 'A sobrescrita do painel sai e voltam a valer o .env da VPS ou o padrão do código.',
+    },
     planFor: {
       label: 'Plano: {api}',
       description: 'Plano contratado desta API. Vazio herda o plano padrão.',
@@ -777,6 +843,22 @@ export default defineMessages(
       },
     },
     settings: {
+      MIRROR_BUDGET_PERCENT: {
+        label: 'Orçamento do espelho',
+        description:
+          'Parte da cota diária de cada API paga que o sync:mirror pode gastar (o plano free fica em 10 chamadas). Até 50%: na produção 25% ficam para o ao vivo e o resto é dividido com o sync diário e as cargas.',
+        unit: '%',
+      },
+      MIRROR_GROUP_ORDER_FOOTBALL: {
+        label: 'Ordem dos grupos do espelho: futebol',
+        description:
+          'Cada grupo uma vez, separados por vírgula; o seguinte só recebe o que sobrou do orçamento. temporada (referência e temporada atual), palpites-odds, estatisticas (estatísticas de time e clássicos), tier3 (temporada atual tier 3), elencos (elencos tier 2+).',
+      },
+      MIRROR_GROUP_ORDER_SPORTS: {
+        label: 'Ordem dos grupos do espelho: outros esportes',
+        description:
+          'Vale para as 11 APIs além do futebol. Cada grupo uma vez, separados por vírgula: temporada (referência e temporada atual), por-jogo, por-time.',
+      },
       LIVE_FEATURED: {
         label: 'Detalhe do jogo principal',
         description:
@@ -1141,6 +1223,7 @@ export default defineMessages(
         history: 'History',
         sports: 'Sports',
         tasks: 'Tasks',
+        mirror: 'Mirror',
       },
       features: {
         title: 'Sports and features',
@@ -1148,6 +1231,11 @@ export default defineMessages(
           'What each sport uses from the provider and the rules of each feature: related videos (with the channel control) and where to watch. Same as System: changes apply without restarting containers.',
       },
       sections: {
+        mirror: {
+          title: 'api-sports mirror (sync:mirror)',
+          description:
+            'What the daily mirror refreshes beyond the schedule: how many days between refreshes of each endpoint, the group order and how much of the quota it spends.',
+        },
         live: {
           title: 'Live',
           description: 'How live coverage follows ongoing matches and how much quota it uses.',
@@ -1265,6 +1353,9 @@ export default defineMessages(
         markets: 'Unsupported markets: {values}.',
         format: 'Invalid format.',
         zero: '0 is not a valid value: to turn AI off use AI_STATUS=off (or AI_AGENT_STATUS for one agent); to remove the cap, "No limit" (unlimited).',
+        periodZero: '0 is not a valid period: to stop fetching, use "off".',
+        mirrorItem: 'Endpoint not in this API mirror: {values}.',
+        groupOrder: 'List each group once, comma separated: {values}.',
         shares: 'The bands add up to {sum}%: they must add up to 100%.',
         providerKeyMissing: "This provider's key is not set in the agents container.",
         alreadyQueued: 'There is already a queued request for this job.',
@@ -1641,6 +1732,63 @@ export default defineMessages(
         description:
           'Minutes between checks of the day list (1 for real time). In real time, a date with no game that could still be in play is checked every 15 min if this interval is shorter. Each check spends 1 call from the sport quota.',
       },
+      mirrorPeriodsFor: {
+        label: 'Mirror periods: {api}',
+        description: 'Only what differs from the code default, as endpoint=t1,t2,t3 (off = turned off).',
+      },
+      mirror: {
+        settingsTitle: 'Budget and priority',
+        settingsDescription:
+          'How much of each API quota the mirror may spend per day and in which order the groups get the budget.',
+        quotaProduction:
+          'Production: {reserve}% of each API quota is kept for live; the mirror shares the rest with the daily sync and the loads.',
+        quotaDev:
+          'Dev: the api-sports account is the same as production and dev stops at {free}% of the quota ({reserve}% is kept for production), mirror included.',
+        periodsTitle: 'Periods per endpoint',
+        periodsDescription:
+          'How many days between refreshes of each endpoint, by competition tier. The job runs once a day: the minimum is 1 day; to stop fetching, turn it off. The freshness alert (RawEndpointOverdue) uses the same value.',
+        api: 'API',
+        groupNames: {
+          temporada: 'Reference and current season',
+          'palpites-odds': 'Predictions and odds',
+          estatisticas: 'Team statistics and derbies',
+          tier3: 'Current season tier 3',
+          elencos: 'Squads tier 2+',
+          'por-jogo': 'Per game',
+          'por-time': 'Per team',
+        } as Record<string, string>,
+        columns: {
+          endpoint: 'Endpoint',
+          group: 'Group',
+          periods: 'Period (days)',
+          requests: 'Requests',
+          perDay: 'Calls/day',
+        },
+        tier: 'Tier {tier}',
+        tierLast: 'Tier {tier}+',
+        allTiers: 'All',
+        on: 'On',
+        budget: 'Budget: {budget} calls/day ({percent}% of {limit})',
+        budgetFree: 'Budget: {budget} calls/day (free plan)',
+        noPlan: 'Unknown plan: no quota to compare.',
+        estimate: 'Estimate: {calls} calls/day',
+        overBudget:
+          'The estimate exceeds the budget: the rotation refreshes the top groups and the oldest items first, and the rest falls behind.',
+        overFree: 'The budget exceeds the free share of the quota ({free}%).',
+        inventory: 'Requests counted in the run of {when}.',
+        noInventory:
+          'The mirror has not saved the inventory for this API yet: the estimate shows up after the next run (or a sync:mirror --plan, which does not call the provider).',
+        invalid: 'Use a whole number from {min} to {max} days (0 is not allowed: turn it off).',
+        changed: 'changed',
+        save: 'Save periods',
+        saveTitle: 'Save the periods for {api}?',
+        saveBody:
+          'The estimate becomes {calls} calls/day (budget of {budget}). It applies on the next sync:mirror run.',
+        discard: 'Discard',
+        reset: 'Back to default',
+        resetTitle: 'Reset the periods for {api}?',
+        resetBody: 'The panel override is removed and the VPS .env or the code default applies again.',
+      },
       planFor: {
         label: 'Plan: {api}',
         description: 'Subscribed plan for this API. Empty inherits the default plan.',
@@ -1852,6 +2000,22 @@ export default defineMessages(
         },
       },
       settings: {
+        MIRROR_BUDGET_PERCENT: {
+          label: 'Mirror budget',
+          description:
+            'Share of the daily quota of each paid API that sync:mirror may spend (the free plan stays at 10 calls). Up to 50%: in production 25% is kept for live and the rest is shared with the daily sync and the loads.',
+          unit: '%',
+        },
+        MIRROR_GROUP_ORDER_FOOTBALL: {
+          label: 'Mirror group order: football',
+          description:
+            'Each group once, comma separated; the next one only gets what is left of the budget. temporada (reference and current season), palpites-odds, estatisticas (team statistics and derbies), tier3 (current season tier 3), elencos (squads tier 2+).',
+        },
+        MIRROR_GROUP_ORDER_SPORTS: {
+          label: 'Mirror group order: other sports',
+          description:
+            'Applies to the 11 APIs besides football. Each group once, comma separated: temporada (reference and current season), por-jogo (per game), por-time (per team).',
+        },
         LIVE_FEATURED: {
           label: 'Main match detail',
           description:
@@ -2217,6 +2381,7 @@ export default defineMessages(
         history: 'Historial',
         sports: 'Deportes',
         tasks: 'Tareas',
+        mirror: 'Espejo',
       },
       features: {
         title: 'Deportes y features',
@@ -2224,6 +2389,11 @@ export default defineMessages(
           'Lo que cada deporte usa del proveedor y las reglas de cada feature: videos relacionados (con el control de los canales) y dónde ver. Igual que en Sistema: cambia sin reiniciar los contenedores.',
       },
       sections: {
+        mirror: {
+          title: 'Espejo de api-sports (sync:mirror)',
+          description:
+            'Lo que el espejo diario renueva además de la agenda: cada cuántos días vuelve cada endpoint, el orden de los grupos y cuánto de la cuota gasta.',
+        },
         live: {
           title: 'En vivo',
           description: 'Cómo el en vivo sigue los partidos en curso y cuánta cuota usa.',
@@ -2346,6 +2516,9 @@ export default defineMessages(
         markets: 'Mercados no soportados: {values}.',
         format: 'Formato inválido.',
         zero: '0 no es un valor válido: para apagar la IA usa AI_STATUS=off (o AI_AGENT_STATUS para un agente); para quitar el tope, "Sin límite" (unlimited).',
+        periodZero: '0 no es un período válido: para dejar de buscar, usa "off" (apagado).',
+        mirrorItem: 'Endpoint fuera del espejo de esta API: {values}.',
+        groupOrder: 'Lista cada grupo una vez, separados por coma: {values}.',
         shares: 'Las franjas suman {sum}%: tienen que sumar 100%.',
         providerKeyMissing: 'La clave de ese proveedor no está configurada en el contenedor de los agentes.',
         alreadyQueued: 'Ya hay un pedido para este job en la cola.',
@@ -2729,6 +2902,65 @@ export default defineMessages(
         description:
           'Minutos entre una consulta y otra de la lista del día (1 para tiempo real). En tiempo real, la fecha sin partido que aún pueda estar en juego se consulta cada 15 min si este intervalo es menor. Cada consulta gasta 1 llamada de la cuota del deporte.',
       },
+      mirrorPeriodsFor: {
+        label: 'Períodos del espejo: {api}',
+        description:
+          'Solo lo que difiere del valor por defecto del código, en el formato endpoint=t1,t2,t3 (off = apagado).',
+      },
+      mirror: {
+        settingsTitle: 'Presupuesto y prioridad',
+        settingsDescription:
+          'Cuánto de la cuota de cada API puede gastar el espejo por día y en qué orden los grupos reciben el presupuesto.',
+        quotaProduction:
+          'Producción: el {reserve}% de la cuota de cada API queda para el en vivo; el espejo reparte el resto con el sync diario y las cargas.',
+        quotaDev:
+          'Dev: la cuenta de api-sports es la misma de producción y el dev se detiene en el {free}% de la cuota (el {reserve}% queda para producción), espejo incluido.',
+        periodsTitle: 'Períodos por endpoint',
+        periodsDescription:
+          'Cada cuántos días se renueva cada endpoint, por tier de la competición. El job corre una vez por día: el mínimo es 1 día; para dejar de buscar, apágalo. La alerta de frescura (RawEndpointOverdue) usa el mismo valor.',
+        api: 'API',
+        groupNames: {
+          temporada: 'Referencia y temporada actual',
+          'palpites-odds': 'Pronósticos y cuotas',
+          estatisticas: 'Estadísticas de equipo y clásicos',
+          tier3: 'Temporada actual tier 3',
+          elencos: 'Planteles tier 2+',
+          'por-jogo': 'Por partido',
+          'por-time': 'Por equipo',
+        } as Record<string, string>,
+        columns: {
+          endpoint: 'Endpoint',
+          group: 'Grupo',
+          periods: 'Período (días)',
+          requests: 'Pedidos',
+          perDay: 'Llamadas/día',
+        },
+        tier: 'Tier {tier}',
+        tierLast: 'Tier {tier}+',
+        allTiers: 'Todos',
+        on: 'Encendido',
+        budget: 'Presupuesto: {budget} llamadas/día ({percent}% de {limit})',
+        budgetFree: 'Presupuesto: {budget} llamadas/día (plan free)',
+        noPlan: 'Plan desconocido: sin cuota para comparar.',
+        estimate: 'Estimación: {calls} llamadas/día',
+        overBudget:
+          'La estimación supera el presupuesto: la rotación renueva primero los grupos de arriba y los ítems más viejos, y el resto se atrasa.',
+        overFree: 'El presupuesto supera la parte libre de la cuota ({free}%).',
+        inventory: 'Pedidos contados en la ejecución de {when}.',
+        noInventory:
+          'El espejo todavía no guardó el inventario de esta API: la estimación aparece después de la próxima ejecución (o de un sync:mirror --plan, que no llama al proveedor).',
+        invalid: 'Usa un número entero de {min} a {max} días (0 no vale: apágalo).',
+        changed: 'cambiado',
+        save: 'Guardar períodos',
+        saveTitle: '¿Guardar los períodos de {api}?',
+        saveBody:
+          'La estimación pasa a {calls} llamadas/día (presupuesto de {budget}). Vale en la próxima ejecución del sync:mirror.',
+        discard: 'Descartar',
+        reset: 'Volver al valor por defecto',
+        resetTitle: '¿Volver los períodos de {api} al valor por defecto?',
+        resetBody:
+          'La sobrescritura del panel se quita y vuelven a valer el .env de la VPS o el valor por defecto del código.',
+      },
       planFor: {
         label: 'Plan: {api}',
         description: 'Plan contratado de esta API. Vacío hereda el plan por defecto.',
@@ -2939,6 +3171,22 @@ export default defineMessages(
         },
       },
       settings: {
+        MIRROR_BUDGET_PERCENT: {
+          label: 'Presupuesto del espejo',
+          description:
+            'Parte de la cuota diaria de cada API paga que el sync:mirror puede gastar (el plan free queda en 10 llamadas). Hasta 50%: en producción el 25% queda para el en vivo y el resto se reparte con el sync diario y las cargas.',
+          unit: '%',
+        },
+        MIRROR_GROUP_ORDER_FOOTBALL: {
+          label: 'Orden de los grupos del espejo: fútbol',
+          description:
+            'Cada grupo una vez, separados por coma; el siguiente solo recibe lo que sobró del presupuesto. temporada (referencia y temporada actual), palpites-odds (pronósticos y cuotas), estatisticas (estadísticas de equipo y clásicos), tier3 (temporada actual tier 3), elencos (planteles tier 2+).',
+        },
+        MIRROR_GROUP_ORDER_SPORTS: {
+          label: 'Orden de los grupos del espejo: otros deportes',
+          description:
+            'Vale para las 11 APIs además del fútbol. Cada grupo una vez, separados por coma: temporada (referencia y temporada actual), por-jogo (por partido), por-time (por equipo).',
+        },
         LIVE_FEATURED: {
           label: 'Detalle del partido principal',
           description:

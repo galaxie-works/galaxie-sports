@@ -1,10 +1,19 @@
 import { FREE_PLAN, PlanRules, PRO_PLAN, ULTRA_PLAN } from '@galaxie/apisports-client';
+import {
+  MIRROR_CATALOG,
+  MIRROR_INVENTORY_CURSOR,
+  mirrorConfig,
+  parseMirrorInventory,
+} from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 import { fakeCatalog, NOW } from '../testing/fake-api.js';
 import { StaticCatalogSource } from './catalog-source.js';
 import {
+  arrangeGroups,
   footballGroups,
   inPlay,
+  SPORT_MIRROR,
+  type OtherSport,
   mirrorBudget,
   mirrorJobs,
   rotateGroups,
@@ -35,6 +44,11 @@ describe('inPlay e orçamento', () => {
     expect(mirrorBudget(ULTRA_PLAN)).toBe(15000);
     expect(mirrorBudget(PRO_PLAN)).toBe(1500);
     expect(mirrorBudget(FREE_PLAN)).toBe(10);
+  });
+
+  it('MIRROR_BUDGET_PERCENT muda a parte da cota; o free continua em 10', () => {
+    expect(mirrorBudget(PRO_PLAN, 35)).toBe(2625);
+    expect(mirrorBudget(FREE_PLAN, 35)).toBe(10);
   });
 });
 
@@ -387,5 +401,124 @@ describe('mirrorJobs', () => {
     const perGame = groups[1]!.candidates.filter((c) => c.item.endpoint === '/games/events');
     expect(perGame.length).toBeGreaterThan(0);
     expect(perGame.every((c) => c.periodDays === 1)).toBe(true);
+  });
+});
+
+const cfgOf = (env: Record<string, string>) => mirrorConfig((k) => env[k], { strict: true });
+
+describe('configuração do painel (Ajustes → Operação → Espelho)', () => {
+  it('cada candidato do futebol aponta para um item do catálogo, com a coluna do tier', async () => {
+    const groups = await footballGroups(
+      new StaticCatalogSource(fakeCatalog()),
+      new InMemoryRawSource([]),
+      PRO_PLAN,
+      now,
+      async () => ['1-2'],
+    );
+    const ids = new Set(MIRROR_CATALOG.football!.map((d) => d.id));
+    for (const c of groups.flatMap((g) => g.candidates)) {
+      expect(c.slot, url(c.item)).toBeDefined();
+      expect(ids.has(c.slot!.id), c.slot!.id).toBe(true);
+    }
+    expect(groups.map((g) => g.id)).toEqual([
+      'temporada',
+      'palpites-odds',
+      'estatisticas',
+      'tier3',
+      'elencos',
+    ]);
+  });
+
+  it('período e endpoint desligado vêm do painel', async () => {
+    const mirror = cfgOf({ MIRROR_PERIODS_FOOTBALL: '/standings=3,off,8; /venues=off' }).api('football');
+    const groups = await footballGroups(
+      new StaticCatalogSource(fakeCatalog()),
+      new InMemoryRawSource([]),
+      PRO_PLAN,
+      now,
+      noDerbies,
+      { mirror },
+    );
+    const first = groups[0]!.candidates;
+    const period = (u: string) => first.find((c) => url(c.item) === u)?.periodDays;
+    expect(period('/standings?league=71&season=2026')).toBe(3);
+    expect(first.filter((c) => c.item.endpoint === '/venues').every((c) => c.periodDays === null)).toBe(true);
+    // desligado não entra no rodízio, mas continua contado no inventário
+    const arranged = arrangeGroups(groups, mirror.groupOrder);
+    expect(arranged[0]!.candidates.some((c) => c.item.endpoint === '/venues')).toBe(false);
+    const picked = await rotateGroups(groups, new InMemoryCursorStore(), now, 1000);
+    expect(picked.some((p) => p.endpoint === '/venues')).toBe(false);
+  });
+
+  it('ordem dos grupos: o primeiro da lista recebe o orçamento antes', async () => {
+    const sports = await sportGroups('basketball', fakeSports(), ULTRA_PLAN, now);
+    const order = cfgOf({ MIRROR_GROUP_ORDER_SPORTS: 'por-time,por-jogo,temporada' }).api(
+      'basketball',
+    ).groupOrder;
+    const arranged = arrangeGroups(sports, order);
+    expect(arranged.map((g) => g.id)).toEqual(['por-time', 'por-jogo', 'temporada']);
+    const picked = await rotateGroups(arranged, new InMemoryCursorStore(), now, 2);
+    expect(picked).toHaveLength(2);
+    expect(picked.every((p) => ['estatisticas-time', 'elenco'].includes(p.step))).toBe(true);
+  });
+
+  it('o job grava o inventário (com os desligados) e usa o orçamento do painel', async () => {
+    const cursors = new InMemoryCursorStore();
+    const env = { MIRROR_PERIODS_BASKETBALL: '/games=off', MIRROR_BUDGET_PERCENT: '1' };
+    const jobs = mirrorJobs(
+      {
+        catalog: new StaticCatalogSource(fakeCatalog()),
+        raw: new InMemoryRawSource([]),
+        cursors,
+        planFor: () => new PlanRules(ULTRA_PLAN),
+        now: () => now,
+        derbyPairs: noDerbies,
+        sports: fakeSports(),
+      },
+      { sports: ['basketball'], mirror: cfgOf(env) },
+    );
+    const items = await jobs[0]!.spec.phases[0]!.build();
+    expect(items.some((i) => i.endpoint === '/games')).toBe(false);
+    // 1% de 75.000
+    expect(items.length).toBeLessThanOrEqual(750);
+    const [row] = (await cursors.load([{ sport: 'basketball', ...MIRROR_INVENTORY_CURSOR }])).values();
+    const inv = parseMirrorInventory(row?.cursor);
+    expect(inv?.at).toBe(now.toISOString());
+    // uma temporada tier 1 no plano: a lista da temporada segue contada na coluna do tier 1
+    expect(inv?.items['/games']).toEqual([1]);
+    expect(inv?.items['/statistics']).toEqual([2]);
+    expect(inv?.items['/games/statistics/teams']).toEqual([2]);
+  });
+});
+
+/** Ids que o perfil de uma API pode gerar (a mesma regra de sportGroups). */
+function profileIds(sport: OtherSport): string[] {
+  const p = SPORT_MIRROR[sport];
+  return [
+    ...p.reference,
+    p.seasonList('L', 'S').endpoint,
+    ...p.standings('L', 'S').map((s) => s.endpoint),
+    ...(p.seasonTeams ? ['/teams'] : []),
+    ...(p.teamStats ? [p.teamStats('L', 'S', 'T').endpoint] : []),
+    ...(p.roster?.('S', 'T') ?? []).map((r) => r.endpoint),
+    ...(p.injuries ? ['/injuries'] : []),
+    ...(p.finished ?? []).map((f) => f.id ?? f.endpoint),
+    ...(p.odds ? [p.odds] : []),
+    ...(p.participants ?? []).map((pc) => pc.endpoint),
+  ];
+}
+
+describe('catálogo do espelho × perfis das APIs', () => {
+  it('os itens de cada uma das 11 APIs são os que o perfil gera', () => {
+    for (const sport of Object.keys(SPORT_MIRROR) as OtherSport[])
+      expect(new Set(profileIds(sport)), sport).toEqual(new Set(MIRROR_CATALOG[sport]!.map((d) => d.id)));
+  });
+
+  it('todos os candidatos das 11 APIs têm item no catálogo', async () => {
+    for (const sport of Object.keys(SPORT_MIRROR) as OtherSport[]) {
+      const groups = await sportGroups(sport, fakeSports(), ULTRA_PLAN, now);
+      for (const c of groups.flatMap((g) => g.candidates))
+        expect(c.slot, `${sport} ${c.item.endpoint}`).toBeDefined();
+    }
   });
 });

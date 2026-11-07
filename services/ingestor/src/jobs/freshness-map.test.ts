@@ -1,4 +1,5 @@
 import { RAW_CADENCE } from '@galaxie/observability';
+import { DEFAULT_MIRROR_CONFIG } from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 import { OTHER_SPORTS_SCHEDULE, ROTATION_PERIOD_DAYS } from './daily-job.js';
 import { FOOTBALL_REFERENCE, FOOTBALL_SEASON_ENDPOINTS } from './mirror-job.js';
@@ -16,12 +17,13 @@ describe('mapa de frescor × períodos dos jobs', () => {
       expect(cadence('football', endpoint), endpoint).toMatchObject({ periodDays: days, job: 'sync:daily' });
   });
 
-  it('temporada em jogo no espelho: o período do tier 1', () => {
+  it('temporada em jogo no espelho: o período do tier 1 do catálogo (runtime-config)', () => {
+    const football = DEFAULT_MIRROR_CONFIG.api('football');
     for (const e of FOOTBALL_SEASON_ENDPOINTS) {
       const c = cadence('football', e.endpoint);
       expect(c, e.endpoint).toBeDefined();
       // /injuries: o sync diário busca o do dia (1 dia) e o espelho, o da temporada
-      expect(c!.periodDays, e.endpoint).toBe(e.period[0]);
+      expect(c!.periodDays, e.endpoint).toBe(football.period(e.endpoint, 1));
     }
   });
 

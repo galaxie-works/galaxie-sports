@@ -1,6 +1,17 @@
 import type { ApiSport, PlanLimits, PlanRules } from '@galaxie/apisports-client';
 import { PlanViolationError, ttlFor } from '@galaxie/apisports-client';
 import {
+  DEFAULT_MIRROR_CONFIG,
+  MIRROR_INVENTORY_CURSOR,
+  mirrorBudgetCalls,
+  mirrorItem,
+  tierColumn,
+  type MirrorApiConfig,
+  type MirrorConfig,
+  type MirrorGroupId,
+  type MirrorInventory,
+} from '@galaxie/runtime-config';
+import {
   compareCompetitions,
   covers,
   type CatalogSource,
@@ -36,18 +47,20 @@ import { teamsOfSeason } from './teams.js';
  *
  * Fica de fora o que já tem dono: fixtures?date= / fixtures?id= / fixtures?league&season (sync diário),
  * players?league&season (números dos jogadores) e o rodízio tier 1 de pessoas (sync diário).
+ *
+ * Períodos, endpoints ligados, ordem dos grupos e orçamento vêm do painel (Ajustes → Operação → Espelho): o catálogo
+ * com os padrões fica em @galaxie/runtime-config (mirror.ts), o mesmo que alimenta o alerta de frescor.
  */
 
 const DAY_MS = 86_400_000;
-/**
- * Endpoints por jogo encerrado: um por dia enquanto o jogo está na janela de FINISHED_LOOKBACK_DAYS (no máximo 3
- * buscas). A correção do fornecedor nas horas seguintes e a resposta vazia logo depois do fim entram na seguinte.
- */
-const PER_GAME_DAYS = 1;
 /** Temporada em jogo: começa em até 14 dias e não terminou há mais de 7 (mesma regra da relista do sync diário). */
 const AHEAD_DAYS = 14;
 const AFTER_END_DAYS = 7;
-/** Jogos encerrados destes últimos dias recebem os endpoints por jogo (o sync diário grava a agenda de D-1). */
+/**
+ * Jogos encerrados destes últimos dias recebem os endpoints por jogo (o sync diário grava a agenda de D-1). Com o
+ * período padrão de 1 dia, um por dia enquanto o jogo está na janela (no máximo 3 buscas): a correção do fornecedor
+ * nas horas seguintes e a resposta vazia logo depois do fim entram na seguinte.
+ */
 export const FINISHED_LOOKBACK_DAYS = 3;
 /** Jogos que começam nestas próximas horas recebem palpites e odds. */
 export const UPCOMING_HOURS = 48;
@@ -56,28 +69,38 @@ export const IDS_PER_CALL = 10;
 
 export interface MirrorCandidate {
   item: PlannedRequest;
-  periodDays: number;
+  /** Período do item (dias); `null` = desligado no painel (fica no inventário, não no rodízio). */
+  periodDays: number | null;
+  /** Item do catálogo (runtime-config) e coluna de tier: o inventário que o painel usa na estimativa. */
+  slot?: { id: string; column: number };
 }
 
 /** Grupo de prioridade de uma API: os grupos são atendidos em ordem com o orçamento que sobrar. */
 export interface MirrorGroup {
+  /** Id do grupo no painel (MIRROR_GROUP_ORDER_*). */
+  id?: MirrorGroupId;
   name: string;
   candidates: MirrorCandidate[];
 }
 
-const cand = (
+/** Candidato de um item do catálogo, com o período do painel para o tier da competição. */
+function slotCand(
+  cfg: MirrorApiConfig,
+  id: string,
+  tier: number | undefined,
   step: string,
-  sport: ApiSport,
   endpoint: string,
   params: Record<string, string | number>,
-  periodDays: number,
   cursors?: CursorRef[],
-): MirrorCandidate => ({
-  item: plannedRequest(step, sport, endpoint, params, cursors ? { cursors } : {}),
-  periodDays,
-});
-
-const byTier = (tier: number, tier1: number, others: number) => (tier <= 1 ? tier1 : others);
+): MirrorCandidate {
+  const def = mirrorItem(cfg.api, id);
+  if (!def) throw new Error(`Espelho ${cfg.api}: ${id} fora do catálogo (runtime-config/mirror.ts)`);
+  return {
+    item: plannedRequest(step, cfg.api as ApiSport, endpoint, params, cursors ? { cursors } : {}),
+    periodDays: cfg.period(id, tier),
+    slot: { id, column: tierColumn(def, tier) },
+  };
+}
 
 function utcDate(d: Date, offsetDays = 0): string {
   return new Date(d.getTime() + offsetDays * DAY_MS).toISOString().slice(0, 10);
@@ -94,10 +117,40 @@ export function inPlay(
   return true;
 }
 
-/** Orçamento do espelho por API e por dia: 20% da cota nos planos pagos (Ultra 15.000, Pro 1.500); free 10. */
-export function mirrorBudget(limits: PlanLimits): number {
-  if (limits.seasons) return 10;
-  return Math.floor(limits.dailyLimit * 0.2);
+/**
+ * Orçamento do espelho por API e por dia: MIRROR_BUDGET_PERCENT da cota nos planos pagos (padrão 20%: Ultra 15.000,
+ * Pro 1.500); free 10.
+ */
+export function mirrorBudget(limits: PlanLimits, percent = DEFAULT_MIRROR_CONFIG.budgetPercent): number {
+  return mirrorBudgetCalls(limits.dailyLimit, percent, !!limits.seasons);
+}
+
+/** Inventário de uma execução: pedidos por item e coluna de tier, ligados ou não (base da estimativa do painel). */
+export function mirrorInventory(groups: readonly MirrorGroup[], at: Date): MirrorInventory {
+  const items: Record<string, number[]> = {};
+  for (const g of groups)
+    for (const c of g.candidates) {
+      if (!c.slot) continue;
+      const counts = (items[c.slot.id] ??= []);
+      while (counts.length <= c.slot.column) counts.push(0);
+      counts[c.slot.column]! += 1;
+    }
+  return { at: at.toISOString(), items };
+}
+
+/** Grupos na ordem do painel, sem os itens desligados. */
+export function arrangeGroups(
+  groups: readonly MirrorGroup[],
+  order: readonly MirrorGroupId[],
+): MirrorGroup[] {
+  const rank = (g: MirrorGroup) => {
+    const i = g.id ? order.indexOf(g.id) : -1;
+    return i < 0 ? order.length : i;
+  };
+  return [...groups]
+    .map((g, i) => ({ g, i }))
+    .sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i)
+    .map(({ g }) => ({ ...g, candidates: g.candidates.filter((c) => c.periodDays !== null) }));
 }
 
 /** Tira o que o plano vigente recusaria (temporada fora da janela, parâmetro proibido): não ocupa vaga no rodízio. */
@@ -130,6 +183,7 @@ export async function rotateGroups(
   for (const g of groups) {
     const aged: { item: PlannedRequest; age: number; i: number }[] = [];
     g.candidates.forEach((orig, i) => {
+      if (orig.periodDays === null) return;
       // falhou MAX_ATTEMPTS vezes sem concluir: o runner não tenta de novo, então não ocupa vaga no orçamento
       const exhausted = (ref: CursorRef) => {
         const st = states.get(cursorId(ref));
@@ -139,7 +193,7 @@ export async function rotateGroups(
       if (!c) return;
       // corte por dia UTC, não por 24 h exatas: o renovado ontem (a qualquer hora) vence hoje no período de 1 dia;
       // com 24 h exatas, a execução das 08:00 achava em dia o item buscado segundos depois das 08:00 de ontem
-      const staleBefore = new Date(today - (Math.max(1, c.periodDays) - 1) * DAY_MS);
+      const staleBefore = new Date(today - (Math.max(1, c.periodDays ?? 1) - 1) * DAY_MS);
       const age = Math.min(
         ...c.item.cursors.map((ref) => states.get(cursorId(ref))?.completedAt?.getTime() ?? -Infinity),
       );
@@ -225,22 +279,24 @@ function triedSince(
 
 // ─── futebol ─────────────────────────────────────────────────────────────────────────────────────
 
-/** Por competição × temporada em jogo: período em dias (tier 1, demais) e a flag de `coverage`. */
+/**
+ * Por competição × temporada em jogo, com a flag de `coverage`. O período por tier (1, 2 e 3+, este num grupo
+ * próprio) vem do catálogo do espelho (runtime-config), editável no painel.
+ */
 export const FOOTBALL_SEASON_ENDPOINTS: {
   step: string;
   endpoint: string;
   extra?: Record<string, string>;
   flag?: CoverageFlag;
-  period: [number, number];
 }[] = [
-  { step: 'standings', endpoint: '/standings', flag: 'standings', period: [1, 2] },
-  { step: 'injuries', endpoint: '/injuries', flag: 'injuries', period: [1, 3] },
-  { step: 'topscorers', endpoint: '/players/topscorers', flag: 'top_scorers', period: [1, 3] },
-  { step: 'topassists', endpoint: '/players/topassists', flag: 'top_assists', period: [1, 3] },
-  { step: 'topyellowcards', endpoint: '/players/topyellowcards', flag: 'top_cards', period: [3, 7] },
-  { step: 'topredcards', endpoint: '/players/topredcards', flag: 'top_cards', period: [3, 7] },
-  { step: 'rounds', endpoint: '/fixtures/rounds', extra: { dates: 'true' }, period: [7, 7] },
-  { step: 'teams', endpoint: '/teams', period: [7, 14] },
+  { step: 'standings', endpoint: '/standings', flag: 'standings' },
+  { step: 'injuries', endpoint: '/injuries', flag: 'injuries' },
+  { step: 'topscorers', endpoint: '/players/topscorers', flag: 'top_scorers' },
+  { step: 'topassists', endpoint: '/players/topassists', flag: 'top_assists' },
+  { step: 'topyellowcards', endpoint: '/players/topyellowcards', flag: 'top_cards' },
+  { step: 'topredcards', endpoint: '/players/topredcards', flag: 'top_cards' },
+  { step: 'rounds', endpoint: '/fixtures/rounds', extra: { dates: 'true' } },
+  { step: 'teams', endpoint: '/teams' },
 ];
 
 /** Referência do futebol sem parâmetros (o /leagues já vem todo dia no sync diário). */
@@ -264,6 +320,8 @@ export interface FootballMirrorOptions {
   detailTier?: number | undefined;
   /** Maior tier com elencos/técnicos/transferências no rodízio (padrão 3; o tier 1 é do sync diário). */
   teamTier?: number | undefined;
+  /** Períodos e endpoints ligados (padrão: o catálogo do runtime-config). */
+  mirror?: MirrorApiConfig | undefined;
 }
 
 export async function footballGroups(
@@ -276,28 +334,33 @@ export async function footballGroups(
 ): Promise<MirrorGroup[]> {
   const seasonTier = opts.seasonTier ?? 3;
   const detailTier = opts.detailTier ?? 2;
+  const cfg = opts.mirror ?? DEFAULT_MIRROR_CONFIG.api('football');
+  const cand = (
+    id: string,
+    tier: number | undefined,
+    step: string,
+    endpoint: string,
+    params: Record<string, string | number>,
+  ) => slotCand(cfg, id, tier, step, endpoint, params);
   const comps = [...(await catalog.competitions(seasonTier))].sort(compareCompetitions);
   const playing: { c: CompetitionInfo; s: CompetitionInfo['seasons'][number] }[] = [];
   for (const c of comps)
     for (const s of c.seasons) if (inPlay(s, now) && seasonAccessible(s.year, limits)) playing.push({ c, s });
 
-  const reference: MirrorCandidate[] = FOOTBALL_REFERENCE.map((e) =>
-    cand('referencia', 'football', e, {}, 7),
-  );
-  // tier 3 (mais de mil competições) num grupo próprio, depois de odds e estatísticas, com o dobro do período
+  const reference: MirrorCandidate[] = FOOTBALL_REFERENCE.map((e) => cand(e, undefined, 'referencia', e, {}));
+  // tier 3 (mais de mil competições) num grupo próprio, depois de odds e estatísticas (padrão: o dobro do período)
   const season: MirrorCandidate[] = [];
   const seasonTier3: MirrorCandidate[] = [];
   for (const { c, s } of playing) {
     for (const e of FOOTBALL_SEASON_ENDPOINTS) {
       if (e.flag && !covers(s.coverage, e.flag)) continue;
-      const period = c.tier >= 3 ? e.period[1] * 2 : byTier(c.tier, ...e.period);
       (c.tier >= 3 ? seasonTier3 : season).push(
-        cand(e.step, 'football', e.endpoint, { league: c.leagueId, season: s.year, ...e.extra }, period),
+        cand(e.endpoint, c.tier, e.step, e.endpoint, { league: c.leagueId, season: s.year, ...e.extra }),
       );
     }
   }
   const countries = [...new Set(comps.map((c) => c.countryName).filter((n): n is string => !!n))];
-  const venues = countries.map((country) => cand('venues', 'football', '/venues', { country }, 30));
+  const venues = countries.map((country) => cand('/venues', undefined, 'venues', '/venues', { country }));
 
   // palpites e odds dos jogos de hoje e amanhã (agenda já gravada pelo sync diário)
   const byLeague = new Map(comps.filter((c) => c.tier <= detailTier).map((c) => [c.leagueId, c] as const));
@@ -310,8 +373,8 @@ export async function footballGroups(
     if (Number.isNaN(at) || at < now.getTime() || at > until) continue;
     const cov = c.seasons.find((s) => s.year === f.season)?.coverage ?? null;
     if (covers(cov, 'predictions'))
-      upcoming.push(cand('predictions', 'football', '/predictions', { fixture: f.id }, 1));
-    if (covers(cov, 'odds')) upcoming.push(cand('odds', 'football', '/odds', { fixture: f.id }, 1));
+      upcoming.push(cand('/predictions', undefined, 'predictions', '/predictions', { fixture: f.id }));
+    if (covers(cov, 'odds')) upcoming.push(cand('/odds', undefined, 'odds', '/odds', { fixture: f.id }));
   }
 
   const teamStats: MirrorCandidate[] = [];
@@ -319,35 +382,34 @@ export async function footballGroups(
     if (c.tier > detailTier) continue;
     for (const t of await teamsOfSeason(raw, c.leagueId, s.year))
       teamStats.push(
-        cand(
-          'teams-statistics',
-          'football',
-          '/teams/statistics',
-          { league: c.leagueId, season: s.year, team: t.id },
-          byTier(c.tier, 7, 14),
-        ),
+        cand('/teams/statistics', c.tier, 'teams-statistics', '/teams/statistics', {
+          league: c.leagueId,
+          season: s.year,
+          team: t.id,
+        }),
       );
   }
 
   const derbies = (await derbyPairs()).map((h2h) =>
-    cand('h2h-classicos', 'football', '/fixtures/headtohead', { h2h }, 30),
+    cand('/fixtures/headtohead', undefined, 'h2h-classicos', '/fixtures/headtohead', { h2h }),
   );
 
-  // tier 2+ (o tier 1 já gira no sync diário): elenco a cada 14 dias, técnicos e transferências a cada 30
+  // tier 2+ (o tier 1 já gira no sync diário): padrão elenco a cada 14 dias, técnicos e transferências a cada 30
   const teams = (await teamTargets(catalog, raw, opts.teamTier ?? 3)).filter((t) => t.tier >= 2);
   const squads: MirrorCandidate[] = [];
   for (const e of TEAM_ENDPOINTS)
-    for (const t of teams)
-      squads.push(
-        cand(e.step, 'football', e.endpoint, { team: t.teamId }, e.endpoint === '/players/squads' ? 14 : 30),
-      );
+    for (const t of teams) squads.push(cand(e.endpoint, undefined, e.step, e.endpoint, { team: t.teamId }));
 
   return [
-    { name: 'referência e temporada atual', candidates: [...reference, ...season, ...venues] },
-    { name: 'palpites e odds', candidates: upcoming },
-    { name: 'estatísticas de time e clássicos', candidates: [...teamStats, ...derbies] },
-    { name: 'temporada atual tier 3', candidates: seasonTier3 },
-    { name: 'elencos tier 2+', candidates: squads },
+    {
+      id: 'temporada',
+      name: 'referência e temporada atual',
+      candidates: [...reference, ...season, ...venues],
+    },
+    { id: 'palpites-odds', name: 'palpites e odds', candidates: upcoming },
+    { id: 'estatisticas', name: 'estatísticas de time e clássicos', candidates: [...teamStats, ...derbies] },
+    { id: 'tier3', name: 'temporada atual tier 3', candidates: seasonTier3 },
+    { id: 'elencos', name: 'elencos tier 2+', candidates: squads },
   ];
 }
 
@@ -394,6 +456,8 @@ export type OtherSport = Exclude<ApiSport, 'football'>;
 
 interface GameCall {
   endpoint: string;
+  /** Item no catálogo do espelho quando o endpoint já aparece em outro item (padrão: o endpoint). */
+  id?: string;
   /** Parâmetro do id do jogo; `ids` junta até IDS_PER_CALL jogos numa chamada. */
   param: string;
   batch?: boolean;
@@ -551,7 +615,7 @@ export const SPORT_MIRROR: Record<OtherSport, SportMirrorProfile> = {
     ],
     finished: [
       { endpoint: '/games/statistics', param: 'id' },
-      { endpoint: '/players/statistics', param: 'game' },
+      { endpoint: '/players/statistics', param: 'game', id: '/players/statistics?game' },
     ],
   },
   'formula-1': {
@@ -590,6 +654,8 @@ const SCHEDULED = new Set(['scheduled', 'starting']);
 export interface SportMirrorOptions {
   /** Maior tier do catálogo YAML com temporadas, jogos e times no espelho (padrão 2). */
   maxTier?: number | undefined;
+  /** Períodos e endpoints ligados de cada API (padrão: o catálogo do runtime-config). */
+  mirror?: MirrorConfig | undefined;
 }
 
 export async function sportGroups(
@@ -601,7 +667,16 @@ export async function sportGroups(
 ): Promise<MirrorGroup[]> {
   const p = SPORT_MIRROR[sport];
   const maxTier = opts.maxTier ?? 2;
-  const reference = p.reference.map((e) => cand('referencia', sport, e, {}, e === '/leagues' ? 1 : 7));
+  const cfg = (opts.mirror ?? DEFAULT_MIRROR_CONFIG).api(sport);
+  const cand = (
+    id: string,
+    tier: number | undefined,
+    step: string,
+    endpoint: string,
+    params: Record<string, string | number>,
+    cursors?: CursorRef[],
+  ) => slotCand(cfg, id, tier, step, endpoint, params, cursors);
+  const reference = p.reference.map((e) => cand(e, undefined, 'referencia', e, {}));
   // F1 e MMA: uma "competição" com a temporada no parâmetro; o mesmo pedido vale uma vez
   const playing = (await source.seasons(sport)).filter(
     (s) => s.tier <= maxTier && inPlay(s, now) && seasonAccessible(s.year, limits),
@@ -610,20 +685,21 @@ export async function sportGroups(
   const perTeam: MirrorCandidate[] = [];
   for (const s of playing) {
     const list = p.seasonList(s.league, s.key);
-    season.push(cand('temporada', sport, list.endpoint, list.params, byTier(s.tier, 2, 7)));
+    season.push(cand(list.endpoint, s.tier, 'temporada', list.endpoint, list.params));
     const cov = (path: readonly string[] | undefined) => covered(s.coverage, path);
     for (const t of cov(p.covers?.standings) ? p.standings(s.league, s.key) : [])
-      season.push(cand('classificacao', sport, t.endpoint, t.params, byTier(s.tier, 1, 2)));
-    if (p.seasonTeams) season.push(cand('times', sport, '/teams', { league: s.league, season: s.key }, 7));
+      season.push(cand(t.endpoint, s.tier, 'classificacao', t.endpoint, t.params));
+    if (p.seasonTeams)
+      season.push(cand('/teams', undefined, 'times', '/teams', { league: s.league, season: s.key }));
     if (!p.teamStats && !p.roster && !p.injuries) continue;
     for (const team of await source.teams(sport, s.league, s.year)) {
       if (p.teamStats && cov(p.covers?.teamStats)) {
         const c = p.teamStats(s.league, s.key, team);
-        perTeam.push(cand('estatisticas-time', sport, c.endpoint, c.params, 14));
+        perTeam.push(cand(c.endpoint, undefined, 'estatisticas-time', c.endpoint, c.params));
       }
       for (const r of cov(p.covers?.roster) ? (p.roster?.(s.key, team) ?? []) : [])
-        perTeam.push(cand('elenco', sport, r.endpoint, r.params, 14));
-      if (p.injuries) perTeam.push(cand('lesoes', sport, '/injuries', { team }, byTier(s.tier, 1, 3)));
+        perTeam.push(cand(r.endpoint, undefined, 'elenco', r.endpoint, r.params));
+      if (p.injuries) perTeam.push(cand('/injuries', s.tier, 'lesoes', '/injuries', { team }));
     }
   }
 
@@ -645,36 +721,38 @@ export async function sportGroups(
         const batch = finishedFor.slice(i, i + IDS_PER_CALL).map((g) => g.id);
         games.push(
           cand(
+            call.id ?? call.endpoint,
+            undefined,
             'por-jogo',
-            sport,
             call.endpoint,
             { ids: batch.join('-') },
-            PER_GAME_DAYS,
             batch.map((id) => ({ sport, endpoint: call.endpoint, key: `id=${id}` })),
           ),
         );
       }
     } else {
       for (const g of finishedFor)
-        games.push(cand('por-jogo', sport, call.endpoint, { [call.param]: g.id }, PER_GAME_DAYS));
+        games.push(
+          cand(call.id ?? call.endpoint, undefined, 'por-jogo', call.endpoint, { [call.param]: g.id }),
+        );
     }
   }
   if (p.odds) {
     const param = sport === 'mma' ? 'fight' : 'game';
     for (const g of reachable)
       if (SCHEDULED.has(g.status) && g.startsAt > now && gameCovers(g, p.covers?.odds))
-        games.push(cand('odds', sport, p.odds, { [param]: g.id }, 1));
+        games.push(cand(p.odds, undefined, 'odds', p.odds, { [param]: g.id }));
   }
   // lutador de temporada fora do plano fica de fora: /fighters não leva `season` e a validação não o barraria
   const years = [...new Set(reachable.map((g) => g.year))];
   for (const pc of p.participants ?? [])
     for (const id of await source.participants(sport, recent, ahead, years))
-      games.push(cand('participantes', sport, pc.endpoint, { [pc.param]: id }, 30));
+      games.push(cand(pc.endpoint, undefined, 'participantes', pc.endpoint, { [pc.param]: id }));
 
   return [
-    { name: 'referência e temporada atual', candidates: [...reference, ...season] },
-    { name: 'por jogo', candidates: games },
-    { name: 'por time', candidates: perTeam },
+    { id: 'temporada', name: 'referência e temporada atual', candidates: [...reference, ...season] },
+    { id: 'por-jogo', name: 'por jogo', candidates: games },
+    { id: 'por-time', name: 'por time', candidates: perTeam },
   ];
 }
 
@@ -688,6 +766,8 @@ export interface MirrorJobOptions {
   other?: SportMirrorOptions | undefined;
   /** --forcar: ignora o período de cada item (o runner também ignora o cache), mantendo o orçamento. */
   force?: boolean | undefined;
+  /** Configuração do painel (períodos, endpoints ligados, ordem dos grupos, orçamento); padrão: o do código. */
+  mirror?: MirrorConfig | undefined;
 }
 
 export interface MirrorDeps {
@@ -719,22 +799,27 @@ function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions)
         build: async () => {
           const now = deps.now();
           const plan = deps.planFor(sport);
+          const mirror = opts.mirror ?? DEFAULT_MIRROR_CONFIG;
+          const cfg = mirror.api(sport);
           const groups =
             sport === 'football'
-              ? await footballGroups(
-                  deps.catalog,
-                  deps.raw,
-                  plan.current,
-                  now,
-                  deps.derbyPairs,
-                  opts.football,
-                )
-              : await sportGroups(sport, deps.sports, plan.current, now, opts.other);
+              ? await footballGroups(deps.catalog, deps.raw, plan.current, now, deps.derbyPairs, {
+                  ...opts.football,
+                  mirror: cfg,
+                })
+              : await sportGroups(sport, deps.sports, plan.current, now, { ...opts.other, mirror });
           const allowed = groups.map((g) => ({
             ...g,
             candidates: g.candidates.filter((c) => allowedByPlan(c, plan, now)),
           }));
-          return rotateGroups(allowed, deps.cursors, now, opts.budget ?? mirrorBudget(plan.current), {
+          // o inventário conta também os desligados: o painel estima o custo de religar
+          await deps.cursors.complete(
+            [{ sport, ...MIRROR_INVENTORY_CURSOR }],
+            { ...mirrorInventory(allowed, now) },
+            now,
+          );
+          const budget = opts.budget ?? mirrorBudget(plan.current, mirror.budgetPercent);
+          return rotateGroups(arrangeGroups(allowed, cfg.groupOrder), deps.cursors, now, budget, {
             force: opts.force,
           });
         },
