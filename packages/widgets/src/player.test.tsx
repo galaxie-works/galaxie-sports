@@ -51,10 +51,10 @@ describe('Ficha do jogador', () => {
       '24Jogos',
       '14Gols',
       '7Assistências',
-      '1872Minutos',
+      '1.872Minutos',
       '4Amarelos',
       '0Vermelhos',
-      '7.2Nota',
+      '7,2Nota',
     ]);
     expect(blocks(container)).toEqual(['stats', 'clubs', 'seasons', 'trophies', 'transfers']);
     expect(screen.getByText('Campeão')).toBeTruthy();
@@ -116,6 +116,64 @@ describe('Ficha do jogador', () => {
     setup(<PlayerProfile personId={PREVIEW_IDS.person} />, undefined, 'es');
     expect(await screen.findByText('Brasil · Delantero · #9 · 26 años')).toBeTruthy();
     expect(screen.getByText('Transferencias')).toBeTruthy();
+  });
+
+  it('números no formato do idioma: milhar e decimal', async () => {
+    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, undefined, 'en');
+    await screen.findByText('2026 season');
+    const stats = [...container.querySelectorAll('.gs-stat')].map((s) => s.textContent);
+    expect(stats).toContain('1,872Minutes');
+    expect(stats).toContain('7.2Rating');
+  });
+
+  it('singular e plural: 1 jogo · 1 gol, 2 jogos · 0 gols', async () => {
+    const base = createPlayerFixture(NOW);
+    const one = {
+      ...base,
+      career: [{ ...base.career[0]!, appearances: 1, goals: 1 }],
+      seasons: [{ year: 2026, appearances: 2, goals: 0 }],
+    };
+    const fetchImpl: typeof fetch = async () => Response.json(one);
+    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, fetchImpl);
+    await screen.findByText('Rafael Tavares');
+    expect(container.querySelector('[data-gs-block="clubs"]')!.textContent).toContain('1 jogo · 1 gol');
+    expect(container.querySelector('[data-gs-block="clubs"]')!.textContent).not.toContain('jogos');
+    expect(container.querySelector('[data-gs-block="seasons"]')!.textContent).toContain('2 jogos · 0 gols');
+    cleanup();
+    const en = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, fetchImpl, 'en');
+    await screen.findByText('Rafael Tavares');
+    expect(en.container.querySelector('[data-gs-block="clubs"]')!.textContent).toContain('1 app · 1 goal');
+    cleanup();
+    const es = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, fetchImpl, 'es');
+    await screen.findByText('Rafael Tavares');
+    expect(es.container.querySelector('[data-gs-block="clubs"]')!.textContent).toContain('1 partido · 1 gol');
+  });
+
+  it('limite 0 mostra todos os itens, sem "e mais"', async () => {
+    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} limit={0} />);
+    await screen.findByText('Rafael Tavares');
+    expect(container.querySelector('[data-gs-block="clubs"]')!.querySelectorAll('.gs-fixture')).toHaveLength(
+      3,
+    );
+    expect(
+      container.querySelector('[data-gs-block="seasons"]')!.querySelectorAll('.gs-fixture'),
+    ).toHaveLength(4);
+    expect(container.textContent).not.toContain('e mais');
+  });
+
+  it('transferências repetidas (mesma data e clubes) aparecem todas', async () => {
+    const base = createPlayerFixture(NOW);
+    const t = base.transfers[0]!;
+    const dup = { ...base, transfers: [t, { ...t }, { ...t, type: 'Loan' }] };
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchImpl: typeof fetch = async () => Response.json(dup);
+    const { container } = setup(<PlayerProfile personId={PREVIEW_IDS.person} />, fetchImpl);
+    await screen.findByText('Rafael Tavares');
+    expect(
+      container.querySelector('[data-gs-block="transfers"]')!.querySelectorAll('.gs-fixture'),
+    ).toHaveLength(3);
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
+    errors.mockRestore();
   });
 
   it('jogador inexistente mostra o erro da API', async () => {
