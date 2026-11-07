@@ -130,6 +130,9 @@ describe('rotateGroups', () => {
     const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
     // orçamento 2: 1 já gasto hoje com erro; sobra 1 vaga (o 1, sem conclusão, é o mais velho)
     expect(picked).toHaveLength(1);
+    // duas falhas hoje do mesmo pedido: as duas contam (o cursor guarda só a última data)
+    await cursors.fail(a[0]!.item.cursors, 'erro do fornecedor', now);
+    expect(await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2)).toEqual([]);
   });
 
   it('chamadas de hoje contadas por pedido feito, não pelos lotes remontados agora', async () => {

@@ -179,8 +179,9 @@ function withoutExhausted(
 /**
  * Chamadas ao fornecedor já feitas hoje, contadas pelos cursores e não pelos pedidos de agora: os lotes de `ids` são
  * remontados a cada execução (a janela de jogos anda), então um pedido de hoje pode não bater com nenhum de agora.
- * Concluída: uma por `requestHash` (cache não gasta cota). Erro: uma por endpoint e instante da tentativa (o runner
- * registra o erro de uma chamada em todos os cursores dela de uma vez).
+ * Concluída: uma por `requestHash` (cache não gasta cota). Erro: por endpoint e instante da última tentativa (o runner
+ * registra o erro de uma chamada em todos os cursores dela de uma vez), pesando todas as `attempts`: o cursor guarda
+ * só a última data, então as anteriores podem ter sido hoje. Na dúvida conta a mais (gasta menos cota, nunca mais).
  */
 function callsSpentToday(
   candidates: MirrorCandidate[],
@@ -188,6 +189,7 @@ function callsSpentToday(
   today: number,
 ): number {
   const calls = new Set<string>();
+  const failed = new Map<string, number>();
   for (const c of candidates)
     for (const ref of c.item.cursors) {
       const st = states.get(cursorId(ref));
@@ -197,10 +199,13 @@ function callsSpentToday(
         const hash = st.cursor?.requestHash;
         calls.add(typeof hash === 'string' ? `ok|${hash}` : `ok|${cursorId(ref)}`);
       } else if (triedSince(st, today)) {
-        calls.add(`erro|${ref.sport}|${ref.endpoint}|${String(st.cursor?.lastAttemptAt)}`);
+        const key = `${ref.sport}|${ref.endpoint}|${String(st.cursor?.lastAttemptAt)}`;
+        failed.set(key, Math.max(failed.get(key) ?? 0, Math.max(1, attemptsOf(st))));
       }
     }
-  return calls.size;
+  let errors = 0;
+  for (const n of failed.values()) errors += n;
+  return calls.size + errors;
 }
 
 /** Tentativa com erro registrada a partir de `since` (ms), sem conclusão depois dela. */
