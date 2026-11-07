@@ -13,6 +13,7 @@ import {
   ScoreTicker,
   StandingsTable,
   TeamSchedule,
+  TeamCard,
   TeamSquad,
   AthleteProfile,
   FightCard,
@@ -27,6 +28,7 @@ import {
   CountryAthletes,
   MedalHistory,
   PlayerProfile,
+  Lineups,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -218,6 +220,8 @@ function PreviewWidget({
         return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
         return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+      case 'team_card':
+        return <TeamCard {...o} {...WIDGET_CATALOG.team_card.exampleProps} />;
       case 'race_result':
         return <RaceResult {...o} {...WIDGET_CATALOG.race_result.exampleProps} />;
       case 'race_weekend':
@@ -266,6 +270,8 @@ function PreviewWidget({
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
       case 'player_profile':
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
+      case 'lineups':
+        return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
     }
   }
   switch (kind) {
@@ -295,6 +301,8 @@ function PreviewWidget({
       return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={entity.id} />;
+    case 'team_card':
+      return <TeamCard {...o} teamId={entity.id} />;
     case 'race_result':
       return <RaceResult {...o} eventId={entity.id} />;
     case 'race_weekend':
@@ -311,6 +319,8 @@ function PreviewWidget({
       return <Countdown {...o} eventId={entity.id} />;
     case 'player_profile':
       return <PlayerProfile {...o} personId={entity.id} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

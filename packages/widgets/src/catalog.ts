@@ -10,6 +10,7 @@ import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
 import type { TeamScheduleProps } from './widgets/team-schedule.js';
+import type { TeamCardProps } from './widgets/team-card.js';
 import type { AthleteProfileProps } from './widgets/athlete-profile.js';
 import type { FightCardProps } from './widgets/fight-card.js';
 import type { RaceResultProps } from './widgets/race-result.js';
@@ -29,6 +30,7 @@ import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
+import type { LineupsProps } from './widgets/lineups.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -42,6 +44,7 @@ export interface WidgetPropsByKind {
   related_videos: RelatedVideosProps;
   head_to_head: HeadToHeadProps;
   team_schedule: TeamScheduleProps;
+  team_card: TeamCardProps;
   race_result: RaceResultProps;
   race_weekend: RaceWeekendProps;
   season_calendar: SeasonCalendarProps;
@@ -60,6 +63,7 @@ export interface WidgetPropsByKind {
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
+  lineups: LineupsProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -77,6 +81,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'RelatedVideos'
     | 'HeadToHead'
     | 'TeamSchedule'
+    | 'TeamCard'
     | 'RaceResult'
     | 'RaceWeekend'
     | 'SeasonCalendar'
@@ -94,7 +99,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'MedalHistory'
     | 'Countdown'
     | 'TeamSquad'
-    | 'PlayerProfile';
+    | 'PlayerProfile'
+    | 'Lineups';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -387,6 +393,22 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStanding',
       'showCalendar',
     ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: true,
+    sports: TEAM_SPORTS,
+  },
+  team_card: {
+    kind: 'team_card',
+    component: 'TeamCard',
+    registryComponent: 'GalaxieTeamCard',
+    name: { 'pt-BR': 'Cartão do time', es: 'Ficha del equipo', en: 'Team card' },
+    description: {
+      'pt-BR': 'Escudo, forma recente (V/E/D), o próximo jogo e os campeonatos que o time disputa.',
+      es: 'Escudo, forma reciente (G/E/P), el próximo partido y las competiciones que disputa el equipo.',
+      en: 'Crest, recent form (W/D/L), the next match and the competitions the team is playing in.',
+    },
+    requiredProps: ['teamId'],
+    optionalProps: ['showForm', 'formCount', 'showNext', 'showCompetitions', 'competitionsLimit'],
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: true,
     sports: TEAM_SPORTS,
@@ -705,6 +727,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { personId: PREVIEW_IDS.person },
     polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  lineups: {
+    kind: 'lineups',
+    component: 'Lineups',
+    registryComponent: 'GalaxieLineups',
+    name: { 'pt-BR': 'Escalações', es: 'Alineaciones', en: 'Lineups' },
+    description: {
+      'pt-BR':
+        'Os dois times no desenho do campo, com titulares, reservas e técnico, assim que forem divulgados.',
+      es: 'Los dos equipos dibujados en la cancha, con titulares, suplentes y entrenador, apenas se confirman.',
+      en: 'Both teams drawn on the pitch, with starters, substitutes and head coach, as soon as they are announced.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['view', 'team', 'showSubstitutes', 'showCoach'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
     sports: FOOTBALL_ONLY,
   },
 };

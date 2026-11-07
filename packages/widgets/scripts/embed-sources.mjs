@@ -25,6 +25,7 @@ const WIDGETS = {
   related_videos: { file: 'src/widgets/related-videos.tsx', component: 'RelatedVideos' },
   head_to_head: { file: 'src/widgets/head-to-head.tsx', component: 'HeadToHead' },
   team_schedule: { file: 'src/widgets/team-schedule.tsx', component: 'TeamSchedule' },
+  team_card: { file: 'src/widgets/team-card.tsx', component: 'TeamCard' },
   race_result: { file: 'src/widgets/race-result.tsx', component: 'RaceResult' },
   race_weekend: { file: 'src/widgets/race-weekend.tsx', component: 'RaceWeekend' },
   season_calendar: { file: 'src/widgets/season-calendar.tsx', component: 'SeasonCalendar' },
@@ -43,6 +44,7 @@ const WIDGETS = {
   countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
   team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
   player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
+  lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

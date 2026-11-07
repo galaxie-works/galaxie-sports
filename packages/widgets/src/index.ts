@@ -82,6 +82,7 @@ export { MatchStakes, type MatchStakesProps } from './widgets/match-stakes.js';
 export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos.js';
 export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
 export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
+export { TeamCard, type TeamCardProps } from './widgets/team-card.js';
 export { RaceResult, type RaceResultProps } from './widgets/race-result.js';
 export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
 export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
@@ -101,6 +102,7 @@ export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js
 export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
 export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
+export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

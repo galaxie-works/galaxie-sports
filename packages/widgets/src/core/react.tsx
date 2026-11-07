@@ -277,7 +277,7 @@ export function useGalaxieQuery<T>(
   return { ...state, retry };
 }
 
-/** Formatadores de data e hora no idioma do widget e no fuso do navegador. */
+/** Formatadores de data, hora e número no idioma do widget (datas no fuso do navegador). */
 export function useFormatters() {
   const { locale, market, timeZone } = useGalaxieWidget();
   return useMemo(() => {
@@ -308,7 +308,19 @@ export function useFormatters() {
       const d = new Date(iso);
       return Number.isNaN(d.getTime()) ? '' : f.format(d);
     };
-    return { time: safe(time), dateTime: safe(dateTime), date: safe(date), dayMonth: safe(dayMonth) };
+    const integer = new Intl.NumberFormat(intl, { maximumFractionDigits: 0 });
+    const decimal = new Intl.NumberFormat(intl, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return {
+      intl,
+      time: safe(time),
+      dateTime: safe(dateTime),
+      date: safe(date),
+      dayMonth: safe(dayMonth),
+      /** Inteiro com o separador de milhar do idioma (1.872 / 1,872). */
+      integer: (n: number) => integer.format(n),
+      /** Uma casa decimal com a vírgula ou o ponto do idioma (7,2 / 7.2). */
+      decimal: (n: number) => decimal.format(n),
+    };
   }, [locale, market, timeZone]);
 }
 

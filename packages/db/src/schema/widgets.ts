@@ -18,6 +18,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -36,6 +37,7 @@ export const WIDGET_KINDS = [
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

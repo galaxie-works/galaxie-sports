@@ -514,6 +514,26 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     ),
     bool('showCalendar', L.calendar, false),
   ],
+  team_card: [
+    bool('showForm', l('Forma recente', 'Forma reciente', 'Recent form'), true),
+    {
+      key: 'formCount',
+      type: 'number',
+      default: 5,
+      min: 1,
+      max: 5,
+      label: l('Jogos na forma', 'Partidos en la forma', 'Matches in the form'),
+    },
+    bool('showNext', l('Próximo jogo', 'Próximo partido', 'Next match'), true),
+    bool('showCompetitions', l('Campeonatos', 'Competiciones', 'Competitions'), true),
+    count(
+      'competitionsLimit',
+      l('Campeonatos listados', 'Competiciones listadas', 'Competitions listed'),
+      4,
+      10,
+      ALL,
+    ),
+  ],
   race_result: [
     {
       key: 'limit',
@@ -829,6 +849,36 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showTrophies', l('Títulos', 'Títulos', 'Trophies'), true),
     bool('showTransfers', l('Transferências', 'Transferencias', 'Transfers'), true),
     count('limit', l('Itens por bloco', 'Elementos por bloque', 'Items per block'), 5, 30, ALL),
+  ],
+  lineups: [
+    {
+      key: 'view',
+      type: 'enum',
+      default: 'pitch',
+      label: l('Formato', 'Formato', 'Layout'),
+      hint: l(
+        'Sem a posição de cada jogador no campo, a escalação aparece em lista.',
+        'Sin la posición de cada jugador en la cancha, la alineación se muestra en lista.',
+        'Without each player’s position on the pitch, the lineup is shown as a list.',
+      ),
+      values: [
+        { value: 'pitch', label: l('Campo', 'Cancha', 'Pitch') },
+        { value: 'list', label: l('Lista', 'Lista', 'List') },
+      ],
+    },
+    {
+      key: 'team',
+      type: 'enum',
+      default: 'both',
+      label: l('Times', 'Equipos', 'Teams'),
+      values: [
+        { value: 'both', label: l('Os dois times', 'Los dos equipos', 'Both teams') },
+        { value: 'home', label: l('Só o mandante', 'Solo el local', 'Home team only') },
+        { value: 'away', label: l('Só o visitante', 'Solo el visitante', 'Away team only') },
+      ],
+    },
+    bool('showSubstitutes', l('Reservas', 'Suplentes', 'Substitutes'), true),
+    bool('showCoach', l('Técnico', 'Entrenador', 'Head coach'), true),
   ],
 };
 

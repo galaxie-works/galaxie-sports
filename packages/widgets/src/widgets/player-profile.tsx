@@ -1,6 +1,6 @@
 'use client';
 
-import { fillText, type GsPersonOverview } from '../core/model.js';
+import { SQUAD_POSITIONS, fillText, pluralText, type GsPersonOverview } from '../core/model.js';
 import {
   Crest,
   EmptyState,
@@ -35,10 +35,10 @@ export interface PlayerProfileProps {
 
 const PROFILE_REFRESH_MS = 30 * 60_000;
 
-/** Posições do fornecedor que têm tradução; as outras aparecem como vêm. */
-const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker'] as const;
-type Position = (typeof POSITIONS)[number];
-const isPosition = (v: string | null): v is Position => (POSITIONS as readonly (string | null)[]).includes(v);
+/** Posições do fornecedor que têm tradução (as mesmas do elenco); as outras aparecem como vêm. */
+type Position = (typeof SQUAD_POSITIONS)[number];
+const isPosition = (v: string | null): v is Position =>
+  (SQUAD_POSITIONS as readonly (string | null)[]).includes(v);
 
 /**
  * Ficha do jogador (futebol): foto, clube atual, posição e nacionalidade; os números da temporada (jogos,
@@ -89,7 +89,9 @@ export function PlayerProfile({
     o.person.age ? fillText(t.age, { age: o.person.age }) : null,
   ].filter(Boolean);
   const s = o.totals;
-  const appsGoals = (n: number, g: number) => fillText(t.appsGoals, { n, g });
+  const apps = (n: number) => pluralText(t.apps, n, fmt.intl, fmt.integer);
+  const appsGoals = (n: number, g: number) =>
+    `${apps(n)} · ${pluralText(t.goalsCount, g, fmt.intl, fmt.integer)}`;
   const seasons = o.seasons.filter((x) => x.appearances > 0);
   const trophies = o.trophies ?? [];
 
@@ -124,10 +126,10 @@ export function PlayerProfile({
                       [t.appearances, s.appearances],
                       [t.goals, s.goals],
                       [t.assists, s.assists],
-                      [t.minutes, s.minutes],
+                      [t.minutes, fmt.integer(s.minutes)],
                       [t.yellow, s.yellow_cards],
                       [t.red, s.red_cards],
-                      [t.rating, s.rating !== null ? s.rating.toFixed(1) : null],
+                      [t.rating, s.rating !== null ? fmt.decimal(s.rating) : null],
                     ]
               }
             />
@@ -152,7 +154,7 @@ export function PlayerProfile({
                         c.from === c.to ? String(c.from) : `${c.from}–${c.to}`,
                         c.appearances
                           ? coach
-                            ? fillText(t.apps, { n: c.appearances })
+                            ? apps(c.appearances)
                             : appsGoals(c.appearances, c.goals)
                           : null,
                       ]
@@ -177,7 +179,7 @@ export function PlayerProfile({
               <li key={x.year} className="gs-fixture" aria-current={x.year === o.season || undefined}>
                 <span className={x.year === o.season ? 'gs-grow gs-strong' : 'gs-grow'}>{x.year}</span>
                 <span className="gs-muted gs-small">
-                  {coach ? fillText(t.apps, { n: x.appearances }) : appsGoals(x.appearances, x.goals)}
+                  {coach ? apps(x.appearances) : appsGoals(x.appearances, x.goals)}
                 </span>
               </li>
             ))}
@@ -210,8 +212,8 @@ export function PlayerProfile({
         <div className="gs-group" data-gs-block="transfers">
           <div className="gs-group-title">{t.transfers}</div>
           <ul className="gs-list">
-            {cut(o.transfers).map((x) => (
-              <li key={`${x.date}-${x.from.name}-${x.to.name}`} className="gs-fixture">
+            {cut(o.transfers).map((x, i) => (
+              <li key={`${x.date}-${x.type}-${x.from.name}-${x.to.name}-${i}`} className="gs-fixture">
                 <span className="gs-grow" style={{ minWidth: 0 }}>
                   <span className="gs-line">
                     <Crest src={x.from.logo} name={x.from.name} size="xs" />

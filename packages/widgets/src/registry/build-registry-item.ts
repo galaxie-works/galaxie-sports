@@ -138,8 +138,10 @@ function defaultProps(
     case 'fight_card':
     case 'countdown':
     case 'match_timeline':
+    case 'lineups':
       return pick(['eventId']);
     case 'team_schedule':
+    case 'team_card':
     case 'athlete_profile':
     case 'team_squad':
       return pick(['teamId']);

@@ -36,6 +36,10 @@ describe('themeToCssVars', () => {
     expect(readableOn('#1d4ed8')).toBe('#ffffff');
     expect(readableOn('#fff')).toBe('#0b0d12');
     expect(readableOn('oklch(0.6 0.2 250)')).toBe('#ffffff');
+    // primária translúcida: decide pela mistura com o fundo
+    expect(readableOn('#1d4ed8', '#ffffff')).toBe('#ffffff');
+    expect(readableOn('#1d4ed820', '#ffffff')).toBe('#0b0d12');
+    expect(readableOn('#1d4ed820', '#0b0d12')).toBe('#ffffff');
   });
 
   it('tem os presets escuro, claro e dois de marca', () => {
