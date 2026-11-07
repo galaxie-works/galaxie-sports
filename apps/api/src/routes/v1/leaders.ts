@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, lte, sql, type AnyColumn } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lte, or, sql, type AnyColumn } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   LeadersQuery,
@@ -68,7 +68,9 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
         if (!s) throw problems.notFound('Temporada');
 
         // O banco é a única fonte da ordem e da posição: `rank()` dá a posição pelo valor (empatados dividem:
-        // 1, 2, 2, 4) e o corte é pela posição, então quem empata com o último entra junto (até o teto).
+        // 1, 2, 2, 4) e o corte é pela posição, então quem empata com o último entra junto. O teto de 50 nunca
+        // parte uma posição ao meio: entram só as posições que cabem inteiras (`upTo` = linhas até o fim da
+        // posição), menos quando a 1ª sozinha já passa de 50 (aí vêm 50 dela).
         const value = valueSql(query.category);
         const sum = (col: AnyColumn) => sql<number>`coalesce(sum(${col}), 0)::int`;
         const totals = db
@@ -76,6 +78,7 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
             personId: personSeasonStat.personId,
             value: sql<number>`(${value})::int`.as('value'),
             rank: sql<number>`(rank() over (order by ${value} desc))::int`.as('rank'),
+            upTo: sql<number>`(count(*) over (order by ${value} desc))::int`.as('up_to'),
             appearances: sum(personSeasonStat.appearances).as('appearances'),
             minutes: sum(personSeasonStat.minutes).as('minutes'),
             goals: sum(personSeasonStat.goals).as('goals'),
@@ -83,12 +86,11 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
             yellowCards: sum(personSeasonStat.yellowCards).as('yellow_cards'),
             redCards: sum(personSeasonStat.redCards).as('red_cards'),
             // o time em que mais jogou (quem trocou de clube na temporada tem uma linha por time); empate
-            // em jogos e minutos fica com o time da linha atualizada por último, e depois com o id (estável)
+            // em jogos e minutos tem desempate estável (linha atualizada por último, depois o id do time)
             teamId:
               sql<string>`(array_agg(${personSeasonStat.participantId} order by ${personSeasonStat.appearances} desc nulls last, ${personSeasonStat.minutes} desc nulls last, ${personSeasonStat.updatedAt} desc, ${personSeasonStat.participantId}::text))[1]`.as(
                 'team_id',
               ),
-            updatedAt: sql<Date | string | null>`max(${personSeasonStat.updatedAt})`.as('updated_at'),
           })
           .from(personSeasonStat)
           .where(eq(personSeasonStat.seasonId, s.id))
@@ -98,7 +100,9 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const ranked = await db
           .select()
           .from(totals)
-          .where(lte(totals.rank, query.limit))
+          .where(
+            and(lte(totals.rank, query.limit), or(lte(totals.upTo, LEADERS_MAX_ROWS), eq(totals.rank, 1))),
+          )
           // dentro da posição: nos cartões, mais vermelhos primeiro; depois menos jogos e menos minutos
           .orderBy(
             asc(totals.rank),
@@ -108,6 +112,13 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
             sql`${totals.personId}::text`,
           )
           .limit(LEADERS_MAX_ROWS);
+
+        // a data da carga é a da temporada inteira, não só das linhas que voltaram
+        const [fresh] = await db
+          .select({ at: sql<Date | string | null>`max(${personSeasonStat.updatedAt})` })
+          .from(personSeasonStat)
+          .where(eq(personSeasonStat.seasonId, s.id));
+        const updatedAt = fresh?.at ? new Date(fresh.at) : null;
 
         const personIds = ranked.map((r) => r.personId);
         const teamIds = [...new Set(ranked.map((r) => r.teamId).filter(Boolean))];
@@ -144,14 +155,11 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const personBy = new Map(people.map((p) => [p.id, p]));
         const teamBy = new Map(teams.map((t) => [t.id, t]));
 
-        let updatedAt: Date | null = null;
         const data: LeaderRow[] = [];
         for (const r of ranked) {
           const p = personBy.get(r.personId);
           if (!p) continue;
           const t = teamBy.get(r.teamId);
-          const at = r.updatedAt ? new Date(r.updatedAt) : null;
-          if (at && (!updatedAt || at > updatedAt)) updatedAt = at;
           data.push({
             rank: r.rank,
             person: { id: p.id, name: p.name, photo: assetUrl(ctx.assetsBaseUrl, p.storageKey, p.sourceUrl) },

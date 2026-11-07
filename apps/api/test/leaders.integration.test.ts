@@ -93,6 +93,9 @@ async function seed() {
     Vermelho: [{ team: 'Verde', appearances: 20, minutes: 1800, yellow: 3, red: 1 }],
     Amarelo: [{ team: 'Verde', appearances: 10, minutes: 900, yellow: 4, red: 0 }],
   };
+  // assistências: 3 com 2 e 55 com 1. Com limit=10 a 4ª posição (55) não cabe inteira no teto de 50
+  for (let i = 1; i <= 3; i++) rows[`Assist2_${i}`] = [{ team: 'Verde', appearances: 10, assists: 2 }];
+  for (let i = 1; i <= 55; i++) rows[`Assist1_${i}`] = [{ team: 'Verde', appearances: 10, assists: 1 }];
   // 12 empatados com 1 gol: com limit=10 a posição de corte é 6, e todos os 12 entram
   for (let i = 1; i <= 12; i++) {
     rows[`Um${String(i).padStart(2, '0')}`] = [{ team: 'Branco', appearances: i, minutes: 90 * i, goals: 1 }];
@@ -196,8 +199,14 @@ describe('GET /v1/competitions/{id}/seasons/{season}/leaders', () => {
     ]);
   });
 
-  it('assistências sem ninguém com valor devolve lista vazia', async () => {
-    const body = await get('/v1/competitions/liga-lideres/seasons/current/leaders?category=assists');
-    expect(body.data).toEqual([]);
+  it('o teto de 50 não parte uma posição: a que não cabe inteira fica de fora', async () => {
+    const body = await get('/v1/competitions/liga-lideres/seasons/current/leaders?category=assists&limit=10');
+    expect(body.data.map((r) => [r.rank, r.value])).toEqual([
+      [1, 2],
+      [1, 2],
+      [1, 2],
+    ]);
+    // a data é a da temporada inteira
+    expect(body.updated_at).not.toBeNull();
   });
 });

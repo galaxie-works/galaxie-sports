@@ -11,12 +11,12 @@ export type LeaderCategory = (typeof LEADER_CATEGORIES)[number];
 export const LeadersQuery = LocaleQuery.extend({
   category: z.enum(LEADER_CATEGORIES).default('goals').meta({
     description:
-      '`goals` = artilharia; `assists` = assistências; `cards` = cartões (amarelos + vermelhos, os vermelhos desempatam).',
+      '`goals` = artilharia; `assists` = assistências; `cards` = cartões (amarelos + vermelhos; na mesma posição, mais vermelhos vêm antes).',
     example: 'goals',
   }),
   limit: z.coerce.number().int().min(1).max(50).default(10).meta({
     description:
-      'Até que posição (1–50). Quem empata com o último também entra, então a lista pode passar do `limit` (até 50).',
+      'Até que posição (1–50). Quem empata com o último também entra, então a lista pode passar do `limit`; o teto é 50 linhas, sem partir uma posição (só a 1ª, se sozinha passar de 50, vem cortada em 50).',
   }),
 });
 export type LeadersQuery = z.input<typeof LeadersQuery>;
@@ -34,7 +34,7 @@ export const LeaderRow = z
     }),
     team: ParticipantRef.nullable().meta({
       description:
-        'Time pelo qual o jogador mais jogou no campeonato (quem trocou de clube no meio da temporada soma os dois). Empate em jogos e minutos: o time atualizado por último.',
+        'Time pelo qual o jogador mais jogou no campeonato (quem trocou de clube no meio da temporada soma os dois). Empate em jogos e minutos tem desempate estável.',
     }),
     value: z.number().int().meta({ description: 'O número da categoria (gols, assistências ou cartões).' }),
     appearances: z.number().int(),
@@ -57,7 +57,9 @@ export const CompetitionLeaders = z
       description:
         'Do maior para o menor. Na mesma posição: nos cartões, mais vermelhos primeiro; depois menos jogos e menos minutos. Só quem tem valor maior que zero.',
     }),
-    updated_at: z.string().nullable().meta({ description: 'ISO 8601 no fuso pedido (`tz`).' }),
+    updated_at: z.string().nullable().meta({
+      description: 'Última atualização dos números da temporada (ISO 8601 no fuso pedido, `tz`).',
+    }),
   })
   .meta({ id: 'CompetitionLeaders' });
 export type CompetitionLeaders = z.infer<typeof CompetitionLeaders>;

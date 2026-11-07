@@ -19,7 +19,7 @@ export interface CompetitionLeadersProps {
   season?: number | 'current' | undefined;
   /** `goals` = artilharia (padrão), `assists` = assistências, `cards` = cartões. */
   category?: GsLeaderCategory | undefined;
-  /** Quantos jogadores (1–50, padrão 10). */
+  /** Até que posição (1–50, padrão 10); empatados com o último também aparecem (no máximo 50 linhas). */
   limit?: number | undefined;
   /** Foto do jogador (padrão: sim; sem foto, as iniciais). */
   showPhoto?: boolean | undefined;
