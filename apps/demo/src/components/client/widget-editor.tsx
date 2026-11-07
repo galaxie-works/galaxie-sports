@@ -30,6 +30,7 @@ import {
   CompetitionLeaders,
   PlayerProfile,
   Lineups,
+  UpcomingDerbies,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -275,6 +276,8 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'upcoming_derbies':
+        return <UpcomingDerbies {...o} />;
     }
   }
   switch (kind) {
@@ -337,6 +340,7 @@ function PreviewWidget({
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'upcoming_derbies':
       return <StandalonePreview kind={kind} o={o} />;
   }
 }
@@ -364,6 +368,8 @@ function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, un
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'upcoming_derbies':
+      return <UpcomingDerbies {...o} />;
     default:
       return null;
   }

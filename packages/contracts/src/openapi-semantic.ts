@@ -57,8 +57,9 @@ export function semanticPaths(): ZodOpenApiPathsObject {
         getOp('Clássicos dos próximos dias', 'Semântica', list(UpcomingDerby), {
           query: UpcomingDerbiesQuery,
         }),
-        'Eventos com `derby_id` entre agora e `days` dias (padrão 7), em ordem de início. Lista vazia quando ' +
-          'não há eventos sincronizados.',
+        'Eventos com `derby_id` entre agora e `days` dias (padrão 7), em ordem de início, mais os que já ' +
+          'começaram e seguem em andamento (`starting`, `live`, `break`, `suspended`). Lista vazia quando não há ' +
+          'eventos sincronizados.',
       ),
     },
     '/v1/derbies/{slug}': {

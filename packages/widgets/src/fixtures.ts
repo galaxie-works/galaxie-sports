@@ -16,6 +16,7 @@ import type {
   GsHeadToHead,
   GsRelated,
   GsStandings,
+  GsUpcomingDerby,
   GsWhereToWatch,
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
@@ -826,6 +827,7 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const h2h = /\/v1\/events\/([^/]+)\/h2h$/.exec(path);
     if (h2h) return json({ ...f.h2h, event_id: decodeURIComponent(h2h[1]!) });
     if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
+    if (path.endsWith('/v1/derbies/upcoming')) return json({ data: previewUpcomingDerbies(f, url, now) });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });
     // detalhes do jogo (minuto a minuto, estatísticas, escalações) montados a partir do placar de exemplo
@@ -950,6 +952,66 @@ function previewCampaigns(rank: number | null, locale: string) {
       },
     },
   ];
+}
+
+/**
+ * Clássicos dos próximos dias: o jogo mais tarde (Clássico da Serra, com escudos em /v1/events/:id) e um
+ * clássico fora da lista de jogos (só os nomes), filtrados por `days` e `country` como a API.
+ */
+function previewUpcomingDerbies(f: PreviewFixtures, url: URL, now: Date): GsUpcomingDerby[] {
+  const later = f.events.find((e) => e.id === PREVIEW_IDS.scheduledEvent)!;
+  const team = (key: TeamKey, country: string) => ({
+    slug: TEAMS[key].short.toLowerCase(),
+    participant_id: TEAMS[key].id,
+    name: TEAMS[key].name,
+    country,
+    kind: 'club' as const,
+  });
+  const side = (key: TeamKey, s: 'home' | 'away') => ({
+    side: s,
+    id: TEAMS[key].id,
+    name: TEAMS[key].name,
+    slug: TEAMS[key].short.toLowerCase(),
+  });
+  const competition = { id: COMPETITION_ID, slug: PREVIEW_IDS.competition, name: 'Liga Exemplo' };
+  const all: GsUpcomingDerby[] = [
+    {
+      event_id: later.id,
+      starts_at: later.starts_at,
+      status: later.status,
+      competition,
+      participants: [side('serra', 'home'), side('litoral', 'away')],
+      derby: {
+        slug: 'classico-exemplo',
+        name: 'Clássico da Serra',
+        aliases: [],
+        scope: 'state',
+        intensity: 4,
+        teams: [team('serra', 'BR'), team('litoral', 'BR')],
+      },
+    },
+    {
+      event_id: '0199a5c0-0000-7000-8000-0000000000d2',
+      starts_at: new Date(now.getTime() + 3 * 86_400_000).toISOString(),
+      status: 'scheduled',
+      competition: { ...competition, id: '0199a5c0-0000-7000-8000-0000000000c2', name: 'Copa Exemplo' },
+      participants: [side('planalto', 'home'), side('vale', 'away')],
+      derby: {
+        slug: 'classico-do-vale',
+        name: 'Clássico do Vale',
+        aliases: [],
+        scope: 'national',
+        intensity: 3,
+        teams: [team('planalto', 'AR'), team('vale', 'AR')],
+      },
+    },
+  ];
+  const days = Number(url.searchParams.get('days') ?? 7);
+  const country = url.searchParams.get('country');
+  const until = now.getTime() + days * 86_400_000;
+  return all.filter(
+    (d) => Date.parse(d.starts_at) < until && (!country || d.derby.teams.some((t) => t.country === country)),
+  );
 }
 
 function teamResultOf(e: GsEvent, teamId: string): 'W' | 'D' | 'L' {

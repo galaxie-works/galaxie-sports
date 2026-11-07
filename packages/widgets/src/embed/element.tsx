@@ -51,6 +51,7 @@ import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamCard } from '../widgets/team-card.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
 import { TeamSquad } from '../widgets/team-squad.js';
+import { UpcomingDerbies } from '../widgets/upcoming-derbies.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 
 export const EMBED_TAG = 'galaxie-widget';
@@ -202,6 +203,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <PlayerProfile {...o} personId={personId ?? ''} />;
     case 'lineups':
       return <Lineups {...o} eventId={eventId ?? ''} />;
+    case 'upcoming_derbies':
+      return <UpcomingDerbies {...o} />;
   }
 }
 

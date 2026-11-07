@@ -38,6 +38,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -853,6 +854,26 @@ export interface GsHeadToHead {
   events: GsEvent[];
 }
 
+/** Clássico marcado para os próximos dias (`/v1/derbies/upcoming`). */
+export interface GsUpcomingDerby {
+  event_id: string;
+  starts_at: string;
+  status: string;
+  competition: { id: string; slug: string; name: string } | null;
+  participants: { side: string; id: string; name: string; slug: string | null }[];
+  derby: {
+    slug: string;
+    name: string;
+    aliases: string[];
+    scope: GsDerbyScope;
+    /** 1–5 (5 = a maior rivalidade do país). */
+    intensity: number;
+    teams: { slug: string; participant_id: string | null; name: string; country: string }[];
+  };
+}
+
+export type GsDerbyScope = 'city' | 'state' | 'national' | 'continental' | 'international';
+
 export interface GsEventList {
   data: GsEvent[];
 }
@@ -1586,6 +1607,14 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+.gs-derbies{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.gs-derby{display:flex;flex-direction:column;gap:6px;padding:var(--gs-gap) 0;border-top:1px solid var(--gs-border);min-width:0}
+.gs-derby:first-child{border-top:0;padding-top:0}
+.gs-derby-head,.gs-derby-match{display:flex;align-items:center;gap:8px;min-width:0}
+.gs-derby-history{display:flex;flex-direction:column;gap:4px}
+.gs-intensity{flex:none;display:inline-flex;gap:3px}
+.gs-intensity span{width:6px;height:6px;border-radius:999px;background:color-mix(in srgb,var(--gs-foreground) 15%,transparent)}
+.gs-intensity span[data-on]{background:var(--gs-primary)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1951,6 +1980,19 @@ export interface WidgetTexts {
     positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
     places: Record<string, string>;
     transferTypes: Record<string, string>;
+  };
+  /** Clássicos da semana (`/v1/derbies/upcoming`). */
+  derbies: {
+    title: string;
+    /** "Clássicos dos próximos {n} dias". */
+    titleDays: string;
+    /** "Nenhum clássico nos próximos {n} dias." */
+    empty: string;
+    /** "Rivalidade {n} de 5". */
+    intensity: string;
+    /** "{n} empates". */
+    draws: string;
+    scopes: Record<GsDerbyScope, string>;
   };
 }
 
@@ -2363,6 +2405,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Free: 'Sem custo',
         'Back from Loan': 'Fim de empréstimo',
         Transfer: 'Transferência',
+      },
+    },
+    derbies: {
+      title: 'Clássicos da semana',
+      titleDays: 'Clássicos dos próximos {n} dias',
+      empty: 'Nenhum clássico nos próximos {n} dias.',
+      intensity: 'Rivalidade {n} de 5',
+      draws: '{n} empates',
+      scopes: {
+        city: 'Da cidade',
+        state: 'Estadual',
+        national: 'Nacional',
+        continental: 'Continental',
+        international: 'Internacional',
       },
     },
   },
@@ -2781,6 +2837,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Transfer: 'Transferencia',
       },
     },
+    derbies: {
+      title: 'Clásicos de la semana',
+      titleDays: 'Clásicos de los próximos {n} días',
+      empty: 'No hay clásicos en los próximos {n} días.',
+      intensity: 'Rivalidad {n} de 5',
+      draws: '{n} empates',
+      scopes: {
+        city: 'De la ciudad',
+        state: 'Regional',
+        national: 'Nacional',
+        continental: 'Continental',
+        international: 'Internacional',
+      },
+    },
   },
   en: {
     status: {
@@ -3182,6 +3252,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Free: 'Free transfer',
         'Back from Loan': 'Loan return',
         Transfer: 'Transfer',
+      },
+    },
+    derbies: {
+      title: 'Derbies of the week',
+      titleDays: 'Derbies in the next {n} days',
+      empty: 'No derbies in the next {n} days.',
+      intensity: 'Rivalry {n} of 5',
+      draws: '{n} draws',
+      scopes: {
+        city: 'City',
+        state: 'Regional',
+        national: 'National',
+        continental: 'Continental',
+        international: 'International',
       },
     },
   },

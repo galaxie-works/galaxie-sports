@@ -150,7 +150,7 @@ function defaultProps(
       return pick(['competitionId']);
     case 'player_profile':
       return pick(['personId']);
-    // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
+    // hipismo, Jogos e clássicos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':
     case 'equestrian_calendar':
@@ -161,6 +161,7 @@ function defaultProps(
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'upcoming_derbies':
       return {};
   }
 }
