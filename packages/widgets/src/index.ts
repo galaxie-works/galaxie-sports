@@ -80,6 +80,7 @@ export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
 export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
 export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
 export { FightCard, type FightCardProps } from './widgets/fight-card.js';
+export { MatchTimeline, type MatchTimelineProps } from './widgets/match-timeline.js';
 export { EquestrianResults, type EquestrianResultsProps } from './widgets/equestrian-results.js';
 export { EquestrianRanking, type EquestrianRankingProps } from './widgets/equestrian-ranking.js';
 export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
@@ -90,6 +91,7 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
 export { UpcomingDerbies, type UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
