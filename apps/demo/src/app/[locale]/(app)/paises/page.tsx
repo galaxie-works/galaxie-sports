@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 
+import { IndexCardsSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { CountryIndexCard } from '@/components/explore/index-cards';
 import { CONFEDERATIONS } from '@/components/explore/layout';
-import { Skeleton } from '@/components/ui/skeleton';
 import { exploreSummaryRequest, getExploreSummary } from '@/lib/galaxie/api';
 import { exploreTotals } from '@/lib/explore-index';
 import { getI18n } from '@/lib/i18n/server';
@@ -70,10 +70,8 @@ async function Content() {
 
 function Fallback() {
   return (
-    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:p-6 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 12 }, (_, i) => (
-        <Skeleton key={i} className="h-32 rounded-xl" />
-      ))}
+    <div className="p-4 md:p-6">
+      <IndexCardsSkeleton count={12} variant="country" />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ClientArea } from '@/components/client/client-area';
 import { LineupPortal } from '@/components/lineup/portal';
-import { Skeleton } from '@/components/ui/skeleton';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { readOperatorPortal } from '@/lib/lineup/server';
 
@@ -51,7 +51,7 @@ export default async function ClientLineupPage() {
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         {/* Lê a sessão (headers): fica fora do shell estático. */}
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense fallback={<TableCardSkeleton rows={6} columns={['flex-1', 'w-28', 'w-24', 'w-20']} />}>
           <Lineup />
         </Suspense>
       </div>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { MediaCardSkeleton, StatPairsSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -112,8 +113,9 @@ export default function VenuePage({ params }: PageProps<'/[locale]/locais/[id]'>
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="p-4 md:p-6">
-            <Skeleton className="aspect-[21/9] w-full" />
+          <div className="flex flex-col gap-6 p-4 md:p-6">
+            <MediaCardSkeleton mediaClassName="h-64" />
+            <StatPairsSkeleton count={6} className="grid-cols-2 sm:grid-cols-3" />
           </div>
         </>
       }

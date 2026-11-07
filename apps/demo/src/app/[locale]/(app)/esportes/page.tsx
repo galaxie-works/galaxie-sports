@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 
+import { IndexCardsSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { FamilyCard } from '@/components/explore/index-cards';
-import { Skeleton } from '@/components/ui/skeleton';
 import { compactNumber } from '@/lib/explore';
 import { exploreSummaryRequest, getExploreSummary } from '@/lib/galaxie/api';
 import { exploreTotals, familyStats } from '@/lib/explore-index';
@@ -53,10 +53,8 @@ async function Content() {
 
 function Fallback() {
   return (
-    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 md:p-6 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 11 }, (_, i) => (
-        <Skeleton key={i} className="h-48 rounded-xl" />
-      ))}
+    <div className="p-4 md:p-6">
+      <IndexCardsSkeleton count={11} variant="family" />
     </div>
   );
 }

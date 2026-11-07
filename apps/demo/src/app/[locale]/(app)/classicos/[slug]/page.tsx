@@ -4,6 +4,12 @@ import { BookOpen, CalendarDays, Lightbulb } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import {
+  DetailsSkeleton,
+  ScoreboardSkeleton,
+  SectionSkeleton,
+  TableCardSkeleton,
+} from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
@@ -252,8 +258,19 @@ export default function DerbyPage({ params }: PageProps<'/[locale]/classicos/[sl
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="p-4 md:p-6">
-            <Skeleton className="h-64" />
+          <div className="flex flex-col gap-6 p-4 md:p-6">
+            <ScoreboardSkeleton />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div className="flex flex-col gap-6 lg:col-span-2">
+                <SectionSkeleton description={false}>
+                  <TableCardSkeleton rows={5} columns={['w-20', 'flex-1', 'w-12', 'flex-1']} />
+                </SectionSkeleton>
+                <SectionSkeleton description={false}>
+                  <TableCardSkeleton rows={3} columns={['w-20', 'flex-1', 'w-12', 'flex-1']} />
+                </SectionSkeleton>
+              </div>
+              <DetailsSkeleton rows={5} />
+            </div>
           </div>
         </>
       }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { DetailsSkeleton, FormCardSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ReviewDetail } from '@/components/review/review-detail';
 import { Button } from '@/components/ui/button';
@@ -75,7 +76,10 @@ export default function ReviewItemPage({ params, searchParams }: Props) {
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
           <div className="mx-auto w-full max-w-6xl p-4 md:p-6">
-            <Skeleton className="h-96 w-full" />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <DetailsSkeleton rows={8} />
+              <FormCardSkeleton fields={2} />
+            </div>
           </div>
         </>
       }

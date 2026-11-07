@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { AgendaFilterBar } from '@/components/sport/agenda-filter-bar';
@@ -153,11 +154,7 @@ function Fallback() {
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-8 w-full" />
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
-        ))}
-      </div>
+      <EventCardsSkeleton count={6} />
     </div>
   );
 }

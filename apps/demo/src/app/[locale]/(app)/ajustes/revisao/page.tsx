@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { SettingsNav } from '@/components/admin/settings-nav';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ReviewFiltersBar } from '@/components/review/review-filter-bar';
 import { ReviewTable } from '@/components/review/review-table';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
-import { Skeleton } from '@/components/ui/skeleton';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
@@ -73,7 +73,9 @@ export default async function ReviewPage({ searchParams }: PageProps<'/[locale]/
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         <SettingsNav active="review" />
         <p className="text-muted-foreground max-w-3xl text-sm">{t.review.page.description}</p>
-        <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
+        <Suspense
+          fallback={<TablePanelSkeleton rows={8} columns={['w-6', 'flex-1', 'w-28', 'w-24', 'w-20']} />}
+        >
           <List searchParams={searchParams} />
         </Suspense>
       </div>

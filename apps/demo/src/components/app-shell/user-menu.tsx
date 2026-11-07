@@ -4,6 +4,7 @@ import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } f
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { AvatarInfoSkeleton } from '@/components/app-shell/skeletons';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -15,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { authClient } from '@/lib/auth/client';
 import { canAccessClientPanel } from '@/lib/auth/roles';
 import { initials } from '@/lib/format';
@@ -44,10 +44,11 @@ export function UserMenu() {
   // aceita no prerender e que diverge na hidratação.
   if (isPending) {
     return (
-      <div className="flex h-12 items-center gap-2 px-2">
-        <Skeleton className="size-8 rounded-md" />
-        <Skeleton className="h-4 w-32" />
-      </div>
+      <AvatarInfoSkeleton
+        avatarClassName="size-8 rounded-md"
+        lines={['h-3.5 w-28', 'h-3 w-36']}
+        className="h-12 gap-2 px-2"
+      />
     );
   }
   if (!data) return null;

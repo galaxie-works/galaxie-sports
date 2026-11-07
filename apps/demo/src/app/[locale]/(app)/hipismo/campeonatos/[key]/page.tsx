@@ -3,6 +3,7 @@ import type { EqChampionship } from '@galaxie/contracts';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { SectionSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { CoverageNote, Flag, NoticeBanner, Published, SourceLink } from '@/components/equestrian/parts';
 import { Badge } from '@/components/reui/badge';
@@ -277,8 +278,11 @@ export default function EquestrianChampionshipPage(props: Props) {
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="p-4 md:p-6">
+          <div className="flex flex-col gap-6 p-4 md:p-6">
             <Skeleton className="h-7 w-64" />
+            <SectionSkeleton>
+              <TableCardSkeleton rows={6} columns={['w-20', 'flex-1', 'w-24', 'w-16']} />
+            </SectionSkeleton>
           </div>
         </>
       }

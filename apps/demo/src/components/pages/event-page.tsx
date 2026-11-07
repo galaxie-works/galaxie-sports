@@ -13,6 +13,13 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import {
+  DetailsSkeleton,
+  ScoreboardSkeleton,
+  SectionSkeleton,
+  TextSkeleton,
+  TimelineSkeleton,
+} from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
@@ -662,10 +669,20 @@ export function EventFallback() {
     <>
       <PageHeader title={<Skeleton className="h-4 w-48" />} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
-        <Skeleton className="h-48" />
+        <ScoreboardSkeleton />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Skeleton className="h-72 lg:col-span-2" />
-          <Skeleton className="h-72" />
+          <div className="flex flex-col gap-6 lg:col-span-2">
+            <SectionSkeleton>
+              <TextSkeleton />
+            </SectionSkeleton>
+            <SectionSkeleton description={false}>
+              <TimelineSkeleton />
+            </SectionSkeleton>
+          </div>
+          <div className="flex flex-col gap-6">
+            <DetailsSkeleton rows={5} />
+            <DetailsSkeleton rows={3} />
+          </div>
         </div>
       </div>
     </>

@@ -4,6 +4,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { permanentRedirect } from 'next/navigation';
 
+import {
+  AvatarInfoSkeleton,
+  DetailsSkeleton,
+  EventCardsSkeleton,
+  SectionSkeleton,
+} from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CampaignCard } from '@/components/sport/campaign-card';
@@ -706,16 +712,15 @@ export function TeamFallback() {
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="size-24" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-7 w-56" />
-            <Skeleton className="h-4 w-72" />
-          </div>
-        </div>
+        <AvatarInfoSkeleton avatarClassName="size-24 rounded-md" lines={['h-7 w-56', 'h-4 w-72']} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Skeleton className="h-80 lg:col-span-2" />
-          <Skeleton className="h-80" />
+          <SectionSkeleton className="lg:col-span-2" description={false}>
+            <EventCardsSkeleton count={4} className="grid-cols-1 md:grid-cols-2" />
+          </SectionSkeleton>
+          <div className="flex flex-col gap-6">
+            <DetailsSkeleton rows={5} />
+            <DetailsSkeleton rows={4} />
+          </div>
         </div>
       </div>
     </>

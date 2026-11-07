@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { EntryCardsSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Flag, HistoryBadge } from '@/components/equestrian/parts';
 import { Section } from '@/components/sport/section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   equestrianAthletesRequest,
   getEquestrianAthletes,
@@ -133,10 +133,12 @@ export default async function EquestrianAthletesPage(props: Props) {
       <PageHeader title={t.equestrian.athletes.title} kind="esporte" parents={[equestrianParent(t)]} />
       <Suspense
         fallback={
-          <div className="grid grid-cols-2 gap-3 p-4 md:p-6 lg:grid-cols-4">
-            {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className="h-24" />
-            ))}
+          <div className="p-4 md:p-6">
+            <EntryCardsSkeleton
+              count={8}
+              className="grid-cols-2 lg:grid-cols-4"
+              avatarClassName="size-10 rounded-full"
+            />
           </div>
         }
       >

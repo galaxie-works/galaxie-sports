@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { EntryCardsSkeleton, SectionSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Flag, HistoryBadge, NoticeBanner } from '@/components/equestrian/parts';
 import { RankingsTable } from '@/components/equestrian/rankings-table';
@@ -13,7 +14,6 @@ import { Section } from '@/components/sport/section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import { equestrianOverviewRequest, getEquestrianOverview } from '@/lib/galaxie/equestrian';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getFormatters, getI18n, getT } from '@/lib/i18n/server';
@@ -237,14 +237,16 @@ export default async function EquestrianPage() {
       <PageHeader title={t.equestrian.title} kind="esporte" api={equestrianOverviewRequest(locale)} />
       <Suspense
         fallback={
-          <div className="flex flex-col gap-4 p-4 md:p-6">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-24 w-full" />
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {Array.from({ length: 8 }, (_, i) => (
-                <Skeleton key={i} className="h-24" />
-              ))}
-            </div>
+          <div className="flex flex-col gap-8 p-4 md:p-6">
+            <SectionSkeleton>
+              <EntryCardsSkeleton count={4} avatarClassName="size-10 rounded-full" />
+            </SectionSkeleton>
+            <SectionSkeleton>
+              <EntryCardsSkeleton count={4} className="grid-cols-1 md:grid-cols-2" />
+            </SectionSkeleton>
+            <SectionSkeleton>
+              <TableCardSkeleton rows={8} columns={['w-6', 'flex-1', 'w-24', 'w-16']} />
+            </SectionSkeleton>
           </div>
         }
       >
