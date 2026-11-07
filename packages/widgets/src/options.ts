@@ -899,6 +899,37 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showSubstitutes', l('Reservas', 'Suplentes', 'Substitutes'), true),
     bool('showCoach', l('Técnico', 'Entrenador', 'Head coach'), true),
   ],
+  match_prediction: [
+    bool(
+      'showProbabilities',
+      l('Chances de cada resultado', 'Probabilidad de cada resultado', 'Chance of each result'),
+      true,
+    ),
+    bool('showWinner', l('Quem deve vencer', 'Quién debería ganar', 'Who should win'), true),
+    bool('showGoals', l('Linha de gols', 'Línea de goles', 'Goals line'), true),
+    bool('showComparison', l('Comparação dos times', 'Comparación de los equipos', 'Team comparison'), true),
+    bool(
+      'showNote',
+      l('Aviso de palpite estatístico', 'Aviso de pronóstico estadístico', 'Statistical prediction note'),
+      true,
+    ),
+  ],
+  match_odds: [
+    bool('showMatchWinner', l('Resultado final', 'Resultado final', 'Full time result'), true),
+    bool('showDoubleChance', l('Dupla chance', 'Doble oportunidad', 'Double chance'), true),
+    bool('showGoals', l('Total de gols', 'Total de goles', 'Total goals'), true),
+    bool('showBothTeamsScore', l('Ambos marcam', 'Ambos marcan', 'Both teams to score'), true),
+    bool(
+      'showBest',
+      l('Maior odd entre as casas', 'Cuota máxima entre las casas', 'Best odd across bookmakers'),
+      true,
+    ),
+    bool(
+      'showNotice',
+      l('Aviso de jogo responsável', 'Aviso de juego responsable', 'Responsible gambling notice'),
+      true,
+    ),
+  ],
   competition_leaders: [
     {
       key: 'category',

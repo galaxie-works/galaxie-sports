@@ -39,6 +39,8 @@ import { ChampionsGallery } from '../widgets/champions-gallery.js';
 import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
+import { MatchPrediction } from '../widgets/match-prediction.js';
+import { MatchOdds } from '../widgets/match-odds.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -205,6 +207,10 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <PlayerProfile {...o} personId={personId ?? ''} />;
     case 'lineups':
       return <Lineups {...o} eventId={eventId ?? ''} />;
+    case 'match_prediction':
+      return <MatchPrediction {...o} eventId={eventId ?? ''} />;
+    case 'match_odds':
+      return <MatchOdds {...o} eventId={eventId ?? ''} />;
   }
 }
 

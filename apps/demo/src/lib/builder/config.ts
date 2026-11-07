@@ -57,6 +57,8 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'match_prediction',
+  'match_odds',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -113,6 +115,8 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   team_squad: ['team'],
   player_profile: ['person'],
   lineups: ['event'],
+  match_prediction: ['event'],
+  match_odds: ['event'],
 };
 
 /**
@@ -154,6 +158,8 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   team_squad: 'team',
   player_profile: 'person',
   lineups: 'event',
+  match_prediction: 'event',
+  match_odds: 'event',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -478,6 +484,8 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
   lineups: 'GalaxieLineups',
+  match_prediction: 'GalaxieMatchPrediction',
+  match_odds: 'GalaxieMatchOdds',
 };
 
 /**

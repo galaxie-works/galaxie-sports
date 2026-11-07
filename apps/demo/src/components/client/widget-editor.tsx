@@ -31,6 +31,8 @@ import {
   CompetitionLeaders,
   PlayerProfile,
   Lineups,
+  MatchPrediction,
+  MatchOdds,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -278,6 +280,10 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'match_prediction':
+        return <MatchPrediction {...o} {...WIDGET_CATALOG.match_prediction.exampleProps} />;
+      case 'match_odds':
+        return <MatchOdds {...o} {...WIDGET_CATALOG.match_odds.exampleProps} />;
     }
   }
   switch (kind) {
@@ -331,6 +337,10 @@ function PreviewWidget({
       return <PlayerProfile {...o} personId={entity.id} />;
     case 'lineups':
       return <Lineups {...o} eventId={entity.id} />;
+    case 'match_prediction':
+      return <MatchPrediction {...o} eventId={entity.id} />;
+    case 'match_odds':
+      return <MatchOdds {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

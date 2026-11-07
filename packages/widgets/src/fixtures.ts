@@ -27,6 +27,7 @@ import { previewLeaders } from './fixtures-leaders.js';
 import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 import { previewSquad } from './fixtures-squad.js';
 import { sampleLineups } from './fixtures-lineups.js';
+import { sampleOdds, samplePrediction } from './fixtures-prediction.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -831,6 +832,19 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });
+    // palpite do jogo, montado a partir dos times do jogo de exemplo
+    const prediction = /\/v1\/events\/([^/]+)\/predictions$/.exec(path);
+    if (prediction) {
+      const found = f.events.find((e) => e.id === decodeURIComponent(prediction[1]!));
+      if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
+      return json(samplePrediction(found, now));
+    }
+    const odds = /\/v1\/events\/([^/]+)\/odds$/.exec(path);
+    if (odds) {
+      const found = f.events.find((e) => e.id === decodeURIComponent(odds[1]!));
+      if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
+      return json(sampleOdds(found, now));
+    }
     // detalhes do jogo (minuto a minuto, estatísticas, escalações) montados a partir do placar de exemplo
     const detail = /\/v1\/events\/([^/]+)\/(timeline|stats|lineups)$/.exec(path);
     if (detail) {
