@@ -36,15 +36,19 @@ export function previewLeaders(
         (category === 'cards' ? b.p[4] - a.p[4] : 0) ||
         a.p[5] - b.p[5],
     )
-    .slice(0, limit);
-  let rank = 0;
+    // como a API: posição pelo valor, corte pela posição (empatados com o último entram), teto de 50
+    .map((r, n, all) => ({
+      ...r,
+      rank: all.findIndex((x) => value(x.p, category) === value(r.p, category)) + 1,
+    }))
+    .filter((r) => r.rank <= limit)
+    .slice(0, 50);
   const body: CompetitionLeaders = {
     competition_id: standings.competition_id,
     sport: standings.sport ?? 'football',
     season: standings.season,
     category,
-    data: sorted.map(({ p, i }, n) => {
-      if (n === 0 || value(p, category) !== value(sorted[n - 1]!.p, category)) rank = n + 1;
+    data: sorted.map(({ p, i, rank }) => {
       const t = teams.length ? teams[i % teams.length]! : null;
       return {
         rank,

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type AnyColumn } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lte, or, sql, type AnyColumn } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import {
   LeadersQuery,
@@ -20,60 +20,16 @@ import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 
 const MODULE = { module: 'core_data' } as const;
 
-/** Soma de um jogador na temporada do campeonato (todas as linhas dele, de todos os times). */
-export interface LeaderTotals {
-  personId: string;
-  appearances: number;
-  minutes: number;
-  goals: number;
-  assists: number;
-  yellowCards: number;
-  redCards: number;
-}
-
-/** O número que a categoria ordena. */
-export function leaderValue(t: LeaderTotals, category: LeaderCategory): number {
-  if (category === 'goals') return t.goals;
-  if (category === 'assists') return t.assists;
-  return t.yellowCards + t.redCards;
-}
-
-/**
- * Ordena e numera: maior valor primeiro; nos cartões, mais vermelhos desempata; depois menos jogos e menos
- * minutos (fez o mesmo jogando menos). A posição é a do valor: empatados nele dividem a posição (1, 2, 2, 4).
- * Fica de fora quem tem zero.
- */
-export function rankLeaders<T extends LeaderTotals>(
-  rows: T[],
-  category: LeaderCategory,
-  limit: number,
-): (T & { rank: number; value: number })[] {
-  const sorted = rows
-    .map((r) => ({ ...r, value: leaderValue(r, category) }))
-    .filter((r) => r.value > 0)
-    .sort(
-      (a, b) =>
-        b.value - a.value ||
-        (category === 'cards' ? b.redCards - a.redCards : 0) ||
-        a.appearances - b.appearances ||
-        a.minutes - b.minutes ||
-        a.personId.localeCompare(b.personId),
-    )
-    .slice(0, limit);
-  let rank = 0;
-  return sorted.map((r, i) => {
-    if (i === 0 || r.value !== sorted[i - 1]!.value) rank = i + 1;
-    return { ...r, rank };
-  });
-}
-
-/** Expressão SQL da categoria (para o `order by` e o corte no banco). */
+/** Expressão SQL da categoria: o número que ordena e numera. */
 function valueSql(category: LeaderCategory) {
   const sum = (col: AnyColumn) => sql`coalesce(sum(${col}), 0)`;
   if (category === 'goals') return sum(personSeasonStat.goals);
   if (category === 'assists') return sum(personSeasonStat.assists);
   return sql`${sum(personSeasonStat.yellowCards)} + ${sum(personSeasonStat.redCards)}`;
 }
+
+/** Teto de linhas quando há empatados no corte (o mesmo máximo do `limit`). */
+export const LEADERS_MAX_ROWS = 50;
 
 /** Artilharia e líderes por campeonato e temporada (#828), a partir de `core.person_season_stat`. */
 export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -111,35 +67,59 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .limit(1);
         if (!s) throw problems.notFound('Temporada');
 
+        // O banco é a única fonte da ordem e da posição: `rank()` dá a posição pelo valor (empatados dividem:
+        // 1, 2, 2, 4) e o corte é pela posição, então quem empata com o último entra junto. O teto de 50 nunca
+        // parte uma posição ao meio: entram só as posições que cabem inteiras (`upTo` = linhas até o fim da
+        // posição), menos quando a 1ª sozinha já passa de 50 (aí vêm 50 dela).
         const value = valueSql(query.category);
-        const totals = await db
+        const sum = (col: AnyColumn) => sql<number>`coalesce(sum(${col}), 0)::int`;
+        const totals = db
           .select({
             personId: personSeasonStat.personId,
-            appearances: sql<number>`coalesce(sum(${personSeasonStat.appearances}), 0)::int`,
-            minutes: sql<number>`coalesce(sum(${personSeasonStat.minutes}), 0)::int`,
-            goals: sql<number>`coalesce(sum(${personSeasonStat.goals}), 0)::int`,
-            assists: sql<number>`coalesce(sum(${personSeasonStat.assists}), 0)::int`,
-            yellowCards: sql<number>`coalesce(sum(${personSeasonStat.yellowCards}), 0)::int`,
-            redCards: sql<number>`coalesce(sum(${personSeasonStat.redCards}), 0)::int`,
-            // o time em que mais jogou (quem trocou de clube na temporada tem uma linha por time)
-            teamId: sql<string>`(array_agg(${personSeasonStat.participantId} order by ${personSeasonStat.appearances} desc nulls last, ${personSeasonStat.minutes} desc nulls last))[1]`,
-            updatedAt: sql<Date | string | null>`max(${personSeasonStat.updatedAt})`,
+            value: sql<number>`(${value})::int`.as('value'),
+            rank: sql<number>`(rank() over (order by ${value} desc))::int`.as('rank'),
+            upTo: sql<number>`(count(*) over (order by ${value} desc))::int`.as('up_to'),
+            appearances: sum(personSeasonStat.appearances).as('appearances'),
+            minutes: sum(personSeasonStat.minutes).as('minutes'),
+            goals: sum(personSeasonStat.goals).as('goals'),
+            assists: sum(personSeasonStat.assists).as('assists'),
+            yellowCards: sum(personSeasonStat.yellowCards).as('yellow_cards'),
+            redCards: sum(personSeasonStat.redCards).as('red_cards'),
+            // o time em que mais jogou (quem trocou de clube na temporada tem uma linha por time); empate
+            // em jogos e minutos tem desempate estável (linha atualizada por último, depois o id do time)
+            teamId:
+              sql<string>`(array_agg(${personSeasonStat.participantId} order by ${personSeasonStat.appearances} desc nulls last, ${personSeasonStat.minutes} desc nulls last, ${personSeasonStat.updatedAt} desc, ${personSeasonStat.participantId}::text))[1]`.as(
+                'team_id',
+              ),
           })
           .from(personSeasonStat)
           .where(eq(personSeasonStat.seasonId, s.id))
           .groupBy(personSeasonStat.personId)
           .having(sql`${value} > 0`)
-          // a mesma ordem de `rankLeaders`, com todos os desempates, antes do corte
-          .orderBy(
-            sql`${value} desc`,
-            ...(query.category === 'cards' ? [sql`coalesce(sum(${personSeasonStat.redCards}), 0) desc`] : []),
-            sql`coalesce(sum(${personSeasonStat.appearances}), 0) asc`,
-            sql`coalesce(sum(${personSeasonStat.minutes}), 0) asc`,
-            sql`${personSeasonStat.personId}::text asc`,
+          .as('t');
+        const ranked = await db
+          .select()
+          .from(totals)
+          .where(
+            and(lte(totals.rank, query.limit), or(lte(totals.upTo, LEADERS_MAX_ROWS), eq(totals.rank, 1))),
           )
-          .limit(query.limit);
+          // dentro da posição: nos cartões, mais vermelhos primeiro; depois menos jogos e menos minutos
+          .orderBy(
+            asc(totals.rank),
+            ...(query.category === 'cards' ? [desc(totals.redCards)] : []),
+            asc(totals.appearances),
+            asc(totals.minutes),
+            sql`${totals.personId}::text`,
+          )
+          .limit(LEADERS_MAX_ROWS);
 
-        const ranked = rankLeaders(totals, query.category, query.limit);
+        // a data da carga é a da temporada inteira, não só das linhas que voltaram
+        const [fresh] = await db
+          .select({ at: sql<Date | string | null>`max(${personSeasonStat.updatedAt})` })
+          .from(personSeasonStat)
+          .where(eq(personSeasonStat.seasonId, s.id));
+        const updatedAt = fresh?.at ? new Date(fresh.at) : null;
+
         const personIds = ranked.map((r) => r.personId);
         const teamIds = [...new Set(ranked.map((r) => r.teamId).filter(Boolean))];
         const photo = alias(asset, 'photo');
@@ -175,14 +155,11 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
         const personBy = new Map(people.map((p) => [p.id, p]));
         const teamBy = new Map(teams.map((t) => [t.id, t]));
 
-        let updatedAt: Date | null = null;
         const data: LeaderRow[] = [];
         for (const r of ranked) {
           const p = personBy.get(r.personId);
           if (!p) continue;
           const t = teamBy.get(r.teamId);
-          const at = r.updatedAt ? new Date(r.updatedAt) : null;
-          if (at && (!updatedAt || at > updatedAt)) updatedAt = at;
           data.push({
             rank: r.rank,
             person: { id: p.id, name: p.name, photo: assetUrl(ctx.assetsBaseUrl, p.storageKey, p.sourceUrl) },
@@ -211,7 +188,8 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
           data,
           updated_at: updatedAt ? formatInstant(updatedAt, tz) : null,
         };
-        return { body, tags: [`leaders:${s.id}`, `competition:${c.id}`] };
+        // os números vêm da carga diária (sem change feed): o TTL de 1 h basta; a tag da competição cobre o purge manual
+        return { body, tags: [`competition:${c.id}`] };
       },
     });
   });

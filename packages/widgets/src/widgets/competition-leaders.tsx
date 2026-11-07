@@ -7,6 +7,7 @@ import {
   ErrorState,
   LoadingState,
   WidgetFrame,
+  useFormatters,
   useGalaxieQuery,
   useGalaxieWidget,
 } from '../core/react.js';
@@ -18,7 +19,7 @@ export interface CompetitionLeadersProps {
   season?: number | 'current' | undefined;
   /** `goals` = artilharia (padrão), `assists` = assistências, `cards` = cartões. */
   category?: GsLeaderCategory | undefined;
-  /** Quantos jogadores (1–50, padrão 10). */
+  /** Até que posição (1–50, padrão 10); empatados com o último também aparecem (no máximo 50 linhas). */
   limit?: number | undefined;
   /** Foto do jogador (padrão: sim; sem foto, as iniciais). */
   showPhoto?: boolean | undefined;
@@ -45,6 +46,7 @@ export function CompetitionLeaders({
 }: CompetitionLeadersProps) {
   const { texts } = useGalaxieWidget();
   const t = texts.leaders;
+  const fmt = useFormatters();
   const max = Math.min(50, Math.max(1, Math.round(limit) || 10));
   const query = useGalaxieQuery<GsCompetitionLeaders>(
     competitionId
@@ -142,6 +144,13 @@ export function CompetitionLeaders({
           </tbody>
         </table>
       )}
+      {d.updated_at && fmt.date(d.updated_at) ? (
+        <footer className="gs-footer" data-gs-updated>
+          <span>
+            {t.updatedAt} {fmt.date(d.updated_at)}
+          </span>
+        </footer>
+      ) : null}
     </WidgetFrame>
   );
 }

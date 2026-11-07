@@ -1881,6 +1881,8 @@ export interface WidgetTexts {
     yellow: string;
     red: string;
     empty: string;
+    /** Rodapé com a data da última atualização dos números. */
+    updatedAt: string;
   };
   /** Olimpíadas e Pan: quadro de medalhas, o dia do país, programação, atletas e histórico. */
   olympics: {
@@ -2291,6 +2293,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       yellow: 'Amarelos',
       red: 'Vermelhos',
       empty: 'Os números dos jogadores deste campeonato ainda não estão disponíveis.',
+      updatedAt: 'Atualizado em',
     },
     olympics: {
       medals: 'Quadro de medalhas',
@@ -2701,6 +2704,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       yellow: 'Amarillas',
       red: 'Rojas',
       empty: 'Las estadísticas de jugadores de esta competición aún no están disponibles.',
+      updatedAt: 'Actualizado el',
     },
     olympics: {
       medals: 'Medallero',
@@ -3103,6 +3107,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       yellow: 'Yellow cards',
       red: 'Red cards',
       empty: 'Player stats for this competition are not available yet.',
+      updatedAt: 'Updated',
     },
     olympics: {
       medals: 'Medal table',
