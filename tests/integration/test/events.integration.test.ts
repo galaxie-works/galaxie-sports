@@ -1593,6 +1593,73 @@ describe('/v1/teams e /v1/people', () => {
     const again = squad2.players.find((p: { person: { id: string } }) => p.person.id === personId);
     expect(again.stats).toMatchObject({ appearances: 30, starts: 27, goals: 14 });
   });
+
+  it('vai e vem do mercado: do time e do campeonato, por direção e período, com tags de cache', async () => {
+    const squad = (await get(`/v1/teams/${ids.palmeiras}/squad`)).json();
+    const [a, b] = squad.players as { person: { id: string; name: string } }[];
+    // dentro dos últimos 120 dias (NOW = 21/10/2026): uma chegada de fora do catálogo e uma saída para um rival
+    await db.insert(personTransfer).values([
+      {
+        personId: a!.person.id,
+        date: '2026-08-15',
+        type: '€ 3.5M',
+        fromParticipantId: null,
+        toParticipantId: ids.palmeiras!,
+        fromName: 'Clube Sem Cadastro',
+        toName: 'Palmeiras',
+      },
+      {
+        personId: b!.person.id,
+        date: '2026-09-01',
+        type: 'Loan',
+        fromParticipantId: ids.palmeiras!,
+        toParticipantId: ids.corinthians!,
+        fromName: 'Palmeiras',
+        toName: 'Corinthians',
+      },
+    ]);
+    const res = await get(`/v1/teams/${ids.palmeiras}/transfers?days=120`);
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.scope).toMatchObject({ type: 'team', id: ids.palmeiras, name: 'Palmeiras' });
+    expect(body.since).toBe('2026-06-23');
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({
+      person: { id: b!.person.id, name: b!.person.name },
+      date: '2026-09-01',
+      direction: 'out',
+      kind: 'loan',
+      to: { id: ids.corinthians, name: 'Corinthians' },
+    });
+    expect(body.data[1]).toMatchObject({
+      direction: 'in',
+      kind: 'fee',
+      fee: '€ 3.5M',
+      from: { id: null, name: 'Clube Sem Cadastro', logo: null },
+    });
+    // clubes dos dois lados e jogadores listados entram nas tags: a troca de qualquer um purga a resposta
+    const keys = String(res.headers['surrogate-key']).split(' ');
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'roster',
+        `participant:${ids.palmeiras}`,
+        `participant:${ids.corinthians}`,
+        `person:${a!.person.id}`,
+        `person:${b!.person.id}`,
+      ]),
+    );
+    const ins = (await get(`/v1/teams/${ids.palmeiras}/transfers?days=120&direction=in`)).json();
+    expect(ins.data.map((t: { person: { id: string } }) => t.person.id)).toEqual([a!.person.id]);
+    const recent = (await get(`/v1/teams/${ids.palmeiras}/transfers?days=30`)).json();
+    expect(recent.data).toEqual([]);
+    // no campeonato, a troca entre dois times da liga conta como chegada (ao Corinthians)
+    const league = (await get('/v1/competitions/brasileirao-serie-a/transfers?days=120')).json();
+    expect(league.scope).toMatchObject({ type: 'competition', id: ids.serieA });
+    const loan = league.data.find((t: { person: { id: string } }) => t.person.id === b!.person.id);
+    expect(loan).toMatchObject({ direction: 'in', from: { id: ids.palmeiras }, to: { id: ids.corinthians } });
+    expect((await get('/v1/teams/01a15f83-0f07-78a6-9de5-191d031f73d3/transfers')).statusCode).toBe(404);
+    expect((await get(`/v1/teams/${ids.palmeiras}/transfers?limit=0`)).statusCode).toBe(400);
+  });
 });
 
 describe('/v1/competitions/{id}/context', () => {

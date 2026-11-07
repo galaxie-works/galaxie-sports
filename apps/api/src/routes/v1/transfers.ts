@@ -6,6 +6,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import {
   loadCompetitionTransfers,
   loadTeamTransfers,
+  transferTags,
   type TransfersOptions,
 } from '../../transfers/transfers.js';
 import { teamNameOptions } from '../../teams/display-name.js';
@@ -43,7 +44,7 @@ export async function transferRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const r = await loadTeamTransfers(requireDb(ctx), params.id, options(locale, query));
         return {
           body: r.body,
-          tags: ['roster', ...r.teamIds.map((t) => `participant:${t}`)],
+          tags: transferTags(r.body, r.teamIds),
           meta: { sport: r.sport },
         };
       },
@@ -66,8 +67,8 @@ export async function transferRoutes(app: FastifyInstance, ctx: AppContext): Pro
         });
         return {
           body: r.body,
-          // o corpo traz nome e escudo dos clubes do campeonato: a troca de um deles purga a resposta
-          tags: ['roster', `competition:${r.competitionId}`, ...r.teamIds.map((t) => `participant:${t}`)],
+          // o corpo traz nome e escudo do campeonato e dos clubes: a troca de um deles purga a resposta
+          tags: [`competition:${r.competitionId}`, ...transferTags(r.body, r.teamIds)],
           meta: { sport: r.sport },
         };
       },

@@ -117,6 +117,25 @@ export function shapeTransfers(
   return out;
 }
 
+/**
+ * Tags de cache da resposta: os times do recorte, os clubes do outro lado (nome e escudo vão no corpo) e
+ * cada jogador listado (nome e foto), além de `roster`. A troca de qualquer um deles purga a resposta.
+ */
+export function transferTags(body: TransferList, teamIds: readonly string[]): string[] {
+  const clubs = new Set(teamIds);
+  const people = new Set<string>();
+  for (const t of body.data) {
+    if (t.from.id) clubs.add(t.from.id);
+    if (t.to.id) clubs.add(t.to.id);
+    people.add(t.person.id);
+  }
+  return [
+    'roster',
+    ...[...clubs].map((id) => `participant:${id}`),
+    ...[...people].map((id) => `person:${id}`),
+  ];
+}
+
 /** Transferências dos times no período, das mais recentes para trás (com folga para as repetidas). */
 async function transferRows(db: Database, teams: string[], opts: TransfersOptions): Promise<TransferRow[]> {
   if (!teams.length) return [];

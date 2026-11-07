@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shapeTransfers, sinceDate, type TransferRow } from './transfers.js';
+import { shapeTransfers, sinceDate, transferTags, type TransferRow } from './transfers.js';
 
 const A = '0199a5c0-0000-7000-8000-0000000000a1';
 const B = '0199a5c0-0000-7000-8000-0000000000a2';
@@ -77,5 +77,30 @@ describe('shapeTransfers', () => {
 describe('sinceDate', () => {
   it('N dias antes de hoje, em UTC', () => {
     expect(sinceDate(new Date('2026-11-06T23:00:00Z'), 30)).toBe('2026-10-07');
+  });
+});
+
+describe('transferTags', () => {
+  it('times do recorte, clubes do outro lado e jogadores, sem repetir', () => {
+    const club = (id: string | null) => ({ id, name: id ?? 'Fora', logo: null });
+    const row = (person: string, from: string | null, to: string | null) => ({
+      person: { id: person, name: person, photo: null },
+      date: '2026-09-01',
+      direction: 'in' as const,
+      kind: null,
+      fee: null,
+      type: null,
+      from: club(from),
+      to: club(to),
+    });
+    const tags = transferTags(
+      {
+        scope: { type: 'team', id: 't1', name: 'T1', logo: null },
+        since: '2026-06-01',
+        data: [row('p1', 'x', 't1'), row('p1', 't1', null), row('p2', 'x', 't1')],
+      },
+      ['t1'],
+    );
+    expect(tags).toEqual(['roster', 'participant:t1', 'participant:x', 'person:p1', 'person:p2']);
   });
 });

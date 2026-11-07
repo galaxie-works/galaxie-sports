@@ -562,7 +562,6 @@ export interface GsPersonOverview {
   trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
 }
 
-/** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
 /** Vai e vem do mercado (`/v1/teams|competitions/{id}/transfers`, #832). */
 export type GsTransferKind = 'loan' | 'loan_return' | 'free' | 'fee' | 'transfer';
 export interface GsTransferClub {
@@ -586,6 +585,7 @@ export interface GsTransferList {
   data: GsTransfer[];
 }
 
+/** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
 export interface GsTeam {
   id: string;
   sport: string;
