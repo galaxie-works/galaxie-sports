@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { dispatchFeedback, feedbackGithubConfig, type FeedbackPayload } from './github';
 import { FeedbackLimiter } from './limiter';
 import { checkFeedbackText, maskEmail, maskHalf, sniffImage, titleSnippet } from './rules';
 
@@ -47,7 +46,7 @@ describe('conferências', () => {
 
 describe('teto por usuário', () => {
   it('passa até o teto na janela e devolve a reserva de envio que falhou', () => {
-    const l = new FeedbackLimiter(2, 1000);
+    const l = new FeedbackLimiter(2, 1000, 100, 10_000);
     expect(l.take('u', 0)).toBe(true);
     expect(l.take('u', 1)).toBe(true);
     expect(l.take('u', 2)).toBe(false);
@@ -58,32 +57,12 @@ describe('teto por usuário', () => {
   });
 });
 
-describe('workflow_dispatch', () => {
-  it('sem token, desligado; repositório estranho também', () => {
-    expect(feedbackGithubConfig({})).toBeNull();
-    expect(feedbackGithubConfig({ FEEDBACK_GITHUB_TOKEN: 't', FEEDBACK_GITHUB_REPO: '../x' })).toBeNull();
-    expect(feedbackGithubConfig({ FEEDBACK_GITHUB_TOKEN: 't' })).toEqual({
-      token: 't',
-      repo: 'galaxie-works/galaxie-sports',
-      ref: 'main',
-    });
-  });
-
-  it('dispara o workflow com o payload como input', async () => {
-    const calls: { url: string; init: RequestInit }[] = [];
-    const fake = (async (url: string, init: RequestInit) => {
-      calls.push({ url, init });
-      return new Response(null, { status: 204 });
-    }) as unknown as typeof fetch;
-    const payload = { v: 1, subject: 'bug', message: 'm' } as FeedbackPayload;
-    const ok = await dispatchFeedback({ token: 'tok', repo: 'o/r', ref: 'main' }, payload, fake);
-    expect(ok).toBe(true);
-    expect(calls[0]!.url).toBe(
-      'https://api.github.com/repos/o/r/actions/workflows/sugestao-issue.yml/dispatches',
-    );
-    const body = JSON.parse(calls[0]!.init.body as string);
-    expect(body.ref).toBe('main');
-    expect(JSON.parse(body.inputs.payload)).toEqual(payload);
-    expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe('Bearer tok');
+describe('teto do dia para todos', () => {
+  it('para no total do dia mesmo com usuários diferentes', () => {
+    const l = new FeedbackLimiter(5, 1000, 2, 10_000);
+    expect(l.take('a', 0)).toBe(true);
+    expect(l.take('b', 1)).toBe(true);
+    expect(l.take('c', 2)).toBe(false);
+    expect(l.take('c', 10_001)).toBe(true);
   });
 });

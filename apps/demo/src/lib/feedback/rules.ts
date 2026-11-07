@@ -1,8 +1,8 @@
 /**
  * Regras do "Sugerir ou reportar algo" (puras: o formulário no navegador, a ação do servidor e os testes).
  *
- * - assuntos: a chave vai no envio; o rótulo da issue (em pt-BR) sai dela no script que abre a issue
- *   (infra/ops/sugestao-issue.sh), para a lista de rótulos do repositório não depender do idioma da tela;
+ * - assuntos: a chave vai no envio; o rótulo da issue (em pt-BR) sai dela em lib/i18n/messages/feedback-issue.ts,
+ *   para a lista de rótulos da repo não depender do idioma da tela;
  * - limites da mensagem e dos anexos (só JPG e PNG, conferidos pelo conteúdo, não pela extensão);
  * - mascaramento: o e-mail e o tenant de quem enviou vão para a issue com metade de cada parte escondida.
  */
@@ -14,7 +14,7 @@ export const isFeedbackSubject = (value: unknown): value is FeedbackSubject =>
   typeof value === 'string' && (FEEDBACK_SUBJECTS as readonly string[]).includes(value);
 
 export const FEEDBACK_MESSAGE_MIN = 10;
-/** Cabe com folga no input do workflow_dispatch (65.535 caracteres no payload inteiro). */
+/** Mensagem longa o bastante para um relato com passos; o corpo da issue aceita 65.536 caracteres. */
 export const FEEDBACK_MESSAGE_MAX = 4000;
 export const FEEDBACK_MAX_FILES = 4;
 /** Total dos anexos: abaixo do teto das server actions (`bodySizeLimit` de 6 MB no next.config.ts). */
@@ -79,7 +79,6 @@ export type FeedbackErrorCode =
   | 'session'
   | 'limited'
   | 'unavailable'
-  | 'storage'
   | 'generic';
 
 /** Confere assunto e mensagem; null quando está tudo certo. */

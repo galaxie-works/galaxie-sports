@@ -63,6 +63,11 @@ function FeedbackButtonInner({ className }: { className?: string }) {
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const ids = useId();
+  const sentRef = useRef<HTMLParagraphElement>(null);
+  // depois do envio o formulário some: o foco vai para a confirmação, não para o corpo da página
+  useEffect(() => {
+    if (sent) sentRef.current?.focus();
+  }, [sent]);
 
   // as prévias são URLs de objeto: soltas ao remover a imagem, ao limpar o formulário e ao desmontar
   const filesRef = useRef(files);
@@ -81,7 +86,7 @@ function FeedbackButtonInner({ className }: { className?: string }) {
   };
 
   const onOpenChange = (next: boolean) => {
-    if (next) setPage(`${window.location.pathname}${window.location.search}`);
+    if (next) setPage(window.location.pathname);
     // depois de enviar, fechar limpa o formulário para a próxima vez
     else if (sent) reset();
     setOpen(next);
@@ -166,7 +171,9 @@ function FeedbackButtonInner({ className }: { className?: string }) {
           {sent ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               <CheckCircle2 className="text-success size-10" aria-hidden />
-              <p className="text-base font-medium">{T.sentTitle}</p>
+              <p ref={sentRef} tabIndex={-1} className="text-base font-medium outline-none">
+                {T.sentTitle}
+              </p>
               <p className="text-muted-foreground text-sm">{T.sentDescription}</p>
               <div className="mt-2 flex gap-2">
                 <Button variant="outline" onClick={reset}>
@@ -206,6 +213,8 @@ function FeedbackButtonInner({ className }: { className?: string }) {
                   <Field>
                     <FieldLabel htmlFor={`${ids}-message`}>{T.message}</FieldLabel>
                     <Textarea
+                      aria-invalid={error?.code === 'message' || error?.code === 'tooLong' || undefined}
+                      aria-describedby={errorText ? `${ids}-error` : undefined}
                       id={`${ids}-message`}
                       value={message}
                       maxLength={FEEDBACK_MESSAGE_MAX}
@@ -226,7 +235,8 @@ function FeedbackButtonInner({ className }: { className?: string }) {
                       type="file"
                       accept={FEEDBACK_ACCEPT}
                       multiple
-                      className="sr-only"
+                      className="hidden"
+                      tabIndex={-1}
                       onChange={(e) => {
                         addFiles(e.target.files);
                         e.target.value = '';
@@ -275,7 +285,7 @@ function FeedbackButtonInner({ className }: { className?: string }) {
                     <p>{T.privacy}</p>
                   </div>
 
-                  {errorText ? <FieldError>{errorText}</FieldError> : null}
+                  {errorText ? <FieldError id={`${ids}-error`}>{errorText}</FieldError> : null}
                 </FieldGroup>
               </div>
 

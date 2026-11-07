@@ -1,7 +1,7 @@
 /**
  * "Sugerir ou reportar algo": o ícone de chat do cabeçalho e o painel lateral com o formulário que vira issue no
  * GitHub (componentes do navegador e a ação do servidor). Os rótulos da issue não vêm daqui: ficam em pt-BR no
- * script que abre a issue (infra/ops/sugestao-issue.sh), iguais em qualquer idioma da tela.
+ * lib/i18n/messages/feedback-issue.ts, iguais em qualquer idioma da tela.
  */
 import { defineMessages } from '../define';
 
@@ -55,7 +55,6 @@ export default defineMessages(
       session: 'Sua sessão expirou. Entre de novo para enviar.',
       limited: 'Você enviou muitas mensagens em pouco tempo. Tente de novo mais tarde.',
       unavailable: 'O envio está indisponível agora. Tente de novo mais tarde.',
-      storage: 'Não deu para guardar as imagens agora. Tente sem elas ou mais tarde.',
       generic: 'Não deu para enviar. Tente de novo.',
     },
   },
@@ -109,7 +108,6 @@ export default defineMessages(
         session: 'Your session expired. Sign in again to send.',
         limited: 'You sent too many messages in a short time. Try again later.',
         unavailable: 'Sending is unavailable right now. Try again later.',
-        storage: 'We could not store the images right now. Try without them or later.',
         generic: 'Could not send. Try again.',
       },
     },
@@ -161,7 +159,6 @@ export default defineMessages(
         session: 'Tu sesión venció. Volvé a entrar para enviar.',
         limited: 'Enviaste muchos mensajes en poco tiempo. Probá de nuevo más tarde.',
         unavailable: 'El envío no está disponible ahora. Probá de nuevo más tarde.',
-        storage: 'No pudimos guardar las imágenes ahora. Probá sin ellas o más tarde.',
         generic: 'No se pudo enviar. Probá de nuevo.',
       },
     },
