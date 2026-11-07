@@ -818,6 +818,8 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       { group: 'Promedios 2026', played: 5, source: 'provider' },
     ]);
     // os promedios frescos do fornecedor não congelam o grupo calculado
-    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({ outcome: 'written' });
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
   });
 });
