@@ -18,14 +18,14 @@ mascarados) e prints. Por isso:
 
 ## Ligar
 
-1. Crie a repo privada (sugestão: `galaxie-works/galaxie-sugestoes`), com um README para ter a branch padrão.
+1. A repo privada é `galaxie-works/galaxie-sports-customer-voice` (criada em 07/11/2026).
 2. Crie um fine-grained PAT: Repository access → só essa repo; Permissions → **Issues: Read and write** e
    **Contents: Read and write** (Metadata: Read vem junto). Nada mais.
 3. No `.env` da VPS:
 
    ```bash
    FEEDBACK_GITHUB_TOKEN=github_pat_...
-   FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sugestoes
+   FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
    ```
 
 4. Recrie o `site` e o `console` (próximo deploy, ou `docker compose up -d site console`).
