@@ -6,6 +6,7 @@
 > **Decisões tomadas depois do estudo (07/11/2026):**
 > - Modelo de afiliado, não dropshipping. O nosso código de afiliado só roda no site e no app Galaxie.
 > - Com os clientes, dividimos a comissão, sem taxa fixa (repasse por sub-rede onde a loja aceita; código do cliente com taxa de sucesso onde não aceita).
+> - A porcentagem da divisão é configurável por cliente, conforme o que for negociado com cada um. Os 70% a 75% para o cliente citados abaixo são só uma sugestão de partida.
 > - Produto, imagem e link só vêm das ferramentas oficiais de afiliado: Impact (Fanatics), programa ou API do Mercado Livre, Creators API (Amazon), feeds do Awin. Nunca raspar site de loja.
 > - Compra nunca dá ponto, selo nem prêmio (gamificação, comunidades, bolão).
 > - Nos EUA, quem se cadastra, assina e recebe é a LLC de Wyoming; Brasil, Latam e Hispam ficam com a Galaxie Works Ltda.
