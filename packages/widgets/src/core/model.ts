@@ -7,6 +7,7 @@
 
 export const WIDGET_KINDS = [
   'match_card',
+  'match_timeline',
   'live_list',
   'standings',
   'where_to_watch',
@@ -31,6 +32,7 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'champions_gallery',
+  'team_squad',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -514,6 +516,31 @@ export interface GsTeam {
   country_ref?: { code: string; name: string; flag: string | null } | null | undefined;
 }
 
+/** Posições do futebol na ordem do elenco (chave do fornecedor, em inglês). */
+export const SQUAD_POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker'] as const;
+
+/** Pessoa do elenco (`/v1/teams/{id}/squad`), só o que o widget usa. */
+export interface GsSquadMember {
+  person: {
+    id: string;
+    name: string;
+    photo: string | null;
+    nationality: string | null;
+    nationality_ref: { code: string; name: string } | null;
+    age: number | null;
+  };
+  number: number | null;
+  position: string | null;
+}
+
+/** Elenco do time (`/v1/teams/{id}/squad`). */
+export interface GsSquad {
+  team_id: string;
+  season: number | null;
+  players: GsSquadMember[];
+  coaches: GsSquadMember[];
+}
+
 /** Rótulo no locale da resposta (`{ "pt-BR": "…" }`). */
 export type GsLocalizedText = Record<string, string>;
 
@@ -598,14 +625,65 @@ export interface GsTimelineIncident {
   kind: string;
   minute: number | null;
   extra: number | null;
-  player: { name: string } | null;
-  team: { id: string | null; side: string | null } | null;
-  scoring_team?: { id: string | null; side: string | null } | null | undefined;
+  player: GsTimelinePerson | null;
+  team: GsTimelineTeam | null;
+  scoring_team?: GsTimelineTeam | null | undefined;
+  /** Assistência (na substituição, quem entra: prefira `player_in`). */
+  assist?: GsTimelinePerson | null | undefined;
+  player_in?: GsTimelinePerson | null | undefined;
+  player_out?: GsTimelinePerson | null | undefined;
+  /** Texto do fornecedor ("Yellow Card", "Goal cancelled"…). */
+  detail?: string | null | undefined;
+  clock?: GsMatchClock | undefined;
+  score_after?: { home: number; away: number } | null | undefined;
+  key_moment?: boolean | undefined;
 }
+
+export interface GsTimelinePerson {
+  id?: string | null | undefined;
+  name: string;
+  number?: number | null | undefined;
+}
+
+export interface GsTimelineTeam {
+  id: string | null;
+  side: string | null;
+  name?: string | null | undefined;
+  logo?: string | null | undefined;
+}
+
+/** Relógio de jogo do lance ou do marco: período, minuto e acréscimo. */
+export interface GsMatchClock {
+  period: string | null;
+  minute: number | null;
+  extra_minute: number | null;
+  display: string | null;
+}
+
+/** Marco do jogo (início, intervalo, 2º tempo, prorrogação, pênaltis, fim). */
+export interface GsTimelineMarker {
+  kind: GsTimelineMarkerKind;
+  clock: GsMatchClock;
+}
+
+export type GsTimelineMarkerKind =
+  | 'kickoff'
+  | 'halftime'
+  | 'second_half'
+  | 'end_of_regulation'
+  | 'extra_time'
+  | 'penalty_shootout'
+  | 'full_time';
 
 export interface GsTimeline {
   event_id: string;
   incidents: GsTimelineIncident[];
+  /** Os campos abaixo vêm sempre da API; opcionais só para o placar, que usa só os lances. */
+  status?: GsEventStatus | undefined;
+  live?: boolean | undefined;
+  clock?: GsMatchClock | null | undefined;
+  score?: GsSidePair | undefined;
+  markers?: GsTimelineMarker[] | undefined;
 }
 
 /** Estatísticas do jogo (`/v1/events/{id}/stats`): por time, com o código estável. */
@@ -1318,6 +1396,30 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-incidents li{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gs-incidents [data-side=away]{grid-column:2;text-align:right}.gs-incidents [data-side=home]{grid-column:1}
 .gs-card-red{display:inline-block;width:8px;height:11px;margin-right:4px;border-radius:2px;background:#dc2626;vertical-align:-1px}
+.gs-tl{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.gs-tl-item{display:grid;grid-template-columns:3.2em 22px 1fr auto;align-items:start;gap:8px;padding:calc(var(--gs-gap)*.6) 0;border-top:1px solid var(--gs-border)}
+.gs-tl-item:first-child,.gs-tl-marker+.gs-tl-item{border-top:0}
+.gs-tl-item{padding-left:6px}
+.gs-tl-item[data-key]{box-shadow:inset 3px 0 0 var(--gs-primary)}
+.gs-tl-min{padding-top:2px;font-size:.85em;font-weight:700;font-variant-numeric:tabular-nums;color:var(--gs-muted-foreground);text-align:right}
+.gs-tl-icon{display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid var(--gs-border);border-radius:50%;font-size:.7em;font-weight:800;line-height:1;color:var(--gs-muted-foreground)}
+.gs-tl-icon[data-icon=goal]{border-color:color-mix(in srgb,#16a34a 55%,transparent);color:#16a34a}
+.gs-tl-icon[data-icon=goal]::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
+.gs-tl-icon[data-icon=own_goal]{border-color:color-mix(in srgb,#d97706 55%,transparent);color:#d97706}
+.gs-tl-icon[data-icon=own_goal]::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
+.gs-tl-icon[data-icon=var]{font-size:.5em;letter-spacing:-.02em}
+.gs-tl-icon[data-icon=miss]{border-color:color-mix(in srgb,var(--gs-live) 55%,transparent);color:var(--gs-live)}
+.gs-tl-icon[data-icon=yellow]::before,.gs-tl-icon[data-icon=red]::before,.gs-tl-icon[data-icon=second_yellow]::before{content:'';width:8px;height:11px;border-radius:2px;background:#eab308}
+.gs-tl-icon[data-icon=red]::before{background:#dc2626}
+.gs-tl-icon[data-icon=second_yellow]::before{background:linear-gradient(135deg,#eab308 50%,#dc2626 50%)}
+.gs-tl-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gs-tl-head{display:flex;align-items:center;gap:6px;min-width:0;font-size:.75em;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--gs-muted-foreground)}
+.gs-tl-who{font-weight:600;overflow-wrap:anywhere}
+.gs-tl-score{padding-top:2px;font-weight:800;font-variant-numeric:tabular-nums}
+.gs-tl-marker{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.72em;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gs-muted-foreground)}
+.gs-tl-marker::before,.gs-tl-marker::after{content:'';flex:1;height:1px;background:var(--gs-border)}
+.gs-tl-match{display:flex;align-items:center;gap:8px;min-width:0;font-weight:700}
+.gs-tl-match .gs-tl-score{padding:0 2px}
 .gs-statrow{display:grid;grid-template-columns:3em 1fr 3em;align-items:center;gap:8px;font-size:.85em;font-variant-numeric:tabular-nums}
 .gs-statrow>span:first-child{text-align:left}.gs-statrow>span:last-child{text-align:right}
 .gs-statrow>span:nth-child(2){text-align:center;color:var(--gs-muted-foreground)}
@@ -1330,6 +1432,9 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-medal[data-medal=S]{background:#c4c8cf}
 .gs-medal[data-medal=B]{background:#cf8a52}
 .gs-meta{color:var(--gs-muted-foreground);font-size:.8em}
+.gs-shirt{flex:none;width:1.6em;text-align:right;font-size:.8em;font-weight:700;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
+.gs-crest.gs-photo{border-radius:999px;object-fit:cover}
+[data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 `;
 
@@ -1539,6 +1644,36 @@ export interface WidgetTexts {
     /** "vs. {name}". */
     versus: string;
   };
+  /** Lance a lance (`match_timeline`): tipos de lance, marcos do jogo e estados. */
+  timeline: {
+    title: string;
+    kinds: Record<
+      | 'goal'
+      | 'own_goal'
+      | 'penalty_goal'
+      | 'penalty_missed'
+      | 'yellow_card'
+      | 'second_yellow'
+      | 'red_card'
+      | 'substitution'
+      | 'var'
+      | 'shootout_scored'
+      | 'shootout_missed'
+      | 'other',
+      string
+    >;
+    markers: Record<GsTimelineMarkerKind, string>;
+    /** Revisões do VAR pelo texto do fornecedor em minúsculas ("goal cancelled" → "Gol anulado"). */
+    var: Record<string, string>;
+    /** VAR sem texto conhecido. */
+    varReview: string;
+    /** "Assistência: {name}". */
+    assist: string;
+    playerIn: string;
+    playerOut: string;
+    empty: string;
+    notStarted: string;
+  };
   /** Hipismo: resultados, ranking, calendário e perfis do cavaleiro e do cavalo. */
   equestrian: {
     results: string;
@@ -1593,6 +1728,19 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Elenco do time (#825): grupos por posição e os técnicos. "{age} anos", "{n} jogadores". */
+  squad: {
+    title: string;
+    /** Pela posição do fornecedor (`SQUAD_POSITIONS`). */
+    positions: Record<string, string>;
+    others: string;
+    coaches: string;
+    age: string;
+    players: string;
+    season: string;
+    number: string;
+    empty: string;
   };
 }
 
@@ -1836,6 +1984,51 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       draw: 'E',
       versus: 'vs. {name}',
     },
+    timeline: {
+      title: 'Lance a lance',
+      kinds: {
+        goal: 'Gol',
+        own_goal: 'Gol contra',
+        penalty_goal: 'Gol de pênalti',
+        penalty_missed: 'Pênalti perdido',
+        yellow_card: 'Cartão amarelo',
+        second_yellow: 'Segundo amarelo',
+        red_card: 'Cartão vermelho',
+        substitution: 'Substituição',
+        var: 'VAR',
+        shootout_scored: 'Pênalti convertido',
+        shootout_missed: 'Pênalti perdido',
+        other: 'Lance',
+      },
+      markers: {
+        kickoff: 'Início do jogo',
+        halftime: 'Intervalo',
+        second_half: 'Segundo tempo',
+        end_of_regulation: 'Fim do tempo normal',
+        extra_time: 'Prorrogação',
+        penalty_shootout: 'Disputa de pênaltis',
+        full_time: 'Fim de jogo',
+      },
+      var: {
+        'goal cancelled': 'Gol anulado',
+        'goal confirmed': 'Gol confirmado',
+        'goal disallowed': 'Gol anulado',
+        'goal disallowed - offside': 'Gol anulado por impedimento',
+        'goal disallowed - foul': 'Gol anulado por falta',
+        'penalty confirmed': 'Pênalti confirmado',
+        'penalty cancelled': 'Pênalti anulado',
+        'penalty awarded': 'Pênalti marcado',
+        'card upgrade': 'Cartão aumentado para vermelho',
+        'card reviewed': 'Cartão revisado',
+        'red card cancelled': 'Vermelho anulado',
+      },
+      varReview: 'Revisão',
+      assist: 'Assistência: {name}',
+      playerIn: 'Entra',
+      playerOut: 'Sai',
+      empty: 'Nenhum lance registrado neste jogo.',
+      notStarted: 'Os lances aparecem aqui assim que o jogo começar.',
+    },
     equestrian: {
       results: 'Resultados',
       ranking: 'Ranking',
@@ -1883,6 +2076,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'Nenhum atleta encontrado.',
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
+    },
+    squad: {
+      title: 'Elenco',
+      positions: {
+        Goalkeeper: 'Goleiros',
+        Defender: 'Defensores',
+        Midfielder: 'Meio-campistas',
+        Attacker: 'Atacantes',
+      },
+      others: 'Outros',
+      coaches: 'Técnicos',
+      age: '{age} anos',
+      players: '{n} jogadores',
+      season: 'Temporada {year}',
+      number: 'Camisa {number}',
+      empty: 'Elenco indisponível.',
     },
   },
   es: {
@@ -2124,6 +2333,51 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       draw: 'E',
       versus: 'vs. {name}',
     },
+    timeline: {
+      title: 'Minuto a minuto',
+      kinds: {
+        goal: 'Gol',
+        own_goal: 'Gol en contra',
+        penalty_goal: 'Gol de penal',
+        penalty_missed: 'Penal errado',
+        yellow_card: 'Tarjeta amarilla',
+        second_yellow: 'Segunda amarilla',
+        red_card: 'Tarjeta roja',
+        substitution: 'Cambio',
+        var: 'VAR',
+        shootout_scored: 'Penal convertido',
+        shootout_missed: 'Penal errado',
+        other: 'Jugada',
+      },
+      markers: {
+        kickoff: 'Inicio del partido',
+        halftime: 'Entretiempo',
+        second_half: 'Segundo tiempo',
+        end_of_regulation: 'Fin del tiempo reglamentario',
+        extra_time: 'Prórroga',
+        penalty_shootout: 'Tanda de penales',
+        full_time: 'Final del partido',
+      },
+      var: {
+        'goal cancelled': 'Gol anulado',
+        'goal confirmed': 'Gol confirmado',
+        'goal disallowed': 'Gol anulado',
+        'goal disallowed - offside': 'Gol anulado por offside',
+        'goal disallowed - foul': 'Gol anulado por falta',
+        'penalty confirmed': 'Penal confirmado',
+        'penalty cancelled': 'Penal anulado',
+        'penalty awarded': 'Penal sancionado',
+        'card upgrade': 'Tarjeta cambiada a roja',
+        'card reviewed': 'Tarjeta revisada',
+        'red card cancelled': 'Roja anulada',
+      },
+      varReview: 'Revisión',
+      assist: 'Asistencia: {name}',
+      playerIn: 'Entra',
+      playerOut: 'Sale',
+      empty: 'No hay jugadas registradas en este partido.',
+      notStarted: 'Las jugadas aparecen aquí apenas empiece el partido.',
+    },
     equestrian: {
       results: 'Resultados',
       ranking: 'Ranking',
@@ -2171,6 +2425,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'Ningún atleta encontrado.',
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
+    },
+    squad: {
+      title: 'Plantel',
+      positions: {
+        Goalkeeper: 'Arqueros',
+        Defender: 'Defensores',
+        Midfielder: 'Mediocampistas',
+        Attacker: 'Delanteros',
+      },
+      others: 'Otros',
+      coaches: 'Entrenadores',
+      age: '{age} años',
+      players: '{n} jugadores',
+      season: 'Temporada {year}',
+      number: 'Camiseta {number}',
+      empty: 'Plantel no disponible.',
     },
   },
   en: {
@@ -2399,6 +2669,51 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       draw: 'D',
       versus: 'vs. {name}',
     },
+    timeline: {
+      title: 'Play by play',
+      kinds: {
+        goal: 'Goal',
+        own_goal: 'Own goal',
+        penalty_goal: 'Penalty goal',
+        penalty_missed: 'Missed penalty',
+        yellow_card: 'Yellow card',
+        second_yellow: 'Second yellow',
+        red_card: 'Red card',
+        substitution: 'Substitution',
+        var: 'VAR',
+        shootout_scored: 'Penalty scored',
+        shootout_missed: 'Penalty missed',
+        other: 'Incident',
+      },
+      markers: {
+        kickoff: 'Kick-off',
+        halftime: 'Half-time',
+        second_half: 'Second half',
+        end_of_regulation: 'End of regulation',
+        extra_time: 'Extra time',
+        penalty_shootout: 'Penalty shootout',
+        full_time: 'Full time',
+      },
+      var: {
+        'goal cancelled': 'Goal disallowed',
+        'goal confirmed': 'Goal confirmed',
+        'goal disallowed': 'Goal disallowed',
+        'goal disallowed - offside': 'Goal disallowed for offside',
+        'goal disallowed - foul': 'Goal disallowed for a foul',
+        'penalty confirmed': 'Penalty confirmed',
+        'penalty cancelled': 'Penalty overturned',
+        'penalty awarded': 'Penalty awarded',
+        'card upgrade': 'Card upgraded to red',
+        'card reviewed': 'Card reviewed',
+        'red card cancelled': 'Red card overturned',
+      },
+      varReview: 'Review',
+      assist: 'Assist: {name}',
+      playerIn: 'On',
+      playerOut: 'Off',
+      empty: 'No incidents recorded for this match.',
+      notStarted: 'Incidents show up here as soon as the match starts.',
+    },
     equestrian: {
       results: 'Results',
       ranking: 'Ranking',
@@ -2446,6 +2761,22 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    squad: {
+      title: 'Squad',
+      positions: {
+        Goalkeeper: 'Goalkeepers',
+        Defender: 'Defenders',
+        Midfielder: 'Midfielders',
+        Attacker: 'Forwards',
+      },
+      others: 'Others',
+      coaches: 'Coaches',
+      age: 'Age {age}',
+      players: '{n} players',
+      season: '{year} season',
+      number: 'Shirt {number}',
+      empty: 'Squad not available.',
     },
   },
 };
