@@ -286,6 +286,11 @@ export default defineMessages(
       off: 'Desligado',
       edit: 'Editar agenda',
       names: {
+        'sync-mirror': {
+          label: 'Espelho da api-sports',
+          description:
+            'Renova tabelas, artilharia, elencos, estatísticas, odds e os outros esportes no ritmo de cada dado. Gasta cota do dia.',
+        },
         'sync-daily': {
           label: 'Sync diário',
           description: 'Jogos de ontem, hoje e amanhã, lesões e detalhe dos encerrados. Gasta cota do dia.',
@@ -1362,6 +1367,11 @@ export default defineMessages(
         off: 'Off',
         edit: 'Edit schedule',
         names: {
+          'sync-mirror': {
+            label: 'api-sports mirror',
+            description:
+              'Refreshes tables, top scorers, squads, statistics, odds and the other sports at each data pace. Uses daily quota.',
+          },
           'sync-daily': {
             label: 'Daily sync',
             description:
@@ -2439,6 +2449,11 @@ export default defineMessages(
         off: 'Apagado',
         edit: 'Editar agenda',
         names: {
+          'sync-mirror': {
+            label: 'Espejo de api-sports',
+            description:
+              'Renueva tablas, goleadores, planteles, estadísticas, cuotas y los otros deportes al ritmo de cada dato. Gasta cuota del día.',
+          },
           'sync-daily': {
             label: 'Sync diario',
             description:

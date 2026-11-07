@@ -1,0 +1,1 @@
+ALTER TABLE "core"."competition_title" ADD COLUMN "winner_name" text;

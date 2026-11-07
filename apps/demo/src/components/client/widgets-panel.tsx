@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Award,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -99,6 +100,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  champions_gallery: Award,
   competition_leaders: Goal,
   countdown: Hourglass,
   team_squad: Shirt,
