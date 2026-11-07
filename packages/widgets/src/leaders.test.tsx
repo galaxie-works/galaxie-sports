@@ -55,6 +55,10 @@ describe('artilharia e líderes', () => {
     expect(calls[0]).toContain('/v1/competitions/liga-exemplo/seasons/current/leaders?');
     expect(calls[0]).toContain('category=goals');
     expect(calls[0]).toContain('limit=5');
+    // rodapé com a data da última atualização dos números
+    expect(container.querySelector('[data-gs-updated]')?.textContent).toMatch(
+      /^Atualizado em \d{2}\/\d{2}\/\d{2}$/,
+    );
   });
 
   it('cartões: colunas de amarelos e vermelhos', async () => {

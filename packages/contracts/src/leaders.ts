@@ -14,13 +14,10 @@ export const LeadersQuery = LocaleQuery.extend({
       '`goals` = artilharia; `assists` = assistências; `cards` = cartões (amarelos + vermelhos, os vermelhos desempatam).',
     example: 'goals',
   }),
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(50)
-    .default(10)
-    .meta({ description: 'Quantos jogadores (1–50). Empatados na última posição podem ficar de fora.' }),
+  limit: z.coerce.number().int().min(1).max(50).default(10).meta({
+    description:
+      'Até que posição (1–50). Quem empata com o último também entra, então a lista pode passar do `limit` (até 50).',
+  }),
 });
 export type LeadersQuery = z.input<typeof LeadersQuery>;
 
@@ -37,7 +34,7 @@ export const LeaderRow = z
     }),
     team: ParticipantRef.nullable().meta({
       description:
-        'Time pelo qual o jogador mais jogou no campeonato (quem trocou de clube no meio da temporada soma os dois).',
+        'Time pelo qual o jogador mais jogou no campeonato (quem trocou de clube no meio da temporada soma os dois). Empate em jogos e minutos: o time atualizado por último.',
     }),
     value: z.number().int().meta({ description: 'O número da categoria (gols, assistências ou cartões).' }),
     appearances: z.number().int(),
@@ -58,7 +55,7 @@ export const CompetitionLeaders = z
     category: z.enum(LEADER_CATEGORIES),
     data: z.array(LeaderRow).meta({
       description:
-        'Do maior para o menor; desempate por menos jogos, depois menos minutos. Só quem tem valor maior que zero.',
+        'Do maior para o menor. Na mesma posição: nos cartões, mais vermelhos primeiro; depois menos jogos e menos minutos. Só quem tem valor maior que zero.',
     }),
     updated_at: z.string().nullable().meta({ description: 'ISO 8601 no fuso pedido (`tz`).' }),
   })
