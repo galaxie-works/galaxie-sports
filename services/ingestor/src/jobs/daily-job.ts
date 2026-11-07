@@ -297,6 +297,7 @@ export const PLAYER_STATS_STEP = 'estatisticas-jogadores';
  */
 export const PLAYER_STATS_PERIOD_DAYS: Record<number, number> = { 1: 3 };
 const PLAYER_STATS_DEFAULT_PERIOD_DAYS = 7;
+const PLAYER_STATS_MARGIN_MS = 12 * 3_600_000;
 
 interface PlayerStatsSeason {
   league: number;
@@ -323,24 +324,27 @@ async function playerStatsSeasons(
   limits: PlanLimits,
   now: Date,
 ): Promise<PlayerStatsSeason[]> {
+  const today = utcDate(now);
   const wanted = seasonsInPlay(comps, limits, now)
-    .filter((x) => covers(x.season.coverage, 'players'))
+    // a próxima edição entra na relista antes de começar, mas sem jogo os números viriam zerados
+    .filter(
+      (x) => covers(x.season.coverage, 'players') && (!x.season.startDate || x.season.startDate <= today),
+    )
     .map((x) => ({
       league: x.competition.leagueId,
       season: x.season.year,
       period: PLAYER_STATS_PERIOD_DAYS[x.competition.tier] ?? PLAYER_STATS_DEFAULT_PERIOD_DAYS,
       pages: 1,
     }));
-  if (!wanted.length) return [];
-  const byKey = new Map<string, PlayerStatsSeason>(wanted.map((w) => [`${w.league}|${w.season}`, w]));
-  for await (const e of raw.latest({
-    sport: 'football',
-    endpoint: '/players',
-    has: ['league', 'season'],
-    where: { page: '1' },
-  })) {
-    const w = byKey.get(`${e.params.league}|${e.params.season}`);
-    if (w) w.pages = Math.max(1, e.paging?.total ?? 1);
+  // só a página 1 de cada temporada pedida (uma linha cada), não o /players inteiro do raw
+  for (const w of wanted) {
+    for await (const e of raw.latest({
+      sport: 'football',
+      endpoint: '/players',
+      where: { league: String(w.league), season: String(w.season), page: '1' },
+    })) {
+      w.pages = Math.max(1, e.paging?.total ?? 1);
+    }
   }
   return wanted;
 }
@@ -392,7 +396,8 @@ export async function buildPlayerStatsFirstPages(
   const budget = limit - spentToday(seasons, states, now);
   const due: { item: PlannedRequest; age: number; i: number }[] = [];
   seasons.forEach((s, i) => {
-    const staleBefore = new Date(now.getTime() - s.period * DAY_MS);
+    // folga de meio dia: o sync roda à mesma hora todo dia, e "há 3 dias" cairia segundos depois da passada anterior
+    const staleBefore = new Date(now.getTime() - s.period * DAY_MS + PLAYER_STATS_MARGIN_MS);
     const item = playerStatsPage(s, 1, staleBefore);
     const age = states.get(cursorId(item.cursors[0]!))?.completedAt?.getTime() ?? -Infinity;
     if (age < staleBefore.getTime()) due.push({ item, age, i });

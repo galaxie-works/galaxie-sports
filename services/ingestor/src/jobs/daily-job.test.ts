@@ -1,7 +1,7 @@
 import { FREE_PLAN, PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
 import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
-import type { CompetitionInfo } from './catalog-source.js';
+import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
   buildScheduleRequests,
@@ -361,6 +361,46 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
     before = h.api.calls.length;
     await runJob(job(), h.deps);
     expect(pages(h, before)).toHaveLength(6);
+  });
+
+  it('período no limite: o sync do mesmo horário 3 dias depois renova (sem escorregar para o 4º dia)', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
+    const start = h.clock.t;
+    await runJob(job(), h.deps);
+    // o relógio andou durante a primeira execução: o próximo sync sai exatamente 3 dias depois do início dela
+    h.clock.t = start + 2 * DAY + 11 * 3_600_000;
+    let before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toEqual([]);
+    h.clock.t = start + 3 * DAY;
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toHaveLength(6);
+  });
+
+  it('próxima edição que ainda não começou fica de fora (números zerados)', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const catalog = new StaticCatalogSource(
+      fakeCatalog().map((c) =>
+        c.leagueId === 71
+          ? {
+              ...c,
+              seasons: c.seasons.map((s) =>
+                s.year === 2026
+                  ? { ...s, current: false, startDate: '2026-10-28', endDate: '2027-05-30' }
+                  : s,
+              ),
+            }
+          : c,
+      ),
+    );
+    await runJob(
+      dailyJob(catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys),
+      h.deps,
+    );
+    expect(pages(h).some((p) => p.startsWith('71:'))).toBe(false);
+    expect(pages(h).some((p) => p.startsWith('13:'))).toBe(true);
   });
 
   it('limite do dia: a passada cortada continua no dia seguinte sem repetir a página 1', async () => {
