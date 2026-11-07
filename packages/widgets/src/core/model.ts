@@ -36,6 +36,7 @@ export const WIDGET_KINDS = [
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -1367,7 +1368,8 @@ export const WIDGET_CSS = `
 .gs-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:gs-pulse 1.4s ease-in-out infinite}
 @keyframes gs-pulse{50%{opacity:.3}}
 .gs-card[data-gs-widget=score_ticker]{padding:0;background:none;border:0;container-type:inline-size}
-.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;font-size:clamp(16px,2cqw,44px);line-height:1.25;font-weight:600}
+.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;line-height:1.25;font-weight:600}
+@supports (font-size:clamp(16px,2cqw,44px)){.gs-ticker{font-size:calc(var(--gs-scale,1)*clamp(16px,2cqw,44px))}}
 .gs-ticker[data-transparent]{background:transparent;border-color:transparent;text-shadow:0 1px 3px rgba(0,0,0,.55)}
 .gs-ticker-label{flex:none;display:flex;align-items:center;gap:.4em;padding:.45em .7em;background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-shadow:none}
 .gs-ticker-label .gs-dot{width:.4em;height:.4em}
@@ -1549,9 +1551,9 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
-.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:6px}
-.gs-countdown-units{display:flex;justify-content:center;gap:6px}
-.gs-countdown-unit{display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
+.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
 `;

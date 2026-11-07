@@ -3,7 +3,13 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WIDGET_CATALOG, widgetKindSupportsSport } from './catalog.js';
-import { DEFAULT_THEMES, countdownParts, watchRefreshMs, type WidgetLocale } from './core/model.js';
+import {
+  DEFAULT_THEMES,
+  WIDGET_CSS,
+  countdownParts,
+  watchRefreshMs,
+  type WidgetLocale,
+} from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { optionProps, parseWidgetOptions } from './options.js';
@@ -183,6 +189,14 @@ describe('Countdown', () => {
     const { container } = setup(<Countdown eventId={PREVIEW_IDS.fightEvent} />);
     await vi.waitFor(() => expect(container.querySelector('[data-gs-fight]')).toBeTruthy());
     expect(container.querySelector('.gs-score')).toBeNull();
+  });
+
+  it('escala para TV: número e espaçamento multiplicados por --gs-scale', () => {
+    // a unidade inteira escala (número, rótulo e largura mínima em em)
+    expect(WIDGET_CSS).toContain('.gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);');
+    expect(WIDGET_CSS).toContain(
+      '.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}',
+    );
   });
 
   it('jogo a 21 dias: o onde assistir não é reconsultado em 5 minutos', async () => {
