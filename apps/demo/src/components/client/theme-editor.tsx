@@ -1,10 +1,9 @@
 'use client';
 
 import { Check, Moon, Rows3, Rows4, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
+import { ColorPicker, ColorPickerContent, ColorPickerInput } from '@/components/reui/color-picker';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -24,7 +23,22 @@ const HEX = /^#[0-9a-f]{6}$/i;
 /** Opção escolhida nos grupos de densidade e modo (o padrão do toggle some no tema escuro). */
 const PRESSED = 'data-[pressed]:border-primary/60 data-[pressed]:bg-primary/15 data-[pressed]:text-primary';
 
-/** Seletor de cor nativo + campo hexadecimal (o campo só aplica quando a cor é válida). */
+/** Cores sugeridas no popup do seletor (as mesmas do exemplo do ReUI). */
+const COLOR_SWATCHES = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+];
+
+/**
+ * Campo de cor do ReUI: digita-se o código (hex, rgb(), hsl(), oklch() ou nome CSS) e o quadradinho abre o
+ * seletor completo. O valor sai sempre como hexadecimal de 6 dígitos (sem opacidade, que o tema não guarda).
+ */
 export function ColorField({
   id,
   label,
@@ -36,33 +50,22 @@ export function ColorField({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const [text, setText] = useState(value);
-  useEffect(() => setText(value), [value]);
+  const { t } = useI18n();
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          aria-label={label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="border-input size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
-        />
-        <Input
-          id={id}
-          value={text}
-          spellCheck={false}
-          maxLength={7}
-          className="font-mono text-xs uppercase"
-          aria-invalid={!HEX.test(text)}
-          onChange={(e) => {
-            const next = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`;
-            setText(next);
-            if (HEX.test(next)) onChange(next.toLowerCase());
-          }}
-        />
-      </div>
+      <ColorPicker
+        id={id}
+        value={value}
+        swatches={COLOR_SWATCHES}
+        i18n={{ labels: t.common.colorPicker }}
+        onValueChange={(next) => {
+          if (next && HEX.test(next)) onChange(next.toLowerCase());
+        }}
+      >
+        <ColorPickerInput />
+        <ColorPickerContent />
+      </ColorPicker>
     </Field>
   );
 }
