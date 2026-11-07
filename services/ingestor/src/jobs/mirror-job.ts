@@ -136,7 +136,9 @@ export async function rotateGroups(
         return !st?.completedAt && attemptsOf(st) >= MAX_ATTEMPTS;
       });
       if (given && !opts.force) return;
-      const staleBefore = new Date(now.getTime() - c.periodDays * DAY_MS);
+      // corte por dia UTC, não por 24 h exatas: o renovado ontem (a qualquer hora) vence hoje no período de 1 dia;
+      // com 24 h exatas, a execução das 08:00 achava em dia o item buscado segundos depois das 08:00 de ontem
+      const staleBefore = new Date(today - (Math.max(1, c.periodDays) - 1) * DAY_MS);
       const age = Math.min(
         ...c.item.cursors.map((ref) => states.get(cursorId(ref))?.completedAt?.getTime() ?? -Infinity),
       );

@@ -102,6 +102,17 @@ describe('rotateGroups', () => {
     expect(picked.map((p) => p.params.id)).toEqual(['1']);
   });
 
+  it('período em dias UTC: o buscado ontem logo depois deste horário vence hoje no período de 1 dia', async () => {
+    const cursors = new InMemoryCursorStore();
+    const a = [cand(1, 1), cand(2, 7)];
+    // ontem, 1 minuto depois do horário de agora (menos de 24 h atrás)
+    const yesterday = new Date(now.getTime() - DAY + 60_000);
+    await cursors.complete(a[0]!.item.cursors, {}, yesterday);
+    await cursors.complete(a[1]!.item.cursors, {}, yesterday);
+    const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 10);
+    expect(picked.map((p) => p.params.id)).toEqual(['1']);
+  });
+
   it('o que falhou 3 vezes sem concluir sai da fila e não ocupa o orçamento', async () => {
     const cursors = new InMemoryCursorStore();
     const a = [cand(1), cand(2), cand(3)];
