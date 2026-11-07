@@ -3,6 +3,7 @@ import { PREVIEW_IDS } from './fixtures.js';
 import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
 import type { LiveListProps } from './widgets/live-list.js';
+import type { ScoreTickerProps } from './widgets/score-ticker.js';
 import type { MatchCardProps } from './widgets/match-card.js';
 import type { MatchTimelineProps } from './widgets/match-timeline.js';
 import type { MatchStakesProps } from './widgets/match-stakes.js';
@@ -26,12 +27,15 @@ import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
+import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
+import type { PlayerProfileProps } from './widgets/player-profile.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
   match_timeline: MatchTimelineProps;
   live_list: LiveListProps;
+  score_ticker: ScoreTickerProps;
   standings: StandingsTableProps;
   where_to_watch: WhereToWatchProps;
   ai_context: AiContextProps;
@@ -55,7 +59,9 @@ export interface WidgetPropsByKind {
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
   champions_gallery: ChampionsGalleryProps;
+  countdown: CountdownProps;
   team_squad: TeamSquadProps;
+  player_profile: PlayerProfileProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -65,6 +71,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'MatchCard'
     | 'MatchTimeline'
     | 'LiveList'
+    | 'ScoreTicker'
     | 'StandingsTable'
     | 'WhereToWatch'
     | 'AiContext'
@@ -88,7 +95,9 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryAthletes'
     | 'MedalHistory'
     | 'ChampionsGallery'
-    | 'TeamSquad';
+    | 'Countdown'
+    | 'TeamSquad'
+    | 'PlayerProfile';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -206,6 +215,33 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showStakes',
       'showReferee',
       'showPenalties',
+    ],
+    exampleProps: { sport: 'football' },
+    polling: true,
+    sports: [],
+  },
+  score_ticker: {
+    kind: 'score_ticker',
+    component: 'ScoreTicker',
+    registryComponent: 'GalaxieScoreTicker',
+    name: { 'pt-BR': 'Faixa de placares', es: 'Cintillo de marcadores', en: 'Score ticker' },
+    description: {
+      'pt-BR': 'Placares ao vivo correndo numa faixa na parte de baixo da tela, para emissoras e apps de TV.',
+      es: 'Marcadores en vivo corriendo en un cintillo en la parte inferior de la pantalla, para canales y apps de TV.',
+      en: 'Live scores scrolling in a strip along the bottom of the screen, for broadcasters and TV apps.',
+    },
+    requiredProps: [],
+    optionalProps: [
+      'competitionId',
+      'sport',
+      'mode',
+      'speed',
+      'transparent',
+      'showLabel',
+      'showCompetition',
+      'showCrests',
+      'teamName',
+      'limit',
     ],
     exampleProps: { sport: 'football' },
     polling: true,
@@ -624,6 +660,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: false,
     sports: [...TEAM_SPORTS, 'formula-1'],
   },
+  countdown: {
+    kind: 'countdown',
+    component: 'Countdown',
+    registryComponent: 'GalaxieCountdown',
+    name: { 'pt-BR': 'Contagem regressiva', es: 'Cuenta regresiva', en: 'Countdown' },
+    description: {
+      'pt-BR':
+        'Tempo até o jogo começar, com escudos, campeonato e onde assistir. Na hora do jogo, vira o placar ao vivo.',
+      es: 'Tiempo hasta que empiece el partido, con escudos, competición y dónde verlo. Al empezar, pasa a ser el marcador en vivo.',
+      en: 'Time left until kick-off, with crests, competition and where to watch. Once the match starts, it turns into the live score.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showWatch', 'showSeconds', 'onStart'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: true,
+    // um lado contra o outro: os coletivos e a luta (na F1 não há mandante e visitante)
+    sports: [...TEAM_SPORTS, 'mma'],
+  },
   team_squad: {
     kind: 'team_squad',
     component: 'TeamSquad',
@@ -645,6 +699,31 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showCoaches',
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  player_profile: {
+    kind: 'player_profile',
+    component: 'PlayerProfile',
+    registryComponent: 'GalaxiePlayerProfile',
+    name: { 'pt-BR': 'Ficha do jogador', es: 'Ficha del jugador', en: 'Player profile' },
+    description: {
+      'pt-BR':
+        'Jogador com o clube atual, os números da temporada, os clubes, as temporadas, os títulos e as transferências.',
+      es: 'Jugador con el club actual, los números de la temporada, los clubes, las temporadas, los títulos y los traspasos.',
+      en: 'A player with current club, season numbers, clubs, seasons, trophies and transfers.',
+    },
+    requiredProps: ['personId'],
+    optionalProps: [
+      'season',
+      'showStats',
+      'showClubs',
+      'showSeasons',
+      'showTrophies',
+      'showTransfers',
+      'limit',
+    ],
+    exampleProps: { personId: PREVIEW_IDS.person },
     polling: false,
     sports: FOOTBALL_ONLY,
   },

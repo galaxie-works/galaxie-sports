@@ -27,6 +27,7 @@ export const WIDGET_KINDS = [
   'match_card',
   'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -50,7 +51,9 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'champions_gallery',
+  'countdown',
   'team_squad',
+  'player_profile',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -77,6 +80,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   match_card: ['event'],
   match_timeline: ['event'],
   live_list: ['competition', 'team'],
+  score_ticker: ['competition'],
   standings: ['competition'],
   where_to_watch: ['event'],
   ai_context: ['event'],
@@ -100,7 +104,9 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   country_athletes: [],
   medal_history: [],
   champions_gallery: ['competition'],
+  countdown: ['event'],
   team_squad: ['team'],
+  player_profile: ['person'],
 };
 
 /**
@@ -112,6 +118,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   match_card: 'event',
   match_timeline: 'event',
   live_list: null,
+  score_ticker: null,
   standings: 'competition',
   where_to_watch: 'event',
   ai_context: 'event',
@@ -135,7 +142,9 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   country_athletes: null,
   medal_history: null,
   champions_gallery: 'competition',
+  countdown: 'event',
   team_squad: 'team',
+  player_profile: 'person',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -204,19 +213,21 @@ export function parseTheme(raw: unknown): WidgetTheme | null {
 
 // ─── entidade padrão ⇄ `defaults` ────────────────────────────────────────────────────────────────
 
-const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId'> = {
+const DEFAULT_KEY: Record<WidgetEntityType, 'competitionId' | 'teamId' | 'eventId' | 'personId'> = {
   competition: 'competitionId',
   team: 'teamId',
   event: 'eventId',
+  person: 'personId',
 };
 
-/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição). */
+/** Entidade padrão gravada em `defaults` (a primeira que houver: jogo, time, competição, pessoa). */
 export function entityFromDefaults(
   defaults: WidgetDefaults | null | undefined,
 ): { type: WidgetEntityType; id: string } | null {
   if (defaults?.eventId) return { type: 'event', id: defaults.eventId };
   if (defaults?.teamId) return { type: 'team', id: defaults.teamId };
   if (defaults?.competitionId) return { type: 'competition', id: defaults.competitionId };
+  if (defaults?.personId) return { type: 'person', id: defaults.personId };
   return null;
 }
 
@@ -427,6 +438,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_card: 'GalaxieMatchCard',
   match_timeline: 'GalaxieMatchTimeline',
   live_list: 'GalaxieLiveList',
+  score_ticker: 'GalaxieScoreTicker',
   standings: 'GalaxieStandingsTable',
   where_to_watch: 'GalaxieWhereToWatch',
   ai_context: 'GalaxieAiContext',
@@ -450,7 +462,9 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
   champions_gallery: 'GalaxieChampionsGallery',
+  countdown: 'GalaxieCountdown',
   team_squad: 'GalaxieTeamSquad',
+  player_profile: 'GalaxiePlayerProfile',
 };
 
 /**

@@ -1,6 +1,12 @@
 import type { ApiSport, PlanLimits, PlanRules, ProviderStatus } from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
-import { compareCompetitions, type CatalogSource, type CompetitionInfo } from './catalog-source.js';
+import {
+  compareCompetitions,
+  covers,
+  type CatalogSource,
+  type CompetitionInfo,
+  type SeasonInfo,
+} from './catalog-source.js';
 import { buildDetailRequests, selectDetailFixtures, splitDone } from './details-job.js';
 import { collectFixtures, dateList } from './fixtures.js';
 import {
@@ -69,6 +75,10 @@ export interface DailyOptions {
   seasonLists?: number | undefined;
   /** Maior tier com a temporada atual relistada (padrão 3: todo o catálogo). */
   seasonListTier?: number | undefined;
+  /** Páginas de `players?league&season` por dia (padrão: 0 no free, 1000 nos pagos); 0 desliga. */
+  playerStats?: number | undefined;
+  /** Maior tier com os números dos jogadores renovados (padrão 1). */
+  playerStatsTier?: number | undefined;
   /** `--forcar`: a relista ignora o período do cursor (ex.: remarcação urgente), ainda dentro do limite do dia. */
   force?: boolean | undefined;
 }
@@ -243,24 +253,190 @@ export async function buildSeasonListRequests(
   limit: number,
   force = false,
 ): Promise<PlannedRequest[]> {
+  const period = new Map<PlannedRequest, number>();
+  for (const { competition: c, season: s } of seasonsInPlay(comps, limits, now)) {
+    const item = plannedRequest(SEASON_LIST_STEP, 'football', '/fixtures', {
+      league: c.leagueId,
+      season: s.year,
+    });
+    period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
+  }
+  if (force) return [...period.keys()].slice(0, limit);
+  return buildRotationRequests([...period.keys()], cursors, now, limit, (i) => period.get(i)!);
+}
+
+/**
+ * Temporadas em jogo, na ordem do catálogo: a atual e a próxima edição que começa em até 14 dias (mesmo antes de
+ * virar `current`), até 7 dias depois do fim, só as que o plano alcança.
+ */
+export function seasonsInPlay(
+  comps: CompetitionInfo[],
+  limits: PlanLimits,
+  now: Date,
+): { competition: CompetitionInfo; season: SeasonInfo }[] {
   const startsBy = utcDate(now, SEASON_LIST_AHEAD_DAYS);
   const endedAfter = utcDate(now, -SEASON_LIST_AFTER_END_DAYS);
-  const period = new Map<PlannedRequest, number>();
+  const out: { competition: CompetitionInfo; season: SeasonInfo }[] = [];
   for (const c of [...comps].sort(compareCompetitions)) {
     for (const s of c.seasons) {
       // a próxima edição sai no /leagues com calendário antes de virar `current`: vale pela janela de datas
       if (!s.current && !s.startDate) continue;
       if (!seasonAccessible(s.year, limits)) continue;
       if ((s.startDate && s.startDate > startsBy) || (s.endDate && s.endDate < endedAfter)) continue;
-      const item = plannedRequest(SEASON_LIST_STEP, 'football', '/fixtures', {
-        league: c.leagueId,
-        season: s.year,
-      });
-      period.set(item, SEASON_LIST_PERIOD_DAYS[c.tier] ?? SEASON_LIST_DEFAULT_PERIOD_DAYS);
+      out.push({ competition: c, season: s });
     }
   }
-  if (force) return [...period.keys()].slice(0, limit);
-  return buildRotationRequests([...period.keys()], cursors, now, limit, (i) => period.get(i)!);
+  return out;
+}
+
+export const PLAYER_STATS_STEP = 'estatisticas-jogadores';
+
+/**
+ * Período da renovação dos números dos jogadores da temporada em jogo (`players?league&season`) por tier: tier 1 a
+ * cada 3 dias (uma rodada por semana, às vezes duas), os demais a cada 7.
+ */
+export const PLAYER_STATS_PERIOD_DAYS: Record<number, number> = { 1: 3 };
+const PLAYER_STATS_DEFAULT_PERIOD_DAYS = 7;
+
+interface PlayerStatsSeason {
+  league: number;
+  season: number;
+  period: number;
+  /** Páginas da última página 1 gravada no raw (`paging.total`); sem página 1 no raw, 1. */
+  pages: number;
+}
+
+function playerStatsPage(x: { league: number; season: number }, page: number, staleBefore?: Date) {
+  return plannedRequest(
+    PLAYER_STATS_STEP,
+    'football',
+    '/players',
+    { league: x.league, season: x.season, page },
+    staleBefore ? { staleBefore } : {},
+  );
+}
+
+/** Temporadas em jogo com cobertura de jogadores, com o período do tier e o total de páginas que o raw conhece. */
+async function playerStatsSeasons(
+  comps: CompetitionInfo[],
+  raw: RawSource,
+  limits: PlanLimits,
+  now: Date,
+): Promise<PlayerStatsSeason[]> {
+  const wanted = seasonsInPlay(comps, limits, now)
+    .filter((x) => covers(x.season.coverage, 'players'))
+    .map((x) => ({
+      league: x.competition.leagueId,
+      season: x.season.year,
+      period: PLAYER_STATS_PERIOD_DAYS[x.competition.tier] ?? PLAYER_STATS_DEFAULT_PERIOD_DAYS,
+      pages: 1,
+    }));
+  if (!wanted.length) return [];
+  const byKey = new Map<string, PlayerStatsSeason>(wanted.map((w) => [`${w.league}|${w.season}`, w]));
+  for await (const e of raw.latest({
+    sport: 'football',
+    endpoint: '/players',
+    has: ['league', 'season'],
+    where: { page: '1' },
+  })) {
+    const w = byKey.get(`${e.params.league}|${e.params.season}`);
+    if (w) w.pages = Math.max(1, e.paging?.total ?? 1);
+  }
+  return wanted;
+}
+
+/** Quantas páginas de estatísticas de jogadores já foram buscadas hoje (o limite vale por dia UTC). */
+function spentToday(
+  seasons: PlayerStatsSeason[],
+  states: Map<string, { completedAt: Date | null }>,
+  now: Date,
+): number {
+  const today = startOfUtcDay(now).getTime();
+  let n = 0;
+  for (const s of seasons) {
+    for (let page = 1; page <= s.pages; page++) {
+      const at = states.get(cursorId(playerStatsPage(s, page).cursors[0]!))?.completedAt;
+      if (at && at.getTime() >= today) n += 1;
+    }
+  }
+  return n;
+}
+
+async function loadPlayerStatsCursors(seasons: PlayerStatsSeason[], cursors: CursorStore) {
+  const refs: CursorRef[] = [];
+  for (const s of seasons)
+    for (let page = 1; page <= s.pages; page++) refs.push(...playerStatsPage(s, page).cursors);
+  return cursors.load(refs);
+}
+
+/**
+ * Números dos jogadores da temporada em jogo, primeira metade: a página 1 de `players?league&season` das temporadas
+ * cuja última passada ficou mais velha que o período do tier (nunca buscadas primeiro, depois a mais velha). A
+ * página 1 abre a passada; as demais vêm na fase seguinte (`buildPlayerStatsPageRequests`), quando o `paging`
+ * da página nova já está no raw. Usa os mesmos cursores do bootstrap:people `--estatisticas-jogadores`.
+ *
+ * Sem isso a tabela `core.person_season_stat` (artilharia, perfil do jogador) só recebia o que a carga manual
+ * trouxe e ficava parada no dia dela: o cursor da página, concluído uma vez, nunca mais vencia.
+ */
+export async function buildPlayerStatsFirstPages(
+  comps: CompetitionInfo[],
+  raw: RawSource,
+  cursors: CursorStore,
+  limits: PlanLimits,
+  now: Date,
+  limit: number,
+): Promise<PlannedRequest[]> {
+  if (limit <= 0) return [];
+  const seasons = await playerStatsSeasons(comps, raw, limits, now);
+  const states = await loadPlayerStatsCursors(seasons, cursors);
+  const budget = limit - spentToday(seasons, states, now);
+  const due: { item: PlannedRequest; age: number; i: number }[] = [];
+  seasons.forEach((s, i) => {
+    const staleBefore = new Date(now.getTime() - s.period * DAY_MS);
+    const item = playerStatsPage(s, 1, staleBefore);
+    const age = states.get(cursorId(item.cursors[0]!))?.completedAt?.getTime() ?? -Infinity;
+    if (age < staleBefore.getTime()) due.push({ item, age, i });
+  });
+  return due
+    .sort((a, b) => a.age - b.age || a.i - b.i)
+    .slice(0, Math.max(0, budget))
+    .map((d) => d.item);
+}
+
+/**
+ * Segunda metade: as páginas 2…N de cada temporada cuja passada está aberta, isto é, cuja página buscada por último
+ * é mais velha que a página 1 atual (`staleBefore` = conclusão da página 1). A passada que o limite do dia cortou
+ * continua no dia seguinte, sem buscar a página 1 de novo.
+ */
+export async function buildPlayerStatsPageRequests(
+  comps: CompetitionInfo[],
+  raw: RawSource,
+  cursors: CursorStore,
+  limits: PlanLimits,
+  now: Date,
+  limit: number,
+): Promise<PlannedRequest[]> {
+  if (limit <= 0) return [];
+  const seasons = await playerStatsSeasons(comps, raw, limits, now);
+  const states = await loadPlayerStatsCursors(seasons, cursors);
+  const budget = limit - spentToday(seasons, states, now);
+  const open: { start: number; items: PlannedRequest[] }[] = [];
+  for (const s of seasons) {
+    const start = states.get(cursorId(playerStatsPage(s, 1).cursors[0]!))?.completedAt;
+    if (!start) continue;
+    const items: PlannedRequest[] = [];
+    for (let page = 2; page <= s.pages; page++) {
+      const item = playerStatsPage(s, page, start);
+      const at = states.get(cursorId(item.cursors[0]!))?.completedAt;
+      if (!at || at < start) items.push(item);
+    }
+    if (items.length) open.push({ start: start.getTime(), items });
+  }
+  // a passada aberta há mais tempo termina primeiro
+  return open
+    .sort((a, b) => a.start - b.start)
+    .flatMap((o) => o.items)
+    .slice(0, Math.max(0, budget));
 }
 
 export type StatusCheck =
@@ -363,6 +539,34 @@ export function dailyJob(
             opts.force,
           ),
       },
+      {
+        name: 'estatísticas de jogadores (página 1)',
+        build: async () =>
+          buildPlayerStatsFirstPages(
+            await catalog.competitions(opts.playerStatsTier ?? 1),
+            raw,
+            cursors,
+            plan.current,
+            now(),
+            playerStatsLimit(plan, opts),
+          ),
+      },
+      {
+        name: 'estatísticas de jogadores (demais páginas)',
+        build: async () =>
+          buildPlayerStatsPageRequests(
+            await catalog.competitions(opts.playerStatsTier ?? 1),
+            raw,
+            cursors,
+            plan.current,
+            now(),
+            playerStatsLimit(plan, opts),
+          ),
+      },
     ],
   };
+}
+
+function playerStatsLimit(plan: PlanRules, opts: DailyOptions): number {
+  return opts.playerStats ?? (isPaid(plan) ? 1000 : 0);
 }

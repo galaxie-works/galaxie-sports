@@ -117,6 +117,23 @@ describe('widget salvo', () => {
     expect(parseWidgetInput(standings, opts).ok).toBe(true);
   });
 
+  it('ficha do jogador: o jogador é obrigatório e vira defaults.personId', () => {
+    const player = { ...base, kind: 'player_profile', config: { ...base.config, defaults: {} } };
+    expect(parseWidgetInput(player, opts)).toEqual({ ok: false, error: 'entityRequired' });
+    const ok = parseWidgetInput(
+      {
+        ...player,
+        config: { ...player.config, defaults: { personId: ID }, options: { showTransfers: false } },
+      },
+      opts,
+    );
+    expect(ok.ok && ok.value.config.defaults).toEqual({ personId: ID });
+    expect(ok.ok && ok.value.config.options).toEqual({ showTransfers: false });
+    // pessoa em outro tipo de widget é recusada
+    const card = { ...base, config: { ...base.config, defaults: { personId: ID } } };
+    expect(parseWidgetInput(card, opts)).toEqual({ ok: false, error: 'entity' });
+  });
+
   it('tabela guarda legenda e cores das zonas válidas; os outros tipos descartam', () => {
     const standings = {
       showLegend: false,
@@ -222,7 +239,12 @@ describe('domínios da chave publicável', () => {
 
 describe('catálogo de @galaxie/widgets', () => {
   it('as entidades de cada tipo batem com as props dos componentes', () => {
-    const PROP = { event: 'eventId', competition: 'competitionId', team: 'teamId' } as const;
+    const PROP = {
+      event: 'eventId',
+      competition: 'competitionId',
+      team: 'teamId',
+      person: 'personId',
+    } as const;
     for (const kind of WIDGET_KINDS) {
       const props: readonly string[] = [
         ...WIDGET_CATALOG[kind].requiredProps,
@@ -233,7 +255,12 @@ describe('catálogo de @galaxie/widgets', () => {
   });
 
   it('a entidade obrigatória de cada tipo é a prop obrigatória do componente', () => {
-    const PROP = { event: 'eventId', competition: 'competitionId', team: 'teamId' } as const;
+    const PROP = {
+      event: 'eventId',
+      competition: 'competitionId',
+      team: 'teamId',
+      person: 'personId',
+    } as const;
     for (const kind of WIDGET_KINDS) {
       const required = REQUIRED_ENTITY[kind];
       const entityProps = WIDGET_CATALOG[kind].requiredProps.filter((p) =>
