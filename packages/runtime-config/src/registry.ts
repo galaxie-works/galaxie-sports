@@ -108,6 +108,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'live-run', service: 'live', cron: '*/5 * * * *', runNow: false },
   { name: 'postgame-close', service: 'ingestor', cron: '* * * * *', runNow: true },
   { name: 'live-reconcile', service: 'live', cron: '*/10 * * * *', runNow: true },
+  { name: 'sync-mirror', service: 'ingestor', cron: '0 3 * * *', runNow: false },
   { name: 'normalize-football', service: 'ingestor', cron: '35 0 * * *', runNow: true },
   { name: 'normalize-sports', service: 'ingestor', cron: '15 * * * *', runNow: true },
   { name: 'events-clock', service: 'live', cron: '* * * * *', runNow: true },
