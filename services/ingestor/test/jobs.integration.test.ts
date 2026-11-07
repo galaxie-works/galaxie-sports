@@ -212,7 +212,10 @@ describe('jobs de ingestão contra o Postgres', () => {
     expect(r1.status).toBe('ok');
     expect(r1.phases[0]!.steps['fixtures-data']!.network).toBe(3);
     expect(r1.phases[1]!.steps.detalhe!.network).toBe(3); // 25/10: Série A, Libertadores, Série B
-    expect(r1.phases[2]!.steps.squads!.network).toBe(5); // rodízio do free: 5 por dia
+    // rodízio do free: 5 por dia, repartidos entre os endpoints pelo ritmo de cada um
+    const rotation = Object.values(r1.phases[2]!.steps).reduce((n, s) => n + s.network, 0);
+    expect(rotation).toBe(5);
+    expect(r1.phases[2]!.steps.squads!.network).toBeGreaterThan(0);
     const r2 = await runJob(job(), h.deps);
     expect(r2.callsSpent).toBe(0);
   });

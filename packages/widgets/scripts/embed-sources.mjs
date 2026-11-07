@@ -41,6 +41,7 @@ const WIDGETS = {
   games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
+  champions_gallery: { file: 'src/widgets/champions-gallery.tsx', component: 'ChampionsGallery' },
   competition_leaders: { file: 'src/widgets/competition-leaders.tsx', component: 'CompetitionLeaders' },
   countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
   team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },

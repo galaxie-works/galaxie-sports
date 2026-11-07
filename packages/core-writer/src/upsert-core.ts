@@ -959,7 +959,18 @@ export async function upsertBatchInTx(
     }),
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
-  for (const chunk of chunks(standingRows, 500)) {
+  // espelho dos dados, não do formato: o grupo que já tem tabela calculada pelo nosso regulamento fica com ela (a
+  // do fornecedor só no raw, para conferência); os demais grupos da temporada (promedios, tabela anual, fase nova
+  // que ainda não calculamos) são dado que não organizamos e entram como reserva, inteiros
+  const computedGroups = await groupsWithComputedTable(tx, standingRows);
+  const freshRows = standingRows.filter((r) => !computedGroups.has(`${r.seasonId}|${r.group}`));
+  if (freshRows.length < standingRows.length) {
+    logger.debug(
+      { groups: [...computedGroups] },
+      'tabela do fornecedor ignorada no core: grupo com tabela calculada',
+    );
+  }
+  for (const chunk of chunks(freshRows, 500)) {
     const base = replaceUpdate(
       standing,
       [
@@ -981,7 +992,8 @@ export async function upsertBatchInTx(
     );
     // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
     const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
-    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
+    // linha calculada gravada pelo recálculo entre a checagem dos grupos e este upsert: fica a nossa
+    const setWhere = sql`${standing.source} <> 'computed' and ((${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry))`;
     await tx
       .insert(standing)
       .values(chunk)
@@ -991,12 +1003,23 @@ export async function upsertBatchInTx(
         setWhere,
       });
   }
-  stats.standings = standingRows.length;
+  stats.standings = freshRows.length;
 
   await upsertPersonProfiles(tx, batch, scope, stats, { personId, participantId, seasonId });
   stats.teamSeasonStats = await upsertTeamSeasonStats(tx, batch, { participantId, seasonId });
 
   return stats;
+}
+
+/** Grupos (`seasonId|group`) das temporadas do lote que já têm tabela calculada (`source = 'computed'`) no core. */
+async function groupsWithComputedTable(tx: Tx, rows: { seasonId: string }[]): Promise<Set<string>> {
+  const seasonIds = [...new Set(rows.map((r) => r.seasonId))];
+  if (!seasonIds.length) return new Set();
+  const found = await tx
+    .selectDistinct({ seasonId: standing.seasonId, group: standing.group })
+    .from(standing)
+    .where(and(inArray(standing.seasonId, seasonIds), eq(standing.source, 'computed')));
+  return new Set(found.map((r) => `${r.seasonId}|${r.group}`));
 }
 
 // ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────
