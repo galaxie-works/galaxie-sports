@@ -44,6 +44,7 @@ const WIDGETS = {
   countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
   team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
   player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
+  lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;
