@@ -173,7 +173,8 @@ export async function classify(items: PlannedRequest[], deps: JobDeps, force = f
   const fetched = new Map<string, Date>();
   for (const group of scopes.values()) {
     const { sport, endpoint } = group[0]!;
-    for (const [h, at] of await deps.raw.lastFetched(group.map(hashOf), { sport, endpoint })) fetched.set(h, at);
+    for (const [h, at] of await deps.raw.lastFetched(group.map(hashOf), { sport, endpoint }))
+      fetched.set(h, at);
   }
   return items.map((item): ItemStatus => {
     if (item.skip) return 'no_coverage';

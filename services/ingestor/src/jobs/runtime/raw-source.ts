@@ -154,9 +154,7 @@ export class PgRawSource implements RawSource {
     for (let i = 0; i < unique.length; i += 5000) {
       const chunk = unique.slice(i, i + 5000);
       // com esporte e endpoint, o filtro casa com o prefixo do api_response_lookup_idx (request_hash é a 4ª coluna)
-      const scoped = scope
-        ? `provider = 'api-sports' and sport = $2 and endpoint = $3 and `
-        : '';
+      const scoped = scope ? `provider = 'api-sports' and sport = $2 and endpoint = $3 and ` : '';
       const rows = (await this.db.$client.unsafe(
         `select request_hash, (extract(epoch from max(coalesce(last_seen_at, fetched_at))) * 1000)::float8 as fetched_ms
            from raw.api_response
