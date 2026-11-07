@@ -33,6 +33,7 @@ describe('abas de esporte do catálogo', () => {
       'where_to_watch',
       'head_to_head',
       'team_schedule',
+      'team_card',
       'champions_gallery',
       'countdown',
     ]);
