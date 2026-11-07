@@ -9,6 +9,7 @@ export const WIDGET_KINDS = [
   'match_card',
   'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',
@@ -16,6 +17,7 @@ export const WIDGET_KINDS = [
   'related_videos',
   'head_to_head',
   'team_schedule',
+  'team_card',
   'race_result',
   'race_weekend',
   'season_calendar',
@@ -32,7 +34,10 @@ export const WIDGET_KINDS = [
   'country_athletes',
   'medal_history',
   'competition_leaders',
+  'countdown',
   'team_squad',
+  'player_profile',
+  'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -60,6 +65,8 @@ export interface WidgetDefaults {
   competitionId?: string | undefined;
   teamId?: string | undefined;
   eventId?: string | undefined;
+  /** Jogador ou técnico (`/v1/people/{id}`), na ficha do jogador. */
+  personId?: string | undefined;
   sport?: string | undefined;
 }
 
@@ -77,7 +84,7 @@ export const STANDINGS_ZONE_TONES = [
   'relegation',
 ] as const;
 export type StandingsZoneTone = (typeof STANDINGS_ZONE_TONES)[number];
-/** Cor de cada faixa (`#rrggbb`); o que faltar usa `DEFAULT_ZONE_COLORS`. */
+/** Cor de cada faixa (`#rrggbb` ou `#rrggbbaa`); o que faltar usa `DEFAULT_ZONE_COLORS`. */
 export type StandingsZoneColors = Partial<Record<StandingsZoneTone, string>>;
 
 /** Opções da tabela salvas no Builder. */
@@ -505,6 +512,55 @@ export interface GsMedalHistory {
   withheld: { slug: string; name: string }[];
 }
 
+/** Ficha da pessoa (`/v1/people/{id}/overview`), só o que a ficha do jogador usa. */
+export interface GsPersonNumbers {
+  appearances: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+  rating: number | null;
+}
+
+export interface GsTransferTeam {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+
+export interface GsPersonOverview {
+  person: {
+    id: string;
+    name: string;
+    birth_date: string | null;
+    age: number | null;
+    nationality: string | null;
+    height_cm: number | null;
+    photo: string | null;
+  };
+  /** País da nacionalidade (código ISO2, para a bandeira). */
+  nationality_ref: { code: string; name: string } | null;
+  role: string | null;
+  position: string | null;
+  number: number | null;
+  current_team: { id: string; name: string; logo: string | null } | null;
+  season: number | null;
+  seasons: { year: number; appearances: number; goals: number }[];
+  totals: GsPersonNumbers | null;
+  career: {
+    team: { id: string; name: string; logo: string | null };
+    from: number;
+    to: number;
+    appearances: number;
+    goals: number;
+    current: boolean;
+  }[];
+  transfers: { date: string | null; type: string | null; from: GsTransferTeam; to: GsTransferTeam }[];
+  trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
+}
+
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
 export interface GsTeam {
   id: string;
@@ -720,6 +776,24 @@ export interface GsCompetitionContext {
 export interface GsTeamOverview {
   standings: { competition: { id: string; name: string }; rank: number | null }[];
   form: { event_id: string; result: 'W' | 'D' | 'L'; score: string }[];
+  /** O time (escudo, país, estádio): o cartão do time usa; a agenda só lê a posição e a forma. */
+  team?: GsTeamOverviewTeam | undefined;
+  /** Campanha em cada competição da temporada atual (em disputa primeiro). */
+  competitions?: GsTeamCompetition[] | undefined;
+  live_event?: GsEvent | null | undefined;
+  next_event?: GsEvent | null | undefined;
+}
+
+export interface GsTeamOverviewTeam extends GsTeam {
+  founded?: number | null | undefined;
+  venue?: { name: string; city: string | null } | null | undefined;
+}
+
+/** Competição que o time disputa, com a situação da campanha (`/v1/teams/{id}/overview`). */
+export interface GsTeamCompetition {
+  competition: { id: string; slug: string; name: string; logo: string | null };
+  season: { year: number; label: string };
+  campaign: { status: string; label: GsLocalizedText; ongoing: boolean; rank: number | null };
 }
 
 /** Cenário pré-jogo e resumo pós-jogo de IA (`/v1/events/{id}/context`). */
@@ -933,9 +1007,10 @@ export function standingsZoneTone(description: string): StandingsZoneTone | null
   return null;
 }
 
-const ZONE_HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa`. */
+const ZONE_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 
-/** Cor CSS da faixa: a escolhida no Builder (só `#rrggbb`), senão a padrão; zona desconhecida fica neutra. */
+/** Cor CSS da faixa: a escolhida no Builder (`#rrggbb` ou `#rrggbbaa`), senão a padrão; zona desconhecida fica neutra. */
 export function standingsZoneColor(
   tone: StandingsZoneTone | null,
   colors?: StandingsZoneColors | undefined,
@@ -947,7 +1022,7 @@ export function standingsZoneColor(
 }
 
 /**
- * Opções da tabela vindas de fora (banco, navegador, JSON do embed): só faixas conhecidas com `#rrggbb`
+ * Opções da tabela vindas de fora (banco, navegador, JSON do embed): só faixas conhecidas com `#rrggbb`/`#rrggbbaa`
  * (minúsculo) e `showLegend` booleano. Nada aproveitável → undefined.
  */
 export function parseStandingsOptions(raw: unknown): StandingsOptions | undefined {
@@ -1231,11 +1306,27 @@ function parseHex(color: string): [number, number, number] | null {
   return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
 }
 
-/** Texto legível sobre a cor primária (luminância relativa WCAG). */
-export function readableOn(color: string): string {
+/** Opacidade de um hex `#rgba`/`#rrggbbaa` (0–1); 1 para cor opaca ou outro formato. */
+function hexAlpha(color: string): number {
+  const hex = color.trim().replace(/^#/, '');
+  const a = hex.length === 4 ? hex[3]! + hex[3]! : hex.length === 8 ? hex.slice(6) : null;
+  if (!a || !/^[0-9a-f]{2}$/i.test(a)) return 1;
+  return parseInt(a, 16) / 255;
+}
+
+/**
+ * Texto legível sobre a cor primária (luminância relativa WCAG). Primária com transparência
+ * (`#rrggbbaa`) é misturada sobre `backdrop` (o fundo do widget) antes do cálculo.
+ */
+export function readableOn(color: string, backdrop?: string): string {
   const rgb = parseHex(color);
   if (!rgb) return '#ffffff';
-  const [r, g, b] = rgb.map((v) => {
+  const alpha = hexAlpha(color);
+  const under = alpha < 1 && backdrop ? parseHex(backdrop) : null;
+  const mixed = under
+    ? (rgb.map((v, i) => v * alpha + under[i]! * (1 - alpha)) as [number, number, number])
+    : rgb;
+  const [r, g, b] = mixed.map((v) => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   }) as [number, number, number];
@@ -1249,7 +1340,7 @@ export function themeToCssVars(theme: WidgetTheme): GsCssVars {
   const radius = Number.isFinite(theme.radius) ? Math.min(Math.max(theme.radius, 0), 32) : 12;
   return {
     '--gs-primary': theme.primary,
-    '--gs-primary-foreground': readableOn(theme.primary),
+    '--gs-primary-foreground': readableOn(theme.primary, theme.background),
     '--gs-background': theme.background,
     '--gs-surface': theme.surface,
     '--gs-foreground': theme.foreground,
@@ -1303,6 +1394,31 @@ export const WIDGET_CSS = `
 .gs-badge[data-tone=primary]{color:var(--gs-primary-foreground);background:var(--gs-primary);border-color:transparent}
 .gs-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:gs-pulse 1.4s ease-in-out infinite}
 @keyframes gs-pulse{50%{opacity:.3}}
+.gs-card[data-gs-widget=score_ticker]{padding:0;background:none;border:0;container-type:inline-size}
+.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;line-height:1.25;font-weight:600}
+@supports (font-size:clamp(16px,2cqw,44px)){.gs-ticker{font-size:calc(var(--gs-scale,1)*clamp(16px,2cqw,44px))}}
+.gs-ticker[data-transparent]{background:transparent;border-color:transparent;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.gs-ticker-label{flex:none;display:flex;align-items:center;gap:.4em;padding:.45em .7em;background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-shadow:none}
+.gs-ticker-label .gs-dot{width:.4em;height:.4em}
+.gs-ticker-viewport{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center}
+.gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
+.gs-ticker-track{display:flex;width:max-content}
+.gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
+.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+@keyframes gs-ticker{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
+.gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
+.gs-ticker-group{display:flex;align-items:center;gap:1.2em}
+.gs-ticker-competition{display:inline-flex;align-items:center;gap:.35em;padding:.1em .45em;border-radius:calc(var(--gs-radius)/2);background:color-mix(in srgb,var(--gs-foreground) 10%,transparent);color:var(--gs-muted-foreground);font-size:.72em;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.gs-ticker-item{display:inline-flex;align-items:center;gap:.45em;font-variant-numeric:tabular-nums}
+.gs-ticker-status{font-size:.72em;font-weight:800;color:var(--gs-muted-foreground)}
+.gs-ticker-item[data-live] .gs-ticker-status{color:var(--gs-live)}
+.gs-ticker-team{display:inline-flex;align-items:center;gap:.35em}
+.gs-ticker-team[data-lost]{color:var(--gs-muted-foreground)}
+.gs-ticker-score{font-weight:800}
+.gs-ticker-item[data-live] .gs-ticker-score{color:var(--gs-primary)}
+.gs-ticker .gs-crest{width:1.15em;height:1.15em}
+.gs-ticker .gs-initials{font-size:.45em;width:2.55em;height:2.55em}
 .gs-list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-group{display:flex;flex-direction:column;gap:4px}
 .gs-group+.gs-group{margin-top:var(--gs-gap)}
@@ -1464,6 +1580,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
+.gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1558,6 +1679,8 @@ export interface WidgetTexts {
     recent: string;
     empty: string;
   };
+  /** Contagem regressiva para o jogo: "Começa em", "Vai começar" e as unidades (dias, horas…). */
+  countdown: { startsIn: string; starting: string; units: { d: string; h: string; m: string; s: string } };
   /** Agenda do time: próximos jogos e últimos resultados (V/E/D). */
   schedule: {
     title: string;
@@ -1567,6 +1690,15 @@ export interface WidgetTexts {
     home: string;
     away: string;
     result: { W: string; D: string; L: string };
+  };
+  /** Cartão do time: escudo, forma recente, próximo jogo e campeonatos. */
+  teamCard: {
+    title: string;
+    form: string;
+    next: string;
+    live: string;
+    competitions: string;
+    noNext: string;
   };
   /** Campos opcionais ligados no Builder (placar, tabela, agenda…). */
   extra: {
@@ -1787,6 +1919,36 @@ export interface WidgetTexts {
     number: string;
     empty: string;
   };
+  /** Ficha do jogador (futebol): números da temporada, clubes, temporadas, títulos e transferências. */
+  player: {
+    /** "Temporada {year}". */
+    season: string;
+    appearances: string;
+    goals: string;
+    assists: string;
+    minutes: string;
+    yellow: string;
+    red: string;
+    rating: string;
+    clubs: string;
+    seasons: string;
+    trophies: string;
+    transfers: string;
+    current: string;
+    coach: string;
+    /** "{age} anos". */
+    age: string;
+    /** "{n} jogo(s)", com singular e plural (`pluralText`); técnico mostra só os jogos. */
+    apps: PluralText;
+    /** "{n} gol(s)", com singular e plural (`pluralText`); vem depois dos jogos na linha do clube e da temporada. */
+    goalsCount: PluralText;
+    /** "e mais {count}". */
+    more: string;
+    empty: string;
+    positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
+    places: Record<string, string>;
+    transferTypes: Record<string, string>;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -1924,6 +2086,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       recent: 'Últimos confrontos',
       empty: 'Os times ainda não se enfrentaram.',
     },
+    countdown: {
+      startsIn: 'Começa em',
+      starting: 'Vai começar',
+      units: { d: 'dias', h: 'horas', m: 'min', s: 'seg' },
+    },
     schedule: {
       title: 'Agenda',
       next: 'Próximos jogos',
@@ -1932,6 +2099,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       home: 'Casa',
       away: 'Fora',
       result: { W: 'V', D: 'E', L: 'D' },
+    },
+    teamCard: {
+      title: 'Cartão do time',
+      form: 'Forma recente',
+      next: 'Próximo jogo',
+      live: 'Ao vivo',
+      competitions: 'Campeonatos',
+      noNext: 'Nenhum jogo marcado.',
     },
     extra: {
       referee: 'Árbitro',
@@ -2152,6 +2327,40 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       number: 'Camisa {number}',
       empty: 'Elenco indisponível.',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Jogos',
+      goals: 'Gols',
+      assists: 'Assistências',
+      minutes: 'Minutos',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferências',
+      current: 'Atual',
+      coach: 'Técnico',
+      age: '{age} anos',
+      apps: { one: '{n} jogo', other: '{n} jogos' },
+      goalsCount: { one: '{n} gol', other: '{n} gols' },
+      more: 'e mais {count}',
+      empty: 'Sem jogos nesta temporada.',
+      positions: {
+        Goalkeeper: 'Goleiro',
+        Defender: 'Defensor',
+        Midfielder: 'Meio-campista',
+        Attacker: 'Atacante',
+      },
+      places: { Winner: 'Campeão', '2nd Place': 'Vice', '3rd Place': '3º lugar', '4th Place': '4º lugar' },
+      transferTypes: {
+        Loan: 'Empréstimo',
+        Free: 'Sem custo',
+        'Back from Loan': 'Fim de empréstimo',
+        Transfer: 'Transferência',
+      },
+    },
   },
   es: {
     status: {
@@ -2287,6 +2496,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       recent: 'Últimos enfrentamientos',
       empty: 'Los equipos todavía no se enfrentaron.',
     },
+    countdown: {
+      startsIn: 'Empieza en',
+      starting: 'Por comenzar',
+      units: { d: 'días', h: 'horas', m: 'min', s: 'seg' },
+    },
     schedule: {
       title: 'Agenda',
       next: 'Próximos partidos',
@@ -2295,6 +2509,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       home: 'Local',
       away: 'Visitante',
       result: { W: 'G', D: 'E', L: 'P' },
+    },
+    teamCard: {
+      title: 'Ficha del equipo',
+      form: 'Forma reciente',
+      next: 'Próximo partido',
+      live: 'En vivo',
+      competitions: 'Competiciones',
+      noNext: 'Ningún partido programado.',
     },
     extra: {
       referee: 'Árbitro',
@@ -2515,6 +2737,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       number: 'Camiseta {number}',
       empty: 'Plantel no disponible.',
     },
+    player: {
+      season: 'Temporada {year}',
+      appearances: 'Partidos',
+      goals: 'Goles',
+      assists: 'Asistencias',
+      minutes: 'Minutos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      rating: 'Nota',
+      clubs: 'Clubes',
+      seasons: 'Por temporada',
+      trophies: 'Títulos',
+      transfers: 'Transferencias',
+      current: 'Actual',
+      coach: 'Entrenador',
+      age: '{age} años',
+      apps: { one: '{n} partido', other: '{n} partidos' },
+      goalsCount: { one: '{n} gol', other: '{n} goles' },
+      more: 'y {count} más',
+      empty: 'Sin partidos en esta temporada.',
+      positions: {
+        Goalkeeper: 'Arquero',
+        Defender: 'Defensor',
+        Midfielder: 'Mediocampista',
+        Attacker: 'Delantero',
+      },
+      places: {
+        Winner: 'Campeón',
+        '2nd Place': 'Subcampeón',
+        '3rd Place': 'Tercer puesto',
+        '4th Place': 'Cuarto puesto',
+      },
+      transferTypes: {
+        Loan: 'Préstamo',
+        Free: 'Libre',
+        'Back from Loan': 'Fin de préstamo',
+        Transfer: 'Transferencia',
+      },
+    },
   },
   en: {
     status: {
@@ -2650,6 +2911,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       recent: 'Recent meetings',
       empty: 'These teams have not met yet.',
     },
+    countdown: {
+      startsIn: 'Starts in',
+      starting: 'Starting soon',
+      units: { d: 'days', h: 'hrs', m: 'min', s: 'sec' },
+    },
     schedule: {
       title: 'Schedule',
       next: 'Upcoming matches',
@@ -2658,6 +2924,14 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       home: 'Home',
       away: 'Away',
       result: { W: 'W', D: 'D', L: 'L' },
+    },
+    teamCard: {
+      title: 'Team card',
+      form: 'Recent form',
+      next: 'Next match',
+      live: 'Live',
+      competitions: 'Competitions',
+      noNext: 'No match scheduled.',
     },
     extra: {
       referee: 'Referee',
@@ -2864,6 +3138,45 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       season: '{year} season',
       number: 'Shirt {number}',
       empty: 'Squad not available.',
+    },
+    player: {
+      season: '{year} season',
+      appearances: 'Apps',
+      goals: 'Goals',
+      assists: 'Assists',
+      minutes: 'Minutes',
+      yellow: 'Yellow cards',
+      red: 'Red cards',
+      rating: 'Rating',
+      clubs: 'Clubs',
+      seasons: 'By season',
+      trophies: 'Trophies',
+      transfers: 'Transfers',
+      current: 'Current',
+      coach: 'Head coach',
+      age: '{age} years old',
+      apps: { one: '{n} app', other: '{n} apps' },
+      goalsCount: { one: '{n} goal', other: '{n} goals' },
+      more: 'and {count} more',
+      empty: 'No matches this season.',
+      positions: {
+        Goalkeeper: 'Goalkeeper',
+        Defender: 'Defender',
+        Midfielder: 'Midfielder',
+        Attacker: 'Forward',
+      },
+      places: {
+        Winner: 'Winner',
+        '2nd Place': 'Runner-up',
+        '3rd Place': 'Third place',
+        '4th Place': 'Fourth place',
+      },
+      transferTypes: {
+        Loan: 'Loan',
+        Free: 'Free transfer',
+        'Back from Loan': 'Loan return',
+        Transfer: 'Transfer',
+      },
     },
   },
 };
@@ -3173,6 +3486,50 @@ export function eventRefreshMs(
   return null;
 }
 
+/** Onde assistir nas últimas 24 h: o canal costuma sair (ou mudar) perto do jogo. */
+const WATCH_NEAR_MS = 5 * MINUTE;
+/** A partir de quando o onde assistir passa a ser reconsultado de 5 em 5 minutos. */
+const WATCH_NEAR_WINDOW_MS = 24 * 60 * MINUTE;
+/** Teto do intervalo com o canal "a confirmar" e o jogo a mais de 24 h. */
+const WATCH_TO_CONFIRM_MAX_MS = 60 * MINUTE;
+
+/**
+ * Próxima consulta do onde assistir da contagem (`countdown`), pela distância até o jogo: 5 min nas
+ * últimas 24 h; antes disso, acorda quando entra nessa janela (até 2 min antes, conforme o id; no
+ * máximo a cada 6 h, ou a cada hora com o canal "a confirmar"). "Vai começar": 5 min; jogo que começou: para.
+ */
+export function watchRefreshMs(
+  event: Pick<GsEvent, 'status' | 'starts_at'> & { id?: string | undefined },
+  toConfirm: boolean,
+  now = Date.now(),
+): number | null {
+  if (event.status === 'starting') return WATCH_NEAR_MS;
+  if (event.status !== 'scheduled') return null;
+  const until = Date.parse(event.starts_at) - now;
+  if (!Number.isFinite(until)) return null;
+  if (until <= WATCH_NEAR_WINDOW_MS) return WATCH_NEAR_MS;
+  const wake = until - WATCH_NEAR_WINDOW_MS - wakeJitterMs(event.id);
+  const cap = toConfirm ? WATCH_TO_CONFIRM_MAX_MS : SCHEDULED_WAKE_MAX_MS;
+  return Math.min(Math.max(wake, MINUTE), cap);
+}
+
+/**
+ * Partes da contagem regressiva (widget `countdown`) para `ms` até o início. Arredonda para cima, para
+ * zerar só na hora do jogo: com segundos, 1,5 s vira 2 s; sem eles, 30 s ainda é 1 min.
+ */
+export function countdownParts(
+  ms: number,
+  withSeconds = true,
+): { days: number; hours: number; minutes: number; seconds: number } {
+  const total = Math.max(0, withSeconds ? Math.ceil(ms / 1000) : Math.ceil(ms / MINUTE) * 60);
+  return {
+    days: Math.floor(total / 86_400),
+    hours: Math.floor((total % 86_400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+  };
+}
+
 // ─── textos da API e modelos ─────────────────────────────────────────────────────────────────────
 
 /** Rótulo de `{ "pt-BR": "…" }`: o locale pedido, senão o primeiro que vier (a API manda um só). */
@@ -3270,6 +3627,27 @@ export function venueTimeText(
 
 export function fillText(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
+}
+
+/** Texto com singular e plural ("1 jogo", "2 jogos"); `{n}` recebe o número. */
+export interface PluralText {
+  one: string;
+  other: string;
+}
+
+/**
+ * Escolhe a forma pelo `Intl.PluralRules` do idioma e preenche `{n}` (já formatado, quando `format` vem).
+ * Formas que o texto não tem (`few`, `many`…) caem no `other`. O zero vai sempre no plural: o CLDR do
+ * português põe o 0 em `one`, mas o uso é "0 gols", não "0 gol".
+ */
+export function pluralText(
+  text: PluralText,
+  n: number,
+  intl: string,
+  format: (n: number) => string = String,
+): string {
+  const rule = n === 0 ? 'other' : new Intl.PluralRules(intl).select(n);
+  return fillText(rule === 'one' ? text.one : text.other, { n: format(n) });
 }
 
 /** Duração do vídeo: 1:05:09, 4:32, 0:45. */

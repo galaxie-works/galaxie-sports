@@ -44,11 +44,14 @@ const PATH: Record<WidgetEntityType, string> = {
   competition: '/v1/competitions',
   team: '/v1/teams',
   event: '/v1/events',
+  person: '/v1/people',
 };
 
 type Named = {
   name?: string;
   logo?: string | null;
+  /** Pessoa (`/v1/people/{id}`): a foto no lugar do escudo. */
+  photo?: string | null;
   participants?: { name: string; short_name?: string | null }[];
 };
 
@@ -66,7 +69,7 @@ async function resolveEntity(
       type === 'event' && data.participants?.length
         ? data.participants.map((p) => p.short_name ?? p.name).join(' × ')
         : (data.name ?? id);
-    return { type, id, label, image: data.logo ?? null };
+    return { type, id, label, image: data.logo ?? data.photo ?? null };
   } catch {
     return { type, id, label: id, image: null };
   }

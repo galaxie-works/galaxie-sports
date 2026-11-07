@@ -32,7 +32,13 @@ describe('tema do widget', () => {
     for (const theme of Object.values(DEFAULT_THEMES)) expect(parseTheme(theme)).toEqual(theme);
   });
 
-  it('recusa cor fora de #rrggbb, raio fora da faixa e fonte que fecha a declaração CSS', () => {
+  it('aceita cor com transparência (#rrggbbaa) e continua aceitando os temas antigos (#rrggbb)', () => {
+    expect(parseTheme({ ...DEFAULT_THEMES.dark, primary: '#E3061380' })?.primary).toBe('#e3061380');
+    expect(parseTheme({ ...DEFAULT_THEMES.dark, surface: '#11131a' })?.surface).toBe('#11131a');
+    expect(parseTheme({ ...DEFAULT_THEMES.dark, primary: '#e306138' })).toBeNull();
+  });
+
+  it('recusa cor fora de #rrggbb/#rrggbbaa, raio fora da faixa e fonte que fecha a declaração CSS', () => {
     expect(parseTheme({ ...DEFAULT_THEMES.dark, primary: 'red' })).toBeNull();
     expect(parseTheme({ ...DEFAULT_THEMES.dark, radius: 99 })).toBeNull();
     expect(parseTheme({ ...DEFAULT_THEMES.dark, fontFamily: 'Inter; } body { display: none' })).toBeNull();
@@ -117,10 +123,27 @@ describe('widget salvo', () => {
     expect(parseWidgetInput(standings, opts).ok).toBe(true);
   });
 
+  it('ficha do jogador: o jogador é obrigatório e vira defaults.personId', () => {
+    const player = { ...base, kind: 'player_profile', config: { ...base.config, defaults: {} } };
+    expect(parseWidgetInput(player, opts)).toEqual({ ok: false, error: 'entityRequired' });
+    const ok = parseWidgetInput(
+      {
+        ...player,
+        config: { ...player.config, defaults: { personId: ID }, options: { showTransfers: false } },
+      },
+      opts,
+    );
+    expect(ok.ok && ok.value.config.defaults).toEqual({ personId: ID });
+    expect(ok.ok && ok.value.config.options).toEqual({ showTransfers: false });
+    // pessoa em outro tipo de widget é recusada
+    const card = { ...base, config: { ...base.config, defaults: { personId: ID } } };
+    expect(parseWidgetInput(card, opts)).toEqual({ ok: false, error: 'entity' });
+  });
+
   it('tabela guarda legenda e cores das zonas válidas; os outros tipos descartam', () => {
     const standings = {
       showLegend: false,
-      zoneColors: { relegation: '#FF0000', second: 'orange', inventada: '#000000' },
+      zoneColors: { relegation: '#FF0000', direct: '#22C55E80', second: 'orange', inventada: '#000000' },
     };
     const table = parseWidgetInput(
       {
@@ -132,7 +155,7 @@ describe('widget salvo', () => {
     );
     expect(table.ok && table.value.config.standings).toEqual({
       showLegend: false,
-      zoneColors: { relegation: '#ff0000' },
+      zoneColors: { relegation: '#ff0000', direct: '#22c55e80' },
     });
     const card = parseWidgetInput({ ...base, config: { ...base.config, standings } }, opts);
     expect(card.ok && 'standings' in card.value.config).toBe(false);
@@ -222,7 +245,12 @@ describe('domínios da chave publicável', () => {
 
 describe('catálogo de @galaxie/widgets', () => {
   it('as entidades de cada tipo batem com as props dos componentes', () => {
-    const PROP = { event: 'eventId', competition: 'competitionId', team: 'teamId' } as const;
+    const PROP = {
+      event: 'eventId',
+      competition: 'competitionId',
+      team: 'teamId',
+      person: 'personId',
+    } as const;
     for (const kind of WIDGET_KINDS) {
       const props: readonly string[] = [
         ...WIDGET_CATALOG[kind].requiredProps,
@@ -233,7 +261,12 @@ describe('catálogo de @galaxie/widgets', () => {
   });
 
   it('a entidade obrigatória de cada tipo é a prop obrigatória do componente', () => {
-    const PROP = { event: 'eventId', competition: 'competitionId', team: 'teamId' } as const;
+    const PROP = {
+      event: 'eventId',
+      competition: 'competitionId',
+      team: 'teamId',
+      person: 'personId',
+    } as const;
     for (const kind of WIDGET_KINDS) {
       const required = REQUIRED_ENTITY[kind];
       const entityProps = WIDGET_CATALOG[kind].requiredProps.filter((p) =>

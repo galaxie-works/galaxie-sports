@@ -31,6 +31,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   match_card: ['core_data', 'where_to_watch'],
   match_timeline: ['core_data'],
   live_list: ['core_data'],
+  score_ticker: ['core_data'],
   standings: ['core_data'],
   where_to_watch: ['core_data', 'where_to_watch'],
   ai_context: ['core_data', 'live_intelligence'],
@@ -38,6 +39,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   related_videos: ['core_data', 'related_content'],
   head_to_head: ['core_data'],
   team_schedule: ['core_data'],
+  team_card: ['core_data'],
   race_result: ['core_data'],
   race_weekend: ['core_data'],
   season_calendar: ['core_data'],
@@ -54,7 +56,10 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   country_athletes: ['core_data', 'multisport'],
   medal_history: ['core_data', 'multisport'],
   competition_leaders: ['core_data'],
+  countdown: ['core_data', 'where_to_watch'],
   team_squad: ['core_data'],
+  player_profile: ['core_data'],
+  lineups: ['core_data'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {
