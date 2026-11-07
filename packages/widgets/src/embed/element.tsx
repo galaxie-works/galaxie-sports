@@ -23,6 +23,7 @@ import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
 import { FightCard } from '../widgets/fight-card.js';
+import { MatchTimeline } from '../widgets/match-timeline.js';
 import { EquestrianResults } from '../widgets/equestrian-results.js';
 import { EquestrianRanking } from '../widgets/equestrian-ranking.js';
 import { EquestrianCalendar } from '../widgets/equestrian-calendar.js';
@@ -43,6 +44,7 @@ import { RelatedVideos } from '../widgets/related-videos.js';
 import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
+import { TeamSquad } from '../widgets/team-squad.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
 import { Lineups } from '../widgets/lineups.js';
 
@@ -156,6 +158,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <AthleteProfile {...o} teamId={teamId ?? ''} />;
     case 'fight_card':
       return <FightCard {...o} eventId={eventId ?? ''} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={eventId ?? ''} />;
     case 'equestrian_results':
       return <EquestrianResults {...o} />;
     case 'equestrian_ranking':
@@ -176,6 +180,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={teamId ?? ''} />;
     case 'lineups':
       return <Lineups {...o} eventId={eventId ?? ''} />;
   }
