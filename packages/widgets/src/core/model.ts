@@ -3398,6 +3398,33 @@ export function eventRefreshMs(
   return null;
 }
 
+/** Onde assistir nas últimas 24 h: o canal costuma sair (ou mudar) perto do jogo. */
+const WATCH_NEAR_MS = 5 * MINUTE;
+/** A partir de quando o onde assistir passa a ser reconsultado de 5 em 5 minutos. */
+const WATCH_NEAR_WINDOW_MS = 24 * 60 * MINUTE;
+/** Teto do intervalo com o canal "a confirmar" e o jogo a mais de 24 h. */
+const WATCH_TO_CONFIRM_MAX_MS = 60 * MINUTE;
+
+/**
+ * Próxima consulta do onde assistir da contagem (`countdown`), pela distância até o jogo: 5 min nas
+ * últimas 24 h; antes disso, acorda quando entra nessa janela (até 2 min antes, conforme o id; no
+ * máximo a cada 6 h, ou a cada hora com o canal "a confirmar"). "Vai começar": 5 min; jogo que começou: para.
+ */
+export function watchRefreshMs(
+  event: Pick<GsEvent, 'status' | 'starts_at'> & { id?: string | undefined },
+  toConfirm: boolean,
+  now = Date.now(),
+): number | null {
+  if (event.status === 'starting') return WATCH_NEAR_MS;
+  if (event.status !== 'scheduled') return null;
+  const until = Date.parse(event.starts_at) - now;
+  if (!Number.isFinite(until)) return null;
+  if (until <= WATCH_NEAR_WINDOW_MS) return WATCH_NEAR_MS;
+  const wake = until - WATCH_NEAR_WINDOW_MS - wakeJitterMs(event.id);
+  const cap = toConfirm ? WATCH_TO_CONFIRM_MAX_MS : SCHEDULED_WAKE_MAX_MS;
+  return Math.min(Math.max(wake, MINUTE), cap);
+}
+
 /**
  * Partes da contagem regressiva (widget `countdown`) para `ms` até o início. Arredonda para cima, para
  * zerar só na hora do jogo: com segundos, 1,5 s vira 2 s; sem eles, 30 s ainda é 1 min.
