@@ -32,6 +32,7 @@ import {
   components,
   joinNamedGroups,
   planPhases,
+  RESERVE_TABLE_NAME,
   UNNAMED_GROUP_PREFIX,
   type TableSet,
 } from './phases-auto.js';
@@ -287,11 +288,14 @@ export async function recomputeSeasonStandings(
   // terceiros): não dá para saber em qual tabela cada jogo entra, então a do fornecedor fica como está. Quando só
   // um desses grupos tem tabela calculada (a acumulada do fornecedor ao lado da liga), vale o calculado e o outro
   // fica como reserva; sem isso o recálculo parava em `no_groups` e a nossa tabela congelava
-  // espelho dos dados, não do formato: grupo do fornecedor em que a maioria dos times já está num grupo nosso
-  // calculado e com nome (acumulada, promedios, a mesma liga com outro rótulo) é sombra da nossa tabela. Fica no
+  // espelho dos dados, não do formato: a tabela de reserva do fornecedor (acumulada, anual, promedios, pelo nome)
+  // em que a maioria dos times já está num grupo nosso calculado e com nome é sombra da nossa tabela. Fica no
   // core como reserva e não define grupo: com ele, cada time ficava em dois grupos com nome (`no_groups`, tabela
   // congelada) e o promovido, que só tem linha nos promedios, levava a sua linha para lá. O grupo vazio e o
-  // deduzido não contam como nossos: o rótulo que o fornecedor dá a eles continua sendo adotado
+  // deduzido não contam como nossos: o rótulo que o fornecedor dá a eles continua sendo adotado.
+  // Só o nome decide, não a sobreposição de times: uma 2ª fase de verdade (fase final, quadrangular) tem quase os
+  // mesmos times da regular, e tratá-la como sombra jogava os jogos dela na tabela da fase regular (revisão do
+  // #855). Sem o nome de reserva, o time em dois grupos com nome continua em `no_groups` e a do fornecedor fica
   const computedNamed = new Set(
     tableRows
       .filter((r) => r.source === 'computed' && r.group !== '' && !r.group.startsWith(UNNAMED_GROUP_PREFIX))
@@ -304,6 +308,7 @@ export async function recomputeSeasonStandings(
       teamsOfGroup.set(r.group, [...(teamsOfGroup.get(r.group) ?? []), r.participantId]);
   const shadow = new Set(
     [...teamsOfGroup]
+      .filter(([g]) => RESERVE_TABLE_NAME.test(g))
       .filter(([, ts]) => ts.filter((t) => inComputed.has(t)).length * 2 > ts.length)
       .map(([g]) => g),
   );

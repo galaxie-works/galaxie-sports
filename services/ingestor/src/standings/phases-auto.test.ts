@@ -7,6 +7,7 @@ import {
   joinNamedGroups,
   phaseOfRound,
   planPhases,
+  RESERVE_TABLE_NAME,
 } from './phases-auto.js';
 import { isPartialSeason, maxRoundNumber } from './recompute.js';
 
@@ -63,6 +64,31 @@ const tablesOf = (plan: ReturnType<typeof planPhases>) => {
     });
   });
 };
+
+describe('RESERVE_TABLE_NAME', () => {
+  it('reconhece a acumulada, a anual e os promedios do fornecedor', () => {
+    for (const g of [
+      'Promedios 2026',
+      'Primera B: Tabla Anual',
+      'Acumulada',
+      'Aggregate',
+      'Annual',
+      'Reclasificación',
+    ])
+      expect(RESERVE_TABLE_NAME.test(g), g).toBe(true);
+  });
+  it('não confunde fase com jogos próprios com tabela de reserva', () => {
+    for (const g of [
+      'Championship Round',
+      'Liga Pro: Relegation Group',
+      'Clausura',
+      '2nd Phase',
+      'Group A',
+      'Biannual Cup',
+    ])
+      expect(RESERVE_TABLE_NAME.test(g), g).toBe(false);
+  });
+});
 
 describe('phaseOfRound', () => {
   it('tira o número da rodada; rodada sem número é mata-mata', () => {
