@@ -157,7 +157,9 @@ describe('dailyJob', () => {
     );
     const picked = await buildRotationRequests(candidates, h.cursors, new Date(t), 5);
     expect(picked.map((p) => p.params.team)).toEqual(['126', '121']); // nunca buscado primeiro, depois o mais velho
-    expect(picked[1]!.staleBefore?.getTime()).toBe(t - 7 * DAY);
+    // corte por dia UTC: vence o buscado até o fim do dia de 7 dias atrás
+    const dayStart = (ms: number) => Math.floor(ms / DAY) * DAY;
+    expect(picked[1]!.staleBefore?.getTime()).toBe(dayStart(t) - 6 * DAY);
 
     const job = dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
       rotation: 4,
@@ -248,6 +250,17 @@ describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
     expect(roundRobin(items, (s) => s[0]!, 50)).toHaveLength(6);
   });
 
+  it('período pelo dia UTC: o buscado anteontem a qualquer hora vence hoje no período de 2 dias', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const dayStart = Math.floor(t / DAY) * DAY;
+    const item = plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: '1' });
+    // buscado anteontem, 1 min antes da hora de agora: com 48 h exatas ainda estaria em dia
+    await h.cursors.complete(item.cursors, {}, new Date(dayStart - 2 * DAY + (t - dayStart) + 60_000));
+    const picked = await buildRotationRequests([item], h.cursors, new Date(t), 5);
+    expect(picked).toHaveLength(1);
+  });
+
   it('afastamentos a cada 2 dias, transferências a cada 7', () => {
     expect(ROTATION_PERIOD_DAYS['/sidelined']).toBe(2);
     expect(ROTATION_PERIOD_DAYS['/transfers']).toBe(7);
@@ -305,12 +318,9 @@ describe('buildSeasonListRequests', () => {
     const picked = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
     expect(picked.map((p) => p.params.league)).toEqual(['500', '948', '71']); // catálogo: tier, prioridade, slug
     expect(picked.every((p) => p.endpoint === '/fixtures' && p.params.season === '2026')).toBe(true);
-    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 2 * DAY,
-    );
-    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 7 * DAY,
-    );
+    const dayStart = Math.floor(now.getTime() / DAY) * DAY;
+    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(dayStart - 1 * DAY);
+    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(dayStart - 6 * DAY);
 
     // --forcar: ignora o período (a tier 2 listada há 3 dias entra), ainda no limite do dia
     const forced = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10, true);

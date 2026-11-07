@@ -210,8 +210,9 @@ export async function buildRotationRequests(
   const aged: { item: PlannedRequest; age: number }[] = [];
   let renewedToday = 0;
   for (const item of candidates) {
-    const period = periodDays(item) * DAY_MS;
-    const staleBefore = new Date(now.getTime() - period);
+    // corte por dia UTC, não por N × 24 h exatas (como no espelho): o item buscado anteontem, a qualquer hora, vence
+    // hoje no período de 2 dias; com 48 h exatas, o buscado minutos depois do build de anteontem esperava mais um dia
+    const staleBefore = new Date(today - (Math.max(1, periodDays(item)) - 1) * DAY_MS);
     const times = item.cursors.map((c) => states.get(cursorId(c))?.completedAt?.getTime() ?? -Infinity);
     const age = Math.min(...times);
     if (age >= today) {
