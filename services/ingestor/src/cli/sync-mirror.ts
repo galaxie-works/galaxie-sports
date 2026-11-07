@@ -16,16 +16,13 @@ import { loadSportCatalog } from '../catalog/catalog-config.js';
 import { isOtherSport, OTHER_SPORTS } from '../catalog/sport-catalog.js';
 import { jobContextFromEnv } from '../context.js';
 import { mirrorJobs } from '../jobs/mirror-job.js';
-import type { AfterFetch } from '../jobs/runtime/runner.js';
 import { PgSportMirrorSource } from '../jobs/mirror-source.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
-import { footballSeasonIds, recomputeStandings } from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
-const rulesDir = resolve('../../config/rules');
 const catalogPath = (sport: string) => resolve(`../../config/competitions/${sport}.yaml`);
 
 await runCli(async () => {
@@ -58,7 +55,8 @@ await runCli(async () => {
         other: { maxTier: intOption(values['tier-outros'], 'tier-outros') },
       },
     );
-    // futebol direto ao core (tabela, times, elencos); os outros esportes ficam com o normalize-sports de hora em hora
+    // futebol direto ao core (times, elencos; a tabela do fornecedor só onde não calculamos); os outros esportes
+    // ficam com o normalize-sports de hora em hora
     const normalize = values['sem-normalizar']
       ? undefined
       : normalizeAfterFetch(ctx.db, {
@@ -69,20 +67,19 @@ await runCli(async () => {
               'falha ao normalizar resposta; a normalização noturna tenta de novo',
             ),
         });
-    // temporadas do futebol com a tabela do fornecedor gravada: recalculadas no fim (a calculada mais nova vence)
-    const tables: { league: string; year: number }[] = [];
-    const afterFetch: AfterFetch = async (envelope, request) => {
-      await normalize?.afterFetch(envelope, request);
-      if (request.sport === 'football' && request.endpoint === '/standings' && request.params.league)
-        tables.push({ league: String(request.params.league), year: Number(request.params.season) });
-    };
     // uma execução por API: a cota esgotada (ou um 429) de uma não para as outras
     let ran = false;
     const failed: string[] = [];
     for (const { sport, spec } of jobs) {
       console.log(`\n== ${sport}`);
       try {
-        ran = !!(await planOrRun(ctx, spec, { ...values, 'sem-live': false }, { afterFetch })) || ran;
+        ran =
+          !!(await planOrRun(
+            ctx,
+            spec,
+            { ...values, 'sem-live': false },
+            normalize ? { afterFetch: normalize.afterFetch } : {},
+          )) || ran;
       } catch (err) {
         logger.error({ err, sport }, 'espelho: execução da API falhou; seguindo com as próximas');
         failed.push(sport);
@@ -92,16 +89,6 @@ await runCli(async () => {
       const n = normalize.report();
       console.log(
         `Core: ${n.normalized} resposta(s) normalizadas · ${n.empty} vazias · ${n.errors} com erro.`,
-      );
-    }
-    if (ran && normalize && tables.length) {
-      const recomputed = await recomputeStandings(ctx.db, {
-        seasonIds: await footballSeasonIds(ctx.db, tables),
-        rulesDir,
-      });
-      const written = recomputed.filter((t) => t.outcome === 'written').length;
-      console.log(
-        `Tabelas: ${written} recalculada(s) de ${recomputed.length} temporada(s) com tabela do fornecedor.`,
       );
     }
     // a falha de uma API não para as outras, mas o job sai com erro (job_run e alerta de falhas seguidas)

@@ -601,12 +601,77 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       outcome: 'written',
     });
 
-    // fornecedor em dia: a dele vale e o recálculo a respeita
+    // fornecedor em dia: a tabela continua a nossa (espelho dos dados, não do formato); a dele fica no raw
     await upsertBatch(db, provider(2));
-    expect((await rows()).map((r) => r.source)).toEqual(['provider', 'provider']);
+    expect((await rows()).map((r) => r.source)).toEqual(['computed', 'computed']);
     expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
-      outcome: 'provider_fresh',
+      outcome: 'written',
     });
+  });
+
+  it('onde ainda não calculamos, a tabela do fornecedor é a reserva e entra inteira', async () => {
+    const s = await seedSeason('football', 'liga-sem-calculo', ['R1', 'R2']);
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9857',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('R1'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98571',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('R2'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98572',
+      },
+    ]);
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = (['98571', '98572'] as const).map((id) => ({
+      id,
+      kind: null,
+      name: id,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: null,
+      founded: null,
+      venueId: null,
+      logoUrl: null,
+    }));
+    batch.standings = (['98571', '98572'] as const).map((id, i) => ({
+      season: { competitionId: '9857', year: 2026 },
+      group: 'Liga',
+      participantId: id,
+      rank: i + 1,
+      points: 3 - 3 * i,
+      played: 1,
+      won: 1 - i,
+      drawn: 0,
+      lost: i,
+      goalsFor: 1 - i,
+      goalsAgainst: i,
+      form: null,
+      description: null,
+    }));
+    await upsertBatch(db, batch);
+    const rows = await db
+      .select({ rank: standing.rank, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId))
+      .orderBy(asc(standing.rank));
+    expect(rows).toEqual([
+      { rank: 1, source: 'provider' },
+      { rank: 2, source: 'provider' },
+    ]);
   });
 
   it('fornecedor que contou só parte da rodada: o grupo inteiro fica calculado (sem tabela misturada)', async () => {

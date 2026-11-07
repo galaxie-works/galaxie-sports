@@ -952,17 +952,16 @@ export async function upsertBatchInTx(
     }),
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
-  // grupo em que a calculada já conta mais jogos que a do fornecedor (fornecedor atrasado depois de uma rodada):
-  // o grupo inteiro do fornecedor fica de fora, para a tabela não sair misturada (posições de duas fontes); o
-  // recálculo seguinte refaz o grupo com os resultados
-  const behindGroups = await providerBehindGroups(tx, standingRows);
-  if (behindGroups.size) {
-    logger.info(
-      { groups: [...behindGroups] },
-      'tabela do fornecedor atrás da calculada: grupo mantido como calculado',
+  // espelho dos dados, não do formato: na temporada com tabela calculada pelo nosso regulamento, a do fornecedor
+  // fica só no raw (conferência) e não toca o core; onde ainda não calculamos, ela é a reserva e vale inteira
+  const computedSeasons = await seasonsWithComputedTable(tx, standingRows);
+  if (computedSeasons.size) {
+    logger.debug(
+      { seasons: [...computedSeasons] },
+      'tabela do fornecedor ignorada no core: temporada com tabela calculada',
     );
   }
-  const freshRows = standingRows.filter((r) => !behindGroups.has(`${r.seasonId}|${r.group}`));
+  const freshRows = standingRows.filter((r) => !computedSeasons.has(r.seasonId));
   for (const chunk of chunks(freshRows, 500)) {
     const base = replaceUpdate(
       standing,
@@ -1002,33 +1001,15 @@ export async function upsertBatchInTx(
   return stats;
 }
 
-/**
- * Grupos (`seasonId|group`) em que alguma linha calculada já conta mais jogos que a linha do fornecedor do mesmo
- * time: a tabela do fornecedor está atrasada e não deve substituir nenhuma linha do grupo.
- */
-async function providerBehindGroups(
-  tx: Tx,
-  rows: { seasonId: string; group: string; participantId: string; played: number | null }[],
-): Promise<Set<string>> {
-  const out = new Set<string>();
+/** Temporadas do lote que já têm tabela calculada (`source = 'computed'`) no core. */
+async function seasonsWithComputedTable(tx: Tx, rows: { seasonId: string }[]): Promise<Set<string>> {
   const seasonIds = [...new Set(rows.map((r) => r.seasonId))];
-  if (!seasonIds.length) return out;
-  const computed = await tx
-    .select({
-      seasonId: standing.seasonId,
-      group: standing.group,
-      participantId: standing.participantId,
-      played: standing.played,
-    })
+  if (!seasonIds.length) return new Set();
+  const found = await tx
+    .selectDistinct({ seasonId: standing.seasonId })
     .from(standing)
     .where(and(inArray(standing.seasonId, seasonIds), eq(standing.source, 'computed')));
-  if (!computed.length) return out;
-  const played = new Map(computed.map((c) => [`${c.seasonId}|${c.group}|${c.participantId}`, c.played ?? 0]));
-  for (const r of rows) {
-    const mine = played.get(`${r.seasonId}|${r.group}|${r.participantId}`);
-    if (mine !== undefined && mine > (r.played ?? 0)) out.add(`${r.seasonId}|${r.group}`);
-  }
-  return out;
+  return new Set(found.map((r) => r.seasonId));
 }
 
 // ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────
