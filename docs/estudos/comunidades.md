@@ -28,7 +28,7 @@ Uma comunidade é um grupo de torcedores com um tema, um dono e regras. Quem cri
 | De criador | Jornalista, influenciador ou podcast convidado pelo cliente | "Resenha do Fulano" | Seguidores, aberta ou paga |
 | Privada de amigos | O próprio torcedor (se o cliente liberar) | "Bolão da firma" | Só por convite ou código |
 
-**Regra de ouro do B2B: o login e o cadastro são do cliente.** O servidor dele pede um token curto ao Galaxie com um id do usuário, sem e-mail nem documento, igual ao desenho do chat. Assim o cliente continua dono do público dele, e nós não guardamos dados pessoais.
+**Regra de ouro do B2B: o login e o cadastro são do cliente.** O servidor dele pede um token curto ao Galaxie com um id do usuário, sem e-mail nem documento, igual ao desenho do chat. Assim o cliente continua dono do público dele, e nós guardamos o mínimo. Isso **não** torna os dados anônimos: o id estável, o apelido, a foto, as mensagens, os palpites, a faixa etária e o histórico de moderação são dados pessoais pseudonimizados (LGPD e leis equivalentes). O cliente é o controlador; o Galaxie atua como operador, com contrato de tratamento de dados (finalidade, base legal, prazos de guarda e exclusão, atendimento aos pedidos do titular repassados pelo cliente).
 
 ## 2. Cardápio: o que uma comunidade pode fazer
 
@@ -96,7 +96,7 @@ Quatro peças compartilhadas unem comunidade, chat, conquistas e loja. Se cada m
 
 | Peça comum | O que é | Onde aparece |
 | --- | --- | --- |
-| Perfil do torcedor | Apelido, time do coração, nível, selos. Vem do login do cliente, sem dados pessoais | Chat, mural, ranking, bolão |
+| Perfil do torcedor | Apelido, time do coração, nível, selos. Vem do login do cliente, sem e-mail nem documento (dado pseudonimizado) | Chat, mural, ranking, bolão |
 | Carteira de pontos | Um saldo só, que sobe com palpite, presença no chat e trivia (compra não conta) | Todas as telas; troca por prêmios do cliente |
 | Linha do tempo do jogo | Os eventos do jogo (gol, cartão, fim) disparam mensagem no chat, pontos do bolão e produto em destaque | Sala do jogo, notificações, widgets |
 | Painel do cliente | Um lugar em Ajustes para criar comunidades, ligar recursos, moderar e ver números | Backoffice Galaxie |
@@ -112,7 +112,7 @@ Quatro peças compartilhadas unem comunidade, chat, conquistas e loja. Se cada m
 
 Três regras para não virar bagunça:
 
-- **Pontos não se compram.** Comprar não dá ponto nem selo, e o ranking do bolão é só de palpite. Isso protege o ranking e evita dois problemas legais: programas de afiliados (ex.: Amazon Associates) proíbem recompensar quem compra pelo link, e no Brasil o concurso com prêmio só dispensa autorização se não depender de compra (Lei 5.768, art. 3º, II).
+- **Pontos não se compram.** Comprar não dá ponto nem selo, e o ranking do bolão é só de palpite. Isso protege o ranking e evita dois problemas legais: programas de afiliados (ex.: Amazon Associates) proíbem recompensar quem compra pelo link, e no Brasil o concurso com prêmio só pode ser dispensado de autorização se, entre outras condições, não depender de compra (Lei 5.768, art. 3º, II).
 - **A loja nunca interrompe o chat.** O produto aparece no card do evento ou na aba Loja, nunca como mensagem no meio da conversa.
 - **Quem escreve é maior de 18** (proposta do estudo do chat). Menores podem ler, palpitar e jogar trivia, sem mensagem livre.
 
@@ -167,7 +167,7 @@ O Cosmos AI pode aplicar sozinho os degraus 1 a 3 (até silenciar 24 h). Do 4 em
 - **Denúncia:** qualquer torcedor denuncia mensagem ou perfil em dois toques, escolhendo o motivo.
 - **Apelação:** quem foi punido vê o motivo e pode pedir revisão uma vez por punição, julgada por quem não aplicou a punição, com fila e prazo visível (ex.: 72 h).
 - **Registro de auditoria:** toda ação fica gravada com quem fez (pessoa ou Cosmos AI), quando, sobre quem, motivo e a mensagem original. Ninguém apaga o registro, nem o dono do cliente.
-- **Guarda legal:** registros por 6 meses (Marco Civil, art. 15); entrega à Justiça só com ordem judicial, respondida pelo cliente junto com a Galaxie.
+- **Guarda legal:** são duas guardas diferentes. O **registro de acesso à aplicação** (Marco Civil, art. 15) fica 6 meses, separado do resto. O **registro de moderação** e o conteúdo original das mensagens têm prazo próprio, definido com o advogado pela finalidade (apelação, defesa em processo), e depois são apagados ou anonimizados; quando o torcedor pede exclusão, o conteúdo sai do ar na hora e só fica guardado o que esse prazo justificar. "Imutável" quer dizer que ninguém altera nem apaga um registro antes do prazo, não que ele dura para sempre. Entrega à Justiça só com ordem judicial, respondida pelo cliente junto com a Galaxie.
 - **Painel de saúde:** mensagens por minuto, % escondidas, denúncias e tempo médio de resposta da equipe, por sala e por comunidade.
 
 ## 7. Menores e privacidade em todas as regiões
@@ -176,12 +176,12 @@ O recurso vai para Latam, Hispam e, em breve, EUA e Canadá, então a regra tem 
 
 | Região | Leis que pesam (a confirmar com advogado) | O que muda para nós |
 | --- | --- | --- |
-| Brasil | ECA Digital, LGPD, Marco Civil | Padrões protetivos para menores; registros por 6 meses |
+| Brasil | ECA Digital, LGPD, Marco Civil | Padrões protetivos para menores; registro de acesso por 6 meses (separado do registro de moderação) |
 | Argentina, Chile, Colômbia, México e demais Hispam | Leis nacionais de dados pessoais (ex.: Ley 25.326, nova lei chilena, Ley 1581, lei federal mexicana) | Consentimento dos pais para menores; direito de apagar conta e dados |
 | EUA | COPPA (menores de 13), leis estaduais de privacidade e de redes sociais para adolescentes | Menor de 13 fora de qualquer recurso social; verificação de idade em alguns estados |
 | Canadá | PIPEDA e Lei 25 do Quebec | Consentimento claro, avaliação de impacto, dados de menores como sensíveis |
 
-Na prática, isso vira três chaves por cliente e por país no painel: idade mínima para escrever (padrão 18), idade mínima para participar (padrão 13) e prazo de guarda do registro.
+Na prática, isso vira três chaves por cliente e por país no painel: idade mínima para escrever (padrão 18), idade mínima para participar (padrão 13) e prazo de guarda do registro de moderação (o registro de acesso segue o prazo legal de cada país).
 
 ## 8. Termos das plataformas: riscos e como orientar o cliente
 
@@ -193,7 +193,7 @@ O resultado mais importante: **o Mercado Pago teve que mudar o próprio bolão**
 | [Apple, 5.3.1 e 5.3.2](https://developer.apple.com/app-store/review/guidelines/) | Concurso patrocinado pelo dono do app, com regulamento no app dizendo que a Apple não patrocina | Bolão com prêmio reprovado | Cliente é o patrocinador oficial. O regulamento gerado aparece no app e traz a frase sobre Apple (e Google) |
 | [Apple, 5.1.1 e 4.7.5](https://developer.apple.com/app-store/review/guidelines/) | Conta criada no app pode ser apagada no app; recurso acima da classificação etária precisa de trava por idade | Reprovação | API para o cliente apagar o perfil do torcedor e tudo o que ele escreveu; chave de idade por país |
 | [Google Play, conteúdo de usuário](https://support.google.com/googleplay/android-developer/answer/12923286?hl=en) | Termos aceitos antes de postar, moderação contínua, denúncia e bloqueio no app | Reprovação ou remoção | Tela de aceite das regras antes da primeira mensagem, com modelo de termos que o cliente adapta |
-| [Lei 5.768/1971](https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-5768-20-dezembro-1971-357812-normaatualizada-pl.html) (Brasil) | Prêmio grátis por sorteio ou concurso precisa de autorização prévia da SPA/Ministério da Fazenda. O art. 3º, II, dispensa o concurso exclusivamente desportivo ou recreativo, sem sorte, sem pagamento e sem obrigação de compra | Multa e campanha suspensa | Bolão 100% de habilidade, grátis e sem compra. Desempate nunca por sorteio. Sorteio ou prêmio ligado a compra = o cliente pede a autorização |
+| [Lei 5.768/1971](https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-5768-20-dezembro-1971-357812-normaatualizada-pl.html) (Brasil) | Prêmio grátis por sorteio ou concurso precisa de autorização prévia da SPA/Ministério da Fazenda. O art. 3º, II, dispensa o concurso exclusivamente desportivo ou recreativo, sem sorte, sem pagamento e sem obrigação de compra | Multa e campanha suspensa | Desenhar o bolão para tentar caber no art. 3º, II: grátis, sem compra, sem sorteio, desempate nunca por sorte. Isso **não basta para declarar a dispensa**: prever o resultado de um jogo pode não contar como vitória "exclusivamente por mérito" para a SPA. Por isso **toda campanha com prêmio passa por classificação jurídica do cliente antes de publicar**, e o cliente pede a autorização quando o advogado disser que precisa ([orientação da SPA](https://www.gov.br/fazenda/pt-br/composicao/orgaos/secretaria-de-premios-e-apostas/promocao-comercial/promocao-comercial/promocoes-comerciais/o-que-pode-ser)). Campanha só com selo, sem prêmio, não precisa |
 | Argentina: art. 301 bis do Código Penal e loterias provinciais | Caso Mercado Pago acima | Denúncia criminal | Nenhum dinheiro entre usuários, nenhuma entrada paga, nenhum "pote" nas ligas privadas |
 | EUA: leis estaduais de concursos\* | Alguns estados pedem registro ou garantia para prêmio alto | Multa estadual | Regulamento com estados excluídos quando o advogado mandar; valor máximo de prêmio configurável |
 
@@ -205,7 +205,7 @@ Pendente de leitura completa: termos da TyC Sports e do Superbru, e regulamentos
 
 1. **Kit de conformidade** em cada campanha e comunidade: modelo de termos da comunidade, regras de conduta e regulamento do bolão gerado das escolhas dele, nos três idiomas. O modelo usa a lei e o foro do país do torcedor, não um só para todos.
 2. **Travas no produto** que impedem o erro: sem entrada paga, sem dinheiro entre usuários, sem sorteio sem autorização marcada, sem bet, filtro e denúncia sempre ligados.
-3. **Lista de checagem antes de publicar**, por país: "tem autorização se for sorteio?", "estados excluídos?", "idade mínima?".
+3. **Lista de checagem antes de publicar**, por país: "campanha com prêmio foi classificada pelo jurídico (dispensada ou autorizada)?", "estados excluídos?", "idade mínima?". Sem a classificação marcada, a campanha com prêmio não publica.
 4. **Contrato claro:** o cliente é o organizador e o patrocinador; o Galaxie é o fornecedor da tecnologia.
 
 ## 9. Quem contrata
