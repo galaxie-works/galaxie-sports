@@ -20,9 +20,13 @@ import type {
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
 import { transfersPreviewBody } from './fixtures-transfers.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { previewLeaders } from './fixtures-leaders.js';
+import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 import { previewSquad } from './fixtures-squad.js';
+import { sampleLineups } from './fixtures-lineups.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -37,6 +41,7 @@ export const PREVIEW_IDS = {
   driver: RACING_IDS.driver,
   /** MMA: a luta principal do card de exemplo, a liga e o lutador. */
   fightEvent: RACING_IDS.fightEvent,
+  nextFightEvent: RACING_IDS.nextFightEvent,
   fightCompetition: RACING_IDS.fightCompetition,
   fighter: RACING_IDS.fighter,
   /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */
@@ -44,6 +49,8 @@ export const PREVIEW_IDS = {
   eqAthlete: OLYMPIC_IDS.eqAthlete,
   eqHorse: OLYMPIC_IDS.eqHorse,
   games: OLYMPIC_IDS.games,
+  /** Futebol: o jogador da ficha de exemplo. */
+  person: PLAYER_IDS.person,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -742,6 +749,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const now = options.now ?? new Date();
     const olympic = olympicPreviewBody(url, now);
     if (olympic !== null) return json(olympic);
+    const player = playerPreviewBody(url, now);
+    if (player !== null) return json(player);
     const transfers = transfersPreviewBody(url, now);
     if (transfers !== null) return json(transfers);
     const f = createPreviewFixtures(now, options.sport);
@@ -845,16 +854,24 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     }
     if (/\/v1\/teams\/[^/]+\/overview$/.test(path)) {
       const row = f.standings.groups[0]?.rows.find((r) => r.participant.id === PREVIEW_IDS.team);
+      const live = f.teamEvents.find((e) => e.status === 'live' || e.status === 'break') ?? null;
       return json({
+        team: previewTeam(options.sport ?? 'football'),
         standings: row ? [{ competition: { id: COMPETITION_ID, name: 'Liga Exemplo' }, rank: row.rank }] : [],
+        competitions: previewCampaigns(row?.rank ?? null, url.searchParams.get('locale') ?? 'en'),
         form: f.teamEvents
+          // do mais recente ao mais antigo, como a API (a agenda já vem nessa ordem)
           .filter((e) => e.status === 'finished')
-          .slice(-5)
-          .reverse()
+          .sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at))
+          .slice(0, 5)
           .map((e) => {
             const r = teamResultOf(e, PREVIEW_IDS.team);
-            return { event_id: e.id, result: r, score: `${e.score.home}-${e.score.away}` };
+            const away = e.participants.find((p) => p.id === PREVIEW_IDS.team)?.side === 'away';
+            const score = away ? `${e.score.away}-${e.score.home}` : `${e.score.home}-${e.score.away}`;
+            return { event_id: e.id, result: r, score };
           }),
+        live_event: live,
+        next_event: f.teamEvents.find((e) => e.status === 'scheduled') ?? null,
       });
     }
     const event = /\/v1\/events\/([^/]+)$/.exec(path);
@@ -864,9 +881,78 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
         ? json(found)
         : json({ type: 'about:blank', title: 'Evento não encontrado', status: 404, code: 'NOT_FOUND' }, 404);
     }
+    if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/leaders$/.test(path)) {
+      const raw = url.searchParams.get('category') ?? 'goals';
+      const category = (LEADER_CATEGORIES as readonly string[]).includes(raw)
+        ? (raw as GsLeaderCategory)
+        : 'goals';
+      return json(previewLeaders(f.standings, category, Number(url.searchParams.get('limit')) || 10));
+    }
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);
   };
+}
+
+/** O Clube Aurora no formato do `team` de `/v1/teams/{id}/overview` (o que o cartão do time lê). */
+function previewTeam(sport: string) {
+  const t = TEAMS.aurora;
+  return {
+    id: t.id,
+    sport,
+    kind: 'team',
+    name: t.name,
+    short_name: t.short,
+    logo: shield(t.color),
+    country_ref: { code: 'BR', name: 'Brasil', flag: null },
+    founded: 1921,
+    venue: { name: 'Estádio Aurora', city: 'Cidade Exemplo' },
+  };
+}
+
+/** Campanhas do Clube Aurora: a liga (com a posição), uma copa em andamento e um torneio já encerrado. */
+function previewCampaigns(rank: number | null, locale: string) {
+  const lang = locale.startsWith('es') ? 1 : locale.startsWith('en') ? 2 : 0;
+  const text = (...t: [string, string, string]) => ({ [locale]: t[lang] });
+  const comp = (id: string, slug: string, name: string) => ({ id, slug, name, logo: null });
+  const year = new Date().getUTCFullYear();
+  return [
+    {
+      competition: comp(COMPETITION_ID, PREVIEW_IDS.competition, 'Liga Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'league',
+        label: rank
+          ? text(
+              `${rank}º lugar`,
+              `${rank}.º puesto`,
+              `${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'} place`,
+            )
+          : text('Em andamento', 'En curso', 'In progress'),
+        ongoing: true,
+        rank,
+      },
+    },
+    {
+      competition: comp('0199a5c0-0000-7000-8000-0000000000c2', 'copa-exemplo', 'Copa Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'in_progress',
+        label: text('Nas quartas de final', 'En cuartos de final', 'In the quarter-finals'),
+        ongoing: true,
+        rank: null,
+      },
+    },
+    {
+      competition: comp('0199a5c0-0000-7000-8000-0000000000c3', 'estadual-exemplo', 'Estadual Exemplo'),
+      season: { year, label: String(year) },
+      campaign: {
+        status: 'champion',
+        label: text('Campeão', 'Campeón', 'Champion'),
+        ongoing: false,
+        rank: 1,
+      },
+    },
+  ];
 }
 
 function teamResultOf(e: GsEvent, teamId: string): 'W' | 'D' | 'L' {
@@ -883,13 +969,7 @@ function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
     const p = e.participants.find((x) => x.side === side);
     return { id: p?.id ?? null, name: p?.name ?? null, side, logo: p?.logo ?? null };
   };
-  if (kind === 'lineups') {
-    return {
-      event_id: e.id,
-      available: true,
-      lineups: sides.map((side, i) => ({ team: teamOf(side), formation: i ? '4-4-2' : '4-3-3' })),
-    };
-  }
+  if (kind === 'lineups') return sampleLineups(e);
   if (kind === 'stats') {
     const goals = [e.score.home ?? 0, e.score.away ?? 0];
     return {

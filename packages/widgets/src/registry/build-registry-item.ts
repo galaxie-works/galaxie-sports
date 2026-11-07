@@ -123,6 +123,8 @@ function defaultProps(
       return pick(['eventId']);
     case 'live_list':
       return { ...pick(['competitionId', 'teamId', 'sport']), ...parseLiveListOptions(liveList) };
+    case 'score_ticker':
+      return pick(['competitionId', 'sport']);
     case 'standings':
       return { ...pick(['competitionId']), ...parseStandingsOptions(standings) };
     case 'where_to_watch':
@@ -134,14 +136,20 @@ function defaultProps(
     case 'race_result':
     case 'race_weekend':
     case 'fight_card':
+    case 'countdown':
     case 'match_timeline':
+    case 'lineups':
       return pick(['eventId']);
     case 'team_schedule':
+    case 'team_card':
     case 'athlete_profile':
     case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
+    case 'competition_leaders':
       return pick(['competitionId']);
+    case 'player_profile':
+      return pick(['personId']);
     // vai e vem do mercado: o time ou o campeonato escolhido no Builder
     case 'transfer_market':
       return pick(['teamId', 'competitionId']);

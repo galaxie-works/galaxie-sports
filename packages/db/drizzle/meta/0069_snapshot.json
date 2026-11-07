@@ -1,5 +1,5 @@
 {
-  "id": "5ba59e73-80bc-40b3-ab01-2aeb8f3784b9",
+  "id": "f9ad1978-7e0d-46d3-a418-b8aa1468c066",
   "prevId": "865983b5-b96f-49fe-abfa-d2e75a936a31",
   "version": "7",
   "dialect": "postgresql",
@@ -2749,50 +2749,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "person_transfer_to_date_idx": {
-          "name": "person_transfer_to_date_idx",
-          "columns": [
-            {
-              "expression": "to_participant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "person_transfer_from_date_idx": {
-          "name": "person_transfer_from_date_idx",
-          "columns": [
-            {
-              "expression": "from_participant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "person_transfer_person_id_person_id_fk": {
           "name": "person_transfer_person_id_person_id_fk",

@@ -6,7 +6,8 @@ export const API_VERSION = 'v1' as const;
 
 /**
  * Locales suportados pela API (docs/05 §1): os 8 mercados com conteúdo próprio e `en` — nomes, fases e
- * rótulos fixos em inglês; texto livre (gritos, fatos) sai no idioma do clube e nada é gerado por IA em inglês.
+ * rótulos fixos em inglês; texto livre (gritos, fatos) sai no idioma do clube; o cenário e o resumo de IA
+ * também são gerados em inglês.
  */
 export const SUPPORTED_LOCALES = [
   'pt-BR',
