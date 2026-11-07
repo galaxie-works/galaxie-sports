@@ -93,6 +93,15 @@ describe('rotateGroups', () => {
     expect(picked.map((p) => p.params.id)).toEqual(['3', '4']);
   });
 
+  it('o vencido vai à rede: o raw mais velho que o corte não serve de cache (/teams: período e TTL de 7 dias)', async () => {
+    const cursors = new InMemoryCursorStore();
+    const a = [cand(1, 7)];
+    // buscado há 7 dias, 1 min depois deste horário: vence hoje, e o raw (quase 7 dias) ainda estaria no TTL
+    await cursors.complete(a[0]!.item.cursors, {}, new Date(now.getTime() - 7 * DAY + 60_000));
+    const [picked] = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 10);
+    expect(picked!.maxAgeMs).toBeLessThan(7 * DAY - 60_000);
+  });
+
   it('o mais velho que o período volta à fila', async () => {
     const cursors = new InMemoryCursorStore();
     const a = [cand(1, 1), cand(2, 30)];
@@ -133,7 +142,8 @@ describe('rotateGroups', () => {
     expect(forced.map((p) => p.params.id)).toEqual(['3', '2']);
     // e sem o cache do raw
     expect(forced.every((p) => p.maxAgeMs === 0)).toBe(true);
-    expect(normal.every((p) => p.maxAgeMs === undefined)).toBe(true);
+    // sem --forcar, o cache vale até o corte do período (o raw de antes dele vai à rede)
+    expect(normal.every((p) => (p.maxAgeMs ?? 0) > 0)).toBe(true);
   });
 });
 
