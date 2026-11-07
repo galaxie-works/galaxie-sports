@@ -31,6 +31,7 @@ import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
+import type { LineupsProps } from './widgets/lineups.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -64,6 +65,7 @@ export interface WidgetPropsByKind {
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
+  lineups: LineupsProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -100,7 +102,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'ChampionsGallery'
     | 'Countdown'
     | 'TeamSquad'
-    | 'PlayerProfile';
+    | 'PlayerProfile'
+    | 'Lineups';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -745,6 +748,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { personId: PREVIEW_IDS.person },
     polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  lineups: {
+    kind: 'lineups',
+    component: 'Lineups',
+    registryComponent: 'GalaxieLineups',
+    name: { 'pt-BR': 'Escalações', es: 'Alineaciones', en: 'Lineups' },
+    description: {
+      'pt-BR':
+        'Os dois times no desenho do campo, com titulares, reservas e técnico, assim que forem divulgados.',
+      es: 'Los dos equipos dibujados en la cancha, con titulares, suplentes y entrenador, apenas se confirman.',
+      en: 'Both teams drawn on the pitch, with starters, substitutes and head coach, as soon as they are announced.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['view', 'team', 'showSubstitutes', 'showCoach'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
     sports: FOOTBALL_ONLY,
   },
 };

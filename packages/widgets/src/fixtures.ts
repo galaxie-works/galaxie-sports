@@ -24,6 +24,7 @@ import { championsPreviewBody } from './fixtures-champions.js';
 import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 import { previewSquad } from './fixtures-squad.js';
+import { sampleLineups } from './fixtures-lineups.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -959,13 +960,7 @@ function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
     const p = e.participants.find((x) => x.side === side);
     return { id: p?.id ?? null, name: p?.name ?? null, side, logo: p?.logo ?? null };
   };
-  if (kind === 'lineups') {
-    return {
-      event_id: e.id,
-      available: true,
-      lineups: sides.map((side, i) => ({ team: teamOf(side), formation: i ? '4-4-2' : '4-3-3' })),
-    };
-  }
+  if (kind === 'lineups') return sampleLineups(e);
   if (kind === 'stats') {
     const goals = [e.score.home ?? 0, e.score.away ?? 0];
     return {

@@ -38,6 +38,7 @@ export const WIDGET_KINDS = [
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

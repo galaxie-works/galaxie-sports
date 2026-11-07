@@ -55,6 +55,7 @@ export const WIDGET_KINDS = [
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -109,6 +110,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   countdown: ['event'],
   team_squad: ['team'],
   player_profile: ['person'],
+  lineups: ['event'],
 };
 
 /**
@@ -148,6 +150,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   countdown: 'event',
   team_squad: 'team',
   player_profile: 'person',
+  lineups: 'event',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -470,6 +473,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   countdown: 'GalaxieCountdown',
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
+  lineups: 'GalaxieLineups',
 };
 
 /**

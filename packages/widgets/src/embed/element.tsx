@@ -37,6 +37,7 @@ import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
 import { ChampionsGallery } from '../widgets/champions-gallery.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
+import { Lineups } from '../widgets/lineups.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -199,6 +200,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <TeamSquad {...o} teamId={teamId ?? ''} />;
     case 'player_profile':
       return <PlayerProfile {...o} personId={personId ?? ''} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={eventId ?? ''} />;
   }
 }
 
