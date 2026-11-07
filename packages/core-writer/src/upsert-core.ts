@@ -985,7 +985,8 @@ export async function upsertBatchInTx(
     );
     // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
     const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
-    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
+    // linha calculada gravada pelo recálculo entre a checagem dos grupos e este upsert: fica a nossa
+    const setWhere = sql`${standing.source} <> 'computed' and ((${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry))`;
     await tx
       .insert(standing)
       .values(chunk)

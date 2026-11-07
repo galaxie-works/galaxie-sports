@@ -818,8 +818,89 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       { group: 'Promedios 2026', played: 5, source: 'provider' },
     ]);
     // os promedios frescos do fornecedor não congelam o grupo calculado
+    await finished('football', s.seasonId, s.team('T2'), s.team('T1'), [2, 0]);
     expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
       outcome: 'written',
     });
+    // e o recálculo segue no grupo da liga: não cai no grupo dos promedios nem apaga a tabela de verdade
+    const after = await db
+      .select({ group: standing.group, played: standing.played, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId))
+      .orderBy(asc(standing.group), asc(standing.rank));
+    expect(after.filter((r) => r.group === group)).toEqual([
+      { group, played: 2, source: 'computed' },
+      { group, played: 2, source: 'computed' },
+    ]);
+    expect(after.filter((r) => r.group === 'Promedios 2026')).toEqual([
+      { group: 'Promedios 2026', played: 5, source: 'provider' },
+      { group: 'Promedios 2026', played: 5, source: 'provider' },
+    ]);
+  });
+
+  it('competição sem `tables:`: a acumulada do fornecedor com os mesmos times não trava o recálculo', async () => {
+    const s = await seedSeason('football', 'liga-com-acumulada', ['A1', 'A2']);
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9859',
+      },
+      ...(['A1', 'A2'] as const).map((t, i) => ({
+        entityType: 'participant' as const,
+        entityId: s.team(t),
+        provider: 'api-sports',
+        sport: 'football' as const,
+        providerId: `9859${i + 1}`,
+      })),
+    ]);
+    await finished('football', s.seasonId, s.team('A1'), s.team('A2'), [1, 0]);
+    await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+    const [{ group }] = (await tableOf(s.seasonId)) as unknown as [{ group: string }];
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = (['98591', '98592'] as const).map((id) => ({
+      id,
+      kind: null,
+      name: id,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: null,
+      founded: null,
+      venueId: null,
+      logoUrl: null,
+    }));
+    batch.standings = (['98591', '98592'] as const).map((id, i) => ({
+      season: { competitionId: '9859', year: 2026 },
+      group: 'Acumulada',
+      participantId: id,
+      rank: i + 1,
+      points: 30 - i,
+      played: 10,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      form: null,
+      description: null,
+    }));
+    await upsertBatch(db, batch);
+    await finished('football', s.seasonId, s.team('A2'), s.team('A1'), [1, 0]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+    const after = await db
+      .select({ group: standing.group, played: standing.played, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId))
+      .orderBy(asc(standing.group), asc(standing.rank));
+    expect(after.filter((r) => r.group === group).map((r) => [r.played, r.source])).toEqual([
+      [2, 'computed'],
+      [2, 'computed'],
+    ]);
+    expect(after.filter((r) => r.group === 'Acumulada').every((r) => r.source === 'provider')).toBe(true);
   });
 });
