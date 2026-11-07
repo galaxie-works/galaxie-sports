@@ -51,14 +51,32 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
+/** Palavras que abrem frase depois de uma sigla com pontos (artigos, pronomes, preposições e conectivos). */
+const SENTENCE_OPENERS: ReadonlySet<string> = new Set(
+  (
+    'o a os as um uma el la los las un una the a an em no na com sem para por en con sin in on at with for to ' +
+    'it its he she they this that ele ela eles elas el ese esa este esta mas pero but and e y depois antes ' +
+    'despues after before agora ahora now ja ya still ainda todavia com con'
+  ).split(/\s+/),
+);
+
 /** Divide em frases (ponto final, exclamação, interrogação ou ponto e vírgula seguido de espaço). */
 export function splitSentences(text: string): string[] {
-  // a inicial de um nome ("M. Hinestroza", "J. Rodríguez") e a sigla com pontos ("Estudiantes L.P.") não
-  // encerram a frase
-  return text
-    .split(/(?<=[.!?…])(?<!(?:^|[\s(])\p{Lu}\.)(?<!\p{Lu}\.\p{Lu}\.)\s+/u)
+  // a inicial de um nome ("M. Hinestroza", "J. Rodríguez") não encerra a frase; a sigla com pontos
+  // ("Estudiantes L.P.") só encerra quando a palavra seguinte abre frase ("… L.P. O jogo terminou.")
+  const parts = text
+    .split(/(?<=[.!?…])(?<!(?:^|[\s(])\p{Lu}\.)\s+/u)
     .map((s) => s.trim())
     .filter(Boolean);
+  const out: string[] = [];
+  for (const part of parts) {
+    const prev = out.at(-1);
+    const opener = normalizeText(/^\p{L}+/u.exec(part)?.[0] ?? '');
+    if (prev && /\p{Lu}\.\p{Lu}\.$/u.test(prev) && !SENTENCE_OPENERS.has(opener))
+      out[out.length - 1] = `${prev} ${part}`;
+    else out.push(part);
+  }
+  return out;
 }
 
 /** Junta frases em um parágrafo, garantindo pontuação final em cada uma. */
@@ -113,7 +131,10 @@ const ES_WORDS = new Set([
   'pero',
   'muy',
 ]);
-/** Sem palavras que também existam em pt/es ("a", "no", "do", "con"...). */
+/**
+ * Sem palavras que também existam em pt/es ("a", "no", "do", "con"... e "for", que é verbo em pt: "se for
+ * campeão").
+ */
 const EN_WORDS = new Set([
   'the',
   'and',
@@ -126,7 +147,6 @@ const EN_WORDS = new Set([
   'their',
   'its',
   'after',
-  'for',
   'from',
   'by',
   'at',

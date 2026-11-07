@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STAKE_FAMILIES, STAKE_LOCALES, stakeText, type StakeFamily } from '@galaxie/rules';
 import { checkGeneratedText, rivalryAllowed } from './check.js';
+import { FactSheetBuilder } from './facts.js';
 import { checkLength, MAX_LENGTH } from './length.js';
 import { findForbiddenTerms } from './terms.js';
 import { AGENT_LOCALES, detectLanguage } from './text.js';
@@ -95,6 +96,29 @@ describe('tamanho e idioma', () => {
     expect(detectLanguage(en)).toBe('en');
     expect(checkGeneratedText(en, { locale: 'en' }).map((x) => x.kind)).not.toContain('wrong_language');
     expect(checkGeneratedText(en, { locale: 'es-AR' }).map((x) => x.kind)).toContain('wrong_language');
+  });
+
+  it('"se for" em pt-BR não é inglês (o "for" não é marca de idioma)', () => {
+    for (const pt of [
+      'Se o Palmeiras for campeão, o Flamengo fica fora. Se for empate, decide nos pênaltis.',
+      'Se o Santos for derrotado, cai.',
+    ])
+      expect(
+        checkGeneratedText(pt, { locale: 'pt-BR' }).map((x) => x.kind),
+        pt,
+      ).not.toContain('wrong_language');
+  });
+
+  it('nomes próprios dos fatos não puxam o idioma (Vitória, São Paulo, Defensa y Justicia)', () => {
+    const facts = new FactSheetBuilder()
+      .name('Vitória', 'São Paulo', 'Brasileirão', 'Defensa y Justicia')
+      .number(2, 1)
+      .score(2, 1, { result: true })
+      .build();
+    const en = 'São Paulo beat Vitória 2-1 in the Brasileirão. Defensa y Justicia plays next.';
+    expect(checkGeneratedText(en, { locale: 'en', facts }).map((x) => x.kind)).not.toContain(
+      'wrong_language',
+    );
   });
 
   it('inglês: termos proibidos', () => {

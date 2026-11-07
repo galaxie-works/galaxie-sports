@@ -283,8 +283,6 @@ const EN: TermLists = {
     'moron*',
     'stupid*',
     'dumb',
-    'loser',
-    'losers',
     'pathetic',
     'disgrace*',
     'shameful*',

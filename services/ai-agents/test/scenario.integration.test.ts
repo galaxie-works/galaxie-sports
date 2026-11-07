@@ -205,6 +205,29 @@ describe('Agente Cenário (integração)', () => {
     expect(latest.every((r) => r.content.fallbackReason === 'no_llm')).toBe(true);
   });
 
+  it('locale novo (en) gera só ele: os já gravados com os mesmos fatos ficam', async () => {
+    const report = await runScenarioAgent(db, {
+      now: NOW,
+      llm: null,
+      eventId: groupMatch,
+      locales: ['pt-BR', 'es-MX', 'en'],
+    });
+    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 0, fallback: 1 } });
+    const stored = await rows(groupMatch);
+    expect(stored.filter((r) => r.locale === 'pt-BR')).toHaveLength(1);
+    expect(stored.filter((r) => r.locale === 'en')).toHaveLength(1);
+    const again = await runScenarioAgent(db, {
+      now: NOW,
+      llm: null,
+      eventId: groupMatch,
+      locales: ['pt-BR', 'es-MX', 'en'],
+    });
+    expect(again.items[0]).toMatchObject({
+      action: 'skipped',
+      reason: 'fatos inalterados desde a última geração',
+    });
+  });
+
   it('jogo encerrado ou sem regra não gera cenário', async () => {
     const firstLeg = await idOf(db, 'event', 9001);
     const report = await runScenarioAgent(db, { now: NOW, llm: null, eventId: firstLeg });

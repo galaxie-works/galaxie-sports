@@ -78,10 +78,11 @@ export interface LocalizedWriteResult {
 
 /**
  * Teto de saída padrão: 1.500 tokens cobriam os 8 mercados; com o inglês (9 locales) o resumo de 4 frases por
- * locale passava do limite e o JSON vinha cortado. ~250 tokens por locale pedido, nunca menos de 1.500.
+ * locale passava do limite e o JSON vinha cortado. ~300 tokens por locale pedido (folga para o raciocínio do
+ * modelo), nunca menos de 1.500.
  */
 export function defaultMaxOutputTokens(locales: number): number {
-  return Math.max(1500, 250 * locales);
+  return Math.max(1500, 300 * locales);
 }
 
 /** Confiança gravada em enrich.event_context: aprovado de primeira 0,9; na 2ª 0,8; determinístico 1,0. */

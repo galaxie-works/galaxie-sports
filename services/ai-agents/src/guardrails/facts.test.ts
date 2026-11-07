@@ -368,4 +368,26 @@ describe('splitSentences', () => {
     ]);
     expect(splitSentences('Venceu. Depois empatou! E agora?')).toHaveLength(3);
   });
+
+  it('sigla com pontos só encerra a frase quando a seguinte abre frase', () => {
+    expect(splitSentences('Palmeiras busca o tetra; Estudiantes L.P. busca o penta.')).toHaveLength(1);
+    expect(splitSentences('Final contra o Estudiantes L.P. O jogo terminou 2 a 1.')).toEqual([
+      'Final contra o Estudiantes L.P.',
+      'O jogo terminou 2 a 1.',
+    ]);
+  });
+});
+
+describe('checkFacts — inglês comum não é barrado', () => {
+  const s = new FactSheetBuilder().name('Fluminense', 'Vitória', 'Brasileirão Série A').number(3, 34).build();
+
+  it('possessivo, dias, meses e gentílicos', () => {
+    expect(
+      checkFacts(
+        "Fluminense's win over Vitória on Sunday keeps the Brazilian side 3rd in November.",
+        s,
+        'en',
+      ),
+    ).toEqual([]);
+  });
 });

@@ -204,7 +204,12 @@ const STOPWORDS: Record<AgentLanguage, ReadonlySet<string>> = {
       'been has have had does did with remains stays moves moved climbs climbed drops dropped clinches ' +
       'clinched secures secured keeps kept sits holds held statistics possession shots fans full one ' +
       'one-match single-match missed sent there whoever takes took winner winners equalizer equaliser ' +
-      'behind coming stoppage aggregate overall season regular playoff playoffs'
+      'behind coming stoppage aggregate overall season regular playoff playoffs ' +
+      // dias, meses e gentílicos levam maiúscula em inglês e não são nomes de time ou pessoa
+      'monday tuesday wednesday thursday friday saturday sunday january february march april may june july ' +
+      'august september october november december brazilian argentine argentinian mexican colombian chilean ' +
+      'peruvian uruguayan ecuadorian paraguayan bolivian venezuelan american canadian english spanish ' +
+      'portuguese italian german french dutch european south north latin'
     ).split(/\s+/),
   ),
 };
@@ -356,7 +361,8 @@ const RELATIVE = /^(?:\s+[^,;.]{0,25})?\s*,?\s*(?:que|quien|el cual|la cual|who|
 const WORD_RE = /[\p{L}\p{M}\d][\p{L}\p{M}\d'’.-]*/gu;
 
 function cleanToken(token: string): string {
-  return token.replace(/[.'’-]+$/u, '');
+  // possessivo inglês ("Fluminense's") é o próprio nome
+  return token.replace(/['’]s$/u, '').replace(/[.'’-]+$/u, '');
 }
 
 function tokensOf(text: string): string[] {
