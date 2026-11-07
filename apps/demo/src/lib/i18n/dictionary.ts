@@ -27,6 +27,7 @@ import relatedAdmin from './messages/related-admin';
 import requests from './messages/requests';
 import review from './messages/review';
 import search from './messages/search';
+import settings from './messages/settings';
 import shell from './messages/shell';
 import site from './messages/site';
 import sport from './messages/sport';
@@ -59,6 +60,7 @@ export const NAMESPACES = {
   requests,
   review,
   search,
+  settings,
   shell,
   site,
   sport,
@@ -101,6 +103,7 @@ export const CLIENT_NAMESPACES = [
   'relatedAdmin',
   'review',
   'search',
+  'settings',
   'shell',
   'sport',
   'webhooks',
