@@ -68,6 +68,13 @@ export {
 } from './core/react.js';
 export { MatchCard, type MatchCardProps } from './widgets/match-card.js';
 export { LiveList, type LiveListProps } from './widgets/live-list.js';
+export {
+  SCORE_TICKER_LIMIT,
+  ScoreTicker,
+  type ScoreTickerMode,
+  type ScoreTickerProps,
+  type ScoreTickerSpeed,
+} from './widgets/score-ticker.js';
 export { StandingsTable, type StandingsTableProps } from './widgets/standings-table.js';
 export { WhereToWatch, type WhereToWatchProps } from './widgets/where-to-watch.js';
 export { AiContext, type AiContextProps } from './widgets/ai-context.js';
@@ -92,7 +99,9 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
+export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

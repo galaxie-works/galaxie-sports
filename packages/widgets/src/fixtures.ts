@@ -20,6 +20,7 @@ import type {
 } from './core/model.js';
 import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixtures-racing.js';
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
+import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 import { previewSquad } from './fixtures-squad.js';
 
@@ -36,6 +37,7 @@ export const PREVIEW_IDS = {
   driver: RACING_IDS.driver,
   /** MMA: a luta principal do card de exemplo, a liga e o lutador. */
   fightEvent: RACING_IDS.fightEvent,
+  nextFightEvent: RACING_IDS.nextFightEvent,
   fightCompetition: RACING_IDS.fightCompetition,
   fighter: RACING_IDS.fighter,
   /** Hipismo: a prova, o cavaleiro e o cavalo de exemplo; Jogos: a edição de exemplo. */
@@ -43,6 +45,8 @@ export const PREVIEW_IDS = {
   eqAthlete: OLYMPIC_IDS.eqAthlete,
   eqHorse: OLYMPIC_IDS.eqHorse,
   games: OLYMPIC_IDS.games,
+  /** Futebol: o jogador da ficha de exemplo. */
+  person: PLAYER_IDS.person,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -741,6 +745,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     const now = options.now ?? new Date();
     const olympic = olympicPreviewBody(url, now);
     if (olympic !== null) return json(olympic);
+    const player = playerPreviewBody(url, now);
+    if (player !== null) return json(player);
     const f = createPreviewFixtures(now, options.sport);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
