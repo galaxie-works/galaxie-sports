@@ -121,7 +121,7 @@ Créditos de teste vencem em 90 dias; créditos comprados não vencem enquanto o
 
 Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai 3,5%, antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
 
-**EUA e Canadá:** tabela própria em dólar (decidido em 07/11). Proposta abaixo, a validar com o primeiro cliente.
+**EUA e Canadá:** tabela própria em dólar, aprovada pelo Wagner em 07/11.
 
 Referências de mercado (preço de lista, novembro de 2026):
 
@@ -131,7 +131,7 @@ Referências de mercado (preço de lista, novembro de 2026):
 | [Zendesk AI](https://www.robylon.ai/blog/zendesk-ai-pricing-per-resolution) | Por resolução automática | ~US$ 1,50 a 1,00 com contrato; US$ 2,00 no avulso (estimativa de terceiros) |
 | [Stream Moderation](https://getstream.io/moderation/pricing) | Por mensagem de texto analisada | US$ 2,00 por mil mensagens; US$ 100 grátis por mês |
 
-Proposta:
+Tabela:
 
 | Pacote | Créditos | Preço | Por crédito | Ação média (10 créditos) | Custo de provedor | Margem bruta |
 | --- | --- | --- | --- | --- | --- | --- |
