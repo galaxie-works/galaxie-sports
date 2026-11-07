@@ -5,8 +5,8 @@ import { codeCell, feedbackIssueBody, feedbackIssueTitle, fenced } from './issue
 const base = {
   subject: 'bug' as const,
   message: 'O placar travou',
-  email: 'wag***@*******.works',
-  tenant: 'Port***',
+  user: 'u_0123456789ab',
+  tenant: 't_ba9876543210',
   role: 'client',
   page: '/eventos/1',
   locale: 'pt-BR',
@@ -26,10 +26,10 @@ describe('título', () => {
 });
 
 describe('corpo', () => {
-  it('ficha com os mascarados, a hora de Brasília e o rótulo', () => {
+  it('ficha com as referências opacas, a hora de Brasília e o rótulo', () => {
     const body = feedbackIssueBody(base);
-    expect(body).toContain('| E-mail | `wag***@*******.works` |');
-    expect(body).toContain('| Tenant | `Port***` |');
+    expect(body).toContain('| Usuário | `u_0123456789ab` |');
+    expect(body).toContain('| Tenant | `t_ba9876543210` |');
     expect(body).toContain('06/11/2026, 22:00 (Brasília)');
     expect(body).toContain('| Assunto | Reportar um problema |');
   });
@@ -55,8 +55,12 @@ describe('corpo', () => {
   it('anexos viram imagem com texto alternativo limpo', () => {
     const body = feedbackIssueBody({
       ...base,
-      attachments: [{ url: 'https://github.com/o/r/blob/main/a.png?raw=true', name: 'print](x)[.png' }],
+      attachments: [
+        { url: 'https://sports.exemplo/api/feedback/anexo/2026-11/x.png?e=1&s=a', name: 'print](x)[.png' },
+      ],
     });
-    expect(body).toContain('![print(x).png](https://github.com/o/r/blob/main/a.png?raw=true)');
+    expect(body).toContain(
+      '![print(x).png](https://sports.exemplo/api/feedback/anexo/2026-11/x.png?e=1&s=a)',
+    );
   });
 });

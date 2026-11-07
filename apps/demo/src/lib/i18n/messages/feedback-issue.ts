@@ -28,7 +28,7 @@ export const FEEDBACK_ISSUE_TEXT = {
   message: 'Mensagem',
   details: 'Detalhes',
   subject: 'Assunto',
-  email: 'E-mail',
+  user: 'Usuário',
   tenant: 'Tenant',
   role: 'Papel',
   page: 'Página',
@@ -39,6 +39,6 @@ export const FEEDBACK_ISSUE_TEXT = {
   sentAt: 'Enviado em',
   attachments: 'Anexos',
   footer:
-    'Aberta pelo formulário "Sugerir ou reportar algo" do app; e-mail e tenant parcialmente mascarados.',
+    'Aberta pelo formulário "Sugerir ou reportar algo" do app. Usuário e tenant vão como referência opaca; quem tem o BETTER_AUTH_SECRET confere com feedbackRef (docs/runbooks/sugestoes-do-app.md).',
   timeZoneSuffix: '(Brasília)',
 } as const;

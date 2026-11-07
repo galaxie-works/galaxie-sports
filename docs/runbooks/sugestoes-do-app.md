@@ -1,26 +1,31 @@
 # Sugestões do app ("Sugerir ou reportar algo")
 
 O ícone de chat no cabeçalho do app (à esquerda da lupa) abre um painel lateral com assunto, mensagem e até 4 imagens
-JPG/PNG (5 MB no total). O envio vira uma issue numa **repo privada só de sugestões**, aberta pela própria demo pela
-API REST do GitHub (`apps/demo/src/lib/feedback/`).
+JPG/PNG (5 MB no total). O envio vira uma issue numa **repo privada só de sugestões**
+(`galaxie-works/galaxie-sports-customer-voice`), aberta pela própria demo pela API REST do GitHub
+(`apps/demo/src/lib/feedback/`).
 
 ## Por que uma repo à parte
 
-A `galaxie-sports` é pública. O envio leva dado de cliente: a mensagem livre, o e-mail e o tenant (parcialmente
-mascarados) e prints. Por isso:
+A `galaxie-sports` é pública. O envio leva dado de cliente (mensagem livre e prints). Por isso:
 
-- a demo confere, antes de cada envio, que `FEEDBACK_GITHUB_REPO` é privada; se não for, recusa e o formulário
-  responde "indisponível" (log `[feedback] envio recusado`);
-- nada passa pelo Actions (o payload não fica em log) nem pelo bucket público de assets: as imagens são gravadas na
-  própria repo privada, em `anexos/<aaaa-mm>/<uuid>.<ext>`, e a issue as mostra por link da repo;
-- as imagens são recodificadas antes de subir, sem EXIF, GPS ou outros metadados (`image.ts`);
-- o token é só dessa repo, separado do `ALERT_GITHUB_TOKEN`.
+- a issue vai para `FEEDBACK_GITHUB_REPO` (sem padrão: o código nunca cai na repo principal), e a demo confere,
+  antes de cada envio, que essa repo é privada; se não for, recusa e o formulário responde "indisponível" (log
+  `[feedback] envio recusado`);
+- nada passa pelo Actions (o payload não fica em log): a demo chama a API REST direto;
+- quem enviou vai como **referência opaca**: `u_<12 hex>` para o usuário e `t_<12 hex>` para o tenant (HMAC do id
+  com o `BETTER_AUTH_SECRET`). Nem e-mail nem nome do tenant saem da demo. A referência é estável, então issues da
+  mesma pessoa se agrupam;
+- as imagens são recodificadas sem EXIF, GPS ou outros metadados (`image.ts`), gravadas no bucket **privado** das
+  tarefas (`S3_TASKS_BUCKET`, em `feedback/<aaaa-mm>/<uuid>.<ext>`) e a issue as mostra por um link assinado da demo
+  (`/api/feedback/anexo/…?e=…&s=…`, vale um ano). Sem assinatura válida, 404;
+- o token é só dessa repo e só de Issues, separado do `ALERT_GITHUB_TOKEN`.
 
 ## Ligar
 
 1. A repo privada é `galaxie-works/galaxie-sports-customer-voice` (criada em 07/11/2026).
-2. Crie um fine-grained PAT: Repository access → só essa repo; Permissions → **Issues: Read and write** e
-   **Contents: Read and write** (Metadata: Read vem junto). Nada mais.
+2. Fine-grained PAT (https://github.com/settings/personal-access-tokens/new): Resource owner galaxie-works;
+   Repository access → só essa repo; Permissions → **Issues: Read and write** (Metadata: Read vem junto). Nada mais.
 3. No `.env` da VPS:
 
    ```bash
@@ -35,9 +40,22 @@ mascarados) e prints. Por isso:
 - Título: `<assunto>: <primeiros 50 caracteres da mensagem>`.
 - Rótulo: o assunto (`Reportar um problema`, `Sugerir um recurso`, `Sugerir correção de um conteúdo`,
   `Pedir um dado ou cobertura`, `Tirar uma dúvida`, `Outro assunto`), criado na primeira vez.
-- Corpo: a mensagem num bloco de texto (link, imagem, menção e HTML aparecem literais), e a ficha: assunto, e-mail
-  com metade do usuário e metade do domínio mascaradas, tenant com metade do nome mascarada, papel, página (só o
-  caminho), idioma, tela, navegador, versão e hora de Brasília; depois as imagens.
+- Corpo: a mensagem num bloco de texto (link, imagem, menção e HTML aparecem literais), e a ficha: assunto,
+  referência do usuário, referência do tenant, papel, página (só o caminho), idioma, tela, navegador, versão e hora
+  de Brasília; depois as imagens.
+
+## Descobrir quem enviou
+
+No contêiner do `site` (tem o segredo), com o id do usuário (Ajustes → Usuários) ou do tenant:
+
+```bash
+docker compose exec site node -e '
+const c=require("crypto"),s=process.env.BETTER_AUTH_SECRET,[k,id]=process.argv.slice(1);
+const d=c.createHmac("sha256",s).update("feedback:ref:"+k).digest();
+console.log(k+"_"+c.createHmac("sha256",d).update(id).digest("hex").slice(0,12))' u <id-do-usuario>
+```
+
+Compare com a referência da issue (`u` para usuário, `t` para tenant).
 
 ## Limites
 
@@ -45,7 +63,8 @@ mascarados) e prints. Por isso:
 
 ## Problemas
 
-- **"Indisponível" no app:** token ou repo vazios, ou a repo não é privada (veja o log do `site`:
+- **"Indisponível" no app:** token ou repo vazios, a repo não é privada, ou (com imagem) o bucket privado não está
+  configurado (veja o log do `site`:
   `docker compose logs site | grep feedback`).
 - **Erro genérico:** o log mostra o status do GitHub: 401 token errado ou vencido; 403/404 token sem acesso à repo ou
-  sem Issues/Contents: write.
+  sem Issues: write.

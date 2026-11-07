@@ -37,7 +37,8 @@ export default defineMessages(
     attach: 'Anexar imagem',
     remove: 'Remover {name}',
     page: 'A página atual vai junto: {page}',
-    privacy: 'Seu e-mail e sua empresa vão parcialmente mascarados.',
+    privacy:
+      'Seu e-mail e o nome da sua empresa não vão na mensagem: a equipe recebe só uma referência da sua conta.',
     cancel: 'Cancelar',
     send: 'Enviar',
     sending: 'Enviando…',
@@ -90,7 +91,7 @@ export default defineMessages(
       attach: 'Attach image',
       remove: 'Remove {name}',
       page: 'The current page is sent along: {page}',
-      privacy: 'Your email and company are partially masked.',
+      privacy: 'Your email and company name are not sent: the team only gets a reference to your account.',
       cancel: 'Cancel',
       send: 'Send',
       sending: 'Sending…',
@@ -141,7 +142,8 @@ export default defineMessages(
       attach: 'Adjuntar imagen',
       remove: 'Quitar {name}',
       page: 'La página actual se envía junto: {page}',
-      privacy: 'Tu email y tu empresa van parcialmente enmascarados.',
+      privacy:
+        'Tu email y el nombre de tu empresa no se envían: el equipo recibe solo una referencia de tu cuenta.',
       cancel: 'Cancelar',
       send: 'Enviar',
       sending: 'Enviando…',

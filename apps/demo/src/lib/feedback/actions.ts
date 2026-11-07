@@ -1,9 +1,10 @@
 'use server';
 
 /**
- * Envio do "Sugerir ou reportar algo" (ícone de chat do cabeçalho). Quem enviou, o e-mail e o tenant vêm da
- * sessão no servidor, nunca do formulário, e saem daqui já mascarados. As imagens são recodificadas sem metadados
- * (lib/feedback/image.ts) e gravadas na repo privada de sugestões, onde a issue é aberta (lib/feedback/github.ts).
+ * Envio do "Sugerir ou reportar algo" (ícone de chat do cabeçalho). Quem enviou e o tenant vêm da sessão no
+ * servidor, nunca do formulário. As imagens são recodificadas sem metadados
+ * (lib/feedback/image.ts) e gravadas no bucket privado; a issue é aberta na repo privada de sugestões
+ * (lib/feedback/github.ts) com referências opacas de quem enviou e links assinados das imagens (signing.ts).
  */
 import { randomUUID } from 'node:crypto';
 import { headers } from 'next/headers';
@@ -14,16 +15,16 @@ import { getTenantInfo, isUuid } from '@/lib/client/tenants';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { internalPath } from '@/lib/internal-path';
 
+import { attachmentStoreConfigured, putAttachment } from './attachments';
 import { FeedbackGithub, FeedbackGithubError, feedbackGithubConfig } from './github';
 import { cleanImage } from './image';
+import { feedbackRef, signAttachmentPath } from './signing';
 import { feedbackIssueBody, feedbackIssueTitle } from './issue';
 import { FeedbackLimiter } from './limiter';
 import {
   checkFeedbackText,
   FEEDBACK_MAX_BYTES,
   FEEDBACK_MAX_FILES,
-  maskEmail,
-  maskHalf,
   sniffImage,
   type FeedbackErrorCode,
   type FeedbackImageType,
@@ -73,7 +74,10 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   }
 
   const config = feedbackGithubConfig();
-  if (!config) return { ok: false, error: 'unavailable' };
+  const secret = process.env.BETTER_AUTH_SECRET;
+  const publicUrl = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '');
+  if (!config || !secret || !publicUrl) return { ok: false, error: 'unavailable' };
+  if (images.length && !attachmentStoreConfigured()) return { ok: false, error: 'unavailable' };
   const key = `${config.repo}|${config.token}`;
   if (github?.key !== key) github = { key, client: new FeedbackGithub(config) };
   const client = github.client;
@@ -86,10 +90,13 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
     // repo pública = dado de cliente exposto: não envia nada
     await client.ensurePrivate();
     const month = new Date(at).toISOString().slice(0, 7);
+    const nowS = Math.floor(at / 1000);
     const attachments: { url: string; name: string }[] = [];
     for (const img of images) {
-      const path = `anexos/${month}/${randomUUID()}.${img.type === 'image/png' ? 'png' : 'jpg'}`;
-      attachments.push({ url: await client.uploadAttachment(path, img.body), name: img.name });
+      // bucket privado; a issue leva só o link assinado (vale um ano), que a demo confere antes de entregar
+      const key = `${month}/${randomUUID()}.${img.type === 'image/png' ? 'png' : 'jpg'}`;
+      await putAttachment(key, img.body, img.type);
+      attachments.push({ url: publicUrl + signAttachmentPath(secret, key, nowS), name: img.name });
     }
 
     const role = roleOf(session.user.role);
@@ -104,8 +111,9 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
       feedbackIssueBody({
         subject: subject as FeedbackSubject,
         message: text,
-        email: maskEmail(session.user.email),
-        tenant: tenant ? maskHalf(tenant.name) : null,
+        // referências opacas e estáveis: nem e-mail nem nome do tenant saem da demo
+        user: feedbackRef(secret, 'u', userId),
+        tenant: tenant ? feedbackRef(secret, 't', tenant.id) : null,
         role,
         // só o caminho: a query string pode levar filtros e ids internos
         page: page ? page.split(/[?#]/)[0]!.slice(0, 200) : null,

@@ -4,7 +4,6 @@
  * - assuntos: a chave vai no envio; o rótulo da issue (em pt-BR) sai dela em lib/i18n/messages/feedback-issue.ts,
  *   para a lista de rótulos da repo não depender do idioma da tela;
  * - limites da mensagem e dos anexos (só JPG e PNG, conferidos pelo conteúdo, não pela extensão);
- * - mascaramento: o e-mail e o tenant de quem enviou vão para a issue com metade de cada parte escondida.
  */
 
 export const FEEDBACK_SUBJECTS = ['bug', 'feature', 'content', 'data', 'question', 'other'] as const;
@@ -37,29 +36,6 @@ export function sniffImage(bytes: Uint8Array): FeedbackImageType | null {
 export const FEEDBACK_ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg';
 
 export const isAcceptedImageType = (type: string) => type === 'image/png' || type === 'image/jpeg';
-
-/**
- * Esconde a segunda metade do texto (arredondada para cima: "ana" → "a**", "ab" → "a*"). `fromStart`
- * esconde a primeira metade (o domínio do e-mail mostra o fim, que é o pedaço menos identificador).
- * Conta por caractere, não por byte (nomes com acento ou emoji não quebram).
- */
-export function maskHalf(value: string, { fromStart = false }: { fromStart?: boolean } = {}): string {
-  const chars = Array.from(value.trim());
-  if (!chars.length) return '';
-  if (chars.length === 1) return '*';
-  const hidden = Math.ceil(chars.length / 2);
-  const shown = chars.length - hidden;
-  return fromStart
-    ? '*'.repeat(hidden) + chars.slice(hidden).join('')
-    : chars.slice(0, shown).join('') + '*'.repeat(hidden);
-}
-
-/** E-mail com metade do usuário e metade do domínio escondidas: `wagner@galaxie.works` → `wag***@*******.works`. */
-export function maskEmail(email: string): string {
-  const at = email.trim().lastIndexOf('@');
-  if (at <= 0) return maskHalf(email);
-  return `${maskHalf(email.slice(0, at))}@${maskHalf(email.slice(at + 1), { fromStart: true })}`;
-}
 
 /** Primeiros caracteres da mensagem para o título da issue (uma linha, sem espaços repetidos). */
 export function titleSnippet(message: string, max = 50): string {

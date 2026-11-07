@@ -1,14 +1,13 @@
 /**
  * Entrega do "Sugerir ou reportar algo" ao GitHub (só no servidor): a demo abre a issue direto pela API REST numa
- * repositório PRIVADO só de sugestões, com um token só dele. Nada passa por Actions (o payload não fica em log) nem
- * pelo bucket público: as imagens são gravadas na própria repo privada (`anexos/<aaaa-mm>/<uuid>.<ext>`) e a issue as
- * mostra por link da repo, que só quem tem acesso a ela abre.
+ * repositório PRIVADO só de sugestões (`galaxie-works/galaxie-sports-customer-voice`), com um token só dele. Nada
+ * passa por Actions (o payload não fica em log). As imagens ficam no bucket privado e entram na issue por link
+ * assinado da demo (lib/feedback/signing.ts).
  *
- * Antes de cada envio a repo é conferida: se não for privada (ou não der para saber), nada é enviado. O conteúdo é
- * dado de cliente (mensagem livre, e-mail e tenant parcialmente mascarados, prints) e não pode cair numa repo pública.
+ * Antes de cada envio a repo é conferida: se não for privada (ou não der para saber), nada é enviado.
  *
- *   FEEDBACK_GITHUB_TOKEN  fine-grained PAT só da repo de sugestões: Issues read/write e Contents read/write
- *   FEEDBACK_GITHUB_REPO   dono/repositório (obrigatório; sem ele, envio desligado)
+ *   FEEDBACK_GITHUB_TOKEN  fine-grained PAT só da repo de sugestões, com Issues: read and write e nada mais
+ *   FEEDBACK_GITHUB_REPO   dono/repositório (obrigatório e sem padrão: nunca cai na repo principal)
  *
  * Sem token ou sem repo, o formulário responde "indisponível". O token nunca vai ao navegador.
  */
@@ -88,18 +87,6 @@ export class FeedbackGithub {
     if (repo.private !== true)
       throw new FeedbackGithubError('not_private', `${this.config.repo} is not private`);
     this.privateCheckedAt = this.now();
-  }
-
-  /** Grava a imagem na repo e devolve o link que a issue usa (abre só para quem tem acesso à repo). */
-  async uploadAttachment(path: string, body: Uint8Array): Promise<string> {
-    const res = await this.call('PUT', `/contents/${path}`, {
-      message: `App feedback attachment (${path.split('/').pop()})`,
-      content: Buffer.from(body).toString('base64'),
-    });
-    const out = await this.json<{ content?: { html_url?: string } }>(res, 'attachment');
-    const url = out.content?.html_url;
-    if (!url) throw new FeedbackGithubError('http', 'attachment without html_url');
-    return `${url}?raw=true`;
   }
 
   /** Cria o rótulo do assunto se faltar (não mexe na cor de um que alguém já ajustou). */

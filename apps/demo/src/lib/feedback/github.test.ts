@@ -59,18 +59,13 @@ describe('repo privada', () => {
   });
 });
 
-describe('issue, rótulo e anexo', () => {
-  it('cria o rótulo que falta, grava o anexo na repo e abre a issue com o rótulo', async () => {
+describe('issue e rótulo', () => {
+  it('cria o rótulo que falta e abre a issue com o rótulo', async () => {
     const { impl, calls } = fakeFetch({
       'POST /labels': () => json({}, 201),
-      'PUT /contents/anexos/2026-11/a.png': () =>
-        json({ content: { html_url: 'https://github.com/o/r/blob/main/anexos/2026-11/a.png' } }, 201),
       'POST /issues': () => json({ number: 7 }, 201),
     });
     const gh = new FeedbackGithub({ token: 'tok', repo: 'o/r' }, impl);
-    const url = await gh.uploadAttachment('anexos/2026-11/a.png', new Uint8Array([1, 2, 3]));
-    expect(url).toBe('https://github.com/o/r/blob/main/anexos/2026-11/a.png?raw=true');
-    expect((calls[0]!.body as { content: string }).content).toBe('AQID');
     const label = await gh.ensureLabel('bug');
     expect(label).toBe('Reportar um problema');
     expect(calls.find((c) => c.method === 'POST' && c.url.endsWith('/labels'))?.body).toMatchObject({

@@ -2,7 +2,7 @@
  * Título e corpo da issue do "Sugerir ou reportar algo" (puro, testado). Tudo o que veio do usuário entra como
  * texto, não como Markdown: a mensagem vai num bloco cercado (fence mais longa que qualquer sequência de crases ou
  * tis dela), então link, imagem rastreadora, `<!--`, menção, referência a outra repo e tabela falsa aparecem
- * literais; navegador, tela e página vão em `code`. Só os anexos (links da própria repo privada) viram imagem.
+ * literais; navegador, tela e página vão em `code`. Só os anexos (links assinados da demo) viram imagem.
  */
 import { FEEDBACK_ISSUE_TEXT as T, FEEDBACK_LABELS } from '@/lib/i18n/messages/feedback-issue';
 
@@ -11,8 +11,8 @@ import { titleSnippet, type FeedbackSubject } from './rules';
 export interface FeedbackIssueInput {
   subject: FeedbackSubject;
   message: string;
-  /** Já mascarados. */
-  email: string;
+  /** Referências opacas (`u_…`, `t_…`), nunca e-mail ou nome. */
+  user: string;
   tenant: string | null;
   role: string;
   /** Só o caminho, sem query string. */
@@ -60,7 +60,7 @@ export function feedbackIssueTitle(subject: FeedbackSubject, message: string): s
 export function feedbackIssueBody(i: FeedbackIssueInput): string {
   const rows: [string, string][] = [
     [T.subject, FEEDBACK_LABELS[i.subject]],
-    [T.email, codeCell(i.email)],
+    [T.user, codeCell(i.user)],
     [T.tenant, codeCell(i.tenant)],
     [T.role, codeCell(i.role)],
     [T.page, codeCell(i.page)],

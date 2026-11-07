@@ -1,25 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FeedbackLimiter } from './limiter';
-import { checkFeedbackText, maskEmail, maskHalf, sniffImage, titleSnippet } from './rules';
-
-describe('mascaramento', () => {
-  it('esconde metade do usuário (o fim) e metade do domínio (o começo)', () => {
-    expect(maskEmail('wagner@galaxie.works')).toBe('wag***@*******.works');
-    expect(maskEmail('ana@x.io')).toBe('a**@**io');
-  });
-
-  it('tenant com metade escondida, contando caracteres e não bytes', () => {
-    expect(maskHalf('Portal Esporte')).toBe('Portal ' + '*'.repeat(7));
-    expect(maskHalf('São')).toBe('S**');
-    expect(maskHalf('x')).toBe('*');
-    expect(maskHalf('')).toBe('');
-  });
-
-  it('e-mail sem @ é mascarado inteiro pela metade', () => {
-    expect(maskEmail('semarroba')).toBe('sema*****');
-  });
-});
+import { checkFeedbackText, sniffImage, titleSnippet } from './rules';
 
 describe('título', () => {
   it('primeiros 50 caracteres numa linha, com reticências quando corta', () => {
