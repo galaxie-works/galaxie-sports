@@ -17,6 +17,7 @@ import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
+import { championRoutes } from './champions.js';
 import { leadersRoutes } from './leaders.js';
 import { marketsRoutes } from './markets.js';
 
@@ -39,6 +40,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // lista de canais do cliente `/v1/channel-list` (casamento com os direitos) — módulo where_to_watch
   await channelListRoutes(app, ctx);
   await contextRoutes(app, ctx);
+  // galeria de campeões `/v1/competitions/{id}/champions` (#831) — módulo core_data
+  await championRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
   // palpite `/v1/events/{id}/predictions` (core_data) e odds `/v1/events/{id}/odds` (add-on odds, fechado)

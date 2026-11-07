@@ -1,6 +1,6 @@
 {
-  "id": "bea9fb59-2846-4aa2-ab3f-f8f05867f702",
-  "prevId": "f9ad1978-7e0d-46d3-a418-b8aa1468c066",
+  "id": "d0130f96-c29a-413f-93ef-ccbd7e1e8292",
+  "prevId": "7d332599-156a-4d6a-b08b-5480636f1e6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -729,6 +729,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "winner_name": {
+          "name": "winner_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "competition_qid": {
           "name": "competition_qid",

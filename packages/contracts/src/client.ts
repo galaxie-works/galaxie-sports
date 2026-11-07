@@ -8,6 +8,7 @@ import type {
   Standings,
   Venue,
 } from './catalog.js';
+import type { ChampionsQuery, CompetitionChampions } from './champions.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { CompetitionContext } from './context.js';
 import type { EventContext } from './event-context.js';
@@ -206,6 +207,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<PlatformLineup>(`/v1/platforms/${seg(id)}/lineup`, opts),
     competitionContext: (id: string, opts: LocaleOpts & { season?: number | 'current' } = {}) =>
       v1<CompetitionContext>(`/v1/competitions/${seg(id)}/context`, opts),
+    /** Galeria de campeões: campeão de cada edição, o vice (`runner_up: true`) e quem tem mais títulos. */
+    champions: (id: string, query: Q<ChampionsQuery> = {}) =>
+      v1<CompetitionChampions>(`/v1/competitions/${seg(id)}/champions`, toQuery(query)),
 
     // ─── eventos ─────────────────────────────────────────────────────────────────────────────────
     events: (query: Omit<EventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {}) =>
