@@ -2,6 +2,7 @@
 
 import {
   AiContext,
+  ChannelGuide,
   GalaxieWidgetProvider,
   HeadToHead,
   LiveList,
@@ -275,6 +276,8 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'channel_guide':
+        return <ChannelGuidePreview o={o} sport={sport} />;
     }
   }
   switch (kind) {
@@ -338,7 +341,18 @@ function PreviewWidget({
     case 'country_athletes':
     case 'medal_history':
       return <StandalonePreview kind={kind} o={o} />;
+    case 'channel_guide':
+      return <ChannelGuidePreview o={o} sport={sport} />;
   }
+}
+
+/**
+ * Prévia da grade nos canais: sempre com os dados de exemplo (canais fictícios). A grade real sai da lista de
+ * canais do tenant, que a prévia da demo não alcança; depois de salvar, o embed e o registry usam a rota presa
+ * ao widget.
+ */
+function ChannelGuidePreview({ o, sport }: { o: Record<string, unknown>; sport: string | null }) {
+  return <ChannelGuide {...o} {...WIDGET_CATALOG.channel_guide.exampleProps} sport={sport ?? undefined} />;
 }
 
 /** Prévia dos tipos sem entidade (hipismo e Jogos), com a escolha nas opções. */
@@ -379,6 +393,7 @@ export function WidgetEditor({
   saved: savedInitial,
   markets,
   sports = [],
+  guideChannels = [],
   brandThemes: brandThemesInitial = [],
 }: {
   initial: EditorDraft;
@@ -387,6 +402,8 @@ export function WidgetEditor({
   markets: string[];
   /** Esportes que o plano permite (vazio = todos). */
   sports?: string[];
+  /** Canais da lista confirmada do tenant (a escolha de canais da grade nos canais). */
+  guideChannels?: string[];
   /** Temas da marca do tenant. */
   brandThemes?: BrandThemeItem[];
 }) {
@@ -446,12 +463,14 @@ export function WidgetEditor({
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
   // lista de jogos, faixa de placares, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem
-  // entidade, mostram os dados de exemplo
+  // entidade, mostram os dados de exemplo; a grade nos canais mostra sempre o exemplo (a lista de canais do
+  // tenant não passa pelo proxy da demo)
   const realData =
-    Boolean(draft.entity) ||
-    draft.kind === 'live_list' ||
-    draft.kind === 'score_ticker' ||
-    entityTypes.length === 0;
+    draft.kind !== 'channel_guide' &&
+    (Boolean(draft.entity) ||
+      draft.kind === 'live_list' ||
+      draft.kind === 'score_ticker' ||
+      entityTypes.length === 0);
 
   function save() {
     startTransition(async () => {
@@ -679,6 +698,7 @@ export function WidgetEditor({
                   kind={draft.kind}
                   sport={searchSport(draft.kind, draft.sport)}
                   value={draft.options}
+                  channels={guideChannels}
                   entities={draft.optionEntities}
                   onChange={(options, optionEntities) => setDraft((d) => ({ ...d, options, optionEntities }))}
                 />

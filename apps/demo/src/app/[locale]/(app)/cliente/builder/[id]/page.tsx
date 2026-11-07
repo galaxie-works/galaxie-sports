@@ -9,7 +9,7 @@ import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { marketsFor } from '@/lib/builder/config';
-import { brandThemeItems, draftOf } from '@/lib/builder/editor';
+import { brandThemeItems, draftOf, guideChannelChoices } from '@/lib/builder/editor';
 import { builderDb, getWidget } from '@/lib/builder/store';
 import { requireClientContext } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
@@ -47,6 +47,7 @@ async function Editor({ params }: { params: Params }) {
               saved={{ id: widget.id, version: widget.version }}
               markets={marketsFor(tenant.markets)}
               sports={tenant.sports}
+              guideChannels={await guideChannelChoices(tenant.id)}
               brandThemes={await brandThemeItems(tenant.id)}
             />
           )}

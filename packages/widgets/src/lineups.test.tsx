@@ -154,7 +154,7 @@ describe('Escalações', () => {
     cleanup();
     setup(<Lineups eventId={PREVIEW_IDS.liveEvent} view="list" />, 'en');
     expect(await screen.findByText('Lineups')).toBeTruthy();
-    expect(screen.getAllByText('Starting XI')).toHaveLength(2);
+    expect(await screen.findAllByText('Starting XI')).toHaveLength(2);
     expect(screen.getAllByText('Head coach')).toHaveLength(2);
   });
 

@@ -27,7 +27,8 @@ export type WidgetOptionSpec =
   | (OptionBase & { type: 'multi'; values: readonly { value: string; label: Label }[] })
   | (OptionBase & { type: 'season' })
   | (OptionBase & { type: 'team' | 'competition' })
-  | (OptionBase & { type: 'lookup'; source: LookupSource });
+  | (OptionBase & { type: 'lookup'; source: LookupSource })
+  | (OptionBase & { type: 'channels' });
 
 /**
  * Escolha por busca nas rotas próprias (fora do catálogo de times e campeonatos): a prova, o cavaleiro e o
@@ -36,6 +37,28 @@ export type WidgetOptionSpec =
 export type LookupSource = 'eq_competition' | 'eq_athlete' | 'eq_horse' | 'games';
 
 export type WidgetOptions = Record<string, string | number | boolean>;
+
+/**
+ * Canais da lista do cliente escolhidos na grade (`type: 'channels'`): nomes como na lista, um por linha. A
+ * API lê o valor salvo no widget; o embed nunca o recebe (`publicWidgetOptions`).
+ */
+export const CHANNEL_GUIDE_MAX_CHANNELS = 200;
+const CHANNEL_NAME_MAX = 160;
+
+/** Valor salvo da opção de canais → os nomes (sem repetir, na ordem alfabética). */
+export function parseChannelNames(raw: unknown): string[] {
+  if (typeof raw !== 'string') return [];
+  return [
+    ...new Set(
+      raw
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s && s.length <= CHANNEL_NAME_MAX),
+    ),
+  ]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }))
+    .slice(0, CHANNEL_GUIDE_MAX_CHANNELS);
+}
 
 const l = (pt: string, es: string, en: string): Label => ({ 'pt-BR': pt, es, en });
 
@@ -920,6 +943,40 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ),
     },
   ],
+  channel_guide: [
+    {
+      key: 'day',
+      type: 'enum',
+      default: 'today',
+      label: l('Dia', 'Día', 'Day'),
+      values: [
+        { value: 'today', label: l('Hoje', 'Hoy', 'Today') },
+        { value: 'tomorrow', label: l('Amanhã', 'Mañana', 'Tomorrow') },
+      ],
+    },
+    {
+      key: 'groupBy',
+      type: 'enum',
+      default: 'time',
+      label: l('Agrupar', 'Agrupar', 'Group by'),
+      values: [
+        { value: 'time', label: l('Por horário', 'Por horario', 'By time') },
+        { value: 'channel', label: l('Por canal', 'Por canal', 'By channel') },
+      ],
+    },
+    {
+      key: 'channels',
+      type: 'channels',
+      label: l('Canais', 'Canales', 'Channels'),
+      hint: l(
+        'Da sua lista de canais confirmada. Nenhum marcado = todos.',
+        'De tu lista de canales confirmada. Ninguno marcado = todos.',
+        'From your confirmed channel list. None ticked = all.',
+      ),
+    },
+    bool('showCompetition', L.competition, true),
+    bool('showScore', l('Placar dos jogos', 'Marcador de los partidos', 'Game scores'), true),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -957,6 +1014,10 @@ function parseValue(spec: WidgetOptionSpec, raw: unknown): string | number | boo
       if (typeof raw !== 'string') return undefined;
       if (spec.source === 'games') return GAMES_SLUG.test(raw) ? raw : undefined;
       return UUID.test(raw) ? raw.toLowerCase() : undefined;
+    case 'channels': {
+      const names = parseChannelNames(raw);
+      return names.length ? names.join('\n') : undefined;
+    }
   }
 }
 
@@ -979,9 +1040,27 @@ export function parseWidgetOptions(kind: WidgetKind, raw: unknown): WidgetOption
   return Object.keys(out).length ? out : undefined;
 }
 
+/**
+ * Opções que saem na configuração pública (`/e/<id>.json`) e no arquivo do registry: sem os canais escolhidos
+ * na grade, que só a API lê (a lista de canais do cliente não fica exposta na página).
+ */
+export function publicWidgetOptions(
+  kind: WidgetKind,
+  options: WidgetOptions | undefined,
+): WidgetOptions | undefined {
+  const clean = parseWidgetOptions(kind, options);
+  if (!clean) return undefined;
+  const out = Object.fromEntries(
+    Object.entries(clean).filter(
+      ([key]) => WIDGET_OPTIONS[kind].find((s) => s.key === key)?.type !== 'channels',
+    ),
+  );
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Props do componente a partir das opções (o formato `both` do vídeo é a ausência do filtro). */
 export function optionProps(kind: WidgetKind, options: WidgetOptions | undefined): Record<string, unknown> {
-  const clean = parseWidgetOptions(kind, options) ?? {};
+  const clean = publicWidgetOptions(kind, options) ?? {};
   if (kind === 'related_videos' && clean.format === 'both') delete clean.format;
   return clean;
 }

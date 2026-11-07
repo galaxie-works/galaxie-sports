@@ -39,6 +39,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'channel_guide',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -99,7 +100,11 @@ export interface WidgetConfig {
     showVenue?: boolean;
     showCity?: boolean;
   };
-  /** Opções de conteúdo do tipo (`WIDGET_OPTIONS` de @galaxie/widgets): campos liga/desliga, quantidades, filtros. */
+  /**
+   * Opções de conteúdo do tipo (`WIDGET_OPTIONS` de @galaxie/widgets): campos liga/desliga, quantidades, filtros.
+   * Na grade nos canais (`channel_guide`), `channels` (nomes da lista do cliente, um por linha) é lido só
+   * pela API (`/v1/widgets/{id}/channel-guide`) e não sai em `/e/<id>.json`.
+   */
   options?: Record<string, string | number | boolean>;
 }
 

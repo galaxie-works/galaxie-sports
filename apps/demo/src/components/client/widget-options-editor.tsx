@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  CHANNEL_GUIDE_MAX_CHANNELS,
   WIDGET_OPTIONS,
+  parseChannelNames,
   sportProfile,
   widgetOptionsFor,
   type WidgetKind,
@@ -37,6 +39,7 @@ export function WidgetOptionsEditor({
   kind,
   sport,
   value,
+  channels = [],
   entities,
   onChange,
 }: {
@@ -44,6 +47,8 @@ export function WidgetOptionsEditor({
   /** Esporte do widget (null = todos os esportes ou não se aplica). */
   sport?: string | null;
   value: WidgetOptions;
+  /** Canais da lista confirmada do tenant (opções `type: 'channels'`). */
+  channels?: readonly string[];
   entities: OptionEntities;
   onChange: (next: WidgetOptions, entities: OptionEntities) => void;
 }) {
@@ -86,6 +91,7 @@ export function WidgetOptionsEditor({
               hint={spec.hint?.[wl]}
               value={value[spec.key]}
               entity={entities[spec.key] ?? null}
+              channels={channels}
               texts={o}
               locale={wl}
               onChange={(v, entity) => put(spec.key, v, entity)}
@@ -130,6 +136,7 @@ function Choice({
   hint,
   value,
   entity,
+  channels,
   texts,
   locale,
   onChange,
@@ -139,7 +146,8 @@ function Choice({
   hint: string | undefined;
   value: string | number | boolean | undefined;
   entity: EntityValue | LookupValue | null;
-  texts: { all: string; none: string };
+  channels: readonly string[];
+  texts: { all: string; none: string; noChannels: string; channelsLimit: string };
   locale: 'pt-BR' | 'es' | 'en';
   onChange: (v: string | number | undefined, entity?: EntityValue | LookupValue | null) => void;
 }) {
@@ -272,7 +280,74 @@ function Choice({
           <FieldDescription>{hint ?? (value ? null : texts.none)}</FieldDescription>
         </Field>
       );
+    case 'channels':
+      return (
+        <ChannelChoice
+          label={label}
+          hint={hint}
+          value={value}
+          channels={channels}
+          texts={texts}
+          onChange={onChange}
+        />
+      );
     case 'boolean':
       return null;
   }
+}
+
+/**
+ * Canais da lista confirmada do tenant, marcados um a um (gravados um por linha). Canal salvo que saiu da
+ * lista continua marcado até a pessoa desmarcar, para a grade não mudar sozinha.
+ */
+function ChannelChoice({
+  label,
+  hint,
+  value,
+  channels,
+  texts,
+  onChange,
+}: {
+  label: string;
+  hint: string | undefined;
+  value: string | number | boolean | undefined;
+  channels: readonly string[];
+  texts: { all: string; noChannels: string; channelsLimit: string };
+  onChange: (v: string | undefined) => void;
+}) {
+  const picked = new Set(parseChannelNames(value));
+  const items = [...new Set([...channels, ...picked])].sort(compareAlpha);
+  const full = picked.size >= CHANNEL_GUIDE_MAX_CHANNELS;
+  const toggle = (name: string, on: boolean) => {
+    const next = new Set(picked);
+    if (on) next.add(name);
+    else next.delete(name);
+    onChange(next.size ? [...next].join('\n') : undefined);
+  };
+  return (
+    <Field className="sm:col-span-2">
+      <FieldLabel>{label}</FieldLabel>
+      {items.length ? (
+        <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
+          {items.map((name) => (
+            <label key={name} className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={picked.has(name)}
+                disabled={full && !picked.has(name)}
+                onCheckedChange={(on) => toggle(name, !!on)}
+              />
+              <span className="truncate">{name}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <FieldDescription>
+        {!items.length
+          ? texts.noChannels
+          : full
+            ? texts.channelsLimit
+            : (hint ?? (picked.size ? null : texts.all))}
+      </FieldDescription>
+    </Field>
+  );
 }

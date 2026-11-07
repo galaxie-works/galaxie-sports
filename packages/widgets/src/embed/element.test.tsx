@@ -15,6 +15,7 @@ const WIDGET = '01a16029-9283-77d0-b2e5-1d89336b2dbc';
 const SCHEDULE = '01a16029-9283-77d0-b2e5-1d89336b2dbd';
 const VIDEOS = '01a16029-9283-77d0-b2e5-1d89336b2dbe';
 const SQUAD = '01a16029-9283-77d0-b2e5-1d89336b2dbf';
+const GUIDE = '01a16029-9283-77d0-b2e5-1d89336b2dc0';
 
 const config = (over: Partial<EmbedConfig> = {}): EmbedConfig => ({
   id: WIDGET,
@@ -45,6 +46,10 @@ const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       ...config({ id: SQUAD, kind: 'team_squad', defaults: { teamId: PREVIEW_IDS.team } }),
       options: { showCoaches: false, groupByPosition: true, season: 2025 },
     });
+  if (url === `https://sports.exemplo.test/e/${GUIDE}.json`)
+    return Response.json(
+      config({ id: GUIDE, kind: 'channel_guide', defaults: {}, options: { groupBy: 'channel' } }),
+    );
   if (url.includes('/e/')) return Response.json({ error: 'not_found' }, { status: 404 });
   return preview(input, init);
 });
@@ -79,6 +84,18 @@ describe('<galaxie-widget>', () => {
     await waitFor(() => expect(shadowText(a!) + shadowText(b!)).toMatch(/2 – 1[\s\S]*2 – 1/));
     // a configuração ficou em cache desde o primeiro teste
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/e/'))).toHaveLength(0);
+  });
+
+  it('grade nos canais: pede a grade da rota presa ao próprio widget', async () => {
+    document.body.innerHTML = `<${EMBED_TAG} widget="${GUIDE}" key="gs_pk_live_exemplo"></${EMBED_TAG}>`;
+    const el = document.querySelector(EMBED_TAG)!;
+    await waitFor(() => expect(shadowText(el)).toContain('Play Esportes'));
+    expect(
+      fetchMock.mock.calls.some(([u]) =>
+        String(u).startsWith(`https://api.exemplo.test/v1/widgets/${GUIDE}/channel-guide?`),
+      ),
+    ).toBe(true);
+    expect(el.shadowRoot!.querySelectorAll('[data-gs-channel]').length).toBeGreaterThan(0);
   });
 
   it('widget inexistente mostra um aviso curto no lugar', async () => {
