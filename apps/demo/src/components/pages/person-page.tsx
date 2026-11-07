@@ -15,6 +15,13 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import {
+  AvatarInfoSkeleton,
+  DetailsSkeleton,
+  SectionSkeleton,
+  StatsSkeleton,
+  TableCardSkeleton,
+} from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
@@ -889,22 +896,20 @@ export function PersonFallback() {
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
       <div className="flex flex-col gap-6 p-4 md:p-6">
-        <div className="flex items-center gap-5">
-          <Skeleton className="size-28 rounded-full sm:size-36" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-9 w-64" />
-            <Skeleton className="h-8 w-44" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-20" />
-          ))}
-        </div>
+        <AvatarInfoSkeleton
+          avatarClassName="size-28 rounded-full sm:size-36"
+          lines={['h-5 w-40', 'h-9 w-64', 'h-8 w-44']}
+          className="gap-5"
+        />
+        <StatsSkeleton count={6} className="grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Skeleton className="h-80 lg:col-span-2" />
-          <Skeleton className="h-80" />
+          <SectionSkeleton className="lg:col-span-2">
+            <TableCardSkeleton rows={8} columns={['flex-1', 'w-10', 'w-10', 'w-10', 'w-10', 'w-12']} />
+          </SectionSkeleton>
+          <div className="flex flex-col gap-6">
+            <DetailsSkeleton rows={5} />
+            <DetailsSkeleton rows={3} />
+          </div>
         </div>
       </div>
     </>

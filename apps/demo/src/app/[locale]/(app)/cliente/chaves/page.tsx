@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ClientArea } from '@/components/client/client-area';
 import { KeysPanel } from '@/components/client/keys-panel';
-import { Skeleton } from '@/components/ui/skeleton';
 import { builderDb, listPublishableKeys, listWidgets } from '@/lib/builder/store';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
@@ -56,7 +56,9 @@ export default async function ClientKeysPage() {
         parents={[{ path: '/cliente', label: t.client.title, kind: 'cliente' }]}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense
+          fallback={<TablePanelSkeleton action rows={4} columns={['flex-1', 'w-32', 'w-24', 'w-20']} />}
+        >
           <Keys />
         </Suspense>
       </div>

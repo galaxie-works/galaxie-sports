@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
@@ -61,7 +62,7 @@ export default function WidgetPage({ params }: PageProps<'/[locale]/cliente/buil
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
           <div className="mx-auto w-full max-w-7xl p-4 md:p-6">
-            <Skeleton className="h-[40rem] w-full" />
+            <EditorSkeleton />
           </div>
         </>
       }

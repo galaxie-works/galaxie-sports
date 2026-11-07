@@ -5,6 +5,7 @@ import { BookOpen, Code } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { TextSkeleton } from '@/components/app-shell/skeletons';
 import { Badge } from '@/components/reui/badge';
 import { CopyButton } from '@/components/sport/copy-button';
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,20 @@ function ResponseSample({ req, enabled }: { req: ApiRequest; enabled: boolean })
   if (isError) {
     return <p className="text-muted-foreground text-xs">{t.code.sheet.responseError}</p>;
   }
-  if (isPending || !data) return <Skeleton className="h-48" />;
+  if (isPending || !data) {
+    // status e tempo da resposta sobre o bloco de código (linhas do c-skeleton-3)
+    return (
+      <div className="flex flex-col gap-2" aria-busy>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+        <div className="rounded-lg border p-4">
+          <TextSkeleton paragraphs={[4, 3]} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">
