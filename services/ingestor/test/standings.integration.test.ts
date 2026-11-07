@@ -740,4 +740,84 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
     expect(rows).toHaveLength(4);
     expect(rows.every((r) => r.source === 'computed' && r.played === 2)).toBe(true);
   });
+
+  it('grupo calculado fica nosso; os promedios do fornecedor na mesma temporada continuam entrando', async () => {
+    const s = await seedSeason('football', 'liga-com-promedios', ['T1', 'T2']);
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9858',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('T1'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98581',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('T2'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98582',
+      },
+    ]);
+    await finished('football', s.seasonId, s.team('T1'), s.team('T2'), [1, 0]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+    const [{ group }] = (await tableOf(s.seasonId)) as unknown as [{ group: string }];
+
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = (['98581', '98582'] as const).map((id) => ({
+      id,
+      kind: null,
+      name: id,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: null,
+      founded: null,
+      venueId: null,
+      logoUrl: null,
+    }));
+    const row = (g: string, id: string, i: number) => ({
+      season: { competitionId: '9858', year: 2026 },
+      group: g,
+      participantId: id,
+      rank: i + 1,
+      points: 9 - i,
+      played: 5,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      form: null,
+      description: null,
+    });
+    batch.standings = [
+      ...(['98582', '98581'] as const).map((id, i) => row(group, id, i)),
+      ...(['98581', '98582'] as const).map((id, i) => row('Promedios 2026', id, i)),
+    ];
+    await upsertBatch(db, batch);
+    const rows = await db
+      .select({ group: standing.group, played: standing.played, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId))
+      .orderBy(asc(standing.group), asc(standing.rank));
+    expect(
+      rows.filter((r) => r.group === group).every((r) => r.source === 'computed' && r.played === 1),
+    ).toBe(true);
+    expect(rows.filter((r) => r.group === 'Promedios 2026')).toEqual([
+      { group: 'Promedios 2026', played: 5, source: 'provider' },
+      { group: 'Promedios 2026', played: 5, source: 'provider' },
+    ]);
+    // os promedios frescos do fornecedor não congelam o grupo calculado
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({ outcome: 'written' });
+  });
 });

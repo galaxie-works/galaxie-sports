@@ -952,16 +952,17 @@ export async function upsertBatchInTx(
     }),
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
-  // espelho dos dados, não do formato: na temporada com tabela calculada pelo nosso regulamento, a do fornecedor
-  // fica só no raw (conferência) e não toca o core; onde ainda não calculamos, ela é a reserva e vale inteira
-  const computedSeasons = await seasonsWithComputedTable(tx, standingRows);
-  if (computedSeasons.size) {
+  // espelho dos dados, não do formato: o grupo que já tem tabela calculada pelo nosso regulamento fica com ela (a
+  // do fornecedor só no raw, para conferência); os demais grupos da temporada (promedios, tabela anual, fase nova
+  // que ainda não calculamos) são dado que não organizamos e entram como reserva, inteiros
+  const computedGroups = await groupsWithComputedTable(tx, standingRows);
+  const freshRows = standingRows.filter((r) => !computedGroups.has(`${r.seasonId}|${r.group}`));
+  if (freshRows.length < standingRows.length) {
     logger.debug(
-      { seasons: [...computedSeasons] },
-      'tabela do fornecedor ignorada no core: temporada com tabela calculada',
+      { groups: [...computedGroups] },
+      'tabela do fornecedor ignorada no core: grupo com tabela calculada',
     );
   }
-  const freshRows = standingRows.filter((r) => !computedSeasons.has(r.seasonId));
   for (const chunk of chunks(freshRows, 500)) {
     const base = replaceUpdate(
       standing,
@@ -1001,15 +1002,15 @@ export async function upsertBatchInTx(
   return stats;
 }
 
-/** Temporadas do lote que já têm tabela calculada (`source = 'computed'`) no core. */
-async function seasonsWithComputedTable(tx: Tx, rows: { seasonId: string }[]): Promise<Set<string>> {
+/** Grupos (`seasonId|group`) das temporadas do lote que já têm tabela calculada (`source = 'computed'`) no core. */
+async function groupsWithComputedTable(tx: Tx, rows: { seasonId: string }[]): Promise<Set<string>> {
   const seasonIds = [...new Set(rows.map((r) => r.seasonId))];
   if (!seasonIds.length) return new Set();
   const found = await tx
-    .selectDistinct({ seasonId: standing.seasonId })
+    .selectDistinct({ seasonId: standing.seasonId, group: standing.group })
     .from(standing)
     .where(and(inArray(standing.seasonId, seasonIds), eq(standing.source, 'computed')));
-  return new Set(found.map((r) => r.seasonId));
+  return new Set(found.map((r) => `${r.seasonId}|${r.group}`));
 }
 
 // ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────

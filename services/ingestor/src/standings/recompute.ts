@@ -219,10 +219,9 @@ export async function recomputeSeasonStandings(
     .from(event)
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
   const latestResultAt = latest?.at ? new Date(latest.at) : null;
-  // linha calculada num grupo que o fornecedor grava (o writer não rebaixa um grupo em que ela está à frente): a
-  // tabela do fornecedor está atrasada. Calculada solta num grupo que o fornecedor não publica não conta.
-  const providerGroups = new Set(providerRows.map((r) => r.group));
-  const behind = tableRows.some((r) => r.source === 'computed' && providerGroups.has(r.group));
+  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém em dia
+  // (o fornecedor fresco em outro grupo, como promedios, não pode congelar o nosso)
+  const behind = tableRows.some((r) => r.source === 'computed');
   if (providerRows.length && latestResultAt && !behind) {
     const providerAt = Math.max(...providerRows.map((r) => r.updatedAt.getTime()));
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
@@ -595,15 +594,8 @@ async function recomputeWinPct(
   const [computed] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(standing)
-    .where(
-      and(
-        eq(standing.seasonId, seasonId),
-        eq(standing.source, 'computed'),
-        sql`${standing.group} in (select s2."group" from core.standing s2
-          where s2.season_id = ${seasonId} and s2.source = 'provider')`,
-      ),
-    );
-  // linha calculada num grupo que o fornecedor grava (o writer não o rebaixa): a do fornecedor está atrasada
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'computed')));
+  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém
   if (provider?.at && latest?.at && !computed?.n && new Date(provider.at) >= new Date(latest.at)) {
     return report('provider_fresh');
   }
