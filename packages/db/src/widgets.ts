@@ -31,6 +31,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   match_card: ['core_data', 'where_to_watch'],
   match_timeline: ['core_data'],
   live_list: ['core_data'],
+  score_ticker: ['core_data'],
   standings: ['core_data'],
   where_to_watch: ['core_data', 'where_to_watch'],
   ai_context: ['core_data', 'live_intelligence'],
@@ -53,7 +54,9 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   games_schedule: ['core_data', 'multisport'],
   country_athletes: ['core_data', 'multisport'],
   medal_history: ['core_data', 'multisport'],
+  countdown: ['core_data', 'where_to_watch'],
   team_squad: ['core_data'],
+  player_profile: ['core_data'],
   // clássicos (base semântica) com o retrospecto e onde assistir de cada jogo
   upcoming_derbies: ['core_data', 'semantic', 'where_to_watch'],
 };

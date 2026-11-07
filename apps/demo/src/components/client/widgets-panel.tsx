@@ -11,7 +11,10 @@ import {
   Dna,
   Flag,
   Flame,
+  GalleryHorizontalEnd,
   History,
+  Hourglass,
+  IdCard,
   ListChecks,
   ListOrdered,
   Medal,
@@ -69,6 +72,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
   match_timeline: Activity,
   live_list: Radio,
+  score_ticker: GalleryHorizontalEnd,
   standings: Table2,
   where_to_watch: Tv,
   ai_context: Sparkles,
@@ -91,7 +95,9 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  countdown: Hourglass,
   team_squad: Shirt,
+  player_profile: IdCard,
   upcoming_derbies: Flame,
 };
 

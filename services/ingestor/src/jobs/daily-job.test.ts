@@ -325,3 +325,88 @@ describe('dailyJob: relista da temporada atual', () => {
     expect(plan.phases[3]!.steps).toEqual({});
   });
 });
+
+describe('dailyJob: números dos jogadores da temporada em jogo', () => {
+  const derbyKeys = async () => new Set<string>();
+  const pages = (h: ReturnType<typeof harness>, from = 0) =>
+    h.api.calls
+      .slice(from)
+      .filter((u) => u.pathname.endsWith('/players') && u.searchParams.has('league'))
+      .map(
+        (u) =>
+          `${u.searchParams.get('league')}:${u.searchParams.get('season')}:${u.searchParams.get('page')}`,
+      )
+      .sort();
+
+  it('pago: todas as páginas das temporadas tier 1 em jogo, de novo só depois do período do tier', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
+    const r1 = await runJob(job(), h.deps);
+    expect(r1.status).toBe('ok');
+    // Série A e Libertadores 2026 (tier 1, temporada atual), 3 páginas cada; a Série B (tier 2) fica de fora
+    expect(pages(h)).toEqual(['13:2026:1', '13:2026:2', '13:2026:3', '71:2026:1', '71:2026:2', '71:2026:3']);
+    expect(r1.phases[4]!.steps['estatisticas-jogadores']!.network).toBe(2);
+    expect(r1.phases[5]!.steps['estatisticas-jogadores']!.network).toBe(4);
+
+    const again = await planJob(job(), h.deps);
+    expect(again.phases[4]!.steps).toEqual({});
+    expect(again.phases[5]!.steps).toEqual({});
+
+    h.clock.t += 2 * DAY; // dentro do período de 3 dias do tier 1
+    let before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toEqual([]);
+
+    h.clock.t += DAY; // venceu: a passada inteira de novo
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toHaveLength(6);
+  });
+
+  it('limite do dia: a passada cortada continua no dia seguinte sem repetir a página 1', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () =>
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, { playerStats: 3 });
+    await runJob(job(), h.deps);
+    const day1 = pages(h);
+    expect(day1).toHaveLength(3);
+    expect(day1.filter((p) => p.endsWith(':1'))).toHaveLength(2);
+
+    // reexecutar no mesmo dia não passa do limite
+    let before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toEqual([]);
+
+    h.clock.t += DAY;
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    const day2 = pages(h, before);
+    expect(day2).toHaveLength(3);
+    expect(day2.some((p) => p.endsWith(':1'))).toBe(false);
+    expect([...day1, ...day2].sort()).toEqual([
+      '13:2026:1',
+      '13:2026:2',
+      '13:2026:3',
+      '71:2026:1',
+      '71:2026:2',
+      '71:2026:3',
+    ]);
+  });
+
+  it('free e --estatisticas-jogadores 0: a fase não pede nada', async () => {
+    const free = harness();
+    const p1 = await planJob(
+      dailyJob(free.catalog, free.raw, free.cursors, free.plan, () => new Date(free.clock.t), derbyKeys),
+      free.deps,
+    );
+    expect(p1.phases[4]!.steps).toEqual({});
+    const pro = harness({ plan: PRO_PLAN });
+    const p2 = await planJob(
+      dailyJob(pro.catalog, pro.raw, pro.cursors, pro.plan, () => new Date(pro.clock.t), derbyKeys, {
+        playerStats: 0,
+      }),
+      pro.deps,
+    );
+    expect(p2.phases[4]!.steps).toEqual({});
+  });
+});
