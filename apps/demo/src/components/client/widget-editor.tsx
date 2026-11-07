@@ -7,9 +7,11 @@ import {
   LiveList,
   MatchCard,
   MatchStakes,
+  MatchTimeline,
   RelatedVideos,
   StandingsTable,
   TeamSchedule,
+  TeamSquad,
   TransferMarket,
   AthleteProfile,
   FightCard,
@@ -188,6 +190,8 @@ function PreviewWidget({
             }
           />
         );
+      case 'match_timeline':
+        return <MatchTimeline {...o} {...WIDGET_CATALOG.match_timeline.exampleProps} />;
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
@@ -246,6 +250,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'team_squad':
+        return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
       case 'transfer_market':
         return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
     }
@@ -253,6 +259,8 @@ function PreviewWidget({
   switch (kind) {
     case 'match_card':
       return <MatchCard {...o} eventId={entity.id} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={entity.id} />;
     case 'where_to_watch':
       return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':
@@ -281,6 +289,8 @@ function PreviewWidget({
       return <SeasonCalendar {...o} competitionId={entity.id} />;
     case 'athlete_profile':
       return <AthleteProfile {...o} teamId={entity.id} />;
+    case 'team_squad':
+      return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
     case 'transfer_market':
