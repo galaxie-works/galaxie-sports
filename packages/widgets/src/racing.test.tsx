@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { WIDGET_CATALOG } from './catalog.js';
 import { DEFAULT_THEMES } from './core/model.js';
@@ -114,6 +114,11 @@ describe('MMA', () => {
   });
 
   it('próximos eventos: os cards que vêm pela frente', async () => {
+    // relógio fixo ao meio-dia UTC: entre 0h e 3h UTC o card de "ontem" (fuso UTC) ainda é "hoje" no
+    // fuso de São Paulo e entrava na janela dos próximos eventos
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-06T12:00:00Z'));
+    onTestFinished(() => void vi.useRealTimers());
     const { container } = setup(<SeasonCalendar competitionId={PREVIEW_IDS.fightCompetition} />);
     expect(await screen.findByText('Liga Exemplo 51')).toBeTruthy();
     expect(container.querySelectorAll('.gs-fixture')).toHaveLength(3);
