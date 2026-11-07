@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { SettingsNav } from '@/components/admin/settings-nav';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
 import { LineupAdminTabs, LineupReview, type ReviewRow } from '@/components/lineup/admin-review';
 import { LineupRequests } from '@/components/lineup/admin-requests';
 import { LineupTenants } from '@/components/lineup/admin-tenants';
-import { Skeleton } from '@/components/ui/skeleton';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { readAllLineups, readPlanLibrary, readRequestQueue, readTenantOperators } from '@/lib/lineup/server';
@@ -102,7 +103,13 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
         <SettingsNav active="lineup" />
         <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
-        <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
+        <Suspense
+          fallback={
+            <LoadingStatus>
+              <ToolbarTableSkeleton toolbar="tabs" />
+            </LoadingStatus>
+          }
+        >
           <Content searchParams={searchParams} />
         </Suspense>
       </div>

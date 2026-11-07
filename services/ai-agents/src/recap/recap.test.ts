@@ -192,6 +192,15 @@ describe('resumo determinístico', () => {
     ]);
   });
 
+  it('en (a tela em inglês recebe inglês, não espanhol)', () => {
+    expect(recapFallback(core, facts, 'en')).toEqual([
+      'Full time: Palmeiras 4-1 Corinthians',
+      "Palmeiras goals: Atacante A (12' and 90+4'), Zagueiro B (own goal, 45+2') and Meia A (penalty, 77')",
+      "Corinthians goal: Reserva B (81')",
+      "Missed penalty: Atacante B (Corinthians, 58')",
+    ]);
+  });
+
   it.each(AGENT_LOCALES)('passa nos guardrails (%s)', (locale: AgentLocale) => {
     const text = joinSentences(recapFallback(core, facts, locale));
     expect(
@@ -306,6 +315,9 @@ describe('mata-mata: agregado, quem passou e para onde', () => {
     ]);
     expect(recapFallback(semi, facts, 'es-AR')[0]).toBe(
       'Palmeiras se clasificó a la final; la serie quedó 2-2 en el global y se definió por penales',
+    );
+    expect(recapFallback(semi, facts, 'en')[0]).toBe(
+      'Palmeiras advances to the final; the aggregate finished 2-2 and the tie was decided on penalties',
     );
   });
 

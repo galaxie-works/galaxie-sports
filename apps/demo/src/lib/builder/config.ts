@@ -51,9 +51,11 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -104,9 +106,11 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  competition_leaders: ['competition'],
   countdown: ['event'],
   team_squad: ['team'],
   player_profile: ['person'],
+  lineups: ['event'],
 };
 
 /**
@@ -142,9 +146,11 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  competition_leaders: 'competition',
   countdown: 'event',
   team_squad: 'team',
   player_profile: 'person',
+  lineups: 'event',
 };
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -181,10 +187,11 @@ export const MAX_ORIGINS = 20;
 /** Variável de ambiente da chave publicável no app da operadora (o registry pede para criá-la). */
 export { PUBLISHABLE_KEY_ENV } from '@galaxie/widgets/registry';
 
-const HEX = /^#[0-9a-f]{6}$/i;
+/** `#rrggbb` ou, com transparência, `#rrggbbaa`. */
+const HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i;
 const COLOR_KEYS = ['primary', 'background', 'surface', 'foreground', 'mutedForeground', 'border'] as const;
 
-/** Tema válido ou null (cores `#rrggbb`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
+/** Tema válido ou null (cores `#rrggbb` ou `#rrggbbaa`, raio 0–24, fonte da lista, densidade e modo conhecidos). */
 export function parseTheme(raw: unknown): WidgetTheme | null {
   if (!raw || typeof raw !== 'object') return null;
   const t = raw as Record<string, unknown>;
@@ -369,7 +376,7 @@ export function parseWidgetInput(
         locale: c.locale,
         market,
         defaults,
-        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`)
+        // legenda e cores das zonas: só na tabela, e só o que for válido (faixa conhecida, `#rrggbb`/`#rrggbbaa`)
         ...(r.kind === 'standings' ? optional('standings', parseStandingsOptions(c.standings)) : {}),
         // modo, agrupamento, atualização e dados extras: só na lista de jogos, e só chaves conhecidas
         ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),
@@ -462,9 +469,11 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  competition_leaders: 'GalaxieCompetitionLeaders',
   countdown: 'GalaxieCountdown',
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
+  lineups: 'GalaxieLineups',
 };
 
 /**

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { CardGridSkeleton, FramePanelSkeleton } from '@/components/app-shell/skeletons';
 import { BrandThemesPanel } from '@/components/client/brand-themes-panel';
 import { ClientArea } from '@/components/client/client-area';
-import { Skeleton } from '@/components/ui/skeleton';
 import { brandThemeItems } from '@/lib/builder/editor';
 import { getT } from '@/lib/i18n/server';
 
@@ -31,7 +32,15 @@ export default async function ClientThemesPage() {
         parents={[{ path: '/cliente', label: t.client.title, kind: 'cliente' }]}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense
+          fallback={
+            <LoadingStatus>
+              <FramePanelSkeleton action>
+                <CardGridSkeleton bare count={3} media="h-16" footer={false} />
+              </FramePanelSkeleton>
+            </LoadingStatus>
+          }
+        >
           <Themes />
         </Suspense>
       </div>

@@ -15,7 +15,7 @@ import {
   type AgentRunReport,
 } from '../context/run.js';
 import {
-  factsHash,
+  localeFactsHashes,
   latestContents,
   latestFactsHashes,
   newRunInfo,
@@ -138,7 +138,9 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         continue;
       }
       item.summary = `${facts.final_score.home}-${facts.final_score.away}`;
-      const hash = factsHash(facts, RECAP_PROMPT_VERSION);
+      const hashes = localeFactsHashes(facts, RECAP_PROMPT_VERSION);
+      // só os locales cujos fatos mudaram (ou que faltam, como o `en` na chegada do inglês)
+      let pending: readonly AgentLocale[] = locales;
       if (!opts.force) {
         const llm = usesLlm(priority) ? opts.llm : null;
         const previous = await latestFactsHashes(db, id, 'recap', {
@@ -147,7 +149,8 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
           // determinístico por orçamento: tenta de novo no mesmo dia se a faixa tiver saldo agora
           ...(llm?.hasRoom ? { hasRoom: (need) => llm.hasRoom!('context', competitionRef, need) } : {}),
         });
-        if (locales.every((l) => previous.get(l) === hash)) {
+        pending = locales.filter((l) => !hashes.isFresh(l, previous.get(l)));
+        if (!pending.length) {
           item.reason = 'fatos inalterados desde a última geração';
           continue;
         }
@@ -157,7 +160,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         continue;
       }
       const written = await writeLocalizedTexts({
-        locales,
+        locales: pending,
         system: recapSystemPrompt(),
         userPrompt: (ls) => recapUserPrompt(facts, ls),
         factsFor: (l) => recapFactSheet(core, facts, l),
@@ -173,7 +176,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       });
       // a recusa do orçamento nunca troca o texto do LLM com os mesmos fatos pelo determinístico
       const texts = written.budgetSkipped
-        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'recap'), hash)
+        ? withoutBudgetDowngrade(written.texts, await latestContents(db, id, 'recap'), hashes.isFresh)
         : written.texts;
       if (!texts.length) {
         item.reason = 'orçamento de IA recusou; fica o texto do LLM com os mesmos fatos';
@@ -186,7 +189,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         kind: 'recap',
         texts,
         ...(written.budgetRefusal ? { budgetRefusal: written.budgetRefusal } : {}),
-        factsHash: hash,
+        factsHash: hashes.hashOf,
         sources: [
           { kind: 'core', ref: `core.event:${id}` },
           { kind: 'core', ref: `core.event_incident:${id}` },

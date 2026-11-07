@@ -65,7 +65,7 @@ lê a configuração salva no Builder em `/e/<id>.json` (tema, idioma, mercado, 
 ```html
 <script src="https://sports.galaxie.works/embed.js" async></script>
 <galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
-<!-- opcionais: event-id, competition-id, team-id, locale, market -->
+<!-- opcionais: event-id, competition-id, team-id, person-id (Ficha do jogador), locale, market -->
 ```
 
 - O widget desenha num Shadow DOM: o CSS do tema do site não entra e o do widget não sai.

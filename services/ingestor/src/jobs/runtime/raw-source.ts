@@ -51,6 +51,15 @@ export interface RawSource {
   fixtureRows?(query: RawQuery): AsyncIterable<RawFixtureRow>;
   /** Última entrega de sucesso por request hash (para o `--plan`: cache × rede). */
   lastFetched(hashes: string[]): Promise<Map<string, Date>>;
+  /**
+   * `paging` da resposta de sucesso mais recente de cada request hash (sem o corpo): pelo índice
+   * (provider, sport, endpoint, request_hash), sem varrer o endpoint inteiro.
+   */
+  latestPaging(
+    sport: string,
+    endpoint: string,
+    hashes: string[],
+  ): Promise<Map<string, { current: number; total: number } | null>>;
 }
 
 function isSuccess(r: Pick<RawRecord, 'statusCode' | 'errors'>): boolean {
@@ -102,6 +111,25 @@ export class InMemoryRawSource implements RawSource {
       const prev = out.get(r.requestHash);
       if (!prev || prev < seenAt(r)) out.set(r.requestHash, seenAt(r));
     }
+    return out;
+  }
+
+  async latestPaging(
+    sport: string,
+    endpoint: string,
+    hashes: string[],
+  ): Promise<Map<string, { current: number; total: number } | null>> {
+    const wanted = new Set(hashes);
+    const latest = new Map<string, RawRecord>();
+    for (const r of this.records) {
+      if (r.sport !== sport || r.endpoint !== endpoint || !wanted.has(r.requestHash) || !isSuccess(r))
+        continue;
+      const prev = latest.get(r.requestHash);
+      if (!prev || prev.fetchedAt <= r.fetchedAt) latest.set(r.requestHash, r);
+    }
+    const out = new Map<string, { current: number; total: number } | null>();
+    for (const [hash, r] of latest)
+      out.set(hash, (r.body as { paging?: { current: number; total: number } }).paging ?? null);
     return out;
   }
 }
@@ -256,6 +284,29 @@ export class PgRawSource implements RawSource {
         [chunk] as never[],
       )) as unknown as { request_hash: string; fetched_ms: number }[];
       for (const r of rows) out.set(r.request_hash, new Date(r.fetched_ms));
+    }
+    return out;
+  }
+
+  async latestPaging(
+    sport: string,
+    endpoint: string,
+    hashes: string[],
+  ): Promise<Map<string, { current: number; total: number } | null>> {
+    const out = new Map<string, { current: number; total: number } | null>();
+    const unique = [...new Set(hashes)];
+    for (let i = 0; i < unique.length; i += 5000) {
+      const rows = (await this.db.$client.unsafe(
+        `select distinct on (request_hash) request_hash, body->'paging' as paging
+           from raw.api_response
+          where provider = 'api-sports' and sport = $1 and endpoint = $2
+            and request_hash = any($3::text[])
+            and status_code between 200 and 299
+            and (errors is null or errors in ('[]'::jsonb, '{}'::jsonb))
+          order by request_hash, fetched_at desc`,
+        [sport, endpoint, unique.slice(i, i + 5000)] as never[],
+      )) as unknown as { request_hash: string; paging: { current: number; total: number } | null }[];
+      for (const r of rows) out.set(r.request_hash, r.paging);
     }
     return out;
   }

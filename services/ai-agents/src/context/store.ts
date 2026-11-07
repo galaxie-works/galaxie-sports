@@ -7,7 +7,7 @@ import {
   type EventContextRow,
 } from '@galaxie/db';
 import { UTC_BUDGET_DAY, budgetDayOf, type BudgetDay } from '@galaxie/runtime-config';
-import { surfaceFit, type Surface } from '../guardrails/index.js';
+import { AGENT_LOCALES, surfaceFit, type Surface } from '../guardrails/index.js';
 import type { BudgetNeed, LlmUsage } from '../llm/types.js';
 import { confidenceOf, type LocaleText } from './writer.js';
 
@@ -81,6 +81,51 @@ export function factsHash(facts: unknown, version: string): string {
     .slice(0, 32);
 }
 
+const LOCALE_KEYS: ReadonlySet<string> = new Set(AGENT_LOCALES);
+/** Locales de antes do inglês: hash das gerações gravadas até o PR #864 (um hash para os 8 juntos). */
+const LEGACY_LOCALES: readonly string[] = AGENT_LOCALES.filter((l) => l !== 'en');
+
+/**
+ * Os fatos só com os locales pedidos: todo objeto cujas chaves são todas locales (`{ "pt-BR": …, "es-AR": … }`)
+ * fica só com esses. O resto (placar, stakes, tabela) não muda.
+ */
+export function factsForLocales(facts: unknown, keep: readonly string[]): unknown {
+  if (Array.isArray(facts)) return facts.map((v) => factsForLocales(v, keep));
+  if (facts && typeof facts === 'object') {
+    const entries = Object.entries(facts as Record<string, unknown>);
+    const byLocale = entries.length > 0 && entries.every(([k]) => LOCALE_KEYS.has(k));
+    return Object.fromEntries(
+      entries
+        .filter(([k]) => !byLocale || keep.includes(k))
+        .map(([k, v]) => [k, byLocale ? v : factsForLocales(v, keep)]),
+    );
+  }
+  return facts;
+}
+
+/**
+ * Hash dos fatos por locale: o que muda só em um idioma (um rótulo, ou um locale novo como o `en`) não
+ * regera os outros. `isFresh` também aceita o hash único dos 8 mercados gravado antes do hash por locale,
+ * para que a chegada do inglês gere só o inglês.
+ */
+export function localeFactsHashes(facts: unknown, version: string) {
+  const cache = new Map<string, string>();
+  let legacy: string | undefined;
+  const hashOf = (locale: string): string => {
+    let h = cache.get(locale);
+    if (!h) cache.set(locale, (h = factsHash(factsForLocales(facts, [locale]), version)));
+    return h;
+  };
+  const isFresh = (locale: string, previous: string | undefined): boolean => {
+    if (!previous) return false;
+    if (previous === hashOf(locale)) return true;
+    if (!LEGACY_LOCALES.includes(locale)) return false;
+    legacy ??= factsHash(factsForLocales(facts, LEGACY_LOCALES), version);
+    return previous === legacy;
+  };
+  return { hashOf, isFresh };
+}
+
 export function newRunInfo(partial: Omit<ContextRunInfo, 'id'>): ContextRunInfo {
   return { id: randomUUID(), ...partial };
 }
@@ -89,7 +134,8 @@ export interface SaveContextInput {
   eventId: string;
   kind: ContextKind;
   texts: readonly LocaleText[];
-  factsHash: string;
+  /** Hash dos fatos: um só, ou um por locale (`localeFactsHashes().hashOf`). */
+  factsHash: string | ((locale: string) => string);
   sources: readonly ContextSource[];
   run: ContextRunInfo;
   data: Record<string, unknown>;
@@ -112,7 +158,7 @@ export async function saveEventContexts(db: Database, input: SaveContextInput): 
         attempt: r.attempt,
         violations: r.violations.map((v) => ({ kind: v.kind, value: v.value })),
       })),
-      factsHash: input.factsHash,
+      factsHash: typeof input.factsHash === 'string' ? input.factsHash : input.factsHash(t.locale),
       generatedAt: generatedAt.toISOString(),
       fits: surfaceFit(t.text),
       run: input.run,
@@ -233,12 +279,15 @@ export async function latestFactsHashes(
 export function withoutBudgetDowngrade<T extends Pick<LocaleText, 'locale' | 'origin' | 'fallbackReason'>>(
   texts: readonly T[],
   previous: ReadonlyMap<string, Pick<StoredContextContent, 'origin' | 'factsHash'>>,
-  factsHash: string,
+  /** Hash único, ou se o hash gravado ainda vale para o locale (`localeFactsHashes().isFresh`). */
+  factsHash: string | ((locale: string, previous: string) => boolean),
 ): T[] {
+  const same = (locale: string, prev: string) =>
+    typeof factsHash === 'string' ? prev === factsHash : factsHash(locale, prev);
   return texts.filter((t) => {
     if (t.origin !== 'fallback' || t.fallbackReason !== 'budget') return true;
     const prev = previous.get(t.locale);
-    return !(prev && prev.origin === 'llm' && prev.factsHash === factsHash);
+    return !(prev && prev.origin === 'llm' && same(t.locale, prev.factsHash));
   });
 }
 

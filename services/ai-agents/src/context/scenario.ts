@@ -12,7 +12,7 @@ import {
 import {
   FactSheetBuilder,
   guardrailSystemRules,
-  languageOf,
+  inLanguage,
   type AgentLocale,
   type FactSheet,
 } from '../guardrails/index.js';
@@ -295,16 +295,24 @@ export function scenarioFactSheet(
 const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice(1) : s);
 
 /** Frase de abertura da final: quem vencer é campeão (nada de "avançar"). */
-function finalLead(ko: NonNullable<ScenarioFacts['knockout']>, pt: boolean): string {
+function finalLead(ko: NonNullable<ScenarioFacts['knockout']>, locale: AgentLocale): string {
   if (ko.legs === 2 && ko.leg === 1)
-    return pt
-      ? 'Jogo de ida da final: o título se decide na volta'
-      : 'Ida de la final: el título se define en la vuelta';
+    return inLanguage(locale, {
+      pt: 'Jogo de ida da final: o título se decide na volta',
+      es: 'Ida de la final: el título se define en la vuelta',
+      en: 'First leg of the final: the title is decided in the second leg',
+    });
   if (ko.legs === 2)
-    return pt
-      ? 'Jogo de volta da final: quem levar o confronto é campeão'
-      : 'Vuelta de la final: el que gane la serie es campeón';
-  return pt ? 'Final em jogo único: quem vencer é campeão' : 'Final a partido único: el que gane es campeón';
+    return inLanguage(locale, {
+      pt: 'Jogo de volta da final: quem levar o confronto é campeão',
+      es: 'Vuelta de la final: el que gane la serie es campeón',
+      en: 'Second leg of the final: whoever wins the tie takes the title',
+    });
+  return inLanguage(locale, {
+    pt: 'Final em jogo único: quem vencer é campeão',
+    es: 'Final a partido único: el que gane es campeón',
+    en: 'One-match final: the winner takes the title',
+  });
 }
 
 /** Texto determinístico da final: abertura, títulos buscados e o que acontece com cada resultado. */
@@ -314,12 +322,15 @@ function finalFallback(
   stakes: readonly Stake[],
   locale: AgentLocale,
 ): string[] {
-  const pt = languageOf(locale) === 'pt';
   const name = (team: 'home' | 'away') => teamName(team === 'home' ? core.home : core.away, locale);
   const chase = (['home', 'away'] as const).flatMap((team) =>
     stakes
       .filter((s) => s.team === team && s.family === 'seeks_title_n')
-      .map((s) => `${name(team)} ${lowerFirst(stakeText(s, locale))}`),
+      // en: o rótulo é "Chasing a 4th title" → "Palmeiras is chasing a 4th title"
+      .map(
+        (s) =>
+          `${name(team)} ${inLanguage(locale, { pt: '', es: '', en: 'is ' })}${lowerFirst(stakeText(s, locale))}`,
+      ),
   );
   // no jogo único, "vitória no tempo normal dá o título" para os dois já está na abertura
   const covered = new Set<string>(['seeks_title_n', ...(ko.legs === 1 ? ['needs_win_for_title'] : [])]);
@@ -333,7 +344,7 @@ function finalFallback(
     .filter((s) => s.team === 'both' && s.family !== 'decides_title')
     .map((s, i) => (i ? lowerFirst(stakeText(s, locale)) : stakeText(s, locale)));
   return [
-    finalLead(ko, pt),
+    finalLead(ko, locale),
     chase.length ? chase.join('; ') : null,
     side('home'),
     side('away'),
@@ -351,7 +362,6 @@ export function scenarioFallback(
   locale: AgentLocale,
 ): string[] {
   if (facts.knockout?.decides_title) return finalFallback(core, facts.knockout, stakes, locale);
-  const pt = languageOf(locale) === 'pt';
   const side = (team: 'home' | 'away') => {
     const labels = stakes.filter((s) => s.team === team).map((s) => stakeText(s, locale));
     if (!labels.length) return null;
@@ -365,9 +375,11 @@ export function scenarioFallback(
   const fl = facts.knockout?.first_leg;
   if (fl && sentences.length < 3) {
     sentences.unshift(
-      pt
-        ? `Jogo de ida: ${fl.home} ${fl.home_goals} x ${fl.away_goals} ${fl.away}`
-        : `Partido de ida: ${fl.home} ${fl.home_goals}-${fl.away_goals} ${fl.away}`,
+      inLanguage(locale, {
+        pt: `Jogo de ida: ${fl.home} ${fl.home_goals} x ${fl.away_goals} ${fl.away}`,
+        es: `Partido de ida: ${fl.home} ${fl.home_goals}-${fl.away_goals} ${fl.away}`,
+        en: `First leg: ${fl.home} ${fl.home_goals}-${fl.away_goals} ${fl.away}`,
+      }),
     );
   }
   return sentences.slice(0, 3);
@@ -380,11 +392,12 @@ const REGIONAL_HINTS = [
   'es-MX: tiempos extra, penales, jornada.',
   'es-CO, es-EC: tiempo extra, penales, fecha.',
   'es-PE: tiempo suplementario, penales, fecha.',
+  'en: inglês americano (US English): extra time, penalties, matchday; placar "2-1" (nunca "2 to 1").',
 ].join(' ');
 
 export function scenarioSystemPrompt(): string {
   return [
-    'Você é redator esportivo de uma API de dados esportivos para a América Latina.',
+    'Você é redator esportivo de uma API de dados esportivos para a América Latina e os Estados Unidos.',
     'Tarefa: escrever o CENÁRIO PRÉ-JOGO — o que está em jogo para cada time — a partir dos fatos (JSON).',
     'Os stakes são calculados pelo motor de regras e dizem exatamente o que cada resultado provoca. Seu',
     'trabalho é entender a estrutura do jogo pelos fatos e contá-la de forma natural, correta e rica.',
@@ -410,6 +423,7 @@ export function scenarioSystemPrompt(): string {
     '  edições vencidas; `last_final_between` = a última final entre os dois nesta competição (legs = 2: ida e',
     '  volta, e o placar é o agregado dos dois jogos).',
     '  Use esses fatos para enriquecer o texto ("busca o tetra"), sempre ligados à competição dos fatos.',
+    '  Em inglês (en) não há bi/tri/tetra: use o ordinal com algarismos ("chasing a 4th Libertadores title").',
     '',
     'Regras:',
     guardrailSystemRules(),

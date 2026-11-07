@@ -10,10 +10,12 @@ import {
   ClipboardList,
   Dna,
   Flag,
+  Goal,
   GalleryHorizontalEnd,
   History,
   Hourglass,
   IdCard,
+  LayoutGrid,
   ListChecks,
   ListOrdered,
   Medal,
@@ -96,9 +98,11 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  competition_leaders: Goal,
   countdown: Hourglass,
   team_squad: Shirt,
   player_profile: IdCard,
+  lineups: LayoutGrid,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

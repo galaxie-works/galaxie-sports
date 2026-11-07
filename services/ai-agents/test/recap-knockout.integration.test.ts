@@ -37,7 +37,7 @@ function secondLegFixture() {
   return f;
 }
 
-const GOOD: Record<'pt' | 'es', string[]> = {
+const GOOD: Record<'pt' | 'es' | 'en', string[]> = {
   pt: [
     'O Palmeiras se classificou para a final: o agregado ficou 2 a 2 e venceu nos pênaltis por 5 a 3.',
     'No Nubank Parque, perdeu por 0 a 1 para o Fluminense; na ida, tinha vencido por 2 a 1.',
@@ -45,6 +45,10 @@ const GOOD: Record<'pt' | 'es', string[]> = {
   es: [
     'Palmeiras se clasificó a la final: la serie quedó 2-2 en el global y ganó 5-3 en los penales.',
     'En el Nubank Parque perdió 0-1 ante Fluminense.',
+  ],
+  en: [
+    'Palmeiras advanced to the final: the aggregate finished 2-2 and they won 5-3 on penalties.',
+    'At Nubank Parque, they lost 0-1 to Fluminense.',
   ],
 };
 
