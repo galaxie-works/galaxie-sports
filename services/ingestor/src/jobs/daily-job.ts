@@ -46,14 +46,25 @@ export const OTHER_SPORTS_SCHEDULE: Record<Exclude<ApiSport, 'football'>, string
   volleyball: '/games',
 };
 
-/** Período do rodízio por endpoint: o cursor mais antigo que isso volta para a fila. */
+/**
+ * Período do rodízio por endpoint: o cursor mais antigo que isso volta para a fila. `/sidelined` a cada 2 dias (o
+ * histórico de lesões é o que diz se o desfalque ainda vale; decisão do dono em 07/11) e `/transfers` a cada 7
+ * (janela de transferências muda o elenco de uma semana para a outra).
+ */
 export const ROTATION_PERIOD_DAYS: Record<string, number> = {
   '/players/squads': 7,
   '/coachs': 30,
-  '/transfers': 30,
+  '/transfers': 7,
   '/trophies': 30,
-  '/sidelined': 30,
+  '/sidelined': 2,
 };
+
+/**
+ * Chamadas do rodízio de pessoas tier 1 por dia nos planos pagos. Regime (cerca de 850 times e 25 mil pessoas
+ * tier 1, lotes de 20): elencos 850/7 ≈ 120, transferências 850/7 ≈ 120, técnicos 850/30 ≈ 30, títulos
+ * 1.300/30 ≈ 45, afastamentos 1.300/2 ≈ 650; ≈ 965/dia. A folga cobre a primeira passada e elenco novo.
+ */
+export const PAID_ROTATION_LIMIT = 1500;
 
 /**
  * Período da relista da temporada atual (`fixtures?league&season`) por tier: tier 1 a cada 2 dias (remarcação e
@@ -70,7 +81,7 @@ export interface DailyOptions {
   maxDetails?: number | undefined;
   /** Dias para trás varridos em busca de encerrados sem detalhe (padrão 3: D-1, D-2, D-3). */
   backlogDays?: number | undefined;
-  /** Chamadas do rodízio de entidades por dia (padrão: 5 no free, 200 nos pagos). */
+  /** Chamadas do rodízio de entidades por dia (padrão: 5 no free, PAID_ROTATION_LIMIT nos pagos). */
   rotation?: number | undefined;
   /** Também busca injuries?date=D+1. */
   injuriesTomorrow?: boolean | undefined;
@@ -179,6 +190,12 @@ export async function buildRotationRequests(
   now: Date,
   limit: number,
   periodDays: (item: PlannedRequest) => number = (item) => ROTATION_PERIOD_DAYS[item.endpoint] ?? 30,
+  /**
+   * Fatia justa: com a chave (o endpoint, no rodízio de pessoas), o orçamento vai em revezamento entre as chaves,
+   * cada uma na sua ordem de idade. Sem isso o endpoint que vem primeiro na lista leva o dia inteiro enquanto
+   * tiver item nunca buscado (o `/trophies` de 25 mil pessoas deixava o `/sidelined` sem nenhuma busca).
+   */
+  shareBy?: (item: PlannedRequest) => string,
 ): Promise<PlannedRequest[]> {
   const states = await cursors.load(candidates.flatMap((c) => c.cursors));
   const today = startOfUtcDay(now).getTime();
@@ -195,11 +212,35 @@ export async function buildRotationRequests(
   }
   limit = Math.max(0, limit - renewedToday);
   // estável: em empate, mantém a ordem de prioridade dos candidatos (squads tier 1 primeiro)
-  return aged
+  const sorted = aged
     .map((a, i) => ({ ...a, i }))
     .sort((a, b) => a.age - b.age || a.i - b.i)
-    .slice(0, limit)
     .map((a) => a.item);
+  return shareBy ? roundRobin(sorted, shareBy, limit) : sorted.slice(0, limit);
+}
+
+/** Revezamento entre as chaves (na ordem da 1ª aparição), cada uma na ordem dada, até o limite. */
+export function roundRobin<T>(items: T[], key: (item: T) => string, limit: number): T[] {
+  const queues = new Map<string, T[]>();
+  for (const item of items) {
+    const k = key(item);
+    const q = queues.get(k);
+    if (q) q.push(item);
+    else queues.set(k, [item]);
+  }
+  const lists = [...queues.values()];
+  const out: T[] = [];
+  for (let round = 0; out.length < limit; round += 1) {
+    let any = false;
+    for (const q of lists) {
+      if (round >= q.length) continue;
+      any = true;
+      out.push(q[round]!);
+      if (out.length >= limit) break;
+    }
+    if (!any) break;
+  }
+  return out;
 }
 
 export const SEASON_LIST_STEP = 'temporada-atual';
@@ -533,7 +574,14 @@ export function dailyJob(
               ),
             );
           }
-          return buildRotationRequests(candidates, cursors, now(), opts.rotation ?? (isPaid(plan) ? 200 : 5));
+          return buildRotationRequests(
+            candidates,
+            cursors,
+            now(),
+            opts.rotation ?? (isPaid(plan) ? PAID_ROTATION_LIMIT : 5),
+            undefined,
+            (item) => item.endpoint,
+          );
         },
       },
       {
