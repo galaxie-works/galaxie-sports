@@ -35,7 +35,12 @@ export function sniffImage(bytes: Uint8Array): FeedbackImageType | null {
 /** Tipo aceito no seletor de arquivo (o navegador filtra; o servidor confere pelo conteúdo). */
 export const FEEDBACK_ACCEPT = 'image/png,image/jpeg,.png,.jpg,.jpeg';
 
-export const isAcceptedImageType = (type: string) => type === 'image/png' || type === 'image/jpeg';
+/**
+ * O navegador aceita o arquivo? Pelo tipo MIME; sem tipo (o sistema não conhece a extensão), pela extensão. O
+ * servidor confere de novo pelo conteúdo.
+ */
+export const isAcceptedImageType = (type: string, name = '') =>
+  type === 'image/png' || type === 'image/jpeg' || (type === '' && /\.(png|jpe?g)$/i.test(name));
 
 /** Primeiros caracteres da mensagem para o título da issue (uma linha, sem espaços repetidos). */
 export function titleSnippet(message: string, max = 50): string {

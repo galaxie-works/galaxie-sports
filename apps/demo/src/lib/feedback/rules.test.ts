@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FeedbackLimiter } from './limiter';
-import { checkFeedbackText, sniffImage, titleSnippet } from './rules';
+import { checkFeedbackText, isAcceptedImageType, sniffImage, titleSnippet } from './rules';
 
 describe('título', () => {
   it('primeiros 50 caracteres numa linha, com reticências quando corta', () => {
@@ -46,5 +46,16 @@ describe('teto do dia para todos', () => {
     expect(l.take('b', 1)).toBe(true);
     expect(l.take('c', 2)).toBe(false);
     expect(l.take('c', 10_001)).toBe(true);
+  });
+});
+
+describe('tipo no navegador', () => {
+  it('aceita pelo MIME e, sem MIME, pela extensão', () => {
+    expect(isAcceptedImageType('image/png', 'a.png')).toBe(true);
+    expect(isAcceptedImageType('image/jpeg')).toBe(true);
+    expect(isAcceptedImageType('', 'Print.JPEG')).toBe(true);
+    expect(isAcceptedImageType('', 'foto.jpg')).toBe(true);
+    expect(isAcceptedImageType('', 'arquivo.gif')).toBe(false);
+    expect(isAcceptedImageType('image/gif', 'disfarce.png')).toBe(false);
   });
 });

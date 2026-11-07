@@ -95,7 +95,7 @@ function FeedbackButtonInner({ className }: { className?: string }) {
   const addFiles = (list: FileList | null) => {
     if (!list?.length) return;
     const picked = Array.from(list);
-    const wrong = picked.find((f) => !isAcceptedImageType(f.type));
+    const wrong = picked.find((f) => !isAcceptedImageType(f.type, f.name));
     if (wrong) return setError({ code: 'fileType', file: wrong.name });
     if (files.length + picked.length > FEEDBACK_MAX_FILES) return setError({ code: 'tooMany' });
     const total = [...files.map((f) => f.file), ...picked].reduce((sum, f) => sum + f.size, 0);
