@@ -112,16 +112,24 @@ async function seed() {
       { seasonId: s23!.id, kind: 'final', name: { 'pt-BR': 'Final' }, providerLabel: 'Final' },
     ])
     .returning();
-  const game = async (seasonId: string, stageId: string, home: string, away: string, day: number) => {
+  const game = async (
+    seasonId: string,
+    stageId: string | null,
+    home: string,
+    away: string,
+    day: number,
+    comp = 'copa-exemplo',
+    status: 'finished' | 'scheduled' = 'finished',
+  ) => {
     const at = new Date(Date.UTC(2024, 10, day, 21));
     const [e] = await db
       .insert(event)
       .values({
         sport: 'football',
-        competitionId: ids['copa-exemplo']!,
+        competitionId: ids[comp]!,
         seasonId,
         stageId,
-        status: 'finished',
+        status,
         startsAt: at,
         endsAtExpected: new Date(at.getTime() + 2 * 3600_000),
       })
@@ -135,16 +143,24 @@ async function seed() {
   await game(s24!.id, f24!.id, 'Aurora', 'Cometa', 27);
   await game(s23!.id, f23!.id, 'Brisa', 'Cometa', 20);
 
-  // Liga 2024: tabela única com Aurora em 1º e Brisa em 2º
-  const [l24] = await db
+  // Liga 2024: tabela única encerrada com Aurora em 1º e Brisa em 2º. Liga 2023: Brisa em 1º, mas com jogo
+  // ainda marcado (a tabela não é final, então não há vice)
+  const [l24, l23] = await db
     .insert(season)
-    .values({ competitionId: ids['liga-exemplo']!, label: '2024', year: 2024 })
+    .values([
+      { competitionId: ids['liga-exemplo']!, label: '2024', year: 2024 },
+      { competitionId: ids['liga-exemplo']!, label: '2023', year: 2023 },
+    ])
     .returning();
   await db.insert(standing).values([
     { seasonId: l24!.id, participantId: ids.Aurora!, rank: 1, points: 80 },
     { seasonId: l24!.id, participantId: ids.Brisa!, rank: 2, points: 75 },
     { seasonId: l24!.id, participantId: ids.Cometa!, rank: 3, points: 60 },
+    { seasonId: l23!.id, participantId: ids.Brisa!, rank: 1, points: 70 },
+    { seasonId: l23!.id, participantId: ids.Cometa!, rank: 2, points: 65 },
   ]);
+  await game(l24!.id, null, 'Aurora', 'Brisa', 10, 'liga-exemplo');
+  await game(l23!.id, null, 'Brisa', 'Cometa', 10, 'liga-exemplo', 'scheduled');
 }
 
 beforeAll(async () => {
@@ -224,7 +240,7 @@ describe('GET /v1/competitions/{id}/champions', () => {
     expect(body.ranking[0]!.titles).toBe(2);
   });
 
-  it('na liga, o vice é o 2º da tabela; com lacuna na lista, o ranking não sai', async () => {
+  it('na liga, o vice é o 2º da tabela encerrada (com jogo em aberto, não); com lacuna na lista, o ranking não sai', async () => {
     const body = (
       await get('/v1/competitions/liga-exemplo/champions?runner_up=true')
     ).json<CompetitionChampions>();

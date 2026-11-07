@@ -79,11 +79,19 @@ describe('runnerUpOf', () => {
     expect(runnerUpOf('pal', { participants: ['pal', 'fla', 'sao'] }, undefined)).toBeNull();
   });
 
-  it('sem final, o 2º da tabela única quando o 1º é o campeão', () => {
-    expect(runnerUpOf('pal', undefined, { groups: 1, first: 'pal', second: 'fla' })).toBe('fla');
-    expect(runnerUpOf('pal', undefined, { groups: 1, first: 'fla', second: 'pal' })).toBeNull();
-    expect(runnerUpOf('pal', undefined, { groups: 2, first: 'pal', second: 'fla' })).toBeNull();
-    expect(runnerUpOf(null, undefined, { groups: 1, first: 'pal', second: 'fla' })).toBeNull();
+  it('sem final, o 2º da tabela única quando o 1º é o campeão e a tabela é final', () => {
+    const lg = (first: string, second: string, groups = 1, settled = true) => ({
+      groups,
+      first,
+      second,
+      settled,
+    });
+    expect(runnerUpOf('pal', undefined, lg('pal', 'fla'))).toBe('fla');
+    expect(runnerUpOf('pal', undefined, lg('fla', 'pal'))).toBeNull();
+    expect(runnerUpOf('pal', undefined, lg('pal', 'fla', 2))).toBeNull();
+    expect(runnerUpOf(null, undefined, lg('pal', 'fla'))).toBeNull();
+    // jogos em aberto ou fase de mata-mata na temporada: a tabela não diz quem foi vice
+    expect(runnerUpOf('pal', undefined, lg('pal', 'fla', 1, false))).toBeNull();
     expect(runnerUpOf('pal', undefined, undefined)).toBeNull();
   });
 });

@@ -677,7 +677,8 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['limit', 'showRanking', 'rankingLimit', 'showRunnerUp'],
     exampleProps: { competitionId: PREVIEW_IDS.competition },
     polling: false,
-    sports: [...TEAM_SPORTS, 'formula-1'],
+    // só o futebol tem lista de campeões importada (Wikidata); abrir aos outros esportes quando houver fonte
+    sports: FOOTBALL_ONLY,
   },
   countdown: {
     kind: 'countdown',

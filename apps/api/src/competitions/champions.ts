@@ -125,11 +125,33 @@ export interface LeagueTopOf {
   groups: number;
   first: string | null;
   second: string | null;
+  /**
+   * A tabela é final: a temporada tem jogos no banco, todos encerrados, e nenhuma fase de mata-mata (numa
+   * fase de liga seguida de mata-mata, o 2º da tabela não é o vice).
+   */
+  settled: boolean;
 }
+
+/** Fases de mata-mata (mesma lista do agendamento ao vivo do ingestor). */
+export const KNOCKOUT_STAGE_KINDS = new Set([
+  'knockout_round',
+  'round_of_128',
+  'round_of_64',
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'third_place',
+  'final',
+  'playoff',
+]);
+
+/** Status de jogo que não muda mais a tabela. */
+const CLOSED_STATUSES = new Set(['finished', 'cancelled', 'abandoned']);
 
 /**
  * Vice da edição: o outro finalista quando a final teve exatamente dois times e o campeão é um deles; sem
- * final, o 2º da tabela única quando o 1º é o campeão. Fora disso, null (não dá para afirmar).
+ * final, o 2º da tabela única quando o 1º é o campeão e a tabela é final (`settled`). Fora disso, null (não dá para afirmar).
  */
 export function runnerUpOf(
   championId: string | null,
@@ -141,7 +163,7 @@ export function runnerUpOf(
     const teams = [...new Set(final.participants)];
     return teams.length === 2 && teams.includes(championId) ? teams.find((t) => t !== championId)! : null;
   }
-  if (league && league.groups === 1 && league.first === championId) return league.second;
+  if (league && league.settled && league.groups === 1 && league.first === championId) return league.second;
   return null;
 }
 
@@ -209,11 +231,40 @@ export async function loadRunnerUps(
         .where(inArray(standing.seasonId, noFinal))
         .orderBy(asc(standing.rank))
     : [];
+  // a tabela só vale como final sem mata-mata e com todos os jogos encerrados
+  const games = noFinal.length
+    ? await db
+        .select({ seasonId: event.seasonId, status: event.status, stageKind: stage.kind })
+        .from(event)
+        .leftJoin(stage, eq(stage.id, event.stageId))
+        .where(inArray(event.seasonId, noFinal))
+    : [];
+  const knockoutStages = noFinal.length
+    ? await db
+        .select({ seasonId: stage.seasonId, kind: stage.kind })
+        .from(stage)
+        .where(inArray(stage.seasonId, noFinal))
+    : [];
+  const unsettled = new Set<string>();
+  const withGames = new Set<string>();
+  for (const g of games) {
+    if (!g.seasonId) continue;
+    withGames.add(g.seasonId);
+    if (!CLOSED_STATUSES.has(g.status) || (g.stageKind && KNOCKOUT_STAGE_KINDS.has(g.stageKind))) {
+      unsettled.add(g.seasonId);
+    }
+  }
+  for (const st of knockoutStages) if (KNOCKOUT_STAGE_KINDS.has(st.kind)) unsettled.add(st.seasonId);
   const leagueBy = new Map<string, LeagueTopOf>();
   const groupsBy = new Map<string, Set<string>>();
   for (const r of table) {
     groupsBy.set(r.seasonId, (groupsBy.get(r.seasonId) ?? new Set()).add(r.group));
-    const cur = leagueBy.get(r.seasonId) ?? { groups: 0, first: null, second: null };
+    const cur = leagueBy.get(r.seasonId) ?? {
+      groups: 0,
+      first: null,
+      second: null,
+      settled: withGames.has(r.seasonId) && !unsettled.has(r.seasonId),
+    };
     if (r.rank === 1 && !cur.first) cur.first = r.participantId;
     else if (r.rank === 2 && !cur.second) cur.second = r.participantId;
     leagueBy.set(r.seasonId, cur);
