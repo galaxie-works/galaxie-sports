@@ -33,6 +33,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
@@ -878,6 +879,32 @@ export interface GsStandingRow {
   description: string | null;
 }
 
+/** Categoria da artilharia e líderes (`/v1/competitions/{id}/seasons/{season}/leaders`). */
+export const LEADER_CATEGORIES = ['goals', 'assists', 'cards'] as const;
+export type GsLeaderCategory = (typeof LEADER_CATEGORIES)[number];
+
+export interface GsLeaderRow {
+  rank: number;
+  person: { id: string; name: string; photo: string | null };
+  team: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  value: number;
+  appearances: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+}
+
+export interface GsCompetitionLeaders {
+  competition_id: string;
+  sport: string;
+  season: { year: number; label: string };
+  category: GsLeaderCategory;
+  data: GsLeaderRow[];
+  updated_at: string | null;
+}
+
 export interface GsStandings {
   competition_id: string;
   /** Esporte da competição (ausente em respostas antigas = futebol). */
@@ -1377,7 +1404,8 @@ export const WIDGET_CSS = `
 .gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
 .gs-ticker-track{display:flex;width:max-content}
 .gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
-.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:hover .gs-ticker-track,.gs-ticker-viewport:focus-within .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:focus-visible{outline:2px solid var(--gs-primary);outline-offset:-2px}
 @keyframes gs-ticker{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
 .gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
@@ -1511,6 +1539,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-incidents li{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gs-incidents [data-side=away]{grid-column:2;text-align:right}.gs-incidents [data-side=home]{grid-column:1}
 .gs-card-red{display:inline-block;width:8px;height:11px;margin-right:4px;border-radius:2px;background:#dc2626;vertical-align:-1px}
+.gs-card-yellow{display:inline-block;width:8px;height:11px;border-radius:2px;background:#facc15;vertical-align:-1px}
+.gs-leader-team{display:flex;align-items:center;gap:4px;font-size:.85em;opacity:.75;min-width:0}
 .gs-tl{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-tl-item{display:grid;grid-template-columns:3.2em 22px 1fr auto;align-items:start;gap:8px;padding:calc(var(--gs-gap)*.6) 0;border-top:1px solid var(--gs-border)}
 .gs-tl-item:first-child,.gs-tl-marker+.gs-tl-item{border-top:0}
@@ -1834,6 +1864,23 @@ export interface WidgetTexts {
     empty: string;
     emptyCalendar: string;
     emptyRanking: string;
+  };
+  /** Artilharia e líderes do campeonato (#828). */
+  leaders: {
+    goals: string;
+    assists: string;
+    cards: string;
+    /** Cabeçalho da coluna do número (gols, assistências). */
+    goalsCol: string;
+    assistsCol: string;
+    player: string;
+    team: string;
+    /** Abreviação de jogos na coluna. */
+    appearances: string;
+    appearancesLong: string;
+    yellow: string;
+    red: string;
+    empty: string;
   };
   /** Olimpíadas e Pan: quadro de medalhas, o dia do país, programação, atletas e histórico. */
   olympics: {
@@ -2231,6 +2278,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Nenhuma prova no período.',
       emptyRanking: 'Ranking indisponível.',
     },
+    leaders: {
+      goals: 'Artilharia',
+      assists: 'Assistências',
+      cards: 'Cartões',
+      goalsCol: 'Gols',
+      assistsCol: 'Assist.',
+      player: 'Jogador',
+      team: 'Time',
+      appearances: 'J',
+      appearancesLong: 'Jogos',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      empty: 'Os números dos jogadores deste campeonato ainda não estão disponíveis.',
+    },
     olympics: {
       medals: 'Quadro de medalhas',
       today: '{country} hoje',
@@ -2627,6 +2688,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Ninguna prueba en el período.',
       emptyRanking: 'Ranking no disponible.',
     },
+    leaders: {
+      goals: 'Goleadores',
+      assists: 'Asistencias',
+      cards: 'Tarjetas',
+      goalsCol: 'Goles',
+      assistsCol: 'Asist.',
+      player: 'Jugador',
+      team: 'Equipo',
+      appearances: 'PJ',
+      appearancesLong: 'Partidos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      empty: 'Las estadísticas de jugadores de esta competición aún no están disponibles.',
+    },
     olympics: {
       medals: 'Medallero',
       today: '{country} hoy',
@@ -3014,6 +3089,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'No results for this competition.',
       emptyCalendar: 'No competitions in this period.',
       emptyRanking: 'Ranking unavailable.',
+    },
+    leaders: {
+      goals: 'Top scorers',
+      assists: 'Assists',
+      cards: 'Cards',
+      goalsCol: 'Goals',
+      assistsCol: 'Assists',
+      player: 'Player',
+      team: 'Team',
+      appearances: 'GP',
+      appearancesLong: 'Games',
+      yellow: 'Yellow cards',
+      red: 'Red cards',
+      empty: 'Player stats for this competition are not available yet.',
     },
     olympics: {
       medals: 'Medal table',

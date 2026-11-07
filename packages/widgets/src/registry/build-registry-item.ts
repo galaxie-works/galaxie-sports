@@ -146,6 +146,7 @@ function defaultProps(
     case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
+    case 'competition_leaders':
       return pick(['competitionId']);
     case 'player_profile':
       return pick(['personId']);

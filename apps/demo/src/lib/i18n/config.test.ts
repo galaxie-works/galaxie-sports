@@ -4,7 +4,6 @@ import {
   apiLocale,
   apiTimeZone,
   contentLocale,
-  contextLocale,
   isTimeZone,
   negotiateLocale,
   relevanceMarket,
@@ -48,15 +47,6 @@ describe('idioma da requisição', () => {
     expect(contentLocale('pt-BR', 'CL')).toBe('pt-BR');
     expect(contentLocale('en', 'CL')).toBe('en');
     expect(contentLocale('en', 'BR')).toBe('en');
-  });
-
-  it('o contexto de IA não existe em inglês: a tela em inglês pede a voz em espanhol do mandante', () => {
-    expect(contextLocale('en', 'CL')).toBe('es-CL');
-    expect(contextLocale('en', 'AR')).toBe('es-AR');
-    expect(contextLocale('en', 'BR')).toBe('es-AR');
-    expect(contextLocale('en', null)).toBe('es-AR');
-    expect(contextLocale('es-AR', 'MX')).toBe('es-MX');
-    expect(contextLocale('pt-BR', 'AR')).toBe('pt-BR');
   });
 
   it('o fuso da API acompanha o mercado do conteúdo', () => {

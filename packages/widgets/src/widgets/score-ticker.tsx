@@ -71,7 +71,7 @@ interface Group {
 /**
  * Faixa de placares para TV: os jogos ao vivo (e, se quiser, os encerrados e os próximos do dia) correndo
  * numa linha, agrupados por campeonato. Letra proporcional à largura (legível a 3 m numa TV 1080p), fundo
- * transparente opcional para sobrepor ao vídeo, pausa ao passar o mouse e parada com "reduzir movimento".
+ * transparente opcional para sobrepor ao vídeo, pausa com o mouse em cima ou o foco do teclado e parada com "reduzir movimento".
  * Atualiza a cada 20 s enquanto houver jogo em andamento.
  */
 export function ScoreTicker({
@@ -279,7 +279,14 @@ function Marquee({ speed, label, children }: { speed: number; label: string; chi
   }, [speed, children]);
 
   return (
-    <div ref={viewport} className="gs-ticker-viewport" role="region" aria-label={label}>
+    <div
+      ref={viewport}
+      className="gs-ticker-viewport"
+      role="region"
+      aria-label={label}
+      // rolando, a faixa entra no Tab: com o foco do teclado ela para, como com o mouse em cima
+      tabIndex={run ? 0 : undefined}
+    >
       <div
         className="gs-ticker-track"
         data-running={run ? '' : undefined}
