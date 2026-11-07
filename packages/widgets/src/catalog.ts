@@ -4,6 +4,7 @@ import type { AiContextProps } from './widgets/ai-context.js';
 import type { HeadToHeadProps } from './widgets/head-to-head.js';
 import type { LiveListProps } from './widgets/live-list.js';
 import type { MatchCardProps } from './widgets/match-card.js';
+import type { MatchTimelineProps } from './widgets/match-timeline.js';
 import type { MatchStakesProps } from './widgets/match-stakes.js';
 import type { RelatedVideosProps } from './widgets/related-videos.js';
 import type { StandingsTableProps } from './widgets/standings-table.js';
@@ -25,9 +26,11 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { TeamSquadProps } from './widgets/team-squad.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
+  match_timeline: MatchTimelineProps;
   live_list: LiveListProps;
   standings: StandingsTableProps;
   where_to_watch: WhereToWatchProps;
@@ -52,6 +55,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  team_squad: TeamSquadProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -59,6 +63,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
   /** Componente React do pacote. */
   component:
     | 'MatchCard'
+    | 'MatchTimeline'
     | 'LiveList'
     | 'StandingsTable'
     | 'WhereToWatch'
@@ -82,7 +87,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryToday'
     | 'GamesSchedule'
     | 'CountryAthletes'
-    | 'MedalHistory';
+    | 'MedalHistory'
+    | 'TeamSquad';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -147,6 +153,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     polling: true,
     sports: [...TEAM_SPORTS, 'mma'],
+  },
+  match_timeline: {
+    kind: 'match_timeline',
+    component: 'MatchTimeline',
+    registryComponent: 'GalaxieMatchTimeline',
+    name: { 'pt-BR': 'Lance a lance', es: 'Minuto a minuto', en: 'Play by play' },
+    description: {
+      'pt-BR':
+        'Gols, cartões, substituições, VAR e demais lances do jogo, minuto a minuto, atualizando sozinho durante a partida.',
+      es: 'Goles, tarjetas, cambios, VAR y demás jugadas del partido, minuto a minuto, actualizándose solo durante el juego.',
+      en: 'Goals, cards, substitutions, VAR and every other incident, minute by minute, updating itself during the match.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['order', 'types', 'limit', 'showMarkers', 'showAssists', 'showMatch'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
+    sports: TEAM_SPORTS,
   },
   live_list: {
     kind: 'live_list',
@@ -599,6 +622,30 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  team_squad: {
+    kind: 'team_squad',
+    component: 'TeamSquad',
+    registryComponent: 'GalaxieTeamSquad',
+    name: { 'pt-BR': 'Elenco do time', es: 'Plantel del equipo', en: 'Team squad' },
+    description: {
+      'pt-BR': 'Os jogadores do clube por posição, com foto, número, idade e nacionalidade, e os técnicos.',
+      es: 'Los jugadores del club por posición, con foto, número, edad y nacionalidad, y los entrenadores.',
+      en: "A club's players by position, with photo, shirt number, age and nationality, plus the coaches.",
+    },
+    requiredProps: ['teamId'],
+    optionalProps: [
+      'season',
+      'showPhotos',
+      'groupByPosition',
+      'showNumber',
+      'showAge',
+      'showNationality',
+      'showCoaches',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
   },
 };
 

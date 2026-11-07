@@ -26,6 +26,7 @@ describe('abas de esporte do catálogo', () => {
     // IA, "o que está em jogo" e vídeos ainda são só do futebol
     expect(basquete?.kinds).toEqual([
       'match_card',
+      'match_timeline',
       'live_list',
       'standings',
       'where_to_watch',
