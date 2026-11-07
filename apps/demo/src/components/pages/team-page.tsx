@@ -4,13 +4,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { permanentRedirect } from 'next/navigation';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
+import { PageHeader } from '@/components/app-shell/page-header';
 import {
   AvatarInfoSkeleton,
   DetailsSkeleton,
   EventCardsSkeleton,
   SectionSkeleton,
 } from '@/components/app-shell/skeletons';
-import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CampaignCard } from '@/components/sport/campaign-card';
 import { CopyButton } from '@/components/sport/copy-button';
@@ -711,7 +712,7 @@ export function TeamFallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
         <AvatarInfoSkeleton avatarClassName="size-24 rounded-md" lines={['h-7 w-56', 'h-4 w-72']} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <SectionSkeleton className="lg:col-span-2" description={false}>
@@ -722,7 +723,7 @@ export function TeamFallback() {
             <DetailsSkeleton rows={4} />
           </div>
         </div>
-      </div>
+      </LoadingStatus>
     </>
   );
 }

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { FormCardSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { FormCardSkeleton } from '@/components/app-shell/skeletons';
 import { ChannelListPortal } from '@/components/channel-list/portal';
 import { ClientArea } from '@/components/client/client-area';
 import { readChannelListPortal } from '@/lib/channel-list/server';
@@ -41,7 +42,13 @@ export default async function ClientChannelsPage() {
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         {/* Lê a sessão (headers): fica fora do shell estático. */}
-        <Suspense fallback={<FormCardSkeleton fields={3} />}>
+        <Suspense
+          fallback={
+            <LoadingStatus>
+              <FormCardSkeleton fields={3} />
+            </LoadingStatus>
+          }
+        >
           <Channels />
         </Suspense>
       </div>

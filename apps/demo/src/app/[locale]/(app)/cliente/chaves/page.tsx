@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { KeysPanel } from '@/components/client/keys-panel';
 import { builderDb, listPublishableKeys, listWidgets } from '@/lib/builder/store';
@@ -57,7 +58,11 @@ export default async function ClientKeysPage() {
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         <Suspense
-          fallback={<TablePanelSkeleton action rows={4} columns={['flex-1', 'w-32', 'w-24', 'w-20']} />}
+          fallback={
+            <LoadingStatus>
+              <TablePanelSkeleton action rows={4} columns={['flex-1', 'w-32', 'w-24', 'w-20']} />
+            </LoadingStatus>
+          }
         >
           <Keys />
         </Suspense>

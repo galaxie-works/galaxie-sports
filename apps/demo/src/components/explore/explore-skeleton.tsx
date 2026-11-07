@@ -1,3 +1,4 @@
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { Skeleton } from '@/components/ui/skeleton';
 import { countryLayout, FEATURED_SPORT } from '@/lib/explore';
 import { COUNTRIES, SPORTS } from '@/lib/navigation';
@@ -8,7 +9,7 @@ import { CONFEDERATIONS, COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from '.
 /** Esqueleto da home com a mesma grade bento dos cards, para nada pular quando os dados chegam. */
 export function ExploreSkeleton() {
   return (
-    <div className="flex flex-col gap-10 p-4 md:p-6" aria-busy>
+    <LoadingStatus className="flex flex-col gap-10 p-4 md:p-6">
       <div className="flex flex-col gap-4">
         <Skeleton className="h-4 w-full max-w-xl" />
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -42,6 +43,6 @@ export function ExploreSkeleton() {
           </div>
         </div>
       ))}
-    </div>
+    </LoadingStatus>
   );
 }

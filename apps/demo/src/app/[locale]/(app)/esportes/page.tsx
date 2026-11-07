@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 
-import { IndexCardsSkeleton } from '@/components/app-shell/skeletons';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { IndexCardsSkeleton } from '@/components/app-shell/skeletons';
 import { FamilyCard } from '@/components/explore/index-cards';
 import { compactNumber } from '@/lib/explore';
 import { exploreSummaryRequest, getExploreSummary } from '@/lib/galaxie/api';
@@ -53,9 +54,9 @@ async function Content() {
 
 function Fallback() {
   return (
-    <div className="p-4 md:p-6">
+    <LoadingStatus className="p-4 md:p-6">
       <IndexCardsSkeleton count={11} variant="family" />
-    </div>
+    </LoadingStatus>
   );
 }
 

@@ -15,6 +15,8 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
+import { PageHeader } from '@/components/app-shell/page-header';
 import {
   AvatarInfoSkeleton,
   DetailsSkeleton,
@@ -22,7 +24,6 @@ import {
   StatsSkeleton,
   TableCardSkeleton,
 } from '@/components/app-shell/skeletons';
-import { PageHeader } from '@/components/app-shell/page-header';
 import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
@@ -895,7 +896,7 @@ export function PersonFallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-32" />} />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
         <AvatarInfoSkeleton
           avatarClassName="size-28 rounded-full sm:size-36"
           lines={['h-5 w-40', 'h-9 w-64', 'h-8 w-44']}
@@ -911,7 +912,7 @@ export function PersonFallback() {
             <DetailsSkeleton rows={3} />
           </div>
         </div>
-      </div>
+      </LoadingStatus>
     </>
   );
 }
