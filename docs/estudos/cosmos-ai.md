@@ -86,9 +86,11 @@ flowchart LR
   M[Mensagem chega<br/>lote de 1 s] --> R[Regras fixas<br/>grátis]
   R --> C[Classificador<br/>grátis]
   C -->|tem certeza| A[Ação pela escada]
-  C -->|ficou em dúvida| K[Cosmos AI<br/>gasta crédito]
+  C -->|ficou em dúvida| S{Tem saldo e<br/>cota da sala?}
+  S -->|sim| K[Cosmos AI<br/>gasta crédito]
+  S -->|não| F[Fila humana]
   K -->|decide e explica| A
-  A -->|escada pede revisão<br/>ou saldo zerado| F[Fila humana]
+  A -->|escada pede revisão| F
 ```
 
 ### Estados do saldo
@@ -164,7 +166,7 @@ Hoje Ajustes tem 7 abas horizontais, e Sistema tem mais 9 abas dentro; o painel 
 
 ### O que o cliente precisa ter nos termos dele
 
-Aviso de que as mensagens passam por moderação automática, canal de apelação com revisão humana na segunda instância (LGPD art. 20 no Brasil), prazo de guarda dos registros (Marco Civil art. 15) e a proibição de apostas no chat.
+Aviso de que as mensagens passam por moderação automática, canal para pedir revisão de decisão automática (direito previsto na LGPD art. 20 no Brasil; a revisão por uma pessoa na segunda instância é regra do nosso produto, não exigência da lei), guarda dos registros de acesso por 6 meses (Marco Civil art. 15, que vale só para registros de acesso; mensagens e decisões de moderação têm prazo próprio, definido pela finalidade) e a proibição de apostas no chat.
 
 ## 7. Fases
 
