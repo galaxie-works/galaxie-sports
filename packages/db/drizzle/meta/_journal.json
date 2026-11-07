@@ -495,7 +495,14 @@
     {
       "idx": 70,
       "version": "7",
-      "when": 1794059655755,
+      "when": 1794062851741,
+      "tag": "0072_frescor_por_endpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794066899676,
       "tag": "0073_palpites_e_odds",
       "breakpoints": true
     }
