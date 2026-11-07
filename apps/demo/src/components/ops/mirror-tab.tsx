@@ -195,7 +195,9 @@ function PeriodsEditor({
         <p className="text-muted-foreground text-xs">
           {view.inventory
             ? fill(M.inventory, { when: f.relative(view.inventory.at, Date.parse(now)) })
-            : M.noInventory}
+            : view.inventoryOtherPlan
+              ? fill(M.inventoryOtherPlan, { from: view.inventoryOtherPlan, to: view.plan ?? '' })
+              : M.noInventory}
         </p>
         {setting.overrideInvalid ? (
           <p className="text-destructive text-xs">

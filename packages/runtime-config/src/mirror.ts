@@ -450,6 +450,11 @@ export const DEFAULT_MIRROR_CONFIG: MirrorConfig = mirrorConfig(() => null);
 export interface MirrorInventory {
   /** Instante da execução (ISO). */
   at: string;
+  /**
+   * Plano da API na execução: a contagem já vem sem o que o plano recusa, então com outro plano ela não vale (o painel
+   * descarta). Ausente nos inventários antigos.
+   */
+  plan?: string;
   /** Pedidos por item e coluna de tier. */
   items: Record<string, number[]>;
 }
@@ -495,5 +500,6 @@ export function parseMirrorInventory(cursor: unknown): MirrorInventory | null {
   for (const [id, v] of Object.entries(c.items as Record<string, unknown>))
     if (Array.isArray(v) && v.every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0))
       items[id] = v as number[];
-  return { at: c.at, items };
+  const plan = (cursor as { plan?: unknown }).plan;
+  return { at: c.at, ...(typeof plan === 'string' && plan ? { plan } : {}), items };
 }

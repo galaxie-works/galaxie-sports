@@ -622,6 +622,8 @@ export default defineMessages(
         'A estimativa passa do orçamento: o rodízio renova primeiro os grupos de cima e os itens mais velhos, e o resto atrasa.',
       overFree: 'O orçamento passa da parte livre da cota ({free}%).',
       inventory: 'Pedidos contados na execução de {when}.',
+      inventoryOtherPlan:
+        'A contagem é do plano {from} e o plano agora é {to}: a estimativa volta depois da próxima execução (ou de um sync:mirror --plan, que não chama o fornecedor).',
       noInventory:
         'O espelho ainda não gravou o inventário desta API: a estimativa aparece depois da próxima execução (ou de um sync:mirror --plan, que não chama o fornecedor).',
       invalid: 'Use um número inteiro de {min} a {max} dias (0 não vale: desligue).',
@@ -1776,6 +1778,8 @@ export default defineMessages(
           'The estimate exceeds the budget: the rotation refreshes the top groups and the oldest items first, and the rest falls behind.',
         overFree: 'The budget exceeds the free share of the quota ({free}%).',
         inventory: 'Requests counted in the run of {when}.',
+        inventoryOtherPlan:
+          'The count is from the {from} plan and the plan is now {to}: the estimate comes back after the next run (or a sync:mirror --plan, which does not call the provider).',
         noInventory:
           'The mirror has not saved the inventory for this API yet: the estimate shows up after the next run (or a sync:mirror --plan, which does not call the provider).',
         invalid: 'Use a whole number from {min} to {max} days (0 is not allowed: turn it off).',
@@ -2947,6 +2951,8 @@ export default defineMessages(
           'La estimación supera el presupuesto: la rotación renueva primero los grupos de arriba y los ítems más viejos, y el resto se atrasa.',
         overFree: 'El presupuesto supera la parte libre de la cuota ({free}%).',
         inventory: 'Pedidos contados en la ejecución de {when}.',
+        inventoryOtherPlan:
+          'El conteo es del plan {from} y el plan ahora es {to}: la estimación vuelve después de la próxima ejecución (o de un sync:mirror --plan, que no llama al proveedor).',
         noInventory:
           'El espejo todavía no guardó el inventario de esta API: la estimación aparece después de la próxima ejecución (o de un sync:mirror --plan, que no llama al proveedor).',
         invalid: 'Usa un número entero de {min} a {max} días (0 no vale: apágalo).',

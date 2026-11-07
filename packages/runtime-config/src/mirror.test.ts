@@ -188,6 +188,10 @@ describe('estimativa de chamadas', () => {
       items: { '/standings': [20, 40, 400], '/venues': [90], lixo: 'x' },
     });
     expect(inv?.items).not.toHaveProperty('lixo');
+    expect(inv?.plan).toBeUndefined();
+    expect(parseMirrorInventory({ at: '2026-11-07T08:00:00.000Z', plan: 'pro', items: {} })?.plan).toBe(
+      'pro',
+    );
     const cfg = mirrorConfig((k) => (k === 'MIRROR_PERIODS_FOOTBALL' ? '/standings=1,2,off' : null));
     const est = estimateMirrorCalls('football', (id) => cfg.api('football').periods(id), inv);
     const standings = est.items.find((i) => i.id === '/standings')!;

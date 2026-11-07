@@ -217,6 +217,8 @@ export interface MirrorApiView {
   dailyLimit: number | null;
   /** Inventário da última execução (ou do `--plan`); null = o job ainda não rodou com o inventário. */
   inventory: MirrorInventory | null;
+  /** Inventário descartado por ser de outro plano (a contagem depende do plano): o plano dele. */
+  inventoryOtherPlan: string | null;
 }
 
 export interface MirrorSnapshot {

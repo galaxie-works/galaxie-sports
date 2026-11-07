@@ -126,7 +126,7 @@ export function mirrorBudget(limits: PlanLimits, percent = DEFAULT_MIRROR_CONFIG
 }
 
 /** Inventário de uma execução: pedidos por item e coluna de tier, ligados ou não (base da estimativa do painel). */
-export function mirrorInventory(groups: readonly MirrorGroup[], at: Date): MirrorInventory {
+export function mirrorInventory(groups: readonly MirrorGroup[], at: Date, plan?: string): MirrorInventory {
   const items: Record<string, number[]> = {};
   for (const g of groups)
     for (const c of g.candidates) {
@@ -135,7 +135,7 @@ export function mirrorInventory(groups: readonly MirrorGroup[], at: Date): Mirro
       while (counts.length <= c.slot.column) counts.push(0);
       counts[c.slot.column]! += 1;
     }
-  return { at: at.toISOString(), items };
+  return { at: at.toISOString(), ...(plan ? { plan } : {}), items };
 }
 
 /**
@@ -827,7 +827,7 @@ function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions)
           if (defaultScope(opts))
             await deps.cursors.complete(
               [{ sport, ...MIRROR_INVENTORY_CURSOR }],
-              { ...mirrorInventory(allowed, now) },
+              { ...mirrorInventory(allowed, now, plan.current.name) },
               now,
             );
           const budget = opts.budget ?? mirrorBudget(plan.current, mirror.budgetPercent);

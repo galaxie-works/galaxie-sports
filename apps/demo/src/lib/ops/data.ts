@@ -618,11 +618,15 @@ async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
     reservePercent: production ? reserve : Math.max(reserve, DEV_MIN_RESERVE_PERCENT),
     apis: MIRROR_APIS.map((api) => {
       const plan = value(planKey(api)) ?? value('APISPORTS_PLAN');
+      const inventory = parseMirrorInventory(rows.find((r) => r.sport === api)?.cursor);
+      // a contagem vem sem o que o plano recusa: depois de trocar de plano ela não vale até a próxima execução
+      const otherPlan = inventory?.plan && plan && inventory.plan !== plan ? inventory.plan : null;
       return {
         api,
         plan,
         dailyLimit: plan ? (API_PLAN_DAILY_LIMITS[plan as keyof typeof API_PLAN_DAILY_LIMITS] ?? null) : null,
-        inventory: parseMirrorInventory(rows.find((r) => r.sport === api)?.cursor),
+        inventory: otherPlan ? null : inventory,
+        inventoryOtherPlan: otherPlan,
       };
     }),
   };

@@ -506,6 +506,7 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
     const [row] = (await cursors.load([{ sport: 'basketball', ...MIRROR_INVENTORY_CURSOR }])).values();
     const inv = parseMirrorInventory(row?.cursor);
     expect(inv?.at).toBe(now.toISOString());
+    expect(inv?.plan).toBe('ultra');
     // uma temporada tier 1 no plano: a lista da temporada segue contada na coluna do tier 1
     expect(inv?.items['/games']).toEqual([1]);
     expect(inv?.items['/statistics']).toEqual([2]);

@@ -574,7 +574,9 @@ Os testes conferem que os perfis do ingestor (`SPORT_MIRROR`) e o catálogo list
 
 **Estimativa.** Cada execução grava em `ops.sync_cursor` (`endpoint = 'mirror:inventory'`, uma linha por API)
 quantos pedidos cada endpoint teria em cada tier, contando também os desligados. O `--plan` grava o mesmo inventário
-sem chamar o fornecedor. A tela divide esses pedidos pelo período escolhido e mostra as chamadas por dia de cada
+sem chamar o fornecedor. A contagem já vem sem o que o plano recusa, então leva o plano junto: depois de trocar o
+plano da API, a tela descarta a contagem antiga até a próxima execução. Só a execução com os tiers padrão grava o
+inventário. A tela divide esses pedidos pelo período escolhido e mostra as chamadas por dia de cada
 endpoint e o total, contra o orçamento. Ela avisa quando a estimativa passa do orçamento: o rodízio renova primeiro
 os grupos de cima e os itens mais velhos, e o resto atrasa. Também avisa quando o orçamento passa da parte livre da
 cota. A conta da api-sports é a mesma no dev e na produção. Na produção, 25% ficam para o ao vivo. No dev, o Governor
