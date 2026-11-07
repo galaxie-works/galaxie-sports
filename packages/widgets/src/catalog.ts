@@ -27,6 +27,7 @@ import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
+import type { PlayerProfileProps } from './widgets/player-profile.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -56,6 +57,7 @@ export interface WidgetPropsByKind {
   medal_history: MedalHistoryProps;
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
+  player_profile: PlayerProfileProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -88,7 +90,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryAthletes'
     | 'MedalHistory'
     | 'Countdown'
-    | 'TeamSquad';
+    | 'TeamSquad'
+    | 'PlayerProfile';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -646,6 +649,31 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'showCoaches',
     ],
     exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  player_profile: {
+    kind: 'player_profile',
+    component: 'PlayerProfile',
+    registryComponent: 'GalaxiePlayerProfile',
+    name: { 'pt-BR': 'Ficha do jogador', es: 'Ficha del jugador', en: 'Player profile' },
+    description: {
+      'pt-BR':
+        'Jogador com o clube atual, os números da temporada, os clubes, as temporadas, os títulos e as transferências.',
+      es: 'Jugador con el club actual, los números de la temporada, los clubes, las temporadas, los títulos y los traspasos.',
+      en: 'A player with current club, season numbers, clubs, seasons, trophies and transfers.',
+    },
+    requiredProps: ['personId'],
+    optionalProps: [
+      'season',
+      'showStats',
+      'showClubs',
+      'showSeasons',
+      'showTrophies',
+      'showTransfers',
+      'limit',
+    ],
+    exampleProps: { personId: PREVIEW_IDS.person },
     polling: false,
     sports: FOOTBALL_ONLY,
   },

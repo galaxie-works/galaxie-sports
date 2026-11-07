@@ -25,6 +25,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  PlayerProfile,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -260,6 +261,8 @@ function PreviewWidget({
         );
       case 'team_squad':
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
+      case 'player_profile':
+        return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
     }
   }
   switch (kind) {
@@ -301,6 +304,8 @@ function PreviewWidget({
       return <FightCard {...o} eventId={entity.id} />;
     case 'countdown':
       return <Countdown {...o} eventId={entity.id} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

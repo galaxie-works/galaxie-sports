@@ -12,6 +12,7 @@ import {
   Flag,
   History,
   Hourglass,
+  IdCard,
   ListChecks,
   ListOrdered,
   Medal,
@@ -93,6 +94,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   medal_history: History,
   countdown: Hourglass,
   team_squad: Shirt,
+  player_profile: IdCard,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

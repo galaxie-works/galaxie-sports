@@ -55,6 +55,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   medal_history: ['core_data', 'multisport'],
   countdown: ['core_data', 'where_to_watch'],
   team_squad: ['core_data'],
+  player_profile: ['core_data'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {
