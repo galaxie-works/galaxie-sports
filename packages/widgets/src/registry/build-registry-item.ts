@@ -135,9 +135,11 @@ function defaultProps(
     case 'race_weekend':
     case 'fight_card':
     case 'countdown':
+    case 'match_timeline':
       return pick(['eventId']);
     case 'team_schedule':
     case 'athlete_profile':
+    case 'team_squad':
       return pick(['teamId']);
     case 'season_calendar':
       return pick(['competitionId']);
