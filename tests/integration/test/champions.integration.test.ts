@@ -55,6 +55,7 @@ async function seed() {
       { sport: 'football', slug: 'copa-exemplo', name: 'Copa Exemplo', type: 'cup' },
       { sport: 'football', slug: 'liga-exemplo', name: 'Liga Exemplo', type: 'league' },
       { sport: 'football', slug: 'sem-titulos', name: 'Sem Títulos', type: 'league' },
+      { sport: 'football', slug: 'copa-antiga', name: 'Copa Antiga', type: 'cup' },
     ])
     .returning();
   for (const c of comps) ids[c.slug] = c.id;
@@ -71,9 +72,10 @@ async function seed() {
     .returning();
   for (const t of teams) ids[t.shortName!] = t.id;
 
-  const title = (comp: string, year: number, team: string | null) => ({
+  const title = (comp: string, year: number, team: string | null, winnerName: string | null = null) => ({
     competitionId: ids[comp]!,
     participantId: team ? ids[team]! : null,
+    winnerName,
     seasonYear: year,
     seasonLabel: String(year),
     decidedOn: `${year}-11-30`,
@@ -81,18 +83,21 @@ async function seed() {
     winnerQid: `QW${team ?? 'x'}`,
     competitionQid: `Q${comp}`,
   });
-  await db
-    .insert(competitionTitle)
-    .values([
-      title('copa-exemplo', 2021, 'Aurora'),
-      title('copa-exemplo', 2022, 'Brisa'),
-      title('copa-exemplo', 2023, 'Aurora'),
-      title('copa-exemplo', 2024, 'Cometa'),
-      title('liga-exemplo', 2023, 'Brisa'),
-      title('liga-exemplo', 2024, 'Aurora'),
-    ]);
+  await db.insert(competitionTitle).values([
+    title('copa-exemplo', 2021, 'Aurora'),
+    title('copa-exemplo', 2022, 'Brisa'),
+    title('copa-exemplo', 2023, 'Aurora'),
+    title('copa-exemplo', 2024, 'Cometa'),
+    title('liga-exemplo', 2023, 'Brisa'),
+    title('liga-exemplo', 2024, 'Aurora'),
+    // Copa Antiga: dois títulos de um clube extinto (sem time no catálogo) e um do Aurora
+    { ...title('copa-antiga', 1930, null, 'Sport Club Extinto'), winnerQid: 'QEXT' },
+    { ...title('copa-antiga', 1931, null, 'Sport Club Extinto'), winnerQid: 'QEXT' },
+    title('copa-antiga', 1932, 'Aurora'),
+  ]);
   await db.insert(competitionTitleCoverage).values([
     { competitionId: ids['copa-exemplo']!, competitionQid: 'Qcopa', firstYear: 2021, completeThrough: 2024 },
+    { competitionId: ids['copa-antiga']!, competitionQid: 'Qantiga', firstYear: 1930, completeThrough: 1932 },
     // a liga tem lacuna depois de 2023: a contagem de títulos não é confiável
     { competitionId: ids['liga-exemplo']!, competitionQid: 'Qliga', firstYear: 2023, completeThrough: 2023 },
   ]);
@@ -251,9 +256,32 @@ describe('GET /v1/competitions/{id}/champions', () => {
     expect(body.ranking).toEqual([]);
   });
 
+  it('campeão fora do catálogo (clube extinto): aparece pelo nome, na posição real, sem pular número', async () => {
+    const body = (await get('/v1/competitions/copa-antiga/champions')).json<CompetitionChampions>();
+    expect(
+      body.editions.map((e) => [e.season_label, e.champion?.short_name ?? null, e.champion_name]),
+    ).toEqual([
+      ['1932', 'Aurora', 'Clube Aurora'],
+      ['1931', null, 'Sport Club Extinto'],
+      ['1930', null, 'Sport Club Extinto'],
+    ]);
+    expect(body.unlisted_champions).toBe(2);
+    expect(body.ranking_complete).toBe(true);
+    expect(body.ranking.map((r) => [r.rank, r.name, r.participant?.short_name ?? null, r.titles])).toEqual([
+      [1, 'Sport Club Extinto', null, 2],
+      [2, 'Clube Aurora', 'Aurora', 1],
+    ]);
+  });
+
   it('competição sem lista de campeões devolve listas vazias; inexistente é 404; limit inválido é 400', async () => {
     const empty = (await get('/v1/competitions/sem-titulos/champions')).json<CompetitionChampions>();
-    expect(empty).toMatchObject({ editions: [], ranking: [], total_editions: 0, coverage: null });
+    expect(empty).toMatchObject({
+      editions: [],
+      ranking: [],
+      total_editions: 0,
+      unlisted_champions: 0,
+      coverage: null,
+    });
     expect((await get('/v1/competitions/nao-existe/champions')).statusCode).toBe(404);
     expect((await get('/v1/competitions/copa-exemplo/champions?limit=0')).statusCode).toBe(400);
   });

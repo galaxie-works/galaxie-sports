@@ -39,10 +39,18 @@ interface GsChampions {
     season_year: number;
     season_label: string;
     champion: GsChampionTeam | null;
+    /** Nome do campeão (o do Wikidata quando ele não tem time no catálogo, ex.: clube extinto). */
+    champion_name: string;
     runner_up: GsChampionTeam | null;
   }[];
   total_editions: number;
-  ranking: { rank: number; participant: GsChampionTeam; titles: number; seasons: string[] }[];
+  ranking: {
+    rank: number;
+    name: string;
+    participant: GsChampionTeam | null;
+    titles: number;
+    seasons: string[];
+  }[];
   ranking_complete: boolean;
 }
 
@@ -163,8 +171,7 @@ export function ChampionsGallery({
       </WidgetFrame>
     );
   }
-  // edição cujo vencedor não está no catálogo fica fora da lista (sem nome para mostrar)
-  const editions = data.editions.filter((e) => e.champion);
+  const editions = data.editions;
   const shown = limit > 0 ? editions.slice(0, limit) : editions;
   const ranking =
     showRanking && data.ranking_complete
@@ -183,15 +190,16 @@ export function ChampionsGallery({
       ) : (
         <ol className="gs-list" data-gs-champions="">
           {shown.map((e) => {
-            const champion = e.champion!;
+            const champion = e.champion;
             return (
               <li key={e.season_year} className="gs-fixture" data-gs-season={e.season_year}>
                 <span className="gs-fixture-date gs-strong">{e.season_label}</span>
                 <span className="gs-grow" style={{ minWidth: 0 }}>
                   <span className="gs-line" data-gs-champion="">
                     <Trophy tone="gold" label={t.champion} />
-                    <Crest src={champion.logo} name={champion.name} size="xs" />
-                    <span className="gs-truncate gs-strong">{champion.name}</span>
+                    {/* campeão fora do catálogo (clube extinto): só o nome, sem escudo */}
+                    {champion ? <Crest src={champion.logo} name={champion.name} size="xs" /> : null}
+                    <span className="gs-truncate gs-strong">{champion?.name ?? e.champion_name}</span>
                   </span>
                   {showRunnerUp && e.runner_up ? (
                     <span className="gs-line gs-meta" data-gs-runner-up="">
@@ -212,12 +220,14 @@ export function ChampionsGallery({
           <table className="gs-table">
             <tbody>
               {ranking.map((r) => (
-                <tr key={r.participant.id}>
+                <tr key={r.participant?.id ?? `${r.rank}-${r.name}`}>
                   <td className="gs-left gs-rank">{r.rank}</td>
                   <td className="gs-left">
                     <div className="gs-line">
-                      <Crest src={r.participant.logo} name={r.participant.name} size="xs" />
-                      <span className="gs-truncate gs-strong">{r.participant.name}</span>
+                      {r.participant ? (
+                        <Crest src={r.participant.logo} name={r.participant.name} size="xs" />
+                      ) : null}
+                      <span className="gs-truncate gs-strong">{r.participant?.name ?? r.name}</span>
                     </div>
                   </td>
                   <td className="gs-strong" title={r.seasons.join(', ')}>

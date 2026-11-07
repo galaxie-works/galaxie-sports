@@ -58,6 +58,7 @@ const rowsOf = (list: Edition[]): TitleRow[] =>
     decidedOn: e.decidedOn!,
     editionQid: e.qid,
     winnerQid: e.winners[0]!,
+    winnerName: `Clube ${e.winners[0]!}`,
     competitionQid: COMPETITION.qid,
     source: 'wikidata',
     sourceRef: null,

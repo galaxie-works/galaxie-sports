@@ -330,6 +330,8 @@ export function isSeniorMenName(name: string): boolean {
 export interface WinnerInfo {
   qid: string;
   names: string[];
+  /** Rótulo para exibição: o do Wikidata em pt, senão es, senão en (null se a consulta não trouxe). */
+  label?: string | null;
   /** ISO do país (P297, ou P300 para Inglaterra/Escócia...). */
   countries: string[];
 }
@@ -468,6 +470,9 @@ export function winnersInfoQuery(qids: readonly string[]): string {
   VALUES ?team { ${qids.map((q) => `wd:${q}`).join(' ')} }
   { ?team rdfs:label ?name FILTER(LANG(?name) IN ("en", "es", "pt")) }
   UNION { ?team skos:altLabel ?name FILTER(LANG(?name) IN ("en", "es", "pt")) }
+  OPTIONAL { ?team rdfs:label ?labelPt FILTER(LANG(?labelPt) = "pt") }
+  OPTIONAL { ?team rdfs:label ?labelEs FILTER(LANG(?labelEs) = "es") }
+  OPTIONAL { ?team rdfs:label ?labelEn FILTER(LANG(?labelEn) = "en") }
   OPTIONAL { ?team wdt:P17 ?c. OPTIONAL { ?c wdt:P297 ?iso2 } OPTIONAL { ?c wdt:P300 ?iso3 } BIND(COALESCE(?iso2, ?iso3) AS ?iso) }
 }`;
 }
@@ -479,6 +484,8 @@ export function parseWinnersInfo(rows: readonly SparqlBinding[]): WinnerInfo[] {
     if (!qid) continue;
     const w = by.get(qid) ?? { qid, names: [], countries: [] };
     if (r.name?.value && !w.names.includes(r.name.value)) w.names.push(r.name.value);
+    const label = r.labelPt?.value ?? r.labelEs?.value ?? r.labelEn?.value;
+    if (label && !w.label) w.label = label;
     if (r.iso?.value && !w.countries.includes(r.iso.value)) w.countries.push(r.iso.value);
     by.set(qid, w);
   }
@@ -589,6 +596,8 @@ export interface TitleRow {
   decidedOn: string;
   editionQid: string;
   winnerQid: string;
+  /** Nome do vencedor no Wikidata (a galeria mostra quando ele não tem time no catálogo). */
+  winnerName: string | null;
   competitionQid: string;
   source: 'wikidata' | 'curated';
   sourceRef: string | null;
@@ -749,9 +758,10 @@ export async function saveTitles(
       if (!kept.has(r.competitionId)) continue;
       await tx.execute(sql`
         insert into core.competition_title
-          (competition_id, participant_id, season_year, season_label, decided_on, edition_qid, winner_qid, competition_qid, source, source_ref)
+          (competition_id, participant_id, season_year, season_label, decided_on, edition_qid, winner_qid,
+           winner_name, competition_qid, source, source_ref)
         values (${r.competitionId}, ${r.participantId}, ${r.seasonYear}, ${r.seasonLabel}, ${r.decidedOn}::date,
-                ${r.editionQid}, ${r.winnerQid}, ${r.competitionQid}, ${r.source}, ${r.sourceRef})
+                ${r.editionQid}, ${r.winnerQid}, ${r.winnerName}, ${r.competitionQid}, ${r.source}, ${r.sourceRef})
         on conflict (competition_id, edition_qid, winner_qid) do nothing
       `);
     }
@@ -804,7 +814,7 @@ async function titleSignatures(
   );
   const rows = await tx.execute<{ id: string; sig: string }>(sql`
     select c.id::text as id,
-           coalesce((select string_agg(concat_ws('|', t.edition_qid, t.winner_qid, t.participant_id, t.season_year,
+           coalesce((select string_agg(concat_ws('|', t.edition_qid, t.winner_qid, t.winner_name, t.participant_id, t.season_year,
                                                  t.season_label, t.decided_on), ';'
                                        order by t.edition_qid, t.winner_qid)
                      from core.competition_title t where t.competition_id = c.id), '')

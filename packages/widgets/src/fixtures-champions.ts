@@ -51,6 +51,7 @@ export function championsPreviewBody(url: URL): unknown {
     season_label: String(year),
     decided_on: `${year}-12-06`,
     champion: TEAMS[champion],
+    champion_name: TEAMS[champion].name,
     runner_up: withRunnerUp ? TEAMS[runnerUp] : null,
   }));
   const counts = new Map<TeamKey, number[]>();
@@ -66,8 +67,10 @@ export function championsPreviewBody(url: URL): unknown {
     },
     editions: editions.slice(0, limit),
     total_editions: editions.length,
+    unlisted_champions: 0,
     ranking: sorted.map(([key, years], i) => ({
       rank: i + 1,
+      name: TEAMS[key].name,
       participant: TEAMS[key],
       titles: years.length,
       seasons: years.map(String),

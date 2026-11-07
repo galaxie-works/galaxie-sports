@@ -7,6 +7,7 @@ const t = (year: number, team: string | null, qid = `Q${year}`): TitleRow => ({
   decidedOn: `${year}-12-01`,
   editionQid: qid,
   winnerQid: `QW${team ?? year}`,
+  winnerName: team ? null : `Extinto ${year}`,
   participantId: team,
 });
 
@@ -41,8 +42,8 @@ describe('rankChampions', () => {
   };
   const nameOf = (id: string) => names[id] ?? id;
 
-  it('mais títulos primeiro, depois o mais recente; o clube extinto conta pelo QID e ocupa a posição', () => {
-    const extinto = (year: number) => ({ ...t(year, null), winnerQid: 'QX' });
+  it('mais títulos primeiro, depois o mais recente; o clube extinto conta pelo QID, com o nome do Wikidata', () => {
+    const extinto = (year: number) => ({ ...t(year, null), winnerQid: 'QX', winnerName: 'Clube Extinto' });
     const eds = editionsOf([
       t(2018, 'pal'),
       t(2019, 'fla'),
@@ -59,6 +60,8 @@ describe('rankChampions', () => {
       [2, 'pal', 3],
       [3, 'fla', 1],
     ]);
+    expect(r[0]!.winnerName).toBe('Clube Extinto');
+    expect(r[1]!.winnerName).toBeNull();
     expect(r[1]!.seasons).toEqual(['2023', '2022', '2018']);
   });
 

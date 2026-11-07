@@ -98,10 +98,19 @@ export async function championRoutes(app: FastifyInstance, ctx: AppContext): Pro
         );
         const ref = (id: string | null | undefined) => (id ? (refs.get(id) ?? null) : null);
 
+        // campeão sem time no catálogo (clube extinto): aparece pelo nome do Wikidata, sem escudo
+        const nameOf = (e: { participantId: string | null; winnerName: string | null; winnerQid: string }) =>
+          ref(e.participantId)?.name ?? e.winnerName ?? e.winnerQid;
         const ranking = complete
-          ? rankChampions(all, (id) => refs.get(id)?.name ?? '').flatMap((r) => {
-              const p = refs.get(r.participantId);
-              return p ? [{ rank: r.rank, participant: p, titles: r.titles, seasons: r.seasons }] : [];
+          ? rankChampions(all, (id) => refs.get(id)?.name ?? '').map((r) => {
+              const p = refs.get(r.participantId) ?? null;
+              return {
+                rank: r.rank,
+                name: p?.name ?? r.winnerName ?? r.participantId.replace(/^wd:/, ''),
+                participant: p,
+                titles: r.titles,
+                seasons: r.seasons,
+              };
             })
           : [];
         const labels = { ...(c.labels ?? {}), ...(row.labels ?? {}) } as Record<string, string>;
@@ -118,9 +127,11 @@ export async function championRoutes(app: FastifyInstance, ctx: AppContext): Pro
             season_label: e.seasonLabel,
             decided_on: e.decidedOn,
             champion: ref(e.participantId),
+            champion_name: nameOf(e),
             runner_up: withRunnerUp ? ref(runnerUps.get(e.seasonYear)) : null,
           })),
           total_editions: all.length,
+          unlisted_champions: all.filter((e) => !e.participantId).length,
           ranking,
           ranking_complete: complete,
           coverage: coverage

@@ -100,6 +100,36 @@ describe('Galeria de campeões (#831)', () => {
     expect(screen.queryByText('Mais títulos')).toBeNull();
   });
 
+  it('campeão fora do catálogo (clube extinto): aparece pelo nome, sem escudo, na lista e no ranking', async () => {
+    const body = {
+      competition: { id: 'c1', slug: 'copa-antiga', sport: 'football', name: 'Copa Antiga', logo: null },
+      editions: [
+        {
+          season_year: 1931,
+          season_label: '1931',
+          champion: null,
+          champion_name: 'Clube Extinto',
+          runner_up: null,
+        },
+      ],
+      total_editions: 1,
+      unlisted_champions: 1,
+      ranking: [{ rank: 1, name: 'Clube Extinto', participant: null, titles: 1, seasons: ['1931'] }],
+      ranking_complete: true,
+      coverage: { first_year: 1931, complete_through: 1931 },
+    };
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify(body), {
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch;
+    const { container } = setup(<ChampionsGallery competitionId="copa-antiga" />, 'pt-BR', fetchImpl);
+    expect(await screen.findByText('Copa Antiga')).toBeTruthy();
+    expect(editions(container)).toEqual(['1931']);
+    expect(screen.getAllByText('Clube Extinto')).toHaveLength(2);
+    expect(container.querySelector('[data-gs-champions] li img')).toBeNull();
+    expect(container.querySelector('[data-gs-champions-ranking] img')).toBeNull();
+  });
+
   it('catálogo, opções e registry: competição obrigatória, opções conferidas e a competição gravada', () => {
     const entry = WIDGET_CATALOG.champions_gallery;
     expect(entry.requiredProps).toEqual(['competitionId']);

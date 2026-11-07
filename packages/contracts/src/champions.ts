@@ -32,7 +32,12 @@ export const ChampionEdition = z
     season_label: z.string().meta({ description: 'Rótulo da edição ("2021", "2020–21").', example: '2023' }),
     decided_on: z.string().meta({ description: 'Data (AAAA-MM-DD) em que o título foi decidido.' }),
     champion: ParticipantRef.nullable().meta({
-      description: 'Campeão; null quando o vencedor não está no nosso catálogo de times.',
+      description:
+        'Campeão; null quando o vencedor não está no nosso catálogo de times (ex.: clube extinto).',
+    }),
+    champion_name: z.string().meta({
+      description: 'Nome do campeão: o do time do catálogo ou, sem time, o do Wikidata.',
+      example: 'Palmeiras',
     }),
     runner_up: ParticipantRef.nullable().meta({
       description: 'Vice (só com `runner_up=true`); null quando não dá para afirmar.',
@@ -43,7 +48,12 @@ export const ChampionEdition = z
 export const ChampionRankingRow = z
   .object({
     rank: z.number().int().meta({ description: 'Posição (empatados dividem a posição).' }),
-    participant: ParticipantRef,
+    name: z
+      .string()
+      .meta({ description: 'Nome do campeão: o do time do catálogo ou, sem time, o do Wikidata.' }),
+    participant: ParticipantRef.nullable().meta({
+      description: 'Time do catálogo; null para o campeão sem time no catálogo (ex.: clube extinto).',
+    }),
     titles: z.number().int(),
     seasons: z.array(z.string()).meta({ description: 'Edições vencidas, da mais recente para trás.' }),
   })
@@ -62,12 +72,20 @@ export const CompetitionChampions = z
       .array(ChampionEdition)
       .meta({ description: 'Da mais recente para trás, cortada por `limit`.' }),
     total_editions: z.number().int().meta({ description: 'Edições conhecidas antes do corte de `limit`.' }),
+    unlisted_champions: z
+      .number()
+      .int()
+      .meta({
+        description:
+          'Edições (de todas, não só as do `limit`) cujo campeão não está no nosso catálogo de times. Um clube ' +
+          'com dois itens no Wikidata (nome antigo, antecessor) pode aparecer duas vezes no ranking.',
+      }),
     ranking: z.array(ChampionRankingRow).meta({
       description:
         'Quem tem mais títulos (todas as edições, não só as do `limit`): mais títulos, depois o título mais ' +
         'recente, depois o nome. Vazio quando a lista de campeões não está completa (`ranking_complete`). ' +
-        'Um campeão fora do catálogo de times (clube extinto) conta na posição mas não aparece, então `rank` ' +
-        'pode pular um número.',
+        'Um campeão fora do catálogo de times (clube extinto) aparece na posição real pelo nome do Wikidata, ' +
+        'com `participant` null.',
     }),
     ranking_complete: z.boolean().meta({
       description:

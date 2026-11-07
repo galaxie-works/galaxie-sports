@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { KNOCKOUT_STAGE_KINDS } from '@galaxie/providers';
 import {
   competitionTitle,
   competitionTitleCoverage,
@@ -26,6 +27,8 @@ export interface TitleRow {
   editionQid: string;
   /** Vencedor no Wikidata: identifica o campeão mesmo sem time no nosso catálogo (clube extinto). */
   winnerQid: string;
+  /** Nome do vencedor no Wikidata (para o campeão sem time no catálogo). */
+  winnerName: string | null;
   participantId: string | null;
 }
 
@@ -44,8 +47,10 @@ export interface ChampionEditionRow {
 
 export interface ChampionRankingEntry {
   rank: number;
-  /** Id do time, ou `wd:<QID>` para um campeão fora do catálogo (conta na posição, não aparece). */
+  /** Id do time, ou `wd:<QID>` para um campeão fora do catálogo (mostrado pelo nome do Wikidata). */
   participantId: string;
+  /** Nome do Wikidata do campeão fora do catálogo (null para time do catálogo). */
+  winnerName: string | null;
   titles: number;
   /** Edições vencidas, da mais recente para trás. */
   seasons: string[];
@@ -83,16 +88,24 @@ export function rankingComplete(editions: readonly TitleRow[], coverage: TitleCo
 /**
  * Quem tem mais títulos: mais títulos, depois o título mais recente, depois o nome (`nameOf`, ordem
  * alfabética pt-BR). Empatados em títulos e no título mais recente dividem a posição. O campeão sem time no
- * catálogo entra como `wd:<QID>`: ocupa a posição dele (as dos outros ficam certas) e a rota não o mostra.
+ * catálogo (clube extinto) entra como `wd:<QID>`, na posição real, e a rota o mostra pelo nome do Wikidata.
  */
 export function rankChampions(
   editions: readonly TitleRow[],
   nameOf: (id: string) => string,
 ): ChampionRankingEntry[] {
-  const by = new Map<string, { titles: number; seasons: string[]; last: string }>();
+  const by = new Map<
+    string,
+    { titles: number; seasons: string[]; last: string; winnerName: string | null }
+  >();
   for (const e of editions) {
     const key = e.participantId ?? `wd:${e.winnerQid}`;
-    const cur = by.get(key) ?? { titles: 0, seasons: [], last: '' };
+    const cur = by.get(key) ?? {
+      titles: 0,
+      seasons: [],
+      last: '',
+      winnerName: e.participantId ? null : (e.winnerName ?? e.winnerQid),
+    };
     cur.titles += 1;
     cur.seasons.push(e.seasonLabel);
     if (e.decidedOn > cur.last) cur.last = e.decidedOn;
@@ -101,7 +114,9 @@ export function rankChampions(
   const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
   const sorted = [...by].sort(
     ([ia, a], [ib, b]) =>
-      b.titles - a.titles || b.last.localeCompare(a.last) || collator.compare(nameOf(ia), nameOf(ib)),
+      b.titles - a.titles ||
+      b.last.localeCompare(a.last) ||
+      collator.compare(a.winnerName ?? nameOf(ia), b.winnerName ?? nameOf(ib)),
   );
   const out: ChampionRankingEntry[] = [];
   sorted.forEach(([id, r], i) => {
@@ -111,6 +126,7 @@ export function rankChampions(
     out.push({
       rank: tied && prev ? prev.rank : i + 1,
       participantId: id,
+      winnerName: r.winnerName,
       titles: r.titles,
       seasons: r.seasons,
     });
@@ -135,22 +151,8 @@ export interface LeagueTopOf {
   settled: boolean;
 }
 
-/** Fases de mata-mata (mesma lista do agendamento ao vivo do ingestor). */
-export const KNOCKOUT_STAGE_KINDS = new Set([
-  'knockout_round',
-  'round_of_128',
-  'round_of_64',
-  'round_of_32',
-  'round_of_16',
-  'quarter_final',
-  'semi_final',
-  'third_place',
-  'final',
-  'playoff',
-]);
-
-/** Status de jogo que não muda mais a tabela. */
-const CLOSED_STATUSES = new Set(['finished', 'cancelled', 'abandoned']);
+/** Status de jogo que não muda mais a tabela (adiado ainda pode ser jogado). */
+const CLOSED_STATUSES = ['finished', 'cancelled', 'abandoned'] as const;
 
 /**
  * Vice da edição: o outro finalista quando a final teve exatamente dois times e o campeão é um deles; sem
@@ -182,6 +184,7 @@ export async function loadTitles(
       decidedOn: competitionTitle.decidedOn,
       editionQid: competitionTitle.editionQid,
       winnerQid: competitionTitle.winnerQid,
+      winnerName: competitionTitle.winnerName,
       participantId: competitionTitle.participantId,
     })
     .from(competitionTitle)
@@ -235,30 +238,30 @@ export async function loadRunnerUps(
         .where(inArray(standing.seasonId, noFinal))
         .orderBy(asc(standing.rank))
     : [];
-  // a tabela só vale como final sem mata-mata e com todos os jogos encerrados
-  const games = noFinal.length
+  // a tabela só vale como final com jogos no banco, todos encerrados, e sem fase de mata-mata (agregado no SQL)
+  // mata-mata que decide o título (classificatória e repescagem de rebaixamento não mudam o 1º e o 2º)
+  const knockout = [...KNOCKOUT_STAGE_KINDS].filter((k) => k !== 'qualifying' && k !== 'relegation');
+  const settledRows = noFinal.length
     ? await db
-        .select({ seasonId: event.seasonId, status: event.status, stageKind: stage.kind })
-        .from(event)
-        .leftJoin(stage, eq(stage.id, event.stageId))
-        .where(inArray(event.seasonId, noFinal))
+        .select({
+          seasonId: season.id,
+          settled: sql<boolean>`coalesce(
+            bool_and(${event.status} in (${sql.join(
+              CLOSED_STATUSES.map((st) => sql`${st}`),
+              sql`, `,
+            )})), false)
+            and not exists (select 1 from ${stage} where ${stage.seasonId} = ${season.id}
+                            and ${stage.kind} in (${sql.join(
+                              knockout.map((k) => sql`${k}`),
+                              sql`, `,
+                            )}))`,
+        })
+        .from(season)
+        .innerJoin(event, eq(event.seasonId, season.id))
+        .where(inArray(season.id, noFinal))
+        .groupBy(season.id)
     : [];
-  const knockoutStages = noFinal.length
-    ? await db
-        .select({ seasonId: stage.seasonId, kind: stage.kind })
-        .from(stage)
-        .where(inArray(stage.seasonId, noFinal))
-    : [];
-  const unsettled = new Set<string>();
-  const withGames = new Set<string>();
-  for (const g of games) {
-    if (!g.seasonId) continue;
-    withGames.add(g.seasonId);
-    if (!CLOSED_STATUSES.has(g.status) || (g.stageKind && KNOCKOUT_STAGE_KINDS.has(g.stageKind))) {
-      unsettled.add(g.seasonId);
-    }
-  }
-  for (const st of knockoutStages) if (KNOCKOUT_STAGE_KINDS.has(st.kind)) unsettled.add(st.seasonId);
+  const settled = new Set(settledRows.filter((r) => r.settled).map((r) => r.seasonId));
   const leagueBy = new Map<string, LeagueTopOf>();
   const groupsBy = new Map<string, Set<string>>();
   for (const r of table) {
@@ -267,7 +270,7 @@ export async function loadRunnerUps(
       groups: 0,
       first: null,
       second: null,
-      settled: withGames.has(r.seasonId) && !unsettled.has(r.seasonId),
+      settled: settled.has(r.seasonId),
     };
     if (r.rank === 1 && !cur.first) cur.first = r.participantId;
     else if (r.rank === 2 && !cur.second) cur.second = r.participantId;
