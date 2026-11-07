@@ -16,8 +16,10 @@ import {
   plannedBudgets,
   providerSnapshots,
   queueStats,
+  rawEndpointFreshness,
   rawFreshness,
   webhookStats,
+  type EndpointFreshnessRow,
   type ChangeFeedConsumerRow,
   type DbSizeData,
   type JobStatsRow,
@@ -30,6 +32,7 @@ import {
   type WebhookStats,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
+import { RAW_CADENCE, rawCadenceMaxAgeSeconds } from './raw-cadence.js';
 
 export interface MetricsOptions {
   /** Sem banco, só as métricas de processo e de HTTP são expostas. */
@@ -233,6 +236,13 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ttl,
     onError,
   );
+  // frescor por endpoint: os alertas são de dias, uma leitura a cada 5 min basta
+  const endpointFreshness = new CollectorGroup<EndpointFreshnessRow[]>(
+    'endpoint_freshness',
+    () => rawEndpointFreshness(db, RAW_CADENCE),
+    Math.max(ttl, 300_000),
+    onError,
+  );
   // eventos em andamento e estado do Live Scheduler na mesma coleta (em sequência: não aumenta a concorrência no banco)
   const live = new CollectorGroup<{ events: LiveRow[]; scheduler: LiveSchedulerRow[] }>(
     'live',
@@ -272,6 +282,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     quota,
     jobs,
     freshness,
+    endpointFreshness,
     live,
     changeFeed,
     webhooks,
@@ -436,6 +447,27 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
       for (const r of rows) g.set({ sport: r.sport }, seconds(r.lastFetchedAt));
     },
   );
+
+  // ── frescor por endpoint (mapa de frescor, raw-cadence.ts; alerta RawEndpointOverdue) ─────────
+  dbGauge(
+    registry,
+    endpointFreshness,
+    'galaxie_raw_endpoint_last_fetched_timestamp_seconds',
+    'Última busca de cada endpoint do mapa de frescor em raw.api_response (last_seen_at ou fetched_at; epoch s; 0 = nunca buscado)',
+    ['sport', 'endpoint'],
+    (g, rows) => {
+      for (const r of rows)
+        g.set({ sport: r.sport, endpoint: r.endpoint }, r.lastFetchedAt ? seconds(r.lastFetchedAt) : 0);
+    },
+  );
+  const cadence = new Gauge({
+    name: 'galaxie_raw_endpoint_max_age_seconds',
+    help: 'Idade máxima da última busca de cada endpoint antes do alerta (período do item mais frequente + 12 h), com o job que o renova',
+    labelNames: ['sport', 'endpoint', 'job_name'],
+    registers: [registry],
+  });
+  for (const c of RAW_CADENCE)
+    cadence.set({ sport: c.sport, endpoint: c.endpoint, job_name: c.job }, rawCadenceMaxAgeSeconds(c));
 
   // ── ao vivo (fonte: core.event) ──────────────────────────────────────────────────────────────────
   // coverage: poller (no plano do ao vivo) ou clock (só o relógio dos eventos; o alerta não olha estes)
