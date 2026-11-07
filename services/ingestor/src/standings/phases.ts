@@ -27,8 +27,6 @@ export interface TableRow {
   group: string;
   source: string;
   updatedAt: Date;
-  /** Jogos na linha (o fornecedor de promedios conta 3 temporadas). */
-  played?: number;
 }
 
 export interface TablesByRule {

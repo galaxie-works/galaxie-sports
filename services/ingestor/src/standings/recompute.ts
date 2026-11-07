@@ -204,7 +204,6 @@ export async function recomputeSeasonStandings(
       group: standing.group,
       source: standing.source,
       updatedAt: standing.updatedAt,
-      played: standing.played,
     })
     .from(standing)
     .where(eq(standing.seasonId, seasonId));
@@ -242,16 +241,16 @@ export async function recomputeSeasonStandings(
 
   // grupo deduzido num recálculo anterior (`unnamed:N`) não é do fornecedor: volta a ser deduzido a cada
   // recálculo (dois pedaços do mesmo grupo no começo da temporada se juntam quando se enfrentam)
+  const all = await loadSeasonResults(db, seasonId, {
+    includeCards: true,
+    ...(stageIds ? { stageIds } : {}),
+  });
   const groupsOfTeam = new Map<string, Set<string>>();
   for (const r of tableRows) {
     const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
     set.add(r.group.startsWith(UNNAMED_GROUP_PREFIX) ? '' : r.group);
     groupsOfTeam.set(r.participantId, set);
   }
-  const all = await loadSeasonResults(db, seasonId, {
-    includeCards: true,
-    ...(stageIds ? { stageIds } : {}),
-  });
 
   // sem regulamento de tabelas e com mais de uma fase nas rodadas do fornecedor: uma tabela por fase e a
   // anual, deduzidas (phases-auto.ts); o grupo vazio, que misturava as fases, sai
@@ -285,30 +284,32 @@ export async function recomputeSeasonStandings(
   // uma fase: grupos são os já gravados em core.standing (do provedor ou de recálculo anterior); sem nenhum,
   // tabela única. O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que
   // perdia os grupos. Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores
-  // terceiros): não dá para saber em qual tabela cada jogo entra, então a do fornecedor fica como está
-  // espelho dos dados, não do formato: o grupo do fornecedor ao lado do nosso fica no core como reserva e não
-  // decide a tabela da temporada. (1) Grupo do fornecedor que conta muito mais jogos do time do que os encerrados
-  // da temporada (promedios de 3 temporadas) é outra tabela: sem isso a liga calculada no grupo vazio caía nele.
-  // (2) Time em mais de um grupo com nome, só um deles calculado para ele (acumulada ao lado da liga): vale o
-  // calculado; sem isso o recálculo parava em `no_groups` e a nossa tabela congelava
-  const playedIn = new Map<string, number>();
-  for (const m of all) for (const t of [m.homeId, m.awayId]) playedIn.set(t, (playedIn.get(t) ?? 0) + 1);
-  const rowOf = new Map(tableRows.map((r) => [`${r.participantId}|${r.group}`, r] as const));
+  // terceiros): não dá para saber em qual tabela cada jogo entra, então a do fornecedor fica como está. Quando só
+  // um desses grupos tem tabela calculada (a acumulada do fornecedor ao lado da liga), vale o calculado e o outro
+  // fica como reserva; sem isso o recálculo parava em `no_groups` e a nossa tabela congelava
+  // espelho dos dados, não do formato: grupo do fornecedor em que a maioria dos times já está num grupo nosso
+  // calculado e com nome (acumulada, promedios, a mesma liga com outro rótulo) é sombra da nossa tabela. Fica no
+  // core como reserva e não define grupo: com ele, cada time ficava em dois grupos com nome (`no_groups`, tabela
+  // congelada) e o promovido, que só tem linha nos promedios, levava a sua linha para lá. O grupo vazio e o
+  // deduzido não contam como nossos: o rótulo que o fornecedor dá a eles continua sendo adotado
+  const computedNamed = new Set(
+    tableRows
+      .filter((r) => r.source === 'computed' && r.group !== '' && !r.group.startsWith(UNNAMED_GROUP_PREFIX))
+      .map((r) => r.group),
+  );
+  const inComputed = new Set(tableRows.filter((r) => computedNamed.has(r.group)).map((r) => r.participantId));
+  const teamsOfGroup = new Map<string, string[]>();
+  for (const r of tableRows)
+    if (r.group !== '' && !computedNamed.has(r.group) && !r.group.startsWith(UNNAMED_GROUP_PREFIX))
+      teamsOfGroup.set(r.group, [...(teamsOfGroup.get(r.group) ?? []), r.participantId]);
+  const shadow = new Set(
+    [...teamsOfGroup]
+      .filter(([, ts]) => ts.filter((t) => inComputed.has(t)).length * 2 > ts.length)
+      .map(([g]) => g),
+  );
   const groupOfTeam = new Map<string, string>();
   for (const [team, set] of groupsOfTeam) {
-    const row = (g: string) => rowOf.get(`${team}|${g}`);
-    // a regra (1) só decide entre a nossa tabela no grupo vazio e um rótulo do fornecedor: adotar o rótulo (a
-    // mesma liga, com nome) ou deixá-lo de lado (promedios); sem linha nossa, vale o fornecedor como sempre
-    const oursUnnamed = row('')?.source === 'computed';
-    let named = [...set].filter((g) => {
-      if (g === '') return false;
-      if (!oursUnnamed) return true;
-      const r = row(g);
-      // folga para o core com resultado faltando (o fornecedor com 10 jogos e nós com 8 ainda é a mesma tabela)
-      return !(r?.source === 'provider' && (r.played ?? 0) > 2 * (playedIn.get(team) ?? 0) + 5);
-    });
-    const computedNamed = named.filter((g) => row(g)?.source === 'computed');
-    if (named.length > 1 && computedNamed.length === 1) named = computedNamed;
+    const named = [...set].filter((g) => g !== '' && !shadow.has(g));
     if (named.length > 1)
       return report('no_groups', {
         detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')}); a competição não tem \`tables\` no regulamento`,
