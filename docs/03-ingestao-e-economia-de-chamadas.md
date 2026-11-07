@@ -492,9 +492,13 @@ painel ([§11.5](#115-espelho-configurável-pelo-painel)), e o alerta lê o mesm
 | Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw |
 | Outros 11 esportes: agenda `games/races/fights?date=` | 1 dia | `sync:daily` | `core.event` (pelo `normalize-sports`) |
 | Outros 11 esportes: temporada, classificação, times, por jogo, odds | 1 a 14 dias | `sync:mirror` | raw; core pelo `normalize-sports` |
+| Outros 11 esportes: referência (`/timezone`, `/seasons`, `/leagues`, `/countries`, odds…) | 7 dias (`/leagues`: 1) | `sync:mirror` | raw |
 
-As outras 11 APIs estão no plano free: o espelho delas fica em 10 chamadas por dia, só referência, e por isso o
-alerta só olha a agenda diária delas. Quando alguma for assinada, entram no mapa.
+
+As outras 11 APIs estão no plano free: o espelho delas fica em 10 chamadas por dia, só referência. O alerta olha a
+agenda diária e a referência delas. A referência é buscada em qualquer plano e o ano todo, então ela mostra o espelho
+parado também numa API paga. Os endpoints de temporada, por jogo e por time das outras APIs ficam fora do mapa: eles
+somem da fila na entressafra, e o alerta dispararia por meses sem nada errado.
 
 ### 11.2 Cota por dia
 
@@ -563,7 +567,8 @@ lesões têm tier 1 e 2+. O resto tem um período só.
 [`packages/runtime-config/src/mirror.ts`](../packages/runtime-config/src/mirror.ts). O job lê dele (com as
 sobrescritas do env), e as métricas também: `galaxie_raw_endpoint_max_age_seconds` é recalculada a cada coleta com
 as flags efetivas (banco > env relatado pelo ingestor > padrão). Por isso a regra `RawEndpointOverdue` do Prometheus
-não muda: ela compara com essa métrica. Endpoint desligado em todos os tiers sai da métrica e não dispara o alerta. Com
+não muda: ela compara com essa métrica. Endpoint desligado em todos os tiers sai da métrica e não dispara o alerta. Desligado, ele também continua contando no orçamento do dia o que
+já gastou: desligar e reexecutar no mesmo dia não libera a cota de novo. Com
 o tier 1 desligado, vale o tier mais frequente que ficou ligado. Palpites e odds mantêm o piso de 7 dias do alerta.
 Os testes conferem que os perfis do ingestor (`SPORT_MIRROR`) e o catálogo listam os mesmos endpoints.
 

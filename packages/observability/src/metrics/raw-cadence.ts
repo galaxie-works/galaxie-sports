@@ -1,4 +1,4 @@
-import { DEFAULT_MIRROR_CONFIG, type MirrorConfig } from '@galaxie/runtime-config';
+import { DEFAULT_MIRROR_CONFIG, MIRROR_CATALOG, type MirrorConfig } from '@galaxie/runtime-config';
 
 /**
  * Mapa de frescor do raw: cada endpoint da api-sports que usamos, o job que o renova e de quantos em quantos dias
@@ -35,15 +35,15 @@ const football = (endpoint: string, periodDays: number, job: string): RawCadence
 
 /** Endpoint do espelho: o período vem da configuração (`rawCadence`). */
 interface MirrorCadence {
-  sport: 'football';
+  sport: string;
   endpoint: string;
   job: 'sync:mirror';
   /** Piso do alerta (dias), maior que o período do job. */
   alertFloorDays?: number;
 }
 
-const mirror = (endpoint: string, alertFloorDays?: number): MirrorCadence => ({
-  sport: 'football',
+const mirror = (endpoint: string, alertFloorDays?: number, sport = 'football'): MirrorCadence => ({
+  sport,
   endpoint,
   job: 'sync:mirror',
   ...(alertFloorDays ? { alertFloorDays } : {}),
@@ -108,6 +108,13 @@ const CADENCE: readonly (RawCadence | MirrorCadence)[] = [
     periodDays: 1,
     job: 'sync:daily',
   })),
+  // referência das outras 11 APIs (sync:mirror): buscada em qualquer plano e o ano todo, mostra o espelho parado. Os
+  // itens de temporada, por jogo e por time ficam fora: somem na entressafra e o alerta dispararia por meses
+  ...Object.entries(MIRROR_CATALOG)
+    .filter(([sport]) => sport !== 'football')
+    .flatMap(([sport, items]) =>
+      items.filter((i) => i.reference).map((i) => mirror(i.endpoint, undefined, sport)),
+    ),
 ];
 
 const isMirror = (c: RawCadence | MirrorCadence): c is MirrorCadence =>

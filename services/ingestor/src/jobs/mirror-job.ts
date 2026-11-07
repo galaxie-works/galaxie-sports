@@ -138,7 +138,10 @@ export function mirrorInventory(groups: readonly MirrorGroup[], at: Date): Mirro
   return { at: at.toISOString(), items };
 }
 
-/** Grupos na ordem do painel, sem os itens desligados. */
+/**
+ * Grupos na ordem do painel. Os itens desligados ficam: o rodízio não os escolhe (`periodDays` nulo), mas conta o que
+ * eles já gastaram hoje no orçamento (desligar e reexecutar no mesmo dia não libera de novo a cota já gasta).
+ */
 export function arrangeGroups(
   groups: readonly MirrorGroup[],
   order: readonly MirrorGroupId[],
@@ -150,7 +153,7 @@ export function arrangeGroups(
   return [...groups]
     .map((g, i) => ({ g, i }))
     .sort((a, b) => rank(a.g) - rank(b.g) || a.i - b.i)
-    .map(({ g }) => ({ ...g, candidates: g.candidates.filter((c) => c.periodDays !== null) }));
+    .map(({ g }) => g);
 }
 
 /** Tira o que o plano vigente recusaria (temporada fora da janela, parâmetro proibido): não ocupa vaga no rodízio. */

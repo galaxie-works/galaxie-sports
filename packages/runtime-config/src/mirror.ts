@@ -56,6 +56,11 @@ export interface MirrorItemDef {
   defaults: readonly number[];
   /** Grupo de cada coluna de tier, quando difere de `group`. */
   tierGroups?: readonly MirrorGroupId[];
+  /**
+   * Referência sem parâmetros: buscada em qualquer plano (até no free) e o ano inteiro, por isso entra no mapa de
+   * frescor de todas as APIs (os itens de temporada somem na entressafra e dariam alerta falso).
+   */
+  reference?: boolean;
 }
 
 const item = (
@@ -86,7 +91,7 @@ const FOOTBALL_ITEMS: readonly MirrorItemDef[] = [
     '/odds/bookmakers',
     '/odds/bets',
     '/odds/live/bets',
-  ].map((e) => item(e, 'temporada', [7])),
+  ].map((e) => item(e, 'temporada', [7], [], { reference: true })),
   // por competição × temporada em jogo
   footballSeason('/standings', 1, 2),
   footballSeason('/injuries', 1, 3),
@@ -128,7 +133,7 @@ interface SportSpec {
 /** Itens de uma das outras 11 APIs (o mesmo que SPORT_MIRROR monta no ingestor; o teste de lá confere). */
 function sportItems(s: SportSpec): MirrorItemDef[] {
   return [
-    ...s.reference.map((e) => item(e, 'temporada', [e === '/leagues' ? 1 : 7])),
+    ...s.reference.map((e) => item(e, 'temporada', [e === '/leagues' ? 1 : 7], [], { reference: true })),
     item(s.season, 'temporada', [2, 7], TWO_TIERS),
     ...(s.standings ?? []).map((e) => item(e, 'temporada', [1, 2], TWO_TIERS)),
     ...(s.teams ? [item('/teams', 'temporada', [7])] : []),

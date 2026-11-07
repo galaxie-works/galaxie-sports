@@ -444,10 +444,32 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
     expect(period('/standings?league=71&season=2026')).toBe(3);
     expect(first.filter((c) => c.item.endpoint === '/venues').every((c) => c.periodDays === null)).toBe(true);
     // desligado não entra no rodízio, mas continua contado no inventário
-    const arranged = arrangeGroups(groups, mirror.groupOrder);
-    expect(arranged[0]!.candidates.some((c) => c.item.endpoint === '/venues')).toBe(false);
-    const picked = await rotateGroups(groups, new InMemoryCursorStore(), now, 1000);
+    const picked = await rotateGroups(
+      arrangeGroups(groups, mirror.groupOrder),
+      new InMemoryCursorStore(),
+      now,
+      1000,
+    );
     expect(picked.some((p) => p.endpoint === '/venues')).toBe(false);
+  });
+
+  it('desligar e reexecutar no mesmo dia não libera de novo a cota que o item já gastou', async () => {
+    const venue = (country: string, periodDays: number | null): MirrorCandidate => ({
+      item: plannedRequest('venues', 'football', '/venues', { country }),
+      periodDays,
+    });
+    const cursors = new InMemoryCursorStore();
+    // primeira execução de hoje: 2 chamadas no /venues
+    const first = [venue('Brazil', 30), venue('Chile', 30)];
+    await cursors.complete(first[0]!.item.cursors, { requestHash: 'a' }, now);
+    await cursors.complete(first[1]!.item.cursors, { requestHash: 'b' }, now);
+    // /venues desligado no painel; o orçamento de 3 só tem 1 vaga
+    const groups = [
+      { id: 'temporada' as const, name: 'a', candidates: [venue('Brazil', null), venue('Chile', null)] },
+      { id: 'elencos' as const, name: 'b', candidates: [venue('Peru', 30), venue('Uruguay', 30)] },
+    ];
+    const picked = await rotateGroups(arrangeGroups(groups, ['temporada', 'elencos']), cursors, now, 3);
+    expect(picked.map((p) => p.params.country)).toEqual(['Peru']);
   });
 
   it('ordem dos grupos: o primeiro da lista recebe o orçamento antes', async () => {
