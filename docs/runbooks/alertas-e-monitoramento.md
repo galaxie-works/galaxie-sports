@@ -195,6 +195,22 @@ O workflow precisa estar na `main` antes do passo 3: o Grafana dispara a versão
   vencido; 403 é token sem Actions: write no repositório; 404 é o workflow fora da `main` ou repositório errado; 422 é
   input recusado. Depois, a execução em Actions → Alerta do Grafana.
 
+### Sugestões do app pelo mesmo canal
+
+O ícone de chat do cabeçalho do app ("Sugerir ou reportar algo") usa o mesmo token: a demo recebe o
+`ALERT_GITHUB_TOKEN` como `FEEDBACK_GITHUB_TOKEN` (compose.yml) e dispara o workflow `sugestao-issue.yml`, que roda
+`infra/ops/sugestao-issue.sh`. A issue sai com o título `<assunto>: <primeiros 50 caracteres>`, o rótulo do assunto
+(criado na primeira vez: `Reportar um problema`, `Sugerir um recurso`, `Sugerir correção de um conteúdo`,
+`Pedir um dado ou cobertura`, `Tirar uma dúvida`, `Outro assunto`), o e-mail e o tenant de quem enviou com metade de
+cada parte mascarada, a página, o idioma, a tela, o navegador, a versão e as imagens. As imagens (JPG/PNG, até 4 e
+5 MB no total) vão para o bucket de assets em `feedback/<aaaa-mm>/<uuid>.<ext>` (público, nome aleatório). Teto: 6
+envios por usuário por hora. Para listar: `gh issue list --search 'in:body "sugestao-app"'`.
+
+- **Testar só o workflow:** Actions → Sugestão do app → Run workflow, com
+  `{"v":1,"subject":"other","message":"Teste do canal de sugestões","email":"te***@****le.com","tenant":null,"role":"admin","page":"/","locale":"pt-BR","attachments":[]}`.
+- **"Envio indisponível" no app:** `FEEDBACK_GITHUB_TOKEN` vazio no contêiner (o `ALERT_GITHUB_TOKEN` do `.env`). Erro
+  genérico: veja `docker compose logs site | grep feedback` (401/403/404/422 como acima).
+
 ## Reabertura e diagnóstico automático
 
 - **Alerta que volta em até 24 h** reabre a issue fechada com a mesma fingerprint, em vez de abrir outra. Ele comenta

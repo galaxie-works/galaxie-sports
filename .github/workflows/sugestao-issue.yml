@@ -1,0 +1,34 @@
+name: Sugestão do app
+
+# "Sugerir ou reportar algo" (ícone de chat no cabeçalho do app) vira issue com o rótulo do assunto:
+# infra/ops/sugestao-issue.sh. Quem dispara é a demo (apps/demo/src/lib/feedback/github.ts), pela API de
+# workflow_dispatch, com o mesmo token do alerta do Grafana (ALERT_GITHUB_TOKEN do .env da VPS, que vira
+# FEEDBACK_GITHUB_TOKEN na demo). Também roda à mão para testar: Actions → Sugestão do app → Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: JSON do envio (FeedbackPayload em apps/demo/src/lib/feedback/github.ts)
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  issue:
+    name: Abrir a issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: infra/ops
+
+      - name: Issue da sugestão
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SUGESTAO_PAYLOAD: ${{ inputs.payload }}
+        run: bash infra/ops/sugestao-issue.sh

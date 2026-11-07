@@ -439,7 +439,7 @@ jobs:
             infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
-            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh
+            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh infra/ops/sugestao-issue.sh infra/ops/sugestao-issue.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
@@ -449,6 +449,9 @@ jobs:
 
       - name: Portão do Codex (review travado ou de commit anterior avisa; P1 barra; gh falso)
         run: bash infra/ops/codex-gate.test.sh
+
+      - name: Sugestão do app vira issue (título, rótulo, corpo mascarado e anexos; gh falso)
+        run: bash infra/ops/sugestao-issue.test.sh
 
       # A troca da API, dos webhooks e da demo no deploy: Traefik de verdade, tráfego durante a troca e uma versão que nunca fica
       # healthy
