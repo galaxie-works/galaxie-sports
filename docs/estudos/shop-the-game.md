@@ -215,7 +215,7 @@ Nada disso substitui o contador e o advogado; é a lista do que levar para eles.
 
 ## Caminho recomendado
 
-Começar pelo Brasil, no site e no app Galaxie, com links curados e sem API; abrir o widget para os clientes, com divisão da comissão, e os EUA quando os primeiros números reais chegarem. Os prazos de desenvolvimento consideram agentes Claude fazendo o código; o que demora é a aprovação das lojas.
+Começar pelo Brasil, no site e no app Galaxie, com links curados e sem API; abrir o widget para os clientes, com divisão da comissão, e os EUA quando os primeiros números reais chegarem. Os prazos de desenvolvimento consideram agentes Claude de fronteira (Opus, Fable) fazendo o código, sem time humano; o que demora é a aprovação das lojas.
 
 | Fase | O que entra | Desenvolvimento | Depende de |
 |---|---|---|---|
