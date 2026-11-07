@@ -511,6 +511,24 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
     expect(inv?.items['/statistics']).toEqual([2]);
     expect(inv?.items['/games/statistics/teams']).toEqual([2]);
   });
+
+  it('execução com tier fora do padrão (manual) não sobrescreve o inventário do painel', async () => {
+    const cursors = new InMemoryCursorStore();
+    const jobs = mirrorJobs(
+      {
+        catalog: new StaticCatalogSource(fakeCatalog()),
+        raw: new InMemoryRawSource([]),
+        cursors,
+        planFor: () => new PlanRules(ULTRA_PLAN),
+        now: () => now,
+        derbyPairs: noDerbies,
+        sports: fakeSports(),
+      },
+      { sports: ['basketball'], other: { maxTier: 3 } },
+    );
+    await jobs[0]!.spec.phases[0]!.build();
+    expect((await cursors.load([{ sport: 'basketball', ...MIRROR_INVENTORY_CURSOR }])).size).toBe(0);
+  });
 });
 
 /** Ids que o perfil de uma API pode gerar (a mesma regra de sportGroups). */

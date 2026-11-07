@@ -792,6 +792,13 @@ export function mirrorJobs(deps: MirrorDeps, opts: MirrorJobOptions): { sport: A
   return opts.sports.map((sport) => ({ sport, spec: mirrorJobFor(sport, deps, opts) }));
 }
 
+/** Execução com os tiers padrão (a do scheduler): só ela grava o inventário que o painel usa. */
+const defaultScope = (opts: MirrorJobOptions) =>
+  opts.football?.seasonTier === undefined &&
+  opts.football?.detailTier === undefined &&
+  opts.football?.teamTier === undefined &&
+  opts.other?.maxTier === undefined;
+
 function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions): JobSpec {
   return {
     job: 'sync:mirror',
@@ -815,12 +822,14 @@ function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions)
             ...g,
             candidates: g.candidates.filter((c) => allowedByPlan(c, plan, now)),
           }));
-          // o inventário conta também os desligados: o painel estima o custo de religar
-          await deps.cursors.complete(
-            [{ sport, ...MIRROR_INVENTORY_CURSOR }],
-            { ...mirrorInventory(allowed, now) },
-            now,
-          );
+          // o inventário conta também os desligados: o painel estima o custo de religar. Só com os tiers padrão
+          // (o agendado): um --tier-outros 3 manual não pode inflar a estimativa da tela
+          if (defaultScope(opts))
+            await deps.cursors.complete(
+              [{ sport, ...MIRROR_INVENTORY_CURSOR }],
+              { ...mirrorInventory(allowed, now) },
+              now,
+            );
           const budget = opts.budget ?? mirrorBudget(plan.current, mirror.budgetPercent);
           return rotateGroups(arrangeGroups(allowed, cfg.groupOrder), deps.cursors, now, budget, {
             force: opts.force,

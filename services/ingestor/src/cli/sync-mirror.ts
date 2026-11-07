@@ -16,6 +16,7 @@ import { resolve } from 'node:path';
 import type { ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
 import { mirrorConfigFromEnv } from '@galaxie/runtime-config';
+import { panelEnv } from '../assets/commons/panel-env.js';
 import { loadSportCatalog } from '../catalog/catalog-config.js';
 import { isOtherSport, OTHER_SPORTS } from '../catalog/sport-catalog.js';
 import { jobContextFromEnv } from '../context.js';
@@ -41,11 +42,12 @@ await runCli(async () => {
       `Esporte(s) desconhecido(s): ${invalid.join(', ')}. Válidos: football, ${OTHER_SPORTS.join(', ')}.`,
     );
   const sports: ApiSport[] = positionals.length ? (positionals as ApiSport[]) : ['football', ...OTHER_SPORTS];
-  // flag inválida (no .env: o painel não grava valor inválido) para o job antes de chamar o fornecedor
-  const mirror = mirrorConfigFromEnv(process.env);
-  for (const sport of sports) mirror.api(sport);
   const ctx = jobContextFromEnv();
   try {
+    // as flags do painel por cima do env também quando o job roda à mão (pelo scheduler o env já vem com elas);
+    // flag inválida no .env (o painel não grava valor inválido) para o job antes de chamar o fornecedor
+    const mirror = mirrorConfigFromEnv(await panelEnv(ctx.db));
+    for (const sport of sports) mirror.api(sport);
     const jobs = mirrorJobs(
       {
         catalog: ctx.catalog,
