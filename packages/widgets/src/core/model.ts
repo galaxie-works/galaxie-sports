@@ -32,6 +32,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'countdown',
   'team_squad',
   'player_profile',
 ] as const;
@@ -1512,6 +1513,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
+.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gs-countdown-units{display:flex;justify-content:center;gap:6px}
+.gs-countdown-unit{display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
+.gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1606,6 +1612,8 @@ export interface WidgetTexts {
     recent: string;
     empty: string;
   };
+  /** Contagem regressiva para o jogo: "Começa em", "Vai começar" e as unidades (dias, horas…). */
+  countdown: { startsIn: string; starting: string; units: { d: string; h: string; m: string; s: string } };
   /** Agenda do time: próximos jogos e últimos resultados (V/E/D). */
   schedule: {
     title: string;
@@ -1984,6 +1992,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'Histórico geral: {n} jogos',
       recent: 'Últimos confrontos',
       empty: 'Os times ainda não se enfrentaram.',
+    },
+    countdown: {
+      startsIn: 'Começa em',
+      starting: 'Vai começar',
+      units: { d: 'dias', h: 'horas', m: 'min', s: 'seg' },
     },
     schedule: {
       title: 'Agenda',
@@ -2367,6 +2380,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'Historial completo: {n} partidos',
       recent: 'Últimos enfrentamientos',
       empty: 'Los equipos todavía no se enfrentaron.',
+    },
+    countdown: {
+      startsIn: 'Empieza en',
+      starting: 'Por comenzar',
+      units: { d: 'días', h: 'horas', m: 'min', s: 'seg' },
     },
     schedule: {
       title: 'Agenda',
@@ -2755,6 +2773,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       allTime: 'All-time: {n} matches',
       recent: 'Recent meetings',
       empty: 'These teams have not met yet.',
+    },
+    countdown: {
+      startsIn: 'Starts in',
+      starting: 'Starting soon',
+      units: { d: 'days', h: 'hrs', m: 'min', s: 'sec' },
     },
     schedule: {
       title: 'Schedule',
@@ -3302,6 +3325,23 @@ export function eventRefreshMs(
     return Math.min(Math.max(wake, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
+}
+
+/**
+ * Partes da contagem regressiva (widget `countdown`) para `ms` até o início. Arredonda para cima, para
+ * zerar só na hora do jogo: com segundos, 1,5 s vira 2 s; sem eles, 30 s ainda é 1 min.
+ */
+export function countdownParts(
+  ms: number,
+  withSeconds = true,
+): { days: number; hours: number; minutes: number; seconds: number } {
+  const total = Math.max(0, withSeconds ? Math.ceil(ms / 1000) : Math.ceil(ms / MINUTE) * 60);
+  return {
+    days: Math.floor(total / 86_400),
+    hours: Math.floor((total % 86_400) / 3600),
+    minutes: Math.floor((total % 3600) / 60),
+    seconds: total % 60,
+  };
 }
 
 // ─── textos da API e modelos ─────────────────────────────────────────────────────────────────────

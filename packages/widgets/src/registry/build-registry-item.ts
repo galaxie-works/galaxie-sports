@@ -136,6 +136,7 @@ function defaultProps(
     case 'race_result':
     case 'race_weekend':
     case 'fight_card':
+    case 'countdown':
     case 'match_timeline':
       return pick(['eventId']);
     case 'team_schedule':

@@ -5,6 +5,7 @@ import {
   GalaxieWidgetProvider,
   HeadToHead,
   LiveList,
+  Countdown,
   MatchCard,
   MatchStakes,
   MatchTimeline,
@@ -252,6 +253,15 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'countdown':
+        return (
+          <Countdown
+            {...o}
+            eventId={
+              sport === 'mma' ? PREVIEW_IDS.nextFightEvent : WIDGET_CATALOG.countdown.exampleProps.eventId
+            }
+          />
+        );
       case 'team_squad':
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
       case 'player_profile':
@@ -297,6 +307,8 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'countdown':
+      return <Countdown {...o} eventId={entity.id} />;
     case 'player_profile':
       return <PlayerProfile {...o} personId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
