@@ -3,7 +3,7 @@
  * e fora do Traefik), em `feedback/<aaaa-mm>/<uuid>.<ext>`. Só no servidor. A issue mostra a imagem por um link
  * assinado da demo (`app/api/feedback/anexo/[...key]/route.ts`), que lê daqui.
  */
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 const PREFIX = 'feedback/';
 
@@ -36,6 +36,13 @@ export async function putAttachment(key: string, body: Uint8Array, contentType: 
   await c.s3.send(
     new PutObjectCommand({ Bucket: c.bucket, Key: PREFIX + key, Body: body, ContentType: contentType }),
   );
+}
+
+/** Apaga o anexo (envio que falhou depois de gravar: não deixa imagem órfã no bucket). */
+export async function deleteAttachment(key: string): Promise<void> {
+  const c = store();
+  if (!c) return;
+  await c.s3.send(new DeleteObjectCommand({ Bucket: c.bucket, Key: PREFIX + key }));
 }
 
 /** Bytes e tipo do anexo; null se não existe (ou o bucket não está configurado). */

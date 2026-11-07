@@ -15,7 +15,7 @@ import { getTenantInfo, isUuid } from '@/lib/client/tenants';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { internalPath } from '@/lib/internal-path';
 
-import { attachmentStoreConfigured, putAttachment } from './attachments';
+import { attachmentStoreConfigured, deleteAttachment, putAttachment } from './attachments';
 import { FeedbackGithub, FeedbackGithubError, feedbackGithubConfig } from './github';
 import { cleanImage } from './image';
 import { feedbackRef, signAttachmentPath } from './signing';
@@ -60,32 +60,41 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   const files = form.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length > FEEDBACK_MAX_FILES) return { ok: false, error: 'tooMany' };
   if (files.reduce((sum, f) => sum + f.size, 0) > FEEDBACK_MAX_BYTES) return { ok: false, error: 'tooLarge' };
-  const images: { name: string; type: FeedbackImageType; body: Uint8Array }[] = [];
-  for (const file of files) {
-    const raw = new Uint8Array(await file.arrayBuffer());
-    const type = sniffImage(raw);
-    if (!type) return { ok: false, error: 'fileType', file: cleanName(file.name) };
-    try {
-      images.push({ name: cleanName(file.name), type, body: await cleanImage(raw, type) });
-    } catch {
-      // assinatura certa, conteúdo que o decodificador recusa (arquivo truncado ou forjado)
-      return { ok: false, error: 'fileType', file: cleanName(file.name) };
-    }
-  }
 
   const config = feedbackGithubConfig();
   const secret = process.env.BETTER_AUTH_SECRET;
   const publicUrl = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '');
   if (!config || !secret || !publicUrl) return { ok: false, error: 'unavailable' };
-  if (images.length && !attachmentStoreConfigured()) return { ok: false, error: 'unavailable' };
+  if (files.length && !attachmentStoreConfigured()) return { ok: false, error: 'unavailable' };
   const key = `${config.repo}|${config.token}`;
   if (github?.key !== key) github = { key, client: new FeedbackGithub(config) };
   const client = github.client;
 
+  // o limite vem antes de decodificar: recodificar imagem é a parte cara do envio
   const userId = session.user.id;
   const at = Date.now();
   if (!limiter.take(userId, at)) return { ok: false, error: 'limited' };
 
+  const images: { name: string; type: FeedbackImageType; body: Uint8Array }[] = [];
+  for (const file of files) {
+    const raw = new Uint8Array(await file.arrayBuffer());
+    const type = sniffImage(raw);
+    let body: Uint8Array | null = null;
+    if (type) {
+      try {
+        body = await cleanImage(raw, type);
+      } catch {
+        // assinatura certa, conteúdo que o decodificador recusa (truncado, forjado ou acima do teto de pixels)
+      }
+    }
+    // arquivo recusado gasta a vaga do limite de propósito: senão dava para forçar decodificação sem parar
+    if (!type || !body) {
+      return { ok: false, error: 'fileType', file: cleanName(file.name) };
+    }
+    images.push({ name: cleanName(file.name), type, body });
+  }
+
+  const stored: string[] = [];
   try {
     // repo pública = dado de cliente exposto: não envia nada
     await client.ensurePrivate();
@@ -96,6 +105,7 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
       // bucket privado; a issue leva só o link assinado (vale um ano), que a demo confere antes de entregar
       const key = `${month}/${randomUUID()}.${img.type === 'image/png' ? 'png' : 'jpg'}`;
       await putAttachment(key, img.body, img.type);
+      stored.push(key);
       attachments.push({ url: publicUrl + signAttachmentPath(secret, key, nowS), name: img.name });
     }
 
@@ -133,6 +143,8 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
     return { ok: true };
   } catch (err) {
     limiter.release(userId, at);
+    // a issue não saiu: as imagens já gravadas não têm quem as mostre
+    await Promise.allSettled(stored.map((k) => deleteAttachment(k)));
     if (err instanceof FeedbackGithubError && err.code === 'not_private') {
       console.error('[feedback] envio recusado: a repo de sugestões não é privada', config.repo);
       return { ok: false, error: 'unavailable' };

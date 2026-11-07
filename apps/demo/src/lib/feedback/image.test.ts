@@ -27,4 +27,12 @@ describe('imagem anexada', () => {
       cleanImage(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 1, 2]), 'image/jpeg'),
     ).rejects.toThrow();
   });
+
+  it('recusa imagem acima do teto de pixels antes de decodificar', async () => {
+    const big = await sharp({ create: { width: 100, height: 100, channels: 3, background: '#000' } })
+      .png()
+      .toBuffer();
+    await expect(cleanImage(new Uint8Array(big), 'image/png', 9_999)).rejects.toThrow(/pixel/i);
+    await expect(cleanImage(new Uint8Array(big), 'image/png', 10_000)).resolves.toBeInstanceOf(Uint8Array);
+  });
 });

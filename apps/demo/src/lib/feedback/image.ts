@@ -8,9 +8,18 @@ import sharp from 'sharp';
 import type { FeedbackImageType } from './rules';
 
 export const FEEDBACK_IMAGE_MAX_PX = 4096;
+/**
+ * Teto de pixels da ENTRADA (largura × altura do cabeçalho, conferido antes de decodificar): um PNG de poucos KB
+ * pode declarar 50.000 × 50.000 e estourar a memória do `site`. 40 MP cobre foto de celular e print 8K.
+ */
+export const FEEDBACK_IMAGE_MAX_INPUT_PIXELS = 40_000_000;
 
-export async function cleanImage(body: Uint8Array, type: FeedbackImageType): Promise<Uint8Array> {
-  const img = sharp(body, { failOn: 'error' }).rotate().resize({
+export async function cleanImage(
+  body: Uint8Array,
+  type: FeedbackImageType,
+  maxInputPixels = FEEDBACK_IMAGE_MAX_INPUT_PIXELS,
+): Promise<Uint8Array> {
+  const img = sharp(body, { failOn: 'error', limitInputPixels: maxInputPixels }).rotate().resize({
     width: FEEDBACK_IMAGE_MAX_PX,
     height: FEEDBACK_IMAGE_MAX_PX,
     fit: 'inside',
