@@ -797,6 +797,13 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  sidelined: [
+    bool('showReason', l('Motivo', 'Motivo', 'Reason'), true),
+    bool('showReturn', l('Previsão de volta', 'Vuelta prevista', 'Expected return'), true),
+    bool('showPhoto', l('Foto do jogador', 'Foto del jugador', 'Player photo'), true),
+    bool('showDoubtful', l('Jogadores em dúvida', 'Jugadores en duda', 'Doubtful players'), true),
+    count('limit', l('Jogadores por time', 'Jugadores por equipo', 'Players per team'), 10, 40, ALL),
+  ],
   countdown: [
     bool('showWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
     bool('showSeconds', l('Segundos', 'Segundos', 'Seconds'), true),

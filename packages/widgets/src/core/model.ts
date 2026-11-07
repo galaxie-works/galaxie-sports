@@ -33,6 +33,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'sidelined',
   'competition_leaders',
   'countdown',
   'team_squad',
@@ -853,6 +854,43 @@ export interface GsHeadToHead {
   events: GsEvent[];
 }
 
+/** Um desfalque (`/v1/events/{id}/sidelined` e `/v1/teams/{id}/sidelined`). */
+export interface GsSidelinedPlayer {
+  person: { id: string | null; name: string; photo: string | null };
+  position: string | null;
+  number: number | null;
+  status: 'out' | 'doubtful';
+  category: 'injury' | 'suspension' | 'illness' | 'other';
+  reason: string | null;
+  reason_label: string | null;
+  since: string | null;
+  until: string | null;
+  source: 'match' | 'history';
+}
+
+export interface GsSidelinedTeam {
+  id: string | null;
+  name: string | null;
+  side: 'home' | 'away' | null;
+  logo: string | null;
+}
+
+/** Desfalques dos dois times do jogo. */
+export interface GsEventSidelined {
+  event_id: string;
+  available: boolean;
+  teams: { team: GsSidelinedTeam; players: GsSidelinedPlayer[] }[];
+}
+
+/** Desfalques atuais de um time. */
+export interface GsTeamSidelined {
+  team: GsSidelinedTeam;
+  as_of: string;
+  available: boolean;
+  next_event_id: string | null;
+  players: GsSidelinedPlayer[];
+}
+
 export interface GsEventList {
   data: GsEvent[];
 }
@@ -1515,6 +1553,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:.85em;line-height:1.3}
 .gs-player{display:block;width:100%;min-width:200px;min-height:200px;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
 .gs-player[data-vertical]{max-width:320px;aspect-ratio:9/16;margin:0 auto}
+.gs-sidelined{display:grid;gap:var(--gs-gap)}
+.gs-sidelined[data-gs-sidelined=event]{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.gs-sidelined-who{display:flex;flex-direction:column;flex:1;min-width:0;gap:2px}
+.gs-sidelined>.gs-group+.gs-group{margin-top:0}
+.gs-sidelined-why{font-size:.8em;color:var(--gs-muted-foreground);overflow-wrap:anywhere}
 .gs-h2h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap);text-align:center}
 .gs-h2h[data-no-draws]{grid-template-columns:1fr 1fr}
 .gs-stat{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
@@ -1908,6 +1951,23 @@ export interface WidgetTexts {
     withheld: string;
     /** "Soma de {n} edições". */
     totals: string;
+  };
+  /** Desfalques: lesionados, suspensos e dúvidas (#830). */
+  sidelined: {
+    title: string;
+    out: string;
+    doubtful: string;
+    category: Record<'injury' | 'suspension' | 'illness' | 'other', string>;
+    /** "Volta prevista: {date}". */
+    until: string;
+    noReturn: string;
+    /** "Desde {date}". */
+    since: string;
+    empty: string;
+    /** O fornecedor ainda não publicou a lista e não há histórico dos elencos. */
+    unknown: string;
+    /** Sem jogo nem time escolhido. */
+    pick: string;
   };
   /** Elenco do time (#825): grupos por posição e os técnicos. "{age} anos", "{n} jogadores". */
   squad: {
@@ -2314,6 +2374,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'Nenhum atleta encontrado.',
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
+    },
+    sidelined: {
+      title: 'Desfalques',
+      out: 'Fora',
+      doubtful: 'Dúvida',
+      category: { injury: 'Lesão', suspension: 'Suspensão', illness: 'Doença', other: 'Outro motivo' },
+      until: 'Volta prevista: {date}',
+      noReturn: 'Sem previsão de volta',
+      since: 'Desde {date}',
+      empty: 'Nenhum desfalque informado.',
+      unknown: 'A lista de desfalques ainda não saiu.',
+      pick: 'Escolha um jogo ou um time.',
     },
     squad: {
       title: 'Elenco',
@@ -2726,6 +2798,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    sidelined: {
+      title: 'Bajas',
+      out: 'Baja',
+      doubtful: 'Duda',
+      category: { injury: 'Lesión', suspension: 'Sanción', illness: 'Enfermedad', other: 'Otro motivo' },
+      until: 'Vuelta prevista: {date}',
+      noReturn: 'Sin fecha de vuelta',
+      since: 'Desde {date}',
+      empty: 'No hay bajas informadas.',
+      unknown: 'La lista de bajas todavía no salió.',
+      pick: 'Elige un partido o un equipo.',
+    },
     squad: {
       title: 'Plantel',
       positions: {
@@ -3128,6 +3212,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noAthletes: 'No athletes found.',
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
+    },
+    sidelined: {
+      title: 'Absences',
+      out: 'Out',
+      doubtful: 'Doubtful',
+      category: { injury: 'Injury', suspension: 'Suspension', illness: 'Illness', other: 'Other reason' },
+      until: 'Expected back: {date}',
+      noReturn: 'No return date',
+      since: 'Since {date}',
+      empty: 'No absences reported.',
+      unknown: 'The absence list is not out yet.',
+      pick: 'Choose a match or a team.',
     },
     squad: {
       title: 'Squad',

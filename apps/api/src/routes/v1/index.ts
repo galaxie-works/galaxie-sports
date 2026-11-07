@@ -17,6 +17,7 @@ import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
+import { sidelinedRoutes } from './sidelined.js';
 import { leadersRoutes } from './leaders.js';
 
 /**
@@ -43,6 +44,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
   await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
+  // desfalques `/v1/events/{id}/sidelined` e `/v1/teams/{id}/sidelined` (#830) — módulo core_data
+  await sidelinedRoutes(app, ctx);
   // semântica (#45, #43) e multiesporte (#75, #78) — módulos `semantic` e `multisport`
   await semanticRoutes(app, ctx);
   await copyRoutes(app, ctx);

@@ -59,6 +59,7 @@ import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import { equestrianPaths } from './openapi-equestrian.js';
+import { sidelinedPaths } from './sidelined.js';
 import {
   Person,
   PersonOverview,
@@ -230,6 +231,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...multisportPaths(),
       ...navigationPaths(),
       ...equestrianPaths(),
+      ...sidelinedPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },

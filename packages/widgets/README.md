@@ -13,6 +13,7 @@ A operadora monta o widget com a identidade dela na demo e instala no app dela c
 | `match_stakes`   | `MatchStakes`    | `GalaxieMatchStakes`    | `eventId`           | `/v1/events/{id}` (stakes, `fan_tags`, `cheer`)      |
 | `head_to_head`   | `HeadToHead`     | `GalaxieHeadToHead`     | `eventId`           | `/v1/events/{id}/h2h`                                |
 | `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
+| `sidelined`      | `Sidelined`      | `GalaxieSidelined`      | `eventId` ou `teamId` | `/v1/events/{id}/sidelined`, `/v1/teams/{id}/sidelined` |
 | `team_card`      | `TeamCard`       | `GalaxieTeamCard`       | `teamId`            | `/v1/teams/{id}/overview`                            |
 | `team_squad`     | `TeamSquad`      | `GalaxieTeamSquad`      | `teamId`            | `/v1/teams/{id}/squad`, `/v1/teams/{id}`             |
 
