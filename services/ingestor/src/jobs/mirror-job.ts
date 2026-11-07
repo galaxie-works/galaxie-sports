@@ -145,7 +145,8 @@ export async function rotateGroups(
         if (age >= today) left -= 1;
         if (age >= staleBefore.getTime()) return;
       }
-      aged.push({ item: { ...c.item, staleBefore }, age, i });
+      // --forcar: sem o cache do raw também (maxAgeMs 0), senão a resposta ruim de hoje voltaria do cache
+      aged.push({ item: { ...c.item, staleBefore, ...(opts.force ? { maxAgeMs: 0 } : {}) }, age, i });
     });
     if (left <= 0) continue;
     const picked = aged.sort((a, b) => a.age - b.age || a.i - b.i).slice(0, left);

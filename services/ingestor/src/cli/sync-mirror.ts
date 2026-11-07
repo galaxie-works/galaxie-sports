@@ -74,13 +74,15 @@ await runCli(async () => {
     for (const { sport, spec } of jobs) {
       console.log(`\n== ${sport}`);
       try {
-        ran =
-          !!(await planOrRun(
-            ctx,
-            spec,
-            { ...values, 'sem-live': false },
-            normalize ? { afterFetch: normalize.afterFetch } : {},
-          )) || ran;
+        const report = await planOrRun(
+          ctx,
+          spec,
+          { ...values, 'sem-live': false },
+          normalize ? { afterFetch: normalize.afterFetch } : {},
+        );
+        ran = !!report || ran;
+        // 429 ou erro do fornecedor que vale para a API toda: o runner para e devolve parcial, sem exceção
+        if (report?.stoppedBy === 'provider') failed.push(sport);
       } catch (err) {
         logger.error({ err, sport }, 'espelho: execução da API falhou; seguindo com as próximas');
         failed.push(sport);

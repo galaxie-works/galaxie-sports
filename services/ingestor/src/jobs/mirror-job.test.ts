@@ -120,6 +120,9 @@ describe('rotateGroups', () => {
     expect(normal.map((p) => p.params.id)).toEqual(['3']);
     const forced = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2, { force: true });
     expect(forced.map((p) => p.params.id)).toEqual(['3', '2']);
+    // e sem o cache do raw
+    expect(forced.every((p) => p.maxAgeMs === 0)).toBe(true);
+    expect(normal.every((p) => p.maxAgeMs === undefined)).toBe(true);
   });
 });
 
