@@ -10,6 +10,7 @@ export const WIDGET_KINDS = [
   'match_card',
   'match_timeline',
   'live_list',
+  'score_ticker',
   'standings',
   'where_to_watch',
   'ai_context',

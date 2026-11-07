@@ -210,6 +210,69 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     bool('showCalendar', L.calendar, false),
   ],
   live_list: [],
+  // faixa de placares para TV (#833): o esporte e o campeonato são o recorte do widget (`defaults`)
+  score_ticker: [
+    {
+      key: 'mode',
+      type: 'enum',
+      default: 'today',
+      label: l('Jogos na faixa', 'Partidos en el cintillo', 'Games in the ticker'),
+      values: [
+        { value: 'live', label: l('Só ao vivo', 'Solo en vivo', 'Live only') },
+        {
+          value: 'today',
+          label: l('Ao vivo e encerrados do dia', 'En vivo y finalizados del día', 'Live and finished today'),
+        },
+        {
+          value: 'all',
+          label: l(
+            'Todos do dia (com os próximos)',
+            'Todos del día (con los próximos)',
+            'All of today (with upcoming)',
+          ),
+        },
+      ],
+    },
+    {
+      key: 'speed',
+      type: 'enum',
+      default: 'normal',
+      label: l('Velocidade', 'Velocidad', 'Speed'),
+      values: [
+        { value: 'slow', label: l('Lenta', 'Lenta', 'Slow') },
+        { value: 'normal', label: l('Normal', 'Normal', 'Normal') },
+        { value: 'fast', label: l('Rápida', 'Rápida', 'Fast') },
+      ],
+    },
+    bool('transparent', l('Fundo transparente', 'Fondo transparente', 'Transparent background'), false, {
+      hint: l(
+        'Para sobrepor a faixa ao vídeo da emissora.',
+        'Para superponer el cintillo al video del canal.',
+        'To overlay the ticker on the broadcast video.',
+      ),
+    }),
+    bool('showLabel', l('Rótulo "Ao vivo"', 'Rótulo "En vivo"', '"Live" label'), true),
+    bool('showCompetition', L.competition, true),
+    bool('showCrests', l('Escudos', 'Escudos', 'Crests'), true),
+    {
+      key: 'teamName',
+      type: 'enum',
+      default: 'short',
+      label: l('Nome dos times', 'Nombre de los equipos', 'Team names'),
+      values: [
+        { value: 'short', label: l('Curto (sigla)', 'Corto (sigla)', 'Short (code)') },
+        { value: 'full', label: l('Completo', 'Completo', 'Full') },
+      ],
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 40,
+      min: 1,
+      max: 100,
+      label: l('Máximo de jogos', 'Máximo de partidos', 'Maximum games'),
+    },
+  ],
   standings: [
     {
       key: 'season',

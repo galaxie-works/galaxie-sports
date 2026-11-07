@@ -68,6 +68,13 @@ export {
 } from './core/react.js';
 export { MatchCard, type MatchCardProps } from './widgets/match-card.js';
 export { LiveList, type LiveListProps } from './widgets/live-list.js';
+export {
+  SCORE_TICKER_LIMIT,
+  ScoreTicker,
+  type ScoreTickerMode,
+  type ScoreTickerProps,
+  type ScoreTickerSpeed,
+} from './widgets/score-ticker.js';
 export { StandingsTable, type StandingsTableProps } from './widgets/standings-table.js';
 export { WhereToWatch, type WhereToWatchProps } from './widgets/where-to-watch.js';
 export { AiContext, type AiContextProps } from './widgets/ai-context.js';

@@ -28,6 +28,7 @@ describe('abas de esporte do catálogo', () => {
       'match_card',
       'match_timeline',
       'live_list',
+      'score_ticker',
       'standings',
       'where_to_watch',
       'head_to_head',
@@ -35,6 +36,7 @@ describe('abas de esporte do catálogo', () => {
     ]);
     expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([
       'live_list',
+      'score_ticker',
       'standings',
       'where_to_watch',
       'race_result',

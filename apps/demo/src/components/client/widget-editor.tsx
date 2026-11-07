@@ -9,6 +9,7 @@ import {
   MatchStakes,
   MatchTimeline,
   RelatedVideos,
+  ScoreTicker,
   StandingsTable,
   TeamSchedule,
   TeamSquad,
@@ -204,6 +205,8 @@ function PreviewWidget({
         );
       case 'live_list':
         return <LiveList {...liveList} sport={sport ?? undefined} />;
+      case 'score_ticker':
+        return <ScoreTicker {...o} sport={sport ?? undefined} />;
       case 'ai_context':
         return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -270,6 +273,8 @@ function PreviewWidget({
       ) : (
         <LiveList {...liveList} competitionId={entity.id} sport={sport ?? undefined} />
       );
+    case 'score_ticker':
+      return <ScoreTicker {...o} competitionId={entity.id} sport={sport ?? undefined} />;
     case 'ai_context':
       return <AiContext {...o} eventId={entity.id} />;
     case 'match_stakes':
@@ -413,9 +418,13 @@ export function WidgetEditor({
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
-  // lista de jogos, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem entidade, mostram
-  // os dados de exemplo
-  const realData = Boolean(draft.entity) || draft.kind === 'live_list' || entityTypes.length === 0;
+  // lista de jogos, faixa de placares, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem
+  // entidade, mostram os dados de exemplo
+  const realData =
+    Boolean(draft.entity) ||
+    draft.kind === 'live_list' ||
+    draft.kind === 'score_ticker' ||
+    entityTypes.length === 0;
 
   function save() {
     startTransition(async () => {
