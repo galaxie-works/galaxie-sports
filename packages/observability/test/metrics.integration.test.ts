@@ -406,6 +406,32 @@ describe('frescor e ao vivo', () => {
     expect(m.get('galaxie_raw_last_fetched_timestamp_seconds', { sport: 'hockey' })).toBeUndefined();
   });
 
+  it('última busca por endpoint do mapa de frescor, sem janela; nunca buscado sai 0', async () => {
+    const m = await scrape();
+    const fixtures = { sport: 'football', endpoint: '/fixtures' };
+    expect(m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', fixtures)).toBeCloseTo(
+      ago(10 * MIN).getTime() / 1000,
+      0,
+    );
+    expect(
+      m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', {
+        sport: 'football',
+        endpoint: '/sidelined',
+      }),
+    ).toBe(0);
+    // o raw do hóquei é de /fixtures (fora do mapa): a agenda /games do hóquei nunca foi buscada
+    expect(
+      m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', { sport: 'hockey', endpoint: '/games' }),
+    ).toBe(0);
+    expect(
+      m.get('galaxie_raw_endpoint_max_age_seconds', {
+        sport: 'football',
+        endpoint: '/sidelined',
+        job_name: 'sync:daily',
+      }),
+    ).toBe((2 * 24 + 12) * 3600);
+  });
+
   it('eventos em andamento e o mais desatualizado, separados pela cobertura do ao vivo', async () => {
     const m = await scrape();
     const poller = { sport: 'football', coverage: 'poller' };

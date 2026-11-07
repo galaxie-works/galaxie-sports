@@ -4,6 +4,9 @@ import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
 import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
+  pacedShare,
+  roundRobin,
+  ROTATION_PERIOD_DAYS,
   buildScheduleRequests,
   buildSeasonListRequests,
   checkProviderStatus,
@@ -160,7 +163,11 @@ describe('dailyJob', () => {
       rotation: 4,
     });
     const plan = await planJob(job, h.deps);
-    expect(plan.phases[2]!.steps.squads!.total).toBe(4);
+    // fatia justa: as 4 vagas do dia em revezamento entre os endpoints (elencos, técnicos, transferências…)
+    const steps = plan.phases[2]!.steps;
+    expect(Object.values(steps).reduce((n, s) => n + s.total, 0)).toBe(4);
+    expect(steps.squads!.total).toBe(2);
+    expect(Object.keys(steps).length).toBeGreaterThan(1);
 
     // o limite do rodízio vale por dia: reexecutar no mesmo dia não renova mais nada
     h.nextDay();
@@ -168,6 +175,64 @@ describe('dailyJob', () => {
     const rerun = await planJob(job, h.deps);
     expect(rerun.phases[2]!.steps).toEqual({});
     expect(rerun.totals.network).toBe(0);
+  });
+});
+
+describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
+  it('o endpoint que vem primeiro não leva o dia inteiro (o /sidelined entra pelo seu ritmo)', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const trophies = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('trophies-jogadores', 'football', '/trophies', { players: String(i + 1) }),
+    );
+    const sidelined = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: String(i + 1) }),
+    );
+    const picked = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      4,
+      undefined,
+      (item) => item.endpoint,
+    );
+    // vaga pelo ritmo: /trophies 6 ÷ 30 dias → 1/dia; /sidelined 6 ÷ 2 dias → 3/dia
+    expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/sidelined', '/sidelined']);
+    // sem a fatia, a ordem da lista manda: só /trophies
+    const plain = await buildRotationRequests([...trophies, ...sidelined], h.cursors, new Date(t), 4);
+    expect(new Set(plain.map((p) => p.endpoint))).toEqual(new Set(['/trophies']));
+  });
+
+  it('cada endpoint leva primeiro a vaga do seu ritmo (o /sidelined de 2 dias não fica com 1/5 do dia)', () => {
+    // 5 chaves com fila cheia; s precisa de 6/dia, as outras de 1/dia: limite 10
+    const items = [
+      ...['a', 'b', 'c', 'd'].flatMap((k) => Array.from({ length: 10 }, (_, i) => `${k}${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => `s${i}`),
+    ];
+    const paced = new Map([
+      ['a', 1],
+      ['b', 1],
+      ['c', 1],
+      ['d', 1],
+      ['s', 6],
+    ]);
+    const picked = pacedShare(items, (x) => x[0]!, paced, 10);
+    expect(picked.filter((x) => x.startsWith('s'))).toHaveLength(6);
+    expect(picked).toHaveLength(10);
+    // vaga maior que o limite: proporcional
+    const tight = pacedShare(items, (x) => x[0]!, paced, 5);
+    expect(tight.filter((x) => x.startsWith('s')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a sobra de um endpoint vai para os outros', () => {
+    const items = ['a1', 'b1', 'b2', 'b3', 'b4', 'c1'];
+    expect(roundRobin(items, (s) => s[0]!, 5)).toEqual(['a1', 'b1', 'c1', 'b2', 'b3']);
+    expect(roundRobin(items, (s) => s[0]!, 50)).toHaveLength(6);
+  });
+
+  it('afastamentos a cada 2 dias, transferências a cada 7', () => {
+    expect(ROTATION_PERIOD_DAYS['/sidelined']).toBe(2);
+    expect(ROTATION_PERIOD_DAYS['/transfers']).toBe(7);
   });
 });
 
