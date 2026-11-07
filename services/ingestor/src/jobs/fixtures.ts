@@ -45,9 +45,12 @@ export function dateList(date: string): RawQuery {
   };
 }
 
+/** Id inteiro de até 9 dígitos, como o `fixtureRows` do Postgres aceita (cabe no int4). */
+const isId = (v: unknown): v is number => Number.isInteger(v) && Math.abs(v as number) <= 999_999_999;
+
 function isApiFixture(x: unknown): x is ApiFixture {
   const f = x as ApiFixture | null;
-  return !!f && typeof f.fixture?.id === 'number' && typeof f.league?.id === 'number' && f.teams != null;
+  return !!f && isId(f.fixture?.id) && isId(f.league?.id) && f.teams != null;
 }
 
 export function toFixtureRef(f: ApiFixture, fetchedAt: Date): FixtureRef {

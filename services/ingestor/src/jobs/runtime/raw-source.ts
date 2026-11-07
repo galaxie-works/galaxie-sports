@@ -114,6 +114,8 @@ export class PgRawSource implements RawSource {
   constructor(
     private readonly db: Database,
     private readonly batchSize = 50,
+    /** Linhas por lote do cursor de `fixtureRows` (cada linha é uma partida resumida, não uma resposta). */
+    private readonly fixtureBatchSize = 5000,
   ) {}
 
   async *latest(query: RawQuery): AsyncIterable<RawEntry> {
@@ -148,32 +150,46 @@ export class PgRawSource implements RawSource {
    */
   async *fixtureRows(query: RawQuery): AsyncIterable<RawFixtureRow> {
     const { where, values } = this.filter(query);
-    const num = (path: string) => `case when jsonb_typeof(${path}) = 'number' then (${path})::text::int end`;
+    // inteiro de até 9 dígitos (cabe no int4); decimal, texto ou número maior viram null em vez de derrubar a consulta
+    const isInt = (path: string) =>
+      `(jsonb_typeof(${path}) = 'number' and (${path})::text ~ '^-?[0-9]{1,9}$')`;
+    const int = (path: string) => `case when ${isInt(path)} then (${path})::text::int end`;
+    // a ordem de saída repete a do `latest` (por request_hash, e na ordem do array): o collectFixtures desempata
+    // fetchedAt iguais pela ordem de chegada
     const text = `with latest as (
         select distinct on (request_hash)
+          request_hash,
           body->'response' as response,
           (extract(epoch from coalesce(last_seen_at, fetched_at)) * 1000)::float8 as fetched_ms
         from raw.api_response
         where ${where}
         order by request_hash, fetched_at desc
       )
-      select ${num(`f->'fixture'->'id'`)} as id,
-        coalesce(f->'fixture'->'status'->>'short', 'NS') as status,
-        coalesce(f->'fixture'->>'date', '') as date,
-        ${num(`f->'league'->'id'`)} as league_id,
-        ${num(`f->'league'->'season'`)} as season,
-        f->'league'->>'round' as round,
-        ${num(`f->'teams'->'home'->'id'`)} as home_id,
-        ${num(`f->'teams'->'away'->'id'`)} as away_id,
-        fetched_ms
-      from latest
+      select ${int(`e.f->'fixture'->'id'`)} as id,
+        coalesce(e.f->'fixture'->'status'->>'short', 'NS') as status,
+        coalesce(e.f->'fixture'->>'date', '') as date,
+        ${int(`e.f->'league'->'id'`)} as league_id,
+        ${int(`e.f->'league'->'season'`)} as season,
+        e.f->'league'->>'round' as round,
+        ${int(`e.f->'teams'->'home'->'id'`)} as home_id,
+        ${int(`e.f->'teams'->'away'->'id'`)} as away_id,
+        l.fetched_ms
+      from latest l
       cross join lateral jsonb_array_elements(
-        case when jsonb_typeof(response) = 'array' then response else '[]'::jsonb end
-      ) f
-      where jsonb_typeof(f->'fixture'->'id') = 'number'
-        and jsonb_typeof(f->'league'->'id') = 'number'
-        and coalesce(jsonb_typeof(f->'teams'), 'null') <> 'null'`;
-    const cursor = this.db.$client.unsafe(text, values as never[]).cursor(5000);
+        case when jsonb_typeof(l.response) = 'array' then l.response else '[]'::jsonb end
+      ) with ordinality as e(f, n)
+      where ${isInt(`e.f->'fixture'->'id'`)}
+        and ${isInt(`e.f->'league'->'id'`)}
+        and coalesce(jsonb_typeof(e.f->'teams'), 'null') <> 'null'
+      order by l.request_hash, e.n`;
+    // um Date por resposta, não por partida: são até 1,25 milhão de linhas e poucas mil respostas
+    const dates = new Map<number, Date>();
+    const dateOf = (ms: number) => {
+      let d = dates.get(ms);
+      if (!d) dates.set(ms, (d = new Date(ms)));
+      return d;
+    };
+    const cursor = this.db.$client.unsafe(text, values as never[]).cursor(this.fixtureBatchSize);
     for await (const rows of cursor) {
       for (const r of rows as unknown as {
         id: number;
@@ -195,7 +211,7 @@ export class PgRawSource implements RawSource {
           round: r.round,
           homeId: r.home_id,
           awayId: r.away_id,
-          fetchedAt: new Date(r.fetched_ms),
+          fetchedAt: dateOf(r.fetched_ms),
         };
       }
     }

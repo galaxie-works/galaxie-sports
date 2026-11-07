@@ -36,7 +36,7 @@ import { DATE_LISTS, detailsJob } from '../src/jobs/details-job.js';
 import { collectFixtures, H2H_LISTS, SEASON_LISTS, type FixtureRef } from '../src/jobs/fixtures.js';
 import { PgCursorStore } from '../src/jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../src/jobs/runtime/job-run-store.js';
-import { PgRawSource, type RawSource } from '../src/jobs/runtime/raw-source.js';
+import { PgRawSource, type RawQuery, type RawSource } from '../src/jobs/runtime/raw-source.js';
 import { planJob, runJob, type RunDeps } from '../src/jobs/runtime/runner.js';
 import { seasonsJob } from '../src/jobs/seasons-job.js';
 import { exportRawSnapshot, importRawSnapshot } from '../src/snapshot/raw-snapshot.js';
@@ -203,16 +203,6 @@ describe('jobs de ingestão contra o Postgres', () => {
     expect(detailed!.n).toBe(96);
   });
 
-  it('o resumo das partidas feito no Postgres bate com o lido do corpo inteiro', async () => {
-    const pgRaw = new PgRawSource(db, 7);
-    const viaBody: RawSource = { latest: (q) => pgRaw.latest(q), lastFetched: (h) => pgRaw.lastFetched(h) };
-    const lists = [SEASON_LISTS, H2H_LISTS, DATE_LISTS];
-    const byId = (refs: FixtureRef[]) => [...refs].sort((a, b) => a.id - b.id);
-    const fromDb = byId(await collectFixtures(pgRaw, lists));
-    expect(fromDb.length).toBeGreaterThan(96);
-    expect(fromDb).toEqual(byId(await collectFixtures(viaBody, lists)));
-  });
-
   it('sync:daily é seguro para reexecutar no mesmo dia', async () => {
     clock.t = Date.parse(NOW) + 5 * DAY; // 26/10: agenda de 25, 26 e 27
     const h = pg(db, FREE_PLAN);
@@ -266,5 +256,81 @@ describe('jobs de ingestão contra o Postgres', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+  // Último do describe: grava respostas sintéticas no raw, depois do snapshot (que conta as linhas do raw).
+  it('o resumo das partidas feito no Postgres bate com o lido do corpo inteiro (h2h, agendas, repetidas e guardas)', async () => {
+    const item = (id: unknown, status: string, extra: Record<string, unknown> = {}) => ({
+      fixture: { id, date: '2024-05-01T19:00:00+00:00', status: { short: status } },
+      league: { id: 71, season: 2024, round: 'Regular Season - 1' },
+      teams: { home: { id: 121 }, away: { id: 131 } },
+      ...extra,
+    });
+    const t0 = new Date(Date.parse(NOW) - 3 * DAY);
+    const t1 = new Date(Date.parse(NOW) - 2 * DAY);
+    const t2 = new Date(Date.parse(NOW) - DAY);
+    const row = (
+      endpoint: string,
+      params: Record<string, string>,
+      requestHash: string,
+      response: unknown,
+      fetchedAt: Date,
+    ) => ({
+      sport: 'football',
+      apiVersion: 'v3',
+      endpoint,
+      params,
+      requestHash,
+      statusCode: 200,
+      body: { response },
+      bodyHash: `${requestHash}@${fetchedAt.getTime()}`,
+      fetchedAt,
+    });
+    await db.insert(apiResponse).values([
+      row(
+        '/fixtures/headtohead',
+        { h2h: '121-131' },
+        'sint-h2h',
+        [item(900001, 'FT'), item(900002, 'FT', { teams: { home: { id: 121 }, away: null } })],
+        t1,
+      ),
+      // mesma requisição, versão antiga: o distinct on fica só com a de t2, e o 900006 não aparece
+      row('/fixtures', { date: '2024-05-02' }, 'sint-dia', [item(900006, 'FT')], t0),
+      row(
+        '/fixtures',
+        { date: '2024-05-02' },
+        'sint-dia',
+        [
+          item(900001, 'AET'), // repetida, mais recente que a do h2h: vence
+          item('900003', 'FT'), // id em texto: fora (guarda do isApiFixture)
+          item(900004, 'FT', { teams: null }), // sem teams: fora
+          item(900005, 'NS'),
+          item(9_000_000_001, 'FT'), // não cabe no int4: fora, sem derrubar a consulta
+        ],
+        t2,
+      ),
+      row('/fixtures', { date: '2024-05-03' }, 'sint-dia-objeto', { erro: 'response não é array' }, t2),
+    ]);
+
+    // lote de 2 linhas: a troca de lote do cursor acontece várias vezes
+    const pgRaw = new PgRawSource(db, 7, 2);
+    const viaBody: RawSource = { latest: (q) => pgRaw.latest(q), lastFetched: (h) => pgRaw.lastFetched(h) };
+    const lists = [SEASON_LISTS, H2H_LISTS, DATE_LISTS];
+    const sorted = (refs: FixtureRef[]) => [...refs].sort((a, b) => a.id - b.id);
+    const fromDb = sorted(await collectFixtures(pgRaw, lists));
+    expect(fromDb).toEqual(sorted(await collectFixtures(viaBody, lists)));
+
+    const ids = async (q: RawQuery) => {
+      const out: number[] = [];
+      for await (const r of pgRaw.fixtureRows(q)) out.push(r.id);
+      return out;
+    };
+    expect(await ids(H2H_LISTS)).toEqual([900001, 900002]);
+    const daily = await ids(DATE_LISTS);
+    expect(daily).toEqual(expect.arrayContaining([900001, 900005]));
+    expect(daily.length).toBeGreaterThan(2); // as agendas que o sync:daily gravou
+    const byId = new Map(fromDb.map((f) => [f.id, f] as const));
+    expect(byId.get(900001)).toMatchObject({ status: 'AET', fetchedAt: t2 });
+    expect(byId.get(900002)).toMatchObject({ homeId: 121, awayId: null });
+    for (const out of [900003, 900004, 900006, 9_000_000_001]) expect(byId.has(out)).toBe(false);
   });
 });
