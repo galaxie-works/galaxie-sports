@@ -78,12 +78,14 @@ await runCli(async () => {
     };
     // uma execução por API: a cota esgotada (ou um 429) de uma não para as outras
     let ran = false;
+    const failed: string[] = [];
     for (const { sport, spec } of jobs) {
       console.log(`\n== ${sport}`);
       try {
         ran = !!(await planOrRun(ctx, spec, { ...values, 'sem-live': false }, { afterFetch })) || ran;
       } catch (err) {
         logger.error({ err, sport }, 'espelho: execução da API falhou; seguindo com as próximas');
+        failed.push(sport);
       }
     }
     if (ran && normalize) {
@@ -101,6 +103,11 @@ await runCli(async () => {
       console.log(
         `Tabelas: ${written} recalculada(s) de ${recomputed.length} temporada(s) com tabela do fornecedor.`,
       );
+    }
+    // a falha de uma API não para as outras, mas o job sai com erro (job_run e alerta de falhas seguidas)
+    if (failed.length) {
+      console.error(`Espelho: ${failed.length} API(s) com falha: ${failed.join(', ')}.`);
+      process.exitCode = 1;
     }
   } finally {
     await closeDb(ctx.db);

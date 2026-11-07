@@ -952,7 +952,18 @@ export async function upsertBatchInTx(
     }),
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
-  for (const chunk of chunks(standingRows, 500)) {
+  // grupo em que a calculada já conta mais jogos que a do fornecedor (fornecedor atrasado depois de uma rodada):
+  // o grupo inteiro do fornecedor fica de fora, para a tabela não sair misturada (posições de duas fontes); o
+  // recálculo seguinte refaz o grupo com os resultados
+  const behindGroups = await providerBehindGroups(tx, standingRows);
+  if (behindGroups.size) {
+    logger.info(
+      { groups: [...behindGroups] },
+      'tabela do fornecedor atrás da calculada: grupo mantido como calculado',
+    );
+  }
+  const freshRows = standingRows.filter((r) => !behindGroups.has(`${r.seasonId}|${r.group}`));
+  for (const chunk of chunks(freshRows, 500)) {
     const base = replaceUpdate(
       standing,
       [
@@ -974,10 +985,7 @@ export async function upsertBatchInTx(
     );
     // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
     const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
-    // a calculada que já conta mais jogos que a do fornecedor (fornecedor atrasado depois de uma rodada) não volta
-    // atrás: a linha fica `computed` e o recálculo seguinte refaz a tabela inteira
-    const setWhere = sql`((${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry))
-      and not (${standing.source} = 'computed' and coalesce(${standing.played}, 0) > coalesce(excluded.played, 0))`;
+    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
     await tx
       .insert(standing)
       .values(chunk)
@@ -987,11 +995,40 @@ export async function upsertBatchInTx(
         setWhere,
       });
   }
-  stats.standings = standingRows.length;
+  stats.standings = freshRows.length;
 
   await upsertPersonProfiles(tx, batch, scope, stats, { personId, participantId, seasonId });
 
   return stats;
+}
+
+/**
+ * Grupos (`seasonId|group`) em que alguma linha calculada já conta mais jogos que a linha do fornecedor do mesmo
+ * time: a tabela do fornecedor está atrasada e não deve substituir nenhuma linha do grupo.
+ */
+async function providerBehindGroups(
+  tx: Tx,
+  rows: { seasonId: string; group: string; participantId: string; played: number | null }[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  const seasonIds = [...new Set(rows.map((r) => r.seasonId))];
+  if (!seasonIds.length) return out;
+  const computed = await tx
+    .select({
+      seasonId: standing.seasonId,
+      group: standing.group,
+      participantId: standing.participantId,
+      played: standing.played,
+    })
+    .from(standing)
+    .where(and(inArray(standing.seasonId, seasonIds), eq(standing.source, 'computed')));
+  if (!computed.length) return out;
+  const played = new Map(computed.map((c) => [`${c.seasonId}|${c.group}|${c.participantId}`, c.played ?? 0]));
+  for (const r of rows) {
+    const mine = played.get(`${r.seasonId}|${r.group}|${r.participantId}`);
+    if (mine !== undefined && mine > (r.played ?? 0)) out.add(`${r.seasonId}|${r.group}`);
+  }
+  return out;
 }
 
 // ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────

@@ -608,4 +608,71 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       outcome: 'provider_fresh',
     });
   });
+
+  it('fornecedor que contou só parte da rodada: o grupo inteiro fica calculado (sem tabela misturada)', async () => {
+    const s = await seedSeason('football', 'liga-rodada-parcial', ['Q1', 'Q2', 'Q3', 'Q4']);
+    const ids = { Q1: '98561', Q2: '98562', Q3: '98563', Q4: '98564' } as const;
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9856',
+      },
+      ...(Object.entries(ids) as [keyof typeof ids, string][]).map(([name, providerId]) => ({
+        entityType: 'participant' as const,
+        entityId: s.team(name),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId,
+      })),
+    ]);
+    await finished('football', s.seasonId, s.team('Q1'), s.team('Q2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('Q3'), s.team('Q4'), [1, 0]);
+    await finished('football', s.seasonId, s.team('Q1'), s.team('Q3'), [2, 0]);
+    await finished('football', s.seasonId, s.team('Q2'), s.team('Q4'), [3, 0]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+    const [{ group }] = (await tableOf(s.seasonId)) as unknown as [{ group: string }];
+
+    // fornecedor sem o Q2 x Q4: Q1 e Q3 em dia, Q2 e Q4 com 1 jogo
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = Object.values(ids).map((id) => ({
+      id,
+      kind: null,
+      name: id,
+      shortName: null,
+      code: null,
+      countryName: null,
+      countryCode: null,
+      founded: null,
+      venueId: null,
+      logoUrl: null,
+    }));
+    const played = { [ids.Q1]: 2, [ids.Q3]: 2, [ids.Q2]: 1, [ids.Q4]: 1 };
+    batch.standings = Object.values(ids).map((id, i) => ({
+      season: { competitionId: '9856', year: 2026 },
+      group,
+      participantId: id,
+      rank: i + 1,
+      points: 0,
+      played: played[id]!,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      form: null,
+      description: null,
+    }));
+    await upsertBatch(db, batch);
+    const rows = await db
+      .select({ played: standing.played, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId));
+    expect(rows).toHaveLength(4);
+    expect(rows.every((r) => r.source === 'computed' && r.played === 2)).toBe(true);
+  });
 });
