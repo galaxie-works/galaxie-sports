@@ -13,6 +13,7 @@ import {
   ScoreTicker,
   StandingsTable,
   TeamSchedule,
+  TeamCard,
   TeamSquad,
   AthleteProfile,
   FightCard,
@@ -218,6 +219,8 @@ function PreviewWidget({
         return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
         return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+      case 'team_card':
+        return <TeamCard {...o} {...WIDGET_CATALOG.team_card.exampleProps} />;
       case 'race_result':
         return <RaceResult {...o} {...WIDGET_CATALOG.race_result.exampleProps} />;
       case 'race_weekend':
@@ -295,6 +298,8 @@ function PreviewWidget({
       return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={entity.id} />;
+    case 'team_card':
+      return <TeamCard {...o} teamId={entity.id} />;
     case 'race_result':
       return <RaceResult {...o} eventId={entity.id} />;
     case 'race_weekend':

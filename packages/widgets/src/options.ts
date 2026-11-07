@@ -514,6 +514,26 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     ),
     bool('showCalendar', L.calendar, false),
   ],
+  team_card: [
+    bool('showForm', l('Forma recente', 'Forma reciente', 'Recent form'), true),
+    {
+      key: 'formCount',
+      type: 'number',
+      default: 5,
+      min: 1,
+      max: 5,
+      label: l('Jogos na forma', 'Partidos en la forma', 'Matches in the form'),
+    },
+    bool('showNext', l('Próximo jogo', 'Próximo partido', 'Next match'), true),
+    bool('showCompetitions', l('Campeonatos', 'Competiciones', 'Competitions'), true),
+    count(
+      'competitionsLimit',
+      l('Campeonatos listados', 'Competiciones listadas', 'Competitions listed'),
+      4,
+      10,
+      ALL,
+    ),
+  ],
   race_result: [
     {
       key: 'limit',
