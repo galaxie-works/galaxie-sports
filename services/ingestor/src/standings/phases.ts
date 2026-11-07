@@ -27,6 +27,8 @@ export interface TableRow {
   group: string;
   source: string;
   updatedAt: Date;
+  /** Jogos na linha (o fornecedor de promedios conta 3 temporadas). */
+  played?: number;
 }
 
 export interface TablesByRule {
@@ -73,25 +75,6 @@ function membership(rows: readonly TableRow[]): Map<string, string> {
     out.set(team, pick);
   }
   return out;
-}
-
-/**
- * Tabela que já calculamos: separa os grupos do fornecedor que só repetem os nossos (todos os times dele já estão
- * num grupo calculado: o mesmo campeonato com outro rótulo, a acumulada, os promedios, a fase seguinte) dos que
- * trazem time que ainda não calculamos (grupo de uma fase que não começou, grupo novo). Os repetidos não definem
- * grupo nem frescura; os outros seguem definindo a quem pertence cada time.
- */
-export function splitProviderGroups(rows: readonly TableRow[]): { own: TableRow[]; repeated: string[] } {
-  if (!rows.some((r) => r.source === 'computed')) return { own: [...rows], repeated: [] };
-  const computedTeams = new Set(rows.filter((r) => r.source === 'computed').map((r) => r.participantId));
-  const computedGroups = new Set(rows.filter((r) => r.source === 'computed').map((r) => r.group));
-  const teamsOf = new Map<string, string[]>();
-  for (const r of rows)
-    if (r.source !== 'computed' && !computedGroups.has(r.group))
-      teamsOf.set(r.group, [...(teamsOf.get(r.group) ?? []), r.participantId]);
-  const repeated = [...teamsOf].filter(([, ts]) => ts.every((t) => computedTeams.has(t))).map(([g]) => g);
-  const skip = new Set(repeated);
-  return { own: rows.filter((r) => !skip.has(r.group)), repeated: repeated.sort() };
 }
 
 /**
@@ -212,12 +195,7 @@ export async function computeTablesByRule(
   const superseded = new Set<string>();
   let used = 0;
   for (const t of rules.tables) {
-    const all = rowsOf.get(t.key) ?? [];
-    // espelho dos dados, não do formato: na tabela `computed` que já calculamos, o rótulo do fornecedor que só
-    // repete os nossos times (o mesmo campeonato com outro nome, raw antigo relido com o rótulo de antes) não define
-    // grupo nem frescura e sai do core (a resposta fica no raw); sem isso ele apagava o nosso como "renomeado"
-    const { own, repeated } = t.computed ? splitProviderGroups(all) : { own: all, repeated: [] };
-    for (const g of repeated) superseded.add(g);
+    const own = rowsOf.get(t.key) ?? [];
     for (const g of renamedAway(own)) superseded.add(g);
     const groupOf = membership(own);
     const chosen = new Set(groupOf.values());

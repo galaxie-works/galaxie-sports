@@ -785,13 +785,14 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       venueId: null,
       logoUrl: null,
     }));
+    // promedios: 3 temporadas (76 jogos por time); a liga do fornecedor, atrasada (5)
     const row = (g: string, id: string, i: number) => ({
       season: { competitionId: '9858', year: 2026 },
       group: g,
       participantId: id,
       rank: i + 1,
       points: 9 - i,
-      played: 5,
+      played: g === group ? 5 : 76,
       won: 0,
       drawn: 0,
       lost: 0,
@@ -814,8 +815,8 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       rows.filter((r) => r.group === group).every((r) => r.source === 'computed' && r.played === 1),
     ).toBe(true);
     expect(rows.filter((r) => r.group === 'Promedios 2026')).toEqual([
-      { group: 'Promedios 2026', played: 5, source: 'provider' },
-      { group: 'Promedios 2026', played: 5, source: 'provider' },
+      { group: 'Promedios 2026', played: 76, source: 'provider' },
+      { group: 'Promedios 2026', played: 76, source: 'provider' },
     ]);
     // os promedios frescos do fornecedor não congelam o grupo calculado
     await finished('football', s.seasonId, s.team('T2'), s.team('T1'), [2, 0]);
@@ -833,8 +834,8 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       { group, played: 2, source: 'computed' },
     ]);
     expect(after.filter((r) => r.group === 'Promedios 2026')).toEqual([
-      { group: 'Promedios 2026', played: 5, source: 'provider' },
-      { group: 'Promedios 2026', played: 5, source: 'provider' },
+      { group: 'Promedios 2026', played: 76, source: 'provider' },
+      { group: 'Promedios 2026', played: 76, source: 'provider' },
     ]);
   });
 
@@ -856,11 +857,23 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
         providerId: `9859${i + 1}`,
       })),
     ]);
-    await finished('football', s.seasonId, s.team('A1'), s.team('A2'), [1, 0]);
-    await recomputeSeasonStandings(db, s.seasonId, { publish: false });
-    const [{ group }] = (await tableOf(s.seasonId)) as unknown as [{ group: string }];
-    const batch = emptyBatch('api-sports', 'football', new Date());
-    batch.participants = (['98591', '98592'] as const).map((id) => ({
+    const providerTable = (g: string, played: number) =>
+      (['98591', '98592'] as const).map((id, i) => ({
+        season: { competitionId: '9859', year: 2026 },
+        group: g,
+        participantId: id,
+        rank: i + 1,
+        points: 3 - i,
+        played,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        form: null,
+        description: null,
+      }));
+    const participants = (['98591', '98592'] as const).map((id) => ({
       id,
       kind: null,
       name: id,
@@ -872,21 +885,20 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       venueId: null,
       logoUrl: null,
     }));
-    batch.standings = (['98591', '98592'] as const).map((id, i) => ({
-      season: { competitionId: '9859', year: 2026 },
-      group: 'Acumulada',
-      participantId: id,
-      rank: i + 1,
-      points: 30 - i,
-      played: 10,
-      won: 0,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      form: null,
-      description: null,
-    }));
+    // a liga chega com o rótulo do fornecedor antes do 1º recálculo, que o adota
+    const first = emptyBatch('api-sports', 'football', new Date());
+    first.participants = participants;
+    first.standings = providerTable('Liga A', 0);
+    await upsertBatch(db, first);
+    // o resultado depois da tabela do fornecedor: ela fica atrasada e o recálculo grava a nossa
+    await finished('football', s.seasonId, s.team('A1'), s.team('A2'), [1, 0]);
+    await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+    const group = 'Liga A';
+    expect((await tableOf(s.seasonId)).every((r) => (r as { group: string }).group === group)).toBe(true);
+    const batch = emptyBatch('api-sports', 'football', new Date());
+    batch.participants = participants;
+    // a liga do fornecedor (descartada: o grupo é calculado) e a acumulada, com os jogos da temporada
+    batch.standings = [...providerTable(group, 1), ...providerTable('Acumulada', 1)];
     await upsertBatch(db, batch);
     await finished('football', s.seasonId, s.team('A2'), s.team('A1'), [1, 0]);
     expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({

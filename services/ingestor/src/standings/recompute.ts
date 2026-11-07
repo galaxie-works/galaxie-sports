@@ -27,7 +27,7 @@ import {
 } from '@galaxie/rules';
 import { loadCompetitionRules } from '@galaxie/rules/config';
 import { loadSeasonResults, writeComputedStandings } from '@galaxie/rules/db';
-import { computeTablesByRule, crossGroupTables, splitProviderGroups, type TableRow } from './phases.js';
+import { computeTablesByRule, crossGroupTables, type TableRow } from './phases.js';
 import {
   components,
   joinNamedGroups,
@@ -204,6 +204,7 @@ export async function recomputeSeasonStandings(
       group: standing.group,
       source: standing.source,
       updatedAt: standing.updatedAt,
+      played: standing.played,
     })
     .from(standing)
     .where(eq(standing.seasonId, seasonId));
@@ -241,13 +242,8 @@ export async function recomputeSeasonStandings(
 
   // grupo deduzido num recálculo anterior (`unnamed:N`) não é do fornecedor: volta a ser deduzido a cada
   // recálculo (dois pedaços do mesmo grupo no começo da temporada se juntam quando se enfrentam)
-  // temporada que já calculamos: o grupo do fornecedor que só repete os nossos times (promedios, acumulada, fase
-  // seguinte) fica no core como reserva, intocado, e não entra na montagem: com ele, cada time teria dois grupos
-  // com nome (o recálculo parava em `no_groups`) ou a tabela da liga cairia no grupo dos promedios. Grupo com time
-  // que ainda não calculamos continua definindo o grupo dele
-  const groupRows = splitProviderGroups(tableRows).own;
   const groupsOfTeam = new Map<string, Set<string>>();
-  for (const r of groupRows) {
+  for (const r of tableRows) {
     const set = groupsOfTeam.get(r.participantId) ?? new Set<string>();
     set.add(r.group.startsWith(UNNAMED_GROUP_PREFIX) ? '' : r.group);
     groupsOfTeam.set(r.participantId, set);
@@ -290,9 +286,29 @@ export async function recomputeSeasonStandings(
   // tabela única. O grupo vazio de um time que também está num grupo nomeado é resíduo do recálculo que
   // perdia os grupos. Time em mais de um grupo nomeado (fase regular + fase final, tabela de melhores
   // terceiros): não dá para saber em qual tabela cada jogo entra, então a do fornecedor fica como está
+  // espelho dos dados, não do formato: o grupo do fornecedor ao lado do nosso fica no core como reserva e não
+  // decide a tabela da temporada. (1) Grupo do fornecedor que conta muito mais jogos do time do que os encerrados
+  // da temporada (promedios de 3 temporadas) é outra tabela: sem isso a liga calculada no grupo vazio caía nele.
+  // (2) Time em mais de um grupo com nome, só um deles calculado para ele (acumulada ao lado da liga): vale o
+  // calculado; sem isso o recálculo parava em `no_groups` e a nossa tabela congelava
+  const playedIn = new Map<string, number>();
+  for (const m of all) for (const t of [m.homeId, m.awayId]) playedIn.set(t, (playedIn.get(t) ?? 0) + 1);
+  const rowOf = new Map(tableRows.map((r) => [`${r.participantId}|${r.group}`, r] as const));
   const groupOfTeam = new Map<string, string>();
   for (const [team, set] of groupsOfTeam) {
-    const named = [...set].filter((g) => g !== '');
+    const row = (g: string) => rowOf.get(`${team}|${g}`);
+    // a regra (1) só decide entre a nossa tabela no grupo vazio e um rótulo do fornecedor: adotar o rótulo (a
+    // mesma liga, com nome) ou deixá-lo de lado (promedios); sem linha nossa, vale o fornecedor como sempre
+    const oursUnnamed = row('')?.source === 'computed';
+    let named = [...set].filter((g) => {
+      if (g === '') return false;
+      if (!oursUnnamed) return true;
+      const r = row(g);
+      // folga para o core com resultado faltando (o fornecedor com 10 jogos e nós com 8 ainda é a mesma tabela)
+      return !(r?.source === 'provider' && (r.played ?? 0) > 2 * (playedIn.get(team) ?? 0) + 5);
+    });
+    const computedNamed = named.filter((g) => row(g)?.source === 'computed');
+    if (named.length > 1 && computedNamed.length === 1) named = computedNamed;
     if (named.length > 1)
       return report('no_groups', {
         detail: `time em mais de um grupo do fornecedor (${named.sort().join(', ')}); a competição não tem \`tables\` no regulamento`,
