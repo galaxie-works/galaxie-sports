@@ -1,5 +1,5 @@
 import type { ApiSport, PlanLimits, PlanRules } from '@galaxie/apisports-client';
-import { PlanViolationError } from '@galaxie/apisports-client';
+import { PlanViolationError, ttlFor } from '@galaxie/apisports-client';
 import {
   compareCompetitions,
   covers,
@@ -147,8 +147,12 @@ export async function rotateGroups(
         if (age >= today) left -= 1;
         if (age >= staleBefore.getTime()) return;
       }
-      // --forcar: sem o cache do raw também (maxAgeMs 0), senão a resposta ruim de hoje voltaria do cache
-      aged.push({ item: { ...c.item, staleBefore, ...(opts.force ? { maxAgeMs: 0 } : {}) }, age, i });
+      // o raw mais velho que o corte não serve (o /teams de 7 dias tem TTL de 7 dias e saía do cache no dia de
+      // vencer); --forcar: sem o cache do raw (maxAgeMs 0), senão a resposta ruim de hoje voltaria do cache
+      const maxAgeMs = opts.force
+        ? 0
+        : Math.min(ttlFor(c.item.endpoint, c.item.params, now), now.getTime() - staleBefore.getTime());
+      aged.push({ item: { ...c.item, staleBefore, maxAgeMs }, age, i });
     });
     if (left <= 0) continue;
     const picked = aged.sort((a, b) => a.age - b.age || a.i - b.i).slice(0, left);

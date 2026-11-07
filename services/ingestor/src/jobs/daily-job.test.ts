@@ -259,6 +259,16 @@ describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
     await h.cursors.complete(item.cursors, {}, new Date(dayStart - 2 * DAY + (t - dayStart) + 60_000));
     const picked = await buildRotationRequests([item], h.cursors, new Date(t), 5);
     expect(picked).toHaveLength(1);
+    // e o raw de anteontem não serve de cache (o TTL do /sidelined é de 7 dias): vai à rede
+    expect(picked[0]!.maxAgeMs).toBe(t - (dayStart - DAY));
+    expect(picked[0]!.maxAgeMs!).toBeLessThan(2 * DAY);
+  });
+
+  it('relista da temporada: o TTL curto do endpoint continua valendo (o corte não afrouxa o cache)', async () => {
+    const h = harness();
+    const item = plannedRequest('temporada-atual', 'football', '/fixtures', { league: 71, season: 2026 });
+    const [picked] = await buildRotationRequests([item], h.cursors, new Date(h.clock.t), 5, () => 2);
+    expect(picked!.maxAgeMs).toBeLessThanOrEqual(3_600_000);
   });
 
   it('afastamentos a cada 2 dias, transferências a cada 7', () => {

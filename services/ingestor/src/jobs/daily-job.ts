@@ -1,5 +1,6 @@
 import {
   requestHash,
+  ttlFor,
   type ApiSport,
   type PlanLimits,
   type PlanRules,
@@ -221,7 +222,10 @@ export async function buildRotationRequests(
       if (shareBy) need.set(shareBy(item), (need.get(shareBy(item)) ?? 0) - 1);
     }
     if (age >= staleBefore.getTime()) continue;
-    aged.push({ item: { ...item, staleBefore }, age });
+    // o raw mais velho que o corte não serve: sem isso o runner usava só o TTL do endpoint (7 dias nas pessoas) e o
+    // /sidelined de 2 dias saía do cache até a resposta fazer 7 dias; o TTL menor (relista: 1 h) continua valendo
+    const maxAgeMs = Math.min(ttlFor(item.endpoint, item.params, now), now.getTime() - staleBefore.getTime());
+    aged.push({ item: { ...item, staleBefore, maxAgeMs }, age });
   }
   limit = Math.max(0, limit - renewedToday);
   // estável: em empate, mantém a ordem de prioridade dos candidatos (squads tier 1 primeiro)
