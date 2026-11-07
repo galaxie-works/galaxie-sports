@@ -28,7 +28,9 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  CompetitionLeaders,
   PlayerProfile,
+  Lineups,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -257,6 +259,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'competition_leaders':
+        return <CompetitionLeaders {...WIDGET_CATALOG.competition_leaders.exampleProps} {...o} />;
       case 'countdown':
         return (
           <Countdown
@@ -270,6 +274,8 @@ function PreviewWidget({
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
       case 'player_profile':
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
+      case 'lineups':
+        return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
       case 'channel_guide':
         return <ChannelGuidePreview o={o} sport={sport} />;
     }
@@ -315,10 +321,14 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={entity.id} />;
     case 'countdown':
       return <Countdown {...o} eventId={entity.id} />;
     case 'player_profile':
       return <PlayerProfile {...o} personId={entity.id} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

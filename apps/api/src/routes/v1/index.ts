@@ -18,6 +18,7 @@ import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
+import { leadersRoutes } from './leaders.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -29,6 +30,8 @@ import { equestrianRoutes } from './equestrian.js';
  */
 export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   await catalogRoutes(app, ctx);
+  // artilharia e líderes da temporada `/v1/competitions/{id}/seasons/{season}/leaders` (#828)
+  await leadersRoutes(app, ctx);
   await whereToWatchRoutes(app, ctx);
   await broadcasterRoutes(app, ctx);
   // grade de canais e ofertas `/v1/platforms` (operadoras e streamings) — módulo where_to_watch

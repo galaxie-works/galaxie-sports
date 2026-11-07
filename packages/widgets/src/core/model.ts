@@ -33,9 +33,11 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
   'channel_guide',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -890,6 +892,32 @@ export interface GsStandingRow {
   description: string | null;
 }
 
+/** Categoria da artilharia e líderes (`/v1/competitions/{id}/seasons/{season}/leaders`). */
+export const LEADER_CATEGORIES = ['goals', 'assists', 'cards'] as const;
+export type GsLeaderCategory = (typeof LEADER_CATEGORIES)[number];
+
+export interface GsLeaderRow {
+  rank: number;
+  person: { id: string; name: string; photo: string | null };
+  team: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  value: number;
+  appearances: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+}
+
+export interface GsCompetitionLeaders {
+  competition_id: string;
+  sport: string;
+  season: { year: number; label: string };
+  category: GsLeaderCategory;
+  data: GsLeaderRow[];
+  updated_at: string | null;
+}
+
 export interface GsStandings {
   competition_id: string;
   /** Esporte da competição (ausente em respostas antigas = futebol). */
@@ -1380,7 +1408,8 @@ export const WIDGET_CSS = `
 .gs-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:gs-pulse 1.4s ease-in-out infinite}
 @keyframes gs-pulse{50%{opacity:.3}}
 .gs-card[data-gs-widget=score_ticker]{padding:0;background:none;border:0;container-type:inline-size}
-.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;font-size:clamp(16px,2cqw,44px);line-height:1.25;font-weight:600}
+.gs-ticker{display:flex;align-items:stretch;min-width:0;overflow:hidden;background:var(--gs-surface);border:1px solid var(--gs-border);border-radius:var(--gs-radius);font-size:22px;line-height:1.25;font-weight:600}
+@supports (font-size:clamp(16px,2cqw,44px)){.gs-ticker{font-size:calc(var(--gs-scale,1)*clamp(16px,2cqw,44px))}}
 .gs-ticker[data-transparent]{background:transparent;border-color:transparent;text-shadow:0 1px 3px rgba(0,0,0,.55)}
 .gs-ticker-label{flex:none;display:flex;align-items:center;gap:.4em;padding:.45em .7em;background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:800;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-shadow:none}
 .gs-ticker-label .gs-dot{width:.4em;height:.4em}
@@ -1388,7 +1417,8 @@ export const WIDGET_CSS = `
 .gs-ticker-empty{flex:1;display:flex;align-items:center;padding:.45em .7em;color:var(--gs-muted-foreground)}
 .gs-ticker-track{display:flex;width:max-content}
 .gs-ticker-track[data-running]{animation:gs-ticker linear infinite;will-change:transform}
-.gs-ticker-viewport:hover .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:hover .gs-ticker-track,.gs-ticker-viewport:focus-within .gs-ticker-track{animation-play-state:paused}
+.gs-ticker-viewport:focus-visible{outline:2px solid var(--gs-primary);outline-offset:-2px}
 @keyframes gs-ticker{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.gs-ticker-track[data-running]{animation:none}.gs-ticker-viewport{overflow-x:auto}}
 .gs-ticker-items{display:flex;align-items:center;gap:1.2em;margin:0;padding:.45em 1.2em .45em .7em;list-style:none;white-space:nowrap}
@@ -1522,6 +1552,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-incidents li{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gs-incidents [data-side=away]{grid-column:2;text-align:right}.gs-incidents [data-side=home]{grid-column:1}
 .gs-card-red{display:inline-block;width:8px;height:11px;margin-right:4px;border-radius:2px;background:#dc2626;vertical-align:-1px}
+.gs-card-yellow{display:inline-block;width:8px;height:11px;border-radius:2px;background:#facc15;vertical-align:-1px}
+.gs-leader-team{display:flex;align-items:center;gap:4px;font-size:.85em;opacity:.75;min-width:0}
 .gs-tl{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-tl-item{display:grid;grid-template-columns:3.2em 22px 1fr auto;align-items:start;gap:8px;padding:calc(var(--gs-gap)*.6) 0;border-top:1px solid var(--gs-border)}
 .gs-tl-item:first-child,.gs-tl-marker+.gs-tl-item{border-top:0}
@@ -1562,9 +1594,9 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
-.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:6px}
-.gs-countdown-units{display:flex;justify-content:center;gap:6px}
-.gs-countdown-unit{display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
+.gs-countdown{display:flex;flex-direction:column;align-items:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}
+.gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
 `;
@@ -1845,6 +1877,25 @@ export interface WidgetTexts {
     empty: string;
     emptyCalendar: string;
     emptyRanking: string;
+  };
+  /** Artilharia e líderes do campeonato (#828). */
+  leaders: {
+    goals: string;
+    assists: string;
+    cards: string;
+    /** Cabeçalho da coluna do número (gols, assistências). */
+    goalsCol: string;
+    assistsCol: string;
+    player: string;
+    team: string;
+    /** Abreviação de jogos na coluna. */
+    appearances: string;
+    appearancesLong: string;
+    yellow: string;
+    red: string;
+    empty: string;
+    /** Rodapé com a data da última atualização dos números. */
+    updatedAt: string;
   };
   /** Olimpíadas e Pan: quadro de medalhas, o dia do país, programação, atletas e histórico. */
   olympics: {
@@ -2254,6 +2305,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Nenhuma prova no período.',
       emptyRanking: 'Ranking indisponível.',
     },
+    leaders: {
+      goals: 'Artilharia',
+      assists: 'Assistências',
+      cards: 'Cartões',
+      goalsCol: 'Gols',
+      assistsCol: 'Assist.',
+      player: 'Jogador',
+      team: 'Time',
+      appearances: 'J',
+      appearancesLong: 'Jogos',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      empty: 'Os números dos jogadores deste campeonato ainda não estão disponíveis.',
+      updatedAt: 'Atualizado em',
+    },
     olympics: {
       medals: 'Quadro de medalhas',
       today: '{country} hoje',
@@ -2658,6 +2724,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Ninguna prueba en el período.',
       emptyRanking: 'Ranking no disponible.',
     },
+    leaders: {
+      goals: 'Goleadores',
+      assists: 'Asistencias',
+      cards: 'Tarjetas',
+      goalsCol: 'Goles',
+      assistsCol: 'Asist.',
+      player: 'Jugador',
+      team: 'Equipo',
+      appearances: 'PJ',
+      appearancesLong: 'Partidos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      empty: 'Las estadísticas de jugadores de esta competición aún no están disponibles.',
+      updatedAt: 'Actualizado el',
+    },
     olympics: {
       medals: 'Medallero',
       today: '{country} hoy',
@@ -3054,6 +3135,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'No competitions in this period.',
       emptyRanking: 'Ranking unavailable.',
     },
+    leaders: {
+      goals: 'Top scorers',
+      assists: 'Assists',
+      cards: 'Cards',
+      goalsCol: 'Goals',
+      assistsCol: 'Assists',
+      player: 'Player',
+      team: 'Team',
+      appearances: 'GP',
+      appearancesLong: 'Games',
+      yellow: 'Yellow cards',
+      red: 'Red cards',
+      empty: 'Player stats for this competition are not available yet.',
+      updatedAt: 'Updated',
+    },
     olympics: {
       medals: 'Medal table',
       today: '{country} today',
@@ -3443,6 +3539,33 @@ export function eventRefreshMs(
     return Math.min(Math.max(wake, MINUTE), SCHEDULED_WAKE_MAX_MS);
   }
   return null;
+}
+
+/** Onde assistir nas últimas 24 h: o canal costuma sair (ou mudar) perto do jogo. */
+const WATCH_NEAR_MS = 5 * MINUTE;
+/** A partir de quando o onde assistir passa a ser reconsultado de 5 em 5 minutos. */
+const WATCH_NEAR_WINDOW_MS = 24 * 60 * MINUTE;
+/** Teto do intervalo com o canal "a confirmar" e o jogo a mais de 24 h. */
+const WATCH_TO_CONFIRM_MAX_MS = 60 * MINUTE;
+
+/**
+ * Próxima consulta do onde assistir da contagem (`countdown`), pela distância até o jogo: 5 min nas
+ * últimas 24 h; antes disso, acorda quando entra nessa janela (até 2 min antes, conforme o id; no
+ * máximo a cada 6 h, ou a cada hora com o canal "a confirmar"). "Vai começar": 5 min; jogo que começou: para.
+ */
+export function watchRefreshMs(
+  event: Pick<GsEvent, 'status' | 'starts_at'> & { id?: string | undefined },
+  toConfirm: boolean,
+  now = Date.now(),
+): number | null {
+  if (event.status === 'starting') return WATCH_NEAR_MS;
+  if (event.status !== 'scheduled') return null;
+  const until = Date.parse(event.starts_at) - now;
+  if (!Number.isFinite(until)) return null;
+  if (until <= WATCH_NEAR_WINDOW_MS) return WATCH_NEAR_MS;
+  const wake = until - WATCH_NEAR_WINDOW_MS - wakeJitterMs(event.id);
+  const cap = toConfirm ? WATCH_TO_CONFIRM_MAX_MS : SCHEDULED_WAKE_MAX_MS;
+  return Math.min(Math.max(wake, MINUTE), cap);
 }
 
 /**

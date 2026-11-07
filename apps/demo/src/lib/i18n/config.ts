@@ -71,8 +71,8 @@ export type ContentLocale = Locale | SupportedLocale;
 
 /**
  * Locale pedido à API. A API fala pt-BR, espanhol (`es-*`) e inglês (`en`): com a demo em inglês, nomes,
- * fases e rótulos fixos vêm em inglês e o texto livre (gritos, fatos) no idioma do próprio clube. A exceção
- * é o contexto de IA (`contextLocale`), que não é gerado em inglês.
+ * fases e rótulos fixos vêm em inglês e o texto livre (gritos, fatos) no idioma do próprio clube. O contexto
+ * de IA (cenário e resumo) também é gerado em inglês e segue o `contentLocale`.
  */
 export function apiLocale(locale: ContentLocale): SupportedLocale {
   return locale;
@@ -100,16 +100,6 @@ export function contentLocale(locale: Locale, country: string | null | undefined
   const base = apiLocale(locale);
   if (base === 'pt-BR' || base === 'en') return base;
   return SPANISH_BY_COUNTRY[(country ?? '').toUpperCase()] ?? base;
-}
-
-/**
- * Locale do contexto de IA do jogo (cenário e resumo, `/v1/events/{id}/context`): a API não gera texto em
- * inglês, então a tela em inglês continua pedindo o que já pedia — a voz em espanhol do país do mandante
- * (`es-CL` para um time chileno; `es-AR` para os demais, inclusive os brasileiros). Nos outros idiomas é o
- * mesmo `contentLocale`.
- */
-export function contextLocale(locale: Locale, country: string | null | undefined): SupportedLocale {
-  return contentLocale(locale === 'en' ? 'es-AR' : locale, country);
 }
 
 const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {

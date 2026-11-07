@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import {
+  AvatarInfoSkeleton,
+  SectionSkeleton,
+  StatPairsSkeleton,
+  TableCardSkeleton,
+} from '@/components/app-shell/skeletons';
 import { CoverageNote, Flag, HistoryBadge, NoticeBanner, SourceLink } from '@/components/equestrian/parts';
 import { RankingsTable } from '@/components/equestrian/rankings-table';
 import { ResultsTable } from '@/components/equestrian/results-table';
@@ -297,10 +304,13 @@ export default function EquestrianAthletePage(props: Props) {
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="flex items-center gap-4 p-4 md:p-6">
-            <Skeleton className="size-24 rounded-full" />
-            <Skeleton className="h-7 w-48" />
-          </div>
+          <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
+            <AvatarInfoSkeleton avatarClassName="size-24 rounded-full" lines={['h-7 w-48', 'h-4 w-32']} />
+            <StatPairsSkeleton count={6} className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
+            <SectionSkeleton>
+              <TableCardSkeleton rows={6} columns={['w-20', 'flex-1', 'w-24', 'w-12', 'w-16']} />
+            </SectionSkeleton>
+          </LoadingStatus>
         </>
       }
     >

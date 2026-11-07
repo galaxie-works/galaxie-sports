@@ -48,7 +48,7 @@ describe('mapa de rótulos', () => {
     }
   });
 
-  it('famílias com zona sempre declaram {zone}; com gols, {n} ou {goals}', () => {
+  it('famílias com zona sempre declaram {zone}; com gols, {n}, {ord} ou {goals}', () => {
     for (const locale of STAKE_LOCALES) {
       for (const family of STAKE_FAMILIES) {
         const t = STAKE_LABELS[locale][family];
@@ -56,10 +56,21 @@ describe('mapa de rótulos', () => {
         if (family.includes('_zone'))
           for (const s of all) expect(s, `${locale} ${family}`).toContain('{zone}');
         if (/(^|_)n(_|$)/.test(family) && family !== 'advances_with_draw_up_to_n') {
-          expect(all[0], `${locale} ${family}`).toMatch(/\{(n|nth|goals)\}/);
+          expect(all[0], `${locale} ${family}`).toMatch(/\{(n|nth|ord|goals)\}/);
         }
       }
     }
+  });
+
+  it('posição em inglês com ordinal (2nd, 3rd, 11th), não "2th"', () => {
+    const at = (n: number) => stakeText({ family: 'moved_up_to_n', params: { n } }, 'en');
+    expect([at(2), at(3), at(11), at(21)]).toEqual([
+      'Moved up to 2nd place',
+      'Moved up to 3rd place',
+      'Moved up to 11th place',
+      'Moved up to 21st place',
+    ]);
+    expect(stakeText({ family: 'moved_up_to_n', params: { n: 2 } }, 'pt-BR')).not.toMatch(/2nd/);
   });
 
   it.each([

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { CardGridSkeleton, FramePanelSkeleton, TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetsPanel } from '@/components/client/widgets-panel';
-import { Skeleton } from '@/components/ui/skeleton';
 import { entityFromDefaults } from '@/lib/builder/config';
 import { CATALOG_TAB_PARAM, widgetFamily } from '@/lib/builder/sports';
 import { builderDb, listWidgets } from '@/lib/builder/store';
@@ -57,7 +58,16 @@ export default async function ClientBuilderPage({ searchParams }: PageProps<'/[l
         parents={[{ path: '/cliente', label: t.client.title, kind: 'cliente' }]}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense
+          fallback={
+            <LoadingStatus className="flex flex-col gap-4">
+              <FramePanelSkeleton>
+                <CardGridSkeleton bare count={6} media={null} footer={false} />
+              </FramePanelSkeleton>
+              <TablePanelSkeleton rows={4} />
+            </LoadingStatus>
+          }
+        >
           <Widgets searchParams={searchParams} />
         </Suspense>
       </div>

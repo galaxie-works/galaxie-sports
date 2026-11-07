@@ -4,7 +4,7 @@
  * confirmada do tenant. Puro: a rota lê as linhas e este módulo monta a grade.
  */
 import type { ClientChannelRef } from '@galaxie/contracts';
-import { isEditorial } from '@galaxie/where-to-watch';
+import { matchChannelsToPromote, withMatchChannel } from '@galaxie/where-to-watch';
 
 /** Opção do onde assistir (versão vigente) de um jogo no país do widget. */
 export interface GuideOptionRow {
@@ -71,28 +71,19 @@ export function guideChannelsByEvent(
   list: GuideChannelList,
   only: ReadonlySet<string> | null,
 ): Map<string, string[]> {
-  const key = (eventId: string, broadcasterId: string | null) => `${eventId}:${broadcasterId}`;
-  const removed = new Set(
-    options
-      .filter((r) => isEditorial(r) && (r.status === 'retracted' || r.status === 'omitted'))
-      .map((r) => key(r.eventId, r.broadcasterId)),
-  );
-  const matchOf = new Map(matches.map((m) => [key(m.eventId, m.broadcasterId), m]));
-  const confirmed = options.filter((r) => r.status === 'confirmed' && r.broadcasterId);
-  const published = new Set(confirmed.map((r) => key(r.eventId, r.broadcasterId)));
-  // como no onde assistir: a opção nacional (não editorial) leva o canal confirmado do jogo ("SporTV" vira
-  // "SporTV 2"); o canal do jogo só entra sozinho quando a emissora não tem opção publicada nem foi retirada
-  const sources = [
-    ...confirmed.map((r) => {
-      const m = matchOf.get(key(r.eventId, r.broadcasterId));
-      return r.region === null && !isEditorial(r) && m?.channelName
-        ? { ...r, channelName: m.channelName }
-        : r;
-    }),
-    ...matches.filter(
-      (m) => !published.has(key(m.eventId, m.broadcasterId)) && !removed.has(key(m.eventId, m.broadcasterId)),
-    ),
-  ];
+  // a mesma precedência do onde assistir, jogo a jogo: a opção nacional (não editorial) leva o canal
+  // confirmado do jogo ("SporTV" vira "SporTV 2"); o canal do jogo só entra sozinho quando a emissora não tem
+  // opção publicada nem foi retirada pela editoria
+  const optionsOf = groupBy(options, (r) => r.eventId);
+  const matchesOf = groupBy(matches, (m) => m.eventId);
+  const sources: { eventId: string; broadcasterId: string | null; channelName: string | null }[] = [];
+  for (const eventId of new Set([...optionsOf.keys(), ...matchesOf.keys()])) {
+    const rows = optionsOf.get(eventId) ?? [];
+    const channels = matchesOf.get(eventId) ?? [];
+    for (const r of rows)
+      if (r.status === 'confirmed' && r.broadcasterId) sources.push(withMatchChannel(r, channels));
+    sources.push(...matchChannelsToPromote(rows, channels));
+  }
   const byEvent = new Map<string, Set<string>>();
   for (const s of sources) {
     for (const ref of list.carrying(country, s.broadcasterId, s.channelName)) {
@@ -103,6 +94,16 @@ export function guideChannelsByEvent(
     }
   }
   return new Map([...byEvent].map(([id, names]) => [id, [...names].sort(collator.compare)]));
+}
+
+function groupBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const item of items) {
+    const list = out.get(keyOf(item));
+    if (list) list.push(item);
+    else out.set(keyOf(item), [item]);
+  }
+  return out;
 }
 
 /** Canais com algum jogo no dia, em ordem alfabética. */

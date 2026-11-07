@@ -13,11 +13,12 @@ import {
   type MatchChannelState,
   type MatchPhase,
 } from './match-channel.js';
-import { isHttpUrl, normalizeName } from './normalize.js';
+import { isHttpUrl } from './normalize.js';
 import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
 import { effectiveRights } from './rights.js';
-import { isEditorial, type BroadcastOptionRow } from './store.js';
+import { matchChannelsToPromote, sameChannel, withMatchChannel } from './match-precedence.js';
+import type { BroadcastOptionRow } from './store.js';
 
 /** Mensagem quando não há informação confiável — o evento continua existindo. */
 export const UNKNOWN_MESSAGES: Record<string, string> = {
@@ -280,16 +281,7 @@ async function promoteMatchChannels(
   channels: MatchChannelRow[],
   config: WtwConfig | null,
 ): Promise<BroadcastOptionRow[]> {
-  if (!channels.length) return [];
-  const published = new Set(rows.filter((r) => r.status === 'confirmed').map((r) => r.broadcasterId));
-  const removedByEditorial = new Set(
-    rows
-      .filter((r) => isEditorial(r) && (r.status === 'retracted' || r.status === 'omitted'))
-      .map((r) => r.broadcasterId),
-  );
-  const todo = channels.filter(
-    (m) => !published.has(m.broadcasterId) && !removedByEditorial.has(m.broadcasterId),
-  );
+  const todo = matchChannelsToPromote(rows, channels);
   if (!todo.length) return [];
   const library = new Map(
     (await listBroadcasters(db, { ids: todo.map((m) => m.broadcasterId) })).map((b) => [b.id, b]),
@@ -342,21 +334,6 @@ async function promoteMatchChannels(
     return [row];
   });
 }
-
-/**
- * Opção publicada cuja emissora tem canal do jogo confirmado (enrich.match_channel) com outro canal:
- * vale o canal do jogo, que é o que a fonte exibida (`match_channel.channels[].source`) sustenta —
- * senão nome e fonte se contradizem ("SporTV 2" com a fonte que diz "SporTV 3"). Só nas opções
- * nacionais (as regionais trazem a afiliada no nome do canal).
- */
-function withMatchChannel(row: BroadcastOptionRow, channels: MatchChannelRow[]): BroadcastOptionRow {
-  if (row.region !== null || !row.broadcasterId || isEditorial(row)) return row;
-  const m = channels.find((c) => c.broadcasterId === row.broadcasterId);
-  if (!m?.channelName || sameChannel(m.channelName, row.channelName)) return row;
-  return { ...row, channelName: m.channelName };
-}
-
-const sameChannel = (a: string | null, b: string | null) => normalizeName(a ?? '') === normalizeName(b ?? '');
 
 /** Meio a partir do tipo da biblioteca (só quando o dicionário do país não diz). */
 const MEDIUM_OF_KIND: Record<string, BroadcastMedium> = {

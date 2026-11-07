@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { AvatarInfoSkeleton, TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { Badge } from '@/components/reui/badge';
 import { CountryFlag } from '@/components/sport/country-flag';
 import { Crest } from '@/components/sport/crest';
@@ -367,16 +369,16 @@ export function CompetitionFallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-40" />} />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="size-24" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-7 w-64" />
-            <Skeleton className="h-4 w-40" />
+      <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
+        <AvatarInfoSkeleton avatarClassName="size-24 rounded-md" lines={['h-7 w-64', 'h-4 w-40']} />
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-28 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md" />
           </div>
+          <TableCardSkeleton rows={10} columns={['w-6', 'flex-1', 'w-8', 'w-8', 'w-8', 'w-8', 'w-10']} />
         </div>
-        <Skeleton className="h-96" />
-      </div>
+      </LoadingStatus>
     </>
   );
 }

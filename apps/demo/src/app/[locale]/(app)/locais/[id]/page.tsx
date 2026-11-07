@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { MediaCardSkeleton, StatPairsSkeleton } from '@/components/app-shell/skeletons';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getVenue, venueRequest } from '@/lib/galaxie/api';
@@ -112,9 +114,14 @@ export default function VenuePage({ params }: PageProps<'/[locale]/locais/[id]'>
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="p-4 md:p-6">
-            <Skeleton className="aspect-[21/9] w-full" />
-          </div>
+          <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
+            <MediaCardSkeleton header={false} mediaClassName="h-64" />
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-8 w-56 max-w-full" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <StatPairsSkeleton count={3} className="grid-cols-2 sm:grid-cols-3" />
+          </LoadingStatus>
         </>
       }
     >

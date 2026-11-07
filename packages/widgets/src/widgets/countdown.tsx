@@ -7,6 +7,7 @@ import {
   STARTED_STATUSES,
   countdownParts,
   eventRefreshMs,
+  watchRefreshMs,
   sidesOf,
   type GsEvent,
   type GsWhereToWatch,
@@ -34,8 +35,8 @@ export interface CountdownProps {
 }
 
 const enc = encodeURIComponent;
-/** Onde assistir muda devagar: de 5 em 5 minutos basta para pegar o canal confirmado. */
-const WATCH_REFRESH_MS = 5 * 60_000;
+/** Canais na contagem: mais que isso não cabe na leitura de TV. */
+export const COUNTDOWN_WATCH_MAX = 4;
 
 /**
  * Contagem regressiva para o jogo: dias, horas, minutos e segundos até o início, com os escudos, o
@@ -58,8 +59,8 @@ export function Countdown({
   const watch = useGalaxieQuery<GsWhereToWatch>(
     event && waiting && showWatch && market ? `/v1/events/${enc(event.id)}/where-to-watch` : null,
     { country: market },
-    // o canal sai mais perto do jogo ("a confirmar" vira o canal): reconsulta enquanto a contagem está na tela
-    () => WATCH_REFRESH_MS,
+    // o canal sai mais perto do jogo ("a confirmar" vira o canal): o intervalo segue a distância até o início
+    (data) => (event ? watchRefreshMs(event, isToConfirm(data)) : null),
   );
 
   // relógio local: de segundo em segundo, ou na virada de cada minuto sem os segundos
@@ -106,11 +107,8 @@ export function Countdown({
       ] as const)
     : [];
   const dark = theme.mode === 'dark';
-  const channels = dedupeChannels(watch.data);
-  const toConfirm =
-    !!watch.data &&
-    channels.length === 0 &&
-    (watch.data.to_confirm.length > 0 || watch.data.availability?.channel_status === 'to_confirm');
+  const channels = dedupeChannels(watch.data).slice(0, COUNTDOWN_WATCH_MAX);
+  const toConfirm = !!watch.data && isToConfirm(watch.data);
 
   return (
     <WidgetFrame kind="countdown">
@@ -191,6 +189,14 @@ export function Countdown({
         </div>
       ) : null}
     </WidgetFrame>
+  );
+}
+
+/** Sem canal confirmado, mas com detentor ou canal "a confirmar". */
+function isToConfirm(data: GsWhereToWatch): boolean {
+  return (
+    dedupeChannels(data).length === 0 &&
+    (data.to_confirm.length > 0 || data.availability?.channel_status === 'to_confirm')
   );
 }
 

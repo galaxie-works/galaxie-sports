@@ -1,6 +1,7 @@
 import {
   FactSheetBuilder,
   guardrailSystemRules,
+  inLanguage,
   languageOf,
   type AgentLocale,
   type FactSheet,
@@ -109,7 +110,6 @@ const lowerFirst = (s: string) => (s ? s.charAt(0).toLocaleLowerCase() + s.slice
 export function leagueSentence(core: EventCore, facts: RecapFacts, locale: AgentLocale): string | null {
   const lg = facts.league;
   if (!lg) return null;
-  const pt = languageOf(locale) === 'pt';
   const side = (team: Side) => {
     const labels = lg.result
       .filter((s: RecapStakeFact) => s.team === team)
@@ -119,30 +119,34 @@ export function leagueSentence(core: EventCore, facts: RecapFacts, locale: Agent
       .map(lowerFirst);
     if (!labels.length) return null;
     const name = teamName(team === 'home' ? core.home : core.away, locale);
-    return `${name} ${labels.join(pt ? ' e ' : ' y ')}`;
+    return `${name} ${labels.join(inLanguage(locale, { pt: ' e ', es: ' y ', en: ' and ' }))}`;
   };
   const parts = [side('home'), side('away')].filter((x): x is string => !!x);
   if (!parts.length) return null;
-  return `${pt ? 'Na tabela' : 'En la tabla'}, ${parts.join('; ')}`;
+  return `${inLanguage(locale, { pt: 'Na tabela', es: 'En la tabla', en: 'In the table' })}, ${parts.join('; ')}`;
 }
 
 /** Complemento do placar: virada e gol decisivo no fim ou nos acréscimos (vazio sem nada a dizer). */
 function flowClause(facts: RecapFacts, locale: AgentLocale): string {
   const f = facts.flow;
   if (!f || facts.decided_by !== 'regular') return '';
-  const pt = languageOf(locale) === 'pt';
+  const tr = (pt: string, es: string, en: string) => inLanguage(locale, { pt, es, en });
   const parts: string[] = [];
-  if (f.winner && f.winner_max_deficit > 0) parts.push(pt ? 'de virada' : 'dándolo vuelta');
+  if (f.winner && f.winner_max_deficit > 0)
+    parts.push(tr('de virada', 'dándolo vuelta', 'coming from behind'));
   const g = f.decisive_goal;
   if (g?.late) {
     const when = g.stoppage_time
-      ? pt
-        ? 'nos acréscimos'
-        : 'en el tiempo de descuento'
-      : `${pt ? 'aos' : 'a los'} ${minuteText(g)}`;
-    if (f.winner) parts.push(pt ? `com o gol da vitória ${when}` : `con el gol del triunfo ${when}`);
+      ? tr('nos acréscimos', 'en el tiempo de descuento', 'in stoppage time')
+      : tr(`aos ${minuteText(g)}`, `a los ${minuteText(g)}`, `in the ${minuteText(g)}`);
+    if (f.winner)
+      parts.push(
+        tr(`com o gol da vitória ${when}`, `con el gol del triunfo ${when}`, `with the winner ${when}`),
+      );
     else if (f.came_back_to_draw)
-      parts.push(pt ? `com o gol de empate ${when}` : `con el gol del empate ${when}`);
+      parts.push(
+        tr(`com o gol de empate ${when}`, `con el gol del empate ${when}`, `with the equalizer ${when}`),
+      );
   }
   return parts.length ? `, ${parts.join(', ')}` : '';
 }
@@ -150,19 +154,19 @@ function flowClause(facts: RecapFacts, locale: AgentLocale): string {
 const minuteText = (m: { minute: number | null; extra: number | null }) =>
   m.minute === null ? null : m.extra ? `${m.minute}+${m.extra}'` : `${m.minute}'`;
 
-function joinList(items: string[], pt: boolean): string {
+function joinList(items: string[], locale: AgentLocale): string {
   if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} ${pt ? 'e' : 'y'} ${items.at(-1)}`;
+  return `${items.slice(0, -1).join(', ')} ${inLanguage(locale, { pt: 'e', es: 'y', en: 'and' })} ${items.at(-1)}`;
 }
 
 function goalsSentence(core: EventCore, goals: RecapGoal[], side: Side, locale: AgentLocale): string | null {
-  const pt = languageOf(locale) === 'pt';
+  const tr = (pt: string, es: string, en: string) => inLanguage(locale, { pt, es, en });
   const list = goals.filter((g) => g.team === side);
   if (!list.length) return null;
   // agrupa por autor e tipo, preservando a ordem
   const groups = new Map<string, { scorer: string; type: RecapGoal['type']; minutes: string[] }>();
   for (const g of list) {
-    const scorer = g.scorer ?? (pt ? 'autor não informado' : 'autor no informado');
+    const scorer = g.scorer ?? tr('autor não informado', 'autor no informado', 'scorer not reported');
     const key = `${scorer}|${g.type}`;
     const group = groups.get(key) ?? { scorer, type: g.type, minutes: [] };
     const m = minuteText(g);
@@ -172,21 +176,21 @@ function goalsSentence(core: EventCore, goals: RecapGoal[], side: Side, locale: 
   const items = [...groups.values()].map((g) => {
     const tag =
       g.type === 'own_goal'
-        ? pt
-          ? 'contra'
-          : 'en contra'
+        ? tr('contra', 'en contra', 'own goal')
         : g.type === 'penalty'
-          ? pt
-            ? 'pênalti'
-            : 'de penal'
+          ? tr('pênalti', 'de penal', 'penalty')
           : null;
-    const inside = [tag, joinList(g.minutes, pt)].filter(Boolean).join(', ');
+    const inside = [tag, joinList(g.minutes, locale)].filter(Boolean).join(', ');
     return inside ? `${g.scorer} (${inside})` : g.scorer;
   });
   const team = teamName(side === 'home' ? core.home : core.away, locale);
   const plural = list.length > 1;
-  const head = pt ? `${plural ? 'Gols' : 'Gol'} do ${team}` : `${plural ? 'Goles' : 'Gol'} de ${team}`;
-  return `${head}: ${joinList(items, pt)}`;
+  const head = tr(
+    `${plural ? 'Gols' : 'Gol'} do ${team}`,
+    `${plural ? 'Goles' : 'Gol'} de ${team}`,
+    `${team} ${plural ? 'goals' : 'goal'}`,
+  );
+  return `${head}: ${joinList(items, locale)}`;
 }
 
 function playersSentence(
@@ -196,33 +200,25 @@ function playersSentence(
   kind: 'red' | 'missed',
 ): string | null {
   if (!list.length) return null;
-  const pt = languageOf(locale) === 'pt';
+  const tr = (pt: string, es: string, en: string) => inLanguage(locale, { pt, es, en });
   const items = list.map((p) => {
     const team = teamName(p.team === 'home' ? core.home : core.away, locale);
-    const who = p.player ?? (pt ? 'jogador não informado' : 'jugador no informado');
+    const who = p.player ?? tr('jogador não informado', 'jugador no informado', 'player not reported');
     return `${who} (${[team, minuteText(p)].filter(Boolean).join(', ')})`;
   });
   const many = list.length > 1;
   const head =
     kind === 'red'
-      ? pt
-        ? many
-          ? 'Expulsos'
-          : 'Expulso'
-        : many
-          ? 'Expulsados'
-          : 'Expulsado'
-      : pt
-        ? many
-          ? 'Pênaltis perdidos'
-          : 'Pênalti perdido'
-        : many
-          ? 'Penales errados'
-          : 'Penal errado';
-  return `${head}: ${joinList(items, pt)}`;
+      ? many
+        ? tr('Expulsos', 'Expulsados', 'Sent off')
+        : tr('Expulso', 'Expulsado', 'Sent off')
+      : many
+        ? tr('Pênaltis perdidos', 'Penales errados', 'Missed penalties')
+        : tr('Pênalti perdido', 'Penal errado', 'Missed penalty');
+  return `${head}: ${joinList(items, locale)}`;
 }
 
-const NEXT_STAGE_TEXT: Record<'pt' | 'es', Record<RecapNextStage, string>> = {
+const NEXT_STAGE_TEXT: Record<'pt' | 'es' | 'en', Record<RecapNextStage, string>> = {
   pt: {
     final: 'a final',
     semi_final: 'as semifinais',
@@ -241,82 +237,114 @@ const NEXT_STAGE_TEXT: Record<'pt' | 'es', Record<RecapNextStage, string>> = {
     round_of_64: 'los treintaidosavos de final',
     next_round: 'la siguiente fase',
   },
+  en: {
+    final: 'the final',
+    semi_final: 'the semifinals',
+    quarter_final: 'the quarterfinals',
+    round_of_16: 'the round of 16',
+    round_of_32: 'the round of 32',
+    round_of_64: 'the round of 64',
+    next_round: 'the next round',
+  },
 };
 
 /** Frase do desfecho do mata-mata (quem passou, agregado e como a vaga saiu); null sem desfecho. */
 export function tieSentence(core: EventCore, facts: RecapFacts, locale: AgentLocale): string | null {
   const tie = facts.tie;
   if (!tie) return null;
-  const pt = languageOf(locale) === 'pt';
+  const tr = (pt: string, es: string, en: string) => inLanguage(locale, { pt, es, en });
   if (tie.leg === 1)
-    return pt
-      ? 'Jogo de ida; a vaga será decidida na volta'
-      : 'Partido de ida; la serie se define en la vuelta';
+    return tr(
+      'Jogo de ida; a vaga será decidida na volta',
+      'Partido de ida; la serie se define en la vuelta',
+      'First leg; the tie will be decided in the second leg',
+    );
   const agg = tie.aggregate;
   const home = teamName(core.home, locale);
   const away = teamName(core.away, locale);
   if (!tie.winner) {
     return agg
-      ? pt
-        ? `Agregado: ${home} ${agg.home} x ${agg.away} ${away}`
-        : `Global: ${home} ${agg.home}-${agg.away} ${away}`
+      ? tr(
+          `Agregado: ${home} ${agg.home} x ${agg.away} ${away}`,
+          `Global: ${home} ${agg.home}-${agg.away} ${away}`,
+          `Aggregate: ${home} ${agg.home}-${agg.away} ${away}`,
+        )
       : null;
   }
   const winner = teamName(tie.winner === 'home' ? core.home : core.away, locale);
-  const lang = pt ? 'pt' : 'es';
+  const lang = languageOf(locale);
+  const stage = NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round'];
   const titleNumber = facts.champion_titles?.side === tie.winner ? facts.champion_titles.title_number : null;
   let head =
     tie.outcome === 'title'
       ? titleNumber
-        ? `${winner} ${championPhrase(titleNumber, pt ? 'pt' : 'es')}`
-        : pt
-          ? `${winner} é campeão`
-          : `${winner} es campeón`
+        ? `${winner} ${championPhrase(titleNumber, lang)}`
+        : tr(`${winner} é campeão`, `${winner} es campeón`, `${winner} wins the title`)
       : tie.outcome === 'third_place'
-        ? pt
-          ? `${winner} ficou com o terceiro lugar`
-          : `${winner} se quedó con el tercer puesto`
-        : pt
-          ? `${winner} se classificou para ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`
-          : `${winner} se clasificó a ${NEXT_STAGE_TEXT[lang][tie.next_stage ?? 'next_round']}`;
+        ? tr(
+            `${winner} ficou com o terceiro lugar`,
+            `${winner} se quedó con el tercer puesto`,
+            `${winner} takes third place`,
+          )
+        : tr(
+            `${winner} se classificou para ${stage}`,
+            `${winner} se clasificó a ${stage}`,
+            `${winner} advances to ${stage}`,
+          );
   if (tie.decided_by === 'draw_advantage')
-    head += pt ? '; o empate bastava pelo regulamento' : '; el empate le alcanzaba por reglamento';
+    head += tr(
+      '; o empate bastava pelo regulamento',
+      '; el empate le alcanzaba por reglamento',
+      '; a draw was enough under the competition rules',
+    );
   if (tie.legs === 2 && agg) {
     const w = tie.winner === 'home' ? agg.home : agg.away;
     const l = tie.winner === 'home' ? agg.away : agg.home;
     head +=
       tie.decided_by === 'aggregate'
-        ? pt
-          ? `; venceu o confronto por ${w} x ${l} no agregado`
-          : `; ganó la serie ${w}-${l} en el global`
+        ? tr(
+            `; venceu o confronto por ${w} x ${l} no agregado`,
+            `; ganó la serie ${w}-${l} en el global`,
+            `; won the tie ${w}-${l} on aggregate`,
+          )
         : tie.decided_by === 'away_goals'
-          ? pt
-            ? `; o agregado ficou ${w} x ${l} e a vaga saiu pelos gols fora de casa`
-            : `; la serie quedó ${w}-${l} en el global y se definió por goles de visitante`
-          : pt
-            ? `; o agregado ficou ${w} x ${l} e a vaga foi decidida nos pênaltis`
-            : `; la serie quedó ${w}-${l} en el global y se definió por penales`;
+          ? tr(
+              `; o agregado ficou ${w} x ${l} e a vaga saiu pelos gols fora de casa`,
+              `; la serie quedó ${w}-${l} en el global y se definió por goles de visitante`,
+              `; the aggregate finished ${w}-${l} and the tie was decided on away goals`,
+            )
+          : tr(
+              `; o agregado ficou ${w} x ${l} e a vaga foi decidida nos pênaltis`,
+              `; la serie quedó ${w}-${l} en el global y se definió por penales`,
+              `; the aggregate finished ${w}-${l} and the tie was decided on penalties`,
+            );
   }
   return head;
 }
 
 /** Resumo determinístico direto da timeline (máx. 4 frases); no mata-mata, o desfecho vem primeiro. */
 export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentLocale): string[] {
-  const pt = languageOf(locale) === 'pt';
+  const tr = (pt: string, es: string, en: string) => inLanguage(locale, { pt, es, en });
   const home = teamName(core.home, locale);
   const away = teamName(core.away, locale);
   const { home: h, away: a } = facts.final_score;
-  let first = pt
-    ? `Fim de jogo: ${home} ${h} x ${a} ${away}`
-    : `Final del partido: ${home} ${h}-${a} ${away}`;
+  let first = tr(
+    `Fim de jogo: ${home} ${h} x ${a} ${away}`,
+    `Final del partido: ${home} ${h}-${a} ${away}`,
+    `Full time: ${home} ${h}-${a} ${away}`,
+  );
   first += flowClause(facts, locale);
-  if (facts.decided_by === 'extra_time') first += pt ? ', após a prorrogação' : ', tras el tiempo extra';
+  if (facts.decided_by === 'extra_time')
+    first += tr(', após a prorrogação', ', tras el tiempo extra', ', after extra time');
   if (facts.penalties) {
     const p = facts.penalties;
     const winner = p.home > p.away ? home : away;
-    first += pt
-      ? `; nos pênaltis, ${winner} venceu por ${Math.max(p.home, p.away)} x ${Math.min(p.home, p.away)}`
-      : `; en los penales, ${winner} ganó ${Math.max(p.home, p.away)}-${Math.min(p.home, p.away)}`;
+    const [hi, lo] = [Math.max(p.home, p.away), Math.min(p.home, p.away)];
+    first += tr(
+      `; nos pênaltis, ${winner} venceu por ${hi} x ${lo}`,
+      `; en los penales, ${winner} ganó ${hi}-${lo}`,
+      `; ${winner} won ${hi}-${lo} on penalties`,
+    );
   }
   const tie = tieSentence(core, facts, locale);
   // desfecho do confronto primeiro (exceto no jogo de ida, que só ganha a nota depois do placar)
@@ -329,7 +357,7 @@ export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentL
     goalsSentence(core, facts.goals, 'home', locale),
     goalsSentence(core, facts.goals, 'away', locale),
   ];
-  if (h + a === 0) sentences.push(pt ? 'Não houve gols' : 'No hubo goles');
+  if (h + a === 0) sentences.push(tr('Não houve gols', 'No hubo goles', 'There were no goals'));
   else sentences.push(...goalLines.filter((s): s is string => !!s).slice(0, 4 - sentences.length));
   for (const extra of [
     playersSentence(core, facts.red_cards, locale, 'red'),
@@ -340,15 +368,22 @@ export function recapFallback(core: EventCore, facts: RecapFacts, locale: AgentL
   return sentences;
 }
 
+/**
+ * Inglês (`en`): inglês americano, com o vocabulário do futebol nos EUA (MLS), placar com hífen e minuto com
+ * apóstrofo (o validador lê "3-0" e "45+2'"; "15th minute" passa por número solto e reprova).
+ */
+export const EN_HINT =
+  'en: inglês americano (US English): "soccer" vocabulary of US broadcasts (matchday, extra time, penalties, standings); placar "3-0" (nunca "3 to 0"); minutos como "45+2\'" (nunca "45th minute"); números de 2 a 10 por extenso só se estiverem nos fatos.';
+
 export function recapSystemPrompt(): string {
   return [
-    'Você é redator esportivo de uma API de dados esportivos para a América Latina.',
+    'Você é redator esportivo de uma API de dados esportivos para a América Latina e os Estados Unidos.',
     'Tarefa: escrever o RESUMO PÓS-JOGO a partir do placar, da timeline e das estatísticas fornecidos.',
     '',
     'Regras:',
     guardrailSystemRules(),
     '- Para cada locale pedido, escreva de 2 a 4 frases curtas (até 600 caracteres no total).',
-    '- Escreva no idioma e na variante regional do locale; não traduza literalmente.',
+    '- Escreva no idioma e na variante regional do locale; não traduza literalmente. ' + EN_HINT,
     "- Comece pelo resultado final. Cite autores de gol e minutos exatamente como na timeline (ex.: 45+2').",
     '- Mata-mata (campo "tie" não nulo): a PRIMEIRA frase é o desfecho do confronto, antes do placar do jogo:',
     '  quem se classificou e para qual fase (tie.outcome = "advances", fase em tie.next_stage) ou quem foi campeão',
@@ -370,7 +405,7 @@ export function recapSystemPrompt(): string {
     '  decisivo saiu nos acréscimos; decisive_goal.late = true sem stoppage_time: no fim do jogo (cite o minuto, ex.:',
     '  "aos 90\'"), sem dizer "acréscimos". Sem esses campos, não diga que o jogo foi decidido no fim.',
     '- Estádio: use exatamente match.venue (nome atual); não use nomes antigos.',
-    '- Gol contra é creditado ao time beneficiado; diga "contra" (pt) / "en contra" (es) e não chame o jogador de artilheiro.',
+    '- Gol contra é creditado ao time beneficiado; diga "contra" (pt) / "en contra" (es) / "own goal" (en) e não chame o jogador de artilheiro.',
     '- Cite times e jogadores exatamente pelos nomes fornecidos. Sem adjetivos de desempenho individual, sem notas e sem opinião.',
   ].join('\n');
 }

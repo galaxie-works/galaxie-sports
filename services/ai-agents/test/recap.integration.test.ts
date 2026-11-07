@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { changeFeed, event, eventContext, eventStateLog, sport, type Database } from '@galaxie/db';
 import { readEventContext } from '../src/context/store.js';
 import { computeAiMetrics } from '../src/evaluation/metrics.js';
-import { languageOf } from '../src/guardrails/index.js';
+import { languageOf, type AgentLanguage } from '../src/guardrails/index.js';
 import { onEventFinished, runRecapAgent } from '../src/recap/run.js';
 import { FakeLlmClient } from '../src/testing/fake-llm.js';
 import { requestedLocales } from '../src/testing/samples.js';
@@ -14,7 +14,7 @@ let db: Database;
 let eventId: string;
 const NOW = new Date('2026-10-12T00:00:00Z');
 
-const GOOD: Record<'pt' | 'es', string[]> = {
+const GOOD: Record<AgentLanguage, string[]> = {
   pt: [
     'O Palmeiras venceu o Corinthians por 4 a 1 pela Rodada 30.',
     "Atacante A marcou duas vezes, aos 12' e aos 90+4', e Meia A converteu um pênalti aos 77'; Zagueiro B fez contra aos 45+2'.",
@@ -25,9 +25,14 @@ const GOOD: Record<'pt' | 'es', string[]> = {
     'Atacante A marcó dos goles, a los 12 y en el 90+4, Meia A anotó de penal a los 77 y Zagueiro B convirtió en contra en el 45+2.',
     'Reserva B descontó a los 81.',
   ],
+  en: [
+    'Palmeiras beat Corinthians 4-1 on matchday 30.',
+    "Atacante A scored twice, in the 12' and the 90+4', Meia A converted a penalty in the 77' and Zagueiro B scored an own goal in the 45+2'.",
+    "Reserva B pulled one back for Corinthians in the 81'.",
+  ],
 };
 
-function responder(texts: Record<'pt' | 'es', string[]>) {
+function responder(texts: Record<AgentLanguage, string[]>) {
   return (req: { messages: { content: string }[] }) => ({
     texts: requestedLocales(req.messages[0]!.content).map((locale) => ({
       locale,
@@ -50,15 +55,15 @@ afterAll(async () => {
 });
 
 describe('Agente Resumo (integração)', () => {
-  it('encontra o jogo encerrado na janela e gera o resumo validado em 8 locales', async () => {
+  it('encontra o jogo encerrado na janela e gera o resumo validado em 9 locales (8 mercados + inglês)', async () => {
     const plan = await runRecapAgent(db, { now: NOW, llm: null, plan: true });
     expect(plan.items).toEqual([expect.objectContaining({ eventId, action: 'planned', summary: '4-1' })]);
 
     const llm = new FakeLlmClient(responder(GOOD));
     const report = await runRecapAgent(db, { now: NOW, llm });
-    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 8, fallback: 0 } });
+    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 9, fallback: 0 } });
     const latest = await readEventContext(db, eventId, { kinds: ['recap'] });
-    expect(latest).toHaveLength(8);
+    expect(latest).toHaveLength(9);
     const pt = latest.find((r) => r.locale === 'pt-BR')!;
     expect(pt.content.text).toBe(GOOD.pt.join(' '));
     expect(pt.content.data['final_score']).toEqual({ home: 4, away: 1 });
@@ -83,7 +88,7 @@ describe('Agente Resumo (integração)', () => {
     ],
     ['minuto inventado', ["Palmeiras 4 x 1 Corinthians, com gol de Atacante A aos 33'."], 'unknown_minute'],
   ])('%s: rejeita, tenta de novo e publica o resumo determinístico', async (_label, sentences, kind) => {
-    const llm = new FakeLlmClient(responder({ pt: sentences, es: sentences }));
+    const llm = new FakeLlmClient(responder({ pt: sentences, es: sentences, en: sentences }));
     const report = await onEventFinished(db, eventId, llm, { force: true, locales: ['pt-BR'] });
     expect(llm.calls).toBe(2);
     expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 0, fallback: 1 } });
@@ -127,10 +132,10 @@ describe('Agente Resumo (integração)', () => {
       from: new Date('2026-10-01T00:00:00Z'),
       to: new Date(Date.now() + 60_000),
     });
-    expect(m.byKind.recap.texts).toBe(8 + 4);
+    expect(m.byKind.recap.texts).toBe(9 + 4);
     expect(m.byKind.recap.events).toBe(1);
-    expect(m.byKind.recap.llmFirstPass).toMatchObject({ numerator: 8, denominator: 12 });
-    expect(m.byKind.recap.fallback).toMatchObject({ numerator: 4, denominator: 12 });
+    expect(m.byKind.recap.llmFirstPass).toMatchObject({ numerator: 9, denominator: 13 });
+    expect(m.byKind.recap.fallback).toMatchObject({ numerator: 4, denominator: 13 });
     expect(m.byKind.recap.fallbackReasons).toEqual({ rejected: 4 });
     expect(Object.keys(m.byKind.recap.blockedViolations)).toEqual(
       expect.arrayContaining(['unknown_name', 'wrong_result', 'forbidden_rivalry', 'unknown_minute']),
@@ -147,7 +152,7 @@ describe('Agente Resumo (integração)', () => {
     expect(m.targets.find((t) => t.metric.startsWith('Fidelidade do resumo'))).toMatchObject({ ok: true });
     const feed = await db.select().from(changeFeed).where(eq(changeFeed.entityId, eventId));
     expect(feed).toHaveLength(5);
-    expect((await db.select().from(eventContext)).length).toBe(12);
+    expect((await db.select().from(eventContext)).length).toBe(13);
   });
 
   it('texto determinístico por falha do LLM é regerado na rodada seguinte, sem --forcar', async () => {

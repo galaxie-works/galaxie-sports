@@ -51,9 +51,11 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
+  'lineups',
   'channel_guide',
 ] as const satisfies readonly WidgetKind[];
 
@@ -105,9 +107,11 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  competition_leaders: ['competition'],
   countdown: ['event'],
   team_squad: ['team'],
   player_profile: ['person'],
+  lineups: ['event'],
   channel_guide: [],
 };
 
@@ -144,9 +148,11 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  competition_leaders: 'competition',
   countdown: 'event',
   team_squad: 'team',
   player_profile: 'person',
+  lineups: 'event',
   channel_guide: null,
 };
 
@@ -466,9 +472,11 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  competition_leaders: 'GalaxieCompetitionLeaders',
   countdown: 'GalaxieCountdown',
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
+  lineups: 'GalaxieLineups',
   channel_guide: 'GalaxieChannelGuide',
 };
 
