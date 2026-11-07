@@ -920,6 +920,60 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ),
     },
   ],
+  bracket: [
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l('Vazio = temporada atual.', 'Vacío = temporada actual.', 'Empty = current season.'),
+    },
+    {
+      key: 'from',
+      type: 'enum',
+      default: 'all',
+      label: l('A partir da fase', 'Desde la fase', 'Starting from'),
+      hint: l(
+        'Se a temporada não tiver a fase escolhida, mostra todas.',
+        'Si la temporada no tiene esa fase, muestra todas.',
+        'If the season lacks that round, all rounds are shown.',
+      ),
+      values: [
+        { value: 'all', label: l('Todas as fases', 'Todas las fases', 'All rounds') },
+        { value: 'round_of_32', label: l('16 avos de final', 'Dieciseisavos de final', 'Round of 32') },
+        { value: 'round_of_16', label: l('Oitavas de final', 'Octavos de final', 'Round of 16') },
+        { value: 'quarter_final', label: l('Quartas de final', 'Cuartos de final', 'Quarter-finals') },
+        { value: 'semi_final', label: l('Semifinal', 'Semifinales', 'Semi-finals') },
+        { value: 'final', label: l('Só a final', 'Solo la final', 'Final only') },
+      ],
+    },
+    bool('showAggregate', l('Placar agregado', 'Marcador global', 'Aggregate score'), true),
+    bool('showLegs', l('Placar da ida e da volta', 'Marcador de ida y vuelta', 'Score of each leg'), true),
+    bool('showDates', l('Data do próximo jogo', 'Fecha del próximo partido', 'Next game date'), true),
+    bool('showThirdPlace', l('Disputa do 3º lugar', 'Tercer puesto', 'Third-place match'), true),
+    {
+      key: 'layout',
+      type: 'enum',
+      default: 'auto',
+      label: l('Visual', 'Diseño', 'Layout'),
+      values: [
+        {
+          value: 'auto',
+          label: l(
+            'Automático (fase por fase no celular)',
+            'Automático (fase por fase en el celular)',
+            'Automatic (round by round on mobile)',
+          ),
+        },
+        { value: 'bracket', label: l('Chaves lado a lado', 'Llaves lado a lado', 'Side-by-side bracket') },
+        { value: 'rounds', label: l('Fase por fase', 'Fase por fase', 'Round by round') },
+      ],
+    },
+    {
+      key: 'highlightTeamId',
+      type: 'team',
+      label: l('Destacar um time', 'Destacar un equipo', 'Highlight a team'),
+    },
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

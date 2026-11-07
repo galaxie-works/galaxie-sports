@@ -19,6 +19,7 @@ import {
   ListChecks,
   ListOrdered,
   Medal,
+  Network,
   Plus,
   Radio,
   Shield,
@@ -103,6 +104,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   team_squad: Shirt,
   player_profile: IdCard,
   lineups: LayoutGrid,
+  bracket: Network,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

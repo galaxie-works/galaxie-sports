@@ -138,7 +138,13 @@ describe('widgets', () => {
 
   it('recusa tipo e nome inválidos', async () => {
     await expect(
-      saveWidget(db, { tenantId: tenantA, kind: 'bracket' as never, name: 'x', config, createdBy: 'x' }),
+      saveWidget(db, {
+        tenantId: tenantA,
+        kind: 'tipo_inexistente' as never,
+        name: 'x',
+        config,
+        createdBy: 'x',
+      }),
     ).rejects.toThrow(/Tipo/);
     await expect(
       saveWidget(db, { tenantId: tenantA, kind: 'standings', name: '  ', config, createdBy: 'x' }),

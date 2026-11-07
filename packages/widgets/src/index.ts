@@ -38,6 +38,8 @@ export {
   type GsLeaderCategory,
   type GsLeaderRow,
   LEADER_CATEGORIES,
+  type GsBracket,
+  BRACKET_PHASES,
   type GsWhereToWatch,
   type LiveListDay,
   type LiveListField,
@@ -108,6 +110,7 @@ export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
 export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
 export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
+export { Bracket, type BracketPhase, type BracketProps } from './widgets/bracket.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

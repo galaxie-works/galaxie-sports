@@ -39,6 +39,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'bracket',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

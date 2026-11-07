@@ -22,6 +22,7 @@ import { accountPaths } from './account.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
+import { Bracket, BracketParams } from './bracket.js';
 import {
   Event,
   EventLineups,
@@ -281,6 +282,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'com o time pelo qual ele mais jogou e o escudo. Por enquanto só o futebol tem esses números; nos outros ' +
             'esportes `data` vem vazio. Cache de 1 h.',
         },
+      },
+      '/v1/competitions/{id}/seasons/{season}/bracket': {
+        get: getOp(
+          'Chaveamento do mata-mata da temporada',
+          'Catálogo',
+          Bracket,
+          { path: BracketParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
       },
       '/v1/competitions/{id}/context': {
         get: getOp(

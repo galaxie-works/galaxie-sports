@@ -6,6 +6,7 @@ import { broadcasterRoutes } from './broadcasters.js';
 import { platformRoutes } from './platforms.js';
 import { channelListRoutes } from './channel-list.js';
 import { contextRoutes } from './context.js';
+import { bracketRoutes } from './bracket.js';
 import { eventContextRoutes } from './event-context.js';
 import { eventRoutes } from './events.js';
 import { teamRoutes } from './teams.js';
@@ -38,6 +39,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // lista de canais do cliente `/v1/channel-list` (casamento com os direitos) — módulo where_to_watch
   await channelListRoutes(app, ctx);
   await contextRoutes(app, ctx);
+  // chaveamento do mata-mata `/v1/competitions/{id}/seasons/{season}/bracket` (#829) — módulo core_data
+  await bracketRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
