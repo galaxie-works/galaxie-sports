@@ -24,6 +24,8 @@ export interface TitleRow {
   seasonLabel: string;
   decidedOn: string;
   editionQid: string;
+  /** Vencedor no Wikidata: identifica o campeão mesmo sem time no nosso catálogo (clube extinto). */
+  winnerQid: string;
   participantId: string | null;
 }
 
@@ -42,6 +44,7 @@ export interface ChampionEditionRow {
 
 export interface ChampionRankingEntry {
   rank: number;
+  /** Id do time, ou `wd:<QID>` para um campeão fora do catálogo (conta na posição, não aparece). */
   participantId: string;
   titles: number;
   /** Edições vencidas, da mais recente para trás. */
@@ -68,19 +71,19 @@ export function editionsOf(rows: readonly TitleRow[]): TitleRow[] {
 
 /**
  * A contagem de títulos é confiável? A cobertura gravada pelo importador precisa ir sem lacuna até a
- * temporada da última edição conhecida, e todo vencedor precisa estar ligado a um time do catálogo (um
- * vencedor sem time some da contagem e mudaria totais e posições).
+ * temporada da última edição conhecida. Um campeão fora do catálogo (clube extinto) não atrapalha: ele é
+ * contado pelo QID do Wikidata (`rankChampions`).
  */
 export function rankingComplete(editions: readonly TitleRow[], coverage: TitleCoverage | null): boolean {
   if (!editions.length || coverage?.completeThrough == null) return false;
-  if (editions.some((e) => !e.participantId)) return false;
   const latest = Math.max(...editions.map((e) => e.seasonYear));
   return coverage.completeThrough >= latest;
 }
 
 /**
  * Quem tem mais títulos: mais títulos, depois o título mais recente, depois o nome (`nameOf`, ordem
- * alfabética pt-BR). Empatados em títulos e no título mais recente dividem a posição.
+ * alfabética pt-BR). Empatados em títulos e no título mais recente dividem a posição. O campeão sem time no
+ * catálogo entra como `wd:<QID>`: ocupa a posição dele (as dos outros ficam certas) e a rota não o mostra.
  */
 export function rankChampions(
   editions: readonly TitleRow[],
@@ -88,12 +91,12 @@ export function rankChampions(
 ): ChampionRankingEntry[] {
   const by = new Map<string, { titles: number; seasons: string[]; last: string }>();
   for (const e of editions) {
-    if (!e.participantId) continue;
-    const cur = by.get(e.participantId) ?? { titles: 0, seasons: [], last: '' };
+    const key = e.participantId ?? `wd:${e.winnerQid}`;
+    const cur = by.get(key) ?? { titles: 0, seasons: [], last: '' };
     cur.titles += 1;
     cur.seasons.push(e.seasonLabel);
     if (e.decidedOn > cur.last) cur.last = e.decidedOn;
-    by.set(e.participantId, cur);
+    by.set(key, cur);
   }
   const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
   const sorted = [...by].sort(
@@ -178,6 +181,7 @@ export async function loadTitles(
       seasonLabel: competitionTitle.seasonLabel,
       decidedOn: competitionTitle.decidedOn,
       editionQid: competitionTitle.editionQid,
+      winnerQid: competitionTitle.winnerQid,
       participantId: competitionTitle.participantId,
     })
     .from(competitionTitle)

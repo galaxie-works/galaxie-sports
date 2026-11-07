@@ -65,12 +65,14 @@ export const CompetitionChampions = z
     ranking: z.array(ChampionRankingRow).meta({
       description:
         'Quem tem mais títulos (todas as edições, não só as do `limit`): mais títulos, depois o título mais ' +
-        'recente, depois o nome. Vazio quando a lista de campeões não está completa (`ranking_complete`).',
+        'recente, depois o nome. Vazio quando a lista de campeões não está completa (`ranking_complete`). ' +
+        'Um campeão fora do catálogo de times (clube extinto) conta na posição mas não aparece, então `rank` ' +
+        'pode pular um número.',
     }),
     ranking_complete: z.boolean().meta({
       description:
-        'A lista de campeões não tem lacuna desde a primeira edição conhecida até a última e todo campeão está ' +
-        'no catálogo de times, então a contagem de títulos é confiável.',
+        'A lista de campeões não tem lacuna desde a primeira edição conhecida até a última, então a contagem ' +
+        'de títulos é confiável.',
     }),
     coverage: z
       .object({

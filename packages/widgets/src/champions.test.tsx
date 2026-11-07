@@ -63,6 +63,11 @@ describe('Galeria de campeões (#831)', () => {
     );
     expect(await screen.findByText('Vice: Estrela do Sul')).toBeTruthy();
     expect(container.querySelectorAll('[data-gs-runner-up]')).toHaveLength(2);
+    // troféu dourado em cada campeão e prateado em cada vice
+    expect(container.querySelectorAll('[data-gs-runner-up] [data-gs-trophy="silver"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-gs-champion] [data-gs-trophy="gold"]').length).toBeGreaterThan(
+      0,
+    );
     expect(container.querySelector('[data-gs-champions-ranking]')).toBeNull();
     expect(urls.some((u) => u.includes('/champions') && u.includes('runner_up=true'))).toBe(true);
   });

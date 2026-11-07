@@ -801,9 +801,9 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 200, ALL),
     bool('showRanking', l('Ranking de títulos', 'Ranking de títulos', 'Titles ranking'), true, {
       hint: l(
-        'Só aparece quando a lista de campeões está completa, sem ano faltando e com todo campeão no nosso catálogo de times.',
-        'Solo aparece cuando la lista de campeones está completa, sin años faltantes y con todos los campeones en nuestro catálogo de equipos.',
-        'Only shown when the list of champions is complete, with no missing year and every champion in our team catalogue.',
+        'Só aparece quando a lista de campeões está completa, sem ano faltando.',
+        'Solo aparece cuando la lista de campeones está completa, sin años faltantes.',
+        'Only shown when the list of champions is complete, with no missing year.',
       ),
     }),
     count('rankingLimit', l('Times no ranking', 'Equipos en el ranking', 'Teams in the ranking'), 5, 50, ALL),

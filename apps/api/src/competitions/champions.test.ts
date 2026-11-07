@@ -6,6 +6,7 @@ const t = (year: number, team: string | null, qid = `Q${year}`): TitleRow => ({
   seasonLabel: String(year),
   decidedOn: `${year}-12-01`,
   editionQid: qid,
+  winnerQid: `QW${team ?? year}`,
   participantId: team,
 });
 
@@ -26,8 +27,8 @@ describe('rankingComplete', () => {
     expect(rankingComplete(eds, null)).toBe(false);
     expect(rankingComplete([], { firstYear: 1959, completeThrough: 2023 })).toBe(false);
   });
-  it('não vale com um vencedor fora do catálogo (a contagem ficaria menor)', () => {
-    expect(rankingComplete([...eds, t(1990, null)], { firstYear: 1959, completeThrough: 2023 })).toBe(false);
+  it('vale com um campeão fora do catálogo (clube extinto), contado pelo QID', () => {
+    expect(rankingComplete([...eds, t(1990, null)], { firstYear: 1959, completeThrough: 2023 })).toBe(true);
   });
 });
 
@@ -40,21 +41,25 @@ describe('rankChampions', () => {
   };
   const nameOf = (id: string) => names[id] ?? id;
 
-  it('mais títulos primeiro, depois o mais recente, e o vencedor fora do catálogo não entra', () => {
+  it('mais títulos primeiro, depois o mais recente; o clube extinto conta pelo QID e ocupa a posição', () => {
+    const extinto = (year: number) => ({ ...t(year, null), winnerQid: 'QX' });
     const eds = editionsOf([
       t(2018, 'pal'),
       t(2019, 'fla'),
-      t(2020, 'fla'),
       t(2022, 'pal'),
       t(2023, 'pal'),
-      t(1990, null),
+      extinto(1990),
+      extinto(1991),
+      extinto(1992),
+      extinto(1993),
     ]);
     const r = rankChampions(eds, nameOf);
     expect(r.map((x) => [x.rank, x.participantId, x.titles])).toEqual([
-      [1, 'pal', 3],
-      [2, 'fla', 2],
+      [1, 'wd:QX', 4],
+      [2, 'pal', 3],
+      [3, 'fla', 1],
     ]);
-    expect(r[0]!.seasons).toEqual(['2023', '2022', '2018']);
+    expect(r[1]!.seasons).toEqual(['2023', '2022', '2018']);
   });
 
   it('empate em títulos e no título mais recente divide a posição, em ordem alfabética', () => {

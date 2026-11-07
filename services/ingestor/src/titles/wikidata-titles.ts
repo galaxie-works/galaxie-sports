@@ -706,7 +706,14 @@ export async function saveTitles(
   /** QID → time certo, para ligações do `provider_map` que apontavam para outro time (`--corrigir-ligacoes`). */
   relinks: ReadonlyMap<string, string> = new Map(),
   options: { allowDrop?: boolean } = {},
-): Promise<{ titles: number; links: number; relinked: number; skipped: SkippedCompetition[] }> {
+): Promise<{
+  titles: number;
+  links: number;
+  relinked: number;
+  skipped: SkippedCompetition[];
+  /** Competições cuja lista de campeões ou cobertura mudou (e tiveram o cache purgado). */
+  changed: string[];
+}> {
   return db.transaction(async (tx) => {
     const skipped = options.allowDrop ? [] : await titleDropGuard(tx, rows, coverage);
     const skippedIds = new Set(skipped.map((s) => s.competitionId));
@@ -730,6 +737,7 @@ export async function saveTitles(
       `);
       links += res.count ?? 0;
     }
+    const before = await titleSignatures(tx, competitionIds);
     if (competitionIds.length)
       await tx.execute(sql`
         delete from core.competition_title where source in ('wikidata', 'curated') and competition_id in (${sql.join(
@@ -760,16 +768,51 @@ export async function saveTitles(
           issues = excluded.issues, checked_at = now()
       `);
     }
-    // purga o cache das respostas que leem os títulos (galeria de campeões, `competition:<id>`); o NOTIFY sai no commit
-    for (const id of competitionIds)
+    // purga o cache das respostas que leem os títulos (galeria de campeões, `competition:<id>`) só das
+    // competições que mudaram; o NOTIFY sai no commit
+    const after = await titleSignatures(tx, competitionIds);
+    const changed = competitionIds.filter((id) => before.get(id) !== after.get(id));
+    for (const id of changed)
       await publishChange(tx, {
         topic: 'catalog',
         entityType: 'competition',
         entityId: id,
         payload: { reason: 'competition_title', tags: ['competition_title'] },
       });
-    return { titles: rows.filter((r) => kept.has(r.competitionId)).length, links, relinked, skipped };
+    return {
+      titles: rows.filter((r) => kept.has(r.competitionId)).length,
+      links,
+      relinked,
+      skipped,
+      changed,
+    };
   });
+}
+
+/**
+ * Assinatura do que a galeria de campeões lê de cada competição (edições, vencedores, time ligado e cobertura),
+ * para publicar a mudança só de quem mudou.
+ */
+async function titleSignatures(
+  tx: Pick<Database, 'execute'>,
+  competitionIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (!competitionIds.length) return new Map();
+  const ids = sql.join(
+    competitionIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  const rows = await tx.execute<{ id: string; sig: string }>(sql`
+    select c.id::text as id,
+           coalesce((select string_agg(concat_ws('|', t.edition_qid, t.winner_qid, t.participant_id, t.season_year,
+                                                 t.season_label, t.decided_on), ';'
+                                       order by t.edition_qid, t.winner_qid)
+                     from core.competition_title t where t.competition_id = c.id), '')
+           || '#' || coalesce((select concat_ws('|', v.first_year, v.complete_through)
+                               from core.competition_title_coverage v where v.competition_id = c.id), '') as sig
+    from core.competition c where c.id in (${ids})
+  `);
+  return new Map([...rows].map((r) => [r.id, r.sig]));
 }
 
 // ─── orquestração ────────────────────────────────────────────────────────────────────────────────

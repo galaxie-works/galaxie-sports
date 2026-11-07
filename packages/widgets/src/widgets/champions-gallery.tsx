@@ -50,6 +50,8 @@ const TEXTS: Record<
   WidgetLocale,
   {
     title: string;
+    champion: string;
+    runnerUpLabel: string;
     runnerUp: string;
     ranking: string;
     titleOne: string;
@@ -61,6 +63,8 @@ const TEXTS: Record<
 > = {
   'pt-BR': {
     title: 'Galeria de campeões',
+    champion: 'Campeão',
+    runnerUpLabel: 'Vice',
     runnerUp: 'Vice: {name}',
     ranking: 'Mais títulos',
     titleOne: '1 título',
@@ -70,6 +74,8 @@ const TEXTS: Record<
   },
   es: {
     title: 'Galería de campeones',
+    champion: 'Campeón',
+    runnerUpLabel: 'Subcampeón',
     runnerUp: 'Subcampeón: {name}',
     ranking: 'Más títulos',
     titleOne: '1 título',
@@ -79,6 +85,8 @@ const TEXTS: Record<
   },
   en: {
     title: 'Roll of honour',
+    champion: 'Champion',
+    runnerUpLabel: 'Runner-up',
     runnerUp: 'Runner-up: {name}',
     ranking: 'Most titles',
     titleOne: '1 title',
@@ -89,6 +97,40 @@ const TEXTS: Record<
 };
 
 const REFRESH_MS = 24 * 60 * 60_000;
+
+/** Cores dos troféus (o tema pode trocar com `--gs-trophy-gold` e `--gs-trophy-silver`). */
+const TROPHY_COLORS = {
+  gold: 'var(--gs-trophy-gold, #d4a017)',
+  silver: 'var(--gs-trophy-silver, #a7adb4)',
+} as const;
+
+/** Troféu (desenho do ícone `trophy` do Lucide), dourado para o campeão e prateado para o vice. */
+function Trophy({ tone, label }: { tone: keyof typeof TROPHY_COLORS; label: string }) {
+  return (
+    <svg
+      role="img"
+      aria-label={label}
+      data-gs-trophy={tone}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={TROPHY_COLORS[tone]}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
+      <title>{label}</title>
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill={TROPHY_COLORS[tone]} fillOpacity="0.25" />
+    </svg>
+  );
+}
 
 /**
  * Galeria de campeões: quem ganhou cada edição, da mais recente para trás, com o escudo (e o vice, se
@@ -146,12 +188,14 @@ export function ChampionsGallery({
               <li key={e.season_year} className="gs-fixture" data-gs-season={e.season_year}>
                 <span className="gs-fixture-date gs-strong">{e.season_label}</span>
                 <span className="gs-grow" style={{ minWidth: 0 }}>
-                  <span className="gs-line">
+                  <span className="gs-line" data-gs-champion="">
+                    <Trophy tone="gold" label={t.champion} />
                     <Crest src={champion.logo} name={champion.name} size="xs" />
                     <span className="gs-truncate gs-strong">{champion.name}</span>
                   </span>
                   {showRunnerUp && e.runner_up ? (
                     <span className="gs-line gs-meta" data-gs-runner-up="">
+                      <Trophy tone="silver" label={t.runnerUpLabel} />
                       <Crest src={e.runner_up.logo} name={e.runner_up.name} size="xs" />
                       <span className="gs-truncate">{fillText(t.runnerUp, { name: e.runner_up.name })}</span>
                     </span>
