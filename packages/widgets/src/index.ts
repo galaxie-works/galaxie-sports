@@ -103,6 +103,7 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { ChampionsGallery, type ChampionsGalleryProps } from './widgets/champions-gallery.js';
 export { CompetitionLeaders, type CompetitionLeadersProps } from './widgets/competition-leaders.js';
 export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
