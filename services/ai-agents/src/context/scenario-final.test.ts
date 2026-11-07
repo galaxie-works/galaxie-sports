@@ -83,6 +83,11 @@ const ES = [
   'Palmeiras va por el tetra de la Libertadores y Estudiantes, por el penta.',
   'Si empatan, hay alargue y después penales.',
 ];
+const EN = [
+  'One-match final: the winner is champion.',
+  'Palmeiras is chasing a 4th Libertadores title, and Estudiantes a 5th.',
+  'A draw means extra time and then penalties.',
+];
 
 describe('cenário da final: estrutura do jogo e histórico nos fatos', () => {
   it('versão do prompt sobe para regenerar o cache', () => {
@@ -126,7 +131,7 @@ describe('cenário da final: estrutura do jogo e histórico nos fatos', () => {
     expect(prompt).not.toMatch(/não deduza cenários novos/);
   });
 
-  it('fallback pt-BR e es-AR: campeão, tetra e penta, prorrogação', async () => {
+  it('fallback pt-BR, es-AR e en: campeão, tetra e penta, prorrogação', async () => {
     const req = await request(null);
     expect(req.fallback('pt-BR')).toEqual([
       'Final em jogo único: quem vencer é campeão',
@@ -138,6 +143,11 @@ describe('cenário da final: estrutura do jogo e histórico nos fatos', () => {
       'Palmeiras va por el tetracampeonato; Estudiantes va por el pentacampeonato',
       'El empate lleva el partido al alargue; si hay igualdad, alargue y después penales',
     ]);
+    expect(req.fallback('en')).toEqual([
+      'One-match final: the winner takes the title',
+      'Palmeiras is chasing a 4th title; Estudiantes L.P. is chasing a 5th title',
+      'A draw sends the match to extra time; if level, extra time and then penalties',
+    ]);
     for (const l of AGENT_LOCALES) expect(joinSentences(req.fallback(l))).not.toMatch(/avan[çcz]|vaga/i);
   });
 
@@ -148,7 +158,7 @@ describe('cenário da final: estrutura do jogo e histórico nos fatos', () => {
   });
 
   it('LLM (provedor falso) com o texto esperado passa de primeira', async () => {
-    const map = Object.fromEntries(AGENT_LOCALES.map((l) => [l, l === 'pt-BR' ? PT : ES]));
+    const map = Object.fromEntries(AGENT_LOCALES.map((l) => [l, l === 'pt-BR' ? PT : l === 'en' ? EN : ES]));
     const llm = new FakeLlmClient([llmTexts(map)]);
     const res = await writeLocalizedTexts(await request(llm));
     expect(res.texts.every((t) => t.origin === 'llm' && t.attempts === 1)).toBe(true);

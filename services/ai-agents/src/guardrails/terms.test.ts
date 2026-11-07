@@ -85,12 +85,34 @@ describe('tamanho e idioma', () => {
     expect(detectLanguage('Palmeiras 4-1.')).toBeNull();
   });
 
+  it('inglês: texto em espanhol para `en` é idioma errado (o caso Vitória × Fluminense)', () => {
+    const es =
+      'Fluminense venció 3 a 0 a Vitoria por la fecha 34 del Brasileirão Série A. Con este resultado, Fluminense sigue en el puesto 4 con 57 puntos.';
+    expect(detectLanguage(es)).toBe('es');
+    expect(checkGeneratedText(es, { locale: 'en' }).map((x) => x.kind)).toContain('wrong_language');
+    const en =
+      'Fluminense beat Vitória 3-0 on matchday 34 of the Brasileirão Série A. With the win, Fluminense stays 4th with 57 points.';
+    expect(detectLanguage(en)).toBe('en');
+    expect(checkGeneratedText(en, { locale: 'en' }).map((x) => x.kind)).not.toContain('wrong_language');
+    expect(checkGeneratedText(en, { locale: 'es-AR' }).map((x) => x.kind)).toContain('wrong_language');
+  });
+
+  it('inglês: termos proibidos', () => {
+    expect(findForbiddenTerms('Palmeiras humiliated Corinthians.', 'en').map((h) => h.category)).toEqual([
+      'rivalry',
+    ]);
+    expect(findForbiddenTerms('A bloodbath at the stadium.', 'en').map((h) => h.category)).toContain(
+      'violence',
+    );
+    expect(findForbiddenTerms('Fluminense stays stable in 4th place with good shooting.', 'en')).toEqual([]);
+  });
+
   it('checkGeneratedText junta tudo', () => {
     const v = checkGeneratedText('El Palmeiras necesita ganar y el partido es muy importante para los dos.', {
       locale: 'pt-BR',
       surface: 'tv',
     });
     expect(v.map((x) => x.kind)).toContain('wrong_language');
-    expect(AGENT_LOCALES).toHaveLength(8);
+    expect(AGENT_LOCALES).toHaveLength(9);
   });
 });

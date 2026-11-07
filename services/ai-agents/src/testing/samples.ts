@@ -52,6 +52,10 @@ export const GOOD_SCENARIO: Record<AgentLocale, string[]> = {
   'es-PE': ES.split(/(?<=\.) /),
   'es-UY': ES.split(/(?<=\.) /),
   'es-EC': ES.split(/(?<=\.) /),
+  en: [
+    'Palmeiras won the first leg 2-1 and advances with any win or a draw.',
+    'Corinthians needs to win by two goals to advance outright; a one-goal win sends the tie to penalties.',
+  ],
 };
 
 export function llmTexts(map: Partial<Record<AgentLocale, string[]>>, locales?: readonly string[]) {

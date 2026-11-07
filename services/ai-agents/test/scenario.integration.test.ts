@@ -117,7 +117,7 @@ describe('Agente Cenário (integração)', () => {
     expect(await rows(secondLeg)).toHaveLength(0);
   });
 
-  it('gera o cenário nos 8 locales com o LLM, grava fontes e publica no change feed', async () => {
+  it('gera o cenário nos 9 locales (8 mercados + inglês) com o LLM, grava fontes e publica no change feed', async () => {
     const llm = new FakeLlmClient(
       (req) => llmTexts(GOOD_SCENARIO, requestedLocales(req.messages[0]!.content)),
       {
@@ -127,7 +127,7 @@ describe('Agente Cenário (integração)', () => {
     const report = await runScenarioAgent(db, { now: NOW, llm, eventId: secondLeg });
     expect(report.items[0]).toMatchObject({
       action: 'generated',
-      origins: { llm: 8, fallback: 0 },
+      origins: { llm: 9, fallback: 0 },
       llmCalls: 1,
     });
     const stored = await rows(secondLeg);
@@ -170,7 +170,7 @@ describe('Agente Cenário (integração)', () => {
     const report = await runScenarioAgent(db, { now: NOW, llm, eventId: secondLeg, force: true });
     expect(report.items[0]).toMatchObject({
       action: 'generated',
-      origins: { llm: 6, fallback: 2 },
+      origins: { llm: 7, fallback: 2 },
       llmCalls: 2,
     });
     const latest = await readEventContext(db, secondLeg, { kinds: ['scenario'] });
