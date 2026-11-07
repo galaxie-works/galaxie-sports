@@ -39,7 +39,7 @@ A `galaxie-sports` é pública. O envio leva dado de cliente (mensagem livre e p
 
 - Título: `<assunto>: <primeiros 50 caracteres da mensagem>`.
 - Rótulo: o assunto (`Reportar um problema`, `Sugerir um recurso`, `Sugerir correção de um conteúdo`,
-  `Pedir um dado ou cobertura`, `Tirar uma dúvida`, `Outro assunto`), criado na primeira vez.
+  `Reportar informação faltando ou incompleta`, `Tirar uma dúvida`, `Outro assunto`), criado na primeira vez.
 - Corpo: a mensagem num bloco de texto (link, imagem, menção e HTML aparecem literais), e a ficha: assunto,
   referência do usuário, referência do tenant, papel, página (só o caminho), idioma, tela, navegador, versão e hora
   de Brasília; depois as imagens.

@@ -9,7 +9,7 @@ export const FEEDBACK_LABELS: Record<FeedbackSubject, string> = {
   bug: 'Reportar um problema',
   feature: 'Sugerir um recurso',
   content: 'Sugerir correção de um conteúdo',
-  data: 'Pedir um dado ou cobertura',
+  data: 'Reportar informação faltando ou incompleta',
   question: 'Tirar uma dúvida',
   other: 'Outro assunto',
 };
