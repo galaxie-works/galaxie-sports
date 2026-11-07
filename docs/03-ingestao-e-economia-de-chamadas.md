@@ -488,7 +488,7 @@ que é a fonte do alerta.
 | `/odds?fixture` | idem | `sync:mirror` | `core.event_odds` e `core.bookmaker` (idem) |
 | `/teams/statistics?league&season&team` | 7 dias (tier 2: 14) | `sync:mirror` | raw (normalização: frente de estatísticas de time) |
 | `/fixtures/headtohead` (clássicos) | 30 dias | `sync:mirror` | `core.event` |
-| Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw |
+| Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw (`/odds/bookmakers` também em `core.bookmaker`) |
 | Outros 11 esportes: agenda `games/races/fights?date=` | 1 dia | `sync:daily` | `core.event` (pelo `normalize-sports`) |
 | Outros 11 esportes: temporada, classificação, times, por jogo, odds | 1 a 14 dias | `sync:mirror` | raw; core pelo `normalize-sports` (odds: `core.event_odds` no `afterFetch`) |
 
