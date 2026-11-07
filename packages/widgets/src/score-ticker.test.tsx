@@ -159,6 +159,56 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it('modo padrão: o ao vivo a cada 20 s, o dia no ritmo calmo', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchImpl } = setup(<ScoreTicker />);
+    await screen.findByText('2 – 1');
+    const count = (re: RegExp) => vi.mocked(fetchImpl).mock.calls.filter((c) => re.test(String(c[0]))).length;
+    expect(count(/\/v1\/events\/live\?/)).toBe(1);
+    expect(count(/\/v1\/events\?/)).toBe(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(count(/\/v1\/events\/live\?/)).toBe(2);
+    expect(count(/\/v1\/events\?/)).toBe(1);
+  });
+
+  it('com uma consulta fora, mostra a outra; e tenta de novo a que falhou', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const preview = createPreviewFetch();
+    let liveDown = true;
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      liveDown && String(input).includes('/v1/events/live')
+        ? new Response(JSON.stringify({ title: 'Too many requests', status: 429 }), { status: 429 })
+        : preview(input, init),
+    ) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    // o dia chegou: a faixa aparece mesmo com o ao vivo em 429
+    await screen.findByText('2 – 1');
+    expect(items(container)).toHaveLength(2);
+    liveDown = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(
+      vi.mocked(fetchImpl).mock.calls.filter((c) => String(c[0]).includes('/v1/events/live')).length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it('jogo que saiu do ao vivo não volta com a cópia velha do dia', async () => {
+    const [live, , finished] = createPreviewFixtures(new Date()).events as [GsEvent, GsEvent, GsEvent];
+    const body = (data: GsEvent[]) =>
+      new Response(JSON.stringify({ data }), { headers: { 'content-type': 'application/json' } });
+    // a rota ao vivo já não traz o jogo; o dia ainda o tem como "ao vivo"
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/v1/events/live') ? body([]) : body([live, finished]),
+    ) as unknown as typeof fetch;
+    const { container } = setup(<ScoreTicker />, { fetchImpl });
+    await screen.findByText('0 – 0');
+    expect(items(container)).toHaveLength(1);
+    expect(screen.queryByText('2 – 1')).toBeNull();
+  });
+
   it('letra proporcional à largura, parada com "reduzir movimento" e emenda sem salto', () => {
     expect(WIDGET_CSS).toContain('font-size:clamp(16px,2cqw,44px)');
     expect(WIDGET_CSS).toMatch(

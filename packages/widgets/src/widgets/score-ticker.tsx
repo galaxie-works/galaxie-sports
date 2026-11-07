@@ -48,6 +48,7 @@ export const SCORE_TICKER_LIMIT = { min: 1, max: 100, default: 40 } as const;
 const SPEED_EM_PER_SEC: Record<ScoreTickerSpeed, number> = { slow: 2.5, normal: 4, fast: 6 };
 const LIVE_REFRESH_MS = 20_000;
 const IDLE_REFRESH_MS = 120_000;
+const RETRY_MS = 30_000;
 const TODAY_STATUSES = 'starting,live,break,finished';
 
 /** Em andamento primeiro, depois encerrados, depois os próximos; dentro de cada, pelo horário. */
@@ -109,12 +110,30 @@ export function ScoreTicker({
       status: mode === 'today' ? TODAY_STATUSES : undefined,
       limit: SCORE_TICKER_LIMIT.max,
     },
-    inPlay,
+    // os ao vivo já atualizam a cada 20 s pela rota própria: o dia só precisa do ritmo calmo
+    () => IDLE_REFRESH_MS,
   );
-  const ready = live.data && (liveOnly || day.data);
+  // uma TV fica horas sem ninguém tocar: erro na primeira carga (um 429, a rede caindo) tenta de novo sozinho
+  useRetryOnError(live);
+  useRetryOnError(day);
+  // jogo que saiu do ao vivo (apito final): busca o dia de novo para trocar a cópia velha pelo encerrado
+  const liveIds = (live.data?.data ?? []).map((e) => e.id).join(',');
+  const prevLiveIds = useRef(liveIds);
+  const dayRetry = day.retry;
+  useEffect(() => {
+    const before = prevLiveIds.current.split(',').filter(Boolean);
+    prevLiveIds.current = liveIds;
+    const now = new Set(liveIds.split(','));
+    if (!liveOnly && before.some((id) => !now.has(id))) dayRetry();
+  }, [liveIds, liveOnly, dayRetry]);
+  // mostra o que chegou: com uma das duas consultas fora, a faixa segue com a outra
+  const ready = Boolean(live.data || (!liveOnly && day.data));
+  const liveSet = live.data ? new Set(live.data.data.map((e) => e.id)) : null;
 
   const seen = new Set<string>();
-  const sorted = [...(live.data?.data ?? []), ...(day.data?.data ?? [])]
+  // no dia, um jogo "em andamento" que a rota ao vivo já não traz terminou: a cópia do dia está velha
+  const dayEvents = (day.data?.data ?? []).filter((e) => !liveSet || stageOf(e) !== 0 || liveSet.has(e.id));
+  const sorted = [...(live.data?.data ?? []), ...dayEvents]
     .filter((e) => !seen.has(e.id) && Boolean(seen.add(e.id)))
     .filter((e) => (liveOnly ? stageOf(e) === 0 : mode === 'today' ? stageOf(e) < 2 : true))
     .map((e, i) => ({ e, i }))
@@ -325,4 +344,15 @@ function Side({
       {reverse ? crest : null}
     </span>
   );
+}
+
+/** Primeira carga com erro: tenta de novo a cada 30 s (com dados na tela, o polling normal já cuida). */
+function useRetryOnError(query: { data: unknown; error: unknown; loading: boolean; retry: () => void }) {
+  const failed = !query.data && !query.loading && Boolean(query.error);
+  const { retry } = query;
+  useEffect(() => {
+    if (!failed) return;
+    const timer = setTimeout(retry, RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [failed, retry]);
 }
