@@ -38,6 +38,7 @@ import { MedalHistory } from '../widgets/medal-history.js';
 import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
+import { TeamStats } from '../widgets/team-stats.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -202,6 +203,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <PlayerProfile {...o} personId={personId ?? ''} />;
     case 'lineups':
       return <Lineups {...o} eventId={eventId ?? ''} />;
+    case 'team_stats':
+      return <TeamStats {...o} teamId={teamId ?? ''} />;
   }
 }
 

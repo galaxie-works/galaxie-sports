@@ -920,6 +920,60 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       ),
     },
   ],
+  // blocos em ordem alfabética (pt-BR); o widget os desenha na ordem de leitura
+  team_stats: [
+    {
+      key: 'competitionId',
+      type: 'competition',
+      label: l('Campeonato', 'Competición', 'Competition'),
+      hint: l(
+        'Vazio = o campeonato em que o time mais jogou na temporada.',
+        'Vacío = la competición en la que el equipo más jugó en la temporada.',
+        'Empty = the competition the team played the most in that season.',
+      ),
+    },
+    {
+      key: 'season',
+      type: 'season',
+      label: l('Temporada', 'Temporada', 'Season'),
+      hint: l(
+        'Vazio = a temporada mais recente com estatísticas.',
+        'Vacío = la temporada más reciente con estadísticas.',
+        'Empty = the latest season with statistics.',
+      ),
+    },
+    bool(
+      'showCards',
+      l('Cartões por faixa de minuto', 'Tarjetas por tramo de minutos', 'Cards by minute'),
+      false,
+    ),
+    bool('showHomeAway', l('Casa e fora', 'Local y visitante', 'Home and away'), true),
+    bool('showForm', l('Forma', 'Racha', 'Form'), true),
+    {
+      key: 'formCount',
+      type: 'number',
+      default: 5,
+      min: 1,
+      max: 10,
+      label: l('Resultados na forma', 'Resultados en la racha', 'Results in the form'),
+    },
+    bool(
+      'showFormations',
+      l('Formações mais usadas', 'Formaciones más usadas', 'Most used formations'),
+      true,
+    ),
+    bool(
+      'showGoalsByMinute',
+      l('Gols por faixa de minuto', 'Goles por tramo de minutos', 'Goals by minute'),
+      true,
+    ),
+    bool('showSummary', l('Resumo da temporada', 'Resumen de la temporada', 'Season summary'), true),
+    bool(
+      'showHighlights',
+      l('Sequências e maiores placares', 'Rachas y mayores resultados', 'Streaks and biggest results'),
+      true,
+    ),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

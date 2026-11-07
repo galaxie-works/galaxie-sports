@@ -38,6 +38,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'team_stats',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -782,6 +783,67 @@ export interface GsTeamOverview {
   competitions?: GsTeamCompetition[] | undefined;
   live_event?: GsEvent | null | undefined;
   next_event?: GsEvent | null | undefined;
+}
+
+/** Em casa, fora e no total (`/v1/teams/{id}/statistics`); null = o dado não veio. */
+export interface GsHomeAwayTotal {
+  home: number | null;
+  away: number | null;
+  total: number | null;
+}
+
+/** Quantos numa faixa de minutos; `from`/`to` nulos = minuto não informado. */
+export interface GsMinuteRange {
+  from: number | null;
+  to: number | null;
+  count: number;
+}
+
+/** Placar visto pelo time. */
+export interface GsScoreLine {
+  for: number;
+  against: number;
+}
+
+/** Estatísticas do time numa competição e temporada (`/v1/teams/{id}/statistics`, #893). */
+export interface GsTeamSeasonStats {
+  competition: { id: string; slug: string; name: string; logo: string | null };
+  season: { year: number; label: string };
+  /** W/D/L do mais recente ao mais antigo. */
+  form: string | null;
+  record: { played: GsHomeAwayTotal; won: GsHomeAwayTotal; drawn: GsHomeAwayTotal; lost: GsHomeAwayTotal };
+  goals: {
+    scored: GsHomeAwayTotal;
+    conceded: GsHomeAwayTotal;
+    scored_average: GsHomeAwayTotal;
+    conceded_average: GsHomeAwayTotal;
+    scored_by_minute: GsMinuteRange[];
+    conceded_by_minute: GsMinuteRange[];
+  };
+  clean_sheets: GsHomeAwayTotal;
+  failed_to_score: GsHomeAwayTotal;
+  streaks: { wins: number | null; draws: number | null; losses: number | null };
+  biggest: {
+    win: { home: GsScoreLine | null; away: GsScoreLine | null };
+    loss: { home: GsScoreLine | null; away: GsScoreLine | null };
+  };
+  penalties: { scored: number | null; missed: number | null; total: number | null };
+  formations: { formation: string; played: number }[];
+  cards: {
+    yellow: number | null;
+    red: number | null;
+    yellow_by_minute: GsMinuteRange[];
+    red_by_minute: GsMinuteRange[];
+  };
+  updated_at: string;
+}
+
+/** Resposta de `/v1/teams/{id}/statistics`: a temporada escolhida (ou null) e o que existe. */
+export interface GsTeamStatistics {
+  team_id: string;
+  sport: string;
+  data: GsTeamSeasonStats | null;
+  available: { competition: { id: string; name: string }; season: { year: number; label: string } }[];
 }
 
 export interface GsTeamOverviewTeam extends GsTeam {
@@ -1586,6 +1648,15 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+.gs-minutes{display:grid;grid-template-columns:auto 1fr 1fr;align-items:center;gap:4px 8px;font-size:.8em;font-variant-numeric:tabular-nums}
+.gs-minutes>.gs-meta{white-space:nowrap}
+.gs-mbar{display:flex;align-items:center;gap:4px;min-width:0}
+.gs-mbar>span:first-child{display:block;height:8px;min-width:2px;border-radius:999px;background:var(--gs-primary)}
+.gs-mbar[data-side=against]>span:first-child{background:color-mix(in srgb,var(--gs-foreground) 40%,transparent)}
+.gs-mbar[data-side=yellow]>span:first-child{background:#eab308}.gs-mbar[data-side=red]>span:first-child{background:#dc2626}
+.gs-mbar[data-zero]>span:first-child{opacity:.25}
+.gs-kv{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--gs-border);font-size:.85em}
+.gs-kv:first-child{border-top:0}.gs-kv>strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -1700,6 +1771,47 @@ export interface WidgetTexts {
     live: string;
     competitions: string;
     noNext: string;
+  };
+  /** Estatísticas do time na temporada (#893). "{n} jogos", "{x} por jogo". */
+  teamStats: {
+    title: string;
+    summary: string;
+    played: string;
+    won: string;
+    drawn: string;
+    lost: string;
+    goalsFor: string;
+    goalsAgainst: string;
+    perGame: string;
+    form: string;
+    homeAway: string;
+    home: string;
+    away: string;
+    cleanSheets: string;
+    failedToScore: string;
+    goalsByMinute: string;
+    scored: string;
+    conceded: string;
+    /** "{from}–{to}'" */
+    minuteRange: string;
+    unknownMinute: string;
+    highlights: string;
+    winStreak: string;
+    drawStreak: string;
+    lossStreak: string;
+    biggestWin: string;
+    biggestLoss: string;
+    penalties: string;
+    /** "{scored} de {total}" */
+    penaltiesScored: string;
+    formations: string;
+    /** "{n} jogos" */
+    games: string;
+    cards: string;
+    yellow: string;
+    red: string;
+    updated: string;
+    empty: string;
   };
   /** Campos opcionais ligados no Builder (placar, tabela, agenda…). */
   extra: {
@@ -2111,6 +2223,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       competitions: 'Campeonatos',
       noNext: 'Nenhum jogo marcado.',
     },
+    teamStats: {
+      title: 'Estatísticas do time',
+      summary: 'Resumo da temporada',
+      played: 'Jogos',
+      won: 'Vitórias',
+      drawn: 'Empates',
+      lost: 'Derrotas',
+      goalsFor: 'Gols pró',
+      goalsAgainst: 'Gols contra',
+      perGame: '{x} por jogo',
+      form: 'Forma',
+      homeAway: 'Casa e fora',
+      home: 'Casa',
+      away: 'Fora',
+      cleanSheets: 'Sem sofrer gol',
+      failedToScore: 'Sem marcar',
+      goalsByMinute: 'Gols por faixa de minuto',
+      scored: 'Marcados',
+      conceded: 'Sofridos',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'Sem minuto',
+      highlights: 'Sequências e maiores placares',
+      winStreak: 'Vitórias seguidas',
+      drawStreak: 'Empates seguidos',
+      lossStreak: 'Derrotas seguidas',
+      biggestWin: 'Maior vitória',
+      biggestLoss: 'Maior derrota',
+      penalties: 'Pênaltis',
+      penaltiesScored: '{scored} de {total}',
+      formations: 'Formações mais usadas',
+      games: '{n} jogos',
+      cards: 'Cartões por faixa de minuto',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      updated: 'Atualizado em {date}',
+      empty: 'Sem estatísticas deste time para a temporada.',
+    },
     extra: {
       referee: 'Árbitro',
       halftime: '1º T {home}–{away}',
@@ -2521,6 +2670,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       live: 'En vivo',
       competitions: 'Competiciones',
       noNext: 'Ningún partido programado.',
+    },
+    teamStats: {
+      title: 'Estadísticas del equipo',
+      summary: 'Resumen de la temporada',
+      played: 'Partidos',
+      won: 'Victorias',
+      drawn: 'Empates',
+      lost: 'Derrotas',
+      goalsFor: 'Goles a favor',
+      goalsAgainst: 'Goles en contra',
+      perGame: '{x} por partido',
+      form: 'Racha',
+      homeAway: 'Local y visitante',
+      home: 'Local',
+      away: 'Visitante',
+      cleanSheets: 'Valla invicta',
+      failedToScore: 'Sin marcar',
+      goalsByMinute: 'Goles por tramo de minutos',
+      scored: 'Marcados',
+      conceded: 'Recibidos',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'Sin minuto',
+      highlights: 'Rachas y mayores resultados',
+      winStreak: 'Victorias seguidas',
+      drawStreak: 'Empates seguidos',
+      lossStreak: 'Derrotas seguidas',
+      biggestWin: 'Mayor victoria',
+      biggestLoss: 'Mayor derrota',
+      penalties: 'Penales',
+      penaltiesScored: '{scored} de {total}',
+      formations: 'Formaciones más usadas',
+      games: '{n} partidos',
+      cards: 'Tarjetas por tramo de minutos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      updated: 'Actualizado el {date}',
+      empty: 'Sin estadísticas de este equipo para la temporada.',
     },
     extra: {
       referee: 'Árbitro',
@@ -2937,6 +3123,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       live: 'Live',
       competitions: 'Competitions',
       noNext: 'No match scheduled.',
+    },
+    teamStats: {
+      title: 'Team statistics',
+      summary: 'Season summary',
+      played: 'Played',
+      won: 'Won',
+      drawn: 'Drawn',
+      lost: 'Lost',
+      goalsFor: 'Goals for',
+      goalsAgainst: 'Goals against',
+      perGame: '{x} per game',
+      form: 'Form',
+      homeAway: 'Home and away',
+      home: 'Home',
+      away: 'Away',
+      cleanSheets: 'Clean sheets',
+      failedToScore: 'Failed to score',
+      goalsByMinute: 'Goals by minute',
+      scored: 'Scored',
+      conceded: 'Conceded',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'No minute',
+      highlights: 'Streaks and biggest results',
+      winStreak: 'Wins in a row',
+      drawStreak: 'Draws in a row',
+      lossStreak: 'Defeats in a row',
+      biggestWin: 'Biggest win',
+      biggestLoss: 'Biggest defeat',
+      penalties: 'Penalties',
+      penaltiesScored: '{scored} of {total}',
+      formations: 'Most used formations',
+      games: '{n} games',
+      cards: 'Cards by minute',
+      yellow: 'Yellow',
+      red: 'Red',
+      updated: 'Updated {date}',
+      empty: 'No statistics for this team this season.',
     },
     extra: {
       referee: 'Referee',

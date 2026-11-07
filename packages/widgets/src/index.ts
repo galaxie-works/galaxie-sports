@@ -108,6 +108,7 @@ export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
 export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
 export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
+export { TeamStats, type TeamStatsProps } from './widgets/team-stats.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

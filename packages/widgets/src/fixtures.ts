@@ -25,6 +25,7 @@ import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures
 import { previewLeaders } from './fixtures-leaders.js';
 import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 import { previewSquad } from './fixtures-squad.js';
+import { previewTeamStats } from './fixtures-team-stats.js';
 import { sampleLineups } from './fixtures-lineups.js';
 
 export const PREVIEW_IDS = {
@@ -792,6 +793,20 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     }
     // elenco do time (#825): o Clube Aurora com o elenco de exemplo
     if (teamId === PREVIEW_IDS.team) {
+      // estatísticas do time (#893): a Liga Exemplo em 2026 e 2025
+      if (path.endsWith('/statistics')) {
+        const season = Number(url.searchParams.get('season'));
+        return json(
+          previewTeamStats(
+            teamId,
+            { id: COMPETITION_ID, slug: PREVIEW_IDS.competition, name: 'Liga Exemplo', logo: null },
+            {
+              competition: url.searchParams.get('competition'),
+              season: Number.isInteger(season) && season > 0 ? season : null,
+            },
+          ),
+        );
+      }
       if (path.endsWith('/squad')) {
         const season = Number(url.searchParams.get('season'));
         return json(previewSquad(teamId, Number.isInteger(season) && season > 0 ? season : null));
