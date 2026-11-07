@@ -4,7 +4,7 @@ Estudo de 07/11/2026. Base do épico **Chat ao vivo** (label `Chat ao vivo`).
 
 > Pontos jurídicos deste estudo são de conhecimento geral até 2026 e **não são parecer**. Precisam de revisão de advogado antes do piloto.
 
-**Recomendação: construir o chat nós mesmos, em cima do "Ao vivo" que já existe, e vender como módulo (add-on) para os clientes.** Os fornecedores prontos (Stream, Sendbird, Ably) cobram por usuário ativo ou por conexão simultânea, e num jogo grande de um portal (100 mil pessoas com o chat aberto ao mesmo tempo) isso vira contrato enterprise de dezenas de milhares de dólares por mês. Do nosso lado, a peça mais cara (entregar mensagens para muita gente ao mesmo tempo) já está pronta: a API tem o canal ao vivo (SSE), o Valkey distribui as mensagens entre servidores e cada cliente já recebe um token curto por tenant (`apps/api/src/realtime`). O que falta é a parte de escrever, moderar e mostrar. O MVP leva cerca de 2 semanas de trabalho dos agentes; o gargalo real é a revisão jurídica e um cliente piloto, não o código.
+**Recomendação: construir o chat nós mesmos, em cima do "Ao vivo" que já existe, e vender como módulo (add-on) para os clientes.** Os fornecedores prontos (Stream, Sendbird, Ably) cobram por usuário ativo ou por conexão simultânea, e num jogo grande de um portal (100 mil pessoas com o chat aberto ao mesmo tempo) isso vira contrato enterprise de dezenas de milhares de dólares por mês. Do nosso lado, a peça mais cara (entregar mensagens para muita gente ao mesmo tempo) já está pronta: a API tem o canal ao vivo (SSE), o Valkey distribui as mensagens entre servidores e cada cliente já recebe um token curto por tenant (`apps/api/src/realtime`). O que falta é a parte de escrever, moderar e mostrar. O MVP leva cerca de 3 a 4 dias com agentes Claude de fronteira trabalhando em paralelo; o gargalo real é a revisão jurídica e um cliente piloto, não o código.
 
 ## Decisões já tomadas (07/11/2026)
 
@@ -176,15 +176,15 @@ O que vale em todos os países:
 
 ## Fases
 
-Prazos considerando que o desenvolvimento é feito por agentes Claude.
+Prazos considerando que todo o desenvolvimento é feito por agentes Claude de fronteira (Opus, Sonnet, Fable), várias issues em paralelo, com revisão automática e CI em cada PR. Referência: as 15 issues de widgets do épico #820 viraram PRs em cerca de um dia. O que o prazo não comprime é o que depende de gente ou de infraestrutura: revisão e merge, advogado, piloto e as dependências da última coluna.
 
 | Fase | O que entra | Prazo de desenvolvimento | Depende de |
 | --- | --- | --- | --- |
-| 0. Jurídico | Rascunho do termo de uso do chat e da parte do contrato (quem modera, LGPD, logs) | 1 a 2 dias + advogado | Advogado |
-| 1. MVP para piloto | Sala por jogo e cliente; token de usuário pedido pelo servidor do cliente; enviar e receber em lotes; eventos do jogo dentro do chat; reações; modo lento; regras e listas de palavras (pt, es, en); denúncia; painel de moderação em Ajustes → Chat; logs de 6 meses; widget `live_chat` no Builder e no embed; página do jogo no demo. Limite de ~5 mil pessoas por jogo | ~2 semanas | Nada novo de infraestrutura |
-| 2. Escala | Leitura pelo cache da Cloudflare; modo multidão; teste de carga com 100 mil leitores; métricas no Grafana (pessoas na sala, mensagens por segundo, bloqueios) | ~1 semana | Domínio atrás da Cloudflare (#635) e servidor maior |
-| 3. Moderação inteligente e TV | Cosmos AI como moderadora (pré-pago por tokens); apelação com fila e prazo; perfis Moderador sênior e Administrador; chat só leitura na smart TV com QR code; enquetes e palpites; patrocínio da sala | ~2 semanas | Migração para galaxiesports.com (apps de TV) |
-| 4. EUA e Canadá | Fichas de regras por país (idade, idioma); listas e Cosmos AI afinadas para inglês, espanhol de cada país e francês (Quebec); termos e revisão jurídica americana e canadense; fuso e textos | ~1 semana | LLC pronta e advogado nos EUA |
+| 0. Jurídico | Rascunho do termo de uso do chat e da parte do contrato (quem modera, LGPD, logs) | Rascunho no mesmo dia + advogado | Advogado |
+| 1. MVP para piloto | Sala por jogo e cliente; token de usuário pedido pelo servidor do cliente; enviar e receber em lotes; eventos do jogo dentro do chat; reações; modo lento; regras e listas de palavras (pt, es, en); denúncia; painel de moderação em Ajustes → Chat; logs de 6 meses; widget `live_chat` no Builder e no embed; página do jogo no demo. Limite de ~5 mil pessoas por jogo | ~3 a 4 dias | Nada novo de infraestrutura |
+| 2. Escala | Leitura pelo cache da Cloudflare; modo multidão; teste de carga com 100 mil leitores; métricas no Grafana (pessoas na sala, mensagens por segundo, bloqueios) | ~1 a 2 dias | Domínio atrás da Cloudflare (#635) e servidor maior |
+| 3. Moderação inteligente e TV | Cosmos AI como moderadora (pré-pago por tokens); apelação com fila e prazo; perfis Moderador sênior e Administrador; chat só leitura na smart TV com QR code; enquetes e palpites; patrocínio da sala | ~3 a 4 dias | Migração para galaxiesports.com (apps de TV) |
+| 4. EUA e Canadá | Fichas de regras por país (idade, idioma); listas e Cosmos AI afinadas para inglês, espanhol de cada país e francês (Quebec); termos e revisão jurídica americana e canadense; fuso e textos | ~1 a 2 dias | LLC pronta e advogado nos EUA |
 
 ## Fontes
 
