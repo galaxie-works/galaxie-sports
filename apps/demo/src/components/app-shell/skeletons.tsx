@@ -742,7 +742,7 @@ export function ToolbarTableSkeleton({
   rows = 8,
   columns = ['flex-1', 'w-28', 'w-24', 'w-20'],
 }: {
-  /** `filters`: campo de filtros e botões de estado; `tabs`: abas com a linha de baixo. */
+  /** `filters`: campo de filtros e botões de estado; `tabs`: abas com a linha de baixo e os filtros da aba. */
   toolbar?: 'filters' | 'tabs';
   rows?: number;
   columns?: readonly string[];
@@ -750,10 +750,21 @@ export function ToolbarTableSkeleton({
   return (
     <div className="flex flex-col gap-4">
       {toolbar === 'tabs' ? (
-        <div className="flex gap-1 border-b pb-2">
-          {range(3).map((i) => (
-            <Skeleton key={i} className="h-6 w-24 rounded-md" />
-          ))}
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-1 border-b pb-2">
+            {range(3).map((i) => (
+              <Skeleton key={i} className="h-6 w-24 rounded-md" />
+            ))}
+          </div>
+          {/* A barra de filtros da aba aberta (país, plataforma, tipo e estado) e o botão de criar. */}
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              {range(4).map((i) => (
+                <Skeleton key={i} className="h-8 w-36 rounded-md" />
+              ))}
+            </div>
+            <Skeleton className="h-8 w-28 rounded-md" />
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
