@@ -13,7 +13,15 @@ import {
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import {
+  DetailsSkeleton,
+  ScoreboardSkeleton,
+  SectionSkeleton,
+  TextSkeleton,
+  TimelineSkeleton,
+} from '@/components/app-shell/skeletons';
 import { Badge } from '@/components/reui/badge';
 import { Crest } from '@/components/sport/crest';
 import { awaitingResult, ProvisionalBadgeView } from '@/components/sport/event-card-view';
@@ -39,7 +47,7 @@ import { eventContextRequest, eventRequest, h2hRequest, whereToWatchRequest } fr
 import type { SupportedLocale } from '@galaxie/contracts';
 
 import { goalsBehinds } from '@/lib/afl';
-import { apiLocale, contentLocale, contextLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
+import { apiLocale, contentLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
@@ -506,12 +514,11 @@ export async function EventContent({ params, searchParams, source }: PageContent
   // interface no idioma escolhido; em pt-BR, tudo em português
   const home = first.participants.find((p) => p.side === 'home');
   const homeCountry = home ? await source.getTeamCountry(home.id) : null;
+  // cenário e resumo de IA também: a tela em inglês recebe inglês
   const content = contentLocale(locale, homeCountry);
-  // cenário e resumo de IA não existem em inglês: a tela em inglês os pede na voz em espanhol do mandante
-  const contextContent = contextLocale(locale, homeCountry);
   const event = content === apiLocale(locale) ? first : await source.getEvent(id, content);
   const [context, h2h, wtw, lineups, related, timeline, stats, fightCard] = await Promise.all([
-    source.getEventContext(id, contextContent),
+    source.getEventContext(id, content),
     source.getH2h(id, content),
     source.getWhereToWatch(id, country, content),
     source.getLineups(id, content),
@@ -578,7 +585,7 @@ export async function EventContent({ params, searchParams, source }: PageContent
               <Section
                 title={tx.title}
                 description={tx.description}
-                api={eventContextRequest(id, locale, contextContent)}
+                api={eventContextRequest(id, locale, content)}
               >
                 {context.data.map((c) => (
                   <Card key={c.kind} size="sm">
@@ -661,13 +668,23 @@ export function EventFallback() {
   return (
     <>
       <PageHeader title={<Skeleton className="h-4 w-48" />} />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
-        <Skeleton className="h-48" />
+      <LoadingStatus className="flex flex-col gap-6 p-4 md:p-6">
+        <ScoreboardSkeleton />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Skeleton className="h-72 lg:col-span-2" />
-          <Skeleton className="h-72" />
+          <div className="flex flex-col gap-6 lg:col-span-2">
+            <SectionSkeleton>
+              <TextSkeleton />
+            </SectionSkeleton>
+            <SectionSkeleton description={false}>
+              <TimelineSkeleton />
+            </SectionSkeleton>
+          </div>
+          <div className="flex flex-col gap-6">
+            <DetailsSkeleton rows={5} />
+            <DetailsSkeleton rows={3} />
+          </div>
         </div>
-      </div>
+      </LoadingStatus>
     </>
   );
 }

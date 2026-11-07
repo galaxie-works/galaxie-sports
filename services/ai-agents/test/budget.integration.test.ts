@@ -130,16 +130,16 @@ describe('orçamento diário esgotado → todos os agentes caem no determinísti
     expect(loadLlmClient(db, {}).client).toBeNull(); // sem chave: só determinístico
   });
 
-  it('cenário: 8 locales com o texto dos rótulos do regulamento, sem chamar o provedor', async () => {
+  it('cenário: 9 locales com o texto dos rótulos do regulamento, sem chamar o provedor', async () => {
     const report = await runScenarioAgent(db, {
       now: new Date('2026-10-27T12:00:00Z'),
       llm,
       eventId: secondLeg,
     });
-    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 0, fallback: 8 } });
+    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 0, fallback: 9 } });
     expect(fake.calls).toBe(0);
     const rows = await readEventContext(db, secondLeg, { kinds: ['scenario'] });
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(9);
     expect(rows.every((r) => r.content.origin === 'fallback' && r.content.fallbackReason === 'budget')).toBe(
       true,
     );

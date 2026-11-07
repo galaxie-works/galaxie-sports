@@ -122,4 +122,12 @@ describe('championPhrase — resumo pós-jogo', () => {
     expect(championPhrase(n, 'pt')).toBe(pt);
     expect(championPhrase(n, 'es')).toBe(es);
   });
+
+  it('inglês: ordinal com algarismos, sem "No."', () => {
+    expect(championPhrase(1, 'en')).toBe('wins the title for the first time');
+    expect(championPhrase(4, 'en')).toBe('wins a 4th title');
+    expect(championPhrase(11, 'en')).toBe('wins an 11th title');
+    expect(titleOrdinal(2, 'en')).toBe('a 2nd title');
+    expect(titleOrdinal(1, 'en')).toBe('a first title');
+  });
 });

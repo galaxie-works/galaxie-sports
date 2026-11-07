@@ -1,11 +1,11 @@
 import type { Stake, StakeFamily, StakeSide } from './codes.js';
-import { titleOrdinal } from './titles.js';
+import { englishOrdinal, titleOrdinal } from './titles.js';
 
 /**
  * Rótulos fixos (não gerados) dos códigos de stakes, para os 8 mercados da API e para `en` (catálogo fixo,
  * tradução humana, sem LLM).
  * Placeholders: `{n}` (número; nas famílias de resultado, posição ou pontos), `{goals}` ("1 gol" / "2 gols"), `{zone}` (nome da zona com artigo),
- * `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
+ * `{ord}` (posição: "2nd" em `en`, o número nos demais), `{nth}` (o título de número n: "tetracampeonato", "11º título"; ver `titleOrdinal`).
  * Variantes por número: `zero` (n = 0), `one` (n = 1), `other`.
  */
 export const STAKE_LOCALES = [
@@ -308,9 +308,9 @@ const EN: Record<StakeFamily, LabelTemplate> = {
   at_risk_of_elimination: 'Still at risk of elimination',
   seeks_title_n: { zero: 'Chasing a first title', one: 'Chasing a first title', other: 'Chasing {nth}' },
   // result (match over): what the score changed in the table
-  moved_up_to_n: 'Moved up to {n}th place',
-  moved_down_to_n: 'Dropped to {n}th place',
-  stayed_at_n: 'Stays in {n}th place',
+  moved_up_to_n: 'Moved up to {ord} place',
+  moved_down_to_n: 'Dropped to {ord} place',
+  stayed_at_n: 'Stays in {ord} place',
   took_the_lead: 'Took the lead of the table',
   lost_the_lead: 'Lost the lead of the table',
   entered_zone: 'Now in a spot for {zone}',
@@ -501,11 +501,12 @@ export function zoneLabel(zone: string, locale: StakeLocale): string {
 /** Texto fixo do código no locale (interpolação de parâmetros, sem geração livre). */
 export function stakeText(stake: Pick<Stake, 'family' | 'params'>, locale: StakeLocale): string {
   const template = pickTemplate(STAKE_LABELS[locale][stake.family], stake.params?.n);
-  return template.replace(/\{(n|nth|goals|zone)\}/g, (_, key: string) => {
+  return template.replace(/\{(n|nth|ord|goals|zone)\}/g, (_, key: string) => {
     const n = stake.params?.n;
     if (key === 'zone') return stake.params?.zone ? zoneLabel(stake.params.zone, locale) : '';
     if (n === undefined) return '';
     if (key === 'nth') return titleOrdinal(n, langOf(locale));
+    if (key === 'ord') return langOf(locale) === 'en' ? englishOrdinal(n) : String(n);
     return key === 'goals' ? goals(locale, n) : String(n);
   });
 }

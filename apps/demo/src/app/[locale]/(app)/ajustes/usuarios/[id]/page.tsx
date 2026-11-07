@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { UserDetail } from '@/components/admin/user-detail';
+import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
+import { FormSkeleton, FramePanelSkeleton } from '@/components/app-shell/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDemoUser } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
@@ -38,9 +40,11 @@ export default function UserPage({ params }: PageProps<'/[locale]/ajustes/usuari
       fallback={
         <>
           <PageHeader title={<Skeleton className="h-4 w-32" />} />
-          <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-            <Skeleton className="h-96 w-full" />
-          </div>
+          <LoadingStatus className="mx-auto w-full max-w-5xl p-4 md:p-6">
+            <FramePanelSkeleton>
+              <FormSkeleton fields={6} columns={2} />
+            </FramePanelSkeleton>
+          </LoadingStatus>
         </>
       }
     >

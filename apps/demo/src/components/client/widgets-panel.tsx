@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Activity,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -9,12 +10,18 @@ import {
   ClipboardList,
   Dna,
   Flag,
+  Goal,
+  GalleryHorizontalEnd,
   History,
+  Hourglass,
+  IdCard,
+  LayoutGrid,
   ListChecks,
   ListOrdered,
   Medal,
   Plus,
   Radio,
+  Shield,
   Shirt,
   Sparkles,
   Sun,
@@ -65,7 +72,9 @@ import { EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV } from '@/lib/navigation';
 
 export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_card: CalendarDays,
+  match_timeline: Activity,
   live_list: Radio,
+  score_ticker: GalleryHorizontalEnd,
   standings: Table2,
   where_to_watch: Tv,
   ai_context: Sparkles,
@@ -73,6 +82,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   related_videos: Clapperboard,
   head_to_head: Swords,
   team_schedule: CalendarRange,
+  team_card: Shield,
   race_result: Trophy,
   race_weekend: Timer,
   season_calendar: CalendarClock,
@@ -88,7 +98,11 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  competition_leaders: Goal,
+  countdown: Hourglass,
   team_squad: Shirt,
+  player_profile: IdCard,
+  lineups: LayoutGrid,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

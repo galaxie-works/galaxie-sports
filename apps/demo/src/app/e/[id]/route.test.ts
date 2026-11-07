@@ -57,6 +57,30 @@ describe('rota pública /e/[id].json (embed HTML)', () => {
     expect(JSON.stringify(body)).not.toMatch(/tenant|createdBy|u1|gs_pk_/);
   });
 
+  it('Ficha do jogador: leva o jogador salvo (personId) e as opções do tipo', async () => {
+    const PERSON = '0199a5c0-0000-7000-8000-00000000f001';
+    getWidget.mockResolvedValue(
+      widget({
+        kind: 'player_profile',
+        config: {
+          theme: DEFAULT_THEMES.dark,
+          locale: 'pt-BR',
+          market: 'BR',
+          defaults: { personId: PERSON },
+          options: { showTransfers: false, limit: 0 },
+        },
+      }),
+    );
+    const res = await call(`${ID}.json`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({
+      kind: 'player_profile',
+      defaults: { personId: PERSON },
+      options: { showTransfers: false, limit: 0 },
+    });
+  });
+
   it('widget arquivado, inexistente ou id fora do formato: 404', async () => {
     getWidget.mockResolvedValue(widget({ archivedAt: new Date() }));
     expect((await call(`${ID}.json`)).status).toBe(404);

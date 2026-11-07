@@ -84,7 +84,9 @@ export function competitionName(core: EventCore, locale: AgentLocale): string | 
 export function stageName(core: EventCore, locale: AgentLocale): string | null {
   if (!core.stage) return null;
   const name = core.stage.name as Partial<Record<string, string>>;
-  return name[locale] ?? (languageOf(locale) === 'pt' ? name['pt-BR'] : name['es']) ?? name['en'] ?? null;
+  const lang = languageOf(locale);
+  const sameLanguage = lang === 'pt' ? name['pt-BR'] : lang === 'es' ? name['es'] : undefined;
+  return name[locale] ?? sameLanguage ?? name['en'] ?? null;
 }
 
 /** Todos os nomes próprios citáveis do evento (para o validador). */

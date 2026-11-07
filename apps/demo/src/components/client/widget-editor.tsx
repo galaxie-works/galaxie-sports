@@ -5,11 +5,15 @@ import {
   GalaxieWidgetProvider,
   HeadToHead,
   LiveList,
+  Countdown,
   MatchCard,
   MatchStakes,
+  MatchTimeline,
   RelatedVideos,
+  ScoreTicker,
   StandingsTable,
   TeamSchedule,
+  TeamCard,
   TeamSquad,
   AthleteProfile,
   FightCard,
@@ -23,6 +27,9 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  CompetitionLeaders,
+  PlayerProfile,
+  Lineups,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -187,6 +194,8 @@ function PreviewWidget({
             }
           />
         );
+      case 'match_timeline':
+        return <MatchTimeline {...o} {...WIDGET_CATALOG.match_timeline.exampleProps} />;
       case 'where_to_watch':
         return <WhereToWatch {...o} {...WIDGET_CATALOG.where_to_watch.exampleProps} />;
       case 'standings':
@@ -200,6 +209,8 @@ function PreviewWidget({
         );
       case 'live_list':
         return <LiveList {...liveList} sport={sport ?? undefined} />;
+      case 'score_ticker':
+        return <ScoreTicker {...o} sport={sport ?? undefined} />;
       case 'ai_context':
         return <AiContext {...o} {...WIDGET_CATALOG.ai_context.exampleProps} />;
       case 'match_stakes':
@@ -210,6 +221,8 @@ function PreviewWidget({
         return <HeadToHead {...o} {...WIDGET_CATALOG.head_to_head.exampleProps} />;
       case 'team_schedule':
         return <TeamSchedule {...o} {...WIDGET_CATALOG.team_schedule.exampleProps} />;
+      case 'team_card':
+        return <TeamCard {...o} {...WIDGET_CATALOG.team_card.exampleProps} />;
       case 'race_result':
         return <RaceResult {...o} {...WIDGET_CATALOG.race_result.exampleProps} />;
       case 'race_weekend':
@@ -245,13 +258,30 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'competition_leaders':
+        return <CompetitionLeaders {...WIDGET_CATALOG.competition_leaders.exampleProps} {...o} />;
+      case 'countdown':
+        return (
+          <Countdown
+            {...o}
+            eventId={
+              sport === 'mma' ? PREVIEW_IDS.nextFightEvent : WIDGET_CATALOG.countdown.exampleProps.eventId
+            }
+          />
+        );
       case 'team_squad':
         return <TeamSquad {...o} {...WIDGET_CATALOG.team_squad.exampleProps} />;
+      case 'player_profile':
+        return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
+      case 'lineups':
+        return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
     }
   }
   switch (kind) {
     case 'match_card':
       return <MatchCard {...o} eventId={entity.id} />;
+    case 'match_timeline':
+      return <MatchTimeline {...o} eventId={entity.id} />;
     case 'where_to_watch':
       return <WhereToWatch {...o} eventId={entity.id} market={market} />;
     case 'standings':
@@ -262,6 +292,8 @@ function PreviewWidget({
       ) : (
         <LiveList {...liveList} competitionId={entity.id} sport={sport ?? undefined} />
       );
+    case 'score_ticker':
+      return <ScoreTicker {...o} competitionId={entity.id} sport={sport ?? undefined} />;
     case 'ai_context':
       return <AiContext {...o} eventId={entity.id} />;
     case 'match_stakes':
@@ -272,6 +304,8 @@ function PreviewWidget({
       return <HeadToHead {...o} eventId={entity.id} />;
     case 'team_schedule':
       return <TeamSchedule {...o} teamId={entity.id} />;
+    case 'team_card':
+      return <TeamCard {...o} teamId={entity.id} />;
     case 'race_result':
       return <RaceResult {...o} eventId={entity.id} />;
     case 'race_weekend':
@@ -284,6 +318,14 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'competition_leaders':
+      return <CompetitionLeaders {...o} competitionId={entity.id} />;
+    case 'countdown':
+      return <Countdown {...o} eventId={entity.id} />;
+    case 'player_profile':
+      return <PlayerProfile {...o} personId={entity.id} />;
+    case 'lineups':
+      return <Lineups {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -403,9 +445,13 @@ export function WidgetEditor({
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
-  // lista de jogos, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem entidade, mostram
-  // os dados de exemplo
-  const realData = Boolean(draft.entity) || draft.kind === 'live_list' || entityTypes.length === 0;
+  // lista de jogos, faixa de placares, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem
+  // entidade, mostram os dados de exemplo
+  const realData =
+    Boolean(draft.entity) ||
+    draft.kind === 'live_list' ||
+    draft.kind === 'score_ticker' ||
+    entityTypes.length === 0;
 
   function save() {
     startTransition(async () => {

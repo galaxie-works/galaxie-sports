@@ -15,8 +15,8 @@ export type {
   WidgetTheme,
 } from '@galaxie/db/widgets';
 
-/** Entidade que serve de padrão para um widget (vira `defaults.competitionId/teamId/eventId`). */
-export type WidgetEntityType = 'competition' | 'team' | 'event';
+/** Entidade que serve de padrão para um widget (vira `defaults.competitionId/teamId/eventId/personId`). */
+export type WidgetEntityType = 'competition' | 'team' | 'event' | 'person';
 
 /** Tema da marca como vai para o navegador (lista do editor e da aba Temas). */
 export interface BrandThemeItem {

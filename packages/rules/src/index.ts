@@ -110,6 +110,7 @@ export {
   championPhrase,
   titleChaseSides,
   titleChaseStakes,
+  englishOrdinal,
   titleOrdinal,
   type TitleCounts,
   type TitleSide,
