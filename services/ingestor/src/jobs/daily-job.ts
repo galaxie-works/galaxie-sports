@@ -191,14 +191,22 @@ export async function buildRotationRequests(
   limit: number,
   periodDays: (item: PlannedRequest) => number = (item) => ROTATION_PERIOD_DAYS[item.endpoint] ?? 30,
   /**
-   * Fatia justa: com a chave (o endpoint, no rodízio de pessoas), o orçamento vai em revezamento entre as chaves,
-   * cada uma na sua ordem de idade. Sem isso o endpoint que vem primeiro na lista leva o dia inteiro enquanto
-   * tiver item nunca buscado (o `/trophies` de 25 mil pessoas deixava o `/sidelined` sem nenhuma busca).
+   * Fatia pelo ritmo: com a chave (o endpoint, no rodízio de pessoas), cada chave recebe primeiro a vaga diária
+   * que o período dela pede (itens ÷ período: 1.300 lotes de `/sidelined` a cada 2 dias = 650/dia) e a sobra vai
+   * em revezamento, cada chave na sua ordem de idade. Sem isso o endpoint que vem primeiro na lista leva o dia
+   * inteiro enquanto tiver item nunca buscado (o `/trophies` de 25 mil pessoas deixava o `/sidelined` sem busca).
    */
   shareBy?: (item: PlannedRequest) => string,
 ): Promise<PlannedRequest[]> {
   const states = await cursors.load(candidates.flatMap((c) => c.cursors));
   const today = startOfUtcDay(now).getTime();
+  // vaga diária de cada chave pelo ritmo (todos os candidatos dela ÷ período), antes de descontar o que já foi hoje
+  const need = new Map<string, number>();
+  if (shareBy)
+    for (const item of candidates) {
+      const k = shareBy(item);
+      need.set(k, (need.get(k) ?? 0) + 1 / periodDays(item));
+    }
   const aged: { item: PlannedRequest; age: number }[] = [];
   let renewedToday = 0;
   for (const item of candidates) {
@@ -216,7 +224,35 @@ export async function buildRotationRequests(
     .map((a, i) => ({ ...a, i }))
     .sort((a, b) => a.age - b.age || a.i - b.i)
     .map((a) => a.item);
-  return shareBy ? roundRobin(sorted, shareBy, limit) : sorted.slice(0, limit);
+  if (!shareBy) return sorted.slice(0, limit);
+  const paced = new Map([...need].map(([k, v]) => [k, Math.ceil(v)] as const));
+  return pacedShare(sorted, shareBy, paced, limit);
+}
+
+/**
+ * Cada chave leva até a sua vaga (`paced`, proporcional quando a soma passa do limite), na ordem dada; o que
+ * sobrar do limite vai em revezamento (`roundRobin`) entre as chaves que ainda têm item.
+ */
+export function pacedShare<T>(
+  items: T[],
+  key: (item: T) => string,
+  paced: Map<string, number>,
+  limit: number,
+): T[] {
+  const total = [...paced.values()].reduce((a, b) => a + b, 0);
+  const scale = total > limit ? limit / total : 1;
+  const taken = new Map<string, number>();
+  const first: T[] = [];
+  const rest: T[] = [];
+  for (const item of items) {
+    const k = key(item);
+    const n = taken.get(k) ?? 0;
+    if (n < Math.floor((paced.get(k) ?? 0) * scale) && first.length < limit) {
+      taken.set(k, n + 1);
+      first.push(item);
+    } else rest.push(item);
+  }
+  return [...first, ...roundRobin(rest, key, limit - first.length)];
 }
 
 /** Revezamento entre as chaves (na ordem da 1ª aparição), cada uma na ordem dada, até o limite. */

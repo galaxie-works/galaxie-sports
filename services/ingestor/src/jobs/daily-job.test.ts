@@ -4,6 +4,7 @@ import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
 import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
+  pacedShare,
   roundRobin,
   ROTATION_PERIOD_DAYS,
   buildScheduleRequests,
@@ -177,8 +178,8 @@ describe('dailyJob', () => {
   });
 });
 
-describe('rodízio de pessoas: fatia justa por endpoint', () => {
-  it('o endpoint que vem primeiro não leva o dia inteiro (o /sidelined entra junto com o /trophies)', async () => {
+describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
+  it('o endpoint que vem primeiro não leva o dia inteiro (o /sidelined entra pelo seu ritmo)', async () => {
     const h = harness();
     const t = h.clock.t;
     const trophies = Array.from({ length: 6 }, (_, i) =>
@@ -195,10 +196,32 @@ describe('rodízio de pessoas: fatia justa por endpoint', () => {
       undefined,
       (item) => item.endpoint,
     );
-    expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/trophies', '/sidelined']);
+    // vaga pelo ritmo: /trophies 6 ÷ 30 dias → 1/dia; /sidelined 6 ÷ 2 dias → 3/dia
+    expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/sidelined', '/sidelined']);
     // sem a fatia, a ordem da lista manda: só /trophies
     const plain = await buildRotationRequests([...trophies, ...sidelined], h.cursors, new Date(t), 4);
     expect(new Set(plain.map((p) => p.endpoint))).toEqual(new Set(['/trophies']));
+  });
+
+  it('cada endpoint leva primeiro a vaga do seu ritmo (o /sidelined de 2 dias não fica com 1/5 do dia)', () => {
+    // 5 chaves com fila cheia; s precisa de 6/dia, as outras de 1/dia: limite 10
+    const items = [
+      ...['a', 'b', 'c', 'd'].flatMap((k) => Array.from({ length: 10 }, (_, i) => `${k}${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => `s${i}`),
+    ];
+    const paced = new Map([
+      ['a', 1],
+      ['b', 1],
+      ['c', 1],
+      ['d', 1],
+      ['s', 6],
+    ]);
+    const picked = pacedShare(items, (x) => x[0]!, paced, 10);
+    expect(picked.filter((x) => x.startsWith('s'))).toHaveLength(6);
+    expect(picked).toHaveLength(10);
+    // vaga maior que o limite: proporcional
+    const tight = pacedShare(items, (x) => x[0]!, paced, 5);
+    expect(tight.filter((x) => x.startsWith('s')).length).toBeGreaterThanOrEqual(3);
   });
 
   it('a sobra de um endpoint vai para os outros', () => {
