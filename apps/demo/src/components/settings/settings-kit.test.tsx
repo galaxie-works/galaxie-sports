@@ -182,6 +182,18 @@ describe('StepDialog', () => {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 
+  it('fechada pelo pai depois de concluir, volta ao passo 1 na próxima abertura', () => {
+    const view = (open: boolean) => (
+      <StepDialog open={open} onOpenChange={() => {}} steps={steps} onFinish={() => {}} />
+    );
+    const { rerender } = render(wrap(view(true)));
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir' }));
+    expect(screen.getByText('Passo 2 de 2')).toBeTruthy();
+    rerender(wrap(view(false)));
+    rerender(wrap(view(true)));
+    expect(screen.getByText('Passo 1 de 2')).toBeTruthy();
+  });
+
   it('o passo que não pode seguir trava o botão', () => {
     render(
       wrap(

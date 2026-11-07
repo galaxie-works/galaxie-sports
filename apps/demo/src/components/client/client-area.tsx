@@ -26,7 +26,7 @@ export async function ClientArea({
   const { tenant } = ctx;
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-      <ClientSideNav active={section} className="hidden lg:sticky lg:top-4 lg:block" />
+      <ClientSideNav active={section} className="hidden lg:sticky lg:top-18 lg:block" />
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ClientNavSheet active={section} className="lg:hidden" />

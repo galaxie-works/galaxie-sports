@@ -46,6 +46,12 @@ export function StepDialog({
   const { t } = useI18n();
   const T = t.settings.steps;
   const [index, setIndex] = useState(0);
+  // Fechou por fora (o pai trocou `open` depois de concluir): a próxima abertura volta ao passo 1.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (!open) setIndex(0);
+  }
   const total = steps.length;
   const current = Math.min(index, total - 1);
   const step = steps[current];
