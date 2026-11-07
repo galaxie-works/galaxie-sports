@@ -3406,13 +3406,14 @@ const WATCH_TO_CONFIRM_MAX_MS = 60 * MINUTE;
 /**
  * Próxima consulta do onde assistir da contagem (`countdown`), pela distância até o jogo: 5 min nas
  * últimas 24 h; antes disso, acorda quando entra nessa janela (até 2 min antes, conforme o id; no
- * máximo a cada 6 h, ou a cada hora com o canal "a confirmar"). Jogo que começou: para.
+ * máximo a cada 6 h, ou a cada hora com o canal "a confirmar"). "Vai começar": 5 min; jogo que começou: para.
  */
 export function watchRefreshMs(
   event: Pick<GsEvent, 'status' | 'starts_at'> & { id?: string | undefined },
   toConfirm: boolean,
   now = Date.now(),
 ): number | null {
+  if (event.status === 'starting') return WATCH_NEAR_MS;
   if (event.status !== 'scheduled') return null;
   const until = Date.parse(event.starts_at) - now;
   if (!Number.isFinite(until)) return null;

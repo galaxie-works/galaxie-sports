@@ -3,13 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WIDGET_CATALOG, widgetKindSupportsSport } from './catalog.js';
-import {
-  DEFAULT_THEMES,
-  WIDGET_CSS,
-  countdownParts,
-  watchRefreshMs,
-  type WidgetLocale,
-} from './core/model.js';
+import { DEFAULT_THEMES, countdownParts, watchRefreshMs, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { optionProps, parseWidgetOptions } from './options.js';
@@ -64,6 +58,7 @@ describe('watchRefreshMs', () => {
   it('5 min nas últimas 24 h; para depois do início', () => {
     expect(watchRefreshMs({ status: 'scheduled', starts_at: at(3 * 3_600_000) }, false, now)).toBe(300_000);
     expect(watchRefreshMs({ status: 'scheduled', starts_at: at(-60_000) }, false, now)).toBe(300_000);
+    expect(watchRefreshMs({ status: 'starting', starts_at: at(-60_000) }, false, now)).toBe(300_000);
     expect(watchRefreshMs({ status: 'live', starts_at: at(-60_000) }, false, now)).toBeNull();
   });
   it('jogo distante: acorda na janela de 24 h, no máximo a cada 6 h (1 h "a confirmar")', () => {
@@ -232,9 +227,13 @@ describe('Countdown', () => {
     expect(screen.queryByText('Canal 5')).toBeNull();
   });
 
-  it('onde assistir é reconsultado enquanto a contagem está na tela', async () => {
+  it('onde assistir é reconsultado de 5 em 5 minutos nas últimas 24 h', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const { fetchImpl } = setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />);
+    const startsAt = new Date(Date.now() + 3 * 3_600_000).toISOString();
+    const fetchImpl = vi.fn(
+      withPatchedEvent(createPreviewFetch(), PREVIEW_IDS.scheduledEvent, { starts_at: startsAt }),
+    );
+    setup(<Countdown eventId={PREVIEW_IDS.scheduledEvent} />, { fetchImpl });
     await screen.findByText('Onde assistir');
     const watchCalls = () =>
       fetchImpl.mock.calls.filter(([url]) => String(url).includes('/where-to-watch')).length;
