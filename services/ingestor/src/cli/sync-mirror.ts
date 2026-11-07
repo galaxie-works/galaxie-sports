@@ -1,5 +1,5 @@
 /**
- * Espelho da api-sports (sync:mirror), prioridade DAILY — roda depois do sync diário (cron `0 3 * * *`).
+ * Espelho da api-sports (sync:mirror), prioridade DAILY — roda às 08:00 UTC (fora da janela de jogos das Américas).
  * Renova no ritmo de cada endpoint o que o sync diário não busca: tabela oficial, artilharia, rodadas, times,
  * lesões da temporada, estatísticas de time, estádios, palpites, odds, referência e elencos tier 2+ do futebol;
  * nos outros 11 esportes, temporada inteira, classificação, times, elencos, estatísticas por jogo e odds.
@@ -15,14 +15,17 @@ import { closeDb } from '@galaxie/db';
 import { loadSportCatalog } from '../catalog/catalog-config.js';
 import { isOtherSport, OTHER_SPORTS } from '../catalog/sport-catalog.js';
 import { jobContextFromEnv } from '../context.js';
-import { mirrorJob } from '../jobs/mirror-job.js';
+import { mirrorJobs } from '../jobs/mirror-job.js';
+import type { AfterFetch } from '../jobs/runtime/runner.js';
 import { PgSportMirrorSource } from '../jobs/mirror-source.js';
 import { resolveDerbiesFromRaw } from '../knowledge/derbies.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
+import { footballSeasonIds, recomputeStandings } from '../standings/recompute.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 const knowledgeDir = resolve('../../data/knowledge');
+const rulesDir = resolve('../../config/rules');
 const catalogPath = (sport: string) => resolve(`../../config/competitions/${sport}.yaml`);
 
 await runCli(async () => {
@@ -39,7 +42,7 @@ await runCli(async () => {
   const sports: ApiSport[] = positionals.length ? (positionals as ApiSport[]) : ['football', ...OTHER_SPORTS];
   const ctx = jobContextFromEnv();
   try {
-    const spec = mirrorJob(
+    const jobs = mirrorJobs(
       {
         catalog: ctx.catalog,
         raw: ctx.raw,
@@ -66,16 +69,37 @@ await runCli(async () => {
               'falha ao normalizar resposta; a normalização noturna tenta de novo',
             ),
         });
-    const report = await planOrRun(
-      ctx,
-      spec,
-      { ...values, 'sem-live': false },
-      normalize ? { afterFetch: normalize.afterFetch } : {},
-    );
-    if (report && normalize) {
+    // temporadas do futebol com a tabela do fornecedor gravada: recalculadas no fim (a calculada mais nova vence)
+    const tables: { league: string; year: number }[] = [];
+    const afterFetch: AfterFetch = async (envelope, request) => {
+      await normalize?.afterFetch(envelope, request);
+      if (request.sport === 'football' && request.endpoint === '/standings' && request.params.league)
+        tables.push({ league: String(request.params.league), year: Number(request.params.season) });
+    };
+    // uma execução por API: a cota esgotada (ou um 429) de uma não para as outras
+    let ran = false;
+    for (const { sport, spec } of jobs) {
+      console.log(`\n== ${sport}`);
+      try {
+        ran = !!(await planOrRun(ctx, spec, { ...values, 'sem-live': false }, { afterFetch })) || ran;
+      } catch (err) {
+        logger.error({ err, sport }, 'espelho: execução da API falhou; seguindo com as próximas');
+      }
+    }
+    if (ran && normalize) {
       const n = normalize.report();
       console.log(
         `Core: ${n.normalized} resposta(s) normalizadas · ${n.empty} vazias · ${n.errors} com erro.`,
+      );
+    }
+    if (ran && normalize && tables.length) {
+      const recomputed = await recomputeStandings(ctx.db, {
+        seasonIds: await footballSeasonIds(ctx.db, tables),
+        rulesDir,
+      });
+      const written = recomputed.filter((t) => t.outcome === 'written').length;
+      console.log(
+        `Tabelas: ${written} recalculada(s) de ${recomputed.length} temporada(s) com tabela do fornecedor.`,
       );
     }
   } finally {

@@ -65,6 +65,8 @@ export class PgSportMirrorSource implements SportMirrorSource {
       join core.provider_map pc on pc.entity_type = 'competition' and pc.entity_id = c.id
         and pc.provider = 'api-sports' and pc.sport = e.sport
       where e.sport = ${sport} and e.is_provisional = false and c.tier <= ${maxTier}
+        -- encerrado pelo relógio (status_source = temporal) ainda não tem dado do fornecedor para buscar
+        and (e.status <> 'finished' or e.status_source = 'provider')
         and e.starts_at >= ${from.toISOString()}::timestamptz and e.starts_at < ${to.toISOString()}::timestamptz
       order by e.starts_at, pe.provider_id`);
     return rows

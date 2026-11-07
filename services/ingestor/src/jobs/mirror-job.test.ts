@@ -6,7 +6,7 @@ import {
   footballGroups,
   inPlay,
   mirrorBudget,
-  mirrorJob,
+  mirrorJobs,
   rotateGroups,
   sportGroups,
   type MirrorCandidate,
@@ -101,6 +101,15 @@ describe('rotateGroups', () => {
     const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 10);
     expect(picked.map((p) => p.params.id)).toEqual(['1']);
   });
+
+  it('o que falhou 3 vezes sem concluir sai da fila e não ocupa o orçamento', async () => {
+    const cursors = new InMemoryCursorStore();
+    const a = [cand(1), cand(2), cand(3)];
+    for (let i = 0; i < 3; i++) await cursors.fail(a[0]!.item.cursors, 'erro do fornecedor', now);
+    await cursors.fail(a[1]!.item.cursors, 'erro do fornecedor', now); // 1 falha: ainda tenta
+    const picked = await rotateGroups([{ name: 'a', candidates: a }], cursors, now, 2);
+    expect(picked.map((p) => p.params.id)).toEqual(['2', '3']);
+  });
 });
 
 function fakeSports(): SportMirrorSource {
@@ -179,27 +188,37 @@ describe('sportGroups', () => {
   });
 });
 
-describe('mirrorJob', () => {
-  it('uma fase por API, com o orçamento e o plano de cada uma', async () => {
-    const cursors = new InMemoryCursorStore();
-    const spec = mirrorJob(
-      {
-        catalog: new StaticCatalogSource(fakeCatalog()),
-        raw: new InMemoryRawSource([]),
-        cursors,
-        planFor: (sport) => new PlanRules(sport === 'football' ? PRO_PLAN : FREE_PLAN),
-        now: () => now,
-        derbyPairs: noDerbies,
-        sports: fakeSports(),
-      },
-      { sports: ['football', 'volleyball'] },
-    );
-    expect(spec.job).toBe('sync:mirror');
-    expect(spec.priority).toBe('DAILY');
-    const football = await spec.phases[0]!.build();
+describe('mirrorJobs', () => {
+  const deps = (cursors = new InMemoryCursorStore()) => ({
+    catalog: new StaticCatalogSource(fakeCatalog()),
+    raw: new InMemoryRawSource([]),
+    cursors,
+    planFor: (sport: string) => new PlanRules(sport === 'football' ? PRO_PLAN : FREE_PLAN),
+    now: () => now,
+    derbyPairs: noDerbies,
+    sports: fakeSports(),
+  });
+
+  it('uma execução por API, cada uma com o orçamento e o plano dela', async () => {
+    const jobs = mirrorJobs(deps(), { sports: ['football', 'volleyball'] });
+    // execuções separadas: a cota esgotada (ou um 429) do futebol não para o vôlei
+    expect(jobs.map((j) => j.sport)).toEqual(['football', 'volleyball']);
+    for (const { spec } of jobs) {
+      expect(spec.job).toBe('sync:mirror');
+      expect(spec.priority).toBe('DAILY');
+      expect(spec.phases).toHaveLength(1);
+    }
+    const football = await jobs[0]!.spec.phases[0]!.build();
     expect(football.some((i) => i.endpoint === '/standings')).toBe(true);
-    const volley = await spec.phases[1]!.build();
+    const volley = await jobs[1]!.spec.phases[0]!.build();
     expect(volley.length).toBeLessThanOrEqual(10);
     expect(volley.every((i) => Object.keys(i.params).length === 0)).toBe(true);
+  });
+
+  it('dado por jogo encerrado: renovado no máximo uma vez por dia dentro da janela de 3 dias', async () => {
+    const groups = await sportGroups('hockey', fakeSports(), ULTRA_PLAN, now);
+    const perGame = groups[1]!.candidates.filter((c) => c.item.endpoint === '/games/events');
+    expect(perGame.length).toBeGreaterThan(0);
+    expect(perGame.every((c) => c.periodDays === 1)).toBe(true);
   });
 });

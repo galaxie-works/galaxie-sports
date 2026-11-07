@@ -9,7 +9,13 @@ import {
 } from './catalog-source.js';
 import { collectFixtures, dateList } from './fixtures.js';
 import { teamTargets, TEAM_ENDPOINTS } from './people-job.js';
-import { cursorId, type CursorRef, type CursorStore } from './runtime/cursor-store.js';
+import {
+  attemptsOf,
+  cursorId,
+  MAX_ATTEMPTS,
+  type CursorRef,
+  type CursorStore,
+} from './runtime/cursor-store.js';
 import type { RawSource } from './runtime/raw-source.js';
 import { plannedRequest, type JobSpec, type PlannedRequest } from './runtime/runner.js';
 import { seasonAccessible } from './seasons-job.js';
@@ -33,8 +39,11 @@ import { teamsOfSeason } from './teams.js';
  */
 
 const DAY_MS = 86_400_000;
-/** Item que não muda mais depois de buscado (jogo encerrado): na prática, uma vez só. */
-const ONCE = 3650;
+/**
+ * Endpoints por jogo encerrado: um por dia enquanto o jogo está na janela de FINISHED_LOOKBACK_DAYS (no máximo 3
+ * buscas). A correção do fornecedor nas horas seguintes e a resposta vazia logo depois do fim entram na seguinte.
+ */
+const PER_GAME_DAYS = 1;
 /** Temporada em jogo: começa em até 14 dias e não terminou há mais de 7 (mesma regra da relista do sync diário). */
 const AHEAD_DAYS = 14;
 const AFTER_END_DAYS = 7;
@@ -120,6 +129,12 @@ export async function rotateGroups(
   for (const g of groups) {
     const aged: { item: PlannedRequest; age: number; i: number }[] = [];
     g.candidates.forEach((c, i) => {
+      // falhou MAX_ATTEMPTS vezes sem concluir: o runner não tenta de novo, então não ocupa vaga no orçamento
+      const given = c.item.cursors.some((ref) => {
+        const st = states.get(cursorId(ref));
+        return !st?.completedAt && attemptsOf(st) >= MAX_ATTEMPTS;
+      });
+      if (given) return;
       const staleBefore = new Date(now.getTime() - c.periodDays * DAY_MS);
       const age = Math.min(
         ...c.item.cursors.map((ref) => states.get(cursorId(ref))?.completedAt?.getTime() ?? -Infinity),
@@ -354,7 +369,8 @@ const classic = (extra: Partial<SportMirrorProfile> = {}): SportMirrorProfile =>
 });
 
 export const SPORT_MIRROR: Record<OtherSport, SportMirrorProfile> = {
-  baseball: classic(),
+  // a tabela do beisebol é calculada aqui pelo aproveitamento (standings/win-pct.ts): a do fornecedor fica de fora
+  baseball: classic({ standings: () => [] }),
   handball: classic(),
   rugby: classic(),
   volleyball: classic(),
@@ -504,14 +520,14 @@ export async function sportGroups(
             sport,
             call.endpoint,
             { ids: batch.join('-') },
-            ONCE,
+            PER_GAME_DAYS,
             batch.map((id) => ({ sport, endpoint: call.endpoint, key: `id=${id}` })),
           ),
         );
       }
     } else {
       for (const g of finished)
-        games.push(cand('por-jogo', sport, call.endpoint, { [call.param]: g.id }, ONCE));
+        games.push(cand('por-jogo', sport, call.endpoint, { [call.param]: g.id }, PER_GAME_DAYS));
     }
   }
   if (p.odds) {
@@ -551,26 +567,43 @@ export interface MirrorDeps {
   sports: SportMirrorSource;
 }
 
-/** Job sync:mirror (prioridade DAILY): uma fase por API, cada uma com o orçamento do seu plano. */
-export function mirrorJob(deps: MirrorDeps, opts: MirrorJobOptions): JobSpec {
+/**
+ * Job sync:mirror (prioridade DAILY): uma execução por API, cada uma com o orçamento e o plano dela. Separadas
+ * porque o runner para a execução inteira na cota esgotada ou num erro do fornecedor que vale para a API toda
+ * (429): o futebol sem cota não pode deixar as outras 11 APIs, de cota própria, sem rodar.
+ */
+export function mirrorJobs(deps: MirrorDeps, opts: MirrorJobOptions): { sport: ApiSport; spec: JobSpec }[] {
+  return opts.sports.map((sport) => ({ sport, spec: mirrorJobFor(sport, deps, opts) }));
+}
+
+function mirrorJobFor(sport: ApiSport, deps: MirrorDeps, opts: MirrorJobOptions): JobSpec {
   return {
     job: 'sync:mirror',
     priority: 'DAILY',
-    phases: opts.sports.map((sport) => ({
-      name: `espelho ${sport}`,
-      build: async () => {
-        const now = deps.now();
-        const plan = deps.planFor(sport);
-        const groups =
-          sport === 'football'
-            ? await footballGroups(deps.catalog, deps.raw, plan.current, now, deps.derbyPairs, opts.football)
-            : await sportGroups(sport, deps.sports, plan.current, now, opts.other);
-        const allowed = groups.map((g) => ({
-          ...g,
-          candidates: g.candidates.filter((c) => allowedByPlan(c, plan, now)),
-        }));
-        return rotateGroups(allowed, deps.cursors, now, opts.budget ?? mirrorBudget(plan.current));
+    phases: [
+      {
+        name: `espelho ${sport}`,
+        build: async () => {
+          const now = deps.now();
+          const plan = deps.planFor(sport);
+          const groups =
+            sport === 'football'
+              ? await footballGroups(
+                  deps.catalog,
+                  deps.raw,
+                  plan.current,
+                  now,
+                  deps.derbyPairs,
+                  opts.football,
+                )
+              : await sportGroups(sport, deps.sports, plan.current, now, opts.other);
+          const allowed = groups.map((g) => ({
+            ...g,
+            candidates: g.candidates.filter((c) => allowedByPlan(c, plan, now)),
+          }));
+          return rotateGroups(allowed, deps.cursors, now, opts.budget ?? mirrorBudget(plan.current));
+        },
       },
-    })),
+    ],
   };
 }

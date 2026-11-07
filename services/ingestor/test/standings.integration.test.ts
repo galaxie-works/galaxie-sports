@@ -16,6 +16,8 @@ import {
   standing,
   type Database,
 } from '@galaxie/db';
+import { upsertBatch } from '@galaxie/core-writer';
+import { emptyBatch } from '@galaxie/providers';
 import { recomputeNbaStandings } from '../src/standings/nba.js';
 import { footballSeasonIds, recomputeSeasonStandings } from '../src/standings/recompute.js';
 import { disposableDb } from './db.js';
@@ -516,5 +518,94 @@ describe('temporadas relistadas pelo sync diário', () => {
       ]),
     ).toEqual([seasonId]);
     expect(await footballSeasonIds(db, [])).toEqual([]);
+  });
+});
+
+describe('tabela do fornecedor atrasada (espelho, #855)', () => {
+  it('não rebaixa a calculada que conta mais jogos, e o recálculo não a trata como fresca', async () => {
+    const s = await seedSeason('football', 'liga-fornecedor-atrasado', ['P1', 'P2']);
+    await db.insert(providerMap).values([
+      {
+        entityType: 'competition',
+        entityId: s.competitionId,
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '9855',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('P1'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98551',
+      },
+      {
+        entityType: 'participant',
+        entityId: s.team('P2'),
+        provider: 'api-sports',
+        sport: 'football',
+        providerId: '98552',
+      },
+    ]);
+    await finished('football', s.seasonId, s.team('P1'), s.team('P2'), [1, 0]);
+    await finished('football', s.seasonId, s.team('P2'), s.team('P1'), [2, 2]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+    const [{ group }] = (await tableOf(s.seasonId)) as unknown as [{ group: string }];
+
+    const provider = (played: number) => {
+      const batch = emptyBatch('api-sports', 'football', new Date());
+      batch.participants = (['98551', '98552'] as const).map((id) => ({
+        id,
+        kind: null,
+        name: id,
+        shortName: null,
+        code: null,
+        countryName: null,
+        countryCode: null,
+        founded: null,
+        venueId: null,
+        logoUrl: null,
+      }));
+      batch.standings = (['98551', '98552'] as const).map((id, i) => ({
+        season: { competitionId: '9855', year: 2026 },
+        group,
+        participantId: id,
+        rank: i + 1,
+        points: played,
+        played,
+        won: 0,
+        drawn: played,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        form: null,
+        description: null,
+      }));
+      return batch;
+    };
+    const rows = () =>
+      db
+        .select({ played: standing.played, source: standing.source })
+        .from(standing)
+        .where(eq(standing.seasonId, s.seasonId));
+
+    // fornecedor ainda sem o 2º jogo: a calculada fica
+    await upsertBatch(db, provider(1));
+    expect(await rows()).toEqual([
+      { played: 2, source: 'computed' },
+      { played: 2, source: 'computed' },
+    ]);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'written',
+    });
+
+    // fornecedor em dia: a dele vale e o recálculo a respeita
+    await upsertBatch(db, provider(2));
+    expect((await rows()).map((r) => r.source)).toEqual(['provider', 'provider']);
+    expect(await recomputeSeasonStandings(db, s.seasonId, { publish: false })).toMatchObject({
+      outcome: 'provider_fresh',
+    });
   });
 });

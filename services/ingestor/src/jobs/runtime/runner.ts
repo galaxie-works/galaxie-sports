@@ -161,7 +161,20 @@ function hashOf(item: PlannedRequest): string {
 export async function classify(items: PlannedRequest[], deps: JobDeps, force = false): Promise<ItemStatus[]> {
   const now = deps.now();
   const states = await deps.cursors.load(items.flatMap((i) => i.cursors));
-  const fetched = await deps.raw.lastFetched(items.filter((i) => !i.skip).map(hashOf));
+  // um lote por esporte × endpoint: a consulta usa o índice do raw em vez de varrer pelo request_hash
+  const scopes = new Map<string, PlannedRequest[]>();
+  for (const i of items) {
+    if (i.skip) continue;
+    const k = `${i.sport}|${i.endpoint}`;
+    const list = scopes.get(k);
+    if (list) list.push(i);
+    else scopes.set(k, [i]);
+  }
+  const fetched = new Map<string, Date>();
+  for (const group of scopes.values()) {
+    const { sport, endpoint } = group[0]!;
+    for (const [h, at] of await deps.raw.lastFetched(group.map(hashOf), { sport, endpoint })) fetched.set(h, at);
+  }
   return items.map((item): ItemStatus => {
     if (item.skip) return 'no_coverage';
     if (!force && item.cursors.length) {

@@ -219,7 +219,9 @@ export async function recomputeSeasonStandings(
     .from(event)
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
   const latestResultAt = latest?.at ? new Date(latest.at) : null;
-  if (providerRows.length && latestResultAt) {
+  // linha calculada que o fornecedor não alcançou (o writer não a rebaixa): a tabela do fornecedor está atrasada
+  const behind = tableRows.some((r) => r.source === 'computed');
+  if (providerRows.length && latestResultAt && !behind) {
     const providerAt = Math.max(...providerRows.map((r) => r.updatedAt.getTime()));
     if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
   }
@@ -588,7 +590,12 @@ async function recomputeWinPct(
     .select({ at: sql<string | null>`max(${event.updatedAt})` })
     .from(event)
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
-  if (provider?.at && latest?.at && new Date(provider.at) >= new Date(latest.at)) {
+  const [computed] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'computed')));
+  // linha calculada que o fornecedor não alcançou (o writer não a rebaixa): a do fornecedor está atrasada
+  if (provider?.at && latest?.at && !computed?.n && new Date(provider.at) >= new Date(latest.at)) {
     return report('provider_fresh');
   }
 

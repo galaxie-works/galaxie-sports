@@ -974,7 +974,10 @@ export async function upsertBatchInTx(
     );
     // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
     const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
-    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
+    // a calculada que já conta mais jogos que a do fornecedor (fornecedor atrasado depois de uma rodada) não volta
+    // atrás: a linha fica `computed` e o recálculo seguinte refaz a tabela inteira
+    const setWhere = sql`((${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry))
+      and not (${standing.source} = 'computed' and coalesce(${standing.played}, 0) > coalesce(excluded.played, 0))`;
     await tx
       .insert(standing)
       .values(chunk)

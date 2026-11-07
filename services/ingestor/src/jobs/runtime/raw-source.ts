@@ -2,6 +2,12 @@ import type { RawRecord, StoredRawRecord } from '@galaxie/apisports-client';
 import type { Database } from '@galaxie/db';
 
 /** Consulta ao raw: endpoint + filtros sobre os parâmetros normalizados da requisição. */
+/** Esporte e endpoint de um lote de hashes: deixa o Postgres usar o índice (provider, sport, endpoint, request_hash). */
+export interface RawScopeKey {
+  sport: string;
+  endpoint: string;
+}
+
 export interface RawQuery {
   sport: string;
   endpoint: string;
@@ -31,7 +37,7 @@ export interface RawSource {
    */
   latest(query: RawQuery): AsyncIterable<RawEntry>;
   /** Última entrega de sucesso por request hash (para o `--plan`: cache × rede). */
-  lastFetched(hashes: string[]): Promise<Map<string, Date>>;
+  lastFetched(hashes: string[], scope?: RawScopeKey): Promise<Map<string, Date>>;
 }
 
 function isSuccess(r: Pick<RawRecord, 'statusCode' | 'errors'>): boolean {
@@ -142,19 +148,23 @@ export class PgRawSource implements RawSource {
     }
   }
 
-  async lastFetched(hashes: string[]): Promise<Map<string, Date>> {
+  async lastFetched(hashes: string[], scope?: RawScopeKey): Promise<Map<string, Date>> {
     const out = new Map<string, Date>();
     const unique = [...new Set(hashes)];
     for (let i = 0; i < unique.length; i += 5000) {
       const chunk = unique.slice(i, i + 5000);
+      // com esporte e endpoint, o filtro casa com o prefixo do api_response_lookup_idx (request_hash é a 4ª coluna)
+      const scoped = scope
+        ? `provider = 'api-sports' and sport = $2 and endpoint = $3 and `
+        : '';
       const rows = (await this.db.$client.unsafe(
         `select request_hash, (extract(epoch from max(coalesce(last_seen_at, fetched_at))) * 1000)::float8 as fetched_ms
            from raw.api_response
-          where request_hash = any($1::text[])
+          where ${scoped}request_hash = any($1::text[])
             and status_code between 200 and 299
             and (errors is null or errors in ('[]'::jsonb, '{}'::jsonb))
           group by request_hash`,
-        [chunk] as never[],
+        (scope ? [chunk, scope.sport, scope.endpoint] : [chunk]) as never[],
       )) as unknown as { request_hash: string; fetched_ms: number }[];
       for (const r of rows) out.set(r.request_hash, new Date(r.fetched_ms));
     }
