@@ -30,6 +30,7 @@
     "normalize:football": "node --env-file-if-exists=../../.env dist/cli/normalize-football.js",
     "names:derive": "node --env-file-if-exists=../../.env dist/cli/derive-names.js",
     "normalize:sports": "node --env-file-if-exists=../../.env dist/cli/normalize-sports.js",
+    "normalize:markets": "node --env-file-if-exists=../../.env dist/cli/normalize-markets.js",
     "events:clock": "node --env-file-if-exists=../../.env dist/cli/events-clock.js",
     "events:importance": "node --env-file-if-exists=../../.env dist/cli/events-importance.js",
     "explore:summary": "node --env-file-if-exists=../../.env dist/cli/explore-summary.js",

@@ -20,3 +20,4 @@ export * from './f1db/tables.js';
 export * from './f1db/schedule.js';
 export * from './f1db/match.js';
 export * from './f1db/normalize.js';
+export * from './api-sports/markets.js';

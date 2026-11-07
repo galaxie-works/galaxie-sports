@@ -484,6 +484,13 @@
       "when": 1794023267854,
       "tag": "0069_vermelhos_segundo_amarelo",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794058422816,
+      "tag": "0072_palpites_e_odds",
+      "breakpoints": true
     }
   ]
 }

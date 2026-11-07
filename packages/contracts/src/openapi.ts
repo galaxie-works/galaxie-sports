@@ -53,6 +53,7 @@ import {
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
 import { CompetitionLeaders, LeadersQuery } from './leaders.js';
+import { EventOdds, EventPredictions, OddsQuery } from './markets.js';
 import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -165,9 +166,14 @@ export interface OpenApiOptions {
  * Vídeos relacionados fora da documentação até decisão do dono: as rotas seguem no ar, só não são publicadas
  * no /openapi.json nem na referência.
  */
-const HIDDEN_PATHS = ['/v1/events/{id}/related', '/v1/related/playback-errors'];
+const HIDDEN_PATHS = [
+  '/v1/events/{id}/related',
+  '/v1/related/playback-errors',
+  // odds: módulo `odds` fechado até o dono decidir mercados, aviso de jogo responsável e nomes das casas
+  '/v1/events/{id}/odds',
+];
 const HIDDEN_TAG = 'Conteúdo relacionado';
-const HIDDEN_ENUM_VALUES = new Set(['event.related_content_changed', 'related_content']);
+const HIDDEN_ENUM_VALUES = new Set(['event.related_content_changed', 'related_content', 'odds']);
 
 function withoutHiddenEnumValues(node: unknown): void {
   if (Array.isArray(node)) {
@@ -325,6 +331,37 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: EventParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/events/{id}/predictions': {
+        get: {
+          ...getOp(
+            'Palpite do jogo: chances de cada resultado, linha de gols e comparação dos times',
+            'Eventos',
+            EventPredictions,
+            { path: EventParams, query: LocaleQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Palpite estatístico do jogo (futebol): quem deve vencer (ou "vence ou empata"), a chance de cada ' +
+            'resultado, as linhas de gols e a comparação dos dois times (momento, ataque, defesa, confronto direto). ' +
+            'Atualizado uma vez por dia para os jogos das próximas 48 h; `prediction` vem `null` enquanto não houver. ' +
+            'Cache de 1 h.',
+        },
+      },
+      '/v1/events/{id}/odds': {
+        get: {
+          ...getOp(
+            'Odds pré-jogo: consenso por mercado e odds de cada casa',
+            'Eventos',
+            EventOdds,
+            { path: EventParams, query: OddsQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Odds decimais pré-jogo por mercado (vencedor, dupla chance, gols, ambos marcam, placar exato, ' +
+            'handicap): o consenso entre as casas (média, maior odd e quantas casas) e as odds de cada casa. ' +
+            'Exige o módulo `odds`. Cache de 1 h.',
+        },
       },
       '/v1/events/{id}/stats': {
         get: getOp(

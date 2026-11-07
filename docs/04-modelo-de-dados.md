@@ -118,13 +118,23 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 
 | Esporte | Tabelas |
 |---|---|
-| Futebol (v3) | `football_fixture`, `football_fixture_statistics`, `football_lineup`, `football_player_stats`, `football_injury`, `football_transfer`, `football_trophy`, `football_sidelined`, `football_prediction`, `football_odds` |
+| Futebol (v3) | `football_fixture`, `football_fixture_statistics`, `football_lineup`, `football_player_stats`, `football_injury`, `football_transfer`, `football_trophy`, `football_sidelined` (palpites e odds: `core.event_prediction` e `core.event_odds`, §2.4) |
 | Basquete / NBA | `basketball_game`, `basketball_game_team_stats`, `basketball_player_stats` |
 | Fórmula 1 | `f1_race`, `f1_driver_ranking`, `f1_team_ranking`, `f1_pitstop`, `f1_circuit` |
 | MMA | `mma_fight`, `mma_fighter_record` |
 | Vôlei, handebol, hóquei, rúgbi, beisebol, AFL, NFL | `<sport>_game` + estatísticas disponíveis |
 
 > **Implementado nos outros 11 esportes (issue #25):** um espelho **genérico** em vez de uma tabela por esporte — `core.sport_event_detail` (`event_id`, `sport`, `provider`, `provider_event_id`, `kind` = `game`/`race`/`fight`, `summary` JSONB com o item do fornecedor, `detail` JSONB com as partes vindas de endpoints auxiliares e `detail_fetched_at`). O placar com parciais vai para `core.event.score` (`periods`, `breakdown`) e os N participantes para `core.event_participant`. As tabelas por esporte acima continuam como alvo para quando uma consulta pedir índice. Detalhes em §3.5.
+
+### 2.4 Palpites e odds por jogo
+
+Do `/predictions?fixture=` e do `/odds?fixture=` (nos outros esportes `/odds?game=`) da api-sports, gravados pelo `afterFetch` do espelho diário (`upsertMarkets` em `@galaxie/core-writer`; reconstrução pelo raw: `normalize:markets`). O dado fica inteiro, mas na nossa organização: jogo, times e casas pelos nossos IDs (resolvidos pelo `provider_map`), percentuais e odds como números, mercados e seleções com chaves nossas. Resposta vazia não apaga o último estado; resposta mais velha que a gravada não sobrescreve (`observed_at`). Migration 0072.
+
+| Tabela | Campos-chave | Observação |
+|---|---|---|
+| `core.event_prediction` | PK `event_id`; `winner_participant_id`, `win_or_draw`, `prob_home` / `prob_draw` / `prob_away` (0–100), `goals` (jsonb `{ total, home, away }` com `{ side: over\|under, line }`), `comparison` (jsonb, chaves `form`, `attack`, `defense`, `poisson`, `h2h`, `goals`, `total`, cada uma `{ home, away }` em 0–100), `recent_form` (jsonb, últimos 5 jogos de cada time), `advice` e `winner_comment` (texto livre do fornecedor, em inglês: guardado, não sai na API), `observed_at` | Um palpite por jogo; a busca mais nova substitui |
+| `core.bookmaker` | `id`, `name`, `slug` (único) | Casas de apostas; o ID do fornecedor fica no `provider_map` (`entity_type = 'bookmaker'`, por esporte). Casa de outra API com o mesmo nome é a mesma casa |
+| `core.event_odds` | PK `event_id`, `bookmaker_id`; `markets` (jsonb `[{ key, provider_bet: { id, name }, selections: [{ key, line, price }] }]`), `source_updated_at`, `observed_at` | Foto mais recente das odds pré-jogo de cada casa no jogo. `key` do mercado é nossa (`match_winner`, `double_chance`, `goals_over_under`...; `null` nos mercados sem chave nossa, guardados com o nome do fornecedor). A foto nova substitui a anterior e tira as casas que sumiram; o histórico fica no raw |
 
 ### 2.3 Derivados para leitura
 

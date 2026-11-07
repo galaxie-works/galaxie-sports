@@ -27,6 +27,7 @@ import type { Broadcaster, Platform, PlatformLineup, WhereToWatch } from './wher
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { SearchQuery, SearchResponse } from './search.js';
 import type { CompetitionLeaders, LeaderCategory } from './leaders.js';
+import type { EventOdds, EventPredictions, OddsMarketKey } from './markets.js';
 import type {
   Person,
   PersonOverview,
@@ -219,6 +220,17 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     eventLineups: (id: string, opts: LocaleOpts = {}) =>
       v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
     eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    /** Palpite do jogo (futebol): chances, linha de gols e comparação dos times. */
+    eventPredictions: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventPredictions>(`/v1/events/${seg(id)}/predictions`, opts),
+    /** Odds pré-jogo por mercado (módulo odds). */
+    eventOdds: (id: string, opts: LocaleOpts & { market?: readonly OddsMarketKey[] } = {}) => {
+      const { market, ...rest } = opts;
+      return v1<EventOdds>(`/v1/events/${seg(id)}/odds`, {
+        ...rest,
+        ...(market?.length ? { market: market.join(',') } : {}),
+      } as Query & LocaleOpts);
+    },
     /** Cenário pré-jogo / resumo pós-jogo de IA (módulo live_intelligence). */
     eventContext: (id: string, opts: LocaleOpts & { kind?: 'scenario' | 'recap' } = {}) =>
       v1<EventContext>(`/v1/events/${seg(id)}/context`, opts),

@@ -223,20 +223,27 @@ export class Authenticator {
 
 /** Contexto da requisição a partir do registro da chave secreta. */
 /**
- * API de vídeos fechada até decisão do dono: sem o módulo, as rotas respondem 403 e o tempo real não entrega o
- * tópico. Só a chave secreta do próprio site passa, porque a vitrine da página do evento lê por ela.
+ * Módulos fechados até decisão do dono: sem eles, as rotas respondem 403 e o tempo real não entrega o tópico.
+ * Só a chave secreta dos tenants listados passa (a vitrine do próprio site lê por ela).
+ * - `related_content` (vídeos): `RELATED_CONTENT_TENANTS`;
+ * - `odds` (odds pré-jogo; regulação diferente em cada mercado): `ODDS_TENANTS`.
  */
-const RELATED_CONTENT_TENANTS = ['demo-vps', 'demo-local'];
+const CLOSED_MODULES: { module: ApiModule; env: string; tenants: readonly string[] }[] = [
+  { module: 'related_content', env: 'RELATED_CONTENT_TENANTS', tenants: ['demo-vps', 'demo-local'] },
+  { module: 'odds', env: 'ODDS_TENANTS', tenants: ['demo-vps', 'demo-local'] },
+];
 
 export function withoutClosedModules(
   modules: readonly ApiModule[],
   slug: string,
   kind: TenantContext['keyKind'],
 ) {
-  const allowed = process.env.RELATED_CONTENT_TENANTS?.split(',') ?? RELATED_CONTENT_TENANTS;
-  return kind === 'secret' && allowed.includes(slug)
-    ? [...modules]
-    : modules.filter((m) => m !== 'related_content');
+  const closed = new Set(
+    CLOSED_MODULES.filter(
+      (c) => !(kind === 'secret' && (process.env[c.env]?.split(',') ?? c.tenants).includes(slug)),
+    ).map((c) => c.module),
+  );
+  return modules.filter((m) => !closed.has(m));
 }
 
 function contextOf(record: KeyRecord, prefix: string): TenantContext {

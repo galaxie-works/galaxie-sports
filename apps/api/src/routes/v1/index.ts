@@ -18,6 +18,7 @@ import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
 import { leadersRoutes } from './leaders.js';
+import { marketsRoutes } from './markets.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -40,6 +41,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await contextRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
+  // palpite `/v1/events/{id}/predictions` (core_data) e odds `/v1/events/{id}/odds` (add-on odds, fechado)
+  await marketsRoutes(app, ctx);
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
   await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
