@@ -23,6 +23,7 @@ import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champio
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
+import { Bracket, BracketParams } from './bracket.js';
 import {
   Event,
   EventLineups,
@@ -62,6 +63,7 @@ import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import { equestrianPaths } from './openapi-equestrian.js';
+import { sidelinedPaths } from './sidelined.js';
 import { transferPaths } from './openapi-transfers.js';
 import {
   Person,
@@ -234,6 +236,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...multisportPaths(),
       ...navigationPaths(),
       ...equestrianPaths(),
+      ...sidelinedPaths(),
       ...transferPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
@@ -304,6 +307,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'com o time pelo qual ele mais jogou e o escudo. Por enquanto só o futebol tem esses números; nos outros ' +
             'esportes `data` vem vazio. Cache de 1 h.',
         },
+      },
+      '/v1/competitions/{id}/seasons/{season}/bracket': {
+        get: getOp(
+          'Chaveamento do mata-mata da temporada',
+          'Catálogo',
+          Bracket,
+          { path: BracketParams, query: LocaleQuery },
+          [400, 401, 403, 404, 429],
+        ),
       },
       '/v1/competitions/{id}/context': {
         get: getOp(

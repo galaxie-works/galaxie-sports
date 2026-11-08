@@ -24,6 +24,7 @@ import {
   ListOrdered,
   Medal,
   Percent,
+  Network,
   Plus,
   Radio,
   Scale,
@@ -37,6 +38,7 @@ import {
   TrendingUp,
   Trophy,
   Tv,
+  UserMinus,
   UserCheck,
   UserRound,
   Users,
@@ -104,6 +106,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   games_schedule: ListChecks,
   country_athletes: Users,
   medal_history: History,
+  sidelined: UserMinus,
   champions_gallery: Award,
   competition_leaders: Goal,
   countdown: Hourglass,
@@ -114,6 +117,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_odds: Scale,
   team_stats: ChartColumn,
   transfer_market: ArrowLeftRight,
+  bracket: Network,
   upcoming_derbies: Flame,
 };
 

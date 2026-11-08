@@ -41,6 +41,7 @@ const WIDGETS = {
   games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
+  sidelined: { file: 'src/widgets/sidelined.tsx', component: 'Sidelined' },
   champions_gallery: { file: 'src/widgets/champions-gallery.tsx', component: 'ChampionsGallery' },
   competition_leaders: { file: 'src/widgets/competition-leaders.tsx', component: 'CompetitionLeaders' },
   countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
@@ -51,6 +52,7 @@ const WIDGETS = {
   match_odds: { file: 'src/widgets/match-odds.tsx', component: 'MatchOdds' },
   team_stats: { file: 'src/widgets/team-stats.tsx', component: 'TeamStats' },
   transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
+  bracket: { file: 'src/widgets/bracket.tsx', component: 'Bracket' },
   upcoming_derbies: { file: 'src/widgets/upcoming-derbies.tsx', component: 'UpcomingDerbies' },
 };
 
