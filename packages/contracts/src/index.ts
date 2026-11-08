@@ -21,6 +21,7 @@ export * from './driver-profile.js';
 export * from './sidelined.js';
 export * from './champions.js';
 export * from './leaders.js';
+export * from './transfers.js';
 export { buildOpenApiDocument, type OpenApiOptions } from './openapi.js';
 export {
   createGalaxieClient,
