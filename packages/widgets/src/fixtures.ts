@@ -24,6 +24,7 @@ import { championsPreviewBody } from './fixtures-champions.js';
 import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
 import { transfersPreviewBody } from './fixtures-transfers.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
+import { previewEventSidelined, previewTeamSidelined } from './fixtures-sidelined.js';
 import { previewLeaders } from './fixtures-leaders.js';
 import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 import { previewSquad } from './fixtures-squad.js';
@@ -847,6 +848,32 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (related) return json({ ...f.related, event_id: decodeURIComponent(related[1]!) });
     const h2h = /\/v1\/events\/([^/]+)\/h2h$/.exec(path);
     if (h2h) return json({ ...f.h2h, event_id: decodeURIComponent(h2h[1]!) });
+    // desfalques (#830): dois times do jogo de exemplo ou o time de exemplo
+    const sidelined = /\/v1\/(events|teams)\/([^/]+)\/sidelined$/.exec(path);
+    if (sidelined) {
+      const sid = decodeURIComponent(sidelined[2]!);
+      if (sidelined[1] === 'events') {
+        const found = f.events.find((e) => e.id === sid);
+        return found
+          ? json(previewEventSidelined(found, now))
+          : json(
+              { type: 'about:blank', title: 'Evento não encontrado', status: 404, code: 'NOT_FOUND' },
+              404,
+            );
+      }
+      const p = f.events.flatMap((e) => e.participants).find((x) => x.id === sid);
+      return json(
+        previewTeamSidelined(
+          {
+            id: sid,
+            name: p?.name ?? TEAMS.aurora.name,
+            side: null,
+            logo: p?.logo ?? shield(TEAMS.aurora.color),
+          },
+          now,
+        ),
+      );
+    }
     if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });

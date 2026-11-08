@@ -28,6 +28,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  Sidelined,
   ChampionsGallery,
   CompetitionLeaders,
   PlayerProfile,
@@ -264,6 +265,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'sidelined':
+        return <Sidelined {...o} {...WIDGET_CATALOG.sidelined.exampleProps} />;
       case 'champions_gallery':
         return <ChampionsGallery {...o} {...WIDGET_CATALOG.champions_gallery.exampleProps} />;
       case 'competition_leaders':
@@ -336,6 +339,12 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'sidelined':
+      return entity.type === 'team' ? (
+        <Sidelined {...o} teamId={entity.id} />
+      ) : (
+        <Sidelined {...o} eventId={entity.id} />
+      );
     case 'competition_leaders':
       return <CompetitionLeaders {...o} competitionId={entity.id} />;
     case 'countdown':

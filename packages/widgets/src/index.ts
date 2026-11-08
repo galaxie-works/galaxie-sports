@@ -32,6 +32,9 @@ export {
   type GsEvent,
   type GsEventContext,
   type GsHeadToHead,
+  type GsEventSidelined,
+  type GsSidelinedPlayer,
+  type GsTeamSidelined,
   type GsRelated,
   type GsStandings,
   type GsCompetitionLeaders,
@@ -103,6 +106,7 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { Sidelined, type SidelinedProps } from './widgets/sidelined.js';
 export { ChampionsGallery, type ChampionsGalleryProps } from './widgets/champions-gallery.js';
 export { CompetitionLeaders, type CompetitionLeadersProps } from './widgets/competition-leaders.js';
 export { Countdown, type CountdownProps } from './widgets/countdown.js';

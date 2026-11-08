@@ -152,6 +152,9 @@ function defaultProps(
     case 'champions_gallery':
     case 'competition_leaders':
       return pick(['competitionId']);
+    // por jogo ou por time: a entidade salva no Builder (o jogo, se houver, vence)
+    case 'sidelined':
+      return defaults.eventId ? pick(['eventId']) : pick(['teamId']);
     case 'player_profile':
       return pick(['personId']);
     // vai e vem do mercado: o time ou o campeonato escolhido no Builder
