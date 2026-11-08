@@ -12,7 +12,7 @@
  * que um de peso 1, e a soma nunca passa do orçamento. Funções puras: o relógio, o uso de cota e os
  * candidatos vêm de fora.
  */
-import type { Priority, UsageReport } from '@galaxie/apisports-client';
+import { spendableBeforeReserve, type Priority, type UsageReport } from '@galaxie/apisports-client';
 import {
   EXPECTED_DURATION_MIN,
   EXTRA_TIME_MIN,
@@ -406,22 +406,32 @@ export class WeightTimeline {
 
 // ─── orçamento ───────────────────────────────────────────────────────────────────────────────────
 
-export type UsageLike = Pick<UsageReport, 'dailyLimit' | 'reserve' | 'used' | 'budget' | 'totalUsed'> & {
+export type UsageLike = Pick<
+  UsageReport,
+  'dailyLimit' | 'reserve' | 'liveUsesReserve' | 'used' | 'budget' | 'totalUsed'
+> & {
   providerUsed?: number | undefined;
 };
 
 /**
- * Chamadas LIVE que ainda podem sair hoje: limite − reserva − tudo o que já foi usado − o saldo protegido
- * do DAILY (o sync diário nunca fica sem cota por causa do ao vivo).
+ * Chamadas LIVE que ainda podem sair hoje, com a mesma regra do Governor (`decide`): o teto é o limite do dia
+ * (no dev, limite − reserva, porque lá o ao vivo não usa a reserva), menos tudo o que já foi usado e o saldo
+ * protegido do DAILY. O saldo só conta enquanto o DAILY ainda consegue gastá-lo (até limite − reserva): um saldo
+ * que não sai mais não tira do ao vivo a reserva que é dele.
  */
 export function availableForLive(
   usage: UsageLike,
   protectDaily?: number,
 ): { available: number; protectedDaily: number } {
-  const cap = usage.dailyLimit - usage.reserve;
+  const cap = usage.dailyLimit - (usage.liveUsesReserve ? 0 : usage.reserve);
   const total = Math.max(usage.totalUsed, usage.providerUsed ?? 0);
   const protectedDaily = Math.max(usage.used.DAILY, protectDaily ?? usage.budget.DAILY);
-  const dailyLeft = Math.max(0, protectedDaily - usage.used.DAILY);
+  const dailyLeft = spendableBeforeReserve(
+    Math.max(0, protectedDaily - usage.used.DAILY),
+    usage.dailyLimit,
+    usage.reserve,
+    total,
+  );
   return { available: Math.max(0, cap - total - dailyLeft), protectedDaily };
 }
 
@@ -430,8 +440,16 @@ export function emptyUsageReport(
   dailyLimit: number,
   reserve: number,
   budget: Record<Priority, number>,
+  liveUsesReserve = true,
 ): UsageLike {
-  return { dailyLimit, reserve, used: { BOOTSTRAP: 0, DAILY: 0, LIVE: 0, ADHOC: 0 }, budget, totalUsed: 0 };
+  return {
+    dailyLimit,
+    reserve,
+    liveUsesReserve,
+    used: { BOOTSTRAP: 0, DAILY: 0, LIVE: 0, ADHOC: 0 },
+    budget,
+    totalUsed: 0,
+  };
 }
 
 // ─── plano do dia ────────────────────────────────────────────────────────────────────────────────
@@ -581,6 +599,7 @@ export function planLiveDay(input: PlanInput): LiveDayPlan {
   const budget: LiveBudget = {
     dailyLimit: input.usage.dailyLimit,
     reserve: input.usage.reserve,
+    liveUsesReserve: input.usage.liveUsesReserve,
     protectedDaily,
     liveTotal: input.usage.used.LIVE + liveRemaining,
     liveUsed: input.usage.used.LIVE,

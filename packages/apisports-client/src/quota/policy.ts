@@ -134,11 +134,25 @@ export function reserveOf(policy: QuotaPolicy): number {
 }
 
 /**
+ * Quanto do saldo `left` de uma prioridade presa ao teto limite − reserva ainda pode virar chamada. Passado
+ * esse teto ela é barrada, e o saldo que não dá mais para gastar não pode tirar cota de quem usa a reserva.
+ * Regra única do Governor (`decide`) e do plano do ao vivo (`availableForLive`).
+ */
+export function spendableBeforeReserve(
+  left: number,
+  dailyLimit: number,
+  reserve: number,
+  totalUsed: number,
+): number {
+  return Math.min(left, Math.max(0, dailyLimit - reserve - totalUsed));
+}
+
+/**
  * Decide se uma chamada da prioridade `p` pode sair agora.
  * 1. Nunca ultrapassa limite − reserva; na produção, o ao vivo (LIVE) pode usar a reserva.
  * 2. Dentro da própria fatia, sempre pode.
  * 3. Fora dela, só usa a folga que sobra depois de proteger o saldo de DAILY e LIVE (do saldo de LIVE, na
- *    produção, só o que a reserva não cobre).
+ *    produção, só o que a reserva não cobre; para o LIVE, só o saldo que os outros ainda conseguem gastar).
  */
 export function decide(configured: QuotaPolicy, usage: UsageSnapshot, p: Priority): Decision {
   const policy = effectivePolicy(configured, usage);
@@ -175,6 +189,8 @@ export function decide(configured: QuotaPolicy, usage: UsageSnapshot, p: Priorit
     .filter((q) => q !== p)
     .reduce((acc, q) => {
       const left = Math.max(0, budgetFor(policy, usage, q) - usage.used[q]);
+      if (usesReserve)
+        return acc + spendableBeforeReserve(left, policy.dailyLimit, reserveOf(policy), totalUsed);
       // na produção a reserva inteira já é do ao vivo: abaixo do teto dos outros, só se protege o que passar dela
       return acc + (q === 'LIVE' && policy.liveUsesReserve ? Math.max(0, left - reserveOf(policy)) : left);
     }, 0);
