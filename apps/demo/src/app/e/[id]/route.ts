@@ -5,7 +5,7 @@
  * (`/r/<id>.json`): não há segredo aqui, o id é opaco e a chave publicável fica no atributo `key` da página,
  * presa às origens permitidas. Widget arquivado ou inexistente = 404.
  */
-import { parseWidgetOptions } from '@galaxie/widgets/registry';
+import { publicWidgetOptions } from '@galaxie/widgets/registry';
 
 import { isWidgetLocale, parseRegistryParam } from '@/lib/builder/config';
 import { builderDb, getWidget } from '@/lib/builder/store';
@@ -26,7 +26,8 @@ export async function GET(_request: Request, ctx: RouteContext<'/e/[id]'>) {
       { status: 404, headers: { ...HEADERS, 'cache-control': 'no-store' } },
     );
   const { theme, locale, market, defaults, standings, liveList, options } = widget.config;
-  const content = parseWidgetOptions(widget.kind, options);
+  // sem os canais escolhidos na grade nos canais: quem lê a lista do cliente é só a API
+  const content = publicWidgetOptions(widget.kind, options);
   return Response.json(
     {
       id: widget.id,

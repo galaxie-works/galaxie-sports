@@ -7,7 +7,7 @@ import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { marketsFor } from '@/lib/builder/config';
-import { brandThemeItems, newDraft } from '@/lib/builder/editor';
+import { brandThemeItems, guideChannelChoices, newDraft } from '@/lib/builder/editor';
 import { getI18n, getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,6 +38,7 @@ async function NewWidget({
             saved={null}
             markets={marketsFor(tenant.markets)}
             sports={tenant.sports}
+            guideChannels={await guideChannelChoices(tenant.id)}
             brandThemes={brandThemes}
           />
         );

@@ -24,6 +24,7 @@ import {
   Medal,
   Percent,
   Network,
+  MonitorPlay,
   Plus,
   Radio,
   Scale,
@@ -117,6 +118,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   team_stats: ChartColumn,
   transfer_market: ArrowLeftRight,
   bracket: Network,
+  channel_guide: MonitorPlay,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

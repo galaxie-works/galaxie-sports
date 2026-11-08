@@ -5,7 +5,7 @@
  * dele. Não há segredo no JSON: o id é opaco (UUID v7) e a chave publicável não vai junto (o componente lê
  * `NEXT_PUBLIC_GALAXIE_PUBLISHABLE_KEY` no app da operadora). Widget arquivado ou inexistente = 404.
  */
-import { buildRegistryItem, parseWidgetOptions } from '@galaxie/widgets/registry';
+import { buildRegistryItem, publicWidgetOptions } from '@galaxie/widgets/registry';
 
 import { isWidgetLocale, parseRegistryParam } from '@/lib/builder/config';
 import { builderDb, getWidget } from '@/lib/builder/store';
@@ -37,7 +37,9 @@ export async function GET(_request: Request, ctx: RouteContext<'/r/[id]'>) {
       defaults,
       standings,
       liveList,
-      options: parseWidgetOptions(widget.kind, options),
+      // sem os canais escolhidos na grade: o arquivo instalado não carrega a lista do cliente
+      options: publicWidgetOptions(widget.kind, options),
+      widgetId: widget.id,
     });
     return Response.json(item, {
       headers: { ...HEADERS, 'cache-control': 'public, max-age=60, stale-while-revalidate=300' },

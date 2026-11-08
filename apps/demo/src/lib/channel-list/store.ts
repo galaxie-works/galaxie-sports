@@ -6,6 +6,7 @@ export {
   confirmChannelList,
   deleteChannelList,
   getChannelList,
+  getConfirmedChannelList,
   saveChannelList,
   setChannelListOverrides,
   type TenantChannelList,

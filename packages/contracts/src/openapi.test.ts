@@ -55,6 +55,7 @@ describe('OpenAPI', () => {
         '/v1/sports/formula-1/legends',
         '/mirror/{sport}/{endpoint}',
         '/v1/events/{id}/where-to-watch',
+        '/v1/widgets/{id}/channel-guide',
         '/v1/platforms',
         '/v1/platforms/{id}/lineup',
         '/v1/account',
