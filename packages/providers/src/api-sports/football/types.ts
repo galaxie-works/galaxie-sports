@@ -241,3 +241,64 @@ export interface ApiStandingsItem {
     standings: ApiStandingRow[][];
   };
 }
+
+/** Casa, fora e total de um número do `teams/statistics` (o fornecedor manda `null` quando não tem). */
+export interface ApiHomeAway<T = number | null> {
+  home?: T;
+  away?: T;
+  total?: T;
+}
+
+/** Faixa de minuto ("0-15", "76-90"...; "" = minuto não informado) com o total e o percentual em texto. */
+export type ApiMinuteBuckets = Record<string, { total?: number | null; percentage?: string | null } | null>;
+
+/** Um lado dos gols (pró ou contra) no `teams/statistics`. */
+export interface ApiTeamStatsGoals {
+  total?: ApiHomeAway | null;
+  /** Médias em texto ("1.7"). */
+  average?: ApiHomeAway<string | number | null> | null;
+  minute?: ApiMinuteBuckets | null;
+  /** Linhas "0.5", "1.5"... com quantos jogos ficaram acima e abaixo. */
+  under_over?: Record<string, { over?: number | null; under?: number | null } | null> | null;
+}
+
+/** `teams/statistics?league&season&team`: o agregado da temporada do time (a resposta é um objeto, não lista). */
+export interface ApiTeamStatistics {
+  league?: {
+    id: number | null;
+    name: string | null;
+    country?: string | null;
+    logo?: string | null;
+    flag?: string | null;
+    season: number | null;
+  } | null;
+  team?: ApiTeamRef | null;
+  /** Resultados em ordem cronológica (o mais antigo primeiro): "WDLW...". */
+  form?: string | null;
+  fixtures?: {
+    played?: ApiHomeAway | null;
+    wins?: ApiHomeAway | null;
+    draws?: ApiHomeAway | null;
+    loses?: ApiHomeAway | null;
+  } | null;
+  goals?: { for?: ApiTeamStatsGoals | null; against?: ApiTeamStatsGoals | null } | null;
+  biggest?: {
+    streak?: { wins?: number | null; draws?: number | null; loses?: number | null } | null;
+    /** Placar do jogo ("4-0"), sempre mandante-visitante. */
+    wins?: { home?: string | null; away?: string | null } | null;
+    loses?: { home?: string | null; away?: string | null } | null;
+    goals?: {
+      for?: { home?: number | null; away?: number | null } | null;
+      against?: { home?: number | null; away?: number | null } | null;
+    } | null;
+  } | null;
+  clean_sheet?: ApiHomeAway | null;
+  failed_to_score?: ApiHomeAway | null;
+  penalty?: {
+    scored?: { total?: number | null; percentage?: string | null } | null;
+    missed?: { total?: number | null; percentage?: string | null } | null;
+    total?: number | null;
+  } | null;
+  lineups?: { formation?: string | null; played?: number | null }[] | null;
+  cards?: { yellow?: ApiMinuteBuckets | null; red?: ApiMinuteBuckets | null } | null;
+}

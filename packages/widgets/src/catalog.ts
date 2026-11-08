@@ -32,6 +32,7 @@ import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
+import type { TeamStatsProps } from './widgets/team-stats.js';
 
 import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { TransferMarketProps } from './widgets/transfer-market.js';
@@ -69,6 +70,7 @@ export interface WidgetPropsByKind {
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
   lineups: LineupsProps;
+  team_stats: TeamStatsProps;
   competition_leaders: CompetitionLeadersProps;
   transfer_market: TransferMarketProps;
 }
@@ -110,6 +112,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'PlayerProfile'
     | 'Lineups'
     | 'CompetitionLeaders'
+    | 'TeamStats'
     | 'TransferMarket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
@@ -800,6 +803,35 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  team_stats: {
+    kind: 'team_stats',
+    component: 'TeamStats',
+    registryComponent: 'GalaxieTeamStats',
+    name: { 'pt-BR': 'Estatísticas do time', es: 'Estadísticas del equipo', en: 'Team statistics' },
+    description: {
+      'pt-BR':
+        'Os números do time na temporada: jogos, vitórias, gols, forma, casa e fora, gols por minuto, sequências e formações.',
+      es: 'Los números del equipo en la temporada: partidos, victorias, goles, racha, local y visitante, goles por minuto, rachas y formaciones.',
+      en: "A team's season numbers: games, wins, goals, form, home and away, goals by minute, streaks and formations.",
+    },
+    requiredProps: ['teamId'],
+    optionalProps: [
+      'competitionId',
+      'season',
+      'showSummary',
+      'showForm',
+      'formCount',
+      'showHomeAway',
+      'showGoalsByMinute',
+      'showHighlights',
+      'showFormations',
+      'showCards',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    // só o futebol tem o agregado hoje; com outro esporte, o widget mostra o estado vazio
     sports: FOOTBALL_ONLY,
   },
   transfer_market: {

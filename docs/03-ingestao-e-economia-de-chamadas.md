@@ -487,7 +487,7 @@ painel ([§11.5](#115-espelho-configurável-pelo-painel)), e o alerta lê o mesm
 | `/venues?country` | 30 dias | `sync:mirror` | raw |
 | `/predictions?fixture` | 1 dia por jogo das próximas 48 h, tier ≤ 2 (alerta: 7 dias, pela pausa de calendário) | `sync:mirror` | `core.event_prediction` (no `afterFetch`; reconstrução: `normalize:markets`) |
 | `/odds?fixture` | idem | `sync:mirror` | `core.event_odds` e `core.bookmaker` (idem) |
-| `/teams/statistics?league&season&team` | 7 dias (tier 2: 14) | `sync:mirror` | raw (normalização: frente de estatísticas de time) |
+| `/teams/statistics?league&season&team` | 7 dias (tier 2: 14) | `sync:mirror` | `core.team_season_stat` (`afterFetch` do `sync:mirror`, #893), servido em `/v1/teams/{id}/statistics` |
 | `/fixtures/headtohead` (clássicos) | 30 dias | `sync:mirror` | `core.event` |
 | Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw (`/odds/bookmakers` também em `core.bookmaker`) |
 | Outros 11 esportes: agenda `games/races/fights?date=` | 1 dia | `sync:daily` | `core.event` (pelo `normalize-sports`) |

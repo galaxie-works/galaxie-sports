@@ -32,3 +32,4 @@ export {
   type MirrorResult,
   type Page,
 } from './client.js';
+export * from './team-statistics.js';
