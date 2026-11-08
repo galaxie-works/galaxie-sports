@@ -320,6 +320,7 @@ export class LiveRunner {
       usage: {
         dailyLimit: Infinity,
         reserve: 0,
+        liveUsesReserve: plan.budget.liveUsesReserve,
         used: { BOOTSTRAP: 0, DAILY: 0, LIVE: 0, ADHOC: 0 },
         budget: { BOOTSTRAP: 0, DAILY: 0, LIVE: 0, ADHOC: 0 },
         totalUsed: 0,

@@ -45,6 +45,12 @@ const REGISTRY_ITEM = /^\/r\/[^/]+\.json$/;
 const EMBED_SCRIPT = '/embed.js';
 const EMBED_CONFIG = /^\/e\/[^/]+\.json$/;
 
+/**
+ * Imagem anexada a uma sugestão do app (`app/api/feedback/anexo/[...key]/route.ts`): o GitHub a busca sem sessão para
+ * mostrar na issue; a rota só entrega com o link assinado (lib/feedback/signing.ts).
+ */
+const FEEDBACK_ATTACHMENT = /^\/api\/feedback\/anexo\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(png|jpg)$/;
+
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
 /** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
@@ -58,6 +64,7 @@ export function isPublicPath(pathname: string): boolean {
     pathname.startsWith(EXAMPLE_IMAGES) ||
     REGISTRY_ITEM.test(pathname) ||
     pathname === EMBED_SCRIPT ||
-    EMBED_CONFIG.test(pathname)
+    EMBED_CONFIG.test(pathname) ||
+    FEEDBACK_ATTACHMENT.test(pathname)
   );
 }

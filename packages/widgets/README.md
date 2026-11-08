@@ -15,6 +15,9 @@ A operadora monta o widget com a identidade dela na demo e instala no app dela c
 | `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
 | `team_card`      | `TeamCard`       | `GalaxieTeamCard`       | `teamId`            | `/v1/teams/{id}/overview`                            |
 | `team_squad`     | `TeamSquad`      | `GalaxieTeamSquad`      | `teamId`            | `/v1/teams/{id}/squad`, `/v1/teams/{id}`             |
+| `match_prediction` | `MatchPrediction` | `GalaxieMatchPrediction` | `eventId`         | `/v1/events/{id}/predictions`                        |
+| `match_odds`     | `MatchOdds`      | `GalaxieMatchOdds`      | `eventId`           | `/v1/events/{id}/odds` (módulo `odds`)                |
+| `team_stats`     | `TeamStats`      | `GalaxieTeamStats`      | `teamId`            | `/v1/teams/{id}/statistics`, `/v1/teams/{id}`        |
 | `transfer_market` | `TransferMarket` | `GalaxieTransferMarket` | `teamId` ou `competitionId` | `/v1/teams/{id}/transfers`, `/v1/competitions/{id}/transfers` |
 | `bracket` | `Bracket` | `GalaxieBracket` | `competitionId` | `/v1/competitions/{id}/seasons/{s}/bracket` |
 

@@ -32,7 +32,8 @@ import {
   type WebhookStats,
 } from './queries.js';
 import { computeQuotaStates, type QuotaState } from './quota.js';
-import { RAW_CADENCE, rawCadenceMaxAgeSeconds } from './raw-cadence.js';
+import { mirrorConfig } from '@galaxie/runtime-config';
+import { RAW_CADENCE, rawCadence, rawCadenceMaxAgeSeconds, type RawCadence } from './raw-cadence.js';
 
 export interface MetricsOptions {
   /** Sem banco, só as métricas de processo e de HTTP são expostas. */
@@ -137,6 +138,8 @@ const seconds = (d: Date) => d.getTime() / 1000;
 interface OpsData {
   state: OpsStateRow;
   jobs: JobExpectation[];
+  /** Mapa de frescor com os períodos do espelho do painel (os mesmos do job). */
+  cadence: RawCadence[];
   ai: { dailyUsd: number | null; budgetDay: string; spentUsd: number };
 }
 
@@ -269,6 +272,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
       return {
         state,
         jobs: jobExpectations(settings, at),
+        cadence: rawCadence(mirrorConfig((key) => settings.get(key))),
         ai: { ...budget, spentUsd: await aiSpendUsd(db, budget.budgetDay) },
       };
     },
@@ -460,14 +464,21 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
         g.set({ sport: r.sport, endpoint: r.endpoint }, r.lastFetchedAt ? seconds(r.lastFetchedAt) : 0);
     },
   );
-  const cadence = new Gauge({
+  // períodos do espelho do painel (Ajustes → Operação → Espelho): o mesmo valor que o job usa. Endpoint desligado
+  // sai daqui e o alerta não dispara para ele; sem a leitura das flags, os padrões do código (o alerta não some)
+  const cadence: Gauge<'sport' | 'endpoint' | 'job_name'> = new Gauge({
     name: 'galaxie_raw_endpoint_max_age_seconds',
     help: 'Idade máxima da última busca de cada endpoint antes do alerta (período do item mais frequente + 12 h), com o job que o renova',
     labelNames: ['sport', 'endpoint', 'job_name'],
     registers: [registry],
+    async collect() {
+      const result = await ops.get();
+      const list = result.ok && result.data ? result.data.cadence : RAW_CADENCE;
+      cadence.reset();
+      for (const c of list)
+        cadence.set({ sport: c.sport, endpoint: c.endpoint, job_name: c.job }, rawCadenceMaxAgeSeconds(c));
+    },
   });
-  for (const c of RAW_CADENCE)
-    cadence.set({ sport: c.sport, endpoint: c.endpoint, job_name: c.job }, rawCadenceMaxAgeSeconds(c));
 
   // ── ao vivo (fonte: core.event) ──────────────────────────────────────────────────────────────────
   // coverage: poller (no plano do ao vivo) ou clock (só o relógio dos eventos; o alerta não olha estes)

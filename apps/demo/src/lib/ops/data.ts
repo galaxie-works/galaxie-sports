@@ -12,6 +12,9 @@ import {
   AI_CALL_BANDS,
   APISPORTS_APIS,
   DEFAULT_BUDGET_DAY,
+  MIRROR_APIS,
+  MIRROR_INVENTORY_CURSOR,
+  parseMirrorInventory,
   SCHEDULED_JOBS,
   SETTINGS,
   bandLimitsUsd,
@@ -43,6 +46,7 @@ import type {
   OpsSetting,
   OpsSnapshot,
   LiveServiceStatus,
+  MirrorSnapshot,
   QuotaRow,
   ServiceStatus,
   WorkerView,
@@ -591,6 +595,43 @@ export async function readWorkers(now: Date = new Date()): Promise<WorkerView[]>
   return [...byId.values()].sort((a, b) => order[a.state] - order[b.state] || a.id.localeCompare(b.id));
 }
 
+/** Reserva mínima da cota no dev (a mesma do Quota Governor: o dev nunca encosta no que a produção precisa). */
+const DEV_MIN_RESERVE_PERCENT = 70;
+const PRODUCTION_RESERVE_PERCENT = 25;
+
+/**
+ * Espelho: plano e cota de cada API (pelas flags efetivas, como o ingestor) e o inventário que o sync:mirror grava
+ * em ops.sync_cursor a cada execução. A reserva segue a regra do Quota Governor (APP_ENV, o mesmo .env da VPS).
+ */
+async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
+  const rows = await query<{ sport: string; cursor: unknown }>(
+    `select sport, cursor from ops.sync_cursor
+      where provider = 'api-sports' and endpoint = $1 and key = $2`,
+    [MIRROR_INVENTORY_CURSOR.endpoint, MIRROR_INVENTORY_CURSOR.key],
+  );
+  const value = (key: string) => settings.find((s) => s.key === key)?.value ?? null;
+  const production = process.env.APP_ENV === 'production' || process.env.APP_ENV === 'staging';
+  const configured = Number(value('QUOTA_LIVE_RESERVE_PERCENT') ?? Number.NaN);
+  const reserve = Number.isFinite(configured) ? configured : PRODUCTION_RESERVE_PERCENT;
+  return {
+    production,
+    reservePercent: production ? reserve : Math.max(reserve, DEV_MIN_RESERVE_PERCENT),
+    apis: MIRROR_APIS.map((api) => {
+      const plan = value(planKey(api)) ?? value('APISPORTS_PLAN');
+      const inventory = parseMirrorInventory(rows.find((r) => r.sport === api)?.cursor);
+      // a contagem vem sem o que o plano recusa: depois de trocar de plano ela não vale até a próxima execução
+      const otherPlan = inventory?.plan && plan && inventory.plan !== plan ? inventory.plan : null;
+      return {
+        api,
+        plan,
+        dailyLimit: plan ? (API_PLAN_DAILY_LIMITS[plan as keyof typeof API_PLAN_DAILY_LIMITS] ?? null) : null,
+        inventory: otherPlan ? null : inventory,
+        inventoryOtherPlan: otherPlan,
+      };
+    }),
+  };
+}
+
 /**
  * Tudo que o painel mostra, numa leitura. Quem chama confere a sessão de admin (página e rota usam
  * `requireAdmin`/`adminFromHeaders`); esta função não lê cookies, para servir também à checagem do smoke.
@@ -598,18 +639,20 @@ export async function readWorkers(now: Date = new Date()): Promise<WorkerView[]>
 export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
   const { settings, services } = await readSettings(now);
-  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers] = await Promise.all([
-    readJobs(),
-    readQuota(dayUtc, settings),
-    readLlm(now, settings),
-    readCredit(),
-    readHistory(),
-    readRequests(),
-    readQuality(),
-    readYoutube(now, settings),
-    readTasks(),
-    readWorkers(now),
-  ]);
+  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror] =
+    await Promise.all([
+      readJobs(),
+      readQuota(dayUtc, settings),
+      readLlm(now, settings),
+      readCredit(),
+      readHistory(),
+      readRequests(),
+      readQuality(),
+      readYoutube(now, settings),
+      readTasks(),
+      readWorkers(now),
+      readMirror(settings),
+    ]);
   return {
     generatedAt: now.toISOString(),
     dayUtc,
@@ -625,5 +668,6 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     quality,
     youtube,
     tasks: tasks ? { ...tasks, workers } : null,
+    mirror,
   };
 }

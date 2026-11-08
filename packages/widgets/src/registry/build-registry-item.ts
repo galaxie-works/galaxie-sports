@@ -139,11 +139,14 @@ function defaultProps(
     case 'countdown':
     case 'match_timeline':
     case 'lineups':
+    case 'match_prediction':
+    case 'match_odds':
       return pick(['eventId']);
     case 'team_schedule':
     case 'team_card':
     case 'athlete_profile':
     case 'team_squad':
+    case 'team_stats':
       return pick(['teamId']);
     case 'season_calendar':
     case 'champions_gallery':

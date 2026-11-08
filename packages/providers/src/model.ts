@@ -280,6 +280,83 @@ export interface NormalizedSidelined {
   endDate: string | null;
 }
 
+/** Casa, fora e total (null = o fornecedor não mandou). */
+export interface HomeAwayTotal {
+  home: number | null;
+  away: number | null;
+  total: number | null;
+}
+
+/** Contagem numa faixa de minutos do jogo; `from` e `to` nulos = minuto não informado. */
+export interface MinuteRangeCount {
+  from: number | null;
+  to: number | null;
+  count: number;
+}
+
+/** Placar visto pelo time (gols dele e do adversário). */
+export interface TeamScoreLine {
+  for: number;
+  against: number;
+}
+
+/** Jogos acima e abaixo de uma linha de gols (0.5, 1.5...). */
+export interface GoalLineCount {
+  line: number;
+  over: number | null;
+  under: number | null;
+}
+
+/**
+ * O agregado da temporada de um time no nosso formato (`core.team_season_stat.stats`, #893). Placar e
+ * sequências sempre do ponto de vista do time; listas vazias quando o fornecedor não manda o bloco.
+ */
+export interface TeamSeasonStatsDetail {
+  record: { played: HomeAwayTotal; won: HomeAwayTotal; drawn: HomeAwayTotal; lost: HomeAwayTotal };
+  goals: {
+    scored: HomeAwayTotal;
+    conceded: HomeAwayTotal;
+    scored_average: HomeAwayTotal;
+    conceded_average: HomeAwayTotal;
+    scored_by_minute: MinuteRangeCount[];
+    conceded_by_minute: MinuteRangeCount[];
+    scored_lines: GoalLineCount[];
+    conceded_lines: GoalLineCount[];
+  };
+  clean_sheets: HomeAwayTotal;
+  failed_to_score: HomeAwayTotal;
+  /** Maiores sequências da temporada. */
+  streaks: { wins: number | null; draws: number | null; losses: number | null };
+  biggest: {
+    win: { home: TeamScoreLine | null; away: TeamScoreLine | null };
+    loss: { home: TeamScoreLine | null; away: TeamScoreLine | null };
+    /** Mais gols marcados e sofridos num jogo. */
+    scored: { home: number | null; away: number | null };
+    conceded: { home: number | null; away: number | null };
+  };
+  penalties: { scored: number | null; missed: number | null; total: number | null };
+  /** Formações usadas, da mais usada para a menos. */
+  formations: { formation: string; played: number }[];
+  cards: { yellow_by_minute: MinuteRangeCount[]; red_by_minute: MinuteRangeCount[] };
+}
+
+/** Estatísticas de um time numa temporada de competição (teams/statistics). */
+export interface NormalizedTeamSeasonStat {
+  participantId: string;
+  season: SeasonRef;
+  played: number | null;
+  won: number | null;
+  drawn: number | null;
+  lost: number | null;
+  goalsFor: number | null;
+  goalsAgainst: number | null;
+  cleanSheets: number | null;
+  failedToScore: number | null;
+  /** W/D/L do mais recente ao mais antigo. */
+  form: string | null;
+  stats: TeamSeasonStatsDetail;
+}
+
 /** Fotografia do elenco atual de um participante: o que não estiver nela sai do elenco atual. */
 export interface RosterSnapshot {
   participantId: string;
@@ -334,6 +411,7 @@ export interface NormalizedBatch {
   transfers: NormalizedTransfer[];
   trophies: NormalizedTrophy[];
   sidelined: NormalizedSidelined[];
+  teamSeasonStats: NormalizedTeamSeasonStat[];
 }
 
 export function emptyBatch(provider: string, sport: string, observedAt: Date): NormalizedBatch {
@@ -355,6 +433,7 @@ export function emptyBatch(provider: string, sport: string, observedAt: Date): N
     transfers: [],
     trophies: [],
     sidelined: [],
+    teamSeasonStats: [],
   };
 }
 
@@ -381,6 +460,7 @@ export function mergeBatches(batches: NormalizedBatch[]): NormalizedBatch | null
     out.transfers.push(...b.transfers);
     out.trophies.push(...b.trophies);
     out.sidelined.push(...b.sidelined);
+    out.teamSeasonStats.push(...b.teamSeasonStats);
   }
   return out;
 }

@@ -30,6 +30,8 @@ export const API_MODULES = [
   'multisport',
   /** Add-on: vídeos relacionados por evento (docs/12). */
   'related_content',
+  /** Add-on: odds pré-jogo por evento, em consenso entre as casas (docs/05 §3.2.2). */
+  'odds',
 ] as const;
 export type ApiModule = (typeof API_MODULES)[number];
 

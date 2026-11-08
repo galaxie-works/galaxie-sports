@@ -4,6 +4,7 @@
  * agentes e da API) usam o mesmo caminho.
  */
 export * from './upsert-core.js';
+export * from './upsert-markets.js';
 export * from './event-state.js';
 export * from './match.js';
 export * from './importance-facts.js';

@@ -32,6 +32,9 @@ import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
+import type { MatchPredictionProps } from './widgets/match-prediction.js';
+import type { MatchOddsProps } from './widgets/match-odds.js';
+import type { TeamStatsProps } from './widgets/team-stats.js';
 
 import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { TransferMarketProps } from './widgets/transfer-market.js';
@@ -70,6 +73,9 @@ export interface WidgetPropsByKind {
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
   lineups: LineupsProps;
+  match_prediction: MatchPredictionProps;
+  match_odds: MatchOddsProps;
+  team_stats: TeamStatsProps;
   competition_leaders: CompetitionLeadersProps;
   transfer_market: TransferMarketProps;
   bracket: BracketProps;
@@ -111,7 +117,10 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'TeamSquad'
     | 'PlayerProfile'
     | 'Lineups'
+    | 'MatchPrediction'
+    | 'MatchOdds'
     | 'CompetitionLeaders'
+    | 'TeamStats'
     | 'TransferMarket'
     | 'Bracket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
@@ -777,6 +786,47 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: true,
     sports: FOOTBALL_ONLY,
   },
+  match_prediction: {
+    kind: 'match_prediction',
+    component: 'MatchPrediction',
+    registryComponent: 'GalaxieMatchPrediction',
+    name: { 'pt-BR': 'Palpite do jogo', es: 'Pronóstico del partido', en: 'Match prediction' },
+    description: {
+      'pt-BR':
+        'A chance de cada resultado, quem deve vencer, a linha de gols e a comparação dos times, antes do jogo.',
+      es: 'La probabilidad de cada resultado, quién debería ganar, la línea de goles y la comparación de los equipos, antes del partido.',
+      en: 'The chance of each result, who should win, the goals line and how both teams compare, before kick-off.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['showProbabilities', 'showWinner', 'showGoals', 'showComparison', 'showNote'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  match_odds: {
+    kind: 'match_odds',
+    component: 'MatchOdds',
+    registryComponent: 'GalaxieMatchOdds',
+    name: { 'pt-BR': 'Odds do jogo', es: 'Cuotas del partido', en: 'Match odds' },
+    description: {
+      'pt-BR':
+        'As odds pré-jogo em consenso entre as casas (média e maior odd): resultado, dupla chance, gols e ambos marcam.',
+      es: 'Las cuotas previas al partido en consenso entre las casas (promedio y máxima): resultado, doble oportunidad, goles y ambos marcan.',
+      en: 'Pre-match odds as a consensus across bookmakers (average and best): result, double chance, goals and both teams to score.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: [
+      'showMatchWinner',
+      'showDoubleChance',
+      'showGoals',
+      'showBothTeamsScore',
+      'showBest',
+      'showNotice',
+    ],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
   competition_leaders: {
     kind: 'competition_leaders',
     component: 'CompetitionLeaders',
@@ -803,6 +853,35 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
     polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  team_stats: {
+    kind: 'team_stats',
+    component: 'TeamStats',
+    registryComponent: 'GalaxieTeamStats',
+    name: { 'pt-BR': 'Estatísticas do time', es: 'Estadísticas del equipo', en: 'Team statistics' },
+    description: {
+      'pt-BR':
+        'Os números do time na temporada: jogos, vitórias, gols, forma, casa e fora, gols por minuto, sequências e formações.',
+      es: 'Los números del equipo en la temporada: partidos, victorias, goles, racha, local y visitante, goles por minuto, rachas y formaciones.',
+      en: "A team's season numbers: games, wins, goals, form, home and away, goals by minute, streaks and formations.",
+    },
+    requiredProps: ['teamId'],
+    optionalProps: [
+      'competitionId',
+      'season',
+      'showSummary',
+      'showForm',
+      'formCount',
+      'showHomeAway',
+      'showGoalsByMinute',
+      'showHighlights',
+      'showFormations',
+      'showCards',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
+    polling: false,
+    // só o futebol tem o agregado hoje; com outro esporte, o widget mostra o estado vazio
     sports: FOOTBALL_ONLY,
   },
   transfer_market: {

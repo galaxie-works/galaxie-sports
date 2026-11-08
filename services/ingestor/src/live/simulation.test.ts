@@ -114,16 +114,16 @@ describe('quarta-feira cheia (10 jogos, 6 ligas) no plano gratuito (100/dia)', (
     usage22 = await sim.world.governor.usage('football', '2026-10-22');
   });
 
-  it('nunca passa do orçamento LIVE planejado nem do limite − reserva, e protege o DAILY', () => {
+  it('nunca passa do orçamento LIVE planejado nem do limite, e protege o DAILY', () => {
     for (const u of [usage21, usage22]) {
       expect(u.used.LIVE).toBeLessThanOrEqual(u.budget.LIVE);
-      expect(u.totalUsed).toBeLessThanOrEqual(u.dailyLimit - u.reserve);
+      expect(u.totalUsed).toBeLessThanOrEqual(u.dailyLimit);
       expect(u.budget.DAILY).toBe(40);
     }
-    // LIVE planejado = 100 − 15 (reserva) − 40 (DAILY protegido) = 45; depois do último jogo, LIVE = usado
+    // LIVE planejado = 100 (a reserva é do ao vivo) − 40 (DAILY protegido) = 60; depois do último jogo, LIVE = usado
     for (const day of ['2026-10-21', '2026-10-22']) {
       const first = sim.plans.find((p) => p.day === day && p.included.length > 0)!;
-      expect(first.quotaPlan).toEqual({ LIVE: 45, DAILY: 40 });
+      expect(first.quotaPlan).toEqual({ LIVE: 60, DAILY: 40 });
     }
     expect(usage22.budget.LIVE).toBe(usage22.used.LIVE);
     expect(usage22.used.DAILY).toBe(38);
