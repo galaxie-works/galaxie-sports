@@ -33,11 +33,13 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'champions_gallery',
   'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
   'lineups',
+  'transfer_market',
   'bracket',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -560,6 +562,29 @@ export interface GsPersonOverview {
   }[];
   transfers: { date: string | null; type: string | null; from: GsTransferTeam; to: GsTransferTeam }[];
   trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
+}
+
+/** Vai e vem do mercado (`/v1/teams|competitions/{id}/transfers`, #832). */
+export type GsTransferKind = 'loan' | 'loan_return' | 'free' | 'fee' | 'transfer';
+export interface GsTransferClub {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+export interface GsTransfer {
+  person: { id: string; name: string; photo: string | null };
+  date: string | null;
+  direction: 'in' | 'out';
+  kind: GsTransferKind | null;
+  fee: string | null;
+  type: string | null;
+  from: GsTransferClub;
+  to: GsTransferClub;
+}
+export interface GsTransferList {
+  scope: { type: 'team' | 'competition'; id: string; name: string; logo: string | null };
+  since: string;
+  data: GsTransfer[];
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1651,6 +1676,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+.gs-transfer-dir{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;font-size:.8em;font-weight:800;color:#fff;background:#16a34a}
+.gs-transfer-dir[data-dir=out]{background:var(--gs-live)}
 .gs-bracket{display:flex;align-items:stretch;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 calc(var(--gs-pad)*-1);padding:0 var(--gs-pad) 4px;-webkit-overflow-scrolling:touch}
 .gs-bracket-round{display:flex;flex-direction:column;gap:6px;flex:0 0 min(210px,82%);min-width:0;scroll-snap-align:start}
 .gs-bracket-ties{display:flex;flex-direction:column;justify-content:space-around;gap:8px;flex:1;margin:0;padding:0;list-style:none}
@@ -2032,6 +2059,24 @@ export interface WidgetTexts {
     positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
     places: Record<string, string>;
     transferTypes: Record<string, string>;
+  };
+  /** Vai e vem do mercado: contratações e saídas de um time ou de um campeonato. */
+  transfers: {
+    title: string;
+    /** "Mercado · {name}". */
+    titleOf: string;
+    arrivals: string;
+    departures: string;
+    /** Rótulo curto de quem chegou e de quem saiu (o completo vai no aria-label). */
+    in: string;
+    out: string;
+    /** "de {club}" / "para {club}". */
+    from: string;
+    to: string;
+    kind: Record<'loan' | 'loan_return' | 'free' | 'fee' | 'transfer', string>;
+    empty: string;
+    /** Sem time nem campeonato escolhido. */
+    pick: string;
   };
   /** Chaveamento do mata-mata. */
   bracket: {
@@ -2465,6 +2510,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Transfer: 'Transferência',
       },
     },
+    transfers: {
+      title: 'Vai e vem do mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Chegadas',
+      departures: 'Saídas',
+      in: 'Chegou',
+      out: 'Saiu',
+      from: 'de {club}',
+      to: 'para {club}',
+      kind: {
+        loan: 'Empréstimo',
+        loan_return: 'Volta de empréstimo',
+        free: 'Sem custo',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Nenhuma transferência no período.',
+      pick: 'Escolha um time ou um campeonato.',
+    },
     bracket: {
       title: 'Chaveamento',
       empty: 'Sem mata-mata nesta temporada (ainda).',
@@ -2894,6 +2958,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Transfer: 'Transferencia',
       },
     },
+    transfers: {
+      title: 'Altas y bajas del mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Llegadas',
+      departures: 'Salidas',
+      in: 'Llegó',
+      out: 'Salió',
+      from: 'de {club}',
+      to: 'a {club}',
+      kind: {
+        loan: 'Préstamo',
+        loan_return: 'Vuelta de préstamo',
+        free: 'Libre',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Ningún fichaje en el período.',
+      pick: 'Elige un equipo o una competición.',
+    },
     bracket: {
       title: 'Llaves',
       empty: 'Sin eliminatorias en esta temporada (todavía).',
@@ -3309,6 +3392,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'Back from Loan': 'Loan return',
         Transfer: 'Transfer',
       },
+    },
+    transfers: {
+      title: 'Transfer market',
+      titleOf: 'Transfers · {name}',
+      arrivals: 'Arrivals',
+      departures: 'Departures',
+      in: 'In',
+      out: 'Out',
+      from: 'from {club}',
+      to: 'to {club}',
+      kind: {
+        loan: 'Loan',
+        loan_return: 'Loan return',
+        free: 'Free',
+        fee: 'Fee',
+        transfer: 'Permanent',
+      },
+      empty: 'No transfers in this period.',
+      pick: 'Choose a team or a competition.',
     },
     bracket: {
       title: 'Bracket',

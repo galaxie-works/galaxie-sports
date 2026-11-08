@@ -797,6 +797,25 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 40, ALL),
   ],
+  champions_gallery: [
+    count('limit', l('Edições listadas', 'Ediciones listadas', 'Editions listed'), 10, 200, ALL),
+    bool('showRanking', l('Ranking de títulos', 'Ranking de títulos', 'Titles ranking'), true, {
+      hint: l(
+        'Só aparece quando a lista de campeões está completa, sem ano faltando.',
+        'Solo aparece cuando la lista de campeones está completa, sin años faltantes.',
+        'Only shown when the list of champions is complete, with no missing year.',
+      ),
+    }),
+    count('rankingLimit', l('Times no ranking', 'Equipos en el ranking', 'Teams in the ranking'), 5, 50, ALL),
+    bool(
+      'showRunnerUp',
+      l('Vice de cada edição', 'Subcampeón de cada edición', 'Runner-up of each edition'),
+      false,
+      {
+        extraCall: true,
+      },
+    ),
+  ],
   countdown: [
     bool('showWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
     bool('showSeconds', l('Segundos', 'Segundos', 'Seconds'), true),
@@ -919,6 +938,52 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
         "Highlights the portal club's players.",
       ),
     },
+  ],
+  transfer_market: [
+    {
+      key: 'direction',
+      type: 'enum',
+      default: 'all',
+      label: l('Mostrar', 'Mostrar', 'Show'),
+      values: [
+        { value: 'all', label: l('Chegadas e saídas', 'Llegadas y salidas', 'Arrivals and departures') },
+        { value: 'in', label: l('Só chegadas', 'Solo llegadas', 'Arrivals only') },
+        { value: 'out', label: l('Só saídas', 'Solo salidas', 'Departures only') },
+      ],
+    },
+    {
+      key: 'days',
+      type: 'number',
+      default: 180,
+      min: 7,
+      max: 730,
+      label: l('Período (dias)', 'Período (días)', 'Period (days)'),
+      hint: l(
+        'As transferências dos últimos N dias.',
+        'Los fichajes de los últimos N días.',
+        'Transfers from the last N days.',
+      ),
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 10,
+      min: 1,
+      max: 50,
+      label: l('Quantidade', 'Cantidad', 'How many'),
+    },
+    bool(
+      'groupByDirection',
+      l('Chegadas e saídas separadas', 'Llegadas y salidas separadas', 'Separate arrivals and departures'),
+      true,
+    ),
+    bool(
+      'showType',
+      l('Tipo (empréstimo, compra, sem custo)', 'Tipo (préstamo, compra, libre)', 'Type (loan, fee, free)'),
+      true,
+    ),
+    bool('showPhoto', l('Foto do jogador', 'Foto del jugador', 'Player photo'), true),
+    bool('showDate', l('Data', 'Fecha', 'Date'), true),
   ],
   bracket: [
     {

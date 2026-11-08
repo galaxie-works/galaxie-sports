@@ -18,7 +18,9 @@ import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
+import { championRoutes } from './champions.js';
 import { leadersRoutes } from './leaders.js';
+import { transferRoutes } from './transfers.js';
 
 /**
  * Rotas /v1. Cada grupo é um módulo próprio:
@@ -39,6 +41,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // lista de canais do cliente `/v1/channel-list` (casamento com os direitos) — módulo where_to_watch
   await channelListRoutes(app, ctx);
   await contextRoutes(app, ctx);
+  // galeria de campeões `/v1/competitions/{id}/champions` (#831) — módulo core_data
+  await championRoutes(app, ctx);
   // chaveamento do mata-mata `/v1/competitions/{id}/seasons/{season}/bracket` (#829) — módulo core_data
   await bracketRoutes(app, ctx);
   await eventRoutes(app, ctx);
@@ -46,6 +50,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
   await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
+  // vai e vem do mercado `/v1/teams|competitions/{id}/transfers` (#832) — módulo core_data
+  await transferRoutes(app, ctx);
   // semântica (#45, #43) e multiesporte (#75, #78) — módulos `semantic` e `multisport`
   await semanticRoutes(app, ctx);
   await copyRoutes(app, ctx);

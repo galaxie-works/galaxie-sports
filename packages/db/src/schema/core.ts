@@ -573,6 +573,9 @@ export const personTransfer = core.table(
     unique('person_transfer_uq')
       .on(t.personId, t.date, t.fromParticipantId, t.toParticipantId, t.type)
       .nullsNotDistinct(),
+    // vai e vem do mercado (#832): chegadas e saídas de um time no período
+    index('person_transfer_to_date_idx').on(t.toParticipantId, t.date),
+    index('person_transfer_from_date_idx').on(t.fromParticipantId, t.date),
   ],
 );
 
@@ -620,6 +623,11 @@ export const competitionTitle = core.table(
     editionQid: text('edition_qid').notNull(),
     /** QID do vencedor no Wikidata. */
     winnerQid: text('winner_qid').notNull(),
+    /**
+     * Nome do vencedor no Wikidata (rótulo em pt, es ou en): o que a galeria de campeões mostra quando ele
+     * não tem time no catálogo (`participant_id` null, ex.: clube extinto).
+     */
+    winnerName: text('winner_name'),
     /** QID da competição no Wikidata. */
     competitionQid: text('competition_qid').notNull(),
     /** `wikidata` (P1346 da edição) ou `curated` (correção de edição com erro na fonte, ver `source_ref`). */

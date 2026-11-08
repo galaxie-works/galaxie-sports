@@ -15,6 +15,7 @@ import {
   TeamSchedule,
   TeamCard,
   TeamSquad,
+  TransferMarket,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -27,6 +28,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  ChampionsGallery,
   CompetitionLeaders,
   PlayerProfile,
   Lineups,
@@ -69,6 +71,7 @@ import {
   ENTITY_TYPES,
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
+  ENTITY_REQUIRED_ANY,
   REQUIRED_ENTITY,
   OFFERED_WIDGET_KINDS,
   WIDGET_KINDS,
@@ -259,6 +262,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'champions_gallery':
+        return <ChampionsGallery {...o} {...WIDGET_CATALOG.champions_gallery.exampleProps} />;
       case 'competition_leaders':
         return <CompetitionLeaders {...WIDGET_CATALOG.competition_leaders.exampleProps} {...o} />;
       case 'countdown':
@@ -276,6 +281,8 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'transfer_market':
+        return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
       case 'bracket':
         return <Bracket {...WIDGET_CATALOG.bracket.exampleProps} {...o} />;
     }
@@ -315,6 +322,8 @@ function PreviewWidget({
       return <RaceWeekend {...o} eventId={entity.id} />;
     case 'season_calendar':
       return <SeasonCalendar {...o} competitionId={entity.id} />;
+    case 'champions_gallery':
+      return <ChampionsGallery {...o} competitionId={entity.id} />;
     case 'athlete_profile':
       return <AthleteProfile {...o} teamId={entity.id} />;
     case 'team_squad':
@@ -329,6 +338,12 @@ function PreviewWidget({
       return <PlayerProfile {...o} personId={entity.id} />;
     case 'lineups':
       return <Lineups {...o} eventId={entity.id} />;
+    case 'transfer_market':
+      return entity.type === 'team' ? (
+        <TransferMarket {...o} teamId={entity.id} />
+      ) : (
+        <TransferMarket {...o} competitionId={entity.id} />
+      );
     case 'bracket':
       return <Bracket season="current" {...o} competitionId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
@@ -663,9 +678,14 @@ export function WidgetEditor({
                       onChange={(v) => set('entity', v)}
                     />
                     <FieldDescription>
-                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                      })}
+                      {fill(
+                        REQUIRED_ENTITY[draft.kind] || ENTITY_REQUIRED_ANY.has(draft.kind)
+                          ? e.entityHintRequired
+                          : e.entityHint,
+                        {
+                          types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                        },
+                      )}
                     </FieldDescription>
                   </Field>
                 ) : null}

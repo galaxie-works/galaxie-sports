@@ -4,7 +4,14 @@
  */
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { competition, competitionTitle, competitionTitleCoverage, sport, type Database } from '@galaxie/db';
+import {
+  changeFeed,
+  competition,
+  competitionTitle,
+  competitionTitleCoverage,
+  sport,
+  type Database,
+} from '@galaxie/db';
 import {
   coverageOf,
   saveTitles,
@@ -51,6 +58,7 @@ const rowsOf = (list: Edition[]): TitleRow[] =>
     decidedOn: e.decidedOn!,
     editionQid: e.qid,
     winnerQid: e.winners[0]!,
+    winnerName: `Clube ${e.winners[0]!}`,
     competitionQid: COMPETITION.qid,
     source: 'wikidata',
     sourceRef: null,
@@ -104,5 +112,27 @@ describe('títulos: proteção contra a fonte vazia', () => {
     expect(await stored()).toEqual(years.slice(1));
     expect(await save(editions([2020]), { allowDrop: true })).toMatchObject({ titles: 1, skipped: [] });
     expect(await stored()).toEqual([2020]);
+  });
+});
+
+describe('títulos: limpeza do cache da galeria de campeões', () => {
+  const published = async () =>
+    (
+      await db
+        .select({ id: changeFeed.entityId })
+        .from(changeFeed)
+        .where(eq(changeFeed.entityId, libertadores))
+    ).length;
+
+  it('publica a mudança só quando a lista ou a cobertura da competição muda', async () => {
+    const list = editions([2018, 2019, 2020]);
+    await save(list, { allowDrop: true });
+    const n = await published();
+    // mesma lista de novo: nada muda, nada é publicado
+    expect(await save(list)).toMatchObject({ changed: [] });
+    expect(await published()).toBe(n);
+    // um campeão novo: a competição é publicada uma vez
+    expect(await save(editions([2018, 2019, 2020, 2021]))).toMatchObject({ changed: [libertadores] });
+    expect(await published()).toBe(n + 1);
   });
 });

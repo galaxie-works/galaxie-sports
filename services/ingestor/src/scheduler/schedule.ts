@@ -57,6 +57,16 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     heapMb: 64,
   },
   {
+    name: 'sync-mirror',
+    description:
+      'Espelho da api-sports (DAILY): renova no ritmo de cada endpoint o que o sync diário não busca (tabela oficial, artilharia, rodadas, times, lesões, estatísticas de time, estádios, palpites, odds, referência e elencos tier 2+ do futebol; temporada, classificação, times, elencos, estatísticas por jogo e odds das outras 11 APIs), até 20% da cota de cada API',
+    // 08:00 UTC: fora da janela de jogos das Américas (o Governor não reserva cota do ao vivo por horário)
+    cron: '0 8 * * *',
+    script: 'dist/cli/sync-mirror.js',
+    args: [],
+    timeoutMs: 180 * MINUTE,
+  },
+  {
     name: 'normalize-football',
     description: 'Normalização incremental raw → core do futebol (sem chamadas ao fornecedor)',
     cron: '35 0 * * *',

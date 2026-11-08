@@ -51,11 +51,13 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'champions_gallery',
   'competition_leaders',
   'countdown',
   'team_squad',
   'player_profile',
   'lineups',
+  'transfer_market',
   'bracket',
 ] as const satisfies readonly WidgetKind[];
 
@@ -107,11 +109,14 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  champions_gallery: ['competition'],
   competition_leaders: ['competition'],
   countdown: ['event'],
   team_squad: ['team'],
   player_profile: ['person'],
   lineups: ['event'],
+  // vai e vem do mercado: de um time ou dos times de um campeonato
+  transfer_market: ['team', 'competition'],
   bracket: ['competition'],
 };
 
@@ -148,13 +153,19 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  champions_gallery: 'competition',
   competition_leaders: 'competition',
   countdown: 'event',
   team_squad: 'team',
   player_profile: 'person',
   lineups: 'event',
+  // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
+  transfer_market: null,
   bracket: 'competition',
 };
+
+/** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
+export const ENTITY_REQUIRED_ANY: ReadonlySet<WidgetKind> = new Set<WidgetKind>(['transfer_market']);
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 
@@ -361,7 +372,8 @@ export function parseWidgetInput(
     if (!opts.entityTypes(r.kind).includes(type) || typeof id !== 'string' || !ENTITY_ID.test(id))
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
-  } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
+  } else if (REQUIRED_ENTITY[r.kind] || ENTITY_REQUIRED_ANY.has(r.kind))
+    return { ok: false, error: 'entityRequired' };
   // esporte: só nos tipos de todos os esportes, e no formato da API (`sports` do plano a API confere)
   if (d.sport !== undefined && d.sport !== null) {
     const sport = sportOf(r.kind, d.sport);
@@ -472,11 +484,13 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  champions_gallery: 'GalaxieChampionsGallery',
   competition_leaders: 'GalaxieCompetitionLeaders',
   countdown: 'GalaxieCountdown',
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
   lineups: 'GalaxieLineups',
+  transfer_market: 'GalaxieTransferMarket',
   bracket: 'GalaxieBracket',
 };
 

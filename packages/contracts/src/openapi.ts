@@ -19,6 +19,7 @@ import {
   Venue,
 } from './catalog.js';
 import { accountPaths } from './account.js';
+import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
@@ -60,6 +61,7 @@ import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import { equestrianPaths } from './openapi-equestrian.js';
+import { transferPaths } from './openapi-transfers.js';
 import {
   Person,
   PersonOverview,
@@ -231,6 +233,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...multisportPaths(),
       ...navigationPaths(),
       ...equestrianPaths(),
+      ...transferPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },
@@ -267,6 +270,24 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: StandingsParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/competitions/{id}/champions': {
+        get: {
+          ...getOp(
+            'Galeria de campeões: quem ganhou cada edição e quem tem mais títulos',
+            'Catálogo',
+            CompetitionChampions,
+            { path: ChampionsParams, query: ChampionsQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Campeão de cada edição, da mais recente para trás, a partir da lista de campeões importada e ' +
+            'conferida (Wikidata, com correções curadas). `ranking` traz quem tem mais títulos e só vem quando a ' +
+            'lista está completa, sem ano faltando; o campeão sem time no catálogo (clube extinto) aparece pelo nome ' +
+            'do Wikidata. Com `runner_up=true`, o vice de cada edição sai da final da temporada ou do 2º lugar da ' +
+            'tabela única encerrada, quando o banco tem a temporada e o campeão bate com ela. ' +
+            'Competição sem lista de campeões devolve 200 com as listas vazias. Cache de 24 h.',
+        },
       },
       '/v1/competitions/{id}/seasons/{season}/leaders': {
         get: {

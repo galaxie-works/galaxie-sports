@@ -15,6 +15,7 @@ A operadora monta o widget com a identidade dela na demo e instala no app dela c
 | `team_schedule`  | `TeamSchedule`   | `GalaxieTeamSchedule`   | `teamId`            | `/v1/teams/{id}/events`                              |
 | `team_card`      | `TeamCard`       | `GalaxieTeamCard`       | `teamId`            | `/v1/teams/{id}/overview`                            |
 | `team_squad`     | `TeamSquad`      | `GalaxieTeamSquad`      | `teamId`            | `/v1/teams/{id}/squad`, `/v1/teams/{id}`             |
+| `transfer_market` | `TransferMarket` | `GalaxieTransferMarket` | `teamId` ou `competitionId` | `/v1/teams/{id}/transfers`, `/v1/competitions/{id}/transfers` |
 | `bracket` | `Bracket` | `GalaxieBracket` | `competitionId` | `/v1/competitions/{id}/seasons/{s}/bracket` |
 
 Sem módulo indicado, a rota é do `core_data`. Uma chave publicável presa a um widget só alcança os módulos do

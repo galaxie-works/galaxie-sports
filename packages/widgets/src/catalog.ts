@@ -27,12 +27,14 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
 
 import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
+import type { TransferMarketProps } from './widgets/transfer-market.js';
 import type { BracketProps } from './widgets/bracket.js';
 
 export interface WidgetPropsByKind {
@@ -63,11 +65,13 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  champions_gallery: ChampionsGalleryProps;
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
   player_profile: PlayerProfileProps;
   lineups: LineupsProps;
   competition_leaders: CompetitionLeadersProps;
+  transfer_market: TransferMarketProps;
   bracket: BracketProps;
 }
 
@@ -102,11 +106,13 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'GamesSchedule'
     | 'CountryAthletes'
     | 'MedalHistory'
+    | 'ChampionsGallery'
     | 'Countdown'
     | 'TeamSquad'
     | 'PlayerProfile'
     | 'Lineups'
     | 'CompetitionLeaders'
+    | 'TransferMarket'
     | 'Bracket';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
@@ -669,6 +675,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: false,
     sports: MULTISPORT_ONLY,
   },
+  champions_gallery: {
+    kind: 'champions_gallery',
+    component: 'ChampionsGallery',
+    registryComponent: 'GalaxieChampionsGallery',
+    name: { 'pt-BR': 'Galeria de campeões', es: 'Galería de campeones', en: 'Roll of honour' },
+    description: {
+      'pt-BR':
+        'Quem ganhou cada edição do campeonato, ano a ano, com o escudo, o vice e o ranking de quem tem mais títulos.',
+      es: 'Quién ganó cada edición del torneo, año a año, con el escudo, el subcampeón y el ranking de más títulos.',
+      en: 'Who won each edition of the competition, year by year, with the crest, the runner-up and the most titles.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: ['limit', 'showRanking', 'rankingLimit', 'showRunnerUp'],
+    exampleProps: { competitionId: PREVIEW_IDS.competition },
+    polling: false,
+    // só o futebol tem lista de campeões importada (Wikidata); abrir aos outros esportes quando houver fonte
+    sports: FOOTBALL_ONLY,
+  },
   countdown: {
     kind: 'countdown',
     component: 'Countdown',
@@ -778,6 +802,33 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
       'highlightTeamId',
     ],
     exampleProps: { competitionId: PREVIEW_IDS.competition, season: 'current' },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
+  transfer_market: {
+    kind: 'transfer_market',
+    component: 'TransferMarket',
+    registryComponent: 'GalaxieTransferMarket',
+    name: { 'pt-BR': 'Vai e vem do mercado', es: 'Altas y bajas del mercado', en: 'Transfer market' },
+    description: {
+      'pt-BR':
+        'Contratações e saídas recentes de um time ou de um campeonato, com data, clube de origem ou destino e tipo.',
+      es: 'Fichajes y salidas recientes de un equipo o de una competición, con fecha, club de origen o destino y tipo.',
+      en: 'Recent signings and departures for a team or a competition, with date, origin or destination club and type.',
+    },
+    requiredProps: [],
+    optionalProps: [
+      'teamId',
+      'competitionId',
+      'direction',
+      'days',
+      'limit',
+      'groupByDirection',
+      'showType',
+      'showPhoto',
+      'showDate',
+    ],
+    exampleProps: { teamId: PREVIEW_IDS.team },
     polling: false,
     sports: FOOTBALL_ONLY,
   },

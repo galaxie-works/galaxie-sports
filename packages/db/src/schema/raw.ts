@@ -56,6 +56,14 @@ export const apiResponse = raw.table(
     index('api_response_fetched_at_idx').on(t.fetchedAt),
     // frescor por esporte (métrica galaxie_raw_last_fetched_timestamp_seconds)
     index('api_response_seen_idx').on(t.sport, sql`coalesce(${t.lastSeenAt}, ${t.fetchedAt})`),
+    // frescor por endpoint (métrica galaxie_raw_endpoint_last_fetched_timestamp_seconds): a última busca de cada
+    // endpoint é uma descida só no índice, sem varrer o raw
+    index('api_response_endpoint_seen_idx').on(
+      t.provider,
+      t.sport,
+      t.endpoint,
+      sql`coalesce(${t.lastSeenAt}, ${t.fetchedAt})`,
+    ),
     // candidatas da retenção do ao vivo (raw-retention)
     index('api_response_live_seen_idx')
       .on(sql`coalesce(${t.lastSeenAt}, ${t.fetchedAt})`)
