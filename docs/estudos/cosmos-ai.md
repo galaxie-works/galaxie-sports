@@ -136,7 +136,7 @@ Referências de mercado (preço de lista, novembro de 2026):
 
 Uma ação média da Cosmos sai entre US$ 0,04 e 0,06 para o cliente, e na moderação só a dúvida paga: regras e classificador decidem o resto de graça. O Canadá paga em dólar americano no começo.
 
-Cobrança pelo Stripe da Galaxie Works LLC, com Pix e cartão. Custos, margens e o desenho da cobrança (impostos, taxas, limites) estão no documento interno `cosmos-ai-custos-e-cobranca.md` da repo privada galaxie-sports-interno.
+Cobrança pelo Stripe da Galaxie Works LLC, com Pix e cartão. Custos, margens e o desenho da cobrança (impostos, taxas, limites) estão no documento interno `cosmos-ai/custos-e-cobranca.md` da repo privada galaxie-sports-interno.
 
 ## 4. A Cosmos no app todo
 
