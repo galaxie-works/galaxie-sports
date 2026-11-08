@@ -159,8 +159,9 @@ async function fixtureInjuries(
   // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
   // liga na temporada. Vale só a resposta mais recente entre elas, inteira: a lista refeita tira quem voltou
   // (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
-  // resposta vazia também vale para o jogo e para o dia: a lista saiu e não tem ninguém. A da liga não: ela traz
-  // só os jogos cuja lista já saiu, então sem nenhum item do jogo ela não diz nada sobre ele.
+  // resposta vazia só vale na requisição do próprio jogo (a lista saiu e não tem ninguém). As do dia e da liga não:
+  // elas trazem só os jogos com lista (e só das ligas com cobertura de lesões), então sem nenhum item do jogo não
+  // dizem nada sobre ele.
   const [snap] = await db.execute<{ id: number }>(sql`
     select latest.id
       from (select distinct on (r.request_hash) r.id, r.params, r.body,
@@ -171,7 +172,7 @@ async function fixtureInjuries(
                     ${leagueCond})
              order by r.request_hash, r.fetched_at desc) latest
      where jsonb_typeof(latest.body->'response') = 'array'
-       and (latest.params->>'fixture' is not null or latest.params->>'date' is not null
+       and (latest.params->>'fixture' is not null
             or exists (select 1 from jsonb_array_elements(latest.body->'response') x
                         where (x->'fixture'->>'id') = ${String(fixturePid)}))
      order by latest.seen desc

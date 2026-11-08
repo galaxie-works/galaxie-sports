@@ -251,6 +251,12 @@ async function seed() {
     [{ ...injury(998, 'Outra Liga', 2, 'Missing Fixture', 'Knock'), fixture: { id: 4321 } }],
     new Date('2026-11-06T12:00:00Z'),
   );
+  // e a lista do dia dele saiu sem ele (liga sem cobertura de lesões): também não conta como vazia
+  await insertRaw(
+    { date: '2026-11-21' },
+    [{ ...injury(997, 'Outro Dia', 2, 'Missing Fixture', 'Knock'), fixture: { id: 5432 } }],
+    new Date('2026-11-06T13:00:00Z'),
+  );
   // lista do jogo 9002 publicada e vazia
   await insertRaw({ fixture: '9002' }, [], new Date('2026-11-06T06:00:00Z'));
   // a lista da temporada (mais antiga) e a do dia (mais nova, sem o Davi como dúvida → agora fora)
@@ -363,7 +369,7 @@ describe('disponibilidade', () => {
     expect(body.teams.flatMap((t) => t.players)).toEqual([]);
   });
 
-  it('sem lista e sem histórico: indisponível (a lista da liga sem o jogo não conta como vazia)', async () => {
+  it('sem lista e sem histórico: indisponível (as listas da liga e do dia sem o jogo não contam como vazias)', async () => {
     const body = await get<EventSidelined>(`/v1/events/${ids.event3}/sidelined`);
     expect(body.available).toBe(false);
   });
