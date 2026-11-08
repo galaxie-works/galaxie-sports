@@ -573,6 +573,9 @@ export const personTransfer = core.table(
     unique('person_transfer_uq')
       .on(t.personId, t.date, t.fromParticipantId, t.toParticipantId, t.type)
       .nullsNotDistinct(),
+    // vai e vem do mercado (#832): chegadas e saídas de um time no período
+    index('person_transfer_to_date_idx').on(t.toParticipantId, t.date),
+    index('person_transfer_from_date_idx').on(t.fromParticipantId, t.date),
   ],
 );
 
