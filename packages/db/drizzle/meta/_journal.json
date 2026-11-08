@@ -502,8 +502,15 @@
     {
       "idx": 71,
       "version": "7",
-      "when": 1794066899676,
-      "tag": "0073_palpites_e_odds",
+      "when": 1794066910112,
+      "tag": "0073_indices_transferencias",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794097549898,
+      "tag": "0074_palpites_e_odds",
       "breakpoints": true
     }
   ]

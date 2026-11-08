@@ -22,6 +22,7 @@ import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixture
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { championsPreviewBody } from './fixtures-champions.js';
 import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
+import { transfersPreviewBody } from './fixtures-transfers.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 import { previewLeaders } from './fixtures-leaders.js';
 import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
@@ -753,6 +754,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (champions !== null) return json(champions);
     const player = playerPreviewBody(url, now);
     if (player !== null) return json(player);
+    const transfers = transfersPreviewBody(url, now);
+    if (transfers !== null) return json(transfers);
     const f = createPreviewFixtures(now, options.sport);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);

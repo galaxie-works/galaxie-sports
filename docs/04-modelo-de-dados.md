@@ -128,7 +128,7 @@ Cada esporte mantém tabelas fiéis à estrutura da api-sports para os dados ric
 
 ### 2.4 Palpites e odds por jogo
 
-Do `/predictions?fixture=` e do `/odds?fixture=` (nos outros esportes `/odds?game=`) da api-sports, gravados pelo `afterFetch` do espelho diário (`upsertMarkets` em `@galaxie/core-writer`; reconstrução pelo raw: `normalize:markets`). O dado fica inteiro, mas na nossa organização: jogo, times e casas pelos nossos IDs (resolvidos pelo `provider_map`), percentuais e odds como números, mercados e seleções com chaves nossas. Resposta vazia não apaga o último estado; resposta mais velha que a gravada não sobrescreve (`observed_at`). Migration 0073.
+Do `/predictions?fixture=` e do `/odds?fixture=` (nos outros esportes `/odds?game=`) da api-sports, gravados pelo `afterFetch` do espelho diário (`upsertMarkets` em `@galaxie/core-writer`; reconstrução pelo raw: `normalize:markets`). O dado fica inteiro, mas na nossa organização: jogo, times e casas pelos nossos IDs (resolvidos pelo `provider_map`), percentuais e odds como números, mercados e seleções com chaves nossas. Resposta vazia não apaga o último estado; resposta mais velha que a gravada não sobrescreve (`observed_at`). Migration 0074.
 
 | Tabela | Campos-chave | Observação |
 |---|---|---|

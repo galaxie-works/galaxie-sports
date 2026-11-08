@@ -43,6 +43,7 @@ export class PgSportMirrorSource implements SportMirrorSource {
         current: s.current,
         startDate: s.startDate,
         endDate: s.endDate,
+        coverage: s.coverage,
       })),
     );
   }
@@ -55,9 +56,12 @@ export class PgSportMirrorSource implements SportMirrorSource {
       tier: number;
       status: string;
       starts_at: string | Date;
+      session: string | null;
     }>(sql`
-      select pe.provider_id as id, pc.provider_id as league, s.year, c.tier, e.status::text as status, e.starts_at
+      select pe.provider_id as id, pc.provider_id as league, s.year, c.tier, e.status::text as status, e.starts_at,
+        d.summary->>'type' as session
       from core.event e
+      left join core.sport_event_detail d on d.event_id = e.id
       join core.competition c on c.id = e.competition_id
       join core.season s on s.id = e.season_id
       join core.provider_map pe on pe.entity_type = 'event' and pe.entity_id = e.id
@@ -78,6 +82,7 @@ export class PgSportMirrorSource implements SportMirrorSource {
         tier: Number(r.tier),
         status: r.status,
         startsAt: new Date(r.starts_at),
+        session: r.session ?? null,
       }));
   }
 

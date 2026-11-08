@@ -8,7 +8,7 @@ import { GalaxieWidgetProvider } from './core/react.js';
 import { EMBED_TAG, defineGalaxieWidgetElement, type EmbedConfig } from './embed/element.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { parseWidgetOptions, widgetOptionsFor } from './options.js';
-import { TeamCard, hasActiveMatch, pickCompetitions } from './widgets/team-card.js';
+import { TeamCard, cardRefreshMs, hasActiveMatch, pickCompetitions } from './widgets/team-card.js';
 
 afterEach(() => {
   cleanup();
@@ -143,6 +143,20 @@ describe('TeamCard', () => {
     expect(hasActiveMatch(next('live'))).toBe(true);
     expect(hasActiveMatch(next('scheduled'))).toBe(false);
     expect(hasActiveMatch({ ...base, next_event: null })).toBe(false);
+  });
+
+  it('com o próximo jogo agendado, acorda perto do início em vez de esperar 15 min', () => {
+    const now = Date.parse('2026-11-07T12:00:00Z');
+    const at = (min: number) => new Date(now + min * 60_000).toISOString();
+    const base = { standings: [], form: [], live_event: null };
+    const next = (min: number) => ({
+      ...base,
+      next_event: { id: 'x', status: 'scheduled', starts_at: at(min) } as never,
+    });
+    expect(cardRefreshMs(next(10), now)).toBe(60_000);
+    expect(cardRefreshMs(next(40), now)).toBeLessThanOrEqual(10 * 60_000);
+    expect(cardRefreshMs(next(3 * 24 * 60), now)).toBe(15 * 60_000);
+    expect(cardRefreshMs({ ...base, next_event: null }, now)).toBe(15 * 60_000);
   });
 
   it.each([
