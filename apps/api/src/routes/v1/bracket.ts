@@ -168,6 +168,7 @@ export async function bracketRoutes(app: FastifyInstance, ctx: AppContext): Prom
           participants,
           locale,
           tz,
+          now: ctx.now(),
           tieRules: (st) => tieRulesOf(rules, st, seedRows),
         });
 

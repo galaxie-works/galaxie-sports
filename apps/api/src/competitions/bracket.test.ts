@@ -218,7 +218,8 @@ describe('chaveamento do mata-mata', () => {
     expect(rounds).toEqual([]);
   });
 
-  it('série sem regulamento: melhor de 5 listada inteira fecha em 3 vitórias; melhor de 3 em 2', () => {
+  it('série sem regulamento: o tamanho sai dos jogos do par só quando os que sobram já passaram ou foram cancelados', () => {
+    const later = day(30);
     const bo5 = [
       match('g1', 'p', 'a', 'b', 0, [3, 1]),
       match('g2', 'p', 'a', 'b', 2, [3, 0]),
@@ -226,25 +227,53 @@ describe('chaveamento do mata-mata', () => {
       match('g4', 'p', 'b', 'a', 6, null),
       match('g5', 'p', 'a', 'b', 8, null),
     ];
-    expect(buildTie('p', bo5, { ...opts, sport: 'volleyball' })).toMatchObject({
+    const volley = { ...opts, sport: 'volleyball' };
+    // os "se necessário" passaram do horário sem ser jogados: melhor de 5, fecha em 3×0
+    expect(buildTie('p', bo5, { ...volley, now: later })).toMatchObject({
       status: 'decided',
       winner_id: 'a',
       wins: { home: 3, away: 0 },
     });
-    const bo3 = [
-      match('g1', 'p', 'a', 'b', 0, [80, 70]),
-      match('g2', 'p', 'b', 'a', 2, [70, 80]),
-      match('g3', 'p', 'a', 'b', 4, null),
-    ];
-    expect(buildTie('p', bo3, { ...opts, sport: 'basketball' })).toMatchObject({
-      status: 'decided',
-      winner_id: 'a',
-    });
-    // sem os jogos "se necessário" listados (par), não chuta: 2×0 numa série de tamanho desconhecido segue aberta
-    expect(buildTie('p', bo3.slice(0, 2), { ...opts, sport: 'basketball' })).toMatchObject({
+    // ainda no futuro: pode ser uma série maior listada aos poucos, segue aberta
+    expect(buildTie('p', bo5, { ...volley, now: day(5) })).toMatchObject({
       status: 'in_progress',
       winner_id: null,
     });
+    // melhor de 3 em 2×0 com o jogo 3 cancelado pelo fornecedor
+    const bo3 = [match('g1', 'p', 'a', 'b', 0, [80, 70]), match('g2', 'p', 'b', 'a', 2, [70, 80])];
+    const basket = { ...opts, sport: 'basketball' };
+    expect(buildTie('p', bo3, { ...basket, now: day(3), cancelledLegs: 1 })).toMatchObject({
+      status: 'decided',
+      winner_id: 'a',
+    });
+    // 3×1 numa melhor de 7 listada aos poucos, com só o jogo 5 (futuro) listado: não fecha
+    const bo7 = [
+      match('h1', 'p', 'a', 'b', 0, [100, 90]),
+      match('h2', 'p', 'a', 'b', 2, [100, 90]),
+      match('h3', 'p', 'b', 'a', 4, [100, 90]),
+      match('h4', 'p', 'b', 'a', 6, [80, 90]),
+      match('h5', 'p', 'a', 'b', 8, null),
+    ];
+    expect(buildTie('p', bo7, { ...basket, now: day(7) })).toMatchObject({
+      status: 'in_progress',
+      winner_id: null,
+      wins: { home: 3, away: 1 },
+    });
+    // pelo buildBracket: o cancelado entra na conta da série
+    const rounds = buildBracket({
+      sport: 'basketball',
+      stages: [stage('sf', 'semi_final', 11000)],
+      matches: [
+        ...bo3.map((m) => ({ ...m, stageId: 'sf' })),
+        match('g3', 'sf', 'a', 'b', 4, null, { status: 'cancelled' }),
+      ],
+      participants,
+      locale: 'pt-BR',
+      tz: 'UTC',
+      now: day(3),
+    });
+    expect(rounds[0]!.ties[0]).toMatchObject({ status: 'decided', winner_id: 'a' });
+    expect(rounds[0]!.ties[0]!.legs).toHaveLength(2);
   });
 
   describe('desempates do regulamento (config/rules)', () => {

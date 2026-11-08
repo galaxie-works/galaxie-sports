@@ -80,6 +80,8 @@ export interface BuildBracketInput {
   participants: Map<string, BracketParticipant>;
   locale: string;
   tz: string;
+  /** Agora (para saber se um jogo "se necessário" já passou do horário sem ser jogado). */
+  now?: Date;
   /** Regulamento da fase (`knockoutStageRules`), quando houver. */
   tieRules?: (stage: BracketStage) => TieRules | null;
 }
@@ -211,6 +213,9 @@ export function buildTie(
     rules: TieRules | null;
     /** Todos os jogos da fase acabaram (fecha a série sem número de jogos conhecido). */
     stageDone: boolean;
+    now?: Date;
+    /** Jogos do par que o fornecedor cancelou (os "se necessário" de uma série já fechada). */
+    cancelledLegs?: number;
   },
 ): BracketTie {
   const rules = opts.rules;
@@ -242,12 +247,16 @@ export function buildTie(
       else if (w === away) wins.away!++;
     }
     const lead = Math.max(wins.home!, wins.away!);
-    // melhor de N: pelo regulamento; sem ele, pelos jogos do par quando o fornecedor já lista a série inteira
-    // (N ímpar, com os "se necessário" agendados). Jogos "se necessário" não seguram a série: 4 vitórias fecham
-    // a melhor de 7 na hora. O resto fecha com a fase encerrada ou quando o time aparece na fase seguinte
-    // (`advanceFromNextRounds`)
-    const listed =
-      legs.length % 2 === 1 && legs.length >= 3 && legs.some((l) => !started(l)) ? legs.length : null;
+    // melhor de N: pelo regulamento; sem ele, pelos jogos do par (N ímpar) só quando os que sobram já passaram
+    // do horário sem ser jogados ou foram cancelados, sinal de que a série acabou. Um jogo futuro pode ser só o
+    // próximo de uma série maior listada aos poucos (3×1 com só o jogo 5 listado não fecha a melhor de 7). Jogos
+    // "se necessário" não seguram a série: 4 vitórias fecham a melhor de 7 na hora. O resto fecha com a fase
+    // encerrada ou quando o time aparece na fase seguinte (`advanceFromNextRounds`)
+    const cancelled = opts.cancelledLegs ?? 0;
+    const n = legs.length + cancelled;
+    const pending = legs.filter((l) => !started(l));
+    const overdue = pending.every((l) => !!opts.now && l.startsAt.getTime() < opts.now.getTime());
+    const listed = n % 2 === 1 && n >= 3 && pending.length + cancelled > 0 && overdue ? n : null;
     const bestOf = expectedLegs ?? listed;
     const needed = bestOf ? Math.floor(bestOf / 2) + 1 : null;
     const playedDone = legs.filter(started).every((l) => l.status === 'finished');
@@ -336,8 +345,15 @@ export function buildBracket(input: BuildBracketInput): Round[] {
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }
   const matchesByStage = new Map<string, BracketMatch[]>();
+  // jogos cancelados de cada par (por fase): ficam fora do confronto, mas contam no tamanho da série
+  const cancelledBy = new Map<string, number>();
   for (const m of input.matches) {
-    if (m.status === 'cancelled' || !m.homeId || !m.awayId) continue;
+    if (!m.homeId || !m.awayId) continue;
+    if (m.status === 'cancelled') {
+      const k = `${m.stageId}|${pairKey(m.homeId, m.awayId)}`;
+      cancelledBy.set(k, (cancelledBy.get(k) ?? 0) + 1);
+      continue;
+    }
     matchesByStage.set(m.stageId, [...(matchesByStage.get(m.stageId) ?? []), m]);
   }
 
@@ -373,13 +389,15 @@ export function buildBracket(input: BuildBracketInput): Round[] {
     for (let d = 1; d <= maxDepth; d++) {
       const pairs = [...byPair].filter(([k]) => depthOf.get(k) === d);
       if (!pairs.length) continue;
-      const ties = pairs.map(([, legs]) =>
+      const ties = pairs.map(([k, legs]) =>
         buildTie(head.id, legs, {
           sport: input.sport,
           participants: input.participants,
           tz: input.tz,
           rules,
           stageDone,
+          ...(input.now ? { now: input.now } : {}),
+          cancelledLegs: group.reduce((sum, st) => sum + (cancelledBy.get(`${st.id}|${k}`) ?? 0), 0),
         }),
       );
       let kind = head.kind;
