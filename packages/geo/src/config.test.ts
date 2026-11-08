@@ -63,7 +63,21 @@ describe('config/geo do repositório', () => {
   });
 
   it('mercados ativos da relevância por país: os 10 da CONMEBOL + México, EUA e Canadá', () => {
-    expect(geo.markets).toEqual(['BR', 'AR', 'UY', 'CL', 'CO', 'PY', 'PE', 'EC', 'BO', 'VE', 'MX', 'US', 'CA']);
+    expect(geo.markets).toEqual([
+      'BR',
+      'AR',
+      'UY',
+      'CL',
+      'CO',
+      'PY',
+      'PE',
+      'EC',
+      'BO',
+      'VE',
+      'MX',
+      'US',
+      'CA',
+    ]);
   });
 
   it('navegação: os 12 esportes, um por catálogo de competições, futebol primeiro', () => {
