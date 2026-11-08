@@ -17,6 +17,7 @@ import landing from './messages/landing';
 import equestrian from './messages/equestrian';
 import media from './messages/media';
 import event from './messages/event';
+import feedback from './messages/feedback';
 import lineup from './messages/lineup';
 import live from './messages/live';
 import nav from './messages/nav';
@@ -47,6 +48,7 @@ export const NAMESPACES = {
   email,
   equestrian,
   event,
+  feedback,
   landing,
   lineup,
   live,
@@ -93,6 +95,7 @@ export const CLIENT_NAMESPACES = [
   'common',
   'crests',
   'docsUi',
+  'feedback',
   'lineup',
   'live',
   'media',

@@ -88,6 +88,8 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
   { path: '/times', owner: 'site' },
   // vídeo recusado no player do jogo
   { path: '/api/related', owner: 'site' },
+  // imagem anexada a uma sugestão do app (link assinado que vai na issue)
+  { path: '/api/feedback', owner: 'site' },
   // revalidação do cache pelo seguidor do change feed, que só roda no site (o console não tem o cache do explorador)
   { path: '/api/interno', owner: 'site' },
 ];
