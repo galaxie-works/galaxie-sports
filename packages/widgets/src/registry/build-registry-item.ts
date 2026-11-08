@@ -151,6 +151,9 @@ function defaultProps(
       return pick(['competitionId']);
     case 'player_profile':
       return pick(['personId']);
+    // vai e vem do mercado: o time ou o campeonato escolhido no Builder
+    case 'transfer_market':
+      return pick(['teamId', 'competitionId']);
     // hipismo, Jogos e clássicos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':

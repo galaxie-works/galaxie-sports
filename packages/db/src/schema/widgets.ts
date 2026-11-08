@@ -40,6 +40,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'transfer_market',
   'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];

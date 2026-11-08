@@ -15,6 +15,7 @@ import {
   TeamSchedule,
   TeamCard,
   TeamSquad,
+  TransferMarket,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -70,6 +71,7 @@ import {
   ENTITY_TYPES,
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
+  ENTITY_REQUIRED_ANY,
   REQUIRED_ENTITY,
   OFFERED_WIDGET_KINDS,
   WIDGET_KINDS,
@@ -279,6 +281,8 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'transfer_market':
+        return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
       case 'upcoming_derbies':
         return <UpcomingDerbies {...o} />;
     }
@@ -334,6 +338,12 @@ function PreviewWidget({
       return <PlayerProfile {...o} personId={entity.id} />;
     case 'lineups':
       return <Lineups {...o} eventId={entity.id} />;
+    case 'transfer_market':
+      return entity.type === 'team' ? (
+        <TransferMarket {...o} teamId={entity.id} />
+      ) : (
+        <TransferMarket {...o} competitionId={entity.id} />
+      );
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -669,9 +679,14 @@ export function WidgetEditor({
                       onChange={(v) => set('entity', v)}
                     />
                     <FieldDescription>
-                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                      })}
+                      {fill(
+                        REQUIRED_ENTITY[draft.kind] || ENTITY_REQUIRED_ANY.has(draft.kind)
+                          ? e.entityHintRequired
+                          : e.entityHint,
+                        {
+                          types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                        },
+                      )}
                     </FieldDescription>
                   </Field>
                 ) : null}

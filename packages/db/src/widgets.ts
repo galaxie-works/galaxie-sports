@@ -61,6 +61,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   team_squad: ['core_data'],
   player_profile: ['core_data'],
   lineups: ['core_data'],
+  transfer_market: ['core_data'],
   // clássicos (base semântica) com o retrospecto e onde assistir de cada jogo
   upcoming_derbies: ['core_data', 'semantic', 'where_to_watch'],
 };

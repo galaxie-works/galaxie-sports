@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  ArrowLeftRight,
   Award,
   CalendarCheck,
   CalendarClock,
@@ -106,6 +107,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   team_squad: Shirt,
   player_profile: IdCard,
   lineups: LayoutGrid,
+  transfer_market: ArrowLeftRight,
   upcoming_derbies: Flame,
 };
 

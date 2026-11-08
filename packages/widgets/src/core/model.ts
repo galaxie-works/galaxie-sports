@@ -39,6 +39,7 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'transfer_market',
   'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -561,6 +562,29 @@ export interface GsPersonOverview {
   }[];
   transfers: { date: string | null; type: string | null; from: GsTransferTeam; to: GsTransferTeam }[];
   trophies?: { league: string; country: string | null; season: string; place: string | null }[] | undefined;
+}
+
+/** Vai e vem do mercado (`/v1/teams|competitions/{id}/transfers`, #832). */
+export type GsTransferKind = 'loan' | 'loan_return' | 'free' | 'fee' | 'transfer';
+export interface GsTransferClub {
+  id: string | null;
+  name: string;
+  logo: string | null;
+}
+export interface GsTransfer {
+  person: { id: string; name: string; photo: string | null };
+  date: string | null;
+  direction: 'in' | 'out';
+  kind: GsTransferKind | null;
+  fee: string | null;
+  type: string | null;
+  from: GsTransferClub;
+  to: GsTransferClub;
+}
+export interface GsTransferList {
+  scope: { type: 'team' | 'competition'; id: string; name: string; logo: string | null };
+  since: string;
+  data: GsTransfer[];
 }
 
 /** Time ou atleta (`/v1/teams/{id}`), só o que o perfil usa. */
@@ -1608,6 +1632,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+.gs-transfer-dir{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;font-size:.8em;font-weight:800;color:#fff;background:#16a34a}
+.gs-transfer-dir[data-dir=out]{background:var(--gs-live)}
 .gs-derbies{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
 .gs-derby{display:flex;flex-direction:column;gap:6px;padding:var(--gs-gap) 0;border-top:1px solid var(--gs-border);min-width:0}
 .gs-derby:first-child{border-top:0;padding-top:0}
@@ -1981,6 +2007,24 @@ export interface WidgetTexts {
     positions: Record<'Goalkeeper' | 'Defender' | 'Midfielder' | 'Attacker', string>;
     places: Record<string, string>;
     transferTypes: Record<string, string>;
+  };
+  /** Vai e vem do mercado: contratações e saídas de um time ou de um campeonato. */
+  transfers: {
+    title: string;
+    /** "Mercado · {name}". */
+    titleOf: string;
+    arrivals: string;
+    departures: string;
+    /** Rótulo curto de quem chegou e de quem saiu (o completo vai no aria-label). */
+    in: string;
+    out: string;
+    /** "de {club}" / "para {club}". */
+    from: string;
+    to: string;
+    kind: Record<'loan' | 'loan_return' | 'free' | 'fee' | 'transfer', string>;
+    empty: string;
+    /** Sem time nem campeonato escolhido. */
+    pick: string;
   };
   /** Clássicos da semana (`/v1/derbies/upcoming`). */
   derbies: {
@@ -2407,6 +2451,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'Back from Loan': 'Fim de empréstimo',
         Transfer: 'Transferência',
       },
+    },
+    transfers: {
+      title: 'Vai e vem do mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Chegadas',
+      departures: 'Saídas',
+      in: 'Chegou',
+      out: 'Saiu',
+      from: 'de {club}',
+      to: 'para {club}',
+      kind: {
+        loan: 'Empréstimo',
+        loan_return: 'Volta de empréstimo',
+        free: 'Sem custo',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Nenhuma transferência no período.',
+      pick: 'Escolha um time ou um campeonato.',
     },
     derbies: {
       title: 'Clássicos da semana',
@@ -2838,6 +2901,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         Transfer: 'Transferencia',
       },
     },
+    transfers: {
+      title: 'Altas y bajas del mercado',
+      titleOf: 'Mercado · {name}',
+      arrivals: 'Llegadas',
+      departures: 'Salidas',
+      in: 'Llegó',
+      out: 'Salió',
+      from: 'de {club}',
+      to: 'a {club}',
+      kind: {
+        loan: 'Préstamo',
+        loan_return: 'Vuelta de préstamo',
+        free: 'Libre',
+        fee: 'Compra',
+        transfer: 'Definitiva',
+      },
+      empty: 'Ningún fichaje en el período.',
+      pick: 'Elige un equipo o una competición.',
+    },
     derbies: {
       title: 'Clásicos de la semana',
       titleDays: 'Clásicos de los próximos {n} días',
@@ -3254,6 +3336,25 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'Back from Loan': 'Loan return',
         Transfer: 'Transfer',
       },
+    },
+    transfers: {
+      title: 'Transfer market',
+      titleOf: 'Transfers · {name}',
+      arrivals: 'Arrivals',
+      departures: 'Departures',
+      in: 'In',
+      out: 'Out',
+      from: 'from {club}',
+      to: 'to {club}',
+      kind: {
+        loan: 'Loan',
+        loan_return: 'Loan return',
+        free: 'Free',
+        fee: 'Fee',
+        transfer: 'Permanent',
+      },
+      empty: 'No transfers in this period.',
+      pick: 'Choose a team or a competition.',
     },
     derbies: {
       title: 'Derbies of the week',
