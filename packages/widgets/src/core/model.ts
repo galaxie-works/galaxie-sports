@@ -1668,7 +1668,7 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-odd{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.6);min-width:0;text-align:center}
 .gs-odd strong{font-size:1.15em;font-variant-numeric:tabular-nums}
 .gs-odd .gs-truncate{max-width:100%}
-.gs-notice{font-size:.8em;color:var(--gs-muted-foreground);border-top:1px solid var(--gs-border);padding-top:6px}
+[data-gs-widget=match_odds] .gs-odds-notice{margin:0;font-size:.8em;color:var(--gs-muted-foreground);border-top:1px solid var(--gs-border);padding-top:6px}
 .gs-prediction-odds{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gs-gap);text-align:center}
 .gs-prediction-odds[data-no-draws]{grid-template-columns:repeat(2,1fr)}
 .gs-prediction-odds strong{font-size:1.4em;font-variant-numeric:tabular-nums}
@@ -2005,8 +2005,10 @@ export interface WidgetTexts {
     no: string;
     /** "Maior {odd}". */
     best: string;
-    /** "Média de {n} casas" (plural). */
+    /** "Média de {n} casas" (plural), no título do mercado quando todas as seleções têm a mesma conta. */
     bookmakers: PluralText;
+    /** "{n} casas" (plural), em cada seleção quando as contas do mercado diferem. */
+    bookmakersShort: PluralText;
     /** Aviso de jogo responsável. */
     notice: string;
     empty: string;
@@ -2492,6 +2494,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       no: 'Não',
       best: 'Maior {odd}',
       bookmakers: { one: 'Média de {n} casa', other: 'Média de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
       notice: '18+ · Aposte com responsabilidade.',
       empty: 'Odds ainda não disponíveis para este jogo.',
       updatedAt: 'Atualizado em',
@@ -2974,6 +2977,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       no: 'No',
       best: 'Máxima {odd}',
       bookmakers: { one: 'Promedio de {n} casa', other: 'Promedio de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
       notice: '+18 · Jugá con responsabilidad.',
       empty: 'Cuotas aún no disponibles para este partido.',
       updatedAt: 'Actualizado el',
@@ -3448,6 +3452,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       no: 'No',
       best: 'Best {odd}',
       bookmakers: { one: 'Average of {n} bookmaker', other: 'Average of {n} bookmakers' },
+      bookmakersShort: { one: '{n} bookmaker', other: '{n} bookmakers' },
       notice: '18+ · Please gamble responsibly.',
       empty: 'Odds not available for this match yet.',
       updatedAt: 'Updated',

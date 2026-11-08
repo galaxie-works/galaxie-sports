@@ -108,12 +108,28 @@ export function MatchOdds({
     () => new Intl.NumberFormat(fmt.intl, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     [fmt.intl],
   );
+  const enabled: Record<GsOddsMarketKey, boolean> = {
+    match_winner: showMatchWinner,
+    double_chance: showDoubleChance,
+    goals_over_under: showGoals,
+    both_teams_score: showBothTeamsScore,
+  };
+  // só os mercados que o widget desenha (a API devolve todos sem o filtro)
+  const wanted = (Object.keys(ORDER) as GsOddsMarketKey[]).filter((k) => enabled[k]);
   const query = useGalaxieQuery<GsEventOdds>(
-    eventId ? `/v1/events/${encodeURIComponent(eventId)}/odds` : null,
-    {},
+    eventId && wanted.length ? `/v1/events/${encodeURIComponent(eventId)}/odds` : null,
+    { market: wanted.join(',') },
     () => ODDS_REFRESH_MS,
   );
 
+  if (!wanted.length) {
+    return (
+      <WidgetFrame kind="match_odds">
+        <h3 className="gs-title">{t.title}</h3>
+        <EmptyState>{t.empty}</EmptyState>
+      </WidgetFrame>
+    );
+  }
   if (!query.data) {
     return (
       <WidgetFrame kind="match_odds" busy={query.loading}>
@@ -128,12 +144,6 @@ export function MatchOdds({
   }
 
   const d = query.data;
-  const enabled: Record<GsOddsMarketKey, boolean> = {
-    match_winner: showMatchWinner,
-    double_chance: showDoubleChance,
-    goals_over_under: showGoals,
-    both_teams_score: showBothTeamsScore,
-  };
   const line = (n: number) => (Number.isInteger(n) ? fmt.integer(n) : fmt.decimal(n));
   const markets = (Object.keys(ORDER) as GsOddsMarketKey[]).flatMap((key) => {
     if (!enabled[key]) return [];
@@ -165,37 +175,52 @@ export function MatchOdds({
       {!markets.length ? (
         <EmptyState>{t.empty}</EmptyState>
       ) : (
-        markets.map((m) => (
-          <div className="gs-group" key={m.key} data-gs-market={m.key}>
-            <div className="gs-group-title">{t.markets[m.key]}</div>
-            <div className="gs-odds-row">
-              {m.selections.map((s) => (
-                <div className="gs-odd" key={`${s.key}|${s.line ?? ''}`} data-gs-selection={s.key}>
-                  <span className="gs-muted gs-small gs-truncate">
-                    {selectionLabel(t, s.key, s.line == null ? null : line(s.line))}
+        markets.map((m) => {
+          // a média de cada seleção vem das casas que a oferecem: uma conta só no título, senão em cada uma
+          const counts = new Set(m.selections.map((s) => s.bookmakers));
+          const shared = counts.size === 1 ? m.selections[0]!.bookmakers : null;
+          return (
+            <div className="gs-group" key={m.key} data-gs-market={m.key}>
+              <div className="gs-group-title">
+                {t.markets[m.key]}
+                {shared != null ? (
+                  <span className="gs-meta" data-gs-count>
+                    {' · '}
+                    {pluralText(t.bookmakers, shared, fmt.intl, fmt.integer)}
                   </span>
-                  <strong>{odd.format(s.average)}</strong>
-                  {showBest && s.bookmakers > 1 ? (
-                    <span className="gs-meta">{fillText(t.best, { odd: odd.format(s.best) })}</span>
-                  ) : null}
-                </div>
-              ))}
+                ) : null}
+              </div>
+              <div className="gs-odds-row">
+                {m.selections.map((s) => (
+                  <div className="gs-odd" key={`${s.key}|${s.line ?? ''}`} data-gs-selection={s.key}>
+                    <span className="gs-muted gs-small gs-truncate">
+                      {selectionLabel(t, s.key, s.line == null ? null : line(s.line))}
+                    </span>
+                    <strong>{odd.format(s.average)}</strong>
+                    {showBest && s.bookmakers > 1 ? (
+                      <span className="gs-meta">{fillText(t.best, { odd: odd.format(s.best) })}</span>
+                    ) : null}
+                    {shared == null ? (
+                      <span className="gs-meta" data-gs-count>
+                        {pluralText(t.bookmakersShort, s.bookmakers, fmt.intl, fmt.integer)}
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
-      {markets.length ? (
+      {markets.length && d.updated_at && fmt.date(d.updated_at) ? (
         <footer className="gs-footer" data-gs-updated>
-          <span>{pluralText(t.bookmakers, d.bookmakers, fmt.intl, fmt.integer)}</span>
-          {d.updated_at && fmt.date(d.updated_at) ? (
-            <span>
-              {t.updatedAt} {fmt.date(d.updated_at)}
-            </span>
-          ) : null}
+          <span>
+            {t.updatedAt} {fmt.date(d.updated_at)}
+          </span>
         </footer>
       ) : null}
       {showNotice ? (
-        <p className="gs-notice" data-gs-notice>
+        <p className="gs-odds-notice" data-gs-notice>
           {t.notice}
         </p>
       ) : null}

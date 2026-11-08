@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { WIDGET_CATALOG } from './catalog.js';
-import { DEFAULT_THEMES, type GsEventOdds, type WidgetLocale } from './core/model.js';
+import { DEFAULT_THEMES, WIDGET_CSS, type GsEventOdds, type WidgetLocale } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch } from './fixtures.js';
 import { optionProps, parseWidgetOptions } from './options.js';
@@ -59,11 +59,77 @@ describe('odds do jogo', () => {
       'Mais de 2,52,05Maior 2,12',
       'Menos de 2,51,76Maior 1,80',
     ]);
-    expect(container.querySelector('[data-gs-updated]')!.textContent).toContain('Média de 8 casas');
+    // a conta de casas vai no mercado (a média de cada seleção vem das casas que a oferecem)
+    expect(container.querySelector('[data-gs-market="match_winner"] [data-gs-count]')!.textContent).toBe(
+      ' · Média de 8 casas',
+    );
+    expect(container.querySelector('[data-gs-updated]')!.textContent).toMatch(/^Atualizado em /);
     expect(container.querySelector('[data-gs-notice]')!.textContent).toBe(
       '18+ · Aposte com responsabilidade.',
     );
     expect(calls[0]).toContain(`/v1/events/${PREVIEW_IDS.scheduledEvent}/odds`);
+    // só os mercados que o widget desenha
+    expect(new URL(calls[0]!).searchParams.get('market')).toBe(
+      'match_winner,double_chance,goals_over_under,both_teams_score',
+    );
+  });
+
+  it('seleções do mesmo mercado com contas diferentes: a conta vai em cada uma', async () => {
+    const body: GsEventOdds = {
+      event_id: 'x',
+      sport: 'football',
+      home: null,
+      away: null,
+      markets: [
+        {
+          key: 'match_winner',
+          selections: [
+            { key: 'home', line: null, average: 1.9, best: 2, bookmakers: 8 },
+            { key: 'draw', line: null, average: 3.3, best: 3.4, bookmakers: 2 },
+            { key: 'away', line: null, average: 4.2, best: 4.2, bookmakers: 1 },
+          ],
+        },
+      ],
+      bookmakers: 8,
+      updated_at: null,
+    };
+    const calls: string[] = [];
+    const { container } = setup(
+      <MatchOdds eventId="x" showDoubleChance={false} showGoals={false} showBothTeamsScore={false} />,
+      'pt-BR',
+      calls,
+      (u) => (u.includes('/odds') ? body : undefined),
+    );
+    await screen.findByText('Resultado final');
+    expect(container.querySelector('.gs-group-title [data-gs-count]')).toBeNull();
+    expect(
+      [...container.querySelectorAll('[data-gs-selection] [data-gs-count]')].map((e) => e.textContent),
+    ).toEqual(['8 casas', '2 casas', '1 casa']);
+    expect(new URL(calls[0]!).searchParams.get('market')).toBe('match_winner');
+    // sem data, sem rodapé
+    expect(container.querySelector('[data-gs-updated]')).toBeNull();
+  });
+
+  it('nenhum mercado ligado: estado vazio, sem consultar a API', async () => {
+    const calls: string[] = [];
+    setup(
+      <MatchOdds
+        eventId="x"
+        showMatchWinner={false}
+        showDoubleChance={false}
+        showGoals={false}
+        showBothTeamsScore={false}
+      />,
+      'pt-BR',
+      calls,
+    );
+    expect(await screen.findByText('Odds ainda não disponíveis para este jogo.')).toBeTruthy();
+    expect(calls).toEqual([]);
+  });
+
+  it('o estilo do aviso fica só no widget de odds (o .gs-notice do Onde assistir não muda)', () => {
+    expect(WIDGET_CSS).toContain('[data-gs-widget=match_odds] .gs-odds-notice{');
+    expect(WIDGET_CSS).not.toContain('.gs-notice{font-size');
   });
 
   it('em espanhol, só o resultado, sem a maior odd nem o aviso', async () => {
