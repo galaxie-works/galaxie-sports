@@ -45,6 +45,8 @@ describe('OpenAPI', () => {
         '/v1/teams/{id}/overview',
         '/v1/teams/{id}/events',
         '/v1/teams/{id}/squad',
+        '/v1/teams/{id}/transfers',
+        '/v1/competitions/{id}/transfers',
         '/v1/people/{id}',
         '/v1/people/{id}/overview',
         '/v1/sports/formula-1/legends',

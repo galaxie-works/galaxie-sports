@@ -2,8 +2,10 @@
 
 import {
   Activity,
+  ArrowLeftRight,
   Award,
   CalendarCheck,
+  ChartColumn,
   CalendarClock,
   CalendarDays,
   CalendarRange,
@@ -20,9 +22,11 @@ import {
   ListChecks,
   ListOrdered,
   Medal,
+  Percent,
   MonitorPlay,
   Plus,
   Radio,
+  Scale,
   Shield,
   Shirt,
   Sparkles,
@@ -106,6 +110,10 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   team_squad: Shirt,
   player_profile: IdCard,
   lineups: LayoutGrid,
+  match_prediction: Percent,
+  match_odds: Scale,
+  team_stats: ChartColumn,
+  transfer_market: ArrowLeftRight,
   channel_guide: MonitorPlay,
 };
 

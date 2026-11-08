@@ -1,0 +1,58 @@
+{
+  "get": "predictions",
+  "parameters": { "fixture": "1001" },
+  "errors": [],
+  "results": 1,
+  "paging": { "current": 1, "total": 1 },
+  "response": [
+    {
+      "predictions": {
+        "winner": { "id": 121, "name": "Time 121", "comment": "Win or draw" },
+        "win_or_draw": true,
+        "under_over": "-3.5",
+        "goals": { "home": "-2.5", "away": "-1.5" },
+        "advice": "Double chance : Time 121 or draw and target Under 3.5",
+        "percent": { "home": "45%", "draw": "45%", "away": "10%" }
+      },
+      "league": { "id": 71, "name": "Serie A", "country": "Brazil", "season": 2026 },
+      "teams": {
+        "home": {
+          "id": 121,
+          "name": "Time 121",
+          "logo": "https://media.api-sports.io/football/teams/121.png",
+          "last_5": {
+            "played": 5,
+            "form": "60%",
+            "att": "67%",
+            "def": "40%",
+            "goals": { "for": { "total": 8, "average": "1.6" }, "against": { "total": 5, "average": "1.0" } }
+          },
+          "league": { "form": "WWDLW" }
+        },
+        "away": {
+          "id": 131,
+          "name": "Time 131",
+          "logo": "https://media.api-sports.io/football/teams/131.png",
+          "last_5": {
+            "played": 5,
+            "form": "40%",
+            "att": "33%",
+            "def": "60%",
+            "goals": { "for": { "total": 4, "average": "0.8" }, "against": { "total": 6, "average": "1.2" } }
+          },
+          "league": { "form": "LDWLD" }
+        }
+      },
+      "comparison": {
+        "form": { "home": "60%", "away": "40%" },
+        "att": { "home": "67%", "away": "33%" },
+        "def": { "home": "40%", "away": "60%" },
+        "poisson_distribution": { "home": "55%", "away": "45%" },
+        "h2h": { "home": "50%", "away": "50%" },
+        "goals": { "home": "62%", "away": "38%" },
+        "total": { "home": "55.7%", "away": "44.3%" }
+      },
+      "h2h": []
+    }
+  ]
+}

@@ -23,11 +23,14 @@ import { RACING_IDS, createFightFixtures, createRacingFixtures } from './fixture
 import { OLYMPIC_IDS, olympicPreviewBody } from './fixtures-olympic.js';
 import { championsPreviewBody } from './fixtures-champions.js';
 import { PLAYER_IDS, playerPreviewBody } from './fixtures-player.js';
+import { transfersPreviewBody } from './fixtures-transfers.js';
 import { sportifyEvent, sportifyH2hSummary, sportifyStandings } from './fixtures-sports.js';
 import { previewLeaders } from './fixtures-leaders.js';
 import { LEADER_CATEGORIES, type GsLeaderCategory } from './core/model.js';
 import { previewSquad } from './fixtures-squad.js';
+import { previewTeamStats } from './fixtures-team-stats.js';
 import { sampleLineups } from './fixtures-lineups.js';
+import { sampleOdds, samplePrediction } from './fixtures-prediction.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -756,6 +759,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (champions !== null) return json(champions);
     const player = playerPreviewBody(url, now);
     if (player !== null) return json(player);
+    const transfers = transfersPreviewBody(url, now);
+    if (transfers !== null) return json(transfers);
     const f = createPreviewFixtures(now, options.sport);
     const guide = channelGuidePreviewBody(url, f.events);
     if (guide) return json(guide);
@@ -800,6 +805,20 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     }
     // elenco do time (#825): o Clube Aurora com o elenco de exemplo
     if (teamId === PREVIEW_IDS.team) {
+      // estatísticas do time (#893): a Liga Exemplo em 2026 e 2025
+      if (path.endsWith('/statistics')) {
+        const season = Number(url.searchParams.get('season'));
+        return json(
+          previewTeamStats(
+            teamId,
+            { id: COMPETITION_ID, slug: PREVIEW_IDS.competition, name: 'Liga Exemplo', logo: null },
+            {
+              competition: url.searchParams.get('competition'),
+              season: Number.isInteger(season) && season > 0 ? season : null,
+            },
+          ),
+        );
+      }
       if (path.endsWith('/squad')) {
         const season = Number(url.searchParams.get('season'));
         return json(previewSquad(teamId, Number.isInteger(season) && season > 0 ? season : null));
@@ -836,6 +855,19 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (/\/v1\/teams\/[^/]+\/events$/.test(path)) return json({ data: f.teamEvents, next_cursor: null });
     const watch = /\/v1\/events\/([^/]+)\/where-to-watch$/.exec(path);
     if (watch) return json({ ...f.whereToWatch, event_id: decodeURIComponent(watch[1]!) });
+    // palpite do jogo, montado a partir dos times do jogo de exemplo
+    const prediction = /\/v1\/events\/([^/]+)\/predictions$/.exec(path);
+    if (prediction) {
+      const found = f.events.find((e) => e.id === decodeURIComponent(prediction[1]!));
+      if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
+      return json(samplePrediction(found, now));
+    }
+    const odds = /\/v1\/events\/([^/]+)\/odds$/.exec(path);
+    if (odds) {
+      const found = f.events.find((e) => e.id === decodeURIComponent(odds[1]!));
+      if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
+      return json(sampleOdds(found, now));
+    }
     // detalhes do jogo (minuto a minuto, estatísticas, escalações) montados a partir do placar de exemplo
     const detail = /\/v1\/events\/([^/]+)\/(timeline|stats|lineups)$/.exec(path);
     if (detail) {

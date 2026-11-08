@@ -168,6 +168,8 @@ groups:
       # Mapa de frescor (docs/03 §11.1, packages/observability/src/metrics/raw-cadence.ts): cada endpoint da
       # api-sports tem um job e um período; a última busca dele no raw mais velha que o período + 12 h quer dizer
       # que o job parou ou que o endpoint saiu da fila (o /sidelined ficou 30 dias sem busca antes deste alerta).
+      # O limite vem da métrica max_age, que a API calcula a cada coleta com os períodos do espelho do painel
+      # (Ajustes → Operação → Espelho, docs/03 §11.5): o mesmo valor que o sync:mirror usa, sem número fixo aqui.
       # max/min por (sport, endpoint): a API roda em mais de uma instância durante o rolling swap.
       - alert: RawEndpointOverdue
         expr: >-

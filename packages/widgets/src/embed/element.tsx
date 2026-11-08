@@ -39,6 +39,10 @@ import { ChampionsGallery } from '../widgets/champions-gallery.js';
 import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
+import { MatchPrediction } from '../widgets/match-prediction.js';
+import { MatchOdds } from '../widgets/match-odds.js';
+import { TeamStats } from '../widgets/team-stats.js';
+import { TransferMarket } from '../widgets/transfer-market.js';
 import { ChannelGuide } from '../widgets/channel-guide.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
@@ -206,6 +210,14 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <PlayerProfile {...o} personId={personId ?? ''} />;
     case 'lineups':
       return <Lineups {...o} eventId={eventId ?? ''} />;
+    case 'match_prediction':
+      return <MatchPrediction {...o} eventId={eventId ?? ''} />;
+    case 'match_odds':
+      return <MatchOdds {...o} eventId={eventId ?? ''} />;
+    case 'team_stats':
+      return <TeamStats {...o} teamId={teamId ?? ''} />;
+    case 'transfer_market':
+      return <TransferMarket {...o} teamId={teamId} competitionId={teamId ? undefined : competitionId} />;
     case 'channel_guide':
       // a grade sai da rota presa a este widget (a lista de canais fica na API)
       return <ChannelGuide {...o} widgetId={config.id} sport={sport} />;

@@ -573,6 +573,9 @@ export const personTransfer = core.table(
     unique('person_transfer_uq')
       .on(t.personId, t.date, t.fromParticipantId, t.toParticipantId, t.type)
       .nullsNotDistinct(),
+    // vai e vem do mercado (#832): chegadas e saídas de um time no período
+    index('person_transfer_to_date_idx').on(t.toParticipantId, t.date),
+    index('person_transfer_from_date_idx').on(t.fromParticipantId, t.date),
   ],
 );
 
@@ -933,6 +936,42 @@ export const standing = core.table(
     primaryKey({ columns: [t.seasonId, t.group, t.participantId] }),
     // campanha de um time nas tabelas (teams.ts)
     index('standing_participant_idx').on(t.participantId),
+  ],
+);
+
+/**
+ * Estatísticas de um time numa temporada de competição (#893): o agregado do fornecedor (api-sports
+ * `teams/statistics`) no nosso formato. As colunas são os totais; `stats` traz casa e fora, gols por faixa de
+ * minuto, sequências, maiores placares, pênaltis, formações e cartões (`TeamSeasonStatsDetail` em
+ * `@galaxie/providers`). Uma resposta mais antiga que `observed_at` nunca sobrescreve a linha.
+ */
+export const teamSeasonStat = core.table(
+  'team_season_stat',
+  {
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => participant.id),
+    seasonId: uuid('season_id')
+      .notNull()
+      .references(() => season.id),
+    played: integer('played'),
+    won: integer('won'),
+    drawn: integer('drawn'),
+    lost: integer('lost'),
+    goalsFor: integer('goals_for'),
+    goalsAgainst: integer('goals_against'),
+    cleanSheets: integer('clean_sheets'),
+    failedToScore: integer('failed_to_score'),
+    /** Resultados na temporada (W/D/L), do mais recente ao mais antigo. */
+    form: text('form'),
+    stats: jsonb('stats').$type<Record<string, unknown>>().notNull(),
+    /** Quando o fornecedor entregou estes números (coleta do raw). */
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.participantId, t.seasonId] }),
+    index('team_season_stat_season_idx').on(t.seasonId),
   ],
 );
 

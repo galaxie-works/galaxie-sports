@@ -23,6 +23,13 @@ export default defineMessages(
       channels: 'Minha lista de canais',
       webhooks: 'Webhooks',
       themes: 'Temas',
+      groups: {
+        account: 'Conta',
+        content: 'Conteúdo',
+        engagement: 'Engajamento',
+        intelligence: 'Inteligência',
+        integrations: 'Integrações',
+      },
     },
     tenant: {
       label: 'Tenant',
@@ -69,6 +76,7 @@ export default defineMessages(
         live_intelligence: 'Inteligência ao vivo',
         multisport: 'Multiesporte',
         related_content: 'Vídeos relacionados',
+        odds: 'Odds',
       },
     },
     keys: {
@@ -435,6 +443,13 @@ export default defineMessages(
         channels: 'My channel list',
         webhooks: 'Webhooks',
         themes: 'Themes',
+        groups: {
+          account: 'Account',
+          content: 'Content',
+          engagement: 'Engagement',
+          intelligence: 'Intelligence',
+          integrations: 'Integrations',
+        },
       },
       tenant: {
         label: 'Tenant',
@@ -480,6 +495,7 @@ export default defineMessages(
           live_intelligence: 'Live intelligence',
           multisport: 'Multisport',
           related_content: 'Related videos',
+          odds: 'Odds',
         },
       },
       keys: {
@@ -849,6 +865,13 @@ export default defineMessages(
         channels: 'Mi lista de canales',
         webhooks: 'Webhooks',
         themes: 'Temas',
+        groups: {
+          account: 'Cuenta',
+          content: 'Contenido',
+          engagement: 'Interacción',
+          intelligence: 'Inteligencia',
+          integrations: 'Integraciones',
+        },
       },
       tenant: {
         label: 'Tenant',
@@ -895,6 +918,7 @@ export default defineMessages(
           live_intelligence: 'Inteligencia en vivo',
           multisport: 'Multideporte',
           related_content: 'Videos relacionados',
+          odds: 'Cuotas',
         },
       },
       keys: {
