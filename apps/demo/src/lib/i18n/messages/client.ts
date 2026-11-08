@@ -69,6 +69,7 @@ export default defineMessages(
         live_intelligence: 'Inteligência ao vivo',
         multisport: 'Multiesporte',
         related_content: 'Vídeos relacionados',
+        odds: 'Odds',
       },
     },
     keys: {
@@ -477,6 +478,7 @@ export default defineMessages(
           live_intelligence: 'Live intelligence',
           multisport: 'Multisport',
           related_content: 'Related videos',
+          odds: 'Odds',
         },
       },
       keys: {
@@ -889,6 +891,7 @@ export default defineMessages(
           live_intelligence: 'Inteligencia en vivo',
           multisport: 'Multideporte',
           related_content: 'Videos relacionados',
+          odds: 'Cuotas',
         },
       },
       keys: {

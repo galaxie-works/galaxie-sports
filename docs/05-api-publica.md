@@ -22,7 +22,7 @@ Especificação formal: OpenAPI 3.1 gerada a partir dos schemas Zod de `packages
 
 **Chaves.** Formato `gs_<live|test>_<prefixo>_<segredo>_<checksum>` — prefixo de 12 caracteres hex (guardado em claro em `api.api_key.prefix` para localizar a chave), segredo de 32 bytes em base64url, guardado **só como hash scrypt com sal** (`scrypt$N$r$p$sal$hash`, via `node:crypto`), e CRC32 em 8 hex de tudo o que vem antes (erro de digitação e chave inventada → 401 sem consulta ao banco; scanners de segredos acham a chave sem falso positivo). O ambiente vale: prefixo diferente do ambiente gravado da chave → 401. A chave `gs_test_` tem o mesmo dado da produção, mas limite de 60 req/min por rota, nunca acima do `rate_limit_per_minute` do tenant (balde próprio, não consome o da produção) e uso contado à parte (`test:<rota>` em `/v1/account/usage`). Teto: 5 chaves secretas válidas por tenant e ambiente, contando as em período de graça (acima → 409 `CONFLICT`). Política completa: [politica-de-chaves.md](politica-de-chaves.md). A chave completa é exibida uma única vez, na criação. A verificação positiva fica em cache em memória por 60 s (revogação e mudança de plano valem em até 1 min). `last_used_at` é atualizado no máximo a cada 5 min.
 
-**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport`. Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
+**Tenants e planos.** `api.tenant` guarda `plan`, `modules`, `markets` (países ISO2; vazio = todos), `sports` (vazio = todos), `rate_limit_per_minute` e `status` (`active`/`suspended`). Módulos: `core_data`, `where_to_watch`, `semantic`, `live_intelligence`, `multisport` e os add-ons `related_content` (fechado até a decisão do dono) e `odds`. Cada chave pode restringir os módulos do tenant (`api.api_key.scopes`; `null` = herda).
 
 | Plano | Módulos padrão |
 |---|---|
@@ -354,6 +354,8 @@ Exige `core_data`; os esportes do plano limitam os jogos, como no resumo. Cache 
 | `GET /v1/events/{id}.ics` | Arquivo de calendário |
 | `GET /v1/events/{id}/h2h` | Histórico do confronto (do espelho, sem nova chamada) |
 | `GET /v1/events/{id}/card` | Card de MMA da luta: card principal, preliminares e preliminares iniciais |
+| `GET /v1/events/{id}/predictions` | Palpite do jogo (futebol): chances de cada resultado, linhas de gols e comparação dos times (§3.2.2) |
+| `GET /v1/events/{id}/odds?market=` | Odds pré-jogo em consenso entre as casas, por mercado (módulo add-on `odds`; §3.2.2) |
 
 **Datas da agenda.** `date`, `from` e `to` (também em `/v1/teams/{id}/events`) e `day` de `/v1/explore/agenda` aceitam só dias que existem no calendário: `2026-02-31`, `2026-04-31` ou `2026-02-29` (ano não bissexto) respondem 400 `INVALID_PARAMS` (`message: "data inexistente"` em `date`/`day`). Antes, a API normalizava a data e devolvia os jogos de outro dia (31/02 virava 03/03); o cliente que montava a data por conta própria precisa validá-la ou tratar o 400.
 
@@ -484,6 +486,14 @@ Os marcos usam a mesma fonte: `kickoff`/`second_half` do fornecedor (`provider`)
 **Gol anulado sem VAR na fonte.** Quando o fornecedor só apaga o gol, sem mandar o VAR, e o gol fica fora da timeline com o placar do lado tendo caído, a timeline ganha um lance `type: "var"`, `detail: "Goal cancelled"` com o minuto, o time e o jogador do gol. Ele leva cerca de 45 s para aparecer (o gol que a fonte apaga e devolve em seguida não vira lance) e sai se o gol voltar ou se o fornecedor mandar o VAR dele. Vem depois do último lance do mesmo minuto; o `sequence` fica fora da sequência do fornecedor (a partir de 100000).
 
 **Tempo real.** A timeline tem TTL de 10 s ao vivo e 1 h encerrada, e é purgada pelas mesmas mudanças do evento (tag `event:<id>`). Para atualizar sem polling, assine `GET /v1/stream?events=<id>&topics=score,status,incidents` (§5.1) e releia a timeline a cada mudança; a demo faz isso e mantém uma verificação completa a cada 30 s (15 s se o SSE cair).
+
+### 3.2.2 Palpite e odds (`apps/api/src/routes/v1/markets.ts`)
+
+O espelho diário (`sync:mirror`) busca `/predictions?fixture=` e `/odds?fixture=` (nos outros esportes, `/odds?game=`) para os jogos das próximas 48 h com cobertura, uma vez por dia; o `afterFetch` do job grava em `core.event_prediction` e `core.event_odds` (docs/04 §2.4). A reconstrução a partir do raw é o `normalize:markets`. Jogo, times e casas pelos nossos IDs; mercados e seleções com chaves nossas.
+
+- **`/predictions`** (módulo `core_data`): `home` / `away` (`ParticipantRef`), `prediction` e `updated_at` (no `tz`). `prediction` traz `winner` (`side`, `participant_id`, `win_or_draw` = o palpite é "vence ou empata"; `null` quando não aponta ninguém), `probabilities` (`home`, `draw`, `away` em pontos percentuais, 0–100), `goals` (`total`, `home`, `away`: `{ side: over|under, line }`, a linha de gols), `comparison` (lista em ordem fixa: `form`, `attack`, `defense`, `poisson`, `h2h`, `goals`, `total`, cada um com `home` e `away` em 0–100) e `recent_form` (últimos 5 jogos de cada time: aproveitamento, ataque, defesa e gols). O conselho em texto livre do fornecedor fica guardado, mas não sai: está em inglês, e o texto nos idiomas do cliente é montado a partir dos campos. Sem palpite ainda, `prediction: null` (200). Evento inexistente → 404; esporte fora do plano → 403.
+- **`/odds?market=`** (módulo add-on `odds`, em todos os mercados): odds decimais pré-jogo em consenso entre as casas. `markets` traz, por mercado e seleção, `average` (média), `best` (maior odd) e `bookmakers` (quantas casas oferecem); `bookmakers` no topo é quantas casas têm odds para o jogo. **As casas não são identificadas** (decisão do dono, 07/11): o nome fica no banco e não sai na API nem nos widgets. Mercados com chave nossa: `match_winner`, `double_chance`, `draw_no_bet`, `both_teams_score`, `goals_over_under`, `first_half_winner`, `second_half_winner`, `exact_score`, `asian_handicap`, `handicap_result`, `goals_over_under_first_half`, `home_total_goals`, `away_total_goals`; seleções `home`, `draw`, `away`, `home_draw`, `home_away`, `draw_away`, `over`, `under`, `yes`, `no` ou o placar (`2:1`), com `line` quando o mercado tem linha. Os demais mercados do fornecedor ficam guardados e não saem. `market` filtra (separados por vírgula). Sem o módulo `odds`, 403. O widget de odds traz o aviso de jogo responsável ligado por padrão (o cliente pode desligar no Builder).
+- **Cache**: 1 h nas duas (a busca é diária), com a tag `event:<id>`.
 
 ### 3.3 Times, atletas e semântica
 
@@ -967,6 +977,7 @@ Formato RFC 9457 (`application/problem+json`):
 | Evento ao vivo | 5–15 s | Mudança de placar/estado (push) |
 | Onde assistir | 60 s | Correção aceita (purge) |
 | Cenário/resumo de IA (`/v1/events/{id}/context`) | 1 h | Nova geração ou revisão (`event.context_published`) |
+| Palpite e odds (`/v1/events/{id}/predictions`, `/odds`) | 1 h | Não (busca diária) |
 | Semântica (clássicos, perfis, glossário, copy) | 24 h (retrospecto do clássico: 1 h) | Merge de PR na base / novo seed |
 | Quadro de medalhas | 24 h (edição encerrada) · 60 s (em andamento) · 1 h (futura) | Nova carga/QA de medalhas |
 | Assets (imagens) | 30 dias, imutável por hash | Nova versão = nova URL (`?v=` com o início do sha256 de `core.asset`) |
