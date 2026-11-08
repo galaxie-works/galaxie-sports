@@ -105,64 +105,38 @@ flowchart LR
 
 Créditos de teste vencem em 90 dias; créditos comprados não vencem enquanto o contrato estiver ativo.
 
-### Preços e custos
+### Preços
 
-**Do token ao crédito.** Cada uso registra tokens de entrada, entrada em cache e saída. O custo real no provedor (preço por milhão de tokens do modelo, convertido em reais a uma cotação fixa operacional) vira créditos. Créditos cobrados = maior entre (custo × multiplicador de margem ÷ valor do crédito) e o mínimo da função. O multiplicador fica em 1 por padrão; a margem está no preço do pacote. Contratos grandes podem ter multiplicador próprio e fatura mensal no lugar do pré-pago.
+Pacotes de créditos pré-pagos. Os créditos de teste (250) vencem em 90 dias; os comprados não vencem enquanto o contrato estiver ativo. Contratos grandes podem ir por fatura mensal no lugar do pré-pago.
 
-**Valor do crédito.** Na Suzette, 1 crédito = 1/25 de uma ação média (2.000 tokens de entrada + 800 de saída), cerca de R$ 0,0003 de provedor. Na Cosmos, 1 crédito = 1/10 dessa ação, cerca de R$ 0,00075 de provedor. Os 250 créditos de teste rendem umas 25 ações ou cerca de 150 dúvidas de moderação, contra umas 10 ações na Suzette.
+**Brasil e Latam (em reais):**
 
-**Pacotes em reais (Brasil e Latam), mesma tabela da Suzette:**
+| Pacote | Créditos | Preço |
+| --- | --- | --- |
+| Essencial | 5.000 | R$ 49 |
+| Pro | 15.000 | R$ 99 |
+| Turbo | 40.000 | R$ 199 |
 
-| Pacote | Créditos | Preço | Custo de provedor | Margem bruta sobre o provedor |
-| --- | --- | --- | --- | --- |
-| Essencial | 5.000 | R$ 49 | ~R$ 3,75 | ~13× |
-| Pro | 15.000 | R$ 99 | ~R$ 11,25 | ~9× |
-| Turbo | 40.000 | R$ 199 | ~R$ 30 | ~6,6× |
+**EUA e Canadá (em dólar), aprovada em 07/11:**
 
-Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai cerca de 3,4% (o IOF sai de dentro do preço), antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
-
-**EUA e Canadá:** tabela própria em dólar, aprovada pelo Wagner em 07/11.
+| Pacote | Créditos | Preço |
+| --- | --- | --- |
+| Starter | 5.000 | US$ 29 |
+| Pro | 15.000 | US$ 69 |
+| Scale | 40.000 | US$ 149 |
+| Enterprise | a partir de 250 mil por mês | fatura mensal |
 
 Referências de mercado (preço de lista, novembro de 2026):
 
 | Quem | Como cobra | Preço |
 | --- | --- | --- |
-| [Intercom Fin](https://www.featurebase.app/blog/fin-ai-pricing) | Por conversa resolvida pela IA | US$ 0,99 por resolução; mínimo de 50 por mês no avulso |
-| [Zendesk AI](https://www.robylon.ai/blog/zendesk-ai-pricing-per-resolution) | Por resolução automática | ~US$ 1,00 a 1,50 com contrato; US$ 2,00 no avulso (estimativa de terceiros) |
-| [Stream Moderation](https://getstream.io/moderation/pricing) | Por mensagem de texto analisada | US$ 2,00 por mil mensagens; US$ 100 grátis por mês |
+| [Intercom Fin](https://www.intercom.com/pricing) | Por conversa resolvida pela IA | US$ 0,99 por resolução |
+| [Zendesk AI](https://www.zendesk.com/pricing/) | Por resolução automática | US$ 1,50 com contrato; US$ 2,00 no avulso |
+| [Stream Moderation](https://getstream.io/moderation/pricing) | Por mensagem de texto analisada | US$ 2,00 por mil mensagens |
 
-Tabela:
+Uma ação média da Cosmos sai entre US$ 0,04 e 0,06 para o cliente, e na moderação só a dúvida paga: regras e classificador decidem o resto de graça. O Canadá paga em dólar americano no começo.
 
-| Pacote | Créditos | Preço | Por crédito | Ação média (10 créditos) | Custo de provedor | Margem bruta |
-| --- | --- | --- | --- | --- | --- | --- |
-| Starter | 5.000 | US$ 29 | US$ 0,0058 | US$ 0,06 | ~US$ 0,70 | ~40× |
-| Pro | 15.000 | US$ 69 | US$ 0,0046 | US$ 0,05 | ~US$ 2,10 | ~33× |
-| Scale | 40.000 | US$ 149 | US$ 0,0037 | US$ 0,04 | ~US$ 5,60 | ~27× |
-| Enterprise | a partir de 250 mil por mês | fatura mensal | negociado | | | multiplicador próprio |
-
-Por que esses valores:
-
-- **Cerca de 3 vezes o preço em reais.** R$ 49 dá uns US$ 9; US$ 29 segue a diferença de poder de compra que SaaS costuma aplicar entre Brasil e EUA, e o crédito rende o mesmo nos dois países. O custo de provedor em dólar usa ~R$ 5,40 por dólar; conferir com a cotação operacional.
-- **Muito abaixo de quem cobra por resultado.** Uma ação média da Cosmos sai entre US$ 0,04 e 0,06, contra US$ 0,99 a 2,00 por resolução no Fin e no Zendesk. É o argumento de venda: o cliente paga centavos por ação e vê o custo antes.
-- **Moderação mais barata que a Stream por mensagem.** Uma dúvida de moderação gasta ~1,7 crédito (~US$ 0,01), mas só a dúvida paga: regras e classificador decidem o resto de graça. Se 5% das mensagens chegam ao modelo, sai ~US$ 0,50 por mil mensagens, contra US$ 2,00 na Stream.
-- **Pacote mínimo de US$ 29** para a taxa fixa do Stripe pesar pouco (abaixo).
-- **Teste igual ao do Brasil:** 250 créditos, vencem em 90 dias.
-
-Taxas e impostos nos EUA e no Canadá:
-
-- **Stripe na conta dos EUA:** 2,9% + US$ 0,30 por cartão americano; +1,5% para cartão emitido fora dos EUA, o que inclui os canadenses; +1% se cobrar em outra moeda ([fonte](https://checkoutpage.com/blog/stripe-international-fees)). No Starter, um cartão americano custa ~US$ 1,14 (3,9%) e um canadense ~US$ 1,58 (5,4%).
-- **Cobrar o Canadá em dólar americano no começo.** Preço em dólar canadense soma +1% de conversão do nosso lado; uma tabela em CAD pode vir depois.
-- **Imposto sobre venda nos EUA:** SaaS é tributado em parte dos estados, e a obrigação de recolher começa quando as vendas num estado passam do limite dele. O Stripe Tax monitora isso e cobra 0,5% do volume onde estivermos registrados ([fonte](https://support.stripe.com/questions/understanding-stripe-tax-pay-as-you-go-pricing)). Confirmar com o contador da LLC.
-- **GST/HST no Canadá:** o regime simplificado para vendedor de fora vale para quem não tem registro de GST/HST e passa de CAD 30 mil por ano ([fonte](https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/digital-economy-gsthst/register-get-ready.html)). Nossos clientes são empresas: pedir o número de GST/HST na compra mostra que a venda é B2B. Confirmar com o contador.
-- **Quebec:** telas, recibos e termos em francês para clientes de lá (Lei 96).
-
-**Cobrança pelo Stripe da Galaxie Works LLC, para todos os países (decidido em 07/11):**
-
-- **Pix funciona.** Uma conta do Stripe nos EUA aceita Pix de clientes no Brasil (processamento pelo parceiro EBANX) e recebe em dólar, em até 2 dias úteis.
-- **IOF de 3,5%.** Como é compra internacional, o banco do cliente cobra 3,5% de IOF. A LLC absorve esse valor (`amount_includes_iof = always`), para o preço anunciado ser o preço pago.
-- **Limites.** Cada cliente brasileiro paga até US$ 3.000 por dia e US$ 10.000 por mês a uma empresa de fora. Os pacotes cabem com folga; contratos grandes vão por fatura.
-- **Fatura do banco mostra EBANX,** não Galaxie. O recibo precisa dizer isso para evitar contestação.
-- **Sem nota fiscal brasileira.** Para cliente empresa no Brasil, pagar a LLC é importação de serviço e pode gerar impostos do lado dele. Confirmar com o contador antes de vender para portais brasileiros.
+Cobrança pelo Stripe da Galaxie Works LLC, com Pix e cartão. Custos, margens e o desenho da cobrança (impostos, taxas, limites) estão no documento interno `cosmos-ai-custos-e-cobranca.md` da repo privada galaxie-sports-interno.
 
 ## 4. A Cosmos no app todo
 
