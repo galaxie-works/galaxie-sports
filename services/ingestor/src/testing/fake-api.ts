@@ -309,9 +309,70 @@ function route(path: string, p: Record<string, string>, now: Date) {
       ]);
     case '/players':
       return envelope(path, p, [{ player: { id: Number(p.page ?? 1) } }], 3);
+    // o agregado da temporada responde um objeto (não lista); time fora da liga: lista vazia, como o fornecedor
+    case '/teams/statistics': {
+      const team = Number(p.team);
+      if (!league || !league.seasons.includes(Number(p.season)) || !league.teams.includes(team))
+        return envelope(path, p, []);
+      return {
+        ...envelope(path, p, []),
+        results: 11,
+        response: fakeTeamStatistics(league, Number(p.season), team),
+      };
+    }
     default:
       return envelope(path, p, []);
   }
+}
+
+/** `teams/statistics` determinístico de um time da liga falsa, no formato do fornecedor. */
+export function fakeTeamStatistics(league: FakeLeague, season: number, team: number) {
+  const minute = (counts: (number | null)[]) =>
+    Object.fromEntries(
+      ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90', '91-105', '106-120'].map((k, i) => [
+        k,
+        { total: counts[i] ?? null, percentage: counts[i] == null ? null : `${counts[i]}%` },
+      ]),
+    );
+  const ha = (home: number, away: number) => ({ home, away, total: home + away });
+  return {
+    league: { id: league.id, name: league.name, country: 'Brazil', logo: null, flag: null, season },
+    team: { id: team, name: `Time ${team}`, logo: null },
+    form: 'WWDLW',
+    fixtures: { played: ha(3, 2), wins: ha(2, 1), draws: ha(1, 0), loses: ha(0, 1) },
+    goals: {
+      for: {
+        total: ha(6, 3),
+        average: { home: '2.0', away: '1.5', total: '1.8' },
+        minute: minute([1, 2, null, 3, 1, 2]),
+        under_over: { '1.5': { over: 3, under: 2 } },
+      },
+      against: {
+        total: ha(1, 3),
+        average: { home: '0.3', away: '1.5', total: '0.8' },
+        minute: minute([null, 1, null, 1, null, 2]),
+        under_over: { '1.5': { over: 1, under: 4 } },
+      },
+    },
+    biggest: {
+      streak: { wins: 2, draws: 1, loses: 1 },
+      wins: { home: '3-0', away: '1-2' },
+      loses: { home: null, away: '2-1' },
+      goals: { for: { home: 3, away: 2 }, against: { home: 1, away: 2 } },
+    },
+    clean_sheet: ha(2, 0),
+    failed_to_score: ha(0, 0),
+    penalty: {
+      scored: { total: 1, percentage: '100.00%' },
+      missed: { total: 0, percentage: '0%' },
+      total: 1,
+    },
+    lineups: [
+      { formation: '4-3-3', played: 4 },
+      { formation: '4-4-2', played: 1 },
+    ],
+    cards: { yellow: minute([null, 1, 2, null, 3, 4]), red: minute([null, null, null, null, null, 1]) },
+  };
 }
 
 function detail(list: FakeFixture[]) {

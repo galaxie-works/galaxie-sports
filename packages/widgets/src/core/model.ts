@@ -40,6 +40,9 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'match_prediction',
+  'match_odds',
+  'team_stats',
   'transfer_market',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -785,6 +788,62 @@ export interface GsLineups {
   lineups: { team: { id: string | null; side?: string | null }; formation: string | null }[];
 }
 
+/** Lado e linha de gols do palpite (`over` = mais de, `under` = menos de). */
+export interface GsGoalsLine {
+  side: 'over' | 'under';
+  line: number;
+}
+
+/** Chaves da comparação dos times no palpite, na ordem da API. */
+export const PREDICTION_COMPARISON = [
+  'form',
+  'attack',
+  'defense',
+  'poisson',
+  'h2h',
+  'goals',
+  'total',
+] as const;
+export type GsPredictionComparisonKey = (typeof PREDICTION_COMPARISON)[number];
+
+/** Palpite do jogo (`/v1/events/{id}/predictions`), só o que o widget usa. */
+export interface GsEventPredictions {
+  event_id: string;
+  sport: string;
+  home: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  away: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  prediction: {
+    winner: { side: 'home' | 'away'; participant_id: string; win_or_draw: boolean } | null;
+    probabilities: { home: number | null; draw: number | null; away: number | null };
+    goals: { total: GsGoalsLine | null; home: GsGoalsLine | null; away: GsGoalsLine | null };
+    comparison: { key: GsPredictionComparisonKey; home: number | null; away: number | null }[];
+  } | null;
+  updated_at: string | null;
+}
+
+/** Mercados de odds que o widget mostra (chaves da API). */
+export const ODDS_WIDGET_MARKETS = [
+  'match_winner',
+  'double_chance',
+  'goals_over_under',
+  'both_teams_score',
+] as const;
+export type GsOddsMarketKey = (typeof ODDS_WIDGET_MARKETS)[number];
+
+/** Odds do jogo (`/v1/events/{id}/odds`): só o consenso entre as casas, sem identificá-las. */
+export interface GsEventOdds {
+  event_id: string;
+  sport: string;
+  home: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  away: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  markets: {
+    key: string;
+    selections: { key: string; line: number | null; average: number; best: number; bookmakers: number }[];
+  }[];
+  bookmakers: number;
+  updated_at: string | null;
+}
+
 /** Situação do campeonato (`/v1/competitions/{id}/context`), só líder e jogos decisivos. */
 export interface GsCompetitionContext {
   groups: {
@@ -808,6 +867,67 @@ export interface GsTeamOverview {
   competitions?: GsTeamCompetition[] | undefined;
   live_event?: GsEvent | null | undefined;
   next_event?: GsEvent | null | undefined;
+}
+
+/** Em casa, fora e no total (`/v1/teams/{id}/statistics`); null = o dado não veio. */
+export interface GsHomeAwayTotal {
+  home: number | null;
+  away: number | null;
+  total: number | null;
+}
+
+/** Quantos numa faixa de minutos; `from`/`to` nulos = minuto não informado. */
+export interface GsMinuteRange {
+  from: number | null;
+  to: number | null;
+  count: number;
+}
+
+/** Placar visto pelo time. */
+export interface GsScoreLine {
+  for: number;
+  against: number;
+}
+
+/** Estatísticas do time numa competição e temporada (`/v1/teams/{id}/statistics`, #893). */
+export interface GsTeamSeasonStats {
+  competition: { id: string; slug: string; name: string; logo: string | null };
+  season: { year: number; label: string };
+  /** W/D/L do mais recente ao mais antigo. */
+  form: string | null;
+  record: { played: GsHomeAwayTotal; won: GsHomeAwayTotal; drawn: GsHomeAwayTotal; lost: GsHomeAwayTotal };
+  goals: {
+    scored: GsHomeAwayTotal;
+    conceded: GsHomeAwayTotal;
+    scored_average: GsHomeAwayTotal;
+    conceded_average: GsHomeAwayTotal;
+    scored_by_minute: GsMinuteRange[];
+    conceded_by_minute: GsMinuteRange[];
+  };
+  clean_sheets: GsHomeAwayTotal;
+  failed_to_score: GsHomeAwayTotal;
+  streaks: { wins: number | null; draws: number | null; losses: number | null };
+  biggest: {
+    win: { home: GsScoreLine | null; away: GsScoreLine | null };
+    loss: { home: GsScoreLine | null; away: GsScoreLine | null };
+  };
+  penalties: { scored: number | null; missed: number | null; total: number | null };
+  formations: { formation: string; played: number }[];
+  cards: {
+    yellow: number | null;
+    red: number | null;
+    yellow_by_minute: GsMinuteRange[];
+    red_by_minute: GsMinuteRange[];
+  };
+  updated_at: string;
+}
+
+/** Resposta de `/v1/teams/{id}/statistics`: a temporada escolhida (ou null) e o que existe. */
+export interface GsTeamStatistics {
+  team_id: string;
+  sport: string;
+  data: GsTeamSeasonStats | null;
+  available: { competition: { id: string; name: string }; season: { year: number; label: string } }[];
 }
 
 export interface GsTeamOverviewTeam extends GsTeam {
@@ -1648,12 +1768,33 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-shirt{flex:none;width:1.6em;text-align:right;font-size:.8em;font-weight:700;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
+[data-gs-widget=match_prediction] .gs-strong{font-weight:700;margin:0}
+.gs-odds-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(5.5em,1fr));gap:6px}
+.gs-odd{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.6);min-width:0;text-align:center}
+.gs-odd strong{font-size:1.15em;font-variant-numeric:tabular-nums}
+.gs-odd .gs-truncate{max-width:100%}
+[data-gs-widget=match_odds] .gs-odds-notice{margin:0;font-size:.8em;color:var(--gs-muted-foreground);border-top:1px solid var(--gs-border);padding-top:6px}
+.gs-prediction-odds{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gs-gap);text-align:center}
+.gs-prediction-odds[data-no-draws]{grid-template-columns:repeat(2,1fr)}
+.gs-prediction-odds strong{font-size:1.4em;font-variant-numeric:tabular-nums}
+.gs-compare{display:grid;grid-template-columns:2.5em 1fr 2.5em;align-items:center;gap:6px;font-size:.85em;font-variant-numeric:tabular-nums}
+.gs-compare>span:last-child{text-align:right}
+.gs-compare-label{grid-column:1/-1;color:var(--gs-muted-foreground);font-size:.9em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 .gs-countdown{display:flex;flex-direction:column;align-items:center;gap:calc(var(--gs-scale,1)*6px)}
 .gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+.gs-minutes{display:grid;grid-template-columns:auto 1fr 1fr;align-items:center;gap:4px 8px;font-size:.8em;font-variant-numeric:tabular-nums}
+.gs-minutes>.gs-meta{white-space:nowrap}
+.gs-mbar{display:flex;align-items:center;gap:4px;min-width:0}
+.gs-mbar>span:first-child{display:block;height:8px;min-width:2px;border-radius:999px;background:var(--gs-primary)}
+.gs-mbar[data-side=against]>span:first-child{background:color-mix(in srgb,var(--gs-foreground) 40%,transparent)}
+.gs-mbar[data-side=yellow]>span:first-child{background:#eab308}.gs-mbar[data-side=red]>span:first-child{background:#dc2626}
+.gs-mbar[data-zero]>span:first-child{opacity:.25}
+.gs-kv{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--gs-border);font-size:.85em}
+.gs-kv:first-child{border-top:0}.gs-kv>strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 .gs-transfer-dir{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;font-size:.8em;font-weight:800;color:#fff;background:#16a34a}
 .gs-transfer-dir[data-dir=out]{background:var(--gs-live)}
 `;
@@ -1770,6 +1911,47 @@ export interface WidgetTexts {
     live: string;
     competitions: string;
     noNext: string;
+  };
+  /** Estatísticas do time na temporada (#893). "{n} jogos", "{x} por jogo". */
+  teamStats: {
+    title: string;
+    summary: string;
+    played: string;
+    won: string;
+    drawn: string;
+    lost: string;
+    goalsFor: string;
+    goalsAgainst: string;
+    perGame: string;
+    form: string;
+    homeAway: string;
+    home: string;
+    away: string;
+    cleanSheets: string;
+    failedToScore: string;
+    goalsByMinute: string;
+    scored: string;
+    conceded: string;
+    /** "{from}–{to}'" */
+    minuteRange: string;
+    unknownMinute: string;
+    highlights: string;
+    winStreak: string;
+    drawStreak: string;
+    lossStreak: string;
+    biggestWin: string;
+    biggestLoss: string;
+    penalties: string;
+    /** "{scored} de {total}" */
+    penaltiesScored: string;
+    formations: string;
+    /** "{n} jogos" */
+    games: string;
+    cards: string;
+    yellow: string;
+    red: string;
+    updated: string;
+    empty: string;
   };
   /** Campos opcionais ligados no Builder (placar, tabela, agenda…). */
   extra: {
@@ -1936,6 +2118,57 @@ export interface WidgetTexts {
     emptyRanking: string;
   };
   /** Artilharia e líderes do campeonato (#828). */
+  /** Palpite do jogo: chances, quem deve vencer, linha de gols e comparação. "{team} vence", "{line}". */
+  prediction: {
+    title: string;
+    home: string;
+    draw: string;
+    away: string;
+    /** "{team} vence" / "{team} vence ou empata". */
+    wins: string;
+    winsOrDraws: string;
+    /** Sem favorito apontado. */
+    open: string;
+    /** "Mais de {line} gols" / "Menos de {line} gols" (no jogo). */
+    over: string;
+    under: string;
+    /** "{team}: mais de {line} gols". */
+    teamOver: string;
+    teamUnder: string;
+    goals: string;
+    comparisonTitle: string;
+    comparison: Record<GsPredictionComparisonKey, string>;
+    probabilities: string;
+    /** Aviso de que é um palpite estatístico. */
+    note: string;
+    empty: string;
+    updatedAt: string;
+  };
+  /** Odds do jogo (consenso entre as casas). "{n} casas", "{line}". */
+  odds: {
+    title: string;
+    markets: Record<'match_winner' | 'double_chance' | 'goals_over_under' | 'both_teams_score', string>;
+    home: string;
+    draw: string;
+    away: string;
+    homeDraw: string;
+    homeAway: string;
+    drawAway: string;
+    over: string;
+    under: string;
+    yes: string;
+    no: string;
+    /** "Maior {odd}". */
+    best: string;
+    /** "Média de {n} casas" (plural), no título do mercado quando todas as seleções têm a mesma conta. */
+    bookmakers: PluralText;
+    /** "{n} casas" (plural), em cada seleção quando as contas do mercado diferem. */
+    bookmakersShort: PluralText;
+    /** Aviso de jogo responsável. */
+    notice: string;
+    empty: string;
+    updatedAt: string;
+  };
   leaders: {
     goals: string;
     assists: string;
@@ -2216,6 +2449,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       competitions: 'Campeonatos',
       noNext: 'Nenhum jogo marcado.',
     },
+    teamStats: {
+      title: 'Estatísticas do time',
+      summary: 'Resumo da temporada',
+      played: 'Jogos',
+      won: 'Vitórias',
+      drawn: 'Empates',
+      lost: 'Derrotas',
+      goalsFor: 'Gols pró',
+      goalsAgainst: 'Gols contra',
+      perGame: '{x} por jogo',
+      form: 'Forma',
+      homeAway: 'Casa e fora',
+      home: 'Casa',
+      away: 'Fora',
+      cleanSheets: 'Sem sofrer gol',
+      failedToScore: 'Sem marcar',
+      goalsByMinute: 'Gols por faixa de minuto',
+      scored: 'Marcados',
+      conceded: 'Sofridos',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'Sem minuto',
+      highlights: 'Sequências e maiores placares',
+      winStreak: 'Vitórias seguidas',
+      drawStreak: 'Empates seguidos',
+      lossStreak: 'Derrotas seguidas',
+      biggestWin: 'Maior vitória',
+      biggestLoss: 'Maior derrota',
+      penalties: 'Pênaltis',
+      penaltiesScored: '{scored} de {total}',
+      formations: 'Formações mais usadas',
+      games: '{n} jogos',
+      cards: 'Cartões por faixa de minuto',
+      yellow: 'Amarelos',
+      red: 'Vermelhos',
+      updated: 'Atualizado em {date}',
+      empty: 'Sem estatísticas deste time para a temporada.',
+    },
     extra: {
       referee: 'Árbitro',
       halftime: '1º T {home}–{away}',
@@ -2384,6 +2654,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Sem resultados nesta prova.',
       emptyCalendar: 'Nenhuma prova no período.',
       emptyRanking: 'Ranking indisponível.',
+    },
+    prediction: {
+      title: 'Palpite do jogo',
+      home: 'Vitória do mandante',
+      draw: 'Empate',
+      away: 'Vitória do visitante',
+      wins: '{team} vence',
+      winsOrDraws: '{team} vence ou empata',
+      open: 'Jogo sem favorito',
+      over: 'Mais de {line} gols',
+      under: 'Menos de {line} gols',
+      teamOver: '{team}: mais de {line} gols',
+      teamUnder: '{team}: menos de {line} gols',
+      goals: 'Gols',
+      comparisonTitle: 'Comparação',
+      comparison: {
+        form: 'Momento',
+        attack: 'Ataque',
+        defense: 'Defesa',
+        poisson: 'Probabilidade (Poisson)',
+        h2h: 'Confronto direto',
+        goals: 'Gols',
+        total: 'Geral',
+      },
+      probabilities: 'Chances de cada resultado',
+      note: 'Palpite estatístico, a partir do retrospecto dos times.',
+      empty: 'Palpite ainda não disponível para este jogo.',
+      updatedAt: 'Atualizado em',
+    },
+    odds: {
+      title: 'Odds do jogo',
+      markets: {
+        match_winner: 'Resultado final',
+        double_chance: 'Dupla chance',
+        goals_over_under: 'Total de gols',
+        both_teams_score: 'Ambos marcam',
+      },
+      home: 'Mandante',
+      draw: 'Empate',
+      away: 'Visitante',
+      homeDraw: 'Mandante ou empate',
+      homeAway: 'Mandante ou visitante',
+      drawAway: 'Empate ou visitante',
+      over: 'Mais de {line}',
+      under: 'Menos de {line}',
+      yes: 'Sim',
+      no: 'Não',
+      best: 'Maior {odd}',
+      bookmakers: { one: 'Média de {n} casa', other: 'Média de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
+      notice: '18+ · Aposte com responsabilidade.',
+      empty: 'Odds ainda não disponíveis para este jogo.',
+      updatedAt: 'Atualizado em',
     },
     leaders: {
       goals: 'Artilharia',
@@ -2658,6 +2981,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       competitions: 'Competiciones',
       noNext: 'Ningún partido programado.',
     },
+    teamStats: {
+      title: 'Estadísticas del equipo',
+      summary: 'Resumen de la temporada',
+      played: 'Partidos',
+      won: 'Victorias',
+      drawn: 'Empates',
+      lost: 'Derrotas',
+      goalsFor: 'Goles a favor',
+      goalsAgainst: 'Goles en contra',
+      perGame: '{x} por partido',
+      form: 'Racha',
+      homeAway: 'Local y visitante',
+      home: 'Local',
+      away: 'Visitante',
+      cleanSheets: 'Valla invicta',
+      failedToScore: 'Sin marcar',
+      goalsByMinute: 'Goles por tramo de minutos',
+      scored: 'Marcados',
+      conceded: 'Recibidos',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'Sin minuto',
+      highlights: 'Rachas y mayores resultados',
+      winStreak: 'Victorias seguidas',
+      drawStreak: 'Empates seguidos',
+      lossStreak: 'Derrotas seguidas',
+      biggestWin: 'Mayor victoria',
+      biggestLoss: 'Mayor derrota',
+      penalties: 'Penales',
+      penaltiesScored: '{scored} de {total}',
+      formations: 'Formaciones más usadas',
+      games: '{n} partidos',
+      cards: 'Tarjetas por tramo de minutos',
+      yellow: 'Amarillas',
+      red: 'Rojas',
+      updated: 'Actualizado el {date}',
+      empty: 'Sin estadísticas de este equipo para la temporada.',
+    },
     extra: {
       referee: 'Árbitro',
       halftime: '1T {home}–{away}',
@@ -2826,6 +3186,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Sin resultados en esta prueba.',
       emptyCalendar: 'Ninguna prueba en el período.',
       emptyRanking: 'Ranking no disponible.',
+    },
+    prediction: {
+      title: 'Pronóstico del partido',
+      home: 'Gana el local',
+      draw: 'Empate',
+      away: 'Gana el visitante',
+      wins: 'Gana {team}',
+      winsOrDraws: '{team} gana o empata',
+      open: 'Partido sin favorito',
+      over: 'Más de {line} goles',
+      under: 'Menos de {line} goles',
+      teamOver: '{team}: más de {line} goles',
+      teamUnder: '{team}: menos de {line} goles',
+      goals: 'Goles',
+      comparisonTitle: 'Comparación',
+      comparison: {
+        form: 'Momento',
+        attack: 'Ataque',
+        defense: 'Defensa',
+        poisson: 'Probabilidad (Poisson)',
+        h2h: 'Historial',
+        goals: 'Goles',
+        total: 'General',
+      },
+      probabilities: 'Probabilidad de cada resultado',
+      note: 'Pronóstico estadístico, a partir del historial de los equipos.',
+      empty: 'Pronóstico aún no disponible para este partido.',
+      updatedAt: 'Actualizado el',
+    },
+    odds: {
+      title: 'Cuotas del partido',
+      markets: {
+        match_winner: 'Resultado final',
+        double_chance: 'Doble oportunidad',
+        goals_over_under: 'Total de goles',
+        both_teams_score: 'Ambos marcan',
+      },
+      home: 'Local',
+      draw: 'Empate',
+      away: 'Visitante',
+      homeDraw: 'Local o empate',
+      homeAway: 'Local o visitante',
+      drawAway: 'Empate o visitante',
+      over: 'Más de {line}',
+      under: 'Menos de {line}',
+      yes: 'Sí',
+      no: 'No',
+      best: 'Máxima {odd}',
+      bookmakers: { one: 'Promedio de {n} casa', other: 'Promedio de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
+      notice: '+18 · Jugá con responsabilidad.',
+      empty: 'Cuotas aún no disponibles para este partido.',
+      updatedAt: 'Actualizado el',
     },
     leaders: {
       goals: 'Goleadores',
@@ -3105,6 +3518,43 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       competitions: 'Competitions',
       noNext: 'No match scheduled.',
     },
+    teamStats: {
+      title: 'Team statistics',
+      summary: 'Season summary',
+      played: 'Played',
+      won: 'Won',
+      drawn: 'Drawn',
+      lost: 'Lost',
+      goalsFor: 'Goals for',
+      goalsAgainst: 'Goals against',
+      perGame: '{x} per game',
+      form: 'Form',
+      homeAway: 'Home and away',
+      home: 'Home',
+      away: 'Away',
+      cleanSheets: 'Clean sheets',
+      failedToScore: 'Failed to score',
+      goalsByMinute: 'Goals by minute',
+      scored: 'Scored',
+      conceded: 'Conceded',
+      minuteRange: "{from}–{to}'",
+      unknownMinute: 'No minute',
+      highlights: 'Streaks and biggest results',
+      winStreak: 'Wins in a row',
+      drawStreak: 'Draws in a row',
+      lossStreak: 'Defeats in a row',
+      biggestWin: 'Biggest win',
+      biggestLoss: 'Biggest defeat',
+      penalties: 'Penalties',
+      penaltiesScored: '{scored} of {total}',
+      formations: 'Most used formations',
+      games: '{n} games',
+      cards: 'Cards by minute',
+      yellow: 'Yellow',
+      red: 'Red',
+      updated: 'Updated {date}',
+      empty: 'No statistics for this team this season.',
+    },
     extra: {
       referee: 'Referee',
       halftime: 'HT {home}–{away}',
@@ -3260,6 +3710,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'No results for this competition.',
       emptyCalendar: 'No competitions in this period.',
       emptyRanking: 'Ranking unavailable.',
+    },
+    prediction: {
+      title: 'Match prediction',
+      home: 'Home win',
+      draw: 'Draw',
+      away: 'Away win',
+      wins: '{team} to win',
+      winsOrDraws: '{team} to win or draw',
+      open: 'No clear favourite',
+      over: 'Over {line} goals',
+      under: 'Under {line} goals',
+      teamOver: '{team}: over {line} goals',
+      teamUnder: '{team}: under {line} goals',
+      goals: 'Goals',
+      comparisonTitle: 'Comparison',
+      comparison: {
+        form: 'Form',
+        attack: 'Attack',
+        defense: 'Defence',
+        poisson: 'Probability (Poisson)',
+        h2h: 'Head to head',
+        goals: 'Goals',
+        total: 'Overall',
+      },
+      probabilities: 'Chance of each result',
+      note: 'Statistical prediction based on both teams’ record.',
+      empty: 'Prediction not available for this match yet.',
+      updatedAt: 'Updated',
+    },
+    odds: {
+      title: 'Match odds',
+      markets: {
+        match_winner: 'Full time result',
+        double_chance: 'Double chance',
+        goals_over_under: 'Total goals',
+        both_teams_score: 'Both teams to score',
+      },
+      home: 'Home',
+      draw: 'Draw',
+      away: 'Away',
+      homeDraw: 'Home or draw',
+      homeAway: 'Home or away',
+      drawAway: 'Draw or away',
+      over: 'Over {line}',
+      under: 'Under {line}',
+      yes: 'Yes',
+      no: 'No',
+      best: 'Best {odd}',
+      bookmakers: { one: 'Average of {n} bookmaker', other: 'Average of {n} bookmakers' },
+      bookmakersShort: { one: '{n} bookmaker', other: '{n} bookmakers' },
+      notice: '18+ · Please gamble responsibly.',
+      empty: 'Odds not available for this match yet.',
+      updatedAt: 'Updated',
     },
     leaders: {
       goals: 'Top scorers',

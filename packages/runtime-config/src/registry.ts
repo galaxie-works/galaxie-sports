@@ -12,6 +12,19 @@ import {
   checkBandShares,
   isTimeZone,
 } from './ai-policy.js';
+import {
+  FOOTBALL_MIRROR_GROUPS,
+  MIRROR_APIS,
+  MIRROR_BUDGET_DEFAULT_PERCENT,
+  MIRROR_BUDGET_KEY,
+  MIRROR_BUDGET_MAX_PERCENT,
+  MIRROR_GROUP_ORDER_FOOTBALL_KEY,
+  MIRROR_GROUP_ORDER_SPORTS_KEY,
+  SPORT_MIRROR_GROUPS,
+  mirrorGroupOrderError,
+  mirrorPeriodsError,
+  mirrorPeriodsKey,
+} from './mirror.js';
 import type { ValidationError } from './resolve.js';
 
 /**
@@ -36,6 +49,7 @@ export const SETTING_SECTIONS = [
   'wtw',
   'related',
   'provider',
+  'mirror',
   'assets',
   'credentials',
 ] as const;
@@ -683,6 +697,47 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 50,
     default: '25',
   },
+
+  // ── Espelho da api-sports (sync:mirror; catálogo e regras em mirror.ts) ──────────────────────
+  {
+    // parte da cota diária de cada API paga; o free fica em 10 chamadas
+    key: MIRROR_BUDGET_KEY,
+    section: 'mirror',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 1,
+    max: MIRROR_BUDGET_MAX_PERCENT,
+    zeroInvalid: true,
+    default: String(MIRROR_BUDGET_DEFAULT_PERCENT),
+    critical: true,
+  },
+  ...(
+    [
+      [MIRROR_GROUP_ORDER_FOOTBALL_KEY, 'football', FOOTBALL_MIRROR_GROUPS],
+      [MIRROR_GROUP_ORDER_SPORTS_KEY, 'basketball', SPORT_MIRROR_GROUPS],
+    ] as const
+  ).map(([key, api, groups]): SettingDef => ({
+    key,
+    section: 'mirror',
+    type: 'text',
+    services: ['ingestor'],
+    apply: 'next-run',
+    check: (value) => mirrorGroupOrderError(api, value),
+    default: groups.join(','),
+  })),
+  // períodos por endpoint e tier: só o que difere do padrão (vazio = todos no padrão do código)
+  ...MIRROR_APIS.map((api): SettingDef => ({
+    key: mirrorPeriodsKey(api),
+    section: 'mirror',
+    type: 'text',
+    services: ['ingestor'],
+    apply: 'next-run',
+    allowEmpty: true,
+    check: (value) => mirrorPeriodsError(api, value),
+    default: null,
+    critical: true,
+  })),
 
   // ── Logos ───────────────────────────────────────────────────────────────────────────────────
   {

@@ -82,6 +82,8 @@ export interface WindowSegment {
 export interface LiveBudget {
   dailyLimit: number;
   reserve: number;
+  /** true na produção: o teto do ao vivo é o limite do dia, com a reserva inclusa. */
+  liveUsesReserve: boolean;
   /** Saldo protegido para o sync diário (o ao vivo nunca o consome). */
   protectedDaily: number;
   /** Orçamento LIVE total do dia (inclui o que já foi gasto) — enviado ao `governor.plan`. */

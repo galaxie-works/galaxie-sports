@@ -12,3 +12,4 @@ export * from './api.js';
 export * from './widgets.js';
 export * from './lineup-requests.js';
 export * from './channel-lists.js';
+export * from './markets.js';

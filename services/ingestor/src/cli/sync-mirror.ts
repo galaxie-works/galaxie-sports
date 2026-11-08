@@ -5,13 +5,18 @@
  * nos outros 11 esportes, temporada inteira, classificação, times, elencos, estatísticas por jogo e odds.
  *   pnpm --filter @galaxie/ingestor sync:mirror --plan
  *   pnpm --filter @galaxie/ingestor sync:mirror [esporte ...]
- * Opções: --orcamento N (chamadas por API e por dia; padrão 20% da cota nos pagos, 10 no free)
+ * Períodos, endpoints ligados, ordem dos grupos e orçamento: Ajustes → Operação → Espelho (MIRROR_* no env, com
+ * as sobrescritas do painel que o scheduler aplica). O `--plan` também grava o inventário que o painel usa na
+ * estimativa de chamadas (só contagem, sem chamar o fornecedor).
+ * Opções: --orcamento N (chamadas por API e por dia; padrão MIRROR_BUDGET_PERCENT da cota nos pagos, 10 no free)
  *         · --tier-outros N (padrão 2) · --max-chamadas N · --forcar · --sem-normalizar
  * Reexecutar no mesmo dia é seguro: o que já foi renovado hoje conta no orçamento e não é buscado de novo.
  */
 import { resolve } from 'node:path';
 import type { ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
+import { mirrorConfigFromEnv } from '@galaxie/runtime-config';
+import { panelEnv } from '../assets/commons/panel-env.js';
 import { loadSportCatalog } from '../catalog/catalog-config.js';
 import { isOtherSport, OTHER_SPORTS } from '../catalog/sport-catalog.js';
 import { jobContextFromEnv } from '../context.js';
@@ -39,6 +44,10 @@ await runCli(async () => {
   const sports: ApiSport[] = positionals.length ? (positionals as ApiSport[]) : ['football', ...OTHER_SPORTS];
   const ctx = jobContextFromEnv();
   try {
+    // as flags do painel por cima do env também quando o job roda à mão (pelo scheduler o env já vem com elas);
+    // flag inválida no .env (o painel não grava valor inválido) para o job antes de chamar o fornecedor
+    const mirror = mirrorConfigFromEnv(await panelEnv(ctx.db));
+    for (const sport of sports) mirror.api(sport);
     const jobs = mirrorJobs(
       {
         catalog: ctx.catalog,
@@ -54,6 +63,7 @@ await runCli(async () => {
         budget: intOption(values.orcamento, 'orcamento'),
         other: { maxTier: intOption(values['tier-outros'], 'tier-outros') },
         force: values.forcar,
+        mirror,
       },
     );
     // futebol direto ao core (times, elencos; a tabela do fornecedor só onde não calculamos); os outros esportes

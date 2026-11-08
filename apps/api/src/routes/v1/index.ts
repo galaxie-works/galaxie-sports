@@ -20,6 +20,8 @@ import { equestrianRoutes } from './equestrian.js';
 import { sidelinedRoutes } from './sidelined.js';
 import { championRoutes } from './champions.js';
 import { leadersRoutes } from './leaders.js';
+import { teamStatisticsRoutes } from './team-statistics.js';
+import { marketsRoutes } from './markets.js';
 import { transferRoutes } from './transfers.js';
 
 /**
@@ -45,11 +47,15 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await championRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
+  // palpite `/v1/events/{id}/predictions` (core_data) e odds `/v1/events/{id}/odds` (add-on odds, fechado)
+  await marketsRoutes(app, ctx);
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
   await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
   // desfalques `/v1/events/{id}/sidelined` e `/v1/teams/{id}/sidelined` (#830) — módulo core_data
   await sidelinedRoutes(app, ctx);
+  // estatísticas do time na temporada `/v1/teams/{id}/statistics` (#893)
+  await teamStatisticsRoutes(app, ctx);
   // vai e vem do mercado `/v1/teams|competitions/{id}/transfers` (#832) — módulo core_data
   await transferRoutes(app, ctx);
   // semântica (#45, #43) e multiesporte (#75, #78) — módulos `semantic` e `multisport`
