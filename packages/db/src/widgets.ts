@@ -63,6 +63,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   lineups: ['core_data'],
   match_prediction: ['core_data'],
   match_odds: ['core_data', 'odds'],
+  transfer_market: ['core_data'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {

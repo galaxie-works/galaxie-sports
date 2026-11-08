@@ -59,6 +59,7 @@ export const WIDGET_KINDS = [
   'lineups',
   'match_prediction',
   'match_odds',
+  'transfer_market',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -117,6 +118,8 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   lineups: ['event'],
   match_prediction: ['event'],
   match_odds: ['event'],
+  // vai e vem do mercado: de um time ou dos times de um campeonato
+  transfer_market: ['team', 'competition'],
 };
 
 /**
@@ -160,7 +163,12 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   lineups: 'event',
   match_prediction: 'event',
   match_odds: 'event',
+  // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
+  transfer_market: null,
 };
+
+/** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
+export const ENTITY_REQUIRED_ANY: ReadonlySet<WidgetKind> = new Set<WidgetKind>(['transfer_market']);
 
 const STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
 
@@ -367,7 +375,8 @@ export function parseWidgetInput(
     if (!opts.entityTypes(r.kind).includes(type) || typeof id !== 'string' || !ENTITY_ID.test(id))
       return { ok: false, error: 'entity' };
     defaults = defaultsFromEntity({ type, id });
-  } else if (REQUIRED_ENTITY[r.kind]) return { ok: false, error: 'entityRequired' };
+  } else if (REQUIRED_ENTITY[r.kind] || ENTITY_REQUIRED_ANY.has(r.kind))
+    return { ok: false, error: 'entityRequired' };
   // esporte: só nos tipos de todos os esportes, e no formato da API (`sports` do plano a API confere)
   if (d.sport !== undefined && d.sport !== null) {
     const sport = sportOf(r.kind, d.sport);
@@ -486,6 +495,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   lineups: 'GalaxieLineups',
   match_prediction: 'GalaxieMatchPrediction',
   match_odds: 'GalaxieMatchOdds',
+  transfer_market: 'GalaxieTransferMarket',
 };
 
 /**

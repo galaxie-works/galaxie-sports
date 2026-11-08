@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  ArrowLeftRight,
   Award,
   CalendarCheck,
   CalendarClock,
@@ -109,6 +110,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   lineups: LayoutGrid,
   match_prediction: Percent,
   match_odds: Scale,
+  transfer_market: ArrowLeftRight,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

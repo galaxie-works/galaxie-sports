@@ -4,6 +4,7 @@ import {
   LIVE_STATUSES,
   PROBLEM_STATUSES,
   STARTED_STATUSES,
+  eventRefreshMs,
   localized,
   type GsEvent,
   type GsTeamCompetition,
@@ -57,8 +58,7 @@ export function TeamCard({
   const query = useGalaxieQuery<GsTeamOverview>(
     teamId ? `/v1/teams/${encodeURIComponent(teamId)}/overview` : null,
     {},
-    // 30 s só com jogo começando ou em andamento e com um bloco que muda com ele (próximo jogo ou forma)
-    (o) => ((showNext || showForm) && hasActiveMatch(o) ? LIVE_REFRESH_MS : CARD_REFRESH_MS),
+    (o) => (showNext || showForm ? cardRefreshMs(o) : CARD_REFRESH_MS),
   );
 
   const o = query.data;
@@ -156,6 +156,16 @@ export function TeamCard({
       ) : null}
     </WidgetFrame>
   );
+}
+
+/**
+ * Intervalo de atualização com o próximo jogo ou a forma na tela: 30 s com jogo começando ou em andamento;
+ * com o próximo agendado, acorda perto do início (o mesmo relógio do placar), no máximo a cada 15 min.
+ */
+export function cardRefreshMs(o: GsTeamOverview, now = Date.now()): number {
+  if (hasActiveMatch(o)) return LIVE_REFRESH_MS;
+  const next = o.next_event ? eventRefreshMs(o.next_event, now) : null;
+  return Math.min(CARD_REFRESH_MS, next ?? CARD_REFRESH_MS);
 }
 
 /** Jogo ao vivo, ou o próximo já começando (`starting` vem em `next_event`) ou em andamento. */

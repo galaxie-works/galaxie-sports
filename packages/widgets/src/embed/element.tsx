@@ -41,6 +41,7 @@ import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
 import { MatchPrediction } from '../widgets/match-prediction.js';
 import { MatchOdds } from '../widgets/match-odds.js';
+import { TransferMarket } from '../widgets/transfer-market.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -211,6 +212,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <MatchPrediction {...o} eventId={eventId ?? ''} />;
     case 'match_odds':
       return <MatchOdds {...o} eventId={eventId ?? ''} />;
+    case 'transfer_market':
+      return <TransferMarket {...o} teamId={teamId} competitionId={teamId ? undefined : competitionId} />;
   }
 }
 

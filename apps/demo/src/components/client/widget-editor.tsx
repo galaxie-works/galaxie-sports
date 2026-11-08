@@ -15,6 +15,7 @@ import {
   TeamSchedule,
   TeamCard,
   TeamSquad,
+  TransferMarket,
   AthleteProfile,
   FightCard,
   EquestrianResults,
@@ -71,6 +72,7 @@ import {
   ENTITY_TYPES,
   NAME_MAX,
   PUBLISHABLE_KEY_ENV,
+  ENTITY_REQUIRED_ANY,
   REQUIRED_ENTITY,
   OFFERED_WIDGET_KINDS,
   WIDGET_KINDS,
@@ -284,6 +286,8 @@ function PreviewWidget({
         return <MatchPrediction {...o} {...WIDGET_CATALOG.match_prediction.exampleProps} />;
       case 'match_odds':
         return <MatchOdds {...o} {...WIDGET_CATALOG.match_odds.exampleProps} />;
+      case 'transfer_market':
+        return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
     }
   }
   switch (kind) {
@@ -341,6 +345,12 @@ function PreviewWidget({
       return <MatchPrediction {...o} eventId={entity.id} />;
     case 'match_odds':
       return <MatchOdds {...o} eventId={entity.id} />;
+    case 'transfer_market':
+      return entity.type === 'team' ? (
+        <TransferMarket {...o} teamId={entity.id} />
+      ) : (
+        <TransferMarket {...o} competitionId={entity.id} />
+      );
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':
@@ -673,9 +683,14 @@ export function WidgetEditor({
                       onChange={(v) => set('entity', v)}
                     />
                     <FieldDescription>
-                      {fill(REQUIRED_ENTITY[draft.kind] ? e.entityHintRequired : e.entityHint, {
-                        types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
-                      })}
+                      {fill(
+                        REQUIRED_ENTITY[draft.kind] || ENTITY_REQUIRED_ANY.has(draft.kind)
+                          ? e.entityHintRequired
+                          : e.entityHint,
+                        {
+                          types: entityTypes.map((x) => b.entityTypes[x]).join(', '),
+                        },
+                      )}
                     </FieldDescription>
                   </Field>
                 ) : null}
