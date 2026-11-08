@@ -62,8 +62,8 @@ describe('config/geo do repositório', () => {
     }
   });
 
-  it('mercados ativos da relevância por país: os 10 da CONMEBOL + México', () => {
-    expect(geo.markets).toEqual(['BR', 'AR', 'UY', 'CL', 'CO', 'PY', 'PE', 'EC', 'BO', 'VE', 'MX']);
+  it('mercados ativos da relevância por país: os 10 da CONMEBOL + México, EUA e Canadá', () => {
+    expect(geo.markets).toEqual(['BR', 'AR', 'UY', 'CL', 'CO', 'PY', 'PE', 'EC', 'BO', 'VE', 'MX', 'US', 'CA']);
   });
 
   it('navegação: os 12 esportes, um por catálogo de competições, futebol primeiro', () => {
@@ -187,6 +187,8 @@ describe('config/geo do repositório', () => {
       BO: 'bolivia-primera-division',
       VE: 'venezuela-primera-division',
       MX: 'liga-mx',
+      US: 'mls',
+      CA: 'mls', // os clubes canadenses jogam a MLS; não há liga canadense no catálogo
     };
     for (const market of geo.markets) {
       expect(geo.audience.points(market, 'football', top[market]), market).toBe(35);
@@ -196,6 +198,15 @@ describe('config/geo do repositório', () => {
     expect(geo.audience.points('MX', 'football', 'brasileirao-serie-a')).toBe(0);
     expect(geo.audience.points('BR', 'football', 'liga-mx')).toBe(0);
     expect(geo.audience.points('MX', 'football', 'liga-mx-femenil')).toBe(25);
+  });
+
+  it('audiência: EUA e Canadá pesam as ligas principais de cada esporte', () => {
+    expect(geo.audience.points('US', 'nba', 'nba')).toBe(35);
+    expect(geo.audience.points('US', 'american-football', 'nfl')).toBe(35);
+    expect(geo.audience.points('US', 'baseball', 'mlb')).toBe(35);
+    expect(geo.audience.points('CA', 'hockey', 'nhl')).toBe(35);
+    expect(geo.audience.points('US', 'football', 'liga-mx')).toBe(25);
+    expect(geo.audience.points('BR', 'nba', 'nba')).toBe(0);
   });
 
   it('audiência: Premier League e LaLiga (20) e as outras grandes europeias (16) em todo mercado', () => {

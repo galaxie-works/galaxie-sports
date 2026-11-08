@@ -319,7 +319,8 @@ describe('activeMarkets', () => {
     const base = activeMarkets(req(null), geo);
     expect(base.slice(0, 2)).toEqual(['BR', 'AR']);
     expect(base).toEqual(expect.arrayContaining(['UY', 'CL', 'CO', 'PY', 'PE', 'EC', 'BO', 'VE', 'MX']));
-    expect(activeMarkets(req(['br', 'us']), geo)).toEqual([...base, 'US']);
+    expect(base).toEqual(expect.arrayContaining(['US', 'CA']));
+    expect(activeMarkets(req(['br', 'pt']), geo)).toEqual([...base, 'PT']);
   });
 });
 

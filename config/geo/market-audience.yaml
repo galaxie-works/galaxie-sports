@@ -33,7 +33,7 @@
 # Fora daqui (abaixo do limiar sem jogo decisivo): Eredivisie, Primeira Liga, EFL Championship, Saudi
 # Pro League e MLS — ficam "a confirmar" sem gastar LLM. Estaduais do Brasil também ficam de fora por
 # enquanto (custo: são muitas rodadas); a final e os mata-matas passam pelo próprio peso da fase.
-# Revisão: out/2026.
+# Revisão: out/2026; US e CA em nov/2026.
 # =============================================================================
 schema_version: 1
 
@@ -111,3 +111,42 @@ markets:
       liga-mx-femenil: 25
       concacaf-champions-cup: 15
       leagues-cup: 15
+  # EUA e Canadá (08/11/2026): mercados-alvo junto com a América Latina. No futebol a MLS é a 1ª divisão
+  # dos dois países (clubes canadenses jogam nela); a Liga MX e a Leagues Cup pesam pelo público hispânico
+  # nos EUA. Fora do futebol, a liga principal de cada esporte pesa como liga nacional (35).
+  US:
+    football:
+      mls: 35
+      leagues-cup: 25
+      liga-mx: 25
+      concacaf-champions-cup: 15
+      concacaf-nations-league: 15
+      wc-qualification-concacaf: 15
+      copa-america: 15
+    nba:
+      nba: 35
+    american-football:
+      nfl: 35
+      ncaa-football: 20
+    baseball:
+      mlb: 35
+    hockey:
+      nhl: 30
+  CA:
+    football:
+      mls: 35
+      leagues-cup: 15
+      concacaf-champions-cup: 10
+      concacaf-nations-league: 10
+      wc-qualification-concacaf: 10
+    hockey:
+      nhl: 35
+      iihf-world-junior-championship: 20
+      memorial-cup: 20
+      pwhl: 15
+    nba:
+      nba: 30
+    baseball:
+      mlb: 25
+    american-football:
+      nfl: 20
