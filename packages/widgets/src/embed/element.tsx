@@ -35,6 +35,7 @@ import { CountryToday } from '../widgets/country-today.js';
 import { GamesSchedule } from '../widgets/games-schedule.js';
 import { CountryAthletes } from '../widgets/country-athletes.js';
 import { MedalHistory } from '../widgets/medal-history.js';
+import { Sidelined } from '../widgets/sidelined.js';
 import { ChampionsGallery } from '../widgets/champions-gallery.js';
 import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
@@ -43,6 +44,7 @@ import { MatchPrediction } from '../widgets/match-prediction.js';
 import { MatchOdds } from '../widgets/match-odds.js';
 import { TeamStats } from '../widgets/team-stats.js';
 import { TransferMarket } from '../widgets/transfer-market.js';
+import { Bracket } from '../widgets/bracket.js';
 import { ChannelGuide } from '../widgets/channel-guide.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
@@ -198,6 +200,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'sidelined':
+      return eventId ? <Sidelined {...o} eventId={eventId} /> : <Sidelined {...o} teamId={teamId} />;
     case 'champions_gallery':
       return <ChampionsGallery {...o} competitionId={competitionId ?? ''} />;
     case 'competition_leaders':
@@ -218,6 +222,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <TeamStats {...o} teamId={teamId ?? ''} />;
     case 'transfer_market':
       return <TransferMarket {...o} teamId={teamId} competitionId={teamId ? undefined : competitionId} />;
+    case 'bracket':
+      return <Bracket {...o} competitionId={competitionId ?? ''} />;
     case 'channel_guide':
       // a grade sai da rota presa a este widget (a lista de canais fica na API)
       return <ChannelGuide {...o} widgetId={config.id} sport={sport} />;

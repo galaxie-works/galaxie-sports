@@ -33,6 +33,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'sidelined',
   'champions_gallery',
   'competition_leaders',
   'countdown',
@@ -43,6 +44,7 @@ export const WIDGET_KINDS = [
   'match_odds',
   'team_stats',
   'transfer_market',
+  'bracket',
   'channel_guide',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
@@ -999,6 +1001,43 @@ export interface GsHeadToHead {
   events: GsEvent[];
 }
 
+/** Um desfalque (`/v1/events/{id}/sidelined` e `/v1/teams/{id}/sidelined`). */
+export interface GsSidelinedPlayer {
+  person: { id: string | null; name: string; photo: string | null };
+  position: string | null;
+  number: number | null;
+  status: 'out' | 'doubtful';
+  category: 'injury' | 'suspension' | 'illness' | 'other';
+  reason: string | null;
+  reason_label: string | null;
+  since: string | null;
+  until: string | null;
+  source: 'match' | 'history';
+}
+
+export interface GsSidelinedTeam {
+  id: string | null;
+  name: string | null;
+  side: 'home' | 'away' | null;
+  logo: string | null;
+}
+
+/** Desfalques dos dois times do jogo. */
+export interface GsEventSidelined {
+  event_id: string;
+  available: boolean;
+  teams: { team: GsSidelinedTeam; players: GsSidelinedPlayer[] }[];
+}
+
+/** Desfalques atuais de um time. */
+export interface GsTeamSidelined {
+  team: GsSidelinedTeam;
+  as_of: string;
+  available: boolean;
+  next_event_id: string | null;
+  players: GsSidelinedPlayer[];
+}
+
 /** Grade nos canais do cliente (`/v1/widgets/{id}/channel-guide`), só o que o widget usa. */
 export interface GsChannelGuide {
   widget_id: string;
@@ -1079,6 +1118,70 @@ export interface GsStandings {
   }[];
   updated_at: string | null;
 }
+
+/** Chaveamento do mata-mata (`/v1/competitions/{id}/seasons/{season}/bracket`, #829). */
+export interface GsBracketPair {
+  home: number | null;
+  away: number | null;
+}
+
+export interface GsBracketTeam {
+  id: string;
+  name: string;
+  short_name: string | null;
+  logo: string | null;
+}
+
+export interface GsBracketTie {
+  id: string;
+  /** Mandante da ida (ou do jogo 1); null enquanto não definido. */
+  home: GsBracketTeam | null;
+  away: GsBracketTeam | null;
+  format: 'single' | 'two_legs' | 'series';
+  legs: {
+    event_id: string;
+    leg: number;
+    starts_at: string;
+    status: GsEventStatus;
+    home_id: string | null;
+    score: GsBracketPair;
+    penalty: GsBracketPair | null;
+  }[];
+  aggregate: GsBracketPair | null;
+  wins: GsBracketPair | null;
+  penalties: GsBracketPair | null;
+  winner_id: string | null;
+  status: 'scheduled' | 'in_progress' | 'decided';
+}
+
+export interface GsBracketRound {
+  stage_id: string;
+  kind: string;
+  name: string;
+  ties: GsBracketTie[];
+}
+
+export interface GsBracket {
+  competition_id: string;
+  sport: string;
+  season: { year: number; label: string };
+  rounds: GsBracketRound[];
+  updated_at: string | null;
+}
+
+/** Fases que o widget de chaveamento oferece como "a partir de", na ordem do torneio. */
+export const BRACKET_PHASES = [
+  'playoff',
+  'knockout_round',
+  'round_of_128',
+  'round_of_64',
+  'round_of_32',
+  'round_of_16',
+  'quarter_final',
+  'semi_final',
+  'third_place',
+  'final',
+] as const;
 
 /** Cor padrão de cada faixa; `null` = a cor primária do tema. */
 export const DEFAULT_ZONE_COLORS: Record<StandingsZoneTone, string | null> = {
@@ -1673,6 +1776,11 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:.85em;line-height:1.3}
 .gs-player{display:block;width:100%;min-width:200px;min-height:200px;aspect-ratio:16/9;border:0;border-radius:calc(var(--gs-radius)*.6);background:#000}
 .gs-player[data-vertical]{max-width:320px;aspect-ratio:9/16;margin:0 auto}
+.gs-sidelined{display:grid;gap:var(--gs-gap)}
+.gs-sidelined[data-gs-sidelined=event]{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.gs-sidelined-who{display:flex;flex-direction:column;flex:1;min-width:0;gap:2px}
+.gs-sidelined>.gs-group+.gs-group{margin-top:0}
+.gs-sidelined-why{font-size:.8em;color:var(--gs-muted-foreground);overflow-wrap:anywhere}
 .gs-h2h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:var(--gs-gap);text-align:center}
 .gs-h2h[data-no-draws]{grid-template-columns:1fr 1fr}
 .gs-stat{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
@@ -1767,6 +1875,22 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-kv:first-child{border-top:0}.gs-kv>strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 .gs-transfer-dir{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:6px;font-size:.8em;font-weight:800;color:#fff;background:#16a34a}
 .gs-transfer-dir[data-dir=out]{background:var(--gs-live)}
+.gs-bracket{display:flex;align-items:stretch;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;margin:0 calc(var(--gs-pad)*-1);padding:0 var(--gs-pad) 4px;-webkit-overflow-scrolling:touch}
+.gs-bracket-round{display:flex;flex-direction:column;gap:6px;flex:0 0 min(210px,82%);min-width:0;scroll-snap-align:start}
+.gs-bracket-ties{display:flex;flex-direction:column;justify-content:space-around;gap:8px;flex:1;margin:0;padding:0;list-style:none}
+.gs-tie{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.6);background:var(--gs-background);min-width:0}
+.gs-tie[data-highlight]{border-color:color-mix(in srgb,var(--gs-primary) 60%,transparent);box-shadow:inset 3px 0 0 var(--gs-primary)}
+.gs-tie[data-live]{border-color:color-mix(in srgb,var(--gs-live) 55%,transparent)}
+.gs-tie-line{display:flex;align-items:center;gap:6px;min-width:0;font-size:.88em;font-weight:600}
+.gs-tie-line[data-lost]{color:var(--gs-muted-foreground);font-weight:500}
+.gs-tie-line[data-won]{font-weight:800}
+.gs-tie-score{display:flex;align-items:baseline;gap:6px;margin-left:auto;flex:none;font-variant-numeric:tabular-nums}
+.gs-tie-score small{font-size:.78em;font-weight:500;color:var(--gs-muted-foreground)}
+.gs-tie-score strong{min-width:1.2em;text-align:right}
+.gs-tie-meta{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:.72em;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
+.gs-bracket-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.gs-seg[data-gs-rounds]{max-width:100%;overflow-x:auto;border-radius:calc(var(--gs-radius)*.75)}
+.gs-seg[data-gs-rounds] button{white-space:nowrap}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -2182,6 +2306,23 @@ export interface WidgetTexts {
     /** "Soma de {n} edições". */
     totals: string;
   };
+  /** Desfalques: lesionados, suspensos e dúvidas (#830). */
+  sidelined: {
+    title: string;
+    out: string;
+    doubtful: string;
+    category: Record<'injury' | 'suspension' | 'illness' | 'other', string>;
+    /** "Volta prevista: {date}". */
+    until: string;
+    noReturn: string;
+    /** "Desde {date}". */
+    since: string;
+    empty: string;
+    /** O fornecedor ainda não publicou a lista e não há histórico dos elencos. */
+    unknown: string;
+    /** Sem jogo nem time escolhido. */
+    pick: string;
+  };
   /** Elenco do time (#825): grupos por posição e os técnicos. "{age} anos", "{n} jogadores". */
   squad: {
     title: string;
@@ -2242,6 +2383,25 @@ export interface WidgetTexts {
     empty: string;
     /** Sem time nem campeonato escolhido. */
     pick: string;
+  };
+  /** Chaveamento do mata-mata. */
+  bracket: {
+    title: string;
+    empty: string;
+    /** Rótulo da escolha de fase no modo fase por fase. */
+    rounds: string;
+    aggregate: string;
+    /** "Ida", "Volta" (ida e volta) e "Jogo {n}" (série). */
+    firstLeg: string;
+    secondLeg: string;
+    game: string;
+    /** Vitórias na série ("Série 3–1"). */
+    series: string;
+    /** Abreviação dos pênaltis, depois do número ("(4 pên.)"). */
+    penaltiesShort: string;
+    tbd: string;
+    /** Quem avançou (leitor de tela). */
+    advanced: string;
   };
   /** Grade de esportes nos canais do cliente (operadoras e streamings). */
   channelGuide: {
@@ -2708,6 +2868,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Quadro em revisão: as medalhas desta edição ainda não estão completas.',
       totals: 'Soma de {n} edições',
     },
+    sidelined: {
+      title: 'Desfalques',
+      out: 'Fora',
+      doubtful: 'Dúvida',
+      category: { injury: 'Lesão', suspension: 'Suspensão', illness: 'Doença', other: 'Outro motivo' },
+      until: 'Volta prevista: {date}',
+      noReturn: 'Sem previsão de volta',
+      since: 'Desde {date}',
+      empty: 'Nenhum desfalque informado.',
+      unknown: 'A lista de desfalques ainda não saiu.',
+      pick: 'Escolha um jogo ou um time.',
+    },
     squad: {
       title: 'Elenco',
       positions: {
@@ -2776,6 +2948,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       },
       empty: 'Nenhuma transferência no período.',
       pick: 'Escolha um time ou um campeonato.',
+    },
+    bracket: {
+      title: 'Chaveamento',
+      empty: 'Sem mata-mata nesta temporada (ainda).',
+      rounds: 'Fases',
+      aggregate: 'Agregado',
+      firstLeg: 'Ida',
+      secondLeg: 'Volta',
+      game: 'Jogo {n}',
+      series: 'Série',
+      penaltiesShort: 'pên.',
+      tbd: 'A definir',
+      advanced: 'classificado',
     },
     channelGuide: {
       today: 'Hoje nos seus canais',
@@ -3236,6 +3421,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medallero en revisión: las medallas de esta edición aún no están completas.',
       totals: 'Suma de {n} ediciones',
     },
+    sidelined: {
+      title: 'Bajas',
+      out: 'Baja',
+      doubtful: 'Duda',
+      category: { injury: 'Lesión', suspension: 'Sanción', illness: 'Enfermedad', other: 'Otro motivo' },
+      until: 'Vuelta prevista: {date}',
+      noReturn: 'Sin fecha de vuelta',
+      since: 'Desde {date}',
+      empty: 'No hay bajas informadas.',
+      unknown: 'La lista de bajas todavía no salió.',
+      pick: 'Elige un partido o un equipo.',
+    },
     squad: {
       title: 'Plantel',
       positions: {
@@ -3309,6 +3506,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       },
       empty: 'Ningún fichaje en el período.',
       pick: 'Elige un equipo o una competición.',
+    },
+    bracket: {
+      title: 'Llaves',
+      empty: 'Sin eliminatorias en esta temporada (todavía).',
+      rounds: 'Fases',
+      aggregate: 'Global',
+      firstLeg: 'Ida',
+      secondLeg: 'Vuelta',
+      game: 'Partido {n}',
+      series: 'Serie',
+      penaltiesShort: 'pen.',
+      tbd: 'Por definir',
+      advanced: 'clasificado',
     },
     channelGuide: {
       today: 'Hoy en tus canales',
@@ -3756,6 +3966,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       withheld: 'Medal table under review: this edition is not complete yet.',
       totals: 'Total of {n} Games',
     },
+    sidelined: {
+      title: 'Absences',
+      out: 'Out',
+      doubtful: 'Doubtful',
+      category: { injury: 'Injury', suspension: 'Suspension', illness: 'Illness', other: 'Other reason' },
+      until: 'Expected back: {date}',
+      noReturn: 'No return date',
+      since: 'Since {date}',
+      empty: 'No absences reported.',
+      unknown: 'The absence list is not out yet.',
+      pick: 'Choose a match or a team.',
+    },
     squad: {
       title: 'Squad',
       positions: {
@@ -3829,6 +4051,19 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       },
       empty: 'No transfers in this period.',
       pick: 'Choose a team or a competition.',
+    },
+    bracket: {
+      title: 'Bracket',
+      empty: 'No knockout rounds this season (yet).',
+      rounds: 'Rounds',
+      aggregate: 'Aggregate',
+      firstLeg: '1st leg',
+      secondLeg: '2nd leg',
+      game: 'Game {n}',
+      series: 'Series',
+      penaltiesShort: 'pens',
+      tbd: 'TBD',
+      advanced: 'advanced',
     },
     channelGuide: {
       today: 'Today on your channels',

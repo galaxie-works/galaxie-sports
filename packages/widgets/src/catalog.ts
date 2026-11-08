@@ -27,6 +27,7 @@ import type { CountryTodayProps } from './widgets/country-today.js';
 import type { GamesScheduleProps } from './widgets/games-schedule.js';
 import type { CountryAthletesProps } from './widgets/country-athletes.js';
 import type { MedalHistoryProps } from './widgets/medal-history.js';
+import type { SidelinedProps } from './widgets/sidelined.js';
 import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
@@ -38,6 +39,7 @@ import type { TeamStatsProps } from './widgets/team-stats.js';
 
 import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { TransferMarketProps } from './widgets/transfer-market.js';
+import type { BracketProps } from './widgets/bracket.js';
 import type { ChannelGuideProps } from './widgets/channel-guide.js';
 
 export interface WidgetPropsByKind {
@@ -68,6 +70,7 @@ export interface WidgetPropsByKind {
   games_schedule: GamesScheduleProps;
   country_athletes: CountryAthletesProps;
   medal_history: MedalHistoryProps;
+  sidelined: SidelinedProps;
   champions_gallery: ChampionsGalleryProps;
   countdown: CountdownProps;
   team_squad: TeamSquadProps;
@@ -78,6 +81,7 @@ export interface WidgetPropsByKind {
   team_stats: TeamStatsProps;
   competition_leaders: CompetitionLeadersProps;
   transfer_market: TransferMarketProps;
+  bracket: BracketProps;
   channel_guide: ChannelGuideProps;
 }
 
@@ -112,6 +116,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'GamesSchedule'
     | 'CountryAthletes'
     | 'MedalHistory'
+    | 'Sidelined'
     | 'ChampionsGallery'
     | 'Countdown'
     | 'TeamSquad'
@@ -122,6 +127,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CompetitionLeaders'
     | 'TeamStats'
     | 'TransferMarket'
+    | 'Bracket'
     | 'ChannelGuide';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
@@ -684,6 +690,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: false,
     sports: MULTISPORT_ONLY,
   },
+  sidelined: {
+    kind: 'sidelined',
+    component: 'Sidelined',
+    registryComponent: 'GalaxieSidelined',
+    name: { 'pt-BR': 'Desfalques', es: 'Bajas', en: 'Absences' },
+    description: {
+      'pt-BR':
+        'Lesionados, suspensos e dúvidas de cada time antes do jogo, com o motivo e a previsão de volta.',
+      es: 'Lesionados, sancionados y dudas de cada equipo antes del partido, con el motivo y la vuelta prevista.',
+      en: 'Injured, suspended and doubtful players for each team before the match, with the reason and return date.',
+    },
+    requiredProps: [],
+    optionalProps: ['eventId', 'teamId', 'showReason', 'showReturn', 'showPhoto', 'showDoubtful', 'limit'],
+    exampleProps: { eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: FOOTBALL_ONLY,
+  },
   champions_gallery: {
     kind: 'champions_gallery',
     component: 'ChampionsGallery',
@@ -910,6 +933,32 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { teamId: PREVIEW_IDS.team },
     polling: false,
     sports: FOOTBALL_ONLY,
+  },
+  bracket: {
+    kind: 'bracket',
+    component: 'Bracket',
+    registryComponent: 'GalaxieBracket',
+    name: { 'pt-BR': 'Chaveamento do mata-mata', es: 'Llaves de eliminación', en: 'Knockout bracket' },
+    description: {
+      'pt-BR':
+        'As chaves do mata-mata (oitavas, quartas, semifinal e final) com placares, ida e volta, agregado e pênaltis. Nos playoffs de basquete, beisebol, hóquei e vôlei, a série com as vitórias.',
+      es: 'Las llaves de eliminación (octavos, cuartos, semifinal y final) con marcadores, ida y vuelta, global y penales. En los playoffs de básquet, béisbol, hockey y vóley, la serie con las victorias.',
+      en: 'The knockout bracket (round of 16, quarter-finals, semi-finals and final) with scores, two legs, aggregate and penalties. In basketball, baseball, hockey and volleyball playoffs, each series with its wins.',
+    },
+    requiredProps: ['competitionId'],
+    optionalProps: [
+      'season',
+      'from',
+      'showAggregate',
+      'showLegs',
+      'showDates',
+      'showThirdPlace',
+      'layout',
+      'highlightTeamId',
+    ],
+    exampleProps: { competitionId: PREVIEW_IDS.cupCompetition, season: 'current' },
+    polling: true,
+    sports: TEAM_SPORTS,
   },
   channel_guide: {
     kind: 'channel_guide',
