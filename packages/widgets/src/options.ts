@@ -993,6 +993,52 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       true,
     ),
   ],
+  transfer_market: [
+    {
+      key: 'direction',
+      type: 'enum',
+      default: 'all',
+      label: l('Mostrar', 'Mostrar', 'Show'),
+      values: [
+        { value: 'all', label: l('Chegadas e saídas', 'Llegadas y salidas', 'Arrivals and departures') },
+        { value: 'in', label: l('Só chegadas', 'Solo llegadas', 'Arrivals only') },
+        { value: 'out', label: l('Só saídas', 'Solo salidas', 'Departures only') },
+      ],
+    },
+    {
+      key: 'days',
+      type: 'number',
+      default: 180,
+      min: 7,
+      max: 730,
+      label: l('Período (dias)', 'Período (días)', 'Period (days)'),
+      hint: l(
+        'As transferências dos últimos N dias.',
+        'Los fichajes de los últimos N días.',
+        'Transfers from the last N days.',
+      ),
+    },
+    {
+      key: 'limit',
+      type: 'number',
+      default: 10,
+      min: 1,
+      max: 50,
+      label: l('Quantidade', 'Cantidad', 'How many'),
+    },
+    bool(
+      'groupByDirection',
+      l('Chegadas e saídas separadas', 'Llegadas y salidas separadas', 'Separate arrivals and departures'),
+      true,
+    ),
+    bool(
+      'showType',
+      l('Tipo (empréstimo, compra, sem custo)', 'Tipo (préstamo, compra, libre)', 'Type (loan, fee, free)'),
+      true,
+    ),
+    bool('showPhoto', l('Foto do jogador', 'Foto del jugador', 'Player photo'), true),
+    bool('showDate', l('Data', 'Fecha', 'Date'), true),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

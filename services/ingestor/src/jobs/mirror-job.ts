@@ -125,17 +125,18 @@ export async function rotateGroups(
   const all = groups.flatMap((g) => g.candidates);
   const states = await cursors.load(all.flatMap((c) => c.item.cursors));
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  let left = limit;
+  let left = limit - (opts.force ? 0 : callsSpentToday(all, states, today));
   const out: PlannedRequest[] = [];
   for (const g of groups) {
     const aged: { item: PlannedRequest; age: number; i: number }[] = [];
-    g.candidates.forEach((c, i) => {
+    g.candidates.forEach((orig, i) => {
       // falhou MAX_ATTEMPTS vezes sem concluir: o runner não tenta de novo, então não ocupa vaga no orçamento
-      const given = c.item.cursors.some((ref) => {
+      const exhausted = (ref: CursorRef) => {
         const st = states.get(cursorId(ref));
         return !st?.completedAt && attemptsOf(st) >= MAX_ATTEMPTS;
-      });
-      if (given && !opts.force) return;
+      };
+      const c = opts.force ? orig : withoutExhausted(orig, exhausted);
+      if (!c) return;
       // corte por dia UTC, não por 24 h exatas: o renovado ontem (a qualquer hora) vence hoje no período de 1 dia;
       // com 24 h exatas, a execução das 08:00 achava em dia o item buscado segundos depois das 08:00 de ontem
       const staleBefore = new Date(today - (Math.max(1, c.periodDays) - 1) * DAY_MS);
@@ -144,7 +145,6 @@ export async function rotateGroups(
       );
       // --forcar: o período não vale (renova de novo o que já está em dia), só o orçamento
       if (!opts.force) {
-        if (age >= today) left -= 1;
         if (age >= staleBefore.getTime()) return;
       }
       // o raw mais velho que o corte não serve (o /teams de 7 dias tem TTL de 7 dias e saía do cache no dia de
@@ -160,6 +160,67 @@ export async function rotateGroups(
     out.push(...picked.map((a) => a.item));
   }
   return out;
+}
+
+/**
+ * Tira do pedido os cursores esgotados. Lote de `ids`: sai só o id esgotado, e o jogo novo que caiu no mesmo lote
+ * ainda é buscado. Pedido de um cursor só (ou sem `ids`) esgotado: sai inteiro.
+ */
+function withoutExhausted(
+  c: MirrorCandidate,
+  exhausted: (ref: CursorRef) => boolean,
+): MirrorCandidate | null {
+  const dead = c.item.cursors.filter(exhausted);
+  if (!dead.length) return c;
+  const ids = c.item.params.ids;
+  if (typeof ids !== 'string' || dead.length === c.item.cursors.length) return null;
+  const keep = c.item.cursors.filter((ref) => !exhausted(ref));
+  const keepIds = keep.map((ref) => ref.key.replace(/^id=/, ''));
+  if (keepIds.some((id) => !ids.split('-').includes(id))) return null;
+  return { ...c, item: { ...c.item, params: { ...c.item.params, ids: keepIds.join('-') }, cursors: keep } };
+}
+
+/**
+ * Chamadas ao fornecedor já feitas hoje, contadas pelos cursores e não pelos pedidos de agora: os lotes de `ids` são
+ * remontados a cada execução (a janela de jogos anda), então um pedido de hoje pode não bater com nenhum de agora.
+ * Concluída: uma por `requestHash` (cache não gasta cota). Erro: por endpoint e instante da última tentativa (o runner
+ * registra o erro de uma chamada em todos os cursores dela de uma vez), pesando todas as `attempts`: o cursor guarda
+ * só a última data, então as anteriores podem ter sido hoje. Na dúvida conta a mais (gasta menos cota, nunca mais).
+ */
+function callsSpentToday(
+  candidates: MirrorCandidate[],
+  states: Map<string, { completedAt: Date | null; cursor: Record<string, unknown> | null }>,
+  today: number,
+): number {
+  const calls = new Set<string>();
+  const failed = new Map<string, number>();
+  for (const c of candidates)
+    for (const ref of c.item.cursors) {
+      const st = states.get(cursorId(ref));
+      if (!st) continue;
+      if (st.completedAt && st.completedAt.getTime() >= today) {
+        if (st.cursor?.source === 'cache') continue;
+        const hash = st.cursor?.requestHash;
+        calls.add(typeof hash === 'string' ? `ok|${hash}` : `ok|${cursorId(ref)}`);
+      } else if (triedSince(st, today)) {
+        const key = `${ref.sport}|${ref.endpoint}|${String(st.cursor?.lastAttemptAt)}`;
+        failed.set(key, Math.max(failed.get(key) ?? 0, Math.max(1, attemptsOf(st))));
+      }
+    }
+  let errors = 0;
+  for (const n of failed.values()) errors += n;
+  return calls.size + errors;
+}
+
+/** Tentativa com erro registrada a partir de `since` (ms), sem conclusão depois dela. */
+function triedSince(
+  st: { completedAt: Date | null; cursor: Record<string, unknown> | null } | undefined,
+  since: number,
+) {
+  const at = st?.cursor?.lastAttemptAt;
+  if (typeof at !== 'string') return false;
+  const t = Date.parse(at);
+  return t >= since && !(st?.completedAt && st.completedAt.getTime() >= t);
 }
 
 // ─── futebol ─────────────────────────────────────────────────────────────────────────────────────
@@ -301,6 +362,8 @@ export interface SportSeason {
   current: boolean;
   startDate: string | null;
   endDate: string | null;
+  /** `coverage` da temporada no /leagues (o que o fornecedor diz ter); ausente = sem informação, busca tudo. */
+  coverage?: unknown;
 }
 
 /** Jogo/luta/sessão já no core (id do fornecedor). */
@@ -311,6 +374,8 @@ export interface SportGame {
   tier: number;
   status: string;
   startsAt: Date;
+  /** F1: tipo da sessão (`Race`, `Sprint`, `1st Practice`…), do item de /races guardado no core. */
+  session?: string | null;
 }
 
 export interface SportMirrorSource {
@@ -332,6 +397,28 @@ interface GameCall {
   /** Parâmetro do id do jogo; `ids` junta até IDS_PER_CALL jogos numa chamada. */
   param: string;
   batch?: boolean;
+  /** Caminho no `coverage` da temporada; `false` lá = o fornecedor não tem, não gasta chamada. */
+  coverage?: readonly string[];
+  /** Só para alguns jogos (F1: pit stop só existe em corrida). */
+  when?: (g: SportGame) => boolean;
+}
+
+/** O fornecedor marcou o dado como ausente (`false` no caminho). Caminho ausente ou sem `coverage`: tem. */
+export function covered(coverage: unknown, path: readonly string[] | undefined): boolean {
+  if (!path) return true;
+  let node: unknown = coverage;
+  for (const key of path) {
+    if (node === false) return false;
+    if (node == null || typeof node !== 'object') return true;
+    node = (node as Record<string, unknown>)[key];
+  }
+  if (node === false) return false;
+  // objeto com todas as folhas false (ex.: statistics { teams: false, players: false })
+  if (node && typeof node === 'object') {
+    const leaves = Object.values(node as Record<string, unknown>);
+    if (leaves.length && leaves.every((v) => v === false)) return false;
+  }
+  return true;
 }
 
 /**
@@ -352,6 +439,13 @@ export interface SportMirrorProfile {
     team: string,
   ) => { endpoint: string; params: Record<string, string> };
   roster?: (key: string, team: string) => { endpoint: string; params: Record<string, string> }[];
+  /** Caminhos no `coverage` que liberam cada grupo (ausente = sempre). */
+  covers?: {
+    standings?: readonly string[];
+    teamStats?: readonly string[];
+    roster?: readonly string[];
+    odds?: readonly string[];
+  };
   finished?: GameCall[];
   odds?: string;
   /** Endpoints por participante (MMA: perfil e cartel do lutador). */
@@ -377,6 +471,7 @@ const classic = (extra: Partial<SportMirrorProfile> = {}): SportMirrorProfile =>
   seasonTeams: true,
   teamStats: leagueTeamStats('/teams/statistics'),
   odds: '/odds',
+  covers: { standings: ['standings'], odds: ['odds'] },
   ...extra,
 });
 
@@ -392,9 +487,25 @@ export const SPORT_MIRROR: Record<OtherSport, SportMirrorProfile> = {
     // no basquete o agregado do time fica em /statistics
     teamStats: leagueTeamStats('/statistics'),
     roster: (season, team) => [{ endpoint: '/players', params: { team, season } }],
+    covers: {
+      standings: ['standings'],
+      teamStats: ['games', 'statistics', 'teams'],
+      roster: ['players'],
+      odds: ['odds'],
+    },
     finished: [
-      { endpoint: '/games/statistics/teams', param: 'ids', batch: true },
-      { endpoint: '/games/statistics/players', param: 'ids', batch: true },
+      {
+        endpoint: '/games/statistics/teams',
+        param: 'ids',
+        batch: true,
+        coverage: ['games', 'statistics', 'teams'],
+      },
+      {
+        endpoint: '/games/statistics/players',
+        param: 'ids',
+        batch: true,
+        coverage: ['games', 'statistics', 'players'],
+      },
     ],
   }),
   afl: {
@@ -453,7 +564,8 @@ export const SPORT_MIRROR: Record<OtherSport, SportMirrorProfile> = {
     finished: [
       { endpoint: '/rankings/races', param: 'race' },
       { endpoint: '/rankings/fastestlaps', param: 'race' },
-      { endpoint: '/pitstops', param: 'race' },
+      // pit stop só existe em corrida e sprint (treino e classificação dariam resposta vazia)
+      { endpoint: '/pitstops', param: 'race', when: (g) => !g.session || /^(race|sprint)$/i.test(g.session) },
     ],
   },
   mma: {
@@ -499,16 +611,17 @@ export async function sportGroups(
   for (const s of playing) {
     const list = p.seasonList(s.league, s.key);
     season.push(cand('temporada', sport, list.endpoint, list.params, byTier(s.tier, 2, 7)));
-    for (const t of p.standings(s.league, s.key))
+    const cov = (path: readonly string[] | undefined) => covered(s.coverage, path);
+    for (const t of cov(p.covers?.standings) ? p.standings(s.league, s.key) : [])
       season.push(cand('classificacao', sport, t.endpoint, t.params, byTier(s.tier, 1, 2)));
     if (p.seasonTeams) season.push(cand('times', sport, '/teams', { league: s.league, season: s.key }, 7));
     if (!p.teamStats && !p.roster && !p.injuries) continue;
     for (const team of await source.teams(sport, s.league, s.year)) {
-      if (p.teamStats) {
+      if (p.teamStats && cov(p.covers?.teamStats)) {
         const c = p.teamStats(s.league, s.key, team);
         perTeam.push(cand('estatisticas-time', sport, c.endpoint, c.params, 14));
       }
-      for (const r of p.roster?.(s.key, team) ?? [])
+      for (const r of cov(p.covers?.roster) ? (p.roster?.(s.key, team) ?? []) : [])
         perTeam.push(cand('elenco', sport, r.endpoint, r.params, 14));
       if (p.injuries) perTeam.push(cand('lesoes', sport, '/injuries', { team }, byTier(s.tier, 1, 3)));
     }
@@ -521,10 +634,15 @@ export async function sportGroups(
   // jogo de temporada fora da janela do plano (free: 2022–2024): o fornecedor recusaria e cobraria a chamada
   const reachable = listed.filter((g) => seasonAccessible(g.year, limits));
   const finished = reachable.filter((g) => g.status === FINISHED && g.startsAt <= now);
+  // coverage da temporada de cada jogo (o /leagues diz o que o fornecedor tem naquela temporada)
+  const seasonCoverage = new Map(playing.map((s) => [`${s.league}|${s.year}`, s.coverage]));
+  const gameCovers = (g: SportGame, path: readonly string[] | undefined) =>
+    covered(seasonCoverage.get(`${g.league}|${g.year}`), path);
   for (const call of p.finished ?? []) {
+    const finishedFor = finished.filter((g) => (call.when?.(g) ?? true) && gameCovers(g, call.coverage));
     if (call.batch) {
-      for (let i = 0; i < finished.length; i += IDS_PER_CALL) {
-        const batch = finished.slice(i, i + IDS_PER_CALL).map((g) => g.id);
+      for (let i = 0; i < finishedFor.length; i += IDS_PER_CALL) {
+        const batch = finishedFor.slice(i, i + IDS_PER_CALL).map((g) => g.id);
         games.push(
           cand(
             'por-jogo',
@@ -537,14 +655,14 @@ export async function sportGroups(
         );
       }
     } else {
-      for (const g of finished)
+      for (const g of finishedFor)
         games.push(cand('por-jogo', sport, call.endpoint, { [call.param]: g.id }, PER_GAME_DAYS));
     }
   }
   if (p.odds) {
     const param = sport === 'mma' ? 'fight' : 'game';
     for (const g of reachable)
-      if (SCHEDULED.has(g.status) && g.startsAt > now)
+      if (SCHEDULED.has(g.status) && g.startsAt > now && gameCovers(g, p.covers?.odds))
         games.push(cand('odds', sport, p.odds, { [param]: g.id }, 1));
   }
   // lutador de temporada fora do plano fica de fora: /fighters não leva `season` e a validação não o barraria

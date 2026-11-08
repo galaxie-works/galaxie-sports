@@ -48,6 +48,7 @@ const WIDGETS = {
   player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
   lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
   team_stats: { file: 'src/widgets/team-stats.tsx', component: 'TeamStats' },
+  transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

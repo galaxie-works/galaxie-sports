@@ -40,6 +40,7 @@ import { CompetitionLeaders } from '../widgets/competition-leaders.js';
 import { PlayerProfile } from '../widgets/player-profile.js';
 import { Lineups } from '../widgets/lineups.js';
 import { TeamStats } from '../widgets/team-stats.js';
+import { TransferMarket } from '../widgets/transfer-market.js';
 import { HeadToHead } from '../widgets/head-to-head.js';
 import { LiveList } from '../widgets/live-list.js';
 import { MatchCard } from '../widgets/match-card.js';
@@ -208,6 +209,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <Lineups {...o} eventId={eventId ?? ''} />;
     case 'team_stats':
       return <TeamStats {...o} teamId={teamId ?? ''} />;
+    case 'transfer_market':
+      return <TransferMarket {...o} teamId={teamId} competitionId={teamId ? undefined : competitionId} />;
   }
 }
 
