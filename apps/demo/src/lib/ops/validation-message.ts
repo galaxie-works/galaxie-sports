@@ -17,6 +17,10 @@ export function validationMessage(t: Dictionary['ops'], error: ValidationError):
       return fill(t.errors.enum, { values });
     case 'markets':
       return fill(t.errors.markets, { values });
+    case 'mirrorItem':
+      return fill(t.errors.mirrorItem, { values });
+    case 'groupOrder':
+      return fill(t.errors.groupOrder, { values });
     case 'cron':
       return t.errors.cron;
     case 'shares':

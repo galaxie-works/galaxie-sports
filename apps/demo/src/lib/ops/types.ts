@@ -2,7 +2,7 @@
  * Dados do painel de Operação (Ajustes → Operação), já serializáveis: o servidor monta, o navegador só
  * desenha. Segredos chegam só como `configured`; nenhum valor de credencial sai do servidor.
  */
-import type { RuntimeService, SettingSource, SettingSection } from '@galaxie/runtime-config';
+import type { MirrorInventory, RuntimeService, SettingSource, SettingSection } from '@galaxie/runtime-config';
 
 export interface OpsSetting {
   key: string;
@@ -205,6 +205,28 @@ export interface OpsSnapshot {
   youtube: YoutubeSnapshot | null;
   /** Fila de tarefas (null: colunas da fila ainda não migradas). */
   tasks: OpsTasks | null;
+  /** Espelho da api-sports (sync:mirror): cota de cada API e o inventário da última execução. */
+  mirror: MirrorSnapshot;
+}
+
+/** Uma API no espelho: plano efetivo, cota do dia e o inventário gravado pelo job (base da estimativa). */
+export interface MirrorApiView {
+  api: string;
+  plan: string | null;
+  /** Cota diária do plano (null: plano desconhecido). */
+  dailyLimit: number | null;
+  /** Inventário da última execução (ou do `--plan`); null = o job ainda não rodou com o inventário. */
+  inventory: MirrorInventory | null;
+  /** Inventário descartado por ser de outro plano (a contagem depende do plano): o plano dele. */
+  inventoryOtherPlan: string | null;
+}
+
+export interface MirrorSnapshot {
+  /** APP_ENV production/staging: a reserva do ao vivo vale só para os outros jobs. No dev ela é de pelo menos 70%. */
+  production: boolean;
+  /** Reserva efetiva da cota (%): QUOTA_LIVE_RESERVE_PERCENT, no dev no mínimo 70. */
+  reservePercent: number;
+  apis: MirrorApiView[];
 }
 
 // ── Tarefas da fila (ops.job_request com `type`, @galaxie/db/queue-admin) ─────────────────────────
