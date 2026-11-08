@@ -132,15 +132,21 @@ describe('grade nos canais do cliente', () => {
     expect(byEvent.get(E2)).toEqual(['SporTV 2 HD', 'SporTV HD']);
   });
 
-  it('feed confirmado fora da lista: só os canais sem número da emissora, nunca o feed de outro número', () => {
+  it('com o canal na opção, só o mesmo feed (sem número = feed 1); feed fora da lista não entra', () => {
     const byEvent = guideChannelsByEvent(
       'BR',
-      [opt(E1, 'sportv', { channelName: 'SporTV 3' })],
+      [
+        opt(E1, 'sportv', { channelName: 'SporTV 3' }),
+        opt(E2, 'sportv', { channelName: 'SporTV' }),
+        opt(E3, 'sportv', { channelName: 'SporTV 1' }),
+      ],
       [],
       list,
       null,
     );
-    expect(byEvent.get(E1)).toEqual(['SporTV HD']);
+    expect(byEvent.has(E1)).toBe(false);
+    expect(byEvent.get(E2)).toEqual(['SporTV HD']);
+    expect(byEvent.get(E3)).toEqual(['SporTV HD']);
   });
 
   it('com canais escolhidos no widget, só eles; jogo sem nenhum deles sai da grade', () => {

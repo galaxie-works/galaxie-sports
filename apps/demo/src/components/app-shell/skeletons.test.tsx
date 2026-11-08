@@ -78,12 +78,10 @@ describe('esqueletos de carregamento', () => {
     },
   );
 
-  it('o aviso sai no idioma da página e os blocos ficam escondidos dos leitores de tela', () => {
-    const expected: Record<Locale, string> = { 'pt-BR': 'Carregando…', en: 'Loading…', 'es-AR': 'Cargando…' };
+  it('a região viva nasce vazia (o texto entra depois de montar) e os blocos ficam escondidos', () => {
     for (const locale of LOCALES) {
       const out = html(<S.TableSkeleton />, locale);
-      expect(out).toContain(`role="status"`);
-      expect(out).toContain(expected[locale]);
+      expect(out).toContain('<span role="status" class="sr-only"></span>');
       expect(out).toMatch(/<div aria-hidden="true">/);
     }
   });

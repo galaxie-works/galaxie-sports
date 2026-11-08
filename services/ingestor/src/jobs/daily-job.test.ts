@@ -4,6 +4,9 @@ import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
 import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
+  pacedShare,
+  roundRobin,
+  ROTATION_PERIOD_DAYS,
   buildScheduleRequests,
   buildSeasonListRequests,
   checkProviderStatus,
@@ -154,13 +157,19 @@ describe('dailyJob', () => {
     );
     const picked = await buildRotationRequests(candidates, h.cursors, new Date(t), 5);
     expect(picked.map((p) => p.params.team)).toEqual(['126', '121']); // nunca buscado primeiro, depois o mais velho
-    expect(picked[1]!.staleBefore?.getTime()).toBe(t - 7 * DAY);
+    // corte por dia UTC: vence o buscado até o fim do dia de 7 dias atrás
+    const dayStart = (ms: number) => Math.floor(ms / DAY) * DAY;
+    expect(picked[1]!.staleBefore?.getTime()).toBe(dayStart(t) - 6 * DAY);
 
     const job = dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
       rotation: 4,
     });
     const plan = await planJob(job, h.deps);
-    expect(plan.phases[2]!.steps.squads!.total).toBe(4);
+    // fatia justa: as 4 vagas do dia em revezamento entre os endpoints (elencos, técnicos, transferências…)
+    const steps = plan.phases[2]!.steps;
+    expect(Object.values(steps).reduce((n, s) => n + s.total, 0)).toBe(4);
+    expect(steps.squads!.total).toBe(2);
+    expect(Object.keys(steps).length).toBeGreaterThan(1);
 
     // o limite do rodízio vale por dia: reexecutar no mesmo dia não renova mais nada
     h.nextDay();
@@ -168,6 +177,103 @@ describe('dailyJob', () => {
     const rerun = await planJob(job, h.deps);
     expect(rerun.phases[2]!.steps).toEqual({});
     expect(rerun.totals.network).toBe(0);
+  });
+});
+
+describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
+  it('o endpoint que vem primeiro não leva o dia inteiro (o /sidelined entra pelo seu ritmo)', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const trophies = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('trophies-jogadores', 'football', '/trophies', { players: String(i + 1) }),
+    );
+    const sidelined = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: String(i + 1) }),
+    );
+    const picked = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      4,
+      undefined,
+      (item) => item.endpoint,
+    );
+    // vaga pelo ritmo: /trophies 6 ÷ 30 dias → 1/dia; /sidelined 6 ÷ 2 dias → 3/dia
+    expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/sidelined', '/sidelined']);
+    // reexecução no mesmo dia (limite 5 − 3 já renovados = 2): a vaga do /sidelined já foi usada hoje, a do
+    // /trophies (1) não; a sobra vai em revezamento a partir do /trophies
+    await h.cursors.complete(
+      picked.filter((p) => p.endpoint === '/sidelined').flatMap((p) => p.cursors),
+      {},
+      new Date(t),
+    );
+    const again = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      5,
+      undefined,
+      (item) => item.endpoint,
+    );
+    expect(again.map((p) => p.endpoint)).toEqual(['/trophies', '/trophies']);
+    // sem a fatia, a ordem da lista manda: só /trophies
+    const plain = await buildRotationRequests([...trophies, ...sidelined], h.cursors, new Date(t), 4);
+    expect(new Set(plain.map((p) => p.endpoint))).toEqual(new Set(['/trophies']));
+  });
+
+  it('cada endpoint leva primeiro a vaga do seu ritmo (o /sidelined de 2 dias não fica com 1/5 do dia)', () => {
+    // 5 chaves com fila cheia; s precisa de 6/dia, as outras de 1/dia: limite 10
+    const items = [
+      ...['a', 'b', 'c', 'd'].flatMap((k) => Array.from({ length: 10 }, (_, i) => `${k}${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => `s${i}`),
+    ];
+    const paced = new Map([
+      ['a', 1],
+      ['b', 1],
+      ['c', 1],
+      ['d', 1],
+      ['s', 6],
+    ]);
+    const picked = pacedShare(items, (x) => x[0]!, paced, 10);
+    expect(picked.filter((x) => x.startsWith('s'))).toHaveLength(6);
+    // em revezamento: cortado depois de 5, o /sidelined (último da lista) já levou a sua
+    expect(picked.slice(0, 5).map((x) => x[0])).toEqual(['a', 'b', 'c', 'd', 's']);
+    expect(picked).toHaveLength(10);
+    // vaga maior que o limite: proporcional
+    const tight = pacedShare(items, (x) => x[0]!, paced, 5);
+    expect(tight.filter((x) => x.startsWith('s')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a sobra de um endpoint vai para os outros', () => {
+    const items = ['a1', 'b1', 'b2', 'b3', 'b4', 'c1'];
+    expect(roundRobin(items, (s) => s[0]!, 5)).toEqual(['a1', 'b1', 'c1', 'b2', 'b3']);
+    expect(roundRobin(items, (s) => s[0]!, 50)).toHaveLength(6);
+  });
+
+  it('período pelo dia UTC: o buscado anteontem a qualquer hora vence hoje no período de 2 dias', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const dayStart = Math.floor(t / DAY) * DAY;
+    const item = plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: '1' });
+    // buscado anteontem, 1 min antes da hora de agora: com 48 h exatas ainda estaria em dia
+    await h.cursors.complete(item.cursors, {}, new Date(dayStart - 2 * DAY + (t - dayStart) + 60_000));
+    const picked = await buildRotationRequests([item], h.cursors, new Date(t), 5);
+    expect(picked).toHaveLength(1);
+    // e o raw de anteontem não serve de cache (o TTL do /sidelined é de 7 dias): vai à rede
+    expect(picked[0]!.maxAgeMs).toBe(t - (dayStart - DAY));
+    expect(picked[0]!.maxAgeMs!).toBeLessThan(2 * DAY);
+  });
+
+  it('relista da temporada: o TTL curto do endpoint continua valendo (o corte não afrouxa o cache)', async () => {
+    const h = harness();
+    const item = plannedRequest('temporada-atual', 'football', '/fixtures', { league: 71, season: 2026 });
+    const [picked] = await buildRotationRequests([item], h.cursors, new Date(h.clock.t), 5, () => 2);
+    expect(picked!.maxAgeMs).toBeLessThanOrEqual(3_600_000);
+  });
+
+  it('afastamentos a cada 2 dias, transferências a cada 7', () => {
+    expect(ROTATION_PERIOD_DAYS['/sidelined']).toBe(2);
+    expect(ROTATION_PERIOD_DAYS['/transfers']).toBe(7);
   });
 });
 
@@ -222,12 +328,9 @@ describe('buildSeasonListRequests', () => {
     const picked = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
     expect(picked.map((p) => p.params.league)).toEqual(['500', '948', '71']); // catálogo: tier, prioridade, slug
     expect(picked.every((p) => p.endpoint === '/fixtures' && p.params.season === '2026')).toBe(true);
-    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 2 * DAY,
-    );
-    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 7 * DAY,
-    );
+    const dayStart = Math.floor(now.getTime() / DAY) * DAY;
+    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(dayStart - 1 * DAY);
+    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(dayStart - 6 * DAY);
 
     // --forcar: ignora o período (a tier 2 listada há 3 dias entra), ainda no limite do dia
     const forced = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10, true);

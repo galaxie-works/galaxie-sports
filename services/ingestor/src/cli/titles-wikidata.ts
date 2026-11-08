@@ -82,7 +82,7 @@ try {
     ...[...mapped.values()].map((m) => [m.id, m.name] as const),
     ...teams.map((t) => [t.id, t.name] as const),
   ]);
-  const winnerName = new Map(winners.map((w) => [w.qid, w.names[0] ?? w.qid]));
+  const winnerName = new Map(winners.map((w) => [w.qid, w.label ?? w.names[0] ?? w.qid]));
   const newLinks = new Map<string, string>();
   for (const [qid, r] of resolution)
     if ('participantId' in r && r.via === 'name') newLinks.set(qid, r.participantId);
@@ -130,6 +130,7 @@ try {
           decidedOn: core?.participantId ? core.decidedOn : e.decidedOn!,
           editionQid: e.qid,
           winnerQid: winner,
+          winnerName: winnerName.get(winner) ?? null,
           competitionQid: c.qid,
           source: e.source,
           sourceRef: e.sourceRef ?? null,

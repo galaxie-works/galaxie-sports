@@ -18,6 +18,7 @@ import { exploreRoutes } from './explore.js';
 import { relatedRoutes } from './related.js';
 import { searchRoutes } from './search.js';
 import { equestrianRoutes } from './equestrian.js';
+import { championRoutes } from './champions.js';
 import { leadersRoutes } from './leaders.js';
 
 /**
@@ -41,6 +42,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   // grade de esportes nos canais do cliente `/v1/widgets/{id}/channel-guide` (#834) — módulo where_to_watch
   await channelGuideRoutes(app, ctx);
   await contextRoutes(app, ctx);
+  // galeria de campeões `/v1/competitions/{id}/champions` (#831) — módulo core_data
+  await championRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content

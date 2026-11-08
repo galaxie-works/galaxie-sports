@@ -116,16 +116,15 @@ export class ConfirmedChannels {
   }
 
   /**
-   * Canais da lista que passam a opção, para a grade (`/v1/widgets/{id}/channel-guide`): com o canal da
-   * opção ("SporTV 2"), só os do mesmo feed quando a lista os tem; senão só os sem número de feed (o jogo não
-   * passa num feed de outro número da mesma emissora).
+   * Canais da lista que passam a opção, para a grade (`/v1/widgets/{id}/channel-guide`): sem o canal na opção,
+   * todos os da emissora no país; com o canal ("SporTV 2"), só os do mesmo feed, e o canal sem número conta
+   * como o feed 1 ("SporTV HD" = "SporTV"). Feed que a lista não tem: nenhum (o jogo não passa em outro feed).
    */
   carrying(country: string, broadcasterId: string | null, channel?: string | null): ClientChannelRef[] {
     const refs = this.forBroadcaster(country, broadcasterId, channel);
-    const feed = channel ? analyzeChannel({ idx: 0, name: channel, group: null }).feed : null;
-    if (!feed) return refs;
-    const same = refs.filter((r) => this.feeds.get(r.index) === feed);
-    return same.length ? same : refs.filter((r) => !this.feeds.get(r.index));
+    if (!channel?.trim()) return refs;
+    const feed = analyzeChannel({ idx: 0, name: channel, group: null }).feed ?? '1';
+    return refs.filter((r) => (this.feeds.get(r.index) ?? '1') === feed);
   }
 }
 
