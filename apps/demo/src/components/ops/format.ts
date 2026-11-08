@@ -17,6 +17,14 @@ export function settingText(t: T, def: SettingDef): { label: string; description
     const name = t.apis[api as keyof T['apis']] ?? api;
     return { label: fill(t.planFor.label, { api: name }), description: t.planFor.description };
   }
+  if (def.key.startsWith('MIRROR_PERIODS_')) {
+    const api = def.key.slice('MIRROR_PERIODS_'.length).toLowerCase().replace(/_/g, '-');
+    const name = t.apis[api as keyof T['apis']] ?? api;
+    return {
+      label: fill(t.mirrorPeriodsFor.label, { api: name }),
+      description: t.mirrorPeriodsFor.description,
+    };
+  }
   if (def.key.startsWith('POSTGAME_') && def.key !== 'POSTGAME_MAX_CALLS_DAY') {
     const interval = def.key.endsWith('_MIN');
     const api = def.key
