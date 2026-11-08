@@ -47,7 +47,7 @@ export interface TeamStatsProps {
   showCards?: boolean | undefined;
 }
 
-/** O agregado é renovado a cada 7 dias (tier 1) ou 14 (demais): reler a cada 6 h basta. */
+/** O agregado é renovado a cada 7 dias (tier 1) ou 14 (tier 2): reler a cada 6 h basta. */
 const REFRESH_MS = 6 * 60 * 60_000;
 const FORM_MAX = 10;
 const FORMATIONS_SHOWN = 3;
