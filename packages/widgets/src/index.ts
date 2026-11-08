@@ -109,6 +109,9 @@ export { Countdown, type CountdownProps } from './widgets/countdown.js';
 export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
 export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
 export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
+export { MatchPrediction, type MatchPredictionProps } from './widgets/match-prediction.js';
+export { MatchOdds, type MatchOddsProps } from './widgets/match-odds.js';
+export { TeamStats, type TeamStatsProps } from './widgets/team-stats.js';
 export { UpcomingDerbies, type UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
 export {
   TransferMarket,

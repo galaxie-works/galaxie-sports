@@ -47,6 +47,9 @@ const WIDGETS = {
   team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
   player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
   lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
+  match_prediction: { file: 'src/widgets/match-prediction.tsx', component: 'MatchPrediction' },
+  match_odds: { file: 'src/widgets/match-odds.tsx', component: 'MatchOdds' },
+  team_stats: { file: 'src/widgets/team-stats.tsx', component: 'TeamStats' },
   transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
   upcoming_derbies: { file: 'src/widgets/upcoming-derbies.tsx', component: 'UpcomingDerbies' },
 };

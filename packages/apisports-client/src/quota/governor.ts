@@ -34,6 +34,8 @@ export interface UsageReport {
   dayUtc: string;
   dailyLimit: number;
   reserve: number;
+  /** true na produção: o LIVE pode gastar a reserva (ver `QuotaPolicy.liveUsesReserve`). */
+  liveUsesReserve: boolean;
   used: Record<Priority, number>;
   budget: Record<Priority, number>;
   totalUsed: number;
@@ -95,6 +97,7 @@ export function buildReport(
     dayUtc,
     dailyLimit: policy.dailyLimit,
     reserve: reserveOf(policy),
+    liveUsesReserve: policy.liveUsesReserve,
     used: usage.used,
     budget,
     totalUsed: Object.values(usage.used).reduce((a, b) => a + b, 0),

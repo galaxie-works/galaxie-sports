@@ -7,6 +7,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { ApiRequest } from '@/lib/galaxie/request';
 import { pathnameOf, type TrailKind, type TrailVisit } from '@/lib/trail';
 
+import { FeedbackButton } from './feedback-button';
 import { SectionMarker } from './section-marker';
 import { TrailCrumbs } from './trail-crumbs';
 
@@ -55,6 +56,8 @@ export function PageHeader({
       <div className="ml-auto flex items-center gap-2">
         {children}
         {api ? <ApiCodeButton request={api} labeled /> : null}
+        {/* Sugerir ou reportar algo: à esquerda da lupa, em todas as telas (abre o painel lateral). */}
+        <FeedbackButton />
         {/* No desktop a busca fica no topo da sidebar (e no ⌘K). */}
         <HeaderSearchButton className="md:hidden" />
       </div>

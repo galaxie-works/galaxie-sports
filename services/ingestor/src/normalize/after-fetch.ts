@@ -5,20 +5,29 @@
  * normalização do `normalize:football` (idempotente), com o instante da coleta original como observação
  * — uma resposta antiga do cache nunca sobrescreve um estado mais novo.
  *
+ * Palpites, odds e casas de apostas (`/predictions`, `/odds`, `/odds/bookmakers`, de qualquer esporte) vão para
+ * `core.event_prediction` / `core.event_odds` / `core.bookmaker` pelo gravador próprio (`upsertMarkets`).
+ *
  * Falha na normalização não derruba o job: o raw já está gravado e o `normalize:football` noturno
  * tenta de novo.
  */
 import type { Database } from '@galaxie/db';
 import {
+  MARKETS_ENDPOINTS,
   normalizeFootballEnvelope,
+  normalizeMarketsEnvelope,
   normalizeSportEnvelope,
   type ApiSportsOtherSport,
   type EnvelopeLike,
 } from '@galaxie/providers';
 import {
+  addMarketsStats,
   addStats,
+  emptyMarketsStats,
   emptyStats,
   upsertBatch,
+  upsertMarkets,
+  type MarketsStats,
   type UpsertOptions,
   type UpsertStats,
 } from '@galaxie/core-writer';
@@ -38,6 +47,7 @@ export interface NormalizeAfterFetchOptions extends UpsertOptions {
 
 /** Endpoints dos outros esportes normalizados direto no gancho (a lista do dia). */
 const OTHER_SPORT_LIST_ENDPOINTS = new Set(['/games', '/fights', '/races']);
+const MARKETS = new Set<string>(MARKETS_ENDPOINTS);
 
 export interface NormalizeAfterFetchReport {
   responses: number;
@@ -46,6 +56,8 @@ export interface NormalizeAfterFetchReport {
   skipped: number;
   errors: number;
   stats: UpsertStats;
+  /** Palpites, odds e casas gravados. */
+  markets: MarketsStats;
 }
 
 export function normalizeAfterFetch(
@@ -59,10 +71,32 @@ export function normalizeAfterFetch(
     skipped: 0,
     errors: 0,
     stats: emptyStats(),
+    markets: emptyMarketsStats(),
   };
   const allowed = options.endpoints ? new Set(options.endpoints) : null;
   const afterFetch: AfterFetch = async (envelope, request) => {
     report.responses += 1;
+    if (MARKETS.has(request.endpoint) && (!allowed || allowed.has(request.endpoint))) {
+      try {
+        const normalized = normalizeMarketsEnvelope(
+          request.sport,
+          request.endpoint,
+          envelope as EnvelopeLike,
+          request.fetchedAt,
+          request.params,
+        );
+        if (!normalized) report.skipped += 1;
+        else if (normalized.items === 0) report.empty += 1;
+        else {
+          report.markets = addMarketsStats(report.markets, await upsertMarkets(db, normalized.batch));
+          report.normalized += 1;
+        }
+      } catch (err) {
+        report.errors += 1;
+        options.onError?.(err, request.endpoint, request.params);
+      }
+      return;
+    }
     const other =
       request.sport !== 'football' &&
       !!options.otherSports &&

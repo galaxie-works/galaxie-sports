@@ -57,6 +57,9 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'match_prediction',
+  'match_odds',
+  'team_stats',
   'transfer_market',
   'upcoming_derbies',
 ] as const satisfies readonly WidgetKind[];
@@ -115,6 +118,9 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   team_squad: ['team'],
   player_profile: ['person'],
   lineups: ['event'],
+  match_prediction: ['event'],
+  match_odds: ['event'],
+  team_stats: ['team'],
   // vai e vem do mercado: de um time ou dos times de um campeonato
   transfer_market: ['team', 'competition'],
   upcoming_derbies: [],
@@ -159,6 +165,9 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   team_squad: 'team',
   player_profile: 'person',
   lineups: 'event',
+  match_prediction: 'event',
+  match_odds: 'event',
+  team_stats: 'team',
   // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
   transfer_market: null,
   upcoming_derbies: null,
@@ -490,6 +499,9 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   team_squad: 'GalaxieTeamSquad',
   player_profile: 'GalaxiePlayerProfile',
   lineups: 'GalaxieLineups',
+  match_prediction: 'GalaxieMatchPrediction',
+  match_odds: 'GalaxieMatchOdds',
+  team_stats: 'GalaxieTeamStats',
   transfer_market: 'GalaxieTransferMarket',
   upcoming_derbies: 'GalaxieUpcomingDerbies',
 };
