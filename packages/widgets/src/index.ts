@@ -34,6 +34,10 @@ export {
   type GsHeadToHead,
   type GsRelated,
   type GsStandings,
+  type GsCompetitionLeaders,
+  type GsLeaderCategory,
+  type GsLeaderRow,
+  LEADER_CATEGORIES,
   type GsWhereToWatch,
   type LiveListDay,
   type LiveListField,
@@ -68,6 +72,13 @@ export {
 } from './core/react.js';
 export { MatchCard, type MatchCardProps } from './widgets/match-card.js';
 export { LiveList, type LiveListProps } from './widgets/live-list.js';
+export {
+  SCORE_TICKER_LIMIT,
+  ScoreTicker,
+  type ScoreTickerMode,
+  type ScoreTickerProps,
+  type ScoreTickerSpeed,
+} from './widgets/score-ticker.js';
 export { StandingsTable, type StandingsTableProps } from './widgets/standings-table.js';
 export { WhereToWatch, type WhereToWatchProps } from './widgets/where-to-watch.js';
 export { AiContext, type AiContextProps } from './widgets/ai-context.js';
@@ -75,11 +86,13 @@ export { MatchStakes, type MatchStakesProps } from './widgets/match-stakes.js';
 export { RelatedVideos, type RelatedVideosProps } from './widgets/related-videos.js';
 export { HeadToHead, type HeadToHeadProps } from './widgets/head-to-head.js';
 export { TeamSchedule, type TeamScheduleProps } from './widgets/team-schedule.js';
+export { TeamCard, type TeamCardProps } from './widgets/team-card.js';
 export { RaceResult, type RaceResultProps } from './widgets/race-result.js';
 export { RaceWeekend, type RaceWeekendProps } from './widgets/race-weekend.js';
 export { SeasonCalendar, type SeasonCalendarProps } from './widgets/season-calendar.js';
 export { AthleteProfile, type AthleteProfileProps } from './widgets/athlete-profile.js';
 export { FightCard, type FightCardProps } from './widgets/fight-card.js';
+export { MatchTimeline, type MatchTimelineProps } from './widgets/match-timeline.js';
 export { EquestrianResults, type EquestrianResultsProps } from './widgets/equestrian-results.js';
 export { EquestrianRanking, type EquestrianRankingProps } from './widgets/equestrian-ranking.js';
 export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/equestrian-calendar.js';
@@ -97,6 +110,20 @@ export { CountryToday, type CountryTodayProps } from './widgets/country-today.js
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';
 export { MedalHistory, type MedalHistoryProps } from './widgets/medal-history.js';
+export { ChampionsGallery, type ChampionsGalleryProps } from './widgets/champions-gallery.js';
+export { CompetitionLeaders, type CompetitionLeadersProps } from './widgets/competition-leaders.js';
+export { Countdown, type CountdownProps } from './widgets/countdown.js';
+export { TeamSquad, type TeamSquadProps } from './widgets/team-squad.js';
+export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile.js';
+export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
+export { MatchPrediction, type MatchPredictionProps } from './widgets/match-prediction.js';
+export { MatchOdds, type MatchOddsProps } from './widgets/match-odds.js';
+export { TeamStats, type TeamStatsProps } from './widgets/team-stats.js';
+export {
+  TransferMarket,
+  type TransferMarketDirection,
+  type TransferMarketProps,
+} from './widgets/transfer-market.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

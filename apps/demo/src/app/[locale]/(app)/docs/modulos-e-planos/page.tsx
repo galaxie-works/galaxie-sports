@@ -35,6 +35,7 @@ const MODULES = [
       'GET /v1/competitions/{id}/context',
       'GET /v1/events',
       'GET /v1/events/{id}',
+      'GET /v1/events/{id}/predictions',
       'GET /v1/teams/{id}/overview',
       'GET /v1/people/{id}',
       'GET /v1/people/{id}/overview',

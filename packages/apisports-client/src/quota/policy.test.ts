@@ -39,6 +39,26 @@ describe('decide', () => {
     expect(full.allow).toBe(false);
   });
 
+  it('dia quase gasto: o saldo do DAILY que não dá mais para gastar não trava o ao vivo', () => {
+    const ultra = defaultPolicy(75_000, 25);
+    const used = { ...emptyUsage(), BOOTSTRAP: 65_249, DAILY: 3_000, LIVE: 1_500 };
+    const usage = { used, planned: { LIVE: 1_500, DAILY: 30_000 } };
+    expect(decide(ultra, usage, 'LIVE')).toMatchObject({ allow: true, borrowed: true, cap: 75_000 });
+    expect(decide(ultra, usage, 'DAILY')).toMatchObject({ allow: false, cap: 56_250 });
+    expect(decide(ultra, { ...usage, providerUsed: 75_000 }, 'LIVE').allow).toBe(false);
+  });
+
+  it('sem reserva para o ao vivo, o saldo do DAILY que ainda pode sair continua protegido', () => {
+    const used = { ...emptyUsage(), LIVE: 1_500, BOOTSTRAP: 48_500 };
+    const planned = { LIVE: 1_500, DAILY: 30_000 };
+    // reserva zerada: faltam 25 mil no dia e o DAILY ainda pode gastar todos eles
+    expect(decide(defaultPolicy(75_000, 0), { used, planned }, 'LIVE').allow).toBe(false);
+    // no dev a reserva é de todos: faltam 21 mil até o teto de 30% e o saldo do DAILY cobre tudo
+    const dev = defaultPolicy(75_000, 70, undefined, false);
+    const devUsed = { ...emptyUsage(), LIVE: 1_500 };
+    expect(decide(dev, { used: devUsed, planned: { LIVE: 1_500, DAILY: 21_000 } }, 'LIVE').allow).toBe(false);
+  });
+
   it('usa o contador do fornecedor como piso', () => {
     const d = decide(policy, { used: emptyUsage(), providerUsed: 85 }, 'DAILY');
     expect(d.allow).toBe(false);

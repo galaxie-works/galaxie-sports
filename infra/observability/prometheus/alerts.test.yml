@@ -1066,3 +1066,35 @@ tests:
             exp_annotations:
               summary: 'Webhooks lentos para portal-x: p95 de 45s'
               description: 'O p95 da mudança até a entrega passou de 30 s (meta 5 s). Receptor lento (timeouts e retentativas) ou worker sobrecarregado (docs/runbooks/webhooks.md › Lento).'
+
+  - name: endpoint do mapa de frescor sem busca além do período
+    interval: 1m
+    input_series:
+      # /sidelined (2 dias + 12 h = 60 h): última busca em t=0 (no teste, time() é o tempo desde o início)
+      - series: 'galaxie_raw_endpoint_last_fetched_timestamp_seconds{sport="football",endpoint="/sidelined",instance="api:8080"}'
+        values: '0x3800'
+      - series: 'galaxie_raw_endpoint_max_age_seconds{sport="football",endpoint="/sidelined",job_name="sync:daily",instance="api:8080"}'
+        values: '216000x3800'
+      # segunda instância (rolling swap) com o mesmo valor: não pode duplicar nem quebrar o casamento
+      - series: 'galaxie_raw_endpoint_max_age_seconds{sport="football",endpoint="/sidelined",job_name="sync:daily",instance="api-2:8080"}'
+        values: '216000x3800'
+      # /fixtures renovado a cada hora: nunca vence
+      - series: 'galaxie_raw_endpoint_last_fetched_timestamp_seconds{sport="football",endpoint="/fixtures",instance="api:8080"}'
+        values: '0+60x3800'
+      - series: 'galaxie_raw_endpoint_max_age_seconds{sport="football",endpoint="/fixtures",job_name="sync:daily",instance="api:8080"}'
+        values: '129600x3800'
+    alert_rule_test:
+      - eval_time: 60h
+        alertname: RawEndpointOverdue
+        exp_alerts: []
+      - eval_time: 62h
+        alertname: RawEndpointOverdue
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              sport: football
+              endpoint: /sidelined
+              job_name: sync:daily
+            exp_annotations:
+              summary: 'football /sidelined: sem busca há 2d 14h 0m 0s'
+              description: 'Quem renova é o job sync:daily. Veja ops.job_run e ops.sync_cursor do endpoint, a cota DAILY (governor) e o mapa de frescor em docs/03 §11.1.'

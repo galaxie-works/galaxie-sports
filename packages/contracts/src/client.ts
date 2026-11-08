@@ -8,6 +8,7 @@ import type {
   Standings,
   Venue,
 } from './catalog.js';
+import type { ChampionsQuery, CompetitionChampions } from './champions.js';
 import type { Problem, SupportedLocale } from './common.js';
 import type { CompetitionContext } from './context.js';
 import type { EventContext } from './event-context.js';
@@ -26,6 +27,8 @@ import type { MirrorEnvelope, MirrorSource, MirrorSport } from './mirror.js';
 import type { Broadcaster, Platform, PlatformLineup, WhereToWatch } from './where-to-watch.js';
 import type { RelatedContent, RelatedContentTypeName } from './related.js';
 import type { SearchQuery, SearchResponse } from './search.js';
+import type { CompetitionLeaders, LeaderCategory } from './leaders.js';
+import type { EventOdds, EventPredictions, OddsMarketKey } from './markets.js';
 import type {
   Person,
   PersonOverview,
@@ -177,6 +180,16 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<CountryCompetitions>(`/v1/countries/${seg(code)}/competitions`, query as Query & LocaleOpts),
     standings: (id: string, season: number | 'current', opts: LocaleOpts = {}) =>
       v1<Standings>(`/v1/competitions/${seg(id)}/seasons/${season}/standings`, opts),
+    /** Artilharia e líderes (assistências, cartões) da temporada. */
+    leaders: (
+      id: string,
+      season: number | 'current',
+      query: LocaleOpts & { category?: LeaderCategory; limit?: number } = {},
+    ) =>
+      v1<CompetitionLeaders>(
+        `/v1/competitions/${seg(id)}/seasons/${season}/leaders`,
+        query as Query & LocaleOpts,
+      ),
     venue: (id: string, opts: LocaleOpts = {}) => v1<Venue>(`/v1/venues/${seg(id)}`, opts),
     /** Onde assistir um evento num país (`region` = UF/praça, opcional). */
     whereToWatch: (eventId: string, country: string, opts: LocaleOpts & { region?: string } = {}) =>
@@ -194,6 +207,9 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
       v1<PlatformLineup>(`/v1/platforms/${seg(id)}/lineup`, opts),
     competitionContext: (id: string, opts: LocaleOpts & { season?: number | 'current' } = {}) =>
       v1<CompetitionContext>(`/v1/competitions/${seg(id)}/context`, opts),
+    /** Galeria de campeões: campeão de cada edição, o vice (`runner_up: true`) e quem tem mais títulos. */
+    champions: (id: string, query: Q<ChampionsQuery> = {}) =>
+      v1<CompetitionChampions>(`/v1/competitions/${seg(id)}/champions`, toQuery(query)),
 
     // ─── eventos ─────────────────────────────────────────────────────────────────────────────────
     events: (query: Omit<EventsQuery, 'locale' | 'status'> & LocaleOpts & { status?: string } = {}) =>
@@ -208,6 +224,17 @@ export function createGalaxieClient(options: GalaxieClientOptions) {
     eventLineups: (id: string, opts: LocaleOpts = {}) =>
       v1<EventLineups>(`/v1/events/${seg(id)}/lineups`, opts),
     eventStats: (id: string, opts: LocaleOpts = {}) => v1<EventStats>(`/v1/events/${seg(id)}/stats`, opts),
+    /** Palpite do jogo (futebol): chances, linha de gols e comparação dos times. */
+    eventPredictions: (id: string, opts: LocaleOpts = {}) =>
+      v1<EventPredictions>(`/v1/events/${seg(id)}/predictions`, opts),
+    /** Odds pré-jogo por mercado (módulo odds). */
+    eventOdds: (id: string, opts: LocaleOpts & { market?: readonly OddsMarketKey[] } = {}) => {
+      const { market, ...rest } = opts;
+      return v1<EventOdds>(`/v1/events/${seg(id)}/odds`, {
+        ...rest,
+        ...(market?.length ? { market: market.join(',') } : {}),
+      } as Query & LocaleOpts);
+    },
     /** Cenário pré-jogo / resumo pós-jogo de IA (módulo live_intelligence). */
     eventContext: (id: string, opts: LocaleOpts & { kind?: 'scenario' | 'recap' } = {}) =>
       v1<EventContext>(`/v1/events/${seg(id)}/context`, opts),

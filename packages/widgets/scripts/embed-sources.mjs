@@ -15,7 +15,9 @@ const read = (path) => readFileSync(new URL(path, root), 'utf8').replace(/\r\n/g
 /** kind → arquivo e componente. */
 const WIDGETS = {
   match_card: { file: 'src/widgets/match-card.tsx', component: 'MatchCard' },
+  match_timeline: { file: 'src/widgets/match-timeline.tsx', component: 'MatchTimeline' },
   live_list: { file: 'src/widgets/live-list.tsx', component: 'LiveList' },
+  score_ticker: { file: 'src/widgets/score-ticker.tsx', component: 'ScoreTicker' },
   standings: { file: 'src/widgets/standings-table.tsx', component: 'StandingsTable' },
   where_to_watch: { file: 'src/widgets/where-to-watch.tsx', component: 'WhereToWatch' },
   ai_context: { file: 'src/widgets/ai-context.tsx', component: 'AiContext' },
@@ -23,6 +25,7 @@ const WIDGETS = {
   related_videos: { file: 'src/widgets/related-videos.tsx', component: 'RelatedVideos' },
   head_to_head: { file: 'src/widgets/head-to-head.tsx', component: 'HeadToHead' },
   team_schedule: { file: 'src/widgets/team-schedule.tsx', component: 'TeamSchedule' },
+  team_card: { file: 'src/widgets/team-card.tsx', component: 'TeamCard' },
   race_result: { file: 'src/widgets/race-result.tsx', component: 'RaceResult' },
   race_weekend: { file: 'src/widgets/race-weekend.tsx', component: 'RaceWeekend' },
   season_calendar: { file: 'src/widgets/season-calendar.tsx', component: 'SeasonCalendar' },
@@ -38,6 +41,16 @@ const WIDGETS = {
   games_schedule: { file: 'src/widgets/games-schedule.tsx', component: 'GamesSchedule' },
   country_athletes: { file: 'src/widgets/country-athletes.tsx', component: 'CountryAthletes' },
   medal_history: { file: 'src/widgets/medal-history.tsx', component: 'MedalHistory' },
+  champions_gallery: { file: 'src/widgets/champions-gallery.tsx', component: 'ChampionsGallery' },
+  competition_leaders: { file: 'src/widgets/competition-leaders.tsx', component: 'CompetitionLeaders' },
+  countdown: { file: 'src/widgets/countdown.tsx', component: 'Countdown' },
+  team_squad: { file: 'src/widgets/team-squad.tsx', component: 'TeamSquad' },
+  player_profile: { file: 'src/widgets/player-profile.tsx', component: 'PlayerProfile' },
+  lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
+  match_prediction: { file: 'src/widgets/match-prediction.tsx', component: 'MatchPrediction' },
+  match_odds: { file: 'src/widgets/match-odds.tsx', component: 'MatchOdds' },
+  team_stats: { file: 'src/widgets/team-stats.tsx', component: 'TeamStats' },
+  transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
   match_stats: { file: 'src/widgets/match-stats.tsx', component: 'MatchStats' },
 };
 

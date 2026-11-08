@@ -156,7 +156,7 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 1. **Nunca chamar duas vezes** a mesma `request_hash` dentro do TTL do endpoint (tabela abaixo).
 2. **Pré-validar** temporada/data/parâmetros contra as restrições do plano vigente.
 3. **Ler `coverage`** antes de pedir eventos, escalações, estatísticas, jogadores, injuries ou odds.
-4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Tabela do provedor mais nova que o último resultado (bootstrap Pro) prevalece; mais velha, é substituída com os mesmos grupos. Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
+4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Espelho dos dados, não do formato: no grupo que já tem tabela calculada, a `standings` do fornecedor fica só no raw (conferência) e o writer não a grava no core; os grupos que não calculamos (promedios, tabela anual, fase nova) entram como reserva, inteiros. Sem `tables:` no regulamento, o grupo do fornecedor em que a maioria dos times já está num grupo nosso calculado e com nome (acumulada, promedios, a mesma liga com outro rótulo) é sombra da nossa tabela: fica no core como reserva e não define grupo (o promovido que só tem linha nos promedios entra na liga). O rótulo que o fornecedor dá ao nosso grupo sem nome ou deduzido continua sendo adotado. Tabela do provedor gravada antes do cálculo e mais nova que o último resultado prevalece; mais velha, é substituída com os mesmos grupos. Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
    - **Com `tables:` no regulamento** (Argentina, Uruguai, Colômbia, Peru, Liga MX, Libertadores...): o regulamento decide as tabelas (docs/rules §1.4).
    - **Sem regulamento e com mais de uma fase** nas rodadas do fornecedor ("Regular Season - 3", "Second Stage - 2", "North - 5"): uma tabela por fase, só com os jogos dela, e grupo do fornecedor ligado à fase pelo nome ou por ser fechado nela (`services/ingestor/src/standings/phases-auto.ts`). A 1ª fase de nome genérico vira `first_phase` ("1ª fase"); duas ou mais fases com quase todos os times somam em `annual` ("Tabela anual"). Rodada sem número (mata-mata) não entra, e o grupo vazio que misturava as fases sai.
    - **Fornecedor com só parte dos grupos** (Série D 2026: 8 de 16): os times sem grupo ganham grupos deduzidos dos jogos entre eles (`unnamed:1`… — "Grupo sem nome 1").
@@ -449,7 +449,8 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 | `bootstrap:seasons --h2h-temporada-atual` | #13 | Free: reconstrói a temporada atual das ligas tier 1 por `fixtures/headtohead` (pares de times da temporada acessível mais recente; jogos deduplicados por `fixture.id` em `reconstructSeasonFromH2h`) | 190 chamadas por liga de 20 clubes; times promovidos chegam pelo sync diário |
 | `bootstrap:details` | #14 | Detalhe das encerradas conhecidas pelo raw (listas, h2h, agendas): pagos `fixtures?ids=` ×20; free `fixtures?id=` e, por padrão (`--escopo auto`), só clássicos e jogos decisivos (finais, semis, quartas) | tier 1 → clássicos → tier 2; temporada atual e jogos recentes primeiro; pula temporadas sem eventos/escalações/estatísticas no `coverage` |
 | `bootstrap:people` | #15 | `players/squads`, `coachs`, `transfers` por time (tier ≤ 2); `trophies`/`sidelined` em lotes de 20 (elencos e técnicos atuais tier 1); `fixtures/headtohead` de todos os clássicos da base semântica (IDs da base ou resolvidos por nome+país nas listas do raw); `--estatisticas-jogadores` para `players?league&season` paginado (tier 1) | squads tier 1 primeiro |
-| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio (squads 7 dias, coachs/transfers/trophies/sidelined 30 dias) dos times tier 1; nos planos pagos, relista da temporada atual (`fixtures?league&season` das temporadas que começam em até 14 dias ou terminaram há menos de 7, inclusive a próxima edição antes de virar `current`, no cursor do `bootstrap:seasons`: nunca listada primeiro, tier 1 a cada 2 dias, os demais a cada 7, até 300/dia, `--listas-temporada N`; a tabela das relistadas é recalculada no fim), para a temporada que começou depois do bootstrap ou de tier fora dele não ficar só com o `fixtures?date=`; `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs; tudo direto ao core e, no fim, tabelas recalculadas localmente. Agendado às 00:05 UTC (job `sync-daily`, já com `--outros-esportes`) | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `sync:daily` | #19 | `fixtures?date=` D-1/D0/D+1, `injuries?date=` D0, `/leagues`, `/status` (sem cota); detalhe dos encerrados de D-1…D-3 sem detalhe; rodízio dos times tier 1 e das pessoas dos elencos atuais (squads e transfers 7 dias, sidelined 2, coachs e trophies 30; até 1.500 chamadas/dia nos planos pagos, em revezamento entre os endpoints para um não deixar o outro sem busca); nos planos pagos, relista da temporada atual (`fixtures?league&season` das temporadas que começam em até 14 dias ou terminaram há menos de 7, inclusive a próxima edição antes de virar `current`, no cursor do `bootstrap:seasons`: nunca listada primeiro, tier 1 a cada 2 dias, os demais a cada 7, até 300/dia, `--listas-temporada N`; a tabela das relistadas é recalculada no fim), para a temporada que começou depois do bootstrap ou de tier fora dele não ficar só com o `fixtures?date=`; nos planos pagos, números dos jogadores da temporada em jogo (`players?league&season`, todas as páginas, nos cursores do `bootstrap:people --estatisticas-jogadores`: a página 1 abre a passada a cada 3 dias no tier 1, as demais páginas vêm pelo `paging` dela; temporadas iniciadas antes de hoje, renovação pelo dia UTC, tier ≤ `--tier-estatisticas` (1), até 1.000 páginas/dia, `--estatisticas-jogadores N`, alimenta `core.person_season_stat`); `--outros-esportes` traz `games/races/fights?date=` das outras 11 APIs; tudo direto ao core e, no fim, tabelas recalculadas localmente. Agendado às 00:05 UTC (job `sync-daily`, já com `--outros-esportes`) | cada item vale 1×/dia UTC: reexecutar no mesmo dia não gasta |
+| `sync:mirror` | #855 | Espelho da api-sports: renova no ritmo de cada endpoint o que o `sync:daily` não busca, na temporada em jogo (atual, próxima em até 14 dias, encerrada há até 7). Futebol: `standings` e `injuries` (tier 1 diário), `players/top*`, `fixtures/rounds?dates=true`, `teams`, referência (`/timezone`, `/countries`, `/leagues/seasons`, `/odds/bookmakers`, `/odds/bets`…), `venues?country`, `predictions` e `odds` dos jogos das próximas 48 h (tier ≤ 2), `teams/statistics`, `fixtures/headtohead` dos clássicos e elencos/técnicos/transferências tier 2+. Outros 11 esportes: referência, temporada inteira, classificação (menos beisebol, calculada), times, estatísticas de time, odds e o dado por jogo dos encerrados nos últimos 3 dias (no máximo 1×/dia; encerrado só pelo relógio fica fora). Uma execução por API (cota esgotada ou 429 de uma não para as outras); grupos em ordem de prioridade com rodízio pelos cursores das cargas manuais; item que falhou 3× sai da fila. O `/standings` do fornecedor vai para o raw; no core só entram os grupos sem tabela calculada. Agendado às 08:00 UTC (job `sync-mirror`, fora da janela de jogos das Américas); `--plan`, `--orcamento N`, `--tier-outros N`. Períodos, endpoints ligados, ordem dos grupos e orçamento são do painel ([§11.5](#115-espelho-configurável-pelo-painel)) | `MIRROR_BUDGET_PERCENT` da cota por API e por dia (padrão 20%: Pro 1.500, Ultra 15.000); free: 10, só referência |
 | `live:run` | #54 #55 | Live Scheduler + Live Poller (§5, [07 §2.1](07-ia-tempo-real-e-enriquecimento.md#21-live-scheduler-o-agendamento-inteligente)): planeja o LIVE do dia no Governor e faz 1 `fixtures?live=` por tick; `--plan` mostra o plano sem chamar. Job `live-run` a cada 5 min (sai ocioso) | LIVE |
 | `standings:recompute` | #19 | Tabelas calculadas a partir dos resultados do core (sem chamadas) | — |
 | `assets:palette` | — | Cores dos times: lê do bucket os `team_logo` PNG já espelhados sem `palette`, decodifica e grava a paleta (§7.2); `--plan` só conta, `--limite N`. Job `assets-palette` às 03:10 UTC | zero chamadas (storage + banco) |
@@ -457,7 +458,71 @@ Implementação: [`services/ingestor/src/jobs`](../services/ingestor/src/jobs). 
 
 ¹ só quando o `coverage` da temporada não é `false`.
 
-### 11.1 Custo estimado (catálogo real: 46 competições tier 1 + 99 tier 2)
+### 11.1 Mapa de frescor
+
+Todo endpoint da api-sports que usamos é renovado por um job diário do scheduler do ingestor, cada um no seu ritmo.
+A carga da VPS (`/docker/galaxie-sports/carga-total.sh`, `bootstrap:*`) é só a carga inicial e não é o mecanismo
+diário. O período é o do item mais frequente: tier 1 na temporada em jogo. Tier 2 e 3 voltam com o dobro ou mais.
+O alerta `RawEndpointOverdue` dispara quando a última busca do endpoint no raw (`last_seen_at` ou `fetched_at`)
+passa do período mais 12 h. A tabela tem que andar junto com `packages/observability/src/metrics/raw-cadence.ts`,
+que é a fonte do alerta. Nas linhas do `sync:mirror` a tabela mostra o padrão do código: o período efetivo vem do
+painel ([§11.5](#115-espelho-configurável-pelo-painel)), e o alerta lê o mesmo valor que o job.
+
+| Endpoint | Período (tier 1) | Job | Onde o dado vai parar |
+|---|---|---|---|
+| `fixtures?date=`, `?ids=`, `?league&season`, `?live=` | 1 dia (ao vivo: por tick) | `sync:daily`, `live:run`, `postgame:close` | `core.event` e satélites (lances, escalações, estatísticas) |
+| `/leagues` | 1 dia | `sync:daily` | catálogo (`core.competition`, temporadas e `coverage`) |
+| `/injuries` (`?date=` e `league&season`) | 1 dia | `sync:daily`, `sync:mirror` | raw (widget Desfalques) |
+| `/players?league&season` | 3 dias | `sync:daily` | `core.person`, `core.person_season_stat` |
+| `/players/squads?team` | 7 dias (tier 2+: 14) | `sync:daily`, `sync:mirror` | `core.team_squad` |
+| `/transfers?team` | 7 dias (tier 2+: 30) | `sync:daily`, `sync:mirror` | `core.person_transfer` |
+| `/coachs?team` | 30 dias | `sync:daily`, `sync:mirror` | `core.person`, `core.roster` |
+| `/trophies?players` / `?coachs` | 30 dias | `sync:daily` | `core.person_trophy` |
+| `/sidelined?players` / `?coachs` | 2 dias | `sync:daily` | `core.person_sidelined` |
+| `/standings` | 1 dia (demais: 2) | `sync:mirror` | raw; no core só o grupo sem tabela calculada (§4) |
+| `/players/topscorers`, `/topassists` | 1 dia (demais: 3) | `sync:mirror` | raw |
+| `/players/topyellowcards`, `/topredcards` | 3 dias (demais: 7) | `sync:mirror` | raw |
+| `/fixtures/rounds?dates=true` | 7 dias | `sync:mirror` | raw |
+| `/teams?league&season` | 7 dias (demais: 14) | `sync:mirror` | `core.participant`, `core.venue` |
+| `/venues?country` | 30 dias | `sync:mirror` | raw |
+| `/predictions?fixture` | 1 dia por jogo das próximas 48 h, tier ≤ 2 (alerta: 7 dias, pela pausa de calendário) | `sync:mirror` | `core.event_prediction` (no `afterFetch`; reconstrução: `normalize:markets`) |
+| `/odds?fixture` | idem | `sync:mirror` | `core.event_odds` e `core.bookmaker` (idem) |
+| `/teams/statistics?league&season&team` | 7 dias (tier 2: 14) | `sync:mirror` | `core.team_season_stat` (`afterFetch` do `sync:mirror`, #893), servido em `/v1/teams/{id}/statistics` |
+| `/fixtures/headtohead` (clássicos) | 30 dias | `sync:mirror` | `core.event` |
+| Referência: `/timezone`, `/countries`, `/leagues/seasons`, `/teams/countries`, `/players/seasons`, `/odds/bookmakers`, `/odds/bets`, `/odds/live/bets` | 7 dias | `sync:mirror` | raw (`/odds/bookmakers` também em `core.bookmaker`) |
+| Outros 11 esportes: agenda `games/races/fights?date=` | 1 dia | `sync:daily` | `core.event` (pelo `normalize-sports`) |
+| Outros 11 esportes: temporada, classificação, times, por jogo, odds | 1 a 14 dias | `sync:mirror` | raw; core pelo `normalize-sports` (odds: `core.event_odds` no `afterFetch`) |
+| Outros 11 esportes: referência (`/timezone`, `/seasons`, `/leagues`, `/countries`, odds…) | 7 dias (`/leagues`: 1) | `sync:mirror` | raw |
+
+
+As outras 11 APIs estão no plano free: o espelho delas fica em 10 chamadas por dia, só referência. O alerta olha a
+agenda diária e a referência delas. A referência é buscada em qualquer plano e o ano todo, então ela mostra o espelho
+parado também numa API paga. Os endpoints de temporada, por jogo e por time das outras APIs ficam fora do mapa: eles
+somem da fila na entressafra, e o alerta dispararia por meses sem nada errado.
+
+### 11.2 Cota por dia
+
+Futebol no Ultra: 75 mil chamadas por dia, na mesma conta do dev e da produção ([§9](#9-quota-governor)). Abaixo de
+25% do dia (18.750), só o ao vivo chama. Sobram 56.250 para o resto. O dev para quando a conta chega a 30% de uso.
+
+| Job | Chamadas por dia (regime) | Primeiros dias | Medido em 31/10 a 06/11 |
+|---|---|---|---|
+| `live:run` + `postgame:close` | ≈ 3.500 (pico ≈ 5.000) | — | ≈ 3.500 |
+| `sync:daily` sem o rodízio (agenda, detalhe, relistas, números dos jogadores) | ≈ 1.500 | — | ≈ 250 a 1.700 |
+| Rodízio de pessoas tier 1 (`sync:daily`) | ≈ 965 (teto 1.500) | 1.500 (primeira passada de `sidelined` e `trophies`) | 200 (teto antigo) |
+| `sync:mirror` (futebol) | ≈ 3.500 a 4.500 | até 15.000 (20% da cota) por 3 ou 4 dias | — |
+| **Total da produção** | **≈ 10.000** | **≈ 21.500** | |
+| Dev (NAS) | até 22.500 (30% da conta) | | |
+
+O total da produção cabe nos 56.250. A carga inicial (`carga-total.sh`, BOOTSTRAP) usa o resto, mas roda com
+`QUOTA_LIVE_RESERVE_PERCENT=7` e por isso pode levar a conta abaixo dos 25%. A partir daí, o Governor recusa no resto do
+dia tudo o que não é LIVE, como o `postgame:close` (ADHOC) da noite. O ao vivo segue no que resta do limite do dia:
+o plano dele e o Governor contam a reserva como dele, e o saldo do DAILY que não dá mais para gastar não o trava. O `sync:daily` (00:05 UTC) e o `sync:mirror`
+(08:00 UTC) rodam antes de a carga chegar lá. Para o que roda à noite também caber, o `TETO` da carga, que conta só as
+chamadas BOOTSTRAP, precisa ficar em no máximo 56.250 menos o total da produção: cerca de 35 mil nos primeiros dias
+do espelho e cerca de 46 mil em regime.
+
+### 11.3 Custo estimado (catálogo real: 46 competições tier 1 + 99 tier 2)
 
 Números de `--plan` sobre o catálogo carregado em 21/10/2026 (76 competições, raw só com a referência global) somados, para as 69 do tier 2 acrescentadas em 22/10, à estimativa pelas fórmulas de §3 (3 temporadas cada, ≈ 8 chamadas por temporada, como no `--plan`). Onde o plano depende de listas ainda não baixadas, valem as fórmulas de §3.
 
@@ -467,11 +532,11 @@ Números de `--plan` sobre o catálogo carregado em 21/10/2026 (76 competições
 | `--h2h-temporada-atual` | ≈ 150 por liga (27 ligas tier 1 → ≈ 4.000; use `--ligas` para priorizar) | 0 (a temporada atual vem por `season`) |
 | `bootstrap:details` | 1 por jogo, só clássicos/decisivos (centenas) | ≈ partidas encerradas ÷ 20 (≈ 6.600 para ~132 mil jogos) |
 | `bootstrap:people` | ≈ 5.700 (times) + ≈ 2.000 (pessoas) + 82 (clássicos) — mesmo custo do Pro, mas ~195 dias | ≈ 7.800 → ~1 dia |
-| `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + 200 do rodízio |
+| `sync:daily` | ≤ 45/dia: 5 fixas + até 35 detalhes + 5 do rodízio | ≈ 5 + ⌈encerrados ÷ 20⌉ + até 1.500 do rodízio (≈ 965 em regime) + até 300 relistas + números dos jogadores (≈ 1.400 páginas a cada 3 dias no tier 1, teto de 1.000/dia) |
 
 A estimativa de dias do `--plan` usa limite − reserva − sync diário (free 40/dia, Pro 6.275/dia), supondo `--sem-live`; ajuste com `--por-dia`. O total do Pro fica em ≈ 19–21 mil chamadas para listas + detalhe + pessoas — dentro dos ~27 mil de §3 (que incluíam `players?league&season` de todas as temporadas tier 1, opcional aqui).
 
-### 11.2 Ambiente local sem chave
+### 11.4 Ambiente local sem chave
 
 ```bash
 pnpm snapshot:export                      # no ambiente com dados: data/snapshots/raw-<data>.ndjson.gz
@@ -480,3 +545,43 @@ pnpm --filter @galaxie/ingestor bootstrap:catalog   # sem APISPORTS_KEY: modo of
 ```
 
 Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resposta mais recente do raw (de qualquer idade) e nunca chama o fornecedor (`OfflineMissError`). Os assets em si ficam no object storage; o snapshot leva só o manifesto (URL de origem → `storage_key`, `sha256`). O export grava em `<arquivo>.part` e só renomeia no fim (interrompido, não vira o "mais recente" da pasta); o restore roda numa transação e só confirma se a linha `end` bate com o que foi lido; asset que o banco local já marcou como ausente (tentado e sem arquivo) não é religado pelo manifesto.
+
+### 11.5 Espelho configurável pelo painel
+
+Toda frequência do `sync:mirror` muda em **Ajustes → Operação → Espelho**, sem deploy. As flags ficam em
+`ops.runtime_setting` (histórico em `ops.runtime_setting_log`), com a precedência de sempre: banco > `.env` da VPS >
+padrão do código. O scheduler aplica as sobrescritas no env de cada execução, então a mudança vale na próxima
+execução do job (08:00 UTC ou um `sync:mirror` manual).
+
+| Flag | O que controla | Padrão | Limites |
+|---|---|---|---|
+| `MIRROR_PERIODS_<API>` (uma por API, ex.: `MIRROR_PERIODS_FOOTBALL`) | Período de cada endpoint por tier da competição, e ligar ou desligar o endpoint (ou só um tier). Guarda só o que difere do padrão: `/standings=1,2,4; /venues=60; /odds=off`. Um valor só vale para todos os tiers | vazio (todos no padrão do código, os de §11.1) | 1 a 365 dias; 0 é recusado (para parar de buscar, `off`); endpoint fora do catálogo da API é recusado |
+| `MIRROR_BUDGET_PERCENT` | Parte da cota diária de cada API paga que o espelho gasta | 20 | 1 a 50 (na produção 25% ficam para o ao vivo; com 50 sobra ao menos um quarto para o `sync:daily` e as cargas). O free fica em 10 chamadas |
+| `MIRROR_GROUP_ORDER_FOOTBALL` | Ordem dos grupos do futebol: o seguinte só recebe o que sobrou do orçamento | `temporada,palpites-odds,estatisticas,tier3,elencos` | cada grupo uma vez |
+| `MIRROR_GROUP_ORDER_SPORTS` | A mesma ordem para as outras 11 APIs | `temporada,por-jogo,por-time` | cada grupo uma vez |
+
+Colunas de tier: no futebol, os endpoints por temporada têm tier 1, 2 e 3+ (o 3+ é o grupo `tier3`; o padrão é o
+dobro do tier 2) e o `/teams/statistics` tem tier 1 e 2+. Nas outras APIs, a lista da temporada, a classificação e as
+lesões têm tier 1 e 2+. O resto tem um período só.
+
+**Uma fonte só.** O catálogo com os padrões, os grupos e a validação fica em
+[`packages/runtime-config/src/mirror.ts`](../packages/runtime-config/src/mirror.ts). O job lê dele (com as
+sobrescritas do env), e as métricas também: `galaxie_raw_endpoint_max_age_seconds` é recalculada a cada coleta com
+as flags efetivas (banco > env relatado pelo ingestor > padrão). Por isso a regra `RawEndpointOverdue` do Prometheus
+não muda: ela compara com essa métrica. Endpoint desligado em todos os tiers sai da métrica e não dispara o alerta. Desligado, ele também continua contando no orçamento do dia o que
+já gastou: desligar e reexecutar no mesmo dia não libera a cota de novo. Com
+o tier 1 desligado, vale o tier mais frequente que ficou ligado. Palpites e odds mantêm o piso de 7 dias do alerta.
+Os testes conferem que os perfis do ingestor (`SPORT_MIRROR`) e o catálogo listam os mesmos endpoints.
+
+**Estimativa.** Cada execução grava em `ops.sync_cursor` (`endpoint = 'mirror:inventory'`, uma linha por API)
+quantos pedidos cada endpoint teria em cada tier, contando também os desligados. O `--plan` grava o mesmo inventário
+sem chamar o fornecedor. A contagem já vem sem o que o plano recusa, então leva o plano junto: depois de trocar o
+plano da API, a tela descarta a contagem antiga até a próxima execução. Só a execução com os tiers padrão grava o
+inventário. A tela divide esses pedidos pelo período escolhido e mostra as chamadas por dia de cada
+endpoint e o total, contra o orçamento. Ela avisa quando a estimativa passa do orçamento: o rodízio renova primeiro
+os grupos de cima e os itens mais velhos, e o resto atrasa. Também avisa quando o orçamento passa da parte livre da
+cota. A conta da api-sports é a mesma no dev e na produção. Na produção, 25% ficam para o ao vivo. No dev, o Governor
+guarda pelo menos 70% para a produção ([§9](#9-quota-governor)).
+
+Valor inválido no `.env` (o painel não grava valor inválido) para o `sync:mirror` antes da primeira chamada, com a
+flag no erro. Nas métricas e no painel, vale o padrão daquela flag.

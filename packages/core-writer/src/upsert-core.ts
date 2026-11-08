@@ -53,6 +53,7 @@ import {
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from './placeholder-logos.js';
 import { slugify } from './slug.js';
+import { upsertTeamSeasonStats } from './team-season-stats.js';
 import { logger } from './logger.js';
 import { matchProvisional, PROVISIONAL_MATCH_MS, type ProvisionalCandidate } from './match.js';
 import { insertLogs, logRows, stateColumns, stateFromRow } from './event-state.js';
@@ -135,6 +136,8 @@ export interface UpsertStats {
   transfers: number;
   trophies: number;
   sidelined: number;
+  /** Estatísticas de time por temporada (teams/statistics). */
+  teamSeasonStats: number;
   assets: number;
   /** Complementos aplicados (resultados/grid da F1, desfecho do MMA) e os que não acharam o evento. */
   supplements: { applied: number; missingEvent: number };
@@ -166,6 +169,7 @@ export function emptyStats(): UpsertStats {
     transfers: 0,
     trophies: 0,
     sidelined: 0,
+    teamSeasonStats: 0,
     assets: 0,
     supplements: { applied: 0, missingEvent: 0 },
   };
@@ -200,6 +204,7 @@ export function addStats(a: UpsertStats, b: UpsertStats): UpsertStats {
     transfers: a.transfers + b.transfers,
     trophies: a.trophies + b.trophies,
     sidelined: a.sidelined + b.sidelined,
+    teamSeasonStats: a.teamSeasonStats + b.teamSeasonStats,
     assets: a.assets + b.assets,
     supplements: {
       applied: a.supplements.applied + b.supplements.applied,
@@ -308,6 +313,7 @@ export async function upsertBatchInTx(
     ...batch.standings.map((s) => s.season.competitionId),
     ...batch.rosters.flatMap((r) => (r.season ? [r.season.competitionId] : [])),
     ...batch.personSeasonStats.map((r) => r.season.competitionId),
+    ...batch.teamSeasonStats.map((r) => r.season.competitionId),
     ...batch.stages.map((s) => s.season.competitionId),
   ]);
   const competitionIds = await resolveIds(tx, scope, 'competition', [...competitionRefs]);
@@ -363,6 +369,7 @@ export async function upsertBatchInTx(
   for (const s of batch.standings) addSeason(s.season);
   for (const r of batch.rosters) if (r.season) addSeason(r.season);
   for (const r of batch.personSeasonStats) addSeason(r.season);
+  for (const r of batch.teamSeasonStats) addSeason(r.season);
   for (const s of batch.stages) addSeason(s.season);
 
   const seasonIds = new Map<string, string>();
@@ -952,7 +959,18 @@ export async function upsertBatchInTx(
     }),
     (s) => `${s.seasonId}|${s.group}|${s.participantId}`,
   );
-  for (const chunk of chunks(standingRows, 500)) {
+  // espelho dos dados, não do formato: o grupo que já tem tabela calculada pelo nosso regulamento fica com ela (a
+  // do fornecedor só no raw, para conferência); os demais grupos da temporada (promedios, tabela anual, fase nova
+  // que ainda não calculamos) são dado que não organizamos e entram como reserva, inteiros
+  const computedGroups = await groupsWithComputedTable(tx, standingRows);
+  const freshRows = standingRows.filter((r) => !computedGroups.has(`${r.seasonId}|${r.group}`));
+  if (freshRows.length < standingRows.length) {
+    logger.debug(
+      { groups: [...computedGroups] },
+      'tabela do fornecedor ignorada no core: grupo com tabela calculada',
+    );
+  }
+  for (const chunk of chunks(freshRows, 500)) {
     const base = replaceUpdate(
       standing,
       [
@@ -974,7 +992,8 @@ export async function upsertBatchInTx(
     );
     // a inscrição (F1DB) não some quando outra fonte reescreve a mesma linha sem ela
     const set = { ...base.set, entry: sql`coalesce(excluded.entry, ${standing.entry})` };
-    const setWhere = sql`(${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry)`;
+    // linha calculada gravada pelo recálculo entre a checagem dos grupos e este upsert: fica a nossa
+    const setWhere = sql`${standing.source} <> 'computed' and ((${base.setWhere}) or (excluded.entry is not null and ${standing.entry} is distinct from excluded.entry))`;
     await tx
       .insert(standing)
       .values(chunk)
@@ -984,11 +1003,23 @@ export async function upsertBatchInTx(
         setWhere,
       });
   }
-  stats.standings = standingRows.length;
+  stats.standings = freshRows.length;
 
   await upsertPersonProfiles(tx, batch, scope, stats, { personId, participantId, seasonId });
+  stats.teamSeasonStats = await upsertTeamSeasonStats(tx, batch, { participantId, seasonId });
 
   return stats;
+}
+
+/** Grupos (`seasonId|group`) das temporadas do lote que já têm tabela calculada (`source = 'computed'`) no core. */
+async function groupsWithComputedTable(tx: Tx, rows: { seasonId: string }[]): Promise<Set<string>> {
+  const seasonIds = [...new Set(rows.map((r) => r.seasonId))];
+  if (!seasonIds.length) return new Set();
+  const found = await tx
+    .selectDistinct({ seasonId: standing.seasonId, group: standing.group })
+    .from(standing)
+    .where(and(inArray(standing.seasonId, seasonIds), eq(standing.source, 'computed')));
+  return new Set(found.map((r) => `${r.seasonId}|${r.group}`));
 }
 
 // ─── perfil completo das pessoas ─────────────────────────────────────────────────────────────────

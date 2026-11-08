@@ -103,7 +103,8 @@ function printPlan(plan: LiveDayPlan): void {
       `Fora por orçamento (${budgetOut.length}): ${budgetOut.map((e) => e.label ?? e.eventId).join(' · ')}`,
     );
   console.log(
-    `Orçamento: limite ${b.dailyLimit} − reserva ${b.reserve} · DAILY protegido ${b.protectedDaily} · ` +
+    `Orçamento: limite ${b.dailyLimit}${b.liveUsesReserve ? ` (a reserva de ${b.reserve} é do ao vivo)` : ` − reserva ${b.reserve}`} · ` +
+      `DAILY protegido ${b.protectedDaily} · ` +
       `LIVE ${b.liveTotal} (já usado ${b.liveUsed}; ${b.finalizeReserve} para confirmar placares finais) · ` +
       `${b.ticksLeft} tick(s) de ${b.tickCost} chamada(s)${plan.featured ? ' (com detalhe do jogo em destaque)' : ''}`,
   );

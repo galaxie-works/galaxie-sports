@@ -117,7 +117,7 @@ describe('Agente Cenário (integração)', () => {
     expect(await rows(secondLeg)).toHaveLength(0);
   });
 
-  it('gera o cenário nos 8 locales com o LLM, grava fontes e publica no change feed', async () => {
+  it('gera o cenário nos 9 locales (8 mercados + inglês) com o LLM, grava fontes e publica no change feed', async () => {
     const llm = new FakeLlmClient(
       (req) => llmTexts(GOOD_SCENARIO, requestedLocales(req.messages[0]!.content)),
       {
@@ -127,7 +127,7 @@ describe('Agente Cenário (integração)', () => {
     const report = await runScenarioAgent(db, { now: NOW, llm, eventId: secondLeg });
     expect(report.items[0]).toMatchObject({
       action: 'generated',
-      origins: { llm: 8, fallback: 0 },
+      origins: { llm: 9, fallback: 0 },
       llmCalls: 1,
     });
     const stored = await rows(secondLeg);
@@ -170,7 +170,7 @@ describe('Agente Cenário (integração)', () => {
     const report = await runScenarioAgent(db, { now: NOW, llm, eventId: secondLeg, force: true });
     expect(report.items[0]).toMatchObject({
       action: 'generated',
-      origins: { llm: 6, fallback: 2 },
+      origins: { llm: 7, fallback: 2 },
       llmCalls: 2,
     });
     const latest = await readEventContext(db, secondLeg, { kinds: ['scenario'] });
@@ -203,6 +203,29 @@ describe('Agente Cenário (integração)', () => {
       'Palmeiras: garante ao menos as oitavas de final',
     );
     expect(latest.every((r) => r.content.fallbackReason === 'no_llm')).toBe(true);
+  });
+
+  it('locale novo (en) gera só ele: os já gravados com os mesmos fatos ficam', async () => {
+    const report = await runScenarioAgent(db, {
+      now: NOW,
+      llm: null,
+      eventId: groupMatch,
+      locales: ['pt-BR', 'es-MX', 'en'],
+    });
+    expect(report.items[0]).toMatchObject({ action: 'generated', origins: { llm: 0, fallback: 1 } });
+    const stored = await rows(groupMatch);
+    expect(stored.filter((r) => r.locale === 'pt-BR')).toHaveLength(1);
+    expect(stored.filter((r) => r.locale === 'en')).toHaveLength(1);
+    const again = await runScenarioAgent(db, {
+      now: NOW,
+      llm: null,
+      eventId: groupMatch,
+      locales: ['pt-BR', 'es-MX', 'en'],
+    });
+    expect(again.items[0]).toMatchObject({
+      action: 'skipped',
+      reason: 'fatos inalterados desde a última geração',
+    });
   });
 
   it('jogo encerrado ou sem regra não gera cenário', async () => {

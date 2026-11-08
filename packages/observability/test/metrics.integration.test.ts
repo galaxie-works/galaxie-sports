@@ -406,6 +406,32 @@ describe('frescor e ao vivo', () => {
     expect(m.get('galaxie_raw_last_fetched_timestamp_seconds', { sport: 'hockey' })).toBeUndefined();
   });
 
+  it('última busca por endpoint do mapa de frescor, sem janela; nunca buscado sai 0', async () => {
+    const m = await scrape();
+    const fixtures = { sport: 'football', endpoint: '/fixtures' };
+    expect(m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', fixtures)).toBeCloseTo(
+      ago(10 * MIN).getTime() / 1000,
+      0,
+    );
+    expect(
+      m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', {
+        sport: 'football',
+        endpoint: '/sidelined',
+      }),
+    ).toBe(0);
+    // o raw do hóquei é de /fixtures (fora do mapa): a agenda /games do hóquei nunca foi buscada
+    expect(
+      m.get('galaxie_raw_endpoint_last_fetched_timestamp_seconds', { sport: 'hockey', endpoint: '/games' }),
+    ).toBe(0);
+    expect(
+      m.get('galaxie_raw_endpoint_max_age_seconds', {
+        sport: 'football',
+        endpoint: '/sidelined',
+        job_name: 'sync:daily',
+      }),
+    ).toBe((2 * 24 + 12) * 3600);
+  });
+
   it('eventos em andamento e o mais desatualizado, separados pela cobertura do ao vivo', async () => {
     const m = await scrape();
     const poller = { sport: 'football', coverage: 'poller' };
@@ -537,6 +563,30 @@ describe('frescor e ao vivo', () => {
     const m = await scrape();
     expect(m.get('galaxie_webhook_overdue_seconds')).toBe(0);
     expect(m.series('galaxie_webhook_pending')).toHaveLength(0);
+  });
+
+  it('mapa de frescor do espelho: o período do painel (o mesmo do job); endpoint desligado sai do alerta', async () => {
+    const maxAge = (m: Awaited<ReturnType<typeof scrape>>, endpoint: string) =>
+      m.get('galaxie_raw_endpoint_max_age_seconds', { sport: 'football', endpoint, job_name: 'sync:mirror' });
+    let m = await scrape();
+    expect(maxAge(m, '/venues')).toBe((30 * 24 + 12) * 3600);
+    expect(maxAge(m, '/odds')).toBe((7 * 24 + 12) * 3600);
+    expect(maxAge(m, '/standings')).toBe((1 * 24 + 12) * 3600);
+    await db.execute(sql`insert into ops.runtime_setting (key, value, value_type, updated_by)
+                         values ('MIRROR_PERIODS_FOOTBALL', '/venues=60; /odds=off; /standings=off,2,4', 'text', 'teste')`);
+    try {
+      m = await scrape();
+      expect(maxAge(m, '/venues')).toBe((60 * 24 + 12) * 3600);
+      expect(maxAge(m, '/odds')).toBeUndefined();
+      // tier 1 desligado: vale o tier mais frequente que ficou ligado
+      expect(maxAge(m, '/standings')).toBe((2 * 24 + 12) * 3600);
+      // o sync diário não muda
+      expect(
+        m.get('galaxie_raw_endpoint_max_age_seconds', { sport: 'football', endpoint: '/sidelined' }),
+      ).toBe((2 * 24 + 12) * 3600);
+    } finally {
+      await db.execute(sql`delete from ops.runtime_setting where key = 'MIRROR_PERIODS_FOOTBALL'`);
+    }
   });
 
   it('webhooks: pausa do painel vira galaxie_webhook_delivery_paused', async () => {

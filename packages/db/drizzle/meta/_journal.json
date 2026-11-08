@@ -477,6 +477,48 @@
       "when": 1793988136689,
       "tag": "0068_tema_da_marca",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794023267854,
+      "tag": "0069_vermelhos_segundo_amarelo",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794027827254,
+      "tag": "0070_campeao_nome",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794062851741,
+      "tag": "0072_frescor_por_endpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794066910112,
+      "tag": "0073_indices_transferencias",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794097549898,
+      "tag": "0074_palpites_e_odds",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794097586644,
+      "tag": "0075_estatisticas_do_time",
+      "breakpoints": true
     }
   ]
 }

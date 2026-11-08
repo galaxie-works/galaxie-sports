@@ -23,6 +23,13 @@ export default defineMessages(
       channels: 'Minha lista de canais',
       webhooks: 'Webhooks',
       themes: 'Temas',
+      groups: {
+        account: 'Conta',
+        content: 'Conteúdo',
+        engagement: 'Engajamento',
+        intelligence: 'Inteligência',
+        integrations: 'Integrações',
+      },
     },
     tenant: {
       label: 'Tenant',
@@ -69,6 +76,7 @@ export default defineMessages(
         live_intelligence: 'Inteligência ao vivo',
         multisport: 'Multiesporte',
         related_content: 'Vídeos relacionados',
+        odds: 'Odds',
       },
     },
     keys: {
@@ -178,7 +186,7 @@ export default defineMessages(
         'O comando de instalação deixa de funcionar (o registry responde 404). Quem já instalou continua com o componente no código.',
       archived: 'Widget arquivado',
       cancel: 'Cancelar',
-      entityTypes: { competition: 'Competição', team: 'Time', event: 'Jogo' },
+      entityTypes: { competition: 'Competição', team: 'Time', event: 'Jogo', person: 'Jogador ou técnico' },
       noEntity: 'Sem padrão',
     },
     editor: {
@@ -368,7 +376,7 @@ export default defineMessages(
           'Crie uma chave em <k>Chaves publicáveis</k> com o domínio do site nas origens permitidas (ex.: https://www.seuportal.com.br) e troque gs_pk_live_… por ela. Em outro domínio, a chave não funciona.',
         embedOptions: 'Opções',
         embedOptionsHint:
-          'Para usar o mesmo widget em outro jogo ou competição, acrescente event-id="…", competition-id="…" ou team-id="…"; locale="es" e market="AR" trocam o idioma e o país.',
+          'Para usar o mesmo widget em outro jogo ou competição, acrescente event-id="…", competition-id="…", team-id="…" ou person-id="…" (jogador ou técnico); locale="es" e market="AR" trocam o idioma e o país.',
         embedLive: 'No código HTML, salvar o widget atualiza o visual em todos os sites em poucos minutos.',
         reactDescription: 'Rode no projeto do seu app (Next.js ou React com shadcn).',
         command: 'Comando',
@@ -402,7 +410,7 @@ export default defineMessages(
       widget: {
         kind: 'Tipo de widget inválido.',
         name: 'Informe um nome de até 80 caracteres ("Galaxie Core" é reservado).',
-        theme: 'Tema inválido: confira as cores (#rrggbb), o raio e a fonte.',
+        theme: 'Tema inválido: confira as cores (#rrggbb ou #rrggbbaa), o raio e a fonte.',
         locale: 'Idioma inválido.',
         market: 'Mercado fora do seu plano.',
         entity: 'Entidade padrão inválida para este tipo de widget.',
@@ -435,6 +443,13 @@ export default defineMessages(
         channels: 'My channel list',
         webhooks: 'Webhooks',
         themes: 'Themes',
+        groups: {
+          account: 'Account',
+          content: 'Content',
+          engagement: 'Engagement',
+          intelligence: 'Intelligence',
+          integrations: 'Integrations',
+        },
       },
       tenant: {
         label: 'Tenant',
@@ -480,6 +495,7 @@ export default defineMessages(
           live_intelligence: 'Live intelligence',
           multisport: 'Multisport',
           related_content: 'Related videos',
+          odds: 'Odds',
         },
       },
       keys: {
@@ -591,7 +607,7 @@ export default defineMessages(
           'The install command stops working (the registry returns 404). Anyone who already installed it keeps the component in their code.',
         archived: 'Widget archived',
         cancel: 'Cancel',
-        entityTypes: { competition: 'Competition', team: 'Team', event: 'Match' },
+        entityTypes: { competition: 'Competition', team: 'Team', event: 'Match', person: 'Player or coach' },
         noEntity: 'No default',
       },
       editor: {
@@ -782,7 +798,7 @@ export default defineMessages(
             'Create a key under <k>Publishable keys</k> with the site domain in the allowed origins (e.g. https://www.yourportal.com) and replace gs_pk_live_… with it. On any other domain the key does not work.',
           embedOptions: 'Options',
           embedOptionsHint:
-            'To reuse the widget for another match or competition, add event-id="…", competition-id="…" or team-id="…"; locale="es" and market="AR" change the language and country.',
+            'To reuse the widget for another match or competition, add event-id="…", competition-id="…", team-id="…" or person-id="…" (player or coach); locale="es" and market="AR" change the language and country.',
           embedLive:
             'With the HTML code, saving the widget updates its look on every site within a few minutes.',
           reactDescription: "Run it in your app's project (Next.js or React with shadcn).",
@@ -817,7 +833,7 @@ export default defineMessages(
         widget: {
           kind: 'Invalid widget type.',
           name: 'Enter a name of up to 80 characters ("Galaxie Core" is reserved).',
-          theme: 'Invalid theme: check the colors (#rrggbb), radius and font.',
+          theme: 'Invalid theme: check the colors (#rrggbb or #rrggbbaa), radius and font.',
           locale: 'Invalid language.',
           market: 'Market not in your plan.',
           entity: 'Invalid default entity for this widget type.',
@@ -849,6 +865,13 @@ export default defineMessages(
         channels: 'Mi lista de canales',
         webhooks: 'Webhooks',
         themes: 'Temas',
+        groups: {
+          account: 'Cuenta',
+          content: 'Contenido',
+          engagement: 'Interacción',
+          intelligence: 'Inteligencia',
+          integrations: 'Integraciones',
+        },
       },
       tenant: {
         label: 'Tenant',
@@ -895,6 +918,7 @@ export default defineMessages(
           live_intelligence: 'Inteligencia en vivo',
           multisport: 'Multideporte',
           related_content: 'Videos relacionados',
+          odds: 'Cuotas',
         },
       },
       keys: {
@@ -1005,7 +1029,12 @@ export default defineMessages(
           'El comando de instalación deja de funcionar (el registry responde 404). Quien ya lo instaló sigue con el componente en el código.',
         archived: 'Widget archivado',
         cancel: 'Cancelar',
-        entityTypes: { competition: 'Competición', team: 'Equipo', event: 'Partido' },
+        entityTypes: {
+          competition: 'Competición',
+          team: 'Equipo',
+          event: 'Partido',
+          person: 'Jugador o entrenador',
+        },
         noEntity: 'Sin valor por defecto',
       },
       editor: {
@@ -1204,7 +1233,7 @@ export default defineMessages(
             'Creá una clave en <k>Claves publicables</k> con el dominio del sitio en los orígenes permitidos (ej.: https://www.tuportal.com.ar) y reemplazá gs_pk_live_… por ella. En otro dominio, la clave no funciona.',
           embedOptions: 'Opciones',
           embedOptionsHint:
-            'Para usar el mismo widget en otro partido o competición, agregá event-id="…", competition-id="…" o team-id="…"; locale="en" y market="BR" cambian el idioma y el país.',
+            'Para usar el mismo widget en otro partido o competición, agregá event-id="…", competition-id="…", team-id="…" o person-id="…" (jugador o entrenador); locale="en" y market="BR" cambian el idioma y el país.',
           embedLive:
             'Con el código HTML, guardar el widget actualiza el diseño en todos los sitios en pocos minutos.',
           reactDescription: 'Corrélo en el proyecto de tu app (Next.js o React con shadcn).',
@@ -1239,7 +1268,7 @@ export default defineMessages(
         widget: {
           kind: 'Tipo de widget inválido.',
           name: 'Ingresá un nombre de hasta 80 caracteres ("Galaxie Core" está reservado).',
-          theme: 'Tema inválido: revisá los colores (#rrggbb), el radio y la fuente.',
+          theme: 'Tema inválido: revisá los colores (#rrggbb o #rrggbbaa), el radio y la fuente.',
           locale: 'Idioma inválido.',
           market: 'Mercado fuera de tu plan.',
           entity: 'Entidad por defecto inválida para este tipo de widget.',

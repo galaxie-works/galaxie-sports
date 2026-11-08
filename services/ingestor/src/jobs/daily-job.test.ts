@@ -1,9 +1,12 @@
 import { FREE_PLAN, PRO_PLAN } from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
 import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
-import type { CompetitionInfo } from './catalog-source.js';
+import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
 import {
   buildRotationRequests,
+  pacedShare,
+  roundRobin,
+  ROTATION_PERIOD_DAYS,
   buildScheduleRequests,
   buildSeasonListRequests,
   checkProviderStatus,
@@ -154,13 +157,19 @@ describe('dailyJob', () => {
     );
     const picked = await buildRotationRequests(candidates, h.cursors, new Date(t), 5);
     expect(picked.map((p) => p.params.team)).toEqual(['126', '121']); // nunca buscado primeiro, depois o mais velho
-    expect(picked[1]!.staleBefore?.getTime()).toBe(t - 7 * DAY);
+    // corte por dia UTC: vence o buscado até o fim do dia de 7 dias atrás
+    const dayStart = (ms: number) => Math.floor(ms / DAY) * DAY;
+    expect(picked[1]!.staleBefore?.getTime()).toBe(dayStart(t) - 6 * DAY);
 
     const job = dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
       rotation: 4,
     });
     const plan = await planJob(job, h.deps);
-    expect(plan.phases[2]!.steps.squads!.total).toBe(4);
+    // fatia justa: as 4 vagas do dia em revezamento entre os endpoints (elencos, técnicos, transferências…)
+    const steps = plan.phases[2]!.steps;
+    expect(Object.values(steps).reduce((n, s) => n + s.total, 0)).toBe(4);
+    expect(steps.squads!.total).toBe(2);
+    expect(Object.keys(steps).length).toBeGreaterThan(1);
 
     // o limite do rodízio vale por dia: reexecutar no mesmo dia não renova mais nada
     h.nextDay();
@@ -168,6 +177,103 @@ describe('dailyJob', () => {
     const rerun = await planJob(job, h.deps);
     expect(rerun.phases[2]!.steps).toEqual({});
     expect(rerun.totals.network).toBe(0);
+  });
+});
+
+describe('rodízio de pessoas: fatia pelo ritmo de cada endpoint', () => {
+  it('o endpoint que vem primeiro não leva o dia inteiro (o /sidelined entra pelo seu ritmo)', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const trophies = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('trophies-jogadores', 'football', '/trophies', { players: String(i + 1) }),
+    );
+    const sidelined = Array.from({ length: 6 }, (_, i) =>
+      plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: String(i + 1) }),
+    );
+    const picked = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      4,
+      undefined,
+      (item) => item.endpoint,
+    );
+    // vaga pelo ritmo: /trophies 6 ÷ 30 dias → 1/dia; /sidelined 6 ÷ 2 dias → 3/dia
+    expect(picked.map((p) => p.endpoint)).toEqual(['/trophies', '/sidelined', '/sidelined', '/sidelined']);
+    // reexecução no mesmo dia (limite 5 − 3 já renovados = 2): a vaga do /sidelined já foi usada hoje, a do
+    // /trophies (1) não; a sobra vai em revezamento a partir do /trophies
+    await h.cursors.complete(
+      picked.filter((p) => p.endpoint === '/sidelined').flatMap((p) => p.cursors),
+      {},
+      new Date(t),
+    );
+    const again = await buildRotationRequests(
+      [...trophies, ...sidelined],
+      h.cursors,
+      new Date(t),
+      5,
+      undefined,
+      (item) => item.endpoint,
+    );
+    expect(again.map((p) => p.endpoint)).toEqual(['/trophies', '/trophies']);
+    // sem a fatia, a ordem da lista manda: só /trophies
+    const plain = await buildRotationRequests([...trophies, ...sidelined], h.cursors, new Date(t), 4);
+    expect(new Set(plain.map((p) => p.endpoint))).toEqual(new Set(['/trophies']));
+  });
+
+  it('cada endpoint leva primeiro a vaga do seu ritmo (o /sidelined de 2 dias não fica com 1/5 do dia)', () => {
+    // 5 chaves com fila cheia; s precisa de 6/dia, as outras de 1/dia: limite 10
+    const items = [
+      ...['a', 'b', 'c', 'd'].flatMap((k) => Array.from({ length: 10 }, (_, i) => `${k}${i}`)),
+      ...Array.from({ length: 10 }, (_, i) => `s${i}`),
+    ];
+    const paced = new Map([
+      ['a', 1],
+      ['b', 1],
+      ['c', 1],
+      ['d', 1],
+      ['s', 6],
+    ]);
+    const picked = pacedShare(items, (x) => x[0]!, paced, 10);
+    expect(picked.filter((x) => x.startsWith('s'))).toHaveLength(6);
+    // em revezamento: cortado depois de 5, o /sidelined (último da lista) já levou a sua
+    expect(picked.slice(0, 5).map((x) => x[0])).toEqual(['a', 'b', 'c', 'd', 's']);
+    expect(picked).toHaveLength(10);
+    // vaga maior que o limite: proporcional
+    const tight = pacedShare(items, (x) => x[0]!, paced, 5);
+    expect(tight.filter((x) => x.startsWith('s')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a sobra de um endpoint vai para os outros', () => {
+    const items = ['a1', 'b1', 'b2', 'b3', 'b4', 'c1'];
+    expect(roundRobin(items, (s) => s[0]!, 5)).toEqual(['a1', 'b1', 'c1', 'b2', 'b3']);
+    expect(roundRobin(items, (s) => s[0]!, 50)).toHaveLength(6);
+  });
+
+  it('período pelo dia UTC: o buscado anteontem a qualquer hora vence hoje no período de 2 dias', async () => {
+    const h = harness();
+    const t = h.clock.t;
+    const dayStart = Math.floor(t / DAY) * DAY;
+    const item = plannedRequest('sidelined-jogadores', 'football', '/sidelined', { players: '1' });
+    // buscado anteontem, 1 min antes da hora de agora: com 48 h exatas ainda estaria em dia
+    await h.cursors.complete(item.cursors, {}, new Date(dayStart - 2 * DAY + (t - dayStart) + 60_000));
+    const picked = await buildRotationRequests([item], h.cursors, new Date(t), 5);
+    expect(picked).toHaveLength(1);
+    // e o raw de anteontem não serve de cache (o TTL do /sidelined é de 7 dias): vai à rede
+    expect(picked[0]!.maxAgeMs).toBe(t - (dayStart - DAY));
+    expect(picked[0]!.maxAgeMs!).toBeLessThan(2 * DAY);
+  });
+
+  it('relista da temporada: o TTL curto do endpoint continua valendo (o corte não afrouxa o cache)', async () => {
+    const h = harness();
+    const item = plannedRequest('temporada-atual', 'football', '/fixtures', { league: 71, season: 2026 });
+    const [picked] = await buildRotationRequests([item], h.cursors, new Date(h.clock.t), 5, () => 2);
+    expect(picked!.maxAgeMs).toBeLessThanOrEqual(3_600_000);
+  });
+
+  it('afastamentos a cada 2 dias, transferências a cada 7', () => {
+    expect(ROTATION_PERIOD_DAYS['/sidelined']).toBe(2);
+    expect(ROTATION_PERIOD_DAYS['/transfers']).toBe(7);
   });
 });
 
@@ -222,12 +328,9 @@ describe('buildSeasonListRequests', () => {
     const picked = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10);
     expect(picked.map((p) => p.params.league)).toEqual(['500', '948', '71']); // catálogo: tier, prioridade, slug
     expect(picked.every((p) => p.endpoint === '/fixtures' && p.params.season === '2026')).toBe(true);
-    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 2 * DAY,
-    );
-    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(
-      now.getTime() - 7 * DAY,
-    );
+    const dayStart = Math.floor(now.getTime() / DAY) * DAY;
+    expect(picked.find((p) => p.params.league === '71')!.staleBefore?.getTime()).toBe(dayStart - 1 * DAY);
+    expect(picked.find((p) => p.params.league === '948')!.staleBefore?.getTime()).toBe(dayStart - 6 * DAY);
 
     // --forcar: ignora o período (a tier 2 listada há 3 dias entra), ainda no limite do dia
     const forced = await buildSeasonListRequests(comps, cursors, PRO_PLAN, now, 10, true);
@@ -323,5 +426,133 @@ describe('dailyJob: relista da temporada atual', () => {
       h.deps,
     );
     expect(plan.phases[3]!.steps).toEqual({});
+  });
+});
+
+describe('dailyJob: números dos jogadores da temporada em jogo', () => {
+  const derbyKeys = async () => new Set<string>();
+  const pages = (h: ReturnType<typeof harness>, from = 0) =>
+    h.api.calls
+      .slice(from)
+      .filter((u) => u.pathname.endsWith('/players') && u.searchParams.has('league'))
+      .map(
+        (u) =>
+          `${u.searchParams.get('league')}:${u.searchParams.get('season')}:${u.searchParams.get('page')}`,
+      )
+      .sort();
+
+  it('pago: todas as páginas das temporadas tier 1 em jogo, de novo só depois do período do tier', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
+    const r1 = await runJob(job(), h.deps);
+    expect(r1.status).toBe('ok');
+    // Série A e Libertadores 2026 (tier 1, temporada atual), 3 páginas cada; a Série B (tier 2) fica de fora
+    expect(pages(h)).toEqual(['13:2026:1', '13:2026:2', '13:2026:3', '71:2026:1', '71:2026:2', '71:2026:3']);
+    expect(r1.phases[4]!.steps['estatisticas-jogadores']!.network).toBe(2);
+    expect(r1.phases[5]!.steps['estatisticas-jogadores']!.network).toBe(4);
+
+    const again = await planJob(job(), h.deps);
+    expect(again.phases[4]!.steps).toEqual({});
+    expect(again.phases[5]!.steps).toEqual({});
+
+    h.clock.t += 2 * DAY; // dentro do período de 3 dias do tier 1
+    let before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toEqual([]);
+
+    h.clock.t += DAY; // venceu: a passada inteira de novo
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toHaveLength(6);
+  });
+
+  it('período pelo dia UTC: a passada do dia D volta no dia D+3, qualquer que seja a hora de cada execução', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    // passada anterior: aberta às 00:05 do dia D e com a página 1 concluída 40 min depois
+    const page1 = (league: number) =>
+      plannedRequest('x', 'football', '/players', { league, season: 2026, page: 1 }).cursors;
+    await h.cursors.complete([...page1(71), ...page1(13)], {}, new Date('2026-10-21T00:45:00Z'));
+    const firstPages = async (iso: string) => {
+      const plan = await planJob(
+        dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(iso), derbyKeys),
+        h.deps,
+      );
+      return plan.phases[4]!.steps['estatisticas-jogadores']?.total ?? 0;
+    };
+    expect(await firstPages('2026-10-23T00:05:00Z')).toBe(0); // D+2
+    expect(await firstPages('2026-10-23T23:59:00Z')).toBe(0); // D+2, reexecutado à mão no fim do dia
+    // D+3 às 00:05: "há 3 dias" exatos (00:05 de D) cairia antes da conclusão (00:45) e empurraria para D+4
+    expect(await firstPages('2026-10-24T00:05:00Z')).toBe(2);
+  });
+
+  it('próxima edição que ainda não começou fica de fora (números zerados)', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const catalog = new StaticCatalogSource(
+      fakeCatalog().map((c) =>
+        c.leagueId === 71
+          ? {
+              ...c,
+              seasons: c.seasons.map((s) =>
+                s.year === 2026
+                  ? { ...s, current: false, startDate: '2026-10-28', endDate: '2027-05-30' }
+                  : s,
+              ),
+            }
+          : c,
+      ),
+    );
+    await runJob(
+      dailyJob(catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys),
+      h.deps,
+    );
+    expect(pages(h).some((p) => p.startsWith('71:'))).toBe(false);
+    expect(pages(h).some((p) => p.startsWith('13:'))).toBe(true);
+  });
+
+  it('limite do dia: a passada cortada continua no dia seguinte sem repetir a página 1', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    const job = () =>
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, { playerStats: 3 });
+    await runJob(job(), h.deps);
+    const day1 = pages(h);
+    expect(day1).toHaveLength(3);
+    expect(day1.filter((p) => p.endsWith(':1'))).toHaveLength(2);
+
+    // reexecutar no mesmo dia não passa do limite
+    let before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before)).toEqual([]);
+
+    h.clock.t += DAY;
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    const day2 = pages(h, before);
+    expect(day2).toHaveLength(3);
+    expect(day2.some((p) => p.endsWith(':1'))).toBe(false);
+    expect([...day1, ...day2].sort()).toEqual([
+      '13:2026:1',
+      '13:2026:2',
+      '13:2026:3',
+      '71:2026:1',
+      '71:2026:2',
+      '71:2026:3',
+    ]);
+  });
+
+  it('free e --estatisticas-jogadores 0: a fase não pede nada', async () => {
+    const free = harness();
+    const p1 = await planJob(
+      dailyJob(free.catalog, free.raw, free.cursors, free.plan, () => new Date(free.clock.t), derbyKeys),
+      free.deps,
+    );
+    expect(p1.phases[4]!.steps).toEqual({});
+    const pro = harness({ plan: PRO_PLAN });
+    const p2 = await planJob(
+      dailyJob(pro.catalog, pro.raw, pro.cursors, pro.plan, () => new Date(pro.clock.t), derbyKeys, {
+        playerStats: 0,
+      }),
+      pro.deps,
+    );
+    expect(p2.phases[4]!.steps).toEqual({});
   });
 });

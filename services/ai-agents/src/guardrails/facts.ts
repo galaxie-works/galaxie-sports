@@ -1,4 +1,4 @@
-import { escapeRegExp, languageOf, normalizeText, splitSentences } from './text.js';
+import { escapeRegExp, languageOf, normalizeText, splitSentences, type AgentLanguage } from './text.js';
 
 /**
  * Validador factual determinístico (docs/07 §2.3): todo número, placar, minuto e nome próprio
@@ -59,8 +59,10 @@ export interface FactViolation {
 
 // ─── vocabulário ─────────────────────────────────────────────────────────────────────────────────
 
-/** Números por extenso (sem "um/uma/un/una/uno", que são artigos; sem "dos" em pt, que é contração). */
-const NUMBER_WORDS: Record<'pt' | 'es', Record<string, number>> = {
+/**
+ * Números por extenso (sem "um/uma/un/una/uno/one", que são artigos ou pronomes; sem "dos" em pt, que é contração).
+ */
+const NUMBER_WORDS: Record<AgentLanguage, Record<string, number>> = {
   pt: {
     zero: 0,
     dois: 2,
@@ -101,16 +103,50 @@ const NUMBER_WORDS: Record<'pt' | 'es', Record<string, number>> = {
     veinte: 20,
     treinta: 30,
   },
+  en: {
+    zero: 0,
+    nil: 0,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    twenty: 20,
+    thirty: 30,
+  },
 };
 
 /** Conectores que unem partes de um nome próprio ("Vasco da Gama", "Atlético de Madrid"). */
-const CONNECTORS = new Set(['de', 'da', 'do', 'das', 'dos', 'del', 'la', 'las', 'los', 'di', 'van', 'von']);
+const CONNECTORS = new Set([
+  'de',
+  'da',
+  'do',
+  'das',
+  'dos',
+  'del',
+  'la',
+  'las',
+  'los',
+  'di',
+  'van',
+  'von',
+  'of',
+]);
 
 /**
  * Palavras que podem aparecer com inicial maiúscula sem serem nomes próprios (início de frase,
  * siglas comuns). Normalizadas (sem acento).
  */
-const STOPWORDS: Record<'pt' | 'es', ReadonlySet<string>> = {
+const STOPWORDS: Record<AgentLanguage, ReadonlySet<string>> = {
   pt: new Set(
     (
       'o a os as um uma uns umas de do da dos das no na nos nas num numa em com sem por pela pelo pelas pelos ' +
@@ -150,30 +186,60 @@ const STOPWORDS: Record<'pt' | 'es', ReadonlySet<string>> = {
       'descendido destacado estadisticas posesion remates tiros expulsado expulsados fin'
     ).split(/\s+/),
   ),
+  // em inglês, rótulos de jogo levam maiúscula ("Matchday 34", "Extra Time"): também não são nomes
+  en: new Set(
+    (
+      'the a an of in on at to for from by with without and or but if as so that this these those it its ' +
+      'their they he she his her them who which what when where while after before during since until into ' +
+      'over under against between through still also only just even now today tomorrow yesterday then there ' +
+      'here both each every all any another other no not nor yes first second third fourth fifth last next ' +
+      'previous final finals semifinal semifinals semi quarterfinal quarterfinals round rounds matchday ' +
+      'week leg legs first-leg second-leg win wins won winning victory victories draw draws drew loss losses ' +
+      'lost lose defeat defeats beat beats game games match matches goal goals score scored scores scoring ' +
+      'result final-score fulltime full-time halftime half-time half time extra overtime penalty penalties ' +
+      'shootout kick kicks aggregate tie series home away team teams side sides club clubs table standings ' +
+      'leader leaders top bottom relegation relegated promotion promoted title titles champion champions ' +
+      'championship cup league conference division group groups stage zone points point spot place position ' +
+      'card cards yellow red sent off var needs need can could will would must may might is are was were be ' +
+      'been has have had does did with remains stays moves moved climbs climbed drops dropped clinches ' +
+      'clinched secures secured keeps kept sits holds held statistics possession shots fans full one ' +
+      'one-match single-match missed sent there whoever takes took winner winners equalizer equaliser ' +
+      'behind coming stoppage aggregate overall season regular playoff playoffs ' +
+      // dias, meses e gentílicos levam maiúscula em inglês e não são nomes de time ou pessoa
+      'monday tuesday wednesday thursday friday saturday sunday january february march april may june july ' +
+      'august september october november december brazilian argentine argentinian mexican colombian chilean ' +
+      'peruvian uruguayan ecuadorian paraguayan bolivian venezuelan american canadian english spanish ' +
+      'portuguese italian german french dutch european south north latin'
+    ).split(/\s+/),
+  ),
 };
 
-const RESULT_VERBS: Record<'pt' | 'es', RegExp> = {
+const RESULT_VERBS: Record<AgentLanguage, RegExp> = {
   pt: /\b(venceu|vence|ganhou|derrotou|bateu|goleou|empatou|perdeu|terminou|acabou|placar final|resultado final|fim de jogo)\b/,
   es: /\b(gano|vencio|derroto|supero|goleo|empato|perdio|termino|finalizo|cayo|resultado final|marcador final|final del partido)\b/,
+  en: /\b(won|wins|beat|beats|defeated|defeats|edged|drew|draws|lost|loses|fell|finished|ended|final score|full time|full-time)\b/,
 };
 /** Frases sobre outro recorte do jogo (intervalo, ida, agregado) não são o resultado final. */
 const PARTIAL_CONTEXT =
-  /\b(intervalo|primeiro tempo|primer tiempo|entretiempo|descanso|ida|agregado|global|parcial)\b/;
+  /\b(intervalo|primeiro tempo|primer tiempo|entretiempo|descanso|ida|agregado|global|parcial|half ?time|half-time|first half|first leg|aggregate)\b/;
 
-const GOAL_VERBS: Record<'pt' | 'es', RegExp> = {
+const GOAL_VERBS: Record<AgentLanguage, RegExp> = {
   pt: /\b(marc(ou|a|ar|ando)|fez (o|os|um|dois|tres) gols?|anotou|balancou|abriu o placar|ampliou|descontou|virou|converteu|gol de|gols de|assistencia|gol contra|cabecada)\b/,
   es: /\b(marco|marca|anoto|convirtio|abrio el marcador|amplio|desconto|igualo|gol de|goles de|asistencia|gol en contra|de cabeza|de penal)\b/,
+  en: /\b(scored|scores|scoring|netted|nets|converted|opened the scoring|doubled|equali[sz]ed|pulled one back|goals? (?:from|by)|assist(?:ed|s)?|own goal|header|headed|from the (?:penalty )?spot|brace|hat-trick|hat trick)\b/,
 };
 
 /** Verbo que faz da pessoa citada logo antes a autora do gol ("X marcou", "X anotó"). */
-const SCORED_AFTER: Record<'pt' | 'es', string> = {
+const SCORED_AFTER: Record<AgentLanguage, string> = {
   pt: '(?:marcou|marca|anotou|converteu|abriu o placar|ampliou|descontou|empatou|virou|balancou as redes|fez (?:o |os |um |dois |tres |seu |o seu )?(?:(?:primeiro|segundo|terceiro|quarto|quinto|ultimo) )?gols?)',
   es: '(?:marco|marca|anoto|convirtio|abrio el marcador|amplio|desconto|igualo|empato|hizo (?:el |los |un |dos |tres |su )?(?:(?:primer|segundo|tercer|cuarto|quinto|ultimo) )?gol(?:es)?)',
+  en: '(?:scored|scores|netted|nets|converted|opened the scoring|doubled the lead|equali[sz]ed|pulled one back|headed in|struck|found the net|got (?:the |a |his |two |three )?(?:(?:first|second|third|opening|winning|equali[sz]ing|late) )?goals?)',
 };
 /** Expressão que faz da pessoa citada logo depois a autora do gol ("gol de X", "convertido por X"). */
-const SCORED_BEFORE: Record<'pt' | 'es', string> = {
+const SCORED_BEFORE: Record<AgentLanguage, string> = {
   pt: '(?:gols? de|gols? marcados? por|marcado por|convertido por|anotado por|feito por)',
   es: '(?:goles? de|tanto de|marcado por|anotado por|convertido por)',
+  en: '(?:goals? (?:from|by)|scored by|netted by|converted by|a brace from|a header from|strike from|an? (?:own )?goal from)',
 };
 
 /** Fase alcançada ("a final", "as semifinais", "la siguiente fase"): o desfecho só vale com ela no texto. */
@@ -181,6 +247,8 @@ const STAGE_PT =
   '(?:a |as |o )?(?:grande )?(?:final|semifinal|semifinais|quartas(?: de final)?|oitavas(?: de final)?|proxima fase|fase seguinte|proxima etapa|decisao)\\b';
 const STAGE_ES =
   '(?:la |las |los |el )?(?:gran )?(?:final|semifinal|semifinales|cuartos(?: de final)?|octavos(?: de final)?|siguiente fase|proxima fase|siguiente ronda|definicion)\\b';
+const STAGE_EN =
+  '(?:the )?(?:grand )?(?:final|finals|semifinals?|semi-finals?|quarterfinals?|quarter-finals?|round of (?:16|32|64)|last (?:16|32)|next round|next stage|knockout stage|playoffs?|decider)\\b';
 const ORDINAL_PREFIX = '(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?';
 
 /**
@@ -189,7 +257,7 @@ const ORDINAL_PREFIX = '(?:bi|tri|tetra|penta|hexa|hepta|octa|enea|deca)?';
  * citado mais perto antes do verbo (fora os que são objeto: "eliminou o X", "perdeu para o X"). Na dúvida, não
  * reprova: derrubar um resumo bom custa mais do que deixar passar um caso raro.
  */
-const OUTCOME_VERBS: Record<'pt' | 'es', { advance: RegExp; out: RegExp; objectMarker: RegExp }> = {
+const OUTCOME_VERBS: Record<AgentLanguage, { advance: RegExp; out: RegExp; objectMarker: RegExp }> = {
   pt: {
     advance: new RegExp(
       [
@@ -249,22 +317,52 @@ const OUTCOME_VERBS: Record<'pt' | 'es', { advance: RegExp; out: RegExp; objectM
     objectMarker:
       /\b(elimino|eliminar|eliminando|despacho|vencio|vencer|venciendo|derroto|derrotar|derrotando|supero|superar|superando|goleo|gano a|dejo|dejando|dejar|perdio con|perdio ante|a|al|de|del|ante|contra|sobre|con|frente a)\s+(?:(?:el|la|los|las)\s+)?$/,
   },
+  en: {
+    advance: new RegExp(
+      [
+        'qualif(?:ied|ies|y)\\b',
+        `advanc(?:ed|es) (?:to|into) ${STAGE_EN}`,
+        'advanc(?:ed|es)(?=\\s*(?:[,.;!]|$))',
+        `(?:moved|moves|went|goes|progressed|progresses|marched|reached|reaches|booked (?:a|their|its) (?:place|spot|ticket) in) (?:on )?(?:to |into )?${STAGE_EN}`,
+        `(?:is|are|will be) (?:in|into) ${STAGE_EN}`,
+        'went through\\b',
+        'goes through\\b',
+        `(?:is|are|was|were|became|become|crowned|will be) (?:the )?champions?\\b`,
+        'won the (?:title|cup|trophy|championship|final|series)\\b',
+        'wins the (?:title|cup|trophy|championship|final|series)\\b',
+        'lifted the (?:trophy|cup)\\b',
+        'clinched the (?:title|cup|trophy|championship)\\b',
+        'claimed (?:the |its |their )?(?:title|cup|trophy|third place)\\b',
+        'eliminated\\b(?=\\s+(?:the\\s+)?\\p{L})',
+        'knocked out\\b(?=\\s+(?:the\\s+)?\\p{L})',
+        't(?:ook|akes) third place\\b',
+        'finished third\\b',
+      ]
+        .map((x) => `\\b${x}`)
+        .join('|'),
+      'gu',
+    ),
+    out: /\b(were eliminated|was eliminated|is eliminated|are eliminated|bowed out|bows out|crashed out|crashes out|went out|goes out|knocked out of|runners?-up)\b/g,
+    objectMarker:
+      /\b(eliminated|eliminating|eliminate|knocked out|knocking out|beat|beating|defeated|defeating|edged|edging|past|over|against|to|by|from|of|with|for|on)\s+(?:the\s+)?$/,
+  },
 };
 /**
  * Verbo que não afirma o desfecho de quem vem antes: negação ("não se classificou"), infinitivo ("perto de ser
  * eliminado", "evitou ser eliminado") e clivada ("quem avançou foi o X", o sujeito vem depois).
  */
 const NOT_AN_OUTCOME =
-  /\b(nao|no|nunca|sem|sin|ser|evitou|evitar|evito|quase|casi|quem|quien)\s+(?:(?:se|foi|fue|esta|esteve|ser)\s+)?$/;
+  /\b(nao|no|nunca|sem|sin|ser|evitou|evitar|evito|quase|casi|quem|quien|not|never|without|be|avoided|avoid|nearly|almost|who|failed to|could|can|would|might|may|chance to|hopes? to)\s+(?:(?:se|foi|fue|esta|esteve|ser|be|been|have|has)\s+)?$/;
 /** Oração relativa entre o time e o verbo: "o Corinthians, que foi eliminado", "…nos pênaltis, que acabou eliminado". */
-const RELATIVE = /^(?:\s+[^,;.]{0,25})?\s*,?\s*(?:que|quien|el cual|la cual)\b[^,;]*$/;
+const RELATIVE = /^(?:\s+[^,;.]{0,25})?\s*,?\s*(?:que|quien|el cual|la cual|who|which)\b[^,;]*$/;
 
 // ─── extração ────────────────────────────────────────────────────────────────────────────────────
 
 const WORD_RE = /[\p{L}\p{M}\d][\p{L}\p{M}\d'’.-]*/gu;
 
 function cleanToken(token: string): string {
-  return token.replace(/[.'’-]+$/u, '');
+  // possessivo inglês ("Fluminense's") é o próprio nome
+  return token.replace(/['’]s$/u, '').replace(/[.'’-]+$/u, '');
 }
 
 function tokensOf(text: string): string[] {
@@ -276,7 +374,7 @@ function isCapitalized(token: string): boolean {
 }
 
 /** Sequências de palavras com inicial maiúscula (com conectores internos) por frase. */
-function nameRuns(sentence: string, lang: 'pt' | 'es'): string[][] {
+function nameRuns(sentence: string, lang: AgentLanguage): string[][] {
   const runs: string[][] = [];
   const words: { text: string; start: number }[] = [];
   for (const m of sentence.matchAll(WORD_RE)) words.push({ text: cleanToken(m[0]), start: m.index });
@@ -492,7 +590,7 @@ export function checkFacts(text: string, facts: FactSheet, locale: string): Fact
 function outcomeViolations(
   normalized: string,
   outcome: NonNullable<FactSheet['outcome']>,
-  lang: 'pt' | 'es',
+  lang: AgentLanguage,
 ): string[] {
   // siglas de 3 letras ("SAO", "PAL") casariam palavras comuns ("são"): ficam de fora
   const winners = new Set(outcome.winners.map(normalizeText).filter((n) => n.length > 3));

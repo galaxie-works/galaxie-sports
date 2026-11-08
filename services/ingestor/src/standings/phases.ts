@@ -219,7 +219,9 @@ export async function computeTablesByRule(
       ...own.filter((r) => r.source === 'provider' && chosen.has(r.group)).map((r) => r.updatedAt.getTime()),
     );
     const lastResultAt = Math.max(...matches.map((m) => resultAt.get(m.id!) ?? 0));
-    if (providerAt >= lastResultAt) {
+    // linha calculada que sobrou (o fornecedor ainda não contou aquele jogo): a do fornecedor está atrasada
+    const behind = own.some((r) => r.source === 'computed' && chosen.has(r.group));
+    if (providerAt >= lastResultAt && !behind) {
       fresh.push(t.key);
       continue;
     }

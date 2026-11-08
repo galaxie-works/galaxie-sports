@@ -698,7 +698,7 @@ Exemplo com `n = 4` (busca o 4º título). n = 1: "Busca o primeiro título"; n 
 | es-PE | Va por el tetracampeonato |
 | es-UY | Va por el tetracampeonato |
 | es-EC | Va por el tetracampeonato |
-| en | Chasing title No. 4 |
+| en | Chasing a 4th title |
 
 ## Resultado (pontos corridos, jogo encerrado)
 

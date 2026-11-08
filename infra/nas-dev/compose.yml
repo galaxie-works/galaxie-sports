@@ -201,6 +201,7 @@ services:
       # Uma variável por job do ingestor (schedule.ts › DEFAULT_JOBS): `off` desliga; um cron de 5 campos (UTC) liga.
       # O teste da stack falha se um job novo ficar de fora desta lista.
       SCHEDULE_SYNC_DAILY: ${SCHEDULE_SYNC_DAILY:-off}
+      SCHEDULE_SYNC_MIRROR: ${SCHEDULE_SYNC_MIRROR:-off}
       SCHEDULE_LIVE_RUN: ${SCHEDULE_LIVE_RUN:-off}
       SCHEDULE_POSTGAME_CLOSE: ${SCHEDULE_POSTGAME_CLOSE:-off}
       SCHEDULE_LIVE_RECONCILE: ${SCHEDULE_LIVE_RECONCILE:-off}

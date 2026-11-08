@@ -19,7 +19,8 @@ import {
 } from '@/app/[locale]/(app)/cliente/webhooks/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
-import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { Frame, FramePanel } from '@/components/reui/frame';
+import { ActionNotice, ExplainEmpty, SettingsSection, UsageMeter } from '@/components/settings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -591,120 +592,123 @@ export function WebhooksPanel({
   };
 
   return (
-    <Frame>
-      <FramePanel className="p-0">
-        <FrameHeader className="flex flex-row items-start justify-between gap-4 p-4">
-          <div className="flex flex-col gap-1">
-            <FrameTitle>{w.title}</FrameTitle>
-            <FrameDescription>
-              {w.description}{' '}
-              <Link
-                href="/docs/tempo-real#webhooks"
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                {w.docsLink}
-              </Link>
-            </FrameDescription>
-          </div>
-          <CreateWebhookDialog topicsInPlan={topicsInPlan} disabled={notice !== null} />
-        </FrameHeader>
-        {notice ? (
-          <div className="px-4 pb-4">
-            <Alert variant="info">
-              <AlertDescription>{notice}</AlertDescription>
-            </Alert>
-          </div>
-        ) : null}
-        {webhooks.length ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">{w.columns.endpoint}</TableHead>
-                <TableHead>{w.columns.topics}</TableHead>
-                <TableHead>{w.columns.status}</TableHead>
-                <TableHead>{w.columns.deliveries}</TableHead>
-                <TableHead>{w.columns.lastFailure}</TableHead>
-                <TableHead className="pr-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {webhooks.map((row) => (
-                <TableRow key={row.id} className={row.active ? undefined : 'opacity-60'}>
-                  <TableCell className="max-w-72 pl-4">
-                    <div className="truncate font-mono text-xs" title={row.url}>
-                      {row.url}
-                    </div>
-                    {row.description ? (
-                      <div className="text-muted-foreground truncate text-xs">{row.description}</div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex max-w-64 flex-wrap gap-1">
-                      {row.topics.length ? (
-                        row.topics.map((tp) => (
-                          <Badge key={tp} variant="outline" className="text-[11px]">
-                            {topicLabel(tp)}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge variant="outline" className="text-[11px]">
-                          {w.allTopics}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
-                      {row.active ? w.active : w.inactive}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <div className="flex flex-col gap-0.5">
-                      <span>{fill(w.delivered24h, { n: row.delivered24h })}</span>
-                      <span className="text-muted-foreground text-xs">
-                        {row.lastDeliveredAt
-                          ? fill(w.lastDelivered, { when: f.relative(row.lastDeliveredAt) })
-                          : w.neverDelivered}
-                      </span>
-                      {row.pending || row.dead ? (
-                        <div className="flex flex-wrap gap-1">
-                          {row.pending ? (
-                            <Badge variant="warning-light" radius="full">
-                              {fill(w.pending, { n: row.pending })}
-                            </Badge>
-                          ) : null}
-                          {row.dead ? (
-                            <Badge variant="destructive-light" radius="full">
-                              {fill(w.dead, { n: row.dead })}
-                            </Badge>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground max-w-56 text-xs">
-                    {row.lastFailureAt ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span>{f.relative(row.lastFailureAt)}</span>
-                        <span className="truncate" title={row.lastError ?? undefined}>
-                          {row.lastError}
-                        </span>
-                      </div>
-                    ) : (
-                      w.noFailures
-                    )}
-                  </TableCell>
-                  <TableCell className="pr-4 text-right">
-                    <RowActions row={row} available={available} canDeliver={planAllows} timeZone={timeZone} />
-                  </TableCell>
+    <SettingsSection
+      title={w.title}
+      description={
+        <>
+          {w.description}{' '}
+          <Link href="/docs/tempo-real#webhooks" className="text-primary underline-offset-4 hover:underline">
+            {w.docsLink}
+          </Link>
+        </>
+      }
+      action={<CreateWebhookDialog topicsInPlan={topicsInPlan} disabled={notice !== null} />}
+    >
+      {notice ? <ActionNotice tone="info">{notice}</ActionNotice> : null}
+      {planAllows && available ? <UsageMeter label={w.usage} used={webhooks.length} total={max} /> : null}
+      <Frame>
+        <FramePanel className="p-0">
+          {webhooks.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-4">{w.columns.endpoint}</TableHead>
+                  <TableHead>{w.columns.topics}</TableHead>
+                  <TableHead>{w.columns.status}</TableHead>
+                  <TableHead>{w.columns.deliveries}</TableHead>
+                  <TableHead>{w.columns.lastFailure}</TableHead>
+                  <TableHead className="pr-4" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-muted-foreground px-4 pb-6 text-sm">{w.empty}</p>
-        )}
-      </FramePanel>
-    </Frame>
+              </TableHeader>
+              <TableBody>
+                {webhooks.map((row) => (
+                  <TableRow key={row.id} className={row.active ? undefined : 'opacity-60'}>
+                    <TableCell className="max-w-72 pl-4">
+                      <div className="truncate font-mono text-xs" title={row.url}>
+                        {row.url}
+                      </div>
+                      {row.description ? (
+                        <div className="text-muted-foreground truncate text-xs">{row.description}</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex max-w-64 flex-wrap gap-1">
+                        {row.topics.length ? (
+                          row.topics.map((tp) => (
+                            <Badge key={tp} variant="outline" className="text-[11px]">
+                              {topicLabel(tp)}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline" className="text-[11px]">
+                            {w.allTopics}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
+                        {row.active ? w.active : w.inactive}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{fill(w.delivered24h, { n: row.delivered24h })}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {row.lastDeliveredAt
+                            ? fill(w.lastDelivered, { when: f.relative(row.lastDeliveredAt) })
+                            : w.neverDelivered}
+                        </span>
+                        {row.pending || row.dead ? (
+                          <div className="flex flex-wrap gap-1">
+                            {row.pending ? (
+                              <Badge variant="warning-light" radius="full">
+                                {fill(w.pending, { n: row.pending })}
+                              </Badge>
+                            ) : null}
+                            {row.dead ? (
+                              <Badge variant="destructive-light" radius="full">
+                                {fill(w.dead, { n: row.dead })}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-56 text-xs">
+                      {row.lastFailureAt ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span>{f.relative(row.lastFailureAt)}</span>
+                          <span className="truncate" title={row.lastError ?? undefined}>
+                            {row.lastError}
+                          </span>
+                        </div>
+                      ) : (
+                        w.noFailures
+                      )}
+                    </TableCell>
+                    <TableCell className="pr-4 text-right">
+                      <RowActions
+                        row={row}
+                        available={available}
+                        canDeliver={planAllows}
+                        timeZone={timeZone}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <ExplainEmpty
+              icon={Webhook}
+              title={w.emptyTitle}
+              description={w.empty}
+              action={notice ? null : <CreateWebhookDialog topicsInPlan={topicsInPlan} disabled={false} />}
+            />
+          )}
+        </FramePanel>
+      </Frame>
+    </SettingsSection>
   );
 }

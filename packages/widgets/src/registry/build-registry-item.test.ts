@@ -77,6 +77,11 @@ describe('buildRegistryItem', () => {
     ['ai_context', 'AiContextProps', '{"eventId":"jogo"}'],
     ['related_videos', 'RelatedVideosProps', '{"eventId":"jogo"}'],
     ['team_schedule', 'TeamScheduleProps', '{"teamId":"time"}'],
+    ['team_card', 'TeamCardProps', '{"teamId":"time"}'],
+    ['team_squad', 'TeamSquadProps', '{"teamId":"time"}'],
+    ['match_prediction', 'MatchPredictionProps', '{"eventId":"jogo"}'],
+    ['match_odds', 'MatchOddsProps', '{"eventId":"jogo"}'],
+    ['team_stats', 'TeamStatsProps', '{"teamId":"time"}'],
   ] as const)('props padrão dos tipos novos (%s)', (kind, props, json) => {
     const item = buildRegistryItem({
       ...base,

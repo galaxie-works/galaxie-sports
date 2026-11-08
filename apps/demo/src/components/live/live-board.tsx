@@ -8,12 +8,13 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/app-shell/empty-state';
+import { LoadingAnnouncer, LoadingStatus } from '@/components/app-shell/loading-status';
+import { EventCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CompetitionCountry } from '@/components/sport/competition-country';
 import { Crest } from '@/components/sport/crest';
 import { EventCardView } from '@/components/sport/event-card-view';
 import { Section } from '@/components/sport/section';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useHydrated } from '@/hooks/use-hydrated';
 import {
   fetchFinished,
@@ -171,12 +172,14 @@ export function LiveCard({ event }: { event: Event }) {
   );
 }
 
+/**
+ * Cards de jogo no formato do EventCard (escudos, placar e rodapé), na mesma grade do quadro. Só os
+ * blocos, escondidos dos leitores de tela: o aviso "Carregando…" é um só, no nível do quadro.
+ */
 function CardsSkeleton({ count }: { count: number }) {
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className="h-44" />
-      ))}
+    <div aria-hidden>
+      <EventCardsSkeleton count={count} />
     </div>
   );
 }
@@ -245,7 +248,11 @@ function GroupedEvents({
 
 /** Enquanto a página não lê a URL (os filtros): o mesmo esqueleto do carregamento. */
 export function LiveBoardFallback() {
-  return <CardsSkeleton count={6} />;
+  return (
+    <LoadingStatus>
+      <EventCardsSkeleton count={6} />
+    </LoadingStatus>
+  );
 }
 
 /**
@@ -520,9 +527,16 @@ export function LiveBoard({ api }: { api: ApiRequest }) {
     });
   }, [hydrated, showFinished, done.list, filters]);
   const options = liveFilterOptions([...events, ...upLoaded, ...doneLoaded], filters, sportLabel, up.sports);
+  // um aviso só para as três seções (ao vivo, próximos e encerrados), enquanto alguma ainda carrega
+  const loading =
+    !hydrated ||
+    (showsStatus(filters, 'live') && q.isPending) ||
+    (showsStatus(filters, 'upcoming') && up.loading) ||
+    (showFinished && done.loading);
 
   return (
     <div className="flex flex-1 flex-col gap-6">
+      <LoadingAnnouncer active={loading} />
       <LiveFilterBar filters={filters} options={options} onChange={writeFilters} />
 
       {!showsStatus(filters, 'live') ? null : !hydrated || q.isPending ? (

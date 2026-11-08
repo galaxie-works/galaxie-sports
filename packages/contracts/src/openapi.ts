@@ -19,6 +19,7 @@ import {
   Venue,
 } from './catalog.js';
 import { accountPaths } from './account.js';
+import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
@@ -52,12 +53,16 @@ import {
 } from './where-to-watch.js';
 import { RaceCareer, RaceLegends, RaceLegendsQuery, TeamPhotos, TeamPhotosQuery } from './racing.js';
 import { DriverTraits } from './driver-profile.js';
+import { CompetitionLeaders, LeadersQuery } from './leaders.js';
+import { TeamStatistics, TeamStatisticsQuery } from './team-statistics.js';
+import { EventOdds, EventPredictions, OddsQuery } from './markets.js';
 import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
 import { navigationPaths } from './openapi-navigation.js';
 import { equestrianPaths } from './openapi-equestrian.js';
+import { transferPaths } from './openapi-transfers.js';
 import {
   Person,
   PersonOverview,
@@ -229,6 +234,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...multisportPaths(),
       ...navigationPaths(),
       ...equestrianPaths(),
+      ...transferPaths(),
       '/v1/sports': {
         get: getOp('Esportes disponíveis e cobertura', 'Catálogo', list(Sport), { query: LocaleQuery }),
       },
@@ -265,6 +271,39 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: StandingsParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/competitions/{id}/champions': {
+        get: {
+          ...getOp(
+            'Galeria de campeões: quem ganhou cada edição e quem tem mais títulos',
+            'Catálogo',
+            CompetitionChampions,
+            { path: ChampionsParams, query: ChampionsQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Campeão de cada edição, da mais recente para trás, a partir da lista de campeões importada e ' +
+            'conferida (Wikidata, com correções curadas). `ranking` traz quem tem mais títulos e só vem quando a ' +
+            'lista está completa, sem ano faltando; o campeão sem time no catálogo (clube extinto) aparece pelo nome ' +
+            'do Wikidata. Com `runner_up=true`, o vice de cada edição sai da final da temporada ou do 2º lugar da ' +
+            'tabela única encerrada, quando o banco tem a temporada e o campeão bate com ela. ' +
+            'Competição sem lista de campeões devolve 200 com as listas vazias. Cache de 24 h.',
+        },
+      },
+      '/v1/competitions/{id}/seasons/{season}/leaders': {
+        get: {
+          ...getOp(
+            'Artilharia e líderes da temporada: gols, assistências ou cartões',
+            'Catálogo',
+            CompetitionLeaders,
+            { path: StandingsParams, query: LeadersQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Soma dos números de cada jogador no campeonato e temporada (`players?league&season` do fornecedor), ' +
+            'com o time pelo qual ele mais jogou e o escudo. Por enquanto só o futebol tem esses números; nos outros ' +
+            'esportes `data` vem vazio. Cache de 1 h.',
+        },
       },
       '/v1/competitions/{id}/context': {
         get: getOp(
@@ -309,6 +348,37 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           { path: EventParams, query: LocaleQuery },
           [400, 401, 403, 404, 429],
         ),
+      },
+      '/v1/events/{id}/predictions': {
+        get: {
+          ...getOp(
+            'Palpite do jogo: chances de cada resultado, linha de gols e comparação dos times',
+            'Eventos',
+            EventPredictions,
+            { path: EventParams, query: LocaleQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Palpite estatístico do jogo (futebol): quem deve vencer (ou "vence ou empata"), a chance de cada ' +
+            'resultado, as linhas de gols e a comparação dos dois times (momento, ataque, defesa, confronto direto). ' +
+            'Atualizado uma vez por dia para os jogos das próximas 48 h; `prediction` vem `null` enquanto não houver. ' +
+            'Cache de 1 h.',
+        },
+      },
+      '/v1/events/{id}/odds': {
+        get: {
+          ...getOp(
+            'Odds pré-jogo: consenso entre as casas por mercado',
+            'Eventos',
+            EventOdds,
+            { path: EventParams, query: OddsQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'Odds decimais pré-jogo por mercado (vencedor, dupla chance, gols, ambos marcam, placar exato, ' +
+            'handicap), em consenso entre as casas: odd média, maior odd e quantas casas oferecem cada seleção. ' +
+            'As casas não são identificadas. Exige o módulo add-on `odds`. Cache de 1 h.',
+        },
       },
       '/v1/events/{id}/stats': {
         get: getOp(
@@ -393,6 +463,15 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Times e pessoas',
           TeamOverview,
           { path: TeamParams, query: TeamOverviewQuery },
+          [400, 401, 403, 404, 429],
+        ),
+      },
+      '/v1/teams/{id}/statistics': {
+        get: getOp(
+          'Estatísticas do time numa competição e temporada: jogos, vitórias, empates e derrotas em casa e fora, gols pró e contra (com média, faixa de minuto e linhas de gols), forma, sequências, maiores placares, jogos sem sofrer gol e sem marcar, pênaltis, formações e cartões por faixa de minuto. Renovadas pelo espelho a cada 7 dias nas competições de tier 1 e a cada 14 no tier 2 (as de tier 3 ou mais não são buscadas) (`updated_at` diz a coleta); `data` nulo quando o esporte ainda não tem o dado',
+          'Times e pessoas',
+          TeamStatistics,
+          { path: TeamParams, query: TeamStatisticsQuery },
           [400, 401, 403, 404, 429],
         ),
       },

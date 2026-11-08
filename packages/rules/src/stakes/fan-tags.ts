@@ -150,7 +150,7 @@ const FAMILY_TAGS: Record<StakeFamily, FamilyTag | { zone: ZoneVerb } | null> = 
     text: {
       'pt-BR': { zero: 'Busca o 1º título', one: 'Busca o 1º título', other: 'Busca o {nth}' },
       es: { zero: 'Va por su primer título', one: 'Va por su primer título', other: 'Va por el {nth}' },
-      en: { zero: 'Chasing a first title', one: 'Chasing a first title', other: 'Chasing title No. {n}' },
+      en: { zero: 'Chasing a first title', one: 'Chasing a first title', other: 'Chasing {nth}' },
     },
   },
   in_title_race: {

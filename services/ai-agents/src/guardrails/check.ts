@@ -2,7 +2,7 @@ import { copyPermission, type AffinitySource, type AffinityType } from '@galaxie
 import { checkFacts, type FactSheet, type FactViolationKind } from './facts.js';
 import { checkLength, type Surface } from './length.js';
 import { findForbiddenTerms, type ForbiddenCategory } from './terms.js';
-import { detectLanguage, languageOf, splitSentences } from './text.js';
+import { detectLanguage, escapeRegExp, languageOf, splitSentences } from './text.js';
 import { detectPromptInjection } from './web-content.js';
 
 /**
@@ -52,6 +52,17 @@ export function rivalryAllowed(
   return copyPermission(affinityType, affinitySource).allowedIntents.includes('rivalry');
 }
 
+/** O texto sem os nomes dos fatos (palavra inteira, sem diferenciar maiúsculas), os mais longos antes. */
+export function withoutNames(text: string, names: readonly string[]): string {
+  let out = text;
+  const sorted = [...new Set(names.map((n) => n.trim()).filter((n) => n.length > 1))].sort(
+    (a, b) => b.length - a.length,
+  );
+  for (const n of sorted)
+    out = out.replace(new RegExp(`(?<![\\p{L}\\d])${escapeRegExp(n)}(?![\\p{L}\\d])`, 'giu'), ' ');
+  return out;
+}
+
 /** Roda todos os guardrails de texto. Lista vazia = aprovado. */
 export function checkGeneratedText(text: string, options: TextCheckOptions): Violation[] {
   const out: Violation[] = [];
@@ -84,7 +95,8 @@ export function checkGeneratedText(text: string, options: TextCheckOptions): Vio
       value: `${sentences.length} frases (máx. ${options.maxSentences})`,
     });
 
-  const lang = detectLanguage(text);
+  // nomes próprios ("Vitória", "São Paulo", "Defensa y Justicia") não contam como marca de idioma
+  const lang = detectLanguage(withoutNames(text, options.facts?.names ?? []));
   if (lang && lang !== languageOf(options.locale))
     out.push({ kind: 'wrong_language', value: `texto em ${lang} para ${options.locale}` });
 

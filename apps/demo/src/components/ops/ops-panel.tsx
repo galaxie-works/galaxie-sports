@@ -29,6 +29,7 @@ import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
+import { MirrorTab } from './mirror-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
@@ -37,7 +38,7 @@ import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 /** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
 export const PANEL_TABS = {
-  system: ['status', 'quality', 'live', 'schedule', 'tasks', 'ai', 'provider', 'assets', 'history'],
+  system: ['status', 'quality', 'live', 'schedule', 'tasks', 'ai', 'provider', 'mirror', 'assets', 'history'],
   features: ['sports', 'related', 'wtw'],
 } as const;
 export type PanelScope = keyof typeof PANEL_TABS;
@@ -167,6 +168,9 @@ export function OpsPanel({
             timeZone={timeZone}
           />
           <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
+        <TabsContent value="mirror" className="mt-4">
+          <MirrorTab snapshot={snapshot} timeZone={timeZone} />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <HistoryTab snapshot={snapshot} timeZone={timeZone} />
