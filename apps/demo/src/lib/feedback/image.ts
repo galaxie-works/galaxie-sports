@@ -10,9 +10,9 @@ import type { FeedbackImageType } from './rules';
 export const FEEDBACK_IMAGE_MAX_PX = 4096;
 /**
  * Teto de pixels da ENTRADA (largura × altura do cabeçalho, conferido antes de decodificar): um PNG de poucos KB
- * pode declarar 50.000 × 50.000 e estourar a memória do `site`. 40 MP cobre foto de celular e print 8K.
+ * pode declarar 50.000 × 50.000 e estourar a memória do `site`. 24 MP cobre foto de celular (6000 × 4000) e print 4K, e cabe no contêiner `console` (320 MB).
  */
-export const FEEDBACK_IMAGE_MAX_INPUT_PIXELS = 40_000_000;
+export const FEEDBACK_IMAGE_MAX_INPUT_PIXELS = 24_000_000;
 
 export async function cleanImage(
   body: Uint8Array,

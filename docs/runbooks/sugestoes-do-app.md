@@ -60,7 +60,7 @@ Compare com a referência da issue (`u` para usuário, `t` para tenant).
 ## Limites
 
 6 envios por usuário por hora e 150 por dia no total, por contêiner (na memória: reiniciar zera). O limite é
-conferido antes de recodificar as imagens, e arquivo recusado também conta. Imagem acima de 40 megapixels (pelo
+conferido antes de recodificar as imagens, e arquivo recusado também conta. Imagem acima de 24 megapixels (pelo
 cabeçalho, antes de decodificar) é recusada. Se a issue falhar depois de gravar as imagens, elas são apagadas do
 bucket.
 
