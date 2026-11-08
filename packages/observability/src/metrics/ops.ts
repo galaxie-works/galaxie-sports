@@ -1,6 +1,11 @@
 import {
+  MIRROR_APIS,
+  MIRROR_BUDGET_KEY,
+  MIRROR_GROUP_ORDER_FOOTBALL_KEY,
+  MIRROR_GROUP_ORDER_SPORTS_KEY,
   SCHEDULED_JOBS,
   SETTINGS,
+  mirrorPeriodsKey,
   budgetDayFromEnv,
   budgetDayOf,
   isCronOff,
@@ -27,6 +32,11 @@ const OPS_KEYS = new Set([
   'AI_DAILY_USD_BUDGET',
   'AI_BUDGET_DAY_START',
   'AI_BUDGET_TIMEZONE',
+  // espelho: os períodos alimentam o mapa de frescor (alerta RawEndpointOverdue)
+  MIRROR_BUDGET_KEY,
+  MIRROR_GROUP_ORDER_FOOTBALL_KEY,
+  MIRROR_GROUP_ORDER_SPORTS_KEY,
+  ...MIRROR_APIS.map(mirrorPeriodsKey),
 ]);
 const OPS_SETTINGS = SETTINGS.filter((d) => OPS_KEYS.has(d.key));
 

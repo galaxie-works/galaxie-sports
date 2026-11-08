@@ -20,6 +20,7 @@ import { equestrianRoutes } from './equestrian.js';
 import { championRoutes } from './champions.js';
 import { leadersRoutes } from './leaders.js';
 import { teamStatisticsRoutes } from './team-statistics.js';
+import { marketsRoutes } from './markets.js';
 import { transferRoutes } from './transfers.js';
 
 /**
@@ -45,6 +46,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await championRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
+  // palpite `/v1/events/{id}/predictions` (core_data) e odds `/v1/events/{id}/odds` (add-on odds, fechado)
+  await marketsRoutes(app, ctx);
   // conteúdo relacionado `/v1/events/{id}/related` (#127) — módulo add-on related_content
   await relatedRoutes(app, ctx);
   await teamRoutes(app, ctx);
