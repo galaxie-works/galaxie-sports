@@ -35,6 +35,7 @@ describe('abas de esporte do catálogo', () => {
       'team_schedule',
       'team_card',
       'countdown',
+      'bracket',
       'match_stats',
     ]);
     expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([

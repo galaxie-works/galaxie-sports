@@ -29,6 +29,7 @@ import {
   GamesSchedule,
   CountryAthletes,
   MedalHistory,
+  Sidelined,
   ChampionsGallery,
   CompetitionLeaders,
   PlayerProfile,
@@ -36,6 +37,7 @@ import {
   MatchPrediction,
   MatchOdds,
   TeamStats,
+  Bracket,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -265,6 +267,8 @@ function PreviewWidget({
         return <CountryAthletes {...o} />;
       case 'medal_history':
         return <MedalHistory {...o} />;
+      case 'sidelined':
+        return <Sidelined {...o} {...WIDGET_CATALOG.sidelined.exampleProps} />;
       case 'champions_gallery':
         return <ChampionsGallery {...o} {...WIDGET_CATALOG.champions_gallery.exampleProps} />;
       case 'competition_leaders':
@@ -292,6 +296,8 @@ function PreviewWidget({
         return <TeamStats {...o} {...WIDGET_CATALOG.team_stats.exampleProps} />;
       case 'transfer_market':
         return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
+      case 'bracket':
+        return <Bracket {...WIDGET_CATALOG.bracket.exampleProps} {...o} />;
       case 'match_stats':
         return <MatchStats {...o} {...WIDGET_CATALOG.match_stats.exampleProps} />;
     }
@@ -339,6 +345,12 @@ function PreviewWidget({
       return <TeamSquad {...o} teamId={entity.id} />;
     case 'fight_card':
       return <FightCard {...o} eventId={entity.id} />;
+    case 'sidelined':
+      return entity.type === 'team' ? (
+        <Sidelined {...o} teamId={entity.id} />
+      ) : (
+        <Sidelined {...o} eventId={entity.id} />
+      );
     case 'competition_leaders':
       return <CompetitionLeaders {...o} competitionId={entity.id} />;
     case 'countdown':
@@ -359,6 +371,8 @@ function PreviewWidget({
       ) : (
         <TransferMarket {...o} competitionId={entity.id} />
       );
+    case 'bracket':
+      return <Bracket season="current" {...o} competitionId={entity.id} />;
     case 'match_stats':
       return <MatchStats {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções

@@ -129,6 +129,24 @@ describe('MatchStats', () => {
     expect(vi.mocked(fetchImpl).mock.calls).toHaveLength(1);
   });
 
+  it.each(['starting', 'postponed', 'cancelled'])(
+    'jogo %s: aviso, sem buscar estatística',
+    async (status) => {
+      const preview = createPreviewFetch();
+      const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const res = await preview(input, init);
+        if (!new URL(String(input)).pathname.endsWith(`/v1/events/${PREVIEW_IDS.liveEvent}`)) return res;
+        const event = (await res.json()) as Record<string, unknown>;
+        return new Response(JSON.stringify({ ...event, status }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      });
+      setup(<MatchStats eventId={PREVIEW_IDS.liveEvent} />, { fetchImpl });
+      expect(await screen.findByText('As estatísticas aparecem quando o jogo começar.')).toBeTruthy();
+      expect(fetchImpl.mock.calls.some(([u]) => String(u).includes('/stats'))).toBe(false);
+    },
+  );
+
   it('sem estatística na API: estado vazio', async () => {
     const preview = createPreviewFetch();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>

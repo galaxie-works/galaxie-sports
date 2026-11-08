@@ -140,7 +140,9 @@ describe('tipos de widget', () => {
       'team_schedule',
     ])
       expect(isWidgetKind(k)).toBe(true);
-    expect(isWidgetKind('bracket')).toBe(false);
+    // o chaveamento (#829) virou tipo; um nome inventado segue recusado
+    expect(isWidgetKind('bracket')).toBe(true);
+    expect(isWidgetKind('tipo_inexistente')).toBe(false);
     expect(isWidgetKind(undefined)).toBe(false);
   });
 

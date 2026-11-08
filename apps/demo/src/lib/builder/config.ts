@@ -51,6 +51,7 @@ export const WIDGET_KINDS = [
   'games_schedule',
   'country_athletes',
   'medal_history',
+  'sidelined',
   'champions_gallery',
   'competition_leaders',
   'countdown',
@@ -61,6 +62,7 @@ export const WIDGET_KINDS = [
   'match_odds',
   'team_stats',
   'transfer_market',
+  'bracket',
   'match_stats',
 ] as const satisfies readonly WidgetKind[];
 
@@ -112,6 +114,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   games_schedule: [],
   country_athletes: [],
   medal_history: [],
+  sidelined: ['event', 'team'],
   champions_gallery: ['competition'],
   competition_leaders: ['competition'],
   countdown: ['event'],
@@ -123,6 +126,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   team_stats: ['team'],
   // vai e vem do mercado: de um time ou dos times de um campeonato
   transfer_market: ['team', 'competition'],
+  bracket: ['competition'],
   match_stats: ['event'],
 };
 
@@ -159,6 +163,8 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   games_schedule: null,
   country_athletes: null,
   medal_history: null,
+  // por jogo ou por time: um dos dois, sem preferência (o widget pede a escolha quando falta)
+  sidelined: null,
   champions_gallery: 'competition',
   competition_leaders: 'competition',
   countdown: 'event',
@@ -170,6 +176,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   team_stats: 'team',
   // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
   transfer_market: null,
+  bracket: 'competition',
   match_stats: 'event',
 };
 
@@ -493,6 +500,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   games_schedule: 'GalaxieGamesSchedule',
   country_athletes: 'GalaxieCountryAthletes',
   medal_history: 'GalaxieMedalHistory',
+  sidelined: 'GalaxieSidelined',
   champions_gallery: 'GalaxieChampionsGallery',
   competition_leaders: 'GalaxieCompetitionLeaders',
   countdown: 'GalaxieCountdown',
@@ -503,6 +511,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_odds: 'GalaxieMatchOdds',
   team_stats: 'GalaxieTeamStats',
   transfer_market: 'GalaxieTransferMarket',
+  bracket: 'GalaxieBracket',
   match_stats: 'GalaxieMatchStats',
 };
 
