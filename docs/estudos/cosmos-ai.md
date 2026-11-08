@@ -119,7 +119,7 @@ Créditos de teste vencem em 90 dias; créditos comprados não vencem enquanto o
 | Pro | 15.000 | R$ 99 | ~R$ 11,25 | ~9× |
 | Turbo | 40.000 | R$ 199 | ~R$ 30 | ~6,6× |
 
-Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai 3,5%, antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
+Com o IOF absorvido (abaixo), a receita líquida de cada pacote cai cerca de 3,4% (o IOF sai de dentro do preço), antes das taxas do Stripe. Na Suzette o mesmo pacote Essencial custava cerca de R$ 1,50 de provedor; a margem cai porque o crédito rende 2,5 vezes mais, e continua alta.
 
 **EUA e Canadá:** tabela própria em dólar, aprovada pelo Wagner em 07/11.
 
@@ -128,7 +128,7 @@ Referências de mercado (preço de lista, novembro de 2026):
 | Quem | Como cobra | Preço |
 | --- | --- | --- |
 | [Intercom Fin](https://www.featurebase.app/blog/fin-ai-pricing) | Por conversa resolvida pela IA | US$ 0,99 por resolução; mínimo de 50 por mês no avulso |
-| [Zendesk AI](https://www.robylon.ai/blog/zendesk-ai-pricing-per-resolution) | Por resolução automática | ~US$ 1,50 a 1,00 com contrato; US$ 2,00 no avulso (estimativa de terceiros) |
+| [Zendesk AI](https://www.robylon.ai/blog/zendesk-ai-pricing-per-resolution) | Por resolução automática | ~US$ 1,00 a 1,50 com contrato; US$ 2,00 no avulso (estimativa de terceiros) |
 | [Stream Moderation](https://getstream.io/moderation/pricing) | Por mensagem de texto analisada | US$ 2,00 por mil mensagens; US$ 100 grátis por mês |
 
 Tabela:
