@@ -20,7 +20,13 @@ export type ValidationErrorCode =
   | 'markets'
   | 'format'
   | 'zero'
-  | 'shares';
+  | 'shares'
+  /** Espelho: período 0 (use `off`). */
+  | 'periodZero'
+  /** Espelho: endpoint fora do catálogo da API. */
+  | 'mirrorItem'
+  /** Espelho: a ordem tem que listar cada grupo uma vez. */
+  | 'groupOrder';
 
 export interface ValidationError {
   code: ValidationErrorCode;

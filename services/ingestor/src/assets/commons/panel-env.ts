@@ -23,7 +23,7 @@ export async function panelEnv(
   } catch (err) {
     if (missingTable(err)) return env;
     throw new Error(
-      `Não deu para ler as sobrescritas do painel (ops.runtime_setting): ${err instanceof Error ? err.message : String(err)}. Abortado para não ignorar o estado da IA gravado no painel.`,
+      `Não deu para ler as sobrescritas do painel (ops.runtime_setting): ${err instanceof Error ? err.message : String(err)}. Abortado para não ignorar o que foi gravado no painel (estado da IA, espelho).`,
       { cause: err },
     );
   }
