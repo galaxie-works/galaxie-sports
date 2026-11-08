@@ -1,3 +1,9 @@
+import {
+  defaultPolicy,
+  InMemoryQuotaGovernor,
+  QuotaExceededError,
+  type Priority,
+} from '@galaxie/apisports-client';
 import { describe, expect, it } from 'vitest';
 import {
   availableForLive,
@@ -49,6 +55,7 @@ function usage(
   return {
     dailyLimit: limit,
     reserve: Math.ceil(limit * 0.15),
+    liveUsesReserve: false, // a regra da produção tem o seu próprio describe
     used: u,
     budget: {
       BOOTSTRAP: 0,
@@ -157,6 +164,115 @@ describe('orçamento', () => {
     expect(availableForLive(usage(100, { DAILY: 55 }))).toEqual({ available: 30, protectedDaily: 55 });
     expect(availableForLive(usage(100, {}, { providerUsed: 20 })).available).toBe(25);
     expect(availableForLive(FREE, 20)).toEqual({ available: 65, protectedDaily: 20 });
+  });
+});
+
+describe('orçamento na produção: o ao vivo usa a reserva', () => {
+  const ULTRA = 75_000;
+  const RESERVE = 18_750;
+
+  /** A carga roda com reserva menor e passa dos 56.250; o DAILY ainda tem fatia planejada sem gastar. */
+  function ultra(total: number, extra: Partial<UsageLike> = {}): UsageLike {
+    const used = { BOOTSTRAP: total - 3_000 - 1_500, DAILY: 3_000, LIVE: 1_500, ADHOC: 0 };
+    return {
+      dailyLimit: ULTRA,
+      reserve: RESERVE,
+      liveUsesReserve: true,
+      used,
+      budget: { BOOTSTRAP: 0, DAILY: 30_000, LIVE: 1_500, ADHOC: 3_750 },
+      totalUsed: total,
+      ...extra,
+    };
+  }
+
+  const inPlay = (id: string, kickoff: string) =>
+    cand(id, kickoff, {
+      status: 'live',
+      statusDetail: '1H',
+      clock: { minute: 14, extra: null, period: '1H' },
+      lastValidAt: at('2026-11-08T05:14:00Z'),
+    });
+
+  it('dia quase gasto (69.749 de 75.000): o que falta do limite é do ao vivo', () => {
+    expect(availableForLive(ultra(69_749))).toEqual({ available: 5_251, protectedDaily: 30_000 });
+  });
+
+  it('o plano volta a ter ticks em vez de LIVE = já gasto', () => {
+    const plan = planLiveDay({
+      sport: 'football',
+      now: at('2026-11-08T05:14:00Z'),
+      candidates: [inPlay('e1', '2026-11-08T05:00:00Z')],
+      usage: ultra(69_749),
+    });
+    expect(plan.budget.ticksLeft).toBeGreaterThan(0);
+    expect(plan.quotaPlan.LIVE).toBeGreaterThan(plan.budget.liveUsed);
+    expect(decideTick(plan, at('2026-11-08T05:14:00Z'), null).kind).toBe('tick');
+  });
+
+  it('sempre sobra a reserva inteira, e o saldo do DAILY que ainda pode sair continua protegido', () => {
+    // 40 mil gastos: o DAILY ainda pode gastar até 56.250, então 16.250 ficam com ele
+    expect(availableForLive(ultra(40_000)).available).toBe(ULTRA - 40_000 - 16_250);
+    expect(availableForLive(ultra(40_000)).available).toBe(RESERVE);
+    // início do dia: o DAILY inteiro cabe abaixo do teto dele
+    expect(availableForLive(ultra(4_500)).available).toBe(ULTRA - 4_500 - 27_000);
+  });
+
+  it('nunca passa do limite total, contando o piso do fornecedor', () => {
+    expect(availableForLive(ultra(75_000)).available).toBe(0);
+    expect(availableForLive(ultra(69_749, { providerUsed: 74_990 })).available).toBe(10);
+    expect(availableForLive(ultra(69_749, { providerUsed: 80_000 })).available).toBe(0);
+
+    const usageNearLimit = ultra(74_000);
+    const plan = planLiveDay({
+      sport: 'football',
+      now: at('2026-11-08T05:14:00Z'),
+      candidates: ['05', '08', '11', '14', '17', '20', '22'].map((h, i) =>
+        i === 0 ? inPlay(`e${i}`, `2026-11-08T${h}:00:00Z`) : cand(`e${i}`, `2026-11-08T${h}:00:00Z`),
+      ),
+      usage: usageNearLimit,
+    });
+    expect(plan.budget.liveTotal - plan.budget.liveUsed).toBe(1_000);
+    expect(usageNearLimit.totalUsed + plan.budget.liveTotal - plan.budget.liveUsed).toBe(ULTRA);
+  });
+
+  it('o limite menor informado pelo fornecedor continua valendo', () => {
+    expect(availableForLive(ultra(7_000, { dailyLimit: 7_500, reserve: 1_875 })).available).toBe(500);
+  });
+
+  it('no dev o ao vivo continua fora da reserva', () => {
+    expect(availableForLive(ultra(69_749, { liveUsesReserve: false, reserve: 52_500 })).available).toBe(0);
+    expect(availableForLive(ultra(20_000, { liveUsesReserve: false, reserve: 52_500 })).available).toBe(0);
+    expect(
+      availableForLive(
+        ultra(5_000, {
+          liveUsesReserve: false,
+          reserve: 52_500,
+          budget: { BOOTSTRAP: 0, DAILY: 13_000, LIVE: 1_500, ADHOC: 0 },
+        }),
+      ).available,
+    ).toBe(22_500 - 5_000 - 10_000);
+  });
+
+  it('Governor e plano aplicam a mesma regra no dia quase gasto', async () => {
+    const now = () => at('2026-11-08T05:14:00Z');
+    const governor = new InMemoryQuotaGovernor(() => defaultPolicy(ULTRA, 25), now);
+    const acquire = (priority: Priority, requestHash: string) =>
+      governor.acquire({ api: 'football', priority, endpoint: '/fixtures', requestHash });
+    // LIVE sem saldo na fatia e DAILY sem gastar: é o caso em que o saldo do DAILY travava o ao vivo
+    await governor.plan('football', '2026-11-08', { LIVE: 0, DAILY: 30_000 });
+    await governor.reconcile('football', 69_749, ULTRA);
+
+    const report = await governor.usage('football', '2026-11-08');
+    expect(report.liveUsesReserve).toBe(true);
+    expect(availableForLive(report).available).toBe(5_251);
+    await expect(acquire('LIVE', 'live')).resolves.toMatchObject({ priority: 'LIVE', borrowed: true });
+    await expect(acquire('DAILY', 'daily')).rejects.toBeInstanceOf(QuotaExceededError);
+
+    await governor.reconcile('football', 74_999, ULTRA);
+    expect(availableForLive(await governor.usage('football', '2026-11-08')).available).toBe(1);
+    await expect(acquire('LIVE', 'last')).resolves.toMatchObject({ priority: 'LIVE' });
+    expect(availableForLive(await governor.usage('football', '2026-11-08')).available).toBe(0);
+    await expect(acquire('LIVE', 'over')).rejects.toBeInstanceOf(QuotaExceededError);
   });
 });
 

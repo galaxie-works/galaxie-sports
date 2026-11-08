@@ -167,9 +167,9 @@ describe('LiveRunner grava o ritmo do ao vivo', () => {
     expect(saved.lastIntervalSeconds).toBeGreaterThanOrEqual(15);
     expect(saved.plannedIntervalSeconds).toBeGreaterThanOrEqual(15);
     expect(saved.pausedUntil).toBeNull();
-    // o cenário é de plano grátis (ticks de ~3 min): só os dois últimos intervalos cabem nos 5 min guardados
+    // o cenário é de plano grátis (ticks de ~2,5 min): só os três intervalos mais recentes cabem nos 5 min guardados
     expect(saved.recent.map((r) => r.seconds)).toEqual(
-      summary.gaps.slice(-2).map((g) => Math.round(g / 100) / 10),
+      summary.gaps.slice(-3).map((g) => Math.round(g / 100) / 10),
     );
   });
 

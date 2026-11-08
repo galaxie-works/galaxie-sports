@@ -516,7 +516,8 @@ Futebol no Ultra: 75 mil chamadas por dia, na mesma conta do dev e da produção
 
 O total da produção cabe nos 56.250. A carga inicial (`carga-total.sh`, BOOTSTRAP) usa o resto, mas roda com
 `QUOTA_LIVE_RESERVE_PERCENT=7` e por isso pode levar a conta abaixo dos 25%. A partir daí, o Governor recusa no resto do
-dia tudo o que não é LIVE, como o `postgame:close` (ADHOC) da noite. O `sync:daily` (00:05 UTC) e o `sync:mirror`
+dia tudo o que não é LIVE, como o `postgame:close` (ADHOC) da noite. O ao vivo segue no que resta do limite do dia:
+o plano dele e o Governor contam a reserva como dele, e o saldo do DAILY que não dá mais para gastar não o trava. O `sync:daily` (00:05 UTC) e o `sync:mirror`
 (08:00 UTC) rodam antes de a carga chegar lá. Para o que roda à noite também caber, o `TETO` da carga, que conta só as
 chamadas BOOTSTRAP, precisa ficar em no máximo 56.250 menos o total da produção: cerca de 35 mil nos primeiros dias
 do espelho e cerca de 46 mil em regime.
