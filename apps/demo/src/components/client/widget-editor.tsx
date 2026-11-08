@@ -36,6 +36,7 @@ import {
   MatchPrediction,
   MatchOdds,
   TeamStats,
+  Bracket,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -294,6 +295,8 @@ function PreviewWidget({
         return <TeamStats {...o} {...WIDGET_CATALOG.team_stats.exampleProps} />;
       case 'transfer_market':
         return <TransferMarket {...o} {...WIDGET_CATALOG.transfer_market.exampleProps} />;
+      case 'bracket':
+        return <Bracket {...WIDGET_CATALOG.bracket.exampleProps} {...o} />;
     }
   }
   switch (kind) {
@@ -365,6 +368,8 @@ function PreviewWidget({
       ) : (
         <TransferMarket {...o} competitionId={entity.id} />
       );
+    case 'bracket':
+      return <Bracket season="current" {...o} competitionId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

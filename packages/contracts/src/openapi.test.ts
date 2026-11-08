@@ -28,6 +28,7 @@ describe('OpenAPI', () => {
         '/v1/competitions',
         '/v1/competitions/{id}',
         '/v1/competitions/{id}/seasons/{season}/standings',
+        '/v1/competitions/{id}/seasons/{season}/bracket',
         '/v1/venues/{id}',
         '/v1/competitions/{id}/context',
         '/v1/competitions/{id}/champions',

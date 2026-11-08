@@ -31,6 +31,7 @@ import { previewSquad } from './fixtures-squad.js';
 import { previewTeamStats } from './fixtures-team-stats.js';
 import { sampleLineups } from './fixtures-lineups.js';
 import { sampleOdds, samplePrediction } from './fixtures-prediction.js';
+import { BRACKET_IDS, createBracketFixture } from './fixtures-bracket.js';
 
 export const PREVIEW_IDS = {
   liveEvent: '0199a5c0-0000-7000-8000-000000000001',
@@ -55,6 +56,8 @@ export const PREVIEW_IDS = {
   games: OLYMPIC_IDS.games,
   /** Futebol: o jogador da ficha de exemplo. */
   person: PLAYER_IDS.person,
+  /** Chaveamento: a copa de exemplo (#829). */
+  cupCompetition: BRACKET_IDS.competition,
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -947,6 +950,8 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
         : 'goals';
       return json(previewLeaders(f.standings, category, Number(url.searchParams.get('limit')) || 10));
     }
+    if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/bracket$/.test(path))
+      return json(createBracketFixture(now, options.sport));
     if (/\/v1\/competitions\/[^/]+\/seasons\/[^/]+\/standings$/.test(path)) return json(f.standings);
     return json({ type: 'about:blank', title: 'Rota não encontrada', status: 404, code: 'NOT_FOUND' }, 404);
   };

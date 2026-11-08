@@ -23,6 +23,7 @@ import {
   ListOrdered,
   Medal,
   Percent,
+  Network,
   Plus,
   Radio,
   Scale,
@@ -115,6 +116,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_odds: Scale,
   team_stats: ChartColumn,
   transfer_market: ArrowLeftRight,
+  bracket: Network,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

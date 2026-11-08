@@ -6,6 +6,7 @@ import { broadcasterRoutes } from './broadcasters.js';
 import { platformRoutes } from './platforms.js';
 import { channelListRoutes } from './channel-list.js';
 import { contextRoutes } from './context.js';
+import { bracketRoutes } from './bracket.js';
 import { eventContextRoutes } from './event-context.js';
 import { eventRoutes } from './events.js';
 import { teamRoutes } from './teams.js';
@@ -45,6 +46,8 @@ export async function v1Routes(app: FastifyInstance, ctx: AppContext): Promise<v
   await contextRoutes(app, ctx);
   // galeria de campeões `/v1/competitions/{id}/champions` (#831) — módulo core_data
   await championRoutes(app, ctx);
+  // chaveamento do mata-mata `/v1/competitions/{id}/seasons/{season}/bracket` (#829) — módulo core_data
+  await bracketRoutes(app, ctx);
   await eventRoutes(app, ctx);
   await eventContextRoutes(app, ctx);
   // palpite `/v1/events/{id}/predictions` (core_data) e odds `/v1/events/{id}/odds` (add-on odds, fechado)

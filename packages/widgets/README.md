@@ -20,6 +20,7 @@ A operadora monta o widget com a identidade dela na demo e instala no app dela c
 | `match_odds`     | `MatchOdds`      | `GalaxieMatchOdds`      | `eventId`           | `/v1/events/{id}/odds` (módulo `odds`)                |
 | `team_stats`     | `TeamStats`      | `GalaxieTeamStats`      | `teamId`            | `/v1/teams/{id}/statistics`, `/v1/teams/{id}`        |
 | `transfer_market` | `TransferMarket` | `GalaxieTransferMarket` | `teamId` ou `competitionId` | `/v1/teams/{id}/transfers`, `/v1/competitions/{id}/transfers` |
+| `bracket` | `Bracket` | `GalaxieBracket` | `competitionId` | `/v1/competitions/{id}/seasons/{s}/bracket` |
 
 Sem módulo indicado, a rota é do `core_data`. Uma chave publicável presa a um widget só alcança os módulos do
 tipo dele (`WIDGET_KIND_MODULES` em `@galaxie/db`); o tenant sem o módulo vê o aviso de 403 no lugar do widget.

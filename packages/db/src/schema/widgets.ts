@@ -45,6 +45,7 @@ export const WIDGET_KINDS = [
   'match_odds',
   'team_stats',
   'transfer_market',
+  'bracket',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

@@ -41,6 +41,8 @@ export {
   type GsLeaderCategory,
   type GsLeaderRow,
   LEADER_CATEGORIES,
+  type GsBracket,
+  BRACKET_PHASES,
   type GsWhereToWatch,
   type LiveListDay,
   type LiveListField,
@@ -121,6 +123,7 @@ export {
   type TransferMarketDirection,
   type TransferMarketProps,
 } from './widgets/transfer-market.js';
+export { Bracket, type BracketPhase, type BracketProps } from './widgets/bracket.js';
 
 // opções de conteúdo de cada widget (Builder, embed e registry)
 export {

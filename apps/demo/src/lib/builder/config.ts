@@ -62,6 +62,7 @@ export const WIDGET_KINDS = [
   'match_odds',
   'team_stats',
   'transfer_market',
+  'bracket',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -124,6 +125,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   team_stats: ['team'],
   // vai e vem do mercado: de um time ou dos times de um campeonato
   transfer_market: ['team', 'competition'],
+  bracket: ['competition'],
 };
 
 /**
@@ -172,6 +174,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   team_stats: 'team',
   // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
   transfer_market: null,
+  bracket: 'competition',
 };
 
 /** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
@@ -505,6 +508,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   match_odds: 'GalaxieMatchOdds',
   team_stats: 'GalaxieTeamStats',
   transfer_market: 'GalaxieTransferMarket',
+  bracket: 'GalaxieBracket',
 };
 
 /**
