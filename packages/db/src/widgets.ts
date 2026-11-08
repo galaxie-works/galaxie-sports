@@ -63,6 +63,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   lineups: ['core_data'],
   match_prediction: ['core_data'],
   match_odds: ['core_data', 'odds'],
+  team_stats: ['core_data'],
   transfer_market: ['core_data'],
 };
 

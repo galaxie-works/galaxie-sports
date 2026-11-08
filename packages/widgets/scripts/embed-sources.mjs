@@ -49,6 +49,7 @@ const WIDGETS = {
   lineups: { file: 'src/widgets/lineups.tsx', component: 'Lineups' },
   match_prediction: { file: 'src/widgets/match-prediction.tsx', component: 'MatchPrediction' },
   match_odds: { file: 'src/widgets/match-odds.tsx', component: 'MatchOdds' },
+  team_stats: { file: 'src/widgets/team-stats.tsx', component: 'TeamStats' },
   transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
 };
 

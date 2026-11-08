@@ -111,6 +111,7 @@ export { PlayerProfile, type PlayerProfileProps } from './widgets/player-profile
 export { Lineups, type LineupsProps, type GsEventLineups } from './widgets/lineups.js';
 export { MatchPrediction, type MatchPredictionProps } from './widgets/match-prediction.js';
 export { MatchOdds, type MatchOddsProps } from './widgets/match-odds.js';
+export { TeamStats, type TeamStatsProps } from './widgets/team-stats.js';
 export {
   TransferMarket,
   type TransferMarketDirection,

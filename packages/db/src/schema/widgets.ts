@@ -42,6 +42,7 @@ export const WIDGET_KINDS = [
   'lineups',
   'match_prediction',
   'match_odds',
+  'team_stats',
   'transfer_market',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];

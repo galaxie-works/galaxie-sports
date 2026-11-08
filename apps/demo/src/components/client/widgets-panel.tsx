@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Award,
   CalendarCheck,
+  ChartColumn,
   CalendarClock,
   CalendarDays,
   CalendarRange,
@@ -110,6 +111,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   lineups: LayoutGrid,
   match_prediction: Percent,
   match_odds: Scale,
+  team_stats: ChartColumn,
   transfer_market: ArrowLeftRight,
 };
 
