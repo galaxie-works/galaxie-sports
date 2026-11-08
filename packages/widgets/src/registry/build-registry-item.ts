@@ -139,6 +139,8 @@ function defaultProps(
     case 'countdown':
     case 'match_timeline':
     case 'lineups':
+    case 'match_prediction':
+    case 'match_odds':
       return pick(['eventId']);
     case 'team_schedule':
     case 'team_card':

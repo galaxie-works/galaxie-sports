@@ -40,6 +40,8 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'match_prediction',
+  'match_odds',
   'team_stats',
   'transfer_market',
 ] as const;

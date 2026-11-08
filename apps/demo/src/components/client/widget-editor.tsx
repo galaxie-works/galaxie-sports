@@ -32,6 +32,8 @@ import {
   CompetitionLeaders,
   PlayerProfile,
   Lineups,
+  MatchPrediction,
+  MatchOdds,
   TeamStats,
   PREVIEW_IDS,
   RaceResult,
@@ -281,6 +283,10 @@ function PreviewWidget({
         return <PlayerProfile {...o} {...WIDGET_CATALOG.player_profile.exampleProps} />;
       case 'lineups':
         return <Lineups {...o} {...WIDGET_CATALOG.lineups.exampleProps} />;
+      case 'match_prediction':
+        return <MatchPrediction {...o} {...WIDGET_CATALOG.match_prediction.exampleProps} />;
+      case 'match_odds':
+        return <MatchOdds {...o} {...WIDGET_CATALOG.match_odds.exampleProps} />;
       case 'team_stats':
         return <TeamStats {...o} {...WIDGET_CATALOG.team_stats.exampleProps} />;
       case 'transfer_market':
@@ -338,6 +344,10 @@ function PreviewWidget({
       return <PlayerProfile {...o} personId={entity.id} />;
     case 'lineups':
       return <Lineups {...o} eventId={entity.id} />;
+    case 'match_prediction':
+      return <MatchPrediction {...o} eventId={entity.id} />;
+    case 'match_odds':
+      return <MatchOdds {...o} eventId={entity.id} />;
     case 'team_stats':
       return <TeamStats {...o} teamId={entity.id} />;
     case 'transfer_market':

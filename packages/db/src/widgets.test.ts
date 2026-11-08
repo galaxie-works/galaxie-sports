@@ -148,6 +148,8 @@ describe('tipos de widget', () => {
     for (const k of WIDGET_KINDS) expect(WIDGET_KIND_MODULES[k]).toContain('core_data');
     expect(WIDGET_KIND_MODULES.ai_context).toContain('live_intelligence');
     expect(WIDGET_KIND_MODULES.related_videos).toContain('related_content');
+    expect(WIDGET_KIND_MODULES.match_odds).toEqual(['core_data', 'odds']);
+    expect(WIDGET_KIND_MODULES.match_prediction).toEqual(['core_data']);
     expect(WIDGET_KIND_MODULES.match_stakes).toEqual(['core_data']);
     expect(WIDGET_KIND_MODULES.medal_table).toEqual(['core_data', 'multisport']);
   });

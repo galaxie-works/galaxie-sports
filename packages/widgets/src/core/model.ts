@@ -39,6 +39,8 @@ export const WIDGET_KINDS = [
   'team_squad',
   'player_profile',
   'lineups',
+  'match_prediction',
+  'match_odds',
   'team_stats',
   'transfer_market',
 ] as const;
@@ -783,6 +785,62 @@ export interface GsLineups {
   event_id: string;
   available: boolean;
   lineups: { team: { id: string | null; side?: string | null }; formation: string | null }[];
+}
+
+/** Lado e linha de gols do palpite (`over` = mais de, `under` = menos de). */
+export interface GsGoalsLine {
+  side: 'over' | 'under';
+  line: number;
+}
+
+/** Chaves da comparação dos times no palpite, na ordem da API. */
+export const PREDICTION_COMPARISON = [
+  'form',
+  'attack',
+  'defense',
+  'poisson',
+  'h2h',
+  'goals',
+  'total',
+] as const;
+export type GsPredictionComparisonKey = (typeof PREDICTION_COMPARISON)[number];
+
+/** Palpite do jogo (`/v1/events/{id}/predictions`), só o que o widget usa. */
+export interface GsEventPredictions {
+  event_id: string;
+  sport: string;
+  home: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  away: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  prediction: {
+    winner: { side: 'home' | 'away'; participant_id: string; win_or_draw: boolean } | null;
+    probabilities: { home: number | null; draw: number | null; away: number | null };
+    goals: { total: GsGoalsLine | null; home: GsGoalsLine | null; away: GsGoalsLine | null };
+    comparison: { key: GsPredictionComparisonKey; home: number | null; away: number | null }[];
+  } | null;
+  updated_at: string | null;
+}
+
+/** Mercados de odds que o widget mostra (chaves da API). */
+export const ODDS_WIDGET_MARKETS = [
+  'match_winner',
+  'double_chance',
+  'goals_over_under',
+  'both_teams_score',
+] as const;
+export type GsOddsMarketKey = (typeof ODDS_WIDGET_MARKETS)[number];
+
+/** Odds do jogo (`/v1/events/{id}/odds`): só o consenso entre as casas, sem identificá-las. */
+export interface GsEventOdds {
+  event_id: string;
+  sport: string;
+  home: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  away: { id: string; name: string; short_name: string | null; logo: string | null } | null;
+  markets: {
+    key: string;
+    selections: { key: string; line: number | null; average: number; best: number; bookmakers: number }[];
+  }[];
+  bookmakers: number;
+  updated_at: string | null;
 }
 
 /** Situação do campeonato (`/v1/competitions/{id}/context`), só líder e jogos decisivos. */
@@ -1667,6 +1725,18 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-shirt{flex:none;width:1.6em;text-align:right;font-size:.8em;font-weight:700;color:var(--gs-muted-foreground);font-variant-numeric:tabular-nums}
 .gs-crest.gs-photo{border-radius:999px;object-fit:cover}
 [data-gs-widget=team_squad] .gs-strong{font-weight:700}
+[data-gs-widget=match_prediction] .gs-strong{font-weight:700;margin:0}
+.gs-odds-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(5.5em,1fr));gap:6px}
+.gs-odd{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.6);min-width:0;text-align:center}
+.gs-odd strong{font-size:1.15em;font-variant-numeric:tabular-nums}
+.gs-odd .gs-truncate{max-width:100%}
+[data-gs-widget=match_odds] .gs-odds-notice{margin:0;font-size:.8em;color:var(--gs-muted-foreground);border-top:1px solid var(--gs-border);padding-top:6px}
+.gs-prediction-odds{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gs-gap);text-align:center}
+.gs-prediction-odds[data-no-draws]{grid-template-columns:repeat(2,1fr)}
+.gs-prediction-odds strong{font-size:1.4em;font-variant-numeric:tabular-nums}
+.gs-compare{display:grid;grid-template-columns:2.5em 1fr 2.5em;align-items:center;gap:6px;font-size:.85em;font-variant-numeric:tabular-nums}
+.gs-compare>span:last-child{text-align:right}
+.gs-compare-label{grid-column:1/-1;color:var(--gs-muted-foreground);font-size:.9em}
 .gs-button[data-gs-calendar=compact]{flex:none;padding:2px 8px;font-size:.72em}
 .gs-countdown{display:flex;flex-direction:column;align-items:center;gap:calc(var(--gs-scale,1)*6px)}
 .gs-countdown-units{display:flex;justify-content:center;gap:calc(var(--gs-scale,1)*6px)}
@@ -2005,6 +2075,57 @@ export interface WidgetTexts {
     emptyRanking: string;
   };
   /** Artilharia e líderes do campeonato (#828). */
+  /** Palpite do jogo: chances, quem deve vencer, linha de gols e comparação. "{team} vence", "{line}". */
+  prediction: {
+    title: string;
+    home: string;
+    draw: string;
+    away: string;
+    /** "{team} vence" / "{team} vence ou empata". */
+    wins: string;
+    winsOrDraws: string;
+    /** Sem favorito apontado. */
+    open: string;
+    /** "Mais de {line} gols" / "Menos de {line} gols" (no jogo). */
+    over: string;
+    under: string;
+    /** "{team}: mais de {line} gols". */
+    teamOver: string;
+    teamUnder: string;
+    goals: string;
+    comparisonTitle: string;
+    comparison: Record<GsPredictionComparisonKey, string>;
+    probabilities: string;
+    /** Aviso de que é um palpite estatístico. */
+    note: string;
+    empty: string;
+    updatedAt: string;
+  };
+  /** Odds do jogo (consenso entre as casas). "{n} casas", "{line}". */
+  odds: {
+    title: string;
+    markets: Record<'match_winner' | 'double_chance' | 'goals_over_under' | 'both_teams_score', string>;
+    home: string;
+    draw: string;
+    away: string;
+    homeDraw: string;
+    homeAway: string;
+    drawAway: string;
+    over: string;
+    under: string;
+    yes: string;
+    no: string;
+    /** "Maior {odd}". */
+    best: string;
+    /** "Média de {n} casas" (plural), no título do mercado quando todas as seleções têm a mesma conta. */
+    bookmakers: PluralText;
+    /** "{n} casas" (plural), em cada seleção quando as contas do mercado diferem. */
+    bookmakersShort: PluralText;
+    /** Aviso de jogo responsável. */
+    notice: string;
+    empty: string;
+    updatedAt: string;
+  };
   leaders: {
     goals: string;
     assists: string;
@@ -2474,6 +2595,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Nenhuma prova no período.',
       emptyRanking: 'Ranking indisponível.',
     },
+    prediction: {
+      title: 'Palpite do jogo',
+      home: 'Vitória do mandante',
+      draw: 'Empate',
+      away: 'Vitória do visitante',
+      wins: '{team} vence',
+      winsOrDraws: '{team} vence ou empata',
+      open: 'Jogo sem favorito',
+      over: 'Mais de {line} gols',
+      under: 'Menos de {line} gols',
+      teamOver: '{team}: mais de {line} gols',
+      teamUnder: '{team}: menos de {line} gols',
+      goals: 'Gols',
+      comparisonTitle: 'Comparação',
+      comparison: {
+        form: 'Momento',
+        attack: 'Ataque',
+        defense: 'Defesa',
+        poisson: 'Probabilidade (Poisson)',
+        h2h: 'Confronto direto',
+        goals: 'Gols',
+        total: 'Geral',
+      },
+      probabilities: 'Chances de cada resultado',
+      note: 'Palpite estatístico, a partir do retrospecto dos times.',
+      empty: 'Palpite ainda não disponível para este jogo.',
+      updatedAt: 'Atualizado em',
+    },
+    odds: {
+      title: 'Odds do jogo',
+      markets: {
+        match_winner: 'Resultado final',
+        double_chance: 'Dupla chance',
+        goals_over_under: 'Total de gols',
+        both_teams_score: 'Ambos marcam',
+      },
+      home: 'Mandante',
+      draw: 'Empate',
+      away: 'Visitante',
+      homeDraw: 'Mandante ou empate',
+      homeAway: 'Mandante ou visitante',
+      drawAway: 'Empate ou visitante',
+      over: 'Mais de {line}',
+      under: 'Menos de {line}',
+      yes: 'Sim',
+      no: 'Não',
+      best: 'Maior {odd}',
+      bookmakers: { one: 'Média de {n} casa', other: 'Média de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
+      notice: '18+ · Aposte com responsabilidade.',
+      empty: 'Odds ainda não disponíveis para este jogo.',
+      updatedAt: 'Atualizado em',
+    },
     leaders: {
       goals: 'Artilharia',
       assists: 'Assistências',
@@ -2941,6 +3115,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       emptyCalendar: 'Ninguna prueba en el período.',
       emptyRanking: 'Ranking no disponible.',
     },
+    prediction: {
+      title: 'Pronóstico del partido',
+      home: 'Gana el local',
+      draw: 'Empate',
+      away: 'Gana el visitante',
+      wins: 'Gana {team}',
+      winsOrDraws: '{team} gana o empata',
+      open: 'Partido sin favorito',
+      over: 'Más de {line} goles',
+      under: 'Menos de {line} goles',
+      teamOver: '{team}: más de {line} goles',
+      teamUnder: '{team}: menos de {line} goles',
+      goals: 'Goles',
+      comparisonTitle: 'Comparación',
+      comparison: {
+        form: 'Momento',
+        attack: 'Ataque',
+        defense: 'Defensa',
+        poisson: 'Probabilidad (Poisson)',
+        h2h: 'Historial',
+        goals: 'Goles',
+        total: 'General',
+      },
+      probabilities: 'Probabilidad de cada resultado',
+      note: 'Pronóstico estadístico, a partir del historial de los equipos.',
+      empty: 'Pronóstico aún no disponible para este partido.',
+      updatedAt: 'Actualizado el',
+    },
+    odds: {
+      title: 'Cuotas del partido',
+      markets: {
+        match_winner: 'Resultado final',
+        double_chance: 'Doble oportunidad',
+        goals_over_under: 'Total de goles',
+        both_teams_score: 'Ambos marcan',
+      },
+      home: 'Local',
+      draw: 'Empate',
+      away: 'Visitante',
+      homeDraw: 'Local o empate',
+      homeAway: 'Local o visitante',
+      drawAway: 'Empate o visitante',
+      over: 'Más de {line}',
+      under: 'Menos de {line}',
+      yes: 'Sí',
+      no: 'No',
+      best: 'Máxima {odd}',
+      bookmakers: { one: 'Promedio de {n} casa', other: 'Promedio de {n} casas' },
+      bookmakersShort: { one: '{n} casa', other: '{n} casas' },
+      notice: '+18 · Jugá con responsabilidad.',
+      empty: 'Cuotas aún no disponibles para este partido.',
+      updatedAt: 'Actualizado el',
+    },
     leaders: {
       goals: 'Goleadores',
       assists: 'Asistencias',
@@ -3399,6 +3626,59 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'No results for this competition.',
       emptyCalendar: 'No competitions in this period.',
       emptyRanking: 'Ranking unavailable.',
+    },
+    prediction: {
+      title: 'Match prediction',
+      home: 'Home win',
+      draw: 'Draw',
+      away: 'Away win',
+      wins: '{team} to win',
+      winsOrDraws: '{team} to win or draw',
+      open: 'No clear favourite',
+      over: 'Over {line} goals',
+      under: 'Under {line} goals',
+      teamOver: '{team}: over {line} goals',
+      teamUnder: '{team}: under {line} goals',
+      goals: 'Goals',
+      comparisonTitle: 'Comparison',
+      comparison: {
+        form: 'Form',
+        attack: 'Attack',
+        defense: 'Defence',
+        poisson: 'Probability (Poisson)',
+        h2h: 'Head to head',
+        goals: 'Goals',
+        total: 'Overall',
+      },
+      probabilities: 'Chance of each result',
+      note: 'Statistical prediction based on both teams’ record.',
+      empty: 'Prediction not available for this match yet.',
+      updatedAt: 'Updated',
+    },
+    odds: {
+      title: 'Match odds',
+      markets: {
+        match_winner: 'Full time result',
+        double_chance: 'Double chance',
+        goals_over_under: 'Total goals',
+        both_teams_score: 'Both teams to score',
+      },
+      home: 'Home',
+      draw: 'Draw',
+      away: 'Away',
+      homeDraw: 'Home or draw',
+      homeAway: 'Home or away',
+      drawAway: 'Draw or away',
+      over: 'Over {line}',
+      under: 'Under {line}',
+      yes: 'Yes',
+      no: 'No',
+      best: 'Best {odd}',
+      bookmakers: { one: 'Average of {n} bookmaker', other: 'Average of {n} bookmakers' },
+      bookmakersShort: { one: '{n} bookmaker', other: '{n} bookmakers' },
+      notice: '18+ · Please gamble responsibly.',
+      empty: 'Odds not available for this match yet.',
+      updatedAt: 'Updated',
     },
     leaders: {
       goals: 'Top scorers',
