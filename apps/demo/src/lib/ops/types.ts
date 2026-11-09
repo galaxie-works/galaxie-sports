@@ -187,10 +187,23 @@ export interface YoutubeSnapshot {
   skipped: YoutubeSkippedRow[];
 }
 
+/** Estado do token das sugestões: só booleanos e quem mudou, nunca o valor nem parte dele. */
+export interface FeedbackPanelState {
+  tokenInPanel: boolean;
+  /** Há token no painel, mas ele não abre com a KEK deste contêiner. */
+  tokenUnreadable: boolean;
+  envTokenConfigured: boolean;
+  /** Este contêiner tem a KEK: sem ela o painel não grava token. */
+  kekConfigured: boolean;
+  tokenChangedBy: string | null;
+  tokenChangedAt: string | null;
+}
+
 export interface OpsSnapshot {
   generatedAt: string;
   dayUtc: string;
   settings: OpsSetting[];
+  feedback: FeedbackPanelState;
   services: ServiceStatus[];
   jobs: JobStatus[];
   quota: QuotaRow[];

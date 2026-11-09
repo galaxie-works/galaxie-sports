@@ -29,6 +29,7 @@ import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
+import { FeedbackGithubCard } from './feedback-github-card';
 import { MirrorTab } from './mirror-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
@@ -38,7 +39,19 @@ import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 /** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
 export const PANEL_TABS = {
-  system: ['status', 'quality', 'live', 'schedule', 'tasks', 'ai', 'provider', 'mirror', 'assets', 'history'],
+  system: [
+    'status',
+    'quality',
+    'live',
+    'schedule',
+    'tasks',
+    'ai',
+    'provider',
+    'mirror',
+    'assets',
+    'suggestions',
+    'history',
+  ],
   features: ['sports', 'related', 'wtw'],
 } as const;
 export type PanelScope = keyof typeof PANEL_TABS;
@@ -171,6 +184,20 @@ export function OpsPanel({
         </TabsContent>
         <TabsContent value="mirror" className="mt-4">
           <MirrorTab snapshot={snapshot} timeZone={timeZone} />
+        </TabsContent>
+        <TabsContent value="suggestions" className="mt-4 flex flex-col gap-4">
+          {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
+          <SectionCard
+            section="feedback"
+            filter={(key) => key === 'FEEDBACK_ENABLED'}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
+          <FeedbackGithubCard
+            key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
+            snapshot={snapshot}
+            timeZone={timeZone}
+          />
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <HistoryTab snapshot={snapshot} timeZone={timeZone} />

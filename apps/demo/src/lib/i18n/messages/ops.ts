@@ -41,6 +41,7 @@ export default defineMessages(
       related: 'Conteúdo relacionado',
       provider: 'Fornecedor',
       assets: 'Logos',
+      suggestions: 'Sugestões',
       history: 'Histórico',
       sports: 'Esportes',
       tasks: 'Tarefas',
@@ -93,6 +94,10 @@ export default defineMessages(
       credentials: {
         title: 'Credenciais e infraestrutura',
         description: 'Só mostramos se estão configuradas. Para trocar, edite o .env da VPS.',
+      },
+      feedback: {
+        title: 'Sugerir ou reportar algo',
+        description: 'O botão de chat no cabeçalho do app, que abre uma issue na repo privada de sugestões.',
       },
     },
     source: {
@@ -170,6 +175,45 @@ export default defineMessages(
       serviceOffline:
         'Gravado, mas o agendador desse contêiner não relata há alguns minutos: pode estar parado.',
       failed: 'Não foi possível concluir.',
+    },
+    suggestions: {
+      title: 'Envio ao GitHub',
+      description:
+        'A repo privada que recebe as sugestões e o token de acesso. Vale sem reiniciar os contêineres e por cima do .env da VPS.',
+      repo: 'Repositório',
+      repoPlaceholder: 'dono/repositorio',
+      repoHint: 'Em branco, vale o do .env da VPS. Sempre uma repo privada.',
+      token: 'Token do GitHub',
+      tokenPlaceholder: 'Cole um token para definir ou trocar',
+      tokenHint:
+        'Fine-grained PAT só dessa repo, com Issues: Read and write. Antes de gravar, o GitHub confirma que a repo responde e é privada. Depois de salvo, o token fica cifrado e não aparece mais aqui.',
+      noKek:
+        'Este contêiner não tem a chave de cifra (WEBHOOK_SIGNING_SECRET): sem ela o painel não grava token. Defina a chave no .env da VPS.',
+      changed: 'Alterado por {by} {when}.',
+      status: {
+        panel: 'Definido no painel',
+        env: 'Usando o do .env',
+        none: 'Não definido',
+        unreadable: 'Token salvo não abre: salve de novo',
+      },
+      save: 'Salvar',
+      saved: 'Envio ao GitHub salvo.',
+      remove: 'Remover do painel',
+      removeTitle: 'Remover o token do painel?',
+      removeBody: 'O token cifrado é apagado. O envio volta a usar o token do .env da VPS, se houver.',
+      removed: 'Token removido do painel.',
+      errors: {
+        invalid: 'Dados inválidos.',
+        repo: 'Use o formato dono/repositorio.',
+        repoRequired: 'Informe o repositório para conferir o token.',
+        tokenFormat: 'Token com formato inválido.',
+        noKek: 'Sem a chave de cifra (WEBHOOK_SIGNING_SECRET) neste contêiner: o token não foi gravado.',
+        notPrivate: 'Essa repo não é privada: as sugestões trazem dado de cliente. Nada foi gravado.',
+        badToken: 'O GitHub recusou o token (inválido ou vencido). Nada foi gravado.',
+        noAccess: 'Esse token não enxerga a repo, ou ela não existe. Nada foi gravado.',
+        unreachable: 'Não foi possível confirmar com o GitHub agora. Nada foi gravado: tente de novo.',
+        save: 'Não foi possível gravar. Nada foi alterado.',
+      },
     },
     errors: {
       unknown: 'Flag desconhecida.',
@@ -1174,6 +1218,13 @@ export default defineMessages(
         description:
           'Ligado, a API mostra o escudo do acervo em tudo que tiver mapeamento (times, jogos, busca, classificação). Desligado, volta na hora para os logos do fornecedor, sem apagar nada.',
       },
+      FEEDBACK_ENABLED: {
+        label: 'Botão de sugestões',
+        description:
+          'Desligado, o botão some do app e o servidor recusa o envio. Quem já estava com a página aberta vê o botão sumir ao recarregar.',
+      },
+      FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
+      FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -1222,6 +1273,7 @@ export default defineMessages(
         related: 'Related content',
         provider: 'Provider',
         assets: 'Logos',
+        suggestions: 'Suggestions',
         history: 'History',
         sports: 'Sports',
         tasks: 'Tasks',
@@ -1274,6 +1326,11 @@ export default defineMessages(
         credentials: {
           title: 'Credentials and infrastructure',
           description: 'We only show whether they are set. To change them, edit the VPS .env.',
+        },
+        feedback: {
+          title: 'Suggest or report something',
+          description:
+            'The chat button in the app header, which opens an issue in the private suggestions repo.',
         },
       },
       source: { db: 'Panel', env: 'Container env', default: 'Code default', label: 'Value source' },
@@ -1340,6 +1397,46 @@ export default defineMessages(
         serviceOffline:
           "Saved, but this container's scheduler hasn't reported for a few minutes: it may be down.",
         failed: 'Could not complete.',
+      },
+      suggestions: {
+        title: 'Delivery to GitHub',
+        description:
+          'The private repo that receives the suggestions and its access token. Applies without restarting containers and overrides the VPS .env.',
+        repo: 'Repository',
+        repoPlaceholder: 'owner/repository',
+        repoHint: 'Blank uses the one in the VPS .env. Always a private repo.',
+        token: 'GitHub token',
+        tokenPlaceholder: 'Paste a token to set or replace it',
+        tokenHint:
+          'Fine-grained PAT for this repo only, with Issues: Read and write. Before saving, GitHub confirms the repo responds and is private. Once saved, the token is encrypted and no longer shown here.',
+        noKek:
+          'This container does not have the encryption key (WEBHOOK_SIGNING_SECRET): without it the panel cannot save a token. Set the key in the VPS .env.',
+        changed: 'Changed by {by} {when}.',
+        status: {
+          panel: 'Set in the panel',
+          env: 'Using the one in .env',
+          none: 'Not set',
+          unreadable: 'Saved token cannot be opened: save it again',
+        },
+        save: 'Save',
+        saved: 'Delivery to GitHub saved.',
+        remove: 'Remove from panel',
+        removeTitle: 'Remove the token from the panel?',
+        removeBody:
+          'The encrypted token is deleted. Delivery goes back to the token in the VPS .env, if any.',
+        removed: 'Token removed from the panel.',
+        errors: {
+          invalid: 'Invalid data.',
+          repo: 'Use the owner/repository format.',
+          repoRequired: 'Enter the repository so the token can be checked.',
+          tokenFormat: 'The token format is invalid.',
+          noKek: 'This container has no encryption key (WEBHOOK_SIGNING_SECRET): the token was not saved.',
+          notPrivate: 'This repo is not private, and suggestions carry customer data. Nothing was saved.',
+          badToken: 'GitHub rejected the token (invalid or expired). Nothing was saved.',
+          noAccess: 'This token cannot see the repo, or it does not exist. Nothing was saved.',
+          unreachable: 'Could not confirm with GitHub right now. Nothing was saved: try again.',
+          save: 'Could not save. Nothing was changed.',
+        },
       },
       errors: {
         unknown: 'Unknown flag.',
@@ -2335,6 +2432,13 @@ export default defineMessages(
           description:
             "On, the API serves the collection's crest wherever there is a mapping (teams, matches, search, standings). Off, it goes straight back to the provider's logos, deleting nothing.",
         },
+        FEEDBACK_ENABLED: {
+          label: 'Suggestions button',
+          description:
+            'When off, the button disappears from the app and the server refuses submissions. Anyone with the page already open sees the button go away on reload.',
+        },
+        FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
+        FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -2382,6 +2486,7 @@ export default defineMessages(
         related: 'Contenido relacionado',
         provider: 'Proveedor',
         assets: 'Logos',
+        suggestions: 'Sugerencias',
         history: 'Historial',
         sports: 'Deportes',
         tasks: 'Tareas',
@@ -2434,6 +2539,11 @@ export default defineMessages(
         credentials: {
           title: 'Credenciales e infraestructura',
           description: 'Solo mostramos si están configuradas. Para cambiarlas, editá el .env de la VPS.',
+        },
+        feedback: {
+          title: 'Sugerir o reportar algo',
+          description:
+            'El botón de chat del encabezado de la app, que abre un issue en el repo privado de sugerencias.',
         },
       },
       source: {
@@ -2505,6 +2615,49 @@ export default defineMessages(
         serviceOffline:
           'Guardado, pero el programador de ese contenedor no informa hace unos minutos: puede estar parado.',
         failed: 'No se pudo completar.',
+      },
+      suggestions: {
+        title: 'Envío a GitHub',
+        description:
+          'El repo privado que recibe las sugerencias y su token de acceso. Se aplica sin reiniciar los contenedores y por encima del .env de la VPS.',
+        repo: 'Repositorio',
+        repoPlaceholder: 'dueño/repositorio',
+        repoHint: 'En blanco, se usa el del .env de la VPS. Siempre un repo privado.',
+        token: 'Token de GitHub',
+        tokenPlaceholder: 'Pega un token para definirlo o cambiarlo',
+        tokenHint:
+          'Fine-grained PAT solo de este repo, con Issues: Read and write. Antes de guardar, GitHub confirma que el repo responde y es privado. Una vez guardado, el token queda cifrado y ya no aparece aquí.',
+        noKek:
+          'Este contenedor no tiene la clave de cifrado (WEBHOOK_SIGNING_SECRET): sin ella el panel no guarda el token. Define la clave en el .env de la VPS.',
+        changed: 'Cambiado por {by} {when}.',
+        status: {
+          panel: 'Definido en el panel',
+          env: 'Usando el del .env',
+          none: 'Sin definir',
+          unreadable: 'El token guardado no abre: guárdalo de nuevo',
+        },
+        save: 'Guardar',
+        saved: 'Envío a GitHub guardado.',
+        remove: 'Quitar del panel',
+        removeTitle: '¿Quitar el token del panel?',
+        removeBody:
+          'El token cifrado se elimina. El envío vuelve a usar el token del .env de la VPS, si lo hay.',
+        removed: 'Token quitado del panel.',
+        errors: {
+          invalid: 'Datos no válidos.',
+          repo: 'Usa el formato dueño/repositorio.',
+          repoRequired: 'Indica el repositorio para comprobar el token.',
+          tokenFormat: 'El formato del token no es válido.',
+          noKek:
+            'Este contenedor no tiene la clave de cifrado (WEBHOOK_SIGNING_SECRET): el token no se guardó.',
+          notPrivate:
+            'Este repo no es privado y las sugerencias llevan datos de clientes. No se guardó nada.',
+          badToken: 'GitHub rechazó el token (no válido o vencido). No se guardó nada.',
+          noAccess: 'Este token no ve el repo, o el repo no existe. No se guardó nada.',
+          unreachable:
+            'No se pudo confirmar con GitHub en este momento. No se guardó nada: inténtalo de nuevo.',
+          save: 'No se pudo guardar. No se cambió nada.',
+        },
       },
       errors: {
         unknown: 'Flag desconocida.',
@@ -3512,6 +3665,13 @@ export default defineMessages(
           description:
             'Encendido, la API muestra el escudo del acervo en todo lo que tenga mapeo (equipos, partidos, búsqueda, tablas). Apagado, vuelve al instante a los logos del proveedor, sin borrar nada.',
         },
+        FEEDBACK_ENABLED: {
+          label: 'Botón de sugerencias',
+          description:
+            'Apagado, el botón desaparece de la app y el servidor rechaza el envío. Quien ya tenía la página abierta ve desaparecer el botón al recargar.',
+        },
+        FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
+        FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

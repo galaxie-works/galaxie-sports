@@ -52,6 +52,7 @@ export const SETTING_SECTIONS = [
   'mirror',
   'assets',
   'credentials',
+  'feedback',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
 
@@ -292,6 +293,9 @@ const secret = (key: string, section: SettingSection, services: readonly Runtime
   apply: 'restart',
   default: null,
 });
+
+/** `dono/repositório` das sugestões do app: o mesmo formato no painel e no env (apps/demo/src/lib/feedback). */
+export const FEEDBACK_REPO_PATTERN = /^[A-Za-z0-9-]+\/(?!\.)[\w.-]+$/;
 
 /** Status editoriais da grade de canais e ofertas, do menos ao mais revisado (LINEUP_MIN_REVIEW_STATUS). */
 export const LINEUP_REVIEW_STATUSES = ['draft', 'reviewed', 'approved'] as const;
@@ -751,6 +755,30 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'off',
     critical: true,
   },
+
+  // ── Sugestões do app ("Sugerir ou reportar algo") ───────────────────────────────────────────
+  // a demo relê a cada envio e a cada carga da página. O token que o painel grava é outra chave, cifrada e fora deste
+  // registro (FEEDBACK_GITHUB_TOKEN_SEALED em apps/demo/src/lib/feedback/settings.ts); o secret abaixo é o do .env
+  {
+    key: 'FEEDBACK_ENABLED',
+    section: 'feedback',
+    type: 'enum',
+    options: ['off', 'on'],
+    services: ['demo'],
+    apply: 'refresh',
+    default: 'on',
+  },
+  {
+    key: 'FEEDBACK_GITHUB_REPO',
+    section: 'feedback',
+    type: 'text',
+    pattern: FEEDBACK_REPO_PATTERN,
+    services: ['demo'],
+    apply: 'refresh',
+    allowEmpty: true,
+    default: null,
+  },
+  secret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo']),
 
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
   secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),

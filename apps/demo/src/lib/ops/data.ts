@@ -33,12 +33,15 @@ import {
 } from '@galaxie/runtime-config';
 
 import { pool } from '@/lib/auth/db';
+import { webhookSecrets } from '@/lib/client/webhooks';
+import { FEEDBACK_SEALED_TOKEN_KEY, resolveFeedbackSettings } from '@/lib/feedback/settings';
 
 import { readQuality } from './quality';
 import { readTasks } from './tasks';
 import { readYoutube } from './youtube';
 import type {
   CreditStatus,
+  FeedbackPanelState,
   HistoryRow,
   JobRequestRow,
   JobStatus,
@@ -145,7 +148,24 @@ async function readSettings(now: Date) {
   );
   const live = services.find((s) => s.service === 'live');
   if (live) live.live = await readLiveService();
-  return { settings, services };
+
+  // tenta abrir o token só para dizer se ele abre; o valor não sai daqui
+  const box = webhookSecrets();
+  const feedbackState = resolveFeedbackSettings(
+    new Map(overrides.map((o) => [o.key, o.value])),
+    process.env,
+    box,
+  );
+  const sealedToken = overrideMap.get(FEEDBACK_SEALED_TOKEN_KEY);
+  const feedback: FeedbackPanelState = {
+    tokenInPanel: feedbackState.tokenInPanel,
+    tokenUnreadable: feedbackState.tokenUnreadable,
+    envTokenConfigured: Boolean(process.env.FEEDBACK_GITHUB_TOKEN?.trim()),
+    kekConfigured: box !== null,
+    tokenChangedBy: sealedToken?.updated_by ?? null,
+    tokenChangedAt: iso(sealedToken?.updated_at),
+  };
+  return { settings, services, feedback };
 }
 
 /**
@@ -638,7 +658,7 @@ async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
  */
 export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
-  const { settings, services } = await readSettings(now);
+  const { settings, services, feedback } = await readSettings(now);
   const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror] =
     await Promise.all([
       readJobs(),
@@ -657,6 +677,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     generatedAt: now.toISOString(),
     dayUtc,
     settings,
+    feedback,
     services,
     jobs,
     quota,

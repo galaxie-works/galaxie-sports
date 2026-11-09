@@ -21,19 +21,45 @@ A `galaxie-sports` é pública. O envio leva dado de cliente (mensagem livre e p
   (`/api/feedback/anexo/…?e=…&s=…`, vale um ano). Sem assinatura válida, 404;
 - o token é só dessa repo e só de Issues, separado do `ALERT_GITHUB_TOKEN`.
 
-## Ligar
+## Ligar e configurar
+
+Tudo em **Ajustes → Sistema → Sugestões** (só admin), sem entrar na VPS e sem reiniciar contêiner:
+
+- **Botão de sugestões** (`FEEDBACK_ENABLED`, ligado por padrão): desligado, o botão some do app e o `sendFeedback`
+  recusa no servidor ("indisponível"). O servidor passa a recusar na hora; o botão some na próxima carga da página.
+- **Repositório**: `dono/repositorio`, sempre privada. Em branco, vale o `FEEDBACK_GITHUB_REPO` do `.env`.
+- **Token do GitHub**: só-escrita. Ao salvar, a demo pergunta ao GitHub se esse token enxerga essa repo e se ela é
+  privada: sem 200 e `private: true`, recusa e não grava nada. Essa conferência não prova o Issues: write; se faltar,
+  o erro aparece no primeiro envio. Depois de salvo, o painel só diz de onde vem o token (painel, `.env` ou não
+  definido); "Remover do painel" apaga o cifrado e o envio volta ao do `.env`.
+
+Precedência: painel, depois `.env` da VPS. Quem ainda usa só o `.env` não precisa migrar nada.
+
+Como criar o token:
 
 1. A repo privada é `galaxie-works/galaxie-sports-customer-voice` (criada em 07/11/2026).
 2. Fine-grained PAT (https://github.com/settings/personal-access-tokens/new): Resource owner galaxie-works;
    Repository access → só essa repo; Permissions → **Issues: Read and write** (Metadata: Read vem junto). Nada mais.
-3. No `.env` da VPS:
 
-   ```bash
-   FEEDBACK_GITHUB_TOKEN=github_pat_...
-   FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
-   ```
+Pelo `.env` (a reserva; aí sim precisa recriar `site` e `console`, no próximo deploy ou com
+`docker compose up -d site console`):
 
-4. Recrie o `site` e o `console` (próximo deploy, ou `docker compose up -d site console`).
+```bash
+FEEDBACK_GITHUB_TOKEN=github_pat_...
+FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
+```
+
+## Como o token é guardado
+
+- Em `ops.runtime_setting`, chave `FEEDBACK_GITHUB_TOKEN_SEALED`, cifrado em AES-256-GCM com a mesma KEK dos webhooks
+  (`WEBHOOK_SIGNING_SECRET`, que fica no `.env`, fora do banco) e preso a essa chave pelo dado autenticado. Sem a KEK
+  no contêiner, o painel recusa gravar: nunca vai texto puro para o banco.
+- A demo relê a cada envio, então a troca vale em `site` e `console` sem reiniciar. Ela só decifra para enviar e para
+  saber se o token abre; o valor nunca vai ao navegador, a log, a resposta de API ou ao histórico.
+- `ops.runtime_setting_log` registra quem mudou e quando, com `••••••••` no lugar do valor (Sistema → Histórico).
+- O `mirror-prod-to-dev` apaga `ops.runtime_setting` inteira: o token do painel de produção não vai para o dev.
+- **Trocar a KEK:** `wh seal-secrets` recifra só os segredos dos webhooks. Depois de tirar a KEK antiga do `.env`, o
+  painel mostra "Token salvo não abre" e o envio cai no token do `.env` (se houver): cole o token de novo em Sugestões.
 
 ## A issue
 
@@ -66,8 +92,10 @@ bucket.
 
 ## Problemas
 
-- **"Indisponível" no app:** token ou repo vazios, a repo não é privada, ou (com imagem) o bucket privado não está
-  configurado (veja o log do `site`:
+- **"Indisponível" no app:** o botão está desligado no painel, token ou repo vazios, a repo não é privada, ou (com
+  imagem) o bucket privado não está configurado (veja o log do `site`:
   `docker compose logs site | grep feedback`).
+- **"Token salvo não abre" no painel:** a KEK do contêiner não abre o cifrado (KEK trocada ou ausente). Cole o token de
+  novo em Sugestões.
 - **Erro genérico:** o log mostra o status do GitHub: 401 token errado ou vencido; 403/404 token sem acesso à repo ou
   sem Issues: write.
