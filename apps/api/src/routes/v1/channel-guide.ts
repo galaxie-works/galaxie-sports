@@ -4,7 +4,7 @@ import { ChannelGuideParams, ChannelGuideQuery, type ChannelGuide } from '@galax
 import { broadcastOption, event, getWidget, matchChannel, type Database, type Widget } from '@galaxie/db';
 import { assertMarket, assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
-import { CACHE_TTL } from '../../cache/policy.js';
+import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import {
   guideChannelNames,
   guideChannelsByEvent,
@@ -84,6 +84,7 @@ export async function channelGuideRoutes(app: FastifyInstance, ctx: AppContext):
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.whereToWatch,
+      staleSec: STALE_SEC.live,
       vary: [
         locale,
         tz,

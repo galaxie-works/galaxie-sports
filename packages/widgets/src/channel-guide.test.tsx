@@ -109,7 +109,10 @@ describe('grade nos canais do cliente', () => {
     expect(await screen.findByText('Nenhum jogo nos seus canais neste dia.')).toBeTruthy();
   });
 
-  it('escala para TV: a hora da grade multiplicada por --gs-scale', () => {
+  it('escala para TV: a hora da grade e a coluna dela multiplicadas por --gs-scale', () => {
+    expect(WIDGET_CSS).toContain(
+      '[data-gs-widget=channel_guide] .gs-row{grid-template-columns:calc(var(--gs-scale,1)*64px) 1fr}',
+    );
     expect(WIDGET_CSS).toContain(
       '[data-gs-widget=channel_guide] .gs-group-title time,[data-gs-widget=channel_guide] .gs-row-status time{font-size:calc(var(--gs-scale,1)*1em)}',
     );
