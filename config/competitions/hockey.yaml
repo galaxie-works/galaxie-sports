@@ -26,7 +26,8 @@ schema_version: 1
 sport: hockey
 competitions:
   # ---------------------------------------------------------------- tier 1 - NHL, Olimpíadas e Mundiais de seleções
-  - slug: nhl
+  # O slug é o que a base já usa: trocá-lo muda a URL da competição.
+  - slug: usa-nhl-57
     name: "NHL"
     country: "USA"
     type: league

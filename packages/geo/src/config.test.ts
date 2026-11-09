@@ -218,7 +218,8 @@ describe('config/geo do repositório', () => {
     expect(geo.audience.points('US', 'nba', 'nba')).toBe(35);
     expect(geo.audience.points('US', 'american-football', 'nfl')).toBe(35);
     expect(geo.audience.points('US', 'baseball', 'mlb')).toBe(35);
-    expect(geo.audience.points('CA', 'hockey', 'nhl')).toBe(35);
+    expect(geo.audience.points('US', 'hockey', 'usa-nhl-57')).toBe(30);
+    expect(geo.audience.points('CA', 'hockey', 'usa-nhl-57')).toBe(35);
     expect(geo.audience.points('US', 'football', 'liga-mx')).toBe(25);
     expect(geo.audience.points('BR', 'nba', 'nba')).toBe(0);
   });
