@@ -8,6 +8,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import {
   guideChannelNames,
   guideChannelsByEvent,
+  guideTtl,
   parseGuideChannels,
   parseGuideSports,
 } from '../../channel-guide/grid.js';
@@ -145,6 +146,10 @@ export async function channelGuideRoutes(app: FastifyInstance, ctx: AppContext):
         return {
           body,
           tags: ['event', 'broadcaster', ...entries.map((e) => `where_to_watch:${e.event.id}`)],
+          ttl: guideTtl(
+            entries.map((e) => e.event),
+            ctx.now(),
+          ),
         };
       },
     });

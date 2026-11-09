@@ -58,3 +58,21 @@ export function withMatchChannel<R extends PrecedenceOption>(
   if (!m?.channelName || sameChannel(m.channelName, row.channelName)) return row;
   return { ...row, channelName: m.channelName };
 }
+
+/**
+ * A precedência inteira de um jogo, num país: as opções confirmadas já com o canal do jogo (`published`) e os
+ * canais do jogo que entram sozinhos (`toPromote`). `keep` só recorta as opções mostradas (praça, emissora
+ * conhecida); a promoção olha sempre todas, para a retirada da editoria valer em qualquer recorte.
+ */
+export function confirmedWithMatchChannels<R extends PrecedenceOption, M extends PrecedenceMatchChannel>(
+  options: readonly R[],
+  channels: readonly M[],
+  keep: (option: R) => boolean = () => true,
+): { published: R[]; toPromote: M[] } {
+  return {
+    published: options
+      .filter((r) => r.status === 'confirmed' && keep(r))
+      .map((r) => withMatchChannel(r, channels)),
+    toPromote: matchChannelsToPromote(options, channels),
+  };
+}

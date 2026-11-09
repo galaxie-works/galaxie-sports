@@ -4,7 +4,9 @@
  * confirmada do tenant. Puro: a rota lê as linhas e este módulo monta a grade.
  */
 import type { ClientChannelRef } from '@galaxie/contracts';
-import { matchChannelsToPromote, withMatchChannel } from '@galaxie/where-to-watch';
+import { confirmedWithMatchChannels } from '@galaxie/where-to-watch';
+import { CACHE_TTL } from '../cache/policy.js';
+import { eventsTtl } from '../events/builder.js';
 
 /** Opção do onde assistir (versão vigente) de um jogo no país do widget. */
 export interface GuideOptionRow {
@@ -78,11 +80,12 @@ export function guideChannelsByEvent(
   const matchesOf = groupBy(matches, (m) => m.eventId);
   const sources: { eventId: string; broadcasterId: string | null; channelName: string | null }[] = [];
   for (const eventId of new Set([...optionsOf.keys(), ...matchesOf.keys()])) {
-    const rows = optionsOf.get(eventId) ?? [];
-    const channels = matchesOf.get(eventId) ?? [];
-    for (const r of rows)
-      if (r.status === 'confirmed' && r.broadcasterId) sources.push(withMatchChannel(r, channels));
-    sources.push(...matchChannelsToPromote(rows, channels));
+    const { published, toPromote } = confirmedWithMatchChannels(
+      optionsOf.get(eventId) ?? [],
+      matchesOf.get(eventId) ?? [],
+      (r) => Boolean(r.broadcasterId),
+    );
+    sources.push(...published, ...toPromote);
   }
   const byEvent = new Map<string, Set<string>>();
   for (const s of sources) {
@@ -104,6 +107,11 @@ function groupBy<T>(items: readonly T[], keyOf: (item: T) => string): Map<string
     else out.set(keyOf(item), [item]);
   }
   return out;
+}
+
+/** Cache da grade: o do onde assistir, encurtado com jogo ao vivo ou perto de começar, para o placar não envelhecer. */
+export function guideTtl(events: Parameters<typeof eventsTtl>[0], now: Date): number {
+  return eventsTtl(events, now, CACHE_TTL.whereToWatch);
 }
 
 /** Canais com algum jogo no dia, em ordem alfabética. */
