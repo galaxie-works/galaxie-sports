@@ -165,7 +165,7 @@ const STOPWORDS: Record<AgentLanguage, ReadonlySet<string>> = {
       'neste nessa nesse naquela naquele com mais menos muito pouco bem mal sao foi era sera tem teve ha ' +
       'houve gol-contra fim-de-jogo resultado classificado classificada eliminado eliminada campeao ' +
       'rebaixado rebaixada destaque destaques estatisticas posse chutes finalizacoes expulso expulsos ' +
-      'fim'
+      'fim aos restam faltam'
     ).split(/\s+/),
   ),
   es: new Set(
@@ -183,13 +183,15 @@ const STOPWORDS: Record<AgentLanguage, ReadonlySet<string>> = {
       'necesita necesitan puede pueden basta avanza avanzan asegura aseguran lleva llevo define definen ' +
       'sigue siguen llega llego abre abrio cierra cerro marco hizo con mas menos muy poco bien mal es fue era ' +
       'sera tiene tuvo hay hubo le les lo se resultado clasificado clasificada eliminado eliminada campeon ' +
-      'descendido destacado estadisticas posesion remates tiros expulsado expulsados fin'
+      'descendido destacado estadisticas posesion remates tiros expulsado expulsados fin ' +
+      'gracias luego ademas asimismo posteriormente ante frente pese ambas cualquiera ubicado ubicada ' +
+      'vencio vencieron anoto anotaron marcaron convirtio convirtieron quedan restan faltan fueron vieron'
     ).split(/\s+/),
   ),
   // em inglês, rótulos de jogo levam maiúscula ("Matchday 34", "Extra Time"): também não são nomes
   en: new Set(
     (
-      'the a an of in on at to for from by with without and or but if as so that this these those it its ' +
+      'the a an of in on at to for from by with without and or but if as so that this these those it its following ' +
       'their they he she his her them who which what when where while after before during since until into ' +
       'over under against between through still also only just even now today tomorrow yesterday then there ' +
       'here both each every all any another other no not nor yes first second third fourth fifth last next ' +
@@ -373,6 +375,12 @@ function isCapitalized(token: string): boolean {
   return /^\p{Lu}/u.test(token);
 }
 
+/**
+ * Só no início de frase, e não na lista geral: em espanhol "A Cúcuta le alcanzó" começa com preposição, mas
+ * "a" na lista geral deixaria passar "Serie A" (as duas palavras seriam comuns) sem estar nos fatos.
+ */
+const INITIAL_ONLY: Partial<Record<AgentLanguage, ReadonlySet<string>>> = { es: new Set(['a']) };
+
 /** Sequências de palavras com inicial maiúscula (com conectores internos) por frase. */
 function nameRuns(sentence: string, lang: AgentLanguage): string[][] {
   const runs: string[][] = [];
@@ -382,12 +390,18 @@ function nameRuns(sentence: string, lang: AgentLanguage): string[][] {
     const before = sentence.slice(0, start).trimEnd();
     return before === '' || /[.!?:;"«(—–]$/u.test(before);
   };
+  // A vírgula separa nomes ("En el Estadio El Sadar, Osasuna ganó"); sem isso os dois viram um nome inexistente.
+  const afterComma = (start: number) => sentence.slice(0, start).trimEnd().endsWith(',');
   let current: string[] = [];
   let currentInitial = false;
   const flush = () => {
     while (current.length && CONNECTORS.has(normalizeText(current.at(-1)!))) current.pop();
     if (currentInitial) {
-      while (current.length && STOPWORDS[lang].has(normalizeText(current[0]!))) current.shift();
+      while (current.length) {
+        const first = normalizeText(current[0]!);
+        if (!STOPWORDS[lang].has(first) && !INITIAL_ONLY[lang]?.has(first)) break;
+        current.shift();
+      }
     }
     // Siglas e palavras comuns isoladas (VAR, Gols:) também saem.
     if (current.length && current.every((t) => STOPWORDS[lang].has(normalizeText(t)))) current = [];
@@ -399,7 +413,7 @@ function nameRuns(sentence: string, lang: AgentLanguage): string[][] {
     const cap = isCapitalized(w.text);
     if (cap) {
       const initial = sentenceInitial(w.start);
-      if (current.length && initial) flush();
+      if (current.length && (initial || afterComma(w.start))) flush();
       if (!current.length) currentInitial = initial;
       current.push(w.text);
       return;
