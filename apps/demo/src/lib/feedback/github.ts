@@ -9,8 +9,11 @@
  *   FEEDBACK_GITHUB_TOKEN  fine-grained PAT só da repo de sugestões, com Issues: read and write e nada mais
  *   FEEDBACK_GITHUB_REPO   dono/repositório (obrigatório e sem padrão: nunca cai na repo principal)
  *
- * Sem token ou sem repo, o formulário responde "indisponível". O token nunca vai ao navegador.
+ * Os dois também podem vir do painel (Ajustes → Sistema → Sugestões), que vale mais que o env (settings.ts). Sem token
+ * ou sem repo, o formulário responde "indisponível". O token nunca vai ao navegador.
  */
+import { FEEDBACK_REPO_PATTERN } from '@galaxie/runtime-config';
+
 import {
   FEEDBACK_ISSUE_TEXT,
   FEEDBACK_LABEL_COLORS,
@@ -24,14 +27,12 @@ export interface FeedbackGithubConfig {
   repo: string;
 }
 
-const REPO_RE = /^[A-Za-z0-9-]+\/(?!\.)[\w.-]+$/;
-
 export function feedbackGithubConfig(
   env: Record<string, string | undefined> = process.env,
 ): FeedbackGithubConfig | null {
   const token = env.FEEDBACK_GITHUB_TOKEN?.trim();
   const repo = env.FEEDBACK_GITHUB_REPO?.trim();
-  if (!token || !repo || !REPO_RE.test(repo)) return null;
+  if (!token || !repo || !FEEDBACK_REPO_PATTERN.test(repo)) return null;
   return { token, repo };
 }
 
@@ -39,6 +40,8 @@ export class FeedbackGithubError extends Error {
   constructor(
     readonly code: 'not_private' | 'http',
     message: string,
+    /** Status HTTP do GitHub (`http`). */
+    readonly status?: number,
   ) {
     super(message);
     this.name = 'FeedbackGithubError';
@@ -75,7 +78,7 @@ export class FeedbackGithub {
   private async json<T>(res: Response, what: string): Promise<T> {
     if (!res.ok) {
       const detail = (await res.text().catch(() => '')).slice(0, 300);
-      throw new FeedbackGithubError('http', `${what}: HTTP ${res.status} ${detail}`);
+      throw new FeedbackGithubError('http', `${what}: HTTP ${res.status} ${detail}`, res.status);
     }
     return (await res.json()) as T;
   }
@@ -108,5 +111,28 @@ export class FeedbackGithub {
   async createIssue(title: string, body: string, label: string): Promise<number> {
     const res = await this.call('POST', '/issues', { title, body, labels: [label] });
     return (await this.json<{ number: number }>(res, 'issue')).number;
+  }
+}
+
+export type FeedbackTargetProblem = 'not_private' | 'bad_token' | 'no_access' | 'unreachable';
+
+/**
+ * Confere token e repo antes de gravar no painel: a repo tem de responder 200 e ser privada. Devolve o motivo da
+ * recusa (sem detalhe do GitHub, que não vai à tela) ou null se está tudo certo.
+ */
+export async function checkFeedbackTarget(
+  config: FeedbackGithubConfig,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FeedbackTargetProblem | null> {
+  try {
+    await new FeedbackGithub(config, fetchImpl).ensurePrivate();
+    return null;
+  } catch (err) {
+    if (!(err instanceof FeedbackGithubError)) return 'unreachable';
+    if (err.code === 'not_private') return 'not_private';
+    if (err.status === 401) return 'bad_token';
+    // 404 é o que o GitHub responde para repo inexistente e para repo privada que o token não enxerga
+    if (err.status === 403 || err.status === 404) return 'no_access';
+    return 'unreachable';
   }
 }

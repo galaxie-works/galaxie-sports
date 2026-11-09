@@ -19,6 +19,15 @@ import { pool } from '@/lib/auth/db';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { AI_POLICY_KEYS } from '@/components/ops/ai-policy';
+import { webhookSecrets } from '@/lib/client/webhooks';
+import { checkFeedbackTarget, feedbackGithubConfig, type FeedbackTargetProblem } from '@/lib/feedback/github';
+import {
+  FEEDBACK_REPO_KEY,
+  FEEDBACK_SEALED_TOKEN_KEY,
+  isValidFeedbackToken,
+  sealFeedbackToken,
+} from '@/lib/feedback/settings';
+import { readFeedbackSettings } from '@/lib/feedback/settings-db';
 import { validationMessage } from '@/lib/ops/validation-message';
 
 export interface OpsActionResult {
@@ -42,7 +51,12 @@ interface SettingWrite {
   /** `null` apaga a sobrescrita (volta ao env ou ao padrão). */
   value: string | null;
   valueType: string;
+  /** Segredo cifrado: o histórico registra a mudança, nunca o valor (nem o cifrado). */
+  secret?: boolean;
 }
+
+/** O que o histórico mostra no lugar de um segredo. */
+const SECRET_LOG_VALUE = '••••••••';
 
 /**
  * Grava (`value`) ou apaga (`null`) as sobrescritas e registra cada mudança no histórico, todas numa
@@ -52,7 +66,8 @@ async function writeAll(entries: readonly SettingWrite[], by: string) {
   const client = await pool.connect();
   try {
     await client.query('begin');
-    for (const { key, value, valueType } of entries) {
+    for (const { key, value, valueType, secret } of entries) {
+      const logged = (v: string | null) => (secret && v !== null ? SECRET_LOG_VALUE : v);
       const prev = await client.query<{ value: string }>(
         'select value from ops.runtime_setting where key = $1 for update',
         [key],
@@ -71,7 +86,7 @@ async function writeAll(entries: readonly SettingWrite[], by: string) {
       await client.query(
         `insert into ops.runtime_setting_log (key, action, old_value, new_value, changed_by)
          values ($1, $2, $3, $4, $5)`,
-        [key, value === null ? 'reset' : 'set', old, value, by],
+        [key, value === null ? 'reset' : 'set', logged(old), logged(value), by],
       );
     }
     await client.query('commit');
@@ -193,6 +208,87 @@ export async function resetSetting(key: string): Promise<OpsActionResult> {
   }
   revalidatePath(PATH);
   revalidatePath(FEATURES_PATH);
+  return { ok: true };
+}
+
+/**
+ * Grava repo e token das sugestões juntos (trocar de repo costuma exigir outro token). Token em branco mantém o atual;
+ * repo em branco volta ao do env. Só grava depois que o GitHub confirmar que o par enxerga uma repo privada; sem token
+ * nenhum, o repo é só conferido pelo formato, e o envio confere a repo de novo de qualquer forma.
+ */
+export async function saveFeedbackGithub(input: { repo: string; token: string }): Promise<OpsActionResult> {
+  const me = await requireAdmin();
+  const T = (await texts()).suggestions.errors;
+  if (typeof input?.repo !== 'string' || typeof input?.token !== 'string')
+    return { ok: false, error: T.invalid };
+
+  const repoDef = settingDef(FEEDBACK_REPO_KEY)!;
+  const checkedRepo = validateSetting(repoDef, input.repo);
+  if (!checkedRepo.ok) return { ok: false, error: T.repo };
+  const token = input.token.trim();
+  if (token && !isValidFeedbackToken(token)) return { ok: false, error: T.tokenFormat };
+  const box = webhookSecrets();
+  // sem a KEK o token ficaria em texto puro no banco: não grava
+  if (token && !box) return { ok: false, error: T.noKek };
+
+  try {
+    const current = await readFeedbackSettings();
+    const target = feedbackGithubConfig({
+      FEEDBACK_GITHUB_TOKEN: token || current.token || undefined,
+      FEEDBACK_GITHUB_REPO: checkedRepo.value || process.env.FEEDBACK_GITHUB_REPO,
+    });
+    // token novo sem repo válida não teria como ser conferido
+    if (token && !target) return { ok: false, error: T.repoRequired };
+    if (target) {
+      const problem = await checkFeedbackTarget(target);
+      if (problem) return { ok: false, error: T[PROBLEM_TEXT[problem]] };
+    }
+    await writeAll(
+      [
+        { key: FEEDBACK_REPO_KEY, value: checkedRepo.value || null, valueType: repoDef.type },
+        ...(token
+          ? [
+              {
+                key: FEEDBACK_SEALED_TOKEN_KEY,
+                value: sealFeedbackToken(token, box!),
+                valueType: 'secret',
+                secret: true,
+              },
+            ]
+          : []),
+      ],
+      me.email,
+    );
+  } catch (err) {
+    // só o nome: a mensagem de um erro de rede ou do banco não vai para a tela
+    console.error('[feedback] falha ao gravar o ajuste', err instanceof Error ? err.name : 'erro');
+    return { ok: false, error: T.save };
+  }
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+const PROBLEM_TEXT = {
+  not_private: 'notPrivate',
+  bad_token: 'badToken',
+  no_access: 'noAccess',
+  unreachable: 'unreachable',
+} as const satisfies Record<FeedbackTargetProblem, string>;
+
+/** Apaga o token do painel: o envio volta a usar o do env, se houver. */
+export async function clearFeedbackToken(): Promise<OpsActionResult> {
+  const me = await requireAdmin();
+  const T = (await texts()).suggestions.errors;
+  try {
+    await writeAll(
+      [{ key: FEEDBACK_SEALED_TOKEN_KEY, value: null, valueType: 'secret', secret: true }],
+      me.email,
+    );
+  } catch (err) {
+    console.error('[feedback] falha ao apagar o token', err instanceof Error ? err.name : 'erro');
+    return { ok: false, error: T.save };
+  }
+  revalidatePath(PATH);
   return { ok: true };
 }
 

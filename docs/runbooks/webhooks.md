@@ -121,8 +121,10 @@ momento com o cliente. Pela CLI não há rotação: desative o endpoint e cadast
 
 1. Gere a nova e guarde no cofre.
 2. `.env`: `WEBHOOK_SIGNING_SECRET=<nova>,<antiga>` (a primeira cifra, todas decifram). Suba `webhooks` e `demo`.
-3. `wh seal-secrets` (recifra tudo com a nova).
+3. `wh seal-secrets` (recifra os segredos dos webhooks com a nova).
 4. Tire a antiga do `.env` e suba de novo.
+5. A mesma KEK cifra o token das sugestões do app, que o `seal-secrets` não recifra: cole-o de novo em Ajustes → Sistema
+   → Sugestões ([runbook](sugestoes-do-app.md)).
 
 ## Rollback
 
