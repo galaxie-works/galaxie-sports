@@ -98,7 +98,7 @@ describe('Elenco do time (#825)', () => {
     const en = setup(<TeamSquad teamId={PREVIEW_IDS.team} />, 'en');
     await screen.findByText('Rafael Moura');
     expect(groupTitles(en.container).at(-1)).toBe('Coaches');
-    expect(en.container.textContent).toContain('Brasil · Age 31');
+    expect(en.container.textContent).toContain('Brazil · Age 31');
   });
 
   it('time sem elenco: mensagem de vazio', async () => {

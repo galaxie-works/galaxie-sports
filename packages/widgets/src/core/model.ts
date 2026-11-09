@@ -4202,19 +4202,21 @@ export function textsFor(locale: WidgetLocale): WidgetTexts {
 
 const SPANISH_MARKETS = ['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
 
-/** Locale pedido à API (`?locale`): o espanhol segue o mercado; em inglês a API devolve o padrão. */
-export function apiLocale(locale: WidgetLocale, market?: string | undefined): string | undefined {
-  if (locale === 'pt-BR') return 'pt-BR';
+/**
+ * Locale pedido à API (`?locale`): o espanhol segue o mercado; o inglês vai como `en` (sem `locale` a
+ * API responde no padrão, pt-BR, e o widget em inglês mostrava nomes, fases e posições em português).
+ */
+export function apiLocale(locale: WidgetLocale, market?: string | undefined): string {
   if (locale === 'es') {
     const m = market?.toUpperCase() ?? '';
     return SPANISH_MARKETS.includes(m) ? `es-${m}` : 'es-AR';
   }
-  return undefined;
+  return locale === 'en' ? 'en' : 'pt-BR';
 }
 
 /** Locale do `Intl` (datas e horas). */
 export function intlLocale(locale: WidgetLocale, market?: string | undefined): string {
-  return locale === 'es' ? (apiLocale(locale, market) ?? 'es') : locale;
+  return locale === 'es' ? apiLocale(locale, market) : locale;
 }
 
 /** Fuso do navegador (IANA); undefined fora do navegador. */

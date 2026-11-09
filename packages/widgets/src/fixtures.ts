@@ -1,6 +1,7 @@
 // Dados de exemplo para o preview do Builder e para os testes. Os objetos seguem os contratos completos
 // da API (@galaxie/contracts): se um contrato mudar, o typecheck daqui acusa.
 import { channelGuidePreviewBody } from './fixtures-channel-guide.js';
+import { localizeSample } from './fixtures-locale.js';
 import type {
   Event,
   EventContext,
@@ -753,6 +754,18 @@ const json = (body: unknown, status = 200) =>
  * e para os testes. Passe em `<GalaxieWidgetProvider fetch={createPreviewFetch()}>`.
  */
 export function createPreviewFetch(options: { now?: Date; sport?: string } = {}): typeof fetch {
+  const sample = samplePreviewFetch(options);
+  // a resposta sai no idioma pedido (`?locale`), como a API real
+  return async (input, init) => {
+    const res = await sample(input, init);
+    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const locale = new URL(raw, 'http://preview.local').searchParams.get('locale');
+    if (!res.headers.get('content-type')?.includes('json') || !locale || locale.startsWith('pt')) return res;
+    return json(localizeSample(await res.json(), locale), res.status);
+  };
+}
+
+function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fetch {
   return async (input) => {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, 'http://preview.local');

@@ -80,6 +80,13 @@ describe('ScoreTicker (faixa de placares para TV)', () => {
     expect(urls[0]).toMatch(/\/v1\/events\/live\?locale=es-AR/);
   });
 
+  it('em inglês pede locale=en à API (sem ele a API responde em pt-BR)', async () => {
+    const { fetchImpl } = setup(<ScoreTicker mode="live" />, { locale: 'en' });
+    await screen.findByText('2 – 1');
+    const urls = vi.mocked(fetchImpl).mock.calls.map((c) => String(c[0]));
+    expect(urls[0]).toMatch(/\/v1\/events\/live\?locale=en&/);
+  });
+
   it('ao vivo de todos os campeonatos antes dos encerrados, mesmo vindo depois no dia', async () => {
     const base = createPreviewFixtures(new Date()).events;
     const [live, , finished] = base as [GsEvent, GsEvent, GsEvent];
