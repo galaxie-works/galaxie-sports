@@ -41,6 +41,7 @@ import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { TransferMarketProps } from './widgets/transfer-market.js';
 import type { BracketProps } from './widgets/bracket.js';
 import type { ChannelGuideProps } from './widgets/channel-guide.js';
+import type { MatchStatsProps } from './widgets/match-stats.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -83,6 +84,7 @@ export interface WidgetPropsByKind {
   transfer_market: TransferMarketProps;
   bracket: BracketProps;
   channel_guide: ChannelGuideProps;
+  match_stats: MatchStatsProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -117,6 +119,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'CountryAthletes'
     | 'MedalHistory'
     | 'Sidelined'
+    | 'MatchStats'
     | 'ChampionsGallery'
     | 'Countdown'
     | 'TeamSquad'
@@ -689,6 +692,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { noc: 'BRA' },
     polling: false,
     sports: MULTISPORT_ONLY,
+  },
+  match_stats: {
+    kind: 'match_stats',
+    component: 'MatchStats',
+    registryComponent: 'GalaxieMatchStats',
+    name: { 'pt-BR': 'Estatísticas do jogo', es: 'Estadísticas del partido', en: 'Match stats' },
+    description: {
+      'pt-BR':
+        'Estatísticas da partida em barras lado a lado: posse, finalizações, escanteios, faltas e o que mais a API trouxer.',
+      es: 'Estadísticas del partido en barras lado a lado: posesión, remates, córners, faltas y lo que traiga la API.',
+      en: 'Side-by-side match stats bars: possession, shots, corners, fouls and whatever else the API provides.',
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['stats', 'limit', 'showTeams', 'showBars', 'highlightBest'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    polling: true,
+    // esportes coletivos: a API traz estatística por time quando o fornecedor tem; sem ela, estado vazio
+    sports: TEAM_SPORTS,
   },
   sidelined: {
     kind: 'sidelined',

@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
+  ChartNoAxesColumn,
   Clapperboard,
   ClipboardList,
   Dna,
@@ -119,6 +120,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   transfer_market: ArrowLeftRight,
   bracket: Network,
   channel_guide: MonitorPlay,
+  match_stats: ChartNoAxesColumn,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

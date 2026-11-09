@@ -104,6 +104,13 @@ export { EquestrianCalendar, type EquestrianCalendarProps } from './widgets/eque
 export { RiderProfile, type RiderProfileProps } from './widgets/rider-profile.js';
 export { HorseProfile, type HorseProfileProps } from './widgets/horse-profile.js';
 export { MedalTable, type MedalTableProps } from './widgets/medal-table.js';
+export {
+  MATCH_STATS_DEFAULT_ORDER,
+  MatchStats,
+  matchStatRows,
+  type MatchStatRow,
+  type MatchStatsProps,
+} from './widgets/match-stats.js';
 export { CountryToday, type CountryTodayProps } from './widgets/country-today.js';
 export { GamesSchedule, type GamesScheduleProps } from './widgets/games-schedule.js';
 export { CountryAthletes, type CountryAthletesProps } from './widgets/country-athletes.js';

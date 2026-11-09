@@ -54,6 +54,7 @@ const WIDGETS = {
   transfer_market: { file: 'src/widgets/transfer-market.tsx', component: 'TransferMarket' },
   bracket: { file: 'src/widgets/bracket.tsx', component: 'Bracket' },
   channel_guide: { file: 'src/widgets/channel-guide.tsx', component: 'ChannelGuide' },
+  match_stats: { file: 'src/widgets/match-stats.tsx', component: 'MatchStats' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

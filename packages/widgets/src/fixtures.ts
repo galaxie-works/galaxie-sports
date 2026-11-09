@@ -903,7 +903,9 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
     if (detail) {
       const found = f.events.find((e) => e.id === decodeURIComponent(detail[1]!));
       if (!found) return json({ type: 'about:blank', title: 'Evento não encontrado', status: 404 }, 404);
-      return json(sampleDetail(found, detail[2] as 'timeline' | 'stats' | 'lineups'));
+      return json(
+        sampleDetail(found, detail[2] as 'timeline' | 'stats' | 'lineups', url.searchParams.get('locale')),
+      );
     }
     if (/\/v1\/competitions\/[^/]+\/context$/.test(path)) {
       const leader = f.standings.groups[0]?.rows[0];
@@ -1031,8 +1033,21 @@ function teamResultOf(e: GsEvent, teamId: string): 'W' | 'D' | 'L' {
   return (mine ?? 0) > (theirs ?? 0) ? 'W' : mine === theirs ? 'D' : 'L';
 }
 
+/** Rótulos de exemplo das estatísticas [pt-BR, es, en]. */
+const STAT_LABELS: Record<string, [string, string, string]> = {
+  possession_pct: ['Posse de bola', 'Posesión', 'Ball possession'],
+  shots_total: ['Finalizações', 'Remates', 'Total shots'],
+  shots_on_goal: ['Finalizações no gol', 'Remates al arco', 'Shots on target'],
+  corners: ['Escanteios', 'Córners', 'Corners'],
+  fouls: ['Faltas', 'Faltas', 'Fouls'],
+  offsides: ['Impedimentos', 'Fueras de juego', 'Offsides'],
+  yellow_cards: ['Cartões amarelos', 'Tarjetas amarillas', 'Yellow cards'],
+  red_cards: ['Cartões vermelhos', 'Tarjetas rojas', 'Red cards'],
+  saves: ['Defesas', 'Atajadas', 'Saves'],
+};
+
 /** Gols nos minutos de exemplo, um "camisa 9" por time, posse e finalizações coerentes com o placar. */
-function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
+function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups', locale: string | null = null) {
   const sides = ['home', 'away'] as const;
   const teamOf = (side: 'home' | 'away') => {
     const p = e.participants.find((x) => x.side === side);
@@ -1041,16 +1056,26 @@ function sampleDetail(e: GsEvent, kind: 'timeline' | 'stats' | 'lineups') {
   if (kind === 'lineups') return sampleLineups(e);
   if (kind === 'stats') {
     const goals = [e.score.home ?? 0, e.score.away ?? 0];
+    // rótulo no idioma pedido, como a API devolve (sem `locale` = inglês)
+    const lang = locale?.startsWith('pt') ? 0 : locale?.startsWith('es') ? 1 : 2;
+    const labelled = (stats: { type: string; code: string; value: number | string | null }[]) =>
+      stats.map((x) => ({ ...x, label: STAT_LABELS[x.code]?.[lang] ?? x.type, source: 'provider' }));
     return {
       event_id: e.id,
       available: e.status !== 'scheduled',
       teams: sides.map((side, i) => ({
         team: teamOf(side),
-        statistics: [
+        statistics: labelled([
           { type: 'Ball Possession', code: 'possession_pct', value: i ? '46%' : '54%' },
           { type: 'Total Shots', code: 'shots_total', value: 8 + goals[i]! * 2 },
           { type: 'Shots on Goal', code: 'shots_on_goal', value: 2 + goals[i]! },
-        ],
+          { type: 'Corner Kicks', code: 'corners', value: i ? 3 : 6 },
+          { type: 'Fouls', code: 'fouls', value: i ? 14 : 11 },
+          { type: 'Offsides', code: 'offsides', value: i ? 1 : 2 },
+          { type: 'Yellow Cards', code: 'yellow_cards', value: i ? 3 : 2 },
+          { type: 'Red Cards', code: 'red_cards', value: null },
+          { type: 'Goalkeeper Saves', code: 'saves', value: 1 + goals[1 - i]! },
+        ]),
       })),
       players: [],
     };

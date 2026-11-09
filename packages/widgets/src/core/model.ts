@@ -46,6 +46,7 @@ export const WIDGET_KINDS = [
   'transfer_market',
   'bracket',
   'channel_guide',
+  'match_stats',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -779,7 +780,16 @@ export interface GsEventStats {
   available: boolean;
   teams: {
     team: { id: string | null; side: string | null };
-    statistics: { code: string | null; value: number | string | null }[];
+    statistics: {
+      code: string | null;
+      value: number | string | null;
+      /** `type` cru do fornecedor ("Ball Possession"). */
+      type?: string | undefined;
+      /** Rótulo no idioma da resposta. */
+      label?: string | undefined;
+      /** Valor numérico ("54%" → 54); null sem número. */
+      numeric?: number | null | undefined;
+    }[];
   }[];
 }
 
@@ -1835,6 +1845,12 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-statrow{display:grid;grid-template-columns:3em 1fr 3em;align-items:center;gap:8px;font-size:.85em;font-variant-numeric:tabular-nums}
 .gs-statrow>span:first-child{text-align:left}.gs-statrow>span:last-child{text-align:right}
 .gs-statrow>span:nth-child(2){text-align:center;color:var(--gs-muted-foreground)}
+.gs-mstats{display:flex;flex-direction:column;gap:calc(var(--gs-gap)*.75);margin:0;padding:0;list-style:none}
+.gs-mstat{display:flex;flex-direction:column;gap:4px}
+.gs-mstat .gs-bar{height:4px}
+.gs-mstat [data-best]{font-weight:800;color:var(--gs-primary)}
+.gs-mstats-teams{display:flex;justify-content:space-between;gap:var(--gs-gap);font-weight:700;font-size:.9em;min-width:0}
+.gs-mstats-team{display:flex;align-items:center;gap:6px;min-width:0}
 .gs-form{display:inline-flex;gap:2px}
 .gs-form .gs-result{min-width:16px;height:16px;font-size:.65em}
 .gs-highlight td{background:color-mix(in srgb,var(--gs-primary) 12%,transparent)}
@@ -1973,6 +1989,8 @@ export interface WidgetTexts {
   context: { title: string; scenario: string; recap: string; empty: string; aiNote: string };
   /** O que está em jogo: stakes, tags do torcedor e o grito da torcida. */
   stakes: { title: string; empty: string; cheer: string; derby: string };
+  /** Estatísticas do jogo (`/v1/events/{id}/stats`). */
+  matchStats: { title: string; empty: string; notStarted: string };
   /** Vídeos do jogo (conteúdo relacionado). "Assistir: {title}". */
   videos: { title: string; empty: string; play: string; close: string };
   /** Confronto direto. "{n} jogos desde {year}", "Histórico geral: {n} jogos". */
@@ -2537,6 +2555,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       cheer: 'Grito da torcida',
       derby: 'Clássico',
     },
+    matchStats: {
+      title: 'Estatísticas do jogo',
+      empty: 'Sem estatísticas para este jogo.',
+      notStarted: 'As estatísticas aparecem quando o jogo começar.',
+    },
     videos: {
       title: 'Vídeos do jogo',
       empty: 'Os vídeos deste jogo aparecem aqui assim que saírem.',
@@ -3089,6 +3112,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Nada decisivo en juego en este partido.',
       cheer: 'Grito de la hinchada',
       derby: 'Clásico',
+    },
+    matchStats: {
+      title: 'Estadísticas del partido',
+      empty: 'Sin estadísticas para este partido.',
+      notStarted: 'Las estadísticas aparecen cuando empiece el partido.',
     },
     videos: {
       title: 'Videos del partido',
@@ -3647,6 +3675,11 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Nothing decisive at stake in this match.',
       cheer: 'Fan chant',
       derby: 'Derby',
+    },
+    matchStats: {
+      title: 'Match stats',
+      empty: 'No stats for this match.',
+      notStarted: 'Stats appear once the match kicks off.',
     },
     videos: {
       title: 'Match videos',

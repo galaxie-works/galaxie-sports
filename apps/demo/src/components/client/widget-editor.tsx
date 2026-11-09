@@ -10,6 +10,7 @@ import {
   MatchCard,
   MatchStakes,
   MatchTimeline,
+  MatchStats,
   RelatedVideos,
   ScoreTicker,
   StandingsTable,
@@ -300,6 +301,8 @@ function PreviewWidget({
         return <Bracket {...WIDGET_CATALOG.bracket.exampleProps} {...o} />;
       case 'channel_guide':
         return <ChannelGuidePreview o={o} sport={sport} />;
+      case 'match_stats':
+        return <MatchStats {...o} {...WIDGET_CATALOG.match_stats.exampleProps} />;
     }
   }
   switch (kind) {
@@ -373,6 +376,8 @@ function PreviewWidget({
       );
     case 'bracket':
       return <Bracket season="current" {...o} competitionId={entity.id} />;
+    case 'match_stats':
+      return <MatchStats {...o} eventId={entity.id} />;
     // hipismo e Jogos não têm entidade: a escolha fica nas opções
     case 'equestrian_results':
     case 'equestrian_ranking':

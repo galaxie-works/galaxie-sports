@@ -323,6 +323,9 @@ export default defineMessages(
         noChannels:
           'Sua lista de canais ainda não foi confirmada. Envie e confirme em Minha lista de canais para a grade aparecer e para escolher os canais aqui.',
         channelsLimit: 'Limite de 200 canais marcados.',
+        order: 'Ordem no widget',
+        moveUp: 'Subir {item}',
+        moveDown: 'Descer {item}',
       },
       zones: {
         title: 'Zonas da tabela',
@@ -746,6 +749,9 @@ export default defineMessages(
           noChannels:
             'Your channel list is not confirmed yet. Upload and confirm it under My channel list to show the guide and pick channels here.',
           channelsLimit: 'Up to 200 channels can be ticked.',
+          order: 'Order in the widget',
+          moveUp: 'Move {item} up',
+          moveDown: 'Move {item} down',
         },
         zones: {
           title: 'Table zones',
@@ -1180,6 +1186,9 @@ export default defineMessages(
           noChannels:
             'Tu lista de canales todavía no fue confirmada. Envíala y confírmala en Mi lista de canales para que aparezca la grilla y elegir los canales aquí.',
           channelsLimit: 'Hasta 200 canales marcados.',
+          order: 'Orden en el widget',
+          moveUp: 'Subir {item}',
+          moveDown: 'Bajar {item}',
         },
         zones: {
           title: 'Zonas de la tabla',
