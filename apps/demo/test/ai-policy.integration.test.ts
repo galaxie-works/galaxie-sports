@@ -123,10 +123,13 @@ describe('Política de IA no painel', () => {
 
   it('budget_skipped conta como sucesso; o gasto do dia sai por faixa e pelo dia de orçamento', async () => {
     const now = new Date('2026-10-26T15:00:00Z'); // 12:00 em Brasília: dia de orçamento 26
+    // a leitura dos jobs olha 14 dias para trás no relógio do banco: datas fixas vencem sozinhas
+    const skippedAt = new Date(Date.now() - 3_600_000);
+    const erroredAt = new Date(Date.now() - 2 * 3_600_000);
     await sql.query(
       `insert into ops.job_run (job, status, started_at, finished_at) values
          ('recap-run', 'error', $1, $1), ('recap-run', 'budget_skipped', $2, $2)`,
-      [new Date('2026-10-26T13:00:00Z'), new Date('2026-10-26T14:00:00Z')],
+      [erroredAt, skippedAt],
     );
     await sql.query(
       `insert into ops.llm_usage (day_utc, budget_day, band, agent, purpose, provider, model, tier, cost_usd, outcome)
@@ -135,7 +138,7 @@ describe('Política de IA no painel', () => {
               ('2026-10-26', null, null, 'wtw', 'wtw:x', 'gemini', 'm', 'research', 0.5, 'ok')`,
     );
     const snap = await data.readOpsSnapshot(now);
-    expect(snap.jobs.find((j) => j.name === 'recap-run')!.lastOkAt).toBe('2026-10-26T14:00:00.000Z');
+    expect(snap.jobs.find((j) => j.name === 'recap-run')!.lastOkAt).toBe(skippedAt.toISOString());
     expect(snap.llm.budgetDay).toBe('2026-10-26');
     expect(snap.llm.bands.find((b) => b.band === 'p0')).toMatchObject({ usedUsd: 1.25, limitUsd: 5.5 });
     expect(snap.llm.bands.find((b) => b.band === 'p1')).toMatchObject({ usedUsd: 0 });

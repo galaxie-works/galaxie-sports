@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { WIDGET_CATALOG } from './catalog.js';
-import { DEFAULT_THEMES, type GsChannelGuide, type GsEvent } from './core/model.js';
+import { DEFAULT_THEMES, WIDGET_CSS, type GsChannelGuide, type GsEvent } from './core/model.js';
 import { GalaxieWidgetProvider } from './core/react.js';
 import { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures } from './fixtures.js';
 import { optionProps, parseChannelNames, parseWidgetOptions, publicWidgetOptions } from './options.js';
@@ -107,6 +107,15 @@ describe('grade nos canais do cliente', () => {
     cleanup();
     setup(<ChannelGuide widgetId="w" day="tomorrow" />, guideFetch({ date: '2099-01-01' }));
     expect(await screen.findByText('Nenhum jogo nos seus canais neste dia.')).toBeTruthy();
+  });
+
+  it('escala para TV: a hora da grade e a coluna dela multiplicadas por --gs-scale', () => {
+    expect(WIDGET_CSS).toContain(
+      '[data-gs-widget=channel_guide] .gs-row{grid-template-columns:calc(var(--gs-scale,1)*64px) 1fr}',
+    );
+    expect(WIDGET_CSS).toContain(
+      '[data-gs-widget=channel_guide] .gs-group-title time,[data-gs-widget=channel_guide] .gs-row-status time{font-size:calc(var(--gs-scale,1)*1em)}',
+    );
   });
 
   it('prévia do Builder: os jogos de exemplo em canais fictícios', async () => {
