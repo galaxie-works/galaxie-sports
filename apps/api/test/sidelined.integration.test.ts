@@ -347,6 +347,18 @@ async function seed() {
     id: 73,
     season: 2026,
   });
+  await game('jaIniciado', 9010, '2026-11-05T19:00:00Z', eclipse!.id, farol!.id, { id: 74, season: 2026 });
+  // jogo já iniciado: a da liga (mais antiga) traz o jogo; a do dia (mais nova) não traz mais
+  await insertRaw(
+    { league: '74', season: '2026' },
+    [{ ...injury(403, 'E. Volante', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9010 } }],
+    new Date('2026-11-02T06:00:00Z'),
+  );
+  await insertRaw(
+    { date: '2026-11-05' },
+    [{ ...injury(995, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 7654 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
   await game('listaDeUmTime', 9007, '2026-11-13T19:00:00Z', eclipse!.id, farol!.id);
   await game('listaVazia', 9008, '2026-11-14T19:00:00Z', eclipse!.id, farol!.id);
   await game('respostaComErro', 9009, '2026-11-15T19:00:00Z', eclipse!.id, farol!.id);
@@ -501,10 +513,18 @@ describe('disponibilidade', () => {
     expect(away).toMatchObject({ team: { id: ids.farol }, available: true, players: [] });
   });
 
-  it('a resposta mais recente sem o jogo derruba a mais antiga com ele: fica desconhecido, sem lista velha', async () => {
+  it('jogo futuro: a resposta mais recente sem o jogo derruba a mais antiga com ele e fica desconhecido', async () => {
     const body = await get<EventSidelined>(`/v1/events/${ids.listaVencida}/sidelined`);
     expect(body.available).toBe(false);
     expect(body.teams.flatMap((t) => t.players)).toEqual([]);
+  });
+
+  it('jogo já iniciado: a resposta mais recente sem o jogo não apaga a última foto dele', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.jaIniciado}/sidelined`);
+    expect(body.available).toBe(true);
+    const [home, away] = body.teams;
+    expect(home).toMatchObject({ available: true, players: [{ person: { name: 'E. Volante' } }] });
+    expect(away).toMatchObject({ team: { id: ids.farol }, available: true, players: [] });
   });
 
   it('resposta do fornecedor com erro não conta como lista publicada', async () => {

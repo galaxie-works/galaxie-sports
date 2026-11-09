@@ -152,22 +152,25 @@ async function fixtureInjuries(
   fixturePid: number,
   eventDay: string,
   league: { id: string; season: string } | null,
+  started: boolean,
 ): Promise<{ found: boolean; items: ApiInjury[] }> {
   const leagueCond = league
     ? sql`or (r.params->>'league' = ${league.id} and r.params->>'season' = ${league.season})`
     : sql``;
+  const listedCond = sql`(latest.params->>'fixture' is not null
+            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
+                        where (x->'fixture'->>'id') = ${String(fixturePid)}))`;
   // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
   // liga na temporada. Vale só a resposta bem-sucedida mais recente entre elas, inteira: a lista refeita tira quem
   // voltou (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
   // resposta vazia só vale na requisição do próprio jogo (a lista saiu e não tem ninguém). As do dia e da liga não:
   // elas trazem só os jogos com lista (e só das ligas com cobertura de lesões), então sem nenhum item do jogo não
-  // afirmam "ninguém fora". Mas a mais recente decide mesmo assim: sem o jogo, a lista mais antiga deixou de valer
-  // e o jogo fica sem lista (desconhecido), em vez de mostrar como atual quem pode já ter voltado.
+  // afirmam "ninguém fora". Antes do início, a mais recente decide mesmo assim: sem o jogo, a lista mais antiga
+  // deixou de valer e o jogo fica sem lista (desconhecido), em vez de mostrar como atual quem pode já ter voltado.
+  // Depois do início, vale a mais recente que contém o jogo (a última foto dele): o fornecedor tira dessas listas
+  // o jogo já disputado, e essa ausência não diz nada sobre quem estava fora.
   const [snap] = await db.execute<{ id: number; listed: boolean }>(sql`
-    select latest.id,
-           (latest.params->>'fixture' is not null
-            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
-                        where (x->'fixture'->>'id') = ${String(fixturePid)})) as listed
+    select latest.id, ${listedCond} as listed
       from (select distinct on (r.request_hash) r.id, r.params, r.body,
                    coalesce(r.last_seen_at, r.fetched_at) as seen
               from raw.api_response r
@@ -178,6 +181,7 @@ async function fixtureInjuries(
                     ${leagueCond})
              order by r.request_hash, r.fetched_at desc) latest
      where jsonb_typeof(latest.body->'response') = 'array'
+       ${started ? sql`and ${listedCond}` : sql``}
      order by latest.seen desc
      limit 1`);
   if (!snap?.listed) return { found: false, items: [] };
@@ -356,6 +360,7 @@ export async function loadEventSidelined(
         league?.id != null && league.season != null
           ? { id: String(league.id), season: String(league.season) }
           : null,
+        head.startsAt <= c.now,
       )
     : { found: false, items: [] };
   const players = await build(
@@ -428,6 +433,7 @@ export async function loadTeamSidelined(
       league?.id != null && league.season != null
         ? { id: String(league.id), season: String(league.season) }
         : null,
+      next.startsAt <= c.now,
     );
     listed = found.found;
     items = found.items.filter((i) => teamPid !== null && String(i.team?.id ?? '') === teamPid);
