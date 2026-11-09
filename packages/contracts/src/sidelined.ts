@@ -65,12 +65,17 @@ export const EventSidelined = z
     event_id: z.uuid(),
     available: z.boolean().meta({
       description:
-        'false quando não há lista do fornecedor para o jogo nem histórico dos elencos (desfalques desconhecidos, ' +
-        'não "nenhum desfalque").',
+        'false quando não há lista do fornecedor para o jogo nem afastamento em aberto em nenhum dos elencos ' +
+        '(desfalques desconhecidos, não "nenhum desfalque").',
     }),
     teams: z.array(
       z.object({
         team: SidelinedTeamRef,
+        available: z.boolean().meta({
+          description:
+            'false quando não há lista do fornecedor para o jogo nem afastamento em aberto neste time: `players` ' +
+            'vazio aqui é desconhecido, não "nenhum desfalque".',
+        }),
         players: z.array(SidelinedPlayer),
       }),
     ),
@@ -84,8 +89,8 @@ export const TeamSidelined = z
     as_of: z.iso.date().meta({ description: 'Data de referência (hoje, UTC).' }),
     available: z.boolean().meta({
       description:
-        'false quando não há lista do fornecedor para o próximo jogo nem histórico do elenco (desfalques ' +
-        'desconhecidos, não "nenhum desfalque").',
+        'false quando não há lista do fornecedor para o próximo jogo nem afastamento em aberto no elenco ' +
+        '(desfalques desconhecidos, não "nenhum desfalque").',
     }),
     next_event_id: z
       .uuid()

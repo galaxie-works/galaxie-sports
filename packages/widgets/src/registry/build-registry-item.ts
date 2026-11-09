@@ -143,6 +143,7 @@ function defaultProps(
     case 'lineups':
     case 'match_prediction':
     case 'match_odds':
+    case 'match_stats':
       return pick(['eventId']);
     case 'team_schedule':
     case 'team_card':

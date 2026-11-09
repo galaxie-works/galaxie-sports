@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { loadCompetitionRules } from '@galaxie/rules/config';
-import { buildBracket, buildTie, tieRulesOf, type BracketMatch, type BracketStage } from './bracket.js';
+import {
+  buildBracket,
+  buildTie,
+  tieRulesOf,
+  UNPLAYED_GRACE_MS,
+  type BracketMatch,
+  type BracketStage,
+} from './bracket.js';
 
 const RULES_DIR = fileURLToPath(new URL('../../../../config/rules', import.meta.url));
 
@@ -274,6 +281,86 @@ describe('chaveamento do mata-mata', () => {
     });
     expect(rounds[0]!.ties[0]).toMatchObject({ status: 'decided', winner_id: 'a' });
     expect(rounds[0]!.ties[0]!.legs).toHaveLength(2);
+  });
+
+  describe('série sem regulamento: quando o jogo que sobra conta como não disputado', () => {
+    const basket = { ...opts, sport: 'basketball' };
+    const game5At = day(8).getTime();
+    const afterGame5 = (ms: number) => new Date(game5At + ms);
+    /** 3×1 numa melhor de 7 listada aos poucos, com só o jogo 5 listado. */
+    const threeToOne = (status: BracketMatch['status']) => [
+      match('h1', 'p', 'a', 'b', 0, [100, 90]),
+      match('h2', 'p', 'a', 'b', 2, [100, 90]),
+      match('h3', 'p', 'b', 'a', 4, [100, 90]),
+      match('h4', 'p', 'b', 'a', 6, [80, 90]),
+      match('h5', 'p', 'a', 'b', 8, null, { status }),
+    ];
+    const open = { status: 'in_progress', winner_id: null, wins: { home: 3, away: 1 } };
+
+    it('jogo 5 recém-passado do horário em scheduled: não decide', () => {
+      expect(buildTie('p', threeToOne('scheduled'), { ...basket, now: afterGame5(60_000) })).toMatchObject(
+        open,
+      );
+      expect(
+        buildTie('p', threeToOne('scheduled'), { ...basket, now: afterGame5(UNPLAYED_GRACE_MS) }),
+      ).toMatchObject(open);
+    });
+
+    it.each(['starting', 'postponed'] as const)(
+      'jogo 5 em %s: não decide, nem bem depois do horário',
+      (s) => {
+        expect(buildTie('p', threeToOne(s), { ...basket, now: afterGame5(60_000) })).toMatchObject(open);
+        expect(buildTie('p', threeToOne(s), { ...basket, now: day(30) })).toMatchObject(open);
+      },
+    );
+
+    it('jogo 5 em scheduled além da margem: conta como não disputado e fecha a série', () => {
+      const closed = { status: 'decided', winner_id: 'a', wins: { home: 3, away: 1 } };
+      expect(
+        buildTie('p', threeToOne('scheduled'), { ...basket, now: afterGame5(UNPLAYED_GRACE_MS + 1) }),
+      ).toMatchObject(closed);
+      expect(buildTie('p', threeToOne('scheduled'), { ...basket, now: day(30) })).toMatchObject(closed);
+    });
+
+    // outra série da fase em aberto: sem ela, a fase encerrada fecharia o confronto por outro caminho
+    const bracketOf = (matches: BracketMatch[], now: Date) =>
+      buildBracket({
+        sport: 'basketball',
+        stages: [stage('sf', 'semi_final', 11000)],
+        matches: [...matches, match('other', 'sf', 'c', 'd', 40, null)],
+        participants,
+        locale: 'pt-BR',
+        tz: 'UTC',
+        now,
+      })[0]!.ties.find((t) => t.home?.id === 'a')!;
+
+    it('jogo cancelado e recriado com outro id, já disputado: não conta como "se necessário"', () => {
+      const tie = bracketOf(
+        [
+          match('g1', 'sf', 'a', 'b', 0, [100, 90]),
+          match('g2-old', 'sf', 'a', 'b', 2, null, { status: 'cancelled' }),
+          match('g2-new', 'sf', 'a', 'b', 3, [100, 90]),
+          match('g3', 'sf', 'b', 'a', 4, [100, 90]),
+          match('g4', 'sf', 'b', 'a', 6, [80, 90]),
+        ],
+        day(30),
+      );
+      expect(tie).toMatchObject(open);
+    });
+
+    it('jogo cancelado e recriado com outro id no mesmo horário: não conta como "se necessário"', () => {
+      const tie = bracketOf(
+        [
+          match('g1', 'sf', 'a', 'b', 0, [100, 90]),
+          match('g2', 'sf', 'a', 'b', 2, [100, 90]),
+          match('g3', 'sf', 'b', 'a', 4, [80, 90]),
+          match('g4-old', 'sf', 'b', 'a', 6, null, { status: 'cancelled' }),
+          match('g4-new', 'sf', 'b', 'a', 6, null),
+        ],
+        day(30),
+      );
+      expect(tie).toMatchObject({ status: 'in_progress', winner_id: null, wins: { home: 3, away: 0 } });
+    });
   });
 
   describe('desempates do regulamento (config/rules)', () => {

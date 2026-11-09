@@ -68,6 +68,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   transfer_market: ['core_data'],
   bracket: ['core_data'],
   channel_guide: ['core_data', 'where_to_watch'],
+  match_stats: ['core_data'],
   // clássicos (base semântica) com o retrospecto e onde assistir de cada jogo
   upcoming_derbies: ['core_data', 'semantic', 'where_to_watch'],
 };

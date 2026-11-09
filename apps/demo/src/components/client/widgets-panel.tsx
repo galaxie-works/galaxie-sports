@@ -9,6 +9,7 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarRange,
+  ChartNoAxesColumn,
   Clapperboard,
   ClipboardList,
   Dna,
@@ -120,6 +121,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   transfer_market: ArrowLeftRight,
   bracket: Network,
   channel_guide: MonitorPlay,
+  match_stats: ChartNoAxesColumn,
   upcoming_derbies: Flame,
 };
 

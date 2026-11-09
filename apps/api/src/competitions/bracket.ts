@@ -143,6 +143,21 @@ const ROUND_WORD: Record<string, string> = { 'pt-BR': 'Rodada', es: 'Ronda', en:
 
 const started = (m: BracketMatch) => m.status === 'finished' || IN_PLAY.includes(m.status);
 
+/**
+ * Folga depois do horário antes de tratar um jogo ainda `scheduled` como não disputado (o "se necessário" que a
+ * série dispensou). Cobre o jogo inteiro com prorrogação, um início atrasado e a demora da fonte em trocar o
+ * status, para um jogo acontecendo agora não fechar a série; e fica abaixo do dia que costuma separar dois jogos
+ * da série. Errar para mais só adia o "decidido" por algumas horas; errar para menos publica um vencedor errado.
+ */
+export const UNPLAYED_GRACE_MS = 12 * 3600_000;
+
+/**
+ * Cancelado que conta no tamanho da série como "se necessário" dispensado. O que foi recriado com outro id não
+ * conta: fica antes de (ou junto com) um jogo já iniciado, ou no mesmo horário de um jogo ainda por jogar.
+ */
+const isDismissedLeg = (cancelledAt: number, legs: BracketMatch[]) =>
+  legs.every((l) => (started(l) ? l.startsAt.getTime() < cancelledAt : l.startsAt.getTime() !== cancelledAt));
+
 /** Rótulo da fase sem o número da semana/rodada ("Play-offs - 3" → "Play-offs"). */
 const baseLabel = (label: string | null) => (label ?? '').replace(/\s+-\s+\d+$/, '').trim();
 /** Nome sem o sufixo de rodada ("Playoffs · Rodada 3" → "Playoffs"). */
@@ -247,15 +262,21 @@ export function buildTie(
       else if (w === away) wins.away!++;
     }
     const lead = Math.max(wins.home!, wins.away!);
-    // melhor de N: pelo regulamento; sem ele, pelos jogos do par (N ímpar) só quando os que sobram já passaram
-    // do horário sem ser jogados ou foram cancelados, sinal de que a série acabou. Um jogo futuro pode ser só o
-    // próximo de uma série maior listada aos poucos (3×1 com só o jogo 5 listado não fecha a melhor de 7). Jogos
-    // "se necessário" não seguram a série: 4 vitórias fecham a melhor de 7 na hora. O resto fecha com a fase
-    // encerrada ou quando o time aparece na fase seguinte (`advanceFromNextRounds`)
+    // melhor de N: pelo regulamento; sem ele, pelos jogos do par (N ímpar) só quando os que sobram seguem
+    // `scheduled` além da margem (`UNPLAYED_GRACE_MS`) ou foram cancelados, sinal de que a série acabou. Um jogo
+    // futuro, prestes a começar ou adiado pode ser só o próximo de uma série maior listada aos poucos (3×1 com só
+    // o jogo 5 listado não fecha a melhor de 7). Jogos "se necessário" não seguram a série: 4 vitórias fecham a
+    // melhor de 7 na hora. O resto fecha com a fase encerrada ou quando o time aparece na fase seguinte
+    // (`advanceFromNextRounds`)
     const cancelled = opts.cancelledLegs ?? 0;
     const n = legs.length + cancelled;
     const pending = legs.filter((l) => !started(l));
-    const overdue = pending.every((l) => !!opts.now && l.startsAt.getTime() < opts.now.getTime());
+    const overdue = pending.every(
+      (l) =>
+        l.status === 'scheduled' &&
+        !!opts.now &&
+        l.startsAt.getTime() + UNPLAYED_GRACE_MS < opts.now.getTime(),
+    );
     const listed = n % 2 === 1 && n >= 3 && pending.length + cancelled > 0 && overdue ? n : null;
     const bestOf = expectedLegs ?? listed;
     const needed = bestOf ? Math.floor(bestOf / 2) + 1 : null;
@@ -345,13 +366,13 @@ export function buildBracket(input: BuildBracketInput): Round[] {
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }
   const matchesByStage = new Map<string, BracketMatch[]>();
-  // jogos cancelados de cada par (por fase): ficam fora do confronto, mas contam no tamanho da série
-  const cancelledBy = new Map<string, number>();
+  // horário dos jogos cancelados de cada par (por fase): ficam fora do confronto, mas contam no tamanho da série
+  const cancelledBy = new Map<string, number[]>();
   for (const m of input.matches) {
     if (!m.homeId || !m.awayId) continue;
     if (m.status === 'cancelled') {
       const k = `${m.stageId}|${pairKey(m.homeId, m.awayId)}`;
-      cancelledBy.set(k, (cancelledBy.get(k) ?? 0) + 1);
+      cancelledBy.set(k, [...(cancelledBy.get(k) ?? []), m.startsAt.getTime()]);
       continue;
     }
     matchesByStage.set(m.stageId, [...(matchesByStage.get(m.stageId) ?? []), m]);
@@ -397,7 +418,9 @@ export function buildBracket(input: BuildBracketInput): Round[] {
           rules,
           stageDone,
           ...(input.now ? { now: input.now } : {}),
-          cancelledLegs: group.reduce((sum, st) => sum + (cancelledBy.get(`${st.id}|${k}`) ?? 0), 0),
+          cancelledLegs: group
+            .flatMap((st) => cancelledBy.get(`${st.id}|${k}`) ?? [])
+            .filter((at) => isDismissedLeg(at, legs)).length,
         }),
       );
       let kind = head.kind;
