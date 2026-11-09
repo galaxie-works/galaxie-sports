@@ -157,27 +157,30 @@ async function fixtureInjuries(
     ? sql`or (r.params->>'league' = ${league.id} and r.params->>'season' = ${league.season})`
     : sql``;
   // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
-  // liga na temporada. Vale só a resposta mais recente entre elas, inteira: a lista refeita tira quem voltou
-  // (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
+  // liga na temporada. Vale só a resposta bem-sucedida mais recente entre elas, inteira: a lista refeita tira quem
+  // voltou (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
   // resposta vazia só vale na requisição do próprio jogo (a lista saiu e não tem ninguém). As do dia e da liga não:
   // elas trazem só os jogos com lista (e só das ligas com cobertura de lesões), então sem nenhum item do jogo não
-  // dizem nada sobre ele.
-  const [snap] = await db.execute<{ id: number }>(sql`
-    select latest.id
+  // afirmam "ninguém fora". Mas a mais recente decide mesmo assim: sem o jogo, a lista mais antiga deixou de valer
+  // e o jogo fica sem lista (desconhecido), em vez de mostrar como atual quem pode já ter voltado.
+  const [snap] = await db.execute<{ id: number; listed: boolean }>(sql`
+    select latest.id,
+           (latest.params->>'fixture' is not null
+            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
+                        where (x->'fixture'->>'id') = ${String(fixturePid)})) as listed
       from (select distinct on (r.request_hash) r.id, r.params, r.body,
                    coalesce(r.last_seen_at, r.fetched_at) as seen
               from raw.api_response r
              where r.provider = ${PROVIDER} and r.sport = 'football' and r.endpoint = '/injuries'
+               and r.status_code between 200 and 299
+               and (r.errors is null or r.errors in ('[]'::jsonb, '{}'::jsonb))
                and (r.params->>'fixture' = ${String(fixturePid)} or r.params->>'date' = ${eventDay}
                     ${leagueCond})
              order by r.request_hash, r.fetched_at desc) latest
      where jsonb_typeof(latest.body->'response') = 'array'
-       and (latest.params->>'fixture' is not null
-            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
-                        where (x->'fixture'->>'id') = ${String(fixturePid)}))
      order by latest.seen desc
      limit 1`);
-  if (!snap) return { found: false, items: [] };
+  if (!snap?.listed) return { found: false, items: [] };
   const rows = await db.execute<{ item: ApiInjury }>(sql`
     select x as item
       from raw.api_response r
@@ -206,19 +209,16 @@ async function historyFresh(db: Database, now: Date): Promise<boolean> {
 }
 
 /**
- * Afastamentos do histórico em aberto na data, dos jogadores do elenco atual; e se há histórico para eles.
- * Histórico parado (sem consulta recente ao fornecedor) não entra: nem os afastamentos, nem a cobertura.
+ * Afastamentos do histórico em aberto na data, dos jogadores do elenco atual. Histórico parado (sem consulta
+ * recente ao fornecedor) não entra. Linha encerrada não é cobertura: não diz nada sobre o jogo nem sobre o elenco.
  */
 async function historyOn(
   db: Database,
   personIds: string[],
   onDay: string,
   now: Date,
-): Promise<{
-  covered: boolean;
-  rows: { personId: string; type: string; start: string | null; end: string | null }[];
-}> {
-  if (!personIds.length || !(await historyFresh(db, now))) return { covered: false, rows: [] };
+): Promise<{ personId: string; type: string; start: string | null; end: string | null }[]> {
+  if (!personIds.length || !(await historyFresh(db, now))) return [];
   const all = await db
     .select({
       personId: personSidelined.personId,
@@ -235,7 +235,7 @@ async function historyOn(
     const prev = best.get(r.personId);
     if (!prev || (r.end ?? '9999') > (prev.end ?? '9999')) best.set(r.personId, r);
   }
-  return { covered: all.length > 0, rows: [...best.values()] };
+  return [...best.values()];
 }
 
 /**
@@ -263,7 +263,7 @@ async function build(c: SidelinedContext, teamIds: string[], injuries: ApiInjury
     c.now,
   );
   const info = await peopleInfo(c, [
-    ...new Set([...personByPid.values(), ...history.rows.map((h) => h.personId)]),
+    ...new Set([...personByPid.values(), ...history.map((h) => h.personId)]),
   ]);
   const lang = c.names.locale;
 
@@ -292,7 +292,7 @@ async function build(c: SidelinedContext, teamIds: string[], injuries: ApiInjury
       source: 'match',
     });
   }
-  for (const h of history.rows) {
+  for (const h of history) {
     const r = rosterOf.get(h.personId);
     const p = info.get(h.personId);
     if (!r || !p) continue;
@@ -309,10 +309,7 @@ async function build(c: SidelinedContext, teamIds: string[], injuries: ApiInjury
       source: 'history',
     });
   }
-  return {
-    covered: history.covered,
-    players: new Map([...byTeam].map(([t, lists]) => [t, mergeSidelined(lists)])),
-  };
+  return new Map([...byTeam].map(([t, lists]) => [t, mergeSidelined(lists)]));
 }
 
 /** `GET /v1/events/{id}/sidelined`. */
@@ -340,7 +337,7 @@ export async function loadEventSidelined(
     return {
       event_id: head.id,
       available: false,
-      teams: teams.map((s) => ({ team: teamRef(s), players: [] })),
+      teams: teams.map((s) => ({ team: teamRef(s), available: false, players: [] })),
     };
 
   const [fx] = await c.db
@@ -361,16 +358,20 @@ export async function loadEventSidelined(
           : null,
       )
     : { found: false, items: [] };
-  const built = await build(
+  const players = await build(
     c,
     teams.map((s) => s.id),
     injuries.items,
     eventDay,
   );
+  const playersOf = (id: string) => players.get(id) ?? [];
+  // Cobertura real: a lista do fornecedor vale para os dois times do jogo; sem ela, só tem o que dizer o time com
+  // afastamento em aberto. O adversário sem dado continua desconhecido, não "nenhum desfalque".
+  const covered = (id: string) => injuries.found || playersOf(id).length > 0;
   return {
     event_id: head.id,
-    available: injuries.found || built.covered,
-    teams: teams.map((s) => ({ team: teamRef(s), players: built.players.get(s.id) ?? [] })),
+    available: teams.some((s) => covered(s.id)),
+    teams: teams.map((s) => ({ team: teamRef(s), available: covered(s.id), players: playersOf(s.id) })),
   };
 }
 
@@ -431,11 +432,11 @@ export async function loadTeamSidelined(
     listed = found.found;
     items = found.items.filter((i) => teamPid !== null && String(i.team?.id ?? '') === teamPid);
   }
-  const built = await build(c, [team.id], items, today);
+  const players = (await build(c, [team.id], items, today)).get(team.id) ?? [];
   return {
     ...base,
-    available: listed || built.covered,
+    available: listed || players.length > 0,
     next_event_id: next?.id ?? null,
-    players: built.players.get(team.id) ?? [],
+    players,
   };
 }

@@ -84,6 +84,57 @@ describe('Sidelined', () => {
     expect(await screen.findByText('La lista de bajas todavía no salió.')).toBeTruthy();
   });
 
+  it('por jogo: o time sem cobertura fica desconhecido, sem esconder o desfalque do outro', async () => {
+    const team = (id: string, side: 'home' | 'away') => ({ id, name: id, side, logo: null });
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      json({
+        event_id: 'x',
+        available: true,
+        teams: [
+          {
+            team: team('Aurora', 'home'),
+            available: true,
+            players: [
+              {
+                person: { id: 'p', name: 'Bruno Zagueiro', photo: null },
+                position: null,
+                number: null,
+                status: 'out',
+                category: 'injury',
+                reason: 'Knee Injury',
+                reason_label: 'Lesão no joelho',
+                since: null,
+                until: null,
+                source: 'history',
+              },
+            ],
+          },
+          { team: team('Boreal', 'away'), available: false, players: [] },
+        ],
+      }),
+    );
+    setup(<Sidelined eventId="x" />, { fetchImpl });
+    expect(await screen.findByText('Bruno Zagueiro')).toBeTruthy();
+    expect(screen.getByText('A lista de desfalques ainda não saiu.')).toBeTruthy();
+    expect(screen.queryByText('Nenhum desfalque informado.')).toBeNull();
+  });
+
+  it('por jogo: lista publicada e vazia continua dizendo "nenhum desfalque"', async () => {
+    const team = (id: string, side: 'home' | 'away') => ({ id, name: id, side, logo: null });
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      json({
+        event_id: 'x',
+        available: true,
+        teams: [
+          { team: team('Aurora', 'home'), available: true, players: [] },
+          { team: team('Boreal', 'away'), available: true, players: [] },
+        ],
+      }),
+    );
+    setup(<Sidelined eventId="x" />, { fetchImpl, locale: 'en' });
+    expect(await screen.findAllByText('No absences reported.')).toHaveLength(2);
+  });
+
   it('time sem desfalques e sem entidade escolhida', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () =>
       json({
