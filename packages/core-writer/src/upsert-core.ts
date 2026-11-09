@@ -330,7 +330,12 @@ export async function upsertBatchInTx(
       slug:
         batch.sport === 'football'
           ? `${prefix}${slugify(countryName)}-${slugify(c.name)}-${slugify(c.id)}`
-          : await uniqueCompetitionSlug(tx, `${prefix}${competitionSlugBase(countryName, c.name)}`, batch.sport, c.id),
+          : await uniqueCompetitionSlug(
+              tx,
+              `${prefix}${competitionSlugBase(countryName, c.name)}`,
+              batch.sport,
+              c.id,
+            ),
       name: c.name,
       countryCode: await refs.countryCode(c.countryCode, c.countryName),
       type: c.type,

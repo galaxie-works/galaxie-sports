@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { competition, type Database } from '@galaxie/db';
 import { slugify } from './slug.js';
 
@@ -20,14 +20,17 @@ export function competitionSlugBase(country: string, name: string): string {
 
 /**
  * Primeiro slug livre entre `base`, `base-esporte` e `base-esporte-id`. A checagem é entre todos os
- * esportes porque a API e o site acham a competição só pelo slug, sem o esporte.
+ * esportes porque a API e o site acham a competição só pelo slug, sem o esporte. O índice do banco é por
+ * esporte e não barra isso, e os jobs de catálogo rodam em paralelo: o lock vale até o fim da transação, então
+ * chame dentro da transação que insere a competição.
  */
 export async function uniqueCompetitionSlug(
-  db: Pick<Database, 'select'>,
+  db: Pick<Database, 'select' | 'execute'>,
   base: string,
   sport: string,
   providerId: string,
 ): Promise<string> {
+  await db.execute(sql`select pg_advisory_xact_lock(hashtext('core.competition.slug'))`);
   const last = `${base}-${sport}-${slugify(providerId)}`;
   for (const candidate of [base, `${base}-${sport}`]) {
     const [taken] = await db

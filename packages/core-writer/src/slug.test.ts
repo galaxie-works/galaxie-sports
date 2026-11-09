@@ -19,7 +19,9 @@ describe('competitionSlugBase', () => {
 
   it('não repete o trecho comum entre país e nome', () => {
     expect(competitionSlugBase('World', 'World Cup')).toBe('world-cup');
-    expect(competitionSlugBase('Asia', 'Asia Professional Championship')).toBe('asia-professional-championship');
+    expect(competitionSlugBase('Asia', 'Asia Professional Championship')).toBe(
+      'asia-professional-championship',
+    );
     expect(competitionSlugBase('Australia-Oceania', 'Oceania Sevens Championships')).toBe(
       'australia-oceania-sevens-championships',
     );
