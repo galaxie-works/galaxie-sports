@@ -280,6 +280,133 @@ async function seed() {
     ],
     new Date('2026-11-06T06:00:00Z'),
   );
+
+  // Cobertura: Eclipse só tem histórico encerrado, Galáxia tem afastamento em aberto, Farol não tem dado nenhum.
+  const [eclipse, farol, galaxia] = await db
+    .insert(participant)
+    .values([
+      { sport: 'football', kind: 'club', name: 'Eclipse', countryCode: 'BR' },
+      { sport: 'football', kind: 'club', name: 'Farol', countryCode: 'BR' },
+      { sport: 'football', kind: 'club', name: 'Galáxia', countryCode: 'BR' },
+    ])
+    .returning();
+  ids.eclipse = eclipse!.id;
+  ids.farol = farol!.id;
+  ids.galaxia = galaxia!.id;
+  const [elias, gil] = await db
+    .insert(person)
+    .values([{ name: 'Elias Lateral' }, { name: 'Gil Volante' }])
+    .returning();
+  await db.insert(providerMap).values({
+    entityType: 'participant',
+    entityId: eclipse!.id,
+    provider: 'api-sports',
+    sport: 'football',
+    providerId: '11',
+  });
+  await db.insert(roster).values([
+    { participantId: eclipse!.id, personId: elias!.id, role: 'player', number: 2, position: 'Defender' },
+    { participantId: galaxia!.id, personId: gil!.id, role: 'player', number: 5, position: 'Midfielder' },
+  ]);
+  await db.insert(personSidelined).values([
+    { personId: elias!.id, type: 'Knee Injury', startDate: '2025-02-01', endDate: '2025-03-01' },
+    { personId: gil!.id, type: 'Ankle Injury', startDate: '2026-11-01', endDate: '2026-12-01' },
+  ]);
+  const game = async (
+    name: string,
+    fixture: number,
+    startsAt: string,
+    home: string,
+    away: string,
+    league?: { id: number; season: number },
+  ) => {
+    const starts = new Date(startsAt);
+    const [ev] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        startsAt: starts,
+        endsAtExpected: new Date(starts.getTime() + 2 * 3_600_000),
+        status: 'scheduled',
+      })
+      .returning();
+    ids[name] = ev!.id;
+    await db.insert(eventParticipant).values([
+      { eventId: ev!.id, participantId: home, side: 'home' },
+      { eventId: ev!.id, participantId: away, side: 'away' },
+    ]);
+    await db.insert(footballFixture).values({
+      eventId: ev!.id,
+      providerFixtureId: fixture,
+      summary: { fixture: { id: fixture }, ...(league ? { league } : {}) },
+    });
+  };
+  await game('semCobertura', 9004, '2026-11-10T19:00:00Z', eclipse!.id, farol!.id);
+  await game('soUmLado', 9005, '2026-11-11T19:00:00Z', galaxia!.id, farol!.id);
+  await game('listaVencida', 9006, '2026-11-12T19:00:00Z', eclipse!.id, farol!.id, {
+    id: 73,
+    season: 2026,
+  });
+  await game('jaIniciado', 9010, '2026-11-05T19:00:00Z', eclipse!.id, farol!.id, { id: 74, season: 2026 });
+  // jogo já iniciado: a da liga (mais antiga) traz o jogo; a do dia (mais nova) não traz mais
+  await insertRaw(
+    { league: '74', season: '2026' },
+    [{ ...injury(403, 'E. Volante', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9010 } }],
+    new Date('2026-11-02T06:00:00Z'),
+  );
+  await insertRaw(
+    { date: '2026-11-05' },
+    [{ ...injury(995, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 7654 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
+  // a mesma requisição (mesmo request_hash) com dois corpos: o antigo traz os dois jogos, o novo não traz nenhum
+  await game('mesmaReqIniciado', 9011, '2026-11-04T19:00:00Z', eclipse!.id, farol!.id, {
+    id: 75,
+    season: 2026,
+  });
+  await game('mesmaReqFuturo', 9012, '2026-11-16T19:00:00Z', eclipse!.id, farol!.id, {
+    id: 75,
+    season: 2026,
+  });
+  await insertRaw(
+    { league: '75', season: '2026' },
+    [
+      { ...injury(404, 'E. Zagueiro', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9011 } },
+      { ...injury(405, 'E. Meia', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9012 } },
+    ],
+    new Date('2026-11-02T06:00:00Z'),
+  );
+  await insertRaw(
+    { league: '75', season: '2026' },
+    [{ ...injury(994, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 8765 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
+  await game('listaDeUmTime', 9007, '2026-11-13T19:00:00Z', eclipse!.id, farol!.id);
+  await game('listaVazia', 9008, '2026-11-14T19:00:00Z', eclipse!.id, farol!.id);
+  await game('respostaComErro', 9009, '2026-11-15T19:00:00Z', eclipse!.id, farol!.id);
+  // a da liga (mais antiga) traz o jogo; a do dia (mais nova) não traz mais: a lista antiga deixou de valer
+  await insertRaw(
+    { league: '73', season: '2026' },
+    [{ ...injury(401, 'E. Lateral', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9006 } }],
+    new Date('2026-11-02T06:00:00Z'),
+  );
+  await insertRaw(
+    { date: '2026-11-12' },
+    [{ ...injury(996, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 6543 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
+  // lista do dia com o jogo, mas só com jogador de um dos times
+  await insertRaw(
+    { date: '2026-11-13' },
+    [{ ...injury(402, 'E. Ponta', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9007 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
+  await insertRaw({ fixture: '9008' }, [], new Date('2026-11-06T06:00:00Z'));
+  // o fornecedor respondeu 200 com erro e lista vazia: não é "lista publicada"
+  await insertRaw({ fixture: '9009' }, [], new Date('2026-11-06T06:00:00Z'));
+  await db.execute(
+    sql`update raw.api_response set errors = '{"rateLimit":"limite"}'::jsonb where params->>'fixture' = '9009'`,
+  );
 }
 
 beforeAll(async () => {
@@ -373,6 +500,71 @@ describe('disponibilidade', () => {
     const body = await get<EventSidelined>(`/v1/events/${ids.event3}/sidelined`);
     expect(body.available).toBe(false);
   });
+
+  it('histórico encerrado de um time não é cobertura: o jogo e o adversário sem dado ficam indisponíveis', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.semCobertura}/sidelined`);
+    expect(body.available).toBe(false);
+    expect(body.teams.map((t) => [t.team.id, t.available, t.players])).toEqual([
+      [ids.eclipse, false, []],
+      [ids.farol, false, []],
+    ]);
+  });
+
+  it('sem lista, com afastamento em aberto só de um time: ele aparece e o adversário fica desconhecido', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.soUmLado}/sidelined`);
+    expect(body.available).toBe(true);
+    const [home, away] = body.teams;
+    expect(home).toMatchObject({ available: true, players: [{ person: { name: 'Gil Volante' } }] });
+    expect(away).toMatchObject({ team: { id: ids.farol }, available: false, players: [] });
+  });
+
+  it('cobertura real e lista vazia: "nenhum desfalque", mesmo com histórico encerrado', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.listaVazia}/sidelined`);
+    expect(body.available).toBe(true);
+    expect(body.teams.map((t) => [t.available, t.players])).toEqual([
+      [true, []],
+      [true, []],
+    ]);
+  });
+
+  it('lista do jogo com jogador de um time só: vale para os dois', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.listaDeUmTime}/sidelined`);
+    expect(body.available).toBe(true);
+    const [home, away] = body.teams;
+    expect(home).toMatchObject({ available: true, players: [{ person: { name: 'E. Ponta' } }] });
+    expect(away).toMatchObject({ team: { id: ids.farol }, available: true, players: [] });
+  });
+
+  it('jogo futuro: a resposta mais recente sem o jogo derruba a mais antiga com ele e fica desconhecido', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.listaVencida}/sidelined`);
+    expect(body.available).toBe(false);
+    expect(body.teams.flatMap((t) => t.players)).toEqual([]);
+  });
+
+  it('jogo já iniciado: a resposta mais recente sem o jogo não apaga a última foto dele', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.jaIniciado}/sidelined`);
+    expect(body.available).toBe(true);
+    const [home, away] = body.teams;
+    expect(home).toMatchObject({ available: true, players: [{ person: { name: 'E. Volante' } }] });
+    expect(away).toMatchObject({ team: { id: ids.farol }, available: true, players: [] });
+  });
+
+  it('mesma requisição, corpo antigo com o jogo e novo sem ele: jogo iniciado mantém o antigo', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.mesmaReqIniciado}/sidelined`);
+    expect(body.available).toBe(true);
+    expect(body.teams[0]).toMatchObject({ available: true, players: [{ person: { name: 'E. Zagueiro' } }] });
+  });
+
+  it('mesma requisição, corpo antigo com o jogo e novo sem ele: jogo futuro fica desconhecido', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.mesmaReqFuturo}/sidelined`);
+    expect(body.available).toBe(false);
+    expect(body.teams.flatMap((t) => t.players)).toEqual([]);
+  });
+
+  it('resposta do fornecedor com erro não conta como lista publicada', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.respostaComErro}/sidelined`);
+    expect(body.available).toBe(false);
+  });
 });
 
 describe('GET /v1/teams/{id}/sidelined', () => {
@@ -392,6 +584,16 @@ describe('GET /v1/teams/{id}/sidelined', () => {
   it('com histórico ou lista: disponível', async () => {
     const body = await get<TeamSidelined>(`/v1/teams/${ids.aurora}/sidelined`);
     expect(body.available).toBe(true);
+  });
+
+  it('só histórico encerrado e sem lista do próximo jogo: indisponível', async () => {
+    const body = await get<TeamSidelined>(`/v1/teams/${ids.eclipse}/sidelined`);
+    expect(body).toMatchObject({ next_event_id: ids.semCobertura, available: false, players: [] });
+  });
+
+  it('afastamento em aberto, sem lista do próximo jogo: disponível, com o jogador', async () => {
+    const body = await get<TeamSidelined>(`/v1/teams/${ids.galaxia}/sidelined`);
+    expect(body).toMatchObject({ available: true, players: [{ person: { name: 'Gil Volante' } }] });
   });
 
   it('só a lista do próprio time entra', async () => {

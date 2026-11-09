@@ -1026,7 +1026,8 @@ export interface GsSidelinedTeam {
 export interface GsEventSidelined {
   event_id: string;
   available: boolean;
-  teams: { team: GsSidelinedTeam; players: GsSidelinedPlayer[] }[];
+  /** `available` do time: `false` com `players` vazio é desconhecido (ausente em respostas antigas em cache). */
+  teams: { team: GsSidelinedTeam; available?: boolean; players: GsSidelinedPlayer[] }[];
 }
 
 /** Desfalques atuais de um time. */

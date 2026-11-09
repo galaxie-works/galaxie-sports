@@ -86,10 +86,14 @@ export function Sidelined({
     const shown = showDoubtful ? players : players.filter((p) => p.status === 'out');
     return max > 0 ? shown.slice(0, max) : shown;
   };
-  const groups: { team: GsSidelinedTeam; players: GsSidelinedPlayer[] }[] =
+  const groups: { team: GsSidelinedTeam; known: boolean; players: GsSidelinedPlayer[] }[] =
     'teams' in query.data
-      ? query.data.teams.map((g) => ({ team: g.team, players: pick(g.players) }))
-      : [{ team: query.data.team, players: pick(query.data.players) }];
+      ? query.data.teams.map((g) => ({
+          team: g.team,
+          known: g.available !== false,
+          players: pick(g.players),
+        }))
+      : [{ team: query.data.team, known: true, players: pick(query.data.players) }];
   const unknown = !query.data.available;
   const byTeam = 'teams' in query.data;
 
@@ -116,7 +120,7 @@ export function Sidelined({
                 </div>
               ) : null}
               {g.players.length === 0 ? (
-                <span className="gs-muted gs-small">{t.empty}</span>
+                <span className="gs-muted gs-small">{g.known ? t.empty : t.unknown}</span>
               ) : (
                 <ul className="gs-list">
                   {g.players.map((p, n) => (
