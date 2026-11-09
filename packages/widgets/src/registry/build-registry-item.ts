@@ -164,7 +164,7 @@ function defaultProps(
     // vai e vem do mercado: o time ou o campeonato escolhido no Builder
     case 'transfer_market':
       return pick(['teamId', 'competitionId']);
-    // hipismo e Jogos: a prova, o atleta, a edição e o país vêm das opções do widget
+    // hipismo, Jogos e clássicos: a prova, o atleta, a edição e o país vêm das opções do widget
     case 'equestrian_results':
     case 'equestrian_ranking':
     case 'equestrian_calendar':
@@ -175,6 +175,7 @@ function defaultProps(
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'upcoming_derbies':
       return {};
     case 'channel_guide':
       return pick(['sport']);

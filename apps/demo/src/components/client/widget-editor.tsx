@@ -39,6 +39,7 @@ import {
   MatchOdds,
   TeamStats,
   Bracket,
+  UpcomingDerbies,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -303,6 +304,8 @@ function PreviewWidget({
         return <ChannelGuidePreview o={o} sport={sport} />;
       case 'match_stats':
         return <MatchStats {...o} {...WIDGET_CATALOG.match_stats.exampleProps} />;
+      case 'upcoming_derbies':
+        return <UpcomingDerbies {...o} />;
     }
   }
   switch (kind) {
@@ -389,6 +392,7 @@ function PreviewWidget({
     case 'games_schedule':
     case 'country_athletes':
     case 'medal_history':
+    case 'upcoming_derbies':
       return <StandalonePreview kind={kind} o={o} />;
     case 'channel_guide':
       return <ChannelGuidePreview o={o} sport={sport} />;
@@ -427,6 +431,8 @@ function StandalonePreview({ kind, o }: { kind: WidgetKind; o: Record<string, un
       return <CountryAthletes {...o} />;
     case 'medal_history':
       return <MedalHistory {...o} />;
+    case 'upcoming_derbies':
+      return <UpcomingDerbies {...o} />;
     default:
       return null;
   }

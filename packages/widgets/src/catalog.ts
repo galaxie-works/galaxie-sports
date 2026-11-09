@@ -42,6 +42,7 @@ import type { TransferMarketProps } from './widgets/transfer-market.js';
 import type { BracketProps } from './widgets/bracket.js';
 import type { ChannelGuideProps } from './widgets/channel-guide.js';
 import type { MatchStatsProps } from './widgets/match-stats.js';
+import type { UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -85,6 +86,7 @@ export interface WidgetPropsByKind {
   bracket: BracketProps;
   channel_guide: ChannelGuideProps;
   match_stats: MatchStatsProps;
+  upcoming_derbies: UpcomingDerbiesProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -131,7 +133,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'TeamStats'
     | 'TransferMarket'
     | 'Bracket'
-    | 'ChannelGuide';
+    | 'ChannelGuide'
+    | 'UpcomingDerbies';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -998,6 +1001,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     polling: true,
     // todos os esportes; o seletor de esporte do Builder grava um só (ou nenhum = todos) em `defaults.sport`
     sports: [],
+  },
+  upcoming_derbies: {
+    kind: 'upcoming_derbies',
+    component: 'UpcomingDerbies',
+    registryComponent: 'GalaxieUpcomingDerbies',
+    name: { 'pt-BR': 'Clássicos da semana', es: 'Clásicos de la semana', en: 'Derbies of the week' },
+    description: {
+      'pt-BR':
+        'Os grandes clássicos dos próximos dias, com data no horário do leitor, rivalidade, retrospecto e onde assistir.',
+      es: 'Los grandes clásicos de los próximos días, con fecha en el horario del lector, rivalidad, historial y dónde verlos.',
+      en: 'The big derbies coming up, with local kick-off time, rivalry level, head-to-head record and where to watch.',
+    },
+    requiredProps: [],
+    optionalProps: ['country', 'limit', 'days', 'showCompetition', 'showHistory', 'showWhereToWatch'],
+    exampleProps: {},
+    polling: true,
+    sports: FOOTBALL_ONLY,
   },
 };
 

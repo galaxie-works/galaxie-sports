@@ -48,6 +48,7 @@ export const WIDGET_KINDS = [
   'bracket',
   'channel_guide',
   'match_stats',
+  'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

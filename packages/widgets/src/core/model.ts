@@ -47,6 +47,7 @@ export const WIDGET_KINDS = [
   'bracket',
   'channel_guide',
   'match_stats',
+  'upcoming_derbies',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -1061,6 +1062,26 @@ export interface GsChannelGuide {
   entries: { event: GsEvent; channels: string[] }[];
 }
 
+/** Clássico marcado para os próximos dias (`/v1/derbies/upcoming`). */
+export interface GsUpcomingDerby {
+  event_id: string;
+  starts_at: string;
+  status: string;
+  competition: { id: string; slug: string; name: string } | null;
+  participants: { side: string; id: string; name: string; slug: string | null }[];
+  derby: {
+    slug: string;
+    name: string;
+    aliases: string[];
+    scope: GsDerbyScope;
+    /** 1–5 (5 = a maior rivalidade do país). */
+    intensity: number;
+    teams: { slug: string; participant_id: string | null; name: string; country: string }[];
+  };
+}
+
+export type GsDerbyScope = 'city' | 'state' | 'national' | 'continental' | 'international';
+
 export interface GsEventList {
   data: GsEvent[];
 }
@@ -1908,6 +1929,14 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-bracket-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
 .gs-seg[data-gs-rounds]{max-width:100%;overflow-x:auto;border-radius:calc(var(--gs-radius)*.75)}
 .gs-seg[data-gs-rounds] button{white-space:nowrap}
+.gs-derbies{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.gs-derby{display:flex;flex-direction:column;gap:6px;padding:var(--gs-gap) 0;border-top:1px solid var(--gs-border);min-width:0}
+.gs-derby:first-child{border-top:0;padding-top:0}
+.gs-derby-head,.gs-derby-match{display:flex;align-items:center;gap:8px;min-width:0}
+.gs-derby-history{display:flex;flex-direction:column;gap:4px}
+.gs-intensity{flex:none;display:inline-flex;gap:3px}
+.gs-intensity span{width:6px;height:6px;border-radius:999px;background:color-mix(in srgb,var(--gs-foreground) 15%,transparent)}
+.gs-intensity span[data-on]{background:var(--gs-primary)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -2433,6 +2462,19 @@ export interface WidgetTexts {
     noList: string;
     /** Rótulo da lista de canais de um jogo (leitor de tela). */
     channels: string;
+  };
+  /** Clássicos da semana (`/v1/derbies/upcoming`). */
+  derbies: {
+    title: string;
+    /** "Clássicos dos próximos {n} dias". */
+    titleDays: string;
+    /** "Nenhum clássico nos próximos {n} dias." */
+    empty: string;
+    /** "Rivalidade {n} de 5". */
+    intensity: string;
+    /** "{n} empates". */
+    draws: string;
+    scopes: Record<GsDerbyScope, string>;
   };
 }
 
@@ -2993,6 +3035,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Nenhum jogo nos seus canais neste dia.',
       noList: 'A grade aparece assim que a lista de canais for confirmada.',
       channels: 'Canais',
+    },
+    derbies: {
+      title: 'Clássicos da semana',
+      titleDays: 'Clássicos dos próximos {n} dias',
+      empty: 'Nenhum clássico nos próximos {n} dias.',
+      intensity: 'Rivalidade {n} de 5',
+      draws: '{n} empates',
+      scopes: {
+        city: 'Da cidade',
+        state: 'Estadual',
+        national: 'Nacional',
+        continental: 'Continental',
+        international: 'Internacional',
+      },
     },
   },
   es: {
@@ -3557,6 +3613,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noList: 'La grilla aparece cuando se confirme la lista de canales.',
       channels: 'Canales',
     },
+    derbies: {
+      title: 'Clásicos de la semana',
+      titleDays: 'Clásicos de los próximos {n} días',
+      empty: 'No hay clásicos en los próximos {n} días.',
+      intensity: 'Rivalidad {n} de 5',
+      draws: '{n} empates',
+      scopes: {
+        city: 'De la ciudad',
+        state: 'Regional',
+        national: 'Nacional',
+        continental: 'Continental',
+        international: 'Internacional',
+      },
+    },
   },
   en: {
     status: {
@@ -4106,6 +4176,20 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'No games on your channels on this day.',
       noList: 'The guide shows up once the channel list is confirmed.',
       channels: 'Channels',
+    },
+    derbies: {
+      title: 'Derbies of the week',
+      titleDays: 'Derbies in the next {n} days',
+      empty: 'No derbies in the next {n} days.',
+      intensity: 'Rivalry {n} of 5',
+      draws: '{n} draws',
+      scopes: {
+        city: 'City',
+        state: 'Regional',
+        national: 'National',
+        continental: 'Continental',
+        international: 'International',
+      },
     },
   },
 };

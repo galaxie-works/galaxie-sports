@@ -65,6 +65,7 @@ export const WIDGET_KINDS = [
   'bracket',
   'channel_guide',
   'match_stats',
+  'upcoming_derbies',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -130,6 +131,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   bracket: ['competition'],
   channel_guide: [],
   match_stats: ['event'],
+  upcoming_derbies: [],
 };
 
 /**
@@ -181,6 +183,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   bracket: 'competition',
   channel_guide: null,
   match_stats: 'event',
+  upcoming_derbies: null,
 };
 
 /** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
@@ -517,6 +520,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   bracket: 'GalaxieBracket',
   channel_guide: 'GalaxieChannelGuide',
   match_stats: 'GalaxieMatchStats',
+  upcoming_derbies: 'GalaxieUpcomingDerbies',
 };
 
 /**

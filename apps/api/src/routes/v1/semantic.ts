@@ -53,6 +53,7 @@ import {
   type ReviewOverrideRef,
 } from '@galaxie/knowledge';
 import { sendCached } from '../../cache/http.js';
+import { actuallyLiveCond, IN_PLAY } from '../../events/queries.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext, type ReviewStatus } from '../../context.js';
 import { ProblemError, problems } from '../../errors.js';
@@ -74,6 +75,10 @@ const REVIEW_ORDER: readonly ReviewStatus[] = ['draft', 'reviewed', 'approved'];
 
 /** Eventos que não entram em "próximos clássicos" (não vão acontecer na data prevista). */
 const NOT_UPCOMING = ['finished', 'cancelled', 'abandoned', 'postponed'] as const;
+/** Em andamento: o clássico que já começou segue em "próximos clássicos" até terminar. */
+const DERBY_IN_PLAY = ['starting', ...IN_PLAY] as const;
+/** Por quanto tempo um `starting` (início ainda não confirmado) segue na lista. */
+const STARTING_MAX_MS = 3 * 60 * 60_000;
 
 // ─── piso editorial ──────────────────────────────────────────────────────────────────────────────
 
@@ -320,7 +325,16 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
           .where(
             and(
               sql`${event.derbyId} is not null`,
-              gte(event.startsAt, now),
+              // o clássico em andamento continua na lista até o apito final (o widget mostra o selo ao vivo)
+              or(
+                gte(event.startsAt, now),
+                and(
+                  inArray(event.status, [...DERBY_IN_PLAY]),
+                  actuallyLiveCond(now),
+                  // `starting` travado (o provedor não confirmou o início) sai da lista depois de 3 h
+                  sql`not (${event.status} = 'starting' and ${event.startsAt} < ${new Date(now.getTime() - STARTING_MAX_MS).toISOString()}::timestamptz)`,
+                ),
+              ),
               lt(event.startsAt, until),
               notInArray(event.status, [...NOT_UPCOMING]),
             ),
