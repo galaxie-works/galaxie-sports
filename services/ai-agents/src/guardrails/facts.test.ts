@@ -390,4 +390,66 @@ describe('checkFacts — inglês comum não é barrado', () => {
       ),
     ).toEqual([]);
   });
+
+  it('palavra comum no início da frase', () => {
+    expect(checkFacts('Following the win, Fluminense stay 3rd.', s, 'en')).toEqual([]);
+  });
+});
+
+describe('checkFacts — nomes separados por vírgula e palavras comuns', () => {
+  const s = new FactSheetBuilder()
+    .name(
+      'Osasuna',
+      'Estadio El Sadar',
+      'Liga MX',
+      'Toluca',
+      'Atlas',
+      'Brasileirão Série A',
+      'Palmeiras',
+      'Cúcuta',
+    )
+    .build();
+  const nomes = (text: string, locale = 'es-AR') =>
+    checkFacts(text, s, locale)
+      .filter((v) => v.kind === 'unknown_name')
+      .map((v) => v.value);
+
+  it('a vírgula separa dois nomes conhecidos', () => {
+    expect(nomes('En el Estadio El Sadar, Osasuna ganó el partido.')).toEqual([]);
+    expect(nomes('Por la Liga MX, Toluca recibe a Atlas.')).toEqual([]);
+    expect(nomes('Por el Brasileirão Série A, Palmeiras ganó.')).toEqual([]);
+  });
+
+  it('depois da vírgula, nome fora dos fatos continua reprovado', () => {
+    expect(nomes('En el Estadio El Sadar, Flamengo ganó el partido.')).toEqual(['Flamengo']);
+    expect(nomes('Por la Liga MX, Toluca recibe a Atlas, Pumas mira de lejos.')).toEqual(['Pumas']);
+  });
+
+  it('sem vírgula, dois nomes colados continuam reprovados', () => {
+    expect(nomes('En el Estadio El Sadar Osasuna ganó el partido.')).toEqual(['Estadio El Sadar Osasuna']);
+  });
+
+  it.each([
+    'A Cúcuta le alcanzó el empate.',
+    'Venció a Atlas.',
+    'Gracias a Toluca hubo gol.',
+    'Luego Toluca empató.',
+    'Además Toluca empató.',
+    'Quedan puntos para Toluca.',
+  ])('palavra comum em espanhol no início da frase: %s', (text) => {
+    expect(nomes(text)).toEqual([]);
+  });
+
+  it('palavra comum em português no início da frase', () => {
+    expect(nomes('Aos Palmeiras restou o empate.', 'pt-BR')).toEqual([]);
+  });
+
+  it('nome inventado no início da frase continua reprovado', () => {
+    expect(nomes('Flamengo ganó el partido.')).toEqual(['Flamengo']);
+    expect(nomes('A Flamengo le alcanzó el empate.')).toEqual(['Flamengo']);
+  });
+
+  it('"Serie A" fora dos fatos continua reprovado no meio da frase', () => {
+    expect(nomes('Toluca mira la Serie A de Italia.')).toContain('Italia');
+  });
 });
