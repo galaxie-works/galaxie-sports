@@ -11,7 +11,7 @@ import {
   type Database,
   type I18nText,
 } from '@galaxie/db';
-import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from '@galaxie/core-writer';
+import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET, uniqueCompetitionSlug } from '@galaxie/core-writer';
 import { canonicalCountryName } from './countries.js';
 
 // ─── formato intermediário (comum aos 12 esportes) ───────────────────────────────────────────────
@@ -19,6 +19,8 @@ import { canonicalCountryName } from './countries.js';
 export interface CompetitionRow {
   providerId: string;
   slug: string;
+  /** Slug gerado (liga fora do YAML): só vale ao criar e nunca reescreve o que já está na base. */
+  generatedSlug?: boolean;
   name: string;
   labels: I18nText | null;
   countryCode: string;
@@ -228,6 +230,7 @@ export async function upsertCatalog(
       rows.competitions.map((c) => ({
         providerId: c.providerId,
         values: {
+          generatedFor: c.generatedSlug ? c.providerId : null,
           sport: sportSlug,
           slug: c.slug,
           name: c.name,
@@ -240,18 +243,24 @@ export async function upsertCatalog(
           logoAssetId: assetId(c.logoUrl),
         },
       })),
-      async (values) => {
-        const [row] = await tx.insert(competition).values(values).returning({ id: competition.id });
+      async ({ generatedFor, ...values }) => {
+        const slug = generatedFor
+          ? await uniqueCompetitionSlug(tx, values.slug, sportSlug, generatedFor)
+          : values.slug;
+        const [row] = await tx
+          .insert(competition)
+          .values({ ...values, slug })
+          .returning({ id: competition.id });
         return row!.id;
       },
-      async (id, values) => {
+      async (id, { generatedFor, slug, ...values }) => {
         // fornecedor sem logo não apaga o da Commons (assets:competition-logos, ex.: a F1)
         const logoAssetId =
           values.logoAssetId ??
           sql`(select ${asset.id} from ${asset} where ${asset.id} = ${competition.logoAssetId} and ${asset.origin} = 'commons')`;
         await tx
           .update(competition)
-          .set({ ...values, logoAssetId })
+          .set({ ...values, ...(generatedFor ? {} : { slug }), logoAssetId })
           .where(eq(competition.id, id));
       },
     );
