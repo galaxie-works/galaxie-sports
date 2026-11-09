@@ -320,6 +320,9 @@ export default defineMessages(
         extra: 'Busca dados a mais da API.',
         all: 'Todos',
         none: 'Nenhum filtro',
+        noChannels:
+          'Sua lista de canais ainda não foi confirmada. Envie e confirme em Minha lista de canais para a grade aparecer e para escolher os canais aqui.',
+        channelsLimit: 'Limite de 200 canais marcados.',
       },
       zones: {
         title: 'Zonas da tabela',
@@ -740,6 +743,9 @@ export default defineMessages(
           extra: 'Fetches extra data from the API.',
           all: 'All',
           none: 'No filter',
+          noChannels:
+            'Your channel list is not confirmed yet. Upload and confirm it under My channel list to show the guide and pick channels here.',
+          channelsLimit: 'Up to 200 channels can be ticked.',
         },
         zones: {
           title: 'Table zones',
@@ -1171,6 +1177,9 @@ export default defineMessages(
           extra: 'Busca datos adicionales de la API.',
           all: 'Todos',
           none: 'Sin filtro',
+          noChannels:
+            'Tu lista de canales todavía no fue confirmada. Envíala y confírmala en Mi lista de canales para que aparezca la grilla y elegir los canales aquí.',
+          channelsLimit: 'Hasta 200 canales marcados.',
         },
         zones: {
           title: 'Zonas de la tabla',

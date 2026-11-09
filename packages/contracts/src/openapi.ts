@@ -20,6 +20,7 @@ import {
 } from './catalog.js';
 import { accountPaths } from './account.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
+import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
@@ -604,6 +605,23 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
             'proporção do quadro (filtro `aspect_ratio`: `16:9`, `9:16` ou os dois) e duração. Vídeos bloqueados no ' +
             'país (`country`) ou recusados pelo player (`POST /v1/related/playback-errors`) ficam de fora. Só metadados: nada é rehospedado. Exige o módulo `related_content`. Atualizações chegam ' +
             'pelo tópico `event.related_content_changed` (SSE/webhook).',
+        },
+      },
+      '/v1/widgets/{id}/channel-guide': {
+        get: {
+          ...getOp(
+            'Grade de esportes nos canais do cliente (widget)',
+            'Onde assistir',
+            ChannelGuide,
+            { path: ChannelGuideParams, query: ChannelGuideQuery },
+            [400, 401, 403, 404, 429],
+          ),
+          description:
+            'O que passa no dia, hora a hora, nos canais da lista confirmada do tenant (`/v1/channel-list`), ' +
+            'cruzada com o onde assistir (opções confirmadas e canal do jogo) no país do widget. Presa a um widget ' +
+            '"Grade nos canais" do próprio tenant: os canais escolhidos no Builder são aplicados aqui e a resposta ' +
+            'traz só os canais com jogo no dia, nunca a lista inteira. Aceita a chave publicável (embed); chave presa ' +
+            'a outro widget recebe 404. Exige o módulo `where_to_watch`.',
         },
       },
       '/v1/broadcasters': {

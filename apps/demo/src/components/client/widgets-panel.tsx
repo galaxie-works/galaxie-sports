@@ -25,6 +25,7 @@ import {
   Medal,
   Percent,
   Network,
+  MonitorPlay,
   Plus,
   Radio,
   Scale,
@@ -118,6 +119,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   team_stats: ChartColumn,
   transfer_market: ArrowLeftRight,
   bracket: Network,
+  channel_guide: MonitorPlay,
   upcoming_derbies: Flame,
 };
 

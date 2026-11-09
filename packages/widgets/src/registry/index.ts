@@ -17,7 +17,9 @@ export { parseLiveListOptions, type LiveListOptions } from '../core/model.js';
 export {
   WIDGET_OPTIONS,
   optionProps,
+  parseChannelNames,
   parseWidgetOptions,
+  publicWidgetOptions,
   widgetOptionsFor,
   type WidgetOptions,
 } from '../options.js';

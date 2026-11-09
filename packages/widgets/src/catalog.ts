@@ -40,6 +40,7 @@ import type { TeamStatsProps } from './widgets/team-stats.js';
 import type { CompetitionLeadersProps } from './widgets/competition-leaders.js';
 import type { TransferMarketProps } from './widgets/transfer-market.js';
 import type { BracketProps } from './widgets/bracket.js';
+import type { ChannelGuideProps } from './widgets/channel-guide.js';
 import type { UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
 
 export interface WidgetPropsByKind {
@@ -82,6 +83,7 @@ export interface WidgetPropsByKind {
   competition_leaders: CompetitionLeadersProps;
   transfer_market: TransferMarketProps;
   bracket: BracketProps;
+  channel_guide: ChannelGuideProps;
   upcoming_derbies: UpcomingDerbiesProps;
 }
 
@@ -128,6 +130,7 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'TeamStats'
     | 'TransferMarket'
     | 'Bracket'
+    | 'ChannelGuide'
     | 'UpcomingDerbies';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
@@ -959,6 +962,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: { competitionId: PREVIEW_IDS.cupCompetition, season: 'current' },
     polling: true,
     sports: TEAM_SPORTS,
+  },
+  channel_guide: {
+    kind: 'channel_guide',
+    component: 'ChannelGuide',
+    registryComponent: 'GalaxieChannelGuide',
+    name: { 'pt-BR': 'Grade nos seus canais', es: 'Grilla en tus canales', en: 'Your channels guide' },
+    description: {
+      'pt-BR':
+        'O que passa hoje, hora a hora, nos canais que você tem: cada jogo com os canais da sua lista que o transmitem.',
+      es: 'Lo que pasa hoy, hora por hora, en tus canales: cada partido con los canales de tu lista que lo transmiten.',
+      en: 'What’s on today, hour by hour, on your channels: each game with the channels in your lineup that carry it.',
+    },
+    requiredProps: ['widgetId'],
+    optionalProps: ['day', 'sport', 'groupBy', 'showCompetition', 'showScore'],
+    exampleProps: { widgetId: PREVIEW_IDS.channelGuideWidget },
+    polling: true,
+    // todos os esportes; o seletor de esporte do Builder grava um só (ou nenhum = todos) em `defaults.sport`
+    sports: [],
   },
   upcoming_derbies: {
     kind: 'upcoming_derbies',
