@@ -881,7 +881,7 @@ describe('/v1/events/{id}', () => {
     // todos os mercados ativos de uma vez, da maior nota para a menor
     const all = e.relevance_by_market!;
     expect(all.map((r) => r.market).sort()).toEqual(
-      ['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'MX', 'PE', 'PY', 'UY', 'VE'].sort(),
+      ['AR', 'BO', 'BR', 'CA', 'CL', 'CO', 'EC', 'MX', 'PE', 'PY', 'US', 'UY', 'VE'].sort(),
     );
     expect(all.map((r) => r.score)).toEqual([...all.map((r) => r.score)].sort((a, b) => b - a));
     expect(all.slice(0, 2).map((r) => r.market)).toEqual(['BR', 'AR']);

@@ -28,7 +28,7 @@
 # =============================================================================
 schema_version: 1
 
-markets: [BR, AR, UY, CL, CO, PY, PE, EC, BO, VE, MX]
+markets: [BR, AR, UY, CL, CO, PY, PE, EC, BO, VE, MX, US, CA]
 
 navigation:
   countries: [BR, AR, BO, CL, CO, EC, PY, PE, UY, VE, MX, GB-ENG, ES, IT, DE, FR, PT]
