@@ -83,8 +83,8 @@ describe('competições da família', () => {
       {
         sport: 'basketball',
         items: [
-          c('nba-basketball-api', 'NBA', 'https://cdn/leagues/12.png'),
-          c('usa-nba-las-vegas-summer-league-17', 'NBA - Las Vegas Summer League'),
+          c('nba-basketball', 'NBA', 'https://cdn/leagues/12.png'),
+          c('usa-nba-las-vegas-summer-league', 'NBA - Las Vegas Summer League'),
           c('nbb', 'NBB'),
         ],
       },

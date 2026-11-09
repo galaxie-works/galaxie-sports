@@ -384,7 +384,7 @@ competitions:
     live_priority: medium
     sources: ["docs/research/api-sports-outros-esportes.md"]
   # a NBA tem API própria (nba.yaml, com live); aqui só o espelho da API de basquete
-  - slug: nba-basketball-api
+  - slug: nba-basketball
     name: "NBA"
     country: "USA"
     type: league

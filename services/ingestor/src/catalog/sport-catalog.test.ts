@@ -98,7 +98,8 @@ describe('perfis por esporte', () => {
     ]);
     const anon = rows.competitions.find((c) => c.providerId === '414')!;
     expect(anon).toMatchObject({
-      slug: 'south-america-south-american-league-414',
+      slug: 'south-america-south-american-league',
+      generatedSlug: true,
       tier: 3,
       countryCode: 'SOUTH-AMERICA',
     });
@@ -214,7 +215,7 @@ describe('perfis por esporte', () => {
       ]),
       { catalog: [], today: TODAY },
     );
-    expect(rows.competitions[0]).toMatchObject({ countryCode: 'AU', slug: 'australia-afl-premiership-1' });
+    expect(rows.competitions[0]).toMatchObject({ countryCode: 'AU', slug: 'australia-afl-premiership' });
     expect(rows.countries).toEqual([
       { code: 'AU', name: { en: 'Australia' }, flagUrl: 'https://media.api-sports.io/flags/au.svg' },
     ]);
@@ -383,7 +384,7 @@ describe('perfis por esporte', () => {
     );
     expect(rows.competitions.map((c) => [c.providerId, c.slug, c.name, c.tier])).toEqual([
       ['standard', 'nba', 'NBA', 1],
-      ['vegas', 'usa-nba-vegas-vegas', 'NBA vegas', 3],
+      ['vegas', 'usa-nba-vegas', 'NBA vegas', 3],
     ]);
     expect(rows.competitions[0]!.seasons.map((s) => s.label)).toEqual(['2023/24', '2024/25']);
     expect(rows.participants![0]).toMatchObject({ name: 'Atlanta Hawks', code: 'ATL', logoUrl: null });

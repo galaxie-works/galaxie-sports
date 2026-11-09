@@ -52,6 +52,7 @@ import {
 } from '@galaxie/providers';
 import { createDerbyLookup } from '@galaxie/knowledge';
 import { DETACHED_WHEN_MISSING_KINDS, MISSING_ASSET } from './placeholder-logos.js';
+import { competitionSlugBase, uniqueCompetitionSlug } from './competition-slug.js';
 import { slugify } from './slug.js';
 import { upsertTeamSeasonStats } from './team-season-stats.js';
 import { logger } from './logger.js';
@@ -322,10 +323,14 @@ export async function upsertBatchInTx(
   for (const c of toCreate) {
     const id = uuidv7();
     const prefix = batch.provider === 'api-sports' ? '' : `${slugify(batch.provider)}-`;
+    const countryName = c.countryName ?? 'world';
     await tx.insert(competition).values({
       id,
       sport: batch.sport,
-      slug: `${prefix}${slugify(c.countryName ?? 'world')}-${slugify(c.name)}-${slugify(c.id)}`,
+      slug:
+        batch.sport === 'football'
+          ? `${prefix}${slugify(countryName)}-${slugify(c.name)}-${slugify(c.id)}`
+          : await uniqueCompetitionSlug(tx, `${prefix}${competitionSlugBase(countryName, c.name)}`, batch.sport, c.id),
       name: c.name,
       countryCode: await refs.countryCode(c.countryCode, c.countryName),
       type: c.type,
