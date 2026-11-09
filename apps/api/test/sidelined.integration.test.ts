@@ -359,6 +359,28 @@ async function seed() {
     [{ ...injury(995, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 7654 } }],
     new Date('2026-11-06T06:00:00Z'),
   );
+  // a mesma requisição (mesmo request_hash) com dois corpos: o antigo traz os dois jogos, o novo não traz nenhum
+  await game('mesmaReqIniciado', 9011, '2026-11-04T19:00:00Z', eclipse!.id, farol!.id, {
+    id: 75,
+    season: 2026,
+  });
+  await game('mesmaReqFuturo', 9012, '2026-11-16T19:00:00Z', eclipse!.id, farol!.id, {
+    id: 75,
+    season: 2026,
+  });
+  await insertRaw(
+    { league: '75', season: '2026' },
+    [
+      { ...injury(404, 'E. Zagueiro', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9011 } },
+      { ...injury(405, 'E. Meia', 11, 'Missing Fixture', 'Knock'), fixture: { id: 9012 } },
+    ],
+    new Date('2026-11-02T06:00:00Z'),
+  );
+  await insertRaw(
+    { league: '75', season: '2026' },
+    [{ ...injury(994, 'Outro Jogo', 2, 'Missing Fixture', 'Knock'), fixture: { id: 8765 } }],
+    new Date('2026-11-06T06:00:00Z'),
+  );
   await game('listaDeUmTime', 9007, '2026-11-13T19:00:00Z', eclipse!.id, farol!.id);
   await game('listaVazia', 9008, '2026-11-14T19:00:00Z', eclipse!.id, farol!.id);
   await game('respostaComErro', 9009, '2026-11-15T19:00:00Z', eclipse!.id, farol!.id);
@@ -525,6 +547,18 @@ describe('disponibilidade', () => {
     const [home, away] = body.teams;
     expect(home).toMatchObject({ available: true, players: [{ person: { name: 'E. Volante' } }] });
     expect(away).toMatchObject({ team: { id: ids.farol }, available: true, players: [] });
+  });
+
+  it('mesma requisição, corpo antigo com o jogo e novo sem ele: jogo iniciado mantém o antigo', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.mesmaReqIniciado}/sidelined`);
+    expect(body.available).toBe(true);
+    expect(body.teams[0]).toMatchObject({ available: true, players: [{ person: { name: 'E. Zagueiro' } }] });
+  });
+
+  it('mesma requisição, corpo antigo com o jogo e novo sem ele: jogo futuro fica desconhecido', async () => {
+    const body = await get<EventSidelined>(`/v1/events/${ids.mesmaReqFuturo}/sidelined`);
+    expect(body.available).toBe(false);
+    expect(body.teams.flatMap((t) => t.players)).toEqual([]);
   });
 
   it('resposta do fornecedor com erro não conta como lista publicada', async () => {

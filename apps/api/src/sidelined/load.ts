@@ -157,9 +157,14 @@ async function fixtureInjuries(
   const leagueCond = league
     ? sql`or (r.params->>'league' = ${league.id} and r.params->>'season' = ${league.season})`
     : sql``;
-  const listedCond = sql`(latest.params->>'fixture' is not null
-            or exists (select 1 from jsonb_array_elements(latest.body->'response') x
-                        where (x->'fixture'->>'id') = ${String(fixturePid)}))`;
+  // `case` porque o Postgres pode avaliar os filtros em qualquer ordem, e jsonb_array_elements quebra fora de array.
+  const listedIn = (
+    row: 'r' | 'latest',
+  ) => sql`case when jsonb_typeof(${sql.raw(row)}.body->'response') = 'array'
+            then (${sql.raw(row)}.params->>'fixture' is not null
+                  or exists (select 1 from jsonb_array_elements(${sql.raw(row)}.body->'response') x
+                              where (x->'fixture'->>'id') = ${String(fixturePid)}))
+            else false end`;
   // As requisições que cobrem o jogo: a do próprio jogo, a do dia dele (UTC, como o sync diário pede) e a da
   // liga na temporada. Vale só a resposta bem-sucedida mais recente entre elas, inteira: a lista refeita tira quem
   // voltou (a ausência do jogador é o sinal), então somar respostas antigas traria desfalques que já acabaram. Uma
@@ -168,9 +173,10 @@ async function fixtureInjuries(
   // afirmam "ninguém fora". Antes do início, a mais recente decide mesmo assim: sem o jogo, a lista mais antiga
   // deixou de valer e o jogo fica sem lista (desconhecido), em vez de mostrar como atual quem pode já ter voltado.
   // Depois do início, vale a mais recente que contém o jogo (a última foto dele): o fornecedor tira dessas listas
-  // o jogo já disputado, e essa ausência não diz nada sobre quem estava fora.
+  // o jogo já disputado, e essa ausência não diz nada sobre quem estava fora. O filtro vem antes do `distinct on`
+  // porque a mesma requisição guarda uma linha por corpo diferente: a foto com o jogo pode ser uma linha antiga dela.
   const [snap] = await db.execute<{ id: number; listed: boolean }>(sql`
-    select latest.id, ${listedCond} as listed
+    select latest.id, ${listedIn('latest')} as listed
       from (select distinct on (r.request_hash) r.id, r.params, r.body,
                    coalesce(r.last_seen_at, r.fetched_at) as seen
               from raw.api_response r
@@ -179,9 +185,9 @@ async function fixtureInjuries(
                and (r.errors is null or r.errors in ('[]'::jsonb, '{}'::jsonb))
                and (r.params->>'fixture' = ${String(fixturePid)} or r.params->>'date' = ${eventDay}
                     ${leagueCond})
+               ${started ? sql`and ${listedIn('r')}` : sql``}
              order by r.request_hash, r.fetched_at desc) latest
      where jsonb_typeof(latest.body->'response') = 'array'
-       ${started ? sql`and ${listedCond}` : sql``}
      order by latest.seen desc
      limit 1`);
   if (!snap?.listed) return { found: false, items: [] };
