@@ -117,8 +117,8 @@ describe('chaveamento do mata-mata', () => {
       'basketball',
       'en',
     );
-    // os nomes das fases vêm da API (no exemplo, sempre em português)
-    await screen.findByText('Quartas de final');
+    // os nomes das fases vêm da API no idioma pedido (o exemplo também traduz)
+    await screen.findByText('Quarter-finals');
     const first = container.querySelector('.gs-tie')!;
     expect(first.querySelector('.gs-tie-meta')?.textContent).toContain('Series');
     expect([...first.querySelectorAll('.gs-tie-score strong')].map((s) => s.textContent)).toEqual(['4', '2']);
