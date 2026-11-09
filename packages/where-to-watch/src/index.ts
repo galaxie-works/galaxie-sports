@@ -22,6 +22,7 @@ export * from './editorial.js';
 export * from './match-channel.js';
 export * from './logo-upload.js';
 export * from './public.js';
+export * from './match-precedence.js';
 export * from './audit.js';
 export * from './metrics.js';
 export * from './channel-list/index.js';

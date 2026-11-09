@@ -63,6 +63,7 @@ export const WIDGET_KINDS = [
   'team_stats',
   'transfer_market',
   'bracket',
+  'channel_guide',
   'match_stats',
 ] as const satisfies readonly WidgetKind[];
 
@@ -127,6 +128,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   // vai e vem do mercado: de um time ou dos times de um campeonato
   transfer_market: ['team', 'competition'],
   bracket: ['competition'],
+  channel_guide: [],
   match_stats: ['event'],
 };
 
@@ -177,6 +179,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   // time ou campeonato: um dos dois (`ENTITY_REQUIRED_ANY`)
   transfer_market: null,
   bracket: 'competition',
+  channel_guide: null,
   match_stats: 'event',
 };
 
@@ -512,6 +515,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   team_stats: 'GalaxieTeamStats',
   transfer_market: 'GalaxieTransferMarket',
   bracket: 'GalaxieBracket',
+  channel_guide: 'GalaxieChannelGuide',
   match_stats: 'GalaxieMatchStats',
 };
 

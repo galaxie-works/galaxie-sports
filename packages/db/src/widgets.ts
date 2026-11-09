@@ -67,6 +67,7 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   team_stats: ['core_data'],
   transfer_market: ['core_data'],
   bracket: ['core_data'],
+  channel_guide: ['core_data', 'where_to_watch'],
   match_stats: ['core_data'],
 };
 

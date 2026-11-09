@@ -5,11 +5,13 @@ import { WIDGET_OPTIONS, optionProps, parseWidgetOptions } from './options.js';
 import { WIDGET_CATALOG } from './catalog.js';
 
 describe('opções de conteúdo dos widgets', () => {
-  it('cada opção é uma prop declarada do componente, sem chave repetida', () => {
+  it('cada opção (menos os canais da grade) é uma prop declarada do componente, sem chave repetida', () => {
     for (const kind of WIDGET_KINDS) {
       const keys = WIDGET_OPTIONS[kind].map((s) => s.key);
       expect(new Set(keys).size).toBe(keys.length);
-      for (const key of keys) expect(WIDGET_CATALOG[kind].optionalProps as readonly string[]).toContain(key);
+      // os canais da grade nos canais ficam só na API (não viram prop nem saem na página)
+      const props = WIDGET_OPTIONS[kind].filter((s) => s.type !== 'channels').map((s) => s.key);
+      for (const key of props) expect(WIDGET_CATALOG[kind].optionalProps as readonly string[]).toContain(key);
     }
   });
 

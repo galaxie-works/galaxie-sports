@@ -5,6 +5,7 @@ export * from './events.js';
 export * from './event-context.js';
 export * from './where-to-watch.js';
 export * from './channel-list.js';
+export * from './channel-guide.js';
 export * from './related.js';
 export * from './realtime.js';
 export * from './account.js';
