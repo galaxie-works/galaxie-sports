@@ -30,8 +30,8 @@
 #   10–15  liga de um vizinho com audiência no país (Liga Profesional no Uruguai e no Paraguai).
 #   35/25  Libertadores e Sul-Americana nos mercados da CONMEBOL (fase de grupos da Libertadores com time
 #          do país: 94).
-# Fora daqui (abaixo do limiar sem jogo decisivo): Eredivisie, Primeira Liga, EFL Championship, Saudi
-# Pro League e MLS — ficam "a confirmar" sem gastar LLM. Estaduais do Brasil também ficam de fora por
+# Fora daqui (abaixo do limiar sem jogo decisivo): Eredivisie, Primeira Liga, EFL Championship e Saudi
+# Pro League — ficam "a confirmar" sem gastar LLM. Estaduais do Brasil também ficam de fora por
 # enquanto (custo: são muitas rodadas); a final e os mata-matas passam pelo próprio peso da fase.
 # Revisão: out/2026; US e CA em nov/2026.
 # =============================================================================
