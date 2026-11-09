@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { apiLocale, intlLocale } from './core/model.js';
 import { createPreviewFetch } from './fixtures.js';
-import { localizeSample } from './fixtures-locale.js';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { SAMPLE_TEXTS, localizeSample } from './fixtures-locale.js';
 
 describe('apiLocale', () => {
   it('manda o locale de cada idioma para a API (inglês incluso)', () => {
@@ -57,5 +61,19 @@ describe('dados de exemplo no idioma do widget', () => {
       b: ['Matchday 3', 'Aurora'],
       n: 1,
     });
+  });
+});
+
+describe('dicionário dos dados de exemplo', () => {
+  it('cada chave existe, idêntica, em algum fixture (senão a tradução nunca pega)', () => {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const sources = readdirSync(dir)
+      .filter((f) => /^fixtures.*\.ts$/.test(f) && f !== 'fixtures-locale.ts')
+      .map((f) => readFileSync(join(dir, f), 'utf8'))
+      .join('\n');
+    const missing = Object.keys(SAMPLE_TEXTS).filter(
+      (k) => !sources.includes(`'${k}'`) && !sources.includes(k),
+    );
+    expect(missing).toEqual([]);
   });
 });

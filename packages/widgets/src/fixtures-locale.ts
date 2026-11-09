@@ -8,11 +8,10 @@
 type Lang = 'es' | 'en';
 
 /** pt-BR → [espanhol, inglês]. Só textos inteiros (o valor do campo, não pedaços). */
-const SAMPLE_TEXTS: Record<string, [string, string]> = {
+export const SAMPLE_TEXTS: Record<string, [string, string]> = {
   'Liga Exemplo': ['Liga Ejemplo', 'Sample League'],
   'Copa Exemplo': ['Copa Ejemplo', 'Sample Cup'],
   'Estadual Exemplo': ['Torneo Regional Ejemplo', 'Sample State League'],
-  'Copa das Nações Exemplo': ['Copa de las Naciones Ejemplo', 'Sample Nations Cup'],
   'Arena Exemplo': ['Estadio Ejemplo', 'Sample Arena'],
   'Cidade Exemplo': ['Ciudad Ejemplo', 'Sample City'],
   'Estádio Aurora': ['Estadio Aurora', 'Aurora Stadium'],
@@ -83,20 +82,20 @@ const SAMPLE_TEXTS: Record<string, [string, string]> = {
     'Todos los penales de la tanda',
     'Every kick of the shootout',
   ],
-  'Planalto 0 (4) x (3) 0 Vale  melhores momentos': [
-    'Planalto 0 (4) x (3) 0 Vale  mejores momentos',
-    'Planalto 0 (4) x (3) 0 Vale  highlights',
+  'Planalto 0 (4) x (3) 0 Vale: melhores momentos': [
+    'Planalto 0 (4) x (3) 0 Vale: mejores momentos',
+    'Planalto 0 (4) x (3) 0 Vale: highlights',
   ],
-  'Goleiro do Planalto  "a gente treinou cada cobrança"': [
-    'Arquero de Planalto  "entrenamos cada penal"',
-    'Planalto goalkeeper  "we practised every kick"',
+  'Goleiro do Planalto: "a gente treinou cada cobrança"': [
+    'Arquero de Planalto: "entrenamos cada penal"',
+    'Planalto goalkeeper: "we practised every kick"',
   ],
   'Líder da Liga Exemplo, o Aurora recebe o Estrela do Sul precisando vencer para abrir quatro pontos de vantagem. O Estrela não perde há cinco rodadas e chega embalado depois de eliminar o rival na copa.':
     [
       'Líder de la Liga Ejemplo, Aurora recibe a Estrela do Sul con la necesidad de ganar para sacar cuatro puntos de ventaja. Estrela no pierde hace cinco fechas y llega entonado tras eliminar al rival en la copa.',
       'Sample League leaders Aurora host Estrela do Sul needing a win to open a four-point gap. Estrela are unbeaten in five and arrive on a high after knocking their rivals out of the cup.',
     ],
-  'O Atlético Serra assume a liderança se vencer o clássico e o Aurora tropeçar. Do outro lado, o União Litoral precisa pontuar para deixar a zona de rebaixamento  perdeu três dos últimos quatro jogos fora de casa.':
+  'O Atlético Serra assume a liderança se vencer o clássico e o Aurora tropeçar. Do outro lado, o União Litoral precisa pontuar para deixar a zona de rebaixamento: perdeu três dos últimos quatro jogos fora de casa.':
     [
       'Atlético Serra pasa a ser líder si gana el clásico y Aurora tropieza. Del otro lado, União Litoral necesita sumar para dejar la zona de descenso: perdió tres de sus últimos cuatro partidos de visitante.',
       'Atlético Serra go top if they win the derby and Aurora slip. União Litoral need points to leave the relegation zone, having lost three of their last four away games.',
@@ -111,6 +110,37 @@ const SAMPLE_TEXTS: Record<string, [string, string]> = {
       'Real Planalto y Sporting Vale definen el pase a la final en partido único. Si empatan, se define por penales.',
       'Real Planalto and Sporting Vale meet in a one-off tie for a place in the final. A draw goes to penalties.',
     ],
+  // Jogos (quadro de medalhas, agenda, atletas do país)
+  Alemanha: ['Alemania', 'Germany'],
+  Espanha: ['España', 'Spain'],
+  'Estados Unidos': ['Estados Unidos', 'United States'],
+  'Grã-Bretanha': ['Gran Bretaña', 'Great Britain'],
+  Itália: ['Italia', 'Italy'],
+  Japão: ['Japón', 'Japan'],
+  México: ['México', 'Mexico'],
+  'Países Baixos': ['Países Bajos', 'Netherlands'],
+  'Arena Central': ['Arena Central', 'Central Arena'],
+  'Parque Olímpico': ['Parque Olímpico', 'Olympic Park'],
+  Atletismo: ['Atletismo', 'Athletics'],
+  'Ginástica artística': ['Gimnasia artística', 'Artistic gymnastics'],
+  'Ginástica artística · Solo feminino': [
+    'Gimnasia artística · Suelo femenino',
+    "Artistic gymnastics · Women's floor",
+  ],
+  'Solo feminino': ['Suelo femenino', "Women's floor"],
+  Judô: ['Judo', 'Judo'],
+  'Judô · Até 57 kg feminino': ['Judo · Hasta 57 kg femenino', "Judo · Women's 57 kg"],
+  Natação: ['Natación', 'Swimming'],
+  'Natação · 100 m livre feminino': ['Natación · 100 m libre femenino', "Swimming · Women's 100 m freestyle"],
+  'Salto com vara masculino': ['Salto con garrocha masculino', "Men's pole vault"],
+  Skate: ['Skate', 'Skateboarding'],
+  'Street feminino': ['Street femenino', "Women's street"],
+  'Surfe · Masculino': ['Surf · Masculino', "Surfing · Men's"],
+  Masculino: ['Masculino', "Men's"],
+  'Vôlei de praia': ['Vóley playa', 'Beach volleyball'],
+  'Oitavas de final': ['Octavos de final', 'Round of 16'],
+  'Ranking Mundial de Salto': ['Ranking Mundial de Salto', 'Show Jumping World Ranking'],
+  'Copa das Nações Exemplo': ['Copa de las Naciones Ejemplo', 'Sample Nations Cup'],
   Brasil: ['Brasil', 'Brazil'],
   Austrália: ['Australia', 'Australia'],
   Canadá: ['Canadá', 'Canada'],
@@ -123,6 +153,10 @@ const SAMPLE_TEXTS: Record<string, [string, string]> = {
 /** Padrões com número: "Rodada 12" → "Fecha 12" / "Matchday 12". */
 const SAMPLE_PATTERNS: [RegExp, [string, string]][] = [
   [/^Rodada (\d+)$/, ['Fecha $1', 'Matchday $1']],
+  [/^Jogos de Exemplo (\d+)$/, ['Juegos de Ejemplo $1', 'Sample Games $1']],
+  [/^Jogos Olímpicos Tóquio (\d+)$/, ['Juegos Olímpicos Tokio $1', 'Tokyo $1 Olympics']],
+  [/^Jogos Olímpicos (\S+) (\d+)$/, ['Juegos Olímpicos $1 $2', '$1 $2 Olympics']],
+  [/^Pan (\S+) (\d+)$/, ['Panamericanos $1 $2', '$1 $2 Pan American Games']],
   [/^Até (\d+) kg feminino$/, ['Hasta $1 kg femenino', "Women's $1 kg"]],
   [/^Boxe · Até (\d+) kg$/, ['Boxeo · Hasta $1 kg', 'Boxing · $1 kg']],
 ];
