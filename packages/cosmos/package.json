@@ -1,0 +1,32 @@
+{
+  "name": "@galaxie/cosmos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cosmos AI: carteira de créditos por tenant, extrato, reserva antes de cada chamada (reserve, settle, release) e conversão do custo real em créditos",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src",
+    "test:integration": "vitest run --dir test"
+  },
+  "dependencies": {
+    "@galaxie/db": "workspace:*",
+    "@galaxie/runtime-config": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "postgres": "^4.0.0"
+  }
+}

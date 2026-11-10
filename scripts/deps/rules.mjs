@@ -25,7 +25,18 @@ export const PACKAGE_LAYERS = {
     // o motor de agendamento compartilhado por ingestor e agentes (só fala com db, runtime-config e observability)
     'scheduler',
   ],
-  domain: ['providers', 'rules', 'knowledge', 'where-to-watch', 'geo', 'ai-ledger', 'core-writer', 'explore', 'crests'],
+  domain: [
+    'providers',
+    'rules',
+    'knowledge',
+    'where-to-watch',
+    'geo',
+    'ai-ledger',
+    'core-writer',
+    'explore',
+    'crests',
+    'cosmos',
+  ],
   ui: ['widgets'],
 };
 

@@ -12,6 +12,7 @@ helpers de banco compartilhados (trava de job, change feed, grades, widgets, ví
 | `multisport` · `equestrian` | Olimpíadas/Pan e hipismo |
 | `api` | Tenants, chaves, uso, webhooks, widgets do Builder |
 | `ops` | Cota, cursores de sync, jobs, change feed, uso de LLM, configuração em tempo de execução |
+| `cosmos` | Cosmos AI: carteira de créditos por tenant, extrato, reservas e catálogo de funções (regras em `@galaxie/cosmos`) |
 
 Modelo completo: [docs/04](../../docs/04-modelo-de-dados.md).
 

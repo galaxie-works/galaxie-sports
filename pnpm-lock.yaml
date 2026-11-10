@@ -306,6 +306,22 @@ importers:
         specifier: ^0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@4.0.0)
 
+  packages/cosmos:
+    dependencies:
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../runtime-config
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)(postgres@4.0.0)
+    devDependencies:
+      postgres:
+        specifier: ^4.0.0
+        version: 4.0.0
+
   packages/crests:
     dependencies:
       '@galaxie/db':
