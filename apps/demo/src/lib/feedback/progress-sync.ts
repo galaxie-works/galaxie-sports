@@ -197,7 +197,7 @@ async function syncAll(gh: FeedbackGithub, secret: string, now: Date) {
       });
       if (inserted) notices++;
     }
-    await saveIssueState(gh.repo, issue.number, { userId, ...result.next });
+    await saveIssueState(gh.repo, issue.number, { userId, ...result.next, closedAt: issue.closedAt });
   }
 }
 

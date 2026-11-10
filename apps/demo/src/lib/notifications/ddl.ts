@@ -37,6 +37,8 @@ create table if not exists feedback_issue (
   updated_at timestamptz not null default now(),
   primary key (repo, issue_number)
 );
+-- fechada no GitHub: o aviso deixa de pedir resposta
+alter table feedback_issue add column if not exists closed_at timestamptz;
 
 create table if not exists feedback_progress_run (
   id integer primary key default 1 check (id = 1),

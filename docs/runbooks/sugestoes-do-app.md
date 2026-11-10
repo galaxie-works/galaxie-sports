@@ -84,11 +84,16 @@ Quem enviou acompanha a sugestão pelo sino do cabeçalho (caixa de entrada) e p
 - **O que vira aviso:** a coluna final do dia (Backlog não avisa; ida e volta no mesmo dia também não) e os comentários
   que começam com `/responder`. Qualquer outro comentário fica só entre a equipe. Coluna e resposta no mesmo dia viram
   um aviso só.
-- **Necessita mais informações:** escreva a pergunta com `/responder`, mova o card e espere a conferência. Quem enviou
-  responde pela caixa de entrada; a resposta chega como comentário na issue ("Resposta de quem enviou"). Mover o card
-  de volta é com a equipe: o token não altera o quadro.
-- **Issue nova no Backlog:** ative no projeto o fluxo "Auto-add to project" (filtro `is:issue`) e o "Item added to
-  project" apontando para Backlog. Sem isso, a issue entra no quadro à mão.
+- **Conversa:** toda resposta da equipe (`/responder`) e o aviso de "Necessita mais informações" aceitam resposta pela
+  caixa de entrada, sempre no aviso mais recente da issue, uma vez por aviso, com a issue aberta e fora de Entregue. A
+  resposta chega como comentário na issue ("Resposta de quem enviou"). Para pedir detalhes, escreva a pergunta com
+  `/responder`; mover o card para "Necessita mais informações" é opcional. Mover o card depois é com a equipe: o token
+  não altera o quadro.
+- **Sino:** com a aba aberta, o app olha a caixa de entrada a cada minuto (consulta no banco, sem GitHub), ao voltar
+  para a aba e logo depois do "Verificar agora". O aviso aparece quando a conferência roda, não quando o comentário é
+  escrito.
+- **Issue nova no Backlog:** fluxos "Auto-add to project" (filtro `is:issue`) e "Item added to project" → Backlog
+  ligados no projeto desde 10/11.
 - Tabelas no schema `demo_auth`: `notification`, `feedback_issue` (issue → quem enviou, coluna e até onde já foi lida)
   e `feedback_progress_run`. `FEEDBACK_PROGRESS=off` desliga o relógio do processo.
 
