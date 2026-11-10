@@ -309,6 +309,7 @@ const RECHARGE_AS_PURCHASE = {
   succeeded: 'paid',
   failed: 'failed',
   cancelled: 'canceled',
+  review: 'review',
 } as const;
 
 /**
