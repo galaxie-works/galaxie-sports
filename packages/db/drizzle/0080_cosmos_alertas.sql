@@ -49,6 +49,7 @@ ALTER TABLE "cosmos"."wallet" ADD COLUMN "cycle_base" numeric(14, 3) DEFAULT 0 N
 ALTER TABLE "cosmos"."wallet" ADD COLUMN "cycle_started_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "cosmos"."wallet" ADD COLUMN "alert_level" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE "cosmos"."wallet" ADD COLUMN "block_reason" text;--> statement-breakpoint
+ALTER TABLE "cosmos"."wallet" ADD COLUMN "enabled" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "cosmos"."auto_recharge" ADD CONSTRAINT "auto_recharge_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cosmos"."auto_recharge" ADD CONSTRAINT "auto_recharge_package_id_package_id_fk" FOREIGN KEY ("package_id") REFERENCES "cosmos"."package"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cosmos"."balance_alert" ADD CONSTRAINT "balance_alert_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

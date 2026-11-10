@@ -23,6 +23,8 @@ export type CosmosErrorCode =
   | 'missing_idempotency_key'
   /** Ligar a recarga automática sem o aceite da cobrança recorrente. */
   | 'consent_required'
+  /** O cliente desligou a Cosmos (switch da Visão geral). */
+  | 'cosmos_disabled'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

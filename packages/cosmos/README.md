@@ -69,7 +69,7 @@ compra fica indisponível e o webhook responde 503.
 
 | Peça | O que faz |
 | --- | --- |
-| `enableCosmos(db, tenantId)` | Liga a Cosmos: cria a carteira e concede o teste uma única vez (`COSMOS_TRIAL_CREDITS`, padrão 250; `COSMOS_TRIAL_DAYS`, padrão 90). Religar não dá outro teste |
+| `enableCosmos(db, tenantId)` · `disableCosmos` | Liga a Cosmos (desligada, nenhuma função reserva: `cosmos_disabled`; o saldo fica): cria a carteira e concede o teste uma única vez (`COSMOS_TRIAL_CREDITS`, padrão 250; `COSMOS_TRIAL_DAYS`, padrão 90). Religar não dá outro teste |
 | Teste no saldo | `wallet.trial_remaining`: o uso gasta o teste primeiro. `expireTrials` tira do saldo o que sobrou no vencimento, com lançamento `trial_expiry`. Comprados não vencem |
 | Alertas | Cada entrada de créditos abre um ciclo (`cycle_base`). Em 80% e 90% de uso e no saldo zerado, uma linha em `cosmos.balance_alert`, uma vez por limiar por ciclo |
 | Saldo zerado | Carteira `blocked` com `block_reason = depleted`; a próxima entrada de créditos libera. Bloqueio da Galaxie é `staff` e só ela libera |

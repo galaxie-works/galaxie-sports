@@ -14,6 +14,7 @@ import {
   listPackages,
   type CreditPackageView,
   configureAutoRecharge,
+  disableCosmos,
   enableCosmos,
   getAutoRecharge,
   toClientWallet,
@@ -146,6 +147,14 @@ export async function enableCosmosAction(): Promise<{
     console.error('[cosmos] ligar a Cosmos falhou', err);
     return { ok: false, error: g.t.errors.generic };
   }
+}
+
+/** Desliga a Cosmos do tenant (switch da Visão geral): nenhuma função gasta mais; saldo e extrato ficam. */
+export async function disableCosmosAction(): Promise<{ ok: boolean; error?: string }> {
+  const g = await gate();
+  if ('error' in g) return { ok: false, error: g.error };
+  await disableCosmos(builderDb(), g.ctx.tenant.id);
+  return { ok: true };
 }
 
 export interface AutoRechargeForm {

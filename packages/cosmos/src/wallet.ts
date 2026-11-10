@@ -36,6 +36,8 @@ export interface WalletView {
   cycleStartedAt: Date | null;
   alertLevel: number;
   blockReason: 'depleted' | 'staff' | null;
+  /** O cliente ligou a Cosmos. Desligada, nenhuma função reserva (o saldo fica). */
+  enabled: boolean;
 }
 
 const walletColumns = {
@@ -52,6 +54,7 @@ const walletColumns = {
   cycleStartedAt: wallet.cycleStartedAt,
   alertLevel: wallet.alertLevel,
   blockReason: wallet.blockReason,
+  enabled: wallet.enabled,
 };
 
 /** Carteira sem o que é só da Galaxie (multiplicador). */
@@ -193,12 +196,18 @@ export async function reserve(
         updatedAt: now,
       })
       .where(
-        and(eq(wallet.tenantId, input.tenantId), eq(wallet.status, 'active'), gte(wallet.available, credits)),
+        and(
+          eq(wallet.tenantId, input.tenantId),
+          eq(wallet.enabled, true),
+          eq(wallet.status, 'active'),
+          gte(wallet.available, credits),
+        ),
       )
       .returning({ available: wallet.available, multiplier: wallet.multiplier });
     if (!updated) {
       const w = await getWallet(tx, input.tenantId);
       if (!w) throw new CosmosError('no_wallet', 'o tenant ainda não ligou a Cosmos');
+      if (!w.enabled) throw new CosmosError('cosmos_disabled', 'a Cosmos está desligada neste tenant');
       if (w.status === 'blocked') throw new CosmosError('wallet_blocked', 'carteira bloqueada');
       throw new CosmosError('insufficient_credits', 'saldo insuficiente');
     }

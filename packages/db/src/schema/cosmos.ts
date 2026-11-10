@@ -66,6 +66,8 @@ export const wallet = cosmos.table(
     alertLevel: integer('alert_level').notNull().default(0),
     /** Por que está bloqueada: `depleted` (saldo zerou, uma recarga libera) ou `staff` (decisão da Galaxie). */
     blockReason: text('block_reason').$type<'depleted' | 'staff'>(),
+    /** O cliente ligou a Cosmos (switch da Visão geral). Desligada, nenhuma função reserva; o saldo fica. */
+    enabled: boolean('enabled').notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

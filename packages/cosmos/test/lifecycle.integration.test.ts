@@ -17,6 +17,7 @@ import {
   addEntry,
   applyStripeEvent,
   configureAutoRecharge,
+  disableCosmos,
   enableCosmos,
   expireTrials,
   getAutoRecharge,
@@ -106,6 +107,19 @@ describe('teste ao ligar', () => {
     const w = await getWallet(db, t);
     expect(w).toMatchObject({ available: 100, trialRemaining: 100, trialGranted: true });
     expect(w?.trialExpiresAt?.toISOString()).toBe('2030-05-30T12:00:00.000Z');
+  });
+
+  it('desligar para as reservas e mantém o saldo; religar não dá outro teste', async () => {
+    const t = await newTenant();
+    await enableCosmos(db, t, { trial });
+    await disableCosmos(db, t);
+    await expect(reserve(db, { tenantId: t, functionName: 'fn' }, { settings })).rejects.toSatisfy(
+      (e: unknown) => isCosmosError(e, 'cosmos_disabled'),
+    );
+    expect(await getWallet(db, t)).toMatchObject({ enabled: false, available: 100 });
+    const again = await enableCosmos(db, t, { trial });
+    expect(again).toMatchObject({ trialGranted: false, wallet: { enabled: true, available: 100 } });
+    await expect(reserve(db, { tenantId: t, functionName: 'fn' }, { settings })).resolves.toBeDefined();
   });
 
   it('o uso gasta o teste primeiro; o que sobra no vencimento sai com lançamento; comprado não vence', async () => {

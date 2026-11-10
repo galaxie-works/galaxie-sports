@@ -110,6 +110,7 @@ describe('visão do cliente', () => {
         cycleStartedAt: null,
         alertLevel: 0,
         blockReason: null,
+        enabled: true,
       }),
     ).not.toHaveProperty('multiplier');
   });

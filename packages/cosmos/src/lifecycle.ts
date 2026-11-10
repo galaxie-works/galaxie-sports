@@ -45,7 +45,11 @@ export async function enableCosmos(
   options: { trial?: TrialSettings; now?: Date; userId?: string | null } = {},
 ): Promise<{ wallet: WalletView; trialGranted: boolean }> {
   const now = options.now ?? new Date();
-  const existing = (await getWallet(db, tenantId)) ?? (await ensureWallet(db, tenantId));
+  let existing = (await getWallet(db, tenantId)) ?? (await ensureWallet(db, tenantId));
+  if (!existing.enabled) {
+    await db.update(wallet).set({ enabled: true, updatedAt: now }).where(eq(wallet.tenantId, tenantId));
+    existing = { ...existing, enabled: true };
+  }
   if (existing.trialGranted) return { wallet: existing, trialGranted: false };
   const trial = options.trial ?? (await readTrialSettings(db));
   try {
@@ -118,4 +122,9 @@ export async function expireTrials(db: Database, now: Date = new Date(), limit =
     if (done) expired += 1;
   }
   return expired;
+}
+
+/** Desliga a Cosmos do tenant: nenhuma função reserva mais; o saldo, o teste e o extrato ficam. */
+export async function disableCosmos(db: Database, tenantId: string): Promise<void> {
+  await db.update(wallet).set({ enabled: false, updatedAt: new Date() }).where(eq(wallet.tenantId, tenantId));
 }
