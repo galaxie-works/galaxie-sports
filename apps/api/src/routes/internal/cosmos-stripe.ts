@@ -1,7 +1,9 @@
 /**
  * Webhook do Stripe da Cosmos AI (#993, arquitetura 06):
  *
- *   POST /internal/cosmos/stripe/webhook
+ *   POST /webhooks/stripe/cosmos
+ *
+ * Fora de `/internal` de propósito: o proxy da VPS não expõe `/internal` na internet, e é o Stripe que chama.
  *
  * Autenticado pela assinatura do Stripe (`Stripe-Signature`, segredo STRIPE_WEBHOOK_SECRET), não por chave
  * da Galaxie: é o Stripe que chama. O corpo chega cru (a assinatura é do texto exato), e o crédito só entra
@@ -14,7 +16,7 @@ import type { FastifyInstance } from 'fastify';
 import { applyStripeEvent, parseStripeEvent, verifyStripeSignature } from '@galaxie/cosmos';
 import type { Database } from '@galaxie/db';
 
-export const COSMOS_STRIPE_WEBHOOK_PATH = '/internal/cosmos/stripe/webhook';
+export const COSMOS_STRIPE_WEBHOOK_PATH = '/webhooks/stripe/cosmos';
 
 /** Eventos de checkout são pequenos; folga para metadados. */
 const BODY_LIMIT = 256 * 1024;
