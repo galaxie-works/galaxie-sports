@@ -1,16 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import {
-  autoRecharge,
-  balanceAlert,
-  closeDb,
-  createDb,
-  rechargeAttempt,
-  runMigrations,
-  tenant,
-  type Database,
-} from '@galaxie/db';
+import { autoRecharge, balanceAlert, rechargeAttempt, tenant, type Database } from '@galaxie/db';
 import { asc, eq } from 'drizzle-orm';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -37,17 +27,9 @@ import {
   type StripeEvent,
 } from '../src/index.js';
 
-const adminUrl = process.env.DATABASE_URL;
-if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
+import { createTempDb, type TempDb } from './test-db.js';
 
-const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
-const testUrl = (() => {
-  const u = new URL(adminUrl);
-  u.pathname = `/${dbName}`;
-  return u.toString();
-})();
-
-let admin: postgres.Sql;
+let temp: TempDb;
 let db: Database;
 let pkg: string;
 const settings: CosmosSettings = { dailyUsdCeiling: null, creditUsd: 0.01 };
@@ -75,10 +57,8 @@ const alerts = async (t: string) =>
   ).map((a) => a.level);
 
 beforeAll(async () => {
-  admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
-  await admin.unsafe(`CREATE DATABASE ${dbName}`);
-  await runMigrations(testUrl);
-  db = createDb(testUrl, { max: 6 });
+  temp = await createTempDb();
+  db = temp.db;
   await upsertFunctionDef(db, { name: 'fn', minCredits: 1, permission: 'cosmos.test' });
   // preço de teste, não o da tabela da Galaxie
   pkg = await upsertPackage(db, {
@@ -91,9 +71,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (db) await closeDb(db);
-  await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-  await admin.end();
+  await temp?.close();
 });
 
 describe('teste ao ligar', () => {
