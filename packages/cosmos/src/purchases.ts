@@ -4,7 +4,8 @@
  * reenvia) é ignorado pelo id, e a intenção que já foi paga não credita de novo por outro evento.
  */
 import { and, asc, eq } from 'drizzle-orm';
-import { creditPackage, purchaseIntent, stripeEvent, type Database, type PackageCurrency } from '@galaxie/db';
+import type { Database } from '@galaxie/db/client';
+import { creditPackage, purchaseIntent, stripeEvent, type PackageCurrency } from '@galaxie/db/schema';
 import { ceilCredits } from './credits.js';
 import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';
