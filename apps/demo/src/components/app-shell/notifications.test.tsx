@@ -15,7 +15,8 @@ vi.mock('@/lib/notifications/actions', () => ({
   answerNotice: (id: string, text: string) => answerNotice(id, text),
 }));
 
-const { NotificationsAlert, NotificationsButton, NotificationsProvider } = await import('./notifications');
+const { NotificationsAlert, NotificationsButton, NotificationsProvider, POLL_MS } = await import('./notifications');
+const { requestInboxRefresh } = await import('@/lib/notifications/events');
 
 const T = clientDictionary('pt-BR');
 const N = T.notifications;
@@ -74,6 +75,30 @@ describe('caixa de entrada', () => {
     await show();
     expect(screen.queryByRole('button', { name: /Notificações/ })).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('sem recarregar: o aviso novo chega na olhada do minuto e no pedido do painel', async () => {
+    vi.useFakeTimers();
+    try {
+      loadInbox.mockResolvedValue(inbox({ unread: 0, items: [] }));
+      await show();
+      expect(screen.getByRole('button', { name: N.button })).toBeTruthy();
+
+      loadInbox.mockResolvedValue(inbox());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(POLL_MS);
+      });
+      expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+
+      loadInbox.mockResolvedValue(inbox({ unread: 2 }));
+      await act(async () => {
+        requestInboxRefresh();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByRole('button', { name: 'Notificações (2 novas)' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('aviso novo: sino com contador e faixa com a resposta da equipe', async () => {

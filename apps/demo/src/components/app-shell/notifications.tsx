@@ -3,9 +3,9 @@
 /**
  * Caixa de entrada do app logado:
  *
- * - `NotificationsProvider` (no layout do app): busca os avisos de quem está logado ao abrir o app e quando a aba volta
- *   a ficar visível (no máximo a cada 10 minutos: o andamento das sugestões é conferido uma vez por dia). Sem sessão, o
- *   sino não aparece.
+ * - `NotificationsProvider` (no layout do app): busca os avisos de quem está logado ao abrir o app, a cada minuto com a
+ *   aba visível, ao voltar para a aba e quando alguém pede (`requestInboxRefresh`, ex.: o "Verificar agora" do
+ *   painel). Com o painel aberto, a olhada do minuto espera fechar. Sem sessão, o sino não aparece.
  * - `NotificationsButton`: o sino do cabeçalho, ao lado do "Sugerir ou reportar algo", com o número de avisos novos.
  *   Abre o painel lateral (composição do c-sheet-1), que marca tudo como lido ao abrir.
  * - `NotificationsAlert`: a faixa logo abaixo do cabeçalho (composição do ReUI c-alert-18) com o aviso novo mais
@@ -52,9 +52,13 @@ import { FEEDBACK_MESSAGE_MAX, FEEDBACK_MESSAGE_MIN } from '@/lib/feedback/rules
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import { answerNotice, loadInbox, markRead, type AnswerError } from '@/lib/notifications/actions';
+import { INBOX_REFRESH_EVENT } from '@/lib/notifications/events';
 import type { Inbox, InboxItem } from '@/lib/notifications/store';
 
-const REFRESH_MS = 10 * 60_000;
+/** Com a aba visível, o sino olha a caixa de novo a cada minuto (uma consulta leve no banco, sem GitHub). */
+export const POLL_MS = 60_000;
+/** Ao voltar para a aba (ou para a janela), busca de novo se a última busca tem mais que isto. */
+const STALE_MS = 15_000;
 const DISMISSED_KEY = 'galaxie.inbox.dismissed';
 
 interface InboxContextValue {
@@ -84,6 +88,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [open, setOpenState] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const loadedAt = useRef(0);
+  // painel aberto: a olhada do minuto não desfaz o "lido" que acabou de ser marcado
+  const openRef = useRef(false);
 
   const refresh = useCallback(async () => {
     loadedAt.current = Date.now();
@@ -98,17 +104,30 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     if (inExample) return;
     setDismissed(readDismissed());
     void refresh();
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && Date.now() - loadedAt.current > REFRESH_MS)
-        void refresh();
+    const visible = () => document.visibilityState === 'visible';
+    const onBack = () => {
+      if (visible() && Date.now() - loadedAt.current > STALE_MS) void refresh();
     };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    const onRequest = () => void refresh();
+    // aba escondida não busca: volta a buscar ao reaparecer (onBack)
+    const timer = window.setInterval(() => {
+      if (visible() && !openRef.current) void refresh();
+    }, POLL_MS);
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    window.addEventListener(INBOX_REFRESH_EVENT, onRequest);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+      window.removeEventListener(INBOX_REFRESH_EVENT, onRequest);
+    };
   }, [inExample, refresh]);
 
   const setOpen = useCallback(
     (next: boolean) => {
       setOpenState(next);
+      openRef.current = next;
       // ao fechar, o que foi visto deixa de ser "nova"
       if (!next)
         return setInbox((cur) =>

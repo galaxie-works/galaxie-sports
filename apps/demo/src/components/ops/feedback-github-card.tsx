@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
+import { requestInboxRefresh } from '@/lib/notifications/events';
 import type { OpsSnapshot } from '@/lib/ops/types';
 
 import { SourceBadge, useOpsAction } from './setting-row';
@@ -183,7 +184,7 @@ function ProgressRow({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: 
           variant="outline"
           size="sm"
           disabled={pending}
-          onClick={() => run(() => checkFeedbackProgressNow(), T.done)}
+          onClick={() => run(() => checkFeedbackProgressNow(), T.done, requestInboxRefresh)}
         >
           {pending ? <Spinner /> : <RefreshCw />}
           {T.run}
