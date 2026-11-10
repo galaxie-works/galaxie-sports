@@ -3,6 +3,13 @@ import * as z from 'zod';
 import { API_MODULES, API_PLANS, listKeyEvents, tenant, type Database } from '@galaxie/db';
 import { inArray } from 'drizzle-orm';
 import { problems } from '../errors.js';
+import {
+  engageModulesOf,
+  ModuleLimitError,
+  moduleLimitsOf,
+  setModuleLimits,
+} from '../engage/module-limits.js';
+import { moduleUsageOf, utcMonth } from '../engage/module-usage.js';
 import type { UsageBackend } from '../usage/counter.js';
 import { UsageQuery } from '../usage/query.js';
 import { persistUsage, queryUsage, usageByDay } from '../usage/store.js';
@@ -96,6 +103,17 @@ const KeyParams = z.object({ id: z.string().min(1).max(80), keyId: z.string().re
 const RotateBody = z
   .object({ graceSeconds: z.number().int().min(0).max(MAX_ROTATION_GRACE_SEC).default(86_400) })
   .strict();
+
+const ModuleLimitsBody = z
+  .object({ limits: z.record(z.string().max(80), z.number().int().nullable()) })
+  .strict()
+  .refine((b) => Object.keys(b.limits).length > 0, 'informe ao menos uma faixa');
+const MonthQuery = z.object({
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'mês YYYY-MM')
+    .optional(),
+});
 
 const SECRET_NOTICE = 'Guarde a chave agora: ela não será exibida novamente.';
 
@@ -222,6 +240,37 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const { limit } = parseInput(KeyEventsQuery, request.query);
     const t = await tenantOr404(id);
     return { tenantId: t.id, slug: t.slug, data: await listKeyEvents(db, t.id, limit) };
+  });
+
+  // módulos de engajamento (#1018): quais o tenant tem, faixa de cada um e uso do mês
+  app.get('/internal/admin/tenants/:id/engage-modules', { config }, async (request) => {
+    const { id } = parseInput(TenantParams, request.params);
+    const { month = utcMonth() } = parseInput(MonthQuery, request.query);
+    const t = await tenantOr404(id);
+    return {
+      tenantId: t.id,
+      slug: t.slug,
+      month,
+      modules: engageModulesOf(t.modules),
+      limits: await moduleLimitsOf(db, t.id, t.modules),
+      usage: await moduleUsageOf(db, t.id, month),
+    };
+  });
+
+  app.put('/internal/admin/tenants/:id/module-limits', { config }, async (request) => {
+    const { id } = parseInput(TenantParams, request.params);
+    const { limits } = parseInput(ModuleLimitsBody, request.body ?? {});
+    const t = await tenantOr404(id);
+    await setModuleLimits(db, t.id, limits, 'admin').catch((err) => {
+      if (err instanceof ModuleLimitError)
+        throw problems.invalidParams([{ path: `limits.${err.key}`, message: err.message }]);
+      throw err;
+    });
+    request.log.info(
+      { tenant: t.slug, admin: 'tenant.module_limits', keys: Object.keys(limits) },
+      'faixas de módulo alteradas',
+    );
+    return { limits: await moduleLimitsOf(db, t.id, t.modules) };
   });
 
   app.get('/internal/admin/tenants/:id/usage', { config }, async (request) => {
