@@ -17981,6 +17981,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "ledger_id": {
           "name": "ledger_id",
           "type": "uuid",
@@ -18817,7 +18824,8 @@
         "processing",
         "succeeded",
         "failed",
-        "cancelled"
+        "cancelled",
+        "review"
       ]
     },
     "cosmos.reservation_status": {

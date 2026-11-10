@@ -13,6 +13,7 @@ import {
   isCosmosError,
   listLedger,
   listPackages,
+  listPurchasesInReview,
   upsertPackage,
   type StripeCheckoutSession,
   type StripeEvent,
@@ -163,6 +164,8 @@ describe('compra de créditos pelo Stripe', () => {
     const rows = await db.select().from(purchaseIntent).where(eq(purchaseIntent.tenantId, t));
     // valor diferente fica para a equipe revisar, não como falha silenciosa
     expect(rows.map((r) => r.status).sort()).toEqual(['expired', 'failed', 'review']);
+    // a equipe vê a que ficou em revisão, venha de quando vier
+    expect((await listPurchasesInReview(db, t)).map((p) => p.id)).toEqual([c.id]);
   });
 
   it('com conversão de moeda no Checkout, vale o valor de origem', async () => {

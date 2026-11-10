@@ -7,7 +7,7 @@ import {
   listAllPackages,
   listLedger,
   listPackages,
-  listPurchases,
+  listPurchasesInReview,
   listStaffActions,
   walletsOverview,
   type LedgerEntry,
@@ -63,7 +63,7 @@ export interface StaffWalletDetail {
   actions: (Awaited<ReturnType<typeof listStaffActions>>[number] & { person: ClientPerson | null })[];
   packages: Awaited<ReturnType<typeof listPackages>>;
   /** Pagas com valor ou moeda diferentes do esperado: sem crédito até a equipe resolver no Stripe. */
-  review: Awaited<ReturnType<typeof listPurchases>>;
+  review: Awaited<ReturnType<typeof listPurchasesInReview>>;
 }
 
 export async function loadStaffWallet(tenantId: string, cursor?: string): Promise<StaffWalletDetail | null> {
@@ -75,7 +75,7 @@ export async function loadStaffWallet(tenantId: string, cursor?: string): Promis
     listLedger(db, tenantId, { limit: 100, ...(cursor && isUuid(cursor) ? { cursor } : {}) }),
     listStaffActions(db, tenantId),
     listPackages(db, packageMarket(tenant.markets)),
-    listPurchases(db, tenantId, 100),
+    listPurchasesInReview(db, tenantId),
   ]);
   const who = await people([...page.entries.map((e) => e.userId), ...actions.map((a) => a.userId)]);
   return {
@@ -85,6 +85,6 @@ export async function loadStaffWallet(tenantId: string, cursor?: string): Promis
     nextCursor: page.nextCursor,
     actions: actions.map((a) => ({ ...a, person: who.get(a.userId) ?? null })),
     packages,
-    review: purchases.filter((p) => p.status === 'review'),
+    review: purchases,
   };
 }
