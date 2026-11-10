@@ -9,6 +9,8 @@ export const INBOX_LIMIT = 30;
 
 export interface InboxItem {
   id: string;
+  /** A sugestão do aviso (repo#issue): a caixa junta os avisos dela numa conversa só. */
+  thread: string;
   status: FeedbackStatus | null;
   /** Trecho da sugestão (título da issue sem o assunto). */
   snippet: string | null;
@@ -28,6 +30,8 @@ export interface Inbox {
 
 interface Row {
   id: string;
+  repo: string | null;
+  issue_number: number | null;
   status: string | null;
   issue_title: string | null;
   body: string | null;
@@ -35,32 +39,37 @@ interface Row {
   read_at: Date | null;
   answered_at: Date | null;
   issue_status: string | null;
+  issue_closed: boolean;
   latest: boolean;
 }
 
 /**
- * O aviso pede resposta? A issue segue em "Necessita mais informações", o aviso é o mais recente dela e ainda não foi
- * respondido. Vale tanto o aviso da coluna quanto o de só resposta (`/responder` com a issue já parada lá).
+ * O aviso aceita resposta? Toda resposta da equipe (`/responder`) vira conversa, e o aviso de "Necessita mais
+ * informações" também pede resposta. Só o aviso mais recente da issue, ainda não respondido, com a issue aberta e fora de
+ * "Entregue". Mesma regra no banco em `answerableNotice`.
  */
 export function answerable(n: {
   status: FeedbackStatus | null;
+  hasBody: boolean;
   answered: boolean;
   issueStatus: string | null;
+  issueClosed: boolean;
   latest: boolean;
 }): boolean {
   return (
     n.latest &&
     !n.answered &&
-    n.issueStatus === 'needsInfo' &&
-    (n.status === 'needsInfo' || n.status === null)
+    !n.issueClosed &&
+    n.issueStatus !== 'delivered' &&
+    (n.hasBody || n.status === 'needsInfo')
   );
 }
 
 export async function readInbox(userId: string, limit = INBOX_LIMIT): Promise<Inbox> {
   const [{ rows }, unread] = await Promise.all([
     pool.query<Row>(
-      `select n.id::text, n.status, n.issue_title, n.body, n.created_at, n.read_at, n.answered_at,
-              f.status as issue_status,
+      `select n.id::text, n.repo, n.issue_number, n.status, n.issue_title, n.body, n.created_at, n.read_at, n.answered_at,
+              f.status as issue_status, coalesce(f.closed_at is not null, false) as issue_closed,
               row_number() over (partition by n.repo, n.issue_number order by n.created_at desc, n.id desc) = 1
                 as latest
          from notification n
@@ -81,6 +90,7 @@ export async function readInbox(userId: string, limit = INBOX_LIMIT): Promise<In
       const status = statusKey(r.status) ?? (r.status as FeedbackStatus | null);
       return {
         id: r.id,
+        thread: r.repo && r.issue_number !== null ? `${r.repo}#${r.issue_number}` : `n${r.id}`,
         status,
         snippet: r.issue_title,
         body: r.body,
@@ -89,8 +99,10 @@ export async function readInbox(userId: string, limit = INBOX_LIMIT): Promise<In
         answered: r.answered_at !== null,
         canAnswer: answerable({
           status,
+          hasBody: !!r.body,
           answered: r.answered_at !== null,
           issueStatus: r.issue_status,
+          issueClosed: r.issue_closed,
           latest: r.latest,
         }),
       };
@@ -122,8 +134,9 @@ export async function answerableNotice(
     `select n.repo, n.issue_number
        from notification n
        join feedback_issue f on f.repo = n.repo and f.issue_number = n.issue_number
-      where n.id = $1 and n.user_id = $2 and (n.status = 'needsInfo' or n.status is null)
-        and n.answered_at is null and f.status = 'needsInfo' and f.user_id = $2
+      where n.id = $1 and n.user_id = $2 and (coalesce(n.body, '') <> '' or n.status = 'needsInfo')
+        and n.answered_at is null and f.user_id = $2
+        and f.closed_at is null and f.status is distinct from 'delivered'
         and not exists (
           select 1 from notification m
            where m.repo = n.repo and m.issue_number = n.issue_number
@@ -183,14 +196,19 @@ export async function readIssueStates(repo: string): Promise<Map<number, StoredI
   );
 }
 
-export async function saveIssueState(repo: string, issue: number, state: StoredIssue): Promise<void> {
+export async function saveIssueState(
+  repo: string,
+  issue: number,
+  state: StoredIssue & { closedAt?: string | null },
+): Promise<void> {
   await pool.query(
-    `insert into feedback_issue (repo, issue_number, user_id, status, synced_until, updated_at)
-     values ($1, $2, $3, $4, $5, now())
+    `insert into feedback_issue (repo, issue_number, user_id, status, synced_until, closed_at, updated_at)
+     values ($1, $2, $3, $4, $5, $6, now())
      on conflict (repo, issue_number) do update
        set user_id = coalesce(feedback_issue.user_id, excluded.user_id),
-           status = excluded.status, synced_until = excluded.synced_until, updated_at = now()`,
-    [repo, issue, state.userId, state.status, state.cursor],
+           status = excluded.status, synced_until = excluded.synced_until, closed_at = excluded.closed_at,
+           updated_at = now()`,
+    [repo, issue, state.userId, state.status, state.cursor, state.closedAt ?? null],
   );
 }
 
