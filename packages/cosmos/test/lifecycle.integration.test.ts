@@ -397,8 +397,12 @@ describe('recarga automática', () => {
       new Response(JSON.stringify({ error: { message: 'Invalid API Key provided' } }), {
         status: 401,
       })) as typeof fetch;
-    await processRecharges(db, 'sk_test_x', { fetchImpl: badKey, limit: 500 });
+    // mais rodadas que o teto de tentativas: chave errada é nossa e nunca chega ao teto
+    for (let i = 0; i <= MAX_RECHARGE_ATTEMPTS; i++)
+      await processRecharges(db, 'sk_test_x', { fetchImpl: badKey, limit: 500 });
     expect(await a.statuses()).toEqual(['pending']);
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t));
+    expect(attempt?.attempts).toBe(0);
     expect(await getAutoRecharge(db, a.t)).toMatchObject({ enabled: true, lastFailureReason: null });
   });
 
