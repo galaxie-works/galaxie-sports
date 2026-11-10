@@ -100,7 +100,8 @@ describe('caixa de entrada', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: N.alertOpen }));
     });
-    expect(markRead).toHaveBeenCalledWith(undefined);
+    // só o que está na lista: aviso mais antigo que os 30 carregados não é marcado
+    expect(markRead).toHaveBeenCalledWith(['2']);
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByText(N.title)).toBeTruthy();
     expect(screen.getByLabelText(N.answer)).toBeTruthy();

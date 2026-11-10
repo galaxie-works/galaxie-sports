@@ -35,13 +35,34 @@ interface Row {
   read_at: Date | null;
   answered_at: Date | null;
   issue_status: string | null;
+  latest: boolean;
+}
+
+/**
+ * O aviso pede resposta? A issue segue em "Necessita mais informações", o aviso é o mais recente dela e ainda não foi
+ * respondido. Vale tanto o aviso da coluna quanto o de só resposta (`/responder` com a issue já parada lá).
+ */
+export function answerable(n: {
+  status: FeedbackStatus | null;
+  answered: boolean;
+  issueStatus: string | null;
+  latest: boolean;
+}): boolean {
+  return (
+    n.latest &&
+    !n.answered &&
+    n.issueStatus === 'needsInfo' &&
+    (n.status === 'needsInfo' || n.status === null)
+  );
 }
 
 export async function readInbox(userId: string, limit = INBOX_LIMIT): Promise<Inbox> {
   const [{ rows }, unread] = await Promise.all([
     pool.query<Row>(
       `select n.id::text, n.status, n.issue_title, n.body, n.created_at, n.read_at, n.answered_at,
-              f.status as issue_status
+              f.status as issue_status,
+              row_number() over (partition by n.repo, n.issue_number order by n.created_at desc, n.id desc) = 1
+                as latest
          from notification n
          left join feedback_issue f on f.repo = n.repo and f.issue_number = n.issue_number
         where n.user_id = $1
@@ -66,7 +87,12 @@ export async function readInbox(userId: string, limit = INBOX_LIMIT): Promise<In
         createdAt: r.created_at.toISOString(),
         read: r.read_at !== null,
         answered: r.answered_at !== null,
-        canAnswer: status === 'needsInfo' && r.answered_at === null && r.issue_status === 'needsInfo',
+        canAnswer: answerable({
+          status,
+          answered: r.answered_at !== null,
+          issueStatus: r.issue_status,
+          latest: r.latest,
+        }),
       };
     }),
   };
@@ -86,7 +112,7 @@ export async function markInboxRead(userId: string, ids?: readonly string[]): Pr
     ]);
 }
 
-/** Aviso de "mais informações" do usuário que ainda pode ser respondido: a issue segue nessa coluna. */
+/** Aviso do usuário que ainda pode ser respondido (mesma regra de `answerable`, conferida no banco). */
 export async function answerableNotice(
   userId: string,
   id: string,
@@ -96,8 +122,12 @@ export async function answerableNotice(
     `select n.repo, n.issue_number
        from notification n
        join feedback_issue f on f.repo = n.repo and f.issue_number = n.issue_number
-      where n.id = $1 and n.user_id = $2 and n.status = 'needsInfo' and n.answered_at is null
-        and f.status = 'needsInfo' and f.user_id = $2`,
+      where n.id = $1 and n.user_id = $2 and (n.status = 'needsInfo' or n.status is null)
+        and n.answered_at is null and f.status = 'needsInfo' and f.user_id = $2
+        and not exists (
+          select 1 from notification m
+           where m.repo = n.repo and m.issue_number = n.issue_number
+             and (m.created_at, m.id) > (n.created_at, n.id))`,
     [id, userId],
   );
   const row = rows[0];

@@ -114,12 +114,14 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         return setInbox((cur) =>
           cur ? { ...cur, items: cur.items.map((i) => ({ ...i, read: true })) } : cur,
         );
-      if (!inbox?.unread) return;
-      // abrir é ler: o contador zera na hora, o ponto de "nova" fica até fechar
-      setInbox((cur) => (cur ? { ...cur, unread: 0 } : cur));
-      void markRead().catch(() => {});
+      // abrir é ler, mas só o que está na tela: aviso mais antigo que a lista não some sem ser visto
+      const shown = inbox?.items.filter((i) => !i.read).map((i) => i.id) ?? [];
+      if (!shown.length) return;
+      // o contador cai na hora; o ponto de "nova" fica até fechar
+      setInbox((cur) => (cur ? { ...cur, unread: Math.max(0, cur.unread - shown.length) } : cur));
+      void markRead(shown).catch(() => {});
     },
-    [inbox?.unread],
+    [inbox],
   );
 
   const value = useMemo<InboxContextValue>(() => {

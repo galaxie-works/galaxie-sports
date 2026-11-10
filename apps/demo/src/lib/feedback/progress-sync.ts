@@ -31,16 +31,18 @@ const TICK_MS = 30 * 60_000;
 const RETRY_MS = 2 * 60 * 60_000;
 /** Issue fechada há mais que isto não é mais lida. */
 const CLOSED_WINDOW_MS = 90 * 24 * 60 * 60_000;
-const MAX_PAGES = 20;
+/** Teto de páginas por estado (50 issues cada). Passar dele é falha, não conferência completa. */
+const MAX_PAGES = 100;
 /** Chave da trava (pg_try_advisory_lock): número fixo, só desta rotina. */
 const PROGRESS_LOCK = 7_301_202_611;
 
-const QUERY = `query($owner: String!, $name: String!, $after: String) {
+// abertas: todas; fechadas: da atualizada mais recente para trás, até a janela (a leitura para ali)
+const QUERY = `query($owner: String!, $name: String!, $after: String, $states: [IssueState!]) {
   repository(owner: $owner, name: $name) {
-    issues(first: 50, after: $after, states: [OPEN, CLOSED], orderBy: { field: CREATED_AT, direction: DESC }) {
+    issues(first: 50, after: $after, states: $states, orderBy: { field: UPDATED_AT, direction: DESC }) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title body closedAt
+        number title body closedAt updatedAt
         timelineItems(last: 100, itemTypes: [PROJECT_V2_ITEM_STATUS_CHANGED_EVENT, ISSUE_COMMENT]) {
           nodes {
             __typename
@@ -58,6 +60,7 @@ interface IssueNode {
   title: string;
   body: string | null;
   closedAt: string | null;
+  updatedAt: string;
   timelineItems: {
     nodes: ({ __typename: string; id: string; createdAt: string; status?: string; body?: string } | null)[];
   };
@@ -139,46 +142,63 @@ async function syncAll(gh: FeedbackGithub, secret: string, now: Date) {
   let issues = 0;
   let notices = 0;
   const unknown = new Set<string>();
-  let after: string | null = null;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const data: IssuesPage = await gh.graphql<IssuesPage>(QUERY, { owner, name, after });
-    const conn = data.repository?.issues;
-    if (!conn) throw new Error('repo de sugestões não encontrada pelo GraphQL');
-    for (const issue of conn.nodes) {
-      if (!issue?.body?.includes(APP_ISSUE_MARKER)) continue;
-      if (issue.closedAt && now.getTime() - Date.parse(issue.closedAt) > CLOSED_WINDOW_MS) continue;
-      issues++;
-      const stored = states.get(issue.number);
-      const userId = await ownerOf(issue, stored);
-      const result = issueProgress(
-        toItems(issue),
-        { status: stored?.status ?? null, cursor: stored?.cursor ?? null },
-        since,
-      );
-      result.unknown.forEach((u) => unknown.add(u));
-      if (result.notice && userId) {
-        const inserted = await insertNotice({
-          userId,
-          source: `${gh.repo}#${issue.number}@${result.notice.source}`,
-          repo: gh.repo,
-          issue: issue.number,
-          title: issueSnippet(issue.title),
-          status: result.notice.status,
-          body: result.notice.body,
-          at: result.notice.at,
-        });
-        if (inserted) notices++;
+  const closedFloor = now.getTime() - CLOSED_WINDOW_MS;
+  for (const state of ['OPEN', 'CLOSED'] as const) {
+    let after: string | null = null;
+    let done = false;
+    for (let page = 0; !done; page++) {
+      // leitura cortada não pode virar "conferido": a issue aberta mais antiga sumiria todo dia
+      if (page === MAX_PAGES)
+        throw new Error(
+          `mais de ${MAX_PAGES * 50} issues ${state === 'OPEN' ? 'abertas' : 'fechadas'}: leitura incompleta`,
+        );
+      const data: IssuesPage = await gh.graphql<IssuesPage>(QUERY, { owner, name, after, states: [state] });
+      const conn = data.repository?.issues;
+      if (!conn) throw new Error('repo de sugestões não encontrada pelo GraphQL');
+      for (const issue of conn.nodes) {
+        if (!issue) continue;
+        // fechadas vêm da atualizada mais recente: passou da janela, o resto também passou
+        if (state === 'CLOSED' && Date.parse(issue.updatedAt) < closedFloor) {
+          done = true;
+          break;
+        }
+        await visit(issue);
       }
-      await saveIssueState(gh.repo, issue.number, { userId, ...result.next });
+      if (!conn.pageInfo.hasNextPage) done = true;
+      after = conn.pageInfo.endCursor;
     }
-    if (!conn.pageInfo.hasNextPage) break;
-    after = conn.pageInfo.endCursor;
-    if (page === MAX_PAGES - 1)
-      console.warn(`[feedback] parou em ${MAX_PAGES} páginas: as issues mais antigas não foram conferidas`);
   }
   if (unknown.size)
     console.warn('[feedback] colunas que o app não conhece (sem aviso):', JSON.stringify([...unknown]));
   return { issues, notices };
+
+  async function visit(issue: IssueNode) {
+    if (!issue.body?.includes(APP_ISSUE_MARKER)) return;
+    if (issue.closedAt && Date.parse(issue.closedAt) < closedFloor) return;
+    issues++;
+    const stored = states.get(issue.number);
+    const userId = await ownerOf(issue, stored);
+    const result = issueProgress(
+      toItems(issue),
+      { status: stored?.status ?? null, cursor: stored?.cursor ?? null },
+      since,
+    );
+    result.unknown.forEach((u) => unknown.add(u));
+    if (result.notice && userId) {
+      const inserted = await insertNotice({
+        userId,
+        source: `${gh.repo}#${issue.number}@${result.notice.source}`,
+        repo: gh.repo,
+        issue: issue.number,
+        title: issueSnippet(issue.title),
+        status: result.notice.status,
+        body: result.notice.body,
+        at: result.notice.at,
+      });
+      if (inserted) notices++;
+    }
+    await saveIssueState(gh.repo, issue.number, { userId, ...result.next });
+  }
 }
 
 /** Já passou da hora de hoje e a conferência de hoje ainda não saiu? */
