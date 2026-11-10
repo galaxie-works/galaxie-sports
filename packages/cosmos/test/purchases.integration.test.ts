@@ -161,7 +161,23 @@ describe('compra de créditos pelo Stripe', () => {
     ).toBe('amount_mismatch');
     expect((await getWallet(db, t))?.available ?? 0).toBe(0);
     const rows = await db.select().from(purchaseIntent).where(eq(purchaseIntent.tenantId, t));
-    expect(rows.map((r) => r.status).sort()).toEqual(['expired', 'failed', 'failed']);
+    // valor diferente fica para a equipe revisar, não como falha silenciosa
+    expect(rows.map((r) => r.status).sort()).toEqual(['expired', 'failed', 'review']);
+  });
+
+  it('com conversão de moeda no Checkout, vale o valor de origem', async () => {
+    const t = await newTenant();
+    const { session } = await intentFor(t);
+    const converted = {
+      ...session,
+      payment_status: 'paid' as const,
+      amount_total: 1371,
+      currency: 'cad',
+      currency_conversion: { amount_total: 4900, source_currency: 'brl' },
+    };
+    expect((await applyStripeEvent(db, evt('checkout.session.completed', converted))).outcome).toBe(
+      'credited',
+    );
   });
 
   it('sessão que não é nossa ou de outra intenção não credita', async () => {

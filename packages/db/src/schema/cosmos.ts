@@ -248,6 +248,8 @@ export const purchaseStatus = cosmos.enum('purchase_status', [
   'failed',
   'canceled',
   'expired',
+  /** Pago com valor ou moeda diferentes do esperado: sem crédito até a equipe revisar. */
+  'review',
 ]);
 
 /**

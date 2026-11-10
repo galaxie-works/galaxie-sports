@@ -18700,7 +18700,8 @@
         "paid",
         "failed",
         "canceled",
-        "expired"
+        "expired",
+        "review"
       ]
     },
     "cosmos.recharge_status": {

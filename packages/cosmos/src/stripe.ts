@@ -85,6 +85,8 @@ export function checkoutForm(input: CheckoutInput): URLSearchParams {
     form.set('payment_intent_data[setup_future_usage]', 'off_session');
     form.set('metadata[save_card]', 'true');
   }
+  // preço só na moeda do pacote: a conversão automática do Stripe mudaria valor e moeda da sessão
+  form.set('adaptive_pricing[enabled]', 'false');
   // recibo por compra: o Stripe gera a fatura paga e manda por e-mail
   form.set('invoice_creation[enabled]', 'true');
   form.set('success_url', input.successUrl);
@@ -149,6 +151,8 @@ export interface StripeCheckoutSession {
   payment_status?: 'paid' | 'unpaid' | 'no_payment_required';
   amount_total?: number | null;
   currency?: string | null;
+  /** Com conversão de moeda no Checkout: o valor e a moeda de origem (os do nosso preço). */
+  currency_conversion?: { amount_total?: number | null; source_currency?: string | null } | null;
   payment_intent?: string | null;
   invoice?: string | null;
   /** Cliente do Stripe (compra com a recarga automática ligada salva o cartão nele). */

@@ -1,4 +1,4 @@
-CREATE TYPE "cosmos"."purchase_status" AS ENUM('pending', 'paid', 'failed', 'canceled', 'expired');--> statement-breakpoint
+CREATE TYPE "cosmos"."purchase_status" AS ENUM('pending', 'paid', 'failed', 'canceled', 'expired', 'review');--> statement-breakpoint
 CREATE TABLE "cosmos"."package" (
 	"id" uuid PRIMARY KEY DEFAULT public.uuid_generate_v7() NOT NULL,
 	"name" text NOT NULL,
