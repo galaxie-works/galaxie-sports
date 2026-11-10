@@ -1,6 +1,6 @@
 {
-  "id": "0e11a485-fb89-43a9-8b8a-43e966d159d6",
-  "prevId": "4811933b-50da-4cb8-8ca4-4b21fa140945",
+  "id": "00d98efc-795c-4f8d-9324-341c2f20fdf8",
+  "prevId": "acec4aa4-bd9c-4496-93c8-ef2ad4a12058",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17222,6 +17222,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -17231,6 +17237,28 @@
         }
       },
       "indexes": {
+        "ledger_idempotency_key_idx": {
+          "name": "ledger_idempotency_key_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"cosmos\".\"ledger\".\"idempotency_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "ledger_tenant_id_idx": {
           "name": "ledger_tenant_id_idx",
           "columns": [
