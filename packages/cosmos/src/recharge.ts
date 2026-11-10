@@ -162,12 +162,29 @@ async function failRecharge(
     .where(eq(autoRecharge.tenantId, tenantId));
 }
 
-/** Falha passageira: volta para a fila, só se ainda estiver em `processing`. */
-async function requeue(db: Database, attemptId: string, now: Date) {
-  await db
+/** Teto de falhas passageiras (5xx, 409, 429, rede) da mesma tentativa. */
+export const MAX_RECHARGE_ATTEMPTS = 5;
+
+/**
+ * Falha passageira: volta para a fila, só se ainda estiver em `processing`. No teto de tentativas, falha e desliga
+ * a recarga com o motivo (a tela mostra), para não ficar "ligada" sem nunca cobrar.
+ */
+async function requeue(
+  db: Database,
+  attemptId: string,
+  tenantId: string,
+  now: Date,
+): Promise<'requeued' | 'failed'> {
+  const [row] = await db
     .update(rechargeAttempt)
-    .set({ status: 'pending', updatedAt: now })
-    .where(and(eq(rechargeAttempt.id, attemptId), eq(rechargeAttempt.status, 'processing')));
+    .set({ status: 'pending', attempts: sql`${rechargeAttempt.attempts} + 1`, updatedAt: now })
+    .where(and(eq(rechargeAttempt.id, attemptId), eq(rechargeAttempt.status, 'processing')))
+    .returning({ attempts: rechargeAttempt.attempts });
+  if (row && row.attempts >= MAX_RECHARGE_ATTEMPTS) {
+    await failRecharge(db, attemptId, tenantId, 'stripe_unavailable', now);
+    return 'failed';
+  }
+  return 'requeued';
 }
 
 /** A recarga do tenant da tentativa segue ligada e aceita (condição para tirá-la da fila). */
@@ -271,8 +288,8 @@ export async function processRecharges(
         result.failed += 1;
       } else {
         // 5xx, 409, 429 ou rede: o pagamento pode ter sido criado; repete com a mesma chave e os mesmos parâmetros
-        await requeue(db, a.id, now);
-        result.requeued += 1;
+        if ((await requeue(db, a.id, a.tenantId, now)) === 'failed') result.failed += 1;
+        else result.requeued += 1;
       }
     }
   }
@@ -311,8 +328,8 @@ export async function reconcileStuckRecharges(
   const result = { requeued: 0, failed: 0 };
   for (const a of stuck) {
     if (!a.paymentIntentId) {
-      await requeue(db, a.id, now);
-      result.requeued += 1;
+      if ((await requeue(db, a.id, a.tenantId, now)) === 'failed') result.failed += 1;
+      else result.requeued += 1;
       continue;
     }
     try {
@@ -362,7 +379,8 @@ export async function applyRechargeEvent(
     .for('update');
   if (!a || (a.paymentIntentId && a.paymentIntentId !== pi.id))
     return { outcome: 'unknown_intent', rechargeAttemptId: null };
-  if (a.status === 'succeeded') return { outcome: 'already_closed', rechargeAttemptId: a.id };
+  if (a.status === 'succeeded' || a.status === 'review')
+    return { outcome: 'already_closed', rechargeAttemptId: a.id };
 
   if (event.type === 'payment_intent.payment_failed') {
     if (!['pending', 'processing'].includes(a.status))
@@ -378,7 +396,12 @@ export async function applyRechargeEvent(
       expected: { amount: a.amountCents, currency: a.currency },
       received: { amount: received, currency: pi.currency ?? null },
     });
+    // o cliente pagou: fica para a equipe revisar (não some como falha); a recarga se desliga até lá
     await failRecharge(tx, a.id, a.tenantId, 'amount_mismatch', now);
+    await tx
+      .update(rechargeAttempt)
+      .set({ status: 'review', paymentIntentId: pi.id, updatedAt: now })
+      .where(eq(rechargeAttempt.id, a.id));
     return { outcome: 'amount_mismatch', rechargeAttemptId: a.id };
   }
   const { ledgerId } = await addEntryInTx(
