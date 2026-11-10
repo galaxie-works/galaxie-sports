@@ -72,6 +72,7 @@ flowchart TB
     packages_ai_ledger[ai-ledger]
     packages_core_writer[core-writer]
     packages_crests[crests]
+    packages_engage[engage]
     packages_explore[explore]
     packages_geo[geo]
     packages_knowledge[knowledge]
@@ -96,7 +97,7 @@ flowchart TB
   end
 
   apps_api --> packages_apisports_client & packages_contracts & packages_db & packages_explore & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
-  apps_demo --> packages_contracts & packages_crests & packages_db & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
+  apps_demo --> packages_contracts & packages_crests & packages_db & packages_engage & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
   packages_ai_ledger --> packages_db & packages_runtime_config
   packages_apisports_client --> packages_db
   packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules

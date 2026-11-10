@@ -20,6 +20,7 @@
     "@galaxie/contracts": "workspace:*",
     "@galaxie/crests": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/engage": "workspace:*",
     "@galaxie/net-guard": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",

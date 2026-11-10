@@ -4,6 +4,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -248,6 +249,83 @@ export const moduleUsageMonthly = api.table(
     primaryKey({ columns: [t.tenantId, t.month, t.module, t.metric] }),
     index('module_usage_monthly_month_idx').on(t.month),
   ],
+);
+
+/** Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). */
+export const TENANT_MEMBER_ROLES = ['owner', 'admin', 'senior_moderator', 'moderator', 'volunteer'] as const;
+export type TenantMemberRole = (typeof TENANT_MEMBER_ROLES)[number];
+
+/** Onde o cargo vale: null = tenant inteiro; senão, só as Comunidades e Salas do Jogo listadas. */
+export type TenantMemberScope = { communities?: string[]; rooms?: string[] };
+
+/**
+ * Membro da equipe de um tenant, com cargo e escopo (#1019). É uma pessoa do console (usuário da demo,
+ * `demo_auth.user.id`) ou um Perfil de torcedor promovido a Voluntário (`fan.profile`, onda 2). Uma pessoa pode ter
+ * cargo em vários tenants, um por tenant. O Voluntário é sempre um Perfil, nunca um usuário do console.
+ */
+export const tenantMember = api.table(
+  'tenant_member',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Usuário do console (texto do Better Auth); null quando é um Perfil. */
+    userId: text('user_id'),
+    /** Perfil de torcedor (Voluntário); null quando é usuário do console. */
+    profileId: uuid('profile_id'),
+    role: text('role').$type<TenantMemberRole>().notNull(),
+    scope: jsonb('scope').$type<TenantMemberScope>(),
+    /** Quem convidou ou promoveu: `panel:<id do usuário>`, `galaxie:<id>`, `legacy`. */
+    invitedBy: text('invited_by').notNull(),
+    /** Primeiro acesso depois do convite; null = convite pendente. */
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('tenant_member_user_uq')
+      .on(t.tenantId, t.userId)
+      .where(sql`${t.userId} is not null`),
+    uniqueIndex('tenant_member_profile_uq')
+      .on(t.tenantId, t.profileId)
+      .where(sql`${t.profileId} is not null`),
+    index('tenant_member_user_idx').on(t.userId),
+    check('tenant_member_one_identity', sql`(${t.userId} is null) <> (${t.profileId} is null)`),
+    check(
+      'tenant_member_role',
+      sql`${t.role} in ('owner', 'admin', 'senior_moderator', 'moderator', 'volunteer')`,
+    ),
+    check('tenant_member_volunteer_is_profile', sql`${t.role} <> 'volunteer' or ${t.profileId} is not null`),
+  ],
+);
+
+/**
+ * Auditoria dos cargos (#1019): quem deu, trocou ou tirou o cargo de quem, e quando. Só cresce: o painel nunca
+ * altera nem apaga uma linha.
+ */
+export const tenantMemberEvent = api.table(
+  'tenant_member_event',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Membro afetado (o id fica mesmo depois de removido). */
+    memberId: uuid('member_id').notNull(),
+    /** `invited` | `accepted` | `role_changed` | `scope_changed` | `removed` */
+    action: text('action')
+      .$type<'invited' | 'accepted' | 'role_changed' | 'scope_changed' | 'removed'>()
+      .notNull(),
+    /** Quem fez: `panel:<id do usuário>`, `galaxie:<id>`, `legacy`. */
+    actor: text('actor').notNull(),
+    fromRole: text('from_role').$type<TenantMemberRole>(),
+    toRole: text('to_role').$type<TenantMemberRole>(),
+    /** E-mail ou Apelido no momento do evento, para a auditoria ler sem juntar com outra tabela. */
+    subject: text('subject'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tenant_member_event_tenant_idx').on(t.tenantId, t.createdAt)],
 );
 
 /**

@@ -526,6 +526,13 @@
       "when": 1794336617847,
       "tag": "0076_modulos_engajamento",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794337586659,
+      "tag": "0077_cargos_do_cliente",
+      "breakpoints": true
     }
   ]
 }

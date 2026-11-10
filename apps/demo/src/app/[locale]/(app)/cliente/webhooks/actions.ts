@@ -18,6 +18,7 @@ import {
 import { revalidatePath } from 'next/cache';
 
 import { builderDb } from '@/lib/builder/store';
+import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
 import { parseWebhookForm, webhookSecrets, type WebhookFormInput } from '@/lib/client/webhooks';
@@ -58,6 +59,9 @@ async function tenantOrError() {
   const t = await texts();
   if (!ctx) return { t, error: t.errors.forbidden } as const;
   if (!ctx.tenant) return { t, error: t.errors.noTenant } as const;
+  // configuração do tenant: cargo com settings.manage (#1019)
+  if (!can(ctx, 'settings.manage'))
+    return { t, error: getDictionary(await getRequestLocale()).client.errors.role } as const;
   return { t, tenant: ctx.tenant } as const;
 }
 
