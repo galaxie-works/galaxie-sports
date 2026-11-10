@@ -197,6 +197,14 @@ export interface FeedbackPanelState {
   kekConfigured: boolean;
   tokenChangedBy: string | null;
   tokenChangedAt: string | null;
+  /** Última conferência diária do andamento (avisos na caixa de entrada); null = nunca rodou. */
+  progress: {
+    okAt: string | null;
+    finishedAt: string | null;
+    error: string | null;
+    issues: number;
+    notices: number;
+  } | null;
 }
 
 export interface OpsSnapshot {

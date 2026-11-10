@@ -14,6 +14,7 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 import { getTenantInfo, isUuid } from '@/lib/client/tenants';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { internalPath } from '@/lib/internal-path';
+import { recordFeedbackIssue } from '@/lib/notifications/store';
 
 import { attachmentStoreConfigured, deleteAttachment, putAttachment } from './attachments';
 import { FeedbackGithub, FeedbackGithubError } from './github';
@@ -149,6 +150,10 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
         attachments,
       }),
       label,
+    );
+    // dono da issue para os avisos de andamento; se falhar, o job acha pela referência opaca da ficha
+    await recordFeedbackIssue(config.repo, number, userId).catch((err) =>
+      console.error('[feedback] issue aberta sem registro do dono', err instanceof Error ? err.name : err),
     );
     console.info(
       '[feedback] issue aberta',

@@ -17,6 +17,7 @@ vi.mock('./attachments', () => ({
 }));
 vi.mock('./image', () => ({ cleanImage: vi.fn() }));
 vi.mock('./settings-db', () => ({ readFeedbackSettings: () => readFeedbackSettings() }));
+vi.mock('@/lib/notifications/store', () => ({ recordFeedbackIssue: vi.fn(async () => {}) }));
 
 const { sendFeedback } = await import('./actions');
 
