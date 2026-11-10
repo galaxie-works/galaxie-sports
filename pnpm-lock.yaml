@@ -47,6 +47,9 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/cosmos':
+        specifier: workspace:*
+        version: link:../../packages/cosmos
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -116,6 +119,9 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@galaxie/cosmos':
+        specifier: workspace:*
+        version: link:../../packages/cosmos
       '@galaxie/crests':
         specifier: workspace:*
         version: link:../../packages/crests

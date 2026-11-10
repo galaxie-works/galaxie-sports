@@ -29,6 +29,7 @@
   "dependencies": {
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
+    "@galaxie/cosmos": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",

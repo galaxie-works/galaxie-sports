@@ -1244,6 +1244,8 @@ export default defineMessages(
       },
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
+      STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
+      STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
       COSMOS_DAILY_USD_CEILING: {
         label: 'Teto de segurança da Cosmos AI por dia',
         description:
@@ -2489,6 +2491,8 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Cosmos AI daily safety ceiling',
           description:
@@ -3753,6 +3757,8 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Tope de seguridad diario de Cosmos AI',
           description:
