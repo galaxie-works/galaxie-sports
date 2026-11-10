@@ -393,6 +393,9 @@ export type EntryKind = Exclude<LedgerKind, 'usage'>;
 /** Tipos que somam em "total recebido" quando entram créditos. */
 const RECEIVED_KINDS: ReadonlySet<EntryKind> = new Set(['trial', 'purchase', 'adjustment']);
 
+/** Tipos que só entram créditos. */
+const POSITIVE_KINDS: ReadonlySet<EntryKind> = new Set(['trial', 'purchase']);
+
 export interface EntryInput {
   tenantId: string;
   kind: EntryKind;
@@ -417,6 +420,12 @@ export async function addEntry(
   const now = options.now ?? new Date();
   if (!Number.isFinite(input.credits)) throw new CosmosError('invalid_amount', 'créditos inválidos');
   const credits = roundCredits(input.credits);
+  // lançamento zerado não diz nada; teste e compra só entram positivos (um teste de 0 queimaria o teste de vez)
+  if (credits === 0 || (POSITIVE_KINDS.has(input.kind) && credits < 0))
+    throw new CosmosError(
+      'invalid_amount',
+      'créditos do lançamento precisam ser diferentes de 0 (positivos no teste e na compra)',
+    );
   return db.transaction(async (tx) => {
     await tx.insert(wallet).values({ tenantId: input.tenantId }).onConflictDoNothing();
     const w = await lockWallet(tx, input.tenantId);

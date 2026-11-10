@@ -257,6 +257,17 @@ describe('carteira da Cosmos', () => {
     expect(entries).toHaveLength(1);
   });
 
+  it('teste de 0 (ou que arredonda para 0) é recusado e não queima o teste', async () => {
+    const t = await newTenant();
+    for (const credits of [0, 0.0004, -5])
+      await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits }), 'invalid_amount');
+    await expectCode(addEntry(db, { tenantId: t, kind: 'purchase', credits: -1 }), 'invalid_amount');
+    expect(await getWallet(db, t)).toBeNull();
+    await expect(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })).resolves.toMatchObject({
+      available: 250,
+    });
+  });
+
   it('custo real inválido não acerta a reserva nem entra no teto', async () => {
     const t = await newTenant();
     await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
