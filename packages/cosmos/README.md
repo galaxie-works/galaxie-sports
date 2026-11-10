@@ -47,3 +47,20 @@ O cliente nunca vê tokens, custo real, modelo nem multiplicador: use `toClientE
 ## Testes
 
 `pnpm test` (conversão, flags, CSV) e `pnpm test:integration` (concorrência no Postgres; precisa de `DATABASE_URL`).
+
+## Compra pelo Stripe (#993)
+
+| Peça | Onde |
+| --- | --- |
+| Pacotes (`cosmos.package`) | `listPackages(db, mercado)`, `upsertPackage`. Preço e créditos são dados, nunca código |
+| Intenção de compra (`cosmos.purchase_intent`) | `createPurchaseIntent` copia créditos e valor do pacote; `attachCheckoutSession` liga a sessão do Checkout |
+| Checkout | `createCheckoutSession(chave, …)`, com Pix e cartão em reais, cartão em dólar, recibo pelo Stripe e chave de idempotência pela intenção |
+| Webhook | `verifyStripeSignature` + `applyStripeEvent`, na rota `POST /internal/cosmos/stripe/webhook` da API |
+
+`applyStripeEvent` grava o evento (`cosmos.stripe_event`, id único), muda a intenção e credita numa transação só. Evento
+repetido sai como `duplicate`; intenção já paga não credita de novo (`already_closed`); valor ou moeda diferentes do
+esperado não creditam (`amount_mismatch`). No Pix, `checkout.session.completed` chega com `payment_status: unpaid` e o
+crédito vem no `checkout.session.async_payment_succeeded`.
+
+Variáveis: `STRIPE_SECRET_KEY` (demo, abre o checkout) e `STRIPE_WEBHOOK_SECRET` (API, confere a assinatura). Sem elas, a
+compra fica indisponível e o webhook responde 503.

@@ -97,8 +97,8 @@ flowchart TB
     tests_integration[tests/integration]
   end
 
-  apps_api --> packages_apisports_client & packages_contracts & packages_db & packages_explore & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
-  apps_demo --> packages_contracts & packages_crests & packages_db & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
+  apps_api --> packages_apisports_client & packages_contracts & packages_cosmos & packages_db & packages_explore & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
+  apps_demo --> packages_contracts & packages_cosmos & packages_crests & packages_db & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
   packages_ai_ledger --> packages_db & packages_runtime_config
   packages_apisports_client --> packages_db
   packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules

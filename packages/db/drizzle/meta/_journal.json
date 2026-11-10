@@ -533,6 +533,13 @@
       "when": 1794338844835,
       "tag": "0077_modulos_engajamento",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794338137510,
+      "tag": "0078_cosmos_compra",
+      "breakpoints": true
     }
   ]
 }
