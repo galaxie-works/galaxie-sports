@@ -2,7 +2,9 @@
  * Flags da Cosmos no registro do painel (@galaxie/runtime-config, seção `cosmos`), lidas do banco a cada
  * reserva: precedência banco > env > padrão, com a mesma validação do painel.
  */
-import { readRuntimeOverrides, type Database } from '@galaxie/db';
+// subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
+import type { Database } from '@galaxie/db/client';
+import { readRuntimeOverrides } from '@galaxie/db/runtime-settings';
 import { resolveSetting, settingDef, validateSettingKey } from '@galaxie/runtime-config';
 
 export interface CosmosSettings {
