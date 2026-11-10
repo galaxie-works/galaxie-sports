@@ -818,39 +818,6 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   },
 
-  // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
-  // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do
-  // AI_DAILY_USD_BUDGET dos agentes internos. Passou dele, a reserva recusa até a virada; quem chama cai para regras
-  // e pessoas. Relido a cada reserva
-  {
-    key: 'COSMOS_DAILY_USD_CEILING',
-    section: 'cosmos',
-    type: 'number',
-    min: 1,
-    max: 100_000,
-    unlimited: true,
-    zeroInvalid: true,
-    services: ['api'],
-    apply: 'refresh',
-    default: '25',
-    critical: true,
-  },
-  // valor de 1 crédito em US$ de custo de provedor (converte o custo real em créditos). Sem padrão no código: o número
-  // é da Galaxie e fica só no banco. Vazio, cada chamada cobra o mínimo da função
-  {
-    key: 'COSMOS_CREDIT_USD',
-    section: 'cosmos',
-    type: 'number',
-    min: 0.000001,
-    max: 10,
-    zeroInvalid: true,
-    allowEmpty: true,
-    services: ['api'],
-    apply: 'refresh',
-    default: null,
-    critical: true,
-  },
-
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
   secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
   secret('OPENAI_API_KEY', 'ai', ['agents']),
