@@ -16,6 +16,7 @@ import {
   defaultCardOf,
   getPaymentIntent,
   isDefinitiveDecline,
+  isOurStripeProblem,
   type StripeRequestError,
   type StripeEvent,
 } from './stripe.js';
@@ -174,14 +175,25 @@ async function requeue(
   attemptId: string,
   tenantId: string,
   now: Date,
-): Promise<'requeued' | 'failed'> {
+): Promise<'requeued' | 'failed' | 'skipped'> {
+  // uma escrita só, condicionada a processing: o webhook ou outro processo que mexeu no meio não é sobrescrito
+  const capped = sql`${rechargeAttempt.attempts} + 1 >= ${MAX_RECHARGE_ATTEMPTS}`;
   const [row] = await db
     .update(rechargeAttempt)
-    .set({ status: 'pending', attempts: sql`${rechargeAttempt.attempts} + 1`, updatedAt: now })
+    .set({
+      attempts: sql`${rechargeAttempt.attempts} + 1`,
+      status: sql`case when ${capped} then 'failed'::cosmos.recharge_status else 'pending'::cosmos.recharge_status end`,
+      failureReason: sql`case when ${capped} then 'stripe_unavailable' else ${rechargeAttempt.failureReason} end`,
+      updatedAt: now,
+    })
     .where(and(eq(rechargeAttempt.id, attemptId), eq(rechargeAttempt.status, 'processing')))
-    .returning({ attempts: rechargeAttempt.attempts });
-  if (row && row.attempts >= MAX_RECHARGE_ATTEMPTS) {
-    await failRecharge(db, attemptId, tenantId, 'stripe_unavailable', now);
+    .returning({ status: rechargeAttempt.status });
+  if (!row) return 'skipped';
+  if (row.status === 'failed') {
+    await db
+      .update(autoRecharge)
+      .set({ enabled: false, lastFailureAt: now, lastFailureReason: 'stripe_unavailable', updatedAt: now })
+      .where(eq(autoRecharge.tenantId, tenantId));
     return 'failed';
   }
   return 'requeued';
@@ -287,9 +299,17 @@ export async function processRecharges(
         await failRecharge(db, a.id, a.tenantId, declineReason(e), now);
         result.failed += 1;
       } else {
-        // 5xx, 409, 429 ou rede: o pagamento pode ter sido criado; repete com a mesma chave e os mesmos parâmetros
-        if ((await requeue(db, a.id, a.tenantId, now)) === 'failed') result.failed += 1;
-        else result.requeued += 1;
+        // chave ou endpoint errados são nossos: erro no log, e a tentativa segue na fila sem desligar a recarga
+        if (isOurStripeProblem(e))
+          console.error('[cosmos] Stripe recusou a nossa chamada da recarga (chave ou endpoint)', {
+            rechargeAttemptId: a.id,
+            status: (e as StripeRequestError).status,
+          });
+        // 5xx, 409, 429, rede ou problema nosso: o pagamento pode ter sido criado; repete com a mesma chave e os
+        // mesmos parâmetros
+        const r = await requeue(db, a.id, a.tenantId, now);
+        if (r === 'failed') result.failed += 1;
+        else if (r === 'requeued') result.requeued += 1;
       }
     }
   }
@@ -328,8 +348,9 @@ export async function reconcileStuckRecharges(
   const result = { requeued: 0, failed: 0 };
   for (const a of stuck) {
     if (!a.paymentIntentId) {
-      if ((await requeue(db, a.id, a.tenantId, now)) === 'failed') result.failed += 1;
-      else result.requeued += 1;
+      const r = await requeue(db, a.id, a.tenantId, now);
+      if (r === 'failed') result.failed += 1;
+      else if (r === 'requeued') result.requeued += 1;
       continue;
     }
     try {
