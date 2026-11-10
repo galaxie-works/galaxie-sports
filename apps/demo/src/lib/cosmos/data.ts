@@ -35,7 +35,7 @@ export interface ClientPerson {
   image: string | null;
 }
 
-async function people(ids: readonly (string | null)[]): Promise<Map<string, ClientPerson>> {
+export async function people(ids: readonly (string | null)[]): Promise<Map<string, ClientPerson>> {
   const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];
   if (!wanted.length) return new Map();
   const { rows } = await pool.query<ClientPerson>(

@@ -382,3 +382,32 @@ export const rechargeAttempt = cosmos.table(
       .where(sql`${t.status} in ('pending', 'processing')`),
   ],
 );
+
+// ─── ações da equipe Galaxie nas carteiras (#1002) ──────────────────────────────────────────────────
+
+export const STAFF_ACTIONS = ['multiplier', 'block', 'unblock', 'package'] as const;
+export type StaffActionKind = (typeof STAFF_ACTIONS)[number];
+
+/**
+ * O que a equipe Galaxie muda numa carteira ou no catálogo sem mexer no saldo (multiplicador, bloqueio, pacote),
+ * com quem, por quê e o antes e depois. Ajuste e estorno de créditos vão para o extrato (`cosmos.ledger`), com
+ * quem e o motivo no próprio lançamento.
+ */
+export const staffAction = cosmos.table(
+  'staff_action',
+  {
+    id: pkUuidV7(),
+    /** null nas ações do catálogo (pacotes). */
+    tenantId: uuid('tenant_id').references(() => tenant.id, { onDelete: 'cascade' }),
+    action: text('action').$type<StaffActionKind>().notNull(),
+    before: jsonb('before').$type<Record<string, unknown>>(),
+    after: jsonb('after').$type<Record<string, unknown>>(),
+    reason: text('reason').notNull(),
+    userId: text('user_id').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('staff_action_reason', sql`length(trim(${t.reason})) >= 5`),
+    index('staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
+);

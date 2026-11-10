@@ -25,6 +25,8 @@ export type CosmosErrorCode =
   | 'consent_required'
   /** O cliente desligou a Cosmos (switch da Visão geral). */
   | 'cosmos_disabled'
+  /** Ação da equipe sem motivo (pelo menos 5 caracteres). */
+  | 'reason_required'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 
