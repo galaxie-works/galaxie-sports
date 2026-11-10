@@ -24,6 +24,7 @@ import {
   getWallet,
   isCosmosError,
   listLedger,
+  MAX_RECHARGE_ATTEMPTS,
   processRecharges,
   readTrialSettings,
   reconcileStuckRecharges,
@@ -374,6 +375,47 @@ describe('recarga automática', () => {
     await processRecharges(db, 'sk_test_x', { fetchImpl: flaky });
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toBe(bodies[0]);
+  });
+
+  it('400 resource_missing (cartão ou cliente removido no Stripe): falha com o motivo e desliga', async () => {
+    const a = await withOpenAttempt('cus_11');
+    const missing = (async () =>
+      new Response(JSON.stringify({ error: { code: 'resource_missing', message: 'No such customer' } }), {
+        status: 400,
+      })) as typeof fetch;
+    await processRecharges(db, 'sk_test_x', { fetchImpl: missing, limit: 500 });
+    expect(await a.statuses()).toEqual(['failed']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'resource_missing',
+    });
+  });
+
+  it('falha passageira repetida: no teto de tentativas, falha e desliga a recarga', async () => {
+    const a = await withOpenAttempt('cus_12');
+    const down = (async () =>
+      new Response(JSON.stringify({ error: { message: 'fora' } }), { status: 500 })) as typeof fetch;
+    for (let i = 1; i < MAX_RECHARGE_ATTEMPTS; i++)
+      await processRecharges(db, 'sk_test_x', { fetchImpl: down, limit: 500 });
+    expect(await a.statuses()).toEqual(['pending']);
+    await processRecharges(db, 'sk_test_x', { fetchImpl: down, limit: 500 });
+    expect(await a.statuses()).toEqual(['failed']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'stripe_unavailable',
+    });
+  });
+
+  it('recarga paga com valor diferente fica em revisão, sem crédito', async () => {
+    const a = await withOpenAttempt('cus_13');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch([]) });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t));
+    const odd = piEvent('payment_intent.succeeded', attempt!.id, attempt!.paymentIntentId!, {
+      amount_received: 999,
+    });
+    expect((await applyStripeEvent(db, odd)).outcome).toBe('amount_mismatch');
+    expect(await a.statuses()).toEqual(['review']);
+    expect((await getWallet(db, a.t))?.available).toBe(15);
   });
 
   it('pagamento confirmado depois de a tentativa falhar: credita uma vez', async () => {

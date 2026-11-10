@@ -245,15 +245,13 @@ export async function getPaymentIntent(
 }
 
 /**
- * Recusa definitiva da cobrança (cartão recusado, autenticação exigida): a recarga se desliga. Qualquer outra
- * falha (5xx, 409, 429, rede) é passageira: a tentativa volta para a fila e repete com a mesma chave.
+ * Recusa definitiva da cobrança: todo 4xx menos 409 e 429 (cartão recusado, autenticação exigida, cliente ou
+ * cartão removido no Stripe, `resource_missing`...). A recarga se desliga com o motivo. 5xx, 409, 429 e rede são
+ * passageiros: a tentativa volta para a fila e repete com a mesma chave (até o teto de tentativas).
  */
 export function isDefinitiveDecline(e: unknown): boolean {
   if (!(e instanceof StripeRequestError)) return false;
-  const code = (e as StripeRequestError & { code?: string | undefined }).code;
-  if (code && ['card_declined', 'authentication_required', 'expired_card', 'incorrect_cvc'].includes(code))
-    return true;
-  return e.status === 402;
+  return e.status >= 400 && e.status < 500 && e.status !== 409 && e.status !== 429;
 }
 
 /**
