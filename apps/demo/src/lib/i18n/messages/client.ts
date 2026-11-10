@@ -77,6 +77,27 @@ export default defineMessages(
         multisport: 'Multiesporte',
         related_content: 'Vídeos relacionados',
         odds: 'Odds',
+        live_chat: 'Chat ao vivo',
+        communities: 'Comunidades',
+        gamification: 'Gamificação',
+        shopping: 'Shopping',
+        cosmos_ai: 'Cosmos AI',
+      },
+      engage: {
+        title: 'Engajamento',
+        description:
+          'Módulos de torcedor do seu contrato, com a faixa contratada e o uso deste mês (atualizado a cada 5 minutos).',
+        on: 'Contratado',
+        limits: {
+          'live_chat.peak_connections': 'Pico de pessoas conectadas',
+          'communities.max_communities': 'Comunidades',
+          'gamification.max_programs': 'Programas (países)',
+        },
+        metrics: {
+          active_fans: 'Torcedores ativos no mês',
+          clicks: 'Cliques no mês',
+          credits: 'Créditos usados no mês',
+        },
       },
     },
     keys: {
@@ -499,6 +520,27 @@ export default defineMessages(
           multisport: 'Multisport',
           related_content: 'Related videos',
           odds: 'Odds',
+          live_chat: 'Live chat',
+          communities: 'Communities',
+          gamification: 'Gamification',
+          shopping: 'Shopping',
+          cosmos_ai: 'Cosmos AI',
+        },
+        engage: {
+          title: 'Engagement',
+          description:
+            'Fan modules in your contract, with the contracted tier and this month’s usage (updated every 5 minutes).',
+          on: 'Contracted',
+          limits: {
+            'live_chat.peak_connections': 'Peak concurrent people',
+            'communities.max_communities': 'Communities',
+            'gamification.max_programs': 'Programs (countries)',
+          },
+          metrics: {
+            active_fans: 'Active fans this month',
+            clicks: 'Clicks this month',
+            credits: 'Credits used this month',
+          },
         },
       },
       keys: {
@@ -925,6 +967,27 @@ export default defineMessages(
           multisport: 'Multideporte',
           related_content: 'Videos relacionados',
           odds: 'Cuotas',
+          live_chat: 'Chat en vivo',
+          communities: 'Comunidades',
+          gamification: 'Gamificación',
+          shopping: 'Shopping',
+          cosmos_ai: 'Cosmos AI',
+        },
+        engage: {
+          title: 'Interacción',
+          description:
+            'Módulos de hinchas de tu contrato, con el rango contratado y el uso de este mes (se actualiza cada 5 minutos).',
+          on: 'Contratado',
+          limits: {
+            'live_chat.peak_connections': 'Pico de personas conectadas',
+            'communities.max_communities': 'Comunidades',
+            'gamification.max_programs': 'Programas (países)',
+          },
+          metrics: {
+            active_fans: 'Hinchas activos en el mes',
+            clicks: 'Clics en el mes',
+            credits: 'Créditos usados en el mes',
+          },
         },
       },
       keys: {
