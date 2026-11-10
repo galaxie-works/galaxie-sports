@@ -103,6 +103,35 @@ describe('caixa de entrada', () => {
     }
   });
 
+  it('busca antiga que volta depois não apaga o aviso da busca nova', async () => {
+    let slow: (v: Inbox) => void = () => {};
+    loadInbox.mockResolvedValueOnce(inbox({ unread: 0, items: [] }));
+    await show();
+    loadInbox.mockReturnValueOnce(new Promise<Inbox>((r) => (slow = r)));
+    loadInbox.mockResolvedValueOnce(inbox());
+    await act(async () => {
+      requestInboxRefresh(); // a lenta
+      requestInboxRefresh(); // a nova, que responde primeiro
+    });
+    expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+    await act(async () => slow(inbox({ unread: 0, items: [] })));
+    expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+  });
+
+  it('com o painel aberto, nenhuma busca automática', async () => {
+    loadInbox.mockResolvedValue(inbox());
+    await show();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Notificações/ }));
+    });
+    loadInbox.mockClear();
+    await act(async () => {
+      requestInboxRefresh();
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(loadInbox).not.toHaveBeenCalled();
+  });
+
   it('aviso novo: sino com contador e faixa com a resposta da equipe', async () => {
     loadInbox.mockResolvedValue(inbox());
     await show();

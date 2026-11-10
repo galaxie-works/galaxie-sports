@@ -5,7 +5,8 @@
  *
  * - `NotificationsProvider` (no layout do app): busca os avisos de quem está logado ao abrir o app, a cada minuto com a
  *   aba visível, ao voltar para a aba e quando alguém pede (`requestInboxRefresh`, ex.: o "Verificar agora" do
- *   painel). Com o painel aberto, a olhada do minuto espera fechar. Sem sessão, o sino não aparece.
+ *   painel). Com o painel aberto, nenhuma busca automática; e a resposta de uma busca antiga não passa por cima da de
+ *   uma nova. Sem sessão, o sino não aparece.
  * - `NotificationsButton`: o sino do cabeçalho, ao lado do "Sugerir ou reportar algo", com o número de avisos novos.
  *   Abre o painel lateral (composição do c-sheet-1), que marca tudo como lido ao abrir.
  * - `NotificationsAlert`: a faixa logo abaixo do cabeçalho (composição do ReUI c-alert-18) com o aviso novo mais
@@ -88,13 +89,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [open, setOpenState] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const loadedAt = useRef(0);
-  // painel aberto: a olhada do minuto não desfaz o "lido" que acabou de ser marcado
+  // painel aberto: nenhuma busca automática; o que chega fica para depois de fechar (não some sem ser visto nem volta
+  // como "nova" depois de visto)
   const openRef = useRef(false);
+  // cada busca leva um número: a resposta de uma busca mais antiga não sobrescreve a de uma mais nova
+  const generation = useRef(0);
 
   const refresh = useCallback(async () => {
+    if (openRef.current) return;
+    const gen = ++generation.current;
     loadedAt.current = Date.now();
     try {
-      setInbox(await loadInbox());
+      const next = await loadInbox();
+      if (gen === generation.current) setInbox(next);
     } catch {
       // rede ou servidor fora: fica o que já estava na tela
     }
@@ -111,7 +118,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     const onRequest = () => void refresh();
     // aba escondida não busca: volta a buscar ao reaparecer (onBack)
     const timer = window.setInterval(() => {
-      if (visible() && !openRef.current) void refresh();
+      if (visible()) void refresh();
     }, POLL_MS);
     document.addEventListener('visibilitychange', onBack);
     window.addEventListener('focus', onBack);
@@ -128,6 +135,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     (next: boolean) => {
       setOpenState(next);
       openRef.current = next;
+      // busca que saiu antes de abrir não entra com o painel aberto
+      if (next) generation.current++;
       // ao fechar, o que foi visto deixa de ser "nova"
       if (!next)
         return setInbox((cur) =>
