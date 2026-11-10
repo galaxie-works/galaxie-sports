@@ -29,6 +29,7 @@ export default defineMessages(
       lineup: 'Grades e ofertas',
       crests: 'Escudos',
       webhooks: 'Webhooks',
+      engage: 'Engajamento',
       label: 'Seções dos ajustes',
     },
     tabs: {
@@ -1294,6 +1295,7 @@ export default defineMessages(
         lineup: 'Lineups and offers',
         crests: 'Crests',
         webhooks: 'Webhooks',
+        engage: 'Engagement',
         label: 'Settings sections',
       },
       tabs: {
@@ -2540,6 +2542,7 @@ export default defineMessages(
         lineup: 'Grillas y ofertas',
         crests: 'Escudos',
         webhooks: 'Webhooks',
+        engage: 'Interacción',
         label: 'Secciones de ajustes',
       },
       tabs: {

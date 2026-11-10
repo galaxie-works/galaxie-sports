@@ -1,6 +1,6 @@
 'use client';
 
-import { ListChecks, Shield, SlidersHorizontal, Trophy, Tv, Users, Webhook } from 'lucide-react';
+import { Globe, ListChecks, Shield, SlidersHorizontal, Trophy, Tv, Users, Webhook } from 'lucide-react';
 import Link from 'next/link';
 
 import { useI18n } from '@/lib/i18n/client';
@@ -15,6 +15,7 @@ const ITEMS = [
   { id: 'lineup', href: '/ajustes/grades', icon: Tv },
   { id: 'crests', href: '/ajustes/escudos', icon: Shield },
   { id: 'webhooks', href: '/ajustes/webhooks', icon: Webhook },
+  { id: 'engage', href: '/ajustes/engajamento', icon: Globe },
 ] as const;
 
 /**
