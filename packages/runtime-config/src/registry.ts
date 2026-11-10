@@ -780,6 +780,10 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
   },
   secret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo']),
+  // Stripe da Galaxie Works LLC (#993): a chave secreta abre o checkout no painel do cliente; o segredo do webhook confere
+  // a assinatura na API. Sem elas a compra fica indisponível
+  secret('STRIPE_SECRET_KEY', 'cosmos', ['demo']),
+  secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do

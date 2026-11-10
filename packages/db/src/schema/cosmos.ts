@@ -182,3 +182,89 @@ export const functionDef = cosmos.table(
   },
   (t) => [check('function_def_min_positive', sql`${t.minCredits} > 0`)],
 );
+
+// ─── compra de créditos pelo Stripe (#993) ──────────────────────────────────────────────────────────
+
+export const PACKAGE_CURRENCIES = ['brl', 'usd'] as const;
+export type PackageCurrency = (typeof PACKAGE_CURRENCIES)[number];
+
+/**
+ * Pacote de créditos à venda. Preço e créditos são dados, nunca código: a Galaxie cadastra e desativa
+ * pelo banco (Ajustes, #1001). `market` é o país (ISO2) onde o pacote aparece.
+ */
+export const creditPackage = cosmos.table(
+  'package',
+  {
+    id: pkUuidV7(),
+    name: text('name').notNull(),
+    credits: credits('credits').notNull(),
+    /** Preço na menor unidade da moeda (centavos). */
+    priceCents: integer('price_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    market: text('market').notNull(),
+    active: boolean('active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('package_credits_positive', sql`${t.credits} > 0`),
+    check('package_price_positive', sql`${t.priceCents} > 0`),
+    check('package_currency', sql`${t.currency} in ('brl', 'usd')`),
+    check('package_market_iso2', sql`${t.market} ~ '^[A-Z]{2}$'`),
+    index('package_market_idx').on(t.market, t.active),
+  ],
+);
+
+export const purchaseStatus = cosmos.enum('purchase_status', [
+  'pending',
+  'paid',
+  'failed',
+  'canceled',
+  'expired',
+]);
+
+/**
+ * Intenção de compra, criada antes do checkout com o que o cliente espera receber (copia créditos e
+ * valor do pacote naquele momento). O crédito só entra pelo webhook com o pagamento confirmado.
+ */
+export const purchaseIntent = cosmos.table(
+  'purchase_intent',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    credits: credits('credits').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    status: purchaseStatus('status').notNull().default('pending'),
+    /** Quem comprou (usuário do console). */
+    userId: text('user_id'),
+    checkoutSessionId: text('checkout_session_id').unique(),
+    paymentIntentId: text('payment_intent_id'),
+    invoiceId: text('invoice_id'),
+    /** Lançamento da compra no extrato, depois de pago. */
+    ledgerId: uuid('ledger_id'),
+    failureReason: text('failure_reason'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('purchase_intent_credits_positive', sql`${t.credits} > 0`),
+    check('purchase_intent_amount_positive', sql`${t.amountCents} > 0`),
+    index('purchase_intent_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
+);
+
+/** Evento do Stripe já recebido: o id é único, então o webhook repetido não credita duas vezes. */
+export const stripeEvent = cosmos.table('stripe_event', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  purchaseIntentId: uuid('purchase_intent_id'),
+  /** O que o evento causou (`credited`, `failed`, `ignored`…). */
+  outcome: text('outcome').notNull(),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+});

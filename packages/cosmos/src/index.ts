@@ -5,6 +5,8 @@
  */
 export * from './credits.js';
 export * from './errors.js';
+export * from './purchases.js';
 export * from './settings.js';
 export * from './statement.js';
+export * from './stripe.js';
 export * from './wallet.js';
