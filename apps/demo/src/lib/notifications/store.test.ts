@@ -21,9 +21,9 @@ describe('answerable', () => {
   });
 
   it('aviso da coluna "mais informações" pede resposta mesmo sem texto da equipe', () => {
-    expect(
-      answerable({ ...reply, status: 'needsInfo', hasBody: false, issueStatus: 'needsInfo' }),
-    ).toBe(true);
+    expect(answerable({ ...reply, status: 'needsInfo', hasBody: false, issueStatus: 'needsInfo' })).toBe(
+      true,
+    );
   });
 
   it('não aceita: já respondido, aviso antigo, issue fechada ou entregue, aviso de coluna sem texto', () => {

@@ -15,7 +15,8 @@ vi.mock('@/lib/notifications/actions', () => ({
   answerNotice: (id: string, text: string) => answerNotice(id, text),
 }));
 
-const { NotificationsAlert, NotificationsButton, NotificationsProvider, POLL_MS } = await import('./notifications');
+const { NotificationsAlert, NotificationsButton, NotificationsProvider, POLL_MS } =
+  await import('./notifications');
 const { requestInboxRefresh } = await import('@/lib/notifications/events');
 
 const T = clientDictionary('pt-BR');
