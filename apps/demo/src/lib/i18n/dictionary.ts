@@ -21,6 +21,7 @@ import feedback from './messages/feedback';
 import lineup from './messages/lineup';
 import live from './messages/live';
 import nav from './messages/nav';
+import notifications from './messages/notifications';
 import ops from './messages/ops';
 import pages from './messages/pages';
 import race from './messages/race';
@@ -55,6 +56,7 @@ export const NAMESPACES = {
   live,
   media,
   nav,
+  notifications,
   ops,
   pages,
   race,
@@ -102,6 +104,7 @@ export const CLIENT_NAMESPACES = [
   'live',
   'media',
   'nav',
+  'notifications',
   'ops',
   'relatedAdmin',
   'review',

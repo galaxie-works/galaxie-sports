@@ -112,6 +112,42 @@ export class FeedbackGithub {
     const res = await this.call('POST', '/issues', { title, body, labels: [label] });
     return (await this.json<{ number: number }>(res, 'issue')).number;
   }
+
+  /** Comentário na issue (a resposta de quem enviou, pela inbox). */
+  async comment(issue: number, body: string): Promise<void> {
+    await this.json(await this.call('POST', `/issues/${issue}/comments`, { body }), 'comment');
+  }
+
+  /**
+   * Consulta GraphQL com o mesmo token. O fine-grained de Issues lê o histórico de colunas da issue
+   * (`ProjectV2ItemStatusChangedEvent`), mas não o quadro em si: campo do projeto volta como erro FORBIDDEN.
+   */
+  async graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+    const res = await this.fetchImpl('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${this.config.token}`,
+        'content-type': 'application/json',
+        'user-agent': 'galaxie-demo',
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(30_000),
+      cache: 'no-store',
+    });
+    const out = await this.json<{ data?: T; errors?: { message?: string }[] }>(res, 'graphql');
+    if (!out.data) {
+      const detail = (out.errors ?? [])
+        .map((e) => e.message)
+        .join('; ')
+        .slice(0, 300);
+      throw new FeedbackGithubError('http', `graphql: ${detail || 'sem dados'}`);
+    }
+    return out.data;
+  }
+
+  get repo(): string {
+    return this.config.repo;
+  }
 }
 
 export type FeedbackTargetProblem = 'not_private' | 'bad_token' | 'no_access' | 'unreachable';

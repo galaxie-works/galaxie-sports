@@ -1,9 +1,13 @@
 'use client';
 
-import { Save, Trash2 } from 'lucide-react';
+import { RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
-import { clearFeedbackToken, saveFeedbackGithub } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import {
+  checkFeedbackProgressNow,
+  clearFeedbackToken,
+  saveFeedbackGithub,
+} from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
@@ -147,7 +151,44 @@ export function FeedbackGithubCard({ snapshot, timeZone }: { snapshot: OpsSnapsh
             </div>
           </FieldGroup>
         </form>
+        <ProgressRow snapshot={snapshot} timeZone={timeZone} />
       </FramePanel>
     </Frame>
+  );
+}
+
+/** Última conferência do andamento (avisos na caixa de entrada) e o "Verificar agora". */
+function ProgressRow({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: string }) {
+  const T = useI18n().t.ops.suggestions.progress;
+  const f = useFormatters(timeZone);
+  const { pending, run } = useOpsAction();
+  const p = snapshot.feedback.progress;
+  const now = Date.parse(snapshot.generatedAt);
+  const failedLast = p?.error && p.finishedAt && (!p.okAt || p.finishedAt > p.okAt);
+  const text = !p
+    ? T.never
+    : failedLast
+      ? fill(T.error, { when: f.relative(p.finishedAt!, now) })
+      : p.okAt
+        ? fill(T.last, { when: f.relative(p.okAt, now), issues: p.issues, notices: p.notices })
+        : T.never;
+  return (
+    <div className="flex flex-col gap-2 border-t px-4 py-4">
+      <p className="text-sm font-medium">{T.title}</p>
+      <p className="text-muted-foreground text-sm">{T.description}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className={`text-sm ${failedLast ? 'text-destructive' : ''}`}>{text}</p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => run(() => checkFeedbackProgressNow(), T.done)}
+        >
+          {pending ? <Spinner /> : <RefreshCw />}
+          {T.run}
+        </Button>
+      </div>
+    </div>
   );
 }

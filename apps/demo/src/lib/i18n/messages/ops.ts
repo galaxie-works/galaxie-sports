@@ -202,6 +202,19 @@ export default defineMessages(
       removeTitle: 'Remover o token do painel?',
       removeBody: 'O token cifrado é apagado. O envio volta a usar o token do .env da VPS, se houver.',
       removed: 'Token removido do painel.',
+      progress: {
+        title: 'Andamento das sugestões',
+        description:
+          'Uma vez por dia, às 9h de Brasília, o app lê as colunas do projeto e os comentários /responder das issues e avisa quem enviou, na caixa de entrada.',
+        never: 'Ainda não conferido.',
+        last: 'Última conferência {when}: {issues} sugestões lidas, {notices} avisos novos.',
+        error: 'A última tentativa falhou {when}. O app tenta de novo em 2 horas.',
+        run: 'Verificar agora',
+        done: 'Andamento conferido.',
+        busy: 'Já há uma conferência em andamento.',
+        off: 'Envio de sugestões desligado ou sem repo e token: nada a conferir.',
+        failed: 'A conferência falhou. Veja o log do contêiner para o detalhe.',
+      },
       errors: {
         invalid: 'Dados inválidos.',
         repo: 'Use o formato dono/repositorio.',
@@ -1425,6 +1438,19 @@ export default defineMessages(
         removeBody:
           'The encrypted token is deleted. Delivery goes back to the token in the VPS .env, if any.',
         removed: 'Token removed from the panel.',
+        progress: {
+          title: 'Suggestion progress',
+          description:
+            'Once a day, at 9 a.m. Brasília time, the app reads the project columns and the /responder comments on the issues and tells the sender in their inbox.',
+          never: 'Not checked yet.',
+          last: 'Last check {when}: {issues} suggestions read, {notices} new notices.',
+          error: 'The last attempt failed {when}. The app tries again in 2 hours.',
+          run: 'Check now',
+          done: 'Progress checked.',
+          busy: 'A check is already running.',
+          off: 'Suggestions are off or have no repo and token: nothing to check.',
+          failed: 'The check failed. See the container log for details.',
+        },
         errors: {
           invalid: 'Invalid data.',
           repo: 'Use the owner/repository format.',
@@ -2643,6 +2669,19 @@ export default defineMessages(
         removeBody:
           'El token cifrado se elimina. El envío vuelve a usar el token del .env de la VPS, si lo hay.',
         removed: 'Token quitado del panel.',
+        progress: {
+          title: 'Avance de las sugerencias',
+          description:
+            'Una vez por día, a las 9 h de Brasilia, la app lee las columnas del proyecto y los comentarios /responder de los issues y avisa a quien envió, en su bandeja de entrada.',
+          never: 'Todavía sin comprobar.',
+          last: 'Última comprobación {when}: {issues} sugerencias leídas, {notices} avisos nuevos.',
+          error: 'El último intento falló {when}. La app vuelve a intentar en 2 horas.',
+          run: 'Comprobar ahora',
+          done: 'Avance comprobado.',
+          busy: 'Ya hay una comprobación en curso.',
+          off: 'Las sugerencias están apagadas o sin repo y token: nada que comprobar.',
+          failed: 'La comprobación falló. Mira el log del contenedor para el detalle.',
+        },
         errors: {
           invalid: 'Datos no válidos.',
           repo: 'Usa el formato dueño/repositorio.',

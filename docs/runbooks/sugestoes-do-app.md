@@ -70,6 +70,28 @@ FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
   referência do usuário, referência do tenant, papel, página (só o caminho), idioma, tela, navegador, versão e hora
   de Brasília; depois as imagens.
 
+## Andamento e caixa de entrada
+
+Quem enviou acompanha a sugestão pelo sino do cabeçalho (caixa de entrada) e por uma faixa de aviso no topo da página.
+
+- **Quadro:** projeto "Customer Voice" da conta `galaxie-works` (projeto 5), ligado à repo de sugestões, com as colunas
+  Backlog, Em revisão, Selecionado para desenvolvimento, Necessita mais informações, Em desenvolvimento e Entregue. Os
+  nomes estão em `FEEDBACK_STATUS_COLUMNS` (lib/i18n/messages/feedback-issue.ts): renomear uma coluna no GitHub exige
+  mudar lá, senão ela não gera aviso (o log do `site` mostra "colunas que o app não conhece").
+- **Conferência diária:** às 12:00 UTC (9h de Brasília) o `site` lê as issues com o mesmo token do envio. O token
+  fine-grained de Issues não enxerga o quadro, mas lê o histórico de colunas de cada issue, que é o que basta. Ajustes →
+  Sistema → Sugestões mostra a última conferência e tem "Verificar agora". Repetir não duplica aviso.
+- **O que vira aviso:** a coluna final do dia (Backlog não avisa; ida e volta no mesmo dia também não) e os comentários
+  que começam com `/responder`. Qualquer outro comentário fica só entre a equipe. Coluna e resposta no mesmo dia viram
+  um aviso só.
+- **Necessita mais informações:** escreva a pergunta com `/responder`, mova o card e espere a conferência. Quem enviou
+  responde pela caixa de entrada; a resposta chega como comentário na issue ("Resposta de quem enviou"). Mover o card
+  de volta é com a equipe: o token não altera o quadro.
+- **Issue nova no Backlog:** ative no projeto o fluxo "Auto-add to project" (filtro `is:issue`) e o "Item added to
+  project" apontando para Backlog. Sem isso, a issue entra no quadro à mão.
+- Tabelas no schema `demo_auth`: `notification`, `feedback_issue` (issue → quem enviou, coluna e até onde já foi lida)
+  e `feedback_progress_run`. `FEEDBACK_PROGRESS=off` desliga o relógio do processo.
+
 ## Descobrir quem enviou
 
 No contêiner do `site` (tem o segredo), com o id do usuário (Ajustes → Usuários) ou do tenant:

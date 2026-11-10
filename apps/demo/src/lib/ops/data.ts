@@ -35,6 +35,7 @@ import {
 import { pool } from '@/lib/auth/db';
 import { webhookSecrets } from '@/lib/client/webhooks';
 import { FEEDBACK_SEALED_TOKEN_KEY, resolveFeedbackSettings } from '@/lib/feedback/settings';
+import { readProgressRun } from '@/lib/notifications/store';
 
 import { readQuality } from './quality';
 import { readTasks } from './tasks';
@@ -164,6 +165,7 @@ async function readSettings(now: Date) {
     kekConfigured: box !== null,
     tokenChangedBy: sealedToken?.updated_by ?? null,
     tokenChangedAt: iso(sealedToken?.updated_at),
+    progress: await readProgressRun().catch(() => null),
   };
   return { settings, services, feedback };
 }

@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { ActivityTracker } from '@/components/app-shell/activity-tracker';
 import { AppSidebar } from '@/components/app-shell/app-sidebar';
 import { FeedbackEnabledProvider } from '@/components/app-shell/feedback-button';
+import { NotificationsProvider } from '@/components/app-shell/notifications';
 import { SearchProvider } from '@/components/search/search-provider';
 import { RelatedPlayerProvider } from '@/components/sport/related-player';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -36,21 +37,24 @@ export default async function AppLayout({ children }: LayoutProps<'/[locale]'>) 
     <I18nProvider locale={locale} messages={clientDictionary(locale)}>
       {/* A promessa não é aguardada aqui: o botão de sugestões chega por streaming, sem segurar o shell. */}
       <FeedbackEnabledProvider enabled={feedbackButtonEnabled()}>
-        <SidebarProvider>
-          {/* Busca global (⌘K): em todas as páginas do app e da documentação. */}
-          <SearchProvider guides={docGuides(t)} operations={operations}>
-            <AppSidebar />
-            {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
-            <RelatedPlayerProvider>
-              {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
-              <SidebarInset className="min-w-0">{children}</SidebarInset>
-            </RelatedPlayerProvider>
-          </SearchProvider>
-          {/* Caminho atual = dado de URL: fora do shell estático. */}
-          <Suspense>
-            <ActivityTracker />
-          </Suspense>
-        </SidebarProvider>
+        {/* Caixa de entrada (sino e faixa de aviso): busca no navegador, depois que a página abre. */}
+        <NotificationsProvider>
+          <SidebarProvider>
+            {/* Busca global (⌘K): em todas as páginas do app e da documentação. */}
+            <SearchProvider guides={docGuides(t)} operations={operations}>
+              <AppSidebar />
+              {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
+              <RelatedPlayerProvider>
+                {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
+                <SidebarInset className="min-w-0">{children}</SidebarInset>
+              </RelatedPlayerProvider>
+            </SearchProvider>
+            {/* Caminho atual = dado de URL: fora do shell estático. */}
+            <Suspense>
+              <ActivityTracker />
+            </Suspense>
+          </SidebarProvider>
+        </NotificationsProvider>
       </FeedbackEnabledProvider>
     </I18nProvider>
   );

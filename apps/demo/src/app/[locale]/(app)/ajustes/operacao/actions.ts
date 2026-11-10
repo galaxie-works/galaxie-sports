@@ -292,6 +292,22 @@ export async function clearFeedbackToken(): Promise<OpsActionResult> {
   return { ok: true };
 }
 
+/**
+ * Confere agora o andamento das sugestões (a conferência diária, fora de hora): lê as issues e grava os avisos novos na
+ * caixa de entrada de quem enviou. Repetir não duplica aviso.
+ */
+export async function checkFeedbackProgressNow(): Promise<OpsActionResult> {
+  await requireAdmin();
+  const T = (await texts()).suggestions.progress;
+  const { runFeedbackProgress } = await import('@/lib/feedback/progress-sync');
+  const out = await runFeedbackProgress();
+  revalidatePath(PATH);
+  if (out.status === 'ok') return { ok: true };
+  if (out.status === 'busy') return { ok: false, error: T.busy };
+  if (out.status === 'off') return { ok: false, error: T.off };
+  return { ok: false, error: T.failed };
+}
+
 /** Põe o job na fila do scheduler do perfil dele (que relê a fila a cada 30 s). */
 async function enqueue(job: string, by: string, service: string): Promise<OpsActionResult> {
   const t = await texts();

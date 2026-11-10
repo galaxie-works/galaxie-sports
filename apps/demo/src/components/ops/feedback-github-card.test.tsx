@@ -10,6 +10,7 @@ const saveFeedbackGithub = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
+  checkFeedbackProgressNow: vi.fn(),
   clearFeedbackToken: vi.fn(),
   resetSetting: vi.fn(),
   saveSetting: vi.fn(),
@@ -32,6 +33,7 @@ function snapshot(feedback: Partial<FeedbackPanelState> = {}, repo: Partial<OpsS
       kekConfigured: true,
       tokenChangedBy: null,
       tokenChangedAt: null,
+      progress: null,
       ...feedback,
     },
     settings: [{ key: 'FEEDBACK_GITHUB_REPO', source: 'default', value: null, envValue: null, ...repo }],
@@ -90,5 +92,35 @@ describe('FeedbackGithubCard', () => {
       fireEvent.submit(tokenInput().closest('form')!);
     });
     expect(tokenInput().value).toBe('github_pat_abcdefghijklmnop');
+  });
+
+  it('andamento: nunca conferido', () => {
+    show(snapshot());
+    expect(screen.getByText(S.progress.never)).toBeTruthy();
+    expect(screen.getByRole('button', { name: S.progress.run })).toBeTruthy();
+  });
+
+  it('andamento: a última falha aparece no lugar da última conferência boa', () => {
+    show(
+      snapshot({
+        progress: {
+          okAt: '2026-11-08T12:00:00.000Z',
+          finishedAt: '2026-11-09T11:00:00.000Z',
+          error: 'graphql: x',
+          issues: 0,
+          notices: 0,
+        },
+      }),
+    );
+    expect(screen.getByText(/A última tentativa falhou/)).toBeTruthy();
+  });
+
+  it('andamento: conferência boa mostra lidas e avisos', () => {
+    show(
+      snapshot({
+        progress: { okAt: NOW, finishedAt: NOW, error: null, issues: 3, notices: 1 },
+      }),
+    );
+    expect(screen.getByText(/3 sugestões lidas, 1 avisos novos/)).toBeTruthy();
   });
 });

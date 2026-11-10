@@ -1,6 +1,7 @@
 /**
- * Na subida do servidor (Node): prepara o banco de usuários da demo, garante o primeiro admin e começa a
- * seguir o `ops.change_feed`, que revalida o cache da demo quando os dados mudam (lib/cache/follower.ts).
+ * Na subida do servidor (Node): prepara o banco de usuários da demo, garante o primeiro admin, começa a
+ * seguir o `ops.change_feed`, que revalida o cache da demo quando os dados mudam (lib/cache/follower.ts), e liga a
+ * conferência diária do andamento das sugestões (lib/feedback/progress-sync.ts).
  *
  * O que sobe depende do papel (`APP_ROLE`, lib/app-role.ts): o `console` não tem o cache do explorador nem a rota de
  * revalidação, então não segue o change feed. Com `DEMO_METRICS_PORT`, o `/metrics` do processo (lib/ops/metrics.ts).
@@ -31,5 +32,12 @@ export async function register() {
     startCacheFeed();
   } catch (err) {
     console.error('[demo-cache] falha ao subir o seguidor do change feed', err);
+  }
+  // conferência diária do andamento das sugestões (avisos na caixa de entrada): uma vez por dia, no site
+  try {
+    const { startFeedbackProgress } = await import('./lib/feedback/progress-sync');
+    startFeedbackProgress();
+  } catch (err) {
+    console.error('[feedback] falha ao subir a conferência do andamento', err);
   }
 }
