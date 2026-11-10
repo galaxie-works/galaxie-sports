@@ -297,7 +297,8 @@ export async function settle(
         .from(ledger)
         .where(and(eq(ledger.reservationId, input.reservationId), eq(ledger.kind, 'usage')));
       if (!prev) throw new CosmosError('reservation_closed', 'reserva acertada sem lançamento');
-      const uncharged = Number((prev.metadata as { uncharged?: number } | null)?.uncharged ?? 0);
+      const raw = Number((prev.metadata as { uncharged?: unknown } | null)?.uncharged);
+      const uncharged = Number.isFinite(raw) && raw > 0 ? raw : 0;
       return { ledgerId: prev.id, charged: -prev.credits, uncharged, available: prev.after, replayed: true };
     }
     if (r.status !== 'open') throw new CosmosError('reservation_closed', 'reserva já devolvida ou vencida');
@@ -346,8 +347,9 @@ export async function settle(
         note: input.note ?? null,
         metadata: {
           ...(input.metadata ?? {}),
+          // chaves reservadas: sempre as calculadas aqui, por cima do que vier do chamador
           reserved: r.credits,
-          ...(uncharged > 0 ? { uncharged } : {}),
+          uncharged,
         },
         createdAt: now,
       })
