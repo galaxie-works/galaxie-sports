@@ -88,6 +88,9 @@ services:
       # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
       SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # Cosmos AI (#993): segredo do endpoint do webhook do Stripe (whsec_…). Vazio, POST /internal/cosmos/stripe/webhook
+      # responde 503 e o Stripe tenta de novo depois
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
       # Hardening (SECURITY.md): CORS estrito, /internal/admin (chave + allowlist), proxy confiável, HSTS
@@ -169,6 +172,9 @@ services:
       # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
       # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # Cosmos AI (#993): chave secreta do Stripe da Galaxie Works LLC (sk_test_… no ensaio), para abrir o Checkout dos
+      # pacotes de créditos. Vazia: a compra fica indisponível no painel do cliente
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       # "Sugerir ou reportar algo" do cabeçalho vira issue numa repo PRIVADA só de sugestões (docs/runbooks/sugestoes-do-app.md):
       # token próprio, só dessa repo (Issues: read and write). Vazio, ou repo pública: o formulário responde "indisponível".
       # As imagens vão para o bucket privado das tarefas (feedback/) e a issue as mostra por link assinado da demo
