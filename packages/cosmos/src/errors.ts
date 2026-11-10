@@ -19,6 +19,8 @@ export type CosmosErrorCode =
   | 'trial_already_granted'
   /** Pacote inexistente, inativo ou de outro mercado. */
   | 'unknown_package'
+  /** Compra ou estorno sem chave de idempotência. */
+  | 'missing_idempotency_key'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

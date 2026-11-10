@@ -6,6 +6,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { creditPackage, purchaseIntent, stripeEvent, type Database, type PackageCurrency } from '@galaxie/db';
 import { ceilCredits } from './credits.js';
+import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';
 import type { StripeCheckoutSession, StripeEvent } from './stripe.js';
 import { addEntryInTx, type Tx } from './wallet.js';
@@ -162,7 +163,8 @@ const HANDLED = new Set([
 
 async function findIntent(tx: Tx, session: StripeCheckoutSession) {
   const id = session.metadata?.purchase_intent_id ?? session.client_reference_id ?? null;
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  // valor que o Postgres não lê como uuid derrubaria a transação (500, o Stripe repetiria): fica unknown_intent
+  if (!id || !isUuid(id)) return null;
   const [row] = await tx
     .select({
       id: purchaseIntent.id,
@@ -247,6 +249,8 @@ export async function applyStripeEvent(
         credits: intent.credits,
         userId: intent.userId,
         metadata: { purchase_intent_id: intent.id, stripe_event_id: event.id },
+        // uma compra por intenção, venha o crédito de qual evento vier
+        idempotencyKey: `purchase:${intent.id}`,
       },
       { now },
     );

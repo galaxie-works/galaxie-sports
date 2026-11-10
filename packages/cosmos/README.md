@@ -21,7 +21,7 @@ reserve ──► chama o modelo ──► settle (valor real)
 | `settle(db, { tenantId, reservationId, costUsd?, credits?, tokens…, model? })` | Acerta pelo valor real: devolve a sobra ou cobra a diferença até o saldo livre (o que passar fica em `metadata.uncharged`). Um lançamento de uso no extrato; na moderação, um por lote |
 | `release(db, { tenantId, reservationId })` | Devolve a reserva inteira, sem lançamento |
 | `releaseExpired(db)` | Devolve as reservas abertas que passaram do prazo (processo que morreu no meio) |
-| `addEntry(db, { tenantId, kind, credits })` | Teste, compra, estorno, ajuste, vencimento do teste, mudança de cota, com o saldo antes e depois |
+| `addEntry(db, { tenantId, kind, credits, idempotencyKey })` | Teste, compra, estorno, ajuste, vencimento do teste, mudança de cota, com o saldo antes e depois. Compra e estorno exigem `idempotencyKey` (única por tenant): repetir devolve o lançamento original (`replayed`) sem somar de novo |
 | `listLedger(db, tenantId, filtro)` · `ledgerCsv(linhas, { staff })` | Extrato paginado (cursor pelo id) e filtrável por data, sala, função, usuário e tipo; CSV |
 
 Créditos cobrados = maior entre (custo real × multiplicador ÷ valor do crédito) e o mínimo da função (`creditsFor`),

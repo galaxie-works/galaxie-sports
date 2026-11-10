@@ -1,6 +1,6 @@
 {
-  "id": "4a29c193-1eab-464c-abb2-9c8fdff5a498",
-  "prevId": "0e11a485-fb89-43a9-8b8a-43e966d159d6",
+  "id": "31a980c5-88e5-4e1d-ae35-47e65ac12c44",
+  "prevId": "acec4aa4-bd9c-4496-93c8-ef2ad4a12058",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15380,111 +15380,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "api.module_usage_monthly": {
-      "name": "module_usage_monthly",
-      "schema": "api",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "module": {
-          "name": "module",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "metric": {
-          "name": "metric",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "epoch_base": {
-          "name": "epoch_base",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "module_usage_monthly_month_idx": {
-          "name": "module_usage_monthly_month_idx",
-          "columns": [
-            {
-              "expression": "month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "module_usage_monthly_tenant_id_tenant_id_fk": {
-          "name": "module_usage_monthly_tenant_id_tenant_id_fk",
-          "tableFrom": "module_usage_monthly",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "module_usage_monthly_tenant_id_month_module_metric_pk": {
-          "name": "module_usage_monthly_tenant_id_month_module_metric_pk",
-          "columns": [
-            "tenant_id",
-            "month",
-            "module",
-            "metric"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "api.tenant": {
       "name": "tenant",
       "schema": "api",
@@ -15623,73 +15518,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "api.tenant_module_limit": {
-      "name": "tenant_module_limit",
-      "schema": "api",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tenant_module_limit_tenant_id_tenant_id_fk": {
-          "name": "tenant_module_limit_tenant_id_tenant_id_fk",
-          "tableFrom": "tenant_module_limit",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "tenant_module_limit_tenant_id_key_pk": {
-          "name": "tenant_module_limit_tenant_id_key_pk",
-          "columns": [
-            "tenant_id",
-            "key"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -17339,6 +17167,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -17348,6 +17182,28 @@
         }
       },
       "indexes": {
+        "ledger_idempotency_key_idx": {
+          "name": "ledger_idempotency_key_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"cosmos\".\"ledger\".\"idempotency_key\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "ledger_tenant_id_idx": {
           "name": "ledger_tenant_id_idx",
           "columns": [
