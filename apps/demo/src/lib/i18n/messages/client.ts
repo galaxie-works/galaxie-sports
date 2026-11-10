@@ -12,6 +12,7 @@ export default defineMessages(
       themes: 'Temas da marca',
       newTheme: 'Novo tema da marca',
       editTheme: 'Editar tema da marca',
+      cosmos: 'Cosmos AI',
     },
     title: 'Painel do cliente',
     nav: {
@@ -23,6 +24,7 @@ export default defineMessages(
       channels: 'Minha lista de canais',
       webhooks: 'Webhooks',
       themes: 'Temas',
+      cosmos: 'Cosmos AI',
       groups: {
         account: 'Conta',
         content: 'Conteúdo',
@@ -39,6 +41,12 @@ export default defineMessages(
       noneClient:
         'Sua conta ainda não está ligada a um tenant. Fale com o time da Galaxie para liberar o painel.',
       status: { active: 'Ativo', suspended: 'Suspenso' },
+    },
+    cosmos: {
+      button: 'Cosmos AI',
+      soon: 'A Cosmos AI chega aqui em breve',
+      soonDescription:
+        'A IA que você liga e paga por uso, com créditos pré-pagos: moderação dos casos marcados e assistente no app. O saldo, o extrato e a compra de créditos vão aparecer nesta área.',
     },
     overview: {
       plan: 'Plano',
@@ -435,6 +443,7 @@ export default defineMessages(
         themes: 'Brand themes',
         newTheme: 'New brand theme',
         editTheme: 'Edit brand theme',
+        cosmos: 'Cosmos AI',
       },
       title: 'Client panel',
       nav: {
@@ -446,6 +455,7 @@ export default defineMessages(
         channels: 'My channel list',
         webhooks: 'Webhooks',
         themes: 'Themes',
+        cosmos: 'Cosmos AI',
         groups: {
           account: 'Account',
           content: 'Content',
@@ -461,6 +471,12 @@ export default defineMessages(
         none: 'No tenant in the API yet. Create one at /internal/admin/tenants or with the API tenant:create command.',
         noneClient: "Your account isn't linked to a tenant yet. Ask the Galaxie team to enable the panel.",
         status: { active: 'Active', suspended: 'Suspended' },
+      },
+      cosmos: {
+        button: 'Cosmos AI',
+        soon: 'Cosmos AI is coming here soon',
+        soonDescription:
+          'The AI you turn on and pay for as you use it, with prepaid credits: moderation of flagged cases and an in-app assistant. Balance, statement and credit purchases will show up in this area.',
       },
       overview: {
         plan: 'Plan',
@@ -860,6 +876,7 @@ export default defineMessages(
         themes: 'Temas de marca',
         newTheme: 'Nuevo tema de marca',
         editTheme: 'Editar tema de marca',
+        cosmos: 'Cosmos AI',
       },
       title: 'Panel del cliente',
       nav: {
@@ -871,6 +888,7 @@ export default defineMessages(
         channels: 'Mi lista de canales',
         webhooks: 'Webhooks',
         themes: 'Temas',
+        cosmos: 'Cosmos AI',
         groups: {
           account: 'Cuenta',
           content: 'Contenido',
@@ -887,6 +905,12 @@ export default defineMessages(
         noneClient:
           'Tu cuenta todavía no está vinculada a un tenant. Hablá con el equipo de Galaxie para habilitar el panel.',
         status: { active: 'Activo', suspended: 'Suspendido' },
+      },
+      cosmos: {
+        button: 'Cosmos AI',
+        soon: 'Cosmos AI llega aquí pronto',
+        soonDescription:
+          'La IA que se activa y se paga por uso, con créditos prepagos: moderación de los casos marcados y asistente en la app. El saldo, el extracto y la compra de créditos van a aparecer en esta área.',
       },
       overview: {
         plan: 'Plan',

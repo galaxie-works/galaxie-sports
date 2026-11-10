@@ -10,11 +10,11 @@ import {
   Palette,
   Tv,
   Webhook,
-  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type ComponentType, type SVGProps } from 'react';
 
+import { CosmosIcon } from '@/components/cosmos/cosmos-icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -36,9 +36,12 @@ export const CLIENT_NAV_GROUPS = [
 ] as const;
 export type ClientNavGroupId = (typeof CLIENT_NAV_GROUPS)[number];
 
+/** Ícone de uma área: lucide ou um desenho próprio (a marca da Cosmos AI). */
+export type ClientNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
 /**
  * Áreas do painel do cliente que já existem. Os produtos novos (Chat ao vivo, Comunidades, Gamificação,
- * Shop the game, Cosmos AI, Cobrança e créditos, Usuários e cargos) entram aqui quando tiverem página;
+ * Shop the game, Cobrança e créditos, Usuários e cargos) entram aqui quando tiverem página;
  * grupo sem área não aparece.
  */
 export const CLIENT_NAV = [
@@ -48,15 +51,16 @@ export const CLIENT_NAV = [
   { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content' },
   { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content' },
   { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content' },
+  { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence' },
   { id: 'webhooks', href: '/cliente/webhooks', icon: Webhook, group: 'integrations' },
-] as const satisfies readonly { id: string; href: string; icon: LucideIcon; group: ClientNavGroupId }[];
+] as const satisfies readonly { id: string; href: string; icon: ClientNavIcon; group: ClientNavGroupId }[];
 
 export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
 
 export interface ClientNavLeaf {
   id: ClientSection;
   href: string;
-  icon: LucideIcon;
+  icon: ClientNavIcon;
   label: string;
 }
 
