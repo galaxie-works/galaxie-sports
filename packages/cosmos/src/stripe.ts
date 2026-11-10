@@ -245,13 +245,25 @@ export async function getPaymentIntent(
 }
 
 /**
- * Recusa definitiva da cobrança: todo 4xx menos 409 e 429 (cartão recusado, autenticação exigida, cliente ou
- * cartão removido no Stripe, `resource_missing`...). A recarga se desliga com o motivo. 5xx, 409, 429 e rede são
- * passageiros: a tentativa volta para a fila e repete com a mesma chave (até o teto de tentativas).
+ * Recusa definitiva da cobrança: 4xx que diz respeito ao cliente (cartão recusado, autenticação exigida, cliente
+ * ou cartão removido no Stripe, `resource_missing`...). A recarga daquele tenant se desliga com o motivo.
+ *
+ * Problema nosso não é recusa e não desliga a recarga de ninguém: 401 e 403 (chave trocada, revogada ou sem
+ * permissão) e 404 sem `code` (endpoint errado). Esses, como 5xx, 409, 429 e rede, são passageiros: a tentativa
+ * volta para a fila e repete com a mesma chave (até o teto de tentativas).
  */
 export function isDefinitiveDecline(e: unknown): boolean {
   if (!(e instanceof StripeRequestError)) return false;
+  const code = (e as StripeRequestError & { code?: string | undefined }).code;
+  if (e.status === 401 || e.status === 403 || (e.status === 404 && !code)) return false;
   return e.status >= 400 && e.status < 500 && e.status !== 409 && e.status !== 429;
+}
+
+/** Erro do Stripe que é da nossa configuração (chave ou endpoint), não do cliente: vai para o log como erro. */
+export function isOurStripeProblem(e: unknown): boolean {
+  if (!(e instanceof StripeRequestError)) return false;
+  const code = (e as StripeRequestError & { code?: string | undefined }).code;
+  return e.status === 401 || e.status === 403 || (e.status === 404 && !code);
 }
 
 /**
