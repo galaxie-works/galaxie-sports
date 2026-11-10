@@ -3,7 +3,7 @@
  * pagamento confirmado, numa transação com o registro do evento: o mesmo evento repetido (o Stripe
  * reenvia) é ignorado pelo id, e a intenção que já foi paga não credita de novo por outro evento.
  */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import {
   autoRecharge,
@@ -288,4 +288,23 @@ export async function applyStripeEvent(
         .where(eq(autoRecharge.tenantId, intent.tenantId));
     return finish('credited', intent.id);
   });
+}
+
+/** Compras do tenant (mais nova primeiro), para a lista de compras e recibos da tela. */
+export async function listPurchases(db: Pick<Database, 'select'>, tenantId: string, limit = 20) {
+  return db
+    .select({
+      id: purchaseIntent.id,
+      status: purchaseIntent.status,
+      credits: purchaseIntent.credits,
+      amountCents: purchaseIntent.amountCents,
+      currency: purchaseIntent.currency,
+      createdAt: purchaseIntent.createdAt,
+      paidAt: purchaseIntent.paidAt,
+      hasReceipt: sql<boolean>`${purchaseIntent.invoiceId} is not null`,
+    })
+    .from(purchaseIntent)
+    .where(eq(purchaseIntent.tenantId, tenantId))
+    .orderBy(desc(purchaseIntent.id))
+    .limit(Math.min(Math.max(1, limit), 100));
 }

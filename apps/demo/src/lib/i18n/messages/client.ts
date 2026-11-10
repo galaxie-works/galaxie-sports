@@ -44,9 +44,6 @@ export default defineMessages(
     },
     cosmos: {
       button: 'Cosmos AI',
-      soon: 'A Cosmos AI chega aqui em breve',
-      soonDescription:
-        'A IA que você liga e paga por uso, com créditos pré-pagos: moderação dos casos marcados e assistente no app. O saldo, o extrato e a compra de créditos vão aparecer nesta área.',
     },
     overview: {
       plan: 'Plano',
@@ -474,9 +471,6 @@ export default defineMessages(
       },
       cosmos: {
         button: 'Cosmos AI',
-        soon: 'Cosmos AI is coming here soon',
-        soonDescription:
-          'The AI you turn on and pay for as you use it, with prepaid credits: moderation of flagged cases and an in-app assistant. Balance, statement and credit purchases will show up in this area.',
       },
       overview: {
         plan: 'Plan',
@@ -908,9 +902,6 @@ export default defineMessages(
       },
       cosmos: {
         button: 'Cosmos AI',
-        soon: 'Cosmos AI llega aquí pronto',
-        soonDescription:
-          'La IA que se activa y se paga por uso, con créditos prepagos: moderación de los casos marcados y asistente en la app. El saldo, el extracto y la compra de créditos van a aparecer en esta área.',
       },
       overview: {
         plan: 'Plan',

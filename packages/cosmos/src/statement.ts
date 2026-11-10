@@ -3,7 +3,7 @@
  * usuário e tipo, mais a exportação em CSV. Tokens, custo real e modelo são só da equipe Galaxie: a visão
  * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles.
  */
-import { and, desc, eq, gte, inArray, lt, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { ledger, type LedgerKind } from '@galaxie/db/schema';
@@ -44,6 +44,9 @@ export interface LedgerFilter {
   to?: Date;
   scope?: string;
   functionName?: string;
+  /** Vários valores (barra de filtros): qualquer um deles. */
+  scopes?: readonly string[];
+  functionNames?: readonly string[];
   userId?: string;
   kinds?: readonly LedgerKind[];
   /** Cursor: o `nextCursor` da página anterior. */
@@ -65,6 +68,8 @@ export async function listLedger(
   if (filter.to) where.push(lt(ledger.createdAt, filter.to));
   if (filter.scope) where.push(eq(ledger.scope, filter.scope));
   if (filter.functionName) where.push(eq(ledger.functionName, filter.functionName));
+  if (filter.scopes?.length) where.push(inArray(ledger.scope, [...filter.scopes]));
+  if (filter.functionNames?.length) where.push(inArray(ledger.functionName, [...filter.functionNames]));
   if (filter.userId) where.push(eq(ledger.userId, filter.userId));
   if (filter.kinds?.length) where.push(inArray(ledger.kind, [...filter.kinds]));
   // id em UUID v7: ordem do id = ordem de criação, e o cursor é o último id da página
@@ -139,4 +144,67 @@ export function ledgerCsv(entries: readonly LedgerEntry[], options: { staff?: bo
     return [...base, ...staff].map(cell).join(',');
   });
   return [header.join(','), ...lines].join('\n') + '\n';
+}
+
+export interface UsagePeriod {
+  from: Date;
+  /** Exclusive. */
+  to: Date;
+}
+
+const usageWhere = (tenantId: string, period: UsagePeriod) =>
+  and(
+    eq(ledger.tenantId, tenantId),
+    eq(ledger.kind, 'usage'),
+    gte(ledger.createdAt, period.from),
+    lt(ledger.createdAt, period.to),
+  );
+
+/** Créditos usados por dia (UTC) e por sala no período; dia sem uso não aparece. */
+export async function usageByDay(
+  db: Pick<Database, 'select'>,
+  tenantId: string,
+  period: UsagePeriod,
+): Promise<{ day: string; scope: string | null; credits: number }[]> {
+  const day = sql<string>`to_char(date_trunc('day', ${ledger.createdAt} at time zone 'UTC'), 'YYYY-MM-DD')`;
+  const rows = await db
+    .select({ day, scope: ledger.scope, credits: sql<string>`-sum(${ledger.credits})` })
+    .from(ledger)
+    .where(usageWhere(tenantId, period))
+    .groupBy(day, ledger.scope)
+    .orderBy(day);
+  return rows.map((r) => ({ day: r.day, scope: r.scope, credits: Number(r.credits) }));
+}
+
+export interface UsageSlice {
+  key: string | null;
+  credits: number;
+  calls: number;
+}
+
+/** Uso no período por usuário, por função e por sala (maior primeiro). Sem tokens nem custo. */
+export async function usageBreakdown(
+  db: Pick<Database, 'select'>,
+  tenantId: string,
+  period: UsagePeriod,
+): Promise<{ byUser: UsageSlice[]; byFunction: UsageSlice[]; byScope: UsageSlice[] }> {
+  const by = async (column: typeof ledger.userId | typeof ledger.functionName | typeof ledger.scope) => {
+    const rows = await db
+      .select({
+        key: column,
+        credits: sql<string>`-sum(${ledger.credits})`,
+        calls: sql<number>`count(*)::int`,
+      })
+      .from(ledger)
+      .where(usageWhere(tenantId, period))
+      .groupBy(column)
+      .orderBy(sql`2 desc`);
+    return rows.map((r) => ({ key: r.key, credits: Number(r.credits), calls: Number(r.calls) }));
+  };
+  const [byUser, byFunction, byScope] = await Promise.all([
+    by(ledger.userId),
+    by(ledger.functionName),
+    by(ledger.scope),
+  ]);
+  return { byUser, byFunction, byScope };
 }

@@ -99,6 +99,7 @@ export const CLIENT_NAMESPACES = [
   'client',
   'code',
   'common',
+  'cosmos',
   'crests',
   'docsUi',
   'feedback',
