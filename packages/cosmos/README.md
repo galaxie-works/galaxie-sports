@@ -80,3 +80,22 @@ O job `cosmos-upkeep` do ingestor (a cada 5 min) roda `releaseExpired`, `expireT
 O envio do e-mail ao dono e do webhook (`cosmos.balance.low`, `cosmos.balance.depleted`) lê `cosmos.balance_alert` e
 marca `emailed_at`/`webhook_at`; entra com o registro central de tópicos (#1023). A tela (#995) já lê o estado da
 carteira.
+
+## Assistente no app (#1003)
+
+`assistant.ts` monta o pedido do assistente que abre pelo ícone da Cosmos no cabeçalho, em qualquer tela do app:
+
+| Peça | O que faz |
+| --- | --- |
+| `searchDocs` | Busca por palavras na documentação pública (título vale o dobro), sem embeddings nesta etapa |
+| `buildPrompt` | Instruções, a tela (rota, título, texto visível, destinos do menu) e os trechos da documentação, delimitados como dado |
+| `estimateAssistantCredits` | "Deve gastar cerca de N créditos": a entrada inteira e meia resposta, pelo valor do crédito, nunca abaixo do mínimo |
+| `streamAssistant` | Chamada em fluxo ao provedor; no fim, os tokens reais para o acerto |
+
+A rota da demo (`api/cliente/cosmos/assistente`) reserva a estimativa (`assistant.ask`), manda o texto aos pedaços e
+acerta pelo custo real; falha ou "parar" devolve a reserva. O cliente vê só créditos, nunca o modelo nem o custo técnico.
+
+Para ligar: `COSMOS_ANTHROPIC_API_KEY` na demo (chave só da Cosmos, separada da dos agentes internos) e a função
+`assistant.ask` ativa em `cosmos.function_def`, com o mínimo de créditos definido pela Galaxie. Sem qualquer um dos dois,
+o painel responde "indisponível" e nada é reservado. Padrões provisórios, fáceis de trocar: chave própria, só o modelo
+leve do registro (`ASSISTANT_MODEL`) e busca por palavras.

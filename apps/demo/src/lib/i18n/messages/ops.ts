@@ -1256,6 +1256,7 @@ export default defineMessages(
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
+      COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: chave do provedor do assistente (.env)' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
       COSMOS_DAILY_USD_CEILING: {
         label: 'Teto de segurança da Cosmos AI por dia',
@@ -2520,6 +2521,7 @@ export default defineMessages(
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: assistant provider key (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Cosmos AI daily safety ceiling',
@@ -3803,6 +3805,7 @@ export default defineMessages(
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: clave del proveedor del asistente (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Tope de seguridad diario de Cosmos AI',

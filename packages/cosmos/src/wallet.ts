@@ -113,6 +113,15 @@ export async function upsertFunctionDef(db: Db, def: FunctionDefInput): Promise<
 }
 
 /** Início do dia UTC de `now` (o teto de segurança vira junto com o dia UTC). */
+/** Mínimo em créditos de uma função ativa do catálogo; null quando está fora dele ou desativada. */
+export async function activeFunctionMinCredits(db: Db, name: string): Promise<number | null> {
+  const [fn] = await db
+    .select({ minCredits: functionDef.minCredits })
+    .from(functionDef)
+    .where(and(eq(functionDef.name, name), eq(functionDef.active, true)));
+  return fn ? Number(fn.minCredits) : null;
+}
+
 export function utcDayStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }

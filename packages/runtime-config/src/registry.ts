@@ -785,6 +785,9 @@ export const SETTINGS: readonly SettingDef[] = [
   // a assinatura na API. Sem elas a compra fica indisponível
   secret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor']),
   secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
+  // Assistente da Cosmos no app (#1003): chave do provedor só da Cosmos, separada da dos agentes internos. Sem ela, o
+  // assistente responde "indisponível" e nada é reservado
+  secret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo']),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do

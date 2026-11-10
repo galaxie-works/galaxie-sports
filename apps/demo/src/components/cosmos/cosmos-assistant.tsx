@@ -1,0 +1,498 @@
+'use client';
+
+/**
+ * Painel do assistente da Cosmos AI (#1003), aberto pelo ícone da Cosmos no cabeçalho em qualquer tela: lateral
+ * no desktop, tela cheia no celular (sheet). Composição dos exemplos aprovados: conversa com rolagem ancorada
+ * (c-message-scroller-3), resposta em fluxo com marcador de espera (c-message-7), ações de copiar e perguntar de
+ * novo (c-message-4, sem avaliação), sugestões em bolhas (c-bubble-6), vazio com pilha de ícone (c-icon-stack-5),
+ * campo com botão de enviar (c-input-group-18, sem microfone, busca nem seletor de modelo) e blocos de código
+ * (c-code-block-18). O cliente vê só créditos: a estimativa antes e o gasto real depois.
+ */
+import { ArrowUpIcon, CheckIcon, CopyIcon, RefreshCwIcon, SquareIcon } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+
+import { IconStack } from '@/components/reui/icon-stack';
+import {
+  CodeBlock,
+  CodeBlockCopyButton,
+  CodeBlockHeader,
+  CodeBlockTitle,
+  markdownFences,
+} from '@/components/reui/code-block/code-block';
+import { Bubble, BubbleContent, BubbleGroup } from '@/components/ui/bubble';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import { Field } from '@/components/ui/field';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@/components/ui/input-group';
+import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker';
+import { Message, MessageAvatar, MessageContent, MessageFooter } from '@/components/ui/message';
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Spinner } from '@/components/ui/spinner';
+import { estimateAssistantQuestion } from '@/lib/cosmos/assistant-actions';
+import { readAssistantStream, type AssistantErrorCode } from '@/lib/cosmos/assistant-stream';
+import { readScreenContext, routeOf, suggestionGroup } from '@/lib/cosmos/screen-context';
+import { useI18n } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/text';
+
+import { CosmosIcon } from './cosmos-icon';
+
+/** Mesmo limite do servidor (`QUESTION_MAX`). */
+const QUESTION_MAX = 2000;
+const ESTIMATE_DELAY_MS = 600;
+
+interface Turn {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  /** Só da resposta. */
+  status?: 'waiting' | 'streaming' | 'done' | 'error';
+  error?: AssistantErrorCode;
+  charged?: number;
+  available?: number;
+  /** Pergunta que gerou a resposta (para "perguntar de novo"). */
+  question?: string;
+}
+
+const history = (turns: Turn[]) =>
+  turns.filter((t) => t.role === 'user' || t.status === 'done').map((t) => ({ role: t.role, text: t.text }));
+
+export function CosmosAssistant({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t, locale } = useI18n();
+  const T = t.cosmos.assistant;
+  const n = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [draft, setDraft] = useState('');
+  const [estimate, setEstimate] = useState<number | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [route, setRoute] = useState('/');
+  const abortRef = useRef<AbortController | null>(null);
+  const counter = useRef(0);
+  const busy = turns.some((x) => x.status === 'waiting' || x.status === 'streaming');
+  // a estimativa só muda com a conversa já fechada, não a cada pedaço da resposta
+  const turnsRef = useRef(turns);
+  useEffect(() => {
+    turnsRef.current = turns;
+  }, [turns]);
+  const settled = history(turns).length;
+
+  // a rota é lida ao abrir: as sugestões e o contexto são da tela de trás
+  useEffect(() => {
+    if (open) setRoute(routeOf(window.location.pathname));
+  }, [open]);
+
+  // para a resposta em andamento se o painel for desmontado
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // estimativa antes de perguntar, com uma pausa para não chamar a cada tecla
+  useEffect(() => {
+    const question = draft.trim();
+    if (!open || !question || question.length > QUESTION_MAX) {
+      setEstimate(null);
+      setEstimating(false);
+      return;
+    }
+    setEstimating(true);
+    let live = true;
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await estimateAssistantQuestion({
+          question,
+          context: readScreenContext(),
+          history: history(turnsRef.current),
+        });
+        if (live) setEstimate(r.ok ? r.credits : null);
+      } catch {
+        if (live) setEstimate(null);
+      } finally {
+        if (live) setEstimating(false);
+      }
+    }, ESTIMATE_DELAY_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(id);
+    };
+  }, [draft, open, settled]);
+
+  const patch = (id: string, change: Partial<Turn>) =>
+    setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...change } : x)));
+
+  async function ask(question: string) {
+    const q = question.trim();
+    if (!q || busy) return;
+    if (q.length > QUESTION_MAX) return;
+    const round = counter.current++;
+    const userId = `q${round}`;
+    const answerId = `a${round}`;
+    const before = history(turns);
+    setDraft('');
+    setEstimate(null);
+    setTurns((all) => [
+      ...all,
+      { id: userId, role: 'user', text: q },
+      { id: answerId, role: 'assistant', text: '', status: 'waiting', question: q },
+    ]);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let text = '';
+    try {
+      const res = await fetch('/api/cliente/cosmos/assistente', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ question: q, context: readScreenContext(), history: before }),
+        signal: controller.signal,
+      });
+      for await (const event of readAssistantStream(res)) {
+        if (event.type === 'start') patch(answerId, { status: 'streaming' });
+        else if (event.type === 'delta') {
+          text += event.text;
+          patch(answerId, { text, status: 'streaming' });
+        } else if (event.type === 'done')
+          patch(answerId, { status: 'done', charged: event.charged, available: event.available });
+        else patch(answerId, { status: 'error', error: event.code, text: '' });
+      }
+    } catch {
+      // parar no meio também cai aqui: a rota devolve a reserva
+      patch(answerId, { status: 'error', error: 'failed', text: '' });
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+  }
+
+  const group = suggestionGroup(route);
+  const suggestions = Object.values(T.suggestions[group]);
+  const errorText = (code: AssistantErrorCode) => fill(T.errors[code], { max: QUESTION_MAX });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        data-cosmos-assistant
+        className="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+      >
+        <SheetHeader className="border-b">
+          <SheetTitle className="flex items-center gap-2">
+            <CosmosIcon aria-hidden className="size-5" />
+            {T.title}
+          </SheetTitle>
+          <SheetDescription>{T.description}</SheetDescription>
+          <Link
+            href="/cliente/cosmos"
+            onClick={() => onOpenChange(false)}
+            className={buttonVariants({ variant: 'outline', size: 'xs', className: 'self-start' })}
+          >
+            {T.wallet}
+          </Link>
+        </SheetHeader>
+
+        <div className="min-h-0 flex-1">
+          {turns.length === 0 ? (
+            <div className="flex h-full flex-col overflow-y-auto">
+              <Empty className="py-8">
+                <EmptyHeader>
+                  <EmptyMedia>
+                    <IconStack aria-hidden="true" className="text-primary h-24 w-22">
+                      <CosmosIcon className="text-primary size-5" />
+                    </IconStack>
+                  </EmptyMedia>
+                  <EmptyTitle>{T.emptyTitle}</EmptyTitle>
+                  <EmptyDescription>{T.emptyDescription}</EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <BubbleGroup aria-label={T.suggestionsLabel} className="w-full">
+                    {suggestions.map((s) => (
+                      <Bubble key={s} variant="tinted" align="end">
+                        <BubbleContent render={<button type="button" onClick={() => void ask(s)} />}>
+                          {s}
+                        </BubbleContent>
+                      </Bubble>
+                    ))}
+                  </BubbleGroup>
+                </EmptyContent>
+              </Empty>
+            </div>
+          ) : (
+            <MessageScrollerProvider scrollPreviousItemPeek={64} scrollMargin={16}>
+              <MessageScroller className="h-full">
+                <MessageScrollerViewport aria-label={T.title}>
+                  <MessageScrollerContent className="gap-5 p-4">
+                    {turns.map((turn) => (
+                      <MessageScrollerItem
+                        key={turn.id}
+                        messageId={turn.id}
+                        scrollAnchor={turn.role === 'user'}
+                      >
+                        {turn.role === 'user' ? (
+                          <Message align="end">
+                            <MessageContent>
+                              <Bubble variant="muted" align="end">
+                                <BubbleContent>
+                                  <span className="sr-only">{T.you}: </span>
+                                  <p className="whitespace-pre-wrap">{turn.text}</p>
+                                </BubbleContent>
+                              </Bubble>
+                            </MessageContent>
+                          </Message>
+                        ) : (
+                          <AnswerMessage
+                            turn={turn}
+                            busy={busy}
+                            labels={T}
+                            errorText={errorText}
+                            format={(v) => n.format(v)}
+                            onRetry={() => turn.question && void ask(turn.question)}
+                            onNavigate={() => onOpenChange(false)}
+                          />
+                        )}
+                      </MessageScrollerItem>
+                    ))}
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton variant="outline" className="rounded-full shadow-sm" />
+              </MessageScroller>
+            </MessageScrollerProvider>
+          )}
+        </div>
+
+        <form
+          className="shrink-0 border-t p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask(draft);
+          }}
+        >
+          <Field>
+            <InputGroup>
+              <InputGroupTextarea
+                aria-label={T.inputLabel}
+                placeholder={T.placeholder}
+                className="max-h-48 min-h-24 pb-12"
+                value={draft}
+                maxLength={QUESTION_MAX}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    void ask(draft);
+                  }
+                }}
+              />
+              <InputGroupAddon align="block-end">
+                <span className="text-muted-foreground text-xs" aria-live="polite">
+                  {estimating
+                    ? T.estimating
+                    : estimate !== null
+                      ? fill(T.estimate, { credits: n.format(estimate) })
+                      : null}
+                </span>
+                {busy ? (
+                  <InputGroupButton
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    className="ml-auto"
+                    aria-label={T.stop}
+                    title={T.stop}
+                    onClick={() => abortRef.current?.abort()}
+                  >
+                    <SquareIcon className="size-3.5" aria-hidden />
+                  </InputGroupButton>
+                ) : (
+                  <InputGroupButton
+                    type="submit"
+                    variant="default"
+                    size="icon-xs"
+                    className="ml-auto"
+                    aria-label={T.send}
+                    title={T.send}
+                    disabled={!draft.trim()}
+                  >
+                    <ArrowUpIcon className="size-4" aria-hidden />
+                  </InputGroupButton>
+                )}
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+type Labels = ReturnType<typeof useI18n>['t']['cosmos']['assistant'];
+
+function AnswerMessage({
+  turn,
+  busy,
+  labels: T,
+  errorText,
+  format,
+  onRetry,
+  onNavigate,
+}: {
+  turn: Turn;
+  busy: boolean;
+  labels: Labels;
+  errorText: (code: AssistantErrorCode) => string;
+  format: (v: number) => string;
+  onRetry: () => void;
+  onNavigate: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const id = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(id);
+  }, [copied]);
+
+  const done = turn.status === 'done';
+  const waiting = turn.status === 'waiting' || (turn.status === 'streaming' && !turn.text);
+
+  if (turn.status === 'error') {
+    const action =
+      turn.error === 'insufficient'
+        ? T.recharge
+        : turn.error === 'disabled' || turn.error === 'no_wallet'
+          ? T.enable
+          : null;
+    return (
+      <Message>
+        <MessageAvatar className="size-8">
+          <CosmosIcon aria-hidden className="text-muted-foreground size-4" />
+        </MessageAvatar>
+        <MessageContent>
+          <Bubble variant="outline" className="max-w-full">
+            <BubbleContent>
+              <p role="alert">{errorText(turn.error ?? 'failed')}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {action ? (
+                  <Link
+                    href="/cliente/cosmos"
+                    onClick={onNavigate}
+                    className={buttonVariants({ size: 'sm' })}
+                  >
+                    {action}
+                  </Link>
+                ) : null}
+                {turn.error === 'failed' || turn.error === 'unavailable' ? (
+                  <Button variant="outline" size="sm" disabled={busy} onClick={onRetry}>
+                    <RefreshCwIcon data-icon="inline-start" aria-hidden />
+                    {T.retry}
+                  </Button>
+                ) : null}
+              </div>
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
+    );
+  }
+
+  return (
+    <Message>
+      <MessageAvatar className="size-8">
+        <CosmosIcon aria-hidden className="text-muted-foreground size-4" />
+      </MessageAvatar>
+      <MessageContent>
+        <span role="status" className="sr-only">
+          {done ? T.ready : waiting ? T.generating : ''}
+        </span>
+        <Bubble variant="ghost" aria-busy={!done}>
+          <BubbleContent className="space-y-3">
+            {waiting ? (
+              <Marker>
+                <MarkerIcon>
+                  <Spinner />
+                </MarkerIcon>
+                <MarkerContent>
+                  <span className="animate-pulse motion-reduce:animate-none">{T.thinking}</span>
+                </MarkerContent>
+              </Marker>
+            ) : (
+              markdownFences(turn.text).map((part, i) =>
+                part.type === 'code' ? (
+                  <CodeBlock
+                    key={i}
+                    code={part.content}
+                    language={part.language}
+                    streaming={part.open}
+                    label={part.language ?? 'code'}
+                  >
+                    <CodeBlockHeader>
+                      <CodeBlockTitle>{part.language ?? 'code'}</CodeBlockTitle>
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <CodeBlockCopyButton />
+                      </div>
+                    </CodeBlockHeader>
+                  </CodeBlock>
+                ) : (
+                  <p key={i} className="whitespace-pre-wrap">
+                    {part.content}
+                  </p>
+                ),
+              )
+            )}
+          </BubbleContent>
+        </Bubble>
+        <MessageFooter className="gap-0.5">
+          {done && turn.charged !== undefined ? (
+            <span className="pe-1 tabular-nums">
+              {fill(T.charged, { credits: format(turn.charged), available: format(turn.available ?? 0) })}
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            disabled={!done}
+            aria-label={copied ? T.copied : T.copy}
+            title={copied ? T.copied : T.copy}
+            onClick={() => {
+              void navigator.clipboard?.writeText?.(turn.text);
+              setCopied(true);
+            }}
+          >
+            {copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            disabled={!done || busy}
+            aria-label={T.retry}
+            title={T.retry}
+            onClick={onRetry}
+          >
+            <RefreshCwIcon aria-hidden="true" />
+          </Button>
+        </MessageFooter>
+      </MessageContent>
+    </Message>
+  );
+}
