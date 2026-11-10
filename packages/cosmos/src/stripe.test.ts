@@ -61,6 +61,8 @@ describe('checkout', () => {
     expect(form.get('line_items[0][price_data][unit_amount]')).toBe('4900');
     expect(form.get('payment_method_types[1]')).toBe('pix');
     expect(form.get('invoice_creation[enabled]')).toBe('true');
+    // sem conversão automática de moeda: o valor da sessão é o do pacote
+    expect(form.get('adaptive_pricing[enabled]')).toBe('false');
     expect(form.get('locale')).toBe('pt-BR');
     expect(checkoutForm({ ...input, locale: 'es-AR' }).get('locale')).toBe('es-419');
   });

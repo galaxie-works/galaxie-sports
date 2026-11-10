@@ -116,7 +116,8 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
       checked={enabled}
       // desligar salva na hora; ligar abre as travas para escolher o pacote, o limite e dar o aceite
       onCheckedChange={(next) => (next ? setEnabled(true) : save(false))}
-      disabled={pending || !data.packages.length}
+      // sem pacote à venda dá para desligar, só não dá para ligar
+      disabled={pending || (!enabled && !data.packages.length)}
       allows={T.description}
       safety={current?.lastFailureReason ? fill(T.failure, { reason: current.lastFailureReason }) : undefined}
       locks={

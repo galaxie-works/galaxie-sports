@@ -17,6 +17,15 @@ import {
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
 import { platform } from './lineups.js';
+import {
+  ENGAGE_MODULES,
+  isEngageModule,
+  type EngageModule,
+  type ModuleLimitKey,
+  type ModuleUsageMetric,
+} from '../engage-modules.js';
+
+export * from '../engage-modules.js';
 
 /** Schema da API pública: tenants, chaves de acesso e fila de backfill do espelho (docs/05 §1–2). */
 export const api = pgSchema('api');
@@ -32,8 +41,16 @@ export const API_MODULES = [
   'related_content',
   /** Add-on: odds pré-jogo por evento, em consenso entre as casas (docs/05 §3.2.2). */
   'odds',
+  // Engajamento do torcedor (#1017, #1018): vendidos por módulo, nunca incluídos num plano por padrão.
+  ...ENGAGE_MODULES,
 ] as const;
 export type ApiModule = (typeof API_MODULES)[number];
+
+/** Módulos de dados (API esportiva): tudo o que não é engajamento. */
+export const DATA_MODULES = API_MODULES.filter((m) => !isEngageModule(m)) as Exclude<
+  ApiModule,
+  EngageModule
+>[];
 
 export const API_PLANS = ['trial', 'core_data', 'fan_experience', 'live_intelligence', 'enterprise'] as const;
 export type ApiPlan = (typeof API_PLANS)[number];
@@ -47,7 +64,16 @@ export const PLAN_MODULES: Record<ApiPlan, readonly ApiModule[]> = {
   core_data: ['core_data'],
   fan_experience: ['core_data', 'where_to_watch', 'semantic'],
   live_intelligence: ['core_data', 'where_to_watch', 'semantic', 'live_intelligence', 'multisport'],
-  enterprise: API_MODULES,
+  // lista explícita: um módulo novo em API_MODULES não entra de graça no Enterprise (engajamento é por contrato)
+  enterprise: [
+    'core_data',
+    'where_to_watch',
+    'semantic',
+    'live_intelligence',
+    'multisport',
+    'related_content',
+    'odds',
+  ],
 };
 
 export const tenantStatus = api.enum('tenant_status', ['active', 'suspended']);
@@ -178,6 +204,58 @@ export const usageDaily = api.table(
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],
+);
+
+/**
+ * Faixa de um módulo de engajamento no tenant (#1018). Sem linha = padrão de `MODULE_LIMITS`. Só a Galaxie
+ * grava (rota administrativa); o cliente vê no painel.
+ */
+export const tenantModuleLimit = api.table(
+  'tenant_module_limit',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Chave de `MODULE_LIMITS` (`modulo.faixa`). */
+    key: text('key').$type<ModuleLimitKey>().notNull(),
+    value: integer('value').notNull(),
+    /** Quem mudou: `admin`, `cli:<comando>`, `panel:<id do usuário>`. */
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+/**
+ * Uso por módulo de engajamento, tenant e mês (#1018). Os contadores vivem no Valkey durante o mês e são
+ * consolidados aqui; `value` só cresce dentro do mês (o consolidado guarda o maior visto), então uma perda do
+ * Valkey nunca diminui o que o cliente já viu.
+ */
+export const moduleUsageMonthly = api.table(
+  'module_usage_monthly',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Primeiro dia do mês, em UTC. */
+    month: date('month', { mode: 'string' }).notNull(),
+    module: text('module').$type<EngageModule>().notNull(),
+    metric: text('metric').$type<ModuleUsageMetric>().notNull(),
+    value: bigint('value', { mode: 'number' }).notNull().default(0),
+    /**
+     * Época da chave do Valkey que alimentou a última consolidação e `epoch_base`, o consolidado das épocas
+     * anteriores (a mesma regra de `usage_daily`). Mesma época: `value = greatest(value, base + lido)`; época
+     * nova (Valkey zerado no meio do mês): `base := value` e o que vier depois soma, em vez de o `greatest()`
+     * congelar o uso. `peak_connections` é um máximo e fica sempre no `greatest()`.
+     */
+    epoch: text('epoch'),
+    epochBase: bigint('epoch_base', { mode: 'number' }).notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.month, t.module, t.metric] }),
+    index('module_usage_monthly_month_idx').on(t.month),
+  ],
 );
 
 /**

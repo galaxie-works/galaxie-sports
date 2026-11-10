@@ -25,6 +25,8 @@ export function alertLevelFor(available: number, cycleBase: number): AlertLevel 
 export interface BalanceState {
   tenantId: string;
   status: 'active' | 'blocked';
+  /** Cosmos ligada no tenant; desligada, a recarga automática não dispara. */
+  enabled: boolean;
   cycleBase: number;
   cycleStartedAt: Date | null;
   alertLevel: number;
@@ -88,7 +90,7 @@ export async function evaluateBalance(
         isNotNull(autoRecharge.stripeCustomerId),
       ),
     );
-  if (ar && ar.packageActive && available < ar.threshold) {
+  if (w.enabled && ar && ar.packageActive && available < ar.threshold) {
     await tx
       .insert(rechargeAttempt)
       .values({

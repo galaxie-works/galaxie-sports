@@ -3,7 +3,7 @@
 import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { Download, FunctionSquare, Layers, ListFilter } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 
 import { Badge } from '@/components/reui/badge';
 import {
@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { sortByLabel } from '@/lib/alphabetical';
 import type { CosmosStatementData } from '@/lib/cosmos/data';
+import { olderCosmosEntries } from '@/lib/cosmos/statement-actions';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
@@ -243,24 +244,43 @@ function StatementGrid({ data, timeZone }: { data: CosmosStatementData; timeZone
   const grid = t.admin.table.grid;
   const columns = useColumns(timeZone);
   const { search } = useStatementUrl();
-  const router = useRouter();
-  const pathname = usePathname();
   const filtered = ['kind', 'fn', 'scope'].some((f) => search.getAll(f).length);
+  // "Mostrar mais antigos" acumula as páginas na tela (a URL segue com o período e os filtros); outro período ou
+  // filtro recomeça da primeira página
+  const key = `${search.toString()}|${data.entries[0]?.id ?? ''}`;
+  const [more, setMore] = useState<{
+    key: string;
+    entries: CosmosStatementData['entries'];
+    cursor: string | null;
+  }>({ key, entries: [], cursor: data.nextCursor });
+  const current = more.key === key ? more : { key, entries: [], cursor: data.nextCursor };
+  const entries = useMemo(() => [...data.entries, ...current.entries], [data.entries, current.entries]);
+  const [loading, startLoading] = useTransition();
   const table = useTable({
     features: dataGridFeatures,
-    data: data.entries,
+    data: entries,
     columns,
     getRowId: (e) => e.id,
     initialState: { pagination: { pageIndex: 0, pageSize: 50 } },
   });
   const older = () => {
-    const p = new URLSearchParams(search.toString());
-    p.set('tab', 'usage');
-    if (data.nextCursor) p.set('cursor', data.nextCursor);
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+    if (!current.cursor) return;
+    const cursor = current.cursor;
+    startLoading(async () => {
+      const page = await olderCosmosEntries({
+        from: search.get('from') ?? undefined,
+        to: search.get('to') ?? undefined,
+        kind: search.getAll('kind'),
+        fn: search.getAll('fn'),
+        scope: search.getAll('scope'),
+        cursor,
+      });
+      if (!page) return;
+      setMore({ key, entries: [...current.entries, ...page.entries], cursor: page.nextCursor });
+    });
   };
 
-  if (!data.entries.length && !filtered && !search.get('cursor'))
+  if (!data.entries.length && !filtered)
     return (
       <ExplainEmpty title={T.emptyTitle} description={T.emptyDescription} className="rounded-xl border" />
     );
@@ -268,7 +288,7 @@ function StatementGrid({ data, timeZone }: { data: CosmosStatementData; timeZone
   return (
     <DataGrid
       table={table}
-      recordCount={data.entries.length}
+      recordCount={entries.length}
       emptyMessage={T.filteredEmpty}
       tableLayout={{ headerBackground: true }}
       i18n={{
@@ -288,9 +308,9 @@ function StatementGrid({ data, timeZone }: { data: CosmosStatementData; timeZone
       <DataGridContainer>
         <DataGridTable />
       </DataGridContainer>
-      {data.nextCursor ? (
+      {current.cursor ? (
         <div className="px-4 py-3">
-          <Button variant="outline" size="sm" onClick={older}>
+          <Button variant="outline" size="sm" onClick={older} disabled={loading}>
             {T.more}
           </Button>
         </div>
@@ -394,8 +414,11 @@ function Purchases({ data, timeZone }: { data: CosmosStatementData; timeZone: st
                       >
                         {T.status[p.status]}
                       </Badge>
-                      {p.status === 'paid' ? (
+                      {p.status === 'paid' && p.hasReceipt ? (
                         <span className="text-muted-foreground text-xs">{T.receipt}</span>
+                      ) : null}
+                      {p.auto ? (
+                        <span className="text-muted-foreground text-xs">{T.autoRecharge}</span>
                       ) : null}
                     </div>
                   </TableCell>

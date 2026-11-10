@@ -67,7 +67,12 @@ describe('carteiras para a equipe Galaxie', () => {
     const a = await newTenant('Alfa');
     const b = await newTenant('Beta');
     await addEntry(db, { tenantId: a, kind: 'purchase', idempotencyKey: key(), credits: 100 });
-    await addEntry(db, { tenantId: b, kind: 'trial', credits: 10 });
+    await addEntry(db, {
+      tenantId: b,
+      kind: 'trial',
+      credits: 10,
+      trialExpiresAt: new Date(Date.now() + 90 * 86_400_000),
+    });
     const r = await reserve(db, { tenantId: a, functionName: 'fn' }, { settings });
     await settle(db, { tenantId: a, reservationId: r.id, costUsd: 0.05 });
     await db.insert(purchaseIntent).values({
@@ -169,7 +174,12 @@ describe('carteiras para a equipe Galaxie', () => {
 
   it('desbloquear sem saldo deixa bloqueada por saldo zerado', async () => {
     const t = await newTenant('Épsilon');
-    await addEntry(db, { tenantId: t, kind: 'trial', credits: 1 });
+    await addEntry(db, {
+      tenantId: t,
+      kind: 'trial',
+      credits: 1,
+      trialExpiresAt: new Date(Date.now() + 90 * 86_400_000),
+    });
     await staffCredit(db, {
       tenantId: t,
       kind: 'adjustment',
@@ -205,6 +215,20 @@ describe('carteiras para a equipe Galaxie', () => {
     });
     const all = await listAllPackages(db);
     expect(all.find((p) => p.id === id)).toMatchObject({ active: false });
+    // o registro falhou (sem quem fez): o preço não muda sem auditoria
+    await expect(
+      staffSavePackage(db, {
+        id,
+        name: 'Teste',
+        credits: 1000,
+        priceCents: 1,
+        currency: 'usd',
+        market: 'US',
+        reason: 'preço errado',
+        userId: null as unknown as string,
+      }),
+    ).rejects.toThrow();
+    expect((await listAllPackages(db)).find((p) => p.id === id)).toMatchObject({ priceCents: 1000 });
     await expectCode(
       staffSavePackage(db, {
         name: 'X',

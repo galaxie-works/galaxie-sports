@@ -248,26 +248,29 @@ export async function staffSavePackage(
 ): Promise<string> {
   const reason = reasonOf(input.reason);
   const { reason: _r, userId, ...pkg } = input;
-  const before = pkg.id
-    ? ((await db.select().from(creditPackage).where(eq(creditPackage.id, pkg.id)))[0] ?? null)
-    : null;
-  const id = await upsertPackage(db, pkg);
-  await logAction(db, {
-    tenantId: null,
-    action: 'package',
-    before: before
-      ? {
-          name: before.name,
-          credits: before.credits,
-          priceCents: before.priceCents,
-          currency: before.currency,
-          market: before.market,
-          active: before.active,
-        }
-      : null,
-    after: { id, ...pkg },
-    reason,
-    userId,
+  // preço e auditoria juntos: se o registro falhar, o pacote não muda
+  return db.transaction(async (tx) => {
+    const before = pkg.id
+      ? ((await tx.select().from(creditPackage).where(eq(creditPackage.id, pkg.id)).for('update'))[0] ?? null)
+      : null;
+    const id = await upsertPackage(tx, pkg);
+    await logAction(tx, {
+      tenantId: null,
+      action: 'package',
+      before: before
+        ? {
+            name: before.name,
+            credits: before.credits,
+            priceCents: before.priceCents,
+            currency: before.currency,
+            market: before.market,
+            active: before.active,
+          }
+        : null,
+      after: { id, ...pkg },
+      reason,
+      userId,
+    });
+    return id;
   });
-  return id;
 }

@@ -66,6 +66,7 @@ export const DOC_SECTIONS: Partial<Record<DocNavId, readonly (readonly [id: stri
   modules: [
     ['planos', 'plans'],
     ['modulos', 'list'],
+    ['engajamento', 'engage'],
     ['fora-do-plano', 'outside'],
     ['conferir', 'check'],
   ],

@@ -1,6 +1,6 @@
 {
   "id": "31a980c5-88e5-4e1d-ae35-47e65ac12c44",
-  "prevId": "acec4aa4-bd9c-4496-93c8-ef2ad4a12058",
+  "prevId": "00d98efc-795c-4f8d-9324-341c2f20fdf8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15380,6 +15380,111 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "api.module_usage_monthly": {
+      "name": "module_usage_monthly",
+      "schema": "api",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month": {
+          "name": "month",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metric": {
+          "name": "metric",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "epoch_base": {
+          "name": "epoch_base",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "module_usage_monthly_month_idx": {
+          "name": "module_usage_monthly_month_idx",
+          "columns": [
+            {
+              "expression": "month",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "module_usage_monthly_tenant_id_tenant_id_fk": {
+          "name": "module_usage_monthly_tenant_id_tenant_id_fk",
+          "tableFrom": "module_usage_monthly",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "module_usage_monthly_tenant_id_month_module_metric_pk": {
+          "name": "module_usage_monthly_tenant_id_month_module_metric_pk",
+          "columns": [
+            "tenant_id",
+            "month",
+            "module",
+            "metric"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "api.tenant": {
       "name": "tenant",
       "schema": "api",
@@ -15518,6 +15623,73 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "api.tenant_module_limit": {
+      "name": "tenant_module_limit",
+      "schema": "api",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tenant_module_limit_tenant_id_tenant_id_fk": {
+          "name": "tenant_module_limit_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_module_limit",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tenant_module_limit_tenant_id_key_pk": {
+          "name": "tenant_module_limit_tenant_id_key_pk",
+          "columns": [
+            "tenant_id",
+            "key"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -16879,123 +17051,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "cosmos.package": {
-      "name": "package",
-      "schema": "cosmos",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "credits": {
-          "name": "credits",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_cents": {
-          "name": "price_cents",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "market": {
-          "name": "market",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "package_market_idx": {
-          "name": "package_market_idx",
-          "columns": [
-            {
-              "expression": "market",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "package_credits_positive": {
-          "name": "package_credits_positive",
-          "value": "\"cosmos\".\"package\".\"credits\" > 0"
-        },
-        "package_price_positive": {
-          "name": "package_price_positive",
-          "value": "\"cosmos\".\"package\".\"price_cents\" > 0"
-        },
-        "package_currency": {
-          "name": "package_currency",
-          "value": "\"cosmos\".\"package\".\"currency\" in ('brl', 'usd')"
-        },
-        "package_market_iso2": {
-          "name": "package_market_iso2",
-          "value": "\"cosmos\".\"package\".\"market\" ~ '^[A-Z]{2}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "cosmos.function_def": {
       "name": "function_def",
       "schema": "cosmos",
@@ -17327,6 +17382,386 @@
       },
       "isRLSEnabled": false
     },
+    "cosmos.reservation": {
+      "name": "reservation",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "function_name": {
+          "name": "function_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credits": {
+          "name": "credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_usd": {
+          "name": "credit_usd",
+          "type": "numeric(18, 10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "multiplier": {
+          "name": "multiplier",
+          "type": "numeric(8, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_credits": {
+          "name": "min_credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reservation_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "charged_credits": {
+          "name": "charged_credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reservation_open_idx": {
+          "name": "reservation_open_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"cosmos\".\"reservation\".\"status\" = 'open'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reservation_tenant_idx": {
+          "name": "reservation_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reservation_tenant_id_tenant_id_fk": {
+          "name": "reservation_tenant_id_tenant_id_fk",
+          "tableFrom": "reservation",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reservation_credits_positive": {
+          "name": "reservation_credits_positive",
+          "value": "\"cosmos\".\"reservation\".\"credits\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.wallet": {
+      "name": "wallet",
+      "schema": "cosmos",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "available": {
+          "name": "available",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "reserved": {
+          "name": "reserved",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "received_total": {
+          "name": "received_total",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "wallet_status",
+          "typeSchema": "cosmos",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "trial_granted": {
+          "name": "trial_granted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "multiplier": {
+          "name": "multiplier",
+          "type": "numeric(8, 3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "wallet_tenant_id_tenant_id_fk": {
+          "name": "wallet_tenant_id_tenant_id_fk",
+          "tableFrom": "wallet",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "wallet_available_non_negative": {
+          "name": "wallet_available_non_negative",
+          "value": "\"cosmos\".\"wallet\".\"available\" >= 0"
+        },
+        "wallet_reserved_non_negative": {
+          "name": "wallet_reserved_non_negative",
+          "value": "\"cosmos\".\"wallet\".\"reserved\" >= 0"
+        },
+        "wallet_multiplier_positive": {
+          "name": "wallet_multiplier_positive",
+          "value": "\"cosmos\".\"wallet\".\"multiplier\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.package": {
+      "name": "package",
+      "schema": "cosmos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credits": {
+          "name": "credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_cents": {
+          "name": "price_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market": {
+          "name": "market",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "package_market_idx": {
+          "name": "package_market_idx",
+          "columns": [
+            {
+              "expression": "market",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "package_credits_positive": {
+          "name": "package_credits_positive",
+          "value": "\"cosmos\".\"package\".\"credits\" > 0"
+        },
+        "package_price_positive": {
+          "name": "package_price_positive",
+          "value": "\"cosmos\".\"package\".\"price_cents\" > 0"
+        },
+        "package_currency": {
+          "name": "package_currency",
+          "value": "\"cosmos\".\"package\".\"currency\" in ('brl', 'usd')"
+        },
+        "package_market_iso2": {
+          "name": "package_market_iso2",
+          "value": "\"cosmos\".\"package\".\"market\" ~ '^[A-Z]{2}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "cosmos.purchase_intent": {
       "name": "purchase_intent",
       "schema": "cosmos",
@@ -17509,165 +17944,6 @@
       },
       "isRLSEnabled": false
     },
-    "cosmos.reservation": {
-      "name": "reservation",
-      "schema": "cosmos",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "function_name": {
-          "name": "function_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "credits": {
-          "name": "credits",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "credit_usd": {
-          "name": "credit_usd",
-          "type": "numeric(18, 10)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "multiplier": {
-          "name": "multiplier",
-          "type": "numeric(8, 3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "min_credits": {
-          "name": "min_credits",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "reservation_status",
-          "typeSchema": "cosmos",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "charged_credits": {
-          "name": "charged_credits",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "reservation_open_idx": {
-          "name": "reservation_open_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"cosmos\".\"reservation\".\"status\" = 'open'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "reservation_tenant_idx": {
-          "name": "reservation_tenant_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "reservation_tenant_id_tenant_id_fk": {
-          "name": "reservation_tenant_id_tenant_id_fk",
-          "tableFrom": "reservation",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "reservation_credits_positive": {
-          "name": "reservation_credits_positive",
-          "value": "\"cosmos\".\"reservation\".\"credits\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "cosmos.stripe_event": {
       "name": "stripe_event",
       "schema": "cosmos",
@@ -17710,110 +17986,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "cosmos.wallet": {
-      "name": "wallet",
-      "schema": "cosmos",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "available": {
-          "name": "available",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "reserved": {
-          "name": "reserved",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "received_total": {
-          "name": "received_total",
-          "type": "numeric(14, 3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "status": {
-          "name": "status",
-          "type": "wallet_status",
-          "typeSchema": "cosmos",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "trial_granted": {
-          "name": "trial_granted",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "multiplier": {
-          "name": "multiplier",
-          "type": "numeric(8, 3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "wallet_tenant_id_tenant_id_fk": {
-          "name": "wallet_tenant_id_tenant_id_fk",
-          "tableFrom": "wallet",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "wallet_available_non_negative": {
-          "name": "wallet_available_non_negative",
-          "value": "\"cosmos\".\"wallet\".\"available\" >= 0"
-        },
-        "wallet_reserved_non_negative": {
-          "name": "wallet_reserved_non_negative",
-          "value": "\"cosmos\".\"wallet\".\"reserved\" >= 0"
-        },
-        "wallet_multiplier_positive": {
-          "name": "wallet_multiplier_positive",
-          "value": "\"cosmos\".\"wallet\".\"multiplier\" > 0"
-        }
-      },
       "isRLSEnabled": false
     }
   },
@@ -18060,17 +18232,6 @@
         "quota_change"
       ]
     },
-    "cosmos.purchase_status": {
-      "name": "purchase_status",
-      "schema": "cosmos",
-      "values": [
-        "pending",
-        "paid",
-        "failed",
-        "canceled",
-        "expired"
-      ]
-    },
     "cosmos.reservation_status": {
       "name": "reservation_status",
       "schema": "cosmos",
@@ -18087,6 +18248,18 @@
       "values": [
         "active",
         "blocked"
+      ]
+    },
+    "cosmos.purchase_status": {
+      "name": "purchase_status",
+      "schema": "cosmos",
+      "values": [
+        "pending",
+        "paid",
+        "failed",
+        "canceled",
+        "expired",
+        "review"
       ]
     }
   },

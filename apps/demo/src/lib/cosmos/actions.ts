@@ -170,15 +170,17 @@ export async function saveAutoRecharge(form: AutoRechargeForm): Promise<{ ok: bo
   const g = await gate();
   if ('error' in g) return { ok: false, error: g.error };
   const { t } = g;
-  if (!isUuid(form.packageId)) return { ok: false, error: t.errors.unknownPackage };
+  // desligar não depende do pacote nem do limite (o pacote pode ter sido desativado)
+  if (form.enabled && !isUuid(form.packageId)) return { ok: false, error: t.errors.unknownPackage };
   try {
     await configureAutoRecharge(builderDb(), {
       tenantId: g.ctx.tenant.id,
       enabled: form.enabled,
-      packageId: form.packageId,
-      thresholdCredits: Number(form.thresholdCredits),
+      packageId: form.enabled ? form.packageId : null,
+      thresholdCredits: form.enabled ? Number(form.thresholdCredits) : null,
       accepted: form.accepted === true,
       userId: g.ctx.userId,
+      market: packageMarket(g.ctx.tenant.markets),
     });
     return { ok: true };
   } catch (err) {

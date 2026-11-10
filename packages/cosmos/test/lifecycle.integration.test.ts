@@ -24,8 +24,11 @@ import {
   getWallet,
   isCosmosError,
   listLedger,
+  MAX_RECHARGE_ATTEMPTS,
   processRecharges,
   readTrialSettings,
+  reconcileStuckRecharges,
+  release,
   reserve,
   settle,
   upsertFunctionDef,
@@ -309,5 +312,201 @@ describe('recarga automática', () => {
       lastFailureReason: 'insufficient_funds',
     });
     expect((await getWallet(db, t))?.available).toBe(15);
+  });
+  /** Tenant com 30 créditos, recarga ligada (limiar 20) e cartão salvo; gasta 15 e abre a tentativa. */
+  async function withOpenAttempt(customer: string) {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: customer }).where(eq(autoRecharge.tenantId, t));
+    await spend(t, 15);
+    const statuses = async () =>
+      (await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t))).map((a) => a.status);
+    return { t, statuses };
+  }
+
+  it('desligar a recarga (ou a Cosmos) encerra a tentativa pendente e nada é cobrado', async () => {
+    const a = await withOpenAttempt('cus_4');
+    await configureAutoRecharge(db, { tenantId: a.t, enabled: false, accepted: false, userId: 'dono' });
+    const calls: string[] = [];
+    expect(await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch(calls) })).toMatchObject({
+      charged: 0,
+    });
+    expect(calls).toEqual([]);
+    expect(await a.statuses()).toEqual(['cancelled']);
+
+    const b = await withOpenAttempt('cus_5');
+    await disableCosmos(db, b.t);
+    expect(await b.statuses()).toEqual(['cancelled']);
+    expect((await getWallet(db, b.t))?.enabled).toBe(false);
+  });
+
+  it('aceite retirado direto no banco: o job encerra em vez de cobrar', async () => {
+    const a = await withOpenAttempt('cus_6');
+    await db.update(autoRecharge).set({ acceptedAt: null }).where(eq(autoRecharge.tenantId, a.t));
+    const calls: string[] = [];
+    await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch(calls) });
+    expect(calls).toEqual([]);
+    expect(await a.statuses()).toEqual(['cancelled']);
+  });
+
+  it('5xx do Stripe: volta para a fila com o mesmo cartão e a recarga segue ligada', async () => {
+    const a = await withOpenAttempt('cus_7');
+    const bodies: string[] = [];
+    const flaky = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes('/payment_methods'))
+        return new Response(JSON.stringify({ data: [{ id: 'pm_7' }] }), { status: 200 });
+      bodies.push(String(init?.body));
+      return new Response(JSON.stringify({ error: { message: 'tente de novo' } }), { status: 503 });
+    }) as typeof fetch;
+    expect(await processRecharges(db, 'sk_test_x', { fetchImpl: flaky })).toMatchObject({ requeued: 1 });
+    expect(await a.statuses()).toEqual(['pending']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({ enabled: true });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t));
+    expect(attempt).toMatchObject({ stripeCustomerId: 'cus_7', paymentMethodId: 'pm_7' });
+    // a repetição manda o mesmo cartão (mesma chave de idempotência, mesmos parâmetros)
+    await processRecharges(db, 'sk_test_x', { fetchImpl: flaky });
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toBe(bodies[0]);
+  });
+
+  it('400 resource_missing (cartão ou cliente removido no Stripe): falha com o motivo e desliga', async () => {
+    const a = await withOpenAttempt('cus_11');
+    const missing = (async () =>
+      new Response(JSON.stringify({ error: { code: 'resource_missing', message: 'No such customer' } }), {
+        status: 400,
+      })) as typeof fetch;
+    await processRecharges(db, 'sk_test_x', { fetchImpl: missing, limit: 500 });
+    expect(await a.statuses()).toEqual(['failed']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'resource_missing',
+    });
+  });
+
+  it('falha passageira repetida: no teto de tentativas, falha e desliga a recarga', async () => {
+    const a = await withOpenAttempt('cus_12');
+    const down = (async () =>
+      new Response(JSON.stringify({ error: { message: 'fora' } }), { status: 500 })) as typeof fetch;
+    for (let i = 1; i < MAX_RECHARGE_ATTEMPTS; i++)
+      await processRecharges(db, 'sk_test_x', { fetchImpl: down, limit: 500 });
+    expect(await a.statuses()).toEqual(['pending']);
+    await processRecharges(db, 'sk_test_x', { fetchImpl: down, limit: 500 });
+    expect(await a.statuses()).toEqual(['failed']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'stripe_unavailable',
+    });
+  });
+
+  it('recarga paga com valor diferente fica em revisão, sem crédito', async () => {
+    const a = await withOpenAttempt('cus_13');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch([]) });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t));
+    const odd = piEvent('payment_intent.succeeded', attempt!.id, attempt!.paymentIntentId!, {
+      amount_received: 999,
+    });
+    expect((await applyStripeEvent(db, odd)).outcome).toBe('amount_mismatch');
+    expect(await a.statuses()).toEqual(['review']);
+    expect((await getWallet(db, a.t))?.available).toBe(15);
+  });
+
+  it('pagamento confirmado depois de a tentativa falhar: credita uma vez', async () => {
+    const a = await withOpenAttempt('cus_8');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch([]) });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t));
+    await db.update(rechargeAttempt).set({ status: 'failed' }).where(eq(rechargeAttempt.id, attempt!.id));
+    const ok = piEvent('payment_intent.succeeded', attempt!.id, attempt!.paymentIntentId!);
+    expect((await applyStripeEvent(db, ok)).outcome).toBe('credited');
+    expect((await getWallet(db, a.t))?.available).toBe(515);
+    expect(await a.statuses()).toEqual(['succeeded']);
+  });
+
+  it('tentativa presa em processing: sem pagamento criado volta para a fila; cancelada no Stripe falha', async () => {
+    const later = new Date(Date.now() + 60 * 60_000);
+    const a = await withOpenAttempt('cus_9');
+    await db.update(rechargeAttempt).set({ status: 'processing' }).where(eq(rechargeAttempt.tenantId, a.t));
+    const b = await withOpenAttempt('cus_10');
+    await db
+      .update(rechargeAttempt)
+      .set({ status: 'processing', paymentIntentId: 'pi_preso' })
+      .where(eq(rechargeAttempt.tenantId, b.t));
+    const canceled = (async () =>
+      new Response(JSON.stringify({ id: 'pi_preso', status: 'canceled' }), { status: 200 })) as typeof fetch;
+    await reconcileStuckRecharges(db, 'sk_test_x', { now: later, fetchImpl: canceled, limit: 500 });
+    expect(await a.statuses()).toEqual(['pending']);
+    expect(await b.statuses()).toEqual(['failed']);
+  });
+
+  it('limiar igual ou acima dos créditos do pacote é recusado; desligar não pede pacote nem limiar', async () => {
+    const t = await newTenant();
+    await expect(
+      configureAutoRecharge(db, {
+        tenantId: t,
+        enabled: true,
+        packageId: pkg,
+        thresholdCredits: 500,
+        accepted: true,
+        userId: 'dono',
+      }),
+    ).rejects.toSatisfy((e: unknown) => isCosmosError(e, 'invalid_amount'));
+    await expect(
+      configureAutoRecharge(db, {
+        tenantId: t,
+        enabled: true,
+        packageId: pkg,
+        thresholdCredits: 20,
+        accepted: true,
+        userId: 'dono',
+        market: 'BR',
+      }),
+    ).rejects.toSatisfy((e: unknown) => isCosmosError(e, 'unknown_package'));
+    await expect(
+      configureAutoRecharge(db, { tenantId: t, enabled: false, accepted: false, userId: 'dono' }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('carteira bloqueada por saldo zerado', () => {
+  it('estorno positivo libera a carteira e abre um ciclo novo', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 5 });
+    await spend(t, 5);
+    expect(await getWallet(db, t)).toMatchObject({ status: 'blocked', blockReason: 'depleted' });
+    await addEntry(db, { tenantId: t, kind: 'refund', idempotencyKey: key(), credits: 3 });
+    expect(await getWallet(db, t)).toMatchObject({ status: 'active', blockReason: null, available: 3 });
+    await expect(reserve(db, { tenantId: t, functionName: 'fn' }, { settings })).resolves.toBeTruthy();
+  });
+
+  it('reserva devolvida com saldo livre positivo libera a carteira', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 3 });
+    const r = await reserve(db, { tenantId: t, functionName: 'fn', estimatedCredits: 2 }, { settings });
+    await spend(t, 1); // saldo livre 0 com 2 reservados: bloqueia por zerado
+    expect(await getWallet(db, t)).toMatchObject({ status: 'blocked', blockReason: 'depleted' });
+    await release(db, { tenantId: t, reservationId: r.id });
+    expect(await getWallet(db, t)).toMatchObject({ status: 'active', blockReason: null, available: 2 });
+  });
+});
+
+describe('vencimento do teste com reserva aberta', () => {
+  it('a parte do teste que estava reservada vence quando volta para o saldo', async () => {
+    const t = await newTenant();
+    await enableCosmos(db, t, { trial });
+    const r = await reserve(db, { tenantId: t, functionName: 'fn', estimatedCredits: 10 }, { settings });
+    const after = new Date(Date.now() + 91 * 86_400_000);
+    await expireTrials(db, after, 10_000);
+    expect(await getWallet(db, t)).toMatchObject({ available: 0, trialRemaining: 10 });
+    await release(db, { tenantId: t, reservationId: r.id });
+    expect((await getWallet(db, t))?.available).toBe(10);
+    await expireTrials(db, after, 10_000);
+    expect(await getWallet(db, t)).toMatchObject({ available: 0, trialRemaining: 0 });
   });
 });

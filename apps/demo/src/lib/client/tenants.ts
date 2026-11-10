@@ -4,6 +4,16 @@
  * tenant:create`); a demo só lê: plano, módulos, mercados, esportes, limites e o uso consolidado por dia
  * (`api.usage_daily`). Nada daqui exige a chave administrativa da API.
  */
+import {
+  ENGAGE_MODULES,
+  isValidModuleLimit,
+  MODULE_LIMIT_KEYS,
+  MODULE_LIMITS,
+  type EngageModule,
+  type ModuleLimitKey,
+  type ModuleUsageMetric,
+} from '@galaxie/db/engage-modules';
+
 import { pool } from '@/lib/auth/db';
 
 /** Opção de tenant (seletores do admin). */
@@ -88,4 +98,49 @@ export async function getTenantUsage(id: string, days = 30): Promise<TenantUsage
     total: byDay.reduce((n, d) => n + d.total, 0),
     days: byDay,
   };
+}
+
+/** Faixa de um módulo de engajamento no tenant (#1018): a gravada ou o padrão da Galaxie. */
+export interface EngageLimit {
+  key: ModuleLimitKey;
+  value: number;
+  custom: boolean;
+}
+
+/** Módulo de engajamento do tenant, com faixas e o uso do mês (consolidado a cada 5 min). */
+export interface EngageModuleInfo {
+  module: EngageModule;
+  limits: EngageLimit[];
+  usage: Partial<Record<ModuleUsageMetric, number>>;
+}
+
+/** Módulos de engajamento contratados, com faixas e uso do mês corrente (UTC). Vazio = nenhum contratado. */
+export async function getEngageModules(
+  tenant: Pick<TenantInfo, 'id' | 'modules'>,
+): Promise<EngageModuleInfo[]> {
+  const modules = ENGAGE_MODULES.filter((m) => tenant.modules.includes(m));
+  if (!modules.length || !isUuid(tenant.id)) return [];
+  const month = `${new Date().toISOString().slice(0, 7)}-01`;
+  const [saved, usage] = await Promise.all([
+    rows<{ key: string; value: number }>(
+      `select key, value from api.tenant_module_limit where tenant_id = $1`,
+      [tenant.id],
+    ),
+    rows<{ module: string; metric: string; value: string }>(
+      `select module, metric, value::text from api.module_usage_monthly where tenant_id = $1 and month = $2::date`,
+      [tenant.id, month],
+    ),
+  ]);
+  const byKey = new Map(saved.map((r) => [r.key, r.value]));
+  return modules.map((module) => ({
+    module,
+    limits: MODULE_LIMIT_KEYS.filter((k) => MODULE_LIMITS[k].module === module).map((key) => {
+      const v = byKey.get(key);
+      const ok = v !== undefined && isValidModuleLimit(key, v);
+      return { key, value: ok ? v : MODULE_LIMITS[key].default, custom: ok };
+    }),
+    usage: Object.fromEntries(
+      usage.filter((u) => u.module === module).map((u) => [u.metric, Number(u.value)]),
+    ) as EngageModuleInfo['usage'],
+  }));
 }
