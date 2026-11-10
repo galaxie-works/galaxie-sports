@@ -51,6 +51,7 @@ export const PANEL_TABS = {
     'assets',
     'suggestions',
     'cosmos',
+    'engage',
     'history',
   ],
   features: ['sports', 'related', 'wtw'],
@@ -132,7 +133,7 @@ export function OpsPanel({
             })()}
           />
         </TabsContent>
-        {(['live', 'wtw', 'assets', 'cosmos'] as const).map((s) => (
+        {(['live', 'wtw', 'assets', 'cosmos', 'engage'] as const).map((s) => (
           <TabsContent key={s} value={s} className="mt-4">
             <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
           </TabsContent>

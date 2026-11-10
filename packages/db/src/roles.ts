@@ -33,7 +33,14 @@ export const APP_SCHEMAS = [
   'multisport',
   'equestrian',
   'cosmos',
+  'fan',
 ] as const;
+
+/**
+ * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
+ * moderação). Agentes de IA e ingestor ficam de fora.
+ */
+const PERSONAL_SCHEMAS: readonly string[] = ['fan'];
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -61,7 +68,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'cosmos'],
+    write: ['api', 'enrich', 'ops', 'cosmos', 'fan'],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
@@ -73,13 +80,16 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
   // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
   ingestor: {
-    read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
+    read: [
+      ...APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
+      `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`,
+    ],
     write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
     prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
   agents: {
-    read: [...APP_SCHEMAS],
+    read: APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
     write: ['enrich', 'semantic', 'ops', 'core.asset', 'api.tenant_channel_list'],
   },
   // ao vivo (live-run, live-reconcile, events-clock; serviço próprio da mesma imagem do ingestor). Levantamento

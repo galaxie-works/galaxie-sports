@@ -84,6 +84,8 @@ services:
       # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET: ${FAN_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET_PREVIOUS: ${FAN_TOKEN_SECRET_PREVIOUS:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
       # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
       SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
