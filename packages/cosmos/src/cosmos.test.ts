@@ -2,7 +2,7 @@ import { validateSettingKey } from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 
 import { ceilCredits, creditsFor } from './credits.js';
-import { parseCosmosSettings } from './settings.js';
+import { parseCosmosSettings, readCosmosSettings } from './settings.js';
 import { ledgerCsv, toClientEntry, type LedgerEntry } from './statement.js';
 import { toClientWallet, utcDayStart } from './wallet.js';
 
@@ -40,6 +40,23 @@ describe('flags da Cosmos', () => {
     expect(validateSettingKey('COSMOS_CREDIT_USD', '0.00014')).toMatchObject({ ok: true });
     expect(validateSettingKey('COSMOS_CREDIT_USD', '').ok).toBe(true);
     expect(validateSettingKey('COSMOS_CREDIT_USD', '0').ok).toBe(false);
+  });
+
+  it('env com vírgula decimal vale normalizado, como no painel', async () => {
+    // sem sobrescrita no banco: vale o env
+    const db = { select: () => ({ from: async () => [] }) } as unknown as Parameters<
+      typeof readCosmosSettings
+    >[0];
+    await expect(
+      readCosmosSettings(db, { COSMOS_CREDIT_USD: '0,01', COSMOS_DAILY_USD_CEILING: '25,5' }),
+    ).resolves.toEqual({ creditUsd: 0.01, dailyUsdCeiling: 25.5 });
+    // env inválido não vale: fica o padrão do código
+    await expect(
+      readCosmosSettings(db, { COSMOS_CREDIT_USD: 'abc', COSMOS_DAILY_USD_CEILING: '0' }),
+    ).resolves.toEqual({
+      creditUsd: null,
+      dailyUsdCeiling: 25,
+    });
   });
 
   it('interpreta unlimited e vazio', () => {
