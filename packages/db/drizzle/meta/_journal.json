@@ -540,6 +540,13 @@
       "when": 1794338137510,
       "tag": "0078_cosmos_compra",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794339331857,
+      "tag": "0079_cargos_do_cliente",
+      "breakpoints": true
     }
   ]
 }
