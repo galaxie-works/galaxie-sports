@@ -4,7 +4,9 @@
  * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles.
  */
 import { and, desc, eq, gte, inArray, lt, type SQL } from 'drizzle-orm';
-import { ledger, type Database, type LedgerKind } from '@galaxie/db';
+// subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
+import type { Database } from '@galaxie/db/client';
+import { ledger, type LedgerKind } from '@galaxie/db/schema';
 
 export interface LedgerEntry {
   id: string;
