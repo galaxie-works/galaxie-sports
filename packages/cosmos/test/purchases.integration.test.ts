@@ -184,6 +184,18 @@ describe('compra de créditos pelo Stripe', () => {
       ).outcome,
     ).toBe('unknown_intent');
     expect((await applyStripeEvent(db, evt('invoice.paid', session))).outcome).toBe('ignored');
+    // 36 caracteres hex sem hífens: não é uuid para o Postgres; vira unknown_intent (200), não erro (500)
+    const hex = randomBytes(18).toString('hex');
+    expect(hex).toHaveLength(36);
+    for (const metadata of [{ purchase_intent_id: hex }, { purchase_intent_id: '-'.repeat(36) }])
+      expect(
+        (
+          await applyStripeEvent(
+            db,
+            evt('checkout.session.completed', { id: 'cs_x', metadata, payment_status: 'paid' }),
+          )
+        ).outcome,
+      ).toBe('unknown_intent');
     expect((await getWallet(db, t))?.available ?? 0).toBe(0);
   });
 });

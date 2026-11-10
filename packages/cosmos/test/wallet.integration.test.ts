@@ -43,6 +43,9 @@ const testUrl = (() => {
 let admin: postgres.Sql;
 let db: Database;
 
+/** Chave de idempotência nova (cada compra do teste é uma compra diferente). */
+const key = () => `k-${randomBytes(6).toString('hex')}`;
+
 const settings: CosmosSettings = { dailyUsdCeiling: null, creditUsd: 0.01 };
 
 async function newTenant(): Promise<string> {
@@ -76,7 +79,7 @@ afterAll(async () => {
 describe('carteira da Cosmos', () => {
   it('N reservas ao mesmo tempo nunca deixam o saldo negativo', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
     // 40 reservas de 1 crédito contra 10 de saldo, todas ao mesmo tempo
     const results = await Promise.allSettled(
       Array.from({ length: 40 }, () =>
@@ -94,7 +97,7 @@ describe('carteira da Cosmos', () => {
 
   it('acertos e devoluções simultâneos fecham a conta: livre + reservado + cobrado = recebido', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 50 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 50 });
     const reservations = await Promise.all(
       Array.from({ length: 20 }, () =>
         reserve(db, { tenantId: t, functionName: 'moderation.batch', estimatedCredits: 2 }, { settings }),
@@ -117,7 +120,7 @@ describe('carteira da Cosmos', () => {
 
   it('settle devolve a sobra, cobra a diferença até o saldo e registra antes e depois', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 5 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 5 });
     const r1 = await reserve(
       db,
       { tenantId: t, functionName: 'assistant.ask', estimatedCredits: 4 },
@@ -156,7 +159,7 @@ describe('carteira da Cosmos', () => {
 
   it('multiplicador do tenant entra na conversão', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 20 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 20 });
     await setWalletMultiplier(db, t, 2);
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
     const s = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.03 });
@@ -195,7 +198,7 @@ describe('carteira da Cosmos', () => {
   it('teto de segurança do dia: soma o custo real de todos os tenants e recusa ao alcançar', async () => {
     const day = new Date('2030-01-02T12:00:00Z');
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 100 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
     const capped: CosmosSettings = { dailyUsdCeiling: 0.05, creditUsd: 0.01 };
     const r = await reserve(
       db,
@@ -233,7 +236,7 @@ describe('carteira da Cosmos', () => {
 
   it('extrato paginado e filtrável por função e sala', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 30 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
     for (const scope of ['chat:a', 'chat:a', 'chat:b']) {
       const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch', scope }, { settings });
       await settle(db, { tenantId: t, reservationId: r.id });
@@ -267,7 +270,10 @@ describe('carteira da Cosmos', () => {
     const t = await newTenant();
     for (const credits of [0, 0.0004, -5])
       await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits }), 'invalid_amount');
-    await expectCode(addEntry(db, { tenantId: t, kind: 'purchase', credits: -1 }), 'invalid_amount');
+    await expectCode(
+      addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: -1 }),
+      'invalid_amount',
+    );
     expect(await getWallet(db, t)).toBeNull();
     await expect(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })).resolves.toMatchObject({
       available: 250,
@@ -276,7 +282,7 @@ describe('carteira da Cosmos', () => {
 
   it('custo real inválido não acerta a reserva nem entra no teto', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
     for (const costUsd of [Number.NaN, Number.POSITIVE_INFINITY, -0.01])
       await expectCode(settle(db, { tenantId: t, reservationId: r.id, costUsd }), 'invalid_amount');
@@ -290,7 +296,7 @@ describe('carteira da Cosmos', () => {
 
   it('o preço fica gravado na reserva: mudar o valor do crédito, o multiplicador ou o mínimo no meio não muda a chamada', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 100 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
     await upsertFunctionDef(db, { name: 'snapshot.fn', minCredits: 1, permission: 'cosmos.test' });
     // reserva lendo as flags do banco (sem `settings`), com o crédito a US$ 0,01
     await writeRuntimeSetting(db, {
@@ -322,7 +328,7 @@ describe('carteira da Cosmos', () => {
 
   it('acerto repetido devolve o mesmo acerto sem cobrar de novo; devolução repetida não devolve duas vezes', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
     const first = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.02 });
     const again = await Promise.all([
@@ -352,7 +358,7 @@ describe('carteira da Cosmos', () => {
 
   it('uncharged é chave reservada: o metadata do chamador não muda o acerto nem a repetição', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
     const input = { tenantId: t, reservationId: r.id, costUsd: 0.02, metadata: { uncharged: 99, lote: 'x' } };
     expect(await settle(db, input)).toMatchObject({ charged: 2, uncharged: 0 });
@@ -363,7 +369,7 @@ describe('carteira da Cosmos', () => {
 
   it('reserva aberta depois do prazo ainda acerta; vencida pelo job, não', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
     const past = new Date(Date.now() - 3_600_000);
     const late = await reserve(
       db,
@@ -379,6 +385,39 @@ describe('carteira da Cosmos', () => {
     await releaseExpired(db);
     await expectCode(settle(db, { tenantId: t, reservationId: stale.id }), 'reservation_closed');
     expect(await getWallet(db, t)).toMatchObject({ available: 9, reserved: 0 });
+  });
+
+  it('compra com a mesma chave soma uma vez só, mesmo ao mesmo tempo; sem chave é recusada', async () => {
+    const t = await newTenant();
+    const k = key();
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        addEntry(db, { tenantId: t, kind: 'purchase', credits: 40, idempotencyKey: k }),
+      ),
+    );
+    expect(results.filter((r) => !r.replayed)).toHaveLength(1);
+    expect(new Set(results.map((r) => r.ledgerId)).size).toBe(1);
+    expect(await getWallet(db, t)).toMatchObject({ available: 40, receivedTotal: 40 });
+    // repetição depois, já com outro uso no meio: devolve o lançamento original
+    await addEntry(db, { tenantId: t, kind: 'adjustment', credits: -5 });
+    await expect(
+      addEntry(db, { tenantId: t, kind: 'purchase', credits: 40, idempotencyKey: k }),
+    ).resolves.toMatchObject({
+      ledgerId: results[0]!.ledgerId,
+      available: 40,
+      replayed: true,
+    });
+    expect((await getWallet(db, t))?.available).toBe(35);
+    expect((await listLedger(db, t, { kinds: ['purchase'] })).entries).toHaveLength(1);
+    // a mesma chave em outro tenant é outra compra
+    const other = await newTenant();
+    await expect(
+      addEntry(db, { tenantId: other, kind: 'purchase', credits: 1, idempotencyKey: k }),
+    ).resolves.toMatchObject({
+      replayed: false,
+    });
+    await expectCode(addEntry(db, { tenantId: t, kind: 'purchase', credits: 1 }), 'missing_idempotency_key');
+    await expectCode(addEntry(db, { tenantId: t, kind: 'refund', credits: 1 }), 'missing_idempotency_key');
   });
 
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {

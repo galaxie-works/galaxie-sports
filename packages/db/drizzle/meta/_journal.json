@@ -523,14 +523,14 @@
     {
       "idx": 74,
       "version": "7",
-      "when": 1794337861488,
+      "when": 1794339294514,
       "tag": "0076_cosmos_carteira",
       "breakpoints": true
     },
     {
       "idx": 75,
       "version": "7",
-      "when": 1794338137510,
+      "when": 1794339397755,
       "tag": "0078_cosmos_compra",
       "breakpoints": true
     }
