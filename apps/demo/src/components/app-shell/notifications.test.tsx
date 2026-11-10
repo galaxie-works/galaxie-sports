@@ -15,7 +15,9 @@ vi.mock('@/lib/notifications/actions', () => ({
   answerNotice: (id: string, text: string) => answerNotice(id, text),
 }));
 
-const { NotificationsAlert, NotificationsButton, NotificationsProvider } = await import('./notifications');
+const { NotificationsAlert, NotificationsButton, NotificationsProvider, POLL_MS } =
+  await import('./notifications');
+const { requestInboxRefresh } = await import('@/lib/notifications/events');
 
 const T = clientDictionary('pt-BR');
 const N = T.notifications;
@@ -25,6 +27,7 @@ const inbox = (over: Partial<Inbox> = {}): Inbox => ({
   items: [
     {
       id: '2',
+      thread: 'repo#7',
       status: 'needsInfo',
       snippet: 'O placar ficou errado',
       body: 'Em qual tela?',
@@ -35,6 +38,7 @@ const inbox = (over: Partial<Inbox> = {}): Inbox => ({
     },
     {
       id: '1',
+      thread: 'repo#7',
       status: 'review',
       snippet: 'O placar ficou errado',
       body: null,
@@ -74,6 +78,59 @@ describe('caixa de entrada', () => {
     await show();
     expect(screen.queryByRole('button', { name: /Notificações/ })).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('sem recarregar: o aviso novo chega na olhada do minuto e no pedido do painel', async () => {
+    vi.useFakeTimers();
+    try {
+      loadInbox.mockResolvedValue(inbox({ unread: 0, items: [] }));
+      await show();
+      expect(screen.getByRole('button', { name: N.button })).toBeTruthy();
+
+      loadInbox.mockResolvedValue(inbox());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(POLL_MS);
+      });
+      expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+
+      loadInbox.mockResolvedValue(inbox({ unread: 2 }));
+      await act(async () => {
+        requestInboxRefresh();
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByRole('button', { name: 'Notificações (2 novas)' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('busca antiga que volta depois não apaga o aviso da busca nova', async () => {
+    let slow: (v: Inbox) => void = () => {};
+    loadInbox.mockResolvedValueOnce(inbox({ unread: 0, items: [] }));
+    await show();
+    loadInbox.mockReturnValueOnce(new Promise<Inbox>((r) => (slow = r)));
+    loadInbox.mockResolvedValueOnce(inbox());
+    await act(async () => {
+      requestInboxRefresh(); // a lenta
+      requestInboxRefresh(); // a nova, que responde primeiro
+    });
+    expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+    await act(async () => slow(inbox({ unread: 0, items: [] })));
+    expect(screen.getByRole('button', { name: 'Notificações (1 novas)' })).toBeTruthy();
+  });
+
+  it('com o painel aberto, nenhuma busca automática', async () => {
+    loadInbox.mockResolvedValue(inbox());
+    await show();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Notificações/ }));
+    });
+    loadInbox.mockClear();
+    await act(async () => {
+      requestInboxRefresh();
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(loadInbox).not.toHaveBeenCalled();
   });
 
   it('aviso novo: sino com contador e faixa com a resposta da equipe', async () => {
@@ -122,6 +179,48 @@ describe('caixa de entrada', () => {
     expect(answerNotice).toHaveBeenCalledWith('2', 'Na página do jogo, no celular.');
     expect(screen.queryByLabelText(N.answer)).toBeNull();
     expect(screen.getByText(N.answered)).toBeTruthy();
+  });
+
+  it('avisos da mesma sugestão viram uma conversa só, com a pergunta e o campo no fim', async () => {
+    loadInbox.mockResolvedValue(
+      inbox({
+        items: [
+          {
+            id: '5',
+            thread: 'repo#3',
+            status: 'needsInfo',
+            snippet: 'Cadê o futebol feminino?',
+            body: null,
+            createdAt: '2026-11-10T12:05:00.000Z',
+            read: false,
+            canAnswer: true,
+            answered: false,
+          },
+          {
+            id: '4',
+            thread: 'repo#3',
+            status: null,
+            snippet: 'Cadê o futebol feminino?',
+            body: 'Qual campeonato?',
+            createdAt: '2026-11-10T11:55:00.000Z',
+            read: false,
+            canAnswer: false,
+            answered: false,
+          },
+        ],
+        unread: 2,
+      }),
+    );
+    await show();
+    // a faixa mostra a pergunta da equipe, não só "responda aqui"
+    expect(screen.getByRole('status').textContent).toContain('Qual campeonato?');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Notificações/ }));
+    });
+    expect(screen.getAllByText(/Cadê o futebol feminino/)).toHaveLength(1);
+    expect(screen.getByText('Qual campeonato?')).toBeTruthy();
+    expect(screen.getAllByLabelText(N.answer)).toHaveLength(1);
+    expect(markRead).toHaveBeenCalledWith(['5', '4']);
   });
 
   it('resposta curta demais nem sai do navegador', async () => {
