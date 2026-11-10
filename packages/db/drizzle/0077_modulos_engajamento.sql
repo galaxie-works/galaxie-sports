@@ -4,6 +4,8 @@ CREATE TABLE "api"."module_usage_monthly" (
 	"module" text NOT NULL,
 	"metric" text NOT NULL,
 	"value" bigint DEFAULT 0 NOT NULL,
+	"epoch" text,
+	"epoch_base" bigint DEFAULT 0 NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "module_usage_monthly_tenant_id_month_module_metric_pk" PRIMARY KEY("tenant_id","month","module","metric")
 );

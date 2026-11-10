@@ -242,6 +242,14 @@ export const moduleUsageMonthly = api.table(
     module: text('module').$type<EngageModule>().notNull(),
     metric: text('metric').$type<ModuleUsageMetric>().notNull(),
     value: bigint('value', { mode: 'number' }).notNull().default(0),
+    /**
+     * Época da chave do Valkey que alimentou a última consolidação e `epoch_base`, o consolidado das épocas
+     * anteriores (a mesma regra de `usage_daily`). Mesma época: `value = greatest(value, base + lido)`; época
+     * nova (Valkey zerado no meio do mês): `base := value` e o que vier depois soma, em vez de o `greatest()`
+     * congelar o uso. `peak_connections` é um máximo e fica sempre no `greatest()`.
+     */
+    epoch: text('epoch'),
+    epochBase: bigint('epoch_base', { mode: 'number' }).notNull().default(0),
     updatedAt: updatedAt(),
   },
   (t) => [

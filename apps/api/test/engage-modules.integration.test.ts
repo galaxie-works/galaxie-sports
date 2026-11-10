@@ -131,7 +131,7 @@ describe('módulos de engajamento (#1018)', () => {
     expect(reset.json().limits[1]).toMatchObject({ value: 5, custom: false });
   });
 
-  it('mede torcedores distintos, pico e contadores e consolida sem nunca diminuir', async () => {
+  it('mede torcedores distintos, pico e contadores; consolida sem contar em dobro e soma depois de o Valkey zerar', async () => {
     const t = await newTenant('ent-uso', ['core_data', 'live_chat', 'shopping', 'cosmos_ai']);
     for (const p of ['p1', 'p2', 'p2', 'p3']) await meter.fanActive(t.id, 'live_chat', p);
     await meter.connections(t.id, 'live_chat', 120);
@@ -140,7 +140,10 @@ describe('módulos de engajamento (#1018)', () => {
     await meter.add(t.id, 'cosmos_ai', 'credits', 30);
     expect(await persistModuleUsage(db, meter)).toEqual({ rows: 4 });
 
-    // Valkey perde o mês: o consolidado fica com o maior já visto
+    // consolidar de novo (ou duas instâncias juntas) não conta em dobro
+    expect(await persistModuleUsage(db, meter)).toEqual({ rows: 4 });
+
+    // Valkey perde o mês: o que vier depois soma ao consolidado (época nova); o pico continua o maior
     let cursor = '0';
     do {
       const [next, keys] = await redis.scan(cursor, 'MATCH', `${keyPrefix}engage:usage:*`, 'COUNT', 500);
@@ -148,13 +151,18 @@ describe('módulos de engajamento (#1018)', () => {
       cursor = next;
     } while (cursor !== '0');
     await meter.connections(t.id, 'live_chat', 10);
+    await meter.add(t.id, 'cosmos_ai', 'credits', 20);
+    await meter.fanActive(t.id, 'live_chat', 'p4');
+    await persistModuleUsage(db, meter);
+    await persistModuleUsage(db, meter);
+    await meter.add(t.id, 'cosmos_ai', 'credits', 5);
     await persistModuleUsage(db, meter);
 
     const res = await adminReq('GET', `/internal/admin/tenants/${t.id}/engage-modules`);
     const usage = res.json().usage as { module: string; metric: string; value: number }[];
     expect(usage).toEqual([
-      { module: 'cosmos_ai', metric: 'credits', value: 30 },
-      { module: 'live_chat', metric: 'active_fans', value: 3 },
+      { module: 'cosmos_ai', metric: 'credits', value: 55 },
+      { module: 'live_chat', metric: 'active_fans', value: 4 },
       { module: 'live_chat', metric: 'peak_connections', value: 120 },
       { module: 'shopping', metric: 'clicks', value: 7 },
     ]);

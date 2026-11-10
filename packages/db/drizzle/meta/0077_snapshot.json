@@ -1,5 +1,5 @@
 {
-  "id": "b9227947-312a-464e-b981-2960b7debfcb",
+  "id": "0e11a485-fb89-43a9-8b8a-43e966d159d6",
   "prevId": "4811933b-50da-4cb8-8ca4-4b21fa140945",
   "version": "7",
   "dialect": "postgresql",
@@ -15410,6 +15410,19 @@
         },
         "value": {
           "name": "value",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "epoch_base": {
+          "name": "epoch_base",
           "type": "bigint",
           "primaryKey": false,
           "notNull": true,
