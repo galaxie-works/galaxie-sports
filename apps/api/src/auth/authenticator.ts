@@ -270,6 +270,14 @@ export function assertModule(ctx: TenantContext, module: ApiModule): void {
   if (!ctx.modules.includes(module)) throw problems.moduleNotInPlan(module);
 }
 
+/**
+ * Guarda única dos módulos (#1018), para o que não passa pelo `config.module` das rotas (worker, serviços,
+ * telas): tenant sem o módulo recebe o mesmo 403 MODULE_NOT_IN_PLAN.
+ */
+export const requireModule = (ctx: Pick<TenantContext, 'modules'>, module: ApiModule): void => {
+  if (!ctx.modules.includes(module)) throw problems.moduleNotInPlan(module);
+};
+
 /** Mercados: lista vazia no tenant = todos os países. */
 export function assertMarket(ctx: TenantContext, country: string): void {
   if (ctx.markets.length && !ctx.markets.includes(country.toUpperCase()))

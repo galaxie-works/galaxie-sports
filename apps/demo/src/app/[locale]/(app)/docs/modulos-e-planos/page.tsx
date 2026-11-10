@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { ENGAGE_MODULES } from '@galaxie/db/engage-modules';
+
 import { CodeTabs } from '@/components/docs/code-tabs';
 import {
   Bullets,
@@ -144,6 +146,19 @@ export default async function ModulesPage() {
           ))}
         </div>
         <P>{docText(text.list.account, { a: docLink('/docs/referencia') })}</P>
+      </DocSection>
+
+      <DocSection id="engajamento" title={text.engage.title}>
+        <P>{text.engage.body}</P>
+        <DocTable
+          head={[text.engage.headModule, text.engage.headId, text.engage.headWhat]}
+          mono={false}
+          rows={ENGAGE_MODULES.map((id) => [
+            text.engage.list[id].name,
+            <C key={id}>{id}</C>,
+            text.engage.list[id].what,
+          ])}
+        />
       </DocSection>
 
       <DocSection id="fora-do-plano" title={text.outside.title}>
