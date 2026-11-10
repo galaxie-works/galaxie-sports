@@ -214,7 +214,7 @@ export async function applyStripeEvent(
     if (!intent) return finish('unknown_intent', null);
     if (intent.status !== 'pending') return finish('already_closed', intent.id);
 
-    const close = (status: 'failed' | 'expired', reason: string) =>
+    const close = (status: 'failed' | 'expired' | 'review', reason: string) =>
       tx
         .update(purchaseIntent)
         .set({ status, failureReason: reason, updatedAt: now })
@@ -237,8 +237,19 @@ export async function applyStripeEvent(
         .where(eq(purchaseIntent.id, intent.id));
       return finish('awaiting_payment', intent.id);
     }
-    if (session.amount_total !== intent.amountCents || session.currency?.toLowerCase() !== intent.currency) {
-      await close('failed', 'amount_mismatch');
+    // com conversão de moeda, o que vale é o valor de origem (o nosso preço); sem ela, o da sessão
+    const conv = session.currency_conversion;
+    const amount = conv?.amount_total ?? session.amount_total;
+    const currency = (conv?.source_currency ?? session.currency)?.toLowerCase();
+    if (amount !== intent.amountCents || currency !== intent.currency) {
+      // o cliente pagou e o valor não bate: fica para a equipe revisar (tela das carteiras), nunca some calado
+      console.error('[cosmos] compra paga com valor ou moeda diferentes da intenção', {
+        purchaseIntentId: intent.id,
+        expected: { amount: intent.amountCents, currency: intent.currency },
+        received: { amount, currency: currency ?? null },
+        stripeEventId: event.id,
+      });
+      await close('review', 'amount_mismatch');
       return finish('amount_mismatch', intent.id);
     }
 
