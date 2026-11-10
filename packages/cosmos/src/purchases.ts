@@ -62,7 +62,10 @@ export interface PackageInput {
 }
 
 /** Cadastra ou atualiza um pacote (preço e créditos são dados da Galaxie, não código). */
-export async function upsertPackage(db: Database, input: PackageInput): Promise<string> {
+export async function upsertPackage(
+  db: Pick<Database, 'insert' | 'update'>,
+  input: PackageInput,
+): Promise<string> {
   if (!(input.credits > 0) || !(Number.isInteger(input.priceCents) && input.priceCents > 0))
     throw new CosmosError('invalid_amount', 'créditos e preço do pacote precisam ser maiores que 0');
   const values = {

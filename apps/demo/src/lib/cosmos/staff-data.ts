@@ -7,6 +7,7 @@ import {
   listAllPackages,
   listLedger,
   listPackages,
+  listPurchases,
   listStaffActions,
   walletsOverview,
   type LedgerEntry,
@@ -17,6 +18,7 @@ import { readRuntimeOverrides } from '@galaxie/db/runtime-settings';
 import { resolveSetting, settingDef } from '@galaxie/runtime-config';
 
 import { builderDb } from '@/lib/builder/store';
+import { isUuid } from '@/lib/client/tenants';
 
 import { packageMarket } from './config';
 import { people, type ClientPerson } from './data';
@@ -60,6 +62,8 @@ export interface StaffWalletDetail {
   nextCursor: string | null;
   actions: (Awaited<ReturnType<typeof listStaffActions>>[number] & { person: ClientPerson | null })[];
   packages: Awaited<ReturnType<typeof listPackages>>;
+  /** Pagas com valor ou moeda diferentes do esperado: sem crédito até a equipe resolver no Stripe. */
+  review: Awaited<ReturnType<typeof listPurchases>>;
 }
 
 export async function loadStaffWallet(tenantId: string, cursor?: string): Promise<StaffWalletDetail | null> {
@@ -67,10 +71,11 @@ export async function loadStaffWallet(tenantId: string, cursor?: string): Promis
   const [wallet, all] = await Promise.all([getWallet(db, tenantId), walletsOverview(db)]);
   const tenant = all.find((r) => r.tenantId === tenantId);
   if (!wallet || !tenant) return null;
-  const [page, actions, packages] = await Promise.all([
-    listLedger(db, tenantId, { limit: 100, ...(cursor ? { cursor } : {}) }),
+  const [page, actions, packages, purchases] = await Promise.all([
+    listLedger(db, tenantId, { limit: 100, ...(cursor && isUuid(cursor) ? { cursor } : {}) }),
     listStaffActions(db, tenantId),
     listPackages(db, packageMarket(tenant.markets)),
+    listPurchases(db, tenantId, 100),
   ]);
   const who = await people([...page.entries.map((e) => e.userId), ...actions.map((a) => a.userId)]);
   return {
@@ -80,5 +85,6 @@ export async function loadStaffWallet(tenantId: string, cursor?: string): Promis
     nextCursor: page.nextCursor,
     actions: actions.map((a) => ({ ...a, person: who.get(a.userId) ?? null })),
     packages,
+    review: purchases.filter((p) => p.status === 'review'),
   };
 }

@@ -38,6 +38,9 @@ export default defineMessages(
       ledgerDescription: 'Com tokens, custo real e modelo, que o cliente não vê.',
       historyTitle: 'Ações da equipe',
       historyEmpty: 'Nenhuma ação da equipe nesta carteira.',
+      reviewTitle: 'Compras pagas em revisão',
+      reviewDescription:
+        'O Stripe confirmou o pagamento com valor ou moeda diferentes do pacote. Nada foi creditado: confira no Stripe e credite ou estorne.',
       packagesTitle: 'Pacotes no mercado do cliente',
       packagesEmpty: 'Nenhum pacote ativo neste mercado.',
       notFound: 'Esta carteira não existe.',
@@ -149,6 +152,9 @@ export default defineMessages(
         ledgerDescription: "With tokens, real cost and model, which the client doesn't see.",
         historyTitle: 'Team actions',
         historyEmpty: 'No team actions on this wallet.',
+        reviewTitle: 'Paid purchases under review',
+        reviewDescription:
+          'Stripe confirmed the payment with an amount or currency different from the package. Nothing was credited: check in Stripe, then credit or refund.',
         packagesTitle: "Packages in the client's market",
         packagesEmpty: 'No active package in this market.',
         notFound: "This wallet doesn't exist.",
@@ -261,6 +267,9 @@ export default defineMessages(
         ledgerDescription: 'Con tokens, costo real y modelo, que el cliente no ve.',
         historyTitle: 'Acciones del equipo',
         historyEmpty: 'Ninguna acción del equipo en esta cartera.',
+        reviewTitle: 'Compras pagadas en revisión',
+        reviewDescription:
+          'Stripe confirmó el pago con un monto o una moneda distintos del paquete. No se acreditó nada: revisa en Stripe y acredita o reembolsa.',
         packagesTitle: 'Paquetes en el mercado del cliente',
         packagesEmpty: 'Ningún paquete activo en este mercado.',
         notFound: 'Esta cartera no existe.',
