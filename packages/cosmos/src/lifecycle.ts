@@ -5,7 +5,9 @@
  * lançamento `trial_expiry` no extrato.
  */
 import { and, eq, gt, lte } from 'drizzle-orm';
-import { readRuntimeOverrides, wallet, type Database } from '@galaxie/db';
+import type { Database } from '@galaxie/db/client';
+import { readRuntimeOverrides } from '@galaxie/db/runtime-settings';
+import { wallet } from '@galaxie/db/schema';
 import { resolveSetting, settingDef, validateSettingKey } from '@galaxie/runtime-config';
 import { roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';

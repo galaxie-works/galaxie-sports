@@ -58,6 +58,10 @@
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "default": "./dist/schema/index.js"
+    },
+    "./runtime-settings": {
+      "types": "./dist/runtime-settings.d.ts",
+      "default": "./dist/runtime-settings.js"
     }
   },
   "files": [

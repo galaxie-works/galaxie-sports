@@ -7,7 +7,9 @@
  * banco confere de novo (CHECK em `cosmos.wallet` e em `cosmos.ledger`).
  */
 import { and, eq, gte, lt, sql } from 'drizzle-orm';
-import { functionDef, ledger, reservation, wallet, type Database, type LedgerKind } from '@galaxie/db';
+// subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
+import type { Database } from '@galaxie/db/client';
+import { functionDef, ledger, reservation, wallet, type LedgerKind } from '@galaxie/db/schema';
 import { evaluateBalance } from './balance.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';

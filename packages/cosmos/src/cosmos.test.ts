@@ -134,3 +134,11 @@ it('o dia do teto vira à meia-noite UTC', () => {
   expect(utcDayStart(new Date('2026-11-10T02:30:00-03:00')).toISOString()).toBe('2026-11-10T00:00:00.000Z');
   expect(utcDayStart(new Date('2026-11-10T22:30:00-03:00')).toISOString()).toBe('2026-11-11T00:00:00.000Z');
 });
+
+it('o pacote importa o @galaxie/db só por subcaminhos (o índice traz o migrator, que o Next não empacota)', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('.', import.meta.url);
+  const sources = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  for (const f of sources)
+    expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/from '@galaxie\/db'/);
+});

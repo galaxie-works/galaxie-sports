@@ -4,7 +4,7 @@
  * cartão nunca passa por aqui: o cliente paga na página do Stripe.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import type { PackageCurrency } from '@galaxie/db';
+import type { PackageCurrency } from '@galaxie/db/schema';
 
 export const STRIPE_API = 'https://api.stripe.com/v1';
 

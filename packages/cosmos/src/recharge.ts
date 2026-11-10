@@ -5,7 +5,8 @@
  * e registra o motivo, para o dono decidir.
  */
 import { and, eq, inArray } from 'drizzle-orm';
-import { autoRecharge, creditPackage, rechargeAttempt, type Database } from '@galaxie/db';
+import type { Database } from '@galaxie/db/client';
+import { autoRecharge, creditPackage, rechargeAttempt } from '@galaxie/db/schema';
 import { ceilCredits } from './credits.js';
 import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';

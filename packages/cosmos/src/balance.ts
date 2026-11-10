@@ -4,7 +4,8 @@
  * saldo (acerto de uso, vencimento do teste), com a carteira já travada.
  */
 import { and, eq, isNotNull } from 'drizzle-orm';
-import { autoRecharge, balanceAlert, creditPackage, rechargeAttempt, type Database } from '@galaxie/db';
+import type { Database } from '@galaxie/db/client';
+import { autoRecharge, balanceAlert, creditPackage, rechargeAttempt } from '@galaxie/db/schema';
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
