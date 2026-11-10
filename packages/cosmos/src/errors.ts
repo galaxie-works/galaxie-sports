@@ -15,6 +15,8 @@ export type CosmosErrorCode =
   | 'safety_ceiling'
   /** Reserva inexistente, de outro tenant ou já fechada. */
   | 'reservation_closed'
+  /** Créditos de teste já concedidos (uma vez por tenant). */
+  | 'trial_already_granted'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

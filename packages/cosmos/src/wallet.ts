@@ -238,6 +238,15 @@ export async function settle(
   options: ReserveOptions = {},
 ): Promise<Settlement> {
   const now = options.now ?? new Date();
+  // custo inválido (NaN, Infinity, negativo) não pode virar crédito nem entrar no teto do dia
+  if (
+    input.costUsd !== undefined &&
+    input.costUsd !== null &&
+    (!Number.isFinite(input.costUsd) || input.costUsd < 0)
+  )
+    throw new CosmosError('invalid_amount', 'custo real inválido');
+  if (input.credits !== undefined && (!Number.isFinite(input.credits) || input.credits < 0))
+    throw new CosmosError('invalid_amount', 'créditos do acerto inválidos');
   const settings = options.settings ?? (await readCosmosSettings(db));
   return db.transaction(async (tx) => {
     const [r] = await tx
@@ -267,8 +276,6 @@ export async function settle(
     // função removida do catálogo com a reserva aberta: vale o que foi reservado
     const minCredits = fn?.minCredits ?? r.credits;
 
-    if (input.credits !== undefined && (!Number.isFinite(input.credits) || input.credits < 0))
-      throw new CosmosError('invalid_amount', 'créditos do acerto inválidos');
     const target =
       input.credits !== undefined
         ? Math.max(ceilCredits(input.credits), ceilCredits(minCredits))
@@ -414,6 +421,9 @@ export async function addEntry(
     await tx.insert(wallet).values({ tenantId: input.tenantId }).onConflictDoNothing();
     const w = await lockWallet(tx, input.tenantId);
     if (!w) throw new CosmosError('no_wallet', 'carteira não foi criada');
+    // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
+    if (input.kind === 'trial' && w.trialGranted)
+      throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
     const available = roundCredits(w.available + credits);
     if (available < 0) throw new CosmosError('insufficient_credits', 'saída maior que o saldo livre');
     const received = credits > 0 && RECEIVED_KINDS.has(input.kind) ? credits : 0;

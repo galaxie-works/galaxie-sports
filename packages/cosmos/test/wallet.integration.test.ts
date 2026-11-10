@@ -242,6 +242,40 @@ describe('carteira da Cosmos', () => {
     expect((await listLedger(db, t, { functionName: 'assistant.ask' })).entries).toHaveLength(0);
   });
 
+  it('teste concedido uma vez só, mesmo com repetição e concorrência', async () => {
+    const t = await newTenant();
+    const grants = await Promise.allSettled(
+      Array.from({ length: 8 }, () => addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })),
+    );
+    expect(grants.filter((g) => g.status === 'fulfilled')).toHaveLength(1);
+    for (const g of grants.filter((g) => g.status === 'rejected'))
+      expect(isCosmosError((g as PromiseRejectedResult).reason, 'trial_already_granted')).toBe(true);
+    // repetição depois (desligou e religou): continua recusada
+    await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 }), 'trial_already_granted');
+    expect(await getWallet(db, t)).toMatchObject({ available: 250, receivedTotal: 250, trialGranted: true });
+    const { entries } = await listLedger(db, t, { kinds: ['trial'] });
+    expect(entries).toHaveLength(1);
+  });
+
+  it('custo real inválido não acerta a reserva nem entra no teto', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
+    for (const costUsd of [Number.NaN, Number.POSITIVE_INFINITY, -0.01])
+      await expectCode(
+        settle(db, { tenantId: t, reservationId: r.id, costUsd }, { settings }),
+        'invalid_amount',
+      );
+    // a reserva continua aberta e pode ser acertada com o valor certo
+    await expect(
+      settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.01 }, { settings }),
+    ).resolves.toMatchObject({
+      charged: 1,
+    });
+    const { entries } = await listLedger(db, t, { kinds: ['usage'] });
+    expect(entries.map((e) => e.costUsd)).toEqual([0.01]);
+  });
+
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {
     const t = await newTenant();
     await ensureWallet(db, t);
