@@ -204,9 +204,52 @@ export interface OffSessionChargeInput {
   rechargeAttemptId: string;
   tenantId: string;
   customerId: string;
+  /** Cartão salvo (`defaultCardOf`), gravado na tentativa para a repetição mandar o mesmo. */
+  paymentMethodId: string;
   amountCents: number;
   currency: PackageCurrency;
   description: string;
+}
+
+/** Primeiro cartão salvo do cliente no Stripe; null quando não há. */
+export async function defaultCardOf(
+  secretKey: string,
+  customerId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+  const methods = await stripeRequest<{ data?: { id: string }[] }>(
+    secretKey,
+    'GET',
+    `/customers/${encodeURIComponent(customerId)}/payment_methods?type=card&limit=1`,
+    fetchImpl,
+  );
+  return methods.data?.[0]?.id ?? null;
+}
+
+/** Estado de um PaymentIntent (conciliação da tentativa que ficou presa em `processing`). */
+export async function getPaymentIntent(
+  secretKey: string,
+  paymentIntentId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ id: string; status: string; amount_received?: number; amount?: number; currency?: string }> {
+  return stripeRequest(
+    secretKey,
+    'GET',
+    `/payment_intents/${encodeURIComponent(paymentIntentId)}`,
+    fetchImpl,
+  );
+}
+
+/**
+ * Recusa definitiva da cobrança (cartão recusado, autenticação exigida): a recarga se desliga. Qualquer outra
+ * falha (5xx, 409, 429, rede) é passageira: a tentativa volta para a fila e repete com a mesma chave.
+ */
+export function isDefinitiveDecline(e: unknown): boolean {
+  if (!(e instanceof StripeRequestError)) return false;
+  const code = (e as StripeRequestError & { code?: string | undefined }).code;
+  if (code && ['card_declined', 'authentication_required', 'expired_card', 'incorrect_cvc'].includes(code))
+    return true;
+  return e.status === 402;
 }
 
 /**
@@ -218,14 +261,7 @@ export async function chargeOffSession(
   input: OffSessionChargeInput,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ paymentIntentId: string; status: string }> {
-  const methods = await stripeRequest<{ data?: { id: string }[] }>(
-    secretKey,
-    'GET',
-    `/customers/${encodeURIComponent(input.customerId)}/payment_methods?type=card&limit=1`,
-    fetchImpl,
-  );
-  const paymentMethod = methods.data?.[0]?.id;
-  if (!paymentMethod) throw new StripeRequestError(402, 'cliente sem cartão salvo');
+  const paymentMethod = input.paymentMethodId;
   const form = new URLSearchParams();
   form.set('amount', String(input.amountCents));
   form.set('currency', input.currency);

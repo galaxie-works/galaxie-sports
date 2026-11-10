@@ -11,6 +11,7 @@ import { wallet } from '@galaxie/db/schema';
 import { resolveSetting, settingDef, validateSettingKey } from '@galaxie/runtime-config';
 import { roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
+import { cancelPendingRecharges } from './recharge.js';
 import { addEntryInTx, ensureWallet, getWallet, type WalletView } from './wallet.js';
 
 export interface TrialSettings {
@@ -78,8 +79,9 @@ export async function enableCosmos(
 }
 
 /**
- * Tira do saldo o que sobrou dos testes vencidos (job `cosmos-upkeep`). Sai no máximo o saldo livre (o que
- * está reservado segue para o acerto); o teste zera de qualquer forma. Devolve quantas carteiras venceram.
+ * Tira do saldo o que sobrou dos testes vencidos (job `cosmos-upkeep`). Sai no máximo o saldo livre; a parte do
+ * teste que estava reservada fica marcada e sai numa rodada seguinte, se a reserva voltar para o saldo. Devolve
+ * quantas carteiras tiveram teste vencido nesta rodada.
  */
 export async function expireTrials(db: Database, now: Date = new Date(), limit = 200): Promise<number> {
   const due = await db
@@ -93,6 +95,7 @@ export async function expireTrials(db: Database, now: Date = new Date(), limit =
       const [w] = await tx
         .select({
           available: wallet.available,
+          reserved: wallet.reserved,
           trialRemaining: wallet.trialRemaining,
           expiresAt: wallet.trialExpiresAt,
         })
@@ -114,19 +117,28 @@ export async function expireTrials(db: Database, now: Date = new Date(), limit =
           },
           { now },
         );
-      else
+      // sem reserva aberta, o que não saiu agora não volta mais: o teste zera. Com reserva, a parte do teste que
+      // estava nela fica em trialRemaining e sai na próxima rodada, se voltar para o saldo (release)
+      if (w.reserved <= 0)
         await tx
           .update(wallet)
           .set({ trialRemaining: 0, updatedAt: now })
           .where(eq(wallet.tenantId, tenantId));
-      return true;
+      return out > 0 || w.reserved <= 0;
     });
     if (done) expired += 1;
   }
   return expired;
 }
 
-/** Desliga a Cosmos do tenant: nenhuma função reserva mais; o saldo, o teste e o extrato ficam. */
+/**
+ * Desliga a Cosmos do tenant: nenhuma função reserva mais e a recarga pendente é encerrada (não cobra com a
+ * Cosmos desligada); o saldo, o teste, o extrato e a configuração da recarga ficam.
+ */
 export async function disableCosmos(db: Database, tenantId: string): Promise<void> {
-  await db.update(wallet).set({ enabled: false, updatedAt: new Date() }).where(eq(wallet.tenantId, tenantId));
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(wallet).set({ enabled: false, updatedAt: now }).where(eq(wallet.tenantId, tenantId));
+    await cancelPendingRecharges(tx, tenantId, 'cosmos_disabled', now);
+  });
 }
