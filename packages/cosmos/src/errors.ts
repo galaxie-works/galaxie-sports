@@ -21,6 +21,8 @@ export type CosmosErrorCode =
   | 'unknown_package'
   /** Compra ou estorno sem chave de idempotência. */
   | 'missing_idempotency_key'
+  /** Ligar a recarga automática sem o aceite da cobrança recorrente. */
+  | 'consent_required'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

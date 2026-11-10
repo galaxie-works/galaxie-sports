@@ -1,0 +1,299 @@
+import { randomBytes } from 'node:crypto';
+import {
+  autoRecharge,
+  balanceAlert,
+  closeDb,
+  createDb,
+  rechargeAttempt,
+  runMigrations,
+  tenant,
+  type Database,
+} from '@galaxie/db';
+import { asc, eq } from 'drizzle-orm';
+import postgres from 'postgres';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  addEntry,
+  applyStripeEvent,
+  configureAutoRecharge,
+  enableCosmos,
+  expireTrials,
+  getAutoRecharge,
+  getWallet,
+  isCosmosError,
+  listLedger,
+  processRecharges,
+  readTrialSettings,
+  reserve,
+  settle,
+  upsertFunctionDef,
+  upsertPackage,
+  type CosmosSettings,
+  type StripeEvent,
+} from '../src/index.js';
+
+const adminUrl = process.env.DATABASE_URL;
+if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
+
+const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
+const testUrl = (() => {
+  const u = new URL(adminUrl);
+  u.pathname = `/${dbName}`;
+  return u.toString();
+})();
+
+let admin: postgres.Sql;
+let db: Database;
+let pkg: string;
+const settings: CosmosSettings = { dailyUsdCeiling: null, creditUsd: 0.01 };
+const trial = { credits: 100, days: 90 };
+const key = () => `k-${randomBytes(6).toString('hex')}`;
+
+async function newTenant(): Promise<string> {
+  const slug = `t-${randomBytes(4).toString('hex')}`;
+  const [row] = await db
+    .insert(tenant)
+    .values({ slug, name: slug, plan: 'enterprise', modules: ['core_data'] })
+    .returning({ id: tenant.id });
+  return row!.id;
+}
+
+/** Gasta `credits` numa chamada (reserva do mínimo e acerto pelo valor fixo). */
+async function spend(t: string, credits: number) {
+  const r = await reserve(db, { tenantId: t, functionName: 'fn' }, { settings });
+  return settle(db, { tenantId: t, reservationId: r.id, credits });
+}
+
+const alerts = async (t: string) =>
+  (
+    await db.select().from(balanceAlert).where(eq(balanceAlert.tenantId, t)).orderBy(asc(balanceAlert.id))
+  ).map((a) => a.level);
+
+beforeAll(async () => {
+  admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
+  await admin.unsafe(`CREATE DATABASE ${dbName}`);
+  await runMigrations(testUrl);
+  db = createDb(testUrl, { max: 6 });
+  await upsertFunctionDef(db, { name: 'fn', minCredits: 1, permission: 'cosmos.test' });
+  // preço de teste, não o da tabela da Galaxie
+  pkg = await upsertPackage(db, {
+    name: 'Teste',
+    credits: 500,
+    priceCents: 1000,
+    currency: 'usd',
+    market: 'US',
+  });
+});
+
+afterAll(async () => {
+  if (db) await closeDb(db);
+  await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
+  await admin.end();
+});
+
+describe('teste ao ligar', () => {
+  it('padrão do registro: 250 créditos por 90 dias', async () => {
+    expect(await readTrialSettings(db, {})).toEqual({ credits: 250, days: 90 });
+  });
+
+  it('concede uma vez só, mesmo desligando e religando ou pedindo ao mesmo tempo', async () => {
+    const t = await newTenant();
+    const now = new Date('2030-03-01T12:00:00Z');
+    const results = await Promise.all(Array.from({ length: 5 }, () => enableCosmos(db, t, { trial, now })));
+    expect(results.filter((r) => r.trialGranted)).toHaveLength(1);
+    expect((await enableCosmos(db, t, { trial, now })).trialGranted).toBe(false);
+    const w = await getWallet(db, t);
+    expect(w).toMatchObject({ available: 100, trialRemaining: 100, trialGranted: true });
+    expect(w?.trialExpiresAt?.toISOString()).toBe('2030-05-30T12:00:00.000Z');
+  });
+
+  it('o uso gasta o teste primeiro; o que sobra no vencimento sai com lançamento; comprado não vence', async () => {
+    const t = await newTenant();
+    const start = new Date(Date.now() - 100 * 86_400_000);
+    await enableCosmos(db, t, { trial, now: start });
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 50 });
+    await spend(t, 30);
+    expect((await getWallet(db, t))?.trialRemaining).toBe(70);
+    expect(await expireTrials(db)).toBeGreaterThanOrEqual(1);
+    expect(await getWallet(db, t)).toMatchObject({ available: 50, trialRemaining: 0 });
+    const { entries } = await listLedger(db, t, { kinds: ['trial_expiry'] });
+    expect(entries.map((e) => [e.credits, e.balanceBefore, e.balanceAfter])).toEqual([[-70, 120, 50]]);
+    // rodar de novo não tira mais nada
+    await expireTrials(db);
+    expect((await getWallet(db, t))?.available).toBe(50);
+  });
+});
+
+describe('alertas e saldo zerado', () => {
+  it('80%, 90% e zerado uma vez por limiar por ciclo; a compra abre um ciclo novo e libera a carteira', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
+    await spend(t, 79);
+    expect(await alerts(t)).toEqual([]);
+    await spend(t, 2); // 81% usado
+    await spend(t, 1); // ainda 80%: não repete
+    expect(await alerts(t)).toEqual([80]);
+    await spend(t, 9); // 91%
+    expect(await alerts(t)).toEqual([80, 90]);
+    await spend(t, 9); // zerou
+    expect(await alerts(t)).toEqual([80, 90, 100]);
+    expect(await getWallet(db, t)).toMatchObject({
+      available: 0,
+      status: 'blocked',
+      blockReason: 'depleted',
+    });
+    await expect(reserve(db, { tenantId: t, functionName: 'fn' }, { settings })).rejects.toSatisfy(
+      (e: unknown) => isCosmosError(e, 'wallet_blocked'),
+    );
+
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
+    expect(await getWallet(db, t)).toMatchObject({ status: 'active', cycleBase: 10, alertLevel: 0 });
+    await spend(t, 9); // 90% do ciclo novo: alerta de novo
+    expect((await alerts(t)).slice(3)).toEqual([90]);
+  });
+});
+
+describe('recarga automática', () => {
+  const okFetch = (calls: string[]) =>
+    (async (url: string | URL | Request) => {
+      calls.push(String(url));
+      if (String(url).includes('/payment_methods'))
+        return new Response(JSON.stringify({ data: [{ id: 'pm_1' }] }), { status: 200 });
+      return new Response(JSON.stringify({ id: `pi_${calls.length}`, status: 'succeeded' }), { status: 200 });
+    }) as typeof fetch;
+
+  const piEvent = (
+    type: string,
+    attemptId: string,
+    paymentIntentId: string,
+    extra: object = {},
+  ): StripeEvent => ({
+    id: `evt_${randomBytes(4).toString('hex')}`,
+    type,
+    data: {
+      object: {
+        id: paymentIntentId,
+        metadata: { recharge_attempt_id: attemptId },
+        amount: 1000,
+        amount_received: 1000,
+        currency: 'usd',
+        ...extra,
+      },
+    },
+  });
+
+  it('ligar exige o aceite da cobrança recorrente', async () => {
+    const t = await newTenant();
+    await expect(
+      configureAutoRecharge(db, {
+        tenantId: t,
+        enabled: true,
+        packageId: pkg,
+        thresholdCredits: 20,
+        accepted: false,
+        userId: 'u',
+      }),
+    ).rejects.toSatisfy((e: unknown) => isCosmosError(e, 'consent_required'));
+    expect(await getAutoRecharge(db, t)).toBeNull();
+  });
+
+  it('abaixo do limiar abre uma tentativa só; cobra fora da sessão; credita pelo webhook uma vez', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: 'cus_1' }).where(eq(autoRecharge.tenantId, t));
+    expect(await getAutoRecharge(db, t)).toMatchObject({ enabled: true, hasCard: true, acceptedBy: 'dono' });
+
+    await spend(t, 85); // saldo 15 < 20
+    await spend(t, 1); // ainda abaixo: não abre outra
+    const open = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t));
+    expect(open).toHaveLength(1);
+
+    const calls: string[] = [];
+    expect(await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch(calls) })).toMatchObject({
+      charged: 1,
+    });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t));
+    expect(attempt).toMatchObject({ status: 'processing' });
+    // ainda sem crédito: só com o webhook
+    expect((await getWallet(db, t))?.available).toBe(14);
+
+    const event = piEvent('payment_intent.succeeded', attempt!.id, attempt!.paymentIntentId!);
+    expect((await applyStripeEvent(db, event)).outcome).toBe('credited');
+    expect((await applyStripeEvent(db, event)).outcome).toBe('duplicate');
+    expect(
+      (
+        await applyStripeEvent(
+          db,
+          piEvent('payment_intent.succeeded', attempt!.id, attempt!.paymentIntentId!),
+        )
+      ).outcome,
+    ).toBe('already_closed');
+    expect((await getWallet(db, t))?.available).toBe(514);
+  });
+
+  it('falha de cobrança: tentativa falha, recarga desliga com o motivo e nada é creditado', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: 'cus_2' }).where(eq(autoRecharge.tenantId, t));
+    await spend(t, 15);
+    const declined = (async (url: string | URL | Request) =>
+      String(url).includes('/payment_methods')
+        ? new Response(JSON.stringify({ data: [{ id: 'pm_1' }] }), { status: 200 })
+        : new Response(JSON.stringify({ error: { code: 'card_declined', message: 'recusado' } }), {
+            status: 402,
+          })) as typeof fetch;
+    expect(await processRecharges(db, 'sk_test_x', { fetchImpl: declined })).toMatchObject({ failed: 1 });
+    expect(await getAutoRecharge(db, t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'card_declined',
+    });
+    expect((await getWallet(db, t))?.available).toBe(15);
+    // desligada, o próximo uso não abre outra tentativa
+    await spend(t, 1);
+    const attempts = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t));
+    expect(attempts.map((a) => a.status)).toEqual(['failed']);
+  });
+
+  it('pagamento recusado depois (webhook payment_failed) também desliga e não credita', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: 'cus_3' }).where(eq(autoRecharge.tenantId, t));
+    await spend(t, 15);
+    await processRecharges(db, 'sk_test_x', { fetchImpl: okFetch([]) });
+    const [attempt] = await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t));
+    const failed = piEvent('payment_intent.payment_failed', attempt!.id, attempt!.paymentIntentId!, {
+      last_payment_error: { decline_code: 'insufficient_funds' },
+    });
+    expect((await applyStripeEvent(db, failed)).outcome).toBe('failed');
+    expect(await getAutoRecharge(db, t)).toMatchObject({
+      enabled: false,
+      lastFailureReason: 'insufficient_funds',
+    });
+    expect((await getWallet(db, t))?.available).toBe(15);
+  });
+});

@@ -75,8 +75,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.asset',
       'core.participant',
       'core.competition',
-      // Cosmos AI: a intenção de compra nasce no painel do cliente, antes do checkout do Stripe (#993)
-      'cosmos.purchase_intent',
+      // Cosmos AI no painel do cliente: ligar (carteira e teste), intenção de compra e recarga automática (#993, #994)
+      'cosmos',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
@@ -84,7 +84,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
   ingestor: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    // cosmos: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
+    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian', 'cosmos'],
     prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)

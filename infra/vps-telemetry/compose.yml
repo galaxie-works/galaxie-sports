@@ -463,6 +463,9 @@ services:
       QUEUE_MODE: ${QUEUE_MODE:-enqueue}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
+      # Cosmos AI (#994): reservas vencidas, teste vencido e recarga automática a cada 5 min; a recarga só cobra com a chave
+      SCHEDULE_COSMOS_UPKEEP: ${SCHEDULE_COSMOS_UPKEEP:-*/5 * * * *}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
       QUALITY_API_KEY: ${QUALITY_API_KEY:-}
     depends_on:

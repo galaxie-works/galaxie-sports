@@ -64,3 +64,19 @@ crédito vem no `checkout.session.async_payment_succeeded`.
 
 Variáveis: `STRIPE_SECRET_KEY` (demo, abre o checkout) e `STRIPE_WEBHOOK_SECRET` (API, confere a assinatura). Sem elas, a
 compra fica indisponível e o webhook responde 503.
+
+## Teste, alertas e recarga automática (#994)
+
+| Peça | O que faz |
+| --- | --- |
+| `enableCosmos(db, tenantId)` | Liga a Cosmos: cria a carteira e concede o teste uma única vez (`COSMOS_TRIAL_CREDITS`, padrão 250; `COSMOS_TRIAL_DAYS`, padrão 90). Religar não dá outro teste |
+| Teste no saldo | `wallet.trial_remaining`: o uso gasta o teste primeiro. `expireTrials` tira do saldo o que sobrou no vencimento, com lançamento `trial_expiry`. Comprados não vencem |
+| Alertas | Cada entrada de créditos abre um ciclo (`cycle_base`). Em 80% e 90% de uso e no saldo zerado, uma linha em `cosmos.balance_alert`, uma vez por limiar por ciclo |
+| Saldo zerado | Carteira `blocked` com `block_reason = depleted`; a próxima entrada de créditos libera. Bloqueio da Galaxie é `staff` e só ela libera |
+| Recarga automática | `configureAutoRecharge` exige `accepted: true` (fica quem e quando). A compra seguinte salva o cartão (`saveCard`, só cartão). Abaixo do limiar, o acerto abre uma tentativa (uma aberta por vez); `processRecharges` cobra fora da sessão e o crédito entra pelo webhook `payment_intent.succeeded`. Falha desliga a recarga com o motivo |
+
+O job `cosmos-upkeep` do ingestor (a cada 5 min) roda `releaseExpired`, `expireTrials` e `processRecharges`.
+
+O envio do e-mail ao dono e do webhook (`cosmos.balance.low`, `cosmos.balance.depleted`) lê `cosmos.balance_alert` e
+marca `emailed_at`/`webhook_at`; entra com o registro central de tópicos (#1023). A tela (#995) já lê o estado da
+carteira.

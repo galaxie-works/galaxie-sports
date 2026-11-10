@@ -4,11 +4,19 @@
  * reenvia) é ignorado pelo id, e a intenção que já foi paga não credita de novo por outro evento.
  */
 import { and, asc, eq } from 'drizzle-orm';
-import { creditPackage, purchaseIntent, stripeEvent, type Database, type PackageCurrency } from '@galaxie/db';
+import {
+  autoRecharge,
+  creditPackage,
+  purchaseIntent,
+  stripeEvent,
+  type Database,
+  type PackageCurrency,
+} from '@galaxie/db';
 import { ceilCredits } from './credits.js';
 import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';
 import type { StripeCheckoutSession, StripeEvent } from './stripe.js';
+import { applyRechargeEvent } from './recharge.js';
 import { addEntryInTx, type Tx } from './wallet.js';
 
 export interface CreditPackageView {
@@ -159,6 +167,8 @@ const HANDLED = new Set([
   'checkout.session.async_payment_succeeded',
   'checkout.session.async_payment_failed',
   'checkout.session.expired',
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
 ]);
 
 async function findIntent(tx: Tx, session: StripeCheckoutSession) {
@@ -208,6 +218,10 @@ export async function applyStripeEvent(
     };
 
     if (!HANDLED.has(event.type)) return finish('ignored', null);
+    if (event.type.startsWith('payment_intent.')) {
+      const r = await applyRechargeEvent(tx, event, now);
+      return finish(r.outcome, r.rechargeAttemptId);
+    }
     const session = event.data.object;
     const intent = await findIntent(tx, session);
     if (!intent) return finish('unknown_intent', null);
@@ -266,6 +280,12 @@ export async function applyStripeEvent(
         updatedAt: now,
       })
       .where(eq(purchaseIntent.id, intent.id));
+    // compra com a recarga automática ligada: o cartão ficou salvo neste cliente do Stripe
+    if (session.customer && session.metadata?.save_card === 'true')
+      await tx
+        .update(autoRecharge)
+        .set({ stripeCustomerId: session.customer, updatedAt: now })
+        .where(eq(autoRecharge.tenantId, intent.tenantId));
     return finish('credited', intent.id);
   });
 }

@@ -434,6 +434,11 @@ export default defineMessages(
           description:
             'Regras automáticas que comparam o que a API entrega com a referência (F1DB, Wikidata, tabela do fornecedor, dicionário de emissoras) e gravam o placar da aba Qualidade.',
         },
+        'cosmos-upkeep': {
+          label: 'Manutenção da Cosmos AI',
+          description:
+            'Devolve reservas que passaram do prazo, tira do saldo o teste vencido e cobra as recargas automáticas pendentes. Não gasta cota do fornecedor nem IA.',
+        },
         'bootstrap-catalog': {
           label: 'Catálogo do futebol',
           description: 'Atualiza ligas, temporadas e times. Gasta poucas chamadas, uma vez por semana.',
@@ -1679,6 +1684,11 @@ export default defineMessages(
             label: 'Data quality',
             description:
               'Automatic rules that compare what the API serves with the reference (F1DB, Wikidata, the provider table, the broadcaster dictionary) and store the Quality tab scoreboard.',
+          },
+          'cosmos-upkeep': {
+            label: 'Cosmos AI upkeep',
+            description:
+              'Returns reservations past their deadline, removes expired trial credits and charges pending auto top-ups. Uses no provider quota and no AI.',
           },
           'bootstrap-catalog': {
             label: 'Football catalog',
@@ -2938,6 +2948,11 @@ export default defineMessages(
             label: 'Calidad de los datos',
             description:
               'Reglas automáticas que comparan lo que entrega la API con la referencia (F1DB, Wikidata, la tabla del proveedor, el diccionario de emisoras) y guardan el marcador de la pestaña Calidad.',
+          },
+          'cosmos-upkeep': {
+            label: 'Mantenimiento de Cosmos AI',
+            description:
+              'Devuelve reservas vencidas, saca del saldo la prueba vencida y cobra las recargas automáticas pendientes. No gasta cuota del proveedor ni IA.',
           },
           'bootstrap-catalog': {
             label: 'Catálogo del fútbol',

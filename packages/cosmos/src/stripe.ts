@@ -59,6 +59,11 @@ export interface CheckoutInput {
   cancelUrl: string;
   locale?: string;
   customerEmail?: string;
+  /**
+   * Recarga automática ligada (com aceite): salva o cartão para cobranças fora da sessão. Só cartão, porque o
+   * Pix não guarda forma de pagamento.
+   */
+  saveCard?: boolean;
 }
 
 /** Corpo `application/x-www-form-urlencoded` da criação da sessão (separado para o teste). */
@@ -73,7 +78,13 @@ export function checkoutForm(input: CheckoutInput): URLSearchParams {
   form.set('line_items[0][price_data][currency]', input.currency);
   form.set('line_items[0][price_data][unit_amount]', String(input.amountCents));
   form.set('line_items[0][price_data][product_data][name]', input.productName);
-  paymentMethodsFor(input.currency).forEach((m, i) => form.set(`payment_method_types[${i}]`, m));
+  const methods = input.saveCard ? ['card'] : paymentMethodsFor(input.currency);
+  methods.forEach((m, i) => form.set(`payment_method_types[${i}]`, m));
+  if (input.saveCard) {
+    form.set('customer_creation', 'always');
+    form.set('payment_intent_data[setup_future_usage]', 'off_session');
+    form.set('metadata[save_card]', 'true');
+  }
   // recibo por compra: o Stripe gera a fatura paga e manda por e-mail
   form.set('invoice_creation[enabled]', 'true');
   form.set('success_url', input.successUrl);
@@ -140,6 +151,13 @@ export interface StripeCheckoutSession {
   currency?: string | null;
   payment_intent?: string | null;
   invoice?: string | null;
+  /** Cliente do Stripe (compra com a recarga automática ligada salva o cartão nele). */
+  customer?: string | null;
+  /** PaymentIntent da recarga automática. */
+  amount?: number | null;
+  amount_received?: number | null;
+  status?: string | null;
+  last_payment_error?: { code?: string; decline_code?: string; message?: string } | null;
 }
 
 /** Lê o corpo cru do webhook; formato inesperado → null (responde 400). */
@@ -152,4 +170,79 @@ export function parseStripeEvent(rawBody: string): StripeEvent | null {
   } catch {
     return null;
   }
+}
+
+async function stripeRequest<T>(
+  secretKey: string,
+  method: 'GET' | 'POST',
+  path: string,
+  fetchImpl: typeof fetch,
+  body?: URLSearchParams,
+  idempotencyKey?: string,
+): Promise<T> {
+  const res = await fetchImpl(`${STRIPE_API}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+    },
+    ...(body ? { body } : {}),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const json = (await res.json().catch(() => null)) as
+    (T & { error?: { message?: string; code?: string } }) | null;
+  if (!res.ok || !json) {
+    const err = new StripeRequestError(res.status, json?.error?.message ?? `Stripe respondeu ${res.status}`);
+    (err as StripeRequestError & { code?: string | undefined }).code = json?.error?.code;
+    throw err;
+  }
+  return json;
+}
+
+export interface OffSessionChargeInput {
+  rechargeAttemptId: string;
+  tenantId: string;
+  customerId: string;
+  amountCents: number;
+  currency: PackageCurrency;
+  description: string;
+}
+
+/**
+ * Cobra a recarga automática no cartão salvo do cliente, fora da sessão. A chave de idempotência é a tentativa:
+ * repetir não cobra duas vezes. O crédito não sai daqui: entra pelo webhook `payment_intent.succeeded`.
+ */
+export async function chargeOffSession(
+  secretKey: string,
+  input: OffSessionChargeInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ paymentIntentId: string; status: string }> {
+  const methods = await stripeRequest<{ data?: { id: string }[] }>(
+    secretKey,
+    'GET',
+    `/customers/${encodeURIComponent(input.customerId)}/payment_methods?type=card&limit=1`,
+    fetchImpl,
+  );
+  const paymentMethod = methods.data?.[0]?.id;
+  if (!paymentMethod) throw new StripeRequestError(402, 'cliente sem cartão salvo');
+  const form = new URLSearchParams();
+  form.set('amount', String(input.amountCents));
+  form.set('currency', input.currency);
+  form.set('customer', input.customerId);
+  form.set('payment_method', paymentMethod);
+  form.set('off_session', 'true');
+  form.set('confirm', 'true');
+  form.set('description', input.description);
+  form.set('metadata[recharge_attempt_id]', input.rechargeAttemptId);
+  form.set('metadata[tenant_id]', input.tenantId);
+  const pi = await stripeRequest<{ id: string; status: string }>(
+    secretKey,
+    'POST',
+    '/payment_intents',
+    fetchImpl,
+    form,
+    `cosmos-recharge-${input.rechargeAttemptId}`,
+  );
+  return { paymentIntentId: pi.id, status: pi.status };
 }

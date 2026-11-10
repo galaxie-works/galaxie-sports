@@ -533,6 +533,13 @@
       "when": 1794339397755,
       "tag": "0078_cosmos_compra",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794339541778,
+      "tag": "0080_cosmos_alertas",
+      "breakpoints": true
     }
   ]
 }
