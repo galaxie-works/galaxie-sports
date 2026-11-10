@@ -24,7 +24,9 @@ import { pool } from '@/lib/auth/db';
 import { builderDb } from '@/lib/builder/store';
 
 import { packageMarket } from './config';
-import { DAY, fillDays, periodFrom, type StatementParams } from './data-utils';
+import { isUuid } from '@/lib/client/tenants';
+
+import { fillDays, periodFrom, shiftDay, type StatementParams } from './data-utils';
 
 export { DEFAULT_PERIOD_DAYS, type StatementParams } from './data-utils';
 
@@ -50,17 +52,18 @@ export interface CosmosOverviewData {
   trial: { credits: number; days: number };
   packages: CreditPackageView[];
   autoRecharge: AutoRechargeView | null;
-  /** Créditos usados por dia nos últimos 7 dias (dia UTC, AAAA-MM-DD), com os dias sem uso. */
+  /** Créditos usados por dia nos últimos 7 dias (dia no fuso de quem olha, AAAA-MM-DD), com os dias sem uso. */
   week: { day: string; credits: number }[];
 }
 
 export async function loadCosmosOverview(
   tenant: { id: string; markets: readonly string[] },
+  timeZone = 'UTC',
   now: Date = new Date(),
 ): Promise<CosmosOverviewData> {
   const db = builderDb();
-  const week = periodFrom({}, now);
-  week.from = new Date(week.to.getTime() - 7 * DAY);
+  const today = periodFrom({}, now, timeZone).toDay;
+  const week = periodFrom({ from: shiftDay(today, -6), to: today }, now, timeZone);
   const [wallet, trial, packages, autoRecharge, days] = await Promise.all([
     getWallet(db, tenant.id),
     readTrialSettings(db),
@@ -73,7 +76,7 @@ export async function loadCosmosOverview(
     trial,
     packages,
     autoRecharge,
-    week: fillDays(days, week.from, week.to),
+    week: fillDays(days, week.fromDay, week.toDay),
   };
 }
 
@@ -92,34 +95,54 @@ export interface CosmosStatementData {
 
 const isKind = (v: string): v is LedgerKind => (LEDGER_KINDS as readonly string[]).includes(v);
 
+const pageFilter = (params: StatementParams, period: { from: Date; to: Date }) => ({
+  from: period.from,
+  to: period.to,
+  kinds: (params.kind ?? []).filter(isKind),
+  functionNames: params.fn ?? [],
+  scopes: params.scope ?? [],
+  // cursor vem da URL: só um id de lançamento válido
+  ...(params.cursor && isUuid(params.cursor) ? { cursor: params.cursor } : {}),
+  limit: 50,
+});
+
+/** Uma página do extrato com quem fez cada lançamento ("Mostrar mais antigos" acumula estas na tela). */
+export async function loadStatementPage(
+  tenantId: string,
+  params: StatementParams,
+  timeZone = 'UTC',
+  now: Date = new Date(),
+): Promise<Pick<CosmosStatementData, 'entries' | 'nextCursor'>> {
+  const period = periodFrom(params, now, timeZone);
+  const page = await listLedger(builderDb(), tenantId, pageFilter(params, period));
+  const who = await people(page.entries.map((e) => e.userId));
+  return {
+    entries: page.entries.map((e) => ({
+      ...toClientEntry(e),
+      person: e.userId ? (who.get(e.userId) ?? null) : null,
+    })),
+    nextCursor: page.nextCursor,
+  };
+}
+
 export async function loadCosmosStatement(
   tenantId: string,
   params: StatementParams,
+  timeZone = 'UTC',
   now: Date = new Date(),
 ): Promise<CosmosStatementData> {
   const db = builderDb();
-  const period = periodFrom(params, now);
+  const period = periodFrom(params, now, timeZone);
   const [days, page, breakdown, purchases] = await Promise.all([
     usageByDay(db, tenantId, period),
-    listLedger(db, tenantId, {
-      from: period.from,
-      to: period.to,
-      kinds: (params.kind ?? []).filter(isKind),
-      functionNames: params.fn ?? [],
-      scopes: params.scope ?? [],
-      ...(params.cursor ? { cursor: params.cursor } : {}),
-      limit: 50,
-    }),
+    listLedger(db, tenantId, pageFilter(params, period)),
     usageBreakdown(db, tenantId, period),
     listPurchases(db, tenantId),
   ]);
   const who = await people([...page.entries.map((e) => e.userId), ...breakdown.byUser.map((u) => u.key)]);
   return {
-    period: {
-      from: period.from.toISOString().slice(0, 10),
-      to: new Date(period.to.getTime() - DAY).toISOString().slice(0, 10),
-    },
-    daily: fillDays(days, period.from, period.to),
+    period: { from: period.fromDay, to: period.toDay },
+    daily: fillDays(days, period.fromDay, period.toDay),
     entries: page.entries.map((e) => ({
       ...toClientEntry(e),
       person: e.userId ? (who.get(e.userId) ?? null) : null,

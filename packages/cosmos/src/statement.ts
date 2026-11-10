@@ -150,6 +150,8 @@ export interface UsagePeriod {
   from: Date;
   /** Exclusive. */
   to: Date;
+  /** Fuso IANA dos dias do gráfico (o de quem olha); padrão UTC. */
+  timeZone?: string;
 }
 
 const usageWhere = (tenantId: string, period: UsagePeriod) =>
@@ -166,13 +168,14 @@ export async function usageByDay(
   tenantId: string,
   period: UsagePeriod,
 ): Promise<{ day: string; scope: string | null; credits: number }[]> {
-  const day = sql<string>`to_char(date_trunc('day', ${ledger.createdAt} at time zone 'UTC'), 'YYYY-MM-DD')`;
+  const day = sql<string>`to_char(date_trunc('day', ${ledger.createdAt} at time zone ${period.timeZone ?? 'UTC'}), 'YYYY-MM-DD')`;
   const rows = await db
     .select({ day, scope: ledger.scope, credits: sql<string>`-sum(${ledger.credits})` })
     .from(ledger)
     .where(usageWhere(tenantId, period))
-    .groupBy(day, ledger.scope)
-    .orderBy(day);
+    // pela posição da coluna: com o fuso como parâmetro, o Postgres não reconhece a mesma expressão no group by
+    .groupBy(sql`1`, ledger.scope)
+    .orderBy(sql`1`);
   return rows.map((r) => ({ day: r.day, scope: r.scope, credits: Number(r.credits) }));
 }
 

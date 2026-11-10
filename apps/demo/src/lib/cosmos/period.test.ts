@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fillDays, periodFrom } from './data-utils';
+import { dayIn, fillDays, MAX_PERIOD_DAYS, periodFrom } from './data-utils';
 import { periodFromSelector, selectorFromPeriod } from './period';
 
 const today = new Date(2026, 10, 10);
@@ -80,9 +80,31 @@ describe('período da URL e dias do gráfico', () => {
     );
   });
 
+  it('no fuso de quem olha: 22h30 de 31/10 em São Paulo ainda é 31/10', () => {
+    const tz = 'America/Sao_Paulo';
+    const lateNight = new Date('2026-11-01T01:30:00Z'); // 22h30 de 31/10 em São Paulo
+    expect(dayIn(lateNight, tz)).toBe('2026-10-31');
+    const p = periodFrom({ from: '2026-10-31', to: '2026-10-31' }, now, tz);
+    expect(p.from.toISOString()).toBe('2026-10-31T03:00:00.000Z');
+    expect(p.to.toISOString()).toBe('2026-11-01T03:00:00.000Z');
+    expect(lateNight >= p.from && lateNight < p.to).toBe(true);
+    // "hoje" também é o do fuso: 23h de 10/11 em São Paulo já é 11/11 em UTC
+    expect(periodFrom({}, new Date('2026-11-11T02:00:00Z'), tz).toDay).toBe('2026-11-10');
+  });
+
+  it('período com teto: nunca antes de 2026-01-01 nem maior que 366 dias', () => {
+    const huge = periodFrom({ from: '0001-01-01', to: '9999-12-31' }, now);
+    expect(huge.toDay).toBe('9999-12-31');
+    expect(huge.fromDay).toBe('9998-12-31');
+    expect(fillDays([], huge.fromDay, huge.toDay)).toHaveLength(MAX_PERIOD_DAYS);
+    expect(periodFrom({ from: '2020-01-01', to: '2026-03-01' }, now).fromDay).toBe('2026-01-01');
+    expect(periodFrom({ from: '2020-01-01', to: '2020-02-01' }, now)).toMatchObject({
+      fromDay: '2026-01-01',
+      toDay: '2026-01-01',
+    });
+  });
+
   it('dias sem uso entram com 0; salas do mesmo dia somam', () => {
-    const from = new Date('2026-11-01T00:00:00Z');
-    const to = new Date('2026-11-04T00:00:00Z');
     expect(
       fillDays(
         [
@@ -90,8 +112,8 @@ describe('período da URL e dias do gráfico', () => {
           { day: '2026-11-01', credits: 2 },
           { day: '2026-11-03', credits: 4 },
         ],
-        from,
-        to,
+        '2026-11-01',
+        '2026-11-03',
       ),
     ).toEqual([
       { day: '2026-11-01', credits: 3.5 },

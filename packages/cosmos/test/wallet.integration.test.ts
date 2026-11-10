@@ -471,6 +471,20 @@ describe('carteira da Cosmos', () => {
     expect(
       await usageByDay(db, t, { from: at('2031-02-01T00:00:00Z'), to: at('2031-03-01T00:00:00Z') }),
     ).toEqual([]);
+    // no fuso de São Paulo, o uso das 23h UTC de 01/01 (20h local) segue em 01/01; o das 09h UTC de 02/01 (06h) em 02/01
+    expect(await usageByDay(db, t, { ...period, timeZone: 'America/Sao_Paulo' })).toEqual([
+      { day: '2031-01-01', scope: 'chat:a', credits: 4 },
+      { day: '2031-01-02', scope: 'chat:b', credits: 3 },
+    ]);
+    // lançamento às 22h30 de 31/12 em São Paulo (01h30 UTC de 01/01) conta em 31/12 no fuso, e em 01/01 em UTC
+    await use('2031-01-01T01:30:00Z', 'chat:c', 'u3');
+    const wide = { from: at('2030-12-31T00:00:00Z'), to: at('2031-01-03T00:00:00Z') };
+    expect(
+      (await usageByDay(db, t, { ...wide, timeZone: 'America/Sao_Paulo' })).find((d) => d.scope === 'chat:c'),
+    ).toMatchObject({ day: '2030-12-31' });
+    expect((await usageByDay(db, t, wide)).find((d) => d.scope === 'chat:c')).toMatchObject({
+      day: '2031-01-01',
+    });
   });
 
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {
