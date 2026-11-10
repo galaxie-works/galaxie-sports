@@ -20,6 +20,7 @@ import {
   pgSchema,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
@@ -106,9 +107,14 @@ export const ledger = cosmos.table(
     model: text('model'),
     note: text('note'),
     metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    /** Chave de idempotência do lançamento (compra, estorno): repetir não soma de novo. Única por tenant. */
+    idempotencyKey: text('idempotency_key'),
     createdAt: createdAt(),
   },
   (t) => [
+    uniqueIndex('ledger_idempotency_key_idx')
+      .on(t.tenantId, t.idempotencyKey)
+      .where(sql`${t.idempotencyKey} is not null`),
     check('ledger_balance_matches', sql`${t.balanceAfter} - ${t.balanceBefore} = ${t.credits}`),
     check('ledger_balance_non_negative', sql`${t.balanceAfter} >= 0`),
     index('ledger_tenant_id_idx').on(t.tenantId, t.id.desc()),

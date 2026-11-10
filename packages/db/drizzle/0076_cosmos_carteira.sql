@@ -32,6 +32,7 @@ CREATE TABLE "cosmos"."ledger" (
 	"model" text,
 	"note" text,
 	"metadata" jsonb,
+	"idempotency_key" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "ledger_balance_matches" CHECK ("cosmos"."ledger"."balance_after" - "cosmos"."ledger"."balance_before" = "cosmos"."ledger"."credits"),
 	CONSTRAINT "ledger_balance_non_negative" CHECK ("cosmos"."ledger"."balance_after" >= 0)
@@ -73,6 +74,7 @@ CREATE TABLE "cosmos"."wallet" (
 ALTER TABLE "cosmos"."ledger" ADD CONSTRAINT "ledger_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cosmos"."reservation" ADD CONSTRAINT "reservation_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "cosmos"."wallet" ADD CONSTRAINT "wallet_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "ledger_idempotency_key_idx" ON "cosmos"."ledger" USING btree ("tenant_id","idempotency_key") WHERE "cosmos"."ledger"."idempotency_key" is not null;--> statement-breakpoint
 CREATE INDEX "ledger_tenant_id_idx" ON "cosmos"."ledger" USING btree ("tenant_id","id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "ledger_tenant_function_idx" ON "cosmos"."ledger" USING btree ("tenant_id","function_name","id" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "ledger_tenant_scope_idx" ON "cosmos"."ledger" USING btree ("tenant_id","scope","id" DESC NULLS LAST);--> statement-breakpoint

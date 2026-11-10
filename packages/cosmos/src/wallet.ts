@@ -441,7 +441,15 @@ export interface EntryInput {
   scope?: string | null;
   note?: string | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Chave de idempotência (única por tenant): obrigatória na compra e no estorno (o id do evento ou da sessão do
+   * Stripe, por exemplo). Repetir com a mesma chave devolve o lançamento original sem mexer no saldo.
+   */
+  idempotencyKey?: string | null;
 }
+
+/** Tipos que só entram com chave de idempotência (dinheiro de fora: repetir não pode somar de novo). */
+const KEYED_KINDS: ReadonlySet<EntryKind> = new Set(['purchase', 'refund']);
 
 /**
  * Lança teste, compra, estorno, ajuste, vencimento do teste ou mudança de cota, com o saldo antes e depois.
@@ -452,8 +460,11 @@ export async function addEntry(
   db: Database,
   input: EntryInput,
   options: { now?: Date } = {},
-): Promise<{ ledgerId: string; available: number }> {
+): Promise<{ ledgerId: string; available: number; replayed: boolean }> {
   const now = options.now ?? new Date();
+  const key = input.idempotencyKey?.trim() || null;
+  if (!key && KEYED_KINDS.has(input.kind))
+    throw new CosmosError('missing_idempotency_key', `lançamento ${input.kind} sem chave de idempotência`);
   if (!Number.isFinite(input.credits)) throw new CosmosError('invalid_amount', 'créditos inválidos');
   const credits = roundCredits(input.credits);
   // lançamento zerado não diz nada; teste e compra só entram positivos (um teste de 0 queimaria o teste de vez)
@@ -466,6 +477,14 @@ export async function addEntry(
     await tx.insert(wallet).values({ tenantId: input.tenantId }).onConflictDoNothing();
     const w = await lockWallet(tx, input.tenantId);
     if (!w) throw new CosmosError('no_wallet', 'carteira não foi criada');
+    // repetição (ou outro processo com a mesma chave): com a carteira travada, devolve o lançamento original
+    if (key) {
+      const [prev] = await tx
+        .select({ id: ledger.id, after: ledger.balanceAfter })
+        .from(ledger)
+        .where(and(eq(ledger.tenantId, input.tenantId), eq(ledger.idempotencyKey, key)));
+      if (prev) return { ledgerId: prev.id, available: prev.after, replayed: true };
+    }
     // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
     if (input.kind === 'trial' && w.trialGranted)
       throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
@@ -493,10 +512,11 @@ export async function addEntry(
         scope: input.scope ?? null,
         note: input.note ?? null,
         metadata: input.metadata ?? null,
+        idempotencyKey: key,
         createdAt: now,
       })
       .returning({ id: ledger.id });
-    return { ledgerId: entry!.id, available };
+    return { ledgerId: entry!.id, available, replayed: false };
   });
 }
 
