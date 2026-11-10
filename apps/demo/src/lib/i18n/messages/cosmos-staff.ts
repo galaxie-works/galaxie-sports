@@ -39,6 +39,8 @@ export default defineMessages(
       historyTitle: 'Ações da equipe',
       historyEmpty: 'Nenhuma ação da equipe nesta carteira.',
       reviewTitle: 'Compras pagas em revisão',
+      reviewAuto: 'Recarga automática',
+      reviewSingle: 'Compra avulsa',
       reviewDescription:
         'O Stripe confirmou o pagamento com valor ou moeda diferentes do pacote. Nada foi creditado: confira no Stripe e credite ou estorne.',
       packagesTitle: 'Pacotes no mercado do cliente',
@@ -153,6 +155,8 @@ export default defineMessages(
         historyTitle: 'Team actions',
         historyEmpty: 'No team actions on this wallet.',
         reviewTitle: 'Paid purchases under review',
+        reviewAuto: 'Automatic top-up',
+        reviewSingle: 'One-off purchase',
         reviewDescription:
           'Stripe confirmed the payment with an amount or currency different from the package. Nothing was credited: check in Stripe, then credit or refund.',
         packagesTitle: "Packages in the client's market",
@@ -268,6 +272,8 @@ export default defineMessages(
         historyTitle: 'Acciones del equipo',
         historyEmpty: 'Ninguna acción del equipo en esta cartera.',
         reviewTitle: 'Compras pagadas en revisión',
+        reviewAuto: 'Recarga automática',
+        reviewSingle: 'Compra única',
         reviewDescription:
           'Stripe confirmó el pago con un monto o una moneda distintos del paquete. No se acreditó nada: revisa en Stripe y acredita o reembolsa.',
         packagesTitle: 'Paquetes en el mercado del cliente',

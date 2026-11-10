@@ -383,6 +383,8 @@ export async function listPurchasesInReview(db: Pick<Database, 'select'>, tenant
         amountCents: purchaseIntent.amountCents,
         currency: purchaseIntent.currency,
         createdAt: purchaseIntent.createdAt,
+        paymentIntentId: purchaseIntent.paymentIntentId,
+        checkoutSessionId: purchaseIntent.checkoutSessionId,
       })
       .from(purchaseIntent)
       .where(and(eq(purchaseIntent.tenantId, tenantId), eq(purchaseIntent.status, 'review'))),
@@ -393,11 +395,13 @@ export async function listPurchasesInReview(db: Pick<Database, 'select'>, tenant
         amountCents: rechargeAttempt.amountCents,
         currency: rechargeAttempt.currency,
         createdAt: rechargeAttempt.createdAt,
+        paymentIntentId: rechargeAttempt.paymentIntentId,
       })
       .from(rechargeAttempt)
       .where(and(eq(rechargeAttempt.tenantId, tenantId), eq(rechargeAttempt.status, 'review'))),
   ]);
-  return [...single.map((p) => ({ ...p, auto: false })), ...auto.map((a) => ({ ...a, auto: true }))].sort(
-    (x, y) => y.createdAt.getTime() - x.createdAt.getTime(),
-  );
+  return [
+    ...single.map((p) => ({ ...p, auto: false })),
+    ...auto.map((a) => ({ ...a, checkoutSessionId: null, auto: true })),
+  ].sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
 }

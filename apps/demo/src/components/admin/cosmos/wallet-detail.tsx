@@ -355,8 +355,15 @@ export function WalletDetail({ data, timeZone }: { data: StaffWalletDetail; time
         <SettingsSection title={T.detail.reviewTitle} description={T.detail.reviewDescription}>
           <ul className="flex flex-col gap-1 text-sm">
             {data.review.map((p) => (
-              <li key={p.id} className="flex justify-between gap-2 rounded-md border px-3 py-2">
-                <span className="tabular-nums">{when.format(new Date(p.createdAt))}</span>
+              <li key={p.id} className="flex flex-wrap justify-between gap-2 rounded-md border px-3 py-2">
+                <span className="flex flex-col">
+                  <span className="tabular-nums">{when.format(new Date(p.createdAt))}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {p.auto ? T.detail.reviewAuto : T.detail.reviewSingle}
+                    {' · '}
+                    <code className="font-mono">{p.paymentIntentId ?? p.checkoutSessionId ?? '—'}</code>
+                  </span>
+                </span>
                 <span className="tabular-nums">
                   {fill(t.cosmos.purchase.summary, {
                     credits: n.format(p.credits),

@@ -24,6 +24,7 @@ import {
   getWallet,
   isCosmosError,
   listLedger,
+  listPurchasesInReview,
   MAX_RECHARGE_ATTEMPTS,
   processRecharges,
   readTrialSettings,
@@ -391,6 +392,17 @@ describe('recarga automática', () => {
     });
   });
 
+  it('401 do Stripe (chave trocada ou revogada) não desliga a recarga: volta para a fila', async () => {
+    const a = await withOpenAttempt('cus_14');
+    const badKey = (async () =>
+      new Response(JSON.stringify({ error: { message: 'Invalid API Key provided' } }), {
+        status: 401,
+      })) as typeof fetch;
+    await processRecharges(db, 'sk_test_x', { fetchImpl: badKey, limit: 500 });
+    expect(await a.statuses()).toEqual(['pending']);
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({ enabled: true, lastFailureReason: null });
+  });
+
   it('falha passageira repetida: no teto de tentativas, falha e desliga a recarga', async () => {
     const a = await withOpenAttempt('cus_12');
     const down = (async () =>
@@ -415,6 +427,10 @@ describe('recarga automática', () => {
     });
     expect((await applyStripeEvent(db, odd)).outcome).toBe('amount_mismatch');
     expect(await a.statuses()).toEqual(['review']);
+    // a equipe vê a recarga em revisão, com o PaymentIntent para conferir no Stripe
+    expect(await listPurchasesInReview(db, a.t)).toEqual([
+      expect.objectContaining({ id: attempt!.id, auto: true, paymentIntentId: attempt!.paymentIntentId }),
+    ]);
     expect((await getWallet(db, a.t))?.available).toBe(15);
   });
 
