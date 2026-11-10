@@ -55,7 +55,7 @@ O cliente nunca vê tokens, custo real, modelo nem multiplicador: use `toClientE
 | Pacotes (`cosmos.package`) | `listPackages(db, mercado)`, `upsertPackage`. Preço e créditos são dados, nunca código |
 | Intenção de compra (`cosmos.purchase_intent`) | `createPurchaseIntent` copia créditos e valor do pacote; `attachCheckoutSession` liga a sessão do Checkout |
 | Checkout | `createCheckoutSession(chave, …)`, com Pix e cartão em reais, cartão em dólar, recibo pelo Stripe e chave de idempotência pela intenção |
-| Webhook | `verifyStripeSignature` + `applyStripeEvent`, na rota `POST /internal/cosmos/stripe/webhook` da API |
+| Webhook | `verifyStripeSignature` + `applyStripeEvent`, na rota `POST /webhooks/stripe/cosmos` da API |
 
 `applyStripeEvent` grava o evento (`cosmos.stripe_event`, id único), muda a intenção e credita numa transação só. Evento
 repetido sai como `duplicate`; intenção já paga não credita de novo (`already_closed`); valor ou moeda diferentes do
