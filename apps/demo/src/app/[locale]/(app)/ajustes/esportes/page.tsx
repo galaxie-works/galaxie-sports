@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { RelatedChannels, type ChannelFilter } from '@/components/admin/related-channels';
-import { SettingsNav } from '@/components/admin/settings-nav';
+import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { OpsPanelSkeleton } from '@/components/app-shell/skeletons';
@@ -82,16 +82,17 @@ export default async function SportsFeaturesPage({ searchParams }: PageProps<'/[
     <>
       <PageHeader title={t.ops.features.title} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsNav active="features" />
-        <Suspense
-          fallback={
-            <LoadingStatus>
-              <OpsPanelSkeleton />
-            </LoadingStatus>
-          }
-        >
-          <Panel searchParams={searchParams} />
-        </Suspense>
+        <SettingsArea active="features">
+          <Suspense
+            fallback={
+              <LoadingStatus>
+                <OpsPanelSkeleton />
+              </LoadingStatus>
+            }
+          >
+            <Panel searchParams={searchParams} />
+          </Suspense>
+        </SettingsArea>
       </div>
     </>
   );

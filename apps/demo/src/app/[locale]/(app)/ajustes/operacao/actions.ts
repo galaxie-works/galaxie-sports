@@ -5,6 +5,7 @@
  * a sessão de admin no servidor (o proxy é só a primeira barreira) e revalida o valor pelo registro da
  * flag: o navegador nunca decide o que é válido. Gravação e histórico vão na mesma transação.
  */
+import { revalidateSystem } from '@/lib/ops/revalidate';
 import {
   AI_CREDIT_CHECK,
   isSecret,
@@ -37,7 +38,6 @@ export interface OpsActionResult {
   warning?: string;
 }
 
-const PATH = '/ajustes/sistema';
 const FEATURES_PATH = '/ajustes/esportes';
 /** O mesmo limite do painel: scheduler sem relatar há mais que isto não vai pegar o pedido logo. */
 const ALIVE_MS = 3 * 60_000;
@@ -135,7 +135,7 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   revalidatePath(FEATURES_PATH);
   // a flag do ao vivo vale com o serviço `live` no ar ou, com SCHEDULER_LIVE=internal, com o ingestor
   const alive = (await Promise.all(def.services.map((s) => serviceAlive(s).catch(() => false)))).some(
@@ -175,7 +175,7 @@ export async function saveAiPolicy(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   const alive = await serviceAlive('agents').catch(() => false);
   return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };
 }
@@ -192,7 +192,7 @@ export async function resetAiPolicy(): Promise<OpsActionResult> {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   return { ok: true };
 }
 
@@ -206,7 +206,7 @@ export async function resetSetting(key: string): Promise<OpsActionResult> {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   revalidatePath(FEATURES_PATH);
   return { ok: true };
 }
@@ -264,7 +264,7 @@ export async function saveFeedbackGithub(input: { repo: string; token: string })
     console.error('[feedback] falha ao gravar o ajuste', err instanceof Error ? err.name : 'erro');
     return { ok: false, error: T.save };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   return { ok: true };
 }
 
@@ -288,7 +288,7 @@ export async function clearFeedbackToken(): Promise<OpsActionResult> {
     console.error('[feedback] falha ao apagar o token', err instanceof Error ? err.name : 'erro');
     return { ok: false, error: T.save };
   }
-  revalidatePath(PATH);
+  revalidateSystem();
   return { ok: true };
 }
 
@@ -301,7 +301,7 @@ export async function checkFeedbackProgressNow(): Promise<OpsActionResult> {
   const T = (await texts()).suggestions.progress;
   const { runFeedbackProgress } = await import('@/lib/feedback/progress-sync');
   const out = await runFeedbackProgress();
-  revalidatePath(PATH);
+  revalidateSystem();
   if (out.status === 'ok') return { ok: true };
   if (out.status === 'busy') return { ok: false, error: T.busy };
   if (out.status === 'off') return { ok: false, error: T.off };
@@ -317,7 +317,7 @@ async function enqueue(job: string, by: string, service: string): Promise<OpsAct
   );
   if ((rows[0]?.n ?? 0) > 0) return { ok: false, error: t.errors.alreadyQueued };
   await pool.query('insert into ops.job_request (job, requested_by) values ($1, $2)', [job, by]);
-  revalidatePath(PATH);
+  revalidateSystem();
   revalidatePath(FEATURES_PATH);
   const alive = await serviceAlive(service).catch(() => false);
   return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };

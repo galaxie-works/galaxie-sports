@@ -2,7 +2,7 @@ import { webhookAdminOverview } from '@galaxie/db/webhooks';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { SettingsNav } from '@/components/admin/settings-nav';
+import { SettingsArea } from '@/components/admin/settings-nav';
 import { WebhooksControl } from '@/components/admin/webhooks-control';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -40,21 +40,22 @@ export default async function WebhooksSettingsPage() {
     <>
       <PageHeader title={t.ops.page.title} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsNav active="webhooks" />
-        <Suspense
-          fallback={
-            <LoadingStatus className="grid gap-4 lg:grid-cols-2">
-              <FramePanelSkeleton>
-                <FormSkeleton fields={2} />
-              </FramePanelSkeleton>
-              <FramePanelSkeleton>
-                <TableSkeleton rows={4} />
-              </FramePanelSkeleton>
-            </LoadingStatus>
-          }
-        >
-          <Content />
-        </Suspense>
+        <SettingsArea active="webhooks">
+          <Suspense
+            fallback={
+              <LoadingStatus className="grid gap-4 lg:grid-cols-2">
+                <FramePanelSkeleton>
+                  <FormSkeleton fields={2} />
+                </FramePanelSkeleton>
+                <FramePanelSkeleton>
+                  <TableSkeleton rows={4} />
+                </FramePanelSkeleton>
+              </LoadingStatus>
+            }
+          >
+            <Content />
+          </Suspense>
+        </SettingsArea>
       </div>
     </>
   );

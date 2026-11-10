@@ -6,9 +6,9 @@
  * passam pelo schema do tipo (`@galaxie/db/queue-types`) e a regra da fila é a mesma da CLI
  * (`@galaxie/db/queue-admin`): tipo destrutivo só entra em prévia, e a execução de verdade sai da aprovação.
  */
+import { revalidateSystem } from '@/lib/ops/revalidate';
 import { approvePreview, cancelTask, reprocessTask, requestTask, TaskError } from '@galaxie/db/queue-admin';
 import { coerceParams, taskType } from '@galaxie/db/queue-types';
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { requireAdmin } from '@/lib/auth/admin';
@@ -27,8 +27,6 @@ export interface TaskActionResult {
   /** A criada é prévia. */
   previa?: boolean;
 }
-
-const PATH = '/ajustes/sistema';
 
 const idInput = z.uuid();
 const enqueueInput = z.object({
@@ -69,7 +67,7 @@ export async function enqueueTask(input: EnqueueTaskInput): Promise<TaskActionRe
       previa,
       requestedBy: me.email,
     });
-    revalidatePath(PATH);
+    revalidateSystem();
     return { ok: true, ...created };
   } catch (err) {
     return failure(err);
@@ -91,7 +89,7 @@ export async function cancelTaskAction(id: string): Promise<TaskActionResult> {
   if (!idInput.safeParse(id).success) return { ok: false, error: (await texts()).errors.nao_encontrada };
   try {
     await cancelTask(queueDb(), id, me.email);
-    revalidatePath(PATH);
+    revalidateSystem();
     return { ok: true, id };
   } catch (err) {
     return failure(err);
@@ -103,7 +101,7 @@ export async function reprocessTaskAction(id: string): Promise<TaskActionResult>
   if (!idInput.safeParse(id).success) return { ok: false, error: (await texts()).errors.nao_encontrada };
   try {
     const created = await reprocessTask(queueDb(), id, me.email);
-    revalidatePath(PATH);
+    revalidateSystem();
     return { ok: true, ...created };
   } catch (err) {
     return failure(err);
@@ -117,7 +115,7 @@ export async function approveTaskAction(previewId: string): Promise<TaskActionRe
     return { ok: false, error: (await texts()).errors.nao_encontrada };
   try {
     const created = await approvePreview(queueDb(), previewId, me.email);
-    revalidatePath(PATH);
+    revalidateSystem();
     return { ok: true, id: created.id, previa: false };
   } catch (err) {
     return failure(err);

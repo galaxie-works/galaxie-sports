@@ -7,6 +7,7 @@ import { useState, useTransition, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
+import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
   AlertDialog,
@@ -37,25 +38,9 @@ import { SettingRow, useOpsAction } from './setting-row';
 import { TasksTab } from './tasks-tab';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
-/** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
-export const PANEL_TABS = {
-  system: [
-    'status',
-    'quality',
-    'live',
-    'schedule',
-    'tasks',
-    'ai',
-    'provider',
-    'mirror',
-    'assets',
-    'suggestions',
-    'cosmos',
-    'history',
-  ],
-  features: ['sports', 'related', 'wtw'],
-} as const;
-export type PanelScope = keyof typeof PANEL_TABS;
+import { PANEL_TABS, SYSTEM_VIEWS, type PanelScope, type SystemView } from '@/lib/ops/panel-tabs';
+
+export { PANEL_TABS, SYSTEM_VIEWS, type PanelScope, type SystemView };
 type Tab = (typeof PANEL_TABS)[PanelScope][number];
 
 /** Editadas pelo cartão Política de IA (sliders), fora da lista de flags da seção. */
@@ -74,11 +59,14 @@ export function OpsPanel({
   timeZone,
   scope = 'system',
   initialTab,
+  view,
   relatedChannels,
 }: Ctx & {
   scope?: PanelScope;
   /** Aba aberta ao chegar (ex.: `?aba=related` da busca de canais). */
   initialTab?: string;
+  /** Área do Sistema no menu de Ajustes: as seções dela empilhadas, sem abas. */
+  view?: SystemView;
   /** Controle dos canais nos vídeos relacionados (renderizado no servidor, com a busca e o filtro da URL). */
   relatedChannels?: ReactNode;
 }) {
@@ -89,6 +77,131 @@ export function OpsPanel({
   const [refreshing, startRefresh] = useTransition();
   const tabs: readonly Tab[] = PANEL_TABS[scope];
   const [tab, setTab] = useState<Tab>(tabs.find((id) => id === initialTab) ?? tabs[0]!);
+
+  // o que cada área mostra: em abas (Esportes e features) ou empilhado, uma seção por área (Ajustes do Sistema, #1001)
+  const content: Record<Tab, ReactNode> = {
+    status: (
+      <>
+        <StatusTab snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    quality: (
+      <>
+        <QualityTab
+          quality={snapshot.quality}
+          timeZone={timeZone}
+          action={(() => {
+            const job = snapshot.jobs.find((j) => j.name === 'data-quality');
+            return job ? <RunNowButton job={job} /> : null;
+          })()}
+        />
+      </>
+    ),
+    ai: (
+      <>
+        <AiPolicyCard
+          key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
+          llm={snapshot.llm}
+        />
+        <SectionCard
+          section="ai"
+          filter={(key) => !AI_POLICY_KEYS.has(key)}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+      </>
+    ),
+    related: (
+      <>
+        {snapshot.youtube ? (
+          <>
+            <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} />
+            <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
+          </>
+        ) : null}
+        {relatedChannels}
+        <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    sports: (
+      <>
+        <SectionCard
+          section="provider"
+          variant="sports"
+          filter={isSportPlan}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+      </>
+    ),
+    schedule: (
+      <>
+        <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    tasks: (
+      <>
+        <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />
+      </>
+    ),
+    provider: (
+      <>
+        <SectionCard
+          section="provider"
+          filter={(key) => !isSportPlan(key)}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+        <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    mirror: (
+      <>
+        <MirrorTab snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    suggestions: (
+      <>
+        {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
+        <SectionCard
+          section="feedback"
+          filter={(key) => key === 'FEEDBACK_ENABLED'}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+        <FeedbackGithubCard
+          key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+      </>
+    ),
+    history: (
+      <>
+        <HistoryTab snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    live: (
+      <>
+        <SectionCard section="live" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    wtw: (
+      <>
+        <SectionCard section="wtw" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    assets: (
+      <>
+        <SectionCard section="assets" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    cosmos: (
+      <>
+        <SectionCard section="cosmos" snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,99 +224,30 @@ export function OpsPanel({
           </Button>
         </div>
       </div>
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="h-auto flex-wrap justify-start">
-          {tabs.map((id) => (
-            <TabsTrigger key={id} value={id}>
-              {T.tabs[id]}
-            </TabsTrigger>
+      {view ? (
+        <div className="flex flex-col gap-8">
+          {SYSTEM_VIEWS[view].map((id) => (
+            <SettingsSection key={id} title={T.tabs[id]}>
+              <div className="flex flex-col gap-4">{content[id]}</div>
+            </SettingsSection>
           ))}
-        </TabsList>
-        <TabsContent value="status" className="mt-4">
-          <StatusTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="quality" className="mt-4">
-          <QualityTab
-            quality={snapshot.quality}
-            timeZone={timeZone}
-            action={(() => {
-              const job = snapshot.jobs.find((j) => j.name === 'data-quality');
-              return job ? <RunNowButton job={job} /> : null;
-            })()}
-          />
-        </TabsContent>
-        {(['live', 'wtw', 'assets', 'cosmos'] as const).map((s) => (
-          <TabsContent key={s} value={s} className="mt-4">
-            <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
-          </TabsContent>
-        ))}
-        <TabsContent value="ai" className="mt-4 flex flex-col gap-4">
-          <AiPolicyCard
-            key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
-            llm={snapshot.llm}
-          />
-          <SectionCard
-            section="ai"
-            filter={(key) => !AI_POLICY_KEYS.has(key)}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="related" className="mt-4 flex flex-col gap-4">
-          {snapshot.youtube ? (
-            <>
-              <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} />
-              <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
-            </>
-          ) : null}
-          {relatedChannels}
-          <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="sports" className="mt-4">
-          <SectionCard
-            section="provider"
-            variant="sports"
-            filter={isSportPlan}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="schedule" className="mt-4">
-          <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="tasks" className="mt-4">
-          <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />
-        </TabsContent>
-        <TabsContent value="provider" className="mt-4 flex flex-col gap-4">
-          <SectionCard
-            section="provider"
-            filter={(key) => !isSportPlan(key)}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-          <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="mirror" className="mt-4">
-          <MirrorTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="suggestions" className="mt-4 flex flex-col gap-4">
-          {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
-          <SectionCard
-            section="feedback"
-            filter={(key) => key === 'FEEDBACK_ENABLED'}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-          <FeedbackGithubCard
-            key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="history" className="mt-4">
-          <HistoryTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-      </Tabs>
+        </div>
+      ) : (
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+          <TabsList className="h-auto flex-wrap justify-start">
+            {tabs.map((id) => (
+              <TabsTrigger key={id} value={id}>
+                {T.tabs[id]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {tabs.map((id) => (
+            <TabsContent key={id} value={id} className="mt-4 flex flex-col gap-4">
+              {content[id]}
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
     </div>
   );
 }

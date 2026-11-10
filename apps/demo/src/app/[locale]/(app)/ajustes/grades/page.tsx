@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { SettingsNav } from '@/components/admin/settings-nav';
+import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
@@ -101,17 +101,18 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
       <PageHeader title={t.lineup.admin.title} kind="ajustes" />
       {/* Container padrão do app-shell (alinhado à esquerda, largura toda): a tabela da revisão é larga. */}
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
-        <SettingsNav active="lineup" />
-        <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
-        <Suspense
-          fallback={
-            <LoadingStatus>
-              <ToolbarTableSkeleton toolbar="tabs" />
-            </LoadingStatus>
-          }
-        >
-          <Content searchParams={searchParams} />
-        </Suspense>
+        <SettingsArea active="lineup">
+          <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
+          <Suspense
+            fallback={
+              <LoadingStatus>
+                <ToolbarTableSkeleton toolbar="tabs" />
+              </LoadingStatus>
+            }
+          >
+            <Content searchParams={searchParams} />
+          </Suspense>
+        </SettingsArea>
       </div>
     </>
   );

@@ -1,6 +1,14 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 
-/** O painel de Operação virou Ajustes → Sistema (e o que é por esporte ou feature, Esportes e features). */
-export default function OperationsRedirect() {
-  redirect('/ajustes/sistema');
+import { OpsViewPage } from '@/components/admin/ops-view-page';
+import { getT } from '@/lib/i18n/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t.ops.nav.operation };
+}
+
+/** Ajustes → Plataforma → Operação (#1001): as seções dela empilhadas, sem abas. */
+export default function Page() {
+  return <OpsViewPage view="operation" active="operation" />;
 }
