@@ -104,11 +104,19 @@ export async function answerableNotice(
   return row ? { repo: row.repo, issue: row.issue_number } : null;
 }
 
-export async function markAnswered(userId: string, id: string): Promise<void> {
-  await pool.query(
-    'update notification set answered_at = now(), read_at = coalesce(read_at, now()) where id = $1 and user_id = $2',
+/** Reserva a resposta (atômico): `false` se outra chamada já respondeu. */
+export async function reserveAnswer(userId: string, id: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `update notification set answered_at = now(), read_at = coalesce(read_at, now())
+      where id = $1 and user_id = $2 and answered_at is null`,
     [id, userId],
   );
+  return (rowCount ?? 0) > 0;
+}
+
+/** Desfaz a reserva quando o comentário não saiu. */
+export async function releaseAnswer(userId: string, id: string): Promise<void> {
+  await pool.query('update notification set answered_at = null where id = $1 and user_id = $2', [id, userId]);
 }
 
 /** No envio: a issue é deste usuário (o job não precisa adivinhar pela referência opaca). */
@@ -223,10 +231,11 @@ export async function saveProgressRun(run: {
   notices: number;
 }): Promise<void> {
   await pool.query(
+    // ok_at = início da conferência: o que aconteceu durante ela entra na próxima (since de issue nova)
     `insert into feedback_progress_run (id, started_at, finished_at, ok_at, error, issues, notices)
-     values (1, $1, now(), case when $2 then now() end, $3, $4, $5)
+     values (1, $1, now(), case when $2 then $1::timestamptz end, $3, $4, $5)
      on conflict (id) do update set started_at = excluded.started_at, finished_at = now(),
-       ok_at = case when $2 then now() else feedback_progress_run.ok_at end,
+       ok_at = case when $2 then $1::timestamptz else feedback_progress_run.ok_at end,
        error = excluded.error, issues = excluded.issues, notices = excluded.notices`,
     [run.startedAt, run.ok, run.error, run.issues, run.notices],
   );

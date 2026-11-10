@@ -56,6 +56,8 @@ export function replyText(body: string | null | undefined): string | null {
 /** Referência opaca de quem enviou, lida só na tabela de detalhes da ficha. */
 export function issueUserRef(body: string | null | undefined): string | null {
   if (!body?.includes(APP_ISSUE_MARKER)) return null;
+  // a issue editada no site do GitHub volta com \r\n
+  body = body.replace(/\r\n?/g, '\n');
   const at = body.lastIndexOf(`\n### ${FEEDBACK_ISSUE_TEXT.details}\n`);
   if (at < 0) return null;
   const row = new RegExp(`^\\| ${FEEDBACK_ISSUE_TEXT.user} \\| \`(u_[0-9a-f]{12})\` \\|$`, 'm');
@@ -105,14 +107,17 @@ export function issueProgress(
   since: string,
 ): ProgressResult {
   const from = state.cursor ?? since;
-  const sorted = [...items].sort((a, b) => a.at.localeCompare(b.at));
-  const fresh = sorted.filter((i) => i.at > from);
+  // por instante, não por texto: o GitHub manda `…30Z` e o banco devolve `…30.000Z` (e `Z` > `.` no texto)
+  const t = (iso: string) => Date.parse(iso);
+  const fromT = t(from);
+  const sorted = [...items].sort((a, b) => t(a.at) - t(b.at));
+  const fresh = sorted.filter((i) => t(i.at) > fromT);
   const unknown: string[] = [];
   // primeira vez: a coluna de partida é a última conhecida antes de `since` (o que é velho não avisa)
   const baseline =
     state.cursor === null
       ? (sorted
-          .filter((i) => i.kind === 'status' && i.at <= from)
+          .filter((i) => i.kind === 'status' && t(i.at) <= fromT)
           .map((i) => statusKey(i.value))
           .filter((k): k is FeedbackStatus => k !== null)
           .at(-1) ?? state.status)
@@ -125,7 +130,8 @@ export function issueProgress(
     if (item.kind === 'status') {
       const key = statusKey(item.value);
       if (!key) {
-        if (item.value) unknown.push(item.value);
+        // sem nome = o GitHub escondeu a coluna (permissão do token): também vai para o log
+        unknown.push(item.value || '(coluna sem nome)');
         continue;
       }
       if (key !== status) statusItem = item;
@@ -139,7 +145,7 @@ export function issueProgress(
   const last = fresh.at(-1);
   const next: IssueProgressState = { status, cursor: last?.at ?? from };
   if (!changed && !replies.length) return { notice: null, next, unknown };
-  const sources = [...replies, ...(changed ? [statusItem!] : [])].sort((a, b) => a.at.localeCompare(b.at));
+  const sources = [...replies, ...(changed ? [statusItem!] : [])].sort((a, b) => t(a.at) - t(b.at));
   const newest = sources.at(-1)!;
   const body = replies.length
     ? replies

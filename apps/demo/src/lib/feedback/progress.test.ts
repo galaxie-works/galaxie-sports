@@ -65,6 +65,10 @@ describe('issueUserRef', () => {
     expect(issueUserRef(body(forged))).toBe('u_0123456789ab');
   });
 
+  it('issue editada no site do GitHub (\\r\\n) mantém o dono', () => {
+    expect(issueUserRef(body('Mensagem').replace(/\n/g, '\r\n'))).toBe('u_0123456789ab');
+  });
+
   it('issue que não veio do app não tem dono', () => {
     expect(issueUserRef('| Usuário | `u_0123456789ab` |')).toBeNull();
   });
@@ -111,6 +115,15 @@ describe('issueProgress', () => {
     const items = [cm('c', '2026-11-05T09:00:00Z', '/responder Em qual tela?')];
     const r = issueProgress(items, { status: 'needsInfo', cursor: '2026-11-04T10:00:00Z' }, SINCE);
     expect(r.notice).toMatchObject({ status: null, body: 'Em qual tela?', source: 'c' });
+  });
+
+  it('cursor do banco (com milissegundos) não relê o último item nem repete a resposta', () => {
+    const items = [
+      cm('c', '2026-11-05T09:00:30Z', '/responder Pode mandar um print?'),
+      st('s', '2026-11-06T10:00:00Z', 'Em desenvolvimento'),
+    ];
+    const r = issueProgress(items, { status: 'needsInfo', cursor: '2026-11-05T09:00:30.000Z' }, SINCE);
+    expect(r.notice).toMatchObject({ status: 'inProgress', body: null, source: 's' });
   });
 
   it('o que já foi lido não avisa de novo', () => {

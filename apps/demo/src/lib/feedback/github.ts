@@ -135,13 +135,13 @@ export class FeedbackGithub {
       cache: 'no-store',
     });
     const out = await this.json<{ data?: T; errors?: { message?: string }[] }>(res, 'graphql');
-    if (!out.data) {
-      const detail = (out.errors ?? [])
-        .map((e) => e.message)
-        .join('; ')
-        .slice(0, 300);
-      throw new FeedbackGithubError('http', `graphql: ${detail || 'sem dados'}`);
-    }
+    const detail = (out.errors ?? [])
+      .map((e) => e.message)
+      .join('; ')
+      .slice(0, 300);
+    if (!out.data) throw new FeedbackGithubError('http', `graphql: ${detail || 'sem dados'}`);
+    // resposta parcial (campo negado ao token): segue com o que veio, mas fica no log
+    if (detail) console.warn('[feedback] graphql respondeu com erros parciais:', detail);
     return out.data;
   }
 

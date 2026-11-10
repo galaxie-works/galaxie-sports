@@ -14,7 +14,14 @@ import { FEEDBACK_MESSAGE_MAX, FEEDBACK_MESSAGE_MIN } from '@/lib/feedback/rules
 import { readFeedbackSettings } from '@/lib/feedback/settings-db';
 import { FEEDBACK_ISSUE_TEXT } from '@/lib/i18n/messages/feedback-issue';
 
-import { answerableNotice, markAnswered, markInboxRead, readInbox, type Inbox } from './store';
+import {
+  answerableNotice,
+  markInboxRead,
+  readInbox,
+  releaseAnswer,
+  reserveAnswer,
+  type Inbox,
+} from './store';
 
 /** Cada resposta vira comentário: o mesmo teto do envio de sugestões, num contador próprio. */
 const limiter = new FeedbackLimiter();
@@ -81,6 +88,17 @@ export async function answerNotice(id: string, text: string): Promise<{ ok: bool
 
   const at = Date.now();
   if (!limiter.take(userId, at)) return { ok: false, error: 'limited' };
+  // reserva antes de comentar: duplo clique ou duas abas não viram dois comentários
+  try {
+    if (!(await reserveAnswer(userId, id))) {
+      limiter.release(userId, at);
+      return { ok: false, error: 'closed' };
+    }
+  } catch (err) {
+    limiter.release(userId, at);
+    console.error('[inbox] falha ao reservar a resposta', err instanceof Error ? err.name : err);
+    return { ok: false, error: 'unavailable' };
+  }
   try {
     const gh = new FeedbackGithub(settings.config);
     await gh.ensurePrivate();
@@ -90,14 +108,11 @@ export async function answerNotice(id: string, text: string): Promise<{ ok: bool
         '\n',
       ),
     );
-    // o comentário já saiu: falhar aqui não pode virar "tente de novo" (repetiria o comentário)
-    await markAnswered(userId, id).catch((err) =>
-      console.error('[inbox] resposta enviada, aviso não marcado', err instanceof Error ? err.name : err),
-    );
     console.info('[inbox] resposta enviada', JSON.stringify({ user: userId, issue: target.issue }));
     return { ok: true };
   } catch (err) {
     limiter.release(userId, at);
+    await releaseAnswer(userId, id).catch(() => {});
     console.error(
       '[inbox] falha ao enviar a resposta',
       err instanceof Error ? err.message.slice(0, 200) : err,

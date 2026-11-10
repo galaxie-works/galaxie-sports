@@ -84,8 +84,11 @@ const toItems = (issue: IssueNode): TimelineItem[] =>
     return [];
   });
 
-/** Uma conferência completa. `now` só para teste. */
-export async function runFeedbackProgress(now = new Date()): Promise<ProgressOutcome> {
+/** Uma conferência completa (`scheduled`: a do relógio, que não repete no mesmo dia). */
+export async function runFeedbackProgress(
+  opts: { scheduled?: boolean } = {},
+  now = new Date(),
+): Promise<ProgressOutcome> {
   const settings = await readFeedbackSettings();
   const secret = process.env.BETTER_AUTH_SECRET;
   if (!settings.enabled || !settings.config || !secret) return { status: 'off' };
@@ -96,6 +99,8 @@ export async function runFeedbackProgress(now = new Date()): Promise<ProgressOut
     locked = (await lock.query<{ ok: boolean }>('select pg_try_advisory_lock($1) as ok', [PROGRESS_LOCK]))
       .rows[0]!.ok;
     if (!locked) return { status: 'busy' };
+    // rodada do relógio: outro contêiner pode ter acabado de rodar entre a olhada e a trava
+    if (opts.scheduled && !progressDue(await readProgressRun(), now)) return { status: 'busy' };
     const startedAt = new Date();
     try {
       const result = await syncAll(new FeedbackGithub(settings.config), secret, now);
@@ -168,6 +173,8 @@ async function syncAll(gh: FeedbackGithub, secret: string, now: Date) {
     }
     if (!conn.pageInfo.hasNextPage) break;
     after = conn.pageInfo.endCursor;
+    if (page === MAX_PAGES - 1)
+      console.warn(`[feedback] parou em ${MAX_PAGES} páginas: as issues mais antigas não foram conferidas`);
   }
   if (unknown.size)
     console.warn('[feedback] colunas que o app não conhece (sem aviso):', JSON.stringify([...unknown]));
@@ -198,7 +205,7 @@ export function startFeedbackProgress(): void {
   if (globalThis.__galaxieFeedbackProgress || process.env.FEEDBACK_PROGRESS === 'off') return;
   const tick = async () => {
     try {
-      if (progressDue(await readProgressRun(), new Date())) await runFeedbackProgress();
+      if (progressDue(await readProgressRun(), new Date())) await runFeedbackProgress({ scheduled: true });
     } catch (err) {
       console.error('[feedback] relógio do andamento', err instanceof Error ? err.message : err);
     }
