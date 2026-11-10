@@ -1,5 +1,5 @@
 {
-  "id": "c78f7968-098f-4aa2-9c31-46f99165e821",
+  "id": "4811933b-50da-4cb8-8ca4-4b21fa140945",
   "prevId": "86da5242-4833-4887-a36e-2f9ab7d19649",
   "version": "7",
   "dialect": "postgresql",
@@ -17222,6 +17222,24 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "credit_usd": {
+          "name": "credit_usd",
+          "type": "numeric(18, 10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "multiplier": {
+          "name": "multiplier",
+          "type": "numeric(8, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_credits": {
+          "name": "min_credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
         },
         "status": {
           "name": "status",

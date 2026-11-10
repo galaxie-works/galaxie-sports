@@ -27,6 +27,11 @@ reserve ──► chama o modelo ──► settle (valor real)
 Créditos cobrados = maior entre (custo real × multiplicador ÷ valor do crédito) e o mínimo da função (`creditsFor`),
 arredondado para cima na terceira casa.
 
+A reserva grava o preço daquele momento (valor do crédito, multiplicador do tenant e mínimo da função), e o `settle` usa só
+esse instantâneo: mudar qualquer um deles no meio da chamada não muda o preço dela. Repetir o `settle` de uma reserva
+já acertada devolve o mesmo acerto (`replayed`), sem cobrar de novo; repetir o `release` não devolve duas vezes. Reserva
+devolvida ou vencida pelo `releaseExpired` não acerta mais (`reservation_closed`).
+
 ## Configuração
 
 | Onde | O quê |

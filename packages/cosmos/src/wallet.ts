@@ -136,6 +136,9 @@ export interface Reservation {
 /**
  * Reserva créditos antes de chamar o modelo. Recusa (CosmosError) sem carteira, com a carteira bloqueada,
  * sem saldo, com função desconhecida ou com o teto de segurança do dia alcançado.
+ *
+ * Grava na reserva o preço daquele momento (valor do crédito, multiplicador do tenant e mínimo da função):
+ * o acerto usa só esse instantâneo, então mudar qualquer um deles no meio da chamada não muda o preço dela.
  */
 export async function reserve(
   db: Database,
@@ -153,13 +156,16 @@ export async function reserve(
   const estimate = input.estimatedCredits ?? 0;
   if (!Number.isFinite(estimate) || estimate < 0)
     throw new CosmosError('invalid_amount', 'estimativa de créditos inválida');
-  const credits = ceilCredits(Math.max(estimate, fn.minCredits));
+  const minCredits = ceilCredits(fn.minCredits);
+  const credits = ceilCredits(Math.max(estimate, minCredits));
 
   const settings = options.settings ?? (await readCosmosSettings(db));
+  // teto brando: duas reservas no limite podem passar juntas um pouco dele; é rede de segurança, não cobrança
   if (settings.dailyUsdCeiling !== null && (await spentTodayUsd(db, now)) >= settings.dailyUsdCeiling)
     throw new CosmosError('safety_ceiling', 'teto de segurança da Cosmos alcançado hoje');
 
   const ttl = input.ttlSeconds ?? DEFAULT_RESERVATION_TTL_SECONDS;
+  if (!Number.isFinite(ttl) || ttl <= 0) throw new CosmosError('invalid_amount', 'prazo da reserva inválido');
   const expiresAt = new Date(now.getTime() + ttl * 1000);
 
   return db.transaction(async (tx) => {
@@ -174,7 +180,7 @@ export async function reserve(
       .where(
         and(eq(wallet.tenantId, input.tenantId), eq(wallet.status, 'active'), gte(wallet.available, credits)),
       )
-      .returning({ available: wallet.available });
+      .returning({ available: wallet.available, multiplier: wallet.multiplier });
     if (!updated) {
       const w = await getWallet(tx, input.tenantId);
       if (!w) throw new CosmosError('no_wallet', 'o tenant ainda não ligou a Cosmos');
@@ -189,6 +195,9 @@ export async function reserve(
         credits,
         scope: input.scope ?? null,
         userId: input.userId ?? null,
+        creditUsd: settings.creditUsd,
+        multiplier: updated.multiplier,
+        minCredits,
         expiresAt,
         createdAt: now,
       })
@@ -207,9 +216,9 @@ export async function reserve(
 export interface SettleInput {
   tenantId: string;
   reservationId: string;
-  /** Custo real no provedor, em US$ (convertido pelo valor do crédito e pelo multiplicador). */
+  /** Custo real no provedor, em US$ (convertido pelo preço gravado na reserva). */
   costUsd?: number | null;
-  /** Créditos fixos, no lugar da conversão do custo (ainda respeita o mínimo da função). */
+  /** Créditos fixos, no lugar da conversão do custo (ainda respeita o mínimo gravado na reserva). */
   credits?: number;
   tokensIn?: number | null;
   tokensCached?: number | null;
@@ -225,17 +234,44 @@ export interface Settlement {
   charged: number;
   /** O que passou do saldo livre e não foi cobrado (o saldo nunca fica negativo). */
   uncharged: number;
+  /** Saldo livre logo depois do acerto. */
   available: number;
+  /** true quando a reserva já estava acertada e esta chamada só devolveu o acerto anterior. */
+  replayed: boolean;
+}
+
+const reservationColumns = {
+  status: reservation.status,
+  credits: reservation.credits,
+  functionName: reservation.functionName,
+  scope: reservation.scope,
+  userId: reservation.userId,
+  creditUsd: reservation.creditUsd,
+  multiplier: reservation.multiplier,
+  minCredits: reservation.minCredits,
+};
+
+async function lockReservation(tx: Tx, tenantId: string, reservationId: string) {
+  const [r] = await tx
+    .select(reservationColumns)
+    .from(reservation)
+    .where(and(eq(reservation.id, reservationId), eq(reservation.tenantId, tenantId)))
+    .for('update');
+  return r ?? null;
 }
 
 /**
- * Acerta a reserva pelo valor real: devolve a sobra ou cobra a diferença, até o saldo livre. Um lançamento
- * de uso no extrato (na moderação, um por lote). Reserva já fechada é recusada (`reservation_closed`).
+ * Acerta a reserva pelo valor real, com o preço gravado nela: devolve a sobra ou cobra a diferença, até o
+ * saldo livre. Um lançamento de uso no extrato (na moderação, um por lote).
+ *
+ * Idempotente: repetir o acerto de uma reserva já acertada (a resposta se perdeu na rede) devolve o mesmo
+ * acerto, sem cobrar de novo (`replayed`). Reserva devolvida ou vencida pelo `releaseExpired` é recusada
+ * (`reservation_closed`): o saldo dela já voltou. Reserva aberta depois do prazo ainda acerta normalmente.
  */
 export async function settle(
   db: Database,
   input: SettleInput,
-  options: ReserveOptions = {},
+  options: { now?: Date } = {},
 ): Promise<Settlement> {
   const now = options.now ?? new Date();
   // custo inválido (NaN, Infinity, negativo) não pode virar crédito nem entrar no teto do dia
@@ -247,43 +283,37 @@ export async function settle(
     throw new CosmosError('invalid_amount', 'custo real inválido');
   if (input.credits !== undefined && (!Number.isFinite(input.credits) || input.credits < 0))
     throw new CosmosError('invalid_amount', 'créditos do acerto inválidos');
-  const settings = options.settings ?? (await readCosmosSettings(db));
   return db.transaction(async (tx) => {
-    const [r] = await tx
-      .select({
-        credits: reservation.credits,
-        functionName: reservation.functionName,
-        scope: reservation.scope,
-        userId: reservation.userId,
-      })
-      .from(reservation)
-      .where(
-        and(
-          eq(reservation.id, input.reservationId),
-          eq(reservation.tenantId, input.tenantId),
-          eq(reservation.status, 'open'),
-        ),
-      )
-      .for('update');
-    if (!r) throw new CosmosError('reservation_closed', 'reserva inexistente ou já fechada');
+    const r = await lockReservation(tx, input.tenantId, input.reservationId);
+    if (!r) throw new CosmosError('reservation_closed', 'reserva inexistente ou de outro tenant');
+    if (r.status === 'settled') {
+      const [prev] = await tx
+        .select({
+          id: ledger.id,
+          credits: ledger.credits,
+          after: ledger.balanceAfter,
+          metadata: ledger.metadata,
+        })
+        .from(ledger)
+        .where(and(eq(ledger.reservationId, input.reservationId), eq(ledger.kind, 'usage')));
+      if (!prev) throw new CosmosError('reservation_closed', 'reserva acertada sem lançamento');
+      const uncharged = Number((prev.metadata as { uncharged?: number } | null)?.uncharged ?? 0);
+      return { ledgerId: prev.id, charged: -prev.credits, uncharged, available: prev.after, replayed: true };
+    }
+    if (r.status !== 'open') throw new CosmosError('reservation_closed', 'reserva já devolvida ou vencida');
 
     const w = await lockWallet(tx, input.tenantId);
     if (!w) throw new CosmosError('no_wallet', 'carteira sumiu com a reserva aberta');
-    const [fn] = await tx
-      .select({ minCredits: functionDef.minCredits })
-      .from(functionDef)
-      .where(eq(functionDef.name, r.functionName));
-    // função removida do catálogo com a reserva aberta: vale o que foi reservado
-    const minCredits = fn?.minCredits ?? r.credits;
 
+    // só o instantâneo da reserva: nada de reler flags, multiplicador ou catálogo aqui
     const target =
       input.credits !== undefined
-        ? Math.max(ceilCredits(input.credits), ceilCredits(minCredits))
+        ? Math.max(ceilCredits(input.credits), r.minCredits)
         : creditsFor({
             costUsd: input.costUsd ?? null,
-            multiplier: w.multiplier,
-            creditUsd: settings.creditUsd,
-            minCredits,
+            multiplier: r.multiplier,
+            creditUsd: r.creditUsd,
+            minCredits: r.minCredits,
           });
 
     // o que estaria livre se a reserva voltasse inteira
@@ -326,30 +356,30 @@ export async function settle(
       .update(reservation)
       .set({ status: 'settled', chargedCredits: charged, closedAt: now })
       .where(eq(reservation.id, input.reservationId));
-    return { ledgerId: entry!.id, charged, uncharged, available };
+    return { ledgerId: entry!.id, charged, uncharged, available, replayed: false };
   });
 }
 
-/** Devolve a reserva inteira (a chamada falhou ou foi cancelada). Sem lançamento no extrato. */
+/**
+ * Devolve a reserva inteira (a chamada falhou ou foi cancelada). Sem lançamento no extrato.
+ *
+ * Idempotente: devolver de novo uma reserva já devolvida ou vencida não devolve duas vezes (`released`
+ * false). Reserva já acertada é recusada (`reservation_closed`): o uso já foi cobrado.
+ */
 export async function release(
   db: Database,
   input: { tenantId: string; reservationId: string },
   options: { now?: Date; status?: 'released' | 'expired' } = {},
-): Promise<{ available: number }> {
+): Promise<{ available: number; released: boolean }> {
   const now = options.now ?? new Date();
   return db.transaction(async (tx) => {
-    const [r] = await tx
-      .select({ credits: reservation.credits })
-      .from(reservation)
-      .where(
-        and(
-          eq(reservation.id, input.reservationId),
-          eq(reservation.tenantId, input.tenantId),
-          eq(reservation.status, 'open'),
-        ),
-      )
-      .for('update');
-    if (!r) throw new CosmosError('reservation_closed', 'reserva inexistente ou já fechada');
+    const r = await lockReservation(tx, input.tenantId, input.reservationId);
+    if (!r) throw new CosmosError('reservation_closed', 'reserva inexistente ou de outro tenant');
+    if (r.status === 'settled') throw new CosmosError('reservation_closed', 'reserva já acertada');
+    if (r.status !== 'open') {
+      const w = await getWallet(tx, input.tenantId);
+      return { available: w?.available ?? 0, released: false };
+    }
     const [w] = await tx
       .update(wallet)
       .set({
@@ -363,7 +393,7 @@ export async function release(
       .update(reservation)
       .set({ status: options.status ?? 'released', chargedCredits: 0, closedAt: now })
       .where(eq(reservation.id, input.reservationId));
-    return { available: w?.available ?? 0 };
+    return { available: w?.available ?? 0, released: true };
   });
 }
 
@@ -377,10 +407,14 @@ export async function releaseExpired(db: Database, now: Date = new Date(), limit
   let released = 0;
   for (const r of stale) {
     try {
-      await release(db, { tenantId: r.tenantId, reservationId: r.id }, { now, status: 'expired' });
-      released += 1;
+      const result = await release(
+        db,
+        { tenantId: r.tenantId, reservationId: r.id },
+        { now, status: 'expired' },
+      );
+      if (result.released) released += 1;
     } catch (e) {
-      // fechada por outro processo entre a leitura e a trava: nada a devolver
+      // acertada por outro processo entre a leitura e a trava: nada a devolver
       if (!(e instanceof CosmosError && e.code === 'reservation_closed')) throw e;
     }
   }

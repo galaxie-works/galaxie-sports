@@ -7,6 +7,7 @@ import {
   runMigrations,
   tenant,
   wallet,
+  writeRuntimeSetting,
   type Database,
 } from '@galaxie/db';
 import { asc, eq } from 'drizzle-orm';
@@ -102,7 +103,7 @@ describe('carteira da Cosmos', () => {
     await Promise.all(
       reservations.map((r, i) =>
         i % 2 === 0
-          ? settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.015 }, { settings })
+          ? settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.015 })
           : release(db, { tenantId: t, reservationId: r.id }),
       ),
     );
@@ -123,16 +124,18 @@ describe('carteira da Cosmos', () => {
       { settings },
     );
     // custo real 0,025 → 2,5 créditos: devolve 1,5 da reserva
-    const s1 = await settle(
-      db,
-      { tenantId: t, reservationId: r1.id, costUsd: 0.025, tokensIn: 900, model: 'm' },
-      { settings },
-    );
+    const s1 = await settle(db, {
+      tenantId: t,
+      reservationId: r1.id,
+      costUsd: 0.025,
+      tokensIn: 900,
+      model: 'm',
+    });
     expect(s1).toMatchObject({ charged: 2.5, uncharged: 0, available: 2.5 });
 
     const r2 = await reserve(db, { tenantId: t, functionName: 'assistant.ask' }, { settings });
     // custo real bem acima do que sobra: cobra só até o saldo, o resto fica registrado
-    const s2 = await settle(db, { tenantId: t, reservationId: r2.id, costUsd: 0.1 }, { settings });
+    const s2 = await settle(db, { tenantId: t, reservationId: r2.id, costUsd: 0.1 });
     expect(s2).toMatchObject({ charged: 2.5, uncharged: 7.5, available: 0 });
 
     const rows = await db.select().from(ledger).where(eq(ledger.tenantId, t)).orderBy(asc(ledger.id));
@@ -142,10 +145,13 @@ describe('carteira da Cosmos', () => {
       ['usage', -2.5, 2.5, 0],
     ]);
     expect(rows[2]!.metadata).toMatchObject({ uncharged: 7.5 });
-    await expectCode(
-      settle(db, { tenantId: t, reservationId: r2.id, costUsd: 0.01 }, { settings }),
-      'reservation_closed',
-    );
+    // repetir o acerto devolve o mesmo resultado, sem cobrar de novo
+    await expect(settle(db, { tenantId: t, reservationId: r2.id, costUsd: 0.01 })).resolves.toMatchObject({
+      charged: 2.5,
+      uncharged: 7.5,
+      replayed: true,
+    });
+    expect((await getWallet(db, t))?.available).toBe(0);
   });
 
   it('multiplicador do tenant entra na conversão', async () => {
@@ -153,7 +159,7 @@ describe('carteira da Cosmos', () => {
     await addEntry(db, { tenantId: t, kind: 'purchase', credits: 20 });
     await setWalletMultiplier(db, t, 2);
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
-    const s = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.03 }, { settings });
+    const s = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.03 });
     expect(s.charged).toBe(6);
   });
 
@@ -196,7 +202,7 @@ describe('carteira da Cosmos', () => {
       { tenantId: t, functionName: 'moderation.batch' },
       { settings: capped, now: day },
     );
-    await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.05 }, { settings: capped, now: day });
+    await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.05 }, { now: day });
     await expectCode(
       reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings: capped, now: day }),
       'safety_ceiling',
@@ -230,7 +236,7 @@ describe('carteira da Cosmos', () => {
     await addEntry(db, { tenantId: t, kind: 'purchase', credits: 30 });
     for (const scope of ['chat:a', 'chat:a', 'chat:b']) {
       const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch', scope }, { settings });
-      await settle(db, { tenantId: t, reservationId: r.id }, { settings });
+      await settle(db, { tenantId: t, reservationId: r.id });
     }
     const page1 = await listLedger(db, t, { limit: 2 });
     expect(page1.entries).toHaveLength(2);
@@ -273,18 +279,95 @@ describe('carteira da Cosmos', () => {
     await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
     const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
     for (const costUsd of [Number.NaN, Number.POSITIVE_INFINITY, -0.01])
-      await expectCode(
-        settle(db, { tenantId: t, reservationId: r.id, costUsd }, { settings }),
-        'invalid_amount',
-      );
+      await expectCode(settle(db, { tenantId: t, reservationId: r.id, costUsd }), 'invalid_amount');
     // a reserva continua aberta e pode ser acertada com o valor certo
-    await expect(
-      settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.01 }, { settings }),
-    ).resolves.toMatchObject({
+    await expect(settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.01 })).resolves.toMatchObject({
       charged: 1,
     });
     const { entries } = await listLedger(db, t, { kinds: ['usage'] });
     expect(entries.map((e) => e.costUsd)).toEqual([0.01]);
+  });
+
+  it('o preço fica gravado na reserva: mudar o valor do crédito, o multiplicador ou o mínimo no meio não muda a chamada', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 100 });
+    await upsertFunctionDef(db, { name: 'snapshot.fn', minCredits: 1, permission: 'cosmos.test' });
+    // reserva lendo as flags do banco (sem `settings`), com o crédito a US$ 0,01
+    await writeRuntimeSetting(db, {
+      key: 'COSMOS_CREDIT_USD',
+      value: '0.01',
+      valueType: 'number',
+      by: 'teste',
+    });
+    const r = await reserve(db, { tenantId: t, functionName: 'snapshot.fn' });
+    // tudo muda antes do acerto
+    await writeRuntimeSetting(db, {
+      key: 'COSMOS_CREDIT_USD',
+      value: '0.001',
+      valueType: 'number',
+      by: 'teste',
+    });
+    await setWalletMultiplier(db, t, 5);
+    await upsertFunctionDef(db, { name: 'snapshot.fn', minCredits: 50, permission: 'cosmos.test' });
+    // 0,03 ÷ 0,01 × 1 = 3 créditos, como no momento da reserva (não 0,03 ÷ 0,001 × 5 = 150, nem o mínimo 50)
+    const s = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.03 });
+    expect(s.charged).toBe(3);
+    await writeRuntimeSetting(db, {
+      key: 'COSMOS_CREDIT_USD',
+      value: null,
+      valueType: 'number',
+      by: 'teste',
+    });
+  });
+
+  it('acerto repetido devolve o mesmo acerto sem cobrar de novo; devolução repetida não devolve duas vezes', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
+    const first = await settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.02 });
+    const again = await Promise.all([
+      settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.02 }),
+      settle(db, { tenantId: t, reservationId: r.id, costUsd: 0.5 }),
+    ]);
+    expect(first).toMatchObject({ charged: 2, available: 8, replayed: false });
+    for (const a of again)
+      expect(a).toMatchObject({ ledgerId: first.ledgerId, charged: 2, available: 8, replayed: true });
+    expect((await getWallet(db, t))?.available).toBe(8);
+    await expectCode(release(db, { tenantId: t, reservationId: r.id }), 'reservation_closed');
+
+    const r2 = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
+    const releases = await Promise.all([
+      release(db, { tenantId: t, reservationId: r2.id }),
+      release(db, { tenantId: t, reservationId: r2.id }),
+    ]);
+    expect(releases.filter((x) => x.released)).toHaveLength(1);
+    expect(await getWallet(db, t)).toMatchObject({ available: 8, reserved: 0 });
+    // devolvida: o acerto atrasado é recusado (o saldo dela já voltou)
+    await expectCode(settle(db, { tenantId: t, reservationId: r2.id, costUsd: 0.01 }), 'reservation_closed');
+    await expectCode(
+      reserve(db, { tenantId: t, functionName: 'moderation.batch', ttlSeconds: 0 }, { settings }),
+      'invalid_amount',
+    );
+  });
+
+  it('reserva aberta depois do prazo ainda acerta; vencida pelo job, não', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    const past = new Date(Date.now() - 3_600_000);
+    const late = await reserve(
+      db,
+      { tenantId: t, functionName: 'moderation.batch', ttlSeconds: 60 },
+      { settings, now: past },
+    );
+    await expect(settle(db, { tenantId: t, reservationId: late.id })).resolves.toMatchObject({ charged: 1 });
+    const stale = await reserve(
+      db,
+      { tenantId: t, functionName: 'moderation.batch', ttlSeconds: 60 },
+      { settings, now: past },
+    );
+    await releaseExpired(db);
+    await expectCode(settle(db, { tenantId: t, reservationId: stale.id }), 'reservation_closed');
+    expect(await getWallet(db, t)).toMatchObject({ available: 9, reserved: 0 });
   });
 
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {

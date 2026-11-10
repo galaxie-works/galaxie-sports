@@ -139,6 +139,13 @@ export const reservation = cosmos.table(
     credits: credits('credits').notNull(),
     scope: text('scope'),
     userId: text('user_id'),
+    /**
+     * Preço da chamada no momento da reserva: o acerto usa só este instantâneo, então mudar o valor do crédito,
+     * o multiplicador ou o mínimo da função no meio da chamada não muda o preço dela.
+     */
+    creditUsd: numeric('credit_usd', { precision: 18, scale: 10, mode: 'number' }),
+    multiplier: numeric('multiplier', { precision: 8, scale: 3, mode: 'number' }).notNull(),
+    minCredits: credits('min_credits').notNull(),
     status: reservationStatus('status').notNull().default('open'),
     /** Passou daqui aberta, o job de limpeza devolve o saldo (`expired`). */
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
