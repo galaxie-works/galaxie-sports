@@ -21,8 +21,11 @@ function value(key: string, overrides: ReadonlyMap<string, string>, env: Env): s
     overrides,
     env: (k) => {
       // env inválido não vale: o painel não aceitaria o mesmo valor
+      // e vale normalizado como o painel grava ('0,01' vira '0.01'), senão o Number() de depois dá NaN
       const raw = env[k]?.trim();
-      return raw && validateSettingKey(k, raw).ok ? raw : undefined;
+      if (!raw) return undefined;
+      const checked = validateSettingKey(k, raw);
+      return checked.ok ? checked.value : undefined;
     },
   });
   return resolved.value;
