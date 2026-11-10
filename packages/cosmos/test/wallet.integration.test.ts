@@ -350,6 +350,17 @@ describe('carteira da Cosmos', () => {
     );
   });
 
+  it('uncharged é chave reservada: o metadata do chamador não muda o acerto nem a repetição', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
+    const r = await reserve(db, { tenantId: t, functionName: 'moderation.batch' }, { settings });
+    const input = { tenantId: t, reservationId: r.id, costUsd: 0.02, metadata: { uncharged: 99, lote: 'x' } };
+    expect(await settle(db, input)).toMatchObject({ charged: 2, uncharged: 0 });
+    const [row] = await db.select().from(ledger).where(eq(ledger.reservationId, r.id));
+    expect(row?.metadata).toMatchObject({ uncharged: 0, lote: 'x', reserved: 1 });
+    expect(await settle(db, input)).toMatchObject({ charged: 2, uncharged: 0, replayed: true });
+  });
+
   it('reserva aberta depois do prazo ainda acerta; vencida pelo job, não', async () => {
     const t = await newTenant();
     await addEntry(db, { tenantId: t, kind: 'purchase', credits: 10 });
