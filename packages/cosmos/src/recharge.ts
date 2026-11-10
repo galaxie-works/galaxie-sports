@@ -163,6 +163,16 @@ async function failRecharge(
     .where(eq(autoRecharge.tenantId, tenantId));
 }
 
+/** Volta para a fila sem contar tentativa (falha da nossa configuração, não do Stripe nem do cliente). */
+async function backToQueue(db: Database, attemptId: string, now: Date): Promise<'requeued' | 'skipped'> {
+  const [row] = await db
+    .update(rechargeAttempt)
+    .set({ status: 'pending', updatedAt: now })
+    .where(and(eq(rechargeAttempt.id, attemptId), eq(rechargeAttempt.status, 'processing')))
+    .returning({ id: rechargeAttempt.id });
+  return row ? 'requeued' : 'skipped';
+}
+
 /** Teto de falhas passageiras (5xx, 409, 429, rede) da mesma tentativa. */
 export const MAX_RECHARGE_ATTEMPTS = 5;
 
@@ -306,8 +316,11 @@ export async function processRecharges(
             status: (e as StripeRequestError).status,
           });
         // 5xx, 409, 429, rede ou problema nosso: o pagamento pode ter sido criado; repete com a mesma chave e os
-        // mesmos parâmetros
-        const r = await requeue(db, a.id, a.tenantId, now);
+        // mesmos parâmetros. Problema nosso não conta tentativa: chave errada não pode levar ao teto e desligar a
+        // recarga de todos os tenants
+        const r = isOurStripeProblem(e)
+          ? await backToQueue(db, a.id, now)
+          : await requeue(db, a.id, a.tenantId, now);
         if (r === 'failed') result.failed += 1;
         else if (r === 'requeued') result.requeued += 1;
       }
