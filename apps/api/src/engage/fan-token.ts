@@ -90,11 +90,17 @@ export class FanTokenSigner {
   static fromEnv(env: Record<string, string | undefined>, now?: () => number): FanTokenSigner | null {
     const secret = env.FAN_TOKEN_SECRET?.trim();
     if (!secret) return null;
-    return new FanTokenSigner({
-      secret,
-      previousSecret: env.FAN_TOKEN_SECRET_PREVIOUS,
-      ...(now ? { now } : {}),
-    });
+    try {
+      return new FanTokenSigner({
+        secret,
+        previousSecret: env.FAN_TOKEN_SECRET_PREVIOUS?.trim() || undefined,
+        ...(now ? { now } : {}),
+      });
+    } catch (err) {
+      // segredo curto não derruba a API inteira: só as rotas do torcedor ficam em 503, como sem segredo
+      console.error(`FAN_TOKEN_SECRET ignorado: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   private static mac(secret: Buffer, body: string): string {

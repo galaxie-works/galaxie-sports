@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fanCan, fanCapabilities } from './fan-rules.js';
 import { FAN_TOKEN_PREFIX, FanTokenSigner, type FanTokenClaims } from './fan-token.js';
 
@@ -61,6 +61,13 @@ describe('FanTokenSigner', () => {
       /FAN_TOKEN_SECRET_PREVIOUS/,
     );
     expect(FanTokenSigner.fromEnv({ FAN_TOKEN_SECRET: SECRET })).toBeInstanceOf(FanTokenSigner);
+    // segredo curto no .env não derruba a API no boot: as rotas do torcedor ficam em 503
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(FanTokenSigner.fromEnv({ FAN_TOKEN_SECRET: 'curto' })).toBeNull();
+    expect(
+      FanTokenSigner.fromEnv({ FAN_TOKEN_SECRET: SECRET, FAN_TOKEN_SECRET_PREVIOUS: 'curto' }),
+    ).toBeNull();
+    err.mockRestore();
   });
 });
 
