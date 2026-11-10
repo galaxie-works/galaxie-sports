@@ -3,6 +3,7 @@ import {
   hardenPolicy,
   INITIAL_COUNTRY_POLICIES,
   LATAM_POLICY_KEY,
+  normalizePolicy,
   policyAllows,
   policyChangeIssues,
   resolvePolicy,
@@ -70,6 +71,17 @@ describe('ficha usada pelo torcedor', () => {
     expect(r!.policy.punishmentNoticeRequired).toBe(true);
     expect(r!.policy.retention.removedContentDays).toBe(30);
     expect(BR.punishmentNoticeRequired).toBe(false);
+  });
+
+  it('torcedor de país que o cliente não marcou recebe o endurecimento do país principal', () => {
+    const t = [{ country: 'BR', primary: true, hardening: { minAgeParticipate: 16 } }];
+    expect(resolvePolicy('US', policies, t)!.policy.minAgeParticipate).toBe(16);
+    expect(resolvePolicy('BO', policies, t)).toMatchObject({ key: LATAM_POLICY_KEY });
+    expect(resolvePolicy('BO', policies, t)!.policy.minAgeParticipate).toBe(16);
+  });
+
+  it('LATAM não é país de torcedor', () => {
+    expect(resolvePolicy('LATAM', policies, tenant)).toMatchObject({ key: 'BR', fallback: true });
   });
 });
 
@@ -156,6 +168,39 @@ describe('mudança de ficha pela Galaxie', () => {
         .map((i) => i.path)
         .sort(),
     ).toEqual(['currency', 'languages', 'retention.accessLogDays', 'timeZone'].sort());
+  });
+
+  it('recusa flags que não são sim ou não, fuso vazio, listas sem texto e teto em texto', () => {
+    const bad = {
+      ...structuredClone(BR),
+      adsToMinors: 'no',
+      gamification: undefined,
+      timeZone: undefined,
+      laws: [1],
+      prizeCampaign: { maxValue: '5', legalClassificationRequired: true },
+    } as unknown as CountryPolicy;
+    expect(
+      validatePolicy(bad)
+        .map((i) => i.path)
+        .sort(),
+    ).toEqual(
+      [
+        'adsToMinors',
+        'gamification.marketplace',
+        'gamification.materialExchange',
+        'gamification.raffle',
+        'laws',
+        'prizeCampaign.excludedRegions',
+        'prizeCampaign.maxValue',
+        'timeZone',
+      ].sort(),
+    );
+  });
+
+  it('grava só os campos conhecidos', () => {
+    const extra = { ...structuredClone(BR), hack: 1 } as unknown as CountryPolicy;
+    expect(normalizePolicy(extra)).toEqual(BR);
+    expect('hack' in normalizePolicy(extra)).toBe(false);
   });
 });
 

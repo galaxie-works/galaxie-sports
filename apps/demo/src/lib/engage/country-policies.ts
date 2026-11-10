@@ -6,6 +6,7 @@
 import {
   hardenPolicy,
   isPolicyKey,
+  normalizePolicy,
   policyChangeIssues,
   type CountryPolicy,
   type PolicyHardening,
@@ -33,7 +34,7 @@ export interface PolicyLogRow {
 
 export class PolicyError extends Error {
   constructor(
-    readonly code: 'invalid' | 'stale' | 'not_found' | 'no_policy' | 'primary',
+    readonly code: 'invalid' | 'stale' | 'exists' | 'not_found' | 'no_policy' | 'primary',
     readonly issues: PolicyIssue[] = [],
   ) {
     super(code);
@@ -102,28 +103,32 @@ export async function savePolicy(input: {
       [country],
     );
     const prev = rows[0] ?? null;
+    if (prev && input.expectedVersion === null) throw new PolicyError('exists');
     if ((prev?.version ?? null) !== input.expectedVersion) throw new PolicyError('stale');
     const issues = policyChangeIssues(prev?.policy ?? null, input.policy, {
       allowLowerWriteAge: input.allowLowerWriteAge,
     });
     if (issues.length) throw new PolicyError('invalid', issues);
+    const policy = normalizePolicy(input.policy);
     const version = (prev?.version ?? 0) + 1;
     await client.query(
       `insert into engage.country_policy (country, policy, version, updated_by, updated_at)
        values ($1, $2::jsonb, $3, $4, now())
        on conflict (country) do update set policy = excluded.policy, version = excluded.version,
          updated_by = excluded.updated_by, updated_at = now()`,
-      [country, JSON.stringify(input.policy), version, input.actor],
+      [country, JSON.stringify(policy), version, input.actor],
     );
     await client.query(
       `insert into engage.country_policy_log (country, version, policy, changed_by, reason)
        values ($1, $2, $3::jsonb, $4, $5)`,
-      [country, version, JSON.stringify(input.policy), input.actor, input.reason?.trim() || null],
+      [country, version, JSON.stringify(policy), input.actor, input.reason?.trim() || null],
     );
     await client.query('commit');
     return { version };
   } catch (err) {
     await client.query('rollback').catch(() => {});
+    // duas criações do mesmo país ao mesmo tempo: a segunda bate no índice único do histórico
+    if ((err as { code?: string }).code === '23505') throw new PolicyError('stale');
     throw err;
   } finally {
     client.release();

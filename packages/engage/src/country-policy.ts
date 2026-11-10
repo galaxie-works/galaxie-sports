@@ -161,6 +161,7 @@ export function validatePolicy(p: CountryPolicy): PolicyIssue[] {
   if (typeof p.dateFormat !== 'string' || !/^[dMy/.\- ]{6,12}$/.test(p.dateFormat))
     issues.push({ path: 'dateFormat', message: 'formato como dd/MM/yyyy' });
   try {
+    if (typeof p.timeZone !== 'string' || !p.timeZone) throw new RangeError('fuso vazio');
     new Intl.DateTimeFormat('en', { timeZone: p.timeZone });
   } catch {
     issues.push({ path: 'timeZone', message: 'fuso IANA' });
@@ -171,10 +172,57 @@ export function validatePolicy(p: CountryPolicy): PolicyIssue[] {
     p.languages.some((l) => !(POLICY_LANGUAGES as readonly string[]).includes(l))
   )
     issues.push({ path: 'languages', message: `um ou mais de ${POLICY_LANGUAGES.join(', ')}` });
-  if (p.prizeCampaign?.maxValue !== null && !(p.prizeCampaign?.maxValue >= 0))
+  const mv = p.prizeCampaign?.maxValue;
+  if (mv !== null && !(typeof mv === 'number' && Number.isFinite(mv) && mv >= 0))
     issues.push({ path: 'prizeCampaign.maxValue', message: 'vazio ou um valor positivo' });
-  if (!Array.isArray(p.laws)) issues.push({ path: 'laws', message: 'lista' });
+  const strings = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === 'string');
+  if (!strings(p.prizeCampaign?.excludedRegions))
+    issues.push({ path: 'prizeCampaign.excludedRegions', message: 'lista de textos' });
+  const bool = (path: string, v: unknown) => {
+    if (typeof v !== 'boolean') issues.push({ path, message: 'sim ou não' });
+  };
+  bool('prizeCampaign.legalClassificationRequired', p.prizeCampaign?.legalClassificationRequired);
+  bool('adsToMinors', p.adsToMinors);
+  bool('punishmentNoticeRequired', p.punishmentNoticeRequired);
+  bool('gamification.materialExchange', p.gamification?.materialExchange);
+  bool('gamification.marketplace', p.gamification?.marketplace);
+  bool('gamification.raffle', p.gamification?.raffle);
+  if (!strings(p.laws)) issues.push({ path: 'laws', message: 'lista de textos' });
   return issues;
+}
+
+/**
+ * Só os campos conhecidos da ficha, na ordem da interface: o que vem da tela ou de outro chamador nunca é
+ * gravado cru (campo a mais fica de fora). Chamar depois de `validatePolicy` sem problemas.
+ */
+export function normalizePolicy(p: CountryPolicy): CountryPolicy {
+  return {
+    minAgeWrite: p.minAgeWrite,
+    minAgeParticipate: p.minAgeParticipate,
+    retention: {
+      accessLogDays: p.retention.accessLogDays,
+      removedContentDays: p.retention.removedContentDays,
+      moderationDecisionsDays: p.retention.moderationDecisionsDays,
+    },
+    entity: p.entity,
+    currency: p.currency,
+    dateFormat: p.dateFormat,
+    timeZone: p.timeZone,
+    languages: [...p.languages],
+    adsToMinors: p.adsToMinors,
+    gamification: {
+      materialExchange: p.gamification.materialExchange,
+      marketplace: p.gamification.marketplace,
+      raffle: p.gamification.raffle,
+    },
+    prizeCampaign: {
+      maxValue: p.prizeCampaign.maxValue,
+      excludedRegions: [...p.prizeCampaign.excludedRegions],
+      legalClassificationRequired: p.prizeCampaign.legalClassificationRequired,
+    },
+    punishmentNoticeRequired: p.punishmentNoticeRequired,
+    laws: [...p.laws],
+  };
 }
 
 /**
@@ -280,7 +328,9 @@ export function resolvePolicy(
   policies: ReadonlyMap<PolicyKey, CountryPolicy>,
   tenantCountries: readonly TenantCountry[],
 ): ResolvedPolicy | null {
-  const country = fanCountry?.toUpperCase() ?? null;
+  // só ISO2: `LATAM` é chave de ficha, não país de torcedor
+  const raw = fanCountry?.toUpperCase() ?? null;
+  const country = raw && /^[A-Z]{2}$/.test(raw) ? raw : null;
   const primary = tenantCountries.find((c) => c.primary)?.country ?? null;
   const pick = (): { key: PolicyKey; fallback: boolean } | null => {
     if (country && policies.has(country)) return { key: country, fallback: false };
@@ -292,8 +342,11 @@ export function resolvePolicy(
   const chosen = pick();
   if (!chosen) return null;
   const base = policies.get(chosen.key)!;
-  // o endurecimento do cliente vale para o país do torcedor (ou o principal, no fallback)
-  const tc = tenantCountries.find((c) => c.country === (chosen.fallback ? primary : country));
+  // o endurecimento do cliente vale para o país do torcedor; se o cliente não marcou esse país (ou caiu no
+  // fallback), vale o do país principal, para o torcedor de fora não escapar do que o cliente endureceu
+  const tc =
+    (!chosen.fallback && tenantCountries.find((c) => c.country === country)) ||
+    tenantCountries.find((c) => c.primary);
   const policy = tc?.hardening ? hardenPolicy(base, tc.hardening).policy : base;
   return { ...chosen, policy };
 }
