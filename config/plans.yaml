@@ -8,6 +8,8 @@
 #   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport,
 #                         related_content — add-on de vídeos relacionados, docs/12; odds — add-on de odds
 #                         pré-jogo em consenso entre as casas, docs/05 §3.2.2)
+#                         Os módulos de engajamento (live_chat, communities, gamification, shopping, cosmos_ai)
+#                         não entram em nenhum modelo: são contratados à parte e ligados tenant a tenant (#1018).
 #   markets               países ISO2 incluídos por padrão; [] = todos
 #   sports                esportes incluídos por padrão (slug); [] = todos
 #   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)

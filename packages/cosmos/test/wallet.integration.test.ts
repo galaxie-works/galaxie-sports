@@ -78,6 +78,9 @@ afterAll(async () => {
   await admin.end();
 });
 
+/** Prazo do teste nos testes: 90 dias à frente. */
+const soon = () => new Date(Date.now() + 90 * 86_400_000);
+
 describe('carteira da Cosmos', () => {
   it('N reservas ao mesmo tempo nunca deixam o saldo negativo', async () => {
     const t = await newTenant();
@@ -221,7 +224,7 @@ describe('carteira da Cosmos', () => {
 
   it('teste marca a carteira; reservas vencidas voltam ao saldo', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'trial', credits: 4 });
+    await addEntry(db, { tenantId: t, kind: 'trial', credits: 4, trialExpiresAt: soon() });
     expect(await getWallet(db, t)).toMatchObject({ trialGranted: true, available: 4, receivedTotal: 4 });
     const past = new Date(Date.now() - 3_600_000);
     const r = await reserve(
@@ -256,13 +259,18 @@ describe('carteira da Cosmos', () => {
   it('teste concedido uma vez só, mesmo com repetição e concorrência', async () => {
     const t = await newTenant();
     const grants = await Promise.allSettled(
-      Array.from({ length: 8 }, () => addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })),
+      Array.from({ length: 8 }, () =>
+        addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+      ),
     );
     expect(grants.filter((g) => g.status === 'fulfilled')).toHaveLength(1);
     for (const g of grants.filter((g) => g.status === 'rejected'))
       expect(isCosmosError((g as PromiseRejectedResult).reason, 'trial_already_granted')).toBe(true);
     // repetição depois (desligou e religou): continua recusada
-    await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 }), 'trial_already_granted');
+    await expectCode(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+      'trial_already_granted',
+    );
     expect(await getWallet(db, t)).toMatchObject({ available: 250, receivedTotal: 250, trialGranted: true });
     const { entries } = await listLedger(db, t, { kinds: ['trial'] });
     expect(entries).toHaveLength(1);
@@ -271,13 +279,24 @@ describe('carteira da Cosmos', () => {
   it('teste de 0 (ou que arredonda para 0) é recusado e não queima o teste', async () => {
     const t = await newTenant();
     for (const credits of [0, 0.0004, -5])
-      await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits }), 'invalid_amount');
+      await expectCode(
+        addEntry(db, { tenantId: t, kind: 'trial', credits, trialExpiresAt: soon() }),
+        'invalid_amount',
+      );
     await expectCode(
       addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: -1 }),
       'invalid_amount',
     );
     expect(await getWallet(db, t)).toBeNull();
-    await expect(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })).resolves.toMatchObject({
+    // sem prazo (ou com prazo no passado) nunca venceria: recusado, e o teste não queima
+    await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 }), 'invalid_amount');
+    await expectCode(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: new Date(Date.now() - 1000) }),
+      'invalid_amount',
+    );
+    await expect(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+    ).resolves.toMatchObject({
       available: 250,
     });
   });

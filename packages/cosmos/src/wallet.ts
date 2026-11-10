@@ -420,6 +420,9 @@ export async function release(
       .set({
         available: sql`${wallet.available} + ${r.credits}`,
         reserved: sql`${wallet.reserved} - ${r.credits}`,
+        // bloqueada por saldo zerado com a reserva de volta: o saldo livre é positivo, então libera
+        status: sql`case when ${wallet.blockReason} = 'depleted' and ${wallet.available} + ${r.credits} > 0 then 'active'::cosmos.wallet_status else ${wallet.status} end`,
+        blockReason: sql`case when ${wallet.blockReason} = 'depleted' and ${wallet.available} + ${r.credits} > 0 then null else ${wallet.blockReason} end`,
         updatedAt: now,
       })
       .where(eq(wallet.tenantId, input.tenantId))
@@ -531,12 +534,16 @@ export async function addEntryInTx(
   // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
   if (input.kind === 'trial' && w.trialGranted)
     throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
+  // teste sem prazo nunca venceria: o prazo é obrigatório
+  if (input.kind === 'trial' && !(input.trialExpiresAt instanceof Date && input.trialExpiresAt > now))
+    throw new CosmosError('invalid_amount', 'o teste precisa de um prazo de validade no futuro');
   const available = roundCredits(w.available + credits);
   if (available < 0) throw new CosmosError('insufficient_credits', 'saída maior que o saldo livre');
   const received = credits > 0 && RECEIVED_KINDS.has(input.kind) ? credits : 0;
-  // entrada de créditos abre um ciclo novo de alertas e libera a carteira bloqueada por saldo zerado
+  // qualquer entrada de créditos (estorno incluído) abre um ciclo novo de alertas e libera a carteira bloqueada
+  // por saldo zerado; só teste, compra e ajuste somam no total recebido
   const cycle =
-    received > 0
+    credits > 0
       ? {
           cycleBase: available,
           cycleStartedAt: now,
@@ -556,7 +563,10 @@ export async function addEntryInTx(
       ...(input.kind === 'trial'
         ? { trialGranted: true, trialRemaining: credits, trialExpiresAt: input.trialExpiresAt ?? null }
         : {}),
-      ...(input.kind === 'trial_expiry' ? { trialRemaining: 0 } : {}),
+      // o vencimento tira só o que saiu; a parte do teste que estava reservada vence quando voltar (expireTrials)
+      ...(input.kind === 'trial_expiry'
+        ? { trialRemaining: sql`greatest(${wallet.trialRemaining} + ${credits}, 0)` }
+        : {}),
       ...cycle,
       updatedAt: now,
     })

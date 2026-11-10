@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ENGAGE_MODULES } from '@galaxie/db';
 import { SCALAR_INTEGRITY, SCALAR_URL } from './routes/docs.js';
 import { buildServer } from './server.js';
 import { memoryTenant } from './test-helpers.js';
@@ -110,6 +111,28 @@ describe('autenticação e planos', () => {
       headers: { 'x-galaxie-key': wrongSecret },
     });
     expect(wrong.statusCode).toBe(401);
+  });
+
+  it('módulos de engajamento: tenant sem o módulo → 403 em cada um, com o módulo → passa (#1018)', async () => {
+    for (const module of ENGAGE_MODULES) {
+      const without = await memoryTenant({ plan: 'enterprise' });
+      const withIt = await memoryTenant({ plan: 'enterprise', modules: ['core_data', module] });
+      for (const [{ store, key }, status] of [
+        [without, 403],
+        [withIt, 200],
+      ] as const) {
+        const app = buildServer({ tenantStore: store });
+        app.get(`/v1/engage-test/${module}`, { config: { module } }, async () => ({ ok: true }));
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/engage-test/${module}`,
+          headers: { 'x-galaxie-key': key },
+        });
+        expect(res.statusCode, `${module} → ${status}`).toBe(status);
+        if (status === 403) expect(res.json()).toMatchObject({ code: 'MODULE_NOT_IN_PLAN' });
+        await app.close();
+      }
+    }
   });
 
   it('chave sem o módulo → 403 MODULE_NOT_IN_PLAN', async () => {
