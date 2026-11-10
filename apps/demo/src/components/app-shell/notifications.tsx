@@ -235,7 +235,12 @@ export function NotificationsAlert() {
   if (!ctx || !item) return null;
   const kind = kindOf(item);
   const Icon = STATUS_ICON[kind];
-  const description = item.body ?? (kind === 'reply' ? null : T.statusHint[kind]);
+  // "mais informações" sem texto: a pergunta é a última resposta da equipe na mesma sugestão
+  const asked =
+    kind === 'needsInfo' && !item.body
+      ? (ctx.inbox?.items.find((i) => i.thread === item.thread && i.body)?.body ?? null)
+      : null;
+  const description = item.body ?? asked ?? (kind === 'reply' ? null : T.statusHint[kind]);
   return (
     <div className="px-4 pt-3">
       <Frame variant="ghost">
@@ -276,11 +281,22 @@ export function NotificationsAlert() {
   );
 }
 
+/** Os avisos de cada sugestão juntos (do mais novo ao mais antigo), na ordem do aviso mais novo de cada uma. */
+export function threadsOf(items: readonly InboxItem[]): InboxItem[][] {
+  const byThread = new Map<string, InboxItem[]>();
+  for (const item of items) {
+    const list = byThread.get(item.thread);
+    if (list) list.push(item);
+    else byThread.set(item.thread, [item]);
+  }
+  return [...byThread.values()];
+}
+
 function InboxSheet() {
   const ctx = useContext(InboxContext)!;
   const T = useI18n().t.notifications;
   const f = useFormatters(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const items = ctx.inbox?.items ?? [];
+  const threads = useMemo(() => threadsOf(ctx.inbox?.items ?? []), [ctx.inbox]);
   return (
     <Sheet open={ctx.open} onOpenChange={ctx.setOpen}>
       <SheetContent side="right" className="w-full gap-0 sm:max-w-md">
@@ -288,10 +304,10 @@ function InboxSheet() {
           <SheetTitle>{T.title}</SheetTitle>
           <SheetDescription>{T.description}</SheetDescription>
         </SheetHeader>
-        {items.length ? (
+        {threads.length ? (
           <ul className="flex-1 divide-y overflow-y-auto">
-            {items.map((item) => (
-              <InboxEntry key={item.id} item={item} when={f.relative(item.createdAt)} />
+            {threads.map((items) => (
+              <ThreadEntry key={items[0]!.thread} items={items} when={(at) => f.relative(at)} />
             ))}
           </ul>
         ) : (
@@ -306,43 +322,70 @@ function InboxSheet() {
   );
 }
 
-function InboxEntry({ item, when }: { item: InboxItem; when: string }) {
+const kindColor = (kind: NoticeKind) =>
+  kind === 'delivered' ? 'text-success' : kind === 'needsInfo' ? 'text-warning' : 'text-info';
+
+/**
+ * Uma sugestão na caixa: o título é a etapa mais recente; embaixo, a conversa em ordem (mudanças de etapa, respostas da
+ * equipe e o "resposta enviada"), e o campo de resposta no fim quando o aviso mais novo aceita.
+ */
+function ThreadEntry({ items, when }: { items: InboxItem[]; when: (at: string) => string }) {
   const T = useI18n().t.notifications;
-  const kind = kindOf(item);
+  const latest = items[0]!;
+  const kind = kindOf(latest);
   const Icon = STATUS_ICON[kind];
-  const hint = kind === 'reply' ? null : T.statusHint[kind];
+  const unread = items.some((i) => !i.read);
+  const snippet = items.find((i) => i.snippet)?.snippet;
+  const hint = !latest.body && kind !== 'reply' ? T.statusHint[kind] : null;
   return (
     <li className="flex gap-3 p-4">
-      <Icon
-        className={`mt-0.5 size-4 shrink-0 ${kind === 'delivered' ? 'text-success' : kind === 'needsInfo' ? 'text-warning' : 'text-info'}`}
-        aria-hidden
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <Icon className={`mt-0.5 size-4 shrink-0 ${kindColor(kind)}`} aria-hidden />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium">{T.status[kind]}</p>
-          {!item.read ? (
+          {unread ? (
             <span className="bg-primary mt-1.5 size-2 shrink-0 rounded-full" title={T.unreadDot}>
               <span className="sr-only">{T.unreadDot}</span>
             </span>
           ) : null}
         </div>
-        {item.snippet ? (
-          <p className="text-muted-foreground line-clamp-2 text-xs">
-            {fill(T.yourSuggestion, { snippet: item.snippet })}
-          </p>
+        {snippet ? (
+          <p className="text-muted-foreground line-clamp-2 text-xs">{fill(T.yourSuggestion, { snippet })}</p>
         ) : null}
-        {hint && !item.body ? <p className="text-muted-foreground text-sm">{hint}</p> : null}
-        {item.body ? (
-          <div className="bg-muted/50 rounded-md border p-3">
-            <p className="text-muted-foreground mb-1 text-xs font-medium">{T.teamReply}</p>
-            {/* texto puro da equipe: o React escapa, e as quebras de linha ficam */}
-            <p className="text-sm break-words whitespace-pre-wrap">{item.body}</p>
-          </div>
-        ) : null}
-        {item.canAnswer ? <AnswerForm id={item.id} /> : null}
-        {item.answered ? <p className="text-success text-xs">{T.answered}</p> : null}
-        <p className="text-muted-foreground text-xs">{when}</p>
+        <ol className="flex flex-col gap-2">
+          {[...items].reverse().map((item) => (
+            <ThreadStep key={item.id} item={item} when={when(item.createdAt)} />
+          ))}
+        </ol>
+        {hint ? <p className="text-muted-foreground text-sm">{hint}</p> : null}
+        {latest.canAnswer ? <AnswerForm id={latest.id} /> : null}
       </div>
+    </li>
+  );
+}
+
+/** Um passo da conversa: a etapa (quando mudou), a resposta da equipe e, se for o caso, a resposta enviada. */
+function ThreadStep({ item, when }: { item: InboxItem; when: string }) {
+  const T = useI18n().t.notifications;
+  const kind = kindOf(item);
+  return (
+    <li className="flex flex-col gap-1.5">
+      {kind !== 'reply' ? (
+        <p className="text-muted-foreground text-xs">
+          <span className={`font-medium ${kindColor(kind)}`}>{T.status[kind]}</span> · {when}
+        </p>
+      ) : null}
+      {item.body ? (
+        <div className="bg-muted/50 rounded-md border p-3">
+          <p className="text-muted-foreground mb-1 text-xs font-medium">
+            {T.teamReply}
+            {kind === 'reply' ? ` · ${when}` : null}
+          </p>
+          {/* texto puro da equipe: o React escapa, e as quebras de linha ficam */}
+          <p className="text-sm break-words whitespace-pre-wrap">{item.body}</p>
+        </div>
+      ) : null}
+      {item.answered ? <p className="text-success text-xs">{T.answered}</p> : null}
     </li>
   );
 }

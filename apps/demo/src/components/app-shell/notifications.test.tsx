@@ -26,6 +26,7 @@ const inbox = (over: Partial<Inbox> = {}): Inbox => ({
   items: [
     {
       id: '2',
+      thread: 'repo#7',
       status: 'needsInfo',
       snippet: 'O placar ficou errado',
       body: 'Em qual tela?',
@@ -36,6 +37,7 @@ const inbox = (over: Partial<Inbox> = {}): Inbox => ({
     },
     {
       id: '1',
+      thread: 'repo#7',
       status: 'review',
       snippet: 'O placar ficou errado',
       body: null,
@@ -147,6 +149,48 @@ describe('caixa de entrada', () => {
     expect(answerNotice).toHaveBeenCalledWith('2', 'Na página do jogo, no celular.');
     expect(screen.queryByLabelText(N.answer)).toBeNull();
     expect(screen.getByText(N.answered)).toBeTruthy();
+  });
+
+  it('avisos da mesma sugestão viram uma conversa só, com a pergunta e o campo no fim', async () => {
+    loadInbox.mockResolvedValue(
+      inbox({
+        items: [
+          {
+            id: '5',
+            thread: 'repo#3',
+            status: 'needsInfo',
+            snippet: 'Cadê o futebol feminino?',
+            body: null,
+            createdAt: '2026-11-10T12:05:00.000Z',
+            read: false,
+            canAnswer: true,
+            answered: false,
+          },
+          {
+            id: '4',
+            thread: 'repo#3',
+            status: null,
+            snippet: 'Cadê o futebol feminino?',
+            body: 'Qual campeonato?',
+            createdAt: '2026-11-10T11:55:00.000Z',
+            read: false,
+            canAnswer: false,
+            answered: false,
+          },
+        ],
+        unread: 2,
+      }),
+    );
+    await show();
+    // a faixa mostra a pergunta da equipe, não só "responda aqui"
+    expect(screen.getByRole('status').textContent).toContain('Qual campeonato?');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Notificações/ }));
+    });
+    expect(screen.getAllByText(/Cadê o futebol feminino/)).toHaveLength(1);
+    expect(screen.getByText('Qual campeonato?')).toBeTruthy();
+    expect(screen.getAllByLabelText(N.answer)).toHaveLength(1);
+    expect(markRead).toHaveBeenCalledWith(['5', '4']);
   });
 
   it('resposta curta demais nem sai do navegador', async () => {

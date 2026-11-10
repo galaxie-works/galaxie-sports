@@ -5,20 +5,32 @@ vi.mock('@/lib/auth/db', () => ({ pool: {} }));
 const { answerable } = await import('./store');
 
 describe('answerable', () => {
-  const base = { status: 'needsInfo' as const, answered: false, issueStatus: 'needsInfo', latest: true };
+  const reply = {
+    status: null,
+    hasBody: true,
+    answered: false,
+    issueStatus: 'review',
+    issueClosed: false,
+    latest: true,
+  } as const;
 
-  it('aviso da coluna "mais informações", ainda sem resposta', () => {
-    expect(answerable(base)).toBe(true);
+  it('toda resposta da equipe (/responder) aceita resposta, em qualquer coluna', () => {
+    expect(answerable(reply)).toBe(true);
+    expect(answerable({ ...reply, issueStatus: null })).toBe(true);
+    expect(answerable({ ...reply, status: 'inProgress', issueStatus: 'inProgress' })).toBe(true);
   });
 
-  it('só resposta (/responder) com a issue parada em "mais informações" também pede resposta', () => {
-    expect(answerable({ ...base, status: null })).toBe(true);
+  it('aviso da coluna "mais informações" pede resposta mesmo sem texto da equipe', () => {
+    expect(
+      answerable({ ...reply, status: 'needsInfo', hasBody: false, issueStatus: 'needsInfo' }),
+    ).toBe(true);
   });
 
-  it('não pede: já respondido, aviso antigo, issue saiu da coluna ou aviso de outra coluna', () => {
-    expect(answerable({ ...base, answered: true })).toBe(false);
-    expect(answerable({ ...base, latest: false })).toBe(false);
-    expect(answerable({ ...base, issueStatus: 'inProgress' })).toBe(false);
-    expect(answerable({ ...base, status: 'review' })).toBe(false);
+  it('não aceita: já respondido, aviso antigo, issue fechada ou entregue, aviso de coluna sem texto', () => {
+    expect(answerable({ ...reply, answered: true })).toBe(false);
+    expect(answerable({ ...reply, latest: false })).toBe(false);
+    expect(answerable({ ...reply, issueClosed: true })).toBe(false);
+    expect(answerable({ ...reply, issueStatus: 'delivered' })).toBe(false);
+    expect(answerable({ ...reply, status: 'review', hasBody: false })).toBe(false);
   });
 });
