@@ -1,4 +1,4 @@
-CREATE TYPE "cosmos"."recharge_status" AS ENUM('pending', 'processing', 'succeeded', 'failed', 'cancelled');--> statement-breakpoint
+CREATE TYPE "cosmos"."recharge_status" AS ENUM('pending', 'processing', 'succeeded', 'failed', 'cancelled', 'review');--> statement-breakpoint
 CREATE TABLE "cosmos"."auto_recharge" (
 	"tenant_id" uuid PRIMARY KEY NOT NULL,
 	"enabled" boolean DEFAULT false NOT NULL,
@@ -38,6 +38,7 @@ CREATE TABLE "cosmos"."recharge_attempt" (
 	"payment_intent_id" text,
 	"stripe_customer_id" text,
 	"payment_method_id" text,
+	"attempts" integer DEFAULT 0 NOT NULL,
 	"ledger_id" uuid,
 	"failure_reason" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
