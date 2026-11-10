@@ -32,6 +32,7 @@ export const APP_SCHEMAS = [
   'api',
   'multisport',
   'equestrian',
+  'cosmos',
 ] as const;
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
@@ -58,7 +59,10 @@ export interface RoleGrants {
 export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // API pública e /internal: chaves, uso, webhooks, onde assistir pelo admin, erros de reprodução e
   // runtime_env/publishable_key/change_feed em ops
-  api: { read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`], write: ['api', 'enrich', 'ops'] },
+  api: {
+    read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
+    write: ['api', 'enrich', 'ops', 'cosmos'],
+  },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
   demo: {

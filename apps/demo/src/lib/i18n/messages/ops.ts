@@ -99,6 +99,11 @@ export default defineMessages(
         title: 'Sugerir ou reportar algo',
         description: 'O botão de chat no cabeçalho do app, que abre uma issue na repo privada de sugestões.',
       },
+      cosmos: {
+        title: 'Cosmos AI',
+        description:
+          'A IA que o cliente paga por uso, com créditos. O teto de segurança da Cosmos é próprio e não mexe no orçamento dos agentes internos.',
+      },
     },
     source: {
       db: 'Painel',
@@ -1238,6 +1243,18 @@ export default defineMessages(
       },
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
+      COSMOS_DAILY_USD_CEILING: {
+        label: 'Teto de segurança da Cosmos AI por dia',
+        description:
+          'Custo real somado de todos os clientes no dia (UTC). Passou dele, a Cosmos recusa novas chamadas até a virada e a moderação volta para regras e pessoas.',
+        unit: 'US$',
+      },
+      COSMOS_CREDIT_USD: {
+        label: 'Valor de 1 crédito da Cosmos AI',
+        description:
+          'Custo de provedor que vale 1 crédito, para converter o custo real em créditos. Vazio, cada chamada cobra só o mínimo da função. O cliente nunca vê este número.',
+        unit: 'US$',
+      },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -1344,6 +1361,11 @@ export default defineMessages(
           title: 'Suggest or report something',
           description:
             'The chat button in the app header, which opens an issue in the private suggestions repo.',
+        },
+        cosmos: {
+          title: 'Cosmos AI',
+          description:
+            'The AI clients pay for as they use it, with credits. Its safety ceiling is its own and does not touch the internal agents budget.',
         },
       },
       source: { db: 'Panel', env: 'Container env', default: 'Code default', label: 'Value source' },
@@ -2465,6 +2487,18 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
+        COSMOS_DAILY_USD_CEILING: {
+          label: 'Cosmos AI daily safety ceiling',
+          description:
+            'Real cost summed across all clients for the day (UTC). Above it, Cosmos refuses new calls until the day rolls over and moderation falls back to rules and people.',
+          unit: 'US$',
+        },
+        COSMOS_CREDIT_USD: {
+          label: 'Value of 1 Cosmos AI credit',
+          description:
+            'Provider cost worth 1 credit, used to turn real cost into credits. Empty, each call charges only the function minimum. Clients never see this number.',
+          unit: 'US$',
+        },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -2570,6 +2604,11 @@ export default defineMessages(
           title: 'Sugerir o reportar algo',
           description:
             'El botón de chat del encabezado de la app, que abre un issue en el repo privado de sugerencias.',
+        },
+        cosmos: {
+          title: 'Cosmos AI',
+          description:
+            'La IA que el cliente paga por uso, con créditos. Su tope de seguridad es propio y no toca el presupuesto de los agentes internos.',
         },
       },
       source: {
@@ -3711,6 +3750,18 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
+        COSMOS_DAILY_USD_CEILING: {
+          label: 'Tope de seguridad diario de Cosmos AI',
+          description:
+            'Costo real sumado de todos los clientes en el día (UTC). Si se supera, Cosmos rechaza nuevas llamadas hasta el cambio de día y la moderación vuelve a reglas y personas.',
+          unit: 'US$',
+        },
+        COSMOS_CREDIT_USD: {
+          label: 'Valor de 1 crédito de Cosmos AI',
+          description:
+            'Costo de proveedor que vale 1 crédito, para convertir el costo real en créditos. Vacío, cada llamada cobra solo el mínimo de la función. El cliente nunca ve este número.',
+          unit: 'US$',
+        },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

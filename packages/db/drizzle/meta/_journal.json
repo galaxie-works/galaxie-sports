@@ -519,6 +519,13 @@
       "when": 1794097586644,
       "tag": "0075_estatisticas_do_time",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794336105094,
+      "tag": "0076_cosmos_carteira",
+      "breakpoints": true
     }
   ]
 }
