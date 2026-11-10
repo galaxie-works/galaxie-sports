@@ -43,15 +43,19 @@ async function Cosmos({
       {async ({ tenant }) => {
         // o tenant vem da sessão (ClientArea): o cliente só vê a carteira e o extrato dele
         const [overview, statement] = await Promise.all([
-          loadCosmosOverview(tenant),
-          loadCosmosStatement(tenant.id, {
-            from: one(params.from),
-            to: one(params.to),
-            kind: many(params.kind),
-            fn: many(params.fn),
-            scope: many(params.scope),
-            cursor: one(params.cursor),
-          }),
+          loadCosmosOverview(tenant, timeZone),
+          loadCosmosStatement(
+            tenant.id,
+            {
+              from: one(params.from),
+              to: one(params.to),
+              kind: many(params.kind),
+              fn: many(params.fn),
+              scope: many(params.scope),
+              cursor: one(params.cursor),
+            },
+            timeZone,
+          ),
         ]);
         return (
           <CosmosArea

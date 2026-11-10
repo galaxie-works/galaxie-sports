@@ -292,6 +292,35 @@ export default defineMessages(
         account:
           'As rotas de conta (<c>/v1/account/*</c>) não exigem módulo: todo contrato consulta o próprio plano, as chaves e o uso. A lista completa por módulo está na <a>referência</a>.',
       },
+      engage: {
+        title: 'Módulos de engajamento',
+        body: 'Os módulos de torcedor são contratados à parte, um a um, e não entram em nenhum plano por padrão. Cada um tem uma faixa (por exemplo, o pico de pessoas conectadas no chat) e o uso do mês aparece no painel. As rotas chegam com cada módulo; sem o módulo, elas respondem 403 MODULE_NOT_IN_PLAN como as demais.',
+        headModule: 'Módulo',
+        headId: 'Identificador',
+        headWhat: 'O que libera',
+        list: {
+          live_chat: {
+            name: 'Chat ao vivo',
+            what: 'Sala do Jogo: a conversa ao vivo da partida, com moderação.',
+          },
+          communities: {
+            name: 'Comunidades',
+            what: 'App da Comunidade com Feed, Chat da Comunidade e membros, sempre com o login do cliente.',
+          },
+          gamification: {
+            name: 'Gamificação',
+            what: 'Palpites, Conquistas, Cartas, Ranking por país, Campanhas e Prêmios do cliente.',
+          },
+          shopping: {
+            name: 'Shopping',
+            what: 'Produtos das entidades da página (times, campeonato, atleta) nas lojas do país.',
+          },
+          cosmos_ai: {
+            name: 'Cosmos AI',
+            what: 'Moderação assistida e assistente no painel, cobrados por créditos.',
+          },
+        },
+      },
       outside: {
         title: 'Fora do contrato',
         headSituation: 'Situação',
@@ -720,6 +749,35 @@ export default defineMessages(
           },
           account:
             'Account routes (<c>/v1/account/*</c>) require no module: every contract can check its own plan, keys and usage. The full list per module is in the <a>reference</a>.',
+        },
+        engage: {
+          title: 'Engagement modules',
+          body: 'Fan modules are contracted separately, one by one, and are not part of any plan by default. Each one has a tier (for example, peak concurrent people in the chat) and the month’s usage shows in the dashboard. Routes ship with each module; without the module they answer 403 MODULE_NOT_IN_PLAN like the others.',
+          headModule: 'Module',
+          headId: 'Identifier',
+          headWhat: 'What it unlocks',
+          list: {
+            live_chat: {
+              name: 'Live chat',
+              what: 'Match Room: the live conversation of the game, with moderation.',
+            },
+            communities: {
+              name: 'Communities',
+              what: 'Community App with Feed, Community Chat and members, always behind the client’s login.',
+            },
+            gamification: {
+              name: 'Gamification',
+              what: 'Predictions, Achievements, Cards, per-country Ranking, the client’s Campaigns and Prizes.',
+            },
+            shopping: {
+              name: 'Shopping',
+              what: 'Products of the entities on the page (teams, competition, athlete) from the country’s stores.',
+            },
+            cosmos_ai: {
+              name: 'Cosmos AI',
+              what: 'Assisted moderation and a dashboard assistant, billed in credits.',
+            },
+          },
         },
         outside: {
           title: 'Outside your contract',
@@ -1157,6 +1215,35 @@ export default defineMessages(
           },
           account:
             'Las rutas de cuenta (<c>/v1/account/*</c>) no requieren módulo: todo contrato consulta su propio plan, sus claves y su uso. La lista completa por módulo está en la <a>referencia</a>.',
+        },
+        engage: {
+          title: 'Módulos de interacción',
+          body: 'Los módulos de hinchas se contratan aparte, uno por uno, y no forman parte de ningún plan por defecto. Cada uno tiene un rango (por ejemplo, el pico de personas conectadas en el chat) y el uso del mes aparece en el panel. Las rutas llegan con cada módulo; sin el módulo responden 403 MODULE_NOT_IN_PLAN como las demás.',
+          headModule: 'Módulo',
+          headId: 'Identificador',
+          headWhat: 'Qué habilita',
+          list: {
+            live_chat: {
+              name: 'Chat en vivo',
+              what: 'Sala del Partido: la conversación en vivo del partido, con moderación.',
+            },
+            communities: {
+              name: 'Comunidades',
+              what: 'App de la Comunidad con Feed, Chat de la Comunidad y miembros, siempre con el login del cliente.',
+            },
+            gamification: {
+              name: 'Gamificación',
+              what: 'Pronósticos, Logros, Cartas, Ranking por país, Campañas y Premios del cliente.',
+            },
+            shopping: {
+              name: 'Shopping',
+              what: 'Productos de las entidades de la página (equipos, torneo, atleta) en las tiendas del país.',
+            },
+            cosmos_ai: {
+              name: 'Cosmos AI',
+              what: 'Moderación asistida y asistente en el panel, cobrados por créditos.',
+            },
+          },
         },
         outside: {
           title: 'Fuera del contrato',

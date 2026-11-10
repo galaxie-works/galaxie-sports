@@ -248,6 +248,8 @@ export const purchaseStatus = cosmos.enum('purchase_status', [
   'failed',
   'canceled',
   'expired',
+  /** Pago com valor ou moeda diferentes do esperado: sem crédito até a equipe revisar. */
+  'review',
 ]);
 
 /**
@@ -355,6 +357,8 @@ export const rechargeStatus = cosmos.enum('recharge_status', [
   'processing',
   'succeeded',
   'failed',
+  /** A recarga foi desligada (ou o aceite retirado) antes da cobrança. */
+  'cancelled',
 ]);
 
 /** Tentativa de recarga automática: uma aberta por tenant de cada vez; o crédito entra pelo webhook. */
@@ -371,6 +375,9 @@ export const rechargeAttempt = cosmos.table(
     currency: text('currency').$type<PackageCurrency>().notNull(),
     status: rechargeStatus('status').notNull().default('pending'),
     paymentIntentId: text('payment_intent_id').unique(),
+    /** Cliente e cartão da primeira chamada: a repetição manda os mesmos (mesma chave de idempotência no Stripe). */
+    stripeCustomerId: text('stripe_customer_id'),
+    paymentMethodId: text('payment_method_id'),
     ledgerId: uuid('ledger_id'),
     failureReason: text('failure_reason'),
     createdAt: createdAt(),

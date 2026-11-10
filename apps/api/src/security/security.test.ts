@@ -153,7 +153,7 @@ describe('auditoria de rotas', () => {
     'GET /docs',
     'OPTIONS /*',
     // webhook do Stripe da Cosmos AI: autenticado pela assinatura do Stripe (Stripe-Signature), não por chave nossa
-    'POST /internal/cosmos/stripe/webhook',
+    'POST /webhooks/stripe/cosmos',
   ]);
 
   it('toda rota é pública por decisão explícita ou exige chave (tenant ou admin)', async () => {

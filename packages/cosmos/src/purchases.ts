@@ -9,6 +9,7 @@ import {
   autoRecharge,
   creditPackage,
   purchaseIntent,
+  rechargeAttempt,
   stripeEvent,
   type PackageCurrency,
 } from '@galaxie/db/schema';
@@ -227,7 +228,7 @@ export async function applyStripeEvent(
     if (!intent) return finish('unknown_intent', null);
     if (intent.status !== 'pending') return finish('already_closed', intent.id);
 
-    const close = (status: 'failed' | 'expired', reason: string) =>
+    const close = (status: 'failed' | 'expired' | 'review', reason: string) =>
       tx
         .update(purchaseIntent)
         .set({ status, failureReason: reason, updatedAt: now })
@@ -250,8 +251,19 @@ export async function applyStripeEvent(
         .where(eq(purchaseIntent.id, intent.id));
       return finish('awaiting_payment', intent.id);
     }
-    if (session.amount_total !== intent.amountCents || session.currency?.toLowerCase() !== intent.currency) {
-      await close('failed', 'amount_mismatch');
+    // com conversão de moeda, o que vale é o valor de origem (o nosso preço); sem ela, o da sessão
+    const conv = session.currency_conversion;
+    const amount = conv?.amount_total ?? session.amount_total;
+    const currency = (conv?.source_currency ?? session.currency)?.toLowerCase();
+    if (amount !== intent.amountCents || currency !== intent.currency) {
+      // o cliente pagou e o valor não bate: fica para a equipe revisar (tela das carteiras), nunca some calado
+      console.error('[cosmos] compra paga com valor ou moeda diferentes da intenção', {
+        purchaseIntentId: intent.id,
+        expected: { amount: intent.amountCents, currency: intent.currency },
+        received: { amount, currency: currency ?? null },
+        stripeEventId: event.id,
+      });
+      await close('review', 'amount_mismatch');
       return finish('amount_mismatch', intent.id);
     }
 
@@ -290,21 +302,66 @@ export async function applyStripeEvent(
   });
 }
 
-/** Compras do tenant (mais nova primeiro), para a lista de compras e recibos da tela. */
+/** Situação da recarga automática na lista de compras (mesma escala da compra avulsa). */
+const RECHARGE_AS_PURCHASE = {
+  pending: 'pending',
+  processing: 'pending',
+  succeeded: 'paid',
+  failed: 'failed',
+  cancelled: 'canceled',
+} as const;
+
+/**
+ * Compras do tenant (mais nova primeiro), para a lista de compras e recibos da tela: as avulsas e as cobranças
+ * da recarga automática (`auto: true`, sem recibo por e-mail: a cobrança é fora da sessão).
+ */
 export async function listPurchases(db: Pick<Database, 'select'>, tenantId: string, limit = 20) {
-  return db
-    .select({
-      id: purchaseIntent.id,
-      status: purchaseIntent.status,
-      credits: purchaseIntent.credits,
-      amountCents: purchaseIntent.amountCents,
-      currency: purchaseIntent.currency,
-      createdAt: purchaseIntent.createdAt,
-      paidAt: purchaseIntent.paidAt,
-      hasReceipt: sql<boolean>`${purchaseIntent.invoiceId} is not null`,
-    })
-    .from(purchaseIntent)
-    .where(eq(purchaseIntent.tenantId, tenantId))
-    .orderBy(desc(purchaseIntent.id))
-    .limit(Math.min(Math.max(1, limit), 100));
+  const n = Math.min(Math.max(1, limit), 100);
+  const [single, auto] = await Promise.all([
+    db
+      .select({
+        id: purchaseIntent.id,
+        status: purchaseIntent.status,
+        credits: purchaseIntent.credits,
+        amountCents: purchaseIntent.amountCents,
+        currency: purchaseIntent.currency,
+        createdAt: purchaseIntent.createdAt,
+        paidAt: purchaseIntent.paidAt,
+        hasReceipt: sql<boolean>`${purchaseIntent.invoiceId} is not null`,
+      })
+      .from(purchaseIntent)
+      .where(eq(purchaseIntent.tenantId, tenantId))
+      .orderBy(desc(purchaseIntent.id))
+      .limit(n),
+    db
+      .select({
+        id: rechargeAttempt.id,
+        status: rechargeAttempt.status,
+        credits: rechargeAttempt.credits,
+        amountCents: rechargeAttempt.amountCents,
+        currency: rechargeAttempt.currency,
+        createdAt: rechargeAttempt.createdAt,
+        updatedAt: rechargeAttempt.updatedAt,
+      })
+      .from(rechargeAttempt)
+      .where(eq(rechargeAttempt.tenantId, tenantId))
+      .orderBy(desc(rechargeAttempt.id))
+      .limit(n),
+  ]);
+  return [
+    ...single.map((p) => ({ ...p, auto: false })),
+    ...auto.map((a) => ({
+      id: a.id,
+      status: RECHARGE_AS_PURCHASE[a.status],
+      credits: a.credits,
+      amountCents: a.amountCents,
+      currency: a.currency,
+      createdAt: a.createdAt,
+      paidAt: a.status === 'succeeded' ? a.updatedAt : null,
+      hasReceipt: false,
+      auto: true,
+    })),
+  ]
+    .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+    .slice(0, n);
 }

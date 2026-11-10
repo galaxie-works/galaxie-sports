@@ -13,7 +13,8 @@ export default defineMessages(
         unavailable: 'A compra de créditos está indisponível agora. Tente de novo mais tarde.',
         generic: 'Não deu para abrir o pagamento. Tente de novo.',
         consentRequired: 'Para ligar a recarga automática, aceite a cobrança recorrente.',
-        invalidThreshold: 'O limite para recarregar precisa ser maior que 0.',
+        invalidThreshold:
+          'O limite para recarregar precisa ser maior que 0 e menor que os créditos do pacote.',
       },
       pixReceipt:
         'No Pix, o extrato do banco mostra o nome do processador do pagamento, não Galaxie. O recibo chega por e-mail.',
@@ -121,6 +122,7 @@ export default defineMessages(
       statementDescription: 'Cada movimento do saldo, do mais novo ao mais antigo.',
       export: 'Exportar CSV',
       more: 'Mostrar mais antigos',
+      csvTruncated: 'Extrato cortado em {max} linhas. Escolha um período menor para ver o resto.',
       columns: {
         date: 'Data',
         kind: 'Tipo',
@@ -158,12 +160,14 @@ export default defineMessages(
       purchasesDescription: 'O recibo de cada compra chega por e-mail, enviado pelo Stripe.',
       purchasesEmpty: 'Nenhuma compra ainda.',
       receipt: 'Recibo enviado por e-mail',
+      autoRecharge: 'Recarga automática',
       status: {
         canceled: 'Cancelada',
         expired: 'Expirada',
         failed: 'Falhou',
         paid: 'Paga',
         pending: 'Aguardando pagamento',
+        review: 'Em revisão pela Galaxie',
       },
     },
   },
@@ -179,7 +183,7 @@ export default defineMessages(
           unavailable: 'Buying credits is unavailable right now. Try again later.',
           generic: "We couldn't open the payment. Try again.",
           consentRequired: 'To turn on auto top-up, accept the recurring charge.',
-          invalidThreshold: 'The top-up threshold must be greater than 0.',
+          invalidThreshold: 'The top-up threshold must be greater than 0 and below the package credits.',
         },
         pixReceipt:
           "With Pix, your bank statement shows the payment processor's name, not Galaxie. The receipt arrives by email.",
@@ -294,6 +298,7 @@ export default defineMessages(
         statementDescription: 'Every balance movement, newest first.',
         export: 'Export CSV',
         more: 'Show older',
+        csvTruncated: 'Statement cut at {max} rows. Pick a shorter period to see the rest.',
         columns: {
           date: 'Date',
           kind: 'Type',
@@ -331,12 +336,14 @@ export default defineMessages(
         purchasesDescription: 'Each purchase receipt arrives by email, sent by Stripe.',
         purchasesEmpty: 'No purchases yet.',
         receipt: 'Receipt sent by email',
+        autoRecharge: 'Automatic top-up',
         status: {
           canceled: 'Canceled',
           expired: 'Expired',
           failed: 'Failed',
           paid: 'Paid',
           pending: 'Awaiting payment',
+          review: 'Under review by Galaxie',
         },
       },
     },
@@ -351,7 +358,8 @@ export default defineMessages(
           unavailable: 'La compra de créditos no está disponible ahora. Probá de nuevo más tarde.',
           generic: 'No se pudo abrir el pago. Probá de nuevo.',
           consentRequired: 'Para activar la recarga automática, aceptá el cobro recurrente.',
-          invalidThreshold: 'El límite para recargar tiene que ser mayor que 0.',
+          invalidThreshold:
+            'El límite para recargar tiene que ser mayor que 0 y menor que los créditos del paquete.',
         },
         pixReceipt:
           'Con Pix, el extracto del banco muestra el nombre del procesador del pago, no Galaxie. El recibo llega por correo.',
@@ -461,6 +469,7 @@ export default defineMessages(
         statementDescription: 'Cada movimiento del saldo, del más nuevo al más antiguo.',
         export: 'Exportar CSV',
         more: 'Mostrar más antiguos',
+        csvTruncated: 'Extracto cortado en {max} filas. Elige un período más corto para ver el resto.',
         columns: {
           date: 'Fecha',
           kind: 'Tipo',
@@ -498,12 +507,14 @@ export default defineMessages(
         purchasesDescription: 'El recibo de cada compra llega por correo, enviado por Stripe.',
         purchasesEmpty: 'Ninguna compra todavía.',
         receipt: 'Recibo enviado por correo',
+        autoRecharge: 'Recarga automática',
         status: {
           canceled: 'Cancelada',
           expired: 'Vencida',
           failed: 'Falló',
           paid: 'Pagada',
           pending: 'Esperando el pago',
+          review: 'En revisión por Galaxie',
         },
       },
     },
