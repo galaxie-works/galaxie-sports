@@ -13,6 +13,7 @@ import { clearOtpFailures } from '@/lib/auth/otp-guard';
 import { sendInvite } from '@/lib/auth/invite';
 import { isRole, needsTenant, type Role } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
+import { removeMembershipsOf } from '@/lib/client/members';
 import { tenantExists } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
@@ -177,6 +178,10 @@ export async function updateAccess(
   const tenant = await tenantFor(input.role, input.tenantId);
   if ('error' in tenant) return fail(tenant.error);
   try {
+    const { rows: before } = await pool.query<{ tenant_id: string | null }>(
+      'select tenant_id from "user" where id = $1',
+      [userId],
+    );
     const h = await headers();
     await auth.api.setRole({ headers: h, body: { userId, role: input.role } });
     await auth.api.adminUpdateUser({
@@ -189,6 +194,11 @@ export async function updateAccess(
         },
       },
     });
+    // cliente trocado de tenant (ou que deixou de ser cliente) perde o cargo no tenant anterior: sem isso, o
+    // primeiro acesso dava Dono no tenant novo e o antigo continuava na troca de tenant
+    const previous = before[0]?.tenant_id ?? null;
+    if (previous && previous !== tenant.tenantId)
+      await removeMembershipsOf(userId, `galaxie:${me.id}`, previous);
     revalidatePath(`/ajustes/usuarios/${userId}`);
     revalidatePath('/ajustes/usuarios');
     return { ok: true };
@@ -274,6 +284,8 @@ export async function removeUser(userId: string): Promise<ActionResult> {
   if (userId === me.id) return fail('selfRemove');
   try {
     await auth.api.removeUser({ headers: await headers(), body: { userId } });
+    // cargos da pessoa apagada (a coluna não tem chave estrangeira para o usuário do console)
+    await removeMembershipsOf(userId, `galaxie:${me.id}`);
     await pool.query('delete from activity where user_id = $1', [userId]);
     await pool.query('delete from invite where user_id = $1', [userId]);
     revalidatePath('/ajustes/usuarios');

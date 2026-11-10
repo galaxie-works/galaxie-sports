@@ -24,6 +24,7 @@ vi.mock('next/navigation', () => ({
 
 let db: AuthTestDb;
 let actions: typeof import('../src/app/[locale]/(app)/cliente/usuarios/actions');
+let admin: typeof import('../src/app/[locale]/(app)/ajustes/actions');
 let session: typeof import('../src/lib/client/session');
 const T1 = randomUUID();
 const T2 = randomUUID();
@@ -57,13 +58,19 @@ beforeAll(async () => {
       `insert into api.tenant (id, slug, name, plan, modules) values ($1, $2, $2, 'core_data', '{core_data}')`,
       [id, slug],
     );
-  for (const email of ['dono@um.test', 'mod@um.test', 'dono@dois.test'])
+  for (const email of ['dono@um.test', 'mod@um.test', 'dono@dois.test', 'troca@um.test'])
     cookies[email] = await signInAs(email, 'client');
+  cookies['admin@galaxie.test'] = await signInAs('admin@galaxie.test', 'admin');
   // clientes de antes dos cargos: só o tenant gravado no usuário
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@um.test'`, [T1]);
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@dois.test'`, [T2]);
+  await db.sql.query(`update "user" set tenant_id = $1 where email = 'troca@um.test'`, [T1]);
   actions = await import('../src/app/[locale]/(app)/cliente/usuarios/actions');
+  admin = await import('../src/app/[locale]/(app)/ajustes/actions');
 }, 120_000);
+
+const userId = async (email: string) =>
+  (await db.sql.query<{ id: string }>(`select id from "user" where email = $1`, [email])).rows[0]!.id;
 
 afterAll(async () => {
   await db?.drop();
@@ -162,5 +169,44 @@ describe('usuários e cargos (#1019)', () => {
     expect(rows).toEqual([{ tenant_id: null }]);
     as('dono@dois.test');
     expect(await context()).toMatchObject({ tenant: null, memberRole: null, actor: null });
+  });
+
+  it('cliente trocado de tenant pela Galaxie perde o cargo no tenant anterior', async () => {
+    as('troca@um.test');
+    expect(await context()).toMatchObject({ tenant: { id: T1 }, memberRole: 'owner' });
+    as('admin@galaxie.test');
+    const id = await userId('troca@um.test');
+    const moved = await admin.updateAccess(id, { role: 'client', accessExpiresAt: null, tenantId: T2 });
+    expect(moved.ok).toBe(true);
+    as('troca@um.test');
+    const ctx = await context();
+    expect(ctx?.tenants.map((t) => t.id)).toEqual([T2]);
+    expect(await memberId(T1, 'troca@um.test')).toBeUndefined();
+    const { rows } = await db.sql.query(
+      `select action, actor from api.tenant_member_event
+        where tenant_id = $1 and action = 'removed' and subject = 'troca@um.test'`,
+      [T1],
+    );
+    expect(rows).toEqual([{ action: 'removed', actor: expect.stringMatching(/^galaxie:/) }]);
+  });
+
+  it('pessoa apagada do console sai dos cargos e não conta como Dono', async () => {
+    as('dono@um.test');
+    await context();
+    expect(
+      (await actions.inviteMember({ email: 'apagado@um.test', name: 'Apagado', role: 'owner' })).ok,
+    ).toBe(true);
+    as('admin@galaxie.test');
+    expect((await admin.removeUser(await userId('apagado@um.test'))).ok).toBe(true);
+    const { rows } = await db.sql.query(
+      `select count(*)::int as n from api.tenant_member m where not exists (select 1 from "user" u where u.id = m.user_id)
+         and m.user_id is not null`,
+    );
+    expect(rows).toEqual([{ n: 0 }]);
+    // o Dono que sobrou continua sendo o último
+    as('dono@um.test');
+    await context();
+    const owner = await memberId(T1, 'dono@um.test');
+    expect((await actions.removeMember({ memberId: owner! })).ok).toBe(false);
   });
 });

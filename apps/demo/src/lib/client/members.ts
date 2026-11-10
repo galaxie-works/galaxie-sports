@@ -223,7 +223,11 @@ export async function addTenantMember(input: {
 /** Quantos Donos o tenant tem (com trava da linha, dentro da transação). */
 async function owners(c: PoolClient, tenantId: string): Promise<number> {
   const { rows } = await c.query<{ id: string }>(
-    `select id from api.tenant_member where tenant_id = $1 and role = 'owner' for update`,
+    // linha de pessoa apagada do console (sem o usuário) não conta como Dono
+    `select m.id from api.tenant_member m
+      where m.tenant_id = $1 and m.role = 'owner'
+        and (m.profile_id is not null or exists (select 1 from "user" u where u.id = m.user_id))
+      for update of m`,
     [tenantId],
   );
   return rows.length;
@@ -327,6 +331,48 @@ export async function listMemberEvents(tenantId: string, limit = 50): Promise<Me
     }));
   } catch (err) {
     if (isMissingTable(err)) return [];
+    throw err;
+  }
+}
+
+/**
+ * Tira os cargos de uma pessoa do console, com registro na auditoria. `tenantId` limita a um tenant; sem ele, todos
+ * (a pessoa foi apagada do console). Ação da equipe Galaxie: não respeita a trava do último Dono, porque quem troca o
+ * cliente de tenant ou apaga a conta é a Galaxie, e o tenant que ficar sem Dono recebe outro pela tela de cargos.
+ */
+export async function removeMembershipsOf(
+  userId: string,
+  actor: string,
+  tenantId?: string | null,
+): Promise<number> {
+  if (tenantId !== undefined && (tenantId === null || !isUuid(tenantId))) return 0;
+  try {
+    return await tx(async (c) => {
+      const { rows } = await c.query<{
+        id: string;
+        tenant_id: string;
+        role: TenantRole;
+        email: string | null;
+      }>(
+        `delete from api.tenant_member m
+          where m.user_id = $1 and ($2::uuid is null or m.tenant_id = $2::uuid)
+          returning m.id::text, m.tenant_id::text, m.role,
+                    (select u.email from "user" u where u.id = m.user_id) as email`,
+        [userId, tenantId ?? null],
+      );
+      for (const r of rows)
+        await logEvent(c, {
+          tenantId: r.tenant_id,
+          memberId: r.id,
+          action: 'removed',
+          actor,
+          fromRole: r.role,
+          subject: r.email,
+        });
+      return rows.length;
+    });
+  } catch (err) {
+    if (isMissingTable(err)) return 0;
     throw err;
   }
 }
