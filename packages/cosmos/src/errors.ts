@@ -17,6 +17,8 @@ export type CosmosErrorCode =
   | 'reservation_closed'
   /** Créditos de teste já concedidos (uma vez por tenant). */
   | 'trial_already_granted'
+  /** Compra ou estorno sem chave de idempotência. */
+  | 'missing_idempotency_key'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 
