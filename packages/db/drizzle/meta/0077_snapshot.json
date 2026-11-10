@@ -1,6 +1,6 @@
 {
-  "id": "362d8371-8ca3-488d-9284-5bcfcba15194",
-  "prevId": "c78f7968-098f-4aa2-9c31-46f99165e821",
+  "id": "cd553c90-17ca-4ff6-b568-49d8eafc4503",
+  "prevId": "4811933b-50da-4cb8-8ca4-4b21fa140945",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17521,6 +17521,24 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "credit_usd": {
+          "name": "credit_usd",
+          "type": "numeric(18, 10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "multiplier": {
+          "name": "multiplier",
+          "type": "numeric(8, 3)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_credits": {
+          "name": "min_credits",
+          "type": "numeric(14, 3)",
+          "primaryKey": false,
+          "notNull": true
         },
         "status": {
           "name": "status",
