@@ -66,6 +66,12 @@ import {
 } from './usage/counter.js';
 import { QuotaGuard } from './usage/quota.js';
 import { UsagePersister } from './usage/store.js';
+import {
+  MemoryModuleUsageMeter,
+  ModuleUsagePersister,
+  RedisModuleUsageMeter,
+  type ModuleUsageMeter,
+} from './engage/module-usage.js';
 
 export interface ServerOptions {
   db?: Database;
@@ -129,6 +135,11 @@ export interface ServerOptions {
    * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
    */
   usagePersist?: boolean;
+  /**
+   * Medição de uso dos módulos de engajamento (#1018), consolidada em api.module_usage_monthly. Padrão: Valkey (ou
+   * memória sem Valkey); false desliga. Segue `usagePersist` para consolidar ou não.
+   */
+  moduleUsage?: ModuleUsageMeter | false;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -458,6 +469,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     });
   }
 
+  // medição dos módulos de engajamento (#1018): as rotas do engajamento registram por `app.moduleUsage`
+  const moduleUsage =
+    options.moduleUsage === false
+      ? undefined
+      : (options.moduleUsage ??
+        (options.redis ? new RedisModuleUsageMeter(options.redis, prefix) : new MemoryModuleUsageMeter()));
+  if (moduleUsage) {
+    app.decorate('moduleUsage', moduleUsage);
+    const persister =
+      options.db && options.usagePersist !== false
+        ? new ModuleUsagePersister(options.db, moduleUsage, {
+            onError: (err) => app.log.warn({ err }, 'falha ao consolidar uso por módulo'),
+          })
+        : undefined;
+    app.addHook('onReady', async () => persister?.start());
+    app.addHook('onClose', async () => persister?.stop());
+  }
+
   if (options.changeFeed && options.db) {
     const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
       onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
@@ -492,6 +521,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 declare module 'fastify' {
   interface FastifyInstance {
     changeFeed?: ChangeFeedListener;
+    /** Medição de uso dos módulos de engajamento (#1018). */
+    moduleUsage?: ModuleUsageMeter;
     routeTable: { method: string; url: string; config: FastifyContextConfig }[];
   }
 }
