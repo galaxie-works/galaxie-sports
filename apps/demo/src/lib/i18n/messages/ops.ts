@@ -30,6 +30,8 @@ export default defineMessages(
       unreadableHelp:
         'A chave do painel não abre com a chave de cifra deste contêiner: vale a do .env. Grave de novo ou confira a SETTINGS_KEK.',
       kekMissingHelp: 'Sem SETTINGS_KEK em: {services}. Lá continua valendo a chave do .env.',
+      kekMismatchHelp:
+        'A chave gravada não abre com a chave atual em: {services} (SETTINGS_KEK diferente ou curta demais). Lá vale a do .env.',
       noKekHelp:
         'Este contêiner não tem a SETTINGS_KEK: sem ela o painel não grava chaves (docs/runbooks/chaves-no-painel.md).',
       newValue: 'Chave nova',
@@ -50,6 +52,10 @@ export default defineMessages(
       noKek: 'Este contêiner não tem a SETTINGS_KEK: a chave não foi gravada.',
       saveFailed: 'Não deu para gravar a chave. Tente de novo.',
       kekMissingIn: 'Gravada, mas sem SETTINGS_KEK em: {services}. Lá continua valendo a chave do .env.',
+      kekMismatchIn:
+        'Gravada, mas não abre com a chave atual em: {services} (SETTINGS_KEK diferente ou curta demais). Lá vale a do .env.',
+      feedbackCardOnly:
+        'O token das sugestões é trocado no cartão do GitHub, que confere a repo antes de gravar.',
       restartNeeded: 'Gravada. Vale quando reiniciar: {services}.',
       noTest: 'Este provedor não tem teste.',
       testRejected: 'O provedor recusou a chave.',
@@ -1801,6 +1807,8 @@ export default defineMessages(
         unreadableHelp:
           "The panel key does not open with this container's encryption key: the .env key applies. Save it again or check SETTINGS_KEK.",
         kekMissingHelp: 'No SETTINGS_KEK in: {services}. The .env key still applies there.',
+        kekMismatchHelp:
+          'The saved key does not open with the current key in: {services} (different or too-short SETTINGS_KEK). The .env key applies there.',
         noKekHelp:
           'This container has no SETTINGS_KEK: without it the panel cannot save keys (docs/runbooks/chaves-no-painel.md).',
         newValue: 'New key',
@@ -1821,6 +1829,10 @@ export default defineMessages(
         noKek: 'This container has no SETTINGS_KEK: the key was not saved.',
         saveFailed: 'The key could not be saved. Try again.',
         kekMissingIn: 'Saved, but there is no SETTINGS_KEK in: {services}. The .env key still applies there.',
+        kekMismatchIn:
+          'Saved, but it does not open with the current key in: {services} (different or too-short SETTINGS_KEK). The .env key applies there.',
+        feedbackCardOnly:
+          'The suggestions token is changed on the GitHub card, which checks the repository before saving.',
         restartNeeded: 'Saved. Applies after a restart of: {services}.',
         noTest: 'This provider has no test.',
         testRejected: 'The provider rejected the key.',
@@ -3554,6 +3566,8 @@ export default defineMessages(
         unreadableHelp:
           'La clave del panel no abre con la clave de cifrado de este contenedor: vale la del .env. Guardala de nuevo o revisá la SETTINGS_KEK.',
         kekMissingHelp: 'Sin SETTINGS_KEK en: {services}. Allá sigue valiendo la clave del .env.',
+        kekMismatchHelp:
+          'La clave guardada no abre con la clave actual en: {services} (SETTINGS_KEK distinta o demasiado corta). Allá vale la del .env.',
         noKekHelp:
           'Este contenedor no tiene la SETTINGS_KEK: sin ella el panel no guarda claves (docs/runbooks/chaves-no-painel.md).',
         newValue: 'Clave nueva',
@@ -3575,6 +3589,10 @@ export default defineMessages(
         saveFailed: 'No se pudo guardar la clave. Probá de nuevo.',
         kekMissingIn:
           'Guardada, pero sin SETTINGS_KEK en: {services}. Allá sigue valiendo la clave del .env.',
+        kekMismatchIn:
+          'Guardada, pero no abre con la clave actual en: {services} (SETTINGS_KEK distinta o demasiado corta). Allá vale la del .env.',
+        feedbackCardOnly:
+          'El token de sugerencias se cambia en la tarjeta de GitHub, que verifica el repositorio antes de guardar.',
         restartNeeded: 'Guardada. Vale al reiniciar: {services}.',
         noTest: 'Este proveedor no tiene prueba.',
         testRejected: 'El proveedor rechazó la clave.',

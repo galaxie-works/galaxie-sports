@@ -1,6 +1,6 @@
 'use client';
 
-import { settingDef } from '@galaxie/runtime-config';
+import { settingApplyGroups, settingDef } from '@galaxie/runtime-config';
 import { CircleAlert, FlaskConical, RotateCcw, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -103,8 +103,17 @@ export function SecretDialog({
         : source === 'unreadable'
           ? B.unreadable
           : S.sourceNone;
-  const applyText =
-    def?.apply === 'restart' ? S.applyRestart : def?.apply === 'refresh' ? S.applyRefresh : S.applyNextRun;
+  // por serviço: a mesma chave pode valer na hora num e só ao reiniciar noutro (registro, `applyIn`)
+  const APPLY_TEXT = {
+    refresh: S.applyRefresh,
+    'next-run': S.applyNextRun,
+    restart: S.applyRestart,
+  } as const;
+  const applyText = def
+    ? settingApplyGroups(def)
+        .map((g) => fill(APPLY_TEXT[g.apply], { services: services(g.services) }))
+        .join(' ')
+    : '';
   const canType = editable && Boolean(state?.canSave) && !pending;
 
   return (
@@ -114,7 +123,7 @@ export function SecretDialog({
           <DialogTitle>{fill(S.title, { name: def ? settingText(T, def).label : '' })}</DialogTitle>
           <DialogDescription>
             {editable
-              ? `${S.description} ${fill(applyText, { services: services(def?.services ?? []) })}`
+              ? `${S.description} ${applyText}`
               : fill(B.changeBody, {
                   keys: setting?.key ?? '',
                   services: services(def?.services ?? []),
@@ -167,6 +176,14 @@ export function SecretDialog({
                   <CircleAlert />
                   <AlertDescription>
                     {fill(S.kekMissingHelp, { services: services(state.kekMissing) })}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {state.kekMismatch.length ? (
+                <Alert variant="destructive">
+                  <CircleAlert />
+                  <AlertDescription>
+                    {fill(S.kekMismatchHelp, { services: services(state.kekMismatch) })}
                   </AlertDescription>
                 </Alert>
               ) : null}

@@ -31,6 +31,8 @@ export {
   scheduledJob,
   settingDef,
   reportedService,
+  settingApply,
+  settingApplyGroups,
   settingsForService,
   type LineupMinReviewStatus,
   type RuntimeService,

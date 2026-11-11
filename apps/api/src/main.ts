@@ -4,8 +4,8 @@ import { Redis } from 'ioredis';
 import { parse } from 'yaml';
 import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-client';
 import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@galaxie/db';
-import { applyOverrides, envReport, lineupMinReviewStatus } from '@galaxie/runtime-config';
-import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
+import { applyOverrides, lineupMinReviewStatus } from '@galaxie/runtime-config';
+import { envReportWithKek, settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { buildServer } from './server.js';
@@ -48,7 +48,7 @@ if (db) {
     });
     for (const key of [...applied, ...secrets]) process.env[key] = env[key];
     await reportRuntimeEnv(db, 'api', [
-      ...envReport('api', containerEnv),
+      ...envReportWithKek('api', containerEnv),
       // piso editorial efetivo: a revisão semântica (Ajustes → Revisão) mostra se o item é servido hoje
       {
         key: 'SEMANTIC_MIN_REVIEW_STATUS',

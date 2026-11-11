@@ -164,6 +164,7 @@ describe('Credenciais trocadas no painel (#1087)', () => {
     hint: null,
     needsReseal: false,
     kekMissing: [],
+    kekMismatch: [],
     canSave: true,
     testable: true,
     changedBy: null,
@@ -278,6 +279,27 @@ describe('Credenciais trocadas no painel (#1087)', () => {
     expect(await screen.findByText(S.noKekHelp)).toBeTruthy();
     expect(screen.getByText(fill(S.kekMissingHelp, { services: T.ops.services.agents }))).toBeTruthy();
     expect((screen.getByLabelText(S.newValue) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('serviço cuja KEK não abre a chave gravada é avisado; o prazo vem por serviço', async () => {
+    show(
+      <CredentialsList
+        settings={[
+          setting('APISPORTS_KEY', {
+            configured: true,
+            secret: state({ inPanel: true, kekMismatch: ['live'] }),
+          }),
+        ]}
+      />,
+    );
+    menu(label('APISPORTS_KEY'));
+    fireEvent.click(await screen.findByText(B.status.change));
+    expect(await screen.findByText(fill(S.kekMismatchHelp, { services: T.ops.services.live }))).toBeTruthy();
+    expect(
+      screen.getByText(
+        new RegExp(fill(S.applyRestart, { services: T.ops.services.live }).replace('.', '\\.')),
+      ),
+    ).toBeTruthy();
   });
 });
 

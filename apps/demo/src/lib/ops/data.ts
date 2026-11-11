@@ -4,7 +4,8 @@
  * e o painel precisa do histórico, da fila e do relatório de env de cada contêiner.
  *
  * Nenhum segredo sai daqui: os contêineres relatam credenciais só como "configurada ou não"
- * (ops.runtime_env.value fica nulo) e as da própria demo passam pelo mesmo `envReport`.
+ * (ops.runtime_env.value fica nulo; na SETTINGS_KEK, só os ids das KEKs) e as da própria demo passam pelo mesmo
+ * `envReportWithKek`.
  */
 import {
   AI_CREDIT_CHECK,
@@ -19,7 +20,6 @@ import {
   SETTINGS,
   bandLimitsUsd,
   budgetDayOf,
-  envReport,
   isPanelSecret,
   isSecret,
   nextCronRuns,
@@ -36,7 +36,14 @@ import {
   type RuntimeService,
   type SettingDef,
 } from '@galaxie/runtime-config';
-import { secretHint, type SettingsSecretBox } from '@galaxie/runtime-config/sealed';
+import {
+  envReportWithKek,
+  parseSettingsKekStatus,
+  sealedKid,
+  secretHint,
+  type SettingsKekStatus,
+  type SettingsSecretBox,
+} from '@galaxie/runtime-config/sealed';
 
 import { pool } from '@/lib/auth/db';
 import { FEEDBACK_SEALED_TOKEN_KEY, resolveFeedbackSettings } from '@/lib/feedback/settings';
@@ -102,7 +109,7 @@ async function readSettings(now: Date) {
   const demoAt = now;
   const env = new Map<string, EnvRow>();
   for (const r of envRows) env.set(`${r.service}|${r.key}`, r);
-  for (const r of envReport('demo', containerEnv()))
+  for (const r of envReportWithKek('demo', containerEnv()))
     env.set(`demo|${r.key}`, { service: 'demo', ...r, reported_at: demoAt });
 
   const overrideMap = new Map(overrides.map((o) => [o.key, o]));
@@ -113,7 +120,13 @@ async function readSettings(now: Date) {
   };
   const box = settingsSecrets();
   const secretState = (def: SettingDef): SecretState =>
-    panelSecretState(def, overrideMap, box, (svc) => env.get(`${svc}|SETTINGS_KEK`)?.configured);
+    panelSecretState(
+      def,
+      overrideMap,
+      box,
+      (svc) => env.get(`${svc}|SETTINGS_KEK`)?.configured,
+      (svc) => parseSettingsKekStatus(env.get(`${svc}|SETTINGS_KEK`)?.value),
+    );
   const resolved = resolveAll({
     overrides: new Map(overrides.map((o) => [o.key, o.value])),
     env: (key) => reportedRow(key)?.value ?? null,
@@ -184,24 +197,38 @@ async function readSettings(now: Date) {
 /**
  * Situação de uma chave secreta para a tela (#1087): tenta abrir a linha cifrada só para dizer se abre e mostrar os 4
  * últimos caracteres; o valor não sai daqui. `kekReported(svc)` diz se o serviço relatou ter a SETTINGS_KEK
- * (`undefined` = não relatou: não entra no aviso).
+ * (`undefined` = não relatou: não entra no aviso); `kekStatus(svc)`, os ids das KEKs dele (`null` = serviço que não
+ * relata os ids: não entra no aviso de KEK diferente).
  */
 export function panelSecretState(
   def: SettingDef,
   overrides: ReadonlyMap<string, { value: string; updated_by: string; updated_at: Date }>,
   box: SettingsSecretBox | null,
   kekReported: (service: RuntimeService) => boolean | undefined,
+  kekStatus: (service: RuntimeService) => SettingsKekStatus | null = () => null,
 ): SecretState {
   const editable = isPanelSecret(def);
   const row = editable ? overrides.get(sealedKey(def.key)) : undefined;
   const opened = row && box ? box.open(def.key, row.value) : null;
+  // a linha diz com qual KEK foi cifrada; o serviço com KEK curta ou sem esse id não abre (lá vale o .env)
+  const kid = row ? sealedKid(row.value) : null;
+  const kekMismatch =
+    kid === null
+      ? []
+      : def.services.filter((svc) => {
+          // a própria demo já aparece em `unreadable` (abre com o cofre dela, aqui)
+          if (svc === 'demo' || kekReported(svc) !== true) return false;
+          const status = kekStatus(svc);
+          return status !== null && (status.invalid || !status.kids.includes(kid));
+        });
   return {
     editable,
     inPanel: Boolean(row),
     unreadable: Boolean(row) && opened === null,
-    hint: opened !== null ? secretHint(opened) : null,
+    hint: opened !== null ? secretHint(opened, def.key) : null,
     needsReseal: Boolean(row && box?.needsReseal(def.key, row.value)),
     kekMissing: editable ? def.services.filter((svc) => kekReported(svc) === false) : [],
+    kekMismatch,
     canSave: editable && box !== null,
     testable: editable && isTestableSecret(def.key),
     changedBy: row?.updated_by ?? null,

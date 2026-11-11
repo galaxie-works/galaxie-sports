@@ -12,8 +12,15 @@ import {
   runtimeBaseEnv,
   validateSecretValue,
 } from './resolve.js';
-import { SETTINGS, isPanelSecret, settingDef } from './registry.js';
-import { SettingsSecretBox, secretHint, settingsSecretBox } from './sealed.js';
+import { SETTINGS, isPanelSecret, settingApply, settingApplyGroups, settingDef } from './registry.js';
+import {
+  SettingsSecretBox,
+  envReportWithKek,
+  parseSettingsKekStatus,
+  sealedKid,
+  secretHint,
+  settingsSecretBox,
+} from './sealed.js';
 
 const KEK = 'k'.repeat(40);
 const OTHER_KEK = 'o'.repeat(40);
@@ -72,9 +79,62 @@ describe('cofre dos segredos do painel', () => {
     expect(settingsSecretBox({}).configured).toBe(false);
   });
 
-  it('dica: só os 4 últimos de um valor longo', () => {
+  it('dica: só os 4 últimos de um valor longo; nunca da senha do SMTP', () => {
     expect(secretHint(API_KEY)).toBe('c3d4');
+    expect(secretHint(API_KEY, 'APISPORTS_KEY')).toBe('c3d4');
     expect(secretHint('curta')).toBeNull();
+    expect(secretHint(API_KEY, 'SMTP_PASSWORD')).toBeNull();
+  });
+
+  it('IV fora dos 12 bytes: não abre', () => {
+    const parts = box.seal('APISPORTS_KEY', API_KEY).split(':');
+    parts[3] = Buffer.alloc(16, 1).toString('base64url');
+    expect(box.open('APISPORTS_KEY', parts.join(':'))).toBeNull();
+  });
+});
+
+describe('relato da KEK de cada serviço ao painel', () => {
+  it('leva os ids e a validade, nunca a KEK', () => {
+    const [entry] = envReportWithKek('live', { SETTINGS_KEK: `${KEK},curta` }).filter(
+      (e) => e.key === 'SETTINGS_KEK',
+    );
+    expect(entry!.configured).toBe(true);
+    expect(entry!.value).not.toContain(KEK);
+    expect(parseSettingsKekStatus(entry!.value)).toEqual({ kids: box.kids, invalid: true });
+    // a linha diz com qual KEK foi cifrada
+    expect(sealedKid(box.seal('APISPORTS_KEY', API_KEY))).toBe(box.kids[0]);
+    expect(sealedKid(API_KEY)).toBeNull();
+  });
+
+  it('sem KEK: nada a relatar; relato antigo ou estranho é ignorado', () => {
+    const entry = envReportWithKek('live', {}).find((e) => e.key === 'SETTINGS_KEK');
+    expect(entry).toMatchObject({ value: null, configured: false });
+    expect(parseSettingsKekStatus(null)).toBeNull();
+    expect(parseSettingsKekStatus('não é json')).toBeNull();
+    expect(parseSettingsKekStatus('{"kids":["x", "ab12cd34"]}')).toEqual({
+      kids: ['ab12cd34'],
+      invalid: false,
+    });
+  });
+});
+
+describe('quando a chave nova chega a cada serviço', () => {
+  it('api-sports: próxima execução no ingestor, reinício no ao vivo (processo contínuo)', () => {
+    const def = settingDef('APISPORTS_KEY')!;
+    expect(settingApply(def, 'ingestor')).toBe('next-run');
+    expect(settingApply(def, 'live')).toBe('restart');
+    expect(settingApplyGroups(def)).toEqual([
+      { apply: 'next-run', services: ['ingestor'] },
+      { apply: 'restart', services: ['live'] },
+    ]);
+  });
+
+  it('S3: a demo refaz o cliente na releitura; o ingestor, na próxima execução', () => {
+    for (const key of ['S3_ACCESS_KEY', 'S3_SECRET_KEY']) {
+      const def = settingDef(key)!;
+      expect(settingApply(def, 'demo')).toBe('refresh');
+      expect(settingApply(def, 'ingestor')).toBe('next-run');
+    }
   });
 });
 

@@ -11,14 +11,17 @@ a `SETTINGS_KEK`, que fica só no `.env` de cada serviço.
   AES-256-GCM. O dado autenticado é `ops.runtime_setting:<CHAVE>_SEALED`: copiar o cifrado para outra linha não abre.
 - O histórico (Ajustes → Histórico e auditoria) registra **quem trocou e quando**, nunca o valor (nem cifrado).
 - O valor nunca volta ao navegador. A tela mostra só de onde vem a chave (painel ou `.env`) e, para chaves longas
-  gravadas no painel, os 4 últimos caracteres.
+  gravadas no painel, os 4 últimos caracteres (nunca da senha do SMTP).
 - Cada serviço abre as linhas com a própria `SETTINGS_KEK` e põe a chave no env, por cima do `.env`:
-  - jobs do scheduler (ingestor, live, agents): na **próxima execução** do job;
+  - jobs do scheduler (ingestor, live, agents): na **próxima execução** do job; o ao vivo roda sem parar (líder e
+    reserva), então a `APISPORTS_KEY` nova só chega a ele **ao reiniciar** o serviço `live`;
   - tarefas do worker: na próxima tarefa;
   - demo (site e console): em até **1 minuto** (e na hora, no processo que gravou);
   - API (`STRIPE_WEBHOOK_SECRET`, IAs da Cosmos): **ao reiniciar** a API.
 - Se a `SETTINGS_KEK` faltar, for curta ou não abrir o cifrado, o serviço usa a chave do `.env` e a tela mostra
-  "Não abre com a chave atual".
+  "Não abre com a chave atual". Cada serviço relata ao painel os ids (8 hex, não secretos) das KEKs que tem; o diálogo
+  da chave lista os serviços cuja KEK é outra ou curta demais.
+- O token das sugestões só é trocado no cartão do GitHub das sugestões, que confere a repo antes de gravar.
 - "Testar antes de salvar" faz uma chamada barata ao provedor com a chave digitada (api-sports `/status`, listar modelos
   da OpenAI/Anthropic/Gemini/DeepSeek, `videos.list` do YouTube, `balance` do Stripe). Nada é gravado.
 - "Voltar ao .env" apaga a linha do painel; os serviços voltam à chave do `.env` na próxima releitura.

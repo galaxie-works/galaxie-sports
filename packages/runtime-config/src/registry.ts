@@ -76,6 +76,11 @@ export interface SettingDef {
    */
   services: readonly RuntimeService[];
   apply: SettingApply;
+  /**
+   * Serviços em que a mudança chega de outro jeito que `apply` (ex.: a chave da api-sports vale na próxima execução
+   * dos jobs do ingestor, mas o ao vivo, um processo contínuo, só a pega ao reiniciar). `settingApplyGroups` junta.
+   */
+  applyIn?: Partial<Record<RuntimeService, SettingApply>>;
   /** Padrão do código (texto). `null` = sem padrão (vazio). */
   default: string | null;
   /** Padrão que depende de outra flag (ex.: modelo de IA por provedor). */
@@ -313,7 +318,14 @@ const panelSecret = (
   services: readonly RuntimeService[],
   pattern: RegExp,
   apply: SettingApply = 'next-run',
-): SettingDef => ({ ...secret(key, section, services), apply, pattern, panelSecret: true });
+  applyIn?: SettingDef['applyIn'],
+): SettingDef => ({
+  ...secret(key, section, services),
+  apply,
+  ...(applyIn ? { applyIn } : {}),
+  pattern,
+  panelSecret: true,
+});
 
 /** Formatos dos segredos: só ASCII visível (o valor vira cabeçalho HTTP ou variável de ambiente). */
 const SECRET_FORMATS = {
@@ -902,16 +914,24 @@ export const SETTINGS: readonly SettingDef[] = [
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele
-  panelSecret('APISPORTS_KEY', 'provider', ['ingestor', 'live'], SECRET_FORMATS.apisports),
+  // o ao vivo monta o cliente da api-sports uma vez e roda sem parar (líder e reserva): a chave nova só ao reiniciar
+  panelSecret('APISPORTS_KEY', 'provider', ['ingestor', 'live'], SECRET_FORMATS.apisports, 'next-run', {
+    live: 'restart',
+  }),
   panelSecret('OPENAI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
   panelSecret('ANTHROPIC_API_KEY', 'ai', ['agents'], SECRET_FORMATS.anthropic),
   panelSecret('GEMINI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.google),
   // DeepSeek (API compatível com a da OpenAI): a chave já fica guardada; os agentes ainda não chamam o provedor
   panelSecret('DEEPSEEK_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
   panelSecret('YOUTUBE_API_KEY', 'related', ['agents'], SECRET_FORMATS.google),
-  panelSecret('S3_ACCESS_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain),
+  // a demo refaz o cliente S3 quando a chave muda (anexos, logos): vale na releitura de um minuto
+  panelSecret('S3_ACCESS_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain, 'next-run', {
+    demo: 'refresh',
+  }),
   panelSecret('QUALITY_API_KEY', 'credentials', ['ingestor'], SECRET_FORMATS.token),
-  panelSecret('S3_SECRET_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain),
+  panelSecret('S3_SECRET_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain, 'next-run', {
+    demo: 'refresh',
+  }),
   panelSecret('SMTP_HOST', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
   panelSecret('SMTP_USER', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
   panelSecret('SMTP_PASSWORD', 'credentials', ['demo'], SECRET_FORMATS.password, 'refresh'),
@@ -949,6 +969,23 @@ export function reportedService(
   reported: (service: RuntimeService) => boolean,
 ): RuntimeService {
   return def.services.find(reported) ?? def.services[0]!;
+}
+
+/** Quando a mudança chega a cada serviço que lê a chave (`applyIn` por cima de `apply`). */
+export function settingApply(
+  def: Pick<SettingDef, 'apply' | 'applyIn'>,
+  service: RuntimeService,
+): SettingApply {
+  return def.applyIn?.[service] ?? def.apply;
+}
+
+/** Os serviços que leem a chave agrupados por quando a mudança chega, na ordem refresh, next-run, restart. */
+export function settingApplyGroups(
+  def: Pick<SettingDef, 'apply' | 'applyIn' | 'services'>,
+): { apply: SettingApply; services: RuntimeService[] }[] {
+  return (['refresh', 'next-run', 'restart'] as const)
+    .map((apply) => ({ apply, services: def.services.filter((svc) => settingApply(def, svc) === apply) }))
+    .filter((g) => g.services.length > 0);
 }
 
 /** Flags que um serviço lê (incluindo segredos, para o relatório de "configurado"). */

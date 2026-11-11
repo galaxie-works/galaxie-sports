@@ -38,7 +38,10 @@ const OPENAI = 'sk-proj-chaveNovaDoPainel1234567890';
 
 /** O banco: `rows` responde às leituras de linhas cifradas e do relato de KEK; as gravações ficam em `query`. */
 function db(
-  opts: { sealed?: { key: string; value: string }[]; kek?: { service: string; configured: boolean }[] } = {},
+  opts: {
+    sealed?: { key: string; value: string }[];
+    kek?: { service: string; configured: boolean; value?: string | null }[];
+  } = {},
 ) {
   query.mockImplementation(async (sql: string) => {
     if (/like '%\\_SEALED'/.test(sql)) return { rows: opts.sealed ?? [] };
@@ -142,6 +145,30 @@ describe('gravar', () => {
     expect(res.warning).toContain('Ao vivo');
   });
 
+  it('avisa quando a KEK de um serviço é outra (ou curta) e a chave gravada não vai abrir lá', async () => {
+    const other = new SettingsSecretBox(['o'.repeat(40)]).kids;
+    db({
+      kek: [
+        { service: 'live', configured: true, value: JSON.stringify({ kids: other, invalid: false }) },
+        { service: 'ingestor', configured: true, value: JSON.stringify({ kids: box.kids, invalid: false }) },
+      ],
+    });
+    const res = await saveSecret('APISPORTS_KEY', API_KEY);
+    expect(res.ok).toBe(true);
+    expect(res.warning).toMatch(/não abre/);
+    expect(res.warning).toContain('Ao vivo');
+    expect(res.warning).not.toContain('Ingestor');
+  });
+
+  it('token das sugestões: só pelo cartão do GitHub (que confere a repo)', async () => {
+    const token = 'github_pat_' + 'x'.repeat(30);
+    const saved = await saveSecret('FEEDBACK_GITHUB_TOKEN', token);
+    expect(saved.ok).toBe(false);
+    expect((await testSecret('FEEDBACK_GITHUB_TOKEN', token)).ok).toBe(false);
+    expect(settingWrites()).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('chave lida na partida (API): avisa que vale ao reiniciar', async () => {
     const res = await saveSecret('STRIPE_WEBHOOK_SECRET', 'whsec_abcdefghijklmnop');
     expect(res.ok).toBe(true);
@@ -172,7 +199,11 @@ describe('voltar ao .env', () => {
         ? { rows: [{ value: box.seal('APISPORTS_KEY', API_KEY) }] }
         : { rows: [] },
     );
-    expect(await resetSecret('APISPORTS_KEY')).toEqual({ ok: true });
+    // o ao vivo (contínuo) só volta ao .env ao reiniciar
+    expect(await resetSecret('APISPORTS_KEY')).toEqual({
+      ok: true,
+      warning: expect.stringContaining('Ao vivo'),
+    });
     expect(calls(/delete from ops\.runtime_setting where key/)).toEqual([['APISPORTS_KEY_SEALED']]);
     expect(logWrites()).toEqual([
       ['APISPORTS_KEY_SEALED', 'reset', '••••••••', null, 'teste.admin@galaxie.test'],

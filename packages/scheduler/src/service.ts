@@ -24,12 +24,11 @@ import type { Logger } from '@galaxie/observability';
 import {
   AI_CREDIT_CHECK,
   applyOverrides,
-  envReport,
   scheduledJob,
   type RuntimeService,
   type SealedSecretOpener,
 } from '@galaxie/runtime-config';
-import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
+import { envReportWithKek, settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { reportAiHeartbeat, type CreditCheckResult } from './ai-credit.js';
 import type { MissedSlot } from './catch-up.js';
 import type { RunResult, RunTrigger } from './runner.js';
@@ -197,7 +196,11 @@ export class SchedulerService {
     this.reconcile();
     if (!db) return;
     try {
-      await reportRuntimeEnv(db, this.options.profile, envReport(this.options.profile, this.options.env));
+      await reportRuntimeEnv(
+        db,
+        this.options.profile,
+        envReportWithKek(this.options.profile, this.options.env),
+      );
     } catch (err) {
       this.log.warn({ err }, 'não foi possível relatar o env ao painel');
     }

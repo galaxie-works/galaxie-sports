@@ -15,10 +15,12 @@ import {
   isPanelSecret,
   sealedBaseKey,
   sealedKey,
+  settingApply,
   settingDef,
   validateSecretValue,
   type RuntimeService,
 } from '@galaxie/runtime-config';
+import { parseSettingsKekStatus } from '@galaxie/runtime-config/sealed';
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
@@ -48,16 +50,36 @@ async function texts() {
 const logFailure = (what: string, err: unknown) =>
   console.error(`[ajustes] ${what}`, err instanceof Error ? err.name : 'erro');
 
-/** Serviços que leem a chave e relataram não ter a SETTINGS_KEK (neles vale o .env). */
-async function servicesWithoutKek(services: readonly RuntimeService[]): Promise<RuntimeService[]> {
-  const { rows } = await pool.query<{ service: RuntimeService; configured: boolean }>(
-    `select service, configured from ops.runtime_env where key = 'SETTINGS_KEK' and service = any($1)`,
+/**
+ * Token das sugestões: gravado e testado só pelo cartão do GitHub (`saveFeedbackGithub`), que confere a repo
+ * (privada, com acesso) antes de gravar. As ações genéricas daqui pulariam essa conferência.
+ */
+const FEEDBACK_TOKEN_KEY = 'FEEDBACK_GITHUB_TOKEN';
+
+/**
+ * Serviços que leem a chave e em que ela não vai abrir: sem SETTINGS_KEK (`missing`) ou com outra KEK / KEK curta
+ * (`mismatch`, comparando com o id da KEK com que a demo acabou de cifrar). Neles vale o .env.
+ */
+async function kekProblems(
+  services: readonly RuntimeService[],
+  kid: string | null,
+): Promise<{ missing: RuntimeService[]; mismatch: RuntimeService[] }> {
+  const { rows } = await pool.query<{ service: RuntimeService; configured: boolean; value: string | null }>(
+    `select service, configured, value from ops.runtime_env where key = 'SETTINGS_KEK' and service = any($1)`,
     [services],
   );
-  return rows.filter((r) => !r.configured).map((r) => r.service);
+  const mismatch = rows.filter((r) => {
+    if (!r.configured || kid === null || r.service === 'demo') return false;
+    const status = parseSettingsKekStatus(r.value);
+    return status !== null && (status.invalid || !status.kids.includes(kid));
+  });
+  return {
+    missing: rows.filter((r) => !r.configured).map((r) => r.service),
+    mismatch: mismatch.map((r) => r.service),
+  };
 }
 
-async function afterWrite(key: string): Promise<string | undefined> {
+async function afterWrite(key: string, kid: string | null = null): Promise<string | undefined> {
   const t = await texts();
   const def = settingDef(key)!;
   revalidateSystem();
@@ -65,9 +87,14 @@ async function afterWrite(key: string): Promise<string | undefined> {
   if (def.services.includes('demo'))
     await refreshPanelSecrets().catch((err: unknown) => logFailure('releitura das chaves falhou', err));
   const names = (list: readonly RuntimeService[]) => list.map((x) => t.services[x]).join(', ');
-  const missing = await servicesWithoutKek(def.services).catch((): RuntimeService[] => []);
+  const { missing, mismatch } = await kekProblems(def.services, kid).catch(() => ({
+    missing: [] as RuntimeService[],
+    mismatch: [] as RuntimeService[],
+  }));
   if (missing.length) return fill(t.secretKeys.kekMissingIn, { services: names(missing) });
-  if (def.apply === 'restart') return fill(t.secretKeys.restartNeeded, { services: names(def.services) });
+  if (mismatch.length) return fill(t.secretKeys.kekMismatchIn, { services: names(mismatch) });
+  const restart = def.services.filter((svc) => settingApply(def, svc) === 'restart');
+  if (restart.length) return fill(t.secretKeys.restartNeeded, { services: names(restart) });
   return undefined;
 }
 
@@ -78,6 +105,7 @@ export async function saveSecret(key: string, raw: string): Promise<SecretAction
   if (typeof key !== 'string' || typeof raw !== 'string') return { ok: false, error: t.errors.unknown };
   const def = settingDef(key);
   if (!isPanelSecret(def)) return { ok: false, error: T.serverOnly };
+  if (key === FEEDBACK_TOKEN_KEY) return { ok: false, error: T.feedbackCardOnly };
   const checked = validateSecretValue(def, raw);
   if (!checked.ok) return { ok: false, error: validationMessage(t, checked.error) };
   const box = settingsSecrets();
@@ -92,7 +120,7 @@ export async function saveSecret(key: string, raw: string): Promise<SecretAction
     logFailure('falha ao gravar a chave', err);
     return { ok: false, error: T.saveFailed };
   }
-  const warning = await afterWrite(key);
+  const warning = await afterWrite(key, box.kids[0] ?? null);
   return warning ? { ok: true, warning } : { ok: true };
 }
 
@@ -123,6 +151,7 @@ export async function testSecret(key: string, raw: string): Promise<SecretAction
   if (typeof key !== 'string' || typeof raw !== 'string') return { ok: false, error: t.errors.unknown };
   const def = settingDef(key);
   if (!isPanelSecret(def)) return { ok: false, error: T.serverOnly };
+  if (key === FEEDBACK_TOKEN_KEY) return { ok: false, error: T.feedbackCardOnly };
   const checked = validateSecretValue(def, raw);
   if (!checked.ok) return { ok: false, error: validationMessage(t, checked.error) };
   const result = await testSecretValue(key, checked.value);

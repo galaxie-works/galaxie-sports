@@ -43,6 +43,11 @@ export interface SecretState {
   needsReseal: boolean;
   /** Serviços que leem a chave e relataram não ter a SETTINGS_KEK: neles vale o .env. */
   kekMissing: RuntimeService[];
+  /**
+   * Serviços que leem a chave e têm SETTINGS_KEK, mas a chave gravada não abre lá: a KEK deles é outra (id diferente do
+   * da linha) ou curta demais. Neles vale o .env.
+   */
+  kekMismatch: RuntimeService[];
   /** Este contêiner (a demo) tem a SETTINGS_KEK: sem ela o painel não grava. */
   canSave: boolean;
   /** O provedor tem "Testar antes de salvar". */
