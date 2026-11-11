@@ -60,7 +60,11 @@ describe('cada ajuste em um lugar só (#1070)', () => {
 
   it('LINEUP_* em Grades e ofertas; Ao vivo e Pós-jogo separados; plano de cada esporte no Fornecedor', () => {
     for (const def of SETTINGS.filter((d) => d.key.startsWith('LINEUP_'))) {
-      expect(settingPage(def.key), def.key).toEqual({ item: 'lineup', block: 'lineup' });
+      expect(settingPage(def.key), def.key).toEqual({
+        item: 'lineup',
+        block: 'lineup',
+        query: 'aba=ajustes',
+      });
     }
     const live = SETTINGS.filter((d) => d.section === 'live');
     expect(live.filter((d) => settingPage(d.key)?.item === 'live')).toHaveLength(6);
@@ -74,5 +78,13 @@ describe('cada ajuste em um lugar só (#1070)', () => {
     expect(settingHref('YOUTUBE_API_KEY')).toBe('/ajustes/credenciais#YOUTUBE_API_KEY');
     expect(settingHref('POSTGAME_NBA_MIN')).toBe('/ajustes/pos-jogo#POSTGAME_NBA_MIN');
     expect(settingHref('NAO_EXISTE')).toBeNull();
+  });
+
+  it('LINEUP_*: o link abre Grades e ofertas na aba Ajustes, onde a linha está', () => {
+    const lineup = SETTINGS.filter((d) => d.key.startsWith('LINEUP_'));
+    expect(lineup.length).toBeGreaterThan(0);
+    for (const def of lineup) {
+      expect(settingHref(def.key), def.key).toBe(`/ajustes/grades?aba=ajustes#${def.key}`);
+    }
   });
 });

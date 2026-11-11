@@ -29,7 +29,6 @@ import {
   MessagesSquare,
   MonitorPlay,
   MonitorSmartphone,
-  PanelLeftOpen,
   Radio,
   Scale,
   Search,
@@ -252,15 +251,6 @@ export function SettingsSearchField({ onOpen }: { onOpen?: () => void }) {
   );
 }
 
-/** Coluna de Ajustes escondida pelo ⇤ (telas estreitas): estado lembrado, do layout de Ajustes. */
-export interface SettingsColumnState {
-  hidden: boolean;
-  setHidden: (hidden: boolean) => void;
-}
-const ColumnContext = createContext<SettingsColumnState | null>(null);
-export const SettingsColumnProvider = ColumnContext.Provider;
-export const useSettingsColumn = () => useContext(ColumnContext);
-
 /**
  * Moldura de uma página de Ajustes (`app-shell-14`, #1067) com o topo comum (#1072): o cabeçalho (caminho Ajustes ›
  * Grupo › Item, título, a frase do que a página controla, "Atualizado" e "Atualizar" quando o conteúdo conta quando
@@ -328,7 +318,6 @@ function SettingsAreaBody({
 }: Parameters<typeof SettingsArea>[0]) {
   const { t } = useI18n();
   const nav = t.ops.nav;
-  const column = useSettingsColumn();
   const report = usePageChromeReport();
   const group = active === SETTINGS_HOME.id ? null : settingsGroupOf(active);
   const leading = (
@@ -347,18 +336,6 @@ function SettingsAreaBody({
         )}
         className="self-start md:hidden"
       />
-      {column?.hidden ? (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="hidden md:inline-flex"
-          aria-label={nav.show}
-          title={nav.show}
-          onClick={() => column.setHidden(false)}
-        >
-          <PanelLeftOpen aria-hidden="true" />
-        </Button>
-      ) : null}
     </>
   );
   const withIndex = !!sections && showOnThisPage(sections);
