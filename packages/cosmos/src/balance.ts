@@ -25,11 +25,21 @@ export function alertLevelFor(available: number, cycleBase: number): AlertLevel 
 export interface BalanceState {
   tenantId: string;
   status: 'active' | 'blocked';
+  /** `staff`: bloqueada pela equipe Galaxie; a recarga automática não dispara (não se cobra carteira bloqueada). */
+  blockReason: 'depleted' | 'staff' | null;
   /** Cosmos ligada no tenant; desligada, a recarga automática não dispara. */
   enabled: boolean;
   cycleBase: number;
   cycleStartedAt: Date | null;
   alertLevel: number;
+}
+
+/**
+ * A carteira aceita recarga automática: Cosmos ligada e sem bloqueio da equipe. Bloqueio por saldo zerado não
+ * impede (é justamente o caso que a recarga resolve).
+ */
+export function canRecharge(w: Pick<BalanceState, 'enabled' | 'status' | 'blockReason'>): boolean {
+  return w.enabled && !(w.status === 'blocked' && w.blockReason === 'staff');
 }
 
 /** Colunas da carteira a gravar junto com o novo saldo. */
@@ -90,7 +100,7 @@ export async function evaluateBalance(
         isNotNull(autoRecharge.stripeCustomerId),
       ),
     );
-  if (w.enabled && ar && ar.packageActive && available < ar.threshold) {
+  if (canRecharge(w) && ar && ar.packageActive && available < ar.threshold) {
     await tx
       .insert(rechargeAttempt)
       .values({

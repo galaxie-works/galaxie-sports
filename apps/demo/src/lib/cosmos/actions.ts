@@ -153,8 +153,13 @@ export async function enableCosmosAction(): Promise<{
 export async function disableCosmosAction(): Promise<{ ok: boolean; error?: string }> {
   const g = await gate();
   if ('error' in g) return { ok: false, error: g.error };
-  await disableCosmos(builderDb(), g.ctx.tenant.id);
-  return { ok: true };
+  try {
+    await disableCosmos(builderDb(), g.ctx.tenant.id);
+    return { ok: true };
+  } catch (err) {
+    console.error('[cosmos] desligar a Cosmos falhou', err);
+    return { ok: false, error: g.t.errors.generic };
+  }
 }
 
 export interface AutoRechargeForm {
