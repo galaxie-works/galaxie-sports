@@ -31,6 +31,7 @@
     "@galaxie/contracts": "workspace:*",
     "@galaxie/cosmos": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/engage": "workspace:*",
     "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",

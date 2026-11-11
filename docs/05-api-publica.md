@@ -1081,6 +1081,8 @@ curl_setopt_array($ch, [
 $token = json_decode(curl_exec($ch), true)['data']['token'];
 ```
 
+**Apelido e moderação (#969):** o `nickname` passa pelo filtro de texto da Galaxie (ódio, ameaça, assédio, conteúdo sexual, palavrão, aposta, link e dado pessoal, inclusive com grafia trocada como `m4c4c0`) mais os termos que o cliente acrescentou. Qualquer achado recusa a emissão com `400 INVALID_PARAMS` e `errors[0].path = "nickname"`, com um aviso curto para mostrar ao torcedor. As listas base ficam em Ajustes → Conformidade → Moderação; mudança chega à API em até 60 s.
+
 ### 9.1 O token no widget, no embed e no app (#1020)
 
 O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta (exemplos acima) e entrega só o token ao navegador ou ao app. A chave publicável nunca emite token, e a chave secreta nunca vai para o navegador.
