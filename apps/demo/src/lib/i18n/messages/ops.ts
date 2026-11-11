@@ -15,6 +15,53 @@ interface SettingText {
 export default defineMessages(
   {
     meta: { title: 'Sistema' },
+    secretKeys: {
+      title: 'Trocar {name}',
+      description:
+        'A chave nova é cifrada e gravada no banco; o valor nunca volta para a tela nem para o histórico.',
+      applyNextRun: 'Vale na próxima execução dos jobs de: {services}.',
+      applyRefresh: 'Vale em até um minuto em: {services}.',
+      applyRestart: 'Vale quando reiniciar: {services}.',
+      sourcePanel: 'Configurada pelo painel',
+      sourcePanelHint: 'Configurada pelo painel · termina em {hint}',
+      sourceEnv: 'Configurada pelo .env',
+      sourceNone: 'Não configurada',
+      changedBy: 'Trocada por {by}',
+      unreadableHelp:
+        'A chave do painel não abre com a chave de cifra deste contêiner: vale a do .env. Grave de novo ou confira a SETTINGS_KEK.',
+      kekMissingHelp: 'Sem SETTINGS_KEK em: {services}. Lá continua valendo a chave do .env.',
+      kekMismatchHelp:
+        'A chave gravada não abre com a chave atual em: {services} (SETTINGS_KEK diferente ou curta demais). Lá vale a do .env.',
+      noKekHelp:
+        'Este contêiner não tem a SETTINGS_KEK: sem ela o painel não grava chaves (docs/runbooks/chaves-no-painel.md).',
+      newValue: 'Chave nova',
+      placeholder: 'Cole a chave nova',
+      test: 'Testar antes de salvar',
+      testing: 'Testando…',
+      testOk: 'O provedor aceitou a chave.',
+      save: 'Salvar',
+      confirm: 'Confirmar a troca',
+      confirmHint: 'Confirme: os serviços passam a usar a chave nova.',
+      saved: 'Chave trocada.',
+      reset: 'Voltar ao .env',
+      resetConfirm: 'Confirmar a volta ao .env',
+      resetHint: 'Apaga a chave do painel; os serviços voltam à do .env.',
+      resetDone: 'Voltou à chave do .env.',
+      cancel: 'Cancelar',
+      serverOnly: 'Esta chave fica só no .env do servidor.',
+      noKek: 'Este contêiner não tem a SETTINGS_KEK: a chave não foi gravada.',
+      saveFailed: 'Não deu para gravar a chave. Tente de novo.',
+      kekMissingIn: 'Gravada, mas sem SETTINGS_KEK em: {services}. Lá continua valendo a chave do .env.',
+      kekMismatchIn:
+        'Gravada, mas não abre com a chave atual em: {services} (SETTINGS_KEK diferente ou curta demais). Lá vale a do .env.',
+      feedbackCardOnly:
+        'O token das sugestões é trocado no cartão do GitHub, que confere a repo antes de gravar.',
+      restartNeeded: 'Gravada. Vale quando reiniciar: {services}.',
+      noTest: 'Este provedor não tem teste.',
+      testRejected: 'O provedor recusou a chave.',
+      testUnreachable: 'O provedor não respondeu a tempo. Tente de novo.',
+      resealed: '{n} chave(s) recifrada(s) com a chave atual.',
+    },
     page: {
       title: 'Sistema',
       description:
@@ -238,7 +285,8 @@ export default defineMessages(
       open: 'Abrir em {page}',
       movedTitle: 'Editado em outra página',
       movedModels: 'Os modelos de IA ficam todos em IA interna; aqui só o que está em uso.',
-      movedKeys: 'As chaves ficam todas em Credenciais; aqui só se estão configuradas.',
+      movedKeys: 'Todas as chaves também ficam em Credenciais. Troque aqui ou lá; o valor nunca aparece.',
+      change: 'Trocar',
     },
     sections: {
       mirror: {
@@ -395,7 +443,7 @@ export default defineMessages(
       tokenHint:
         'Fine-grained PAT só dessa repo, com Issues: Read and write. Antes de gravar, o GitHub confirma que a repo responde e é privada. Depois de salvo, o token fica cifrado e não aparece mais aqui.',
       noKek:
-        'Este contêiner não tem a chave de cifra (WEBHOOK_SIGNING_SECRET): sem ela o painel não grava token. Defina a chave no .env da VPS.',
+        'Este contêiner não tem a chave de cifra (SETTINGS_KEK): sem ela o painel não grava token. Defina a chave no .env da VPS.',
       changed: 'Alterado por {by} {when}.',
       status: {
         panel: 'Definido no painel',
@@ -427,7 +475,7 @@ export default defineMessages(
         repo: 'Use o formato dono/repositorio.',
         repoRequired: 'Informe o repositório para conferir o token.',
         tokenFormat: 'Token com formato inválido.',
-        noKek: 'Sem a chave de cifra (WEBHOOK_SIGNING_SECRET) neste contêiner: o token não foi gravado.',
+        noKek: 'Sem a chave de cifra (SETTINGS_KEK) neste contêiner: o token não foi gravado.',
         notPrivate: 'Essa repo não é privada: as sugestões trazem dado de cliente. Nada foi gravado.',
         badToken: 'O GitHub recusou o token (inválido ou vencido). Nada foi gravado.',
         noAccess: 'Esse token não enxerga a repo, ou ela não existe. Nada foi gravado.',
@@ -456,6 +504,8 @@ export default defineMessages(
       providerKeyMissing: 'A chave desse provedor não está configurada no contêiner dos agentes.',
       alreadyQueued: 'Já existe um pedido para este job na fila.',
       notRunnable: 'Este job não pode ser disparado pelo painel.',
+      sealed:
+        'A chave gravada no painel não abre com a chave de cifra (SETTINGS_KEK) deste serviço: vale a do .env.',
     },
     cron: {
       next: 'Próximas execuções',
@@ -1138,7 +1188,14 @@ export default defineMessages(
         test: 'Testar',
         changeTitle: 'Trocar {name}',
         changeBody:
-          'O valor fica só no .env da VPS e nunca passa pelo painel. Troque lá ({keys}) e reinicie: {services}.',
+          'Esta chave fica só no .env da VPS: ela abre o cofre, o login ou o banco e não pode ser guardada no banco. Troque lá ({keys}) e reinicie: {services}.',
+        serverOnly: 'Só no servidor',
+        inPanel: 'Pelo painel',
+        inEnv: 'Pelo .env',
+        unreadable: 'Não abre com a chave atual',
+        resetToEnv: 'Voltar ao .env',
+        reseal: 'Recifrar com a chave atual',
+        resealHint: 'Há chaves gravadas com a chave de cifra antiga.',
         close: 'Fechar',
         credentialsTitle: 'Credenciais',
         credentialsDescription:
@@ -1677,10 +1734,9 @@ export default defineMessages(
           'Desligado, o botão some do app e o servidor recusa o envio. Quem já estava com a página aberta vê o botão sumir ao recarregar.',
       },
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
-      FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
-      STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
-      COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: chave do provedor do assistente (.env)' },
-      STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
+      FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões' },
+      STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta' },
+      STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook' },
       WTW_ROUND_ALLOCATION: {
         label: 'Alocação por rodada (desenho anterior)',
         description:
@@ -1734,6 +1790,11 @@ export default defineMessages(
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
       GEMINI_API_KEY: { label: 'Chave do Gemini' },
       DEEPSEEK_API_KEY: { label: 'Chave da DeepSeek' },
+      COSMOS_OPENAI_API_KEY: { label: 'Cosmos AI: chave da OpenAI' },
+      COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: chave da Anthropic' },
+      COSMOS_GEMINI_API_KEY: { label: 'Cosmos AI: chave do Gemini' },
+      COSMOS_DEEPSEEK_API_KEY: { label: 'Cosmos AI: chave da DeepSeek' },
+      SETTINGS_KEK: { label: 'Chave de cifra dos ajustes' },
       YOUTUBE_API_KEY: { label: 'Chave do YouTube' },
       QUALITY_API_KEY: { label: 'Qualidade dos dados: chave da API' },
       S3_ACCESS_KEY: { label: 'Armazenamento: chave de acesso' },
@@ -1751,6 +1812,53 @@ export default defineMessages(
   {
     en: {
       meta: { title: 'System' },
+      secretKeys: {
+        title: 'Replace {name}',
+        description:
+          'The new key is encrypted and stored in the database; the value never comes back to the screen or the history.',
+        applyNextRun: 'Applies on the next job run of: {services}.',
+        applyRefresh: 'Applies within a minute in: {services}.',
+        applyRestart: 'Applies after a restart of: {services}.',
+        sourcePanel: 'Set from the panel',
+        sourcePanelHint: 'Set from the panel · ends with {hint}',
+        sourceEnv: 'Set from .env',
+        sourceNone: 'Not set',
+        changedBy: 'Replaced by {by}',
+        unreadableHelp:
+          "The panel key does not open with this container's encryption key: the .env key applies. Save it again or check SETTINGS_KEK.",
+        kekMissingHelp: 'No SETTINGS_KEK in: {services}. The .env key still applies there.',
+        kekMismatchHelp:
+          'The saved key does not open with the current key in: {services} (different or too-short SETTINGS_KEK). The .env key applies there.',
+        noKekHelp:
+          'This container has no SETTINGS_KEK: without it the panel cannot save keys (docs/runbooks/chaves-no-painel.md).',
+        newValue: 'New key',
+        placeholder: 'Paste the new key',
+        test: 'Test before saving',
+        testing: 'Testing…',
+        testOk: 'The provider accepted the key.',
+        save: 'Save',
+        confirm: 'Confirm the change',
+        confirmHint: 'Confirm: the services will use the new key.',
+        saved: 'Key replaced.',
+        reset: 'Back to .env',
+        resetConfirm: 'Confirm going back to .env',
+        resetHint: 'Deletes the panel key; the services go back to the .env key.',
+        resetDone: 'Back to the .env key.',
+        cancel: 'Cancel',
+        serverOnly: 'This key lives only in the server .env.',
+        noKek: 'This container has no SETTINGS_KEK: the key was not saved.',
+        saveFailed: 'The key could not be saved. Try again.',
+        kekMissingIn: 'Saved, but there is no SETTINGS_KEK in: {services}. The .env key still applies there.',
+        kekMismatchIn:
+          'Saved, but it does not open with the current key in: {services} (different or too-short SETTINGS_KEK). The .env key applies there.',
+        feedbackCardOnly:
+          'The suggestions token is changed on the GitHub card, which checks the repository before saving.',
+        restartNeeded: 'Saved. Applies after a restart of: {services}.',
+        noTest: 'This provider has no test.',
+        testRejected: 'The provider rejected the key.',
+        testUnreachable: 'The provider did not answer in time. Try again.',
+        resealed: '{n} key(s) re-encrypted with the current key.',
+      },
       page: {
         title: 'System',
         description:
@@ -1974,7 +2082,8 @@ export default defineMessages(
         open: 'Open in {page}',
         movedTitle: 'Edited on another page',
         movedModels: 'All AI models live in Internal AI; here only what is in use.',
-        movedKeys: 'All keys live in Credentials; here only whether they are set.',
+        movedKeys: 'Every key is also in Credentials. Replace it here or there; the value never shows.',
+        change: 'Replace',
       },
       sections: {
         mirror: {
@@ -2120,7 +2229,7 @@ export default defineMessages(
         tokenHint:
           'Fine-grained PAT for this repo only, with Issues: Read and write. Before saving, GitHub confirms the repo responds and is private. Once saved, the token is encrypted and no longer shown here.',
         noKek:
-          'This container does not have the encryption key (WEBHOOK_SIGNING_SECRET): without it the panel cannot save a token. Set the key in the VPS .env.',
+          'This container does not have the encryption key (SETTINGS_KEK): without it the panel cannot save a token. Set the key in the VPS .env.',
         changed: 'Changed by {by} {when}.',
         status: {
           panel: 'Set in the panel',
@@ -2153,7 +2262,7 @@ export default defineMessages(
           repo: 'Use the owner/repository format.',
           repoRequired: 'Enter the repository so the token can be checked.',
           tokenFormat: 'The token format is invalid.',
-          noKek: 'This container has no encryption key (WEBHOOK_SIGNING_SECRET): the token was not saved.',
+          noKek: 'This container has no encryption key (SETTINGS_KEK): the token was not saved.',
           notPrivate: 'This repo is not private, and suggestions carry customer data. Nothing was saved.',
           badToken: 'GitHub rejected the token (invalid or expired). Nothing was saved.',
           noAccess: 'This token cannot see the repo, or it does not exist. Nothing was saved.',
@@ -2182,6 +2291,8 @@ export default defineMessages(
         providerKeyMissing: "This provider's key is not set in the agents container.",
         alreadyQueued: 'There is already a queued request for this job.',
         notRunnable: 'This job cannot be triggered from the panel.',
+        sealed:
+          "The key saved in the panel does not open with this service's encryption key (SETTINGS_KEK): the .env key applies.",
       },
       cron: {
         next: 'Next runs',
@@ -2853,7 +2964,14 @@ export default defineMessages(
           test: 'Test',
           changeTitle: 'Replace {name}',
           changeBody:
-            'The value lives only in the VPS .env and never goes through the panel. Replace it there ({keys}) and restart: {services}.',
+            'This key lives only in the VPS .env: it opens the vault, the sign-in or the database and cannot be stored in the database. Replace it there ({keys}) and restart: {services}.',
+          serverOnly: 'Server only',
+          inPanel: 'From the panel',
+          inEnv: 'From .env',
+          unreadable: 'Does not open with the current key',
+          resetToEnv: 'Back to .env',
+          reseal: 'Re-encrypt with the current key',
+          resealHint: 'Some keys were saved with the old encryption key.',
           close: 'Close',
           credentialsTitle: 'Credentials',
           credentialsDescription: 'Every key in one place. The value never shows: only whether it is set.',
@@ -3396,10 +3514,9 @@ export default defineMessages(
             'When off, the button disappears from the app and the server refuses submissions. Anyone with the page already open sees the button go away on reload.',
         },
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
-        FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
-        STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
-        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: assistant provider key (.env)' },
-        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
+        FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: secret key' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret' },
         WTW_ROUND_ALLOCATION: {
           label: 'Per-round allocation (previous design)',
           description:
@@ -3453,6 +3570,11 @@ export default defineMessages(
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
         GEMINI_API_KEY: { label: 'Gemini key' },
         DEEPSEEK_API_KEY: { label: 'DeepSeek key' },
+        COSMOS_OPENAI_API_KEY: { label: 'Cosmos AI: OpenAI key' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: Anthropic key' },
+        COSMOS_GEMINI_API_KEY: { label: 'Cosmos AI: Gemini key' },
+        COSMOS_DEEPSEEK_API_KEY: { label: 'Cosmos AI: DeepSeek key' },
+        SETTINGS_KEK: { label: 'Settings encryption key' },
         YOUTUBE_API_KEY: { label: 'YouTube key' },
         QUALITY_API_KEY: { label: 'Data quality: API key' },
         S3_ACCESS_KEY: { label: 'Storage: access key' },
@@ -3469,6 +3591,54 @@ export default defineMessages(
     },
     'es-AR': {
       meta: { title: 'Sistema' },
+      secretKeys: {
+        title: 'Cambiar {name}',
+        description:
+          'La clave nueva se cifra y se guarda en la base; el valor nunca vuelve a la pantalla ni al historial.',
+        applyNextRun: 'Vale en la próxima ejecución de los jobs de: {services}.',
+        applyRefresh: 'Vale en hasta un minuto en: {services}.',
+        applyRestart: 'Vale al reiniciar: {services}.',
+        sourcePanel: 'Configurada desde el panel',
+        sourcePanelHint: 'Configurada desde el panel · termina en {hint}',
+        sourceEnv: 'Configurada desde el .env',
+        sourceNone: 'Sin configurar',
+        changedBy: 'Cambiada por {by}',
+        unreadableHelp:
+          'La clave del panel no abre con la clave de cifrado de este contenedor: vale la del .env. Guardala de nuevo o revisá la SETTINGS_KEK.',
+        kekMissingHelp: 'Sin SETTINGS_KEK en: {services}. Allá sigue valiendo la clave del .env.',
+        kekMismatchHelp:
+          'La clave guardada no abre con la clave actual en: {services} (SETTINGS_KEK distinta o demasiado corta). Allá vale la del .env.',
+        noKekHelp:
+          'Este contenedor no tiene la SETTINGS_KEK: sin ella el panel no guarda claves (docs/runbooks/chaves-no-painel.md).',
+        newValue: 'Clave nueva',
+        placeholder: 'Pegá la clave nueva',
+        test: 'Probar antes de guardar',
+        testing: 'Probando…',
+        testOk: 'El proveedor aceptó la clave.',
+        save: 'Guardar',
+        confirm: 'Confirmar el cambio',
+        confirmHint: 'Confirmá: los servicios pasan a usar la clave nueva.',
+        saved: 'Clave cambiada.',
+        reset: 'Volver al .env',
+        resetConfirm: 'Confirmar la vuelta al .env',
+        resetHint: 'Borra la clave del panel; los servicios vuelven a la del .env.',
+        resetDone: 'Volvió a la clave del .env.',
+        cancel: 'Cancelar',
+        serverOnly: 'Esta clave está solo en el .env del servidor.',
+        noKek: 'Este contenedor no tiene la SETTINGS_KEK: la clave no se guardó.',
+        saveFailed: 'No se pudo guardar la clave. Probá de nuevo.',
+        kekMissingIn:
+          'Guardada, pero sin SETTINGS_KEK en: {services}. Allá sigue valiendo la clave del .env.',
+        kekMismatchIn:
+          'Guardada, pero no abre con la clave actual en: {services} (SETTINGS_KEK distinta o demasiado corta). Allá vale la del .env.',
+        feedbackCardOnly:
+          'El token de sugerencias se cambia en la tarjeta de GitHub, que verifica el repositorio antes de guardar.',
+        restartNeeded: 'Guardada. Vale al reiniciar: {services}.',
+        noTest: 'Este proveedor no tiene prueba.',
+        testRejected: 'El proveedor rechazó la clave.',
+        testUnreachable: 'El proveedor no respondió a tiempo. Probá de nuevo.',
+        resealed: '{n} clave(s) cifrada(s) de nuevo con la clave actual.',
+      },
       page: {
         title: 'Sistema',
         description:
@@ -3693,7 +3863,9 @@ export default defineMessages(
         open: 'Abrir en {page}',
         movedTitle: 'Se edita en otra página',
         movedModels: 'Todos los modelos de IA están en IA interna; aquí solo el que está en uso.',
-        movedKeys: 'Todas las claves están en Credenciales; aquí solo si están configuradas.',
+        movedKeys:
+          'Todas las claves también están en Credenciales. Cambiala aquí o allá; el valor nunca aparece.',
+        change: 'Cambiar',
       },
       sections: {
         mirror: {
@@ -3846,7 +4018,7 @@ export default defineMessages(
         tokenHint:
           'Fine-grained PAT solo de este repo, con Issues: Read and write. Antes de guardar, GitHub confirma que el repo responde y es privado. Una vez guardado, el token queda cifrado y ya no aparece aquí.',
         noKek:
-          'Este contenedor no tiene la clave de cifrado (WEBHOOK_SIGNING_SECRET): sin ella el panel no guarda el token. Define la clave en el .env de la VPS.',
+          'Este contenedor no tiene la clave de cifrado (SETTINGS_KEK): sin ella el panel no guarda el token. Define la clave en el .env de la VPS.',
         changed: 'Cambiado por {by} {when}.',
         status: {
           panel: 'Definido en el panel',
@@ -3879,8 +4051,7 @@ export default defineMessages(
           repo: 'Usa el formato dueño/repositorio.',
           repoRequired: 'Indica el repositorio para comprobar el token.',
           tokenFormat: 'El formato del token no es válido.',
-          noKek:
-            'Este contenedor no tiene la clave de cifrado (WEBHOOK_SIGNING_SECRET): el token no se guardó.',
+          noKek: 'Este contenedor no tiene la clave de cifrado (SETTINGS_KEK): el token no se guardó.',
           notPrivate:
             'Este repo no es privado y las sugerencias llevan datos de clientes. No se guardó nada.',
           badToken: 'GitHub rechazó el token (no válido o vencido). No se guardó nada.',
@@ -3911,6 +4082,8 @@ export default defineMessages(
         providerKeyMissing: 'La clave de ese proveedor no está configurada en el contenedor de los agentes.',
         alreadyQueued: 'Ya hay un pedido para este job en la cola.',
         notRunnable: 'Este job no se puede disparar desde el panel.',
+        sealed:
+          'La clave guardada en el panel no abre con la clave de cifrado (SETTINGS_KEK) de este servicio: vale la del .env.',
       },
       cron: {
         next: 'Próximas ejecuciones',
@@ -4590,7 +4763,14 @@ export default defineMessages(
           test: 'Probar',
           changeTitle: 'Cambiar {name}',
           changeBody:
-            'El valor está solo en el .env de la VPS y nunca pasa por el panel. Cambialo allá ({keys}) y reiniciá: {services}.',
+            'Esta clave está solo en el .env de la VPS: abre el cofre, el login o la base de datos y no se puede guardar en la base. Cambiala allá ({keys}) y reiniciá: {services}.',
+          serverOnly: 'Solo en el servidor',
+          inPanel: 'Desde el panel',
+          inEnv: 'Desde el .env',
+          unreadable: 'No abre con la clave actual',
+          resetToEnv: 'Volver al .env',
+          reseal: 'Volver a cifrar con la clave actual',
+          resealHint: 'Hay claves guardadas con la clave de cifrado anterior.',
           close: 'Cerrar',
           credentialsTitle: 'Credenciales',
           credentialsDescription:
@@ -5138,10 +5318,9 @@ export default defineMessages(
             'Apagado, el botón desaparece de la app y el servidor rechaza el envío. Quien ya tenía la página abierta ve desaparecer el botón al recargar.',
         },
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
-        FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
-        STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
-        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: clave del proveedor del asistente (.env)' },
-        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
+        FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook' },
         WTW_ROUND_ALLOCATION: {
           label: 'Asignación por fecha (diseño anterior)',
           description:
@@ -5196,6 +5375,11 @@ export default defineMessages(
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },
         GEMINI_API_KEY: { label: 'Clave de Gemini' },
         DEEPSEEK_API_KEY: { label: 'Clave de DeepSeek' },
+        COSMOS_OPENAI_API_KEY: { label: 'Cosmos AI: clave de OpenAI' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: clave de Anthropic' },
+        COSMOS_GEMINI_API_KEY: { label: 'Cosmos AI: clave de Gemini' },
+        COSMOS_DEEPSEEK_API_KEY: { label: 'Cosmos AI: clave de DeepSeek' },
+        SETTINGS_KEK: { label: 'Clave de cifrado de los ajustes' },
         YOUTUBE_API_KEY: { label: 'Clave de YouTube' },
         QUALITY_API_KEY: { label: 'Calidad de los datos: clave de la API' },
         S3_ACCESS_KEY: { label: 'Almacenamiento: clave de acceso' },

@@ -1,4 +1,5 @@
 import { createLogger } from '@galaxie/observability';
+import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RunResult, RunTrigger } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
@@ -131,5 +132,43 @@ describe('SchedulerService: job que fica no ar (keepAlive)', () => {
     await sleep(50);
     expect(s.keptAlive()).toEqual([]);
     expect(launches).toHaveLength(0);
+  });
+});
+
+describe('SchedulerService: chaves trocadas no painel (#1087)', () => {
+  const KEK = 'k'.repeat(40);
+  const KEY = 'a1b2c3d4'.repeat(4);
+
+  function withSealed(env: NodeJS.ProcessEnv) {
+    const lines: string[] = [];
+    const capture = (...args: unknown[]) => lines.push(JSON.stringify(args));
+    const log = { info: capture, warn: capture, error: capture, debug: capture, child: () => log };
+    const s = new SchedulerService({
+      profile: 'ingestor',
+      jobs: [job('quota-status')],
+      env,
+      log: log as unknown as typeof logger,
+      run: async (j) => result(j.name),
+    });
+    const sealed = new SettingsSecretBox([KEK]).seal('APISPORTS_KEY', KEY);
+    (s as unknown as { applyConfig(o: Map<string, string>): void }).applyConfig(
+      new Map([['APISPORTS_KEY_SEALED', sealed]]),
+    );
+    return { s, lines: () => lines.join('\n') };
+  }
+
+  it('os jobs recebem a chave aberta com a SETTINGS_KEK do contêiner; o log só leva o nome', () => {
+    const { s, lines } = withSealed({ APISPORTS_KEY: 'chave-do-env', SETTINGS_KEK: KEK });
+    expect(s.effectiveEnv.APISPORTS_KEY).toBe(KEY);
+    expect(lines()).toContain('APISPORTS_KEY');
+    expect(lines()).not.toContain(KEY);
+    expect(lines()).not.toContain('chave-do-env');
+  });
+
+  it('sem a SETTINGS_KEK os jobs ficam com o .env e o aviso não leva valor', () => {
+    const { s, lines } = withSealed({ APISPORTS_KEY: 'chave-do-env' });
+    expect(s.effectiveEnv.APISPORTS_KEY).toBe('chave-do-env');
+    expect(lines()).toContain('sealed');
+    expect(lines()).not.toContain(KEY);
   });
 });

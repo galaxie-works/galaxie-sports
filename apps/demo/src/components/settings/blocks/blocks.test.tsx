@@ -32,6 +32,16 @@ vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
   saveSetting: (key: string, value: string) => saveSetting(key, value),
 }));
 
+const saveSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
+const resetSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
+const testSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true, test: 'ok' }));
+vi.mock('@/app/[locale]/(app)/ajustes/operacao/secret-actions', () => ({
+  saveSecret: (key: string, value: string) => saveSecret(key, value),
+  resetSecret: (key: string) => resetSecret(key),
+  testSecret: (key: string, value: string) => testSecret(key, value),
+  resealSecrets: vi.fn(),
+}));
+
 const { SettingRow } = await import('./setting-row');
 const { StatusList } = await import('./status-list');
 const { CredentialsList } = await import('./status-panels');
@@ -68,6 +78,9 @@ const show = (node: ReactNode) =>
   );
 
 beforeEach(() => {
+  saveSecret.mockClear();
+  resetSecret.mockClear();
+  testSecret.mockClear();
   saveSetting.mockClear();
   resetSetting.mockClear();
   push.mockClear();
@@ -139,6 +152,154 @@ describe('StatusList e Credenciais', () => {
     expect(screen.getByText(B.status.groups.infra.title)).toBeTruthy();
     expect(screen.getAllByText(B.status.configured)).toHaveLength(2);
     expect(screen.getAllByText(B.status.missing)).toHaveLength(1);
+  });
+});
+
+describe('Credenciais trocadas no painel (#1087)', () => {
+  const S = T.ops.secretKeys;
+  const state = (over: Partial<NonNullable<OpsSetting['secret']>> = {}): OpsSetting['secret'] => ({
+    editable: true,
+    inPanel: false,
+    unreadable: false,
+    hint: null,
+    needsReseal: false,
+    kekMissing: [],
+    kekMismatch: [],
+    canSave: true,
+    testable: true,
+    changedBy: null,
+    changedAt: null,
+    ...over,
+  });
+  const menu = (name: string) =>
+    fireEvent.click(screen.getByRole('button', { name: fill(B.status.menu, { name }) }));
+  const label = (key: string) => T.ops.settings[key]!.label;
+
+  it('painel (com o final), .env, não abre, e o selo "só no servidor" sem "Trocar"', async () => {
+    const { container } = show(
+      <CredentialsList
+        settings={[
+          setting('APISPORTS_KEY', { configured: true, secret: state({ inPanel: true, hint: 'c3d4' }) }),
+          setting('OPENAI_API_KEY', { configured: true, secret: state() }),
+          setting('GEMINI_API_KEY', { configured: true, secret: state({ inPanel: true, unreadable: true }) }),
+          setting('BETTER_AUTH_SECRET', {
+            configured: true,
+            secret: state({ editable: false, testable: false }),
+          }),
+        ]}
+      />,
+    );
+    expect(container.querySelector('#APISPORTS_KEY')!.textContent).toContain(B.status.inPanel);
+    expect(container.querySelector('#APISPORTS_KEY')!.textContent).toContain('•••• c3d4');
+    expect(container.querySelector('#OPENAI_API_KEY')!.textContent).toContain(B.status.inEnv);
+    expect(container.querySelector('#GEMINI_API_KEY')!.textContent).toContain(B.status.unreadable);
+    const serverOnly = container.querySelector('#BETTER_AUTH_SECRET')!;
+    expect(serverOnly.textContent).toContain(B.status.serverOnly);
+
+    menu(label('BETTER_AUTH_SECRET'));
+    await screen.findByText(B.viewHistory);
+    expect(screen.queryByText(B.status.change)).toBeNull();
+  });
+
+  it('Trocar: testa a chave digitada, pede confirmação e só então grava; o valor não fica na tela', async () => {
+    const KEY = 'a1b2c3d4'.repeat(4);
+    const { baseElement } = show(
+      <CredentialsList
+        settings={[
+          setting('APISPORTS_KEY', { configured: true, secret: state({ inPanel: true, hint: 'zzzz' }) }),
+        ]}
+      />,
+    );
+    menu(label('APISPORTS_KEY'));
+    fireEvent.click(await screen.findByText(B.status.change));
+    expect(await screen.findByText(fill(S.sourcePanelHint, { hint: 'zzzz' }))).toBeTruthy();
+    const input = screen.getByLabelText(S.newValue) as HTMLInputElement;
+    expect(input.type).toBe('password');
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: KEY } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: S.test }));
+    });
+    expect(testSecret).toHaveBeenCalledWith('APISPORTS_KEY', KEY);
+    expect(saveSecret).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: S.save }));
+    expect(saveSecret).not.toHaveBeenCalled();
+    expect(screen.getByText(S.confirmHint)).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: S.confirm }));
+    });
+    expect(saveSecret).toHaveBeenCalledWith('APISPORTS_KEY', KEY);
+    // fechado depois de gravar: a chave digitada some do DOM
+    expect(baseElement.innerHTML).not.toContain(KEY);
+  });
+
+  it('Voltar ao .env pede confirmação; sem chave no painel não aparece', async () => {
+    show(
+      <CredentialsList
+        settings={[
+          setting('YOUTUBE_API_KEY', { configured: true, secret: state({ inPanel: true }) }),
+          setting('OPENAI_API_KEY', { configured: true, secret: state() }),
+        ]}
+      />,
+    );
+    menu(label('OPENAI_API_KEY'));
+    await screen.findByText(B.status.change);
+    expect(screen.queryByText(B.status.resetToEnv)).toBeNull();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    cleanup();
+
+    show(
+      <CredentialsList
+        settings={[setting('YOUTUBE_API_KEY', { configured: true, secret: state({ inPanel: true }) })]}
+      />,
+    );
+    menu(label('YOUTUBE_API_KEY'));
+    fireEvent.click(await screen.findByText(B.status.resetToEnv));
+    expect(await screen.findByText(S.resetHint)).toBeTruthy();
+    expect(resetSecret).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: S.resetConfirm }));
+    });
+    expect(resetSecret).toHaveBeenCalledWith('YOUTUBE_API_KEY');
+  });
+
+  it('sem SETTINGS_KEK na demo o campo fica desligado e avisa; serviço sem KEK é avisado', async () => {
+    show(
+      <CredentialsList
+        settings={[
+          setting('OPENAI_API_KEY', {
+            configured: true,
+            secret: state({ canSave: false, kekMissing: ['agents'] }),
+          }),
+        ]}
+      />,
+    );
+    menu(label('OPENAI_API_KEY'));
+    fireEvent.click(await screen.findByText(B.status.change));
+    expect(await screen.findByText(S.noKekHelp)).toBeTruthy();
+    expect(screen.getByText(fill(S.kekMissingHelp, { services: T.ops.services.agents }))).toBeTruthy();
+    expect((screen.getByLabelText(S.newValue) as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('serviço cuja KEK não abre a chave gravada é avisado; o prazo vem por serviço', async () => {
+    show(
+      <CredentialsList
+        settings={[
+          setting('APISPORTS_KEY', {
+            configured: true,
+            secret: state({ inPanel: true, kekMismatch: ['live'] }),
+          }),
+        ]}
+      />,
+    );
+    menu(label('APISPORTS_KEY'));
+    fireEvent.click(await screen.findByText(B.status.change));
+    expect(await screen.findByText(fill(S.kekMismatchHelp, { services: T.ops.services.live }))).toBeTruthy();
+    expect(
+      screen.getByText(
+        new RegExp(fill(S.applyRestart, { services: T.ops.services.live }).replace('.', '\\.')),
+      ),
+    ).toBeTruthy();
   });
 });
 

@@ -3,30 +3,59 @@
  * configurado, envia de verdade; sem SMTP, o convite vai para o log do servidor e o código também, mas só
  * em desenvolvimento (em produção um código nunca é escrito em log). Nada disso é gravado no banco.
  */
+import { createHash } from 'node:crypto';
+
 import nodemailer, { type Transporter } from 'nodemailer';
 
 import type { Locale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { fill } from '@/lib/i18n/text';
 
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = Number(process.env.SMTP_PORT ?? 465);
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
-const SMTP_FROM = process.env.SMTP_FROM ?? SMTP_USER;
+/**
+ * SMTP lido a cada envio: host, usuário e senha podem ser trocados no painel (#1087, lib/ops/panel-secrets.ts põe o valor
+ * no env do processo). O transporte é refeito quando a configuração muda.
+ */
+function smtp() {
+  const user = process.env.SMTP_USER;
+  const port = Number(process.env.SMTP_PORT ?? 465);
+  return {
+    host: process.env.SMTP_HOST,
+    port,
+    user,
+    password: process.env.SMTP_PASSWORD,
+    from: process.env.SMTP_FROM ?? user,
+  };
+}
 
-export const smtpConfigured = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASSWORD && SMTP_FROM);
+export const smtpConfigured = (): boolean => {
+  const c = smtp();
+  return Boolean(c.host && c.user && c.password && c.from);
+};
 const isProduction = process.env.NODE_ENV === 'production';
 
-let transporter: Transporter | null = null;
+let transporter: { key: string; transport: Transporter } | null = null;
 function transport(): Transporter {
-  transporter ??= nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
-  });
-  return transporter;
+  const c = smtp();
+  // a chave do cache não guarda a senha em claro (só a impressão dela)
+  const key = JSON.stringify([
+    c.host,
+    c.port,
+    c.user,
+    createHash('sha256')
+      .update(c.password ?? '')
+      .digest('hex'),
+  ]);
+  if (transporter?.key !== key)
+    transporter = {
+      key,
+      transport: nodemailer.createTransport({
+        host: c.host,
+        port: c.port,
+        secure: c.port === 465,
+        auth: { user: c.user, pass: c.password },
+      }),
+    };
+  return transporter.transport;
 }
 
 export type AccessEmail =
@@ -131,7 +160,7 @@ export interface SendResult {
 
 export async function sendAccessEmail(mail: AccessEmail): Promise<SendResult> {
   const { subject, text, html } = mail.kind === 'invite' ? renderInvite(mail) : renderOtp(mail);
-  if (!smtpConfigured) {
+  if (!smtpConfigured()) {
     if (mail.kind === 'invite') {
       // Sem SMTP: o link do convite (só a tela de login, nada secreto) vai para o log do servidor.
       console.info(`[demo-auth] SMTP não configurado; convite para ${mail.to}: ${mail.url}`);
@@ -144,7 +173,7 @@ export async function sendAccessEmail(mail: AccessEmail): Promise<SendResult> {
     return { delivered: false, error: 'SMTP not configured' };
   }
   try {
-    await transport().sendMail({ from: SMTP_FROM, to: mail.to, subject, text, html });
+    await transport().sendMail({ from: smtp().from, to: mail.to, subject, text, html });
     return { delivered: true };
   } catch (err) {
     console.error('[demo-auth] falha ao enviar e-mail', err);

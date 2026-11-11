@@ -18,10 +18,11 @@ import {
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
+import { writeAll } from '@/lib/ops/settings-write';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { AI_POLICY_KEYS } from '@/components/ops/ai-policy';
-import { webhookSecrets } from '@/lib/client/webhooks';
+import { settingsSecrets } from '@/lib/ops/panel-secrets';
 import { checkFeedbackTarget, feedbackGithubConfig, type FeedbackTargetProblem } from '@/lib/feedback/github';
 import {
   FEEDBACK_REPO_KEY,
@@ -44,58 +45,6 @@ const ALIVE_MS = 3 * 60_000;
 
 async function texts() {
   return getDictionary(await getRequestLocale()).ops;
-}
-
-interface SettingWrite {
-  key: string;
-  /** `null` apaga a sobrescrita (volta ao env ou ao padrão). */
-  value: string | null;
-  valueType: string;
-  /** Segredo cifrado: o histórico registra a mudança, nunca o valor (nem o cifrado). */
-  secret?: boolean;
-}
-
-/** O que o histórico mostra no lugar de um segredo. */
-const SECRET_LOG_VALUE = '••••••••';
-
-/**
- * Grava (`value`) ou apaga (`null`) as sobrescritas e registra cada mudança no histórico, todas numa
- * transação só: ou todas valem, ou nenhuma (a Política de IA grava três chaves juntas).
- */
-async function writeAll(entries: readonly SettingWrite[], by: string) {
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
-    for (const { key, value, valueType, secret } of entries) {
-      const logged = (v: string | null) => (secret && v !== null ? SECRET_LOG_VALUE : v);
-      const prev = await client.query<{ value: string }>(
-        'select value from ops.runtime_setting where key = $1 for update',
-        [key],
-      );
-      const old = prev.rows[0]?.value ?? null;
-      if (value === old) continue;
-      if (value === null) await client.query('delete from ops.runtime_setting where key = $1', [key]);
-      else
-        await client.query(
-          `insert into ops.runtime_setting (key, value, value_type, updated_by, updated_at)
-           values ($1, $2, $3, $4, now())
-           on conflict (key) do update set value = excluded.value, value_type = excluded.value_type,
-             updated_by = excluded.updated_by, updated_at = now()`,
-          [key, value, valueType, by],
-        );
-      await client.query(
-        `insert into ops.runtime_setting_log (key, action, old_value, new_value, changed_by)
-         values ($1, $2, $3, $4, $5)`,
-        [key, value === null ? 'reset' : 'set', logged(old), logged(value), by],
-      );
-    }
-    await client.query('commit');
-  } catch (err) {
-    await client.query('rollback').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
-  }
 }
 
 /** Grava (`value`) ou apaga (`null`) a sobrescrita e registra no histórico. */
@@ -225,8 +174,8 @@ export async function saveFeedbackGithub(input: { repo: string; token: string })
   if (!checkedRepo.ok) return { ok: false, error: T.repo };
   const token = input.token.trim();
   if (token && !isValidFeedbackToken(token)) return { ok: false, error: T.tokenFormat };
-  const box = webhookSecrets();
-  // sem a KEK o token ficaria em texto puro no banco: não grava
+  const box = settingsSecrets();
+  // sem a KEK (SETTINGS_KEK) o token ficaria em texto puro no banco: não grava
   if (token && !box) return { ok: false, error: T.noKek };
 
   try {

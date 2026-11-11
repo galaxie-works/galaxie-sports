@@ -77,6 +77,11 @@ export interface SettingDef {
    */
   services: readonly RuntimeService[];
   apply: SettingApply;
+  /**
+   * Serviços em que a mudança chega de outro jeito que `apply` (ex.: a chave da api-sports vale na próxima execução
+   * dos jobs do ingestor, mas o ao vivo, um processo contínuo, só a pega ao reiniciar). `settingApplyGroups` junta.
+   */
+  applyIn?: Partial<Record<RuntimeService, SettingApply>>;
   /** Padrão do código (texto). `null` = sem padrão (vazio). */
   default: string | null;
   /** Padrão que depende de outra flag (ex.: modelo de IA por provedor). */
@@ -103,6 +108,12 @@ export interface SettingDef {
   critical?: boolean;
   /** cron: job agendado. */
   job?: string;
+  /**
+   * Segredo que o painel troca (#1087): gravado cifrado em `ops.runtime_setting` como `<CHAVE>_SEALED` e aberto pelos
+   * serviços com a `SETTINGS_KEK`. Sem a marca, o segredo fica só no .env (a KEK, o login, o banco…). Para segredos,
+   * `pattern` é o formato aceito do valor (conferido antes de cifrar e de novo depois de abrir).
+   */
+  panelSecret?: boolean;
 }
 
 /**
@@ -319,6 +330,7 @@ const agents = (
   section: SettingSection,
   def: Omit<SettingDef, 'section' | 'services' | 'apply'>,
 ): SettingDef => ({ section, services: ['agents'], apply: 'next-run', ...def });
+/** Segredo só do .env: o painel mostra se está configurado, com o selo "só no servidor". */
 const secret = (key: string, section: SettingSection, services: readonly RuntimeService[]): SettingDef => ({
   key,
   section,
@@ -327,6 +339,43 @@ const secret = (key: string, section: SettingSection, services: readonly Runtime
   apply: 'restart',
   default: null,
 });
+
+/**
+ * Segredo que o painel troca (#1087). `apply` diz quando a chave nova chega: `next-run` nos jobs do scheduler (cada
+ * execução recebe o env com a chave aberta), `refresh` na demo (relê a cada minuto), `restart` na API (lê na partida).
+ */
+const panelSecret = (
+  key: string,
+  section: SettingSection,
+  services: readonly RuntimeService[],
+  pattern: RegExp,
+  apply: SettingApply = 'next-run',
+  applyIn?: SettingDef['applyIn'],
+): SettingDef => ({
+  ...secret(key, section, services),
+  apply,
+  ...(applyIn ? { applyIn } : {}),
+  pattern,
+  panelSecret: true,
+});
+
+/** Formatos dos segredos: só ASCII visível (o valor vira cabeçalho HTTP ou variável de ambiente). */
+const SECRET_FORMATS = {
+  /** api-sports: 32 caracteres hexadecimais hoje; aceita a faixa por folga. */
+  apisports: /^[A-Za-z0-9]{20,128}$/,
+  openai: /^sk-[A-Za-z0-9_-]{20,300}$/,
+  anthropic: /^sk-ant-[A-Za-z0-9_-]{20,300}$/,
+  /** Chaves de API do Google (Gemini, YouTube). */
+  google: /^AIza[0-9A-Za-z_-]{30,60}$/,
+  stripeSecret: /^(sk|rk)_(test|live)_[A-Za-z0-9]{10,300}$/,
+  stripeWebhook: /^whsec_[A-Za-z0-9+/=_-]{10,300}$/,
+  /** Token de GitHub, de métricas, chave do S3: ASCII visível, sem espaço. */
+  token: /^[\x21-\x7e]{16,512}$/,
+  /** Usuário e chave de acesso do S3, host e usuário do SMTP. */
+  plain: /^[\x21-\x7e]{3,512}$/,
+  /** Senha do SMTP: aceita espaço no meio. */
+  password: /^[\x21-\x7e](?:[\x20-\x7e]{0,510}[\x21-\x7e])?$/,
+} as const;
 
 /** `dono/repositório` das sugestões do app: o mesmo formato no painel e no env (apps/demo/src/lib/feedback). */
 export const FEEDBACK_REPO_PATTERN = /^[A-Za-z0-9-]+\/(?!\.)[\w.-]+$/;
@@ -824,14 +873,19 @@ export const SETTINGS: readonly SettingDef[] = [
     allowEmpty: true,
     default: null,
   },
-  secret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo']),
+  // o token do painel é a mesma chave cifrada (FEEDBACK_GITHUB_TOKEN_SEALED), gravada pelo cartão do GitHub
+  panelSecret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo'], SECRET_FORMATS.token, 'refresh'),
   // Stripe da Galaxie Works LLC (#993): a chave secreta abre o checkout no painel do cliente; o segredo do webhook confere
   // a assinatura na API. Sem elas a compra fica indisponível
-  secret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor']),
-  secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
-  // Assistente da Cosmos no app (#1003): chave do provedor só da Cosmos, separada da dos agentes internos. Sem ela, o
-  // assistente responde "indisponível" e nada é reservado
-  secret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo']),
+  panelSecret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor'], SECRET_FORMATS.stripeSecret, 'refresh'),
+  panelSecret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api'], SECRET_FORMATS.stripeWebhook, 'restart'),
+  // IAs externas da Cosmos AI (assistente e moderação dos clientes), separadas das chaves da IA interna: o gasto de cada
+  // lado fica na conta própria do provedor. Quem lê é o assistente na demo, a cada pedido (process.env): a chave trocada
+  // no painel vale em até 1 minuto. Vazia, o assistente responde "indisponível"
+  panelSecret('COSMOS_OPENAI_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.openai, 'refresh'),
+  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.anthropic, 'refresh'),
+  panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.google, 'refresh'),
+  panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.openai, 'refresh'),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do
@@ -918,25 +972,39 @@ export const SETTINGS: readonly SettingDef[] = [
   },
   secret('FAN_TOKEN_SECRET', 'engage', ['api']),
 
-  // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
-  secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
-  secret('OPENAI_API_KEY', 'ai', ['agents']),
-  secret('ANTHROPIC_API_KEY', 'ai', ['agents']),
-  secret('GEMINI_API_KEY', 'ai', ['agents']),
-  secret('DEEPSEEK_API_KEY', 'ai', ['agents']),
-  secret('YOUTUBE_API_KEY', 'related', ['agents']),
-  secret('S3_ACCESS_KEY', 'credentials', ['ingestor']),
-  secret('QUALITY_API_KEY', 'credentials', ['ingestor']),
-  secret('S3_SECRET_KEY', 'credentials', ['ingestor']),
+  // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
+  // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele
+  // o ao vivo monta o cliente da api-sports uma vez e roda sem parar (líder e reserva): a chave nova só ao reiniciar
+  panelSecret('APISPORTS_KEY', 'provider', ['ingestor', 'live'], SECRET_FORMATS.apisports, 'next-run', {
+    live: 'restart',
+  }),
+  panelSecret('OPENAI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
+  panelSecret('ANTHROPIC_API_KEY', 'ai', ['agents'], SECRET_FORMATS.anthropic),
+  panelSecret('GEMINI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.google),
+  // DeepSeek (API compatível com a da OpenAI, #1088)
+  panelSecret('DEEPSEEK_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
+  panelSecret('YOUTUBE_API_KEY', 'related', ['agents'], SECRET_FORMATS.google),
+  // a demo refaz o cliente S3 quando a chave muda (anexos, logos): vale na releitura de um minuto
+  panelSecret('S3_ACCESS_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain, 'next-run', {
+    demo: 'refresh',
+  }),
+  panelSecret('QUALITY_API_KEY', 'credentials', ['ingestor'], SECRET_FORMATS.token),
+  panelSecret('S3_SECRET_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain, 'next-run', {
+    demo: 'refresh',
+  }),
+  panelSecret('SMTP_HOST', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
+  panelSecret('SMTP_USER', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
+  panelSecret('SMTP_PASSWORD', 'credentials', ['demo'], SECRET_FORMATS.password, 'refresh'),
+  // só no .env: não dá para guardar no banco a chave que abre o cofre, o login ou o próprio banco
+  // o Prometheus manda o mesmo token lido do .env: trocar só no painel cortaria as métricas
   secret('METRICS_TOKEN', 'credentials', ['api']),
+  // KEK dos segredos do painel (#1087): cada serviço que lê uma chave trocada no painel precisa dela
+  secret('SETTINGS_KEK', 'credentials', ['ingestor', 'live', 'agents', 'api', 'demo']),
   // KEK dos webhooks: o worker não relata ao painel; a demo (cadastro no painel do cliente) relata se está definida
   secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['demo']),
   secret('ADMIN_KEY_HASHES', 'credentials', ['api']),
   secret('GALAXIE_DEMO_KEY', 'credentials', ['demo']),
   secret('BETTER_AUTH_SECRET', 'credentials', ['demo']),
-  secret('SMTP_HOST', 'credentials', ['demo']),
-  secret('SMTP_USER', 'credentials', ['demo']),
-  secret('SMTP_PASSWORD', 'credentials', ['demo']),
 ];
 
 const BY_KEY = new Map(SETTINGS.map((s) => [s.key, s]));
@@ -946,6 +1014,10 @@ export function settingDef(key: string): SettingDef | undefined {
 }
 
 export const isSecret = (def: SettingDef) => def.type === 'secret';
+
+/** Segredo que o painel troca (cifrado no banco); os outros segredos ficam só no .env. */
+export const isPanelSecret = (def: SettingDef | undefined): def is SettingDef =>
+  def?.type === 'secret' && def.panelSecret === true;
 
 /**
  * O serviço cujo relato vale para a chave no painel: o primeiro de `def.services` que a relatou (`reported` diz se
@@ -957,6 +1029,23 @@ export function reportedService(
   reported: (service: RuntimeService) => boolean,
 ): RuntimeService {
   return def.services.find(reported) ?? def.services[0]!;
+}
+
+/** Quando a mudança chega a cada serviço que lê a chave (`applyIn` por cima de `apply`). */
+export function settingApply(
+  def: Pick<SettingDef, 'apply' | 'applyIn'>,
+  service: RuntimeService,
+): SettingApply {
+  return def.applyIn?.[service] ?? def.apply;
+}
+
+/** Os serviços que leem a chave agrupados por quando a mudança chega, na ordem refresh, next-run, restart. */
+export function settingApplyGroups(
+  def: Pick<SettingDef, 'apply' | 'applyIn' | 'services'>,
+): { apply: SettingApply; services: RuntimeService[] }[] {
+  return (['refresh', 'next-run', 'restart'] as const)
+    .map((apply) => ({ apply, services: def.services.filter((svc) => settingApply(def, svc) === apply) }))
+    .filter((g) => g.services.length > 0);
 }
 
 /** Flags que um serviço lê (incluindo segredos, para o relatório de "configurado"). */

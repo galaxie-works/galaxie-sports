@@ -17,6 +17,22 @@ export async function register() {
     const { startMetricsServer } = await import('./lib/ops/metrics');
     startMetricsServer({ service: serviceName(role), port: metricsPort });
   }
+  // chaves trocadas no painel (#1087): abertas com a SETTINGS_KEK e postas no env do processo, relidas a cada minuto
+  try {
+    const { refreshPanelSecrets, startPanelSecretsSync } = await import('./lib/ops/panel-secrets');
+    await refreshPanelSecrets().catch((err: unknown) =>
+      console.warn(
+        '[ajustes] chaves do painel indisponíveis na subida; seguindo com o .env',
+        err instanceof Error ? err.name : 'erro',
+      ),
+    );
+    startPanelSecretsSync();
+  } catch (err) {
+    console.error(
+      '[ajustes] falha ao subir a releitura das chaves do painel',
+      err instanceof Error ? err.name : 'erro',
+    );
+  }
   const { setupAuthDatabase } = await import('./lib/auth/setup');
   try {
     await setupAuthDatabase();

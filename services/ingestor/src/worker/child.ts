@@ -8,6 +8,7 @@
  */
 import { closeDb, createDb } from '@galaxie/db';
 import type { QueueTask } from '@galaxie/db/queue';
+import { applyPanelSecrets } from '../assets/commons/panel-env.js';
 import { logger } from '../logger.js';
 import { runTask } from '../tasks/run.js';
 import type { ChildMessage, ParentMessage } from './loop.js';
@@ -41,6 +42,8 @@ async function execute(raw: QueueTask): Promise<void> {
   // do papel do banco está em packages/db/src/roles.ts (ROLE_CONNECTION_LIMITS)
   const db = createDb(url, { max: 2, applicationName: `galaxie-task:${task.type}` });
   try {
+    // chaves trocadas no painel (#1087, ex.: APISPORTS_KEY): valem para a tarefa como para os jobs do scheduler
+    await applyPanelSecrets(db);
     const result = await runTask(db, task, { signal: stop.signal, leaseLost: lost.signal });
     await tell({ type: 'result', result });
   } catch (err) {

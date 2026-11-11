@@ -15,6 +15,7 @@ import {
   Mail,
   Radio,
   RefreshCw,
+  RotateCcw,
   Server,
   ShieldCheck,
 } from 'lucide-react';
@@ -22,23 +23,24 @@ import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 import { checkAiCreditNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resealSecrets } from '@/app/[locale]/(app)/ajustes/operacao/secret-actions';
 import { settingText } from '@/components/ops/format';
 import { useOpsAction } from '@/components/ops/use-ops-action';
+import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import type { OpsSetting, ServiceStatus } from '@/lib/ops/types';
 
-import { aiProviderKey, credentialGroup, groupCredentials, historyHref } from './logic';
+import {
+  aiProviderKey,
+  credentialGroup,
+  groupCredentials,
+  historyHref,
+  secretSource,
+  type SecretSource,
+} from './logic';
+import { SecretDialog } from './secret-dialog';
 import { StatusList, type StatusItem } from './status-list';
 
 /** Ícone de cada credencial (as que não estão aqui usam o da seção). */
@@ -48,6 +50,12 @@ const KEY_ICONS: Readonly<Record<string, ReactNode>> = {
   OPENAI_API_KEY: 'AI',
   ANTHROPIC_API_KEY: 'A\\',
   GEMINI_API_KEY: 'G',
+  DEEPSEEK_API_KEY: 'DS',
+  COSMOS_OPENAI_API_KEY: 'AI',
+  COSMOS_ANTHROPIC_API_KEY: 'A\\',
+  COSMOS_GEMINI_API_KEY: 'G',
+  COSMOS_DEEPSEEK_API_KEY: 'DS',
+  SETTINGS_KEK: <Lock />,
   STRIPE_SECRET_KEY: 'S',
   STRIPE_WEBHOOK_SECRET: 'S',
   S3_ACCESS_KEY: <HardDrive />,
@@ -73,9 +81,10 @@ const GROUP_ICONS = {
 
 /**
  * Credenciais no padrão `settings-4` (#1076): as chaves marcadas como segredo, por seção (dados esportivos, IA,
- * infraestrutura, pagamentos). O servidor manda só `configured`: o valor nunca chega ao navegador. "Trocar" explica
- * onde trocar (o .env da VPS); "Testar" só na chave do provedor de IA ativo (AI_PROVIDER): a checagem da conta que já
- * existe (`checkAiCreditNow`) confere só ele.
+ * infraestrutura, pagamentos). O servidor manda só de onde a chave vem (painel, .env) e, no máximo, os 4 últimos
+ * caracteres da chave do painel: o valor nunca chega ao navegador. As chaves que o painel troca (#1087) têm "Trocar"
+ * (diálogo com teste antes de salvar) e "Voltar ao .env"; as que ficam só no .env levam o selo "só no servidor".
+ * "Testar" (a checagem de crédito que já existe, `checkAiCreditNow`) só na chave do provedor de IA ativo.
  */
 export function CredentialsList({
   settings,
@@ -94,7 +103,7 @@ export function CredentialsList({
   const B = T.blocks.status;
   const router = useRouter();
   const { pending, run } = useOpsAction();
-  const [changing, setChanging] = useState<OpsSetting | null>(null);
+  const [target, setTarget] = useState<{ setting: OpsSetting; step: 'edit' | 'reset' } | null>(null);
   const secrets = settings.filter((s) => settingDef(s.key)?.type === 'secret');
   if (!secrets.length) return null;
 
@@ -105,15 +114,50 @@ export function CredentialsList({
     description: B.groups[group].description,
     items: items.map((s): StatusItem => {
       const def = settingDef(s.key)!;
+      const editable = s.secret?.editable ?? false;
+      const source = secretSource(s);
       return {
         id: s.key,
         icon: KEY_ICONS[s.key] ?? GROUP_ICONS[credentialGroup(s.key)],
         name: s.label,
+        purpose: editable ? undefined : (
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary">{B.serverOnly}</Badge>
+            {T.secretKeys.serverOnly}
+          </span>
+        ),
         meta: `${s.key} · ${def.services.map((x) => T.services[x]).join(', ')}`,
-        tone: s.configured ? 'ok' : 'missing',
-        statusLabel: s.configured ? B.configured : B.missing,
+        tone: SOURCE_TONE[source],
+        statusLabel:
+          source === 'panel'
+            ? B.inPanel
+            : source === 'env'
+              ? editable
+                ? B.inEnv
+                : B.configured
+              : source === 'unreadable'
+                ? B.unreadable
+                : B.missing,
+        hint: source === 'panel' ? (s.secret?.hint ?? null) : null,
         menu: [
-          { label: B.change, icon: <KeyRound />, onSelect: () => setChanging(s) },
+          ...(editable
+            ? [
+                {
+                  label: B.change,
+                  icon: <KeyRound />,
+                  onSelect: () => setTarget({ setting: s, step: 'edit' }),
+                },
+              ]
+            : []),
+          ...(editable && s.secret?.inPanel
+            ? [
+                {
+                  label: B.resetToEnv,
+                  icon: <RotateCcw />,
+                  onSelect: () => setTarget({ setting: s, step: 'reset' }),
+                },
+              ]
+            : []),
           ...(s.key === aiProviderKey(aiProvider)
             ? [
                 {
@@ -129,37 +173,47 @@ export function CredentialsList({
       };
     }),
   }));
+  const reseal = secrets.some((s) => s.secret?.needsReseal);
 
-  const changingDef = changing ? settingDef(changing.key) : null;
   return (
     <>
       <StatusList
         id="credenciais"
         title={title ?? B.credentialsTitle}
         description={description ?? B.credentialsDescription}
+        action={
+          reseal ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              title={B.resealHint}
+              onClick={() => run(() => resealSecrets(), B.reseal)}
+            >
+              <ShieldCheck />
+              {B.reseal}
+            </Button>
+          ) : undefined
+        }
         sections={sections}
       />
-      <Dialog open={changing !== null} onOpenChange={(open) => !open && setChanging(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {fill(B.changeTitle, { name: changing ? settingText(T, settingDef(changing.key)!).label : '' })}
-            </DialogTitle>
-            <DialogDescription>
-              {fill(B.changeBody, {
-                keys: changing?.key ?? '',
-                services: changingDef ? changingDef.services.map((x) => T.services[x]).join(', ') : '',
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>{B.close}</DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SecretDialog
+        key={target ? `${target.setting.key}:${target.step}` : 'fechado'}
+        setting={target?.setting ?? null}
+        initialStep={target?.step ?? 'edit'}
+        onClose={() => setTarget(null)}
+      />
     </>
   );
 }
+
+/** Tom da linha: a chave que não abre aparece como aviso (vale o .env). */
+const SOURCE_TONE = {
+  panel: 'ok',
+  env: 'ok',
+  unreadable: 'warning',
+  none: 'missing',
+} as const satisfies Record<SecretSource, StatusItem['tone']>;
 
 const SERVICE_ICONS: Readonly<Record<RuntimeService, ReactNode>> = {
   ingestor: <Database />,

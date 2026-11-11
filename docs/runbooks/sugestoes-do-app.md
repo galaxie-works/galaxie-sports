@@ -51,15 +51,18 @@ FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
 
 ## Como o token é guardado
 
-- Em `ops.runtime_setting`, chave `FEEDBACK_GITHUB_TOKEN_SEALED`, cifrado em AES-256-GCM com a mesma KEK dos webhooks
-  (`WEBHOOK_SIGNING_SECRET`, que fica no `.env`, fora do banco) e preso a essa chave pelo dado autenticado. Sem a KEK
-  no contêiner, o painel recusa gravar: nunca vai texto puro para o banco.
+- Em `ops.runtime_setting`, chave `FEEDBACK_GITHUB_TOKEN_SEALED`, cifrado em AES-256-GCM pelo mecanismo geral das chaves
+  do painel (#1087, [chaves-no-painel.md](chaves-no-painel.md)): a KEK é a `SETTINGS_KEK`, que fica no `.env`, fora do
+  banco, e o dado autenticado prende o cifrado a essa chave. Sem a KEK no contêiner, o painel recusa gravar: nunca vai
+  texto puro para o banco. O token gravado antes (cifrado com a `WEBHOOK_SIGNING_SECRET`) continua abrindo até o
+  "Recifrar com a chave atual" de Credenciais.
 - A demo relê a cada envio, então a troca vale em `site` e `console` sem reiniciar. Ela só decifra para enviar e para
   saber se o token abre; o valor nunca vai ao navegador, a log, a resposta de API ou ao histórico.
 - `ops.runtime_setting_log` registra quem mudou e quando, com `••••••••` no lugar do valor (Ajustes → Plataforma → Histórico e auditoria).
 - O `mirror-prod-to-dev` apaga `ops.runtime_setting` inteira: o token do painel de produção não vai para o dev.
-- **Trocar a KEK:** `wh seal-secrets` recifra só os segredos dos webhooks. Depois de tirar a KEK antiga do `.env`, o
-  painel mostra "Token salvo não abre" e o envio cai no token do `.env` (se houver): cole o token de novo em Sugestões.
+- **Trocar a KEK:** siga [chaves-no-painel.md](chaves-no-painel.md) (`SETTINGS_KEK=nova,antiga` e "Recifrar"). Se a KEK
+  se perder, o painel mostra "Token salvo não abre" e o envio cai no token do `.env` (se houver): cole o token de novo
+  em Sugestões.
 
 ## A issue
 

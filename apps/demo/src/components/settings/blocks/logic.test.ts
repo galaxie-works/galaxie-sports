@@ -33,6 +33,7 @@ import {
   isRequired,
   aiProviderKey,
   maskSecret,
+  secretSource,
   planSaveOps,
   postgameOnValue,
   resettableKeys,
@@ -339,13 +340,20 @@ describe('cada bloco na página do PR 1 (#1070)', () => {
       expect(settingPage(key), key).toEqual({ item: 'provider', block: 'sports' });
   });
 
-  it('a lista de credenciais é a de Credenciais (A4), menos as três chaves gravadas no cartão da feature', () => {
+  it('a lista de credenciais é a de Credenciais (A4), menos o token gravado no cartão das sugestões', () => {
     const outside = SETTINGS.filter((d) => isSecret(d) && settingPage(d.key)?.block !== 'credentials');
-    expect(outside.map((d) => d.key).sort()).toEqual([
-      'FEEDBACK_GITHUB_TOKEN',
-      'STRIPE_SECRET_KEY',
-      'STRIPE_WEBHOOK_SECRET',
-    ]);
+    expect(outside.map((d) => d.key)).toEqual(['FEEDBACK_GITHUB_TOKEN']);
+  });
+
+  it('de onde vem a chave secreta (#1087)', () => {
+    const s = (configured: boolean, inPanel = false, unreadable = false) =>
+      secretSource({ configured, secret: { inPanel, unreadable } });
+    expect(s(true, true)).toBe('panel');
+    expect(s(false, true)).toBe('panel');
+    expect(s(true)).toBe('env');
+    expect(s(true, true, true)).toBe('unreadable');
+    expect(s(false)).toBe('none');
+    expect(secretSource({ configured: true })).toBe('env');
   });
 
   it('os links vão para as rotas novas', () => {

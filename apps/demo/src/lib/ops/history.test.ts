@@ -33,9 +33,9 @@ describe('histórico de ajustes', () => {
     });
     const rows = await readHistory("POSTGAME_FOOTBALL' or 1=1 --");
     const [sql, params] = poolQuery.mock.calls[0]!;
-    expect(sql).toMatch(/where key = \$1 order by changed_at desc, id desc limit 100/);
+    expect(sql).toMatch(/where key = any\(\$1\) order by changed_at desc, id desc limit 100/);
     expect(sql).not.toContain('POSTGAME_FOOTBALL');
-    expect(params).toEqual(["POSTGAME_FOOTBALL' or 1=1 --"]);
+    expect(params).toEqual([["POSTGAME_FOOTBALL' or 1=1 --"]]);
     expect(rows).toEqual([
       {
         id: 7,
@@ -47,5 +47,24 @@ describe('histórico de ajustes', () => {
         changedAt: '2026-11-11T12:00:00.000Z',
       },
     ]);
+  });
+
+  it('chave trocada no painel (#1087): o histórico inclui a linha cifrada, mostrada como a chave, sem valor', async () => {
+    poolQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: '9',
+          key: 'APISPORTS_KEY_SEALED',
+          action: 'set',
+          old_value: null,
+          new_value: '••••••••',
+          changed_by: 'ana',
+          changed_at: new Date('2026-11-11T12:00:00Z'),
+        },
+      ],
+    });
+    const rows = await readHistory('APISPORTS_KEY');
+    expect(poolQuery.mock.calls[0]![1]).toEqual([['APISPORTS_KEY', 'APISPORTS_KEY_SEALED']]);
+    expect(rows[0]).toMatchObject({ key: 'APISPORTS_KEY', newValue: '••••••••', changedBy: 'ana' });
   });
 });
