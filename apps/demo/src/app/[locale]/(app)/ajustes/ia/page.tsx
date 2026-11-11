@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.ops.nav.ai };
 }
 
-/** Ajustes → Plataforma → IA interna (#1001): as seções dela empilhadas, sem abas. */
+/** Ajustes → Inteligência → IA interna: política, provedor e todos os modelos de IA (A3); as chaves ficam em Credenciais. (#1069) */
 export default function Page() {
-  return <OpsViewPage view="ai" active="ai" />;
+  return <OpsViewPage view="ai" />;
 }

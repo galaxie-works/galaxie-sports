@@ -195,6 +195,14 @@ export async function listReviewItems(
   };
 }
 
+/** Itens que esperam decisão na fila da Revisão do catálogo (a contagem do menu de Ajustes, #1068). */
+export async function countReviewQueue(): Promise<number> {
+  const rows = await query<{ n: number }>(
+    `with x as (${ITEMS}) select count(*)::int as n from x where state = 'needs_review'`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
 /** Piso editorial que a API relatou na partida (o mesmo `ops.runtime_env` do painel de Operação). */
 export async function readServingFloor(): Promise<ServingFloor> {
   const [row] = await pool
