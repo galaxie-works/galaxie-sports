@@ -10,10 +10,12 @@ import { and, eq, gte, lt, sql } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { functionDef, ledger, reservation, wallet, type LedgerKind } from '@galaxie/db/schema';
+import { ASSISTANT_FUNCTION, ASSISTANT_STREAMERS } from './assistant.js';
 import { evaluateBalance } from './balance.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 import {
+  COSMOS_PROVIDERS,
   isCosmosProvider,
   isPricedModel,
   modelMatchesProvider,
@@ -108,7 +110,15 @@ export interface FunctionDefInput {
 }
 
 /** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
-function checkFunctionModel(def: Pick<FunctionDefInput, 'provider' | 'model'>) {
+/**
+ * A função tem quem chame esse provedor? Hoje só o assistente chama um modelo, e só nos provedores com chamador
+ * (`ASSISTANT_STREAMERS`); salvar outro deixaria a função "Ativa" respondendo indisponível.
+ */
+export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
+  return functionName !== ASSISTANT_FUNCTION || Boolean(ASSISTANT_STREAMERS[provider]);
+}
+
+function checkFunctionModel(def: Pick<FunctionDefInput, 'name' | 'provider' | 'model'>) {
   const provider = def.provider ?? null;
   const model = def.model?.trim() || null;
   if (provider !== null && !isCosmosProvider(provider))
@@ -116,6 +126,11 @@ function checkFunctionModel(def: Pick<FunctionDefInput, 'provider' | 'model'>) {
   if (model !== null && provider === null)
     throw new CosmosError('invalid_model', 'o modelo precisa de um provedor');
   const effective = resolveFunctionModel({ provider, model });
+  if (!providerHasCaller(def.name, effective.provider))
+    throw new CosmosError(
+      'provider_unavailable',
+      `a função ${def.name} ainda não chama o provedor ${effective.provider}`,
+    );
   if (!modelMatchesProvider(effective.model, effective.provider))
     throw new CosmosError(
       'invalid_model',
@@ -180,6 +195,8 @@ export interface FunctionDefRow {
   model: string | null;
   /** O que a chamada usa de fato. */
   effective: FunctionModel;
+  /** Provedores que esta função já sabe chamar (os outros aparecem como indisponíveis na tela). */
+  callable: CosmosProvider[];
 }
 
 /** Catálogo inteiro, ativas e desativadas, em ordem de nome (tela da equipe Galaxie). */
@@ -194,6 +211,7 @@ export async function listFunctionDefs(db: Db): Promise<FunctionDefRow[]> {
     provider: r.provider,
     model: r.model,
     effective: resolveFunctionModel(r),
+    callable: COSMOS_PROVIDERS.filter((p) => providerHasCaller(r.name, p)),
   }));
 }
 

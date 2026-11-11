@@ -3,6 +3,9 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  ASSISTANT_FUNCTION,
+  ASSISTANT_STREAMERS,
+  COSMOS_PROVIDERS,
   activeFunction,
   defaultModelFor,
   isCosmosError,
@@ -160,5 +163,20 @@ describe('provedor e modelo por função (#1088)', () => {
       model: null,
       effective: { provider: 'anthropic', model: defaultModelFor('anthropic') },
     });
+  });
+
+  it('o assistente só salva com provedor que ele sabe chamar; os outros aparecem indisponíveis', async () => {
+    const sem = COSMOS_PROVIDERS.filter((p) => !ASSISTANT_STREAMERS[p]);
+    const com = COSMOS_PROVIDERS.filter((p) => ASSISTANT_STREAMERS[p]);
+    const def = { name: ASSISTANT_FUNCTION, minCredits: 0.001, permission: 'cosmos.assistant' };
+    for (const provider of sem)
+      await expectCode(upsertFunctionDef(db, { ...def, provider }), 'provider_unavailable');
+    await upsertFunctionDef(db, { ...def, provider: com[0]! });
+    const row = (await listFunctionDefs(db)).find((f) => f.name === ASSISTANT_FUNCTION);
+    expect(row?.callable).toEqual(com);
+    // outra função (sem chamador de modelo ainda) não é travada por provedor
+    expect((await listFunctionDefs(db)).find((f) => f.name !== ASSISTANT_FUNCTION)?.callable).toEqual([
+      ...COSMOS_PROVIDERS,
+    ]);
   });
 });
