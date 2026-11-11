@@ -1,4 +1,4 @@
-/** E-mails de acesso (convite e código), no idioma de quem recebe. */
+/** E-mails do painel (convite, código e pedido de créditos da Cosmos), no idioma de quem recebe. */
 import { defineMessages } from '../define';
 
 export default defineMessages(
@@ -22,6 +22,13 @@ export default defineMessages(
       validity: 'O código vale por {minutes} minutos e só pode ser usado uma vez.',
       ignore: 'Se não foi você, ignore este e-mail: ninguém entra sem o código.',
     },
+    creditRequest: {
+      subject: '{requester} pediu créditos da Cosmos AI',
+      intro: '{requester} pediu mais créditos da Cosmos AI para {tenant}.',
+      reason: 'Justificativa: {reason}',
+      how: 'Aprove para abrir a compra ou recuse com uma nota. Quem pediu vê a sua resposta na tela da Cosmos.',
+      action: 'Ver o pedido',
+    },
   },
   {
     en: {
@@ -44,6 +51,13 @@ export default defineMessages(
         validity: 'The code is valid for {minutes} minutes and can only be used once.',
         ignore: "If this wasn't you, ignore this email: no one gets in without the code.",
       },
+      creditRequest: {
+        subject: '{requester} asked for Cosmos AI credits',
+        intro: '{requester} asked for more Cosmos AI credits for {tenant}.',
+        reason: 'Reason: {reason}',
+        how: 'Approve to open the purchase or decline with a note. The requester sees your answer on the Cosmos page.',
+        action: 'See the request',
+      },
     },
     'es-AR': {
       greeting: '¡Hola, {name}!',
@@ -64,6 +78,13 @@ export default defineMessages(
         intro: 'Usá este código para ingresar a la demo de Galaxie Sports:',
         validity: 'El código vale por {minutes} minutos y se puede usar una sola vez.',
         ignore: 'Si no fuiste vos, ignorá este e-mail: nadie entra sin el código.',
+      },
+      creditRequest: {
+        subject: '{requester} pidió créditos de Cosmos AI',
+        intro: '{requester} pidió más créditos de Cosmos AI para {tenant}.',
+        reason: 'Justificación: {reason}',
+        how: 'Aprobá para abrir la compra o rechazá con una nota. Quien pidió ve tu respuesta en la pantalla de Cosmos.',
+        action: 'Ver el pedido',
       },
     },
   },

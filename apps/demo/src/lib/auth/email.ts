@@ -1,5 +1,6 @@
 /**
- * E-mails do acesso à demo: o convite (link para a tela de login) e o código de acesso (OTP). Com SMTP_*
+ * E-mails do painel: o convite (link para a tela de login), o código de acesso (OTP) e o aviso ao dono de um pedido de
+ * créditos da Cosmos (#996). Com SMTP_*
  * configurado, envia de verdade; sem SMTP, o convite vai para o log do servidor e o código também, mas só
  * em desenvolvimento (em produção um código nunca é escrito em log). Nada disso é gravado no banco.
  */
@@ -77,6 +78,18 @@ export type AccessEmail =
       code: string;
       expiresInMinutes: number;
       locale: Locale;
+    }
+  | {
+      /** Pedido de créditos da Cosmos (#996), para quem pode comprar. */
+      kind: 'credit_request';
+      to: string;
+      name: string;
+      requester: string;
+      tenant: string;
+      reason: string;
+      /** Área da Cosmos no painel (sem dados do pedido na URL). */
+      url: string;
+      locale: Locale;
     };
 
 export type AccessEmailKind = AccessEmail['kind'];
@@ -153,15 +166,44 @@ ${paragraph(ignore, 'padding-top:6px;font-size:13px;line-height:1.5;color:#7d879
   return { subject, text, html };
 }
 
+function renderCreditRequest(mail: Extract<AccessEmail, { kind: 'credit_request' }>) {
+  const t = getDictionary(mail.locale).email;
+  const greeting = greetingOf(mail);
+  const T = t.creditRequest;
+  const subject = fill(T.subject, { requester: mail.requester });
+  const intro = fill(T.intro, { requester: mail.requester, tenant: mail.tenant });
+  const reason = fill(T.reason, { reason: mail.reason });
+  const text = `${greeting}\n\n${intro}\n\n${reason}\n\n${T.how}\n\n${T.action}: ${mail.url}\n\n${t.signature}`;
+  const html = frame(
+    mail.locale,
+    greeting,
+    `${paragraph(intro)}
+${paragraph(reason)}
+${paragraph(T.how)}
+<tr><td style="padding-top:24px"><a href="${escapeHtml(mail.url)}" style="display:inline-block;background:#6c69f2;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px">${T.action}</a></td></tr>`,
+  );
+  return { subject, text, html };
+}
+
 export interface SendResult {
   delivered: boolean;
   error?: string;
 }
 
 export async function sendAccessEmail(mail: AccessEmail): Promise<SendResult> {
-  const { subject, text, html } = mail.kind === 'invite' ? renderInvite(mail) : renderOtp(mail);
+  const { subject, text, html } =
+    mail.kind === 'invite'
+      ? renderInvite(mail)
+      : mail.kind === 'otp'
+        ? renderOtp(mail)
+        : renderCreditRequest(mail);
   if (!smtpConfigured()) {
-    if (mail.kind === 'invite') {
+    if (mail.kind === 'credit_request') {
+      // Sem SMTP: o dono vê o pedido na tela da Cosmos; o e-mail é só o aviso.
+      console.info(
+        `[demo-auth] SMTP não configurado; pedido de créditos não avisado por e-mail a ${mail.to}`,
+      );
+    } else if (mail.kind === 'invite') {
       // Sem SMTP: o link do convite (só a tela de login, nada secreto) vai para o log do servidor.
       console.info(`[demo-auth] SMTP não configurado; convite para ${mail.to}: ${mail.url}`);
     } else if (!isProduction) {
