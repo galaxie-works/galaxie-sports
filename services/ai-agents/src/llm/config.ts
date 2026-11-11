@@ -23,8 +23,8 @@ export {
   type LedgerSettings,
 } from '@galaxie/ai-ledger';
 
-export type LlmProviderName = 'openai' | 'anthropic' | 'gemini';
-export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic', 'gemini'];
+export type LlmProviderName = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
+export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic', 'gemini', 'deepseek'];
 
 /**
  * Modelos padrão por nível (conferidos nas páginas oficiais de modelos/preços em 2026-10-21).
@@ -41,11 +41,15 @@ export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic',
  * Gemini (API Interactions; saída estruturada + Grounding with Google Search só no Gemini 3+):
  * - light → `gemini-3.5-flash-lite` (US$ 0,30/2,50) · standard/research → `gemini-3.8-flash`
  *   (US$ 0,75/3,75 até 31/12/2026), + US$ 14 por 1.000 consultas de busca.
+ * DeepSeek (API compatível com a da OpenAI, sem busca na web; conferidos em 2026-11-11):
+ * - light/standard → `deepseek-flash` (US$ 0,30/1,20 no pico) · research → `deepseek-v4-pro`
+ *   (US$ 1,32/3,96 no pico). Agente que pede busca na web não roda no DeepSeek (erro de configuração).
  */
 export const DEFAULT_MODELS: Record<LlmProviderName, Record<LlmTier, string>> = {
   openai: { light: 'gpt-6-luna', standard: 'gpt-6.1-sol', research: 'gpt-6.1-sol' },
   anthropic: { light: 'claude-haiku-5-5', standard: 'claude-sonnet-5-5', research: 'claude-sonnet-5-5' },
   gemini: { light: 'gemini-3.5-flash-lite', standard: 'gemini-3.8-flash', research: 'gemini-3.8-flash' },
+  deepseek: { light: 'deepseek-flash', standard: 'deepseek-flash', research: 'deepseek-v4-pro' },
 };
 
 /** Variável da chave de cada provedor. */
@@ -53,6 +57,7 @@ export const API_KEY_ENV: Record<LlmProviderName, string> = {
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
   gemini: 'GEMINI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
 };
 
 /** Buscas na web por chamada (teto do provedor quando existe; senão instrução no prompt + alerta). */
@@ -90,7 +95,7 @@ export function llmSettingsFromEnv(env: Env = process.env): LlmSettings {
   const provider = (env.AI_PROVIDER?.trim().toLowerCase() || 'openai') as LlmProviderName;
   if (!LLM_PROVIDERS.includes(provider))
     throw new LlmError(
-      `AI_PROVIDER inválido: ${env.AI_PROVIDER} (use openai, anthropic ou gemini).`,
+      `AI_PROVIDER inválido: ${env.AI_PROVIDER} (use openai, anthropic, gemini ou deepseek).`,
       'config',
       false,
     );

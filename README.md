@@ -200,6 +200,7 @@ galaxie-sports/
 | [packages/crests](packages/crests/README.md) | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o envio no painel |
 | [packages/runtime-config](packages/runtime-config/README.md) | Flags da operação (banco > env > padrão) |
 | [packages/ai-ledger](packages/ai-ledger/README.md) | Orçamento diário de IA em tokens e US$ |
+| [packages/llm](packages/llm/README.md) | Clientes dos provedores de IA (OpenAI, Anthropic, Gemini, DeepSeek) |
 | [packages/scheduler](packages/scheduler/README.md) | Motor de agendamento do ingestor e dos agentes de IA |
 | [packages/core-writer](packages/core-writer/README.md) | Grava o lote neutro dos provedores no core (`upsertBatch`) |
 | [packages/observability](packages/observability/README.md) | Logger e métricas Prometheus |

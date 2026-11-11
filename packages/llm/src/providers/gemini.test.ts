@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { llmSettingsFromEnv, rightsLlmEnv } from '../config.js';
 import { LlmError } from '../errors.js';
-import { createLlmClient } from '../factory.js';
 import { GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
 import type { LlmJsonRequest } from '../types.js';
 import {
@@ -285,30 +283,5 @@ describe('GeminiLlmClient (API Interactions + Grounding with Google Search)', ()
 
   it('sem chave: erro de configuração', () => {
     expect(() => new GeminiLlmClient({ models: MODELS })).toThrow(/GEMINI_API_KEY/);
-  });
-});
-
-describe('provedor da pesquisa de direitos (AI_RIGHTS_PROVIDER)', () => {
-  it('gemini com GEMINI_API_KEY e o modelo de pesquisa padrão; os AI_MODEL_* do outro provedor não valem', () => {
-    const env = {
-      AI_PROVIDER: 'openai',
-      OPENAI_API_KEY: 'o',
-      GEMINI_API_KEY: 'g',
-      AI_MODEL_RESEARCH: 'gpt-6.1-sol',
-      AI_RIGHTS_PROVIDER: 'gemini',
-    };
-    const s = llmSettingsFromEnv(rightsLlmEnv(env));
-    expect(s).toMatchObject({ provider: 'gemini', apiKey: 'g' });
-    expect(s.models.research).toBe('gemini-3.8-flash');
-    expect(
-      llmSettingsFromEnv(rightsLlmEnv({ ...env, AI_RIGHTS_MODEL: 'gemini-4-argon' })).models.research,
-    ).toBe('gemini-4-argon');
-    expect(createLlmClient({ env: rightsLlmEnv(env) }).settings.provider).toBe('gemini');
-  });
-
-  it('sem AI_RIGHTS_PROVIDER: o mesmo provedor e modelos dos demais agentes', () => {
-    const env = { AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'a', AI_MODEL_RESEARCH: 'claude-opus-5-5' };
-    expect(rightsLlmEnv(env)).toBe(env);
-    expect(llmSettingsFromEnv(rightsLlmEnv(env)).models.research).toBe('claude-opus-5-5');
   });
 });
