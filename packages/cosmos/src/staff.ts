@@ -337,12 +337,19 @@ export async function staffSavePackage(
  */
 export async function staffSaveFunction(
   db: Database,
-  input: FunctionDefInput & { reason: string; userId: string },
+  input: FunctionDefInput & {
+    reason: string;
+    userId: string;
+    /** Cadastro novo: nome já usado é recusado em vez de sobrescrever a função existente. */
+    create?: boolean;
+  },
 ): Promise<void> {
   const reason = reasonOf(input.reason);
-  const { reason: _r, userId, ...def } = input;
+  const { reason: _r, userId, create, ...def } = input;
   await db.transaction(async (tx) => {
     const [before] = await tx.select().from(functionDef).where(eq(functionDef.name, def.name)).for('update');
+    if (create && before)
+      throw new CosmosError('function_exists', `a função ${def.name} já está no catálogo`);
     await upsertFunctionDef(tx, def);
     await logAction(tx, {
       tenantId: null,

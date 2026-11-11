@@ -16,6 +16,7 @@ import { CosmosError } from './errors.js';
 import {
   isCosmosProvider,
   isPricedModel,
+  modelMatchesProvider,
   resolveFunctionModel,
   type CosmosProvider,
   type FunctionModel,
@@ -115,6 +116,11 @@ function checkFunctionModel(def: Pick<FunctionDefInput, 'provider' | 'model'>) {
   if (model !== null && provider === null)
     throw new CosmosError('invalid_model', 'o modelo precisa de um provedor');
   const effective = resolveFunctionModel({ provider, model });
+  if (!modelMatchesProvider(effective.model, effective.provider))
+    throw new CosmosError(
+      'invalid_model',
+      `o modelo ${effective.model} não é do provedor ${effective.provider}`,
+    );
   if (!isPricedModel(effective.model))
     throw new CosmosError(
       'invalid_model',

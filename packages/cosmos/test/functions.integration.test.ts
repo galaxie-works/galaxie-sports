@@ -59,7 +59,28 @@ describe('provedor e modelo por função (#1088)', () => {
       upsertFunctionDef(db, { ...base, provider: 'anthropic', model: 'modelo-inventado-9' }),
       'invalid_model',
     );
+    // modelo de outro provedor: a chamada iria para o provedor errado e sempre falharia
+    await expectCode(
+      upsertFunctionDef(db, { ...base, provider: 'anthropic', model: defaultModelFor('openai') }),
+      'invalid_model',
+    );
+    // prefixo de um modelo com preço não basta: modelo novo não herda o preço de outro
+    await expectCode(
+      upsertFunctionDef(db, {
+        ...base,
+        provider: 'anthropic',
+        model: `${defaultModelFor('anthropic')}-turbo`,
+      }),
+      'invalid_model',
+    );
     expect(await activeFunction(db, 'fn.ruim')).toBeNull();
+    // snapshot datado do mesmo modelo vale
+    await upsertFunctionDef(db, {
+      ...base,
+      provider: 'anthropic',
+      model: `${defaultModelFor('anthropic')}-2026-10-01`,
+    });
+    expect((await activeFunction(db, 'fn.ruim'))?.model).toBe(`${defaultModelFor('anthropic')}-2026-10-01`);
   });
 
   it('a equipe troca o modelo com motivo; a tela da função fica como estava', async () => {
@@ -87,6 +108,18 @@ describe('provedor e modelo por função (#1088)', () => {
     expect(log!.before).toMatchObject({ minCredits: 1, provider: null });
     expect(log!.after).toMatchObject({ minCredits: 0.5, provider: 'openai' });
 
+    // "Nova função" com nome já usado não sobrescreve a existente
+    await expectCode(
+      staffSaveFunction(db, {
+        name: 'fn.tela',
+        minCredits: 9,
+        permission: 'cosmos.outra',
+        create: true,
+        reason: 'cadastro repetido',
+        userId: 'adm',
+      }),
+      'function_exists',
+    );
     // modelo recusado: nada muda, nem o registro da equipe
     await expectCode(
       staffSaveFunction(db, {

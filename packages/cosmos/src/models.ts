@@ -3,7 +3,7 @@
  * (`cosmos.function_def`); sem escolha, vale o padrão. O preço vem da tabela do ai-ledger, e o crédito sai do custo
  * real: trocar para um modelo mais barato baixa os créditos cobrados sem mexer nos pacotes.
  */
-import { priceFor } from '@galaxie/ai-ledger/pricing';
+import { MODEL_PRICES } from '@galaxie/ai-ledger/pricing';
 import { COSMOS_PROVIDERS, type CosmosProvider } from '@galaxie/db/schema';
 import { AI_DEFAULT_MODELS } from '@galaxie/runtime-config';
 
@@ -41,13 +41,29 @@ export function resolveFunctionModel(row: {
 }
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
+const DATED = /-\d{4}-\d{2}-\d{2}$/;
 
 /**
- * O modelo pode ser cobrado? Precisa ter preço na tabela do ai-ledger: sem preço, o custo sairia zero (ou o mais
- * caro do provedor) e o crédito ficaria errado.
+ * O modelo pode ser cobrado? Precisa ter preço próprio na tabela do ai-ledger: o nome exato ou um snapshot datado
+ * dele (`modelo-AAAA-MM-DD`). Sem preço, o custo sairia zero; casar por prefixo cobraria um modelo novo pelo preço
+ * de outro.
  */
-export const isPricedModel = (model: string): boolean =>
-  MODEL_ID.test(model) && priceFor(model) !== undefined;
+export function isPricedModel(model: string): boolean {
+  if (!MODEL_ID.test(model)) return false;
+  if (MODEL_PRICES[model]) return true;
+  return DATED.test(model) && Boolean(MODEL_PRICES[model.replace(DATED, '')]);
+}
+
+/** Prefixo dos modelos de cada provedor: modelo de um provedor chamado no outro sempre falha. */
+const PROVIDER_PREFIX: Record<CosmosProvider, string> = {
+  anthropic: 'claude-',
+  deepseek: 'deepseek-',
+  gemini: 'gemini-',
+  openai: 'gpt-',
+};
+
+export const modelMatchesProvider = (model: string, provider: CosmosProvider): boolean =>
+  model.startsWith(PROVIDER_PREFIX[provider]);
 
 /** Variável com a chave da Cosmos no provedor (separada das chaves da IA interna). */
 export const cosmosApiKeyEnv = (provider: CosmosProvider) => `COSMOS_${provider.toUpperCase()}_API_KEY`;

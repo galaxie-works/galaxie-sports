@@ -39,14 +39,17 @@ function FunctionDialog({ fn }: { fn?: StaffFunction }) {
   const T = t.cosmosStaff.functions;
   const router = useRouter();
   const id = useId();
-  const [form, setForm] = useState<Omit<FunctionForm, 'reason'>>(() => ({
+  // cada abertura parte do que está salvo: o que foi digitado e cancelado não volta
+  const initial = (): Omit<FunctionForm, 'reason'> => ({
     name: fn?.name ?? '',
-    minCredits: fn?.minCredits ?? 0.001,
-    permission: fn?.permission ?? 'cosmos.assistant.ask',
+    minCredits: fn?.minCredits ?? 0,
+    permission: fn?.permission ?? '',
     provider: fn?.provider ?? '',
     model: fn?.model ?? '',
     active: fn?.active ?? true,
-  }));
+    create: !fn,
+  });
+  const [form, setForm] = useState(initial);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const valid = form.name.trim() && form.permission.trim() && form.minCredits > 0;
   const providerItems = [
@@ -71,6 +74,7 @@ function FunctionDialog({ fn }: { fn?: StaffFunction }) {
       title={fn ? `${T.edit}: ${fn.name}` : T.new}
       description={T.description}
       canConfirm={Boolean(valid)}
+      onOpen={() => setForm(initial())}
       onConfirm={async (reason) => {
         const r = await saveFunction({ ...form, reason });
         if (r.ok) router.refresh();

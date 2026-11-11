@@ -45,6 +45,7 @@ async function run(tenantId: string | null, reason: string, fn: (userId: string)
     if (isCosmosError(err, 'reason_required')) return { ok: false, error: e.reason };
     if (isCosmosError(err, 'invalid_amount')) return { ok: false, error: e.amount };
     if (isCosmosError(err, 'invalid_model')) return { ok: false, error: e.model };
+    if (isCosmosError(err, 'function_exists')) return { ok: false, error: e.exists };
     if (isCosmosError(err, 'insufficient_credits')) return { ok: false, error: e.insufficient };
     console.error('[cosmos] ação da equipe falhou', err);
     return { ok: false, error: e.generic };
@@ -159,6 +160,8 @@ export interface FunctionForm {
   /** '' = o modelo leve do provedor. */
   model: string;
   active: boolean;
+  /** Cadastro novo (a janela "Nova função"): nome já usado é recusado em vez de sobrescrever. */
+  create?: boolean;
   reason: string;
 }
 
@@ -186,6 +189,7 @@ export async function saveFunction(form: FunctionForm): Promise<StaffActionResul
       minCredits,
       permission: form.permission.trim(),
       active: form.active,
+      create: form.create === true,
       provider,
       model: provider === null ? null : form.model.trim() || null,
       reason: form.reason,

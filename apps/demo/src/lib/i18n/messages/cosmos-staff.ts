@@ -73,7 +73,8 @@ export default defineMessages(
       errors: {
         reason: 'Escreva o motivo (pelo menos 5 caracteres).',
         amount: 'Valor inválido.',
-        model: 'Provedor ou modelo inválido, ou modelo sem preço na tabela.',
+        model: 'Provedor ou modelo inválido, modelo de outro provedor ou sem preço na tabela.',
+        exists: 'Já existe uma função com esse nome. Edite a que está na lista.',
         insufficient: 'A saída é maior que o saldo livre.',
         generic: 'Não deu para concluir. Tente de novo.',
       },
@@ -218,7 +219,9 @@ export default defineMessages(
         errors: {
           reason: 'Write the reason (at least 5 characters).',
           amount: 'Invalid value.',
-          model: 'Invalid provider or model, or the model has no price in the table.',
+          model:
+            'Invalid provider or model, a model from another provider, or a model with no price in the table.',
+          exists: 'A function with this name already exists. Edit the one in the list.',
           insufficient: 'The removal is larger than the available balance.',
           generic: "We couldn't finish. Try again.",
         },
@@ -365,7 +368,8 @@ export default defineMessages(
         errors: {
           reason: 'Escribí el motivo (al menos 5 caracteres).',
           amount: 'Valor inválido.',
-          model: 'Proveedor o modelo inválido, o modelo sin precio en la tabla.',
+          model: 'Proveedor o modelo inválido, modelo de otro proveedor o sin precio en la tabla.',
+          exists: 'Ya existe una función con ese nombre. Edita la que está en la lista.',
           insufficient: 'La salida es mayor que el saldo libre.',
           generic: 'No se pudo terminar. Probá de nuevo.',
         },
