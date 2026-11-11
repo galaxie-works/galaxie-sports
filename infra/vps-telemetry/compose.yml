@@ -329,7 +329,7 @@ services:
   # maintenance.sh up|down (README › Página de manutenção).
   # Mesmos hosts e mesma regra da API (sem /metrics e /internal) dos routers originais.
   maintenance:
-    image: caddy:2.11.7-alpine
+    image: caddy:2.11.9-alpine
     pull_policy: missing
     restart: unless-stopped
     mem_limit: 64m
