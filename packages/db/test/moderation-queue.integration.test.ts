@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   activeSanctions,
@@ -26,6 +27,7 @@ import {
   type Database,
   type ModerationClocks,
 } from '../src/index.js';
+import { moderationCase } from '../src/schema/moderation.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -866,6 +868,52 @@ describe('fila única da moderação (B8, #953)', () => {
       rules,
     });
     expect(second.ok).toBe(true);
+  });
+
+  it('denúncia com autor errado e depois o filtro: vale o autor do filtro', async () => {
+    const author = await profile();
+    const victim = await profile();
+    const rep = await profile();
+    const t = target(author.id);
+    const base = { note: null, content: null, clocks: clocks(), rules };
+    expect(
+      (
+        await fileReport(db, {
+          ...t,
+          targetProfileId: victim.id,
+          reporterProfileId: rep.id,
+          reason: 'spam',
+          ...base,
+        })
+      ).ok,
+    ).toBe(true);
+    await holdContent(db, {
+      ...t,
+      source: 'cosmos',
+      reasons: ['threat'],
+      severity: 80,
+      hide: false,
+      content: null,
+      detail: null,
+      clocks: clocks(),
+    });
+    const [row] = await db
+      .select({ author: moderationCase.targetProfileId })
+      .from(moderationCase)
+      .where(and(eq(moderationCase.tenantId, tenantId), eq(moderationCase.targetId, t.targetId)));
+    expect(row?.author).toBe(author.id);
+    expect(
+      await fileReport(db, {
+        ...t,
+        targetProfileId: null,
+        reporterProfileId: author.id,
+        reason: 'spam',
+        ...base,
+      }),
+    ).toEqual({ ok: false, reason: 'self_report' });
+    expect(
+      (await fileReport(db, { ...t, reporterProfileId: victim.id, reason: 'harassment', ...base })).ok,
+    ).toBe(true);
   });
 
   it('o texto do filtro entra no caso aberto pela denúncia', async () => {

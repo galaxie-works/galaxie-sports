@@ -227,14 +227,16 @@ export async function fileReport(
       const [author] = await tx
         .select({
           id: moderationCase.targetProfileId,
-          source: moderationCase.source,
           targetType: moderationCase.targetType,
+          targetId: moderationCase.targetId,
+          trusted: sql<boolean>`(${moderationCase.source} in ('filter', 'cosmos') or coalesce(${moderationCase.detail}, '{}'::jsonb) ?| array['filter', 'cosmos'])`,
         })
         .from(moderationCase)
         .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
-      const trusted =
-        author?.targetType === 'profile' || author?.source === 'filter' || author?.source === 'cosmos';
-      if (trusted && author?.id === input.reporterProfileId) throw new SelfReportError();
+      // alvo Perfil: o autor é o próprio Perfil denunciado
+      if (author?.targetType === 'profile' && author.targetId === input.reporterProfileId)
+        throw new SelfReportError();
+      if (author?.trusted && author.id === input.reporterProfileId) throw new SelfReportError();
       const [report] = await tx
         .insert(moderationReport)
         .values({
@@ -342,6 +344,8 @@ export async function holdContent(
         reasons: sql`(select array(select distinct unnest(${moderationCase.reasons} || ${textArray(input.reasons)}) order by 1))`,
         severity: sql`greatest(${moderationCase.severity}, ${input.severity})`,
         detail: sql`coalesce(${moderationCase.detail}, '{}'::jsonb) || ${JSON.stringify({ [input.source]: input.detail ?? {} })}::jsonb`,
+        // o autor que o filtro ou a Cosmos viu vale por cima do que um denunciante informou
+        ...(input.targetProfileId ? { targetProfileId: input.targetProfileId } : {}),
         ...(input.content
           ? {
               content: sql`coalesce(${moderationCase.content}, ${input.content})`,
