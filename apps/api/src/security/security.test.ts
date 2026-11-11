@@ -67,7 +67,7 @@ describe('CORS estrito', () => {
       headers: { origin: 'https://app.exemplo.test', 'access-control-request-method': 'GET' },
     });
     expect(pre.statusCode).toBe(204);
-    expect(pre.headers['access-control-allow-methods']).toBe('GET, HEAD, POST');
+    expect(pre.headers['access-control-allow-methods']).toBe('GET, HEAD, POST, PATCH');
     expect(pre.headers['access-control-allow-headers']).toContain('x-galaxie-key');
     const del = await app.inject({
       method: 'OPTIONS',

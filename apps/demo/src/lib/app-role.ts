@@ -52,6 +52,8 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
   { path: '/api/galaxie', owner: 'comum' },
   // trilha de navegação do menu (as telas dos dois papéis)
   { path: '/api/atividade', owner: 'comum' },
+  // token do torcedor da pessoa logada (#1020): o perfil de torcedor fica no menu dos dois papéis
+  { path: '/api/torcedor', owner: 'comum' },
   // healthcheck da imagem (/robots.txt) e ícones da aba
   { path: '/robots.txt', owner: 'comum' },
   { path: '/icon.png', owner: 'comum' },

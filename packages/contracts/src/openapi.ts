@@ -20,6 +20,7 @@ import {
 } from './catalog.js';
 import { accountPaths } from './account.js';
 import { fanPaths } from './fans.js';
+import { moderationPaths } from './moderation.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
@@ -744,6 +745,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       ...accountPaths,
       ...fanPaths,
+      ...moderationPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),
