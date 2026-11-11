@@ -1,6 +1,6 @@
 {
   "id": "2f11a6ba-fce4-42bf-aab4-7855de1e374d",
-  "prevId": "b0e5b4fd-db7e-4013-a3a7-4abbde072db9",
+  "prevId": "31a980c5-88e5-4e1d-ae35-47e65ac12c44",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -18509,7 +18509,8 @@
         "paid",
         "failed",
         "canceled",
-        "expired"
+        "expired",
+        "review"
       ]
     },
     "cosmos.reservation_status": {

@@ -88,7 +88,7 @@ services:
       # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
       SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
-      # Cosmos AI (#993): segredo do endpoint do webhook do Stripe (whsec_…). Vazio, POST /internal/cosmos/stripe/webhook
+      # Cosmos AI (#993): segredo do endpoint do webhook do Stripe (whsec_…). Vazio, POST /webhooks/stripe/cosmos
       # responde 503 e o Stripe tenta de novo depois
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
