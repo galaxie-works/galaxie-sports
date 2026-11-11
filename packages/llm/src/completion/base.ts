@@ -6,7 +6,7 @@
 import { classifyProviderError, LlmError } from '../errors.js';
 import { callSignal, postJson, readSse, type FetchLike, type SseEvent } from '../http.js';
 import { estimateCostUsd } from '../pricing.js';
-import { withRetry, type RetryOptions } from '../retry.js';
+import { cancelledError, withRetry, type RetryOptions } from '../retry.js';
 import type {
   CompletionClient,
   CompletionFinishReason,
@@ -22,7 +22,10 @@ export interface CompletionClientOptions {
   apiKey?: string;
   /** Raiz da API (cada provedor tem o seu padrão). */
   baseUrl?: string;
-  /** Tempo máximo de cada tentativa (padrão 120 s); o pedido pode sobrescrever. */
+  /**
+   * Tempo máximo de cada tentativa (padrão 120 s; o pedido pode sobrescrever). Na resposta inteira, do
+   * pedido ao corpo lido; no streaming, do pedido ao último pedaço (o stream inteiro, não por pedaço).
+   */
   timeoutMs?: number;
   /** Tentativas extras em erros transitórios (429, 5xx, timeout, conexão). Padrão 2. */
   maxRetries?: number;
@@ -64,6 +67,8 @@ export interface StreamState {
   finishReason?: CompletionFinishReason;
   /** O provedor sinalizou o fim (ex.: `[DONE]`, `message_stop`). */
   done: boolean;
+  /** Chegou um pedaço com o uso (OpenAI e DeepSeek mandam o uso num pedaço próprio, no fim). */
+  sawUsage?: boolean;
 }
 
 /** O que um evento do provedor produz: pedaço de texto ou "o uso mudou" (evento de uso parcial). */
@@ -107,11 +112,26 @@ export abstract class HttpCompletionClient implements CompletionClient {
     return { ...usage, costUsd: estimateCostUsd(model, usage, 0, 0, this.provider) };
   }
 
-  private retryOptions(): RetryOptions {
-    return { retries: this.options.maxRetries ?? DEFAULT_COMPLETION_MAX_RETRIES, ...this.options.retry };
+  /**
+   * O stream chegou ao fim de verdade (com o uso final)? Padrão: o provedor deu o motivo do fim. Quem
+   * manda o uso num pedaço próprio depois do motivo (OpenAI, DeepSeek) exige também esse pedaço ou o fim.
+   */
+  protected streamComplete(state: StreamState): boolean {
+    return state.finishReason !== undefined;
+  }
+
+  private retryOptions(req: CompletionRequest): RetryOptions {
+    return {
+      retries: this.options.maxRetries ?? DEFAULT_COMPLETION_MAX_RETRIES,
+      ...this.options.retry,
+      signal: req.signal,
+      provider: this.provider,
+    };
   }
 
   private post(req: CompletionRequest, stream: boolean): Promise<Response> {
+    // cancelado por quem chamou: não sai (e não vira timeout retentável)
+    if (req.signal?.aborted) return Promise.reject(cancelledError(this.provider, req.signal));
     const w = this.wire(req, stream);
     const timeoutMs = req.timeoutMs ?? this.options.timeoutMs ?? DEFAULT_COMPLETION_TIMEOUT_MS;
     return postJson(this.fetch, w.url, w.headers, w.body, callSignal(timeoutMs, req.signal), this.provider);
@@ -124,7 +144,9 @@ export abstract class HttpCompletionClient implements CompletionClient {
       try {
         json = await res.json();
       } catch (err) {
-        throw classifyProviderError(err, this.provider);
+        throw req.signal?.aborted
+          ? cancelledError(this.provider, req.signal)
+          : classifyProviderError(err, this.provider);
       }
       const r = this.parseResult(json);
       return {
@@ -135,12 +157,12 @@ export abstract class HttpCompletionClient implements CompletionClient {
         provider: this.provider,
         model: req.model,
       };
-    }, this.retryOptions());
+    }, this.retryOptions(req));
   }
 
   async *stream(req: CompletionRequest): AsyncGenerator<CompletionStreamEvent> {
     // retentativa só até a resposta abrir: depois do primeiro pedaço, repetir duplicaria o texto
-    const res = await withRetry(() => this.post(req, true), this.retryOptions());
+    const res = await withRetry(() => this.post(req, true), this.retryOptions(req));
     if (!res.body) throw new LlmError(`${this.provider}: resposta sem corpo no streaming.`, 'provider', true);
     const state: StreamState = { usage: { ...ZERO_USAGE }, done: false };
     try {
@@ -152,7 +174,7 @@ export abstract class HttpCompletionClient implements CompletionClient {
         }
         if (state.done) break;
       }
-      if (!state.finishReason)
+      if (!this.streamComplete(state))
         throw new LlmError(
           `${this.provider}: o streaming terminou antes do fim da resposta.`,
           'provider',
@@ -160,7 +182,10 @@ export abstract class HttpCompletionClient implements CompletionClient {
         );
     } catch (err) {
       // o uso já cobrado vai junto do erro (quem registra o gasto conta mesmo na falha)
-      throw Object.assign(classifyProviderError(err, this.provider), {
+      const typed = req.signal?.aborted
+        ? cancelledError(this.provider, req.signal)
+        : classifyProviderError(err, this.provider);
+      throw Object.assign(typed, {
         usage: this.usageOf(req.model, state.usage),
       });
     }
@@ -168,7 +193,7 @@ export abstract class HttpCompletionClient implements CompletionClient {
       type: 'usage',
       usage: this.usageOf(req.model, state.usage),
       final: true,
-      finishReason: state.finishReason,
+      finishReason: state.finishReason ?? 'other',
     };
   }
 }

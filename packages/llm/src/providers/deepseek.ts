@@ -104,7 +104,7 @@ export class DeepSeekLlmClient implements LlmClient {
           return {
             data,
             citations: [],
-            usage: { ...meter.toUsage(cost()), cachedInputTokens: meter.cachedInputTokens },
+            usage: meter.toUsage(cost()),
             provider: 'deepseek' as const,
             model,
           };

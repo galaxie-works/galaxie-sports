@@ -3,6 +3,10 @@
  * DeepSeek também fala. Streaming com `stream_options.include_usage`: o último pedaço traz o uso.
  * Cache: a OpenAI informa `prompt_tokens_details.cached_tokens`; a DeepSeek, `prompt_cache_hit_tokens`
  * e `prompt_cache_miss_tokens` (a soma é `prompt_tokens`). Nenhuma das duas cobra gravação no cache.
+ *
+ * Limitação: no streaming, o uso só chega no último pedaço. Stream cortado no meio sobe com `err.usage`
+ * zerado (0 tokens, US$ 0); quem precisa cobrar a chamada estima a entrada pelo prompt (ex.:
+ * `estimateRequestTokens`, ~4 caracteres por token) e a saída pelo texto já recebido.
  */
 import { classifyProviderError } from '../errors.js';
 import { ProviderHttpError, type SseEvent } from '../http.js';
@@ -132,8 +136,16 @@ export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionCli
       if (c.delta?.content) out.push({ type: 'text', delta: c.delta.content });
       if (c.finish_reason) state.finishReason = chatFinishReason(c.finish_reason);
     }
-    if (chunk.usage) state.usage = chatUsage(chunk.usage);
+    if (chunk.usage) {
+      state.usage = chatUsage(chunk.usage);
+      state.sawUsage = true;
+    }
     return out;
+  }
+
+  /** O uso vem num pedaço próprio depois do `finish_reason`: sem ele (nem o `[DONE]`), o fim foi cortado. */
+  protected override streamComplete(state: StreamState): boolean {
+    return state.finishReason !== undefined && (state.done || state.sawUsage === true);
   }
 
   private errorOf(e: ChatError) {
