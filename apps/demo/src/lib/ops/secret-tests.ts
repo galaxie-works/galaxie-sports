@@ -11,7 +11,7 @@
  * As chaves vão sempre em cabeçalho (nunca na URL, que pode parar em log de proxy).
  */
 
-import { API_KEY_HEADER, API_STATUS_URL } from '@galaxie/apisports-client';
+import { API_KEY_HEADER, API_STATUS_URL } from '@galaxie/apisports-client/hosts';
 
 export type SecretTestResult = 'ok' | 'rejected' | 'unreachable';
 
