@@ -13,7 +13,12 @@ import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/
 import { ModelAgentCards } from '@/components/settings/blocks/ai-usage';
 import { GithubIntegration } from '@/components/settings/blocks/integrations';
 import { JobsGrid, type JobRow } from '@/components/settings/blocks/jobs-grid';
-import { AI_MODEL_KEYS, PLAN_SPORT_KEYS, POSTGAME_SPORT_KEYS } from '@/components/settings/blocks/logic';
+import {
+  AI_MODEL_KEYS,
+  PLAN_SPORT_KEYS,
+  POSTGAME_SPORT_KEYS,
+  changedFilterRows,
+} from '@/components/settings/blocks/logic';
 import { PlanTable, PostgameTable } from '@/components/settings/blocks/sport-tables';
 import { CredentialsList, ServicesStatusList } from '@/components/settings/blocks/status-panels';
 import {
@@ -164,7 +169,8 @@ export function OpsPanel({
   useReportPageChrome({
     updatedAt: snapshot.generatedAt,
     timeZone,
-    settings: snapshot.settings.filter((s) => settingPage(s.key)?.item === view),
+    // o pós-jogo de um esporte é uma linha com duas chaves: conta e some como uma linha só
+    settings: changedFilterRows(snapshot.settings.filter((s) => settingPage(s.key)?.item === view)),
   });
 
   return (

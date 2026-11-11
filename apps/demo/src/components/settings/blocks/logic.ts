@@ -13,6 +13,7 @@ import {
 } from '@galaxie/runtime-config';
 
 import { sortByLabel } from '@/lib/alphabetical';
+import { settingsHref } from '@/lib/ops/settings-items';
 import type { OpsSetting } from '@/lib/ops/types';
 
 // ── Linha de ajuste (settings-3) ────────────────────────────────────────────────────────────────
@@ -59,10 +60,11 @@ export const canReset = (s: Pick<OpsSetting, 'source' | 'overrideInvalid'>): boo
 // ── Links (rotas da navegação nova de Ajustes, #1069) ──────────────────────────────────────────
 
 /** Histórico das mudanças, filtrado na chave (`?chave=`). */
-export const historyHref = (key: string): string => `/ajustes/historico?chave=${encodeURIComponent(key)}`;
+export const historyHref = (key: string): string =>
+  `${settingsHref('history')}?chave=${encodeURIComponent(key)}`;
 
 /** Todas as chaves são vistas em Credenciais (A4). */
-export const CREDENTIALS_HREF = '/ajustes/credenciais';
+export const CREDENTIALS_HREF = settingsHref('credentials');
 
 // ── Uma linha por esporte (settings-2) ─────────────────────────────────────────────────────────
 
@@ -83,6 +85,34 @@ export function sportsByLabel(
 export const POSTGAME_SPORT_KEYS: ReadonlySet<string> = new Set(
   POSTGAME_APIS.flatMap((api) => [postgameModeKey(api), postgameIntervalKey(api)]),
 );
+
+/**
+ * As linhas para o filtro "Alterados no painel" (#1072), que esconde por `id` = chave. O pós-jogo de um esporte é uma
+ * linha só com duas chaves (modo e intervalo): o `id` da linha é o do modo (ou o do intervalo, sem o modo) e ela conta
+ * como alterada quando qualquer uma das duas foi alterada. Assim a linha some só se nenhuma chave dela mudou, e o
+ * intervalo (âncora dentro da linha) não é escondido sozinho.
+ */
+export function changedFilterRows<T extends { key: string; source: OpsSetting['source'] }>(
+  settings: readonly T[],
+): { key: string; source: OpsSetting['source'] }[] {
+  const byKey = new Map(settings.map((s) => [s.key, s]));
+  const merged = new Set<string>();
+  const out: { key: string; source: OpsSetting['source'] }[] = [];
+  for (const s of settings) {
+    if (merged.has(s.key)) continue;
+    const api = POSTGAME_APIS.find((a) => postgameModeKey(a) === s.key || postgameIntervalKey(a) === s.key);
+    if (!api) {
+      out.push({ key: s.key, source: s.source });
+      continue;
+    }
+    const pair = [byKey.get(postgameModeKey(api)), byKey.get(postgameIntervalKey(api))].filter(
+      (x): x is T => x !== undefined,
+    );
+    for (const p of pair) merged.add(p.key);
+    out.push({ key: pair[0]!.key, source: pair.some((p) => p.source === 'db') ? 'db' : pair[0]!.source });
+  }
+  return out;
+}
 
 /** Planos por esporte (APISPORTS_PLAN_<API>); o plano padrão fica fora. */
 export const PLAN_SPORT_KEYS: ReadonlySet<string> = new Set(APISPORTS_APIS.map((api) => planKey(api)));

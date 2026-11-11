@@ -4,6 +4,7 @@ import {
   SETTINGS,
   isSecret,
   planKey,
+  postgameIntervalKey,
   postgameModeKey,
   settingDef,
 } from '@galaxie/runtime-config';
@@ -21,6 +22,7 @@ import {
   bulkPostgameChanges,
   canReset,
   capPercent,
+  changedFilterRows,
   controlKind,
   credentialGroup,
   draftChanges,
@@ -165,6 +167,37 @@ describe('linha do esporte: voltar ao padrão e "herda o padrão"', () => {
       // com valor no .env, apagar voltaria a ele: herdar exige gravar o vazio
       save: { [b!]: 'mega', [c!]: '' },
     });
+  });
+});
+
+describe('filtro "Alterados no painel": uma linha por esporte no pós-jogo', () => {
+  const api = POSTGAME_APIS[0]!;
+  const mode = postgameModeKey(api);
+  const minutes = postgameIntervalKey(api);
+  const row = (modeSource: OpsSetting['source'], minSource: OpsSetting['source']) =>
+    changedFilterRows([
+      setting('APISPORTS_PLAN'),
+      setting(mode, { source: modeSource }),
+      setting(minutes, { source: minSource }),
+    ]);
+
+  it('modo e intervalo viram uma linha com o id do modo, alterada se qualquer um foi alterado', () => {
+    expect(row('default', 'db')).toEqual([
+      { key: 'APISPORTS_PLAN', source: 'default' },
+      { key: mode, source: 'db' },
+    ]);
+    expect(row('db', 'env')).toEqual([
+      { key: 'APISPORTS_PLAN', source: 'default' },
+      { key: mode, source: 'db' },
+    ]);
+    expect(row('env', 'default')).toEqual([
+      { key: 'APISPORTS_PLAN', source: 'default' },
+      { key: mode, source: 'env' },
+    ]);
+  });
+
+  it('sem o modo na página, a linha leva o id do intervalo', () => {
+    expect(changedFilterRows([setting(minutes, { source: 'db' })])).toEqual([{ key: minutes, source: 'db' }]);
   });
 });
 
