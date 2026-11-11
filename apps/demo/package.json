@@ -27,6 +27,7 @@
     "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",
     "@galaxie/widgets": "workspace:*",
+    "@shadcn/react": "^0.3.1",
     "@tanstack/react-query": "^5.105.0",
     "@tanstack/react-table": "^9.3.1",
     "@tanstack/react-virtual": "^3.14.24",

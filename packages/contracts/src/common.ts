@@ -36,6 +36,8 @@ export const ERROR_CODES = [
   /** Chave publicável em rota que ela não alcança (escrita, conta, admin, SSE, espelho). */
   'PUBLISHABLE_KEY_NOT_ALLOWED',
   'NOT_FOUND',
+  /** A faixa etária do Perfil do torcedor não permite a ação (ex.: `13_17` escrevendo, `under13` em rota social). */
+  'FAN_AGE_RESTRICTED',
   'CONFLICT',
   'RATE_LIMITED',
   /** Cota diária do plano passou de 110% (volta na virada do dia UTC). */

@@ -31,6 +31,7 @@ const SECTION_PAGE: Record<SettingSection, SettingPage> = {
   credentials: { item: 'credentials', block: 'credentials' },
   feedback: { item: 'suggestions', block: 'suggestions' },
   cosmos: { item: 'cosmos', block: 'cosmos' },
+  engage: { item: 'fanIdentity', block: 'engage' },
 };
 
 /** Modelos (e provedores) de IA que moram em outra seção do registro e vão para IA interna (A3). */

@@ -8,9 +8,9 @@ import { SETTINGS_ITEMS, SOON_ITEMS, settingsNavIdOf } from '@/lib/ops/settings-
 import { SETTINGS_NAV_GROUPS, settingsNavGroups, settingsNavPinned } from './settings-nav';
 
 describe('menu de Ajustes (#1068)', () => {
-  it('Início e 9 grupos com 43 itens: 21 que existem e 22 "Em breve", rotas únicas', () => {
+  it('Início e 9 grupos com 44 itens: 22 que existem e 22 "Em breve", rotas únicas', () => {
     expect(SETTINGS_NAV_GROUPS).toHaveLength(9);
-    expect(SETTINGS_ITEMS).toHaveLength(43);
+    expect(SETTINGS_ITEMS).toHaveLength(44);
     expect(SOON_ITEMS).toHaveLength(22);
     const hrefs = SETTINGS_ITEMS.map((i) => i.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);

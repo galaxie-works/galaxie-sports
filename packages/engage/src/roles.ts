@@ -60,6 +60,10 @@ export const ACTIONS = {
   /** Banimento: todas as Comunidades e Salas do Jogo do cliente. */
   'moderation.ban': 'admin',
   'moderation.word_list.manage': 'admin',
+
+  // Cosmos AI (#996)
+  /** Perguntar ao assistente (gasta créditos do tenant). Voluntário fica de fora: é torcedor promovido. */
+  'cosmos.assistant.ask': 'moderator',
 } as const satisfies Record<string, TenantRole>;
 export type TenantAction = keyof typeof ACTIONS;
 export const TENANT_ACTIONS = Object.keys(ACTIONS) as TenantAction[];

@@ -113,6 +113,15 @@ export async function upsertFunctionDef(db: Db, def: FunctionDefInput): Promise<
 }
 
 /** Início do dia UTC de `now` (o teto de segurança vira junto com o dia UTC). */
+/** Mínimo em créditos de uma função ativa do catálogo; null quando está fora dele ou desativada. */
+export async function activeFunctionMinCredits(db: Db, name: string): Promise<number | null> {
+  const [fn] = await db
+    .select({ minCredits: functionDef.minCredits })
+    .from(functionDef)
+    .where(and(eq(functionDef.name, name), eq(functionDef.active, true)));
+  return fn ? Number(fn.minCredits) : null;
+}
+
 export function utcDayStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
@@ -252,6 +261,16 @@ export interface SettleInput {
   model?: string | null;
   note?: string | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Teto do acerto em créditos (nunca abaixo do mínimo gravado na reserva). O assistente passa a própria reserva:
+   * o cliente nunca paga mais que o "cerca de N créditos" que viu antes; o que passar é custo da Galaxie.
+   */
+  maxCredits?: number;
+  /**
+   * Fecha sem cobrar nada (0 crédito, nem o mínimo), mas grava o custo real no extrato: o provedor cobrou e o teto do
+   * dia precisa contar. Ex.: pergunta cancelada antes do primeiro trecho de resposta.
+   */
+  waive?: boolean;
 }
 
 export interface Settlement {
@@ -343,11 +362,17 @@ export async function settle(
             minCredits: r.minCredits,
           });
 
+    const capped = input.waive
+      ? 0
+      : input.maxCredits !== undefined && Number.isFinite(input.maxCredits)
+        ? Math.min(target, Math.max(ceilCredits(input.maxCredits), r.minCredits))
+        : target;
+
     // o que estaria livre se a reserva voltasse inteira
     const pool = roundCredits(w.available + r.credits);
-    const charged = Math.min(target, pool);
+    const charged = Math.min(capped, pool);
     const available = roundCredits(pool - charged);
-    const uncharged = roundCredits(target - charged);
+    const uncharged = roundCredits(capped - charged);
 
     await tx
       .update(wallet)

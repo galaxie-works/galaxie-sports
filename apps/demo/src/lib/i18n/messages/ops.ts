@@ -102,6 +102,7 @@ export default defineMessages(
       provider: 'Fornecedor e cota',
       quality: 'Qualidade dos dados',
       review: 'Revisão do catálogo',
+      fanIdentity: 'Identidade do torcedor',
       liveChat: 'Chat ao vivo',
       communities: 'Comunidades',
       gamification: 'Gamificação',
@@ -146,6 +147,7 @@ export default defineMessages(
       assets: 'Logos',
       suggestions: 'Sugestões',
       cosmos: 'Cosmos AI',
+      engage: 'Engajamento',
       history: 'Histórico',
       sports: 'Esportes',
       tasks: 'Tarefas',
@@ -270,6 +272,7 @@ export default defineMessages(
       crests: 'Acervo customizado de logos.',
       suggestions: 'O botão de sugestões e a repo do GitHub que recebe as issues.',
       cosmos: 'Crédito, teste e teto de segurança da Cosmos AI.',
+      fanIdentity: 'Validade do token do torcedor. O segredo que assina o token fica em Credenciais.',
       history: 'Quem mudou o quê no painel e os pedidos de "rodar agora".',
       refreshHint: 'O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
     },
@@ -345,6 +348,11 @@ export default defineMessages(
         title: 'Cosmos AI',
         description:
           'A IA que o cliente paga por uso, com créditos. O teto de segurança da Cosmos é próprio e não mexe no orçamento dos agentes internos.',
+      },
+      engage: {
+        title: 'Engajamento',
+        description:
+          'A base do Chat ao vivo, das Comunidades, da Gamificação e do Shop the game. Aqui fica a validade do token do torcedor.',
       },
     },
     source: {
@@ -1765,6 +1773,13 @@ export default defineMessages(
           'Custo de provedor que vale 1 crédito, para converter o custo real em créditos. Vazio, cada chamada cobra só o mínimo da função. O cliente nunca vê este número.',
         unit: 'US$',
       },
+      FAN_TOKEN_TTL_SECONDS: {
+        label: 'Validade do token do torcedor',
+        description:
+          'Por quanto tempo vale o token que o servidor do cliente pede. Faixa etária e país só mudam no próximo token; exclusão do Perfil vale na hora.',
+        unit: 'segundos',
+      },
+      FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -1879,6 +1894,7 @@ export default defineMessages(
         provider: 'Provider and quota',
         quality: 'Data quality',
         review: 'Catalog review',
+        fanIdentity: 'Fan identity',
         liveChat: 'Live chat',
         communities: 'Communities',
         gamification: 'Gamification',
@@ -1923,6 +1939,7 @@ export default defineMessages(
         assets: 'Logos',
         suggestions: 'Suggestions',
         cosmos: 'Cosmos AI',
+        engage: 'Engagement',
         history: 'History',
         sports: 'Sports',
         tasks: 'Tasks',
@@ -2047,6 +2064,7 @@ export default defineMessages(
         crests: 'Custom logo collection.',
         suggestions: 'The suggestions button and the GitHub repo that receives the issues.',
         cosmos: 'Cosmos AI credit, trial and safety ceiling.',
+        fanIdentity: 'How long the fan token lasts. The secret that signs it is in Credentials.',
         history: 'Who changed what in the panel and the "run now" requests.',
         refreshHint: 'Changes here override the VPS .env without restarting containers.',
       },
@@ -2122,6 +2140,11 @@ export default defineMessages(
           title: 'Cosmos AI',
           description:
             'The AI clients pay for as they use it, with credits. Its safety ceiling is its own and does not touch the internal agents budget.',
+        },
+        engage: {
+          title: 'Engagement',
+          description:
+            'The shared base of Live chat, Communities, Gamification and Shop the game. This is where the fan token lifetime lives.',
         },
       },
       source: { db: 'Panel', env: 'Container env', default: 'Code default', label: 'Value source' },
@@ -3525,6 +3548,13 @@ export default defineMessages(
             'Provider cost worth 1 credit, used to turn real cost into credits. Empty, each call charges only the function minimum. Clients never see this number.',
           unit: 'US$',
         },
+        FAN_TOKEN_TTL_SECONDS: {
+          label: 'Fan token lifetime',
+          description:
+            "How long the token the client's server requests stays valid. Age band and country only change on the next token; deleting a Profile takes effect at once.",
+          unit: 'seconds',
+        },
+        FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -3639,6 +3669,7 @@ export default defineMessages(
         provider: 'Proveedor y cuota',
         quality: 'Calidad de los datos',
         review: 'Revisión del catálogo',
+        fanIdentity: 'Identidad del hincha',
         liveChat: 'Chat en vivo',
         communities: 'Comunidades',
         gamification: 'Gamificación',
@@ -3683,6 +3714,7 @@ export default defineMessages(
         assets: 'Logos',
         suggestions: 'Sugerencias',
         cosmos: 'Cosmos AI',
+        engage: 'Interacción',
         history: 'Historial',
         sports: 'Deportes',
         tasks: 'Tareas',
@@ -3808,6 +3840,7 @@ export default defineMessages(
         crests: 'Acervo propio de logos.',
         suggestions: 'El botón de sugerencias y el repo de GitHub que recibe las issues.',
         cosmos: 'Crédito, prueba y tope de seguridad de Cosmos AI.',
+        fanIdentity: 'Validez del token del hincha. El secreto que lo firma está en Credenciales.',
         history: 'Quién cambió qué en el panel y los pedidos de "ejecutar ahora".',
         refreshHint: 'Lo que cambie aquí sobrescribe el .env de la VPS sin reiniciar los contenedores.',
       },
@@ -3886,6 +3919,11 @@ export default defineMessages(
           title: 'Cosmos AI',
           description:
             'La IA que el cliente paga por uso, con créditos. Su tope de seguridad es propio y no toca el presupuesto de los agentes internos.',
+        },
+        engage: {
+          title: 'Interacción',
+          description:
+            'La base del Chat en vivo, las Comunidades, la Gamificación y Shop the game. Aquí está la validez del token del hincha.',
         },
       },
       source: {
@@ -5310,6 +5348,13 @@ export default defineMessages(
             'Costo de proveedor que vale 1 crédito, para convertir el costo real en créditos. Vacío, cada llamada cobra solo el mínimo de la función. El cliente nunca ve este número.',
           unit: 'US$',
         },
+        FAN_TOKEN_TTL_SECONDS: {
+          label: 'Validez del token del hincha',
+          description:
+            'Cuánto tiempo vale el token que pide el servidor del cliente. La franja de edad y el país solo cambian en el próximo token; la eliminación del Perfil vale al instante.',
+          unit: 'segundos',
+        },
+        FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

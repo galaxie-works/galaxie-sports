@@ -962,6 +962,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
 | 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |
+| 403 `FAN_AGE_RESTRICTED` | A faixa etária do Perfil do torcedor não permite a ação (`under13` em recurso social, `13_17` escrevendo ou resgatando), §9 |
 | 404 `NOT_FOUND` | Entidade inexistente |
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
@@ -1006,3 +1007,74 @@ Formato RFC 9457 (`application/problem+json`):
 - Campos novos podem ser adicionados a qualquer momento (clientes devem ignorar campos desconhecidos).
 - O CI compara o OpenAPI do PR com o da `main` (`.github/workflows/openapi.yml`, oasdiff): rota, parâmetro ou campo removido, tipo trocado ou parâmetro novo obrigatório falha o PR. Quebra de propósito só com o rótulo `quebra-de-contrato`, e aí ela entra na nota de versão e no aviso aos tenants.
 - O espelho `/mirror` segue a versão do fornecedor (`v3` futebol, `v1`/`v2` demais) — mudança de versão do fornecedor gera um novo prefixo (`/mirror/football-v4`).
+
+## 9. Identidade do torcedor (`/v1/fans`)
+
+A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo, Comunidades, Gamificação, Shop the game e Cosmos AI usam o mesmo token. O servidor do cliente pede um token curto (`gft_`) com a chave secreta e o entrega ao widget ou app. Só exige um módulo de engajamento no plano (§1.1).
+
+**O que o Galaxie guarda.** Só o id da Conta e do Perfil no sistema do cliente (pseudônimos), Apelido, avatar, faixa etária, país, idioma, time do coração e se o Titular da Conta é adulto. Nunca e-mail, documento, telefone, senha ou data de nascimento: campo fora da lista é 400. O cliente é o controlador dos dados e o Galaxie o operador (#1022). Tabelas no schema `fan` (`account`, `profile`, `erasure_log`), escritas só pela API; agentes de IA e ingestor não leem esse schema.
+
+**Conta e Perfil.** Uma Conta (`externalAccountId`) pode ter vários Perfis (`externalProfileId`), cada um com a própria faixa. O Perfil palpita, pontua e escreve; o Prêmio vai para o Titular da Conta, e sem `holderAdult: "yes"` ele fica pendente com o cliente. Pedir um token de novo para o mesmo Perfil atualiza Apelido, avatar, faixa, país e idioma, sem criar outro Perfil.
+
+**Faixas etárias** (iguais em todos os módulos):
+
+| Faixa | Pode |
+|---|---|
+| `under13` | Recebe token, mas toda rota social responde 403 `FAN_AGE_RESTRICTED` |
+| `13_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
+| `18plus` | Tudo |
+
+**Rotas.**
+
+| Rota | Quem chama | Autenticação |
+|---|---|---|
+| `POST /v1/fans/tokens` | Servidor do cliente | Chave secreta (`x-galaxie-key`). A publicável recebe 403 |
+| `GET /v1/fans/me` | Widget ou app | `Authorization: Bearer gft_…` |
+| `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`) e o time do coração |
+| `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |
+
+**Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
+
+**Exclusão.** O `DELETE` anonimiza o Perfil (some o id do cliente, o Apelido, o avatar e o time do coração; a linha fica para o que ele escreveu apontar para "torcedor excluído"), grava `fan.erasure_log` para repetir a exclusão depois de um restore e invalida na hora os tokens já emitidos (marca no Valkey por 1 hora, o maior prazo de um token). Se o torcedor voltar, o próximo token cria um Perfil novo. Conteúdo dos módulos (mensagens, posts, palpites, conquistas) entra na mesma exclusão quando cada módulo chegar.
+
+**Exemplo em Node** (no servidor do cliente):
+
+```js
+const res = await fetch('https://api.galaxie.sports/v1/fans/tokens', {
+  method: 'POST',
+  headers: { 'x-galaxie-key': process.env.GALAXIE_KEY, 'content-type': 'application/json' },
+  body: JSON.stringify({
+    externalAccountId: user.accountId,
+    externalProfileId: user.profileId,
+    nickname: user.nickname,
+    ageBand: user.isAdult ? '18plus' : user.age >= 13 ? '13_17' : 'under13',
+    country: 'BR',
+    locale: 'pt-BR',
+    holderAdult: account.holderIsAdult ? 'yes' : 'no',
+  }),
+});
+const { data } = await res.json(); // data.token vai para o widget; peça outro antes de data.expires_in
+```
+
+**Exemplo em PHP:**
+
+```php
+$ch = curl_init('https://api.galaxie.sports/v1/fans/tokens');
+curl_setopt_array($ch, [
+  CURLOPT_POST => true,
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => ['x-galaxie-key: ' . getenv('GALAXIE_KEY'), 'content-type: application/json'],
+  CURLOPT_POSTFIELDS => json_encode([
+    'externalAccountId' => $user->accountId,
+    'externalProfileId' => $user->profileId,
+    'nickname' => $user->nickname,
+    'ageBand' => '18plus',
+    'country' => 'BR',
+    'locale' => 'pt-BR',
+    'holderAdult' => 'yes',
+  ]),
+]);
+$token = json_decode(curl_exec($ch), true)['data']['token'];
+```
+
+Ainda não: CORS das rotas do torcedor para o navegador e renovação silenciosa pelo widget (#1020), tópico `fan.profile.deleted` pelo outbox (#1023).

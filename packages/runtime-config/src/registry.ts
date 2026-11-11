@@ -54,6 +54,7 @@ export const SETTING_SECTIONS = [
   'credentials',
   'feedback',
   'cosmos',
+  'engage',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
 
@@ -838,7 +839,10 @@ export const SETTINGS: readonly SettingDef[] = [
   // IAs externas da Cosmos AI (assistente e moderação dos clientes), separadas das chaves da IA interna: o gasto de cada
   // lado fica na conta própria do provedor. A API lê na partida; vazia, a Cosmos segue como hoje
   panelSecret('COSMOS_OPENAI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
-  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.anthropic, 'restart'),
+  // o assistente da Cosmos no app (#1003) lê na demo a cada pedido; a API, na partida
+  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo', 'api'], SECRET_FORMATS.anthropic, 'restart', {
+    demo: 'refresh',
+  }),
   panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.google, 'restart'),
   panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
 
@@ -911,6 +915,21 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
     critical: true,
   },
+
+  // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
+  // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
+  // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
+  {
+    key: 'FAN_TOKEN_TTL_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 60,
+    max: 3600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '900',
+  },
+  secret('FAN_TOKEN_SECRET', 'engage', ['api']),
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele

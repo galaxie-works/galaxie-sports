@@ -87,6 +87,8 @@ services:
       # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET: ${FAN_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET_PREVIOUS: ${FAN_TOKEN_SECRET_PREVIOUS:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
       # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
       SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
@@ -181,6 +183,8 @@ services:
       # Cosmos AI (#993): chave secreta do Stripe da Galaxie Works LLC (sk_test_… no ensaio), para abrir o Checkout dos
       # pacotes de créditos. Vazia: a compra fica indisponível no painel do cliente
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Cosmos AI (#1003): chave do provedor só do assistente do app. Vazia: o assistente responde "indisponível"
+      COSMOS_ANTHROPIC_API_KEY: ${COSMOS_ANTHROPIC_API_KEY:-}
       # "Sugerir ou reportar algo" do cabeçalho vira issue numa repo PRIVADA só de sugestões (docs/runbooks/sugestoes-do-app.md):
       # token próprio, só dessa repo (Issues: read and write). Vazio, ou repo pública: o formulário responde "indisponível".
       # As imagens vão para o bucket privado das tarefas (feedback/) e a issue as mostra por link assinado da demo
