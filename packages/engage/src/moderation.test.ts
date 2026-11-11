@@ -338,7 +338,7 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
     },
   );
 
-  it.each(['v!ado', 'v!@d0', 'v|@d0', 'v!!ado', 'm4c4c4-fc'])(
+  it.each(['v!ado', 'v!@d0', 'v|@d0', 'v!!ado', 'm4c4c4-fc', 'v!\u0430do', 'v|\u0430do'])(
     'o drible com símbolo no meio continua pegando: %s',
     (t) => {
       expect(chat(t)).toMatchObject({ action: 'shadow', evasion: true });
@@ -349,7 +349,7 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
     expect(chat('macaca!!fc')).toMatchObject({ action: 'allow', suspect: true });
   });
 
-  it.each(['segue a vida ponto com fe', 'visita a ponte ponto com calma'])(
+  it.each(['segue a vida ponto com fe', 'siga o baile ponto com calma'])(
     'artigo de uma letra não vira chamada de link: %s',
     (t) => {
       expect(chat(t)).toMatchObject({ action: 'allow', suspect: true });
@@ -369,7 +369,7 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
   });
 
   it.each([
-    'acessa no meusite ponto com agora',
+    'acessa o meusite ponto com agora',
     'entra no meusite ponto com hoje',
     'check out the meusite dot com now',
   ])('palavra de chamada com artigo no meio é link: %s', (t) => {

@@ -204,17 +204,16 @@ function words(folded: string, leet: boolean): string[] {
   // no caminho do drible: homóglifo, leet e hífen ou sublinhado no meio da palavra (`maca-co`)
   if (leet)
     // a palavra ambígua escrita igual não se junta à seguinte (`macaca-fc` e `macaca!!fc` não viram `macacafc`)
-    mapped = [...mapped.replace(AMBIGUOUS_JOIN, '$1 ')]
+    // homóglifo primeiro, para a letra de outra escrita contar como letra na regra do `!` (`v!аdo` com `а` cirílico)
+    mapped = [...[...mapped.replace(AMBIGUOUS_JOIN, '$1 ')].map((c) => HOMOGLYPHS[c] ?? c).join('')]
       // `!` e `|` são pontuação de verdade: só viram letra quando vem letra ou número depois, mesmo passando por
       // outro símbolo (`v!@d0`); no fim da palavra não (`Vamos Macaca!!` não vira
       // `macacai`); os outros símbolos viram letra também no fim (`senzal@`)
       .map(
         (c, i, all) =>
-          HOMOGLYPHS[c] ??
-          ((c !== '!' && c !== '|') || /^[!|@$€+]*[a-z0-9ñ]/.test(all.slice(i + 1, i + 9).join(''))
+          ((c !== '!' && c !== '|') || /^[!|@$€+]*[a-z0-9ñ]/.test(all.slice(i + 1, i + 17).join(''))
             ? LEET[c]
-            : undefined) ??
-          c,
+            : undefined) ?? c,
       )
       .join('')
       .replace(/(?<=[a-z0-9ñ])[-_]+(?=[a-z0-9ñ])/g, '');
@@ -448,7 +447,7 @@ const textAfter = (folded: string, m: RegExpMatchArray) =>
 /** Palavra de chamada antes do domínio por extenso (`acessa meusite ponto com agora`, `entra no meusite ponto com
  *  hoje`): é link, mesmo no meio. */
 const CALL_BEFORE =
-  /(?:^|[^\p{L}\p{N}])(?:acessa|acesse|acessem|entra|entre|entrem|visita|visite|site|link|siga|segue|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)(?:\s+(?:no|na|nos|nas|em|ao|el|la|en|al|the|on|to))?\s+$/u;
+  /(?:^|[^\p{L}\p{N}])(?:(?:acessa|acesse|acessem|entra|entre|entrem|visita|visite|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)(?:\s+(?:o|a|os|as|no|na|nos|nas|em|ao|el|la|en|al|the|on|to))?|(?:site|link|siga|segue)(?:\s+(?:no|na|em|en|on))?)\s+$/u;
 const calledHost = (folded: string, m: RegExpMatchArray) => CALL_BEFORE.test(folded.slice(0, m.index!));
 
 /** Domínio por extenso ou com ponto e espaço no meio da frase: talvez link, talvez texto comum (`um ponto com o
