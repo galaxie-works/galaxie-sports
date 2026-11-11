@@ -3,7 +3,7 @@
  * da Revisão, pedidos das operadoras, jobs, status, credenciais e gasto de IA). Puro: o servidor busca as fontes
  * (`data.ts`) e o teste confere as contas. As mesmas contagens alimentam os `Badge` do menu (#1068).
  */
-import { AI_PROVIDERS, SETTINGS, settingDef } from '@galaxie/runtime-config';
+import { AI_PROVIDER_KEY_ENV, AI_PROVIDERS, SETTINGS, settingDef } from '@galaxie/runtime-config';
 
 import { settingsHref } from '@/lib/ops/settings-items';
 import type { OpsSnapshot } from '@/lib/ops/types';
@@ -104,12 +104,8 @@ export const OPTIONAL_SECRETS: ReadonlySet<string> = new Set([
   'QUALITY_API_KEY',
 ]);
 
-/** Chave de cada provedor de IA. */
-const AI_PROVIDER_KEY: Record<(typeof AI_PROVIDERS)[number], string> = {
-  openai: 'OPENAI_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-};
+/** Chave de cada provedor de IA (a mesma tabela que o servidor usa ao salvar AI_PROVIDER). */
+const AI_PROVIDER_KEY = AI_PROVIDER_KEY_ENV;
 
 /** Ajustes que escolhem um provedor de IA (`AI_PROVIDER`, `AI_REVIEW_PROVIDER`…), lidos do registro. */
 const PROVIDER_SETTINGS = SETTINGS.filter(
