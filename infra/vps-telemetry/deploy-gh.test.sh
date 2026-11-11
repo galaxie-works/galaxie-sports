@@ -109,7 +109,7 @@ echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a"
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"
 for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh maintenance.sh migrar-para-tres-projetos.sh rolling-swap.sh candidate.sh \
-  pre-migrate-dump.sh prune-images.sh; do
+  pre-migrate-dump.sh prune-images.sh ensure-secrets.sh; do
   cp "$HERE/$f" "$REPO_T/infra/vps-telemetry/"
 done
 # pós-deploy e smoke de faz de conta. O node do contêiner é um sh: o smoke.mjs daqui é shell.
