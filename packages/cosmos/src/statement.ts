@@ -1,7 +1,7 @@
 /**
  * Extrato da carteira: lista paginada (do mais novo ao mais antigo) e filtrável por data, sala, função,
  * usuário e tipo, mais a exportação em CSV. Tokens, custo real e modelo são só da equipe Galaxie: a visão
- * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles.
+ * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles, e o lançamento da equipe sai só como "Galaxie".
  */
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
@@ -24,6 +24,8 @@ export interface LedgerEntry {
   tokensOut: number | null;
   costUsd: number | null;
   model: string | null;
+  /** Lançamento da equipe Galaxie (ajuste ou estorno pelas Carteiras, `metadata.staff`). */
+  staff: boolean;
 }
 
 /** O que o cliente vê de um lançamento: sem tokens, custo técnico nem modelo. */
@@ -32,9 +34,16 @@ export type ClientLedgerEntry = Omit<
   'tokensIn' | 'tokensCached' | 'tokensOut' | 'costUsd' | 'model'
 >;
 
+/** Autor que o cliente vê num lançamento da equipe: a Galaxie, sem a pessoa nem o motivo interno. */
+export const STAFF_AUTHOR = 'Galaxie';
+
+/**
+ * Visão do cliente: sem tokens, custo e modelo; no lançamento da equipe, também sem quem fez (`userId`) e sem o
+ * motivo interno (`note`). A tela e o CSV mostram só "Galaxie".
+ */
 export function toClientEntry(e: LedgerEntry): ClientLedgerEntry {
   const { tokensIn: _a, tokensCached: _b, tokensOut: _c, costUsd: _d, model: _e, ...rest } = e;
-  return rest;
+  return e.staff ? { ...rest, userId: null, note: null } : rest;
 }
 
 export interface LedgerFilter {
@@ -92,6 +101,7 @@ export async function listLedger(
       tokensOut: ledger.tokensOut,
       costUsd: ledger.costUsd,
       model: ledger.model,
+      staff: sql<boolean>`coalesce(${ledger.metadata}->>'staff' = 'true', false)`,
     })
     .from(ledger)
     .where(and(...where))
@@ -124,21 +134,23 @@ function cell(value: string | number | null): string {
 
 /**
  * CSV do extrato (cabeçalho em inglês, como o resto da superfície pública). `staff` acrescenta tokens,
- * custo real e modelo, que o cliente nunca vê.
+ * custo real e modelo, que o cliente nunca vê. No CSV do cliente, o lançamento da equipe sai com "Galaxie" como
+ * usuário e sem o motivo interno; o da Galaxie mantém quem fez e o motivo.
  */
 export function ledgerCsv(entries: readonly LedgerEntry[], options: { staff?: boolean } = {}): string {
   const header = [...CLIENT_COLUMNS, ...(options.staff ? STAFF_COLUMNS : [])];
   const lines = entries.map((e) => {
+    const hideStaff = e.staff && !options.staff;
     const base = [
       e.createdAt.toISOString(),
       e.kind,
       e.scope,
       e.functionName,
-      e.userId,
+      hideStaff ? STAFF_AUTHOR : e.userId,
       e.credits,
       e.balanceBefore,
       e.balanceAfter,
-      e.note,
+      hideStaff ? null : e.note,
     ];
     const staff = options.staff ? [e.tokensIn, e.tokensCached, e.tokensOut, e.costUsd, e.model] : [];
     return [...base, ...staff].map(cell).join(',');

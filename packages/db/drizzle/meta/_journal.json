@@ -554,6 +554,13 @@
       "when": 1794339541778,
       "tag": "0080_cosmos_alertas",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794346136745,
+      "tag": "0081_cosmos_equipe",
+      "breakpoints": true
     }
   ]
 }

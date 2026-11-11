@@ -84,6 +84,9 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.purchase_intent',
       'cosmos.auto_recharge',
       'cosmos.recharge_attempt',
+      // Carteiras da equipe Galaxie no painel (#1002): pacotes e o registro das ações
+      'cosmos.package',
+      'cosmos.staff_action',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é

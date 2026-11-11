@@ -803,6 +803,21 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '25',
     critical: true,
   },
+  // cotação operacional (R$ por US$) para a margem das Carteiras da Cosmos em Ajustes (#1002): a receita em reais vira
+  // dólar para comparar com o custo do provedor. Sem padrão no código (número da Galaxie); vazio, a margem em reais
+  // aparece como "—"
+  {
+    key: 'COSMOS_USD_BRL',
+    section: 'cosmos',
+    type: 'number',
+    min: 0.5,
+    max: 100,
+    zeroInvalid: true,
+    allowEmpty: true,
+    services: ['demo'],
+    apply: 'refresh',
+    default: null,
+  },
   // créditos de teste ao ligar a Cosmos pela primeira vez (uma vez por tenant) e a validade deles; comprados não vencem
   {
     key: 'COSMOS_TRIAL_CREDITS',
