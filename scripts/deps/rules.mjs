@@ -36,6 +36,8 @@ export const PACKAGE_LAYERS = {
     'explore',
     'crests',
     'cosmos',
+    // regras do engajamento do torcedor sem HTTP nem banco: cargos e permissões (#1019), token, ficha por país
+    'engage',
   ],
   ui: ['widgets'],
 };
