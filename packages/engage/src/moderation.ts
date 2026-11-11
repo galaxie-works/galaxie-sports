@@ -108,6 +108,7 @@ const ABUSE: ReadonlySet<TermCategory> = new Set(['hate', 'threat', 'harassment'
  * Com grafia trocada (`m4c4c4`) conta como ofensa; em Apelido e nome, bloqueia.
  */
 const AMBIGUOUS_WORDS: ReadonlySet<string> = new Set(['macaca', 'macacas']);
+const AMBIGUOUS_JOIN = new RegExp(String.raw`(?<![a-z0-9ñ])(${[...AMBIGUOUS_WORDS].join('|')})[-_]+`, 'g');
 
 // ---------------------------------------------------------------------------------------------------------------
 // Normalização
@@ -203,15 +204,17 @@ function words(folded: string, leet: boolean): string[] {
   // no caminho do drible: homóglifo, leet e hífen ou sublinhado no meio da palavra (`maca-co`)
   if (leet)
     mapped = [...mapped]
-      // `!` e `|` são pontuação de verdade: só viram letra no meio da palavra (`Vamos Macaca!` não vira
+      // `!` e `|` são pontuação de verdade: só viram letra antes de letra ou número (`Vamos Macaca!!` não vira
       // `macacai`); os outros símbolos viram letra também no fim (`senzal@`)
       .map(
         (c, i, all) =>
           HOMOGLYPHS[c] ??
-          ((c !== '!' && c !== '|') || /[a-z0-9ñ@$€!|+]/.test(all[i + 1] ?? '') ? LEET[c] : undefined) ??
+          ((c !== '!' && c !== '|') || /[a-z0-9ñ]/.test(all[i + 1] ?? '') ? LEET[c] : undefined) ??
           c,
       )
       .join('')
+      // a palavra ambígua escrita igual não se junta à seguinte (`macaca-fc` não vira `macacafc`)
+      .replace(AMBIGUOUS_JOIN, '$1 ')
       .replace(/(?<=[a-z0-9ñ])[-_]+(?=[a-z0-9ñ])/g, '');
   const raw = mapped.split(/[^a-z0-9ñ]+/).filter(Boolean);
   const out: string[] = [];
@@ -372,9 +375,12 @@ const SPACED_DOT_HOST = new RegExp(
   String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?!\s*[\p{L}\p{N}])`,
   'giu',
 );
-/** O mesmo ponto com espaço, com texto depois (`meusite . com agora`): só marca para a Cosmos. */
+/** TLDs fortes que começam frase depois de ponto final ("Ganhamos o jogo. Com certeza", "Jogou bem. Br demais"). */
+const SENTENCE_TLDS = new Set(['com', 'br', 'site', 'online', 'games', 'shop', 'store']);
+/** O mesmo ponto com espaço, com texto depois (`meusite . com agora`): só marca para a Cosmos. Com o espaço só
+ *  depois do ponto (`jogo. Com certeza`), os TLDs que começam frase ficam de fora. */
 const SPACED_DOT_MID = new RegExp(
-  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?=\s*[\p{L}\p{N}])`,
+  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?=\s*[\p{L}\p{N}])`,
   'giu',
 );
 /** Ponto por extenso (`site ponto com`, `site dot com ponto br`). No fim do trecho é link; no meio da frase ("um
@@ -437,9 +443,10 @@ const spelledHost = (m: RegExpMatchArray) => (m[3] ? `${m[1]}.${m[2]}.${m[3]}` :
 const textAfter = (folded: string, m: RegExpMatchArray) =>
   /^\s*[\p{L}\p{N}]/u.test(folded.slice(m.index! + m[0].length));
 
-/** Palavra de chamada antes do domínio por extenso (`acessa meusite ponto com agora`): é link, mesmo no meio. */
+/** Palavra de chamada antes do domínio por extenso (`acessa meusite ponto com agora`, `entra no meusite ponto com
+ *  hoje`): é link, mesmo no meio. */
 const CALL_BEFORE =
-  /(?:^|[^\p{L}\p{N}])(?:acessa|acesse|acessem|entra|entre|entrem|visita|visite|site|link|siga|segue|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)\s+$/u;
+  /(?:^|[^\p{L}\p{N}])(?:acessa|acesse|acessem|entra|entre|entrem|visita|visite|site|link|siga|segue|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)(?:\s+(?:o|a|os|as|no|na|em|ao|el|la|en|al|the|on|to))?\s+$/u;
 const calledHost = (folded: string, m: RegExpMatchArray) => CALL_BEFORE.test(folded.slice(0, m.index!));
 
 /** Domínio por extenso ou com ponto e espaço no meio da frase: talvez link, talvez texto comum (`um ponto com o
@@ -449,7 +456,9 @@ function midHosts(folded: string): string[] {
     ...[...folded.matchAll(SPELLED_HOST)]
       .filter((m) => textAfter(folded, m) && !calledHost(folded, m))
       .map(spelledHost),
-    ...[...folded.matchAll(SPACED_DOT_MID)].map((m) => `${m[1]}.${m[2]}`),
+    ...[...folded.matchAll(SPACED_DOT_MID)]
+      .filter((m) => /^\s/.test(m[2]!) || !SENTENCE_TLDS.has(m[3]!))
+      .map((m) => `${m[1]}.${m[3]}`),
   ];
 }
 

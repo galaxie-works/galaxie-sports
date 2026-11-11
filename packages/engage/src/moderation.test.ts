@@ -287,7 +287,8 @@ describe('screen: drible da revisão (#1101)', () => {
     expect(chat('macaca m4c4c4').action).toBe('shadow');
   });
 
-  it.each(['meusite ponto com ponto br agora', 'meusite . com agora', 'meusite. com agora'])(
+  // `meusite. com agora` (espaço só depois do ponto) é igual a "jogo. Com certeza": fica de fora, de propósito
+  it.each(['meusite ponto com ponto br agora', 'meusite . com agora', 'meusite. net agora'])(
     'link por extenso no meio da frase vai para a Cosmos: %s',
     (text) => {
       expect(chat(text)).toMatchObject({ suspect: true });
@@ -324,6 +325,41 @@ describe('screen: drible da revisão (#1101)', () => {
     screen('a@'.repeat(2_500), { kind: 'wall_post' }, lists);
     screen('1 '.repeat(2_500), { kind: 'wall_post' }, lists);
     expect(performance.now() - t0).toBeLessThan(200);
+  });
+});
+
+describe('screen: rodada 4 da revisão (#1101)', () => {
+  it.each(['Vamos Macaca!!', 'Vamos Macaca!!!', 'macaca-fc', 'Vai Macaca|'])(
+    'torcida da Ponte publica: %s',
+    (t) => {
+      const r = chat(t);
+      expect(r.action).toBe('allow');
+      expect(r.evasion).toBe(false);
+    },
+  );
+
+  it('o drible com ! antes de letra continua pegando', () => {
+    expect(chat('m4c4c0 volta pra senzal!a').action).toBe('shadow');
+  });
+
+  it.each(['Ganhamos o jogo. Com certeza', 'Que vitória. Com esse time vamos longe', 'Jogou bem. Br demais'])(
+    'frase depois de ponto final não vai para a Cosmos: %s',
+    (t) => {
+      expect(chat(t)).toMatchObject({ action: 'allow', suspect: false });
+    },
+  );
+
+  it('ponto com espaço antes continua suspeito no meio da frase', () => {
+    expect(chat('meusite . com agora')).toMatchObject({ action: 'allow', suspect: true });
+    expect(chat('jogo. Net hoje')).toMatchObject({ action: 'allow', suspect: true });
+  });
+
+  it.each([
+    'acessa o meusite ponto com agora',
+    'entra no meusite ponto com hoje',
+    'check out the meusite dot com now',
+  ])('palavra de chamada com artigo no meio é link: %s', (t) => {
+    expect(chat(t)).toMatchObject({ action: 'block', reasons: ['link'] });
   });
 });
 
