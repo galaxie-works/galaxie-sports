@@ -1,6 +1,6 @@
 # Prometheus com a configuração e as regras de alerta do Galaxie Sports embutidas (sem bind mounts no host).
 #   docker build -t galaxie-sports-prometheus infra/observability/prometheus
-FROM prom/prometheus:v3.15.1
+FROM prom/prometheus:v3.16.0
 COPY prometheus.yml /etc/prometheus/prometheus.yml
 COPY alerts.yml slo.yml /etc/prometheus/rules/
 COPY --chmod=0755 entrypoint.sh /etc/prometheus/entrypoint.sh
