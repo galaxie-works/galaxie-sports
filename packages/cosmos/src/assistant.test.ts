@@ -2,14 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ASSISTANT_MODEL,
+  ASSISTANT_STREAMERS,
   assistantCostUsd,
   buildPrompt,
   expectedOutputTokens,
   estimateAssistantCredits,
   searchDocs,
   streamAssistant,
+  streamWithClient,
   type StreamUsage,
 } from './assistant.js';
+import { COSMOS_PROVIDERS } from './models.js';
 
 const docs = [
   {
@@ -169,5 +172,75 @@ describe('resposta em fluxo', () => {
       }))
         void _;
     }).rejects.toThrow('sem crédito');
+  });
+});
+
+describe('provedores pelo cliente compartilhado (OpenAI, Gemini, DeepSeek)', () => {
+  const prompt = {
+    fixed: 'instruções',
+    screen: 'tela',
+    messages: [{ role: 'user' as const, content: 'pergunta' }],
+  };
+  const tokens = (output: number) => ({
+    inputTokens: 1_000,
+    cachedInputTokens: 600,
+    cacheWriteTokens: 0,
+    outputTokens: output,
+  });
+
+  it('todo provedor da Cosmos tem quem chame', () => {
+    for (const p of COSMOS_PROVIDERS) expect(typeof ASSISTANT_STREAMERS[p]).toBe('function');
+  });
+
+  it('repassa o texto e copia o uso final; instruções e tela vão juntas no system', async () => {
+    const seen: unknown[] = [];
+    const client = {
+      async *stream(req: unknown) {
+        seen.push(req);
+        yield { type: 'text' as const, delta: 'Olá' };
+        yield { type: 'usage' as const, usage: tokens(3), final: false };
+        yield { type: 'text' as const, delta: ', torcedor' };
+        yield { type: 'usage' as const, usage: tokens(9), final: true, finishReason: 'stop' as const };
+      },
+    };
+    const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+    const out: string[] = [];
+    for await (const t of streamWithClient(client, { apiKey: 'k', model: 'deepseek-flash', prompt, usage }))
+      out.push(t);
+    expect(out.join('')).toBe('Olá, torcedor');
+    expect(usage).toMatchObject({ ...tokens(9), outputFinal: true });
+    expect(seen[0]).toMatchObject({
+      model: 'deepseek-flash',
+      system: 'instruções\n\ntela',
+      messages: prompt.messages,
+    });
+  });
+
+  it('erro no meio do fluxo: o uso já gasto vem junto, sem marcar a saída como final', async () => {
+    const client = {
+      async *stream() {
+        yield { type: 'text' as const, delta: 'Ol' };
+        throw Object.assign(new Error('caiu'), { usage: tokens(2) });
+      },
+    };
+    const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+    await expect(async () => {
+      for await (const _ of streamWithClient(client, { apiKey: 'k', model: 'gpt-6-luna', prompt, usage }))
+        void _;
+    }).rejects.toThrow('caiu');
+    expect(usage).toMatchObject(tokens(2));
+    expect(usage.outputFinal).toBeUndefined();
+  });
+
+  it('o custo usa o preço de escrita no cache do modelo', () => {
+    const write = assistantCostUsd(
+      { inputTokens: 1_000, cachedInputTokens: 0, cacheWriteTokens: 1_000, outputTokens: 0 },
+      ASSISTANT_MODEL,
+    );
+    const plain = assistantCostUsd(
+      { inputTokens: 1_000, cachedInputTokens: 0, outputTokens: 0 },
+      ASSISTANT_MODEL,
+    );
+    expect(write).toBeCloseTo(plain * 1.25, 6);
   });
 });

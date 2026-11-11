@@ -7,7 +7,8 @@
  * (COSMOS_<PROVEDOR>_API_KEY). Busca por palavras na documentação, sem embeddings. O cliente nunca vê o modelo nem o
  * custo técnico: só créditos.
  */
-import { ANTHROPIC_CACHE_WRITE_MULTIPLIER, estimateCostUsd } from '@galaxie/ai-ledger/pricing';
+import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
+import { createCompletionClient, type CompletionClient, type CompletionUsage } from '@galaxie/llm';
 import { creditsFor } from './credits.js';
 import { defaultModelFor, type CosmosProvider } from './models.js';
 
@@ -274,20 +275,16 @@ export async function* streamAssistant(
 }
 
 /**
- * Custo real da chamada, em US$, pela tabela de preços do ai-ledger: entrada comum, leitura do cache (preço de
- * cache), escrita no cache (entrada × 1,25) e saída.
+ * Custo real da chamada, em US$, pela tabela de preços do ai-ledger (com AI_MODEL_PRICES por cima): entrada comum,
+ * leitura do cache, escrita no cache (preço de escrita do modelo) e saída.
  */
 export function assistantCostUsd(usage: StreamUsage, model: string = ASSISTANT_MODEL): number {
-  const write = Math.min(usage.cacheWriteTokens ?? 0, usage.inputTokens);
-  const read = Math.min(usage.cachedInputTokens, usage.inputTokens - write);
-  const base = estimateCostUsd(model, {
-    inputTokens: usage.inputTokens - write,
-    cachedInputTokens: read,
+  return estimateCostUsd(model, {
+    inputTokens: usage.inputTokens,
+    cachedInputTokens: usage.cachedInputTokens,
+    cacheWriteTokens: usage.cacheWriteTokens ?? 0,
     outputTokens: usage.outputTokens,
   });
-  const writeCost =
-    estimateCostUsd(model, { inputTokens: write, outputTokens: 0 }) * ANTHROPIC_CACHE_WRITE_MULTIPLIER;
-  return Math.round((base + writeCost) * 1_000_000) / 1_000_000;
 }
 
 /** Uma chamada em fluxo a um provedor: pedaços do texto, e `usage` preenchido com os tokens reais. */
@@ -299,11 +296,56 @@ export type AssistantStreamer = (args: {
   signal?: AbortSignal;
 }) => AsyncIterable<string>;
 
+function copyUsage(target: StreamUsage, from: CompletionUsage, final: boolean): void {
+  target.inputTokens = from.inputTokens;
+  target.cachedInputTokens = from.cachedInputTokens;
+  target.cacheWriteTokens = from.cacheWriteTokens;
+  target.outputTokens = from.outputTokens;
+  if (final) target.outputFinal = true;
+}
+
 /**
- * Provedores que o assistente já sabe chamar. Os outros (OpenAI, Gemini, DeepSeek) entram pelo cliente compartilhado
- * `@galaxie/llm` (#1088); até lá, escolher um deles deixa a função indisponível, sem cobrar nada.
+ * Chamada em fluxo pelo cliente compartilhado (`@galaxie/llm`): OpenAI, Gemini e DeepSeek. Instruções e tela vão
+ * juntas no `system` (a parte fixa vem primeiro, e o cache automático desses provedores pega o prefixo). Um erro no
+ * meio do fluxo traz o uso já gasto, copiado para `usage` antes de subir: o acerto cobra o que o provedor cobrou.
  */
-export const ASSISTANT_STREAMERS: Partial<Record<CosmosProvider, AssistantStreamer>> = {
+export async function* streamWithClient(
+  client: Pick<CompletionClient, 'stream'>,
+  args: Parameters<AssistantStreamer>[0],
+): AsyncGenerator<string> {
+  const { model, prompt, usage, signal } = args;
+  try {
+    for await (const ev of client.stream({
+      model,
+      system: prompt.screen ? `${prompt.fixed}\n\n${prompt.screen}` : prompt.fixed,
+      messages: prompt.messages,
+      maxOutputTokens: ASSISTANT_MAX_OUTPUT_TOKENS,
+      ...(signal ? { signal } : {}),
+      purpose: 'cosmos.assistant',
+    })) {
+      if (ev.type === 'text') yield ev.delta;
+      else copyUsage(usage, ev.usage, ev.final);
+    }
+  } catch (err) {
+    const spent = (err as { usage?: CompletionUsage }).usage;
+    if (spent) copyUsage(usage, spent, false);
+    throw err;
+  }
+}
+
+const viaClient =
+  (provider: 'openai' | 'gemini' | 'deepseek'): AssistantStreamer =>
+  (args) =>
+    streamWithClient(createCompletionClient(provider, { apiKey: args.apiKey }), args);
+
+/**
+ * Provedores que o assistente sabe chamar. A Anthropic segue na chamada própria (marca o ponto de cache depois da
+ * documentação); OpenAI, Gemini e DeepSeek passam pelo cliente compartilhado `@galaxie/llm`.
+ */
+export const ASSISTANT_STREAMERS: Record<CosmosProvider, AssistantStreamer> = {
   anthropic: ({ apiKey, model, prompt, usage, signal }) =>
     streamAssistant(apiKey, prompt, usage, { model, ...(signal ? { signal } : {}) }),
+  openai: viaClient('openai'),
+  gemini: viaClient('gemini'),
+  deepseek: viaClient('deepseek'),
 };

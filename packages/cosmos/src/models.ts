@@ -3,7 +3,7 @@
  * (`cosmos.function_def`); sem escolha, vale o padrão. O preço vem da tabela do ai-ledger, e o crédito sai do custo
  * real: trocar para um modelo mais barato baixa os créditos cobrados sem mexer nos pacotes.
  */
-import { MODEL_PRICES } from '@galaxie/ai-ledger/pricing';
+import { effectiveModelPrices } from '@galaxie/ai-ledger/pricing';
 import { COSMOS_PROVIDERS, type CosmosProvider } from '@galaxie/db/schema';
 import { AI_DEFAULT_MODELS } from '@galaxie/runtime-config';
 
@@ -12,15 +12,8 @@ export { COSMOS_PROVIDERS, type CosmosProvider };
 /** Provedor das funções sem escolha. */
 export const COSMOS_DEFAULT_PROVIDER: CosmosProvider = 'anthropic';
 
-/** Modelo leve de cada provedor (o mesmo nível dos agentes internos); o DeepSeek ainda fora do registro. */
-const LIGHT_MODELS: Record<CosmosProvider, string> = {
-  anthropic: AI_DEFAULT_MODELS.light.anthropic,
-  openai: AI_DEFAULT_MODELS.light.openai,
-  gemini: AI_DEFAULT_MODELS.light.gemini,
-  deepseek: 'deepseek-chat',
-};
-
-export const defaultModelFor = (provider: CosmosProvider): string => LIGHT_MODELS[provider];
+/** Modelo leve de cada provedor (o mesmo nível dos agentes internos, pelo registro). */
+export const defaultModelFor = (provider: CosmosProvider): string => AI_DEFAULT_MODELS.light[provider];
 
 export const isCosmosProvider = (value: unknown): value is CosmosProvider =>
   typeof value === 'string' && (COSMOS_PROVIDERS as readonly string[]).includes(value);
@@ -44,14 +37,15 @@ const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
 const DATED = /-\d{4}-\d{2}-\d{2}$/;
 
 /**
- * O modelo pode ser cobrado? Precisa ter preço próprio na tabela do ai-ledger: o nome exato ou um snapshot datado
- * dele (`modelo-AAAA-MM-DD`). Sem preço, o custo sairia zero; casar por prefixo cobraria um modelo novo pelo preço
+ * O modelo pode ser cobrado? Precisa ter preço próprio na tabela do ai-ledger (com os preços de AI_MODEL_PRICES por
+ * cima): o nome exato ou um snapshot datado dele (`modelo-AAAA-MM-DD`). Sem preço, o custo sairia zero; casar por prefixo cobraria um modelo novo pelo preço
  * de outro.
  */
 export function isPricedModel(model: string): boolean {
   if (!MODEL_ID.test(model)) return false;
-  if (MODEL_PRICES[model]) return true;
-  return DATED.test(model) && Boolean(MODEL_PRICES[model.replace(DATED, '')]);
+  const prices = effectiveModelPrices();
+  if (prices[model]) return true;
+  return DATED.test(model) && Boolean(prices[model.replace(DATED, '')]);
 }
 
 /** Prefixo dos modelos de cada provedor: modelo de um provedor chamado no outro sempre falha. */

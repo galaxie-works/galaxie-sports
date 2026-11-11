@@ -34,9 +34,6 @@ export interface ModelPrice {
 
 export const PRICES_CHECKED_AT = '2026-10-21';
 
-/** Anthropic: a escrita no cache de 5 minutos custa 1,25 vez a entrada comum (mesma página de preços acima). */
-export const ANTHROPIC_CACHE_WRITE_MULTIPLIER = 1.25;
-
 export const MODEL_PRICES: Record<string, ModelPrice> = {
   // OpenAI
   'gpt-6-astra': { input: 10, cachedInput: 1, output: 50 },

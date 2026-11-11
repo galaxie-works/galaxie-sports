@@ -24,6 +24,7 @@
   "dependencies": {
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/db": "workspace:*",
+    "@galaxie/llm": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "drizzle-orm": "^0.45.4"
   },
