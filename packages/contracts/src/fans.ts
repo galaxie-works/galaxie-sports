@@ -131,6 +131,65 @@ export const FanMePatchBody = z
   .meta({ id: 'FanMePatchBody' });
 export type FanMePatchBody = z.infer<typeof FanMePatchBody>;
 
+/** `GET /v1/fans/me/wallet`: Pontos e Saldo do Perfil, um item por país de programa (#938). */
+export const FanWallet = z
+  .object({
+    data: z.array(
+      z.object({
+        program_country: z
+          .string()
+          .meta({ description: 'País do programa (Pontos e Ranking são por cliente e país).' }),
+        points: z.number().int().meta({ description: 'Pontos: só sobem; definem Nível e Ranking.' }),
+        balance: z.number().int().meta({ description: 'Saldo: o que se pode gastar no resgate (só 18+).' }),
+      }),
+    ),
+  })
+  .meta({ id: 'FanWallet' });
+export type FanWallet = z.infer<typeof FanWallet>;
+
+export const FAN_LEDGER_REASONS = [
+  'prediction',
+  'achievement',
+  'presence',
+  'poll',
+  'trivia',
+  'adjustment',
+  'redeem',
+  'revert',
+] as const;
+
+/** Query de `GET /v1/fans/me/wallet/ledger`. */
+export const FanLedgerQuery = z.object({
+  country: Country.optional().meta({
+    description: 'País do programa. Padrão: o país do Perfil.',
+    example: 'BR',
+  }),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.uuid().optional().meta({ description: 'Cursor: `next_before` da página anterior.' }),
+});
+export type FanLedgerQuery = z.infer<typeof FanLedgerQuery>;
+
+export const FanLedger = z
+  .object({
+    data: z.array(
+      z.object({
+        id: z.uuid(),
+        reason: z.enum(FAN_LEDGER_REASONS),
+        points_delta: z.number().int(),
+        balance_delta: z.number().int(),
+        points_after: z.number().int(),
+        balance_after: z.number().int(),
+        reverts_id: z.uuid().nullable(),
+        note: z.string().nullable(),
+        created_at: z.string().meta({ description: 'ISO 8601.' }),
+      }),
+    ),
+    program_country: z.string(),
+    next_before: z.uuid().nullable().meta({ description: 'Cursor da próxima página; null na última.' }),
+  })
+  .meta({ id: 'FanLedger' });
+export type FanLedger = z.infer<typeof FanLedger>;
+
 export const FanProfileParams = z.object({
   externalAccountId: ExternalId,
   externalProfileId: ExternalId,
@@ -187,6 +246,40 @@ export const fanPaths: ZodOpenApiPathsObject = {
         '200': { description: 'OK', content: json(FanMe) },
         '400': problem('Campo inválido (INVALID_PARAMS)'),
         '401': problem('Token ausente, inválido ou vencido (INVALID_KEY)'),
+        '403': problem('Faixa etária sem permissão (FAN_AGE_RESTRICTED)'),
+        '429': problem('Limite atingido (RATE_LIMITED)'),
+      },
+    },
+  },
+  '/v1/fans/me/wallet': {
+    get: {
+      summary: 'Carteira de pontos do torcedor',
+      description:
+        'Pontos e Saldo do Perfil do token, um item por país de programa. Pontos vêm de palpites, conquistas, ' +
+        'presença, enquetes e trivia; compra nunca dá pontos. `under13` recebe 403 (FAN_AGE_RESTRICTED).',
+      tags: [TAG],
+      security: fanAuth,
+      responses: {
+        '200': { description: 'OK', content: json(FanWallet) },
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
+        '403': problem('Faixa etária sem permissão (FAN_AGE_RESTRICTED)'),
+        '429': problem('Limite atingido (RATE_LIMITED)'),
+      },
+    },
+  },
+  '/v1/fans/me/wallet/ledger': {
+    get: {
+      summary: 'Extrato de pontos do torcedor',
+      description:
+        'Lançamentos do programa, do mais novo para o mais antigo, com o valor depois de cada um. Estornos ' +
+        '(`revert`) apontam o lançamento estornado; o resgate (`redeem`) gasta só o Saldo.',
+      tags: [TAG],
+      security: fanAuth,
+      requestParams: { query: FanLedgerQuery },
+      responses: {
+        '200': { description: 'OK', content: json(FanLedger) },
+        '400': problem('Parâmetro inválido (INVALID_PARAMS)'),
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária sem permissão (FAN_AGE_RESTRICTED)'),
         '429': problem('Limite atingido (RATE_LIMITED)'),
       },
