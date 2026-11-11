@@ -128,10 +128,6 @@ export default defineMessages(
           what: 'Teste de canal D2C: campeonato, tom (informativo ou zoeira) e agenda dos posts.',
           phase: 'Teste de canal D2C',
         },
-        subscriptions: {
-          what: 'Todas as assinaturas, estado, MRR, custo real e margem; carteiras da Cosmos; overrides vencendo.',
-          phase: 'F4 · #1002',
-        },
         signups: {
           what: 'Fila de cadastros a aprovar (e-mail grátis), trials por módulo e o que vence.',
           phase: 'F3',
@@ -1486,6 +1482,12 @@ export default defineMessages(
           'Custo real somado de todos os clientes no dia (UTC). Passou dele, a Cosmos recusa novas chamadas até a virada e a moderação volta para regras e pessoas.',
         unit: 'US$',
       },
+      COSMOS_USD_BRL: {
+        label: 'Cotação para a margem da Cosmos AI',
+        description:
+          'Reais por dólar, para comparar a receita em reais com o custo do provedor nas Carteiras da Cosmos. Vazio, a margem em reais fica sem valor.',
+        unit: 'R$ por US$',
+      },
       COSMOS_CREDIT_USD: {
         label: 'Valor de 1 crédito da Cosmos AI',
         description:
@@ -1625,10 +1627,6 @@ export default defineMessages(
           messaging: {
             what: 'D2C channel test: competition, tone (informative or banter) and post schedule.',
             phase: 'D2C channel test',
-          },
-          subscriptions: {
-            what: 'Every subscription, status, MRR, real cost and margin; Cosmos wallets; overrides about to expire.',
-            phase: 'F4 · #1002',
           },
           signups: {
             what: 'Queue of sign-ups to approve (free email), trials per module and what is about to expire.',
@@ -2965,6 +2963,12 @@ export default defineMessages(
             'Real cost summed across all clients for the day (UTC). Above it, Cosmos refuses new calls until the day rolls over and moderation falls back to rules and people.',
           unit: 'US$',
         },
+        COSMOS_USD_BRL: {
+          label: 'Exchange rate for the Cosmos AI margin',
+          description:
+            'Reais per dollar, to compare BRL revenue with provider cost in Cosmos wallets. Empty, the BRL margin shows no value.',
+          unit: 'R$ per US$',
+        },
         COSMOS_CREDIT_USD: {
           label: 'Value of 1 Cosmos AI credit',
           description:
@@ -3103,10 +3107,6 @@ export default defineMessages(
           messaging: {
             what: 'Prueba de canal D2C: campeonato, tono (informativo o en broma) y agenda de los posts.',
             phase: 'Prueba de canal D2C',
-          },
-          subscriptions: {
-            what: 'Todas las suscripciones, estado, MRR, costo real y margen; billeteras de Cosmos; overrides por vencer.',
-            phase: 'F4 · #1002',
           },
           signups: {
             what: 'Cola de registros por aprobar (correo gratuito), pruebas por módulo y lo que vence.',
@@ -4466,6 +4466,12 @@ export default defineMessages(
           description:
             'Costo real sumado de todos los clientes en el día (UTC). Si se supera, Cosmos rechaza nuevas llamadas hasta el cambio de día y la moderación vuelve a reglas y personas.',
           unit: 'US$',
+        },
+        COSMOS_USD_BRL: {
+          label: 'Cotización para el margen de Cosmos AI',
+          description:
+            'Reales por dólar, para comparar el ingreso en reales con el costo del proveedor en las carteras de Cosmos. Vacío, el margen en reales queda sin valor.',
+          unit: 'R$ por US$',
         },
         COSMOS_CREDIT_USD: {
           label: 'Valor de 1 crédito de Cosmos AI',

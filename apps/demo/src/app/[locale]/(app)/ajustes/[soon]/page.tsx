@@ -5,7 +5,7 @@ import { SoonPage } from '@/components/admin/soon-page';
 import { getT } from '@/lib/i18n/server';
 import { SOON_ITEMS, soonItemBySlug, soonSlug } from '@/lib/ops/settings-items';
 
-/** Os 23 itens planejados de Ajustes (#1068) são fixos: `params` não é dado de requisição (prerender por idioma). */
+/** Os 22 itens planejados de Ajustes (#1068) são fixos: `params` não é dado de requisição (prerender por idioma). */
 export function generateStaticParams() {
   return SOON_ITEMS.map((item) => ({ soon: soonSlug(item) }));
 }
