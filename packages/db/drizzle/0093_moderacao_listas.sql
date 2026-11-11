@@ -42,7 +42,7 @@ INSERT INTO "engage"."moderation_list" ("list", "locale", "terms", "version", "u
   ('hate', 'pt', ARRAY['macac*', 'crioul*', 'negrinh*', 'tiziu', 'senzala', 'volta pra senzala', 'viado', 'viadinho', 'viadao', 'boiol*', 'sapatao', 'traveco*', 'baianada', 'paraiba de merda', 'nordestino de merda', 'judeu de merda', 'nazist*', 'hitler tinha razao']::text[], 1, 'migration'),
   ('hate', 'es', ARRAY['mono de mierda', 'negro de mierda', 'sudaca*', 'paragua de mierda', 'puto de mierda', 'maricon*', 'trolo*', 'indio de mierda', 'villero de mierda', 'judio de mierda']::text[], 1, 'migration'),
   ('hate', 'en', ARRAY['monkey boy', 'go back to africa', 'faggot*', 'tranny*', 'white power', 'heil hitler']::text[], 1, 'migration'),
-  ('threat', 'pt', ARRAY['vou te matar', 'vou matar voce', 'te pego na saida', 'sei onde voce mora', 'voce vai morrer', 'tu vai morrer', 'merece morrer', 'vou te quebrar', 'vou te explodir']::text[], 1, 'migration'),
+  ('threat', 'pt', ARRAY['vou te matar', 'vou matar voce', 'te pego na saida', 'sei onde voce mora', 'voce vai morrer', 'vc vai morrer', 'tu vai morrer', 'voces vao morrer', 'vcs vao morrer', 'vai morrer desgracado', 'vai morrer seu*', 'merece morrer', 'vou te quebrar', 'vou te explodir', 'vou explodir voce*', 'vou explodir vc', 'vou explodir sua*', 'vou explodir seu*', 'vou explodir o estadio']::text[], 1, 'migration'),
   ('threat', 'es', ARRAY['te voy a matar', 'te mato', 'se donde vivis', 'se donde vives', 'vas a morir', 'te espero a la salida']::text[], 1, 'migration'),
   ('threat', 'en', ARRAY['i will kill you', 'ill kill you', 'gonna kill you', 'i know where you live', 'you will die']::text[], 1, 'migration'),
   ('harassment', 'pt', ARRAY['se mata', 'se mate', 'ninguem gosta de voce', 'lixo humano', 'aborto da natureza']::text[], 1, 'migration'),
@@ -57,7 +57,7 @@ INSERT INTO "engage"."moderation_list" ("list", "locale", "terms", "version", "u
   ('betting', 'all', ARRAY['bet365', 'betano', 'sportingbet', 'betfair', 'pixbet', 'estrelabet', 'esportes da sorte', '1xbet', 'bwin', 'codere', 'betway', 'betsson', 'rivalo', 'novibet', 'superbet', 'betnacional', 'kto', 'f12bet', 'mrjack', 'luva bet', 'casa de aposta*', 'casas de aposta*', 'casa de apuesta*', 'casas de apuesta*', 'apostas esportivas', 'apuestas deportivas', 'sports betting', 'odds turbinad*', 'cupom de aposta', 'codigo de bonus', 'link na bio', 'tigrinho', 'fortune tiger', 'aviator']::text[], 1, 'migration'),
   ('allowed_domains', 'all', ARRAY['galaxie.sports', 'galaxie.works']::text[], 1, 'migration'),
   ('bet_domains', 'all', ARRAY['bet', 'bet365.com', 'betano.com', 'sportingbet.com', 'betfair.com', 'pixbet.com', 'estrelabet.com', 'esportesdasorte.com', 'blaze.com', 'stake.com', '1xbet.com', 'bwin.com', 'codere.com', 'betway.com', 'betsson.com', 'rivalo.com', 'novibet.com', 'superbet.com', 'betnacional.com', 'kto.com', 'f12.bet', 'caliente.mx']::text[], 1, 'migration'),
-  ('exceptions', 'all', ARRAY['macacao', 'macacoes', 'macaca', 'macacas']::text[], 1, 'migration')
+  ('exceptions', 'all', ARRAY['macacao', 'macacoes']::text[], 1, 'migration')
 
 ON CONFLICT DO NOTHING;--> statement-breakpoint
 INSERT INTO "engage"."moderation_list_log" ("list_id", "tenant_id", "list", "locale", "version", "terms", "changed_by", "reason")

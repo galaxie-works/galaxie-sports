@@ -102,6 +102,13 @@ const IDENTITY_KINDS: ReadonlySet<ScreenKind> = new Set([
 ]);
 const ABUSE: ReadonlySet<TermCategory> = new Set(['hate', 'threat', 'harassment', 'sexual']);
 
+/**
+ * Palavra que é ofensa e também nome comum de futebol: `macaca` é insulto racista e o apelido da Ponte Preta. Escrita
+ * normal, não esconde a mensagem: publica e vai para a Cosmos e a fila humana (`suspect`), que decidem pelo contexto.
+ * Com grafia trocada (`m4c4c4`) conta como ofensa; em Apelido e nome, bloqueia.
+ */
+const AMBIGUOUS_WORDS: ReadonlySet<string> = new Set(['macaca', 'macacas']);
+
 // ---------------------------------------------------------------------------------------------------------------
 // Normalização
 
@@ -160,12 +167,16 @@ const HOMOGLYPHS: Record<string, string> = {
 /** Minúsculas, sem acento, sem caractere invisível (zero-width, hífen suave) e com os pontos de outras escritas
  *  (`。`) trocados por `.`. */
 function fold(text: string): string {
-  return text
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\p{Cf}/gu, '')
-    .replace(/[。｡︒]/g, '.')
-    .toLowerCase();
+  return (
+    text
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      // invisíveis: formatação (zero-width, hífen suave) e os preenchimentos Hangul e Braille
+      .replace(/[\p{Cf}\u3164\u115f\u1160\u2800\uffa0]/gu, '')
+      .replace(/ı/g, 'i')
+      .replace(/[。｡︒]/g, '.')
+      .toLowerCase()
+  );
 }
 
 /** Letras repetidas viram uma só (`maaacaaco` → `macaco`). Só para achar candidatos: a confirmação exige no texto
@@ -192,11 +203,12 @@ function words(folded: string, leet: boolean): string[] {
   // no caminho do drible: homóglifo, leet e hífen ou sublinhado no meio da palavra (`maca-co`)
   if (leet)
     mapped = [...mapped]
-      // símbolo só vira letra no meio da palavra (`m@c@co`); `Vamos Macaca!` não vira `macacai`
+      // `!` e `|` são pontuação de verdade: só viram letra no meio da palavra (`Vamos Macaca!` não vira
+      // `macacai`); os outros símbolos viram letra também no fim (`senzal@`)
       .map(
         (c, i, all) =>
           HOMOGLYPHS[c] ??
-          (/[0-9]/.test(c) || /[a-z0-9ñ@$€!|+]/.test(all[i + 1] ?? '') ? LEET[c] : undefined) ??
+          ((c !== '!' && c !== '|') || /[a-z0-9ñ@$€!|+]/.test(all[i + 1] ?? '') ? LEET[c] : undefined) ??
           c,
       )
       .join('')
@@ -352,11 +364,19 @@ const URL_RE = new RegExp(
 );
 /** Ponto escondido entre parênteses ou colchetes: `site(.)com`, `site [dot] com`, `site (ponto) com`. */
 const BRACKET_DOT = /\s*[([{]\s*(?:\.|ponto|punto|dot)\s*[)\]}]\s*/gi;
-/** Ponto por extenso ou com espaço (`site ponto com`, `betano . com`). Só vale com o domínio no fim da frase:
- *  "um ponto com o empate" e "Ganhamos o jogo. Com certeza" são texto comum. */
-const SPACED_HOST = new RegExp(
-  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+(?:ponto|punto|dot)\s+|\s+\.\s*|\s*\.\s+)(${TLDS})(?=\s*(?:$|[/!?,;:)]))`,
-  'gi',
+/** TLDs que quase nunca são palavra de frase (`top`, `fun`, `live`, `me`, `in`, `to` são). */
+const STRONG_TLDS = 'com|net|org|br|bet|io|xyz|app|ar|mx|cl|uy|site|online|casino|games|shop|store';
+/** Ponto com espaço (`betano . com`, `site. com`): só com TLD forte e o domínio fechando o trecho (`Que jogo. Top!`
+ *  e "Ganhamos o jogo. Com certeza" são texto comum). */
+const SPACED_DOT_HOST = new RegExp(
+  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?!\s*[\p{L}\p{N}])`,
+  'giu',
+);
+/** Ponto por extenso (`site ponto com`, `site dot com ponto br`). No fim do trecho é link; no meio da frase ("um
+ *  ponto com o empate") pode ser texto comum, então só marca para a Cosmos. */
+const SPELLED_HOST = new RegExp(
+  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})\s+(?:ponto|punto|dot)\s+(${TLDS})(?:\s+(?:ponto|punto|dot)\s+(${TLDS}))?(?![\p{L}\p{N}])`,
+  'giu',
 );
 // limites de tamanho: sem eles, `a.a.a…` e `a@a@a…` custam tempo quadrático
 const EMAIL_RE = /[a-z0-9._%+-]{1,64}@[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){0,6}\.[a-z]{2,24}\b/i;
@@ -407,10 +427,21 @@ function hostOf(url: string): string {
 
 const domainIn = (host: string, list: string[]) => list.some((d) => host === d || host.endsWith(`.${d}`));
 
+const spelledHost = (m: RegExpMatchArray) => (m[3] ? `${m[1]}.${m[2]}.${m[3]}` : `${m[1]}.${m[2]}`);
+/** Depois do domínio por extenso vem mais texto? Então pode ser frase comum. */
+const textAfter = (folded: string, m: RegExpMatchArray) =>
+  /^\s*[\p{L}\p{N}]/u.test(folded.slice(m.index! + m[0].length));
+
+/** Domínio por extenso no meio da frase: talvez link, talvez texto comum (`um ponto com o empate`). */
+function spelledMidHosts(folded: string): string[] {
+  return [...folded.matchAll(SPELLED_HOST)].filter((m) => textAfter(folded, m)).map(spelledHost);
+}
+
 /** Hosts dos links do texto, inclusive os escritos com "ponto com". */
 function hostsIn(folded: string): string[] {
   const hosts = new Set<string>();
-  for (const m of folded.matchAll(SPACED_HOST)) hosts.add(`${m[1]}.${m[2]}`);
+  for (const m of folded.matchAll(SPACED_DOT_HOST)) hosts.add(`${m[1]}.${m[2]}`);
+  for (const m of folded.matchAll(SPELLED_HOST)) if (!textAfter(folded, m)) hosts.add(spelledHost(m));
   for (const variant of [folded, folded.replace(BRACKET_DOT, '.')])
     for (const m of variant.matchAll(URL_RE)) {
       // e-mail não é link (cai em dado pessoal)
@@ -496,8 +527,12 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
 
   const folded = fold(trimmed);
   const notException = (w: string) => !lists.exceptions.has(w) && !lists.exceptions.has(squeeze(w));
-  const plain = textOf(words(folded, false).filter(notException));
-  const leet = textOf(words(folded, true).filter(notException));
+  const plainWords = words(folded, false).filter(notException);
+  const ambiguous = plainWords.filter((w) => AMBIGUOUS_WORDS.has(squeeze(w)));
+  const written = new Set(ambiguous);
+  const plain = textOf(plainWords.filter((w) => !written.has(w)));
+  // no caminho do drible, a palavra ambígua só sai quando foi escrita igual (`macaca`), não com leet (`m4c4c4`)
+  const leet = textOf(words(folded, true).filter((w) => notException(w) && !written.has(w)));
   const loc = localeKey(ctx.locale);
 
   for (const [cat, c] of lists.byCategory) {
@@ -510,6 +545,12 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
       evasion = true;
     }
   }
+
+  // palavra ambígua que casaria com ofensa: não esconde, mas vai para a Cosmos
+  const ambiguousHit =
+    ambiguous.length > 0 &&
+    [...lists.byCategory].some(([cat, c]) => ABUSE.has(cat) && matches(c.any, textOf(ambiguous)));
+  const maybeLink = spelledMidHosts(folded).some((h) => !domainIn(h, lists.allowedDomains));
 
   const hosts = hostsIn(folded);
   const betHost = hosts.some((h) => domainIn(h, lists.betDomains));
@@ -526,8 +567,14 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   else if (sorted.some((r) => r !== 'profanity')) action = 'block';
   else if (reasons.has('profanity') && identity) action = 'block';
 
+  if (identity && ambiguousHit && action === 'allow') action = 'block';
   const suspect =
-    reasons.has('abuse') || evasion || (reasons.has('profanity') && !identity) || reasons.has('betting');
+    reasons.has('abuse') ||
+    evasion ||
+    (reasons.has('profanity') && !identity) ||
+    reasons.has('betting') ||
+    ambiguousHit ||
+    maybeLink;
   return {
     action,
     reasons: sorted,

@@ -197,12 +197,31 @@ describe('screen: falso positivo da revisão (#1101)', () => {
     ['en', 'Nigeria beat Ghana 2-1'],
     ['pt-BR', 'R$ 148 o ingresso'],
     ['pt-BR', 'foram 1448 torcedores'],
-    ['pt-BR', 'Vamos Macaca!'],
     ['pt-BR', 'Esse time vai morrer na praia de novo'],
     ['pt-BR', 'vou explodir de alegria com esse gol'],
     ['pt-BR', 'O volante se matava em campo'],
   ])('%s: texto comum passa: %s', (locale, text) => {
     expect(chat(text, locale)).toMatchObject({ action: 'allow', reasons: [] });
+  });
+
+  it.each([
+    ['pt-BR', 'Que jogo. Top!'],
+    ['pt-BR', 'Gol do Neymar. Top'],
+    ['en', 'Foi lindo. Fun!'],
+    ['pt-BR', 'Estou aqui. Live!'],
+  ])('%s: TLD que é palavra comum não vira link: %s', (locale, text) => {
+    expect(chat(text, locale).reasons).not.toContain('link');
+  });
+
+  it('Macaca (Ponte Preta) publica, mas vai para a Cosmos; com leet ou no Apelido, não', () => {
+    expect(chat('Vamos Macaca!')).toMatchObject({ action: 'allow', reasons: [], suspect: true });
+    expect(chat('sua macaca')).toMatchObject({ action: 'allow', suspect: true });
+    expect(chat('m4c4c4').action).toBe('shadow');
+    expect(screen('Macaca', { kind: 'nickname' }, lists).action).toBe('block');
+  });
+
+  it('ponto por extenso no meio da frase só marca para a Cosmos', () => {
+    expect(chat('O Flamengo somou um ponto com o empate')).toMatchObject({ action: 'allow', suspect: true });
   });
 
   it('Apelido Nigeria_10 passa', () => {
@@ -221,6 +240,45 @@ describe('screen: drible da revisão (#1101)', () => {
     'caractere invisível, homóglifo e hífen: %s',
     (text) => {
       expect(chat(text).action).toBe('shadow');
+    },
+  );
+
+  it.each([
+    'senzal@',
+    'sudac@',
+    'faggo+',
+    'n1gg@',
+    'baianad@',
+    'n\u0131gger',
+    'n\u20dcigger',
+    'mac\u3164aco',
+  ])('símbolo no fim, i sem ponto, marca e preenchimento invisível: %s', (text) => {
+    expect(chat(text, text.startsWith('f') || text.startsWith('n') ? 'en' : 'pt-BR').action).toBe('shadow');
+  });
+
+  it.each([
+    'vc vai morrer',
+    'vai morrer desgraçado',
+    'vou explodir sua casa',
+    'vou explodir o estádio',
+    'voces vao morrer',
+  ])('ameaça com alvo: %s', (text) => {
+    expect(chat(text).action).toBe('shadow');
+  });
+
+  it.each([
+    'acessa meusite ponto com.',
+    'meusite ponto com 🔥',
+    'meusite . com!',
+    'meusite ponto com ponto br',
+  ])('link por extenso no fim do trecho bloqueia: %s', (text) => {
+    expect(chat(text).reasons).toContain('link');
+  });
+
+  it.each(['acessa meusite ponto com agora', 'meusite ponto com ponto br agora'])(
+    'link por extenso no meio da frase vai para a Cosmos: %s',
+    (text) => {
+      expect(chat(text)).toMatchObject({ suspect: true });
     },
   );
 

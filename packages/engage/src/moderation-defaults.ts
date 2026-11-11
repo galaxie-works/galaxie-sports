@@ -53,10 +53,20 @@ export const DEFAULT_MODERATION_LISTS: ModerationListSet = {
         'te pego na saida',
         'sei onde voce mora',
         'voce vai morrer',
+        'vc vai morrer',
         'tu vai morrer',
+        'voces vao morrer',
+        'vcs vao morrer',
+        'vai morrer desgracado',
+        'vai morrer seu*',
         'merece morrer',
         'vou te quebrar',
         'vou te explodir',
+        'vou explodir voce*',
+        'vou explodir vc',
+        'vou explodir sua*',
+        'vou explodir seu*',
+        'vou explodir o estadio',
       ],
       es: [
         'te voy a matar',
@@ -169,6 +179,7 @@ export const DEFAULT_MODERATION_LISTS: ModerationListSet = {
     'f12.bet',
     'caliente.mx',
   ],
-  // falso positivo comum que casa com termo da lista: roupa (macacão) e o apelido da Ponte Preta (Macaca)
-  exceptions: ['macacao', 'macacoes', 'macaca', 'macacas'],
+  // falso positivo comum que casa com termo da lista: roupa (macacão). `macaca` (Ponte Preta) é ambígua e fica no
+  // filtro: publica, mas vai para a Cosmos
+  exceptions: ['macacao', 'macacoes'],
 };

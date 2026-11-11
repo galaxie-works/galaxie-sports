@@ -68,17 +68,16 @@ export class ModerationLists {
       },
       (err: unknown) => {
         // banco fora: vale a última lista boa; sem ela, a próxima chamada tenta de novo
-        if (this.cache.get(tenantId) === entry) {
-          if (hit?.good) {
-            entry.good = hit.good;
-            return hit.good;
-          }
-          this.cache.delete(tenantId);
+        if (hit?.good) {
+          entry.good = hit.good;
+          return hit.good;
         }
+        if (this.cache.get(tenantId) === entry) this.cache.delete(tenantId);
         throw err;
       },
     );
-    if (!hit && this.cache.size >= MAX_ENTRIES) this.cache.clear();
+    // cheio: sai o cliente mais antigo (o Map guarda a ordem de entrada), não o cache inteiro
+    if (!hit && this.cache.size >= MAX_ENTRIES) this.cache.delete(this.cache.keys().next().value!);
     this.cache.set(tenantId, entry);
     return entry.lists;
   }

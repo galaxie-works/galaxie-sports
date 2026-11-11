@@ -162,7 +162,7 @@ describe('identidade do torcedor (#937)', () => {
     ).toBe(400);
   });
 
-  it('as listas iniciais gravadas pela migration 0091 são as de DEFAULT_MODERATION_LISTS', async () => {
+  it('as listas iniciais gravadas pela migration 0093 são as de DEFAULT_MODERATION_LISTS', async () => {
     const rows = await db.select().from(moderationList).where(isNull(moderationList.tenantId));
     const got = Object.fromEntries(rows.map((r) => [`${r.list}:${r.locale}`, r.terms]));
     const d = DEFAULT_MODERATION_LISTS;

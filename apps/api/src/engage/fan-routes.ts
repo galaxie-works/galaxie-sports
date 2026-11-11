@@ -77,8 +77,8 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     const sign = signer();
     const database = db();
     // Apelido passa pelo filtro (#969) quando é novo ou mudou: qualquer achado recusa, porque o Apelido aparece para
-    // todos. O Apelido que já estava gravado não tranca o login quando a lista ganha um termo (a revisão dele vai
-    // para a fila de moderação, B8 #953).
+    // todos. O Apelido que já estava gravado não tranca o login quando a lista ganha um termo (rever os Apelidos
+    // gravados contra a lista nova fica para a fila de moderação, B8 #953).
     const stored = await storedNickname(
       database,
       tenant.tenantId,
