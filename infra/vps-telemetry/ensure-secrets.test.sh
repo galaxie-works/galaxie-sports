@@ -82,6 +82,13 @@ printf 'BETTER_AUTH_SECRET=troque-por-x\nBETTER_AUTH_SECRET=real\nFAN_TOKEN_SECR
 printf 'SETTINGS_KEK=""\nSETTINGS_KEK=\n' > "$WORK/duas-vazias.env"
 (cd "$WORK" && bash "$HERE/ensure-secrets.sh" duas-vazias.env >/dev/null) && [ "$(grep -c '^SETTINGS_KEK=' "$WORK/duas-vazias.env")" = 1 ] &&
   ok "duas linhas vazias viram uma gerada" || ko "duas linhas vazias"
+# .env com CRLF: linha vazia com CR conta como vazia
+printf 'SETTINGS_KEK=\r\n' > "$WORK/crlf.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" crlf.env >/dev/null)
+[[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/crlf.env" | tail -n 1)" =~ ^[0-9a-f]{64}$ ]] && ok "vazia com CR vira 64 hex" || ko "vazia com CR não foi gerada"
+# rotação em cima e vazia embaixo: para
+printf 'SETTINGS_KEK=nova,antiga\nSETTINGS_KEK=\n' > "$WORK/rot-dup.env"
+if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" rot-dup.env >/dev/null); then ko "rotação + vazia passou"; else ok "rotação + vazia falha"; fi
 # repetida com o mesmo valor não atrapalha
 printf 'FAN_TOKEN_SECRET=\nSTREAM_TOKEN_SECRET=igual\nSTREAM_TOKEN_SECRET=igual\n' > "$WORK/dup-igual.env"
 (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup-igual.env >/dev/null) && ok "repetida com o mesmo valor passa" ||

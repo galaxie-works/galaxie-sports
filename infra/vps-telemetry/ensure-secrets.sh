@@ -57,6 +57,7 @@ current() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1; }
 needs() {
   local v
   v="$(current "$1")"
+  v="${v%$'\r'}"
   v="${v%\"}"
   v="${v#\"}"
   [ -z "$v" ] || [[ "$v" == troque-por* ]]
@@ -81,7 +82,7 @@ real_elsewhere() {
 }
 for k in "${KEYS[@]}"; do
   if needs "$k" && real_elsewhere "$k"; then
-    echo "FAIL  $k aparece mais de uma vez no $ENV_FILE, e a última linha está vazia mas outra tem valor; deixe uma linha só (a do valor em uso). Nada foi gerado"
+    echo "FAIL  $k aparece mais de uma vez no $ENV_FILE, e a última linha está vazia ou de exemplo mas outra tem valor; deixe uma linha só (a do valor em uso). Nada foi gerado"
     exit 1
   fi
 done
