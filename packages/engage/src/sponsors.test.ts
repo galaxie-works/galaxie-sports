@@ -105,6 +105,24 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     });
   });
 
+  it.each(['Привет Спорт', 'Вет Клиника'])('nome em cirílico comum passa: %s', (name) => {
+    expect(validateSponsor(input({ name }), lists).ok).toBe(true);
+  });
+
+  it.each([
+    'https://cervejaria.com.br/casino-royale',
+    'https://cervejaria.com.br/noticias/a-marca-que-aposta-no-esporte',
+    'https://cervejaria.com.br/produtos/blaze-ipa',
+  ])('caminho com palavra comum passa: %s', (linkUrl) => {
+    expect(validateSponsor(input({ linkUrl }), lists).ok).toBe(true);
+  });
+
+  it('logo com nome de arquivo qualquer passa', () => {
+    expect(
+      validateSponsor(input({ logoLightUrl: 'https://cdn.cervejaria.com.br/logo_bet_x.png' }), lists).ok,
+    ).toBe(true);
+  });
+
   it('link precisa ser https e sem usuário', () => {
     for (const linkUrl of ['http://x.com', 'javascript:alert(1)', 'https://u:p@x.com', 'não é link'])
       expect(validateSponsor(input({ linkUrl }), lists)).toMatchObject({

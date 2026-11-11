@@ -145,7 +145,8 @@ const LOOKALIKE: Record<string, string> = {
 };
 
 /** Palavra de aposta no caminho ou na query do link (`/apostas`, `?utm_campaign=betting`). */
-const BET_PATH = /(?:^|[^a-z])(?:apostas?|apuestas?|betting|bets|casino|cassino|cassinos)(?:[^a-z]|$)/;
+const BET_PATH =
+  /(?:^|[^a-z])(?:apostas|apuestas|apostar|apostes|betting|(?:casino|cassino)[-_ ]?(?:online|ao[-_ ]?vivo|en[-_ ]?vivo))(?:[^a-z]|$)/;
 
 const betScreen = (text: string, lists: CompiledLists) =>
   screen(text, { kind: 'wall_post' }, lists).reasons.includes('betting');
@@ -158,9 +159,12 @@ const betScreen = (text: string, lists: CompiledLists) =>
 export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
   if (!text.trim()) return false;
   if (betScreen(text, lists)) return true;
-  const folded = [...text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()]
-    .map((c) => LOOKALIKE[c] ?? c)
-    .join('');
+  // troca grega e cirílica só na palavra que mistura com letra latina (`Βet365`); `Привет` fica como está
+  const folded = text
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[\p{L}\p{N}]+/gu, (w) => (/[a-z]/.test(w) ? [...w].map((c) => LOOKALIKE[c] ?? c).join('') : w));
   if (/(?:^|[^a-z0-9])bet(?:[^a-z]|$)/.test(folded)) return true;
   const joined = folded.replace(/[^a-z0-9]+/g, '');
   if (!joined) return false;
@@ -236,9 +240,16 @@ export function validateSponsor(
     if (
       inList(lists.betDomains) ||
       looksLikeBetting(host, lists) ||
-      betScreen(decoded, lists) ||
-      looksLikeBetting(rest.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
-      BET_PATH.test(rest.toLowerCase())
+      // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
+      // escrito em palavras (`?y=estrela%20bet`) e palavra de aposta (`/apostas`)
+      (field === 'linkUrl' &&
+        (betScreen(rest.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+          rest
+            .split(/[/?#&=]+/)
+            .some(
+              (seg) => seg.length > 3 && betScreen(seg.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''), lists),
+            ) ||
+          BET_PATH.test(rest.toLowerCase())))
     )
       issues.push({ field, code: 'betting' });
     else if (field === 'linkUrl' && inList(LINK_HIDERS)) issues.push({ field, code: 'shortener' });
