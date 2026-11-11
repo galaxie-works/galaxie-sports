@@ -579,8 +579,15 @@
     {
       "idx": 82,
       "version": "7",
-      "when": 1794397298262,
-      "tag": "0085_ficha_por_pais",
+      "when": 1794403881994,
+      "tag": "0086_permissoes_por_cargo",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1794406770458,
+      "tag": "0087_ficha_por_pais",
       "breakpoints": true
     }
   ]

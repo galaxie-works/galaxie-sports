@@ -1,5 +1,5 @@
 {
-  "id": "59dc74b1-6d63-4b08-a13c-6d29e92d6514",
+  "id": "c53dab94-7a04-4a3a-9821-c7dec4a5cb98",
   "prevId": "599e7329-6cea-43cb-9759-74f38503d5da",
   "version": "7",
   "dialect": "postgresql",
@@ -15811,7 +15811,7 @@
           "name": "member_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "action": {
           "name": "action",
@@ -15961,6 +15961,85 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "api.tenant_role_permission": {
+      "name": "tenant_role_permission",
+      "schema": "api",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "allowed": {
+          "name": "allowed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tenant_role_permission_tenant_id_tenant_id_fk": {
+          "name": "tenant_role_permission_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_role_permission",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "tenant_role_permission_tenant_id_role_action_pk": {
+          "name": "tenant_role_permission_tenant_id_role_action_pk",
+          "columns": [
+            "tenant_id",
+            "role",
+            "action"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_role_permission_role": {
+          "name": "tenant_role_permission_role",
+          "value": "\"api\".\"tenant_role_permission\".\"role\" in ('admin', 'senior_moderator', 'moderator', 'volunteer')"
+        }
+      },
       "isRLSEnabled": false
     },
     "api.usage_daily": {
@@ -19254,231 +19333,6 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "engage.country_policy": {
-      "name": "country_policy",
-      "schema": "engage",
-      "columns": {
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "policy": {
-          "name": "policy",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "country_policy_key": {
-          "name": "country_policy_key",
-          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM)$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "engage.country_policy_log": {
-      "name": "country_policy_log",
-      "schema": "engage",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "policy": {
-          "name": "policy",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "changed_by": {
-          "name": "changed_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "country_policy_log_version_uq": {
-          "name": "country_policy_log_version_uq",
-          "columns": [
-            {
-              "expression": "country",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "version",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "engage.tenant_country": {
-      "name": "tenant_country",
-      "schema": "engage",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_primary": {
-          "name": "is_primary",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "hardening": {
-          "name": "hardening",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "tenant_country_primary_uq": {
-          "name": "tenant_country_primary_uq",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"engage\".\"tenant_country\".\"is_primary\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tenant_country_tenant_id_tenant_id_fk": {
-          "name": "tenant_country_tenant_id_tenant_id_fk",
-          "tableFrom": "tenant_country",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "tenant_country_pkey": {
-          "name": "tenant_country_pkey",
-          "columns": [
-            "tenant_id",
-            "country"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tenant_country_iso": {
-          "name": "tenant_country_iso",
-          "value": "\"engage\".\"tenant_country\".\"country\" ~ '^[A-Z]{2}$'"
-        }
-      },
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -19777,8 +19631,7 @@
     "equestrian": "equestrian",
     "api": "api",
     "cosmos": "cosmos",
-    "fan": "fan",
-    "engage": "engage"
+    "fan": "fan"
   },
   "sequences": {},
   "roles": {},

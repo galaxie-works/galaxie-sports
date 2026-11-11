@@ -27,7 +27,13 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
 
-import { canBuyCredits, checkoutUrls, packageMarket, stripeSecretKey } from './config';
+import {
+  checkoutUrls,
+  cosmosAccessError,
+  packageMarket,
+  stripeSecretKey,
+  type CosmosPanelAction,
+} from './config';
 
 async function texts() {
   const locale = await getRequestLocale();
@@ -42,12 +48,17 @@ type Gate =
       t: Awaited<ReturnType<typeof texts>>['t'];
     };
 
-async function gate(): Promise<Gate> {
+/**
+ * Sessão, tenant e cargo (#1019) antes de qualquer coisa: `cosmos.view` para ler, `cosmos.manage` para comprar,
+ * mexer na recarga automática e ligar ou desligar. A recusa volta como texto, nunca como 500.
+ */
+async function gate(action: CosmosPanelAction): Promise<Gate> {
   const [ctx, { locale, t }] = await Promise.all([readClientContext(), texts()]);
-  if (!ctx) return { error: t.errors.forbidden };
-  if (!ctx.tenant) return { error: t.errors.noTenant };
-  // TODO(#1019): trocar pela permissão de cobrança do cargo (B2) quando os cargos existirem
-  if (!canBuyCredits(ctx)) return { error: t.errors.notAllowed };
+  const denied = cosmosAccessError(ctx, action);
+  if (denied === 'forbidden') return { error: t.errors.forbidden };
+  if (denied === 'noTenant' || !ctx?.tenant) return { error: t.errors.noTenant };
+  if (denied === 'role')
+    return { error: action === 'cosmos.manage' ? t.errors.notAllowed : t.errors.viewNotAllowed };
   return { ctx: { ...ctx, tenant: ctx.tenant }, locale, t };
 }
 
@@ -57,7 +68,7 @@ export async function listCosmosPackages(): Promise<{
   packages?: CreditPackageView[];
   error?: string;
 }> {
-  const g = await gate();
+  const g = await gate('cosmos.view');
   if ('error' in g) return { ok: false, error: g.error };
   return { ok: true, packages: await listPackages(builderDb(), packageMarket(g.ctx.tenant.markets)) };
 }
@@ -72,7 +83,7 @@ export interface CheckoutResult {
 
 /** Cria a intenção de compra e abre o Checkout do pacote escolhido. */
 export async function startCosmosCheckout(packageId: string): Promise<CheckoutResult> {
-  const g = await gate();
+  const g = await gate('cosmos.manage');
   if ('error' in g) return { ok: false, error: g.error };
   const { ctx, locale, t } = g;
   if (!isUuid(packageId)) return { ok: false, error: t.errors.unknownPackage };
@@ -119,7 +130,7 @@ export async function startCosmosCheckout(packageId: string): Promise<CheckoutRe
 export async function cosmosPurchaseStatus(
   purchaseIntentId: string,
 ): Promise<{ ok: boolean; status?: string; credits?: number; error?: string }> {
-  const g = await gate();
+  const g = await gate('cosmos.view');
   if ('error' in g) return { ok: false, error: g.error };
   if (!isUuid(purchaseIntentId)) return { ok: false, error: g.t.errors.generic };
   const row = await getPurchaseIntent(builderDb(), g.ctx.tenant.id, purchaseIntentId);
@@ -138,7 +149,7 @@ export async function enableCosmosAction(): Promise<{
   wallet?: ReturnType<typeof toClientWallet>;
   error?: string;
 }> {
-  const g = await gate();
+  const g = await gate('cosmos.manage');
   if ('error' in g) return { ok: false, error: g.error };
   try {
     const r = await enableCosmos(builderDb(), g.ctx.tenant.id, { userId: g.ctx.userId });
@@ -151,7 +162,7 @@ export async function enableCosmosAction(): Promise<{
 
 /** Desliga a Cosmos do tenant (switch da Visão geral): nenhuma função gasta mais; saldo e extrato ficam. */
 export async function disableCosmosAction(): Promise<{ ok: boolean; error?: string }> {
-  const g = await gate();
+  const g = await gate('cosmos.manage');
   if ('error' in g) return { ok: false, error: g.error };
   try {
     await disableCosmos(builderDb(), g.ctx.tenant.id);
@@ -172,7 +183,7 @@ export interface AutoRechargeForm {
 
 /** Liga, muda ou desliga a recarga automática; ligar exige o aceite explícito, gravado com quem e quando. */
 export async function saveAutoRecharge(form: AutoRechargeForm): Promise<{ ok: boolean; error?: string }> {
-  const g = await gate();
+  const g = await gate('cosmos.manage');
   if ('error' in g) return { ok: false, error: g.error };
   const { t } = g;
   // desligar não depende do pacote nem do limite (o pacote pode ter sido desativado)

@@ -7,8 +7,11 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { MembersPanel } from '@/components/client/members-panel';
+import { RolePermissionsPanel } from '@/components/client/role-permissions-panel';
 import { listMemberEvents, listTenantMembers } from '@/lib/client/members';
+import { permissionMatrix } from '@/lib/client/permission-matrix';
 import { can } from '@/lib/client/permissions';
+import { loadRoleOverrides } from '@/lib/client/role-permissions';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,14 +24,23 @@ async function Members() {
   return (
     <ClientArea section="members">
       {async (ctx) => {
-        const [members, events] = await Promise.all([
+        const [members, events, overrides] = await Promise.all([
           listTenantMembers(ctx.tenant.id),
           listMemberEvents(ctx.tenant.id, 50),
+          // direto do banco: logo depois de gravar, a tabela mostra o que ficou
+          loadRoleOverrides(ctx.tenant.id, { fresh: true }),
         ]);
         const manage = can(ctx, 'members.manage');
         const actor = ctx.actor;
         return (
           <MembersPanel
+            permissions={
+              <RolePermissionsPanel
+                rows={permissionMatrix(overrides, can(ctx, 'permissions.manage'))}
+                editable={can(ctx, 'permissions.manage')}
+                customized={overrides !== null}
+              />
+            }
             members={members.map((mb) => ({
               memberId: mb.memberId,
               email: mb.email,
