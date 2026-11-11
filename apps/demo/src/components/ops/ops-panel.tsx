@@ -1,13 +1,26 @@
 'use client';
 
 import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config';
-import { Activity, Bot, Gauge, Play, RefreshCw, Server, ShieldCheck } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
 import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { ModelAgentCards } from '@/components/settings/blocks/ai-usage';
+import { GithubIntegration } from '@/components/settings/blocks/integrations';
+import { JobsGrid, type JobRow } from '@/components/settings/blocks/jobs-grid';
+import {
+  AI_MODEL_KEYS,
+  PLAN_SPORT_KEYS,
+  POSTGAME_SPORT_KEYS,
+  changedFilterRows,
+} from '@/components/settings/blocks/logic';
+import { PlanTable, PostgameTable } from '@/components/settings/blocks/sport-tables';
+import { CredentialsList, ServicesStatusList } from '@/components/settings/blocks/status-panels';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +41,6 @@ import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
-import { FeedbackGithubCard } from './feedback-github-card';
 import { MirrorTab } from './mirror-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
@@ -130,18 +142,8 @@ export function OpsPanel({
     mirror: () => <MirrorTab snapshot={snapshot} timeZone={timeZone} />,
     suggestions: () => (
       <>
-        {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
-        <SectionCard
-          block="suggestions"
-          filter={(key) => key === 'FEEDBACK_ENABLED'}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
-        <FeedbackGithubCard
-          key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
+        {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
+        <GithubIntegration snapshot={snapshot} timeZone={timeZone} />
       </>
     ),
     history: () => <HistoryTab snapshot={snapshot} timeZone={timeZone} />,
@@ -167,7 +169,8 @@ export function OpsPanel({
   useReportPageChrome({
     updatedAt: snapshot.generatedAt,
     timeZone,
-    settings: snapshot.settings.filter((s) => settingPage(s.key)?.item === view),
+    // o pós-jogo de um esporte é uma linha com duas chaves: conta e some como uma linha só
+    settings: changedFilterRows(snapshot.settings.filter((s) => settingPage(s.key)?.item === view)),
   });
 
   return (
@@ -194,32 +197,26 @@ export function OpsPanel({
 const effective = (snapshot: OpsSnapshot, key: string) =>
   snapshot.settings.find((s) => s.key === key)?.value ?? null;
 
-function SecretsList({ settings }: { settings: OpsSetting[] }) {
-  const { t } = useI18n();
-  if (!settings.length) return null;
+/** Linhas de ajuste da seção (padrão settings-3, #1074) numa moldura, com título e descrição. */
+function RowsFrame({
+  title,
+  description,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-2">
-      {settings.map((s) => {
-        const def = settingDef(s.key)!;
-        return (
-          <div
-            key={s.key}
-            id={s.key}
-            className="flex scroll-mt-20 items-center justify-between gap-3 rounded-md border px-3 py-2"
-          >
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm">{settingText(t.ops, def).label}</span>
-              <code className="text-muted-foreground truncate font-mono text-[11px]">
-                {s.key} · {def.services.map((x) => t.ops.services[x]).join(', ')}
-              </code>
-            </div>
-            <Badge variant={s.configured ? 'success-light' : 'warning-light'}>
-              {s.configured ? t.ops.secrets.configured : t.ops.secrets.missing}
-            </Badge>
-          </div>
-        );
-      })}
-    </div>
+    <Frame>
+      {title ? (
+        <FrameHeader>
+          <FrameTitle>{title}</FrameTitle>
+          {description ? <FrameDescription>{description}</FrameDescription> : null}
+        </FrameHeader>
+      ) : null}
+      <FramePanel className="p-0">{children}</FramePanel>
+    </Frame>
   );
 }
 
@@ -227,6 +224,11 @@ function SecretsList({ settings }: { settings: OpsSetting[] }) {
 type SectionBlock = Exclude<PanelBlock, 'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'history'>;
 const sectionTextKey = (block: SectionBlock) => (block === 'suggestions' ? 'feedback' : block);
 
+/**
+ * As flags de uma seção. Cada uma no bloco dela (#1074 a #1078): as linhas comuns em `SettingRow`; o pós-jogo e o
+ * plano de cada esporte numa linha por esporte; os modelos de IA num cartão por agente; os segredos na lista de
+ * credenciais (só "configurada ou faltando"). O salvamento é o de sempre, uma chave por vez.
+ */
 function SectionCard({
   block,
   snapshot,
@@ -246,26 +248,64 @@ function SectionCard({
   const text = T.sections[sectionTextKey(block)];
   const editable = settings.filter((s) => settingDef(s.key)!.type !== 'secret');
   const secrets = settings.filter((s) => settingDef(s.key)!.type === 'secret');
+  const postgame = editable.filter((s) => POSTGAME_SPORT_KEYS.has(s.key));
+  const postgameCap = postgame.length ? editable.find((s) => s.key === 'POSTGAME_MAX_CALLS_DAY') : undefined;
+  const plans = editable.filter((s) => PLAN_SPORT_KEYS.has(s.key));
+  const models = editable.filter((s) => AI_MODEL_KEYS.has(s.key));
+  const rows = editable.filter(
+    (s) =>
+      !POSTGAME_SPORT_KEYS.has(s.key) &&
+      !PLAN_SPORT_KEYS.has(s.key) &&
+      !AI_MODEL_KEYS.has(s.key) &&
+      s !== postgameCap,
+  );
   const inheritPlan = effective(snapshot, 'APISPORTS_PLAN');
+  const row = (s: OpsSetting) => (
+    <SettingRow
+      key={`${s.key}:${s.source}:${s.value}`}
+      setting={s}
+      timeZone={timeZone}
+      now={snapshot.generatedAt}
+      inheritPlan={inheritPlan}
+    />
+  );
+  // o rascunho das tabelas volta ao gravado quando o snapshot muda (depois de salvar)
+  const version = (list: OpsSetting[]) => list.map((s) => `${s.key}=${s.source}:${s.value}`).join('|');
+  // só a tabela (plano por esporte, credenciais): ela leva o título da seção
+  const onlyTable = !rows.length && !models.length;
   return (
-    <Frame>
-      <FramePanel className="p-0">
-        <FrameHeader className="px-4 pt-4">
-          <FrameTitle>{text.title}</FrameTitle>
-          <FrameDescription>{text.description}</FrameDescription>
-        </FrameHeader>
-        {editable.map((s) => (
-          <SettingRow
-            key={`${s.key}:${s.source}:${s.value}`}
-            setting={s}
-            timeZone={timeZone}
-            now={snapshot.generatedAt}
-            inheritPlan={inheritPlan}
-          />
-        ))}
-        <SecretsList settings={secrets} />
-      </FramePanel>
-    </Frame>
+    <>
+      {rows.length || models.length ? (
+        <RowsFrame title={text.title} description={text.description}>
+          {rows.map(row)}
+          <ModelAgentCards settings={models} timeZone={timeZone} now={snapshot.generatedAt} />
+        </RowsFrame>
+      ) : null}
+      {postgame.length ? (
+        <PostgameTable
+          key={version(postgame)}
+          settings={postgame}
+          before={postgameCap ? <div className="border-b">{row(postgameCap)}</div> : null}
+        />
+      ) : null}
+      {plans.length ? (
+        <PlanTable
+          key={version(plans)}
+          settings={plans}
+          inheritPlan={inheritPlan}
+          {...(onlyTable && !postgame.length ? { title: text.title, description: text.description } : {})}
+        />
+      ) : null}
+      {secrets.length ? (
+        <CredentialsList
+          settings={secrets}
+          aiProvider={effective(snapshot, 'AI_PROVIDER')}
+          {...(onlyTable && !postgame.length && !plans.length
+            ? { title: text.title, description: text.description }
+            : {})}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -274,7 +314,7 @@ function SectionCard({
 function StatusTab({ snapshot, timeZone }: Ctx) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <ServicesCard snapshot={snapshot} timeZone={timeZone} />
+      <ServicesStatusList services={snapshot.services} timeZone={timeZone} now={snapshot.generatedAt} />
       <CreditCard snapshot={snapshot} timeZone={timeZone} />
       <QuotaCard snapshot={snapshot} timeZone={timeZone} />
       <LlmCard snapshot={snapshot} timeZone={timeZone} />
@@ -315,54 +355,6 @@ function CardShell({
         {children}
       </FramePanel>
     </Frame>
-  );
-}
-
-function ServicesCard({ snapshot, timeZone }: Ctx) {
-  const { t } = useI18n();
-  const T = t.ops;
-  const f = useFormatters(timeZone);
-  const now = Date.parse(snapshot.generatedAt);
-  return (
-    <CardShell icon={Server} title={T.status.services}>
-      <div className="flex flex-col divide-y">
-        {snapshot.services.map((s) => (
-          <div key={s.service} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <div className="flex min-w-0 flex-col">
-              <span>{T.services[s.service]}</span>
-              {s.live ? (
-                <span className="text-muted-foreground text-xs">
-                  {s.live.leader
-                    ? fill(T.status.liveLeader, {
-                        instance: s.live.leader.slice(0, 12),
-                        epoch: String(s.live.epoch ?? '—'),
-                        when: s.live.leaderSince ? f.relative(s.live.leaderSince, now) : '—',
-                      })
-                    : T.status.liveNoLeader}
-                  {' · '}
-                  {s.live.lastTickAt
-                    ? fill(T.status.liveLastTick, { when: f.relative(s.live.lastTickAt, now) })
-                    : T.status.liveNoTick}
-                </span>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {s.reportedAt
-                  ? fill(s.service === 'api' ? T.status.startedAt : T.status.reported, {
-                      when: f.relative(s.reportedAt, now),
-                    })
-                  : T.status.never}
-              </span>
-              <Badge variant={s.alive ? 'success-light' : 'destructive-light'} radius="full">
-                <span className="size-1.5 rounded-full bg-current" aria-hidden />
-                {s.alive ? T.status.alive : T.status.offline}
-              </Badge>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardShell>
   );
 }
 
@@ -458,7 +450,7 @@ function QuotaCard({ snapshot, timeZone }: Ctx) {
                 </span>
               </div>
               <Progress value={pct} />
-              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[11px]">
+              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                 {(['DAILY', 'LIVE', 'BOOTSTRAP', 'ADHOC'] as const).map((p) => (
                   <span key={p}>
                     {T.status.priorities[p]} {n(q.used[p] ?? 0)}
@@ -699,7 +691,7 @@ function LastRun({ job, timeZone, now }: { job: JobStatus; timeZone: string; now
         </span>
       ) : null}
       {last?.error ? (
-        <code className="text-destructive font-mono text-[11px] break-all">{last.error}</code>
+        <code className="text-destructive font-mono text-xs break-all">{last.error}</code>
       ) : null}
     </div>
   );
@@ -761,7 +753,7 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
                     <span className="text-sm">
                       {T.jobs.names[job.name as keyof typeof T.jobs.names]?.label ?? job.name}
                     </span>
-                    <span className="text-muted-foreground font-mono text-[11px]">
+                    <span className="text-muted-foreground font-mono text-xs">
                       {job.name} · {T.services[job.service]}
                     </span>
                   </div>
@@ -787,50 +779,48 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
 function ScheduleTab({ snapshot, timeZone }: Ctx) {
   const { t } = useI18n();
   const T = t.ops;
+  const now = snapshot.generatedAt;
   const others = snapshot.settings.filter((s) => s.section === 'schedule' && !settingDef(s.key)!.job);
+  // os jobs do registro, com a flag da agenda e o estado da última execução (a tabela agrupa e ordena)
+  const rows: JobRow[] = SCHEDULED_JOBS.flatMap((j) => {
+    const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name));
+    const status = snapshot.jobs.find((x) => x.name === j.name);
+    if (!setting || !status) return [];
+    return [
+      {
+        job: j.name,
+        key: setting.key,
+        label: settingText(T, settingDef(setting.key)!).label,
+        setting,
+        status,
+      },
+    ];
+  });
+  const lastRun = useCallback(
+    (job: JobStatus) => <LastRun job={job} timeZone={timeZone} now={now} />,
+    [timeZone, now],
+  );
+  const runNow = useCallback((job: JobStatus) => <RunNowButton job={job} />, []);
   return (
-    <div className="flex flex-col gap-4">
-      {(['ingestor', 'live', 'agents'] as const).map((service) => (
-        <Frame key={service}>
+    <JobsGrid
+      rows={rows}
+      timeZone={timeZone}
+      now={now}
+      lastRun={lastRun}
+      runNow={runNow}
+      footer={
+        others.length ? (
           <FramePanel className="p-0">
-            <FrameHeader className="px-4 pt-4">
-              <FrameTitle>
-                {T.sections.schedule.title} · {T.services[service]}
-              </FrameTitle>
-              <FrameDescription>{T.sections.schedule.description}</FrameDescription>
-            </FrameHeader>
-            {SCHEDULED_JOBS.filter((j) => j.service === service).map((j) => {
-              const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name))!;
-              const job = snapshot.jobs.find((x) => x.name === j.name)!;
-              return (
-                <SettingRow
-                  key={`${setting.key}:${setting.source}:${setting.value}`}
-                  setting={setting}
-                  timeZone={timeZone}
-                  now={snapshot.generatedAt}
-                  aside={<LastRun job={job} timeZone={timeZone} now={snapshot.generatedAt} />}
-                  actions={<RunNowButton job={job} />}
-                />
-              );
-            })}
-          </FramePanel>
-        </Frame>
-      ))}
-      {others.length ? (
-        <Frame>
-          <FramePanel className="p-0">
+            <div className="border-b px-4 py-3">
+              <span className="text-sm font-semibold">{T.blocks.jobs.others}</span>
+            </div>
             {others.map((s) => (
-              <SettingRow
-                key={`${s.key}:${s.source}:${s.value}`}
-                setting={s}
-                timeZone={timeZone}
-                now={snapshot.generatedAt}
-              />
+              <SettingRow key={`${s.key}:${s.source}:${s.value}`} setting={s} timeZone={timeZone} now={now} />
             ))}
           </FramePanel>
-        </Frame>
-      ) : null}
-    </div>
+        ) : null
+      }
+    />
   );
 }
 
@@ -848,6 +838,9 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
     const def = settingDef(key);
     return def ? settingText(T, def).label : key;
   };
+  // "Ver histórico" de uma linha chega com `?chave=`: só as mudanças daquela chave
+  const only = useSearchParams().get('chave');
+  const history = only ? snapshot.history.filter((h) => h.key === only) : snapshot.history;
   return (
     <div className="flex flex-col gap-4">
       <Frame>
@@ -855,8 +848,16 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
           <FrameHeader className="px-4 pt-4">
             <FrameTitle>{T.history.title}</FrameTitle>
             <FrameDescription>{T.history.description}</FrameDescription>
+            {only ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span>{fill(T.history.filtered, { name: label(only) })}</span>
+                <Link href="/ajustes/historico" className="text-primary text-sm hover:underline">
+                  {T.history.showAll}
+                </Link>
+              </p>
+            ) : null}
           </FrameHeader>
-          {snapshot.history.length ? (
+          {history.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -867,7 +868,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {snapshot.history.map((h) => (
+                {history.map((h) => (
                   <TableRow key={h.id}>
                     <TableCell className="pl-4 text-xs whitespace-nowrap">
                       {f.dateTime(h.changedAt)}
@@ -876,7 +877,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm">{label(h.key)}</span>
-                        <code className="text-muted-foreground font-mono text-[11px]">{h.key}</code>
+                        <code className="text-muted-foreground font-mono text-xs">{h.key}</code>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs whitespace-normal">
