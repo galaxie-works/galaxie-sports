@@ -11,6 +11,7 @@
  * - só acréscimo (`append`, só `schema.tabela`): SELECT e INSERT, com as sequências; nada de UPDATE nem DELETE
  *   (extrato, registros de auditoria: o que foi escrito não muda);
  * - acréscimo e atualização (`modify`, só `schema.tabela`): SELECT, INSERT e UPDATE, com as sequências; sem DELETE.
+ * - só atualização (`update`, só `schema.tabela`): SELECT e UPDATE; sem INSERT nem DELETE.
  *
  * `applyRoles` roda no `migrate`, depois das migrations, e é idempotente: cria o que falta, revoga e
  * concede de novo a matriz inteira numa transação (tabela nova de migration já sai com o GRANT) e grava os
@@ -65,6 +66,8 @@ export interface RoleGrants {
   append?: readonly string[];
   /** Tabelas (`schema.tabela`) com SELECT, INSERT e UPDATE, sem DELETE. */
   modify?: readonly string[];
+  /** Tabelas (`schema.tabela`) só de atualização: SELECT e UPDATE, sem INSERT nem DELETE. */
+  update?: readonly string[];
 }
 
 /**
@@ -78,13 +81,10 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
     write: ['api', 'enrich', 'ops', 'fan', 'engage'],
     // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
-    modify: [
-      'cosmos.stripe_event',
-      'cosmos.purchase_intent',
-      'cosmos.wallet',
-      'cosmos.auto_recharge',
-      'cosmos.recharge_attempt',
-    ],
+    modify: ['cosmos.stripe_event', 'cosmos.wallet', 'cosmos.recharge_attempt'],
+    // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado
+    update: ['cosmos.purchase_intent', 'cosmos.auto_recharge'],
+    // lançamento negativo (estorno) passa por evaluateBalance, que grava alerta e abre tentativa de recarga
     append: ['cosmos.ledger', 'cosmos.balance_alert'],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
@@ -140,7 +140,9 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     ],
     write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
     // Cosmos AI: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
-    modify: ['cosmos.wallet', 'cosmos.reservation', 'cosmos.auto_recharge', 'cosmos.recharge_attempt'],
+    modify: ['cosmos.wallet', 'cosmos.recharge_attempt'],
+    // reservas vencidas e recarga automática: só muda o estado do que a demo criou
+    update: ['cosmos.reservation', 'cosmos.auto_recharge'],
     append: ['cosmos.ledger', 'cosmos.balance_alert'],
     prune: ['api.webhook_delivery'],
   },
@@ -358,9 +360,9 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           await tx`revoke all on schema ${tx(DEMO_AUTH_SCHEMA)} from ${r}`;
         }
 
-        const { read, write, prune = [], append = [], modify = [] } = ROLE_GRANTS[service];
+        const { read, write, prune = [], append = [], modify = [], update = [] } = ROLE_GRANTS[service];
         const schemas = new Set(
-          [...read, ...write, ...prune, ...append, ...modify].map((s) => splitScope(s).schema),
+          [...read, ...write, ...prune, ...append, ...modify, ...update].map((s) => splitScope(s).schema),
         );
         for (const schema of schemas) {
           if (!existing.has(schema) && schema !== DEMO_AUTH_SCHEMA) continue;
@@ -406,6 +408,7 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
         for (const [kind, scopes, privileges] of [
           ['append', append, 'select, insert'],
           ['modify', modify, 'select, insert, update'],
+          ['update', update, 'select, update'],
         ] as const) {
           for (const scope of scopes) {
             const { schema, table } = splitScope(scope);

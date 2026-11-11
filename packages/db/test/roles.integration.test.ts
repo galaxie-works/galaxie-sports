@@ -106,7 +106,7 @@ describe('papéis por serviço', () => {
     expect(tables.length).toBeGreaterThan(50);
     for (const service of ROLE_SERVICES) {
       if (service === 'backup') continue; // pg_read_all_data: conferido no teste do backup
-      const { read, write, prune = [], append = [], modify = [] } = ROLE_GRANTS[service];
+      const { read, write, prune = [], append = [], modify = [], update = [] } = ROLE_GRANTS[service];
       const role = roleName(service, prefix);
       const covers = (scopes: readonly string[], t: { schema: string; name: string }) =>
         scopes.includes(t.schema) || scopes.includes(`${t.schema}.${t.name}`);
@@ -120,8 +120,8 @@ describe('papéis por serviço', () => {
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'truncate') as trunc`;
         const name = `${t.schema}.${t.name}`;
         const w = covers(write, t);
-        const u = w || modify.includes(name);
-        const i = u || append.includes(name);
+        const u = w || modify.includes(name) || update.includes(name);
+        const i = w || modify.includes(name) || append.includes(name);
         const d = w || prune.includes(name);
         const r = i || d || covers(read, t);
         if (p!.sel !== r || p!.ins !== i || p!.upd !== u || p!.del !== d || p!.trunc)
@@ -129,6 +129,42 @@ describe('papéis por serviço', () => {
       }
       expect(wrong).toEqual([]);
     }
+  });
+
+  it('toda tabela citada na matriz existe (nome errado deixaria o papel sem a escrita, calado)', async () => {
+    // tabelas de PRs ainda abertos: o GRANT é pulado até a migration entrar
+    const pending = new Set(['cosmos.doc_embedding']);
+    const missing: string[] = [];
+    for (const service of ROLE_SERVICES) {
+      const g = ROLE_GRANTS[service];
+      const scopes = [
+        ...g.read,
+        ...g.write,
+        ...(g.prune ?? []),
+        ...(g.append ?? []),
+        ...(g.modify ?? []),
+        ...(g.update ?? []),
+      ];
+      for (const scope of scopes) {
+        if (!scope.includes('.') || pending.has(scope)) continue;
+        const [r] = await owner<{ ok: boolean }[]>`select to_regclass(${scope}) is not null as ok`;
+        if (!r!.ok) missing.push(`${service}: ${scope}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('toda tabela da Cosmos tem quem a escreva (tabela nova fora da matriz quebra aqui)', async () => {
+    const tables = await owner<{ name: string }[]>`
+      select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where c.relkind in ('r', 'p') and n.nspname = 'cosmos'`;
+    const written = new Set(
+      ROLE_SERVICES.flatMap((s) => {
+        const g = ROLE_GRANTS[s];
+        return [...g.write, ...(g.append ?? []), ...(g.modify ?? []), ...(g.update ?? [])];
+      }),
+    );
+    expect(tables.map((t) => `cosmos.${t.name}`).filter((t) => !written.has(t))).toEqual([]);
   });
 
   it('papel de serviço não faz DDL nem comando de superusuário', async () => {
@@ -173,8 +209,19 @@ describe('papéis por serviço', () => {
       await denied(c`delete from cosmos.wallet where tenant_id = ${t!.id}`);
     }
     // demo e ingestor não gravam o registro de eventos do Stripe; nem a demo apaga pacote
-    await denied(conn('ingestor')`delete from cosmos.stripe_event`);
+    for (const s of ['ingestor', 'demo'] as const) {
+      await denied(
+        conn(s)`insert into cosmos.stripe_event (id, type, outcome) values ('evt_negado', 'x', 'ignored')`,
+      );
+      await denied(conn(s)`update cosmos.stripe_event set outcome = 'ignored'`);
+      await denied(conn(s)`delete from cosmos.stripe_event`);
+    }
     await denied(conn('demo')`delete from cosmos.package`);
+    // a API só cuida do webhook: não mexe no catálogo da equipe Galaxie nem cria compra ou reserva
+    await denied(conn('api')`update cosmos.package set active = false`);
+    await denied(conn('api')`update cosmos.function_def set active = false`);
+    await denied(conn('api')`delete from cosmos.purchase_intent`);
+    await denied(conn('ingestor')`delete from cosmos.reservation`);
     expect(await owner`select id from cosmos.ledger where id = ${entry!.id} and credits = 10`).toHaveLength(
       1,
     );
