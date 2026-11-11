@@ -54,6 +54,7 @@ export const SETTING_SECTIONS = [
   'credentials',
   'feedback',
   'cosmos',
+  'engage',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
 
@@ -215,16 +216,47 @@ export function postgameIntervalKey(api: string): string {
 /** Mercados do Onde Assistir (ISO 3166-1 alfa-2; o mesmo de WTW_COUNTRIES). */
 export const WTW_MARKET_CODES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 
-export const AI_PROVIDERS = ['openai', 'anthropic', 'gemini'] as const;
+export const AI_PROVIDERS = ['openai', 'anthropic', 'gemini', 'deepseek'] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+/** Variável da chave de cada provedor (espelho de API_KEY_ENV em services/ai-agents). */
+export const AI_PROVIDER_KEY_ENV: Readonly<Record<AiProvider, string>> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
+};
 /** AI_STATUS: ligada ou desligada (literal; nenhum teto numérico desliga a IA). */
 export const AI_STATUSES = ['on', 'off'] as const;
 
 /** Modelos padrão por nível e provedor (espelho de DEFAULT_MODELS em services/ai-agents). */
 export const AI_DEFAULT_MODELS = {
-  light: { openai: 'gpt-6-luna', anthropic: 'claude-haiku-5-5', gemini: 'gemini-3.5-flash-lite' },
-  standard: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5', gemini: 'gemini-3.8-flash' },
-  research: { openai: 'gpt-6.1-sol', anthropic: 'claude-sonnet-5-5', gemini: 'gemini-3.8-flash' },
-} as const;
+  light: {
+    openai: 'gpt-6-luna',
+    anthropic: 'claude-haiku-5-5',
+    gemini: 'gemini-3.5-flash-lite',
+    deepseek: 'deepseek-flash',
+  },
+  standard: {
+    openai: 'gpt-6.1-sol',
+    anthropic: 'claude-sonnet-5-5',
+    gemini: 'gemini-3.8-flash',
+    deepseek: 'deepseek-flash',
+  },
+  research: {
+    openai: 'gpt-6.1-sol',
+    anthropic: 'claude-sonnet-5-5',
+    gemini: 'gemini-3.8-flash',
+    deepseek: 'deepseek-v4-pro',
+  },
+} as const satisfies Record<'light' | 'standard' | 'research', Record<AiProvider, string>>;
+
+/**
+ * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` (US$ por 1 milhão de tokens) separados por
+ * vírgula. Espelho de MODEL_PRICES_PATTERN em packages/ai-ledger/src/pricing.ts.
+ */
+const PRICE_NUM = '\\d+(?:\\.\\d+)?';
+const PRICE_ENTRY = `[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,80}=${PRICE_NUM}/(?:${PRICE_NUM})?/${PRICE_NUM}(?:/(?:${PRICE_NUM})?)?`;
+export const MODEL_PRICES_PATTERN = new RegExp(`^${PRICE_ENTRY}(?:[,;\\s]+${PRICE_ENTRY})*$`);
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
 
@@ -474,6 +506,18 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   }),
   agents('ai', { key: 'AI_MAX_RETRIES', type: 'int', min: 0, max: 10, default: '3' }),
+  // preço por token por cima da tabela do código (packages/ai-ledger): conta de gasto e teto em US$
+  {
+    key: 'AI_MODEL_PRICES',
+    section: 'ai',
+    type: 'text',
+    services: ['agents', 'ingestor'],
+    apply: 'next-run',
+    pattern: MODEL_PRICES_PATTERN,
+    allowEmpty: true,
+    default: null,
+    critical: true,
+  },
   agents('ai', { key: 'AI_TIMEOUT_MS', type: 'int', min: 10_000, max: 600_000, default: '180000' }),
   // revisão das sugestões de edição da base semântica (job review-suggestions): Gemini por padrão
   agents('ai', { key: 'AI_REVIEW_PROVIDER', type: 'enum', options: AI_PROVIDERS, default: 'gemini' }),
@@ -785,6 +829,9 @@ export const SETTINGS: readonly SettingDef[] = [
   // a assinatura na API. Sem elas a compra fica indisponível
   secret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor']),
   secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
+  // Assistente da Cosmos no app (#1003): chave do provedor só da Cosmos, separada da dos agentes internos. Sem ela, o
+  // assistente responde "indisponível" e nada é reservado
+  secret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo']),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do
@@ -856,11 +903,27 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   },
 
+  // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
+  // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
+  // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
+  {
+    key: 'FAN_TOKEN_TTL_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 60,
+    max: 3600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '900',
+  },
+  secret('FAN_TOKEN_SECRET', 'engage', ['api']),
+
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
   secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
   secret('OPENAI_API_KEY', 'ai', ['agents']),
   secret('ANTHROPIC_API_KEY', 'ai', ['agents']),
   secret('GEMINI_API_KEY', 'ai', ['agents']),
+  secret('DEEPSEEK_API_KEY', 'ai', ['agents']),
   secret('YOUTUBE_API_KEY', 'related', ['agents']),
   secret('S3_ACCESS_KEY', 'credentials', ['ingestor']),
   secret('QUALITY_API_KEY', 'credentials', ['ingestor']),

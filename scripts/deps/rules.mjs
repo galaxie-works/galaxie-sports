@@ -32,6 +32,8 @@ export const PACKAGE_LAYERS = {
     'where-to-watch',
     'geo',
     'ai-ledger',
+    // clientes dos provedores de IA (OpenAI, Anthropic, Gemini, DeepSeek), usados pelos agentes e pela Cosmos AI
+    'llm',
     'core-writer',
     'explore',
     'crests',

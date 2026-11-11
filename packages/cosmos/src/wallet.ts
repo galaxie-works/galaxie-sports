@@ -10,9 +10,19 @@ import { and, eq, gte, lt, sql } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { functionDef, ledger, reservation, wallet, type LedgerKind } from '@galaxie/db/schema';
+import { ASSISTANT_FUNCTION, ASSISTANT_STREAMERS } from './assistant.js';
 import { evaluateBalance } from './balance.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
+import {
+  COSMOS_PROVIDERS,
+  isCosmosProvider,
+  isPricedModel,
+  modelMatchesProvider,
+  resolveFunctionModel,
+  type CosmosProvider,
+  type FunctionModel,
+} from './models.js';
 import { readCosmosSettings, type CosmosSettings } from './settings.js';
 
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -93,9 +103,48 @@ export interface FunctionDefInput {
   permission: string;
   screen?: string | null;
   active?: boolean;
+  /** Provedor de IA (#1088); null/ausente = o padrão da Cosmos. */
+  provider?: CosmosProvider | null;
+  /** Modelo no provedor; null/ausente = o leve padrão do provedor. Precisa de provedor. */
+  model?: string | null;
 }
 
-/** Cadastra ou atualiza uma função do catálogo global (mínimo, permissão, tela). */
+/** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
+/**
+ * A função tem quem chame esse provedor? Hoje só o assistente chama um modelo, e só nos provedores com chamador
+ * (`ASSISTANT_STREAMERS`); salvar outro deixaria a função "Ativa" respondendo indisponível.
+ */
+export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
+  return functionName !== ASSISTANT_FUNCTION || Boolean(ASSISTANT_STREAMERS[provider]);
+}
+
+function checkFunctionModel(def: Pick<FunctionDefInput, 'name' | 'provider' | 'model'>) {
+  const provider = def.provider ?? null;
+  const model = def.model?.trim() || null;
+  if (provider !== null && !isCosmosProvider(provider))
+    throw new CosmosError('invalid_model', `provedor ${String(provider)} fora da lista da Cosmos`);
+  if (model !== null && provider === null)
+    throw new CosmosError('invalid_model', 'o modelo precisa de um provedor');
+  const effective = resolveFunctionModel({ provider, model });
+  if (!providerHasCaller(def.name, effective.provider))
+    throw new CosmosError(
+      'provider_unavailable',
+      `a função ${def.name} ainda não chama o provedor ${effective.provider}`,
+    );
+  if (!modelMatchesProvider(effective.model, effective.provider))
+    throw new CosmosError(
+      'invalid_model',
+      `o modelo ${effective.model} não é do provedor ${effective.provider}`,
+    );
+  if (!isPricedModel(effective.model))
+    throw new CosmosError(
+      'invalid_model',
+      `o modelo ${effective.model} não tem preço na tabela do ai-ledger`,
+    );
+  return { provider, model };
+}
+
+/** Cadastra ou atualiza uma função do catálogo global (mínimo, permissão, tela, provedor e modelo). */
 export async function upsertFunctionDef(db: Db, def: FunctionDefInput): Promise<void> {
   if (!(def.minCredits > 0))
     throw new CosmosError('invalid_amount', 'o mínimo da função precisa ser maior que 0');
@@ -105,11 +154,65 @@ export async function upsertFunctionDef(db: Db, def: FunctionDefInput): Promise<
     permission: def.permission,
     screen: def.screen ?? null,
     active: def.active ?? true,
+    ...checkFunctionModel(def),
   };
+  // tela ausente na edição (a equipe não mexe nela) fica como está
+  const { screen, ...rest } = values;
   await db
     .insert(functionDef)
     .values(values)
-    .onConflictDoUpdate({ target: functionDef.name, set: { ...values, updatedAt: new Date() } });
+    .onConflictDoUpdate({
+      target: functionDef.name,
+      set: { ...rest, ...(def.screen === undefined ? {} : { screen }), updatedAt: new Date() },
+    });
+}
+
+/** Função ativa do catálogo: o mínimo em créditos e o provedor e modelo efetivos; null fora dele ou desativada. */
+export async function activeFunction(
+  db: Db,
+  name: string,
+): Promise<({ minCredits: number } & FunctionModel) | null> {
+  const [fn] = await db
+    .select({ minCredits: functionDef.minCredits, provider: functionDef.provider, model: functionDef.model })
+    .from(functionDef)
+    .where(and(eq(functionDef.name, name), eq(functionDef.active, true)));
+  return fn ? { minCredits: Number(fn.minCredits), ...resolveFunctionModel(fn) } : null;
+}
+
+/** Mínimo em créditos de uma função ativa do catálogo; null quando está fora dele ou desativada. */
+export async function activeFunctionMinCredits(db: Db, name: string): Promise<number | null> {
+  return (await activeFunction(db, name))?.minCredits ?? null;
+}
+
+export interface FunctionDefRow {
+  name: string;
+  minCredits: number;
+  permission: string;
+  screen: string | null;
+  active: boolean;
+  /** Gravado na função (null = padrão). */
+  provider: CosmosProvider | null;
+  model: string | null;
+  /** O que a chamada usa de fato. */
+  effective: FunctionModel;
+  /** Provedores que esta função já sabe chamar (os outros aparecem como indisponíveis na tela). */
+  callable: CosmosProvider[];
+}
+
+/** Catálogo inteiro, ativas e desativadas, em ordem de nome (tela da equipe Galaxie). */
+export async function listFunctionDefs(db: Db): Promise<FunctionDefRow[]> {
+  const rows = await db.select().from(functionDef).orderBy(functionDef.name);
+  return rows.map((r) => ({
+    name: r.name,
+    minCredits: Number(r.minCredits),
+    permission: r.permission,
+    screen: r.screen,
+    active: r.active,
+    provider: r.provider,
+    model: r.model,
+    effective: resolveFunctionModel(r),
+    callable: COSMOS_PROVIDERS.filter((p) => providerHasCaller(r.name, p)),
+  }));
 }
 
 /** Início do dia UTC de `now` (o teto de segurança vira junto com o dia UTC). */
@@ -252,6 +355,16 @@ export interface SettleInput {
   model?: string | null;
   note?: string | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Teto do acerto em créditos (nunca abaixo do mínimo gravado na reserva). O assistente passa a própria reserva:
+   * o cliente nunca paga mais que o "cerca de N créditos" que viu antes; o que passar é custo da Galaxie.
+   */
+  maxCredits?: number;
+  /**
+   * Fecha sem cobrar nada (0 crédito, nem o mínimo), mas grava o custo real no extrato: o provedor cobrou e o teto do
+   * dia precisa contar. Ex.: pergunta cancelada antes do primeiro trecho de resposta.
+   */
+  waive?: boolean;
 }
 
 export interface Settlement {
@@ -343,11 +456,17 @@ export async function settle(
             minCredits: r.minCredits,
           });
 
+    const capped = input.waive
+      ? 0
+      : input.maxCredits !== undefined && Number.isFinite(input.maxCredits)
+        ? Math.min(target, Math.max(ceilCredits(input.maxCredits), r.minCredits))
+        : target;
+
     // o que estaria livre se a reserva voltasse inteira
     const pool = roundCredits(w.available + r.credits);
-    const charged = Math.min(target, pool);
+    const charged = Math.min(capped, pool);
     const available = roundCredits(pool - charged);
-    const uncharged = roundCredits(target - charged);
+    const uncharged = roundCredits(capped - charged);
 
     await tx
       .update(wallet)

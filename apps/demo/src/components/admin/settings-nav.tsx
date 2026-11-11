@@ -45,6 +45,7 @@ import {
   UsersRound,
   Wallet,
   Webhook,
+  IdCard,
 } from 'lucide-react';
 import { createContext, Suspense, use, useContext, type ReactNode } from 'react';
 
@@ -84,7 +85,7 @@ import {
 } from '@/lib/ops/settings-items';
 
 export { SETTINGS_ITEMS as SETTINGS_NAV, SETTINGS_NAV_GROUPS, type SettingsNavGroupId };
-/** Área ativa de uma página de Ajustes (um dos 43 itens ou o Início). */
+/** Área ativa de uma página de Ajustes (um dos 44 itens ou o Início). */
 export type SettingsSectionId = SettingsNavId;
 
 /** Ícone de cada item do menu de Ajustes. */
@@ -117,6 +118,7 @@ export const SETTINGS_ICONS: Record<SettingsNavId, NavIcon> = {
   communities: UsersRound,
   gamification: Trophy,
   shopping: ShoppingBag,
+  fanIdentity: IdCard,
   cosmos: CosmosIcon,
   ai: Bot,
   schedule: CalendarClock,

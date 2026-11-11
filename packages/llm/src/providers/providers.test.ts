@@ -445,6 +445,36 @@ describe('AnthropicLlmClient (Messages API + ferramenta de saída)', () => {
     });
   });
 
+  it('uso com cache: a entrada soma o lido e o gravado, como no cliente de texto, e o custo cobra a gravação', async () => {
+    const sdk = fakeSdk([
+      {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', name: 'submit_resposta_final', input: { answer: 'ok' } }],
+        usage: {
+          input_tokens: 100,
+          cache_read_input_tokens: 1_000,
+          cache_creation_input_tokens: 400,
+          output_tokens: 50,
+          server_tool_use: { web_search_requests: 0 },
+        },
+      },
+    ]);
+    const client = new AnthropicLlmClient({
+      models: A_MODELS,
+      sdk: { messages: { create: sdk.create } },
+      retry: noSleep,
+    });
+    const out = await client.generateJson(req({ webSearch: false }));
+    expect(out.usage).toMatchObject({
+      inputTokens: 1_500,
+      cachedInputTokens: 1_000,
+      cacheWriteTokens: 400,
+      outputTokens: 50,
+    });
+    // preços da tabela: 2 entrada, 0,2 cache, 2,5 gravação (1,25×), 10 saída
+    expect(out.usage.costUsd).toBeCloseTo((100 * 2 + 1_000 * 0.2 + 400 * 2.5 + 50 * 10) / 1_000_000, 6);
+  });
+
   it('recusa não é retentada', async () => {
     const sdk = fakeSdk([{ stop_reason: 'refusal', content: [], usage: usage(1, 1) }]);
     const client = new AnthropicLlmClient({

@@ -1,22 +1,26 @@
 import type { LlmCitation, LlmJsonRequest, LlmMessage } from '../types.js';
-import type { UsageWithSearches } from '../budget.js';
+import type { UsageWithSearches } from '../estimate.js';
 
 /** Acumula o uso de várias chamadas (retries, continuações) — tudo é cobrado. */
 export class UsageMeter {
   inputTokens = 0;
   outputTokens = 0;
   cachedInputTokens = 0;
+  /** Gravados no cache (Anthropic); entram em `inputTokens`. */
+  cacheWriteTokens = 0;
   webSearchCalls = 0;
 
   add(u: {
     input?: number | undefined;
     output?: number | undefined;
     cached?: number | undefined;
+    cacheWrite?: number | undefined;
     searches?: number | undefined;
   }): void {
     this.inputTokens += u.input ?? 0;
     this.outputTokens += u.output ?? 0;
     this.cachedInputTokens += u.cached ?? 0;
+    this.cacheWriteTokens += u.cacheWrite ?? 0;
     this.webSearchCalls += u.searches ?? 0;
   }
 
@@ -29,6 +33,8 @@ export class UsageMeter {
     return {
       inputTokens: this.inputTokens,
       outputTokens: this.outputTokens,
+      ...(this.cachedInputTokens ? { cachedInputTokens: this.cachedInputTokens } : {}),
+      ...(this.cacheWriteTokens ? { cacheWriteTokens: this.cacheWriteTokens } : {}),
       ...(costUsd !== undefined ? { costUsd } : {}),
       webSearchCalls: this.webSearchCalls,
     };

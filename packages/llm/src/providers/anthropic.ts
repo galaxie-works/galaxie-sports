@@ -16,7 +16,8 @@
  * e .../tool-use/server-tools.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
+import { anthropicUsage } from '../completion/anthropic.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS } from '../estimate.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, WEB_SEARCH_USD_PER_CALL } from '../pricing.js';
@@ -47,6 +48,7 @@ interface MessageOutput {
     input_tokens?: number;
     output_tokens?: number;
     cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
     server_tool_use?: { web_search_requests?: number } | null;
   };
 }
@@ -150,6 +152,7 @@ export class AnthropicLlmClient implements LlmClient {
           inputTokens: meter.inputTokens,
           outputTokens: meter.outputTokens,
           cachedInputTokens: meter.cachedInputTokens,
+          cacheWriteTokens: meter.cacheWriteTokens,
         },
         meter.webSearchCalls,
         WEB_SEARCH_USD_PER_CALL,
@@ -212,10 +215,13 @@ export class AnthropicLlmClient implements LlmClient {
       } catch (err) {
         throw classifyProviderError(err, 'anthropic');
       }
+      // mesma conta do cliente de texto: a entrada inclui o cache lido e o gravado
+      const u = anthropicUsage(res.usage);
       meter.add({
-        input: res.usage?.input_tokens,
-        output: res.usage?.output_tokens,
-        cached: res.usage?.cache_read_input_tokens ?? 0,
+        input: u.input,
+        output: u.output,
+        cached: u.cached,
+        cacheWrite: u.cacheWrite,
         searches: res.usage?.server_tool_use?.web_search_requests ?? 0,
       });
       collect(res.content, notes, req.webSearch === true && !delivery);

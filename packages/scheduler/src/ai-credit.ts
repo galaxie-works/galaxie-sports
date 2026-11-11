@@ -8,6 +8,9 @@
  * `fail` = a IA está parada até alguém agir: conta sem crédito (402, ou 429/400 com o código ou a mensagem
  * de cota/billing, a mesma regra de services/ai-agents/src/llm/errors.ts) ou chave recusada (401/403).
  * Limite de taxa (429 sem esses sinais), erro do provedor e falha de rede ficam em `warn`.
+ *
+ * DeepSeek: a API tem o saldo (`GET /user/balance`), então a checagem lê o saldo em vez de gastar uma
+ * chamada; `is_available: false` (saldo zerado) vale como o 402 de saldo insuficiente da própria API.
  */
 
 export type CreditStatus = 'pass' | 'warn' | 'fail';
@@ -22,6 +25,8 @@ export interface CreditCheckDetail {
   error?: string;
   /** Por que a checagem falhou: sem crédito no provedor ou chave recusada. */
   reason?: 'no_credit' | 'auth';
+  /** Saldo informado pelo provedor, quando a API tem (DeepSeek), ex.: `USD 12.30`. */
+  balance?: string;
 }
 
 export interface CreditCheckResult {
@@ -33,7 +38,7 @@ type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 const NO_CREDIT_CODES = ['insufficient_quota', 'credit_balance_exhausted', 'billing_hard_limit_reached'];
 const NO_CREDIT_TEXT =
-  /no credits remaining|insufficient_quota|credit balance is too low|exceeded your current quota|prepayment credits are depleted/i;
+  /no credits remaining|insufficient_quota|insufficient balance|credit balance is too low|exceeded your current quota|prepayment credits are depleted/i;
 
 /** Resposta de erro que deixa a IA parada até alguém recarregar a conta ou trocar a chave. */
 function failureReason(http: number, codes: string[], message: string): CreditCheckDetail['reason'] {
@@ -51,13 +56,45 @@ const LIGHT_DEFAULT: Record<string, string> = {
   openai: 'gpt-6-luna',
   anthropic: 'claude-haiku-5-5',
   gemini: 'gemini-3.5-flash-lite',
+  deepseek: 'deepseek-flash',
 };
 
 const KEY_ENV: Record<string, string> = {
   openai: 'OPENAI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
   gemini: 'GEMINI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
 };
+
+export const DEEPSEEK_BALANCE_URL = 'https://api.deepseek.com/user/balance';
+
+interface DeepSeekBalance {
+  is_available?: boolean;
+  balance_infos?: Array<{ currency?: string; total_balance?: string }>;
+}
+
+/** Saldo da DeepSeek: sem saldo (`is_available: false`) é falha, como o 402 da API. */
+function deepSeekResult(body: DeepSeekBalance, provider: string, model: string): CreditCheckResult {
+  const balance = (body.balance_infos ?? [])
+    .filter((b) => b.currency && b.total_balance !== undefined)
+    .map((b) => `${b.currency} ${b.total_balance}`)
+    .join(', ');
+  const extra = balance ? { balance } : {};
+  return body.is_available === false
+    ? {
+        status: 'fail',
+        detail: {
+          code: 'http',
+          provider,
+          model,
+          http: 402,
+          error: 'insufficient_balance',
+          reason: 'no_credit',
+          ...extra,
+        },
+      }
+    : { status: 'pass', detail: { code: 'ok', provider, model, ...extra } };
+}
 
 export async function checkAiCredit(
   env: NodeJS.ProcessEnv,
@@ -72,43 +109,48 @@ export async function checkAiCredit(
   if (!key) return { status: 'warn', detail: { code: 'no_key', provider, model } };
 
   const request: [string, RequestInit] =
-    provider === 'gemini'
-      ? [
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-          {
-            method: 'POST',
-            headers: { 'x-goog-api-key': key, 'content-type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'ok' }] }],
-              generationConfig: { maxOutputTokens: 1 },
-            }),
-          },
-        ]
-      : provider === 'anthropic'
+    provider === 'deepseek'
+      ? [DEEPSEEK_BALANCE_URL, { method: 'GET', headers: { authorization: `Bearer ${key}` } }]
+      : provider === 'gemini'
         ? [
-            'https://api.anthropic.com/v1/messages',
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
             {
               method: 'POST',
-              headers: {
-                'x-api-key': key,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-              },
-              body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: 'user', content: 'ok' }] }),
+              headers: { 'x-goog-api-key': key, 'content-type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: 'ok' }] }],
+                generationConfig: { maxOutputTokens: 1 },
+              }),
             },
           ]
-        : [
-            'https://api.openai.com/v1/responses',
-            {
-              method: 'POST',
-              headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-              body: JSON.stringify({ model, input: 'ok', max_output_tokens: 16 }),
-            },
-          ];
+        : provider === 'anthropic'
+          ? [
+              'https://api.anthropic.com/v1/messages',
+              {
+                method: 'POST',
+                headers: {
+                  'x-api-key': key,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: 'user', content: 'ok' }] }),
+              },
+            ]
+          : [
+              'https://api.openai.com/v1/responses',
+              {
+                method: 'POST',
+                headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+                body: JSON.stringify({ model, input: 'ok', max_output_tokens: 16 }),
+              },
+            ];
 
   try {
     const res = await fetchImpl(request[0], { ...request[1], signal: AbortSignal.timeout(timeoutMs) });
-    if (res.ok) return { status: 'pass', detail: { code: 'ok', provider, model } };
+    if (res.ok)
+      return provider === 'deepseek'
+        ? deepSeekResult((await res.json().catch(() => ({}))) as DeepSeekBalance, provider, model)
+        : { status: 'pass', detail: { code: 'ok', provider, model } };
     // Gemini: { error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }; OpenAI/Anthropic: code ou type em texto
     const body = (await res.json().catch(() => ({}))) as {
       error?: { code?: string | number; type?: string; status?: string; message?: string };

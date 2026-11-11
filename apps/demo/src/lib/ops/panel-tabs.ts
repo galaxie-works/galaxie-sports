@@ -47,6 +47,7 @@ export const PANEL_BLOCKS = [
   'assets',
   'suggestions',
   'cosmos',
+  'engage',
   'history',
 ] as const;
 export type PanelBlock = (typeof PANEL_BLOCKS)[number];
@@ -72,6 +73,7 @@ export const SETTINGS_VIEWS = {
   crests: ['assets'],
   suggestions: ['suggestions'],
   cosmos: ['cosmos'],
+  fanIdentity: ['engage'],
   history: ['history'],
 } as const satisfies Record<string, readonly PanelBlock[]>;
 export type SettingsView = keyof typeof SETTINGS_VIEWS;

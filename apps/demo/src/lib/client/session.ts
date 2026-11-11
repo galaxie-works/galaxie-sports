@@ -14,6 +14,7 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 import type { Actor, TenantRole } from '@galaxie/engage';
 
 import { listMemberships } from './members';
+import { loadRoleOverrides } from './role-permissions';
 import { getTenantInfo, listTenantOptions, type TenantInfo, type TenantOption } from './tenants';
 
 /** Tenant que o admin está acompanhando no painel do cliente. */
@@ -54,6 +55,8 @@ export const readClientContext = cache(async (): Promise<ClientContext | null> =
     const tenants = all.filter((t) => memberships.some((m) => m.tenantId === t.id));
     const member = memberships.find((m) => m.tenantId === chosen) ?? memberships[0] ?? null;
     const tenant = member ? await getTenantInfo(member.tenantId) : null;
+    // permissões por cargo que o Dono mudou (cache curto); sem configuração, o `can()` usa a matriz padrão
+    const overrides = tenant && member ? await loadRoleOverrides(tenant.id) : null;
     return {
       ...base,
       role: 'client',
@@ -62,7 +65,13 @@ export const readClientContext = cache(async (): Promise<ClientContext | null> =
       memberRole: tenant && member ? member.role : null,
       actor:
         tenant && member
-          ? { kind: 'member', tenantId: tenant.id, role: member.role, scope: member.scope }
+          ? {
+              kind: 'member',
+              tenantId: tenant.id,
+              role: member.role,
+              scope: member.scope,
+              ...(overrides ? { overrides } : {}),
+            }
           : null,
     };
   }

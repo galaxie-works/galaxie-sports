@@ -37,7 +37,7 @@ export const CLIENT_NAV = [
   { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
   { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
   { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content', action: 'settings.manage' },
-  { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence' },
+  { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
   {
     id: 'webhooks',
     href: '/cliente/webhooks',

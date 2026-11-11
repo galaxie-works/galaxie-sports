@@ -126,6 +126,42 @@ describe('checkAiCredit (mesma checagem do deploy.sh)', () => {
     );
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('g');
   });
+
+  it('DeepSeek lê o saldo (GET /user/balance), sem gastar chamada; saldo zerado é falha', async () => {
+    const ok = vi.fn(async () =>
+      json(200, {
+        is_available: true,
+        balance_infos: [
+          { currency: 'USD', total_balance: '12.30', granted_balance: '0.00', topped_up_balance: '12.30' },
+        ],
+      }),
+    );
+    expect(await checkAiCredit({ AI_PROVIDER: 'deepseek', DEEPSEEK_API_KEY: 'd' }, ok)).toEqual({
+      status: 'pass',
+      detail: { code: 'ok', provider: 'deepseek', model: 'deepseek-flash', balance: 'USD 12.30' },
+    });
+    const [url, init] = ok.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.deepseek.com/user/balance');
+    expect(init).toMatchObject({ method: 'GET', headers: { authorization: 'Bearer d' } });
+    const empty = vi.fn(async () =>
+      json(200, { is_available: false, balance_infos: [{ currency: 'USD', total_balance: '0.00' }] }),
+    );
+    expect(await checkAiCredit({ AI_PROVIDER: 'deepseek', DEEPSEEK_API_KEY: 'd' }, empty)).toMatchObject({
+      status: 'fail',
+      detail: { http: 402, error: 'insufficient_balance', reason: 'no_credit', balance: 'USD 0.00' },
+    });
+    const auth = vi.fn(async () =>
+      json(401, { error: { message: 'Authentication Fails', type: 'authentication_error' } }),
+    );
+    expect(await checkAiCredit({ AI_PROVIDER: 'deepseek', DEEPSEEK_API_KEY: 'd' }, auth)).toMatchObject({
+      status: 'fail',
+      detail: { http: 401, reason: 'auth' },
+    });
+    expect(await checkAiCredit({ AI_PROVIDER: 'deepseek' }, vi.fn())).toMatchObject({
+      status: 'warn',
+      detail: { code: 'no_key' },
+    });
+  });
 });
 
 describe('reportAiHeartbeat (página de status)', () => {
