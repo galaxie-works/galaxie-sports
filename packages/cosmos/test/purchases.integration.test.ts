@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { closeDb, createDb, purchaseIntent, runMigrations, tenant, type Database } from '@galaxie/db';
+import { purchaseIntent, tenant, type Database } from '@galaxie/db';
 import { eq } from 'drizzle-orm';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -13,22 +12,15 @@ import {
   isCosmosError,
   listLedger,
   listPackages,
+  listPurchasesInReview,
   upsertPackage,
   type StripeCheckoutSession,
   type StripeEvent,
 } from '../src/index.js';
 
-const adminUrl = process.env.DATABASE_URL;
-if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
+import { createTempDb, type TempDb } from './test-db.js';
 
-const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
-const testUrl = (() => {
-  const u = new URL(adminUrl);
-  u.pathname = `/${dbName}`;
-  return u.toString();
-})();
-
-let admin: postgres.Sql;
+let temp: TempDb;
 let db: Database;
 let brPackage: string;
 
@@ -70,10 +62,8 @@ async function intentFor(t: string) {
 }
 
 beforeAll(async () => {
-  admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
-  await admin.unsafe(`CREATE DATABASE ${dbName}`);
-  await runMigrations(testUrl);
-  db = createDb(testUrl, { max: 6 });
+  temp = await createTempDb();
+  db = temp.db;
   // preços de teste, não os da tabela da Galaxie
   brPackage = await upsertPackage(db, {
     name: 'Teste',
@@ -92,9 +82,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (db) await closeDb(db);
-  await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-  await admin.end();
+  await temp?.close();
 });
 
 describe('compra de créditos pelo Stripe', () => {
@@ -163,6 +151,8 @@ describe('compra de créditos pelo Stripe', () => {
     const rows = await db.select().from(purchaseIntent).where(eq(purchaseIntent.tenantId, t));
     // valor diferente fica para a equipe revisar, não como falha silenciosa
     expect(rows.map((r) => r.status).sort()).toEqual(['expired', 'failed', 'review']);
+    // a equipe vê a que ficou em revisão, venha de quando vier
+    expect((await listPurchasesInReview(db, t)).map((p) => p.id)).toEqual([c.id]);
   });
 
   it('com conversão de moeda no Checkout, vale o valor de origem', async () => {

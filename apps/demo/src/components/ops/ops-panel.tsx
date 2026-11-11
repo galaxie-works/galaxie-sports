@@ -1,13 +1,26 @@
 'use client';
 
-import { SCHEDULED_JOBS, scheduleKey, settingDef, type SettingSection } from '@galaxie/runtime-config';
-import { Activity, Bot, Gauge, Play, RefreshCw, Server, ShieldCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState, useTransition, type ReactNode } from 'react';
+import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config';
+import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
+import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { ModelAgentCards } from '@/components/settings/blocks/ai-usage';
+import { GithubIntegration } from '@/components/settings/blocks/integrations';
+import { JobsGrid, type JobRow } from '@/components/settings/blocks/jobs-grid';
+import {
+  AI_MODEL_KEYS,
+  PLAN_SPORT_KEYS,
+  POSTGAME_SPORT_KEYS,
+  changedFilterRows,
+} from '@/components/settings/blocks/logic';
+import { PlanTable, PostgameTable } from '@/components/settings/blocks/sport-tables';
+import { CredentialsList, ServicesStatusList } from '@/components/settings/blocks/status-panels';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,13 +36,11 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
-import { FeedbackGithubCard } from './feedback-github-card';
 import { MirrorTab } from './mirror-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
@@ -37,173 +48,149 @@ import { SettingRow, useOpsAction } from './setting-row';
 import { TasksTab } from './tasks-tab';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
-/** Sistema: saúde e infraestrutura. Esportes e features: o plano de cada esporte e as regras das features. */
-export const PANEL_TABS = {
-  system: [
-    'status',
-    'quality',
-    'live',
-    'schedule',
-    'tasks',
-    'ai',
-    'provider',
-    'mirror',
-    'assets',
-    'suggestions',
-    'cosmos',
-    'history',
-  ],
-  features: ['sports', 'related', 'wtw'],
-} as const;
-export type PanelScope = keyof typeof PANEL_TABS;
-type Tab = (typeof PANEL_TABS)[PanelScope][number];
+import { SETTINGS_VIEWS, type PanelBlock, type SettingsView } from '@/lib/ops/panel-tabs';
+import { settingBlock, settingPage } from '@/lib/ops/setting-page';
+import { useReportPageChrome } from '@/components/settings/page-chrome/page-state';
+
+import { SettingLinks } from './setting-link';
+
+export { SETTINGS_VIEWS, type SettingsView };
 
 /** Editadas pelo cartão Política de IA (sliders), fora da lista de flags da seção. */
 const AI_POLICY_KEYS = new Set(['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE']);
 
-/** Plano por esporte (APISPORTS_PLAN_<API>) vai para Esportes e features; o padrão fica no Sistema. */
-const isSportPlan = (key: string) => key.startsWith('APISPORTS_PLAN_');
+/** Modelos em uso que as páginas das features mostram com link para IA interna (A3, #1070). */
+const WTW_MODEL_KEYS = ['AI_MATCH_CHANNEL_MODEL', 'AI_RIGHTS_MODEL'] as const;
+/** A pesquisa e a revisita da grade usam os níveis de pesquisa e leve dos agentes. */
+const LINEUP_MODEL_KEYS = ['AI_MODEL_RESEARCH', 'AI_MODEL_LIGHT'] as const;
+/** Chaves que as páginas mostram como "configurada ou faltando", com link para Credenciais (A4). */
+const AI_KEYS = ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'] as const;
 
 interface Ctx {
   snapshot: OpsSnapshot;
   timeZone: string;
 }
 
+/**
+ * Uma página de Ajustes feita do painel de Operação (#1069): os blocos do item (`SETTINGS_VIEWS`), na ordem. Página
+ * com um bloco só mostra o bloco direto; com mais de um, cada um vira uma seção com título. Cada bloco leva a âncora do
+ * próprio nome (`/ajustes/fornecedor#sports`), para os links antigos e a busca.
+ */
 export function OpsPanel({
   snapshot,
   timeZone,
-  scope = 'system',
-  initialTab,
+  view,
   relatedChannels,
 }: Ctx & {
-  scope?: PanelScope;
-  /** Aba aberta ao chegar (ex.: `?aba=related` da busca de canais). */
-  initialTab?: string;
+  view: SettingsView;
   /** Controle dos canais nos vídeos relacionados (renderizado no servidor, com a busca e o filtro da URL). */
   relatedChannels?: ReactNode;
 }) {
   const { t } = useI18n();
   const T = t.ops;
-  const f = useFormatters(timeZone);
-  const router = useRouter();
-  const [refreshing, startRefresh] = useTransition();
-  const tabs: readonly Tab[] = PANEL_TABS[scope];
-  const [tab, setTab] = useState<Tab>(tabs.find((id) => id === initialTab) ?? tabs[0]!);
+
+  const content: Record<PanelBlock, () => ReactNode> = {
+    status: () => <StatusTab snapshot={snapshot} timeZone={timeZone} />,
+    quality: () => (
+      <QualityTab
+        quality={snapshot.quality}
+        timeZone={timeZone}
+        action={(() => {
+          const job = snapshot.jobs.find((j) => j.name === 'data-quality');
+          return job ? <RunNowButton job={job} /> : null;
+        })()}
+      />
+    ),
+    ai: () => (
+      <>
+        <AiPolicyCard
+          key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
+          llm={snapshot.llm}
+        />
+        <SectionCard
+          block="ai"
+          filter={(key) => !AI_POLICY_KEYS.has(key)}
+          snapshot={snapshot}
+          timeZone={timeZone}
+        />
+        <SettingLinks kind="keys" keys={AI_KEYS} snapshot={snapshot} />
+      </>
+    ),
+    related: () => (
+      <>
+        {snapshot.youtube ? (
+          <>
+            <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} />
+            <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
+          </>
+        ) : null}
+        {relatedChannels}
+        <SectionCard block="related" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="keys" keys={['YOUTUBE_API_KEY']} snapshot={snapshot} />
+      </>
+    ),
+    sports: () => <SectionCard block="sports" snapshot={snapshot} timeZone={timeZone} />,
+    schedule: () => <ScheduleTab snapshot={snapshot} timeZone={timeZone} />,
+    tasks: () => <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />,
+    provider: () => (
+      <>
+        <SectionCard block="provider" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="keys" keys={['APISPORTS_KEY']} snapshot={snapshot} />
+      </>
+    ),
+    credentials: () => <SectionCard block="credentials" snapshot={snapshot} timeZone={timeZone} />,
+    mirror: () => <MirrorTab snapshot={snapshot} timeZone={timeZone} />,
+    suggestions: () => (
+      <>
+        {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
+        <GithubIntegration snapshot={snapshot} timeZone={timeZone} />
+      </>
+    ),
+    history: () => <HistoryTab snapshot={snapshot} timeZone={timeZone} />,
+    live: () => <SectionCard block="live" snapshot={snapshot} timeZone={timeZone} />,
+    postgame: () => <SectionCard block="postgame" snapshot={snapshot} timeZone={timeZone} />,
+    wtw: () => (
+      <>
+        <SectionCard block="wtw" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="models" keys={WTW_MODEL_KEYS} snapshot={snapshot} />
+      </>
+    ),
+    lineup: () => (
+      <>
+        <SectionCard block="lineup" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="models" keys={LINEUP_MODEL_KEYS} snapshot={snapshot} />
+      </>
+    ),
+    assets: () => <SectionCard block="assets" snapshot={snapshot} timeZone={timeZone} />,
+    cosmos: () => <SectionCard block="cosmos" snapshot={snapshot} timeZone={timeZone} />,
+    engage: () => <SectionCard block="engage" snapshot={snapshot} timeZone={timeZone} />,
+  };
+  const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
+  // o topo da página (#1072) mostra a frase, o "Atualizado" e o filtro "Alterados no painel" das linhas desta página
+  useReportPageChrome({
+    updatedAt: snapshot.generatedAt,
+    timeZone,
+    // o pós-jogo de um esporte é uma linha com duas chaves: conta e some como uma linha só
+    settings: changedFilterRows(snapshot.settings.filter((s) => settingPage(s.key)?.item === view)),
+  });
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          {scope === 'features' ? T.features.description : T.page.description}
-        </p>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs">
-            {fill(T.page.generatedAt, { when: f.time(snapshot.generatedAt) })}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={refreshing}
-            onClick={() => startRefresh(() => router.refresh())}
-          >
-            {refreshing ? <Spinner /> : <RefreshCw />}
-            {T.page.refresh}
-          </Button>
-        </div>
+      <div className="flex flex-col gap-8">
+        {blocks.map((id) =>
+          blocks.length > 1 ? (
+            <div key={id} id={id} className="scroll-mt-20">
+              <SettingsSection title={T.tabs[id]}>
+                <div className="flex flex-col gap-4">{content[id]()}</div>
+              </SettingsSection>
+            </div>
+          ) : (
+            <div key={id} id={id} className="flex scroll-mt-20 flex-col gap-4">
+              {content[id]()}
+            </div>
+          ),
+        )}
       </div>
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="h-auto flex-wrap justify-start">
-          {tabs.map((id) => (
-            <TabsTrigger key={id} value={id}>
-              {T.tabs[id]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="status" className="mt-4">
-          <StatusTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="quality" className="mt-4">
-          <QualityTab
-            quality={snapshot.quality}
-            timeZone={timeZone}
-            action={(() => {
-              const job = snapshot.jobs.find((j) => j.name === 'data-quality');
-              return job ? <RunNowButton job={job} /> : null;
-            })()}
-          />
-        </TabsContent>
-        {(['live', 'wtw', 'assets', 'cosmos'] as const).map((s) => (
-          <TabsContent key={s} value={s} className="mt-4">
-            <SectionCard section={s} snapshot={snapshot} timeZone={timeZone} />
-          </TabsContent>
-        ))}
-        <TabsContent value="ai" className="mt-4 flex flex-col gap-4">
-          <AiPolicyCard
-            key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
-            llm={snapshot.llm}
-          />
-          <SectionCard
-            section="ai"
-            filter={(key) => !AI_POLICY_KEYS.has(key)}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="related" className="mt-4 flex flex-col gap-4">
-          {snapshot.youtube ? (
-            <>
-              <YoutubeQuotaCard youtube={snapshot.youtube} timeZone={timeZone} />
-              <YoutubeYieldPanel youtube={snapshot.youtube} timeZone={timeZone} />
-            </>
-          ) : null}
-          {relatedChannels}
-          <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="sports" className="mt-4">
-          <SectionCard
-            section="provider"
-            variant="sports"
-            filter={isSportPlan}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="schedule" className="mt-4">
-          <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="tasks" className="mt-4">
-          <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />
-        </TabsContent>
-        <TabsContent value="provider" className="mt-4 flex flex-col gap-4">
-          <SectionCard
-            section="provider"
-            filter={(key) => !isSportPlan(key)}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-          <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="mirror" className="mt-4">
-          <MirrorTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-        <TabsContent value="suggestions" className="mt-4 flex flex-col gap-4">
-          {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
-          <SectionCard
-            section="feedback"
-            filter={(key) => key === 'FEEDBACK_ENABLED'}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-          <FeedbackGithubCard
-            key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
-            snapshot={snapshot}
-            timeZone={timeZone}
-          />
-        </TabsContent>
-        <TabsContent value="history" className="mt-4">
-          <HistoryTab snapshot={snapshot} timeZone={timeZone} />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
@@ -211,70 +198,115 @@ export function OpsPanel({
 const effective = (snapshot: OpsSnapshot, key: string) =>
   snapshot.settings.find((s) => s.key === key)?.value ?? null;
 
-function SecretsList({ settings }: { settings: OpsSetting[] }) {
-  const { t } = useI18n();
-  if (!settings.length) return null;
+/** Linhas de ajuste da seção (padrão settings-3, #1074) numa moldura, com título e descrição. */
+function RowsFrame({
+  title,
+  description,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-2">
-      {settings.map((s) => {
-        const def = settingDef(s.key)!;
-        return (
-          <div key={s.key} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm">{settingText(t.ops, def).label}</span>
-              <code className="text-muted-foreground truncate font-mono text-[11px]">
-                {s.key} · {def.services.map((x) => t.ops.services[x]).join(', ')}
-              </code>
-            </div>
-            <Badge variant={s.configured ? 'success-light' : 'warning-light'}>
-              {s.configured ? t.ops.secrets.configured : t.ops.secrets.missing}
-            </Badge>
-          </div>
-        );
-      })}
-    </div>
+    <Frame>
+      {title ? (
+        <FrameHeader>
+          <FrameTitle>{title}</FrameTitle>
+          {description ? <FrameDescription>{description}</FrameDescription> : null}
+        </FrameHeader>
+      ) : null}
+      <FramePanel className="p-0">{children}</FramePanel>
+    </Frame>
   );
 }
 
+/** Título e descrição de cada bloco de linhas (o das sugestões é o texto da seção `feedback` do registro). */
+type SectionBlock = Exclude<PanelBlock, 'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'history'>;
+const sectionTextKey = (block: SectionBlock) => (block === 'suggestions' ? 'feedback' : block);
+
+/**
+ * As flags de uma seção. Cada uma no bloco dela (#1074 a #1078): as linhas comuns em `SettingRow`; o pós-jogo e o
+ * plano de cada esporte numa linha por esporte; os modelos de IA num cartão por agente; os segredos na lista de
+ * credenciais (só "configurada ou faltando"). O salvamento é o de sempre, uma chave por vez.
+ */
 function SectionCard({
-  section,
+  block,
   snapshot,
   timeZone,
   filter,
-  variant,
 }: Ctx & {
-  section: SettingSection;
-  /** Só parte das flags da seção (ex.: o plano de cada esporte). */
+  block: SectionBlock;
+  /** Só parte das flags do bloco (ex.: só o liga/desliga das sugestões). */
   filter?: (key: string) => boolean;
-  /** Título e descrição de outra caixa (`sports`). */
-  variant?: 'sports';
 }) {
   const { t } = useI18n();
   const T = t.ops;
-  const settings = snapshot.settings.filter((s) => s.section === section && (!filter || filter(s.key)));
-  const text = T.sections[variant ?? section];
+  // cada ajuste mora em um lugar só (`settingPage`, #1070): o bloco escolhe as linhas pela tabela, não pela seção
+  const settings = snapshot.settings.filter(
+    (s) => settingBlock(s.key) === block && (!filter || filter(s.key)),
+  );
+  const text = T.sections[sectionTextKey(block)];
   const editable = settings.filter((s) => settingDef(s.key)!.type !== 'secret');
   const secrets = settings.filter((s) => settingDef(s.key)!.type === 'secret');
+  const postgame = editable.filter((s) => POSTGAME_SPORT_KEYS.has(s.key));
+  const postgameCap = postgame.length ? editable.find((s) => s.key === 'POSTGAME_MAX_CALLS_DAY') : undefined;
+  const plans = editable.filter((s) => PLAN_SPORT_KEYS.has(s.key));
+  const models = editable.filter((s) => AI_MODEL_KEYS.has(s.key));
+  const rows = editable.filter(
+    (s) =>
+      !POSTGAME_SPORT_KEYS.has(s.key) &&
+      !PLAN_SPORT_KEYS.has(s.key) &&
+      !AI_MODEL_KEYS.has(s.key) &&
+      s !== postgameCap,
+  );
   const inheritPlan = effective(snapshot, 'APISPORTS_PLAN');
+  const row = (s: OpsSetting) => (
+    <SettingRow
+      key={`${s.key}:${s.source}:${s.value}`}
+      setting={s}
+      timeZone={timeZone}
+      now={snapshot.generatedAt}
+      inheritPlan={inheritPlan}
+    />
+  );
+  // o rascunho das tabelas volta ao gravado quando o snapshot muda (depois de salvar)
+  const version = (list: OpsSetting[]) => list.map((s) => `${s.key}=${s.source}:${s.value}`).join('|');
+  // só a tabela (plano por esporte, credenciais): ela leva o título da seção
+  const onlyTable = !rows.length && !models.length;
   return (
-    <Frame>
-      <FramePanel className="p-0">
-        <FrameHeader className="px-4 pt-4">
-          <FrameTitle>{text.title}</FrameTitle>
-          <FrameDescription>{text.description}</FrameDescription>
-        </FrameHeader>
-        {editable.map((s) => (
-          <SettingRow
-            key={`${s.key}:${s.source}:${s.value}`}
-            setting={s}
-            timeZone={timeZone}
-            now={snapshot.generatedAt}
-            inheritPlan={inheritPlan}
-          />
-        ))}
-        <SecretsList settings={secrets} />
-      </FramePanel>
-    </Frame>
+    <>
+      {rows.length || models.length ? (
+        <RowsFrame title={text.title} description={text.description}>
+          {rows.map(row)}
+          <ModelAgentCards settings={models} timeZone={timeZone} now={snapshot.generatedAt} />
+        </RowsFrame>
+      ) : null}
+      {postgame.length ? (
+        <PostgameTable
+          key={version(postgame)}
+          settings={postgame}
+          before={postgameCap ? <div className="border-b">{row(postgameCap)}</div> : null}
+        />
+      ) : null}
+      {plans.length ? (
+        <PlanTable
+          key={version(plans)}
+          settings={plans}
+          inheritPlan={inheritPlan}
+          {...(onlyTable && !postgame.length ? { title: text.title, description: text.description } : {})}
+        />
+      ) : null}
+      {secrets.length ? (
+        <CredentialsList
+          settings={secrets}
+          aiProvider={effective(snapshot, 'AI_PROVIDER')}
+          {...(onlyTable && !postgame.length && !plans.length
+            ? { title: text.title, description: text.description }
+            : {})}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -283,7 +315,7 @@ function SectionCard({
 function StatusTab({ snapshot, timeZone }: Ctx) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <ServicesCard snapshot={snapshot} timeZone={timeZone} />
+      <ServicesStatusList services={snapshot.services} timeZone={timeZone} now={snapshot.generatedAt} />
       <CreditCard snapshot={snapshot} timeZone={timeZone} />
       <QuotaCard snapshot={snapshot} timeZone={timeZone} />
       <LlmCard snapshot={snapshot} timeZone={timeZone} />
@@ -324,54 +356,6 @@ function CardShell({
         {children}
       </FramePanel>
     </Frame>
-  );
-}
-
-function ServicesCard({ snapshot, timeZone }: Ctx) {
-  const { t } = useI18n();
-  const T = t.ops;
-  const f = useFormatters(timeZone);
-  const now = Date.parse(snapshot.generatedAt);
-  return (
-    <CardShell icon={Server} title={T.status.services}>
-      <div className="flex flex-col divide-y">
-        {snapshot.services.map((s) => (
-          <div key={s.service} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <div className="flex min-w-0 flex-col">
-              <span>{T.services[s.service]}</span>
-              {s.live ? (
-                <span className="text-muted-foreground text-xs">
-                  {s.live.leader
-                    ? fill(T.status.liveLeader, {
-                        instance: s.live.leader.slice(0, 12),
-                        epoch: String(s.live.epoch ?? '—'),
-                        when: s.live.leaderSince ? f.relative(s.live.leaderSince, now) : '—',
-                      })
-                    : T.status.liveNoLeader}
-                  {' · '}
-                  {s.live.lastTickAt
-                    ? fill(T.status.liveLastTick, { when: f.relative(s.live.lastTickAt, now) })
-                    : T.status.liveNoTick}
-                </span>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {s.reportedAt
-                  ? fill(s.service === 'api' ? T.status.startedAt : T.status.reported, {
-                      when: f.relative(s.reportedAt, now),
-                    })
-                  : T.status.never}
-              </span>
-              <Badge variant={s.alive ? 'success-light' : 'destructive-light'} radius="full">
-                <span className="size-1.5 rounded-full bg-current" aria-hidden />
-                {s.alive ? T.status.alive : T.status.offline}
-              </Badge>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardShell>
   );
 }
 
@@ -467,7 +451,7 @@ function QuotaCard({ snapshot, timeZone }: Ctx) {
                 </span>
               </div>
               <Progress value={pct} />
-              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[11px]">
+              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                 {(['DAILY', 'LIVE', 'BOOTSTRAP', 'ADHOC'] as const).map((p) => (
                   <span key={p}>
                     {T.status.priorities[p]} {n(q.used[p] ?? 0)}
@@ -708,7 +692,7 @@ function LastRun({ job, timeZone, now }: { job: JobStatus; timeZone: string; now
         </span>
       ) : null}
       {last?.error ? (
-        <code className="text-destructive font-mono text-[11px] break-all">{last.error}</code>
+        <code className="text-destructive font-mono text-xs break-all">{last.error}</code>
       ) : null}
     </div>
   );
@@ -770,7 +754,7 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
                     <span className="text-sm">
                       {T.jobs.names[job.name as keyof typeof T.jobs.names]?.label ?? job.name}
                     </span>
-                    <span className="text-muted-foreground font-mono text-[11px]">
+                    <span className="text-muted-foreground font-mono text-xs">
                       {job.name} · {T.services[job.service]}
                     </span>
                   </div>
@@ -796,50 +780,48 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
 function ScheduleTab({ snapshot, timeZone }: Ctx) {
   const { t } = useI18n();
   const T = t.ops;
+  const now = snapshot.generatedAt;
   const others = snapshot.settings.filter((s) => s.section === 'schedule' && !settingDef(s.key)!.job);
+  // os jobs do registro, com a flag da agenda e o estado da última execução (a tabela agrupa e ordena)
+  const rows: JobRow[] = SCHEDULED_JOBS.flatMap((j) => {
+    const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name));
+    const status = snapshot.jobs.find((x) => x.name === j.name);
+    if (!setting || !status) return [];
+    return [
+      {
+        job: j.name,
+        key: setting.key,
+        label: settingText(T, settingDef(setting.key)!).label,
+        setting,
+        status,
+      },
+    ];
+  });
+  const lastRun = useCallback(
+    (job: JobStatus) => <LastRun job={job} timeZone={timeZone} now={now} />,
+    [timeZone, now],
+  );
+  const runNow = useCallback((job: JobStatus) => <RunNowButton job={job} />, []);
   return (
-    <div className="flex flex-col gap-4">
-      {(['ingestor', 'live', 'agents'] as const).map((service) => (
-        <Frame key={service}>
+    <JobsGrid
+      rows={rows}
+      timeZone={timeZone}
+      now={now}
+      lastRun={lastRun}
+      runNow={runNow}
+      footer={
+        others.length ? (
           <FramePanel className="p-0">
-            <FrameHeader className="px-4 pt-4">
-              <FrameTitle>
-                {T.sections.schedule.title} · {T.services[service]}
-              </FrameTitle>
-              <FrameDescription>{T.sections.schedule.description}</FrameDescription>
-            </FrameHeader>
-            {SCHEDULED_JOBS.filter((j) => j.service === service).map((j) => {
-              const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name))!;
-              const job = snapshot.jobs.find((x) => x.name === j.name)!;
-              return (
-                <SettingRow
-                  key={`${setting.key}:${setting.source}:${setting.value}`}
-                  setting={setting}
-                  timeZone={timeZone}
-                  now={snapshot.generatedAt}
-                  aside={<LastRun job={job} timeZone={timeZone} now={snapshot.generatedAt} />}
-                  actions={<RunNowButton job={job} />}
-                />
-              );
-            })}
-          </FramePanel>
-        </Frame>
-      ))}
-      {others.length ? (
-        <Frame>
-          <FramePanel className="p-0">
+            <div className="border-b px-4 py-3">
+              <span className="text-sm font-semibold">{T.blocks.jobs.others}</span>
+            </div>
             {others.map((s) => (
-              <SettingRow
-                key={`${s.key}:${s.source}:${s.value}`}
-                setting={s}
-                timeZone={timeZone}
-                now={snapshot.generatedAt}
-              />
+              <SettingRow key={`${s.key}:${s.source}:${s.value}`} setting={s} timeZone={timeZone} now={now} />
             ))}
           </FramePanel>
-        </Frame>
-      ) : null}
-    </div>
+        ) : null
+      }
+    />
   );
 }
 
@@ -857,6 +839,9 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
     const def = settingDef(key);
     return def ? settingText(T, def).label : key;
   };
+  // "Ver histórico" de uma linha chega com `?chave=`: só as mudanças daquela chave
+  const only = useSearchParams().get('chave');
+  const history = only ? snapshot.history.filter((h) => h.key === only) : snapshot.history;
   return (
     <div className="flex flex-col gap-4">
       <Frame>
@@ -864,8 +849,16 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
           <FrameHeader className="px-4 pt-4">
             <FrameTitle>{T.history.title}</FrameTitle>
             <FrameDescription>{T.history.description}</FrameDescription>
+            {only ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span>{fill(T.history.filtered, { name: label(only) })}</span>
+                <Link href="/ajustes/historico" className="text-primary text-sm hover:underline">
+                  {T.history.showAll}
+                </Link>
+              </p>
+            ) : null}
           </FrameHeader>
-          {snapshot.history.length ? (
+          {history.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -876,7 +869,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {snapshot.history.map((h) => (
+                {history.map((h) => (
                   <TableRow key={h.id}>
                     <TableCell className="pl-4 text-xs whitespace-nowrap">
                       {f.dateTime(h.changedAt)}
@@ -885,7 +878,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm">{label(h.key)}</span>
-                        <code className="text-muted-foreground font-mono text-[11px]">{h.key}</code>
+                        <code className="text-muted-foreground font-mono text-xs">{h.key}</code>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs whitespace-normal">

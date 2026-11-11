@@ -34,7 +34,14 @@ export const APP_SCHEMAS = [
   'equestrian',
   'cosmos',
   'engage',
+  'fan',
 ] as const;
+
+/**
+ * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
+ * moderação). Agentes de IA e ingestor ficam de fora.
+ */
+const PERSONAL_SCHEMAS: readonly string[] = ['fan'];
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -62,7 +69,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'cosmos', 'engage'],
+    write: ['api', 'enrich', 'ops', 'cosmos', 'fan', 'engage'],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
@@ -77,21 +84,35 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.asset',
       'core.participant',
       'core.competition',
-      // Cosmos AI: a intenção de compra nasce no painel do cliente, antes do checkout do Stripe (#993)
+      // Cosmos AI no painel do cliente: ligar (carteira e teste no extrato), intenção de compra e recarga
+      // automática (#993, #994). Só as tabelas que a demo escreve: o registro de eventos do Stripe
+      // (cosmos.stripe_event), as reservas e o catálogo de funções ficam com a API e o ingestor
+      'cosmos.wallet',
+      'cosmos.ledger',
+      'cosmos.balance_alert',
       'cosmos.purchase_intent',
+      'cosmos.auto_recharge',
+      'cosmos.recharge_attempt',
+      // Carteiras da equipe Galaxie no painel (#1002): pacotes e o registro das ações
+      'cosmos.package',
+      'cosmos.staff_action',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
   // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
   // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
   ingestor: {
-    read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    read: [
+      ...APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
+      `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`,
+    ],
+    // cosmos: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
+    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian', 'cosmos'],
     prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
   agents: {
-    read: [...APP_SCHEMAS],
+    read: APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
     write: ['enrich', 'semantic', 'ops', 'core.asset', 'api.tenant_channel_list'],
   },
   // ao vivo (live-run, live-reconcile, events-clock; serviço próprio da mesma imagem do ingestor). Levantamento

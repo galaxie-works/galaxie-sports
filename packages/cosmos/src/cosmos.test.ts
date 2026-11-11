@@ -88,7 +88,39 @@ describe('visão do cliente', () => {
     tokensOut: 300,
     costUsd: 0.0012,
     model: 'modelo-x',
+    staff: false,
   };
+  const staffEntry: LedgerEntry = {
+    ...entry,
+    id: '01900000-0000-7000-8000-000000000002',
+    kind: 'adjustment',
+    credits: 5,
+    balanceBefore: 8.3,
+    balanceAfter: 13.3,
+    functionName: null,
+    scope: null,
+    userId: 'pessoa-da-equipe',
+    note: 'motivo interno da equipe',
+    tokensIn: null,
+    tokensCached: null,
+    tokensOut: null,
+    costUsd: null,
+    model: null,
+    staff: true,
+  };
+
+  it('lançamento da equipe: o cliente vê só "Galaxie", sem a pessoa nem o motivo (tela e CSV)', () => {
+    expect(toClientEntry(staffEntry)).toMatchObject({ staff: true, userId: null, note: null });
+    expect(toClientEntry(entry)).toMatchObject({ note: entry.note });
+    const client = ledgerCsv([staffEntry]);
+    expect(client).not.toContain('pessoa-da-equipe');
+    expect(client).not.toContain('motivo interno');
+    expect(client).toContain(',adjustment,,,Galaxie,5,8.3,13.3,\n');
+    // o CSV da Galaxie mantém quem fez e o motivo
+    const staff = ledgerCsv([staffEntry], { staff: true });
+    expect(staff).toContain('pessoa-da-equipe');
+    expect(staff).toContain('motivo interno da equipe');
+  });
 
   it('tira tokens, custo e modelo do lançamento e o multiplicador da carteira', () => {
     const client = toClientEntry(entry);
@@ -104,6 +136,13 @@ describe('visão do cliente', () => {
         status: 'active',
         trialGranted: false,
         multiplier: 3,
+        trialRemaining: 0,
+        trialExpiresAt: null,
+        cycleBase: 1,
+        cycleStartedAt: null,
+        alertLevel: 0,
+        blockReason: null,
+        enabled: true,
       }),
     ).not.toHaveProperty('multiplier');
   });

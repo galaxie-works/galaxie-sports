@@ -112,3 +112,4 @@ Por isso o `contrair` espera o deploy anterior estar estável: depois dele, o c�
 - [ ] Contrai? PR próprio, rótulo `contrair`, e o deploy que parou de usar já está no ar.
 - [ ] Coluna nova obrigatória tem `DEFAULT`; índice em tabela grande é `-- galaxie:concurrently`.
 - [ ] `pnpm db:generate` rodado e `drizzle/` commitada (o CI confere drift e a ordem do journal).
+- [ ] Número conferido contra os PRs abertos (comando no [CONTRIBUTING](../../CONTRIBUTING.md), regra 11) e sem encaixe no meio da pilha de outra frente; quem entra depois renumera contra a `main`.

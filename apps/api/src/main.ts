@@ -7,6 +7,7 @@ import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@gala
 import { applyOverrides, envReport, lineupMinReviewStatus } from '@galaxie/runtime-config';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
+import { FanTokenSigner } from './engage/fan-token.js';
 import { buildServer } from './server.js';
 
 /** config/assets/denylist.yaml (ou MEDIA_DENYLIST_PATH): mídia que nunca aparece reescrita no espelho. */
@@ -92,6 +93,8 @@ const app = buildServer({
   },
   ...(process.env.ASSETS_PUBLIC_BASE_URL ? { assetsBaseUrl: process.env.ASSETS_PUBLIC_BASE_URL } : {}),
   customLogos: true,
+  // token do torcedor (gft_, #937): sem FAN_TOKEN_SECRET as rotas do torcedor respondem 503
+  fanTokens: FanTokenSigner.fromEnv(process.env),
   ...(process.env.RULES_DIR ? { rulesDir: process.env.RULES_DIR } : {}),
   ...(mediaDenylist ? { mediaDenylist } : {}),
   publicUrl: process.env.API_PUBLIC_URL ?? `http://localhost:${port}`,

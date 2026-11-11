@@ -65,6 +65,11 @@ export const problems = {
       'Rota não disponível para chave publicável',
       'A chave publicável só faz leituras (GET) da API /v1. Use a chave secreta no seu backend.',
     ),
+  fanAgeRestricted: (detail: string) =>
+    new ProblemError(403, 'FAN_AGE_RESTRICTED', 'A faixa etária do torcedor não permite esta ação', detail),
+  invalidFanToken: (
+    detail = 'Envie o token do torcedor em Authorization: Bearer gft_…; peça outro ao seu servidor se venceu.',
+  ) => new ProblemError(401, 'INVALID_KEY', 'Token do torcedor ausente ou inválido', detail),
   notFound: (what = 'Recurso') => new ProblemError(404, 'NOT_FOUND', `${what} não encontrado`),
   conflict: (detail: string) => new ProblemError(409, 'CONFLICT', 'Conflito com o estado atual', detail),
   quotaExceeded: (limit: number, retryAfterSec: number) =>

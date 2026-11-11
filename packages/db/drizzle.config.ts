@@ -15,6 +15,7 @@ export default defineConfig({
     'equestrian',
     'cosmos',
     'engage',
+    'fan',
   ],
   dbCredentials: {
     url: process.env.DATABASE_URL ?? 'postgres://galaxie:galaxie@localhost:5433/galaxie_sports',

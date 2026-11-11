@@ -16,7 +16,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { Endpoint } from '@/components/docs/endpoint';
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/command';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth/client';
+import { canAccessAdmin } from '@/lib/auth/roles';
 import type { DocGuideRef } from '@/lib/docs';
 import { switchLocale, useI18n } from '@/lib/i18n/client';
 import { apiLocale, LANGUAGES, type Locale } from '@/lib/i18n/config';
@@ -58,6 +59,9 @@ import {
 import { startTrailAt } from '@/lib/trail';
 
 import { rememberLocale } from '../app-shell/user-menu';
+import type { SearchMode } from './search-provider';
+import { isSettingsPath } from './settings-path';
+import type * as SettingsResults from './settings-results';
 
 const DEBOUNCE_MS = 200;
 const MIN_CHARS = 2;
@@ -95,7 +99,7 @@ function useApiSearch(term: string, locale: Locale) {
 const ACTION_ICONS: Record<string, LucideIcon> = {
   '/ao-vivo': Radio,
   '/ajustes/usuarios': Users,
-  '/ajustes/sistema': SlidersHorizontal,
+  '/ajustes/status': SlidersHorizontal,
   '/docs': BookOpen,
 };
 
@@ -121,7 +125,7 @@ function actionEntries(T: Texts, locale: Locale, isAdmin: boolean, docsDescripti
     ...(isAdmin
       ? [
           action('/ajustes/usuarios', T.users, T.usersDescription),
-          action('/ajustes/sistema', T.operations, T.operationsDescription),
+          action('/ajustes/status', T.operations, T.operationsDescription),
         ]
       : []),
     ...LANGUAGES.filter((l) => l.value !== locale).map((l) => ({
@@ -267,6 +271,30 @@ function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
+type SettingsResultsModule = typeof SettingsResults;
+
+/**
+ * Busca de ajustes sob demanda (#1071): o módulo traz o registro inteiro de `@galaxie/runtime-config` e os textos de
+ * Ajustes, e só a equipe usa. Quem não é da equipe nunca baixa; para a equipe, ele chega na primeira vez que a paleta
+ * abre (`load`) e fica.
+ * Import dinâmico (e não `React.lazy`): a paleta precisa saber, no mesmo render, se há resultado de ajuste (o "nada
+ * encontrado"), e os resultados aparecem em dois lugares da lista.
+ */
+function useSettingsResults(enabled: boolean, load: boolean): SettingsResultsModule | null {
+  const [mod, setMod] = useState<SettingsResultsModule | null>(null);
+  useEffect(() => {
+    if (!enabled || !load || mod) return;
+    let alive = true;
+    void import('./settings-results').then((m) => {
+      if (alive) setMod(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, load, mod]);
+  return enabled ? mod : null;
+}
+
 /**
  * Paleta de busca (⌘K) sobre o command do shadcn/ReUI (`@reui/c-command-1`): resultados reais da
  * API (times, competições, jogos, pessoas, estádios e países), a documentação e atalhos. Sem filtro
@@ -275,11 +303,14 @@ function Kbd({ children }: { children: React.ReactNode }) {
 export function CommandPalette({
   open,
   onOpenChange,
+  mode = 'all',
   guides,
   operations,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** `settings`: aberta pelo campo "Buscar ajuste…" do menu de Ajustes, com os ajustes na frente. */
+  mode?: SearchMode;
   guides: DocGuideRef[];
   operations: ApiOperationSummary[];
 }) {
@@ -288,6 +319,12 @@ export function CommandPalette({
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user.role === 'admin';
+  // Busca de ajustes (#1071): só a equipe, como o resto de Ajustes. Dentro de Ajustes (ou aberta pelo campo do menu)
+  // vem antes; fora, depois do app.
+  const pathname = usePathname();
+  const isStaff = canAccessAdmin(session?.user.role);
+  const settingsMode = mode === 'settings' && isStaff;
+  const inSettings = settingsMode || isSettingsPath(pathname);
   const [query, setQuery] = useState('');
   const term = useDebounced(query.trim(), DEBOUNCE_MS);
   const search = useApiSearch(term, locale);
@@ -297,10 +334,24 @@ export function CommandPalette({
   const typed = query.trim();
   const apiActive = term.length >= MIN_CHARS;
   const groups = apiActive && search.data ? groupResults(search.data.data) : [];
-  const docHits = typed ? filterEntries(docs, typed, 6) : docs.filter((d) => d.kind === 'doc');
-  const actions = filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
+  // no modo de ajustes, sem termo, a paleta só explica o que acha (sem recentes, atalhos nem documentação)
+  const settingsIdle = settingsMode && !typed;
+  const docHits = settingsIdle
+    ? []
+    : typed
+      ? filterEntries(docs, typed, 6)
+      : docs.filter((d) => d.kind === 'doc');
+  const actions = settingsIdle
+    ? []
+    : filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
+  const settingsResults = useSettingsResults(isStaff, open);
+  const settingsData = useMemo(() => settingsResults?.buildSettingsSearch(t) ?? null, [settingsResults, t]);
+  const settingsHits = settingsResults
+    ? settingsResults.runSettingsSearch(settingsData, typed)
+    : { settings: [], pages: [] };
+  const hasSettingsHits = settingsHits.settings.length > 0 || settingsHits.pages.length > 0;
   const waiting = typed.length >= MIN_CHARS && (term !== typed || search.isFetching);
-  const nothing = !!typed && !groups.length && !docHits.length && !actions.length;
+  const nothing = !!typed && !groups.length && !docHits.length && !actions.length && !hasSettingsHits;
 
   function close(next: boolean) {
     onOpenChange(next);
@@ -320,6 +371,30 @@ export function CommandPalette({
     close(false);
     router.push(entry.href);
   }
+
+  function goToSetting(href: string) {
+    close(false);
+    const target = new URL(href, window.location.href);
+    if (target.pathname === window.location.pathname && target.search === window.location.search) {
+      // mesma página: troca o hash de verdade, e o `hashchange` leva à linha (useSettingAnchor). O mesmo hash de
+      // novo não dispara o evento; aí ele vai à mão, para a linha destacar outra vez.
+      if (target.hash === window.location.hash) window.dispatchEvent(new HashChangeEvent('hashchange'));
+      else window.location.hash = target.hash;
+      return;
+    }
+    // outra página ou outra aba: a página olha o hash depois que a navegação grava a URL (useSettingAnchor)
+    router.push(href);
+  }
+
+  const SettingsResultGroups = settingsResults?.SettingsResultGroups;
+  const settingsGroups =
+    hasSettingsHits && SettingsResultGroups ? (
+      <SettingsResultGroups
+        settings={settingsHits.settings}
+        pages={settingsHits.pages}
+        onSelect={goToSetting}
+      />
+    ) : null;
 
   const actionsGroup = actions.length ? (
     <>
@@ -342,7 +417,12 @@ export function CommandPalette({
     >
       <Command shouldFilter={false} loop className="**:data-[selected=true]:bg-muted">
         <div className="relative">
-          <CommandInput value={query} onValueChange={setQuery} placeholder={T.placeholder} className="pr-8" />
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder={settingsMode ? t.ops.search.placeholder : T.placeholder}
+            className="pr-8"
+          />
           {waiting ? (
             <span
               className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2"
@@ -363,7 +443,11 @@ export function CommandPalette({
             </CommandEmpty>
           ) : null}
 
-          {!typed && recents.length ? (
+          {settingsIdle ? (
+            <p className="text-muted-foreground px-3 py-6 text-center text-xs">{t.ops.search.tip}</p>
+          ) : null}
+
+          {!typed && !settingsMode && recents.length ? (
             <CommandGroup
               heading={
                 <span className="flex items-center justify-between">
@@ -388,6 +472,8 @@ export function CommandPalette({
             <p className="text-muted-foreground px-3 py-2 text-xs">{T.error}</p>
           ) : null}
 
+          {inSettings ? settingsGroups : null}
+
           {groups.map(([type, entries]) => (
             <CommandGroup key={type} heading={T.groups[type]}>
               {entries.map((e) => (
@@ -395,6 +481,8 @@ export function CommandPalette({
               ))}
             </CommandGroup>
           ))}
+
+          {!inSettings ? settingsGroups : null}
 
           {/* Sem termo, os atalhos vêm antes das páginas da documentação; com termo, depois. */}
           {!typed ? actionsGroup : null}

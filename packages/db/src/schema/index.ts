@@ -15,3 +15,4 @@ export * from './channel-lists.js';
 export * from './markets.js';
 export * from './cosmos.js';
 export * from './engage.js';
+export * from './fan.js';

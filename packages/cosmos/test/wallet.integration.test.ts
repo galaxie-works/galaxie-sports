@@ -1,17 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import {
-  closeDb,
-  createDb,
-  ledger,
-  reservation,
-  runMigrations,
-  tenant,
-  wallet,
-  writeRuntimeSetting,
-  type Database,
-} from '@galaxie/db';
+import { ledger, reservation, tenant, wallet, writeRuntimeSetting, type Database } from '@galaxie/db';
 import { asc, eq } from 'drizzle-orm';
-import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -27,20 +16,14 @@ import {
   setWalletStatus,
   settle,
   upsertFunctionDef,
+  usageBreakdown,
+  usageByDay,
   type CosmosSettings,
 } from '../src/index.js';
 
-const adminUrl = process.env.DATABASE_URL;
-if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
+import { createTempDb, type TempDb } from './test-db.js';
 
-const dbName = `galaxie_test_${randomBytes(4).toString('hex')}`;
-const testUrl = (() => {
-  const u = new URL(adminUrl);
-  u.pathname = `/${dbName}`;
-  return u.toString();
-})();
-
-let admin: postgres.Sql;
+let temp: TempDb;
 let db: Database;
 
 /** Chave de idempotência nova (cada compra do teste é uma compra diferente). */
@@ -62,19 +45,18 @@ async function expectCode(p: Promise<unknown>, code: string) {
 }
 
 beforeAll(async () => {
-  admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
-  await admin.unsafe(`CREATE DATABASE ${dbName}`);
-  await runMigrations(testUrl);
-  db = createDb(testUrl, { max: 12 });
+  temp = await createTempDb({ max: 4 });
+  db = temp.db;
   await upsertFunctionDef(db, { name: 'moderation.batch', minCredits: 1, permission: 'cosmos.moderation' });
   await upsertFunctionDef(db, { name: 'assistant.ask', minCredits: 2, permission: 'cosmos.assistant' });
 });
 
 afterAll(async () => {
-  if (db) await closeDb(db);
-  await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
-  await admin.end();
+  await temp?.close();
 });
+
+/** Prazo do teste nos testes: 90 dias à frente. */
+const soon = () => new Date(Date.now() + 90 * 86_400_000);
 
 describe('carteira da Cosmos', () => {
   it('N reservas ao mesmo tempo nunca deixam o saldo negativo', async () => {
@@ -219,7 +201,7 @@ describe('carteira da Cosmos', () => {
 
   it('teste marca a carteira; reservas vencidas voltam ao saldo', async () => {
     const t = await newTenant();
-    await addEntry(db, { tenantId: t, kind: 'trial', credits: 4 });
+    await addEntry(db, { tenantId: t, kind: 'trial', credits: 4, trialExpiresAt: soon() });
     expect(await getWallet(db, t)).toMatchObject({ trialGranted: true, available: 4, receivedTotal: 4 });
     const past = new Date(Date.now() - 3_600_000);
     const r = await reserve(
@@ -254,13 +236,18 @@ describe('carteira da Cosmos', () => {
   it('teste concedido uma vez só, mesmo com repetição e concorrência', async () => {
     const t = await newTenant();
     const grants = await Promise.allSettled(
-      Array.from({ length: 8 }, () => addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })),
+      Array.from({ length: 8 }, () =>
+        addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+      ),
     );
     expect(grants.filter((g) => g.status === 'fulfilled')).toHaveLength(1);
     for (const g of grants.filter((g) => g.status === 'rejected'))
       expect(isCosmosError((g as PromiseRejectedResult).reason, 'trial_already_granted')).toBe(true);
     // repetição depois (desligou e religou): continua recusada
-    await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 }), 'trial_already_granted');
+    await expectCode(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+      'trial_already_granted',
+    );
     expect(await getWallet(db, t)).toMatchObject({ available: 250, receivedTotal: 250, trialGranted: true });
     const { entries } = await listLedger(db, t, { kinds: ['trial'] });
     expect(entries).toHaveLength(1);
@@ -269,13 +256,24 @@ describe('carteira da Cosmos', () => {
   it('teste de 0 (ou que arredonda para 0) é recusado e não queima o teste', async () => {
     const t = await newTenant();
     for (const credits of [0, 0.0004, -5])
-      await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits }), 'invalid_amount');
+      await expectCode(
+        addEntry(db, { tenantId: t, kind: 'trial', credits, trialExpiresAt: soon() }),
+        'invalid_amount',
+      );
     await expectCode(
       addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: -1 }),
       'invalid_amount',
     );
     expect(await getWallet(db, t)).toBeNull();
-    await expect(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 })).resolves.toMatchObject({
+    // sem prazo (ou com prazo no passado) nunca venceria: recusado, e o teste não queima
+    await expectCode(addEntry(db, { tenantId: t, kind: 'trial', credits: 250 }), 'invalid_amount');
+    await expectCode(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: new Date(Date.now() - 1000) }),
+      'invalid_amount',
+    );
+    await expect(
+      addEntry(db, { tenantId: t, kind: 'trial', credits: 250, trialExpiresAt: soon() }),
+    ).resolves.toMatchObject({
       available: 250,
     });
   });
@@ -418,6 +416,52 @@ describe('carteira da Cosmos', () => {
     });
     await expectCode(addEntry(db, { tenantId: t, kind: 'purchase', credits: 1 }), 'missing_idempotency_key');
     await expectCode(addEntry(db, { tenantId: t, kind: 'refund', credits: 1 }), 'missing_idempotency_key');
+  });
+
+  it('consumo por dia e por sala, e uso por usuário, função e sala no período', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
+    const at = (iso: string) => new Date(iso);
+    const use = async (now: string, scope: string, userId: string, fn = 'moderation.batch', credits = 2) => {
+      const r = await reserve(
+        db,
+        { tenantId: t, functionName: fn, scope, userId },
+        { settings, now: at(now) },
+      );
+      await settle(db, { tenantId: t, reservationId: r.id, credits }, { now: at(now) });
+    };
+    await use('2031-01-01T10:00:00Z', 'chat:a', 'u1');
+    await use('2031-01-01T23:00:00Z', 'chat:a', 'u2');
+    await use('2031-01-02T09:00:00Z', 'chat:b', 'u1', 'assistant.ask', 3);
+    const period = { from: at('2031-01-01T00:00:00Z'), to: at('2031-01-03T00:00:00Z') };
+    expect(await usageByDay(db, t, period)).toEqual([
+      { day: '2031-01-01', scope: 'chat:a', credits: 4 },
+      { day: '2031-01-02', scope: 'chat:b', credits: 3 },
+    ]);
+    const b = await usageBreakdown(db, t, period);
+    expect(b.byUser).toEqual([
+      { key: 'u1', credits: 5, calls: 2 },
+      { key: 'u2', credits: 2, calls: 1 },
+    ]);
+    expect(b.byFunction.map((x) => x.key)).toEqual(['moderation.batch', 'assistant.ask']);
+    expect((await listLedger(db, t, { scopes: ['chat:b'], kinds: ['usage'] })).entries).toHaveLength(1);
+    expect(
+      await usageByDay(db, t, { from: at('2031-02-01T00:00:00Z'), to: at('2031-03-01T00:00:00Z') }),
+    ).toEqual([]);
+    // no fuso de São Paulo, o uso das 23h UTC de 01/01 (20h local) segue em 01/01; o das 09h UTC de 02/01 (06h) em 02/01
+    expect(await usageByDay(db, t, { ...period, timeZone: 'America/Sao_Paulo' })).toEqual([
+      { day: '2031-01-01', scope: 'chat:a', credits: 4 },
+      { day: '2031-01-02', scope: 'chat:b', credits: 3 },
+    ]);
+    // lançamento às 22h30 de 31/12 em São Paulo (01h30 UTC de 01/01) conta em 31/12 no fuso, e em 01/01 em UTC
+    await use('2031-01-01T01:30:00Z', 'chat:c', 'u3');
+    const wide = { from: at('2030-12-31T00:00:00Z'), to: at('2031-01-03T00:00:00Z') };
+    expect(
+      (await usageByDay(db, t, { ...wide, timeZone: 'America/Sao_Paulo' })).find((d) => d.scope === 'chat:c'),
+    ).toMatchObject({ day: '2030-12-31' });
+    expect((await usageByDay(db, t, wide)).find((d) => d.scope === 'chat:c')).toMatchObject({
+      day: '2031-01-01',
+    });
   });
 
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {

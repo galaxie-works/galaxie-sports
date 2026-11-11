@@ -4,6 +4,7 @@ import type { MediaDenylist } from '@galaxie/apisports-client';
 import type { ApiModule, Database } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
 import type { TenantContext } from './auth/authenticator.js';
+import type { FanTokenClaims } from './engage/fan-token.js';
 import type { Lineup } from './lineup/availability.js';
 import type { ClientChannelLists } from './channel-list/lists.js';
 import type { ResponseCache } from './cache/store.js';
@@ -20,8 +21,12 @@ declare module 'fastify' {
     admin?: boolean;
     /** Rota pública declarada explicitamente (auditoria de autenticação). */
     public?: boolean;
+    /** Rota do torcedor: exige o token `gft_` em Authorization: Bearer (#937). */
+    fan?: boolean;
   }
   interface FastifyRequest {
+    /** Torcedor do token `gft_`, nas rotas com `config.fan`. */
+    fan: FanTokenClaims | null;
     tenant: TenantContext | null;
     /**
      * Repete a autenticação da requisição com a mesma chave (conexões longas, como o SSE); `maxAgeMs` limita

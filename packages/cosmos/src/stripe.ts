@@ -8,6 +8,17 @@ import type { PackageCurrency } from '@galaxie/db/schema';
 
 export const STRIPE_API = 'https://api.stripe.com/v1';
 
+/**
+ * Versão da API fixa em todas as chamadas deste cliente: sem ela, vale a versão padrão da conta, e uma troca no
+ * painel do Stripe mudaria o comportamento (formas de pagamento automáticas, campos) sem passar pelo código.
+ */
+export const STRIPE_API_VERSION = '2025-03-31.basil';
+
+/** Cabeçalhos comuns: chave secreta e versão fixa da API. */
+function stripeHeaders(secretKey: string): Record<string, string> {
+  return { Authorization: `Bearer ${secretKey}`, 'Stripe-Version': STRIPE_API_VERSION };
+}
+
 /** Janela aceita entre o carimbo da assinatura e agora (a mesma das bibliotecas do Stripe). */
 export const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
 
@@ -59,6 +70,11 @@ export interface CheckoutInput {
   cancelUrl: string;
   locale?: string;
   customerEmail?: string;
+  /**
+   * Recarga automática ligada (com aceite): salva o cartão para cobranças fora da sessão. Só cartão, porque o
+   * Pix não guarda forma de pagamento.
+   */
+  saveCard?: boolean;
 }
 
 /** Corpo `application/x-www-form-urlencoded` da criação da sessão (separado para o teste). */
@@ -73,7 +89,13 @@ export function checkoutForm(input: CheckoutInput): URLSearchParams {
   form.set('line_items[0][price_data][currency]', input.currency);
   form.set('line_items[0][price_data][unit_amount]', String(input.amountCents));
   form.set('line_items[0][price_data][product_data][name]', input.productName);
-  paymentMethodsFor(input.currency).forEach((m, i) => form.set(`payment_method_types[${i}]`, m));
+  const methods = input.saveCard ? ['card'] : paymentMethodsFor(input.currency);
+  methods.forEach((m, i) => form.set(`payment_method_types[${i}]`, m));
+  if (input.saveCard) {
+    form.set('customer_creation', 'always');
+    form.set('payment_intent_data[setup_future_usage]', 'off_session');
+    form.set('metadata[save_card]', 'true');
+  }
   // preço só na moeda do pacote: a conversão automática do Stripe mudaria valor e moeda da sessão
   form.set('adaptive_pricing[enabled]', 'false');
   // recibo por compra: o Stripe gera a fatura paga e manda por e-mail
@@ -108,7 +130,7 @@ export async function createCheckoutSession(
   const res = await fetchImpl(`${STRIPE_API}/checkout/sessions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${secretKey}`,
+      ...stripeHeaders(secretKey),
       'Content-Type': 'application/x-www-form-urlencoded',
       'Idempotency-Key': `cosmos-checkout-${input.purchaseIntentId}`,
     },
@@ -144,6 +166,13 @@ export interface StripeCheckoutSession {
   currency_conversion?: { amount_total?: number | null; source_currency?: string | null } | null;
   payment_intent?: string | null;
   invoice?: string | null;
+  /** Cliente do Stripe (compra com a recarga automática ligada salva o cartão nele). */
+  customer?: string | null;
+  /** PaymentIntent da recarga automática. */
+  amount?: number | null;
+  amount_received?: number | null;
+  status?: string | null;
+  last_payment_error?: { code?: string; decline_code?: string; message?: string } | null;
 }
 
 /** Lê o corpo cru do webhook; formato inesperado → null (responde 400). */
@@ -156,4 +185,134 @@ export function parseStripeEvent(rawBody: string): StripeEvent | null {
   } catch {
     return null;
   }
+}
+
+async function stripeRequest<T>(
+  secretKey: string,
+  method: 'GET' | 'POST',
+  path: string,
+  fetchImpl: typeof fetch,
+  body?: URLSearchParams,
+  idempotencyKey?: string,
+): Promise<T> {
+  const res = await fetchImpl(`${STRIPE_API}${path}`, {
+    method,
+    headers: {
+      ...stripeHeaders(secretKey),
+      ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+    },
+    ...(body ? { body } : {}),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const json = (await res.json().catch(() => null)) as
+    (T & { error?: { message?: string; code?: string } }) | null;
+  if (!res.ok || !json) {
+    const err = new StripeRequestError(res.status, json?.error?.message ?? `Stripe respondeu ${res.status}`);
+    (err as StripeRequestError & { code?: string | undefined }).code = json?.error?.code;
+    throw err;
+  }
+  return json;
+}
+
+export interface OffSessionChargeInput {
+  rechargeAttemptId: string;
+  tenantId: string;
+  customerId: string;
+  /** Cartão salvo (`defaultCardOf`), gravado na tentativa para a repetição mandar o mesmo. */
+  paymentMethodId: string;
+  amountCents: number;
+  currency: PackageCurrency;
+  description: string;
+}
+
+/** Primeiro cartão salvo do cliente no Stripe; null quando não há. */
+export async function defaultCardOf(
+  secretKey: string,
+  customerId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+  const methods = await stripeRequest<{ data?: { id: string }[] }>(
+    secretKey,
+    'GET',
+    `/customers/${encodeURIComponent(customerId)}/payment_methods?type=card&limit=1`,
+    fetchImpl,
+  );
+  return methods.data?.[0]?.id ?? null;
+}
+
+/** Estado de um PaymentIntent (conciliação da tentativa que ficou presa em `processing`). */
+export async function getPaymentIntent(
+  secretKey: string,
+  paymentIntentId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ id: string; status: string; amount_received?: number; amount?: number; currency?: string }> {
+  return stripeRequest(
+    secretKey,
+    'GET',
+    `/payment_intents/${encodeURIComponent(paymentIntentId)}`,
+    fetchImpl,
+  );
+}
+
+/**
+ * Recusa definitiva da cobrança: 4xx que diz respeito ao cliente (cartão recusado, autenticação exigida, cliente
+ * ou cartão removido no Stripe, `resource_missing`...). A recarga daquele tenant se desliga com o motivo.
+ *
+ * Problema nosso não é recusa e não desliga a recarga de ninguém: 401 e 403 (chave trocada, revogada ou sem
+ * permissão) e 404 sem `code` (endpoint errado). Esses, como 5xx, 409, 429 e rede, são passageiros: a tentativa
+ * volta para a fila e repete com a mesma chave (até o teto de tentativas).
+ */
+export function isDefinitiveDecline(e: unknown): boolean {
+  if (!(e instanceof StripeRequestError)) return false;
+  const code = (e as StripeRequestError & { code?: string | undefined }).code;
+  if (e.status === 401 || e.status === 403 || (e.status === 404 && !code)) return false;
+  return e.status >= 400 && e.status < 500 && e.status !== 409 && e.status !== 429;
+}
+
+/** Erro do Stripe que é da nossa configuração (chave ou endpoint), não do cliente: vai para o log como erro. */
+export function isOurStripeProblem(e: unknown): boolean {
+  if (!(e instanceof StripeRequestError)) return false;
+  const code = (e as StripeRequestError & { code?: string | undefined }).code;
+  return e.status === 401 || e.status === 403 || (e.status === 404 && !code);
+}
+
+/**
+ * Corpo da cobrança fora da sessão (separado para o teste). Só cartão, como no Checkout que salvou o cartão: sem
+ * `payment_method_types`, as formas de pagamento automáticas podem exigir redirecionamento, o que o Stripe recusa
+ * numa cobrança `off_session` confirmada sem `return_url`.
+ */
+export function offSessionChargeForm(input: OffSessionChargeInput): URLSearchParams {
+  const form = new URLSearchParams();
+  form.set('amount', String(input.amountCents));
+  form.set('currency', input.currency);
+  form.set('customer', input.customerId);
+  form.set('payment_method', input.paymentMethodId);
+  form.set('payment_method_types[0]', 'card');
+  form.set('off_session', 'true');
+  form.set('confirm', 'true');
+  form.set('description', input.description);
+  form.set('metadata[recharge_attempt_id]', input.rechargeAttemptId);
+  form.set('metadata[tenant_id]', input.tenantId);
+  return form;
+}
+
+/**
+ * Cobra a recarga automática no cartão salvo do cliente, fora da sessão. A chave de idempotência é a tentativa:
+ * repetir não cobra duas vezes. O crédito não sai daqui: entra pelo webhook `payment_intent.succeeded`.
+ */
+export async function chargeOffSession(
+  secretKey: string,
+  input: OffSessionChargeInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ paymentIntentId: string; status: string }> {
+  const pi = await stripeRequest<{ id: string; status: string }>(
+    secretKey,
+    'POST',
+    '/payment_intents',
+    fetchImpl,
+    offSessionChargeForm(input),
+    `cosmos-recharge-${input.rechargeAttemptId}`,
+  );
+  return { paymentIntentId: pi.id, status: pi.status };
 }

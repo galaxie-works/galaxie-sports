@@ -10,6 +10,7 @@ import { and, eq, gte, lt, sql } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { functionDef, ledger, reservation, wallet, type LedgerKind } from '@galaxie/db/schema';
+import { evaluateBalance } from './balance.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 import { readCosmosSettings, type CosmosSettings } from './settings.js';
@@ -29,6 +30,16 @@ export interface WalletView {
   trialGranted: boolean;
   /** Só a equipe Galaxie vê (ver `toClientWallet`). */
   multiplier: number;
+  /** Teste ainda no saldo e quando vence (#994). */
+  trialRemaining: number;
+  trialExpiresAt: Date | null;
+  /** Saldo no começo do ciclo de alertas e o maior limiar já alertado nele (0, 80, 90, 100). */
+  cycleBase: number;
+  cycleStartedAt: Date | null;
+  alertLevel: number;
+  blockReason: 'depleted' | 'staff' | null;
+  /** O cliente ligou a Cosmos. Desligada, nenhuma função reserva (o saldo fica). */
+  enabled: boolean;
 }
 
 const walletColumns = {
@@ -39,6 +50,13 @@ const walletColumns = {
   status: wallet.status,
   trialGranted: wallet.trialGranted,
   multiplier: wallet.multiplier,
+  trialRemaining: wallet.trialRemaining,
+  trialExpiresAt: wallet.trialExpiresAt,
+  cycleBase: wallet.cycleBase,
+  cycleStartedAt: wallet.cycleStartedAt,
+  alertLevel: wallet.alertLevel,
+  blockReason: wallet.blockReason,
+  enabled: wallet.enabled,
 };
 
 /** Carteira sem o que é só da Galaxie (multiplicador). */
@@ -180,12 +198,18 @@ export async function reserve(
         updatedAt: now,
       })
       .where(
-        and(eq(wallet.tenantId, input.tenantId), eq(wallet.status, 'active'), gte(wallet.available, credits)),
+        and(
+          eq(wallet.tenantId, input.tenantId),
+          eq(wallet.enabled, true),
+          eq(wallet.status, 'active'),
+          gte(wallet.available, credits),
+        ),
       )
       .returning({ available: wallet.available, multiplier: wallet.multiplier });
     if (!updated) {
       const w = await getWallet(tx, input.tenantId);
       if (!w) throw new CosmosError('no_wallet', 'o tenant ainda não ligou a Cosmos');
+      if (!w.enabled) throw new CosmosError('cosmos_disabled', 'a Cosmos está desligada neste tenant');
       if (w.status === 'blocked') throw new CosmosError('wallet_blocked', 'carteira bloqueada');
       throw new CosmosError('insufficient_credits', 'saldo insuficiente');
     }
@@ -327,7 +351,14 @@ export async function settle(
 
     await tx
       .update(wallet)
-      .set({ available, reserved: sql`${wallet.reserved} - ${r.credits}`, updatedAt: now })
+      .set({
+        available,
+        reserved: sql`${wallet.reserved} - ${r.credits}`,
+        // o uso gasta o teste primeiro
+        trialRemaining: roundCredits(Math.max(0, w.trialRemaining - charged)),
+        ...(await evaluateBalance(tx, w, available, now)),
+        updatedAt: now,
+      })
       .where(eq(wallet.tenantId, input.tenantId));
     const [entry] = await tx
       .insert(ledger)
@@ -389,6 +420,9 @@ export async function release(
       .set({
         available: sql`${wallet.available} + ${r.credits}`,
         reserved: sql`${wallet.reserved} - ${r.credits}`,
+        // bloqueada por saldo zerado com a reserva de volta: o saldo livre é positivo, então libera
+        status: sql`case when ${wallet.blockReason} = 'depleted' and ${wallet.available} + ${r.credits} > 0 then 'active'::cosmos.wallet_status else ${wallet.status} end`,
+        blockReason: sql`case when ${wallet.blockReason} = 'depleted' and ${wallet.available} + ${r.credits} > 0 then null else ${wallet.blockReason} end`,
         updatedAt: now,
       })
       .where(eq(wallet.tenantId, input.tenantId))
@@ -448,6 +482,8 @@ export interface EntryInput {
    * Stripe, por exemplo). Repetir com a mesma chave devolve o lançamento original sem mexer no saldo.
    */
   idempotencyKey?: string | null;
+  /** Só no teste: quando ele vence (o que sobrar sai do saldo com `trial_expiry`). */
+  trialExpiresAt?: Date | null;
 }
 
 /** Tipos que só entram com chave de idempotência (dinheiro de fora: repetir não pode somar de novo). */
@@ -490,23 +526,56 @@ export async function addEntryInTx(
   // repetição (ou outro processo com a mesma chave): com a carteira travada, devolve o lançamento original
   if (key) {
     const [prev] = await tx
-      .select({ id: ledger.id, after: ledger.balanceAfter })
+      .select({ id: ledger.id, after: ledger.balanceAfter, kind: ledger.kind, credits: ledger.credits })
       .from(ledger)
       .where(and(eq(ledger.tenantId, input.tenantId), eq(ledger.idempotencyKey, key)));
-    if (prev) return { ledgerId: prev.id, available: prev.after, replayed: true };
+    if (prev) {
+      // a repetição só vale para o mesmo lançamento: outro valor ou tipo com a mesma chave sumiria calado
+      if (prev.kind !== input.kind || Number(prev.credits) !== credits)
+        throw new CosmosError(
+          'idempotency_conflict',
+          'a chave de idempotência já foi usada em outro lançamento',
+        );
+      return { ledgerId: prev.id, available: prev.after, replayed: true };
+    }
   }
   // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
   if (input.kind === 'trial' && w.trialGranted)
     throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
+  // teste sem prazo nunca venceria: o prazo é obrigatório
+  if (input.kind === 'trial' && !(input.trialExpiresAt instanceof Date && input.trialExpiresAt > now))
+    throw new CosmosError('invalid_amount', 'o teste precisa de um prazo de validade no futuro');
   const available = roundCredits(w.available + credits);
   if (available < 0) throw new CosmosError('insufficient_credits', 'saída maior que o saldo livre');
   const received = credits > 0 && RECEIVED_KINDS.has(input.kind) ? credits : 0;
+  // qualquer entrada de créditos (estorno incluído) abre um ciclo novo de alertas e libera a carteira bloqueada
+  // por saldo zerado; só teste, compra e ajuste somam no total recebido
+  const cycle =
+    credits > 0
+      ? {
+          cycleBase: available,
+          cycleStartedAt: now,
+          alertLevel: 0,
+          ...(w.status === 'blocked' && w.blockReason === 'depleted'
+            ? { status: 'active' as const, blockReason: null }
+            : {}),
+        }
+      : credits < 0
+        ? await evaluateBalance(tx, w, available, now)
+        : {};
   await tx
     .update(wallet)
     .set({
       available,
       receivedTotal: sql`${wallet.receivedTotal} + ${received}`,
-      ...(input.kind === 'trial' ? { trialGranted: true } : {}),
+      ...(input.kind === 'trial'
+        ? { trialGranted: true, trialRemaining: credits, trialExpiresAt: input.trialExpiresAt ?? null }
+        : {}),
+      // o vencimento tira só o que saiu; a parte do teste que estava reservada vence quando voltar (expireTrials)
+      ...(input.kind === 'trial_expiry'
+        ? { trialRemaining: sql`greatest(${wallet.trialRemaining} + ${credits}, 0)` }
+        : {}),
+      ...cycle,
       updatedAt: now,
     })
     .where(eq(wallet.tenantId, input.tenantId));
@@ -529,9 +598,12 @@ export async function addEntryInTx(
   return { ledgerId: entry!.id, available, replayed: false };
 }
 
-/** Bloqueia ou libera a carteira (saldo zerado, decisão da Galaxie). */
+/** Bloqueia (decisão da Galaxie, `staff`) ou libera a carteira. */
 export async function setWalletStatus(db: Db, tenantId: string, status: 'active' | 'blocked'): Promise<void> {
-  await db.update(wallet).set({ status, updatedAt: new Date() }).where(eq(wallet.tenantId, tenantId));
+  await db
+    .update(wallet)
+    .set({ status, blockReason: status === 'blocked' ? 'staff' : null, updatedAt: new Date() })
+    .where(eq(wallet.tenantId, tenantId));
 }
 
 /** Multiplicador sobre o custo real (só a Galaxie muda). */
