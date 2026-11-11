@@ -104,8 +104,12 @@ const LINK_HIDERS = [
 ];
 const MAX_COUNTRIES = 60;
 
+/** Link ou logo maior que isto é recusado (e o host em punycode não vira conta cara). */
+const MAX_URL_LENGTH = 2048;
+
 function httpsUrl(v: string | null): string | null | undefined {
   if (v === null || v.trim() === '') return null;
+  if (v.trim().length > MAX_URL_LENGTH) return undefined;
   try {
     const u = new URL(v.trim());
     if (u.protocol !== 'https:' || u.username || u.password) return undefined;
@@ -149,21 +153,45 @@ const LOOKALIKE: Record<string, string> = {
 const BET_PATH =
   /(?:^|[^a-z])(?:apostas|apuestas|apostar|apostes|betting|(?:casino|cassino)[-_ ]?(?:online|ao[-_ ]?vivo|en[-_ ]?vivo))(?:[^a-z]|$)/;
 
+/** Maiúsculas gregas cuja minúscula vira outra letra na tabela (`Ν` parece N, mas `ν` parece v). */
+const LOOKALIKE_UPPER: Record<string, string> = { Ν: 'n', Η: 'h', Μ: 'm', Ζ: 'z', Υ: 'y' };
+
 /**
- * Troca grega e cirílica (`Βet365`, `ВЕТ365`). Troca a palavra que mistura com letra latina ou dígito e a palavra feita
- * só de letras da tabela quando vem antes de um número (`ВЕТ 365`) ou, com `latinContext`, quando o texto também tem
- * palavra latina (`Vai de ВЕТ`). `Привет` e `Вет Клиника` ficam como estão.
+ * Troca grega e cirílica (`Βet365`, `ВЕТ365`). `strict`: troca a palavra que mistura com letra latina ou dígito e a
+ * palavra feita só de letras da tabela quando vem antes de um número no mesmo trecho (`ВЕТ 365`, não `/вет/2024`);
+ * `context`: também quando o texto tem palavra latina (`Vai de ВЕТ`); `all`: toda palavra feita só de letras da
+ * tabela (usado só contra os nomes completos de marca). `Привет` e `Вет Клиника` ficam como estão.
  */
-function foldLookalikes(text: string, latinContext = false): string {
-  const base = text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
-  const withLatin = latinContext && /[a-z]/.test(base);
+function foldLookalikes(text: string, mode: 'strict' | 'context' | 'all' = 'strict'): string {
+  const base = text
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[ΝΗΜΖΥ]/gu, (c) => LOOKALIKE_UPPER[c] ?? c)
+    .toLowerCase();
+  const withLatin = mode === 'context' && /[a-z]/.test(base);
   const fold = (w: string) => [...w].map((c) => LOOKALIKE[c] ?? c).join('');
   return base.replace(/[\p{L}\p{N}]+/gu, (w, offset: number) => {
     if (/[a-z0-9]/.test(w)) return fold(w);
     if (![...w].every((c) => c in LOOKALIKE)) return w;
-    const next = /^[^\p{L}\p{N}]*([\p{L}\p{N}]+)/u.exec(base.slice(offset + w.length))?.[1];
-    return withLatin || (next !== undefined && /^\p{N}+$/u.test(next)) ? fold(w) : w;
+    if (mode === 'all' || withLatin) return fold(w);
+    // o número tem de vir no mesmo trecho: não atravessa `/ ? # & =` de um link
+    const next = /^[^\p{L}\p{N}/?#&=]*([\p{L}\p{N}]+)/u.exec(base.slice(offset + w.length))?.[1];
+    return next !== undefined && /^\p{N}+$/u.test(next) ? fold(w) : w;
   });
+}
+
+/** Nome de domínio de aposta sem o TLD (`estrelabet`), escrito em palavras seguidas; só a palavra inteira conta. */
+function hasBrandSpan(folded: string, lists: CompiledLists): boolean {
+  const labels = new Set(lists.betDomains.map((d) => d.split('.')[0] ?? '').filter((l) => l.length >= 4));
+  const ws = folded.split(/[^a-z0-9]+/).filter(Boolean);
+  for (let i = 0; i < ws.length; i += 1) {
+    let span = '';
+    for (let j = i; j < ws.length && span.length < 40; j += 1) {
+      span += ws[j];
+      if (labels.has(span)) return true;
+    }
+  }
+  return false;
 }
 
 /** Host em Unicode: o `URL` devolve `xn--…` (punycode) e esconde a letra cirílica de `bеt365.com`. */
@@ -197,9 +225,10 @@ function decodePunycode(input: string): string {
     return k + Math.floor(((base - tMin + 1) * d) / (d + 38));
   };
   const digit = (c: number) => (c >= 48 && c <= 57 ? c - 22 : c >= 97 && c <= 122 ? c - 97 : -1);
+  const src = input.toLowerCase();
   const out: number[] = [];
-  const dash = input.lastIndexOf('-');
-  for (let j = 0; j < Math.max(dash, 0); j += 1) out.push(input.charCodeAt(j));
+  const dash = src.lastIndexOf('-');
+  for (let j = 0; j < Math.max(dash, 0); j += 1) out.push(src.charCodeAt(j));
   let n = 128;
   let i = 0;
   let bias = 72;
@@ -207,8 +236,8 @@ function decodePunycode(input: string): string {
     const old = i;
     let w = 1;
     for (let k = base; ; k += base) {
-      if (idx >= input.length) throw new Error('punycode');
-      const d = digit(input.toLowerCase().charCodeAt(idx++));
+      if (idx >= src.length) throw new Error('punycode');
+      const d = digit(src.charCodeAt(idx++));
       if (d < 0) throw new Error('punycode');
       i += d * w;
       const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
@@ -235,26 +264,15 @@ const betScreen = (text: string, lists: CompiledLists) =>
  * confere também o texto todo junto (`Estrela Bet` → `estrelabet`) contra os termos e os nomes dos domínios de
  * aposta, e `bet` como palavra solta (`Vai de Bet`, `Bet 365`).
  */
-export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
+export function looksLikeBetting(text: string, lists: CompiledLists, latinContext = true): boolean {
   if (!text.trim()) return false;
   if (betScreen(text, lists)) return true;
-  const folded = foldLookalikes(text, true);
+  const folded = foldLookalikes(text, latinContext ? 'context' : 'strict');
   if (LOOSE_BET.test(folded)) return true;
   const joined = folded.replace(/[^a-z0-9]+/g, '');
-  if (!joined) return false;
-  if (betScreen(joined, lists)) return true;
-  // nome do domínio sem o TLD (`estrelabet.com` → `estrelabet`), escrito em palavras seguidas (`Estrela Bet`);
-  // só a palavra inteira conta (`Stakeholders` não é `stake`)
-  const labels = new Set(lists.betDomains.map((d) => d.split('.')[0] ?? '').filter((l) => l.length >= 4));
-  const ws = folded.split(/[^a-z0-9]+/).filter(Boolean);
-  for (let i = 0; i < ws.length; i += 1) {
-    let span = '';
-    for (let j = i; j < ws.length && span.length < 40; j += 1) {
-      span += ws[j];
-      if (labels.has(span)) return true;
-    }
-  }
-  return false;
+  if (joined && betScreen(joined, lists)) return true;
+  // `Estrela Bet`, e a marca toda em letras parecidas (`ЅТАКЕ`), só contra o nome completo
+  return hasBrandSpan(folded, lists) || hasBrandSpan(foldLookalikes(text, 'all'), lists);
 }
 
 function hostOf(url: string): string {
@@ -310,20 +328,27 @@ export function validateSponsor(
         break;
       }
     }
-    const rest = decoded.replace(/^https:\/\/[^/?#]+/i, '');
+    // domínio em punycode também dentro da query (`?r=https://xn--bt365-zwe.com`)
+    const rest = decoded
+      .replace(/^https:\/\/[^/?#]+/i, '')
+      .replace(/xn--[a-z0-9-]+/gi, (label) => unicodeHost(label.toLowerCase()));
     const path = foldLookalikes(rest);
+    const uHost = unicodeHost(host);
     if (
       inList(lists.betDomains) ||
-      looksLikeBetting(unicodeHost(host), lists) ||
+      // o TLD latino (`.com`) não conta como contexto: `вет-клиника.com` fica como está
+      looksLikeBetting(uHost, lists, /[a-z]/.test(uHost.replace(/\.[^.]*$/, ''))) ||
       // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
-      // escrito em palavras (`?y=estrela%20bet`), `bet` solto e palavra de aposta (`/apostas`)
+      // escrito em palavras (`?y=estrela%20bet`), `bet` solto, palavra de aposta (`/apostas`) e marca inteira
       (field === 'linkUrl' &&
         (betScreen(path.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
           LOOSE_BET.test(path) ||
           path
             .split(/[/?#&=]+/)
             .some((seg) => seg.length > 3 && betScreen(seg.replace(/[^\p{L}\p{N}]+/gu, ''), lists)) ||
-          BET_PATH.test(path)))
+          BET_PATH.test(path) ||
+          // a marca inteira só quando há letra fora do latino: `/produtos/blaze-ipa` é palavra comum
+          (/[^\p{Script=Latin}\P{L}]/u.test(rest) && hasBrandSpan(foldLookalikes(rest, 'all'), lists))))
     )
       issues.push({ field, code: 'betting' });
     else if (field === 'linkUrl' && inList(LINK_HIDERS)) issues.push({ field, code: 'shortener' });

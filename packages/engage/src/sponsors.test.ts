@@ -148,6 +148,46 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     });
   });
 
+  it.each(['ΒΕΤΑΝΟ', 'Vai de ΒΕΤΑΝΟ', 'ΝΟVΙΒΕΤ Brasil', 'ЅТАКЕ'])(
+    'marca em maiúsculas gregas ou toda em letras parecidas é recusada: %s',
+    (name) => {
+      expect(validateSponsor(input({ name }), lists).ok).toBe(false);
+    },
+  );
+
+  it.each([
+    'https://x.com/?r=https://xn--bt365-zwe.com',
+    'https://x.com/r?u=xn--bt365-zwe.com',
+    'https://x.com/r?to=ѕтаке.com',
+    'https://x.com/ЅТАКЕ',
+  ])('link com marca em punycode ou letras parecidas na query é recusado: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field: 'linkUrl', code: 'betting' }],
+    });
+  });
+
+  it.each([
+    'https://petshop.com.br/вет/2024',
+    'https://example.com/путь/вет/1/',
+    'https://вет-клиника.com/',
+    'https://вет.com/',
+  ])('link em cirílico comum passa: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists).ok).toBe(true);
+  });
+
+  it('link muito longo é recusado', () => {
+    expect(validateSponsor(input({ linkUrl: `https://x.com/${'a'.repeat(2100)}` }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field: 'linkUrl', code: 'url' }],
+    });
+  });
+
+  // limite aceito: com palavra latina no nome, `Вет` vira `bet` (`Pet Вет`)
+  it.each(['Pet Вет', 'ВЕТ Club'])('nome com palavra latina e "Вет" é recusado: %s', (name) => {
+    expect(validateSponsor(input({ name }), lists).ok).toBe(false);
+  });
+
   // limite aceito: `Вет24` vira `bet24` (o dígito conta como borda), e `/Βετ` sozinho no caminho passa
   it.each(['Вет Клиника 24', 'ВетКлиника24', 'Βήτα', 'Ветеринар 1'])('nome comum passa: %s', (name) => {
     expect(validateSponsor(input({ name }), lists).ok).toBe(true);
