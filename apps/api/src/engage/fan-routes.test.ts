@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { generatePublishableKey } from '@galaxie/db';
+import type { PublishableStore } from '../auth/publishable.js';
 import { buildServer } from '../server.js';
 import { memoryTenant } from '../test-helpers.js';
 import { MemoryFanRevocations } from './fan-auth.js';
@@ -123,5 +125,115 @@ describe('rotas do torcedor', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(res.statusCode).toBe(503);
+  });
+});
+
+describe('token do torcedor no navegador (widget, embed; #1020)', () => {
+  const site = 'https://torcida.exemplo.test';
+  const pkFor = (tenantId: string, key: string, widgetId: string | null = null): PublishableStore => ({
+    async verify(raw) {
+      return raw === key
+        ? {
+            keyId: `pk-${tenantId}`,
+            tenantId,
+            env: 'live',
+            tenant: {
+              id: tenantId,
+              slug: tenantId,
+              plan: 'fan_experience',
+              modules: ['core_data'],
+              markets: ['BR'],
+              sports: ['football'],
+              rateLimitPerMinute: 120,
+              dailyRequestQuota: null,
+            },
+            allowedOrigins: [site],
+            widgetId,
+            widgetKind: widgetId ? 'standings' : null,
+          }
+        : null;
+    },
+    async touch() {},
+    async activeOrigins() {
+      return [site];
+    },
+  });
+  const key = generatePublishableKey('live').key;
+  const app = () =>
+    buildServer({ usage: false, fanTokens: signer, publishableStore: pkFor('tenant-x', key) });
+  const me = (a: ReturnType<typeof app>, token: string, headers: Record<string, string> = {}) =>
+    a.inject({
+      method: 'GET',
+      url: '/v1/fans/me',
+      headers: { authorization: `Bearer ${token}`, ...headers },
+    });
+
+  it('token de outro cliente na página deste → 401, que o widget lê (CORS da origem conferida)', async () => {
+    const a = app();
+    const { token } = signer.issue(claims({ tenantId: 'tenant-y' }));
+    const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().detail).toBe('Token de outro cliente.');
+    expect(res.headers['access-control-allow-origin']).toBe(site);
+  });
+
+  it('token vencido → 401 com CORS, para o widget pedir outro ao site', async () => {
+    const a = app();
+    const old = new FanTokenSigner({ secret: 'k'.repeat(40), now: () => Date.now() - 3_600_000 });
+    const { token } = old.issue(claims());
+    const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(res.statusCode).toBe(401);
+    expect(res.headers['access-control-allow-origin']).toBe(site);
+    // sem a chave do site, nada de CORS
+    const bare = await me(a, token, { origin: site });
+    expect(bare.statusCode).toBe(401);
+    expect(bare.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('chave presa a um widget de dados não leva o token do torcedor → 403', async () => {
+    const a = buildServer({
+      usage: false,
+      fanTokens: signer,
+      publishableStore: pkFor('tenant-x', key, 'w-1'),
+    });
+    const { token } = signer.issue(claims());
+    const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe('PUBLISHABLE_KEY_NOT_ALLOWED');
+  });
+
+  it('chave do site fora da origem → 403; mesmo cliente passa e leva o CORS do site', async () => {
+    const a = app();
+    const { token } = signer.issue(claims());
+    const wrong = await me(a, token, { 'x-galaxie-publishable-key': key, origin: 'https://outro.test' });
+    expect(wrong.statusCode).toBe(403);
+    // passa da autenticação e cai no banco ausente (503), com o CORS da origem conferida
+    const ok = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(ok.statusCode).toBe(503);
+    expect(ok.headers['access-control-allow-origin']).toBe(site);
+  });
+
+  it('preflight libera Authorization e o método da rota do torcedor para a origem de uma chave', async () => {
+    const a = app();
+    const pre = await a.inject({
+      method: 'OPTIONS',
+      url: '/v1/fans/me',
+      headers: {
+        origin: site,
+        'access-control-request-method': 'PATCH',
+        'access-control-request-headers': 'authorization, x-galaxie-publishable-key, content-type',
+      },
+    });
+    expect(pre.statusCode).toBe(204);
+    expect(pre.headers['access-control-allow-origin']).toBe(site);
+    expect(String(pre.headers['access-control-allow-methods'])).toContain('PATCH');
+    expect(String(pre.headers['access-control-allow-headers'])).toContain('authorization');
+    // fora das rotas do torcedor, a chave publicável segue só leitura
+    const other = await a.inject({
+      method: 'OPTIONS',
+      url: '/v1/events',
+      headers: { origin: site, 'access-control-request-method': 'PATCH' },
+    });
+    expect(other.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

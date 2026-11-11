@@ -1034,12 +1034,19 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | `GET /v1/fans/me/wallet` | Widget ou app | Token do torcedor. Pontos e Saldo, um item por país de programa |
 | `GET /v1/fans/me/wallet/ledger` | Widget ou app | Token do torcedor. Extrato do programa (`country`, padrão o do Perfil), paginado por `before` |
 | `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |
+| `POST /v1/moderation/reports` | Widget ou app | Token do torcedor. Denúncia de conteúdo ou Perfil, com motivo |
+| `GET /v1/fans/me/blocks` | Widget ou app | Token do torcedor. Perfis bloqueados |
+| `PUT` e `DELETE /v1/fans/me/blocks/{profileId}` | Widget ou app | Token do torcedor. Bloqueia e desbloqueia (204, idempotente) |
+| `GET /v1/fans/me/sanctions` | Widget ou app | Token do torcedor. Punições do Perfil, com as apelações |
+| `POST /v1/fans/me/sanctions/{sanctionId}/appeals` | Widget ou app | Token do torcedor. Apelação (uma por etapa) |
 
 **Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
 
-**Exclusão.** O `DELETE` anonimiza o Perfil (some o id do cliente, o Apelido, o avatar e o time do coração; a linha fica para o que ele escreveu apontar para "torcedor excluído"), grava `fan.erasure_log` para repetir a exclusão depois de um restore e invalida na hora os tokens já emitidos (marca no Valkey por 1 hora, o maior prazo de um token). Se o torcedor voltar, o próximo token cria um Perfil novo. Conteúdo dos módulos (mensagens, posts, palpites, conquistas) entra na mesma exclusão quando cada módulo chegar.
+**Exclusão.** O `DELETE` anonimiza o Perfil (some o id do cliente, o Apelido, o avatar e o time do coração; a linha fica para o que ele escreveu apontar para "torcedor excluído"), grava `fan.erasure_log` para repetir a exclusão depois de um restore e invalida na hora os tokens já emitidos (marca no Valkey por 1 hora, o maior prazo de um token). Se o torcedor voltar, o próximo token cria um Perfil novo. Conteúdo dos módulos (mensagens, posts, palpites, conquistas) entra na mesma exclusão quando cada módulo chegar; o da moderação já entra (#953).
 
 **Carteira de pontos (#938).** Uma por Perfil e programa (cliente + país), em `fan.wallet` e `fan.points_ledger`. **Pontos** só sobem (palpites, conquistas, presença, enquetes, trivia) e definem Nível e Ranking; **Saldo** sobe junto e é o que se gasta no resgate, que nunca mexe nos Pontos. Compra e clique na loja nunca dão pontos (o banco recusa a origem `shopping`); pontos não se compram, não se transferem e não viram dinheiro. `13_17` ganha Pontos mas não resgata; `under13` fica fora (403). Os módulos lançam pelo serviço interno `creditPoints`, `debitBalance` e `revertPoints` (`@galaxie/db`): cada evento de origem lança uma vez só (reprocessar devolve o mesmo lançamento) e o estorno tira os Pontos inteiros e o Saldo que sobrou. Evento estornado não credita mais, nem quando o estorno chega antes do crédito; o recálculo de um palpite usa um id de evento novo. O extrato é append-only, com o valor depois de cada lançamento. Na exclusão do Perfil, a carteira e o extrato saem junto.
+
+**Denúncia, bloqueio e apelação (#953).** A denúncia, o conteúdo segurado pelo filtro, a sugestão da Cosmos e a apelação entram na mesma fila do cliente (`engage.moderation_case`), por gravidade (ameaça e ódio no topo); nenhum módulo cria outra fila. O torcedor denuncia o mesmo conteúdo uma vez (a segunda responde `duplicate`), não denuncia o próprio conteúdo (409) e faz até 20 denúncias por hora (429). Com três denunciantes diferentes a mensagem, o comentário ou o post fica oculto até a revisão; Perfil e comportamento não se ocultam. O texto denunciado vem do módulo, nunca de quem denuncia. O bloqueio vale nos dois sentidos, só entre Perfis do mesmo cliente. A Escada de punições (Advertência, Silenciar, Suspensão, Expulsão, Banimento) é aplicada pela equipe do cliente; o Silêncio oculto não aparece para o torcedor e não aceita apelação. Cada punição aceita uma apelação, julgada por quem não aplicou; se a resposta veio da Cosmos, cabe uma segunda, julgada por uma pessoa da equipe com `moderation.appeal.second` ou, sem ninguém, pela fila da Galaxie. Prazo padrão de 72 horas. Toda ação grava o registro de auditoria (`engage.moderation_audit`), que só cresce (o banco recusa UPDATE, DELETE e TRUNCATE). O conteúdo removido e as decisões saem pelos relógios da ficha do país (`removedContentDays` e `moderationDecisionsDays`); na exclusão do Perfil, o conteúdo dele, as observações das denúncias e os bloqueios saem na hora, e as decisões ficam sem o conteúdo. Sem ficha do país para o torcedor, a denúncia e a apelação respondem 503. `under13` fica fora (403).
 
 **Exemplo em Node** (no servidor do cliente):
 
@@ -1081,4 +1088,65 @@ curl_setopt_array($ch, [
 $token = json_decode(curl_exec($ch), true)['data']['token'];
 ```
 
-Ainda não: CORS das rotas do torcedor para o navegador e renovação silenciosa pelo widget (#1020), tópico `fan.profile.deleted` pelo outbox (#1023).
+**Apelido e moderação (#969):** o `nickname` passa pelo filtro de texto da Galaxie (ódio, ameaça, assédio, conteúdo sexual, palavrão, aposta, link e dado pessoal, inclusive com grafia trocada como `m4c4c0`) mais os termos que o cliente acrescentou. Qualquer achado recusa a emissão com `400 INVALID_PARAMS` e `errors[0].path = "nickname"`, com um aviso curto para mostrar ao torcedor. As listas base ficam em Ajustes → Conformidade → Moderação; mudança chega à API em até 60 s.
+
+### 9.1 O token no widget, no embed e no app (#1020)
+
+O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta (exemplos acima) e entrega só o token ao navegador ou ao app. A chave publicável nunca emite token, e a chave secreta nunca vai para o navegador.
+
+**No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
+
+**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+
+**HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
+
+```html
+<script src="https://sports.galaxie.works/embed.js" async></script>
+<script>
+  window.galaxieSports = {
+    // seu servidor chama POST /v1/fans/tokens e devolve só o token
+    getFanToken: () =>
+      fetch('/minha-api/token-galaxie', { method: 'POST', credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => j && j.token),
+  };
+  document.addEventListener('galaxie:fan-sign-in', () => location.assign('/entrar'));
+  // login (ou logout) sem recarregar a página: avise os widgets
+  // document.dispatchEvent(new Event('galaxie:fan-token-changed'));
+</script>
+<galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
+```
+
+**React (componente do registry).**
+
+```tsx
+<GalaxieWidgetProvider
+  baseUrl="https://api.galaxie.sports"
+  publishableKey="gs_pk_live_..."
+  theme={theme}
+  locale="pt-BR"
+  getFanToken={() => fetch('/api/token-galaxie', { method: 'POST' }).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token ?? null)}
+  onFanSignIn={() => router.push('/entrar')}
+>
+  {/* recursos do torcedor dentro de <FanGate need="write">…</FanGate>; useFanSession() dá o status e o fetch com o token */}
+</GalaxieWidgetProvider>
+```
+
+**App (WebView).** O app já tem o login: busca o token no servidor dele e injeta a função antes de a página carregar. Para o widget em app de loja, peça o token com `surface: "store_app"`.
+
+```kotlin
+// Android: AppBridge é um @JavascriptInterface cujo fanToken() devolve o token (ou null)
+webView.evaluateJavascript(
+  "window.galaxieSports = { getFanToken: () => window.AppBridge.fanToken() };", null)
+```
+
+```swift
+// iOS 14+ (WKWebView): registre o handler com WKScriptMessageHandlerWithReply; o postMessage devolve uma Promise com o token
+let js = "window.galaxieSports = { getFanToken: () => window.webkit.messageHandlers.fanToken.postMessage(null) };"
+webView.configuration.userContentController.addUserScript(
+  WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+```
+
+**No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login. O apelido passa pelo filtro da moderação já ao salvar; o filtro usa o idioma que vai no token, como a API. Se a API ainda assim recusar o apelido no primeiro token depois de salvar (pelas listas do cliente ou de Ajustes, que a demo não confere, ou porque a pessoa trocou o idioma da demo antes), a rota responde 409 `fan_nickname_rejected` (sem perfil completo, 409 `fan_profile_missing`); as telas que levam a pessoa ao perfil em cada caso chegam com o chat (#985) e o bolão (#945).
+
+Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).

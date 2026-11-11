@@ -621,7 +621,28 @@
     {
       "idx": 88,
       "version": "7",
-      "when": 1794428660622,
+      "when": 1794424402478,
+      "tag": "0093_moderacao_listas",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1794424650546,
+      "tag": "0094_patrocinadores",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1794437312812,
+      "tag": "0095_denuncias",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794437372812,
       "tag": "0096_cosmos_base_conhecimento",
       "breakpoints": true
     }

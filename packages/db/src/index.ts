@@ -259,3 +259,5 @@ export {
   type FanWalletResult,
   type FanWalletView,
 } from './fan-wallet.js';
+export * from './sponsors.js';
+export * from './moderation-queue.js';

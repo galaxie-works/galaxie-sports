@@ -13,8 +13,14 @@ import {
 } from 'react';
 
 import {
+  FAN_TOKEN_CHANGED_EVENT,
+  FAN_TOKEN_RENEW_BEFORE_MS,
+  fanTokenSubject,
   LIVE_STATUSES,
   PROBLEM_STATUSES,
+  fanGateMessage,
+  fanTokenExpiresAt,
+  isFanToken,
   PUBLISHABLE_KEY_HEADER,
   WIDGET_CSS,
   apiLocale,
@@ -28,7 +34,10 @@ import {
   localTimeZone,
   textsFor,
   themeToCssVars,
+  type FanCapability,
+  type FanStatus,
   type GsCompetitionContext,
+  type GsFanMe,
   type GsEvent,
   type GsGames,
   type WidgetKind,
@@ -59,7 +68,40 @@ export interface GalaxieWidgetProviderProps {
   /** fetch alternativo (testes, preview do Builder com dados de exemplo). */
   fetch?: typeof fetch | undefined;
   className?: string | undefined;
+  /**
+   * Token do torcedor (`gft_`), emitido pelo servidor do site com a chave secreta (`POST /v1/fans/tokens`).
+   * Nunca a chave secreta no navegador. Sem token, os recursos do torcedor mostram "entre para participar".
+   */
+  fanToken?: string | null | undefined;
+  /**
+   * Busca um token novo no servidor do site (chamada no começo, um minuto antes de o token vencer e quando a
+   * API recusa o token). Vale mais que `fanToken`. Devolver null = torcedor saiu.
+   */
+  getFanToken?: (() => FanTokenResult | Promise<FanTokenResult>) | undefined;
+  /** Clique em "Entrar" num recurso do torcedor: o site abre o login dele. Sem isso, o botão não aparece. */
+  onFanSignIn?: (() => void) | undefined;
   children?: ReactNode;
+}
+
+export type FanTokenResult = string | null | undefined;
+
+/** Sessão do torcedor nos widgets (token `gft_`, #1020). */
+export interface GalaxieFanSession {
+  status: FanStatus;
+  me: GsFanMe | null;
+  /** O Perfil pode fazer isso? (`read`, `predict`, `write`, `redeem`; vem da faixa etária, pela API) */
+  can: (capability: FanCapability) => boolean;
+  /**
+   * fetch numa rota do torcedor (`/v1/fans/me/...`, `/v1/events/.../presence`…), com o token e a chave
+   * publicável. Token recusado → pede outro uma vez e repete.
+   */
+  fetch: (path: string, init?: RequestInit) => Promise<Response>;
+  onSignIn: (() => void) | undefined;
+  /**
+   * Confere a sessão de novo, pedindo outro token a `getFanToken`: chame depois de o torcedor entrar ou sair
+   * sem recarregar a página. O evento `galaxie:fan-token-changed` no `document` faz o mesmo.
+   */
+  refresh: () => void;
 }
 
 export interface GalaxieWidgetContextValue {
@@ -71,6 +113,7 @@ export interface GalaxieWidgetContextValue {
   timeZone: string | undefined;
   fetchImpl: typeof fetch | undefined;
   texts: WidgetTexts;
+  fan: GalaxieFanSession;
 }
 
 const GalaxieWidgetContext = createContext<GalaxieWidgetContextValue | null>(null);
@@ -91,8 +134,19 @@ export function GalaxieWidgetProvider({
   timeZone,
   fetch: fetchImpl,
   className,
+  fanToken,
+  getFanToken,
+  onFanSignIn,
   children,
 }: GalaxieWidgetProviderProps) {
+  const fan = useFanSessionState({
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    publishableKey,
+    fetchImpl,
+    fanToken,
+    getFanToken,
+    onFanSignIn,
+  });
   const value = useMemo<GalaxieWidgetContextValue>(
     () => ({
       baseUrl: baseUrl.replace(/\/+$/, ''),
@@ -103,8 +157,9 @@ export function GalaxieWidgetProvider({
       timeZone,
       fetchImpl,
       texts: textsFor(locale),
+      fan,
     }),
-    [baseUrl, publishableKey, theme, locale, market, timeZone, fetchImpl],
+    [baseUrl, publishableKey, theme, locale, market, timeZone, fetchImpl, fan],
   );
   return (
     <GalaxieWidgetContext.Provider value={value}>
@@ -117,6 +172,266 @@ export function GalaxieWidgetProvider({
         {children}
       </div>
     </GalaxieWidgetContext.Provider>
+  );
+}
+
+// ─── torcedor ────────────────────────────────────────────────────────────────────────────────────
+
+function useFanSessionState({
+  baseUrl,
+  publishableKey,
+  fetchImpl,
+  fanToken,
+  getFanToken,
+  onFanSignIn,
+}: {
+  baseUrl: string;
+  publishableKey: string;
+  fetchImpl: typeof fetch | undefined;
+  fanToken: string | null | undefined;
+  getFanToken: GalaxieWidgetProviderProps['getFanToken'];
+  onFanSignIn: (() => void) | undefined;
+}): GalaxieFanSession {
+  const hasCallback = Boolean(getFanToken);
+  const getRef = useRef(getFanToken);
+  getRef.current = getFanToken;
+  const signInRef = useRef(onFanSignIn);
+  signInRef.current = onFanSignIn;
+  const tokenRef = useRef<string | null>(null);
+  // um pedido de token novo por vez: recusas ao mesmo tempo esperam o mesmo
+  const renewRef = useRef<Promise<string | null> | null>(null);
+  // sobe a cada refresh(): pedido de token iniciado antes do login ou logout não vale mais
+  const generationRef = useRef(0);
+  // de quem é o `me` na tela (cliente:Perfil do token), para não mostrar o Perfil anterior com o token novo
+  const meSubjectRef = useRef<string | null>(null);
+  const [state, setState] = useState<{ status: FanStatus; me: GsFanMe | null }>(() => ({
+    status: hasCallback || isFanToken(fanToken) ? 'checking' : 'none',
+    me: null,
+  }));
+  const [attempt, setAttempt] = useState(0);
+
+  // o token novo: o do callback (se houver) ou o da prop; qualquer outra coisa conta como "sem login"
+  const obtain = useCallback(async (): Promise<string | null> => {
+    let t: FanTokenResult = fanToken;
+    if (getRef.current) {
+      try {
+        t = await getRef.current();
+      } catch {
+        t = null;
+      }
+    }
+    return isFanToken(t) ? t.trim() : null;
+  }, [fanToken]);
+
+  const renew = useCallback((): Promise<string | null> => {
+    if (renewRef.current) return renewRef.current;
+    const generation = generationRef.current;
+    const pending = obtain()
+      .then((t) => {
+        if (generation === generationRef.current) tokenRef.current = t;
+        return t;
+      })
+      .finally(() => {
+        if (renewRef.current === pending) renewRef.current = null;
+      });
+    renewRef.current = pending;
+    return pending;
+  }, [obtain]);
+
+  const call = useCallback(
+    (token: string, path: string, init: RequestInit = {}) => {
+      // só caminhos da API: `@outro.host/x`, `//outro.host` ou `/\outro.host` levariam o token para fora
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\'))
+        throw new TypeError(`Caminho da API inválido: ${path}`);
+      const headers = new Headers(init.headers);
+      headers.set('accept', headers.get('accept') ?? 'application/json');
+      headers.set('authorization', `Bearer ${token}`);
+      if (publishableKey) headers.set(PUBLISHABLE_KEY_HEADER, publishableKey);
+      return (fetchImpl ?? globalThis.fetch)(`${baseUrl}${path}`, { ...init, headers, credentials: 'omit' });
+    },
+    [baseUrl, publishableKey, fetchImpl],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastToken: string | null = null;
+    // conferência de antes de um refresh() (login ou logout) não grava nada, nem na janela até a limpeza
+    const generation = generationRef.current;
+    const stale = () => cancelled || generation !== generationRef.current;
+    const check = async () => {
+      let token = await renew();
+      if (stale()) return;
+      tokenRef.current = token;
+      if (!token) {
+        meSubjectRef.current = null;
+        setState({ status: 'none', me: null });
+        return;
+      }
+      // outro torcedor no mesmo widget: o Perfil anterior sai da tela já
+      if (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(token)) {
+        meSubjectRef.current = null;
+        setState({ status: 'checking', me: null });
+      }
+      try {
+        let res = await call(token, '/v1/fans/me');
+        if (stale()) return;
+        if (res.status === 403) {
+          // não é a sessão: a chave não leva o torcedor (presa a um widget) ou o recurso está fechado
+          meSubjectRef.current = null;
+          setState({ status: 'unavailable', me: null });
+          return;
+        }
+        if (res.status === 401 && getRef.current) {
+          // o site pode ter devolvido um token guardado e vencido: pede outro uma vez
+          const fresh = await renew();
+          if (stale()) return;
+          if (fresh && fresh !== token) {
+            token = fresh;
+            tokenRef.current = fresh;
+            if (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(fresh)) {
+              meSubjectRef.current = null;
+              setState({ status: 'checking', me: null });
+            }
+            res = await call(fresh, '/v1/fans/me');
+            if (stale()) return;
+          }
+        }
+        if (res.status === 401) {
+          // token vencido, de outro cliente ou de Perfil excluído; com o callback, o próximo pedido tenta outro
+          tokenRef.current = null;
+          meSubjectRef.current = null;
+          setState({ status: 'expired', me: null });
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as { data?: GsFanMe };
+        if (stale()) return;
+        const ok = Boolean(body.data && Array.isArray(body.data.capabilities));
+        meSubjectRef.current = ok ? fanTokenSubject(token) : null;
+        setState(ok ? { status: 'ready', me: body.data! } : { status: 'unavailable', me: null });
+      } catch {
+        if (stale()) return;
+        setState((s) => (s.me ? s : { status: 'unavailable', me: null }));
+      }
+      // renova antes de vencer (só quem sabe pedir outro); se a fonte devolveu o mesmo token já perto de
+      // vencer (token fixo), não adianta conferir de novo
+      const exp = fanTokenExpiresAt(token);
+      const wait = exp === null ? null : exp - Date.now() - FAN_TOKEN_RENEW_BEFORE_MS;
+      const stuck = token === lastToken && wait !== null && wait < 5_000;
+      lastToken = token;
+      if (wait !== null && getRef.current && !stuck)
+        timer = setTimeout(() => void check(), Math.max(5_000, wait));
+    };
+    // já pronto: segue pronto enquanto confere, para o widget não desmontar (texto digitado no chat fica)
+    setState((s) => (s.status === 'checking' || s.status === 'ready' ? s : { ...s, status: 'checking' }));
+    void check();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [obtain, call, hasCallback, attempt]);
+
+  const fanFetch = useCallback(
+    async (path: string, init?: RequestInit) => {
+      // um refresh() no meio (login ou logout) vale mais que o que esta chamada descobrir
+      const generation = generationRef.current;
+      const current = () => generation === generationRef.current;
+      const token = tokenRef.current ?? (await renew());
+      if (!token || !current()) return new Response(null, { status: 401 });
+      const res = await call(token, path, init);
+      if (res.status !== 401 || !getRef.current) return res;
+      // recusado: se outra chamada já trocou o token, usa o novo; senão pede outro (um pedido por vez)
+      const fresh = tokenRef.current && tokenRef.current !== token ? tokenRef.current : await renew();
+      if (!current()) return res;
+      tokenRef.current = fresh;
+      if (!fresh) {
+        meSubjectRef.current = null;
+        setState({ status: 'none', me: null });
+        return res;
+      }
+      if (fresh === token) {
+        // a fonte não tem outro (token fixo): a sessão terminou
+        tokenRef.current = null;
+        meSubjectRef.current = null;
+        setState({ status: 'expired', me: null });
+        return res;
+      }
+      const again = await call(fresh, path, init);
+      if (!current()) return again;
+      // recusado de novo, ou o token novo é de outro Perfil: a sessão é conferida
+      if (again.status === 401 || (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(fresh)))
+        setAttempt((n) => n + 1);
+      return again;
+    },
+    [renew, call],
+  );
+
+  const refresh = useCallback(() => {
+    // descarta o pedido de token em voo: ele começou antes do login ou do logout
+    generationRef.current += 1;
+    renewRef.current = null;
+    // até a conferência terminar, nada sai com o token de quem entrou ou saiu antes
+    tokenRef.current = null;
+    setAttempt((n) => n + 1);
+  }, []);
+  // o site avisa que o torcedor entrou ou saiu (login sem recarregar a página)
+  useEffect(() => {
+    const doc = (globalThis as { document?: Document }).document;
+    if (!doc) return;
+    doc.addEventListener(FAN_TOKEN_CHANGED_EVENT, refresh);
+    return () => doc.removeEventListener(FAN_TOKEN_CHANGED_EVENT, refresh);
+  }, [refresh]);
+
+  const onSignIn = useCallback(() => signInRef.current?.(), []);
+  return useMemo<GalaxieFanSession>(
+    () => ({
+      status: state.status,
+      me: state.me,
+      can: (c) => state.status === 'ready' && Boolean(state.me?.capabilities.includes(c)),
+      fetch: fanFetch,
+      onSignIn: onFanSignIn ? onSignIn : undefined,
+      refresh,
+    }),
+    [state, fanFetch, onSignIn, Boolean(onFanSignIn), refresh],
+  );
+}
+
+/** Sessão do torcedor (dentro de `<GalaxieWidgetProvider>`). */
+export function useFanSession(): GalaxieFanSession {
+  return useGalaxieWidget().fan;
+}
+
+/**
+ * Portão dos recursos do torcedor: mostra `children` só se o Perfil pode `need` (padrão `write`). Sem token,
+ * "entre para participar" (com o botão quando o site passa `onFanSignIn`); `13_17` onde precisa escrever, só
+ * leitura; `under13`, indisponível.
+ */
+export function FanGate({ need = 'write', children }: { need?: FanCapability; children?: ReactNode }) {
+  const { texts, fan } = useGalaxieWidget();
+  const message = fanGateMessage(fan.status, fan.me?.capabilities ?? [], need);
+  if (message === null) return <>{children}</>;
+  if (message === 'checking') return <div className="gs-state">{texts.loading}</div>;
+  const text =
+    message === 'unavailable'
+      ? texts.error
+      : message === 'signIn'
+        ? texts.fan.signIn
+        : message === 'expired'
+          ? texts.fan.expired
+          : message === 'readOnly'
+            ? texts.fan.readOnly
+            : texts.fan.restricted;
+  const canSignIn = (message === 'signIn' || message === 'expired') && fan.onSignIn;
+  return (
+    <div className="gs-state" data-gs-fan={message}>
+      <p>{text}</p>
+      {canSignIn && (
+        <button type="button" className="gs-button" onClick={fan.onSignIn}>
+          {texts.fan.signInAction}
+        </button>
+      )}
+    </div>
   );
 }
 

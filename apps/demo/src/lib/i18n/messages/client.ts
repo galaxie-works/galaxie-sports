@@ -25,6 +25,7 @@ export default defineMessages(
       lineup: 'Grade e ofertas',
       channels: 'Minha lista de canais',
       webhooks: 'Webhooks',
+      sponsors: 'Patrocinadores',
       themes: 'Temas',
       cosmos: 'Cosmos AI',
       groups: {
@@ -604,6 +605,7 @@ export default defineMessages(
         lineup: 'Lineup and offers',
         channels: 'My channel list',
         webhooks: 'Webhooks',
+        sponsors: 'Sponsors',
         themes: 'Themes',
         cosmos: 'Cosmos AI',
         groups: {
@@ -1186,6 +1188,7 @@ export default defineMessages(
         lineup: 'Grilla y ofertas',
         channels: 'Mi lista de canales',
         webhooks: 'Webhooks',
+        sponsors: 'Patrocinadores',
         themes: 'Temas',
         cosmos: 'Cosmos AI',
         groups: {

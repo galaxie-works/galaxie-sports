@@ -12,11 +12,32 @@
  * entidade padrão e a base da API, sem segredo) e desenha o widget num Shadow DOM, isolado do CSS do tema
  * do site. As chamadas à API saem da própria página, então a API confere a origem do site contra as
  * origens permitidas da chave publicável, como no componente instalado pelo registry.
+ *
+ * Torcedor logado (#1020): o servidor do site emite o token `gft_` (`POST /v1/fans/tokens`, chave secreta) e a
+ * página o entrega ao widget pelo atributo `fan-token` ou, melhor, por uma função que busca um token novo
+ * (renovado um minuto antes de vencer):
+ *
+ * ```html
+ * <script>
+ *   window.galaxieSports = { getFanToken: () => fetch('/minha-api/galaxie-token').then((r) => r.json()).then((j) => j.token) };
+ * </script>
+ * ```
+ *
+ * A função também pode ir no próprio elemento (`el.getFanToken = …`). O clique em "Entrar" dispara o evento
+ * `galaxie:fan-sign-in` (sobe até o documento) para o site abrir o login dele. Depois do login (ou do logout)
+ * sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama
+ * `el.refreshFanToken()`) e os widgets pedem o token de novo.
  */
 import { createRoot, type Root } from 'react-dom/client';
 
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
-import { WIDGET_KINDS, WIDGET_LOCALES, parseLiveListOptions, parseStandingsOptions } from '../core/model.js';
+import {
+  FAN_TOKEN_CHANGED_EVENT,
+  WIDGET_KINDS,
+  WIDGET_LOCALES,
+  parseLiveListOptions,
+  parseStandingsOptions,
+} from '../core/model.js';
 import type { LiveListOptions, StandingsOptions } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
 import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
@@ -94,7 +115,19 @@ export const EMBED_ATTRIBUTES = [
   'competition-id',
   'team-id',
   'person-id',
+  'fan-token',
 ] as const;
+
+/** Evento do clique em "Entrar" num recurso do torcedor (sobe até o documento, atravessando o Shadow DOM). */
+export const FAN_SIGN_IN_EVENT = 'galaxie:fan-sign-in';
+
+type FanTokenGetter = () => string | null | undefined | Promise<string | null | undefined>;
+
+/** `window.galaxieSports.getFanToken`, a função da página para todos os widgets. */
+function pageFanTokenGetter(): FanTokenGetter | undefined {
+  const g = (globalThis as { galaxieSports?: { getFanToken?: unknown } }).galaxieSports?.getFanToken;
+  return typeof g === 'function' ? (g as FanTokenGetter) : undefined;
+}
 
 export interface EmbedOverrides {
   locale?: string | null;
@@ -288,6 +321,33 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
     private root: Root | null = null;
     private mount: HTMLDivElement | null = null;
     private renderId = 0;
+    private fanGetter: FanTokenGetter | undefined;
+
+    /** Função que busca um token novo do torcedor (vale mais que o atributo e que a da página). */
+    get getFanToken(): FanTokenGetter | undefined {
+      return this.fanGetter;
+    }
+    set getFanToken(fn: FanTokenGetter | undefined) {
+      this.fanGetter = typeof fn === 'function' ? fn : undefined;
+      if (this.root) void this.update().then(() => this.refreshFanToken());
+    }
+
+    /**
+     * Confere de novo a sessão do torcedor em todos os widgets da página (depois de entrar ou sair sem
+     * recarregar): dispara `galaxie:fan-token-changed` no `document`.
+     */
+    refreshFanToken(): void {
+      document.dispatchEvent(new CustomEvent(FAN_TOKEN_CHANGED_EVENT));
+    }
+
+    /**
+     * O token na hora do pedido: a função do elemento, a da página (lida agora, então `window.galaxieSports`
+     * pode vir depois do embed.js) ou o atributo `fan-token`.
+     */
+    private readonly currentFanToken = (): ReturnType<FanTokenGetter> => {
+      const fn = this.fanGetter ?? pageFanTokenGetter();
+      return fn ? fn() : this.getAttribute('fan-token')?.trim() || null;
+    };
 
     connectedCallback() {
       if (!this.mount) {
@@ -338,6 +398,11 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
           locale={locale}
           market={market}
           fetch={options.fetch}
+          fanToken={this.getAttribute('fan-token')?.trim() || null}
+          getFanToken={this.currentFanToken}
+          onFanSignIn={() =>
+            this.dispatchEvent(new CustomEvent(FAN_SIGN_IN_EVENT, { bubbles: true, composed: true }))
+          }
         >
           <EmbeddedWidget config={config} overrides={overrides} />
         </GalaxieWidgetProvider>,
