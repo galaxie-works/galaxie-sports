@@ -11,6 +11,12 @@ import {
   type FanRevocations,
 } from './engage/fan-auth.js';
 import { fanRoutes } from './engage/fan-routes.js';
+import {
+  MemoryPresenceCounter,
+  PresenceMaxGames,
+  presenceRoutes,
+  RedisPresenceCounter,
+} from './engage/presence-routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -461,6 +467,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       signer: options.fanTokens ?? null,
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
+    });
+    await presenceRoutes(instance, {
+      db: options.db,
+      counter: options.redis ? new RedisPresenceCounter(options.redis, prefix) : new MemoryPresenceCounter(),
+      maxGames: new PresenceMaxGames(options.db),
     });
   });
 

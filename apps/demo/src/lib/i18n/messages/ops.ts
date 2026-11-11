@@ -1794,6 +1794,12 @@ export default defineMessages(
           'Por quanto tempo vale o token que o servidor do cliente pede. Faixa etária e país só mudam no próximo token; exclusão do Perfil vale na hora.',
         unit: 'segundos',
       },
+      FAN_PRESENCE_MAX_GAMES: {
+        label: 'Jogos ao mesmo tempo na presença ao vivo',
+        description:
+          'Em quantos jogos um Perfil pode contar presença ao mesmo tempo. Acima disso, o sinal do jogo novo não conta (antirrobô). O cliente só pode baixar este número.',
+        unit: 'jogos',
+      },
       FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
@@ -3583,6 +3589,12 @@ export default defineMessages(
           description:
             "How long the token the client's server requests stays valid. Age band and country only change on the next token; deleting a Profile takes effect at once.",
           unit: 'seconds',
+        },
+        FAN_PRESENCE_MAX_GAMES: {
+          label: 'Simultaneous games for live presence',
+          description:
+            'How many games a Profile can count presence in at once. Above that, the signal from a new game does not count (anti-bot). Clients can only lower this number.',
+          unit: 'games',
         },
         FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
         APISPORTS_KEY: { label: 'api-sports key' },
@@ -5398,6 +5410,12 @@ export default defineMessages(
           description:
             'Cuánto tiempo vale el token que pide el servidor del cliente. La franja de edad y el país solo cambian en el próximo token; la eliminación del Perfil vale al instante.',
           unit: 'segundos',
+        },
+        FAN_PRESENCE_MAX_GAMES: {
+          label: 'Partidos a la vez en la presencia en vivo',
+          description:
+            'En cuántos partidos un Perfil puede contar presencia a la vez. Por encima de eso, la señal del partido nuevo no cuenta (antirrobot). El cliente solo puede bajar este número.',
+          unit: 'partidos',
         },
         FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
