@@ -1,7 +1,7 @@
 'use client';
 
 import { SCHEDULED_JOBS, scheduleKey, settingDef, type SettingSection } from '@galaxie/runtime-config';
-import { Activity, Bot, Gauge, Play, RefreshCw, Server, ShieldCheck } from 'lucide-react';
+import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, type ReactNode } from 'react';
 
@@ -9,6 +9,11 @@ import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operac
 import { Badge } from '@/components/reui/badge';
 import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { ModelAgentCards } from '@/components/settings/blocks/ai-usage';
+import { GithubIntegration } from '@/components/settings/blocks/integrations';
+import { AI_MODEL_KEYS, PLAN_SPORT_KEYS, POSTGAME_SPORT_KEYS } from '@/components/settings/blocks/logic';
+import { PlanTable, PostgameTable } from '@/components/settings/blocks/sport-tables';
+import { CredentialsList, ServicesStatusList } from '@/components/settings/blocks/status-panels';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +35,6 @@ import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
-import { FeedbackGithubCard } from './feedback-github-card';
 import { MirrorTab } from './mirror-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
@@ -162,18 +166,8 @@ export function OpsPanel({
     ),
     suggestions: (
       <>
-        {/* só o liga/desliga vem pela lista de flags; repo e token são gravados juntos no cartão */}
-        <SectionCard
-          section="feedback"
-          filter={(key) => key === 'FEEDBACK_ENABLED'}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
-        <FeedbackGithubCard
-          key={snapshot.settings.find((s) => s.key === 'FEEDBACK_GITHUB_REPO')?.value ?? ''}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
+        {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
+        <GithubIntegration snapshot={snapshot} timeZone={timeZone} />
       </>
     ),
     history: (
@@ -255,31 +249,34 @@ export function OpsPanel({
 const effective = (snapshot: OpsSnapshot, key: string) =>
   snapshot.settings.find((s) => s.key === key)?.value ?? null;
 
-function SecretsList({ settings }: { settings: OpsSetting[] }) {
-  const { t } = useI18n();
-  if (!settings.length) return null;
+/** Linhas de ajuste da seção (padrão settings-3, #1074) numa moldura, com título e descrição. */
+function RowsFrame({
+  title,
+  description,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-2">
-      {settings.map((s) => {
-        const def = settingDef(s.key)!;
-        return (
-          <div key={s.key} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm">{settingText(t.ops, def).label}</span>
-              <code className="text-muted-foreground truncate font-mono text-[11px]">
-                {s.key} · {def.services.map((x) => t.ops.services[x]).join(', ')}
-              </code>
-            </div>
-            <Badge variant={s.configured ? 'success-light' : 'warning-light'}>
-              {s.configured ? t.ops.secrets.configured : t.ops.secrets.missing}
-            </Badge>
-          </div>
-        );
-      })}
-    </div>
+    <Frame>
+      {title ? (
+        <FrameHeader>
+          <FrameTitle>{title}</FrameTitle>
+          {description ? <FrameDescription>{description}</FrameDescription> : null}
+        </FrameHeader>
+      ) : null}
+      <FramePanel className="p-0">{children}</FramePanel>
+    </Frame>
   );
 }
 
+/**
+ * As flags de uma seção. Cada uma no bloco dela (#1074 a #1078): as linhas comuns em `SettingRow`; o pós-jogo e o
+ * plano de cada esporte numa linha por esporte; os modelos de IA num cartão por agente; os segredos na lista de
+ * credenciais (só "configurada ou faltando"). O salvamento é o de sempre, uma chave por vez.
+ */
 function SectionCard({
   section,
   snapshot,
@@ -299,26 +296,63 @@ function SectionCard({
   const text = T.sections[variant ?? section];
   const editable = settings.filter((s) => settingDef(s.key)!.type !== 'secret');
   const secrets = settings.filter((s) => settingDef(s.key)!.type === 'secret');
+  const postgame = editable.filter((s) => POSTGAME_SPORT_KEYS.has(s.key));
+  const postgameCap = postgame.length ? editable.find((s) => s.key === 'POSTGAME_MAX_CALLS_DAY') : undefined;
+  const plans = editable.filter((s) => PLAN_SPORT_KEYS.has(s.key));
+  const models = editable.filter((s) => AI_MODEL_KEYS.has(s.key));
+  const rows = editable.filter(
+    (s) =>
+      !POSTGAME_SPORT_KEYS.has(s.key) &&
+      !PLAN_SPORT_KEYS.has(s.key) &&
+      !AI_MODEL_KEYS.has(s.key) &&
+      s !== postgameCap,
+  );
   const inheritPlan = effective(snapshot, 'APISPORTS_PLAN');
+  const row = (s: OpsSetting) => (
+    <SettingRow
+      key={`${s.key}:${s.source}:${s.value}`}
+      setting={s}
+      timeZone={timeZone}
+      now={snapshot.generatedAt}
+      inheritPlan={inheritPlan}
+    />
+  );
+  // o rascunho das tabelas volta ao gravado quando o snapshot muda (depois de salvar)
+  const version = (list: OpsSetting[]) => list.map((s) => `${s.key}=${s.source}:${s.value}`).join('|');
+  // só a tabela (plano por esporte, credenciais): ela leva o título da seção
+  const onlyTable = !rows.length && !models.length;
   return (
-    <Frame>
-      <FramePanel className="p-0">
-        <FrameHeader className="px-4 pt-4">
-          <FrameTitle>{text.title}</FrameTitle>
-          <FrameDescription>{text.description}</FrameDescription>
-        </FrameHeader>
-        {editable.map((s) => (
-          <SettingRow
-            key={`${s.key}:${s.source}:${s.value}`}
-            setting={s}
-            timeZone={timeZone}
-            now={snapshot.generatedAt}
-            inheritPlan={inheritPlan}
-          />
-        ))}
-        <SecretsList settings={secrets} />
-      </FramePanel>
-    </Frame>
+    <>
+      {rows.length || models.length ? (
+        <RowsFrame title={text.title} description={text.description}>
+          {rows.map(row)}
+          <ModelAgentCards settings={models} timeZone={timeZone} now={snapshot.generatedAt} />
+        </RowsFrame>
+      ) : null}
+      {postgame.length ? (
+        <PostgameTable
+          key={version(postgame)}
+          settings={postgame}
+          before={postgameCap ? <div className="border-b">{row(postgameCap)}</div> : null}
+        />
+      ) : null}
+      {plans.length ? (
+        <PlanTable
+          key={version(plans)}
+          settings={plans}
+          inheritPlan={inheritPlan}
+          {...(onlyTable && !postgame.length ? { title: text.title, description: text.description } : {})}
+        />
+      ) : null}
+      {secrets.length ? (
+        <CredentialsList
+          settings={secrets}
+          {...(onlyTable && !postgame.length && !plans.length
+            ? { title: text.title, description: text.description }
+            : {})}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -327,7 +361,7 @@ function SectionCard({
 function StatusTab({ snapshot, timeZone }: Ctx) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <ServicesCard snapshot={snapshot} timeZone={timeZone} />
+      <ServicesStatusList services={snapshot.services} timeZone={timeZone} now={snapshot.generatedAt} />
       <CreditCard snapshot={snapshot} timeZone={timeZone} />
       <QuotaCard snapshot={snapshot} timeZone={timeZone} />
       <LlmCard snapshot={snapshot} timeZone={timeZone} />
@@ -368,54 +402,6 @@ function CardShell({
         {children}
       </FramePanel>
     </Frame>
-  );
-}
-
-function ServicesCard({ snapshot, timeZone }: Ctx) {
-  const { t } = useI18n();
-  const T = t.ops;
-  const f = useFormatters(timeZone);
-  const now = Date.parse(snapshot.generatedAt);
-  return (
-    <CardShell icon={Server} title={T.status.services}>
-      <div className="flex flex-col divide-y">
-        {snapshot.services.map((s) => (
-          <div key={s.service} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <div className="flex min-w-0 flex-col">
-              <span>{T.services[s.service]}</span>
-              {s.live ? (
-                <span className="text-muted-foreground text-xs">
-                  {s.live.leader
-                    ? fill(T.status.liveLeader, {
-                        instance: s.live.leader.slice(0, 12),
-                        epoch: String(s.live.epoch ?? '—'),
-                        when: s.live.leaderSince ? f.relative(s.live.leaderSince, now) : '—',
-                      })
-                    : T.status.liveNoLeader}
-                  {' · '}
-                  {s.live.lastTickAt
-                    ? fill(T.status.liveLastTick, { when: f.relative(s.live.lastTickAt, now) })
-                    : T.status.liveNoTick}
-                </span>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {s.reportedAt
-                  ? fill(s.service === 'api' ? T.status.startedAt : T.status.reported, {
-                      when: f.relative(s.reportedAt, now),
-                    })
-                  : T.status.never}
-              </span>
-              <Badge variant={s.alive ? 'success-light' : 'destructive-light'} radius="full">
-                <span className="size-1.5 rounded-full bg-current" aria-hidden />
-                {s.alive ? T.status.alive : T.status.offline}
-              </Badge>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardShell>
   );
 }
 
