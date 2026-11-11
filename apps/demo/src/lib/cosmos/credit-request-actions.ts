@@ -104,12 +104,12 @@ export async function requestCosmosCredits(reason: string): Promise<CreditReques
     });
     if (recent.length <= 1)
       await notifyOwners({
-      tenantId: g.ctx.tenant.id,
-      tenantName: g.ctx.tenant.name,
-      requesterId: g.ctx.userId,
-      reason: r.reason,
-      locale: g.locale,
-    }).catch((err) => console.error('[cosmos] aviso do pedido de créditos não saiu', err));
+        tenantId: g.ctx.tenant.id,
+        tenantName: g.ctx.tenant.name,
+        requesterId: g.ctx.userId,
+        reason: r.reason,
+        locale: g.locale,
+      }).catch((err) => console.error('[cosmos] aviso do pedido de créditos não saiu', err));
     return { ok: true };
   } catch (err) {
     return failure(err, g.t);

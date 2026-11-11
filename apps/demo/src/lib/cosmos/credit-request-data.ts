@@ -30,7 +30,10 @@ export async function loadCreditRequests(
   const rows = canManage
     ? [
         ...(await listCreditRequests(db, tenantId, { status: ['open'], limit: 200 })),
-        ...(await listCreditRequests(db, tenantId, { status: ['approved', 'declined', 'canceled'], limit: 20 })),
+        ...(await listCreditRequests(db, tenantId, {
+          status: ['approved', 'declined', 'canceled'],
+          limit: 20,
+        })),
       ]
     : await listCreditRequests(db, tenantId, { requestedBy: userId, limit: 5 });
   const who = await people(rows.flatMap((r) => [r.requestedBy, r.decidedBy]));

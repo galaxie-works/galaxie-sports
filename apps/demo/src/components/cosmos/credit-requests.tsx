@@ -195,7 +195,9 @@ export function CreditRequests({
               placeholder={T.reasonPlaceholder}
               onChange={(e) => setReason(e.target.value)}
             />
-            <FieldDescription>{fill(T.count, { count: [...reason].length, max: REASON_MAX })}</FieldDescription>
+            <FieldDescription>
+              {fill(T.count, { count: [...reason].length, max: REASON_MAX })}
+            </FieldDescription>
           </Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAsking(false)}>
