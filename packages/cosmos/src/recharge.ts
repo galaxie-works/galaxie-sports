@@ -4,9 +4,10 @@
  * fora da sessão; o crédito entra pelo webhook `payment_intent.succeeded`. Recusa definitiva do cartão desliga a
  * recarga e registra o motivo, para o dono decidir; falha passageira do Stripe volta a tentativa para a fila.
  */
-import { and, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { autoRecharge, creditPackage, rechargeAttempt } from '@galaxie/db/schema';
+import { autoRecharge, creditPackage, rechargeAttempt, wallet } from '@galaxie/db/schema';
+import { canRecharge } from './balance.js';
 import { ceilCredits } from './credits.js';
 import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';
@@ -67,8 +68,34 @@ export async function getAutoRecharge(
 }
 
 /**
- * Encerra as tentativas ainda não cobradas (`pending`) do tenant. A que já está no Stripe (`processing`) segue:
- * o resultado dela chega pelo webhook.
+ * A tentativa ainda não falou com o Stripe: nenhuma chamada de cobrança com falha passageira (`attempts`) e nenhum
+ * PaymentIntent gravado. Só essa pode ser cancelada sem risco. A que já chamou o Stripe pode ter criado o
+ * pagamento; cancelá-la liberaria o "uma aberta por vez" para uma segunda cobrança. Ela segue com a mesma chave de
+ * idempotência (ou o webhook a resolve).
+ */
+const untouched = and(eq(rechargeAttempt.attempts, 0), isNull(rechargeAttempt.paymentIntentId));
+
+const isUntouched = (a: { attempts: number; paymentIntentId: string | null }) =>
+  a.attempts === 0 && !a.paymentIntentId;
+
+async function cancelUntouched(
+  db: Tx | Database,
+  scope: SQL | undefined,
+  reason: string,
+  now: Date,
+): Promise<number> {
+  const rows = await db
+    .update(rechargeAttempt)
+    .set({ status: 'cancelled', failureReason: reason, updatedAt: now })
+    .where(and(scope, eq(rechargeAttempt.status, 'pending'), untouched))
+    .returning({ id: rechargeAttempt.id });
+  return rows.length;
+}
+
+/**
+ * Encerra as tentativas pendentes do tenant que ainda não falaram com o Stripe. A que já está no Stripe
+ * (`processing`) segue, e o resultado chega pelo webhook; a que voltou para a fila depois de chamar o Stripe
+ * (falha passageira) também segue, com a mesma chave de idempotência, para não abrir uma segunda cobrança.
  */
 export async function cancelPendingRecharges(
   db: Tx | Database,
@@ -76,18 +103,24 @@ export async function cancelPendingRecharges(
   reason: string,
   now: Date = new Date(),
 ): Promise<number> {
-  const rows = await db
-    .update(rechargeAttempt)
-    .set({ status: 'cancelled', failureReason: reason, updatedAt: now })
-    .where(and(eq(rechargeAttempt.tenantId, tenantId), eq(rechargeAttempt.status, 'pending')))
-    .returning({ id: rechargeAttempt.id });
-  return rows.length;
+  return cancelUntouched(db, eq(rechargeAttempt.tenantId, tenantId), reason, now);
+}
+
+/** O mesmo, para as tentativas de um pacote (preço, moeda ou créditos mudaram: exigem novo aceite). */
+export async function cancelPendingRechargesOfPackage(
+  db: Tx | Database,
+  packageId: string,
+  reason: string,
+  now: Date = new Date(),
+): Promise<number> {
+  return cancelUntouched(db, eq(rechargeAttempt.packageId, packageId), reason, now);
 }
 
 /**
  * Liga, muda ou desliga a recarga automática. Ligar exige o aceite (`accepted: true`), que fica gravado com quem
  * e quando, um pacote ativo do mercado do tenant e um limiar abaixo dos créditos do pacote. Desligar não exige
- * nada. Qualquer mudança encerra a tentativa pendente: a próxima abre com a configuração nova.
+ * nada. Qualquer mudança encerra a tentativa pendente que ainda não falou com o Stripe: a próxima abre com a
+ * configuração nova.
  */
 export async function configureAutoRecharge(
   db: Database,
@@ -209,21 +242,57 @@ async function requeue(
   return 'requeued';
 }
 
-/** A recarga do tenant da tentativa segue ligada e aceita (condição para tirá-la da fila). */
-const stillConsented = sql`exists (
+/**
+ * Ainda pode cobrar (condição para tirar a tentativa da fila): a recarga do tenant segue ligada e aceita, e a
+ * carteira segue com a Cosmos ligada e sem bloqueio da equipe (o mesmo que `canRecharge`).
+ */
+const stillChargeable = sql`exists (
   select 1 from ${autoRecharge}
   where ${autoRecharge.tenantId} = ${rechargeAttempt.tenantId}
     and ${autoRecharge.enabled} = true
     and ${autoRecharge.acceptedAt} is not null
+) and exists (
+  select 1 from ${wallet}
+  where ${wallet.tenantId} = ${rechargeAttempt.tenantId}
+    and ${wallet.enabled} = true
+    and not (${wallet.status} = 'blocked' and coalesce(${wallet.blockReason}, '') = 'staff')
 )`;
+
+/**
+ * Por quanto tempo uma tentativa que já falou com o Stripe, mas não pode mais cobrar (aceite retirado, Cosmos
+ * desligada, bloqueio da equipe), fica pendente esperando o webhook antes de ser encerrada. É a janela em que o
+ * Stripe guarda a chave de idempotência; se o pagamento tiver sido criado, o webhook credita mesmo depois.
+ */
+export const RECHARGE_REPLAY_WINDOW_MS = 24 * 60 * 60_000;
 
 const declineReason = (e: unknown) =>
   (e as StripeRequestError & { code?: string | undefined }).code ??
   `stripe_${(e as StripeRequestError).status}`;
 
 /**
+ * Tentativa que não pode mais cobrar: a que ainda não falou com o Stripe é encerrada na hora; a que já falou fica
+ * pendente (sem cobrar) até o webhook resolver ou passar a janela da chave de idempotência.
+ */
+async function closeUnchargeable(
+  db: Database,
+  a: { id: string; tenantId: string; attempts: number; paymentIntentId: string | null; updatedAt: Date },
+  reason: string,
+  now: Date,
+): Promise<number> {
+  if (isUntouched(a)) return cancelPendingRecharges(db, a.tenantId, reason, now);
+  if (a.updatedAt.getTime() > now.getTime() - RECHARGE_REPLAY_WINDOW_MS) return 0;
+  const rows = await db
+    .update(rechargeAttempt)
+    .set({ status: 'cancelled', failureReason: reason, updatedAt: now })
+    .where(and(eq(rechargeAttempt.id, a.id), eq(rechargeAttempt.status, 'pending')))
+    .returning({ id: rechargeAttempt.id });
+  return rows.length;
+}
+
+/**
  * Cobra as tentativas pendentes (job `cosmos-upkeep`). Cada uma passa a `processing` antes de chamar o Stripe
- * (outro processo não pega a mesma), e só com a recarga ainda ligada e aceita; sem isso, a tentativa é encerrada.
+ * (outro processo não pega a mesma), e só com a recarga ainda ligada e aceita e a carteira ligada e sem bloqueio
+ * da equipe; sem isso, a tentativa é encerrada (ou, se já falou com o Stripe, espera o webhook sem cobrar).
  * A chave de idempotência do Stripe é a tentativa, e cliente e cartão ficam gravados nela: a repetição manda os
  * mesmos parâmetros e não cobra duas vezes.
  */
@@ -233,6 +302,7 @@ export async function processRecharges(
   options: { now?: Date; limit?: number; fetchImpl?: typeof fetch } = {},
 ): Promise<{ charged: number; failed: number; cancelled: number; requeued: number }> {
   const now = options.now ?? new Date();
+  const replayCutoff = new Date(now.getTime() - RECHARGE_REPLAY_WINDOW_MS);
   const pending = await db
     .select({
       id: rechargeAttempt.id,
@@ -240,30 +310,49 @@ export async function processRecharges(
       amountCents: rechargeAttempt.amountCents,
       currency: rechargeAttempt.currency,
       credits: rechargeAttempt.credits,
+      attempts: rechargeAttempt.attempts,
+      paymentIntentId: rechargeAttempt.paymentIntentId,
+      updatedAt: rechargeAttempt.updatedAt,
       attemptCustomerId: rechargeAttempt.stripeCustomerId,
       paymentMethodId: rechargeAttempt.paymentMethodId,
       customerId: autoRecharge.stripeCustomerId,
       enabled: autoRecharge.enabled,
       acceptedAt: autoRecharge.acceptedAt,
+      walletEnabled: wallet.enabled,
+      walletStatus: wallet.status,
+      walletBlockReason: wallet.blockReason,
     })
     .from(rechargeAttempt)
     .leftJoin(autoRecharge, eq(autoRecharge.tenantId, rechargeAttempt.tenantId))
-    .where(eq(rechargeAttempt.status, 'pending'))
+    .leftJoin(wallet, eq(wallet.tenantId, rechargeAttempt.tenantId))
+    .where(
+      and(
+        eq(rechargeAttempt.status, 'pending'),
+        // a que já falou com o Stripe e não pode cobrar espera o webhook: fora da leitura até a janela passar
+        or(stillChargeable, untouched, lt(rechargeAttempt.updatedAt, replayCutoff)),
+      ),
+    )
     .limit(options.limit ?? 20);
   const result = { charged: 0, failed: 0, cancelled: 0, requeued: 0 };
   for (const a of pending) {
-    if (!a.enabled || !a.acceptedAt) {
-      result.cancelled += await cancelPendingRecharges(db, a.tenantId, 'consent_revoked', now);
+    const consented = Boolean(a.enabled && a.acceptedAt);
+    const walletOk =
+      a.walletEnabled !== null &&
+      a.walletStatus !== null &&
+      canRecharge({ enabled: a.walletEnabled, status: a.walletStatus, blockReason: a.walletBlockReason });
+    if (!consented || !walletOk) {
+      const reason = !consented ? 'consent_revoked' : a.walletEnabled ? 'wallet_blocked' : 'cosmos_disabled';
+      result.cancelled += await closeUnchargeable(db, a, reason, now);
       continue;
     }
     const [taken] = await db
       .update(rechargeAttempt)
       .set({ status: 'processing', updatedAt: now })
-      .where(and(eq(rechargeAttempt.id, a.id), eq(rechargeAttempt.status, 'pending'), stillConsented))
+      .where(and(eq(rechargeAttempt.id, a.id), eq(rechargeAttempt.status, 'pending'), stillChargeable))
       .returning({ id: rechargeAttempt.id });
     if (!taken) {
-      // desligada entre a leitura e a vez desta tentativa (ou outro processo já pegou)
-      result.cancelled += await cancelPendingRecharges(db, a.tenantId, 'consent_revoked', now);
+      // desligada ou bloqueada entre a leitura e a vez desta tentativa (ou outro processo já pegou)
+      result.cancelled += await closeUnchargeable(db, a, 'consent_revoked', now);
       continue;
     }
     const customerId = a.attemptCustomerId ?? a.customerId;
