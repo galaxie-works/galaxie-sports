@@ -222,12 +222,19 @@ export async function fileReport(
         content: input.content,
         clocks: input.clocks,
       });
-      // o autor do conteúdo é o do caso (o primeiro que informou), não o que este denunciante mandou
+      // o autor do caso só barra a denúncia quando veio de fonte confiável (alvo Perfil, filtro ou Cosmos); o autor
+      // que outro denunciante informou não impede a vítima de denunciar
       const [author] = await tx
-        .select({ id: moderationCase.targetProfileId })
+        .select({
+          id: moderationCase.targetProfileId,
+          source: moderationCase.source,
+          targetType: moderationCase.targetType,
+        })
         .from(moderationCase)
         .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
-      if (author?.id === input.reporterProfileId) throw new SelfReportError();
+      const trusted =
+        author?.targetType === 'profile' || author?.source === 'filter' || author?.source === 'cosmos';
+      if (trusted && author?.id === input.reporterProfileId) throw new SelfReportError();
       const [report] = await tx
         .insert(moderationReport)
         .values({

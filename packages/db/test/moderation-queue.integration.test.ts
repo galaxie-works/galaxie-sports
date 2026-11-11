@@ -816,18 +816,19 @@ describe('fila única da moderação (B8, #953)', () => {
     ).toBe(false);
   });
 
-  it('autor do conteúdo não denuncia o próprio conteúdo, mesmo sem dizer quem é o autor', async () => {
+  it('autor vindo do filtro barra a autodenúncia; autor informado por outro denunciante não barra a vítima', async () => {
     const author = await profile();
-    const rep = await profile();
+    const victim = await profile();
     const t = target(author.id);
-    await fileReport(db, {
+    await holdContent(db, {
       ...t,
-      reporterProfileId: rep.id,
-      reason: 'spam',
-      note: null,
+      source: 'filter',
+      reasons: ['hate'],
+      severity: 90,
+      hide: true,
       content: null,
+      detail: null,
       clocks: clocks(),
-      rules,
     });
     expect(
       await fileReport(db, {
@@ -841,6 +842,30 @@ describe('fila única da moderação (B8, #953)', () => {
         rules,
       }),
     ).toEqual({ ok: false, reason: 'self_report' });
+
+    // o autor denuncia primeiro e diz que a vítima escreveu; a vítima ainda consegue denunciar
+    const t2 = target(author.id);
+    const first = await fileReport(db, {
+      ...t2,
+      targetProfileId: victim.id,
+      reporterProfileId: author.id,
+      reason: 'spam',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    expect(first.ok).toBe(true);
+    const second = await fileReport(db, {
+      ...t2,
+      reporterProfileId: victim.id,
+      reason: 'harassment',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    expect(second.ok).toBe(true);
   });
 
   it('o texto do filtro entra no caso aberto pela denúncia', async () => {
