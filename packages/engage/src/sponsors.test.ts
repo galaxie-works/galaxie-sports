@@ -176,6 +176,25 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists).ok).toBe(true);
   });
 
+  it.each([
+    'https://x.com/?r=https://stake.com',
+    'https://x.com/?r=stake.com/br',
+    'https://loja.com.br/?r=https%3A%2F%2Fblaze.com',
+  ])('redirecionamento para domínio de aposta é recusado: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field: 'linkUrl', code: 'betting' }],
+    });
+  });
+
+  it.each([
+    'https://x.com/?r=https://nike.com',
+    'https://shop.вет-клиника.com/',
+    'https://www.вет-клиника.com/',
+  ])('link comum passa: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists).ok).toBe(true);
+  });
+
   it('link muito longo é recusado', () => {
     expect(validateSponsor(input({ linkUrl: `https://x.com/${'a'.repeat(2100)}` }), lists)).toMatchObject({
       ok: false,

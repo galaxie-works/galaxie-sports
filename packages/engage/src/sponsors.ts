@@ -336,12 +336,21 @@ export function validateSponsor(
     const uHost = unicodeHost(host);
     if (
       inList(lists.betDomains) ||
-      // o TLD latino (`.com`) não conta como contexto: `вет-клиника.com` fica como está
-      looksLikeBetting(uHost, lists, /[a-z]/.test(uHost.replace(/\.[^.]*$/, ''))) ||
+      // contexto latino só no rótulo que mistura letras (`shop.вет-клиника.com` fica como está)
+      looksLikeBetting(
+        uHost,
+        lists,
+        uHost.split('.').some((l) => /[a-z]/.test(l) && /[^\p{Script=Latin}\P{L}]/u.test(l)),
+      ) ||
       // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
       // escrito em palavras (`?y=estrela%20bet`), `bet` solto, palavra de aposta (`/apostas`) e marca inteira
       (field === 'linkUrl' &&
-        (betScreen(path.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+        // redirecionamento para domínio de aposta (`?r=https://stake.com`)
+        ([...rest.matchAll(/(?:[\p{L}\p{N}-]+\.)+\p{L}{2,}/gu)].some((m) => {
+          const d = normalizeDomain(foldLookalikes(m[0], 'all'));
+          return lists.betDomains.some((b) => d === b || d.endsWith(`.${b}`));
+        }) ||
+          betScreen(path.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
           LOOSE_BET.test(path) ||
           path
             .split(/[/?#&=]+/)
