@@ -8,9 +8,11 @@ import { CosmosArea } from '@/components/cosmos/cosmos-area';
 import { CosmosModeration } from '@/components/cosmos/cosmos-moderation';
 import { CosmosOverview } from '@/components/cosmos/cosmos-overview';
 import { CosmosUsage } from '@/components/cosmos/cosmos-usage';
+import { CreditRequests } from '@/components/cosmos/credit-requests';
 import { Skeleton } from '@/components/ui/skeleton';
 import { can } from '@/lib/client/permissions';
 import { isUuid } from '@/lib/client/tenants';
+import { loadCreditRequests } from '@/lib/cosmos/credit-request-data';
 import { loadCosmosOverview, loadCosmosStatement } from '@/lib/cosmos/data';
 import { COSMOS_TABS, type CosmosTab } from '@/lib/cosmos/data-utils';
 import { loadCosmosModeration } from '@/lib/cosmos/moderation-data';
@@ -46,7 +48,8 @@ async function Cosmos({
       {async (ctx) => {
         const { tenant } = ctx;
         // o tenant vem da sessão (ClientArea, que já exigiu `cosmos.view`): o cliente só vê a carteira e o extrato dele
-        const [overview, statement, moderation] = await Promise.all([
+        const canManage = can(ctx, 'cosmos.manage');
+        const [overview, statement, moderation, requests] = await Promise.all([
           loadCosmosOverview(tenant, timeZone),
           loadCosmosStatement(
             tenant.id,
@@ -62,17 +65,24 @@ async function Cosmos({
           ),
           // só na aba Moderação: o histórico traz quem mudou, e as outras abas não precisam dele
           tab === 'moderation' ? loadCosmosModeration(tenant.id) : null,
+          // quem compra vê os pedidos do tenant; quem não compra, só os próprios (#996)
+          tab === 'overview' ? loadCreditRequests(tenant.id, ctx.userId, canManage) : [],
         ]);
         return (
           <CosmosArea
             tab={tab}
             overview={
-              <CosmosOverview
-                data={overview}
-                purchase={purchase}
-                // botões de compra, recarga e o interruptor; o servidor confere de novo em cada ação
-                canManage={can(ctx, 'cosmos.manage')}
-              />
+              <div className="flex flex-col gap-6">
+                <CosmosOverview
+                  data={overview}
+                  purchase={purchase}
+                  // botões de compra, recarga e o interruptor; o servidor confere de novo em cada ação
+                  canManage={canManage}
+                />
+                {overview.wallet ? (
+                  <CreditRequests requests={requests} canManage={canManage} packages={overview.packages} />
+                ) : null}
+              </div>
             }
             usage={<CosmosUsage data={statement} timeZone={timeZone} />}
             // mudar regras e réguas é configuração do cliente (Admin e Dono); o servidor confere de novo ao salvar

@@ -603,6 +603,13 @@
       "when": 1794421600000,
       "tag": "0089_cosmos_moderacao_config",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794421658842,
+      "tag": "0090_cosmos_pedido_creditos",
+      "breakpoints": true
     }
   ]
 }

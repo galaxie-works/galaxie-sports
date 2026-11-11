@@ -40,7 +40,13 @@ export type CosmosErrorCode =
   /** Configuração da moderação inválida ou acima do teto da Galaxie (#997). */
   | 'invalid_moderation_config'
   /** Outra pessoa salvou a configuração antes: recarregar e refazer. */
-  | 'version_conflict';
+  | 'version_conflict'
+  /** A pessoa já tem um pedido de créditos aberto (#996). */
+  | 'request_open'
+  /** Pedido de créditos inexistente, de outro tenant ou já fechado. */
+  | 'request_closed'
+  /** Nota da decisão com mais de 500 caracteres. */
+  | 'note_too_long';
 
 export class CosmosError extends Error {
   readonly code: CosmosErrorCode;
