@@ -43,14 +43,10 @@ export const MOVED_AI_MODEL_KEYS = [
 
 /**
  * Chaves que ficam numa página de feature mas são editadas no cartão dela, não na lista de Credenciais: o token do
- * GitHub das sugestões é gravado junto com a repo (`FeedbackGithubCard`), e os segredos do Stripe são da Cosmos AI até
- * Pagamentos entrar em Credenciais.
+ * GitHub das sugestões é gravado junto com a repo (`FeedbackGithubCard`). As outras (Stripe e IAs da Cosmos incluídas,
+ * #1087) moram em Credenciais e aparecem na página da feature com "Trocar" (`SettingLinks`).
  */
-const SECRETS_KEPT_IN_PLACE = new Set([
-  'FEEDBACK_GITHUB_TOKEN',
-  'STRIPE_SECRET_KEY',
-  'STRIPE_WEBHOOK_SECRET',
-]);
+const SECRETS_KEPT_IN_PLACE = new Set(['FEEDBACK_GITHUB_TOKEN']);
 
 const isPostgame = (key: string) => key.startsWith('POSTGAME_');
 

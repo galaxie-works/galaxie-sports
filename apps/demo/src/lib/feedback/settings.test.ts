@@ -1,4 +1,5 @@
 import { WebhookSecretBox } from '@galaxie/db/webhooks';
+import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,7 +14,7 @@ import {
 vi.mock('@/lib/auth/db', () => ({ pool: {} }));
 
 const KEK = 'k'.repeat(40);
-const box = new WebhookSecretBox([KEK]);
+const box = new SettingsSecretBox([KEK]);
 const TOKEN = 'github_pat_do_painel_1234567890';
 const ENV = { FEEDBACK_GITHUB_TOKEN: 'github_pat_do_env_0987654321', FEEDBACK_GITHUB_REPO: 'o/env' };
 const sealed = sealFeedbackToken(TOKEN, box);
@@ -63,17 +64,33 @@ describe('precedência: painel e depois env', () => {
 });
 
 describe('token cifrado', () => {
-  it('o que vai para o banco não contém o token', () => {
-    expect(sealed.startsWith('enc:v1:')).toBe(true);
+  it('o que vai para o banco não contém o token (mecanismo geral, SETTINGS_KEK)', () => {
+    expect(sealed.startsWith('enc:s1:')).toBe(true);
     expect(sealed).not.toContain(TOKEN);
   });
 
-  it('não abre como segredo de um endpoint de webhook', () => {
-    expect(() => box.open(sealed, '019a0000-0000-7000-8000-000000000001')).toThrow();
+  it('não abre como outra chave do painel nem como segredo de um endpoint de webhook', () => {
+    expect(box.open('APISPORTS_KEY', sealed)).toBeNull();
+    // a caixa dos webhooks trata o formato novo como texto opaco: nunca chega ao token
+    expect(new WebhookSecretBox([KEK]).open(sealed, '019a0000-0000-7000-8000-000000000001')).not.toBe(TOKEN);
+  });
+
+  it('o token gravado antes (cifrado com a KEK dos webhooks) continua abrindo', () => {
+    const legacy = new WebhookSecretBox(['w'.repeat(40)]).seal(
+      TOKEN,
+      `ops.runtime_setting:${FEEDBACK_SEALED_TOKEN_KEY}`,
+    );
+    const migrated = SettingsSecretBox.fromEnv({ SETTINGS_KEK: KEK, WEBHOOK_SIGNING_SECRET: 'w'.repeat(40) });
+    const s = resolveFeedbackSettings(panel({ [FEEDBACK_SEALED_TOKEN_KEY]: legacy }), ENV, migrated);
+    expect(s).toMatchObject({ token: TOKEN, tokenUnreadable: false });
+    // e precisa ser recifrado com a SETTINGS_KEK
+    expect(migrated.needsReseal('FEEDBACK_GITHUB_TOKEN', legacy)).toBe(true);
+    // a legado só vale para o token das sugestões
+    expect(migrated.open('APISPORTS_KEY', legacy)).toBeNull();
   });
 
   it.each([
-    ['KEK trocada', new WebhookSecretBox(['z'.repeat(40)])],
+    ['KEK trocada', new SettingsSecretBox(['z'.repeat(40)])],
     ['sem KEK', null],
   ])('%s: marca como ilegível e cai no env', (_, other) => {
     const s = resolveFeedbackSettings(panel({ [FEEDBACK_SEALED_TOKEN_KEY]: sealed }), ENV, other);

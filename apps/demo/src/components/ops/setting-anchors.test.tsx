@@ -27,6 +27,12 @@ vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
   checkAiCreditNow: vi.fn(),
 }));
 
+vi.mock('@/app/[locale]/(app)/ajustes/operacao/secret-actions', () => ({
+  saveSecret: vi.fn(),
+  resetSecret: vi.fn(),
+  testSecret: vi.fn(),
+  resealSecrets: vi.fn(),
+}));
 vi.mock('@/app/[locale]/(app)/ajustes/operacao/task-actions', () => ({
   approveTaskAction: vi.fn(),
   cancelTaskAction: vi.fn(),

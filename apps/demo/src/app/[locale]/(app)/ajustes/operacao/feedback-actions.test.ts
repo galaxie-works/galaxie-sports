@@ -2,12 +2,12 @@
  * Ações do cartão de sugestões: só admin, confere no GitHub antes de gravar, nunca grava sem cifra e o histórico
  * registra a mudança sem o valor.
  */
-import { WebhookSecretBox } from '@galaxie/db/webhooks';
+import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireAdmin = vi.fn();
 const query = vi.fn();
-const webhookSecrets = vi.fn();
+const settingsSecrets = vi.fn();
 const fetchMock = vi.fn();
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('next/server', () => ({ connection: async () => {} }));
@@ -18,13 +18,17 @@ vi.mock('@/lib/auth/db', () => ({
     connect: async () => ({ query: (...a: unknown[]) => query(...a), release: () => {} }),
   },
 }));
-vi.mock('@/lib/client/webhooks', () => ({ webhookSecrets: () => webhookSecrets() }));
+vi.mock('@/lib/ops/panel-secrets', () => ({
+  settingsSecrets: () => settingsSecrets(),
+  containerEnv: () => process.env,
+  refreshPanelSecrets: async () => [],
+}));
 vi.mock('@/lib/i18n/server', () => ({ getRequestLocale: async () => 'pt-BR' }));
 
 const { clearFeedbackToken, saveFeedbackGithub, saveSetting } = await import('./actions');
 
 const TOKEN = 'github_pat_novo_1234567890abc';
-const box = new WebhookSecretBox(['k'.repeat(40)]);
+const box = new SettingsSecretBox(['k'.repeat(40)]);
 const REPO = 'galaxie-works/repo-privada';
 const repoResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
@@ -39,9 +43,9 @@ const logWrites = () => calls(/insert into ops\.runtime_setting_log/);
 
 beforeEach(() => {
   vi.unstubAllEnvs();
-  [requireAdmin, query, webhookSecrets, fetchMock].forEach((m) => m.mockReset());
+  [requireAdmin, query, settingsSecrets, fetchMock].forEach((m) => m.mockReset());
   requireAdmin.mockResolvedValue({ email: 'teste.admin@galaxie.test' });
-  webhookSecrets.mockReturnValue(box);
+  settingsSecrets.mockReturnValue(box);
   fetchMock.mockResolvedValue(repoResponse(200, { private: true }));
   vi.stubGlobal('fetch', fetchMock);
   vi.stubEnv('FEEDBACK_GITHUB_REPO', '');
@@ -68,7 +72,7 @@ describe('salvar o token', () => {
     expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${TOKEN}`);
 
     const sealedWrite = settingWrites().find((p) => p[0] === 'FEEDBACK_GITHUB_TOKEN_SEALED')!;
-    expect(sealedWrite[1]).toMatch(/^enc:v1:/);
+    expect(sealedWrite[1]).toMatch(/^enc:s1:/);
     const everything = JSON.stringify(query.mock.calls);
     expect(everything).not.toContain(TOKEN);
 
@@ -80,7 +84,7 @@ describe('salvar o token', () => {
       '••••••••',
       'teste.admin@galaxie.test',
     ]);
-    expect(JSON.stringify(logWrites())).not.toContain('enc:v1:');
+    expect(JSON.stringify(logWrites())).not.toContain('enc:s1:');
   });
 
   it.each([
@@ -98,10 +102,10 @@ describe('salvar o token', () => {
   });
 
   it('sem KEK recusa antes de falar com o GitHub (nunca grava texto puro)', async () => {
-    webhookSecrets.mockReturnValue(null);
+    settingsSecrets.mockReturnValue(null);
     const res = await saveFeedbackGithub({ repo: REPO, token: TOKEN });
     expect(res.ok).toBe(false);
-    expect(res.error).toContain('WEBHOOK_SIGNING_SECRET');
+    expect(res.error).toContain('SETTINGS_KEK');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(settingWrites()).toEqual([]);
   });

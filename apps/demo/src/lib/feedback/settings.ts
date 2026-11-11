@@ -2,26 +2,26 @@
  * Configuração do "Sugerir ou reportar algo" (só no servidor): liga/desliga, repo e token, com a precedência do painel
  * (ops.runtime_setting) sobre o env do contêiner. Aqui fica a parte sem banco; a leitura está em settings-db.ts.
  *
- * O token do painel é só-escrita e cifrado com a mesma KEK dos webhooks (`WEBHOOK_SIGNING_SECRET`, fora do banco).
- * Ele fica numa chave própria, fora do registro de flags, e por isso nunca entra no env dos jobs nem no histórico.
- * O dado autenticado prende o cifrado a esta chave: ele não abre como segredo de um endpoint, nem o contrário.
+ * O token do painel é só-escrita e cifrado pelo mecanismo geral das chaves do painel (#1087): `SettingsSecretBox`, com a
+ * `SETTINGS_KEK` fora do banco, na linha `FEEDBACK_GITHUB_TOKEN_SEALED`. Só a demo lê essa chave, então ela nunca entra
+ * no env dos jobs; o histórico registra quem trocou e quando, nunca o valor. O token gravado antes (cifrado com a KEK dos
+ * webhooks, `WEBHOOK_SIGNING_SECRET`) continua abrindo pelo cofre até ser recifrado.
  */
-import { resolveSetting, settingDef } from '@galaxie/runtime-config';
-import { WebhookSecretBox } from '@galaxie/db/webhooks';
+import { resolveSetting, sealedKey, settingDef, type SealedSecretOpener } from '@galaxie/runtime-config';
+import type { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 
 import { feedbackGithubConfig, type FeedbackGithubConfig } from './github';
 
 export const FEEDBACK_ENABLED_KEY = 'FEEDBACK_ENABLED';
 export const FEEDBACK_REPO_KEY = 'FEEDBACK_GITHUB_REPO';
 const FEEDBACK_TOKEN_ENV = 'FEEDBACK_GITHUB_TOKEN';
-export const FEEDBACK_SEALED_TOKEN_KEY = 'FEEDBACK_GITHUB_TOKEN_SEALED';
+export const FEEDBACK_SEALED_TOKEN_KEY = sealedKey(FEEDBACK_TOKEN_ENV);
 export const FEEDBACK_SETTING_KEYS = [
   FEEDBACK_ENABLED_KEY,
   FEEDBACK_REPO_KEY,
   FEEDBACK_SEALED_TOKEN_KEY,
 ] as const;
 
-const TOKEN_AAD = `ops.runtime_setting:${FEEDBACK_SEALED_TOKEN_KEY}`;
 /** Só ASCII visível: o token vira cabeçalho HTTP. O formato exato quem confere é o GitHub. */
 const TOKEN_RE = /^[\x21-\x7e]{20,512}$/;
 
@@ -49,25 +49,17 @@ export function feedbackEnabled(overrides: Overrides, env: Env): boolean {
   return (effective(FEEDBACK_ENABLED_KEY, overrides, env) ?? 'on').toLowerCase() !== 'off';
 }
 
-export const sealFeedbackToken = (token: string, box: WebhookSecretBox) => box.seal(token, TOKEN_AAD);
-
-/** Decifra o token gravado; `open` da caixa aceitaria texto puro (legado dos webhooks), aqui isso é recusado. */
-function openFeedbackToken(sealed: string, box: WebhookSecretBox | null): string | null {
-  if (!box || !WebhookSecretBox.isSealed(sealed)) return null;
-  try {
-    return box.open(sealed, TOKEN_AAD);
-  } catch {
-    return null;
-  }
-}
+export const sealFeedbackToken = (token: string, box: SettingsSecretBox) =>
+  box.seal(FEEDBACK_TOKEN_ENV, token);
 
 export function resolveFeedbackSettings(
   overrides: Overrides,
   env: Env,
-  box: WebhookSecretBox | null,
+  box: SealedSecretOpener | null,
 ): FeedbackSettings {
   const sealed = overrides.get(FEEDBACK_SEALED_TOKEN_KEY);
-  const panelToken = sealed ? openFeedbackToken(sealed, box) : null;
+  // texto puro gravado direto no banco nunca abre (o cofre só aceita o formato cifrado)
+  const panelToken = sealed ? (box?.open(FEEDBACK_TOKEN_ENV, sealed) ?? null) : null;
   const token = panelToken ?? (env[FEEDBACK_TOKEN_ENV]?.trim() || null);
   const repo = effective(FEEDBACK_REPO_KEY, overrides, env);
   return {

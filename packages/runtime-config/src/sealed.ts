@@ -67,7 +67,9 @@ function decrypt(keks: readonly Kek[], body: string, additional: Buffer): string
     });
     decipher.setAAD(additional);
     decipher.setAuthTag(authTag);
-    return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
+    return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString(
+      'utf8',
+    );
   } catch {
     return null;
   }
@@ -99,7 +101,7 @@ export class SettingsSecretBox implements SealedSecretOpener {
   }
 
   /** Lê `SETTINGS_KEK` (e a KEK dos webhooks, só para o legado do token das sugestões). Nunca lança. */
-  static fromEnv(env: NodeJS.ProcessEnv = process.env): SettingsSecretBox {
+  static fromEnv(env: Readonly<Record<string, string | undefined>> = process.env): SettingsSecretBox {
     return new SettingsSecretBox(splitKeys(env[SETTINGS_KEK_ENV]), {
       legacyKeys: splitKeys(env[LEGACY_KEK_ENV]),
     });
@@ -147,7 +149,9 @@ export class SettingsSecretBox implements SealedSecretOpener {
 let cached: { raw: string; box: SettingsSecretBox } | undefined;
 
 /** O cofre do processo, refeito só se a KEK do env mudar (a derivação não roda a cada leitura). */
-export function settingsSecretBox(env: NodeJS.ProcessEnv = process.env): SettingsSecretBox {
+export function settingsSecretBox(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): SettingsSecretBox {
   const raw = `${env[SETTINGS_KEK_ENV] ?? ''}\n${env[LEGACY_KEK_ENV] ?? ''}`;
   if (cached?.raw !== raw) cached = { raw, box: SettingsSecretBox.fromEnv(env) };
   return cached.box;

@@ -49,13 +49,18 @@ describe('cada ajuste em um lugar só (#1070)', () => {
       'GEMINI_API_KEY',
       'YOUTUBE_API_KEY',
       'APISPORTS_KEY',
+      'DEEPSEEK_API_KEY',
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'COSMOS_OPENAI_API_KEY',
+      'SETTINGS_KEK',
     ]) {
       expect(settingPage(key), key).toEqual({ item: 'credentials', block: 'credentials' });
     }
     const elsewhere = SETTINGS.filter((d) => isSecret(d) && settingPage(d.key)?.item !== 'credentials').map(
       (d) => d.key,
     );
-    expect(elsewhere.sort()).toEqual(['FEEDBACK_GITHUB_TOKEN', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET']);
+    expect(elsewhere).toEqual(['FEEDBACK_GITHUB_TOKEN']);
   });
 
   it('LINEUP_* em Grades e ofertas; Ao vivo e Pós-jogo separados; plano de cada esporte no Fornecedor', () => {

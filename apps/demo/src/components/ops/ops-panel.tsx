@@ -64,7 +64,16 @@ const WTW_MODEL_KEYS = ['AI_MATCH_CHANNEL_MODEL', 'AI_RIGHTS_MODEL'] as const;
 /** A pesquisa e a revisita da grade usam os níveis de pesquisa e leve dos agentes. */
 const LINEUP_MODEL_KEYS = ['AI_MODEL_RESEARCH', 'AI_MODEL_LIGHT'] as const;
 /** Chaves que as páginas mostram como "configurada ou faltando", com link para Credenciais (A4). */
-const AI_KEYS = ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'] as const;
+const AI_KEYS = ['ANTHROPIC_API_KEY', 'DEEPSEEK_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'] as const;
+/** Cosmos AI: o Stripe e as IAs externas (assistente e moderação dos clientes), trocados aqui ou em Credenciais. */
+const COSMOS_KEYS = [
+  'COSMOS_ANTHROPIC_API_KEY',
+  'COSMOS_DEEPSEEK_API_KEY',
+  'COSMOS_GEMINI_API_KEY',
+  'COSMOS_OPENAI_API_KEY',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+] as const;
 
 interface Ctx {
   snapshot: OpsSnapshot;
@@ -162,7 +171,12 @@ export function OpsPanel({
       </>
     ),
     assets: () => <SectionCard block="assets" snapshot={snapshot} timeZone={timeZone} />,
-    cosmos: () => <SectionCard block="cosmos" snapshot={snapshot} timeZone={timeZone} />,
+    cosmos: () => (
+      <>
+        <SectionCard block="cosmos" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="keys" keys={COSMOS_KEYS} snapshot={snapshot} />
+      </>
+    ),
   };
   const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
   // o topo da página (#1072) mostra a frase, o "Atualizado" e o filtro "Alterados no painel" das linhas desta página

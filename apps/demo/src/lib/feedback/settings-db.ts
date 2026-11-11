@@ -5,7 +5,7 @@
 import { connection } from 'next/server';
 
 import { pool } from '@/lib/auth/db';
-import { webhookSecrets } from '@/lib/client/webhooks';
+import { containerEnv, settingsSecrets } from '@/lib/ops/panel-secrets';
 
 import {
   FEEDBACK_ENABLED_KEY,
@@ -31,7 +31,8 @@ async function readOverrides(keys: readonly string[]): Promise<Map<string, strin
 
 export async function readFeedbackSettings(): Promise<FeedbackSettings> {
   const overrides = await readOverrides(FEEDBACK_SETTING_KEYS);
-  return resolveFeedbackSettings(overrides, process.env, webhookSecrets());
+  // o .env do contêiner: o token do painel já vem da linha cifrada (e não do env que a releitura preenche)
+  return resolveFeedbackSettings(overrides, containerEnv(), settingsSecrets());
 }
 
 /**

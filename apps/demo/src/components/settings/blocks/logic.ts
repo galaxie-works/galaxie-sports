@@ -198,9 +198,29 @@ const GROUP_OF: Readonly<Record<string, CredentialGroup>> = {
   OPENAI_API_KEY: 'ai',
   ANTHROPIC_API_KEY: 'ai',
   GEMINI_API_KEY: 'ai',
+  DEEPSEEK_API_KEY: 'ai',
+  COSMOS_OPENAI_API_KEY: 'ai',
+  COSMOS_ANTHROPIC_API_KEY: 'ai',
+  COSMOS_GEMINI_API_KEY: 'ai',
+  COSMOS_DEEPSEEK_API_KEY: 'ai',
   STRIPE_SECRET_KEY: 'payments',
   STRIPE_WEBHOOK_SECRET: 'payments',
 };
+
+/**
+ * De onde vem a chave secreta (#1087): do painel (cifrada, vale por cima do .env), do .env, do painel mas sem abrir
+ * neste contêiner (vale o .env), ou de lugar nenhum.
+ */
+export type SecretSource = 'panel' | 'env' | 'unreadable' | 'none';
+
+export function secretSource(s: {
+  configured: boolean;
+  secret?: { inPanel: boolean; unreadable: boolean } | undefined;
+}): SecretSource {
+  if (s.secret?.unreadable) return 'unreadable';
+  if (s.secret?.inPanel) return 'panel';
+  return s.configured ? 'env' : 'none';
+}
 
 /** Chave de API do provedor de IA (AI_PROVIDER): é a única que o "Testar" confere (checkAiCreditNow). */
 export const aiProviderKey = (provider: string | null | undefined): string | null =>

@@ -94,7 +94,10 @@ describe('formato por provedor', () => {
     const bad = v('OPENAI_API_KEY', 'AIzaErradaParaOpenAI1234567890');
     expect(bad).toEqual({ ok: false, error: { code: 'format' } });
     expect(v('ANTHROPIC_API_KEY', OPENAI)).toEqual({ ok: false, error: { code: 'format' } });
-    expect(v('APISPORTS_KEY', 'com espaço no meio 1234567890')).toEqual({ ok: false, error: { code: 'format' } });
+    expect(v('APISPORTS_KEY', 'com espaço no meio 1234567890')).toEqual({
+      ok: false,
+      error: { code: 'format' },
+    });
     expect(v('APISPORTS_KEY', '  ')).toEqual({ ok: false, error: { code: 'required' } });
   });
 
@@ -122,10 +125,14 @@ describe('segredos do painel no env dos serviços', () => {
   });
 
   it('abre com a KEK do processo e põe por cima do .env, só para os serviços que leem a chave', () => {
-    const out = applyOverrides(container, { ...sealedRows(), LIVE_FEATURED: 'on' }, {
-      secrets: box,
-      services: ['ingestor', 'live'],
-    });
+    const out = applyOverrides(
+      container,
+      { ...sealedRows(), LIVE_FEATURED: 'on' },
+      {
+        secrets: box,
+        services: ['ingestor', 'live'],
+      },
+    );
     expect(out.env.APISPORTS_KEY).toBe(API_KEY);
     // OPENAI_API_KEY é dos agentes: fica o do .env no ingestor
     expect(out.env.OPENAI_API_KEY).toBe('sk-do-env');
@@ -168,10 +175,14 @@ describe('segredos do painel no env dos serviços', () => {
   });
 
   it('valor aberto fora do formato não entra (ex.: quebra de linha para injetar variável)', () => {
-    const out = applyOverrides(container, { APISPORTS_KEY_SEALED: box.seal('APISPORTS_KEY', 'abc\nNODE_OPTIONS=x') }, {
-      secrets: box,
-      services: ['ingestor'],
-    });
+    const out = applyOverrides(
+      container,
+      { APISPORTS_KEY_SEALED: box.seal('APISPORTS_KEY', 'abc\nNODE_OPTIONS=x') },
+      {
+        secrets: box,
+        services: ['ingestor'],
+      },
+    );
     expect(out.env.APISPORTS_KEY).toBe('chave-do-env');
     expect(out.rejected).toEqual([{ key: 'APISPORTS_KEY_SEALED', error: { code: 'format' } }]);
   });
@@ -198,15 +209,20 @@ describe('segredos do painel no env dos serviços', () => {
     expect(base.APISPORTS_KEY).toBe('chave-do-env');
     expect(base[RUNTIME_SECRET_BASE_ENV]).toBeUndefined();
     // a releitura sem a linha (voltou ao .env)
-    expect(applyOverrides(base, {}, { secrets: box, services: ['live'] }).env.APISPORTS_KEY).toBe('chave-do-env');
+    expect(applyOverrides(base, {}, { secrets: box, services: ['live'] }).env.APISPORTS_KEY).toBe(
+      'chave-do-env',
+    );
     // a releitura com a linha nova
     const swapped = box.seal('APISPORTS_KEY', 'f'.repeat(32));
     expect(
-      applyOverrides(base, { APISPORTS_KEY_SEALED: swapped }, { secrets: box, services: ['live'] }).env.APISPORTS_KEY,
+      applyOverrides(base, { APISPORTS_KEY_SEALED: swapped }, { secrets: box, services: ['live'] }).env
+        .APISPORTS_KEY,
     ).toBe('f'.repeat(32));
     // a base dos segredos só aceita segredos do painel
     expect(
-      runtimeBaseEnv({ [RUNTIME_SECRET_BASE_ENV]: JSON.stringify({ NODE_OPTIONS: 'y', BETTER_AUTH_SECRET: 'z' }) }),
+      runtimeBaseEnv({
+        [RUNTIME_SECRET_BASE_ENV]: JSON.stringify({ NODE_OPTIONS: 'y', BETTER_AUTH_SECRET: 'z' }),
+      }),
     ).toEqual({});
   });
 });

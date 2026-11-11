@@ -1,10 +1,14 @@
 'use client';
 
 import { settingDef } from '@galaxie/runtime-config';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, KeyRound } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 
+import { secretSource } from '@/components/settings/blocks/logic';
+import { SecretDialog } from '@/components/settings/blocks/secret-dialog';
 import { Badge } from '@/components/reui/badge';
+import { Button } from '@/components/ui/button';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
@@ -21,12 +25,14 @@ function providerKey(modelKey: string): string | null {
 }
 
 /**
- * Linha só leitura de um ajuste que mora em outra página (#1070): o modelo de IA em uso (A3) ou se a chave está
- * configurada (A4), com o link que abre a página dele já na linha (`/ajustes/ia#AI_RIGHTS_MODEL`).
+ * Linha de um ajuste que mora em outra página (#1070): o modelo de IA em uso (A3) ou de onde vem a chave (A4), com o
+ * link que abre a página dele já na linha (`/ajustes/ia#AI_RIGHTS_MODEL`). Chave que o painel troca (#1087) tem
+ * "Trocar" aqui mesmo, no mesmo diálogo de Credenciais.
  */
 export function SettingLink({ settingKey, snapshot }: { settingKey: string; snapshot: OpsSnapshot }) {
   const { t, locale } = useI18n();
   const T = t.ops;
+  const [changing, setChanging] = useState(false);
   const def = settingDef(settingKey);
   const setting = snapshot.settings.find((s) => s.key === settingKey);
   const page = settingPage(settingKey);
@@ -46,9 +52,7 @@ export function SettingLink({ settingKey, snapshot }: { settingKey: string; snap
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {def.type === 'secret' ? (
-          <Badge variant={setting.configured ? 'success-light' : 'warning-light'}>
-            {setting.configured ? T.settingLink.configured : T.settingLink.missing}
-          </Badge>
+          <SecretBadge setting={setting} />
         ) : (
           <span className="text-muted-foreground">
             {T.settingLink.modelInUse}:{' '}
@@ -64,8 +68,42 @@ export function SettingLink({ settingKey, snapshot }: { settingKey: string; snap
           {fill(T.settingLink.open, { page: T.nav[page.item] })}
           <ArrowUpRight aria-hidden="true" className="size-3.5" />
         </Link>
+        {setting.secret?.editable ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setChanging(true)}>
+            <KeyRound />
+            {T.settingLink.change}
+          </Button>
+        ) : null}
       </div>
+      {setting.secret?.editable ? (
+        <SecretDialog
+          key={changing ? 'aberto' : 'fechado'}
+          setting={changing ? setting : null}
+          onClose={() => setChanging(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/** De onde vem a chave: painel (com o final dela), .env, não abre ou faltando. Nunca o valor. */
+function SecretBadge({ setting }: { setting: OpsSnapshot['settings'][number] }) {
+  const { t } = useI18n();
+  const T = t.ops;
+  const source = secretSource(setting);
+  if (source === 'panel')
+    return (
+      <Badge variant="success-light">
+        {setting.secret?.hint
+          ? fill(T.secretKeys.sourcePanelHint, { hint: setting.secret.hint })
+          : T.secretKeys.sourcePanel}
+      </Badge>
+    );
+  if (source === 'unreadable') return <Badge variant="warning-light">{T.blocks.status.unreadable}</Badge>;
+  return (
+    <Badge variant={source === 'env' ? 'success-light' : 'warning-light'}>
+      {source === 'env' ? T.settingLink.configured : T.settingLink.missing}
+    </Badge>
   );
 }
 
