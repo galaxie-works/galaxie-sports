@@ -108,13 +108,14 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
         <SettingsArea
           active="lineup"
+          title={t.lineup.admin.title}
+          description={t.lineup.admin.description}
           tabs={
             <Suspense fallback={<div className="h-10 border-b" />}>
               <Tabs searchParams={searchParams} />
             </Suspense>
           }
         >
-          <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
           <Suspense
             fallback={
               <LoadingStatus>
