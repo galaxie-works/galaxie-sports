@@ -105,6 +105,26 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     });
   });
 
+  it.each(['ВЕТ365', 'Вет365', 'ΒΕΤ365'])(
+    'nome só com letra que imita a latina e dígito é recusado: %s',
+    (name) => {
+      expect(validateSponsor(input({ name }), lists).ok).toBe(false);
+    },
+  );
+
+  it.each([
+    'https://x.com/Βet365',
+    'https://x.com/r?u=%CE%92et365',
+    'https://x.com/vai-de-bet',
+    'https://x.com/r?y=vai%20de%20bet',
+    'https://x.com/bet',
+  ])('link com letra grega ou "bet" solto no caminho é recusado: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field: 'linkUrl', code: 'betting' }],
+    });
+  });
+
   it.each(['Привет Спорт', 'Вет Клиника'])('nome em cirílico comum passa: %s', (name) => {
     expect(validateSponsor(input({ name }), lists).ok).toBe(true);
   });
@@ -113,6 +133,7 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     'https://cervejaria.com.br/casino-royale',
     'https://cervejaria.com.br/noticias/a-marca-que-aposta-no-esporte',
     'https://cervejaria.com.br/produtos/blaze-ipa',
+    'https://cervejaria.com.br/better-life/alphabet',
   ])('caminho com palavra comum passa: %s', (linkUrl) => {
     expect(validateSponsor(input({ linkUrl }), lists).ok).toBe(true);
   });

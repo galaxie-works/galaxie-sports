@@ -142,11 +142,29 @@ const LOOKALIKE: Record<string, string> = {
   т: 't',
   у: 'y',
   х: 'x',
+  ѕ: 's',
 };
 
 /** Palavra de aposta no caminho ou na query do link (`/apostas`, `?utm_campaign=betting`). */
 const BET_PATH =
   /(?:^|[^a-z])(?:apostas|apuestas|apostar|apostes|betting|(?:casino|cassino)[-_ ]?(?:online|ao[-_ ]?vivo|en[-_ ]?vivo))(?:[^a-z]|$)/;
+
+/**
+ * Troca grega e cirílica só na palavra que mistura com letra latina ou dígito (`Βet365`, `ВЕТ365`); `Привет` e
+ * `Вет Клиника` ficam como estão.
+ */
+function foldLookalikes(text: string): string {
+  return text
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[\p{L}\p{N}]+/gu, (w) =>
+      /[a-z0-9]/.test(w) ? [...w].map((c) => LOOKALIKE[c] ?? c).join('') : w,
+    );
+}
+
+/** `bet` como palavra solta (`Vai de Bet`, `Bet 365`, `/bet`). */
+const LOOSE_BET = /(?:^|[^a-z0-9])bet(?:[^a-z]|$)/;
 
 const betScreen = (text: string, lists: CompiledLists) =>
   screen(text, { kind: 'wall_post' }, lists).reasons.includes('betting');
@@ -159,13 +177,8 @@ const betScreen = (text: string, lists: CompiledLists) =>
 export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
   if (!text.trim()) return false;
   if (betScreen(text, lists)) return true;
-  // troca grega e cirílica só na palavra que mistura com letra latina (`Βet365`); `Привет` fica como está
-  const folded = text
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[\p{L}\p{N}]+/gu, (w) => (/[a-z]/.test(w) ? [...w].map((c) => LOOKALIKE[c] ?? c).join('') : w));
-  if (/(?:^|[^a-z0-9])bet(?:[^a-z]|$)/.test(folded)) return true;
+  const folded = foldLookalikes(text);
+  if (LOOSE_BET.test(folded)) return true;
   const joined = folded.replace(/[^a-z0-9]+/g, '');
   if (!joined) return false;
   if (betScreen(joined, lists)) return true;
@@ -243,7 +256,8 @@ export function validateSponsor(
       // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
       // escrito em palavras (`?y=estrela%20bet`) e palavra de aposta (`/apostas`)
       (field === 'linkUrl' &&
-        (betScreen(rest.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+        (betScreen(foldLookalikes(rest).replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+          LOOSE_BET.test(foldLookalikes(rest)) ||
           rest
             .split(/[/?#&=]+/)
             .some(
