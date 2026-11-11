@@ -67,9 +67,17 @@ O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da re
     - A pilha entra na `main` de baixo para cima com **merge commit** (`gh pr merge N --merge`). Squash só para PR sozinho: o squash cria um commit sem parentesco com o branch, e o filho seguinte conflita (sempre no `_journal.json`) e precisa de outro CI.
     - Nunca `--delete-branch` no pai antes de apontar os filhos para a `main` (`gh pr edit <filho> --base main`): o GitHub fecha os filhos em vez de mudar a base.
     - **Não faça merge de branch de outra frente** (ex.: o branch de engajamento trazendo `cosmos/stripe`). Precisa do código dela? Espere entrar na `main` e traga a `main`.
+12. **Status do PR fica no PR**, não em mensagem entre sessões. Quem monta o lote de merge roda `pnpm status:prs` (todos os abertos), `pnpm status:prs --epico 1017` (uma frente, com o que já entrou) ou `pnpm status:prs --pr 1061,1062`. O script lê do GitHub rascunho, pilha e forma de merge, conflito, CI (job rodado de novo vale pela última execução), migrations do diff com número repetido ou já usado na `main`, e rótulos. O que o GitHub não sabe vai num comentário curto no PR, atualizado a cada mudança (vale o mais recente):
+
+    ```text
+    Revisão: subagente, sem apontamentos (Codex sem cota)
+    Próximo passo: depois do #1061, trazer a main e acertar o journal (idx 81)
+    CI: "checks (Postgres 18)" falhou em element.test.tsx, fora do diff; rodando de novo
+    Observação: rótulo quebra-de-contrato pelo FAN_AGE_RESTRICTED
+    ```
 
 ```bash
-# migrations nos PRs abertos (rode antes de pnpm db:generate)
+# migrations nos PRs abertos (rode antes de pnpm db:generate); o pnpm status:prs mostra o mesmo e acusa colisão
 gh pr list --state open --limit 50 --json number,files \
   --jq '.[] | {n: .number, m: [.files[].path | select(test("drizzle/[0-9]{4}_.*sql$"))]} | select(.m | length > 0) | "#\(.n) \(.m | join(" "))"'
 ```
