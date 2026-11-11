@@ -3,7 +3,7 @@
  * de impressões. As regras (sem casa de aposta, links https, países e vigência) ficam em `@galaxie/engage`
  * (`validateSponsor`); aqui a leitura e a gravação, sempre filtradas pelo tenant da sessão.
  */
-import { validateSponsor, type SponsorInput, type SponsorIssue } from '@galaxie/engage';
+import { validateSponsor, type SponsorInput, type SponsorIssue, type SponsorSurface } from '@galaxie/engage';
 
 import { pool } from '@/lib/auth/db';
 import { compiledBaseLists } from '@/lib/engage/moderation-lists';
@@ -104,18 +104,32 @@ export async function saveSponsor(input: {
   ];
   try {
     if (input.id === null) {
-      const { rows: count } = await pool.query<{ n: string }>(
-        `select count(*) as n from engage.sponsor where tenant_id = $1 and archived_at is null`,
-        [input.tenantId],
-      );
-      if (Number(count[0]?.n ?? 0) >= MAX_SPONSORS) throw new SponsorError('limit');
-      const { rows } = await pool.query<DbRow>(
-        `insert into engage.sponsor (tenant_id, name, category, link_url, logo_light_url, logo_dark_url, countries,
-           starts_at, ends_at, updated_by)
-         values ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, $10) returning ${COLUMNS}`,
-        [input.tenantId, ...values, input.actor],
-      );
-      return toRow(rows[0]!);
+      // conta e grava na mesma transação, com trava por cliente: duas criações juntas não furam o limite
+      const client = await pool.connect();
+      try {
+        await client.query('begin');
+        await client.query(`select pg_advisory_xact_lock(hashtextextended('engage.sponsor:' || $1, 0))`, [
+          input.tenantId,
+        ]);
+        const { rows: count } = await client.query<{ n: string }>(
+          `select count(*) as n from engage.sponsor where tenant_id = $1 and archived_at is null`,
+          [input.tenantId],
+        );
+        if (Number(count[0]?.n ?? 0) >= MAX_SPONSORS) throw new SponsorError('limit');
+        const { rows } = await client.query<DbRow>(
+          `insert into engage.sponsor (tenant_id, name, category, link_url, logo_light_url, logo_dark_url, countries,
+             starts_at, ends_at, updated_by)
+           values ($1, $2, $3, $4, $5, $6, $7::text[], $8, $9, $10) returning ${COLUMNS}`,
+          [input.tenantId, ...values, input.actor],
+        );
+        await client.query('commit');
+        return toRow(rows[0]!);
+      } catch (err) {
+        await client.query('rollback').catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
     }
     const { rows } = await pool.query<DbRow>(
       `update engage.sponsor set name = $3, category = $4, link_url = $5, logo_light_url = $6, logo_dark_url = $7,
@@ -150,9 +164,46 @@ export async function archiveSponsor(input: {
 }
 
 async function missingOrStale(tenantId: string, id: string): Promise<SponsorError> {
-  const { rows } = await pool.query(`select 1 from engage.sponsor where tenant_id = $1 and id = $2`, [
-    tenantId,
-    id,
-  ]);
+  // arquivado também conta como não encontrado: não se edita nem se arquiva de novo
+  const { rows } = await pool.query(
+    `select 1 from engage.sponsor where tenant_id = $1 and id = $2 and archived_at is null`,
+    [tenantId, id],
+  );
   return new SponsorError(rows.length ? 'stale' : 'not_found');
+}
+
+export interface SponsorReportRow {
+  sponsorId: string;
+  surface: SponsorSurface;
+  surfaceId: string;
+  impressions: number;
+  days: number;
+}
+
+/**
+ * Impressões do período (dias em UTC, inclusive), por patrocinador e lugar. Mesma consulta de
+ * `sponsorImpressionReport` em `@galaxie/db`; aqui pelo pool da demo, que não importa o pacote inteiro.
+ */
+export async function sponsorReport(tenantId: string, from: string, to: string): Promise<SponsorReportRow[]> {
+  const { rows } = await pool.query<{
+    sponsor_id: string;
+    surface: SponsorSurface;
+    surface_id: string;
+    impressions: string;
+    days: string;
+  }>(
+    `select sponsor_id, surface, surface_id, sum(impressions) as impressions, count(distinct day) as days
+       from engage.sponsor_impression_daily
+      where tenant_id = $1 and day between $2::date and $3::date
+      group by sponsor_id, surface, surface_id
+      order by sum(impressions) desc`,
+    [tenantId, from, to],
+  );
+  return rows.map((r) => ({
+    sponsorId: r.sponsor_id,
+    surface: r.surface,
+    surfaceId: r.surface_id,
+    impressions: Number(r.impressions),
+    days: Number(r.days),
+  }));
 }

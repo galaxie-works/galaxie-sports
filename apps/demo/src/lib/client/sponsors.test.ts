@@ -2,7 +2,17 @@ import { compileLists, DEFAULT_MODERATION_LISTS } from '@galaxie/engage';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const query = vi.fn();
-vi.mock('@/lib/auth/db', () => ({ pool: { query: (...a: unknown[]) => query(...a) } }));
+// transação: begin, trava, commit e rollback respondem sozinhos; o resto passa pelo mesmo `query`
+const clientQuery = (sql: string, params?: unknown[]) =>
+  /^(begin|commit|rollback)$/.test(sql) || sql.includes('pg_advisory_xact_lock')
+    ? Promise.resolve({ rows: [] })
+    : query(sql, params);
+vi.mock('@/lib/auth/db', () => ({
+  pool: {
+    query: (...a: unknown[]) => query(...a),
+    connect: async () => ({ query: clientQuery, release: () => {} }),
+  },
+}));
 vi.mock('@/lib/engage/moderation-lists', () => ({
   compiledBaseLists: async () => compileLists(DEFAULT_MODERATION_LISTS),
 }));

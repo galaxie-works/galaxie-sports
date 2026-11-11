@@ -46,7 +46,7 @@ export default defineMessages(
       createTitle: 'Novo patrocinador',
       editTitle: 'Editar {name}',
       description:
-        'Os links precisam ser https. Países em código de duas letras (BR, AR), separados por vírgula; vazio vale para todos.',
+        'Os links precisam ser https. Países em código de duas letras (BR, AR), separados por vírgula; vazio vale para todos. Início e fim no fuso do cliente; o dia do fim conta inteiro.',
       name: 'Nome',
       category: 'Categoria',
       linkUrl: 'Link da peça',
@@ -71,7 +71,7 @@ export default defineMessages(
     report: {
       title: 'Impressões dos últimos 30 dias',
       description:
-        'Quantas vezes a peça apareceu, somadas por dia, sem dado de torcedor. Use para prestar contas ao patrocinador.',
+        'Quantas vezes a peça apareceu, somadas por dia (UTC), sem dado de torcedor. Use para prestar contas ao patrocinador.',
       sponsor: 'Patrocinador',
       surface: 'Onde',
       surfaceId: 'Identificador',
@@ -90,6 +90,7 @@ export default defineMessages(
       category: 'Escolha uma categoria da lista.',
       betting: 'Casa de aposta não pode ser patrocinador.',
       url: 'Use um link https, sem usuário e senha.',
+      shortener: 'Use o link direto do patrocinador, sem encurtador nem agregador de links.',
       countries: 'Use códigos de país de duas letras (até 60).',
       dates: 'Datas inválidas: o fim precisa vir depois do início.',
     },
@@ -147,7 +148,7 @@ export default defineMessages(
         createTitle: 'New sponsor',
         editTitle: 'Edit {name}',
         description:
-          'Links must use https. Countries as two-letter codes (BR, AR), comma separated; empty means all.',
+          'Links must use https. Countries as two-letter codes (BR, AR), comma separated; empty means all. Start and end in the client’s time zone; the end day counts in full.',
         name: 'Name',
         category: 'Category',
         linkUrl: 'Placement link',
@@ -172,7 +173,7 @@ export default defineMessages(
       report: {
         title: 'Impressions in the last 30 days',
         description:
-          'How many times the placement was shown, summed per day, with no fan data. Use it to report back to the sponsor.',
+          'How many times the placement was shown, summed per day (UTC), with no fan data. Use it to report back to the sponsor.',
         sponsor: 'Sponsor',
         surface: 'Where',
         surfaceId: 'Identifier',
@@ -191,6 +192,7 @@ export default defineMessages(
         category: 'Pick a category from the list.',
         betting: 'Betting operators cannot be sponsors.',
         url: 'Use an https link without user and password.',
+        shortener: 'Use the sponsor’s direct link, not a shortener or link aggregator.',
         countries: 'Use two-letter country codes (up to 60).',
         dates: 'Invalid dates: the end must come after the start.',
       },
@@ -247,7 +249,7 @@ export default defineMessages(
         createTitle: 'Nuevo patrocinador',
         editTitle: 'Editar {name}',
         description:
-          'Los links tienen que ser https. Países con código de dos letras (BR, AR), separados por coma; vacío vale para todos.',
+          'Los links tienen que ser https. Países con código de dos letras (BR, AR), separados por coma; vacío vale para todos. Inicio y fin en el huso del cliente; el día de fin cuenta completo.',
         name: 'Nombre',
         category: 'Categoría',
         linkUrl: 'Link de la pieza',
@@ -272,7 +274,7 @@ export default defineMessages(
       report: {
         title: 'Impresiones de los últimos 30 días',
         description:
-          'Cuántas veces apareció la pieza, sumadas por día, sin datos del hincha. Sirve para rendir cuentas al patrocinador.',
+          'Cuántas veces apareció la pieza, sumadas por día (UTC), sin datos del hincha. Sirve para rendir cuentas al patrocinador.',
         sponsor: 'Patrocinador',
         surface: 'Dónde',
         surfaceId: 'Identificador',
@@ -291,6 +293,7 @@ export default defineMessages(
         category: 'Elegí una categoría de la lista.',
         betting: 'Una casa de apuestas no puede ser patrocinador.',
         url: 'Usá un link https, sin usuario ni contraseña.',
+        shortener: 'Usá el link directo del patrocinador, sin acortador ni agregador de links.',
         countries: 'Usá códigos de país de dos letras (hasta 60).',
         dates: 'Fechas inválidas: el fin tiene que ser después del inicio.',
       },

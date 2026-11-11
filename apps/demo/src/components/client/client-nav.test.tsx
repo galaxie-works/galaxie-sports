@@ -21,7 +21,13 @@ describe('clientNavGroups', () => {
   it.each(LOCALES)('%s: grupos na ordem do estudo, áreas em ordem alfabética, sem grupo vazio', (locale) => {
     const nav = clientDictionary(locale).client.nav;
     const groups = clientNavGroups(nav);
-    expect(groups.map((g) => g.id)).toEqual(['account', 'content', 'engagement', 'intelligence', 'integrations']);
+    expect(groups.map((g) => g.id)).toEqual([
+      'account',
+      'content',
+      'engagement',
+      'intelligence',
+      'integrations',
+    ]);
     for (const g of groups) {
       const labels = g.items.map((i) => i.label);
       expect(labels).toEqual([...labels].sort(compareAlpha));

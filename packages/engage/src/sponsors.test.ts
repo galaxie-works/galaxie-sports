@@ -72,6 +72,28 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     },
   );
 
+  it.each([
+    ['logoLightUrl', 'https://cdn.bet365.com/logo.png'],
+    ['logoDarkUrl', 'https://betano.com/logo.svg'],
+    ['linkUrl', 'https://example.com/?r=https://bet365.com'],
+    ['linkUrl', 'https://example.com/go?to=https%3A%2F%2Fbetano.com'],
+  ] as const)('aposta no logo ou escondida no link é recusada: %s %s', (field, url) => {
+    expect(validateSponsor(input({ name: 'Parceiro', [field]: url }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field, code: 'betting' }],
+    });
+  });
+
+  it.each(['https://bit.ly/abc', 'https://linktr.ee/parceiro', 'https://www.tinyurl.com/x'])(
+    'encurtador no link é recusado: %s',
+    (linkUrl) => {
+      expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
+        ok: false,
+        issues: [{ field: 'linkUrl', code: 'shortener' }],
+      });
+    },
+  );
+
   it('link precisa ser https e sem usuário', () => {
     for (const linkUrl of ['http://x.com', 'javascript:alert(1)', 'https://u:p@x.com', 'não é link'])
       expect(validateSponsor(input({ linkUrl }), lists)).toMatchObject({
@@ -86,6 +108,13 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
   it('países e vigência', () => {
     expect(validateSponsor(input({ countries: ['BRA'] }), lists)).toMatchObject({
       issues: [{ field: 'countries', code: 'countries' }],
+    });
+    for (const countries of [['UK'], ['XX'], ['EU']])
+      expect(validateSponsor(input({ countries }), lists)).toMatchObject({
+        issues: [{ field: 'countries', code: 'countries' }],
+      });
+    expect(validateSponsor(input({ startsAt: '2026-02-30', endsAt: null }), lists)).toMatchObject({
+      issues: [{ field: 'startsAt', code: 'dates' }],
     });
     expect(validateSponsor(input({ endsAt: '2026-10-01T00:00:00Z' }), lists)).toMatchObject({
       issues: [{ field: 'endsAt', code: 'dates' }],

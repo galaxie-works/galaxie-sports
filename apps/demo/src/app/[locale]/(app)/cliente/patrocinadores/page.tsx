@@ -1,4 +1,3 @@
-import { sponsorImpressionReport } from '@galaxie/db';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -7,8 +6,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { SponsorsPanel } from '@/components/client/sponsors-panel';
-import { builderDb } from '@/lib/builder/store';
-import { listSponsors, MAX_SPONSORS } from '@/lib/client/sponsors';
+import { listSponsors, MAX_SPONSORS, sponsorReport } from '@/lib/client/sponsors';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,10 +26,7 @@ async function Sponsors() {
         const now = new Date();
         const [sponsors, report] = await Promise.all([
           listSponsors(tenant.id),
-          sponsorImpressionReport(builderDb(), tenant.id, {
-            from: day(new Date(now.getTime() - (REPORT_DAYS - 1) * 86_400_000)),
-            to: day(now),
-          }),
+          sponsorReport(tenant.id, day(new Date(now.getTime() - (REPORT_DAYS - 1) * 86_400_000)), day(now)),
         ]);
         return (
           <SponsorsPanel

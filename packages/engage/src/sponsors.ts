@@ -60,7 +60,7 @@ export interface Sponsor {
   endsAt: string | null;
 }
 
-export type SponsorIssueCode = 'name' | 'category' | 'betting' | 'url' | 'countries' | 'dates';
+export type SponsorIssueCode = 'name' | 'category' | 'betting' | 'url' | 'shortener' | 'countries' | 'dates';
 
 export interface SponsorIssue {
   field: keyof SponsorInput;
@@ -68,6 +68,32 @@ export interface SponsorIssue {
 }
 
 const COUNTRY = /^[A-Z]{2}$/;
+/** Códigos que o `Intl` conhece mas não são país do ISO 3166-1 (UK é GB). */
+const NOT_COUNTRIES = new Set(['UK', 'EU', 'EZ', 'UN', 'ZZ', 'QO']);
+let regionNames: Intl.DisplayNames | null = null;
+const isCountry = (c: string): boolean => {
+  if (!COUNTRY.test(c) || NOT_COUNTRIES.has(c)) return false;
+  regionNames ??= new Intl.DisplayNames(['en'], { type: 'region' });
+  return regionNames.of(c) !== c;
+};
+
+/** Encurtadores e agregadores de link: escondem o destino, então o link da peça tem de ir direto ao patrocinador. */
+const LINK_HIDERS = [
+  'bit.ly',
+  'beacons.ai',
+  'cutt.ly',
+  'goo.gl',
+  'is.gd',
+  'linkin.bio',
+  'linktr.ee',
+  'lnk.bio',
+  'ow.ly',
+  'rebrand.ly',
+  'shorturl.at',
+  't.co',
+  't.ly',
+  'tinyurl.com',
+];
 const MAX_COUNTRIES = 60;
 
 function httpsUrl(v: string | null): string | null | undefined {
@@ -81,10 +107,34 @@ function httpsUrl(v: string | null): string | null | undefined {
   }
 }
 
-/** Aposta no nome ou no link, pelas listas da Galaxie (termos de aposta e domínios de aposta). */
+const betScreen = (text: string, lists: CompiledLists) =>
+  screen(text, { kind: 'wall_post' }, lists).reasons.includes('betting');
+
+/**
+ * Aposta no nome ou no link, pelas listas da Galaxie (termos de aposta e domínios de aposta). Mais rígido que o chat:
+ * confere também o texto todo junto (`Estrela Bet` → `estrelabet`) contra os termos e os nomes dos domínios de
+ * aposta, e `bet` como palavra solta (`Vai de Bet`, `Bet 365`).
+ */
 export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
   if (!text.trim()) return false;
-  return screen(text, { kind: 'wall_post' }, lists).reasons.includes('betting');
+  if (betScreen(text, lists)) return true;
+  const folded = text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  if (/(?:^|[^a-z0-9])bet(?:[^a-z]|$)/.test(folded)) return true;
+  const joined = folded.replace(/[^a-z0-9]+/g, '');
+  if (!joined) return false;
+  if (betScreen(joined, lists)) return true;
+  // nome do domínio sem o TLD (`estrelabet.com` → `estrelabet`), escrito em palavras seguidas (`Estrela Bet`);
+  // só a palavra inteira conta (`Stakeholders` não é `stake`)
+  const labels = new Set(lists.betDomains.map((d) => d.split('.')[0] ?? '').filter((l) => l.length >= 4));
+  const ws = folded.split(/[^a-z0-9]+/).filter(Boolean);
+  for (let i = 0; i < ws.length; i += 1) {
+    let span = '';
+    for (let j = i; j < ws.length && span.length < 40; j += 1) {
+      span += ws[j];
+      if (labels.has(span)) return true;
+    }
+  }
+  return false;
 }
 
 function hostOf(url: string): string {
@@ -123,20 +173,39 @@ export function validateSponsor(
     if (v === undefined) issues.push({ field, code: 'url' });
     else urls[field] = v;
   }
-  if (urls.linkUrl) {
-    const host = hostOf(urls.linkUrl);
-    const betHost = lists.betDomains.some((d) => host === d || host.endsWith(`.${d}`));
-    if (betHost || looksLikeBetting(host, lists)) issues.push({ field: 'linkUrl', code: 'betting' });
+  // link e logos: domínio de aposta, aposta no caminho ou na query (`?r=https://bet365.com`) e, no link, encurtador
+  for (const field of ['linkUrl', 'logoLightUrl', 'logoDarkUrl'] as const) {
+    const url = urls[field];
+    if (!url) continue;
+    const host = hostOf(url);
+    const inList = (list: readonly string[]) => list.some((d) => host === d || host.endsWith(`.${d}`));
+    let decoded = url;
+    try {
+      decoded = decodeURIComponent(url);
+    } catch {
+      // URL com escape quebrado: confere como veio
+    }
+    if (inList(lists.betDomains) || looksLikeBetting(host, lists) || betScreen(decoded, lists))
+      issues.push({ field, code: 'betting' });
+    else if (field === 'linkUrl' && inList(LINK_HIDERS)) issues.push({ field, code: 'shortener' });
   }
 
   const countries = [...new Set((input.countries ?? []).map((c) => String(c).trim().toUpperCase()))];
-  if (countries.length > MAX_COUNTRIES || countries.some((c) => !COUNTRY.test(c)))
+  if (countries.length > MAX_COUNTRIES || countries.some((c) => !isCountry(c)))
     issues.push({ field: 'countries', code: 'countries' });
 
   const date = (v: string | null) => {
     if (v === null || v === '') return null;
     const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+    if (Number.isNaN(d.getTime())) return undefined;
+    // `2026-02-30` vira 2 de março no `Date`: o dia escrito tem de ser o mesmo
+    const ymd = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+    if (ymd) {
+      const [y, m, day] = [Number(ymd[1]), Number(ymd[2]), Number(ymd[3])];
+      const probe = new Date(Date.UTC(y, m - 1, day));
+      if (probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== day) return undefined;
+    }
+    return d.toISOString();
   };
   const startsAt = date(input.startsAt);
   const endsAt = date(input.endsAt);

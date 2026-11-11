@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { endDayOf, endsAtOf, startDayOf, startsAtOf } from '@/lib/client/sponsor-dates';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
@@ -89,9 +90,10 @@ export function SponsorsPanel({
   const nowMs = Date.parse(now);
   const active = sponsors.filter((s) => !s.archivedAt).length;
   const names = new Map(sponsors.map((s) => [s.id, s.name]));
-  const window = (s: SponsorView) =>
+  // o fim é exclusivo (00:00 do dia seguinte): mostra o último dia que conta
+  const runOf = (s: SponsorView) =>
     s.startsAt || s.endsAt
-      ? `${s.startsAt ? f.date(s.startsAt) : '…'} – ${s.endsAt ? f.date(s.endsAt) : '…'}`
+      ? `${s.startsAt ? f.date(s.startsAt) : '…'} – ${s.endsAt ? f.date(new Date(Date.parse(s.endsAt) - 1).toISOString()) : '…'}`
       : T.list.always;
 
   return (
@@ -137,7 +139,7 @@ export function SponsorsPanel({
                       <TableCell className="text-xs">
                         {s.countries.length ? s.countries.join(', ') : T.list.allCountries}
                       </TableCell>
-                      <TableCell className="text-xs">{window(s)}</TableCell>
+                      <TableCell className="text-xs">{runOf(s)}</TableCell>
                       <TableCell>
                         <Badge variant={STATUS_BADGE[status]}>{T.list[status]}</Badge>
                       </TableCell>
@@ -217,6 +219,7 @@ export function SponsorsPanel({
         <SponsorDialog
           key={editing === 'new' ? 'new' : `${editing.id}:${editing.version}`}
           current={editing === 'new' ? null : editing}
+          timeZone={timeZone}
           onClose={() => setEditing(null)}
         />
       ) : null}
@@ -225,11 +228,15 @@ export function SponsorsPanel({
   );
 }
 
-const dayOf = (iso: string | null) => (iso ? iso.slice(0, 10) : '');
-/** Data do campo (`YYYY-MM-DD`) como começo do dia em UTC. */
-const isoOf = (day: string) => (day ? `${day}T00:00:00.000Z` : null);
-
-function SponsorDialog({ current, onClose }: { current: SponsorView | null; onClose: () => void }) {
+function SponsorDialog({
+  current,
+  timeZone,
+  onClose,
+}: {
+  current: SponsorView | null;
+  timeZone: string;
+  onClose: () => void;
+}) {
   const { t } = useI18n();
   const T = t.sponsors;
   const F = T.form;
@@ -241,8 +248,8 @@ function SponsorDialog({ current, onClose }: { current: SponsorView | null; onCl
   const [logoLightUrl, setLogoLightUrl] = useState(current?.logoLightUrl ?? '');
   const [logoDarkUrl, setLogoDarkUrl] = useState(current?.logoDarkUrl ?? '');
   const [countries, setCountries] = useState(current?.countries.join(', ') ?? '');
-  const [startsAt, setStartsAt] = useState(dayOf(current?.startsAt ?? null));
-  const [endsAt, setEndsAt] = useState(dayOf(current?.endsAt ?? null));
+  const [startsAt, setStartsAt] = useState(startDayOf(current?.startsAt ?? null, timeZone));
+  const [endsAt, setEndsAt] = useState(endDayOf(current?.endsAt ?? null, timeZone));
   const [issues, setIssues] = useState<SponsorIssue[]>([]);
   const issue = (field: SponsorIssue['field']) => {
     const i = issues.find((x) => x.field === field);
@@ -264,8 +271,8 @@ function SponsorDialog({ current, onClose }: { current: SponsorView | null; onCl
             .split(/[\s,;]+/)
             .map((c) => c.trim())
             .filter(Boolean),
-          startsAt: isoOf(startsAt),
-          endsAt: isoOf(endsAt),
+          startsAt: startsAtOf(startsAt, timeZone),
+          endsAt: endsAtOf(endsAt, timeZone),
         },
       });
       setIssues(r.issues ?? []);
