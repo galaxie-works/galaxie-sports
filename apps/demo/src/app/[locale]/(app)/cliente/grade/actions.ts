@@ -9,6 +9,7 @@
 import { parseLineupTarget } from '@galaxie/db/lineups';
 import { revalidatePath } from 'next/cache';
 
+import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -37,6 +38,9 @@ async function tenantOrError() {
   const t = await texts();
   if (!ctx) return { error: t.forbidden } as const;
   if (!ctx.tenant) return { error: t.noTenant } as const;
+  // configuração do tenant: cargo com settings.manage (#1019)
+  if (!can(ctx, 'settings.manage'))
+    return { error: getDictionary(await getRequestLocale()).client.errors.role } as const;
   return { ctx, tenantId: ctx.tenant.id } as const;
 }
 

@@ -74,7 +74,27 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // operação, widgets e chaves
   demo: {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
-    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset', 'core.participant', 'core.competition'],
+    write: [
+      'ops',
+      'semantic',
+      'enrich',
+      'api',
+      'core.asset',
+      'core.participant',
+      'core.competition',
+      // Cosmos AI no painel do cliente: ligar (carteira e teste no extrato), intenção de compra e recarga
+      // automática (#993, #994). Só as tabelas que a demo escreve: o registro de eventos do Stripe
+      // (cosmos.stripe_event), as reservas e o catálogo de funções ficam com a API e o ingestor
+      'cosmos.wallet',
+      'cosmos.ledger',
+      'cosmos.balance_alert',
+      'cosmos.purchase_intent',
+      'cosmos.auto_recharge',
+      'cosmos.recharge_attempt',
+      // Carteiras da equipe Galaxie no painel (#1002): pacotes e o registro das ações
+      'cosmos.package',
+      'cosmos.staff_action',
+    ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
   // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
@@ -84,7 +104,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       ...APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
       `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`,
     ],
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    // cosmos: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
+    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian', 'cosmos'],
     prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)

@@ -46,6 +46,7 @@ describe('scheduleFromEnv', () => {
       'fixture-people',
       'quota-status',
       'data-quality',
+      'cosmos-upkeep',
     ]);
     expect(jobs.find((j) => j.name === 'quota-status')).toMatchObject({
       name: 'quota-status',

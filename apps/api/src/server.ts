@@ -56,6 +56,7 @@ import {
 } from './realtime/index.js';
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
+import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { ClientChannelLists } from './channel-list/lists.js';
@@ -165,6 +166,8 @@ export interface ServerOptions {
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
   lineup?: LineupOptions;
+  /** Webhook do Stripe da Cosmos AI (#993); padrão: STRIPE_WEBHOOK_SECRET do ambiente. */
+  cosmos?: { stripeWebhookSecret?: string };
 }
 
 /** Limite fixo da chave secreta de teste, por rota (docs/politica-de-chaves.md §1). */
@@ -459,6 +462,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
     });
+  });
+
+  // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
+  app.register(cosmosStripeRoutes, {
+    db: options.db,
+    webhookSecret: options.cosmos?.stripeWebhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET,
+    now: options.now,
   });
 
   if (options.admin?.keyHashes.length && options.db) {

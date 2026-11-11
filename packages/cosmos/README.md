@@ -47,3 +47,38 @@ O cliente nunca vê tokens, custo real, modelo nem multiplicador: use `toClientE
 ## Testes
 
 `pnpm test` (conversão, flags, CSV) e `pnpm test:integration` (concorrência no Postgres; precisa de `DATABASE_URL`).
+
+## Compra pelo Stripe (#993)
+
+| Peça | Onde |
+| --- | --- |
+| Pacotes (`cosmos.package`) | `listPackages(db, mercado)`, `upsertPackage`. Preço e créditos são dados, nunca código |
+| Intenção de compra (`cosmos.purchase_intent`) | `createPurchaseIntent` copia créditos e valor do pacote; `attachCheckoutSession` liga a sessão do Checkout |
+| Checkout | `createCheckoutSession(chave, …)`, com Pix e cartão em reais, cartão em dólar, recibo pelo Stripe e chave de idempotência pela intenção |
+| Webhook | `verifyStripeSignature` + `applyStripeEvent`, na rota `POST /webhooks/stripe/cosmos` da API |
+
+`applyStripeEvent` grava o evento (`cosmos.stripe_event`, id único), muda a intenção e credita numa transação só. Evento
+repetido sai como `duplicate`; intenção já paga não credita de novo (`already_closed`); valor ou moeda diferentes do
+esperado não creditam (`amount_mismatch`). No Pix, `checkout.session.completed` chega com `payment_status: unpaid` e o
+crédito vem no `checkout.session.async_payment_succeeded`.
+
+Variáveis: `STRIPE_SECRET_KEY` (demo, abre o checkout) e `STRIPE_WEBHOOK_SECRET` (API, confere a assinatura). Sem elas, a
+compra fica indisponível e o webhook responde 503.
+
+## Teste, alertas e recarga automática (#994)
+
+| Peça | O que faz |
+| --- | --- |
+| `enableCosmos(db, tenantId)` · `disableCosmos` | Liga a Cosmos (desligada, nenhuma função reserva: `cosmos_disabled`; o saldo fica): cria a carteira e concede o teste uma única vez (`COSMOS_TRIAL_CREDITS`, padrão 250; `COSMOS_TRIAL_DAYS`, padrão 90). Religar não dá outro teste |
+| Teste no saldo | `wallet.trial_remaining`: o uso gasta o teste primeiro. `expireTrials` tira do saldo o que sobrou no vencimento, com lançamento `trial_expiry`. Comprados não vencem |
+| Alertas | Cada entrada de créditos abre um ciclo (`cycle_base`). Em 80% e 90% de uso e no saldo zerado, uma linha em `cosmos.balance_alert`, uma vez por limiar por ciclo |
+| Saldo zerado | Carteira `blocked` com `block_reason = depleted`; a próxima entrada de créditos libera. Bloqueio da Galaxie é `staff` e só ela libera |
+| Recarga automática | `configureAutoRecharge` exige `accepted: true` (fica quem e quando). A compra seguinte salva o cartão (`saveCard`, só cartão). Abaixo do limiar, o acerto abre uma tentativa (uma aberta por vez); `processRecharges` cobra fora da sessão (só cartão, `payment_method_types[0]=card`), só com a recarga ainda ligada e aceita e a carteira ligada e sem bloqueio da equipe (`staff`), e o crédito entra pelo webhook `payment_intent.succeeded`. Recusa definitiva do cartão (402, `card_declined`, `authentication_required`) desliga a recarga com o motivo; 5xx, 409, 429 e rede voltam a tentativa para a fila, com o mesmo cliente e cartão (gravados na tentativa) e a mesma chave de idempotência. Desligar a recarga, mudá-la ou desligar a Cosmos encerra a tentativa pendente que ainda não chamou o Stripe (`cancelled`); a que já chamou segue com a mesma chave (ou, sem aceite, espera o webhook até `RECHARGE_REPLAY_WINDOW_MS`, 24 h). Mudar preço, moeda ou créditos de um pacote (`upsertPackage`) desliga as recargas daquele pacote e retira o aceite (`package_changed`). Todas as chamadas ao Stripe fixam `Stripe-Version` (`STRIPE_API_VERSION`). `reconcileStuckRecharges` destrava a tentativa presa em `processing` há mais de 15 min. Pagamento confirmado credita mesmo com a tentativa já marcada como falha (chave `recharge:<id>`) |
+
+O endpoint do webhook no Stripe (`POST /webhooks/stripe/cosmos`) precisa dos eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `payment_intent.succeeded` e `payment_intent.payment_failed`.
+
+O job `cosmos-upkeep` do ingestor (a cada 5 min) roda `releaseExpired`, `expireTrials` e `processRecharges`.
+
+O envio do e-mail ao dono e do webhook (`cosmos.balance.low`, `cosmos.balance.depleted`) lê `cosmos.balance_alert` e
+marca `emailed_at`/`webhook_at`; entra com o registro central de tópicos (#1023). A tela (#995) já lê o estado da
+carteira.

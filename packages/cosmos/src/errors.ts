@@ -17,8 +17,18 @@ export type CosmosErrorCode =
   | 'reservation_closed'
   /** Créditos de teste já concedidos (uma vez por tenant). */
   | 'trial_already_granted'
+  /** Pacote inexistente, inativo ou de outro mercado. */
+  | 'unknown_package'
   /** Compra ou estorno sem chave de idempotência. */
   | 'missing_idempotency_key'
+  /** A mesma chave de idempotência chegou com outro tipo ou outro valor de lançamento. */
+  | 'idempotency_conflict'
+  /** Ligar a recarga automática sem o aceite da cobrança recorrente. */
+  | 'consent_required'
+  /** O cliente desligou a Cosmos (switch da Visão geral). */
+  | 'cosmos_disabled'
+  /** Ação da equipe sem motivo (pelo menos 5 caracteres). */
+  | 'reason_required'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

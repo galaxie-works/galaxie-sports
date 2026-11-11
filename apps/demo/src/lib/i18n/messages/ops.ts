@@ -30,6 +30,12 @@ export default defineMessages(
       crests: 'Escudos',
       webhooks: 'Webhooks',
       label: 'Seções dos ajustes',
+      wallets: 'Carteiras da Cosmos',
+      ai: 'IA interna',
+      operation: 'Operação',
+      provider: 'Fornecedor',
+      title: 'Ajustes',
+      groups: { clients: 'Clientes', data: 'Dados', platform: 'Plataforma' },
     },
     tabs: {
       status: 'Status',
@@ -439,6 +445,11 @@ export default defineMessages(
           label: 'Qualidade dos dados',
           description:
             'Regras automáticas que comparam o que a API entrega com a referência (F1DB, Wikidata, tabela do fornecedor, dicionário de emissoras) e gravam o placar da aba Qualidade.',
+        },
+        'cosmos-upkeep': {
+          label: 'Manutenção da Cosmos AI',
+          description:
+            'Devolve reservas que passaram do prazo, tira do saldo o teste vencido e cobra as recargas automáticas pendentes. Não gasta cota do fornecedor nem IA.',
         },
         'bootstrap-catalog': {
           label: 'Catálogo do futebol',
@@ -1250,11 +1261,19 @@ export default defineMessages(
       },
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
+      STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
+      STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
       COSMOS_DAILY_USD_CEILING: {
         label: 'Teto de segurança da Cosmos AI por dia',
         description:
           'Custo real somado de todos os clientes no dia (UTC). Passou dele, a Cosmos recusa novas chamadas até a virada e a moderação volta para regras e pessoas.',
         unit: 'US$',
+      },
+      COSMOS_USD_BRL: {
+        label: 'Cotação para a margem da Cosmos AI',
+        description:
+          'Reais por dólar, para comparar a receita em reais com o custo do provedor nas Carteiras da Cosmos. Vazio, a margem em reais fica sem valor.',
+        unit: 'R$ por US$',
       },
       COSMOS_CREDIT_USD: {
         label: 'Valor de 1 crédito da Cosmos AI',
@@ -1306,6 +1325,12 @@ export default defineMessages(
         crests: 'Crests',
         webhooks: 'Webhooks',
         label: 'Settings sections',
+        wallets: 'Cosmos wallets',
+        ai: 'Internal AI',
+        operation: 'Operations',
+        provider: 'Provider',
+        title: 'Settings',
+        groups: { clients: 'Clients', data: 'Data', platform: 'Platform' },
       },
       tabs: {
         status: 'Status',
@@ -1696,6 +1721,11 @@ export default defineMessages(
             label: 'Data quality',
             description:
               'Automatic rules that compare what the API serves with the reference (F1DB, Wikidata, the provider table, the broadcaster dictionary) and store the Quality tab scoreboard.',
+          },
+          'cosmos-upkeep': {
+            label: 'Cosmos AI upkeep',
+            description:
+              'Returns reservations past their deadline, removes expired trial credits and charges pending auto top-ups. Uses no provider quota and no AI.',
           },
           'bootstrap-catalog': {
             label: 'Football catalog',
@@ -2508,11 +2538,19 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Cosmos AI daily safety ceiling',
           description:
             'Real cost summed across all clients for the day (UTC). Above it, Cosmos refuses new calls until the day rolls over and moderation falls back to rules and people.',
           unit: 'US$',
+        },
+        COSMOS_USD_BRL: {
+          label: 'Exchange rate for the Cosmos AI margin',
+          description:
+            'Reais per dollar, to compare BRL revenue with provider cost in Cosmos wallets. Empty, the BRL margin shows no value.',
+          unit: 'R$ per US$',
         },
         COSMOS_CREDIT_USD: {
           label: 'Value of 1 Cosmos AI credit',
@@ -2563,6 +2601,12 @@ export default defineMessages(
         crests: 'Escudos',
         webhooks: 'Webhooks',
         label: 'Secciones de ajustes',
+        wallets: 'Carteras de Cosmos',
+        ai: 'IA interna',
+        operation: 'Operación',
+        provider: 'Proveedor',
+        title: 'Ajustes',
+        groups: { clients: 'Clientes', data: 'Datos', platform: 'Plataforma' },
       },
       tabs: {
         status: 'Estado',
@@ -2966,6 +3010,11 @@ export default defineMessages(
             label: 'Calidad de los datos',
             description:
               'Reglas automáticas que comparan lo que entrega la API con la referencia (F1DB, Wikidata, la tabla del proveedor, el diccionario de emisoras) y guardan el marcador de la pestaña Calidad.',
+          },
+          'cosmos-upkeep': {
+            label: 'Mantenimiento de Cosmos AI',
+            description:
+              'Devuelve reservas vencidas, saca del saldo la prueba vencida y cobra las recargas automáticas pendientes. No gasta cuota del proveedor ni IA.',
           },
           'bootstrap-catalog': {
             label: 'Catálogo del fútbol',
@@ -3785,11 +3834,19 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
+        STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
+        STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Tope de seguridad diario de Cosmos AI',
           description:
             'Costo real sumado de todos los clientes en el día (UTC). Si se supera, Cosmos rechaza nuevas llamadas hasta el cambio de día y la moderación vuelve a reglas y personas.',
           unit: 'US$',
+        },
+        COSMOS_USD_BRL: {
+          label: 'Cotización para el margen de Cosmos AI',
+          description:
+            'Reales por dólar, para comparar el ingreso en reales con el costo del proveedor en las carteras de Cosmos. Vacío, el margen en reales queda sin valor.',
+          unit: 'R$ por US$',
         },
         COSMOS_CREDIT_USD: {
           label: 'Valor de 1 crédito de Cosmos AI',

@@ -53,6 +53,21 @@ export const wallet = cosmos.table(
     trialGranted: boolean('trial_granted').notNull().default(false),
     /** Multiplicador sobre o custo real. Só a equipe Galaxie vê. */
     multiplier: numeric('multiplier', { precision: 8, scale: 3, mode: 'number' }).notNull().default(1),
+    /** Quanto do teste ainda está no saldo (o uso gasta o teste primeiro); sai no vencimento (#994). */
+    trialRemaining: credits('trial_remaining').notNull().default(0),
+    trialExpiresAt: timestamp('trial_expires_at', { withTimezone: true }),
+    /**
+     * Ciclo de alertas: começa a cada entrada de créditos (teste, compra, ajuste). `cycle_base` é o saldo livre
+     * logo depois da entrada; os alertas de 80% e 90% medem o uso contra ele, uma vez por limiar por ciclo.
+     */
+    cycleBase: credits('cycle_base').notNull().default(0),
+    cycleStartedAt: timestamp('cycle_started_at', { withTimezone: true }),
+    /** Maior limiar já alertado no ciclo: 0, 80, 90 ou 100 (saldo zerado). */
+    alertLevel: integer('alert_level').notNull().default(0),
+    /** Por que está bloqueada: `depleted` (saldo zerou, uma recarga libera) ou `staff` (decisão da Galaxie). */
+    blockReason: text('block_reason').$type<'depleted' | 'staff'>(),
+    /** O cliente ligou a Cosmos (switch da Visão geral). Desligada, nenhuma função reserva; o saldo fica. */
+    enabled: boolean('enabled').notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -60,6 +75,11 @@ export const wallet = cosmos.table(
     check('wallet_available_non_negative', sql`${t.available} >= 0`),
     check('wallet_reserved_non_negative', sql`${t.reserved} >= 0`),
     check('wallet_multiplier_positive', sql`${t.multiplier} > 0`),
+    check('wallet_trial_remaining_non_negative', sql`${t.trialRemaining} >= 0`),
+    check('wallet_alert_level', sql`${t.alertLevel} in (0, 80, 90, 100)`),
+    index('wallet_trial_expiry_idx')
+      .on(t.trialExpiresAt)
+      .where(sql`${t.trialRemaining} > 0`),
   ],
 );
 
@@ -187,4 +207,218 @@ export const functionDef = cosmos.table(
     updatedAt: updatedAt(),
   },
   (t) => [check('function_def_min_positive', sql`${t.minCredits} > 0`)],
+);
+
+// ─── compra de créditos pelo Stripe (#993) ──────────────────────────────────────────────────────────
+
+export const PACKAGE_CURRENCIES = ['brl', 'usd'] as const;
+export type PackageCurrency = (typeof PACKAGE_CURRENCIES)[number];
+
+/**
+ * Pacote de créditos à venda. Preço e créditos são dados, nunca código: a Galaxie cadastra e desativa
+ * pelo banco (Ajustes, #1001). `market` é o país (ISO2) onde o pacote aparece.
+ */
+export const creditPackage = cosmos.table(
+  'package',
+  {
+    id: pkUuidV7(),
+    name: text('name').notNull(),
+    credits: credits('credits').notNull(),
+    /** Preço na menor unidade da moeda (centavos). */
+    priceCents: integer('price_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    market: text('market').notNull(),
+    active: boolean('active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('package_credits_positive', sql`${t.credits} > 0`),
+    check('package_price_positive', sql`${t.priceCents} > 0`),
+    check('package_currency', sql`${t.currency} in ('brl', 'usd')`),
+    check('package_market_iso2', sql`${t.market} ~ '^[A-Z]{2}$'`),
+    index('package_market_idx').on(t.market, t.active),
+  ],
+);
+
+export const purchaseStatus = cosmos.enum('purchase_status', [
+  'pending',
+  'paid',
+  'failed',
+  'canceled',
+  'expired',
+  /** Pago com valor ou moeda diferentes do esperado: sem crédito até a equipe revisar. */
+  'review',
+]);
+
+/**
+ * Intenção de compra, criada antes do checkout com o que o cliente espera receber (copia créditos e
+ * valor do pacote naquele momento). O crédito só entra pelo webhook com o pagamento confirmado.
+ */
+export const purchaseIntent = cosmos.table(
+  'purchase_intent',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    credits: credits('credits').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    status: purchaseStatus('status').notNull().default('pending'),
+    /** Quem comprou (usuário do console). */
+    userId: text('user_id'),
+    checkoutSessionId: text('checkout_session_id').unique(),
+    paymentIntentId: text('payment_intent_id'),
+    invoiceId: text('invoice_id'),
+    /** Lançamento da compra no extrato, depois de pago. */
+    ledgerId: uuid('ledger_id'),
+    failureReason: text('failure_reason'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('purchase_intent_credits_positive', sql`${t.credits} > 0`),
+    check('purchase_intent_amount_positive', sql`${t.amountCents} > 0`),
+    index('purchase_intent_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
+);
+
+/** Evento do Stripe já recebido: o id é único, então o webhook repetido não credita duas vezes. */
+export const stripeEvent = cosmos.table('stripe_event', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  purchaseIntentId: uuid('purchase_intent_id'),
+  /** O que o evento causou (`credited`, `failed`, `ignored`…). */
+  outcome: text('outcome').notNull(),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── alertas de saldo e recarga automática (#994) ───────────────────────────────────────────────────
+
+/**
+ * Caixa de saída dos alertas de saldo: 80%, 90% e 100% (zerado), uma linha por limiar por ciclo. A tela lê o
+ * estado da carteira; o e-mail ao dono e o webhook (`cosmos.balance.low`, `cosmos.balance.depleted`, #1023)
+ * marcam o envio aqui.
+ */
+export const balanceAlert = cosmos.table(
+  'balance_alert',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    level: integer('level').notNull(),
+    cycleStartedAt: timestamp('cycle_started_at', { withTimezone: true }).notNull(),
+    available: credits('available').notNull(),
+    cycleBase: credits('cycle_base').notNull(),
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
+    webhookAt: timestamp('webhook_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('balance_alert_level', sql`${t.level} in (80, 90, 100)`),
+    uniqueIndex('balance_alert_once_per_cycle').on(t.tenantId, t.level, t.cycleStartedAt),
+  ],
+);
+
+/**
+ * Recarga automática (opcional): o pacote, o limiar e o aceite explícito da cobrança recorrente. O cartão fica
+ * no Stripe (cliente salvo na compra com a recarga ligada); aqui só o id do cliente.
+ */
+export const autoRecharge = cosmos.table(
+  'auto_recharge',
+  {
+    tenantId: uuid('tenant_id')
+      .primaryKey()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    enabled: boolean('enabled').notNull().default(false),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    /** Abaixo deste saldo livre, a recarga dispara. */
+    thresholdCredits: credits('threshold_credits').notNull(),
+    /** Aceite da cobrança recorrente: quem e quando. Sem aceite, nunca cobra. */
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: text('accepted_by'),
+    stripeCustomerId: text('stripe_customer_id'),
+    /** Última falha de cobrança (a recarga se desliga e o dono é avisado). */
+    lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+    lastFailureReason: text('last_failure_reason'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [check('auto_recharge_threshold_positive', sql`${t.thresholdCredits} > 0`)],
+);
+
+export const rechargeStatus = cosmos.enum('recharge_status', [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
+  /** A recarga foi desligada (ou o aceite retirado) antes da cobrança. */
+  'cancelled',
+  /** Paga com valor ou moeda diferentes da tentativa: sem crédito até a equipe revisar. */
+  'review',
+]);
+
+/** Tentativa de recarga automática: uma aberta por tenant de cada vez; o crédito entra pelo webhook. */
+export const rechargeAttempt = cosmos.table(
+  'recharge_attempt',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    credits: credits('credits').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    status: rechargeStatus('status').notNull().default('pending'),
+    paymentIntentId: text('payment_intent_id').unique(),
+    /** Cliente e cartão da primeira chamada: a repetição manda os mesmos (mesma chave de idempotência no Stripe). */
+    stripeCustomerId: text('stripe_customer_id'),
+    paymentMethodId: text('payment_method_id'),
+    /** Chamadas ao Stripe com falha passageira; no teto, a tentativa falha e a recarga se desliga. */
+    attempts: integer('attempts').notNull().default(0),
+    ledgerId: uuid('ledger_id'),
+    failureReason: text('failure_reason'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('recharge_attempt_one_open')
+      .on(t.tenantId)
+      .where(sql`${t.status} in ('pending', 'processing')`),
+  ],
+);
+
+// ─── ações da equipe Galaxie nas carteiras (#1002) ──────────────────────────────────────────────────
+
+export const STAFF_ACTIONS = ['multiplier', 'block', 'unblock', 'package'] as const;
+export type StaffActionKind = (typeof STAFF_ACTIONS)[number];
+
+/**
+ * O que a equipe Galaxie muda numa carteira ou no catálogo sem mexer no saldo (multiplicador, bloqueio, pacote),
+ * com quem, por quê e o antes e depois. Ajuste e estorno de créditos vão para o extrato (`cosmos.ledger`), com
+ * quem e o motivo no próprio lançamento.
+ */
+export const staffAction = cosmos.table(
+  'staff_action',
+  {
+    id: pkUuidV7(),
+    /** null nas ações do catálogo (pacotes). */
+    tenantId: uuid('tenant_id').references(() => tenant.id, { onDelete: 'cascade' }),
+    action: text('action').$type<StaffActionKind>().notNull(),
+    before: jsonb('before').$type<Record<string, unknown>>(),
+    after: jsonb('after').$type<Record<string, unknown>>(),
+    reason: text('reason').notNull(),
+    userId: text('user_id').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('staff_action_reason', sql`length(trim(${t.reason})) >= 5`),
+    index('staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
 );

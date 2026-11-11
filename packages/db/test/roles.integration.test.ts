@@ -146,6 +146,15 @@ describe('papéis por serviço', () => {
     await denied(conn('demo')`insert into core.sport (slug, name) values ('x', '{}')`);
   });
 
+  it('demo: escreve só as tabelas da Cosmos do painel; o registro de eventos do Stripe é só da API', async () => {
+    const demo = conn('demo');
+    await denied(
+      demo`insert into cosmos.stripe_event (id, type, outcome) values ('evt_papel', 'x', 'ignored')`,
+    );
+    await denied(demo`delete from cosmos.stripe_event`);
+    expect(await demo`select id from cosmos.stripe_event where id = 'evt_papel'`).toHaveLength(0);
+  });
+
   it('ingestor: poda api.webhook_delivery (data-retention) sem inserir, atualizar nem tocar a sequência', async () => {
     const ing = conn('ingestor');
     const [t] = await owner<{ id: string }[]>`

@@ -537,6 +537,34 @@
     {
       "idx": 76,
       "version": "7",
+      "when": 1794339397755,
+      "tag": "0078_cosmos_compra",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794339450000,
+      "tag": "0079_cargos_do_cliente",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794339541778,
+      "tag": "0080_cosmos_alertas",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794346136745,
+      "tag": "0081_cosmos_equipe",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
       "when": 1794346200000,
       "tag": "0082_identidade_torcedor",
       "breakpoints": true

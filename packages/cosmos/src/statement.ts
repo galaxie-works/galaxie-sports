@@ -1,9 +1,9 @@
 /**
  * Extrato da carteira: lista paginada (do mais novo ao mais antigo) e filtrável por data, sala, função,
  * usuário e tipo, mais a exportação em CSV. Tokens, custo real e modelo são só da equipe Galaxie: a visão
- * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles.
+ * do cliente (`toClientEntry`, CSV sem `staff`) sai sem eles, e o lançamento da equipe sai só como "Galaxie".
  */
-import { and, desc, eq, gte, inArray, lt, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { ledger, type LedgerKind } from '@galaxie/db/schema';
@@ -24,6 +24,8 @@ export interface LedgerEntry {
   tokensOut: number | null;
   costUsd: number | null;
   model: string | null;
+  /** Lançamento da equipe Galaxie (ajuste ou estorno pelas Carteiras, `metadata.staff`). */
+  staff: boolean;
 }
 
 /** O que o cliente vê de um lançamento: sem tokens, custo técnico nem modelo. */
@@ -32,9 +34,16 @@ export type ClientLedgerEntry = Omit<
   'tokensIn' | 'tokensCached' | 'tokensOut' | 'costUsd' | 'model'
 >;
 
+/** Autor que o cliente vê num lançamento da equipe: a Galaxie, sem a pessoa nem o motivo interno. */
+export const STAFF_AUTHOR = 'Galaxie';
+
+/**
+ * Visão do cliente: sem tokens, custo e modelo; no lançamento da equipe, também sem quem fez (`userId`) e sem o
+ * motivo interno (`note`). A tela e o CSV mostram só "Galaxie".
+ */
 export function toClientEntry(e: LedgerEntry): ClientLedgerEntry {
   const { tokensIn: _a, tokensCached: _b, tokensOut: _c, costUsd: _d, model: _e, ...rest } = e;
-  return rest;
+  return e.staff ? { ...rest, userId: null, note: null } : rest;
 }
 
 export interface LedgerFilter {
@@ -44,6 +53,9 @@ export interface LedgerFilter {
   to?: Date;
   scope?: string;
   functionName?: string;
+  /** Vários valores (barra de filtros): qualquer um deles. */
+  scopes?: readonly string[];
+  functionNames?: readonly string[];
   userId?: string;
   kinds?: readonly LedgerKind[];
   /** Cursor: o `nextCursor` da página anterior. */
@@ -65,6 +77,8 @@ export async function listLedger(
   if (filter.to) where.push(lt(ledger.createdAt, filter.to));
   if (filter.scope) where.push(eq(ledger.scope, filter.scope));
   if (filter.functionName) where.push(eq(ledger.functionName, filter.functionName));
+  if (filter.scopes?.length) where.push(inArray(ledger.scope, [...filter.scopes]));
+  if (filter.functionNames?.length) where.push(inArray(ledger.functionName, [...filter.functionNames]));
   if (filter.userId) where.push(eq(ledger.userId, filter.userId));
   if (filter.kinds?.length) where.push(inArray(ledger.kind, [...filter.kinds]));
   // id em UUID v7: ordem do id = ordem de criação, e o cursor é o último id da página
@@ -87,6 +101,7 @@ export async function listLedger(
       tokensOut: ledger.tokensOut,
       costUsd: ledger.costUsd,
       model: ledger.model,
+      staff: sql<boolean>`coalesce(${ledger.metadata}->>'staff' = 'true', false)`,
     })
     .from(ledger)
     .where(and(...where))
@@ -119,24 +134,92 @@ function cell(value: string | number | null): string {
 
 /**
  * CSV do extrato (cabeçalho em inglês, como o resto da superfície pública). `staff` acrescenta tokens,
- * custo real e modelo, que o cliente nunca vê.
+ * custo real e modelo, que o cliente nunca vê. No CSV do cliente, o lançamento da equipe sai com "Galaxie" como
+ * usuário e sem o motivo interno; o da Galaxie mantém quem fez e o motivo.
  */
 export function ledgerCsv(entries: readonly LedgerEntry[], options: { staff?: boolean } = {}): string {
   const header = [...CLIENT_COLUMNS, ...(options.staff ? STAFF_COLUMNS : [])];
   const lines = entries.map((e) => {
+    const hideStaff = e.staff && !options.staff;
     const base = [
       e.createdAt.toISOString(),
       e.kind,
       e.scope,
       e.functionName,
-      e.userId,
+      hideStaff ? STAFF_AUTHOR : e.userId,
       e.credits,
       e.balanceBefore,
       e.balanceAfter,
-      e.note,
+      hideStaff ? null : e.note,
     ];
     const staff = options.staff ? [e.tokensIn, e.tokensCached, e.tokensOut, e.costUsd, e.model] : [];
     return [...base, ...staff].map(cell).join(',');
   });
   return [header.join(','), ...lines].join('\n') + '\n';
+}
+
+export interface UsagePeriod {
+  from: Date;
+  /** Exclusive. */
+  to: Date;
+  /** Fuso IANA dos dias do gráfico (o de quem olha); padrão UTC. */
+  timeZone?: string;
+}
+
+const usageWhere = (tenantId: string, period: UsagePeriod) =>
+  and(
+    eq(ledger.tenantId, tenantId),
+    eq(ledger.kind, 'usage'),
+    gte(ledger.createdAt, period.from),
+    lt(ledger.createdAt, period.to),
+  );
+
+/** Créditos usados por dia (UTC) e por sala no período; dia sem uso não aparece. */
+export async function usageByDay(
+  db: Pick<Database, 'select'>,
+  tenantId: string,
+  period: UsagePeriod,
+): Promise<{ day: string; scope: string | null; credits: number }[]> {
+  const day = sql<string>`to_char(date_trunc('day', ${ledger.createdAt} at time zone ${period.timeZone ?? 'UTC'}), 'YYYY-MM-DD')`;
+  const rows = await db
+    .select({ day, scope: ledger.scope, credits: sql<string>`-sum(${ledger.credits})` })
+    .from(ledger)
+    .where(usageWhere(tenantId, period))
+    // pela posição da coluna: com o fuso como parâmetro, o Postgres não reconhece a mesma expressão no group by
+    .groupBy(sql`1`, ledger.scope)
+    .orderBy(sql`1`);
+  return rows.map((r) => ({ day: r.day, scope: r.scope, credits: Number(r.credits) }));
+}
+
+export interface UsageSlice {
+  key: string | null;
+  credits: number;
+  calls: number;
+}
+
+/** Uso no período por usuário, por função e por sala (maior primeiro). Sem tokens nem custo. */
+export async function usageBreakdown(
+  db: Pick<Database, 'select'>,
+  tenantId: string,
+  period: UsagePeriod,
+): Promise<{ byUser: UsageSlice[]; byFunction: UsageSlice[]; byScope: UsageSlice[] }> {
+  const by = async (column: typeof ledger.userId | typeof ledger.functionName | typeof ledger.scope) => {
+    const rows = await db
+      .select({
+        key: column,
+        credits: sql<string>`-sum(${ledger.credits})`,
+        calls: sql<number>`count(*)::int`,
+      })
+      .from(ledger)
+      .where(usageWhere(tenantId, period))
+      .groupBy(column)
+      .orderBy(sql`2 desc`);
+    return rows.map((r) => ({ key: r.key, credits: Number(r.credits), calls: Number(r.calls) }));
+  };
+  const [byUser, byFunction, byScope] = await Promise.all([
+    by(ledger.userId),
+    by(ledger.functionName),
+    by(ledger.scope),
+  ]);
+  return { byUser, byFunction, byScope };
 }
