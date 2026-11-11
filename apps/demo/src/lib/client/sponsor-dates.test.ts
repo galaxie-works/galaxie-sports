@@ -22,4 +22,22 @@ describe('vigência do patrocinador no fuso do cliente', () => {
       expect(endDayOf(endsAtOf('2026-11-01', tz), tz)).toBe('2026-11-01');
     }
   });
+
+  it('fusos à frente de UTC e de meia hora: o dia começa na véspera em UTC', () => {
+    expect(startsAtOf('2026-12-01', 'Asia/Tokyo')).toBe('2026-11-30T15:00:00.000Z');
+    expect(endsAtOf('2026-12-31', 'Asia/Tokyo')).toBe('2026-12-31T15:00:00.000Z');
+    expect(startsAtOf('2026-12-01', 'Asia/Kolkata')).toBe('2026-11-30T18:30:00.000Z');
+    // Adelaide entra no horário de verão às 02:00 de 04/10/2026: a meia-noite ainda é +09:30
+    expect(startsAtOf('2026-10-04', 'Australia/Adelaide')).toBe('2026-10-03T14:30:00.000Z');
+  });
+
+  it('virada de mês, ano bissexto, fim do horário de verão e campos vazios', () => {
+    expect(endsAtOf('2028-02-28', 'UTC')).toBe('2028-02-29T00:00:00.000Z');
+    expect(endsAtOf('2028-02-29', 'UTC')).toBe('2028-03-01T00:00:00.000Z');
+    // Nova York sai do horário de verão às 02:00 de 01/11/2026: a meia-noite ainda é -04:00
+    expect(startsAtOf('2026-11-01', 'America/New_York')).toBe('2026-11-01T04:00:00.000Z');
+    expect(endsAtOf('', 'UTC')).toBeNull();
+    expect(startDayOf(null, 'UTC')).toBe('');
+    expect(endDayOf(null, 'UTC')).toBe('');
+  });
 });
