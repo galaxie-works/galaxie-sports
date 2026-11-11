@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const token = await issueDemoFanToken(session.user.id, profile, session.user.locale);
     return Response.json({ token: token.token, expires_at: token.expiresAt }, { headers: NO_STORE });
   } catch (err) {
-    // apelido que as listas da moderação passaram a recusar: a pessoa troca no "Perfil de torcedor"
+    // apelido que a API recusou (listas do cliente ou de Ajustes, ou outro idioma): a pessoa troca no "Perfil de torcedor"
     if (err instanceof DemoFanTokenError && err.status === 400 && err.paths.includes('nickname'))
       return Response.json({ code: 'fan_nickname_rejected' }, { status: 409, headers: NO_STORE });
     console.error('[torcedor] token não emitido', err);

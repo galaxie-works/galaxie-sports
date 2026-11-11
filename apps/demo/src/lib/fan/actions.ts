@@ -29,7 +29,7 @@ export async function saveFanProfile(input: unknown): Promise<FanProfileResult> 
   // o apelido passa pelo mesmo filtro da API (#969), no idioma que vai no token, antes de ir para o banco: sem
   // isso, o token seria recusado depois, sem o torcedor saber por quê (a API ainda confere com as listas de
   // Ajustes e as do cliente)
-  const locale = apiFanLocale(session.user.locale as string | null | undefined);
+  const locale = apiFanLocale(session.user.locale);
   if (screen(parsed.value.nickname, { kind: 'nickname', locale }, BASE_LISTS).action !== 'allow')
     return { ok: false, error: 'rejected', field: 'nickname' };
   try {
