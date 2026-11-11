@@ -232,6 +232,37 @@ describe('provedores pelo cliente compartilhado (OpenAI, Gemini, DeepSeek)', () 
     expect(usage.outputFinal).toBeUndefined();
   });
 
+  it('corte com uso zerado (OpenAI, DeepSeek só contam no fim): a entrada é estimada pelo prompt; falha antes de abrir não', async () => {
+    const failing = (err: Error): AsyncIterable<never> => ({
+      [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(err) }),
+    });
+    const zero = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
+    const opened = {
+      stream: (): AsyncIterable<never> => failing(Object.assign(new Error('cortou'), { usage: zero })),
+    };
+    const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+    await expect(async () => {
+      for await (const _ of streamWithClient(opened, { apiKey: 'k', model: 'deepseek-flash', prompt, usage }))
+        void _;
+    }).rejects.toThrow('cortou');
+    expect(usage.inputTokens).toBeGreaterThan(0);
+
+    const before = {
+      stream: (): AsyncIterable<never> => failing(new Error('429')),
+    };
+    const none: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+    await expect(async () => {
+      for await (const _ of streamWithClient(before, {
+        apiKey: 'k',
+        model: 'deepseek-flash',
+        prompt,
+        usage: none,
+      }))
+        void _;
+    }).rejects.toThrow('429');
+    expect(none.inputTokens).toBe(0);
+  });
+
   it('o custo usa o preço de escrita no cache do modelo', () => {
     const write = assistantCostUsd(
       { inputTokens: 1_000, cachedInputTokens: 0, cacheWriteTokens: 1_000, outputTokens: 0 },

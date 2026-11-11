@@ -299,6 +299,12 @@ export type AssistantStreamer = (args: {
   signal?: AbortSignal;
 }) => AsyncIterable<string>;
 
+/** Entrada estimada pelo prompt (instruções, tela e diálogo), para quando o provedor não contou. */
+const promptTokens = (prompt: Pick<AssistantPrompt, 'fixed' | 'screen' | 'messages'>) =>
+  approxTokens(prompt.fixed) +
+  approxTokens(prompt.screen) +
+  prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+
 function copyUsage(target: StreamUsage, from: CompletionUsage, final: boolean): void {
   target.inputTokens = from.inputTokens;
   target.cachedInputTokens = from.cachedInputTokens;
@@ -329,9 +335,16 @@ export async function* streamWithClient(
       if (ev.type === 'text') yield ev.delta;
       else copyUsage(usage, ev.usage, ev.final);
     }
+    // endpoint que fecha sem a contagem de entrada: a entrada foi cobrada mesmo assim
+    if (usage.inputTokens === 0) usage.inputTokens = promptTokens(prompt);
   } catch (err) {
+    // com `usage` no erro, a resposta já tinha aberto (o provedor cobrou a entrada); OpenAI e DeepSeek só contam no
+    // fim, então a entrada vem zerada e é estimada pelo prompt. Sem `usage`, falhou antes de abrir: nada foi cobrado.
     const spent = (err as { usage?: CompletionUsage }).usage;
-    if (spent) copyUsage(usage, spent, false);
+    if (spent) {
+      copyUsage(usage, spent, false);
+      if (usage.inputTokens === 0) usage.inputTokens = promptTokens(prompt);
+    }
     throw err;
   }
 }
