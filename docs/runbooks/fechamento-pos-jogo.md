@@ -16,7 +16,7 @@ Um jogo está pendente quando:
 
 No futebol, contam só as ligas abaixo de `LIVE_MIN_PRIORITY`. As de cima ficam com o ao vivo e com a reconciliação.
 
-## Painel (Ajustes → Operação → Ao vivo)
+## Painel (Ajustes → Produtos → Pós-jogo)
 
 | Flag | O que faz | Padrão |
 |---|---|---|
