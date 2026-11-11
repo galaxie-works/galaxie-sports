@@ -27,7 +27,15 @@ export interface TenantMemberRow extends Membership {
   createdAt: string;
 }
 
-export type MemberEventAction = 'invited' | 'accepted' | 'role_changed' | 'scope_changed' | 'removed';
+export type MemberEventAction =
+  | 'invited'
+  | 'accepted'
+  | 'role_changed'
+  | 'scope_changed'
+  | 'removed'
+  /** Permissões por cargo: o cargo em `toRole`, a ação da matriz em `subject`. */
+  | 'permission_granted'
+  | 'permission_revoked';
 
 export interface MemberEvent {
   id: number;

@@ -41,6 +41,8 @@ export const ACTIONS = {
   'audit.view': 'admin',
   /** Exportação judicial: pedido do Dono (ADR 0004). */
   'legal.export': 'owner',
+  /** Mudar o que cada cargo pode (permissões por cargo do tenant). Sempre e só do Dono. */
+  'permissions.manage': 'owner',
 
   // Moderação (Fila única, #953)
   'moderation.queue.view': 'volunteer',
@@ -76,6 +78,158 @@ export const ACTIONS = {
 export type TenantAction = keyof typeof ACTIONS;
 export const TENANT_ACTIONS = Object.keys(ACTIONS) as TenantAction[];
 
+export const isTenantAction = (value: unknown): value is TenantAction =>
+  typeof value === 'string' && Object.hasOwn(ACTIONS, value);
+
+/*
+ * Permissões por cargo configuráveis pelo Dono. A matriz `ACTIONS` é o padrão; o tenant guarda só o que mudou
+ * (`RoleOverrides`). Sem configuração, nada muda. Regras que nenhuma configuração dobra:
+ *  - o Dono pode tudo e não se tranca fora;
+ *  - ações fixas (`FIXED_ACTIONS`) seguem a matriz: Exportação judicial, cuidar dos cargos (a Escada) e mudar as
+ *    próprias permissões;
+ *  - nenhum cargo pode mais que o de cima (a Escada também vale para as ações): tirar de um cargo tira dos de baixo;
+ *  - quem gerencia também vê (`VIEW_OF`): dar `x.manage` dá `x.view` ao mesmo cargo; tirar `x.view` tira `x.manage`;
+ *  - ações do painel não descem ao Voluntário, que é Perfil de torcedor e não entra no console (`DELEGATION_FLOOR`);
+ *  - a equipe Galaxie continua passando por cima.
+ */
+
+/** Ações que o Dono não muda: seguem sempre a matriz. */
+export const FIXED_ACTIONS: readonly TenantAction[] = [
+  'legal.export',
+  'members.manage',
+  'permissions.manage',
+];
+
+/** Ações do painel (conta, cobrança, Cosmos): o cargo mais baixo que pode recebê-las é o Moderador. */
+const PANEL_FLOOR: TenantRole = 'moderator';
+
+/** Cargo mais baixo que pode receber cada ação configurável. Sem entrada = qualquer cargo. */
+export const DELEGATION_FLOOR: Partial<Record<TenantAction, TenantRole>> = Object.fromEntries(
+  TENANT_ACTIONS.filter((a) => !a.startsWith('moderation.')).map((a) => [a, PANEL_FLOOR]),
+);
+
+export const isConfigurable = (action: TenantAction) => !FIXED_ACTIONS.includes(action);
+
+/**
+ * Ver que acompanha cada ação de gerenciar: quem gerencia também vê. Vale na leitura (`roleAllows`) e na gravação
+ * (`setRolePermission`).
+ */
+export const VIEW_OF: Partial<Record<TenantAction, TenantAction>> = {
+  'billing.buy_credits': 'billing.view',
+  'members.manage': 'members.view',
+  'cosmos.manage': 'cosmos.view',
+};
+
+/** Ações de gerenciar que dependem de `view`. */
+const managersOf = (view: TenantAction) =>
+  (Object.keys(VIEW_OF) as TenantAction[]).filter((m) => VIEW_OF[m] === view);
+
+/** Cargos que o Dono configura (ele mesmo sempre pode tudo). */
+export const CONFIGURABLE_ROLES = TENANT_ROLES.filter((r) => r !== 'owner');
+
+/** O cargo pode receber a ação (configurável e acima do piso)? */
+export function canReceive(role: TenantRole, action: TenantAction): boolean {
+  if (role === 'owner' || !isConfigurable(action)) return false;
+  const floor = DELEGATION_FLOOR[action];
+  if (floor !== undefined && !atLeast(role, floor)) return false;
+  // o ver de uma ação de gerenciar fixa não muda para quem gerencia: hoje, `members.view` do Admin
+  return !managersOf(action).some((m) => !isConfigurable(m) && atLeast(role, ACTIONS[m]));
+}
+
+/** O que mudou da matriz no tenant: cargo → ação → pode. Só cargos e ações configuráveis contam. */
+export type RoleOverrides = Partial<Record<TenantRole, Partial<Record<TenantAction, boolean>>>>;
+
+/** O que o cargo pode fazer pela configuração, sem a Escada (`roleAllows` aplica a Escada). */
+function rawAllows(role: TenantRole, action: TenantAction, overrides: RoleOverrides | null | undefined) {
+  if (role === 'owner') return true;
+  const fallback = atLeast(role, ACTIONS[action]);
+  if (!overrides || !canReceive(role, action)) return fallback;
+  return overrides[role]?.[action] ?? fallback;
+}
+
+/**
+ * O cargo pode fazer a ação no tenant com esta configuração? Vale a Escada: o cargo só pode o que todos os cargos
+ * acima dele também podem; e quem gerencia também vê: sem o `view`, o `manage` não vale. As duas regras valem mesmo
+ * que a configuração gravada diga outra coisa (banco editado à mão, por exemplo).
+ */
+export function roleAllows(
+  role: TenantRole,
+  action: TenantAction,
+  overrides?: RoleOverrides | null,
+): boolean {
+  for (let i = 0; i <= roleRank(role); i++) if (!rawAllows(TENANT_ROLES[i]!, action, overrides)) return false;
+  const view = VIEW_OF[action];
+  return view === undefined || roleAllows(role, view, overrides);
+}
+
+/**
+ * Configuração limpa: só cargos e ações configuráveis, acima do piso, com a Escada aplicada e sem repetir o padrão.
+ * Serve para gravar e para ler do banco (o que vier a mais é descartado).
+ */
+export function normalizeOverrides(overrides: RoleOverrides | null | undefined): RoleOverrides {
+  const out: RoleOverrides = {};
+  for (const role of CONFIGURABLE_ROLES)
+    for (const action of TENANT_ACTIONS) {
+      if (!canReceive(role, action)) continue;
+      const value = roleAllows(role, action, overrides);
+      if (value !== atLeast(role, ACTIONS[action])) (out[role] ??= {})[action] = value;
+    }
+  return out;
+}
+
+/**
+ * Liga ou desliga uma ação num cargo e devolve a configuração nova (limpa). Dar a um cargo dá também aos de cima;
+ * tirar de um cargo tira dos de baixo. Dar um `manage` dá o `view` dele; tirar um `view` tira os `manage` que
+ * dependem dele. Ação fixa, Dono ou cargo abaixo do piso: devolve a configuração sem mudança.
+ */
+export function setRolePermission(
+  overrides: RoleOverrides | null | undefined,
+  role: TenantRole,
+  action: TenantAction,
+  allowed: boolean,
+): RoleOverrides {
+  if (!canReceive(role, action)) return normalizeOverrides(overrides);
+  const next: RoleOverrides = {};
+  // parte do efetivo de cada cargo, para a Escada aplicada antes não se perder
+  for (const r of CONFIGURABLE_ROLES)
+    for (const a of TENANT_ACTIONS) if (canReceive(r, a)) (next[r] ??= {})[a] = roleAllows(r, a, overrides);
+  for (const r of CONFIGURABLE_ROLES) {
+    if (!canReceive(r, action)) continue;
+    if (allowed && atLeast(r, role)) {
+      next[r]![action] = true;
+      const view = VIEW_OF[action];
+      if (view && canReceive(r, view)) next[r]![view] = true;
+    }
+    if (!allowed && atLeast(role, r)) {
+      next[r]![action] = false;
+      for (const m of managersOf(action)) if (canReceive(r, m)) next[r]![m] = false;
+    }
+  }
+  return normalizeOverrides(next);
+}
+
+/** Uma célula que mudou entre duas configurações (para a auditoria). */
+export interface PermissionChange {
+  role: TenantRole;
+  action: TenantAction;
+  allowed: boolean;
+}
+
+/** O que muda no efetivo de `before` para `after`, cargo a cargo. */
+export function diffOverrides(
+  before: RoleOverrides | null | undefined,
+  after: RoleOverrides | null | undefined,
+): PermissionChange[] {
+  const out: PermissionChange[] = [];
+  for (const role of CONFIGURABLE_ROLES)
+    for (const action of TENANT_ACTIONS) {
+      const was = roleAllows(role, action, before);
+      const now = roleAllows(role, action, after);
+      if (was !== now) out.push({ role, action, allowed: now });
+    }
+  return out;
+}
+
 /** Teto de tempo para silenciar, por cargo (segundos). Sem entrada = sem teto além da Escada. */
 export const MUTE_LIMIT_SEC: Partial<Record<TenantRole, number>> = { volunteer: 3_600 };
 
@@ -85,9 +239,19 @@ export interface MemberScope {
   rooms?: readonly string[];
 }
 
-/** Quem age: um membro do tenant (com cargo e escopo) ou a equipe da Galaxie. */
+/**
+ * Quem age: um membro do tenant (com cargo, escopo e, quando o Dono mudou alguma permissão, a configuração do tenant)
+ * ou a equipe da Galaxie.
+ */
 export type Actor =
-  | { kind: 'member'; tenantId: string; role: TenantRole; scope: MemberScope | null }
+  | {
+      kind: 'member';
+      tenantId: string;
+      role: TenantRole;
+      scope: MemberScope | null;
+      /** Permissões por cargo do tenant; ausente = a matriz padrão. Vem do banco, nunca do navegador. */
+      overrides?: RoleOverrides;
+    }
   | { kind: 'galaxie_staff' };
 
 /** Sobre o que a ação recai: o tenant e, quando houver, a Comunidade ou a Sala. */
@@ -119,7 +283,7 @@ function inScope(scope: MemberScope | null, target: ActionTarget): boolean {
 export function check(actor: Actor, action: TenantAction, target: ActionTarget): CanResult {
   if (actor.kind === 'galaxie_staff') return { ok: true };
   if (actor.tenantId !== target.tenantId) return { ok: false, reason: 'other_tenant' };
-  if (!atLeast(actor.role, ACTIONS[action])) return { ok: false, reason: 'role' };
+  if (!roleAllows(actor.role, action, actor.overrides)) return { ok: false, reason: 'role' };
   if (!inScope(actor.scope, target)) return { ok: false, reason: 'scope' };
   const limit = action === 'moderation.mute' ? MUTE_LIMIT_SEC[actor.role] : undefined;
   if (limit !== undefined && (target.durationSec === undefined || target.durationSec > limit))
@@ -149,6 +313,6 @@ export function canAssign(
   return true;
 }
 
-/** Ações que o cargo abre, na ordem da matriz (tela de cargos e documentação). */
-export const actionsOf = (role: TenantRole): TenantAction[] =>
-  TENANT_ACTIONS.filter((a) => atLeast(role, ACTIONS[a]));
+/** Ações que o cargo abre, na ordem da matriz (tela de cargos e documentação); com a configuração do tenant, se houver. */
+export const actionsOf = (role: TenantRole, overrides?: RoleOverrides | null): TenantAction[] =>
+  TENANT_ACTIONS.filter((a) => roleAllows(role, a, overrides));
