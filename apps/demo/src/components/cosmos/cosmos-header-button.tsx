@@ -11,6 +11,7 @@ import { canAccessClientPanel } from '@/lib/auth/roles';
 import { useI18n } from '@/lib/i18n/client';
 
 import { CosmosAssistant } from './cosmos-assistant';
+import { useCosmosAssistant } from './cosmos-assistant-provider';
 import { CosmosIcon } from './cosmos-icon';
 
 /**
@@ -27,6 +28,8 @@ export function CosmosHeaderButton() {
 
 function CosmosHeaderButtonInner() {
   const T = useI18n().t.cosmos.assistant;
+  // na área logada o painel mora no layout (sobrevive à troca de tela); fora dela, o botão monta o próprio
+  const shared = useCosmosAssistant();
   const [open, setOpen] = useState(false);
   // o painel só monta depois da primeira abertura: a conversa fica guardada ao fechar
   const [mounted, setMounted] = useState(false);
@@ -41,6 +44,7 @@ function CosmosHeaderButtonInner() {
               size="icon-sm"
               aria-label={T.open}
               onClick={() => {
+                if (shared) return shared.openAssistant();
                 setMounted(true);
                 setOpen(true);
               }}
@@ -51,7 +55,7 @@ function CosmosHeaderButtonInner() {
         </TooltipTrigger>
         <TooltipContent>{T.title}</TooltipContent>
       </Tooltip>
-      {mounted ? <CosmosAssistant open={open} onOpenChange={setOpen} /> : null}
+      {!shared && mounted ? <CosmosAssistant open={open} onOpenChange={setOpen} /> : null}
     </>
   );
 }

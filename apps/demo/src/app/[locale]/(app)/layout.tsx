@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { ActivityTracker } from '@/components/app-shell/activity-tracker';
 import { AppSidebar } from '@/components/app-shell/app-sidebar';
 import { FeedbackEnabledProvider } from '@/components/app-shell/feedback-button';
+import { CosmosAssistantProvider } from '@/components/cosmos/cosmos-assistant-provider';
 import { NotificationsProvider } from '@/components/app-shell/notifications';
 import { SearchProvider } from '@/components/search/search-provider';
 import { RelatedPlayerProvider } from '@/components/sport/related-player';
@@ -46,7 +47,10 @@ export default async function AppLayout({ children }: LayoutProps<'/[locale]'>) 
               {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
               <RelatedPlayerProvider>
                 {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
-                <SidebarInset className="min-w-0">{children}</SidebarInset>
+                {/* Assistente da Cosmos AI: fora das páginas, para a conversa sobreviver à troca de tela. */}
+                <CosmosAssistantProvider>
+                  <SidebarInset className="min-w-0">{children}</SidebarInset>
+                </CosmosAssistantProvider>
               </RelatedPlayerProvider>
             </SearchProvider>
             {/* Caminho atual = dado de URL: fora do shell estático. */}

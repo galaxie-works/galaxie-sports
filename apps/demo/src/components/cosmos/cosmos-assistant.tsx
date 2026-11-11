@@ -10,6 +10,7 @@
  */
 import { ArrowUpIcon, CheckIcon, CopyIcon, RefreshCwIcon, SquareIcon } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { IconStack } from '@/components/reui/icon-stack';
@@ -106,10 +107,11 @@ export function CosmosAssistant({
   }, [turns]);
   const settled = history(turns).length;
 
-  // a rota é lida ao abrir: as sugestões e o contexto são da tela de trás
+  // a rota é lida ao abrir e a cada troca de tela (o painel mora no layout): sugestões e contexto são da tela de trás
+  const pathname = usePathname();
   useEffect(() => {
     if (open) setRoute(routeOf(window.location.pathname));
-  }, [open]);
+  }, [open, pathname]);
 
   // para a resposta em andamento se o painel for desmontado
   useEffect(() => () => abortRef.current?.abort(), []);
