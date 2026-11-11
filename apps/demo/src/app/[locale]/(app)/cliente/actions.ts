@@ -35,6 +35,7 @@ import {
   type PublishableKeyEnv,
 } from '@/lib/builder/store';
 import type { BrandThemeItem, Widget, WidgetKind } from '@/lib/builder/types';
+import { can } from '@/lib/client/permissions';
 import { readClientContext, TENANT_COOKIE } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
 import { COOKIE_MAX_AGE } from '@/lib/i18n/config';
@@ -51,22 +52,27 @@ async function texts() {
   return getDictionary(await getRequestLocale()).client;
 }
 
-/** Sessão com tenant, ou a mensagem de erro (sem acesso / sem tenant). */
+/**
+ * Sessão com tenant e cargo que configura (`settings.manage`, #1019), ou a mensagem de erro. Chaves, widgets e
+ * temas são configuração: Moderador e Voluntário não mexem.
+ */
 async function tenantOrError() {
   const ctx = await readClientContext();
   const t = await texts();
   if (!ctx) return { error: t.errors.forbidden } as const;
   if (!ctx.tenant) return { error: t.errors.noTenant } as const;
+  if (!can(ctx, 'settings.manage')) return { error: t.errors.role } as const;
   return { ctx, tenant: ctx.tenant } as const;
 }
 
 const revalidateClient = () => revalidatePath('/cliente', 'layout');
 
-/** Admin escolhe qual tenant acompanhar (cookie conferido a cada leitura). */
+/** Qual tenant acompanhar: o admin, qualquer um; o cliente, entre os em que tem cargo (cookie conferido a cada leitura). */
 export async function selectTenant(tenantId: string): Promise<ClientActionResult> {
   const ctx = await readClientContext();
   const t = await texts();
-  if (!ctx || ctx.role !== 'admin') return { ok: false, error: t.errors.forbidden };
+  if (!ctx) return { ok: false, error: t.errors.forbidden };
+  // admin escolhe qualquer tenant; o cliente, só os em que tem cargo (#1019)
   if (!ctx.tenants.some((x) => x.id === tenantId)) return { ok: false, error: t.errors.noTenant };
   (await cookies()).set(TENANT_COOKIE, tenantId, {
     path: '/',
