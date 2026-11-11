@@ -1,5 +1,5 @@
 {
-  "id": "d0b3d67c-4f8a-4bac-971f-2f136578699b",
+  "id": "8472b9eb-f523-4089-8bfa-f8dd9628bfea",
   "prevId": "c83926ed-c9a8-4422-8478-a85a40d56fb5",
   "version": "7",
   "dialect": "postgresql",
@@ -20895,6 +20895,22 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "moderation_appeal_case_fk": {
+          "name": "moderation_appeal_case_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -21377,6 +21393,38 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "moderation_case_target_profile_fk": {
+          "name": "moderation_case_target_profile_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "target_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_case_sanction_fk": {
+          "name": "moderation_case_sanction_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "moderation_sanction",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sanction_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -21486,13 +21534,7 @@
               "nulls": "last"
             },
             {
-              "expression": "target_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "target_id",
+              "expression": "case_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -21581,6 +21623,22 @@
           "columnsFrom": [
             "tenant_id",
             "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_report_reporter_fk": {
+          "name": "moderation_report_reporter_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "reporter_profile_id"
           ],
           "columnsTo": [
             "tenant_id",
@@ -21801,6 +21859,54 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_profile_fk": {
+          "name": "moderation_sanction_profile_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_account_fk": {
+          "name": "moderation_sanction_account_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "account",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "account_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_case_fk": {
+          "name": "moderation_sanction_case_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },

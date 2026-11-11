@@ -102,7 +102,7 @@ export type FanSanctions = z.infer<typeof FanSanctions>;
 export const FanSanctionParams = z.object({ sanctionId: z.uuid() });
 
 export const FanAppealBody = z
-  .strictObject({ statement: z.string().trim().min(1).max(2000).optional() })
+  .strictObject({ statement: z.string().trim().min(1).max(1000).optional() })
   .meta({ id: 'FanAppealBody' });
 export type FanAppealBody = z.infer<typeof FanAppealBody>;
 
@@ -148,7 +148,9 @@ export const moderationPaths: ZodOpenApiPathsObject = {
       responses: {
         '201': { description: 'Denúncia na fila', content: json(ModerationReportResponse) },
         '400': problem('Campo inválido (INVALID_PARAMS)'),
+        '404': problem('Perfil denunciado não encontrado (NOT_FOUND)'),
         '409': problem('Denúncia do próprio conteúdo (CONFLICT)'),
+        '503': problem('Ficha do país não configurada para o cliente (DEGRADED)'),
         ...common,
       },
     },
@@ -207,7 +209,8 @@ export const moderationPaths: ZodOpenApiPathsObject = {
         '201': { description: 'Apelação na fila', content: json(FanAppealResponse) },
         '400': problem('Campo inválido (INVALID_PARAMS)'),
         '404': problem('Punição não encontrada (NOT_FOUND)'),
-        '409': problem('Já apelou, apelação pendente ou sem segunda apelação (CONFLICT)'),
+        '409': problem('Já apelou, apelação pendente, punição revogada ou sem segunda apelação (CONFLICT)'),
+        '503': problem('Ficha do país não configurada para o cliente (DEGRADED)'),
         ...common,
       },
     },

@@ -119,6 +119,12 @@ describe('apelação', () => {
     expect(canJudgeAppeal({ judge: j('u1'), appliedBy: 'u1', previousJudge: null, stage: 1 })).toBe(false);
     expect(canJudgeAppeal({ judge: j('u2'), appliedBy: 'u1', previousJudge: null, stage: 1 })).toBe(true);
     expect(canJudgeAppeal({ judge: j('u2'), appliedBy: 'u1', previousJudge: 'u2', stage: 2 })).toBe(false);
+    expect(canJudgeAppeal({ judge: j(null, 'cosmos'), appliedBy: 'u1', previousJudge: null, stage: 1 })).toBe(
+      true,
+    );
+    expect(
+      canJudgeAppeal({ judge: j(null, 'cosmos'), appliedBy: 'cosmos', previousJudge: null, stage: 1 }),
+    ).toBe(false);
     expect(canJudgeAppeal({ judge: j(null, 'cosmos'), appliedBy: 'u1', previousJudge: null, stage: 2 })).toBe(
       false,
     );

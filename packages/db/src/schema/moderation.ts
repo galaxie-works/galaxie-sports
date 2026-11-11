@@ -13,6 +13,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  type PgTableExtraConfigValue,
   boolean,
   check,
   foreignKey,
@@ -29,7 +30,7 @@ import {
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
 import { tenant } from './api.js';
 import { engage } from './engage.js';
-import { fanProfile } from './fan.js';
+import { fanAccount, fanProfile } from './fan.js';
 
 const tenantRef = () =>
   uuid('tenant_id')
@@ -105,8 +106,19 @@ export const moderationCase = engage.table(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     uniqueIndex('moderation_case_tenant_id_uq').on(t.tenantId, t.id),
+    foreignKey({
+      name: 'moderation_case_target_profile_fk',
+      columns: [t.tenantId, t.targetProfileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    // apelação: o caso sai com a punição apelada
+    foreignKey({
+      name: 'moderation_case_sanction_fk',
+      columns: [t.tenantId, t.sanctionId],
+      foreignColumns: [moderationSanction.tenantId, moderationSanction.id],
+    }).onDelete('cascade'),
     // um caso aberto por conteúdo: a denúncia, o filtro e a Cosmos somam no mesmo
     uniqueIndex('moderation_case_open_target_uq')
       .on(t.tenantId, t.targetType, t.targetId)
@@ -142,7 +154,13 @@ export const moderationReport = engage.table(
       columns: [t.tenantId, t.caseId],
       foreignColumns: [moderationCase.tenantId, moderationCase.id],
     }).onDelete('cascade'),
-    uniqueIndex('moderation_report_once_uq').on(t.tenantId, t.targetType, t.targetId, t.reporterProfileId),
+    // uma denúncia por torcedor em cada caso (caso dispensado e denunciado de novo abre outro caso)
+    uniqueIndex('moderation_report_once_uq').on(t.tenantId, t.caseId, t.reporterProfileId),
+    foreignKey({
+      name: 'moderation_report_reporter_fk',
+      columns: [t.tenantId, t.reporterProfileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
     index('moderation_report_reporter_idx').on(t.tenantId, t.reporterProfileId, t.createdAt),
     index('moderation_report_case_idx').on(t.tenantId, t.caseId),
     check('moderation_report_reason', inList(t.reason, MODERATION_REASONS)),
@@ -199,8 +217,24 @@ export const moderationSanction = engage.table(
     purgeAt: ts('purge_at').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [
+  (t): PgTableExtraConfigValue[] => [
     uniqueIndex('moderation_sanction_tenant_id_uq').on(t.tenantId, t.id),
+    foreignKey({
+      name: 'moderation_sanction_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'moderation_sanction_account_fk',
+      columns: [t.tenantId, t.accountId],
+      foreignColumns: [fanAccount.tenantId, fanAccount.id],
+    }).onDelete('cascade'),
+    // o expurgo não apaga caso que uma punição ainda usa
+    foreignKey({
+      name: 'moderation_sanction_case_fk',
+      columns: [t.tenantId, t.caseId],
+      foreignColumns: [moderationCase.tenantId, moderationCase.id],
+    }),
     index('moderation_sanction_profile_idx').on(t.tenantId, t.profileId),
     index('moderation_sanction_account_idx')
       .on(t.tenantId, t.accountId)
@@ -244,6 +278,11 @@ export const moderationAppeal = engage.table(
       foreignColumns: [moderationSanction.tenantId, moderationSanction.id],
     }).onDelete('cascade'),
     uniqueIndex('moderation_appeal_stage_uq').on(t.tenantId, t.sanctionId, t.stage),
+    foreignKey({
+      name: 'moderation_appeal_case_fk',
+      columns: [t.tenantId, t.caseId],
+      foreignColumns: [moderationCase.tenantId, moderationCase.id],
+    }).onDelete('cascade'),
     index('moderation_appeal_galaxie_idx')
       .on(t.dueAt)
       .where(sql`${t.route} = 'galaxie' and ${t.status} = 'pending'`),

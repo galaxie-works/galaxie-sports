@@ -127,44 +127,83 @@ CREATE TABLE "engage"."moderation_sanction" (
 	CONSTRAINT "moderation_sanction_dates" CHECK ("engage"."moderation_sanction"."ends_at" is null or "engage"."moderation_sanction"."ends_at" > "engage"."moderation_sanction"."starts_at")
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX "moderation_case_tenant_id_uq" ON "engage"."moderation_case" USING btree ("tenant_id","id");--> statement-breakpoint
-CREATE UNIQUE INDEX "moderation_sanction_tenant_id_uq" ON "engage"."moderation_sanction" USING btree ("tenant_id","id");--> statement-breakpoint
-ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_blocker_fk" FOREIGN KEY ("tenant_id","blocker_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_blocked_fk" FOREIGN KEY ("tenant_id","blocked_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_appeal" ADD CONSTRAINT "moderation_appeal_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_appeal" ADD CONSTRAINT "moderation_appeal_sanction_fk" FOREIGN KEY ("tenant_id","sanction_id") REFERENCES "engage"."moderation_sanction"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_audit" ADD CONSTRAINT "moderation_audit_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_case" ADD CONSTRAINT "moderation_case_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_report" ADD CONSTRAINT "moderation_report_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_report" ADD CONSTRAINT "moderation_report_case_fk" FOREIGN KEY ("tenant_id","case_id") REFERENCES "engage"."moderation_case"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "engage"."moderation_sanction" ADD CONSTRAINT "moderation_sanction_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "fan_block_blocked_idx" ON "engage"."fan_block" USING btree ("tenant_id","blocked_profile_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "moderation_appeal_stage_uq" ON "engage"."moderation_appeal" USING btree ("tenant_id","sanction_id","stage");--> statement-breakpoint
-CREATE INDEX "moderation_appeal_galaxie_idx" ON "engage"."moderation_appeal" USING btree ("due_at") WHERE "engage"."moderation_appeal"."route" = 'galaxie' and "engage"."moderation_appeal"."status" = 'pending';--> statement-breakpoint
-CREATE INDEX "moderation_audit_tenant_idx" ON "engage"."moderation_audit" USING btree ("tenant_id","created_at");--> statement-breakpoint
-CREATE INDEX "moderation_audit_subject_idx" ON "engage"."moderation_audit" USING btree ("tenant_id","subject_profile_id");--> statement-breakpoint
-CREATE INDEX "moderation_audit_purge_idx" ON "engage"."moderation_audit" USING btree ("purge_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "moderation_case_open_target_uq" ON "engage"."moderation_case" USING btree ("tenant_id","target_type","target_id") WHERE "engage"."moderation_case"."status" = 'open' and "engage"."moderation_case"."source" <> 'appeal';--> statement-breakpoint
-CREATE INDEX "moderation_case_queue_idx" ON "engage"."moderation_case" USING btree ("tenant_id","status","severity" DESC NULLS LAST,"created_at");--> statement-breakpoint
-CREATE INDEX "moderation_case_purge_idx" ON "engage"."moderation_case" USING btree ("purge_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "moderation_report_once_uq" ON "engage"."moderation_report" USING btree ("tenant_id","target_type","target_id","reporter_profile_id");--> statement-breakpoint
-CREATE INDEX "moderation_report_reporter_idx" ON "engage"."moderation_report" USING btree ("tenant_id","reporter_profile_id","created_at");--> statement-breakpoint
-CREATE INDEX "moderation_report_case_idx" ON "engage"."moderation_report" USING btree ("tenant_id","case_id");--> statement-breakpoint
-CREATE INDEX "moderation_sanction_profile_idx" ON "engage"."moderation_sanction" USING btree ("tenant_id","profile_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "moderation_appeal_stage_uq" ON "engage"."moderation_appeal" USING btree ("tenant_id","sanction_id","stage");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "moderation_case_tenant_id_uq" ON "engage"."moderation_case" USING btree ("tenant_id","id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "moderation_case_open_target_uq" ON "engage"."moderation_case" USING btree ("tenant_id","target_type","target_id") WHERE "engage"."moderation_case"."status" = 'open' and "engage"."moderation_case"."source" <> 'appeal';
+--> statement-breakpoint
+CREATE UNIQUE INDEX "moderation_report_once_uq" ON "engage"."moderation_report" USING btree ("tenant_id","case_id","reporter_profile_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "moderation_sanction_tenant_id_uq" ON "engage"."moderation_sanction" USING btree ("tenant_id","id");
+--> statement-breakpoint
+ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_blocker_fk" FOREIGN KEY ("tenant_id","blocker_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."fan_block" ADD CONSTRAINT "fan_block_blocked_fk" FOREIGN KEY ("tenant_id","blocked_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_appeal" ADD CONSTRAINT "moderation_appeal_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_appeal" ADD CONSTRAINT "moderation_appeal_sanction_fk" FOREIGN KEY ("tenant_id","sanction_id") REFERENCES "engage"."moderation_sanction"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_appeal" ADD CONSTRAINT "moderation_appeal_case_fk" FOREIGN KEY ("tenant_id","case_id") REFERENCES "engage"."moderation_case"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_audit" ADD CONSTRAINT "moderation_audit_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_case" ADD CONSTRAINT "moderation_case_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_case" ADD CONSTRAINT "moderation_case_target_profile_fk" FOREIGN KEY ("tenant_id","target_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_case" ADD CONSTRAINT "moderation_case_sanction_fk" FOREIGN KEY ("tenant_id","sanction_id") REFERENCES "engage"."moderation_sanction"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_report" ADD CONSTRAINT "moderation_report_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_report" ADD CONSTRAINT "moderation_report_case_fk" FOREIGN KEY ("tenant_id","case_id") REFERENCES "engage"."moderation_case"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_report" ADD CONSTRAINT "moderation_report_reporter_fk" FOREIGN KEY ("tenant_id","reporter_profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_sanction" ADD CONSTRAINT "moderation_sanction_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_sanction" ADD CONSTRAINT "moderation_sanction_profile_fk" FOREIGN KEY ("tenant_id","profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_sanction" ADD CONSTRAINT "moderation_sanction_account_fk" FOREIGN KEY ("tenant_id","account_id") REFERENCES "fan"."account"("tenant_id","id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "engage"."moderation_sanction" ADD CONSTRAINT "moderation_sanction_case_fk" FOREIGN KEY ("tenant_id","case_id") REFERENCES "engage"."moderation_case"("tenant_id","id") ON DELETE no action ON UPDATE no action;
+--> statement-breakpoint
+CREATE INDEX "fan_block_blocked_idx" ON "engage"."fan_block" USING btree ("tenant_id","blocked_profile_id");
+--> statement-breakpoint
+CREATE INDEX "moderation_appeal_galaxie_idx" ON "engage"."moderation_appeal" USING btree ("due_at") WHERE "engage"."moderation_appeal"."route" = 'galaxie' and "engage"."moderation_appeal"."status" = 'pending';
+--> statement-breakpoint
+CREATE INDEX "moderation_audit_tenant_idx" ON "engage"."moderation_audit" USING btree ("tenant_id","created_at");
+--> statement-breakpoint
+CREATE INDEX "moderation_audit_subject_idx" ON "engage"."moderation_audit" USING btree ("tenant_id","subject_profile_id");
+--> statement-breakpoint
+CREATE INDEX "moderation_audit_purge_idx" ON "engage"."moderation_audit" USING btree ("purge_at");
+--> statement-breakpoint
+CREATE INDEX "moderation_case_queue_idx" ON "engage"."moderation_case" USING btree ("tenant_id","status","severity" DESC NULLS LAST,"created_at");
+--> statement-breakpoint
+CREATE INDEX "moderation_case_purge_idx" ON "engage"."moderation_case" USING btree ("purge_at");
+--> statement-breakpoint
+CREATE INDEX "moderation_report_reporter_idx" ON "engage"."moderation_report" USING btree ("tenant_id","reporter_profile_id","created_at");
+--> statement-breakpoint
+CREATE INDEX "moderation_report_case_idx" ON "engage"."moderation_report" USING btree ("tenant_id","case_id");
+--> statement-breakpoint
+CREATE INDEX "moderation_sanction_profile_idx" ON "engage"."moderation_sanction" USING btree ("tenant_id","profile_id");
+--> statement-breakpoint
 CREATE INDEX "moderation_sanction_account_idx" ON "engage"."moderation_sanction" USING btree ("tenant_id","account_id") WHERE "engage"."moderation_sanction"."account_id" is not null;
 --> statement-breakpoint
 -- Registro de auditoria imutável: ninguém altera nem apaga, nem o dono do cliente. Só passam o expurgo por relógio
 -- (engage.moderation_purge = on na transação; apaga a linha vencida ou tira o conteúdo vencido) e a exclusão do
 -- torcedor (engage.moderation_erasure = on; só tira o conteúdo). A exclusão em cascata do tenant inteiro também
--- passa (pg_trigger_depth() > 1: veio da FK, ao apagar o cliente).
+-- passa: o DELETE só é aceito quando o cliente já não existe (não vale gatilho próprio chamando DELETE).
 CREATE FUNCTION engage.moderation_audit_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'TRUNCATE' THEN
     RAISE EXCEPTION 'engage.moderation_audit é só de inclusão' USING ERRCODE = 'insufficient_privilege';
   END IF;
   IF TG_OP = 'DELETE' THEN
-    IF pg_trigger_depth() > 1 THEN RETURN OLD; END IF;
+    IF NOT EXISTS (SELECT 1 FROM api.tenant WHERE id = OLD.tenant_id) THEN RETURN OLD; END IF;
     IF current_setting('engage.moderation_purge', true) = 'on' AND OLD.purge_at <= now() THEN RETURN OLD; END IF;
     RAISE EXCEPTION 'engage.moderation_audit é só de inclusão' USING ERRCODE = 'insufficient_privilege';
   END IF;

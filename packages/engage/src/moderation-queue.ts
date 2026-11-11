@@ -220,9 +220,10 @@ export function canJudgeAppeal(input: {
   stage: AppealStage;
 }): boolean {
   if (input.stage === 2 && input.judge.kind === 'cosmos') return false;
-  if (input.judge.kind === 'cosmos') return true;
-  if (!input.judge.id) return false;
-  return input.judge.id !== input.appliedBy && input.judge.id !== input.previousJudge;
+  // a Cosmos não julga a apelação de punição que ela mesma aplicou
+  const id = input.judge.kind === 'cosmos' ? 'cosmos' : input.judge.id;
+  if (!id) return false;
+  return id !== input.appliedBy && id !== input.previousJudge;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

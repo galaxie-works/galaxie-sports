@@ -250,7 +250,7 @@ describe('fila única da moderação (B8, #953)', () => {
       scopeId: 'sala-1',
       reason: 'ofensa',
       caseId: null,
-      actor: { id: 'cosmos', kind: 'cosmos' },
+      actor: person('mod1'),
       endsAt: new Date(Date.now() + day),
       clocks: clocks(),
     });
@@ -311,7 +311,7 @@ describe('fila única da moderação (B8, #953)', () => {
         note: null,
         clocks: clocks(),
       }),
-    ).toBe(true);
+    ).toBe('decided');
     expect(
       await decideAppeal(db, {
         tenantId,
@@ -321,7 +321,7 @@ describe('fila única da moderação (B8, #953)', () => {
         note: null,
         clocks: clocks(),
       }),
-    ).toBe(false);
+    ).toBe('not_pending');
 
     const ap2 = await fileAppeal(db, {
       tenantId,
@@ -341,6 +341,18 @@ describe('fila única da moderação (B8, #953)', () => {
       [2, null],
     ]);
 
+    // quem aplicou não julga; a Cosmos não julga a segunda etapa
+    for (const actor of [person('mod1'), { id: 'cosmos', kind: 'cosmos' as const }])
+      expect(
+        await decideAppeal(db, {
+          tenantId,
+          appealId: ap2.appealId,
+          decision: 'overturned',
+          actor,
+          note: null,
+          clocks: clocks(),
+        }),
+      ).toBe('forbidden');
     expect(
       await decideAppeal(db, {
         tenantId,
@@ -350,7 +362,7 @@ describe('fila única da moderação (B8, #953)', () => {
         note: 'contexto de brincadeira',
         clocks: clocks(),
       }),
-    ).toBe(true);
+    ).toBe('decided');
     expect(await activeSanctions(db, { tenantId, profileId: fan.id, accountId: fan.accountId })).toEqual([]);
     expect((await readAudit(db, tenantId, { subjectProfileId: fan.id })).map((a) => a.action)).toEqual([
       'appeal.decide',
@@ -518,5 +530,162 @@ describe('fila única da moderação (B8, #953)', () => {
     expect(res.audit).toBeGreaterThanOrEqual(1);
     expect(await readAudit(db, tenantId, { subjectProfileId: author.id })).toEqual([]);
     expect(await listQueue(db, tenantId, { status: 'dismissed' })).toEqual([]);
+  });
+
+  it('punição em vigor segura a auditoria e o caso dela no expurgo', async () => {
+    const author = await profile();
+    const at = Date.now() - 400 * day;
+    const old = clocks(at);
+    const h = await holdContent(db, {
+      ...target(author.id),
+      source: 'filter',
+      reasons: ['hate'],
+      severity: 90,
+      hide: true,
+      content: 'ódio',
+      detail: null,
+      clocks: old,
+      now: new Date(at),
+    });
+    await closeCase(db, {
+      tenantId,
+      caseId: h.caseId,
+      status: 'resolved',
+      actor: person('mod'),
+      note: null,
+      clocks: old,
+      now: new Date(at),
+    });
+    const ban = await applySanction(db, {
+      tenantId,
+      profileId: author.id,
+      accountId: null,
+      level: 'ban',
+      hidden: false,
+      scope: 'tenant',
+      scopeId: null,
+      reason: 'ódio',
+      caseId: h.caseId,
+      actor: person('mod'),
+      endsAt: null,
+      clocks: old,
+    });
+    await purgeModeration(db);
+    expect(
+      (await activeSanctions(db, { tenantId, profileId: author.id, accountId: null })).map((x) => x.id),
+    ).toEqual([ban.id]);
+    const actions = (await readAudit(db, tenantId, { subjectProfileId: author.id })).map((a) => a.action);
+    expect(actions).toContain('sanction');
+    const [c] = await pg`select id from engage.moderation_case where id = ${h.caseId}`;
+    expect(c).toBeDefined();
+  });
+
+  it('denunciar de novo depois de um caso dispensado abre outro caso com a denúncia', async () => {
+    const author = await profile();
+    const rep = await profile();
+    const t = target(author.id);
+    const r1 = await fileReport(db, {
+      ...t,
+      reporterProfileId: rep.id,
+      reason: 'spam',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    if (!r1.ok) throw new Error('denúncia');
+    await closeCase(db, {
+      tenantId,
+      caseId: r1.caseId,
+      status: 'dismissed',
+      actor: person('mod'),
+      note: null,
+      clocks: clocks(),
+    });
+    const r2 = await fileReport(db, {
+      ...t,
+      reporterProfileId: rep.id,
+      reason: 'spam',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    expect(r2).toMatchObject({ ok: true, duplicate: false });
+    if (!r2.ok) throw new Error('denúncia');
+    expect(r2.caseId).not.toBe(r1.caseId);
+    const [c] = (await listQueue(db, tenantId)).filter((x) => x.id === r2.caseId);
+    expect(c).toMatchObject({ reportCount: 1, reasons: ['spam'] });
+  });
+
+  it('gatilho próprio chamando DELETE não apaga a auditoria', async () => {
+    const author = await profile();
+    await holdContent(db, {
+      ...target(author.id),
+      source: 'filter',
+      reasons: ['spam'],
+      severity: 30,
+      hide: false,
+      content: null,
+      detail: null,
+      clocks: clocks(),
+    });
+    const before = (await readAudit(db, tenantId, { subjectProfileId: author.id })).length;
+    await expect(
+      pg.begin(async (q) => {
+        await q`create temp table t_burla (x int)`;
+        await q.unsafe(`create function pg_temp.burla() returns trigger language plpgsql as $$
+          begin delete from engage.moderation_audit; return new; end $$`);
+        await q.unsafe(
+          `create trigger t_burla after insert on t_burla for each row execute function pg_temp.burla()`,
+        );
+        await q`insert into t_burla values (1)`;
+      }),
+    ).rejects.toThrow();
+    expect((await readAudit(db, tenantId, { subjectProfileId: author.id })).length).toBe(before);
+  });
+
+  it('exclusão tira a apelação escrita pelo torcedor e o detalhe do filtro', async () => {
+    const fan = await profile();
+    const h = await holdContent(db, {
+      ...target(fan.id),
+      source: 'cosmos',
+      reasons: ['hate'],
+      severity: 90,
+      hide: true,
+      content: 'x',
+      detail: { trecho: 'x' },
+      clocks: clocks(),
+    });
+    const s = await applySanction(db, {
+      tenantId,
+      profileId: fan.id,
+      accountId: null,
+      level: 'warning',
+      hidden: false,
+      scope: 'place',
+      scopeId: 'sala-1',
+      reason: 'ódio',
+      caseId: h.caseId,
+      actor: person('mod'),
+      endsAt: null,
+      clocks: clocks(),
+    });
+    await fileAppeal(db, {
+      tenantId,
+      profileId: fan.id,
+      sanctionId: s.id,
+      stage: 1,
+      route: 'team',
+      statement: 'meu texto',
+      dueAt: new Date(Date.now() + day),
+      clocks: clocks(),
+      severity: 20,
+    });
+    await db.transaction((tx) => eraseModerationContent(tx, tenantId, fan.id));
+    const [a] = await pg`select statement from engage.moderation_appeal where sanction_id = ${s.id}`;
+    expect(a!.statement).toBeNull();
+    const [c] = await pg`select detail from engage.moderation_case where id = ${h.caseId}`;
+    expect(c!.detail).toBeNull();
   });
 });

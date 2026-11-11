@@ -29,6 +29,7 @@ import {
   fileAppeal,
   fileReport,
   listBlocks,
+  moderationSanction,
   readAppeal,
   sanctionsForFan,
   tenantCountry,
@@ -62,6 +63,8 @@ import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
 import { fanCan } from './fan-rules.js';
 import { readFan } from './fans.js';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface ModerationRoutesDeps {
   db: Database | undefined;
@@ -100,11 +103,18 @@ async function clocksFor(
   return { contentPurgeAt: new Date(d.contentPurgeAt), decisionPurgeAt: new Date(d.decisionPurgeAt) };
 }
 
-/** Alguém da equipe do cliente (pessoa do console, com convite aceito) pode julgar a segunda apelação? */
-async function teamCanJudgeSecond(db: Database, tenantId: string): Promise<boolean> {
+/**
+ * Alguém da equipe do cliente (pessoa do console, com convite aceito), fora quem aplicou e quem julgou a primeira
+ * etapa, pode julgar a segunda apelação?
+ */
+async function teamCanJudgeSecond(
+  db: Database,
+  tenantId: string,
+  exclude: readonly string[],
+): Promise<boolean> {
   const [members, perms] = await Promise.all([
     db
-      .select({ role: tenantMember.role })
+      .select({ role: tenantMember.role, userId: tenantMember.userId })
       .from(tenantMember)
       .where(
         and(
@@ -128,8 +138,12 @@ async function teamCanJudgeSecond(db: Database, tenantId: string): Promise<boole
     (raw[p.role] ??= {})[p.action as keyof NonNullable<RoleOverrides[typeof p.role]>] = p.allowed;
   }
   const overrides = normalizeOverrides(raw);
+  // quem aplicou a punição ou julgou a primeira etapa não julga a segunda
   return members.some(
-    (m) => isTenantRole(m.role) && roleAllows(m.role, 'moderation.appeal.second', overrides),
+    (m) =>
+      !exclude.includes(`user:${m.userId}`) &&
+      isTenantRole(m.role) &&
+      roleAllows(m.role, 'moderation.appeal.second', overrides),
   );
 }
 
@@ -164,14 +178,18 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
   app.post('/v1/moderation/reports', { config: { fan: true } }, async (request, reply) => {
     const { fan, profile } = await activeFan(request);
     const body = parseInput(ModerationReportBody, request.body);
-    if (body.targetProfileId && !(await profileExists(fan.tenantId, body.targetProfileId)))
+    // denúncia de Perfil: o alvo é o próprio Perfil, que tem de existir no mesmo cliente
+    const targetProfileId = body.targetType === 'profile' ? body.targetId : (body.targetProfileId ?? null);
+    if (body.targetType === 'profile' && !UUID.test(body.targetId))
+      throw problems.invalidParams([{ path: 'targetId', message: 'Perfil: use o profile_id' }]);
+    if (targetProfileId && !(await profileExists(fan.tenantId, targetProfileId)))
       throw problems.notFound('Perfil');
     const at = now();
     const res = await fileReport(db(), {
       tenantId: fan.tenantId,
       targetType: body.targetType,
       targetId: body.targetId,
-      targetProfileId: body.targetType === 'profile' ? body.targetId : (body.targetProfileId ?? null),
+      targetProfileId,
       module: body.module,
       room: body.room ?? null,
       community: body.community ?? null,
@@ -275,6 +293,19 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     const { fan, profile } = await activeFan(request);
     const { sanctionId } = parseInput(FanSanctionParams, request.params);
     const body = parseInput(FanAppealBody, request.body ?? {});
+    // a punição tem de ser do torcedor e visível para ele (o Silêncio oculto responde 404, como se não existisse)
+    const [owned] = await db()
+      .select({ decidedBy: moderationSanction.decidedBy })
+      .from(moderationSanction)
+      .where(
+        and(
+          eq(moderationSanction.tenantId, fan.tenantId),
+          eq(moderationSanction.id, sanctionId),
+          eq(moderationSanction.profileId, fan.profileId),
+          eq(moderationSanction.hidden, false),
+        ),
+      );
+    if (!owned) throw problems.notFound('Punição');
     const judges = await appealJudges(db(), fan.tenantId, sanctionId);
     const last = judges.at(-1);
     if (last?.status === 'pending') throw problems.conflict('Já existe uma apelação pendente desta punição.');
@@ -283,7 +314,10 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
       throw problems.conflict('Esta punição não aceita outra apelação.');
     const route = appealRoute(stage, {
       firstDecidedBy: last?.decidedByKind === 'cosmos' ? 'cosmos' : 'person',
-      teamCanJudge: stage === 2 ? await teamCanJudgeSecond(db(), fan.tenantId) : true,
+      teamCanJudge:
+        stage === 2
+          ? await teamCanJudgeSecond(db(), fan.tenantId, [owned.decidedBy, last?.decidedBy ?? ''])
+          : true,
     });
     if (!route)
       throw problems.conflict('A segunda apelação só existe quando a primeira resposta veio da Cosmos.');
@@ -303,6 +337,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     });
     if (!res.ok) {
       if (res.reason === 'already') throw problems.conflict('Esta etapa da apelação já foi pedida.');
+      if (res.reason === 'closed') throw problems.conflict('A punição já foi revogada.');
       throw problems.notFound('Punição');
     }
     const appeal = await readAppeal(db(), fan.tenantId, res.appealId);

@@ -149,6 +149,13 @@ describe('moderação do torcedor (#953)', () => {
       reason: 'spam',
     });
     expect(self.statusCode).toBe(409);
+    const notUuid = await call(author.token, 'POST', '/v1/moderation/reports', {
+      targetType: 'profile',
+      targetId: 'nao-e-uuid',
+      module: 'profile',
+      reason: 'spam',
+    });
+    expect(notUuid.statusCode).toBe(400);
     const bad = await call(author.token, 'POST', '/v1/moderation/reports', {
       targetType: 'message',
       targetId: 'msg_2',
@@ -205,7 +212,7 @@ describe('moderação do torcedor (#953)', () => {
       scopeId: 'jogo-1',
       reason: 'flood',
       caseId: null,
-      actor: { id: 'cosmos', kind: 'cosmos' },
+      actor: { id: 'user:mod1', kind: 'person' },
       endsAt: new Date(Date.now() + day),
       clocks: clocks(),
     });
@@ -228,6 +235,7 @@ describe('moderação do torcedor (#953)', () => {
     expect(list.json().data[0]).toMatchObject({ level: 'mute', active: true, appeals: [] });
 
     const url = `/v1/fans/me/sanctions/${s.id}/appeals`;
+    expect((await call(f.token, 'POST', url, { statement: 'x'.repeat(1001) })).statusCode).toBe(400);
     const ap1 = await call(f.token, 'POST', url, { statement: 'não fui eu' });
     expect(ap1.statusCode).toBe(201);
     expect(ap1.json().data).toMatchObject({ stage: 1, route: 'team' });
@@ -236,7 +244,7 @@ describe('moderação do torcedor (#953)', () => {
       404,
     );
 
-    await decideAppeal(db, {
+    const decided = await decideAppeal(db, {
       tenantId: t.id,
       appealId: ap1.json().data.appeal_id,
       decision: 'upheld',
@@ -244,6 +252,7 @@ describe('moderação do torcedor (#953)', () => {
       note: null,
       clocks: clocks(),
     });
+    expect(decided).toBe('decided');
     const ap2 = await call(f.token, 'POST', url, { statement: 'quero uma pessoa' });
     expect(ap2.statusCode).toBe(201);
     expect(ap2.json().data).toMatchObject({ stage: 2, route: 'galaxie' });

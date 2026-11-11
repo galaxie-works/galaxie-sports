@@ -651,7 +651,7 @@ export async function sanctionsForFan(
 
 export type FileAppealResult =
   | { ok: true; appealId: string; caseId: string; route: 'team' | 'galaxie' }
-  | { ok: false; reason: 'not_found' | 'already' | 'hidden' };
+  | { ok: false; reason: 'not_found' | 'already' | 'hidden' | 'closed' };
 
 /**
  * O punido pede revisão (uma vez por punição e etapa). A apelação entra na fila única como caso `appeal`, ou na fila
@@ -679,6 +679,7 @@ export async function fileAppeal(
         .select({
           id: moderationSanction.id,
           hidden: moderationSanction.hidden,
+          revokedAt: moderationSanction.revokedAt,
           caseId: moderationSanction.caseId,
           module: moderationCase.module,
           room: moderationCase.room,
@@ -702,6 +703,8 @@ export async function fileAppeal(
       if (!s) return { ok: false, reason: 'not_found' } as const;
       // Silêncio oculto: o torcedor não sabe da punição, então não apela por ela
       if (s.hidden) return { ok: false, reason: 'hidden' } as const;
+      // punição já revogada: não há o que apelar
+      if (s.revokedAt) return { ok: false, reason: 'closed' } as const;
       const [c] = await tx
         .insert(moderationCase)
         .values({
@@ -844,8 +847,9 @@ export async function appealsForSanctions(
 }
 
 /**
- * Decide a apelação: `upheld` mantém a punição, `overturned` revoga. Quem chama já conferiu `canJudgeAppeal`; aqui
- * a decisão só entra se a apelação ainda estiver pendente.
+ * Decide a apelação: `upheld` mantém a punição, `overturned` revoga. A decisão só entra se a apelação estiver
+ * pendente (`not_pending`) e se quem julga não aplicou a punição nem julgou a etapa anterior (`forbidden`); a
+ * segunda etapa nunca é da Cosmos.
  */
 export async function decideAppeal(
   db: Database,
@@ -858,9 +862,43 @@ export async function decideAppeal(
     clocks: ModerationClocks;
     now?: Date;
   },
-): Promise<boolean> {
+): Promise<'decided' | 'not_pending' | 'forbidden'> {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
+    // quem julga: nunca quem aplicou a punição nem quem julgou a etapa anterior; a segunda etapa nunca é da Cosmos
+    const [current] = await tx
+      .select({
+        stage: moderationAppeal.stage,
+        status: moderationAppeal.status,
+        appliedBy: moderationSanction.decidedBy,
+        sanctionId: moderationAppeal.sanctionId,
+      })
+      .from(moderationAppeal)
+      .innerJoin(
+        moderationSanction,
+        and(
+          eq(moderationSanction.tenantId, moderationAppeal.tenantId),
+          eq(moderationSanction.id, moderationAppeal.sanctionId),
+        ),
+      )
+      .where(and(eq(moderationAppeal.tenantId, input.tenantId), eq(moderationAppeal.id, input.appealId)))
+      .for('update');
+    if (!current || current.status !== 'pending') return 'not_pending' as const;
+    if (current.stage === 2 && input.actor.kind === 'cosmos') return 'forbidden' as const;
+    if (input.actor.id === current.appliedBy) return 'forbidden' as const;
+    if (current.stage === 2) {
+      const [prev] = await tx
+        .select({ decidedBy: moderationAppeal.decidedBy })
+        .from(moderationAppeal)
+        .where(
+          and(
+            eq(moderationAppeal.tenantId, input.tenantId),
+            eq(moderationAppeal.sanctionId, current.sanctionId),
+            eq(moderationAppeal.stage, 1),
+          ),
+        );
+      if (prev?.decidedBy === input.actor.id) return 'forbidden' as const;
+    }
     const [a] = await tx
       .update(moderationAppeal)
       .set({
@@ -882,7 +920,7 @@ export async function decideAppeal(
         sanctionId: moderationAppeal.sanctionId,
         caseId: moderationAppeal.caseId,
       });
-    if (!a) return false;
+    if (!a) return 'not_pending' as const;
     if (input.decision === 'overturned')
       await tx
         .update(moderationSanction)
@@ -921,7 +959,7 @@ export async function decideAppeal(
       reason: input.decision,
       content: input.note,
     });
-    return true;
+    return 'decided' as const;
   });
 }
 
@@ -1016,45 +1054,68 @@ export async function readAudit(
 }
 
 /**
- * Expurgo por relógio (D5), em todos os clientes: tira o conteúdo vencido (casos e auditoria) e apaga o que passou
- * do relógio de decisões (casos fechados, punições encerradas e a auditoria). Roda num job diário.
+ * Expurgo por relógio (D5), em todos os clientes, num job diário. Usa o relógio do banco (o mesmo do gatilho da
+ * auditoria). Ordem:
+ *
+ * 1. tira o conteúdo vencido (casos e auditoria);
+ * 2. apaga a punição encerrada (fim ou revogação) quando o relógio de decisões passou, contado do encerramento, e
+ *    sem apelação pendente; a apelação e o caso dela saem em cascata;
+ * 3. apaga o caso fechado vencido que nenhuma punição usa;
+ * 4. apaga a auditoria vencida cuja punição e cujo caso já saíram.
+ *
+ * Punição em vigor (ban sem prazo, por exemplo) segura a auditoria e o caso dela.
  */
 export async function purgeModeration(
   db: Database,
-  now: Date = new Date(),
 ): Promise<{ contents: number; cases: number; sanctions: number; audit: number }> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local engage.moderation_purge = 'on'`);
     const contentCases = await tx
       .update(moderationCase)
       .set({ content: null, contentPurgeAt: null })
-      .where(and(lte(moderationCase.contentPurgeAt, now), sql`${moderationCase.content} is not null`))
+      .where(and(sql`${moderationCase.contentPurgeAt} <= now()`, sql`${moderationCase.content} is not null`))
       .returning({ id: moderationCase.id });
     const contentAudit = await tx
       .update(moderationAudit)
       .set({ content: null })
-      .where(and(lte(moderationAudit.contentPurgeAt, now), sql`${moderationAudit.content} is not null`))
+      .where(
+        and(sql`${moderationAudit.contentPurgeAt} <= now()`, sql`${moderationAudit.content} is not null`),
+      )
       .returning({ id: moderationAudit.id });
-    const cases = await tx
-      .delete(moderationCase)
-      .where(and(inArray(moderationCase.status, ['resolved', 'dismissed']), lte(moderationCase.purgeAt, now)))
-      .returning({ id: moderationCase.id });
-    // punição encerrada (fim ou revogação) que passou do relógio; a apelação cai em cascata
+    // o prazo da decisão (purge_at − created_at) conta a partir do encerramento da punição
     const sanctions = await tx
       .delete(moderationSanction)
       .where(
         and(
-          lte(moderationSanction.purgeAt, now),
-          or(
-            sql`${moderationSanction.revokedAt} is not null`,
-            and(sql`${moderationSanction.endsAt} is not null`, lte(moderationSanction.endsAt, now)),
-          ),
+          sql`least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}) <= now()`,
+          sql`least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}) + (${moderationSanction.purgeAt} - ${moderationSanction.createdAt}) <= now()`,
+          sql`not exists (select 1 from ${moderationAppeal} a where a.tenant_id = ${moderationSanction.tenantId}
+            and a.sanction_id = ${moderationSanction.id} and a.status = 'pending')`,
         ),
       )
       .returning({ id: moderationSanction.id });
+    const cases = await tx
+      .delete(moderationCase)
+      .where(
+        and(
+          inArray(moderationCase.status, ['resolved', 'dismissed']),
+          sql`${moderationCase.purgeAt} <= now()`,
+          sql`not exists (select 1 from ${moderationSanction} s where s.tenant_id = ${moderationCase.tenantId}
+            and s.case_id = ${moderationCase.id})`,
+        ),
+      )
+      .returning({ id: moderationCase.id });
     const auditRows = await tx
       .delete(moderationAudit)
-      .where(lte(moderationAudit.purgeAt, now))
+      .where(
+        and(
+          sql`${moderationAudit.purgeAt} <= now()`,
+          sql`(${moderationAudit.sanctionId} is null or not exists (select 1 from ${moderationSanction} s
+            where s.tenant_id = ${moderationAudit.tenantId} and s.id = ${moderationAudit.sanctionId}))`,
+          sql`(${moderationAudit.caseId} is null or not exists (select 1 from ${moderationCase} c
+            where c.tenant_id = ${moderationAudit.tenantId} and c.id = ${moderationAudit.caseId}))`,
+        ),
+      )
       .returning({ id: moderationAudit.id });
     return {
       contents: contentCases.length + contentAudit.length,
@@ -1093,6 +1154,36 @@ export async function eraseModerationContent(
         eq(moderationAudit.tenantId, tenantId),
         or(eq(moderationAudit.subjectProfileId, profileId), eq(moderationAudit.actor, `fan:${profileId}`)),
         sql`${moderationAudit.content} is not null`,
+      ),
+    );
+  // o que o filtro ou a Cosmos guardaram do conteúdo dele
+  await tx
+    .update(moderationCase)
+    .set({ detail: null })
+    .where(
+      and(
+        eq(moderationCase.tenantId, tenantId),
+        eq(moderationCase.targetProfileId, profileId),
+        sql`${moderationCase.detail} is not null`,
+      ),
+    );
+  // o que ele escreveu nas apelações
+  await tx
+    .update(moderationAppeal)
+    .set({ statement: null })
+    .where(
+      and(
+        eq(moderationAppeal.tenantId, tenantId),
+        sql`${moderationAppeal.statement} is not null`,
+        inArray(
+          moderationAppeal.sanctionId,
+          tx
+            .select({ id: moderationSanction.id })
+            .from(moderationSanction)
+            .where(
+              and(eq(moderationSanction.tenantId, tenantId), eq(moderationSanction.profileId, profileId)),
+            ),
+        ),
       ),
     );
   // a observação que o torcedor escreveu nas denúncias dele
