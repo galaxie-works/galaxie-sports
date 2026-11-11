@@ -206,12 +206,24 @@ describe('pergunta ao assistente', () => {
     expect((await getWallet(db, t))?.available).toBe(98);
   });
 
-  it('provedor falha antes de qualquer pedaço: a reserva volta inteira', async () => {
+  it('provedor falha antes de qualquer pedaço e sem contar tokens: a reserva volta inteira', async () => {
     const t = await newTenant();
-    const events = await run(t, fakeStream(['nada'], { failAfter: 0 }));
+    const events = await run(t, fakeStream(['nada'], { failAfter: 0, tokens: { inputTokens: 0 } }));
     expect(events.map((e) => e.type)).toEqual(['start', 'error']);
     expect(await statuses(t)).toEqual(['released']);
     expect((await getWallet(db, t))?.available).toBe(100);
+  });
+
+  it('corte antes do primeiro pedaço com tokens já contados: 0 crédito, custo real no extrato', async () => {
+    const t = await newTenant();
+    const events = await run(t, fakeStream(['nada'], { failAfter: 0 }));
+    expect(events.map((e) => e.type)).toEqual(['start', 'error']);
+    expect(await statuses(t)).toEqual(['settled']);
+    expect((await getWallet(db, t))?.available).toBe(100);
+    const [usage] = (await listLedger(db, t, { kinds: ['usage'] })).entries;
+    expect(usage?.credits).toBe(0);
+    expect(usage?.tokensIn).toBe(1000);
+    expect(usage?.costUsd).toBeGreaterThan(0);
   });
 
   it('provedor falha no meio: cobra o que foi entregue, sem assinatura', async () => {
@@ -228,7 +240,7 @@ describe('pergunta ao assistente', () => {
     const t = await newTenant();
     const early = new AbortController();
     early.abort();
-    await run(t, fakeStream(['nunca']), { signal: early.signal });
+    await run(t, fakeStream(['nunca'], { tokens: { inputTokens: 0 } }), { signal: early.signal });
     expect(await statuses(t)).toEqual(['released']);
 
     // "Parar" só depois de ver o primeiro pedaço chegar (nada de espera por tempo)
