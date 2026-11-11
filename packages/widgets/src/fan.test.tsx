@@ -299,4 +299,52 @@ describe('<FanGate> e a sessão do torcedor', () => {
     act(() => fan!.refresh());
     expect(await screen.findByText('unavailable:-')).toBeTruthy();
   });
+
+  it('troca de torcedor durante a renovação de um fetch: o token antigo não volta', async () => {
+    let who = 'A';
+    const tok = (p: string, sig = p) =>
+      `gft_${b64({ v: 1, t: 'site', p, exp: Math.floor(Date.now() / 1000) + 900 })}.${sig}`;
+    const slow: ((t: string) => void)[] = [];
+    let first = true;
+    const getFanToken = vi.fn(() => {
+      if (first) {
+        first = false;
+        return tok('A', 'A1');
+      }
+      // a renovação de A demora; depois do refresh, o site já é de B
+      return who === 'A' ? new Promise<string>((r) => slow.push(r)) : tok('B');
+    });
+    const base = api();
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).endsWith('/wallet') && new Headers(init?.headers).get('authorization')?.endsWith('.A1')
+        ? new Response(null, { status: 401 })
+        : base(url, init),
+    );
+    let fan: ReturnType<typeof useFanSession> | null = null;
+    function Probe() {
+      fan = useFanSession();
+      return <span>{fan.status}</span>;
+    }
+    setup(<Probe />, { getFanToken }, fetchImpl);
+    await screen.findByText('ready');
+    let pending: Promise<Response> | null = null;
+    act(() => {
+      pending = fan!.fetch('/v1/fans/me/wallet');
+    });
+    await waitFor(() => expect(slow).toHaveLength(1));
+    who = 'B';
+    act(() => fan!.refresh());
+    await waitFor(() => expect(getFanToken.mock.calls.length).toBe(3));
+    await screen.findByText('ready');
+    await act(async () => {
+      slow[0]!(tok('A', 'A2'));
+      await pending;
+    });
+    // a próxima chamada vai como B
+    await act(async () => {
+      await fan!.fetch('/v1/fans/me/wallet');
+    });
+    const auth = new Headers(fetchImpl.mock.calls.at(-1)![1]?.headers).get('authorization');
+    expect(auth?.endsWith('.B')).toBe(true);
+  });
 });

@@ -286,6 +286,10 @@ function useFanSessionState({
           if (fresh && fresh !== token) {
             token = fresh;
             tokenRef.current = fresh;
+            if (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(fresh)) {
+              meSubjectRef.current = null;
+              setState({ status: 'checking', me: null });
+            }
             res = await call(fresh, '/v1/fans/me');
             if (cancelled) return;
           }
@@ -327,12 +331,16 @@ function useFanSessionState({
 
   const fanFetch = useCallback(
     async (path: string, init?: RequestInit) => {
+      // um refresh() no meio (login ou logout) vale mais que o que esta chamada descobrir
+      const generation = generationRef.current;
+      const current = () => generation === generationRef.current;
       const token = tokenRef.current ?? (await renew());
       if (!token) return new Response(null, { status: 401 });
       const res = await call(token, path, init);
       if (res.status !== 401 || !getRef.current) return res;
       // recusado: se outra chamada já trocou o token, usa o novo; senão pede outro (um pedido por vez)
       const fresh = tokenRef.current && tokenRef.current !== token ? tokenRef.current : await renew();
+      if (!current()) return res;
       tokenRef.current = fresh;
       if (!fresh) {
         meSubjectRef.current = null;
@@ -347,8 +355,10 @@ function useFanSessionState({
         return res;
       }
       const again = await call(fresh, path, init);
-      // recusado de novo: a sessão é conferida (vencida, de outro cliente ou Perfil excluído)
-      if (again.status === 401) setAttempt((n) => n + 1);
+      if (!current()) return again;
+      // recusado de novo, ou o token novo é de outro Perfil: a sessão é conferida
+      if (again.status === 401 || (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(fresh)))
+        setAttempt((n) => n + 1);
       return again;
     },
     [renew, call],
@@ -358,6 +368,8 @@ function useFanSessionState({
     // descarta o pedido de token em voo: ele começou antes do login ou do logout
     generationRef.current += 1;
     renewRef.current = null;
+    // até a conferência terminar, nada sai com o token de quem entrou ou saiu antes
+    tokenRef.current = null;
     setAttempt((n) => n + 1);
   }, []);
   // o site avisa que o torcedor entrou ou saiu (login sem recarregar a página)
