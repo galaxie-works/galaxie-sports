@@ -6,6 +6,7 @@
 import type { Database } from '@galaxie/db/client';
 import { readRuntimeOverrides } from '@galaxie/db/runtime-settings';
 import { resolveSetting, settingDef, validateSettingKey } from '@galaxie/runtime-config';
+import { AUTONOMY_STEPS, type AutonomyStep, type ModerationCeiling } from './moderation-rules.js';
 
 export interface CosmosSettings {
   /** Teto de segurança do dia em US$ (custo real somado de todos os tenants); null = sem teto. */
@@ -54,5 +55,33 @@ export async function readCosmosSettings(
   return parseCosmosSettings({
     ceiling: value('COSMOS_DAILY_USD_CEILING', overrides, env),
     creditUsd: value('COSMOS_CREDIT_USD', overrides, env),
+  });
+}
+
+const asStep = (raw: string | null, fallback: AutonomyStep): AutonomyStep =>
+  (AUTONOMY_STEPS as readonly string[]).includes(raw ?? '') ? (raw as AutonomyStep) : fallback;
+
+export function parseModerationCeiling(raw: {
+  hide: string | null;
+  mute: string | null;
+  muteHours: string | null;
+}): ModerationCeiling {
+  const hours = Number(raw.muteHours);
+  return {
+    hide: asStep(raw.hide, 'flag'),
+    mute: asStep(raw.mute, 'flag'),
+    muteHours: Number.isInteger(hours) && hours >= 1 ? Math.min(hours, 24) : 24,
+  };
+}
+
+export async function readModerationCeiling(
+  db: Pick<Database, 'select'>,
+  env: Env = process.env,
+): Promise<ModerationCeiling> {
+  const overrides = await readRuntimeOverrides(db);
+  return parseModerationCeiling({
+    hide: value('COSMOS_MOD_HIDE_MAX', overrides, env),
+    mute: value('COSMOS_MOD_MUTE_MAX', overrides, env),
+    muteHours: value('COSMOS_MOD_MUTE_MAX_HOURS', overrides, env),
   });
 }

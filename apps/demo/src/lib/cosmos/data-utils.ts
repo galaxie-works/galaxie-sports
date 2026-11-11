@@ -1,7 +1,7 @@
 /** Cálculos puros da área da Cosmos (período da URL e dias do gráfico), sem banco. */
 
-/** Abas da área da Cosmos (`?tab=`): Moderação e Permissões entram com as issues delas (#997, #996). */
-export const COSMOS_TABS = ['overview', 'usage'] as const;
+/** Abas da área da Cosmos (`?tab=`): Permissões entra com a issue dela (#996). */
+export const COSMOS_TABS = ['overview', 'usage', 'moderation'] as const;
 export type CosmosTab = (typeof COSMOS_TABS)[number];
 
 /** Período padrão do extrato e do gráfico: os últimos 30 dias. */

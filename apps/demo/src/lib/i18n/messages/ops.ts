@@ -1752,6 +1752,20 @@ export default defineMessages(
         description:
           'Créditos que o tenant ganha uma vez, ao ligar a Cosmos AI pela primeira vez. Os comprados não vencem.',
       },
+      COSMOS_MOD_HIDE_MAX: {
+        label: 'Teto da Cosmos para esconder conteúdo',
+        description:
+          'Até onde o cliente pode deixar a Cosmos AI esconder conteúdo: só sinalizar, agir e avisar ou agir sozinha.',
+      },
+      COSMOS_MOD_MUTE_MAX: {
+        label: 'Teto da Cosmos para silenciar',
+        description:
+          'Até onde o cliente pode deixar a Cosmos AI silenciar alguém: só sinalizar, agir e avisar ou agir sozinha.',
+      },
+      COSMOS_MOD_MUTE_MAX_HOURS: {
+        label: 'Silêncio máximo da Cosmos (horas)',
+        description: 'Duração máxima de um Silêncio aplicado pela Cosmos AI. Nunca passa de 24 horas.',
+      },
       COSMOS_TRIAL_DAYS: {
         label: 'Validade dos créditos de teste',
         description: 'Em quantos dias os créditos de teste da Cosmos AI vencem.',
@@ -3527,6 +3541,20 @@ export default defineMessages(
           label: 'Cosmos trial credits',
           description:
             'Credits a tenant gets once, when it turns Cosmos AI on for the first time. Purchased credits do not expire.',
+        },
+        COSMOS_MOD_HIDE_MAX: {
+          label: 'Cosmos ceiling for hiding content',
+          description:
+            'How far a client can let Cosmos AI hide content: flag only, act and notify, or act on its own.',
+        },
+        COSMOS_MOD_MUTE_MAX: {
+          label: 'Cosmos ceiling for muting',
+          description:
+            'How far a client can let Cosmos AI mute someone: flag only, act and notify, or act on its own.',
+        },
+        COSMOS_MOD_MUTE_MAX_HOURS: {
+          label: 'Longest Cosmos mute (hours)',
+          description: 'Longest mute Cosmos AI can apply. Never more than 24 hours.',
         },
         COSMOS_TRIAL_DAYS: {
           label: 'Trial credits validity',
@@ -5328,6 +5356,20 @@ export default defineMessages(
           label: 'Créditos de prueba de Cosmos',
           description:
             'Créditos que el tenant recibe una vez, al activar Cosmos AI por primera vez. Los comprados no vencen.',
+        },
+        COSMOS_MOD_HIDE_MAX: {
+          label: 'Tope de Cosmos para ocultar contenido',
+          description:
+            'Hasta dónde el cliente puede dejar que Cosmos AI oculte contenido: solo señalar, actuar y avisar o actuar sola.',
+        },
+        COSMOS_MOD_MUTE_MAX: {
+          label: 'Tope de Cosmos para silenciar',
+          description:
+            'Hasta dónde el cliente puede dejar que Cosmos AI silencie a alguien: solo señalar, actuar y avisar o actuar sola.',
+        },
+        COSMOS_MOD_MUTE_MAX_HOURS: {
+          label: 'Silencio máximo de Cosmos (horas)',
+          description: 'Duración máxima de un Silencio aplicado por Cosmos AI. Nunca supera las 24 horas.',
         },
         COSMOS_TRIAL_DAYS: {
           label: 'Vigencia de los créditos de prueba',

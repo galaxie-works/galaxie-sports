@@ -593,6 +593,27 @@
     {
       "idx": 84,
       "version": "7",
+      "when": 1794421558448,
+      "tag": "0088_carteira_de_pontos",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1794421600000,
+      "tag": "0089_cosmos_moderacao_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794421658842,
+      "tag": "0090_cosmos_pedido_creditos",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
       "when": 1794422461928,
       "tag": "0092_cosmos_uso_equipe",
       "breakpoints": true
