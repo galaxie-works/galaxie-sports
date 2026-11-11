@@ -84,7 +84,7 @@
     "gs": "node --env-file-if-exists=../../.env dist/cli/gs.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/apisports-client": "workspace:*",
     "@galaxie/contracts": "workspace:*",
@@ -107,6 +107,6 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "postgres": "^4.0.0"
+    "postgres": "^4.1.0"
   }
 }
