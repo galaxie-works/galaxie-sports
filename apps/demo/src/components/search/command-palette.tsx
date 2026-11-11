@@ -95,7 +95,7 @@ function useApiSearch(term: string, locale: Locale) {
 const ACTION_ICONS: Record<string, LucideIcon> = {
   '/ao-vivo': Radio,
   '/ajustes/usuarios': Users,
-  '/ajustes/sistema': SlidersHorizontal,
+  '/ajustes/operacao': SlidersHorizontal,
   '/docs': BookOpen,
 };
 
@@ -121,7 +121,7 @@ function actionEntries(T: Texts, locale: Locale, isAdmin: boolean, docsDescripti
     ...(isAdmin
       ? [
           action('/ajustes/usuarios', T.users, T.usersDescription),
-          action('/ajustes/sistema', T.operations, T.operationsDescription),
+          action('/ajustes/operacao', T.operations, T.operationsDescription),
         ]
       : []),
     ...LANGUAGES.filter((l) => l.value !== locale).map((l) => ({
