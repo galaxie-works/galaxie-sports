@@ -65,10 +65,11 @@ export interface PackageInput {
  * Cadastra ou atualiza um pacote (preço e créditos são dados da Galaxie, não código). Mudar preço, moeda ou
  * créditos de um pacote existente desliga as recargas automáticas que usam esse pacote e retira o aceite: a
  * cobrança recorrente foi aceita com o preço antigo, então o dono precisa aceitar de novo. As tentativas
- * pendentes desse pacote que ainda não falaram com o Stripe são encerradas.
+ * pendentes desse pacote que ainda não falaram com o Stripe são encerradas. Aceita uma transação já aberta
+ * (a equipe grava o pacote junto com o registro da ação).
  */
 export async function upsertPackage(
-  db: Database,
+  db: Database | Tx,
   input: PackageInput,
   options: { now?: Date } = {},
 ): Promise<string> {
@@ -408,4 +409,40 @@ export async function listPurchases(db: Pick<Database, 'select'>, tenantId: stri
   ]
     .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
     .slice(0, n);
+}
+
+/**
+ * Compras pagas com valor ou moeda diferentes do esperado (status `review`), avulsas e da recarga automática, sem
+ * limite de recência: a equipe resolve uma a uma no Stripe (#1060).
+ */
+export async function listPurchasesInReview(db: Pick<Database, 'select'>, tenantId: string) {
+  const [single, auto] = await Promise.all([
+    db
+      .select({
+        id: purchaseIntent.id,
+        credits: purchaseIntent.credits,
+        amountCents: purchaseIntent.amountCents,
+        currency: purchaseIntent.currency,
+        createdAt: purchaseIntent.createdAt,
+        paymentIntentId: purchaseIntent.paymentIntentId,
+        checkoutSessionId: purchaseIntent.checkoutSessionId,
+      })
+      .from(purchaseIntent)
+      .where(and(eq(purchaseIntent.tenantId, tenantId), eq(purchaseIntent.status, 'review'))),
+    db
+      .select({
+        id: rechargeAttempt.id,
+        credits: rechargeAttempt.credits,
+        amountCents: rechargeAttempt.amountCents,
+        currency: rechargeAttempt.currency,
+        createdAt: rechargeAttempt.createdAt,
+        paymentIntentId: rechargeAttempt.paymentIntentId,
+      })
+      .from(rechargeAttempt)
+      .where(and(eq(rechargeAttempt.tenantId, tenantId), eq(rechargeAttempt.status, 'review'))),
+  ]);
+  return [
+    ...single.map((p) => ({ ...p, auto: false })),
+    ...auto.map((a) => ({ ...a, checkoutSessionId: null, auto: true })),
+  ].sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
 }

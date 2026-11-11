@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 43 itens, 20 que já existem e 23
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 43 itens, 21 que já existem e 22
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -45,7 +45,8 @@ export const SETTINGS_ITEMS = [
   { id: 'site', href: '/ajustes/site', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
   { id: 'messaging', href: '/ajustes/whatsapp-telegram', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
   // Clientes
-  { id: 'subscriptions', href: '/ajustes/assinaturas', group: 'clientes', soon: { href: issue(1002) } },
+  // Carteiras da Cosmos (#1060): a primeira parte de Assinaturas e carteiras; a rota fica a do #1060
+  { id: 'subscriptions', href: '/ajustes/carteiras', group: 'clientes' },
   { id: 'signups', href: '/ajustes/cadastros', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
   { id: 'domains', href: '/ajustes/dominios', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
   {

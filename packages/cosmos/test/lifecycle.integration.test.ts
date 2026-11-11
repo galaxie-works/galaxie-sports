@@ -14,6 +14,7 @@ import {
   getWallet,
   isCosmosError,
   listLedger,
+  listPurchasesInReview,
   MAX_RECHARGE_ATTEMPTS,
   processRecharges,
   readTrialSettings,
@@ -410,6 +411,10 @@ describe('recarga automática', () => {
     });
     expect((await applyStripeEvent(db, odd)).outcome).toBe('amount_mismatch');
     expect(await a.statuses()).toEqual(['review']);
+    // a equipe vê a recarga em revisão, com o PaymentIntent para conferir no Stripe
+    expect(await listPurchasesInReview(db, a.t)).toEqual([
+      expect.objectContaining({ id: attempt!.id, auto: true, paymentIntentId: attempt!.paymentIntentId }),
+    ]);
     expect((await getWallet(db, a.t))?.available).toBe(15);
   });
 

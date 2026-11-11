@@ -37,7 +37,7 @@ export interface ClientPerson {
   image: string | null;
 }
 
-async function people(ids: readonly (string | null)[]): Promise<Map<string, ClientPerson>> {
+export async function people(ids: readonly (string | null)[]): Promise<Map<string, ClientPerson>> {
   const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];
   if (!wanted.length) return new Map();
   const { rows } = await pool.query<ClientPerson>(
@@ -115,12 +115,11 @@ export async function loadStatementPage(
 ): Promise<Pick<CosmosStatementData, 'entries' | 'nextCursor'>> {
   const period = periodFrom(params, now, timeZone);
   const page = await listLedger(builderDb(), tenantId, pageFilter(params, period));
-  const who = await people(page.entries.map((e) => e.userId));
+  // visão do cliente antes de buscar as pessoas: lançamento da equipe não traz quem fez
+  const entries = page.entries.map(toClientEntry);
+  const who = await people(entries.map((e) => e.userId));
   return {
-    entries: page.entries.map((e) => ({
-      ...toClientEntry(e),
-      person: e.userId ? (who.get(e.userId) ?? null) : null,
-    })),
+    entries: entries.map((e) => ({ ...e, person: e.userId ? (who.get(e.userId) ?? null) : null })),
     nextCursor: page.nextCursor,
   };
 }
@@ -139,14 +138,12 @@ export async function loadCosmosStatement(
     usageBreakdown(db, tenantId, period),
     listPurchases(db, tenantId),
   ]);
-  const who = await people([...page.entries.map((e) => e.userId), ...breakdown.byUser.map((u) => u.key)]);
+  const entries = page.entries.map(toClientEntry);
+  const who = await people([...entries.map((e) => e.userId), ...breakdown.byUser.map((u) => u.key)]);
   return {
     period: { from: period.fromDay, to: period.toDay },
     daily: fillDays(days, period.fromDay, period.toDay),
-    entries: page.entries.map((e) => ({
-      ...toClientEntry(e),
-      person: e.userId ? (who.get(e.userId) ?? null) : null,
-    })),
+    entries: entries.map((e) => ({ ...e, person: e.userId ? (who.get(e.userId) ?? null) : null })),
     nextCursor: page.nextCursor,
     byUser: breakdown.byUser.map((u) => ({ ...u, person: u.key ? (who.get(u.key) ?? null) : null })),
     byFunction: breakdown.byFunction,
