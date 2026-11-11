@@ -12,7 +12,11 @@ export interface DemoFanToken {
 }
 
 export class DemoFanTokenError extends Error {
-  constructor(readonly status: number) {
+  /** `paths`: os campos que a API recusou num 400 (`errors[].path`). */
+  constructor(
+    readonly status: number,
+    readonly paths: readonly string[] = [],
+  ) {
     super(`a API recusou o token do torcedor (${status})`);
     this.name = 'DemoFanTokenError';
   }
@@ -30,6 +34,7 @@ export async function issueDemoFanToken(
     body: JSON.stringify(demoFanTokenBody(userId, profile, locale)),
     cache: 'no-store',
   });
+  if (res.status === 400) throw new DemoFanTokenError(400, await invalidPaths(res));
   if (!res.ok) throw new DemoFanTokenError(res.status);
   const body = (await res.json()) as { data?: { token?: unknown; expires_at?: unknown } };
   const token = body.data?.token;
@@ -37,6 +42,15 @@ export async function issueDemoFanToken(
   if (typeof token !== 'string' || !token.startsWith('gft_') || typeof expiresAt !== 'string')
     throw new DemoFanTokenError(502);
   return { token, expiresAt };
+}
+
+async function invalidPaths(res: Response): Promise<string[]> {
+  try {
+    const body = (await res.json()) as { errors?: { path?: unknown }[] };
+    return (body.errors ?? []).flatMap((e) => (typeof e.path === 'string' ? [e.path] : []));
+  } catch {
+    return [];
+  }
 }
 
 /** Pedido de outra página (CSRF): o navegador marca `Sec-Fetch-Site`; sem ele, confere o `Origin`. */

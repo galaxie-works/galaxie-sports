@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return Response.json({ token: token.token, expires_at: token.expiresAt }, { headers: NO_STORE });
   } catch (err) {
     // apelido que as listas da moderação passaram a recusar: a pessoa troca no "Perfil de torcedor"
-    if (err instanceof DemoFanTokenError && err.status === 400)
+    if (err instanceof DemoFanTokenError && err.status === 400 && err.paths.includes('nickname'))
       return Response.json({ code: 'fan_nickname_rejected' }, { status: 409, headers: NO_STORE });
     console.error('[torcedor] token não emitido', err);
     const status = err instanceof DemoFanTokenError && err.status === 503 ? 503 : 502;

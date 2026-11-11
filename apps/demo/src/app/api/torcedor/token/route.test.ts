@@ -90,4 +90,17 @@ describe('POST /api/torcedor/token', () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ code: 'fan_nickname_rejected' });
   });
+
+  it('outro 400 da API não vira apelido recusado: registra e devolve 502', async () => {
+    session.mockResolvedValue(user());
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    upstream.mockResolvedValueOnce(
+      Response.json({ code: 'INVALID_PARAMS', errors: [{ path: 'country' }] }, { status: 400 }),
+    );
+    const res = await post();
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ code: 'unavailable' });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+  });
 });

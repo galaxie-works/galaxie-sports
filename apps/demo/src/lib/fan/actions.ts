@@ -11,7 +11,7 @@ import { compileLists, DEFAULT_MODERATION_LISTS, screen } from '@galaxie/engage'
 import { pool } from '@/lib/auth/db';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 
-import { parseFanProfile, type FanProfileField } from './profile';
+import { apiFanLocale, parseFanProfile, type FanProfileField } from './profile';
 
 export interface FanProfileResult {
   ok: boolean;
@@ -26,9 +26,11 @@ export async function saveFanProfile(input: unknown): Promise<FanProfileResult> 
   if (!session || isAccessExpired(session.user)) return { ok: false, error: 'session' };
   const parsed = parseFanProfile(input);
   if (!parsed.ok) return { ok: false, error: 'invalid', field: parsed.field };
-  // o apelido passa pelo mesmo filtro da API (#969) antes de ir para o banco: sem isso, o token seria recusado
-  // depois, sem o torcedor saber por quê (a API ainda confere com as listas de Ajustes e as do cliente)
-  if (screen(parsed.value.nickname, { kind: 'nickname' }, BASE_LISTS).action !== 'allow')
+  // o apelido passa pelo mesmo filtro da API (#969), no idioma que vai no token, antes de ir para o banco: sem
+  // isso, o token seria recusado depois, sem o torcedor saber por quê (a API ainda confere com as listas de
+  // Ajustes e as do cliente)
+  const locale = apiFanLocale(session.user.locale as string | null | undefined);
+  if (screen(parsed.value.nickname, { kind: 'nickname', locale }, BASE_LISTS).action !== 'allow')
     return { ok: false, error: 'rejected', field: 'nickname' };
   try {
     await pool.query(

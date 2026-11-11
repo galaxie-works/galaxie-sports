@@ -80,6 +80,10 @@ export function storedFanProfile(user: {
 /** Idioma do token: o da demo, no formato curto que a API aceita. */
 const API_LOCALES: Record<string, string> = { 'pt-BR': 'pt-BR', en: 'en', 'es-AR': 'es-AR' };
 
+export function apiFanLocale(locale: string | null | undefined): string {
+  return API_LOCALES[locale ?? ''] ?? 'pt-BR';
+}
+
 /**
  * Corpo de `POST /v1/fans/tokens` para a pessoa logada. Conta e Perfil usam o id opaco do usuário da demo
  * (um Perfil por Conta); nada do login (nome, e-mail) vai junto.
@@ -92,7 +96,7 @@ export function demoFanTokenBody(userId: string, profile: FanProfile, locale: st
     nickname: profile.nickname,
     ageBand: profile.ageBand,
     country: profile.country,
-    locale: API_LOCALES[locale ?? ''] ?? 'pt-BR',
+    locale: apiFanLocale(locale),
     // a demo não sabe se o titular é adulto: o Prêmio fica pendente, como manda a regra
     holderAdult: 'unknown' as const,
     surface: 'web' as const,
