@@ -125,6 +125,34 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     });
   });
 
+  it.each(['ВЕТ 365', 'Вет-365', 'Βετ 365', 'Vai de ВЕТ', 'Estrela ВЕТ'])(
+    '"bet" escrito em cirílico ou grego, solto, é recusado: %s',
+    (name) => {
+      expect(validateSponsor(input({ name }), lists).ok).toBe(false);
+    },
+  );
+
+  it.each([
+    'https://bеt365.com/',
+    'https://вет365.com/',
+    'https://x.com/аpostas',
+    'https://x.com/Αpostas',
+    'https://x.com/bеtting',
+    'https://x.com/casino-оnline',
+    'https://x.com/ВЕТ-365',
+    'https://x.com/r?q=вет%20365',
+  ])('link com letra que imita a latina no domínio ou no caminho é recusado: %s', (linkUrl) => {
+    expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
+      ok: false,
+      issues: [{ field: 'linkUrl', code: 'betting' }],
+    });
+  });
+
+  // limite aceito: `Вет24` vira `bet24` (o dígito conta como borda), e `/Βετ` sozinho no caminho passa
+  it.each(['Вет Клиника 24', 'ВетКлиника24', 'Βήτα', 'Ветеринар 1'])('nome comum passa: %s', (name) => {
+    expect(validateSponsor(input({ name }), lists).ok).toBe(true);
+  });
+
   it.each(['Привет Спорт', 'Вет Клиника'])('nome em cirílico comum passa: %s', (name) => {
     expect(validateSponsor(input({ name }), lists).ok).toBe(true);
   });
@@ -134,6 +162,8 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     'https://cervejaria.com.br/noticias/a-marca-que-aposta-no-esporte',
     'https://cervejaria.com.br/produtos/blaze-ipa',
     'https://cervejaria.com.br/better-life/alphabet',
+    'https://cervejaria.com.br/Вет-Клиника',
+    'https://cervejaria.com.br/diabetes/tibet',
   ])('caminho com palavra comum passa: %s', (linkUrl) => {
     expect(validateSponsor(input({ linkUrl }), lists).ok).toBe(true);
   });

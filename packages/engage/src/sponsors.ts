@@ -150,17 +150,78 @@ const BET_PATH =
   /(?:^|[^a-z])(?:apostas|apuestas|apostar|apostes|betting|(?:casino|cassino)[-_ ]?(?:online|ao[-_ ]?vivo|en[-_ ]?vivo))(?:[^a-z]|$)/;
 
 /**
- * Troca grega e cirílica só na palavra que mistura com letra latina ou dígito (`Βet365`, `ВЕТ365`); `Привет` e
- * `Вет Клиника` ficam como estão.
+ * Troca grega e cirílica (`Βet365`, `ВЕТ365`). Troca a palavra que mistura com letra latina ou dígito e a palavra feita
+ * só de letras da tabela quando vem antes de um número (`ВЕТ 365`) ou, com `latinContext`, quando o texto também tem
+ * palavra latina (`Vai de ВЕТ`). `Привет` e `Вет Клиника` ficam como estão.
  */
-function foldLookalikes(text: string): string {
-  return text
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[\p{L}\p{N}]+/gu, (w) =>
-      /[a-z0-9]/.test(w) ? [...w].map((c) => LOOKALIKE[c] ?? c).join('') : w,
-    );
+function foldLookalikes(text: string, latinContext = false): string {
+  const base = text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  const withLatin = latinContext && /[a-z]/.test(base);
+  const fold = (w: string) => [...w].map((c) => LOOKALIKE[c] ?? c).join('');
+  return base.replace(/[\p{L}\p{N}]+/gu, (w, offset: number) => {
+    if (/[a-z0-9]/.test(w)) return fold(w);
+    if (![...w].every((c) => c in LOOKALIKE)) return w;
+    const next = /^[^\p{L}\p{N}]*([\p{L}\p{N}]+)/u.exec(base.slice(offset + w.length))?.[1];
+    return withLatin || (next !== undefined && /^\p{N}+$/u.test(next)) ? fold(w) : w;
+  });
+}
+
+/** Host em Unicode: o `URL` devolve `xn--…` (punycode) e esconde a letra cirílica de `bеt365.com`. */
+function unicodeHost(host: string): string {
+  return host
+    .split('.')
+    .map((label) => {
+      if (!label.startsWith('xn--')) return label;
+      try {
+        return decodePunycode(label.slice(4));
+      } catch {
+        return label;
+      }
+    })
+    .join('.');
+}
+
+/** Decodificador de punycode (RFC 3492), sem depender de `node:url` (a tela do Cliente usa este arquivo). */
+function decodePunycode(input: string): string {
+  const base = 36;
+  const tMin = 1;
+  const tMax = 26;
+  const adapt = (delta: number, points: number, first: boolean) => {
+    let d = first ? Math.floor(delta / 700) : delta >> 1;
+    d += Math.floor(d / points);
+    let k = 0;
+    while (d > ((base - tMin) * tMax) >> 1) {
+      d = Math.floor(d / (base - tMin));
+      k += base;
+    }
+    return k + Math.floor(((base - tMin + 1) * d) / (d + 38));
+  };
+  const digit = (c: number) => (c >= 48 && c <= 57 ? c - 22 : c >= 97 && c <= 122 ? c - 97 : -1);
+  const out: number[] = [];
+  const dash = input.lastIndexOf('-');
+  for (let j = 0; j < Math.max(dash, 0); j += 1) out.push(input.charCodeAt(j));
+  let n = 128;
+  let i = 0;
+  let bias = 72;
+  for (let idx = dash > 0 ? dash + 1 : 0; idx < input.length;) {
+    const old = i;
+    let w = 1;
+    for (let k = base; ; k += base) {
+      if (idx >= input.length) throw new Error('punycode');
+      const d = digit(input.toLowerCase().charCodeAt(idx++));
+      if (d < 0) throw new Error('punycode');
+      i += d * w;
+      const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
+      if (d < t) break;
+      w *= base - t;
+    }
+    bias = adapt(i - old, out.length + 1, old === 0);
+    n += Math.floor(i / (out.length + 1));
+    i %= out.length + 1;
+    out.splice(i, 0, n);
+    i += 1;
+  }
+  return String.fromCodePoint(...out);
 }
 
 /** `bet` como palavra solta (`Vai de Bet`, `Bet 365`, `/bet`). */
@@ -177,7 +238,7 @@ const betScreen = (text: string, lists: CompiledLists) =>
 export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
   if (!text.trim()) return false;
   if (betScreen(text, lists)) return true;
-  const folded = foldLookalikes(text);
+  const folded = foldLookalikes(text, true);
   if (LOOSE_BET.test(folded)) return true;
   const joined = folded.replace(/[^a-z0-9]+/g, '');
   if (!joined) return false;
@@ -250,20 +311,19 @@ export function validateSponsor(
       }
     }
     const rest = decoded.replace(/^https:\/\/[^/?#]+/i, '');
+    const path = foldLookalikes(rest);
     if (
       inList(lists.betDomains) ||
-      looksLikeBetting(host, lists) ||
+      looksLikeBetting(unicodeHost(host), lists) ||
       // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
-      // escrito em palavras (`?y=estrela%20bet`) e palavra de aposta (`/apostas`)
+      // escrito em palavras (`?y=estrela%20bet`), `bet` solto e palavra de aposta (`/apostas`)
       (field === 'linkUrl' &&
-        (betScreen(foldLookalikes(rest).replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
-          LOOSE_BET.test(foldLookalikes(rest)) ||
-          rest
+        (betScreen(path.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+          LOOSE_BET.test(path) ||
+          path
             .split(/[/?#&=]+/)
-            .some(
-              (seg) => seg.length > 3 && betScreen(seg.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ''), lists),
-            ) ||
-          BET_PATH.test(rest.toLowerCase())))
+            .some((seg) => seg.length > 3 && betScreen(seg.replace(/[^\p{L}\p{N}]+/gu, ''), lists)) ||
+          BET_PATH.test(path)))
     )
       issues.push({ field, code: 'betting' });
     else if (field === 'linkUrl' && inList(LINK_HIDERS)) issues.push({ field, code: 'shortener' });
