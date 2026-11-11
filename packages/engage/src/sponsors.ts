@@ -194,6 +194,15 @@ function hasBrandSpan(folded: string, lists: CompiledLists): boolean {
   return false;
 }
 
+function hostLatinContext(host: string): boolean {
+  const ls = host.split('.');
+  if (ls.some((l) => /[a-z]/.test(l) && /[^\p{Script=Latin}\P{L}]/u.test(l))) return true;
+  return (
+    ls.some((l) => l.length > 1 && [...l].every((c) => c in LOOKALIKE)) &&
+    ls.slice(0, -1).some((l) => /[a-z]/.test(l))
+  );
+}
+
 /** Host em Unicode: o `URL` devolve `xn--…` (punycode) e esconde a letra cirílica de `bеt365.com`. */
 function unicodeHost(host: string): string {
   return host
@@ -336,12 +345,9 @@ export function validateSponsor(
     const uHost = unicodeHost(host);
     if (
       inList(lists.betDomains) ||
-      // contexto latino só no rótulo que mistura letras (`shop.вет-клиника.com` fica como está)
-      looksLikeBetting(
-        uHost,
-        lists,
-        uHost.split('.').some((l) => /[a-z]/.test(l) && /[^\p{Script=Latin}\P{L}]/u.test(l)),
-      ) ||
+      // contexto latino: rótulo que mistura escritas (`bеt365`), ou rótulo só de letras parecidas ao lado de um
+      // rótulo latino fora o TLD (`вет.estrela.com`); `shop.вет-клиника.com` e `вет.com` ficam como estão
+      looksLikeBetting(uHost, lists, hostLatinContext(uHost)) ||
       // caminho e query só no link da peça (nome de arquivo de logo em CDN é aleatório): termo de aposta, o termo
       // escrito em palavras (`?y=estrela%20bet`), `bet` solto, palavra de aposta (`/apostas`) e marca inteira
       (field === 'linkUrl' &&

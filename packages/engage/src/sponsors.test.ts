@@ -159,6 +159,8 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
     'https://x.com/?r=https://xn--bt365-zwe.com',
     'https://x.com/r?u=xn--bt365-zwe.com',
     'https://x.com/r?to=ѕтаке.com',
+    'https://вет.estrela.com/',
+    'https://вет.com.br/',
     'https://x.com/ЅТАКЕ',
   ])('link com marca em punycode ou letras parecidas na query é recusado: %s', (linkUrl) => {
     expect(validateSponsor(input({ name: 'Parceiro', linkUrl }), lists)).toMatchObject({
