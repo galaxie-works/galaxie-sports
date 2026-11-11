@@ -289,6 +289,11 @@ async function emailsOf(userIds: string[]) {
   return new Map(list.map((r) => [r.id, r.email]));
 }
 
+/** Pedidos das operadoras em aberto (a contagem do menu de Ajustes e da aba Pedidos, #1068). */
+export async function countOpenLineupRequests(): Promise<number> {
+  return (await listLineupReviewRequests(lineupDb(), { status: 'open', limit: 1000 })).length;
+}
+
 /** Fila de pedidos das operadoras, com o item atual ao lado do proposto. */
 export async function readRequestQueue(status: RequestStatus | null): Promise<{
   requests: QueueRequest[];
