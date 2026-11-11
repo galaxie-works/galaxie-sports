@@ -386,6 +386,8 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           const exists = await tx<{ ok: boolean }[]>`select to_regclass(${target}) is not null as ok`;
           if (!exists[0]!.ok) return;
           await tx`grant ${tx.unsafe(privileges)} on ${tx(schema)}.${tx(table)} to ${r}`;
+          // sem INSERT, a sequência não serve para nada (só atualização)
+          if (!privileges.includes('insert')) return;
           const seqs = await tx<{ seq: string }[]>`
             select pg_get_serial_sequence(${target}, a.attname) as seq
               from pg_attribute a
