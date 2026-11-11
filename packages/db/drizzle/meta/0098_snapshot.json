@@ -1,6 +1,6 @@
 {
-  "id": "0cab9554-fb56-4dab-83c7-1beab4220bcb",
-  "prevId": "1260d10f-ac97-4153-8db8-541e4f63d337",
+  "id": "006b4e36-5d8c-40bf-ba16-d949ef2f49b2",
+  "prevId": "c3ad3212-25b1-468a-9e21-8ba045ed8498",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -21161,6 +21161,1344 @@
         "wallet_balance_nonneg": {
           "name": "wallet_balance_nonneg",
           "value": "\"fan\".\"wallet\".\"balance\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.fan_block": {
+      "name": "fan_block",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocker_profile_id": {
+          "name": "blocker_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked_profile_id": {
+          "name": "blocked_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fan_block_blocked_idx": {
+          "name": "fan_block_blocked_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "blocked_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fan_block_tenant_id_tenant_id_fk": {
+          "name": "fan_block_tenant_id_tenant_id_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fan_block_blocker_fk": {
+          "name": "fan_block_blocker_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "blocker_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fan_block_blocked_fk": {
+          "name": "fan_block_blocked_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "blocked_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fan_block_pkey": {
+          "name": "fan_block_pkey",
+          "columns": [
+            "tenant_id",
+            "blocker_profile_id",
+            "blocked_profile_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fan_block_self": {
+          "name": "fan_block_self",
+          "value": "\"engage\".\"fan_block\".\"blocker_profile_id\" <> \"engage\".\"fan_block\".\"blocked_profile_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_appeal": {
+      "name": "moderation_appeal",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement": {
+          "name": "statement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_at": {
+          "name": "due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_kind": {
+          "name": "decided_by_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_appeal_stage_uq": {
+          "name": "moderation_appeal_stage_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sanction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stage",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_appeal_galaxie_idx": {
+          "name": "moderation_appeal_galaxie_idx",
+          "columns": [
+            {
+              "expression": "due_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"engage\".\"moderation_appeal\".\"route\" = 'galaxie' and \"engage\".\"moderation_appeal\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_appeal_tenant_id_tenant_id_fk": {
+          "name": "moderation_appeal_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_appeal_sanction_fk": {
+          "name": "moderation_appeal_sanction_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "moderation_sanction",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sanction_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_appeal_case_fk": {
+          "name": "moderation_appeal_case_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_appeal_stage": {
+          "name": "moderation_appeal_stage",
+          "value": "\"engage\".\"moderation_appeal\".\"stage\" in (1, 2)"
+        },
+        "moderation_appeal_status": {
+          "name": "moderation_appeal_status",
+          "value": "\"engage\".\"moderation_appeal\".\"status\" in ('pending', 'upheld', 'overturned')"
+        },
+        "moderation_appeal_route": {
+          "name": "moderation_appeal_route",
+          "value": "\"engage\".\"moderation_appeal\".\"route\" in ('team', 'galaxie')"
+        },
+        "moderation_appeal_second_person": {
+          "name": "moderation_appeal_second_person",
+          "value": "\"engage\".\"moderation_appeal\".\"stage\" = 1 or \"engage\".\"moderation_appeal\".\"decided_by_kind\" is distinct from 'cosmos'"
+        },
+        "moderation_appeal_statement": {
+          "name": "moderation_appeal_statement",
+          "value": "\"engage\".\"moderation_appeal\".\"statement\" is null or length(\"engage\".\"moderation_appeal\".\"statement\") <= 1000"
+        },
+        "moderation_appeal_decided": {
+          "name": "moderation_appeal_decided",
+          "value": "(\"engage\".\"moderation_appeal\".\"status\" = 'pending') = (\"engage\".\"moderation_appeal\".\"decided_at\" is null) and (\"engage\".\"moderation_appeal\".\"status\" = 'pending') = (\"engage\".\"moderation_appeal\".\"decided_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_audit": {
+      "name": "moderation_audit",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_profile_id": {
+          "name": "subject_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appeal_id": {
+          "name": "appeal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_purge_at": {
+          "name": "content_purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_audit_tenant_idx": {
+          "name": "moderation_audit_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_audit_subject_idx": {
+          "name": "moderation_audit_subject_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_audit_purge_idx": {
+          "name": "moderation_audit_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_audit_tenant_id_tenant_id_fk": {
+          "name": "moderation_audit_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_audit",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_audit_actor_kind": {
+          "name": "moderation_audit_actor_kind",
+          "value": "\"engage\".\"moderation_audit\".\"actor_kind\" in ('person', 'cosmos', 'galaxie', 'system', 'fan')"
+        },
+        "moderation_audit_action": {
+          "name": "moderation_audit_action",
+          "value": "length(\"engage\".\"moderation_audit\".\"action\") between 1 and 40"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_case": {
+      "name": "moderation_case",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_profile_id": {
+          "name": "target_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "room": {
+          "name": "room",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "community": {
+          "name": "community",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasons": {
+          "name": "reasons",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "severity": {
+          "name": "severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_count": {
+          "name": "report_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "hidden_at": {
+          "name": "hidden_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_purge_at": {
+          "name": "content_purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_by": {
+          "name": "resolved_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_case_tenant_id_uq": {
+          "name": "moderation_case_tenant_id_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_open_target_uq": {
+          "name": "moderation_case_open_target_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engage\".\"moderation_case\".\"status\" = 'open' and \"engage\".\"moderation_case\".\"source\" <> 'appeal'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_queue_idx": {
+          "name": "moderation_case_queue_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "severity",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_purge_idx": {
+          "name": "moderation_case_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_case_tenant_id_tenant_id_fk": {
+          "name": "moderation_case_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_case_target_profile_fk": {
+          "name": "moderation_case_target_profile_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "target_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_case_sanction_fk": {
+          "name": "moderation_case_sanction_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "moderation_sanction",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sanction_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_case_source": {
+          "name": "moderation_case_source",
+          "value": "\"engage\".\"moderation_case\".\"source\" in ('report', 'filter', 'cosmos', 'appeal')"
+        },
+        "moderation_case_target": {
+          "name": "moderation_case_target",
+          "value": "\"engage\".\"moderation_case\".\"target_type\" in ('message', 'comment', 'post', 'profile', 'community_name', 'league_name', 'behavior')"
+        },
+        "moderation_case_module": {
+          "name": "moderation_case_module",
+          "value": "\"engage\".\"moderation_case\".\"module\" in ('chat', 'communities', 'gamification', 'shopping', 'profile')"
+        },
+        "moderation_case_status": {
+          "name": "moderation_case_status",
+          "value": "\"engage\".\"moderation_case\".\"status\" in ('open', 'resolved', 'dismissed')"
+        },
+        "moderation_case_target_id": {
+          "name": "moderation_case_target_id",
+          "value": "length(\"engage\".\"moderation_case\".\"target_id\") between 1 and 200"
+        },
+        "moderation_case_content": {
+          "name": "moderation_case_content",
+          "value": "\"engage\".\"moderation_case\".\"content\" is null or length(\"engage\".\"moderation_case\".\"content\") <= 10000"
+        },
+        "moderation_case_appeal": {
+          "name": "moderation_case_appeal",
+          "value": "(\"engage\".\"moderation_case\".\"source\" = 'appeal') = (\"engage\".\"moderation_case\".\"sanction_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_report": {
+      "name": "moderation_report",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reporter_profile_id": {
+          "name": "reporter_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_report_once_uq": {
+          "name": "moderation_report_once_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reporter_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_report_reporter_idx": {
+          "name": "moderation_report_reporter_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reporter_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_report_case_idx": {
+          "name": "moderation_report_case_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_report_tenant_id_tenant_id_fk": {
+          "name": "moderation_report_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_report_case_fk": {
+          "name": "moderation_report_case_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_report_reporter_fk": {
+          "name": "moderation_report_reporter_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "reporter_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_report_reason": {
+          "name": "moderation_report_reason",
+          "value": "\"engage\".\"moderation_report\".\"reason\" in ('hate', 'harassment', 'threat', 'sexual', 'spam', 'betting', 'personal_data', 'other')"
+        },
+        "moderation_report_note": {
+          "name": "moderation_report_note",
+          "value": "\"engage\".\"moderation_report\".\"note\" is null or length(\"engage\".\"moderation_report\".\"note\") <= 500"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_sanction": {
+      "name": "moderation_sanction",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_id": {
+          "name": "scope_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by_kind": {
+          "name": "decided_by_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_sanction_tenant_id_uq": {
+          "name": "moderation_sanction_tenant_id_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_sanction_profile_idx": {
+          "name": "moderation_sanction_profile_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_sanction_account_idx": {
+          "name": "moderation_sanction_account_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"engage\".\"moderation_sanction\".\"account_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_sanction_tenant_id_tenant_id_fk": {
+          "name": "moderation_sanction_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_profile_fk": {
+          "name": "moderation_sanction_profile_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_account_fk": {
+          "name": "moderation_sanction_account_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "account",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "account_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_case_fk": {
+          "name": "moderation_sanction_case_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_sanction_level": {
+          "name": "moderation_sanction_level",
+          "value": "\"engage\".\"moderation_sanction\".\"level\" in ('warning', 'mute', 'suspension', 'expulsion', 'ban')"
+        },
+        "moderation_sanction_scope": {
+          "name": "moderation_sanction_scope",
+          "value": "\"engage\".\"moderation_sanction\".\"scope\" in ('place', 'community', 'tenant')"
+        },
+        "moderation_sanction_decider": {
+          "name": "moderation_sanction_decider",
+          "value": "\"engage\".\"moderation_sanction\".\"decided_by_kind\" in ('person', 'cosmos', 'galaxie', 'system')"
+        },
+        "moderation_sanction_hidden": {
+          "name": "moderation_sanction_hidden",
+          "value": "not \"engage\".\"moderation_sanction\".\"hidden\" or (\"engage\".\"moderation_sanction\".\"level\" = 'mute' and \"engage\".\"moderation_sanction\".\"ends_at\" is not null)"
+        },
+        "moderation_sanction_hidden_person": {
+          "name": "moderation_sanction_hidden_person",
+          "value": "not \"engage\".\"moderation_sanction\".\"hidden\" or \"engage\".\"moderation_sanction\".\"decided_by_kind\" = 'person'"
+        },
+        "moderation_sanction_reason": {
+          "name": "moderation_sanction_reason",
+          "value": "length(\"engage\".\"moderation_sanction\".\"reason\") between 1 and 500"
+        },
+        "moderation_sanction_dates": {
+          "name": "moderation_sanction_dates",
+          "value": "\"engage\".\"moderation_sanction\".\"ends_at\" is null or \"engage\".\"moderation_sanction\".\"ends_at\" > \"engage\".\"moderation_sanction\".\"starts_at\""
         }
       },
       "isRLSEnabled": false

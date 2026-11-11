@@ -1951,6 +1951,14 @@ export interface WidgetTexts {
   missingKey: string;
   invalidKey: string;
   forbidden: string;
+  /** Recursos do torcedor (token `gft_`, #1020). */
+  fan: {
+    signIn: string;
+    signInAction: string;
+    readOnly: string;
+    restricted: string;
+    expired: string;
+  };
   retry: string;
   versus: string;
   penalties: string;
@@ -2498,6 +2506,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     notFound: 'Não encontramos esse conteúdo.',
     missingKey: 'Configure a chave publicável da Galaxie Sports.',
     invalidKey: 'Chave publicável inválida ou revogada.',
+    fan: {
+      signIn: 'Entre para participar.',
+      signInAction: 'Entrar',
+      readOnly: 'Perfis de 13 a 17 anos podem ler e palpitar, mas não escrever aqui.',
+      restricted: 'Este recurso não está disponível para menores de 13 anos.',
+      expired: 'Sua sessão terminou. Entre de novo para participar.',
+    },
     forbidden: 'Esta chave não libera este conteúdo. Confira o widget e o plano no portal Galaxie.',
     retry: 'Tentar de novo',
     versus: 'x',
@@ -3070,6 +3085,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     notFound: 'No encontramos este contenido.',
     missingKey: 'Configura la clave publicable de Galaxie Sports.',
     invalidKey: 'Clave publicable inválida o revocada.',
+    fan: {
+      signIn: 'Inicia sesión para participar.',
+      signInAction: 'Iniciar sesión',
+      readOnly: 'Los perfiles de 13 a 17 años pueden leer y pronosticar, pero no escribir aquí.',
+      restricted: 'Esta función no está disponible para menores de 13 años.',
+      expired: 'Tu sesión terminó. Inicia sesión de nuevo para participar.',
+    },
     forbidden: 'Esta clave no habilita este contenido. Revisa el widget y el plan en el portal Galaxie.',
     retry: 'Reintentar',
     versus: 'vs',
@@ -3647,6 +3669,13 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
     notFound: "We couldn't find this content.",
     missingKey: 'Set your Galaxie Sports publishable key.',
     invalidKey: 'Invalid or revoked publishable key.',
+    fan: {
+      signIn: 'Sign in to take part.',
+      signInAction: 'Sign in',
+      readOnly: "Profiles aged 13 to 17 can read and make predictions, but can't post here.",
+      restricted: "This feature isn't available to children under 13.",
+      expired: 'Your session ended. Sign in again to take part.',
+    },
     forbidden: "This key doesn't unlock this content. Check the widget and plan in the Galaxie portal.",
     retry: 'Try again',
     versus: 'vs',
@@ -4717,4 +4746,86 @@ export function safeLink(url: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+// ─── torcedor (token `gft_`, #1020) ──────────────────────────────────────────────────────────────
+
+/**
+ * O que o torcedor pode fazer no widget: `none` (sem token: "entre para participar"), `checking`, `expired`
+ * (token recusado ou vencido), `unavailable` (API fora ou chave que não leva o torcedor) e, com o Perfil lido, `ready` (as capacidades da faixa
+ * etária vêm de `GET /v1/fans/me`).
+ */
+export type FanStatus = 'none' | 'checking' | 'expired' | 'unavailable' | 'ready';
+export const FAN_CAPABILITIES = ['read', 'predict', 'write', 'redeem'] as const;
+export type FanCapability = (typeof FAN_CAPABILITIES)[number];
+
+/** `GET /v1/fans/me` (o que o widget usa). */
+export interface GsFanMe {
+  profile_id: string;
+  nickname: string;
+  avatar_url: string | null;
+  age_band: 'under13' | '13_17' | '18plus';
+  country: string;
+  locale: string;
+  capabilities: FanCapability[];
+}
+
+export const FAN_TOKEN_PREFIX = 'gft_';
+/** Pede outro token este tanto antes de o atual vencer. */
+export const FAN_TOKEN_RENEW_BEFORE_MS = 60_000;
+
+/**
+ * Evento que o site dispara no `document` quando o torcedor entra ou sai sem recarregar a página: os widgets
+ * pedem o token de novo a `getFanToken`.
+ */
+export const FAN_TOKEN_CHANGED_EVENT = 'galaxie:fan-token-changed';
+
+/** O token tem cara de `gft_`? (o resto quem confere é a API) */
+export const isFanToken = (token: unknown): token is string =>
+  typeof token === 'string' && token.startsWith(FAN_TOKEN_PREFIX) && token.length < 4096;
+
+/**
+ * Quando o token vence (ms), lido do corpo (`gft_<base64url>.<assinatura>`), só para agendar a renovação: a
+ * assinatura quem confere é a API. Corpo ilegível → null (não agenda).
+ */
+export function fanTokenExpiresAt(token: string): number | null {
+  if (!isFanToken(token)) return null;
+  const body = token.slice(FAN_TOKEN_PREFIX.length).split('.')[0] ?? '';
+  try {
+    const b64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as { exp?: unknown };
+    return typeof json.exp === 'number' && Number.isFinite(json.exp) ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cliente e Perfil do token (`t:p` do corpo), para saber se o torcedor mudou; null se não der para ler. */
+export function fanTokenSubject(token: string): string | null {
+  if (!isFanToken(token)) return null;
+  const body = token.slice(FAN_TOKEN_PREFIX.length).split('.')[0] ?? '';
+  try {
+    const b64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as {
+      t?: unknown;
+      p?: unknown;
+    };
+    return typeof json.t === 'string' && typeof json.p === 'string' ? `${json.t}:${json.p}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Mensagem do portão do torcedor: null = pode usar. */
+export function fanGateMessage(
+  status: FanStatus,
+  capabilities: readonly FanCapability[],
+  need: FanCapability,
+): 'signIn' | 'expired' | 'readOnly' | 'restricted' | 'unavailable' | 'checking' | null {
+  if (status === 'none') return 'signIn';
+  if (status === 'expired') return 'expired';
+  if (status === 'unavailable') return 'unavailable';
+  if (status === 'checking') return 'checking';
+  if (capabilities.includes(need)) return null;
+  return capabilities.includes('read') ? 'readOnly' : 'restricted';
 }
