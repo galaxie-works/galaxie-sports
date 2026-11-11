@@ -103,7 +103,7 @@ services:
   #   - S3_TASKS_BUCKET (pacotes e relatórios das tarefas, tasks/<id>/): privado, sem política nenhuma (qualquer
   #     política que alguém tenha posto à mão é apagada) e fora do Traefik. Só quem tem a chave do RustFS lê (#587).
   s3-init:
-    image: amazon/aws-cli:2.39.3
+    image: amazon/aws-cli:2.39.5
     depends_on:
       - s3
     environment:

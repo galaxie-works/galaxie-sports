@@ -29,6 +29,7 @@ describe('migrations que contraem o schema', () => {
       'ADD COLUMN NOT NULL sem DEFAULT',
     ],
     ['TRUNCATE "core"."event";', 'TRUNCATE'],
+    ['DO $$ BEGIN TRUNCATE "core"."event"; END $$;', 'TRUNCATE'],
   ])('%s → %s', (sql, rule) => {
     expect(rules(sql)).toEqual([rule]);
   });
@@ -51,6 +52,14 @@ DROP INDEX CONCURRENTLY IF EXISTS "core"."roster_uq";`),
     'ALTER TABLE "core"."event" ALTER COLUMN "n" SET DEFAULT 0;',
   ])('afrouxar a coluna não é destrutivo: %s', (sql) => {
     expect(rules(sql)).toEqual([]);
+  });
+
+  it('trigger que recusa TRUNCATE não é destrutivo', () => {
+    expect(
+      rules(`CREATE TRIGGER "x_no_truncate" BEFORE TRUNCATE ON "fan"."points_ledger"
+  FOR EACH STATEMENT EXECUTE FUNCTION "fan"."points_ledger_append_only"();--> statement-breakpoint
+CREATE TRIGGER "y" AFTER INSERT OR TRUNCATE ON "core"."event" FOR EACH STATEMENT EXECUTE FUNCTION f();`),
+    ).toEqual([]);
   });
 
   it('expandir não é destrutivo', () => {
