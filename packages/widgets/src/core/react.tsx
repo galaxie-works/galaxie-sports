@@ -13,6 +13,7 @@ import {
 } from 'react';
 
 import {
+  FAN_TOKEN_CHANGED_EVENT,
   FAN_TOKEN_RENEW_BEFORE_MS,
   LIVE_STATUSES,
   PROBLEM_STATUSES,
@@ -95,6 +96,11 @@ export interface GalaxieFanSession {
    */
   fetch: (path: string, init?: RequestInit) => Promise<Response>;
   onSignIn: (() => void) | undefined;
+  /**
+   * Confere a sessão de novo, pedindo outro token a `getFanToken`: chame depois de o torcedor entrar ou sair
+   * sem recarregar a página. O evento `galaxie:fan-token-changed` no `document` faz o mesmo.
+   */
+  refresh: () => void;
 }
 
 export interface GalaxieWidgetContextValue {
@@ -191,6 +197,8 @@ function useFanSessionState({
   const signInRef = useRef(onFanSignIn);
   signInRef.current = onFanSignIn;
   const tokenRef = useRef<string | null>(null);
+  // um pedido de token novo por vez: recusas ao mesmo tempo esperam o mesmo
+  const renewRef = useRef<Promise<string | null> | null>(null);
   const [state, setState] = useState<{ status: FanStatus; me: GsFanMe | null }>(() => ({
     status: hasCallback || isFanToken(fanToken) ? 'checking' : 'none',
     me: null,
@@ -210,8 +218,23 @@ function useFanSessionState({
     return isFanToken(t) ? t.trim() : null;
   }, [fanToken]);
 
+  const renew = useCallback((): Promise<string | null> => {
+    renewRef.current ??= obtain()
+      .then((t) => {
+        tokenRef.current = t;
+        return t;
+      })
+      .finally(() => {
+        renewRef.current = null;
+      });
+    return renewRef.current;
+  }, [obtain]);
+
   const call = useCallback(
     (token: string, path: string, init: RequestInit = {}) => {
+      // só caminhos da API: `@outro.host/x` ou `//outro.host` levariam o token para fora
+      if (!path.startsWith('/') || path.startsWith('//'))
+        throw new TypeError(`Caminho da API inválido: ${path}`);
       const headers = new Headers(init.headers);
       headers.set('accept', headers.get('accept') ?? 'application/json');
       headers.set('authorization', `Bearer ${token}`);
@@ -225,7 +248,7 @@ function useFanSessionState({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = async () => {
-      const token = await obtain();
+      let token = await renew();
       if (cancelled) return;
       tokenRef.current = token;
       if (!token) {
@@ -233,8 +256,19 @@ function useFanSessionState({
         return;
       }
       try {
-        const res = await call(token, '/v1/fans/me');
+        let res = await call(token, '/v1/fans/me');
         if (cancelled) return;
+        if ((res.status === 401 || res.status === 403) && getRef.current) {
+          // o site pode ter devolvido um token guardado e vencido: pede outro uma vez
+          const fresh = await renew();
+          if (cancelled) return;
+          if (fresh && fresh !== token) {
+            token = fresh;
+            tokenRef.current = fresh;
+            res = await call(fresh, '/v1/fans/me');
+            if (cancelled) return;
+          }
+        }
         if (res.status === 401 || res.status === 403) {
           // token vencido, de outro cliente ou de Perfil excluído; com o callback, o próximo pedido tenta outro
           tokenRef.current = null;
@@ -250,14 +284,16 @@ function useFanSessionState({
             : { status: 'unavailable', me: null },
         );
       } catch {
-        if (!cancelled) setState((s) => (s.me ? s : { status: 'unavailable', me: null }));
+        if (cancelled) return;
+        setState((s) => (s.me ? s : { status: 'unavailable', me: null }));
       }
       // renova antes de vencer (só quem sabe pedir outro)
       const exp = fanTokenExpiresAt(token);
       if (exp !== null && getRef.current)
         timer = setTimeout(() => void check(), Math.max(5_000, exp - Date.now() - FAN_TOKEN_RENEW_BEFORE_MS));
     };
-    setState((s) => (s.status === 'checking' ? s : { ...s, status: 'checking' }));
+    // já pronto: segue pronto enquanto confere, para o widget não desmontar (texto digitado no chat fica)
+    setState((s) => (s.status === 'checking' || s.status === 'ready' ? s : { ...s, status: 'checking' }));
     void check();
     return () => {
       cancelled = true;
@@ -267,18 +303,33 @@ function useFanSessionState({
 
   const fanFetch = useCallback(
     async (path: string, init?: RequestInit) => {
-      const token = tokenRef.current ?? (await obtain());
+      const token = tokenRef.current ?? (await renew());
       if (!token) return new Response(null, { status: 401 });
       const res = await call(token, path, init);
       if (res.status !== 401 || !getRef.current) return res;
-      // recusado: um token novo e mais uma tentativa; a sessão é conferida de novo
-      const fresh = await obtain();
+      // recusado: se outra chamada já trocou o token, usa o novo; senão pede outro (um pedido por vez)
+      const fresh = tokenRef.current && tokenRef.current !== token ? tokenRef.current : await renew();
       tokenRef.current = fresh;
-      setAttempt((n) => n + 1);
-      return fresh ? call(fresh, path, init) : res;
+      if (!fresh) {
+        setState({ status: 'none', me: null });
+        return res;
+      }
+      const again = await call(fresh, path, init);
+      // recusado de novo: a sessão é conferida (vencida, de outro cliente ou Perfil excluído)
+      if (again.status === 401) setAttempt((n) => n + 1);
+      return again;
     },
-    [obtain, call],
+    [obtain, renew, call],
   );
+
+  const refresh = useCallback(() => setAttempt((n) => n + 1), []);
+  // o site avisa que o torcedor entrou ou saiu (login sem recarregar a página)
+  useEffect(() => {
+    const doc = (globalThis as { document?: Document }).document;
+    if (!doc) return;
+    doc.addEventListener(FAN_TOKEN_CHANGED_EVENT, refresh);
+    return () => doc.removeEventListener(FAN_TOKEN_CHANGED_EVENT, refresh);
+  }, [refresh]);
 
   const onSignIn = useCallback(() => signInRef.current?.(), []);
   return useMemo<GalaxieFanSession>(
@@ -288,8 +339,9 @@ function useFanSessionState({
       can: (c) => state.status === 'ready' && Boolean(state.me?.capabilities.includes(c)),
       fetch: fanFetch,
       onSignIn: onFanSignIn ? onSignIn : undefined,
+      refresh,
     }),
-    [state, fanFetch, onSignIn, Boolean(onFanSignIn)],
+    [state, fanFetch, onSignIn, Boolean(onFanSignIn), refresh],
   );
 }
 

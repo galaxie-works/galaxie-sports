@@ -105,6 +105,23 @@ describe('<galaxie-widget>', () => {
     }
   });
 
+  it('torcedor: a função da página definida depois do embed vale, com o aviso de token novo', async () => {
+    const fanCall = () =>
+      fetchMock.mock.calls.filter(([u]) => String(u) === 'https://api.exemplo.test/v1/fans/me').at(-1);
+    document.body.innerHTML = `<${EMBED_TAG} widget="${WIDGET}" key="k"></${EMBED_TAG}>`;
+    const el = document.querySelector(EMBED_TAG)! as HTMLElement & { refreshFanToken(): void };
+    await waitFor(() => expect(el.shadowRoot?.querySelector('.gs-root')).toBeTruthy());
+    expect(fanCall()).toBeUndefined();
+    (globalThis as { galaxieSports?: unknown }).galaxieSports = { getFanToken: () => 'gft_depois.pagina' };
+    try {
+      el.refreshFanToken();
+      await waitFor(() => expect(fanCall()).toBeTruthy());
+      expect(new Headers(fanCall()![1]?.headers).get('authorization')).toBe('Bearer gft_depois.pagina');
+    } finally {
+      delete (globalThis as { galaxieSports?: unknown }).galaxieSports;
+    }
+  });
+
   it('dois elementos do mesmo widget leem a configuração uma vez só', async () => {
     document.body.innerHTML = `<${EMBED_TAG} widget="${WIDGET}" key="k"></${EMBED_TAG}><${EMBED_TAG} widget="${WIDGET}" key="k"></${EMBED_TAG}>`;
     const [a, b] = document.querySelectorAll(EMBED_TAG);

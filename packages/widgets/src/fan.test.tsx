@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DEFAULT_THEMES,
+  FAN_TOKEN_CHANGED_EVENT,
   fanGateMessage,
   fanTokenExpiresAt,
   isFanToken,
@@ -162,5 +163,52 @@ describe('<FanGate> e a sessão do torcedor', () => {
     expect(String(last[0])).toBe('https://api.exemplo.test/v1/fans/me/wallet');
     expect(new Headers(last[1]?.headers).get('x-galaxie-publishable-key')).toBe('gs_pk_test_site');
     expect(last[1]?.credentials).toBe('omit');
+  });
+
+  it('login sem recarregar: o evento do site faz o widget pedir o token de novo', async () => {
+    let logged = false;
+    const getFanToken = vi.fn(async () => (logged ? tokenFor('site') : null));
+    setup(<Chat />, { getFanToken, onFanSignIn: () => {} });
+    expect(await screen.findByText('Entre para participar.')).toBeTruthy();
+    logged = true;
+    act(() => {
+      document.dispatchEvent(new Event(FAN_TOKEN_CHANGED_EVENT));
+    });
+    expect(await screen.findByRole('button', { name: 'Enviar mensagem' })).toBeTruthy();
+  });
+
+  it('token guardado e vencido na primeira conferência: pede outro uma vez e entra', async () => {
+    const tokens = [tokenFor('outro'), tokenFor('site')];
+    const getFanToken = vi.fn(async () => tokens.shift() ?? null);
+    setup(<Chat />, { getFanToken });
+    expect(await screen.findByRole('button', { name: 'Enviar mensagem' })).toBeTruthy();
+    expect(getFanToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('recusas ao mesmo tempo pedem um token só; caminho fora da API é recusado', async () => {
+    let n = 0;
+    const getFanToken = vi.fn(async () => (n++ === 0 ? tokenFor('site') : tokenFor('site', 1_900_000_000)));
+    let fan: ReturnType<typeof useFanSession> | null = null;
+    function Probe() {
+      fan = useFanSession();
+      return <span>{fan.status}</span>;
+    }
+    // a API recusa o token da primeira chamada à carteira
+    const base = api();
+    let refused = 0;
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith('/wallet') && refused++ < 3) return new Response(null, { status: 401 });
+      return base(url, init);
+    });
+    setup(<Probe />, { getFanToken }, fetchImpl);
+    await screen.findByText('ready');
+    const before = getFanToken.mock.calls.length;
+    await act(async () => {
+      await Promise.all([1, 2, 3].map(() => fan!.fetch('/v1/fans/me/wallet')));
+    });
+    // as três recusas dividem um pedido de token
+    expect(getFanToken.mock.calls.length - before).toBe(1);
+    await expect(fan!.fetch('@evil.test/x')).rejects.toThrow(TypeError);
+    await expect(fan!.fetch('//evil.test/x')).rejects.toThrow(TypeError);
   });
 });

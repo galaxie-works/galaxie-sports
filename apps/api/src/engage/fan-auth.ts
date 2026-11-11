@@ -109,21 +109,31 @@ export function registerFanAuth(app: FastifyInstance, deps: FanAuthDeps): void {
   app.addHook('onRequest', async (request, reply) => {
     if (!request.routeOptions.config?.fan) return;
     reply.header('cache-control', 'no-store');
-    const token = bearer(request);
-    if (!token) throw problems.invalidFanToken();
-    if (!deps.signer) throw problems.degraded('Tokens do torcedor não configurados (FAN_TOKEN_SECRET).');
-    const claims = deps.signer.verify(token);
-    if (!claims) throw problems.invalidFanToken();
+    // No navegador, a chave e a origem vêm antes do token: com a origem conferida, até o 401 de token vencido
+    // leva CORS, e o widget consegue ler a recusa e pedir outro token ao site.
     const pk = publishableKeyFrom(request);
+    let siteTenant: string | undefined;
     if (pk) {
       if (!deps.publishable)
         throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
       const origin = requestOrigin(request);
       const site = await deps.publishable.authenticate(pk, origin, { ip: request.ip });
-      // token de outro cliente na página deste: recusado (e sem CORS, o navegador nem lê a resposta)
-      if (site.tenantId !== claims.tenantId) throw problems.invalidFanToken('Token de outro cliente.');
       if (origin) request.publishableOrigin = origin;
+      // chave presa a um widget de dados não leva sessão de torcedor (escrita, chat): só a chave do site
+      if (site.widgetId)
+        throw problems.publishableKeyNotAllowed(
+          'Chave presa a um widget não leva o token do torcedor. Use uma chave publicável do site, sem widget.',
+        );
+      siteTenant = site.tenantId;
     }
+    const token = bearer(request);
+    if (!token) throw problems.invalidFanToken();
+    if (!deps.signer) throw problems.degraded('Tokens do torcedor não configurados (FAN_TOKEN_SECRET).');
+    const claims = deps.signer.verify(token);
+    if (!claims) throw problems.invalidFanToken();
+    // token de outro cliente na página deste: recusado
+    if (siteTenant && siteTenant !== claims.tenantId)
+      throw problems.invalidFanToken('Token de outro cliente.');
     try {
       if (await deps.revocations.isRevoked(claims.tenantId, claims.profileId))
         throw problems.invalidFanToken('Perfil excluído.');

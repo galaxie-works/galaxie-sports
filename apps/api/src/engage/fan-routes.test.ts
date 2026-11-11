@@ -130,7 +130,7 @@ describe('rotas do torcedor', () => {
 
 describe('token do torcedor no navegador (widget, embed; #1020)', () => {
   const site = 'https://torcida.exemplo.test';
-  const pkFor = (tenantId: string, key: string): PublishableStore => ({
+  const pkFor = (tenantId: string, key: string, widgetId: string | null = null): PublishableStore => ({
     async verify(raw) {
       return raw === key
         ? {
@@ -148,8 +148,8 @@ describe('token do torcedor no navegador (widget, embed; #1020)', () => {
               dailyRequestQuota: null,
             },
             allowedOrigins: [site],
-            widgetId: null,
-            widgetKind: null,
+            widgetId,
+            widgetKind: widgetId ? 'standings' : null,
           }
         : null;
     },
@@ -168,13 +168,38 @@ describe('token do torcedor no navegador (widget, embed; #1020)', () => {
       headers: { authorization: `Bearer ${token}`, ...headers },
     });
 
-  it('token de outro cliente na página deste → 401, sem CORS', async () => {
+  it('token de outro cliente na página deste → 401, que o widget lê (CORS da origem conferida)', async () => {
     const a = app();
     const { token } = signer.issue(claims({ tenantId: 'tenant-y' }));
     const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
     expect(res.statusCode).toBe(401);
     expect(res.json().detail).toBe('Token de outro cliente.');
-    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    expect(res.headers['access-control-allow-origin']).toBe(site);
+  });
+
+  it('token vencido → 401 com CORS, para o widget pedir outro ao site', async () => {
+    const a = app();
+    const old = new FanTokenSigner({ secret: 'k'.repeat(40), now: () => Date.now() - 3_600_000 });
+    const { token } = old.issue(claims());
+    const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(res.statusCode).toBe(401);
+    expect(res.headers['access-control-allow-origin']).toBe(site);
+    // sem a chave do site, nada de CORS
+    const bare = await me(a, token, { origin: site });
+    expect(bare.statusCode).toBe(401);
+    expect(bare.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('chave presa a um widget de dados não leva o token do torcedor → 403', async () => {
+    const a = buildServer({
+      usage: false,
+      fanTokens: signer,
+      publishableStore: pkFor('tenant-x', key, 'w-1'),
+    });
+    const { token } = signer.issue(claims());
+    const res = await me(a, token, { 'x-galaxie-publishable-key': key, origin: site });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe('PUBLISHABLE_KEY_NOT_ALLOWED');
   });
 
   it('chave do site fora da origem → 403; mesmo cliente passa e leva o CORS do site', async () => {

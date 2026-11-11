@@ -24,12 +24,20 @@
  * ```
  *
  * A função também pode ir no próprio elemento (`el.getFanToken = …`). O clique em "Entrar" dispara o evento
- * `galaxie:fan-sign-in` (sobe até o documento) para o site abrir o login dele.
+ * `galaxie:fan-sign-in` (sobe até o documento) para o site abrir o login dele. Depois do login (ou do logout)
+ * sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama
+ * `el.refreshFanToken()`) e os widgets pedem o token de novo.
  */
 import { createRoot, type Root } from 'react-dom/client';
 
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
-import { WIDGET_KINDS, WIDGET_LOCALES, parseLiveListOptions, parseStandingsOptions } from '../core/model.js';
+import {
+  FAN_TOKEN_CHANGED_EVENT,
+  WIDGET_KINDS,
+  WIDGET_LOCALES,
+  parseLiveListOptions,
+  parseStandingsOptions,
+} from '../core/model.js';
 import type { LiveListOptions, StandingsOptions } from '../core/model.js';
 import { GalaxieWidgetProvider } from '../core/react.js';
 import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
@@ -321,8 +329,22 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
     }
     set getFanToken(fn: FanTokenGetter | undefined) {
       this.fanGetter = typeof fn === 'function' ? fn : undefined;
-      if (this.root) void this.update();
+      if (this.root) void this.update().then(() => this.refreshFanToken());
     }
+
+    /** Confere a sessão do torcedor de novo (depois de entrar ou sair sem recarregar a página). */
+    refreshFanToken(): void {
+      document.dispatchEvent(new CustomEvent(FAN_TOKEN_CHANGED_EVENT));
+    }
+
+    /**
+     * O token na hora do pedido: a função do elemento, a da página (lida agora, então `window.galaxieSports`
+     * pode vir depois do embed.js) ou o atributo `fan-token`.
+     */
+    private readonly currentFanToken = (): ReturnType<FanTokenGetter> => {
+      const fn = this.fanGetter ?? pageFanTokenGetter();
+      return fn ? fn() : this.getAttribute('fan-token')?.trim() || null;
+    };
 
     connectedCallback() {
       if (!this.mount) {
@@ -374,7 +396,7 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
           market={market}
           fetch={options.fetch}
           fanToken={this.getAttribute('fan-token')?.trim() || null}
-          getFanToken={this.fanGetter ?? pageFanTokenGetter()}
+          getFanToken={this.currentFanToken}
           onFanSignIn={() =>
             this.dispatchEvent(new CustomEvent(FAN_SIGN_IN_EVENT, { bubbles: true, composed: true }))
           }

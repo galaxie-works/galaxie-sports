@@ -69,6 +69,7 @@ export {
   FAN_CAPABILITIES,
   fanGateMessage,
   fanTokenExpiresAt,
+  FAN_TOKEN_CHANGED_EVENT,
   isFanToken,
   type FanCapability,
   type FanStatus,

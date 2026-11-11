@@ -4774,6 +4774,12 @@ export const FAN_TOKEN_PREFIX = 'gft_';
 /** Pede outro token este tanto antes de o atual vencer. */
 export const FAN_TOKEN_RENEW_BEFORE_MS = 60_000;
 
+/**
+ * Evento que o site dispara no `document` quando o torcedor entra ou sai sem recarregar a página: os widgets
+ * pedem o token de novo a `getFanToken`.
+ */
+export const FAN_TOKEN_CHANGED_EVENT = 'galaxie:fan-token-changed';
+
 /** O token tem cara de `gft_`? (o resto quem confere é a API) */
 export const isFanToken = (token: unknown): token is string =>
   typeof token === 'string' && token.startsWith(FAN_TOKEN_PREFIX) && token.length < 4096;

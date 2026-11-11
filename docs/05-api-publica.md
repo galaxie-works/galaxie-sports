@@ -1085,11 +1085,11 @@ $token = json_decode(curl_exec($ch), true)['data']['token'];
 
 O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta (exemplos acima) e entrega só o token ao navegador ou ao app. A chave publicável nunca emite token, e a chave secreta nunca vai para o navegador.
 
-**No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`) e a resposta não leva CORS. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
+**No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`). O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
 
-**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar.
+**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
 
-**HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`.
+**HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 
 ```html
 <script src="https://sports.galaxie.works/embed.js" async></script>
@@ -1102,6 +1102,8 @@ O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta
         .then((j) => j && j.token),
   };
   document.addEventListener('galaxie:fan-sign-in', () => location.assign('/entrar'));
+  // login (ou logout) sem recarregar a página: avise os widgets
+  // document.dispatchEvent(new Event('galaxie:fan-token-changed'));
 </script>
 <galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
 ```
