@@ -316,7 +316,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
-  registerFanAuth(app, { signer: options.fanTokens ?? null, revocations: fanRevocations, limiter, windowMs });
+  registerFanAuth(app, {
+    signer: options.fanTokens ?? null,
+    publishable,
+    revocations: fanRevocations,
+    limiter,
+    windowMs,
+  });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
   // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.

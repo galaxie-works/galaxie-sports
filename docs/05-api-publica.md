@@ -1090,4 +1090,63 @@ $token = json_decode(curl_exec($ch), true)['data']['token'];
 
 **Apelido e moderação (#969):** o `nickname` passa pelo filtro de texto da Galaxie (ódio, ameaça, assédio, conteúdo sexual, palavrão, aposta, link e dado pessoal, inclusive com grafia trocada como `m4c4c0`) mais os termos que o cliente acrescentou. Qualquer achado recusa a emissão com `400 INVALID_PARAMS` e `errors[0].path = "nickname"`, com um aviso curto para mostrar ao torcedor. As listas base ficam em Ajustes → Conformidade → Moderação; mudança chega à API em até 60 s.
 
-Ainda não: CORS das rotas do torcedor para o navegador e renovação silenciosa pelo widget (#1020), tópico `fan.profile.deleted` pelo outbox (#1023).
+### 9.1 O token no widget, no embed e no app (#1020)
+
+O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta (exemplos acima) e entrega só o token ao navegador ou ao app. A chave publicável nunca emite token, e a chave secreta nunca vai para o navegador.
+
+**No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
+
+**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+
+**HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
+
+```html
+<script src="https://sports.galaxie.works/embed.js" async></script>
+<script>
+  window.galaxieSports = {
+    // seu servidor chama POST /v1/fans/tokens e devolve só o token
+    getFanToken: () =>
+      fetch('/minha-api/token-galaxie', { method: 'POST', credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => j && j.token),
+  };
+  document.addEventListener('galaxie:fan-sign-in', () => location.assign('/entrar'));
+  // login (ou logout) sem recarregar a página: avise os widgets
+  // document.dispatchEvent(new Event('galaxie:fan-token-changed'));
+</script>
+<galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
+```
+
+**React (componente do registry).**
+
+```tsx
+<GalaxieWidgetProvider
+  baseUrl="https://api.galaxie.sports"
+  publishableKey="gs_pk_live_..."
+  theme={theme}
+  locale="pt-BR"
+  getFanToken={() => fetch('/api/token-galaxie', { method: 'POST' }).then((r) => (r.ok ? r.json() : null)).then((j) => j?.token ?? null)}
+  onFanSignIn={() => router.push('/entrar')}
+>
+  {/* recursos do torcedor dentro de <FanGate need="write">…</FanGate>; useFanSession() dá o status e o fetch com o token */}
+</GalaxieWidgetProvider>
+```
+
+**App (WebView).** O app já tem o login: busca o token no servidor dele e injeta a função antes de a página carregar. Para o widget em app de loja, peça o token com `surface: "store_app"`.
+
+```kotlin
+// Android: AppBridge é um @JavascriptInterface cujo fanToken() devolve o token (ou null)
+webView.evaluateJavascript(
+  "window.galaxieSports = { getFanToken: () => window.AppBridge.fanToken() };", null)
+```
+
+```swift
+// iOS 14+ (WKWebView): registre o handler com WKScriptMessageHandlerWithReply; o postMessage devolve uma Promise com o token
+let js = "window.galaxieSports = { getFanToken: () => window.webkit.messageHandlers.fanToken.postMessage(null) };"
+webView.configuration.userContentController.addUserScript(
+  WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+```
+
+**No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login. O apelido passa pelo filtro da moderação já ao salvar; o filtro usa o idioma que vai no token, como a API. Se a API ainda assim recusar o apelido no primeiro token depois de salvar (pelas listas do cliente ou de Ajustes, que a demo não confere, ou porque a pessoa trocou o idioma da demo antes), a rota responde 409 `fan_nickname_rejected` (sem perfil completo, 409 `fan_profile_missing`); as telas que levam a pessoa ao perfil em cada caso chegam com o chat (#985) e o bolão (#945).
+
+Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).
