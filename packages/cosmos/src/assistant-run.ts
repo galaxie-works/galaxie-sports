@@ -267,11 +267,29 @@ export async function* askAssistant(
     deps.signal?.removeEventListener('abort', onAbort);
   }
 
-  // nada entregue: devolve tudo
+  // nada entregue: o cliente não paga nada. Se o provedor já contou tokens (a resposta começou e foi cortada antes do
+  // primeiro trecho), o custo real fica no extrato com 0 crédito, para o teto do dia e a conciliação.
   if (!text) {
-    await release(db, { tenantId: input.tenantId, reservationId }).catch((err) =>
-      console.error('[cosmos] reserva do assistente não voltou', { reservationId, err }),
-    );
+    const spent = usage.inputTokens > 0 || usage.outputTokens > 0;
+    await (
+      spent
+        ? settle(
+            db,
+            {
+              tenantId: input.tenantId,
+              reservationId,
+              waive: true,
+              costUsd: assistantCostUsd(usage),
+              tokensIn: usage.inputTokens,
+              tokensCached: usage.cachedInputTokens,
+              tokensOut: usage.outputTokens,
+              model: ASSISTANT_MODEL,
+              metadata: { route: input.route, partial: true, undelivered: true },
+            },
+            { now: now() },
+          )
+        : release(db, { tenantId: input.tenantId, reservationId })
+    ).catch((err) => console.error('[cosmos] reserva do assistente não voltou', { reservationId, err }));
     yield { type: 'error', code: 'failed' };
     return;
   }

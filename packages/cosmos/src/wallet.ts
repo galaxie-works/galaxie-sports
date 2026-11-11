@@ -266,6 +266,11 @@ export interface SettleInput {
    * o cliente nunca paga mais que o "cerca de N créditos" que viu antes; o que passar é custo da Galaxie.
    */
   maxCredits?: number;
+  /**
+   * Fecha sem cobrar nada (0 crédito, nem o mínimo), mas grava o custo real no extrato: o provedor cobrou e o teto do
+   * dia precisa contar. Ex.: pergunta cancelada antes do primeiro trecho de resposta.
+   */
+  waive?: boolean;
 }
 
 export interface Settlement {
@@ -357,8 +362,9 @@ export async function settle(
             minCredits: r.minCredits,
           });
 
-    const capped =
-      input.maxCredits !== undefined && Number.isFinite(input.maxCredits)
+    const capped = input.waive
+      ? 0
+      : input.maxCredits !== undefined && Number.isFinite(input.maxCredits)
         ? Math.min(target, Math.max(ceilCredits(input.maxCredits), r.minCredits))
         : target;
 
