@@ -7,7 +7,10 @@
  * - escrita: também INSERT, UPDATE e DELETE nas tabelas e USAGE nas sequências (sem TRUNCATE nem DDL);
  * - escrita só em algumas tabelas de um schema (`schema.tabela`), com as sequências delas;
  * - poda (`prune`, só `schema.tabela`): SELECT e DELETE, sem INSERT/UPDATE nem sequência (retenção de tabela
- *   que é de outro serviço).
+ *   que é de outro serviço);
+ * - só acréscimo (`append`, só `schema.tabela`): SELECT e INSERT, com as sequências; nada de UPDATE nem DELETE
+ *   (extrato, registros de auditoria: o que foi escrito não muda);
+ * - acréscimo e atualização (`modify`, só `schema.tabela`): SELECT, INSERT e UPDATE, com as sequências; sem DELETE.
  *
  * `applyRoles` roda no `migrate`, depois das migrations, e é idempotente: cria o que falta, revoga e
  * concede de novo a matriz inteira numa transação (tabela nova de migration já sai com o GRANT) e grava os
@@ -58,6 +61,10 @@ export interface RoleGrants {
   write: readonly string[];
   /** Tabelas (`schema.tabela`) só para podar: SELECT e DELETE, sem INSERT/UPDATE nem sequência. */
   prune?: readonly string[];
+  /** Tabelas (`schema.tabela`) só de acréscimo: SELECT e INSERT, sem UPDATE nem DELETE. */
+  append?: readonly string[];
+  /** Tabelas (`schema.tabela`) com SELECT, INSERT e UPDATE, sem DELETE. */
+  modify?: readonly string[];
 }
 
 /**
@@ -69,7 +76,16 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'cosmos', 'fan', 'engage'],
+    write: ['api', 'enrich', 'ops', 'fan', 'engage'],
+    // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
+    modify: [
+      'cosmos.stripe_event',
+      'cosmos.purchase_intent',
+      'cosmos.wallet',
+      'cosmos.auto_recharge',
+      'cosmos.recharge_attempt',
+    ],
+    append: ['cosmos.ledger', 'cosmos.balance_alert'],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
@@ -84,18 +100,34 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.asset',
       'core.participant',
       'core.competition',
-      // Cosmos AI no painel do cliente: ligar (carteira e teste no extrato), intenção de compra e recarga
-      // automática (#993, #994). Só as tabelas que a demo escreve: o registro de eventos do Stripe
-      // (cosmos.stripe_event), as reservas e o catálogo de funções ficam com a API e o ingestor
+      // configuração da moderação (#997): remover a exceção de uma sala ou comunidade apaga a linha
+      'cosmos.moderation_config',
+    ],
+    // Cosmos AI (#1064): tabela por tabela e operação por operação, pelo que as funções de @galaxie/cosmos que a
+    // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala) e sem
+    // nenhuma escrita no registro de eventos do Stripe (cosmos.stripe_event), que é só da API.
+    // - ligar e desligar, assistente (reserve/settle/release) e ações da equipe Galaxie: carteira e reservas;
+    // - Funções e Pacotes da equipe Galaxie (#1002, #1088); compra, recarga automática, pedido de créditos (#996);
+    // - uso do assistente pela equipe (#1100).
+    modify: [
       'cosmos.wallet',
-      'cosmos.ledger',
-      'cosmos.balance_alert',
+      'cosmos.reservation',
+      'cosmos.function_def',
+      'cosmos.package',
       'cosmos.purchase_intent',
       'cosmos.auto_recharge',
       'cosmos.recharge_attempt',
-      // Carteiras da equipe Galaxie no painel (#1002): pacotes e o registro das ações
-      'cosmos.package',
+      'cosmos.credit_request',
+      'cosmos.staff_usage',
+    ],
+    // o que foi escrito não muda: extrato, alertas de saldo, ações da equipe e o histórico da moderação
+    append: [
+      'cosmos.ledger',
+      'cosmos.balance_alert',
       'cosmos.staff_action',
+      'cosmos.moderation_config_log',
+      // vetores da base de conhecimento do assistente (#1118; sem a tabela, o GRANT é pulado)
+      'cosmos.doc_embedding',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
@@ -106,8 +138,10 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       ...APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
       `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`,
     ],
-    // cosmos: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian', 'cosmos'],
+    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    // Cosmos AI: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
+    modify: ['cosmos.wallet', 'cosmos.reservation', 'cosmos.auto_recharge', 'cosmos.recharge_attempt'],
+    append: ['cosmos.ledger', 'cosmos.balance_alert'],
     prune: ['api.webhook_delivery'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
@@ -324,8 +358,10 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           await tx`revoke all on schema ${tx(DEMO_AUTH_SCHEMA)} from ${r}`;
         }
 
-        const { read, write, prune = [] } = ROLE_GRANTS[service];
-        const schemas = new Set([...read, ...write, ...prune].map((s) => splitScope(s).schema));
+        const { read, write, prune = [], append = [], modify = [] } = ROLE_GRANTS[service];
+        const schemas = new Set(
+          [...read, ...write, ...prune, ...append, ...modify].map((s) => splitScope(s).schema),
+        );
         for (const schema of schemas) {
           if (!existing.has(schema) && schema !== DEMO_AUTH_SCHEMA) continue;
           await tx`grant usage on schema ${tx(schema)} to ${r}`;
@@ -342,26 +378,41 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           await tx`alter default privileges in schema ${tx(schema)} grant select on tables to ${r}`;
           await tx`alter default privileges in schema ${tx(schema)} grant select on sequences to ${r}`;
         }
+        // uma tabela com os privilégios pedidos e as sequências das colunas dela (tabela que não existe: pula)
+        const grantTable = async (schema: string, table: string, privileges: string) => {
+          const target = `${schema}.${table}`;
+          const exists = await tx<{ ok: boolean }[]>`select to_regclass(${target}) is not null as ok`;
+          if (!exists[0]!.ok) return;
+          await tx`grant ${tx.unsafe(privileges)} on ${tx(schema)}.${tx(table)} to ${r}`;
+          const seqs = await tx<{ seq: string }[]>`
+            select pg_get_serial_sequence(${target}, a.attname) as seq
+              from pg_attribute a
+             where a.attrelid = to_regclass(${target}) and a.attnum > 0 and not a.attisdropped
+               and pg_get_serial_sequence(${target}, a.attname) is not null`;
+          for (const { seq } of seqs) await tx`grant usage, select on sequence ${tx.unsafe(seq)} to ${r}`;
+        };
         for (const scope of write) {
           const { schema, table } = splitScope(scope);
           if (!existing.has(schema)) continue;
           if (table) {
-            const target = `${schema}.${table}`;
-            const exists = await tx<{ ok: boolean }[]>`select to_regclass(${target}) is not null as ok`;
-            if (!exists[0]!.ok) continue;
-            await tx`grant select, insert, update, delete on ${tx(schema)}.${tx(table)} to ${r}`;
-            const seqs = await tx<{ seq: string }[]>`
-              select pg_get_serial_sequence(${target}, a.attname) as seq
-                from pg_attribute a
-               where a.attrelid = to_regclass(${target}) and a.attnum > 0 and not a.attisdropped
-                 and pg_get_serial_sequence(${target}, a.attname) is not null`;
-            for (const { seq } of seqs) await tx`grant usage, select on sequence ${tx.unsafe(seq)} to ${r}`;
+            await grantTable(schema, table, 'select, insert, update, delete');
             continue;
           }
           await tx`grant select, insert, update, delete on all tables in schema ${tx(schema)} to ${r}`;
           await tx`grant usage, select on all sequences in schema ${tx(schema)} to ${r}`;
           await tx`alter default privileges in schema ${tx(schema)} grant select, insert, update, delete on tables to ${r}`;
           await tx`alter default privileges in schema ${tx(schema)} grant usage, select on sequences to ${r}`;
+        }
+        for (const [kind, scopes, privileges] of [
+          ['append', append, 'select, insert'],
+          ['modify', modify, 'select, insert, update'],
+        ] as const) {
+          for (const scope of scopes) {
+            const { schema, table } = splitScope(scope);
+            if (!table) throw new Error(`${kind} de ${service} precisa de schema.tabela: ${scope}`);
+            if (!existing.has(schema)) continue;
+            await grantTable(schema, table, privileges);
+          }
         }
         for (const scope of prune) {
           const { schema, table } = splitScope(scope);

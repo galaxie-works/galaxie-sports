@@ -4,16 +4,28 @@ O `POSTGRES_USER` é o dono do banco: só o `migrate` e a manutenção à mão e
 
 ## Matriz
 
-Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela (e às sequências dela). Poda (`prune` em `ROLE_GRANTS`) é só `SELECT` e `DELETE` numa tabela de outro serviço, sem `INSERT`, `UPDATE` nem sequência.
+Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela (e às sequências dela). Poda (`prune` em `ROLE_GRANTS`) é só `SELECT` e `DELETE` numa tabela de outro serviço, sem `INSERT`, `UPDATE` nem sequência. Só acréscimo (`append`) é `SELECT` e `INSERT`, sem `UPDATE` nem `DELETE` (extrato e registros de auditoria). Acréscimo e atualização (`modify`) é `SELECT`, `INSERT` e `UPDATE`, sem `DELETE`.
 
 | Papel | Lê | Escreve | Conexões (teto) |
 | --- | --- | --- | --- |
-| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops` | 45 |
-| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset`; é dono do `demo_auth` | 60 |
-| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian`; poda (só `SELECT` e `DELETE`) em `api.webhook_delivery` | 55 |
+| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops`, `fan`, `engage`; na Cosmos, só o que o webhook do Stripe grava (ver abaixo) | 45 |
+| `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `engage`, `core.asset`, `core.participant`, `core.competition`; na Cosmos, tabela por tabela (ver abaixo); é dono do `demo_auth` | 60 |
+| `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian`; na Cosmos, só a manutenção da carteira (ver abaixo); poda (só `SELECT` e `DELETE`) em `api.webhook_delivery` | 55 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
 | `galaxie_live` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_ledger`, `ops.quota_snapshot`, `ops.quota_budget` | 45 |
 | `galaxie_backup` | tudo (`pg_read_all_data`) | `ops.job_run`; tem `CREATEDB` para o ensaio de restauração | 6 |
+
+### Cosmos AI: escrita tabela por tabela (#1064)
+
+O schema `cosmos` guarda saldo em dinheiro, então nenhum papel escreve o schema inteiro. Cada papel recebe só as tabelas e as operações que as funções de `@galaxie/cosmos` que ele chama gravam:
+
+| Papel | `modify` (sem `DELETE`) | `append` (só `INSERT`) | `write` |
+| --- | --- | --- | --- |
+| `galaxie_api` (webhook do Stripe) | `stripe_event`, `purchase_intent`, `wallet`, `auto_recharge`, `recharge_attempt` | `ledger`, `balance_alert` | — |
+| `galaxie_demo` (painel do cliente, assistente e Ajustes da equipe Galaxie) | `wallet`, `reservation`, `function_def`, `package`, `purchase_intent`, `auto_recharge`, `recharge_attempt`, `credit_request`, `staff_usage` | `ledger`, `balance_alert`, `staff_action`, `moderation_config_log`, `doc_embedding` | `moderation_config` (remover a exceção de uma sala apaga a linha) |
+| `galaxie_ingestor` (`cosmos-upkeep`) | `wallet`, `reservation`, `auto_recharge`, `recharge_attempt` | `ledger`, `balance_alert` | — |
+
+O extrato (`cosmos.ledger`) só recebe lançamentos: nenhum serviço muda nem apaga o que já foi escrito. Só a API grava o registro de eventos do Stripe. A demo grava `package` e `function_def` porque as telas Pacotes e Funções da equipe Galaxie rodam nela. Tabela nova da Cosmos entra aqui e na matriz; o teste `cada papel lê e escreve exatamente o que a matriz diz` confere.
 
 ### Por que o `galaxie_ingestor` poda `api.webhook_delivery`
 

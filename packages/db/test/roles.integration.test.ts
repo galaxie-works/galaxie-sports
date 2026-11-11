@@ -106,7 +106,7 @@ describe('papéis por serviço', () => {
     expect(tables.length).toBeGreaterThan(50);
     for (const service of ROLE_SERVICES) {
       if (service === 'backup') continue; // pg_read_all_data: conferido no teste do backup
-      const { read, write, prune = [] } = ROLE_GRANTS[service];
+      const { read, write, prune = [], append = [], modify = [] } = ROLE_GRANTS[service];
       const role = roleName(service, prefix);
       const covers = (scopes: readonly string[], t: { schema: string; name: string }) =>
         scopes.includes(t.schema) || scopes.includes(`${t.schema}.${t.name}`);
@@ -118,10 +118,13 @@ describe('papéis por serviço', () => {
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'update') as upd,
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'delete') as del,
                  has_table_privilege(${role}, ${`${t.schema}.${t.name}`}, 'truncate') as trunc`;
+        const name = `${t.schema}.${t.name}`;
         const w = covers(write, t);
-        const d = w || prune.includes(`${t.schema}.${t.name}`);
-        const r = d || covers(read, t);
-        if (p!.sel !== r || p!.ins !== w || p!.upd !== w || p!.del !== d || p!.trunc)
+        const u = w || modify.includes(name);
+        const i = u || append.includes(name);
+        const d = w || prune.includes(name);
+        const r = i || d || covers(read, t);
+        if (p!.sel !== r || p!.ins !== i || p!.upd !== u || p!.del !== d || p!.trunc)
           wrong.push(`${service} ${t.schema}.${t.name}: ${JSON.stringify(p)}`);
       }
       expect(wrong).toEqual([]);
@@ -153,6 +156,28 @@ describe('papéis por serviço', () => {
     );
     await denied(demo`delete from cosmos.stripe_event`);
     expect(await demo`select id from cosmos.stripe_event where id = 'evt_papel'`).toHaveLength(0);
+  });
+
+  it('extrato da Cosmos só recebe lançamentos: nenhum papel muda nem apaga o que já foi escrito (#1064)', async () => {
+    const [t] = await owner<{ id: string }[]>`
+      insert into api.tenant (slug, name, plan, modules) values ('teste-extrato', 'Teste', 'core_data', '{core_data}')
+      returning id`;
+    await owner`insert into cosmos.wallet (tenant_id) values (${t!.id})`;
+    const [entry] = await owner<{ id: string }[]>`
+      insert into cosmos.ledger (tenant_id, kind, credits, balance_before, balance_after)
+      values (${t!.id}, 'adjustment', 10, 0, 10) returning id`;
+    for (const s of ['api', 'demo', 'ingestor'] as const) {
+      const c = conn(s);
+      await denied(c`update cosmos.ledger set credits = 1000, balance_after = 1000 where id = ${entry!.id}`);
+      await denied(c`delete from cosmos.ledger where id = ${entry!.id}`);
+      await denied(c`delete from cosmos.wallet where tenant_id = ${t!.id}`);
+    }
+    // demo e ingestor não gravam o registro de eventos do Stripe; nem a demo apaga pacote
+    await denied(conn('ingestor')`delete from cosmos.stripe_event`);
+    await denied(conn('demo')`delete from cosmos.package`);
+    expect(await owner`select id from cosmos.ledger where id = ${entry!.id} and credits = 10`).toHaveLength(
+      1,
+    );
   });
 
   it('ingestor: poda api.webhook_delivery (data-retention) sem inserir, atualizar nem tocar a sequência', async () => {
