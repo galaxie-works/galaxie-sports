@@ -2,9 +2,9 @@
 
 // As classes base vivem no ledger compartilhado (@galaxie/ai-ledger): o ingestor (ordem das fotos), os
 // agentes e a Cosmos lançam e reconhecem as mesmas classes.
-import { LlmError } from '@galaxie/ai-ledger';
+import { LlmError } from '@galaxie/ai-ledger/errors';
 
-export { AiDisabledError, BudgetExceededError, LlmError, type LlmErrorKind } from '@galaxie/ai-ledger';
+export { AiDisabledError, BudgetExceededError, LlmError, type LlmErrorKind } from '@galaxie/ai-ledger/errors';
 
 /** Status HTTP de erros dos SDKs (OpenAI e Anthropic expõem `status`). */
 export function httpStatusOf(err: unknown): number | undefined {

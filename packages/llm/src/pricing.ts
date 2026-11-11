@@ -1,6 +1,7 @@
 /**
  * Tabela de preços: vive no ledger compartilhado (@galaxie/ai-ledger), que o ingestor e a Cosmos também
- * usam; AI_MODEL_PRICES (Ajustes) vale por cima dela.
+ * usam; AI_MODEL_PRICES (Ajustes) vale por cima dela. Importa só o subcaminho, sem o banco: o app Next que usa o
+ * cliente não leva as migrações junto.
  */
 export {
   GEMINI_GROUNDING_USD_PER_QUERY,
@@ -19,4 +20,4 @@ export {
   setModelPriceOverrides,
   type ModelPrice,
   type TokenUsage,
-} from '@galaxie/ai-ledger';
+} from '@galaxie/ai-ledger/pricing';
