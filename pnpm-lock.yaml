@@ -335,6 +335,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../db
+      '@galaxie/engage':
+        specifier: workspace:*
+        version: link:../engage
       '@galaxie/llm':
         specifier: workspace:*
         version: link:../llm
