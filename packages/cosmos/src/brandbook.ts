@@ -17,28 +17,48 @@ export const BRANDBOOK_FUNCTION = 'theme.from_brandbook';
 export const BRANDBOOK_PROVIDERS = ['anthropic', 'openai', 'gemini'] as const;
 /** Tamanho máximo do PDF. */
 export const BRANDBOOK_MAX_BYTES = 20 * 1024 * 1024;
-/** Teto da resposta do modelo (o JSON é curto). */
-export const BRANDBOOK_MAX_OUTPUT_TOKENS = 1500;
+/**
+ * Teto da resposta do modelo. O JSON é curto, mas nos modelos que raciocinam o raciocínio conta no mesmo teto: um teto
+ * baixo corta o JSON e a leitura sai sem tema. O acerto usa a saída real, então o teto alto não encarece a leitura.
+ */
+export const BRANDBOOK_MAX_OUTPUT_TOKENS = 6000;
 /** Páginas que o modelo lê no máximo (acima disso, os provedores recusam ou cobram demais). */
 export const BRANDBOOK_MAX_PAGES = 100;
-/** Tokens de entrada estimados por página de PDF (texto e imagem da página). */
-const TOKENS_PER_PAGE = 2500;
+/** Tokens de entrada estimados por página de PDF: 1.500 a 3.000 de texto, mais a imagem da página. */
+const TOKENS_PER_PAGE = 3500;
 
-/** O arquivo é PDF pelo conteúdo (`%PDF-` no começo), não pela extensão nem pelo tipo que o navegador mandou. */
+/**
+ * O arquivo é PDF pelo conteúdo (`%PDF-` nos primeiros 1.024 bytes, como a especificação aceita), não pela extensão
+ * nem pelo tipo que o navegador mandou.
+ */
 export function isPdf(bytes: Uint8Array): boolean {
-  const sig = [0x25, 0x50, 0x44, 0x46, 0x2d];
-  return bytes.length > sig.length && sig.every((b, i) => bytes[i] === b);
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024));
+  return head.includes('%PDF-');
+}
+
+/** PDF protegido por senha (`/Encrypt` no trailer): os provedores não leem, então nem chega a reservar. */
+export function isEncryptedPdf(bytes: Uint8Array): boolean {
+  const tail = new TextDecoder('latin1').decode(bytes.subarray(Math.max(0, bytes.length - 64 * 1024)));
+  return /\/Encrypt\s/.test(tail);
+}
+
+/**
+ * Páginas contadas pelos objetos `/Type /Page` à vista; null quando a árvore de páginas está comprimida e não aparece.
+ * Serve para recusar antes de reservar um PDF com mais páginas do que o modelo lê.
+ */
+export function countedPdfPages(bytes: Uint8Array): number | null {
+  const text = new TextDecoder('latin1').decode(bytes);
+  const seen = text.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0;
+  return seen > 0 ? seen : null;
 }
 
 /**
  * Páginas do PDF, contadas pelos objetos `/Type /Page` que estiverem à vista; quando a árvore de páginas está
- * comprimida (não aparece), estima pelo tamanho (uma página a cada 150 KB). Serve só para a estimativa de créditos:
- * o acerto usa os tokens que o provedor informar.
+ * comprimida (não aparece), estima pelo tamanho (uma página a cada 60 KB, para não cotar abaixo do real). Serve só
+ * para a estimativa de créditos: o acerto usa os tokens que o provedor informar.
  */
 export function estimatePdfPages(bytes: Uint8Array): number {
-  const text = new TextDecoder('latin1').decode(bytes);
-  const seen = text.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0;
-  const pages = seen > 0 ? seen : Math.ceil(bytes.length / (150 * 1024));
+  const pages = countedPdfPages(bytes) ?? Math.ceil(bytes.length / (60 * 1024));
   return Math.min(Math.max(pages, 1), BRANDBOOK_MAX_PAGES);
 }
 
@@ -233,8 +253,9 @@ export function contrastReport(theme: WidgetTheme): { pair: string; ratio: numbe
     ['onPrimary/primary', onPrimary(theme.primary), theme.primary],
   ];
   return pairs.map(([pair, fg, bg]) => {
-    const ratio = Math.round(contrast(fg, bg) * 100) / 100;
-    return { pair, ratio, pass: ratio >= 4.5 };
+    // compara o valor cru (4,496 não passa) e arredonda só para mostrar
+    const raw = contrast(fg, bg);
+    return { pair, ratio: Math.round(raw * 100) / 100, pass: raw >= 4.5 };
   });
 }
 
@@ -297,9 +318,10 @@ export interface BrandbookThemes {
 export function buildBrandbookThemes(x: BrandbookExtract): BrandbookThemes {
   const light = themeFor(x, 'light');
   const dark = themeFor(x, 'dark');
-  const from = x.primary ?? FALLBACK_PRIMARY;
-  const adjusted = [light, dark]
-    .filter((t) => t.primary !== from)
-    .map((t) => ({ mode: t.mode, from, to: t.primary }));
+  // sem principal lida no manual, a cor padrão não é "ajustada": o cliente nunca mandou essa cor
+  const from = x.primary;
+  const adjusted = from
+    ? [light, dark].filter((t) => t.primary !== from).map((t) => ({ mode: t.mode, from, to: t.primary }))
+    : [];
   return { light, dark, adjusted };
 }

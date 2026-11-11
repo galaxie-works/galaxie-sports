@@ -173,7 +173,7 @@ export function FunctionsSection({
   callableFor,
 }: {
   functions: StaffFunction[];
-  /** Provedores que o assistente já sabe chamar. */
+  /** Provedores que cada função que chama modelo sabe chamar (os outros aparecem indisponíveis no cadastro). */
   callableFor: Record<string, Provider[]>;
 }) {
   const { t, locale } = useI18n();

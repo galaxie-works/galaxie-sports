@@ -51,7 +51,6 @@ export async function loadStaffWallets(): Promise<{
   rows: StaffWalletRow[];
   packages: Awaited<ReturnType<typeof listAllPackages>>;
   functions: Awaited<ReturnType<typeof listFunctionDefs>>;
-  /** Provedores que o assistente já sabe chamar (os outros aparecem indisponíveis no cadastro). */
   /** Provedores que cada função que chama modelo sabe chamar (para a criação de uma função nova). */
   callableFor: Record<string, CosmosProvider[]>;
   usdBrl: number | null;

@@ -1,7 +1,7 @@
 'use client';
 
 import { Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,8 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState<'estimar' | 'criar' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // corta o envio e a leitura quando a pessoa cancela ou fecha (o servidor devolve a reserva)
+  const abort = useRef<AbortController | null>(null);
 
   const message = (code: unknown) =>
     (typeof code === 'string' && (c.errors as Record<string, string>)[code]) || c.errors.generic;
@@ -55,26 +57,42 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
     if (!file) return;
     setBusy(step);
     setError(null);
+    const ctl = new AbortController();
+    abort.current = ctl;
     try {
       const body = new FormData();
       body.set('arquivo', file);
       if (step === 'criar' && quote) body.set('creditos', String(quote.credits));
-      const res = await fetch(`/api/cliente/cosmos/tema?etapa=${step}`, { method: 'POST', body });
+      const res = await fetch(`/api/cliente/cosmos/tema?etapa=${step}`, {
+        method: 'POST',
+        body,
+        signal: ctl.signal,
+      });
       const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
       if (!json?.ok) {
         if (json?.error === 'quote_changed') setQuote(null);
-        return setError(message(json?.error));
+        // "não é um manual": a nota do modelo explica o que ele viu no PDF
+        const notes = typeof json?.notes === 'string' && json.notes ? ` ${json.notes}` : '';
+        return setError(message(json?.error) + notes);
       }
       if (step === 'estimar') return setQuote({ credits: Number(json.credits), pages: Number(json.pages) });
       onResult(json as unknown as BrandbookResult);
-      setOpen(false);
-      setFile(null);
-      setQuote(null);
+      close();
     } catch {
-      setError(c.errors.generic);
+      if (!ctl.signal.aborted) setError(c.errors.generic);
     } finally {
+      if (abort.current === ctl) abort.current = null;
       setBusy(null);
     }
+  }
+
+  /** Fecha e limpa: ao reabrir, nada do arquivo anterior fica valendo. */
+  function close() {
+    abort.current?.abort();
+    setOpen(false);
+    setFile(null);
+    setQuote(null);
+    setError(null);
   }
 
   function choose(f: File | null) {
@@ -84,7 +102,7 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => busy === null && setOpen(o)}>
+    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Sparkles />
         {c.open}
@@ -124,6 +142,11 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
           </Alert>
         ) : null}
         <DialogFooter>
+          {busy === 'criar' ? (
+            <Button variant="outline" onClick={close}>
+              {c.cancel}
+            </Button>
+          ) : null}
           {quote ? (
             <Button onClick={() => send('criar')} disabled={!file || busy !== null}>
               {busy === 'criar' ? <Spinner /> : <Sparkles />}

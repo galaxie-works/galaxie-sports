@@ -110,7 +110,6 @@ export interface FunctionDefInput {
   model?: string | null;
 }
 
-/** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
 /**
  * A função tem quem chame esse provedor? O assistente chama os provedores com chamador (`ASSISTANT_STREAMERS`); o
  * tema a partir do brandbook, só os que leem PDF. Salvar outro deixaria a função "Ativa" respondendo indisponível.
@@ -122,6 +121,7 @@ export function providerHasCaller(functionName: string, provider: CosmosProvider
   return true;
 }
 
+/** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
 function checkFunctionModel(def: Pick<FunctionDefInput, 'name' | 'provider' | 'model'>) {
   const provider = def.provider ?? null;
   const model = def.model?.trim() || null;

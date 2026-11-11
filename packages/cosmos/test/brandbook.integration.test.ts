@@ -7,10 +7,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   addEntry,
   BRANDBOOK_FUNCTION,
+  BRANDBOOK_LIMITS,
   contrastReport,
   defaultModelFor,
   ensureWallet,
   getWallet,
+  release,
   quoteBrandbook,
   runBrandbook,
   upsertFunctionDef,
@@ -54,13 +56,17 @@ async function newTenant(credits = 1000): Promise<string> {
   return row!.id;
 }
 
-function fakeClient(text: string | Error): CompletionClient & { requests: CompletionRequest[] } {
+function fakeClient(
+  text: string | Error,
+  during?: () => Promise<void>,
+): CompletionClient & { requests: CompletionRequest[] } {
   const requests: CompletionRequest[] = [];
   return {
     provider: 'anthropic',
     requests,
     async complete(req) {
       requests.push(req);
+      await during?.();
       if (text instanceof Error) throw text;
       return {
         text,
@@ -163,7 +169,7 @@ describe('tema a partir do brandbook', () => {
       },
       env,
     );
-    expect(r).toEqual({ ok: false, error: 'unreadable' });
+    expect(r).toEqual({ ok: false, error: 'unreadable', notes: 'É uma nota fiscal.' });
     expect(await getWallet(db, t)).toMatchObject({ available: 1000, reserved: 0 });
     const [usage] = await db
       .select()
@@ -195,5 +201,93 @@ describe('tema a partir do brandbook', () => {
         provider: 'deepseek',
       }),
     ).rejects.toMatchObject({ code: 'provider_unavailable' });
+  });
+
+  it('o pedido não manda temperature (os modelos atuais da Anthropic recusam)', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const client = fakeClient(GOOD);
+    await runBrandbook(db, { tenantId: t, userId: 'u1', pdf, locale: 'pt-BR', quote, settings, client }, env);
+    expect(client.requests).toHaveLength(1);
+    expect(client.requests[0]).not.toHaveProperty('temperature');
+  });
+
+  it('acerto que falha de vez: o tema montado chega mesmo assim e o custo vai para o log', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    // a reserva fecha durante a leitura (a limpeza venceu a reserva): o acerto recusa com reservation_closed
+    const client = fakeClient(GOOD, async () => {
+      const [open] = await db
+        .select({ id: reservation.id })
+        .from(reservation)
+        .where(and(eq(reservation.tenantId, t), eq(reservation.status, 'open')));
+      await release(db, { tenantId: t, reservationId: open!.id });
+    });
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await runBrandbook(
+      db,
+      { tenantId: t, userId: 'u1', pdf, locale: 'pt-BR', quote, settings, client, settleBackoffMs: [1, 1] },
+      env,
+    );
+    expect(r).toMatchObject({ ok: true, charged: 0 });
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('acerto do brandbook falhou'),
+      expect.objectContaining({ tenantId: t }),
+    );
+    spy.mockRestore();
+  });
+
+  it('leituras sem tema têm teto por dia: depois dele, nenhuma chamada ao provedor', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const junk = '{"colors":[],"notes":"Não é um manual."}';
+    for (let i = 0; i < BRANDBOOK_LIMITS.tenantWaivedPerDay; i++) {
+      const r = await runBrandbook(
+        db,
+        { tenantId: t, userId: `u${i}`, pdf, locale: 'pt-BR', quote, settings, client: fakeClient(junk) },
+        env,
+      );
+      expect(r).toMatchObject({ ok: false, error: 'unreadable' });
+    }
+    const client = fakeClient(GOOD);
+    const r = await runBrandbook(
+      db,
+      { tenantId: t, userId: 'outra', pdf, locale: 'pt-BR', quote, settings, client },
+      env,
+    );
+    expect(r).toEqual({ ok: false, error: 'rate_limited' });
+    expect(client.requests).toHaveLength(0);
+  });
+
+  it('leituras por pessoa por hora têm teto', async () => {
+    const t = await newTenant(100_000);
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    for (let i = 0; i < BRANDBOOK_LIMITS.userPerHour; i++)
+      expect(
+        (
+          await runBrandbook(
+            db,
+            {
+              tenantId: t,
+              userId: 'rapida',
+              pdf,
+              locale: 'pt-BR',
+              quote,
+              settings,
+              client: fakeClient(GOOD),
+            },
+            env,
+          )
+        ).ok,
+      ).toBe(true);
+    const client = fakeClient(GOOD);
+    expect(
+      await runBrandbook(
+        db,
+        { tenantId: t, userId: 'rapida', pdf, locale: 'pt-BR', quote, settings, client },
+        env,
+      ),
+    ).toEqual({ ok: false, error: 'rate_limited' });
+    expect(client.requests).toHaveLength(0);
   });
 });

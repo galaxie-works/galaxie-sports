@@ -4,7 +4,9 @@ import {
   buildBrandbookThemes,
   contrast,
   contrastReport,
+  countedPdfPages,
   estimatePdfPages,
+  isEncryptedPdf,
   isPdf,
   normalizeFont,
   normalizeHex,
@@ -25,16 +27,25 @@ const extract = (over: Partial<BrandbookExtract> = {}): BrandbookExtract => ({
 });
 
 describe('arquivo do brandbook', () => {
-  it('PDF pelo conteúdo, não pela extensão', () => {
+  it('PDF pelo conteúdo, não pela extensão; cabeçalho em qualquer ponto do primeiro KB', () => {
     expect(isPdf(enc('%PDF-1.7\n...'))).toBe(true);
-    expect(isPdf(enc('<html>%PDF-'))).toBe(false);
+    expect(isPdf(enc('lixo do gerador\n%PDF-1.4\n...'))).toBe(true);
+    expect(isPdf(enc(' '.repeat(1100) + '%PDF-1.4'))).toBe(false);
+    expect(isPdf(enc('<html><body>oi</body></html>'))).toBe(false);
     expect(isPdf(enc('PK\u0003\u0004'))).toBe(false);
     expect(isPdf(enc('%PDF'))).toBe(false);
   });
 
+  it('PDF com senha: /Encrypt no trailer', () => {
+    expect(isEncryptedPdf(enc('%PDF-1.7\ntrailer << /Root 1 0 R /Encrypt 5 0 R >>'))).toBe(true);
+    expect(isEncryptedPdf(enc('%PDF-1.7\ntrailer << /Root 1 0 R >>'))).toBe(false);
+  });
+
   it('páginas pela árvore à vista; comprimida, pelo tamanho; sempre entre 1 e 100', () => {
     expect(estimatePdfPages(enc('%PDF-1.4 /Type /Pages /Type /Page /Type/Page /Type /Page'))).toBe(3);
-    expect(estimatePdfPages(new Uint8Array(600 * 1024))).toBe(4);
+    expect(estimatePdfPages(new Uint8Array(600 * 1024))).toBe(10);
+    expect(countedPdfPages(new Uint8Array(600 * 1024))).toBeNull();
+    expect(countedPdfPages(enc('/Type /Page '.repeat(150)))).toBe(150);
     expect(estimatePdfPages(new Uint8Array(10))).toBe(1);
     expect(estimatePdfPages(enc('/Type /Page '.repeat(500)))).toBe(100);
   });
@@ -147,5 +158,18 @@ describe('temas claro e escuro', () => {
     expect(contrastReport(light).every((p) => p.pass)).toBe(true);
     expect(contrastReport(dark).every((p) => p.pass)).toBe(true);
     expect(light.fontFamily.startsWith('system-ui')).toBe(true);
+  });
+
+  it('sem principal no manual: a cor padrão não aparece como "ajustada" na nota', () => {
+    expect(buildBrandbookThemes(extract({ primary: null })).adjusted).toEqual([]);
+  });
+
+  it('o relatório compara o contraste cru (4,499 não passa) e só arredonda para mostrar', () => {
+    const { light } = buildBrandbookThemes(extract());
+    const row = contrastReport({ ...light, foreground: '#1b8577', background: '#ffffff' }).find(
+      (r) => r.pair === 'foreground/background',
+    )!;
+    expect(row.ratio).toBe(4.5);
+    expect(row.pass).toBe(false);
   });
 });

@@ -68,7 +68,14 @@ export function BrandThemePreview({ theme }: { theme: WidgetTheme }) {
 }
 
 /** Criar ou editar um tema da marca: nome, tema (o mesmo editor do widget) e a prévia ao lado. */
-export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }) {
+export function BrandThemeEditor({
+  initial,
+  cosmos: cosmosAllowed = false,
+}: {
+  initial: BrandThemeItem | null;
+  /** Mostra o botão da Cosmos (só no tema novo, para quem usa a Cosmos e salva temas). */
+  cosmos?: boolean;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const th = t.client.themes;
@@ -81,13 +88,24 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
   const dirty = saved !== snapshot(name, theme);
   const linked = initial?.widgetCount ?? 0;
   // tema montado pela Cosmos a partir do brandbook (#1004): as duas versões, para o cliente escolher antes de salvar
+  // a versão em edição fica em estado próprio (não no `mode` do tema, que o editor também troca) e as edições de
+  // cada versão ficam guardadas ao trocar entre Clara e Escura
   const [cosmos, setCosmos] = useState<BrandbookResult | null>(null);
+  const [version, setVersion] = useState<'light' | 'dark'>('light');
   const cc = th.cosmos;
 
   function fromCosmos(r: BrandbookResult) {
     setCosmos(r);
+    setVersion('light');
     setTheme({ ...r.light });
     toast.success(fill(cc.charged, { credits: r.charged }));
+  }
+
+  function pickVersion(v: 'light' | 'dark') {
+    if (!cosmos || v === version) return;
+    setCosmos({ ...cosmos, [version]: theme });
+    setVersion(v);
+    setTheme({ ...cosmos[v] });
   }
 
   function save() {
@@ -152,9 +170,9 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
                 </AlertDialogContent>
               </AlertDialog>
             </>
-          ) : (
+          ) : cosmosAllowed ? (
             <BrandbookDialog onResult={fromCosmos} />
-          )}
+          ) : null}
           <Button onClick={save} disabled={pending || !name.trim() || (!!initial && !dirty)}>
             {pending ? <Spinner /> : <Save />}
             {initial ? th.save : th.saveNew}
@@ -196,10 +214,10 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
                     size="sm"
                     spacing={0}
                     aria-label={cc.pick}
-                    value={[theme.mode]}
+                    value={[version]}
                     onValueChange={(next) => {
                       const v = next[0];
-                      if (v === 'light' || v === 'dark') setTheme({ ...cosmos[v] });
+                      if (v === 'light' || v === 'dark') pickVersion(v);
                     }}
                   >
                     <ToggleGroupItem value="light">{cc.light}</ToggleGroupItem>
