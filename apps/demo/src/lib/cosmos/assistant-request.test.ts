@@ -63,7 +63,8 @@ describe('quem pode perguntar', () => {
     expect(assistantAccessError({ role: 'client', tenant, actor: as('owner') })).toBeNull();
     expect(assistantAccessError({ role: 'client', tenant, actor: as('moderator') })).toBeNull();
     expect(assistantAccessError({ role: 'client', tenant, actor: as('volunteer') })).toBe('role');
-    expect(assistantAccessError({ role: 'admin', tenant, actor: { kind: 'galaxie_staff' } })).toBe('staff');
+    // a equipe Galaxie pergunta sem gastar os créditos do cliente (a rota usa askAssistantAsStaff)
+    expect(assistantAccessError({ role: 'admin', tenant, actor: { kind: 'galaxie_staff' } })).toBeNull();
     expect(
       assistantAccessError({
         role: 'client',

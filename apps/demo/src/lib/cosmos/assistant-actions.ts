@@ -29,5 +29,6 @@ export async function estimateAssistantQuestion(body: unknown): Promise<Estimate
     await getRequestLocale(),
   );
   if (!prepared) return { ok: false, error: 'unavailable' };
-  return { ok: true, credits: prepared.credits };
+  // a equipe Galaxie não gasta créditos do cliente
+  return { ok: true, credits: ctx.role === 'admin' ? 0 : prepared.credits };
 }
