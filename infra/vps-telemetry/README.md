@@ -27,6 +27,19 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
 - Não tocar nas outras stacks em `/docker/` (nada de editar, parar, `down` ou `pull` nelas).
 - Proibido: `docker system prune`, `docker volume prune`, `docker network prune`, mexer no `ufw`, publicar portas.
 - Segredos só no `.env` da VPS (`chmod 600`), gerados lá com `openssl rand -hex 32`; nunca impressos.
+- Os internos (`FAN_TOKEN_SECRET`, `STREAM_TOKEN_SECRET`, `BETTER_AUTH_SECRET`, `SETTINGS_KEK`) o deploy gera sozinho
+  quando estão vazios ou com o valor de exemplo (`ensure-secrets.sh`); o que já existe nunca muda. O `BETTER_AUTH_SECRET` também
+  assina os links dos anexos das sugestões e as referências `u_`/`t_` das issues: gerado no lugar do valor de exemplo,
+  isso tudo muda junto com as sessões. `METRICS_TOKEN` só avisa, porque o Prometheus só lê o novo quando o obs sobe de
+  novo. Chaves de fornecedor e o segredo dos webhooks seguem à mão. Linha com `export`, espaços em volta do `=` ou `:` no
+  lugar do `=` faz o script parar sem gerar nada.
+- **`SETTINGS_KEK` nunca pode ser trocada nem perdida.** Ela abre as chaves gravadas em Ajustes → Credenciais
+  (api-sports, provedores de IA, Stripe etc.; runbook `docs/runbooks/chaves-no-painel.md`, que chega com o #1089). Quando o deploy
+  gera uma nova, a saída avisa: guarde uma cópia fora da VPS (cofre de senhas). Se ela for
+  perdida ou apagada, o deploy gera outra; se for trocada à mão por outro valor, vale o novo. Nos dois casos as chaves
+  gravadas pelo painel não abrem mais: os serviços voltam às do `.env` e cada chave precisa ser cadastrada de novo no
+  painel. Se a última linha da chave estiver vazia ou de exemplo e outra linha tiver valor, o deploy para sem gerar nada. Trocar de propósito só pela rotação do runbook
+  (`nova,antiga` e "Recifrar com a chave atual").
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).
 

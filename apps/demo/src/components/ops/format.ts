@@ -53,7 +53,8 @@ export function optionLabel(t: T, def: SettingDef, option: string): string {
     def.key === 'LIVE_FEATURED' ||
     def.key === 'ASSETS_CUSTOM_LOGOS' ||
     def.key === 'WTW_CHANNEL_POST' ||
-    def.key === 'AI_STATUS'
+    def.key === 'AI_STATUS' ||
+    def.key === 'FEEDBACK_ENABLED'
   )
     return t.values[option as 'off' | 'auto' | 'on'] ?? option;
   if (def.key === 'LIVE_MIN_PRIORITY')

@@ -5,7 +5,7 @@
  * Endpoints e formatos: docs/research/api-sports-outros-esportes.md.
  */
 import { flagUrl, isProviderMediaUrl, type ApiSport, type Params } from '@galaxie/apisports-client';
-import { slugify } from '@galaxie/core-writer';
+import { competitionSlugBase, slugify } from '@galaxie/core-writer';
 import type { I18nText } from '@galaxie/db';
 import { F1_COMPETITION_ID, MMA_COMPETITION_ID } from '@galaxie/providers';
 import type { SportCatalogCompetition } from './catalog-config.js';
@@ -273,7 +273,8 @@ function competitionFrom(
 ): CompetitionRow {
   return {
     providerId,
-    slug: cfg?.slug ?? `${slugify(country.name)}-${slugify(name)}-${slugify(providerId)}`,
+    slug: cfg?.slug ?? competitionSlugBase(country.name, name),
+    generatedSlug: !cfg?.slug,
     name,
     labels: (cfg?.labels as I18nText | undefined) ?? null,
     countryCode: sportCountryCode(country),

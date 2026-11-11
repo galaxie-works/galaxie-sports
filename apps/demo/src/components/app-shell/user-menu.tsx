@@ -107,9 +107,7 @@ export function UserMenu() {
               </DropdownMenuItem>
             ) : null}
             {isAdmin ? (
-              <DropdownMenuItem
-                render={<Link href="/ajustes/sistema" onClick={topLevelClick('/ajustes/sistema')} />}
-              >
+              <DropdownMenuItem render={<Link href="/ajustes" onClick={topLevelClick('/ajustes')} />}>
                 <SlidersHorizontal />
                 {t.shell.userMenu.operations}
               </DropdownMenuItem>

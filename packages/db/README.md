@@ -12,6 +12,9 @@ helpers de banco compartilhados (trava de job, change feed, grades, widgets, ví
 | `multisport` · `equestrian` | Olimpíadas/Pan e hipismo |
 | `api` | Tenants, chaves, uso, webhooks, widgets do Builder |
 | `ops` | Cota, cursores de sync, jobs, change feed, uso de LLM, configuração em tempo de execução |
+| `cosmos` | Cosmos AI: carteira de créditos por tenant, extrato, reservas e catálogo de funções (regras em `@galaxie/cosmos`) |
+| `engage` | Plataforma de engajamento: ficha de regras por país (versão e histórico) e países de cada cliente (regras em `@galaxie/engage`) |
+| `fan` | Identidade do torcedor (#937): Conta, Perfil e registro de exclusão, só ids pseudônimos do cliente. Só a API escreve; agentes e ingestor não leem (docs/05 §9) |
 
 Modelo completo: [docs/04](../../docs/04-modelo-de-dados.md).
 
@@ -23,8 +26,8 @@ papel. Detalhes e passo a passo: [runbook](../../docs/runbooks/papeis-do-banco.m
 
 | Papel | URL | Lê | Escreve | Conexões |
 |---|---|---|---|---|
-| `galaxie_api` | `DB_URL_API` | todos os schemas | `api`, `enrich`, `ops` | 45 |
-| `galaxie_demo` | `DB_URL_DEMO` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `core.asset` (dona do `demo_auth`) | 30 |
+| `galaxie_api` | `DB_URL_API` | todos os schemas | `api`, `enrich`, `ops`, `cosmos`, `fan`, `engage` | 45 |
+| `galaxie_demo` | `DB_URL_DEMO` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `engage`, `core.asset` (dona do `demo_auth`) | 30 |
 | `galaxie_ingestor` | `DB_URL_INGESTOR` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 40 |
 | `galaxie_agents` | `DB_URL_AGENTS` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
 | `galaxie_live` | `DB_URL_LIVE` | `core`, `ops`, `raw`, `semantic` | `core`, `raw.api_response`, `ops.change_feed`, `ops.job_run`, `ops.sync_cursor`, `ops.quota_*` | 36 |

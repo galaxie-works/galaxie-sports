@@ -17,3 +17,12 @@ export const API_HOSTS = {
 export type ApiSport = keyof typeof API_HOSTS;
 
 export const API_SPORTS = Object.keys(API_HOSTS) as ApiSport[];
+
+/** Cabeçalho em que a api-sports recebe a chave. */
+export const API_KEY_HEADER = 'x-apisports-key';
+
+/**
+ * `GET /status` da API de futebol: não consome cota. O painel usa para o "Testar antes de salvar" da chave (#1087) sem
+ * escrever o host fora deste pacote (regra so-o-apisports-client-fala-com-a-api-sports).
+ */
+export const API_STATUS_URL = `${API_HOSTS.football.base}/status`;

@@ -31,6 +31,9 @@ x-node-env: &node-env
   S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+  # KEK das chaves trocadas no painel (#1087): abre as linhas <CHAVE>_SEALED de ops.runtime_setting. Vazia = vale o .env
+  # (docs/runbooks/chaves-no-painel.md)
+  SETTINGS_KEK: ${SETTINGS_KEK:-}
   APISPORTS_PLAN: ${APISPORTS_PLAN:-free}
   # Plano por API (cada API tem assinatura própria); vazio = APISPORTS_PLAN.
   APISPORTS_PLAN_FOOTBALL: ${APISPORTS_PLAN_FOOTBALL:-}
@@ -84,10 +87,15 @@ services:
       # token curto do SSE (POST /v1/stream/token): mesmo segredo em todas as instâncias; vazio = aleatório por
       # processo (o token emitido antes de um deploy não abre o stream depois dele; o cliente pede outro)
       STREAM_TOKEN_SECRET: ${STREAM_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET: ${FAN_TOKEN_SECRET:-}
+      FAN_TOKEN_SECRET_PREVIOUS: ${FAN_TOKEN_SECRET_PREVIOUS:-}
       LIVE_POLL_INTERVAL_SECONDS: ${LIVE_POLL_INTERVAL_SECONDS:-300}
       # teto de streams SSE deste contêiner (todos os tenants); acima, 503 com Retry-After (mem_limit 512m)
       SSE_MAX_CONNECTIONS: ${SSE_MAX_CONNECTIONS:-1000}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # Cosmos AI (#993): segredo do endpoint do webhook do Stripe (whsec_…). Vazio, POST /webhooks/stripe/cosmos
+      # responde 503 e o Stripe tenta de novo depois
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
       # Hardening (SECURITY.md): CORS estrito, /internal/admin (chave + allowlist), proxy confiável, HSTS
@@ -166,9 +174,21 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Chaves de API trocadas no painel (Ajustes → Credenciais, #1087): a demo cifra ao gravar e abre ao reler (a cada
+      # minuto). Vazia: o painel não grava chaves; o token das sugestões gravado antes abre pela WEBHOOK_SIGNING_SECRET
+      SETTINGS_KEK: ${SETTINGS_KEK:-}
       # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
       # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      # Cosmos AI (#993): chave secreta do Stripe da Galaxie Works LLC (sk_test_… no ensaio), para abrir o Checkout dos
+      # pacotes de créditos. Vazia: a compra fica indisponível no painel do cliente
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Cosmos AI (#1003): chaves dos provedores só do assistente do app (também trocáveis no painel). Vazia a do
+      # provedor escolhido: o assistente responde "indisponível"
+      COSMOS_ANTHROPIC_API_KEY: ${COSMOS_ANTHROPIC_API_KEY:-}
+      COSMOS_DEEPSEEK_API_KEY: ${COSMOS_DEEPSEEK_API_KEY:-}
+      COSMOS_GEMINI_API_KEY: ${COSMOS_GEMINI_API_KEY:-}
+      COSMOS_OPENAI_API_KEY: ${COSMOS_OPENAI_API_KEY:-}
       # "Sugerir ou reportar algo" do cabeçalho vira issue numa repo PRIVADA só de sugestões (docs/runbooks/sugestoes-do-app.md):
       # token próprio, só dessa repo (Issues: read and write). Vazio, ou repo pública: o formulário responde "indisponível".
       # As imagens vão para o bucket privado das tarefas (feedback/) e a issue as mostra por link assinado da demo
@@ -457,6 +477,9 @@ services:
       QUEUE_MODE: ${QUEUE_MODE:-enqueue}
       # Qualidade dos dados (job data-quality): as regras da F1 leem a API do próprio stack; sem a chave, saem "puladas"
       SCHEDULE_DATA_QUALITY: ${SCHEDULE_DATA_QUALITY:-40 4 * * *}
+      # Cosmos AI (#994): reservas vencidas, teste vencido e recarga automática a cada 5 min; a recarga só cobra com a chave
+      SCHEDULE_COSMOS_UPKEEP: ${SCHEDULE_COSMOS_UPKEEP:-*/5 * * * *}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       QUALITY_API_URL: ${QUALITY_API_URL:-http://api:8080}
       QUALITY_API_KEY: ${QUALITY_API_KEY:-}
     depends_on:
@@ -539,6 +562,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       # heartbeat da checagem de crédito na página de status (Better Stack); vazio = não avisa
       AI_HEARTBEAT_URL: ${AI_HEARTBEAT_URL:-}
       # pesquisa de direitos por temporada com outro provedor (vazio = AI_PROVIDER)

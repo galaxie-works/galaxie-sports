@@ -237,7 +237,8 @@ export const changeFeedPrune = ops.table('change_feed_prune', {
 /**
  * Configuração da operação em tempo de execução (painel Ajustes → Operação). Precedência: esta tabela >
  * env do contêiner > padrão do código (`@galaxie/runtime-config`). Valores sempre em texto, já
- * validados pelo tipo da flag; segredos nunca entram aqui.
+ * validados pelo tipo da flag. Segredos não entram aqui, com uma exceção: o token das sugestões do app, sempre
+ * cifrado com a KEK (FEEDBACK_GITHUB_TOKEN_SEALED, apps/demo/src/lib/feedback/settings.ts).
  */
 export const runtimeSetting = ops.table('runtime_setting', {
   key: text('key').primaryKey(),

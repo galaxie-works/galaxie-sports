@@ -4,7 +4,8 @@
  * e o painel precisa do histórico, da fila e do relatório de env de cada contêiner.
  *
  * Nenhum segredo sai daqui: os contêineres relatam credenciais só como "configurada ou não"
- * (ops.runtime_env.value fica nulo) e as da própria demo passam pelo mesmo `envReport`.
+ * (ops.runtime_env.value fica nulo; na SETTINGS_KEK, só os ids das KEKs) e as da própria demo passam pelo mesmo
+ * `envReportWithKek`.
  */
 import {
   AI_CREDIT_CHECK,
@@ -19,7 +20,7 @@ import {
   SETTINGS,
   bandLimitsUsd,
   budgetDayOf,
-  envReport,
+  isPanelSecret,
   isSecret,
   nextCronRuns,
   parseAgentStatus,
@@ -28,17 +29,34 @@ import {
   planKey,
   reportedService,
   resolveAll,
+  sealedBaseKey,
+  sealedKey,
+  settingDef,
   validateSettingKey,
   type RuntimeService,
+  type SettingDef,
 } from '@galaxie/runtime-config';
+import {
+  envReportWithKek,
+  parseSettingsKekStatus,
+  sealedKid,
+  secretHint,
+  type SettingsKekStatus,
+  type SettingsSecretBox,
+} from '@galaxie/runtime-config/sealed';
 
 import { pool } from '@/lib/auth/db';
+import { FEEDBACK_SEALED_TOKEN_KEY, resolveFeedbackSettings } from '@/lib/feedback/settings';
+import { readProgressRun } from '@/lib/notifications/store';
 
+import { containerEnv, settingsSecrets } from './panel-secrets';
 import { readQuality } from './quality';
+import { isTestableSecret } from './secret-tests';
 import { readTasks } from './tasks';
 import { readYoutube } from './youtube';
 import type {
   CreditStatus,
+  FeedbackPanelState,
   HistoryRow,
   JobRequestRow,
   JobStatus,
@@ -46,6 +64,7 @@ import type {
   OpsSetting,
   OpsSnapshot,
   LiveServiceStatus,
+  SecretState,
   MirrorSnapshot,
   QuotaRow,
   ServiceStatus,
@@ -86,11 +105,11 @@ async function readSettings(now: Date) {
     ),
     query<EnvRow>('select service, key, value, configured, reported_at from ops.runtime_env'),
   ]);
-  // a demo relata o próprio env do mesmo jeito (segredos só como configurado)
+  // a demo relata o próprio env do mesmo jeito (segredos só como configurado); o do contêiner, sem as chaves do painel
   const demoAt = now;
   const env = new Map<string, EnvRow>();
   for (const r of envRows) env.set(`${r.service}|${r.key}`, r);
-  for (const r of envReport('demo', process.env))
+  for (const r of envReportWithKek('demo', containerEnv()))
     env.set(`demo|${r.key}`, { service: 'demo', ...r, reported_at: demoAt });
 
   const overrideMap = new Map(overrides.map((o) => [o.key, o]));
@@ -99,6 +118,15 @@ async function readSettings(now: Date) {
     const def = SETTINGS.find((s) => s.key === key);
     return def ? env.get(`${reportedService(def, (svc) => env.has(`${svc}|${key}`))}|${key}`) : undefined;
   };
+  const box = settingsSecrets();
+  const secretState = (def: SettingDef): SecretState =>
+    panelSecretState(
+      def,
+      overrideMap,
+      box,
+      (svc) => env.get(`${svc}|SETTINGS_KEK`)?.configured,
+      (svc) => parseSettingsKekStatus(env.get(`${svc}|SETTINGS_KEK`)?.value),
+    );
   const resolved = resolveAll({
     overrides: new Map(overrides.map((o) => [o.key, o.value])),
     env: (key) => reportedRow(key)?.value ?? null,
@@ -123,6 +151,7 @@ async function readSettings(now: Date) {
       reportedAt: iso(reported?.reported_at),
       nextRuns:
         def.type === 'cron' && r.value ? nextCronRuns(r.value, 3, now).map((d) => d.toISOString()) : [],
+      ...(isSecret(def) ? { secret: secretState(def) } : {}),
     };
   });
 
@@ -145,7 +174,66 @@ async function readSettings(now: Date) {
   );
   const live = services.find((s) => s.service === 'live');
   if (live) live.live = await readLiveService();
-  return { settings, services };
+
+  // tenta abrir o token só para dizer se ele abre; o valor não sai daqui
+  const feedbackState = resolveFeedbackSettings(
+    new Map(overrides.map((o) => [o.key, o.value])),
+    containerEnv(),
+    box,
+  );
+  const sealedToken = overrideMap.get(FEEDBACK_SEALED_TOKEN_KEY);
+  const feedback: FeedbackPanelState = {
+    tokenInPanel: feedbackState.tokenInPanel,
+    tokenUnreadable: feedbackState.tokenUnreadable,
+    envTokenConfigured: Boolean(containerEnv().FEEDBACK_GITHUB_TOKEN?.trim()),
+    kekConfigured: box !== null,
+    tokenChangedBy: sealedToken?.updated_by ?? null,
+    tokenChangedAt: iso(sealedToken?.updated_at),
+    progress: await readProgressRun().catch(() => null),
+  };
+  return { settings, services, feedback };
+}
+
+/**
+ * Situação de uma chave secreta para a tela (#1087): tenta abrir a linha cifrada só para dizer se abre e mostrar os 4
+ * últimos caracteres; o valor não sai daqui. `kekReported(svc)` diz se o serviço relatou ter a SETTINGS_KEK
+ * (`undefined` = não relatou: não entra no aviso); `kekStatus(svc)`, os ids das KEKs dele (`null` = serviço que não
+ * relata os ids: não entra no aviso de KEK diferente).
+ */
+export function panelSecretState(
+  def: SettingDef,
+  overrides: ReadonlyMap<string, { value: string; updated_by: string; updated_at: Date }>,
+  box: SettingsSecretBox | null,
+  kekReported: (service: RuntimeService) => boolean | undefined,
+  kekStatus: (service: RuntimeService) => SettingsKekStatus | null = () => null,
+): SecretState {
+  const editable = isPanelSecret(def);
+  const row = editable ? overrides.get(sealedKey(def.key)) : undefined;
+  const opened = row && box ? box.open(def.key, row.value) : null;
+  // a linha diz com qual KEK foi cifrada; o serviço com KEK curta ou sem esse id não abre (lá vale o .env)
+  const kid = row ? sealedKid(row.value) : null;
+  const kekMismatch =
+    kid === null
+      ? []
+      : def.services.filter((svc) => {
+          // a própria demo já aparece em `unreadable` (abre com o cofre dela, aqui)
+          if (svc === 'demo' || kekReported(svc) !== true) return false;
+          const status = kekStatus(svc);
+          return status !== null && (status.invalid || !status.kids.includes(kid));
+        });
+  return {
+    editable,
+    inPanel: Boolean(row),
+    unreadable: Boolean(row) && opened === null,
+    hint: opened !== null ? secretHint(opened, def.key) : null,
+    needsReseal: Boolean(row && box?.needsReseal(def.key, row.value)),
+    kekMissing: editable ? def.services.filter((svc) => kekReported(svc) === false) : [],
+    kekMismatch,
+    canSave: editable && box !== null,
+    testable: editable && isTestableSecret(def.key),
+    changedBy: row?.updated_by ?? null,
+    changedAt: iso(row?.updated_at),
+  };
 }
 
 /**
@@ -460,7 +548,11 @@ async function readCredit(): Promise<{ credit: CreditStatus | null; pending: boo
   };
 }
 
-async function readHistory(): Promise<HistoryRow[]> {
+/**
+ * As 100 mudanças mais recentes do histórico de ajustes. Com `key` (o `?chave=` do "Ver no histórico"), o filtro vai
+ * no banco: as 100 mais recentes daquela chave, e não só as que caberiam nas 100 mais recentes de todas.
+ */
+export async function readHistory(key?: string | null): Promise<HistoryRow[]> {
   const rows = await query<{
     id: string;
     key: string;
@@ -470,12 +562,18 @@ async function readHistory(): Promise<HistoryRow[]> {
     changed_by: string;
     changed_at: Date;
   }>(
-    `select id, key, action, old_value, new_value, changed_by, changed_at
-       from ops.runtime_setting_log order by changed_at desc, id desc limit 100`,
+    key
+      ? `select id, key, action, old_value, new_value, changed_by, changed_at
+           from ops.runtime_setting_log where key = any($1) order by changed_at desc, id desc limit 100`
+      : `select id, key, action, old_value, new_value, changed_by, changed_at
+           from ops.runtime_setting_log order by changed_at desc, id desc limit 100`,
+    // segredo trocado no painel: o histórico dele está na linha cifrada (`<CHAVE>_SEALED`)
+    key ? [isPanelSecret(settingDef(key)) ? [key, sealedKey(key)] : [key]] : [],
   );
   return rows.map((r) => ({
     id: Number(r.id),
-    key: r.key,
+    // a linha cifrada aparece como a chave do registro (o valor nunca: o histórico só tem a máscara)
+    key: sealedBaseKey(r.key) && settingDef(sealedBaseKey(r.key)!) ? sealedBaseKey(r.key)! : r.key,
     action: r.action,
     oldValue: r.old_value,
     newValue: r.new_value,
@@ -635,17 +733,21 @@ async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
 /**
  * Tudo que o painel mostra, numa leitura. Quem chama confere a sessão de admin (página e rota usam
  * `requireAdmin`/`adminFromHeaders`); esta função não lê cookies, para servir também à checagem do smoke.
+ * `historyKey` filtra o histórico de ajustes no banco (o `?chave=` da página do histórico).
  */
-export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
+export async function readOpsSnapshot(
+  now: Date = new Date(),
+  options: { historyKey?: string | null } = {},
+): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
-  const { settings, services } = await readSettings(now);
+  const { settings, services, feedback } = await readSettings(now);
   const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror] =
     await Promise.all([
       readJobs(),
       readQuota(dayUtc, settings),
       readLlm(now, settings),
       readCredit(),
-      readHistory(),
+      readHistory(options.historyKey),
       readRequests(),
       readQuality(),
       readYoutube(now, settings),
@@ -657,6 +759,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
     generatedAt: now.toISOString(),
     dayUtc,
     settings,
+    feedback,
     services,
     jobs,
     quota,

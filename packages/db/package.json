@@ -58,6 +58,14 @@
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "default": "./dist/schema/index.js"
+    },
+    "./engage-modules": {
+      "types": "./dist/engage-modules.d.ts",
+      "default": "./dist/engage-modules.js"
+    },
+    "./runtime-settings": {
+      "types": "./dist/runtime-settings.d.ts",
+      "default": "./dist/runtime-settings.js"
     }
   },
   "files": [

@@ -76,6 +76,13 @@ while [ $# -gt 0 ]; do
   esac
 done
 shift
+# segredo gravado à mão no .env durante o deploy: antes da troca (GRAVA_NO_DEPLOY) e depois dela (GRAVA_POS_TROCA)
+if [ -n "${GRAVA_NO_DEPLOY:-}" ] && [ -e "$VPS_DIR/.env.next" ] && ! grep -q '^NO_DEPLOY=' "$VPS_DIR/.env"; then
+  echo "NO_DEPLOY=$GRAVA_NO_DEPLOY" >> "$VPS_DIR/.env"
+fi
+if [ -n "${GRAVA_POS_TROCA:-}" ] && grep -q "^DEPLOY_SHA=${SHA:-}\$" "$VPS_DIR/.env" && ! grep -q '^POS_TROCA=' "$VPS_DIR/.env"; then
+  echo "POS_TROCA=$GRAVA_POS_TROCA" >> "$VPS_DIR/.env"
+fi
 exec bash -c "$*"
 SH
 chmod +x "$BIN/ssh"
@@ -102,7 +109,7 @@ echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a"
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"
 for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh maintenance.sh migrar-para-tres-projetos.sh rolling-swap.sh candidate.sh \
-  pre-migrate-dump.sh prune-images.sh; do
+  pre-migrate-dump.sh prune-images.sh ensure-secrets.sh; do
   cp "$HERE/$f" "$REPO_T/infra/vps-telemetry/"
 done
 # pós-deploy e smoke de faz de conta. O node do contêiner é um sh: o smoke.mjs daqui é shell.
@@ -518,8 +525,9 @@ publish
 before="$(created)"
 api_tag="$(env_of TAG_API)"
 : > "$VPS_D/post-deploy.log"
-deploy "$C2"
+deploy "$C2" GRAVA_NO_DEPLOY=mantida
 expect_rc 0
+expect_eq "o que foi gravado no .env durante o deploy fica" "$(env_of NO_DEPLOY)" "mantida"
 expect_log '^plano:.*demo: troca \(in-[0-9a-f]+ → in-[0-9a-f]+\)'
 expect_log '^plano:.*ingestor: igual, fica'
 expect_log '^plano:.*live: igual, fica'
@@ -671,11 +679,12 @@ echo w >> "$REPO_T/apps/demo/x"
 touch "$REPO_T/QUEBRA_ingestor" "$REPO_T/QUEBRA_demo"
 C7="$(commit "c7")"
 publish
-deploy "$C7"
+deploy "$C7" GRAVA_POS_TROCA=mantida
 expect_rc 1
 expect_log 'a troca falhou em mais de um serviço'
 expect_log '^FAIL  deploy desfeito'
-expect_eq ".env de antes" "$(cat "$VPS_D/.env")" "$env_before"
+expect_eq "o que foi gravado depois da troca sobrevive à volta" "$(env_of POS_TROCA)" "mantida"
+expect_eq ".env de antes" "$(grep -v '^POS_TROCA=' "$VPS_D/.env")" "$env_before"
 expect_eq "um Postgres rodando" "$(docker ps -q --filter "volume=${PROJECT_T}_pgdata" | grep -c .)" 1
 expect_eq "contêiner avulso intacto na volta do projeto" \
   "$(docker inspect -f '{{.State.Running}} {{.Created}}' "$PROJECT_T-avulso")" "$avulso"

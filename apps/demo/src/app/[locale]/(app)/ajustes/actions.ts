@@ -13,6 +13,7 @@ import { clearOtpFailures } from '@/lib/auth/otp-guard';
 import { sendInvite } from '@/lib/auth/invite';
 import { isRole, needsTenant, type Role } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
+import { removeMembershipsOf } from '@/lib/client/members';
 import { tenantExists } from '@/lib/client/tenants';
 import { isLocale, type Locale } from '@/lib/i18n/config';
 import { getDictionary, type Dictionary } from '@/lib/i18n/dictionary';
@@ -177,6 +178,17 @@ export async function updateAccess(
   const tenant = await tenantFor(input.role, input.tenantId);
   if ('error' in tenant) return fail(tenant.error);
   try {
+    const { rows: before } = await pool.query<{ tenant_id: string | null }>(
+      'select tenant_id from "user" where id = $1',
+      [userId],
+    );
+    // cliente trocado de tenant (ou que deixou de ser cliente) perde o cargo no tenant anterior: sem isso, o
+    // primeiro acesso dava Dono no tenant novo e o antigo continuava na troca de tenant. Sai ANTES de gravar o
+    // tenant novo: se a remoção falhar, o usuário fica no tenant anterior e repetir a ação conserta (com a ordem
+    // inversa, o "anterior" da segunda tentativa já seria o novo e o cargo antigo ficava para sempre).
+    const previous = before[0]?.tenant_id ?? null;
+    if (previous && previous !== tenant.tenantId)
+      await removeMembershipsOf(userId, `galaxie:${me.id}`, previous);
     const h = await headers();
     await auth.api.setRole({ headers: h, body: { userId, role: input.role } });
     await auth.api.adminUpdateUser({
@@ -273,6 +285,9 @@ export async function removeUser(userId: string): Promise<ActionResult> {
   const me = await requireAdmin();
   if (userId === me.id) return fail('selfRemove');
   try {
+    // cargos da pessoa (a coluna não tem chave estrangeira para o usuário do console). Antes de apagar o usuário:
+    // a auditoria lê o e-mail dele em "user", e depois do removeUser o registro ficaria sem a pessoa
+    await removeMembershipsOf(userId, `galaxie:${me.id}`);
     await auth.api.removeUser({ headers: await headers(), body: { userId } });
     await pool.query('delete from activity where user_id = $1', [userId]);
     await pool.query('delete from invite where user_id = $1', [userId]);

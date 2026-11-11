@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { SettingsNav } from '@/components/admin/settings-nav';
+import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
@@ -72,17 +72,17 @@ export default async function ReviewPage({ searchParams }: PageProps<'/[locale]/
     <>
       <PageHeader title={t.review.page.title} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsNav active="review" />
-        <p className="text-muted-foreground max-w-3xl text-sm">{t.review.page.description}</p>
-        <Suspense
-          fallback={
-            <LoadingStatus>
-              <ToolbarTableSkeleton columns={['w-6', 'flex-1', 'w-28', 'w-24', 'w-20']} />
-            </LoadingStatus>
-          }
-        >
-          <List searchParams={searchParams} />
-        </Suspense>
+        <SettingsArea active="review" title={t.review.page.title} description={t.review.page.description}>
+          <Suspense
+            fallback={
+              <LoadingStatus>
+                <ToolbarTableSkeleton columns={['w-6', 'flex-1', 'w-28', 'w-24', 'w-20']} />
+              </LoadingStatus>
+            }
+          >
+            <List searchParams={searchParams} />
+          </Suspense>
+        </SettingsArea>
       </div>
     </>
   );

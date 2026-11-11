@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { CosmosHeaderButton } from '@/components/cosmos/cosmos-header-button';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { HeaderSearchButton } from '@/components/search/search-button';
 import { Separator } from '@/components/ui/separator';
@@ -8,6 +9,7 @@ import type { ApiRequest } from '@/lib/galaxie/request';
 import { pathnameOf, type TrailKind, type TrailVisit } from '@/lib/trail';
 
 import { FeedbackButton } from './feedback-button';
+import { NotificationsAlert, NotificationsButton } from './notifications';
 import { SectionMarker } from './section-marker';
 import { TrailCrumbs } from './trail-crumbs';
 
@@ -39,28 +41,36 @@ export function PageHeader({
   const crumbLabel = label ?? (typeof title === 'string' ? title : undefined);
   const section = parents?.[0];
   return (
-    <header className="bg-background/80 sticky top-0 z-10 flex min-h-14 shrink-0 items-center gap-2 border-b px-4 py-2 backdrop-blur">
-      {section ? <SectionMarker href={pathnameOf(section.path)} /> : null}
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
-      <div className="flex min-w-0 flex-col md:flex-row md:items-center md:gap-2">
-        {/* Caminho e query string são dados de URL: atrás de Suspense para não bloquear o prerender. */}
-        <Suspense fallback={null}>
-          <TrailCrumbs label={kind ? crumbLabel : undefined} kind={kind} parents={parents} />
-        </Suspense>
-        {/* O h1 segue sendo o título da página (o ActivityTracker lê `header h1`). */}
-        <h1 aria-current="page" className="truncate text-sm font-semibold">
-          {title}
-        </h1>
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        {children}
-        {api ? <ApiCodeButton request={api} labeled /> : null}
-        {/* Sugerir ou reportar algo: à esquerda da lupa, em todas as telas (abre o painel lateral). */}
-        <FeedbackButton />
-        {/* No desktop a busca fica no topo da sidebar (e no ⌘K). */}
-        <HeaderSearchButton className="md:hidden" />
-      </div>
-    </header>
+    <>
+      <header className="bg-background/80 sticky top-0 z-10 flex min-h-14 shrink-0 items-center gap-2 border-b px-4 py-2 backdrop-blur">
+        {section ? <SectionMarker href={pathnameOf(section.path)} /> : null}
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 data-vertical:h-4" />
+        <div className="flex min-w-0 flex-col md:flex-row md:items-center md:gap-2">
+          {/* Caminho e query string são dados de URL: atrás de Suspense para não bloquear o prerender. */}
+          <Suspense fallback={null}>
+            <TrailCrumbs label={kind ? crumbLabel : undefined} kind={kind} parents={parents} />
+          </Suspense>
+          {/* O h1 segue sendo o título da página (o ActivityTracker lê `header h1`). */}
+          <h1 aria-current="page" className="truncate text-sm font-semibold">
+            {title}
+          </h1>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {children}
+          {api ? <ApiCodeButton request={api} labeled /> : null}
+          {/* Sugerir ou reportar algo: à esquerda da lupa, em todas as telas (abre o painel lateral). */}
+          <FeedbackButton />
+          {/* Caixa de entrada: o andamento das sugestões enviadas (some sem sessão). */}
+          <NotificationsButton />
+          {/* No desktop a busca fica no topo da sidebar (e no ⌘K). */}
+          <HeaderSearchButton className="md:hidden" />
+          {/* Cosmos AI: à direita da lupa, depois de um traço vertical (some para quem não abre o painel do cliente). */}
+          <CosmosHeaderButton />
+        </div>
+      </header>
+      {/* Aviso novo da caixa de entrada, logo abaixo do cabeçalho (rola com a página). */}
+      <NotificationsAlert />
+    </>
   );
 }

@@ -519,6 +519,76 @@
       "when": 1794097586644,
       "tag": "0075_estatisticas_do_time",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794339294514,
+      "tag": "0076_cosmos_carteira",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794339350000,
+      "tag": "0077_modulos_engajamento",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794339397755,
+      "tag": "0078_cosmos_compra",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794339450000,
+      "tag": "0079_cargos_do_cliente",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794339541778,
+      "tag": "0080_cosmos_alertas",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794346136745,
+      "tag": "0081_cosmos_equipe",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1794346200000,
+      "tag": "0082_identidade_torcedor",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1794397198262,
+      "tag": "0084_cosmos_funcao_modelo",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1794403881994,
+      "tag": "0086_permissoes_por_cargo",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1794406770458,
+      "tag": "0087_ficha_por_pais",
+      "breakpoints": true
     }
   ]
 }

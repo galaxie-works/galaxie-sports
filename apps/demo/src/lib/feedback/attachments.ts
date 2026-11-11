@@ -3,18 +3,28 @@
  * e fora do Traefik), em `feedback/<aaaa-mm>/<uuid>.<ext>`. Só no servidor. A issue mostra a imagem por um link
  * assinado da demo (`app/api/feedback/anexo/[...key]/route.ts`), que lê daqui.
  */
+import { createHash } from 'node:crypto';
+
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 const PREFIX = 'feedback/';
 
-let client: { s3: S3Client; bucket: string } | null = null;
+/** Cliente refeito quando o endpoint, o bucket ou a chave mudam (chave trocada no painel, #1087). */
+let client: { key: string; s3: S3Client; bucket: string } | null = null;
 
 function store(env: NodeJS.ProcessEnv = process.env) {
   const { S3_ENDPOINT, S3_TASKS_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY } = env;
   if (!S3_ENDPOINT || !S3_TASKS_BUCKET || !S3_ACCESS_KEY || !S3_SECRET_KEY) return null;
   // nunca o bucket público dos assets: lá qualquer um leria pela chave
   if (S3_TASKS_BUCKET === env.S3_BUCKET) return null;
-  client ??= {
+  // a chave do cache não guarda o segredo em claro (só a impressão dele); o cliente antigo não é fechado aqui: pode
+  // haver envio em andamento nele
+  const cacheKey = createHash('sha256')
+    .update(JSON.stringify([S3_ENDPOINT, S3_TASKS_BUCKET, env.S3_REGION, S3_ACCESS_KEY, S3_SECRET_KEY]))
+    .digest('hex');
+  if (client?.key === cacheKey) return client;
+  client = {
+    key: cacheKey,
     s3: new S3Client({
       endpoint: S3_ENDPOINT,
       region: env.S3_REGION ?? 'us-east-1',

@@ -336,9 +336,20 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# segredos internos vazios (FAN_TOKEN_SECRET, STREAM_TOKEN_SECRET, BETTER_AUTH_SECRET, SETTINGS_KEK) são gerados no .env antes do
+# .env.next; o que já existe nunca muda. Só no projeto apps: obs e dados não usam esses segredos
+if [ "$PROJECT" = apps ] && [ -f "$HERE/ensure-secrets.sh" ]; then
+  ssh "$VPS" "cd $DIR && bash -s" < "$HERE/ensure-secrets.sh" ||
+    {
+      echo "FAIL  não deu para conferir os segredos internos no .env; nada foi trocado na VPS"
+      exit 1
+    }
+fi
 echo "baixando as imagens (${SERVICES[*]})"
-# .env.next: o .env com a versão nova, para validar, baixar e planejar; vira o .env na troca (ou sai na limpeza da saída)
-if ! ssh "$VPS" "$CD && (umask 077 && { grep -vE '^($ENV_TAG_KEYS)=' .env | sed -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|'; printf '%s\n' '$ENV_LINES'; } > .env.next) \
+# .env.next: o .env com a versão nova, para validar, baixar e planejar; vira o .env na troca (ou sai na limpeza da saída).
+# É remontado na hora da troca, a partir do .env daquele momento: segredo gravado à mão com o deploy rodando não se perde.
+ENV_NEXT_BUILD="(umask 077 && { grep -vE '^($ENV_TAG_KEYS)=' .env | sed -e 's|^IMAGE_PREFIX=.*|IMAGE_PREFIX=$REG|'; printf '%s\n' '$ENV_LINES'; } > .env.next)"
+if ! ssh "$VPS" "$CD && $ENV_NEXT_BUILD \
   && docker compose -f $CF.new --env-file .env.next config -q \
   && $PULL -f $CF.new --env-file .env.next pull --policy missing --quiet ${SERVICES[*]} </dev/null"; then
   echo "FAIL  compose.yml/.env novos inválidos ou pull do GHCR falhou; nada foi trocado na VPS"
@@ -452,8 +463,10 @@ fi # apps
 
 OLD_COMPOSE="$CF.bak-${OLD:0:7}"
 OLD_ENV=".env.bak-$BAK_SUFFIX${OLD:0:7}"
-ssh "$VPS" "$CD && cp $CF $OLD_COMPOSE && cp .env $OLD_ENV && mv $CF.new $CF && mv .env.next .env"
+ssh "$VPS" "$CD && cp $CF $OLD_COMPOSE && cp .env $OLD_ENV && $ENV_NEXT_BUILD \
+  && docker compose -f $CF.new --env-file .env.next config -q && mv $CF.new $CF && mv .env.next .env"
 
+# Do .env só voltam as tags e o IMAGE_PREFIX, o que o deploy mexe: o resto segue como está, com o que foi gravado à mão.
 # Volta compose.yml e .env do deploy anterior e sobe de novo com as imagens antigas, que continuam na VPS ou no GHCR. Só
 # quando é garantidamente o estado de antes: nenhuma migration nova aplicada, SHA anterior diferente e backups no lugar.
 # Depois limpa o cache de novo (a versão nova pode ter gravado respostas). Nunca sai com 0.
@@ -470,7 +483,9 @@ restore_previous() {
     why="$((MIG_AFTER - MIG_BEFORE)) migration(s) nova(s) aplicada(s): a ${o} pode não funcionar com o schema novo"
   elif ! ssh "$VPS" "$CD && test -f $OLD_COMPOSE && test -f $OLD_ENV \
     && $PULL -f $OLD_COMPOSE --env-file $OLD_ENV pull --policy missing --quiet </dev/null \
-    && cp $OLD_COMPOSE $CF && cp $OLD_ENV .env \
+    && p=\$(grep '^IMAGE_PREFIX=' $OLD_ENV | tail -n 1) \
+    && (umask 077 && { grep -vE '^($ENV_TAG_KEYS)=' .env | sed -e \"s|^IMAGE_PREFIX=.*|\$p|\"; grep -E '^($ENV_TAG_KEYS)=' $OLD_ENV; } > .env.restored) \
+    && cp $OLD_COMPOSE $CF && mv .env.restored .env \
     && $DC up -d --remove-orphans $( [ "$PROJECT" != apps ] || scale_flags "$CF" ) --quiet-pull </dev/null"; then
     why="backup ou imagem antiga faltando, ou o up de volta na ${o} falhou"
   fi

@@ -299,6 +299,14 @@ LIVE_SCALE_REMOTE=""
 # as imagens construídas aqui têm a tag do SHA: ele vai nas TAG_* de apps. Dados e obs não passam por este roteiro
 env_lines="DEPLOY_SHA=$SHA"
 for t in API DEMO INGESTOR; do env_lines+=$'\n'"TAG_$t=$SHA"; done
+# segredos internos vazios gerados no .env antes do .env.next (ensure-secrets.sh); o que já existe nunca muda
+if [ -f "$WT/infra/vps-telemetry/ensure-secrets.sh" ]; then
+  ssh "$VPS" "cd $DIR && bash -s" < "$WT/infra/vps-telemetry/ensure-secrets.sh" ||
+    {
+      echo "FAIL  não deu para conferir os segredos internos no .env; nada foi trocado na VPS"
+      exit 1
+    }
+fi
 # .env.next: o .env com as tags novas. Vem antes de qualquer comando no compose novo: o .env de antes das tags por serviço
 # não tem as TAG_*, e o compose novo não interpola sem elas. Vira o .env na troca (ou sai na limpeza da saída)
 ssh "$VPS" "$CD && (umask 077 && { grep -vE '^(IMAGE_TAG|DEPLOY_SHA|TAG_API|TAG_DEMO|TAG_INGESTOR)=' .env; printf '%s\n' '$env_lines'; } > .env.next)"

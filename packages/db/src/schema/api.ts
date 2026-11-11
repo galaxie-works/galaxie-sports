@@ -4,6 +4,7 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -17,6 +18,15 @@ import {
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
 import { platform } from './lineups.js';
+import {
+  ENGAGE_MODULES,
+  isEngageModule,
+  type EngageModule,
+  type ModuleLimitKey,
+  type ModuleUsageMetric,
+} from '../engage-modules.js';
+
+export * from '../engage-modules.js';
 
 /** Schema da API pública: tenants, chaves de acesso e fila de backfill do espelho (docs/05 §1–2). */
 export const api = pgSchema('api');
@@ -32,8 +42,16 @@ export const API_MODULES = [
   'related_content',
   /** Add-on: odds pré-jogo por evento, em consenso entre as casas (docs/05 §3.2.2). */
   'odds',
+  // Engajamento do torcedor (#1017, #1018): vendidos por módulo, nunca incluídos num plano por padrão.
+  ...ENGAGE_MODULES,
 ] as const;
 export type ApiModule = (typeof API_MODULES)[number];
+
+/** Módulos de dados (API esportiva): tudo o que não é engajamento. */
+export const DATA_MODULES = API_MODULES.filter((m) => !isEngageModule(m)) as Exclude<
+  ApiModule,
+  EngageModule
+>[];
 
 export const API_PLANS = ['trial', 'core_data', 'fan_experience', 'live_intelligence', 'enterprise'] as const;
 export type ApiPlan = (typeof API_PLANS)[number];
@@ -47,7 +65,16 @@ export const PLAN_MODULES: Record<ApiPlan, readonly ApiModule[]> = {
   core_data: ['core_data'],
   fan_experience: ['core_data', 'where_to_watch', 'semantic'],
   live_intelligence: ['core_data', 'where_to_watch', 'semantic', 'live_intelligence', 'multisport'],
-  enterprise: API_MODULES,
+  // lista explícita: um módulo novo em API_MODULES não entra de graça no Enterprise (engajamento é por contrato)
+  enterprise: [
+    'core_data',
+    'where_to_watch',
+    'semantic',
+    'live_intelligence',
+    'multisport',
+    'related_content',
+    'odds',
+  ],
 };
 
 export const tenantStatus = api.enum('tenant_status', ['active', 'suspended']);
@@ -178,6 +205,174 @@ export const usageDaily = api.table(
     updatedAt: updatedAt(),
   },
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],
+);
+
+/**
+ * Faixa de um módulo de engajamento no tenant (#1018). Sem linha = padrão de `MODULE_LIMITS`. Só a Galaxie
+ * grava (rota administrativa); o cliente vê no painel.
+ */
+export const tenantModuleLimit = api.table(
+  'tenant_module_limit',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Chave de `MODULE_LIMITS` (`modulo.faixa`). */
+    key: text('key').$type<ModuleLimitKey>().notNull(),
+    value: integer('value').notNull(),
+    /** Quem mudou: `admin`, `cli:<comando>`, `panel:<id do usuário>`. */
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantId, t.key] })],
+);
+
+/**
+ * Uso por módulo de engajamento, tenant e mês (#1018). Os contadores vivem no Valkey durante o mês e são
+ * consolidados aqui; `value` só cresce dentro do mês (o consolidado guarda o maior visto), então uma perda do
+ * Valkey nunca diminui o que o cliente já viu.
+ */
+export const moduleUsageMonthly = api.table(
+  'module_usage_monthly',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Primeiro dia do mês, em UTC. */
+    month: date('month', { mode: 'string' }).notNull(),
+    module: text('module').$type<EngageModule>().notNull(),
+    metric: text('metric').$type<ModuleUsageMetric>().notNull(),
+    value: bigint('value', { mode: 'number' }).notNull().default(0),
+    /**
+     * Época da chave do Valkey que alimentou a última consolidação e `epoch_base`, o consolidado das épocas
+     * anteriores (a mesma regra de `usage_daily`). Mesma época: `value = greatest(value, base + lido)`; época
+     * nova (Valkey zerado no meio do mês): `base := value` e o que vier depois soma, em vez de o `greatest()`
+     * congelar o uso. `peak_connections` é um máximo e fica sempre no `greatest()`.
+     */
+    epoch: text('epoch'),
+    epochBase: bigint('epoch_base', { mode: 'number' }).notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.month, t.module, t.metric] }),
+    index('module_usage_monthly_month_idx').on(t.month),
+  ],
+);
+
+/** Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). */
+export const TENANT_MEMBER_ROLES = ['owner', 'admin', 'senior_moderator', 'moderator', 'volunteer'] as const;
+export type TenantMemberRole = (typeof TENANT_MEMBER_ROLES)[number];
+
+/** Onde o cargo vale: null = tenant inteiro; senão, só as Comunidades e Salas do Jogo listadas. */
+export type TenantMemberScope = { communities?: string[]; rooms?: string[] };
+
+/**
+ * Membro da equipe de um tenant, com cargo e escopo (#1019). É uma pessoa do console (usuário da demo,
+ * `demo_auth.user.id`) ou um Perfil de torcedor promovido a Voluntário (`fan.profile`, onda 2). Uma pessoa pode ter
+ * cargo em vários tenants, um por tenant. O Voluntário é sempre um Perfil, nunca um usuário do console.
+ */
+export const tenantMember = api.table(
+  'tenant_member',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Usuário do console (texto do Better Auth); null quando é um Perfil. */
+    userId: text('user_id'),
+    /** Perfil de torcedor (Voluntário); null quando é usuário do console. */
+    profileId: uuid('profile_id'),
+    role: text('role').$type<TenantMemberRole>().notNull(),
+    scope: jsonb('scope').$type<TenantMemberScope>(),
+    /** Quem convidou ou promoveu: `panel:<id do usuário>`, `galaxie:<id>`, `legacy`. */
+    invitedBy: text('invited_by').notNull(),
+    /** Primeiro acesso depois do convite; null = convite pendente. */
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('tenant_member_user_uq')
+      .on(t.tenantId, t.userId)
+      .where(sql`${t.userId} is not null`),
+    uniqueIndex('tenant_member_profile_uq')
+      .on(t.tenantId, t.profileId)
+      .where(sql`${t.profileId} is not null`),
+    index('tenant_member_user_idx').on(t.userId),
+    check('tenant_member_one_identity', sql`(${t.userId} is null) <> (${t.profileId} is null)`),
+    check(
+      'tenant_member_role',
+      sql`${t.role} in ('owner', 'admin', 'senior_moderator', 'moderator', 'volunteer')`,
+    ),
+    check('tenant_member_volunteer_is_profile', sql`${t.role} <> 'volunteer' or ${t.profileId} is not null`),
+  ],
+);
+
+/**
+ * Permissões por cargo que o Dono mudou no tenant (#1019). Só o que difere da matriz `ACTIONS` de `@galaxie/engage`
+ * fica aqui; sem linha, vale o padrão. O Dono, as ações fixas e o piso de cada ação não são configuráveis: o
+ * `normalizeOverrides` descarta o que vier a mais.
+ */
+export const tenantRolePermission = api.table(
+  'tenant_role_permission',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    role: text('role').$type<TenantMemberRole>().notNull(),
+    /** Ação da matriz, ex.: `cosmos.manage`. */
+    action: text('action').notNull(),
+    allowed: boolean('allowed').notNull(),
+    /** Quem mudou: `panel:<id do usuário>` ou `galaxie:<id>`. */
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.role, t.action] }),
+    check(
+      'tenant_role_permission_role',
+      sql`${t.role} in ('admin', 'senior_moderator', 'moderator', 'volunteer')`,
+    ),
+  ],
+);
+
+/**
+ * Auditoria dos cargos (#1019): quem deu, trocou ou tirou o cargo de quem, quem mudou as permissões de um cargo, e
+ * quando. Só cresce: o painel nunca altera nem apaga uma linha.
+ */
+export const tenantMemberEvent = api.table(
+  'tenant_member_event',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Membro afetado (o id fica mesmo depois de removido); null nas mudanças de permissão, que valem para o cargo. */
+    memberId: uuid('member_id'),
+    /**
+     * `invited` | `accepted` | `role_changed` | `scope_changed` | `removed`; `permission_granted` |
+     * `permission_revoked` (cargo em `to_role`, ação em `subject`).
+     */
+    action: text('action')
+      .$type<
+        | 'invited'
+        | 'accepted'
+        | 'role_changed'
+        | 'scope_changed'
+        | 'removed'
+        | 'permission_granted'
+        | 'permission_revoked'
+      >()
+      .notNull(),
+    /** Quem fez: `panel:<id do usuário>`, `galaxie:<id>`, `legacy`. */
+    actor: text('actor').notNull(),
+    fromRole: text('from_role').$type<TenantMemberRole>(),
+    toRole: text('to_role').$type<TenantMemberRole>(),
+    /** E-mail ou Apelido no momento do evento, para a auditoria ler sem juntar com outra tabela. */
+    subject: text('subject'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tenant_member_event_tenant_idx').on(t.tenantId, t.createdAt)],
 );
 
 /**

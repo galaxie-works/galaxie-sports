@@ -14,9 +14,10 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 import { getTenantInfo, isUuid } from '@/lib/client/tenants';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { internalPath } from '@/lib/internal-path';
+import { recordFeedbackIssue } from '@/lib/notifications/store';
 
 import { attachmentStoreConfigured, deleteAttachment, putAttachment } from './attachments';
-import { FeedbackGithub, FeedbackGithubError, feedbackGithubConfig } from './github';
+import { FeedbackGithub, FeedbackGithubError } from './github';
 import { cleanImage } from './image';
 import { feedbackRef, signAttachmentPath } from './signing';
 import { feedbackIssueBody, feedbackIssueTitle } from './issue';
@@ -30,6 +31,8 @@ import {
   type FeedbackImageType,
   type FeedbackSubject,
 } from './rules';
+import { readFeedbackSettings } from './settings-db';
+import type { FeedbackSettings } from './settings';
 
 export interface FeedbackResult {
   ok: boolean;
@@ -52,6 +55,18 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || isAccessExpired(session.user)) return { ok: false, error: 'session' };
 
+  // lido a cada envio: vale sem reiniciar, em qualquer contêiner. Sem conseguir ler o ajuste, não envia
+  let settings: FeedbackSettings;
+  try {
+    settings = await readFeedbackSettings();
+  } catch (err) {
+    console.error('[feedback] não deu para ler a configuração', err);
+    return { ok: false, error: 'unavailable' };
+  }
+  if (!settings.enabled) return { ok: false, error: 'unavailable' };
+  if (settings.tokenUnreadable)
+    console.error('[feedback] o token salvo no painel não abre com a KEK atual: usando o do ambiente');
+
   const subject = form.get('subject');
   const message = form.get('message');
   const textError = checkFeedbackText(subject, message);
@@ -61,7 +76,7 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   if (files.length > FEEDBACK_MAX_FILES) return { ok: false, error: 'tooMany' };
   if (files.reduce((sum, f) => sum + f.size, 0) > FEEDBACK_MAX_BYTES) return { ok: false, error: 'tooLarge' };
 
-  const config = feedbackGithubConfig();
+  const config = settings.config;
   const secret = process.env.BETTER_AUTH_SECRET;
   const publicUrl = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, '');
   if (!config || !secret || !publicUrl) return { ok: false, error: 'unavailable' };
@@ -135,6 +150,10 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
         attachments,
       }),
       label,
+    );
+    // dono da issue para os avisos de andamento; se falhar, o job acha pela referência opaca da ficha
+    await recordFeedbackIssue(config.repo, number, userId).catch((err) =>
+      console.error('[feedback] issue aberta sem registro do dono', err instanceof Error ? err.name : err),
     );
     console.info(
       '[feedback] issue aberta',

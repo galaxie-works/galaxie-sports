@@ -26,7 +26,8 @@ export const USAGE_RETENTION_DAYS = 4;
 const EPOCH_FIELD = '#epoca';
 
 /** Época ordenada no tempo (`<ms em largura fixa de 15>-<aleatório>`): a consolidação ignora snapshot mais velho. */
-const newEpoch = () => `${String(Date.now()).padStart(15, '0')}-${randomBytes(6).toString('base64url')}`;
+export const newEpoch = () =>
+  `${String(Date.now()).padStart(15, '0')}-${randomBytes(6).toString('base64url')}`;
 
 const splitEpoch = (raw: Record<string, string>): UsageSnapshot => {
   let epoch: string | null = null;

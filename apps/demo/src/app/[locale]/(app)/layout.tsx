@@ -3,10 +3,15 @@ import { Suspense } from 'react';
 
 import { ActivityTracker } from '@/components/app-shell/activity-tracker';
 import { AppSidebar } from '@/components/app-shell/app-sidebar';
+import { AppSidebarStateProvider } from '@/components/app-shell/app-sidebar-state';
+import { FeedbackEnabledProvider } from '@/components/app-shell/feedback-button';
+import { CosmosAssistantProvider } from '@/components/cosmos/cosmos-assistant-provider';
+import { NotificationsProvider } from '@/components/app-shell/notifications';
 import { SearchProvider } from '@/components/search/search-provider';
 import { RelatedPlayerProvider } from '@/components/sport/related-player';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset } from '@/components/ui/sidebar';
 import { docGuides } from '@/lib/docs';
+import { feedbackButtonEnabled } from '@/lib/feedback/settings-db';
 import { I18nProvider } from '@/lib/i18n/client';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
@@ -32,21 +37,31 @@ export default async function AppLayout({ children }: LayoutProps<'/[locale]'>) 
   return (
     // Textos de todos os componentes do app no navegador (o layout raiz só manda os das páginas públicas).
     <I18nProvider locale={locale} messages={clientDictionary(locale)}>
-      <SidebarProvider>
-        {/* Busca global (⌘K): em todas as páginas do app e da documentação. */}
-        <SearchProvider guides={docGuides(t)} operations={operations}>
-          <AppSidebar />
-          {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
-          <RelatedPlayerProvider>
-            {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
-            <SidebarInset className="min-w-0">{children}</SidebarInset>
-          </RelatedPlayerProvider>
-        </SearchProvider>
-        {/* Caminho atual = dado de URL: fora do shell estático. */}
-        <Suspense>
-          <ActivityTracker />
-        </Suspense>
-      </SidebarProvider>
+      {/* A promessa não é aguardada aqui: o botão de sugestões chega por streaming, sem segurar o shell. */}
+      <FeedbackEnabledProvider enabled={feedbackButtonEnabled()}>
+        {/* Caixa de entrada (sino e faixa de aviso): busca no navegador, depois que a página abre. */}
+        <NotificationsProvider>
+          {/* Em Ajustes o menu do app recolhe para o trilho de ícones (#1067). */}
+          <AppSidebarStateProvider>
+            {/* Busca global (⌘K): em todas as páginas do app e da documentação. */}
+            <SearchProvider guides={docGuides(t)} operations={operations}>
+              <AppSidebar />
+              {/* Player de conteúdo relacionado: painel acoplado à direita, irmão do conteúdo (não é modal). */}
+              <RelatedPlayerProvider>
+                {/* min-w-0: o conteúdo largo (tabelas) rola dentro do próprio container, sem esticar a página */}
+                {/* Assistente da Cosmos AI: fora das páginas, para a conversa sobreviver à troca de tela. */}
+                <CosmosAssistantProvider>
+                  <SidebarInset className="min-w-0">{children}</SidebarInset>
+                </CosmosAssistantProvider>
+              </RelatedPlayerProvider>
+            </SearchProvider>
+            {/* Caminho atual = dado de URL: fora do shell estático. */}
+            <Suspense>
+              <ActivityTracker />
+            </Suspense>
+          </AppSidebarStateProvider>
+        </NotificationsProvider>
+      </FeedbackEnabledProvider>
     </I18nProvider>
   );
 }

@@ -17,7 +17,7 @@ import { isHttpUrl } from './normalize.js';
 import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
 import { effectiveRights } from './rights.js';
-import { matchChannelsToPromote, sameChannel, withMatchChannel } from './match-precedence.js';
+import { confirmedWithMatchChannels, sameChannel } from './match-precedence.js';
 import type { BroadcastOptionRow } from './store.js';
 
 /** Mensagem quando não há informação confiável — o evento continua existindo. */
@@ -203,13 +203,9 @@ export async function getPublicWhereToWatch(
   const matchChannels = (await currentMatchChannels(db, params.eventId, country)).filter(
     (m) => m.status === 'confirmed',
   );
-  const promoted = await promoteMatchChannels(db, rows, matchChannels, config?.has(country) ? config : null);
-  const confirmed = [
-    ...rows
-      .filter((r) => r.status === 'confirmed' && inRegion(r))
-      .map((r) => withMatchChannel(r, matchChannels)),
-    ...promoted,
-  ].sort(order);
+  const { published, toPromote } = confirmedWithMatchChannels(rows, matchChannels, inRegion);
+  const promoted = await promoteMatchChannels(db, rows, toPromote, config?.has(country) ? config : null);
+  const confirmed = [...published, ...promoted].sort(order);
   // "a confirmar" só aparece enquanto nenhuma opção estiver confirmada
   const probable = confirmed.length
     ? []
@@ -278,10 +274,9 @@ export async function getPublicWhereToWatch(
 async function promoteMatchChannels(
   db: Database,
   rows: BroadcastOptionRow[],
-  channels: MatchChannelRow[],
+  todo: MatchChannelRow[],
   config: WtwConfig | null,
 ): Promise<BroadcastOptionRow[]> {
-  const todo = matchChannelsToPromote(rows, channels);
   if (!todo.length) return [];
   const library = new Map(
     (await listBroadcasters(db, { ids: todo.map((m) => m.broadcasterId) })).map((b) => [b.id, b]),

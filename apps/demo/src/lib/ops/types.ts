@@ -22,6 +22,38 @@ export interface OpsSetting {
   reportedAt: string | null;
   /** cron: próximas execuções do valor efetivo (UTC, ISO). */
   nextRuns: string[];
+  /** Só nos segredos (#1087): de onde vem a chave e se o painel troca. Nunca leva o valor. */
+  secret?: SecretState;
+}
+
+/**
+ * Situação de uma chave secreta para a tela (#1087). O valor nunca sai do servidor: no máximo os 4 últimos caracteres
+ * da chave gravada no painel, quando ela abre e é longa.
+ */
+export interface SecretState {
+  /** O painel troca a chave (cifrada no banco); `false` = só no .env (selo "só no servidor"). */
+  editable: boolean;
+  /** Há chave gravada pelo painel (ela vale por cima do .env). */
+  inPanel: boolean;
+  /** A chave do painel não abre neste contêiner (sem SETTINGS_KEK, KEK trocada, dado alterado): vale o .env. */
+  unreadable: boolean;
+  /** Os 4 últimos caracteres da chave do painel; null quando não dá para calcular. */
+  hint: string | null;
+  /** Gravada com uma KEK que não é a atual (ou no formato antigo): "Recifrar" resolve. */
+  needsReseal: boolean;
+  /** Serviços que leem a chave e relataram não ter a SETTINGS_KEK: neles vale o .env. */
+  kekMissing: RuntimeService[];
+  /**
+   * Serviços que leem a chave e têm SETTINGS_KEK, mas a chave gravada não abre lá: a KEK deles é outra (id diferente do
+   * da linha) ou curta demais. Neles vale o .env.
+   */
+  kekMismatch: RuntimeService[];
+  /** Este contêiner (a demo) tem a SETTINGS_KEK: sem ela o painel não grava. */
+  canSave: boolean;
+  /** O provedor tem "Testar antes de salvar". */
+  testable: boolean;
+  changedBy: string | null;
+  changedAt: string | null;
 }
 
 export interface ServiceStatus {
@@ -187,10 +219,31 @@ export interface YoutubeSnapshot {
   skipped: YoutubeSkippedRow[];
 }
 
+/** Estado do token das sugestões: só booleanos e quem mudou, nunca o valor nem parte dele. */
+export interface FeedbackPanelState {
+  tokenInPanel: boolean;
+  /** Há token no painel, mas ele não abre com a KEK deste contêiner. */
+  tokenUnreadable: boolean;
+  envTokenConfigured: boolean;
+  /** Este contêiner tem a KEK: sem ela o painel não grava token. */
+  kekConfigured: boolean;
+  tokenChangedBy: string | null;
+  tokenChangedAt: string | null;
+  /** Última conferência diária do andamento (avisos na caixa de entrada); null = nunca rodou. */
+  progress: {
+    okAt: string | null;
+    finishedAt: string | null;
+    error: string | null;
+    issues: number;
+    notices: number;
+  } | null;
+}
+
 export interface OpsSnapshot {
   generatedAt: string;
   dayUtc: string;
   settings: OpsSetting[];
+  feedback: FeedbackPanelState;
   services: ServiceStatus[];
   jobs: JobStatus[];
   quota: QuotaRow[];

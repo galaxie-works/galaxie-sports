@@ -21,7 +21,14 @@ import {
   type Database,
 } from '@galaxie/db';
 import type { Logger } from '@galaxie/observability';
-import { AI_CREDIT_CHECK, applyOverrides, envReport, scheduledJob } from '@galaxie/runtime-config';
+import {
+  AI_CREDIT_CHECK,
+  applyOverrides,
+  scheduledJob,
+  type RuntimeService,
+  type SealedSecretOpener,
+} from '@galaxie/runtime-config';
+import { envReportWithKek, settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { reportAiHeartbeat, type CreditCheckResult } from './ai-credit.js';
 import type { MissedSlot } from './catch-up.js';
 import type { RunResult, RunTrigger } from './runner.js';
@@ -30,6 +37,16 @@ import { JobSlots } from './slots.js';
 
 /** Quem agenda: o ingestor, os agentes de IA ou o ao vivo (serviço `live`, só os jobs da faixa do ao vivo). */
 export type SchedulerProfile = 'ingestor' | 'agents' | 'live';
+
+/**
+ * Serviços do registro que os jobs de cada perfil atendem: só os segredos deles entram no env dos jobs. O ingestor
+ * inclui o ao vivo (com SCHEDULER_LIVE=internal a faixa dele roda aqui).
+ */
+const PROFILE_SERVICES: Readonly<Record<SchedulerProfile, readonly RuntimeService[]>> = {
+  ingestor: ['ingestor', 'live'],
+  agents: ['agents'],
+  live: ['live'],
+};
 
 export interface SchedulerServiceOptions {
   profile: SchedulerProfile;
@@ -47,6 +64,11 @@ export interface SchedulerServiceOptions {
     job: ScheduledJob,
     ctx: { trigger: RunTrigger; env: NodeJS.ProcessEnv; signal?: AbortSignal | undefined },
   ) => Promise<RunResult>;
+  /**
+   * Abre os segredos trocados no painel (#1087). Padrão: a `SETTINGS_KEK` do env do contêiner; sem ela, os jobs ficam
+   * com as chaves do .env.
+   */
+  secrets?: SealedSecretOpener | null;
   /** Releitura da configuração e da fila de pedidos. */
   refreshMs?: number;
   /** Só no perfil agents: checagem do crédito da conta de IA. */
@@ -174,7 +196,11 @@ export class SchedulerService {
     this.reconcile();
     if (!db) return;
     try {
-      await reportRuntimeEnv(db, this.options.profile, envReport(this.options.profile, this.options.env));
+      await reportRuntimeEnv(
+        db,
+        this.options.profile,
+        envReportWithKek(this.options.profile, this.options.env),
+      );
     } catch (err) {
       this.log.warn({ err }, 'não foi possível relatar o env ao painel');
     }
@@ -182,7 +208,11 @@ export class SchedulerService {
   }
 
   private applyConfig(overrides: Map<string, string>): void {
-    const { env, applied, rejected, converted } = applyOverrides(this.options.env, overrides);
+    const { env, applied, secrets, rejected, converted } = applyOverrides(this.options.env, overrides, {
+      secrets:
+        this.options.secrets !== undefined ? this.options.secrets : settingsSecretBox(this.options.env),
+      services: PROFILE_SERVICES[this.options.profile],
+    });
     const key = JSON.stringify([...overrides.entries()].sort());
     const changed = key !== this.overridesKey;
     this.overridesKey = key;
@@ -192,6 +222,8 @@ export class SchedulerService {
           { overrides: Object.fromEntries(applied.map((k) => [k, env[k]])) },
           'configuração do painel aplicada',
         );
+      // segredos do painel: só os nomes, nunca o valor
+      if (secrets.length) this.log.info({ secrets }, 'chaves trocadas no painel aplicadas aos jobs');
       if (rejected.length) this.log.warn({ rejected }, 'sobrescritas do painel ignoradas (inválidas)');
       // ex.: AI_DAILY_USD_BUDGET=0 (antes "IA desligada") vale como AI_STATUS=off
       if (converted.length)

@@ -1902,6 +1902,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-countdown-unit{font-size:calc(var(--gs-scale,1)*1em);display:flex;flex-direction:column;align-items:center;min-width:3.2em;padding:calc(var(--gs-scale,1)*6px) calc(var(--gs-scale,1)*4px);border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/2);background:var(--gs-background)}
 .gs-countdown-unit strong{font-size:1.6em;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .gs-countdown-unit small{font-size:.7em;color:var(--gs-muted-foreground)}
+[data-gs-widget=channel_guide] .gs-row{grid-template-columns:calc(var(--gs-scale,1)*64px) 1fr}
+[data-gs-widget=channel_guide] .gs-group-title time,[data-gs-widget=channel_guide] .gs-row-status time{font-size:calc(var(--gs-scale,1)*1em)}
 .gs-minutes{display:grid;grid-template-columns:auto 1fr 1fr;align-items:center;gap:4px 8px;font-size:.8em;font-variant-numeric:tabular-nums}
 .gs-minutes>.gs-meta{white-space:nowrap}
 .gs-mbar{display:flex;align-items:center;gap:4px;min-width:0}
@@ -4202,19 +4204,21 @@ export function textsFor(locale: WidgetLocale): WidgetTexts {
 
 const SPANISH_MARKETS = ['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
 
-/** Locale pedido à API (`?locale`): o espanhol segue o mercado; em inglês a API devolve o padrão. */
-export function apiLocale(locale: WidgetLocale, market?: string | undefined): string | undefined {
-  if (locale === 'pt-BR') return 'pt-BR';
+/**
+ * Locale pedido à API (`?locale`): o espanhol segue o mercado; o inglês vai como `en` (sem `locale` a
+ * API responde no padrão, pt-BR, e o widget em inglês mostrava nomes, fases e posições em português).
+ */
+export function apiLocale(locale: WidgetLocale, market?: string | undefined): string {
   if (locale === 'es') {
     const m = market?.toUpperCase() ?? '';
     return SPANISH_MARKETS.includes(m) ? `es-${m}` : 'es-AR';
   }
-  return undefined;
+  return locale === 'en' ? 'en' : 'pt-BR';
 }
 
 /** Locale do `Intl` (datas e horas). */
 export function intlLocale(locale: WidgetLocale, market?: string | undefined): string {
-  return locale === 'es' ? (apiLocale(locale, market) ?? 'es') : locale;
+  return locale === 'es' ? apiLocale(locale, market) : locale;
 }
 
 /** Fuso do navegador (IANA); undefined fora do navegador. */

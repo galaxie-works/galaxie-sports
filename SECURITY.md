@@ -117,6 +117,9 @@ Notas para a implementação dos webhooks (docs/05 §5, issue #35):
     (segredo novo para o cliente) e, quando todos estiverem cifrados, ligar **Recusar segredo sem cifra** em Ajustes → Webhooks
     (ou `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true` no worker; o painel não deixa ligar com legado no banco): segredo em texto puro passa a falhar a entrega em vez de assinar.
   - **Rotação da KEK**: várias KEKs separadas por vírgula (a primeira cifra, todas decifram) + `seal-secrets`.
+  - **Outro uso da KEK**: o token do GitHub das sugestões do app, gravado em Ajustes → Plataforma → Sugestões e reportes, é cifrado com ela e
+    a demo o decifra para enviar. Não é recifrado pelo `seal-secrets`: ao rotacionar, salve-o de novo
+    ([runbook](docs/runbooks/sugestoes-do-app.md)).
 - Rotação com sobreposição: durante a janela, enviar duas assinaturas (`v1=<novo>,v1=<antigo>`).
 - URLs de destino só `https://`, sem IPs privados/loopback/link-local (SSRF): IP literal nessas faixas é recusado no
   cadastro (loopback só para desenvolvimento) e, na entrega, o `lookup` do socket recusa qualquer resolução para

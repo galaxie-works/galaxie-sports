@@ -1,0 +1,176 @@
+import { validateSettingKey } from '@galaxie/runtime-config';
+import { describe, expect, it } from 'vitest';
+
+import { ceilCredits, creditsFor } from './credits.js';
+import { parseCosmosSettings, readCosmosSettings } from './settings.js';
+import { ledgerCsv, toClientEntry, type LedgerEntry } from './statement.js';
+import { toClientWallet, utcDayStart } from './wallet.js';
+
+describe('creditsFor', () => {
+  const base = { multiplier: 1, creditUsd: 0.01, minCredits: 1 };
+
+  it('converte custo × multiplicador ÷ valor do crédito, arredondando para cima', () => {
+    expect(creditsFor({ ...base, costUsd: 0.05 })).toBe(5);
+    expect(creditsFor({ ...base, costUsd: 0.050001 })).toBe(5.001);
+    expect(creditsFor({ ...base, costUsd: 0.05, multiplier: 2 })).toBe(10);
+  });
+
+  it('nunca fica abaixo do mínimo da função', () => {
+    expect(creditsFor({ ...base, costUsd: 0.001 })).toBe(1);
+    expect(creditsFor({ ...base, costUsd: 0.001, minCredits: 1.7 })).toBe(1.7);
+  });
+
+  it('sem custo ou sem valor do crédito configurado, cobra o mínimo', () => {
+    expect(creditsFor({ ...base, costUsd: null })).toBe(1);
+    expect(creditsFor({ ...base, costUsd: 0.5, creditUsd: null })).toBe(1);
+    expect(creditsFor({ ...base, costUsd: 0 })).toBe(1);
+  });
+
+  it('ceilCredits não cobra milésimo a mais por erro de ponto flutuante', () => {
+    expect(ceilCredits(0.1 + 0.2)).toBe(0.3);
+    expect(ceilCredits(1.0001)).toBe(1.001);
+  });
+});
+
+describe('flags da Cosmos', () => {
+  it('o painel aceita o teto e o valor do crédito, e recusa 0', () => {
+    expect(validateSettingKey('COSMOS_DAILY_USD_CEILING', '40')).toMatchObject({ ok: true });
+    expect(validateSettingKey('COSMOS_DAILY_USD_CEILING', 'unlimited')).toMatchObject({ ok: true });
+    expect(validateSettingKey('COSMOS_DAILY_USD_CEILING', '0').ok).toBe(false);
+    expect(validateSettingKey('COSMOS_CREDIT_USD', '0.00014')).toMatchObject({ ok: true });
+    expect(validateSettingKey('COSMOS_CREDIT_USD', '').ok).toBe(true);
+    expect(validateSettingKey('COSMOS_CREDIT_USD', '0').ok).toBe(false);
+  });
+
+  it('env com vírgula decimal vale normalizado, como no painel', async () => {
+    // sem sobrescrita no banco: vale o env
+    const db = { select: () => ({ from: async () => [] }) } as unknown as Parameters<
+      typeof readCosmosSettings
+    >[0];
+    await expect(
+      readCosmosSettings(db, { COSMOS_CREDIT_USD: '0,01', COSMOS_DAILY_USD_CEILING: '25,5' }),
+    ).resolves.toEqual({ creditUsd: 0.01, dailyUsdCeiling: 25.5 });
+    // env inválido não vale: fica o padrão do código
+    await expect(
+      readCosmosSettings(db, { COSMOS_CREDIT_USD: 'abc', COSMOS_DAILY_USD_CEILING: '0' }),
+    ).resolves.toEqual({
+      creditUsd: null,
+      dailyUsdCeiling: 25,
+    });
+  });
+
+  it('interpreta unlimited e vazio', () => {
+    expect(parseCosmosSettings({ ceiling: '25', creditUsd: null })).toEqual({
+      dailyUsdCeiling: 25,
+      creditUsd: null,
+    });
+    expect(parseCosmosSettings({ ceiling: 'unlimited', creditUsd: '0.0002' })).toEqual({
+      dailyUsdCeiling: null,
+      creditUsd: 0.0002,
+    });
+  });
+});
+
+describe('visão do cliente', () => {
+  const entry: LedgerEntry = {
+    id: '01900000-0000-7000-8000-000000000001',
+    kind: 'usage',
+    credits: -1.7,
+    balanceBefore: 10,
+    balanceAfter: 8.3,
+    functionName: 'moderation.batch',
+    scope: 'chat:abc',
+    userId: null,
+    note: '=HYPERLINK("x")',
+    createdAt: new Date('2026-11-10T12:00:00Z'),
+    tokensIn: 2000,
+    tokensCached: 0,
+    tokensOut: 300,
+    costUsd: 0.0012,
+    model: 'modelo-x',
+    staff: false,
+  };
+  const staffEntry: LedgerEntry = {
+    ...entry,
+    id: '01900000-0000-7000-8000-000000000002',
+    kind: 'adjustment',
+    credits: 5,
+    balanceBefore: 8.3,
+    balanceAfter: 13.3,
+    functionName: null,
+    scope: null,
+    userId: 'pessoa-da-equipe',
+    note: 'motivo interno da equipe',
+    tokensIn: null,
+    tokensCached: null,
+    tokensOut: null,
+    costUsd: null,
+    model: null,
+    staff: true,
+  };
+
+  it('lançamento da equipe: o cliente vê só "Galaxie", sem a pessoa nem o motivo (tela e CSV)', () => {
+    expect(toClientEntry(staffEntry)).toMatchObject({ staff: true, userId: null, note: null });
+    expect(toClientEntry(entry)).toMatchObject({ note: entry.note });
+    const client = ledgerCsv([staffEntry]);
+    expect(client).not.toContain('pessoa-da-equipe');
+    expect(client).not.toContain('motivo interno');
+    expect(client).toContain(',adjustment,,,Galaxie,5,8.3,13.3,\n');
+    // o CSV da Galaxie mantém quem fez e o motivo
+    const staff = ledgerCsv([staffEntry], { staff: true });
+    expect(staff).toContain('pessoa-da-equipe');
+    expect(staff).toContain('motivo interno da equipe');
+  });
+
+  it('tira tokens, custo e modelo do lançamento e o multiplicador da carteira', () => {
+    const client = toClientEntry(entry);
+    expect(client).not.toHaveProperty('costUsd');
+    expect(client).not.toHaveProperty('tokensIn');
+    expect(client).not.toHaveProperty('model');
+    expect(
+      toClientWallet({
+        tenantId: 't',
+        available: 1,
+        reserved: 0,
+        receivedTotal: 1,
+        status: 'active',
+        trialGranted: false,
+        multiplier: 3,
+        trialRemaining: 0,
+        trialExpiresAt: null,
+        cycleBase: 1,
+        cycleStartedAt: null,
+        alertLevel: 0,
+        blockReason: null,
+        enabled: true,
+      }),
+    ).not.toHaveProperty('multiplier');
+  });
+
+  it('CSV do cliente sem custo; o da Galaxie com custo; texto não vira fórmula', () => {
+    const client = ledgerCsv([entry]);
+    expect(client.split('\n')[0]).toBe(
+      'created_at,kind,scope,function,user,credits,balance_before,balance_after,note',
+    );
+    expect(client).not.toContain('0.0012');
+    expect(client).toContain(
+      `2026-11-10T12:00:00.000Z,usage,chat:abc,moderation.batch,,-1.7,10,8.3,"'=HYPERLINK(""x"")"`,
+    );
+    const staff = ledgerCsv([entry], { staff: true });
+    expect(staff.split('\n')[0]).toContain('cost_usd,model');
+    expect(staff).toContain('2000,0,300,0.0012,modelo-x');
+  });
+});
+
+it('o dia do teto vira à meia-noite UTC', () => {
+  expect(utcDayStart(new Date('2026-11-10T02:30:00-03:00')).toISOString()).toBe('2026-11-10T00:00:00.000Z');
+  expect(utcDayStart(new Date('2026-11-10T22:30:00-03:00')).toISOString()).toBe('2026-11-11T00:00:00.000Z');
+});
+
+it('o pacote importa o @galaxie/db só por subcaminhos (o índice traz o migrator, que o Next não empacota)', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('.', import.meta.url);
+  const sources = readdirSync(dir).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
+  for (const f of sources)
+    expect(readFileSync(new URL(f, dir), 'utf8'), f).not.toMatch(/from '@galaxie\/db'/);
+});

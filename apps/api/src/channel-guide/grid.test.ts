@@ -3,6 +3,7 @@ import { ConfirmedChannels } from '../channel-list/lists.js';
 import {
   guideChannelNames,
   guideChannelsByEvent,
+  guideTtl,
   parseGuideChannels,
   parseGuideSports,
   type GuideOptionRow,
@@ -147,6 +148,21 @@ describe('grade nos canais do cliente', () => {
     expect(byEvent.has(E1)).toBe(false);
     expect(byEvent.get(E2)).toEqual(['SporTV HD']);
     expect(byEvent.get(E3)).toEqual(['SporTV HD']);
+  });
+
+  it('as duas praças entram: a praça é da operadora', () => {
+    const byEvent = guideChannelsByEvent('BR', [opt(E1, 'globo')], [], list, null);
+    expect(byEvent.get(E1)).toEqual(['Globo RJ HD', 'Globo SP HD']);
+  });
+
+  it('o cache acompanha o placar: curto com jogo ao vivo ou perto, o do onde assistir nos demais', () => {
+    const now = new Date('2026-11-01T12:00:00Z');
+    const at = (ms: number) => new Date(now.getTime() + ms).toISOString();
+    expect(guideTtl([{ status: 'live', starts_at: at(-60_000) }], now)).toBe(10);
+    expect(guideTtl([{ status: 'scheduled', starts_at: at(3_600_000) }], now)).toBe(10);
+    expect(guideTtl([{ status: 'scheduled', starts_at: at(6 * 3_600_000) }], now)).toBe(60);
+    expect(guideTtl([{ status: 'finished', starts_at: at(-6 * 3_600_000) }], now)).toBe(60);
+    expect(guideTtl([], now)).toBe(60);
   });
 
   it('com canais escolhidos no widget, só eles; jogo sem nenhum deles sai da grade', () => {

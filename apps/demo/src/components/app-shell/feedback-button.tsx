@@ -7,7 +7,17 @@
  * `sendFeedback`, que abre a issue no GitHub; nada de token ou dado da sessão passa por aqui.
  */
 import { CheckCircle2, ImagePlus, Loader2, MessageSquareText, X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, useTransition } from 'react';
+import {
+  createContext,
+  Suspense,
+  use,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 
 import { useInExample } from '@/components/example/example-provider';
 import { Button } from '@/components/ui/button';
@@ -40,9 +50,32 @@ import {
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
-/** Some no exemplo público, onde não há sessão para identificar quem enviou. */
+/** Ajuste "ligado/desligado" do painel (o layout passa a promessa). Fora do layout do app, vale o padrão: ligado. */
+const FeedbackEnabledContext = createContext<Promise<boolean>>(Promise.resolve(true));
+
+export function FeedbackEnabledProvider({
+  enabled,
+  children,
+}: {
+  enabled: Promise<boolean>;
+  children: React.ReactNode;
+}) {
+  return <FeedbackEnabledContext value={enabled}>{children}</FeedbackEnabledContext>;
+}
+
+/** Some no exemplo público, onde não há sessão para identificar quem enviou, e quando o painel desliga. */
 export function FeedbackButton(props: { className?: string }) {
-  return useInExample() ? null : <FeedbackButtonInner {...props} />;
+  const inExample = useInExample();
+  if (inExample) return null;
+  return (
+    <Suspense fallback={null}>
+      <FeedbackGate {...props} />
+    </Suspense>
+  );
+}
+
+function FeedbackGate(props: { className?: string }) {
+  return use(useContext(FeedbackEnabledContext)) ? <FeedbackButtonInner {...props} /> : null;
 }
 
 interface Attachment {

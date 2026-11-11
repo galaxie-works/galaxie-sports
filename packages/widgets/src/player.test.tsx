@@ -111,7 +111,7 @@ describe('Ficha do jogador', () => {
   it('textos em inglês e espanhol', async () => {
     setup(<PlayerProfile personId={PREVIEW_IDS.person} />, undefined, 'en');
     expect(await screen.findByText('2026 season')).toBeTruthy();
-    expect(screen.getByText('Brasil · Forward · #9 · 26 years old')).toBeTruthy();
+    expect(screen.getByText('Brazil · Forward · #9 · 26 years old')).toBeTruthy();
     cleanup();
     setup(<PlayerProfile personId={PREVIEW_IDS.person} />, undefined, 'es');
     expect(await screen.findByText('Brasil · Delantero · #9 · 26 años')).toBeTruthy();

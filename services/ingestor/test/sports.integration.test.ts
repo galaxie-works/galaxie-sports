@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   ApiSportsClient,
@@ -74,6 +74,46 @@ async function clientFor(
 }
 
 describe('upsertCatalog (outros esportes)', () => {
+  it('slug gerado é único entre esportes e não reescreve o que já está na base', async () => {
+    const leagues = (id: number) => [
+      {
+        id,
+        name: 'Liga Slug Teste',
+        type: 'League',
+        logo: `https://media.api-sports.io/volley/leagues/${id}.png`,
+        country: { id: 1, name: 'Brazil', code: 'BR', flag: 'https://media.api-sports.io/flags/br.svg' },
+        seasons: [{ season: 2024, current: false, start: '2024-10-01', end: '2025-04-01' }],
+      },
+    ];
+    const build = (sport: 'volleyball' | 'hockey', id: number) =>
+      SPORT_PROFILES[sport].build(
+        new Map<string, unknown>([
+          ['/countries', []],
+          ['/leagues', leagues(id)],
+        ]),
+        { catalog: [], today: TODAY },
+      );
+
+    await upsertCatalog(db, 'volleyball', build('volleyball', 7001));
+    await upsertCatalog(db, 'hockey', build('hockey', 7002));
+    const slugs = await db
+      .select({ sport: competition.sport, slug: competition.slug })
+      .from(competition)
+      .where(inArray(competition.slug, ['brazil-liga-slug-teste', 'brazil-liga-slug-teste-hockey']));
+    expect(slugs.map((s) => `${s.sport}/${s.slug}`).sort()).toEqual([
+      'hockey/brazil-liga-slug-teste-hockey',
+      'volleyball/brazil-liga-slug-teste',
+    ]);
+
+    await db
+      .update(competition)
+      .set({ slug: 'liga-renomeada' })
+      .where(eq(competition.slug, 'brazil-liga-slug-teste'));
+    await upsertCatalog(db, 'volleyball', build('volleyball', 7001));
+    const [renamed] = await db.select().from(competition).where(eq(competition.slug, 'liga-renomeada'));
+    expect(renamed).toMatchObject({ sport: 'volleyball', name: 'Liga Slug Teste' });
+  });
+
   it('é idempotente e mantém os IDs do fornecedor no escopo do esporte', async () => {
     const basketball = SPORT_PROFILES.basketball.build(
       new Map<string, unknown>([

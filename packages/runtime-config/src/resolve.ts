@@ -1,5 +1,6 @@
 import { cronError, isCronOff } from './cron.js';
 import {
+  isPanelSecret,
   isSecret,
   settingDef,
   settingsForService,
@@ -26,7 +27,9 @@ export type ValidationErrorCode =
   /** Espelho: endpoint fora do catálogo da API. */
   | 'mirrorItem'
   /** Espelho: a ordem tem que listar cada grupo uma vez. */
-  | 'groupOrder';
+  | 'groupOrder'
+  /** Segredo do painel que não abre: sem a SETTINGS_KEK no processo, KEK trocada ou dado alterado. */
+  | 'sealed';
 
 export interface ValidationError {
   code: ValidationErrorCode;
@@ -111,6 +114,34 @@ export function validateSetting(def: SettingDef, raw: string): Validation {
     default:
       return fail({ code: 'readonly' });
   }
+}
+
+/**
+ * Valida o valor de um segredo que o painel troca (#1087), antes de cifrar e de novo depois de abrir: o formato do
+ * provedor (`pattern` do registro). O erro nunca leva o valor. Segredo só do .env (ou chave fora do registro) é `readonly`.
+ */
+export function validateSecretValue(def: SettingDef | undefined, raw: string): Validation {
+  if (!isPanelSecret(def)) return fail({ code: def ? 'readonly' : 'unknown' });
+  const value = raw.trim();
+  if (!value) return fail({ code: 'required' });
+  return def.pattern && !def.pattern.test(value) ? fail({ code: 'format' }) : ok(value);
+}
+
+/** Sufixo da linha de `ops.runtime_setting` com o segredo cifrado (`APISPORTS_KEY_SEALED`). */
+export const SEALED_SUFFIX = '_SEALED';
+export const sealedKey = (key: string) => `${key}${SEALED_SUFFIX}`;
+
+/** A chave do registro por trás de uma linha `<CHAVE>_SEALED`; null para outras linhas. */
+export function sealedBaseKey(rowKey: string): string | null {
+  return rowKey.endsWith(SEALED_SUFFIX) ? rowKey.slice(0, -SEALED_SUFFIX.length) : null;
+}
+
+/**
+ * Quem abre o cifrado de uma linha `<CHAVE>_SEALED` (`SettingsSecretBox`, em `@galaxie/runtime-config/sealed`, que usa
+ * `node:crypto` e por isso fica fora deste módulo, importado também no navegador). `null` = não abre.
+ */
+export interface SealedSecretOpener {
+  open(key: string, stored: string): string | null;
 }
 
 /** Valida pela chave (as server actions recebem a chave do navegador). */
@@ -263,33 +294,78 @@ export function resolveAll(input: ResolveInput, defs: readonly SettingDef[] = SE
  * padrão"), volta ao valor do contêiner em vez de ficar com o que recebeu na partida.
  */
 export const RUNTIME_BASE_ENV = 'GALAXIE_RUNTIME_BASE';
+/**
+ * O mesmo para os segredos trocados no painel (#1087), numa variável à parte: `GALAXIE_RUNTIME_BASE` nunca leva
+ * segredo. Guarda o valor do .env do contêiner (o processo filho já recebe segredos pelo env de qualquer forma), para
+ * o "Voltar ao .env" valer também num processo longo.
+ */
+export const RUNTIME_SECRET_BASE_ENV = 'GALAXIE_RUNTIME_SECRET_BASE';
 
 export interface AppliedOverrides {
   /** Env com as sobrescritas e, quando houver alguma, `GALAXIE_RUNTIME_BASE`. */
   env: NodeJS.ProcessEnv;
-  /** Chaves sobrescritas pelo banco (o valor pode ser igual ao do env). */
+  /** Chaves sobrescritas pelo banco (o valor pode ser igual ao do env). Nunca inclui segredos. */
   applied: string[];
-  /** Sobrescritas ignoradas: chave fora do registro, segredo ou valor inválido. */
+  /** Segredos trocados no painel que entraram no env (só os nomes: o valor nunca vai para log). */
+  secrets: string[];
+  /** Sobrescritas ignoradas: chave fora do registro, segredo, valor inválido ou cifrado que não abre. */
   rejected: { key: string; error: ValidationError }[];
   /** Sobrescritas antigas convertidas para o estado literal (ex.: AI_DAILY_USD_BUDGET=0 → AI_STATUS=off). */
   converted: LegacyConversion[];
 }
 
+export interface ApplyOverridesOptions {
+  /**
+   * Abre os segredos trocados no painel (`<CHAVE>_SEALED`). Sem ele (ou `null`: sem `SETTINGS_KEK`), cada linha
+   * cifrada vai para `rejected` com `sealed` e o processo segue com o .env.
+   */
+  secrets: SealedSecretOpener | null;
+  /**
+   * Serviços que este processo atende: só os segredos que eles leem entram no env (o token das sugestões, da demo,
+   * nunca chega aos jobs). Os outros são ignorados sem aviso.
+   */
+  services: readonly RuntimeService[];
+}
+
 /**
- * Env de um processo com as sobrescritas do banco por cima. Só entram chaves do registro, nunca
- * segredos, e só valores válidos: o banco não consegue injetar variáveis arbitrárias (NODE_OPTIONS…).
+ * Env de um processo com as sobrescritas do banco por cima. Só entram chaves do registro e só valores válidos: o banco
+ * não consegue injetar variáveis arbitrárias (NODE_OPTIONS…). Segredos só pela linha cifrada `<CHAVE>_SEALED` de um
+ * segredo que o painel troca, aberta com `options.secrets` e conferida pelo formato do provedor; se não abrir, vale o .env.
  */
 export function applyOverrides(
   env: NodeJS.ProcessEnv,
   overrides: ReadonlyMap<string, string> | Readonly<Record<string, string>>,
+  options?: ApplyOverridesOptions,
 ): AppliedOverrides {
   const out: NodeJS.ProcessEnv = { ...env };
   const base: Record<string, string | null> = { ...parseBase(env[RUNTIME_BASE_ENV]) };
+  const secretBase: Record<string, string | null> = { ...parseSecretBase(env[RUNTIME_SECRET_BASE_ENV]) };
   const applied: string[] = [];
+  const secrets: string[] = [];
   const rejected: AppliedOverrides['rejected'] = [];
   const upgraded = upgradeLegacyOverrides(overrides, (key) => env[key]);
   const entries = [...upgraded.overrides.entries()];
   for (const [key, raw] of entries) {
+    const secretKey = sealedBaseKey(key);
+    if (secretKey !== null) {
+      const def = settingDef(secretKey);
+      if (!isPanelSecret(def)) {
+        // linha cifrada de chave fora do registro (ou de segredo só do .env): nunca entra
+        rejected.push({ key, error: { code: 'unknown' } });
+        continue;
+      }
+      if (options && !def.services.some((s) => options.services.includes(s))) continue;
+      const opened = options?.secrets?.open(secretKey, raw) ?? null;
+      const checked = opened === null ? fail({ code: 'sealed' }) : validateSecretValue(def, opened);
+      if (!checked.ok) {
+        rejected.push({ key, error: checked.error });
+        continue;
+      }
+      if (!(secretKey in secretBase)) secretBase[secretKey] = env[secretKey] ?? null;
+      out[secretKey] = checked.value;
+      secrets.push(secretKey);
+      continue;
+    }
     const def = settingDef(key);
     const checked = def ? validateSetting(def, raw) : fail({ code: 'unknown' });
     if (!checked.ok) {
@@ -301,32 +377,42 @@ export function applyOverrides(
     applied.push(key);
   }
   if (applied.length) out[RUNTIME_BASE_ENV] = JSON.stringify(base);
-  return { env: out, applied, rejected, converted: upgraded.converted };
+  if (secrets.length) out[RUNTIME_SECRET_BASE_ENV] = JSON.stringify(secretBase);
+  else delete out[RUNTIME_SECRET_BASE_ENV];
+  return { env: out, applied, secrets, rejected, converted: upgraded.converted };
 }
 
-function parseBase(raw: string | undefined): Record<string, string | null> {
+function parseBaseWith(
+  raw: string | undefined,
+  accept: (def: SettingDef) => boolean,
+): Record<string, string | null> {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') return {};
     return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).filter(
-        ([k, v]) => (typeof v === 'string' || v === null) && settingDef(k) && !isSecret(settingDef(k)!),
-      ),
+      Object.entries(parsed as Record<string, unknown>).filter(([k, v]) => {
+        const def = settingDef(k);
+        return (typeof v === 'string' || v === null) && def !== undefined && accept(def);
+      }),
     ) as Record<string, string | null>;
   } catch {
     return {};
   }
 }
 
+const parseBase = (raw: string | undefined) => parseBaseWith(raw, (def) => !isSecret(def));
+const parseSecretBase = (raw: string | undefined) => parseBaseWith(raw, isPanelSecret);
+
 /**
  * Env do contêiner por trás do env recebido do scheduler: desfaz as sobrescritas usando
- * `GALAXIE_RUNTIME_BASE`. É sobre ele que um processo longo reaplica o banco a cada releitura.
+ * `GALAXIE_RUNTIME_BASE` (e os segredos do painel, `GALAXIE_RUNTIME_SECRET_BASE`). É sobre ele que um processo longo reaplica o banco a cada releitura.
  */
 export function runtimeBaseEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const base = parseBase(env[RUNTIME_BASE_ENV]);
+  const base = { ...parseBase(env[RUNTIME_BASE_ENV]), ...parseSecretBase(env[RUNTIME_SECRET_BASE_ENV]) };
   const out: NodeJS.ProcessEnv = { ...env };
   delete out[RUNTIME_BASE_ENV];
+  delete out[RUNTIME_SECRET_BASE_ENV];
   for (const [k, v] of Object.entries(base)) {
     if (v === null) delete out[k];
     else out[k] = v;

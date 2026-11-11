@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { FeedbackGithub, FeedbackGithubError, feedbackGithubConfig } from './github';
+import { FeedbackGithub, FeedbackGithubError, checkFeedbackTarget, feedbackGithubConfig } from './github';
 
 type Call = { method: string; url: string; body: unknown };
 
@@ -56,6 +56,30 @@ describe('repo privada', () => {
     now += 11 * 60_000;
     await gh.ensurePrivate();
     expect(calls).toHaveLength(2);
+  });
+});
+
+describe('conferência antes de gravar no painel', () => {
+  const check = (status: number, body: unknown) =>
+    checkFeedbackTarget({ token: 't', repo: 'o/r' }, fakeFetch({ 'GET ': () => json(body, status) }).impl);
+
+  it('repo privada que responde 200 passa', async () => {
+    expect(await check(200, { private: true })).toBeNull();
+  });
+
+  it('dá o motivo de cada recusa', async () => {
+    expect(await check(200, { private: false })).toBe('not_private');
+    expect(await check(401, {})).toBe('bad_token');
+    expect(await check(403, {})).toBe('no_access');
+    expect(await check(404, {})).toBe('no_access');
+    expect(await check(503, {})).toBe('unreachable');
+  });
+
+  it('falha de rede não aprova', async () => {
+    const down = (async () => {
+      throw new Error('ECONNRESET');
+    }) as unknown as typeof fetch;
+    expect(await checkFeedbackTarget({ token: 't', repo: 'o/r' }, down)).toBe('unreachable');
   });
 });
 

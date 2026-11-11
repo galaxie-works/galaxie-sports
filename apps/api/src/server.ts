@@ -3,6 +3,15 @@ import type { Redis } from 'ioredis';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
+import {
+  FanTokenTtl,
+  MemoryFanRevocations,
+  RedisFanRevocations,
+  registerFanAuth,
+  type FanRevocations,
+} from './engage/fan-auth.js';
+import { fanRoutes } from './engage/fan-routes.js';
+import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
 import { adminRoutes } from './admin/routes.js';
@@ -47,6 +56,7 @@ import {
 } from './realtime/index.js';
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
+import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { ClientChannelLists } from './channel-list/lists.js';
@@ -65,6 +75,12 @@ import {
 } from './usage/counter.js';
 import { QuotaGuard } from './usage/quota.js';
 import { UsagePersister } from './usage/store.js';
+import {
+  MemoryModuleUsageMeter,
+  ModuleUsagePersister,
+  RedisModuleUsageMeter,
+  type ModuleUsageMeter,
+} from './engage/module-usage.js';
 
 export interface ServerOptions {
   db?: Database;
@@ -128,6 +144,18 @@ export interface ServerOptions {
    * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
    */
   usagePersist?: boolean;
+  /**
+   * Medição de uso dos módulos de engajamento (#1018), consolidada em api.module_usage_monthly. Padrão: Valkey (ou
+   * memória sem Valkey); false desliga. Segue `usagePersist` para consolidar ou não.
+   */
+  moduleUsage?: ModuleUsageMeter | false;
+  /**
+   * Assinatura do token do torcedor (`gft_`, #937): FAN_TOKEN_SECRET. Ausente ou null, as rotas do torcedor
+   * respondem 503 (um segredo aleatório por processo não vale com várias instâncias).
+   */
+  fanTokens?: FanTokenSigner | null;
+  /** Marca de Perfil excluído (Valkey; memória sem Valkey). */
+  fanRevocations?: FanRevocations;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -138,6 +166,8 @@ export interface ServerOptions {
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
   lineup?: LineupOptions;
+  /** Webhook do Stripe da Cosmos AI (#993); padrão: STRIPE_WEBHOOK_SECRET do ambiente. */
+  cosmos?: { stripeWebhookSecret?: string };
 }
 
 /** Limite fixo da chave secreta de teste, por rota (docs/politica-de-chaves.md §1). */
@@ -282,6 +312,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
   app.decorateRequest('reauthenticate', null);
+  const fanRevocations =
+    options.fanRevocations ??
+    (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  registerFanAuth(app, { signer: options.fanTokens ?? null, revocations: fanRevocations, limiter, windowMs });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
   // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.
@@ -422,6 +456,19 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
+    await fanRoutes(instance, {
+      db: options.db,
+      signer: options.fanTokens ?? null,
+      ttl: new FanTokenTtl(options.db),
+      revocations: fanRevocations,
+    });
+  });
+
+  // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
+  app.register(cosmosStripeRoutes, {
+    db: options.db,
+    webhookSecret: options.cosmos?.stripeWebhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET,
+    now: options.now,
   });
 
   if (options.admin?.keyHashes.length && options.db) {
@@ -446,6 +493,24 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       persister?.stop();
       await usage.stop();
     });
+  }
+
+  // medição dos módulos de engajamento (#1018): as rotas do engajamento registram por `app.moduleUsage`
+  const moduleUsage =
+    options.moduleUsage === false
+      ? undefined
+      : (options.moduleUsage ??
+        (options.redis ? new RedisModuleUsageMeter(options.redis, prefix) : new MemoryModuleUsageMeter()));
+  if (moduleUsage) {
+    app.decorate('moduleUsage', moduleUsage);
+    const persister =
+      options.db && options.usagePersist !== false
+        ? new ModuleUsagePersister(options.db, moduleUsage, {
+            onError: (err) => app.log.warn({ err }, 'falha ao consolidar uso por módulo'),
+          })
+        : undefined;
+    app.addHook('onReady', async () => persister?.start());
+    app.addHook('onClose', async () => persister?.stop());
   }
 
   if (options.changeFeed && options.db) {
@@ -482,6 +547,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 declare module 'fastify' {
   interface FastifyInstance {
     changeFeed?: ChangeFeedListener;
+    /** Medição de uso dos módulos de engajamento (#1018). */
+    moduleUsage?: ModuleUsageMeter;
     routeTable: { method: string; url: string; config: FastifyContextConfig }[];
   }
 }

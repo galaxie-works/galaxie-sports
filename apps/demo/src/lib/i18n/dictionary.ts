@@ -9,6 +9,9 @@ import channels from './messages/channels';
 import client from './messages/client';
 import code from './messages/code';
 import common from './messages/common';
+import cosmos from './messages/cosmos';
+import countryPolicies from './messages/country-policies';
+import cosmosStaff from './messages/cosmos-staff';
 import crests from './messages/crests';
 import docs from './messages/docs';
 import docsUi from './messages/docs-ui';
@@ -21,6 +24,7 @@ import feedback from './messages/feedback';
 import lineup from './messages/lineup';
 import live from './messages/live';
 import nav from './messages/nav';
+import notifications from './messages/notifications';
 import ops from './messages/ops';
 import pages from './messages/pages';
 import race from './messages/race';
@@ -43,6 +47,9 @@ export const NAMESPACES = {
   client,
   code,
   common,
+  cosmos,
+  countryPolicies,
+  cosmosStaff,
   crests,
   docs,
   docsUi,
@@ -55,6 +62,7 @@ export const NAMESPACES = {
   live,
   media,
   nav,
+  notifications,
   ops,
   pages,
   race,
@@ -95,6 +103,9 @@ export const CLIENT_NAMESPACES = [
   'client',
   'code',
   'common',
+  'countryPolicies',
+  'cosmos',
+  'cosmosStaff',
   'crests',
   'docsUi',
   'feedback',
@@ -102,6 +113,7 @@ export const CLIENT_NAMESPACES = [
   'live',
   'media',
   'nav',
+  'notifications',
   'ops',
   'relatedAdmin',
   'review',

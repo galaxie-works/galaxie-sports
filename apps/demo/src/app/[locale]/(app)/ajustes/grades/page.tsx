@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
-import { SettingsNav } from '@/components/admin/settings-nav';
+import { OpsViewPanel } from '@/components/admin/ops-view-page';
+import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ToolbarTableSkeleton } from '@/components/app-shell/skeletons';
@@ -10,7 +11,13 @@ import { LineupRequests } from '@/components/lineup/admin-requests';
 import { LineupTenants } from '@/components/lineup/admin-tenants';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
-import { readAllLineups, readPlanLibrary, readRequestQueue, readTenantOperators } from '@/lib/lineup/server';
+import {
+  countOpenLineupRequests,
+  readAllLineups,
+  readPlanLibrary,
+  readRequestQueue,
+  readTenantOperators,
+} from '@/lib/lineup/server';
 import { logoStorageConfigured } from '@/lib/lineup/store';
 import {
   flattenLineup,
@@ -33,9 +40,9 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const tab = parseAdminTab(params);
   const timeZone = await getTimeZone();
-  const queue = await readRequestQueue(tab === 'pedidos' ? parseRequestFilters(params).status : 'open');
 
-  let body: React.ReactNode;
+  // os LINEUP_* (#1070): o bloco do painel de Operação, com o mesmo carregamento das outras páginas
+  if (tab === 'ajustes') return <OpsViewPanel view="lineup" />;
   if (tab === 'revisao') {
     const filters = parseLineupFilters(params);
     const [lineups, library] = await Promise.all([readAllLineups(), readPlanLibrary()]);
@@ -49,7 +56,7 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
         .filter((item) => matchesFilters(item, platform, filters))
         .map((item) => ({ ...item, platform }));
     });
-    body = (
+    return (
       <LineupReview
         rows={rows}
         filters={filters}
@@ -73,25 +80,23 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
         storageEnabled={logoStorageConfigured()}
       />
     );
-  } else if (tab === 'pedidos') {
-    body = (
-      <LineupRequests
-        requests={queue.requests}
-        counts={queue.counts}
-        status={parseRequestFilters(params).status}
-        timeZone={timeZone}
-      />
-    );
-  } else {
-    const { rows, platforms } = await readTenantOperators();
-    body = <LineupTenants rows={rows} platforms={platforms} />;
   }
-  return (
-    <>
-      <LineupAdminTabs active={tab} open={queue.counts.open} />
-      {body}
-    </>
-  );
+  if (tab === 'pedidos') {
+    const status = parseRequestFilters(params).status;
+    const queue = await readRequestQueue(status);
+    return (
+      <LineupRequests requests={queue.requests} counts={queue.counts} status={status} timeZone={timeZone} />
+    );
+  }
+  const { rows, platforms } = await readTenantOperators();
+  return <LineupTenants rows={rows} platforms={platforms} />;
+}
+
+/** Abas da página na barra do topo (moldura app-shell-14, #1067), com o número de pedidos em aberto. */
+async function Tabs({ searchParams }: { searchParams: SearchParams }) {
+  await requireAdmin();
+  const [params, open] = await Promise.all([searchParams, countOpenLineupRequests().catch(() => 0)]);
+  return <LineupAdminTabs active={parseAdminTab(params)} open={open} />;
 }
 
 export default async function LineupAdminPage({ searchParams }: PageProps<'/[locale]/ajustes/grades'>) {
@@ -101,17 +106,26 @@ export default async function LineupAdminPage({ searchParams }: PageProps<'/[loc
       <PageHeader title={t.lineup.admin.title} kind="ajustes" />
       {/* Container padrão do app-shell (alinhado à esquerda, largura toda): a tabela da revisão é larga. */}
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
-        <SettingsNav active="lineup" />
-        <p className="text-muted-foreground max-w-3xl text-sm">{t.lineup.admin.description}</p>
-        <Suspense
-          fallback={
-            <LoadingStatus>
-              <ToolbarTableSkeleton toolbar="tabs" />
-            </LoadingStatus>
+        <SettingsArea
+          active="lineup"
+          title={t.lineup.admin.title}
+          description={t.lineup.admin.description}
+          tabs={
+            <Suspense fallback={<div className="h-10 border-b" />}>
+              <Tabs searchParams={searchParams} />
+            </Suspense>
           }
         >
-          <Content searchParams={searchParams} />
-        </Suspense>
+          <Suspense
+            fallback={
+              <LoadingStatus>
+                <ToolbarTableSkeleton />
+              </LoadingStatus>
+            }
+          >
+            <Content searchParams={searchParams} />
+          </Suspense>
+        </SettingsArea>
       </div>
     </>
   );

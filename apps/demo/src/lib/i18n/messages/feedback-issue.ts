@@ -41,4 +41,25 @@ export const FEEDBACK_ISSUE_TEXT = {
   footer:
     'Aberta pelo formulário "Sugerir ou reportar algo" do app. Usuário e tenant vão como referência opaca; quem tem o BETTER_AUTH_SECRET confere com feedbackRef (docs/runbooks/sugestoes-do-app.md).',
   timeZoneSuffix: '(Brasília)',
+  /** Comentário com a resposta de quem enviou, quando a issue está em "Necessita mais informações". */
+  userReply: 'Resposta de quem enviou (pela caixa de entrada do app)',
+} as const;
+
+/**
+ * Comentário da issue que vai para a caixa de entrada de quem enviou: o que vem depois deste comando, no começo do
+ * comentário. Qualquer outro comentário fica só entre a equipe.
+ */
+export const FEEDBACK_REPLY_COMMAND = '/responder';
+
+/**
+ * Colunas do projeto "Customer Voice" (campo Status), como aparecem no GitHub, e a chave de cada uma no app. Renomear
+ * uma coluna no GitHub exige mudar aqui: coluna desconhecida não vira aviso (fica no log do job).
+ */
+export const FEEDBACK_STATUS_COLUMNS = {
+  Backlog: 'backlog',
+  'Em revisão': 'review',
+  'Selecionado para desenvolvimento': 'selected',
+  'Necessita mais informações': 'needsInfo',
+  'Em desenvolvimento': 'inProgress',
+  Entregue: 'delivered',
 } as const;

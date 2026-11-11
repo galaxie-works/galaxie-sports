@@ -25,7 +25,22 @@ export const PACKAGE_LAYERS = {
     // o motor de agendamento compartilhado por ingestor e agentes (só fala com db, runtime-config e observability)
     'scheduler',
   ],
-  domain: ['providers', 'rules', 'knowledge', 'where-to-watch', 'geo', 'ai-ledger', 'core-writer', 'explore', 'crests'],
+  domain: [
+    'providers',
+    'rules',
+    'knowledge',
+    'where-to-watch',
+    'geo',
+    'ai-ledger',
+    // clientes dos provedores de IA (OpenAI, Anthropic, Gemini, DeepSeek), usados pelos agentes e pela Cosmos AI
+    'llm',
+    'core-writer',
+    'explore',
+    'crests',
+    'cosmos',
+    // regras do engajamento do torcedor sem HTTP nem banco: cargos e permissões (#1019), token, ficha por país
+    'engage',
+  ],
   ui: ['widgets'],
 };
 

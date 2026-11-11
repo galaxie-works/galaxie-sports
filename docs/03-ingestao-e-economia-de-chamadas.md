@@ -329,7 +329,7 @@ O backfill registra a execução em `ops.job_run` (`assets:palette`) e roda agen
 
 ### 7.3 Acervo customizado de logos (opcional)
 
-Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel de Operação, que desliga na hora e sem deploy. Times ligados, desligados ou com o asset regravado são publicados no change feed (`participant:<id>`). Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
+Escudos em alta de um acervo licenciado, por cima dos logos do fornecedor. `assets:acervo` mapeia o pacote para os nossos times e competições, espelha em `acervo/<id>/...` com `core.asset.origin = acervo` e liga como `custom_logo_asset_id`; o `logo_asset_id` do fornecedor nunca é tocado. A API só usa esses logos com a flag `ASSETS_CUSTOM_LOGOS` ligada no painel (Ajustes → Dados → Escudos e logos), que desliga na hora e sem deploy. Times ligados, desligados ou com o asset regravado são publicados no change feed (`participant:<id>`). Manifesto, curadoria, relatório de cobertura e créditos: [runbooks/acervo-de-logos.md](runbooks/acervo-de-logos.md).
 **Reescrita de URLs para o nosso CDN** — funções puras em `@galaxie/apisports-client` (`media.ts`), para a API:
 
 - `rewriteMediaUrl(url, { publicBaseUrl: ASSETS_PUBLIC_BASE_URL, denylist })` → `https://<cdn>/api-sports/football/teams/121.png`; URL bloqueada → `null`; URL fora da CDN da api-sports (ex.: Wikimedia na NBA) volta intacta. `rewriteMediaUrls(envelope, ...)` aplica em um JSON inteiro.
@@ -548,7 +548,7 @@ Sem `APISPORTS_KEY`, o `ApiSportsClient` entra em **modo offline**: serve a resp
 
 ### 11.5 Espelho configurável pelo painel
 
-Toda frequência do `sync:mirror` muda em **Ajustes → Operação → Espelho**, sem deploy. As flags ficam em
+Toda frequência do `sync:mirror` muda em **Ajustes → Dados → Espelho da api-sports**, sem deploy. As flags ficam em
 `ops.runtime_setting` (histórico em `ops.runtime_setting_log`), com a precedência de sempre: banco > `.env` da VPS >
 padrão do código. O scheduler aplica as sobrescritas no env de cada execução, então a mudança vale na próxima
 execução do job (08:00 UTC ou um `sync:mirror` manual).

@@ -278,7 +278,7 @@ export default defineMessages(
     markets: {
       eyebrow: 'América Latina',
       title: 'Mercados',
-      lead: '11 países com relevância própria e conteúdo em português ou na variante local do espanhol.',
+      lead: '13 países com relevância própria e conteúdo em português, inglês ou na variante local do espanhol.',
       whereToWatch: 'Onde assistir',
       spanish: 'espanhol',
       summaryWatch: 'Onde assistir em {n} países',
@@ -599,7 +599,7 @@ export default defineMessages(
       markets: {
         eyebrow: 'Latin America',
         title: 'Markets',
-        lead: '11 countries with their own relevance and content in Portuguese or the local Spanish variant.',
+        lead: '13 countries with their own relevance and content in English, Portuguese or the local Spanish variant.',
         whereToWatch: 'Where to watch',
         spanish: 'Spanish',
         summaryWatch: 'Where to watch in {n} countries',
@@ -919,7 +919,7 @@ export default defineMessages(
       markets: {
         eyebrow: 'América Latina',
         title: 'Mercados',
-        lead: '11 países con relevancia propia y contenido en portugués o en la variante local del español.',
+        lead: '13 países con relevancia propia y contenido en portugués, inglés o en la variante local del español.',
         whereToWatch: 'Dónde ver',
         spanish: 'español',
         summaryWatch: 'Dónde ver en {n} países',

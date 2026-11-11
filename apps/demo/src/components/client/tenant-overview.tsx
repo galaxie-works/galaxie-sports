@@ -1,13 +1,16 @@
+import { isEngageModule } from '@galaxie/db/engage-modules';
 import { ArrowRight, Blocks, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Progress } from '@/components/ui/progress';
-import { getTenantUsage, type TenantInfo } from '@/lib/client/tenants';
+import { getEngageModules, getTenantUsage, type TenantInfo } from '@/lib/client/tenants';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { fill } from '@/lib/i18n/text';
+
+import { EngageModules } from './engage-modules';
 
 type Texts = Dictionary['client']['overview'];
 
@@ -39,7 +42,7 @@ export async function TenantOverview({
   locale: Locale;
   t: Dictionary;
 }) {
-  const usage = await getTenantUsage(tenant.id, 30);
+  const [usage, engage] = await Promise.all([getTenantUsage(tenant.id, 30), getEngageModules(tenant)]);
   const o: Texts = t.client.overview;
   const num = new Intl.NumberFormat(locale);
   const plan = o.plans[tenant.plan as keyof Texts['plans']] ?? tenant.plan;
@@ -74,11 +77,13 @@ export async function TenantOverview({
             </Field>
             <div className="sm:col-span-2">
               <Field label={o.modules}>
-                {tenant.modules.map((m) => (
-                  <Badge key={m} variant="info-light">
-                    {o.moduleNames[m as keyof Texts['moduleNames']] ?? m}
-                  </Badge>
-                ))}
+                {tenant.modules
+                  .filter((m) => !isEngageModule(m))
+                  .map((m) => (
+                    <Badge key={m} variant="info-light">
+                      {o.moduleNames[m as keyof Texts['moduleNames']] ?? m}
+                    </Badge>
+                  ))}
               </Field>
             </div>
             <Field label={o.sports}>
@@ -131,6 +136,8 @@ export async function TenantOverview({
           )}
         </FramePanel>
       </Frame>
+
+      <EngageModules modules={engage} locale={locale} t={t} />
 
       <Frame className="lg:col-span-3">
         <FramePanel className="flex flex-col gap-3">

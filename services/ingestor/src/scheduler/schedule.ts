@@ -178,6 +178,15 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 30 * MINUTE,
   },
   {
+    name: 'cosmos-upkeep',
+    description:
+      'Cosmos AI: devolve reservas vencidas, tira do saldo o teste vencido e cobra as recargas automáticas pendentes; sem cota do fornecedor nem IA',
+    cron: '*/5 * * * *',
+    script: 'dist/cli/cosmos-upkeep.js',
+    args: [],
+    timeoutMs: 10 * MINUTE,
+  },
+  {
     name: 'bootstrap-catalog',
     description:
       'Atualiza o catálogo global do futebol (~8 chamadas BOOTSTRAP; reaproveita o raw dentro do TTL)',

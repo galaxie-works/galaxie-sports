@@ -139,7 +139,7 @@ describe('limites de requisição', () => {
 
 describe('auditoria de rotas', () => {
   // Rotas públicas por decisão explícita; qualquer rota nova fora daqui precisa declarar
-  // config.module, config.authenticated ou config.admin.
+  // config.module, config.authenticated, config.admin ou config.fan (token do torcedor).
   // /metrics: protegido por METRICS_TOKEN (Bearer) e não exposto pelo proxy público.
   const PUBLIC = new Set([
     'GET /health',
@@ -152,6 +152,8 @@ describe('auditoria de rotas', () => {
     'GET /openapi.json',
     'GET /docs',
     'OPTIONS /*',
+    // webhook do Stripe da Cosmos AI: autenticado pela assinatura do Stripe (Stripe-Signature), não por chave nossa
+    'POST /webhooks/stripe/cosmos',
   ]);
 
   it('toda rota é pública por decisão explícita ou exige chave (tenant ou admin)', async () => {
@@ -169,7 +171,7 @@ describe('auditoria de rotas', () => {
     for (const r of routes) {
       const id = `${r.method} ${r.url}`;
       if (PUBLIC.has(id)) continue;
-      const declared = Boolean(r.config.module || r.config.authenticated || r.config.admin);
+      const declared = Boolean(r.config.module || r.config.authenticated || r.config.admin || r.config.fan);
       expect(declared, `${id} não declara autenticação`).toBe(true);
       const url = r.url.replace(/:(\w+)/g, '0').replace('*', 'fixtures');
       const res = await app.inject({

@@ -306,7 +306,7 @@ export const ZONES = [
 ] as const;
 
 /** Números fixos de configuração (não contagens ao vivo). */
-export const HEADLINE = { sports: 12, markets: 11, watch: 8, voices: 7 };
+export const HEADLINE = { sports: 12, markets: 13, watch: 8, voices: 7 };
 
 /** Mercados com relevância própria, a voz do conteúdo e se há "onde assistir" no país. */
 export const MARKETS = [
@@ -321,6 +321,8 @@ export const MARKETS = [
   { code: 'BO', voice: 'es', watch: false },
   { code: 'VE', voice: 'es', watch: false },
   { code: 'MX', voice: 'es-MX', watch: true },
+  { code: 'US', voice: 'en', watch: false },
+  { code: 'CA', voice: 'en', watch: false },
 ] as const;
 
 /**

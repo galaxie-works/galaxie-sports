@@ -28,9 +28,13 @@ import {
   searchUsdFor,
   WEB_SEARCH_USD_PER_CALL,
 } from './pricing.js';
-import { AnthropicLlmClient } from './providers/anthropic.js';
-import { GeminiLlmClient, structureEstimate } from './providers/gemini.js';
-import { OpenAiLlmClient } from './providers/openai.js';
+import {
+  AnthropicLlmClient,
+  DeepSeekLlmClient,
+  GeminiLlmClient,
+  OpenAiLlmClient,
+  structureEstimate,
+} from '@galaxie/llm';
 import type { LlmJsonRequest } from './types.js';
 
 const SCHEMA = {
@@ -188,6 +192,41 @@ describe('teto global em US$', () => {
     expect(fake.calls).toHaveLength(2);
     // o teto de tokens seguiria longe: 204 mil tokens no dia
     expect(await budget.status()).toMatchObject({ used: 204_000, limit: null });
+  });
+
+  it('DeepSeek entra no teto do dia: custo pela tabela (cache incluído) e recusa ao passar', async () => {
+    const store = new MemoryTokenBudgetStore();
+    const budget = new TokenBudget(store, { dailyLimit: null, dailyUsdLimit: 0.5 }, () => NOW);
+    let calls = 0;
+    const fakeFetch = async () => {
+      calls++;
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: '{"answer":"a"}' }, finish_reason: 'stop' }],
+          // 1 milhão de entrada (metade do cache) e 100 mil de saída no deepseek-flash: US$ 0,273
+          usage: {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 100_000,
+            prompt_cache_hit_tokens: 500_000,
+            prompt_cache_miss_tokens: 500_000,
+          },
+        }),
+        { status: 200 },
+      );
+    };
+    const models = { light: 'deepseek-flash', standard: 'deepseek-flash', research: 'deepseek-flash' };
+    const client = new BudgetedLlmClient(
+      new DeepSeekLlmClient({ fetch: fakeFetch, models }),
+      budget,
+      (t) => models[t],
+      'deepseek',
+    );
+    const r = await client.generateJson(req());
+    expect(r.usage.costUsd).toBeCloseTo((500_000 * 0.3 + 500_000 * 0.006 + 100_000 * 1.2) / 1e6, 6);
+    await client.generateJson(req());
+    expect((await budget.usdStatus()).usedUsd).toBeCloseTo(2 * 0.273, 6);
+    await expect(client.generateJson(req())).rejects.toMatchObject({ unit: 'usd', agent: 'global' });
+    expect(calls).toBe(2);
   });
 
   it('o teto de tokens continua valendo junto com o de US$', async () => {

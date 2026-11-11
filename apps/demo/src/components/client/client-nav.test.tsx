@@ -7,7 +7,7 @@ import { LOCALES, type Locale } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { compareAlpha } from '@/lib/alphabetical';
 
-import { CLIENT_NAV, ClientNavSheet, ClientSideNav, clientNavGroups } from './client-nav';
+import { CLIENT_NAV, ClientNavSheet, ClientSideNav, clientNavGroups, navRequirement } from './client-nav';
 
 afterEach(cleanup);
 
@@ -21,7 +21,7 @@ describe('clientNavGroups', () => {
   it.each(LOCALES)('%s: grupos na ordem do estudo, áreas em ordem alfabética, sem grupo vazio', (locale) => {
     const nav = clientDictionary(locale).client.nav;
     const groups = clientNavGroups(nav);
-    expect(groups.map((g) => g.id)).toEqual(['account', 'content', 'integrations']);
+    expect(groups.map((g) => g.id)).toEqual(['account', 'content', 'intelligence', 'integrations']);
     for (const g of groups) {
       const labels = g.items.map((i) => i.label);
       expect(labels).toEqual([...labels].sort(compareAlpha));
@@ -34,13 +34,35 @@ describe('clientNavGroups', () => {
 
   it('pt-BR: Conta e Conteúdo na ordem alfabética do idioma', () => {
     const groups = clientNavGroups(clientDictionary('pt-BR').client.nav);
-    expect(groups[0]!.items.map((i) => i.label)).toEqual(['Chaves publicáveis', 'Visão geral']);
+    expect(groups[0]!.items.map((i) => i.label)).toEqual([
+      'Chaves publicáveis',
+      'Usuários e cargos',
+      'Visão geral',
+    ]);
     expect(groups[1]!.items.map((i) => i.label)).toEqual([
       'Builder',
       'Grade e ofertas',
       'Minha lista de canais',
       'Temas',
     ]);
+  });
+});
+
+describe('áreas por cargo e módulo (#1018, #1019)', () => {
+  it('só as áreas visíveis aparecem; grupo sem área some', () => {
+    const groups = clientNavGroups(clientDictionary('pt-BR').client.nav, ['overview']);
+    expect(groups.map((g) => g.id)).toEqual(['account']);
+    expect(groups[0]!.items.map((i) => i.id)).toEqual(['overview']);
+  });
+
+  it('configuração exige settings.manage e a equipe exige members.view', () => {
+    expect(navRequirement('keys')).toEqual({ action: 'settings.manage' });
+    expect(navRequirement('members')).toEqual({ action: 'members.view' });
+    expect(navRequirement('overview')).toEqual({});
+  });
+
+  it('Cosmos AI exige cosmos.view (saldo e extrato não aparecem para Moderador nem Voluntário)', () => {
+    expect(navRequirement('cosmos')).toEqual({ action: 'cosmos.view' });
   });
 });
 
