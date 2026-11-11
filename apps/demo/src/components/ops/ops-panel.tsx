@@ -1,9 +1,9 @@
 'use client';
 
-import { SCHEDULED_JOBS, scheduleKey, settingDef, type SettingSection } from '@galaxie/runtime-config';
+import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config';
 import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition, type ReactNode } from 'react';
+import { useTransition, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
@@ -29,7 +29,6 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill, plural } from '@/lib/i18n/text';
 import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
@@ -42,35 +41,40 @@ import { SettingRow, useOpsAction } from './setting-row';
 import { TasksTab } from './tasks-tab';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
-import { PANEL_TABS, SYSTEM_VIEWS, type PanelScope, type SystemView } from '@/lib/ops/panel-tabs';
+import { SETTINGS_VIEWS, type PanelBlock, type SettingsView } from '@/lib/ops/panel-tabs';
+import { settingBlock } from '@/lib/ops/setting-page';
 
-export { PANEL_TABS, SYSTEM_VIEWS, type PanelScope, type SystemView };
-type Tab = (typeof PANEL_TABS)[PanelScope][number];
+import { SettingLinks } from './setting-link';
+
+export { SETTINGS_VIEWS, type SettingsView };
 
 /** Editadas pelo cartão Política de IA (sliders), fora da lista de flags da seção. */
 const AI_POLICY_KEYS = new Set(['AI_BAND_SHARES', 'AI_DAILY_USD_BUDGET', 'AI_P0_MIN_AUDIENCE']);
 
-/** Plano por esporte (APISPORTS_PLAN_<API>) vai para Esportes e features; o padrão fica no Sistema. */
-const isSportPlan = (key: string) => key.startsWith('APISPORTS_PLAN_');
+/** Modelos em uso que as páginas das features mostram com link para IA interna (A3, #1070). */
+const WTW_MODEL_KEYS = ['AI_MATCH_CHANNEL_MODEL', 'AI_RIGHTS_MODEL'] as const;
+/** A pesquisa e a revisita da grade usam os níveis de pesquisa e leve dos agentes. */
+const LINEUP_MODEL_KEYS = ['AI_MODEL_RESEARCH', 'AI_MODEL_LIGHT'] as const;
+/** Chaves que as páginas mostram como "configurada ou faltando", com link para Credenciais (A4). */
+const AI_KEYS = ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY'] as const;
 
 interface Ctx {
   snapshot: OpsSnapshot;
   timeZone: string;
 }
 
+/**
+ * Uma página de Ajustes feita do painel de Operação (#1069): os blocos do item (`SETTINGS_VIEWS`), na ordem. Página
+ * com um bloco só mostra o bloco direto; com mais de um, cada um vira uma seção com título. Cada bloco leva a âncora do
+ * próprio nome (`/ajustes/fornecedor#sports`), para os links antigos e a busca.
+ */
 export function OpsPanel({
   snapshot,
   timeZone,
-  scope = 'system',
-  initialTab,
   view,
   relatedChannels,
 }: Ctx & {
-  scope?: PanelScope;
-  /** Aba aberta ao chegar (ex.: `?aba=related` da busca de canais). */
-  initialTab?: string;
-  /** Área do Sistema no menu de Ajustes: as seções dela empilhadas, sem abas. */
-  view?: SystemView;
+  view: SettingsView;
   /** Controle dos canais nos vídeos relacionados (renderizado no servidor, com a busca e o filtro da URL). */
   relatedChannels?: ReactNode;
 }) {
@@ -79,43 +83,35 @@ export function OpsPanel({
   const f = useFormatters(timeZone);
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
-  const tabs: readonly Tab[] = PANEL_TABS[scope];
-  const [tab, setTab] = useState<Tab>(tabs.find((id) => id === initialTab) ?? tabs[0]!);
 
-  // o que cada área mostra: em abas (Esportes e features) ou empilhado, uma seção por área (Ajustes do Sistema, #1001)
-  const content: Record<Tab, ReactNode> = {
-    status: (
-      <>
-        <StatusTab snapshot={snapshot} timeZone={timeZone} />
-      </>
+  const content: Record<PanelBlock, () => ReactNode> = {
+    status: () => <StatusTab snapshot={snapshot} timeZone={timeZone} />,
+    quality: () => (
+      <QualityTab
+        quality={snapshot.quality}
+        timeZone={timeZone}
+        action={(() => {
+          const job = snapshot.jobs.find((j) => j.name === 'data-quality');
+          return job ? <RunNowButton job={job} /> : null;
+        })()}
+      />
     ),
-    quality: (
-      <>
-        <QualityTab
-          quality={snapshot.quality}
-          timeZone={timeZone}
-          action={(() => {
-            const job = snapshot.jobs.find((j) => j.name === 'data-quality');
-            return job ? <RunNowButton job={job} /> : null;
-          })()}
-        />
-      </>
-    ),
-    ai: (
+    ai: () => (
       <>
         <AiPolicyCard
           key={`${snapshot.llm.usdBudget}:${snapshot.llm.p0MinAudience}:${Object.values(snapshot.llm.bandShares).join(',')}`}
           llm={snapshot.llm}
         />
         <SectionCard
-          section="ai"
+          block="ai"
           filter={(key) => !AI_POLICY_KEYS.has(key)}
           snapshot={snapshot}
           timeZone={timeZone}
         />
+        <SettingLinks kind="keys" keys={AI_KEYS} snapshot={snapshot} />
       </>
     ),
-    related: (
+    related: () => (
       <>
         {snapshot.youtube ? (
           <>
@@ -124,85 +120,51 @@ export function OpsPanel({
           </>
         ) : null}
         {relatedChannels}
-        <SectionCard section="related" snapshot={snapshot} timeZone={timeZone} />
+        <SectionCard block="related" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="keys" keys={['YOUTUBE_API_KEY']} snapshot={snapshot} />
       </>
     ),
-    sports: (
+    sports: () => <SectionCard block="sports" snapshot={snapshot} timeZone={timeZone} />,
+    schedule: () => <ScheduleTab snapshot={snapshot} timeZone={timeZone} />,
+    tasks: () => <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />,
+    provider: () => (
       <>
-        <SectionCard
-          section="provider"
-          variant="sports"
-          filter={isSportPlan}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
+        <SectionCard block="provider" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="keys" keys={['APISPORTS_KEY']} snapshot={snapshot} />
       </>
     ),
-    schedule: (
-      <>
-        <ScheduleTab snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
-    tasks: (
-      <>
-        <TasksTab tasks={snapshot.tasks} timeZone={timeZone} now={snapshot.generatedAt} />
-      </>
-    ),
-    provider: (
-      <>
-        <SectionCard
-          section="provider"
-          filter={(key) => !isSportPlan(key)}
-          snapshot={snapshot}
-          timeZone={timeZone}
-        />
-        <SectionCard section="credentials" snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
-    mirror: (
-      <>
-        <MirrorTab snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
-    suggestions: (
+    credentials: () => <SectionCard block="credentials" snapshot={snapshot} timeZone={timeZone} />,
+    mirror: () => <MirrorTab snapshot={snapshot} timeZone={timeZone} />,
+    suggestions: () => (
       <>
         {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
         <GithubIntegration snapshot={snapshot} timeZone={timeZone} />
       </>
     ),
-    history: (
+    history: () => <HistoryTab snapshot={snapshot} timeZone={timeZone} />,
+    live: () => <SectionCard block="live" snapshot={snapshot} timeZone={timeZone} />,
+    postgame: () => <SectionCard block="postgame" snapshot={snapshot} timeZone={timeZone} />,
+    wtw: () => (
       <>
-        <HistoryTab snapshot={snapshot} timeZone={timeZone} />
+        <SectionCard block="wtw" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="models" keys={WTW_MODEL_KEYS} snapshot={snapshot} />
       </>
     ),
-    live: (
+    lineup: () => (
       <>
-        <SectionCard section="live" snapshot={snapshot} timeZone={timeZone} />
+        <SectionCard block="lineup" snapshot={snapshot} timeZone={timeZone} />
+        <SettingLinks kind="models" keys={LINEUP_MODEL_KEYS} snapshot={snapshot} />
       </>
     ),
-    wtw: (
-      <>
-        <SectionCard section="wtw" snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
-    assets: (
-      <>
-        <SectionCard section="assets" snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
-    cosmos: (
-      <>
-        <SectionCard section="cosmos" snapshot={snapshot} timeZone={timeZone} />
-      </>
-    ),
+    assets: () => <SectionCard block="assets" snapshot={snapshot} timeZone={timeZone} />,
+    cosmos: () => <SectionCard block="cosmos" snapshot={snapshot} timeZone={timeZone} />,
   };
+  const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          {scope === 'features' ? T.features.description : T.page.description}
-        </p>
+        <p className="text-muted-foreground max-w-3xl text-sm">{T.views[view]}</p>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-xs">
             {fill(T.page.generatedAt, { when: f.time(snapshot.generatedAt) })}
@@ -218,30 +180,21 @@ export function OpsPanel({
           </Button>
         </div>
       </div>
-      {view ? (
-        <div className="flex flex-col gap-8">
-          {SYSTEM_VIEWS[view].map((id) => (
-            <SettingsSection key={id} title={T.tabs[id]}>
-              <div className="flex flex-col gap-4">{content[id]}</div>
-            </SettingsSection>
-          ))}
-        </div>
-      ) : (
-        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="h-auto flex-wrap justify-start">
-            {tabs.map((id) => (
-              <TabsTrigger key={id} value={id}>
-                {T.tabs[id]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {tabs.map((id) => (
-            <TabsContent key={id} value={id} className="mt-4 flex flex-col gap-4">
-              {content[id]}
-            </TabsContent>
-          ))}
-        </Tabs>
-      )}
+      <div className="flex flex-col gap-8">
+        {blocks.map((id) =>
+          blocks.length > 1 ? (
+            <div key={id} id={id} className="scroll-mt-20">
+              <SettingsSection title={T.tabs[id]}>
+                <div className="flex flex-col gap-4">{content[id]()}</div>
+              </SettingsSection>
+            </div>
+          ) : (
+            <div key={id} id={id} className="flex scroll-mt-20 flex-col gap-4">
+              {content[id]()}
+            </div>
+          ),
+        )}
+      </div>
     </div>
   );
 }
@@ -272,28 +225,32 @@ function RowsFrame({
   );
 }
 
+/** Título e descrição de cada bloco de linhas (o das sugestões é o texto da seção `feedback` do registro). */
+type SectionBlock = Exclude<PanelBlock, 'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'history'>;
+const sectionTextKey = (block: SectionBlock) => (block === 'suggestions' ? 'feedback' : block);
+
 /**
  * As flags de uma seção. Cada uma no bloco dela (#1074 a #1078): as linhas comuns em `SettingRow`; o pós-jogo e o
  * plano de cada esporte numa linha por esporte; os modelos de IA num cartão por agente; os segredos na lista de
  * credenciais (só "configurada ou faltando"). O salvamento é o de sempre, uma chave por vez.
  */
 function SectionCard({
-  section,
+  block,
   snapshot,
   timeZone,
   filter,
-  variant,
 }: Ctx & {
-  section: SettingSection;
-  /** Só parte das flags da seção (ex.: o plano de cada esporte). */
+  block: SectionBlock;
+  /** Só parte das flags do bloco (ex.: só o liga/desliga das sugestões). */
   filter?: (key: string) => boolean;
-  /** Título e descrição de outra caixa (`sports`). */
-  variant?: 'sports';
 }) {
   const { t } = useI18n();
   const T = t.ops;
-  const settings = snapshot.settings.filter((s) => s.section === section && (!filter || filter(s.key)));
-  const text = T.sections[variant ?? section];
+  // cada ajuste mora em um lugar só (`settingPage`, #1070): o bloco escolhe as linhas pela tabela, não pela seção
+  const settings = snapshot.settings.filter(
+    (s) => settingBlock(s.key) === block && (!filter || filter(s.key)),
+  );
+  const text = T.sections[sectionTextKey(block)];
   const editable = settings.filter((s) => settingDef(s.key)!.type !== 'secret');
   const secrets = settings.filter((s) => settingDef(s.key)!.type === 'secret');
   const postgame = editable.filter((s) => POSTGAME_SPORT_KEYS.has(s.key));

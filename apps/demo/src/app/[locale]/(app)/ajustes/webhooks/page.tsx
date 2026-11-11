@@ -38,7 +38,7 @@ export default async function WebhooksSettingsPage() {
   const t = await getT();
   return (
     <>
-      <PageHeader title={t.ops.page.title} kind="ajustes" />
+      <PageHeader title={t.ops.nav.webhooks} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
         <SettingsArea active="webhooks">
           <Suspense

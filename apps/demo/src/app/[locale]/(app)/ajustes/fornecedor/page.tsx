@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.ops.nav.provider };
 }
 
-/** Ajustes → Plataforma → Fornecedor (#1001): as seções dela empilhadas, sem abas. */
+/** Ajustes → Dados → Fornecedor e cota: plano padrão, reserva da cota e o plano de cada esporte. (#1069) */
 export default function Page() {
-  return <OpsViewPage view="provider" active="provider" />;
+  return <OpsViewPage view="provider" />;
 }
