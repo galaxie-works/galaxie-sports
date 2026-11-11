@@ -1,6 +1,6 @@
 {
   "id": "59dc74b1-6d63-4b08-a13c-6d29e92d6514",
-  "prevId": "0fae46fb-3fa3-4567-9aad-49eaa631219d",
+  "prevId": "599e7329-6cea-43cb-9759-74f38503d5da",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17698,6 +17698,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -17729,6 +17741,14 @@
         "function_def_min_positive": {
           "name": "function_def_min_positive",
           "value": "\"cosmos\".\"function_def\".\"min_credits\" > 0"
+        },
+        "function_def_provider": {
+          "name": "function_def_provider",
+          "value": "\"cosmos\".\"function_def\".\"provider\" is null or \"cosmos\".\"function_def\".\"provider\" in ('anthropic', 'openai', 'gemini', 'deepseek')"
+        },
+        "function_def_model_needs_provider": {
+          "name": "function_def_model_needs_provider",
+          "value": "\"cosmos\".\"function_def\".\"model\" is null or \"cosmos\".\"function_def\".\"provider\" is not null"
         }
       },
       "isRLSEnabled": false

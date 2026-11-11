@@ -572,8 +572,15 @@
     {
       "idx": 81,
       "version": "7",
-      "when": 1794346300000,
-      "tag": "0083_ficha_por_pais",
+      "when": 1794397198262,
+      "tag": "0084_cosmos_funcao_modelo",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1794397298262,
+      "tag": "0085_ficha_por_pais",
       "breakpoints": true
     }
   ]

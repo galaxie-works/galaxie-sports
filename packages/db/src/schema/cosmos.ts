@@ -202,12 +202,30 @@ export const functionDef = cosmos.table(
     permission: text('permission').notNull(),
     /** Tela onde a função aparece (rota do console). */
     screen: text('screen'),
+    /**
+     * Provedor de IA da função (#1088), escolhido pela equipe Galaxie; null = o padrão da Cosmos. O preço do
+     * modelo vem da tabela do ai-ledger, então trocar para um modelo mais barato baixa os créditos cobrados.
+     */
+    provider: text('provider').$type<CosmosProvider>(),
+    /** Modelo no provedor; null = o modelo leve padrão do provedor. */
+    model: text('model'),
     active: boolean('active').notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [check('function_def_min_positive', sql`${t.minCredits} > 0`)],
+  (t) => [
+    check('function_def_min_positive', sql`${t.minCredits} > 0`),
+    check(
+      'function_def_provider',
+      sql`${t.provider} is null or ${t.provider} in ('anthropic', 'openai', 'gemini', 'deepseek')`,
+    ),
+    check('function_def_model_needs_provider', sql`${t.model} is null or ${t.provider} is not null`),
+  ],
 );
+
+/** Provedores que uma função da Cosmos pode usar (#1088). */
+export const COSMOS_PROVIDERS = ['anthropic', 'openai', 'gemini', 'deepseek'] as const;
+export type CosmosProvider = (typeof COSMOS_PROVIDERS)[number];
 
 // ─── compra de créditos pelo Stripe (#993) ──────────────────────────────────────────────────────────
 
@@ -396,7 +414,7 @@ export const rechargeAttempt = cosmos.table(
 
 // ─── ações da equipe Galaxie nas carteiras (#1002) ──────────────────────────────────────────────────
 
-export const STAFF_ACTIONS = ['multiplier', 'block', 'unblock', 'package'] as const;
+export const STAFF_ACTIONS = ['multiplier', 'block', 'unblock', 'package', 'function'] as const;
 export type StaffActionKind = (typeof STAFF_ACTIONS)[number];
 
 /**
