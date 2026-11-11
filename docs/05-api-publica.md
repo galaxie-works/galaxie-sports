@@ -1012,7 +1012,7 @@ Formato RFC 9457 (`application/problem+json`):
 
 A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo, Comunidades, Gamificação, Shop the game e Cosmos AI usam o mesmo token. O servidor do cliente pede um token curto (`gft_`) com a chave secreta e o entrega ao widget ou app. Só exige um módulo de engajamento no plano (§1.1).
 
-**O que o Galaxie guarda.** Só o id da Conta e do Perfil no sistema do cliente (pseudônimos), Apelido, avatar, faixa etária, país, idioma, time do coração e se o Titular da Conta é adulto. Nunca e-mail, documento, telefone, senha ou data de nascimento: campo fora da lista é 400. O cliente é o controlador dos dados e o Galaxie o operador (#1022). Tabelas no schema `fan` (`account`, `profile`, `erasure_log`), escritas só pela API; agentes de IA e ingestor não leem esse schema.
+**O que o Galaxie guarda.** Só o id da Conta e do Perfil no sistema do cliente (pseudônimos), Apelido, avatar, faixa etária, país, idioma, time do coração e se o Titular da Conta é adulto. Nunca e-mail, documento, telefone, senha ou data de nascimento: campo fora da lista é 400. O cliente é o controlador dos dados e o Galaxie o operador (#1022). Tabelas no schema `fan` (`account`, `profile`, `erasure_log`, `wallet`, `points_ledger`), escritas só pela API; agentes de IA e ingestor não leem esse schema.
 
 **Conta e Perfil.** Uma Conta (`externalAccountId`) pode ter vários Perfis (`externalProfileId`), cada um com a própria faixa. O Perfil palpita, pontua e escreve; o Prêmio vai para o Titular da Conta, e sem `holderAdult: "yes"` ele fica pendente com o cliente. Pedir um token de novo para o mesmo Perfil atualiza Apelido, avatar, faixa, país e idioma, sem criar outro Perfil.
 
@@ -1031,11 +1031,15 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | `POST /v1/fans/tokens` | Servidor do cliente | Chave secreta (`x-galaxie-key`). A publicável recebe 403 |
 | `GET /v1/fans/me` | Widget ou app | `Authorization: Bearer gft_…` |
 | `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`) e o time do coração |
+| `GET /v1/fans/me/wallet` | Widget ou app | Token do torcedor. Pontos e Saldo, um item por país de programa |
+| `GET /v1/fans/me/wallet/ledger` | Widget ou app | Token do torcedor. Extrato do programa (`country`, padrão o do Perfil), paginado por `before` |
 | `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |
 
 **Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
 
 **Exclusão.** O `DELETE` anonimiza o Perfil (some o id do cliente, o Apelido, o avatar e o time do coração; a linha fica para o que ele escreveu apontar para "torcedor excluído"), grava `fan.erasure_log` para repetir a exclusão depois de um restore e invalida na hora os tokens já emitidos (marca no Valkey por 1 hora, o maior prazo de um token). Se o torcedor voltar, o próximo token cria um Perfil novo. Conteúdo dos módulos (mensagens, posts, palpites, conquistas) entra na mesma exclusão quando cada módulo chegar.
+
+**Carteira de pontos (#938).** Uma por Perfil e programa (cliente + país), em `fan.wallet` e `fan.points_ledger`. **Pontos** só sobem (palpites, conquistas, presença, enquetes, trivia) e definem Nível e Ranking; **Saldo** sobe junto e é o que se gasta no resgate, que nunca mexe nos Pontos. Compra e clique na loja nunca dão pontos (o banco recusa a origem `shopping`); pontos não se compram, não se transferem e não viram dinheiro. `13_17` ganha Pontos mas não resgata; `under13` fica fora (403). Os módulos lançam pelo serviço interno `creditPoints`, `debitBalance` e `revertPoints` (`@galaxie/db`): cada evento de origem lança uma vez só (reprocessar devolve o mesmo lançamento) e o estorno tira os Pontos inteiros e o Saldo que sobrou. Evento estornado não credita mais, nem quando o estorno chega antes do crédito; o recálculo de um palpite usa um id de evento novo. O extrato é append-only, com o valor depois de cada lançamento. Na exclusão do Perfil, a carteira e o extrato saem junto.
 
 **Exemplo em Node** (no servidor do cliente):
 

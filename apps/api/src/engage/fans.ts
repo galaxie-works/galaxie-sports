@@ -5,7 +5,9 @@
 import {
   fanAccount,
   fanErasureLog,
+  fanPointsRevokedEvent,
   fanProfile,
+  fanWallet,
   type Database,
   type FanAgeBand,
   type FanHolderAdult,
@@ -180,7 +182,8 @@ export async function patchFan(
  * coração; a linha fica para o que o Perfil escreveu continuar apontando para "torcedor excluído") e grava o
  * registro para repetir depois de um restore. Repetir a chamada não faz nada. Devolve o Perfil excluído agora.
  *
- * Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites, conquistas) entram aqui quando
+ * A carteira de pontos (#938) sai junto. Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites,
+ * conquistas) entram aqui quando
  * chegarem, na mesma transação, e o tópico `fan.profile.deleted` sai pelo outbox (#1023).
  */
 export async function eraseFan(
@@ -218,6 +221,18 @@ export async function eraseFan(
         updatedAt: sql`now()` as never,
       })
       .where(and(eq(fanProfile.tenantId, input.tenantId), eq(fanProfile.id, target.profileId)));
+    // a carteira e o extrato saem junto (o extrato cai em cascata): Perfil excluído não fica no Ranking
+    await tx
+      .delete(fanWallet)
+      .where(and(eq(fanWallet.tenantId, input.tenantId), eq(fanWallet.profileId, target.profileId)));
+    await tx
+      .delete(fanPointsRevokedEvent)
+      .where(
+        and(
+          eq(fanPointsRevokedEvent.tenantId, input.tenantId),
+          eq(fanPointsRevokedEvent.profileId, target.profileId),
+        ),
+      );
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
       profileId: target.profileId,

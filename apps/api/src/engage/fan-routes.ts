@@ -3,6 +3,7 @@
  *
  * - `POST /v1/fans/tokens`: o servidor do cliente (chave secreta) pede o token `gft_` do torcedor;
  * - `GET` e `PATCH /v1/fans/me`: o torcedor, com o token, lê o Perfil e muda visibilidade e time do coração;
+ * - `GET /v1/fans/me/wallet` e `.../ledger`: o torcedor lê os Pontos, o Saldo e o extrato (#938, B6);
  * - `DELETE /v1/fans/{conta}/profiles/{perfil}`: o servidor do cliente exclui o Perfil.
  *
  * Emitir e excluir exigem um módulo de engajamento no plano. A chave publicável nunca chega aqui (só faz GET
@@ -10,14 +11,17 @@
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
+  FanLedgerQuery,
   FanMePatchBody,
   FanProfileParams,
   FanTokenBody,
+  type FanLedger,
   type FanMe,
   type FanTokenResponse,
+  type FanWallet,
 } from '@galaxie/contracts';
 import { screen, screenNotice } from '@galaxie/engage';
-import { isEngageModule, type Database } from '@galaxie/db';
+import { isEngageModule, readLedger, readWallets, type Database } from '@galaxie/db';
 import type { TenantContext } from '../auth/authenticator.js';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
@@ -150,6 +154,55 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
     return meBody(profile);
+  });
+
+  /** Torcedor do token, com Perfil ativo e faixa que participa (menor de 13 fica fora, D1). */
+  async function walletFan(request: FastifyRequest) {
+    const fan = request.fan!;
+    if (!fanCan(fan.ageBand, 'read'))
+      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
+    const profile = await readFan(db(), fan.tenantId, fan.profileId);
+    if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+    return { fan, profile };
+  }
+
+  app.get('/v1/fans/me/wallet', { config: { fan: true } }, async (request, reply) => {
+    const { fan } = await walletFan(request);
+    const wallets = await readWallets(db(), fan.tenantId, fan.profileId);
+    reply.header('cache-control', 'no-store');
+    const res: FanWallet = {
+      data: wallets.map((w) => ({ program_country: w.programCountry, points: w.points, balance: w.balance })),
+    };
+    return res;
+  });
+
+  app.get('/v1/fans/me/wallet/ledger', { config: { fan: true } }, async (request, reply) => {
+    const { fan, profile } = await walletFan(request);
+    const q = parseInput(FanLedgerQuery, request.query);
+    const programCountry = q.country ?? profile.country;
+    const rows = await readLedger(
+      db(),
+      { tenantId: fan.tenantId, profileId: fan.profileId, programCountry },
+      { limit: q.limit + 1, before: q.before },
+    );
+    const page = rows.slice(0, q.limit);
+    reply.header('cache-control', 'no-store');
+    const res: FanLedger = {
+      data: page.map((e) => ({
+        id: e.id,
+        reason: e.reason,
+        points_delta: e.pointsDelta,
+        balance_delta: e.balanceDelta,
+        points_after: e.pointsAfter,
+        balance_after: e.balanceAfter,
+        reverts_id: e.revertsId,
+        note: e.note,
+        created_at: e.createdAt.toISOString(),
+      })),
+      program_country: programCountry,
+      next_before: rows.length > q.limit ? page.at(-1)!.id : null,
+    };
+    return res;
   });
 
   app.delete(

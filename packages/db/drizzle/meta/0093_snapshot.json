@@ -1,6 +1,6 @@
 {
-  "id": "701fbd7e-564c-49f8-bf7b-234d7cbbc5eb",
-  "prevId": "7537c421-d5c2-42f1-a90a-1713745aac49",
+  "id": "ca2db101-0c08-4587-afc4-2e5f036d3b95",
+  "prevId": "75c244e4-52cd-405b-8c64-3bfde7b20498",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -19635,6 +19635,409 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "fan.points_ledger": {
+      "name": "points_ledger",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_country": {
+          "name": "program_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_event": {
+          "name": "source_event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reverts_id": {
+          "name": "reverts_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "points_delta": {
+          "name": "points_delta",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_delta": {
+          "name": "balance_delta",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "points_after": {
+          "name": "points_after",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_after": {
+          "name": "balance_after",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "points_ledger_event_uq": {
+          "name": "points_ledger_event_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "program_country",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_event",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reason",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"fan\".\"points_ledger\".\"reverts_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "points_ledger_revert_uq": {
+          "name": "points_ledger_revert_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reverts_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"fan\".\"points_ledger\".\"reverts_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "points_ledger_wallet_uq": {
+          "name": "points_ledger_wallet_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "program_country",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "points_ledger_tenant_id_tenant_id_fk": {
+          "name": "points_ledger_tenant_id_tenant_id_fk",
+          "tableFrom": "points_ledger",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "points_ledger_wallet_fk": {
+          "name": "points_ledger_wallet_fk",
+          "tableFrom": "points_ledger",
+          "tableTo": "wallet",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id",
+            "program_country"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "profile_id",
+            "program_country"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "points_ledger_reverts_fk": {
+          "name": "points_ledger_reverts_fk",
+          "tableFrom": "points_ledger",
+          "tableTo": "points_ledger",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id",
+            "program_country",
+            "reverts_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "profile_id",
+            "program_country",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "points_ledger_pkey": {
+          "name": "points_ledger_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "points_ledger_reason": {
+          "name": "points_ledger_reason",
+          "value": "reason in ('prediction', 'achievement', 'presence', 'poll', 'trivia', 'adjustment', 'redeem', 'revert')"
+        },
+        "points_ledger_source": {
+          "name": "points_ledger_source",
+          "value": "source in ('live_chat', 'communities', 'gamification', 'cosmos_ai', 'galaxie')"
+        },
+        "points_ledger_nonzero": {
+          "name": "points_ledger_nonzero",
+          "value": "\"fan\".\"points_ledger\".\"points_delta\" <> 0 or \"fan\".\"points_ledger\".\"balance_delta\" <> 0"
+        },
+        "points_ledger_shape": {
+          "name": "points_ledger_shape",
+          "value": "(\"fan\".\"points_ledger\".\"reason\" = 'revert' and \"fan\".\"points_ledger\".\"reverts_id\" is not null and \"fan\".\"points_ledger\".\"points_delta\" <= 0 and \"fan\".\"points_ledger\".\"balance_delta\" <= 0)\n        or (\"fan\".\"points_ledger\".\"reason\" = 'redeem' and \"fan\".\"points_ledger\".\"reverts_id\" is null and \"fan\".\"points_ledger\".\"points_delta\" = 0 and \"fan\".\"points_ledger\".\"balance_delta\" < 0)\n        or (\"fan\".\"points_ledger\".\"reason\" not in ('revert', 'redeem') and \"fan\".\"points_ledger\".\"reverts_id\" is null and \"fan\".\"points_ledger\".\"points_delta\" > 0 and \"fan\".\"points_ledger\".\"balance_delta\" = \"fan\".\"points_ledger\".\"points_delta\")"
+        },
+        "points_ledger_after_nonneg": {
+          "name": "points_ledger_after_nonneg",
+          "value": "\"fan\".\"points_ledger\".\"points_after\" >= 0 and \"fan\".\"points_ledger\".\"balance_after\" >= 0"
+        },
+        "points_ledger_event_len": {
+          "name": "points_ledger_event_len",
+          "value": "length(\"fan\".\"points_ledger\".\"source_event\") between 1 and 200"
+        },
+        "points_ledger_note_len": {
+          "name": "points_ledger_note_len",
+          "value": "\"fan\".\"points_ledger\".\"note\" is null or length(\"fan\".\"points_ledger\".\"note\") <= 200"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.points_revoked_event": {
+      "name": "points_revoked_event",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_country": {
+          "name": "program_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_event": {
+          "name": "source_event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "points_revoked_event_tenant_id_tenant_id_fk": {
+          "name": "points_revoked_event_tenant_id_tenant_id_fk",
+          "tableFrom": "points_revoked_event",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "points_revoked_event_profile_fk": {
+          "name": "points_revoked_event_profile_fk",
+          "tableFrom": "points_revoked_event",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "points_revoked_event_pkey": {
+          "name": "points_revoked_event_pkey",
+          "columns": [
+            "tenant_id",
+            "profile_id",
+            "program_country",
+            "source",
+            "source_event",
+            "reason"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "points_revoked_event_len": {
+          "name": "points_revoked_event_len",
+          "value": "length(\"fan\".\"points_revoked_event\".\"source_event\") between 1 and 200"
+        },
+        "points_revoked_event_source": {
+          "name": "points_revoked_event_source",
+          "value": "source in ('live_chat', 'communities', 'gamification', 'cosmos_ai', 'galaxie')"
+        },
+        "points_revoked_event_reason": {
+          "name": "points_revoked_event_reason",
+          "value": "reason in ('prediction', 'achievement', 'presence', 'poll', 'trivia', 'adjustment')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "fan.profile": {
       "name": "profile",
       "schema": "fan",
@@ -19834,6 +20237,118 @@
         "profile_erased": {
           "name": "profile_erased",
           "value": "(\"fan\".\"profile\".\"deleted_at\" is null and \"fan\".\"profile\".\"external_profile_id\" is not null) or (\"fan\".\"profile\".\"deleted_at\" is not null and \"fan\".\"profile\".\"external_profile_id\" is null and \"fan\".\"profile\".\"nickname\" is null and \"fan\".\"profile\".\"avatar_url\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.wallet": {
+      "name": "wallet",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_country": {
+          "name": "program_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "points": {
+          "name": "points",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "balance": {
+          "name": "balance",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "wallet_tenant_id_tenant_id_fk": {
+          "name": "wallet_tenant_id_tenant_id_fk",
+          "tableFrom": "wallet",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "wallet_profile_fk": {
+          "name": "wallet_profile_fk",
+          "tableFrom": "wallet",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "wallet_pkey": {
+          "name": "wallet_pkey",
+          "columns": [
+            "tenant_id",
+            "profile_id",
+            "program_country"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "wallet_country": {
+          "name": "wallet_country",
+          "value": "\"fan\".\"wallet\".\"program_country\" ~ '^[A-Z]{2}$'"
+        },
+        "wallet_points_nonneg": {
+          "name": "wallet_points_nonneg",
+          "value": "\"fan\".\"wallet\".\"points\" >= 0"
+        },
+        "wallet_balance_nonneg": {
+          "name": "wallet_balance_nonneg",
+          "value": "\"fan\".\"wallet\".\"balance\" >= 0"
         }
       },
       "isRLSEnabled": false

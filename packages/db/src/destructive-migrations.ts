@@ -17,7 +17,7 @@
  *  - `ALTER COLUMN … [SET DATA] TYPE` e `SET NOT NULL`;
  *  - `ADD COLUMN … NOT NULL` sem `DEFAULT` (nem `GENERATED`/`serial`): o INSERT da versão antiga, que não conhece
  *    a coluna, passa a falhar;
- *  - `TRUNCATE`.
+ *  - `TRUNCATE` (o comando; um trigger `BEFORE TRUNCATE` não conta).
  * Comentários, texto entre aspas simples e nomes entre aspas duplas não contam (uma coluna chamada "drop" é só
  * uma coluna). `ADD CONSTRAINT`, `UPDATE`/`DELETE` e `CREATE INDEX` sem CONCURRENTLY também podem estragar a
  * versão antiga, mas dependem do caso; ficam para a revisão (runbook).
@@ -151,7 +151,9 @@ export function destructiveStatements(text: string): DestructiveStatement[] {
         !/\bDEFAULT\s+\(*\s*NULL\b/i.test(full);
       if (/\bNOT\s+NULL\b/i.test(top) && !defaulted) add(offset + m.index, 'ADD COLUMN NOT NULL sem DEFAULT');
     }
-    for (const m of statement.matchAll(/\bTRUNCATE\b/gi)) add(offset + m.index, 'TRUNCATE');
+    // o comando TRUNCATE; o evento de um trigger (`BEFORE TRUNCATE`, `OR TRUNCATE`) não apaga nada
+    for (const m of statement.matchAll(/(?<!\b(?:BEFORE|AFTER|OR)\s+)\bTRUNCATE\b/gi))
+      add(offset + m.index, 'TRUNCATE');
     offset += statement.length + 1;
   }
   return found.sort((a, b) => a.at - b.at).map(({ at: _at, ...rest }) => rest);
