@@ -334,17 +334,28 @@ describe('<FanGate> e a sessão do torcedor', () => {
     await waitFor(() => expect(slow).toHaveLength(1));
     who = 'B';
     act(() => fan!.refresh());
-    await waitFor(() => expect(getFanToken.mock.calls.length).toBe(3));
+    const authOf = (c: unknown[]) =>
+      new Headers((c[1] as RequestInit | undefined)?.headers).get('authorization');
+    // a conferência nova já foi como B
+    await waitFor(() =>
+      expect(
+        fetchImpl.mock.calls.some((c) => String(c[0]).endsWith('/v1/fans/me') && authOf(c)?.endsWith('.B')),
+      ).toBe(true),
+    );
     await screen.findByText('ready');
+    let late: Response | null = null;
     await act(async () => {
       slow[0]!(tok('A', 'A2'));
-      await pending;
+      late = await pending;
     });
+    // a renovação de antes do refresh não sai nem fica: a chamada pendente termina com a recusa
+    expect(late!.status).toBe(401);
+    expect(fetchImpl.mock.calls.some((c) => authOf(c)?.endsWith('.A2'))).toBe(false);
     // a próxima chamada vai como B
     await act(async () => {
       await fan!.fetch('/v1/fans/me/wallet');
     });
-    const auth = new Headers(fetchImpl.mock.calls.at(-1)![1]?.headers).get('authorization');
-    expect(auth?.endsWith('.B')).toBe(true);
+    expect(authOf(fetchImpl.mock.calls.at(-1)!)?.endsWith('.B')).toBe(true);
+    expect(fetchImpl.mock.calls.some((c) => authOf(c)?.endsWith('.A2'))).toBe(false);
   });
 });

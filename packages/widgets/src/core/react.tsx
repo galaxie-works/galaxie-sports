@@ -256,9 +256,12 @@ function useFanSessionState({
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let lastToken: string | null = null;
+    // conferência de antes de um refresh() (login ou logout) não grava nada, nem na janela até a limpeza
+    const generation = generationRef.current;
+    const stale = () => cancelled || generation !== generationRef.current;
     const check = async () => {
       let token = await renew();
-      if (cancelled) return;
+      if (stale()) return;
       tokenRef.current = token;
       if (!token) {
         meSubjectRef.current = null;
@@ -272,7 +275,7 @@ function useFanSessionState({
       }
       try {
         let res = await call(token, '/v1/fans/me');
-        if (cancelled) return;
+        if (stale()) return;
         if (res.status === 403) {
           // não é a sessão: a chave não leva o torcedor (presa a um widget) ou o recurso está fechado
           meSubjectRef.current = null;
@@ -282,7 +285,7 @@ function useFanSessionState({
         if (res.status === 401 && getRef.current) {
           // o site pode ter devolvido um token guardado e vencido: pede outro uma vez
           const fresh = await renew();
-          if (cancelled) return;
+          if (stale()) return;
           if (fresh && fresh !== token) {
             token = fresh;
             tokenRef.current = fresh;
@@ -291,7 +294,7 @@ function useFanSessionState({
               setState({ status: 'checking', me: null });
             }
             res = await call(fresh, '/v1/fans/me');
-            if (cancelled) return;
+            if (stale()) return;
           }
         }
         if (res.status === 401) {
@@ -303,12 +306,12 @@ function useFanSessionState({
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = (await res.json()) as { data?: GsFanMe };
-        if (cancelled) return;
+        if (stale()) return;
         const ok = Boolean(body.data && Array.isArray(body.data.capabilities));
         meSubjectRef.current = ok ? fanTokenSubject(token) : null;
         setState(ok ? { status: 'ready', me: body.data! } : { status: 'unavailable', me: null });
       } catch {
-        if (cancelled) return;
+        if (stale()) return;
         setState((s) => (s.me ? s : { status: 'unavailable', me: null }));
       }
       // renova antes de vencer (só quem sabe pedir outro); se a fonte devolveu o mesmo token já perto de
@@ -335,7 +338,7 @@ function useFanSessionState({
       const generation = generationRef.current;
       const current = () => generation === generationRef.current;
       const token = tokenRef.current ?? (await renew());
-      if (!token) return new Response(null, { status: 401 });
+      if (!token || !current()) return new Response(null, { status: 401 });
       const res = await call(token, path, init);
       if (res.status !== 401 || !getRef.current) return res;
       // recusado: se outra chamada já trocou o token, usa o novo; senão pede outro (um pedido por vez)
