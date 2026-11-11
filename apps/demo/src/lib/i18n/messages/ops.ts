@@ -917,6 +917,86 @@ export default defineMessages(
         description: 'Pontos de audiência a partir dos quais a competição é P0; abaixo, com audiência, é P1.',
       },
     },
+    /** Busca de ajustes (#1071): grupos da paleta ⌘K e do campo do menu de Ajustes. */
+    search: {
+      settings: 'Ajustes',
+      pages: 'Páginas',
+      placeholder: 'Buscar ajuste…',
+      soon: 'Em breve',
+      secret: 'credencial',
+      openHint: 'abre a página no ajuste',
+      tip: 'Também acha pela chave: “AI_DAILY”, sem acento: “orcamento”',
+    },
+    /** Topo comum das páginas de Ajustes (#1072). */
+    pageChrome: {
+      breadcrumb: 'Caminho',
+      root: 'Ajustes',
+      updated: 'Atualizado {when}',
+      refresh: 'Atualizar',
+      filter: {
+        label: 'Quais ajustes mostrar',
+        all: 'Todos',
+        changed: 'Alterados no painel ({count})',
+        none: 'Nenhum alterado',
+        hint: 'Só as linhas cujo valor veio do painel e sobrescreve o .env.',
+        empty: 'Nenhum ajuste desta página foi alterado no painel.',
+      },
+      onThisPage: 'Nesta página',
+      job: 'Job {job}',
+      history: 'Histórico desta área',
+    },
+    /** Início de Ajustes (#1073): só o que pede ação. */
+    home: {
+      title: 'Início',
+      description: 'O que pede ação em Ajustes agora. Cada cartão leva à página onde se resolve.',
+      nothing: 'Nada pendente',
+      unavailable: 'Sem dados agora',
+      soon: 'Em breve',
+      cards: {
+        review: {
+          title: 'Revisão do catálogo',
+          description: 'Itens do catálogo esperando revisão.',
+          count: { one: '{count} item pendente', other: '{count} itens pendentes' },
+        },
+        requests: {
+          title: 'Pedidos das operadoras',
+          description: 'Pedidos de correção das grades ainda abertos.',
+          count: { one: '{count} pedido aberto', other: '{count} pedidos abertos' },
+        },
+        failedJobs: {
+          title: 'Jobs com falha',
+          description: 'Jobs que falharam nas últimas 24 horas.',
+          count: { one: '{count} job com falha', other: '{count} jobs com falha' },
+        },
+        alerts: {
+          title: 'Alertas abertos',
+          description: 'Serviços sem sinal e conta de IA com problema.',
+          count: { one: '{count} alerta', other: '{count} alertas' },
+        },
+        credentials: {
+          title: 'Credencial faltando',
+          description: 'Chaves e segredos que o contêiner não tem.',
+          count: { one: '{count} credencial faltando', other: '{count} credenciais faltando' },
+        },
+        aiCeiling: {
+          title: 'IA perto do teto',
+          description: 'Gasto de IA de hoje contra o teto diário em US$.',
+          near: '{percent}% do teto de hoje',
+        },
+        signups: {
+          title: 'Cadastros a aprovar',
+          description: 'Novos cadastros e trials esperando aprovação.',
+        },
+      },
+      recent: {
+        title: 'Alterados recentemente',
+        description: 'As últimas mudanças feitas no painel.',
+        empty: 'Nenhuma mudança no painel ainda.',
+        set: '{who} mudou {when}',
+        reset: '{who} voltou ao padrão {when}',
+        all: 'Ver histórico',
+      },
+    },
     settings: {
       MIRROR_BUDGET_PERCENT: {
         label: 'Orçamento do espelho',
@@ -2170,6 +2250,84 @@ export default defineMessages(
           label: 'P0/P1 cut (minimum audience)',
           description:
             'Audience points from which a competition is P0; below that, with any audience, it is P1.',
+        },
+      },
+      search: {
+        settings: 'Settings',
+        pages: 'Pages',
+        placeholder: 'Search settings…',
+        soon: 'Coming soon',
+        secret: 'credential',
+        openHint: 'opens the page at the setting',
+        tip: 'Also finds by key: “AI_DAILY”, without accents: “orcamento”',
+      },
+      pageChrome: {
+        breadcrumb: 'Breadcrumb',
+        root: 'Settings',
+        updated: 'Updated {when}',
+        refresh: 'Refresh',
+        filter: {
+          label: 'Which settings to show',
+          all: 'All',
+          changed: 'Changed in the panel ({count})',
+          none: 'None changed',
+          hint: 'Only rows whose value comes from the panel and overrides the .env.',
+          empty: 'No setting on this page was changed in the panel.',
+        },
+        onThisPage: 'On this page',
+        job: 'Job {job}',
+        history: 'History of this area',
+      },
+      home: {
+        title: 'Home',
+        description:
+          'What needs action in Settings right now. Each card leads to the page where it gets solved.',
+        nothing: 'Nothing pending',
+        unavailable: 'No data right now',
+        soon: 'Coming soon',
+        cards: {
+          review: {
+            title: 'Catalog review',
+            description: 'Catalog items waiting for review.',
+            count: { one: '{count} pending item', other: '{count} pending items' },
+          },
+          requests: {
+            title: 'Operator requests',
+            description: 'Lineup correction requests still open.',
+            count: { one: '{count} open request', other: '{count} open requests' },
+          },
+          failedJobs: {
+            title: 'Failed jobs',
+            description: 'Jobs that failed in the last 24 hours.',
+            count: { one: '{count} failed job', other: '{count} failed jobs' },
+          },
+          alerts: {
+            title: 'Open alerts',
+            description: 'Services without signal and AI account problems.',
+            count: { one: '{count} alert', other: '{count} alerts' },
+          },
+          credentials: {
+            title: 'Missing credential',
+            description: 'Keys and secrets the container does not have.',
+            count: { one: '{count} missing credential', other: '{count} missing credentials' },
+          },
+          aiCeiling: {
+            title: 'AI near the ceiling',
+            description: "Today's AI spend against the daily US$ ceiling.",
+            near: "{percent}% of today's ceiling",
+          },
+          signups: {
+            title: 'Sign-ups to approve',
+            description: 'New sign-ups and trials waiting for approval.',
+          },
+        },
+        recent: {
+          title: 'Recently changed',
+          description: 'The latest changes made in the panel.',
+          empty: 'No changes in the panel yet.',
+          set: '{who} changed it {when}',
+          reset: '{who} reset it to default {when}',
+          all: 'View history',
         },
       },
       settings: {
@@ -3442,6 +3600,83 @@ export default defineMessages(
           label: 'Corte P0/P1 (audiencia mínima)',
           description:
             'Puntos de audiencia a partir de los cuales la competición es P0; por debajo, con audiencia, es P1.',
+        },
+      },
+      search: {
+        settings: 'Ajustes',
+        pages: 'Páginas',
+        placeholder: 'Buscar ajuste…',
+        soon: 'Próximamente',
+        secret: 'credencial',
+        openHint: 'abre la página en el ajuste',
+        tip: 'También encuentra por la clave: “AI_DAILY”, sin tilde: “orcamento”',
+      },
+      pageChrome: {
+        breadcrumb: 'Ruta',
+        root: 'Ajustes',
+        updated: 'Actualizado {when}',
+        refresh: 'Actualizar',
+        filter: {
+          label: 'Qué ajustes mostrar',
+          all: 'Todos',
+          changed: 'Cambiados en el panel ({count})',
+          none: 'Ninguno cambiado',
+          hint: 'Solo las filas cuyo valor viene del panel y sobrescribe el .env.',
+          empty: 'Ningún ajuste de esta página se cambió en el panel.',
+        },
+        onThisPage: 'En esta página',
+        job: 'Job {job}',
+        history: 'Historial de esta área',
+      },
+      home: {
+        title: 'Inicio',
+        description: 'Lo que pide acción en Ajustes ahora. Cada tarjeta lleva a la página donde se resuelve.',
+        nothing: 'Nada pendiente',
+        unavailable: 'Sin datos ahora',
+        soon: 'Próximamente',
+        cards: {
+          review: {
+            title: 'Revisión del catálogo',
+            description: 'Ítems del catálogo esperando revisión.',
+            count: { one: '{count} ítem pendiente', other: '{count} ítems pendientes' },
+          },
+          requests: {
+            title: 'Pedidos de las operadoras',
+            description: 'Pedidos de corrección de las grillas todavía abiertos.',
+            count: { one: '{count} pedido abierto', other: '{count} pedidos abiertos' },
+          },
+          failedJobs: {
+            title: 'Jobs con falla',
+            description: 'Jobs que fallaron en las últimas 24 horas.',
+            count: { one: '{count} job con falla', other: '{count} jobs con falla' },
+          },
+          alerts: {
+            title: 'Alertas abiertas',
+            description: 'Servicios sin señal y cuenta de IA con problemas.',
+            count: { one: '{count} alerta', other: '{count} alertas' },
+          },
+          credentials: {
+            title: 'Credencial faltante',
+            description: 'Claves y secretos que el contenedor no tiene.',
+            count: { one: '{count} credencial faltante', other: '{count} credenciales faltantes' },
+          },
+          aiCeiling: {
+            title: 'IA cerca del tope',
+            description: 'Gasto de IA de hoy contra el tope diario en US$.',
+            near: '{percent}% del tope de hoy',
+          },
+          signups: {
+            title: 'Registros por aprobar',
+            description: 'Nuevos registros y trials esperando aprobación.',
+          },
+        },
+        recent: {
+          title: 'Cambiados recientemente',
+          description: 'Los últimos cambios hechos en el panel.',
+          empty: 'Todavía no hay cambios en el panel.',
+          set: '{who} lo cambió {when}',
+          reset: '{who} volvió al valor por defecto {when}',
+          all: 'Ver historial',
         },
       },
       settings: {
