@@ -1,5 +1,6 @@
 /**
- * Painel de Operação (Ajustes → Operação): flags da operação, agenda dos jobs, status ao vivo e histórico.
+ * Painel de Operação, repartido nas páginas de Ajustes (Plataforma → Status dos serviços, Agenda dos jobs, Histórico e
+ * auditoria; Produtos → Ao vivo, Pós-jogo; Inteligência → IA interna…; o mapa ajuste → página é `lib/ops/setting-page.ts`).
  * Os rótulos e descrições das flags ficam aqui, em linguagem de negócio; a chave técnica aparece ao lado.
  */
 import { defineMessages } from '../define';
@@ -22,20 +23,70 @@ export default defineMessages(
       refresh: 'Atualizar',
     },
     nav: {
-      users: 'Usuários',
-      system: 'Sistema',
-      features: 'Esportes e features',
-      review: 'Revisão',
-      lineup: 'Grades e ofertas',
-      crests: 'Escudos',
-      webhooks: 'Webhooks',
-      label: 'Seções dos ajustes',
-      wallets: 'Carteiras da Cosmos',
-      ai: 'IA interna',
-      operation: 'Operação',
-      provider: 'Fornecedor',
       title: 'Ajustes',
-      groups: { clients: 'Clientes', data: 'Dados', platform: 'Plataforma' },
+      label: 'Seções dos ajustes',
+      soon: 'Em breve',
+      search: 'Buscar ajuste…',
+      hide: 'Esconder o menu de Ajustes',
+      show: 'Mostrar o menu de Ajustes',
+      pending: '{n} esperando ação',
+      breadcrumb: 'Caminho',
+      home: 'Início',
+      tvApps: 'Apps de TV',
+      site: 'Site da Galaxie',
+      messaging: 'WhatsApp e Telegram',
+      subscriptions: 'Assinaturas e carteiras',
+      signups: 'Cadastros e trials',
+      domains: 'Domínios',
+      organizations: 'Organizações e marcas',
+      users: 'Usuários e equipe',
+      webhooks: 'Webhooks',
+      catalog: 'Catálogo de módulos',
+      metering: 'Medição e uso',
+      plans: 'Planos e preços',
+      advertising: 'Publicidade',
+      countryProfile: 'Ficha por país',
+      legalHold: 'Guarda legal e exportações',
+      moderation: 'Moderação: regras e listas',
+      secondAppeal: 'Segunda apelação',
+      terms: 'Termos e políticas',
+      crests: 'Escudos e logos',
+      mirror: 'Espelho da api-sports',
+      provider: 'Fornecedor e cota',
+      quality: 'Qualidade dos dados',
+      review: 'Revisão do catálogo',
+      fanIdentity: 'Identidade do torcedor',
+      liveChat: 'Chat ao vivo',
+      communities: 'Comunidades',
+      gamification: 'Gamificação',
+      shopping: 'Shopping',
+      cosmos: 'Cosmos AI',
+      ai: 'IA interna',
+      schedule: 'Agenda dos jobs',
+      credentials: 'Credenciais',
+      emails: 'E-mails e notificações',
+      history: 'Histórico e auditoria',
+      languages: 'Idiomas',
+      status: 'Status dos serviços',
+      suggestions: 'Sugestões e reportes',
+      tasks: 'Tarefas',
+      live: 'Ao vivo',
+      lineup: 'Grades e ofertas',
+      wtw: 'Onde assistir',
+      postgame: 'Pós-jogo',
+      related: 'Vídeos relacionados',
+      widgets: 'Widgets e Builder',
+      groups: {
+        canais: 'Canais',
+        clientes: 'Clientes',
+        comercial: 'Comercial',
+        conformidade: 'Conformidade',
+        dados: 'Dados',
+        engajamento: 'Engajamento',
+        inteligencia: 'Inteligência',
+        plataforma: 'Plataforma',
+        produtos: 'Produtos',
+      },
     },
     tabs: {
       status: 'Status',
@@ -49,25 +100,151 @@ export default defineMessages(
       assets: 'Logos',
       suggestions: 'Sugestões',
       cosmos: 'Cosmos AI',
+      engage: 'Engajamento',
       history: 'Histórico',
       sports: 'Esportes',
       tasks: 'Tarefas',
       mirror: 'Espelho',
+      postgame: 'Pós-jogo',
+      credentials: 'Credenciais',
+      lineup: 'Grade de canais',
     },
-    features: {
-      title: 'Esportes e features',
-      description:
-        'O que cada esporte usa do fornecedor e as regras de cada feature: vídeos relacionados (com o controle dos canais) e onde assistir. Vale o mesmo do Sistema: muda sem reiniciar os contêineres.',
+    soon: {
+      badge: 'Em breve',
+      lead: 'Esta tela ainda não existe: ela chega com a feature. Até lá, fica no menu para quem decide a hora de fazer.',
+      what: 'O que vai ter',
+      when: 'Fase ou onda',
+      issue: 'Ver a issue',
+      epic: 'Ver o épico da navegação',
+      noData: 'Sem dados: nada aqui lê ou grava ajustes.',
+      items: {
+        tvApps: {
+          what: 'Apps LG e Samsung em smarttv.galaxiesports.com: versão publicada e clientes ligados.',
+          phase: 'Depois da migração para galaxiesports.com',
+        },
+        site: {
+          what: 'A Galaxie como cliente zero: o site informativo e a demo pública.',
+          phase: 'Mais à frente',
+        },
+        messaging: {
+          what: 'Teste de canal D2C: campeonato, tom (informativo ou zoeira) e agenda dos posts.',
+          phase: 'Teste de canal D2C',
+        },
+        signups: {
+          what: 'Fila de cadastros a aprovar (e-mail grátis), trials por módulo e o que vence.',
+          phase: 'F3',
+        },
+        domains: {
+          what: 'Domínios comprovados por TXT e, depois, Cloudflare for SaaS.',
+          phase: 'F2 · F7',
+        },
+        organizations: {
+          what: 'Organização acima do tenant, marcas, estado, overrides com motivo e validade.',
+          phase: 'F2',
+        },
+        catalog: {
+          what: 'Features, módulos, dependências, faixas, add-ons, faixas de capacidade e níveis de atendimento.',
+          phase: 'F1',
+        },
+        metering: {
+          what: 'Visualizações, pico, países ativos e jogos enriquecidos por marca; fechamento do mês.',
+          phase: 'F6',
+        },
+        plans: {
+          what: 'Preços por mercado e moeda, ids do Stripe, disponibilidade e self-service.',
+          phase: 'F5',
+        },
+        advertising: {
+          what: 'Inventário e regra de revenue share do D2C e do white-label.',
+          phase: 'A definir',
+        },
+        countryProfile: {
+          what: 'Idade, entidade, moeda, regras de menores e tetos de prêmio por país, com versão.',
+          phase: 'Base do engajamento · #954',
+        },
+        legalHold: {
+          what: 'Guarda de 2 anos, legal hold e pedidos de exportação judicial com hash.',
+          phase: 'Base do engajamento',
+        },
+        moderation: {
+          what: 'Lista proibida global, regras fixas, Escada e Modo de entrada (teto), denúncias para ocultar.',
+          phase: 'Base do engajamento',
+        },
+        secondAppeal: {
+          what: 'Fila da Galaxie para cliente sem equipe própria, com prazo de 72 h.',
+          phase: 'Base do engajamento',
+        },
+        terms: {
+          what: 'Versões do contrato base, DPA e termos do torcedor; aceites.',
+          phase: '#1022',
+        },
+        liveChat: {
+          what: 'Padrão e teto da Sala do Jogo (mensagem, histórico, abertura, fechamento), modo lento, faixas de pico e salas abertas.',
+          phase: 'Onda 3 · #915',
+        },
+        communities: {
+          what: 'Teto de Comunidades por tenant, janela de exibição e suspender uma Comunidade.',
+          phase: 'Onda 4 · #936',
+        },
+        gamification: {
+          what: 'Catálogo de conquistas, Cartas, Piso, Escala de Pontos e teto de prêmios.',
+          phase: 'Onda 5 · #904',
+        },
+        shopping: {
+          what: 'Conectores por loja, curadoria, porcentagem e teto do cache de preço.',
+          phase: 'Shop the game · #909',
+        },
+        emails: {
+          what: 'E-mails do trial e do ciclo de vida do tenant.',
+          phase: 'F3',
+        },
+        languages: {
+          what: 'Idiomas ligados (francês só com cliente canadense).',
+          phase: '#1024',
+        },
+        widgets: {
+          what: 'Tipos de widget por módulo, tipos não contratados no Builder e temas padrão.',
+          phase: 'F1 · F5',
+        },
+      },
+    },
+    views: {
+      status: 'Serviços no ar, crédito da IA, cota do fornecedor, gasto da IA e os jobs.',
+      quality: 'O que a checagem diária de qualidade encontrou nos dados.',
+      live: 'O que entra no ao vivo, com que frescor e quanto da cota ele usa.',
+      postgame: 'Pós-jogo de cada esporte (liga/desliga e minutos) e o teto de chamadas do dia.',
+      schedule: 'Quando cada job roda, a última execução e o "rodar agora".',
+      tasks: 'Tarefas da operação: o que está pendente e quem pegou.',
+      ai: 'Política de orçamento, provedor e modelos de todos os agentes de IA.',
+      provider: 'Plano padrão e reserva da cota da api-sports, e o plano de cada esporte.',
+      credentials: 'Todas as chaves e segredos, configurados ou faltando. Para trocar, edite o .env da VPS.',
+      mirror: 'O que o espelho diário da api-sports renova, em que ordem e com quanto da cota.',
+      wtw: 'Mercados e limites do Onde Assistir. Os modelos de IA ficam em IA interna.',
+      related: 'Cota do YouTube, canais e as regras da busca de vídeos relacionados.',
+      lineup: 'Revisão mínima e limites de texto da grade de canais.',
+      crests: 'Acervo customizado de logos.',
+      suggestions: 'O botão de sugestões e a repo do GitHub que recebe as issues.',
+      cosmos: 'Crédito, teste e teto de segurança da Cosmos AI.',
+      fanIdentity: 'Validade do token do torcedor. O segredo que assina o token fica em Credenciais.',
+      history: 'Quem mudou o quê no painel e os pedidos de "rodar agora".',
+      refreshHint: 'O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
+    },
+    settingLink: {
+      modelInUse: 'Modelo em uso',
+      keyInUse: 'Chave',
+      configured: 'Chave configurada',
+      missing: 'Chave faltando',
+      providerDefault: 'padrão do provedor',
+      open: 'Abrir em {page}',
+      movedTitle: 'Editado em outra página',
+      movedModels: 'Os modelos de IA ficam todos em IA interna; aqui só o que está em uso.',
+      movedKeys: 'As chaves ficam todas em Credenciais; aqui só se estão configuradas.',
     },
     sections: {
       mirror: {
         title: 'Espelho da api-sports (sync:mirror)',
         description:
           'O que o espelho diário renova além da agenda: de quantos em quantos dias cada endpoint volta, a ordem dos grupos e quanto da cota ele gasta.',
-      },
-      live: {
-        title: 'Ao vivo',
-        description: 'Como o ao vivo acompanha os jogos em andamento e quanto da cota ele usa.',
       },
       schedule: {
         title: 'Agenda dos jobs',
@@ -83,24 +260,37 @@ export default defineMessages(
         title: 'Conteúdo relacionado',
         description: 'Cota do YouTube e frequência das buscas de vídeos.',
       },
+      postgame: {
+        title: 'Pós-jogo',
+        description:
+          'Fechamento ou tempo real de cada esporte, de quantos em quantos minutos, e o teto de chamadas do dia.',
+      },
+      lineup: {
+        title: 'Grade de canais',
+        description:
+          'Piso editorial da grade servida na API e quanto texto das páginas de planos vai para a IA.',
+      },
+      live: {
+        title: 'Ao vivo',
+        description: 'Como o ao vivo acompanha os jogos em andamento e quanto da cota ele usa.',
+      },
       provider: {
         title: 'Fornecedor (plano e cota)',
-        description:
-          'Plano padrão da api-sports e a reserva da cota diária. O plano de cada esporte fica em Esportes e features.',
+        description: 'Plano padrão da api-sports e a reserva da cota diária.',
       },
       sports: {
         title: 'Plano de cada esporte',
+        description: 'Plano contratado da API de cada esporte na api-sports. Vazio = herda o plano padrão.',
+      },
+      credentials: {
+        title: 'Credenciais',
         description:
-          'Plano contratado da API de cada esporte na api-sports. Vazio = herda o plano padrão do Sistema.',
+          'Todas as chaves: dados esportivos, inteligência artificial e infraestrutura. Só mostramos se estão configuradas; para trocar, edite o .env da VPS.',
       },
       assets: {
         title: 'Acervo customizado de logos',
         description:
           'Escudos de alta qualidade importados de um acervo próprio (assets:acervo), por cima dos logos do fornecedor.',
-      },
-      credentials: {
-        title: 'Credenciais e infraestrutura',
-        description: 'Só mostramos se estão configuradas. Para trocar, edite o .env da VPS.',
       },
       feedback: {
         title: 'Sugerir ou reportar algo',
@@ -110,6 +300,11 @@ export default defineMessages(
         title: 'Cosmos AI',
         description:
           'A IA que o cliente paga por uso, com créditos. O teto de segurança da Cosmos é próprio e não mexe no orçamento dos agentes internos.',
+      },
+      engage: {
+        title: 'Engajamento',
+        description:
+          'A base do Chat ao vivo, das Comunidades, da Gamificação e do Shop the game. Aqui fica a validade do token do torcedor.',
       },
     },
     source: {
@@ -508,6 +703,8 @@ export default defineMessages(
       set: '{from} → {to}',
       base: 'env ou padrão',
       reset: 'Voltou ao padrão (era {from})',
+      filtered: 'Só as mudanças de {name}.',
+      showAll: 'Ver todas',
       requests: 'Pedidos de "rodar agora"',
       requestsEmpty: 'Nenhum pedido ainda.',
       requestStatus: {
@@ -861,6 +1058,146 @@ export default defineMessages(
         unknown: 'Não foi possível concluir.',
       },
     },
+    blocks: {
+      changed: 'alterado',
+      required: 'Obrigatório',
+      invalid: 'inválido',
+      rowMenu: 'Mais ações: {name}',
+      resetToEnv: 'Voltar ao padrão do .env',
+      viewHistory: 'Ver no histórico',
+      undo: 'Desfazer',
+      save: 'Salvar',
+      pendingCount: 'Alterações sem salvar: {count}',
+      saveTitle: 'Salvar {count} alterações?',
+      saveBody: '{changes}. Cada chave fica registrada no histórico.',
+      sports: {
+        postgameTitle: 'Pós-jogo por esporte',
+        postgameDescription:
+          'Fecha o jogo depois do apito: placar final, estatísticas e lances. Um esporte por linha; a Fórmula 1 tem pipeline próprio.',
+        postgameOn: '{mode}: consulta a cada {minutes} min.',
+        postgameOff: 'Desligado: o resultado vem só na agenda do dia seguinte.',
+        mode: 'Modo do pós-jogo: {sport}',
+        interval: 'Minutos entre consultas: {sport}',
+        toggle: 'Pós-jogo: {sport}',
+        turnAllOff: 'Desligar todos',
+        turnAllOn: 'Ligar todos',
+        allOffTitle: 'Desligar o pós-jogo de todos os esportes?',
+        allOffBody:
+          'Os {count} esportes ligados passam a ter o resultado só na agenda do dia seguinte. Cada esporte fica registrado no histórico.',
+        allOnTitle: 'Ligar o pós-jogo de todos os esportes?',
+        allOnBody: 'Os {count} esportes desligados voltam ao modo do .env ou ao fechamento.',
+        planTitle: 'Plano por esporte',
+        planDescription: 'Plano contratado de cada API. Sem plano próprio, o esporte herda o plano padrão.',
+        planOf: 'Plano: {sport}',
+        inherits: 'herda o padrão',
+        resetBody:
+          'A sobrescrita do painel sai destas chaves e volta a valer o .env da VPS ou o padrão do código: {keys}. Cada chave fica registrada no histórico.',
+        bulkBlocked: 'Salve ou desfaça as alterações antes de ligar ou desligar todos.',
+      },
+      mirror: {
+        title: 'Períodos por esporte',
+        description:
+          'Um esporte por linha: quantas chamadas por dia o espelho estima com os períodos gravados. Escolha o esporte para editar os períodos de cada endpoint.',
+        estimate: '~{calls} chamadas/dia',
+        noInventory: 'sem inventário',
+        edit: 'Editar períodos',
+        editOf: 'Editar períodos: {sport}',
+        editing: 'Editando',
+        periodsOf: 'Períodos por endpoint · {sport}',
+      },
+      jobs: {
+        title: 'Agenda dos jobs',
+        description:
+          'Quando cada job roda (cron de 5 campos, em UTC), agrupado por área. O agendador relê a agenda a cada 30 segundos.',
+        search: 'Buscar job…',
+        searchLabel: 'Buscar na agenda dos jobs',
+        empty: 'Nenhum job com esse nome.',
+        state: 'Estado',
+        on: 'Ligado',
+        off: 'Desligado',
+        edit: 'Editar agenda',
+        editTitle: 'Agenda: {name}',
+        others: 'Outros ajustes da agenda',
+        areas: {
+          live: 'Ao vivo',
+          data: 'Dados',
+          ai: 'IA',
+          content: 'Conteúdo',
+          maintenance: 'Manutenção',
+        },
+      },
+      status: {
+        configured: 'Configurada',
+        missing: 'Faltando',
+        expiresIn: 'Vence em {days} dias',
+        online: 'No ar',
+        offline: 'Fora do ar',
+        endsWith: 'termina em {hint}',
+        menu: 'Ações: {name}',
+        change: 'Trocar',
+        test: 'Testar',
+        changeTitle: 'Trocar {name}',
+        changeBody:
+          'O valor fica só no .env da VPS e nunca passa pelo painel. Troque lá ({keys}) e reinicie: {services}.',
+        close: 'Fechar',
+        credentialsTitle: 'Credenciais',
+        credentialsDescription:
+          'Todas as chaves num lugar só. O valor nunca aparece: só se está configurada.',
+        groups: {
+          sports: { title: 'Dados esportivos', description: 'Fornecedor e vídeos.' },
+          ai: {
+            title: 'Inteligência artificial',
+            description: 'Provedores usados pela IA interna e pela Cosmos.',
+          },
+          infra: {
+            title: 'Infraestrutura',
+            description: 'Armazenamento, e-mail, login, métricas e assinatura dos webhooks.',
+          },
+          payments: { title: 'Pagamentos', description: 'Stripe da Cosmos AI e, depois, das assinaturas.' },
+        },
+        servicesTitle: 'Status dos serviços',
+        servicesDescription: 'Cada contêiner relata o próprio estado; a API relata só ao subir.',
+      },
+      integrations: {
+        connected: 'Conectado',
+        disconnected: 'Desconectado',
+        attention: 'Precisa de atenção',
+        openCredentials: 'Ir para Credenciais',
+        github: {
+          name: 'GitHub',
+          description: 'O botão "Sugerir ou reportar algo" abre issue na repo {repo}.',
+          noRepo: 'O botão "Sugerir ou reportar algo" abre issue na repo de sugestões (ainda sem repo).',
+          unreadable: 'O token gravado não abre com a chave deste contêiner: grave de novo.',
+          feedbackLocked: 'Conecte o GitHub (repo e token) para ligar o botão.',
+        },
+      },
+      ai: {
+        budgetTitle: 'Orçamento da IA interna',
+        today: 'Hoje, {day}',
+        rulerMarks: 'Marcas de referência',
+        spendTitle: 'Gasto do dia',
+        capBadge: 'teto US$ {cap}',
+        noCap: 'sem teto',
+        ofCap: '{percent}% do teto · vira às {start} ({timeZone})',
+        noCapTurn: 'Sem teto · vira às {start} ({timeZone})',
+        others: 'Outros',
+        noSpend: 'Nenhum gasto hoje.',
+        bandsTitle: 'Faixas de prioridade',
+        bandsDescription:
+          'Escolha a faixa para mudar a parte dela no teto. Cada faixa só gasta a sua parte: a que acaba para primeiro.',
+        bandShare: '{share}% do teto',
+        modelsTitle: 'Modelo de cada agente',
+        modelsDescription: 'Provedor e modelo de cada agente. Vazio usa o padrão do provedor.',
+        inUse: 'Em uso: {model}',
+        agents: {
+          general: 'Contexto, resumo e demais agentes',
+          review: 'Revisão de grades',
+          channels: 'Onde Assistir: canais',
+          matchChannel: 'Onde Assistir: canal do jogo',
+          rights: 'Onde Assistir: direitos',
+        },
+      },
+    },
     aiPolicy: {
       title: 'Política de IA',
       description:
@@ -916,6 +1253,87 @@ export default defineMessages(
       minAudience: {
         label: 'Corte P0/P1 (audiência mínima)',
         description: 'Pontos de audiência a partir dos quais a competição é P0; abaixo, com audiência, é P1.',
+      },
+    },
+    /** Busca de ajustes (#1071): grupos da paleta ⌘K e do campo do menu de Ajustes. */
+    search: {
+      settings: 'Ajustes',
+      pages: 'Páginas',
+      placeholder: 'Buscar ajuste…',
+      soon: 'Em breve',
+      secret: 'credencial',
+      openHint: 'abre a página no ajuste',
+      tip: 'Também acha pela chave: “AI_DAILY”, sem acento: “orcamento”',
+    },
+    /** Topo comum das páginas de Ajustes (#1072). */
+    pageChrome: {
+      breadcrumb: 'Caminho',
+      root: 'Ajustes',
+      updated: 'Atualizado {when}',
+      refresh: 'Atualizar',
+      filter: {
+        label: 'Quais ajustes mostrar',
+        all: 'Todos',
+        changed: 'Alterados no painel ({count})',
+        none: 'Nenhum alterado',
+        hint: 'Só as linhas cujo valor veio do painel e sobrescreve o .env.',
+        empty: 'Nenhum ajuste desta página foi alterado no painel.',
+      },
+      onThisPage: 'Nesta página',
+      job: 'Job {job}',
+      history: 'Histórico desta área',
+    },
+    /** Início de Ajustes (#1073): só o que pede ação. */
+    home: {
+      title: 'Início',
+      groupsTitle: 'Todas as áreas',
+      description: 'O que pede ação em Ajustes agora. Cada cartão leva à página onde se resolve.',
+      nothing: 'Nada pendente',
+      unavailable: 'Sem dados agora',
+      soon: 'Em breve',
+      cards: {
+        review: {
+          title: 'Revisão do catálogo',
+          description: 'Itens do catálogo esperando revisão.',
+          count: { one: '{count} item pendente', other: '{count} itens pendentes' },
+        },
+        requests: {
+          title: 'Pedidos das operadoras',
+          description: 'Pedidos de correção das grades ainda abertos.',
+          count: { one: '{count} pedido aberto', other: '{count} pedidos abertos' },
+        },
+        failedJobs: {
+          title: 'Jobs com falha',
+          description: 'Jobs que falharam nas últimas 24 horas.',
+          count: { one: '{count} job com falha', other: '{count} jobs com falha' },
+        },
+        alerts: {
+          title: 'Alertas abertos',
+          description: 'Serviços sem sinal e conta de IA com problema.',
+          count: { one: '{count} alerta', other: '{count} alertas' },
+        },
+        credentials: {
+          title: 'Credencial faltando',
+          description: 'Chaves e segredos que o contêiner não tem.',
+          count: { one: '{count} credencial faltando', other: '{count} credenciais faltando' },
+        },
+        aiCeiling: {
+          title: 'IA perto do teto',
+          description: 'Gasto de IA de hoje contra o teto diário em US$.',
+          near: '{percent}% do teto de hoje',
+        },
+        signups: {
+          title: 'Cadastros a aprovar',
+          description: 'Novos cadastros e trials esperando aprovação.',
+        },
+      },
+      recent: {
+        title: 'Alterados recentemente',
+        description: 'As últimas mudanças feitas no painel.',
+        empty: 'Nenhuma mudança no painel ainda.',
+        set: '{who} mudou {when}',
+        reset: '{who} voltou ao padrão {when}',
+        all: 'Ver histórico',
       },
     },
     settings: {
@@ -1258,6 +1676,29 @@ export default defineMessages(
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
       COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: chave do provedor do assistente (.env)' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
+      WTW_ROUND_ALLOCATION: {
+        label: 'Alocação por rodada (desenho anterior)',
+        description:
+          'Liga a alocação de canais por rodada do wtw-run (48 h antes). Desligado (padrão), o canal de cada jogo vem do job do canal do jogo.',
+      },
+      AI_MATCH_CHANNEL_PROVIDER: {
+        label: 'IA do canal do jogo',
+        description:
+          'IA que confirma em que canal passa cada jogo (job do canal do jogo). Vazio usa o Gemini, que pesquisa com a busca do Google.',
+      },
+      AI_MATCH_CHANNEL_MODEL: {
+        label: 'Modelo do canal do jogo',
+        description: 'Modelo da IA do canal do jogo. Vazio usa o padrão do provedor escolhido.',
+      },
+      COSMOS_TRIAL_CREDITS: {
+        label: 'Créditos de teste da Cosmos',
+        description:
+          'Créditos que o tenant ganha uma vez, ao ligar a Cosmos AI pela primeira vez. Os comprados não vencem.',
+      },
+      COSMOS_TRIAL_DAYS: {
+        label: 'Validade dos créditos de teste',
+        description: 'Em quantos dias os créditos de teste da Cosmos AI vencem.',
+      },
       COSMOS_DAILY_USD_CEILING: {
         label: 'Teto de segurança da Cosmos AI por dia',
         description:
@@ -1276,6 +1717,13 @@ export default defineMessages(
           'Custo de provedor que vale 1 crédito, para converter o custo real em créditos. Vazio, cada chamada cobra só o mínimo da função. O cliente nunca vê este número.',
         unit: 'US$',
       },
+      FAN_TOKEN_TTL_SECONDS: {
+        label: 'Validade do token do torcedor',
+        description:
+          'Por quanto tempo vale o token que o servidor do cliente pede. Faixa etária e país só mudam no próximo token; exclusão do Perfil vale na hora.',
+        unit: 'segundos',
+      },
+      FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -1305,20 +1753,70 @@ export default defineMessages(
         refresh: 'Refresh',
       },
       nav: {
-        users: 'Users',
-        system: 'System',
-        features: 'Sports and features',
-        review: 'Review',
-        lineup: 'Lineups and offers',
-        crests: 'Crests',
-        webhooks: 'Webhooks',
-        label: 'Settings sections',
-        wallets: 'Cosmos wallets',
-        ai: 'Internal AI',
-        operation: 'Operations',
-        provider: 'Provider',
         title: 'Settings',
-        groups: { clients: 'Clients', data: 'Data', platform: 'Platform' },
+        label: 'Settings sections',
+        soon: 'Coming soon',
+        search: 'Search settings…',
+        hide: 'Hide the Settings menu',
+        show: 'Show the Settings menu',
+        pending: '{n} awaiting action',
+        breadcrumb: 'Breadcrumb',
+        home: 'Home',
+        tvApps: 'TV apps',
+        site: 'Galaxie website',
+        messaging: 'WhatsApp and Telegram',
+        subscriptions: 'Subscriptions and wallets',
+        signups: 'Sign-ups and trials',
+        domains: 'Domains',
+        organizations: 'Organizations and brands',
+        users: 'Users and team',
+        webhooks: 'Webhooks',
+        catalog: 'Module catalog',
+        metering: 'Metering and usage',
+        plans: 'Plans and pricing',
+        advertising: 'Advertising',
+        countryProfile: 'Country profile',
+        legalHold: 'Legal hold and exports',
+        moderation: 'Moderation: rules and lists',
+        secondAppeal: 'Second appeal',
+        terms: 'Terms and policies',
+        crests: 'Crests and logos',
+        mirror: 'api-sports mirror',
+        provider: 'Provider and quota',
+        quality: 'Data quality',
+        review: 'Catalog review',
+        fanIdentity: 'Fan identity',
+        liveChat: 'Live chat',
+        communities: 'Communities',
+        gamification: 'Gamification',
+        shopping: 'Shopping',
+        cosmos: 'Cosmos AI',
+        ai: 'Internal AI',
+        schedule: 'Job schedule',
+        credentials: 'Credentials',
+        emails: 'Emails and notifications',
+        history: 'History and audit',
+        languages: 'Languages',
+        status: 'Service status',
+        suggestions: 'Suggestions and reports',
+        tasks: 'Tasks',
+        live: 'Live',
+        lineup: 'Lineups and offers',
+        wtw: 'Where to watch',
+        postgame: 'Post-game',
+        related: 'Related videos',
+        widgets: 'Widgets and Builder',
+        groups: {
+          canais: 'Channels',
+          clientes: 'Customers',
+          comercial: 'Commercial',
+          conformidade: 'Compliance',
+          dados: 'Data',
+          engajamento: 'Engagement',
+          inteligencia: 'Intelligence',
+          plataforma: 'Platform',
+          produtos: 'Products',
+        },
       },
       tabs: {
         status: 'Status',
@@ -1332,25 +1830,151 @@ export default defineMessages(
         assets: 'Logos',
         suggestions: 'Suggestions',
         cosmos: 'Cosmos AI',
+        engage: 'Engagement',
         history: 'History',
         sports: 'Sports',
         tasks: 'Tasks',
         mirror: 'Mirror',
+        postgame: 'Post-game',
+        credentials: 'Credentials',
+        lineup: 'Channel lineup',
       },
-      features: {
-        title: 'Sports and features',
-        description:
-          'What each sport uses from the provider and the rules of each feature: related videos (with the channel control) and where to watch. Same as System: changes apply without restarting containers.',
+      soon: {
+        badge: 'Coming soon',
+        lead: 'This screen does not exist yet: it arrives with the feature. Until then it stays in the menu for whoever decides when to build it.',
+        what: 'What it will have',
+        when: 'Phase or wave',
+        issue: 'See the issue',
+        epic: 'See the navigation epic',
+        noData: 'No data: nothing here reads or writes settings.',
+        items: {
+          tvApps: {
+            what: 'LG and Samsung apps on smarttv.galaxiesports.com: published version and connected clients.',
+            phase: 'After the move to galaxiesports.com',
+          },
+          site: {
+            what: 'Galaxie as client zero: the informational website and the public demo.',
+            phase: 'Later on',
+          },
+          messaging: {
+            what: 'D2C channel test: competition, tone (informative or banter) and post schedule.',
+            phase: 'D2C channel test',
+          },
+          signups: {
+            what: 'Queue of sign-ups to approve (free email), trials per module and what is about to expire.',
+            phase: 'F3',
+          },
+          domains: {
+            what: 'Domains verified by TXT record and, later, Cloudflare for SaaS.',
+            phase: 'F2 · F7',
+          },
+          organizations: {
+            what: 'Organization above the tenant, brands, status, overrides with reason and expiry.',
+            phase: 'F2',
+          },
+          catalog: {
+            what: 'Features, modules, dependencies, tiers, add-ons, capacity tiers and support levels.',
+            phase: 'F1',
+          },
+          metering: {
+            what: 'Views, peak, active countries and enriched matches per brand; monthly close.',
+            phase: 'F6',
+          },
+          plans: {
+            what: 'Prices per market and currency, Stripe ids, availability and self-service.',
+            phase: 'F5',
+          },
+          advertising: {
+            what: 'Inventory and revenue share rule for D2C and white-label.',
+            phase: 'To be defined',
+          },
+          countryProfile: {
+            what: 'Age, entity, currency, rules for minors and prize caps per country, versioned.',
+            phase: 'Engagement base · #954',
+          },
+          legalHold: {
+            what: 'Two-year retention, legal hold and court export requests with hash.',
+            phase: 'Engagement base',
+          },
+          moderation: {
+            what: 'Global block list, fixed rules, Ladder and Entry mode (cap), reports to hide.',
+            phase: 'Engagement base',
+          },
+          secondAppeal: {
+            what: "Galaxie's queue for clients without their own team, with a 72-hour deadline.",
+            phase: 'Engagement base',
+          },
+          terms: {
+            what: 'Versions of the base contract, DPA and fan terms; acceptances.',
+            phase: '#1022',
+          },
+          liveChat: {
+            what: 'Default and cap of the Match Room (message, history, opening, closing), slow mode, peak tiers and open rooms.',
+            phase: 'Wave 3 · #915',
+          },
+          communities: {
+            what: 'Communities cap per tenant, display window and suspending a Community.',
+            phase: 'Wave 4 · #936',
+          },
+          gamification: {
+            what: 'Achievement catalog, Cards, Floor, Points scale and prize cap.',
+            phase: 'Wave 5 · #904',
+          },
+          shopping: {
+            what: 'Connectors per store, curation, percentage and price cache cap.',
+            phase: 'Shop the game · #909',
+          },
+          emails: {
+            what: 'Trial and tenant lifecycle emails.',
+            phase: 'F3',
+          },
+          languages: {
+            what: 'Enabled languages (French only with a Canadian client).',
+            phase: '#1024',
+          },
+          widgets: {
+            what: 'Widget types per module, non-contracted types in the Builder and default themes.',
+            phase: 'F1 · F5',
+          },
+        },
+      },
+      views: {
+        status: 'Services up, AI credit, provider quota, AI spend and jobs.',
+        quality: 'What the daily quality check found in the data.',
+        live: 'What goes into live coverage, how fresh it is and how much quota it uses.',
+        postgame: 'Post-game per sport (on/off and minutes) and the daily call cap.',
+        schedule: 'When each job runs, its last run and "run now".',
+        tasks: 'Operations tasks: what is pending and who picked it up.',
+        ai: 'Budget policy, provider and models of every AI agent.',
+        provider: 'Default api-sports plan, quota reserve and each sport plan.',
+        credentials: 'Every key and secret, set or missing. To change them, edit the VPS .env.',
+        mirror: 'What the daily api-sports mirror refreshes, in which order and with how much quota.',
+        wtw: 'Where to Watch markets and limits. AI models live in Internal AI.',
+        related: 'YouTube quota, channels and the related video search rules.',
+        lineup: 'Minimum review and text limits of the channel lineup.',
+        crests: 'Custom logo collection.',
+        suggestions: 'The suggestions button and the GitHub repo that receives the issues.',
+        cosmos: 'Cosmos AI credit, trial and safety ceiling.',
+        fanIdentity: 'How long the fan token lasts. The secret that signs it is in Credentials.',
+        history: 'Who changed what in the panel and the "run now" requests.',
+        refreshHint: 'Changes here override the VPS .env without restarting containers.',
+      },
+      settingLink: {
+        modelInUse: 'Model in use',
+        keyInUse: 'Key',
+        configured: 'Key set',
+        missing: 'Key missing',
+        providerDefault: 'provider default',
+        open: 'Open in {page}',
+        movedTitle: 'Edited on another page',
+        movedModels: 'All AI models live in Internal AI; here only what is in use.',
+        movedKeys: 'All keys live in Credentials; here only whether they are set.',
       },
       sections: {
         mirror: {
           title: 'api-sports mirror (sync:mirror)',
           description:
             'What the daily mirror refreshes beyond the schedule: how many days between refreshes of each endpoint, the group order and how much of the quota it spends.',
-        },
-        live: {
-          title: 'Live',
-          description: 'How live coverage follows ongoing matches and how much quota it uses.',
         },
         schedule: {
           title: 'Job schedule',
@@ -1366,24 +1990,36 @@ export default defineMessages(
           title: 'Related content',
           description: 'YouTube quota and how often videos are searched.',
         },
+        postgame: {
+          title: 'Post-game',
+          description: 'Close or real time per sport, how many minutes apart, and the daily call cap.',
+        },
+        lineup: {
+          title: 'Channel lineup',
+          description:
+            'Editorial floor of the lineup served by the API and how much plan page text goes to the AI.',
+        },
+        live: {
+          title: 'Live',
+          description: 'How live coverage follows ongoing matches and how much quota it uses.',
+        },
         provider: {
           title: 'Provider (plan and quota)',
-          description:
-            'Default api-sports plan and the daily quota reserve. Each sport plan is under Sports and features.',
+          description: 'Default api-sports plan and the daily quota reserve.',
         },
         sports: {
           title: 'Plan of each sport',
+          description: 'Subscribed plan of each sport API on api-sports. Empty = inherits the default plan.',
+        },
+        credentials: {
+          title: 'Credentials',
           description:
-            'Subscribed plan of each sport API on api-sports. Empty = inherits the default plan from System.',
+            'Every key: sports data, artificial intelligence and infrastructure. We only show whether they are set; to change them, edit the VPS .env.',
         },
         assets: {
           title: 'Custom logo collection',
           description:
             "High-quality crests imported from our own collection (assets:acervo), layered over the provider's logos.",
-        },
-        credentials: {
-          title: 'Credentials and infrastructure',
-          description: 'We only show whether they are set. To change them, edit the VPS .env.',
         },
         feedback: {
           title: 'Suggest or report something',
@@ -1394,6 +2030,11 @@ export default defineMessages(
           title: 'Cosmos AI',
           description:
             'The AI clients pay for as they use it, with credits. Its safety ceiling is its own and does not touch the internal agents budget.',
+        },
+        engage: {
+          title: 'Engagement',
+          description:
+            'The shared base of Live chat, Communities, Gamification and Shop the game. This is where the fan token lifetime lives.',
         },
       },
       source: { db: 'Panel', env: 'Container env', default: 'Code default', label: 'Value source' },
@@ -1772,6 +2413,8 @@ export default defineMessages(
         set: '{from} → {to}',
         base: 'env or default',
         reset: 'Back to default (was {from})',
+        filtered: 'Only the changes to {name}.',
+        showAll: 'Show all',
         requests: '"Run now" requests',
         requestsEmpty: 'No requests yet.',
         requestStatus: {
@@ -2123,6 +2766,150 @@ export default defineMessages(
           unknown: 'Could not complete.',
         },
       },
+      blocks: {
+        changed: 'changed',
+        required: 'Required',
+        invalid: 'invalid',
+        rowMenu: 'More actions: {name}',
+        resetToEnv: 'Back to the .env default',
+        viewHistory: 'View in history',
+        undo: 'Undo',
+        save: 'Save',
+        pendingCount: 'Unsaved changes: {count}',
+        saveTitle: 'Save {count} changes?',
+        saveBody: '{changes}. Each key is recorded in the history.',
+        sports: {
+          postgameTitle: 'Post-match by sport',
+          postgameDescription:
+            'Closes the match after the final whistle: final score, stats and plays. One sport per row; Formula 1 has its own pipeline.',
+          postgameOn: '{mode}: checks every {minutes} min.',
+          postgameOff: 'Off: the result only comes with the next day schedule.',
+          mode: 'Post-match mode: {sport}',
+          interval: 'Minutes between checks: {sport}',
+          toggle: 'Post-match: {sport}',
+          turnAllOff: 'Turn all off',
+          turnAllOn: 'Turn all on',
+          allOffTitle: 'Turn post-match off for every sport?',
+          allOffBody:
+            'The {count} sports that are on will only get results with the next day schedule. Each sport is recorded in the history.',
+          allOnTitle: 'Turn post-match on for every sport?',
+          allOnBody: 'The {count} sports that are off go back to the .env mode or to closing.',
+          planTitle: 'Plan by sport',
+          planDescription:
+            'Contracted plan of each API. Without its own plan, the sport inherits the default plan.',
+          planOf: 'Plan: {sport}',
+          inherits: 'inherits the default',
+          resetBody:
+            'The panel override is removed from these keys and the VPS .env or the code default applies again: {keys}. Each key is logged in the history.',
+          bulkBlocked: 'Save or undo your changes before turning all on or off.',
+        },
+        mirror: {
+          title: 'Periods by sport',
+          description:
+            'One sport per row: how many calls per day the mirror estimates with the saved periods. Pick a sport to edit the periods of each endpoint.',
+          estimate: '~{calls} calls/day',
+          noInventory: 'no inventory',
+          edit: 'Edit periods',
+          editOf: 'Edit periods: {sport}',
+          editing: 'Editing',
+          periodsOf: 'Periods by endpoint · {sport}',
+        },
+        jobs: {
+          title: 'Job schedule',
+          description:
+            'When each job runs (5-field cron, in UTC), grouped by area. The scheduler rereads the schedule every 30 seconds.',
+          search: 'Search jobs…',
+          searchLabel: 'Search the job schedule',
+          empty: 'No job with that name.',
+          state: 'State',
+          on: 'On',
+          off: 'Off',
+          edit: 'Edit schedule',
+          editTitle: 'Schedule: {name}',
+          others: 'Other schedule settings',
+          areas: {
+            live: 'Live',
+            data: 'Data',
+            ai: 'AI',
+            content: 'Content',
+            maintenance: 'Maintenance',
+          },
+        },
+        status: {
+          configured: 'Set',
+          missing: 'Missing',
+          expiresIn: 'Expires in {days} days',
+          online: 'Up',
+          offline: 'Down',
+          endsWith: 'ends with {hint}',
+          menu: 'Actions: {name}',
+          change: 'Replace',
+          test: 'Test',
+          changeTitle: 'Replace {name}',
+          changeBody:
+            'The value lives only in the VPS .env and never goes through the panel. Replace it there ({keys}) and restart: {services}.',
+          close: 'Close',
+          credentialsTitle: 'Credentials',
+          credentialsDescription: 'Every key in one place. The value never shows: only whether it is set.',
+          groups: {
+            sports: { title: 'Sports data', description: 'Provider and videos.' },
+            ai: {
+              title: 'Artificial intelligence',
+              description: 'Providers used by the internal AI and by Cosmos.',
+            },
+            infra: {
+              title: 'Infrastructure',
+              description: 'Storage, email, login, metrics and webhook signing.',
+            },
+            payments: {
+              title: 'Payments',
+              description: 'Stripe for Cosmos AI and, later, for subscriptions.',
+            },
+          },
+          servicesTitle: 'Service status',
+          servicesDescription: 'Each container reports its own state; the API reports only on startup.',
+        },
+        integrations: {
+          connected: 'Connected',
+          disconnected: 'Disconnected',
+          attention: 'Needs attention',
+          openCredentials: 'Go to Credentials',
+          github: {
+            name: 'GitHub',
+            description: 'The "Suggest or report something" button opens an issue in the {repo} repo.',
+            noRepo:
+              'The "Suggest or report something" button opens an issue in the suggestions repo (no repo yet).',
+            unreadable: 'The saved token does not open with this container key: save it again.',
+            feedbackLocked: 'Connect GitHub (repo and token) to turn the button on.',
+          },
+        },
+        ai: {
+          budgetTitle: 'Internal AI budget',
+          today: 'Today, {day}',
+          rulerMarks: 'Reference marks',
+          spendTitle: 'Spend today',
+          capBadge: 'cap US$ {cap}',
+          noCap: 'no cap',
+          ofCap: '{percent}% of the cap · resets at {start} ({timeZone})',
+          noCapTurn: 'No cap · resets at {start} ({timeZone})',
+          others: 'Others',
+          noSpend: 'No spend today.',
+          bandsTitle: 'Priority bands',
+          bandsDescription:
+            'Pick a band to change its share of the cap. Each band only spends its share: the one that runs out stops first.',
+          bandShare: '{share}% of the cap',
+          modelsTitle: 'Model of each agent',
+          modelsDescription: 'Provider and model of each agent. Empty uses the provider default.',
+          inUse: 'In use: {model}',
+          agents: {
+            general: 'Context, summary and other agents',
+            review: 'Lineup review',
+            channels: 'Where to Watch: channels',
+            matchChannel: 'Where to Watch: match channel',
+            rights: 'Where to Watch: rights',
+          },
+        },
+      },
       aiPolicy: {
         title: 'AI policy',
         description:
@@ -2179,6 +2966,85 @@ export default defineMessages(
           label: 'P0/P1 cut (minimum audience)',
           description:
             'Audience points from which a competition is P0; below that, with any audience, it is P1.',
+        },
+      },
+      search: {
+        settings: 'Settings',
+        pages: 'Pages',
+        placeholder: 'Search settings…',
+        soon: 'Coming soon',
+        secret: 'credential',
+        openHint: 'opens the page at the setting',
+        tip: 'Also finds by key: “AI_DAILY”, without accents: “orcamento”',
+      },
+      pageChrome: {
+        breadcrumb: 'Breadcrumb',
+        root: 'Settings',
+        updated: 'Updated {when}',
+        refresh: 'Refresh',
+        filter: {
+          label: 'Which settings to show',
+          all: 'All',
+          changed: 'Changed in the panel ({count})',
+          none: 'None changed',
+          hint: 'Only rows whose value comes from the panel and overrides the .env.',
+          empty: 'No setting on this page was changed in the panel.',
+        },
+        onThisPage: 'On this page',
+        job: 'Job {job}',
+        history: 'History of this area',
+      },
+      home: {
+        title: 'Home',
+        groupsTitle: 'All areas',
+        description:
+          'What needs action in Settings right now. Each card leads to the page where it gets solved.',
+        nothing: 'Nothing pending',
+        unavailable: 'No data right now',
+        soon: 'Coming soon',
+        cards: {
+          review: {
+            title: 'Catalog review',
+            description: 'Catalog items waiting for review.',
+            count: { one: '{count} pending item', other: '{count} pending items' },
+          },
+          requests: {
+            title: 'Operator requests',
+            description: 'Lineup correction requests still open.',
+            count: { one: '{count} open request', other: '{count} open requests' },
+          },
+          failedJobs: {
+            title: 'Failed jobs',
+            description: 'Jobs that failed in the last 24 hours.',
+            count: { one: '{count} failed job', other: '{count} failed jobs' },
+          },
+          alerts: {
+            title: 'Open alerts',
+            description: 'Services without signal and AI account problems.',
+            count: { one: '{count} alert', other: '{count} alerts' },
+          },
+          credentials: {
+            title: 'Missing credential',
+            description: 'Keys and secrets the container does not have.',
+            count: { one: '{count} missing credential', other: '{count} missing credentials' },
+          },
+          aiCeiling: {
+            title: 'AI near the ceiling',
+            description: "Today's AI spend against the daily US$ ceiling.",
+            near: "{percent}% of today's ceiling",
+          },
+          signups: {
+            title: 'Sign-ups to approve',
+            description: 'New sign-ups and trials waiting for approval.',
+          },
+        },
+        recent: {
+          title: 'Recently changed',
+          description: 'The latest changes made in the panel.',
+          empty: 'No changes in the panel yet.',
+          set: '{who} changed it {when}',
+          reset: '{who} reset it to default {when}',
+          all: 'View history',
         },
       },
       settings: {
@@ -2523,6 +3389,29 @@ export default defineMessages(
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
         COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: assistant provider key (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
+        WTW_ROUND_ALLOCATION: {
+          label: 'Per-round allocation (previous design)',
+          description:
+            'Turns on wtw-run per-round channel allocation (48 h before). Off (default), each match channel comes from the match channel job.',
+        },
+        AI_MATCH_CHANNEL_PROVIDER: {
+          label: 'Match channel AI',
+          description:
+            'AI that confirms which channel shows each match (match channel job). Empty uses Gemini, which searches with Google Search.',
+        },
+        AI_MATCH_CHANNEL_MODEL: {
+          label: 'Match channel model',
+          description: 'Model of the match channel AI. Empty uses the chosen provider default.',
+        },
+        COSMOS_TRIAL_CREDITS: {
+          label: 'Cosmos trial credits',
+          description:
+            'Credits a tenant gets once, when it turns Cosmos AI on for the first time. Purchased credits do not expire.',
+        },
+        COSMOS_TRIAL_DAYS: {
+          label: 'Trial credits validity',
+          description: 'How many days until the Cosmos AI trial credits expire.',
+        },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Cosmos AI daily safety ceiling',
           description:
@@ -2541,6 +3430,13 @@ export default defineMessages(
             'Provider cost worth 1 credit, used to turn real cost into credits. Empty, each call charges only the function minimum. Clients never see this number.',
           unit: 'US$',
         },
+        FAN_TOKEN_TTL_SECONDS: {
+          label: 'Fan token lifetime',
+          description:
+            "How long the token the client's server requests stays valid. Age band and country only change on the next token; deleting a Profile takes effect at once.",
+          unit: 'seconds',
+        },
+        FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -2569,20 +3465,70 @@ export default defineMessages(
         refresh: 'Actualizar',
       },
       nav: {
-        users: 'Usuarios',
-        system: 'Sistema',
-        features: 'Deportes y features',
-        review: 'Revisión',
-        lineup: 'Grillas y ofertas',
-        crests: 'Escudos',
-        webhooks: 'Webhooks',
-        label: 'Secciones de ajustes',
-        wallets: 'Carteras de Cosmos',
-        ai: 'IA interna',
-        operation: 'Operación',
-        provider: 'Proveedor',
         title: 'Ajustes',
-        groups: { clients: 'Clientes', data: 'Datos', platform: 'Plataforma' },
+        label: 'Secciones de ajustes',
+        soon: 'Próximamente',
+        search: 'Buscar ajuste…',
+        hide: 'Ocultar el menú de Ajustes',
+        show: 'Mostrar el menú de Ajustes',
+        pending: '{n} esperando acción',
+        breadcrumb: 'Ruta',
+        home: 'Inicio',
+        tvApps: 'Apps de TV',
+        site: 'Sitio de Galaxie',
+        messaging: 'WhatsApp y Telegram',
+        subscriptions: 'Suscripciones y billeteras',
+        signups: 'Registros y pruebas',
+        domains: 'Dominios',
+        organizations: 'Organizaciones y marcas',
+        users: 'Usuarios y equipo',
+        webhooks: 'Webhooks',
+        catalog: 'Catálogo de módulos',
+        metering: 'Medición y uso',
+        plans: 'Planes y precios',
+        advertising: 'Publicidad',
+        countryProfile: 'Ficha por país',
+        legalHold: 'Custodia legal y exportaciones',
+        moderation: 'Moderación: reglas y listas',
+        secondAppeal: 'Segunda apelación',
+        terms: 'Términos y políticas',
+        crests: 'Escudos y logos',
+        mirror: 'Espejo de api-sports',
+        provider: 'Proveedor y cuota',
+        quality: 'Calidad de los datos',
+        review: 'Revisión del catálogo',
+        fanIdentity: 'Identidad del hincha',
+        liveChat: 'Chat en vivo',
+        communities: 'Comunidades',
+        gamification: 'Gamificación',
+        shopping: 'Shopping',
+        cosmos: 'Cosmos AI',
+        ai: 'IA interna',
+        schedule: 'Agenda de los jobs',
+        credentials: 'Credenciales',
+        emails: 'Correos y notificaciones',
+        history: 'Historial y auditoría',
+        languages: 'Idiomas',
+        status: 'Estado de los servicios',
+        suggestions: 'Sugerencias y reportes',
+        tasks: 'Tareas',
+        live: 'En vivo',
+        lineup: 'Grillas y ofertas',
+        wtw: 'Dónde ver',
+        postgame: 'Pospartido',
+        related: 'Videos relacionados',
+        widgets: 'Widgets y Builder',
+        groups: {
+          canais: 'Canales',
+          clientes: 'Clientes',
+          comercial: 'Comercial',
+          conformidade: 'Cumplimiento',
+          dados: 'Datos',
+          engajamento: 'Participación',
+          inteligencia: 'Inteligencia',
+          plataforma: 'Plataforma',
+          produtos: 'Productos',
+        },
       },
       tabs: {
         status: 'Estado',
@@ -2596,25 +3542,152 @@ export default defineMessages(
         assets: 'Logos',
         suggestions: 'Sugerencias',
         cosmos: 'Cosmos AI',
+        engage: 'Interacción',
         history: 'Historial',
         sports: 'Deportes',
         tasks: 'Tareas',
         mirror: 'Espejo',
+        postgame: 'Pospartido',
+        credentials: 'Credenciales',
+        lineup: 'Grilla de canales',
       },
-      features: {
-        title: 'Deportes y features',
-        description:
-          'Lo que cada deporte usa del proveedor y las reglas de cada feature: videos relacionados (con el control de los canales) y dónde ver. Igual que en Sistema: cambia sin reiniciar los contenedores.',
+      soon: {
+        badge: 'Próximamente',
+        lead: 'Esta pantalla todavía no existe: llega con la feature. Hasta entonces queda en el menú para quien decide cuándo hacerla.',
+        what: 'Qué va a tener',
+        when: 'Fase u ola',
+        issue: 'Ver la issue',
+        epic: 'Ver el épico de la navegación',
+        noData: 'Sin datos: nada aquí lee ni graba ajustes.',
+        items: {
+          tvApps: {
+            what: 'Apps de LG y Samsung en smarttv.galaxiesports.com: versión publicada y clientes conectados.',
+            phase: 'Después de la migración a galaxiesports.com',
+          },
+          site: {
+            what: 'Galaxie como cliente cero: el sitio informativo y la demo pública.',
+            phase: 'Más adelante',
+          },
+          messaging: {
+            what: 'Prueba de canal D2C: campeonato, tono (informativo o en broma) y agenda de los posts.',
+            phase: 'Prueba de canal D2C',
+          },
+          signups: {
+            what: 'Cola de registros por aprobar (correo gratuito), pruebas por módulo y lo que vence.',
+            phase: 'F3',
+          },
+          domains: {
+            what: 'Dominios comprobados por TXT y, después, Cloudflare for SaaS.',
+            phase: 'F2 · F7',
+          },
+          organizations: {
+            what: 'Organización por encima del tenant, marcas, estado, overrides con motivo y vigencia.',
+            phase: 'F2',
+          },
+          catalog: {
+            what: 'Features, módulos, dependencias, franjas, add-ons, franjas de capacidad y niveles de atención.',
+            phase: 'F1',
+          },
+          metering: {
+            what: 'Visualizaciones, pico, países activos y partidos enriquecidos por marca; cierre del mes.',
+            phase: 'F6',
+          },
+          plans: {
+            what: 'Precios por mercado y moneda, ids de Stripe, disponibilidad y self-service.',
+            phase: 'F5',
+          },
+          advertising: {
+            what: 'Inventario y regla de revenue share del D2C y del white-label.',
+            phase: 'A definir',
+          },
+          countryProfile: {
+            what: 'Edad, entidad, moneda, reglas de menores y topes de premio por país, con versión.',
+            phase: 'Base de la participación · #954',
+          },
+          legalHold: {
+            what: 'Custodia de 2 años, legal hold y pedidos de exportación judicial con hash.',
+            phase: 'Base de la participación',
+          },
+          moderation: {
+            what: 'Lista prohibida global, reglas fijas, Escalera y Modo de entrada (tope), denuncias para ocultar.',
+            phase: 'Base de la participación',
+          },
+          secondAppeal: {
+            what: 'Cola de Galaxie para clientes sin equipo propio, con plazo de 72 h.',
+            phase: 'Base de la participación',
+          },
+          terms: {
+            what: 'Versiones del contrato base, DPA y términos del hincha; aceptaciones.',
+            phase: '#1022',
+          },
+          liveChat: {
+            what: 'Valor por defecto y tope de la Sala del Partido (mensaje, historial, apertura, cierre), modo lento, franjas de pico y salas abiertas.',
+            phase: 'Ola 3 · #915',
+          },
+          communities: {
+            what: 'Tope de Comunidades por tenant, ventana de exhibición y suspender una Comunidad.',
+            phase: 'Ola 4 · #936',
+          },
+          gamification: {
+            what: 'Catálogo de logros, Cartas, Piso, Escala de Puntos y tope de premios.',
+            phase: 'Ola 5 · #904',
+          },
+          shopping: {
+            what: 'Conectores por tienda, curaduría, porcentaje y tope del caché de precios.',
+            phase: 'Shop the game · #909',
+          },
+          emails: {
+            what: 'Correos de la prueba y del ciclo de vida del tenant.',
+            phase: 'F3',
+          },
+          languages: {
+            what: 'Idiomas activos (francés solo con cliente canadiense).',
+            phase: '#1024',
+          },
+          widgets: {
+            what: 'Tipos de widget por módulo, tipos no contratados en el Builder y temas por defecto.',
+            phase: 'F1 · F5',
+          },
+        },
+      },
+      views: {
+        status: 'Servicios activos, crédito de la IA, cuota del proveedor, gasto de la IA y los jobs.',
+        quality: 'Lo que el control diario de calidad encontró en los datos.',
+        live: 'Qué entra en el en vivo, con qué frescura y cuánta cuota usa.',
+        postgame: 'Pospartido de cada deporte (activar/desactivar y minutos) y el tope de llamadas del día.',
+        schedule: 'Cuándo corre cada job, la última ejecución y el "ejecutar ahora".',
+        tasks: 'Tareas de la operación: qué está pendiente y quién la tomó.',
+        ai: 'Política de presupuesto, proveedor y modelos de todos los agentes de IA.',
+        provider: 'Plan por defecto y reserva de la cuota de api-sports, y el plan de cada deporte.',
+        credentials:
+          'Todas las claves y secretos, configurados o faltantes. Para cambiarlos, edite el .env de la VPS.',
+        mirror: 'Lo que el espejo diario de api-sports renueva, en qué orden y con cuánta cuota.',
+        wtw: 'Mercados y límites de Dónde ver. Los modelos de IA están en IA interna.',
+        related: 'Cuota de YouTube, canales y las reglas de la búsqueda de videos relacionados.',
+        lineup: 'Revisión mínima y límites de texto de la grilla de canales.',
+        crests: 'Acervo propio de logos.',
+        suggestions: 'El botón de sugerencias y el repo de GitHub que recibe las issues.',
+        cosmos: 'Crédito, prueba y tope de seguridad de Cosmos AI.',
+        fanIdentity: 'Validez del token del hincha. El secreto que lo firma está en Credenciales.',
+        history: 'Quién cambió qué en el panel y los pedidos de "ejecutar ahora".',
+        refreshHint: 'Lo que cambie aquí sobrescribe el .env de la VPS sin reiniciar los contenedores.',
+      },
+      settingLink: {
+        modelInUse: 'Modelo en uso',
+        keyInUse: 'Clave',
+        configured: 'Clave configurada',
+        missing: 'Clave faltante',
+        providerDefault: 'por defecto del proveedor',
+        open: 'Abrir en {page}',
+        movedTitle: 'Se edita en otra página',
+        movedModels: 'Todos los modelos de IA están en IA interna; aquí solo el que está en uso.',
+        movedKeys: 'Todas las claves están en Credenciales; aquí solo si están configuradas.',
       },
       sections: {
         mirror: {
           title: 'Espejo de api-sports (sync:mirror)',
           description:
             'Lo que el espejo diario renueva además de la agenda: cada cuántos días vuelve cada endpoint, el orden de los grupos y cuánto de la cuota gasta.',
-        },
-        live: {
-          title: 'En vivo',
-          description: 'Cómo el en vivo sigue los partidos en curso y cuánta cuota usa.',
         },
         schedule: {
           title: 'Agenda de los jobs',
@@ -2630,24 +3703,38 @@ export default defineMessages(
           title: 'Contenido relacionado',
           description: 'Cuota de YouTube y frecuencia de las búsquedas de videos.',
         },
+        postgame: {
+          title: 'Pospartido',
+          description:
+            'Cierre o tiempo real de cada deporte, cada cuántos minutos, y el tope de llamadas del día.',
+        },
+        lineup: {
+          title: 'Grilla de canales',
+          description:
+            'Piso editorial de la grilla servida en la API y cuánto texto de las páginas de planes va a la IA.',
+        },
+        live: {
+          title: 'En vivo',
+          description: 'Cómo el en vivo sigue los partidos en curso y cuánta cuota usa.',
+        },
         provider: {
           title: 'Proveedor (plan y cuota)',
-          description:
-            'Plan por defecto de api-sports y la reserva de la cuota diaria. El plan de cada deporte está en Deportes y features.',
+          description: 'Plan por defecto de api-sports y la reserva de la cuota diaria.',
         },
         sports: {
           title: 'Plan de cada deporte',
           description:
-            'Plan contratado de la API de cada deporte en api-sports. Vacío = hereda el plan por defecto de Sistema.',
+            'Plan contratado de la API de cada deporte en api-sports. Vacío = hereda el plan por defecto.',
+        },
+        credentials: {
+          title: 'Credenciales',
+          description:
+            'Todas las claves: datos deportivos, inteligencia artificial e infraestructura. Solo mostramos si están configuradas; para cambiarlas, edite el .env de la VPS.',
         },
         assets: {
           title: 'Acervo propio de escudos',
           description:
             'Escudos de alta calidad importados de un acervo propio (assets:acervo), por encima de los logos del proveedor.',
-        },
-        credentials: {
-          title: 'Credenciales e infraestructura',
-          description: 'Solo mostramos si están configuradas. Para cambiarlas, editá el .env de la VPS.',
         },
         feedback: {
           title: 'Sugerir o reportar algo',
@@ -2658,6 +3745,11 @@ export default defineMessages(
           title: 'Cosmos AI',
           description:
             'La IA que el cliente paga por uso, con créditos. Su tope de seguridad es propio y no toca el presupuesto de los agentes internos.',
+        },
+        engage: {
+          title: 'Interacción',
+          description:
+            'La base del Chat en vivo, las Comunidades, la Gamificación y Shop the game. Aquí está la validez del token del hincha.',
         },
       },
       source: {
@@ -3050,6 +4142,8 @@ export default defineMessages(
         set: '{from} → {to}',
         base: 'env o por defecto',
         reset: 'Volvió al valor por defecto (era {from})',
+        filtered: 'Solo los cambios de {name}.',
+        showAll: 'Ver todos',
         requests: 'Pedidos de "correr ahora"',
         requestsEmpty: 'Todavía no hay pedidos.',
         requestStatus: {
@@ -3403,6 +4497,152 @@ export default defineMessages(
           unknown: 'No se pudo completar.',
         },
       },
+      blocks: {
+        changed: 'modificado',
+        required: 'Obligatorio',
+        invalid: 'inválido',
+        rowMenu: 'Más acciones: {name}',
+        resetToEnv: 'Volver al valor del .env',
+        viewHistory: 'Ver en el historial',
+        undo: 'Deshacer',
+        save: 'Guardar',
+        pendingCount: 'Cambios sin guardar: {count}',
+        saveTitle: '¿Guardar {count} cambios?',
+        saveBody: '{changes}. Cada clave queda registrada en el historial.',
+        sports: {
+          postgameTitle: 'Pospartido por deporte',
+          postgameDescription:
+            'Cierra el partido después del pitazo: resultado final, estadísticas y jugadas. Un deporte por fila; la Fórmula 1 tiene su propio pipeline.',
+          postgameOn: '{mode}: consulta cada {minutes} min.',
+          postgameOff: 'Apagado: el resultado llega solo con la agenda del día siguiente.',
+          mode: 'Modo del pospartido: {sport}',
+          interval: 'Minutos entre consultas: {sport}',
+          toggle: 'Pospartido: {sport}',
+          turnAllOff: 'Apagar todos',
+          turnAllOn: 'Encender todos',
+          allOffTitle: '¿Apagar el pospartido de todos los deportes?',
+          allOffBody:
+            'Los {count} deportes encendidos tendrán el resultado solo con la agenda del día siguiente. Cada deporte queda registrado en el historial.',
+          allOnTitle: '¿Encender el pospartido de todos los deportes?',
+          allOnBody: 'Los {count} deportes apagados vuelven al modo del .env o al cierre.',
+          planTitle: 'Plan por deporte',
+          planDescription:
+            'Plan contratado de cada API. Sin plan propio, el deporte hereda el plan por defecto.',
+          planOf: 'Plan: {sport}',
+          inherits: 'hereda el valor por defecto',
+          resetBody:
+            'Se borra lo guardado en el panel en estas claves y vuelve a regir el .env del VPS o el valor por defecto del código: {keys}. Cada clave queda registrada en el historial.',
+          bulkBlocked: 'Guarda o deshaz los cambios antes de encender o apagar todos.',
+        },
+        mirror: {
+          title: 'Períodos por deporte',
+          description:
+            'Un deporte por fila: cuántas llamadas por día estima el espejo con los períodos guardados. Elegí el deporte para editar los períodos de cada endpoint.',
+          estimate: '~{calls} llamadas/día',
+          noInventory: 'sin inventario',
+          edit: 'Editar períodos',
+          editOf: 'Editar períodos: {sport}',
+          editing: 'Editando',
+          periodsOf: 'Períodos por endpoint · {sport}',
+        },
+        jobs: {
+          title: 'Agenda de los jobs',
+          description:
+            'Cuándo corre cada job (cron de 5 campos, en UTC), agrupado por área. El programador relee la agenda cada 30 segundos.',
+          search: 'Buscar job…',
+          searchLabel: 'Buscar en la agenda de los jobs',
+          empty: 'Ningún job con ese nombre.',
+          state: 'Estado',
+          on: 'Encendido',
+          off: 'Apagado',
+          edit: 'Editar agenda',
+          editTitle: 'Agenda: {name}',
+          others: 'Otros ajustes de la agenda',
+          areas: {
+            live: 'En vivo',
+            data: 'Datos',
+            ai: 'IA',
+            content: 'Contenido',
+            maintenance: 'Mantenimiento',
+          },
+        },
+        status: {
+          configured: 'Configurada',
+          missing: 'Falta',
+          expiresIn: 'Vence en {days} días',
+          online: 'En línea',
+          offline: 'Caído',
+          endsWith: 'termina en {hint}',
+          menu: 'Acciones: {name}',
+          change: 'Cambiar',
+          test: 'Probar',
+          changeTitle: 'Cambiar {name}',
+          changeBody:
+            'El valor está solo en el .env de la VPS y nunca pasa por el panel. Cambialo allá ({keys}) y reiniciá: {services}.',
+          close: 'Cerrar',
+          credentialsTitle: 'Credenciales',
+          credentialsDescription:
+            'Todas las claves en un solo lugar. El valor nunca aparece: solo si está configurada.',
+          groups: {
+            sports: { title: 'Datos deportivos', description: 'Proveedor y videos.' },
+            ai: {
+              title: 'Inteligencia artificial',
+              description: 'Proveedores usados por la IA interna y por Cosmos.',
+            },
+            infra: {
+              title: 'Infraestructura',
+              description: 'Almacenamiento, correo, login, métricas y firma de los webhooks.',
+            },
+            payments: {
+              title: 'Pagos',
+              description: 'Stripe de Cosmos AI y, después, de las suscripciones.',
+            },
+          },
+          servicesTitle: 'Estado de los servicios',
+          servicesDescription: 'Cada contenedor informa su propio estado; la API informa solo al arrancar.',
+        },
+        integrations: {
+          connected: 'Conectado',
+          disconnected: 'Desconectado',
+          attention: 'Requiere atención',
+          openCredentials: 'Ir a Credenciales',
+          github: {
+            name: 'GitHub',
+            description: 'El botón "Sugerir o reportar algo" abre un issue en el repo {repo}.',
+            noRepo:
+              'El botón "Sugerir o reportar algo" abre un issue en el repo de sugerencias (todavía sin repo).',
+            unreadable: 'El token guardado no abre con la clave de este contenedor: guardalo de nuevo.',
+            feedbackLocked: 'Conecta GitHub (repo y token) para encender el botón.',
+          },
+        },
+        ai: {
+          budgetTitle: 'Presupuesto de la IA interna',
+          today: 'Hoy, {day}',
+          rulerMarks: 'Marcas de referencia',
+          spendTitle: 'Gasto del día',
+          capBadge: 'tope US$ {cap}',
+          noCap: 'sin tope',
+          ofCap: '{percent}% del tope · se reinicia a las {start} ({timeZone})',
+          noCapTurn: 'Sin tope · se reinicia a las {start} ({timeZone})',
+          others: 'Otros',
+          noSpend: 'Ningún gasto hoy.',
+          bandsTitle: 'Franjas de prioridad',
+          bandsDescription:
+            'Elegí la franja para cambiar su parte del tope. Cada franja solo gasta su parte: la que se agota se detiene primero.',
+          bandShare: '{share}% del tope',
+          modelsTitle: 'Modelo de cada agente',
+          modelsDescription:
+            'Proveedor y modelo de cada agente. Vacío usa el valor por defecto del proveedor.',
+          inUse: 'En uso: {model}',
+          agents: {
+            general: 'Contexto, resumen y demás agentes',
+            review: 'Revisión de grillas',
+            channels: 'Dónde ver: canales',
+            matchChannel: 'Dónde ver: canal del partido',
+            rights: 'Dónde ver: derechos',
+          },
+        },
+      },
       aiPolicy: {
         title: 'Política de IA',
         description:
@@ -3459,6 +4699,84 @@ export default defineMessages(
           label: 'Corte P0/P1 (audiencia mínima)',
           description:
             'Puntos de audiencia a partir de los cuales la competición es P0; por debajo, con audiencia, es P1.',
+        },
+      },
+      search: {
+        settings: 'Ajustes',
+        pages: 'Páginas',
+        placeholder: 'Buscar ajuste…',
+        soon: 'Próximamente',
+        secret: 'credencial',
+        openHint: 'abre la página en el ajuste',
+        tip: 'También encuentra por la clave: “AI_DAILY”, sin tilde: “orcamento”',
+      },
+      pageChrome: {
+        breadcrumb: 'Ruta',
+        root: 'Ajustes',
+        updated: 'Actualizado {when}',
+        refresh: 'Actualizar',
+        filter: {
+          label: 'Qué ajustes mostrar',
+          all: 'Todos',
+          changed: 'Cambiados en el panel ({count})',
+          none: 'Ninguno cambiado',
+          hint: 'Solo las filas cuyo valor viene del panel y sobrescribe el .env.',
+          empty: 'Ningún ajuste de esta página se cambió en el panel.',
+        },
+        onThisPage: 'En esta página',
+        job: 'Job {job}',
+        history: 'Historial de esta área',
+      },
+      home: {
+        title: 'Inicio',
+        groupsTitle: 'Todas las áreas',
+        description: 'Lo que pide acción en Ajustes ahora. Cada tarjeta lleva a la página donde se resuelve.',
+        nothing: 'Nada pendiente',
+        unavailable: 'Sin datos ahora',
+        soon: 'Próximamente',
+        cards: {
+          review: {
+            title: 'Revisión del catálogo',
+            description: 'Ítems del catálogo esperando revisión.',
+            count: { one: '{count} ítem pendiente', other: '{count} ítems pendientes' },
+          },
+          requests: {
+            title: 'Pedidos de las operadoras',
+            description: 'Pedidos de corrección de las grillas todavía abiertos.',
+            count: { one: '{count} pedido abierto', other: '{count} pedidos abiertos' },
+          },
+          failedJobs: {
+            title: 'Jobs con falla',
+            description: 'Jobs que fallaron en las últimas 24 horas.',
+            count: { one: '{count} job con falla', other: '{count} jobs con falla' },
+          },
+          alerts: {
+            title: 'Alertas abiertas',
+            description: 'Servicios sin señal y cuenta de IA con problemas.',
+            count: { one: '{count} alerta', other: '{count} alertas' },
+          },
+          credentials: {
+            title: 'Credencial faltante',
+            description: 'Claves y secretos que el contenedor no tiene.',
+            count: { one: '{count} credencial faltante', other: '{count} credenciales faltantes' },
+          },
+          aiCeiling: {
+            title: 'IA cerca del tope',
+            description: 'Gasto de IA de hoy contra el tope diario en US$.',
+            near: '{percent}% del tope de hoy',
+          },
+          signups: {
+            title: 'Registros por aprobar',
+            description: 'Nuevos registros y trials esperando aprobación.',
+          },
+        },
+        recent: {
+          title: 'Cambiados recientemente',
+          description: 'Los últimos cambios hechos en el panel.',
+          empty: 'Todavía no hay cambios en el panel.',
+          set: '{who} lo cambió {when}',
+          reset: '{who} volvió al valor por defecto {when}',
+          all: 'Ver historial',
         },
       },
       settings: {
@@ -3807,6 +5125,30 @@ export default defineMessages(
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
         COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: clave del proveedor del asistente (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
+        WTW_ROUND_ALLOCATION: {
+          label: 'Asignación por fecha (diseño anterior)',
+          description:
+            'Activa la asignación de canales por fecha del wtw-run (48 h antes). Desactivado (por defecto), el canal de cada partido viene del job del canal del partido.',
+        },
+        AI_MATCH_CHANNEL_PROVIDER: {
+          label: 'IA del canal del partido',
+          description:
+            'IA que confirma en qué canal pasa cada partido (job del canal del partido). Vacío usa Gemini, que busca con la búsqueda de Google.',
+        },
+        AI_MATCH_CHANNEL_MODEL: {
+          label: 'Modelo del canal del partido',
+          description:
+            'Modelo de la IA del canal del partido. Vacío usa el valor por defecto del proveedor elegido.',
+        },
+        COSMOS_TRIAL_CREDITS: {
+          label: 'Créditos de prueba de Cosmos',
+          description:
+            'Créditos que el tenant recibe una vez, al activar Cosmos AI por primera vez. Los comprados no vencen.',
+        },
+        COSMOS_TRIAL_DAYS: {
+          label: 'Vigencia de los créditos de prueba',
+          description: 'En cuántos días vencen los créditos de prueba de Cosmos AI.',
+        },
         COSMOS_DAILY_USD_CEILING: {
           label: 'Tope de seguridad diario de Cosmos AI',
           description:
@@ -3825,6 +5167,13 @@ export default defineMessages(
             'Costo de proveedor que vale 1 crédito, para convertir el costo real en créditos. Vacío, cada llamada cobra solo el mínimo de la función. El cliente nunca ve este número.',
           unit: 'US$',
         },
+        FAN_TOKEN_TTL_SECONDS: {
+          label: 'Validez del token del hincha',
+          description:
+            'Cuánto tiempo vale el token que pide el servidor del cliente. La franja de edad y el país solo cambian en el próximo token; la eliminación del Perfil vale al instante.',
+          unit: 'segundos',
+        },
+        FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

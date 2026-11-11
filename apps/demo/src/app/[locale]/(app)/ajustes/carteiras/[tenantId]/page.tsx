@@ -40,7 +40,7 @@ export default async function WalletPage({ params, searchParams }: Props) {
         parents={[{ path: '/ajustes/carteiras', label: t.cosmosStaff.title, kind: 'ajustes' }]}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active="wallets">
+        <SettingsArea active="subscriptions">
           <Suspense
             fallback={
               <LoadingStatus>

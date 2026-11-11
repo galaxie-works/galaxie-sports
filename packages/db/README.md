@@ -13,6 +13,7 @@ helpers de banco compartilhados (trava de job, change feed, grades, widgets, ví
 | `api` | Tenants, chaves, uso, webhooks, widgets do Builder |
 | `ops` | Cota, cursores de sync, jobs, change feed, uso de LLM, configuração em tempo de execução |
 | `cosmos` | Cosmos AI: carteira de créditos por tenant, extrato, reservas e catálogo de funções (regras em `@galaxie/cosmos`) |
+| `fan` | Identidade do torcedor (#937): Conta, Perfil e registro de exclusão, só ids pseudônimos do cliente. Só a API escreve; agentes e ingestor não leem (docs/05 §9) |
 
 Modelo completo: [docs/04](../../docs/04-modelo-de-dados.md).
 

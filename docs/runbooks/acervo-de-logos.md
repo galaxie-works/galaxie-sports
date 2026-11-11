@@ -1,6 +1,6 @@
 # Acervo customizado de logos
 
-Camada opcional de escudos e logos em alta qualidade por cima dos logos do fornecedor, pensada para a TV. Ela serve a qualquer acervo **licenciado**, por exemplo um pacote de agência ou de fornecedor. A flag **`ASSETS_CUSTOM_LOGOS`** (painel Ajustes → Operação → Logos, padrão `off`) liga e desliga o acervo sem deploy.
+Camada opcional de escudos e logos em alta qualidade por cima dos logos do fornecedor, pensada para a TV. Ela serve a qualquer acervo **licenciado**, por exemplo um pacote de agência ou de fornecedor. A flag **`ASSETS_CUSTOM_LOGOS`** (painel Ajustes → Dados → Escudos e logos, padrão `off`) liga e desliga o acervo sem deploy.
 
 - **Ligada:** a API mostra o logo do acervo em tudo que tiver mapeamento (time, evento, timeline, escalação, estatísticas, busca, home/explorar, navegação, classificação, contexto da competição, elenco e perfil de pessoa, H2H, campanhas).
 - **Desligada:** volta na hora para o logo do fornecedor. Nada é apagado.
@@ -49,7 +49,7 @@ names: # opcional: nome de exibição por chave (senão, o slug do arquivo)
 
 ## Trocar um escudo (painel)
 
-Para trocar o escudo de **um** time ou de **uma** competição, não reimporte o acervo: use **Ajustes → Escudos** no
+Para trocar o escudo de **um** time ou de **uma** competição, não reimporte o acervo: use **Ajustes → Dados → Escudos e logos** no
 painel (só admin).
 
 1. Busque o time ou a competição (sem diferenciar acento). A linha mostra o escudo de hoje nos fundos claro e

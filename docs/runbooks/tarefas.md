@@ -192,7 +192,7 @@ docker compose exec worker node -e "fetch('http://127.0.0.1:8080/health').then(r
 docker compose exec worker node dist/cli/gs.js tarefa listar --status running,pending
 ```
 
-No painel, **Ajustes → Sistema → Tarefas** mostra cada worker (lido das concessões no banco, sem chamar o worker):
+No painel, **Ajustes → Plataforma → Tarefas** mostra cada worker (lido das concessões no banco, sem chamar o worker):
 **Rodando** com a tarefa, o lote e a última renovação; **Ocioso** com a última tarefa encerrada; **Concessão vencida**
 quando ele parou de renovar (caiu ou travou), e a tarefa volta à fila para outro.
 
@@ -232,7 +232,7 @@ O contêiner avulso não entra no deploy (que só troca os serviços da lista) n
 
 ## Pelo painel
 
-**Ajustes → Sistema → Tarefas** (só admin).
+**Ajustes → Plataforma → Tarefas** (só admin).
 
 - **Lista**: as 100 mais recentes, com filtro por estado (aguardando aprovação, pendentes, retomadas, rodando, falhas,
   concluídas, canceladas), tipo, prioridade, tentativas, idade, worker e barra de progresso.

@@ -80,3 +80,26 @@ describe('proxy por papel (APP_ROLE)', () => {
     expect(await res.text()).toBe('No encontrado');
   });
 });
+
+describe('links antigos de Ajustes (#1069)', () => {
+  beforeEach(() => getSession.mockResolvedValue(admin));
+  afterEach(() => getSession.mockReset());
+
+  it.each([
+    ['/ajustes/operacao', '/ajustes/status'],
+    ['/ajustes/sistema?aba=history', '/ajustes/historico'],
+    ['/ajustes/sistema?tab=ai', '/ajustes/ia'],
+    ['/ajustes/esportes?aba=related&q=espn', '/ajustes/videos?q=espn'],
+    ['/ajustes/esportes?aba=sports', '/ajustes/fornecedor#sports'],
+  ])('%s responde 308 para %s', async (from, to) => {
+    const res = await get(from);
+    expect(res.status).toBe(308);
+    expect(res.headers.get('location')).toBe(`http://demo.test${to}`);
+  });
+
+  it('as rotas novas seguem sem redirecionar', async () => {
+    for (const path of ['/ajustes', '/ajustes/status', '/ajustes/videos', '/ajustes/fornecedor?aba=mirror']) {
+      expect((await get(path)).status, path).toBe(200);
+    }
+  });
+});

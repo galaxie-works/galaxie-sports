@@ -1,16 +1,30 @@
 'use client';
 
-import { createContext, use, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  createContext,
+  Suspense,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import type { DocGuideRef } from '@/lib/docs';
 import type { ApiOperationSummary } from '@/lib/search/entries';
 
 import { CommandPalette } from './command-palette';
 
+/** `settings`: aberta pelo campo "Buscar ajuste…" do menu de Ajustes (#1071), já com os ajustes na frente. */
+export type SearchMode = 'all' | 'settings';
+
 interface SearchContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   toggle: () => void;
+  /** Abre a paleta já na busca de ajustes. */
+  openSettings: () => void;
 }
 
 const SearchContext = createContext<SearchContextValue | null>(null);
@@ -45,8 +59,21 @@ export function SearchProvider({
   operations: ApiOperationSummary[];
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const toggle = useCallback(() => setOpen((o) => !o), []);
+  const [open, setOpenState] = useState(false);
+  const [mode, setMode] = useState<SearchMode>('all');
+  // o ⌘K e os botões abrem a busca geral; só o campo do menu de Ajustes abre no modo de ajustes
+  const setOpen = useCallback((next: boolean) => {
+    if (next) setMode('all');
+    setOpenState(next);
+  }, []);
+  const toggle = useCallback(() => {
+    setMode('all');
+    setOpenState((o) => !o);
+  }, []);
+  const openSettings = useCallback(() => {
+    setMode('settings');
+    setOpenState(true);
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -59,11 +86,24 @@ export function SearchProvider({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [toggle]);
 
-  const value = useMemo(() => ({ open, setOpen, toggle }), [open, toggle]);
+  const value = useMemo(
+    () => ({ open, setOpen, toggle, openSettings }),
+    [open, setOpen, toggle, openSettings],
+  );
   return (
     <SearchContext value={value}>
       {children}
-      <CommandPalette open={open} onOpenChange={setOpen} guides={guides} operations={operations} />
+      {/* A paleta lê o caminho (dado de URL, para pôr os ajustes na frente dentro de Ajustes): atrás de Suspense
+          para não bloquear o prerender das páginas. */}
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={open}
+          onOpenChange={setOpenState}
+          mode={mode}
+          guides={guides}
+          operations={operations}
+        />
+      </Suspense>
     </SearchContext>
   );
 }

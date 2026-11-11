@@ -14,7 +14,7 @@ A partir daí, a auditoria virou rotina para que os erros não dependam mais de 
 - a tabela do fornecedor;
 - o dicionário de emissoras.
 
-O job `data-quality` roda todo dia às 04:40 UTC e grava o placar em `ops.quality_*`. O painel mostra o placar em **Ajustes → Operação → Qualidade dos dados**:
+O job `data-quality` roda todo dia às 04:40 UTC e grava o placar em `ops.quality_*`. O painel mostra o placar em **Ajustes → Dados → Qualidade dos dados**:
 
 - por esporte e por regra: ok, falhas e tendência das últimas 14 execuções;
 - a lista das falhas, com link para a página ou o item e a data em que cada uma apareceu.

@@ -36,7 +36,16 @@ import { SourceBadge, useOpsAction } from './setting-row';
  * Repo e token do "Sugerir ou reportar algo". O token é só-escrita: o campo começa sempre vazio, o servidor manda só o
  * estado (`snapshot.feedback`) e o valor digitado é limpo depois de salvo.
  */
-export function FeedbackGithubCard({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: string }) {
+export function FeedbackGithubCard({
+  snapshot,
+  timeZone,
+  embedded = false,
+}: {
+  snapshot: OpsSnapshot;
+  timeZone: string;
+  /** Dentro do cartão de integração do GitHub (#1077): só o formulário e o andamento, sem a moldura própria. */
+  embedded?: boolean;
+}) {
   const { t } = useI18n();
   const T = t.ops.suggestions;
   const f = useFormatters(timeZone);
@@ -63,6 +72,95 @@ export function FeedbackGithubCard({ snapshot, timeZone }: { snapshot: OpsSnapsh
       () => setToken(''),
     );
 
+  const body = (
+    <>
+      <form
+        className={embedded ? 'py-2' : 'px-4 py-4'}
+        autoComplete="off"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (dirty && !pending) save();
+        }}
+      >
+        <FieldGroup>
+          {/* id = chave: âncora da busca de ajustes (#1071) e do filtro "Alterados no painel" */}
+          <Field id="FEEDBACK_GITHUB_REPO" className="scroll-mt-20">
+            <FieldLabel htmlFor="feedback-repo">{T.repo}</FieldLabel>
+            <Input
+              id="feedback-repo"
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              placeholder={repoSetting?.envValue ?? T.repoPlaceholder}
+              disabled={pending}
+              spellCheck={false}
+              autoCapitalize="none"
+              className="font-mono text-xs"
+            />
+            <FieldDescription className="flex flex-wrap items-center gap-1.5">
+              {repoSetting ? <SourceBadge source={repoSetting.source} /> : null}
+              {T.repoHint}
+            </FieldDescription>
+          </Field>
+          <Field id="FEEDBACK_GITHUB_TOKEN" className="scroll-mt-20">
+            <div className="flex flex-wrap items-center gap-2">
+              <FieldLabel htmlFor="feedback-token">{T.token}</FieldLabel>
+              <Badge variant={status.variant}>{status.text}</Badge>
+            </div>
+            <Input
+              id="feedback-token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder={T.tokenPlaceholder}
+              disabled={pending || !state.kekConfigured}
+              autoComplete="new-password"
+              spellCheck={false}
+              className="font-mono text-xs"
+            />
+            <FieldDescription>
+              {state.kekConfigured ? T.tokenHint : T.noKek}
+              {state.tokenChangedBy && state.tokenChangedAt
+                ? ` ${fill(T.changed, {
+                    by: state.tokenChangedBy,
+                    when: f.relative(state.tokenChangedAt, Date.parse(snapshot.generatedAt)),
+                  })}`
+                : ''}
+            </FieldDescription>
+          </Field>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {state.tokenInPanel ? (
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={<Button type="button" variant="ghost" size="sm" disabled={pending} />}
+                >
+                  <Trash2 />
+                  {T.remove}
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{T.removeTitle}</AlertDialogTitle>
+                    <AlertDialogDescription>{T.removeBody}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t.ops.actions.cancel}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => run(() => clearFeedbackToken(), T.removed)}>
+                      {T.remove}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+            <Button type="submit" size="sm" disabled={pending || !dirty}>
+              {pending ? <Spinner /> : <Save />}
+              {T.save}
+            </Button>
+          </div>
+        </FieldGroup>
+      </form>
+      <ProgressRow snapshot={snapshot} timeZone={timeZone} embedded={embedded} />
+    </>
+  );
+  if (embedded) return body;
   return (
     <Frame>
       <FramePanel className="p-0">
@@ -70,96 +168,22 @@ export function FeedbackGithubCard({ snapshot, timeZone }: { snapshot: OpsSnapsh
           <FrameTitle>{T.title}</FrameTitle>
           <FrameDescription>{T.description}</FrameDescription>
         </FrameHeader>
-        <form
-          className="px-4 py-4"
-          autoComplete="off"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (dirty && !pending) save();
-          }}
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="feedback-repo">{T.repo}</FieldLabel>
-              <Input
-                id="feedback-repo"
-                value={repo}
-                onChange={(e) => setRepo(e.target.value)}
-                placeholder={repoSetting?.envValue ?? T.repoPlaceholder}
-                disabled={pending}
-                spellCheck={false}
-                autoCapitalize="none"
-                className="font-mono text-xs"
-              />
-              <FieldDescription className="flex flex-wrap items-center gap-1.5">
-                {repoSetting ? <SourceBadge source={repoSetting.source} /> : null}
-                {T.repoHint}
-              </FieldDescription>
-            </Field>
-            <Field>
-              <div className="flex flex-wrap items-center gap-2">
-                <FieldLabel htmlFor="feedback-token">{T.token}</FieldLabel>
-                <Badge variant={status.variant}>{status.text}</Badge>
-              </div>
-              <Input
-                id="feedback-token"
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder={T.tokenPlaceholder}
-                disabled={pending || !state.kekConfigured}
-                autoComplete="new-password"
-                spellCheck={false}
-                className="font-mono text-xs"
-              />
-              <FieldDescription>
-                {state.kekConfigured ? T.tokenHint : T.noKek}
-                {state.tokenChangedBy && state.tokenChangedAt
-                  ? ` ${fill(T.changed, {
-                      by: state.tokenChangedBy,
-                      when: f.relative(state.tokenChangedAt, Date.parse(snapshot.generatedAt)),
-                    })}`
-                  : ''}
-              </FieldDescription>
-            </Field>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {state.tokenInPanel ? (
-                <AlertDialog>
-                  <AlertDialogTrigger
-                    render={<Button type="button" variant="ghost" size="sm" disabled={pending} />}
-                  >
-                    <Trash2 />
-                    {T.remove}
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{T.removeTitle}</AlertDialogTitle>
-                      <AlertDialogDescription>{T.removeBody}</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t.ops.actions.cancel}</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => run(() => clearFeedbackToken(), T.removed)}>
-                        {T.remove}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : null}
-              <Button type="submit" size="sm" disabled={pending || !dirty}>
-                {pending ? <Spinner /> : <Save />}
-                {T.save}
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-        <ProgressRow snapshot={snapshot} timeZone={timeZone} />
+        {body}
       </FramePanel>
     </Frame>
   );
 }
 
 /** Última conferência do andamento (avisos na caixa de entrada) e o "Verificar agora". */
-function ProgressRow({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: string }) {
+function ProgressRow({
+  snapshot,
+  timeZone,
+  embedded,
+}: {
+  snapshot: OpsSnapshot;
+  timeZone: string;
+  embedded: boolean;
+}) {
   const T = useI18n().t.ops.suggestions.progress;
   const f = useFormatters(timeZone);
   const { pending, run } = useOpsAction();
@@ -174,7 +198,7 @@ function ProgressRow({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: 
         ? fill(T.last, { when: f.relative(p.okAt, now), issues: p.issues, notices: p.notices })
         : T.never;
   return (
-    <div className="flex flex-col gap-2 border-t px-4 py-4">
+    <div className={`flex flex-col gap-2 border-t ${embedded ? 'pt-3' : 'px-4 py-4'}`}>
       <p className="text-sm font-medium">{T.title}</p>
       <p className="text-muted-foreground text-sm">{T.description}</p>
       <div className="flex flex-wrap items-center justify-between gap-2">

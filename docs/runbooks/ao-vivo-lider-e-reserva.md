@@ -26,7 +26,7 @@ docker ps --filter label=com.docker.compose.service=live --format '{{.ID}} {{.Na
 
 Também dá para ver:
 
-- no painel, em Ajustes → Operação › Agendadores e serviços › Ao vivo (a líder do mandato atual e o último tick);
+- no painel, em Ajustes → Plataforma → Status dos serviços, cartão dos serviços, linha Ao vivo (a líder do mandato atual e o último tick);
 - no `/metrics` de qualquer cópia (a série vem do Postgres, igual nas duas):
   `docker compose exec live node -e "fetch('http://127.0.0.1:9464/metrics',{headers:{authorization:'Bearer '+process.env.METRICS_TOKEN}}).then(r=>r.text()).then(t=>console.log(t.split('\n').filter(l=>l.startsWith('live_')).join('\n')))"`
   (`live_leader{instance="<hostname>"} 1` é a líder);

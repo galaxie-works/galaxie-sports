@@ -54,6 +54,7 @@ export const SETTING_SECTIONS = [
   'credentials',
   'feedback',
   'cosmos',
+  'engage',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
 
@@ -858,6 +859,21 @@ export const SETTINGS: readonly SettingDef[] = [
     default: null,
     critical: true,
   },
+
+  // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
+  // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
+  // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
+  {
+    key: 'FAN_TOKEN_TTL_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 60,
+    max: 3600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '900',
+  },
+  secret('FAN_TOKEN_SECRET', 'engage', ['api']),
 
   // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
   secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
