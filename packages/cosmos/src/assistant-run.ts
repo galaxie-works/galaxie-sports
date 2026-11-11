@@ -167,8 +167,12 @@ export interface AskDeps {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Perguntas abertas da pessoa no assistente (a de agora inclusa). */
-async function openAsks(db: Database, tenantId: string, userId: string) {
+/**
+ * Perguntas da pessoa no assistente abertas antes desta (ids uuid v7 crescem com o tempo). Com várias passando juntas
+ * pela conferência, cada uma só desiste se houver uma mais antiga aberta: fica sempre a primeira, nunca as duas
+ * desistem nem as duas passam.
+ */
+async function earlierOpenAsks(db: Database, tenantId: string, userId: string, reservationId: string) {
   const [row] = await db
     .select({ n: count() })
     .from(reservation)
@@ -178,6 +182,7 @@ async function openAsks(db: Database, tenantId: string, userId: string) {
         eq(reservation.functionName, ASSISTANT_FUNCTION),
         eq(reservation.userId, userId),
         eq(reservation.status, 'open'),
+        sql`${reservation.id} < ${reservationId}::uuid`,
       ),
     );
   return row?.n ?? 0;
@@ -220,8 +225,11 @@ export async function* askAssistant(
     throw err;
   }
 
-  // duas perguntas da mesma pessoa passaram juntas pela conferência: fica a primeira
-  if ((await openAsks(db, input.tenantId, input.userId)) > ASSISTANT_LIMITS.userConcurrent) {
+  // duas perguntas da mesma pessoa passaram juntas pela conferência: fica a mais antiga
+  if (
+    (await earlierOpenAsks(db, input.tenantId, input.userId, reservationId)) >=
+    ASSISTANT_LIMITS.userConcurrent
+  ) {
     await release(db, { tenantId: input.tenantId, reservationId }).catch(() => {});
     yield { type: 'error', code: 'busy' };
     return;

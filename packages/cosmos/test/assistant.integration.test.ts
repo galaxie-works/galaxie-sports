@@ -199,16 +199,41 @@ describe('pergunta ao assistente', () => {
     expect(called).toBe(false);
   });
 
-  it('duas perguntas ao mesmo tempo da mesma pessoa: só uma passa', async () => {
+  it('duas perguntas ao mesmo tempo da mesma pessoa: exatamente uma passa', async () => {
     const t = await newTenant();
-    const slow = fakeStream(['a'], { holdUntilAbort: true });
+    // o provedor só responde quando as duas já passaram pela conferência
+    let open!: () => void;
+    const latch = new Promise<void>((r) => (open = r));
+    const gated = async function* (_signal: AbortSignal, usage: StreamUsage) {
+      Object.assign(usage, { inputTokens: 100, cachedInputTokens: 0, outputTokens: 5 });
+      await latch;
+      yield 'ok';
+    };
+    const both = Promise.all([run(t, gated), run(t, gated)]);
+    // libera o provedor só depois de as duas terem reservado (ou desistido)
+    for (let i = 0; i < 200 && (await statuses(t)).length < 2; i++) await new Promise((r) => setImmediate(r));
+    open();
+    const results = await both;
+    const firsts = results.map((events) =>
+      events[0]?.type === 'start' ? 'start' : (events[0] as { code?: string }).code,
+    );
+    expect(firsts.sort()).toEqual(['busy', 'start']);
+  });
+
+  it('pergunta nova com outra em andamento: recusa como ocupada', async () => {
+    const t = await newTenant();
     const ctl = new AbortController();
-    const first = run(t, slow, { signal: ctl.signal });
-    await new Promise((r) => setTimeout(r, 50));
-    const second = await run(t, fakeStream(['b']));
-    expect(second).toEqual([{ type: 'error', code: 'busy' }]);
+    const slow = fakeStream(['a'], { holdUntilAbort: true });
+    // espera o "start" da primeira (a reserva dela já existe) antes de mandar a segunda
+    const first = askAssistant(
+      db,
+      { tenantId: t, userId: 'u1', route: '/x', prompt, credits: 5, settings },
+      { stream: slow, signal: ctl.signal, settleBackoffMs: [1, 1] },
+    );
+    expect((await first.next()).value).toMatchObject({ type: 'start' });
+    expect(await run(t, fakeStream(['b']))).toEqual([{ type: 'error', code: 'busy' }]);
     ctl.abort();
-    await first;
+    for await (const _ of first) void _;
   });
 
   it('limite por minuto da pessoa', async () => {
