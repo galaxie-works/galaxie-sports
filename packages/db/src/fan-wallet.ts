@@ -8,13 +8,15 @@
  * - Perfil `under13` fica fora; `13_17` ganha Pontos mas não resgata (D1);
  * - Perfil excluído não recebe lançamento novo;
  * - o estorno tira o que o lançamento deu; se parte do Saldo já foi gasta, tira só o que sobrou (os Pontos saem
- *   inteiros, porque nunca foram gastos).
+ *   inteiros, porque nunca foram gastos);
+ * - evento estornado não credita mais, nem quando o estorno chega antes do crédito (`fan.points_revoked_event`).
  */
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   FAN_POINTS_SOURCES,
   fanPointsLedger,
+  fanPointsRevokedEvent,
   fanProfile,
   fanWallet,
   type FanAgeBand,
@@ -61,7 +63,8 @@ export type FanWalletResult =
         | 'age_restricted'
         | 'insufficient_balance'
         | 'entry_not_found'
-        | 'not_revertible';
+        | 'not_revertible'
+        | 'reverted';
     };
 
 const COUNTRY = /^[A-Z]{2}$/;
@@ -94,22 +97,38 @@ const entryColumns = {
 
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
-/** Faixa do Perfil ativo, ou null se não existe ou foi excluído. */
-async function activeAgeBand(tx: Tx, key: FanWalletKey): Promise<FanAgeBand | null> {
+/**
+ * Faixa do Perfil ativo, ou null se não existe ou foi excluído. Trava a linha do Perfil (`for share`) até o fim
+ * da transação: uma exclusão em andamento termina antes, e o lançamento vê o `deleted_at`.
+ */
+async function lockProfile(
+  tx: Tx,
+  key: FanWalletKey,
+): Promise<{ ageBand: FanAgeBand; deleted: boolean } | null> {
   const [row] = await tx
     .select({ ageBand: fanProfile.ageBand, deletedAt: fanProfile.deletedAt })
     .from(fanProfile)
-    .where(and(eq(fanProfile.tenantId, key.tenantId), eq(fanProfile.id, key.profileId)));
-  if (!row || row.deletedAt) return null;
-  return row.ageBand;
+    .where(and(eq(fanProfile.tenantId, key.tenantId), eq(fanProfile.id, key.profileId)))
+    .for('share');
+  return row ? { ageBand: row.ageBand, deleted: row.deletedAt !== null } : null;
 }
 
-/** Cria a carteira se falta e trava a linha até o fim da transação. */
-async function lockWallet(tx: Tx, key: FanWalletKey): Promise<{ points: number; balance: number }> {
-  await tx
-    .insert(fanWallet)
-    .values({ tenantId: key.tenantId, profileId: key.profileId, programCountry: key.programCountry })
-    .onConflictDoNothing();
+async function activeAgeBand(tx: Tx, key: FanWalletKey): Promise<FanAgeBand | null> {
+  const p = await lockProfile(tx, key);
+  return p && !p.deleted ? p.ageBand : null;
+}
+
+/** Trava a linha da carteira até o fim da transação; com `create`, cria antes se falta. */
+async function lockWallet(
+  tx: Tx,
+  key: FanWalletKey,
+  create = true,
+): Promise<{ points: number; balance: number } | undefined> {
+  if (create)
+    await tx
+      .insert(fanWallet)
+      .values({ tenantId: key.tenantId, profileId: key.profileId, programCountry: key.programCountry })
+      .onConflictDoNothing();
   const [row] = await tx
     .select({ points: fanWallet.points, balance: fanWallet.balance })
     .from(fanWallet)
@@ -121,8 +140,28 @@ async function lockWallet(tx: Tx, key: FanWalletKey): Promise<{ points: number; 
       ),
     )
     .for('update');
-  return row!;
+  return row;
 }
+
+async function revertOf(tx: Tx, tenantId: string, entryId: string): Promise<FanLedgerEntry | undefined> {
+  const [row] = await tx
+    .select(entryColumns)
+    .from(fanPointsLedger)
+    .where(and(eq(fanPointsLedger.tenantId, tenantId), eq(fanPointsLedger.revertsId, entryId)));
+  return row;
+}
+
+type EventKey = FanWalletKey & { source: FanPointsSource; sourceEvent: string; reason: FanCreditReason };
+
+const revokedWhere = (k: EventKey) =>
+  and(
+    eq(fanPointsRevokedEvent.tenantId, k.tenantId),
+    eq(fanPointsRevokedEvent.profileId, k.profileId),
+    eq(fanPointsRevokedEvent.programCountry, k.programCountry),
+    eq(fanPointsRevokedEvent.source, k.source),
+    eq(fanPointsRevokedEvent.sourceEvent, k.sourceEvent),
+    eq(fanPointsRevokedEvent.reason, k.reason),
+  );
 
 async function existingEntry(
   tx: Tx,
@@ -216,9 +255,19 @@ export async function creditPoints(
     const band = await activeAgeBand(tx, input);
     if (!band) return { ok: false, error: 'profile_not_found' };
     if (band === 'under13') return { ok: false, error: 'age_restricted' };
-    const current = await lockWallet(tx, input);
+    const current = (await lockWallet(tx, input))!;
     const dup = await existingEntry(tx, input, input.source, input.sourceEvent, input.reason);
-    if (dup) return { ok: true, entry: dup, duplicate: true };
+    // evento já estornado (palpite recalculado usa um `sourceEvent` novo, ex.: `palpite:1:v2`)
+    if (dup)
+      return (await revertOf(tx, input.tenantId, dup.id))
+        ? { ok: false, error: 'reverted' }
+        : { ok: true, entry: dup, duplicate: true };
+    // o estorno chegou antes do crédito (fila fora de ordem): o crédito não entra
+    const [revoked] = await tx
+      .select({ at: fanPointsRevokedEvent.createdAt })
+      .from(fanPointsRevokedEvent)
+      .where(revokedWhere(input));
+    if (revoked) return { ok: false, error: 'reverted' };
     const entry = await apply(tx, input, current, {
       reason: input.reason,
       source: input.source,
@@ -245,7 +294,7 @@ export async function debitBalance(
     const band = await activeAgeBand(tx, input);
     if (!band) return { ok: false, error: 'profile_not_found' };
     if (band !== '18plus') return { ok: false, error: 'age_restricted' };
-    const current = await lockWallet(tx, input);
+    const current = (await lockWallet(tx, input))!;
     const dup = await existingEntry(tx, input, input.source, input.sourceEvent, 'redeem');
     if (dup) return { ok: true, entry: dup, duplicate: true };
     if (current.balance < input.amount) return { ok: false, error: 'insufficient_balance' };
@@ -265,27 +314,42 @@ export async function debitBalance(
  * Estorna o crédito de um evento de origem (gol anulado, palpite recalculado). Tira os Pontos inteiros e o Saldo
  * até o que sobrou. Estornar de novo devolve o estorno já feito. Resgate não se estorna por aqui (é a Gamificação
  * que devolve, com um crédito `adjustment`). Funciona também com o Perfil excluído ou com faixa mudada.
+ *
+ * Estorno que chega antes do crédito (fila fora de ordem) responde `entry_not_found`, mas fica marcado: o crédito
+ * desse evento que chegar depois é recusado (`reverted`). Depois de estornado, o mesmo evento não credita de novo;
+ * o recálculo usa um `sourceEvent` novo.
  */
 export async function revertPoints(
   db: Database,
-  input: FanWalletKey & {
-    reason: FanCreditReason;
-    source: FanPointsSource;
-    sourceEvent: string;
-    note?: string;
-  },
+  input: EventKey & { note?: string },
 ): Promise<FanWalletResult> {
   check(input);
   checkSource(input.source);
   return db.transaction(async (tx) => {
-    const current = await lockWallet(tx, input);
-    const original = await existingEntry(tx, input, input.source, input.sourceEvent, input.reason);
-    if (!original) return { ok: false, error: 'entry_not_found' };
+    const profile = await lockProfile(tx, input);
+    if (!profile) return { ok: false, error: 'profile_not_found' };
+    // não cria carteira: estorno sem crédito não deixa linha vazia (nem num Perfil excluído)
+    const current = await lockWallet(tx, input, false);
+    const original = current
+      ? await existingEntry(tx, input, input.source, input.sourceEvent, input.reason)
+      : undefined;
+    if (!current || !original) {
+      if (!profile.deleted)
+        await tx
+          .insert(fanPointsRevokedEvent)
+          .values({
+            tenantId: input.tenantId,
+            profileId: input.profileId,
+            programCountry: input.programCountry,
+            source: input.source,
+            sourceEvent: input.sourceEvent,
+            reason: input.reason,
+          })
+          .onConflictDoNothing();
+      return { ok: false, error: 'entry_not_found' };
+    }
     if (original.pointsDelta <= 0) return { ok: false, error: 'not_revertible' };
-    const [already] = await tx
-      .select(entryColumns)
-      .from(fanPointsLedger)
-      .where(and(eq(fanPointsLedger.tenantId, input.tenantId), eq(fanPointsLedger.revertsId, original.id)));
+    const already = await revertOf(tx, input.tenantId, original.id);
     if (already) return { ok: true, entry: already, duplicate: true };
     const pointsDelta = -Math.min(original.pointsDelta, current.points);
     const balanceDelta = -Math.min(original.balanceDelta, current.balance);

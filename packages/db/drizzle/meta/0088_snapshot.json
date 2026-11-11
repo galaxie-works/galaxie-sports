@@ -1,5 +1,5 @@
 {
-  "id": "660d5043-853b-4b3d-8203-8ada99dfce7f",
+  "id": "75c244e4-52cd-405b-8c64-3bfde7b20498",
   "prevId": "7537c421-d5c2-42f1-a90a-1713745aac49",
   "version": "7",
   "dialect": "postgresql",
@@ -19582,6 +19582,22 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "points_ledger_reverts_fk": {
+          "name": "points_ledger_reverts_fk",
+          "tableFrom": "points_ledger",
+          "tableTo": "points_ledger",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "reverts_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -19623,6 +19639,110 @@
         "points_ledger_note_len": {
           "name": "points_ledger_note_len",
           "value": "\"fan\".\"points_ledger\".\"note\" is null or length(\"fan\".\"points_ledger\".\"note\") <= 200"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.points_revoked_event": {
+      "name": "points_revoked_event",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "program_country": {
+          "name": "program_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_event": {
+          "name": "source_event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "points_revoked_event_tenant_id_tenant_id_fk": {
+          "name": "points_revoked_event_tenant_id_tenant_id_fk",
+          "tableFrom": "points_revoked_event",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "points_revoked_event_profile_fk": {
+          "name": "points_revoked_event_profile_fk",
+          "tableFrom": "points_revoked_event",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "points_revoked_event_pkey": {
+          "name": "points_revoked_event_pkey",
+          "columns": [
+            "tenant_id",
+            "profile_id",
+            "program_country",
+            "source",
+            "source_event",
+            "reason"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "points_revoked_event_len": {
+          "name": "points_revoked_event_len",
+          "value": "length(\"fan\".\"points_revoked_event\".\"source_event\") between 1 and 200"
         }
       },
       "isRLSEnabled": false

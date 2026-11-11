@@ -1,5 +1,6 @@
 -- Carteira de pontos do torcedor (#938, B6): uma carteira por Perfil e programa (cliente + país), com Pontos
--- (só sobem; caem só por estorno) e Saldo (gastável no resgate), e o extrato append-only. Só expansão.
+-- (só sobem; caem só por estorno) e Saldo (gastável no resgate), o extrato append-only e a marca de estorno que
+-- chegou antes do crédito. Só expansão.
 CREATE TABLE "fan"."points_ledger" (
 	"tenant_id" uuid NOT NULL,
 	"id" uuid DEFAULT public.uuid_generate_v7() NOT NULL,
@@ -27,6 +28,18 @@ CREATE TABLE "fan"."points_ledger" (
 	CONSTRAINT "points_ledger_note_len" CHECK ("fan"."points_ledger"."note" is null or length("fan"."points_ledger"."note") <= 200)
 );
 --> statement-breakpoint
+CREATE TABLE "fan"."points_revoked_event" (
+	"tenant_id" uuid NOT NULL,
+	"profile_id" uuid NOT NULL,
+	"program_country" text NOT NULL,
+	"source" text NOT NULL,
+	"source_event" text NOT NULL,
+	"reason" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "points_revoked_event_pkey" PRIMARY KEY("tenant_id","profile_id","program_country","source","source_event","reason"),
+	CONSTRAINT "points_revoked_event_len" CHECK (length("fan"."points_revoked_event"."source_event") between 1 and 200)
+);
+--> statement-breakpoint
 CREATE TABLE "fan"."wallet" (
 	"tenant_id" uuid NOT NULL,
 	"profile_id" uuid NOT NULL,
@@ -43,15 +56,26 @@ CREATE TABLE "fan"."wallet" (
 --> statement-breakpoint
 ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_wallet_fk" FOREIGN KEY ("tenant_id","profile_id","program_country") REFERENCES "fan"."wallet"("tenant_id","profile_id","program_country") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_reverts_fk" FOREIGN KEY ("tenant_id","reverts_id") REFERENCES "fan"."points_ledger"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fan"."points_revoked_event" ADD CONSTRAINT "points_revoked_event_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fan"."points_revoked_event" ADD CONSTRAINT "points_revoked_event_profile_fk" FOREIGN KEY ("tenant_id","profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."wallet" ADD CONSTRAINT "wallet_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."wallet" ADD CONSTRAINT "wallet_profile_fk" FOREIGN KEY ("tenant_id","profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "points_ledger_event_uq" ON "fan"."points_ledger" USING btree ("tenant_id","profile_id","program_country","source","source_event","reason") WHERE "fan"."points_ledger"."reverts_id" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "points_ledger_revert_uq" ON "fan"."points_ledger" USING btree ("tenant_id","reverts_id") WHERE "fan"."points_ledger"."reverts_id" is not null;--> statement-breakpoint
 CREATE INDEX "points_ledger_wallet_idx" ON "fan"."points_ledger" USING btree ("tenant_id","profile_id","program_country","id");--> statement-breakpoint
--- extrato é append-only: lançamento errado se corrige com estorno, nunca com UPDATE
-CREATE OR REPLACE FUNCTION "fan"."points_ledger_no_update"() RETURNS trigger LANGUAGE plpgsql AS $$
+-- extrato é append-only: lançamento errado se corrige com estorno. DELETE só em cascata (exclusão do Perfil ou do
+-- cliente apaga a carteira, e a carteira leva o extrato); direto, nunca. TRUNCATE também não.
+CREATE OR REPLACE FUNCTION "fan"."points_ledger_append_only"() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND pg_trigger_depth() > 1 THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION 'fan.points_ledger é append-only: corrija com um estorno';
 END $$;--> statement-breakpoint
 CREATE TRIGGER "points_ledger_no_update" BEFORE UPDATE ON "fan"."points_ledger"
-  FOR EACH ROW EXECUTE FUNCTION "fan"."points_ledger_no_update"();
+  FOR EACH ROW EXECUTE FUNCTION "fan"."points_ledger_append_only"();--> statement-breakpoint
+CREATE TRIGGER "points_ledger_no_delete" BEFORE DELETE ON "fan"."points_ledger"
+  FOR EACH ROW EXECUTE FUNCTION "fan"."points_ledger_append_only"();--> statement-breakpoint
+CREATE TRIGGER "points_ledger_no_truncate" BEFORE TRUNCATE ON "fan"."points_ledger"
+  FOR EACH STATEMENT EXECUTE FUNCTION "fan"."points_ledger_append_only"();

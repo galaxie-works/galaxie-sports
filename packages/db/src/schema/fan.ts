@@ -233,6 +233,12 @@ export const fanPointsLedger = fan.table(
     uniqueIndex('points_ledger_revert_uq')
       .on(t.tenantId, t.revertsId)
       .where(sql`${t.revertsId} is not null`),
+    // estorno aponta um lançamento do mesmo cliente
+    foreignKey({
+      name: 'points_ledger_reverts_fk',
+      columns: [t.tenantId, t.revertsId],
+      foreignColumns: [t.tenantId, t.id],
+    }).onDelete('cascade'),
     index('points_ledger_wallet_idx').on(t.tenantId, t.profileId, t.programCountry, t.id),
     check('points_ledger_reason', inList('reason', FAN_POINTS_REASONS)),
     check('points_ledger_source', inList('source', FAN_POINTS_SOURCES)),
@@ -247,5 +253,34 @@ export const fanPointsLedger = fan.table(
     check('points_ledger_after_nonneg', sql`${t.pointsAfter} >= 0 and ${t.balanceAfter} >= 0`),
     check('points_ledger_event_len', sql`length(${t.sourceEvent}) between 1 and 200`),
     check('points_ledger_note_len', sql`${t.note} is null or length(${t.note}) <= 200`),
+  ],
+);
+
+/**
+ * Estorno que chegou antes do crédito (fila fora de ordem, VAR anulou antes de o módulo creditar): o crédito desse
+ * evento que chegar depois é recusado. Sai junto na exclusão do Perfil.
+ */
+export const fanPointsRevokedEvent = fan.table(
+  'points_revoked_event',
+  {
+    tenantId: tenantRef(),
+    profileId: uuid('profile_id').notNull(),
+    programCountry: text('program_country').notNull(),
+    source: text('source').$type<FanPointsSource>().notNull(),
+    sourceEvent: text('source_event').notNull(),
+    reason: text('reason').$type<FanPointsReason>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({
+      name: 'points_revoked_event_pkey',
+      columns: [t.tenantId, t.profileId, t.programCountry, t.source, t.sourceEvent, t.reason],
+    }),
+    foreignKey({
+      name: 'points_revoked_event_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    check('points_revoked_event_len', sql`length(${t.sourceEvent}) between 1 and 200`),
   ],
 );

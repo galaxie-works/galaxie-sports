@@ -5,6 +5,7 @@
 import {
   fanAccount,
   fanErasureLog,
+  fanPointsRevokedEvent,
   fanProfile,
   fanWallet,
   type Database,
@@ -199,6 +200,14 @@ export async function eraseFan(
     await tx
       .delete(fanWallet)
       .where(and(eq(fanWallet.tenantId, input.tenantId), eq(fanWallet.profileId, target.profileId)));
+    await tx
+      .delete(fanPointsRevokedEvent)
+      .where(
+        and(
+          eq(fanPointsRevokedEvent.tenantId, input.tenantId),
+          eq(fanPointsRevokedEvent.profileId, target.profileId),
+        ),
+      );
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
       profileId: target.profileId,

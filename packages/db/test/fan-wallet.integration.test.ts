@@ -146,6 +146,61 @@ describe('carteira de pontos (B6, #938)', () => {
       ok: false,
       error: 'entry_not_found',
     });
+    // o mesmo evento, depois de estornado, não credita de novo (recálculo usa sourceEvent novo)
+    expect(await creditPoints(db, { ...key(p), amount: 25, ...ev })).toEqual({
+      ok: false,
+      error: 'reverted',
+    });
+    const v2 = await creditPoints(db, {
+      ...key(p),
+      amount: 25,
+      ...ev,
+      sourceEvent: 'palpite:gol-anulado:v2',
+    });
+    expect(v2.ok && v2.entry.pointsAfter === 25).toBe(true);
+  });
+
+  it('estorno que chega antes do crédito: o crédito que chega depois é recusado e não sobra carteira vazia', async () => {
+    const p = await profile('18plus');
+    const ev = {
+      reason: 'prediction' as const,
+      source: 'gamification' as const,
+      sourceEvent: 'palpite:fora-de-ordem',
+    };
+    expect(await revertPoints(db, { ...key(p), ...ev })).toEqual({ ok: false, error: 'entry_not_found' });
+    expect(await readWallets(db, tenantId, p)).toEqual([]);
+    expect(await creditPoints(db, { ...key(p), amount: 10, ...ev })).toEqual({
+      ok: false,
+      error: 'reverted',
+    });
+    expect(await readWallets(db, tenantId, p)).toEqual([{ programCountry: 'BR', points: 0, balance: 0 }]);
+    // Perfil que não existe: erro tipado, sem exceção
+    expect(await revertPoints(db, { ...key('0190f1c0-0000-7000-8000-000000000bad'), ...ev })).toEqual({
+      ok: false,
+      error: 'profile_not_found',
+    });
+  });
+
+  it('exclusão e crédito ao mesmo tempo: o crédito espera e não entra no Perfil excluído', async () => {
+    const p = await profile('18plus');
+    const reserved = await pg.reserve();
+    await reserved`begin`;
+    await reserved`select id from fan.profile where tenant_id = ${tenantId} and id = ${p} for update`;
+    await reserved`update fan.profile set deleted_at = now(), external_profile_id = null, nickname = null
+      where tenant_id = ${tenantId} and id = ${p}`;
+    const credit = creditPoints(db, {
+      ...key(p),
+      amount: 5,
+      reason: 'poll',
+      source: 'communities',
+      sourceEvent: 'corrida',
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    await reserved`delete from fan.wallet where tenant_id = ${tenantId} and profile_id = ${p}`;
+    await reserved`commit`;
+    reserved.release();
+    expect(await credit).toEqual({ ok: false, error: 'profile_not_found' });
+    expect(await readWallets(db, tenantId, p)).toEqual([]);
   });
 
   it('resgate gasta só o Saldo; Pontos e Ranking ficam', async () => {
@@ -257,6 +312,20 @@ describe('carteira de pontos (B6, #938)', () => {
     await creditPoints(db, { ...key(p), amount: 3, reason: 'poll', source: 'communities', sourceEvent: 'x' });
     await expect(pg`update fan.points_ledger set points_delta = 999 where profile_id = ${p}`).rejects.toThrow(
       /append-only/,
+    );
+    await expect(pg`delete from fan.points_ledger where profile_id = ${p}`).rejects.toThrow(/append-only/);
+    await expect(pg`truncate fan.points_ledger cascade`).rejects.toThrow(/append-only/);
+    // estorno não aponta lançamento de outro cliente
+    await expect(
+      pg`insert into fan.points_ledger (tenant_id, profile_id, program_country, reason, source, source_event,
+          reverts_id, points_delta, balance_delta, points_after, balance_after)
+        values (${otherTenant}, ${p}, 'BR', 'revert', 'communities', 'x',
+          (select id from fan.points_ledger where profile_id = ${p} limit 1), -1, -1, 0, 0)`,
+    ).rejects.toThrow();
+    // em cascata (carteira apagada na exclusão) passa
+    await pg`delete from fan.wallet where tenant_id = ${tenantId} and profile_id = ${p}`;
+    expect((await pg`select count(*)::int as n from fan.points_ledger where profile_id = ${p}`)[0]!.n).toBe(
+      0,
     );
   });
 
