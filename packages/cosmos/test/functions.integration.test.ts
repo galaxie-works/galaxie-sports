@@ -81,6 +81,13 @@ describe('provedor e modelo por função (#1088)', () => {
       model: `${defaultModelFor('anthropic')}-2026-10-01`,
     });
     expect((await activeFunction(db, 'fn.ruim'))?.model).toBe(`${defaultModelFor('anthropic')}-2026-10-01`);
+    // e no formato da Anthropic, sem hífens na data
+    await upsertFunctionDef(db, {
+      ...base,
+      provider: 'anthropic',
+      model: `${defaultModelFor('anthropic')}-20261001`,
+    });
+    expect((await activeFunction(db, 'fn.ruim'))?.model).toBe(`${defaultModelFor('anthropic')}-20261001`);
   });
 
   it('a equipe troca o modelo com motivo; a tela da função fica como estava', async () => {
