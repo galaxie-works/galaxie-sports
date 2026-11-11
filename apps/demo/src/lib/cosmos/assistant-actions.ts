@@ -8,12 +8,7 @@
 import { readClientContext } from '@/lib/client/session';
 import { getRequestLocale } from '@/lib/i18n/server';
 
-import {
-  assistantAccessError,
-  assistantApiKey,
-  parseAssistantRequest,
-  prepareQuestion,
-} from './assistant-server';
+import { assistantAccessError, parseAssistantRequest, prepareQuestion } from './assistant-server';
 import { allowEstimate } from './assistant-limits';
 
 export type EstimateResult =
@@ -27,7 +22,7 @@ export async function estimateAssistantQuestion(body: unknown): Promise<Estimate
   if (denied) return { ok: false, error: denied };
   if (!allowEstimate(ctx.userId)) return { ok: false, error: 'rate_limited' };
   const req = parseAssistantRequest(body);
-  if (!req || !assistantApiKey()) return { ok: false, error: 'unavailable' };
+  if (!req) return { ok: false, error: 'unavailable' };
   const prepared = await prepareQuestion(
     { tenantId: ctx.tenant!.id, userId: ctx.userId },
     req,

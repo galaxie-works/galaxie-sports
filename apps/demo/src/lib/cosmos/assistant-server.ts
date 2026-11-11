@@ -4,7 +4,11 @@
  * então o "cerca de N créditos" mostrado antes é o mesmo que a reserva pede.
  */
 import {
-  activeFunctionMinCredits,
+  activeFunction,
+  ASSISTANT_STREAMERS,
+  type AssistantStreamer,
+  cosmosApiKey,
+  type CosmosProvider,
   ASSISTANT_FUNCTION,
   buildPrompt,
   estimateAssistantCredits,
@@ -89,9 +93,18 @@ export interface PreparedQuestion {
   prompt: ReturnType<typeof buildPrompt>;
   credits: number;
   settings: CosmosSettings;
+  /** Provedor e modelo da função no catálogo (#1088). */
+  provider: CosmosProvider;
+  model: string;
+  /** Chamada ao provedor da função, já com a chave da Cosmos nele. */
+  streamer: AssistantStreamer;
+  apiKey: string;
 }
 
-/** Monta o prompt e a estimativa; null quando a função não está no catálogo (assistente indisponível). */
+/**
+ * Monta o prompt e a estimativa no preço do modelo da função; null quando o assistente está indisponível: função
+ * fora do catálogo ou desligada, provedor que o assistente ainda não chama, ou sem a chave da Cosmos nele.
+ */
 export async function prepareQuestion(
   scope: { tenantId: string; userId: string },
   req: AssistantRequest,
@@ -99,12 +112,15 @@ export async function prepareQuestion(
 ): Promise<PreparedQuestion | null> {
   const tenantId = scope.tenantId;
   const db = builderDb();
-  const [settings, minCredits, wallet] = await Promise.all([
+  const [settings, fn, wallet] = await Promise.all([
     readCosmosSettings(db),
-    activeFunctionMinCredits(db, ASSISTANT_FUNCTION),
+    activeFunction(db, ASSISTANT_FUNCTION),
     getWallet(db, tenantId),
   ]);
-  if (minCredits === null) return null;
+  if (!fn) return null;
+  const streamer = ASSISTANT_STREAMERS[fn.provider];
+  const apiKey = assistantApiKey(fn.provider);
+  if (!streamer || !apiKey) return null;
   const docs = searchDocs(req.question, docChunks(getDictionary(locale).docs));
   const history = verifiedHistory(req.history, assistantSigningKey(), scope);
   const prompt = buildPrompt({ question: req.question, context: req.context, docs, history, locale });
@@ -113,9 +129,10 @@ export async function prepareQuestion(
     messages: prompt.messages,
     creditUsd: settings.creditUsd,
     multiplier: wallet?.multiplier ?? 1,
-    minCredits,
+    minCredits: fn.minCredits,
+    model: fn.model,
   });
-  return { prompt, credits, settings };
+  return { prompt, credits, settings, provider: fn.provider, model: fn.model, streamer, apiKey };
 }
 
 /** Chave que assina as respostas do histórico (a mesma da sessão); sem ela, respostas antigas não voltam ao prompt. */
@@ -139,7 +156,13 @@ export function assistantAccessError(ctx: {
   return null;
 }
 
-/** Chave do provedor só da Cosmos (separada da dos agentes internos); vazia = assistente indisponível. */
-export function assistantApiKey(env: Record<string, string | undefined> = process.env): string | null {
-  return env.COSMOS_ANTHROPIC_API_KEY?.trim() || null;
+/**
+ * Chave da Cosmos no provedor (COSMOS_<PROVEDOR>_API_KEY, separada das chaves da IA interna); vazia = o assistente
+ * fica indisponível enquanto a função usar esse provedor.
+ */
+export function assistantApiKey(
+  provider: CosmosProvider,
+  env: Record<string, string | undefined> = process.env,
+): string | null {
+  return cosmosApiKey(provider, env);
 }

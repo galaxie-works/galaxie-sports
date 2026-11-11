@@ -9,6 +9,7 @@ export * from './balance.js';
 export * from './credits.js';
 export * from './errors.js';
 export * from './lifecycle.js';
+export * from './models.js';
 export * from './purchases.js';
 export * from './recharge.js';
 export * from './settings.js';
