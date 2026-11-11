@@ -94,7 +94,24 @@ export async function POST(request: Request) {
   const declared = Number(request.headers.get('content-length') ?? 0);
   if (declared > BRANDBOOK_MAX_BYTES + 64 * 1024) return fail('too_large');
   if (step === 'estimar' && !quoteAllowed(ctx.userId)) return fail('rate_limited');
-  if (step === 'criar' && readings >= MAX_PROCESS_READINGS) return fail('busy');
+  const who = { tenantId: ctx.tenant.id, userId: ctx.userId };
+  if (step === 'estimar') return handle(request, who, step);
+  // vaga do processo tomada antes de qualquer espera (leitura do corpo, banco): pedidos ao mesmo tempo não passam
+  // juntos da conferência
+  if (readings >= MAX_PROCESS_READINGS) return fail('busy');
+  readings += 1;
+  try {
+    return await handle(request, who, step);
+  } finally {
+    readings -= 1;
+  }
+}
+
+async function handle(
+  request: Request,
+  who: { tenantId: string; userId: string },
+  step: 'estimar' | 'criar',
+) {
   const form = await request.formData().catch(() => null);
   const file = form?.get('arquivo');
   if (!(file instanceof File)) return fail('bad_request');
@@ -107,24 +124,20 @@ export async function POST(request: Request) {
 
   const db = builderDb();
   const settings = await readCosmosSettings(db);
-  const quote = await quoteBrandbook(db, { tenantId: ctx.tenant.id, pdf, settings });
+  const quote = await quoteBrandbook(db, { tenantId: who.tenantId, pdf, settings });
   if (!quote) return fail('unavailable');
   if (step === 'estimar') return Response.json({ ok: true, credits: quote.credits, pages: quote.pages });
 
   // o cliente confirmou um valor; se o preço mudou no meio (outro arquivo, outro modelo), pede de novo
   if (Number(form!.get('creditos')) !== quote.credits) return fail('quote_changed');
-  readings += 1;
   const result = await runBrandbook(db, {
-    tenantId: ctx.tenant.id,
-    userId: ctx.userId,
+    ...who,
     pdf,
     fileName: file.name.slice(0, 120) || 'brandbook.pdf',
     locale: await getRequestLocale(),
     quote,
     settings,
     signal: request.signal,
-  }).finally(() => {
-    readings -= 1;
   });
   if (!result.ok) return fail(result.error, result.notes ? { notes: result.notes } : {});
   return Response.json({

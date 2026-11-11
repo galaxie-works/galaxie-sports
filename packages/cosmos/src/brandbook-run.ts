@@ -97,7 +97,7 @@ export async function brandbookLimitError(
     eq(ledger.functionName, BRANDBOOK_FUNCTION),
     gte(ledger.createdAt, dayStart),
   );
-  const [[open], [userHour], [tenantHour], [today]] = await Promise.all([
+  const [[open], [tenantOpen], [userHour], [tenantHour], [today]] = await Promise.all([
     db
       .select({ n: count() })
       .from(reservation)
@@ -109,6 +109,10 @@ export async function brandbookLimitError(
           gt(reservation.expiresAt, now),
         ),
       ),
+    db
+      .select({ n: count() })
+      .from(reservation)
+      .where(and(mine, eq(reservation.status, 'open'), gt(reservation.expiresAt, now))),
     db
       .select({ n: count() })
       .from(reservation)
@@ -128,7 +132,10 @@ export async function brandbookLimitError(
   if ((open?.n ?? 0) >= BRANDBOOK_LIMITS.userConcurrent) return 'busy';
   if ((userHour?.n ?? 0) >= BRANDBOOK_LIMITS.userPerHour) return 'rate_limited';
   if ((tenantHour?.n ?? 0) >= BRANDBOOK_LIMITS.tenantPerHour) return 'rate_limited';
-  if ((today?.waived ?? 0) >= BRANDBOOK_LIMITS.tenantWaivedPerDay) return 'rate_limited';
+  // leitura em andamento pode terminar sem tema: conta como sem tema até acertar, para leituras ao mesmo tempo não
+  // passarem juntas do teto
+  if ((today?.waived ?? 0) + (tenantOpen?.n ?? 0) >= BRANDBOOK_LIMITS.tenantWaivedPerDay)
+    return 'rate_limited';
   const ceiling = input.settings.dailyUsdCeiling;
   if (
     ceiling !== null &&
@@ -201,22 +208,34 @@ export async function runBrandbook(
   const { quote } = input;
   const apiKey = cosmosApiKey(quote.provider, env);
   if (!input.client && !apiKey) return { ok: false, error: 'unavailable' };
-  const limited = await brandbookLimitError(db, input);
-  if (limited) return { ok: false, error: limited };
   let reservation: { id: string; credits: number };
   try {
-    reservation = await reserve(
-      db,
-      {
-        tenantId: input.tenantId,
-        functionName: BRANDBOOK_FUNCTION,
-        estimatedCredits: quote.credits,
-        scope: 'builder.theme',
-        userId: input.userId,
-        ttlSeconds: BRANDBOOK_RESERVATION_TTL_SECONDS,
-      },
-      { settings: input.settings },
-    );
+    // limites e reserva na mesma transação, com trava por tenant: duas leituras ao mesmo tempo não veem as mesmas
+    // contagens e passam juntas dos limites
+    const reserved = await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`cosmos.brandbook:${input.tenantId}`}, 0))`,
+      );
+      const locked = tx as unknown as Database;
+      const limited = await brandbookLimitError(locked, input);
+      if (limited) return { limited };
+      return {
+        reservation: await reserve(
+          locked,
+          {
+            tenantId: input.tenantId,
+            functionName: BRANDBOOK_FUNCTION,
+            estimatedCredits: quote.credits,
+            scope: 'builder.theme',
+            userId: input.userId,
+            ttlSeconds: BRANDBOOK_RESERVATION_TTL_SECONDS,
+          },
+          { settings: input.settings },
+        ),
+      };
+    });
+    if ('limited' in reserved) return { ok: false, error: reserved.limited! };
+    reservation = reserved.reservation;
   } catch (err) {
     if (isCosmosError(err)) return { ok: false, error: RESERVE_ERRORS[err.code] ?? 'unavailable' };
     throw err;

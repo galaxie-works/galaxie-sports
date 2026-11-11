@@ -290,4 +290,21 @@ describe('tema a partir do brandbook', () => {
     ).toEqual({ ok: false, error: 'rate_limited' });
     expect(client.requests).toHaveLength(0);
   });
+
+  it('duas leituras da mesma pessoa ao mesmo tempo: a trava deixa passar só uma', async () => {
+    const t = await newTenant(100_000);
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const slow = () => fakeClient(GOOD, () => new Promise((r) => setTimeout(r, 200)));
+    const [a, b] = await Promise.all(
+      [slow(), slow()].map((client) =>
+        runBrandbook(
+          db,
+          { tenantId: t, userId: 'dupla', pdf, locale: 'pt-BR', quote, settings, client },
+          env,
+        ),
+      ),
+    );
+    expect([a, b].filter((r) => r.ok)).toHaveLength(1);
+    expect([a, b].filter((r) => !r.ok)).toEqual([{ ok: false, error: 'busy' }]);
+  });
 });
