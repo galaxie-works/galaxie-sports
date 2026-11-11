@@ -336,6 +336,15 @@ case "$SCALE" in
     exit 1
     ;;
 esac
+# segredos internos vazios (FAN_TOKEN_SECRET, STREAM_TOKEN_SECRET, BETTER_AUTH_SECRET) são gerados no .env antes do
+# .env.next; o que já existe nunca muda. Só no projeto apps: obs e dados não usam esses segredos
+if [ "$PROJECT" = apps ] && [ -f "$HERE/ensure-secrets.sh" ]; then
+  ssh "$VPS" "cd $DIR && bash -s" < "$HERE/ensure-secrets.sh" ||
+    {
+      echo "FAIL  não deu para conferir os segredos internos no .env; nada foi trocado na VPS"
+      exit 1
+    }
+fi
 echo "baixando as imagens (${SERVICES[*]})"
 # .env.next: o .env com a versão nova, para validar, baixar e planejar; vira o .env na troca (ou sai na limpeza da saída).
 # É remontado na hora da troca, a partir do .env daquele momento: segredo gravado à mão com o deploy rodando não se perde.
