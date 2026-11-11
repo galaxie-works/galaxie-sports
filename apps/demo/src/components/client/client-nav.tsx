@@ -12,11 +12,11 @@ import {
   Tv,
   Users,
   Webhook,
-  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type ComponentType, type SVGProps } from 'react';
 
+import { CosmosIcon } from '@/components/cosmos/cosmos-icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -38,9 +38,12 @@ export const CLIENT_NAV_GROUPS = [
 ] as const;
 export type ClientNavGroupId = (typeof CLIENT_NAV_GROUPS)[number];
 
+/** Ícone de uma área: lucide ou um desenho próprio (a marca da Cosmos AI). */
+export type ClientNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
 /**
  * Áreas do painel do cliente que já existem. Os produtos novos (Chat ao vivo, Comunidades, Gamificação,
- * Shop the game, Cosmos AI, Cobrança e créditos) entram aqui quando tiverem página; grupo sem área não aparece.
+ * Shop the game, Cobrança e créditos) entram aqui quando tiverem página; grupo sem área não aparece.
  * `action`: ação da matriz de cargos (#1019) que a área exige; `module`: módulo que o tenant precisa ter (#1018).
  * Sem a permissão ou o módulo, a área some do menu e a página mostra o aviso.
  */
@@ -52,6 +55,7 @@ export const CLIENT_NAV = [
   { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
   { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
   { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content', action: 'settings.manage' },
+  { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence' },
   {
     id: 'webhooks',
     href: '/cliente/webhooks',
@@ -62,7 +66,7 @@ export const CLIENT_NAV = [
 ] as const satisfies readonly {
   id: string;
   href: string;
-  icon: LucideIcon;
+  icon: ClientNavIcon;
   group: ClientNavGroupId;
   action?: TenantAction;
   module?: string;
@@ -73,7 +77,7 @@ export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
 export interface ClientNavLeaf {
   id: ClientSection;
   href: string;
-  icon: LucideIcon;
+  icon: ClientNavIcon;
   label: string;
 }
 

@@ -16,6 +16,8 @@ import {
   setWalletStatus,
   settle,
   upsertFunctionDef,
+  usageBreakdown,
+  usageByDay,
   type CosmosSettings,
 } from '../src/index.js';
 
@@ -414,6 +416,52 @@ describe('carteira da Cosmos', () => {
     });
     await expectCode(addEntry(db, { tenantId: t, kind: 'purchase', credits: 1 }), 'missing_idempotency_key');
     await expectCode(addEntry(db, { tenantId: t, kind: 'refund', credits: 1 }), 'missing_idempotency_key');
+  });
+
+  it('consumo por dia e por sala, e uso por usuário, função e sala no período', async () => {
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 100 });
+    const at = (iso: string) => new Date(iso);
+    const use = async (now: string, scope: string, userId: string, fn = 'moderation.batch', credits = 2) => {
+      const r = await reserve(
+        db,
+        { tenantId: t, functionName: fn, scope, userId },
+        { settings, now: at(now) },
+      );
+      await settle(db, { tenantId: t, reservationId: r.id, credits }, { now: at(now) });
+    };
+    await use('2031-01-01T10:00:00Z', 'chat:a', 'u1');
+    await use('2031-01-01T23:00:00Z', 'chat:a', 'u2');
+    await use('2031-01-02T09:00:00Z', 'chat:b', 'u1', 'assistant.ask', 3);
+    const period = { from: at('2031-01-01T00:00:00Z'), to: at('2031-01-03T00:00:00Z') };
+    expect(await usageByDay(db, t, period)).toEqual([
+      { day: '2031-01-01', scope: 'chat:a', credits: 4 },
+      { day: '2031-01-02', scope: 'chat:b', credits: 3 },
+    ]);
+    const b = await usageBreakdown(db, t, period);
+    expect(b.byUser).toEqual([
+      { key: 'u1', credits: 5, calls: 2 },
+      { key: 'u2', credits: 2, calls: 1 },
+    ]);
+    expect(b.byFunction.map((x) => x.key)).toEqual(['moderation.batch', 'assistant.ask']);
+    expect((await listLedger(db, t, { scopes: ['chat:b'], kinds: ['usage'] })).entries).toHaveLength(1);
+    expect(
+      await usageByDay(db, t, { from: at('2031-02-01T00:00:00Z'), to: at('2031-03-01T00:00:00Z') }),
+    ).toEqual([]);
+    // no fuso de São Paulo, o uso das 23h UTC de 01/01 (20h local) segue em 01/01; o das 09h UTC de 02/01 (06h) em 02/01
+    expect(await usageByDay(db, t, { ...period, timeZone: 'America/Sao_Paulo' })).toEqual([
+      { day: '2031-01-01', scope: 'chat:a', credits: 4 },
+      { day: '2031-01-02', scope: 'chat:b', credits: 3 },
+    ]);
+    // lançamento às 22h30 de 31/12 em São Paulo (01h30 UTC de 01/01) conta em 31/12 no fuso, e em 01/01 em UTC
+    await use('2031-01-01T01:30:00Z', 'chat:c', 'u3');
+    const wide = { from: at('2030-12-31T00:00:00Z'), to: at('2031-01-03T00:00:00Z') };
+    expect(
+      (await usageByDay(db, t, { ...wide, timeZone: 'America/Sao_Paulo' })).find((d) => d.scope === 'chat:c'),
+    ).toMatchObject({ day: '2030-12-31' });
+    expect((await usageByDay(db, t, wide)).find((d) => d.scope === 'chat:c')).toMatchObject({
+      day: '2031-01-01',
+    });
   });
 
   it('o banco recusa saldo negativo mesmo por fora da biblioteca', async () => {

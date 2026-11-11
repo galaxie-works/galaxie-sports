@@ -3,12 +3,13 @@
  * pagamento confirmado, numa transação com o registro do evento: o mesmo evento repetido (o Stripe
  * reenvia) é ignorado pelo id, e a intenção que já foi paga não credita de novo por outro evento.
  */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import {
   autoRecharge,
   creditPackage,
   purchaseIntent,
+  rechargeAttempt,
   stripeEvent,
   type PackageCurrency,
 } from '@galaxie/db/schema';
@@ -342,4 +343,69 @@ export async function applyStripeEvent(
         .where(eq(autoRecharge.tenantId, intent.tenantId));
     return finish('credited', intent.id);
   });
+}
+
+/** Situação da recarga automática na lista de compras (mesma escala da compra avulsa). */
+const RECHARGE_AS_PURCHASE = {
+  pending: 'pending',
+  processing: 'pending',
+  succeeded: 'paid',
+  failed: 'failed',
+  cancelled: 'canceled',
+  review: 'review',
+} as const;
+
+/**
+ * Compras do tenant (mais nova primeiro), para a lista de compras e recibos da tela: as avulsas e as cobranças
+ * da recarga automática (`auto: true`, sem recibo por e-mail: a cobrança é fora da sessão).
+ */
+export async function listPurchases(db: Pick<Database, 'select'>, tenantId: string, limit = 20) {
+  const n = Math.min(Math.max(1, limit), 100);
+  const [single, auto] = await Promise.all([
+    db
+      .select({
+        id: purchaseIntent.id,
+        status: purchaseIntent.status,
+        credits: purchaseIntent.credits,
+        amountCents: purchaseIntent.amountCents,
+        currency: purchaseIntent.currency,
+        createdAt: purchaseIntent.createdAt,
+        paidAt: purchaseIntent.paidAt,
+        hasReceipt: sql<boolean>`${purchaseIntent.invoiceId} is not null`,
+      })
+      .from(purchaseIntent)
+      .where(eq(purchaseIntent.tenantId, tenantId))
+      .orderBy(desc(purchaseIntent.id))
+      .limit(n),
+    db
+      .select({
+        id: rechargeAttempt.id,
+        status: rechargeAttempt.status,
+        credits: rechargeAttempt.credits,
+        amountCents: rechargeAttempt.amountCents,
+        currency: rechargeAttempt.currency,
+        createdAt: rechargeAttempt.createdAt,
+        updatedAt: rechargeAttempt.updatedAt,
+      })
+      .from(rechargeAttempt)
+      .where(eq(rechargeAttempt.tenantId, tenantId))
+      .orderBy(desc(rechargeAttempt.id))
+      .limit(n),
+  ]);
+  return [
+    ...single.map((p) => ({ ...p, auto: false })),
+    ...auto.map((a) => ({
+      id: a.id,
+      status: RECHARGE_AS_PURCHASE[a.status],
+      credits: a.credits,
+      amountCents: a.amountCents,
+      currency: a.currency,
+      createdAt: a.createdAt,
+      paidAt: a.status === 'succeeded' ? a.updatedAt : null,
+      hasReceipt: false,
+      auto: true,
+    })),
+  ]
+    .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+    .slice(0, n);
 }

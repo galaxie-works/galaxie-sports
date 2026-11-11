@@ -13,6 +13,7 @@ export default defineMessages(
       themes: 'Temas da marca',
       newTheme: 'Novo tema da marca',
       editTheme: 'Editar tema da marca',
+      cosmos: 'Cosmos AI',
     },
     title: 'Painel do cliente',
     nav: {
@@ -25,6 +26,7 @@ export default defineMessages(
       channels: 'Minha lista de canais',
       webhooks: 'Webhooks',
       themes: 'Temas',
+      cosmos: 'Cosmos AI',
       groups: {
         account: 'Conta',
         content: 'Conteúdo',
@@ -43,6 +45,9 @@ export default defineMessages(
       denyTitle: 'Área fora do seu cargo',
       denyBody: 'Seu cargo neste tenant não abre esta área. Fale com o Dono ou o Admin.',
       status: { active: 'Ativo', suspended: 'Suspenso' },
+    },
+    cosmos: {
+      button: 'Cosmos AI',
     },
     overview: {
       plan: 'Plano',
@@ -537,6 +542,7 @@ export default defineMessages(
         themes: 'Brand themes',
         newTheme: 'New brand theme',
         editTheme: 'Edit brand theme',
+        cosmos: 'Cosmos AI',
       },
       title: 'Client panel',
       nav: {
@@ -549,6 +555,7 @@ export default defineMessages(
         channels: 'My channel list',
         webhooks: 'Webhooks',
         themes: 'Themes',
+        cosmos: 'Cosmos AI',
         groups: {
           account: 'Account',
           content: 'Content',
@@ -566,6 +573,9 @@ export default defineMessages(
         denyTitle: 'Outside your role',
         denyBody: 'Your role in this tenant does not open this area. Talk to the Owner or an Admin.',
         status: { active: 'Active', suspended: 'Suspended' },
+      },
+      cosmos: {
+        button: 'Cosmos AI',
       },
       overview: {
         plan: 'Plan',
@@ -1064,6 +1074,7 @@ export default defineMessages(
         themes: 'Temas de marca',
         newTheme: 'Nuevo tema de marca',
         editTheme: 'Editar tema de marca',
+        cosmos: 'Cosmos AI',
       },
       title: 'Panel del cliente',
       nav: {
@@ -1076,6 +1087,7 @@ export default defineMessages(
         channels: 'Mi lista de canales',
         webhooks: 'Webhooks',
         themes: 'Temas',
+        cosmos: 'Cosmos AI',
         groups: {
           account: 'Cuenta',
           content: 'Contenido',
@@ -1094,6 +1106,9 @@ export default defineMessages(
         denyTitle: 'Área fuera de tu rol',
         denyBody: 'Tu rol en este tenant no abre esta área. Hablá con el Dueño o un Admin.',
         status: { active: 'Activo', suspended: 'Suspendido' },
+      },
+      cosmos: {
+        button: 'Cosmos AI',
       },
       overview: {
         plan: 'Plan',

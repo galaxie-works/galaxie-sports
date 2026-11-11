@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { CosmosHeaderButton } from '@/components/cosmos/cosmos-header-button';
 import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { HeaderSearchButton } from '@/components/search/search-button';
 import { Separator } from '@/components/ui/separator';
@@ -64,6 +65,8 @@ export function PageHeader({
           <NotificationsButton />
           {/* No desktop a busca fica no topo da sidebar (e no ⌘K). */}
           <HeaderSearchButton className="md:hidden" />
+          {/* Cosmos AI: à direita da lupa, depois de um traço vertical (some para quem não abre o painel do cliente). */}
+          <CosmosHeaderButton />
         </div>
       </header>
       {/* Aviso novo da caixa de entrada, logo abaixo do cabeçalho (rola com a página). */}
