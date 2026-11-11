@@ -18734,7 +18734,8 @@
         "paid",
         "failed",
         "canceled",
-        "expired"
+        "expired",
+        "review"
       ]
     },
     "cosmos.reservation_status": {
