@@ -8,6 +8,17 @@ import type { PackageCurrency } from '@galaxie/db/schema';
 
 export const STRIPE_API = 'https://api.stripe.com/v1';
 
+/**
+ * Versão da API fixa em todas as chamadas deste cliente: sem ela, vale a versão padrão da conta, e uma troca no
+ * painel do Stripe mudaria o comportamento (formas de pagamento automáticas, campos) sem passar pelo código.
+ */
+export const STRIPE_API_VERSION = '2025-03-31.basil';
+
+/** Cabeçalhos comuns: chave secreta e versão fixa da API. */
+function stripeHeaders(secretKey: string): Record<string, string> {
+  return { Authorization: `Bearer ${secretKey}`, 'Stripe-Version': STRIPE_API_VERSION };
+}
+
 /** Janela aceita entre o carimbo da assinatura e agora (a mesma das bibliotecas do Stripe). */
 export const STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
 
@@ -119,7 +130,7 @@ export async function createCheckoutSession(
   const res = await fetchImpl(`${STRIPE_API}/checkout/sessions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${secretKey}`,
+      ...stripeHeaders(secretKey),
       'Content-Type': 'application/x-www-form-urlencoded',
       'Idempotency-Key': `cosmos-checkout-${input.purchaseIntentId}`,
     },
@@ -187,7 +198,7 @@ async function stripeRequest<T>(
   const res = await fetchImpl(`${STRIPE_API}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${secretKey}`,
+      ...stripeHeaders(secretKey),
       ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
@@ -267,6 +278,26 @@ export function isOurStripeProblem(e: unknown): boolean {
 }
 
 /**
+ * Corpo da cobrança fora da sessão (separado para o teste). Só cartão, como no Checkout que salvou o cartão: sem
+ * `payment_method_types`, as formas de pagamento automáticas podem exigir redirecionamento, o que o Stripe recusa
+ * numa cobrança `off_session` confirmada sem `return_url`.
+ */
+export function offSessionChargeForm(input: OffSessionChargeInput): URLSearchParams {
+  const form = new URLSearchParams();
+  form.set('amount', String(input.amountCents));
+  form.set('currency', input.currency);
+  form.set('customer', input.customerId);
+  form.set('payment_method', input.paymentMethodId);
+  form.set('payment_method_types[0]', 'card');
+  form.set('off_session', 'true');
+  form.set('confirm', 'true');
+  form.set('description', input.description);
+  form.set('metadata[recharge_attempt_id]', input.rechargeAttemptId);
+  form.set('metadata[tenant_id]', input.tenantId);
+  return form;
+}
+
+/**
  * Cobra a recarga automática no cartão salvo do cliente, fora da sessão. A chave de idempotência é a tentativa:
  * repetir não cobra duas vezes. O crédito não sai daqui: entra pelo webhook `payment_intent.succeeded`.
  */
@@ -275,23 +306,12 @@ export async function chargeOffSession(
   input: OffSessionChargeInput,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ paymentIntentId: string; status: string }> {
-  const paymentMethod = input.paymentMethodId;
-  const form = new URLSearchParams();
-  form.set('amount', String(input.amountCents));
-  form.set('currency', input.currency);
-  form.set('customer', input.customerId);
-  form.set('payment_method', paymentMethod);
-  form.set('off_session', 'true');
-  form.set('confirm', 'true');
-  form.set('description', input.description);
-  form.set('metadata[recharge_attempt_id]', input.rechargeAttemptId);
-  form.set('metadata[tenant_id]', input.tenantId);
   const pi = await stripeRequest<{ id: string; status: string }>(
     secretKey,
     'POST',
     '/payment_intents',
     fetchImpl,
-    form,
+    offSessionChargeForm(input),
     `cosmos-recharge-${input.rechargeAttemptId}`,
   );
   return { paymentIntentId: pi.id, status: pi.status };

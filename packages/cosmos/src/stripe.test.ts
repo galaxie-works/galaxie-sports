@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  chargeOffSession,
   checkoutForm,
   createCheckoutSession,
+  defaultCardOf,
+  offSessionChargeForm,
   parseStripeEvent,
   paymentMethodsFor,
   signStripePayload,
+  STRIPE_API_VERSION,
   verifyStripeSignature,
 } from './stripe.js';
 
@@ -79,10 +83,54 @@ describe('checkout', () => {
     expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe(
       `cosmos-checkout-${input.purchaseIntentId}`,
     );
+    expect((init.headers as Record<string, string>)['Stripe-Version']).toBe(STRIPE_API_VERSION);
     const fail = vi.fn(
       async () => new Response(JSON.stringify({ error: { message: 'chave inválida' } }), { status: 401 }),
     );
     await expect(createCheckoutSession('sk_test_x', input, fail)).rejects.toThrow('chave inválida');
+  });
+});
+
+describe('cobrança fora da sessão', () => {
+  const input = {
+    rechargeAttemptId: '01900000-0000-7000-8000-000000000002',
+    tenantId: 't1',
+    customerId: 'cus_1',
+    paymentMethodId: 'pm_1',
+    amountCents: 4900,
+    currency: 'brl' as const,
+    description: 'Cosmos AI · recarga automática',
+  };
+
+  it('só cartão, fora da sessão e confirmada, com a tentativa nos metadados', () => {
+    const form = offSessionChargeForm(input);
+    expect(form.get('payment_method_types[0]')).toBe('card');
+    expect(form.get('payment_method_types[1]')).toBeNull();
+    expect(form.get('payment_method')).toBe('pm_1');
+    expect(form.get('off_session')).toBe('true');
+    expect(form.get('confirm')).toBe('true');
+    expect(form.get('metadata[recharge_attempt_id]')).toBe(input.rechargeAttemptId);
+  });
+
+  it('versão fixa da API e chave de idempotência pela tentativa em todas as chamadas', async () => {
+    const ok = vi.fn(
+      async () => new Response(JSON.stringify({ id: 'pi_1', status: 'succeeded' }), { status: 200 }),
+    );
+    await expect(chargeOffSession('sk_test_x', input, ok)).resolves.toEqual({
+      paymentIntentId: 'pi_1',
+      status: 'succeeded',
+    });
+    const [url, init] = ok.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/payment_intents$/);
+    const headers = init.headers as Record<string, string>;
+    expect(headers['Stripe-Version']).toBe(STRIPE_API_VERSION);
+    expect(headers['Idempotency-Key']).toBe(`cosmos-recharge-${input.rechargeAttemptId}`);
+    expect((init.body as URLSearchParams).get('payment_method_types[0]')).toBe('card');
+
+    const list = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: 'pm_9' }] }), { status: 200 }));
+    await expect(defaultCardOf('sk_test_x', 'cus_1', list)).resolves.toBe('pm_9');
+    const listInit = (list.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect((listInit.headers as Record<string, string>)['Stripe-Version']).toBe(STRIPE_API_VERSION);
   });
 });
 

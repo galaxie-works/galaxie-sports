@@ -17,9 +17,11 @@ import {
   MAX_RECHARGE_ATTEMPTS,
   processRecharges,
   readTrialSettings,
+  RECHARGE_REPLAY_WINDOW_MS,
   reconcileStuckRecharges,
   release,
   reserve,
+  setWalletStatus,
   settle,
   upsertFunctionDef,
   upsertPackage,
@@ -292,13 +294,13 @@ describe('recarga automática', () => {
     expect((await getWallet(db, t))?.available).toBe(15);
   });
   /** Tenant com 30 créditos, recarga ligada (limiar 20) e cartão salvo; gasta 15 e abre a tentativa. */
-  async function withOpenAttempt(customer: string) {
+  async function withOpenAttempt(customer: string, packageId: string = pkg) {
     const t = await newTenant();
     await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
     await configureAutoRecharge(db, {
       tenantId: t,
       enabled: true,
-      packageId: pkg,
+      packageId,
       thresholdCredits: 20,
       accepted: true,
       userId: 'dono',
@@ -436,6 +438,158 @@ describe('recarga automática', () => {
     await reconcileStuckRecharges(db, 'sk_test_x', { now: later, fetchImpl: canceled, limit: 500 });
     expect(await a.statuses()).toEqual(['pending']);
     expect(await b.statuses()).toEqual(['failed']);
+  });
+
+  /** Fetch que guarda o corpo de cada cobrança e responde como `okFetch`. */
+  const recordingFetch = (bodies: string[]) =>
+    (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes('/payment_methods'))
+        return new Response(JSON.stringify({ data: [{ id: 'pm_1' }] }), { status: 200 });
+      bodies.push(String(init?.body));
+      return new Response(
+        JSON.stringify({ id: `pi_${randomBytes(4).toString('hex')}`, status: 'succeeded' }),
+        {
+          status: 200,
+        },
+      );
+    }) as typeof fetch;
+  const chargedTenant = (bodies: string[], t: string) =>
+    bodies.some((b) => new URLSearchParams(b).get('metadata[tenant_id]') === t);
+  const attemptOf = async (t: string) =>
+    (await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t)))[0]!;
+  const flaky503 = (async (url: string | URL | Request) =>
+    String(url).includes('/payment_methods')
+      ? new Response(JSON.stringify({ data: [{ id: 'pm_1' }] }), { status: 200 })
+      : new Response(JSON.stringify({ error: { message: 'tente de novo' } }), {
+          status: 503,
+        })) as typeof fetch;
+
+  it('carteira bloqueada pela equipe: não abre tentativa, e a pendente é encerrada sem cobrar', async () => {
+    // bloqueada antes do gatilho: o ajuste negativo passa do limiar e não abre tentativa
+    const t = await newTenant();
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: 'cus_15' }).where(eq(autoRecharge.tenantId, t));
+    await setWalletStatus(db, t, 'blocked');
+    await addEntry(db, { tenantId: t, kind: 'adjustment', credits: -15, note: 'teste' });
+    expect(await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t))).toEqual([]);
+
+    // bloqueada depois do gatilho: o job encerra a tentativa em vez de cobrar
+    const a = await withOpenAttempt('cus_16');
+    await setWalletStatus(db, a.t, 'blocked');
+    const bodies: string[] = [];
+    await processRecharges(db, 'sk_test_x', { fetchImpl: recordingFetch(bodies), limit: 500 });
+    expect(chargedTenant(bodies, a.t)).toBe(false);
+    expect(await a.statuses()).toEqual(['cancelled']);
+    expect((await attemptOf(a.t)).failureReason).toBe('wallet_blocked');
+  });
+
+  it('preço do pacote mudou: a recarga desliga e pede novo aceite; a tentativa que não cobrou é encerrada', async () => {
+    const own = await upsertPackage(db, {
+      name: 'Teste preço',
+      credits: 500,
+      priceCents: 1000,
+      currency: 'usd',
+      market: 'US',
+    });
+    const a = await withOpenAttempt('cus_17', own);
+    // nome e ordem não mudam o que foi aceito
+    await upsertPackage(db, {
+      id: own,
+      name: 'Outro nome',
+      credits: 500,
+      priceCents: 1000,
+      currency: 'usd',
+      market: 'US',
+      sortOrder: 3,
+    });
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({ enabled: true });
+    expect(await a.statuses()).toEqual(['pending']);
+
+    await upsertPackage(db, {
+      id: own,
+      name: 'Outro nome',
+      credits: 500,
+      priceCents: 1200,
+      currency: 'usd',
+      market: 'US',
+    });
+    expect(await getAutoRecharge(db, a.t)).toMatchObject({
+      enabled: false,
+      acceptedAt: null,
+      lastFailureReason: 'package_changed',
+    });
+    expect(await a.statuses()).toEqual(['cancelled']);
+    const bodies: string[] = [];
+    await processRecharges(db, 'sk_test_x', { fetchImpl: recordingFetch(bodies), limit: 500 });
+    expect(chargedTenant(bodies, a.t)).toBe(false);
+    // religar exige o aceite de novo e usa o preço novo
+    await configureAutoRecharge(db, {
+      tenantId: a.t,
+      enabled: true,
+      packageId: own,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await spend(a.t, 1);
+    const open = (await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, a.t))).filter(
+      (r) => r.status === 'pending',
+    );
+    expect(open.map((r) => r.amountCents)).toEqual([1200]);
+  });
+
+  it('tentativa que já chamou o Stripe não é cancelada ao salvar a configuração: segue com a mesma chave', async () => {
+    const a = await withOpenAttempt('cus_18');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: flaky503, limit: 500 });
+    expect(await attemptOf(a.t)).toMatchObject({ status: 'pending', attempts: 1 });
+    // salvar de novo (mesmo pacote, limiar novo) não abre espaço para uma segunda cobrança
+    await configureAutoRecharge(db, {
+      tenantId: a.t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 25,
+      accepted: true,
+      userId: 'dono',
+    });
+    expect(await a.statuses()).toEqual(['pending']);
+    const bodies: string[] = [];
+    await processRecharges(db, 'sk_test_x', { fetchImpl: recordingFetch(bodies), limit: 500 });
+    expect(await a.statuses()).toEqual(['processing']);
+    expect(bodies.filter((b) => new URLSearchParams(b).get('metadata[tenant_id]') === a.t)).toHaveLength(1);
+  });
+
+  it('tentativa que já chamou o Stripe e perdeu o aceite: não cobra e espera o webhook até a janela', async () => {
+    const a = await withOpenAttempt('cus_19');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: flaky503, limit: 500 });
+    await configureAutoRecharge(db, { tenantId: a.t, enabled: false, accepted: false, userId: 'dono' });
+    expect(await a.statuses()).toEqual(['pending']);
+    const bodies: string[] = [];
+    await processRecharges(db, 'sk_test_x', { fetchImpl: recordingFetch(bodies), limit: 500 });
+    expect(chargedTenant(bodies, a.t)).toBe(false);
+    expect(await a.statuses()).toEqual(['pending']);
+    // o pagamento tinha sido criado: o webhook credita mesmo com a recarga desligada
+    const attempt = await attemptOf(a.t);
+    const ok = piEvent('payment_intent.succeeded', attempt.id, 'pi_atrasado');
+    expect((await applyStripeEvent(db, ok)).outcome).toBe('credited');
+    expect(await a.statuses()).toEqual(['succeeded']);
+
+    // sem webhook, passada a janela da chave de idempotência, é encerrada
+    const b = await withOpenAttempt('cus_20');
+    await processRecharges(db, 'sk_test_x', { fetchImpl: flaky503, limit: 500 });
+    await disableCosmos(db, b.t);
+    expect(await b.statuses()).toEqual(['pending']);
+    const later = new Date(Date.now() + RECHARGE_REPLAY_WINDOW_MS + 60_000);
+    await processRecharges(db, 'sk_test_x', { now: later, fetchImpl: recordingFetch([]), limit: 500 });
+    expect(await b.statuses()).toEqual(['cancelled']);
+    expect((await attemptOf(b.t)).failureReason).toBe('cosmos_disabled');
   });
 
   it('limiar igual ou acima dos créditos do pacote é recusado; desligar não pede pacote nem limiar', async () => {
