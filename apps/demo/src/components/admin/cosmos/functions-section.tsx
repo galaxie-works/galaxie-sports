@@ -27,14 +27,18 @@ export interface StaffFunction {
   provider: Provider | null;
   model: string | null;
   effective: { provider: Provider; model: string };
+  /** Provedores que a função já sabe chamar. */
+  callable: Provider[];
 }
 
 /** Em ordem alfabética (regra das listas do app). */
 const PROVIDERS: Provider[] = ['anthropic', 'deepseek', 'gemini', 'openai'];
 /** Valor do seletor para "padrão da Cosmos" (o Select não aceita string vazia como item). */
 const DEFAULT = 'default';
+/** A única função que hoje chama um modelo; as outras aceitam qualquer provedor. */
+const ASSISTANT_FUNCTION = 'assistant.ask';
 
-function FunctionDialog({ fn }: { fn?: StaffFunction }) {
+function FunctionDialog({ fn, assistantProviders }: { fn?: StaffFunction; assistantProviders: Provider[] }) {
   const { t } = useI18n();
   const T = t.cosmosStaff.functions;
   const router = useRouter();
@@ -52,9 +56,15 @@ function FunctionDialog({ fn }: { fn?: StaffFunction }) {
   const [form, setForm] = useState(initial);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const valid = form.name.trim() && form.permission.trim() && form.minCredits > 0;
+  // provedor sem chamador nesta função aparece desligado: salvar deixaria a função "Ativa" sem responder
+  const callable = fn?.callable ?? (form.name.trim() === ASSISTANT_FUNCTION ? assistantProviders : PROVIDERS);
   const providerItems = [
-    { value: DEFAULT, label: T.defaultProvider },
-    ...PROVIDERS.map((p) => ({ value: p, label: T.providers[p] })),
+    { value: DEFAULT, label: T.defaultProvider, disabled: false },
+    ...PROVIDERS.map((p) => ({
+      value: p,
+      label: callable.includes(p) ? T.providers[p] : `${T.providers[p]} · ${T.unavailable}`,
+      disabled: !callable.includes(p),
+    })),
   ];
 
   return (
@@ -126,7 +136,7 @@ function FunctionDialog({ fn }: { fn?: StaffFunction }) {
             </SelectTrigger>
             <SelectContent>
               {providerItems.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
+                <SelectItem key={p.value} value={p.value} disabled={p.disabled}>
                   {p.label}
                 </SelectItem>
               ))}
@@ -154,12 +164,23 @@ function FunctionDialog({ fn }: { fn?: StaffFunction }) {
 }
 
 /** Catálogo de funções da Cosmos (#1088): mínimo, provedor e modelo de cada uma, ativas ou não. */
-export function FunctionsSection({ functions }: { functions: StaffFunction[] }) {
+export function FunctionsSection({
+  functions,
+  assistantProviders,
+}: {
+  functions: StaffFunction[];
+  /** Provedores que o assistente já sabe chamar. */
+  assistantProviders: Provider[];
+}) {
   const { t, locale } = useI18n();
   const T = t.cosmosStaff.functions;
   const n = new Intl.NumberFormat(locale, { maximumFractionDigits: 3 });
   return (
-    <SettingsSection title={T.title} description={T.description} action={<FunctionDialog />}>
+    <SettingsSection
+      title={T.title}
+      description={T.description}
+      action={<FunctionDialog assistantProviders={assistantProviders} />}
+    >
       {functions.length ? (
         <Table>
           <TableHeader>
@@ -181,6 +202,11 @@ export function FunctionsSection({ functions }: { functions: StaffFunction[] }) 
                   {f.provider ? null : (
                     <span className="text-muted-foreground text-xs"> · {T.defaultProvider}</span>
                   )}
+                  {f.callable.includes(f.effective.provider) ? null : (
+                    <Badge variant="warning-light" className="ms-2" title={T.unavailableHint}>
+                      {T.unavailable}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell className="font-mono text-xs">{f.effective.model}</TableCell>
                 <TableCell className="text-right tabular-nums">{n.format(f.minCredits)}</TableCell>
@@ -190,7 +216,7 @@ export function FunctionsSection({ functions }: { functions: StaffFunction[] }) 
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <FunctionDialog fn={f} />
+                  <FunctionDialog fn={f} assistantProviders={assistantProviders} />
                 </TableCell>
               </TableRow>
             ))}

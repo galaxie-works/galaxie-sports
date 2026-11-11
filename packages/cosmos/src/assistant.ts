@@ -120,8 +120,11 @@ export function buildPrompt(input: {
   ]
     .filter(Boolean)
     .join('\n\n');
+  // o corte das últimas 8 pode começar numa resposta da Cosmos: o diálogo começa sempre na pergunta da pessoa
+  const recent = input.history.slice(-8);
+  const first = recent.findIndex((t) => t.role === 'user');
   const messages = [
-    ...input.history.slice(-8).map((t) => ({ role: t.role, content: t.text })),
+    ...(first < 0 ? [] : recent.slice(first)).map((t) => ({ role: t.role, content: t.text })),
     { role: 'user' as const, content: input.question },
   ];
   return { fixed, screen, system: `${fixed}\n\n${screen}`, messages };

@@ -244,3 +244,31 @@ describe('provedores pelo cliente compartilhado (OpenAI, Gemini, DeepSeek)', () 
     expect(write).toBeCloseTo(plain * 1.25, 6);
   });
 });
+
+describe('histórico no prompt', () => {
+  it('corte com número ímpar de turnos: o diálogo começa na pergunta da pessoa, nunca numa resposta', () => {
+    // 9 turnos (resposta, pergunta, resposta, ...): as últimas 8 começariam numa resposta da Cosmos
+    const history = Array.from({ length: 9 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      text: `t${i}`,
+    }));
+    const p = buildPrompt({
+      question: 'e agora?',
+      context: { route: '/x', title: 'T', visible: '' },
+      docs: [],
+      history,
+      locale: 'pt-BR',
+    });
+    expect(p.messages[0]).toEqual({ role: 'user', content: 't2' });
+    expect(p.messages.at(-1)).toEqual({ role: 'user', content: 'e agora?' });
+    // só respostas no histórico: fica só a pergunta nova
+    const only = buildPrompt({
+      question: 'oi',
+      context: { route: '/x', title: 'T', visible: '' },
+      docs: [],
+      history: [{ role: 'assistant', text: 'r' }],
+      locale: 'pt-BR',
+    });
+    expect(only.messages).toEqual([{ role: 'user', content: 'oi' }]);
+  });
+});

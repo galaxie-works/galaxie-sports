@@ -46,6 +46,7 @@ async function run(tenantId: string | null, reason: string, fn: (userId: string)
     if (isCosmosError(err, 'invalid_amount')) return { ok: false, error: e.amount };
     if (isCosmosError(err, 'invalid_model')) return { ok: false, error: e.model };
     if (isCosmosError(err, 'function_exists')) return { ok: false, error: e.exists };
+    if (isCosmosError(err, 'provider_unavailable')) return { ok: false, error: e.unavailable };
     if (isCosmosError(err, 'insufficient_credits')) return { ok: false, error: e.insufficient };
     console.error('[cosmos] ação da equipe falhou', err);
     return { ok: false, error: e.generic };

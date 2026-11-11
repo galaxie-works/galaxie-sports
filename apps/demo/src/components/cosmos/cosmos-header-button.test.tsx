@@ -18,6 +18,7 @@ vi.mock('./cosmos-assistant', () => ({
     open ? <div role="dialog" aria-label="assistente" /> : null,
 }));
 
+import { CosmosAssistantProvider } from './cosmos-assistant-provider';
 import { CosmosHeaderButton } from './cosmos-header-button';
 
 afterEach(cleanup);
@@ -51,5 +52,23 @@ describe('CosmosHeaderButton', () => {
     session.role = role;
     const { container } = view();
     expect(container.innerHTML).toBe('');
+  });
+
+  it('na área logada o painel mora no layout: trocar de tela (o cabeçalho desmonta) não fecha a conversa', () => {
+    session.role = 'client';
+    const page = (header: boolean) => (
+      <I18nProvider locale="pt-BR" messages={clientDictionary('pt-BR')}>
+        <TooltipProvider>
+          <CosmosAssistantProvider>
+            {header ? <CosmosHeaderButton /> : <p>outra tela</p>}
+          </CosmosAssistantProvider>
+        </TooltipProvider>
+      </I18nProvider>
+    );
+    const { rerender } = render(page(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir o assistente da Cosmos AI' }));
+    expect(screen.getAllByRole('dialog', { name: 'assistente' })).toHaveLength(1);
+    rerender(page(false));
+    expect(screen.getByRole('dialog', { name: 'assistente' })).not.toBeNull();
   });
 });

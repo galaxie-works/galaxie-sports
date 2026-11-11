@@ -213,12 +213,24 @@ describe('pergunta ao assistente', () => {
     expect((await getWallet(db, t))?.available).toBe(98);
   });
 
-  it('provedor falha antes de qualquer pedaço: a reserva volta inteira', async () => {
+  it('provedor falha antes de qualquer pedaço e sem contar tokens: a reserva volta inteira', async () => {
     const t = await newTenant();
-    const events = await run(t, fakeStream(['nada'], { failAfter: 0 }));
+    const events = await run(t, fakeStream(['nada'], { failAfter: 0, tokens: { inputTokens: 0 } }));
     expect(events.map((e) => e.type)).toEqual(['start', 'error']);
     expect(await statuses(t)).toEqual(['released']);
     expect((await getWallet(db, t))?.available).toBe(100);
+  });
+
+  it('corte antes do primeiro pedaço com tokens já contados: 0 crédito, custo real no extrato', async () => {
+    const t = await newTenant();
+    const events = await run(t, fakeStream(['nada'], { failAfter: 0 }));
+    expect(events.map((e) => e.type)).toEqual(['start', 'error']);
+    expect(await statuses(t)).toEqual(['settled']);
+    expect((await getWallet(db, t))?.available).toBe(100);
+    const [usage] = (await listLedger(db, t, { kinds: ['usage'] })).entries;
+    expect(usage?.credits).toBe(0);
+    expect(usage?.tokensIn).toBe(1000);
+    expect(usage?.costUsd).toBeGreaterThan(0);
   });
 
   it('provedor falha no meio: cobra o que foi entregue, sem assinatura', async () => {
@@ -235,7 +247,7 @@ describe('pergunta ao assistente', () => {
     const t = await newTenant();
     const early = new AbortController();
     early.abort();
-    await run(t, fakeStream(['nunca']), { signal: early.signal });
+    await run(t, fakeStream(['nunca'], { tokens: { inputTokens: 0 } }), { signal: early.signal });
     expect(await statuses(t)).toEqual(['released']);
 
     // "Parar" só depois de ver o primeiro pedaço chegar (nada de espera por tempo)
@@ -298,6 +310,24 @@ describe('pergunta ao assistente', () => {
     );
     expect((await first.next()).value).toMatchObject({ type: 'start' });
     expect(await run(t, fakeStream(['b']))).toEqual([{ type: 'error', code: 'busy' }]);
+    ctl.abort();
+    for await (const _ of first) void _;
+  });
+
+  it('reserva vencida de outra pergunta (processo caiu) não prende a pessoa', async () => {
+    const t = await newTenant();
+    const ctl = new AbortController();
+    const first = askAssistant(
+      db,
+      { tenantId: t, userId: 'u1', route: '/x', prompt, credits: 5, settings },
+      { stream: fakeStream(['a'], { holdUntilAbort: true }), signal: ctl.signal, settleBackoffMs: [1, 1] },
+    );
+    expect((await first.next()).value).toMatchObject({ type: 'start' });
+    await db
+      .update(reservation)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(reservation.tenantId, t));
+    expect((await run(t, fakeStream(['b']))).at(-1)).toMatchObject({ type: 'done' });
     ctl.abort();
     for await (const _ of first) void _;
   });

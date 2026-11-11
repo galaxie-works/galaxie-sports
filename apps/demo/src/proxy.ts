@@ -22,6 +22,7 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { SMOKE_HEADER } from '@/lib/ops/smoke';
+import { legacySettingsRedirect } from '@/lib/ops/system-routes';
 import { LANDING_PAGE, isPublicPath } from '@/lib/public-routes';
 import { legacySportRedirect } from '@/lib/sport-families';
 
@@ -87,6 +88,9 @@ export async function proxy(request: NextRequest) {
     url.search = search;
     return NextResponse.redirect(url, 308);
   }
+  // páginas de Ajustes que se dividiram (#1069): `/ajustes/operacao`, `/ajustes/sistema?aba=…` → item novo
+  const settings = isPage(pathname) ? legacySettingsRedirect(pathname, request.nextUrl.searchParams) : null;
+  if (settings) return NextResponse.redirect(new URL(settings, request.url), 308);
   // Público só se o caminho continuar público depois de normalizado (`/login/..%2Fajustes` não é login).
   const access = accessPathname(pathname);
   if (isPublicPath(pathname) && access !== null && isPublicPath(access)) return render(request);

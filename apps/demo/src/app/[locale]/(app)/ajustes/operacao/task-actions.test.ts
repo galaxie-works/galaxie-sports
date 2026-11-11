@@ -85,7 +85,7 @@ describe('enqueueTask', () => {
         requestedBy: ADMIN.email,
       },
     );
-    expect(revalidatePath).toHaveBeenCalledWith('/ajustes/sistema');
+    expect(revalidatePath).toHaveBeenCalledWith('/ajustes/tarefas');
   });
 
   it('entrada fora do formato não chega na fila', async () => {

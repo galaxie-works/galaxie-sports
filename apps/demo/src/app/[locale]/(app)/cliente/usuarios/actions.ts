@@ -4,7 +4,7 @@
  * Usuários e cargos do tenant (#1019). Cada ação resolve a sessão, o tenant e o cargo no servidor e decide pelo
  * `can()` / `canAssign()` de `@galaxie/engage`: id de membro, cargo ou tenant forjados no navegador não passam.
  */
-import { canAssign, isTenantRole, type TenantRole } from '@galaxie/engage';
+import { canAssign, canReceive, isTenantAction, isTenantRole, type TenantRole } from '@galaxie/engage';
 import { revalidatePath } from 'next/cache';
 
 import { pool } from '@/lib/auth/db';
@@ -18,6 +18,7 @@ import {
   removeTenantMember,
 } from '@/lib/client/members';
 import { can } from '@/lib/client/permissions';
+import { resetRolePermissions, saveRolePermission } from '@/lib/client/role-permissions';
 import { readClientContext } from '@/lib/client/session';
 import { isLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
@@ -137,6 +138,42 @@ export async function changeMemberRole(input: {
   } catch (err) {
     return memberError(m, err);
   }
+  done();
+  return { ok: true };
+}
+
+/**
+ * Liga ou desliga uma ação num cargo (permissões por cargo). Só quem tem `permissions.manage` (o Dono; a equipe
+ * Galaxie passa por cima). Dono, ações fixas e cargo abaixo do piso da ação não mudam: o pedido forjado é recusado.
+ */
+export async function changeRolePermission(input: {
+  role: string;
+  action: string;
+  allowed: boolean;
+}): Promise<MemberActionResult> {
+  const r = await manager();
+  if ('error' in r) return { ok: false, error: r.error };
+  const { m } = r;
+  if (!can(r.ctx, 'permissions.manage')) return { ok: false, error: m.permissions.readOnly };
+  if (!isTenantRole(input.role) || !isTenantAction(input.action) || !canReceive(input.role, input.action))
+    return { ok: false, error: m.errors.notConfigurable };
+  await saveRolePermission({
+    tenantId: r.tenant.id,
+    role: input.role,
+    action: input.action,
+    allowed: input.allowed === true,
+    actor: r.actor,
+  });
+  done();
+  return { ok: true };
+}
+
+/** Volta todas as permissões por cargo do tenant à matriz padrão. Só quem tem `permissions.manage`. */
+export async function resetPermissions(): Promise<MemberActionResult> {
+  const r = await manager();
+  if ('error' in r) return { ok: false, error: r.error };
+  if (!can(r.ctx, 'permissions.manage')) return { ok: false, error: r.m.permissions.readOnly };
+  await resetRolePermissions({ tenantId: r.tenant.id, actor: r.actor });
   done();
   return { ok: true };
 }

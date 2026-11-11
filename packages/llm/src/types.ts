@@ -137,9 +137,12 @@ export interface CompletionRequest {
   temperature?: number;
   /** Pede saída em JSON (modo JSON do provedor, quando existe; o pedido precisa dizer o formato). */
   json?: boolean;
-  /** Tempo máximo da chamada inteira (sobrescreve o do cliente). */
+  /**
+   * Tempo máximo de cada tentativa (sobrescreve o do cliente). Na resposta inteira, do pedido ao corpo
+   * lido; no streaming, do pedido ao último pedaço (o stream inteiro).
+   */
   timeoutMs?: number;
-  /** Cancela a chamada (ex.: o usuário fechou o chat). */
+  /** Cancela a chamada (ex.: o usuário fechou o chat); cancelada, não é tentada de novo. */
   signal?: AbortSignal;
   /** Identifica a tarefa nos logs e no ledger (ex.: `cosmos:moderation:<tenant>`). */
   purpose?: string;

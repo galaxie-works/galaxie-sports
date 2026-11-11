@@ -75,6 +75,7 @@ export default defineMessages(
         amount: 'Valor inválido.',
         model: 'Provedor ou modelo inválido, modelo de outro provedor ou sem preço na tabela.',
         exists: 'Já existe uma função com esse nome. Edite a que está na lista.',
+        unavailable: 'Esta função ainda não chama esse provedor. Escolha um dos disponíveis.',
         insufficient: 'A saída é maior que o saldo livre.',
         generic: 'Não deu para concluir. Tente de novo.',
       },
@@ -127,6 +128,8 @@ export default defineMessages(
       inactive: 'Desligada',
       empty: 'Nenhuma função cadastrada.',
       providers: { anthropic: 'Anthropic', deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'OpenAI' },
+      unavailable: 'indisponível',
+      unavailableHint: 'O provedor escolhido ainda não tem chamador nesta função: ela responde indisponível.',
     },
     packages: {
       title: 'Pacotes de créditos',
@@ -222,6 +225,7 @@ export default defineMessages(
           model:
             'Invalid provider or model, a model from another provider, or a model with no price in the table.',
           exists: 'A function with this name already exists. Edit the one in the list.',
+          unavailable: 'This function cannot call that provider yet. Pick one of the available ones.',
           insufficient: 'The removal is larger than the available balance.',
           generic: "We couldn't finish. Try again.",
         },
@@ -275,6 +279,8 @@ export default defineMessages(
         inactive: 'Off',
         empty: 'No functions yet.',
         providers: { anthropic: 'Anthropic', deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'OpenAI' },
+        unavailable: 'unavailable',
+        unavailableHint: 'The chosen provider has no caller in this function yet: it answers unavailable.',
       },
       packages: {
         title: 'Credit packages',
@@ -370,6 +376,7 @@ export default defineMessages(
           amount: 'Valor inválido.',
           model: 'Proveedor o modelo inválido, modelo de otro proveedor o sin precio en la tabla.',
           exists: 'Ya existe una función con ese nombre. Edita la que está en la lista.',
+          unavailable: 'Esta función todavía no llama a ese proveedor. Elige uno de los disponibles.',
           insufficient: 'La salida es mayor que el saldo libre.',
           generic: 'No se pudo terminar. Probá de nuevo.',
         },
@@ -422,6 +429,9 @@ export default defineMessages(
         inactive: 'Apagada',
         empty: 'Ninguna función registrada.',
         providers: { anthropic: 'Anthropic', deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'OpenAI' },
+        unavailable: 'no disponible',
+        unavailableHint:
+          'El proveedor elegido todavía no tiene llamador en esta función: responde no disponible.',
       },
       packages: {
         title: 'Paquetes de créditos',

@@ -34,11 +34,12 @@ export function resolveFunctionModel(row: {
 }
 
 const MODEL_ID = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,80}$/;
-const DATED = /-\d{4}-\d{2}-\d{2}$/;
+/** Snapshot datado: `-AAAA-MM-DD` (OpenAI) ou `-AAAAMMDD` (Anthropic). */
+const DATED = /-(?:\d{4}-\d{2}-\d{2}|\d{8})$/;
 
 /**
- * O modelo pode ser cobrado? Precisa ter preço próprio na tabela do ai-ledger (com os preços de AI_MODEL_PRICES por
- * cima): o nome exato ou um snapshot datado dele (`modelo-AAAA-MM-DD`). Sem preço, o custo sairia zero; casar por prefixo cobraria um modelo novo pelo preço
+ * O modelo pode ser cobrado? Precisa ter preço próprio na tabela do ai-ledger (com AI_MODEL_PRICES por cima): o nome exato ou um snapshot datado
+ * dele (`modelo-AAAA-MM-DD` ou `modelo-AAAAMMDD`). Sem preço, o custo sairia zero; casar por prefixo cobraria um modelo novo pelo preço
  * de outro.
  */
 export function isPricedModel(model: string): boolean {

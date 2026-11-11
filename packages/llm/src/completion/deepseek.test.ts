@@ -125,6 +125,37 @@ describe('DeepSeekCompletionClient (Chat Completions compatível com a OpenAI)',
     expect(err).toMatchObject({ kind: 'provider', retryable: true, usage: { outputTokens: 0 } });
   });
 
+  it('streaming cortado depois do finish_reason, sem o pedaço de uso nem o [DONE]: erro retentável', async () => {
+    const { c } = client([
+      sseResponse([
+        { data: { choices: [{ index: 0, delta: { content: 'Bom jogo' }, finish_reason: 'stop' }] } },
+      ]),
+    ]);
+    const events: CompletionStreamEvent[] = [];
+    const err = await (async () => {
+      for await (const ev of c.stream({
+        model: 'deepseek-flash',
+        messages: [{ role: 'user', content: 'oi' }],
+      }))
+        events.push(ev);
+    })().catch((e: unknown) => e);
+    expect(err).toMatchObject({ kind: 'provider', retryable: true });
+    expect((err as Error).message).toMatch(/terminou antes do fim/);
+    // nenhum uso final de 0 tokens / US$ 0
+    expect(events.some((e) => e.type === 'usage' && e.final)).toBe(false);
+  });
+
+  it('streaming com o pedaço de uso e sem o [DONE]: termina com o uso final', async () => {
+    const { c } = client([
+      sseResponse([
+        { data: { choices: [{ index: 0, delta: { content: 'ok' }, finish_reason: 'stop' }] } },
+        { data: { choices: [], usage: USAGE } },
+      ]),
+    ]);
+    const events = await collect(c.stream({ model: 'deepseek-flash', messages: [] }));
+    expect(events.at(-1)).toMatchObject({ type: 'usage', final: true, usage: { inputTokens: 1_000 } });
+  });
+
   it('erro 400: provider, sem retentativa, com a mensagem do provedor', async () => {
     const { f, c } = client([
       jsonResponse(400, {
@@ -205,6 +236,54 @@ describe('DeepSeekCompletionClient (Chat Completions compatível com a OpenAI)',
     ac.abort();
     await expect(p).rejects.toMatchObject({ retryable: false });
     expect(f.calls).toHaveLength(1);
+  });
+
+  it('sinal de quem chamou que expira (AbortSignal.timeout): cancelamento, sem retentativa', async () => {
+    const { f, c } = client([hangingResponse(), hangingResponse(), hangingResponse()]);
+    const err = await c
+      .complete({ model: 'deepseek-flash', messages: [], signal: AbortSignal.timeout(20) })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(LlmError);
+    expect(err).toMatchObject({ kind: 'provider', retryable: false });
+    expect((err as Error).message).toMatch(/cancelada/);
+    expect(f.calls).toHaveLength(1);
+    const s = client([hangingResponse(), hangingResponse()]);
+    await expect(
+      collect(s.c.stream({ model: 'deepseek-flash', messages: [], signal: AbortSignal.timeout(20) })),
+    ).rejects.toMatchObject({ retryable: false });
+    expect(s.f.calls).toHaveLength(1);
+  });
+
+  it('cancelado durante a espera entre tentativas: a espera acaba na hora e nada é tentado de novo', async () => {
+    const f = fakeFetch([
+      jsonResponse(429, { error: { message: 'Rate Limit Reached' } }),
+      jsonResponse(200, completion('não')),
+    ]);
+    // espera real (abortável) de até 60 s entre as tentativas
+    const c = new DeepSeekCompletionClient({
+      apiKey: 'k',
+      fetch: f,
+      retry: { baseDelayMs: 60_000, random: () => 1 },
+    });
+    const ac = new AbortController();
+    const started = Date.now();
+    const p = c.complete({ model: 'deepseek-flash', messages: [], signal: ac.signal });
+    setTimeout(() => ac.abort(), 20);
+    await expect(p).rejects.toMatchObject({ kind: 'provider', retryable: false });
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(f.calls).toHaveLength(1);
+  });
+
+  it('já cancelado antes de chamar: nada sai', async () => {
+    const { f, c } = client([jsonResponse(200, completion('não'))]);
+    const ac = new AbortController();
+    ac.abort();
+    await expect(
+      c.complete({ model: 'deepseek-flash', messages: [], signal: ac.signal }),
+    ).rejects.toMatchObject({
+      retryable: false,
+    });
+    expect(f.calls).toHaveLength(0);
   });
 
   it('sem chave: erro de configuração; a fábrica monta o cliente pelo nome', () => {

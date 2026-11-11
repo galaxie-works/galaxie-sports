@@ -8,7 +8,9 @@ export default defineMessages(
       errors: {
         forbidden: 'Sua sessão não abre o painel do cliente.',
         noTenant: 'Sua conta ainda não está ligada a um tenant.',
-        notAllowed: 'Só quem administra a conta pode comprar créditos.',
+        notAllowed:
+          'Seu cargo não permite comprar créditos, mexer na recarga automática nem ligar ou desligar a Cosmos AI. Fale com o Dono.',
+        viewNotAllowed: 'Seu cargo não abre a Cosmos AI neste tenant. Fale com o Dono ou o Admin.',
         unknownPackage: 'Este pacote não está disponível para a sua conta. Escolha outro.',
         unavailable: 'A compra de créditos está indisponível agora. Tente de novo mais tarde.',
         generic: 'Não deu para abrir o pagamento. Tente de novo.',
@@ -30,6 +32,8 @@ export default defineMessages(
         'Ao ligar pela primeira vez, a conta ganha {credits} créditos de teste, válidos por {days} dias.',
       enabled: 'Cosmos AI ligada',
       disabled: 'Cosmos AI desligada. O saldo continua guardado.',
+      readOnly:
+        'Seu cargo acompanha a Cosmos AI: saldo, uso e extrato. Ligar, desligar, comprar créditos e a recarga automática ficam com o Dono e com quem ele liberar em Usuários e cargos.',
       balanceTitle: 'Créditos',
       balanceDescription: 'O saldo é um só para todas as funções da Cosmos.',
       available: 'Créditos disponíveis',
@@ -240,7 +244,9 @@ export default defineMessages(
         errors: {
           forbidden: 'Your session does not open the client panel.',
           noTenant: "Your account isn't linked to a tenant yet.",
-          notAllowed: 'Only account admins can buy credits.',
+          notAllowed:
+            'Your role cannot buy credits, change auto top-up or turn Cosmos AI on or off. Talk to the Owner.',
+          viewNotAllowed: 'Your role does not open Cosmos AI in this tenant. Talk to the Owner or an Admin.',
           unknownPackage: "This package isn't available for your account. Pick another one.",
           unavailable: 'Buying credits is unavailable right now. Try again later.',
           generic: "We couldn't open the payment. Try again.",
@@ -261,6 +267,8 @@ export default defineMessages(
           'The first time you turn it on, the account gets {credits} trial credits, valid for {days} days.',
         enabled: 'Cosmos AI on',
         disabled: 'Cosmos AI off. Your balance stays saved.',
+        readOnly:
+          'Your role follows Cosmos AI: balance, usage and statement. Turning it on or off, buying credits and auto top-up stay with the Owner and whoever the Owner allows in Users and roles.',
         balanceTitle: 'Credits',
         balanceDescription: 'One balance for every Cosmos function.',
         available: 'Available credits',
@@ -476,7 +484,9 @@ export default defineMessages(
         errors: {
           forbidden: 'Tu sesión no abre el panel del cliente.',
           noTenant: 'Tu cuenta todavía no está vinculada a un tenant.',
-          notAllowed: 'Solo quien administra la cuenta puede comprar créditos.',
+          notAllowed:
+            'Tu rol no permite comprar créditos, cambiar la recarga automática ni activar o desactivar Cosmos AI. Hablá con el Dueño.',
+          viewNotAllowed: 'Tu rol no abre Cosmos AI en este tenant. Hablá con el Dueño o un Admin.',
           unknownPackage: 'Este paquete no está disponible para tu cuenta. Elegí otro.',
           unavailable: 'La compra de créditos no está disponible ahora. Probá de nuevo más tarde.',
           generic: 'No se pudo abrir el pago. Probá de nuevo.',
@@ -498,6 +508,8 @@ export default defineMessages(
           'La primera vez que la activás, la cuenta recibe {credits} créditos de prueba, válidos por {days} días.',
         enabled: 'Cosmos AI activada',
         disabled: 'Cosmos AI desactivada. El saldo sigue guardado.',
+        readOnly:
+          'Tu rol sigue Cosmos AI: saldo, uso y extracto. Activarla o desactivarla, comprar créditos y la recarga automática quedan con el Dueño y con quien él habilite en Usuarios y roles.',
         balanceTitle: 'Créditos',
         balanceDescription: 'Un solo saldo para todas las funciones de Cosmos.',
         available: 'Créditos disponibles',

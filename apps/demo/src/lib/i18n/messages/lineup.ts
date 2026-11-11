@@ -106,7 +106,12 @@ export default defineMessages(
       title: 'Grades e ofertas',
       description:
         'A Galaxie monta sozinha a grade de cada operadora a partir de fontes públicas: tudo entra como rascunho e só o aprovado sai na API. As operadoras acompanham a própria grade no portal e pedem revisão por lá.',
-      tabs: { revisao: 'Revisão', pedidos: 'Pedidos das operadoras', tenants: 'Operadora de cada tenant' },
+      tabs: {
+        revisao: 'Revisão',
+        pedidos: 'Pedidos das operadoras',
+        tenants: 'Operadora de cada tenant',
+        ajustes: 'Ajustes da grade',
+      },
       filters: {
         country: 'País',
         platform: 'Plataforma',
@@ -438,7 +443,12 @@ export default defineMessages(
         title: 'Lineups and offers',
         description:
           "Galaxie builds each operator's lineup on its own from public sources: everything comes in as a draft and only what is approved goes to the API. Operators follow their own lineup in the portal and request reviews there.",
-        tabs: { revisao: 'Review', pedidos: 'Operator requests', tenants: "Each tenant's operator" },
+        tabs: {
+          revisao: 'Review',
+          pedidos: 'Operator requests',
+          tenants: "Each tenant's operator",
+          ajustes: 'Lineup settings',
+        },
         filters: {
           country: 'Country',
           platform: 'Platform',
@@ -777,6 +787,7 @@ export default defineMessages(
           revisao: 'Revisión',
           pedidos: 'Pedidos de las operadoras',
           tenants: 'Operadora de cada tenant',
+          ajustes: 'Ajustes de la grilla',
         },
         filters: {
           country: 'País',

@@ -3,6 +3,8 @@
  * `requireAdmin` antes). Aqui entra o que o cliente nunca vê: custo real, tokens, modelo, multiplicador e margem.
  */
 import {
+  ASSISTANT_FUNCTION,
+  COSMOS_PROVIDERS,
   getWallet,
   listAllPackages,
   listFunctionDefs,
@@ -10,7 +12,9 @@ import {
   listPackages,
   listPurchasesInReview,
   listStaffActions,
+  providerHasCaller,
   walletsOverview,
+  type CosmosProvider,
   type LedgerEntry,
   type WalletOverviewRow,
   type WalletView,
@@ -46,6 +50,8 @@ export async function loadStaffWallets(): Promise<{
   rows: StaffWalletRow[];
   packages: Awaited<ReturnType<typeof listAllPackages>>;
   functions: Awaited<ReturnType<typeof listFunctionDefs>>;
+  /** Provedores que o assistente já sabe chamar (os outros aparecem indisponíveis no cadastro). */
+  assistantProviders: CosmosProvider[];
   usdBrl: number | null;
 }> {
   const db = builderDb();
@@ -59,6 +65,7 @@ export async function loadStaffWallets(): Promise<{
     rows: rows.map((r) => ({ ...r, marginUsd: marginUsd(r, usdBrl) })),
     packages,
     functions,
+    assistantProviders: COSMOS_PROVIDERS.filter((p) => providerHasCaller(ASSISTANT_FUNCTION, p)),
     usdBrl,
   };
 }
