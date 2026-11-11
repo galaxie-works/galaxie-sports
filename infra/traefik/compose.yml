@@ -7,7 +7,7 @@
 
 services:
   traefik:
-    image: traefik:v3.7.16
+    image: traefik:v3.7.17
     restart: unless-stopped
     # rede do host: as stacks não publicam porta; o Traefik chega a cada uma pelo gateway da rede dela
     network_mode: host
