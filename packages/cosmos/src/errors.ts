@@ -36,7 +36,11 @@ export type CosmosErrorCode =
   /** Provedor que a função ainda não sabe chamar (ex.: o assistente fora dos provedores com chamador). */
   | 'provider_unavailable'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
-  | 'invalid_amount';
+  | 'invalid_amount'
+  /** Configuração da moderação inválida ou acima do teto da Galaxie (#997). */
+  | 'invalid_moderation_config'
+  /** Outra pessoa salvou a configuração antes: recarregar e refazer. */
+  | 'version_conflict';
 
 export class CosmosError extends Error {
   readonly code: CosmosErrorCode;

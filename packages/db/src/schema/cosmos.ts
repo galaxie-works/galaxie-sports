@@ -440,3 +440,54 @@ export const staffAction = cosmos.table(
     index('staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
   ],
 );
+
+/** Onde vale uma configuração da moderação: o cliente todo, uma Sala do Jogo ou uma Comunidade (#997). */
+export const MODERATION_SCOPE_KINDS = ['tenant', 'room', 'community'] as const;
+export type ModerationScopeKind = (typeof MODERATION_SCOPE_KINDS)[number];
+
+/**
+ * Configuração da moderação da Cosmos (#997): recursos ligados, régua por categoria, escada de autonomia por ação,
+ * exceções por cargo e o texto que o torcedor vê. Uma linha para o cliente (`scope_kind = 'tenant'`, `scope_id = ''`)
+ * e uma por sala ou comunidade com exceção. O formato do `config` e a validação dentro do teto da Galaxie moram em
+ * `@galaxie/cosmos`; `version` sobe a cada mudança e o histórico fica em `moderation_config_log`.
+ */
+export const moderationConfig = cosmos.table(
+  'moderation_config',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    scopeKind: text('scope_kind').$type<ModerationScopeKind>().notNull(),
+    /** Id da sala ou da comunidade; vazio na linha do cliente. */
+    scopeId: text('scope_id').notNull().default(''),
+    config: jsonb('config').$type<Record<string, unknown>>().notNull(),
+    version: integer('version').notNull().default(1),
+    updatedBy: text('updated_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('moderation_config_scope_uq').on(t.tenantId, t.scopeKind, t.scopeId),
+    check('moderation_config_scope_kind', sql`${t.scopeKind} in ('tenant', 'room', 'community')`),
+    check('moderation_config_scope_id', sql`(${t.scopeKind} = 'tenant') = (${t.scopeId} = '')`),
+  ],
+);
+
+/** Cada versão gravada da configuração da moderação: quem mudou, quando e como ficou (`config` null = exceção removida). */
+export const moderationConfigLog = cosmos.table(
+  'moderation_config_log',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    scopeKind: text('scope_kind').$type<ModerationScopeKind>().notNull(),
+    scopeId: text('scope_id').notNull().default(''),
+    version: integer('version').notNull(),
+    config: jsonb('config').$type<Record<string, unknown>>(),
+    changedBy: text('changed_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('moderation_config_log_scope_idx').on(t.tenantId, t.scopeKind, t.scopeId, t.id.desc())],
+);
