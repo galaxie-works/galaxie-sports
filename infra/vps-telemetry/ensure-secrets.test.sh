@@ -28,24 +28,34 @@ chmod 644 "$WORK/.env"
 out="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh")"
 fan="$(val FAN_TOKEN_SECRET)"
 auth="$(val BETTER_AUTH_SECRET)"
+kek="$(val SETTINGS_KEK)"
 
 [[ "$fan" =~ ^[0-9a-f]{64}$ ]] && ok "vazio vira 64 hex" || ko "FAN_TOKEN_SECRET não foi gerado: '$fan'"
 [[ "$auth" =~ ^[0-9a-f]{64}$ ]] && ok "valor de exemplo vira 64 hex" || ko "BETTER_AUTH_SECRET segue de exemplo"
 [ "$(val STREAM_TOKEN_SECRET)" = ja-definido-0123456789abcdef0123456789abcdef ] && ok "valor existente fica" ||
   ko "STREAM_TOKEN_SECRET mudou"
+[[ "$kek" =~ ^[0-9a-f]{64}$ ]] && ok "SETTINGS_KEK ausente vira 64 hex" || ko "SETTINGS_KEK não foi gerada: '$kek'"
+[[ "$out" == *"WARN  SETTINGS_KEK nova"* ]] && ok "aviso de guardar a SETTINGS_KEK nova" || ko "sem aviso da SETTINGS_KEK nova"
 [ "$(val METRICS_TOKEN)" = troque-por-um-segredo ] && ok "METRICS_TOKEN só avisa" || ko "METRICS_TOKEN mudou"
 [[ "$out" == *"WARN  METRICS_TOKEN"* ]] && ok "aviso do METRICS_TOKEN" || ko "sem aviso do METRICS_TOKEN"
 [ -z "$(val STRIPE_SECRET_KEY)" ] && ok "chave de fornecedor fica vazia" || ko "STRIPE_SECRET_KEY foi gerada"
 [ "$(val API_DOMAIN)" = api.example.test ] && ok "o resto do .env fica" || ko "API_DOMAIN mudou"
 [ "$(grep -c '^FAN_TOKEN_SECRET=' "$WORK/.env")" = 1 ] && ok "uma linha por chave" || ko "FAN_TOKEN_SECRET duplicado"
-[[ "$out" != *"$fan"* && "$out" != *"$auth"* ]] && ok "valor não aparece na saída" || ko "valor vazou na saída"
+[[ "$out" != *"$fan"* && "$out" != *"$auth"* && "$out" != *"$kek"* ]] && ok "valor não aparece na saída" || ko "valor vazou na saída"
 [ "$(stat -c %a "$WORK/.env")" = 600 ] && ok ".env com 600" || ko ".env com $(stat -c %a "$WORK/.env")"
 ls "$WORK"/.env.segredos.* >/dev/null 2>&1 && ko "sobrou arquivo temporário" || ok "sem temporário"
 
 out2="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh")"
-[ "$(val FAN_TOKEN_SECRET)" = "$fan" ] && [ "$(val BETTER_AUTH_SECRET)" = "$auth" ] && ok "segunda rodada não troca" ||
+[ "$(val FAN_TOKEN_SECRET)" = "$fan" ] && [ "$(val BETTER_AUTH_SECRET)" = "$auth" ] && [ "$(val SETTINGS_KEK)" = "$kek" ] && ok "segunda rodada não troca" ||
   ko "segunda rodada trocou um segredo"
 [[ "$out2" == *"todos definidos"* ]] && ok "segunda rodada: nada a gerar" || ko "segunda rodada: '$out2'"
+
+# SETTINGS_KEK em rotação (nova,antiga) é valor em uso: nunca muda, e sem aviso de chave nova
+printf 'FAN_TOKEN_SECRET=\nSETTINGS_KEK=nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab\n' > "$WORK/kek.env"
+out3="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh" kek.env)"
+[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/kek.env")" = nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab ] &&
+  ok "SETTINGS_KEK existente fica" || ko "SETTINGS_KEK existente mudou"
+[[ "$out3" != *"SETTINGS_KEK nova"* ]] && ok "sem aviso quando a KEK já existe" || ko "aviso de KEK nova com KEK existente"
 
 # forma que o compose aceita mas o script não troca com segurança: para sem mexer
 printf 'export STREAM_TOKEN_SECRET=em-uso\nFAN_TOKEN_SECRET=\n' > "$WORK/export.env"

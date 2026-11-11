@@ -24,6 +24,10 @@ KEYS=(
   # painel (demo, site e console): sessões, e também os links dos anexos das sugestões e as referências u_/t_ das
   # issues. Só é gerado vazio ou com o valor de exemplo, que é público: aí trocar é o certo, mesmo invalidando isso tudo
   BETTER_AUTH_SECRET
+  # cofre das chaves trocadas no painel (#1087/#1089): todos os serviços Node abrem com ela as chaves gravadas em
+  # Ajustes → Credenciais. Gerada só quando falta; NUNCA troque nem apague: sem a mesma KEK, as chaves gravadas pelo
+  # painel não abrem mais e precisam ser cadastradas de novo (rotação só pelo runbook docs/runbooks/chaves-no-painel.md)
+  SETTINGS_KEK
 )
 # o Prometheus (projeto obs) lê o mesmo token só quando o obs sobe de novo: gerar aqui deixaria a coleta caída até lá.
 # Só avisa; troque à mão e suba o obs junto (deploy-gh.sh --project obs)
@@ -96,3 +100,7 @@ chmod 600 "$tmp"
 mv "$tmp" "$ENV_FILE"
 trap - EXIT
 echo "segredos internos gerados no $ENV_FILE: ${missing[*]}"
+if [[ " ${missing[*]} " == *" SETTINGS_KEK "* ]]; then
+  echo "WARN  SETTINGS_KEK nova: guarde uma cópia fora da VPS (cofre de senhas). Se ela for perdida ou trocada, as chaves"
+  echo "      gravadas em Ajustes → Credenciais não abrem mais e precisam ser cadastradas de novo"
+fi
