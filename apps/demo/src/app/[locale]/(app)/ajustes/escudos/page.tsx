@@ -61,10 +61,8 @@ export default async function CrestAdminPage({ searchParams }: PageProps<'/[loca
           >
             <Content searchParams={searchParams} />
           </Suspense>
-          {/* o acervo customizado de logos, que estava no Sistema (#1069) */}
-          <div id="assets" className="scroll-mt-20">
-            <OpsViewPanel view="crests" />
-          </div>
+          {/* o acervo customizado de logos, que estava no Sistema (#1069); o id="assets" é do bloco do painel */}
+          <OpsViewPanel view="crests" />
         </SettingsArea>
       </div>
     </>

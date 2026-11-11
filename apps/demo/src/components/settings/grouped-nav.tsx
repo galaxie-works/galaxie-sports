@@ -35,8 +35,9 @@ export interface NavGroup {
 }
 
 /**
- * Grupos abertos (decisão A6 do #1066): só o da página atual abre sozinho; o que a pessoa abre ou fecha fica lembrado
- * no navegador e vale nas próximas páginas. Sem `storageKey`, todos nascem abertos (painel do cliente, #991).
+ * Grupos abertos (decisão A6 do #1066): só o da página atual abre sozinho, e ele fica sempre aberto (um "fechado"
+ * lembrado não esconde o item aceso); os outros que a pessoa abre ficam lembrados no navegador e valem nas próximas
+ * páginas. Sem `storageKey`, todos nascem abertos (painel do cliente, #991).
  */
 function useGroupsOpen(storageKey: string | undefined, groups: readonly NavGroup[], active: string) {
   const [raw, setRaw] = useLocalStorage(storageKey ?? 'galaxie:menu', '{}');
@@ -50,7 +51,7 @@ function useGroupsOpen(storageKey: string | undefined, groups: readonly NavGroup
   }, [raw]);
   if (!storageKey) return null;
   return {
-    isOpen: (group: NavGroup) => saved[group.id] ?? group.items.some((i) => i.id === active),
+    isOpen: (group: NavGroup) => group.items.some((i) => i.id === active) || saved[group.id] === true,
     setOpen: (group: NavGroup, open: boolean) => setRaw(JSON.stringify({ ...saved, [group.id]: open })),
   };
 }

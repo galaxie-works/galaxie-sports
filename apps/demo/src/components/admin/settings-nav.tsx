@@ -29,7 +29,6 @@ import {
   MessagesSquare,
   MonitorPlay,
   MonitorSmartphone,
-  PanelLeftOpen,
   Radio,
   Scale,
   Search,
@@ -247,15 +246,6 @@ export function SettingsSearchField({ onOpen }: { onOpen?: () => void }) {
   );
 }
 
-/** Coluna de Ajustes escondida pelo ⇤ (telas estreitas): estado lembrado, do layout de Ajustes. */
-export interface SettingsColumnState {
-  hidden: boolean;
-  setHidden: (hidden: boolean) => void;
-}
-const ColumnContext = createContext<SettingsColumnState | null>(null);
-export const SettingsColumnProvider = ColumnContext.Provider;
-export const useSettingsColumn = () => useContext(ColumnContext);
-
 /**
  * Topo da área de trabalho de uma página de Ajustes (moldura `app-shell-14`, #1067): o caminho Ajustes / Grupo / Item
  * e, embaixo, a barra de abas da página (`tabs`), quando ela tem vistas. O menu fica na segunda coluna (layout de
@@ -273,7 +263,6 @@ export function SettingsArea({
 }) {
   const { t } = useI18n();
   const nav = t.ops.nav;
-  const column = useSettingsColumn();
   const group = active === SETTINGS_HOME.id ? null : settingsGroupOf(active);
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -292,18 +281,6 @@ export function SettingsArea({
           )}
           className="self-start md:hidden"
         />
-        {column?.hidden ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="hidden md:inline-flex"
-            aria-label={nav.show}
-            title={nav.show}
-            onClick={() => column.setHidden(false)}
-          >
-            <PanelLeftOpen aria-hidden="true" />
-          </Button>
-        ) : null}
         <Breadcrumb aria-label={nav.breadcrumb} className="hidden min-w-0 md:block">
           <BreadcrumbList>
             <BreadcrumbItem>

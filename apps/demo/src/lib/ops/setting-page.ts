@@ -14,6 +14,8 @@ export interface SettingPage {
   item: SettingsView;
   /** Bloco da página que mostra a linha do ajuste. */
   block: PanelBlock;
+  /** Busca da URL que abre a aba do bloco, quando ele não está na aba inicial (`aba=ajustes` em Grades e ofertas). */
+  query?: string;
 }
 
 /** Página de cada seção do registro, quando nenhuma exceção vale. */
@@ -60,7 +62,8 @@ export function settingPage(key: string): SettingPage | undefined {
     return { item: 'credentials', block: 'credentials' };
   }
   if ((MOVED_AI_MODEL_KEYS as readonly string[]).includes(key)) return { item: 'ai', block: 'ai' };
-  if (key.startsWith('LINEUP_')) return { item: 'lineup', block: 'lineup' };
+  // em Grades e ofertas os LINEUP_* ficam na aba Ajustes (a inicial é a Revisão)
+  if (key.startsWith('LINEUP_')) return { item: 'lineup', block: 'lineup', query: 'aba=ajustes' };
   if (def.section === 'live' && isPostgame(key)) return { item: 'postgame', block: 'postgame' };
   if (def.section === 'provider' && key.startsWith('APISPORTS_PLAN_')) {
     return { item: 'provider', block: 'sports' };
@@ -71,8 +74,10 @@ export function settingPage(key: string): SettingPage | undefined {
 /** Bloco do ajuste (para filtrar as linhas de um cartão); undefined fora do registro. */
 export const settingBlock = (key: string): PanelBlock | undefined => settingPage(key)?.block;
 
-/** Link para a linha do ajuste na página dele (`/ajustes/ia#AI_RIGHTS_MODEL`). */
+/** Link para a linha do ajuste na página dele (`/ajustes/ia#AI_RIGHTS_MODEL`, `/ajustes/grades?aba=ajustes#…`). */
 export function settingHref(key: string): string | null {
   const page = settingPage(key);
-  return page ? `${settingsItem(page.item).href}#${key}` : null;
+  if (!page) return null;
+  const query = page.query ? `?${page.query}` : '';
+  return `${settingsItem(page.item).href}${query}#${key}`;
 }
