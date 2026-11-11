@@ -379,6 +379,7 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
     'acessa o meusite ponto com agora',
     'entra no meusite ponto com hoje',
     'check out the meusite dot com now',
+    'entre al misitio punto com hoy',
   ])('palavra de chamada com artigo no meio é link: %s', (t) => {
     expect(chat(t)).toMatchObject({ action: 'block', reasons: ['link'] });
   });

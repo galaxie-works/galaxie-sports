@@ -450,7 +450,7 @@ const textAfter = (folded: string, m: RegExpMatchArray) =>
 /** Palavra de chamada antes do domínio por extenso (`acessa meusite ponto com agora`, `entra no meusite ponto com
  *  hoje`): é link, mesmo no meio. */
 const CALL_BEFORE =
-  /(?:^|[^\p{L}\p{N}])(?:(?:acessa|acesse|acessem|entra|visita|visite|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)(?:\s+(?:o|a|os|as|no|na|nos|nas|em|ao|el|la|en|al|the|on|to))?|(?:site|link|siga|segue|entre|entrem)(?:\s+(?:no|na|em|en|on))?)\s+$/u;
+  /(?:^|[^\p{L}\p{N}])(?:(?:acessa|acesse|acessem|entra|visita|visite|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)(?:\s+(?:o|a|os|as|no|na|nos|nas|em|ao|el|la|en|al|the|on|to))?|(?:site|link|siga|segue|entre|entrem)(?:\s+(?:no|na|em|en|on|al))?)\s+$/u;
 const calledHost = (folded: string, m: RegExpMatchArray) => CALL_BEFORE.test(folded.slice(0, m.index!));
 
 /** Domínio por extenso ou com ponto e espaço no meio da frase: talvez link, talvez texto comum (`um ponto com o
