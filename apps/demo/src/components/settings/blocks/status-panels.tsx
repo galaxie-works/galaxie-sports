@@ -38,7 +38,7 @@ import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 import type { OpsSetting, ServiceStatus } from '@/lib/ops/types';
 
-import { credentialGroup, groupCredentials, historyHref } from './logic';
+import { aiProviderKey, credentialGroup, groupCredentials, historyHref } from './logic';
 import { StatusList, type StatusItem } from './status-list';
 
 /** Ícone de cada credencial (as que não estão aqui usam o da seção). */
@@ -74,14 +74,18 @@ const GROUP_ICONS = {
 /**
  * Credenciais no padrão `settings-4` (#1076): as chaves marcadas como segredo, por seção (dados esportivos, IA,
  * infraestrutura, pagamentos). O servidor manda só `configured`: o valor nunca chega ao navegador. "Trocar" explica
- * onde trocar (o .env da VPS); "Testar" só nas chaves de IA, pela checagem da conta que já existe.
+ * onde trocar (o .env da VPS); "Testar" só na chave do provedor de IA ativo (AI_PROVIDER): a checagem da conta que já
+ * existe (`checkAiCreditNow`) confere só ele.
  */
 export function CredentialsList({
   settings,
+  aiProvider,
   title,
   description,
 }: {
   settings: readonly OpsSetting[];
+  /** Provedor de IA ativo (valor efetivo de AI_PROVIDER): só a chave dele tem "Testar". */
+  aiProvider?: string | null;
   title?: string;
   description?: string;
 }) {
@@ -110,7 +114,7 @@ export function CredentialsList({
         statusLabel: s.configured ? B.configured : B.missing,
         menu: [
           { label: B.change, icon: <KeyRound />, onSelect: () => setChanging(s) },
-          ...(credentialGroup(s.key) === 'ai'
+          ...(s.key === aiProviderKey(aiProvider)
             ? [
                 {
                   label: B.test,

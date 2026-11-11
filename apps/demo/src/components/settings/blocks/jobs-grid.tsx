@@ -27,6 +27,16 @@ import { isChanged } from './logic';
 import { SettingRow } from './setting-row';
 import { useHash } from './use-hash';
 
+/**
+ * Tira o hash da URL sem navegar (mantém o estado do histórico, que o roteador do Next usa) e avisa quem lê o hash:
+ * o `replaceState` não dispara `hashchange` sozinho.
+ */
+function clearHash() {
+  const { pathname, search } = window.location;
+  window.history.replaceState(window.history.state, '', `${pathname}${search}`);
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+}
+
 export interface JobRow {
   job: string;
   key: string;
@@ -40,7 +50,8 @@ const CRON_OFF = new Set(['off', 'false', 'disabled', '0']);
 /**
  * Agenda dos jobs em `data-grid` (#1075): busca no topo e uma tabela por área (ao vivo, dados, IA, conteúdo,
  * manutenção), com job, agenda, estado e última execução. "Editar agenda" abre a linha de ajuste de sempre num
- * diálogo: o salvamento é o mesmo, uma chave por vez. O link com a chave no hash já abre o diálogo dela.
+ * diálogo: o salvamento é o mesmo, uma chave por vez. O link com a chave no hash já abre o diálogo dela; fechar tira
+ * o hash da URL, para o mesmo link abrir de novo.
  */
 export function JobsGrid({
   rows,
@@ -65,8 +76,7 @@ export function JobsGrid({
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const hash = useHash();
-  const [dismissed, setDismissed] = useState<string | null>(null);
-  const fromHash = rows.some((r) => r.key === hash) && hash !== dismissed ? hash : null;
+  const fromHash = rows.some((r) => r.key === hash) ? hash : null;
   const openKey = editing ?? fromHash;
   const open = rows.find((r) => r.key === openKey) ?? null;
   const groups = groupJobs(rows, query);
@@ -114,7 +124,7 @@ export function JobsGrid({
         onOpenChange={(next) => {
           if (next) return;
           setEditing(null);
-          setDismissed(hash);
+          if (fromHash) clearHash();
         }}
       >
         <DialogContent className="sm:max-w-3xl">

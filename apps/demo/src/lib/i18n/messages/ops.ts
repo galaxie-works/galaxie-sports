@@ -1095,6 +1095,9 @@ export default defineMessages(
         planDescription: 'Plano contratado de cada API. Sem plano próprio, o esporte herda o plano padrão.',
         planOf: 'Plano: {sport}',
         inherits: 'herda o padrão',
+        resetBody:
+          'A sobrescrita do painel sai destas chaves e volta a valer o .env da VPS ou o padrão do código: {keys}. Cada chave fica registrada no histórico.',
+        bulkBlocked: 'Salve ou desfaça as alterações antes de ligar ou desligar todos.',
       },
       mirror: {
         title: 'Períodos por esporte',
@@ -1103,6 +1106,7 @@ export default defineMessages(
         estimate: '~{calls} chamadas/dia',
         noInventory: 'sem inventário',
         edit: 'Editar períodos',
+        editOf: 'Editar períodos: {sport}',
         editing: 'Editando',
         periodsOf: 'Períodos por endpoint · {sport}',
       },
@@ -1169,6 +1173,7 @@ export default defineMessages(
           description: 'O botão "Sugerir ou reportar algo" abre issue na repo {repo}.',
           noRepo: 'O botão "Sugerir ou reportar algo" abre issue na repo de sugestões (ainda sem repo).',
           unreadable: 'O token gravado não abre com a chave deste contêiner: grave de novo.',
+          feedbackLocked: 'Conecte o GitHub (repo e token) para ligar o botão.',
         },
       },
       ai: {
@@ -2709,6 +2714,9 @@ export default defineMessages(
             'Contracted plan of each API. Without its own plan, the sport inherits the default plan.',
           planOf: 'Plan: {sport}',
           inherits: 'inherits the default',
+          resetBody:
+            'The panel override is removed from these keys and the VPS .env or the code default applies again: {keys}. Each key is logged in the history.',
+          bulkBlocked: 'Save or undo your changes before turning all on or off.',
         },
         mirror: {
           title: 'Periods by sport',
@@ -2717,6 +2725,7 @@ export default defineMessages(
           estimate: '~{calls} calls/day',
           noInventory: 'no inventory',
           edit: 'Edit periods',
+          editOf: 'Edit periods: {sport}',
           editing: 'Editing',
           periodsOf: 'Periods by endpoint · {sport}',
         },
@@ -2786,6 +2795,7 @@ export default defineMessages(
             noRepo:
               'The "Suggest or report something" button opens an issue in the suggestions repo (no repo yet).',
             unreadable: 'The saved token does not open with this container key: save it again.',
+            feedbackLocked: 'Connect GitHub (repo and token) to turn the button on.',
           },
         },
         ai: {
@@ -4347,6 +4357,9 @@ export default defineMessages(
             'Plan contratado de cada API. Sin plan propio, el deporte hereda el plan por defecto.',
           planOf: 'Plan: {sport}',
           inherits: 'hereda el valor por defecto',
+          resetBody:
+            'Se borra lo guardado en el panel en estas claves y vuelve a regir el .env del VPS o el valor por defecto del código: {keys}. Cada clave queda registrada en el historial.',
+          bulkBlocked: 'Guarda o deshaz los cambios antes de encender o apagar todos.',
         },
         mirror: {
           title: 'Períodos por deporte',
@@ -4355,6 +4368,7 @@ export default defineMessages(
           estimate: '~{calls} llamadas/día',
           noInventory: 'sin inventario',
           edit: 'Editar períodos',
+          editOf: 'Editar períodos: {sport}',
           editing: 'Editando',
           periodsOf: 'Períodos por endpoint · {sport}',
         },
@@ -4425,6 +4439,7 @@ export default defineMessages(
             noRepo:
               'El botón "Sugerir o reportar algo" abre un issue en el repo de sugerencias (todavía sin repo).',
             unreadable: 'El token guardado no abre con la clave de este contenedor: guardalo de nuevo.',
+            feedbackLocked: 'Conecta GitHub (repo y token) para encender el botón.',
           },
         },
         ai: {

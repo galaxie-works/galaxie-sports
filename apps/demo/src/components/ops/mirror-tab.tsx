@@ -92,6 +92,7 @@ export function MirrorTab({ snapshot, timeZone }: Ctx) {
             variant={selected ? 'secondary' : 'outline'}
             size="sm"
             aria-pressed={selected}
+            aria-label={fill(MB.editOf, { sport: label })}
             onClick={() => setPicked(rowApi)}
           >
             {selected ? MB.editing : MB.edit}
@@ -198,7 +199,7 @@ function PeriodsEditor({
       <div className="flex flex-col gap-1.5 px-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <SourceBadge source={setting.source} />
-          <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[11px]">
+          <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-xs">
             {setting.key}
           </code>
           <span className="font-medium tabular-nums">{fill(M.estimate, { calls })}</span>
@@ -379,7 +380,7 @@ function GroupCell({ def }: { def: MirrorItemDef }) {
     <div className="flex flex-col">
       <span>{name(def.group)}</span>
       {extra.map(({ g, col }) => (
-        <span key={col} className="text-[11px]">
+        <span key={col} className="text-xs">
           {tierLabel(M, def, col)}: {name(g)}
         </span>
       ))}

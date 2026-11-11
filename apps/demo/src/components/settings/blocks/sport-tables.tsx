@@ -33,7 +33,14 @@ import { fill } from '@/lib/i18n/text';
 import type { OpsSetting } from '@/lib/ops/types';
 import { validationMessage } from '@/lib/ops/validation-message';
 
-import { bulkPostgameChanges, draftChanges, isChanged, postgameOnValue, sportsByLabel } from './logic';
+import {
+  bulkPostgameChanges,
+  draftChanges,
+  isChanged,
+  planSaveOps,
+  postgameOnValue,
+  sportsByLabel,
+} from './logic';
 import { SettingControl } from './setting-control';
 import { SportRowsTable } from './sport-rows-table';
 import { useSaveSettings } from './use-save-settings';
@@ -127,16 +134,21 @@ function DraftFooter({
   );
 }
 
-/** "Desligar todos" ou "Ligar todos", com confirmação: grava só as chaves de modo que mudam. */
+/**
+ * "Desligar todos" ou "Ligar todos", com confirmação: grava só as chaves de modo que mudam. Fica desligado
+ * (`blocked`) enquanto o rascunho tem mudanças sem salvar: gravar em lote limparia o rascunho.
+ */
 function BulkButton({
   on,
   count,
   pending,
+  blocked,
   onConfirm,
 }: {
   on: boolean;
   count: number;
   pending: boolean;
+  blocked: boolean;
   onConfirm: () => void;
 }) {
   const B = useI18n().t.ops.blocks.sports;
@@ -144,7 +156,13 @@ function BulkButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button variant="outline" size="sm" disabled={pending || count === 0} onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending || blocked || count === 0}
+        title={blocked ? B.bulkBlocked : undefined}
+        onClick={() => setOpen(true)}
+      >
         {on ? <Power /> : <PowerOff />}
         {on ? B.turnAllOn : B.turnAllOff}
       </Button>
@@ -190,6 +208,7 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
   const bulkOn = bulkPostgameChanges(settings, {}, true);
   const modeDef = settingDef(postgameModeKey(POSTGAME_APIS[0]!))!;
   const modes = (modeDef.options ?? []).filter((o) => o !== 'off');
+  const dirty = Object.keys(d.changes).length > 0;
 
   const rows = sportsByLabel(apis, T.apis).map(({ api, label }) => {
     const modeKey = postgameModeKey(api);
@@ -197,13 +216,14 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
     const mode = d.value(modeKey);
     const minutes = d.value(minKey);
     const on = mode !== 'off';
-    const changed = settings.some((s) => (s.key === modeKey || s.key === minKey) && isChanged(s));
+    const rowSettings = settings.filter((s) => s.key === modeKey || s.key === minKey);
     return {
       api,
       id: has(modeKey) ? modeKey : minKey,
       alsoIds: has(modeKey) && has(minKey) ? [minKey] : [],
       label,
-      changed,
+      changed: rowSettings.some(isChanged),
+      settings: rowSettings,
       description: on ? fill(B.postgameOn, { mode: optionLabel(T, modeDef, mode), minutes }) : B.postgameOff,
       controls: (
         <>
@@ -279,11 +299,15 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
           describe={describe}
           extra={
             <>
+              {dirty && (Object.keys(bulkOff).length || Object.keys(bulkOn).length) ? (
+                <span className="text-muted-foreground text-xs">{B.bulkBlocked}</span>
+              ) : null}
               {Object.keys(bulkOff).length ? (
                 <BulkButton
                   on={false}
                   count={Object.keys(bulkOff).length}
                   pending={pending}
+                  blocked={dirty}
                   onConfirm={() => saveAll(bulkOff, T.feedback.saved, d.clear)}
                 />
               ) : null}
@@ -292,6 +316,7 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
                   on
                   count={Object.keys(bulkOn).length}
                   pending={pending}
+                  blocked={dirty}
                   onConfirm={() => saveAll(bulkOn, T.feedback.saved, d.clear)}
                 />
               ) : null}
@@ -305,7 +330,8 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
 
 /**
  * Plano por esporte (#1075): uma linha por API com o `select` do plano; vazio herda o plano padrão (a descrição diz
- * qual). As chaves críticas pedem confirmação antes de gravar, como na linha de ajuste.
+ * qual) e, ao salvar, apaga a sobrescrita em vez de gravar texto vazio (`planSaveOps`). As chaves críticas pedem
+ * confirmação antes de gravar, como na linha de ajuste.
  */
 export function PlanTable({
   settings,
@@ -322,7 +348,7 @@ export function PlanTable({
   const T = t.ops;
   const B = T.blocks.sports;
   const d = useDraft(settings);
-  const { pending, saveAll } = useSaveSettings();
+  const { pending, apply } = useSaveSettings();
   const apis = APISPORTS_APIS.filter((api) => settings.some((s) => s.key === planKey(api)));
 
   const rows = sportsByLabel(apis, T.apis).map(({ api, label }) => {
@@ -335,6 +361,7 @@ export function PlanTable({
       id: key,
       label,
       changed: isChanged(s),
+      settings: [s],
       description: value
         ? displayValue(T, def, value, { locale })
         : `${B.inherits} · ${displayValue(T, def, null, { locale, inheritPlan })}`,
@@ -370,7 +397,7 @@ export function PlanTable({
           invalid={d.invalid}
           pending={pending}
           onUndo={d.clear}
-          onSave={() => saveAll(d.changes, T.feedback.saved, d.clear)}
+          onSave={() => apply(planSaveOps(settings, d.changes), T.feedback.saved, d.clear)}
           describe={describe}
         />
       }

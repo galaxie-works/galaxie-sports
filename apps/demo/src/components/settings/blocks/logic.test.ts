@@ -3,6 +3,7 @@ import {
   POSTGAME_APIS,
   SETTINGS,
   isSecret,
+  planKey,
   postgameModeKey,
   settingDef,
 } from '@galaxie/runtime-config';
@@ -28,8 +29,11 @@ import {
   historyHref,
   isChanged,
   isRequired,
+  aiProviderKey,
   maskSecret,
+  planSaveOps,
   postgameOnValue,
+  resettableKeys,
   rulerMarks,
   spendParts,
   sportsByLabel,
@@ -137,6 +141,33 @@ describe('pós-jogo: Desligar todos / Ligar todos', () => {
   });
 });
 
+describe('linha do esporte: voltar ao padrão e "herda o padrão"', () => {
+  const [a, b, c] = APISPORTS_APIS.map((api) => planKey(api));
+
+  it('o "Voltar ao padrão do .env" da linha apaga só as chaves com sobrescrita (válida ou não)', () => {
+    expect(
+      resettableKeys([
+        setting(a!, { source: 'db', value: 'pro' }),
+        setting(b!, { overrideInvalid: true, override: 'x' }),
+        setting(c!, { source: 'env', value: 'free' }),
+      ]),
+    ).toEqual([a, b]);
+  });
+
+  it('"herda o padrão" apaga a sobrescrita em vez de gravar vazio; o resto é gravado', () => {
+    const settings = [
+      setting(a!, { source: 'db', value: 'pro' }),
+      setting(b!, { source: 'db', value: 'pro' }),
+      setting(c!, { source: 'db', value: 'pro', envValue: 'free' }),
+    ];
+    expect(planSaveOps(settings, { [a!]: '', [b!]: 'mega', [c!]: '' })).toEqual({
+      reset: [a],
+      // com valor no .env, apagar voltaria a ele: herdar exige gravar o vazio
+      save: { [b!]: 'mega', [c!]: '' },
+    });
+  });
+});
+
 describe('esportes em ordem alfabética do idioma', () => {
   const order = (locale: 'pt-BR' | 'en' | 'es-AR') =>
     sportsByLabel(APISPORTS_APIS, clientDictionary(locale).ops.apis).map((s) => s.label);
@@ -238,6 +269,17 @@ describe('IA interna', () => {
     ]);
     expect(parts.map((p) => p.agent)).toEqual(['context', 'wtw', 'review']);
     expect(others).toBe(0.12);
+  });
+});
+
+describe('Credenciais: "Testar" só no provedor ativo', () => {
+  it('a chave de API do provedor de AI_PROVIDER', () => {
+    expect(aiProviderKey('openai')).toBe('OPENAI_API_KEY');
+    expect(aiProviderKey('anthropic')).toBe('ANTHROPIC_API_KEY');
+    expect(aiProviderKey('gemini')).toBe('GEMINI_API_KEY');
+    expect(aiProviderKey(null)).toBeNull();
+    for (const key of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY'])
+      expect(settingDef(key)).toBeTruthy();
   });
 });
 

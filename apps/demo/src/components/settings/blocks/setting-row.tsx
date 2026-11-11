@@ -33,7 +33,7 @@ import type { OpsSetting } from '@/lib/ops/types';
 import { validationMessage } from '@/lib/ops/validation-message';
 import { cn } from '@/lib/utils';
 
-import { canReset, historyHref, isChanged, isRequired } from './logic';
+import { canReset, controlKind, historyHref, isChanged, isRequired } from './logic';
 import { SettingControl } from './setting-control';
 
 export interface SettingRowProps {
@@ -49,6 +49,8 @@ export interface SettingRowProps {
   actions?: React.ReactNode;
   /** `nested`: dentro de um cartão (integração, agente), sempre empilhada e sem borda de lista. */
   variant?: 'default' | 'nested';
+  /** Controle travado, com este aviso embaixo (ex.: ligar as sugestões sem o GitHub conectado). */
+  lockedHint?: string;
 }
 
 /** Texto do controle a partir do valor efetivo (vazio/nulo vira campo vazio). */
@@ -69,6 +71,7 @@ export function SettingRow({
   aside,
   actions,
   variant = 'default',
+  lockedHint,
 }: SettingRowProps) {
   const def = settingDef(setting.key)!;
   const { t, locale } = useI18n();
@@ -104,6 +107,8 @@ export function SettingRow({
   const fallback = setting.envValue ?? setting.defaultValue;
   const runs = def.type === 'cron' ? (preview ?? setting.nextRuns) : [];
   const nested = variant === 'nested';
+  // o switch fica no tamanho dele, encostado à direita; os outros controles ocupam a largura
+  const isSwitch = controlKind(def, text.unit) === 'switch';
 
   // de onde vem o valor, o que há no .env e o padrão, numa linha só de meta
   const origin =
@@ -164,15 +169,17 @@ export function SettingRow({
 
       <div className={cn('flex w-full flex-col gap-2', !nested && 'md:w-80 md:shrink-0 lg:w-96')}>
         <div className="flex items-start gap-2">
-          <SettingControl
-            def={def}
-            value={draft}
-            onChange={change}
-            disabled={pending}
-            inheritPlan={inheritPlan}
-            defaultValue={setting.defaultValue}
-            className="min-w-0 flex-1"
-          />
+          <div className={cn('flex min-w-0 flex-1', isSwitch && 'justify-end self-center')}>
+            <SettingControl
+              def={def}
+              value={draft}
+              onChange={change}
+              disabled={pending || Boolean(lockedHint)}
+              inheritPlan={inheritPlan}
+              defaultValue={setting.defaultValue}
+              {...(isSwitch ? {} : { className: 'min-w-0 flex-1' })}
+            />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -193,6 +200,7 @@ export function SettingRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {lockedHint ? <p className="text-muted-foreground text-xs">{lockedHint}</p> : null}
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
         {def.type === 'cron' ? (
           <div className="text-muted-foreground text-xs">

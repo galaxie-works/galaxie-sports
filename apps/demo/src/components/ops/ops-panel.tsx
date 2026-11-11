@@ -308,6 +308,7 @@ function SectionCard({
       {secrets.length ? (
         <CredentialsList
           settings={secrets}
+          aiProvider={effective(snapshot, 'AI_PROVIDER')}
           {...(onlyTable && !postgame.length && !plans.length
             ? { title: text.title, description: text.description }
             : {})}
@@ -458,7 +459,7 @@ function QuotaCard({ snapshot, timeZone }: Ctx) {
                 </span>
               </div>
               <Progress value={pct} />
-              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-[11px]">
+              <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                 {(['DAILY', 'LIVE', 'BOOTSTRAP', 'ADHOC'] as const).map((p) => (
                   <span key={p}>
                     {T.status.priorities[p]} {n(q.used[p] ?? 0)}
@@ -699,7 +700,7 @@ function LastRun({ job, timeZone, now }: { job: JobStatus; timeZone: string; now
         </span>
       ) : null}
       {last?.error ? (
-        <code className="text-destructive font-mono text-[11px] break-all">{last.error}</code>
+        <code className="text-destructive font-mono text-xs break-all">{last.error}</code>
       ) : null}
     </div>
   );
@@ -761,7 +762,7 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
                     <span className="text-sm">
                       {T.jobs.names[job.name as keyof typeof T.jobs.names]?.label ?? job.name}
                     </span>
-                    <span className="text-muted-foreground font-mono text-[11px]">
+                    <span className="text-muted-foreground font-mono text-xs">
                       {job.name} · {T.services[job.service]}
                     </span>
                   </div>
@@ -885,7 +886,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm">{label(h.key)}</span>
-                        <code className="text-muted-foreground font-mono text-[11px]">{h.key}</code>
+                        <code className="text-muted-foreground font-mono text-xs">{h.key}</code>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs whitespace-normal">

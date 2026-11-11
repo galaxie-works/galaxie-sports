@@ -115,6 +115,29 @@ export function bulkPostgameChanges(
   return out;
 }
 
+/** Chaves da linha que o "Voltar ao padrão do .env" apaga: só as que têm sobrescrita no painel (válida ou não). */
+export const resettableKeys = (settings: readonly OpsSetting[]): string[] =>
+  settings.filter(canReset).map((s) => s.key);
+
+/**
+ * O que o "Salvar" do plano por esporte faz com cada mudança: "herda o padrão" (vazio) apaga a sobrescrita
+ * (`reset`) em vez de gravar texto vazio. Só quando o .env não tem valor próprio: aí apagar voltaria ao do .env, e
+ * herdar exige gravar o vazio mesmo.
+ */
+export function planSaveOps(
+  settings: readonly OpsSetting[],
+  changes: Readonly<Record<string, string>>,
+): { save: Record<string, string>; reset: string[] } {
+  const save: Record<string, string> = {};
+  const reset: string[] = [];
+  for (const [key, value] of Object.entries(changes)) {
+    const s = settings.find((x) => x.key === key);
+    if (value === '' && s && canReset(s) && !s.envValue) reset.push(key);
+    else save[key] = value;
+  }
+  return { save, reset };
+}
+
 /** Rascunho → só o que difere do valor efetivo (o que o "Salvar" grava, uma chave por vez). */
 export function draftChanges(
   settings: readonly OpsSetting[],
@@ -148,6 +171,10 @@ const GROUP_OF: Readonly<Record<string, CredentialGroup>> = {
   STRIPE_SECRET_KEY: 'payments',
   STRIPE_WEBHOOK_SECRET: 'payments',
 };
+
+/** Chave de API do provedor de IA (AI_PROVIDER): é a única que o "Testar" confere (checkAiCreditNow). */
+export const aiProviderKey = (provider: string | null | undefined): string | null =>
+  provider ? `${provider.toUpperCase()}_API_KEY` : null;
 
 /** Seção da chave em Credenciais: dados esportivos, IA, pagamentos; o resto é infraestrutura. */
 export const credentialGroup = (key: string): CredentialGroup => GROUP_OF[key] ?? 'infra';

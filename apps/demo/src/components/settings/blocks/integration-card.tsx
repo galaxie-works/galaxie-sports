@@ -18,8 +18,9 @@ const STATE_VARIANT = {
 
 /**
  * Cartão de integração no desenho do bloco `settings-6` (#1077), com componentes gratuitos: `icon-tile`, nome,
- * descrição e estado; à direita a ação (ir para Credenciais, configurar). Conectado, o cartão abre os seus ajustes
- * (`children`) logo abaixo. O cartão só mostra o estado: nenhum segredo é gravado aqui.
+ * descrição e estado; à direita a ação (ir para Credenciais, configurar). Os ajustes (`children`) vêm logo abaixo,
+ * em qualquer estado: quem chama trava o que não vale sem a integração (a âncora da chave nunca some). O cartão só
+ * mostra o estado: nenhum segredo é gravado aqui.
  */
 export function IntegrationCard({
   id,
@@ -37,14 +38,13 @@ export function IntegrationCard({
   description?: ReactNode;
   state: IntegrationState;
   action?: ReactNode;
-  /** Os ajustes da integração, visíveis só quando conectada (ou precisando de atenção). */
+  /** Os ajustes da integração (sempre visíveis; desconectada, quem chama os trava). */
   children?: ReactNode;
   /** Sempre visível, depois dos ajustes (ex.: o formulário que liga a integração). */
   setup?: ReactNode;
 }) {
   const { t } = useI18n();
   const B = t.ops.blocks.integrations;
-  const open = state !== 'disconnected' && children;
   return (
     <Frame id={id} className="scroll-mt-24" data-integration-state={state}>
       <FramePanel className="flex flex-col gap-3">
@@ -66,7 +66,7 @@ export function IntegrationCard({
           </ItemContent>
           {action ? <ItemActions>{action}</ItemActions> : null}
         </Item>
-        {open ? <div className="flex flex-col gap-2">{children}</div> : null}
+        {children ? <div className="flex flex-col gap-2">{children}</div> : null}
         {setup}
       </FramePanel>
     </Frame>

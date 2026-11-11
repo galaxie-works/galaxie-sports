@@ -15,8 +15,9 @@ import { CREDENTIALS_HREF, githubIntegrationState } from './logic';
 import { SettingRow } from './setting-row';
 
 /**
- * GitHub do "Sugerir ou reportar algo" no padrão `settings-6` (#1077): o estado da ligação com a repo de sugestões;
- * conectado, abre o liga/desliga do botão (FEEDBACK_ENABLED). Repo e token continuam no formulário de sempre (o token
+ * GitHub do "Sugerir ou reportar algo" no padrão `settings-6` (#1077): o estado da ligação com a repo de sugestões e
+ * o liga/desliga do botão (FEEDBACK_ENABLED), sempre na página (é a âncora da chave). Desconectado e desligado, o
+ * liga/desliga fica travado com um aviso; ligado, continua dando para desligar ou voltar ao padrão. Repo e token continuam no formulário de sempre (o token
  * é só-escrita e fica cifrado no painel); sem a chave do contêiner para cifrar, o cartão leva a Credenciais.
  */
 export function GithubIntegration({ snapshot, timeZone }: { snapshot: OpsSnapshot; timeZone: string }) {
@@ -57,6 +58,9 @@ export function GithubIntegration({ snapshot, timeZone }: { snapshot: OpsSnapsho
             timeZone={timeZone}
             now={snapshot.generatedAt}
             variant="nested"
+            {...(state === 'disconnected' && enabled.value !== 'on'
+              ? { lockedHint: B.github.feedbackLocked }
+              : {})}
           />
         </Item>
       ) : null}

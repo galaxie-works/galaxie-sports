@@ -482,7 +482,11 @@ async function readCredit(): Promise<{ credit: CreditStatus | null; pending: boo
   };
 }
 
-async function readHistory(): Promise<HistoryRow[]> {
+/**
+ * As 100 mudanças mais recentes do histórico de ajustes. Com `key` (o `?chave=` do "Ver no histórico"), o filtro vai
+ * no banco: as 100 mais recentes daquela chave, e não só as que caberiam nas 100 mais recentes de todas.
+ */
+export async function readHistory(key?: string | null): Promise<HistoryRow[]> {
   const rows = await query<{
     id: string;
     key: string;
@@ -492,8 +496,12 @@ async function readHistory(): Promise<HistoryRow[]> {
     changed_by: string;
     changed_at: Date;
   }>(
-    `select id, key, action, old_value, new_value, changed_by, changed_at
-       from ops.runtime_setting_log order by changed_at desc, id desc limit 100`,
+    key
+      ? `select id, key, action, old_value, new_value, changed_by, changed_at
+           from ops.runtime_setting_log where key = $1 order by changed_at desc, id desc limit 100`
+      : `select id, key, action, old_value, new_value, changed_by, changed_at
+           from ops.runtime_setting_log order by changed_at desc, id desc limit 100`,
+    key ? [key] : [],
   );
   return rows.map((r) => ({
     id: Number(r.id),
@@ -657,8 +665,12 @@ async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
 /**
  * Tudo que o painel mostra, numa leitura. Quem chama confere a sessão de admin (página e rota usam
  * `requireAdmin`/`adminFromHeaders`); esta função não lê cookies, para servir também à checagem do smoke.
+ * `historyKey` filtra o histórico de ajustes no banco (o `?chave=` da página do histórico).
  */
-export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapshot> {
+export async function readOpsSnapshot(
+  now: Date = new Date(),
+  options: { historyKey?: string | null } = {},
+): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
   const { settings, services, feedback } = await readSettings(now);
   const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror] =
@@ -667,7 +679,7 @@ export async function readOpsSnapshot(now: Date = new Date()): Promise<OpsSnapsh
       readQuota(dayUtc, settings),
       readLlm(now, settings),
       readCredit(),
-      readHistory(),
+      readHistory(options.historyKey),
       readRequests(),
       readQuality(),
       readYoutube(now, settings),

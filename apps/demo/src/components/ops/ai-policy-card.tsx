@@ -108,7 +108,7 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
             min={USD_MIN}
             max={usdMax}
             step={0.5}
-            marks={rulerMarks(0, usdMax)}
+            marks={rulerMarks(USD_MIN, usdMax)}
             value={usd ?? USD_MIN}
             format={(v) => `US$ ${money(v)}`}
             display={usd === null ? T.unlimited : undefined}
